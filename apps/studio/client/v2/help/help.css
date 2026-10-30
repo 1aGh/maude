@@ -1,0 +1,997 @@
+/* Help surfaces: the help modal, What's new + the tour, Report a bug (V2-8.0: their rules left the retired styles/ layer files). */
+
+/* ── V2-8.0: rules moved here from the retired styles/ layer files, in their original order and ahead of this file's own rules, so the cascade is unchanged. ── */
+
+/* from styles/3-shell-maude.css */
+@layer shell {
+  /* fold-back CTA (Task 7) — the one filled action in the Version section. Compact:
+ * type-sm title + type-xs sub + tight padding, so it reads as a strong row, not a
+ * giant banner. */
+  .rb-fold {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    width: 100%;
+    text-align: left;
+    margin: var(--space-1) 0;
+    padding: var(--space-1) var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: var(--accent);
+    color: var(--accent-fg);
+    cursor: pointer;
+    transition: background var(--dur-soft) var(--ease-out);
+  }
+
+  .rb-fold:hover {
+    background: var(--accent-hover);
+  }
+
+  .rb-fold:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    /* fold-back confirm sheet (modal over the shell). */
+    .rb-fold {
+      transition-duration: 1ms;
+    }
+  }
+}
+
+/* from styles/4-components.css */
+@layer components {
+  /* ----- Help modal -----
+   Hosts the cheatsheet that used to live in the left sidebar. Hard-edge card
+   + offset shadow per project DS — no blur, no scrim alpha higher than the
+   page bg already provides. */
+  .help-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: color-mix(in oklch, var(--bg-0) 70%, transparent);
+    z-index: 200;
+    display: grid;
+    place-items: center;
+    padding: var(--space-4);
+  }
+
+  .help-modal {
+    background: var(--bg-1);
+    border: 1px solid var(--fg-0);
+    box-shadow: 8px 8px 0 var(--fg-0);
+    width: min(720px, 100%);
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    font-family: var(--font-mono);
+  }
+
+  .help-modal-hd {
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--fg-0);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg-2);
+  }
+
+  .help-modal-hd .title {
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-size: var(--type-xs);
+    color: var(--fg-0);
+  }
+
+  .help-modal-hd .sku {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    color: var(--fg-2);
+    text-transform: uppercase;
+  }
+
+  .help-modal-close {
+    background: transparent;
+    border: 1px solid var(--border-default);
+    color: var(--fg-1);
+    cursor: pointer;
+    width: 22px;
+    height: 22px;
+    display: grid;
+    place-items: center;
+    font-size: 14px;
+    line-height: 1;
+    font-family: var(--font-mono);
+  }
+
+  .help-modal-close:hover {
+    background: var(--bg-3);
+    color: var(--fg-0);
+    border-color: var(--border-strong);
+  }
+
+  .help-modal-close:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 var(--focus-ring-width) var(--focus-ring);
+  }
+
+  .help-modal-body {
+    padding: var(--space-3) var(--space-4);
+    overflow-y: auto;
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+  }
+
+  /* S6.15 — "Add the guide canvases to this project": one row above the shortcut sections. */
+  .help-modal-guides {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+    padding-bottom: var(--space-3);
+    margin-bottom: var(--space-2);
+    border-bottom: 1px solid var(--border-default);
+  }
+
+  .help-modal-guides-status {
+    color: var(--fg-2);
+  }
+
+  .help-modal-body::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .help-modal-body::-webkit-scrollbar-thumb {
+    background: var(--border-default);
+  }
+
+  /* Watch-the-intro player (DDR-166 Phase 1 / T2) — wider modal, no padding
+   around the video so it fills edge-to-edge. */
+  .help-modal--wide {
+    width: min(960px, 100%);
+  }
+
+  .intro-video-body {
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .intro-video-el {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: #000;
+  }
+
+  .help-modal-body details {
+    margin: 0 0 var(--space-2);
+    border-bottom: 1px solid var(--border-subtle);
+    padding-bottom: var(--space-2);
+  }
+
+  .help-modal-body details:last-child {
+    border-bottom: 0;
+  }
+
+  .help-modal-body details > summary {
+    cursor: pointer;
+    padding: var(--space-2) 0;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-size: 11px;
+    color: var(--fg-0);
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .help-modal-body details > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .help-modal-body details > summary::before {
+    content: "▸";
+    color: var(--fg-2);
+    font-size: 10px;
+    width: 12px;
+  }
+
+  .help-modal-body details[open] > summary::before {
+    content: "▾";
+  }
+
+  .help-modal-body ul,
+  .help-modal-body ol {
+    margin: 0;
+    padding: 0 0 var(--space-2) var(--space-4);
+    list-style: none;
+    font-size: 11px;
+    line-height: 1.7;
+  }
+
+  .help-modal-body li {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    padding: 2px 0;
+  }
+
+  .help-modal-body li > span {
+    color: var(--fg-2);
+    font-size: 10px;
+    margin-left: auto;
+    text-align: right;
+  }
+
+  .help-modal-body kbd {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    background: var(--bg-2);
+    border: 1px solid var(--border-default);
+    padding: 1px 5px;
+    color: var(--fg-0);
+  }
+
+  .help-modal-body code {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--accent);
+    background: var(--accent-tint);
+    padding: 1px 4px;
+  }
+
+  .help-modal-body code i {
+    font-style: normal;
+    color: var(--fg-2);
+  }
+
+  .help-modal-body ul.cmds li,
+  .help-modal-body ul.files li {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+
+  .help-modal-body ul.cmds li > span,
+  .help-modal-body ul.files li > span {
+    margin-left: 0;
+    text-align: left;
+  }
+
+  /* ───────── What's New (badge · toast · panel) — feature-in-app-whats-new-tour ───────── */
+  @keyframes mdcc-wn-rise {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .mdcc-wn-panel {
+    width: min(560px, 92vw);
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-1);
+    color: var(--fg-0);
+    border: 1px solid var(--bg-3);
+    border-radius: var(--radius-md);
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+  }
+
+  .mdcc-wn-panel__body {
+    overflow-y: auto;
+    padding: 8px 14px 16px;
+  }
+
+  .mdcc-wn-empty {
+    color: var(--fg-2);
+    padding: 16px 0;
+  }
+
+  .mdcc-wn-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .mdcc-wn-item {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--bg-3);
+  }
+
+  .mdcc-wn-item:last-child {
+    border-bottom: none;
+  }
+
+  .mdcc-wn-item__hd {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+
+  .mdcc-wn-item__title {
+    font-weight: 600;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .mdcc-wn-item__ver {
+    color: var(--fg-2);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .mdcc-wn-item__summary {
+    color: var(--fg-2);
+    margin: 0 0 4px;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .mdcc-wn-item__more {
+    color: var(--accent);
+    font-size: 11px;
+    text-decoration: none;
+  }
+
+  .mdcc-wn-item__more:hover {
+    text-decoration: underline;
+  }
+
+  .mdcc-wn-item.is-unseen .mdcc-wn-item__title::after {
+    content: "";
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-left: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    vertical-align: middle;
+  }
+
+  .mdcc-wn-kind {
+    text-transform: uppercase;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 2px 5px;
+    border-radius: var(--radius-sm, 2px);
+    background: var(--accent-tint);
+    color: var(--accent);
+  }
+
+  /* ───────── Guided tour (overlay) — feature-in-app-whats-new-tour Phase 3 ───────── */
+  .mdcc-tour {
+    position: fixed;
+    inset: 0;
+    z-index: 10050;
+  }
+
+  .mdcc-tour__scrim {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+  }
+
+  .mdcc-tour__spot {
+    position: fixed;
+    border-radius: 6px;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
+    outline: 2px solid var(--accent);
+    outline-offset: 0;
+    pointer-events: none;
+    transition:
+      top 0.2s ease,
+      left 0.2s ease,
+      width 0.2s ease,
+      height 0.2s ease;
+  }
+
+  .mdcc-tour__card {
+    position: fixed;
+    z-index: 10051;
+    background: var(--bg-1);
+    color: var(--fg-0);
+    border: 1px solid var(--bg-3);
+    border-radius: var(--radius-md);
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4);
+    padding: 16px;
+    font: 400 13px / 1.5 var(--font-body, system-ui, sans-serif);
+  }
+
+  .mdcc-tour__step {
+    font-size: 10px;
+    color: var(--fg-2);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .mdcc-tour__title {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 6px;
+  }
+
+  .mdcc-tour__body {
+    color: var(--fg-2);
+    margin-bottom: 14px;
+  }
+
+  /* "Do this one thing" hint — shown when a step needs a canvas open or an element
+   ⌘-clicked (the cross-origin canvas means the tour can't do it for you). */
+  .mdcc-tour__hint {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: -4px 0 14px;
+    padding: 8px 10px;
+    border-radius: var(--radius-md);
+    background: color-mix(in oklab, var(--accent) 12%, transparent);
+    border: 1px solid color-mix(in oklab, var(--accent) 35%, transparent);
+    color: var(--fg-1);
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .mdcc-tour__hint-dot {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: mdcc-tour-pulse 1.4s ease-in-out infinite;
+  }
+
+  @keyframes mdcc-tour-pulse {
+    0%,
+    100% {
+      opacity: 0.4;
+      transform: scale(0.85);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.15);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mdcc-tour__hint-dot {
+      animation: none;
+    }
+  }
+
+  .mdcc-tour__actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .mdcc-tour__nav {
+    display: flex;
+    gap: 8px;
+  }
+
+  .mdcc-tour__skip {
+    background: transparent;
+    border: none;
+    color: var(--fg-2);
+    cursor: pointer;
+    font-size: 12px;
+  }
+
+  .mdcc-tour__skip:hover {
+    color: var(--fg-1);
+  }
+
+  .mdcc-tour__back {
+    background: transparent;
+    border: 1px solid var(--bg-3);
+    color: var(--fg-1);
+    border-radius: var(--radius-md);
+    padding: 5px 12px;
+    cursor: pointer;
+    font-size: 12px;
+  }
+
+  .mdcc-tour__next {
+    background: var(--accent);
+    color: var(--accent-fg);
+    border: none;
+    border-radius: var(--radius-md);
+    padding: 5px 14px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 12px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    /* First-run nudge (offers the usage tour) — reuses toast positioning. */
+    .mdcc-tour__spot {
+      transition: none;
+    }
+  }
+
+  /* "Take tour" affordance inside the What's New panel. */
+  .mdcc-wn-item__tour {
+    display: inline-block;
+    margin-left: 10px;
+    padding: 1px 8px;
+    background: var(--accent-tint);
+    color: var(--accent);
+    border: none;
+    border-radius: var(--radius-sm, 2px);
+    font: 600 10px / 1.4 var(--font-body, system-ui, sans-serif);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+  }
+
+  .mdcc-wn-item__tour:hover {
+    background: var(--accent);
+    color: var(--accent-fg);
+  }
+}
+
+/* from styles/4-components-maude.css */
+@layer components {
+  /* ── Report-a-Bug dialog (feature-bug-report-button) ─────────────────────────
+ * Rides the shared .sh-scrim/.sh-dialog shell (v2/shell/floating-panels.css); rb-* covers
+ * only what the shell doesn't: the consent checklist, screenshot tiles, and
+ * the redaction overlay. Same DS voice as the generate/github dialogs —
+ * body-font copy, mono uppercase section heads, accent focus rings. */
+  .rb-dialog {
+    width: 560px;
+  }
+
+  .rb-dialog .rb-body {
+    max-height: 68vh;
+    overflow-y: auto;
+  }
+
+  .rb-dialog .rb-label {
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+    font-weight: 600;
+    color: var(--fg-0);
+  }
+
+  /* base field styling joins the shared .gi-dialog/.cp-dialog recipe in
+ * v2/shell/floating-panels.css (F3 — one source for field + focus ring); only the
+ * rb-specific sizing lives here. */
+  .rb-dialog .textarea {
+    resize: vertical;
+    min-height: 96px;
+  }
+
+  .rb-dialog .rb-hint {
+    font-family: var(--font-body);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    margin: 0;
+  }
+
+  .rb-dialog .rb-error {
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+    color: var(--status-error);
+    margin: 0;
+  }
+
+  .rb-dialog .rb-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .rb-dialog .rb-section-hd {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    color: var(--fg-2);
+  }
+
+  .rb-dialog .rb-check {
+    display: flex;
+    gap: var(--space-2);
+    align-items: baseline;
+    cursor: pointer;
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
+
+  .rb-dialog .rb-check input {
+    accent-color: var(--accent);
+  }
+
+  .rb-dialog .rb-check code {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-0);
+    background: var(--bg-3);
+    border-radius: var(--radius-xs);
+    padding: 1px 5px;
+    overflow-wrap: anywhere;
+  }
+
+  .rb-dialog .rb-details summary {
+    cursor: pointer;
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+  }
+
+  .rb-dialog .rb-log {
+    max-height: 160px;
+    overflow: auto;
+    margin: var(--space-1) 0 0;
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+    background: var(--bg-0);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: var(--space-2);
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  .rb-dialog .rb-shots {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .rb-dialog .rb-shot {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .rb-dialog .rb-shot-box {
+    position: relative;
+    max-width: 260px;
+    overflow: hidden;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+    user-select: none;
+  }
+
+  .rb-dialog .rb-shot-box img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+  }
+
+  .rb-dialog .rb-shot-box.is-redacting {
+    cursor: crosshair;
+    box-shadow: 0 0 0 3px var(--accent-tint);
+    border-color: var(--accent);
+  }
+
+  .rb-dialog .rb-shot-box.is-redacting img {
+    pointer-events: none;
+  }
+
+  .rb-dialog .rb-redact-rect {
+    position: absolute;
+    background: #000;
+    pointer-events: none;
+  }
+
+  .rb-dialog .rb-shot-actions {
+    display: flex;
+    gap: var(--space-2);
+  }
+
+  .rb-dialog .rb-hd-actions {
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+  }
+
+  .rb-dialog .rb-shot-src {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    letter-spacing: var(--tracking-wide);
+    color: var(--fg-2);
+    max-width: 260px;
+  }
+
+  .rb-dialog .rb-link {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    font-size: var(--type-xs);
+    font-family: var(--font-body);
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    text-decoration-color: var(--accent-muted, var(--accent));
+  }
+
+  .rb-dialog .rb-link:hover,
+  .rb-dialog .rb-link.is-on {
+    color: var(--accent-hover, var(--accent));
+  }
+
+  .rb-dialog .rb-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2);
+    margin-top: var(--space-1);
+  }
+
+  .rb-dialog .rb-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-fg);
+  }
+
+  .rb-dialog .rb-primary:hover:not(:disabled) {
+    background: var(--accent-hover, var(--accent));
+    border-color: var(--accent-hover, var(--accent));
+  }
+
+  .rb-dialog .sh-btn:focus-visible,
+  .rb-dialog .sh-iconbtn:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-tint);
+  }
+}
+
+/* from styles/5-maude-overrides.css */
+@layer components {
+  /* ─── HelpModal ────────────────────────────────────────────────────────────── */
+  .maude .help-modal {
+    background: var(--bg-2);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    font-family: var(--font-body);
+  }
+
+  .maude .help-modal-backdrop {
+    background: color-mix(in oklab, var(--bg-0) 62%, transparent);
+  }
+
+  .maude .help-modal-hd {
+    border-bottom: 1px solid var(--border-subtle);
+    background: var(--bg-1);
+    /* title + SKU sat glued together (flex space-between, no gap) */
+    justify-content: flex-start;
+    gap: var(--space-3);
+  }
+
+  .maude .help-modal-hd .title {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: var(--tracking-tight);
+    text-transform: none;
+    color: var(--fg-0);
+  }
+
+  .maude .help-modal-hd .sku {
+    font-family: var(--font-mono);
+    color: var(--fg-2);
+  }
+
+  .maude .help-modal-close {
+    color: var(--fg-2);
+    border-radius: var(--radius-sm);
+  }
+
+  .maude .help-modal-close:hover {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+
+  .maude .help-modal-body details {
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .maude .help-modal-body details > summary {
+    color: var(--fg-2);
+    font-family: var(--font-mono);
+    letter-spacing: var(--tracking-wide);
+  }
+
+  .maude .help-modal-body details[open] > summary {
+    color: var(--fg-0);
+  }
+
+  .maude .help-modal-body ul,
+  .maude .help-modal-body ol {
+    font-family: var(--font-body);
+  }
+
+  /* the load-bearing fix — descriptions sat far-right (margin-left:auto). Pull them
+   inline-left next to the key so each row reads as a definition, maude-style. */
+  .maude .help-modal-body li {
+    gap: var(--space-2);
+  }
+
+  .maude .help-modal-body li > span {
+    margin-left: 0;
+    text-align: left;
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+  }
+
+  .maude .help-modal-body li > code,
+  .maude .help-modal-body .cmds code {
+    font-family: var(--font-mono);
+    background: var(--bg-3);
+    color: var(--accent);
+    border-radius: var(--radius-xs);
+  }
+
+  .maude .help-modal-body kbd {
+    font-family: var(--font-mono);
+    background: var(--bg-2);
+    color: var(--fg-1);
+    border: 1px solid var(--border-default);
+    border-bottom-width: 2px;
+    border-radius: var(--radius-xs);
+  }
+
+  .maude .mdcc-tour__back {
+    background: var(--bg-3);
+    color: var(--fg-1);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-body);
+  }
+
+  .maude .mdcc-tour__back:hover {
+    background: var(--bg-4);
+    color: var(--fg-0);
+  }
+
+  /* ─── In-app tour ──────────────────────────────────────────────────────────── */
+  .maude .mdcc-tour__card,
+  .mdcc-tour__card {
+    background: var(--bg-2);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    font-family: var(--font-body);
+    color: var(--fg-0);
+  }
+
+  .mdcc-tour__title {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: var(--tracking-tight);
+    color: var(--fg-0);
+  }
+
+  .mdcc-tour__body {
+    color: var(--fg-1);
+    font-family: var(--font-body);
+  }
+
+  .mdcc-tour__step {
+    font-family: var(--font-mono);
+    color: var(--fg-2);
+  }
+
+  .mdcc-tour__spot {
+    border-radius: var(--radius-md);
+    box-shadow:
+      0 0 0 2px var(--accent),
+      0 0 0 9999px color-mix(in oklab, var(--bg-0) 55%, transparent);
+  }
+
+  .mdcc-tour__next {
+    background: var(--accent);
+    color: var(--accent-fg);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-body);
+    font-weight: 500;
+  }
+
+  .mdcc-tour__next:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+  }
+
+  .mdcc-tour__skip {
+    background: transparent;
+    color: var(--fg-2);
+    border: 0;
+    font-family: var(--font-body);
+  }
+
+  .mdcc-tour__skip:hover {
+    color: var(--fg-0);
+  }
+
+  /* ─── Phase 29 (E4) — collab tour: the two-layer infographic step ──────────────
+   A step with a `render` graphic widens the card so the diagram breathes. cm-*
+   classes draw the live layer floating over the Save → Publish → Pull cycle. */
+  .mdcc-tour__card--graphic {
+    width: min(580px, 92vw) !important;
+  }
+
+  .mdcc-tour__graphic {
+    margin: var(--space-1) 0 var(--space-3);
+  }
+
+  /* ─── What's-new (toast / panel) ───────────────────────────────────────────── */
+  .maude .mdcc-wn-panel,
+  .mdcc-wn-panel {
+    background: var(--bg-2);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    font-family: var(--font-body);
+    color: var(--fg-0);
+  }
+
+  .mdcc-wn-item {
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .mdcc-wn-item__title {
+    font-family: var(--font-display);
+    font-weight: 600;
+    color: var(--fg-0);
+  }
+
+  .mdcc-wn-item__ver {
+    font-family: var(--font-mono);
+    color: var(--fg-2);
+  }
+
+  .mdcc-wn-item__summary {
+    color: var(--fg-1);
+  }
+
+  .mdcc-wn-kind {
+    font-family: var(--font-mono);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    font-size: 10px;
+    color: var(
+      --accent-text,
+      var(--accent)
+    ); /* gate-b a11y: --accent on its own tint was 4.36:1 dark */
+    background: var(--accent-tint);
+    border-radius: var(--radius-pill);
+    padding: 1px 7px;
+  }
+
+  .mdcc-wn-item__tour,
+  .mdcc-wn-item__more {
+    color: var(--accent);
+    font-family: var(--font-body);
+    background: transparent;
+    border: 0;
+  }
+
+  .mdcc-wn-empty {
+    color: var(--fg-2);
+  }
+}
+
+/* ── end of the moved rules ── */

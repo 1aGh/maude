@@ -26,8 +26,93 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <meta http-equiv="x-dns-prefetch-control" content="off" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Canvas</title>
+    <script>
+      // V2-8.9 round 2 L-R2-2 — no resource hints in a canvas frame, ALWAYS (not only while "Search the
+      // web" is off): the canvas CSP blocks every connection, so a hint has no use here, and
+      // `<link rel=dns-prefetch|preconnect|prefetch|prerender>` can still resolve a host — a DNS
+      // lookup carries data even with the web off. Prefetch control is off above; a hint set through
+      // `rel` / setAttribute loses those tokens before the link reaches the document, and one that
+      // arrives another way (parsed HTML, relList, an Attr) is removed when it lands. Residual: a
+      // nested same-origin frame has its own prototypes (as for WebRTC above).
+      (function (W) {
+        var HINT = /^(?:dns-prefetch|preconnect|prefetch|prerender)$/i;
+        var strip = function (v) {
+          return String(v)
+            .split(/\s+/)
+            .filter(function (t) {
+              return t && !HINT.test(t);
+            })
+            .join(' ');
+        };
+        var hinted = function (el) {
+          if (!el || String(el.tagName).toUpperCase() !== 'LINK') return false;
+          var rel = el.getAttribute('rel') || '';
+          return rel.split(/\s+/).some(function (t) {
+            return HINT.test(t);
+          });
+        };
+        try {
+          var L = W.HTMLLinkElement.prototype;
+          var d = Object.getOwnPropertyDescriptor(L, 'rel');
+          if (d && d.set)
+            Object.defineProperty(L, 'rel', {
+              configurable: false,
+              enumerable: d.enumerable,
+              get: d.get,
+              set: function (v) {
+                d.set.call(this, strip(v));
+              },
+            });
+          var E = W.Element.prototype;
+          var sa = E.setAttribute;
+          var sans = E.setAttributeNS;
+          var isRel = function (el, n) {
+            return el instanceof W.HTMLLinkElement && String(n).toLowerCase() === 'rel';
+          };
+          Object.defineProperty(E, 'setAttribute', {
+            configurable: false,
+            writable: false,
+            value: function (n, v) {
+              return sa.call(this, n, isRel(this, n) ? strip(v) : v);
+            },
+          });
+          Object.defineProperty(E, 'setAttributeNS', {
+            configurable: false,
+            writable: false,
+            value: function (ns, n, v) {
+              return sans.call(this, ns, n, isRel(this, n) ? strip(v) : v);
+            },
+          });
+        } catch (_) {
+          /* best effort; the observer below still removes a hint that lands */
+        }
+        var sweep = function (node) {
+          if (hinted(node)) return node.remove();
+          if (node && node.querySelectorAll)
+            node.querySelectorAll('link[rel]').forEach(function (l) {
+              if (hinted(l)) l.remove();
+            });
+        };
+        try {
+          new W.MutationObserver(function (records) {
+            records.forEach(function (r) {
+              if (r.type === 'attributes') return hinted(r.target) && r.target.remove();
+              r.addedNodes.forEach(sweep);
+            });
+          }).observe(W.document.documentElement, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['rel'],
+          });
+        } catch (_) {
+          /* no observer: the prototype guards above still hold */
+        }
+      })(window);
+    </script>
     <script>
       // T2 (9.1 / DDR-060 F1 re-audit) — best-effort WebRTC denial in the canvas
       // iframe. CSP `webrtc 'block'` is specified but UNIMPLEMENTED in shipping
@@ -38,8 +123,9 @@
       // case before any canvas module loads. NOT bulletproof — a nested
       // same-origin (about:blank) frame can re-acquire them — so WebRTC exfil
       // stays a DOCUMENTED residual of opt-in linked mode (see the linked-mode
-      // README banner). `webrtc 'block'` stays in the CSP for when browsers
-      // enforce it. The canvas runtime itself uses zero WebRTC.
+      // README banner). This lockout IS the WebRTC control: the CSP `webrtc`
+      // directive was dropped (enforced by neither Chromium nor WKWebView).
+      // The canvas runtime itself uses zero WebRTC.
       for (var __k of ['RTCPeerConnection', 'webkitRTCPeerConnection', 'RTCDataChannel']) {
         try {
           Object.defineProperty(window, __k, { value: undefined, configurable: false, writable: false });
@@ -128,6 +214,7 @@
          .meta.json (set later via window.parent postMessage, OR by the dev-
          server when it knows the active DS). For now we load both common
          paths; one will 404 silently per DS depending on layout. -->
+    <style id="canvas-fallbacks" data-canvas-css="fallbacks"></style>
     <link id="canvas-tokens" rel="stylesheet" href="" data-canvas-css="tokens" />
     <link id="canvas-components" rel="stylesheet" href="" data-canvas-css="components" />
     <script type="importmap">
@@ -192,6 +279,10 @@
       // `git show <sha>:<path>`). Baked into the module URL so both the initial
       // import and the HMR soft-reload carry it.
       const shaParam = params.get('sha');
+      const versionMeta =
+        shaParam && window.__canvas_meta_version__ && typeof window.__canvas_meta_version__ === 'object'
+          ? window.__canvas_meta_version__
+          : null;
       // Cloud Phase 27 (DDR-209) — THE CAPABILITY TRAVELS WITH EVERY REQUEST.
       //
       // On a desktop the canvas origin is loopback and needs none, so `cap` is
@@ -218,10 +309,48 @@
       // `/_canvas-shell.html` and the base is empty, leaving every URL below
       // byte-identical to what it has always been.
       const base = location.pathname.replace(/\/_canvas-shell(\.html)?$/, '');
+      // gate-b-c4 — THE FRAME'S OWN CAPABILITY (access/frame.ts). The shell opened this frame for
+      // ONE canvas and said so in `fc`; the canvas origin answers every request carrying it as the
+      // opener narrowed to that canvas, and a request without it gets nothing per canvas. It rides
+      // on every URL built here and, below, on every same-origin fetch and socket; everything else
+      // this document loads carries it in its Referer (this document's URL). Canvas code can read
+      // it — it opens only the canvas the code already runs in.
+      const fc = params.get('fc') || '';
+      const withFc = (u) =>
+        fc ? u + (u.includes('?') ? '&' : '?') + 'fc=' + encodeURIComponent(fc) : u;
       const withCap = (u) => {
         const abs = u.startsWith('/') ? base + u : u;
-        return cap ? abs + (abs.includes('?') ? '&' : '?') + 't=' + encodeURIComponent(cap) : abs;
+        return withFc(
+          cap ? abs + (abs.includes('?') ? '&' : '?') + 't=' + encodeURIComponent(cap) : abs
+        );
       };
+      if (fc) {
+        const withFrame = (u) => {
+          try {
+            const url = new URL(u, location.href);
+            if (url.host !== location.host) return null;
+            if (!url.searchParams.has('fc')) url.searchParams.set('fc', fc);
+            return url.toString();
+          } catch {
+            return null;
+          }
+        };
+        const fcFetch = window.fetch.bind(window);
+        window.fetch = function (input, init) {
+          const isReq = typeof Request !== 'undefined' && input instanceof Request;
+          const next = withFrame(isReq ? input.url : String(input));
+          if (next) input = isReq ? new Request(next, input) : next;
+          return fcFetch(input, init);
+        };
+        const FcWebSocket = window.WebSocket;
+        const FrameWebSocket = function (url, protocols) {
+          const next = withFrame(String(url)) || url;
+          return protocols === undefined ? new FcWebSocket(next) : new FcWebSocket(next, protocols);
+        };
+        FrameWebSocket.prototype = FcWebSocket.prototype;
+        Object.setPrototypeOf(FrameWebSocket, FcWebSocket);
+        window.WebSocket = FrameWebSocket;
+      }
       // DDR-247 — THE AMBIENT COOKIE READS, IT NEVER WRITES. The hub's canvas
       // door authorises a write (POST/PUT/PATCH/DELETE) or a live socket only
       // from an EXPLICIT `?t=`, because the `maude_canvas` cookie is one per
@@ -307,6 +436,456 @@
           fetch(withCap('/_canvas-shell.html'), { cache: 'no-store', credentials: 'same-origin' }).catch(() => {});
         }
       });
+
+      // ds-css:begin
+      // S10.4 (V2-1.6 §5.8) — the follower swap. The studio says which two files a canvas follows now
+      // (`ds-css`, designRoot-relative `.css` paths) and this document swaps its two <link> hrefs; the
+      // shell decides WHEN (the next look at the canvas — client/v2/ds/follower-swap.js), never this
+      // document. SECURITY (DDR-054): the canvas module shares this realm, so a swap is honoured only
+      // from the parent, and only for a plain relative `.css` path — never a URL, never `..`.
+      const DS_CSS_REL = /^(?!\/)(?!.*\.\.)[A-Za-z0-9_][A-Za-z0-9 ._\/-]{0,255}\.css$/;
+      function applyDsCss(m) {
+        if (!m || typeof m !== 'object') return;
+        const pairs = [['tokens', 'canvas-tokens'], ['components', 'canvas-components']];
+        for (const pair of pairs) {
+          const rel = m[pair[0]];
+          if (typeof rel !== 'string' || !DS_CSS_REL.test(rel)) continue;
+          const link = document.getElementById(pair[1]);
+          if (!link) continue;
+          const href = withCap('/' + designRel + '/' + rel);
+          if (link.getAttribute('href') !== href) link.setAttribute('href', href);
+        }
+      }
+      window.addEventListener('message', (e) => {
+        if (e.source !== window.parent || window.parent === window) return;
+        const m = e && e.data;
+        if (!m || typeof m !== 'object' || m.dgn !== 'ds-css') return;
+        applyDsCss(m);
+      });
+      // ds-css:end
+
+      // ds-pins:begin
+      // S10.4 (V2-1.6 §5.8) — element pins. An element may carry `data-ds-rev="head"` or
+      // `data-ds-rev="<id>"`: it keeps that revision's look while the rest of the canvas renders its own.
+      // The document only ASKS (`ds-pins-want`: the distinct, well-formed values it sees); the studio
+      // answers (`ds-pins`) with the two sibling paths per value, and this document fetches them and
+      // scopes them with the mirror of ds/pin-scope.ts below (test/ds-element-pin.test.ts holds the two
+      // equal). SECURITY (DDR-054): pins arrive only from the parent, are validated, and an unlisted
+      // value is never fetched — the canvas can ask, it cannot name a path.
+      const dsPinScope = (() => {
+        const PIN_CSS_MAX = 2 * 1024 * 1024;
+        const PIN_ID = /^[0-9a-f]{64}$/;
+        const ROOT_CLASS = /^[A-Za-z_][\w-]{0,63}$/;
+        function isPinValue(v) {
+          return v === 'head' || (typeof v === 'string' && PIN_ID.test(v));
+        }
+function splitTop(s, sep) {
+  const out = [];
+  let depth = 0;
+  let quote = "";
+  let start = 0;
+  for (let i = 0;i < s.length; i++) {
+    const c = s[i];
+    if (quote) {
+      if (c === "\\")
+        i++;
+      else if (c === quote)
+        quote = "";
+    } else if (c === '"' || c === "'")
+      quote = c;
+    else if (c === "/" && s[i + 1] === "*") {
+      const end = s.indexOf("*/", i + 2);
+      i = end < 0 ? s.length : end + 1;
+    } else if (c === "(" || c === "[")
+      depth++;
+    else if (c === ")" || c === "]")
+      depth = Math.max(0, depth - 1);
+    else if (c === sep && depth === 0) {
+      out.push(s.slice(start, i));
+      start = i + 1;
+    }
+  }
+  out.push(s.slice(start));
+  return out;
+}
+function stripComments(s) {
+  let out = "";
+  let quote = "";
+  for (let i = 0;i < s.length; i++) {
+    const c = s[i];
+    if (quote) {
+      out += c;
+      if (c === "\\")
+        out += s[++i] ?? "";
+      else if (c === quote)
+        quote = "";
+    } else if (c === '"' || c === "'") {
+      quote = c;
+      out += c;
+    } else if (c === "/" && s[i + 1] === "*") {
+      const end = s.indexOf("*/", i + 2);
+      if (end < 0)
+        break;
+      i = end + 1;
+    } else
+      out += c;
+  }
+  return out;
+}
+function topLevel(css) {
+  const text = stripComments(css);
+  const out = [];
+  let i = 0;
+  while (i < text.length) {
+    let depth = 0;
+    let quote = "";
+    let j = i;
+    let hit = "";
+    for (;j < text.length; j++) {
+      const c = text[j];
+      if (quote) {
+        if (c === "\\")
+          j++;
+        else if (c === quote)
+          quote = "";
+      } else if (c === '"' || c === "'")
+        quote = c;
+      else if (c === "(" || c === "[")
+        depth++;
+      else if (c === ")" || c === "]")
+        depth = Math.max(0, depth - 1);
+      else if (depth === 0 && (c === "{" || c === ";" || c === "}")) {
+        hit = c;
+        break;
+      }
+    }
+    const prelude = text.slice(i, j).trim();
+    if (hit === ";") {
+      if (prelude)
+        out.push({ prelude, body: null });
+      i = j + 1;
+    } else if (hit === "{") {
+      let d = 1;
+      let q = "";
+      let k = j + 1;
+      for (;k < text.length && d > 0; k++) {
+        const c = text[k];
+        if (q) {
+          if (c === "\\")
+            k++;
+          else if (c === q)
+            q = "";
+        } else if (c === '"' || c === "'")
+          q = c;
+        else if (c === "{")
+          d++;
+        else if (c === "}")
+          d--;
+      }
+      out.push({ prelude, body: text.slice(j + 1, d === 0 ? k - 1 : k) });
+      i = k;
+    } else {
+      i = hit === "}" ? j + 1 : text.length;
+    }
+  }
+  return out;
+}
+const GROUPING = new Set(["media", "supports", "container", "layer", "scope", "document"]);
+function tokenTheme(compound, rootClass) {
+  let theme = "";
+  const rest = compound.replace(/\[\s*data-theme\s*(?:[~|]?=)\s*(?:"([^"]*)"|'([^']*)'|([^\s\]"']+))\s*\]/g, (_m, a, b, c) => {
+    theme = a ?? b ?? c ?? "";
+    return "";
+  });
+  if (rest.includes("["))
+    return null;
+  const parts = rest.match(/:root|html|\*|\.[A-Za-z_][\w-]*/g) ?? [];
+  if (parts.join("") !== rest)
+    return null;
+  let rooted = false;
+  for (const part of parts) {
+    if (part === "*")
+      continue;
+    if (part === ":root" || part === "html" || part === ".ds" || rootClass && part === `.${rootClass}`)
+      rooted = true;
+    else
+      return null;
+  }
+  return rooted || theme ? theme : null;
+}
+function lastCompoundStart(sel) {
+  let depth = 0;
+  let quote = "";
+  let start = 0;
+  for (let i = 0;i < sel.length; i++) {
+    const c = sel[i];
+    if (quote) {
+      if (c === "\\")
+        i++;
+      else if (c === quote)
+        quote = "";
+    } else if (c === '"' || c === "'")
+      quote = c;
+    else if (c === "(" || c === "[")
+      depth++;
+    else if (c === ")" || c === "]")
+      depth = Math.max(0, depth - 1);
+    else if (depth === 0 && (c === " " || c === ">" || c === "+" || c === "~" || c === "\t" || c === `
+`))
+      start = i + 1;
+  }
+  return start;
+}
+function pseudoElementAt(sel, from) {
+  let depth = 0;
+  let quote = "";
+  for (let i = from;i < sel.length; i++) {
+    const c = sel[i];
+    if (quote) {
+      if (c === "\\")
+        i++;
+      else if (c === quote)
+        quote = "";
+    } else if (c === '"' || c === "'")
+      quote = c;
+    else if (c === "(" || c === "[")
+      depth++;
+    else if (c === ")" || c === "]")
+      depth = Math.max(0, depth - 1);
+    else if (depth === 0 && c === ":") {
+      if (sel[i + 1] === ":")
+        return i;
+      if (/^:(?:before|after|first-line|first-letter)(?![\w-])/i.test(sel.slice(i)))
+        return i;
+    }
+  }
+  return sel.length;
+}
+function scopeSelector(selector, value, opts = {}) {
+  if (!isPinValue(value))
+    throw new Error("not a pin value");
+  const rootClass = opts.rootClass && ROOT_CLASS.test(opts.rootClass) ? opts.rootClass : null;
+  const sel = selector.trim();
+  if (!sel)
+    return null;
+  const pin = `[data-ds-rev="${value}"]`;
+  if (!/[\s>+~]/.test(sel.replace(/\([^)]*\)|\[[^\]]*\]/g, ""))) {
+    const theme = tokenTheme(sel, rootClass);
+    if (theme !== null) {
+      if (!theme)
+        return [pin];
+      const t = theme.replace(/["\\]/g, "");
+      return [`:where([data-theme="${t}"]) ${pin}`, `[data-theme="${t}"]${pin}`];
+    }
+  }
+  const at = pseudoElementAt(sel, lastCompoundStart(sel));
+  return [`${sel.slice(0, at)}:is(${pin}, ${pin} *)${sel.slice(at)}`];
+}
+function scopeRules(css, value, opts) {
+  const out = [];
+  for (const node of topLevel(css)) {
+    if (node.body === null)
+      continue;
+    const prelude = node.prelude;
+    if (prelude.startsWith("@")) {
+      const name = /^@([A-Za-z-]+)/.exec(prelude)?.[1]?.toLowerCase() ?? "";
+      if (!GROUPING.has(name))
+        continue;
+      const inner = scopeRules(node.body, value, opts);
+      if (inner)
+        out.push(`${prelude} {
+${inner}
+}`);
+      continue;
+    }
+    const selectors = [];
+    for (const s of splitTop(prelude, ",")) {
+      const scoped = scopeSelector(s, value, opts);
+      if (scoped) {
+        for (const x of scoped)
+          if (!selectors.includes(x))
+            selectors.push(x);
+      }
+    }
+    if (selectors.length)
+      out.push(`${selectors.join(`,
+`)} {${node.body}}`);
+  }
+  return out.join(`
+`);
+}
+function scopeCss(css, value, opts = {}) {
+  if (!isPinValue(value))
+    throw new Error("not a pin value");
+  if (typeof css !== "string" || css.length > PIN_CSS_MAX)
+    return "";
+  return scopeRules(css, value, opts);
+}
+        return { isPinValue: isPinValue, scopeCss: scopeCss, scopeSelector: scopeSelector, ROOT_CLASS: ROOT_CLASS };
+      })();
+      const pinSheets = {};
+      let pinWantSent = '';
+      let pinTimer = 0;
+      function pinValuesInDom() {
+        const seen = [];
+        for (const el of document.querySelectorAll('[data-ds-rev]')) {
+          const v = el.getAttribute('data-ds-rev');
+          if (dsPinScope.isPinValue(v) && seen.indexOf(v) < 0) seen.push(v);
+          if (seen.length >= 16) break;
+        }
+        return seen.sort();
+      }
+      function askForPins() {
+        pinTimer = 0;
+        const revs = pinValuesInDom();
+        const key = revs.join(',');
+        if (key === pinWantSent) return;
+        pinWantSent = key;
+        try { window.parent.postMessage({ dgn: 'ds-pins-want', revs: revs }, '*'); } catch (e) { /* parent gone */ }
+      }
+      function schedulePinScan() {
+        if (!pinTimer) pinTimer = setTimeout(askForPins, 150);
+      }
+      function dropPin(value) {
+        const cur = pinSheets[value];
+        if (cur && cur.el && cur.el.parentNode) cur.el.parentNode.removeChild(cur.el);
+        delete pinSheets[value];
+      }
+      function loadPin(value, entry, rootClass) {
+        const sig = entry.tokens + '|' + (entry.components || '') + '|' + (rootClass || '');
+        const cur = pinSheets[value];
+        if (cur && cur.sig === sig) return;
+        const mine = { sig: sig, el: cur ? cur.el : null };
+        pinSheets[value] = mine;
+        const text = (rel) => rel
+          ? fetch(withCap('/' + designRel + '/' + rel), { credentials: 'same-origin' })
+              .then((r) => (r.ok ? r.text() : ''))
+              .catch(() => '')
+          : Promise.resolve('');
+        Promise.all([text(entry.tokens), text(entry.components)]).then((parts) => {
+          // A newer answer (or a drop) for this value replaced this one while it was loading.
+          if (pinSheets[value] !== mine) return;
+          const css = parts
+            .map((p) => dsPinScope.scopeCss(p, value, { rootClass: rootClass }))
+            .filter(Boolean)
+            .join('\n');
+          if (!css) { dropPin(value); return; }
+          let el = mine.el;
+          if (!el) {
+            el = document.createElement('style');
+            el.setAttribute('data-ds-pin', value);
+            document.head.appendChild(el);
+            mine.el = el;
+          }
+          el.textContent = css;
+        });
+      }
+      function applyDsPins(m) {
+        if (!m || typeof m !== 'object' || !m.revs || typeof m.revs !== 'object' || Array.isArray(m.revs)) return;
+        const rootClass = typeof m.rootClass === 'string' && dsPinScope.ROOT_CLASS.test(m.rootClass) ? m.rootClass : null;
+        const keys = Object.keys(m.revs).slice(0, 16);
+        const keep = {};
+        for (const value of keys) {
+          if (!dsPinScope.isPinValue(value)) continue;
+          const entry = m.revs[value];
+          if (!entry || typeof entry !== 'object') continue;
+          if (typeof entry.tokens !== 'string' || !DS_CSS_REL.test(entry.tokens)) continue;
+          const comp = typeof entry.components === 'string' && DS_CSS_REL.test(entry.components) ? entry.components : null;
+          keep[value] = true;
+          loadPin(value, { tokens: entry.tokens, components: comp }, rootClass);
+        }
+        for (const value of Object.keys(pinSheets)) if (!keep[value]) dropPin(value);
+      }
+      window.addEventListener('message', (e) => {
+        if (e.source !== window.parent || window.parent === window) return;
+        const m = e && e.data;
+        if (!m || typeof m !== 'object' || m.dgn !== 'ds-pins') return;
+        applyDsPins(m);
+      });
+      if (typeof MutationObserver === 'function') {
+        new MutationObserver(schedulePinScan).observe(document.documentElement, {
+          subtree: true, childList: true, attributes: true, attributeFilter: ['data-ds-rev'],
+        });
+      }
+      schedulePinScan();
+      // ds-pins:end
+
+      // ds-update-dots:begin
+      // S10.8 (13 · ds-edit-review) — a canvas that was left out of a design-system update shows a small dot on
+      // each element that wears what changed. The studio only NAMES the elements (`ds-update-dots {ids}`, the
+      // `data-cd-id`s from the usage index); this document marks them with `data-ds-update` and a rule draws the
+      // dot. Parent only, and an id is looked up as a plain attribute value (never built into a selector).
+      const DOT_ID = /^[A-Za-z0-9_.:-]{1,128}$/;
+      function applyUpdateDots(m) {
+        for (const el of document.querySelectorAll('[data-ds-update]')) el.removeAttribute('data-ds-update');
+        const ids = Array.isArray(m.ids) ? m.ids.slice(0, 200) : [];
+        if (ids.length === 0) return;
+        const want = new Set(ids.filter((x) => typeof x === 'string' && DOT_ID.test(x)));
+        for (const el of document.querySelectorAll('[data-cd-id]')) {
+          if (want.has(el.getAttribute('data-cd-id'))) el.setAttribute('data-ds-update', '');
+        }
+        if (!document.getElementById('maude-ds-update-dots')) {
+          const style = document.createElement('style');
+          style.id = 'maude-ds-update-dots';
+          // An outline, not a positioned dot: it takes no room, forces no `position` onto the user's element and
+          // moves nothing. Its colour is a variable the host may set; the fallback is the element's own text colour.
+          style.textContent =
+            '[data-ds-update]{outline:2px dotted var(--maude-update-dot, currentColor);outline-offset:3px}';
+          document.head.appendChild(style);
+        }
+      }
+      window.addEventListener('message', (e) => {
+        if (e.source !== window.parent || window.parent === window) return;
+        const m = e && e.data;
+        if (!m || typeof m !== 'object' || m.dgn !== 'ds-update-dots') return;
+        applyUpdateDots(m);
+      });
+      // ds-update-dots:end
+
+      // ds-rects:begin
+      // S10.9 (13 · ds-edit-reach) — the reach view frames this canvas and asks where some elements are drawn
+      // (`ds-rects {seq, artboard, ids}`: the `data-cd-id`s the usage index names, inside `artboard` when given).
+      // The answer is where each one sits in THIS document's own pixels, plus the document's size: the studio
+      // scales both the same way and rings the elements over the frame, so no camera maths crosses the wall.
+      // Parent only; an id is compared as a plain attribute value (never built into a selector); at most 500.
+      const RECT_ID = /^[A-Za-z0-9_.:-]{1,128}$/;
+      function answerRects(m) {
+        const seq = typeof m.seq === 'number' && Number.isInteger(m.seq) && m.seq >= 0 && m.seq <= 1000000 ? m.seq : null;
+        if (seq === null) return;
+        const want = new Set((Array.isArray(m.ids) ? m.ids.slice(0, 500) : []).filter((x) => typeof x === 'string' && RECT_ID.test(x)));
+        const boardId = typeof m.artboard === 'string' && RECT_ID.test(m.artboard) ? m.artboard : null;
+        let scope = document;
+        let label;
+        if (boardId) {
+          scope = null;
+          for (const b of document.querySelectorAll('[data-dc-screen]')) {
+            if (b.getAttribute('data-dc-screen') === boardId) { scope = b; break; }
+          }
+          const l = scope && scope.getAttribute('data-dc-label');
+          if (typeof l === 'string' && l && l.length <= 120) label = l;
+        }
+        const rects = [];
+        if (scope && want.size > 0) {
+          for (const el of scope.querySelectorAll('[data-cd-id]')) {
+            if (rects.length >= 500) break;
+            const id = el.getAttribute('data-cd-id');
+            if (!want.has(id)) continue;
+            const r = el.getBoundingClientRect();
+            if (!(r.width > 0 && r.height > 0)) continue;
+            rects.push({ id: id, x: r.left, y: r.top, w: r.width, h: r.height });
+          }
+        }
+        const out = { dgn: 'ds-rects-result', seq: seq, view: { w: window.innerWidth, h: window.innerHeight }, rects: rects };
+        if (label !== undefined) out.label = label;
+        window.parent.postMessage(out, '*');
+      }
+      window.addEventListener('message', (e) => {
+        if (e.source !== window.parent || window.parent === window) return;
+        const m = e && e.data;
+        if (!m || typeof m !== 'object' || m.dgn !== 'ds-rects') return;
+        answerRects(m);
+      });
+      // ds-rects:end
 
       // text-patches:begin
       function applyTextPatches(patches) {
@@ -433,6 +1012,154 @@
           .catch(() => fallback);
       }
 
+      // module-update:begin
+      // A `module` / `hard` change to THIS canvas (or `_lib`), applied. Called
+      // straight from the HMR socket, or — in Present · Artboards — when the
+      // held one lands (present-hold, below).
+      function applyModuleUpdate(msg) {
+        // F4 — a text-only change arrives with the new strings. Show
+        // them now; the remount below still re-renders from source and
+        // confirms (or corrects) them. Only a leaf that is exactly one
+        // text node is touched, via textContent (never markup), and
+        // never the element someone is typing in on this device.
+        if (msg.mode === 'module' && Array.isArray(msg.patches)) applyTextPatches(msg.patches);
+        // Phase 12.3 — CSS-panel echo guard. The panel applies each
+        // edit optimistically to the live DOM (dgn:'apply-style'), so a
+        // `module` reload for THIS canvas's own edit is redundant churn:
+        // it remounts the canvas, drops the selection halo, and flickers
+        // the iframe. Skip it within a short window of a self-applied
+        // optimistic style. `hard` (_lib rebuild) is global — never
+        // skipped. Mirrors the meta echo-guard below.
+        if (msg.mode === 'module') {
+          // read the parent-verified local (NOT a canvas-writable global)
+          //
+          // VIDEO-COMP EXCEPTION (DDR-150 dogfood): on a canvas with a
+          // mounted Remotion comp the optimistic DOM style CANNOT hold —
+          // the Player re-renders styles from the (old) module on every
+          // frame, wiping the edit at the next play-through. Skipping the
+          // module reload here left the OLD color playing until a manual
+          // Cmd+R even though the new value was on disk. So: skip the
+          // redundant reload only on comp-less canvases. (Reading the
+          // comp registry off `window` is canvas-influenced, but a canvas
+          // lying "I have comps" can only FORCE a reload — the safe
+          // direction; it can never suppress one.)
+          var hasComps = false;
+          try { hasComps = !!(window.__maude_comps__ && window.__maude_comps__().length); } catch (err) { hasComps = false; }
+          // …but NEVER a sync write (`remote`): it can carry a
+          // teammate's change merged under this person's own edit (a
+          // lost race re-applied onto theirs), and skipping it left
+          // their change off this canvas until a manual reload.
+          if (!hasComps && !msg.remote && Date.now() - lastCssOptimisticAt < 1500) return;
+        }
+        // Phase 30 (F4) — prefer an in-place hot-swap for ANY canvas-body
+        // (`module`) change whenever the canvas runtime is mounted: the
+        // soft-reload re-imports the module and remounts only the canvas
+        // content, KEEPING the iframe — and thus the live CollabProvider
+        // + presence cursors/avatars — mounted (the collab session is a
+        // module-level singleton that survives the remount, use-collab.tsx).
+        // This covers cross-peer SYNCED writes, which arrive as a `module`
+        // change with NO `ai-activity` entry: a teammate's edit must update
+        // seamlessly, never blink everyone's presence (and scroll / tool
+        // mode / undo survive too). It also keeps the Phase 13.1 / DDR-077
+        // hold-last-good behaviour for agent edits. (`agentEditing` is still
+        // tracked from ai-activity above but no longer gates the swap — any
+        // module change to the live canvas hot-swaps.) `hard` (_lib rebuild)
+        // is global and ALWAYS full-reloads. With no runtime (gallery
+        // thumbnails / ?comments=0) we full-reload; softReload itself also
+        // falls back to location.reload() when the re-import yields no usable
+        // default export.
+        if (msg.mode === 'module' && window.__maudeCanvasRuntime && window.__maudeCanvasRuntime.remount) {
+          softReload(msg.version);
+        } else {
+          location.reload();
+        }
+      }
+      // module-update:end
+
+      // present-hold:begin
+      // S3.1 / A8 — AI changes show live in Edit, Preview (under the pointer
+      // too), Present · Canvas and Viewing. In PRESENT · ARTBOARDS a write to
+      // this canvas is HELD until the presenter moves on (the stage reports a
+      // new `present-position`) or leaves Present — the audience never sees an
+      // artboard change under them. Only the newest held update is kept (a
+      // `hard` one keeps the merged update a full reload). Only one artboard is
+      // on screen, so a whole-module hold is the per-artboard ask.
+      //
+      // SECURITY (A1, as `lastCssOptimisticAt` above): whether to hold is this
+      // closure's own state, set ONLY from the shell's parent-gated `set-mode`
+      // — never read from a window global the canvas module could pin to
+      // suppress updates. The release is a same-document event the stage
+      // fires (canvas-mode-store `reportPresentPosition`): a canvas faking it
+      // can only make a held write land sooner, the safe direction.
+      //
+      // Mirrors bridge/canvas-modes.ts `holdsModuleUpdates` (this template
+      // imports nothing; test/present-hold.test.ts pins the parity).
+      const holdsModuleUpdates = (snap) =>
+        !!snap && snap.mode === 'present' && !!snap.present && snap.present.kind === 'artboards';
+      let presentModeSeq = -1;
+      let presentHolding = false;
+      let presentAt = null;
+      let heldUpdate = null;
+      function releaseHeldUpdate() {
+        const held = heldUpdate;
+        heldUpdate = null;
+        if (held) applyModuleUpdate(held);
+      }
+      function presentHoldSetMode(m) {
+        if (!m || m.v !== 2 || typeof m.seq !== 'number' || m.seq <= presentModeSeq) return;
+        presentModeSeq = m.seq;
+        const was = presentHolding;
+        presentHolding = holdsModuleUpdates(m);
+        if (!presentHolding) presentAt = null;
+        if (was && !presentHolding) releaseHeldUpdate();
+      }
+      function presentHoldPosition(pos) {
+        if (!pos || typeof pos !== 'object') return;
+        const at = String(pos.index) + '|' + String(pos.artboardId);
+        if (at === presentAt) return;
+        presentAt = at;
+        releaseHeldUpdate();
+      }
+      // meta-echo:begin
+      // S4.19 — is this meta event the echo of OUR OWN layout PATCH? Only inside the 2 s window, and only when
+      // the file still says what canvas-lib mirrored into `window.__canvas_meta__` when it wrote (same ids,
+      // same x/y). An undo, a peer's drag or an agent's edit lands in the window too and must apply.
+      function metaIsOwnEcho(sinceSelfMs, fresh, mirror) {
+        if (!(sinceSelfMs >= 0 && sinceSelfMs < 2000)) return false;
+        var pick = function (m) {
+          var a = m && m.layout && Array.isArray(m.layout.artboards) ? m.layout.artboards : [];
+          var out = {};
+          for (var i = 0; i < a.length; i++) if (a[i] && typeof a[i].id === 'string') out[a[i].id] = a[i];
+          return out;
+        };
+        var f = pick(fresh), m = pick(mirror);
+        var fk = Object.keys(f), mk = Object.keys(m);
+        if (fk.length !== mk.length) return false;
+        for (var k = 0; k < fk.length; k++) {
+          var x = f[fk[k]], y = m[fk[k]];
+          if (!y || Math.abs(x.x - y.x) >= 0.5 || Math.abs(x.y - y.y) >= 0.5) return false;
+        }
+        return true;
+      }
+      // meta-echo:end
+
+      function routeModuleUpdate(msg) {
+        if (!(msg.mode === 'hard' || !msg.file || (canvasRel && msg.file === canvasRel))) return;
+        if (presentHolding) {
+          heldUpdate = heldUpdate && heldUpdate.mode === 'hard' ? Object.assign({}, msg, { mode: 'hard' }) : msg;
+          return;
+        }
+        applyModuleUpdate(msg);
+      }
+      window.addEventListener('message', (e) => {
+        if (e.source !== window.parent || window.parent === window) return;
+        const m = e && e.data;
+        if (!m || typeof m !== 'object' || m.dgn !== 'set-mode') return;
+        presentHoldSetMode(m);
+      });
+      document.addEventListener('maude:present-position', (e) => presentHoldPosition(e && e.detail));
+      // present-hold:end
+
       // ---------------------------------------------------------------------
       // HMR client — listens for `canvas-hmr` messages on /_ws. Three modes:
       //   - css: swap <link> href with ?v=<version> cache bust.
@@ -550,75 +1277,24 @@
                 }
               }
             } else if (msg.mode === 'module' || msg.mode === 'hard') {
-              // Only reload when the change touches *this* canvas (or `_lib`).
-              if (msg.mode === 'hard' || !msg.file || (canvasRel && msg.file === canvasRel)) {
-                // F4 — a text-only change arrives with the new strings. Show
-                // them now; the remount below still re-renders from source and
-                // confirms (or corrects) them. Only a leaf that is exactly one
-                // text node is touched, via textContent (never markup), and
-                // never the element someone is typing in on this device.
-                if (msg.mode === 'module' && Array.isArray(msg.patches)) applyTextPatches(msg.patches);
-                // Phase 12.3 — CSS-panel echo guard. The panel applies each
-                // edit optimistically to the live DOM (dgn:'apply-style'), so a
-                // `module` reload for THIS canvas's own edit is redundant churn:
-                // it remounts the canvas, drops the selection halo, and flickers
-                // the iframe. Skip it within a short window of a self-applied
-                // optimistic style. `hard` (_lib rebuild) is global — never
-                // skipped. Mirrors the meta echo-guard below.
-                if (msg.mode === 'module') {
-                  // read the parent-verified local (NOT a canvas-writable global)
-                  //
-                  // VIDEO-COMP EXCEPTION (DDR-150 dogfood): on a canvas with a
-                  // mounted Remotion comp the optimistic DOM style CANNOT hold —
-                  // the Player re-renders styles from the (old) module on every
-                  // frame, wiping the edit at the next play-through. Skipping the
-                  // module reload here left the OLD color playing until a manual
-                  // Cmd+R even though the new value was on disk. So: skip the
-                  // redundant reload only on comp-less canvases. (Reading the
-                  // comp registry off `window` is canvas-influenced, but a canvas
-                  // lying "I have comps" can only FORCE a reload — the safe
-                  // direction; it can never suppress one.)
-                  var hasComps = false;
-                  try { hasComps = !!(window.__maude_comps__ && window.__maude_comps__().length); } catch (err) { hasComps = false; }
-                  // …but NEVER a sync write (`remote`): it can carry a
-                  // teammate's change merged under this person's own edit (a
-                  // lost race re-applied onto theirs), and skipping it left
-                  // their change off this canvas until a manual reload.
-                  if (!hasComps && !msg.remote && Date.now() - lastCssOptimisticAt < 1500) return;
-                }
-                // Phase 30 (F4) — prefer an in-place hot-swap for ANY canvas-body
-                // (`module`) change whenever the canvas runtime is mounted: the
-                // soft-reload re-imports the module and remounts only the canvas
-                // content, KEEPING the iframe — and thus the live CollabProvider
-                // + presence cursors/avatars — mounted (the collab session is a
-                // module-level singleton that survives the remount, use-collab.tsx).
-                // This covers cross-peer SYNCED writes, which arrive as a `module`
-                // change with NO `ai-activity` entry: a teammate's edit must update
-                // seamlessly, never blink everyone's presence (and scroll / tool
-                // mode / undo survive too). It also keeps the Phase 13.1 / DDR-077
-                // hold-last-good behaviour for agent edits. (`agentEditing` is still
-                // tracked from ai-activity above but no longer gates the swap — any
-                // module change to the live canvas hot-swaps.) `hard` (_lib rebuild)
-                // is global and ALWAYS full-reloads. With no runtime (gallery
-                // thumbnails / ?comments=0) we full-reload; softReload itself also
-                // falls back to location.reload() when the re-import yields no usable
-                // default export.
-                if (msg.mode === 'module' && window.__maudeCanvasRuntime && window.__maudeCanvasRuntime.remount) {
-                  softReload(msg.version);
-                } else {
-                  location.reload();
-                }
-              }
+              // Only reload when the change touches *this* canvas (or `_lib`) — and, in
+              // Present · Artboards, not while the audience is looking (A8, below).
+              routeModuleUpdate(msg);
             } else if (msg.mode === 'meta') {
               // Phase 8 — canvas-meta sidecar changed. Filter to our own canvas:
               // `<canvasRel>.meta.json` strip → must equal canvasRel without ext.
               if (!canvasRel || !msg.file) return;
+              // A past version's meta is its own — today's sidecar changing does not move it.
+              if (versionMeta) return;
               const metaBase = msg.file.replace(/\.meta\.json$/i, '');
               const myBase = canvasRel.replace(/\.(tsx|html)$/i, '');
               if (metaBase !== myBase) return;
-              // Echo guard — when WE just PATCHed the meta, skip the round-trip.
-              const lastSelf = (window).__maude_last_meta_self_write_at || 0;
-              if (Date.now() - lastSelf < 2000) return;
+              // Echo guard — when WE just PATCHed the meta, skip the round-trip. S4.19 (an-follow): the
+              // window alone swallowed a foreign write too — a ⌘Z within 2 s of a drag restored the file
+              // and the live artboard stayed at the drop spot. So inside the window the fresh file is
+              // still read and compared with the layout canvas-lib mirrored into the snapshot when it
+              // wrote; only a file that says what we wrote is an echo.
+              var sinceSelf = Date.now() - ((window).__maude_last_meta_self_write_at || 0);
               // Re-fetch + broadcast to the canvas via window event. canvas-lib
               // listens for `maude:meta-refreshed` and re-applies layout +
               // viewport in-place (no full reload — preserves tool / undo state).
@@ -629,6 +1305,7 @@
                 .then((r) => (r.ok ? r.json() : null))
                 .then((j) => {
                   if (!j || typeof j !== 'object') return;
+                  if (metaIsOwnEcho(sinceSelf, j, window.__canvas_meta__)) return;
                   window.__canvas_meta__ = j;
                   document.dispatchEvent(new CustomEvent('maude:meta-refreshed', { detail: j }));
                 })
@@ -860,10 +1537,13 @@
         // server-side api.fileSlug (which trims paths.designRel).
         window.__canvas_design_rel__ = designRel;
         window.__canvas_rel__ = canvasRel;
-        const metaFetch = fetch(withCap('/_api/canvas-meta?file=' + metaFileParam), {
-          headers: { 'Cache-Control': 'no-store' },
-        })
-          .then((r) => (r.ok ? r.json() : null))
+        // S1.11 — a past version (`?sha=`) brings its own meta lane, injected by the server as
+        // window.__canvas_meta_version__ (V2-1.9 §5.6); without one, today's meta as before.
+        const metaFetch = (versionMeta
+          ? Promise.resolve(versionMeta)
+          : fetch(withCap('/_api/canvas-meta?file=' + metaFileParam), {
+              headers: { 'Cache-Control': 'no-store' },
+            }).then((r) => (r.ok ? r.json() : null)))
           .then((j) => {
             window.__canvas_meta__ = (j && typeof j === 'object') ? j : {};
             window.__canvas_meta_file__ = designRel + '/' + canvasRel;

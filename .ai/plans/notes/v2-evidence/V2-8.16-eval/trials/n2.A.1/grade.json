@@ -1,0 +1,196 @@
+{
+  "task": "n2",
+  "group": "new",
+  "fixture": "marketing21",
+  "topology": "A",
+  "delegates": "artboard-drafter",
+  "run": {
+    "code": 0,
+    "killed": false,
+    "wallMs": 328686
+  },
+  "metrics": {
+    "subtype": "success",
+    "isError": false,
+    "costUsd": 2.5640286000000008,
+    "durationMs": 327191,
+    "apiMs": 309568,
+    "turns": 61,
+    "tokens": 4782739,
+    "inTok": 86,
+    "outTok": 25009,
+    "cacheRead": 4615083,
+    "cacheWrite": 142561,
+    "freshTokens": 167656,
+    "models": [
+      "claude-opus-5-5"
+    ],
+    "permissionDenials": [
+      {
+        "tool": "Bash",
+        "input": "{\"command\":\"cd .design; grep -rn \\\"_api/canvas\\\" ../.claude 2>/dev/null | head; maude design --help 2>&1 | head -60\",\"description\":\"Look up canvas-create API usage\"}"
+      },
+      {
+        "tool": "Bash",
+        "input": "{\"command\":\"sed -n '111p' /Users/iagh/git/personal/maude/plugins/design/skills/design/_guide-08-command-routing.md | cut -c1-3000\",\"description\":\"Read the canvas-create routing line\"}"
+      },
+      {
+        "tool": "Bash",
+        "input": "{\"command\":\"S=/private/tmp/claude-501/-private-var-folders-t--kf80xz3j79sfmkrq4snj2qk00000gn-T-maude-agent-evals-v2-8-16-trials-n2-A-1-project/642d6ab8-f2ca-40d0-aabf-fcde1666a498/scratchpad; for a in"
+      }
+    ],
+    "subagents": 0,
+    "subagentTypes": [],
+    "mainToolUses": 58,
+    "subToolUses": 0
+  },
+  "agents": [],
+  "invariants": {
+    "check": {
+      "pass": true,
+      "why": ""
+    },
+    "scope": {
+      "pass": true,
+      "why": ""
+    },
+    "ids-kept": {
+      "pass": true,
+      "why": ""
+    },
+    "locked-kept": {
+      "pass": true,
+      "why": ""
+    },
+    "no-bash-writes": {
+      "pass": true,
+      "why": ""
+    },
+    "owns": {
+      "pass": true,
+      "why": ""
+    }
+  },
+  "quality": {
+    "stop-gate-settled": {
+      "pass": true,
+      "why": "the Stop gate blocked the run and it ended with a failing check"
+    },
+    "new-canvas": {
+      "pass": true,
+      "why": "ui/2026/combine/Combine-oznameni.tsx: 4 artboards"
+    },
+    "new-canvas-meta": {
+      "pass": true,
+      "why": "ui/2026/combine/Combine-oznameni.meta.json"
+    },
+    "finished": {
+      "pass": true,
+      "why": "success"
+    },
+    "render-non-blank": {
+      "pass": true,
+      "why": ""
+    },
+    "judge": {
+      "pass": true,
+      "why": "pass (4): The canvas has four artboards in 1:1, 4:5, 9:16 and 16:9. They share one campaign look: green and yellow, outlined display type, the logo, a grass edge, and Czech copy with the correct date, time and venue. Small flaws: the 1:1 and 4:5 artboards say \"Stadion CESA\" rather than \"Atletický stadion CESA\", and the 9:16 story has a dashed \"slot pro sticker\" placeholder that looks unfinished. The shots are tiny and the story's top and bottom UI bars are overlays, so this is judged as a pass with minor reservations.",
+      "unknown": false
+    }
+  },
+  "invPass": true,
+  "qualPass": true,
+  "judge": {
+    "verdict": "pass",
+    "score": 4,
+    "why": "The canvas has four artboards in 1:1, 4:5, 9:16 and 16:9. They share one campaign look: green and yellow, outlined display type, the logo, a grass edge, and Czech copy with the correct date, time and venue. Small flaws: the 1:1 and 4:5 artboards say \"Stadion CESA\" rather than \"Atletický stadion CESA\", and the 9:16 story has a dashed \"slot pro sticker\" placeholder that looks unfinished. The shots are tiny and the story's top and bottom UI bars are overlays, so this is judged as a pass with minor reservations.",
+    "costUsd": 0.0312503,
+    "model": "sonnet"
+  },
+  "render": {
+    "ran": true,
+    "error": null,
+    "shots": [
+      {
+        "canvas": "ui/2026/combine/Combine-oznameni.tsx",
+        "artboard": "oznameni-1x1",
+        "blank": false,
+        "exit": 0
+      },
+      {
+        "canvas": "ui/2026/combine/Combine-oznameni.tsx",
+        "artboard": "oznameni-4x5",
+        "blank": false,
+        "exit": 0
+      },
+      {
+        "canvas": "ui/2026/combine/Combine-oznameni.tsx",
+        "artboard": "oznameni-9x16",
+        "blank": false,
+        "exit": 0
+      },
+      {
+        "canvas": "ui/2026/combine/Combine-oznameni.tsx",
+        "artboard": "oznameni-16x9",
+        "blank": false,
+        "exit": 0
+      }
+    ]
+  },
+  "changed": [
+    "?? .design/_cache/index/ds-usage.json",
+    "?? .design/ui/2026/combine/Combine-oznameni.meta.json",
+    "?? .design/ui/2026/combine/Combine-oznameni.tsx"
+  ],
+  "runState": [
+    {
+      "session": "642d6ab8-f2ca-40d0-aabf-fcde1666a498",
+      "touched": {
+        "ui/Combine-oznameni.meta.json": {
+          "at": 1793183806893,
+          "by": "main",
+          "via": "bash",
+          "artboards": null
+        },
+        "ui/Combine-oznameni.tsx": {
+          "at": 1793183806893,
+          "by": "main",
+          "via": "bash",
+          "artboards": null
+        },
+        "ui/2026/combine/Combine-oznameni.tsx": {
+          "at": 1793184013278,
+          "by": "main",
+          "via": "tool",
+          "artboards": [
+            "oznameni-1x1",
+            "oznameni-4x5",
+            "oznameni-9x16",
+            "oznameni-16x9"
+          ]
+        },
+        "ui/2026/combine/Combine-oznameni.meta.json": {
+          "at": 1793183968407,
+          "by": "main",
+          "via": "tool",
+          "artboards": []
+        }
+      },
+      "stopBlocks": 1,
+      "shots": 8,
+      "bases": 2
+    }
+  ],
+  "hooks": {
+    "events": 1,
+    "denies": [],
+    "blocks": [
+      "stop:run-folder"
+    ],
+    "errors": [],
+    "ms": {},
+    "checkMs": []
+  },
+  "harnessFailure": false,
+  "finalText": "I re-took screenshots of the 1:1, 4:5 and 16:9 artboards after the last edit, and they look the same as before. The story fix didn't touch them. The dark box at the bottom right of the 16:9 screenshot is the studio's own toolbar, not part of the design.\n\nAll four formats of **`ui/2026/combine/Combine-oznameni.tsx`** have now been screenshotted and checked after the final edit. The summary in my previous message still holds, including the two things to decide:\n\n- **The date has passed:** the combine on 7. 10. 2026 was three weeks ago.\n- **No photos:** the set is type and texture only."
+}

@@ -1,61 +1,66 @@
-// collab-tour.js — the version-control "rychlý kurz" (Phase 29, epic E4).
+// collab-tour.js — "How sharing works" (Menu › Help › How sharing works), rewritten for the v2 shell
+// (V2-7.3). The version-control "rychlý kurz" of Phase 29, kept on the EXISTING tour engine
+// (overlay.jsx) — never a fork.
 //
-// Teaches the two-layer collab model on the EXISTING tour engine (overlay.jsx) —
-// never a fork. Per the teaching-model DDR (this phase REVERSES the "hide the
-// duality" recommendation in collab-model-design.md § Part 2): we surface a visible
-// three-verb action-cycle and teach the live-vs-async split honestly, because the
-// cycle has to match real buttons in the app and pure-hiding is leaky.
+// The teaching model is unchanged: two layers, told honestly. Being together (faces, cursors, comments)
+// is automatic; below it the work moves in three steps — save a version, publish it, get the latest.
+// What changed is where those live: the faces, the status word, Comments and Share are the Share
+// cluster (top right), and the three steps are Version history (Menu › Version history, ⌥⌘H, with the
+// git words under its Advanced fold). Version history and its dialogs are not on screen until opened,
+// so the tour points at the project pill for them and names the buttons in the copy.
 //
-// Step 1 is a centered, target-less step whose graphic is the two-layer infographic
-// (the engine already centers target-less steps; the `render` field is the only
-// addition). Steps 2-4 spotlight the real action controls via stable [data-tour]
-// anchors (save-local / publish / pull) — `changes: true` opens the Changes panel
-// first so the buttons exist. Step 5 points at the live presence layer; step 6 is
-// the one honest hard thing, centered.
-//
-// Vocabulary is the canonical set ONLY (teaching-model table) — no raw git terms:
-//   Save version · Publish · Get latest · branch · Shared version (matches the shipped buttons).
+// Spotlights are stable testids from client/testids.json (test/tour-targets.test.ts pins them). The
+// cluster changes shape — Preview folds the faces and the status word away, a person who can only look
+// has no Share button — so those steps carry `optional: true` and are skipped when their target is not
+// on screen. Copy follows the maude-v2 CONTRACT (Share, Invite, Version history, the save-status words);
+// the shipped button words are Save a version · Publish · Get latest.
 
 import CollabModelInfographic from '../panels/CollabModelInfographic.jsx';
 
 export const COLLAB_TOUR = [
   {
-    // Centered, no target — the engine renders target-less steps centered, and the
-    // `render` field draws the infographic above the copy.
+    // Centred, no target — the engine renders target-less steps centred, and the `render` field draws
+    // the infographic above the copy.
     render: CollabModelInfographic,
     title: 'Working together, in one picture',
-    body: 'There are two layers. Up top, being together just happens. Below, your work moves through three simple steps. Let’s walk them.',
+    body: 'There are two layers. Up top, being together just happens. Below, your work moves through three simple steps. Here is where each one lives.',
   },
   {
-    target: "[data-tour='save-local']",
-    changes: true,
-    title: 'Save changes locally',
-    body: 'When something looks right, save it. That keeps a version on your computer you can always come back to — like a checkpoint, just for you.',
-    placement: 'left',
-  },
-  {
-    target: "[data-tour='publish']",
-    changes: true,
-    title: 'Publish for everyone',
-    body: 'Ready to share? Publish sends your saved work to the whole team. Think of it as putting your version on the shared shelf.',
-    placement: 'left',
-  },
-  {
-    target: "[data-tour='pull']",
-    changes: true,
-    title: 'Get latest',
-    body: 'When teammates publish, Get latest brings their work onto your computer so you’re both looking at the same thing.',
-    placement: 'left',
-  },
-  {
-    target: "[data-tour='status']",
-    title: 'Being together is automatic',
-    body: 'Cursors, who’s here, and comments need no buttons at all. When you’re both in a canvas, you see each other live — that’s the top layer, always on.',
+    target: "[data-testid='share-cluster-faces']",
+    optional: true,
+    title: 'Who is here',
+    body: 'Everyone in this canvas shows as a face, and their cursor moves on the canvas live. Pick a face to follow that person. AI appears here too while it edits.',
     placement: 'bottom',
   },
   {
-    // Centered — the one honest hard thing.
+    target: "[data-testid='share-cluster-status']",
+    optional: true,
+    title: 'Where your work stands',
+    body: 'One word next to the faces: Saved, Syncing…, Offline — kept on this Mac, or Local project. Someone who can only look sees Can view or Can comment here, with Ask to edit.',
+    placement: 'bottom',
+  },
+  {
+    target: "[data-testid='share-cluster-comments']",
+    title: 'Talk on the canvas',
+    body: 'Open Comments (⇧⌘M) to read every thread, or choose Comment (C) in Preview to leave one right where you are pointing.',
+    placement: 'bottom',
+  },
+  {
+    target: "[data-testid='share-cluster-share']",
+    optional: true,
+    title: 'Share',
+    body: 'Share opens one sheet. Invite people by name or email and pick what each can do. Copy link sits in the same sheet where the project has links.',
+    placement: 'bottom',
+  },
+  {
+    target: "[data-testid='project-pill']",
+    title: 'Version history',
+    body: 'Menu › Version history (⌥⌘H) lists saved versions, each with Restore. Under Advanced: Save a version with a note…, Publish to send your saved versions to the team, and Get latest to bring theirs onto this Mac.',
+    placement: 'bottom',
+  },
+  {
+    // Centred — the one honest hard thing.
     title: 'The one thing worth knowing',
-    body: 'When you’re here together, publishing already covers your teammate — they’ve seen it live, so Publish is just dropping a bookmark. Only when you work apart can two versions drift. If that happens, Maude shows you both and lets you pick — keep mine, keep theirs, or keep both. Never a confusing merge.',
+    body: 'When you are here together, publishing already covers your teammate: they have seen it live, so Publish is just dropping a bookmark. Only when you work apart can two versions drift. If that happens, both are shown and you pick — keep mine, keep theirs, or keep both. Never a confusing merge.',
   },
 ];

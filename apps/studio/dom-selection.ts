@@ -10,7 +10,13 @@
  *             lite comment mount.
  */
 
+import { parsePathD, pointCount } from './edit-ops/path-model.ts';
+import type { TextInfo } from './edit-ops/text-style.ts';
+import { type KidsSummary, summarizeKids } from './editing/kids-summary.ts';
+import { getPenPoint, penPointAttr } from './editing/pen/point-store.ts';
+import { probeTextInfo } from './editing/type-role.ts';
 import type { HoverTarget } from './input-router.tsx';
+import { currentCanvasFile } from './shell-canvas-file.ts';
 import type { Selection } from './use-selection-set.tsx';
 
 /**
@@ -19,19 +25,7 @@ import type { Selection } from './use-selection-set.tsx';
  * mocks it's the served file path itself.
  */
 export function deriveFile(): string | undefined {
-  if (typeof window === 'undefined') return undefined;
-  try {
-    const p = window.location.pathname;
-    if (p === '/_canvas-shell.html' || p === '/_canvas-shell') {
-      const qs = new URLSearchParams(window.location.search);
-      const canvas = qs.get('canvas') ?? '';
-      const designRel = (qs.get('designRel') ?? '.design').replace(/^\/+|\/+$/g, '');
-      return canvas ? `${designRel}/${canvas}` : undefined;
-    }
-    return decodeURIComponent(p).replace(/^\//, '');
-  } catch {
-    return undefined;
-  }
+  return currentCanvasFile() ?? undefined;
 }
 
 export function realClasses(el: Element | null): string {
@@ -43,9 +37,49 @@ export function realClasses(el: Element | null): string {
     .join(' ');
 }
 
+// Display values that sit in a line of text; every other value (block, flex, grid, list-item,
+// table…) starts a new line in rendered text, so it is a word boundary. '' is what a detached
+// element reports — no layout information, so no boundary is invented.
+const INLINE_DISPLAY = /^$|^(inline|contents|ruby|ruby-text)$|^inline-/;
+
+/**
+ * The text of `el` as it reads when rendered — for an element whose contents are NOT rendered yet,
+ * where `innerText` is '' (Chromium: a `content-visibility: auto` board before its first rendering
+ * update — the window a select-by-id can land in right after a soft-reload remount — or one scrolled
+ * out of view). `textContent` alone glues block neighbours together ("HeroCharacterization…"), so the
+ * same selection read different depending on whether it landed before or after the first paint.
+ * Walks the tree instead: a space at every block boundary and `<br>`, nothing for `display:none`.
+ */
+function unrenderedText(el: Element): string {
+  let out = '';
+  const walk = (n: Node): void => {
+    if (n.nodeType === 3) {
+      out += n.nodeValue ?? '';
+      return;
+    }
+    if (n.nodeType !== 1) return;
+    const e = n as Element;
+    const tag = e.nodeName;
+    if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'TEMPLATE' || tag === 'NOSCRIPT') return;
+    if (tag === 'BR') {
+      out += ' ';
+      return;
+    }
+    const display = getComputedStyle(e).display;
+    if (display === 'none' && e !== el) return; // the root keeps its text (textContent before)
+    const block = !INLINE_DISPLAY.test(display);
+    if (block) out += ' ';
+    for (let c = e.firstChild; c; c = c.nextSibling) walk(c);
+    if (block) out += ' ';
+  };
+  walk(el);
+  return out;
+}
+
 export function shortText(el: Element | null, max: number): string {
   if (!el) return '';
-  const t = ((el as HTMLElement).innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
+  const raw = (el as HTMLElement).innerText || (el.textContent ? unrenderedText(el) : '');
+  const t = raw.replace(/\s+/g, ' ').trim();
   return t.length > max ? `${t.slice(0, max - 1)}…` : t;
 }
 
@@ -336,6 +370,11 @@ const KNOB_PROPS = [
   'white-space',
   // Overflow
   'overflow',
+  // P8 c10 (14 ed-pen) — a Pen path / line draws a stroke: the Stroke row and its Ends row read these
+  'stroke',
+  'stroke-width',
+  'stroke-linecap',
+  'stroke-linejoin',
   // Media framing
   'object-fit',
   'aspect-ratio',
@@ -393,6 +432,20 @@ function styleMapsFor(el: Element | null): {
       if (ATTR_SKIP.test(a.name)) continue;
       attrs[a.name] = a.value;
     }
+    // S2.14 — a Pen path says how many points it has ("Pen · 4 points"): computed from its `d`, never stored.
+    if (el.tagName.toLowerCase() === 'svg' && el.getAttribute('data-shape') === 'path') {
+      const d = el.querySelector('path')?.getAttribute('d');
+      if (d) {
+        try {
+          attrs['data-dc-pen-points'] = String(pointCount(parsePathD(d)));
+        } catch {
+          /* arcs: no count */
+        }
+      }
+      // 14 ed-pen — the point being edited (the Point card): set by the Pen's point editing, never stored in the file
+      const point = penPointAttr(getPenPoint(el));
+      if (point) attrs['data-dc-pen-point'] = point;
+    }
     // Dogfood follow-up (print artboards) — ATTR_SKIP deliberately hides the
     // engine's own `data-dc-*` plumbing from the generic "custom HTML
     // attributes" panel, but for a whole-ARTBOARD selection those attributes
@@ -411,7 +464,9 @@ function styleMapsFor(el: Element | null): {
         if (a.name.startsWith('data-dc-') && a.name !== 'data-dcid') {
           attrs[a.name] = a.value;
         }
-      }
+      } // V2-8.5 C8 (08 ak-web-widths) — the Height row's note compares this page with its other widths.
+      const longest = webLongestOf(el as HTMLElement);
+      if (longest) attrs['data-dc-web-longest'] = String(longest);
     }
     // Stage M — parent's layout context (for the Fixed/Hug/Fill sizing control +
     // flex-child row gating). Read here because the shell can't reach the
@@ -428,6 +483,39 @@ function styleMapsFor(el: Element | null): {
   }
 }
 
+/** World-px box of `el` and its offset parent's client size (S2.3's Position / Size rows). */
+export function worldGeometry(el: HTMLElement): {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  parentW: number;
+  parentH: number;
+} {
+  const parent = el.offsetParent as HTMLElement | null;
+  return {
+    x: Math.round(el.offsetLeft),
+    y: Math.round(el.offsetTop),
+    w: Math.round(el.offsetWidth),
+    h: Math.round(el.offsetHeight),
+    parentW: Math.round(parent?.clientWidth ?? 0),
+    parentH: Math.round(parent?.clientHeight ?? 0),
+  };
+}
+
+const DS_TOKEN_RE = /^--[A-Za-z0-9_-]{1,128}$/;
+const DS_MASTER_RE = /^[A-Za-z][A-Za-z0-9]{0,63}$/;
+
+/** `[data-ds-token="--accent"]` / `[data-ds-master="Button"]` for a Design system board element, else null. Only
+ *  names that pass the go-to patterns (client/v2/ds/go-to.js), so nothing here can close the attribute selector. */
+export function dsAnchorOf(el: Element): string | null {
+  const token = el.getAttribute?.('data-ds-token');
+  if (token && DS_TOKEN_RE.test(token)) return `[data-ds-token="${token}"]`;
+  const master = el.getAttribute?.('data-ds-master');
+  if (master && DS_MASTER_RE.test(master)) return `[data-ds-master="${master}"]`;
+  return null;
+}
+
 export function hoverTargetToSelection(target: HoverTarget, file?: string): Selection {
   const el = target.el;
   const rect =
@@ -438,6 +526,11 @@ export function hoverTargetToSelection(target: HoverTarget, file?: string): Sele
   // climbs to an ancestor. Falls back to cssPath of the hit when no stable
   // anchor exists.
   const cdId = target.cdId;
+  // P8 round 7 (13 · ds-edit-colour) — a token / component master the Design system canvas draws has no data-cd-id
+  // (the board renders it), so it is named by its own attribute inside its section, and it carries NO artboard:
+  // "no id + an artboard" means a whole-artboard pick everywhere (its eight handles, Delete, ⌘C), and a swatch is
+  // not one. Selected, it is the swatch: the selection ring sits on it.
+  const ds = !cdId && el ? dsAnchorOf(el) : null;
   // Selector resolution order:
   //   1. data-cd-id anchor — stable pipeline-stamped id (preferred). SCOPED by
   //      the hit's artboard (`[data-dc-screen=…] [data-cd-id=…]`) — a component
@@ -450,9 +543,13 @@ export function hoverTargetToSelection(target: HoverTarget, file?: string): Sele
   //   3. cssPath of the hit — last-resort path string.
   const selector = cdId
     ? scopedCdSelector(cdId, target.artboardId)
-    : target.artboardId
-      ? `[data-dc-screen="${target.artboardId}"]`
-      : cssPath(el);
+    : ds
+      ? target.artboardId
+        ? `[data-dc-screen="${target.artboardId}"] ${ds}`
+        : ds
+      : target.artboardId
+        ? `[data-dc-screen="${target.artboardId}"]`
+        : cssPath(el);
   // Disambiguate repeated instances within the same artboard (list rows, a
   // reusable used twice) — the index is which `querySelectorAll(selector)`
   // match this element is. cssPath is already unique, so 0 there.
@@ -461,7 +558,7 @@ export function hoverTargetToSelection(target: HoverTarget, file?: string): Sele
     file: file ?? deriveFile(),
     id: cdId ?? undefined,
     selector,
-    artboardId: target.artboardId,
+    artboardId: ds ? null : target.artboardId,
     index,
     tag: el?.tagName.toLowerCase() ?? '',
     classes: realClasses(el),
@@ -480,8 +577,11 @@ export function hoverTargetToSelection(target: HoverTarget, file?: string): Sele
     // `bounds`, which is the SCREEN rect and lies at any zoom other than 100%).
     // The Inspector's artboard-resize fields (Stage D4 tail) need the true
     // JSX-authored width/height to pre-fill correctly regardless of zoom.
-    worldW: el instanceof HTMLElement ? Math.round(el.offsetWidth) : undefined,
-    worldH: el instanceof HTMLElement ? Math.round(el.offsetHeight) : undefined,
+    worldW: el instanceof HTMLElement ? Math.round(artboardWorldW(el)) : undefined,
+    worldH: el instanceof HTMLElement ? Math.round(artboardWorldH(el)) : undefined,
+    // S2.3 (via S2.1) — world-px box + the offset parent's client size (Position / Size /
+    // Constraints). Layout px, so zoom-independent like worldW/worldH.
+    geometry: el instanceof HTMLElement ? worldGeometry(el) : undefined,
     html: el ? (el.outerHTML ?? '').slice(0, 4000) : '',
     // feature-photo-editor (Task 14) — flag a content-addressed artboard `<img>`
     // so the Inspector can offer the Photo tab. Only a real `assets/<sha8>.<ext>`
@@ -509,7 +609,50 @@ export function hoverTargetToSelection(target: HoverTarget, file?: string): Sele
       return m ? { photoKind: 'artboard-img' as const, photoAsset: m[0] } : {};
     })(),
     ...styleMapsFor(el),
+    // S2.12 — the style a text object wears and what it overrides, measured in the canvas
+    ...textInfoFor(el),
+    // P8 c10 (14 ed-lay-auto) — an auto-layout frame's children, for "3 frames, each Fills the width."
+    ...kidsFor(el),
   };
+}
+
+/** The children of a flex frame, summarised (count, shared kind, one width sizing word); nothing for anything else. */
+function kidsFor(el: Element | null): { kids?: KidsSummary } {
+  if (!el || typeof window === 'undefined' || !window.getComputedStyle || !el.children?.length)
+    return {};
+  try {
+    const cs = window.getComputedStyle(el as HTMLElement);
+    const display = cs.display;
+    if (display !== 'flex' && display !== 'inline-flex') return {};
+    const facts = Array.from(el.children)
+      .filter((c): c is HTMLElement => c instanceof HTMLElement)
+      .map((c) => {
+        const inline = c.style;
+        const grow = inline.getPropertyValue('flex-grow').trim();
+        return {
+          tag: c.tagName.toLowerCase(),
+          width: inline.getPropertyValue('width').trim(),
+          // a class-styled child grows by its computed flex-grow
+          flexGrow: grow || window.getComputedStyle(c).flexGrow || '',
+          alignSelf: inline.getPropertyValue('align-self').trim(),
+        };
+      });
+    const kids = summarizeKids(
+      { display, flexDirection: cs.flexDirection, alignItems: cs.alignItems },
+      facts
+    );
+    return kids ? { kids } : {};
+  } catch {
+    return {};
+  }
+}
+
+/** `textInfo` for an element that holds text or wears a style; nothing for a box. */
+function textInfoFor(el: Element | null): { textInfo?: TextInfo } {
+  if (!el || el.children.length > 0) return {};
+  if (!(el.textContent ?? '').trim() && !el.getAttribute('class')) return {};
+  const info = probeTextInfo(el);
+  return info ? { textInfo: info } : {};
 }
 
 /**
@@ -577,4 +720,61 @@ export function openCommentComposer(selection: Selection, clientX: number, clien
       /* parent detached */
     }
   }
+}
+
+/** The design surface of an artboard frame: its body, the box the name tag and the resize handles measure. */
+function artboardBody(el: HTMLElement): HTMLElement | null {
+  if (!el.hasAttribute('data-dc-screen')) return null;
+  const body = Array.from(el.children).find((c) => c.classList.contains('dc-artboard-body')) as
+    | HTMLElement
+    | undefined;
+  return body && body.offsetWidth ? body : null;
+}
+
+/**
+ * World-unit width of a selected element. An artboard reads its design surface (S2.22 G1: the declared 1440,
+ * not the frame with its border), so the Preset row matches and a write-back never grows the board.
+ */
+export function artboardWorldW(el: HTMLElement): number {
+  return artboardBody(el)?.offsetWidth ?? el.offsetWidth;
+}
+
+/**
+ * V2-8.5 C8 (08 ak-web-widths: "2185 now — the longest of the three.") — how many web pages stand in this one's
+ * section when it is the TALLEST of them, else null. The same page at 1440 / 834 / 390 sits side by side in one
+ * section, each at its own width and each fitting its content; a board that is fixed, or a section whose web boards
+ * share a width (separate pages, not widths of one), has nothing to compare. Read at selection time, so it never goes
+ * stale when a sibling grows.
+ */
+export function webLongestOf(el: HTMLElement): number | null {
+  const isWeb = (b: Element) =>
+    b.getAttribute('data-dc-kind') === 'web' && b.getAttribute('data-dc-fixed') !== 'true';
+  if (!el.hasAttribute('data-dc-screen') || !isWeb(el)) return null;
+  const scope = el.closest('[data-dc-section]') ?? el.ownerDocument;
+  const pages = Array.from(scope.querySelectorAll('[data-dc-screen]')).filter(
+    isWeb
+  ) as HTMLElement[];
+  if (pages.length < 2 || !pages.includes(el)) return null;
+  const widths = new Set(pages.map((b) => Math.round(artboardWorldW(b))));
+  if (widths.size !== pages.length) return null;
+  const mine = artboardWorldH(el);
+  return pages.every((b) => b === el || artboardWorldH(b) < mine) ? pages.length : null;
+}
+
+/**
+ * World-unit height of a selected element. A FIXED artboard's frame is its
+ * label strip + the declared body (V2-2.8 "fixed artboard loses 24 px"), so the
+ * label is taken back out: the Inspector's Height field keeps showing the
+ * number it always showed, never the label on top of it.
+ */
+export function artboardWorldH(el: HTMLElement): number {
+  const body = artboardBody(el);
+  if (body) return body.offsetHeight;
+  if (el.getAttribute('data-dc-fixed') !== 'true' || !el.hasAttribute('data-dc-screen')) {
+    return el.offsetHeight;
+  }
+  const label = Array.from(el.children).find((c) => c.classList.contains('dc-artboard-label')) as
+    | HTMLElement
+    | undefined;
+  return el.offsetHeight - (label ? label.offsetHeight : 0);
 }

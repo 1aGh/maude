@@ -1,0 +1,12 @@
+{"lane":"acp","name":"Bash","input":{"command":"ls -la .design/incoming/ && cat .design/incoming/brand-mark.svg && maude design --help 2>&1 | head -50","description":"Inspect incoming logo and design CLI help"}}
+{"lane":"acp","name":"Skill","input":{"skill":"design:assets"}}
+{"lane":"acp","name":"Bash","input":{"command":"ls .design .design/assets assets 2>&1 | head -40; find / -name \"_guide-importing-files.md\" 2>/dev/null | head -2; maude design svg-optimize --help 2>&1 | head -20","description":"List project assets and find import guide"}}
+{"lane":"acp","name":"Read","input":{"file_path":"/Users/iagh/git/personal/maude/plugins/design/skills/design/_guide-importing-files.md"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design import-asset .design/incoming/brand-mark.svg 2>&1; echo \"exit $?\"","description":"Import the logo SVG into project assets"}}
+{"lane":"acp","name":"Bash","input":{"command":"cat assets/cb46edc4.svg; echo; maude design assets 2>&1 | head","description":"Verify imported asset content"}}
+{"lane":"acp","name":"Bash","input":{"command":"find . -name \"cb46edc4*\" -not -path \"./node_modules/*\" 2>/dev/null; maude design assets --usage cb46edc4.svg --details 2>&1 | head","description":"Locate the stored asset file"}}
+{"lane":"acp","name":"Read","input":{"file_path":"/private/var/folders/t_/kf80xz3j79sfmkrq4snj2qk00000gn/T/maude-agent-journeys/2026-10-28-all/S8/acp/project/.design/assets/cb46edc4.svg"}}
+{"lane":"acp","name":"Skill","input":{"skill":"design:export"}}
+{"lane":"acp","name":"Bash","input":{"command":"grep -n -i \"DCArtboard\\|publish\" .design/ui/GitPanel.tsx | head -30; ls .design/out","description":"Find the publish artboard in GitPanel"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design export png --scope selection --canvas ui/GitPanel.tsx --artboard publish --out .design/out/ 2>&1; echo \"exit $?\"; ls -la .design/out","description":"Export publish artboard as PNG to out folder"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design exports list 2>&1; echo \"exit $?\"","description":"List recent project exports"}}

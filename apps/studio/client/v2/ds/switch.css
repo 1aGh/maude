@@ -1,0 +1,263 @@
+/* client/v2/ds/switch.css — S10.14: "Switch canvases to …?" (13 · ds-multi-switch) and the "Preview in …" menu and
+   banner (13 · ds-many-switch). The sheet reuses the .dsr-* rows of review.css; tokens only, and motion collapses
+   under reduced motion. */
+/* P8 C0: was unlayered. In @layer components: above the v1 shell layer and after the v1 component files, the place an unlayered v2 rule held over v1 — without beating every layer. */
+@layer components {
+  .island.dss-dialog {
+    width: min(600px, calc(100vw - 32px));
+  }
+  /* the switch list's thumbnails are the small render: 44 x 32 */
+  .dss-dialog .dsr-thumb {
+    width: 44px;
+    height: 32px;
+  }
+  .dss-scope {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-3);
+  }
+  .dss-scope-k,
+  .dss-to span {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .dss-to {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-left: auto;
+  }
+  .dss-to select {
+    max-width: 220px;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-default);
+    background: var(--bg-2);
+    color: var(--fg-0);
+    font: inherit;
+    font-size: var(--type-sm);
+  }
+  .dss-line {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    margin: 0;
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-1);
+  }
+  .dss-line svg {
+    flex: none;
+    margin-top: 1px;
+  }
+  .dss-line[data-tone="ok"] svg {
+    color: var(--status-success-text);
+  }
+  .dss-line[data-tone="warn"] svg {
+    color: var(--status-warn-text, var(--fg-1));
+  }
+  .dss-ai {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-sm);
+    background: var(--accent-soft);
+  }
+  .dss-ai-t {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .dss-ai-t b {
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+    color: var(--accent-on-soft);
+  }
+  .dss-ai-t em {
+    font-style: normal;
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+  }
+  .dss-switch {
+    position: relative;
+    flex: none;
+    width: 32px;
+    height: 18px;
+    padding: 0;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--border-strong);
+    background: var(--bg-4);
+    cursor: pointer;
+    transition: background var(--dur-flip) var(--ease-out);
+  }
+  .dss-switch::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 12px;
+    height: 12px;
+    border-radius: var(--radius-pill);
+    background: var(--fg-0);
+    transition: transform var(--dur-flip) var(--ease-out);
+  }
+  .dss-switch[aria-checked="true"] {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .dss-switch[aria-checked="true"]::after {
+    transform: translateX(14px);
+    background: var(--accent-fg);
+  }
+  .dss-switch:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  /* Preview in … — the menu over the banner, bottom centre */
+  .dsp {
+    position: fixed;
+    left: 50%;
+    top: var(--space-4);
+    z-index: 55;
+    display: flex;
+    /* the banner is the top-centre island (.ds-banner); the menu drops under it */
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: var(--space-2);
+    width: min(560px, calc(100vw - 32px));
+    /* centred by margin, not by a translate — a translated box would become the containing block of the anchored (fixed) menu */
+    margin-left: calc(min(560px, calc(100vw - 32px)) / -2);
+  }
+  .dsp-menu {
+    align-self: flex-start;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 280px;
+    padding: var(--space-2);
+    outline: none;
+  }
+  /* hung beside the Design systems row it opened from, as the board draws it */
+  .dsp-menu[data-anchored] {
+    position: fixed;
+    align-self: auto;
+    width: 252px;
+  }
+  /* the keys line is for the keyboard and a screen reader; the board's menu draws the list and the doors only */
+  .dsp-hint--quiet {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .dsp-menu:focus-visible {
+    box-shadow: 0 0 0 2px var(--accent);
+  }
+  .dsp-head,
+  .dsp-hint {
+    margin: 0;
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .dsp-opt {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+    cursor: pointer;
+  }
+  .dsp-opt-n {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--fg-0);
+  }
+  .dsp-opt em {
+    font-style: normal;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .dsp-opt[data-highlight] {
+    background: var(--accent-muted);
+  }
+  .dsp-sep {
+    margin: var(--space-1) 0;
+    border: 0;
+    border-top: 0.5px solid var(--border-default);
+  }
+  .dsp-door {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin: 0;
+    padding: var(--space-1) var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    font: inherit;
+    font-size: var(--type-sm);
+    text-align: left;
+    color: var(--fg-1);
+    cursor: pointer;
+  }
+  .dsp-door:hover,
+  .dsp-door:focus-visible {
+    background: var(--accent-muted);
+    color: var(--fg-0);
+    outline: none;
+  }
+  .dsp-door[aria-disabled="true"] {
+    opacity: 0.5;
+    cursor: default;
+    background: transparent;
+    color: var(--fg-1);
+  }
+  .dsp-door kbd {
+    font: inherit;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .dsp-banner {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+  }
+  .dsp-banner-t {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .dsp-banner-t b {
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+  .dsp-banner-t em {
+    font-style: normal;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .dss-switch,
+    .dss-switch::after {
+      transition-duration: 1ms;
+    }
+  }
+}

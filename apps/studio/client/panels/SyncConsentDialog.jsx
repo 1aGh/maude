@@ -7,7 +7,7 @@
 //
 // Deliberately NOT inside the Sync panel: a consent that only appears if you
 // happen to open a panel is not consent. It mounts with the global banners in
-// app.jsx and renders over everything (st-dialog anatomy).
+// app.jsx and renders over everything (sh-dialog anatomy).
 //
 // The answer is machine-local (localStorage, like the notice acks) — consent
 // is per human per machine, not a project setting to sync around. "Keep
@@ -116,47 +116,48 @@ export default function SyncConsentDialog({ status, cloud }) {
   }
 
   return (
-    <div className="st-scrim" data-testid="sync-consent">
+    <div className="sh-scrim" data-testid="sync-consent">
       <div
-        className="st-dialog st-consent"
+        className="sh-dialog v2s-consent"
         role="dialog"
         aria-modal="true"
         aria-labelledby="sync-consent-title"
       >
-        <div className="st-dialog-hd">
-          <span className="st-dialog-title" id="sync-consent-title">
+        <div className="sh-dialog-hd">
+          <span className="sh-dialog-title" id="sync-consent-title">
             This project syncs with {host}
           </span>
         </div>
-        <div className="st-dialog-bd">
+        <div className="sh-dialog-bd">
           <p>Since your last update, syncing covers more than canvases. With this workspace:</p>
-          <ul className="st-consent-list">
+          <ul className="v2s-consent-list">
             <li>
               <strong>The whole design folder mirrors both ways</strong> — stylesheets, docs and
               code modules, not only canvases.
             </li>
             <li>
               <strong>Deleting a file here deletes it there</strong> (and the other way round).
-              Replaced copies are kept in the Sync panel's Trash, and bulk removals pause for confirmation.
+              Replaced copies are kept in the Sync panel's Trash, and bulk removals pause for
+              confirmation.
             </li>
             {status?.sharedDoc && (
               <li>
-                <strong>Your live editing buffer is the shared object</strong> — edits stream to
-                the workspace as you type, not as saved copies.
+                <strong>Your live editing buffer is the shared object</strong> — edits stream to the
+                workspace as you type, not as saved copies.
               </li>
             )}
           </ul>
-          <p className="st-consent-fine">
+          <p className="v2s-consent-fine">
             You can change either choice any time in the Sync panel's Settings. Only sync with
             workspaces you operate or trust.
           </p>
           {note && (
-            <p className="st-consent-note" role="status" aria-live="polite">
+            <p className="v2s-consent-note" role="status" aria-live="polite">
               {note}
             </p>
           )}
         </div>
-        <div className="st-dialog-ft">
+        <div className="sh-dialog-ft">
           <button
             type="button"
             className="btn btn--ghost"

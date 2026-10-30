@@ -31,7 +31,7 @@
           if (!frame?.contentWindow || !frame.src || !loopback(frame.src))
             return resolve({ error: 'Active canvas frame unavailable', visible: false });
           const blocker = document.querySelector(
-            '[data-testid="canvas-load-error"], .st-canvas-loading'
+            '[data-testid="canvas-load-error"], .sh-canvas-loading'
           );
           if (blocker && blocker.getBoundingClientRect().height > 0)
             return resolve({
@@ -50,7 +50,8 @@
           // (bounded to 2 s in the frame); the reply must be allowed to
           // arrive after the gesture, not only after a DOM turn.
           const hold = Number.isFinite(value?.hold) ? Math.min(Math.max(value.hold, 0), 2000) : 0;
-          const timeoutMs = operation === 'play' ? 5000 : 1000 + hold;
+          // a held drag's moves come on top of the hold: 1 s of slack timed out on a loaded runner (2026-10-27)
+          const timeoutMs = operation === 'play' ? 5000 : hold ? 2000 + hold : 1000;
           const timer = setTimeout(() => {
             pending.delete(id);
             resolve({ error: 'Active canvas probe response timed out', visible: false });

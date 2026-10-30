@@ -25,7 +25,12 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { addScriptCspSafe, assertRenderOutputSizeOk, launchChromium } from './_pw-launch.mjs';
+import {
+  addScriptCspSafe,
+  assertRenderOutputSizeOk,
+  launchChromium,
+  newShellContext,
+} from './_pw-launch.mjs';
 
 const args = Object.fromEntries(
   process.argv.slice(2).reduce((acc, cur, i, all) => {
@@ -146,13 +151,14 @@ console.error(
 const browser = await launchChromium(gpuArgs.length ? { args: gpuArgs } : undefined);
 console.error('_video-playwright: browser launched');
 try {
-  const ctx = await browser.newContext({
+  // gate-b-c4d — confined to the origin the shell lands on (popups, other origins refused).
+  const { ctx, goto: gotoShell } = await newShellContext(browser, {
     serviceWorkers: 'block',
     viewport: { width: 1440, height: 900 },
     deviceScaleFactor,
   });
   const page = await ctx.newPage();
-  await page.goto(url, { waitUntil: 'load', timeout: timeoutMs });
+  await gotoShell(page, url, { waitUntil: 'load', timeout: timeoutMs });
   await page.evaluate(() => document.fonts.ready);
   console.error('_video-playwright: page loaded');
 

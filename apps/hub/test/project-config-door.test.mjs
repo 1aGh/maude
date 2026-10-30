@@ -180,6 +180,27 @@ describe('PUT /api/project-config', () => {
     assert.equal((await put(ALLIGATORS, { method: 'POST' })).status, 405);
     assert.equal((await put(ALLIGATORS, { pathname: '/api/project-configs' })).handled, false);
   });
+  it('P-5: schema / rootClass / themes / themeDefault are filled, never changed', async () => {
+    const sys = { name: 'alligators', path: 'system/alligators' };
+    await put({ ...ALLIGATORS, designSystems: [sys] });
+    await put({
+      ...ALLIGATORS,
+      designSystems: [
+        { ...sys, schema: 1, rootClass: 'gators', themes: ['dark', 'light'], themeDefault: 'dark' },
+      ],
+    });
+    assert.deepEqual(config().designSystems, [
+      { ...sys, schema: 1, rootClass: 'gators', themes: ['dark', 'light'], themeDefault: 'dark' },
+    ]);
+    // a second owner's desktop says otherwise: the door-created config keeps the first values
+    await put({
+      ...ALLIGATORS,
+      designSystems: [{ ...sys, rootClass: 'other', themes: ['light'], themeDefault: 'light' }],
+    });
+    assert.deepEqual(config().designSystems, [
+      { ...sys, schema: 1, rootClass: 'gators', themes: ['dark', 'light'], themeDefault: 'dark' },
+    ]);
+  });
 });
 
 describe('sanitizeProjectConfigSubset', () => {
@@ -193,6 +214,49 @@ describe('sanitizeProjectConfigSubset', () => {
       ],
     });
     assert.deepEqual(s, { canvasGroups: [{ label: 'ok', path: 'ui' }] });
+  });
+
+  it('P-5: carries schema (1 only), rootClass and themes in the class charset, themeDefault among themes', () => {
+    const s = sanitizeProjectConfigSubset({
+      designSystems: [
+        {
+          name: 'ok',
+          path: 'system/ok',
+          schema: 1,
+          rootClass: 'fx',
+          themes: ['light', 'dark'],
+          themeDefault: 'dark',
+        },
+        {
+          name: 'two',
+          path: 'system/two',
+          schema: 2,
+          rootClass: 'Fx</style>',
+          themes: ['light', 'Bad Theme', 'light'],
+          themeDefault: 'sepia',
+        },
+        {
+          name: 'str',
+          path: 'system/str',
+          schema: '1',
+          rootClass: 'x'.repeat(65),
+          themes: 'dark',
+          themeDefault: 'dark',
+        },
+      ],
+    });
+    assert.deepEqual(s.designSystems, [
+      {
+        name: 'ok',
+        path: 'system/ok',
+        schema: 1,
+        rootClass: 'fx',
+        themes: ['light', 'dark'],
+        themeDefault: 'dark',
+      },
+      { name: 'two', path: 'system/two', themes: ['light'] },
+      { name: 'str', path: 'system/str', themeDefault: 'dark' },
+    ]);
   });
 
   it('keeps only contained relative paths and plain names', () => {

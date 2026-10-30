@@ -21,16 +21,68 @@ export async function expandTree(): Promise<void> {
   }
 }
 
+/**
+ * The left panel yields to a canvas that is being worked on: once an object is selected (or ⌘\ was pressed) it folds
+ * to its corner icon (`panel-icon-left`) and every Files / Layers row is gone. A person brings it back from that
+ * icon — so does a spec. A no-op while the panel is showing.
+ */
+export async function openLeftPanel(): Promise<void> {
+  await browser.execute(() => {
+    document.querySelector<HTMLElement>('[data-testid="panel-icon-left"]')?.click();
+  });
+  await browser.waitUntil(
+    async () => browser.execute(() => !!document.querySelector('[data-testid^="panel-tab-"]')),
+    { timeout: 10_000, timeoutMsg: 'the left panel never came back from its corner icon' }
+  );
+}
+
+/**
+ * The default lane drives ONE app process through every spec, so the left dock stays on whatever tab
+ * the last spec left it on (Layers, after an unlock). The Files rows only exist on the Files tab.
+ */
+export async function ensureFilesTab(): Promise<void> {
+  // esbuild keepNames needs the shell window to carry `__name` (see helpers/sidecar.ts installNameShim)
+  await browser.execute(() => {
+    const w = window as unknown as { __name?: unknown };
+    if (!w.__name) w.__name = (f: unknown) => f;
+  });
+  await browser.execute(() => {
+    // (see openLeftPanel: the panel may be folded to its corner icon)
+    document.querySelector<HTMLElement>('[data-testid="panel-icon-left"]')?.click();
+    const tab = document.querySelector<HTMLElement>('[data-testid="panel-tab-tree"]');
+    if (tab && tab.getAttribute('aria-selected') !== 'true') tab.click();
+  });
+}
+
 /** A canvas row by its test id, revealed first. */
 export async function canvasRow(testId: string) {
   const sel = `[data-testid="${testId}"]`;
   await browser.waitUntil(
     async () => {
       if (await $(sel).isExisting()) return true;
+      await ensureFilesTab();
       await expandTree();
       return $(sel).isExisting();
     },
     { timeout: 30_000, timeoutMsg: `${testId} never appeared in the Files panel` }
+  );
+  return $(sel).getElement();
+}
+
+/**
+ * A design system's pinned row in the Canvases panel (`canvases-ds-row`, one per system the project holds). The
+ * Design system canvas has no row in the file tree: the project's `system/` group is the DESIGN SYSTEM group, so
+ * its systems are drawn pinned above the canvases and a click on the row opens the system's canvas (`ds.go-to`).
+ */
+export async function dsRow(ds: string) {
+  const sel = `[data-testid="canvases-ds-row"][data-ds="${ds}"]`;
+  await browser.waitUntil(
+    async () => {
+      if (await $(sel).isExisting()) return true;
+      await ensureFilesTab();
+      return $(sel).isExisting();
+    },
+    { timeout: 60_000, timeoutMsg: `the pinned row for the ${ds} design system never appeared` }
   );
   return $(sel).getElement();
 }

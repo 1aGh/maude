@@ -52,7 +52,8 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-
+import { canvasInsets } from './bridge/canvas-mode-store.ts';
+import { type Insets, visibleRect } from './bridge/occlusion.ts';
 import {
   annotationElement,
   isAnnotationId,
@@ -60,8 +61,19 @@ import {
   type WorldPoint,
   worldToClient,
 } from './comment-anchor.ts';
+import { fromHeadline, fromWho } from './comments/from-line.ts';
+import {
+  type ImportedFrom,
+  importedLabel,
+  sanitizeImportedFrom,
+} from './comments/imported-from.ts';
+import { handleOfName } from './comments/mentions.ts';
+import { committerRows, type MentionRow } from './comments/people.ts';
+import { mmAtArtboardPx, trimOfPrint, videoPinVisible, whereOf } from './comments/where.ts';
 import { resolveByDomPath } from './dom-selection.ts';
-import { isReadOnlyCanvas } from './read-only-mode.ts';
+import { toneColor, toneFor } from './presence/tones.ts';
+import { canCommentCanvas, isReadOnlyCanvas } from './read-only-mode.ts';
+import { currentCanvasFile } from './shell-canvas-file.ts';
 import { useCollab } from './use-collab.tsx';
 import { useSelectionSetOptional } from './use-selection-set.tsx';
 
@@ -105,6 +117,8 @@ interface ComposerState {
   selection: ComposeSelection;
   clientX: number;
   clientY: number;
+  /** Where on the artboard it was placed — the video's moment, the point on paper (S9.22). */
+  anchors?: { artboard?: string; t?: number; mm?: { x: number; y: number } };
 }
 
 interface OverlayReply {
@@ -112,6 +126,12 @@ interface OverlayReply {
   author: string;
   body: string;
   created: string;
+  /** `ai` for an AI-written reply (S9.7b) — shown with an AI mark, never as a person. */
+  authorKind?: 'ai';
+  /** S8.17b — written in another tool (Figma): a label, never a member. `author` is the importer. */
+  importedFrom?: ImportedFrom;
+  /** Round 11 (10 co-sync-offline) — this reply waits on this Mac (the shell reads the outbox and stamps it). */
+  queued?: boolean;
 }
 
 export interface OverlayComment {
@@ -141,8 +161,245 @@ export interface OverlayComment {
   /** World point of the comment — the anchor of a floating comment, and the
    * last known place of an anchored one whose target is gone. */
   world?: WorldPoint;
+  /** Maude 2 anchors (comments/anchors.ts): the artboard the thread is on, the second of its
+   * video (`t`), the point on paper in mm from the trim corner (`mm`). */
+  artboard?: string;
+  t?: number;
+  mm?: { x: number; y: number };
+  authorKind?: 'ai';
+  /** Round 11 (10 co-sync-offline) — the comment waits on this Mac: the thread card says "Queued". */
+  queued?: boolean;
+  /** S8.17b — the thread came from another tool (Figma): who wrote it there, as a label. */
+  importedFrom?: ImportedFrom;
+  /** A converted sticky (S4-S9-votes-comments §3.1). */
+  from?: {
+    kind: string;
+    id: string;
+    author: string;
+    convertedBy: string;
+    at: string;
+  };
   // html_excerpt unused at overlay layer; kept off the type to keep the
   // surface tight.
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The shell bridge (S9.22). The overlay runs in the canvas iframe and cannot reach the privileged
+// comment door (`POST /_api/comments/op`, main origin only). It asks the shell, which asks the door
+// as the session — that is also how a canvas-only session replies (the old `/reply` route named no
+// canvas for the local gate to judge a grant on). The shell answers `comment-op-ack` the moment it
+// receives an op and `comment-op-result` when the door has answered. No ack inside ACK_MS means the
+// shell has no bridge (an older shell, a standalone preview): the caller falls back to the v1
+// message it always sent, so nothing is ever sent twice and nothing is lost.
+
+const ACK_MS = 800;
+const RESULT_MS = 20_000;
+
+interface ShellReply {
+  dgn?: string;
+  reqId?: string | number | null;
+  ok?: boolean;
+  comment?: OverlayComment | null;
+  error?: string;
+  people?: unknown;
+}
+
+const pendingCalls = new Map<string, (m: ShellReply) => void>();
+let callSeq = 0;
+function onShellReply(e: MessageEvent): void {
+  // Only the shell (our parent) answers; a sibling frame or the canvas's own code cannot.
+  if (e.source !== window.parent) return;
+  const m = e.data as ShellReply | null;
+  if (!m || typeof m !== 'object' || typeof m.dgn !== 'string') return;
+  if (m.dgn !== 'comment-op-ack' && m.dgn !== 'comment-op-result' && m.dgn !== 'comment-people')
+    return;
+  const key = `${m.dgn === 'comment-op-ack' ? 'ack' : 'res'}:${String(m.reqId)}`;
+  pendingCalls.get(key)?.(m);
+}
+
+// One stable listener, added on every call: addEventListener drops a duplicate of the same function, and a
+// document whose listeners were cleared (a reset test DOM) gets it back — a once-flag never would.
+function installShellReplies(): void {
+  if (typeof window === 'undefined') return;
+  window.addEventListener('message', onShellReply);
+}
+
+const hasShell = (): boolean => typeof window !== 'undefined' && window.parent !== window;
+
+function waitFor(key: string, ms: number): Promise<ShellReply | null> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      pendingCalls.delete(key);
+      resolve(null);
+    }, ms);
+    pendingCalls.set(key, (m) => {
+      clearTimeout(timer);
+      pendingCalls.delete(key);
+      resolve(m);
+    });
+  });
+}
+
+/**
+ * Run a comment op through the shell. `null` = no shell bridge answered (fall back to the v1
+ * message); otherwise the door's answer. Never throws.
+ */
+export async function shellCommentOp(
+  op: Record<string, unknown>
+): Promise<{ ok: boolean; comment?: OverlayComment | null; error?: string } | null> {
+  if (!hasShell()) return null;
+  installShellReplies();
+  const reqId = `cm${++callSeq}`;
+  const ack = waitFor(`ack:${reqId}`, ACK_MS);
+  const res = waitFor(`res:${reqId}`, RESULT_MS);
+  try {
+    window.parent.postMessage({ dgn: 'comment-op', reqId, op }, '*');
+  } catch {
+    pendingCalls.delete(`ack:${reqId}`);
+    pendingCalls.delete(`res:${reqId}`);
+    return null;
+  }
+  if (!(await ack)) {
+    pendingCalls.delete(`res:${reqId}`);
+    return null;
+  }
+  const m = await res;
+  if (!m) return { ok: false, error: 'That did not go through.' };
+  return m.ok
+    ? { ok: true, comment: m.comment ?? null }
+    : { ok: false, error: m.error || 'That did not go through.' };
+}
+
+/** The people who can open this canvas, from the shell (hub `people`); null = no source. */
+async function shellPeople(): Promise<MentionRow[] | null> {
+  if (!hasShell()) return null;
+  installShellReplies();
+  const reqId = `cm${++callSeq}`;
+  const answer = waitFor(`res:${reqId}`, 2500);
+  try {
+    window.parent.postMessage({ dgn: 'comment-people-request', reqId }, '*');
+  } catch {
+    pendingCalls.delete(`res:${reqId}`);
+    return null;
+  }
+  const m = await answer;
+  return Array.isArray(m?.people) ? (m.people as MentionRow[]) : null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Where on the canvas a comment sits (S9.22): the artboard it is on, a video's moment, a print
+// artboard's millimetres. Read off the live DOM — `data-dc-screen` / `data-dc-kind` / `data-dc-print`
+// are stamped by DCArtboard — and the video players' registry (`window.__maudeVideoComps`).
+
+function artboardNode(id: string): HTMLElement | null {
+  if (typeof document === 'undefined') return null;
+  for (const el of document.querySelectorAll<HTMLElement>('[data-dc-screen]'))
+    if (el.getAttribute('data-dc-screen') === id) return el;
+  return null;
+}
+
+function artboardLabelOf(id: string): string {
+  const node = artboardNode(id);
+  const label = node?.querySelector('.dc-artboard-label');
+  const text = (label instanceof HTMLInputElement ? label.value : label?.textContent)?.trim();
+  return text || id;
+}
+
+function artboardBodyRect(node: HTMLElement): DOMRect {
+  return (node.querySelector('.dc-artboard-body') ?? node).getBoundingClientRect();
+}
+
+function artboardAt(clientX: number, clientY: number): string | null {
+  if (typeof document === 'undefined') return null;
+  for (const el of document.querySelectorAll<HTMLElement>('[data-dc-screen]')) {
+    const r = artboardBodyRect(el);
+    if (clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom)
+      return el.getAttribute('data-dc-screen');
+  }
+  return null;
+}
+
+function printPropOf(id: string): unknown {
+  const raw = artboardNode(id)?.getAttribute('data-dc-print');
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+interface CompLike {
+  artboardId: string | null;
+  fps: number;
+  ref: { current: { getCurrentFrame?: () => number } | null };
+}
+
+/** Seconds into the video on artboard `id`, or null when no player for it is mounted. */
+export function playheadSeconds(id: string): number | null {
+  const reg = (globalThis as unknown as { __maudeVideoComps?: Map<string, CompLike> })
+    .__maudeVideoComps;
+  if (!reg) return null;
+  for (const c of reg.values()) {
+    if (c.artboardId !== id) continue;
+    try {
+      const f = c.ref.current?.getCurrentFrame?.();
+      if (typeof f === 'number' && c.fps > 0) return f / c.fps;
+    } catch {
+      /* a player in transition */
+    }
+  }
+  return null;
+}
+
+/** Park the video on artboard `id` at second `t` (a thread's "at 0:12" chip). False = no player. */
+export function seekPlayhead(id: string, t: number): boolean {
+  const reg = (globalThis as unknown as { __maudeVideoComps?: Map<string, CompLike> })
+    .__maudeVideoComps;
+  if (!reg) return false;
+  for (const c of reg.values()) {
+    if (c.artboardId !== id) continue;
+    const player = c.ref.current as {
+      pause?: () => void;
+      seekTo?: (f: number) => void;
+    } | null;
+    if (!player?.seekTo) continue;
+    try {
+      player.pause?.();
+      player.seekTo(Math.max(0, Math.round(t * c.fps)));
+      return true;
+    } catch {
+      /* a player in transition */
+    }
+  }
+  return false;
+}
+
+/** The v2 anchors for a comment placed at a client point on `artboardId` (or whichever artboard is there). */
+export function anchorsAt(
+  artboardId: string | null | undefined,
+  clientX: number,
+  clientY: number
+): { artboard?: string; t?: number; mm?: { x: number; y: number } } {
+  const id = artboardId || artboardAt(clientX, clientY);
+  const node = id ? artboardNode(id) : null;
+  if (!id || !node) return {};
+  const out: { artboard?: string; t?: number; mm?: { x: number; y: number } } = { artboard: id };
+  const kind = node.getAttribute('data-dc-kind');
+  if (kind === 'video') {
+    const t = playheadSeconds(id);
+    if (t !== null) out.t = Math.round(t * 1000) / 1000;
+  } else if (kind === 'print') {
+    const rect = artboardBodyRect(node);
+    const body = node.querySelector('.dc-artboard-body') as HTMLElement | null;
+    const scale = body && rect.width > 0 ? body.offsetWidth / rect.width : 1;
+    const mm = mmAtArtboardPx(printPropOf(id), {
+      x: (clientX - rect.left) * (scale || 1),
+      y: (clientY - rect.top) * (scale || 1),
+    });
+    if (mm) out.mm = mm;
+  }
+  return out;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -168,19 +425,7 @@ function ensureOverlayStyles(): void {
 // from canvas-shell (which would create a cycle).
 
 function deriveFile(): string | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const p = window.location.pathname;
-    if (p === '/_canvas-shell.html' || p === '/_canvas-shell') {
-      const qs = new URLSearchParams(window.location.search);
-      const canvas = qs.get('canvas') ?? '';
-      const designRel = (qs.get('designRel') ?? '.design').replace(/^\/+|\/+$/g, '');
-      return canvas ? `${designRel}/${canvas}` : null;
-    }
-    return decodeURIComponent(p).replace(/^\//, '');
-  } catch {
-    return null;
-  }
+  return currentCanvasFile();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -257,25 +502,37 @@ function screenRectFor(target: TargetRef): {
 // the pattern context-menu.tsx already uses for the same problem, but flips
 // axes instead of only clamping, per the explicit ask: always open toward
 // whichever side has room, not just "shifted back into view".
+//
+// P8 C5: "the viewport" is the canvas the shell leaves free — the iframe minus the shell's occluded insets
+// (the floating islands over it). The Comments panel is docked on the right (CONTRACT §6); a card that
+// opened toward it sat under the island with its Resolve out of reach.
 export function placeNearPoint(
   point: { x: number; y: number },
-  size: { w: number; h: number }
+  size: { w: number; h: number },
+  insets: Insets = canvasInsets()
 ): { x: number; y: number } {
   const margin = 8;
   const vw = typeof window !== 'undefined' ? window.innerWidth : point.x + size.w;
   const vh = typeof window !== 'undefined' ? window.innerHeight : point.y + size.h;
+  const free = visibleRect(vw, vh, insets);
+  const left = free.x + margin;
+  const top = free.y + margin;
+  const right = free.x + free.w;
+  const bottom = free.y + free.h;
 
   let x = point.x;
-  if (x + size.w + margin > vw) {
+  if (x + size.w + margin > right) {
     const flipped = point.x - size.w;
-    x = flipped >= margin ? flipped : Math.max(margin, vw - size.w - margin);
+    x = flipped >= left ? flipped : Math.max(left, right - size.w - margin);
   }
+  if (x < left) x = left;
 
   let y = point.y;
-  if (y + size.h + margin > vh) {
+  if (y + size.h + margin > bottom) {
     const flipped = point.y - size.h;
-    y = flipped >= margin ? flipped : Math.max(margin, vh - size.h - margin);
+    y = flipped >= top ? flipped : Math.max(top, bottom - size.h - margin);
   }
+  if (y < top) y = top;
 
   return { x, y };
 }
@@ -293,8 +550,19 @@ export function CommentsOverlay(): React.ReactNode {
   const selSet = useSelectionSetOptional();
   const [comments, setComments] = useState<OverlayComment[]>([]);
   const [focusedId, setFocusedId] = useState<string | null>(null);
+  // S6.11b — bumped by `comment-focus {reply: true}`; 0 = the thread's own focus rule (the dialog)
+  const [replyFocus, setReplyFocus] = useState(0);
   const [composer, setComposer] = useState<ComposerState | null>(null);
   const file = useMemo(() => deriveFile(), []);
+  const [submitting, setSubmitting] = useState(false);
+  // A sentence when the door refuses (what happened · what is safe · one verb) — the text stays put.
+  const [notice, setNotice] = useState<string | null>(null);
+  // The door's answer is the thread after the op; merge it now, the broadcast confirms it later.
+  const mergeComment = useCallback((c: OverlayComment) => {
+    setComments((prev) =>
+      prev.some((x) => x.id === c.id) ? prev.map((x) => (x.id === c.id ? c : x)) : [...prev, c]
+    );
+  }, []);
 
   // Drop the legacy `#dgn-pin-layer` so we don't render duplicate pins inside
   // TSX canvases. The layer ships in every served HTML page via inspect.ts;
@@ -393,13 +661,21 @@ export function CommentsOverlay(): React.ReactNode {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const onMessage = (e: MessageEvent) => {
-      const m = e.data as { dgn?: string; comments?: unknown; id?: string } | null;
+      const m = e.data as {
+        dgn?: string;
+        comments?: unknown;
+        id?: string;
+        reply?: unknown;
+      } | null;
       if (!m || typeof m !== 'object' || !m.dgn) return;
       if (m.dgn === 'comments-set' && Array.isArray(m.comments)) {
         setComments(m.comments as OverlayComment[]);
       } else if (m.dgn === 'comment-focus') {
         const id = typeof m.id === 'string' ? m.id : null;
         setFocusedId(id);
+        // S6.11b — a thread landing (invite / mention): the reply field takes the focus
+        if (id && m.reply === true) setReplyFocus((n) => n + 1);
+        else setReplyFocus(0);
         const target = id ? commentsRef.current.find((c) => c.id === id) : undefined;
         mirrorSelection(target);
       }
@@ -417,10 +693,13 @@ export function CommentsOverlay(): React.ReactNode {
         e as CustomEvent<{ selection?: ComposeSelection; clientX?: number; clientY?: number }>
       ).detail;
       if (!detail?.selection) return;
+      const clientX = typeof detail.clientX === 'number' ? detail.clientX : 0;
+      const clientY = typeof detail.clientY === 'number' ? detail.clientY : 0;
       setComposer({
         selection: detail.selection,
-        clientX: typeof detail.clientX === 'number' ? detail.clientX : 0,
-        clientY: typeof detail.clientY === 'number' ? detail.clientY : 0,
+        clientX,
+        clientY,
+        anchors: anchorsAt(detail.selection.artboardId, clientX, clientY),
       });
     };
     document.addEventListener('cm:open-composer', onOpen);
@@ -455,15 +734,32 @@ export function CommentsOverlay(): React.ReactNode {
         text,
       };
       if (typeof window === 'undefined') return;
-      // Shell relays into the WS `comments-add` channel and persists.
-      try {
-        window.parent.postMessage({ dgn: 'comment-submit', payload }, '*');
-      } catch {
-        /* parent detached */
-      }
-      closeComposer();
+      // S9.22 — through the comment door as the session, anchored to its artboard / video moment /
+      // point on paper. No shell bridge answering (an older shell): the v1 message, as before — it
+      // carries no Maude 2 anchors, which an older shell could not store anyway.
+      setSubmitting(true);
+      void (async () => {
+        const r = await shellCommentOp({ op: 'add', ...payload, ...composer.anchors });
+        setSubmitting(false);
+        if (r === null) {
+          try {
+            window.parent.postMessage({ dgn: 'comment-submit', payload }, '*');
+          } catch {
+            /* parent detached */
+          }
+          closeComposer();
+          return;
+        }
+        if (!r.ok) {
+          setNotice(r.error ?? 'That did not go through.');
+          return;
+        }
+        setNotice(null);
+        if (r.comment) mergeComment(r.comment);
+        closeComposer();
+      })();
     },
-    [composer, closeComposer]
+    [composer, closeComposer, mergeComment]
   );
 
   // Self-heal fetch — covers the race where the iframe loads before the shell
@@ -474,7 +770,12 @@ export function CommentsOverlay(): React.ReactNode {
     (async () => {
       try {
         const r = await fetch(`/_comments?file=${encodeURIComponent(file)}`);
-        if (!r.ok) return;
+        if (!r.ok) {
+          // A refused read still ends: an unread body keeps the request open (a headless
+          // capture waiting for network idle never gets it — gate-b-c4f).
+          await r.body?.cancel().catch(() => {});
+          return;
+        }
         const data = (await r.json()) as { comments?: OverlayComment[] };
         if (cancelled) return;
         if (Array.isArray(data.comments)) {
@@ -493,10 +794,45 @@ export function CommentsOverlay(): React.ReactNode {
 
   // Sorted by `created` asc so sequence numbers are stable per canvas across
   // reloads. Resolved comments are hidden by default (Task 2 spec).
+  // S9.22 — a pin on a video shows only at its moment (the thread you opened stays). The playhead of
+  // each timed artboard is polled while any timed comment exists, in quarter-seconds so a playing
+  // video re-renders four times a second at most; no player for the artboard = the pin stays.
+  const timedArtboards = useMemo(
+    () =>
+      [
+        ...new Set(
+          comments.filter((c) => typeof c.t === 'number' && c.artboard).map((c) => c.artboard)
+        ),
+      ] as string[],
+    [comments]
+  );
+  const [playheads, setPlayheads] = useState<Record<string, number | null>>({});
+  useEffect(() => {
+    if (timedArtboards.length === 0) return;
+    const tick = () => {
+      const next: Record<string, number | null> = {};
+      for (const id of timedArtboards) {
+        const s = playheadSeconds(id);
+        next[id] = s === null ? null : Math.round(s * 4) / 4;
+      }
+      setPlayheads((prev) => (timedArtboards.every((id) => prev[id] === next[id]) ? prev : next));
+    };
+    tick();
+    const timer = setInterval(tick, 125);
+    return () => clearInterval(timer);
+  }, [timedArtboards]);
+
   const visible = useMemo(() => {
     const list = comments.slice().sort((a, b) => a.created.localeCompare(b.created));
-    return list.filter((c) => c.status !== 'resolved');
-  }, [comments]);
+    return list.filter(
+      (c) =>
+        c.status !== 'resolved' &&
+        (typeof c.t !== 'number' ||
+          !c.artboard ||
+          c.id === focusedId ||
+          videoPinVisible(c.t, playheads[c.artboard] ?? null))
+    );
+  }, [comments, playheads, focusedId]);
 
   // Sequence index lookup — built off the FULL sorted list so a resolved-then-
   // reopened pin keeps its original number.
@@ -523,44 +859,90 @@ export function CommentsOverlay(): React.ReactNode {
     [comments, mirrorSelection]
   );
 
-  const handlePatch = useCallback((id: string, patch: Record<string, unknown>) => {
-    if (typeof window === 'undefined') return;
-    try {
-      window.parent.postMessage({ dgn: 'comment-patch', id, patch }, '*');
-    } catch {
-      /* parent detached */
-    }
-  }, []);
+  // Resolve / reopen / edit-own / delete-own go through the comment door (S9.22): a Can comment
+  // session may resolve and reopen any thread, and only its own words are editable or deletable —
+  // the door says so, whatever this client shows. No bridge answering: the v1 patch message.
+  const handlePatch = useCallback(
+    (id: string, patch: Record<string, unknown>) => {
+      if (typeof window === 'undefined') return;
+      const legacy = () => {
+        try {
+          window.parent.postMessage({ dgn: 'comment-patch', id, patch }, '*');
+        } catch {
+          /* parent detached */
+        }
+      };
+      const op =
+        patch.status === 'resolved'
+          ? { op: 'resolve', id }
+          : patch.status === 'open'
+            ? { op: 'reopen', id }
+            : typeof patch.text === 'string'
+              ? { op: 'edit-own', id, text: patch.text }
+              : null;
+      if (!op) return legacy();
+      void shellCommentOp(op).then((r) => {
+        if (r === null) return legacy();
+        if (!r.ok) return setNotice(r.error ?? 'That did not go through.');
+        setNotice(null);
+        if (r.comment) mergeComment(r.comment);
+      });
+    },
+    [mergeComment]
+  );
 
   const handleDelete = useCallback((id: string) => {
     if (typeof window === 'undefined') return;
-    try {
-      window.parent.postMessage({ dgn: 'comment-delete', id }, '*');
-    } catch {
-      /* parent detached */
-    }
     setFocusedId((prev) => (prev === id ? null : prev));
+    void shellCommentOp({ op: 'delete-own', id }).then((r) => {
+      if (r === null) {
+        try {
+          window.parent.postMessage({ dgn: 'comment-delete', id }, '*');
+        } catch {
+          /* parent detached */
+        }
+        return;
+      }
+      if (!r.ok) return setNotice(r.error ?? 'That did not go through.');
+      setNotice(null);
+      setComments((prev) => prev.filter((c) => c.id !== id));
+    });
   }, []);
 
-  const handleReply = useCallback(async (id: string, body: string): Promise<boolean> => {
-    if (typeof fetch === 'undefined') return false;
-    try {
-      const r = await fetch(`/_api/comments/${encodeURIComponent(id)}/reply`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ body }),
-      });
-      if (!r.ok) return false;
-      const updated = (await r.json()) as OverlayComment;
-      // Optimistic local merge — the shell will broadcast `comments-set`
-      // shortly after as the WS fans out the change, but applying it now
-      // avoids the popover flickering empty between submit + broadcast.
-      setComments((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
-      return true;
-    } catch {
-      return false;
-    }
-  }, []);
+  const handleReply = useCallback(
+    async (id: string, body: string): Promise<boolean> => {
+      if (typeof fetch === 'undefined') return false;
+      // The door first (it names no canvas: the studio finds the thread's, so a canvas-only session
+      // replies); the v1 route only when no shell bridge answered.
+      const viaShell = await shellCommentOp({ op: 'reply', id, body });
+      if (viaShell) {
+        if (!viaShell.ok) {
+          setNotice(viaShell.error ?? 'That did not go through.');
+          return false;
+        }
+        setNotice(null);
+        if (viaShell.comment) mergeComment(viaShell.comment);
+        return true;
+      }
+      try {
+        const r = await fetch(`/_api/comments/${encodeURIComponent(id)}/reply`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ body }),
+        });
+        if (!r.ok) return false;
+        const updated = (await r.json()) as OverlayComment;
+        // Optimistic local merge — the shell will broadcast `comments-set`
+        // shortly after as the WS fans out the change, but applying it now
+        // avoids the popover flickering empty between submit + broadcast.
+        setComments((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [mergeComment]
+  );
 
   return (
     <div className="cm-layer" aria-hidden={false}>
@@ -577,7 +959,25 @@ export function CommentsOverlay(): React.ReactNode {
         );
       })}
       {composer ? (
-        <CommentComposer state={composer} onSubmit={submitComposer} onCancel={closeComposer} />
+        <CommentComposer
+          state={composer}
+          busy={submitting}
+          onSubmit={submitComposer}
+          onCancel={closeComposer}
+        />
+      ) : null}
+      {notice ? (
+        <div className="cm-notice" role="status" data-testid="comment-notice">
+          <span>{notice}</span>
+          <button
+            type="button"
+            className="cm-notice__x"
+            aria-label="Dismiss"
+            onClick={() => setNotice(null)}
+          >
+            ×
+          </button>
+        </div>
       ) : null}
       {(() => {
         if (!focusedId) return null;
@@ -596,11 +996,13 @@ export function CommentsOverlay(): React.ReactNode {
             onPatch={(patch) => handlePatch(focused.id, patch)}
             onDelete={() => handleDelete(focused.id)}
             onReply={(body) => handleReply(focused.id, body)}
+            focusReply={replyFocus}
             mine={
-              !isReadOnlyCanvas() &&
+              (!isReadOnlyCanvas() || canCommentCanvas()) &&
               !!(me ?? collab?.myName) &&
               (focused.author ?? '').trim() === (me ?? collab?.myName ?? '').trim()
             }
+            me={(me ?? collab?.myName) || undefined}
           />
         );
       })()}
@@ -616,36 +1018,49 @@ export function CommentsOverlay(): React.ReactNode {
 // committer list is fetched once on first focus and cached for the session.
 // Keyboard: ↑↓ move, ↵/Tab insert (`@firstname `), Esc dismiss.
 
-interface CommitterRow {
-  name: string;
-  /** Absent on the canvas origin: it answers a no-e-mail projection (V2-2.8
-   *  S6) — this composer runs there. The shell's own copy carries it. */
-  email?: string;
-  commits: number;
+// The people a mention can name (S9.22). Two sources, one shape (`MentionRow`: a name and, when the
+// source knew it, a role word — never an address):
+//   1. the shell's `people` (hub `GET /api/access/people?canvas=` — only people who can OPEN this
+//      canvas, no e-mails for a non-owner), pushed on request;
+//   2. git committers (`/_api/git-committers`, the canvas origin's no-e-mail projection) when no
+//      hub answers — a local project, where there is no role to show.
+let peopleCache: Promise<MentionRow[]> | null = null;
+let peopleAt = 0;
+const PEOPLE_TTL_MS = 60_000;
+
+async function committers(): Promise<MentionRow[]> {
+  try {
+    const r = await fetch('/_api/git-committers');
+    if (!r.ok) return [];
+    const data = (await r.json()) as { committers?: unknown };
+    return committerRows(data.committers);
+  } catch {
+    return [];
+  }
 }
 
-let committerCache: Promise<CommitterRow[]> | null = null;
-async function loadCommitters(): Promise<CommitterRow[]> {
-  if (!committerCache) {
-    committerCache = (async () => {
-      try {
-        const r = await fetch('/_api/git-committers');
-        if (!r.ok) return [];
-        const data = (await r.json()) as { committers?: CommitterRow[] };
-        return Array.isArray(data.committers) ? data.committers : [];
-      } catch {
-        return [];
-      }
+function loadMentionRows(): Promise<MentionRow[]> {
+  const fresh = peopleCache && Date.now() - peopleAt < PEOPLE_TTL_MS;
+  if (!fresh) {
+    peopleAt = Date.now();
+    peopleCache = (async () => {
+      const people = await shellPeople();
+      return people ?? (await committers());
     })();
   }
-  return committerCache;
+  return peopleCache as Promise<MentionRow[]>;
+}
+
+/** Test seam: forget the cached people. */
+export function resetMentionPeople(): void {
+  peopleCache = null;
+  peopleAt = 0;
 }
 
 function firstNameSlug(name: string): string {
-  // `@firstname` is what we insert on accept. Strip surnames + punctuation.
-  const first = name.trim().split(/\s+/)[0] ?? '';
-  // Keep alphanum + `.` `-` `_` (matches the parseMentions regex on the server).
-  return first.replace(/[^\w.-]/g, '').toLowerCase();
+  // `@firstname` is what we insert on accept (comments/mentions.ts handleOfName — the one rule the
+  // hub also resolves a token with).
+  return handleOfName(name);
 }
 
 interface MentionToken {
@@ -677,6 +1092,17 @@ function detectMentionToken(text: string, caret: number): MentionToken | null {
   return null;
 }
 
+/** The field is one line until the words need more (the board's `.md-th-in`, wrapping at `--wrap`), to a cap. */
+function useAutoGrow(ref: React.RefObject<HTMLTextAreaElement | null>, value: string): void {
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the value is the trigger; the node is read from the ref
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  }, [ref, value]);
+}
+
 function MentionAwareTextarea({
   className,
   value,
@@ -687,6 +1113,7 @@ function MentionAwareTextarea({
   disabled,
   textareaRef,
   ariaLabel,
+  title,
 }: {
   className: string;
   value: string;
@@ -697,6 +1124,7 @@ function MentionAwareTextarea({
   disabled?: boolean;
   textareaRef?: React.MutableRefObject<HTMLTextAreaElement | null>;
   ariaLabel?: string;
+  title?: string;
 }): React.ReactElement {
   const internalRef = useRef<HTMLTextAreaElement | null>(null);
   const setRef = useCallback(
@@ -707,24 +1135,20 @@ function MentionAwareTextarea({
     [textareaRef]
   );
 
-  const [committers, setCommitters] = useState<CommitterRow[]>([]);
+  const [committers, setCommitters] = useState<MentionRow[]>([]);
   const [token, setToken] = useState<MentionToken | null>(null);
   const [highlight, setHighlight] = useState(0);
 
   // Lazy-load committers on first focus.
   const onFocus = useCallback(() => {
     if (committers.length > 0) return;
-    void loadCommitters().then((list) => setCommitters(list));
+    void loadMentionRows().then((list) => setCommitters(list));
   }, [committers.length]);
 
   const filtered = useMemo(() => {
-    if (!token) return [] as CommitterRow[];
+    if (!token) return [] as MentionRow[];
     const q = token.query.toLowerCase();
-    const list = !q
-      ? committers
-      : committers.filter(
-          (c) => c.name.toLowerCase().includes(q) || (c.email ?? '').toLowerCase().includes(q)
-        );
+    const list = !q ? committers : committers.filter((c) => c.name.toLowerCase().includes(q));
     return list.slice(0, 8);
   }, [token, committers]);
 
@@ -744,7 +1168,7 @@ function MentionAwareTextarea({
   );
 
   const insertMention = useCallback(
-    (committer: CommitterRow) => {
+    (committer: MentionRow) => {
       if (!token) return;
       const ta = internalRef.current;
       if (!ta) return;
@@ -809,6 +1233,7 @@ function MentionAwareTextarea({
         rows={rows}
         disabled={disabled}
         aria-label={ariaLabel}
+        title={title}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
         onFocus={onFocus}
@@ -834,7 +1259,7 @@ function MentionAwareTextarea({
             const selected = i === highlight;
             return (
               <li
-                key={`${c.name}-${c.email ?? ''}`}
+                key={c.id}
                 role="option"
                 aria-selected={selected}
                 className="cm-mention-popup__item"
@@ -846,8 +1271,9 @@ function MentionAwareTextarea({
                   insertMention(c);
                 }}
               >
+                <Avatar name={c.name} />
                 <span className="cm-mention-popup__name">@{firstNameSlug(c.name)}</span>
-                {c.email ? <span className="cm-mention-popup__email">{c.email}</span> : null}
+                {c.role ? <span className="cm-mention-popup__role">{c.role}</span> : null}
               </li>
             );
           })}
@@ -895,6 +1321,12 @@ export function locateComment(comment: OverlayComment): {
   return { pos, missing: anchored };
 }
 
+/** The one letter a pin wears: the author's initial ('?' when nobody signed it). */
+export function pinInitial(author: string): string {
+  const c = author.trim().charAt(0);
+  return c && author !== 'unknown' ? c.toUpperCase() : '?';
+}
+
 function CommentPin({
   comment,
   sequence,
@@ -937,10 +1369,10 @@ function CommentPin({
         return;
       }
       pin.style.display = 'grid';
-      // Position the pin's center at (right - 12, top - 12) — the FigJam
-      // convention. 12 = half of 24 (the pin's own size).
-      const left = Math.round(pos.x + pos.w - 12);
-      const top = Math.round(pos.y - 12);
+      // Position the pin's center at (right - 14, top - 14) — the FigJam
+      // convention. 14 = half of 28 (the pin's own size, board `.k-cpin-dot`).
+      const left = Math.round(pos.x + pos.w - 14);
+      const top = Math.round(pos.y - 14);
       pin.style.left = `${left}px`;
       pin.style.top = `${top}px`;
       rafRef.current = requestAnimationFrame(tick);
@@ -966,13 +1398,16 @@ function CommentPin({
       aria-label={label}
       aria-expanded={focused}
       title={comment.text.slice(0, 200)}
+      data-seq={sequence}
+      // P8 C5 (10 co-comment-thread): the author's person tone fills the pin, and it wears their initial
+      style={{ ['--cm-pin-tone' as string]: toneColor(toneFor(author)) }}
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
         onClick(comment.id);
       }}
     >
-      {sequence}
+      {pinInitial(author)}
     </button>
   );
 }
@@ -983,17 +1418,20 @@ function CommentPin({
 // pragmatic kind: position is computed once on open against the world layout,
 // not chased on pan/zoom — the user is actively typing.
 
-function CommentComposer({
+export function CommentComposer({
   state,
+  busy = false,
   onSubmit,
   onCancel,
 }: {
   state: ComposerState;
+  busy?: boolean;
   onSubmit: (text: string) => void;
   onCancel: () => void;
 }) {
   const [text, setText] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  useAutoGrow(textareaRef, text);
   const cardRef = useRef<HTMLDivElement | null>(null);
   const rafRef = useRef<number | null>(null);
 
@@ -1024,9 +1462,9 @@ function CommentComposer({
 
   const trySubmit = useCallback(() => {
     const v = text.trim();
-    if (!v) return;
+    if (!v || busy) return;
     onSubmit(v);
-  }, [text, onSubmit]);
+  }, [text, busy, onSubmit]);
 
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -1043,17 +1481,19 @@ function CommentComposer({
     [onCancel, trySubmit]
   );
 
-  // Compact selector hint — strip noisy structural bits so the head stays
-  // tight inside the 300px card.
-  const selectorChip = useMemo(() => {
-    const s = state.selection.selector || '';
-    if (!s) return state.selection.tag || (state.selection.annotationId ? 'annotation' : 'canvas');
-    // [data-cd-id="…"] → cd:<id> · keeps the chip readable when stable ids
-    // are present.
-    const cd = s.match(/data-cd-id="([^"]+)"/);
-    if (cd) return `cd:${cd[1]}`;
-    return s.length > 36 ? `${s.slice(0, 33)}…` : s;
-  }, [state.selection]);
+  // gate-b-polish3 (10 · co-comment-thread) — the header says WHERE, in words: the artboard's label, else the
+  // element's name, else the canvas. Never a raw id (the v1 head showed "cd:566b4b33").
+  const where = useMemo(
+    () => placeHeading({ artboard: state.anchors?.artboard, selector: state.selection.selector }),
+    [state.anchors, state.selection]
+  );
+
+  // "at 0:12" / "14 mm from the left · 2 mm above the trim": where it will be pinned, said before it is.
+  const placedChip = useMemo(() => {
+    const a = state.anchors;
+    if (!a?.artboard) return null;
+    return whereOf(a, trimOfPrint(printPropOf(a.artboard))).chip;
+  }, [state.anchors]);
 
   return (
     <div
@@ -1065,34 +1505,105 @@ function CommentComposer({
       onPointerDown={(e) => e.stopPropagation()}
     >
       <div className="cm-composer__head">
-        <span>New comment</span>
-        <span className="cm-composer__selector">{selectorChip}</span>
-      </div>
-      <MentionAwareTextarea
-        textareaRef={textareaRef}
-        className="cm-composer__textarea"
-        value={text}
-        placeholder="Type a comment. ⌘↵ to save · Esc to cancel · @name to tag"
-        onChange={setText}
-        onKeyDown={onKeyDown}
-        rows={3}
-        ariaLabel="Comment body"
-      />
-      <div className="cm-composer__actions">
-        <button type="button" className="cm-btn" onClick={onCancel}>
-          Cancel
-        </button>
+        <span
+          className="cm-composer__where"
+          data-testid={placedChip ? 'comment-composer-place' : 'comment-composer-where'}
+        >
+          {where}
+        </span>
         <button
           type="button"
-          className="cm-btn cm-btn--primary"
-          disabled={!text.trim()}
+          className="cm-thread__close"
+          data-testid="comment-composer-cancel"
+          aria-label="Cancel"
+          title="Cancel · esc"
+          onClick={onCancel}
+        >
+          ×
+        </button>
+      </div>
+      {placedChip ? (
+        <span className="cm-chip cm-composer__chip" data-testid="comment-composer-where">
+          {placedChip}
+        </span>
+      ) : null}
+      <div className="cm-composer__field">
+        <MentionAwareTextarea
+          textareaRef={textareaRef}
+          className="cm-composer__textarea"
+          value={text}
+          placeholder="Add a comment — @ mentions someone"
+          onChange={setText}
+          onKeyDown={onKeyDown}
+          rows={1}
+          ariaLabel="Comment body"
+        />
+        <button
+          type="button"
+          className="cm-btn cm-btn--primary cm-composer__send"
+          data-testid="comment-composer-send"
+          aria-label="Send"
+          title="Send · ⌘↵"
+          disabled={!text.trim() || busy}
           onClick={trySubmit}
         >
-          Save
+          <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+            <path
+              d="M6 3.5 10.5 8 6 12.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </button>
       </div>
     </div>
   );
+}
+
+/**
+ * gate-b-polish3 — where a comment sits, in words: its artboard's label, else the named element
+ * (`data-dc-element`), else the canvas. Never a raw element id or a CSS selector.
+ */
+export function placeWords(o: { artboard?: string | null; selector?: string | null }): string {
+  if (o.artboard) return artboardLabelOf(o.artboard);
+  let el: Element | null = null;
+  try {
+    el = o.selector && typeof document !== 'undefined' ? document.querySelector(o.selector) : null;
+  } catch {
+    el = null;
+  }
+  const abId = el?.closest?.('[data-dc-screen]')?.getAttribute('data-dc-screen');
+  if (abId) return artboardLabelOf(abId);
+  const named = el?.getAttribute?.('data-dc-element');
+  if (named) return named.replace(/[-_]+/g, ' ');
+  return 'On the canvas';
+}
+
+/** The canvas' own name in words ("Pricing", "Combine kampan"): its file's name, no folders, no extension. */
+export function canvasTitle(file: string | null = deriveFile()): string {
+  const base = (file ?? '').split('/').pop() ?? '';
+  if (!/\.[a-z0-9]+$/i.test(base)) return ''; // not a canvas file (a bare page path): no name to give
+  return base
+    .replace(/\.[a-z0-9]+$/i, '')
+    .replace(/[-_]+/g, ' ')
+    .trim();
+}
+
+/**
+ * The card's heading, the way the board writes it (04 md-comment, 10 co-comment-thread): "Pricing · Desktop" —
+ * the canvas, then where on it. A canvas whose name is not known leaves just the place.
+ */
+export function placeHeading(
+  o: { artboard?: string | null; selector?: string | null },
+  file: string | null = deriveFile()
+): string {
+  const place = placeWords(o);
+  const canvas = canvasTitle(file);
+  if (!canvas) return place;
+  return place === 'On the canvas' ? canvas : `${canvas} · ${place}`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1129,7 +1640,9 @@ export function CommentThread({
   onPatch,
   onDelete,
   onReply,
+  focusReply = 0,
   mine = false,
+  me,
 }: {
   comment: OverlayComment;
   sequence: number;
@@ -1137,13 +1650,18 @@ export function CommentThread({
   onPatch: (patch: Record<string, unknown>) => void;
   onDelete: () => void;
   onReply: (body: string) => Promise<boolean>;
+  /** S6.11b — non-zero (bumped per request): put the focus in the reply field, not on the dialog. */
+  focusReply?: number;
   /** The person looking wrote this comment — they may edit its text. */
   mine?: boolean;
+  /** The person looking (S4.V4 G5: did they convert this sticky? did someone else reply?). */
+  me?: string;
 }) {
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const replyRef = useRef<HTMLTextAreaElement | null>(null);
   const rafRef = useRef<number | null>(null);
   const [reply, setReply] = useState('');
+  useAutoGrow(replyRef, reply);
   const [sending, setSending] = useState(false);
   // Editing your own comment: the text in place, saved as a patch (the same
   // channel resolve/reopen use). null = not editing.
@@ -1188,6 +1706,11 @@ export function CommentThread({
       pin?.focus();
     };
   }, [comment.id]);
+  // S6.11b — a thread landing (invite / mention): straight into the reply field. Runs after the
+  // dialog focus above in the same commit; a session that cannot reply has no field — nothing moves.
+  useEffect(() => {
+    if (focusReply > 0) replyRef.current?.focus();
+  }, [focusReply, comment.id]);
 
   // Esc-to-close while focus is anywhere inside the popover.
   useEffect(() => {
@@ -1228,42 +1751,239 @@ export function CommentThread({
   );
 
   const headId = `cm-thread-head-${comment.id}`;
-  const selectorChip = formatSelectorChip(comment.selector, '');
+  // Can comment sessions boot `ro=1` (no edit) but may still reply and resolve: `cm=1` says so.
+  const canAct = !isReadOnlyCanvas() || canCommentCanvas();
+  const where = whereOf(
+    comment,
+    comment.artboard ? trimOfPrint(printPropOf(comment.artboard)) : null
+  );
+  const whereLabel = placeHeading({ artboard: comment.artboard, selector: comment.selector });
+
+  // S4.V4 G5 (S4-S9-votes-comments §3.4) — a converted sticky's thread: the header's Undo (the converter,
+  // while this app session holds the conversion — the shell answers `convert-undoable`) and the ⋯ "Turn back
+  // into a sticky" (any editor). Both refuse while someone else has replied; the server judges either way.
+  const from = comment.from;
+  // S8.17b — a Figma writer's label (re-clamped here: the record can come from a peer).
+  const imported = sanitizeImportedFrom(comment.importedFrom);
+  const meName = (me ?? '').trim();
+  const byYou = from ? (meName ? (from.convertedBy ?? '').trim() === meName : mine) : false;
+  const foreignReply = from
+    ? (comment.thread ?? []).find(
+        (r) => (r.author ?? '').trim() !== (meName || (from.convertedBy ?? '').trim())
+      )
+    : undefined;
+  const repliedLine = foreignReply
+    ? `${firstName(foreignReply.author ?? '') || 'Someone'} replied — resolve the thread instead.`
+    : null;
+  const canTurnBack = !!from && !isReadOnlyCanvas();
+  const [menuOpen, setMenuOpen] = useState(false);
+  // 15 an-convert: a converted card draws the board's words only (caption, messages, Resolve, "..."); the rest lives
+  // behind the "..." - Reply... opens the field, Edit / Delete / Turn back are its rows.
+  const converted = !!from;
+  const [replyOpen, setReplyOpen] = useState(false);
+  useEffect(() => {
+    if (replyOpen) replyRef.current?.focus();
+  }, [replyOpen]);
+  const [convertLine, setConvertLine] = useState<string | null>(null);
+  const [undoable, setUndoable] = useState(false);
+  useEffect(() => {
+    if (!from || !byYou) {
+      setUndoable(false);
+      return;
+    }
+    let live = true;
+    void shellCommentOp({ op: 'convert-undoable', commentId: comment.id }).then((r) => {
+      if (live) setUndoable(!!r?.ok);
+    });
+    return () => {
+      live = false;
+    };
+  }, [comment.id, from, byYou]);
+  const runConvert = async (op: 'to-sticky' | 'convert-undo') => {
+    setMenuOpen(false);
+    setConvertLine(null);
+    const r = await shellCommentOp({ op, commentId: comment.id });
+    if (r?.ok) onClose();
+    else setConvertLine(r?.error || 'That did not go through.');
+  };
 
   return (
     <div
       ref={dialogRef}
       className="cm-thread"
+      data-seq={sequence}
       role="dialog"
+      data-esc-owner="focus"
       aria-labelledby={headId}
       tabIndex={-1}
       onClick={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
     >
       <div className="cm-thread__head" id={headId}>
-        <div className="cm-thread__head-row">
-          {/* Plan C P18 — pin/sequence badge in the popover header (parity with
-              `.design/ui/Studio.tsx` thread popover). */}
-          <span className="cm-thread__seq" aria-hidden="true">
-            {sequence}
-          </span>
-          <span className="cm-thread__author">{comment.author?.trim() || 'unknown'}</span>
-          <span className="cm-thread__time">{formatRelativeTime(comment.created)}</span>
-          <button
-            type="button"
-            className="cm-thread__close"
-            aria-label="Close thread"
-            title="Close · Esc"
-            onClick={onClose}
-          >
-            ×
-          </button>
-        </div>
-        {selectorChip ? <code className="cm-thread__selector">{selectorChip}</code> : null}
+        {converted ? null : (
+          <div className="cm-thread__head-row">
+            {/* P8 C5: no sequence badge — the board's card opens with its words ("Pricing · Desktop"), and a
+              pin wears its author's initial, not a number (the number stays on `data-seq`). */}
+            {/* S9.22 (10 · co-comment-thread) — WHERE the thread is: the artboard it sits on, else the
+              element it names. Resolve / Reopen live here, beside it. */}
+            <span className="cm-thread__where" data-testid={`comment-where-${comment.id}`}>
+              {whereLabel}
+            </span>
+            <span className="cm-thread__head-end">
+              {canAct ? (
+                <span className="cm-thread__actions">
+                  {mine && draft === null && !imported ? (
+                    <button
+                      type="button"
+                      className="cm-btn"
+                      data-testid="comment-edit"
+                      onClick={() => setDraft(comment.text)}
+                    >
+                      Edit
+                    </button>
+                  ) : null}
+                  {comment.status === 'resolved' ? (
+                    <button
+                      type="button"
+                      className="cm-btn cm-btn--ghost"
+                      data-testid={`comment-reopen-${comment.id}`}
+                      onClick={() => onPatch({ status: 'open' })}
+                    >
+                      <Glyph d="M3.5 8a4.5 4.5 0 1 0 1.4-3.3M3.5 2.5v2.6h2.6" />
+                      Reopen
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="cm-btn cm-btn--ghost"
+                      data-testid={`comment-resolve-${comment.id}`}
+                      onClick={() => {
+                        onPatch({ status: 'resolved' });
+                        onClose();
+                      }}
+                    >
+                      <Glyph d="M3 8.4 6.4 11.8 13 4.6" />
+                      Resolve
+                    </button>
+                  )}
+                  {mine ? (
+                    <button
+                      type="button"
+                      className="cm-btn cm-btn--danger"
+                      data-testid={`comment-delete-${comment.id}`}
+                      onClick={() => {
+                        onDelete();
+                        onClose();
+                      }}
+                    >
+                      Delete comment
+                    </button>
+                  ) : null}
+                </span>
+              ) : null}
+              <button
+                type="button"
+                className="cm-thread__close"
+                aria-label="Close thread"
+                title="Close · esc"
+                onClick={onClose}
+              >
+                ×
+              </button>
+            </span>
+          </div>
+        )}
+        {!converted && where.chip ? (
+          where.kind === 'video' && typeof comment.t === 'number' && comment.artboard ? (
+            <button
+              type="button"
+              className="cm-chip cm-chip--seek"
+              data-testid={`comment-chip-${comment.id}`}
+              title="Go to this moment"
+              onClick={() => seekPlayhead(comment.artboard as string, comment.t as number)}
+            >
+              {where.chip}
+            </button>
+          ) : (
+            <span className="cm-chip" data-testid={`comment-chip-${comment.id}`}>
+              {where.chip}
+            </span>
+          )
+        ) : null}
+        {comment.from ? (
+          <div className="cm-thread__from" data-testid={`comment-from-${comment.id}`}>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 16 16"
+              aria-hidden="true"
+              className="cm-thread__from-ic"
+            >
+              <path
+                d="M3 2.5h10v8l-3 3H3zM10 13.5v-3h3"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.4"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <span>
+              {fromHeadline(comment.from)} · turned into a comment by{' '}
+              {byYou ? 'You' : firstName(comment.from.convertedBy || comment.author || '')}
+              {byYou && undoable && !repliedLine ? (
+                <>
+                  {' · '}
+                  <button
+                    type="button"
+                    className="cm-link"
+                    data-testid={`comment-from-undo-${comment.id}`}
+                    onClick={() => void runConvert('convert-undo')}
+                  >
+                    Undo
+                  </button>
+                </>
+              ) : null}
+            </span>
+          </div>
+        ) : null}
+        {convertLine ? (
+          <div className="cm-thread__convert-line" role="alert">
+            {convertLine}
+          </div>
+        ) : null}
       </div>
 
       {draft === null ? (
-        <div className="cm-thread__body">{renderBodyWithMentions(comment.text)}</div>
+        <div className="cm-msg cm-msg--root">
+          {imported ? (
+            <ImportedMark />
+          ) : (
+            <Avatar
+              name={comment.from ? fromWho(comment.from).name : comment.author}
+              ai={comment.from ? fromWho(comment.from).ai : comment.authorKind === 'ai'}
+            />
+          )}
+          <div className="cm-msg__main">
+            <div className="cm-msg__head">
+              <span
+                className="cm-thread__author"
+                data-testid={imported ? `comment-imported-${comment.id}` : undefined}
+              >
+                {imported
+                  ? importedLabel(imported)
+                  : (comment.from ? fromWho(comment.from).name : comment.author?.trim()) ||
+                    'unknown'}
+              </span>
+              <span className="cm-thread__time">
+                {formatRelativeTime(imported?.at ?? comment.created)}
+              </span>
+            </div>
+            <div className="cm-thread__body">
+              {imported ? comment.text : renderBodyWithMentions(comment.text)}
+            </div>
+            {comment.queued ? <QueuedLine id={comment.id} /> : null}
+          </div>
+        </div>
       ) : (
         <div className="cm-thread__reply-form">
           <MentionAwareTextarea
@@ -1297,84 +2017,167 @@ export function CommentThread({
         </div>
       )}
 
-      {(comment.thread ?? []).map((r) => (
-        <div className="cm-thread__reply" key={r.id}>
-          <div className="cm-thread__reply-head">
-            <span className="cm-thread__reply-author">{r.author?.trim() || 'unknown'}</span>
-            <span className="cm-thread__reply-time">{formatRelativeTime(r.created)}</span>
-          </div>
-          <div className="cm-thread__reply-body">{renderBodyWithMentions(r.body)}</div>
-        </div>
-      ))}
-
-      {/* Cloud Phase 25 C2 — a read-only session VIEWS threads; reply /
-          resolve / delete are absent until C3 puts comments on the cell's
-          read-only allowlist (the cell refuses them today). */}
-      {!isReadOnlyCanvas() && (
-        <>
-          <div className="cm-thread__reply-form">
-            <MentionAwareTextarea
-              textareaRef={replyRef}
-              className="cm-thread__reply-textarea"
-              value={reply}
-              placeholder="Reply… ⌘↵ to send · @name to tag"
-              onChange={setReply}
-              onKeyDown={onReplyKeyDown}
-              rows={2}
-              ariaLabel="Reply"
-              disabled={sending}
-            />
-            <div className="cm-thread__reply-actions">
-              <button
-                type="button"
-                className="cm-btn cm-btn--primary"
-                disabled={!reply.trim() || sending}
-                onClick={() => void trySendReply()}
-              >
-                Send
-              </button>
+      {(comment.thread ?? []).map((r) => {
+        const ri = sanitizeImportedFrom(r.importedFrom);
+        return (
+          <div className="cm-msg cm-thread__reply" key={r.id}>
+            {ri ? <ImportedMark /> : <Avatar name={r.author} ai={r.authorKind === 'ai'} />}
+            <div className="cm-msg__main">
+              <div className="cm-thread__reply-head">
+                <span className="cm-thread__reply-author">
+                  {ri ? importedLabel(ri) : r.author?.trim() || 'unknown'}
+                </span>
+                <span className="cm-thread__reply-time">
+                  {formatRelativeTime(ri?.at ?? r.created)}
+                </span>
+              </div>
+              <div className="cm-thread__reply-body">
+                {ri ? r.body : renderBodyWithMentions(r.body)}
+              </div>
+              {r.queued ? <QueuedLine id={r.id} /> : null}
             </div>
           </div>
+        );
+      })}
 
-          <div className="cm-thread__actions">
-            {mine && draft === null ? (
-              <button
-                type="button"
-                className="cm-btn"
-                data-testid="comment-edit"
-                onClick={() => setDraft(comment.text)}
-              >
-                Edit
-              </button>
-            ) : null}
-            {comment.status === 'resolved' ? (
-              <button type="button" className="cm-btn" onClick={() => onPatch({ status: 'open' })}>
-                ↺ Reopen
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="cm-btn cm-btn--primary"
-                onClick={() => {
-                  onPatch({ status: 'resolved' });
-                  onClose();
-                }}
-              >
-                ✓ Resolve
-              </button>
-            )}
+      {/* A session that cannot comment (Can view, or an old shell that hid them from every
+          read-only role) VIEWS threads; reply / resolve / delete are absent. The server decides
+          either way — this only stops offering what it would refuse. */}
+      {converted && canAct ? (
+        <div className="cm-thread__foot" data-testid={`comment-foot-${comment.id}`}>
+          {comment.status === 'resolved' ? (
             <button
               type="button"
-              className="cm-btn cm-btn--danger"
+              className="cm-btn cm-btn--ghost"
+              data-testid={`comment-reopen-${comment.id}`}
+              onClick={() => onPatch({ status: 'open' })}
+            >
+              <Glyph d="M3.5 8a4.5 4.5 0 1 0 1.4-3.3M3.5 2.5v2.6h2.6" />
+              Reopen
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="cm-btn cm-btn--ghost"
+              data-testid={`comment-resolve-${comment.id}`}
               onClick={() => {
-                onDelete();
+                onPatch({ status: 'resolved' });
                 onClose();
               }}
             >
-              Delete
+              <Glyph d="M3 8.4 6.4 11.8 13 4.6" />
+              Resolve
+            </button>
+          )}
+          <span className="cm-thread__more">
+            <button
+              type="button"
+              className="cm-btn cm-btn--icon"
+              aria-label="More"
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              data-testid={`comment-menu-${comment.id}`}
+              onClick={() => setMenuOpen((v) => !v)}
+            >
+              ⋯
+            </button>
+            {menuOpen ? (
+              <span className="cm-thread__menu" role="menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="cm-thread__menu-item"
+                  data-testid={`comment-menu-reply-${comment.id}`}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setReplyOpen(true);
+                  }}
+                >
+                  Reply…
+                </button>
+                {mine && draft === null && !imported ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="cm-thread__menu-item"
+                    data-testid="comment-edit"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setDraft(comment.text);
+                    }}
+                  >
+                    Edit
+                  </button>
+                ) : null}
+                {canTurnBack ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="cm-thread__menu-item"
+                    data-testid={`comment-menu-to-sticky-${comment.id}`}
+                    disabled={!!repliedLine}
+                    onClick={() => void runConvert('to-sticky')}
+                  >
+                    Turn back into a sticky
+                  </button>
+                ) : null}
+                {mine ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="cm-thread__menu-item cm-thread__menu-item--danger"
+                    data-testid={`comment-delete-${comment.id}`}
+                    onClick={() => {
+                      onDelete();
+                      onClose();
+                    }}
+                  >
+                    Delete comment
+                  </button>
+                ) : null}
+                {repliedLine ? <span className="cm-thread__menu-note">{repliedLine}</span> : null}
+              </span>
+            ) : null}
+          </span>
+        </div>
+      ) : null}
+
+      {canAct && (!converted || replyOpen || focusReply > 0) && (
+        <div className="cm-thread__reply-form cm-thread__reply-form--field">
+          <MentionAwareTextarea
+            textareaRef={replyRef}
+            className="cm-thread__reply-textarea"
+            value={reply}
+            placeholder="Reply…"
+            title="⌘↵ to send · @name to tag"
+            onChange={setReply}
+            onKeyDown={onReplyKeyDown}
+            rows={1}
+            ariaLabel="Reply"
+            disabled={sending}
+          />
+          <div className="cm-thread__reply-actions">
+            <button
+              type="button"
+              className="cm-btn cm-btn--primary cm-thread__send"
+              aria-label="Send"
+              title="Send · ⌘↵"
+              disabled={!reply.trim() || sending}
+              onClick={() => void trySendReply()}
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+                <path
+                  d="M6 3.5 10.5 8 6 12.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </button>
           </div>
-        </>
+        </div>
       )}
     </div>
   );
@@ -1384,6 +2187,72 @@ export function CommentThread({
 // Body renderer — splits text on @-handles, wraps each in <strong>. Anything
 // not matching the mention regex stays plain text (newlines preserved by CSS
 // `white-space: pre-wrap`).
+
+function firstName(name: string): string {
+  return name.trim().split(/\s+/)[0] || name;
+}
+
+/** S8.17b — where a person's avatar would be, for words written in another tool: a ring, no initials. */
+function ImportedMark(): React.ReactElement {
+  return <span className="cm-av cm-av--imported" aria-hidden="true" />;
+}
+
+/** One 16-grid stroke glyph (the board's Resolve check, Reopen arrow) — decorative, the button has words. */
+/** 10 co-sync-offline: a comment (or reply) that has not left this Mac yet. Words are the board's. */
+function QueuedLine({ id }: { id: string }): React.ReactElement {
+  return (
+    <span className="cm-queued" data-testid={`comment-queued-${id}`}>
+      <Glyph d="M8 3.2v5l3 1.8M14 8A6 6 0 1 1 2 8a6 6 0 0 1 12 0Z" />
+      Queued — sends when this Mac is online.
+    </span>
+  );
+}
+
+function Glyph({ d }: { d: string }): React.ReactElement {
+  return (
+    <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true" className="cm-glyph">
+      <path
+        d={d}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** Initials in a circle — a person's mark in a thread; `AI` for an AI-written message. */
+function Avatar({ name, ai = false }: { name?: string; ai?: boolean }): React.ReactElement {
+  const parts = (name ?? '')
+    .trim()
+    .split(/[\s._-]+/)
+    .filter(Boolean);
+  const initials = ai
+    ? 'AI'
+    : parts.length === 0
+      ? '?'
+      : parts.length === 1
+        ? (parts[0] ?? '').slice(0, 2).toUpperCase()
+        : `${parts[0]?.[0] ?? ''}${parts[parts.length - 1]?.[0] ?? ''}`.toUpperCase();
+  return (
+    // 10 co-comment-thread: a face wears the colour its person wears everywhere (pin, panel, Share sheet)
+    <span
+      className={`cm-av${ai ? ' cm-av--ai' : ''}`}
+      style={
+        !ai && parts.length > 0
+          ? ({
+              ['--cm-av-tone' as string]: toneColor(toneFor((name ?? '').trim())),
+            } as React.CSSProperties)
+          : undefined
+      }
+      aria-hidden="true"
+    >
+      {initials}
+    </span>
+  );
+}
 
 function renderBodyWithMentions(text: string): React.ReactNode {
   if (!text) return null;
@@ -1418,25 +2287,18 @@ function formatRelativeTime(iso: string): string {
   return `${Math.round(diffSec / 86_400)}d ago`;
 }
 
-function formatSelectorChip(selector: string, fallback: string): string {
-  if (!selector) return fallback;
-  const cd = selector.match(/data-cd-id="([^"]+)"/);
-  if (cd) return `cd:${cd[1]}`;
-  return selector.length > 36 ? `${selector.slice(0, 33)}…` : selector;
-}
-
-function computeThreadAnchor(comment: OverlayComment): { x: number; y: number } {
-  // Resolve target's live screen rect; popover drops below the pin with small
-  // breathing room. Stored bounds (capture-time screen coords) are the
-  // last-resort fallback for orphaned pins.
-  const rect = comment.selector ? screenRectFor(comment) : null;
-  if (rect) {
-    // Pin sits at (rect.right - 12, rect.top - 12). Place popover at the same
-    // x for visual continuity, 16px below the top so it clears the pin.
-    return { x: rect.x + rect.w - 12, y: rect.y + 16 };
-  }
-  if (comment.bounds) {
-    return { x: comment.bounds.x + comment.bounds.w - 12, y: comment.bounds.y + 16 };
+export function computeThreadAnchor(comment: OverlayComment): { x: number; y: number } {
+  // The thread opens where its pin is: the pin and the card share `locateComment` (live element rect, else the
+  // world point a converted note was anchored by, else the stored bounds). Before P8 c10 the card only knew the
+  // element rect and the stored bounds, so a world-anchored note's card fell to the top-left corner.
+  const { pos } = locateComment(comment);
+  if (pos) {
+    // 15 an-convert: a converted note's card sits BESIDE its pin - the pin (28 px) fills [end - 28, end] x
+    // [top - 28, top], so the card starts 8 px past its far edge, level with its top.
+    if (comment.from) return { x: pos.x + pos.w + 8, y: pos.y - 28 };
+    // Pin sits at (rect.right - 12, rect.top - 12). Place popover at the same x for visual continuity, 16px
+    // below the top so it clears the pin.
+    return { x: pos.x + pos.w - 12, y: pos.y + 16 };
   }
   return { x: 16, y: 16 };
 }

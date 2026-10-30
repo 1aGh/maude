@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-tabs-state"
+description = "Enables the tabs_state command without any pre-configured scope."
+commands.allow = ["tabs_state"]
+
+[[permission]]
+identifier = "deny-tabs-state"
+description = "Denies the tabs_state command without any pre-configured scope."
+commands.deny = ["tabs_state"]

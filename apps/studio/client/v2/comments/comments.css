@@ -1,0 +1,297 @@
+/* client/v2/comments/comments.css — S9.22: the Comments panel and the mention callout's neighbours.
+ * Canvas truth: 10 · co-comment-thread (`.co-cm*`). Namespaced `cmp-` — v1 owned the `comment*` names and
+ * `.sh-cm-*`, and a bare reuse collided before (V2-4.3). Tokens are the shell's, as floating-panels.css. */
+
+/* ── V2-8.0: rules moved here from the retired styles/ layer files, in their original order and ahead of this file's own rules, so the cascade is unchanged. ── */
+
+/* from styles/4-components.css */
+@layer components {
+  /* The shell-side comment bar was removed — the iframe overlay
+ * (apps/studio/comments-overlay.tsx) owns the composer + pin bubbles + thread
+ * popover, and the StatusBar's "comments N open" slot covers the open-count
+ * summary, so the standalone `.comment-bar` strip was redundant. */
+  /* Header — comments toggle button */
+  .actions .rs-toggle {
+    position: relative;
+  }
+
+  .actions .rs-toggle.active {
+    background: var(--accent-tint);
+    color: var(--accent);
+    border-color: var(--accent-hover);
+  }
+
+  /* Status bar — add comment button */
+  .add-comment {
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--accent-hover);
+    border-radius: var(--radius-xs);
+    padding: 1px 8px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    line-height: 1.4;
+    cursor: pointer;
+  }
+
+  .add-comment:hover {
+    background: var(--accent-tint);
+    color: var(--accent);
+  }
+}
+
+/* ── end of the moved rules ── */
+
+@layer shell {
+  .cmp {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    min-height: 0;
+    padding: var(--space-2);
+  }
+  .cmp-hd {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-left: var(--space-2);
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+  .cmp-x {
+    appearance: none;
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-2);
+    cursor: pointer;
+  }
+  .cmp-x:hover {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+
+  /* The filter strip — Open · Mine · Resolved · All (the kit's `.seg`). */
+  .cmp-seg {
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+  }
+  .cmp-seg-b {
+    appearance: none;
+    flex: 1 1 0;
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+    border: 0;
+    border-radius: calc(var(--radius-md) - 2px);
+    background: transparent;
+    font-family: var(--font-body);
+    font-size: var(--type-xs);
+    white-space: nowrap;
+    color: var(--fg-1);
+    cursor: pointer;
+    transition:
+      color var(--dur-soft) var(--ease-out),
+      background var(--dur-soft) var(--ease-out);
+  }
+  .cmp-seg-b:hover {
+    color: var(--fg-0);
+  }
+  .cmp-seg-b.is-active {
+    background: var(--bg-2);
+    color: var(--fg-0);
+    box-shadow:
+      var(--shadow-sm, 0 1px 2px oklch(0 0 0 / 0.12)),
+      inset 0 0 0 1px var(--accent);
+  }
+  .cmp-seg-b:focus-visible,
+  .cmp-act:focus-visible,
+  .cmp-row:focus-visible,
+  .cmp-open:focus-visible,
+  .cmp-group-hd:focus-visible,
+  .cmp-x:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .cmp-n {
+    font-variant-numeric: tabular-nums;
+    color: var(--fg-2);
+  }
+  /* 10 co-comment-thread: "Open 4", never "Open4" — the segment is a flex row, so a text space collapses */
+  .cmp-seg-b .cmp-n {
+    margin-left: var(--space-1);
+  }
+
+  .cmp-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .cmp-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .cmp-group-hd {
+    appearance: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-1) var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    font-family: var(--font-body);
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    color: var(--fg-2);
+    text-align: left;
+    cursor: pointer;
+  }
+  .cmp-group-hd:hover {
+    color: var(--fg-0);
+  }
+  /* the open canvas's title: nothing to open, so it does not look pressable */
+  div.cmp-group-hd {
+    cursor: default;
+  }
+  div.cmp-group-hd:hover {
+    color: var(--fg-2);
+  }
+
+  .cmp-row {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-2);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    color: var(--fg-0);
+  }
+  /* gate-b-a11y: the real button inside the row — avatar + words, the keyboard's way into a thread */
+  .cmp-open {
+    appearance: none;
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .cmp-row:hover {
+    background: var(--bg-3);
+  }
+  .cmp-row.is-active,
+  .cmp-row[aria-current="true"] {
+    background: var(--accent-tint, var(--bg-3));
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+  .cmp-row.is-resolved .cmp-body-t {
+    color: var(--fg-2);
+  }
+  .cmp-av {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    margin-top: 2px;
+    border-radius: var(--radius-pill);
+    background: var(--bg-3);
+    box-shadow: inset 0 0 0 1px var(--border-strong, var(--bg-3));
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    color: var(--fg-1);
+  }
+  .cmp-av.is-ai {
+    background: var(--accent);
+    color: var(--accent-fg);
+  }
+  /* S8.17b - a thread written in Figma: an empty ring, not a person of this project */
+  .cmp-av.is-imported {
+    background: transparent;
+  }
+  .cmp-txt {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .cmp-on,
+  .cmp-meta {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .cmp-body-t {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: var(--type-sm);
+    line-height: var(--lh-sm);
+    color: var(--fg-0);
+  }
+  .cmp-acts {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+  }
+  .cmp-act {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-width: 24px;
+    height: 24px;
+    padding: 0 var(--space-1);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    font-family: var(--font-body);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    cursor: pointer;
+    justify-content: center;
+  }
+  .cmp-act:hover {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+  /* S11.3 — "All done." sits on the confetti tile; the block stays above it. The kit places the tile. */
+  .cmp-party {
+    position: relative;
+    isolation: isolate;
+    padding: var(--space-4) 0;
+  }
+  .cmp-party > .es-e {
+    position: relative;
+    z-index: 1;
+  }
+  .cmp-body > .es-e {
+    padding: var(--space-4) var(--space-2);
+  }
+}

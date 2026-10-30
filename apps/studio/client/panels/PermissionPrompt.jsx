@@ -11,7 +11,9 @@ import { useEffect, useRef } from 'react';
 function toolTarget(toolCall) {
   const raw = toolCall?.rawInput;
   const fromInput =
-    raw && typeof raw === 'object' ? raw.path || raw.file_path || raw.abs_path || raw.filePath : undefined;
+    raw && typeof raw === 'object'
+      ? raw.path || raw.file_path || raw.abs_path || raw.filePath
+      : undefined;
   const fromLocation = Array.isArray(toolCall?.locations) ? toolCall.locations[0]?.path : undefined;
   const path = fromInput || fromLocation;
   return path ? String(path).split('/').pop() : null;
@@ -45,7 +47,9 @@ function kindClass(kind) {
 export function pickDefaultAllow(options) {
   const list = Array.isArray(options) ? options : [];
   return (
-    list.find((o) => o?.kind === 'allow_once') ?? list.find((o) => o?.kind === 'allow_always') ?? null
+    list.find((o) => o?.kind === 'allow_once') ??
+    list.find((o) => o?.kind === 'allow_always') ??
+    null
   );
 }
 
@@ -106,9 +110,24 @@ export function describeOutOfProject(scope) {
           // kind: not "where is this going" but "this file runs".
           scope.reason === 'in-project-denied'
           ? 'This file is part of how your project RUNS, not part of its design.'
-          : paths.length > 1
-            ? 'Claude wants to write files outside this project.'
-            : 'Claude wants to write a file outside this project.';
+          : // S5.10 — a folder the person attached for AI to READ. Never "outside": it may be
+            // inside the project, and what matters is the promise "nothing on disk changes".
+            scope.reason === 'read-only-grant'
+            ? 'This is in a folder you let AI read only. Nothing there changes unless you allow it now.'
+            : // S8.10 — a Handoff to production run writes its target file only; this is another file.
+              scope.reason === 'outside-run-scope'
+              ? 'This handoff may write its one file only. Nothing else changes unless you allow it now.'
+              : // V2-8.9 B1 — Maude's own state (consent, chats, comments), not the design.
+                scope.reason === 'runtime-state'
+                ? 'This is Maude’s own app data, not your design. Nothing there changes unless you allow it now.'
+                : // V2-8.9 H1 — inside the project; what matters is who will see what AI copied in.
+                  scope.reason === 'audience'
+                  ? audienceLead(scope.audience)
+                  : scope.reason === 'audience-unknown'
+                    ? 'Maude couldn’t check who can see this canvas, and AI read other files in this chat.'
+                    : paths.length > 1
+                      ? 'Claude wants to write files outside this project.'
+                      : 'Claude wants to write a file outside this project.';
   return {
     lead,
     paths,
@@ -120,7 +139,44 @@ export function describeOutOfProject(scope) {
     /** Inside the project, but denied for an execution reason — the copy above
      *  must not claim "outside". */
     inProjectDenied: scope.reason === 'in-project-denied',
+    readOnlyGrant: scope.reason === 'read-only-grant',
+    /** V2-8.9 B1 — inside the project, in Maude's own state; the copy must not claim "outside". */
+    runtimeState: scope.reason === 'runtime-state',
+    /** V2-8.9 H1 — a write others can see; the copy must not claim "outside". */
+    audience: scope.reason === 'audience' || scope.reason === 'audience-unknown',
   };
+}
+
+const plainName = (p) => sanitizePathForDisplay(String(p)).split('/').pop() || '';
+const listOf = (names) =>
+  names.length <= 1
+    ? names.join('')
+    : names.length === 2
+      ? `${names[0]} and ${names[1]}`
+      : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+
+/**
+ * V2-8.9 H1 — "This puts text from Pricing-internal into Campaign, which Grace can also see." Names
+ * are the server's (the hub's display names, the files this chat read), shown sanitised, at most a
+ * few of each — the card is read, not scrolled.
+ */
+export function audienceLead(audience) {
+  const sources = Array.isArray(audience?.sources)
+    ? audience.sources.map(plainName).filter(Boolean)
+    : [];
+  const who = Array.isArray(audience?.who)
+    ? audience.who.map((n) => sanitizePathForDisplay(String(n))).filter(Boolean)
+    : [];
+  const canvas = plainName(audience?.canvas ?? '');
+  const from =
+    sources.length > 3 ? `${sources.slice(0, 3).join(', ')} and other files` : listOf(sources);
+  const people =
+    who.length === 0
+      ? 'people you invited'
+      : who.length > 3
+        ? `${who.slice(0, 3).join(', ')} and others`
+        : listOf(who);
+  return `This may put text from ${from || 'other files'} into ${canvas || 'this canvas'}, which ${people} can also see.`;
 }
 
 // Decision D is enforced SERVER-side (bridge.ts filters `allow_always` out of
@@ -144,7 +200,15 @@ export default function PermissionPrompt({ request, onRespond, queueLength = 1 }
   const headline =
     request.scope?.reason === 'in-project-denied'
       ? 'Write to a file that runs'
-      : 'Write outside this project';
+      : request.scope?.reason === 'read-only-grant'
+        ? 'Write to a folder AI may only read'
+        : request.scope?.reason === 'outside-run-scope'
+          ? 'Write outside this handoff'
+          : request.scope?.reason === 'runtime-state'
+            ? 'Write to Maude’s app data'
+            : request.scope?.reason === 'audience' || request.scope?.reason === 'audience-unknown'
+              ? 'Write to a canvas others can see'
+              : 'Write outside this project';
   const headerTarget = outOfProject
     ? outOfProject.paths.length === 1
       ? String(outOfProject.paths[0]).split('/').pop()
@@ -179,7 +243,13 @@ export default function PermissionPrompt({ request, onRespond, queueLength = 1 }
         outOfProject
           ? outOfProject.inProjectDenied
             ? 'Permission request — file that runs code'
-            : 'Permission request — file outside this project'
+            : outOfProject.readOnlyGrant
+              ? 'Permission request — folder AI may only read'
+              : outOfProject.runtimeState
+                ? 'Permission request — Maude’s app data'
+                : outOfProject.audience
+                  ? 'Permission request — canvas others can see'
+                  : 'Permission request — file outside this project'
           : 'Permission request'
       }
       tabIndex={-1}
@@ -226,9 +296,15 @@ export default function PermissionPrompt({ request, onRespond, queueLength = 1 }
             <p className="chat-perm-scope">
               {outOfProject.inProjectDenied ? (
                 <>
-                  Git hooks and Claude settings can execute code later, so Maude asks even
-                  though they live inside this project.
+                  Git hooks and Claude settings can execute code later, so Maude asks even though
+                  they live inside this project.
                 </>
+              ) : outOfProject.readOnlyGrant ? (
+                <>You attached this folder for AI to read. Folders AI may read are in Advanced.</>
+              ) : outOfProject.runtimeState ? (
+                <>What AI may read and your chats live here, so Maude asks before AI changes it.</>
+              ) : outOfProject.audience ? (
+                <>Edits that use only what they can see never ask.</>
               ) : (
                 <>
                   This project is <span className="chat-perm-root">{outOfProject.scopeRoot}</span>.

@@ -1,0 +1,121 @@
+{
+  "task": "d3",
+  "group": "ds",
+  "fixture": "multids",
+  "topology": "A",
+  "delegates": null,
+  "run": {
+    "code": 0,
+    "killed": false,
+    "wallMs": 81800
+  },
+  "metrics": {
+    "subtype": "success",
+    "isError": false,
+    "costUsd": 0.834703,
+    "durationMs": 79152,
+    "apiMs": 75286,
+    "turns": 21,
+    "tokens": 576655,
+    "inTok": 28,
+    "outTok": 7749,
+    "cacheRead": 496335,
+    "cacheWrite": 72543,
+    "freshTokens": 80320,
+    "models": [
+      "claude-opus-5-5"
+    ],
+    "permissionDenials": [
+      {
+        "tool": "Bash",
+        "input": "{\"command\":\"cd \\\"$PWD\\\"; ls .design .design/system; maude design ds status 2>&1 | head -50; maude design ds usage 2>&1 | head -60\",\"description\":\"List design systems and their canvas usage\"}"
+      },
+      {
+        "tool": "Bash",
+        "input": "{\"command\":\"cd .design; for f in ui/panels/*.tsx; do echo \\\"== $f\\\"; grep -oE 'var\\\\(--[a-zA-Z0-9-]+' \\\"$f\\\" | sort -u | sed 's/var(//' | tr '\\\\n' ' '; echo; grep -oE '(system/[^\\\"'\\\"'\\\"' )]+|assets/["
+      },
+      {
+        "tool": "Bash",
+        "input": "{\"command\":\"python3 -I /private/tmp/claude-501/-private-var-folders-t--kf80xz3j79sfmkrq4snj2qk00000gn-T-maude-agent-evals-v2-8-16-trials-d3-A-1-project/788c372b-0db2-4f87-9fdb-d54bff6ecf1b/scratchpad/"
+      }
+    ],
+    "subagents": 0,
+    "subagentTypes": [],
+    "mainToolUses": 20,
+    "subToolUses": 0
+  },
+  "agents": [],
+  "invariants": {
+    "check": {
+      "pass": true,
+      "why": ""
+    },
+    "scope": {
+      "pass": true,
+      "why": ""
+    },
+    "ids-kept": {
+      "pass": true,
+      "why": ""
+    },
+    "locked-kept": {
+      "pass": true,
+      "why": ""
+    },
+    "no-bash-writes": {
+      "pass": true,
+      "why": ""
+    },
+    "owns": {
+      "pass": true,
+      "why": ""
+    }
+  },
+  "quality": {
+    "finished": {
+      "pass": true,
+      "why": "success"
+    },
+    "judge": {
+      "pass": true,
+      "why": "pass (5): Lists the four ui/panels canvases as maude and 00 Index as already maude-v2. Names the hard-coded system/maude CSS imports, the dark vs light default with the .maude wrapper class, and token differences such as line heights. Only a runtime cache file was added, so nothing was changed.",
+      "unknown": false
+    }
+  },
+  "invPass": true,
+  "qualPass": true,
+  "judge": {
+    "verdict": "pass",
+    "score": 5,
+    "why": "Lists the four ui/panels canvases as maude and 00 Index as already maude-v2. Names the hard-coded system/maude CSS imports, the dark vs light default with the .maude wrapper class, and token differences such as line heights. Only a runtime cache file was added, so nothing was changed.",
+    "costUsd": 0.0213215,
+    "model": "sonnet"
+  },
+  "render": {
+    "ran": false,
+    "error": null,
+    "shots": []
+  },
+  "changed": [
+    "?? .design/_cache/index/ds-usage.json"
+  ],
+  "runState": [
+    {
+      "session": "788c372b-0db2-4f87-9fdb-d54bff6ecf1b",
+      "touched": {},
+      "stopBlocks": 0,
+      "shots": 0,
+      "bases": 0
+    }
+  ],
+  "hooks": {
+    "events": 0,
+    "denies": [],
+    "blocks": [],
+    "errors": [],
+    "ms": {},
+    "checkMs": []
+  },
+  "harnessFailure": false,
+  "finalText": "Four canvases use **maude**, all in `ui/panels/`:\n\n- `ui/panels/GitPanel.tsx`\n- `ui/panels/GitHubIdentity.tsx`\n- `ui/panels/RepoBranchSwitcher.tsx`\n- `ui/panels/DiffView.tsx`\n\n`ui/v2/00 Index.tsx` is already on maude-v2. I changed nothing.\n\n## What needs attention when moving them to maude-v2\n\nMaude's own dry run says all four can be switched with no pins. But it only checks token names, and three things would visibly change.\n\n**1. The panels would turn light instead of dark.** This is the main one. Every artboard wraps its content in `<div className=\"maude\" data-theme=\"dark\">`, for example `GitPanel.tsx:399` and `DiffView.tsx:244`. maude-v2 has no `.maude` selector: its themes are keyed on `.maude-v2[data-theme]` or `.ds[data-theme]`. And v2 is light by default where v1 was dark. If only the CSS import changes, the dark scope stops applying and every artboard falls back to the v2 light theme. The wrapper class needs to become `maude-v2` or `ds`, and someone needs to decide whether these panels stay dark or follow v2's light default.\n\n**2. Line heights change size.** The token names are the same, but v1 sets line heights in px (`--lh-md: 24px`) and v2 uses ratios (`1.40`). Text whose size and line-height tokens don't match gets tighter:\n- `RepoBranchSwitcher.css:203` uses `--type-xs` with `--lh-md`: 24px becomes about 15px.\n- `GitHubIdentity.css:221` and `:237` use `--type-sm` with `--lh-base`: 20px becomes about 17px.\n\nSeparately, the type scale goes up by 1px at md through 3xl (md 16→17, lg 19→20, xl 23→24), so wrapping may shift.\n\n**3. The logo.** `GitPanel.tsx:53` and `GitHubIdentity.tsx:62` draw the v1 \"spark-on-bubble\" mark inline. v2 ships its own `mark.svg` and `spark.svg`, so the brand mark needs a decision.\n\n**Mechanical changes in all four canvases:**\n- Each one imports `../../system/maude/colors_and_type.css` and `../../system/maude/preview/_components.css`; both paths would point to `maude-v2`.\n- The `*.registry.json` handoff files next to each canvas also mention the v1 system and would need regenerating.\n\n**Not a problem:**\n- Every other token the panels use exists in v2, apart from `--dv-split`, which `DiffView` defines locally.\n- No canvas references v1 icon or glyph files, so the icons missing from v2's set (search, settings, check and others) don't matter.\n\n**Things to leave or decide on:**\n- `GitPanel.tsx:258` has a \"Changes\" tab that a person locked. The v2 word list says \"Version history\", not \"Changes\", but in a Git panel \"Changes\" means Git changes, so it probably stays. Either way, it can only be edited after someone unlocks it (⇧⌘L).\n- `GitPanel.tsx:170` has sample data containing the path `system/maude/preview/components-cards.tsx`. That's content, so it's your call whether it should name v2.\n\nNeither system has been moved onto a Design system canvas yet, and Maude flags both as having an out-of-date manifest. That doesn't block a switch.\n\nTwo shell commands were denied because this session can't show approval prompts: "
+}

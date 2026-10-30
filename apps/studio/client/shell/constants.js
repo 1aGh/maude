@@ -43,6 +43,7 @@ export const isModuleCanvasPath = (p) => /\.(tsx|jsx)$/i.test(String(p || ''));
 
 // Bun's `define` substitutes this at build time (see build.ts); falls back when
 // the bundle is consumed in a context that hasn't run the build.
+// biome-ignore lint/correctness/noUndeclaredVariables: a build-time `define` (build.ts), guarded by typeof
 export const MDCC_VERSION = typeof __MDCC_VERSION__ !== 'undefined' ? __MDCC_VERSION__ : 'dev';
 
 // Stable empty list for the Sidebar while the tree state hydrates.

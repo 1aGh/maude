@@ -26,10 +26,12 @@ import {
   STICKY_RADIUS,
 } from './constants.ts';
 import { keyBetween, orderKeys } from './fractional-index.ts';
+import type { CanvasHostBind } from './hosts.ts';
 import { v1ToV2 } from './migrate-v1.ts';
-import { defOf, isKnownType } from './registry.ts';
+import { defOf, HEAD_FIELDS, isKnownType, TAIL_FIELDS } from './registry.ts';
 import { Scene } from './scene.ts';
 import { validateElements } from './schema.ts';
+import { readTimeRange } from './time-marks.ts';
 import type { AnnotationElement, ArrowEnd, Box } from './types.ts';
 
 /** Stable id of the v1 anchored-text stroke that shows a shape's label. */
@@ -77,6 +79,26 @@ function shared(el: AnnotationElement): Partial<Stroke> {
   }
   if (num(el.rot) !== 0) out.rotation = num(el.rot);
   if (el.locked === true) out.locked = true;
+  // S4.12 — the stroke view of the format-2 fields the sticky / section UI writes (Resolve, Fold), and of
+  // where an import came from. The stroke is the truth for these (see STROKE_EXT_OWNED).
+  const res = el.resolved as { by?: unknown; at?: unknown } | undefined;
+  if (el.type === 'sticky' && res && typeof res.by === 'string' && typeof res.at === 'string')
+    out.resolved = { by: res.by, at: res.at };
+  if (el.type === 'sticky' && typeof el.at === 'string') out.at = el.at;
+  if (el.type === 'section' && el.folded === true) out.folded = true;
+  // S4.20 — a note's membership and its video pin reach the scene (chip, fade, "Not printed"). Read-only:
+  // neither is STROKE_EXT_OWNED, so a stroke commit keeps the stored values untouched.
+  if (el.type === 'sticky') {
+    if (typeof el.parentArtboard === 'string') out.parentArtboard = el.parentArtboard;
+    const tr = readTimeRange(el.timeRange);
+    if (tr) out.timeRange = tr;
+  }
+  const src = el.source as { kind?: unknown; author?: unknown } | undefined;
+  if (src && typeof src.kind === 'string')
+    out.source = {
+      kind: src.kind,
+      ...(typeof src.author === 'string' ? { author: src.author } : {}),
+    };
   return out as Partial<Stroke>;
 }
 
@@ -92,7 +114,7 @@ export function elementsToStrokes(elements: Iterable<AnnotationElement>): Stroke
 export function elementStrokes(scene: Scene, el: AnnotationElement): Stroke[] {
   const out: Stroke[] = [];
   {
-    if (!isKnownType(el.type)) return out;
+    if (!isKnownType(el.type) || defOf(el.type)?.caps.metadata) return out;
     const o = scene.originOf(el);
     const x = num(el.x) + o.x;
     const y = num(el.y) + o.y;
@@ -105,6 +127,7 @@ export function elementStrokes(scene: Scene, el: AnnotationElement): Stroke[] {
           ...base,
           tool: 'sticky',
           color: str(el.fill, DEFAULT_STICKY_FILL),
+          ...(typeof el.fill === 'string' && el.fill ? {} : { unfilled: true }),
           x,
           y,
           w,
@@ -195,6 +218,11 @@ export function elementStrokes(scene: Scene, el: AnnotationElement): Stroke[] {
           ...(typeof el.line === 'string' && el.line !== 'straight' ? { lineType: el.line } : {}),
           ...(sb ? { startBind: sb } : {}),
           ...(eb ? { endBind: eb } : {}),
+          // S4.11 — canvas binds and the line's words ride on the stroke view, so a stroke-path
+          // commit writes (and removes) them instead of carrying the committed ones forever.
+          ...(isHostBind(el.startHost) ? { startHost: el.startHost } : {}),
+          ...(isHostBind(el.endHost) ? { endHost: el.endHost } : {}),
+          ...(typeof el.label === 'string' && el.label ? { label: el.label } : {}),
         } as Stroke);
         break;
       }
@@ -223,6 +251,7 @@ export function elementStrokes(scene: Scene, el: AnnotationElement): Stroke[] {
           h,
           href: str(el.href),
           ...(el.alt ? { alt: str(el.alt) } : {}),
+          ...stickerOf(el.sticker),
         } as Stroke);
         break;
       case 'link':
@@ -276,6 +305,42 @@ export function elementStrokes(scene: Scene, el: AnnotationElement): Stroke[] {
     }
   }
   return out;
+}
+
+const ARROW_STROKE_EXT: ReadonlySet<string> = new Set(['startHost', 'endHost', 'label']);
+/** S4.12 — extension fields whose stroke view is the truth, per element type (a removal there is real). */
+const STROKE_EXT_OWNED: Readonly<Record<string, ReadonlySet<string>>> = {
+  sticky: new Set(['at', 'resolved', 'source']),
+  image: new Set(['sticker']),
+  section: new Set(['folded', 'source']),
+};
+
+/** The stroke view of an image's `sticker` ext field (a malformed one is not shown). */
+function stickerOf(v: unknown): { sticker?: { pack: string; id: string; flip?: boolean } } {
+  const s = v as { pack?: unknown; id?: unknown; flip?: unknown } | null | undefined;
+  if (!s || typeof s.pack !== 'string' || typeof s.id !== 'string') return {};
+  return { sticker: { pack: s.pack, id: s.id, ...(s.flip === true ? { flip: true } : {}) } };
+}
+
+function isHostBind(v: unknown): v is CanvasHostBind {
+  return (
+    v !== null &&
+    typeof v === 'object' &&
+    typeof (v as { ref?: unknown }).ref === 'string' &&
+    typeof (v as { label?: unknown }).label === 'string'
+  );
+}
+
+/** Keys of a known-type element that are not format-1 fields (typed ext + unknown). */
+function extensionKeys(el: AnnotationElement): string[] {
+  const def = defOf(el.type);
+  if (!def) return [];
+  const own = new Set([
+    ...Object.keys(HEAD_FIELDS),
+    ...Object.keys(def.fields),
+    ...Object.keys(TAIL_FIELDS),
+  ]);
+  return Object.keys(el).filter((k) => !own.has(k));
 }
 
 function sameBox(a: Box | null, b: Box | null): boolean {
@@ -402,6 +467,17 @@ export function strokesToElements(
         if (e && !('el' in e)) rec[k] = { x: e.x - o.x, y: e.y - o.y };
       }
     }
+    // Format-2 extension fields (and a newer peer's keys) have no stroke form:
+    // carried over from the committed element, so the UI's before/after agree
+    // and a stroke-path edit never unsets them (V2-1.12 P2 through the seam).
+    const prevEl = current.get(el.id);
+    if (prevEl && prevEl.type === el.type) {
+      const base = new Set(Object.keys(rec));
+      // An arrow's canvas binds and label are on its stroke view (S4.11): the stroke is the truth,
+      // so removing them there (Point to…, a drag off the host) is a real removal.
+      const owned = el.type === 'arrow' ? ARROW_STROKE_EXT : (STROKE_EXT_OWNED[el.type] ?? null);
+      for (const k of extensionKeys(prevEl)) if (!base.has(k) && !owned?.has(k)) rec[k] = prevEl[k];
+    }
     // Standalone text: v1 only knows a character estimate — keep the measured box while the text is unchanged.
     const prev = current.get(el.id);
     if (
@@ -415,8 +491,10 @@ export function strokesToElements(
     }
     out.push(rec);
   }
-  // Unknown types the v1 UI never showed are carried over untouched.
-  for (const el of current.values()) if (!isKnownType(el.type)) out.push(el);
+  // Unknown types and metadata records (a vote, a ballot) the UI never showed are
+  // carried over untouched.
+  for (const el of current.values())
+    if (!isKnownType(el.type) || defOf(el.type)?.caps.metadata) out.push(el);
   return validateElements(out).elements;
 }
 

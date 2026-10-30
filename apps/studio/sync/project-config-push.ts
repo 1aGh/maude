@@ -12,12 +12,14 @@
 // `storedRecord.role`, which is copied from the hub's sign-in response, i.e.
 // the hub's own claim about us. That is acceptable ONLY because what is sent
 // is a sanitized subset the hub can already see (names and contained relative
-// paths) and the hub enforces the owner bar itself. If this subset ever grows
+// paths — P-5 adds per-system `schema: 1`, `rootClass`, `themes`, `themeDefault`, all names in
+// the class charset) and the hub enforces the owner bar itself. If this subset ever grows
 // past that, gate it on a recorded local consent the way `codeModulesAllowed`
 // is. `linkedHub`, tokens and everything else in config.json stay here.
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { type SystemSchemaFields, sanitizeSchemaFields } from '../context.ts';
 
 const isContainedRel = (p: unknown): p is string =>
   typeof p === 'string' &&
@@ -36,7 +38,7 @@ export interface ProjectConfigSubset {
   tokensCssRel?: string;
   componentsCssRel?: string | null;
   canvasGroups?: { label: string; path: string }[];
-  designSystems?: { name: string; path: string; tokensCssRel?: string }[];
+  designSystems?: ({ name: string; path: string; tokensCssRel?: string } & SystemSchemaFields)[];
   defaultDesignSystem?: string;
 }
 
@@ -77,6 +79,7 @@ export function projectConfigSubset(raw: unknown): ProjectConfigSubset | null {
         name: d.name,
         path: d.path.replace(/\/+$/, ''),
         ...(typeof d.tokensCssRel === 'string' ? { tokensCssRel: d.tokensCssRel } : {}),
+        ...sanitizeSchemaFields(d),
       }));
   }
   if (

@@ -1,0 +1,40 @@
+  [32m✓[0m svg-optimize → _svg-optimize.mjs  [2mdeps ok: svgo[0m
+  [32m✓[0m sync → _sync.mjs  [2mno npm deps[0m
+  [32m✓[0m transcribe-local → _transcribe-local.mjs  [2mno npm deps[0m
+  [32m✓[0m transcribe → _transcribe.mjs  [2mno npm deps[0m
+  [32m✓[0m trash → _trash.mjs  [2mno npm deps[0m
+  [32m✓[0m all 37 standalone helpers have complete dep closures
+
+[4] stripped-PATH smoke (no node/bun/claude on PATH — fresh-machine sim)
+  [32m✓[0m smoke agent-browser-safe  [2mreached helper (no missing runtime/dep/helper)[0m
+  [32m✓[0m smoke assets  [2mreached helper (no missing runtime/dep/helper)[0m
+  [32m✓[0m smoke audio-search  [2mreached helper (no missing runtime/dep/helper)[0m
+  [32m✓[0m smoke canvas-errors  [2mreached helper (no missing runtime/dep/helper)[0m
+  [32m✓[0m smoke canvas-source  [2mreached helper (no missing runtime/dep/helper)[0m
+  [32m✓[0m smoke captions  [2mreached helper (no missing runtime/dep/helper)[0m
+  [32m✓[0m smoke chat-open  [2mreached helper (no missing runtime/dep/helper)[0m
+  [32m✓[0m smoke check  [2mreached helper (no missing runtime/dep/helper)[0m
+  [32m✓[0m smoke comments  [2mreached helper (no missing runtime/dep/helper)[0m
+  [32m✓[0m smoke curl-local  [2mreached helper (no missing runtime/dep/helper)[0m
+  [32m✓[0m smoke cut-to-beat  [2mreached helper (no missing runtime/dep/helper)[0m
+  [32m✓[0m smoke cut-words  [2mreached helper (no missing runtime/dep/helper)[0m
+  [32m✓[0m smoke describe  [2mreached helper (no missing runtime/dep/helper)[0m
+  [32m✓[0m smoke reel-place (parses a canvas)  [2mplaced shot 1 — native parser binding loads[0m
+
+[5] kgai engine + plugin (autonomous capture in the shipped app)
+  [32m✓[0m libkuzu staged  [2mlibkuzu.dylib[0m
+  [32m✓[0m kgai engine staged  [2m/Users/iagh/git/personal/maude/apps/desktop/src-tauri/target/release/bundle/macos/Maude.app/Contents/Resources/kgai/kg[0m
+  [33m⚠[0m kg is thin
+    [2marm64 — fine for a single-arch build, WRONG for a universal .app[0m
+  [32m✓[0m kgai pin stamped  [2mv1.4.0[0m
+  [32m✓[0m kgai Stop hook present  [2mautonomous capture will load in the ACP session[0m
+  [32m✓[0m kgai SessionStart neutralized  [2mengine is pre-staged; no install hook[0m
+  [32m✓[0m smoke kg resolve  [2mstaged engine resolved (pin v1.5.1)[0m
+
+[6] out-of-process asset sweep — retired (no runtime-spawned sync surface)
+
+======================================================================
+[33mNotes:[0m
+  • server-routed helpers (deps ride the compiled server): [2mchat-open, generate, photo-adjust, photo-bg-remove[0m
+  • kg is thin: [2marm64 — fine for a single-arch build, WRONG for a universal .app[0m
+[32mBundle is self-contained — all checks passed.[0m

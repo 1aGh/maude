@@ -42,8 +42,12 @@ echo "── B1/B2: signed out lands on the Maude sign-in, never in the project 
 # sign-in, at the customer-facing address, and never sees the project. The
 # earlier version of this check looked for sign-in words in the FIRST
 # response — but that response is a 302, so it asserted nothing. Follow it.
-FINAL=$(curl -s -o /dev/null -w '%{url_effective}' -L --max-time 45 "https://$P.$Z/studio")
-CODE=$(curl -s -o /dev/null -w '%{http_code}' -L --max-time 45 "https://$P.$Z/studio")
+# As a BROWSER navigation: the hub redirects an HTML navigation (Accept: text/html) to the sign-in
+# and answers an API call (any other Accept) with a 401 JSON (hub server.mjs). A bare curl is the
+# API caller, so without this header the check asserted the API branch and failed.
+NAV=(-H 'Accept: text/html,application/xhtml+xml')
+FINAL=$(curl -s -o /dev/null -w '%{url_effective}' -L --max-time 45 "${NAV[@]}" "https://$P.$Z/studio")
+CODE=$(curl -s -o /dev/null -w '%{http_code}' -L --max-time 45 "${NAV[@]}" "https://$P.$Z/studio")
 chk "signed out ends at the control plane sign-in" "1" "$(printf '%s' "$FINAL" | grep -qE "^https://$Z/login" && echo 1 || echo 0)"
 chk "the sign-in page actually renders"            "200" "$CODE"
 chk "no internal tunnel hostname leaks to the user" "1" "$(printf '%s' "$FINAL" | grep -q 't-alligators' && echo 0 || echo 1)"

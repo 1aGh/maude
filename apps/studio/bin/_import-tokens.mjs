@@ -19,6 +19,8 @@ import {
 import { join, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { oklchToHex, parseColor, parseOklch, rgbToOklch } from '../draw/palette.ts';
+import { extractDeclarations, scanCssRules } from '../ds/css-scan.ts';
+import { loadRegistry } from '../ds/registry.ts';
 import { DESIGN_PLUGIN_DIR } from '../paths.ts';
 import { resolveAliases } from './_import-tokens-alias-resolver.mjs';
 
@@ -96,124 +98,7 @@ export function readTokenFileCapped(inputPath, maxBytes = TOKENS_MAX_BYTES) {
 // ---- Bespoke CSS structural scanner (comment/string-aware, no regex-over-
 // adversarial-text) — shared by Decision 1's raw-CSS input tokenizer AND
 // Decision 7's theme-block locator on the trusted OUTPUT file. ----
-
-/** Walk `text`, returning every `{...}` rule as `{selector, bodyStart, bodyEnd, nestedInAtRule}`. */
-function scanCssRules(text) {
-  const rules = [];
-  const n = text.length;
-  let i = 0;
-  let selectorStart = 0;
-  const stack = [];
-  while (i < n) {
-    const ch = text[i];
-    if (ch === '/' && text[i + 1] === '*') {
-      const end = text.indexOf('*/', i + 2);
-      i = end === -1 ? n : end + 2;
-      continue;
-    }
-    if (ch === '"' || ch === "'") {
-      const quote = ch;
-      i += 1;
-      while (i < n) {
-        if (text[i] === '\\') {
-          i += 2;
-          continue;
-        }
-        if (text[i] === quote) {
-          i += 1;
-          break;
-        }
-        i += 1;
-      }
-      continue;
-    }
-    if (ch === '{') {
-      const selector = text.slice(selectorStart, i);
-      const parentAtRule = stack.length ? stack[stack.length - 1].nestedInAtRule : false;
-      const isAtRule = /^\s*@/.test(selector);
-      stack.push({ selector, bodyStart: i + 1, nestedInAtRule: parentAtRule || isAtRule });
-      i += 1;
-      selectorStart = i;
-      continue;
-    }
-    if (ch === '}') {
-      const top = stack.pop();
-      if (top) {
-        rules.push({
-          selector: top.selector,
-          bodyStart: top.bodyStart,
-          bodyEnd: i,
-          nestedInAtRule: top.nestedInAtRule,
-        });
-      }
-      i += 1;
-      selectorStart = i;
-      continue;
-    }
-    i += 1;
-  }
-  return rules;
-}
-
-/** Extract `--name: value;` declarations from a rule body, comment/string-aware. `offset` shifts returned positions into the ORIGINAL text's coordinate space. */
-function extractDeclarations(bodyText, offset = 0) {
-  const out = [];
-  const n = bodyText.length;
-  let i = 0;
-  let declStart = 0;
-  while (i < n) {
-    const ch = bodyText[i];
-    if (ch === '/' && bodyText[i + 1] === '*') {
-      const end = bodyText.indexOf('*/', i + 2);
-      i = end === -1 ? n : end + 2;
-      continue;
-    }
-    if (ch === '"' || ch === "'") {
-      const quote = ch;
-      i += 1;
-      while (i < n) {
-        if (bodyText[i] === '\\') {
-          i += 2;
-          continue;
-        }
-        if (bodyText[i] === quote) {
-          i += 1;
-          break;
-        }
-        i += 1;
-      }
-      continue;
-    }
-    if (ch === ';') {
-      const decl = bodyText.slice(declStart, i);
-      // A trailing `/* ... */` comment from the PREVIOUS declaration (or a
-      // section-header comment) commonly lands at the START of this slice —
-      // tolerate any number of interleaved whitespace/comment spans before
-      // the actual `--name:`, not just leading whitespace.
-      const m = /^(?:\s|\/\*[\s\S]*?\*\/)*(--[A-Za-z0-9-]+)\s*:/.exec(decl);
-      if (m) {
-        const afterColon = decl.slice(m[0].length);
-        const leadingWs = afterColon.length - afterColon.trimStart().length;
-        const trailingWs = afterColon.length - afterColon.trimEnd().length;
-        const valueStart = offset + declStart + m[0].length + leadingWs;
-        const valueEnd = offset + declStart + decl.length - trailingWs;
-        out.push({
-          name: m[1],
-          rawValue: afterColon.trim(),
-          declStart: offset + declStart,
-          declEnd: offset + i + 1,
-          valueStart,
-          valueEnd,
-        });
-      }
-      declStart = i + 1;
-      i += 1;
-      continue;
-    }
-    i += 1;
-  }
-  return out;
-}
+// The scanner itself lives in ../ds/css-scan.ts (V2-1.13 §5.1 — shared with the DS checker).
 
 /**
  * Decision 1 — raw-CSS-custom-properties input tokenizer. Extracts every
@@ -888,6 +773,11 @@ function scaffoldMinimalDs(root, designRootRel, dsName) {
     layout_max_w: 'none',
     layout_gutter: 'var(--space-5)',
   };
+  // Schema-v1 functional roles: the registry's own derivations from the tokens above (DDR-043).
+  for (const r of loadRegistry().roles) {
+    const k = r.name.slice(2).replace(/-/g, '_');
+    if (r.origin === 'v1' && !(k in NEUTRAL)) NEUTRAL[k] = r.fallbackUnsupported ?? r.fallback;
+  }
   const filled = tpl.replace(/\{\{(\w+)\}\}/g, (m, key) => (key in NEUTRAL ? NEUTRAL[key] : m));
   const dsDir = resolve(root, designRootRel, 'system', dsName);
   mkdirSync(dsDir, { recursive: true });

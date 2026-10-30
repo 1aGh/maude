@@ -27,12 +27,34 @@
 // (matches the locator.ts pattern). Two parallel edits against different
 // canvases run in parallel.
 
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { existsSync, realpathSync } from 'node:fs';
 import { mkdir, open, stat, unlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import MagicString from 'magic-string';
 import { parseSync } from 'oxc-parser';
+import { fileText } from '../../cli/lib/finding-text.mjs';
+import { saveHold } from './ai/save-hold.ts';
+import { formatLinkTarget, type LinkTarget, parseLinkTarget } from './bridge/link-target.ts';
+import {
+  attrRemovalSpan,
+  copyWithoutIds,
+  type ElementId,
+  generateElementId,
+  type IdElement,
+  insertIds,
+  isValidElementId,
+  seedOf,
+  usedIds,
+  walkIdElements,
+  withIdAttr,
+} from './element-ids.ts';
+import { isSafeZoneId } from './kinds/safe-zones.ts';
+import { sourceHold } from './sync/write-hold.ts';
+import { maskComments } from './video/mask-comments.ts';
+import { type ReframeRead, reframeOf } from './video/reframe-read.ts';
 
 export class CanvasEditError extends Error {
   readonly canvas: string;
@@ -291,6 +313,65 @@ export interface EditResult {
 }
 
 /**
+ * S11.17 (C37) — the canvas as every edit here sees it: the bytes a full disk is holding
+ * (sync/write-hold.ts), else the file. An edit made while the disk is full builds on the last one.
+ */
+async function readCanvasSource(file: { text(): Promise<string> }, abs: string): Promise<string> {
+  // p8-a1-save-hold — a person's save held behind an AI interpreter call is what the file WILL hold
+  const waiting = saveHold().read(abs);
+  if (waiting !== undefined) return waiting;
+  const held = sourceHold().read(abs);
+  if (held !== undefined) return typeof held === 'string' ? held : new TextDecoder().decode(held);
+  const text = await file.text();
+  readBase.set(abs, text);
+  return text;
+}
+
+/** p8-a1-save-hold — the disk bytes each canvas's last edit was made on (a held save's merge base). */
+const readBase = new Map<string, string>();
+
+/**
+ * Every write here: tmp + rename in the same folder (a reader never sees half a file). On a full
+ * disk the bytes wait in the studio's hold and land once there is room (S11.17).
+ */
+async function writeCanvasSource(abs: string, source: string): Promise<void> {
+  const say = writeSaying.getStore();
+  // p8-a1-save-hold — a person's save to a file a running interpreter call names waits until the call is
+  // done (+ settle), then lands as theirs (ai/save-hold.ts). Nothing is said now: the landing says it.
+  if (saveHold().holds(abs)) {
+    const base = readBase.get(abs) ?? source;
+    readBase.delete(abs);
+    saveHold().hold(abs, source, { base, ...(say?.label ? { label: say.label } : {}) });
+    return;
+  }
+  readBase.delete(abs);
+  say?.writing(abs, source);
+  try {
+    await sourceHold().put(abs, source);
+  } catch (e) {
+    say?.failed(abs, source);
+    throw e;
+  }
+}
+
+/** F4 — what a caller is told about each canvas write it makes: before the bytes land, and if they never do. */
+export interface CanvasWriteSaying {
+  writing(abs: string, source: string): void;
+  failed(abs: string, source: string): void;
+  /** the history line the write says (a held save's landing says it) */
+  label?: string;
+}
+const writeSaying = new AsyncLocalStorage<CanvasWriteSaying>();
+
+/**
+ * F4 — run `fn` with every canvas write it makes said to `say` BEFORE the bytes land (api.ts's legacy
+ * write path says `source-writing` this way, like routes/edit.ts), and taken back when the write throws.
+ */
+export function sayingCanvasWrites<T>(say: CanvasWriteSaying, fn: () => Promise<T>): Promise<T> {
+  return writeSaying.run(say, fn);
+}
+
+/**
  * Apply a single-attribute edit to the JSX element with the given `data-cd-id`.
  * Reads the canvas, rewrites in memory, writes atomically (via Bun.write to a
  * tmp + rename) so a concurrent reader never sees a partial file.
@@ -311,7 +392,7 @@ export async function editAttribute(
         id,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     // Read under the same per-file lock as the write — no gap between the read
     // that proves the precondition (and records what is replaced) and the rename.
     const previous = readAttributeState(canvasAbsPath, source, id, attr, occurrence);
@@ -323,10 +404,7 @@ export async function editAttribute(
     }
     const next = applyEdit(canvasAbsPath, source, id, attr, value, occurrence);
     if (next.source === source) return { source, delta: 0, changed: false, previous };
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return { ...next, changed: true, previous };
   });
 }
@@ -354,7 +432,7 @@ export async function removeAttribute(
         id,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const previous = readAttributeState(canvasAbsPath, source, id, attr, occurrence);
     if (
       precondition &&
@@ -364,10 +442,7 @@ export async function removeAttribute(
     }
     const next = applyRemove(canvasAbsPath, source, id, attr, occurrence);
     if (next.source === source) return { source, delta: 0, changed: false, previous };
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return { ...next, changed: true, previous };
   });
 }
@@ -476,6 +551,19 @@ function checkPrecondition(
   });
 }
 
+/**
+ * V2-2.19 (contract V2-1.4 §5.2 / §4.6): every `data-cd-*` attribute is canvas-only — written by its
+ * own gesture (stamp, lock, hide), never by the generic attribute writer or a D18 raw row.
+ */
+function refuseCanvasOnlyAttr(canvasAbsPath: string, id: string, attr: string): void {
+  if (attr.startsWith('data-cd-')) {
+    throw new CanvasEditError(
+      `"${attr}" is canvas-only — it is written by its own gesture (lock, hide, element id), not as an attribute`,
+      { canvas: canvasAbsPath, id }
+    );
+  }
+}
+
 /** Pure variant of `removeAttribute` — exposed for tests. */
 export function applyRemove(
   canvasAbsPath: string,
@@ -484,6 +572,7 @@ export function applyRemove(
   attr: string,
   occurrence?: number
 ): EditResult {
+  refuseCanvasOnlyAttr(canvasAbsPath, id, attr);
   const parsed = parseSync(canvasAbsPath, source, { sourceType: 'module' });
   if (parsed.errors && parsed.errors.length > 0) {
     const first = parsed.errors[0];
@@ -545,7 +634,7 @@ export async function editText(
         id,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     // Byte cap before the AST walk (ethical-hacker F-C) — a real canvas is well
     // under this; a pathologically large attacker-authored file that would make
     // the resolver's per-candidate walk expensive is refused up front.
@@ -557,10 +646,7 @@ export async function editText(
     }
     const next = applyTextEdit(canvasAbsPath, source, id, text, opts);
     if (next.source === source) return { source, delta: 0, changed: false };
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return { ...next, changed: true };
   });
 }
@@ -578,6 +664,7 @@ export function applyEdit(
   value: string,
   occurrence?: number
 ): EditResult {
+  refuseCanvasOnlyAttr(canvasAbsPath, id, attr);
   const parsed = parseSync(canvasAbsPath, source, { sourceType: 'module' });
   if (parsed.errors && parsed.errors.length > 0) {
     const first = parsed.errors[0];
@@ -1319,6 +1406,22 @@ function resolveUsageId(
 }
 
 /**
+ * p8-lock-reasons — the `<Component>` usage an instance write lands on (resolveUsageId), for the lock lookup: a
+ * whole-instance move / detach writes THAT usage, so its `data-cd-locked` is the one that refuses. `domId` itself
+ * when there is no splittable usage, or the source does not parse.
+ */
+export function usageIdOf(
+  canvasAbsPath: string,
+  source: string,
+  domId: string,
+  occurrenceIndex: number | undefined
+): string {
+  const parsed = parseSync(canvasAbsPath, source, { sourceType: 'module' });
+  if (parsed.errors?.length) return domId;
+  return resolveUsageId(parsed.program, domId, occurrenceIndex);
+}
+
+/**
  * Edit-scope verdict for the INV-3 predictability badge (feature-element-editing-
  * robustness Stage H). Tells the Inspector whether a style/attr edit to `domId`
  * stays LOCAL (this one rendered place) or is SHARED (changes N places).
@@ -1410,13 +1513,10 @@ export async function moveElement(
         id,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applyMove(canvasAbsPath, source, id, refId, position, idIndex, refIndex);
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -1688,13 +1788,10 @@ export async function retimeSequence(
         id: String(seqIndex),
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applyRetimeSequence(canvasAbsPath, source, seqIndex, patch);
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -1776,7 +1873,7 @@ export async function retimeSequenceByClip(
         id: stableId,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applyRetimeSequenceByClip(
       canvasAbsPath,
       source,
@@ -1786,10 +1883,7 @@ export async function retimeSequenceByClip(
       patch
     );
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -2268,6 +2362,71 @@ function hashSpan(source: string, start: number, end: number): string {
   return Bun.hash(source.slice(start, end)).toString(16).padStart(16, '0').slice(0, 12);
 }
 
+/** S7.10 — `<TitleMotion preset="slide-up" frames={20}>` inside a clip's span (literal props only). */
+function titleMotionOf(span: string): { preset: string; frames: number | null } | null {
+  const tag = /<TitleMotion\b[^>]*>/.exec(span)?.[0];
+  if (!tag) return null;
+  const preset = /\bpreset="([a-z-]+)"/.exec(tag)?.[1];
+  if (!preset) return null;
+  const frames = /\bframes=\{(\d+)\}/.exec(tag)?.[1];
+  return { preset, frames: frames ? Number(frames) : null };
+}
+
+/**
+ * S7.11b — the font and colour of a title: the `style` literal of the element holding the clip's first `{"…"}` string
+ * (the same literal `clip.set-text` rewrites), read as text. Null when the clip holds no such text. The walk and the
+ * rules mirror `edit-ops/clip/title-style.ts` (which writes it); kept here because that module imports this one.
+ */
+function titleStyleOfClip(node: AnyNode): { font: string | null; color: string | null } | null {
+  const isStr = (n: AnyNode) =>
+    (n?.type === 'Literal' || n?.type === 'StringLiteral') && typeof n.value === 'string';
+  const holder = (el: AnyNode): AnyNode | null => {
+    if (!el || el.type !== 'JSXElement') return null;
+    // document order: the nearest text child of this element comes before the text of a child element after it
+    for (const ch of el.children ?? []) {
+      if (ch?.type === 'JSXExpressionContainer' && isStr(ch.expression)) return el;
+      if (ch?.type === 'JSXElement') {
+        const inner = holder(ch);
+        if (inner) return inner;
+      }
+    }
+    return null;
+  };
+  const el = holder(node);
+  if (!el) return null;
+  const out = { font: null as string | null, color: null as string | null };
+  const expr = findAttribute(el.openingElement, 'style')?.value;
+  const obj = expr?.type === 'JSXExpressionContainer' ? expr.expression : null;
+  if (obj?.type !== 'ObjectExpression') return out;
+  for (const p of obj.properties ?? []) {
+    if ((p?.type !== 'Property' && p?.type !== 'ObjectProperty') || p.computed) continue;
+    const k = p.key?.type === 'Identifier' ? p.key.name : isStr(p.key) ? p.key.value : null;
+    if (!isStr(p.value)) continue;
+    if (k === 'fontFamily') out.font = p.value.value;
+    else if (k === 'color') out.color = p.value.value;
+  }
+  return out;
+}
+
+/** S7.10 — the text `applySetClipText` would rewrite (same pattern), or null. */
+function literalTextOf(span: string): string | null {
+  const m = span.match(/\{("(?:[^"\\]|\\.)*")\}/);
+  if (!m?.[1]) return null;
+  try {
+    const v = JSON.parse(m[1]);
+    return typeof v === 'string' ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+/** S7.10 — the `fit` literal of the clip's `<Reframe>`. */
+function fitOf(span: string): 'fill' | 'fit' | 'blur' | null {
+  const tag = /<Reframe\b[^>]*>/.exec(span)?.[0];
+  const fit = tag ? /\bfit="(fill|fit|blur)"/.exec(tag)?.[1] : undefined;
+  return (fit as 'fill' | 'fit' | 'blur' | undefined) ?? null;
+}
+
 /** One clip (timeline row) + everything an op needs to address + label it. */
 export interface ClipInfo {
   /** Durable identity: `name:<Sequence name>` → `mclip:<sentinel>` → `<comp>#<indexInComp>`. */
@@ -2309,6 +2468,19 @@ export interface ClipInfo {
     /** Crop/reposition wrapper marker (`data-mframe="scale,x,y"`). */
     framing: { scale: number; x: number; y: number } | null;
   } | null;
+  /** S7.10 — the title's entrance (`<TitleMotion preset frames>` around its content), read as literal text
+   *  like `data-mframe`; null when the clip has none. The clip inspector's Motion row shows it. */
+  titleMotion: { preset: string; frames: number | null } | null;
+  /** S7.11b — the font and colour the title's own `style` literal says (the Title inspector's Font and Colour rows);
+   *  null parts are not set. Null when the clip holds no text at all. */
+  titleStyle: { font: string | null; color: string | null } | null;
+  /** S7.10 — the clip's editable text: its first `{"…"}` literal (a Title overlay's child, an AI slate's prompt) —
+   *  what `clip.set-text` rewrites, so the inspector's Text row starts from what is there. */
+  text: string | null;
+  /** S7.10 — the picture's `fit` on the clip's `<Reframe>` (Fill · Fit · Blur behind); null = not set. */
+  fit: 'fill' | 'fit' | 'blur' | null;
+  /** S7.13 — the clip's framing keyframes (`<Reframe focus formats zoom>`, in source time) for the Re-frame island; null = centred. */
+  reframe: ReframeRead | null;
   /** The clip's stacked layers (mp4 background + title/lower-third + …) for the
    *  expandable timeline rows. Empty for a pure inline card. */
   layers: ClipLayer[];
@@ -2333,6 +2505,10 @@ export interface LooseMediaInfo {
   src: string | null;
   cdId: string | null;
   contentHash: string;
+  /** S7.4 — the element's source span, so `video/derive.ts` can read a music bed's literal timing
+   *  props (`trimBefore`, a fractional `playbackRate`, `volume={0}`) without a second parse. */
+  start: number;
+  end: number;
 }
 
 export interface CompClips {
@@ -2483,6 +2659,8 @@ export function enumerateClips(
   const componentBodies = collectComponentBodies(program);
   const arrays = collectArrayLiterals(program);
   const scoped = targetComp == null ? [] : clips.filter((c) => c.comp === targetComp);
+  // a comment that names <TitleMotion> / <Reframe> is not one (the `@mclip` sentinel above still reads the raw text)
+  const masked = maskComments(source);
   const clipInfos: ClipInfo[] = scoped.map((c) => {
     const opening = c.node.openingElement;
     const nameAttr = getStringAttr(opening, 'name');
@@ -2544,6 +2722,11 @@ export function enumerateClips(
       mediaShared: m ? m.shared : false,
       clipCdId: cdIdOf.get(c.node) ?? null,
       mediaProps,
+      text: literalTextOf(source.slice(c.start, c.end)),
+      titleMotion: titleMotionOf(masked.slice(c.start, c.end)),
+      titleStyle: titleStyleOfClip(c.node),
+      fit: fitOf(masked.slice(c.start, c.end)),
+      reframe: reframeOf(masked.slice(c.start, c.end)),
       placeholder: (() => {
         // Direct <AIPlaceholder> child → a slate clip (Task 21). The prompt is
         // authored as `prompt={"…"}` (JSON.stringify — DDR-150 P1), so read
@@ -2607,6 +2790,8 @@ export function enumerateClips(
       src: getStringAttr(mel.node.openingElement, 'src'),
       cdId: cdIdOf.get(mel.node) ?? null,
       contentHash: hashSpan(source, mel.start, mel.end),
+      start: mel.start,
+      end: mel.end,
     }));
 
   return {
@@ -2793,13 +2978,10 @@ export async function removeClip(
         id: stableId,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const nextSrc = applyRemoveClip(canvasAbsPath, source, artboardId, stableId, expectedHash);
     if (nextSrc.source === source) return nextSrc;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, nextSrc.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, nextSrc.source);
     return nextSrc;
   });
 }
@@ -2899,7 +3081,7 @@ export async function reorderClip(
         id: movedStableId,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applyReorderClip(
       canvasAbsPath,
       source,
@@ -2911,10 +3093,7 @@ export async function reorderClip(
       position
     );
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -3020,13 +3199,10 @@ export async function toggleClipHidden(
         id: stableId,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applyToggleClipHidden(canvasAbsPath, source, artboardId, stableId, expectedHash);
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -3144,13 +3320,10 @@ export async function insertClip(
         id: artboardId ?? '',
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applyInsertClip(canvasAbsPath, source, artboardId, opts);
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -3251,13 +3424,10 @@ export async function editArrayElementString(
         id: arrayName,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applyEditArrayElementString(canvasAbsPath, source, arrayName, index, field, value);
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -3275,9 +3445,9 @@ export async function editArrayElementString(
 /** Kind of element the insert palette can synthesize. */
 export type InsertKind = 'div' | 'text' | 'image';
 
-/** Synthesize a minimal, self-styled JSX element for an insert. No `data-cd-id`
- *  — the pipeline stamps it on the next transpile (canvas-pipeline stamping is
- *  unconditional). The new element lands selectable + immediately styleable. */
+/** Synthesize a minimal, self-styled JSX element for an insert. The new element
+ *  lands selectable + immediately styleable; `stampSynthElement` gives it its
+ *  stable id (V2-2.19). */
 function synthInsertElement(kind: InsertKind, src?: string): string {
   if (kind === 'text') return `<p style={{ margin: 0 }}>Text</p>`;
   if (kind === 'image') {
@@ -3286,6 +3456,19 @@ function synthInsertElement(kind: InsertKind, src?: string): string {
   }
   // div — a visible neutral placeholder box the user can immediately restyle.
   return `<div style={{ width: 120, height: 80, background: 'var(--bg-2)', borderRadius: 8 }} />`;
+}
+
+/**
+ * V2-2.19 (contract V2-1.4 §4.3 / §5.2): a studio writer that CREATES an element stamps it, so the
+ * new element's id is stable from its first write. The readable id comes from the synthesized
+ * element (`div`, `text`, `img`, then `-2`, `-3` …), unique against every id already in the file.
+ */
+function stampSynthElement(canvasAbsPath: string, source: string, jsx: string): string {
+  const walk = walkIdElements(source, canvasAbsPath);
+  if (!walk.ok) return jsx; // the caller's own parse gate reports it
+  const tag = /^<([A-Za-z][\w.:-]*)/.exec(jsx)?.[1] ?? 'el';
+  const text = /^<[^>]*>([^<]*)</.exec(jsx)?.[1] ?? '';
+  return withIdAttr(jsx, generateElementId({ tag, text }, usedIds(walk.elements)));
 }
 
 /**
@@ -3349,13 +3532,10 @@ export async function deleteElement(
         id,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applyDeleteElement(canvasAbsPath, source, id, occurrence);
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -3415,7 +3595,7 @@ export function applyInsertElement(
   }
 
   const indentUnit = detectIndentUnit(source);
-  const newText = synthInsertElement(kind, opts?.src);
+  const newText = stampSynthElement(canvasAbsPath, source, synthInsertElement(kind, opts?.src));
 
   let targetIndent: string;
   let anchor: number;
@@ -3496,13 +3676,10 @@ export async function insertElement(
         id: refId,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applyInsertElement(canvasAbsPath, source, refId, position, kind, opts);
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -3559,7 +3736,7 @@ export function applyInsertElementIntoArtboard(
 
   const rStart = target.start as number;
   const indentUnit = detectIndentUnit(source);
-  const newText = synthInsertElement(kind, opts?.src);
+  const newText = stampSynthElement(canvasAbsPath, source, synthInsertElement(kind, opts?.src));
   const targetIndent = lineStartInfo(source, rStart).indent + indentUnit;
 
   let anchor: number;
@@ -3621,7 +3798,7 @@ export async function insertElementIntoArtboard(
         id: artboardId,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applyInsertElementIntoArtboard(
       canvasAbsPath,
       source,
@@ -3631,10 +3808,7 @@ export async function insertElementIntoArtboard(
       opts
     );
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -3673,7 +3847,20 @@ export function applyDuplicateElement(
   const elEnd = el.end as number;
   // The clone is the element's own source, placed at the same indent as the next
   // sibling (its internal lines are already indented relative to that level).
-  const cloneText = source.slice(elStart, elEnd);
+  // V2-2.19 (contract V2-1.4 §5.2): a copy never inherits an id or a lock — every
+  // `data-cd-id` / `data-cd-locked` inside it is dropped. A root that carried an
+  // authored id gets a fresh readable one (by the §4.2 rule, never its own); an
+  // unstamped root stays lazy like its original (its copy keeps the positional
+  // newId — the v1 key golden pins that id in the inspector). A component usage
+  // never renders the attribute, so it is never stamped. Descendants stay lazy.
+  const walk = walkIdElements(source, canvasAbsPath);
+  let cloneText = walk.ok
+    ? copyWithoutIds(source, walk.elements, elStart, elEnd)
+    : source.slice(elStart, elEnd);
+  const root = walk.ok ? walk.elements.find((e) => e.start === elStart) : undefined;
+  if (walk.ok && root && root.id !== null && /^[a-z]/.test(root.tag)) {
+    cloneText = withIdAttr(cloneText, generateElementId(seedOf(root), usedIds(walk.elements)));
+  }
   const targetIndent = lineStartInfo(source, elStart).indent;
   const insertText = `\n${targetIndent}${cloneText}`;
   const s = new MagicString(source);
@@ -3714,13 +3901,10 @@ export async function duplicateElement(
         id,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applyDuplicateElement(canvasAbsPath, source, id, occurrence);
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -3837,13 +4021,10 @@ export async function resizeArtboard(
         id: artboardId,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applyResizeArtboard(canvasAbsPath, source, artboardId, width, height);
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -3934,13 +4115,10 @@ export async function setArtboardHug(
         id: artboardId,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applySetArtboardHug(canvasAbsPath, source, artboardId, fixed, freezeHeight);
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -4034,13 +4212,10 @@ export async function setArtboardStyle(
         id: artboardId,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applySetArtboardStyle(canvasAbsPath, source, artboardId, patch);
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -4091,6 +4266,55 @@ export function applySetArtboardKind(
   if (check.errors && check.errors.length > 0) {
     throw new CanvasEditError(
       `artboard kind edit produced invalid source (${check.errors[0]?.message ?? 'parse error'})`,
+      { canvas: canvasAbsPath, id: artboardId }
+    );
+  }
+  return { source: out };
+}
+
+/**
+ * S7.22 — write/clear the DCArtboard `safeZones` prop (`safeZones="instagram-reels"`). A plain string
+ * prop like `kind`, so it shares that toolkit: `editStringAttr` / `removeStringAttr`, addressed by the
+ * `id` prop. `safeZones: null` removes the prop. The id must be one this build knows
+ * (`kinds/safe-zones.ts`); a typo is refused rather than written, because a stored unknown id would draw
+ * nothing and say nothing. Pure; reparse-gated.
+ */
+export function applySetArtboardSafeZones(
+  canvasAbsPath: string,
+  source: string,
+  artboardId: string,
+  safeZones: string | null
+): { source: string } {
+  if (safeZones !== null && !isSafeZoneId(safeZones)) {
+    throw new CanvasEditError(`unknown safe zone "${safeZones}"`, {
+      canvas: canvasAbsPath,
+      id: artboardId,
+    });
+  }
+  const parsed = parseSync(canvasAbsPath, source, { sourceType: 'module' });
+  if (parsed.errors && parsed.errors.length > 0) {
+    throw new CanvasEditError(
+      `oxc-parser failed on ${canvasAbsPath}: ${parsed.errors[0]?.message ?? 'unknown'}`,
+      { canvas: canvasAbsPath, id: artboardId }
+    );
+  }
+  const target = collectJsxByTag(parsed.program, 'DCArtboard').find(
+    (a) => getStringAttr(a.openingElement, 'id') === artboardId
+  );
+  if (!target) {
+    throw new CanvasEditError(`<DCArtboard id="${artboardId}"> not found in ${canvasAbsPath}`, {
+      canvas: canvasAbsPath,
+      id: artboardId,
+    });
+  }
+  const s = new MagicString(source);
+  if (safeZones === null) removeStringAttr(s, target.openingElement, 'safeZones', source);
+  else editStringAttr(s, target.openingElement, 'safeZones', safeZones, canvasAbsPath, artboardId);
+  const out = s.toString();
+  const check = parseSync(canvasAbsPath, out, { sourceType: 'module' });
+  if (check.errors && check.errors.length > 0) {
+    throw new CanvasEditError(
+      `safe zone edit produced invalid source (${check.errors[0]?.message ?? 'parse error'})`,
       { canvas: canvasAbsPath, id: artboardId }
     );
   }
@@ -4166,13 +4390,10 @@ export async function setArtboardLabel(
         id: artboardId,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applySetArtboardLabel(canvasAbsPath, source, artboardId, label);
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -4191,13 +4412,10 @@ export async function setArtboardKind(
         id: artboardId,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applySetArtboardKind(canvasAbsPath, source, artboardId, kind);
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -4290,13 +4508,10 @@ async function setArtboardObjectProp(
         id: artboardId,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applySetArtboardObjectProp(canvasAbsPath, source, artboardId, propName, value);
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -4344,6 +4559,32 @@ export function setArtboardPrint(
 }
 
 /**
+ * S7.20 — an array literal of plain string / number / boolean literals (`sizeMm: [99, 210]`), or null when it holds
+ * anything else (an identifier, a spread, a hole, a nested array) or is longer than 16. Same no-eval rule as the
+ * object reader below.
+ */
+function plainLiteralArray(node: AnyNode): Array<string | number | boolean> | null {
+  const els: AnyNode[] = node?.elements ?? [];
+  if (els.length > 16) return null;
+  const out: Array<string | number | boolean> = [];
+  for (const e of els) {
+    if (
+      !e ||
+      !(
+        e.type === 'Literal' ||
+        e.type === 'StringLiteral' ||
+        e.type === 'NumericLiteral' ||
+        e.type === 'BooleanLiteral'
+      ) ||
+      !(typeof e.value === 'string' || typeof e.value === 'number' || typeof e.value === 'boolean')
+    )
+      return null;
+    out.push(e.value);
+  }
+  return out;
+}
+
+/**
  * Read a JS object-literal AST node into a plain object WITHOUT eval —
  * `print` (like every other canvas-authored JSX prop) is part of the
  * DDR-054 untrusted-canvas surface, so evaluating its source text
@@ -4354,7 +4595,11 @@ export function setArtboardPrint(
  * degrade to "field absent" rather than guess. Depth-capped defensively,
  * though `print`'s own shape never nests past marginsMm (depth 2).
  */
-function objectExpressionToPlain(node: AnyNode, depth = 0): Record<string, unknown> {
+function objectExpressionToPlain(
+  node: AnyNode,
+  depth = 0,
+  arrays = false
+): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   if (depth > 6 || node?.type !== 'ObjectExpression') return out;
   for (const p of node.properties ?? []) {
@@ -4369,7 +4614,10 @@ function objectExpressionToPlain(node: AnyNode, depth = 0): Record<string, unkno
     const v = p.value;
     if (!v) continue;
     if (v.type === 'ObjectExpression') {
-      out[key] = objectExpressionToPlain(v, depth + 1);
+      out[key] = objectExpressionToPlain(v, depth + 1, arrays);
+    } else if (arrays && v.type === 'ArrayExpression') {
+      const items = plainLiteralArray(v);
+      if (items) out[key] = items;
     } else if (
       (v.type === 'Literal' ||
         v.type === 'StringLiteral' ||
@@ -4406,11 +4654,16 @@ function objectExpressionToPlain(node: AnyNode, depth = 0): Record<string, unkno
  * file. Anything else genuinely computed (an import, a function call, a
  * spread) still returns null rather than guessing (RCA
  * issue-pdf-print-export-marks-missing).
+ *
+ * `opts.arrays` (S7.20, decision maude/v2-S7.20-print-reader-arrays-opt-in): also reads an array of plain literals
+ * (`sizeMm: [99, 210]`). Off by default, so every existing caller (the PDF exporter, and the test that models what a
+ * v1.9.1 peer reads) sees the bytes it always did; v2 readers of a custom print size ask for it.
  */
 export function readArtboardPrintProp(
   canvasAbsPath: string,
   source: string,
-  artboardId: string
+  artboardId: string,
+  opts: { arrays?: boolean } = {}
 ): Record<string, unknown> | null {
   const parsed = parseSync(canvasAbsPath, source, { sourceType: 'module' });
   if (parsed.errors && parsed.errors.length > 0) return null;
@@ -4424,7 +4677,7 @@ export function readArtboardPrintProp(
   if (!expr) return null;
   const resolved = resolveValueNode(parsed.program, expr);
   if (resolved?.type !== 'ObjectExpression') return null;
-  return objectExpressionToPlain(resolved);
+  return objectExpressionToPlain(resolved, 0, opts.arrays === true);
 }
 
 /**
@@ -4521,19 +4774,121 @@ export async function deleteArtboard(
         id: artboardId,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applyDeleteArtboard(canvasAbsPath, source, artboardId);
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
 
 /** Artboard id must be a safe JSX-attribute identifier (no quotes/markup). */
 const ARTBOARD_ID_RE = /^[A-Za-z][\w-]*$/;
+
+/** The leading whitespace of the line `pos` sits on. */
+function lineIndentAt(source: string, pos: number): string {
+  const ls = source.lastIndexOf('\n', pos - 1) + 1;
+  return /^[ \t]*/.exec(source.slice(ls, pos))?.[0] ?? '';
+}
+
+/** Put `names` into the file's `@maude/canvas-lib` import (or a new one), skipping any it already imports. */
+function ensureCanvasLibImports(
+  s: MagicString,
+  source: string,
+  program: AnyNode,
+  names: string[]
+): void {
+  const imports = ((program.body ?? []) as AnyNode[]).filter(
+    (st) => st.type === 'ImportDeclaration'
+  );
+  const have = new Set<string>();
+  for (const st of imports)
+    for (const sp of (st.specifiers ?? []) as AnyNode[])
+      if (sp.local?.name) have.add(sp.local.name);
+  const missing = names.filter((n) => !have.has(n));
+  if (missing.length === 0) return;
+  const own = imports.find(
+    (st) =>
+      st.source?.value === '@maude/canvas-lib' &&
+      st.importKind !== 'type' &&
+      ((st.specifiers ?? []) as AnyNode[]).some((sp) => sp.type === 'ImportSpecifier')
+  );
+  if (own) {
+    const named = ((own.specifiers ?? []) as AnyNode[]).filter(
+      (sp) => sp.type === 'ImportSpecifier'
+    );
+    s.appendLeft((named[named.length - 1] as AnyNode).end as number, `, ${missing.join(', ')}`);
+    return;
+  }
+  const first = imports[0];
+  const raw = first ? source.slice(first.source.start, first.source.end) : '';
+  const quote = raw.startsWith("'") ? "'" : '"';
+  const line = `import { ${missing.join(', ')} } from ${quote}@maude/canvas-lib${quote};`;
+  const lastImport = imports[imports.length - 1];
+  if (lastImport) s.appendLeft(lastImport.end as number, `\n${line}`);
+  else s.prepend(`${line}\n`);
+}
+
+/** True when an element's children are only whitespace and empty `{/* … *\/}` comments. */
+function hasOnlyEmptyChildren(el: AnyNode): boolean {
+  return ((el.children ?? []) as AnyNode[]).every(
+    (c) =>
+      (c.type === 'JSXText' && String(c.value ?? c.raw ?? '').trim() === '') ||
+      (c.type === 'JSXExpressionContainer' && c.expression?.type === 'JSXEmptyExpression')
+  );
+}
+
+/**
+ * G4 — the first artboard of a canvas that has none. Into the last `<DCSection>` when there is one (its
+ * closing tag is the anchor); otherwise into `<DesignCanvas>` inside a new `<DCSection id="main"
+ * title="Main">`, which is what a scaffolded canvas looks like. Adds the `@maude/canvas-lib` names it
+ * needs (a ⌘N canvas imports only `DesignCanvas`). Throws when the file has no canvas at all.
+ */
+function placeFirstArtboard(
+  s: MagicString,
+  source: string,
+  program: AnyNode,
+  artboardText: string,
+  canvasAbsPath: string,
+  id: string
+): void {
+  const unit = detectIndentUnit(source);
+  const sections = collectJsxByTag(program, 'DCSection');
+  const host = (sections.length > 0 ? sections[sections.length - 1] : null) as AnyNode | null;
+  const canvas = host ? null : (collectJsxByTag(program, 'DesignCanvas')[0] as AnyNode | undefined);
+  if (!host && !canvas) {
+    throw new CanvasEditError('there is no canvas in this file to add an artboard to', {
+      canvas: canvasAbsPath,
+      id,
+    });
+  }
+  const el = (host ?? canvas) as AnyNode;
+  const tag = host ? 'DCSection' : 'DesignCanvas';
+  const indent = lineIndentAt(source, el.start as number);
+  const child = `${indent}${unit}`;
+  const body = host
+    ? artboardText
+    : `<DCSection id="main" title="Main">\n${child}${unit}${artboardText}\n${child}</DCSection>`;
+  ensureCanvasLibImports(s, source, program, host ? ['DCArtboard'] : ['DCSection', 'DCArtboard']);
+  const open = el.openingElement as AnyNode;
+  const close = el.closingElement as AnyNode | null;
+  if (!close) {
+    // <DCSection … />  becomes  <DCSection …> + the artboard + </DCSection>
+    let from = (open.end as number) - 2;
+    while (from > (open.start as number) && /\s/.test(source[from - 1] ?? '')) from--;
+    s.overwrite(from, open.end, `>\n${child}${body}\n${indent}</${tag}>`);
+    return;
+  }
+  if (!host && hasOnlyEmptyChildren(el)) {
+    // the blank canvas's "Empty. Add <DCSection> here." comment goes: the section is what it asked for
+    if (open.end === close.start) s.appendLeft(open.end, `\n${child}${body}\n${indent}`);
+    else s.overwrite(open.end, close.start, `\n${child}${body}\n${indent}`);
+    return;
+  }
+  const closeLine = lineStartInfo(source, close.start as number);
+  if (closeLine.newlineBefore) s.appendLeft(closeLine.indentStart, `${child}${body}\n`);
+  else s.appendLeft(close.start as number, `\n${child}${body}\n${indent}`);
+}
 
 /**
  * Insert a new EMPTY `<DCArtboard>` after the canvas's last artboard (Stage I4).
@@ -4560,18 +4915,13 @@ export function applyInsertArtboard(
   }
   const parsed = parseSync(canvasAbsPath, source, { sourceType: 'module' });
   if (parsed.errors && parsed.errors.length > 0) {
-    throw new CanvasEditError(
-      `oxc-parser failed on ${canvasAbsPath}: ${parsed.errors[0]?.message ?? 'unknown'}`,
-      { canvas: canvasAbsPath, id }
-    );
+    // plain words: the shell puts this after "Couldn't add an artboard — "
+    throw new CanvasEditError('this canvas does not parse; fix it before editing', {
+      canvas: canvasAbsPath,
+      id,
+    });
   }
   const artboards = collectJsxByTag(parsed.program, 'DCArtboard');
-  if (artboards.length === 0) {
-    throw new CanvasEditError(
-      'no <DCArtboard> to anchor a new artboard — scaffold a canvas first',
-      { canvas: canvasAbsPath, id }
-    );
-  }
   for (const a of artboards) {
     if (getStringAttr(a.openingElement, 'id') === id) {
       throw new CanvasEditError(`artboard id "${id}" already exists`, {
@@ -4580,11 +4930,17 @@ export function applyInsertArtboard(
       });
     }
   }
-  const last = artboards[artboards.length - 1] as AnyNode;
-  const indent = lineStartInfo(source, last.start as number).indent;
   const newText = `<DCArtboard id="${escapeAttr(id)}" label="${escapeAttr(label)}" width={${width}} height={${height}}></DCArtboard>`;
   const s = new MagicString(source);
-  s.appendLeft(last.end as number, `\n${indent}${newText}`);
+  if (artboards.length > 0) {
+    const last = artboards[artboards.length - 1] as AnyNode;
+    const indent = lineStartInfo(source, last.start as number).indent;
+    s.appendLeft(last.end as number, `\n${indent}${newText}`);
+  } else {
+    // G4 (gate B) — a blank (⌘N) canvas has no artboard to sit beside: anchor in its last section, or in
+    // the canvas itself with a section of its own, the way a scaffolded canvas is laid out.
+    placeFirstArtboard(s, source, parsed.program, newText, canvasAbsPath, id);
+  }
   const out = s.toString();
   const check = parseSync(canvasAbsPath, out, { sourceType: 'module' });
   if (check.errors && check.errors.length > 0) {
@@ -4609,13 +4965,10 @@ export async function insertArtboard(
         id: opts.id,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applyInsertArtboard(canvasAbsPath, source, opts);
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -4656,7 +5009,10 @@ export function applyDuplicateArtboard(
   canvasAbsPath: string,
   source: string,
   artboardId: string,
-  newWidth: number
+  /** `null` (S2.10 ⌘D, with `names`): the copy keeps the source's width attribute verbatim. */
+  newWidth: number | null,
+  /** S2.10 — the copy's own id / label (⌘D: "Desktop 2"); absent = the v1 width-suffixed names. */
+  names?: { id?: string; label?: string }
 ): { source: string; artboardId: string } {
   const parsed = parseSync(canvasAbsPath, source, { sourceType: 'module' });
   if (parsed.errors && parsed.errors.length > 0) {
@@ -4673,22 +5029,36 @@ export function applyDuplicateArtboard(
       id: artboardId,
     });
   }
-  const width = Math.max(1, Math.round(newWidth));
+  const width = newWidth === null ? null : Math.max(1, Math.round(newWidth));
+  if (width === null && !(names?.id && names.label))
+    throw new CanvasEditError('A copy at the same width needs its own id and label.', {
+      canvas: canvasAbsPath,
+      id: artboardId,
+    });
 
   const existingIds = new Set(
     artboards
       .map((a) => getStringAttr(a.openingElement, 'id'))
       .filter((x): x is string => typeof x === 'string')
   );
-  let newId = `${artboardId}-${width}`;
-  let suffix = 2;
-  while (existingIds.has(newId)) {
-    newId = `${artboardId}-${width}-${suffix}`;
-    suffix += 1;
+  let newId = names?.id ?? `${artboardId}-${width}`;
+  if (names?.id) {
+    if (existingIds.has(newId)) {
+      throw new CanvasEditError(`<DCArtboard id="${newId}"> already exists in ${canvasAbsPath}`, {
+        canvas: canvasAbsPath,
+        id: newId,
+      });
+    }
+  } else {
+    let suffix = 2;
+    while (existingIds.has(newId)) {
+      newId = `${artboardId}-${width}-${suffix}`;
+      suffix += 1;
+    }
   }
 
   const sourceLabel = getStringAttr(target.openingElement, 'label') ?? artboardId;
-  const newLabel = `${sourceLabel} (${width}px)`;
+  const newLabel = names?.label ?? `${sourceLabel} (${width}px)`;
 
   const elStart = target.start as number;
   const elEnd = target.end as number;
@@ -4715,18 +5085,31 @@ export function applyDuplicateArtboard(
   } else {
     cs.appendLeft(idAttr.end - elStart, ` label="${escapeAttr(newLabel)}"`);
   }
-  if (widthAttr && typeof widthAttr.start === 'number' && typeof widthAttr.end === 'number') {
+  if (width === null) {
+    // same width: the attribute (a number or an expression) is copied as it was
+  } else if (
+    widthAttr &&
+    typeof widthAttr.start === 'number' &&
+    typeof widthAttr.end === 'number'
+  ) {
     cs.overwrite(widthAttr.start - elStart, widthAttr.end - elStart, `width={${width}}`);
   } else {
     cs.appendLeft(idAttr.end - elStart, ` width={${width}}`);
   }
   const patchedClone = cs.toString();
 
-  const targetIndent = lineStartInfo(source, elStart).indent;
-  const insertText = `\n${targetIndent}${patchedClone}`;
-  const s = new MagicString(source);
-  s.appendLeft(elEnd, insertText);
-  const out = s.toString();
+  let out = spliceBesideArtboard(source, elStart, elEnd, patchedClone);
+  // V2-1.4 §5.2: a copy never inherits an element id or a lock — every `data-cd-id` / `data-cd-locked`
+  // inside the clone is dropped (its elements are named lazily, like a duplicated element's).
+  const copyWalk = walkIdElements(out, canvasAbsPath);
+  if (copyWalk.ok) {
+    const board = copyWalk.elements.find((e) => e.tag === 'DCArtboard' && e.artboard === newId);
+    if (board)
+      out =
+        out.slice(0, board.start) +
+        copyWithoutIds(out, copyWalk.elements, board.start, board.end) +
+        out.slice(board.end);
+  }
   const check = parseSync(canvasAbsPath, out, { sourceType: 'module' });
   if (check.errors && check.errors.length > 0) {
     throw new CanvasEditError(
@@ -4735,6 +5118,137 @@ export function applyDuplicateArtboard(
     );
   }
   return { source: out, artboardId: newId };
+}
+
+/**
+ * The one "beside the source" placement every artboard copy uses ("Duplicate at width…", Run on a
+ * copy): the clone is spliced as the original's NEXT sibling in source order, at its indent — the
+ * next default-grid cell (DDR-027, see applyDuplicateArtboard).
+ */
+function spliceBesideArtboard(
+  source: string,
+  elStart: number,
+  elEnd: number,
+  cloneText: string
+): string {
+  const targetIndent = lineStartInfo(source, elStart).indent;
+  const s = new MagicString(source);
+  s.appendLeft(elEnd, `\n${targetIndent}${cloneText}`);
+  return s.toString();
+}
+
+/**
+ * S5.11b — Run on a copy (V2-1.15 §5.7): duplicate `<DCArtboard id={artboardId}>` FROM `accepted`
+ * (the project's accepted source — never a busy run's staged bytes, which sit on disk until that
+ * run publishes) into `source` (the disk), beside the original (`spliceBesideArtboard`). The copy
+ * gets `copy.id` + `copy.label`; every `data-cd-id` / `data-cd-locked` inside it is dropped and
+ * each DOM element that carried an id gets a fresh readable one (V2-1.4 §4.3: a copy always gets
+ * new ids and starts unlocked). An artboard `copy.id` already in `source` is this ask's earlier
+ * copy: answered as is (`existed`), so a retry never makes two.
+ */
+export function applyCopyArtboard(
+  canvasAbsPath: string,
+  source: string,
+  accepted: string,
+  artboardId: string,
+  copy: { id: string; label?: string }
+): { source: string; artboardId: string; existed: boolean } {
+  const fail = (m: string) => new CanvasEditError(m, { canvas: canvasAbsPath, id: artboardId });
+  const disk = parseSync(canvasAbsPath, source, { sourceType: 'module' });
+  if (disk.errors && disk.errors.length > 0)
+    throw fail(`oxc-parser failed on ${canvasAbsPath}: ${disk.errors[0]?.message ?? 'unknown'}`);
+  const onDisk = collectJsxByTag(disk.program, 'DCArtboard');
+  const idOf = (a: AnyNode) => getStringAttr(a.openingElement, 'id');
+  if (onDisk.some((a) => idOf(a) === copy.id))
+    return { source, artboardId: copy.id, existed: true };
+  const here = onDisk.find((a) => idOf(a) === artboardId);
+  if (!here) throw fail(`<DCArtboard id="${artboardId}"> not found in ${canvasAbsPath}`);
+
+  const acc = parseSync(canvasAbsPath, accepted, { sourceType: 'module' });
+  if (acc.errors && acc.errors.length > 0)
+    throw fail(`the accepted ${canvasAbsPath} does not parse`);
+  const target = collectJsxByTag(acc.program, 'DCArtboard').find((a) => idOf(a) === artboardId);
+  if (!target) throw fail(`<DCArtboard id="${artboardId}"> is not in the accepted version yet`);
+  const walkAcc = walkIdElements(accepted, canvasAbsPath);
+  if (!walkAcc.ok) throw fail(walkAcc.error);
+  const elStart = target.start as number;
+  const elEnd = target.end as number;
+  const idAttr = findAttribute(target.openingElement, 'id');
+  if (!idAttr || typeof idAttr.start !== 'number' || typeof idAttr.end !== 'number')
+    throw fail(`<DCArtboard id="${artboardId}"> has no readable id attribute`);
+
+  // one MagicString over the ACCEPTED text: drop ids + locks, rename the artboard, then slice
+  const ms = new MagicString(accepted);
+  const inside = walkAcc.elements.filter((e) => e.start >= elStart && e.end <= elEnd);
+  for (const e of inside) {
+    for (const a of [e.idAttr, e.lockAttr]) {
+      if (!a) continue;
+      const sp = attrRemovalSpan(accepted, a);
+      ms.remove(sp.start, sp.end);
+    }
+  }
+  ms.overwrite(idAttr.start, idAttr.end, `id="${escapeAttr(copy.id)}"`);
+  const label =
+    copy.label ?? `${getStringAttr(target.openingElement, 'label') ?? artboardId} · copy`;
+  const labelAttr = findAttribute(target.openingElement, 'label');
+  if (labelAttr && typeof labelAttr.start === 'number' && typeof labelAttr.end === 'number')
+    ms.overwrite(labelAttr.start, labelAttr.end, `label="${escapeAttr(label)}"`);
+  else ms.appendLeft(idAttr.end, ` label="${escapeAttr(label)}"`);
+  const cloneText = ms.slice(elStart, elEnd);
+
+  let out = spliceBesideArtboard(source, here.start as number, here.end as number, cloneText);
+  // fresh ids where the original carried one: the copy's elements, pre-order, pair with the
+  // original's (the clone is the same tree minus attributes)
+  const walkOut = walkIdElements(out, canvasAbsPath);
+  if (walkOut.ok) {
+    const was = inside.filter((e) => e.artboard === artboardId);
+    const now = walkOut.elements.filter((e) => e.artboard === copy.id);
+    if (was.length === now.length) {
+      const used = usedIds(walkOut.elements);
+      for (const e of inside) if (e.id) used.add(e.id); // never hand the original's id out again
+      const stamps: Array<{ nameEnd: number; id: ElementId }> = [];
+      was.forEach((w, i) => {
+        const n = now[i] as (typeof now)[number];
+        if (w.id !== null && /^[a-z]/.test(n.tag))
+          stamps.push({ nameEnd: n.nameEnd, id: generateElementId(seedOf(n), used) });
+      });
+      out = insertIds(out, stamps);
+    }
+  }
+  const check = parseSync(canvasAbsPath, out, { sourceType: 'module' });
+  if (check.errors && check.errors.length > 0)
+    throw fail(
+      `run-on-copy produced invalid source (${check.errors[0]?.message ?? 'parse error'})`
+    );
+  return { source: out, artboardId: copy.id, existed: false };
+}
+
+/**
+ * Run on a copy on disk (atomic write + cross-process lock). `accepted` defaults to the disk (a
+ * canvas no run has staged). `beforeWrite` sees the new bytes before they land — the caller
+ * claims them for the run's stage there, so the watcher never files them under the busy run.
+ */
+export async function copyArtboard(
+  canvasAbsPath: string,
+  artboardId: string,
+  copy: { id: string; label?: string },
+  o: { accepted?: string | null; beforeWrite?: (next: string) => void } = {}
+): Promise<{ source: string; artboardId: string; existed: boolean }> {
+  return withLock(canvasAbsPath, async () => {
+    const file = Bun.file(canvasAbsPath);
+    if (!(await file.exists())) {
+      throw new CanvasEditError(`Canvas not found: ${canvasAbsPath}`, {
+        canvas: canvasAbsPath,
+        id: artboardId,
+      });
+    }
+    const source = await readCanvasSource(file, canvasAbsPath);
+    const next = applyCopyArtboard(canvasAbsPath, source, o.accepted ?? source, artboardId, copy);
+    if (next.existed || next.source === source) return next;
+    o.beforeWrite?.(next.source);
+    await writeCanvasSource(canvasAbsPath, next.source);
+    return next;
+  });
 }
 
 /** Duplicate an artboard on disk (atomic write + cross-process lock). */
@@ -4751,13 +5265,10 @@ export async function duplicateArtboard(
         id: artboardId,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applyDuplicateArtboard(canvasAbsPath, source, artboardId, newWidth);
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -5396,13 +5907,10 @@ export async function convertToAbsolute(
         id: spec.containerId ?? 'artboard',
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applyConvertToAbsolute(canvasAbsPath, source, spec);
     if (next.source === source) return { source, delta: 0, changed: false };
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return { ...next, changed: true };
   });
 }
@@ -5538,15 +6046,12 @@ export async function detachComponent(
         id,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applyDetachComponent(canvasAbsPath, source, id, occurrence);
     if (next.source === source) {
       return { source, delta: 0, changed: false, detachedName: next.detachedName };
     }
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return { ...next, changed: true };
   });
 }
@@ -5623,19 +6128,129 @@ function jsKey(prop: string): string {
 //
 // Layout:  bun run canvas-edit.ts --invoke <canvas> <id> <attr> <value>
 
+/** A refusal of the CLI path, with the exit code `canvas-edit.sh` passes through. */
+export class CliRefusal extends Error {
+  constructor(
+    message: string,
+    readonly exitCode: 1 | 2
+  ) {
+    super(message);
+  }
+}
+
+const PICK_CANVAS = "Pick a canvas inside the project's design folder";
+
+/**
+ * V2-2.4b gate — where the CLI may write. `maude design canvas-edit` is an
+ * auto-tier verb (the AI reaches it with no prompt), so the canvas must
+ * resolve — symlinks followed — to a `.tsx`/`.jsx` inside THIS project's
+ * `.design/` (the nearest `.design/config.json` at or above
+ * `$CLAUDE_PROJECT_DIR`, else the cwd), outside its `_*` runtime dirs and
+ * dot-folders. A relative path is tried design-root-relative first (`ui/C.tsx`,
+ * as the verbs take it), then cwd-relative. Returns the real path to edit.
+ */
+export function resolveCliCanvas(
+  arg: string,
+  { cwd = process.cwd(), projectDir = process.env.CLAUDE_PROJECT_DIR } = {}
+): { abs: string; rel: string } {
+  let cur = path.resolve(projectDir || cwd);
+  let root: string | null = null;
+  for (;;) {
+    if (existsSync(path.join(cur, '.design', 'config.json'))) {
+      root = cur;
+      break;
+    }
+    const up = path.dirname(cur);
+    if (up === cur) break;
+    cur = up;
+  }
+  if (!root) throw new CliRefusal(`${PICK_CANVAS} — no .design/ found from ${cwd}.`, 2);
+  const designRoot = realpathSync(path.join(root, '.design'));
+  const candidates = path.isAbsolute(arg)
+    ? [arg]
+    : [path.join(root, '.design', arg), path.resolve(cwd, arg)];
+  const found = candidates.find((c) => existsSync(c));
+  if (!found) throw new CliRefusal(`file not found: ${arg}`, 1);
+  const abs = realpathSync(found);
+  const rel = path.relative(designRoot, abs).split(path.sep).join('/');
+  const segs = rel.split('/');
+  if (
+    !rel ||
+    rel.startsWith('..') ||
+    path.isAbsolute(rel) ||
+    segs[0]?.startsWith('_') ||
+    segs.some((s) => s.startsWith('.')) ||
+    !/\.[jt]sx$/.test(rel)
+  )
+    throw new CliRefusal(
+      `${PICK_CANVAS} (${designRoot}/…, not a _ runtime folder) — ${arg} is outside it.`,
+      2
+    );
+  return { abs, rel };
+}
+
+/** An id a refusal names bare (routes/agent.ts AGENT_ID_RE — a test holds them equal). */
+export const MESSAGE_ID_RE = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/;
+
+/**
+ * V2-2.19 — a locked element (`data-cd-locked`), or anything inside one, is the
+ * person's: the CLI refuses it with the same `soft-locked` wording the
+ * pre-edit hook's `edit/check` uses. The innermost element whose span holds the
+ * first changed byte is the edit's target (an attribute edit only rewrites that
+ * element's opening tag); it and its ancestors are checked.
+ */
+export function assertCliEditUnlocked(rel: string, before: string, after: string): void {
+  let at = 0;
+  while (at < before.length && before.charCodeAt(at) === after.charCodeAt(at)) at++;
+  if (at === before.length && before.length === after.length) return;
+  const w = walkIdElements(before, rel);
+  if (!w.ok) return;
+  let target = -1;
+  for (const e of w.elements) if (e.start <= at && at < e.end) target = e.i;
+  for (let i = target; i >= 0; i = w.elements[i]?.parent ?? -1) {
+    const e = w.elements[i];
+    if (!e) break;
+    if (!e.locked) continue;
+    // file text (a planted id / artboard id): cleaned, capped and quoted unless it is an id
+    const idText = (s: string) => (MESSAGE_ID_RE.test(s) ? s : fileText(s));
+    const name = e.id ? idText(e.id) : `<${e.tag}>`;
+    const where = e.artboard ? ` in ${idText(e.artboard)}` : '';
+    const inside = i === target ? '' : ' (the element is inside it)';
+    throw new CliRefusal(
+      `soft-locked: ${name}${where} is locked${inside} — leave it as it is. ` +
+        'Undo the change to it, or ask the person to unlock it (⇧⌘L). Change the rest without touching it.',
+      1
+    );
+  }
+}
+
 if (import.meta.main) {
   const argv = process.argv.slice(2);
   if (argv[0] === '--invoke' && argv.length === 5) {
-    const [, canvas, id, attr, value] = argv;
-    if (!canvas || !id || !attr || value === undefined) {
+    const [, arg, id, attr, value] = argv;
+    if (!arg || !id || !attr || value === undefined) {
       console.error('canvas-edit: --invoke needs <canvas> <id> <attr> <value>');
       process.exit(2);
     }
     try {
+      const { abs: canvas, rel } = resolveCliCanvas(arg);
+      const before = await Bun.file(canvas).text();
+      const after = applyEdit(canvas, before, id, attr, value).source;
+      assertCliEditUnlocked(rel, before, after);
+      // p8-a1-claims — inside a Maude chat these bytes are claimed for its run before they land
+      // (bin/_write-claim.mjs); a person's own save meanwhile is different bytes and stays theirs
+      if (after !== before) {
+        const { claimWrites } = await import('./bin/_write-claim.mjs');
+        await claimWrites(path.dirname(canvas), [{ rel, content: after }]);
+      }
       const r = await editAttribute(canvas, id, attr, value);
       console.log(JSON.stringify({ canvas, id, delta: r.delta }));
       process.exit(0);
     } catch (err) {
+      if (err instanceof CliRefusal) {
+        console.error(`canvas-edit: ${err.message}`);
+        process.exit(err.exitCode);
+      }
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`canvas-edit: ${msg}`);
       process.exit(2);
@@ -5814,4 +6429,396 @@ export function printUniqueness(
   const counts = new Map<string, number>();
   for (const e of all) counts.set(key(e.print), (counts.get(key(e.print)) ?? 0) + 1);
   return { elements: all.length, unique: all.filter((e) => counts.get(key(e.print)) === 1).length };
+}
+
+// ---------------------------------------------------------------------------
+// V2-2.19 — lazy stamping of stable element ids (contract V2-1.4 §4.3 / §5.2).
+//
+// A durable reference (comment pin, arrow bind, lock, ⌘/ scope, undo record) to an element that has
+// no authored id yet is captured as `{ hint, print }` (`PendingElementRef`); the next write an
+// editor's studio makes to the file stamps every queued element through `stampIds`. Pure: it
+// returns the new source and never touches disk, so the caller decides WHEN to write (never from
+// the file watcher, never while a run or an external editor holds the file).
+
+export interface StampTarget {
+  /** Computed (or authored) id at capture time — a hint, never the key. */
+  hint: string;
+  print: ElementPrint;
+  occurrence?: number;
+}
+
+/**
+ * Stamp a readable `data-cd-id` on every target that has none (contract §5.2). Each target is
+ * found by `hint` when the element there still carries `print`, else by the ONE element carrying
+ * `print`; an ambiguous or missing target is left out of `ids`. An element that already has a
+ * valid authored id returns it unchanged. `reserved` holds ids a durable reference still points
+ * at (detached ones included), so a removed element's comments can't land on a newcomer.
+ * Throws on an expression-valued or malformed `data-cd-id` (refused by every writer).
+ */
+export function stampIds(
+  source: string,
+  targets: StampTarget[],
+  opts: { path?: string; reserved?: Iterable<string> } = {}
+): { source: string; ids: Map<string, ElementId> } {
+  const file = opts.path ?? 'canvas.tsx';
+  const walk = walkIdElements(source, file);
+  if (!walk.ok) {
+    throw new CanvasEditError(`oxc-parser failed on ${file}: ${walk.error}`, {
+      canvas: file,
+      id: '',
+    });
+  }
+  const els = walk.elements;
+  const prints = new Map<boolean, Array<{ id: string; print: ElementPrint }>>();
+  const printsFor = (withText: boolean) => {
+    let p = prints.get(withText);
+    if (!p) {
+      p = printAll(file, source, null, withText);
+      prints.set(withText, p);
+    }
+    return p;
+  };
+  const used = usedIds(els);
+  for (const r of opts.reserved ?? []) used.add(r);
+  const ids = new Map<string, ElementId>();
+  const stamped = new Map<number, ElementId>();
+  for (const t of targets) {
+    const all = printsFor(t.print.text !== undefined);
+    if (all.length !== els.length) break; // walkers disagree — stamp nothing rather than guess
+    let at = all.findIndex((e) => e.id === t.hint && samePrint(e.print, t.print));
+    if (at < 0) {
+      const hits: number[] = [];
+      all.forEach((e, k) => {
+        if (samePrint(e.print, t.print)) hits.push(k);
+      });
+      if (hits.length !== 1) continue;
+      at = hits[0] as number;
+    }
+    const el = els[at] as (typeof els)[number];
+    if (el.idKind === 'expression') {
+      throw new CanvasEditError(
+        `data-cd-id must be a plain string ("…"), line ${el.line} — an expression can't be a stable id`,
+        { canvas: file, id: t.hint }
+      );
+    }
+    if (el.id !== null) {
+      if (!isValidElementId(el.id)) {
+        throw new CanvasEditError(
+          `data-cd-id="${el.id}" (line ${el.line}) is not a valid element id — use lowercase words joined by "-"`,
+          { canvas: file, id: t.hint }
+        );
+      }
+      ids.set(t.hint, el.id);
+      continue;
+    }
+    let id = stamped.get(at);
+    if (!id) {
+      id = generateElementId(seedOf(el), used);
+      stamped.set(at, id);
+    }
+    ids.set(t.hint, id);
+  }
+  if (!stamped.size) return { source, ids };
+  const out = insertIds(
+    source,
+    [...stamped].map(([k, id]) => ({ nameEnd: (els[k] as (typeof els)[number]).nameEnd, id }))
+  );
+  const check = parseSync(file, out, { sourceType: 'module' });
+  if (check.errors && check.errors.length > 0) {
+    throw new CanvasEditError(
+      `stamping ids would produce invalid source (${check.errors[0]?.message ?? 'parse error'}); aborted`,
+      { canvas: file, id: '' }
+    );
+  }
+  return { source: out, ids };
+}
+
+// ---------------------------------------------------------------------------
+// V2-2.19 — canvas-only metadata (contract V2-1.4 §5.5). Lock and the Hide marker are `data-cd-*`
+// attributes on the element in the VERSIONED TSX (no sidecar, no runtime path): shared, visible to
+// Claude where it edits, and stripped by every markup / code exporter (`stripCanvasOnly`). Each
+// gesture stamps the element first (a gesture is a studio write, §4.3) and returns its stable id.
+
+/** The element `id` (+ `occurrence`) addresses, stamped if it has no authored id yet. */
+export function ensureStamped(
+  canvasAbsPath: string,
+  source: string,
+  id: string,
+  occurrence?: number,
+  reserved?: Iterable<string>
+): { source: string; id: ElementId } {
+  const { el, walk, targetId } = locateWalked(canvasAbsPath, source, id, occurrence);
+  if (el.idKind === 'expression') {
+    throw new CanvasEditError(
+      `data-cd-id must be a plain string ("…"), line ${el.line} — an expression can't be a stable id`,
+      { canvas: canvasAbsPath, id: targetId }
+    );
+  }
+  if (el.id !== null) {
+    if (!isValidElementId(el.id)) {
+      throw new CanvasEditError(
+        `data-cd-id="${el.id}" (line ${el.line}) is not a valid element id — use lowercase words joined by "-"`,
+        { canvas: canvasAbsPath, id: targetId }
+      );
+    }
+    return { source, id: el.id };
+  }
+  const used = usedIds(walk);
+  for (const r of reserved ?? []) used.add(r);
+  const sid = generateElementId(seedOf(el), used);
+  return { source: insertIds(source, [{ nameEnd: el.nameEnd, id: sid }]), id: sid };
+}
+
+/** The walked element `id` (+ `occurrence`) addresses — never stamps. Throws when it is not there. */
+function locateWalked(canvasAbsPath: string, source: string, id: string, occurrence?: number) {
+  const parsed = parseSync(canvasAbsPath, source, { sourceType: 'module' });
+  if (parsed.errors && parsed.errors.length > 0) {
+    throw new CanvasEditError(
+      `oxc-parser failed on ${canvasAbsPath}: ${parsed.errors[0]?.message ?? 'unknown'}`,
+      { canvas: canvasAbsPath, id }
+    );
+  }
+  const targetId =
+    typeof occurrence === 'number' ? resolveUsageId(parsed.program, id, occurrence) : id;
+  const hit = findOpening(parsed.program, targetId);
+  const walk = walkIdElements(source, canvasAbsPath);
+  const el = hit && walk.ok ? walk.elements.find((e) => e.start === hit.element.start) : undefined;
+  if (!el) {
+    throw new CanvasEditError(`data-cd-id "${targetId}" not found in ${canvasAbsPath}`, {
+      canvas: canvasAbsPath,
+      id: targetId,
+    });
+  }
+  return { el, walk: (walk as { elements: IdElement[] }).elements, targetId };
+}
+
+/** The walked element carrying the authored id `id` (it exists — callers stamp first). */
+function stampedElement(canvasAbsPath: string, source: string, id: ElementId) {
+  const walk = walkIdElements(source, canvasAbsPath);
+  const el = walk.ok ? walk.elements.find((e) => e.id === id) : undefined;
+  if (!el) {
+    throw new CanvasEditError(`data-cd-id "${id}" not found in ${canvasAbsPath}`, {
+      canvas: canvasAbsPath,
+      id,
+    });
+  }
+  return el;
+}
+
+/** A single-quoted JS string literal (the style writer takes raw JS source). */
+function jsString(v: string): string {
+  return `'${v.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
+}
+
+/** Insert ` <attr>` right after the element's `data-cd-id` attribute (or its tag name). */
+function addCdAttr(
+  source: string,
+  el: { idAttr: { end: number } | null; nameEnd: number },
+  attr: string
+): string {
+  const s = new MagicString(source);
+  s.appendLeft(el.idAttr ? el.idAttr.end : el.nameEnd, ` ${attr}`);
+  return s.toString();
+}
+
+function removeSpan(source: string, span: { start: number; end: number }): string {
+  return source.slice(0, span.start) + source.slice(span.end);
+}
+
+/**
+ * Lock ⇧⌘L / Layers lock (`locked: true`): stamp + `data-cd-locked`. Unlock: remove it (anyone with
+ * edit rights; never Claude — the id check blocks it). Idempotent. A copy of a locked element
+ * starts unlocked (`applyDuplicateElement`).
+ */
+export function applySetLocked(
+  canvasAbsPath: string,
+  source: string,
+  id: string,
+  locked: boolean,
+  opts: { occurrence?: number; reserved?: Iterable<string> } = {}
+): { source: string; id: ElementId } {
+  const st = ensureStamped(canvasAbsPath, source, id, opts.occurrence, opts.reserved);
+  const el = stampedElement(canvasAbsPath, st.source, st.id);
+  if (el.locked === locked) return st;
+  const out = locked
+    ? addCdAttr(st.source, el, 'data-cd-locked')
+    : removeSpan(
+        st.source,
+        attrRemovalSpan(st.source, el.lockAttr as { start: number; end: number })
+      );
+  return { source: out, id: st.id };
+}
+
+/**
+ * Hide (Layers eye, object menu): stamp + `style.display = "none"` + `data-cd-hidden="<previous
+ * inline display, or empty>"`. Show: restore the inline display from the marker (remove it when
+ * the marker is empty) and drop the marker — so an element that had `display: flex` inline keeps
+ * it. Idempotent; Show on an element the eye did not hide is a no-op.
+ */
+export function applySetHidden(
+  canvasAbsPath: string,
+  source: string,
+  id: string,
+  hidden: boolean,
+  opts: { occurrence?: number; reserved?: Iterable<string> } = {}
+): { source: string; id: ElementId } {
+  const st = ensureStamped(canvasAbsPath, source, id, opts.occurrence, opts.reserved);
+  const el = stampedElement(canvasAbsPath, st.source, st.id);
+  const isHidden = el.hiddenPrevDisplay !== null;
+  if (isHidden === hidden) return st;
+  if (hidden) {
+    const display = readAttributeState(canvasAbsPath, st.source, st.id, 'style.display');
+    if (display.kind === 'expression') {
+      throw new CanvasEditError(
+        `"${st.id}" sets display from an expression — hiding it would lose that; edit the code instead`,
+        { canvas: canvasAbsPath, id: st.id }
+      );
+    }
+    const prev = display.kind === 'literal' ? display.value : '';
+    const styled = applyEdit(canvasAbsPath, st.source, st.id, 'style.display', "'none'").source;
+    const after = stampedElement(canvasAbsPath, styled, st.id);
+    return { source: addCdAttr(styled, after, `data-cd-hidden="${escapeAttr(prev)}"`), id: st.id };
+  }
+  const prev = el.hiddenPrevDisplay as string;
+  const restored = prev
+    ? applyEdit(canvasAbsPath, st.source, st.id, 'style.display', jsString(prev)).source
+    : applyRemove(canvasAbsPath, st.source, st.id, 'style.display').source;
+  const marker = stampedElement(canvasAbsPath, restored, st.id).hiddenAttr;
+  return {
+    source: marker ? removeSpan(restored, attrRemovalSpan(restored, marker)) : restored,
+    id: st.id,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// S3.10a — on-click links (contract client/v2/contracts/S3-links-format.md §3). A link is ONE
+// attribute, `data-cd-link="<target>"`, next to the element's `data-cd-id`: writing it stamps the id
+// (when missing) and sets the link in the same returned source — one write, one undo step. It is
+// canvas-only metadata (stripped by every exporter) but, unlike `data-cd-locked`, a copy keeps it.
+
+/** A `data-cd-link` value outside the grammar (bridge/link-target.ts). The dispatcher answers `invalid`. */
+export class LinkTargetError extends CanvasEditError {
+  readonly code = 'link-format' as const;
+  constructor(canvas: string, id: string) {
+    super('A link goes to "#<artboard>", "<canvas>.tsx#<artboard>" or an "https://" address.', {
+      canvas,
+      id,
+    });
+    this.name = 'LinkTargetError';
+  }
+}
+
+/**
+ * Stamp `id` if needed + set `data-cd-link` in ONE returned source. Idempotent; replaces an existing
+ * value in place. External values are written in `href` form. Throws LinkTargetError on an invalid target.
+ */
+export function applySetLink(
+  canvasAbsPath: string,
+  source: string,
+  id: string,
+  target: string,
+  opts: { occurrence?: number; reserved?: Iterable<string> } = {}
+): { source: string; id: ElementId } {
+  const parsed = parseLinkTarget(target);
+  if (!parsed) throw new LinkTargetError(canvasAbsPath, id);
+  const value = formatLinkTarget(parsed);
+  const st = ensureStamped(canvasAbsPath, source, id, opts.occurrence, opts.reserved);
+  const el = stampedElement(canvasAbsPath, st.source, st.id);
+  if (el.linkKind === 'literal' && el.link === value) return st;
+  const attr = `data-cd-link="${value}"`;
+  if (el.linkAttr) {
+    const s = new MagicString(st.source);
+    s.overwrite(el.linkAttr.start, el.linkAttr.end, attr);
+    return { source: s.toString(), id: st.id };
+  }
+  return { source: addCdAttr(st.source, el, attr), id: st.id };
+}
+
+/** Remove `data-cd-link`. The id stays (ids are never removed). No-op (no stamp either) when absent. */
+export function applyClearLink(
+  canvasAbsPath: string,
+  source: string,
+  id: string,
+  opts: { occurrence?: number } = {}
+): { source: string; id: ElementId } {
+  const { el } = locateWalked(canvasAbsPath, source, id, opts.occurrence);
+  if (!el.linkAttr) return { source, id: el.id && isValidElementId(el.id) ? el.id : id };
+  const st = ensureStamped(canvasAbsPath, source, id, opts.occurrence);
+  const after = stampedElement(canvasAbsPath, st.source, st.id);
+  if (!after.linkAttr) return st;
+  return { source: removeSpan(st.source, attrRemovalSpan(st.source, after.linkAttr)), id: st.id };
+}
+
+export interface LinkRow {
+  /** the element's authored id; null when it has none (check: `link-no-id`) */
+  id: ElementId | null;
+  /** the DCArtboard the element sits in */
+  artboardId: string | null;
+  line: number;
+  /** the cooked value, or the expression's source text */
+  raw: string;
+  /** null = invalid (reported, never followed) */
+  target: LinkTarget | null;
+}
+
+/** Every link in a file, in source order. Throws CanvasEditError when the file does not parse. */
+export function readLinks(source: string, path: string): LinkRow[] {
+  const walk = walkIdElements(source, path);
+  if (!walk.ok) {
+    throw new CanvasEditError(`oxc-parser failed on ${path}: ${walk.error}`, {
+      canvas: path,
+      id: '',
+    });
+  }
+  const out: LinkRow[] = [];
+  for (const e of walk.elements) {
+    if (!e.linkAttr) continue;
+    const literal = e.linkKind === 'literal';
+    const raw = literal
+      ? (e.link as string)
+      : source.slice(source.indexOf('=', e.linkAttr.start) + 1, e.linkAttr.end).trim();
+    out.push({
+      id: e.idKind === 'literal' && e.id && isValidElementId(e.id) ? e.id : null,
+      artboardId: e.artboard,
+      line: e.line,
+      raw,
+      target: literal ? parseLinkTarget(e.link) : null,
+    });
+  }
+  return out;
+}
+
+/**
+ * S7.25 — wrap everything inside `<DCArtboard id="…">…</DCArtboard>` in one element: `open` goes right after the
+ * artboard's opening tag, `close` right before its closing tag, and nothing else in the file moves (the children keep
+ * their own bytes, so an element id or a lock inside survives). Change kind uses it to put a design inside a scaling
+ * `<div>`. An artboard with no children (self-closing) is refused: there is nothing to wrap. Pure; reparse-gated.
+ */
+export function applyWrapArtboardChildren(
+  canvasAbsPath: string,
+  source: string,
+  artboardId: string,
+  open: string,
+  close: string
+): { source: string } {
+  const fail = (m: string) => new CanvasEditError(m, { canvas: canvasAbsPath, id: artboardId });
+  const parsed = parseSync(canvasAbsPath, source, { sourceType: 'module' });
+  if (parsed.errors && parsed.errors.length > 0)
+    throw fail(`oxc-parser failed on ${canvasAbsPath}: ${parsed.errors[0]?.message ?? 'unknown'}`);
+  const target = collectJsxByTag(parsed.program, 'DCArtboard').find(
+    (a) => getStringAttr(a.openingElement, 'id') === artboardId
+  );
+  if (!target) throw fail(`<DCArtboard id="${artboardId}"> not found in ${canvasAbsPath}`);
+  if (target.openingElement?.selfClosing || !target.closingElement)
+    throw fail('That artboard has nothing inside it to scale.');
+  const s = new MagicString(source);
+  s.appendLeft(target.openingElement.end as number, `\n${open}`);
+  s.prependRight(target.closingElement.start as number, `${close}\n`);
+  const out = s.toString();
+  const check = parseSync(canvasAbsPath, out, { sourceType: 'module' });
+  if (check.errors && check.errors.length > 0)
+    throw fail(
+      `wrap-artboard-children produced invalid source (${check.errors[0]?.message ?? 'parse error'})`
+    );
+  return { source: out };
 }

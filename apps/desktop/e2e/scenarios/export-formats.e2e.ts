@@ -34,11 +34,16 @@ const FORMATS: Array<{
   scope?: string;
   magic?: number[];
   magicText?: { at: number; is: string };
+  /** The whole artifact is one text document (HTML): its first bytes must match. */
+  textStarts?: RegExp;
 }> = [
   { id: 'png', label: 'PNG', canvas: 'export', magic: [0x89, 0x50, 0x4e, 0x47] },
   { id: 'svg', label: 'SVG', canvas: 'export' },
   { id: 'pdf', label: 'PDF', canvas: 'export', magic: [0x25, 0x50, 0x44, 0x46] },
-  { id: 'html', label: 'HTML', canvas: 'export', magic: [0x50, 0x4b, 0x03, 0x04] },
+  // G3: "Web page (HTML) — Opens in any browser" (09 Export · the format menu): a page is ONE .html file, not a
+  // ZIP. The Project ZIP is the only archive the sheet offers; spec-run.ts unpacks the adapter's zip per
+  // artboard (`splitResult`) so a single page lands as `<name>.html`.
+  { id: 'html', label: 'HTML', canvas: 'export', textStarts: /^<!doctype html/i },
   {
     id: 'pptx',
     label: 'PPTX',
@@ -58,7 +63,7 @@ const FORMATS: Array<{
 ];
 
 /** Open a fixture canvas from the tree and wait for its frame. */
-async function openCanvas(slug: 'export' | 'video'): Promise<void> {
+async function openCanvas(slug: 'export' | 'video' | 'print'): Promise<void> {
   const row = await canvasRow(`canvas-row-ui-${slug}`);
   await row.waitForExist({ timeout: 30_000 });
   await row.click();
@@ -67,8 +72,48 @@ async function openCanvas(slug: 'export' | 'video'): Promise<void> {
   await browser.waitUntil(
     async () =>
       (await frame.getAttribute('data-path')) ===
-      `.design/ui/${slug === 'export' ? 'Export' : 'Video'}.tsx`,
+      `.design/ui/${slug === 'export' ? 'Export' : slug === 'video' ? 'Video' : 'Print'}.tsx`,
     { timeout: 30_000, timeoutMsg: `canvas ${slug} never became the active frame` }
+  );
+}
+
+/**
+ * S8.2 — the one Export sheet: the canvas's own formats are buttons in the section (PNG/JPG for a design canvas,
+ * MP4/GIF/Sound only for a video one), every other format is a row under Other…. Click the section's button when the
+ * sheet draws one for `id`, else pick it from Other….
+ */
+async function pickFormat(id: string): Promise<void> {
+  // The section settles a beat after the sheet opens (it can still show the previous canvas's kind, or nothing): a
+  // format the section owns is never listed under Other…, so a decision taken on the unsettled section opened Other…
+  // and found no row. Look again until the format is either a section button or an Other… row, and press it there.
+  await browser.waitUntil(
+    async () => {
+      const where = (await browser.execute((f: string) => {
+        const all = Array.from(
+          document.querySelectorAll<HTMLElement>(`[data-testid="export-format-${f}"]`)
+        );
+        const section = all.find((el) => !el.closest('[data-testid="export-other-menu"]'));
+        if (section) {
+          // r6 flake (GIF after MP4, r5 f1): the sheet kept the last pick, the click had not landed in the
+          // sheet's state yet, and submit exported MP4 again — no GIF job ever appeared. Done only once the
+          // section says this format is the picked one (a radio segment, aria-checked).
+          if (section.getAttribute('aria-checked') === 'true') return 'section';
+          section.click();
+          return null;
+        }
+        const row = all.find((el) => !!el.closest('[data-testid="export-other-menu"]'));
+        if (row) {
+          row.click();
+          return 'other';
+        }
+        // not drawn yet: open Other… (closed) so its rows can be read on the next look
+        if (!document.querySelector('[data-testid="export-other-menu"]'))
+          document.querySelector<HTMLElement>('[data-testid="export-other"]')?.click();
+        return null;
+      }, id)) as string | null;
+      return where !== null;
+    },
+    { timeout: 15_000, interval: 500, timeoutMsg: `the sheet never offered ${id}` }
   );
 }
 
@@ -166,17 +211,23 @@ describe('export-formats (native-desktop)', () => {
       }
       const before = await existingJobIds();
       await openExportDialog();
-      await (await $(`[data-testid="export-format-${format.id}"]`)).click();
+      // S8.2 — the one Export sheet: PNG/JPG sit in the section, every other format is a row under
+      // Other…; Scope is a radio group (export-scope-<selection|canvas|folder|project>).
+      await pickFormat(format.id);
       const wantScope = format.scope ?? 'artboard';
+      const v2Scope: Record<string, string> = {
+        artboard: 'selection',
+        selection: 'selection',
+        'canvas-as-separate': 'canvas',
+        'canvas-whole': 'canvas',
+        'project-raw': 'project',
+      };
       await browser.execute((want: string) => {
-        const sel = document.querySelector(
-          '[data-testid="export-scope"]'
-        ) as HTMLSelectElement | null;
-        if (sel && Array.from(sel.options).some((o) => o.value === want)) {
-          sel.value = want;
-          sel.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-      }, wantScope);
+        const seg = document.querySelector(
+          `[data-testid="export-scope-${want}"]`
+        ) as HTMLButtonElement | null;
+        if (seg && !seg.disabled) seg.click();
+      }, v2Scope[wantScope] ?? wantScope);
       await capture(`export-dialog-${format.id}`);
       await (await $('[data-testid="export-submit"]')).click();
 
@@ -200,6 +251,11 @@ describe('export-formats (native-desktop)', () => {
 
       expect(probe.size).toBeGreaterThan(500);
       if (format.magic) expect(probe.head).toEqual(format.magic);
+      if (format.textStarts) {
+        expect(probe.text.trimStart().slice(0, 40)).toMatch(format.textStarts);
+        // self-contained: nothing points back at the dev-server (the same bar the SVG holds)
+        expect(probe.text.match(/src="https?:\/\/[^"]+"/g) ?? []).toEqual([]);
+      }
       if (format.magicText) {
         const { at, is } = format.magicText;
         const got = String.fromCharCode(...probe.head8.slice(at, at + is.length));
@@ -218,4 +274,88 @@ describe('export-formats (native-desktop)', () => {
       await capture(`export-done-${format.id}`);
     });
   }
+
+  // S8.3 — many at once: Whole project sorts itself by kind, and Advanced prints the same export as a
+  // command. Nothing is exported here (a whole project is slow) — the sheet is read, then cancelled.
+  it('Whole project groups by kind, and Advanced replays the export as a command', async function () {
+    this.timeout(120_000);
+    if (open !== 'export') {
+      await openCanvas('export');
+      open = 'export';
+    }
+    await openExportDialog();
+    // the sheet keeps the last pick for the session (the MP4/GIF cases above): this export is the PNG one
+    await pickFormat('png');
+    await browser.execute(() => {
+      const seg = document.querySelector(
+        '[data-testid="export-scope-project"]'
+      ) as HTMLButtonElement | null;
+      if (seg && !seg.disabled) seg.click();
+    });
+    const groups = await $('[data-testid="export-groups"]');
+    await groups.waitForDisplayed({ timeout: 30_000 });
+    expect(await (await $('[data-testid="export-rows"]')).getAttribute('data-section')).toBe(
+      'batch'
+    );
+    await capture('export-batch-project');
+    // Advanced is one quiet row until it is opened; then the command is the exact export
+    await (await $('[data-testid="export-advanced-toggle"]')).click();
+    const cli = await $('[data-testid="export-adv-cmd-cli"]');
+    await cli.waitForDisplayed({ timeout: 10_000 });
+    expect(await cli.getText()).toMatch(/^maude design export png --scope project/);
+    expect(await (await $('[data-testid="export-adv-cmd-claude"]')).getText()).toMatch(
+      /^\/design:export png --scope project/
+    );
+    await capture('export-batch-advanced');
+    await (await $('[data-testid="export-cancel"]')).click();
+  });
+  // S8.7 — a print artboard: the paper is the PDF (tinted bleed, crop marks, the back as page 2), the warnings
+  // inform and never block, and Print PDF exports a real PDF with the back along.
+  it('a print artboard opens on Print PDF with the paper beside it, and exports it', async function () {
+    this.timeout(300_000);
+    await openCanvas('print');
+    open = null; // the next case re-opens its own canvas
+    await openExportDialog();
+    // the sheet keeps the last scope for the session (Whole project, above): this one is the print canvas itself
+    await browser.execute(() => {
+      const seg = document.querySelector(
+        '[data-testid="export-scope-canvas"]'
+      ) as HTMLButtonElement | null;
+      if (seg && !seg.disabled) seg.click();
+    });
+    const print = await $('[data-testid="export-print"]');
+    await print.waitForDisplayed({ timeout: 30_000 });
+    expect(await (await $('[data-testid="export-print-format"]')).getAttribute('data-value')).toBe(
+      'print-pdf'
+    );
+    expect(await (await $('[data-testid="export-paper"]')).getAttribute('data-bleed')).toBe('true');
+    expect(await (await $('[data-testid="export-print-caption"]')).getText()).toBe(
+      'Page 1 of 2 · A6 · 105 × 148 mm'
+    );
+    expect(await (await $('[data-testid="export-row-colour"]')).getText()).toContain(
+      'RGB — the print shop converts to CMYK.'
+    );
+    await capture('export-print-sheet');
+    // untick Bleed: the paper changes with it
+    const bleedIs = (want: string) =>
+      browser
+        .waitUntil(
+          async () =>
+            (await (await $('[data-testid="export-paper"]')).getAttribute('data-bleed')) === want,
+          { timeout: 4_000, interval: 100 }
+        )
+        .catch(() => undefined);
+    await (await $('[data-testid="export-print-bleed"]')).click();
+    await bleedIs('false');
+    expect(await (await $('[data-testid="export-paper"]')).getAttribute('data-bleed')).toBe(
+      'false'
+    );
+    await (await $('[data-testid="export-print-bleed"]')).click();
+    await bleedIs('true');
+    const before = await existingJobIds();
+    await (await $('[data-testid="export-submit"]')).click();
+    const job = await waitForJob('pdf', before);
+    expect(job.status).toBe('done');
+    await capture('export-print-done');
+  });
 });

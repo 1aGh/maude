@@ -22,15 +22,19 @@
 // serves the resulting JS at /<designRel>/ui/<slug>.tsx with Content-Type
 // `application/javascript`.
 
-import { existsSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 
 import { canvasLibPath, canvasLibResolver } from './canvas-lib-resolver.ts';
 import { transpileCanvasSource } from './canvas-pipeline.ts';
+import { CanvasBuildError, errorAt, fromBuildLogs, scrubPaths } from './canvas-source/errors.ts';
+import { dsResolver, usesDs } from './ds/ds-resolver.ts';
 import type { LocatorMap } from './locator.ts';
+import { hasMacroImport, macroImportRefusal } from './macro-guard.ts';
 import { isUnderOrEqual } from './path-containment.ts';
 import { DEV_SERVER_ROOT } from './paths.ts';
 import { RUNTIME_PACKAGES } from './runtime-bundle.ts';
+import { injectCompMedia } from './video/inject.ts';
 
 // Sanity-check the dev-server-bundled canvas-lib once per process boot. If the
 // install is corrupt (file missing), surface that before the first canvas build
@@ -70,6 +74,22 @@ export interface CanvasBundleResult {
   locator: LocatorMap;
   /** Content-derived hash; suitable as HTTP ETag. */
   etag: string;
+  /**
+   * gate-b-c4e — every file the module inlined, absolute (the build's metafile `inputs`; virtual
+   * modules included). The serve path holds them to the requesting frame's closure before the
+   * bytes leave (http.ts `inputsRefusal`): an import the closure does not admit — another
+   * canvas's board, a canvas the opener cannot read — fails the serve closed.
+   */
+  inputs: string[];
+}
+
+/** The build's metafile `inputs` as absolute paths (Bun reports them relative to the cwd). */
+function metafileInputs(metafile: { inputs?: Record<string, unknown> } | undefined): string[] {
+  const out: string[] = [];
+  for (const key of Object.keys(metafile?.inputs ?? {})) {
+    out.push(path.isAbsolute(key) ? key : path.resolve(process.cwd(), key));
+  }
+  return out;
 }
 
 export interface BuildCanvasOptions {
@@ -114,6 +134,124 @@ export interface BuildCanvasOptions {
    * Absent ⇒ the bundler's own handling, unchanged.
    */
   assetUrlBase?: string;
+  /**
+   * S1.11 — historical build overlays (contract V2-1.9 §5.6). Absolute path of
+   * a stylesheet → the text to build it from INSTEAD of the file on disk.
+   *
+   * A past version renders from its own lanes: the version's TSX is `source`,
+   * and its same-name CSS lane arrives here (`{ <canvas>.css: cssAt(ref) }`).
+   * Every other import — shared modules, the design system, assets — still
+   * resolves as it is now ("Shared parts show as they are now").
+   *
+   * The CALLER owns provenance: the text must come from the server's own
+   * history store (git object / accepted revision), never from a request. The
+   * build owns containment, whatever the caller passes:
+   *   • keys are absolute, normalized `.css` paths inside the design root
+   *     (`restrictImportsTo`, else `designRoot`); no root ⇒ no overrides. A
+   *     module (`.tsx`/`.ts`/`.js`) can never be swapped through this door.
+   *   • an overridden stylesheet is CONTENT, not a pass: its `@import` and
+   *     `url()` go through the same allowlist / asset rewrite as a live one.
+   *   • the override applies even when today's file is gone (a lane the
+   *     version had and the working tree no longer does).
+   * Anything else throws — a bad key is a programming error, never ignored.
+   *
+   * No cache lives here; a build with overrides shares nothing with the next
+   * build without them. Callers that cache (http.ts `serveHistoricalCanvas`)
+   * key by `(path, ref)` in a map apart from the live one.
+   */
+  overrides?: CanvasOverrides;
+}
+
+/** `BuildCanvasOptions.overrides` — absolute `.css` path → that version's text. */
+export type CanvasOverrides = Readonly<Record<string, string>>;
+
+/** The one spelling an override is matched by: the real directory + the basename (the file
+ *  itself may not exist). The bundler reports paths by their real path (macOS `/var` →
+ *  `/private/var`), callers pass the logical one. */
+function overrideIdentity(abs: string): string {
+  let dir = path.dirname(abs);
+  let rest = '';
+  for (;;) {
+    try {
+      const real = realpathSync(dir);
+      return path.join(real, rest, path.basename(abs));
+    } catch {
+      const parent = path.dirname(dir);
+      if (parent === dir) return abs;
+      rest = path.join(path.basename(dir), rest);
+      dir = parent;
+    }
+  }
+}
+
+/** Validate + normalize the overrides against the design root (see `overrides`). */
+function normalizeOverrides(
+  overrides: CanvasOverrides,
+  root: string | undefined
+): Map<string, string> {
+  const out = new Map<string, string>();
+  const entries = Object.entries(overrides);
+  if (entries.length === 0) return out;
+  if (!root) throw new Error('Canvas build overrides need a design root to hold them to.');
+  const roots = [path.resolve(root)];
+  try {
+    const real = realpathSync(roots[0]);
+    if (real !== roots[0]) roots.push(real);
+  } catch {
+    // a root that does not exist holds nothing — every key below fails the check
+  }
+  for (const [key, text] of entries) {
+    const bad = (why: string): never => {
+      throw new Error(`Canvas build override refused (${why}): ${key}`);
+    };
+    if (typeof text !== 'string') bad('not text');
+    if (!path.isAbsolute(key)) bad('not an absolute path');
+    if (path.normalize(key) !== key || key.split(/[\\/]/).includes('..')) bad('not normalized');
+    if (!/\.css$/i.test(key)) bad('only a stylesheet can be overridden');
+    const id = overrideIdentity(key);
+    if (!roots.some((r) => isUnderOrEqual(key, r) && key !== r)) bad('outside the design root');
+    if (!roots.some((r) => isUnderOrEqual(id, r) && id !== r)) bad('outside the design root');
+    out.set(id, text);
+  }
+  return out;
+}
+
+/**
+ * Serve the overridden stylesheets. Registered FIRST so its `onLoad` wins over
+ * the asset-url plugin's disk read; the text still passes through `rewrite`
+ * (the same `url()` rewrite a live stylesheet gets) and then the bundler, whose
+ * `@import`/`url()` resolution runs every plugin — the allowlist included.
+ * `onResolve` only answers for an override whose file is gone today, and it
+ * runs AFTER the allowlist (see the plugin order), which has judged it already.
+ */
+function cssOverrides(
+  byIdentity: Map<string, string>,
+  rewrite: ((css: string, cssFile: string) => string) | null
+): { load: import('bun').BunPlugin; resolveMissing: import('bun').BunPlugin } {
+  return {
+    load: {
+      name: 'maude-css-overrides',
+      setup(builder) {
+        builder.onLoad({ filter: /\.css$/i }, (args: { path: string }) => {
+          const text = byIdentity.get(overrideIdentity(args.path));
+          if (text === undefined) return undefined; // not overridden — next plugin / disk
+          return { contents: rewrite ? rewrite(text, args.path) : text, loader: 'css' };
+        });
+      },
+    },
+    resolveMissing: {
+      name: 'maude-css-overrides-missing',
+      setup(builder) {
+        builder.onResolve({ filter: /\.css$/i }, (args: { path: string; importer: string }) => {
+          if (!args.importer || !args.path.startsWith('.')) return null;
+          const abs = path.resolve(path.dirname(args.importer), args.path);
+          const id = overrideIdentity(abs);
+          if (!byIdentity.has(id) || existsSync(id)) return null;
+          return { path: id };
+        });
+      },
+    },
+  };
 }
 
 /**
@@ -127,7 +265,7 @@ export interface BuildCanvasOptions {
  * URLs are then marked external on resolve, so the bundler never reads them.
  * Anything outside the root is left as written, for the allowlist to judge.
  */
-function cssUrlAssets(designRoot: string, base: string): import('bun').BunPlugin {
+function cssUrlRewriter(designRoot: string, base: string) {
   const prefix = base.replace(/\/+$/, '');
   const real = (p: string) => {
     try {
@@ -154,6 +292,11 @@ function cssUrlAssets(designRoot: string, base: string): import('bun').BunPlugin
       const rel = path.relative(realRoot, target).split(path.sep).map(encodeURIComponent);
       return `url(${quote}${prefix}/${rel.join('/')}${ref.slice(bare.length)}${quote})`;
     });
+  return { prefix, rewrite };
+}
+
+function cssUrlAssets(designRoot: string, base: string): import('bun').BunPlugin {
+  const { prefix, rewrite } = cssUrlRewriter(designRoot, base);
   return {
     name: 'maude-css-url-assets',
     setup(builder) {
@@ -181,8 +324,24 @@ export async function buildCanvasModule(
   source: string,
   options: BuildCanvasOptions = {}
 ): Promise<CanvasBundleResult> {
+  // gate-b-c4n — a Bun macro import runs at build time, in THIS process (or the sandbox worker):
+  // pass 1's Bun.Transpiler and Bun.build below both evaluate it. Refuse it before either sees the
+  // text; `macroGuard` (first plugin) does the same for every file the bundle loads.
+  const macroCtx = {
+    designRoot: options.restrictImportsTo ?? options.designRoot ?? path.dirname(canvasAbsPath),
+    canvasAbs: canvasAbsPath,
+  };
+  if (hasMacroImport(source)) throw macroRefused(macroCtx, canvasAbsPath);
   // Pass 1: inject data-cd-id, capture the locator.
   const pass1 = transpileCanvasSource(canvasAbsPath, source);
+  // S7.5 (V2-1.10 §5.3) — the comp vocabulary's derived data (`__words` on <Captions>, `__speech`
+  // on <Duck>), computed from the comp's clips on disk × their transcripts. Never written to the
+  // file; the transcripts are freshness deps (`videoDepsFor`, access/closure.ts).
+  const withMedia = injectCompMedia(canvasAbsPath, source, pass1.withIds, {
+    designRoot: options.restrictImportsTo ?? options.designRoot,
+  }).code;
+  // What Bun.build will parse as the entry (pass 1 + the injected comp data), held to the same rule.
+  if (hasMacroImport(withMedia)) throw macroRefused(macroCtx, canvasAbsPath);
 
   // Sanity-check the dev-server-bundled canvas-lib once per process — if the
   // install is corrupt, fail loud before Bun.build collapses plugin throws.
@@ -206,10 +365,28 @@ export async function buildCanvasModule(
   // needed; RUNTIME_PACKAGES already lists every specifier the importmap covers.
   const externalSpecifiers = new Set<string>(RUNTIME_PACKAGES);
   const denials: Array<{ specifier: string; reason: string }> = [];
+  const macroRefusals: string[] = [];
+  const allowlist = options.restrictImportsTo
+    ? importAllowlist(options.restrictImportsTo, denials, canvasAbsPath)
+    : null;
   // Every stylesheet the canvas pulls in by relative import — they are inlined
   // (below), so the open canvas has no <link> to swap when one changes; the
   // injector records them for the iframe's HMR client (see buildCssInjector).
   const cssSources = new Set<string>();
+  // S1.11 — a past version's own stylesheets (validated before any build work).
+  const overridden = normalizeOverrides(
+    options.overrides ?? {},
+    options.restrictImportsTo ?? options.designRoot
+  );
+  const overrides =
+    overridden.size > 0
+      ? cssOverrides(
+          overridden,
+          options.assetUrlBase && options.designRoot
+            ? cssUrlRewriter(options.designRoot, options.assetUrlBase).rewrite
+            : null
+        )
+      : null;
 
   const built = await Bun.build({
     entrypoints: [canvasAbsPath],
@@ -223,6 +400,8 @@ export async function buildCanvasModule(
     // sandbox arrived, the allowlist's own explanation of what it refused.
     // Take the result, report it ourselves.
     throw: false,
+    // gate-b-c4e — what was inlined, so the serve path can hold it to the frame's closure.
+    metafile: true,
     define: {
       // Match runtime-bundle.ts: production React. Without this the canvas's
       // `import { jsxDEV } from "react/jsx-dev-runtime"` resolves against a
@@ -232,6 +411,11 @@ export async function buildCanvasModule(
       'process.env.NODE_ENV': '"production"',
     },
     plugins: [
+      // gate-b-c4n — FIRST, so it reads every file the bundle loads before any other loader
+      // answers for it (it never answers itself).
+      macroGuard(macroRefusals, macroCtx.designRoot),
+      // An overridden stylesheet's onLoad must win over the disk read below.
+      ...(overrides ? [overrides.load] : []),
       ...(options.assetUrlBase && options.designRoot
         ? [cssUrlAssets(options.designRoot, options.assetUrlBase)]
         : []),
@@ -249,11 +433,15 @@ export async function buildCanvasModule(
       // Resolve `@maude/canvas-lib` BEFORE exact-externals — we want the bare
       // specifier to map to the dev-server-bundled lib, not get marked external.
       canvasLibResolver(),
+      // `@maude/ds` — per canvas: the system's override or the defaults, and the system registered
+      ...(options.designRoot && usesDs(source)
+        ? [dsResolver(options.designRoot, canvasAbsPath)]
+        : []),
       {
         name: 'canvas-virtual-source',
         setup(builder) {
           builder.onLoad({ filter: filterForExactPath(canvasAbsPath) }, () => ({
-            contents: pass1.withIds,
+            contents: withMedia,
             loader: 'tsx',
           }));
         },
@@ -273,11 +461,24 @@ export async function buildCanvasModule(
       // runtime packages are external and `@maude/canvas-lib` is resolved, so
       // what is left is exactly "everything else" — which, from a tenant's
       // own file, must stay inside the design root.
-      ...(options.restrictImportsTo ? [importAllowlist(options.restrictImportsTo, denials)] : []),
+      ...(allowlist ? [allowlist.plugin] : []),
+      // After the allowlist: only an override whose file is gone today, already judged above.
+      ...(overrides ? [overrides.resolveMissing] : []),
+      // p8-c4 — LAST: answers every remaining file load with the bytes it checked (no re-read).
+      macroPinnedLoad(macroRefusals, macroCtx.designRoot),
     ],
   });
 
+  if (macroRefusals.length > 0) {
+    const reason = macroRefusals[0] as string;
+    throw new CanvasBuildError(reason, [errorAt(macroCtx, reason)]);
+  }
   if (!built.success) {
+    const errorCtx = {
+      designRoot: options.restrictImportsTo ?? options.designRoot ?? path.dirname(canvasAbsPath),
+      canvasAbs: canvasAbsPath,
+      source,
+    };
     // A DENIED IMPORT IS THE MESSAGE. Bun collapses a plugin throw into a bare
     // "Bundle failed" log, so the allowlist records its own reasons and they
     // win here — the person who wrote the canvas has to be able to act on it,
@@ -287,12 +488,24 @@ export async function buildCanvasModule(
       // record that imports were refused without ever seeing the specifier —
       // that string is tenant-authored content (Cloud Phase 26 Stage 4). The
       // reasons still go to the person who wrote the canvas, unchanged.
-      const err = new Error(denials.map((d) => d.reason).join('\n'));
-      (err as Error & { rejectedImports?: number }).rejectedImports = denials.length;
-      throw err;
+      // S11.6 — typed (`CanvasBuildError.errors`: file / line / column / lineText from the
+      // logs' positions); the message is unchanged.
+      const reason = denials[0]?.reason ?? '';
+      const [first, ...rest] = fromBuildLogs(built.logs, errorCtx);
+      throw new CanvasBuildError(
+        denials.map((d) => d.reason).join('\n'),
+        [
+          { ...(first ?? errorAt(errorCtx)), message: scrubPaths(reason, errorCtx.designRoot) },
+          ...rest,
+        ],
+        denials.length
+      );
     }
     const msg = built.logs.map((l) => l.message).join('\n');
-    throw new Error(`Bun.build failed on ${canvasAbsPath}:\n${msg}`);
+    throw new CanvasBuildError(
+      `Bun.build failed on ${canvasAbsPath}:\n${msg}`,
+      fromBuildLogs(built.logs, errorCtx)
+    );
   }
   const entry = built.outputs.find((o) => o.kind === 'entry-point');
   if (!entry) {
@@ -335,8 +548,29 @@ export async function buildCanvasModule(
     }
   }
 
+  const inputs = metafileInputs(built.metafile);
+  // gate-b-c4g — the bundle is held to the allowlist by what it ACTUALLY inlined, after Bun's own
+  // resolution: a `package.json` `main` / `browser` field (or a symlink it names) can carry a
+  // directory import the onResolve hook judged as "inside" to any file. And no metafile entry for
+  // the canvas itself means the list cannot be trusted to be complete (M2) — fail closed.
+  if (allowlist) {
+    const refusal = allowlist.vetInputs(inputs);
+    if (refusal) {
+      const errorCtx = {
+        designRoot: options.restrictImportsTo as string,
+        canvasAbs: canvasAbsPath,
+        source,
+      };
+      throw new CanvasBuildError(
+        refusal,
+        [{ ...errorAt(errorCtx), message: scrubPaths(refusal, errorCtx.designRoot) }],
+        1
+      );
+    }
+  }
+
   const etag = Bun.hash(js).toString(16);
-  return { js, locator: pass1.locator, etag };
+  return { js, locator: pass1.locator, etag, inputs };
 }
 
 /**
@@ -360,6 +594,9 @@ function buildCssInjector(slug: string, css: string, sources: readonly string[] 
   return `// canvas-build: inject bundled sibling CSS so the canvas is self-contained.\n(function(){if(typeof document==="undefined")return;var s=document.getElementById(${id});if(!s){s=document.createElement("style");s.id=${id};s.dataset.canvasCss="bundled";document.head.appendChild(s);}s.dataset.canvasCssSources=${src};if(s.textContent!==${enc})s.textContent=${enc};})();\n`;
 }
 
+/** What the allowlist reads of a resolve (`kind`: `entry-point-build` for the entry itself). */
+type AllowlistArgs = { path: string; importer: string; kind?: string };
+
 /**
  * The sandbox's import allowlist (Cloud Phase 25 A1).
  *
@@ -375,11 +612,16 @@ function buildCssInjector(slug: string, css: string, sources: readonly string[] 
  */
 function importAllowlist(
   designRoot: string,
-  denials: Array<{ specifier: string; reason: string }>
+  denials: Array<{ specifier: string; reason: string }>,
+  entryAbs: string
+): {
   // Bun's own plugin type, not a hand-rolled structural twin: the local shape
   // described a narrower `setup` than Bun.build's `plugins` accepts, so the
   // value was not assignable at the one place it is used.
-): import('bun').BunPlugin {
+  plugin: import('bun').BunPlugin;
+  /** gate-b-c4g — the build's real inputs judged by the same rule; a reason, or null. */
+  vetInputs: (inputs: readonly string[]) => string | null;
+} {
   const root = path.resolve(designRoot);
   // Both spellings of every root: the bundler reports importers (and so every
   // relative target) by REAL path, while callers pass the logical one. Comparing
@@ -403,6 +645,7 @@ function importAllowlist(
   // refused, never presumed safe.
   const ours = [
     ...bothForms(DEV_SERVER_ROOT),
+    ...bothForms(path.join(DEV_SERVER_ROOT, 'node_modules')),
     ...bothForms(path.join(DEV_SERVER_ROOT, '..', '..', 'node_modules')),
   ];
   const inRoot = (p: string) => roots.some((r) => isUnderOrEqual(p, r));
@@ -422,14 +665,61 @@ function importAllowlist(
     }
   };
   const isOurs = (p: string) => ours.some((r) => isUnderOrEqual(p, r));
+  /** Under a design root, with a first design-root-relative segment that starts with `_`. */
+  const isRuntimeTarget = (p: string) =>
+    roots.some((r) => {
+      if (!isUnderOrEqual(p, r) || p === r) return false;
+      return path.relative(r, p).split(path.sep)[0]?.startsWith('_') === true;
+    });
   const deny = (specifier: string, reason: string): never => {
     denials.push({ specifier, reason });
     throw new Error(reason);
   };
-  return {
+  const entryForms = new Set([path.resolve(entryAbs), realTarget(path.resolve(entryAbs))]);
+  /**
+   * gate-b-c4g — the rule for a file the bundle READS (after Bun's resolver finished, so
+   * `package.json` `main` / `browser` / `exports` and symlinks are already followed): the entry
+   * canvas; a design-root file that is not runtime state (logical AND real path); or one of our
+   * own modules (logical AND real path). Anything else → a reason that names no outside path.
+   */
+  const judgeLoaded = (p: string): string | null => {
+    const abs = path.resolve(p);
+    const real = realTarget(abs);
+    if (entryForms.has(abs) || entryForms.has(real)) return null;
+    if (inRoot(abs) || inRoot(real)) {
+      if (!inRoot(abs) || !inRoot(real))
+        return 'This canvas imports a file that leads outside the project. A canvas may only import files inside its own design.';
+      if (isRuntimeTarget(abs) || isRuntimeTarget(real))
+        return `This canvas imports "${path.relative(root, abs)}", which is Maude's own runtime state, not part of the design. A canvas may import its design's files, but not the folders whose names start with "_".`;
+      return null;
+    }
+    if (isOurs(abs) && isOurs(real)) return null;
+    return 'This canvas imports a file outside the project (a package.json in the design points there). A canvas may only import files inside its own design.';
+  };
+  const vetInputs = (inputs: readonly string[]): string | null => {
+    if (!inputs.some((p) => entryForms.has(path.resolve(p)))) {
+      return 'The canvas build did not report what it read, so the canvas is not served.';
+    }
+    for (const p of inputs) {
+      const reason = judgeLoaded(p);
+      if (reason) return reason;
+    }
+    return null;
+  };
+  const plugin: import('bun').BunPlugin = {
     name: 'maude-import-allowlist',
     setup(builder) {
-      builder.onResolve({ filter: /.*/ }, (args: { path: string; importer: string }) => {
+      // gate-b-c4g — the file Bun is about to READ, after its own resolution. The onResolve hook
+      // below judges the specifier the canvas wrote; a directory import there is "inside" — and
+      // Bun then follows that directory's `package.json` wherever it points. Returning nothing
+      // lets the next loader read it; a refusal throws (and is reported like any denial).
+      builder.onLoad({ filter: /.*/ }, (args: { path: string; namespace?: string }) => {
+        if (args.namespace && args.namespace !== 'file') return undefined;
+        const reason = judgeLoaded(args.path);
+        if (reason) deny(args.path, reason);
+        return undefined;
+      });
+      builder.onResolve({ filter: /.*/ }, (args: AllowlistArgs) => {
         // `data:` / `blob:` are SELF-CONTAINED — no request leaves the page, so
         // the sandbox has nothing to say about them. They reach this hook
         // because bundled CSS runs every `url()` through onResolve, and
@@ -466,17 +756,131 @@ function importAllowlist(
         // directory) still points wherever it points. The nearest existing
         // ancestor is resolved, so `./dirlink/secret` and an extensionless
         // specifier through a linked folder are both judged by their real home.
-        if (!inRoot(resolved) || !inRoot(realTarget(resolved))) {
+        const real = realTarget(resolved);
+        if (!inRoot(resolved) || !inRoot(real)) {
           deny(
             args.path,
             `This canvas imports "${args.path}", which is outside the project (${path.relative(root, resolved)}). ` +
               `A canvas may only import files inside its own design.`
           );
         }
-        return null; // inside the root — let Bun's resolver finish the job
+        // gate-b-c4e — never the design root's RUNTIME STATE (DDR-115: a `_`-prefixed first
+        // segment — `_state/`, `_comments/`, `_chat/`, `_photo/`, `_active.json`, …). Bun inlines
+        // whatever an import names (`with { type: 'text' }` takes any file's bytes) into the
+        // module served to the canvas's own frame, and those files hold per-machine secrets and
+        // other canvases' threads. Judged on the logical AND the real path; the entry itself (a
+        // `_draw/` or `_photo/` harness, which import only `@maude/canvas-lib`) is not an import.
+        if (
+          args.kind !== 'entry-point-build' &&
+          (isRuntimeTarget(resolved) || isRuntimeTarget(real))
+        ) {
+          deny(
+            args.path,
+            `This canvas imports "${args.path}", which is Maude's own runtime state, not part of the design. ` +
+              `A canvas may import its design's files, but not the folders whose names start with "_".`
+          );
+        }
+        return null; // inside the root — let Bun's resolver finish the job (onLoad re-checks)
       });
     },
   };
+  return { plugin, vetInputs };
+}
+
+/** gate-b-c4n — the refusal for a macro import in `file`, naming it only inside the design. */
+function macroRefused(ctx: { designRoot: string; canvasAbs: string }, file: string) {
+  const reason = macroImportRefusal(macroDisplayName(file, ctx.designRoot));
+  return new CanvasBuildError(reason, [errorAt(ctx, reason)]);
+}
+
+function macroDisplayName(file: string, designRoot: string): string {
+  const rel = path.relative(path.resolve(designRoot), path.resolve(file));
+  return rel && !rel.startsWith('..') && !path.isAbsolute(rel) ? rel : path.basename(file);
+}
+
+/**
+ * gate-b-c4n — every file Bun is about to READ, whatever its extension: an import attribute
+ * (`with { type: 'tsx' }`) makes Bun parse a `.txt` as TSX while `args.loader` still says "text",
+ * so the extension proves nothing. A refusal is recorded (Bun collapses a plugin throw into
+ * "Bundle failed") and thrown, which stops Bun before it parses — and so before any macro runs.
+ * Returning nothing lets the next loader read the file as before.
+ */
+function macroGuard(refusals: string[], designRoot: string): import('bun').BunPlugin {
+  return {
+    name: 'maude-macro-guard',
+    setup(builder) {
+      builder.onLoad({ filter: /.*/ }, (args: { path: string; namespace?: string }) => {
+        if (args.namespace && args.namespace !== 'file') return undefined;
+        let text: string;
+        try {
+          text = readFileSync(args.path, 'utf8');
+        } catch {
+          return undefined; // a virtual module (its contents are ours) or a file Bun cannot read either
+        }
+        if (hasMacroImport(text)) {
+          const reason = macroImportRefusal(macroDisplayName(args.path, designRoot));
+          refusals.push(reason);
+          throw new Error(reason);
+        }
+        return undefined;
+      });
+    },
+  };
+}
+
+/** Loaders whose bytes Bun never parses as a module of its own; their files load as before. */
+const UNPINNED_LOADERS = new Set(['napi', 'wasm', 'sqlite']);
+/** Loaders Bun reads raw bytes for (no text decode). */
+const BINARY_LOADERS = new Set(['file', 'dataurl', 'base64']);
+
+/**
+ * p8-c4 (c4n round 8, L) — the read-then-load race. `macroGuard` (first) reads a file, checks it and
+ * returns nothing, so the next loader — Bun's own — READ IT AGAIN: a file swapped on disk between
+ * the two reads (a sync landing, a peer's write, an agent) was parsed unchecked, and a macro in it
+ * ran. This plugin goes LAST, after every judge (the import allowlist's onLoad) and every loader
+ * that answers from memory or rewrites (the canvas entry, CSS overrides / url rewrite, `@maude/ds`):
+ * for whatever is left it reads the file ONCE, checks those bytes and hands Bun exactly those bytes
+ * with the loader Bun chose. What Bun parses is what was checked. Exported for the unit test.
+ */
+export function macroPinnedLoad(refusals: string[], designRoot: string): import('bun').BunPlugin {
+  return {
+    name: 'maude-macro-pinned-load',
+    setup(builder) {
+      builder.onLoad(
+        { filter: /.*/ },
+        (args: { path: string; namespace?: string; loader?: string }) => {
+          if (args.namespace && args.namespace !== 'file') return undefined;
+          const loader = args.loader ?? loaderForExt(args.path);
+          if (!loader || UNPINNED_LOADERS.has(loader)) return undefined;
+          let bytes: Buffer;
+          try {
+            bytes = readFileSync(args.path);
+          } catch {
+            return undefined; // a virtual module (its contents are ours) or a file Bun cannot read either
+          }
+          const text = bytes.toString('utf8');
+          if (hasMacroImport(text)) {
+            const reason = macroImportRefusal(macroDisplayName(args.path, designRoot));
+            refusals.push(reason);
+            throw new Error(reason);
+          }
+          return {
+            contents: BINARY_LOADERS.has(loader) ? bytes : text,
+            loader: loader as import('bun').Loader,
+          };
+        }
+      );
+    },
+  };
+}
+
+function loaderForExt(file: string): string | null {
+  const ext = path.extname(file).toLowerCase();
+  if (ext === '.tsx' || ext === '.jsx' || ext === '.ts' || ext === '.css' || ext === '.json')
+    return ext.slice(1);
+  if (ext === '.mts' || ext === '.cts') return 'ts';
+  if (ext === '.js' || ext === '.mjs' || ext === '.cjs') return 'js';
+  return null;
 }
 
 function filterForExactPath(absPath: string): RegExp {

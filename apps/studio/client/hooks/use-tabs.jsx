@@ -5,16 +5,49 @@ import { CANVAS_EXT_RE, SYSTEM_TAB } from '../shell/constants.js';
 import { remapDirPrefix, revealPath } from '../tree-expansion.js';
 import { buildShareLinks, normalizeOpenPath, readOpenParam, withOpenParam } from '../share-link.js';
 import { basename, displayName, previewKind, shellToast } from '../shell/util.js';
+import { assembleVideoFlow } from '../v2/timeline/assemble-video.js';
 import { notify } from '../../notifications.tsx';
-import { isNativeApp } from '../github.js';
+import { lastOpenedPath } from '../v2/canvases/last-canvas.js';
+import { trashCanvas } from '../v2/canvases/trash-canvas.js';
+import { invoke, isNativeApp, listenHere } from '../github.js';
+import { applyShellNavigate, startShellEvents } from '../shell-events.js';
+import { threadAuthor } from '../v2/comments/use-comments-shell.jsx';
 
 export function useTabs({
-  groups, treeLoaded, addressMode, previousAddressPath, project, tabs, setTabs, activePath,
-  setActivePath, previewPath, setPreviewPath, onPreview, setSelected, cloudLinkedHub,
-  localProjectName, systemData, setLoadingPath, setCanvasError, setCanvasReloadNonce, setLoadedPath,
-  cfg, loadServerConfig, setFocusedCommentId, updateTreeExp, setShareDialog, setTimelineOpen,
-  timelineArtboardId, iframesRef, pushTlUndo, askText, loadTree, loadSystemData, canvasListChangeRef,
-  wsSend
+  groups,
+  treeLoaded,
+  addressMode,
+  previousAddressPath,
+  project,
+  tabs,
+  setTabs,
+  activePath,
+  setActivePath,
+  previewPath,
+  setPreviewPath,
+  onPreview,
+  setSelected,
+  cloudLinkedHub,
+  localProjectName,
+  systemData,
+  setLoadingPath,
+  setCanvasError,
+  setCanvasReloadNonce,
+  setLoadedPath,
+  cfg,
+  loadServerConfig,
+  setFocusedCommentId,
+  updateTreeExp,
+  setShareDialog,
+  setTimelineOpen,
+  timelineArtboardId,
+  iframesRef,
+  pushTlUndo,
+  askText,
+  loadTree,
+  loadSystemData,
+  canvasListChangeRef,
+  wsSend,
 }) {
   // ----- Tab management (single-canvas) -----
   // Single-canvas model: opening a file REPLACES the active one (no tab strip).
@@ -24,41 +57,53 @@ export function useTabs({
   // `reveal: false` for opens the USER didn't just ask for (URL restore on
   // boot, the cloud first-canvas auto-open): nothing expands itself on launch
   // (#124). Every other open reveals the canvas's row in the Files tree.
-  const openTab = useCallback((path, { reveal = true } = {}) => {
-    if (reveal && path && path !== SYSTEM_TAB)
-      updateTreeExp((st) => revealPath(st, groups, path));
-    addressMode.current = 'push';
-    setFocusedCommentId(null);
-    setPreviewPath(null);
-    // The same path keeps its mounted iframe. It will not emit a new loaded
-    // event, so keep its current loading/error state until an actual retry.
-    if (path === activePath) return;
-    setTabs((prev) => {
-      // Drop the previously-open iframe so we don't leak DOM nodes.
-      for (const t of prev) if (t.path !== path) iframesRef.current.delete(t.path);
-      return [{ path }];
-    });
-    setActivePath(path);
-    setCanvasError(null);
-    setLoadedPath(null);
-    // Canvas-compile skeleton — cleared by the iframe's dgn:'loaded' message,
-    // the onLoad fallback timer (legacy .html), or a hard 15s cap.
-    if (path !== SYSTEM_TAB) setLoadingPath(path);
-  }, [activePath, groups, updateTreeExp]);
+  const openTab = useCallback(
+    (path, { reveal = true } = {}) => {
+      if (reveal && path && path !== SYSTEM_TAB)
+        updateTreeExp((st) => revealPath(st, groups, path));
+      addressMode.current = 'push';
+      setFocusedCommentId(null);
+      setPreviewPath(null);
+      // The same path keeps its mounted iframe. It will not emit a new loaded
+      // event, so keep its current loading/error state until an actual retry.
+      if (path === activePath) return;
+      setTabs((prev) => {
+        // Drop the previously-open iframe so we don't leak DOM nodes.
+        for (const t of prev) if (t.path !== path) iframesRef.current.delete(t.path);
+        return [{ path }];
+      });
+      setActivePath(path);
+      setCanvasError(null);
+      setLoadedPath(null);
+      // Canvas-compile skeleton — cleared by the iframe's dgn:'loaded' message,
+      // the onLoad fallback timer (legacy .html), or a hard 15s cap.
+      if (path !== SYSTEM_TAB) setLoadingPath(path);
+    },
+    [activePath, groups, updateTreeExp]
+  );
 
   // Resolve URL identities against the loaded tree, including non-canvas previews.
-  const openLinkedFile = useCallback((rel, mode = 'push') => {
-    const path = groups.flatMap((g) => g.paths || []).find((p) => normalizeOpenPath(p, cfg.designRel) === rel);
-    if (path && CANVAS_EXT_RE.test(path)) openTab(path, { reveal: false });
-    else if (path && previewKind(basename(path))) onPreview(path);
-    else {
-      setTabs([]);
-      setActivePath(null);
-      setPreviewPath(null);
-      notify({ title: 'Not here yet', description: `${rel} is not in this project (not synced yet?)`, kind: 'info' });
-    }
-    addressMode.current = mode;
-  }, [groups, cfg.designRel, openTab, onPreview]);
+  const openLinkedFile = useCallback(
+    (rel, mode = 'push') => {
+      const path = groups
+        .flatMap((g) => g.paths || [])
+        .find((p) => normalizeOpenPath(p, cfg.designRel) === rel);
+      if (path && CANVAS_EXT_RE.test(path)) openTab(path, { reveal: false });
+      else if (path && previewKind(basename(path))) onPreview(path);
+      else {
+        setTabs([]);
+        setActivePath(null);
+        setPreviewPath(null);
+        notify({
+          title: 'Not here yet',
+          description: `${rel} is not in this project (not synced yet?)`,
+          kind: 'info',
+        });
+      }
+      addressMode.current = mode;
+    },
+    [groups, cfg.designRel, openTab, onPreview]
+  );
 
   const addressBooted = useRef(false);
   useEffect(() => {
@@ -67,6 +112,48 @@ export function useTabs({
     const rel = readOpenParam(location, cfg.designRel);
     if (rel) openLinkedFile(rel, 'none');
   }, [treeLoaded, cfg.cloud, cfg.designRel, openLinkedFile]);
+
+  // V2-3.3 / V2-3.5 — the shell's own events for this window (client/shell-events.js):
+  // `shell://navigate` takes the same road as `?open=` above (openLinkedFile) plus `maude design
+  // open`'s artboard focus (ui-open.js); opened-existing / tabs-restored are toasts. The handlers
+  // are subscribed once, so they read the live tree and openers through this ref.
+  const shellNavRef = useRef(null);
+  shellNavRef.current = {
+    get paths() {
+      return groups.flatMap((g) => g.paths || []);
+    },
+    designRel: cfg.designRel,
+    activePath,
+    openLinkedFile,
+    openTab,
+    frameFor: (f) => iframesRef.current.get(f),
+    setPresent: () => {},
+    // S6.11b — a thread landing says where it came from, in S1.18's words (open-link.js)
+    toast: (title) =>
+      shellToast(title, true, undefined, { kind: 'info', placement: 'top', icon: 'link' }),
+    threadAuthor,
+    // 11 pn-deeplink: the artboard's name as the canvas shows it (the project index), not its id
+    artboardLabel: async (file, id) => {
+      try {
+        const r = await fetch('/_api/index', { cache: 'no-store' });
+        const j = r.ok ? await r.json() : null;
+        const root = j?.project?.designRel || cfg.designRel;
+        const c = (j?.canvases ?? []).find((x) => (root ? `${root}/${x.rel}` : x.rel) === file);
+        return c?.artboards?.find((a) => a?.id === id)?.label ?? null;
+      } catch {
+        return null;
+      }
+    },
+  };
+  useEffect(() => {
+    if (!treeLoaded || cfg.cloud === undefined || !isNativeApp()) return undefined;
+    return startShellEvents({
+      invoke,
+      listen: listenHere,
+      toast: (title, _ok, _action, opts) => notify({ title, kind: 'info', ...opts }),
+      onNavigate: (p) => applyShellNavigate(p, shellNavRef.current),
+    });
+  }, [treeLoaded, cfg.cloud]);
 
   useEffect(() => {
     if (!treeLoaded || cfg.cloud === undefined) return;
@@ -90,18 +177,27 @@ export function useTabs({
     previousAddressPath.current = visible;
     const rel = normalizeOpenPath(visible, cfg.designRel);
     if (addressMode.current !== 'none' && readOpenParam(location, cfg.designRel) !== rel) {
-      history[rel ? 'pushState' : 'replaceState'](rel ? { open: rel } : null, '', withOpenParam(location, rel));
+      history[rel ? 'pushState' : 'replaceState'](
+        rel ? { open: rel } : null,
+        '',
+        withOpenParam(location, rel)
+      );
     }
     addressMode.current = 'push';
   }, [activePath, previewPath, cfg.designRel]);
 
   const sharePath = previewPath || (activePath === SYSTEM_TAB ? null : activePath);
   const shareShell = cfg.cloud ? 'cloud' : isNativeApp() ? 'native' : 'local';
-  const shareLinksFor = (path) => buildShareLinks({
-    rel: normalizeOpenPath(path, cfg.designRel), shell: shareShell, location,
-    linkedHubUrl: cloudLinkedHub?.url, project: cfg.cloud ? project : localProjectName,
-    localUrl: location.origin,
-  });
+  const shareLinksFor = (path) =>
+    buildShareLinks({
+      rel: normalizeOpenPath(path, cfg.designRel),
+      shell: shareShell,
+      location,
+      linkedHubUrl: cloudLinkedHub?.url,
+      project: cfg.cloud ? project : localProjectName,
+      localUrl: location.origin,
+      readOnly: !!cfg.readOnly,
+    });
   const showShare = (path = sharePath) => {
     const rel = normalizeOpenPath(path, cfg.designRel);
     if (rel) setShareDialog({ path, rel, label: basename(path) });
@@ -137,7 +233,10 @@ export function useTabs({
   useEffect(() => {
     if (autoOpened.current) return;
     if (!cfg.cloud) return; // desktop / unknown-yet
-    if (new URLSearchParams(location.search).has('open')) { autoOpened.current = true; return; }
+    if (new URLSearchParams(location.search).has('open')) {
+      autoOpened.current = true;
+      return;
+    }
     if (tabs.length > 0) return;
     if (!groups.length) return; // tree not loaded
     // The first canvas that is somebody's WORK — a design-system specimen is a
@@ -156,6 +255,41 @@ export function useTabs({
     autoOpened.current = true;
     openTab(first, { reveal: false });
   }, [cfg.cloud, groups, tabs.length, openTab]);
+
+  /**
+   * A desktop project opens on the canvas it was last on (V2-8.5 c7, 01 cf-big-tree) — not on "No canvas open".
+   * "Last" is this Mac's own opened-here stamp (`/_api/pins` -> `opened`, last-canvas.js): a project nobody has
+   * opened a canvas in yet keeps its empty state and first-run card. Once, and only while nothing is open: a
+   * canvas the person closed afterwards stays closed, and a `?open=` link wins (the effect above).
+   */
+  const lastOpened = useRef(false);
+  const tabsLen = useRef(tabs.length);
+  tabsLen.current = tabs.length;
+  useEffect(() => {
+    if (lastOpened.current) return;
+    if (cfg.cloud) return; // a cloud cell has its own first-canvas rule above
+    if (new URLSearchParams(location.search).has('open')) {
+      lastOpened.current = true;
+      return;
+    }
+    if (tabs.length > 0) {
+      lastOpened.current = true;
+      return;
+    }
+    if (!groups.length) return; // tree not loaded
+    lastOpened.current = true;
+    (async () => {
+      try {
+        const r = await fetch('/_api/pins', { cache: 'no-store' });
+        if (!r.ok) return;
+        const body = await r.json();
+        const path = lastOpenedPath(body?.opened, groups, cfg.designRel || '.design');
+        if (path && tabsLen.current === 0) openTab(path, { reveal: false });
+      } catch {
+        /* the empty state is the fallback */
+      }
+    })();
+  }, [cfg.cloud, cfg.designRel, groups, tabs.length, openTab]);
 
   const openSystem = useCallback(
     (dsName) => {
@@ -208,9 +342,9 @@ export function useTabs({
       closeTab(file);
     } else if (change.action === 'moved' && change.fromRel) {
       const fromFile = `${designRel}/${change.fromRel}`;
-      setTabs((prev) => prev.map((t) => t.path === fromFile ? { ...t, path: file } : t));
-      setActivePath((prev) => prev === fromFile ? file : prev);
-      setLoadingPath((prev) => prev === fromFile ? null : prev);
+      setTabs((prev) => prev.map((t) => (t.path === fromFile ? { ...t, path: file } : t)));
+      setActivePath((prev) => (prev === fromFile ? file : prev));
+      setLoadingPath((prev) => (prev === fromFile ? null : prev));
       iframesRef.current.delete(fromFile);
     }
   };
@@ -276,12 +410,17 @@ export function useTabs({
   // active canvas to annotate. Returns {ok} | {ok:false,error} so the Sidebar
   // can surface a validation/duplicate message inline.
   const createBoard = useCallback(
-    async (name) => {
+    // S10.13 — `designSystem`: the system the folder it is made in passes on (new-canvas-default.js)
+    async (name, { designSystem } = {}) => {
       try {
         const r = await fetch('/_api/canvas', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, kind: 'brief-board' }),
+          body: JSON.stringify({
+            name,
+            kind: 'brief-board',
+            ...(designSystem ? { designSystem } : {}),
+          }),
         });
         const j = await r.json().catch(() => ({}));
         if (!r.ok || !j.ok) return { ok: false, error: j.error || `create failed (${r.status})` };
@@ -338,39 +477,8 @@ export function useTabs({
   // the Timeline); client-side <video>.duration probing is a documented tightening.
   const assembleVideo = useCallback(async () => {
     if (!activePath || activePath === SYSTEM_TAB) return;
-    try {
-      const ar = await fetch(`/_api/annotations?file=${encodeURIComponent(activePath)}`);
-      const svg = ar.ok ? await ar.text() : '';
-      const clips = [];
-      if (svg) {
-        const doc = new DOMParser().parseFromString(svg, 'image/svg+xml');
-        for (const g of doc.querySelectorAll('[data-tool="mediaref"]')) {
-          const src = g.getAttribute('data-src');
-          if (!src) continue;
-          clips.push({ src, mediaKind: g.getAttribute('data-media-kind') === 'audio' ? 'audio' : 'video' });
-        }
-      }
-      if (clips.length === 0) {
-        window.alert('Drop video/audio clips on the canvas first, then assemble them into a video.');
-        return;
-      }
-      const baseName = displayName(basename(activePath)).replace(/\.tsx$/i, '');
-      const name = `${baseName} Video`;
-      const r = await fetch('/_api/canvas', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, kind: 'video-comp', clips }),
-      });
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok || !j.ok) {
-        window.alert(`Assemble failed: ${j.error || `error ${r.status}`}`);
-        return;
-      }
-      await loadTree();
-      openTab(j.file);
-    } catch (e) {
-      window.alert(`Assemble failed: ${e instanceof Error ? e.message : 'network error'}`);
-    }
+    const name = `${displayName(basename(activePath)).replace(/\.tsx$/i, '')} Video`;
+    await assembleVideoFlow({ activePath, name, toast: shellToast, loadTree, openTab });
   }, [activePath, loadTree, openTab]);
 
   // DDR-150 dogfood #5 — shared replace-media flow, PICKER-FIRST. The <input
@@ -463,36 +571,28 @@ export function useTabs({
     [activePath, timelineArtboardId, pushTlUndo]
   );
 
-  // Phase 22 — soft-delete a canvas from the file tree. Confirms (destructive),
-  // DELETEs to the main-origin-only endpoint, refreshes the tree, and resets the
-  // active tab if the deleted canvas was open. The server moves the whole sidecar
-  // set to .design/_trash/ — recoverable locally.
+  // Phase 22 — soft-delete a canvas from the file tree: DELETE to the main-origin-only endpoint (the server
+  // moves the whole sidecar set to .design/_trash/), refresh the tree, and close the tab if that canvas was
+  // open. S1.2 — it asks nothing: "“name” moved to the trash." with Undo, which brings it back (and reopens
+  // it if it was the open one). CONTRACT §4: moved to the trash, never "deleted".
   const deleteBoard = useCallback(
-    async (filePath, label) => {
-      const ok = window.confirm(
-        `Move “${label}” to trash?\n\nIts annotations, history and comments move with it. ` +
-          `You can restore it from .design/_trash/.`
-      );
-      if (!ok) return;
-      try {
-        const r = await fetch(`/_api/canvas?file=${encodeURIComponent(filePath)}`, {
-          method: 'DELETE',
-        });
-        const j = await r.json().catch(() => ({}));
-        if (!r.ok || !j.ok) {
-          window.alert(`Could not delete: ${j.error || `error ${r.status}`}`);
-          return;
-        }
-        await loadTree();
-        if (activePath === filePath) {
-          setTabs([]);
-          setActivePath(null);
-        }
-      } catch (e) {
-        window.alert(`Delete failed: ${e instanceof Error ? e.message : 'network error'}`);
-      }
-    },
-    [loadTree, activePath]
+    (filePath, label) =>
+      trashCanvas({
+        path: filePath,
+        label,
+        toast: shellToast,
+        reload: loadTree,
+        onTrashed: (p) => {
+          if (activePath === p) {
+            setTabs([]);
+            setActivePath(null);
+          }
+        },
+        onUndone: (p) => {
+          if (activePath === p) openTab(p);
+        },
+      }),
+    [loadTree, activePath, openTab]
   );
 
   // feature-file-tree-drag-drop-folders (Task 8/10) — drag-drop AND the
@@ -621,7 +721,10 @@ export function useTabs({
           return;
         }
         // #124 — the renamed folder keeps its open state (and its subfolders').
-        const designRel = (cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, '');
+        const designRel = (cfg?.designRel || cfg?.designRoot || '.design').replace(
+          /^\/+|\/+$/g,
+          ''
+        );
         const toDir = typeof j.toRel === 'string' ? `${designRel}/${j.toRel}` : `${parent}/${name}`;
         updateTreeExp((st) => remapDirPrefix(st, dirPath, toDir));
         await loadTree();
@@ -634,8 +737,10 @@ export function useTabs({
 
   // Plan T25/L04 — rename a canvas in place (its sidecars follow; an open tab
   // follows the new path) and duplicate one beside itself.
+  // S1.2 — answers `{ ok, error? }`; `{ quiet: true }` (the inline rename) leaves the words to the field,
+  // which shows the reason under the name instead of a toast.
   const renameCanvasReq = useCallback(
-    async (filePath, name) => {
+    async (filePath, name, opts = {}) => {
       try {
         const r = await fetch('/_api/fs-move', {
           method: 'POST',
@@ -644,8 +749,9 @@ export function useTabs({
         });
         const j = await r.json().catch(() => ({}));
         if (!r.ok || !j.ok) {
-          shellToast(`Could not rename: ${j.error || `error ${r.status}`}`);
-          return;
+          const error = j.error || `error ${r.status}`;
+          if (!opts.quiet) shellToast(`Could not rename: ${error}`);
+          return { ok: false, error };
         }
         const designRel = (cfg?.designRel || cfg?.designRoot || '.design').replace(
           /^\/+|\/+$/g,
@@ -656,8 +762,11 @@ export function useTabs({
         await loadTree();
         setTabs((prev) => prev.map((t) => (t.path === fromFile ? { path: toFile } : t)));
         setActivePath((prev) => (prev === fromFile ? toFile : prev));
+        return { ok: true };
       } catch (e) {
-        shellToast(`Rename failed: ${e instanceof Error ? e.message : 'network error'}`);
+        const error = e instanceof Error ? e.message : 'network error';
+        if (!opts.quiet) shellToast(`Rename failed: ${error}`);
+        return { ok: false, error };
       }
     },
     [loadTree, cfg]
@@ -676,7 +785,13 @@ export function useTabs({
           return;
         }
         await loadTree();
-        shellToast(`Duplicated as ${j.rel.split('/').pop().replace(/\.tsx$/i, '')}`, true);
+        shellToast(
+          `Duplicated as ${j.rel
+            .split('/')
+            .pop()
+            .replace(/\.tsx$/i, '')}`,
+          true
+        );
       } catch (e) {
         shellToast(`Duplicate failed: ${e instanceof Error ? e.message : 'network error'}`);
       }
@@ -686,9 +801,12 @@ export function useTabs({
 
   const deleteFileReq = useCallback(
     async (filePath, name) => {
-      if (!window.confirm(`Move “${name}” to trash?\n\nYou can restore it from .design/_trash/.`)) return;
+      if (!window.confirm(`Move “${name}” to trash?\n\nYou can restore it from .design/_trash/.`))
+        return;
       try {
-        const r = await fetch(`/_api/canvas?file=${encodeURIComponent(filePath)}`, { method: 'DELETE' });
+        const r = await fetch(`/_api/canvas?file=${encodeURIComponent(filePath)}`, {
+          method: 'DELETE',
+        });
         const j = await r.json().catch(() => ({}));
         if (!r.ok || !j.ok) {
           shellToast(`Could not delete: ${j.error || `error ${r.status}`}`);
@@ -715,9 +833,30 @@ export function useTabs({
     }
   }, [activePath]);
   return {
-    assembleVideo, clearSelected, closeTab, createBoard, createVideo, deleteBoard, deleteFileReq,
-    deleteFolderReq, duplicateCanvasReq, moveCanvasReq, newFolderReq, openLinkedFile, openSystem,
-    openTab, refreshTree, reloadActive, renameCanvasReq, renameFolderReq, replaceMediaViaPicker,
-    retryCanvasLoad, shareLinksFor, sharePath, shareShell, showShare, treeRefreshing
+    assembleVideo,
+    clearSelected,
+    closeTab,
+    createBoard,
+    createVideo,
+    deleteBoard,
+    deleteFileReq,
+    deleteFolderReq,
+    duplicateCanvasReq,
+    moveCanvasReq,
+    newFolderReq,
+    openLinkedFile,
+    openSystem,
+    openTab,
+    refreshTree,
+    reloadActive,
+    renameCanvasReq,
+    renameFolderReq,
+    replaceMediaViaPicker,
+    retryCanvasLoad,
+    shareLinksFor,
+    sharePath,
+    shareShell,
+    showShare,
+    treeRefreshing,
   };
 }

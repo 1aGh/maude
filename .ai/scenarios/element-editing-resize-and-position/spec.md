@@ -11,9 +11,9 @@
 After Stages A–M land, artboard A behaves as a coherent direct-manipulation surface:
 
 - A Cmd-click on a stamped `[data-cd-id]` element paints a selected halo (`.dc-cv-halo--selected`), the 8 resize + 4 rotate handles (`.dc-el-resize-handle[data-corner]`), the contextual toolbar (`.dc-elem-ctx-tb`), and (for a padded/flex box) the spacing handles (`.dc-spacing-handle`).
-- Selecting a single element with no right panel open **auto-opens the Inspector on the CSS tab** (Stage C), and the header shows a scope badge (`.st-scope`).
+- Selecting a single element with no right panel open **auto-opens the Inspector on the CSS tab** (Stage C), and Inspector › Advanced › Used in (`[data-testid="adv-used-in"]`) says whether an edit is local or shared.
 - Dragging a corner handle resizes the element; the commit persists `width`/`height` (+`left`/`top` on a top/left-edge drag) to the `.tsx` and each is Cmd+Z reversible (per-property records).
-- The **Position** section renders an inset widget (`.st-cp-box--inset`, inputs `aria-label="top|right|bottom|left"`) that writes `top`/`left`/… on commit.
+- The **Position** section renders an inset widget (`.insp-cp-box--inset`, inputs `aria-label="top|right|bottom|left"`) that writes `top`/`left`/… on commit.
 - **Bug A/B are gone:** moving an absolutely-positioned element (or selecting an overflowing one) does **not** scroll the `.dc-canvas` host or change the `.dc-world` transform — the camera stays put.
 - Multi-select (Cmd+Shift+click) paints a group bbox (`.dc-cv-group-bbox`) and the toolbar exposes align (≥2), distribute (≥3), and tidy-up buttons; clicking Align top converges the selected elements.
 - Double-click drills selection one level deeper (deep-select); right-click exposes a "Select layer" submenu of stacked elements; Alt-hover paints a measure guide + distance pill.
@@ -45,10 +45,10 @@ The selection chrome (halos, handles, toolbars, context menu, spacing/measure ov
 ## Steps
 
 1. **Open the fixture; assert load.** Open the shell, click the "Element Editing Lab" tree row, wait for the iframe. Assert `[data-dc-screen]` × 5 and `[data-cd-id]` ≥ 22 inside `iframe.contentDocument`. Screenshot the canvas.
-2. **Cmd-click `.eel-overflow` → select + auto-open.** Dispatch a metaKey pointer chain on the element. Assert `.dc-cv-halo--selected` ×1, `.dc-el-resize-handle` present (8 resize + 4 rotate), `.dc-elem-ctx-tb[data-on="true"]`, and — in the shell — `.st-rpanel[aria-label="Inspector"]` open with `.st-rp-tab.is-active` text = "CSS" and a `.st-scope--local` badge ("Local · this element only"). Screenshot.
+2. **Cmd-click `.eel-overflow` → select + auto-open.** Dispatch a metaKey pointer chain on the element. Assert `.dc-cv-halo--selected` ×1, `.dc-el-resize-handle` present (8 resize + 4 rotate), `.dc-elem-ctx-tb[data-on="true"]`, and — in the shell — `.sh-rpanel[aria-label="Inspector"]` open with `.sh-rp-tab.is-active` text = "CSS" and, with Advanced open, `[data-testid="adv-used-in"]` reading "Only this element". Screenshot.
 3. **Resize via the SE handle.** Read the element's `width`/`height` from source. Drag `.dc-el-resize-handle[data-corner="se"]` by +40,+30. Assert the source `width`/`height` grew (world delta = screen delta ÷ zoom) and one coherent render.
 4. **Undo the resize.** Fire Cmd+Z into the iframe twice (resize records per-property). Assert `width`/`height` return to their pre-resize values.
-5. **Position inset nudge.** With the element selected, `fill` the shell `.st-cp-box--inset input[aria-label="top"]` with a new value + Enter. Assert the source `top` updates; Cmd+Z reverts.
+5. **Position inset nudge.** With the element selected, `fill` the shell `.insp-cp-box--inset input[aria-label="top"]` with a new value + Enter. Assert the source `top` updates; Cmd+Z reverts.
 6. **Bug A — camera stays put.** Capture `.dc-world` `style.transform` and `.dc-canvas` `scrollLeft/scrollTop`. Drag `.eel-overflow` far (+220,+160 screen). Assert the element's `left`/`top` moved in source **and** the world transform is byte-identical + host scroll still 0/0.
 7. **Multi-select align.** Escape, then Cmd-click `.eel-box`#0, Cmd+Shift-click #1 (≥1 s apart). Assert `.dc-cv-group-bbox` ×1, the toolbar count pill reads "2 elements", `button[aria-label="Align top"]` enabled, `button[aria-label="Distribute horizontally"]` **disabled** (needs 3), `button[aria-label="Tidy up into a grid"]` enabled. Click Align top; assert the two selected boxes converge to the same `top`. Screenshot.
 8. **Deep-select.** Escape, Cmd-click `.eel-outer`, then double-click it. Assert the active selection id (`_active.json#selected.id`) changes to a deeper stamped descendant.

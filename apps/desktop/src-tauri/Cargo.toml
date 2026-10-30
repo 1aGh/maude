@@ -1,6 +1,6 @@
 [package]
 name = "maude-desktop"
-version = "1.10.0"
+version = "2.0.0-rc.1"
 description = "Maude native desktop shell — Tauri v2 sidecar over the compiled dev-server binary (DDR-106)"
 authors = ["Maude"]
 edition = "2021"
@@ -18,7 +18,11 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+# `unstable`: the multi-webview API (`WindowBuilder` + `Window::add_child`,
+# `Manager::webviews`) that V2-3.7's own tab bar is built on, and that the
+# vendored WebDriver plugin's handle lookup (`webviews()`) needs. Pinned to a
+# minor because `unstable` APIs may change between minors — bump deliberately.
+tauri = { version = "~2.12", features = ["unstable"] }
 tauri-plugin-shell = "2"
 tauri-plugin-single-instance = "2"
 tauri-plugin-dialog = "2"
@@ -53,6 +57,9 @@ tiny_http = "0.12"
 open = "5"
 # Random shared-secret key for the loopback token bridge (already in the tree via rustls).
 getrandom = "0.2"
+# Project ids + window data-store ids (V2-3.1, windows.rs): sha256, byte-for-byte
+# the derivation TS uses (index/snapshot.ts pidOf). Already in the tree via Tauri.
+sha2 = "0.10"
 # feature-acp-turn-notifications — a REAL OS notification, regardless of which
 # project's page is loaded or whether any page is loaded at all. The Web
 # `Notification` API inside the webview (app.jsx) can only ever cover the
@@ -64,11 +71,39 @@ tauri-plugin-notification = "2"
 # driving the real WKWebView in scenario tests. Registered ONLY under
 # `#[cfg(debug_assertions)]` in lib.rs, so the shipped release `.app` never runs it
 # (the crate is a compile-time dep so its `wdio-webdriver:default` permission — in
-# capabilities/e2e-webdriver.json — still resolves in both profiles, but `init()` is never called
+# capabilities/debug/e2e-webdriver.json — resolves in debug builds; since V2-3.6 L3 a release build
+# does not compile that capability at all, see build.rs — and `init()` is never called
 # in release). See .ai/plans/feature-desktop-e2e-scenario-harness.md + the
 # `desktop-e2e` skill.
 # NOT on Windows: <=1.4.0 pins webview2-com 0.38 /
 # windows 0.61 and fails to compile against Tauri 2.12 (webview2-com 0.39) —
 # the v1.7.0 Windows .msi build. Desktop E2E runs on macOS only (WKWebView).
 [target.'cfg(not(target_os = "windows"))'.dependencies]
-tauri-plugin-wdio-webdriver = "1.2.0"
+# V2-3.7: resolved to the vendored, patched copy ([patch.crates-io] at the end
+# of this file). `=1.2.0` so a lock refresh cannot drift off the version the
+# patch was written against.
+tauri-plugin-wdio-webdriver = "=1.2.0"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# V2-3.5: a notification click focuses its project's window. The notification
+# plugin reports no click on desktop; notify.rs drives the SAME backend it wraps
+# (`wait_for_action`). Already in the lock via tauri-plugin-notification, so no
+# new crate is downloaded; no default features (they only add Linux D-Bus).
+notify-rust = { version = "4.18", default-features = false }
+# S1.22b: hide the ⇧⌘] / ⇧⌘[ menu items while their accelerators keep working
+# (`NSMenuItem.hidden` + `allowsKeyEquivalentWhenHidden`, which muda does not
+# expose — menu.rs `hide_hidden_items`). Already in the lock via tao / muda;
+# no new crate is downloaded. S8.23: + NSPasteboard / NSData — Copy as PNG
+# writes `public.png` to the general pasteboard (export_save.rs `put_png`).
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSApplication", "NSMenu", "NSMenuItem", "NSPasteboard", "NSResponder"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSData", "NSString"] }
+
+# V2-3.7: the embedded WebDriver plugin, retargeted from `WebviewWindow` to
+# `Webview` so every child webview of a multi-webview window is its own W3C
+# window handle (stock 1.2.0 fails session create with `no such window`).
+# Upstream version, the patch and how to drop the fork:
+# vendor/tauri-plugin-wdio-webdriver/VENDORED.md. Still registered ONLY under
+# `#[cfg(debug_assertions)]` in lib.rs.
+[patch.crates-io]
+tauri-plugin-wdio-webdriver = { path = "vendor/tauri-plugin-wdio-webdriver" }

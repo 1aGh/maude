@@ -1,0 +1,295 @@
+/* client/v2/annotations/stickers-gallery.css — S4.3: the Stickers gallery island (canvas 15 `.an-gal*`).
+ *
+ * It rides on the `.sh-scrim` / `.sh-dialog.sh-sticker-picker` shell the picker always had (an open modal
+ * dialog is what the mode lane's M4 check reads; tool-panels.css pins it to the toolbar), and only
+ * restyles what is inside: a 440 px island, a search field with an icon, the Stamps row, 6-up grids,
+ * "+N" cells, word chips, and the credits line. Tokens only; weights stop at 600. */
+
+@layer shell {
+  .sh-sticker-picker.sg {
+    width: 440px;
+    max-width: calc(100vw - 2 * var(--space-2));
+    border-radius: var(--radius-xl);
+    font-family: var(--font-body);
+  }
+  .sg .sh-dialog-hd {
+    gap: var(--space-2);
+  }
+  .sg .sh-dialog-title {
+    margin-right: auto;
+  }
+  .sg .sh-dialog-bd {
+    gap: var(--space-3);
+  }
+
+  /* search */
+  .sg-q {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding-inline: var(--space-3);
+    height: 36px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+    border: 1px solid var(--border-default);
+    color: var(--fg-2);
+  }
+  .sg-q:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-tint);
+  }
+  .sh-sticker-picker .sg-q-in.input {
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .sh-sticker-picker .sg-q-in.input:focus {
+    box-shadow: none;
+  }
+  .sg-q-x {
+    appearance: none;
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--bg-3);
+    color: var(--fg-1);
+    cursor: pointer;
+  }
+
+  /* body */
+  .sg-body {
+    gap: var(--space-3);
+  }
+  .sg-pk {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .sg-ph {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    margin: 0;
+    font-family: var(--font-body);
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold, 600);
+    color: var(--fg-2);
+  }
+  .sg-ph strong {
+    font-weight: var(--w-semibold, 600);
+    color: var(--fg-2);
+  }
+  .sg-ph span {
+    font-variant-numeric: tabular-nums;
+  }
+  .sg-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    grid-auto-rows: 56px;
+    gap: var(--space-1);
+  }
+  .sg-grid--3 {
+    grid-template-columns: repeat(3, 1fr);
+    grid-auto-rows: auto;
+    gap: var(--space-2);
+  }
+  .sg-cell {
+    justify-content: center;
+    padding: var(--space-1);
+    border-color: transparent;
+    border-radius: var(--radius-md);
+    /* the picker is a .sh-dialog (--bg-1): a --bg-1 tile on it vanishes (light, an-stk-search); the well surface reads in both themes */
+    background: var(--bg-3);
+  }
+  .sg-cell .sh-sp-thumb {
+    max-height: 100%;
+  }
+  /* the lit result (↵ puts it down): the board's .an-gal-c[data-on] */
+  .sg-cell[data-on] {
+    background: var(--accent-muted);
+    box-shadow: inset 0 0 0 1.5px var(--accent);
+  }
+  .sg-cell--kw {
+    gap: 2px;
+    padding: var(--space-2) var(--space-1) var(--space-1);
+  }
+  .sg-cell--kw .sh-sp-thumb {
+    max-height: none;
+  }
+  .sg-cell--kw em {
+    font-style: normal;
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+  }
+  .sg-more {
+    appearance: none;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: transparent;
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    font-variant-numeric: tabular-nums;
+    color: var(--fg-1);
+  }
+  .sg-more:hover {
+    background: var(--bg-3);
+  }
+
+  /* stamps */
+  .sg-stamps {
+    display: flex;
+    gap: var(--space-1);
+  }
+  .sg-stamp {
+    appearance: none;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-pill);
+    color: var(--object-ink);
+    cursor: pointer;
+    box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--object-ink) 12%, transparent);
+  }
+  .sg-stamp:disabled {
+    cursor: default;
+  }
+  .sg-stamp--yellow {
+    background: var(--object-yellow);
+  }
+  .sg-stamp--coral {
+    background: var(--object-coral);
+  }
+  .sg-stamp--sky {
+    background: var(--object-sky);
+  }
+  .sg-stamp--green {
+    background: var(--object-green);
+  }
+
+  /* search extras */
+  .sg-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+  }
+  .sg-chip[aria-pressed="true"] {
+    background: var(--accent-muted);
+    color: var(--accent-text);
+  }
+  .sg-none {
+    margin: 0;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .sg-nil {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
+  .sg-nil strong {
+    flex-basis: 100%;
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+
+  /* credits */
+  .sg-credits {
+    font-family: var(--font-body);
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+    gap: 0 var(--space-2);
+  }
+  .sg-credits a {
+    color: var(--accent-text);
+  }
+
+  /* S4.13: the one-row island the gallery folds to after a stamp (canvas 15 .an-stpop). */
+  .sg-stamprow {
+    position: fixed;
+    left: 50%;
+    bottom: calc(var(--space-4) + 64px + var(--space-3));
+    translate: -50% 0;
+    z-index: 20;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-2);
+    padding-left: var(--space-4);
+    border-radius: var(--radius-pill);
+    /* S4.V4 stamps-1 - the row mounts beside the shell, not inside `.sh-body--float`, so the `.island` rule
+       never reaches it: it carries the island material itself (same tokens, vote.css's fallbacks). */
+    font-family: var(--font-body, system-ui, sans-serif);
+    background: var(--island-bg, var(--bg-1));
+    box-shadow:
+      var(--island-shadow, 0 4px 14px oklch(0 0 0 / 0.3), 0 0.5px 1.5px oklch(0 0 0 / 0.26)),
+      inset 0 0 0 0.5px var(--island-edge, oklch(1 0 0 / 0.09));
+    color: var(--fg-0);
+  }
+  /* anchored: the row is centred on the Stickers slot (left = the slot centre), kept inside the window */
+  .sg-stamprow[data-anchor="slot"] {
+    translate: -50% 0;
+    left: clamp(200px, var(--sg-slot-x, 50%), calc(100vw - 200px));
+  }
+  .sg-stamprow-l {
+    margin-right: var(--space-2);
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    color: var(--fg-1);
+  }
+  .sg-stamprow-b {
+    appearance: none;
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-pill);
+    color: var(--object-ink);
+    cursor: pointer;
+    box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--object-ink) 12%, transparent);
+  }
+  .sg-stamprow-b[data-on] {
+    outline: 1.5px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .sg-stamprow-more {
+    appearance: none;
+    display: grid;
+    place-items: center;
+    min-width: 32px;
+    height: 32px;
+    padding: 0 var(--space-2);
+    margin-left: var(--space-1);
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: transparent;
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    cursor: pointer;
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+  }
+  .sg-stamprow-more:hover {
+    background: var(--bg-3);
+  }
+}

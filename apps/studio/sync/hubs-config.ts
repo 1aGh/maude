@@ -5,9 +5,12 @@
 // reader instead of importing from cli/lib so the Bun-side ts compile chain
 // doesn't pull in the .mjs CLI surface.
 
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, type Stats, statSync, unwatchFile, watchFile } from 'node:fs';
 import { homedir, platform } from 'node:os';
 import { join } from 'node:path';
+
+import { can, FLOOR_ROLE, projectRoleForAccount } from '../access/roles.ts';
+import { type AccessClaim, legacyClaim, resolveAccess } from '../access/scope.ts';
 
 export interface HubRecord {
   token: string;
@@ -19,10 +22,21 @@ export interface HubRecord {
    * made — the alternative is discovering it from the first refusal, which
    * means showing somebody an editor and taking it away.
    *
-   * Absent means `member`: every credential written before this shipped was
-   * write-capable, and nobody is demoted by an upgrade.
+   * Absent means the FLOOR (`observer`, read-only) until a sign-in heals it —
+   * Phase 4 security D3 / S9.9. It used to mean `member`, so a credential whose
+   * role nobody ever learned (a pasted token, an older hub) counted as writable.
+   *
+   * v1 projection: a v2 writer stores here only a role a 1.x build reads the
+   * right way round (`v1RoleProjection`) — 1.9.x reads `role === 'viewer'` as
+   * its ONLY read-only answer, so `observer` here would be writable there.
    */
   role?: string;
+  /**
+   * The whole access claim the hub vouched (V2-1.7 §5.4) — project role +
+   * canvas grants — when it says more than `role` can (an observer, canvas
+   * grants). Additive: a 1.x build ignores the unknown key and reads `role`.
+   */
+  access?: AccessClaim;
   /**
    * When this credential dies (ms epoch), as the workspace reported at mint.
    *
@@ -63,6 +77,20 @@ export interface HubRecord {
    * just meets the hub's 429 sooner. Absent means the breaker is on.
    */
   unlimitedDeletes?: boolean;
+  /**
+   * The account the hub vouched at sign-in (its `user.email`), so Settings › Connections can say
+   * "Signed in as <account>" (06 ad-edge-hub). Display only — never an access decision. Written by
+   * a password / invite sign-in, carried forward by a silent renewal; absent on a pasted token and
+   * on every credential written before it shipped, which simply shows no line. A 1.x build ignores it.
+   */
+  account?: string;
+}
+
+/** An account name safe to store and draw: an e-mail-ish printable string, at most 254 characters. */
+export function safeAccount(v: unknown): string | null {
+  if (typeof v !== 'string') return null;
+  const t = v.trim();
+  return t.length > 0 && t.length <= 254 && /^[\w.+@-]+$/.test(t) ? t : null;
 }
 
 export interface HubsConfig {
@@ -74,6 +102,11 @@ export function hubsConfigPath(): string {
   if (process.env.HUBS_CONFIG_PATH) return process.env.HUBS_CONFIG_PATH;
   const xdg = process.env.XDG_CONFIG_HOME;
   const base = xdg && xdg.length > 0 ? xdg : join(homedir(), '.config');
+  // V2-8.9 M2 — the profile id alone names a non-default profile's file (profiles.rs `paths_in`),
+  // the same rule as the CLI's resolver; the shell always sets HUBS_CONFIG_PATH for the server.
+  const id = process.env.MAUDE_PROFILE_ID;
+  if (id && id !== 'default' && /^[a-z0-9-]{1,32}$/.test(id))
+    return join(base, 'maude', 'profiles', id, 'hubs.json');
   return join(base, 'maude', 'hubs.json');
 }
 
@@ -97,8 +130,7 @@ export function normalizeUrl(url: string): string {
   return str;
 }
 
-export function loadHubsConfig(): HubsConfig {
-  const path = hubsConfigPath();
+export function loadHubsConfig(path: string = hubsConfigPath()): HubsConfig {
   if (!existsSync(path)) return { hubs: {} };
   warnIfWorldOrGroupReadable(path);
   try {
@@ -135,25 +167,49 @@ function warnIfWorldOrGroupReadable(path: string): void {
   }
 }
 
+/** A hub-vouched role that may edit. Anything else a hub names holds nothing (V2-1.7 R1). */
+export const isEditRole = (role: unknown): boolean =>
+  typeof role === 'string' && can(projectRoleForAccount(role), 'edit');
+
 /**
- * Is the credential for `url` a READ-ONLY one? (Cloud Phase 25 C2)
- *
- * Answered from the role the workspace vouched for at sign-in, so the app
- * knows at BOOT rather than discovering it from the first refused write —
- * which would mean showing somebody an editor and then taking it away.
- *
- * Unknown, unreadable, or absent all answer FALSE, matching every credential
- * written before this shipped. This flag decides what the UI OFFERS; it is
- * never the thing that stops a write. That is the cell (Phase 25 C1) and the
- * gate in http.ts, both of which hold whatever this returns.
+ * The role a 1.x build must read for `role` (the hubs.json `role` field): the role itself
+ * when 1.x reads it right (`owner` / `member` / `viewer` / `admin`), else `viewer` — the
+ * only read-only answer 1.9.x knows (`isHubReadOnly`: `role === 'viewer'`). The real
+ * claim then rides in `access` (V2-1.7 Q3: no second 1.x release).
  */
-export function isHubReadOnly(url: string): boolean {
+export function v1RoleProjection(role: string | null | undefined): string {
+  if (typeof role === 'string' && ['owner', 'member', 'viewer', 'admin'].includes(role))
+    return role;
+  return 'viewer';
+}
+
+/**
+ * The stored access claim for `url` — what the local gate asks (V2-1.7 §5.7 `accessFor`,
+ * replacing the 1-bit `isHubReadOnly`).
+ *
+ *   - `access` stored → that claim (validated by `resolveAccess` where it is used);
+ *   - a `role` stored → `legacyClaim(role)` (an unknown role holds nothing, R1);
+ *   - a record WITHOUT a role → the floor (`observer`): read-only until a sign-in heals it
+ *     (Phase 4 security D3). It used to be writable;
+ *   - no record (or no readable file) → `member`: a linked project with no credential on
+ *     this Mac syncs nothing, so it is edited like a local one, but is never the owner's.
+ */
+export function accessFor(url: string, path?: string): AccessClaim {
+  let record: HubRecord | undefined;
   try {
-    const record = loadHubsConfig().hubs[normalizeUrl(url)];
-    return record?.role === 'viewer';
+    record = loadHubsConfig(path).hubs[normalizeUrl(url)];
   } catch {
-    return false;
+    record = undefined;
   }
+  if (!record || typeof record !== 'object') return legacyClaim('member');
+  if (record.access && typeof record.access === 'object') return record.access;
+  if (typeof record.role === 'string' && record.role) return legacyClaim(record.role);
+  return legacyClaim(FLOOR_ROLE);
+}
+
+/** The 1-bit projection of `accessFor`: may NOT edit anything at project level. */
+export function isHubReadOnly(url: string): boolean {
+  return !resolveAccess(accessFor(url)).can('edit', null);
 }
 
 /** Look up a token for `url`. Returns null when no entry exists. */
@@ -162,12 +218,35 @@ export function getHubToken(url: string): string | null {
 }
 
 /** The whole stored record for `url` (token + role + expiresAt), or null. */
-export function getHubRecord(url: string): HubRecord | null {
+export function getHubRecord(url: string, path?: string): HubRecord | null {
   try {
     const norm = normalizeUrl(url);
-    const record = loadHubsConfig().hubs[norm];
+    const record = loadHubsConfig(path).hubs[norm];
     return record && typeof record.token === 'string' ? record : null;
   } catch {
     return null;
   }
+}
+
+/**
+ * S9.12b (V2-1.16 U6, desktop) — call `onChange` whenever hubs.json is written, replaced,
+ * created or removed (a re-sign-in, a role drop, a link or unlink — from this process, the
+ * CLI or the desktop shell). A stat poll, not `fs.watch`: the writers replace the file by
+ * rename, and the file may not exist yet. Unref'd; returns the stop function.
+ */
+export function watchHubsConfig(
+  onChange: () => void,
+  opts: { path?: string; intervalMs?: number } = {}
+): () => void {
+  const path = opts.path ?? hubsConfigPath();
+  const listener = (cur: Stats, prev: Stats) => {
+    if (cur.mtimeMs === prev.mtimeMs && cur.ino === prev.ino && cur.size === prev.size) return;
+    try {
+      onChange();
+    } catch (err) {
+      console.error('[sync] hubs.json change handler failed:', err);
+    }
+  };
+  watchFile(path, { interval: opts.intervalMs ?? 500, persistent: false }, listener);
+  return () => unwatchFile(path, listener);
 }

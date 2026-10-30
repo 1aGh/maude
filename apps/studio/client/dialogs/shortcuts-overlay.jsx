@@ -1,128 +1,130 @@
-// dialogs/shortcuts-overlay.jsx — moved verbatim out of client/app.jsx (Maude v2 plan V2-0.2, move-only split).
-
-import { Kbd } from '../shell/icons.jsx';
-import { Fragment, useEffect } from 'react';
-
-// ───────── Keyboard-shortcuts overlay (DS components-shortcuts-overlay) ─────
+// dialogs/shortcuts-overlay.jsx — the "?" sheet (Maude v2, V2-4.6; 06 ad-search).
 //
-// The ? cheat-sheet: dim scrim, shared panel material, four dense mono-headed
-// columns, Esc chip in the footer. REAL bindings only — every row here is
-// wired in the shell handler, the canvas input-router, or canvas-lib's
-// viewport controller. Scope chips mark the rows that need canvas focus.
+// Built from the action registry's keymap when it opens (v2/search/help-model.js): every visible key,
+// grouped Edit tools · Preview tools · File · Tabs and windows · Finding a canvas · Canvas · Panels and AI · Objects · Timeline · Present, a
+// "Find a shortcut" box that uses the ⌘K matcher's fold, and one Advanced fold — View › Advanced and
+// Diagnostics keys with their path, then "Keys and tools that moved" (old → new). A key is read from
+// the registry here, never typed, so a re-binding shows up on the next "?".
 
-export const SHORTCUT_GROUPS = [
-  {
-    id: 'canvas',
-    label: 'Canvas',
-    items: [
-      { label: 'Command palette', kbd: '⌘ K' },
-      { label: 'New brief board', kbd: 'N' },
-      { label: 'Export…', kbd: '⇧ ⌘ E' },
-      { label: 'Handoff to production', kbd: '⇧ ⌘ H' },
-      { label: 'Reload canvas', kbd: '⌘ R' },
-      { label: 'Search files', kbd: '/', alt: '⌘ F' },
-    ],
-  },
-  {
-    id: 'tools',
-    label: 'Tools · canvas focus',
-    items: [
-      { label: 'Move · Hand · Comment', kbd: 'V', alt: 'H / C' },
-      { label: 'Pen · Highlighter · Eraser', kbd: 'B', alt: 'I / E' },
-      { label: 'Shape · Arrow', kbd: 'R', alt: 'A' },
-      { label: 'Sticky · Text · Section', kbd: 'N', alt: 'T / ⇧S' },
-      { label: 'Undo / redo', kbd: '⌘ Z', alt: '⇧ ⌘ Z' },
-    ],
-  },
-  {
-    id: 'selection',
-    label: 'Selection & zoom',
-    items: [
-      { label: 'Select element', kbd: '⌘ click' },
-      { label: 'Add to selection', kbd: '⌘ ⇧ click' },
-      { label: 'Preview deepest', kbd: '⌘ hover' },
-      { label: 'Deselect · close menu', kbd: 'Esc' },
-      { label: 'Zoom in / out', kbd: '⌘ +', alt: '⌘ −' },
-      { label: 'Fit · actual size', kbd: '⌘ 0', alt: '⌘ 1' },
-    ],
-  },
-  {
-    id: 'view',
-    label: 'View',
-    items: [
-      { label: 'Project tree', kbd: 'T' },
-      { label: 'Design system view', kbd: 'S' },
-      { label: 'Inspector', kbd: '⌘ ⇧ I' },
-      { label: 'Comments sidebar', kbd: '⌘ ⇧ M' },
-      { label: 'Annotations', kbd: '⇧ P' },
-      { label: 'Hidden files', kbd: 'H' },
-      { label: 'This cheat sheet · help', kbd: '?', alt: 'F1' },
-    ],
-  },
-];
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { isNativeApp } from '../github.js';
+import { Kbd, StIcon } from '../shell/icons.jsx';
+import { AdvancedFold } from '../v2/fold/advanced-fold.jsx';
+import { useFold } from '../v2/fold/use-fold.js';
+import { buildHelpSheet, filterHelpSheet } from '../v2/search/help-model.js';
+import { useModalFocus } from '../v2/shell/modal-focus.js';
+import { menuCtx } from '../v2/shell/project-menu-model.js';
 
-export function ShortcutCombo({ kbd, alt }) {
-  const combo = (s, key) => (
-    <span className="so-combo" key={key}>
-      {s.split(' ').map((k, i) => (
-        <Kbd key={`${k}-${i}`}>{k}</Kbd>
-      ))}
-    </span>
-  );
+/** The "?" sheet's Advanced fold in prefs.json `fold` (open at first look: it lists the keys that moved). */
+export const HELP_FOLD = 'help';
+
+/** The sheet's classes (search.css): the fold's markup, the sheet's look. */
+const SO_CLASSES = Object.freeze({
+  root: 'so-adv',
+  btn: 'so-adv-btn',
+  ch: 'so-adv-ch',
+  hint: 'so-adv-count',
+  body: 'so-adv-body',
+});
+
+/** One key as caps: "⇧⌘E" is the registry's string; show it as one Kbd, or the menu path in a browser. */
+export function ShortcutCombo({ keys, alt = [], path }) {
+  if (path) return <span className="so-path">{path}</span>;
   return (
     <span className="so-combos">
-      {combo(kbd, 'main')}
-      {alt
-        ? alt.split(' / ').map((a) => (
-            <Fragment key={a}>
-              <span className="so-or">/</span>
-              {combo(a, a)}
-            </Fragment>
-          ))
-        : null}
+      {keys.map((k) => (
+        <Kbd key={k}>{k}</Kbd>
+      ))}
+      {alt.map((a) => (
+        // "or" stays with the key it introduces, so a wrapped row never ends on a dangling "or".
+        <span key={a} className="so-alt">
+          <span className="so-or">or</span>
+          <Kbd>{a}</Kbd>
+        </span>
+      ))}
     </span>
   );
 }
 
-export function ShortcutsOverlay({ open, onClose }) {
+export function ShortcutsOverlay({ open, onClose, readOnly = false }) {
+  const [find, setFind] = useState('');
+  const [fold, setFold] = useFold(HELP_FOLD);
+  const findRef = useRef(null);
   useEffect(() => {
-    if (!open) return;
-    function onKey(e) {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        onClose();
-      }
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
-  if (!open) return null;
-  const bindings = SHORTCUT_GROUPS.reduce((n, g) => n + g.items.length, 0);
+    if (open) setFind('');
+  }, [open]);
+  // V2-4 gate (a11y B2/W3): esc closes, Tab stays inside, focus goes back to the opener.
+  const sheetRef = useModalFocus({ open, onClose, initialRef: findRef });
+  // Built each time it opens: the registry may have been re-bound since the last "?".
+  const sheet = useMemo(
+    () =>
+      open ? buildHelpSheet(menuCtx({ native: isNativeApp(), readOnly, canvasOpen: true })) : null,
+    [open, readOnly]
+  );
+  if (!open || !sheet) return null;
+  const shown = filterHelpSheet(sheet, find);
+  const searching = find.trim().length > 0;
+  const foldOpen = fold || searching;
+  const nothing =
+    searching && shown.groups.length + shown.advanced.length + shown.moved.length === 0;
+  // The keys a row does NOT show — a second binding of the same action — kept once each, in the fold.
+  const others = shown.groups.flatMap((g) => g.rows).filter((r) => r.alt.length > 0);
   return (
     <div
-      className="st-scrim"
+      className="sh-scrim"
       role="presentation"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="so-overlay" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
+      <div
+        className="so-overlay so-overlay--v2"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Keyboard shortcuts"
+        data-testid="shortcuts-sheet"
+        ref={sheetRef}
+        tabIndex={-1}
+      >
         <div className="so-overlay-hd">
-          <span className="so-title">Keyboard shortcuts</span>
-          <span className="so-trigger">
-            press <Kbd>?</Kbd> to open
-          </span>
+          {/* S11.18 (a11y): the sheet's group titles are h3 — the title above them is the h2 */}
+          <h2 className="so-title">Keyboard shortcuts</h2>
+          <label className="so-find">
+            <StIcon name="search" size={14} />
+            <input
+              ref={findRef}
+              data-testid="shortcuts-find"
+              aria-label="Find a shortcut"
+              placeholder="Find a shortcut"
+              value={find}
+              onChange={(e) => setFind(e.target.value)}
+            />
+          </label>
+          <button type="button" className="so-close" aria-label="Close" onClick={onClose}>
+            <StIcon name="x" size={12} />
+          </button>
         </div>
-        <div className="so-columns">
-          {SHORTCUT_GROUPS.map((g) => (
-            <section key={g.id} className={'so-section so-section--' + g.id}>
+        {nothing ? (
+          <p className="so-none" data-testid="shortcuts-none">
+            Nothing called “{find.trim()}”. Try another word.
+          </p>
+        ) : null}
+        <div className="so-columns so-columns--3">
+          {shown.groups.map((g) => (
+            <section
+              key={g.id}
+              className={`so-section so-section--${g.id}`}
+              data-testid={`shortcuts-group-${g.id}`}
+            >
               <h3 className="so-section-hd">{g.label}</h3>
+              {g.note ? <p className="so-note">{g.note}</p> : null}
               <dl className="so-list">
-                {g.items.map((it) => (
-                  <div key={it.label} className="so-pair">
-                    <dt>{it.label}</dt>
+                {g.rows.map((r) => (
+                  <div key={r.id} className="so-pair" data-testid={`shortcuts-row-${r.id}`}>
+                    <dt>{r.label}</dt>
                     <dd>
-                      <ShortcutCombo kbd={it.kbd} alt={it.alt} />
+                      {/* S11.18 (? sheet W1): a row teaches ONE key; the other ways in are in the fold below */}
+                      <ShortcutCombo keys={r.keys} path={r.path} />
                     </dd>
                   </div>
                 ))}
@@ -130,13 +132,74 @@ export function ShortcutsOverlay({ open, onClose }) {
             </section>
           ))}
         </div>
+        {shown.advanced.length > 0 || shown.moved.length > 0 || others.length > 0 ? (
+          <AdvancedFold
+            panel={HELP_FOLD}
+            classes={SO_CLASSES}
+            testid="shortcuts-advanced"
+            buttonTestid="shortcuts-advanced-toggle"
+            open={foldOpen}
+            onToggle={() => setFold(!fold)}
+            hint={
+              <>
+                {shown.advanced.length + others.length}{' '}
+                {shown.advanced.length + others.length === 1 ? 'key' : 'keys'} ·{' '}
+                {shown.moved.length} moved
+              </>
+            }
+          >
+            {shown.advanced.map((r) => (
+              <div
+                key={r.id}
+                className="so-pair so-pair--adv"
+                data-testid={`shortcuts-row-${r.id}`}
+              >
+                <span className="so-adv-label">{r.label}</span>
+                <span className="so-adv-path">{r.path}</span>
+                <ShortcutCombo keys={r.keys} alt={r.alt} />
+              </div>
+            ))}
+            {others.length > 0 ? (
+              <>
+                <h4 className="so-sub" data-testid="shortcuts-others-hd">
+                  Other keys that do the same
+                </h4>
+                {others.map((r) => (
+                  <div
+                    key={`alt-${r.id}`}
+                    className="so-pair so-pair--adv"
+                    data-testid={`shortcuts-alt-${r.id}`}
+                  >
+                    <span className="so-adv-label">{r.label}</span>
+                    <span className="so-adv-path" />
+                    <ShortcutCombo keys={r.alt} />
+                  </div>
+                ))}
+              </>
+            ) : null}
+            {shown.moved.length > 0 ? (
+              <>
+                <h4 className="so-sub" data-testid="shortcuts-moved-hd">
+                  Keys and tools that moved
+                </h4>
+                <ul className="so-moved" data-testid="shortcuts-moved">
+                  {shown.moved.map((m) => (
+                    <li key={m.was} className="so-mv">
+                      <span className="so-mv-was">{m.was}</span>
+                      <StIcon name="chevron-right" size={11} />
+                      <span className="so-mv-now">{m.now}</span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : null}
+          </AdvancedFold>
+        ) : null}
         <div className="so-overlay-ft">
           <span>
-            close with <Kbd>Esc</Kbd>
+            close with <Kbd>esc</Kbd>
           </span>
-          <span className="so-count">
-            {bindings} bindings · {SHORTCUT_GROUPS.length} groups
-          </span>
+          <span className="so-count">{shown.count} keys</span>
         </div>
       </div>
     </div>

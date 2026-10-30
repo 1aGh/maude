@@ -8,8 +8,10 @@
 // (env.ts): the child inherits the environment MINUS `ANTHROPIC_API_KEY`, so
 // auth precedence falls through to the user's Pro/Max subscription.
 
+import { randomBytes } from 'node:crypto';
+import { rmSync, statSync } from 'node:fs';
 import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import { delimiter, dirname, isAbsolute, join, resolve } from 'node:path';
 
 import {
   type AvailableCommand,
@@ -28,19 +30,61 @@ import {
   type SessionUpdate,
 } from '@agentclientprotocol/sdk';
 
-import { scrubAgentEnv } from './env.ts';
-import type { SdkPluginConfig } from './plugin-bootstrap.ts';
+import { autoAllowRules } from '../actions/verbs.ts';
+import { HANDOFF_RUN_VERBS } from '../handoff/write-scopes.ts';
+import { DEV_SERVER_ROOT } from '../paths.ts';
+import { readUiPrefs } from '../ui-prefs.ts';
+import { relayAdapterStderr } from './adapter-stderr.ts';
+import {
+  type AudienceLeak,
+  audienceLeak,
+  designRelOf,
+  privateLeak,
+  readPathsOf,
+  readsBeyond,
+  shellPathWords,
+  type TrackedRead,
+  type WriteAudienceSource,
+  withoutWriterRules,
+  writerVerbCall,
+} from './audience.ts';
+import { chatSpawnEnv, scrubAgentEnv, teamsSpawnEnv } from './env.ts';
+import {
+  type AiMay,
+  assetsRootsFor,
+  bashReadsOutside,
+  type CredentialPaths,
+  chatScratchDir,
+  claudeCodeTmpFor,
+  credentialDenyRules,
+  credentialPathsFor,
+  credentialRefusal,
+  ensureChatScratch,
+  MAY_ALL,
+  mayAllowedTools,
+  mayDenyRules,
+  mayEnv,
+  mayKey,
+  mayRefusal,
+  readAllowRules,
+  readBoundaryRoots,
+  readVerdict,
+} from './may-scope.ts';
+import { type SdkPluginConfig, suppressionFor } from './plugin-bootstrap.ts';
 import {
   resolveAdapterEntry,
   resolveAgentClaudeExecutable,
   resolveAgentRuntime,
   resolveClaudePath,
 } from './probe.ts';
+import { createRepoPrivacy, type RepoPrivacy } from './repo-private.ts';
 import { countTranscriptLinesAt, stripInlineBlobs } from './transcript-io.ts';
 import {
+  isInsideRoot,
   isWriteToolName,
   looksLikeWriteToolCall,
   pinScopeRoot,
+  resolveRealPath,
   resolveWriteTargets,
   type WriteScopeVerdict,
   writeTargetsInsideProject,
@@ -50,11 +94,62 @@ export interface AcpBridgeOptions {
   /** Absolute repo root the ACP session runs in (where `.design/` + the CLI operate). */
   repoRoot: string;
   /**
+   * P8 c7 (decision maude/v2-p8-c7-ai-may-enforced) — the project's design root, whose `assets/` folder
+   * "Use Assets and footage" covers (acp/may-scope.ts). Absent → `<repoRoot>/.design`.
+   */
+  designRoot?: string;
+  /**
    * Static studio-environment brief appended to every new session's system
    * prompt (feature-acp-context-hardening; built by bootstrap-brief.ts).
    * Absent → no injection (tests / non-studio embedders).
    */
   studioBrief?: string;
+  /**
+   * The chat this bridge runs (V2-1.15 §5.4, S5.4): the adapter is spawned with
+   * `MAUDE_CHAT_ID=<chatId>` (`chatSpawnEnv`), so `maude design hook` binds the
+   * run to this chat. Absent / not a plain id → no binding (by session alone).
+   */
+  chatId?: string;
+  /**
+   * S5.10 — folders the person allowed AI to READ (`ai/attach-grants.ts`). Read live on every
+   * write-shaped permission request: a write landing inside one is never auto-approved.
+   * Absent → none (tests / non-studio embedders).
+   */
+  readOnlyRoots?: () => readonly string[];
+  /**
+   * M2 read boundary (decision maude/v2-michal-m2-read-boundary) — the folders THIS chat may read
+   * now: allowed ("Let AI read <folder>?") and attached to it (`GrantStore.chatRoots`). Read live on
+   * every read request that reaches the bridge, so a yes mid-chat counts on the next call and Remove
+   * takes it back the same way — no session restart. Absent / throws → none (fail closed: the card).
+   */
+  readRoots?: () => readonly string[];
+  /**
+   * V2-8.9 H2 — the app-owned consent store (`grantsFileFor`), handed to the agent's env as
+   * MAUDE_GRANTS_FILE so a source-reading `maude design` verb reads this chat's folders live
+   * (cli/lib/confine-read.mjs). Absent → the verbs see only the fixed roots.
+   */
+  grantsFile?: string;
+  /**
+   * V2-8.9 re-check 2 H-a — this session's own server ports (main, canvas, capture), read at each
+   * spawn and handed to the agent as MAUDE_OWN_PORTS: the browser helpers open no other port
+   * (bin/_url-guard.mjs). Absent / empty → the key is not set, and the helpers refuse every page.
+   */
+  ownPorts?: () => readonly number[];
+  /** M2 — the read boundary's fixed roots. Absent → `sessionReadRoots(repoRoot, plugins, designRoot)`. */
+  readBoundary?: readonly string[];
+  /**
+   * S8.10 — this chat's own write scope (a Handoff to production run: its target file only), read
+   * live on every write-shaped request. `null` = the project rules alone. A getter that throws
+   * allows nothing (fail closed: every write goes to the prompt).
+   */
+  writeOnlyRoots?: () => readonly string[] | null;
+  /**
+   * V2-8.9 H1 — who besides the project's people can see a write target (hub canvas grants;
+   * acp/audience.ts). An in-project write that would carry a design-root file this chat read to
+   * someone who cannot see that file loses auto-approve. Absent → no audience check (tests,
+   * embedders, a desktop-only project's wiring answers [] anyway).
+   */
+  writeAudience?: WriteAudienceSource;
   /**
    * Session-scoped local plugins auto-loaded into every new session via
    * `_meta.claudeCode.options.plugins` (DDR-143; resolved by
@@ -80,6 +175,8 @@ export interface AcpBridgeOptions {
    * so any existing audit/logging consumer keeps seeing every request.
    */
   onPermission?: (req: RequestPermissionRequest) => void;
+  /** V2-8.9 round B A1 — how a permission request resolved (`granted` = an allow option). */
+  onPermissionDecided?: (req: RequestPermissionRequest, granted: boolean) => void;
   /**
    * The actual approve/deny UI hook (retires DDR-125 F2's blanket auto-
    * approve) — fires once per request with a fresh nonce `id`; the caller
@@ -152,6 +249,14 @@ export interface AcpBridgeOptions {
   onUsage?: (usage: BridgeUsage) => void;
   /** Override for `PERMISSION_TIMEOUT_MS` (tests only — production always gets the real default). */
   permissionTimeoutMs?: number;
+  /**
+   * S5.6 (S5-slices D7, V2-1.15 Q1) — how long nobody has been watching this bridge, in ms
+   * (0 = a socket is attached). With it, the permission/elicitation deadline runs ONLY while
+   * detached: an attended request waits for its answer ("Needs you never times out"), a detached
+   * one is denied once it has been unattended for the full timeout. Without it, the fixed
+   * DDR-179 deadline. Every other abandonment path (cancel, stop) still denies at once.
+   */
+  detachedFor?: () => number;
   /** Override for `CANCEL_ESCALATION_MS` (tests only — production always gets the real default). */
   cancelEscalationMs?: number;
 }
@@ -174,7 +279,11 @@ export interface PermissionScopeInfo {
   /** The pinned project root the paths were judged against — so the prompt can
    *  say what "outside" means instead of asserting it. */
   scopeRoot: string;
-  reason: WriteScopeVerdict['reason'];
+  /** `audience` / `audience-unknown` (V2-8.9 H1): inside the project, but the target is seen by
+   *  someone who cannot see a file this chat read — or the hub could not say who sees it. */
+  reason: WriteScopeVerdict['reason'] | 'audience' | 'audience-unknown';
+  /** V2-8.9 H1 — the granted canvas, who holds it, and the files read this chat they cannot see. */
+  audience?: AudienceLeak;
 }
 
 /** The bridge's normalized shape of a `usage_update` notification. `rateLimit`
@@ -476,23 +585,120 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | typeof TIMED_OUT
 // helper that is NOT reached via `maude design <verb>` (a brand-new top-level
 // tool) fails that test loudly instead of silently prompting the user
 // mid-workflow.
+//
+// ⚠️ SUPERSEDED (V2-2.8 S4, contract V2-1.11 §5.5). The blanket `Bash(maude:*)` the
+// bullets above describe is GONE. It auto-allowed every `maude` verb, including
+// `curl-local`, which takes any method and body against any loopback port, so one
+// auto-approved call reached every studio route: git push/discard, trash prune,
+// paid generation, sync settings. Its place is taken by one
+// `Bash(maude design <verb>:*)` rule per auto-tier verb (effect `none`/`project`)
+// plus the closed top-level read rules, generated from `actions/verbs.ts`.
+// Everything else (`curl-local`, `generate`, `draw-build`, `to-lottie`,
+// `fetch-asset`, …) falls back to Claude Code's own permission card. Maude adds
+// no ask rule (P3): a user who allows `Bash(maude:*)` in their own `~/.claude`
+// settings still gets every verb without prompts — that is their call.
+//
+// ⚠️ SUPERSEDED for reads (decision maude/v2-michal-m2-read-boundary). The bare `Read`/`Glob`/`Grep`
+// names the first bullet describes are GONE: they let the agent read any file on the Mac. A session
+// now carries one `Read(//abs/**)` rule per root of its read boundary (`sessionReadRoots` — the
+// project, the bundled plugins, Maude's own package, the temp folders), and the bridge's gate
+// approves once a read inside a folder this chat was allowed to read (acp/may-scope.ts `readVerdict`).
+// Any other read goes to Claude Code's permission card.
 export const MAUDE_DEFAULT_ALLOWED_TOOLS: readonly string[] = [
-  'Read',
-  'Glob',
-  'Grep',
+  // NO bare 'Read' / 'Glob' / 'Grep' — path-scoped per session (`sessionReadRoots`, above).
   // NO 'Edit' / 'Write' / 'NotebookEdit' — see the comment block above. They are
   // scope-gated in `requestPermission`, not name-allowed here.
-  'Bash(maude:*)',
+  ...autoAllowRules(),
   // The read-only fs verb group (ls/cat/pwd/head/tail/wc/tree/file/stat) was
   // CUT — see the ⚠️ block above. Every one of them accepts `>`.
   'WebSearch',
   'WebFetch',
 ];
 
+/**
+ * gate-b-sec2 finding 3 (decision v2-gate-b-sec2-bounded-writer-verbs) — the auto-approved tools of
+ * a run with its own write scope (S8.10 Handoff to production): the non-Bash defaults plus the
+ * `Bash(maude design <verb>:*)` rules of the verbs that run names, and no other maude rule. Any
+ * other maude verb goes to the prompt card here; the design plugin's pre-bash hook denies it.
+ */
+export function scopedAllowedTools(onlyVerbs: readonly string[]): string[] {
+  const ok = new Set(onlyVerbs.map((v) => `Bash(maude design ${v}:*)`));
+  return MAUDE_DEFAULT_ALLOWED_TOOLS.filter((t) => !t.startsWith('Bash(') || ok.has(t));
+}
+
+/**
+ * The allow-list a session is spawned with (`kept`), and — on a hub-linked project — the writer-verb
+ * rules taken off it (`dropped`, V2-8.9 round 2): a call those rules would have covered now reaches
+ * `requestPermission`, where the bridge approves it once unless the audience check holds it.
+ */
+export function sessionAllowedTools(scope: {
+  onlyVerbs?: readonly string[] | null;
+  may?: AiMay;
+  audienceGated?: boolean;
+}): { kept: string[]; dropped: string[] } {
+  const allowed = mayAllowedTools(
+    scope.onlyVerbs ? scopedAllowedTools(scope.onlyVerbs) : MAUDE_DEFAULT_ALLOWED_TOOLS,
+    scope.may ?? MAY_ALL
+  );
+  return scope.audienceGated ? withoutWriterRules(allowed) : { kept: allowed, dropped: [] };
+}
+
+/**
+ * M2 read boundary (decision maude/v2-michal-m2-read-boundary) — the folders a chat's agent reads
+ * without asking, besides the ones the person allowed (those are read live, per request): the project
+ * (repo + design root), the bundled plugin trees, Maude's own package root (the `maude design`
+ * helpers' files) and the temp folders. acp/may-scope.ts `readBoundaryRoots`.
+ */
+export function sessionReadRoots(
+  repoRoot: string,
+  plugins?: readonly SdkPluginConfig[],
+  designRoot?: string,
+  chatId?: string,
+  /** re-check 2 M-b — the bridge's run id: each run of a chat has its own scratch. */
+  instance?: string
+): string[] {
+  return readBoundaryRoots({
+    repoRoot,
+    designRoot: designRoot ?? join(repoRoot, '.design'),
+    pluginRoots: (plugins ?? []).map((p) => p.path),
+    // V2-8.9 L1 — Maude's own files, listed: the studio (helpers, canvas-lib) and the plugins
+    // (templates). Never `../..`: in a source checkout that is the repo root, with its .env.local
+    // and browser profiles.
+    packageRoot: [DEV_SERVER_ROOT, join(DEV_SERVER_ROOT, '..', '..', 'plugins')],
+    // V2-8.9 M2 — the chat's scratch (its TMPDIR); never all of /tmp. Claude Code's folder is this
+    // SESSION's only (re-check 2 M-b), judged live by the read gate — its id is not known yet here.
+    tmpRoots: [chatScratchDir(repoRoot, chatId, instance)],
+  });
+}
+
+/** The allow-list a default chat session is spawned with: its read boundary, then Maude's tools. */
+export function chatAllowedTools(
+  repoRoot: string,
+  plugins?: readonly SdkPluginConfig[],
+  designRoot?: string
+): string[] {
+  return [
+    ...readAllowRules(sessionReadRoots(repoRoot, plugins, designRoot)),
+    ...MAUDE_DEFAULT_ALLOWED_TOOLS,
+  ];
+}
+
 export function newSessionParams(
   repoRoot: string,
   studioBrief?: string,
-  plugins?: SdkPluginConfig[]
+  plugins?: SdkPluginConfig[],
+  scope: {
+    /** M2 — the read boundary's roots (default: `sessionReadRoots(repoRoot, plugins)`). */
+    readRoots?: readonly string[];
+    onlyVerbs?: readonly string[] | null;
+    /** P8 c7 — Advanced › AI may. Off switches become deny rules + leave the allow-list (may-scope.ts). */
+    may?: AiMay;
+    assetsRoots?: readonly string[];
+    /** V2-8.9 M2 — the credential stores (default: this process's env, may-scope.ts). */
+    credentials?: CredentialPaths;
+    /** V2-8.9 round 2 — a hub-linked project: the writer verbs leave the allow-list (audience.ts). */
+    audienceGated?: boolean;
+  } = {}
 ): { cwd: string; mcpServers: never[]; _meta?: Record<string, unknown> } {
   const meta: Record<string, unknown> = {};
   if (studioBrief) meta.systemPrompt = { append: studioBrief };
@@ -513,8 +719,30 @@ export function newSessionParams(
     // the same `_meta.claudeCode.options` spread as `plugins`/`settings` below
     // (`...userProvidedOptions`, acp-agent.js:2333→2455) into the SDK's
     // `allowedTools` (sdk.d.ts:1331). Everything off this list still prompts.
-    allowedTools: [...MAUDE_DEFAULT_ALLOWED_TOOLS],
+    // M2 (decision maude/v2-michal-m2-read-boundary) — reads are allowed per folder, not by name.
+    allowedTools: [
+      ...readAllowRules(scope.readRoots ?? sessionReadRoots(repoRoot, plugins)),
+      ...sessionAllowedTools(scope).kept,
+    ],
   };
+  // P8 c7 (decision maude/v2-p8-c7-ai-may-enforced) — an "AI may" switch the person turned off is a
+  // DENY rule: it wins over every allow rule (ours and the person's own ~/.claude) and every mode,
+  // bypassPermissions included, and it is the only thing that holds a Read inside the project (Claude
+  // Code approves those itself; the bridge never sees them). The adapter appends its own entries
+  // (acp-agent.js:2855).
+  // V2-8.9 M2 (decision maude/v2-8.9-lead-m2-deny-credential-reads-only) — plus, on EVERY session, a
+  // Read deny for the credential stores (every profile's ~/.config/maude, ~/.ssh, ~/.aws, ~/.gnupg,
+  // the keychains). It wins over the read boundary's allow rules above (a deny always does).
+  const deny = [
+    ...credentialDenyRules(scope.credentials ?? credentialPathsFor()),
+    ...mayDenyRules(scope.may ?? MAY_ALL, scope.assetsRoots ?? []),
+  ];
+  if (deny.length) options.disallowedTools = deny;
+  // V2-8.9 M1 — web off: the session (its `claude`, every helper it runs) carries MAUDE_NO_EGRESS=1, so a
+  // headless browser a `maude design` helper starts resolves only loopback. A switch change re-establishes
+  // the session (sessionFor), so the env follows the switch like the deny rules do.
+  const sessionEnv = mayEnv(scope.may ?? MAY_ALL);
+  if (Object.keys(sessionEnv).length) options.env = sessionEnv;
   if (plugins && plugins.length > 0) {
     options.plugins = plugins;
     // DDR-168 — the bundled `design` plugin is now injected UNCONDITIONALLY
@@ -527,28 +755,15 @@ export function newSessionParams(
     // settings layer (sdk.d.ts:1831 — highest priority among user-controlled
     // settings, precedence user < project < local < flag < policy; :5193's
     // `Settings.enabledPlugins` doc comment gives this exact worked example).
-    // Keyed to whichever plugin ids are actually being injected — currently
-    // only `design@maude`. Absent (not merely false) whenever `plugins` is
-    // empty, so the npm/web path (where `plugins` is always empty) is
-    // completely unaffected.
+    // Absent (not merely false) whenever `plugins` is empty, so the npm/web path
+    // (where `plugins` is always empty) is completely unaffected.
     //
-    // SECURITY LANDMINE (ethical-hacker finding, DDR-168 review round 2) — this
-    // literal is NOT derived from `plugins`/`plugin-bootstrap.ts`'s injection
-    // set; it's hand-maintained. `plugin-bootstrap.ts`'s own comment calls
-    // re-enabling `flow@maude` injection "a one-line addition" — that one line
-    // does NOT touch this object. If you flip that on, you MUST also add
-    // `'flow@maude': false` here, or a user with `flow@maude` natively enabled
-    // gets it double-loaded with zero suppression (the exact double-
-    // registration risk this override exists to close). No test currently
-    // catches this drift.
-    // `kgai` is the third-party autonomous-capture plugin the desktop bundle
-    // injects (plugin-bootstrap.ts). Suppressing its natively-installed copy is
-    // MORE load-bearing than for our own plugins: a user-installed kgai would
-    // run its own SessionStart `install.sh` (Go/network) and point at a
-    // different engine version than the pinned, signed sidecar we ship. Its id
-    // has no `@marketplace` suffix — it's injected as a bare local plugin dir
-    // whose manifest `name` is `kgai`.
-    options.settings = { enabledPlugins: { 'design@maude': false, kgai: false } };
+    // S12.3 — DERIVED from the injection set (was a hand literal that drifted:
+    // flow went unsuppressed when injected, and bare `kgai` matched no native
+    // `kgai@kgai-marketplace`). Every injected id's `<id>@maude` plus each
+    // `<id>@<marketplace>` in the user's own config, all `false`
+    // (plugin-bootstrap.ts; test/acp-session-plugins.test.ts plants a 4th).
+    options.settings = { enabledPlugins: suppressionFor(plugins) };
   }
   meta.claudeCode = { options };
   return {
@@ -594,6 +809,8 @@ export const MAX_PENDING_PERMISSIONS = 10;
 // the write gate reads. See `rememberToolName` for the eviction policy and why
 // an eviction degrades safely.
 export const MAX_TRACKED_TOOL_NAMES = 256;
+/** V2-8.9 H1 — design-root reads remembered per chat; past it the chat read "everything". */
+export const MAX_TRACKED_READS = 1024;
 
 // feature-acp-ask-user-question, SECURITY (ethical-hacker finding) — unlike a
 // permission request (one per tool call, rate-limited by how fast a model can
@@ -750,9 +967,95 @@ export class AcpBridge {
    * to prevent, so the pin ships WITH the lifetime change, not after it.
    */
   private readonly scopeRoot: string;
+  /**
+   * P8 c7 (decision maude/v2-p8-c7-ai-may-enforced) — Advanced › "AI may", as the last main-origin
+   * `prompt`/`warm` frame stated it (acp/index.ts → `setMay`). Read live by the permission gate, and
+   * stamped into a session's spawn-time deny rules (`newSessionParams`); `sessionMay` remembers which
+   * state each live session was spawned with, so a change re-establishes it before the next turn.
+   */
+  private may: AiMay = MAY_ALL;
+  private readonly assetsRoots: string[];
+  private sessionMay = new Map<string, string>(); // sessionId → spawnKey it was spawned with
+  /** V2-8.9 round 2 — sessionId → the writer-verb allow rules it was spawned without. */
+  private sessionGatedRules = new Map<string, ReadonlySet<string>>();
+  /** V2-8.9 M2 — the credential stores, from the server's own env (before the agent's scrub). */
+  private readonly credentialPaths: CredentialPaths = credentialPathsFor();
+  /**
+   * V2-8.9 H1 — the design-root files/folders this CHAT has read (acp/audience.ts). Per bridge, not
+   * per ACP session: a session re-established with its history kept (`reestablishForMay`) still holds
+   * what it read. Bounded; past the cap the chat counts as having read the whole design folder.
+   */
+  private reads = new Map<string, TrackedRead>();
+  private readonly designRoots: string[];
+  /** M2 — the read boundary's fixed roots (the spawn-time allow rules; `sessionReadRoots`). */
+  private readonly readRoots: string[];
+  /**
+   * re-check 2 M-b — the roots whose files are Maude's own for the audience gate: the read boundary
+   * WITHOUT the temp folders (readable, but a read there is private — a consented file copied to the
+   * scratch must not come back as a shared one).
+   */
+  private readonly ownRoots: string[];
+  /** re-check 2 M-b — this run's scratch (the agent's TMPDIR): per chat AND run, wiped at stop. */
+  private readonly scratch: string;
+  /** re-check 2 M-c — which repo files git does not track (private for the audience gate). */
+  private readonly repoPrivacy: RepoPrivacy;
 
   constructor(private readonly opts: AcpBridgeOptions) {
     this.scopeRoot = pinScopeRoot(opts.repoRoot);
+    const instance = randomBytes(6).toString('hex');
+    this.scratch = chatScratchDir(opts.repoRoot, opts.chatId, instance);
+    this.readRoots = opts.readBoundary
+      ? [...opts.readBoundary]
+      : sessionReadRoots(
+          opts.repoRoot,
+          opts.plugins,
+          opts.designRoot ?? join(opts.repoRoot, '.design'),
+          opts.chatId,
+          instance
+        );
+    const tmp = this.tmpSpellings([this.scratch]);
+    this.ownRoots = this.readRoots.filter((r) => !tmp.some((t) => r === t || isInsideRoot(r, t)));
+    this.repoPrivacy = createRepoPrivacy(opts.repoRoot);
+    this.assetsRoots = assetsRootsFor(
+      opts.repoRoot,
+      opts.designRoot ?? join(opts.repoRoot, '.design')
+    );
+    const design = resolve(opts.repoRoot, opts.designRoot ?? '.design');
+    const designReal = resolveRealPath(design, opts.repoRoot);
+    this.designRoots = designReal === design ? [design] : [design, designReal];
+  }
+
+  /** re-check 2 M-b — this run's scratch folder (its agent's TMPDIR). */
+  get scratchDir(): string {
+    return this.scratch;
+  }
+
+  /** Each temp root as named and as it resolves (`/tmp` is `/private/tmp` on macOS). */
+  private tmpSpellings(roots: readonly string[]): string[] {
+    const out = new Set<string>();
+    for (const r of roots) for (const s of [r, resolveRealPath(r, r)]) out.add(s);
+    return [...out];
+  }
+
+  /** re-check 2 M-b — Claude Code's temp folder of the session asking (its id names the folder). */
+  private sessionTmpRoots(sessionId: unknown): string[] {
+    return this.tmpSpellings(
+      claudeCodeTmpFor(this.opts.repoRoot, typeof sessionId === 'string' ? sessionId : undefined)
+    );
+  }
+
+  /**
+   * P8 c7 — the person's "AI may" switches (`null` = the frame carried no news: keep what we have).
+   * Takes effect at once for every permission request that reaches the bridge, and for the CLI-side
+   * deny rules at the chat's next turn (`sessionFor` re-establishes a session spawned with another state).
+   */
+  setMay(may: AiMay | null): void {
+    if (may) this.may = { assets: may.assets !== false, web: may.web !== false };
+  }
+
+  /** The current "AI may" state (read-only snapshot) — tests + diagnostics. */
+  get aiMay(): AiMay {
+    return { ...this.may };
   }
 
   /** The pinned write-scope root (read-only) — exposed for tests + diagnostics. */
@@ -944,11 +1247,22 @@ export class AcpBridge {
    */
   private async sessionFor(chatId: string): Promise<string> {
     const existing = this.sessions.get(chatId);
-    if (existing) return existing;
+    // P8 c7 — a session spawned under another "AI may" state carries stale deny rules. Re-establish it
+    // (close + load, same id: the chat keeps its history) — but never under a running turn, which the
+    // close would kill; that turn keeps the live gate and the next ask picks the change up.
+    if (
+      existing &&
+      (this.sessionMay.get(existing) === this.spawnKey(this.may, this.audienceGatedNow()) ||
+        this.pendingTurns.size > 0)
+    ) {
+      return existing;
+    }
     const inFlight = this.sessionPromises.get(chatId);
     if (inFlight) return inFlight;
 
-    const promise = this.establishSession(chatId).finally(() => {
+    const promise = (
+      existing ? this.reestablishForMay(chatId, existing) : this.establishSession(chatId)
+    ).finally(() => {
       this.sessionPromises.delete(chatId);
     });
     this.sessionPromises.set(chatId, promise);
@@ -965,11 +1279,54 @@ export class AcpBridge {
    * transport can't wedge `replaying` true forever and silently black-hole
    * every future turn on this bridge).
    */
-  private async establishSession(chatId: string): Promise<string> {
+  /**
+   * P8 c7 — the "AI may" switches changed since `sessionId` was spawned. The adapter's `loadSession` hands
+   * back an already-open session as it is (getOrCreateSession), so the session is CLOSED first and then
+   * loaded again with the current deny rules. A close the adapter refuses must not leave the stale
+   * session running: the chat then starts a fresh session instead (its history stays in the transcript).
+   */
+  private async reestablishForMay(chatId: string, sessionId: string): Promise<string> {
+    const conn = this.conn;
+    if (!conn) throw new Error('ACP adapter not started');
+    let closed = false;
+    try {
+      const r = await withTimeout(conn.closeSession({ sessionId }), LOAD_SESSION_TIMEOUT_MS);
+      closed = r !== TIMED_OUT;
+    } catch {
+      closed = false;
+    }
+    this.sessions.delete(chatId);
+    this.sessionMay.delete(sessionId);
+    this.sessionGatedRules.delete(sessionId);
+    if (!closed) {
+      await this.appendTranscript({ role: 'bootstrap', kind: 'may-refresh-new-session' });
+    }
+    return this.establishSession(chatId, closed ? sessionId : null);
+  }
+
+  /** `resume`: undefined → the id persisted for this chat; null → never resume (a fresh session). */
+  private async establishSession(chatId: string, resume?: string | null): Promise<string> {
     if (!this.conn) throw new Error('ACP adapter not started');
 
-    const params = newSessionParams(this.opts.repoRoot, this.opts.studioBrief, this.opts.plugins);
-    const persistedId = await this.readPersistedSessionId();
+    // S8.10 — a run with its own write scope auto-approves only its own maude verbs (fail closed:
+    // a getter that throws is a scoped run too).
+    let scoped: readonly string[] | null = null;
+    try {
+      scoped = this.opts.writeOnlyRoots?.() ?? null;
+    } catch {
+      scoped = [];
+    }
+    const may = { ...this.may };
+    const gated = this.audienceGatedNow();
+    const params = newSessionParams(this.opts.repoRoot, this.opts.studioBrief, this.opts.plugins, {
+      readRoots: this.readRoots,
+      onlyVerbs: scoped === null ? null : HANDOFF_RUN_VERBS,
+      may,
+      assetsRoots: this.assetsRoots,
+      credentials: this.credentialPaths,
+      audienceGated: gated,
+    });
+    const persistedId = resume === undefined ? await this.readPersistedSessionId() : resume;
     let sessionId: string | undefined;
     let modes: SessionModeState | null | undefined;
     let configOptions: SessionConfigOption[] | null | undefined;
@@ -1012,6 +1369,17 @@ export class AcpBridge {
     // current session state (the RPC response), never replayed history, but
     // we still sequence it after the try/finally so nothing fires while a
     // resume is nominally in flight.
+    this.sessionMay.set(sessionId, this.spawnKey(may, gated));
+    this.sessionGatedRules.set(
+      sessionId,
+      new Set(
+        sessionAllowedTools({
+          onlyVerbs: scoped === null ? null : HANDOFF_RUN_VERBS,
+          may,
+          audienceGated: gated,
+        }).dropped
+      )
+    );
     this.lastModes = modes ?? null;
     this.lastConfigOptions = configOptions ?? [];
     await this.applyDesiredConfigOnce(sessionId);
@@ -1083,13 +1451,9 @@ export class AcpBridge {
     // their subscription rather than the SDK's embedded runtime.
     env.CLAUDE_CODE_EXECUTABLE = agentClaude;
     // Least-privilege: the adapter child never talks to the dev-server's GitHub
-    // token bridge (only apps/studio/github/token.ts does), so drop the loopback
-    // keychain-bridge handle from its env. Keeps a hijacked-PATH `claude` (which
-    // would require pre-existing RCE) from reading the user's GitHub token.
-    // biome-ignore lint/performance/noDelete: security env-scrub — the key must be fully removed from the child's env, not set to `undefined` (which can leak through as `X=` on spawn).
-    delete env.MAUDE_TOKEN_ENDPOINT;
-    // biome-ignore lint/performance/noDelete: security env-scrub — see above; `delete` is the intentional primitive here.
-    delete env.MAUDE_TOKEN_KEY;
+    // token bridge (only apps/studio/github/token.ts does). scrubAgentEnv above
+    // drops its loopback handle (MAUDE_TOKEN_*) with every other shell secret —
+    // one strip for the bridge, the probe and login-state alike (V2-3.6 M4).
     // Model + effort are no longer env-at-spawn (Task A3) — the adapter starts
     // on its own default and `establishSession`/`applyDesiredConfigOnce` live-
     // applies the user's persisted picks via `setSessionConfigOption` once the
@@ -1102,10 +1466,38 @@ export class AcpBridge {
     // AFTER scrubAgentEnv (which doesn't touch BUN_BE_BUN).
     const runtime = resolveAgentRuntime();
     if (runtime.bunBeBun) env.BUN_BE_BUN = '1';
+    // V2-2.4b (decision:maude/v2-2.4b-actor-env-marker) — the adapter hands its env to `claude`,
+    // and `claude` to every design-plugin hook: `maude design hook` reads this to tell a Maude chat
+    // run from a terminal Claude Code (the run's actor, and who brackets it — acp/index.ts does).
+    env.MAUDE_AGENT_ACTOR = 'maude-chat';
+    // gate-b-sec2 (decision v2-gate-b-sec2-session-root): the project this chat's maude verbs are
+    // held to — `maude design` refuses a --root / cwd / CLAUDE_PROJECT_DIR naming another one.
+    env.MAUDE_SESSION_ROOT = this.opts.repoRoot;
+    // V2-8.9 H2 — the read boundary of this chat for the verbs that read a path they are given
+    // (cli/lib/confine-read.mjs): the fixed roots now, the consented folders live from the store.
+    env.MAUDE_READ_ROOTS = this.readRoots.join(delimiter);
+    // V2-8.9 re-check 2 H-a — the ports of THIS session's own server (main, canvas, capture): the
+    // browser helpers open no other loopback port (bin/_url-guard.mjs). Plain ports only; none →
+    // unset, and the helpers refuse every page (fail closed). Scrubbed + bash-guarded like the rest.
+    try {
+      const ports = (this.opts.ownPorts?.() ?? []).filter(
+        (p) => Number.isInteger(p) && p > 0 && p < 65536
+      );
+      if (ports.length) env.MAUDE_OWN_PORTS = [...new Set(ports)].join(',');
+    } catch {
+      /* no list: the helpers open nothing */
+    }
+    // V2-8.9 M2 — the agent's temp folder is this chat's own scratch (inside its read boundary), not
+    // the shared /tmp. Owner-only, never through a planted link (re-check 2 L3); a failure leaves
+    // TMPDIR as it was (reads there then ask).
+    if (ensureChatScratch(this.scratch)) env.TMPDIR = `${this.scratch}/`;
+    if (this.opts.grantsFile) env.MAUDE_GRANTS_FILE = this.opts.grantsFile;
     const proc = Bun.spawn([runtime.bin, adapterEntry], {
       cwd: this.opts.repoRoot,
       windowsHide: true, // #141 — never a console window for the adapter on Windows
-      env,
+      // V2-1.15 §5.4 — this chat's id and no other's (a stale MAUDE_CHAT_ID is dropped).
+      // S11.13 — Settings › Advanced › teams (prefs.json experimentalTeams), read at each spawn.
+      env: chatSpawnEnv(teamsSpawnEnv(env, readUiPrefs()), this.opts.chatId),
       stdin: 'pipe',
       stdout: 'pipe',
       stderr: 'pipe',
@@ -1145,6 +1537,8 @@ export class AcpBridge {
         // this is the write gate's only source for the tool name, and it must
         // never be skipped for a reason unrelated to permissions.
         this.rememberToolName(u);
+        // V2-8.9 H1 — and what it READ, replayed history included: a resumed session holds it too.
+        this.rememberRead(u);
         // The command catalogue is chrome, not chat — surface it to the UI but
         // keep it out of the rendered turn + the persisted transcript.
         if (u.sessionUpdate === 'available_commands_update') {
@@ -1210,66 +1604,84 @@ export class AcpBridge {
         this.opts.onUpdate(u, seq);
         void this.appendTranscript({ role: 'agent', update: u }, seq);
       },
-      requestPermission: (params: RequestPermissionRequest): Promise<RequestPermissionResponse> => {
-        // issue-82 / ethical-hacker finding — a message the child had already
-        // started writing before `stop()` killed it can still be dispatched
-        // in the brief window before the process actually dies. Fail closed
-        // immediately rather than register a pending entry a stale client
-        // response could later resolve as "allow" against a torn-down session.
-        if (this.stopped) return Promise.resolve({ outcome: { outcome: 'cancelled' } });
-        // Milestone B (retires DDR-125 F2's blanket auto-approve) — the
-        // permission POLICY is now the selected session mode (sourced from
-        // Claude Code itself): `bypassPermissions`/`dontAsk` short-circuit
-        // adapter-side and never reach here at all; every OTHER mode routes
-        // through this real approve/deny gate. `onPermission` stays as a
-        // transparency callback (every request, however it resolves);
-        // `onPermissionRequest` is the actual UI hook the client answers.
-        this.opts.onPermission?.(params);
-        // feature-acp-write-path-scope Task 3 — THE WRITE-PATH GATE. This is the
-        // branch that replaces `Edit`/`Write`/`NotebookEdit`'s former presence on
-        // MAUDE_DEFAULT_ALLOWED_TOOLS. An in-project write short-circuits here
-        // with no pending entry, no client frame and no prompt — byte-for-byte
-        // the DDR-184 experience. Everything else falls through to the real gate
-        // that already exists; this deliberately does NOT build a parallel path.
-        const scope = this.classifyWrite(params);
-        if (scope.autoApprove) {
-          return Promise.resolve({
-            outcome: { outcome: 'selected', optionId: scope.autoApprove },
-          });
-        }
-        // SECURITY (ethical-hacker finding) — bound queue depth before
-        // registering a pending entry, mirroring the elicitation channel's
-        // MAX_PENDING_ELICITATIONS cap. Deny immediately past the cap — safe
-        // by construction, since deny is this gate's own fail-closed default.
-        if (this.pendingPermissions.size >= MAX_PENDING_PERMISSIONS) {
-          return Promise.resolve({ outcome: { outcome: 'cancelled' } });
-        }
-        const id = crypto.randomUUID();
-        // Decision D — an out-of-project write cannot be made permanent by one
-        // click. Strip every `allow_always` option BEFORE it is offered, so
-        // consent is per-call. Filtering here rather than client-side is what
-        // makes it a gate instead of a speed bump: `optionIds` below is built
-        // from the SAME filtered array, so a hand-crafted `permission-response`
-        // naming `allow_always` fails closed to `cancelled` (resolvePermission's
-        // existing DDR-125 F1 posture) rather than being honored.
-        // `reject_always` is deliberately left in place — it is the safe
-        // direction, and stripping it could remove the only reject option.
-        const offered = scope.stripAlways
-          ? (params.options ?? []).filter((o) => o.kind !== 'allow_always')
-          : (params.options ?? []);
-        const outgoing: RequestPermissionRequest = scope.stripAlways
-          ? { ...params, options: offered }
-          : params;
-        const optionIds = new Set(offered.map((o) => o.optionId));
-        return new Promise<RequestPermissionResponse>((resolve) => {
-          const timer = setTimeout(
-            () => this.resolvePermission(id, 'cancelled'),
-            this.opts.permissionTimeoutMs ?? PERMISSION_TIMEOUT_MS
-          );
-          this.pendingPermissions.set(id, { resolve, timer, optionIds });
-          this.opts.onPermissionRequest?.(id, outgoing, scope.info);
-        });
-      },
+      // V2-8.9 round B A1 — every way this resolves is reported (`onPermissionDecided`): a shell verb's
+      // run-stage window reopens only on a grant.
+      requestPermission: (params: RequestPermissionRequest): Promise<RequestPermissionResponse> =>
+        this.reportDecision(params, (): Promise<RequestPermissionResponse> => {
+          // issue-82 / ethical-hacker finding — a message the child had already
+          // started writing before `stop()` killed it can still be dispatched
+          // in the brief window before the process actually dies. Fail closed
+          // immediately rather than register a pending entry a stale client
+          // response could later resolve as "allow" against a torn-down session.
+          if (this.stopped) return Promise.resolve({ outcome: { outcome: 'cancelled' } });
+          // Milestone B (retires DDR-125 F2's blanket auto-approve) — the
+          // permission POLICY is now the selected session mode (sourced from
+          // Claude Code itself): `bypassPermissions`/`dontAsk` short-circuit
+          // adapter-side and never reach here at all; every OTHER mode routes
+          // through this real approve/deny gate. `onPermission` stays as a
+          // transparency callback (every request, however it resolves);
+          // `onPermissionRequest` is the actual UI hook the client answers.
+          this.opts.onPermission?.(params);
+          // P8 c7 (decision maude/v2-p8-c7-ai-may-enforced) — an "AI may" switch the person turned off
+          // refuses the call here, against the CURRENT state, with no card: the person already said no.
+          // Before the write gate, so an off switch is never auto-approved as an in-project write.
+          // `reject_once` makes the adapter answer "refused" (the agent moves on) rather than abort.
+          {
+            const toolCallId = params.toolCall?.toolCallId;
+            const name =
+              typeof toolCallId === 'string' ? this.toolNames.get(toolCallId) : undefined;
+            // V2-8.9 M2 — a credential store, named in a path or a shell command: refused the same way.
+            if (
+              credentialRefusal(params.toolCall, this.credentialPaths, this.scopeRoot) ||
+              mayRefusal(name, params.toolCall, this.may, this.scopeRoot, this.assetsRoots)
+            ) {
+              const reject = (params.options ?? []).find((o) => o.kind === 'reject_once');
+              return Promise.resolve({
+                outcome: reject
+                  ? { outcome: 'selected', optionId: reject.optionId }
+                  : { outcome: 'cancelled' },
+              });
+            }
+          }
+          // feature-acp-write-path-scope Task 3 — THE WRITE-PATH GATE. This is the
+          // branch that replaces `Edit`/`Write`/`NotebookEdit`'s former presence on
+          // MAUDE_DEFAULT_ALLOWED_TOOLS. An in-project write short-circuits here
+          // with no pending entry, no client frame and no prompt — byte-for-byte
+          // the DDR-184 experience. Everything else falls through to the real gate
+          // that already exists; this deliberately does NOT build a parallel path.
+          // V2-8.9 round 2 (decision maude/v2-8.9-round2-writer-verbs-audience) — a design-root writer
+          // verb the session was spawned without an allow rule for (a hub-linked project): the bridge
+          // approves it once, unless the audience check holds it for the person.
+          // M2 read boundary (decision maude/v2-michal-m2-read-boundary) — a read inside the project,
+          // the bundled plugins, Maude's package, the temp folders or a folder this chat was allowed to
+          // read is approved once; any other read is the person's card, without "Always allow" (the
+          // adapter would turn it into a session rule no Remove could take back).
+          const read = this.classifyRead(params);
+          if (read) return read;
+          const verb = this.writerVerbHold(params);
+          if (verb) return verb;
+          const scope = this.classifyWrite(params);
+          if (scope.autoApprove) {
+            const auto: RequestPermissionResponse = {
+              outcome: { outcome: 'selected', optionId: scope.autoApprove },
+            };
+            // V2-8.9 H1 (decision maude/v2-8.9-lead-h1-audience-aware-write-gate) — an in-project
+            // write that would carry a design-root file this chat read to someone who cannot see it
+            // (a canvas-scoped hub grantee) is not auto-approved: it becomes the person's card.
+            const held = this.audienceHold(scope.targets ?? []);
+            if (!held) return Promise.resolve(auto);
+            return held.then((info) => {
+              if (this.stopped) return { outcome: { outcome: 'cancelled' } };
+              return info ? this.askPerson(params, { stripAlways: true, info }) : auto;
+            });
+          }
+          // V2-8.9 L2 — a read-only shell command (cat, head, rg…) on a path outside this chat's read
+          // boundary: no "Always allow" — it would become a standing `Bash(cat:*)` rule that reads
+          // anywhere, outside the folder consent.
+          if (!scope.stripAlways && this.bashReadsOutsideNow(params))
+            return this.askPerson(params, { ...scope, stripAlways: true });
+          return this.askPerson(params, scope);
+        }),
       unstable_createElicitation: (
         params: CreateElicitationRequest
       ): Promise<CreateElicitationResponse> => {
@@ -1309,11 +1721,9 @@ export class AcpBridge {
         }
         const id = crypto.randomUUID();
         return new Promise<CreateElicitationResponse>((resolve) => {
-          const timer = setTimeout(
-            () => this.resolveElicitation(id, { action: 'decline' }),
-            this.opts.permissionTimeoutMs ?? PERMISSION_TIMEOUT_MS
-          );
-          this.pendingElicitations.set(id, { resolve, timer });
+          const slot = { resolve, timer: undefined as unknown as ReturnType<typeof setTimeout> };
+          this.armDecisionDeadline(slot, () => this.resolveElicitation(id, { action: 'decline' }));
+          this.pendingElicitations.set(id, slot);
           this.opts.onElicitationRequest?.(id, params);
         });
       },
@@ -1450,6 +1860,47 @@ export class AcpBridge {
     await this.sessionFor(chatId);
   }
 
+  /** The permission card: register a pending decision and hand the request to the person. */
+  private askPerson(
+    params: RequestPermissionRequest,
+    scope: { info?: PermissionScopeInfo; stripAlways?: boolean }
+  ): Promise<RequestPermissionResponse> {
+    // SECURITY (ethical-hacker finding) — bound queue depth before
+    // registering a pending entry, mirroring the elicitation channel's
+    // MAX_PENDING_ELICITATIONS cap. Deny immediately past the cap — safe
+    // by construction, since deny is this gate's own fail-closed default.
+    if (this.pendingPermissions.size >= MAX_PENDING_PERMISSIONS) {
+      return Promise.resolve({ outcome: { outcome: 'cancelled' } });
+    }
+    const id = crypto.randomUUID();
+    // Decision D — an out-of-project write cannot be made permanent by one
+    // click. Strip every `allow_always` option BEFORE it is offered, so
+    // consent is per-call. Filtering here rather than client-side is what
+    // makes it a gate instead of a speed bump: `optionIds` below is built
+    // from the SAME filtered array, so a hand-crafted `permission-response`
+    // naming `allow_always` fails closed to `cancelled` (resolvePermission's
+    // existing DDR-125 F1 posture) rather than being honored.
+    // `reject_always` is deliberately left in place — it is the safe
+    // direction, and stripping it could remove the only reject option.
+    const offered = scope.stripAlways
+      ? (params.options ?? []).filter((o) => o.kind !== 'allow_always')
+      : (params.options ?? []);
+    const outgoing: RequestPermissionRequest = scope.stripAlways
+      ? { ...params, options: offered }
+      : params;
+    const optionIds = new Set(offered.map((o) => o.optionId));
+    return new Promise<RequestPermissionResponse>((resolve) => {
+      const slot = {
+        resolve,
+        timer: undefined as unknown as ReturnType<typeof setTimeout>,
+        optionIds,
+      };
+      this.armDecisionDeadline(slot, () => this.resolvePermission(id, 'cancelled'));
+      this.pendingPermissions.set(id, slot);
+      this.opts.onPermissionRequest?.(id, outgoing, scope.info);
+    });
+  }
+
   /**
    * Record `toolCallId → toolName` from a streamed tool-call notification.
    * See the `toolNames` field comment for why this is the only available source.
@@ -1478,6 +1929,183 @@ export class AcpBridge {
     this.toolNames.set(id, name);
   }
 
+  /** V2-8.9 H1 — record the design-root files a streamed Read / Grep / shell command reads. */
+  private rememberRead(u: SessionUpdate): void {
+    if (u.sessionUpdate !== 'tool_call' && u.sessionUpdate !== 'tool_call_update') return;
+    const view = u as { toolCallId?: unknown; rawInput?: unknown; locations?: unknown };
+    const name =
+      typeof view.toolCallId === 'string' ? this.toolNames.get(view.toolCallId) : undefined;
+    if (!name || !view.rawInput) return;
+    let found: TrackedRead[];
+    try {
+      found = readPathsOf(
+        name,
+        view,
+        this.opts.repoRoot,
+        this.designRoots,
+        (abs) => {
+          try {
+            const st = statSync(abs);
+            return st.isDirectory() ? 'dir' : st.isFile() ? 'file' : null;
+          } catch {
+            return null;
+          }
+        },
+        // V2-8.9 M1 — Maude's own roots (plugins, package) are not private; the temp folders are
+        // (re-check 2 M-b), and so is a repo file git does not track (M-c).
+        this.ownRoots,
+        this.repoPrivacy
+      );
+    } catch {
+      found = [];
+    }
+    for (const r of found) {
+      const key = `${r.dir ? 'd' : 'f'}:${r.rel}`;
+      if (this.reads.has(key)) continue;
+      if (this.reads.size >= MAX_TRACKED_READS) {
+        // Past the cap: as if the whole design folder was read (fail toward the card).
+        this.reads.set('d:', { rel: '', dir: true });
+        return;
+      }
+      this.reads.set(key, r);
+    }
+  }
+
+  /**
+   * V2-8.9 H1 — the audience check of an in-project write the path gate would auto-approve. null =
+   * nothing to check (no source, no design-root target, or this chat read nothing beyond the targets
+   * — no hub call). Otherwise resolves to the card's `info`, or null when the write may go.
+   */
+  /** V2-8.9 round 2 — does this project have an audience beyond its own people (a linked hub)? */
+  private audienceGatedNow(): boolean {
+    const source = this.opts.writeAudience;
+    if (!source) return false;
+    try {
+      return source.linked ? source.linked() === true : true;
+    } catch {
+      return true;
+    }
+  }
+
+  /** What a session is spawned under: its "AI may" state and whether the writer verbs are gated. */
+  private spawnKey(may: AiMay, gated: boolean): string {
+    return `${mayKey(may)}|aud:${gated ? 1 : 0}`;
+  }
+
+  /**
+   * V2-8.9 round 2 H-R2-1 — the permission request of a Bash call that names a gated writer verb, or
+   * null (not one: the ordinary path). Only a rule this session was spawned WITHOUT can be approved
+   * here, so a scoped run (S8.10) or an "AI may" switch never gains a verb. Approval is once-only; a
+   * held call is the person's card without `allow_always` (a standing `Bash(maude design …:*)` rule
+   * would undo the gate).
+   */
+  private writerVerbHold(
+    params: RequestPermissionRequest
+  ): Promise<RequestPermissionResponse> | null {
+    const toolCallId = params.toolCall?.toolCallId;
+    const name = typeof toolCallId === 'string' ? this.toolNames.get(toolCallId) : undefined;
+    const command = (params.toolCall?.rawInput as { command?: unknown } | undefined)?.command;
+    if (name !== 'Bash' || typeof command !== 'string') return null;
+    const call = writerVerbCall(command);
+    if (call === null) return null;
+    const gated = this.sessionGatedRules.get(params.sessionId);
+    if (call === 'compound' || !gated?.has(`Bash(maude design ${call.rule}:*)`))
+      return this.askPerson(params, { stripAlways: true });
+    const allowOnce = (params.options ?? []).find((o) => o.kind === 'allow_once');
+    if (!allowOnce) return this.askPerson(params, { stripAlways: true });
+    const auto: RequestPermissionResponse = {
+      outcome: { outcome: 'selected', optionId: allowOnce.optionId },
+    };
+    if (!call.writes || this.reads.size === 0) return Promise.resolve(auto);
+    const card = (
+      reason: 'audience' | 'audience-unknown',
+      targets: string[],
+      leak?: AudienceLeak
+    ): Promise<RequestPermissionResponse> =>
+      this.askPerson(params, {
+        stripAlways: true,
+        info: {
+          outOfProjectWrite: true,
+          resolvedPaths: targets,
+          scopeRoot: this.scopeRoot,
+          reason,
+          ...(leak ? { audience: leak } : {}),
+        },
+      });
+    // The named design files (`ui/x.tsx#artboard` names ui/x.tsx). Every one is a target, and none
+    // is excluded as a source: a verb's argument list is not proof of where its text lands.
+    const rels = new Set<string>();
+    for (const w of shellPathWords(call.args.join(' '))) {
+      const p = w.replace(/#.*$/, '');
+      for (const base of [this.opts.repoRoot, ...this.designRoots]) {
+        const abs = isAbsolute(p) ? resolve(p) : resolve(base, p);
+        let isFile = false;
+        try {
+          isFile = statSync(abs).isFile();
+        } catch {
+          isFile = false;
+        }
+        if (!isFile) continue;
+        const rel = designRelOf(abs, base, this.designRoots);
+        if (rel && !rel.split('/')[0]?.startsWith('_')) rels.add(rel);
+        break;
+      }
+    }
+    const targets = [...rels];
+    if (call.implicitTarget || !targets.length) return card('audience-unknown', targets);
+    // V2-8.9 M1 — a file read from outside the project is private on a hub-linked project.
+    const priv = privateLeak(this.reads.values(), targets[0] ?? '');
+    if (priv) return card('audience', targets, priv);
+    if (targets.length === 1 && !readsBeyond(this.reads.values(), targets))
+      return Promise.resolve(auto);
+    const source = this.opts.writeAudience;
+    if (!source) return card('audience-unknown', targets);
+    return source.audienceOf(targets).then(
+      (audiences) => {
+        if (this.stopped) return { outcome: { outcome: 'cancelled' } };
+        if (audiences === null) return card('audience-unknown', targets);
+        const leak = audienceLeak(this.reads.values(), [], audiences);
+        return leak ? card('audience', targets, leak) : auto;
+      },
+      () => card('audience-unknown', targets)
+    );
+  }
+
+  private audienceHold(targets: readonly string[]): Promise<PermissionScopeInfo | null> | null {
+    const source = this.opts.writeAudience;
+    if (!source || this.reads.size === 0) return null;
+    const rels: string[] = [];
+    for (const t of targets) {
+      const rel = designRelOf(t, this.opts.repoRoot, this.designRoots);
+      if (rel && !rel.split('/')[0]?.startsWith('_')) rels.push(rel);
+    }
+    if (!rels.length || !readsBeyond(this.reads.values(), rels)) return null;
+    const card = (
+      reason: 'audience' | 'audience-unknown',
+      leak?: AudienceLeak
+    ): PermissionScopeInfo => ({
+      outOfProjectWrite: true,
+      resolvedPaths: [...targets],
+      scopeRoot: this.scopeRoot,
+      reason,
+      ...(leak ? { audience: leak } : {}),
+    });
+    // V2-8.9 M1 — on a hub-linked project, a file read from outside the project (a folder the
+    // person let AI read, the temp folder…) is a private source whatever the canvas grants say.
+    if (this.audienceGatedNow()) {
+      const priv = privateLeak(this.reads.values(), rels[0] ?? '');
+      if (priv) return Promise.resolve(card('audience', priv));
+    }
+    return source.audienceOf(rels).then(
+      (audiences) => {
+        if (audiences === null) return card('audience-unknown');
+        const leak = audienceLeak(this.reads.values(), rels, audiences);
+        return leak ? card('audience', leak) : null;
+      },
+      () => card('audience-unknown')
+    );
+  }
+
   /**
    * The write-path decision for one permission request.
    *
@@ -1504,10 +2132,65 @@ export class AcpBridge {
    * i.e. it would silently restore the unscoped `Write` grant this whole change
    * removes, from inside the code that removed it.
    */
+  /**
+   * M2 read boundary — `null` when the request is not a read (the write gate goes on). Granting is
+   * strict (a confirmed read tool, every path inside, a once-only option on the table); taking
+   * "Always allow" off is generous (a read-shaped call whose name went missing too).
+   */
+  /** V2-8.9 L2 — see `bashReadsOutside` (may-scope.ts). A getter that throws counts as outside. */
+  private bashReadsOutsideNow(params: RequestPermissionRequest): boolean {
+    const toolCallId = params.toolCall?.toolCallId;
+    const name = typeof toolCallId === 'string' ? this.toolNames.get(toolCallId) : undefined;
+    const command = (params.toolCall?.rawInput as { command?: unknown } | undefined)?.command;
+    if (name !== 'Bash' || typeof command !== 'string') return false;
+    try {
+      const consented = this.opts.readRoots?.() ?? [];
+      return bashReadsOutside(command, this.scopeRoot, [
+        ...this.readRoots,
+        ...this.sessionTmpRoots(params.sessionId),
+        ...consented,
+      ]);
+    } catch {
+      return true;
+    }
+  }
+
+  private classifyRead(
+    params: RequestPermissionRequest
+  ): Promise<RequestPermissionResponse> | null {
+    const toolCallId = params.toolCall?.toolCallId;
+    const toolName = typeof toolCallId === 'string' ? this.toolNames.get(toolCallId) : undefined;
+    let consented: readonly string[] = [];
+    try {
+      consented = this.opts.readRoots?.() ?? [];
+    } catch {
+      consented = [];
+    }
+    const verdict = readVerdict(toolName, params.toolCall, this.scopeRoot, [
+      ...this.readRoots,
+      // re-check 2 M-b — Claude Code's temp folder of THIS session only (its task output)
+      ...this.sessionTmpRoots(params.sessionId),
+      ...consented,
+    ]);
+    if (verdict === 'inside') {
+      const allowOnce = (params.options ?? []).find((o) => o.kind === 'allow_once');
+      if (allowOnce)
+        return Promise.resolve({ outcome: { outcome: 'selected', optionId: allowOnce.optionId } });
+      return this.askPerson(params, { stripAlways: true });
+    }
+    if (verdict === 'outside') return this.askPerson(params, { stripAlways: true });
+    const kind = (params.toolCall as { kind?: unknown } | undefined)?.kind;
+    if (!toolName && (kind === 'read' || kind === 'search'))
+      return this.askPerson(params, { stripAlways: true });
+    return null;
+  }
+
   private classifyWrite(params: RequestPermissionRequest): {
     autoApprove?: string;
     info?: PermissionScopeInfo;
     stripAlways?: boolean;
+    /** V2-8.9 H1 — the resolved targets of an auto-approved write (its audience check). */
+    targets?: string[];
   } {
     const toolCallId = params.toolCall?.toolCallId;
     const toolName = typeof toolCallId === 'string' ? this.toolNames.get(toolCallId) : undefined;
@@ -1527,9 +2210,30 @@ export class AcpBridge {
     const named = isWriteToolName(toolName);
     if (!named && !looksLikeWriteToolCall(params.toolCall)) return {};
 
+    // S5.10 — the folders granted read-only. Fail closed: a getter that throws makes the whole
+    // project read-only for this request, so every write goes to the prompt.
+    let readOnly: readonly string[] = [];
+    try {
+      readOnly = this.opts.readOnlyRoots?.() ?? [];
+    } catch {
+      readOnly = [this.scopeRoot];
+    }
+    let only: readonly string[] | null = null;
+    try {
+      only = this.opts.writeOnlyRoots?.() ?? null;
+    } catch {
+      only = [];
+    }
     const verdict = named
-      ? writeTargetsInsideProject(params.toolCall, this.scopeRoot, toolName)
-      : resolveWriteTargets(params.toolCall, this.scopeRoot);
+      ? writeTargetsInsideProject(
+          params.toolCall,
+          this.scopeRoot,
+          toolName,
+          readOnly,
+          only,
+          this.designRoots
+        )
+      : resolveWriteTargets(params.toolCall, this.scopeRoot, readOnly, only, this.designRoots);
     if (!verdict.inside) {
       return {
         stripAlways: true,
@@ -1562,7 +2266,72 @@ export class AcpBridge {
     // still `stripAlways` — see F6 above: a name-keyed standing rule is unscoped
     // no matter which card it was clicked from.
     if (!allowOnce) return { stripAlways: true };
-    return { autoApprove: allowOnce.optionId };
+    return { autoApprove: allowOnce.optionId, targets: verdict.resolved };
+  }
+
+  /**
+   * S5.6 (D7) — the fail-closed deadline of a pending human decision. Without `detachedFor` it is
+   * the fixed DDR-179 timeout. With it, the deadline counts only unattended time: on each expiry
+   * it re-reads how long nobody has watched and either denies (`onExpire`) or re-arms for the
+   * rest. The slot's `timer` is replaced in place, so a resolve always clears the live one.
+   */
+  private armDecisionDeadline(
+    slot: { timer: ReturnType<typeof setTimeout> },
+    onExpire: () => void
+  ): void {
+    const limit = this.opts.permissionTimeoutMs ?? PERMISSION_TIMEOUT_MS;
+    const arm = (wait: number) => {
+      slot.timer = setTimeout(() => {
+        let away = Number.POSITIVE_INFINITY;
+        if (this.opts.detachedFor) {
+          try {
+            away = this.opts.detachedFor();
+          } catch {
+            away = Number.POSITIVE_INFINITY; // can't tell who is watching → fail closed
+          }
+          if (typeof away !== 'number' || Number.isNaN(away)) away = Number.POSITIVE_INFINITY;
+        }
+        if (this.stopped || away >= limit) onExpire();
+        else arm(Math.max(25, limit - Math.max(0, away)));
+      }, wait);
+    };
+    arm(limit);
+  }
+
+  /** A1 — run `decide`, then tell `onPermissionDecided` whether an allow option won. */
+  private reportDecision(
+    params: RequestPermissionRequest,
+    decide: () => Promise<RequestPermissionResponse>
+  ): Promise<RequestPermissionResponse> {
+    const tell = (granted: boolean) => {
+      try {
+        this.opts.onPermissionDecided?.(params, granted);
+      } catch {
+        /* a consumer's fault never changes the answer */
+      }
+    };
+    let p: Promise<RequestPermissionResponse>;
+    try {
+      p = decide();
+    } catch (e) {
+      tell(false);
+      throw e;
+    }
+    return p.then(
+      (r) => {
+        const o = r.outcome as { outcome: string; optionId?: string };
+        const kind =
+          o.outcome === 'selected'
+            ? params.options?.find((x) => x.optionId === o.optionId)?.kind
+            : undefined;
+        tell(typeof kind === 'string' && kind.startsWith('allow'));
+        return r;
+      },
+      (e) => {
+        tell(false);
+        throw e;
+      }
+    );
   }
 
   /**
@@ -1735,6 +2504,8 @@ export class AcpBridge {
     this.proc = null;
     this.conn = null;
     this.sessions.clear();
+    this.sessionMay.clear();
+    this.sessionGatedRules.clear();
     // Drop any in-flight sessionFor() promises too — they were bound to the
     // now-dead `conn`; a subsequent sessionFor() for the same chatId must
     // establish fresh against the respawned connection, not await a stale
@@ -1745,14 +2516,19 @@ export class AcpBridge {
     this.briefLogged.clear();
     this.toolNames.clear();
     this.currentSession = null;
+    // V2-8.9 re-check 2 M-b — the chat ended: what it copied to its scratch goes with it.
+    try {
+      rmSync(this.scratch, { recursive: true, force: true });
+    } catch {
+      /* best effort */
+    }
   }
 
   private async drainStderr(stderr: ReadableStream<Uint8Array>): Promise<void> {
     try {
       const decoder = new TextDecoder();
       for await (const chunk of stderr) {
-        const line = decoder.decode(chunk).trimEnd();
-        if (line) console.error('[acp-adapter]', line);
+        relayAdapterStderr(decoder.decode(chunk), (line) => console.error('[acp-adapter]', line));
       }
     } catch {
       /* stream closed on teardown */

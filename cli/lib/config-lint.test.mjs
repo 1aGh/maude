@@ -97,6 +97,27 @@ test('quality block — arbitrary gate names accepted', async () => {
   assert.equal(r.ok, true);
 });
 
+test('security block (S12.16 / D10) — projectChecklist is accepted, an unknown security key is still rejected', async () => {
+  const ok = await lintConfig({
+    config: {
+      name: 'x',
+      security: { severityFloor: 'high', projectChecklist: '.ai/security/checklist.md' },
+    },
+    schema: SCHEMA,
+  });
+  assert.equal(ok.ok, true, JSON.stringify(ok.errors));
+  const bad = await lintConfig({
+    config: { name: 'x', security: { projectChecklistt: '.ai/security/checklist.md' } },
+    schema: SCHEMA,
+  });
+  assert.equal(bad.ok, false);
+  const wrongType = await lintConfig({
+    config: { name: 'x', security: { projectChecklist: ['a.md'] } },
+    schema: SCHEMA,
+  });
+  assert.equal(wrongType.ok, false);
+});
+
 test('enum violation in conventions.commits surfaces suggestion', async () => {
   const r = await lintConfig({
     config: { name: 'x', conventions: { commits: 'conventionall' } },

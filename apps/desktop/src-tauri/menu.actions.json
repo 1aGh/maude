@@ -1,0 +1,269 @@
+{
+  "generated": "scripts/gen-actions.mjs — do not edit by hand",
+  "menus": [
+    {
+      "title": "Maude",
+      "items": [
+        {
+          "kind": "predefined",
+          "name": "about"
+        },
+        {
+          "kind": "separator"
+        },
+        {
+          "kind": "item",
+          "id": "check_updates",
+          "action": "app.check-updates",
+          "label": "Check for Updates…",
+          "exec": "native"
+        },
+        {
+          "kind": "separator"
+        },
+        {
+          "kind": "predefined",
+          "name": "quit"
+        }
+      ]
+    },
+    {
+      "title": "File",
+      "items": [
+        {
+          "kind": "item",
+          "id": "new_canvas",
+          "action": "canvas.new",
+          "label": "New Canvas",
+          "exec": "shell",
+          "accel": "CmdOrCtrl+N"
+        },
+        {
+          "kind": "item",
+          "id": "new_project",
+          "action": "project.new",
+          "label": "New Project…",
+          "exec": "shell",
+          "accel": "CmdOrCtrl+Shift+N"
+        },
+        {
+          "kind": "item",
+          "id": "open_project_folder",
+          "action": "project.open",
+          "label": "Open Project…",
+          "exec": "native",
+          "accel": "CmdOrCtrl+O"
+        },
+        {
+          "kind": "item",
+          "id": "show_home",
+          "action": "home.open",
+          "label": "Show Home",
+          "exec": "native",
+          "accel": "CmdOrCtrl+T"
+        },
+        {
+          "kind": "separator"
+        },
+        {
+          "kind": "item",
+          "id": "close_tab",
+          "action": "tab.close",
+          "label": "Close Tab",
+          "exec": "native",
+          "accel": "CmdOrCtrl+W"
+        }
+      ]
+    },
+    {
+      "title": "Edit",
+      "items": [
+        {
+          "kind": "predefined",
+          "name": "undo",
+          "macos": true
+        },
+        {
+          "kind": "predefined",
+          "name": "redo",
+          "macos": true
+        },
+        {
+          "kind": "separator",
+          "macos": true
+        },
+        {
+          "kind": "predefined",
+          "name": "cut"
+        },
+        {
+          "kind": "predefined",
+          "name": "copy"
+        },
+        {
+          "kind": "predefined",
+          "name": "paste"
+        },
+        {
+          "kind": "predefined",
+          "name": "select_all"
+        }
+      ]
+    },
+    {
+      "title": "Window",
+      "windows_menu": true,
+      "items": [
+        {
+          "kind": "predefined",
+          "name": "minimize"
+        },
+        {
+          "kind": "predefined",
+          "name": "zoom"
+        },
+        {
+          "kind": "separator"
+        },
+        {
+          "kind": "item",
+          "id": "next_tab",
+          "action": "tab.next",
+          "label": "Show Next Tab",
+          "exec": "native",
+          "accel": "Ctrl+Tab"
+        },
+        {
+          "kind": "item",
+          "id": "prev_tab",
+          "action": "tab.prev",
+          "label": "Show Previous Tab",
+          "exec": "native",
+          "accel": "Ctrl+Shift+Tab"
+        },
+        {
+          "kind": "item",
+          "id": "next_tab_alt",
+          "action": "tab.next",
+          "label": "Show Next Tab",
+          "exec": "native",
+          "accel": "CmdOrCtrl+Shift+]",
+          "hidden": true
+        },
+        {
+          "kind": "item",
+          "id": "prev_tab_alt",
+          "action": "tab.prev",
+          "label": "Show Previous Tab",
+          "exec": "native",
+          "accel": "CmdOrCtrl+Shift+[",
+          "hidden": true
+        },
+        {
+          "kind": "item",
+          "id": "show_all_tabs",
+          "action": "tab.overview",
+          "label": "Show All Tabs",
+          "exec": "native",
+          "accel": "CmdOrCtrl+Shift+\\"
+        },
+        {
+          "kind": "separator"
+        },
+        {
+          "kind": "item",
+          "id": "select_tab_1",
+          "action": "tab.select-1",
+          "label": "Tab 1",
+          "exec": "native",
+          "accel": "CmdOrCtrl+1"
+        },
+        {
+          "kind": "item",
+          "id": "select_tab_2",
+          "action": "tab.select-2",
+          "label": "Tab 2",
+          "exec": "native",
+          "accel": "CmdOrCtrl+2"
+        },
+        {
+          "kind": "item",
+          "id": "select_tab_3",
+          "action": "tab.select-3",
+          "label": "Tab 3",
+          "exec": "native",
+          "accel": "CmdOrCtrl+3"
+        },
+        {
+          "kind": "item",
+          "id": "select_tab_4",
+          "action": "tab.select-4",
+          "label": "Tab 4",
+          "exec": "native",
+          "accel": "CmdOrCtrl+4"
+        },
+        {
+          "kind": "item",
+          "id": "select_tab_5",
+          "action": "tab.select-5",
+          "label": "Tab 5",
+          "exec": "native",
+          "accel": "CmdOrCtrl+5"
+        },
+        {
+          "kind": "item",
+          "id": "select_tab_6",
+          "action": "tab.select-6",
+          "label": "Tab 6",
+          "exec": "native",
+          "accel": "CmdOrCtrl+6"
+        },
+        {
+          "kind": "item",
+          "id": "select_tab_7",
+          "action": "tab.select-7",
+          "label": "Tab 7",
+          "exec": "native",
+          "accel": "CmdOrCtrl+7"
+        },
+        {
+          "kind": "item",
+          "id": "select_tab_8",
+          "action": "tab.select-8",
+          "label": "Tab 8",
+          "exec": "native",
+          "accel": "CmdOrCtrl+8"
+        },
+        {
+          "kind": "item",
+          "id": "select_tab_last",
+          "action": "tab.select-last",
+          "label": "Last Tab",
+          "exec": "native",
+          "accel": "CmdOrCtrl+9"
+        },
+        {
+          "kind": "separator",
+          "macos": true
+        },
+        {
+          "kind": "predefined",
+          "name": "bring_all_to_front",
+          "macos": true
+        }
+      ]
+    },
+    {
+      "title": "Help",
+      "items": [
+        {
+          "kind": "item",
+          "id": "report_bug",
+          "action": "help.report-bug",
+          "label": "Report a Bug…",
+          "exec": "shell"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,349 @@
+// The dead-control crawler's report: totals, the control → effect table, the dead list, the errors.
+import { pinFor } from './destructive-pins.mjs';
+import { explain } from './explained.mjs';
+import { fixedError, fixedSince } from './fixed-since.mjs';
+
+/**
+ * The same control seen again in other states is one twin row, not hundreds: one row per (mode, shell, control,
+ * twin) with the number of states it showed up in.
+ */
+export function collapseTwins(results) {
+  const seen = new Map();
+  const out = [];
+  for (const r of results) {
+    if (r.effect !== 'twin') {
+      out.push(r);
+      continue;
+    }
+    const k = `${r.mode}|${r.shell}|${r.control}|${r.twin}`;
+    const prev = seen.get(k);
+    if (prev) prev.states = (prev.states ?? 1) + 1;
+    else {
+      seen.set(k, r);
+      out.push(r);
+    }
+  }
+  return out;
+}
+
+/** Every control found ends in exactly one class. */
+export function classOf(r, results = null) {
+  switch (r.effect) {
+    case 'twin':
+      return 'twin';
+    case 'disabled':
+      return 'disabled';
+    case 'skipped-destructive':
+      return 'destructive';
+    case 'DEAD':
+      return fixedSince(r) ? 'fixed since' : 'DEAD';
+    case 'current':
+    case 'covered':
+    case 'single-option':
+      return r.effect;
+    case 'skipped-file-picker':
+      return 'file-picker';
+    case 'vanished':
+      return 'gone';
+    case 'unreachable':
+      // a state whose replay needs a row a fresh project does not show: accepted only with a named reason + twin
+      return results && explain(r, results) ? 'gone' : 'not reached';
+    default:
+      return 'clicked, effect';
+  }
+}
+const CLASS_ORDER = [
+  ['clicked, effect', 'clicked, and it had a visible effect'],
+  ['disabled', 'disabled, with the reason it shows'],
+  ['twin', 'a duplicate of a control that WAS clicked (the twin is named)'],
+  ['destructive', 'destructive: not clicked, its action has a unit test'],
+  [
+    'current',
+    'the selected choice of a group (clicking it again is a no-op by design; its siblings were clicked)',
+  ],
+  ['single-option', 'a select with one option (nothing to pick)'],
+  ['covered', 'under an overlay a person cannot reach either'],
+  ['file-picker', 'a file input (its visible trigger was clicked and raised the chooser)'],
+  [
+    'gone',
+    'present when its state was entered, absent on a fresh project + replay; the reason is in the row',
+  ],
+  [
+    'fixed since',
+    'found DEAD by this sweep and fixed fail-first afterwards (commit + test in the row)',
+  ],
+  ['DEAD', 'DEAD: clicked, nothing happened (open)'],
+  ['not reached', 'not reached (must be 0)'],
+];
+
+const NOT_CLICKED = new Set([
+  'current',
+  'covered',
+  'single-option',
+  'disabled',
+  'skipped-destructive',
+  'skipped-file-picker',
+  'twin',
+  'vanished',
+  'unreachable',
+]);
+
+/** An error that is an artefact of the rig, not of the product: the Tauri stub refusing a native call. */
+export const isRigError = (e) =>
+  /\((native stub|blocked external|cloud offline|no hub|fixture media|server restarting|not signed in|canvas removed|fixed: Design system tab)\)/.test(
+    e.kind
+  );
+
+export function groupErrors(errors, { fixed = false } = {}) {
+  const map = new Map();
+  for (const e of errors) {
+    if (isRigError(e)) continue;
+    // an error a later fix removed, drawn by a shard crawled before it: listed apart, not counted (fixed-since.mjs)
+    if (!!fixedError(e) !== fixed) continue;
+    const head = e.text
+      .split('\n')[0]
+      .replace(/\d{4,}/g, 'N')
+      .slice(0, 200);
+    const k = `${e.kind}|${head}`;
+    const g = map.get(k) ?? { kind: e.kind, head, text: e.text, n: 0, where: new Set() };
+    g.n++;
+    g.where.add(`${e.mode} ${e.shell}/${e.surface}: ${e.control}`);
+    map.set(k, g);
+  }
+  return [...map.values()].sort((a, b) => b.n - a.n);
+}
+
+export function summarize(results, errors) {
+  const clicked = results.filter((r) => !NOT_CLICKED.has(r.effect) && r.effect !== 'twin');
+  return {
+    found: results.length,
+    clicked: clicked.length,
+    effect: clicked.filter((r) => r.effect !== 'DEAD').length,
+    dead: clicked.filter((r) => r.effect === 'DEAD' && !fixedSince(r)).length,
+    skipped: results.filter((r) => r.effect === 'skipped-destructive').length,
+    disabled: results.filter((r) => r.effect === 'disabled').length,
+    vanished: results.filter((r) => r.effect === 'vanished' || r.effect === 'unreachable').length,
+    errors: groupErrors(errors).length,
+    unpinned: results.filter((r) => r.effect === 'skipped-destructive' && !pinFor(r.control))
+      .length,
+    notReached: results.filter((r) => r.effect === 'unreachable' && !explain(r, results)).length,
+  };
+}
+
+const cell = (s) =>
+  String(s ?? '')
+    .replace(/\|/g, '\\|')
+    .replace(/\n/g, ' ');
+
+export function renderReport(all, { modes, minutes, note = null }) {
+  const s = summarize(all.results, all.errors);
+  const lines = [];
+  lines.push('# V2-8 — dead controls, dynamic sweep');
+  lines.push('');
+  lines.push(
+    'Generated by `scripts/v2-verify/dead-controls.mjs` (rerun: `scripts/v2-test-lane.sh --wait 3600 --max 3600 -- node scripts/v2-verify/dead-controls.mjs`).'
+  );
+  lines.push(
+    `Modes: ${modes.join(', ')} · ${minutes} min · ${new Date().toISOString().slice(0, 16)}Z.`
+  );
+  lines.push('');
+  if (note) {
+    lines.push(note);
+    lines.push('');
+  }
+  lines.push(
+    'A control is judged once per mode, in the first state that shows it. Effect = any of: DOM change above the idle noise floor (`dom(n)`), aria state, URL, a new popup/menu/sheet/toast, new or removed controls, a studio request (`net`), a focus move to another region, `window.open`, a blocked external navigation, a native `invoke` (Tauri mode). None = **DEAD**. Repeated per-row controls are sampled (2 per family, 12 options per list).'
+  );
+  lines.push('');
+  lines.push(
+    'Home in the browser mode is a developer surface only (the app always opens Home in its own webview, with a native bridge); its rows are kept for completeness.'
+  );
+  lines.push('');
+  const byClass = new Map();
+  for (const r of all.results) {
+    const k = classOf(r, all.results);
+    byClass.set(k, (byClass.get(k) ?? 0) + 1);
+  }
+  lines.push('## Totals by class');
+  lines.push('');
+  lines.push('| class | what it means | count |');
+  lines.push('|---|---|---|');
+  for (const [k, what] of CLASS_ORDER) lines.push(`| ${k} | ${what} | ${byClass.get(k) ?? 0} |`);
+  lines.push(`| **found** | every control the crawl saw | **${all.results.length}** |`);
+  lines.push('');
+  const unpinned = all.results.filter(
+    (r) => r.effect === 'skipped-destructive' && !pinFor(r.control)
+  );
+  const pinned = [
+    ...new Set(all.results.filter((r) => r.effect === 'skipped-destructive').map((r) => r.control)),
+  ];
+  if (pinned.length) {
+    lines.push('Destructive controls (never clicked) and the unit test that runs the action:');
+    lines.push('');
+    for (const c of pinned) {
+      const p = pinFor(c);
+      lines.push(
+        p
+          ? `- \`${c}\` — ${p.action}: \`${p.file}\` › "${p.test}"${p.also ? ` and "${p.also}"` : ''}`
+          : `- \`${c}\` — **NO UNIT PIN**`
+      );
+    }
+    lines.push('');
+  }
+  const notReached = all.results.filter((r) => classOf(r, all.results) === 'not reached');
+  if (notReached.length) {
+    lines.push(`## States not reached — named list (${notReached.length})`);
+    lines.push('');
+    lines.push(
+      'Each is a STATE (a sheet, a menu, a panel reached by a click path) whose own controls were never listed, so they are not in the totals above. Reason per row; re-run with a longer `CRAWL_BUDGET_MIN` or `--replay "<state>"` to judge one.'
+    );
+    lines.push('');
+    const byReason = new Map();
+    for (const r of notReached) {
+      const k = `${r.mode}: ${r.note}`;
+      byReason.set(k, [...(byReason.get(k) ?? []), r.surface]);
+    }
+    for (const [k, surfaces] of byReason) {
+      lines.push(`- **${cell(k)}** — ${surfaces.length} states`);
+      for (const sf of surfaces) lines.push(`  - ${cell(sf)}`);
+    }
+    lines.push('');
+  }
+  lines.push('## Totals');
+  lines.push('');
+  lines.push(
+    '| found | clicked | effect | DEAD | skipped-destructive | disabled | vanished/unreachable | distinct errors |'
+  );
+  lines.push('|---|---|---|---|---|---|---|---|');
+  lines.push(
+    `| ${s.found} | ${s.clicked} | ${s.effect} | ${s.dead} | ${s.skipped} | ${s.disabled} | ${s.vanished} | ${s.errors} |`
+  );
+  lines.push('');
+  const dead = all.results.filter((r) => r.effect === 'DEAD' && !fixedSince(r));
+  lines.push(`## Dead controls (${dead.length})`);
+  lines.push('');
+  if (!dead.length) lines.push('None.');
+  else {
+    lines.push('| mode | shell | surface | control | role | note |');
+    lines.push('|---|---|---|---|---|---|');
+    for (const r of dead)
+      lines.push(
+        `| ${r.mode} | ${r.shell} | ${cell(r.surface)} | \`${cell(r.control)}\` | ${r.role} | ${cell(r.note)} |`
+      );
+  }
+  lines.push('');
+  const covered = all.results.filter((r) => r.effect === 'covered');
+  if (covered.length) {
+    lines.push(`## Covered — a click lands on an overlay (${covered.length})`);
+    lines.push('');
+    for (const r of covered)
+      lines.push(
+        `- ${r.mode} ${r.shell} · ${cell(r.surface)} · \`${cell(r.control)}\` — ${cell(r.note)}`
+      );
+    lines.push('');
+  }
+  const errs = groupErrors(all.errors);
+  lines.push(`## Errors (${errs.length} distinct)`);
+  lines.push('');
+  if (!errs.length) lines.push('None.');
+  for (const e of errs) {
+    lines.push(`### ${cell(e.kind)} ×${e.n}`);
+    lines.push('');
+    lines.push('```');
+    lines.push(e.text.slice(0, 900));
+    lines.push('```');
+    lines.push(
+      `Triggered by: ${[...e.where]
+        .slice(0, 6)
+        .map((w) => `\`${cell(w)}\``)
+        .join(', ')}${e.where.size > 6 ? ` (+${e.where.size - 6})` : ''}`
+    );
+    lines.push('');
+  }
+  const fixedErrs = groupErrors(all.errors, { fixed: true });
+  if (fixedErrs.length) {
+    lines.push(
+      `Fixed since (not counted): ${fixedErrs.length} error groups drawn only by shards crawled before the fix — a shard on the fix that drew one again would count it above.`
+    );
+    lines.push('');
+    for (const e of fixedErrs) {
+      const f = fixedError(e);
+      lines.push(
+        `- ${cell(e.kind)} ×${e.n} \`${cell(e.head.slice(0, 120))}\` — fixed in ${f?.commit}: ${f?.what}. Test: ${f?.test}`
+      );
+    }
+    lines.push('');
+  }
+  const rig = all.errors.filter(isRigError);
+  if (rig.length) {
+    lines.push(
+      `Rig-only (not counted): ${rig.length} errors — the Tauri stub refusing a native call, the rig blocking a non-loopback request (web fonts), or a cloud route refusing because the rig has no cloud. Native calls refused: ${[...new Set(rig.map((e) => e.text.match(/crawl-tauri-stub: ([\w:|.-]+)/)?.[1]).filter(Boolean))].slice(0, 12).join(', ') || 'none'}.`
+    );
+    lines.push('');
+  }
+  if (all.unreachable.length) {
+    lines.push('## Not reached');
+    lines.push('');
+    for (const u of all.unreachable) lines.push(`- ${u.mode} ${u.surface}: ${cell(u.why)}`);
+    lines.push('');
+  }
+  if (all.external.length || all.popups.length) {
+    lines.push('## External navigations / popups (blocked, counted as effects)');
+    lines.push('');
+    const ext = new Map();
+    for (const e of [...all.external, ...all.popups]) {
+      const k = `${e.shell}: \`${cell(e.control)}\` → ${cell(e.url.slice(0, 140))}`;
+      ext.set(k, (ext.get(k) ?? 0) + 1);
+    }
+    for (const [k, n] of [...ext].slice(0, 40)) lines.push(`- ${k}${n > 1 ? ` (×${n})` : ''}`);
+    lines.push('');
+  }
+  if (all.registry?.length) {
+    const seen = new Map();
+    for (const r of all.results) {
+      const m = /^project-menu-row-(.+)$/.exec(r.control);
+      if (m) seen.set(m[1], [...(seen.get(m[1]) ?? []), `${r.mode}: ${r.effect}`]);
+    }
+    const missing = all.registry.filter((x) => !seen.has(x.id));
+    lines.push(
+      `## Registry cross-check — the project menu (${all.registry.length} rows in actions/menu.ts)`
+    );
+    lines.push('');
+    lines.push(
+      `${all.registry.length - missing.length} reached and judged. Not shown in the fixture's states (hidden by \`when\`, or never rendered): ${missing.length ? missing.map((x) => `\`${x.id}\` (${cell(x.path)})`).join(', ') : 'none'}.`
+    );
+    lines.push('');
+  }
+  lines.push('## Appendix — every control → class → evidence');
+  lines.push('');
+  lines.push('| mode | shell | surface | control | role | class | evidence |');
+  lines.push('|---|---|---|---|---|---|---|');
+  for (const r of all.results) {
+    const cls = classOf(r, all.results);
+    let ev = '';
+    if (cls === 'twin')
+      ev = `twin of \`${cell(r.twin)}\` — ${r.note}${r.states > 1 ? ` (seen in ${r.states} states)` : ''}`;
+    else if (cls === 'disabled') {
+      // text taken from a neighbouring row is only believed when it is short and is not another button's label
+      const reasons = String(r.note ?? '')
+        .split(' | ')
+        .filter((x) => !(/\[row\]$/.test(x) && (x.length > 70 || /^Cancel\b/.test(x))));
+      ev = reasons.length ? `shows: ${reasons.join(' | ')}` : 'shows no reason text';
+    } else if (cls === 'destructive') {
+      const p = pinFor(r.control);
+      ev = p ? `unit test ${p.file} › "${p.test}"` : 'NO UNIT PIN';
+    } else if (cls === 'fixed since') {
+      const f = fixedSince(r);
+      ev = `fixed in ${f.commit}: ${f.what}. Test: ${f.test}`;
+    } else if (cls === 'clicked, effect') ev = `${r.effect}${r.note ? ` (${r.note})` : ''}`;
+    else if (cls === 'gone') {
+      const ex = explain(r, all.results);
+      ev = `${r.effect}: ${r.note ?? ''}${ex ? ` — WHY: ${ex.why}. Twin clicked: \`${cell(ex.twin)}\`` : ''}`;
+    } else ev = `${r.effect}${r.note ? ` — ${r.note}` : ''}`;
+    lines.push(
+      `| ${r.mode} | ${r.shell} | ${cell(r.surface)} | \`${cell(r.control)}\` | ${r.role ?? ''} | ${cls} | ${cell(ev)} |`
+    );
+  }
+  lines.push('');
+  return lines.join('\n');
+}

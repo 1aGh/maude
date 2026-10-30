@@ -66,6 +66,16 @@ export interface Selection {
    *  pre-fill correctly regardless of zoom. */
   worldW?: number;
   worldH?: number;
+  /**
+   * S2.3 (via S2.1) — the element's box in WORLD px for the Position / Size / Constraints rows:
+   * offsetLeft/Top/Width/Height (untransformed by the `.dc-world` zoom) and the offset parent's
+   * client size (what a constraint is measured against). Absent for a non-HTML element.
+   */
+  geometry?: { x: number; y: number; w: number; h: number; parentW: number; parentH: number };
+  /** P8 c10 (14 ed-lay-auto) — an auto-layout frame's children: how many, of what kind, how wide ("3 frames, each Fills the width."). */
+  kids?: import('./editing/kids-summary.ts').KidsSummary;
+  /** S2.12 — the style a text object wears, what that style computes to, what the object overrides. */
+  textInfo?: import('./edit-ops/text-style.ts').TextInfo;
   html?: string;
   /** Comment drops only — the annotation the click landed on, and the click's
    *  world point (comment-anchor.ts). */
@@ -146,6 +156,25 @@ function dedupe(list: Selection[]): Selection[] {
 
 const POST_DEBOUNCE_MS = 50; // mirrors canvas-lib's SETTLE/PUBLISH cadence
 
+/**
+ * S2.1 (S2-edit-ops.md §7) — `editing/selection.tsx` adds `refs` / `crumbs` / `kind` to every
+ * `select-set` post. A registry (not an import) so this leaf provider never imports the editing
+ * layer; absent = the v1 payload.
+ */
+type SelectionDescriber = (next: Selection[]) => Record<string, unknown> | null;
+let selectionDescriber: SelectionDescriber | null = null;
+export function setSelectionDescriber(fn: SelectionDescriber | null): void {
+  selectionDescriber = fn;
+}
+function describeForShell(next: Selection[]): Record<string, unknown> | null {
+  if (!selectionDescriber || next.length === 0) return null;
+  try {
+    return selectionDescriber(next);
+  } catch {
+    return null; // a describer fault never costs the selection itself
+  }
+}
+
 export function SelectionSetProvider({
   children,
   /** Override the postMessage destination (used in tests). */
@@ -170,7 +199,10 @@ export function SelectionSetProvider({
         const payload: Selection | Selection[] | null =
           next.length === 0 ? null : next.length === 1 ? (next[0] ?? null) : next;
         try {
-          target.postMessage({ dgn: 'select-set', selection: payload }, '*');
+          target.postMessage(
+            { dgn: 'select-set', selection: payload, ...describeForShell(next) },
+            '*'
+          );
         } catch {
           /* iframe likely cross-origin or detached */
         }

@@ -1,0 +1,602 @@
+/* client/v2/shell/share-cluster.css — V2-4.3a: the Share cluster (top-right).
+ *
+ * Geometry is the kit's (.design/ui/v2/_kit.css `.k-tr`): a 40px island (4px pad around 32px controls,
+ * 4px gap) 16px in from the window's top-right — the same 40px the project pill has on the left, so
+ * `--pill-h` is the one number. The right panel island and the right corner icon start BELOW it
+ * (68px from the top = 16 + 40 + 12), exactly as the left ones start below the pill (floating-panels.css).
+ * Material is the island's (`.island` in floating-panels.css — no backdrop-filter of its own, V2-1.8 M1).
+ *
+ * Pinned (View › Advanced › Pin panels to the side): with a right panel showing, the cluster heads the
+ * right column (06 Advanced `ad-dock-r`): `data-docked` takes the island chrome off it and the column
+ * leaves room (see the end of this file). With no right panel it is a floating island again.
+ *
+ * Words / state colour: warn and error tint the status WORD, never replace it (the word carries the
+ * meaning; colour is the second channel). Motion: none of its own — the island appears with the shell. */
+
+@layer shell {
+  .sh-share {
+    position: absolute;
+    right: var(--float-gap, 16px);
+    top: var(--float-gap, 16px);
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    height: var(--pill-h, 40px);
+    box-sizing: border-box;
+    max-width: calc(100% - 2 * var(--float-gap, 16px));
+  }
+  /* Pinned: the island chrome `.sh-body--float .island` gives is not applied, so give it here. */
+  .sh-body:not(.sh-body--float) .sh-share {
+    background: var(--bg-1);
+    border-radius: 14px;
+    box-shadow: var(--shadow-md);
+  }
+  .sh-body:not(.sh-body--float) .sh-share[data-docked="true"] {
+    right: var(--space-2, 8px);
+    top: var(--space-2, 8px);
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .sh-faces {
+    display: inline-flex;
+    flex: none;
+    margin: 0;
+    padding: 0 4px;
+    list-style: none;
+  }
+  .sh-face {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: var(--radius-pill, 999px);
+    font-family: var(--font-rounded, var(--font-body));
+    font-size: var(--type-xs, 12px);
+    font-weight: var(--w-semibold, 600);
+    line-height: 1;
+    color: var(--fg-0);
+    background: color-mix(in oklab, var(--accent) 24%, var(--bg-3));
+    box-shadow: 0 0 0 2px var(--island-bg, var(--bg-1));
+  }
+  .sh-face + .sh-face,
+  .sh-face + .sh-face-li,
+  .sh-face-li + .sh-face-li,
+  .sh-face-li + .sh-face {
+    margin-left: -6px;
+  }
+  .sh-face-li {
+    display: flex;
+  }
+  button.sh-face {
+    border: 0;
+    padding: 0;
+    font: inherit;
+    cursor: pointer;
+  }
+  .sh-face.is-following {
+    box-shadow: 0 0 0 2px var(--accent);
+  }
+  .sh-face.is-agent {
+    background: color-mix(in oklab, var(--presence-agent, var(--accent)) 28%, var(--bg-3));
+  }
+
+  .sh-saved {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    height: 32px;
+    padding: 0 8px 0 4px;
+    font-size: var(--type-xs, 12px);
+    color: var(--fg-2);
+    white-space: nowrap;
+  }
+  .sh-saved-w {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .sh-saved--warn {
+    color: var(--status-warn-text, var(--status-warn));
+  }
+  .sh-saved--error {
+    color: var(--status-error-text, var(--status-error));
+  }
+  /* 10 co-browser-view: the access word ("Can view") is the one thing a viewer's cluster says, so it is
+     read as a word, not as a quiet status — fg-1, medium (`.co-trw[data-access] .k-saved`). */
+  .sh-saved[data-status="access"] {
+    padding-left: var(--space-2, 8px);
+    color: var(--fg-1);
+    font-weight: var(--w-medium, 500);
+  }
+  /* 10 co-sync-offline: the words under Share while this Mac is offline — the kit's dark tooltip
+     (`.k-tip`: fg-0 fill, bg-2 ink), right-aligned under the button, shown on hover and focus */
+  .sh-tipwrap {
+    position: relative;
+    display: inline-flex;
+    flex: none;
+  }
+  .sh-tip {
+    position: absolute;
+    right: 0;
+    top: calc(100% + var(--space-3, 12px));
+    z-index: 20;
+    display: none;
+    padding: var(--space-1, 4px) var(--space-2, 8px);
+    border-radius: var(--radius-sm);
+    background: var(--fg-0);
+    color: var(--bg-2);
+    font-size: var(--type-xs, 12px);
+    font-weight: var(--w-medium, 500);
+    line-height: var(--lh-xs, 16px);
+    white-space: nowrap;
+    box-shadow: var(--shadow-md);
+    pointer-events: none;
+  }
+  .sh-tipwrap:hover > .sh-tip,
+  .sh-tipwrap:focus-within > .sh-tip {
+    display: block;
+  }
+  /* 10 co-share-sheet: Share reads "open" while its sheet is — a 3 px accent-tint ring (`data-share-open`) */
+  body:has(.v2sh-sheet) .sh-share .sh-share-btn[data-testid="share-cluster-share"] {
+    box-shadow: 0 0 0 3px var(--accent-tint);
+  }
+
+  .sh-share-ic {
+    appearance: none;
+    position: relative;
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border: 0;
+    border-radius: var(--radius-md, 8px);
+    background: transparent;
+    color: var(--fg-1);
+    cursor: pointer;
+  }
+  .sh-share-ic:hover {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+  .sh-share-ic.is-on {
+    background: var(--accent-muted, var(--bg-3));
+    color: var(--accent-text, var(--accent));
+  }
+  .sh-share-ic:focus-visible,
+  .sh-share-act:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .sh-share-count {
+    position: absolute;
+    top: 2px;
+    right: 1px;
+    min-width: 14px;
+    height: 14px;
+    padding: 0 3px;
+    box-sizing: border-box;
+    border-radius: var(--radius-pill, 999px);
+    background: var(--accent);
+    color: var(--accent-fg);
+    font-size: 10px;
+    font-weight: var(--w-semibold, 600);
+    font-variant-numeric: tabular-nums;
+    line-height: 14px;
+    text-align: center;
+  }
+
+  /* Exports (09 Export `ex-ring`): the ring sits on the icon button's edge while anything runs. */
+  .sh-ex-ring {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    rotate: -90deg;
+    fill: none;
+    stroke-width: 2.5;
+    pointer-events: none;
+  }
+  .sh-ex-ring circle {
+    stroke: var(--bg-4, var(--border-default));
+  }
+  .sh-ex-ring circle.sh-ex-ring-v {
+    stroke: var(--accent);
+    stroke-linecap: round;
+  }
+
+  /* The one action beside a failed status: text button, no chrome until hover. */
+  .sh-share-act {
+    appearance: none;
+    flex: none;
+    height: 28px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: var(--radius-md, 8px);
+    background: transparent;
+    color: var(--accent-text, var(--accent));
+    font: inherit;
+    font-size: var(--type-xs, 12px);
+    font-weight: var(--w-semibold, 600);
+    cursor: pointer;
+  }
+  .sh-share-act:hover {
+    background: var(--bg-3);
+  }
+
+  .sh-share-btn {
+    flex: none;
+    height: 32px;
+    padding: 0 12px;
+    border-radius: var(--radius-md, 8px);
+    white-space: nowrap;
+  }
+  .sh-share-btn[aria-disabled="true"] {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* "This Mac is out of space — …" (C37): a note hung under the cluster, the popover plane's look. */
+  .sh-share-note {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    width: max-content;
+    max-width: 320px;
+    padding: 8px 12px;
+    border-radius: var(--island-radius, 14px);
+    background: var(--bg-2);
+    color: var(--fg-0);
+    box-shadow:
+      var(--shadow-lg, 0 12px 32px oklch(0 0 0 / 0.28)),
+      inset 0 0 0 0.5px var(--island-edge, var(--border-subtle));
+    font-size: var(--type-sm, 13px);
+    line-height: 1.4;
+    white-space: normal;
+  }
+
+  /* V2-4.3b — the mode switch (kit `.k-modes` / `.k-mode-b`): a sunken track of 30 × 28 segments, the
+     pressed one raised with the accent ring; Present is the kit's 40px slot (segment + chevron). No
+     motion of its own: a mode change is a cut here (M6). */
+  .sh-modes {
+    position: relative;
+    display: inline-flex;
+    flex: none;
+    gap: 2px;
+    margin: 0 4px;
+    padding: 2px;
+    border-radius: var(--radius-md, 10px);
+    background: var(--bg-3);
+  }
+  .sh-mode-b {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm, 6px);
+    background: transparent;
+    color: var(--fg-1);
+    cursor: pointer;
+  }
+  .sh-mode-b--menu {
+    width: 40px;
+    gap: 0;
+    cursor: default;
+  }
+  .sh-mode-b[aria-pressed="true"],
+  .sh-mode-b--menu:has(> .sh-mode-hit[aria-pressed="true"]) {
+    background: var(--bg-2);
+    color: var(--fg-0);
+    box-shadow:
+      var(--shadow-sm),
+      inset 0 0 0 1px var(--accent);
+  }
+  .sh-mode-b--menu.is-open {
+    background: var(--bg-4);
+    color: var(--fg-0);
+  }
+  .sh-mode-hit,
+  .sh-mode-ch {
+    display: inline-grid;
+    place-items: center;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+  }
+  .sh-mode-hit {
+    width: 26px;
+    border-radius: var(--radius-sm, 6px) 0 0 var(--radius-sm, 6px);
+  }
+  .sh-mode-ch {
+    width: 14px;
+    color: var(--fg-2);
+    border-radius: 0 var(--radius-sm, 6px) var(--radius-sm, 6px) 0;
+  }
+  .sh-mode-b:hover:not([aria-pressed="true"]),
+  .sh-mode-hit:hover,
+  .sh-mode-ch:hover {
+    color: var(--fg-0);
+  }
+  .sh-mode-hit:disabled,
+  .sh-mode-ch:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .sh-mode-b:focus-visible,
+  .sh-mode-hit:focus-visible,
+  .sh-mode-ch:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .sh-mode-menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 10px);
+    z-index: 40;
+    /* 04 md-present-menu: Menu width={352} */
+    width: 352px;
+  }
+  .sh-mode-menu .sh-pm-row[data-hl="true"] {
+    background: var(--accent-muted, var(--bg-3));
+  }
+  .sh-mode-menu .sh-pm-row[data-hl="true"] :is(.sh-pm-ic, .sh-mode-menu-note) {
+    color: inherit;
+  }
+  .sh-mode-menu-hd {
+    padding: 8px 8px 4px;
+    font-size: var(--type-xs, 12px);
+    font-weight: var(--w-semibold, 600);
+    color: var(--fg-2);
+  }
+  .sh-mode-menu-note {
+    margin-left: auto;
+    padding-left: 12px;
+    font-size: var(--type-xs, 12px);
+    color: var(--fg-2);
+    white-space: nowrap;
+  }
+  /* S1.22a — the account chip and its card (11 pn-accounts). A circle with the label's initial (W / P),
+     never the person's own "M", so two accounts never look alike. The card is the popover plane. */
+  .sh-acct {
+    position: relative;
+    flex: none;
+    display: flex;
+    align-items: center;
+    padding-right: 4px;
+    margin-right: 2px;
+    box-shadow: inset -1px 0 0 var(--border-subtle);
+  }
+  .sh-acct-chip {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 6px 0 4px;
+    border: 0;
+    border-radius: var(--radius-md, 8px);
+    background: transparent;
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-xs, 12px);
+    font-weight: var(--w-medium, 500);
+    cursor: pointer;
+  }
+  .sh-acct-chip:hover,
+  .sh-acct-chip.is-on,
+  .sh-acct-chip:focus-visible {
+    background: var(--accent-muted, var(--bg-3));
+    outline: none;
+  }
+  .sh-acct-name {
+    max-width: 96px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .sh-acct-face {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 24px;
+    height: 24px;
+    border-radius: var(--radius-pill, 999px);
+    font-size: var(--type-xs, 12px);
+    font-weight: var(--w-semibold, 600);
+    line-height: 1;
+    color: var(--object-ink);
+    background: var(--object-grey);
+  }
+  /* the one account tone (shell/account-tone.js — Work sky, Personal yellow; tabs.rs + Home agree) */
+  .sh-acct-face[data-tone="lilac"] {
+    background: var(--object-lilac);
+  }
+  .sh-acct-face[data-tone="yellow"] {
+    background: var(--object-yellow);
+  }
+  .sh-acct-face[data-tone="sky"] {
+    background: var(--object-sky);
+  }
+  .sh-acct-face[data-tone="green"] {
+    background: var(--object-green);
+  }
+  .sh-acct-face[data-tone="coral"] {
+    background: var(--object-coral);
+  }
+  .sh-acct-face--lg {
+    width: 32px;
+    height: 32px;
+    font-size: var(--type-sm, 13px);
+  }
+  .sh-acct-card {
+    position: absolute;
+    top: calc(100% + var(--space-2, 8px));
+    left: 0;
+    z-index: 40;
+    width: 340px;
+    max-width: calc(100vw - 2 * var(--float-gap, 16px));
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--space-2, 8px);
+    border-radius: var(--island-radius, 14px);
+    background: var(--bg-2);
+    color: var(--fg-0);
+    box-shadow:
+      var(--shadow-lg, 0 12px 32px oklch(0 0 0 / 0.28)),
+      inset 0 0 0 0.5px var(--island-edge, var(--border-subtle));
+    font-size: var(--type-sm, 13px);
+    text-align: left;
+  }
+  .sh-acct-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3, 12px);
+    padding: var(--space-1, 4px);
+  }
+  .sh-acct-txt {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    font-size: var(--type-xs, 12px);
+    color: var(--fg-2);
+  }
+  .sh-acct-txt strong {
+    font-size: var(--type-sm, 13px);
+    font-weight: var(--w-semibold, 600);
+    color: var(--fg-0);
+  }
+  .sh-acct-row--sm .sh-acct-txt strong {
+    font-weight: var(--w-medium, 500);
+  }
+  .sh-acct-gt {
+    margin: 0;
+    padding: var(--space-1, 4px) var(--space-2, 8px) 0;
+    font-size: var(--type-xs, 12px);
+    font-weight: var(--w-semibold, 600);
+    color: var(--fg-2);
+  }
+  .sh-acct-sep {
+    border: 0;
+    height: 1px;
+    margin: var(--space-1, 4px) var(--space-2, 8px);
+    background: var(--border-subtle);
+  }
+  .sh-acct-act {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    width: 100%;
+    min-height: 28px;
+    display: flex;
+    align-items: center;
+    padding: 0 var(--space-2, 8px);
+    border-radius: var(--radius-md, 8px);
+    text-align: left;
+    cursor: default;
+  }
+  .sh-acct-act:hover,
+  .sh-acct-act:focus-visible {
+    background: var(--accent-muted, var(--bg-3));
+    outline: none;
+  }
+  .sh-acct-act--two {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding-top: var(--space-1, 4px);
+    padding-bottom: var(--space-1, 4px);
+  }
+  .sh-acct-sub {
+    white-space: normal;
+    font-size: var(--type-xs, 12px);
+    line-height: var(--lh-xs, 1.4);
+    color: var(--fg-2);
+  }
+  .sh-acct-ask {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1, 4px);
+    padding: var(--space-2, 8px);
+    border-radius: var(--radius-md, 8px);
+    background: var(--bg-3);
+    font-size: var(--type-xs, 12px);
+    color: var(--fg-2);
+  }
+  .sh-acct-ask strong {
+    font-size: var(--type-sm, 13px);
+    color: var(--fg-0);
+  }
+  .sh-acct-btns {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2, 8px);
+    padding-top: var(--space-1, 4px);
+  }
+  .sh-acct-foot {
+    margin: var(--space-1, 4px) 0 0;
+    padding: var(--space-2, 8px) var(--space-2, 8px) var(--space-1, 4px);
+    box-shadow: inset 0 0.5px 0 var(--border-default);
+    font-size: var(--type-xs, 12px);
+    color: var(--fg-2);
+  }
+
+  /* Preview: the cluster goes compact — the faces and the status word step aside (V2-1.2 §5.4). The form
+     comes from the what-shows table (`share-cluster` row → data-cluster). The ACCESS word is not a status:
+     it says what this person may do, so it stays (04 md-edge-viewer shows "Can view" in Preview). The strip
+     with the face menu sits in a `.sh-faces-host` wrapper (S9.23): hide the wrapper, or the faces stay
+     (S3.14 G1 — the rule named only the inner `.sh-faces`). */
+  .sh-share[data-cluster="compact"] > .sh-acct,
+  .sh-share[data-cluster="compact"] > .sh-faces,
+  .sh-share[data-cluster="compact"] > .sh-faces-host,
+  .sh-share[data-cluster="compact"] > .sh-saved:not([data-status="access"]),
+  .sh-share[data-cluster="compact"] > .sh-share-act {
+    display: none;
+  }
+
+  /* Pinned: the right column leaves room for the cluster above its panel (06 Advanced `ad-dock-r`). */
+  .sh-body:not(.sh-body--float) > .sh-dockslot--right {
+    padding-top: calc(var(--pill-h, 40px) + var(--space-2, 8px) * 2);
+    box-sizing: border-box;
+    background: var(--bg-1);
+  }
+}
+
+/* P8 C0: was unlayered. In @layer components: above the v1 shell layer and after the v1 component files, the place an unlayered v2 rule held over v1 — without beating every layer. */
+@layer components {
+  /* The Share / Ask to edit button and the icon buttons never shrink — the status word gives way first
+     (it ellipsises), so the primary action is always whole (seen squeezed to 28 px, V2-4.3 lead). */
+  .sh-share .sh-share-btn,
+  .sh-share .sh-share-ic,
+  .sh-share .sh-modes {
+    flex: none;
+    white-space: nowrap;
+  }
+  /* `.sh-share-btn` is also a v1 rule (v2/shell/floating-panels.css: a 28 px square, from the Share icon of the menubar
+     V2-4.8a deleted) — the cluster's button is a labelled button, so it takes its own width. The v1 rule
+     can go with the next CSS sweep; this override is harmless without it. */
+  .sh-share .btn.sh-share-btn {
+    width: auto;
+    min-width: max-content;
+  }
+  /* P8 C9 (01 cf-open-big, board ShareCluster zen): the panels are hidden - the cluster steps back to the one button
+     that brings them back. The access word stays too (a viewer's "Can view" is not a status). This rule lives in
+     @layer components: the Share button is a `.maude .btn` whose display is set in that layer, which outranks any
+     @layer shell rule whatever its specificity (the C8 rule sat in shell and the Share button stayed). */
+  .sh-share[data-zen="true"]
+  > :not([data-testid="share-cluster-panels"]):not([data-status="access"]) {
+    display: none;
+  }
+}

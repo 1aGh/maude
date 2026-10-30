@@ -23,6 +23,9 @@
  *             `_fetch-asset.mjs`'s gate (DDR-216 D4 chokepoint 2 / D11).
  */
 
+import { readFileSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { getProviderKey } from '../generation/keys.ts';
 import {
   FigmaCapError,
@@ -121,11 +124,75 @@ export function retryAfterMs(header: string | null): number {
   return Math.min(seconds * 1_000, MAX_SINGLE_BACKOFF_MS);
 }
 
+// ── Test fixture lane (S8.17b) ──────────────────────────────────────────────
+//
+// `MAUDE_FIGMA_FIXTURE=<dir>` answers every request below from local files and makes NO network call, so an end-to-end
+// scenario can drive the frame leg without a Figma account. It is read from the PROCESS ENVIRONMENT of the studio
+// (nothing a request, a file or a canvas can set), it is a directory read — not a host, scheme or path prefix — and the
+// request URL is still composed by `buildUrl` from `API_BASE` only. With the variable unset `fixtureDir()` is null, no
+// branch below is taken, and `getJson` behaves exactly as before (test/figma-fixture.test.ts pins both).
+//
+//   <dir>/<request path, '/' → '_'>.json   e.g. /files/KEY → files_KEY.json · /files/KEY/nodes → files_KEY_nodes.json
+//                                          /images/KEY → images_KEY.json · /me → me.json
+//   an images answer names pictures as `maude-fixture:<file>`; `fixtureAsset` reads that file from the same directory.
+
+const FIXTURE_ENV = 'MAUDE_FIGMA_FIXTURE';
+const FIXTURE_URL = /^maude-fixture:([A-Za-z0-9][A-Za-z0-9._-]{0,99})$/;
+
+/** The fixture directory, or null (the production case). */
+export function fixtureDir(): string | null {
+  const d = process.env[FIXTURE_ENV];
+  return typeof d === 'string' && d.trim() ? d.trim() : null;
+}
+
+/** `/files/KEY/nodes` → `files_KEY_nodes.json`. Exported for the fixture author and the test. */
+export function fixtureFileFor(requestPath: string): string {
+  return `${requestPath.replace(/^\/+/, '').replace(/[^A-Za-z0-9._-]+/g, '_')}.json`;
+}
+
+function fixtureJson<T>(dir: string, requestPath: string): T {
+  const file = join(dir, fixtureFileFor(requestPath));
+  let text: string;
+  try {
+    if (statSync(file).size > MAX_RESPONSE_BYTES) throw apiError('too_large', requestPath);
+    text = readFileSync(file, 'utf8');
+  } catch (err) {
+    if (err instanceof FigmaApiError) throw err;
+    throw apiError('not_found', requestPath, 404);
+  }
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw apiError('bad_response', requestPath, 200);
+  }
+}
+
+/**
+ * The bytes behind a `maude-fixture:<file>` picture URL, or null — always null unless the fixture lane is on, and null for
+ * any URL that is not exactly that shape (a real Figma URL goes on to the download gate as it always did).
+ */
+export function fixtureAsset(url: string): { bytes: Uint8Array; ext: string } | null {
+  const dir = fixtureDir();
+  if (!dir) return null;
+  const m = FIXTURE_URL.exec(url);
+  if (!m) return null;
+  const name = m[1] as string;
+  try {
+    const bytes = readFileSync(join(dir, name));
+    const dot = name.lastIndexOf('.');
+    return { bytes, ext: dot > 0 ? name.slice(dot + 1).toLowerCase() : 'png' };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * One authenticated GET. Resolves the token at call time, enforces the response
  * byte cap while reading, and retries only on 429 within a bounded budget.
  */
 async function getJson<T>(path: string, query?: Record<string, string | undefined>): Promise<T> {
+  const fixture = fixtureDir();
+  if (fixture) return fixtureJson<T>(fixture, path); // S8.17b — the test lane: no token, no network
   const token = await getProviderKey('figma');
   if (!token) throw apiError('not_configured', path);
 

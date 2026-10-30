@@ -80,7 +80,12 @@ export function ColorPicker({ seed, label, onApply }) {
   };
   const onSvKeyDown = (e) => {
     const step = e.shiftKey ? 0.1 : 0.02;
-    const deltas = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, step], ArrowDown: [0, -step] };
+    const deltas = {
+      ArrowLeft: [-step, 0],
+      ArrowRight: [step, 0],
+      ArrowUp: [0, step],
+      ArrowDown: [0, -step],
+    };
     const d = deltas[e.key];
     if (!d) return;
     e.preventDefault();
@@ -113,17 +118,21 @@ export function ColorPicker({ seed, label, onApply }) {
   const rgb = hsvToRgb(hsv);
   const setRgb = (patch) => {
     const next = { ...rgb, ...patch };
-    const h = rgbToHsv({ r: clamp01(next.r / 255) * 255, g: clamp01(next.g / 255) * 255, b: clamp01(next.b / 255) * 255 });
+    const h = rgbToHsv({
+      r: clamp01(next.r / 255) * 255,
+      g: clamp01(next.g / 255) * 255,
+      b: clamp01(next.b / 255) * 255,
+    });
     setHsv(h);
     onApply(rgbToHex(hsvToRgb(h)));
   };
   return (
-    <div className="st-cp-cpick">
+    <div className="insp-cp-cpick">
       {/* hex + swatch on top (design), then the SV pad, controls, RGB */}
-      <div className="st-cp-cpick-hexrow">
-        <span className="st-cp-cpick-hexsw" style={{ background: hex }} />
+      <div className="insp-cp-cpick-hexrow">
+        <span className="insp-cp-cpick-hexsw" style={{ background: hex }} />
         <input
-          className="st-cp-cpick-hex"
+          className="insp-cp-cpick-hex"
           type="text"
           value={hex}
           aria-label={label ? `${label} hex value` : 'hex value'}
@@ -141,24 +150,24 @@ export function ColorPicker({ seed, label, onApply }) {
       <button
         type="button"
         ref={svRef}
-        className="st-cp-cpick-sv"
+        className="insp-cp-cpick-sv"
         aria-label={label ? `${label} saturation and value` : 'saturation and value'}
         style={{ background: `hsl(${hsv.h} 100% 50%)` }}
         onPointerDown={dragSV}
         onKeyDown={onSvKeyDown}
       >
-        <span className="st-cp-cpick-svwhite" />
-        <span className="st-cp-cpick-svblack" />
+        <span className="insp-cp-cpick-svwhite" />
+        <span className="insp-cp-cpick-svblack" />
         <span
-          className="st-cp-cpick-knob"
+          className="insp-cp-cpick-knob"
           style={{ left: `${hsv.s * 100}%`, top: `${(1 - hsv.v) * 100}%`, background: hex }}
         />
       </button>
-      <div className="st-cp-cpick-controls">
+      <div className="insp-cp-cpick-controls">
         {window.EyeDropper ? (
           <button
             type="button"
-            className="st-cp-cpick-eye"
+            className="insp-cp-cpick-eye"
             aria-label="pick from screen"
             title="eyedropper"
             onClick={eyedrop}
@@ -166,25 +175,27 @@ export function ColorPicker({ seed, label, onApply }) {
             <StIcon name="eyedropper" size={14} />
           </button>
         ) : null}
-        <span className="st-cp-cpick-preview" style={{ background: hex }} aria-hidden="true" />
+        <span className="insp-cp-cpick-preview" style={{ background: hex }} aria-hidden="true" />
         <button
           type="button"
           ref={hueRef}
-          className="st-cp-cpick-hue"
+          className="insp-cp-cpick-hue"
           aria-label={label ? `${label} hue` : 'hue'}
           onPointerDown={dragHue}
           onKeyDown={onHueKeyDown}
         >
-          <span className="st-cp-cpick-huethumb" style={{ left: `${(hsv.h / 360) * 100}%` }} />
+          <span className="insp-cp-cpick-huethumb" style={{ left: `${(hsv.h / 360) * 100}%` }} />
         </button>
       </div>
-      <div className="st-cp-cpick-rgb">
+      <div className="insp-cp-cpick-rgb">
         {['r', 'g', 'b'].map((k) => (
-          <label key={k} className="st-cp-cpick-rgbf">
+          <label key={k} className="insp-cp-cpick-rgbf">
             <input
               aria-label={k.toUpperCase()}
               value={Math.round(rgb[k])}
-              onChange={(e) => setRgb({ [k]: clamp01((Number.parseFloat(e.target.value) || 0) / 255) * 255 })}
+              onChange={(e) =>
+                setRgb({ [k]: clamp01((Number.parseFloat(e.target.value) || 0) / 255) * 255 })
+              }
               onFocus={(e) => e.currentTarget.select()}
             />
             <span>{k.toUpperCase()}</span>

@@ -280,6 +280,30 @@ export interface InsertAtOptions {
   /** Task 22 — a prompt-carrying AI slate instead of media. Prompt is USER
    *  TEXT → JSON.stringify into the JSX (DDR-150 P1). */
   placeholder?: { prompt: string; kind: string } | null;
+  /** p8-t-video-2 — the clip's name (the dropped file's, sans extension): the timeline label and its
+   *  `name:<name>` identity. Cleaned to what a comp carries and made unique in the comp (" 2", " 3", …). */
+  name?: string | null;
+}
+
+/** A clip name as the comp can carry it — the same rule as an AI cut's shot names (video/reel-place.ts). */
+const CLIP_NAME_MAX = 60;
+const CLIP_NAME_UNSAFE = /[^\p{L}\p{N} ._'()-]+/gu;
+
+/** ` name="…"` for a new clip, unique among the comp's named clips; '' when there is no usable name. */
+function clipNameAttr(cc: { clips: Array<{ stableId: string }> }, raw: unknown): string {
+  const base = (typeof raw === 'string' ? raw : '')
+    .replace(CLIP_NAME_UNSAFE, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, CLIP_NAME_MAX)
+    .trim();
+  if (!base) return '';
+  const taken = new Set(
+    cc.clips.filter((c) => c.stableId.startsWith('name:')).map((c) => c.stableId.slice(5))
+  );
+  let name = base;
+  for (let k = 2; taken.has(name); k++) name = `${base.slice(0, CLIP_NAME_MAX - 4)} ${k}`;
+  return ` name="${escapeAttr(name)}"`;
 }
 
 const PLACEHOLDER_KINDS = new Set(['veo', 'motion', 'image']);
@@ -340,6 +364,7 @@ export function applyInsertClipAt(
     );
   }
   const dur = Math.max(1, Math.round(opts.durationInFrames));
+  const nameAttr = clipNameAttr(cc, opts.name);
   const srcTrim = (opts.src ?? '').trim();
   const media: { tag: string; src: string; importName: string; specifier: string } | null =
     opts.mediaTag && INSERTABLE_MEDIA.has(opts.mediaTag) && srcTrim
@@ -412,7 +437,7 @@ export function applyInsertClipAt(
           : '';
       s2.appendLeft(
         rootClose,
-        `  <TransitionSeries>\n${indent}  <TransitionSeries.Sequence durationInFrames={${dur}}>` +
+        `  <TransitionSeries>\n${indent}  <TransitionSeries.Sequence${nameAttr} durationInFrames={${dur}}>` +
           `${gfChild}\n` +
           `${indent}  </TransitionSeries.Sequence>\n${indent}</TransitionSeries>\n${indent.slice(2)}`
       );
@@ -442,7 +467,7 @@ export function applyInsertClipAt(
         : '';
     if (opts.placeholder) ensureNamedImport(s, source, 'AIPlaceholder', '@maude/canvas-lib');
     if (media) ensureNamedImport(s, source, media.importName, media.specifier);
-    const beatText = `<${seriesPrefix}.Sequence durationInFrames={${dur}}>${mediaText}</${seriesPrefix}.Sequence>`;
+    const beatText = `<${seriesPrefix}.Sequence${nameAttr} durationInFrames={${dur}}>${mediaText}</${seriesPrefix}.Sequence>`;
     if (index === 0) {
       // Head insert: B (T) before the first beat.
       const [rs] = spanWithFraming(source, anchor.start, anchor.end);
@@ -532,7 +557,7 @@ export function applyInsertClipAt(
   if (media) ensureNamedImport(s, source, media.importName, media.specifier);
   if (titleText) ensureNamedImport(s, source, 'AbsoluteFill', 'remotion');
   ensureNamedImport(s, source, 'Sequence', 'remotion');
-  const clipText = `\n${indent}<Sequence from={${from}} durationInFrames={${dur}}>${mediaText}</Sequence>`;
+  const clipText = `\n${indent}<Sequence${nameAttr} from={${from}} durationInFrames={${dur}}>${mediaText}</Sequence>`;
   s.appendRight(insertAt, clipText);
   let out = s.toString();
   try {
@@ -778,7 +803,9 @@ export function applySetPlaybackRate(
   assertParses(canvasAbsPath, out, stableId);
   assertCompSemantics(canvasAbsPath, out);
   if (oldDur != null && newDur != null && newDur !== oldDur) {
-    out = applyRippleAfterClip(canvasAbsPath, out, artboardId, stableId, newDur - oldDur).source;
+    out = applyRippleAfterClip(canvasAbsPath, out, artboardId, stableId, newDur - oldDur, {
+      fromFrame: clipAbsoluteStart(source, canvasAbsPath, artboardId, stableId) + oldDur,
+    }).source;
   }
   return { source: out, rate, newDuration: newDur };
 }
@@ -850,7 +877,9 @@ export function applyTrimIn(
   assertParses(canvasAbsPath, out, stableId);
   assertCompSemantics(canvasAbsPath, out);
   if (effDelta !== 0) {
-    out = applyRippleAfterClip(canvasAbsPath, out, artboardId, stableId, -effDelta).source;
+    out = applyRippleAfterClip(canvasAbsPath, out, artboardId, stableId, -effDelta, {
+      fromFrame: clipAbsoluteStart(source, canvasAbsPath, artboardId, stableId) + oldDur,
+    }).source;
   }
   return { source: out, trimBefore: newTrim, newDuration: newDur };
 }
@@ -2079,7 +2108,9 @@ export function applyFitTotalToContent(
 /** Run a pure source-op on disk (atomic write + cross-process lock). */
 export async function applyOnDisk<T extends { source: string }>(
   canvasAbsPath: string,
-  fn: (source: string) => T
+  fn: (source: string) => T,
+  /** p8-a1-claims — runs with the new bytes before they are written (a verb claims them for its run) */
+  o: { beforeWrite?: (next: string) => Promise<unknown> } = {}
 ): Promise<T> {
   return withLock(canvasAbsPath, async () => {
     const file = Bun.file(canvasAbsPath);
@@ -2092,6 +2123,7 @@ export async function applyOnDisk<T extends { source: string }>(
     const source = await file.text();
     const next = fn(source);
     if (next.source === source) return next;
+    await o.beforeWrite?.(next.source);
     const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
     await Bun.write(tmp, next.source);
     const { rename } = await import('node:fs/promises');

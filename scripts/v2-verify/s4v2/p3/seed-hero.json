@@ -1,0 +1,48 @@
+{
+  "ops": [
+    {
+      "op": "create",
+      "type": "sticky",
+      "ref": "@a",
+      "x": 300,
+      "y": 200,
+      "w": 120,
+      "h": 90,
+      "text": "Photo bigger?",
+      "color": "#ffd966"
+    },
+    {
+      "op": "create",
+      "type": "sticky",
+      "ref": "@b",
+      "x": 440,
+      "y": 200,
+      "w": 150,
+      "h": 100,
+      "text": "Hero feels small next to the headline",
+      "color": "#ffd966"
+    },
+    {
+      "op": "create",
+      "type": "sticky",
+      "ref": "@c",
+      "x": 300,
+      "y": 320,
+      "w": 150,
+      "h": 90,
+      "text": "Let it fill the right half",
+      "color": "#ffd966"
+    },
+    {
+      "op": "create",
+      "type": "sticky",
+      "ref": "@d",
+      "x": 700,
+      "y": 330,
+      "w": 120,
+      "h": 90,
+      "text": "Warmer sun?",
+      "color": "#f4b6c2"
+    }
+  ]
+}

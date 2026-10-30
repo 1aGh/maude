@@ -1,0 +1,30 @@
+{
+  "canvas": "ui/panels/RepoBranchSwitcher.tsx",
+  "from": "maude",
+  "to": "maude-v2",
+  "meta": { "designSystem": "maude-v2" },
+  "edits": [
+    {
+      "old": "import \"../../system/maude/colors_and_type.css\";\nimport \"../../system/maude/preview/_components.css\";",
+      "new": "import \"../../system/maude-v2/colors_and_type.css\";\nimport \"../../system/maude/preview/_components.css\";\nimport \"../../system/maude-v2/preview/_components.css\";",
+      "why": "Tokens come from maude-v2. The v2 component sheet loads last, so the shared controls take the v2 look. The old sheet stays only as a bridge for .panel and .tree-row, which v2 doesn't have."
+    },
+    {
+      "old": " * @ds          maude\n",
+      "new": " * @ds          maude-v2\n",
+      "why": "The canvas header names its design system. It should match the meta."
+    },
+    {
+      "old": "<Avatar initials=\"MK\" hue=\"var(--presence-agent)\" />",
+      "new": "<Avatar initials=\"MK\" hue=\"var(--presence-away)\" />",
+      "why": "In maude-v2, --presence-agent is the spark, which marks the AI and nothing else. MK is a person, so the avatar moves to another presence hue. Without this edit it would turn vermilion and read as the AI."
+    }
+  ],
+  "notes": [
+    "Every var(--…) token in this canvas also exists in maude-v2. Only --presence-agent changes, for the reason above.",
+    "Classes that v2 doesn't have, used here: .panel (lines 72, 170, 286, 303) and .tree-row (243–247).",
+    "The theme stays forced to dark on each artboard wrapper (lines 324–339).",
+    "The fold-back CTA is a filled accent button. In maude-v2 that is azure, which fits 'azure acts.'",
+    "The prose in the header comment (lines 11–13) and the comment in the sibling RepoBranchSwitcher.css still name the maude DS. Both are text only."
+  ]
+}

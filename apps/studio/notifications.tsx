@@ -9,6 +9,7 @@ import {
   useSyncExternalStore,
 } from 'react';
 import { Toaster, toast } from 'sonner';
+import { StIcon } from './client/shell/icons.jsx';
 
 export type NoticeKind = 'info' | 'success' | 'error' | 'warning' | 'undo';
 export interface Notice {
@@ -22,6 +23,11 @@ export interface Notice {
   /** Change only for a new lifecycle phase, never for a progress update. */
   timerKey?: string;
   paused?: boolean;
+  /** Where the pill lands. Default bottom (above the toolbar); restart / relaunch / link events land at the top
+   *  (06 ad-open-all, the kit `.k-toast--top`). */
+  placement?: 'top' | 'bottom';
+  /** A kit glyph name (STICONS) that overrides the kind's own. */
+  icon?: string;
   action?: { label: string; onClick: () => void };
   onDismiss?: () => void;
 }
@@ -40,7 +46,17 @@ const subscribe = (listener: () => void) => {
 };
 const snapshot = () => entries;
 
-export function notify(notice: Notice): string {
+/** sec-a M3 — a title is always text: a number / object from an untrusted caller must not reach
+ *  `.trim()` in a render and unmount the shell. */
+const asText = (v: unknown): string =>
+  typeof v === 'string' ? v : v === null || v === undefined ? '' : String(v);
+
+export function notify(input: Notice): string {
+  const notice: Notice = {
+    ...input,
+    title: asText(input.title),
+    ...(input.description !== undefined ? { description: asText(input.description) } : {}),
+  };
   const id = notice.id ?? `notice-${++sequence}`;
   const existing = entries.findIndex((entry) => entry.id === id);
   if (existing < 0) entries = [...entries, { ...notice, id }];
@@ -54,7 +70,7 @@ let canvasWindowStart = -Infinity;
 let canvasWindowCount = 0;
 /** Untrusted canvas traffic gets two reusable slots, leaving room for shell notices.
  * Limit publications as well as retention; editing can emit dozens per second. */
-export function notifyCanvasText(title: string, kind: NoticeKind = 'info'): string | null {
+export function notifyCanvasText(title: unknown, kind: NoticeKind = 'info'): string | null {
   const now = Date.now();
   if (now < canvasWindowStart || now - canvasWindowStart >= 1000) {
     canvasWindowStart = now;
@@ -69,11 +85,31 @@ export function notifyCanvasText(title: string, kind: NoticeKind = 'info'): stri
   const id = previousUndo?.id ?? `canvas-notice-${canvasSlot++ % 2}`;
   return notify({
     id,
-    title: title.slice(0, 4000),
+    title: asText(title).slice(0, 4000),
     kind,
     group: 'canvas',
     timerKey: `${++sequence}`,
   });
+}
+
+/** The shell's own ⌘Z / ⇧⌘Z toast (never canvas traffic): the one undo slot, with its one inline action (Redo). */
+export function notifyUndo(title: string, action?: { label: string; onClick: () => void }): string {
+  const previous = entries.find((entry) => entry.group === 'canvas' && entry.kind === 'undo');
+  return notify({
+    id: previous?.id ?? `canvas-notice-${canvasSlot++ % 2}`,
+    title,
+    kind: 'undo',
+    group: 'canvas',
+    timerKey: `${++sequence}`,
+    ...(action ? { action } : {}),
+  });
+}
+
+/** Drop every canvas notice (programmatic: none is acknowledged) — the standalone host's teardown. */
+export function dismissCanvasNotices(): void {
+  if (!entries.some((entry) => entry.group === 'canvas')) return;
+  entries = entries.filter((entry) => entry.group !== 'canvas');
+  publish();
 }
 
 /** Programmatic removal (unmount/navigation) does not acknowledge the notice. */
@@ -95,34 +131,49 @@ export function noticeDuration(entry: Notice): number {
 }
 
 /** Keep full diagnostics in their owning panel, including for screen readers. */
-export function summarizeNoticeText(text: string): string {
-  const compact = text.trim().replace(/\s+/g, ' ');
+export function summarizeNoticeText(text: unknown): string {
+  const compact = asText(text).trim().replace(/\s+/g, ' ');
   return compact.length > 280 ? `${compact.slice(0, 279)}…` : compact;
 }
 
-function NoticeCard({ entry }: { entry: Entry }) {
+/** ONE rule (v2-p8-c4-toast-dock-or-top): the pill sits in the dock — bottom-centre above the canvas toolbar —
+ *  unless the caller says it is a state of the app (`placement: 'top'`) or the video timeline occupies the dock
+ *  (07: Split / Captions added), where a bottom pill would cover it. */
+function noticePlacement(entry: Notice): 'top' | 'bottom' {
+  if (entry.placement) return entry.placement;
+  return typeof document !== 'undefined' && document.querySelector('.tl-track') ? 'top' : 'bottom';
+}
+
+/** The kit glyph a kind carries (06 `.k-toast-ic`): done, problem; plain info has none. */
+const KIND_ICON: Partial<Record<NoticeKind, string>> = {
+  success: 'done',
+  error: 'problem',
+  warning: 'problem',
+  undo: 'reload',
+};
+
+/** The kit toast: ONE line — glyph, the sentence, one inline action in accent-text, a quiet ×. A notice that
+ *  carries a description or extra content wraps, but keeps the same pill. */
+export function NoticeCard({ entry }: { entry: Entry }) {
+  const glyph = entry.icon ?? KIND_ICON[entry.kind ?? 'info'];
   return (
     <div
       className="maude-notice"
       data-kind={entry.kind ?? 'info'}
       data-testid={`notice-${entry.id}`}
     >
-      <button
-        type="button"
-        className="maude-notice-close"
-        aria-label="Dismiss notification"
-        onClick={(event) => {
-          event.currentTarget.blur();
-          acknowledge(entry.id);
-        }}
-      >
-        ×
-      </button>
-      <div className="maude-notice-title">{summarizeNoticeText(entry.title)}</div>
-      {entry.description && (
-        <div className="maude-notice-summary">{summarizeNoticeText(entry.description)}</div>
-      )}
-      {entry.content}
+      {glyph ? (
+        <span className={`maude-notice-ic maude-notice-ic--${glyph}`} aria-hidden="true">
+          <StIcon name={glyph} size={16} className="maude-notice-glyph" />
+        </span>
+      ) : null}
+      <div className="maude-notice-txt">
+        <div className="maude-notice-title">{summarizeNoticeText(entry.title)}</div>
+        {entry.description && (
+          <div className="maude-notice-summary">{summarizeNoticeText(entry.description)}</div>
+        )}
+        {entry.content}
+      </div>
       {entry.action && (
         <button
           type="button"
@@ -136,6 +187,17 @@ function NoticeCard({ entry }: { entry: Entry }) {
           {entry.action.label}
         </button>
       )}
+      <button
+        type="button"
+        className="maude-notice-close"
+        aria-label="Dismiss notification"
+        onClick={(event) => {
+          event.currentTarget.blur();
+          acknowledge(entry.id);
+        }}
+      >
+        ×
+      </button>
     </div>
   );
 }
@@ -176,6 +238,7 @@ function MountedNotice({
       toast.custom(() => <NoticeCard entry={entry} />, {
         id: token,
         duration: Infinity,
+        position: noticePlacement(entry) === 'top' ? 'top-center' : 'bottom-center',
         onDismiss: () => {
           if (presentationId.current === token) acknowledge(entry.id);
         },
@@ -198,29 +261,47 @@ function MountedNotice({
 }
 
 const NOTICE_CSS = `
-.maude-notifications [data-sonner-toaster] { --width: min(360px, calc(100vw - 32px)); z-index: 8000; }
-.maude-notifications [data-sonner-toast] { width: var(--width); }
+.maude-notifications [data-sonner-toaster] { --width: min(640px, calc(100vw - 32px)); z-index: 8000; }
+/* the kit pill hugs its sentence (one line, up to the list's width); it does not stretch to a fixed card */
+/* P8 C9 (01 cf-open-big): the toast is absolutely positioned in its toaster, so margin-inline: auto centres only
+   with both offsets set (left: 0 + right: 0) - without them the pill hugged the toaster's left edge, off the window centre */
+.maude-notifications [data-sonner-toast] { left: 0; right: 0; width: fit-content; max-width: var(--width); margin-inline: auto; }
 .maude-notifications [data-sonner-toast][data-expanded=false][data-front=false] {
   overflow: hidden; border-radius: var(--radius-md, 8px);
 }
 .maude-notifications[data-paused=true] { visibility: hidden; pointer-events: none; }
-.maude-notice { box-sizing: border-box; position: relative; width: 100%; padding: 16px;
-  border: 1px solid var(--border-default, #45454c); border-left: 3px solid var(--accent, #d63b1f);
-  border-radius: var(--radius-md, 8px); background: var(--bg-2, #26262b); color: var(--fg-0, #fafafa);
-  box-shadow: 0 8px 28px #0004; font: 13px/1.5 var(--font-sans, system-ui, sans-serif);
-  display: flex; flex-direction: column; gap: 8px; overflow-wrap: anywhere; }
-.maude-notice[data-kind=error], .maude-notice[data-kind=warning] { border-left-color: var(--status-error, #d65b4d); }
-.maude-notice-title { font-weight: 600; padding-right: 20px; }
-.maude-notice-summary, .maude-notice-title, .maude-notice .st-export-degraded {
+.maude-notice { box-sizing: border-box; position: relative; width: 100%; min-height: 40px;
+  padding: var(--space-1, 4px) var(--space-2, 8px) var(--space-1, 4px) var(--space-4, 16px);
+  border: 0; border-radius: var(--radius-lg, 12px); background: var(--bg-2, #26262b); color: var(--fg-0, #fafafa);
+  box-shadow: var(--shadow-md, 0 8px 28px #0004), inset 0 0 0 0.5px var(--island-edge, transparent);
+  font: var(--type-sm, 13px)/1.4 var(--font-body, system-ui, sans-serif);
+  display: flex; flex-direction: row; align-items: center; gap: var(--space-2, 8px); overflow-wrap: anywhere; }
+.maude-notice-ic { display: grid; flex: none; color: var(--fg-1, #ddd); }
+.maude-notice-ic--spark { color: var(--spark, #e8552d); }
+.maude-notice[data-kind=success] .maude-notice-ic { color: var(--status-success-text, var(--status-success, #4caf7d)); }
+.maude-notice[data-kind=error] .maude-notice-ic, .maude-notice[data-kind=warning] .maude-notice-ic {
+  color: var(--status-error-text, var(--status-error, #d65b4d)); }
+/* P8 C7: a toast that says WHAT happened (the trash, the tabs, a link) wears that glyph quietly, not the kind's green */
+.maude-notice[data-kind] .maude-notice-ic--trash, .maude-notice[data-kind] .maude-notice-ic--tab, .maude-notice[data-kind] .maude-notice-ic--link { color: var(--fg-1, #ddd); }
+.maude-notice-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;
+  padding-right: var(--space-2, 8px); }
+.maude-notice-title { font-weight: 500; }
+.maude-notice-summary, .maude-notice-title, .maude-notice .ex-export-degraded {
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
   overflow-wrap: anywhere; }
-.maude-notice-summary { color: var(--fg-1, #ddd); }
-.maude-notice-close { position: absolute; right: 8px; top: 8px; border: 0; border-radius: 4px;
-  background: transparent; color: inherit; cursor: pointer; font-size: 18px; padding: 0 6px; }
-.maude-notice-action { align-self: flex-start; border: 0; background: transparent; color: inherit;
-  font: inherit; text-decoration: underline; cursor: pointer; padding: 2px 0; }
-.maude-notice button:focus-visible { outline: 2px solid var(--accent, #d63b1f); outline-offset: 2px; }
-.maude-notice .st-toast-actions { flex-wrap: wrap; }
+.maude-notice-summary { color: var(--fg-1, #ddd); font-size: var(--type-xs, 12px); }
+.maude-notice-close { flex: none; display: grid; place-items: center; width: 24px; height: 24px; border: 0;
+  border-radius: var(--radius-sm, 6px); background: transparent; color: var(--fg-2, #aaa); cursor: pointer;
+  font-size: 16px; line-height: 1; padding: 0; }
+.maude-notice-close:hover { background: var(--bg-3, #333); color: var(--fg-0, #fff); }
+/* P8 c6: the boards' toasts (kit .k-toast) draw no ×. It stays one hover / keyboard focus away (the toast pauses on both). */
+.maude-notice:not(:hover):not(:focus-within) .maude-notice-close { display: none; }
+.maude-notice-action { flex: none; border: 0; border-radius: var(--radius-sm, 6px); background: transparent;
+  color: var(--accent-text, var(--accent, #d63b1f)); font: inherit; font-weight: 600; text-decoration: none;
+  cursor: pointer; padding: 4px var(--space-2, 8px); min-height: 26px; }
+.maude-notice-action:hover { background: var(--bg-3, #333); }
+.maude-notice button:focus-visible { outline: 2px solid var(--focus-ring, var(--accent, #d63b1f)); outline-offset: 2px; }
+.maude-notice .sh-toast-actions { flex-wrap: wrap; }
 @media (prefers-reduced-motion: reduce) {
   .maude-notifications [data-sonner-toast], .maude-notifications [data-sonner-toaster] {
     animation: none !important; transition: none !important;
@@ -270,13 +351,15 @@ export function NotificationHost({
       }}
     >
       <style>{NOTICE_CSS}</style>
+      {/* V2-4.9: bottom-centre, above the canvas toolbar island — the v2 bottom-left is the floating
+          left panel (a toast there covered its Trash / Advanced rows). */}
       <Toaster
-        position="bottom-left"
-        offset={{ left: 16, bottom: 84 }}
-        mobileOffset={{ left: 16, right: 16, bottom: 84 }}
+        position="bottom-center"
+        offset={{ bottom: 84, top: 16 }}
+        mobileOffset={{ left: 16, right: 16, bottom: 84, top: 16 }}
         visibleToasts={3}
         expand={focused}
-        style={{ '--width': 'min(360px, calc(100vw - 32px))' } as CSSProperties}
+        style={{ '--width': 'min(640px, calc(100vw - 32px))' } as CSSProperties}
         containerAriaLabel="Notifications"
       />
       {notices.map((entry) => (

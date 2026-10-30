@@ -116,6 +116,17 @@
       "pattern": "^[a-z][a-z0-9-]*$",
       "description": "Which design system this canvas was built against. Kebab-case slug matching a name in config.designSystems[]. Read by skill 'design-system' (read mode) + design-system-completeness-critic + flow's design-system-guard to scope rules to the right tokens / philosophy. Optional in single-DS projects (falls back to config.defaultDesignSystem); REQUIRED in multi-DS projects to avoid cross-DS contamination."
     },
+    "dsPinned": {
+      "type": "boolean",
+      "description": "V2-1.13 §5.4: true keeps this canvas out of every design-system switch and update forever (a moodboard or comparison canvas — written by /design:new at creation, or proposed by the Bring-up review). The only STORED pin: literal-colour / --x-* / ext.* pins are computed by `maude design ds-check`, never written here."
+    },
+    "dsPairing": {
+      "type": "object",
+      "description": "V2-1.13 §5.4 / §5.7: written by a system switch only when the source referenced a Tier-2 slot index the target lacks — source slot name → target slot name (e.g. \"--display-4\": \"--display-3\"). The shell emits each pair as a canvas-scoped alias.",
+      "propertyNames": { "pattern": "^--[a-z][a-z0-9-]*$" },
+      "additionalProperties": { "type": "string", "pattern": "^--[a-z][a-z0-9-]*$" },
+      "maxProperties": 64
+    },
     "opt_out_scope": {
       "type": "string",
       "enum": ["palette", "aesthetic", "full"],

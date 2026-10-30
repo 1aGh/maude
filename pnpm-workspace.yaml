@@ -10,6 +10,21 @@ packages:
   # deps install; no `build` script → skipped by the root `build` fan-out, and the
   # root `test` doesn't fan out to packages. See the `desktop-e2e` skill.
   - apps/desktop/e2e
+# The root package's optionalDependencies pin the 7 per-platform @1agh/maude-<slug> binaries
+# at the release version. They are for npm USERS of the published package — never for this
+# workspace: at release time they are not on npm yet, so the lockfile went stale after every
+# release and every later local `pnpm` run rewrote it; and once installed here, `maude design
+# serve` in the dev tree silently ran the published binary instead of the source (V2-2.x,
+# 2026-10-09). Ignored for workspace installs; the published manifest is unchanged.
+ignoredOptionalDependencies:
+  - '@1agh/maude-darwin-arm64'
+  - '@1agh/maude-darwin-x64'
+  - '@1agh/maude-linux-arm64'
+  - '@1agh/maude-linux-arm64-musl'
+  - '@1agh/maude-linux-x64'
+  - '@1agh/maude-linux-x64-musl'
+  - '@1agh/maude-win32-x64'
+
 # pnpm 9+ requires explicit opt-in for postinstall scripts.
 # Biome ships native binaries via @biomejs/cli-* optional deps; the postinstall
 # is the official install path. Enable.

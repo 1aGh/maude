@@ -7,7 +7,7 @@ description: "Generate media through Maude BYOK providers and place the resultin
 | -------- | ----- |
 | **Command** | `/design:generate` |
 | **Category** | `daily` (daily) |
-| **Argument hint** | `"<prompt>" [--source assets/<sha8>.<ext>] [--provider gemini] [--model <id>] [--aspect 1:1\|16:9\|9:16\|…] [--asset \| --inline [--into <canvas>]]` |
+| **Argument hint** | `"<prompt>" [--modality image\|audio\|video] [--source assets/<sha8>.<ext>] [--provider gemini\|elevenlabs] [--model <id>] [--aspect 1:1\|16:9\|9:16\|…] [--kind music\|sfx\|tts] [--voice <id>] [--duration <s>] [--asset \| --inline [--into <canvas>]] \| --take next\|prev` |
 | **Source** | [`plugins/design/commands/generate.md`](https://github.com/1aGh/maude/blob/main/plugins/design/commands/generate.md) |
 
 ## Description
@@ -19,13 +19,13 @@ Generate media through Maude BYOK providers and place the resulting asset on the
 **Claude Code**
 
 ```text
-/design:generate "<prompt>" [--source assets/<sha8>.<ext>] [--provider gemini] [--model <id>] [--aspect 1:1|16:9|9:16|…] [--asset | --inline [--into <canvas>]]
+/design:generate "<prompt>" [--modality image|audio|video] [--source assets/<sha8>.<ext>] [--provider gemini|elevenlabs] [--model <id>] [--aspect 1:1|16:9|9:16|…] [--kind music|sfx|tts] [--voice <id>] [--duration <s>] [--asset | --inline [--into <canvas>]] | --take next|prev
 ```
 
 **Codex**
 
 ```text
-$design:source-command-generate "<prompt>" [--source assets/<sha8>.<ext>] [--provider gemini] [--model <id>] [--aspect 1:1|16:9|9:16|…] [--asset | --inline [--into <canvas>]]
+$design:source-command-generate "<prompt>" [--modality image|audio|video] [--source assets/<sha8>.<ext>] [--provider gemini|elevenlabs] [--model <id>] [--aspect 1:1|16:9|9:16|…] [--kind music|sfx|tts] [--voice <id>] [--duration <s>] [--asset | --inline [--into <canvas>]] | --take next|prev
 ```
 
 Use the same arguments and flags. See [native Codex setup](/docs/codex) for

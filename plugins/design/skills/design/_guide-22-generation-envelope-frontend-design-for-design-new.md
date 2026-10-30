@@ -17,7 +17,7 @@ DS-PIN (overrides any invent-first instinct — DDR-141): this project HAS a des
 Reference — WRAPPER pattern (read at least one — the canvas-lib frame: `DesignCanvas` / `DCSection` / `DCArtboard`):
 {matched existing canvas paths, picked by similarity}
 
-Reference — PRODUCT SHELL (the established chrome layout — where nav / sidebar / toolbar / main / status go):
+Reference — PRODUCT SHELL (the established chrome layout — where nav / side panel / toolbar / main / status go):
 {designRoot}/system/{ds}/preview/ui_kits-{platform}-showcase.tsx
 For any full-screen surface, ADOPT this showcase's spatial skeleton + chrome material instead of inventing a new shell — it is the DS's canonical "DS in use" composition. Reinvent the shell only with a one-line JSX comment justifying it. (If no `ui_kits-{platform}-showcase` exists for this platform, fall back to any showcase the DS ships as a chrome reference, or compose the shell from the DS readme. This is reference, not a wireframe — adopt the skeleton, keep ownership of element-level decisions and the signature moment.)
 
@@ -46,6 +46,7 @@ Output: a single self-contained TSX file at <target_path>. The file MUST:
 13. **Generous negative space.** Hero elements get ≥ 32 px breathing room from artboard edge. Content density target ≤ 60 % per screen; ≤ 40 % for editorial / hero screens.
 14. **Specific content, not placeholders.** Real-feeling names (Maya Chen, Pavel Novák), real phone formats (+420 777 123 456), real prices ("$4 / day"), real station names. NEVER use "Lorem", "John Doe", "555-0199", "$XX", or ALL-CAPS placeholder labels.
 15. **Element tagging for stable handles — ALWAYS, not optional polish.** Every named **region** AND every **interactive primitive** gets `data-dc-element="<kebab-id>"`: regions (hero, nav, card, list-row, form-field, section, panel) + interactives (every button / CTA, link, input / select / textarea, nav item, tab, toggle). The id is role-prefixed and brief-specific — e.g. `cta-get-started`, `card-hero`, `list-row-roster`, `field-email`, `nav-item-profile`, `btn-submit`. Artboards already get `data-dc-screen="<id>"` from the `DCArtboard` runtime; you only tag inner elements. This is the **stable-handle contract** three systems depend on: (a) the in-canvas **Layers tree** (Phase 12) renders these as human labels — "Cta Get Started", "Card Hero" — instead of `div.flex`, so an untagged tree reads as anonymous boxes; (b) scoped screenshots (`screenshot.sh --element <id>`); (c) critic verdicts + user comments stay stable across iterations (no fragile `:nth-child`). An untagged interactive or named region is a **regression** — when in doubt, tag it.
+    Named **regions** (hero, nav, card, section, panel) also get `data-cd-id` with the same kebab id (`data-dc-element="card-hero" data-cd-id="card-hero"`), the stable id comments and locks point at (contract V2-1.4 §9 Q5). Interactives and everything else stay without one: ids are stamped lazily, when something first points at the element.
 
 User brief:
 {the brief}

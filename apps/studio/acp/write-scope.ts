@@ -59,6 +59,8 @@
 import { realpathSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 
+import { agentPath } from './agent-path.ts';
+
 /**
  * The tools this gate scopes. Bare names as they arrive on
  * `_meta.claudeCode.toolName`.
@@ -93,7 +95,16 @@ export type WriteScopeReason =
   /** Inside the root, but under a path that reaches EXECUTION — see
    *  `PROTECTED_IN_PROJECT`. In-project is a necessary condition for
    *  auto-approval, not a sufficient one. */
-  | 'in-project-denied';
+  | 'in-project-denied'
+  /** Inside a folder the person allowed AI to READ (S5.10, `ai/attach-grants.ts`). A read grant
+   *  never adds a write path — not even inside the project. */
+  | 'read-only-grant'
+  /** S8.10 — inside the project, but not the one path this run may write (a Handoff to production
+   *  run writes its target file and nothing else, decision v2-S8.10-run-write-scope). */
+  | 'outside-run-scope'
+  /** V2-8.9 B1 — inside the project, under the design root's `_*` runtime state (sessions, chats,
+   *  comments, grants…), and not one of the agent's own working folders (`AGENT_RUNTIME_OUTPUTS`). */
+  | 'runtime-state';
 
 export interface WriteScopeVerdict {
   /** True ONLY when every resolvable target is inside the pinned project root. */
@@ -157,6 +168,19 @@ export interface WriteScopeVerdict {
  *    `runOn: folderOpen` execute when the user opens the project in their
  *    editor, which is the most likely thing they do next after opening a design
  *    project.
+ *  • Hook-runner configs (sec-a2 C7) — `lefthook*.yml|yaml` (all four spellings,
+ *    plus the `-local` overrides and `.config/lefthook.*`), `.husky/**`,
+ *    `.pre-commit-config.yaml`, and the lint-staged configs husky usually runs.
+ *    "Save version" commits WITHOUT `--no-verify`, so the runner the repo
+ *    already installed executes the written command through a shell on the
+ *    person's next click — no executable bit needed (husky wraps each script
+ *    in `sh`, lefthook/pre-commit/lint-staged read commands from config). The
+ *    hook scripts under `.git/hooks` were already covered by `.git`, and
+ *    `package.json` (whose `scripts` simple-git-hooks/husky v4 read) already
+ *    was. A custom `core.hooksPath` folder (`.githooks/`) is NOT added: git
+ *    runs only executable hooks there, and `Write` creates 0644.
+ *  • `.ai/workflows.config.json` (root only — a PREFIX rule below) — flow
+ *    `eval`s its `quality` gates on the next /flow:validate or commit gate.
  *
  * THE PREDICATE, recorded so this list is extended by RE-DERIVATION rather than
  * by pattern-matching the entries above: **an in-project path that reaches
@@ -167,9 +191,10 @@ export interface WriteScopeVerdict {
  * in-project path, and prompt fatigue is itself a security failure. Equally
  * deliberately, this is a SHAPE and not a proof of completeness — the plan's own
  * recurring-enumeration warning applies here verbatim. In-project `*.sh` that the
- * helper surface executes is a known member NOT covered, because the helper
- * surface is reached via `Bash(maude:*)`, which is separately accepted as an
- * arbitrary-code-execution surface already.
+ * helper surface executes is a known member NOT covered. The helper surface used
+ * to be reached via `Bash(maude:*)`, accepted as an arbitrary-code-execution
+ * surface; since V2-2.8 S4 only auto-tier verbs are allowed (actions/verbs.ts),
+ * and the verbs that run model-authored code (`draw-build`, `to-lottie`) prompt.
  */
 export const PROTECTED_IN_PROJECT: readonly string[] = [
   '.git',
@@ -187,6 +212,27 @@ export const PROTECTED_IN_PROJECT: readonly string[] = [
   'yarn.lock',
   'bun.lock',
   'bun.lockb',
+  // sec-a2 C7 — hook-runner configs (see the bullet above).
+  'lefthook.yml',
+  'lefthook.yaml',
+  '.lefthook.yml',
+  '.lefthook.yaml',
+  'lefthook-local.yml',
+  'lefthook-local.yaml',
+  '.lefthook-local.yml',
+  '.lefthook-local.yaml',
+  '.husky',
+  '.pre-commit-config.yaml',
+  '.lintstagedrc',
+  '.lintstagedrc.json',
+  '.lintstagedrc.yaml',
+  '.lintstagedrc.yml',
+  '.lintstagedrc.js',
+  '.lintstagedrc.mjs',
+  '.lintstagedrc.cjs',
+  'lint-staged.config.js',
+  'lint-staged.config.mjs',
+  'lint-staged.config.cjs',
 ];
 
 /**
@@ -200,7 +246,43 @@ export const PROTECTED_IN_PROJECT: readonly string[] = [
  * (ISSUE_TEMPLATE, CODEOWNERS, dependabot.yml), so a segment match on `.github`
  * would deny normal work — hence a prefix rule for this one.
  */
-export const PROTECTED_PREFIXES: readonly string[][] = [['.github', 'workflows']];
+export const PROTECTED_PREFIXES: readonly string[][] = [
+  ['.github', 'workflows'],
+  // sec-a2 C7 — lefthook also reads `.config/lefthook.*`; `.config/` itself is ordinary.
+  ['.config', 'lefthook.yml'],
+  ['.config', 'lefthook.yaml'],
+  // flow's `quality` gates are `eval`ed; the rest of `.ai/` (plans, logs) is ordinary work.
+  ['.ai', 'workflows.config.json'],
+];
+
+/**
+ * V2-8.9 B1 (decision maude/v2-p8-runtime-state-write-asks) — the design root's runtime state is
+ * the app's, not the agent's: `_state/` (consent, keys, sessions), `_chat/`, `_comments/`,
+ * `_canvas-state/`, `_trash/`, `_server.json`, `_active.json`, `_sync.json`… An auto-approved write
+ * there let a chat forge its own consent. Only the folders the design plugin tells the agent to
+ * write stay auto: the run folder, draw/photo/smoke scratch, the research cache under `_history/`
+ * and the critic routing note. Everything else under `<designRoot>/_*` goes to the card.
+ */
+export const AGENT_RUNTIME_OUTPUTS: readonly string[] = [
+  '_runs',
+  '_draw',
+  '_photo',
+  '_smoke',
+  '_history',
+  '_last-feedback.txt',
+];
+
+/** True when `target` (resolved) sits in a design root's `_*` runtime state the agent doesn't own. */
+export function isRuntimeStateWrite(target: string, designRoots: readonly string[]): boolean {
+  // Folded like `isProtectedInProject`: APFS is case-insensitive, so `_STATE` is `_state`.
+  const fold = (v: string) => v.toLowerCase();
+  return designRoots.some((root) => {
+    const rel = relative(fold(root), fold(target));
+    if (!rel || isAbsolute(rel) || rel === '..' || rel.startsWith(`..${sep}`)) return false;
+    const first = rel.split(sep)[0] ?? '';
+    return first.startsWith('_') && !AGENT_RUNTIME_OUTPUTS.some((o) => fold(o) === first);
+  });
+}
 
 /**
  * True when `target` (resolved, already known to be inside `root`) touches a
@@ -370,10 +452,13 @@ export function pinScopeRoot(repoRoot: string): string {
 export function writeTargetsInsideProject(
   toolCall: ToolCallLike | null | undefined,
   scopeRoot: string,
-  toolName: unknown
+  toolName: unknown,
+  readOnlyRoots: readonly string[] = [],
+  onlyPaths: readonly string[] | null = null,
+  designRoots: readonly string[] = []
 ): WriteScopeVerdict {
   if (!isWriteToolName(toolName)) return { inside: false, reason: 'no-target', resolved: [] };
-  return resolveWriteTargets(toolCall, scopeRoot);
+  return resolveWriteTargets(toolCall, scopeRoot, readOnlyRoots, onlyPaths, designRoots);
 }
 
 /**
@@ -412,7 +497,10 @@ export function looksLikeWriteToolCall(toolCall: ToolCallLike | null | undefined
  */
 export function resolveWriteTargets(
   toolCall: ToolCallLike | null | undefined,
-  scopeRoot: string
+  scopeRoot: string,
+  readOnlyRoots: readonly string[] = [],
+  onlyPaths: readonly string[] | null = null,
+  designRoots: readonly string[] = []
 ): WriteScopeVerdict {
   const { fromLocations, fromRawInput } = collectTargets(toolCall);
   if (fromLocations.length === 0 && fromRawInput.length === 0) {
@@ -424,8 +512,18 @@ export function resolveWriteTargets(
 
   // Resolve BOTH sources before comparing them. Comparing the raw strings would
   // call `./x.tsx` and `/repo/x.tsx` a disagreement when they are the same file.
-  const resolvedLocations = fromLocations.map((p) => resolveRealPath(p, scopeRoot));
-  const resolvedRawInput = fromRawInput.map((p) => resolveRealPath(p, scopeRoot));
+  // V2-8.9 H1 — Claude Code's spelling first (agent-path.ts): `~/x` is the home folder's x, not
+  // `<project>/~/x`. A NUL names nothing judgeable; a spelling readers may disagree on (spaces
+  // around it, a leading `~`) is never inside.
+  const spelled = [...fromLocations, ...fromRawInput].map((p) => agentPath(p, scopeRoot));
+  if (spelled.some((a) => a === null)) return { inside: false, reason: 'no-target', resolved: [] };
+  const odd = spelled.some((a) => a?.odd);
+  const real = (p: string) => {
+    const a = agentPath(p, scopeRoot);
+    return resolveRealPath(a ? a.abs : p, scopeRoot);
+  };
+  const resolvedLocations = fromLocations.map(real);
+  const resolvedRawInput = fromRawInput.map(real);
 
   // Cross-check (see the header — tautological against today's adapter, kept
   // because a gate whose whole job is fail-closed should not assume a
@@ -446,14 +544,46 @@ export function resolveWriteTargets(
   }
 
   const resolved = [...new Set([...resolvedLocations, ...resolvedRawInput])];
+  // S5.10 — a folder the person allowed AI to READ stays read-only, inside the project or not.
+  // Judged on the resolved target (symlinks followed by resolveRealPath) against each grant's real
+  // path, and the root itself counts: a grant never turns into a write path.
+  if (
+    readOnlyRoots.length &&
+    resolved.some((p) =>
+      readOnlyRoots.some((r) => {
+        const root = resolveRealPath(r, scopeRoot);
+        return p === root || isInsideRoot(p, root);
+      })
+    )
+  ) {
+    return { inside: false, reason: 'read-only-grant', resolved };
+  }
   // EVERY target must pass — a multi-location write with one escape is an escape.
-  const inside = resolved.every((p) => isInsideRoot(p, scopeRoot));
+  const inside = !odd && resolved.every((p) => isInsideRoot(p, scopeRoot));
   if (!inside) return { inside: false, reason: 'outside', resolved };
   // Inside is NECESSARY but not SUFFICIENT. A write under `.git/` or `.claude/`
   // is in-project and still reaches execution, so it goes to the prompt like any
   // out-of-project write would. See PROTECTED_IN_PROJECT.
   if (resolved.some((p) => isProtectedInProject(p, scopeRoot))) {
     return { inside: false, reason: 'in-project-denied', resolved };
+  }
+  // V2-8.9 B1 — the app's runtime state under the design root is not the agent's to write.
+  if (designRoots.length && resolved.some((p) => isRuntimeStateWrite(p, designRoots))) {
+    return { inside: false, reason: 'runtime-state', resolved };
+  }
+  // S8.10 — a run with its own write scope (Handoff to production: the target file only). Judged
+  // AFTER every project rule, so it can only narrow: each resolved target must BE one of the run's
+  // paths (or sit inside one that is a folder). An empty list allows nothing.
+  if (
+    onlyPaths &&
+    !resolved.every((p) =>
+      onlyPaths.some((o) => {
+        const allowed = resolveRealPath(o, scopeRoot);
+        return p === allowed || isInsideRoot(p, allowed);
+      })
+    )
+  ) {
+    return { inside: false, reason: 'outside-run-scope', resolved };
   }
   return { inside: true, reason: 'inside', resolved };
 }

@@ -25,7 +25,15 @@
 //
 // Pure module — caller persists. Tested.
 
+import { readFileSync } from 'node:fs';
 import { parseSync } from 'oxc-parser';
+import {
+  canvasSystemFor,
+  DS_SPECIFIER,
+  dsTargetFor,
+  importsDs,
+  registrationCall,
+} from './ds/ds-resolver.ts';
 
 // biome-ignore lint/suspicious/noExplicitAny: oxc AST nodes are heterogeneous.
 type AnyNode = any;
@@ -201,10 +209,18 @@ export interface InlineResult {
  * of every named import (+ their transitive dependencies). Returns the
  * rewritten source.
  */
-export function inlineUsedExports(canvasSource: string, libMap: LibMap): InlineResult {
+export function inlineUsedExports(
+  canvasSource: string,
+  libMap: LibMap,
+  specifier = '@maude/canvas-lib'
+): InlineResult {
   // 1. Locate the import line. We tolerate single OR double quotes, type-only
   //    imports (rare), trailing commas, multi-line shapes.
-  const importRe = /\bimport\s+(?:type\s+)?\{([^}]+)\}\s*from\s*["']@maude\/canvas-lib["']\s*;?/m;
+  const spec = specifier.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+  const importRe = new RegExp(
+    `\\bimport\\s+(?:type\\s+)?\\{([^}]+)\\}\\s*from\\s*["']${spec}["']\\s*;?`,
+    'm'
+  );
   const m = importRe.exec(canvasSource);
   if (!m) {
     return { content: canvasSource, droppedImport: false, inlined: [] };
@@ -226,7 +242,7 @@ export function inlineUsedExports(canvasSource: string, libMap: LibMap): InlineR
     const info = libMap.get(name);
     if (!info) {
       throw new Error(
-        `[canvas-lib-inline] Canvas imports '${name}' from @maude/canvas-lib but the lib has no such export.`
+        `[canvas-lib-inline] Canvas imports '${name}' from ${specifier} but the lib has no such export.`
       );
     }
     wanted.add(name);
@@ -256,5 +272,43 @@ export function inlineUsedExports(canvasSource: string, libMap: LibMap): InlineR
     content: `${out.trimEnd()}${banner}${bodies}\n`,
     droppedImport: true,
     inlined: ordered,
+  };
+}
+
+/**
+ * The handoff inline for a canvas that may also import `@maude/ds` (V2-1.13 §5.11): its names are
+ * inlined from the canvas system's override or the shipped defaults, canvas-lib's are inlined as
+ * before (plus `__registerDesignSystem`), and the registration runs LAST — after the `let` it
+ * writes is declared — so the drop renders `<DSRoot>` with the same default theme as the canvas.
+ */
+export function inlineDsImport(
+  canvasSource: string,
+  designRoot: string,
+  canvasAbs: string,
+  libMap: LibMap
+): InlineResult {
+  if (!importsDs(canvasSource)) return inlineUsedExports(canvasSource, libMap);
+  const sys = canvasSystemFor(designRoot, canvasAbs);
+  const target = dsTargetFor(designRoot, sys);
+  const ds = inlineUsedExports(
+    canvasSource,
+    buildLibMap(target, readFileSync(target, 'utf8')),
+    DS_SPECIFIER
+  );
+  let src = ds.content;
+  if (sys) {
+    const libRe = /(\bimport\s+\{)([^}]+)(\}\s*from\s*["']@maude\/canvas-lib["'])/m;
+    src = libRe.test(src)
+      ? src.replace(
+          libRe,
+          (_m, a, names, b) => `${a}${names.trimEnd()}, __registerDesignSystem ${b}`
+        )
+      : `import { __registerDesignSystem } from "@maude/canvas-lib";\n${src}`;
+  }
+  const lib = inlineUsedExports(src, libMap);
+  return {
+    content: sys ? `${lib.content.trimEnd()}\n\n${registrationCall(sys)}\n` : lib.content,
+    droppedImport: true,
+    inlined: [...new Set([...ds.inlined, ...lib.inlined])].sort(),
   };
 }

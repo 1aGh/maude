@@ -954,7 +954,7 @@ export default function Modes() {
                   ["Inspector", "On selection", "⌘-click → Inspect", "Hidden", "Hidden"],
                   ["Hold ⌥ and point", "Measures the gap", "Measures the gap", "Off", "Off"],
                   ["AI chat panel", "Shown", "Folded — opens from the spark", "Hidden", "Hidden"],
-                  ["What AI changes", "Shows live", "Live — never under your pointer", "Lands when you move on", "Shows live, unmarked"],
+                  ["What AI changes", "Shows live", "Shows live, under your pointer too", "Lands when you move on", "Shows live, unmarked"],
                   ["Stickies and annotations", "Quiet (faded, readable) · N C M A E S switch to Preview", "Drawn here · ⇧P hides", "Hidden", "Hidden"],
                   ["Comment pins", "Shown", "Shown", "Hidden", "Hidden"],
                   ["Project menu", "Project pill", "Folded pill (mark)", "esc first", "esc first"],
@@ -1038,7 +1038,7 @@ export default function Modes() {
                     <Menu width={290} style={{ position: "relative", left: "auto", top: "auto" }} items={[
                       { label: "Hide panels", keys: "⌘\\" }, { label: "Comments", keys: "⇧⌘M" }, { label: "Assets" }, { label: "Annotations", keys: "⇧P" }, "sep",
                       { label: "Preview", keys: "⌥⌘P" }, { label: "Present", keys: "⌥⌘↵" }, { label: "Present from the start", keys: "⇧⌥⌘↵" }, { label: "Present the canvas", note: "in CONTRACT §1" }, "sep",
-                      { label: "Zoom in", keys: "⌘+" }, { label: "Zoom out", keys: "⌘−" }, { label: "Zoom to fit", keys: "⌘0" }, { label: "Actual size", keys: "⌘1" }, "sep",
+                      { label: "Zoom in", keys: "⌘+" }, { label: "Zoom out", keys: "⌘−" }, { label: "Zoom to fit", keys: "⌘0" }, { label: "Actual size", keys: "⇧0" }, "sep",
                       { label: "Advanced", sub: true },
                     ]} />
                   </div>
@@ -1495,10 +1495,10 @@ export default function Modes() {
       {/* ── 7 · Edge cases ──────────────────────────────────────────────────────────────── */}
       <DCSection id="edges" title="When modes meet the real world" subtitle="AI changing the artboard you're using, a view-only link, mixed kinds on one screen, no internet, and what esc does everywhere">
         <DCArtboard id="md-edge-ai" label="22 · AI changes the artboard you're clicking through" width={W} height={H} fixed>
-          <Stage note={<Note n={22} title="AI never pulls the page out from under you.">The artboard under your pointer holds still, hover and all; AI's new hero lands when you move off it. Tablet, which you aren't touching, updates live.</Note>}>
+          <Stage note={<Note n={22} title="AI's changes show live, under your pointer too.">In Preview the artboard you're clicking through updates as AI works, hover and all, and so does Tablet. Only Present waits: there a change lands when you move on to the next artboard (Gate 0 A8).</Note>}>
             <Window tabs={TABS2} activeTab={0}>
               <Canvas>
-                <HomeBoards z={pz} ox={170} oy={84} hover="cta" aiDesktop="AI has a new hero — it lands when you move off" aiTablet />
+                <HomeBoards z={pz} ox={170} oy={84} hover="cta" aiDesktop="AI’s new hero — shown live" aiTablet />
                 <Hand x={170 + 420 * pz} y={84 + 468 * pz} />
               </Canvas>
               <ProjectPill project="Studio site" folded />

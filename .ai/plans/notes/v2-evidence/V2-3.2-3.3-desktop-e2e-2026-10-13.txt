@@ -1,0 +1,89 @@
+Phase 3 integration on feat e4c5c4eb (V2-3.1 + 3.2a + 3.2b + 3.3 studio/page/Rust merged): pnpm test:e2e:desktop:build, then each lane through scripts/v2-test-lane.sh, screen unlocked, 2 s window probe.
+build start 15:15:35 head e4c5c4eb
+build exit=0 15:17:34
+test:e2e:desktop exit=0 15:20:14 Spec Files:	 12 passed, 12 total (100% completed) in 00:02:29  
+test:e2e:desktop:tabs exit=0 15:21:05 Spec Files:	 1 passed, 1 total (100% completed) in 00:00:40  
+test:e2e:desktop:home exit=0 15:21:41 Spec Files:	 1 passed, 1 total (100% completed) in 00:00:28  
+test:e2e:desktop:switchrepos exit=0 15:22:15 Spec Files:	 1 passed, 1 total (100% completed) in 00:00:23  
+
+
+== test:e2e:desktop
+[0-0] PASSED in undefined - file:///scenarios/acp-ask-user-question.e2e.ts
+[0-1] PASSED in undefined - file:///scenarios/acp-capability-picker.e2e.ts
+[0-2] PASSED in undefined - file:///scenarios/acp-write-scope.e2e.ts
+[0-3] PASSED in undefined - file:///scenarios/app-boots-and-renders-canvas.e2e.ts
+[0-4] PASSED in undefined - file:///scenarios/backspace-no-active-canvas-no-hang.e2e.ts
+[0-5] PASSED in undefined - file:///scenarios/canvas-text-editing.e2e.ts
+[0-6] PASSED in undefined - file:///scenarios/export-formats.e2e.ts
+[0-7] PASSED in undefined - file:///scenarios/file-tree-move.e2e.ts
+[0-8] PASSED in undefined - file:///scenarios/report-bug-dialog.e2e.ts
+[0-9] PASSED in undefined - file:///scenarios/share-link.e2e.ts
+[0-10] PASSED in undefined - file:///scenarios/splash-recovers-after-return-to-entry.e2e.ts
+[0-11] PASSED in undefined - file:///scenarios/timeline-manual-cut.e2e.ts
+[webkit 605.1.15 macos #0-0]    ✓ 1 · a scripted prompt asking Claude to use AskUserQuestion renders the elicitation form card
+[webkit 605.1.15 macos #0-0]    ✓ 2 · picking an option and Submit resolves the turn
+[webkit 605.1.15 macos #0-1]    ✓ 1 · warming the composer establishes a session and populates the LIVE mode picker
+[webkit 605.1.15 macos #0-1]    ✓ 2 · switching to Plan mode round-trips live — no respawn, reflected via a fresh caps frame
+[webkit 605.1.15 macos #0-2]    ✓ 1 · an IN-PROJECT write completes with NO permission prompt (DDR-184 guard)
+[webkit 605.1.15 macos #0-2]    ✓ 2 · a write OUTSIDE the project raises the prompt and names the resolved path
+[webkit 605.1.15 macos #0-3]    ✓ boots the native shell + sidecar and renders a canvas
+[webkit 605.1.15 macos #0-4]    ✓ does not hang the shell when Backspace is pressed with no active canvas
+[webkit 605.1.15 macos #0-5]    ✓ boots, opens the fixture canvas, and reaches every seeded surface
+[webkit 605.1.15 macos #0-5]    ✓ artboard: synthetic dblclick enters edit mode with the whole string selected (Figma steer 2026-07-20)
+[webkit 605.1.15 macos #0-5]    ✓ artboard: [data-maude-caret] present, animated (maude-caret-blink), inside the h1 rect
+[webkit 605.1.15 macos #0-5]    ✓ sticky + standalone-text editors mount as HTML in .dc-world, positioned, no ghost — at 2 zoom levels
+[webkit 605.1.15 macos #0-5]    ✓ sticky: dblclick at a char offset collapses the caret there (native textarea caret)
+[webkit 605.1.15 macos #0-5]    ✓ text tool: click on the seeded sticky edits IT (stroke count unchanged); empty space creates new
+[webkit 605.1.15 macos #0-5]    ✓ keyboard: Enter commits / Shift+Enter stays open+newlines (sticky, text); section Shift+Enter commits; artboard Enter commits
+[webkit 605.1.15 macos #0-5]    ✓ persistence: mixed <p> gets NO dead-end editor (hint instead); h1 edit persists to disk + reload; sibling byte-identical
+[webkit 605.1.15 macos #0-5]    ✓ variable text: editing the 2nd .map card rewrites CARDS[1].body only, persists through reload
+[webkit 605.1.15 macos #0-6]    ✓ exports PNG from the bundled app, and the file is real
+[webkit 605.1.15 macos #0-6]    ✓ exports SVG from the bundled app, and the file is real
+[webkit 605.1.15 macos #0-6]    ✓ exports PDF from the bundled app, and the file is real
+[webkit 605.1.15 macos #0-6]    ✓ exports HTML from the bundled app, and the file is real
+[webkit 605.1.15 macos #0-6]    ✓ exports PPTX from the bundled app, and the file is real
+[webkit 605.1.15 macos #0-6]    ✓ exports ZIP from the bundled app, and the file is real
+[webkit 605.1.15 macos #0-6]    ✓ exports MP4 from the bundled app, and the file is real
+[webkit 605.1.15 macos #0-6]    ✓ exports GIF from the bundled app, and the file is real
+[webkit 605.1.15 macos #0-7]    ✓ new folder → drag canvas onto it → row reparents → canvas still opens
+[webkit 605.1.15 macos #0-8]    ✓ 1 · Help menu opens the dialog on its describe step
+[webkit 605.1.15 macos #0-8]    ✓ 2 · a description unlocks the preview step and the consent checklist renders
+[webkit 605.1.15 macos #0-8]    ✓ 3 · closing the dialog leaves no residue
+[webkit 605.1.15 macos #0-9]    ✓ copies an app link from the topbar and shares a different row without opening it
+[webkit 605.1.15 macos #0-9]    ✓ opens a same-project file directly and parks a foreign-project link
+[webkit 605.1.15 macos #0-9]    ✓ drops a file link carrying a connect code
+[webkit 605.1.15 macos #0-10]    ✓ self-heals back to the dev-server after the webview returns to the splash
+[webkit 605.1.15 macos #0-10]    ✓ leaves no splash entry in session history for a back-navigation to land on
+[webkit 605.1.15 macos #0-11]    ✓ opens the Cut canvas and the Timeline shows all three beats
+[webkit 605.1.15 macos #0-11]    ✓ click selects a beat (accent outline), Esc deselects
+[webkit 605.1.15 macos #0-11]    ✓ ⌘B splits the selected beat at the playhead → 4 beats
+[webkit 605.1.15 macos #0-11]    ✓ Delete removes the selected beat with ripple → 3 beats; ⌘Z restores → 4
+[webkit 605.1.15 macos #0-11]    ✓ zoom slider expands the scaled track (px-per-frame scale)
+probe (frontmost app counts):    3 Arc   35 Claude    5 Maude    2 SecurityAgent   27 ‎WhatsApp 
+
+== test:e2e:desktop:tabs
+[0-0] PASSED in undefined - file:///scenarios/project-tabs.e2e.ts
+[webkit 605.1.15 macos #0-0]    ✓ opens the secondary project in a second tab, on its own server
+[webkit 605.1.15 macos #0-0]    ✓ each tab shows its own project and branch
+[webkit 605.1.15 macos #0-0]    ✓ keeps per-tab browser storage apart
+[webkit 605.1.15 macos #0-0]    ✓ opening the secondary again focuses its tab instead of opening a third
+[webkit 605.1.15 macos #0-0]    ✓ closing tab B stops only B's server, after the grace
+[webkit 605.1.15 macos #0-0]    ✓ a third running project rests an idle tab: server gone, resting splash
+[webkit 605.1.15 macos #0-0]    ✓ focusing the resting tab wakes it, and the cap rests another
+probe (frontmost app counts):    3 Arc    8 Maude   11 ‎WhatsApp 
+
+== test:e2e:desktop:home
+[0-0] PASSED in undefined - file:///scenarios/home.e2e.ts
+[webkit 605.1.15 macos #0-0]    ✓ 1 · a first launch with an empty app-state opens the Home window
+[webkit 605.1.15 macos #0-0]    ✓ 2 · opening a project from Home replaces the Home tab; new_home_tab brings Home back
+[webkit 605.1.15 macos #0-0]    ✓ 3 · Home lists both projects’ recent canvases, with pictures
+[webkit 605.1.15 macos #0-0]    ✓ 4 · picking a closed project’s canvas opens it as a new tab and closes Home
+[webkit 605.1.15 macos #0-0]    ✓ 5 · opening an open project from Home focuses its tab instead of opening another
+probe (frontmost app counts):    6 Claude    9 Maude    1 ‎WhatsApp 
+
+== test:e2e:desktop:switchrepos
+[0-0] PASSED in undefined - file:///scenarios/git-switch-repos.e2e.ts
+[webkit 605.1.15 macos #0-0]    ✓ switches between two local repos via open_local_project
+probe (frontmost app counts):    2 Arc   13 Claude    1 Maude 
+
+cargo test 104/104 + clippy -D warnings clean on e4c5c4eb.

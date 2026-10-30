@@ -57,6 +57,9 @@
     "responseTargetMs": 100,
     "bilingual": []
   },
+  "security": {
+    "projectChecklist": ".ai/security/v2-actions-checklist.md"
+  },
   "skills": {
     "motionRules": {
       "enabled": true
@@ -117,7 +120,7 @@
     "build": "pnpm --filter @maude/site build",
     "parity": "bash scripts/check-version-parity.sh",
     "tarball": "bash scripts/check-tarball-shape.sh",
-    "tokens": "pnpm --filter @maude/site sync:tokens:check",
-    "site-content": "pnpm --filter @maude/site gen:reference && pnpm --filter @maude/site gen:stats && pnpm --filter @maude/site gen:roadmap && pnpm --filter @maude/site gen:whatsnew && { git diff --quiet -- site/content/docs/ site/lib/stats.json site/lib/roadmap.json site/lib/whats-new.json || { echo \"site generated content stale — commit the regen diff\"; exit 1; }; }"
+    "tokens": "pnpm --filter @maude/site sync:tokens:check && node scripts/gen-tokens.mjs --check && node cli/bin/maude.mjs design ds-check maude maude-v2",
+    "site-content": "node --test scripts/test/docs-no-old-chrome.test.mjs && node scripts/gen-actions.mjs --check && pnpm --filter @maude/site gen:reference && pnpm --filter @maude/site gen:stats && pnpm --filter @maude/site gen:roadmap && pnpm --filter @maude/site gen:whatsnew && { git diff --quiet -- site/content/docs/ site/lib/stats.json site/lib/roadmap.json site/lib/whats-new.json || { echo \"site generated content stale — commit the regen diff\"; exit 1; }; }"
   }
 }

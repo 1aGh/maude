@@ -3,10 +3,10 @@
 // (apps/studio/test/slash-commands.test.ts).
 //
 // Two sources feed the model:
-//   • STATIC_COMMANDS — a curated bootstrap list (below) so autocomplete is
-//     instant before any `claude` session exists. Hand-sourced from the design
-//     plugin command frontmatter (`name` + `description`); plugin markdown is NOT
-//     shipped to the client, so the list is baked in here. (The `/flow:*` family
+//   • STATIC_COMMANDS — a bootstrap list (slash-commands.gen.js) so autocomplete is
+//     instant before any `claude` session exists. Generated from the design
+//     plugin command frontmatter (`name` + `description` + `argument-hint`); plugin
+//     markdown is NOT shipped to the client, so the list is baked in. (The `/flow:*` family
 //     is intentionally omitted for now — 2026-07-03 — the chat ships design-only;
 //     a user who installs flow themselves still gets it via the live catalogue.)
 //   • live ACP `available_commands_update` — the drift-proof authority for which
@@ -14,28 +14,11 @@
 //     commands). Once present it wins for the "exists" set (badge gate).
 
 /**
- * Curated bootstrap set. `name` is Claude Code's canonical slash form
- * (`<plugin>:<verb>`). Keep descriptions short — the popover truncates.
+ * Bootstrap set. GENERATED (scripts/gen-plugin-surfaces.mjs, S12.2) from the design plugin's
+ * `commands/*.md` frontmatter, so a new command reaches autocomplete without an edit here.
+ * `name` is Claude Code's canonical slash form (`<plugin>:<verb>`).
  */
-export const STATIC_COMMANDS = [
-  // ── design (the panel's primary surface) ──
-  { name: 'design:edit', description: 'Iterate on the active canvas in place', argHint: '"<feedback>"' },
-  { name: 'design:new', description: 'Scaffold a new multi-artboard canvas', argHint: 'Name "<brief>"' },
-  { name: 'design:setup-ds', description: 'Create a new design system', argHint: '<name> ["<brief>"]' },
-  { name: 'design:critic', description: 'Run the critic panel on the active canvas', argHint: '[--agent <name>]' },
-  { name: 'design:draw', description: 'Draw a production-grade SVG via the geometry engine', argHint: '"<what to draw>"' },
-  { name: 'design:screenshot', description: 'Capture a screenshot of the active canvas' },
-  { name: 'design:browse', description: 'Open the local design browser' },
-  { name: 'design:export', description: 'Export the active canvas (PNG / PDF / SVG / …)' },
-  { name: 'design:rollback', description: 'Revert the last edit snapshot', argHint: '[--steps N]' },
-  { name: 'design:handoff', description: 'Emit a shadcn registry-item sidecar' },
-  { name: 'design:smoke', description: 'Batch-screenshot every canvas + preview specimen' },
-  { name: 'design:setup-docs', description: 'Refresh the design root README + INDEX' },
-  { name: 'design:to-lottie', description: 'Productionize an animation to a .lottie from code' },
-  { name: 'design:to-rn', description: 'Generate a react-native-svg + Reanimated component' },
-  { name: 'design:init', description: 'One-time project env init for the design plugin' },
-  { name: 'design:help', description: 'List all design commands' },
-];
+export { STATIC_COMMANDS } from './slash-commands.gen.js';
 
 /**
  * Fold a raw command name to a match key. Strips a leading `/`, lowercases, trims.
@@ -144,4 +127,61 @@ export function filterCommands(all, token, limit = 8) {
     else if (c.name.includes(q) || c.description.toLowerCase().includes(q)) substr.push(c);
   }
   return [...prefix, ...substr].slice(0, limit);
+}
+
+// ── S5.18 G8 (03 `ai-adv-edges`, `chat-cmd-menu`): the trimmed v2 menu ─────────────────────────────
+//
+// Typing "/" shows a short "Slash commands" list — the four design verbs people reach for, then the
+// person's own commands — with one-line notes and no argument hints. NOTHING is removed: "More…" (and
+// typing, which searches every command) reaches the whole catalogue, plugins' and the person's own.
+
+/** The verbs the short list leads with, and the one-line note 03 draws under each. */
+export const FEATURED = Object.freeze([
+  { name: 'design:critic', note: 'Review this canvas' },
+  { name: 'design:edit', note: 'Change the selection' },
+  { name: 'design:screenshot', note: 'Capture an artboard' },
+  { name: 'design:export', note: 'Export this canvas' },
+]);
+
+/** Rows the short list shows before "More…". */
+export const MENU_ROWS = 5;
+const NOTE_MAX = 44;
+
+/** A command's one-line note: the featured words, else the description's first sentence, cut short. */
+export function shortNote(c) {
+  const f = FEATURED.find((x) => x.name === c.name);
+  if (f) return f.note;
+  const first = String(c.description ?? '')
+    .split(/(?<=[.!?])\s/)[0]
+    .trim()
+    .replace(/[.!?]$/, '');
+  if (first.length <= NOTE_MAX) return first;
+  return `${first.slice(0, NOTE_MAX - 1).trimEnd()}…`;
+}
+
+/**
+ * The rows of the "/" menu. `token` is the partial after the slash; `expanded` is "More…" picked.
+ * @returns {{ items: Array, more: number }} items carry `note` (no argHint); `more` = what "More…" would add.
+ */
+export function trimmedCommands(all, token, { expanded = false } = {}) {
+  const q = normalizeName(token);
+  let rows;
+  let total;
+  if (q) {
+    const hits = filterCommands(all, q, 200);
+    total = hits.length;
+    rows = expanded ? hits : hits.slice(0, MENU_ROWS);
+  } else {
+    total = all.length;
+    if (expanded) rows = all;
+    else {
+      const byName = new Map(all.map((c) => [c.name, c]));
+      const lead = FEATURED.map((f) => byName.get(f.name)).filter(Boolean);
+      // the person's own commands (anything that is not the design plugin's) fill the rest of the short list
+      const own = all.filter((c) => c.group !== 'design');
+      rows = [...lead, ...own].slice(0, MENU_ROWS);
+    }
+  }
+  const items = rows.map((c) => ({ ...c, argHint: '', note: shortNote(c) }));
+  return { items, more: expanded ? 0 : Math.max(0, total - items.length) };
 }

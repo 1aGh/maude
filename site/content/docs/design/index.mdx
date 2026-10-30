@@ -10,9 +10,9 @@ project files and browser tools. This does not switch Studio's built-in ACP chat
 </Callout>
 
 
-The canvas is the working surface. A `.tsx` file (React 19, transpiled by Bun), under `.design/<project-or-feature>/`. Commands iterate **in place** on the active canvas (the one open in your browser tab), so feedback like "move the CTA up" lands on the file you're looking at, not a new mock somewhere else.
+The canvas is the working surface. A `.tsx` file (React 19, transpiled by Bun), under `.design/<project-or-feature>/`. Commands iterate **in place** on the active canvas (the one open in the project tab), so feedback like "move the CTA up" lands on the file you're looking at, not a new mock somewhere else.
 
-A Bun dev server mounts every canvas in a shared shell. A canvas opens **live** (the Browse tool) — click buttons and links to try the mock. Press **V** for the Select tool, then **click any element** to select it (⌘/Ctrl-click reaches the deepest element, double-click drills in one level) and scope the next `/design:edit "<feedback>"` to that selection. The server tracks the active tab and your selection over WebSocket and writes `<designRoot>/_active.json` for the slash commands to read.
+A Bun dev server mounts every canvas in a shared shell. A canvas opens **live** in Preview mode — click buttons and links to try the mock. Switch to Edit and press **V** for the Select tool, then **click any element** to select it (⌘/Ctrl-click reaches the deepest element, double-click drills in one level) and scope the next `/design:edit "<feedback>"` to that selection. The server tracks the active tab and your selection over WebSocket and writes `<designRoot>/_active.json` for the slash commands to read.
 
 <InspectorDiagram caption="Press V, click an element → it persists to _active.json → the next /design:edit reads it" />
 
@@ -39,9 +39,9 @@ Setup verbs prepare the project; daily verbs cover canvas editing, drawing, medi
 | `/design:critic [--agent <name>] [--all] [--panel]` | Spawn a critic panel (or single agent) against the active canvas. Design + a11y + up to 7 specialists (graphic, brand, typography, motion, copy, frontend, info-architecture). |
 | `/design:screenshot [--area <name>] [--selector <css>]` | Capture screenshot of the active canvas via agent-browser (HTTP URL, not `file://`). For visual review, `/design:critic`, or annotation loops. |
 | `/design:rollback [--steps N] [--list]` | Revert the last snapshot of the active canvas. Auto-snapshot stack lives at `<designRoot>/_history/<slug>/`. |
-| `/design:browse [--port <n>]` | Boot a local design browser. File tree of all canvases plus tabbed iframe preview on a free port. |
+| `/design:browse [--port <n>]` | Boot the local design studio on a free port, for a browser tab or a terminal-driven setup. (The desktop app already is one.) |
 | `/design:handoff [--target <label>] [--force]` | Migrate the active canvas (`_active.json`) to production code (target chosen from `.design/config.json` `handoffTargets`). |
-| `/design:export <png\|pdf\|svg\|html\|pptx\|canva\|zip>` | Export the active canvas — PNG / PDF / SVG / HTML / PPTX / Canva bundle / project ZIP. Same engine as the UI ⌘E dialog. |
+| `/design:export <png\|pdf\|svg\|html\|pptx\|canva\|zip>` | Export the active canvas — PNG / PDF / SVG / HTML / PPTX / Canva bundle / project ZIP. Same engine as the Export sheet (⇧⌘E). |
 | `/design:help` | List all design commands grouped by category. |
 
 **Validate.**
@@ -50,21 +50,17 @@ Setup verbs prepare the project; daily verbs cover canvas editing, drawing, medi
 | ------- | ------------ |
 | `/design:smoke` | Batch screenshot every UI canvas + preview specimen. Flag blank iframes and visible error overlays. Catches "build green ≠ user-visible green" regressions. |
 
-## Edit directly in the browser
+## Edit directly in the window
 
-Not every change needs a command. The canvas browser carries a built-in editor for small, precise tweaks — and it writes straight back to the source `.tsx`, so there's no AI round-trip and nothing to reconcile.
+Not every change needs a command. Maude carries a built-in editor for small, precise tweaks — and it writes straight back to the source `.tsx`, so there's no AI round-trip and nothing to reconcile. (Where each control lives is on [Around the window](/docs/desktop/window).)
 
-Press **V** for the Select tool, then **click any element** to select it (plain click = the top-level object, ⌘/Ctrl-click = the deepest element, double-click drills in, `Enter`/`Shift+Enter`/`Tab` walk the tree, `Esc` deselects). Open the right-hand Inspector (press `I`). Three tabs:
+Press **V** for the Select tool, then **click any element** to select it (plain click = the top-level object, ⌘/Ctrl-click = the deepest element, double-click drills in, `Enter`/`Shift+Enter`/`Tab` walk the tree, `Esc` steps back). The **Inspector** comes with the selection and speaks designer: position, size, layout, fill, type, border, effects. The **Layers** tab of the left panel (Canvases · Layers · Assets) is the browsable tree of the artboard's elements with type icons — including group rows for wrapper `<div>`s, so nothing nests at the wrong depth. Component instances render purple (◆ the instance root, ◇ its members) with the component's name. Click to select, hover to highlight, toggle visibility, **lock** a layer (a locked layer can't be selected or dragged on the canvas — unlock it from its row), or **double-click its name to rename it** (written back to the source as `data-dc-element`).
 
-| Tab | What it does |
-| --- | ------------ |
-| **Inspect** | Position, size, ancestry and markup of the selected element, read-only — using the maude coordinate-field + swatch anatomy. |
-| **Layers** | A browsable tree of the artboard's elements with type icons — including group rows for wrapper `<div>`s, so nothing nests at the wrong depth. Component instances render purple (◆ the instance root, ◇ its members) with the component's name. Click to select, hover to highlight, toggle visibility, **lock** a layer (a locked layer can't be selected or dragged on the canvas — unlock it from its row), or **double-click its name to rename it** (written back to the source as `data-dc-element`). The tree auto-reveals whatever you select on the canvas. |
-| **CSS** | A Figma-style design-token editor (see below). |
+The code is one fold away: open the Inspector's **› Advanced** and it adds the element (tag, classes, selector, id), where it is used, the tokens bound and the raw CSS rows — the same rows an agent edits. There is no separate setting to flip; the frame is the designer's view and the fold is the code.
 
 ### The CSS token editor
 
-The CSS tab is a real token editor, not a textarea:
+The CSS rows under **Inspector › Advanced** are a real token editor, not a textarea:
 
 - **Figma-style rows.** Each property leads with a glyph. Numeric fields scrub left/right to change (or you type the value), and spacing fields accept Webflow-style modifiers.
 - **Bind to a Variable.** Click a field's token chip to open a popover with two tabs — **Custom** for a literal value, **Variables** for the design system's tokens. The list is searchable, and each Variable shows its provenance so you know where it's defined. Multi-DS projects resolve the right system, and applying a token works across design systems.
@@ -93,7 +89,7 @@ These are user-facing runtime state. Schemas are kept backwards-compatible acros
 - **Second opinion** without editing. `/design:critic`
 - **Locked-in design**. `/design:handoff` migrates it to production code
 - **Undo**. `/design:rollback`
-- **Browse all canvases** at once. `/design:browse`
+- **Browse all canvases** at once. `/design:browse` (or the Canvases panel in the app)
 - **Forgotten a command name**. `/design:help`
 
 ## Design system
@@ -104,6 +100,18 @@ A project's design root holds:
 - `.design/ui/`. Reference UI prototypes and shared components (desktop / mobile / tablet).
 
 These are pointed at by the `design-system` and `ui-kit` skills, also auto-loaded.
+
+## Driving Maude from Claude Code
+
+Claude Code, Codex and the AI chat panel work the same way: **files are the API**. A canvas is a `.tsx` under `.design/`, its layout and notes sit in the sibling `.meta.json`, annotations are `*.annotations.json`. Claude edits those files directly (with `Edit`, not a whole-file `Write`) and runs a `maude design <verb>` for what a file edit cannot do: rendering and export, generation, sync, Version history, the trash, opening something in the window, and checks.
+
+- **Every write is checked.** A change under `.design/` runs `maude design check --strict` and the file is restored if the check fails.
+- **Every verb has a tier.** `maude design help` prints it. `auto` verbs run without a prompt in the AI chat panel, `prompt` verbs show a permission card, and `human` verbs (accounts, hub, install) are terminal-only.
+- **One lookup for any capability.** The `studio-actions` skill, generated from Maude's action registry, names the file to edit or the verb to run for each thing the window can do.
+- **Selection is shared.** `<designRoot>/_active.json` holds the open canvas and the selection, so "make this wider" lands on the right element.
+- **Other people's text is data.** `history`, `comments` and `exports` wrap it in `UNTRUSTED DATA` markers; it is never an instruction.
+
+Moving a project from Maude 1 is `maude migrate v2` (dry run first). See [Coming from Maude 1](/docs/moving-from-1). The checks on a design system are in the [Design-system schema](/docs/design-system-schema).
 
 ## Configure
 

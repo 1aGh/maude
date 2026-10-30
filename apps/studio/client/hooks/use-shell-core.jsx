@@ -1,16 +1,62 @@
 // hooks/use-shell-core.jsx — moved verbatim out of client/app.jsx (Maude v2 plan V2-0.2, move-only split).
 
+import { editScopeQuery } from './edit-scope-query.js';
+import { probeCanvasOrigin } from './canvas-origin-probe.js';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { notifyDesktop, readBoolStore, readInitialTheme, readJsonStore, shellToast } from '../shell/util.js';
-import { DOCK_PANELS, PANEL_SIDES_DEFAULTS, usePanelSize } from '../shell/dock.jsx';
-import { ANNOT_STORE, ATTENTION_NOTIFY_COOLDOWN_MS, COLLAB_TOUR_STORE, CP_MODE_STORE, LAYERS_MODE_STORE, MDCC_VERSION, MINIMAP_STORE, PANEL_SIDES_STORE, SHOW_HIDDEN_STORE, SIDEBAR_STORE, USAGE_TOUR_STORE, ZOOMCTL_STORE, isModuleCanvasPath } from '../shell/constants.js';
+import {
+  layersTreeOf,
+  notifyDesktop,
+  readBoolStore,
+  readInitialTheme,
+  readJsonStore,
+  shellToast,
+} from '../shell/util.js';
+import { PANEL_SIDES_DEFAULTS, siblingsToClose, usePanelSize } from '../shell/dock.jsx';
+import {
+  ANNOT_STORE,
+  ATTENTION_NOTIFY_COOLDOWN_MS,
+  COLLAB_TOUR_STORE,
+  CP_MODE_STORE,
+  LAYERS_MODE_STORE,
+  MDCC_VERSION,
+  MINIMAP_STORE,
+  PANEL_SIDES_STORE,
+  SHOW_HIDDEN_STORE,
+  SIDEBAR_STORE,
+  USAGE_TOUR_STORE,
+  ZOOMCTL_STORE,
+  isModuleCanvasPath,
+} from '../shell/constants.js';
 import { useTreeExpansion } from '../tree-expansion.js';
-import { appIsFirstRun, isNativeApp, onMenuReportBug, onUpdateReady } from '../github.js';
+import { isArtboardSelectionOf } from '../selection-scope.js';
+import { setPresentSource, shellMode, usePresentMode } from '../v2/shell/use-canvas-mode-lane.js';
+import { isNativeApp, onUpdateReady } from '../github.js';
 import { useSetupReadiness } from '../panels/SetupChecklist.jsx';
 import { activeComp, resolveCompTarget } from '../panels/timeline-comp-target.js';
 import { useWhatsNew } from '../whats-new.jsx';
+import { overlayLiveSize, useLiveArtboardSize } from '../v2/inspector/live-size.js';
+import {
+  createCanvasesFold,
+  isAskScopePick,
+  isFollowable,
+  shouldCloseOnDeselect,
+  shouldOpenOnSelect,
+} from '../v2/shell/inspector-follow.js';
+import { panelLayout } from '../v2/shell/use-panel-layout.js';
+import { modeShows } from '../../bridge/mode-shows.ts';
 import { useExportCenter } from '../export-center.jsx';
-import { canvasTokenRefreshDelay, setLiveCanvasToken, withCanvasToken } from '../canvas-url.js';
+import { registerExportOpener } from '../v2/export/use-export-spec.js';
+import {
+  canvasCapAsks,
+  canvasCapUrl,
+  canvasTokenRefreshDelay,
+  setCanvasCaps,
+  setLiveCanvasToken,
+  withCanvasToken,
+} from '../canvas-url.js';
+import { useThemeAuto } from '../v2/settings/theme-auto.js';
+import { canvasTargetOrigin } from '../v2/kinds/kind-dim-relay.js';
+import { viewerModeOn } from '../v2/access/access-client.js';
 
 export function useShellCore({}) {
   const [groups, setGroups] = useState([]);
@@ -48,14 +94,12 @@ export function useShellCore({}) {
   // rendered=1 (source-usage-driven; the .map() refinement is a follow-up).
   const [editScope, setEditScope] = useState(null);
   useEffect(() => {
-    const one = Array.isArray(selected) ? (selected.length === 1 ? selected[0] : null) : selected;
-    const id = one && typeof one.id === 'string' ? one.id : null;
-    if (!id || !activePath) {
+    const q = editScopeQuery(activePath, selected);
+    if (!q) {
       setEditScope(null);
       return;
     }
     const ac = new AbortController();
-    const q = new URLSearchParams({ canvas: activePath, id });
     fetch(`/_api/edit-scope?${q}`, { signal: ac.signal })
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => {
@@ -83,16 +127,21 @@ export function useShellCore({}) {
   // server's echo is recognised even before `selectedRef` (an effect) catches up (V2-2.8 P2).
   const lastLocalSelectRef = useRef({ at: 0, sel: null, file: null });
   const haloRestoreTimersRef = useRef([]);
-  const scheduleHaloRestore = useCallback((one) => {
+  // `lead` — the first post's delay. A canvas that just reloaded after the person's own write (a drawing, a paste)
+  // is about to select what it made; the first post waits for that, so it never lands on top of it (S2.23).
+  const scheduleHaloRestore = useCallback((one, lead = 50) => {
     if (!one?.id || !one.file) return;
     for (const t of haloRestoreTimersRef.current) clearTimeout(t);
-    haloRestoreTimersRef.current = [50, 450, 1200, 2500, 5000].map((delay) =>
+    haloRestoreTimersRef.current = [lead, 450, 1200, 2500, 5000].map((delay) =>
       setTimeout(() => {
         const cur = selectedRef.current;
         const c1 = Array.isArray(cur) ? cur[0] : cur;
-        if (!c1 || c1.id !== one.id || c1.file !== one.file) return; // superseded
+        if (!c1 || c1.id !== one.id || (c1.file && c1.file !== one.file)) return; // superseded (the canvas's own select-set names no file, S2.23)
         const frame = iframesRef.current.get(one.file);
         if (!frame?.contentWindow) return;
+        // V2-8.9 defender L2 (C6): the frame's canvas origin, never '*'
+        const origin = canvasTargetOrigin(frame);
+        if (!origin) return;
         try {
           frame.contentWindow.postMessage(
             {
@@ -101,7 +150,7 @@ export function useShellCore({}) {
               artboardId: one.artboardId ?? null,
               index: one.index ?? 0,
             },
-            '*'
+            origin
           );
         } catch {}
       }, delay)
@@ -117,18 +166,20 @@ export function useShellCore({}) {
   // for a bare ARTBOARD selection (no data-cd-id to key off of — compares
   // by artboardId instead of id).
   const artboardResyncTimersRef = useRef([]);
-  const scheduleArtboardResync = useCallback((artboardId, file) => {
+  const scheduleArtboardResync = useCallback((artboardId, file, lead = 50) => {
     if (!artboardId || !file) return;
     for (const t of artboardResyncTimersRef.current) clearTimeout(t);
-    artboardResyncTimersRef.current = [50, 450, 1200, 2500, 5000].map((delay) =>
+    artboardResyncTimersRef.current = [lead, 450, 1200, 2500, 5000].map((delay) =>
       setTimeout(() => {
         const cur = selectedRef.current;
         const c1 = Array.isArray(cur) ? cur[0] : cur;
-        if (!c1 || c1.artboardId !== artboardId || c1.file !== file) return; // superseded
+        if (!isArtboardSelectionOf(c1, artboardId, file)) return; // superseded
         const frame = iframesRef.current.get(file);
         if (!frame?.contentWindow) return;
+        const origin = canvasTargetOrigin(frame); // V2-8.9 L2 (C6)
+        if (!origin) return;
         try {
-          frame.contentWindow.postMessage({ dgn: 'select-by-id', artboardId }, '*');
+          frame.contentWindow.postMessage({ dgn: 'select-by-id', artboardId }, origin);
         } catch {}
       }, delay)
     );
@@ -155,10 +206,12 @@ export function useShellCore({}) {
     })(tree);
     if (!has) return;
     pendingReorderRef.current = null;
-    const win = activePath ? iframesRef.current.get(activePath)?.contentWindow : null;
-    if (win) {
+    const frame = activePath ? iframesRef.current.get(activePath) : null;
+    const win = frame?.contentWindow ?? null;
+    const origin = canvasTargetOrigin(frame); // V2-8.9 L2 (C6)
+    if (win && origin) {
       try {
-        win.postMessage({ dgn: 'select-by-id', id: pend.movedId, artboardId, index: 0 }, '*');
+        win.postMessage({ dgn: 'select-by-id', id: pend.movedId, artboardId, index: 0 }, origin);
       } catch {}
     }
   };
@@ -182,7 +235,10 @@ export function useShellCore({}) {
   const layersBusyRef = useRef(false);
   const layersBusyTimerRef = useRef(null);
   // Phase 12 Task 4 — Layers tree for the active artboard (posted by canvas-shell).
-  const [layersTree, setLayersTree] = useState(null);
+  // The tree is tagged with the canvas that posted it; a canvas that has posted none (a blank one, a new tab)
+  // shows no tree, never the previous canvas's (layersTreeOf).
+  const [layersTreeRaw, setLayersTree] = useState(null);
+  const layersTree = layersTreeOf(layersTreeRaw, activePath);
   // feature-4 T7a — Layers-panel component map ({ [cdId]: { component, root,
   // usages } }) for purple instance rows. Fetched from the read-only main-origin
   // /_api/component-map on canvas/tree changes, throttled: the map only changes
@@ -236,7 +292,7 @@ export function useShellCore({}) {
       const total = (p.blocked ?? []).reduce((n, b) => n + b.count, 0);
       notifyDesktop(
         'Sync needs a decision',
-        `${total} file${total === 1 ? '' : 's'} could not be sent. Open the Sync panel for the reason.`
+        `${total} file${total === 1 ? '' : 's'} could not be sent. Menu › Diagnostics › Sync has the reason.`
       );
     }
   }, [syncStatus?.files?.progress]);
@@ -300,13 +356,14 @@ export function useShellCore({}) {
   // "the canvas compiled" — exactly the axis #115 is about.
   const [loadedPath, setLoadedPath] = useState(null);
   // Resizable side panels (DS components-resize-panels) + the active drag side.
-  const sbSize = usePanelSize('maude-sb-w', { min: 200, max: 420, def: 252 });
+  // 264 = the kit's 248 px panel island (`.k-cp`, _kit.css:221) + the 16 px gap the dock slot paints on its left
+  const sbSize = usePanelSize('maude-sb-w', { min: 200, max: 420, def: 264 });
   const rpSize = usePanelSize('maude-rp-w', { min: 260, max: 480, def: 304 });
   const [dragSide, setDragSide] = useState(null); // 'sb' | 'rp' | null
   const bodyRef = useRef(null);
 
   // Pointer drag for the panel grips — window listeners while dragging (the
-  // grip also pointer-captures, and `.st-body.is-resizing iframe` drops pointer
+  // grip also pointer-captures, and `.sh-body.is-resizing iframe` drops pointer
   // events so the canvas iframe can't swallow the move stream mid-drag).
   useEffect(() => {
     if (!dragSide) return;
@@ -382,19 +439,14 @@ export function useShellCore({}) {
   useEffect(() => {
     if (!loadingPath) return;
     const path = loadingPath;
-    const cap = setTimeout(async () => {
-      let kind = 'compile';
-      try {
-        const r = await fetch(`${cfg?.canvasOrigin || ''}/_health`, {
-          cache: 'no-store',
-        });
-        if (!r.ok) kind = 'server';
-      } catch {
-        kind = 'server';
-      }
-      setCanvasError({ path, kind });
-      setLoadingPath((p) => (p === path ? null : p));
-    }, shellAlive ? 60000 : 15000);
+    const cap = setTimeout(
+      async () => {
+        const kind = await probeCanvasOrigin(cfg?.canvasOrigin);
+        setCanvasError({ path, kind });
+        setLoadingPath((p) => (p === path ? null : p));
+      },
+      shellAlive ? 60000 : 15000
+    );
     return () => clearTimeout(cap);
   }, [loadingPath, shellAlive, cfg?.canvasOrigin]);
   // WHO IS SAVING THIS PROJECT — one expression, read by every surface that
@@ -436,7 +488,10 @@ export function useShellCore({}) {
   savingIsManagedRef.current = savingIsManaged;
   // Cloud Phase 25 C2 — viewer role, known at boot from /_config. Every
   // editing affordance in the shell gates on this (absent, not hidden).
-  const viewerMode = !!cfg.readOnly;
+  // p8-e2e-rolefix (2) — Viewing follows the OPEN canvas the way the server's doors do: a canvas-only Can
+  // edit grant edits its own canvas and views every other one; a project role or the format gate decide
+  // everywhere (access-client.js `viewerModeOn`; an older server without `access` keeps `readOnly`).
+  const viewerMode = viewerModeOn(cfg, activePath);
   const loadServerConfig = useCallback(() => {
     fetch('/_config')
       .then((r) => r.json())
@@ -472,6 +527,20 @@ export function useShellCore({}) {
           formatVersion: data.formatVersion ?? 1,
           formatGate: data.formatGate ?? null,
           readOnlyReason: data.readOnlyReason ?? null,
+          // p8-update-to-accepted — 'accepted' | 'legacy' | null (solo): a linked project that
+          // still saves the old way offers Update project to its owner (format-update.js).
+          saveMode: data.saveMode ?? null,
+          // S9.22b — the server says this session may comment (Can comment and up) even when it is
+          // read-only; canvasUrl() then adds `cm=1` beside `ro=1`, and the Comments panel keeps
+          // Resolve / Reopen. Absent (an older server) = no.
+          canComment: data.canComment === true,
+          // p8-e2e-rolefix — the session's own access as the server resolved it ({ role, grants }); the
+          // access word and the mode caps read the role on the open canvas from it (access-client.js
+          // `sessionRole`). Absent (an older server) = fall back to a cloud tab's `cloud.role`.
+          access: data.access ?? null,
+          // V2-3.4 — the account profile this tab's server runs as ({ id, label? }); the
+          // profile chip (V2-3.x) reads it. Older servers send none ⇒ the default profile.
+          profile: data.profile ?? { id: 'default' },
           // Cloud Phase 27 (DDR-209) — the capability that opens the cookieless
           // canvas origin. `canvasUrl()` appends it to every iframe URL. Absent
           // on a desktop, where the canvas origin is loopback and needs none.
@@ -482,6 +551,9 @@ export function useShellCore({}) {
           // both of these went missing and the cloud studio rendered without
           // its chrome and with every canvas iframe unauthenticated.
           canvasToken: data.canvasToken,
+          // gate-b-c4 — the key `canvasUrl()` mints each frame's capability (`fc`) with. Without it
+          // every canvas iframe opens frame-less and the canvas origin answers nothing per canvas.
+          frameKey: data.frameKey,
           // Which release this server is — rendered as the status-bar chip.
           // Undefined on a server too old to report it, which is why the chip
           // renders conditionally rather than printing `vundefined`.
@@ -558,6 +630,7 @@ export function useShellCore({}) {
   const [commentsPanelOpen, setCommentsPanelOpen] = useState(false);
   const [commentsFilter, setCommentsFilter] = useState('open'); // 'all' | 'open' | 'resolved'
   const [theme, setTheme] = useState(readInitialTheme);
+  useThemeAuto(theme, setTheme); // Settings › General › Look › Auto follows the system
   // DDR-171 — CSS-panel vocabulary mode ('advanced' | 'designer'), App-owned so
   // the in-panel corner toggle (CssKnobs) and Settings → Appearance share one
   // source of truth; persisted to `maude-cp-mode` (same pattern as `theme`).
@@ -580,16 +653,8 @@ export function useShellCore({}) {
   const sectionsExpanded = treeExp.state.sections;
   const [helpOpen, setHelpOpen] = useState(false);
   const [reportBugOpen, setReportBugOpen] = useState(false);
-
-  // Native Help ▸ Report a Bug… (menu.rs emits `menu://report-bug`) — same
-  // lane as IdentityBar's File ▸ New Project… subscription.
-  useEffect(() => {
-    if (!isNativeApp()) return;
-    const p = onMenuReportBug(() => setReportBugOpen(true));
-    return () => {
-      p.then((un) => un()).catch(() => {});
-    };
-  }, []);
+  // Native Help ▸ Report a Bug… arrives as `menu://action {id:'help.report-bug'}` and
+  // runs the palette's row (use-palette-and-panels.jsx, V2-3.4).
   const [readinessOpen, setReadinessOpen] = useState(false);
   const [introOpen, setIntroOpen] = useState(false);
   const [quickSetupOpen, setQuickSetupOpen] = useState(false);
@@ -607,6 +672,8 @@ export function useShellCore({}) {
   // The palette (T4) drives them; the dialog (T5) + panel (T6) consume them.
   const [shareDialog, setShareDialog] = useState(null);
   const [exportDialog, setExportDialog] = useState(null); // null | { mode: 'export'|'handoff', scope? }
+  // S8.2 — `openExport(spec)` (client/v2/export/use-export-spec.js) mounts the sheet through this state.
+  useEffect(() => registerExportOpener(setExportDialog), []);
   // feature-ai-media-generation (DDR-16x) — BYOK provider-key Settings modal +
   // the AI generate action.
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -617,6 +684,8 @@ export function useShellCore({}) {
   // three hydrate from disk (/_api/ui-prefs) on mount and persist on change,
   // mirroring the view-pref pattern.
   const [layersOpen, setLayersOpen] = useState(false);
+  // V2-4.4a — Assets, the left panel's third tab (CONTRACT §7). Like Layers: not remembered across launches.
+  const [assetsOpen, setAssetsOpen] = useState(false);
   const [panelSide, setPanelSide] = useState(() =>
     readJsonStore(PANEL_SIDES_STORE, PANEL_SIDES_DEFAULTS)
   );
@@ -643,6 +712,19 @@ export function useShellCore({}) {
   // The artboard nearest the viewport centre (reported by canvas-lib on pan) —
   // the Timeline follows THIS, so it redraws as you move across the canvas.
   const [canvasActiveArtboard, setCanvasActiveArtboard] = useState(null);
+  // S3.1 — what Present (⌥⌘↵, a click on Present) starts from: the selected artboard (an artboard,
+  // or the one the selected element sits in), else the artboard in view.
+  useEffect(() => {
+    const one = Array.isArray(selected) ? (selected.length === 1 ? selected[0] : null) : selected;
+    const own = one && typeof one.artboardId === 'string' ? one.artboardId : null;
+    // S7.19: a selected VIDEO artboard (the canvas announced a comp on it) presents its formats only
+    const selectedVideo = !!own && activeComps.some((c) => c?.artboardId === own);
+    setPresentSource({
+      selectedArtboard: own,
+      inViewArtboard: canvasActiveArtboard,
+      selectedVideo,
+    });
+  }, [selected, canvasActiveArtboard, activeComps]);
   // DDR-148 — parsed sequence/keyframe rows for the Timeline (from raw .tsx).
   const [timelineSequences, setTimelineSequences] = useState([]);
   const [timelineAudio, setTimelineAudio] = useState([]);
@@ -736,7 +818,7 @@ export function useShellCore({}) {
   const handleAssistantFinished = useCallback(() => {
     if (!assistantOpenRef.current || document.hidden) {
       setAssistantUnseen(true);
-      notifyDesktop('Claude finished', 'Your assistant turn is ready in Maude.');
+      notifyDesktop('AI finished', 'Your answer is ready in Maude.');
     }
   }, []);
   // DDR-185 — same "you weren't looking" gate as handleAssistantFinished
@@ -761,7 +843,7 @@ export function useShellCore({}) {
       const now = Date.now();
       if (now - lastAttentionNotifyRef.current < ATTENTION_NOTIFY_COOLDOWN_MS) return;
       lastAttentionNotifyRef.current = now;
-      notifyDesktop('Maude needs your input', 'Claude is waiting on an approval or a question in Maude.');
+      notifyDesktop('Maude needs your input', 'AI is waiting on an answer in Maude.');
     }
   }, []);
   // Inspector tab is lifted so View ▸ Layers can open the panel ON the Layers
@@ -802,9 +884,11 @@ export function useShellCore({}) {
   // it never steals focus from an already-open panel (the user's explicit rule).
   const anyRightPanelOpenRef = useRef(false);
   useEffect(() => {
+    // V2-4.4b — the AI chat is its own island, not a rival for the main panel's place: an open chat does
+    // not stop the Inspector appearing on a selection.
     anyRightPanelOpenRef.current =
-      inspectorOpen || commentsPanelOpen || changesOpen || syncPanelOpen || assistantOpen;
-  }, [inspectorOpen, commentsPanelOpen, changesOpen, syncPanelOpen, assistantOpen]);
+      inspectorOpen || commentsPanelOpen || changesOpen || syncPanelOpen;
+  }, [inspectorOpen, commentsPanelOpen, changesOpen, syncPanelOpen]);
   // The right dock holds exactly ONE panel (Changes / Inspector / Comments) at
   // a time — opening any panel REPLACES whatever was there. These two helpers
   // are the single source of that invariant; every open/toggle path routes
@@ -823,6 +907,7 @@ export function useShellCore({}) {
     open: {
       tree: sidebarOpen,
       layers: layersOpen,
+      assets: assetsOpen,
       inspector: inspectorOpen,
       comments: commentsPanelOpen,
       changes: changesOpen,
@@ -834,6 +919,7 @@ export function useShellCore({}) {
   const setPanelOpen = useCallback((id, val) => {
     if (id === 'tree') setSidebarOpen(val);
     else if (id === 'layers') setLayersOpen(val);
+    else if (id === 'assets') setAssetsOpen(val);
     else if (id === 'inspector') setInspectorOpen(val);
     else if (id === 'comments') setCommentsPanelOpen(val);
     else if (id === 'changes') setChangesOpen(val);
@@ -846,11 +932,9 @@ export function useShellCore({}) {
   );
   const openPanelExclusive = useCallback(
     (id) => {
-      const side = sideOf(id);
       setPanelOpen(id, true);
-      for (const p of DOCK_PANELS) {
-        if (p.id !== id && sideOf(p.id) === side) setPanelOpen(p.id, false);
-      }
+      // V2-4.4b — one main panel per side; the AI chat is its own island and is neither closed by them nor closes them.
+      for (const other of siblingsToClose(id, sideOf)) setPanelOpen(other, false);
     },
     [setPanelOpen, sideOf]
   );
@@ -870,17 +954,79 @@ export function useShellCore({}) {
   // docked on the right (never override an open Layers/Inspect/Comments panel)
   // and only when the preference is on. Idempotent: once the inspector is open,
   // the `anyRightPanelOpen` guard stops it re-firing on the next selection.
+  const inspectorAutoOpenedRef = useRef(false);
+  const lastFollowPickRef = useRef(null);
+  const canvasesFold = useRef(createCanvasesFold());
   const maybeAutoOpenInspectorOnSelect = useCallback(
     (sel) => {
-      if (!autoOpenInspectorRef.current) return;
-      if (viewerMode) return; // Cloud Phase 25 C2 — inspector is edit chrome
-      if (!sel || !sel.id) return; // need a stable element id to inspect
-      if (anyRightPanelOpenRef.current) return; // don't steal from an open panel
+      // V2-4.4b — the rule is v2/shell/inspector-follow.js (pref on, not a viewer — Cloud Phase 25 C2,
+      // a stable element id, never stealing from an open main panel; the AI chat does not count).
+      // S3.11 — in Preview and Viewing the selection is an INSPECTION: its specs are the floating Inspect
+      // panel (v2/inspect), not the docked Inspector, so the follow rule treats them like a viewer.
+      const reads = modeShows(shellMode.get().mode, 'inspect-panel');
+      // P8 c6: the canvas re-announces the SAME selection after it reloads (an AI edit lands) — that is not a new
+      // pick, so it neither opens the Inspector the first pick left shut (the AI chat was open then) nor reopens
+      // one the person closed. The memory ends with the selection (effect below).
+      const pickKey = sel?.selector || sel?.id || null;
+      if (pickKey && pickKey === lastFollowPickRef.current) return;
+      lastFollowPickRef.current = pickKey;
+      const open = shouldOpenOnSelect({
+        pref: autoOpenInspectorRef.current,
+        viewer: !!viewerMode || reads,
+        hasId: isFollowable(sel), // an element with an id, or a whole artboard (V2-8.5 c3)
+        anyMainOpen: anyRightPanelOpenRef.current,
+        askingAi: assistantOpenRef.current && isAskScopePick(sel), // a whole-artboard pick with the chat open = the ask scope (board 03)
+      });
+      if (!open) return;
+      inspectorAutoOpenedRef.current = true; // V2-4.4b — this appearance is the selection's; it leaves with it
       openRightPanel('inspector');
       setInspectorTab('css');
+      // S6.16b (01 cf-select-tweak) — "the view makes room": the Canvases panel folds to its corner icon.
+      // The panel only; the view never moves (I1). Same side as the Inspector? The exclusive rule above shut it.
+      const canvasesOpen =
+        !!panelStateRef.current.open?.tree && sideOf('tree') !== sideOf('inspector');
+      if (canvasesFold.current.arrive({ canvasesOpen, pinned: panelLayout.get().pinned })) {
+        setSidebarOpen(false);
+      }
     },
-    [openRightPanel, viewerMode]
+    [openRightPanel, sideOf, viewerMode]
   );
+  // V2-4.4b — "appears when something is selected and goes away on deselect". Only an Inspector the
+  // SELECTION opened goes away with it; one opened on purpose (⇧⌘I, View ▸ Inspector) stays, and closing
+  // it by hand ends the claim. With "Open inspector on select" off neither half runs.
+  useEffect(() => {
+    if (!inspectorOpen) inspectorAutoOpenedRef.current = false;
+  }, [inspectorOpen]);
+  const hasSelection = !!selected && (!Array.isArray(selected) || selected.length > 0);
+  useEffect(() => {
+    if (!hasSelection) lastFollowPickRef.current = null; // a new pick after a deselect follows again
+  }, [hasSelection]);
+  useEffect(() => {
+    if (hasSelection || !inspectorAutoOpenedRef.current) return;
+    const close = shouldCloseOnDeselect({
+      pref: autoOpenInspectorRef.current,
+      autoOpened: inspectorAutoOpenedRef.current,
+      hasSelection,
+    });
+    inspectorAutoOpenedRef.current = false;
+    if (close) setInspectorOpen(false);
+  }, [hasSelection]);
+  // S6.16b — the Canvases panel the arrival folded comes back with the end of the selection, unless the person
+  // opened it themselves meanwhile (the effect below ends the claim) or pinned the panels.
+  useEffect(() => {
+    if (sidebarOpen) canvasesFold.current.release();
+  }, [sidebarOpen]);
+  useEffect(() => {
+    if (
+      canvasesFold.current.clear({
+        hasSelection,
+        canvasesOpen: !!panelStateRef.current.open?.tree,
+        pinned: panelLayout.get().pinned,
+      })
+    ) {
+      setSidebarOpen(true);
+    }
+  }, [hasSelection]);
   // DDR-148 — the Timeline is a BOTTOM dock, independent of the right rail: it
   // toggles on its own and coexists with Inspector/Changes/Comments/Chat.
   const toggleTimeline = useCallback(() => setTimelineOpen((v) => !v), []);
@@ -894,27 +1040,13 @@ export function useShellCore({}) {
   const exportCenter = useExportCenter({
     enabled: cfg.cloud === null || cfg.exportLane === 'remote',
   });
-  // Phase 29 (E4) — first-run onboarding wizard. The native shell boots a minimal
-  // "welcome" project on first launch; we ask it whether this is a first run and, if
-  // so, show the wizard OVER the (empty) canvas browser. Completing any door switches
-  // the sidecar to a real project (the webview reloads → first-run is then false).
-  const [firstRun, setFirstRun] = useState(false);
-  // Offer the collab "rychlý kurz" once, AFTER onboarding (native app, not first run,
-  // not yet seen). A returning user who already took it isn't re-nudged.
+  // Offer the collab "rychlý kurz" once (native app, not yet seen). A returning user who already took it
+  // isn't re-nudged. (S6.15: the first-run onboarding wizard is gone — first launch boots Home, and a
+  // project window is by definition not a first run — so there is no first-run state any more.)
   const [collabNudge, setCollabNudge] = useState(false);
   useEffect(() => {
-    if (!isNativeApp()) return undefined;
-    let alive = true;
-    appIsFirstRun()
-      .then((v) => {
-        if (!alive) return;
-        setFirstRun(!!v);
-        if (!v && !readBoolStore(COLLAB_TOUR_STORE, false)) setCollabNudge(true);
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
+    if (!isNativeApp()) return;
+    if (!readBoolStore(COLLAB_TOUR_STORE, false)) setCollabNudge(true);
   }, []);
   const markCollabSeen = useCallback(() => {
     setCollabNudge(false);
@@ -957,7 +1089,7 @@ export function useShellCore({}) {
         openPanelExclusive('tree');
         setTimeout(() => {
           try {
-            document.querySelector('.st-sidebar [data-testid^="canvas-row-"]')?.click();
+            document.querySelector('.sh-sidebar [data-testid^="canvas-row-"]')?.click();
           } catch {}
         }, 80);
       }
@@ -984,10 +1116,12 @@ export function useShellCore({}) {
   // Canvas-chrome visibility (View menu). minimap + zoom-controls are
   // persistent prefs broadcast to every open canvas iframe; presentMode is a
   // non-destructive "hide ALL chrome + shell, artboards only" overlay with an
-  // Esc / floating-pill escape hatch back to the chrome.
+  // Esc / floating-pill escape hatch back to the chrome. S3.1 (D1): it is
+  // DERIVED from the one mode owner (`mode === 'present'`, use-canvas-mode-lane)
+  // — never a second piece of state that could disagree with it.
   const [minimapVisible, setMinimapVisible] = useState(() => readBoolStore(MINIMAP_STORE, false));
   const [zoomCtlVisible, setZoomCtlVisible] = useState(() => readBoolStore(ZOOMCTL_STORE, false));
-  const [presentMode, setPresentMode] = useState(false);
+  const [presentMode, setPresentMode] = usePresentMode();
   // feature-2-print-artboards T3 — "Show print guides". Per-CANVAS persisted
   // (view.json `overlays.print`, via /_api/canvas-meta), not a global
   // localStorage pref like minimap/zoomctl — mirrors the foundation's
@@ -1100,6 +1234,94 @@ export function useShellCore({}) {
     };
   }, [cfg?.canvasToken, cfg?.canvasOrigin]);
 
+  // p8-e2e-link-viewer (decision v2-p8-canvas-only-browser-opens-via-follow-capability) — a canvas-only
+  // cloud session gets no project-wide capability above; it asks one read-only capability per canvas it
+  // holds (the follow ask) and frames each canvas with its own (canvas-url.js `canvasCapAsks`). Re-minted
+  // on the same cadence; a running frame is handed its own canvas's fresh one, a frame refused as expired
+  // is pointed at it. `canvasCapsAt` re-renders the frames once the first capabilities are in.
+  const capAsks = canvasCapAsks(cfg).join('\n');
+  useEffect(() => {
+    const rels = capAsks ? capAsks.split('\n') : [];
+    if (rels.length === 0) return undefined;
+    let stopped = false;
+    let timer = null;
+    let caps = {};
+    const relOfFrame = (el) => {
+      try {
+        return new URL(el.src, location.href).searchParams.get('canvas');
+      } catch {
+        return null;
+      }
+    };
+    const target = () => {
+      try {
+        return new URL(cfg.canvasOrigin, location.href).origin;
+      } catch {
+        return null;
+      }
+    };
+    async function mint() {
+      const next = {};
+      await Promise.all(
+        rels.map(async (rel) => {
+          try {
+            const res = await fetch(canvasCapUrl(rel), {
+              cache: 'no-store',
+              credentials: 'same-origin',
+            });
+            const t = res.ok ? (await res.json())?.canvasToken : null;
+            if (typeof t === 'string' && t) next[rel] = t;
+          } catch {
+            /* retried on the next tick */
+          }
+        })
+      );
+      if (stopped) return null;
+      const first = Object.keys(caps).length === 0;
+      caps = next;
+      setCanvasCaps(caps);
+      const origin = target();
+      if (origin) {
+        for (const el of iframesRef.current.values()) {
+          const t = caps[relOfFrame(el)];
+          if (!t) continue;
+          try {
+            el.contentWindow?.postMessage({ dgn: 'canvas-cap', t }, origin);
+          } catch {}
+        }
+      }
+      if (first && Object.keys(caps).length > 0)
+        setCfg((prev) => ({ ...prev, canvasCapsAt: Date.now() }));
+      const one = Object.values(caps)[0];
+      clearTimeout(timer);
+      timer = setTimeout(mint, one ? canvasTokenRefreshDelay(one) : 30_000);
+      return caps;
+    }
+    let reviving = false;
+    async function onExpired(e) {
+      if (e.data?.dgn !== 'canvas-expired' || e.origin !== target() || reviving) return;
+      reviving = true;
+      try {
+        const fresh = await mint();
+        if (!fresh) return;
+        for (const el of iframesRef.current.values()) {
+          const t = el.contentWindow === e.source ? fresh[relOfFrame(el)] : null;
+          if (t) el.src = withCanvasToken(el.src, t);
+        }
+      } finally {
+        reviving = false;
+      }
+    }
+    window.addEventListener('message', onExpired);
+    mint();
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+      window.removeEventListener('message', onExpired);
+      setCanvasCaps({});
+    };
+  }, [capAsks, cfg?.canvasOrigin]);
+
   // Phase 5.1 — postMessage bridge from menubar dropdowns to the canvas iframe.
   // The canvas-shell listens for these `dgn:*` messages and dispatches into the
   // matching local provider (annotations visibility / both selection stores /
@@ -1108,8 +1330,11 @@ export function useShellCore({}) {
     (payload) => {
       const el = activePath ? iframesRef.current.get(activePath) : null;
       if (!el || !el.contentWindow) return;
+      // V2-8.9 defender L2 (C6): the frame's canvas origin, never '*'
+      const origin = canvasTargetOrigin(el);
+      if (!origin) return;
       try {
-        el.contentWindow.postMessage(payload, '*');
+        el.contentWindow.postMessage(payload, origin);
       } catch {}
     },
     [activePath]
@@ -1166,47 +1391,241 @@ export function useShellCore({}) {
       }),
     [activePath]
   );
+  // P8 c6 (14 ed-ab-resize): while an artboard edge is dragged the inspector reads the size the drag asks for
+  const liveSize = useLiveArtboardSize({ activePath, iframesRef, canvasOrigin: cfg?.canvasOrigin });
+  const selectedShown = useMemo(() => overlayLiveSize(selected, liveSize), [selected, liveSize]);
   return {
-    activeArtboards, activeComps, activePath, addressMode, agentActive, agentIdleRef,
-    annotationsVisible, assistantBusy, assistantOpen, assistantUnseen, autoOpenInspector, bodyRef,
-    brandUploadOpen, canvasActiveArtboard, canvasError, canvasReloadNonce, captureFromCanvas,
-    cellManaged, cfg, changesOpen, cloudLinkedHub, cloudManaged, collabNudge, commentsByFile,
-    commentsFilter, commentsPanelOpen, componentMap, cpMode, diffTarget, dragSide, editScope,
-    exportCenter, exportDialog, figmaImportOpen, firstRun, focusedCommentId, generateOpen,
-    gitLifecycle, gitStatus, gitUser, groups, handleAssistantAttention, handleAssistantFinished,
-    helpOpen, iframesRef, inspectorOpen, inspectorTab, introOpen, lastLayersTreeRef,
-    lastLocalSelectRef, layersBusyRef, layersBusyTimerRef, layersMode, layersOpen, layersTree,
-    loadServerConfig, loadedPath, loadingPath, localProjectName, markCollabSeen, markUsageSeen,
-    maybeAutoOpenInspectorOnSelect, minimapVisible, onIframeLoad, onPreview, openMenu,
-    openPanelExclusive, openRightPanel, paletteOpen, panelSide, pendingReorderRef, photoRev,
-    photoSel, photoUndoRef, postToActiveCanvas, presentMode, previewPath, previousAddressPath,
-    printGuidesVisible, project, quickSetupOpen, readinessOpen, remoteSync, reorderLayerRef,
-    reportBugOpen, repositionElementRef, resizeElementRef, rpSize, savingIsManaged,
-    savingIsManagedRef, sbSize, scheduleArtboardResync, scheduleHaloRestore, search,
-    sectionsExpanded, selected, selectedRef, setActiveArtboards, setActiveComps, setActivePath,
-    setAgentActive, setAnnotationsVisible, setAssistantBusy, setAssistantOpen, setAutoOpenInspector,
-    setBrandUploadOpen, setCanvasActiveArtboard, setCanvasError, setCanvasReloadNonce, setCfg,
-    setChangesOpen, setCloudLinkedHub, setCommentsByFile, setCommentsFilter, setCpMode,
-    setDiffTarget, setDragSide, setExportDialog, setFigmaImportOpen, setFocusedCommentId,
-    setGenerateOpen, setGitLifecycle, setGitStatus, setGitUser, setGroups, setHelpOpen,
-    setInspectorOpen, setInspectorTab, setIntroOpen, setLayersMode, setLayersOpen, setLayersTree,
-    setLoadedPath, setLoadingPath, setLocalProjectName, setMinimapVisible, setOpenMenu,
-    setPaletteOpen, setPanelSide, setPhotoRev, setPhotoSel, setPresentMode, setPreviewPath,
-    setPrintGuidesVisible, setProject, setQuickSetupOpen, setReadinessOpen, setRemoteSync,
-    setReportBugOpen, setSearch, setSelected, setSettingsOpen, setShareDialog, setShortcutsOpen,
-    setShowHidden, setSyncPanelOpen, setSyncStatus, setSystemData, setTabs, setTheme,
-    setTimelineArtboardId, setTimelineAudio, setTimelineFrame, setTimelineHeight, setTimelineLoop,
-    setTimelineMuted, setTimelineOpen, setTimelinePlaying, setTimelineSelectedClip,
-    setTimelineSequences, setTimelineTotal, setTimelineTransitions, setTimelineVolume, setTourSteps,
-    setTreeLoadFailures, setTreeLoaded, setUiPrefsHydrated, setUpdateReady, setWsConnected,
-    setZoomCtlVisible, settingsOpen, settlePendingSelectionRef, setupReadiness, shareDialog,
-    shortcutsOpen, showHidden, sidebarOpen, startTour, syncPanelOpen, syncStatus, systemData, tabs,
-    theme, timelineArtboardId, timelineArtboardIdRef, timelineAudio, timelineCompId,
-    timelineCompIdRef, timelineFps, timelineFrame, timelineFrameRef, timelineHeight, timelineLoop,
-    timelineMuted, timelineOpFailed, timelineOpen, timelinePlaying, timelineRefresh,
-    timelineSelectedClip, timelineSequences, timelineTotal, timelineTransitions, timelineVolume,
-    togglePanel, toggleRightPanel, toggleTimeline, tourBus, tourSteps, treeExp, treeLoadFailures,
-    treeLoaded, uiPrefsHydrated, unsavedCount, updateReady, updateTreeExp, usageNudge, viewerMode,
-    whatsNew, wsConnected, wsRef, zoomCtlVisible
+    activeArtboards,
+    activeComps,
+    activePath,
+    addressMode,
+    agentActive,
+    agentIdleRef,
+    annotationsVisible,
+    assistantBusy,
+    assistantOpen,
+    assistantUnseen,
+    autoOpenInspector,
+    bodyRef,
+    brandUploadOpen,
+    canvasActiveArtboard,
+    canvasError,
+    canvasReloadNonce,
+    captureFromCanvas,
+    cellManaged,
+    cfg,
+    changesOpen,
+    cloudLinkedHub,
+    cloudManaged,
+    collabNudge,
+    commentsByFile,
+    commentsFilter,
+    commentsPanelOpen,
+    componentMap,
+    cpMode,
+    diffTarget,
+    dragSide,
+    editScope,
+    exportCenter,
+    exportDialog,
+    figmaImportOpen,
+    focusedCommentId,
+    generateOpen,
+    gitLifecycle,
+    gitStatus,
+    gitUser,
+    groups,
+    handleAssistantAttention,
+    handleAssistantFinished,
+    helpOpen,
+    iframesRef,
+    inspectorOpen,
+    inspectorTab,
+    introOpen,
+    lastLayersTreeRef,
+    lastLocalSelectRef,
+    layersBusyRef,
+    layersBusyTimerRef,
+    layersMode,
+    layersOpen,
+    assetsOpen,
+    layersTree,
+    loadServerConfig,
+    loadedPath,
+    loadingPath,
+    localProjectName,
+    markCollabSeen,
+    markUsageSeen,
+    maybeAutoOpenInspectorOnSelect,
+    minimapVisible,
+    onIframeLoad,
+    onPreview,
+    openMenu,
+    openPanelExclusive,
+    openRightPanel,
+    paletteOpen,
+    panelSide,
+    pendingReorderRef,
+    photoRev,
+    photoSel,
+    photoUndoRef,
+    postToActiveCanvas,
+    presentMode,
+    previewPath,
+    previousAddressPath,
+    printGuidesVisible,
+    project,
+    quickSetupOpen,
+    readinessOpen,
+    remoteSync,
+    reorderLayerRef,
+    reportBugOpen,
+    repositionElementRef,
+    resizeElementRef,
+    rpSize,
+    savingIsManaged,
+    savingIsManagedRef,
+    sbSize,
+    scheduleArtboardResync,
+    scheduleHaloRestore,
+    search,
+    sectionsExpanded,
+    selected: selectedShown,
+    selectedRef,
+    setActiveArtboards,
+    setActiveComps,
+    setActivePath,
+    setAgentActive,
+    setAnnotationsVisible,
+    setAssistantBusy,
+    setAssistantOpen,
+    setAutoOpenInspector,
+    setBrandUploadOpen,
+    setCanvasActiveArtboard,
+    setCanvasError,
+    setCanvasReloadNonce,
+    setCfg,
+    setChangesOpen,
+    setCloudLinkedHub,
+    setCommentsByFile,
+    setCommentsFilter,
+    setCpMode,
+    setDiffTarget,
+    setDragSide,
+    setExportDialog,
+    setFigmaImportOpen,
+    setFocusedCommentId,
+    setGenerateOpen,
+    setGitLifecycle,
+    setGitStatus,
+    setGitUser,
+    setGroups,
+    setHelpOpen,
+    setInspectorOpen,
+    setInspectorTab,
+    setIntroOpen,
+    setLayersMode,
+    setLayersOpen,
+    setAssetsOpen,
+    setLayersTree,
+    setLoadedPath,
+    setLoadingPath,
+    setLocalProjectName,
+    setMinimapVisible,
+    setOpenMenu,
+    setPaletteOpen,
+    setPanelSide,
+    setPhotoRev,
+    setPhotoSel,
+    setPresentMode,
+    setPreviewPath,
+    setPrintGuidesVisible,
+    setProject,
+    setQuickSetupOpen,
+    setReadinessOpen,
+    setRemoteSync,
+    setReportBugOpen,
+    setSearch,
+    setSelected,
+    setSettingsOpen,
+    setShareDialog,
+    setShortcutsOpen,
+    setShowHidden,
+    setSyncPanelOpen,
+    setSyncStatus,
+    setSystemData,
+    setTabs,
+    setTheme,
+    setTimelineArtboardId,
+    setTimelineAudio,
+    setTimelineFrame,
+    setTimelineHeight,
+    setTimelineLoop,
+    setTimelineMuted,
+    setTimelineOpen,
+    setTimelinePlaying,
+    setTimelineSelectedClip,
+    setTimelineSequences,
+    setTimelineTotal,
+    setTimelineTransitions,
+    setTimelineVolume,
+    setTourSteps,
+    setTreeLoadFailures,
+    setTreeLoaded,
+    setUiPrefsHydrated,
+    setUpdateReady,
+    setWsConnected,
+    setZoomCtlVisible,
+    settingsOpen,
+    settlePendingSelectionRef,
+    setupReadiness,
+    shareDialog,
+    shortcutsOpen,
+    showHidden,
+    sidebarOpen,
+    startTour,
+    syncPanelOpen,
+    syncStatus,
+    systemData,
+    tabs,
+    theme,
+    timelineArtboardId,
+    timelineArtboardIdRef,
+    timelineAudio,
+    timelineCompId,
+    timelineCompIdRef,
+    timelineFps,
+    timelineFrame,
+    timelineFrameRef,
+    timelineHeight,
+    timelineLoop,
+    timelineMuted,
+    timelineOpFailed,
+    timelineOpen,
+    timelinePlaying,
+    timelineRefresh,
+    timelineSelectedClip,
+    timelineSequences,
+    timelineTotal,
+    timelineTransitions,
+    timelineVolume,
+    togglePanel,
+    toggleRightPanel,
+    toggleTimeline,
+    tourBus,
+    tourSteps,
+    treeExp,
+    treeLoadFailures,
+    treeLoaded,
+    uiPrefsHydrated,
+    unsavedCount,
+    updateReady,
+    updateTreeExp,
+    usageNudge,
+    viewerMode,
+    whatsNew,
+    wsConnected,
+    wsRef,
+    zoomCtlVisible,
   };
 }

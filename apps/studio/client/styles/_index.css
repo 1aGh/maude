@@ -2,7 +2,7 @@
  *
  * Layer cascade order (declared once, in this file):
  *   reset      — minimal base + box-sizing.
- *   tokens     — design tokens (--u-*) for the dev-server shell.
+ *   tokens     — design tokens (the generated maude-v2 ladder) for the dev-server shell.
  *   layout     — top-level grid (.app).
  *   shell      — chrome chrome: sidebar, header, status bar, viewport frame.
  *   components — system view, tokens grid, comments, gallery.
@@ -16,20 +16,184 @@
 
 @layer reset, tokens, layout, shell, components, utilities;
 
-@import url('./0-reset.css');
-@import url('./1-tokens.css');
-/* Plan B — maude DS token ladder, scoped under `.maude[data-theme]` (additive;
-   drives the rewritten `.st-*` chrome without disturbing the legacy amber tokens). */
-@import url('./1-tokens-maude.css');
-@import url('./2-layout.css');
-@import url('./3-shell.css');
-/* Plan B — maude DS studio chrome (.st-* ported from Studio.css), grown per slice. */
-@import url('./3-shell-maude.css');
-@import url('./4-components.css');
-/* Plan B — maude DS shared component classes (.btn/.kbd/.callout), scoped under `.maude`. */
-@import url('./4-components-maude.css');
-/* Plan B — maude redesign of remaining legacy shell surfaces (HelpModal, tour, what's-new, SystemView, CommentBar). */
-@import url('./5-maude-overrides.css');
-/* Phase 31 (DDR-123) — ACP chat sidepanel (chat-* inside the Assistant st-rpanel). */
-@import url('./6-acp-chat.css');
-@import url('./5-utilities.css');
+@import url("./0-reset.css");
+/* P8 C0 — THE shell token ladder, GENERATED (scripts/gen-tokens.mjs) from maude-v2: on <html data-theme> (so a
+   popover portalled to <body> resolves it) and on the shell root `.maude[data-theme]`. It replaced the v1 amber
+   `:root` palette (1-tokens.css), the indigo `.maude` ladder (1-tokens-maude.css) and the additive gap-filler. */
+@import url("./1-tokens-shell.css");
+/* V2-2.6 — the same maude-v2 ladder, GENERATED, scoped under `.maude-v2[data-theme]` (Home's root, v2Scope panels). */
+@import url("./1-tokens-maude-v2.css");
+@import url("./2-layout.css");
+/* Gate-B polish — the maude-v2 kit anatomy (.icon-btn, .seg/.k-seg-b, .k-adv*, .k-sw, .chip, .field, .input …)
+   at (0,1,0) in @layer shell, BEFORE every other shell file so any surface that styles these keeps its look. */
+@import url("./3-kit-maude-v2.css");
+/* V2-8.0 — Help (help modal, What's new + tour, Report a bug): its rules left the retired styles/ layer files; it keeps their slot. */
+@import url("../v2/help/help.css");
+/* Phase 31 (DDR-123) — ACP chat sidepanel (chat-* inside the Assistant sh-rpanel). */
+@import url("../v2/ai/chat.css");
+/* V2-8.0 — Create a project (cp-*): after the dialog chrome it shares with Generate (.gi-dialog, .cp-dialog), before the Component picker's own .cp-* names. */
+@import url("../v2/create/create-project.css");
+/* S5.8 — the AI chat panel host: scope chip + menu, suggestion strip, answer note, azure send. */
+@import url("../v2/ai/ai.css");
+/* S5.9 — the AI chat's run surface: working line, result card, Jump to latest, full height. */
+@import url("../v2/ai/ai-run.css");
+/* S7.15 — the AI cut's chat cards: footage line, watch grid, left out (client/v2/ai/video/). */
+@import url("../v2/ai/video/video-cards.css");
+/* S5.11 — the ✦ N run list and the waiting card. */
+@import url("../v2/ai/runs.css");
+@import url("../v2/ai/ai-list-advanced.css");
+/* S5.10 — attachments in the prompt, the paperclip menu, drop to attach, the folder consent card. */
+@import url("../v2/ai/attach.css");
+/* S5.13 — the AI chat's inline cards: permission, choice, kept prompt, the connect sheet, the folded count. */
+@import url("../v2/ai/needs-you.css");
+/* S5.14 — the quit dialog and the "Stopped" divider + Keep going. */
+@import url("../v2/ai/quit.css");
+@import url("../v2/shell/format-update.css");
+/* S2.19 — ⌘/ on a selection: the bubble under it, and the asked line. */
+@import url("../v2/ai/ask-selection.css");
+/* V2-4.1 — floating panels: the canvas edge to edge, dock slots as islands, folded corner icons. */
+@import url("../v2/shell/floating-panels.css");
+/* P8-C6 — the AI chat island: 340/420 wide, hugs its content (03 `.k-ai`). */
+@import url("../v2/ai/panel.css");
+@import url("../v2/shell/project-pill.css");
+/* S3.2b — the Present chrome: the controls (Present · Artboards) and the canvas pill. */
+@import url("../v2/present/present.css");
+@import url("../v2/present/video-present.css");
+/* V2-4.3a — the Share cluster, top-right. */
+@import url("../v2/shell/share-cluster.css");
+/* S3.9 - Preview's own islands: the PreviewBar and the zoom readout. */
+@import url("../v2/preview/preview.css");
+/* S8.2 — the Export sheet (client/v2/export/). */
+@import url("../v2/export/export.css");
+@import url("../v2/export/advanced/advanced.css");
+/* S8.4 — the Exports panel + job rows (client/v2/export/). */
+@import url("../v2/export/exports-panel.css");
+/* S8.9 — the export edges: Can comment line, Waiting for AI hold, Can view (client/v2/export/). */
+@import url("../v2/export/edges.css");
+/* S8.7 — the Print section: the paper preview + its marks (client/v2/export/). */
+@import url("../v2/export/print.css");
+/* S8.6 — the Video part: ticked formats + the filmstrip (client/v2/export/). */
+@import url("../v2/export/video.css");
+/* S8.10 — Handoff to production: targets, the review line, the ready card (client/v2/handoff/). */
+@import url("../v2/handoff/handoff.css");
+@import url("../v2/inspect/inspect.css");
+@import url("../v2/presence/presence.css");
+/* V2-4.5c — tool panels the canvas toolbar opens (Stickers), pinned next to the toolbar island. */
+@import url("../v2/shell/tool-panels.css");
+/* S4.3 — the Stickers gallery island inside that panel (stamps, packs, search, credits). */
+@import url("../v2/annotations/stickers-gallery.css");
+/* S4.4 — the Templates panel (tile grid + "describe it") on the same tool-panel shell. */
+@import url("../v2/annotations/templates-panel.css");
+@import url("../v2/annotations/vote.css");
+/* S4.17 — Layers in Preview = the annotation list (person chips, sections, the filter foot). */
+@import url("../v2/annotations/annotation-list.css");
+/* S2.16 — the Component picker (⇧I) on the same tool-panel shell. */
+@import url("../v2/inspector/component-picker.css");
+/* S7.20 — the F size picker (client/v2/kinds/SizePicker.jsx) on the same tool-panel shell. */
+@import url("../v2/kinds/size-picker.css");
+/* S7.24 — the kind filter chips (client/v2/kinds/KindChips.jsx) in the Canvases panel (and Layers). */
+@import url("../v2/kinds/kind-filter.css");
+@import url("../v2/kinds/convert.css");
+/* gate-b-polish3 — the Layers tab by artboard (client/v2/layers/artboard-layers.jsx). */
+@import url("../v2/layers/layers.css");
+/* V2-4.8b — callouts: the old top banners (sync diverged / rejected, role, update, repo changed) as one stack. */
+@import url("../v2/shell/callouts.css");
+/* S2.20 — Menu › Edit › Undo history… (client/v2/undo/undo-history.jsx). */
+@import url("../v2/undo/undo.css");
+/* V2-4.4a — the left panel: Canvases · Layers · Assets, the pinned Design system row, Trash, Advanced. */
+@import url("../v2/left-panel/left-panel.css");
+/* S1.1 — the Canvases list at scale: Pinned, Sort, folders with counts, virtualised rows. */
+@import url("../v2/canvases/canvases.css");
+/* S1.14 — Version history: rows with pictures, the Now row, the Viewing bar, Name this version. */
+@import url("../v2/history/history.css");
+@import url("../v2/ds/review.css");
+/* S10.7 — a Design system token edited in place (the inspector kind). */
+@import url("../v2/ds/token.css");
+/* S10.11 — the outside-change review and the conflict pick (Design system canvas). */
+@import url("../v2/ds/truth.css");
+/* S10.19 — Design system › Advanced and the Check the system card (inspector, Design system canvas). */
+@import url("../v2/ds/advanced.css");
+/* S10.18c — a linked team library: its card, "Update from …?" and the "Linked from …" banner. */
+@import url("../v2/ds/library.css");
+/* S10.14 — "Switch canvases to …?" and the "Preview in …" menu and banner. */
+@import url("../v2/ds/switch.css");
+/* S10.15b — "Bring <system> up to the schema?" and the amber dot as its door. */
+@import url("../v2/ds/upgrade.css");
+/* S10.17 — the edges: Lighten to 4.5:1, a colour to the trash, an off-system colour. */
+@import url("../v2/ds/edges.css");
+/* S10.9 — the reach view: "Used in 5 canvases · Show" draws every place ringed. */
+@import url("../v2/ds/reach.css");
+/* S10.16b — making a design system: the three-input sheet, the ready card, the direction bar. */
+@import url("../v2/ds/make.css");
+/* V2-4.7b — Menu › Diagnostics: the status words in the menu, the Logs · Server · AI setup · Sync sheet. */
+@import url("../v2/diagnostics/diagnostics.css");
+/* V2-4.7a — Settings: General · Connections · Advanced. */
+@import url("../v2/settings/settings.css");
+/* S9.19 — Share: Invite first, people and roles in words (10 co-share-sheet · co-share-roles). */
+@import url("../v2/share/share.css");
+/* S9.21 — Ask to edit, the access cards, the trashed-while-open banner */
+@import url("../v2/access/access.css");
+/* S3.5 — Present ⌄ › Order and notes…: the order, the skipped artboards and the speaker notes. */
+@import url("../v2/present/order-notes.css");
+@import url("../v2/present/presenter-view.css");
+/* S8.18 — Import a brand: drop a logo or type a website, Reading, the result with roles + preview. */
+@import url("../v2/import/brand.css");
+/* S8.17 — Import from Figma: link, Connect once, pick frames and where they go; the summary; Make editable. */
+@import url("../v2/import/figma.css");
+/* V2-4.10 — the shared › Advanced fold (client/v2/fold/advanced-fold.jsx). */
+@import url("../v2/fold/fold.css");
+/* S11.7 — the code view (read-only TSX) and the broken-canvas card (client/v2/code/). */
+@import url("../v2/code/code.css");
+/* S11.1 — the empty kit: Empty, Spot (the one spring), Ask AI, Suggestions, arriving rows (client/v2/empty/). */
+@import url("../v2/empty/empty.css");
+/* S6.2 — a project with no canvases: the prompt box + the panel line (client/v2/create/). */
+@import url("../v2/create/empty-project.css");
+/* S6.12 — a canvas that draws, then throws: the card over its dimmed last good render (client/v2/create/). */
+@import url("../v2/create/render-error.css");
+/* S9.24 — the "2 versions" mark and the object-conflict card (client/v2/sync-states/). */
+@import url("../v2/sync-states/sync-states.css");
+/* V2-4.6 — Search ⌘K (canvases · actions · tools · settings, each with its where-path) and the "?" sheet. */
+@import url("../v2/search/search.css");
+/* S2.2 — the Inspector frame: name · kind chip · numbered sections · › Advanced (client/v2/inspector/). */
+@import url("../v2/inspector/inspector.css");
+/* S2.3 — the section bodies: rows, token chips, the Gap menu, constraints (client/v2/inspector/sections/). */
+@import url("../v2/inspector/sections/sections.css");
+@import url("../v2/inspector/sections/warnings.css");
+/* S7.10 — the clip / title inspector's Motion grid, text field and chips (client/v2/inspector/kinds/clip.css). */
+@import url("../v2/inspector/kinds/clip.css");
+/* S8.19c — the Inspector's box for a picture that is waiting or missing, and the relink sheet (client/v2/assets/). */
+@import url("../v2/assets/missing-frame.css");
+/* S8.15 — the Inspector's Photo tab for one use + the "Apply to every use?" sheet (client/v2/photo/). */
+@import url("../v2/photo/photo.css");
+/* S8.16 — "Take 3 of 4" + "Picture made by AI" over the canvas, and the Generate ask (client/v2/assets/). */
+@import url("../v2/assets/takes.css");
+/* S8.20 — search in pictures: the offer, the sheet, "Seen in the picture" and its marks (client/v2/assets/). */
+@import url("../v2/assets/describe.css");
+/* Phase 4 gate — the a11y contrast floor (WCAG 1.4.3), utilities layer: wins over shell + components. */
+@import url("../v2/shell/contrast.css");
+/* V2-3.3 — the Home page, scoped under `.maude-v2.home-root` (maude-v2 tokens only). */
+@import url("../home/home.css");
+/* S6.8 — the sign-in card, the create-local sheet, the toast and the What's New line (client/v2/signin/). */
+@import url("../v2/signin/signin.css");
+/* S6.9 — the five Advanced sheets: hub, folder or GitHub, Connect AI, the maude command, Figma (client/v2/onboarding/). */
+@import url("../v2/onboarding/onboarding.css");
+@import url("./5-utilities.css");
+/* S3.7a — the Present follower page (follow bar, Live, watching; the audience window has no chrome). */
+@import url("../v2/present/follow.css");
+/* S9.22 — the Comments panel (filters, canvas groups, rows; client/v2/comments/). */
+@import url("../v2/comments/comments.css");
+/* S7.7 — the timeline island: placement, notch, Kept open / Expand, the empty block (client/v2/timeline/). */
+@import url("../v2/timeline/timeline.css");
+@import url("../v2/timeline/ai-edge.css");
+/* S7.15 — Other takes: the popover above a clip (client/v2/timeline/other-takes.jsx). */
+@import url("../v2/timeline/other-takes.css");
+/* S7.10 — the join picker, the "how should it sit?" ask and the Music line (client/v2/timeline/joins/). */
+@import url("../v2/timeline/joins/joins.css");
+/* S7.18 — the timeline's Advanced at its foot: frames, the easing curve, render settings, the cut as code. */
+@import url("../v2/timeline/advanced/advanced.css");
+/* S7.11 — the Transcript panel and the caption lane on the Text track (client/v2/transcript/). */
+@import url("../v2/transcript/transcript.css");
+/* S7.13 — the Re-frame island, "Shared by N formats" and the inspector's Formats rows (client/v2/timeline/reframe.css). */
+@import url("../v2/timeline/reframe.css");
+/* S7.17 — a teammate's playhead and caption word, comment flags and time marks on the ruler. */
+@import url("../v2/timeline/together.css");

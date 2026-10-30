@@ -23,6 +23,16 @@
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
+import { GRANT_ROLES, legacyClaim, MAX_GRANTS } from '../../studio/access/scope.ts';
+import { isReadOnlyRole, ROLES } from './role-matrix.mjs';
+
+/**
+ * The v2 token prefix (V2-1.7 §5.4). `m2.<body>.<sig>` has THREE parts, so every
+ * pre-v2 verifier — which requires exactly two — answers `malformed`: a claim an
+ * old cell cannot honour (observer, canvas-only, grants) fails closed BY FORMAT.
+ */
+export const ACCESS_TOKEN_V2_PREFIX = 'm2';
+
 /** How long an access token is good for. */
 export const ACCESS_TOKEN_TTL_MS = 12 * 60 * 60 * 1000;
 
@@ -85,6 +95,49 @@ export function signAccessToken(payload, secret) {
 }
 
 /**
+ * Sign a v2 project access token: `m2.<body>.<sig>`.
+ *
+ * The MAC covers the PREFIX too (`m2.<body>`), never the body alone. Otherwise
+ * stripping `m2.` would leave a valid v1 token — and an old cell reading a
+ * canvas-only body (`role: null`) through its `?? 'member'` default would hand a
+ * one-canvas guest the whole project. Same key (`projectTokenKey`) as v1.
+ */
+export function signAccessTokenV2(payload, secret) {
+  const body = b64url(JSON.stringify({ ...payload, v: 2 }));
+  const signed = `${ACCESS_TOKEN_V2_PREFIX}.${body}`;
+  const mac = createHmac('sha256', secret).update(signed).digest();
+  return `${signed}.${b64url(mac)}`;
+}
+
+/** Constant-time MAC check; false on any length or encoding mismatch. */
+function macMatches(secret, signed, sig) {
+  const expected = createHmac('sha256', secret).update(signed).digest();
+  let offered;
+  try {
+    offered = Buffer.from(sig, 'base64url');
+  } catch {
+    return false;
+  }
+  // Length-check before timingSafeEqual, which THROWS on a length mismatch —
+  // and a thrown comparison is a comparison that did not happen.
+  return offered.length === expected.length && timingSafeEqual(offered, expected);
+}
+
+/** v2 grants: absent, or ≤ MAX_GRANTS well-formed `{c, r}` — anything else is malformed. */
+function grantsValid(grants) {
+  if (grants === undefined) return true;
+  if (!Array.isArray(grants) || grants.length > MAX_GRANTS) return false;
+  return grants.every(
+    (g) =>
+      g &&
+      typeof g === 'object' &&
+      typeof g.c === 'string' &&
+      g.c.length > 0 &&
+      GRANT_ROLES.includes(g.r)
+  );
+}
+
+/**
  * Verify a project access token, offline.
  *
  * Returns the claims or a REASON — never a bare false. A sign-in that fails
@@ -93,19 +146,11 @@ export function signAccessToken(payload, secret) {
  */
 export function verifyAccessToken(token, secret, { now = Date.now(), tenantId } = {}) {
   const parts = String(token ?? '').split('.');
-  if (parts.length !== 2) return { ok: false, reason: 'malformed' };
-  const [body, sig] = parts;
+  const v2 = parts.length === 3 && parts[0] === ACCESS_TOKEN_V2_PREFIX;
+  if (parts.length !== 2 && !v2) return { ok: false, reason: 'malformed' };
+  const [body, sig] = v2 ? parts.slice(1) : parts;
 
-  const expected = createHmac('sha256', secret).update(body).digest();
-  let offered;
-  try {
-    offered = Buffer.from(sig, 'base64url');
-  } catch {
-    return { ok: false, reason: 'malformed' };
-  }
-  // Length-check before timingSafeEqual, which THROWS on a length mismatch —
-  // and a thrown comparison is a comparison that did not happen.
-  if (offered.length !== expected.length || !timingSafeEqual(offered, expected)) {
+  if (!macMatches(secret, v2 ? `${ACCESS_TOKEN_V2_PREFIX}.${body}` : body, sig)) {
     return { ok: false, reason: 'bad-signature' };
   }
 
@@ -115,6 +160,9 @@ export function verifyAccessToken(token, secret, { now = Date.now(), tenantId } 
   } catch {
     return { ok: false, reason: 'malformed' };
   }
+  if (!claims || typeof claims !== 'object' || Array.isArray(claims)) {
+    return { ok: false, reason: 'malformed' };
+  }
 
   // The audience check. Without it, a token minted for one project is a token
   // for every project that shares the master — which is every project.
@@ -122,9 +170,50 @@ export function verifyAccessToken(token, secret, { now = Date.now(), tenantId } 
   if (!claims.email) return { ok: false, reason: 'malformed' };
   if (typeof claims.exp !== 'number' || claims.exp <= now) return { ok: false, reason: 'expired' };
 
+  // H-1 (V2-1.7 §5.4): NO ROLE IS REFUSED, never defaulted. The old
+  // `claims.role ?? 'member'` turned a body without a role into an editor.
+  if (v2) {
+    // v2 carries the PROJECT vocabulary only; `role: null` is a canvas-only
+    // claim and must then carry at least one grant.
+    const roleOk = claims.role === null || ROLES.includes(claims.role);
+    if (claims.v !== 2 || !('role' in claims) || !roleOk || !grantsValid(claims.grants)) {
+      return { ok: false, reason: 'malformed' };
+    }
+    if (claims.role === null && !(claims.grants?.length > 0)) {
+      return { ok: false, reason: 'malformed' };
+    }
+  } else if (
+    // A v1 body is byte-identical to today's: a role string, no version, no
+    // grants, and never the v2-only `observer` — any of those is a v2 claim
+    // that lost its prefix, refused rather than read as something wider.
+    typeof claims.role !== 'string' ||
+    claims.role.length === 0 ||
+    claims.role === 'observer' ||
+    'grants' in claims ||
+    'v' in claims
+  ) {
+    return { ok: false, reason: 'malformed' };
+  }
+
   return {
     ok: true,
-    user: { email: claims.email, role: claims.role ?? 'member' },
+    // `role` stays in whichever vocabulary the token spoke (a v1 token may say
+    // `admin`); the minting door translates it (`projectRoleForAccount`).
+    user: { email: claims.email, role: claims.role },
+    // v2 only: `format: 2` and the `access` claim the minting door decides on.
+    // A v1 verdict stays key-for-key what 1.9.1 returned (token-interop pins it).
+    ...(v2
+      ? {
+          format: 2,
+          access: {
+            v: 1,
+            role: claims.role,
+            ...(claims.grants?.length
+              ? { grants: claims.grants.map(({ c, r }) => ({ c, r })) }
+              : {}),
+          },
+        }
+      : {}),
     // Surfaced so the exchanged peer token can be CAPPED to the project
     // token's own lifetime (Phase 23 B2).
     expiresAt: claims.exp,
@@ -141,10 +230,53 @@ export function verifyAccessToken(token, secret, { now = Date.now(), tenantId } 
  * rather than by both being careful.
  */
 export function accessClaims(
-  { email, project, role = 'member' },
+  { email, project, role, grants },
   { now = Date.now(), ttlMs = ACCESS_TOKEN_TTL_MS } = {}
 ) {
-  return { email, project, role, iat: now, exp: now + ttlMs };
+  // H-1: every mint states the role. No default — a forgotten role must be a
+  // loud mint failure, never an editor.
+  if (role === undefined) throw new Error('accessClaims: a role is required (H-1)');
+  return {
+    email,
+    project,
+    role,
+    ...(grants?.length ? { grants } : {}),
+    iat: now,
+    exp: now + ttlMs,
+  };
+}
+
+/**
+ * The claim a verified sign-in carries, in the PROJECT vocabulary: a v2 token's
+ * own claim, else the v1 role translated at the one boundary (`admin` → owner).
+ */
+export function claimOf(result) {
+  return result?.access ?? legacyClaim(result?.user?.role ?? null);
+}
+
+/**
+ * The `addToken` fields for a session the mint door (`peerTokenDoor`) allowed.
+ *
+ *  - `readOnly` is the PROJECT role's projection only — a grant never lifts it
+ *    here: it stays the fail-closed floor for any door that does not read the claim.
+ *  - A canvas-only session (`role: null` + canvas grants) is stored with scope
+ *    `*` (V2-5 A3): every door that serves it reads the claim now (S9.4 files,
+ *    S9.5 documents), so the CLAIM does the canvas narrowing — a label scope
+ *    (DDR-053's default) refused even its own canvas's document. A claim with
+ *    no grant keeps the label-bound default (fail closed).
+ *  - A project-role session keeps the scope the caller passed.
+ * Unreachable until the control plane mints `m2.` for this cell (`roles-v2`).
+ */
+export function peerSessionFields(door, { scope = '*' } = {}) {
+  const role = door.claim.role;
+  const grants = door.claim.grants;
+  const canvasOnly = role === null && Array.isArray(grants) && grants.length > 0;
+  return {
+    role,
+    readOnly: isReadOnlyRole(role),
+    ...(role !== null ? { scope } : canvasOnly ? { scope: '*' } : {}),
+    ...(door.v2 ? { access: door.claim } : {}),
+  };
 }
 
 /**
@@ -216,7 +348,13 @@ export function authenticateForMode(
     }
     // The exchanged session must die WITH the project token, not outlive it
     // by 30 days — "removal lands within 12 hours" is a written promise.
-    return { ok: true, user: verdict.user, expiresAt: verdict.expiresAt };
+    // `access` (v2 tokens only) is the claim the minting door decides on.
+    return {
+      ok: true,
+      user: verdict.user,
+      expiresAt: verdict.expiresAt,
+      ...(verdict.access ? { format: verdict.format, access: verdict.access } : {}),
+    };
   }
 
   // HYBRID keeps the local user store alive alongside tokens; STRICT is the

@@ -1,0 +1,13 @@
+import { writeFileSync } from 'node:fs';
+import { photos } from './fx.mjs';
+import { boot, scratchProject, sleep } from './lib.mjs';
+const src = await photos();
+const { scratch, project } = scratchProject(src);
+const s = await boot(project, scratch, {}, {});
+const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="160" height="60"><circle cx="30" cy="30" r="20" fill="#f4a08c"/><text x="58" y="38" font-size="20" font-family="sans-serif" fill="#222">studio brno</text></svg>';
+const r = await fetch(s.url + '/_api/import-asset', { method: 'POST', headers: { 'X-Import-Kind': 'svg', origin: s.url }, body: svg });
+console.log('STATUS', r.status, (await r.text()).slice(0, 1200));
+await sleep(500);
+console.log(s.log().slice(-1500));
+s.stop();
+process.exit(0);

@@ -31,7 +31,12 @@ export default function IntroVideoDialog({ open, onClose }) {
           <span className="title" id="intro-video-title">
             Watch the intro
           </span>
-          <button type="button" className="help-modal-close" aria-label="Close (Esc)" onClick={onClose}>
+          <button
+            type="button"
+            className="help-modal-close"
+            aria-label="Close (Esc)"
+            onClick={onClose}
+          >
             ×
           </button>
         </header>

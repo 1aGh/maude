@@ -1,0 +1,72 @@
+/* client/v2/assets/describe.css — S8.20: search in pictures in the Assets tab (describe-consent.jsx, search-marks.jsx).
+ * 12 Import and Assets · ia-assets-find (the offer, the sheet, "Seen in the picture" with its marked line), 05 · es-search-more.
+ * Tokens only. */
+
+@layer shell {
+  .lp-offer {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+    /* 12 · .ia-offer2: it lines up with the grid (the list already pads), a 1 px hairline, 12 px inside */
+    margin: var(--space-2) 0 0;
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--bg-2);
+    box-shadow: inset 0 0 0 1px var(--border-default);
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-1);
+  }
+  .lp-offer .btn {
+    background: var(--bg-2);
+    box-shadow:
+      var(--shadow-sm),
+      inset 0 0 0 0.5px var(--border-strong);
+  }
+  .lp-offer p {
+    margin: 0;
+  }
+  .lp-offer strong {
+    color: var(--fg-0);
+    font-weight: var(--w-semibold);
+  }
+  .lp-seen {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .lp-seen-line {
+    overflow: hidden;
+    font-size: var(--type-xs);
+    line-height: 16px;
+    color: var(--fg-2);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .lp-seen-m {
+    background: none;
+    color: var(--fg-0);
+    font-weight: var(--w-semibold);
+    box-shadow: inset 0 -1.5px 0 var(--accent);
+  }
+  .lp-describe-progress {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+  .lp-describe-bul {
+    margin: 0 0 var(--space-3);
+    padding-left: var(--space-4);
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
+  .lp-describe-bul li + li {
+    margin-top: var(--space-1);
+  }
+  .lp-empty-fine {
+    margin-top: var(--space-2);
+  }
+}

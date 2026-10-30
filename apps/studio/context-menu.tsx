@@ -29,6 +29,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { DsIcon, DsSpark } from './canvas-ds-icons.tsx';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -51,8 +52,20 @@ export interface ContextTarget {
 export interface MenuItem {
   id: string;
   label: string;
+  /**
+   * S2.22 — the label for THIS click, when it names what was clicked (`Ask AI about “Desktop”`). Falsy
+   * falls back to the static `label`, which stays the word every list, test and screen reader can rely on.
+   */
+  labelOf?: (target: ContextTarget) => string | null | undefined;
+  /**
+   * P8 C3 (14 ed-ab-menu / ed-obj-order) - a glyph of the DS family (`canvas-ds-icons`, or `spark` for the AI) in the
+   * menu's icon column. Rows of the same menu without one keep the column's place, so labels line up.
+   */
+  icon?: string;
   /** Right-aligned shortcut hint (e.g. `⌘C`, `⌫`). */
   shortcut?: string;
+  /** S2.22 — a quiet word beside the row where there is no shortcut ("same style" on Select matching). */
+  note?: string;
   destructive?: boolean;
   /**
    * A FUNCTION form is resolved per-click against `target` — same rationale as
@@ -114,7 +127,8 @@ function defaultExportItem(label: string, scopeHint: string): MenuItem {
     onSelect: () => {
       const detail = { scope: scopeHint };
       try {
-        window.dispatchEvent(new CustomEvent('maude:open-export', { detail }));
+        // S8.2 — the shell's one Export sheet (the iframe's own dialog is retired)
+        window.parent.postMessage({ dgn: 'open-export', detail }, '*');
       } catch {
         /* SSR / non-window environments */
       }
@@ -132,8 +146,10 @@ const DEFAULT_REGISTRY: ContextRegistry = {
     ],
     [defaultExportItem('Export selection…', 'selection')],
     [
-      { id: 'hide', label: 'Hide', shortcut: '⌘⇧H', onSelect: noop('hide') },
-      { id: 'lock', label: 'Lock', shortcut: '⌘⇧L', onSelect: noop('lock') },
+      // S2.6 — the real rows are `editing/object-menu.tsx`'s; the old '⌘⇧H' hint named a chord that
+      // is Handoff's (⇧⌘H) and the lock chord is ⇧⌘L.
+      { id: 'hide', label: 'Hide', onSelect: noop('hide') },
+      { id: 'lock', label: 'Lock', shortcut: '⇧⌘L', onSelect: noop('lock') },
     ],
   ],
   'artboard-chrome': [
@@ -182,32 +198,39 @@ interface InternalState {
 }
 
 const MENU_CSS = `
+/* gate-a-polish: the popover plane of the v2 kit (_kit.css .k-menu) — opaque chrome surface, radius-lg, the
+   large shadow + 0.5px edge hairline, the BODY face at 12px; mono is for Advanced and code only. Reads the
+   --maude-chrome-* family (the canvas iframe has no island tokens; the shell maps the same names). */
 .dc-context-menu {
   position: fixed;
   z-index: 7;
-  background: var(--maude-chrome-bg-0, #fff);
-  border: 1px solid var(--maude-chrome-fg-0, #1c1917);
-  border-radius: 8px;
-  box-shadow: 0 6px 24px var(--maude-chrome-shadow, color-mix(in oklab, #1c1917 10%, transparent));
+  background: var(--maude-chrome-bg-2, #fff);
+  border: 0;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px var(--maude-chrome-shadow, color-mix(in oklab, #1c1917 10%, transparent)), inset 0 0 0 0.5px var(--maude-chrome-border, rgba(0,0,0,0.08));
   padding: 4px;
-  min-width: 220px;
-  font-family: var(--maude-chrome-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  /* 14: the artboard menu is drawn 268 wide, the object menu 292 */
+  min-width: 268px;
+  font-family: var(--maude-chrome-font-body, system-ui, sans-serif);
   font-size: 12px;
+  line-height: 1.42;
+  font-weight: 400;
   color: var(--maude-chrome-fg-0, rgba(20,15,10,0.92));
   user-select: none;
 }
 .dc-context-menu .dc-menu-sep {
   height: 1px;
   background: var(--maude-chrome-border, rgba(0,0,0,0.08));
-  margin: 4px -4px;
+  margin: 4px 8px;
 }
 .dc-context-menu .dc-menu-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  padding: 5px 12px;
-  border-radius: 0;
+  min-height: 28px;
+  padding: 4px 8px;
+  border-radius: 6px;
   cursor: pointer;
   background: transparent;
   border: 0;
@@ -216,9 +239,15 @@ const MENU_CSS = `
   font: inherit;
   color: inherit;
 }
-.dc-context-menu .dc-menu-item:hover {
-  background: color-mix(in oklab, var(--maude-chrome-fg-0, #1c1917) 8%, transparent);
+.dc-context-menu .dc-menu-lab { flex: 1; display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.dc-context-menu .dc-menu-ic { display: grid; place-items: center; width: 16px; flex: none; color: var(--maude-chrome-fg-1, rgba(40,30,20,0.55)); }
+/* 14 ed-ab-menu: a hovered row, and the parent of an open flyout, read accent-muted (the board's data-hl) */
+.dc-context-menu .dc-menu-item:hover,
+.dc-context-menu .dc-menu-item[aria-expanded="true"] {
+  background: var(--maude-hud-accent-muted, color-mix(in oklab, var(--maude-chrome-fg-0, #1c1917) 8%, transparent));
 }
+.dc-context-menu[data-target="element"] { min-width: 292px; }
+.dc-context-menu:focus { outline: none; }
 .dc-context-menu .dc-menu-item:focus-visible {
   /* fix-photo-editor-followup-debt Task 16 — was outline: none (an
      ~1.05:1-contrast, effectively invisible focus ring). Reuses
@@ -226,7 +255,7 @@ const MENU_CSS = `
      token for this chrome family — artboard labels, zoom toolbar) rather
      than inventing a new one; -2px inset offset matches that same
      convention for a control inside a bordered container. */
-  background: color-mix(in oklab, var(--maude-chrome-fg-0, #1c1917) 8%, transparent);
+  background: var(--maude-hud-accent-muted, color-mix(in oklab, var(--maude-chrome-fg-0, #1c1917) 8%, transparent));
   outline: 2px solid var(--maude-hud-accent, #d63b1f);
   outline-offset: -2px;
 }
@@ -234,31 +263,35 @@ const MENU_CSS = `
   opacity: 0.45;
   cursor: not-allowed;
 }
-.dc-context-menu .dc-menu-item.is-destructive:hover,
-.dc-context-menu .dc-menu-item.is-destructive:focus-visible {
-  background: #c0392b;
-  color: #fff;
+/* Destructive rows read in the error text colour (_kit.css .k-mi--danger) and keep it on hover; they
+   no longer flood red. */
+.dc-context-menu .dc-menu-item.is-destructive {
+  color: var(--maude-chrome-error, #c0392b);
+}
+.dc-context-menu .dc-menu-note {
+  color: var(--maude-chrome-fg-1, rgba(40,30,20,0.55));
+  font-size: 11px;
 }
 .dc-context-menu .dc-menu-shortcut {
   color: var(--maude-chrome-fg-1, rgba(40,30,20,0.55));
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 10px;
+  font-family: inherit;
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
 /* Submenu flyout (Theme ▸ …). Anchored to the right of its parent row; flips
    left near the viewport edge via .is-flip. Reuses .dc-menu-item styling. */
 .dc-context-menu .dc-menu-sub { position: relative; }
-.dc-context-menu .dc-menu-caret { color: var(--maude-chrome-fg-1, rgba(40,30,20,0.55)); font-size: 11px; }
+.dc-context-menu .dc-menu-caret { display: grid; color: var(--maude-chrome-fg-1, rgba(40,30,20,0.55)); }
 .dc-context-menu .dc-menu-flyout {
   position: absolute;
   top: -5px;
   left: calc(100% + 3px);
   min-width: 196px;
   padding: 4px;
-  background: var(--maude-chrome-bg-0, #fff);
-  border: 1px solid var(--maude-chrome-fg-0, #1c1917);
-  border-radius: 8px;
-  box-shadow: 0 6px 24px var(--maude-chrome-shadow, color-mix(in oklab, #1c1917 10%, transparent));
+  background: var(--maude-chrome-bg-2, #fff);
+  border: 0;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px var(--maude-chrome-shadow, color-mix(in oklab, #1c1917 10%, transparent)), inset 0 0 0 0.5px var(--maude-chrome-border, rgba(0,0,0,0.08));
   z-index: 8;
 }
 .dc-context-menu .dc-menu-flyout.is-flip { left: auto; right: calc(100% + 3px); }
@@ -352,9 +385,9 @@ export function ContextMenuView({
     if (nx + r.width > vw - 8) nx = Math.max(8, vw - r.width - 8);
     if (ny + r.height > vh - 8) ny = Math.max(8, vh - r.height - 8);
     if (nx !== pos.x || ny !== pos.y) setPos({ x: nx, y: ny });
-    // Focus first menu item for keyboard nav.
-    const firstBtn = el.querySelector<HTMLButtonElement>('button.dc-menu-item:not([disabled])');
-    firstBtn?.focus();
+    // P8 C3 (14 ed-ab-menu): focus lands on the MENU, not its first row - a mouse open used to paint a focus ring
+    // on the first item; ArrowDown / ArrowUp walk into the rows from here.
+    el.focus({ preventScroll: true });
     // Dismiss on outside-click / Esc / scroll.
     const onDocPointer = (e: PointerEvent) => {
       if (!el.contains(e.target as Node)) onClose();
@@ -379,7 +412,9 @@ export function ContextMenuView({
         const nextIdx =
           e.key === 'ArrowDown'
             ? (idx + 1) % items.length
-            : (idx - 1 + items.length) % items.length;
+            : idx < 0
+              ? items.length - 1
+              : (idx - 1 + items.length) % items.length;
         items[nextIdx]?.focus();
       }
     };
@@ -406,15 +441,39 @@ export function ContextMenuView({
       })
     )
     .filter((section) => section.length > 0);
+  // one icon column per menu: if any row wears a glyph, every row keeps the column's place
+  const iconCol = visibleSections.some((sec) => sec.some((it) => !!it.icon));
   return (
-    <div ref={ref} className="dc-context-menu" role="menu" style={{ left: pos.x, top: pos.y }}>
+    <div
+      ref={ref}
+      className="dc-context-menu"
+      role="menu"
+      tabIndex={-1}
+      // a11y gate W7: a menu needs a name; which one follows what was right-clicked
+      aria-label={
+        target.kind === 'artboard-chrome'
+          ? 'Artboard actions'
+          : target.kind === 'element'
+            ? 'Object actions'
+            : 'Canvas actions'
+      }
+      data-esc-owner=""
+      data-target={target.kind}
+      style={{ left: pos.x, top: pos.y }}
+    >
       {visibleSections.map((section, si) => {
         const sectionKey = section.map((i) => i.id).join('|') || `s${si}`;
         return (
           <div key={sectionKey} role="group">
             {si > 0 ? <div className="dc-menu-sep" aria-hidden="true" /> : null}
             {section.map((item) => (
-              <MenuItemRow key={item.id} item={item} target={target} onClose={onClose} />
+              <MenuItemRow
+                key={item.id}
+                item={item}
+                target={target}
+                onClose={onClose}
+                iconCol={iconCol}
+              />
             ))}
           </div>
         );
@@ -428,14 +487,28 @@ export function ContextMenuView({
 // `submenu` render a flyout (opens on hover / ArrowRight / click). Additive:
 // existing flat registries (no `submenu`) take the plain-button path unchanged.
 
+function MenuGlyph({ icon }: { icon?: string }) {
+  return (
+    <span className="dc-menu-ic" aria-hidden="true">
+      {icon === 'spark' ? (
+        <DsSpark size={14} color="var(--maude-hud-spark, currentColor)" />
+      ) : icon ? (
+        <DsIcon name={icon} size={14} />
+      ) : null}
+    </span>
+  );
+}
+
 function MenuItemRow({
   item,
   target,
   onClose,
+  iconCol = false,
 }: {
   item: MenuItem;
   target: ContextTarget;
   onClose: () => void;
+  iconCol?: boolean;
 }) {
   const [subOpen, setSubOpen] = useState(false);
   const [flip, setFlip] = useState(false);
@@ -455,6 +528,7 @@ function MenuItemRow({
       <button
         type="button"
         role="menuitem"
+        data-testid={`canvas-menu-item-${item.id}`}
         disabled={disabled}
         title={disabled ? item.disabledHint : undefined}
         className={`dc-menu-item${item.destructive ? ' is-destructive' : ''}`}
@@ -464,8 +538,15 @@ function MenuItemRow({
           onClose();
         }}
       >
-        <span>{item.label}</span>
-        {item.shortcut ? <span className="dc-menu-shortcut">{item.shortcut}</span> : null}
+        <span className="dc-menu-lab">
+          {iconCol ? <MenuGlyph icon={item.icon} /> : null}
+          {item.labelOf?.(target) || item.label}
+        </span>
+        {item.shortcut ? (
+          <span className="dc-menu-shortcut">{item.shortcut}</span>
+        ) : item.note ? (
+          <span className="dc-menu-note">{item.note}</span>
+        ) : null}
       </button>
     );
   }
@@ -502,6 +583,7 @@ function MenuItemRow({
         role="menuitem"
         aria-haspopup="menu"
         aria-expanded={subOpen}
+        data-testid={`canvas-menu-item-${item.id}`}
         disabled={disabled}
         className="dc-menu-item"
         onClick={() => (subOpen ? setSubOpen(false) : open())}
@@ -517,9 +599,12 @@ function MenuItemRow({
           }
         }}
       >
-        <span>{item.label}</span>
+        <span className="dc-menu-lab">
+          {iconCol ? <MenuGlyph icon={item.icon} /> : null}
+          {item.labelOf?.(target) || item.label}
+        </span>
         <span className="dc-menu-caret" aria-hidden="true">
-          ▸
+          <DsIcon name="submenu" size={12} />
         </span>
       </button>
       {subOpen ? (
@@ -527,6 +612,7 @@ function MenuItemRow({
           ref={flyoutRef}
           className={`dc-menu-flyout${flip ? ' is-flip' : ''}`}
           role="menu"
+          aria-label={item.labelOf?.(target) || item.label}
           onMouseEnter={cancelClose}
           onMouseLeave={scheduleClose}
         >
@@ -543,6 +629,7 @@ function MenuItemRow({
                 key={sub.id}
                 type="button"
                 role="menuitem"
+                data-testid={`canvas-menu-item-${sub.id}`}
                 disabled={subDisabled}
                 title={subDisabled ? sub.disabledHint : undefined}
                 className={`dc-menu-item${sub.destructive ? ' is-destructive' : ''}`}

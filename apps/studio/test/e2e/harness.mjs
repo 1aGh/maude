@@ -72,10 +72,19 @@ export async function makeProjectFor(board) {
     : makeProject({ board });
 }
 
+/**
+ * The `.design/config.json` of a throwaway project. The studio opens a format-1 project (no `formatVersion`) view
+ * only (2A, FORMAT_GATE_OPTS), so a v2 scenario needs `formatVersion: 2`. E2E_LEGACY=1 models a 1.x project for the
+ * pre-v2 baseline studio and keeps the bare config.
+ */
+export function e2eProjectConfig(name) {
+  return process.env.E2E_LEGACY === '1' ? { name } : { name, formatVersion: 2 };
+}
+
 export function makeProject({ board = null, legacySvg = null } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'maude-ann-e2e-'));
   mkdirSync(join(root, '.design', 'ui'), { recursive: true });
-  writeFileSync(join(root, '.design', 'config.json'), JSON.stringify({ name: 'ann-e2e' }));
+  writeFileSync(join(root, '.design', 'config.json'), JSON.stringify(e2eProjectConfig('ann-e2e')));
   writeFileSync(join(root, '.design', 'ui', 'Board.tsx'), CANVAS);
   writeFileSync(join(root, '.design', 'ui', 'Board.meta.json'), JSON.stringify(META));
   if (board) {
@@ -95,7 +104,14 @@ export async function startServer(root) {
     'bun',
     ['run', join(STUDIO_DIR, 'server.ts'), '--root', root, '--port', String(port)],
     {
-      env: { ...process.env, MAUDE_NO_AUTOBUILD: '1', NO_OPEN: '1' },
+      env: {
+        ...process.env,
+        MAUDE_NO_AUTOBUILD: '1',
+        NO_OPEN: '1',
+        // S5.1b — the unlinked fixture stamps a machine id; keep it in the fixture, never ~/.config.
+        MAUDE_MACHINE_FILE:
+          process.env.MAUDE_MACHINE_FILE ?? join(root, '.design', '_state', 'machine.json'),
+      },
       stdio: ['ignore', 'pipe', 'pipe'],
     }
   );
@@ -156,7 +172,7 @@ export async function waitForBoard(root, pred, ms = 8000) {
   return b;
 }
 
-export async function openCanvas(server) {
+export async function openCanvas(server, { clearTop = 0 } = {}) {
   const dbg = (m) => process.env.E2E_DEBUG && console.error(`[e2e] ${m}`);
   dbg('launch');
   const browser = await chromium.launch({ headless: process.env.E2E_HEADED !== '1' });
@@ -220,9 +236,70 @@ export async function openCanvas(server) {
   }
   await page.waitForTimeout(500);
   const frameBox = await page.locator('[data-testid="canvas-frame"]').boundingBox();
+  // S4.9 — the annotation layer answers pointers in Preview only; Edit shows it quiet (a click passes through to
+  // the design). Every scenario here drives the layer, so open in Preview. A pre-v2 baseline has no modes.
+  // Preview first, then Fit: the Preview bar is an island with data-occludes="top" and Fit leaves room for it, so
+  // fitting before the switch parks the board under it (toolbars above a top element end up beneath the bar).
+  if (process.env.E2E_LEGACY !== '1') {
+    await page.locator('[data-testid="palette-mode-preview"]').first().click({ timeout: 10_000 });
+    await page.waitForTimeout(500);
+    // the button took the keyboard focus: give it back to the canvas (empty corner), or V/B/N reach the shell
+    await page.mouse.click(frameBox.x + 12, frameBox.y + frameBox.height - 12);
+    await page.waitForTimeout(300);
+  }
   // Fit everything into view: a double-click on empty canvas is the shell's fit().
   await page.mouse.dblclick(frameBox.x + 12, frameBox.y + frameBox.height - 12);
   await page.waitForTimeout(700);
+  // `clearTop` px of extra room above the board: an element's bar floats above it, and at Fit's own margin a bar
+  // for the top row slides under the Preview bar island. Scenarios that click those bars ask for the room.
+  if (clearTop > 0) {
+    // (a Hand drag on empty canvas pans in Preview; the wheel is the page's, not the canvas's, over a shell island)
+    const x0 = frameBox.x + frameBox.width / 2;
+    const y0 = frameBox.y + frameBox.height - 200 - clearTop;
+    await page.mouse.move(x0, y0);
+    await page.mouse.down();
+    await page.mouse.move(x0, y0 + clearTop, { steps: 8 });
+    await page.mouse.up();
+    await page.waitForTimeout(400);
+  }
+  // A person's mouse always hovers before it presses: the layer resolves what is under the pointer on the move, and
+  // a press with no move before it (Playwright's mouse.click/dblclick jump straight to down) picks nothing. Every
+  // scenario clicks through page.mouse, so give them the hover a real pointer has.
+  const click1 = page.mouse.click.bind(page.mouse);
+  page.mouse.click = async (x, y, opts) => {
+    await page.mouse.move(x, y);
+    await page.waitForTimeout(80);
+    return click1(x, y, opts);
+  };
+  // A person's double click has a beat between its two presses (the first selects, React renders, the second
+  // edits); Playwright's dblclick sends both in the same millisecond. Same two presses, a human beat apart.
+  page.mouse.dblclick = async (x, y, opts = {}) => {
+    await page.mouse.move(x, y);
+    await page.waitForTimeout(80);
+    const button = opts.button ?? 'left';
+    await page.mouse.down({ button, clickCount: 1 });
+    await page.mouse.up({ button, clickCount: 1 });
+    await page.waitForTimeout(90);
+    await page.mouse.down({ button, clickCount: 2 });
+    await page.mouse.up({ button, clickCount: 2 });
+  };
+  // Esc runs a ladder (tool, then Hand, then out of Preview into Edit, S4.8), and every scenario resets with a few
+  // Escapes. They want the layer, so when the mode was left, put it back the way a click on the palette does (a DOM
+  // click: it must not take the keyboard focus off the canvas).
+  const want = { mode: process.env.E2E_LEGACY === '1' ? null : 'preview' };
+  const pressKey = page.keyboard.press.bind(page.keyboard);
+  page.keyboard.press = async (key, opts) => {
+    await pressKey(key, opts);
+    if (key !== 'Escape' || !want.mode) return;
+    await page.waitForTimeout(120); // the shell leaves Preview a beat after the key
+    const left = await page.evaluate((m) => {
+      const b = document.querySelector(`[data-testid="palette-mode-${m}"]`);
+      if (!b || b.getAttribute('aria-pressed') === 'true') return false;
+      b.click();
+      return true;
+    }, want.mode);
+    if (left) await page.waitForTimeout(150);
+  };
   const c = {
     browser,
     page,
@@ -362,6 +439,15 @@ export async function openCanvas(server) {
       for (const m of modifiers) await page.keyboard.down(m);
       await page.mouse.click(x, y);
       for (const m of modifiers) await page.keyboard.up(m);
+    },
+    /** Switch the shell's mode ('edit' | 'preview'): the layer is quiet in Edit and live in Preview (S4.9). */
+    async setMode(mode) {
+      if (process.env.E2E_LEGACY === '1') return;
+      want.mode = mode;
+      await page.locator(`[data-testid="palette-mode-${mode}"]`).first().click({ timeout: 10_000 });
+      await page.waitForTimeout(500);
+      await page.mouse.click(frameBox.x + 12, frameBox.y + frameBox.height - 12); // focus back on the canvas
+      await page.waitForTimeout(300);
     },
     async drag(from, to, { steps = 12, modifiers = [] } = {}) {
       for (const m of modifiers) await page.keyboard.down(m);

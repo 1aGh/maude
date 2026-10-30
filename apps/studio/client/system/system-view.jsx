@@ -1,6 +1,9 @@
 // system/system-view.jsx — moved verbatim out of client/app.jsx (Maude v2 plan V2-0.2, move-only split).
 
 import { canvasUrl } from '../canvas-url.js';
+import { framesIsolated } from '../v2/access/access-client.js';
+import { DsConvertBanner } from '../v2/ds/convert-dialog.jsx';
+import { requestDsConvert } from '../v2/ds/convert-model.js';
 
 // ---------- SystemView ----------
 //
@@ -197,6 +200,11 @@ export function SystemView({ data, onOpen, cfg, onSelectDs }) {
         </span>
       </header>
 
+      {/* S10.12 — a system still in its folder (S10 Q6): the door to the Design system canvas. */}
+      {selectedName && cfg?.dsConverted?.[selectedName] !== true && !cfg?.readOnly ? (
+        <DsConvertBanner ds={selectedName} onOpen={() => requestDsConvert({ ds: selectedName })} />
+      ) : null}
+
       {ds?.description ? <p className="sv-ds-description">{ds.description}</p> : null}
 
       <TokenLadder tokens={tokens} tokenGroups={tokenGroups} tokensPath={tokensPath} />
@@ -227,6 +235,7 @@ export function SystemView({ data, onOpen, cfg, onSelectDs }) {
 
 export function Gallery({ title, items, onOpen, kind, cfg }) {
   if (!items || items.length === 0) return null;
+  const solo = framesIsolated(cfg);
   return (
     <section className="sv-section">
       <h2>
@@ -236,12 +245,15 @@ export function Gallery({ title, items, onOpen, kind, cfg }) {
         {items.map((p) => (
           <article key={p.path} className="sv-preview-card" onClick={() => onOpen(p.path)}>
             <div className="sv-preview-frame">
-              <iframe
-                src={canvasUrl(p.path, cfg, { thumbnail: true })}
-                title={p.label}
-                scrolling="no"
-                {...(cfg?.canvasOrigin ? { sandbox: 'allow-scripts allow-same-origin' } : {})}
-              />
+              {/* p8-secfix-f F1 — a canvas-only session frames one canvas at a time, never a gallery */}
+              {solo ? null : (
+                <iframe
+                  src={canvasUrl(p.path, cfg, { thumbnail: true })}
+                  title={p.label}
+                  scrolling="no"
+                  {...(cfg?.canvasOrigin ? { sandbox: 'allow-scripts allow-same-origin' } : {})}
+                />
+              )}
             </div>
             <div className="sv-preview-foot">
               <strong>{p.label}</strong>

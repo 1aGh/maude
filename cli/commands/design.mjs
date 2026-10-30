@@ -13,6 +13,10 @@ import { createRequire } from 'node:module';
 import { homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { parseArgs } from '../lib/argv.mjs';
+import { outputViolation, violationMessage } from '../lib/confine-out.mjs';
+import { readViolation, readViolationMessage } from '../lib/confine-read.mjs';
+import { rootViolation, rootViolationMessage } from '../lib/confine-root.mjs';
+import { DESIGN_VERB_TIERS_HELP } from '../lib/design-help.gen.mjs';
 import {
   runAdopt,
   runBulkDeletes,
@@ -21,8 +25,20 @@ import {
   runStatus,
   runUnlink,
 } from '../lib/design-link.mjs';
+import {
+  coerceOptionValue,
+  defaultV1Scope,
+  estimateLines,
+  filenameFromDisposition,
+  planExportArgv,
+  preflightLines,
+  refusalText,
+  V1_FORMATS,
+  V2_ONLY_FORMATS,
+} from '../lib/export-spec.mjs';
 import { writeGitignoreBlock } from '../lib/gitignore-block.mjs';
 import { isCompiledBinary } from '../lib/pkg-root.mjs';
+import { subVerbArgs } from '../lib/sub-verbs.mjs';
 
 const SUBCOMMANDS = new Set([
   'serve',
@@ -35,6 +51,11 @@ const SUBCOMMANDS = new Set([
   'adopt',
   'bulk-deletes',
   'help',
+  // V2-2.4b (contract V2-1.11 §5.3). In-process node verbs that talk to the studio: `open` shows a
+  // canvas / artboard / element in the user's window (cli/lib/design-open.mjs). `hook` is the design
+  // plugin's hook dispatcher (§5.4, cli/lib/design-hook.mjs): deny-only, fail-open, always exit 0.
+  'open',
+  'hook',
 ]);
 
 // Dev-tooling verbs that dispatch to the dev-server's bundled bash helpers
@@ -63,6 +84,9 @@ const BIN_VERBS = new Set([
   'read-annotations',
   'annotate',
   'canvas-rects',
+  // S11.6 — read-only: the canvases that can't be drawn, and a canvas's source or one artboard's lines.
+  'canvas-errors',
+  'canvas-source',
   'chat-open',
   'ensure-browser',
   'fetch-asset',
@@ -122,6 +146,22 @@ const BIN_VERBS = new Set([
   // the shared captions.ts reflow. No dev server; whisper.cpp is a SOFT dep with
   // ElevenLabs Scribe / Groq Whisper as the cloud fallback.
   'transcribe',
+  // S7.2 (V2-1.10 §5.7). `transcribe-local` is the LOCAL-ONLY sibling of `transcribe`: words +
+  // speech regions for one project asset → assets/<name>.transcript.json. whisper.cpp only, never a
+  // model download, no --provider (so it is auto tier; the cloud engines stay on `transcribe`).
+  'transcribe-local',
+  // S7.3 (V2-1.10 §5.7). `beats` — tempo, beats and bars of one project music asset →
+  // assets/<name>.beats.json (`--dry-run` prints only). Local, no network.
+  'beats',
+  // S7.6c (V2-1.10 §5.7). The Timeline's video tools for an agent, each ONE edit op through the
+  // running studio (`POST /_api/edit-op`, the same bytes and refusals as the UI): `captions add|list|
+  // export`, `cut-words` (edit by transcript) and `cut-to-beat`.
+  'captions',
+  'cut-words',
+  'cut-to-beat',
+  // S7.14 (V2-1.10 §5.7, §5.9). `reel-place <edl-slug> --next` — the AI cut, one shot per call: the first
+  // shot of the cut the video does not have yet, as one literal Sequence; exit 4 "All shots are placed".
+  'reel-place',
   // feature-ai-media-generation (Task 2.5, DDR-164). `audio-search` is the
   // reuse-before-you-pay verb: search the project's own generated audio + the
   // user's ElevenLabs history before spending credits on a new music/SFX/VO
@@ -135,6 +175,56 @@ const BIN_VERBS = new Set([
   // host — see DDR-185's rejected alternatives). No dev server dependency —
   // pure Node, no `<designRoot>` involvement.
   'curl-local',
+  // V2-2.17. `index` reads the project index (canvases, artboards, kinds; search with accent /
+  // word-order / one-typo folding) from the running studio, or builds the static index
+  // in-process when none runs. Read-only — writes nothing.
+  'index',
+  // S8.11. `assets [--usage <asset>] [--not-used]` — the project's assets, where each is used, and
+  // which are not (V2-1.17 §5.5). Read-only; the studio's index, else a static build.
+  'assets',
+  // S12.13 (V2-1.17 §5.9). `describe [--batch N] [--status] [--stop]` — search in pictures: the
+  // asset-describer agent (Read only, an OS temp dir of tiles) through the person's own `claude`,
+  // under the studio's consent and budget. Refuses without consent; spends their account.
+  'describe',
+  // V2-2.15. `ds-check` is the design-system schema checker (contract V2-1.13 §5.8): system
+  // levels 0 / 10 / 11, canvas S-rules (12), `--json`, `--cheatsheet`, `--hook`. Read-only unless
+  // `--emit` (tokens.json) or `--fix=mechanical` (canvas autofixes; 13 = a refused write).
+  'ds-check',
+  // V2-2.15. `ds-upgrade` — the system-file steps of "bring a design system up to the schema"
+  // (V2-1.13 §5.10): analyse / plan / validate (V1–V4, V8 → 13) / stage / apply. Never implicit.
+  'ds-upgrade',
+  // S10.3 (V2-1.6 §5.12, S10 §2.4). `ds` — a converted design system's reviews from a terminal:
+  // status / usage / revisions list (reads), publish, pending, keep, undo, pick, canvas
+  // update|leave, trash, restore, clear (owner). Asks the running studio; in-process otherwise.
+  'ds',
+  // V2-2.4b (contract V2-1.11 §5.2/§5.3, V2-1.18 §5.3). `check` validates the files Claude writes,
+  // by kind (canvas TSX, boards, meta, hand-offs…). Read-only; the PostToolUse hook runs it.
+  'check',
+  // V2-2.4b (§5.3). `place` finds a free spot next to an artboard/element; `layout-check` lints
+  // overlapping artboards and clipped elements. Both read the canvas-rects manifest; read-only.
+  'place',
+  'layout-check',
+  // V2-2.4b (§5.3, V2-1.9 §5.11). `history` lists / shows / diffs this project's versions (the
+  // studio's accepted rows, or its git log for a local project). Sub-verbs are tiered one by one.
+  'history',
+  // S1.17 (S1-trash.md, V2-1.11 §5.3). `trash list` / `trash restore <id>` read and bring back from the
+  // shared Trash; `trash move <canvas>` (V2-8.16) puts one canvas there, as the row menu does; `trash clear` is the project OWNER's delete-for-good (human tier, asks first).
+  'trash',
+  // V2-2.4b (§5.3). `comments list` reads this project's comment threads. Read-only here; replying
+  // and resolving (S9) will be their own prompt-tier sub-verbs.
+  'comments',
+  // V2-2.4b (§5.3, S8). `exports list` / `exports again <id>` — the Exports panel; `again` goes
+  // through the same jobs path as the sheet's "Export again" row (exporters/replay.ts). S8.4:
+  // `exports retry <id>` is the panel's "Retry <name>" (POST /_api/export-jobs/retry).
+  'exports',
+  // S5.4 (V2-1.15 §5.10). `runs list` — the AI runs on this project and the artboards each holds,
+  // so a terminal Claude plans around busy ones; `runs stop <run>` stops one of YOUR runs.
+  'runs',
+  // S11.11 (Menu › Diagnostics). `logs` — this Mac's sync / server / AI / export log lines, redacted,
+  // as Diagnostics › Logs shows them. `sync status|resync` — the one-word Sync status and Resync now
+  // (watches the trace and prints the result sentence). `logs` and `sync status` only read.
+  'logs',
+  'sync',
   // feature-canvas-render-performance (Task 1 + 11). `perf` drives a scripted
   // pan/zoom against a live canvas and reports frame-time percentiles plus the
   // React render count during the gesture, delta'd against the previous run of
@@ -162,8 +252,26 @@ export async function run({ args, pkgRoot }) {
   const sub = positional[0];
 
   if (!sub || sub === 'help') {
-    process.stdout.write(usage());
+    process.stdout.write(`${usage()}\n${DESIGN_VERB_TIERS_HELP}`);
     return;
+  }
+
+  // gate-b-sec2 finding 1 (decision v2-gate-b-sec2-session-root): inside an AI session every verb
+  // — read-only ones included — works on the session's project only. `hook` reads its project from
+  // Claude Code's own input, never from a flag.
+  if (sub !== 'hook') {
+    const elsewhere = rootViolation(args);
+    if (elsewhere) {
+      process.stderr.write(rootViolationMessage(sub, elsewhere));
+      process.exit(2);
+    }
+    // V2-8.9 H2 — in the Maude chat, a verb that reads a path it is given reads only inside the
+    // chat's read boundary (the project, Maude's own folders, the folders attached to this chat).
+    const unread = readViolation(sub, args.slice(args.indexOf(sub) + 1));
+    if (unread) {
+      process.stderr.write(readViolationMessage(sub, unread));
+      process.exit(2);
+    }
   }
 
   // Dev-tooling verbs dispatch to the bundled bash helpers (DDR-062). Checked
@@ -184,6 +292,18 @@ export async function run({ args, pkgRoot }) {
   if (sub === 'status') return runStatus({ args });
   if (sub === 'adopt') return runAdopt({ args });
   if (sub === 'bulk-deletes') return runBulkDeletes({ args });
+  if (sub === 'open') {
+    const { runOpen } = await import('../lib/design-open.mjs');
+    process.exit(await runOpen({ words: args.slice(args.indexOf('open') + 1) }));
+  }
+  if (sub === 'hook') {
+    const { runHookCli } = await import('../lib/design-hook.mjs');
+    // the local `maude design check` fallback re-runs THIS maude (compiled binary or node + bin)
+    const self = isCompiledBinary()
+      ? [process.execPath]
+      : [process.execPath, join(pkgRoot, 'cli', 'bin', 'maude.mjs')];
+    process.exit(await runHookCli({ words: args.slice(args.indexOf('hook') + 1), self, pkgRoot }));
+  }
 }
 
 // Run a whitelisted dev-server bash helper, resolving it from maude's OWN
@@ -276,6 +396,11 @@ function ensureBunOnPath(childEnv, pkgRoot) {
   }
 }
 
+/** A path inside a `bun --compile` binary's embedded filesystem (mirrors apps/studio isVirtualPath). */
+export function isVirtualNapiPath(p) {
+  return typeof p === 'string' && /^(\/\$bunfs\/|[A-Za-z]:[\\/]~BUN[\\/])/.test(p);
+}
+
 function runBinDispatch(verb, { args, pkgRoot }) {
   if (!BIN_VERBS.has(verb)) {
     process.stderr.write(`maude design: "${verb}" is not a dev-tooling verb.\n${usage()}`);
@@ -294,8 +419,32 @@ function runBinDispatch(verb, { args, pkgRoot }) {
     );
     process.exit(1);
   }
-  const rest = args.slice(args.indexOf(verb) + 1); // everything after the verb token
+  // A read-only step that is a flag gets a sub-verb (`ds-upgrade analyse <ds>`) so the AI chat can
+  // auto-allow exactly it; a step flag after one is refused (lead c, cli/lib/sub-verbs.mjs).
+  const sv = subVerbArgs(verb, args.slice(args.indexOf(verb) + 1)); // everything after the verb
+  if (sv.error) {
+    process.stderr.write(`${sv.error}\n`);
+    process.exit(2);
+  }
+  const rest = sv.args;
+  // V2-2.8 S4 (contract V2-1.11 §5.3): an output flag lands inside the project or the temp
+  // dir, never anywhere else. Auto-tier verbs run without a prompt in the AI chat.
+  // V2-8.9 B2 — agent-browser-safe takes its screenshot path as a positional, not a flag: the
+  // same rule applies to it.
+  const positionalOut =
+    verb === 'agent-browser-safe' && rest[0] === 'screenshot' && rest[1] ? ['--out', rest[1]] : [];
+  const outside = outputViolation([...rest, ...positionalOut]);
+  if (outside) {
+    process.stderr.write(violationMessage(verb, outside));
+    process.exit(2);
+  }
   const childEnv = { ...process.env, CLAUDE_PLUGIN_ROOT: pluginRoot };
+  // p8-t-video-2 — a `/$bunfs/…` (or Windows `B:/~BUN/…`) NAPI_RS_NATIVE_LIBRARY_PATH names the oxc
+  // binding INSIDE a compiled maude-server (DDR-042) and exists nowhere else; a sidecar child inherits it.
+  // With it set, oxc-parser's loader tries only that path, so every parse-reaching helper (reel-place, …)
+  // died with "Cannot find native binding". Drop it — the helper's own oxc-parser finds its binding.
+  if (isVirtualNapiPath(childEnv.NAPI_RS_NATIVE_LIBRARY_PATH))
+    delete childEnv.NAPI_RS_NATIVE_LIBRARY_PATH;
   // For verbs that boot the dev-server, resolve the compiled platform binary the
   // SAME way `maude design serve` does and hand the path down. The binary embeds
   // yjs + every runtime dep; `bun server.ts` from source does NOT (the deps live
@@ -336,12 +485,50 @@ function usage() {
 Lifecycle:
   serve · init · export · link · adopt · detach · unlink · status · bulk-deletes
 
+Studio (talk to the running Maude window — contract V2-1.11 §5.3):
+  open <canvas>[#artboard][@element] [--mode edit|preview|present] [--select all|none|annotations]
+        Show it in the user's Maude window. Exit 3 when no window shows this project.
+  history list|show|diff [<canvas>] [--json]
+        This project's versions (a synced project's, or its git log). Read-only.
+  history object <canvas> <artboard>/<id> | <annotation-id> [--json]
+        One object's versions, newest first (rows found by matching say so). Read-only.
+  history restore <canvas> <ref> · history undo --action <id> | --chat <id> [--redo]
+  history name <canvas> <ref> "<name>" | --clear
+        Restore a canvas / undo an action or a whole AI chat, each as ONE new version; name a version (synced projects). Asks first.
+  history restore <canvas> <ref> --artboard <id> | --element <artboard>/<id> · history restore <canvas> @last-good
+        Put back only one artboard or object, or the last version that drew without an error.
+  trash list [--json] · trash move <canvas> · trash restore <id | canvas path>
+        What is in the Trash; move one canvas to it (as Canvases › Move canvas to trash); bring one item back.
+  trash clear [--item <id>]... [--yes]
+        Delete for good — the project owner's, at a terminal; asks first.
+  comments list [<canvas>] [--open | --all] [--mine] [--json]
+        This project's comment threads. Read-only.
+  exports list · exports again <id|index> [--out <file|folder/>] [--no-wait] · exports retry <id|index> [--item <id,…>]
+        Recent exports; export one again as the Export sheet does (file lands in the project); retry
+        runs only the items of one export that did not make it.
+  assets [--usage <asset>] [--not-used] [--json]
+        The project's assets and the canvases that use them; not-used ones once older versions are checked. Read-only.
+  runs list [--canvas <canvas>] [--json] · runs stop <run>
+        The AI runs on this project and the artboards each is changing; stop one of yours.
+  logs [--source all|sync|server|ai|export] [--tail N] [--grep <text>] [--json]
+        This Mac's Maude log lines, redacted, merged by time (what Diagnostics › Logs shows). Read-only.
+  sync status [--json] · sync resync [--no-wait] [--json]
+        Sync in one word + the last resync; or compare every file with the cloud copy. Resync asks first.
+  captions add|list|export <canvas>#<artboard> · cut-words <canvas>#<artboard> --clip <id> --words w12-w15
+  cut-to-beat <canvas>#<artboard> [--every 1|2|4] · beats <assets/x.mp3> [--bpm N] [--dry-run]
+        A video's captions, edit by transcript, Cut to the beat (one undoable edit each, in the
+        open studio), and the beat grid of a music asset.
+  reel-place <edl-slug> --next [--canvas <canvas>#<artboard>]
+        The AI cut, one shot per call onto the video; exit 4 when every shot is placed.
+  hook prompt|pre-edit|post-edit|pre-bash|post-bash|stop|subagent-start|session-start
+        The design plugin's Claude Code hooks (hook JSON on stdin). Deny-only, fail-open: exit 0.
+
 Dev-tooling (dispatch to the dev-server bash helpers — DDR-062):
   screenshot · server-up · prep · slug · bootstrap-check · runtime-health
   smoke · canvas-edit · handoff · asset-sweep · visual-sanity · fetch-asset
   draw-build · draw-proof · svg-optimize · to-lottie · read-annotations · annotate
-  canvas-rects · ingest-footage · probe-footage · smart-frames
-  generate · transcribe · audio-search
+  canvas-rects · canvas-errors · canvas-source · ingest-footage · probe-footage · smart-frames
+  generate · transcribe · transcribe-local · audio-search
         Invoke the bundled helper of the same name. maude resolves it from its
         own package root and sets CLAUDE_PLUGIN_ROOT for the child; stdout,
         stderr, and exit code pass straight through (so command-substitution
@@ -371,12 +558,39 @@ Dev-tooling (dispatch to the dev-server bash helpers — DDR-062):
         scaffolds Core + the derived specimens deterministically (this is the
         path skill 'design-system' uses when shelling out from Claude Code).
 
-  export <format> [--scope selection|artboard|canvas-as-separate|canvas-whole|selection-bounds|project-raw]
+  export <format> [--scope selection|canvas|folder|project] [--canvas <rel>] [--folder <rel>]
+         [--artboard <id> ...] [--element <id> ...] [--region x,y,w,h] [--unit each|one]
+         [--name '<template>'] [--at <sha>] [--wait ai] [--estimate] [--preflight]
          [--port N] [--out <path>] [--option key=value ...]
-        Drive the same POST /_api/export endpoint the UI uses. Auto-detects
-        port from .design/_server.json; requires a running dev server. The
-        response body is written to --out (default: current dir, server-
-        supplied filename). Formats: png pdf svg html pptx canva zip.
+        Drive the same POST /_api/export endpoint the Export sheet uses, as one
+        ExportSpec (v2). Auto-detects port from .design/_server.json; requires a
+        running dev server. The response body is written to --out (a file path,
+        or a folder to put the server-supplied filename in; default: current
+        dir). Formats: png jpg pdf svg html pptx canva zip mp4 webm gif audio.
+        --scope canvas is This canvas (--canvas, else the open one); folder takes
+        --folder; project is Whole project; selection takes --artboard / --element
+        ids. --region is a world rectangle, --unit one makes one file of it,
+        --name sets the file-name template ({project} {folder} {canvas}
+        {artboard} {kind} {size} {scale} {date}). --estimate prints the file
+        count, size and time without exporting. --preflight (a print artboard) prints
+        its paper, its back, elements past the safe margin and fonts that will not
+        embed; warnings inform, the export still runs. Without --scope, a v2-only flag
+        or format (jpg, audio) means --scope canvas.
+        --option short names: scale dpi quality bleed marks back registration text fps videoQuality
+        captions linked allowLonger codec; or the spec's dotted path (video.fps,
+        print.marks, print.registration, print.text (keep|embed|outline), colorProfile,
+        background, annotations, saveTo, lane).
+        What the engine cannot run yet (--at, --wait, display-p3) comes back as
+        the server's own "not available" sentence.
+        The older scopes still work and send the older request unchanged:
+        --scope artboard|canvas-as-separate|canvas-whole|selection-bounds|project-raw
+        (and --scope selection alone, the live selection). Default: canvas-as-separate;
+        artboard for mp4/webm/gif; project-raw for zip (the only scope zip serves).
+        There --option numbers arrive as numbers (scale=2, dpi=300, fps=30) and
+        true/false as booleans; anything else is a string. PDF print options:
+        marks=crop,registration (crop registration colorBars pageInfo) and
+        includeBleed=true|false. ZIP filters are lists: include=system,assets
+        (system canvases assets meta) and exclude=<glob>,<glob>.
 
   link <url> --token <hex> [--adopt] [--force]
         Pair this clone with a Maude hub. Writes .design/config.json's
@@ -661,32 +875,20 @@ function checkDevDeps({ pkgRoot }) {
 
 async function runExport({ args }) {
   // `maude design export <format> [--scope ...] [--port N] [--out <path>] [--option key=value]`
+  // v2 (S8.1c, contract S8-export-spec.md §5.7): `--scope selection|canvas|folder|project` with
+  // `--folder --canvas --artboard --element --region --unit --at --wait --name --estimate` sends
+  // `{v:2, spec}`; the v1 scope spellings send the v1 body unchanged.
   const subArgs = args.slice(args.indexOf('export') + 1);
-  const { positional, flags } = parseArgs(subArgs, {
-    booleans: ['help'],
-  });
+  const { format, flags, optionItems, plan } = planExportArgv(subArgs);
   if (flags.help) {
     process.stdout.write(usage());
     return;
   }
 
-  const format = positional[0];
   // Includes the temporal formats (DDR-148): mp4/webm/gif render through the
-  // capture spine, same POST /_api/export the UI ⌘E dialog uses. Video export
+  // capture spine, same POST /_api/export the UI export sheet uses. Video export
   // is always artboard-scoped (the comp's registered meta drives fps/duration).
-  const VALID_FORMATS = new Set([
-    'png',
-    'pdf',
-    'svg',
-    'html',
-    'pptx',
-    'canva',
-    'zip',
-    'mp4',
-    'webm',
-    'gif',
-  ]);
-  const VIDEO_FORMATS = new Set(['mp4', 'webm', 'gif']);
+  const VALID_FORMATS = new Set([...V1_FORMATS, ...V2_ONLY_FORMATS]);
   if (!format || !VALID_FORMATS.has(format)) {
     process.stderr.write(
       `maude design export: missing or unknown <format>. Try one of: ${Array.from(VALID_FORMATS).join(', ')}\n`
@@ -694,20 +896,11 @@ async function runExport({ args }) {
     process.exit(2);
   }
 
-  // Video formats default to artboard scope (the only scope video supports —
-  // scope.ts resolves the artboard under the active canvas); other formats keep
-  // the canvas-as-separate default.
-  const scope = flags.scope ?? (VIDEO_FORMATS.has(format) ? 'artboard' : 'canvas-as-separate');
-  const VALID_SCOPES = new Set([
-    'selection',
-    'artboard',
-    'canvas-as-separate',
-    'canvas-whole',
-    'selection-bounds',
-    'project-raw',
-  ]);
-  if (!VALID_SCOPES.has(scope)) {
-    process.stderr.write(`maude design export: unknown --scope "${scope}"\n`);
+  // The repeatable flags (`--option key=value`, `--artboard`, `--element`, `--kind`) are collected
+  // by planExportArgv (cli/lib/export-spec.mjs) — the same path the Export sheet's command lines are
+  // tested against.
+  if (plan.error) {
+    process.stderr.write(`maude design export: ${plan.error}\n`);
     process.exit(2);
   }
 
@@ -728,56 +921,155 @@ async function runExport({ args }) {
     process.exit(1);
   }
 
-  // Collect `--option key=value` repeated flags into an object.
-  const options = {};
-  const repeated = collectRepeatedFlag(subArgs, '--option');
-  for (const item of repeated) {
-    const eq = item.indexOf('=');
-    if (eq < 0) {
-      process.stderr.write(
-        `maude design export: invalid --option "${item}" (expected key=value)\n`
-      );
+  let route = '/_api/export';
+  let body;
+  if (plan.mode === 'v2') {
+    const numbersOnly = flags.estimate === true || flags.preflight === true;
+    route =
+      flags.preflight === true
+        ? '/_api/export-preflight'
+        : flags.estimate === true
+          ? '/_api/export-estimate'
+          : '/_api/export';
+    body = numbersOnly ? { spec: plan.spec } : { v: 2, spec: plan.spec };
+  } else {
+    // Each format defaults to a scope it can actually serve: video → artboard (the only scope video
+    // supports — scope.ts resolves the artboard under the active canvas), zip → project-raw (the
+    // only scope exporters/zip.ts serves; the default used to be canvas-as-separate, which the
+    // server refuses for zip, so a bare `export zip` always failed). Everything else keeps
+    // canvas-as-separate. An explicit --scope is sent as given — a bad pair is the server's refusal.
+    const scope = plan.scope ?? defaultV1Scope(format);
+    const parsed = parseExportOptions(optionItems);
+    if (parsed.error) {
+      process.stderr.write(`maude design export: ${parsed.error}\n`);
       process.exit(2);
     }
-    const key = item.slice(0, eq);
-    const value = item.slice(eq + 1);
-    // Coerce common JSON-ish values: true/false, numbers, arrays via comma.
-    options[key] = value === 'true' ? true : value === 'false' ? false : value;
+    body = { format, scope, options: parsed.options };
   }
 
-  const url = `http://localhost:${port}/_api/export`;
-  const r = await fetch(url, {
+  const r = await fetch(`http://localhost:${port}${route}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ format, scope, options }),
+    body: JSON.stringify(body),
   });
   if (!r.ok) {
     const text = await r.text();
-    process.stderr.write(`maude design export: server returned ${r.status}: ${text}\n`);
+    process.stderr.write(`maude design export: ${refusalText(r.status, text)}\n`);
     process.exit(1);
   }
 
+  if (flags.preflight === true) {
+    // S8.7 — the Print preflight: names and numbers; the words are built here, like the estimate's
+    process.stdout.write(`${preflightLines(await r.json()).join('\n')}\n`);
+    return;
+  }
+  if (flags.estimate === true) {
+    // The server sends numbers; the words are built here (contract §5.5).
+    const est = await r.json();
+    process.stdout.write(`${estimateLines(est).join('\n')}\n`);
+    return;
+  }
+
   const disp = r.headers.get('content-disposition') ?? '';
-  const serverFilename = /filename="([^"]+)"/.exec(disp)?.[1] ?? `export.${format}`;
-  const outPath = flags.out
+  // basename(): the name comes off a response header — never let it carry a path out of the target dir.
+  // `filename*` (RFC 6266, a non-ASCII name) wins over the ASCII `filename`.
+  const serverFilename = basename(filenameFromDisposition(disp) ?? `export.${format}`);
+  let outPath = flags.out
     ? resolve(process.cwd(), flags.out)
     : resolve(process.cwd(), serverFilename);
+  // `--out ~/Downloads` (the form the export dialog prints) names a folder: the file goes inside it
+  // under the server's filename, instead of failing with EISDIR.
+  if (flags.out && (await stat(outPath).catch(() => null))?.isDirectory()) {
+    outPath = join(outPath, serverFilename);
+  }
   const bytes = new Uint8Array(await r.arrayBuffer());
   await writeFile(outPath, bytes);
   process.stdout.write(`maude design export: wrote ${outPath} (${bytes.byteLength} bytes)\n`);
 }
 
-function collectRepeatedFlag(argv, name) {
-  const out = [];
-  for (let i = 0; i < argv.length; i += 1) {
-    if (argv[i] === name && argv[i + 1] !== undefined) {
-      out.push(argv[i + 1]);
-      i += 1;
-    } else if (argv[i].startsWith(`${name}=`)) {
-      out.push(argv[i].slice(name.length + 1));
+// The marks exporters/pdf.ts `MarksOptions` reads (`colorBars` / `pageInfo` are accepted by the
+// exporter but not drawn yet — naming them here is still right, the exporter owns that gap).
+const PDF_MARKS = ['crop', 'registration', 'colorBars', 'pageInfo'];
+
+// The zip exporter's two string-list options (exporters/zip.ts `filterPaths`): `include` is a list of
+// subtree tags, `exclude` a list of gitignore-style globs. It reads both behind `Array.isArray`, so a
+// scalar — the one comma string `--option include=system` used to send — is DROPPED and the archive
+// ships everything. `include` tags are validated here too: an unknown tag matches no path, so the zip
+// would come out empty with no explanation. (Mirror of zip.ts's `IncludeTag`.)
+const ZIP_INCLUDE_TAGS = ['system', 'canvases', 'assets', 'meta'];
+const STRING_LIST_OPTIONS = new Set(['include', 'exclude']);
+
+/**
+ * `--option include=system,assets` → `['system', 'assets']`, or `{ error }` (no command prefix).
+ * Items are trimmed and never number/boolean coerced; an empty list or an empty entry is refused.
+ */
+function parseStringList(key, value) {
+  const items = value.split(',').map((n) => n.trim());
+  if (items.some((n) => !n)) {
+    return {
+      error: `empty entry in --option ${key}=${value} (expected a comma-separated list${key === 'include' ? `: ${ZIP_INCLUDE_TAGS.join(', ')}` : ''})`,
+    };
+  }
+  if (key === 'include') {
+    const bad = items.find((n) => !ZIP_INCLUDE_TAGS.includes(n));
+    if (bad !== undefined) {
+      return {
+        error: `unknown include tag "${bad}" in --option include=${value} (valid tags: ${ZIP_INCLUDE_TAGS.join(', ')})`,
+      };
     }
   }
-  return out;
+  return { list: items };
+}
+
+/**
+ * Turn repeated `--option key=value` items into the request's `options` bag.
+ * Returns `{ options }`, or `{ error }` (a message without the command prefix).
+ *
+ * Print options do NOT go on the wire flat. exporters/pdf.ts reads them from one nested object,
+ * `options.pdfPrint = { includeBleed, marks: { crop, registration, colorBars, pageInfo } }`
+ * (`parsePdfPrintOptions`) and ignores a top-level `marks` / `includeBleed` — so a flat
+ * `--option marks=crop` used to be dropped without a word. `dpi` / `pageFit` / `text` stay top-level.
+ *
+ * `include` / `exclude` (zip) are string LISTS and go out as arrays — see STRING_LIST_OPTIONS.
+ */
+export function parseExportOptions(items) {
+  const options = {};
+  const pdfPrint = {};
+  for (const item of items) {
+    const eq = item.indexOf('=');
+    if (eq < 0) return { error: `invalid --option "${item}" (expected key=value)` };
+    const key = item.slice(0, eq);
+    const value = item.slice(eq + 1);
+    if (key === 'marks') {
+      const names = value.split(',').map((n) => n.trim());
+      const marks = {};
+      for (const name of names) {
+        if (!PDF_MARKS.includes(name)) {
+          return {
+            error: name
+              ? `unknown mark "${name}" in --option marks=${value} (valid marks: ${PDF_MARKS.join(', ')})`
+              : `empty mark name in --option marks=${value} (valid marks: ${PDF_MARKS.join(', ')})`,
+          };
+        }
+        marks[name] = true;
+      }
+      pdfPrint.marks = { ...pdfPrint.marks, ...marks };
+    } else if (STRING_LIST_OPTIONS.has(key)) {
+      const { list, error } = parseStringList(key, value);
+      if (error) return { error };
+      // A repeated key appends (like marks) — `--option include=system --option include=assets`.
+      options[key] = [...new Set([...(options[key] ?? []), ...list])];
+    } else if (key === 'includeBleed') {
+      if (value !== 'true' && value !== 'false') {
+        return { error: `invalid --option includeBleed=${value} (expected true or false)` };
+      }
+      pdfPrint.includeBleed = value === 'true';
+    } else {
+      options[key] = coerceOptionValue(value);
+    }
+  }
+  if (Object.keys(pdfPrint).length > 0) options.pdfPrint = pdfPrint;
+  return { options };
 }
 
 async function runInit({ args, pkgRoot }) {
@@ -843,9 +1135,15 @@ async function runInit({ args, pkgRoot }) {
   }
 
   // Resolve the discovery payload.
-  const payload = flags['discovery-payload']
-    ? await readPayload(flags['discovery-payload'])
-    : defaultPayload({ projectName, dsName });
+  // The schema-v1 keys (27 functional roles, the icon map) default to the registry's own
+  // derivations, so a payload written before V2-2.15 still renders valid CSS (DDR-043: no new
+  // visual value — every default is built from the payload's other tokens).
+  const payload = {
+    ...schemaPayloadDefaults(pkgRoot),
+    ...(flags['discovery-payload']
+      ? await readPayload(flags['discovery-payload'])
+      : defaultPayload({ projectName, dsName })),
+  };
 
   process.stdout.write('maude design init\n');
   process.stdout.write(`  project name: ${projectName}\n`);
@@ -937,6 +1235,11 @@ function buildCorePlan({ inspirationRoot, designDir, dsName }) {
       dest: resolve(dsRoot, 'colors_and_type.css'),
       transform: 'placeholder',
     },
+    {
+      src: src('components.json.tpl'),
+      dest: resolve(dsRoot, 'components.json'),
+      transform: 'placeholder',
+    },
   ];
 }
 
@@ -955,6 +1258,28 @@ function substitutePlaceholders(contents, payload) {
 
 function escapeReg(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Payload defaults for the schema-v1 template keys, read from the shipped registry. */
+function schemaPayloadDefaults(pkgRoot) {
+  let reg;
+  try {
+    reg = JSON.parse(
+      readFileSync(resolve(pkgRoot, 'apps/studio/schema/ds-schema-v1.json'), 'utf8')
+    );
+  } catch {
+    return {};
+  }
+  const out = {};
+  for (const r of reg.roles) {
+    if (r.origin !== 'v1') continue;
+    out[r.name.slice(2).replace(/-/g, '_')] = r.fallbackUnsupported ?? r.fallback;
+  }
+  // every vocabulary icon declared as a gap until the system draws it (decision v2-2.15-icon-null-declared-gap)
+  out.icon_map_json = JSON.stringify(
+    Object.fromEntries(reg.icons.vocabulary.map((n) => [n, null]))
+  );
+  return out;
 }
 
 function defaultPayload({ projectName, dsName }) {

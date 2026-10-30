@@ -1,6 +1,15 @@
 // tree/tree.jsx — moved verbatim out of client/app.jsx (Maude v2 plan V2-0.2, move-only split).
 
-import { displayName, filterTree, groupBySidecar, openCount, pathTestIdSlug, previewKind, sectionDefaultOpen } from '../shell/util.js';
+import { setUpgradeOffers } from '../v2/ds/upgrade-offers.js';
+import {
+  displayName,
+  filterTree,
+  groupBySidecar,
+  openCount,
+  pathTestIdSlug,
+  previewKind,
+  sectionDefaultOpen,
+} from '../shell/util.js';
 import { Icon, Kbd, StIcon } from '../shell/icons.jsx';
 import { FileTree, FileTreeItem } from '../file-tree.jsx';
 import { CANVAS_EXT_RE, SYSTEM_TAB } from '../shell/constants.js';
@@ -8,9 +17,20 @@ import { prefetchPreviewImage } from '../panels/file-preview.jsx';
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTreeDrag } from '../use-tree-drag.js';
 import { TreeRowMenu, useRowMenu } from '../tree-row-menu.jsx';
-import RepoBranchSwitcher from '../panels/RepoBranchSwitcher.jsx';
 import CloudBar from '../panels/CloudBar.jsx';
 import IdentityBar from '../panels/IdentityBar.jsx';
+import { CanvasesPanel } from '../v2/canvases/canvases-panel.jsx';
+import { CanvasesAdvanced, useAdvancedOpen } from '../v2/left-panel/canvases-advanced.jsx';
+import { DsPinnedRows, NewCanvasRow, TrashRow } from '../v2/left-panel/canvases-pinned.jsx';
+import { OPEN_TRASH_EVENT, takeTrashRequest } from '../v2/left-panel/left-panel-bus.js';
+import { dsPinnedModel, trashRowCount } from '../v2/left-panel/left-panel-model.js';
+import { newCanvasDesignSystem } from '../v2/ds/new-canvas-default.js';
+import { systemMenuItems } from '../v2/ds/system-menu.jsx';
+import { trashedTokenItems } from '../v2/ds/door-write.js';
+import { useDsState } from '../v2/ds/use-ds-state.js';
+import { ACTIONS_BY_ID } from '../../actions/index.ts';
+import { TrashView } from '../v2/left-panel/trash-view.jsx';
+import { useTrash } from '../v2/left-panel/use-trash.js';
 
 // ───── Tree (CV-08 spec) ─────
 // File rows use `.tp-row` with optional .dir / .sel / .star / .modified
@@ -59,7 +79,7 @@ export function DirRow({ name, depth, children, dirPath, drag, menu, expansion, 
       aria-busy={isBusy || undefined}
       tabIndex={-1}
       className={
-        'st-row' +
+        'sh-row' +
         (isOver ? ' is-drop-target' : '') +
         (isDragging ? ' is-dragging' : '') +
         (isBusy ? ' is-busy' : '')
@@ -70,27 +90,38 @@ export function DirRow({ name, depth, children, dirPath, drag, menu, expansion, 
       {...dragHandlers}
       {...dropHandlers}
     >
-      <span className="st-row-glyph">
-        <StIcon name="chevron-right" className={'st-chev' + (open ? ' is-open' : '')} size={13} />
+      <span className="sh-row-glyph">
+        <StIcon name="chevron-right" className={'cv-chev' + (open ? ' is-open' : '')} size={13} />
       </span>
-      <span className="st-row-name">{name}</span>
+      <span className="sh-row-name">{name}</span>
     </button>
   );
   return (
-    <FileTreeItem label={name} row={row} expanded={open} busy={isBusy}
-      onToggle={() => setOpen(v => !v)} actions={menu ? (
+    <FileTreeItem
+      label={name}
+      row={row}
+      expanded={open}
+      busy={isBusy}
+      onToggle={() => setOpen((v) => !v)}
+      actions={
+        menu ? (
           <button
             type="button"
-            className="st-row-menu-btn"
+            className="sh-row-menu-btn"
             data-testid={`tree-row-menu-${pathTestIdSlug(dirPath)}`}
             title={`Folder actions — ${name}`}
             aria-label={`Folder actions for ${name}`}
             aria-haspopup="menu"
             onClick={(e) => menu.openAt(e, { kind: 'dir', dirPath })}
           >
-            <Icon d="M12 6a1 1 0 100-2 1 1 0 000 2zM12 13a1 1 0 100-2 1 1 0 000 2zM12 20a1 1 0 100-2 1 1 0 000 2z" size={12} />
+            <Icon
+              d="M12 6a1 1 0 100-2 1 1 0 000 2zM12 13a1 1 0 100-2 1 1 0 000 2zM12 20a1 1 0 100-2 1 1 0 000 2z"
+              size={12}
+            />
           </button>
-      ) : null}>
+        ) : null
+      }
+    >
       {open && children}
     </FileTreeItem>
   );
@@ -100,7 +131,17 @@ export function DirRow({ name, depth, children, dirPath, drag, menu, expansion, 
 // Split target: chevron toggles disclosure of the folder's contents; clicking
 // the folder name opens the SystemView focused on that DS (single SystemView
 // for now; the dsName is plumbed through so a future per-DS view can use it).
-export function DsFolderRow({ name, dsName, dirPath, depth, active, onOpenSystem, children, expansion, forceOpen }) {
+export function DsFolderRow({
+  name,
+  dsName,
+  dirPath,
+  depth,
+  active,
+  onOpenSystem,
+  children,
+  expansion,
+  forceOpen,
+}) {
   const open = !!forceOpen || !!expansion?.isOpen(dirPath);
   const setOpen = (v) => {
     if (forceOpen) return; // search is showing hits — don't record a choice
@@ -108,36 +149,46 @@ export function DsFolderRow({ name, dsName, dirPath, depth, active, onOpenSystem
     if (next !== open) expansion?.setOpen(dirPath, next);
   };
   return (
-    <FileTreeItem label={name} expanded={open} selected={active}
-      onToggle={() => setOpen(v => !v)} row={
-      <div
-        className={'st-row st-ds-folder' + (active ? ' is-sel' : '')}
-        style={{ paddingLeft: TREE_INDENT_BASE + depth * TREE_INDENT_STEP + 'px' }}
-      >
-        <button
-          type="button"
-          className="st-ds-chev"
-          onClick={() => setOpen((v) => !v)}
-          aria-label={open ? 'Collapse design system' : 'Expand design system'}
-          title={open ? 'Collapse' : 'Expand'}
+    <FileTreeItem
+      label={name}
+      expanded={open}
+      selected={active}
+      onToggle={() => setOpen((v) => !v)}
+      row={
+        <div
+          className={'sh-row cv-ds-folder' + (active ? ' is-sel' : '')}
+          style={{ paddingLeft: TREE_INDENT_BASE + depth * TREE_INDENT_STEP + 'px' }}
         >
-          <StIcon name="chevron-right" className={'st-chev' + (open ? ' is-open' : '')} size={13} />
-        </button>
-        <button
-          type="button"
-          className="st-ds-open"
-          data-tree-primary=""
-          tabIndex={-1}
-          onClick={() => onOpenSystem(dsName)}
-          aria-label={`Open ${dsName} design system view`}
-          title="Open the design system view"
-        >
-          <span className="st-row-glyph">
-            <StIcon name="folder" size={13} />
-          </span>
-          <span className="st-row-name">{name}</span>
-        </button>
-      </div>}>
+          <button
+            type="button"
+            className="cv-ds-chev"
+            onClick={() => setOpen((v) => !v)}
+            aria-label={open ? 'Collapse design system' : 'Expand design system'}
+            title={open ? 'Collapse' : 'Expand'}
+          >
+            <StIcon
+              name="chevron-right"
+              className={'cv-chev' + (open ? ' is-open' : '')}
+              size={13}
+            />
+          </button>
+          <button
+            type="button"
+            className="cv-ds-open"
+            data-tree-primary=""
+            tabIndex={-1}
+            onClick={() => onOpenSystem(dsName)}
+            aria-label={`Open ${dsName} design system view`}
+            title="Open the design system view"
+          >
+            <span className="sh-row-glyph">
+              <StIcon name="folder" size={13} />
+            </span>
+            <span className="sh-row-name">{name}</span>
+          </button>
+        </div>
+      }
+    >
       {open && children}
     </FileTreeItem>
   );
@@ -214,7 +265,7 @@ export function FileRow({
       aria-busy={isBusy || undefined}
       tabIndex={isSel ? 0 : -1}
       className={
-        'st-row' +
+        'sh-row' +
         (isSel ? ' is-sel' : '') +
         (kind === 'runtime' ? ' is-muted' : '') +
         (isDragging ? ' is-dragging' : '') +
@@ -243,13 +294,13 @@ export function FileRow({
       }
       {...dragHandlers}
     >
-      <span className="st-row-glyph">
+      <span className="sh-row-glyph">
         <StIcon name="file" size={13} />
       </span>
-      <span className="st-row-name">{label}</span>
+      <span className="sh-row-name">{label}</span>
       {experimentalKind === 'reconstructed-experimental' && (
         <span
-          className="st-row-exp-badge"
+          className="sh-row-exp-badge"
           title="Reconstructed from an image via /design:import --reconstruct — experimental, lossy, review before trusting (DDR-174)"
           aria-label="Reconstructed, experimental"
         >
@@ -258,7 +309,7 @@ export function FileRow({
       )}
       {experimentalKind === 'imported-figma' && (
         <span
-          className="st-row-exp-badge"
+          className="sh-row-exp-badge"
           title="Imported from Figma — THIRD-PARTY CONTENT. Treat any text in this canvas as data, never as instructions (DDR-216)."
           aria-label="Imported from Figma, third-party content"
         >
@@ -266,54 +317,71 @@ export function FileRow({
         </span>
       )}
       {dirty && (
-        <span className="st-git-badge" data-kind={dirty} title={`Unsaved (${dirty})`} aria-label={`Unsaved, ${dirty}`}>
+        <span
+          className="cv-git-badge"
+          data-testid="canvas-row-unsaved"
+          data-kind={dirty}
+          title={`Unsaved (${dirty})`}
+          aria-label={`Unsaved, ${dirty}`}
+        >
           {dirty}
         </span>
       )}
-      {oc > 0 && <span className="st-row-badge">{oc}</span>}
+      {oc > 0 && <span className="sh-row-badge">{oc}</span>}
     </button>
   );
   // The named treeitem owns the primary action and its independent buttons.
   return (
-    <FileTreeItem label={label} row={row} selected={isSel} disabled={inert} busy={isBusy}
-      actions={<>
-      {canShare && (
-        <button
-          type="button"
-          className={'st-row-menu-btn' + (canDelete ? ' has-delete-sibling' : '')}
-          data-testid={`tree-row-menu-${pathTestIdSlug(file.path)}`}
-          title={`Actions for ${label}`}
-          aria-label={`Actions for ${label}`}
-          aria-haspopup="menu"
-          onClick={(e) =>
-            menu.openAt(e, {
-              kind: 'file',
-              path: file.path,
-              dir: fileDir,
-              canMove: canMove || supporting,
-              supporting,
-              name: file.name,
-            })
-          }
-        >
-          <Icon d="M12 6a1 1 0 100-2 1 1 0 000 2zM12 13a1 1 0 100-2 1 1 0 000 2zM12 20a1 1 0 100-2 1 1 0 000 2z" size={12} />
-        </button>
-      )}
-      {canDelete && (
-        <button
-          type="button"
-          className="st-row-del"
-          title={`Delete ${label}`}
-          aria-label={`Delete canvas ${label}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete(file.path, label);
-          }}
-        >
-          <Icon d="M3 6h18 M8 6V4h8v2 M6 6l1 14h10l1-14 M10 11v6 M14 11v6" size={12} />
-        </button>
-      )}
-      </>} />
+    <FileTreeItem
+      label={label}
+      row={row}
+      selected={isSel}
+      disabled={inert}
+      busy={isBusy}
+      actions={
+        <>
+          {canShare && (
+            <button
+              type="button"
+              className={'sh-row-menu-btn' + (canDelete ? ' has-delete-sibling' : '')}
+              data-testid={`tree-row-menu-${pathTestIdSlug(file.path)}`}
+              title={`Actions for ${label}`}
+              aria-label={`Actions for ${label}`}
+              aria-haspopup="menu"
+              onClick={(e) =>
+                menu.openAt(e, {
+                  kind: 'file',
+                  path: file.path,
+                  dir: fileDir,
+                  canMove: canMove || supporting,
+                  supporting,
+                  name: file.name,
+                })
+              }
+            >
+              <Icon
+                d="M12 6a1 1 0 100-2 1 1 0 000 2zM12 13a1 1 0 100-2 1 1 0 000 2zM12 20a1 1 0 100-2 1 1 0 000 2z"
+                size={12}
+              />
+            </button>
+          )}
+          {canDelete && (
+            <button
+              type="button"
+              className="sh-row-del"
+              title={`Delete ${label}`}
+              aria-label={`Delete canvas ${label}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(file.path, label);
+              }}
+            >
+              <Icon d="M3 6h18 M8 6V4h8v2 M6 6l1 14h10l1-14 M10 11v6 M14 11v6" size={12} />
+            </button>
+          )}
+        </>
+      }
+    />
   );
 }
 
@@ -379,7 +447,7 @@ export function CanvasRow({
       aria-busy={isBusy || undefined}
       tabIndex={isSel ? 0 : -1}
       className={
-        'st-row st-canvas-row' +
+        'sh-row sh-canvas-row' +
         (isSel ? ' is-sel' : '') +
         (isDragging ? ' is-dragging' : '') +
         (isBusy ? ' is-busy' : '')
@@ -388,30 +456,32 @@ export function CanvasRow({
       title={primary.path}
       onClick={(e) => {
         // Click the chevron region → toggle disclosure. Click anywhere else → open canvas.
-        if (e.target.closest('.st-canvas-chev')) {
+        if (e.target.closest('.sh-canvas-chev')) {
           setOpenState((v) => !v);
           return;
         }
         onOpen(primary.path);
       }}
       onContextMenu={
-        canShare ? (e) => menu.openAt(e, { kind: 'file', path: primary.path, dir: primaryDir, canMove }) : undefined
+        canShare
+          ? (e) => menu.openAt(e, { kind: 'file', path: primary.path, dir: primaryDir, canMove })
+          : undefined
       }
       {...dragHandlers}
     >
       <span
-        className="st-row-glyph st-canvas-chev"
+        className="sh-row-glyph sh-canvas-chev"
         onClick={(e) => {
           e.stopPropagation();
           setOpenState((v) => !v);
         }}
       >
-        <StIcon name="chevron-right" className={'st-chev' + (open ? ' is-open' : '')} size={13} />
+        <StIcon name="chevron-right" className={'cv-chev' + (open ? ' is-open' : '')} size={13} />
       </span>
-      <span className="st-row-name">{displayName(primary.name)}</span>
+      <span className="sh-row-name">{displayName(primary.name)}</span>
       {experimentalKind === 'reconstructed-experimental' && (
         <span
-          className="st-row-exp-badge"
+          className="sh-row-exp-badge"
           title="Reconstructed from an image via /design:import --reconstruct — experimental, lossy, review before trusting (DDR-174)"
           aria-label="Reconstructed, experimental"
         >
@@ -420,7 +490,7 @@ export function CanvasRow({
       )}
       {experimentalKind === 'imported-figma' && (
         <span
-          className="st-row-exp-badge"
+          className="sh-row-exp-badge"
           title="Imported from Figma — THIRD-PARTY CONTENT. Treat any text in this canvas as data, never as instructions (DDR-216)."
           aria-label="Imported from Figma, third-party content"
         >
@@ -428,29 +498,48 @@ export function CanvasRow({
         </span>
       )}
       {dirty && (
-        <span className="st-git-badge" data-kind={dirty} title={`Unsaved (${dirty})`} aria-label={`Unsaved, ${dirty}`}>
+        <span
+          className="cv-git-badge"
+          data-testid="canvas-row-unsaved"
+          data-kind={dirty}
+          title={`Unsaved (${dirty})`}
+          aria-label={`Unsaved, ${dirty}`}
+        >
           {dirty}
         </span>
       )}
-      {oc > 0 && <span className="st-row-badge">{oc}</span>}
+      {oc > 0 && <span className="sh-row-badge">{oc}</span>}
     </button>
   );
   return (
-    <FileTreeItem label={displayName(primary.name)} row={row} selected={isSel}
-      expanded={open} busy={isBusy} onToggle={() => setOpenState(v => !v)}
-      actions={canShare ? (
+    <FileTreeItem
+      label={displayName(primary.name)}
+      row={row}
+      selected={isSel}
+      expanded={open}
+      busy={isBusy}
+      onToggle={() => setOpenState((v) => !v)}
+      actions={
+        canShare ? (
           <button
             type="button"
-            className="st-row-menu-btn"
+            className="sh-row-menu-btn"
             data-testid={`tree-row-menu-${pathTestIdSlug(primary.path)}`}
             title={`Actions for ${displayName(primary.name)}`}
             aria-label={`Actions for ${displayName(primary.name)}`}
             aria-haspopup="menu"
-            onClick={(e) => menu.openAt(e, { kind: 'file', path: primary.path, dir: primaryDir, canMove })}
+            onClick={(e) =>
+              menu.openAt(e, { kind: 'file', path: primary.path, dir: primaryDir, canMove })
+            }
           >
-            <Icon d="M12 6a1 1 0 100-2 1 1 0 000 2zM12 13a1 1 0 100-2 1 1 0 000 2zM12 20a1 1 0 100-2 1 1 0 000 2z" size={12} />
+            <Icon
+              d="M12 6a1 1 0 100-2 1 1 0 000 2zM12 13a1 1 0 100-2 1 1 0 000 2zM12 20a1 1 0 100-2 1 1 0 000 2z"
+              size={12}
+            />
           </button>
-      ) : null}>
+        ) : null
+      }
+    >
       {open &&
         sidecars.map((sc) => (
           <FileRow
@@ -657,13 +746,25 @@ export function Tree({
 // project / DS identity; the mock keeps these tight (1 line). Labels are
 // keyed by the server-provided `kind` (PROJECT / DS / UI / RUNTIME).
 export const SECTION_META = {
-  project: { title: 'PROJECT', pillFromCount: false },
+  project: { title: 'Project', pillFromCount: false },
   // Design-system group: pill shows the number of DSes (one row per DS folder
   // inside). Computed in Sidebar from `g.dsFolders.length`.
-  ds: { title: 'DESIGN SYSTEM', pillFromDsCount: true },
-  canvas: { title: 'UI CANVASES', pillFromCount: true },
-  runtime: { title: 'RUNTIME · GITIGNORED', pillFromCount: true },
+  ds: { title: 'Design system', pillFromDsCount: true },
+  canvas: { title: 'UI canvases', pillFromCount: true },
+  runtime: { title: 'Runtime files', pillFromCount: true },
 };
+
+/**
+ * Panel search, hidden files off: the groups listed under the canvas hits. Only the Design system, and only
+ * when it has a hit — Project files and Runtime files are developer chrome (05 es-search-panel) and stay in
+ * the file view (Canvases › Advanced › Show hidden files), where every group is listed as before.
+ */
+export function searchOtherGroups(groups) {
+  return (groups || []).filter(
+    (g) =>
+      g.kind === 'canvas' && g.label === 'Design system' && Object.keys(g.tree || {}).length > 0
+  );
+}
 
 export function sectionMetaFor(g) {
   if (g.kind === 'project') return SECTION_META.project;
@@ -671,7 +772,7 @@ export function sectionMetaFor(g) {
   // canvas-kind groups: "Design system" → ds, anything else → canvas label
   if (g.label === 'Design system') return SECTION_META.ds;
   if (g.label === 'UI kit') return SECTION_META.canvas;
-  return { title: g.label.toUpperCase(), pillFromCount: true };
+  return { title: g.label, pillFromCount: true };
 }
 
 // The file tree before its first index arrives. A large project — above all a
@@ -692,20 +793,20 @@ export function TreeLoading({ failures, cloud }) {
         ? 'Still loading — a large cloud project can take a few seconds to list.'
         : 'Still loading — a large project can take a few seconds to list.';
   return (
-    <div className="st-tree-loading" role="status" aria-live="polite" data-testid="tree-loading">
-      <div className="st-tree-loading-head">
-        <span className="st-canvas-loading-spinner" aria-hidden="true" />
-        <span>Loading files…</span>
+    <div className="sh-tree-loading" role="status" aria-live="polite" data-testid="tree-loading">
+      <div className="sh-tree-loading-head">
+        <span className="sh-canvas-loading-spinner" aria-hidden="true" />
+        <span>Loading canvases…</span>
       </div>
       {[64, 48, 72, 40, 56, 68, 44].map((w, i) => (
         <span
           key={i}
-          className="skel st-tree-loading-row"
+          className="skel sh-tree-loading-row"
           style={{ width: `${w}%`, marginLeft: i % 3 ? 22 : 8 }}
           aria-hidden="true"
         />
       ))}
-      {(slow || failures > 0) && <div className="st-tree-loading-hint">{hint}</div>}
+      {(slow || failures > 0) && <div className="sh-tree-loading-hint">{hint}</div>}
     </div>
   );
 }
@@ -741,15 +842,13 @@ export function Sidebar({
   onDeleteBoard,
   onRefresh,
   refreshing,
+  // V2-4.4a — Canvases › Advanced › Hidden files runs the same function as ⌘K / Menu › View.
+  onToggleShowHidden,
   collapsed,
-  onCollapse,
   width,
   resizing,
   dirtyByPath,
   project,
-  gitBranch,
-  remoteSync,
-  onGetLatest,
   canvasKinds,
   onMoveCanvas,
   onNewFolder,
@@ -758,6 +857,10 @@ export function Sidebar({
   onRenameCanvas,
   onDuplicateCanvas,
   onDeleteFile,
+  // S1.2 — a canvas row's "Copy link" (the Canvases panel's row menu).
+  onCopyLink,
+  // S1.3 — the artboard in view on the open canvas (the jump list highlights it).
+  activeArtboard,
   // Passed through to CloudBar only — the live `sync:status` payload that makes
   // the connect note follow the link instead of freezing at attach time.
   syncStatus,
@@ -769,10 +872,10 @@ export function Sidebar({
   filesReady,
   treeLoadFailures = 0,
   onShare,
-  // feature-cloud-managed-git-posture — the widened DDR-218 gate, resolved once
-  // in App and handed down. Withdraws the drafts switcher: a local branch
-  // switch moves a HEAD the cell knows nothing about.
-  savingIsManaged = false,
+  // S10.13 — the pinned system rows: the shell config (systems, which canvas follows which, the default, which
+  // are converted) and the runner for registry actions (`ds.go-to`, `ds.set-default`, `ds.make`)
+  dsCfg,
+  onDsAction,
 }) {
   const filteredGroups = useMemo(() => {
     if (!search) return groups;
@@ -784,11 +887,54 @@ export function Sidebar({
   // fetch + tree refresh (App-level, alongside createBoard/deleteBoard).
   const treeDrag = useTreeDrag(onMoveCanvas);
 
+  // S10.13 — what the pinned system rows and their menu are drawn from (before the row menu uses them)
+  const dsState = useDsState({ enabled: !!dsCfg, stamp: groups });
+  const dsDesignRel = (dsCfg?.designRel || '.design').replace(/^\/+|\/+$/g, '');
+  const dsModel = useMemo(
+    () =>
+      dsPinnedModel(groups, {
+        // no shell config (a bare panel) = the rows exactly as V2-4.4a pinned them
+        designSystems: dsCfg ? (dsCfg.designSystems ?? []) : undefined,
+        canvasDesignSystems: dsCfg?.canvasDesignSystems ?? {},
+        defaultDs: dsCfg?.defaultDesignSystem ?? null,
+        designRel: dsDesignRel,
+        state: dsState,
+        canMake: !!onDsAction && !readOnly,
+      }),
+    [groups, dsCfg, dsDesignRel, dsState, onDsAction, readOnly]
+  );
+  const pinnedDs = dsModel.rows;
+  // p8-v1-drop — the systems below Conformant are offered "Bring it up" in ⌘K too (client/v2/ds/upgrade-offers.js)
+  useEffect(() => {
+    if (!onDsAction || readOnly) return undefined;
+    setUpgradeOffers(pinnedDs.filter((r) => r.amber).map((r) => r.dsName));
+    return () => setUpgradeOffers([]);
+  }, [pinnedDs, onDsAction, readOnly]);
+  // a converted system opens its Design system canvas (ds.go-to); an older one its v1 view (Q6)
+  const openDs = useCallback(
+    (name) => {
+      if (onDsAction && dsCfg?.dsConverted?.[name] === true) onDsAction('ds.go-to', { ds: name });
+      else onOpenSystem(name);
+    },
+    [onDsAction, dsCfg, onOpenSystem]
+  );
+  const openDsCanvasOf = useMemo(() => {
+    const rel =
+      typeof activePath === 'string' && activePath.startsWith(`${dsDesignRel}/`)
+        ? activePath.slice(dsDesignRel.length + 1)
+        : activePath;
+    const hit = (dsCfg?.designSystems ?? []).find(
+      (d) => d.path && rel === `${d.path.replace(/\/+$/, '')}/design-system.tsx`
+    );
+    return hit?.name ?? null;
+  }, [dsCfg, dsDesignRel, activePath]);
   // feature-file-tree-drag-drop-folders (Task 9) — the keyboard path. One
   // shared row-menu instance (only one row's menu is ever open); every
   // non-DS canvas group folder (incl. each group's own root) is a valid
   // "Move to…" destination.
   const rowMenu = useRowMenu();
+  // P8 round 7 — the pinned system row whose name is a field (Rename…, 13 · ds-multi-menu)
+  const [renamingDs, setRenamingDs] = useState(null);
   const destinations = useMemo(() => {
     const out = [];
     for (const g of groups) {
@@ -802,10 +948,40 @@ export function Sidebar({
     return out;
   }, [groups]);
   const menuExtra = rowMenu.state?.extra;
-  const rowMenuRootItems =
+  // S10.13 — a pinned system row's own menu (13 · ds-multi-menu); hidden rows are the registry's pending ones
+  const dsMenuItems =
+    menuExtra?.kind === 'ds'
+      ? systemMenuItems({
+          row: menuExtra.row,
+          rows: pinnedDs,
+          canEdit: !readOnly,
+          has: (id) => ACTIONS_BY_ID.has(id),
+        }).map((it) => ({
+          id: `ds-${it.id}`,
+          label: it.label,
+          note: it.note,
+          disabled: it.disabled,
+          onSelect: () => {
+            rowMenu.close();
+            if (it.id === 'open') openDs(menuExtra.row.dsName);
+            // P8 round 7 — Rename…: the row's name turns into a field; its ↵ runs ds.rename (below)
+            else if (it.id === 'rename') setRenamingDs(menuExtra.row.dsName);
+            else
+              onDsAction?.(it.action.id, { ...it.action.params, label: menuExtra.row.systemLabel });
+          },
+        }))
+      : [];
+  const treeMenuRootItems =
     menuExtra?.kind === 'file'
       ? [
-          { id: 'share', label: 'Share…', onSelect: () => { rowMenu.close(); onShare(menuExtra.path); } },
+          {
+            id: 'share',
+            label: 'Share…',
+            onSelect: () => {
+              rowMenu.close();
+              onShare(menuExtra.path);
+            },
+          },
           ...(onRenameCanvas && /\.tsx$/i.test(menuExtra.path)
             ? [
                 {
@@ -815,7 +991,8 @@ export function Sidebar({
                     rowMenu.close();
                     const current = displayName(menuExtra.path.split('/').pop());
                     const name = window.prompt('Rename canvas to:', current);
-                    if (name?.trim() && name.trim() !== current) onRenameCanvas(menuExtra.path, name.trim());
+                    if (name?.trim() && name.trim() !== current)
+                      onRenameCanvas(menuExtra.path, name.trim());
                   },
                 },
               ]
@@ -845,12 +1022,15 @@ export function Sidebar({
                     const ext = n.includes('.') ? n.slice(n.lastIndexOf('.')) : '';
                     const current = ext ? n.slice(0, -ext.length) : n;
                     const name = window.prompt(`Rename ${n} to:`, current);
-                    if (name?.trim() && name.trim() !== current) onRenameCanvas(menuExtra.path, name.trim());
+                    if (name?.trim() && name.trim() !== current)
+                      onRenameCanvas(menuExtra.path, name.trim());
                   },
                 },
               ]
             : []),
-          ...(menuExtra.canMove ? [{ id: 'move-to', label: 'Move to…', onSelect: () => rowMenu.showMoveTo() }] : []),
+          ...(menuExtra.canMove
+            ? [{ id: 'move-to', label: 'Move to…', onSelect: () => rowMenu.showMoveTo() }]
+            : []),
           ...(menuExtra.supporting && onDeleteFile
             ? [
                 {
@@ -883,7 +1063,8 @@ export function Sidebar({
                 rowMenu.close();
                 const current = menuExtra.dirPath.split('/').pop();
                 const name = window.prompt('Rename folder to:', current);
-                if (name?.trim() && name.trim() !== current) onRenameFolder(menuExtra.dirPath, name.trim());
+                if (name?.trim() && name.trim() !== current)
+                  onRenameFolder(menuExtra.dirPath, name.trim());
               },
             },
             {
@@ -897,6 +1078,7 @@ export function Sidebar({
             },
           ]
         : [];
+  const rowMenuRootItems = menuExtra?.kind === 'ds' ? dsMenuItems : treeMenuRootItems;
   const rowMenuDestinations =
     menuExtra?.kind === 'file' || menuExtra?.kind === 'supporting'
       ? destinations.filter((d) => d.path !== menuExtra.dir)
@@ -914,6 +1096,9 @@ export function Sidebar({
   const [newName, setNewName] = useState('');
   const [newErr, setNewErr] = useState('');
   const [newBusy, setNewBusy] = useState(false);
+  // S1.1 — "New canvas in 2027" on an empty folder opens this same composer aimed at that folder: the
+  // board is created where the server puts new boards, then moved into the folder.
+  const [composerTarget, setComposerTarget] = useState(null); // { path, name } | null
 
   // Default folder-creation target: the first non-DS canvas group's root
   // (mirrors the server's own `newCanvasDir` default for board creation).
@@ -943,15 +1128,38 @@ export function Sidebar({
       }
       return;
     }
-    const res = await onNewBoard(name);
+    // S10.13 — a board made in a folder starts on the system that folder's canvases share
+    const designSystem =
+      composerTarget && (dsCfg?.designSystems?.length ?? 0) > 1
+        ? newCanvasDesignSystem({
+            folder: composerTarget.path,
+            canvasDesignSystems: dsCfg.canvasDesignSystems,
+            designSystems: dsCfg.designSystems,
+            defaultDs: dsCfg.defaultDesignSystem,
+            designRel: dsCfg.designRel || '.design',
+          })
+        : undefined;
+    const res = await onNewBoard(name, { designSystem });
+    if (res?.ok && composerTarget && res.file) await onMoveCanvas?.(res.file, composerTarget.path);
     setNewBusy(false);
     if (res?.ok) {
       setCreating(false);
       setNewName('');
+      setComposerTarget(null);
     } else {
       setNewErr(res?.error || 'could not create board');
     }
-  }, [newName, newBusy, onNewBoard, onNewFolder, composerMode, defaultFolderParent]);
+  }, [
+    newName,
+    newBusy,
+    onNewBoard,
+    onNewFolder,
+    onMoveCanvas,
+    composerMode,
+    composerTarget,
+    defaultFolderParent,
+    dsCfg,
+  ]);
 
   // Mock uses `42 / 42` — total openable canvases, not every listed file.
   // We count canvas files (TSX Phase 3.6+ default, HTML legacy) so the counter
@@ -968,90 +1176,172 @@ export function Sidebar({
     return total;
   }, [filteredGroups]);
 
+  // V2-4.4a — the Canvases tab: the Design system pinned on top, Trash as the last row, Advanced under it.
+  const dsGroup = useMemo(
+    () => filteredGroups.find((g) => g.label === 'Design system'),
+    [filteredGroups]
+  );
+  const [advancedOpen, setAdvancedOpen] = useAdvancedOpen();
+  const [trashOpen, setTrashOpen] = useState(() => takeTrashRequest());
+  useEffect(() => {
+    const open = () => {
+      takeTrashRequest();
+      setTrashOpen(true);
+    };
+    window.addEventListener(OPEN_TRASH_EVENT, open);
+    return () => window.removeEventListener(OPEN_TRASH_EVENT, open);
+  }, []);
+  const { trash, reload: reloadTrash } = useTrash({ enabled: !readOnly, stamp: groups });
+
+  // One section of the tree (a group): PROJECT / DESIGN SYSTEM / UI CANVASES / RUNTIME. Unchanged from
+  // v1 — the Design system group now renders inside Advanced (and in search results) instead of the list.
+  const renderSection = (g) => {
+    // Hide gitignored runtime / orphan-only project sections by default.
+    // Active search overrides — if the user typed a query, they want hits
+    // wherever they live.
+    if (!showHidden && !search && g.kind === 'runtime') return null;
+    const meta = sectionMetaFor(g);
+    // Counter pill counts canvases only — sidecars + orphans inflate the
+    // raw `paths.length` and the FILES header already filters this way.
+    const canvasCount = (g.paths || []).filter((p) => CANVAS_EXT_RE.test(p)).length;
+    const pill =
+      meta.pill ||
+      (meta.pillFromDsCount ? String(g.dsFolders?.length || 0) : null) ||
+      (meta.pillFromCount ? String(canvasCount || g.paths?.length || 0) : null);
+    const hasItems = g.tree && Object.keys(g.tree).length > 0;
+    const isDs = g.label === 'Design system';
+    const isProject = g.kind === 'project';
+    // Project section: when showHidden is off, every row inside is an
+    // orphan (.md / .json / .css) → empty body. Skip the header in that
+    // case so the sidebar doesn't show "PROJECT" with nothing under it.
+    if (!showHidden && !search && isProject && canvasCount === 0) return null;
+    const defaultOpen = sectionDefaultOpen(g);
+    const explicit = sectionsExpanded[g.label];
+    // Active search forces every section open so hits aren't hidden.
+    const sectionOpen = !!search || (explicit === undefined ? defaultOpen : explicit);
+    // feature-file-tree-drag-drop-folders (dogfood follow-up) — the
+    // section header IS the drop target for "move back to this group's
+    // root". Without this a canvas inside a folder could never return
+    // to the top level via drag & drop — DirRow only covers actual
+    // subfolders, never the group root itself.
+    const canDropOnRoot = !isDs && g.kind === 'canvas' && !readOnly;
+    const rootDropHandlers = canDropOnRoot ? treeDrag.dropProps(g.fullPath, true) : {};
+    const isRootOver = treeDrag.overDir === g.fullPath;
+    return (
+      <FileTreeItem
+        className="sh-tree-section"
+        key={g.label}
+        label={meta.title}
+        expanded={sectionOpen}
+        onToggle={() => onToggleSection(g.label, defaultOpen)}
+        row={
+          <button
+            type="button"
+            className={'sh-tree-sec-hd' + (isRootOver ? ' is-drop-target' : '')}
+            data-testid={`tree-section-${g.label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+            onClick={() => onToggleSection(g.label, defaultOpen)}
+            aria-expanded={sectionOpen}
+            aria-dropeffect={canDropOnRoot ? 'move' : undefined}
+            title={sectionOpen ? 'Collapse section' : 'Expand section'}
+            {...rootDropHandlers}
+          >
+            <StIcon
+              name="chevron-right"
+              className={'cv-chev' + (sectionOpen ? ' is-open' : '')}
+              size={13}
+            />
+            <span className="cv-sec-name">{meta.title}</span>
+            {pill && <span className="cv-sec-count">{pill}</span>}
+          </button>
+        }
+      >
+        {sectionOpen &&
+          (hasItems ? (
+            <Tree
+              node={g.tree}
+              activePath={activePath}
+              previewPath={previewPath}
+              onOpen={onOpen}
+              onPreview={onPreview}
+              commentsByFile={commentsByFile}
+              depth={1}
+              kind={g.kind}
+              showHidden={showHidden}
+              search={search}
+              dsFolders={g.dsFolders}
+              activeDsName={activeDsName}
+              onOpenSystem={isDs ? onOpenSystem : undefined}
+              onDelete={isDs || readOnly ? undefined : onDeleteBoard}
+              dirtyByPath={dirtyByPath}
+              canvasKinds={canvasKinds}
+              dirPath={g.fullPath}
+              drag={!isDs && g.kind === 'canvas' && !readOnly ? treeDrag : undefined}
+              menu={rowMenu}
+              expansion={treeExpansion}
+            />
+          ) : (
+            <div className="sh-tree-empty">{search ? 'No matches.' : 'Empty.'}</div>
+          ))}
+      </FileTreeItem>
+    );
+  };
+
+  // P8 C5 (boards 01 / 02 / 05 draw no Trash row; 11 draws it with things in it): the row is the panel's last
+  // row once the trash holds something. An empty trash is still one Open away in Advanced.
+  const showTrashRow = !readOnly && !!trashRowCount(trash);
+
+  // P8 C4: the board's "+ New canvas" row ends the list and carries the old header pair's hooks.
+  const newCanvasRow = readOnly ? null : (
+    <NewCanvasRow
+      boardOpen={creating && composerMode === 'board'}
+      folderOpen={creating && composerMode === 'folder'}
+      onNew={() => {
+        setNewErr('');
+        setComposerMode('board');
+        setComposerTarget(null);
+        setCreating((v) => (composerMode === 'board' ? !v : true));
+      }}
+      onNewFolder={
+        defaultFolderParent
+          ? () => {
+              setNewErr('');
+              setComposerMode('folder');
+              setComposerTarget(null);
+              setCreating((v) => (composerMode === 'folder' ? !v : true));
+            }
+          : undefined
+      }
+    />
+  );
+
   return (
     <nav
-      className={'st-sidebar' + (collapsed ? ' is-collapsed' : '') + (resizing ? ' is-resizing' : '')}
+      className={
+        'sh-sidebar' + (collapsed ? ' is-collapsed' : '') + (resizing ? ' is-resizing' : '')
+      }
       style={collapsed || !width ? undefined : { width, flexBasis: width }}
-      aria-label="Files"
+      aria-label="Canvases"
       data-tour="sidebar"
     >
-      <div className="st-sb-hd">
-        <span className="st-sb-title">Files</span>
-        <div className="st-sb-hd-actions">
-          {!readOnly && (
-            <button
-              type="button"
-              className="st-iconbtn"
-              data-tip="New blank brief board"
-              aria-label="New blank brief board"
-              aria-expanded={creating && composerMode === 'board'}
-              onClick={() => {
-                setNewErr('');
-                setComposerMode('board');
-                setCreating((v) => (composerMode === 'board' ? !v : true));
-              }}
-            >
-              <StIcon name="plus" size={15} />
-            </button>
-          )}
-          {!readOnly && defaultFolderParent && (
-            <button
-              type="button"
-              className="st-iconbtn"
-              data-tip="New folder"
-              aria-label="New folder"
-              data-testid="tree-new-folder"
-              aria-expanded={creating && composerMode === 'folder'}
-              onClick={() => {
-                setNewErr('');
-                setComposerMode('folder');
-                setCreating((v) => (composerMode === 'folder' ? !v : true));
-              }}
-            >
-              <StIcon name="folder-plus" size={15} />
-            </button>
-          )}
-          {onRefresh && (
-            <button
-              type="button"
-              className={'st-iconbtn st-refresh' + (refreshing ? ' is-spinning' : '')}
-              data-tip="Refresh files · ⇧⌘R"
-              aria-label="Refresh files"
-              aria-busy={refreshing || undefined}
-              disabled={refreshing}
-              onClick={() => onRefresh()}
-            >
-              <StIcon name="reload" size={15} />
-            </button>
-          )}
-          <span
-            className="st-live"
-            data-tip={wsConnected ? 'live · file index synced' : 'reconnecting…'}
-          >
-            <span className={'st-live-dot' + (wsConnected ? ' is-connected' : '')} aria-hidden="true" />
-            {htmlShown} / {htmlCount}
-          </span>
-          {onCollapse && (
-            <button
-              type="button"
-              className="st-iconbtn"
-              aria-label="Collapse sidebar"
-              data-tip="Collapse sidebar · T"
-              onClick={onCollapse}
-            >
-              <StIcon name="panel-left" size={15} />
-            </button>
-          )}
-        </div>
+      {/* The panel's tab row already names it and owns the one fold control; the create actions are the
+          list's last row now ("+ New canvas", P8 C4), so this keeps only the title for screen readers. */}
+      <div className="cv-sb-hd">
+        <span className="cv-sb-title">Canvases</span>
       </div>
 
       {creating ? (
-        <div className="st-newboard">
+        <div className="cv-newboard">
           <input
             type="text"
             // biome-ignore lint/a11y/noAutofocus: deliberate — the composer opens on an explicit click.
             autoFocus
-            placeholder={composerMode === 'folder' ? 'folder name…' : 'brief board name…'}
+            placeholder={
+              composerMode === 'folder'
+                ? 'folder name…'
+                : composerTarget
+                  ? `brief board name in ${composerTarget.name}…`
+                  : 'brief board name…'
+            }
             value={newName}
             maxLength={60}
             disabled={newBusy}
@@ -1066,12 +1356,13 @@ export function Sidebar({
                 setCreating(false);
                 setNewName('');
                 setNewErr('');
+                setComposerTarget(null);
               }
             }}
           />
           <button
             type="button"
-            className="st-newboard-go"
+            className="cv-newboard-go"
             disabled={newBusy || !newName.trim()}
             data-tip="Create · Enter"
             aria-label={composerMode === 'folder' ? 'Create folder' : 'Create brief board'}
@@ -1082,127 +1373,167 @@ export function Sidebar({
         </div>
       ) : null}
       {newErr ? (
-        <div className="st-newboard-err" role="alert">
+        <div className="cv-newboard-err" role="alert">
           {newErr}
         </div>
       ) : null}
 
-      <div className="st-search">
-        <div className="st-search-box">
-          <StIcon name="search" size={13} />
-          <input
-            type="search"
-            data-testid="canvas-search"
-            placeholder="Search canvases…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => {
-              // Esc — clear the filter first; a second Esc leaves the field.
-              if (e.key === 'Escape') {
-                e.preventDefault();
-                if (search) setSearch('');
-                else e.currentTarget.blur();
-              }
-            }}
-            aria-label="Filter files"
-          />
-          {search ? (
-            <button
-              className="st-search-clear"
-              onClick={() => setSearch('')}
-              data-tip="Clear · Esc"
-              aria-label="Clear search"
-            >
-              ×
-            </button>
-          ) : (
-            <Kbd>/</Kbd>
-          )}
-        </div>
-      </div>
+      {trashOpen ? (
+        <TrashView
+          trash={trash}
+          readOnly={readOnly}
+          projectName={cloud?.projectName || ''}
+          roots={groups
+            .filter((g) => g.kind === 'canvas' && g.label !== 'Design system' && g.fullPath)
+            .map((g) => g.fullPath.split('/').slice(1).join('/'))
+            .filter(Boolean)}
+          onBack={() => setTrashOpen(false)}
+          onChanged={reloadTrash}
+          tokens={trashedTokenItems(dsState)}
+        />
+      ) : (
+        <>
+          <div className="cv-search">
+            <div className="cv-search-box">
+              <StIcon name="search" size={13} />
+              <input
+                type="search"
+                data-testid="canvas-search"
+                placeholder="Search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  // Esc — clear the filter first; a second Esc leaves the field.
+                  if (e.key === 'Escape') {
+                    e.preventDefault();
+                    if (search) setSearch('');
+                    else e.currentTarget.blur();
+                  }
+                }}
+                aria-label="Search canvases"
+              />
+              {search ? (
+                <button
+                  className="cv-search-clear"
+                  onClick={() => setSearch('')}
+                  data-tip="Clear · Esc"
+                  aria-label="Clear search"
+                >
+                  ×
+                </button>
+              ) : (
+                // the board's well (kit `.k-find`): the key that searches everything; "/" still focuses it
+                <Kbd>⌘K</Kbd>
+              )}
+            </div>
+          </div>
 
-      {!filesReady && <TreeLoading failures={treeLoadFailures} cloud={cloud} />}
-      <FileTree aria-label="Project file tree" data-testid="canvas-list">
-        {filteredGroups.map((g) => {
-          // Hide gitignored runtime / orphan-only project sections by default.
-          // Active search overrides — if the user typed a query, they want hits
-          // wherever they live.
-          if (!showHidden && !search && g.kind === 'runtime') return null;
-          const meta = sectionMetaFor(g);
-          // Counter pill counts canvases only — sidecars + orphans inflate the
-          // raw `paths.length` and the FILES header already filters this way.
-          const canvasCount = (g.paths || []).filter((p) => CANVAS_EXT_RE.test(p)).length;
-          const pill =
-            meta.pill ||
-            (meta.pillFromDsCount ? String(g.dsFolders?.length || 0) : null) ||
-            (meta.pillFromCount ? String(canvasCount || g.paths?.length || 0) : null);
-          const hasItems = g.tree && Object.keys(g.tree).length > 0;
-          const isDs = g.label === 'Design system';
-          const isProject = g.kind === 'project';
-          // Project section: when showHidden is off, every row inside is an
-          // orphan (.md / .json / .css) → empty body. Skip the header in that
-          // case so the sidebar doesn't show "PROJECT" with nothing under it.
-          if (!showHidden && !search && isProject && canvasCount === 0) return null;
-          const defaultOpen = sectionDefaultOpen(g);
-          const explicit = sectionsExpanded[g.label];
-          // Active search forces every section open so hits aren't hidden.
-          const sectionOpen = !!search || (explicit === undefined ? defaultOpen : explicit);
-          // feature-file-tree-drag-drop-folders (dogfood follow-up) — the
-          // section header IS the drop target for "move back to this group's
-          // root". Without this a canvas inside a folder could never return
-          // to the top level via drag & drop — DirRow only covers actual
-          // subfolders, never the group root itself.
-          const canDropOnRoot = !isDs && g.kind === 'canvas' && !readOnly;
-          const rootDropHandlers = canDropOnRoot ? treeDrag.dropProps(g.fullPath, true) : {};
-          const isRootOver = treeDrag.overDir === g.fullPath;
-          return (
-            <FileTreeItem className="st-tree-section" key={g.label} label={meta.title}
-              expanded={sectionOpen} onToggle={() => onToggleSection(g.label, defaultOpen)} row={
-              <button
-                type="button"
-                className={'st-tree-sec-hd' + (isRootOver ? ' is-drop-target' : '')}
-                data-testid={`tree-section-${g.label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
-                onClick={() => onToggleSection(g.label, defaultOpen)}
-                aria-expanded={sectionOpen}
-                aria-dropeffect={canDropOnRoot ? 'move' : undefined}
-                title={sectionOpen ? 'Collapse section' : 'Expand section'}
-                {...rootDropHandlers}
-              >
-                <StIcon name="chevron-right" className={'st-chev' + (sectionOpen ? ' is-open' : '')} size={13} />
-                <span className="st-sec-name">{meta.title}</span>
-                {pill && <span className="st-pill">{pill}</span>}
-              </button>}>
-              {sectionOpen &&
-                (hasItems ? (
-                  <Tree
-                    node={g.tree}
-                    activePath={activePath}
-                    previewPath={previewPath}
-                    onOpen={onOpen}
-                    onPreview={onPreview}
-                    commentsByFile={commentsByFile}
-                    depth={1}
-                    kind={g.kind}
-                    showHidden={showHidden}
-                    search={search}
-                    dsFolders={g.dsFolders}
-                    activeDsName={activeDsName}
-                    onOpenSystem={isDs ? onOpenSystem : undefined}
-                    onDelete={isDs || readOnly ? undefined : onDeleteBoard}
-                    dirtyByPath={dirtyByPath}
-                    canvasKinds={canvasKinds}
-                    dirPath={g.fullPath}
-                    drag={!isDs && g.kind === 'canvas' && !readOnly ? treeDrag : undefined}
-                    menu={rowMenu}
-                    expansion={treeExpansion}
-                  />
-                ) : (
-                  <div className="st-tree-empty">{search ? 'No matches.' : 'Empty.'}</div>
-                ))}
-            </FileTreeItem>
-          );
-        })}
-      </FileTree>
+          {!filesReady && <TreeLoading failures={treeLoadFailures} cloud={cloud} />}
+          {/* V2-4.4a — the project's Design system(s), pinned above every canvas; the Design system's
+          FILES moved under Advanced (CONTRACT §7). While searching the pinned row steps aside (kit)
+          and the group's hits show in the list below. */}
+          {/* P8 C5: no `empty` row — a project without a system draws nothing here (01 / 02 / 05); the
+          "Make a design system" door is one row in Advanced (`makeDs` below). */}
+          {!search && (
+            <DsPinnedRows
+              rows={pinnedDs}
+              header={dsModel.header}
+              activeDsName={activeDsName ?? openDsCanvasOf}
+              onOpen={openDs}
+              onMenu={onDsAction ? (e, row) => rowMenu.openAt(e, { kind: 'ds', row }) : undefined}
+              onMake={() => onDsAction?.('ds.make', {})}
+              onBringUp={
+                onDsAction && !readOnly ? (ds) => onDsAction('ds.upgrade', { ds }) : undefined
+              }
+              renaming={renamingDs}
+              onRename={(row, label) => onDsAction?.('ds.rename', { ds: row.dsName, label })}
+              onRenameDone={() => setRenamingDs(null)}
+            />
+          )}
+          {/* S1.1 — the canvases, virtualised: Pinned, the project row with Sort, folders with counts.
+              06 ad-left: Show hidden files draws the SAME tree with the supporting files dimmed in place
+              (sidecars under their canvas, loose notes after a folder's canvases, the runtime entries at the
+              root) — it no longer swaps in the v1 file view. */}
+          <CanvasesPanel
+            groups={groups}
+            search={search}
+            projectLabel={project || cloud?.projectName || ''}
+            activePath={activePath}
+            onOpen={onOpen}
+            showHidden={showHidden}
+            onPreview={onPreview}
+            previewPath={previewPath}
+            expansion={treeExpansion}
+            drag={treeDrag}
+            menu={rowMenu}
+            readOnly={readOnly}
+            onMove={onMoveCanvas}
+            onRename={onRenameCanvas}
+            onDuplicate={onDuplicateCanvas}
+            onTrash={onDeleteBoard}
+            onCopyLink={onCopyLink}
+            dsCfg={dsCfg}
+            onDsAction={readOnly ? undefined : onDsAction}
+            activeArtboard={activeArtboard}
+            commentsByFile={commentsByFile}
+            dirtyByPath={dirtyByPath}
+            canvasKinds={canvasKinds}
+            onNewCanvasIn={(path, name) => {
+              setNewErr('');
+              setComposerMode('board');
+              setComposerTarget({ path, name });
+              setCreating(true);
+            }}
+          >
+            {({ emptyProject }) => (
+              <>
+                {/* an empty project has the panel's own "New canvas" (es-project-new draws exactly one row) */}
+                {emptyProject ? null : newCanvasRow}
+                {/* The panel's last row — the Trash list (C10). A viewer has no trash to open. */}
+                {showTrashRow ? <TrashRow trash={trash} onOpen={() => setTrashOpen(true)} /> : null}
+              </>
+            )}
+          </CanvasesPanel>
+          {/* While searching, the Design system's hits follow (never Project or Runtime files). With hidden
+              files on, the project's own files (README, tokens…) follow the tree as the file view had them. */}
+          {search || (showHidden && filteredGroups.some((g) => g.kind === 'project')) ? (
+            <FileTree aria-label="Other project files" data-testid="canvases-other-files">
+              {(search
+                ? searchOtherGroups(filteredGroups)
+                : filteredGroups.filter((g) => g.kind === 'project')
+              ).map((g) => renderSection(g))}
+            </FileTree>
+          ) : null}
+          <CanvasesAdvanced
+            open={advancedOpen}
+            onToggle={() => setAdvancedOpen((v) => !v)}
+            showHidden={showHidden}
+            onToggleHidden={() => (onToggleShowHidden ? onToggleShowHidden() : undefined)}
+            onRefresh={onRefresh}
+            refreshing={refreshing}
+            shown={htmlShown}
+            total={htmlCount}
+            wsConnected={wsConnected}
+            trash={trash}
+            showTrash={!readOnly}
+            kept={trash && !trash.legacy ? trash.kept : null}
+            onKeptChanged={reloadTrash}
+            onOpenTrash={() => setTrashOpen(true)}
+            activePath={activePath === SYSTEM_TAB ? null : activePath}
+            isSystem={activePath === SYSTEM_TAB}
+            dsName={activeDsName ?? pinnedDs[0]?.dsName ?? null}
+            onOpenDs={onOpenSystem}
+            makeDs={dsModel.empty && !search ? dsModel.empty : null}
+            onMakeDs={() => onDsAction?.('ds.make', {})}
+          >
+            {dsGroup && !search ? (
+              <FileTree aria-label="Design system files" data-testid="canvases-ds-files">
+                {renderSection(dsGroup)}
+              </FileTree>
+            ) : null}
+          </CanvasesAdvanced>
+        </>
+      )}
       <TreeRowMenu
         state={rowMenu.state}
         onClose={rowMenu.close}
@@ -1210,21 +1541,7 @@ export function Sidebar({
         destinations={rowMenuDestinations}
         onPickDestination={(dest) => onMoveCanvas(menuExtra.path, dest)}
       />
-      {/* Phase 29 (E4) — the project + draft switcher: a compact one-line dock that
-          opens UPWARD, sitting directly above the GitHub identity avatar so the two
-          form one bottom dock. Renders nothing until the project is a git repo.
-
-          WITHDRAWN while somebody else is committing (feature-cloud-managed-git-
-          posture). A draft is a local branch, and switching one moves a HEAD the
-          cell knows nothing about — it would rewrite the working tree under a
-          project whose history is being written elsewhere. Same
-          presentation-not-a-control rule as the rest of DDR-218: `/_api/git/branch`
-          and `/_api/git/checkout` keep exactly their old gates, and a terminal
-          `git checkout` still works (and still flushes into Yjs via DDR-051's
-          watcher). Absent, not disabled — there is nothing to explain here. */}
-      {/* Plan T22 — withdrawn means the BRANCH half. A managed project still
-          needs the way to another project, so the dock stays, project-only. */}
-      <RepoBranchSwitcher project={project} liveBranch={gitBranch} remoteSync={remoteSync} onGetLatest={onGetLatest} projectOnly={savingIsManaged} />
+      {/* P8 C4: no project switcher here — the project pill is the switcher (RepoBranchSwitcher.jsx). */}
       {/* Cloud Phase 23 C3 — Maude Cloud sign-in + remote-project attach, docked
           above the GitHub identity. Dev-server-backed, so it works in the desktop
           shell AND a plain browser. */}
@@ -1233,11 +1550,23 @@ export function Sidebar({
           Absent rather than disabled, because unlike the agent chat there is
           nothing here to explain — the capability is not missing, it is
           already satisfied. */}
-      {cloud === null ? <CloudBar syncStatus={syncStatus} onLinkedHub={onLinkedHub} onLocalProject={onLocalProject} onOpenFile={onOpenLinkedFile} filesReady={filesReady} /> : null}
+      {cloud === null ? (
+        <CloudBar
+          variant="host"
+          syncStatus={syncStatus}
+          onLinkedHub={onLinkedHub}
+          onLocalProject={onLocalProject}
+          onOpenFile={onOpenLinkedFile}
+          filesReady={filesReady}
+        />
+      ) : null}
       {/* Phase 28 (E3) — GitHub identity as a compact avatar docked at the BOTTOM:
           sign in, connected account + New/Pull/Share, sign out. Self-contained
           (owns its device-code + CreateProject dialogs). Renders nothing in browser. */}
-      <IdentityBar />
+      {/* V2-4.7a: both are HOSTS now — no rail in the footer. The account, the cloud projects and
+          the GitHub sign-in live in Settings › Connections; these stay mounted for what has to work
+          from anywhere (a maude:// link's dialogs, File › New project…). */}
+      <IdentityBar variant="host" />
     </nav>
   );
 }

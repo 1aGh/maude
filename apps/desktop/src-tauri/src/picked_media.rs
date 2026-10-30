@@ -110,11 +110,13 @@ impl PickedMediaRegistry {
 /// Read one slice of a picked file. Returns raw bytes (an ArrayBuffer in JS).
 #[tauri::command]
 pub async fn read_picked_media(
+    webview: tauri::Webview,
     registry: State<'_, PickedMediaRegistry>,
     token: String,
     offset: u64,
     len: u64,
 ) -> Result<tauri::ipc::Response, String> {
+    crate::windows::caller_project(&webview, false)?;
     let (path, size, modified) = registry
         .lookup(&token)
         .ok_or_else(|| "That file is no longer available — pick it again.".to_string())?;
@@ -154,8 +156,14 @@ pub async fn read_picked_media(
 
 /// Forget a pick once its upload is done (or abandoned).
 #[tauri::command]
-pub fn release_picked_media(registry: State<'_, PickedMediaRegistry>, token: String) {
+pub fn release_picked_media(
+    webview: tauri::Webview,
+    registry: State<'_, PickedMediaRegistry>,
+    token: String,
+) -> Result<(), String> {
+    crate::windows::caller_project(&webview, false)?;
     if let Ok(mut picks) = registry.picks.lock() {
         picks.retain(|p| p.token != token);
     }
+    Ok(())
 }

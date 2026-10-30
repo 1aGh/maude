@@ -1,0 +1,30 @@
+{
+  "canvas": "ui/panels/DiffView.tsx",
+  "from": "maude",
+  "to": "maude-v2",
+  "meta": { "designSystem": "maude-v2" },
+  "edits": [
+    {
+      "old": "import \"../../system/maude/colors_and_type.css\";",
+      "new": "import \"../../system/maude-v2/colors_and_type.css\";",
+      "why": "Load the maude-v2 tokens instead of maude's."
+    },
+    {
+      "old": "import \"../../system/maude/preview/_components.css\";",
+      "new": "import \"../../system/maude-v2/preview/_components.css\";",
+      "why": "Load the maude-v2 component classes instead of maude's."
+    },
+    {
+      "old": "return <div className=\"maude\" data-theme=\"dark\" style={{ position: \"absolute\", inset: 0 }}>{children}</div>;",
+      "new": "return <div className=\"ds\" data-theme=\"dark\" style={{ position: \"absolute\", inset: 0 }}>{children}</div>;",
+      "why": "maude-v2 sets its tokens on .maude-v2 / .ds, not .maude. Without this the artboards render with no tokens."
+    }
+  ],
+  "notes": [
+    "Token names used by DiffView.css (--canvas-*, --accent-muted, --accent-tint) all exist in maude-v2 as aliases.",
+    "What will look different: the accent moves from indigo to azure. On the before/after thumbnails, the change rings use status colours, so they stay readable. Check them against the new accent anyway.",
+    "Needs a decision: the canvas draws the Maude mark inline (ds-check S7, DiffView.tsx:26–30), copied from maude's logo. If maude-v2's logo specimen is a different mark, redraw it from system/maude-v2/preview/logo.",
+    "DiffView.css comments (lines 3 and 210) still mention system/maude. They have no effect; update them when you apply the switch if you want.",
+    "status is \"handed-off\" (handoffCommit 97859dc). After the switch, the handed-off build and this canvas use different systems."
+  ]
+}

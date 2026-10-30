@@ -38,3 +38,218 @@ export function exportSelectionFor(selected, activePath, canvasActiveArtboard) {
     selection: onActive && sel.selector ? { selector: sel.selector, file: sel.file } : null,
   };
 }
+
+/**
+ * S8.2 — what the Export sheet needs to know about the selection, scoped to the active canvas:
+ * `hasSelection` (nothing selected → ⇧⌘E exports This canvas), the selected DCArtboard ids, and the V2-1.4
+ * element ids (a selected element carries `id`; a bare artboard selection has `artboardId` and no `id`).
+ */
+export function exportSelectionV2(selected, activePath) {
+  const list = (Array.isArray(selected) ? selected : [selected]).filter(
+    (s) => s && s.file === activePath
+  );
+  const artboards = [];
+  const elements = [];
+  for (const s of list) {
+    if (s.id) elements.push(String(s.id));
+    else if (s.artboardId && !artboards.includes(s.artboardId))
+      artboards.push(String(s.artboardId));
+  }
+  // 09 ex-social — the title names the ONE artboard it exports: its own label, else its id
+  const one = list.length === 1 && !list[0].id ? list[0] : null;
+  const label = one
+    ? String(one.attrs?.['data-dc-label'] ?? '')
+        .replace(/\s+/g, ' ')
+        .trim() || String(one.artboardId ?? one.attrs?.['data-dc-screen'] ?? '')
+    : list.length === 1
+      ? elementName(list[0])
+      : '';
+  // p8-bugs3 #1 — the one thing selected, as big as the canvas draws it: the estimate cannot know an element's size
+  // (it only indexes artboards), so the sheet's size chips and size line read it from here
+  const e = list.length === 1 ? list[0] : null;
+  const w = Number(e?.worldW ?? e?.geometry?.w);
+  const h = Number(e?.worldH ?? e?.geometry?.h);
+  return {
+    hasSelection: list.length > 0,
+    selectedArtboards: artboards,
+    selectedElements: elements,
+    selectionLabel: label || null,
+    selectionSize: w > 0 && h > 0 ? { w: Math.round(w), h: Math.round(h) } : null,
+  };
+}
+
+const ELEMENT_KINDS = { img: 'Photo', picture: 'Photo', svg: 'Graphic', video: 'Video' };
+
+/**
+ * p8-bugs3 #1 — what to call ONE selected element in the Export sheet's title: its own words (a heading, a button),
+ * else what kind of thing it is. Never an id.
+ */
+export function elementName(sel) {
+  const words = String(sel?.text ?? '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (words && !ELEMENT_KINDS[String(sel?.tag ?? '').toLowerCase()])
+    return words.length > 40 ? `${words.slice(0, 39)}…` : words;
+  return ELEMENT_KINDS[String(sel?.tag ?? '').toLowerCase()] ?? 'Object';
+}
+
+/**
+ * 09 ex-batch-pick — the canvas's multi-select list (⌘A, ⇧-click) arrives without a `file` on its entries;
+ * the single selection carries one. Both are about the canvas that was open when the message came, so the shell
+ * stamps that canvas on the entries that name none — otherwise Export's "is this selection on the open canvas?"
+ * check drops the whole list and ⇧⌘E falls through to This canvas.
+ */
+export function stampSelectionFile(selection, activePath) {
+  if (!Array.isArray(selection) || !activePath) return selection;
+  return selection.map((s) => (s && s.file == null ? { ...s, file: activePath } : s));
+}
+
+/**
+ * S2.22 G4/G6 — what the shell holds after the canvas's `select-set`: nothing, the one object (with the
+ * canvas's crumbs / kind / refs when `described` adds them) or, for several, the WHOLE list. The inspector reads
+ * that list to say "4 artboards · Mixed … Changes go to all 4."; keeping only the head hid every multi-selection.
+ */
+export function shellSelectionOf(payload, described = (s) => s) {
+  if (payload == null) return null;
+  if (!Array.isArray(payload)) return described(payload);
+  if (payload.length === 0) return null;
+  if (payload.length === 1) return described(payload[0]);
+  return payload;
+}
+
+/** How long after a reload the shell waits before it puts the selection back: the canvas's own select of what it just
+ *  made (a drawing, a paste — `selectWhenRendered` polls every 100 ms) goes first, so the restore never clobbers it. */
+export const RESTORE_LEAD_MS = 250;
+
+const SCREEN_SELECTOR = /^\[data-dc-screen="([^"]+)"\]$/;
+
+/** Is `sel` the whole-artboard selection of `artboardId` on `file`? The server's echo drops `artboardId`, so the
+ *  `[data-dc-screen="…"]` selector is the identity that survives it. */
+export function isArtboardSelectionOf(sel, artboardId, file) {
+  if (!sel || !artboardId || (sel.file && sel.file !== file) || sel.id) return false;
+  return sel.artboardId === artboardId || sel.selector === `[data-dc-screen="${artboardId}"]`;
+}
+
+/**
+ * S2.22 G2 — what to re-select once a canvas has (re)loaded after a write. An element goes back by its id; a
+ * whole artboard (no id) by its name — a resize, a kind or a style write reloads the canvas, and the selection
+ * must still be on the board afterwards, with its new size.
+ * @returns {{ kind: 'element', sel: any } | { kind: 'artboard', artboardId: string, file: string } | null}
+ */
+export function restoreAfterLoad(selected, file) {
+  const sel = Array.isArray(selected) ? selected[0] : selected;
+  // S2.23 G1 — the canvas's own `select-set` carries no `file` (the shell knows which canvas it is): a selection
+  // without one belongs to the canvas that just loaded, and goes back like one that names it.
+  if (!sel || (sel.file && sel.file !== file)) return null;
+  if (sel.id) return { kind: 'element', sel: sel.file ? sel : { ...sel, file } };
+  const artboardId = sel.artboardId || SCREEN_SELECTOR.exec(sel.selector || '')?.[1] || null;
+  return artboardId ? { kind: 'artboard', artboardId, file } : null;
+}
+
+/**
+ * S2.25 G1 — the key a rename is kept under: a write may give a text an authored name (`data-cd-id="jedeme-v-zelenem"`
+ * for what was the content-hash id `42612cfe`), after which the id the shell holds names nothing in the canvas.
+ */
+export const renameKey = (artboardId, id) => `${artboardId ?? ''}\u0000${id}`;
+/** The id `id` was renamed to by a write, or `id` itself. */
+const renamedId = (renames, artboardId, id) => renames?.get(renameKey(artboardId, id)) ?? id;
+
+/**
+ * S2.25 G1 — what a successful edit-op renamed: its `targets` against the `refs` it answered with ("the targets as
+ * written: same order, every element an authored id"), as `[renameKey, newId]` pairs. Only the ids that differ.
+ */
+export function renamesOf(targets, refs) {
+  const out = [];
+  if (!Array.isArray(targets) || !Array.isArray(refs)) return out;
+  targets.forEach((t, i) => {
+    const r = refs[i];
+    if (t?.element && r?.element && t.element !== r.element)
+      out.push([renameKey(t.artboard, t.element), r.element]);
+  });
+  return out;
+}
+
+/**
+ * S2.24 G2 — the `select-by-id` message that puts `selected` back on the canvas of `file`, or null when there is
+ * nothing to put back. A list of several is left alone: the canvas holds all of it, and one id would collapse it.
+ */
+export function restorePostOf(selected, file, renames, now = Date.now()) {
+  if (Array.isArray(selected) && selected.length > 1) return null;
+  const back = restoreAfterLoad(selected, file);
+  if (!back) return null;
+  if (back.kind === 'artboard') {
+    const to = intendedBoard(back.artboardId, file, now);
+    return { dgn: 'select-by-id', artboardId: to ?? back.artboardId };
+  }
+  return {
+    dgn: 'select-by-id',
+    id: renamedId(renames, back.sel.artboardId, back.sel.id),
+    artboardId: back.sel.artboardId ?? null,
+    index: back.sel.index ?? 0,
+  };
+}
+
+// p8-bugs3 #6 (decision v2-p8-c4-convert-selects-the-copy) — a selection the shell ASKED for that the canvas has not
+// echoed yet: after Change kind made a copy the person means the COPY, but the shell still holds the post until the
+// canvas re-renders with the copy, and a restore ladder that fires in that gap would put the post back over it.
+let intent = null; // { file, from, to, until }
+
+/**
+ * Remember that the whole-artboard selection of `from` on `file` should become `to` (a board that does not exist
+ * on the canvas yet). It lives `ttl` ms; a restore inside that time sends the copy, not the post.
+ * @param {string} file
+ * @param {{ from: string, to: string }} ids
+ * @param {{ now?: number, ttl?: number }} [o]
+ */
+export function intendSelection(file, { from, to }, { now = Date.now(), ttl = 8000 } = {}) {
+  intent = { file, from, to, until: now + ttl };
+}
+
+export function clearSelectionIntent() {
+  intent = null;
+}
+
+/** The board a restore of `artboardId` should select instead, or null. Holding the target itself spends the ask. */
+function intendedBoard(artboardId, file, now) {
+  if (!intent) return null;
+  if (now >= intent.until) {
+    intent = null;
+    return null;
+  }
+  if (intent.file !== file) return null;
+  if (artboardId === intent.to) {
+    intent = null;
+    return null;
+  }
+  return artboardId === intent.from ? intent.to : null;
+}
+
+/** The rungs after the first: a fresh iframe mounts its listener 100 ms .. seconds after `loaded`. */
+const RESTORE_RUNGS_MS = [450, 1200, 2500, 5000];
+
+/**
+ * S2.24 G2/G1 — put the selection back on a canvas that just reloaded or was just written to, on a retry ladder,
+ * reading the selection WHEN EACH RUNG FIRES. Deciding at `loaded` time lost the drawn rectangle: the old tree
+ * flushes its `select-set` a beat after the new tree's `loaded`, so a restore planned for the board was dropped
+ * as superseded and the canvas never drew a selection on the shape the inspector showed. Posting is idempotent
+ * (the canvas answers a repeat with the same selection and does not move the camera).
+ * @returns {() => void} cancel
+ */
+export function startSelectionRestore({
+  file,
+  lead = RESTORE_LEAD_MS,
+  getSelected,
+  post,
+  renames,
+  timers = { set: (fn, ms) => setTimeout(fn, ms), clear: (h) => clearTimeout(h) },
+}) {
+  const handles = [lead, ...RESTORE_RUNGS_MS].map((ms) =>
+    timers.set(() => {
+      const msg = restorePostOf(getSelected(), file, renames);
+      if (msg) post(msg);
+    }, ms)
+  );
+  return () => {
+    for (const h of handles) timers.clear(h);
+  };
+}

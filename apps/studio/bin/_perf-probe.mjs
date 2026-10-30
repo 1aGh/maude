@@ -30,8 +30,10 @@ import { dirname } from 'node:path';
 
 import {
   buildRow,
+  emptyViewportRefusal,
   harnessSource,
   medianOf,
+  occlusionRefusal,
   parseAndValidateResult,
   readHistory,
   renderReport,
@@ -119,10 +121,31 @@ function abEval(expr) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * p8-e2e-fix-r10 (decision maude/v2-p8-e2e-fix-r10-captures-close-their-page): the session is a daemon, and a
+ * canvas page left open in it stays a live collab peer of whatever server answers on that port next. On every
+ * exit — measured, refused or crashed — park the page on about:blank and close the session (bin/_ab-park.sh is
+ * the shell helpers' copy of this).
+ */
+let opened = false;
+function parkSession() {
+  if (!opened) return;
+  opened = false;
+  for (const step of [['open', 'about:blank'], ['close']]) {
+    try {
+      ab(step);
+    } catch {
+      /* already gone */
+    }
+  }
+}
+process.on('exit', parkSession);
+
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
 
   try {
+    opened = true;
     ab(['open', opts.url]);
   } catch (err) {
     console.error(`_perf-probe.mjs: agent-browser could not open ${opts.url}\n${err.message}`);
@@ -191,6 +214,11 @@ async function main() {
   const total = Math.max(1, opts.repeat);
   for (let i = 0; i < total; i++) {
     const r = await runOnce();
+    const hidden = occlusionRefusal(r, i + 1);
+    if (hidden) {
+      console.error(`_perf-probe.mjs: ${hidden}`);
+      process.exit(3);
+    }
     if (!r.panApplied || !r.zoomApplied) {
       console.error(
         `_perf-probe.mjs: gesture did not reach the canvas on pass ${i + 1} ` +
@@ -198,9 +226,15 @@ async function main() {
       );
       process.exit(1);
     }
+    const empty = emptyViewportRefusal(r, i + 1);
+    if (empty) {
+      console.error(`_perf-probe.mjs: ${empty}`);
+      process.exit(1);
+    }
     if (i > 0 || total === 1) passes.push(r);
     process.stderr.write(
-      `→ pass ${i + 1}/${total}: gesture p95 ${r.gesture.p95}ms${i === 0 && total > 1 ? ' (warm-up, discarded)' : ''}\n`
+      `→ pass ${i + 1}/${total}: ${r.boardsOnScreen} boards on screen, gesture p95 ${r.gesture.p95}ms zoom p95 ${r.zoom.p95}ms long ${r.longFrames}` +
+        `${i === 0 && total > 1 ? ' (warm-up, discarded)' : ''}\n`
     );
   }
 

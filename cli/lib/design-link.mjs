@@ -15,6 +15,7 @@ import { dirname, join, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
 
 import { parseArgs } from './argv.mjs';
+import { isAiSession } from './confine-root.mjs';
 import { adoptToHub, detachToRepo, ownershipState } from './design-ownership.mjs';
 import { BEGIN_MARKER, writeGitignoreBlock } from './gitignore-block.mjs';
 import {
@@ -27,6 +28,7 @@ import {
   setHubUnlimitedDeletes,
   trustHub,
 } from './hubs-config.mjs';
+import { deleteProjectLink, recordProjectLink } from './project-links.mjs';
 
 const DESIGN_CONFIG_PATH = '.design/config.json';
 const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
@@ -34,6 +36,15 @@ const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
 // ---------------------------------------------------------------- link
 
 export async function runLink({ args, cwd = process.cwd(), forceAdopt = false }) {
+  // V2-8.9 defender M1 (decision maude/v2-8.9-sync-link-confirm-needs-fetch-metadata): linking
+  // records that this folder's hub may receive this Mac's credential — the person's consent. In
+  // an AI session the permission card would show a shell line, not the hub, so the verb refuses.
+  if (isAiSession()) {
+    process.stderr.write(
+      `maude design ${forceAdopt ? 'adopt' : 'link'}: linking to a hub is your decision — run it in a terminal yourself, or Connect from the Share sheet in the Maude window.\n`
+    );
+    process.exit(1);
+  }
   const tail = args.slice(args.indexOf(forceAdopt ? 'adopt' : 'link') + 1);
   const { flags, positional } = parseArgs(tail, {
     booleans: ['adopt', 'force', 'yes', 'sync-tsx', 'no-sync-tsx'],
@@ -161,6 +172,8 @@ export async function runLink({ args, cwd = process.cwd(), forceAdopt = false })
     ...(syncTsx !== undefined ? { syncTsx } : {}),
   };
   writeDesignConfig(designConfigPath, cfg);
+  // gate-b-sec4 — the link is this Mac's: the studio honours a committed linkedHub only with this.
+  recordProjectLink(cwd, normUrl);
 
   // Record per-machine trust only now that the link fully succeeded, so a
   // later re-link to this hub won't re-prompt. Skipped for loopback + hubs
@@ -227,8 +240,8 @@ export async function runUnlink({ args, cwd = process.cwd() }) {
     return;
   }
   const url = cfg.linkedHub.url;
-  cfg.linkedHub = undefined;
-  writeDesignConfig(designConfigPath, cfg);
+  dropLinkedHub(cfg, designConfigPath);
+  deleteProjectLink(cwd);
 
   let tokenRemoved = false;
   if (!flags['keep-token']) {
@@ -371,8 +384,8 @@ export async function runDetach({ args, cwd = process.cwd() }) {
   // no window where the folder belongs to neither owner.
   if (linked) {
     const url = cfg.linkedHub.url;
-    cfg.linkedHub = undefined;
-    writeDesignConfig(designConfigPath, cfg);
+    dropLinkedHub(cfg, designConfigPath);
+    deleteProjectLink(cwd);
     if (!flags['keep-token']) removeHub(url);
     process.stdout.write(`[design detach] unlinked from ${url}.\n`);
   }
@@ -802,6 +815,57 @@ function readDesignConfig(path) {
   } catch (err) {
     throw new Error(`unable to read ${path}: ${err.message}`);
   }
+}
+
+/**
+ * The project format a hub mirror holds for the link that is about to go, as a
+ * number to carry into the config — or null when the config already says it.
+ *
+ * Decision 2A: a project's format is max(config.formatVersion ?? 1, linked
+ * hub's format). A project pulled from, or raised through, a hub can hold its
+ * format ONLY in the per-hub mirror (`<designRoot>/_state/hub-format.json`,
+ * apps/studio/format.ts `readHubFormatCache`); dropping the link without it
+ * reads the person's own project back as format 1 — view only. RAISE ONLY,
+ * and never above CLI_SUPPORTED_FORMAT (a build never persists a format it
+ * cannot open).
+ *
+ * This is the CLI copy of the studio's `detach()` rule
+ * (apps/studio/cloud/endpoints.ts, which calls `projectFormat`). The CLI is
+ * Node and cannot import the studio's TypeScript, so the mirror read is
+ * restated here; `apps/studio/test/detach-keeps-format.test.ts` runs both
+ * against the same mirrors so they cannot drift.
+ */
+export function hubFormatToCarry(cfg, designRoot) {
+  const url = cfg?.linkedHub?.url;
+  if (typeof url !== 'string') return null;
+  const asFormat = (v) => (Number.isInteger(v) && v >= 1 ? v : 1);
+  const norm = (u) => u.replace(/\/+$/, '');
+  let mirror;
+  try {
+    mirror = JSON.parse(readFileSync(join(designRoot, '_state', 'hub-format.json'), 'utf8'));
+  } catch {
+    return null;
+  }
+  if (typeof mirror?.hub !== 'string' || norm(mirror.hub) !== norm(url)) return null;
+  // Clamped to the format this build edits (studio `persistableFormat`,
+  // p8-secfix-studio F5/D4): the mirror is fed by the unauthenticated /health,
+  // and a hostile hub's 2^53-1 must not lock the project view only for good.
+  const hub = Math.min(asFormat(mirror.formatVersion), CLI_SUPPORTED_FORMAT);
+  return hub > asFormat(cfg.formatVersion) ? hub : null;
+}
+
+/**
+ * The CLI's restatement of apps/studio/format.ts `SUPPORTED_FORMAT` (Node can't
+ * import the TypeScript). test/p8-secfix-format-clamp.test.ts pins the two.
+ */
+export const CLI_SUPPORTED_FORMAT = 2;
+
+/** Write the config without its link, keeping the project's format (see above). */
+function dropLinkedHub(cfg, designConfigPath) {
+  const carry = hubFormatToCarry(cfg, dirname(designConfigPath));
+  if (carry !== null) cfg.formatVersion = carry;
+  cfg.linkedHub = undefined;
+  writeDesignConfig(designConfigPath, cfg);
 }
 
 function writeDesignConfig(path, cfg) {

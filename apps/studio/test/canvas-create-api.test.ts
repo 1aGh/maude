@@ -21,12 +21,21 @@ import { componentNameFrom, renderBriefBoard, validateCanvasName } from '../canv
 import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
 
 describe('canvas-create / validateCanvasName (the security boundary)', () => {
-  test('accepts ordinary names (incl. spaces + accents)', () => {
-    for (const n of ['Onboarding Brief', 'checkout-flow', 'Krok_1', 'Přihlášení', 'A1']) {
+  test('accepts ordinary names (letters, numbers, spaces, - and _)', () => {
+    for (const n of ['Onboarding Brief', 'checkout-flow', 'Krok_1', 'Prihlaseni', 'A1']) {
       const v = validateCanvasName(n);
       expect(v.ok).toBe(true);
       expect(v.name).toBe(n);
     }
+  });
+
+  // S1.23c (`v2-lead-canvas-names-sync-safe`): an accent is outside the sync path charset — refused,
+  // with the folded name offered.
+  test('an accented name is refused with the accent-free suggestion', () => {
+    const v = validateCanvasName('Přihlášení');
+    expect(v.ok).toBe(false);
+    expect(v.suggestion).toBe('Prihlaseni');
+    expect(v.error).toBe('Names can use letters, numbers, spaces, - and _. Try “Prihlaseni”.');
   });
 
   test('trims surrounding whitespace', () => {
@@ -49,11 +58,9 @@ describe('canvas-create / validateCanvasName (the security boundary)', () => {
     ['leading dot', '.hidden'],
     ['dot-dot', '..'],
     ['JSX break-out', 'X</div><script>alert(1)</script>'],
-    ['brace injection', 'A{2+2}B'],
     ['angle bracket', 'a<b'],
     ['double quote (JSON break-out)', 'a"b'],
     ['backslash (JSON break-out)', 'a\\b'],
-    ['leading hyphen', '-dash'],
     ['too long (61)', 'x'.repeat(61)],
     ['tab', 'a\tb'],
     ['newline', 'a\nb'],
@@ -64,6 +71,24 @@ describe('canvas-create / validateCanvasName (the security boundary)', () => {
       expect(validateCanvasName(value).ok).toBe(false);
     });
   }
+
+  // S1.23c: a brace is outside the sync path charset, so it is refused ("A22B" is offered); a leading
+  // hyphen is inside it. The template still escapes braces as belt and braces.
+  test('braces are refused with a suggestion, a leading hyphen is accepted; the template still escapes braces', () => {
+    const v = validateCanvasName('A{2+2}B');
+    expect(v.ok).toBe(false);
+    expect(v.suggestion).toBe('A22B');
+    expect(validateCanvasName('-dash').ok).toBe(true);
+    const out = renderBriefBoard({
+      name: 'A{2+2}B',
+      componentName: 'AB',
+      dsName: 'project',
+      platform: 'desktop',
+      seedHint: 'seed',
+      historyDir: '.design/_history/ui-ab',
+    });
+    expect(out).toContain('A&#123;2+2&#125;B\n');
+  });
 
   test('componentNameFrom yields a valid identifier', () => {
     expect(componentNameFrom('Onboarding Brief')).toBe('OnboardingBrief');
@@ -341,6 +366,7 @@ describe('/_api/canvas — POST round-trip', () => {
       JSON.stringify({
         name: 'test',
         designRoot: '.design',
+        formatVersion: 2,
         newCanvasDir: '../../../../tmp',
         canvasGroups: [
           { label: 'System', path: 'system' },

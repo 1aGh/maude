@@ -40,6 +40,7 @@
 // HUB's validation is the authoritative gate at each trust boundary; the
 // filters here are the courtesy layer that keeps junk off the wire.
 
+import { randomBytes } from 'node:crypto';
 import { type Dirent, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 
@@ -56,6 +57,11 @@ export interface AssetPushResult {
   pushed: string[];
   skipped: number;
   failed: { key: string; reason: string }[];
+  /**
+   * The hub answered the upload `405`: it holds no checkout, so it cannot store media at all. The pass ended there —
+   * the rest were never tried and are NOT failures (they stay on this Mac). `sync/media-gate.ts` stops further passes.
+   */
+  refused?: 'no-checkout';
 }
 
 /**
@@ -79,6 +85,8 @@ export interface AssetPushProgress {
   active: string | null;
   /** True exactly once, on the final emit (also fires when total is 0). */
   finished: boolean;
+  /** Set on the final emit when the hub has no media checkout (see `AssetPushResult.refused`). */
+  refused?: 'no-checkout';
 }
 
 /** Cap on `failures` in a progress emit (same spirit as MAX_REJECTED_SLUGS —
@@ -304,7 +312,15 @@ async function probePresent(ctx: {
     const res = await ctx.fetchImpl(`${ctx.base}/_asset-probe`, {
       method: 'POST',
       headers: { ...ctx.headers, 'content-type': 'application/json' },
-      body: JSON.stringify({ paths: ctx.paths }),
+      // S8.19 (contract S8-S9-asset-presence §5.2): the sweep's one batch is
+      // also "this Mac holds these, and this sweep is done" — the hub's asset
+      // presence store learns who holds what. Optional fields: a hub that
+      // predates them ignores them and answers exactly as before.
+      body: JSON.stringify({
+        paths: ctx.paths,
+        held: true,
+        sweep: { id: `s${Date.now().toString(36)}${randomBytes(6).toString('hex')}`, final: true },
+      }),
       signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
     });
     if (!res.ok) return null;
@@ -442,6 +458,7 @@ export async function pushAssets(opts: {
         failures: out.failed.slice(0, MAX_LISTED_FAILURES),
         active,
         finished,
+        ...(out.refused ? { refused: out.refused } : {}),
       });
     } catch {
       /* a broken listener must never break the push */
@@ -509,7 +526,12 @@ export async function pushAssets(opts: {
         timeoutFor,
       });
       if (put.ok) out.pushed.push(rel);
-      else {
+      else if (put.status === 405) {
+        // `this hub does not accept file writes`: no checkout, so no file can ever land here. Stop the pass — the
+        // next file would get the same answer — and say it is not a failure; the media stays on this Mac.
+        out.refused = 'no-checkout';
+        break;
+      } else {
         out.failed.push({ key: rel, reason: await failureReason(put) });
         emitProgress(rel, false, true);
       }

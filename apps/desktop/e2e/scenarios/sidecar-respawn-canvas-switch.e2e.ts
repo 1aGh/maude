@@ -17,7 +17,7 @@ import { canvasRow } from '../helpers/tree';
  *      every dev-server process.
  *   2. The studio page reads `/_config` once at boot and caches `canvasOrigin`.
  *   3. When the sidecar crashes and the supervisor respawns it, the main origin
- *      reclaims its deterministic port (4399…) — so the page's WebSocket
+ *      reclaims its deterministic port (46399…; 47399… under e2e) — so the page's WebSocket
  *      reconnects, the status bar goes back to `live`, and the shell keeps
  *      working — while `canvasOrigin` silently points at a port that no longer
  *      exists.
@@ -120,6 +120,10 @@ describe('sidecar-respawn-canvas-switch (native-desktop, issue #115)', () => {
 
     // 6 — and the failure surface is absent, not merely out-competed by a race.
     expect(await (await $('[data-testid="canvas-load-error"]')).isExisting()).toBe(false);
+    // S11.7 — the load-failure slot now holds the v2 broken-canvas card ("<Canvas> can't be drawn right
+    // now."); it is absent too, and so is its Reload canvas (`canvas-load-retry`, under Show details).
+    expect(await (await $('[data-testid="canvas-error-card"]')).isExisting()).toBe(false);
+    expect(await (await $('[data-testid="canvas-load-retry"]')).isExisting()).toBe(false);
 
     // 7 — switch BACK, since the bug affected every subsequent switch, not just
     //     the first one after the crash.

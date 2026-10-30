@@ -29,7 +29,7 @@ Project-specific values (designRoot, rootClass, tokens, accent, colorSpace) come
 
 **Default output mode:** `--asset` (standalone file). Choose `--inline` when the mark belongs directly in the open canvas (a logo in the header, an icon in a button).
 
-**Animation:** when the brief asks for motion (morph / pulse / blink / "animated…"), draw-agent also reads `_draw-motion-rules.md`, plans a keyframe `Timeline` via IR (`morphVariants` / `timeline` / `sequence`+`parallel`+`stagger`), emits via `toAnimatedSvg`/`toAnimatedJsx`, and **must verify it live** via `draw-proof --motion` (a freeze-frame can't capture motion — DDR-094). Production delivery for web+mobile is Lottie via `/design:to-lottie`.
+**Animation:** when the brief asks for motion (morph / pulse / blink / "animated…"), draw-agent also reads `references/draw/motion-rules.md`, plans a keyframe `Timeline` via IR (`morphVariants` / `timeline` / `sequence`+`parallel`+`stagger`), emits via `toAnimatedSvg`/`toAnimatedJsx`, and **must verify it live** via `draw-proof --motion` (a freeze-frame can't capture motion — DDR-094). Production delivery for web+mobile is Lottie via `/design:to-lottie`.
 
 ## Flow
 
@@ -69,7 +69,21 @@ is set:
    `reference_license` + `reference_mode`. Never pass a `reference` you haven't
    license-checked. Without `--reference`, set all three empty/null.
 
-### 2. Spawn `draw-agent`
+### 2. Spawn `draw-agent` on a hand-off
+
+`draw-agent` is a bounded writer: it creates **one new file** and nothing else. Before the spawn,
+write its role-"in" hand-off to `.design/_runs/<session>/handoff/draw-agent-<n>.in.json` (the
+run folder the hooks named at the first prompt) — the shape is the **Sample hand-off** in
+[`agents/draw-agent.md`](../agents/draw-agent.md):
+
+- `owns` = the new `.svg` (asset mode — if the path exists, take the next free `<slug>-N.svg`) or
+  the snippet `.design/_runs/<session>/draw/<slug>.jsx` (inline mode), plus the result file;
+- `output` = `.design/_runs/<session>/handoff/draw-agent-<n>.out.json`, and `checks` names
+  `maude design check <output>`;
+- `context.brief` = the person's brief, verbatim.
+
+Put the same JSON at the top of the prompt, above the fields below. The hooks deny the agent any
+write outside `owns` (`out-of-scope`) and hold it to its result when it stops.
 
 ```
 Agent(
@@ -96,7 +110,9 @@ EOF
 )
 ```
 
-The agent owns the whole verify loop (plan → N candidates → draw-proof ladder → pairwise-rank → keep-best → rubric critique → iterate). **Read the verdict** (the last fenced `json` block in its output).
+The agent owns the whole verify loop (plan → N candidates → draw-proof ladder → pairwise-rank → keep-best → rubric critique → iterate). **Read the verdict** (the last fenced `json` block in its output; the same verdict is `result.verdict` in its hand-off result).
+
+**Inline mode — you splice.** The agent wrote the `<svg>` block to its snippet and never touched the canvas. Insert the snippet into the target canvas yourself with Edit, at the place its first-line comment names (keep every element id; a locked or busy artboard is the hooks' deny — wait or ask).
 
 ### 3. Evaluate the verdict
 
@@ -104,23 +120,27 @@ The agent owns the whole verify loop (plan → N candidates → draw-proof ladde
 - `passed: false` → the mark has a HARD gap or an unresolved STRONG. If `--perfect [N]` allows another round and the agent didn't say "cap reached", **re-spawn** with the remaining `max_rounds` and a note to target `rubric.strong_failed` + the failed HARD checks. Cap 4 rounds total.
 - After exhausting rounds with `passed:false` → print the gaps, **don't mark it done**; propose a manual intervention (typically a logo where flatten/16px fails).
 
-### 4. Independent critic (default — skip s `--no-critic`)
+### 4. Independent critic (default — skip with `--no-critic`)
+
+`draw-critic` is a critic: it judges and never edits. Spawn it on a **`maude.agent-handoff/1` hand-off**, like every critic. Write `.design/_runs/<session>/handoff/draw-critic-<n>.in.json` first (`<n>` is one more than the highest `draw-critic-<n>.in.json` already there, or `0`); the shape is the **Sample hand-off** in [`/design:critic`](critic.md) step 6:
+
+- `agent` = `design:draw-critic`; `scope.canvas` = the mark: the `.svg` asset, or the canvas it was inlined into (add `scope.elementIds` for the inlined mark);
+- `owns` = `.design/_runs/<session>/handoff/draw-critic-<n>.out.json` and `.design/_runs/<session>/critique/draw-critic-<n>*` (its report). Never the mark, never a canvas;
+- `reads` = the mark, `.design/config.json`, and every PNG in the `proof_dir` of the draw-agent verdict (the render ladder: light / dark / flatten at 16, 24, 48, 256);
+- `context.brief` = the person's brief, verbatim; `context.styleContract` = `{ "optOutScope": "<scope or empty>", "iter": <rounds the agent ran> }`; `context.ds` = the design system name;
+- `output` = the `.out.json` above, and `checks` names `maude design check <output>`.
 
 ```
 Agent(
   description: "draw-critic on <slug>",
   subagent_type: "design:draw-critic",
-  prompt: <<EOF
-mark_path:     "<output_path (.svg) or the canvas it was inlined into>"
-type:          "<type>"
-proof_dir:     "<proof_dir from draw-agent verdict>"
-designRoot:    "<abs designRoot>"
-opt_out_scope: "<scope or empty>"
-EOF
+  prompt: the hand-off JSON, then one line — "Hand-off: <path of the .in.json>"
 )
 ```
 
-`draw-critic` is an **independent judge** (reads the same `_draw-design-rules.md`, but hasn't seen draw-agent's self-assessment). When its verdict disagrees (finds a HARD fail the agent declared a pass) → surface it and propose one corrective round via `draw-agent`.
+The hooks hold it to its hand-off: a write outside `owns` is refused `out-of-scope`, and it can't stop until its result validates. Then run `maude design check <output>`. A valid result carries the verdict in `result.verdict` (`blockers`, `warnings`, `passed`, `hard_pass`, `opt_out_applied`) and the rubric detail in `result.draw`; its findings are the STRONG gaps. A missing or invalid result means the critic did not finish: say "draw-critic unavailable" in the report and keep draw-agent's verdict.
+
+It is an **independent judge** (it reads the same `references/draw/design-rules.md`, but hasn't seen draw-agent's self-assessment). When its verdict disagrees (a HARD fail the agent declared a pass) → surface it and propose one corrective round via `draw-agent`.
 
 ### 4.5 Record the mark (kgai — when active)
 
@@ -156,6 +176,6 @@ STRONG gaps:   <list or "none">
 ## Notes
 
 - All dev-tooling verbs go through `maude design <verb>` (DDR-062) — never a raw bin path.
-- `_draw/` (build scripts + proof canvases) and `_history/_draw-proof/` are gitignored — regenerable.
+- `_draw/` (build scripts + proof canvases) and the proof screenshots are gitignored runtime state — regenerable.
 - The mark inherits the theme color via `currentColor` (engine default) — that's why dark-mode and single-color flatten work for free.
 - For inline edit feedback like "add a logo to the header" `/design:edit` auto-routes you here (see edit.md), so you usually call `/design:draw` manually only for a standalone asset.

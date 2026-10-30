@@ -1,0 +1,878 @@
+/* client/v2/ds/review.css — S10.8: "Update N canvases" (13 · ds-edit-review, ds-edit-master) and the
+   update-available block (13 · ds-edit-instance). Tokens only; motion collapses under reduced motion. */
+/* P8 C0: was unlayered. In @layer components: above the v1 shell layer and after the v1 component files, the place an unlayered v2 rule held over v1 — without beating every layer. */
+
+/* ── V2-8.0: rules moved here from the retired styles/ layer files, in their original order and ahead of this file's own rules, so the cascade is unchanged. ── */
+
+/* from styles/4-components.css */
+@layer components {
+  /* ----- System view ----- */
+  .system-view {
+    position: absolute;
+    inset: 0;
+    display: none;
+    overflow-y: auto;
+    background: var(--bg-0);
+  }
+
+  .system-view.active {
+    display: block;
+  }
+
+  .system-view::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .system-view::-webkit-scrollbar-thumb {
+    background: var(--border-default);
+    border-radius: var(--radius-sm);
+  }
+
+  .sv {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: var(--space-6) var(--space-6) var(--space-8);
+    font-family: var(--font-mono);
+  }
+
+  .sv-empty {
+    display: grid;
+    place-items: center;
+    height: 50vh;
+    color: var(--fg-2);
+  }
+
+  /* CV-09 header — SKU framing, hairline divider underneath. */
+  .sv-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-4);
+    border-bottom: 2px solid var(--fg-0);
+    padding-bottom: var(--space-3);
+    margin-bottom: var(--space-5);
+  }
+
+  .sv-header .sv-title {
+    flex: 1 1 auto;
+  }
+
+  .sv-ds-picker {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--fg-2);
+  }
+
+  .sv-ds-picker select {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--fg-0);
+    background: var(--bg-1);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    padding: 2px 6px;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  .sv-ds-description {
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+    line-height: 1.5;
+    color: var(--fg-1);
+    margin: 0 0 var(--space-5);
+    max-width: 72ch;
+  }
+
+  .sv-sku {
+    font-family: var(--font-mono);
+    font-size: var(--type-lg);
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--fg-0);
+  }
+
+  .sv-title {
+    font-family: var(--font-mono);
+    font-size: var(--type-md);
+    color: var(--fg-1);
+  }
+
+  .sv-loc {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--fg-2);
+  }
+
+  .sv-loc code {
+    font-family: var(--font-mono);
+    color: var(--accent);
+    background: transparent;
+    padding: 0;
+  }
+
+  .sv-section {
+    margin-bottom: var(--space-5);
+  }
+
+  .sv-section h2 {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--fg-2);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin: 0 0 var(--space-3);
+    padding-bottom: var(--space-2);
+    border-bottom: 1px solid var(--border-default);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+
+  .sv-section h2 .sv-h-num {
+    color: var(--fg-1);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sv-section h3 {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--fg-2);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin: var(--space-3) 0 var(--space-2);
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+  }
+
+  .sv-count {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--fg-2);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* CV-09 token surfaces ladder — 6-up grid, hairline gutters, mono labels. */
+  .sv-tokens-ladder {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0;
+    border: 1px solid var(--border-default);
+  }
+
+  .sv-tok-cell {
+    border-right: 1px solid var(--border-default);
+    border-bottom: 1px solid var(--border-default);
+    background: var(--bg-1);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sv-tok-cell:nth-child(6n) {
+    border-right: 0;
+  }
+
+  .sv-tok-cell .sv-tok-swatch {
+    height: 56px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .sv-tok-cell .sv-tok-meta {
+    padding: var(--space-1) var(--space-2);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--space-1);
+    min-width: 0;
+  }
+
+  .sv-tok-cell .sv-tok-name {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--fg-0);
+    font-weight: 600;
+    background: transparent;
+    padding: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .sv-tok-cell .sv-tok-value {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--fg-2);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+  }
+
+  /* CV-09 8-step type ladder. Each row: token name · sample at actual size. */
+  .sv-type-list {
+    display: block;
+  }
+
+  .sv-type-row {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: var(--space-4);
+    align-items: baseline;
+    padding: var(--space-2) 0;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .sv-type-tok {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    background: transparent;
+    padding: 0;
+  }
+
+  .sv-type-sample {
+    color: var(--fg-0);
+    font-family: var(--font-mono);
+  }
+
+  /* Tokens */
+  .tok {
+    background: var(--bg-1);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    padding: var(--space-2);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    min-width: 0;
+  }
+
+  /* Galleries (preview / ui_kits) */
+  .sv-previews {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: var(--space-3);
+  }
+
+  .sv-preview-card {
+    background: var(--bg-1);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 120ms;
+  }
+
+  .sv-preview-card:hover {
+    border-color: var(--accent-hover);
+    transform: translateY(-1px);
+  }
+
+  .sv-preview-frame {
+    position: relative;
+    aspect-ratio: 16 / 10;
+    background: var(--bg-0);
+    border-bottom: 1px solid var(--border-default);
+    overflow: hidden;
+  }
+
+  .sv-preview-frame iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 200%;
+    height: 200%;
+    border: 0;
+    transform: scale(0.5);
+    transform-origin: top left;
+    /* `pointer-events: none` blocks click-through; .sv-preview-card has its own
+     onClick that handles opening the file. Keep iframe interactive-blocked so
+     hovers/clicks don't get swallowed by the inner specimen. */
+    pointer-events: none;
+    background: var(--bg-0);
+  }
+
+  .sv-preview-foot {
+    padding: var(--space-2) var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .sv-preview-foot strong {
+    font-size: 12px;
+    color: var(--fg-0);
+    font-weight: 600;
+  }
+
+  .sv-preview-foot code {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--fg-2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Components / list */
+  .sv-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--space-1);
+  }
+
+  .sv-list li {
+    background: var(--bg-1);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    padding: var(--space-2) var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .sv-list code {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--fg-0);
+    font-weight: 500;
+  }
+}
+
+/* from styles/5-maude-overrides.css */
+@layer components {
+  /* ─── SystemView (DS overview) ─────────────────────────────────────────────── */
+  .maude .sv {
+    font-family: var(--font-body);
+    color: var(--fg-0);
+  }
+
+  .maude .sv-header {
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .maude .sv-sku {
+    font-family: var(--font-mono);
+    color: var(--accent);
+    letter-spacing: var(--tracking-wide);
+  }
+
+  .maude .sv-title {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: var(--tracking-tight);
+    color: var(--fg-0);
+    text-transform: none;
+  }
+
+  .maude .sv-loc code {
+    font-family: var(--font-mono);
+    color: var(--fg-2);
+  }
+
+  .maude .sv-ds-picker {
+    font-family: var(--font-mono);
+    color: var(--fg-2);
+  }
+
+  .maude .sv-ds-picker select {
+    background: var(--bg-3);
+    color: var(--fg-0);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    padding: 2px 6px;
+  }
+
+  .maude .sv-ds-description {
+    color: var(--fg-1);
+    font-family: var(--font-body);
+  }
+
+  .maude .sv-section h2 {
+    font-family: var(--font-mono);
+    color: var(--fg-2);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    font-size: var(--type-xs);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .maude .sv-h-num,
+  .maude .sv-count {
+    font-family: var(--font-mono);
+    color: var(--fg-2);
+  }
+
+  .maude .sv-tok-cell {
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: var(--bg-1);
+    overflow: hidden;
+  }
+
+  .maude .sv-tok-swatch {
+    border-radius: 0;
+  }
+
+  /* token meta — the legacy side-by-side row wrapped long names across 3 lines
+ * ("--presence-" / "offline"); stack name over value, each on one nowrap line. */
+  .maude .sv-tok-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 1px;
+    padding: var(--space-1) var(--space-2);
+  }
+
+  .maude .sv-tok-name {
+    font-family: var(--font-mono);
+    color: var(--fg-0);
+    white-space: nowrap;
+    max-width: 100%;
+  }
+
+  .maude .sv-tok-value {
+    font-family: var(--font-mono);
+    color: var(--fg-2);
+    max-width: 100%;
+  }
+
+  .maude .sv-type-row {
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .maude .sv-type-tok {
+    font-family: var(--font-mono);
+    color: var(--fg-2);
+  }
+
+  .maude .sv-preview-card {
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    background: var(--bg-1);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .maude .sv-preview-card:hover {
+    border-color: var(--border-default);
+    box-shadow: var(--shadow-md);
+  }
+
+  .maude .sv-preview-foot {
+    font-family: var(--font-mono);
+  }
+
+  .maude .sv-preview-foot strong {
+    color: var(--fg-0);
+    font-family: var(--font-body);
+  }
+
+  .maude .sv-preview-foot code {
+    color: var(--fg-2);
+  }
+
+  .maude .sv-empty {
+    color: var(--fg-2);
+  }
+
+  .maude .sv-empty code {
+    font-family: var(--font-mono);
+    background: var(--bg-3);
+    color: var(--accent);
+    border-radius: var(--radius-xs);
+    padding: 1px 5px;
+  }
+}
+
+/* ── end of the moved rules ── */
+
+@layer components {
+  .dsr-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: grid;
+    place-items: center;
+    /* the kit dialog's veil: the light canvas ground at 0.72, never a dark scrim (_kit.css .k-scrim) */
+    background: color-mix(in oklab, var(--canvas-bg, var(--bg-0)) 72%, transparent);
+  }
+  /* the kit dialog (_kit.css .k-dialog): bg-2, radius-xl, 24 px, shadow-lg + the 0.5 px island edge, title type-md */
+  .dsr-dialog {
+    width: min(640px, calc(100vw - 32px));
+    max-height: calc(100vh - 64px);
+  }
+  .island.dsr-dialog {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-5);
+    border-radius: var(--radius-xl);
+    background: var(--bg-2);
+    box-shadow:
+      var(--shadow-lg),
+      inset 0 0 0 0.5px var(--island-edge);
+  }
+  .dsr-title {
+    margin: 0;
+    font-size: var(--type-md);
+    line-height: var(--lh-md);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+  .dsr-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    min-height: 0;
+    overflow: auto;
+  }
+  .dsr-sw {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .dsr-sw-line {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0;
+    font-size: var(--type-sm);
+    color: var(--fg-0);
+    font-weight: var(--w-medium);
+  }
+  .dsr-sw-pair {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    color: var(--fg-2);
+  }
+  .dsr-sw-pair em {
+    font-style: normal;
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+  }
+  .dsr-sw-name {
+    font-size: var(--type-xs);
+    font-weight: var(--w-regular);
+    color: var(--fg-1);
+  }
+  .dsr-chip {
+    display: inline-block;
+    flex: none;
+    width: 22px;
+    height: 22px;
+    border-radius: var(--radius-xs);
+    box-shadow: inset 0 0 0 0.5px var(--border-strong);
+  }
+  .dsr-ok {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin-left: auto;
+    font-size: var(--type-xs);
+    color: var(--status-success-text);
+  }
+  .dsr-more {
+    margin: 0;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .dsr-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0;
+    font-size: var(--type-sm);
+    color: var(--fg-0);
+  }
+  .dsr-head b {
+    font-weight: var(--w-semibold);
+  }
+  .dsr-seg,
+  .dsr-by {
+    margin-left: auto;
+  }
+  .dsr-by {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .dsr-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .dsr-in {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-left: var(--space-5);
+  }
+  .dsr-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: 36px;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
+  .dsr-row[data-off] {
+    background: transparent;
+    box-shadow: inset 0 0 0 1px var(--border-default);
+  }
+  .dsr-row[data-locked] {
+    opacity: 0.7;
+  }
+  /* the canvas's own render, 116 x 72 (the compact list is 76 x 48), ringed (13 · ds-edit-review) */
+  .dsr-thumb {
+    flex: none;
+    width: 116px;
+    height: 72px;
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+    border-radius: var(--radius-xs);
+    background: var(--bg-4);
+    overflow: hidden;
+  }
+  /* the master before | after (13 · ds-edit-master): the name in a box whose corners are the old and the new */
+  .dsr-mpair {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-right: var(--space-3);
+  }
+  .dsr-mbox {
+    display: inline-grid;
+    place-items: center;
+    min-width: 64px;
+    height: 32px;
+    padding: 0 var(--space-3);
+    background: var(--bg-3);
+    box-shadow: inset 0 0 0 1px var(--border-default);
+    font-size: var(--type-xs);
+    font-weight: var(--w-medium);
+    color: var(--fg-0);
+  }
+  .dsr-mbox[data-which="after"] {
+    background: var(--accent);
+    color: var(--accent-fg);
+    box-shadow: none;
+  }
+  .dsr-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .dsr-row[data-off] .dsr-thumb {
+    opacity: 0.6;
+  }
+  .dsr-name {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .dsr-name b {
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .dsr-name em,
+  .dsr-count {
+    font-style: normal;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    white-space: nowrap;
+  }
+  .dsr-row[data-off] .dsr-name em,
+  .dsr-row[data-off] .dsr-count {
+    color: var(--fg-1);
+  }
+  .dsr-tick {
+    flex: none;
+    display: inline-grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border-radius: var(--radius-xs);
+    border: 1px solid var(--border-strong);
+    background: transparent;
+    color: transparent;
+    cursor: pointer;
+  }
+  .dsr-tick[data-state="all"] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-fg);
+  }
+  .dsr-tick[data-state="mixed"] {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .dsr-tick[data-state="mixed"] svg {
+    display: none;
+  }
+  .dsr-tick[data-state="mixed"]::after {
+    content: "";
+    width: 8px;
+    height: 2px;
+    background: var(--accent-fg);
+    border-radius: 1px;
+  }
+  .dsr-tick:disabled {
+    cursor: default;
+  }
+  .dsr-tick:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .dsr-fine {
+    margin: 0;
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+  }
+  .dsr-err {
+    margin: 0;
+    font-size: var(--type-xs);
+    color: var(--status-error-text, var(--fg-1));
+  }
+  .dsr-acts {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2);
+  }
+
+  /* S10.12 — "Convert system folders" (13 · 25 ds-multi-migrate `.ds-mm`, 29 ds-edge-migrate `.ds-map`) and the
+     banner on today's folder view (S10 Q6). Same dialog chrome as the review. */
+  .dsc-lead {
+    margin: 0;
+    font-size: var(--type-sm);
+    line-height: var(--lh-sm);
+    color: var(--fg-1);
+  }
+  .dsc-mm,
+  .dsc-map {
+    display: flex;
+    flex-direction: column;
+    border-radius: var(--radius-sm);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+  }
+  .dsc-mm-r,
+  .dsc-map-r {
+    display: grid;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    box-shadow: inset 0 -0.5px 0 var(--border-default);
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+  }
+  .dsc-mm-r {
+    grid-template-columns: 180px 1fr auto;
+    align-items: center;
+  }
+  .dsc-map-r {
+    grid-template-columns: 120px 1fr 28px;
+    align-items: baseline;
+  }
+  .dsc-mm-r:last-child,
+  .dsc-map-r:last-child {
+    box-shadow: none;
+  }
+  .dsc-mm-r b,
+  .dsc-map-r b {
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+  .dsc-mm-r span,
+  .dsc-map-r span {
+    min-width: 0;
+    color: var(--fg-1);
+    overflow-wrap: anywhere;
+  }
+  .dsc-mm-r em {
+    display: block;
+    font-style: normal;
+    color: var(--fg-2);
+  }
+  .dsc-map-r em {
+    font-style: normal;
+    text-align: right;
+    color: var(--fg-0);
+    font-weight: var(--w-semibold);
+    font-variant-numeric: tabular-nums;
+  }
+  .dsc-refused p {
+    margin: 0;
+    font-size: var(--type-xs);
+    color: var(--status-error-text, var(--fg-1));
+  }
+  .dsc-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin: var(--space-3) 0;
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
+
+  /* the update-available block (inspector: an instance on a left-out canvas) */
+  .ds-upd-block {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+  }
+  .ds-upd-block p {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0;
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+  }
+  .ds-upd-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+  }
+  .ds-upd-what {
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+  }
+  .ds-upd-acts {
+    display: flex;
+    gap: var(--space-1);
+    margin-top: var(--space-1);
+  }
+}

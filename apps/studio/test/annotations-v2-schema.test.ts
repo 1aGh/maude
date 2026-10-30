@@ -26,11 +26,11 @@ describe('validateElement', () => {
       fill: '#fce8a6', // default → omitted
       radius: 8, // default → omitted
       bold: false, // default → omitted
-      junk: 'dropped',
+      junk: 'kept', // an unknown key: kept after the tail, sorted (V2-1.12 P2)
     });
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(Object.keys(r.el)).toEqual(['id', 'type', 'index', 'x', 'y', 'w', 'h', 'text']);
+    expect(Object.keys(r.el)).toEqual(['id', 'type', 'index', 'x', 'y', 'w', 'h', 'text', 'junk']);
     expect(r.el.y).toBe(20.12);
     expect(r.el.h).toBe(200);
   });

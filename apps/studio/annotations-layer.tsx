@@ -1,11 +1,42 @@
 import { MAX_BOARD_BYTES, MAX_ELEMENTS } from './annotations/constants.ts';
+import { fanOut, stackLanding, stackMembers } from './annotations/elements/sticky.model.ts';
+import { type HostRects, resolverFromRects } from './annotations/hosts.ts';
 import { guardLockedOps, isAllLocked, lockedStrokeIds } from './annotations/lock.ts';
 import { v1ToV2 } from './annotations/migrate-v1.ts';
 import { type Op as AnnotationOp, applyOps, diffToOps } from './annotations/ops.ts';
 import { defOf } from './annotations/registry.ts';
 import { observeReplica } from './annotations/replica.ts';
+import { createArrowRouter } from './annotations/route.ts';
 import { parseBoard, validateElements } from './annotations/schema.ts';
+import { withTimePins } from './annotations/time-marks.ts';
 import type { AnnotationElement } from './annotations/types.ts';
+import { AI_MARKS_CSS } from './annotations/ui/ai-marks.tsx';
+import { AiSeenRings } from './annotations/ui/ai-seen.tsx';
+import {
+  type AimRects,
+  asHostRects,
+  attachHosts,
+  type BindCandidate,
+  type BoundEnd,
+  bindEnd,
+  bindNow,
+  edgeBand,
+  hostRefOf,
+  pickCandidate,
+  type StampFn,
+} from './annotations/ui/arrow-bind.ts';
+import {
+  AimOverlay,
+  type AimState,
+  ArrowLabelEditor,
+  BoundTag,
+  type DanglingCardModel,
+  danglingCard,
+  HostMarks,
+  nearbyOutlines,
+  rewrittenFor,
+} from './annotations/ui/arrow-cards.tsx';
+import { labelPatch, NEW_ARROW } from './annotations/ui/arrow-kinds.ts';
 import { BoardStore } from './annotations/ui/board.ts';
 import {
   Containment,
@@ -15,22 +46,81 @@ import {
   marqueeHits,
 } from './annotations/ui/containment.ts';
 import type { EditRequest } from './annotations/ui/element-node.tsx';
+import {
+  danglingOf,
+  hasHosts,
+  hostSignature,
+  markDangling,
+  rectsReady,
+  viewStrokes,
+} from './annotations/ui/host-view.ts';
+import { LockedDragTip } from './annotations/ui/locked.tsx';
 import { AnnotationPipelineContext } from './annotations/ui/pipeline-context.ts';
+import { PlacementGhost, postStampDisarmed, StickerSizeChip } from './annotations/ui/placement.tsx';
 import { type Claim, PointerPipeline } from './annotations/ui/pointer-pipeline.ts';
-import { type RenderItem, renderItemsFromStrokes } from './annotations/ui/render-model.ts';
+import {
+  type RenderItem,
+  type ResolvedEnds,
+  renderItemsFromStrokes,
+} from './annotations/ui/render-model.ts';
+import { type BoardRect, labelPoint, routeElbowsAtRest } from './annotations/ui/rest-route.ts';
+import {
+  createDomRideSink,
+  createRideController,
+  hostBoxesAfter,
+  type RideController,
+  riderOps,
+  withMembership,
+} from './annotations/ui/ride.ts';
 import { AnnotationScene } from './annotations/ui/scene.tsx';
+import {
+  foldSummary,
+  foldVerb,
+  membersOf,
+  SECTION_TONES,
+  setFolded,
+  withoutFolded,
+} from './annotations/ui/section-fold.ts';
+import { postToShell, scopeKey, selectionScope } from './annotations/ui/shell-asks.ts';
+import { stampElement, stampTargetAt, upsertStampStroke } from './annotations/ui/stamps.ts';
+import {
+  dropSticker,
+  isGallerySticker,
+  opensPhotoInspector,
+  type Pending,
+  pendingFor,
+  placementOf,
+  replacePatch,
+  stickerRefOf,
+} from './annotations/ui/sticker-drop.ts';
+import {
+  NO_RESOLVED_LINE,
+  resolveVerb,
+  selectResolvedIds,
+  toggleResolved,
+  trashedLine,
+  withoutResolvedStickies,
+} from './annotations/ui/sticky-resolve.ts';
+import { expandTemplate, templateExtent } from './annotations/ui/template-place.ts';
 import {
   aimCommitOps,
   draftOp,
+  draftWriteId,
   markSent,
   openSession,
   remotelyEdited,
   restoreOp,
+  sessionWriteId,
   type TextSession,
 } from './annotations/ui/text-session.ts';
 import { TEXT_LAYER_CSS } from './annotations/ui/text-style.ts';
+import { TIME_PIN_CSS } from './annotations/ui/time-pins.tsx';
+// S4.14 — a formal vote: your dots on the voted artboards, the counts once it has ended.
+import { VoteDots } from './annotations/ui/vote-dots.tsx';
 import { projectStrokes, type StrokeCache } from './annotations/ui/world.ts';
 import { elementsToStrokes, strokesToElementMap } from './annotations/v1-adapter.ts';
+import { reasonProps } from './client/v2/access/disabled-reason.js';
+import { setStickerSelected } from './toolbars/shell-panels.ts';
 /**
  * @file       annotations-layer.tsx — FigJam-style annotation overlay
  * @scope      apps/studio/annotations-layer.tsx
@@ -64,12 +154,32 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   useSyncExternalStore,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { inMosaic, LOD_CSS, LodMosaic, lodModel, type Rect } from './annotations/ui/lod.tsx';
+import {
+  annotationMarquees,
+  annotationPicks,
+  annotationPosture,
+} from './annotations/ui/posture.ts';
+import { resolveInk } from './annotations/ui/tool-prefs.ts';
+import {
+  eraseTargetIndex,
+  readChromeTheme,
+  useCanvasChromeTheme,
+  useToolState,
+} from './annotations/ui/tool-state.ts';
+import {
+  filterByAuthors,
+  knownIds,
+  reportAnnotationsVisibility,
+  withoutResolved,
+} from './annotations/ui/visibility.ts';
 import {
   type AlignEdge,
   alignStrokes,
@@ -81,7 +191,7 @@ import {
   BIND_THRESHOLD_PX,
   bindCandidate,
   isBindable,
-  recomputeBoundArrows,
+  recomputeBoundArrows as recomputeBoundArrowsBase,
 } from './annotations-bindings.ts';
 import { AnnotationContextToolbar } from './annotations-context-toolbar.tsx';
 import {
@@ -100,20 +210,13 @@ import {
   applyDrawModifiers,
   clampLinkTitle,
   DEFAULT_FONT_SIZE,
-  DEFAULT_HIGHLIGHTER_COLOR,
-  DEFAULT_HIGHLIGHTER_WIDTH,
   DEFAULT_SECTION_COLOR,
-  DEFAULT_STICKY_COLOR,
   type DrawMods,
   defaultFillFor,
   type EditorFmt,
   type EllipseStroke,
-  FILL_PALETTE,
   fmtEqual,
-  grownStickyBox,
   HALO_PAD_PX,
-  HIGHLIGHTER_PALETTE,
-  HIGHLIGHTER_WIDTHS,
   IMAGE_MAX_DROP_SIDE,
   IMAGE_MIN_SIZE,
   type ImageStroke,
@@ -160,14 +263,12 @@ import {
   STICKY_DEFAULT_H,
   STICKY_DEFAULT_W,
   STICKY_MIN_SIZE,
-  STICKY_PALETTE,
-  STROKE_PALETTE,
-  STROKE_WIDTH_THICK,
   STROKE_WIDTH_THIN,
   type StickyStroke,
   type Stroke,
   splitTextLines,
   stickyCornerPath,
+  stickyEditNext,
   stripEditorMarkers,
   strokeBBox,
   strokeCenter,
@@ -177,7 +278,6 @@ import {
   TEXT_LINE_HEIGHT,
   type TextAlign,
   type TextStroke,
-  type Thickness,
   textDecoCss,
   textLineDy,
   translateOne,
@@ -189,19 +289,25 @@ import {
   SNAP_THRESHOLD_PX,
   type SnapGuide,
 } from './annotations-snap.ts';
+import { canvasModeStore, canvasSingleKeys } from './bridge/canvas-mode-store.ts';
+import { modeShows } from './bridge/mode-shows.ts';
 import { arrowPrimitives, type SvgPrimitive } from './canvas-arrowheads.ts';
-import { IconLineThick, IconLineThin } from './canvas-icons.tsx';
 import {
   countRender,
   getLiveViewport,
+  useArtboardsContext,
+  useDragBusRide,
   useLiveViewport,
   useViewportControllerContext,
   useWorldRefContext,
 } from './canvas-lib.tsx';
 import { buildAnnotationOpsRecord } from './commands/annotation-ops-command.ts';
 import { ensureMenuStyles as ensureCtxMenuStyles } from './context-menu.tsx';
-import { crossedDragThreshold, type Tool } from './input-router.tsx';
+import { clickToType } from './editing/click-to-type.ts';
+import { runEditOp } from './editing/edit-op.ts';
+import { crossedDragThreshold, postModeRequest, type Tool } from './input-router.tsx';
 import { createMediaCommitChain, type MediaCommitResult } from './media-commit-chain.ts';
+import { currentCanvasFile } from './shell-canvas-file.ts';
 import {
   AnnotationResizeOverlay,
   bboxResize,
@@ -212,6 +318,7 @@ import {
 } from './use-annotation-resize.tsx';
 import { useAnnotationSelectionOptional } from './use-annotation-selection.tsx';
 import { useAnnotationsVisibility } from './use-annotations-visibility.tsx';
+import { useCanvasKeys } from './use-canvas-keys.ts';
 import {
   BATCH_DROP_CASCADE_PX,
   isHttpUrl,
@@ -222,10 +329,17 @@ import {
   useCanvasMediaDrop,
 } from './use-canvas-media-drop.tsx';
 import { useChromeVisibility } from './use-chrome-visibility.tsx';
-import { type AnnotationGesture, colorForName, useCollab } from './use-collab.tsx';
+import {
+  type AnnotationGesture,
+  colorForName,
+  useCollab,
+  useForeignAwareness,
+} from './use-collab.tsx';
+import { useGovernedMode } from './use-governed-mode.ts';
 import { useSelectionSetOptional } from './use-selection-set.tsx';
 import { type ShapeKind, useToolMode } from './use-tool-mode.tsx';
 import { useUndoSinks, useUndoStackOptional } from './use-undo-stack.tsx';
+import { playheadOf } from './video-comp.tsx';
 
 // FigJam v3 — the pure data model (Stroke types, palettes, serialize/parse,
 // geometry) lives in annotations-model.ts: React-free, importable headlessly
@@ -266,34 +380,6 @@ type EditingTarget =
   | { kind: 'pending'; x: number; y: number }
   | null;
 
-/**
- * The canvas-shell CHROME theme — `data-maude-theme` on `<html>`, default
- * 'dark'. This (NOT the DS `data-theme`, which is deliberately separate and
- * themes only artboard palettes — canvas-shell.tsx) is what flips the canvas
- * BACKGROUND the annotation ink sits on, so the theme-aware default ink follows
- * it. Re-resolves on `data-maude-theme` mutation (the dark/light toggle posts it
- * into the iframe after mount, so we re-read once on mount too).
- */
-function readChromeTheme(): 'light' | 'dark' {
-  if (typeof document === 'undefined') return 'dark';
-  return document.documentElement.dataset.maudeTheme === 'light' ? 'light' : 'dark';
-}
-function useCanvasChromeTheme(): 'light' | 'dark' {
-  const [theme, setTheme] = useState<'light' | 'dark'>(readChromeTheme);
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    const sync = () => setTheme(readChromeTheme());
-    sync(); // catch a value stamped between the initializer and this effect
-    const obs = new MutationObserver(sync);
-    obs.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['data-maude-theme'],
-    });
-    return () => obs.disconnect();
-  }, []);
-  return theme;
-}
-
 // Phase 24 — moved to canvas-arrowheads.ts (single source for shaft + heads).
 // Re-exported so the existing test import (`from './annotations/annotations-layer.tsx'`)
 // and the byte-identical canary keep working.
@@ -315,20 +401,67 @@ function isEditable(t: EventTarget | null): boolean {
   return false;
 }
 
-function deriveFile(): string | undefined {
-  if (typeof window === 'undefined') return undefined;
+/** S4.13 - the name an artboard wears on the canvas ("Směr B"), for the stamp card; '' when it cannot be read. */
+function artboardLabelNow(id: string): string {
   try {
-    const p = window.location.pathname;
-    if (p === '/_canvas-shell.html' || p === '/_canvas-shell') {
-      const qs = new URLSearchParams(window.location.search);
-      const canvas = qs.get('canvas') ?? '';
-      const designRel = (qs.get('designRel') ?? '.design').replace(/^\/+|\/+$/g, '');
-      return `${designRel}/${canvas}`;
-    }
-    return decodeURIComponent(p).replace(/^\//, '');
+    const sel = `[data-dc-screen="${id.replace(/["\\]/g, '')}"] .dc-artboard-label`;
+    return document.querySelector(sel)?.textContent?.trim() ?? '';
   } catch {
-    return undefined;
+    return '';
   }
+}
+
+/** S4.10 — one `__maudeCanvasRects()` snapshot (artboards + elements, world coords), or null. */
+function canvasRectsNow(): HostRects | null {
+  try {
+    const w = window as unknown as { __maudeCanvasRects?: () => HostRects };
+    return w.__maudeCanvasRects?.() ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * S4.11 — `recomputeBoundArrows` with the live canvas as the resolver for `ab:` / `el:` ends. Every
+ * commit that re-derives bound arrows refreshes the cache of a canvas-bound end from where its host
+ * IS (hosts.ts: the cache is what a 1.x peer draws). Nothing is derived until the canvas has
+ * painted, and a host the canvas cannot find keeps its cached point (dangling is derived).
+ */
+function recomputeBoundArrows(list: readonly Stroke[]): Stroke[] {
+  if (!hasHosts(list)) return recomputeBoundArrowsBase(list);
+  const rects = canvasRectsNow() as AimRects | null;
+  return recomputeBoundArrowsBase(
+    list,
+    rectsReady(rects) ? resolverFromRects(asHostRects(rects)) : undefined
+  );
+}
+
+/** S4.11 — stamp an element through the S2.1 edit-op relay (Q12, `element.stamp`). */
+const stampViaEditOp: StampFn = async ({ artboard, element, occurrence, expectRev }) => {
+  const r = await runEditOp({
+    op: 'element.stamp',
+    targets: [{ artboard, element, ...(occurrence ? { occurrence } : {}) }],
+    ...(expectRev ? { expectRev } : {}),
+  });
+  return r.ok ? { ok: true, refs: r.refs } : { ok: false, code: r.code, message: r.message };
+};
+
+/** S4.10 — an artboard's visible label (the refused-straight tag names it), else its id. */
+function artboardLabel(id: string): string {
+  if (typeof document === 'undefined') return id;
+  const el = document.querySelector(`[data-dc-screen="${CSS.escape(id)}"] .dc-artboard-label`);
+  return el?.textContent?.trim() || id;
+}
+
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  );
+}
+
+function deriveFile(): string | undefined {
+  return currentCanvasFile() ?? undefined;
 }
 
 /**
@@ -500,121 +633,117 @@ function findTextStrokeAt(
 // ─────────────────────────────────────────────────────────────────────────────
 // Styles
 
+/** The stickies as plain boxes in paint order (the stack / fan-out maths of sticky.model.ts). */
+function stickyBoxes(list: readonly Stroke[]) {
+  return list
+    .filter((x): x is StickyStroke => x.tool === 'sticky')
+    .map((x) => ({
+      id: x.id,
+      x: Math.min(x.x, x.x + x.w),
+      y: Math.min(x.y, x.y + x.h),
+      w: Math.abs(x.w),
+      h: Math.abs(x.h),
+    }));
+}
+
+/** S4.12 - the registry actions the layer answers on the `run-action` lane. */
+const STICKY_RUN_ACTIONS: ReadonlySet<string> = new Set([
+  'annotation.resolve',
+  'annotation.fan-out',
+  'annotation.fold',
+  'annotation.to-comment',
+  'annotation.ask-ai',
+  'annotations.trash-resolved',
+  'annotations.select-resolved',
+]);
+
 const ANNOT_CSS = `
-.dc-annot-chrome {
-  /* Stacks directly above the centered tool toolbar (which is bottom:16px,
-     32px tall → top edge ~ bottom:48px). 8 px gap → chrome at bottom:60px.
-     Phase 21 — dark "marker tray" matching the FigJam selection bar. */
-  position: absolute;
-  left: 50%;
-  bottom: 64px;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  background: #26262b;
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px;
-  padding: 5px 8px;
-  font-family: var(--maude-chrome-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-  font-size: 11px;
-  color: rgba(255,255,255,0.85);
-  z-index: 6;
-  box-shadow: 0 8px 28px rgba(0,0,0,0.34), 0 2px 6px rgba(0,0,0,0.22);
-  user-select: none;
-}
-.dc-annot-chrome .dc-annot-swatches { display: flex; align-items: center; gap: 1px; }
-.dc-annot-chrome .dc-annot-sw {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  border: 1px solid rgba(255,255,255,0.16);
-  cursor: pointer;
-  padding: 0;
-  appearance: none;
-  transition: transform 80ms ease;
-}
-.dc-annot-chrome .dc-annot-sw:hover { transform: scale(1.1); }
-.dc-annot-chrome .dc-annot-sw[aria-pressed="true"] {
-  box-shadow: 0 0 0 2px #26262b, 0 0 0 3px rgba(255,255,255,0.92);
-  border-color: transparent;
-}
-.dc-annot-chrome .dc-annot-sw:focus-visible {
-  outline: 2px solid #ffffff;
-  outline-offset: 1px;
-}
-.dc-annot-chrome .dc-annot-sep {
-  width: 1px;
-  height: 16px;
-  align-self: center;
-  background: rgba(255,255,255,0.09);
-  margin: 0 4px;
-}
-.dc-annot-chrome .dc-annot-fill {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  border: 1px solid rgba(255,255,255,0.16);
-  cursor: pointer;
-  padding: 0;
-  appearance: none;
-  position: relative;
-  transition: transform 80ms ease;
-}
-.dc-annot-chrome .dc-annot-fill:hover { transform: scale(1.1); }
-.dc-annot-chrome .dc-annot-fill:focus-visible {
-  outline: 2px solid #ffffff;
-  outline-offset: 1px;
-}
-.dc-annot-chrome .dc-annot-fill--none {
-  background: #3a3a40;
-}
-.dc-annot-chrome .dc-annot-fill--none::after {
-  content: "";
-  position: absolute; inset: 4px;
-  border-radius: 50%;
-  background:
-    linear-gradient(135deg, transparent 44%, rgba(255,255,255,0.55) 44%, rgba(255,255,255,0.55) 56%, transparent 56%);
-}
-.dc-annot-chrome .dc-annot-fill[aria-pressed="true"] {
-  box-shadow: 0 0 0 2px #26262b, 0 0 0 3px rgba(255,255,255,0.92);
-  border-color: transparent;
-}
-/* Phase 21 — icon buttons (light glyph on dark, white-tint active). */
-.dc-annot-chrome .dc-annot-ibtn {
-  appearance: none;
-  background: transparent;
-  border: 0;
-  border-radius: 7px;
-  width: 26px;
-  height: 26px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: rgba(255,255,255,0.78);
-  cursor: pointer;
-  padding: 0;
-  transition: background-color 80ms linear, color 80ms linear;
-}
-.dc-annot-chrome .dc-annot-ibtn:hover {
-  background: rgba(255,255,255,0.1);
-  color: #ffffff;
-}
-.dc-annot-chrome .dc-annot-ibtn[aria-pressed="true"] {
-  background: rgba(255,255,255,0.18);
-  color: #ffffff;
-}
-.dc-annot-chrome .dc-annot-ibtn:focus-visible {
-  outline: 2px solid #ffffff;
-  outline-offset: -2px;
-}
-@media (prefers-reduced-motion: reduce) {
-  .dc-annot-chrome .dc-annot-ibtn, .dc-annot-chrome .dc-annot-sw, .dc-annot-chrome .dc-annot-fill { transition: none; }
-}
+/* S4.9 - Edit's posture (annotations/ui/posture.ts): the ink fades, a sticky's paper is mixed with grey in
+   JS (quietPaper) so its words keep their contrast, and nothing in the scene takes a pointer: a click
+   reaches the design under it. */
+.dc-annot-scene[data-an-quiet] .dc-annot-el:not([data-tool="sticky"]):not([data-type="section"]) { opacity: 0.45; }
+/* a11y (15 an-section) - a section's title chip is WORDS: it stays at full ink in Edit (a faded chip read 1.5:1);
+   its body is already a 7 % wash, so nothing of the section needs fading. */
+.dc-annot-scene[data-an-quiet], .dc-annot-scene[data-an-quiet] * { pointer-events: none !important; }
+/* …except an OPEN text editor (a double-click opens a sticky's words in Edit too): it is where the person types,
+   and its caret-at-the-click mirror (text-editor.tsx offsetFromPoint, same class) must be hit-testable. */
+.dc-annot-scene[data-an-quiet] .dc-annot-editor { pointer-events: auto !important; }
 .dc-annot-input {
   position: absolute;
   inset: 0;
   z-index: 4;
+}
+/* S4.12 - a sticky up close (canvas 15 an-sticky): the author line shows on hover and when selected; a
+   resolved one is struck through in place with a tick; a folded section keeps its title chip and count. */
+.dc-annot-who { opacity: 0; pointer-events: none; transition: opacity var(--dur-fast, 100ms) var(--ease-out, ease-out); }
+.dc-annot-el:hover > .dc-annot-who, .dc-annot-who[data-an-who="sel"] { opacity: 1; }
+.dc-annot-done {
+  position: absolute; right: -6px; top: -6px; width: 18px; height: 18px; display: grid; place-items: center;
+  border-radius: 50%; background: var(--maude-hud-accent, #2f7d4f); color: #fff; pointer-events: none;
+}
+.dc-annot-scene[data-an-quiet] .dc-annot-who { display: none; }
+.dc-annot-fold { position: absolute; font: 600 11px/1 var(--font-ui, system-ui); white-space: nowrap; pointer-events: none; }
+/* S4.10 - ride with the artboard: the live re-route overlay (world coords, no hit area), the
+   refused-straight chip, and the outline of the artboard a selection belongs to. The settled route
+   eases in on --dur-soft (160 ms); reduced motion collapses the token, and the sink skips the fade. */
+.dc-annot-ride { position: absolute; left: 0; top: 0; width: 0; height: 0; overflow: visible; pointer-events: none; z-index: 3; }
+.dc-annot-ride-svg { position: absolute; left: 0; top: 0; width: 200000px; height: 200000px; overflow: visible; pointer-events: none; }
+.dc-annot-ride-svg g.is-settling { opacity: 0; transition: opacity var(--dur-soft, 160ms) var(--ease-out, ease-out); }
+.dc-annot-ride-svg g.is-settling.is-in { opacity: 1; }
+.dc-annot-ride-svg g.is-leaving { opacity: 0; transition: opacity var(--dur-soft, 160ms) var(--ease-out, ease-out); }
+.dc-annot-route {
+  position: absolute; white-space: nowrap; pointer-events: none;
+  font: 500 12px/1.3 var(--font-ui, system-ui, sans-serif); padding: 2px 8px; border-radius: 4px;
+  color: var(--maude-hud-bg, #fff); background: var(--maude-hud-fg, #1a1a1a);
+}
+.dc-annot-cross {
+  position: absolute; transform: translate(-50%, -50%); white-space: nowrap; pointer-events: none;
+  font: 500 12px/1.3 var(--font-ui, system-ui, sans-serif); padding: 2px 8px; border-radius: 999px;
+  color: var(--maude-hud-fg, #1a1a1a); background: var(--maude-hud-bg, #fff);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--maude-hud-danger, #c4321b) 50%, transparent);
+}
+/* S4.11 - arrow aiming, dangling cards, labels (annotations/ui/arrow-cards.tsx). World space; the
+   interactive pieces take pointers (CHROME_SELECTOR), the rest never do. */
+.dc-annot-arrowui { position: absolute; left: 0; top: 0; width: 0; height: 0; overflow: visible; pointer-events: none; z-index: 6; }
+.dc-annot-arrowui-live { pointer-events: auto; }
+.dc-annot-cand { position: absolute; border-radius: 4px; outline-style: dashed; outline-color: color-mix(in oklab, var(--maude-hud-accent, oklch(0.53 0.175 238)) 55%, transparent); pointer-events: none; }
+.dc-annot-snap, .dc-annot-edge { position: absolute; border-radius: 4px; pointer-events: none; }
+.dc-annot-snap-tag {
+  position: absolute; display: inline-flex; gap: 3px; transform-origin: 0 0; white-space: nowrap; pointer-events: none;
+  font: 500 12px/1.3 var(--font-ui, system-ui, sans-serif); padding: 2px 8px; border-radius: 4px;
+  color: var(--maude-hud-accent-fg, #fff); background: var(--maude-hud-accent, oklch(0.53 0.175 238));
+}
+.dc-annot-snap-tag b { font-weight: 600; }
+.dc-annot-gone { position: absolute; box-sizing: border-box; border-style: dashed; border-color: var(--maude-chrome-fg-2, #6e6660); pointer-events: none; }
+.dc-annot-open { position: absolute; box-sizing: border-box; transform: translate(-50%, -50%); border-style: solid; border-radius: 50%; border-color: var(--maude-hud-accent, oklch(0.53 0.175 238)); background: var(--maude-hud-bg, #fff); pointer-events: none; }
+.dc-annot-dg {
+  position: absolute; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; width: 228px; transform-origin: 0 0;
+  padding: 10px; border-radius: 10px; box-sizing: border-box;
+  font: 400 12px/1.4 var(--font-ui, system-ui, sans-serif); color: var(--maude-hud-fg, #1a1a1a); background: var(--maude-hud-bg, #fff);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.18), 0 0 0 0.5px rgb(0 0 0 / 0.12);
+}
+.dc-annot-dg p { margin: 0; }
+.dc-annot-dg-btn {
+  font: 500 12px/1 var(--font-ui, system-ui, sans-serif); padding: 5px 10px; border: 0; border-radius: 6px; cursor: pointer;
+  color: var(--maude-hud-accent-fg, #fff); background: var(--maude-hud-accent, oklch(0.53 0.175 238));
+}
+.dc-annot-alabel {
+  position: absolute; transform: translate(-50%, -50%); white-space: nowrap; pointer-events: none;
+  font: 600 13px/1.3 var(--font-ui, system-ui, sans-serif); padding: 1px 6px; border-radius: 3px;
+  color: var(--maude-hud-fg, #1a1a1a); background: var(--maude-hud-bg, #fff);
+}
+.dc-annot-alabel--edit { pointer-events: auto; border: 0; outline: 1.5px solid var(--maude-hud-accent, oklch(0.53 0.175 238)); min-width: 80px; text-align: center; transform-origin: 0 0; }
+.dc-annot-belongs {
+  position: absolute; pointer-events: none; border-radius: 6px;
+  outline: 1.5px dashed var(--maude-hud-accent, oklch(0.53 0.175 238)); outline-offset: 0;
+}
+.dc-annot-belongs-t {
+  position: absolute; left: 0; top: -24px; white-space: nowrap;
+  font: 500 12px/1.3 var(--font-ui, system-ui, sans-serif); padding: 2px 8px; border-radius: 999px;
+  color: var(--maude-hud-accent-fg, #fff); background: var(--maude-hud-accent, oklch(0.53 0.175 238));
+}
+@media (prefers-reduced-motion: reduce) {
+  .dc-annot-ride-svg g.is-settling, .dc-annot-ride-svg g.is-leaving { transition-duration: 1ms; }
 }
 .dc-annot-svg {
   position: absolute;
@@ -636,8 +765,8 @@ const ANNOT_CSS = `
 /* Drag-select marquee — rendered while user is dragging to select strokes. */
 .dc-annot-marquee {
   pointer-events: none;
-  fill: color-mix(in oklab, var(--maude-hud-accent, #d63b1f) 8%, transparent);
-  stroke: var(--maude-hud-accent, #d63b1f);
+  fill: color-mix(in oklab, var(--maude-hud-accent, oklch(0.53 0.175 238)) 8%, transparent);
+  stroke: var(--maude-hud-accent, oklch(0.53 0.175 238));
   stroke-width: 1;
   stroke-dasharray: 4 3;
 }
@@ -660,6 +789,8 @@ const ANNOT_CSS = `
    beats use-tool-mode's blanket star-cursor rule (same fight as the editor +
    resize handles — DDR-067). */
 .dc-annot-conn-dot { cursor: crosshair !important; }
+.dc-annot-conn-vis { opacity: 0; transition: opacity 80ms linear; }
+.dc-annot-conn:hover .dc-annot-conn-vis { opacity: 1; }
 `.trim();
 
 function ensureAnnotStyles(): void {
@@ -667,7 +798,7 @@ function ensureAnnotStyles(): void {
   if (document.getElementById('dc-annot-css')) return;
   const s = document.createElement('style');
   s.id = 'dc-annot-css';
-  s.textContent = `${ANNOT_CSS}\n${TEXT_LAYER_CSS}`;
+  s.textContent = `${ANNOT_CSS}\n${AI_MARKS_CSS}\n${LOD_CSS}\n${TEXT_LAYER_CSS}\n${TIME_PIN_CSS}`;
   document.head.appendChild(s);
 }
 
@@ -731,12 +862,25 @@ export interface StrokesStoreValue {
   previewStroke: (id: string, patch: Partial<Stroke>) => void;
   /** Wave H — single undo record from a preview gesture's start snapshot. */
   commitGesture: (before: readonly Stroke[], label?: string) => void;
+  /**
+   * S4.12 - run a sticky / section action by its registry id (`annotation.resolve`, `annotation.fan-out`,
+   * `annotation.fold`, `annotation.to-comment`) on the current selection. False when it does not apply.
+   */
+  runAction?: (id: string) => boolean;
   /** The host a dragged arrow endpoint would bind to (halo), or null. */
   setBindHint?: (hostId: string | null) => void;
   /** Live size label + dimension-match halos while resizing, or null. */
   setResizeInfo?: (
     info: { box: { x: number; y: number; w: number; h: number }; matchIds: string[] } | null
   ) => void;
+}
+
+/** V2-5 A4 (S2.6) — the board's own document-capture chords (⌘G group, ⇧⌘L lock, ⌘D, ] [ order, ⌘C/⌘X,
+ *  ⌘Enter) are Preview's: in Edit the same chords are the OBJECT's (editing/object-keys.ts), so this
+ *  listener stands down there. A canvas that never got a `set-mode` (null) keeps v1's behaviour. */
+export function boardChordsLive(win: Window): boolean {
+  const mode = canvasModeStore(win).get().mode;
+  return !mode || !modeShows(mode, 'object-tools');
 }
 
 export const StrokesStoreContext = createContext<StrokesStoreValue | null>(null);
@@ -754,7 +898,7 @@ export function useStrokesStore(): StrokesStoreValue | null {
 // the main tool palette, the in-canvas draw chrome, the minimap, and the
 // right-click menu. Clicks on these route to their own handlers.
 const CHROME_SELECTOR =
-  '.dc-annot-conn-dot, .dc-annot-ctx, .dc-tool-palette, .dc-annot-chrome, .dc-mm, .dc-context-menu, .dc-tp-popover, .dc-multi-artboard-tb, .dc-elem-ctx-tb, .dc-cv-eq-spacing-layer, .cm-composer, .cm-thread, .cm-mention-popup, .cm-pin, .dc-annot-resize-handle, .dc-annot-rotate-zone, .dc-annot-editor, [data-group-resize-corner]';
+  '.dc-annot-conn-dot, .dc-annot-arrowui-live, .dc-annot-ctx, .dc-tool-palette, .dc-mm, .dc-context-menu, .dc-tp-popover, .dc-multi-artboard-tb, .dc-elem-ctx-tb, .dc-cv-eq-spacing-layer, .cm-composer, .cm-thread, .cm-mention-popup, .cm-pin, .dc-annot-resize-handle, .dc-annot-rotate-zone, .dc-annot-editor, [data-group-resize-corner]';
 
 const HINTS_KEY = 'maude-annot-hints-v1';
 
@@ -930,6 +1074,9 @@ export function AnnotationsLayer() {
   const publishGesture = useCallback((g: AnnotationGesture | null) => {
     collabRef.current?.publishAwareness({ annotationGesture: g });
   }, []);
+  // S4.12 - the layer's own routes into the shell (filled below, read by the message listener and the menu).
+  const runAnnotationActionRef = useRef<(id: string) => boolean>(() => false);
+  const askAiRef = useRef<() => void>(() => {});
   const [gestureState, setGestureState] = useState('idle');
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -966,6 +1113,66 @@ export function AnnotationsLayer() {
     () => projectStrokes(board.scene(), strokeCacheRef.current),
     [board, boardVersion]
   );
+  // S4.10 — ride with the artboard (contract S2-S4-artboard-motion-ids.md §1–§2). Drag frames
+  // move the members on screen and re-route bound arrows through an imperative sink (never React
+  // state per frame); the commit rider hands the bus ONE op batch in the move's undo group.
+  const rideRef = useRef<RideController | null>(null);
+  // S4.11 — artboards moved: an elbow arrow re-reads the layout to keep its route (rest-route.ts).
+  const [layoutTick, setLayoutTick] = useState(0);
+  const dragBus = useDragBusRide({
+    frame: (f) => {
+      rideRef.current?.onFrame(f);
+      if (f.phase === 'end') setTimeout(() => setLayoutTick((t) => t + 1), 0);
+    },
+    rider: (moved) => {
+      const els = [...board.committed.values()];
+      const layout = dragBusRef.current?.layoutRects() ?? [];
+      const needsEls = els.some(
+        (e) =>
+          e.type === 'arrow' &&
+          [e.startHost, e.endHost].some(
+            (h) =>
+              !!h &&
+              typeof (h as { ref?: unknown }).ref === 'string' &&
+              (h as { ref: string }).ref.startsWith('el:')
+          )
+      );
+      return riderOps(
+        els,
+        moved,
+        hostBoxesAfter(layout, moved, needsEls ? canvasRectsNow() : null)
+      );
+    },
+  });
+  const dragBusRef = useRef(dragBus);
+  dragBusRef.current = dragBus;
+  useEffect(() => {
+    if (!dragBus) return;
+    const ctl = createRideController({
+      elements: () => [...board.scene().byId.values()],
+      layoutRects: () => dragBus.layoutRects(),
+      elementRects: canvasRectsNow,
+      labelOf: artboardLabel,
+      router: createArrowRouter(),
+      sink: createDomRideSink(
+        () => worldRef?.current ?? null,
+        prefersReducedMotion,
+        () => getLiveViewport()?.zoom ?? 1
+      ),
+      // read at every frame: the theme can flip between two drags
+      defaultInk: () => resolveDefaultInk(readChromeTheme()),
+      schedule: (fn) => requestAnimationFrame(fn),
+    });
+    rideRef.current = ctl;
+    return () => {
+      ctl.dispose();
+      if (rideRef.current === ctl) rideRef.current = null;
+    };
+  }, [dragBus, board, worldRef]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new board version may be the committed move
+  useEffect(() => {
+    rideRef.current?.boardChanged();
+  }, [boardVersion]);
   // Images still uploading (a `blob:` href) — shown, never on the board.
   const [uploading, setUploading] = useState<Stroke[]>([]);
   // A gesture in flight (drag, resize): the strokes as the gesture shows them.
@@ -976,42 +1183,17 @@ export function AnnotationsLayer() {
     [preview, uploading, boardStrokes]
   );
   const [drawing, setDrawing] = useState<Stroke | null>(null);
-  // Theme-aware live default ink (items 3/5/6). Initialized from the current
-  // theme; tracked-untouched until the user picks a swatch, after which it
-  // sticks (colorTouchedRef). The themed-default effect lives below.
-  const [color, setColorState] = useState<string>(() => resolveDefaultInk(theme));
-  const colorTouchedRef = useRef(false);
-  const setColor = useCallback((c: string) => {
-    colorTouchedRef.current = true;
-    setColorState(c);
-  }, []);
-  // While the user hasn't picked an ink swatch yet, follow the theme — so a
-  // dark canvas arms a light-reading default and a light canvas a dark one.
-  useEffect(() => {
-    if (!colorTouchedRef.current) setColorState(resolveDefaultInk(theme));
-  }, [theme]);
-  // Shape default fill (item 2). A freshly-armed Shape tool gets a fill (not
-  // outline-only); the index-paired tint of the active ink. Untouched until the
-  // user picks a fill swatch (incl. "No fill"), after which it sticks.
-  const [fill, setFillState] = useState<string | null>(null);
-  const fillTouchedRef = useRef(false);
-  const setFill = useCallback((f: string | null) => {
-    fillTouchedRef.current = true;
-    setFillState(f);
-  }, []);
-  // While the Shape tool is armed and the fill is untouched, follow the ink
-  // (and theme) so a square/circle/diamond lands with a paired-tint wash. Once
-  // the user picks a fill swatch (or "No fill"), this stops.
-  useEffect(() => {
-    if (tool === 'shape' && !fillTouchedRef.current) setFillState(defaultFillFor(color, theme));
-  }, [tool, color, theme]);
-  const [thickness, setThickness] = useState<Thickness>(STROKE_WIDTH_THIN);
-  // Phase 21 — draw-time paper tint for the sticky tool (recolor-after via the
-  // context toolbar). Separate from `color` (ink for pen/rect/text/arrow).
-  const [stickyColor, setStickyColor] = useState<string>(DEFAULT_STICKY_COLOR);
-  // Annotation polish (item 8) — draw-time highlighter marker hue + nib width.
-  const [highlighterColor, setHighlighterColor] = useState<string>(DEFAULT_HIGHLIGHTER_COLOR);
-  const [highlighterWidth, setHighlighterWidth] = useState<number>(DEFAULT_HIGHLIGHTER_WIDTH);
+  // S4.8 — colour, ink, thickness, Marker tip and the Highlighter's hue / nib are the tool state
+  // (annotations/ui/tool-state.ts): the toolbar's popovers set them, and they are the person's own,
+  // remembered across reloads. The default ink (the palette's black) renders themed so it reads on
+  // a dark canvas; every other ink is the hex picked.
+  const toolSnap = useToolState();
+  const { thickness, stickyColor, highlighterColor, highlighterWidth } = toolSnap;
+  const color = resolveInk(toolSnap.ink, resolveDefaultInk(theme));
+  // Shape default fill (item 2). A freshly-armed Shape gets a fill (not outline-only): the
+  // index-paired tint of the active ink. Fill and stroke are picked apart afterwards, on the small
+  // toolbar above the selection (annotations-context-toolbar.tsx) — the draw-time tray is retired.
+  const fill: string | null = tool === 'shape' ? defaultFillFor(color, theme) : null;
   // Phase 21 — a standalone-text caret waiting for its first keystroke. No
   // stroke exists yet (mirrors anchored text: the stroke is born on commit,
   // so an abandoned empty caret leaves nothing behind / no undo record).
@@ -1020,10 +1202,33 @@ export function AnnotationsLayer() {
   // shape/sticky/text tool is armed and nothing is being drawn yet. Pure chrome
   // (low-opacity, pointer-events:none) — never selectable, hit-tested, or saved.
   const [ghost, setGhost] = useState<{ x: number; y: number } | null>(null);
+  // S4.13 - a gallery pick, a stamp or a template that trails the pointer until a click (placement.tsx).
+  const [placing, setPlacing] = useState<Pending | null>(null);
+  // S4.V4 G4 - while a pick is armed the pointer pipeline stands down (the ghost's click places it).
+  const placingRef = useRef(false);
+  placingRef.current = placing !== null;
+  pipeline.holdOff = () => placingRef.current;
+  // S4.19 G5 (canvas 15 `an-layers`) - a drag begun on a locked annotation says why nothing moves.
+  const [lockedTip, setLockedTip] = useState<{ x: number; y: number } | null>(null);
+  const clearLockedTip = useCallback(() => setLockedTip(null), []);
   // FigJam v3 — smart-guide lines painted while a drag is snapping, and the
   // id of the host a dragged arrow endpoint would bind to (accent halo).
   const [snapGuides, setSnapGuides] = useState<SnapGuide[] | null>(null);
   const [bindHintId, setBindHintId] = useState<string | null>(null);
+  // S4.11 — aiming an arrow at an artboard edge / a canvas element (an-arrow-bind): the candidate
+  // under the pointer and the outlines around it. The `canvas-rects` snapshot is taken when the
+  // aim starts (never per move) and dropped when it ends.
+  const [aim, setAim] = useState<AimState | null>(null);
+  const aimRef = useRef<AimState | null>(null);
+  const aimRectsRef = useRef<AimRects | null>(null);
+  // An unstamped target is being named (Q12): the drawn arrow waits for its bind, and the pointer
+  // is not a draw in the meantime.
+  const finishingRef = useRef(false);
+  const [boundTag, setBoundTag] = useState<{ text: string; at: [number, number] } | null>(null);
+  // Point to… (an-dangling): the arrow end being re-aimed; the next click on a target binds it.
+  const [pointTo, setPointTo] = useState<{ arrowId: string; end: 'start' | 'end' } | null>(null);
+  // Double-click an arrow: the id whose words are being written (an-arrow-kinds 3).
+  const [labelEdit, setLabelEdit] = useState<string | null>(null);
   // FigJam v3 — live size label + dimension-match halos while resizing (the
   // resize overlay sets it through the strokes store; the SVG layer paints).
   const [resizeInfo, setResizeInfo] = useState<{
@@ -1055,7 +1260,23 @@ export function AnnotationsLayer() {
   // Presentation Mode hides annotations without mutating the user's own
   // visibility toggle — render/input gate folds `present` in, the stored value
   // (visibilityCtx.visible) is left untouched so exiting restores it.
-  const visible = (visibilityCtx?.visible ?? true) && !(chrome?.present ?? false);
+  const mode = useGovernedMode();
+  // S4.16 (an-viewer) - a person who may not annotate sees everyone's notes and cannot change them, in any mode.
+  const posture = annotationPosture(
+    mode,
+    visibilityCtx?.visible ?? true,
+    chrome?.present ?? false,
+    typeof window === 'undefined' ? null : canvasModeStore(window).get().caps
+  );
+  const visible = posture !== 'hidden';
+  const quiet = posture === 'quiet';
+  // S4.9 - what the list and the ⌘K rows ask the layer to leave out of view (a view, never a delete).
+  const [authorFilter, setAuthorFilter] = useState<readonly string[]>([]);
+  const [hideResolved, setHideResolved] = useState(false);
+  // ⇧⌘A pressed in Edit: the layer asks the shell for Preview and selects once it has landed.
+  const selectAllPending = useRef(false);
+  const visiblePrefRef = useRef(true);
+  visiblePrefRef.current = visibilityCtx?.visible ?? true;
   const setVisible = useCallback(
     (next: boolean | ((cur: boolean) => boolean)) => {
       if (!visibilityCtx) return;
@@ -1161,11 +1382,12 @@ export function AnnotationsLayer() {
     tool === 'arrow' ||
     tool === 'sticky' ||
     tool === 'section' ||
-    tool === 'text';
+    tool === 'text' ||
+    tool === 'el-text'; // S2.12b — click to type owns the pointer, draws nothing
   const isErase = tool === 'eraser';
   const isActive = isDraw || isErase;
   // T20 / Phase 24 — every shape primitive carries stroke weight (FigJam ships
-  // thickness on all of them). The annotation toolbar reads supportsThickness
+  // thickness on all of them). The Marker popover owns the thickness; supportsThickness
   // to decide whether to render the Thin / Thick chips.
   const supportsThickness = tool === 'pen' || tool === 'arrow' || tool === 'shape';
   const supportsFill = tool === 'shape';
@@ -1200,7 +1422,8 @@ export function AnnotationsLayer() {
     void fetch(`/_api/annotations?file=${encodeURIComponent(file)}`, {
       headers: { Accept: 'application/json' },
     })
-      .then((r) => (r.ok ? r.text() : ''))
+      // A refused read is still read to its end (an unread body keeps the request open — gate-b-c4f).
+      .then((r) => r.text().then((text) => (r.ok ? text : '')))
       .then((text) => {
         if (cancelled || annotationsChangedRef.current) return;
         board.setAll(parseBoard(text).elements);
@@ -1252,64 +1475,69 @@ export function AnnotationsLayer() {
    * batch before it. `local` marks a batch already applied to the store: it
    * stays pending (re-applied over replica snapshots) until its echo arrives.
    */
-  const sendOps = useCallback((ops: readonly AnnotationOp[], local = false): Promise<void> => {
-    const file = fileRef.current;
-    if (!file || !ops.length) return putChainRef.current;
-    const actionId = crypto.randomUUID();
-    const pending = pendingRef.current;
-    if (local) {
-      pending.push({ actionId, ops });
-      if (pending.length > 64) pending.splice(0, pending.length - 64);
-    }
-    const settle = () => {
-      const i = pending.findIndex((p) => p.actionId === actionId);
-      if (i >= 0) pending.splice(i, 1);
-    };
-    const dispatch = () =>
-      fetch('/_api/annotations/ops', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ file, actionId, ops }),
-      })
-        .then(async (r) => {
-          // A refused save (403 read-only, 405 at a proxy door) previously
-          // dissolved without a trace — the user kept drawing on state that
-          // never reached disk, a peer, or a reload (the cloud canvas-writes
-          // RCA). Optimistic local state is still the right UX; a persistence
-          // failure being INVISIBLE is not.
-          if (!r.ok) {
-            settle();
-            console.warn(`[annotations] save refused (${r.status}) — strokes are local-only`);
-            return undefined;
-          }
-          const res = (await r.json().catch(() => null)) as {
-            rejected?: Array<{ id?: string; reason: string }>;
-          } | null;
-          if (res?.rejected?.length) {
-            console.warn('[annotations] some changes were not applied', res.rejected);
-          }
-          // Without a replica no echo will come; with one, the echo settles
-          // it — unless the board had nothing to change (no echo either).
-          if (!collabRef.current || res?.rejected?.length) settle();
-          else setTimeout(settle, 10_000);
-          return undefined;
+  const sendOps = useCallback(
+    (ops: readonly AnnotationOp[], local = false, draft = false, sid?: string): Promise<void> => {
+      const file = fileRef.current;
+      if (!file || !ops.length) return putChainRef.current;
+      // p8-fix-d F13 — a draft's id says so: the home records it with the session's commit, one step.
+      // p8-hub-drafts — and every write of a text session names it (a hub's ⌘Z stack folds them).
+      const actionId = draft ? draftWriteId(sid) : sid ? sessionWriteId(sid) : crypto.randomUUID();
+      const pending = pendingRef.current;
+      if (local) {
+        pending.push({ actionId, ops });
+        if (pending.length > 64) pending.splice(0, pending.length - 64);
+      }
+      const settle = () => {
+        const i = pending.findIndex((p) => p.actionId === actionId);
+        if (i >= 0) pending.splice(i, 1);
+      };
+      const dispatch = () =>
+        fetch('/_api/annotations/ops', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ file, actionId, ops }),
         })
-        .catch(() => {
-          settle();
-          /* Pending persistence UX is handled by the project outbox work. */
-        });
-    const chained = putChainRef.current.then(dispatch, dispatch);
-    putChainRef.current = chained;
-    return chained;
-  }, []);
+          .then(async (r) => {
+            // A refused save (403 read-only, 405 at a proxy door) previously
+            // dissolved without a trace — the user kept drawing on state that
+            // never reached disk, a peer, or a reload (the cloud canvas-writes
+            // RCA). Optimistic local state is still the right UX; a persistence
+            // failure being INVISIBLE is not.
+            if (!r.ok) {
+              settle();
+              console.warn(`[annotations] save refused (${r.status}) — strokes are local-only`);
+              return undefined;
+            }
+            const res = (await r.json().catch(() => null)) as {
+              rejected?: Array<{ id?: string; reason: string }>;
+            } | null;
+            if (res?.rejected?.length) {
+              console.warn('[annotations] some changes were not applied', res.rejected);
+            }
+            // Without a replica no echo will come; with one, the echo settles
+            // it — unless the board had nothing to change (no echo either).
+            if (!collabRef.current || res?.rejected?.length) settle();
+            else setTimeout(settle, 10_000);
+            return undefined;
+          })
+          .catch(() => {
+            settle();
+            /* Pending persistence UX is handled by the project outbox work. */
+          });
+      const chained = putChainRef.current.then(dispatch, dispatch);
+      putChainRef.current = chained;
+      return chained;
+    },
+    []
+  );
 
   /** Apply a batch here (optimistic) and send it. Returns what undoes it. */
   const applyOpsLocal = useCallback(
-    (ops: readonly AnnotationOp[]): AnnotationOp[] => {
+    (ops: readonly AnnotationOp[], sid?: string): AnnotationOp[] => {
       if (!ops.length) return [];
       annotationsChangedRef.current = true;
       const r = board.apply(ops);
-      void sendOps(ops, true);
+      void sendOps(ops, true, false, sid);
       return r.inverse;
     },
     [board, sendOps]
@@ -1355,7 +1583,16 @@ export function AnnotationsLayer() {
         list.some(isEphemeralHref) ? list.filter((s) => !isEphemeralHref(s)) : list;
       const committed = board.committed;
       const prevMap = strokesToElementMap(persist(prev), committed);
-      const nextMap = strokesToElementMap(persist(next), committed);
+      // S4.10 — what this commit created or dropped joins the artboard under its centre (Q3).
+      const nextMap = withTimePins(
+        prevMap, // S4.16 — a new sticky over a video is pinned to the playhead (annotations/time-marks.ts)
+        withMembership(
+          prevMap,
+          strokesToElementMap(persist(next), committed),
+          dragBusRef.current?.layoutRects() ?? []
+        ),
+        playheadOf
+      );
       // #137 — the lock safety net: whatever tool produced this commit, a
       // locked element (as of `prevMap`) is not moved, resized, re-texted or
       // deleted. The board re-renders from the store, so a blocked change
@@ -1368,7 +1605,7 @@ export function AnnotationsLayer() {
       if (session) {
         commitSessionRef.current = null;
         sessionCommittedRef.current = true;
-        applyOpsLocal(aimCommitOps(ops, session));
+        applyOpsLocal(aimCommitOps(ops, session), session.sid);
         const baseMap = strokesToElementMap(persist(withSlotText(prev, session)), committed);
         const redo = guardLockedOps(baseMap, diffToOps(baseMap, nextMap)).ops;
         if (!redo.length) return;
@@ -1586,6 +1823,7 @@ export function AnnotationsLayer() {
       distributeSelection,
       previewStroke,
       commitGesture,
+      runAction: (id: string) => runAnnotationActionRef.current(id),
     };
   }, [strokes, setStrokes, commitStrokes, rememberDeletedIds]);
 
@@ -1682,9 +1920,65 @@ export function AnnotationsLayer() {
     [commitStrokes, annotSel]
   );
 
+  // S4.9 - tell the shell the board changed (a local write, a peer's, an undo) so the Preview annotation list
+  // re-reads it. Trailing, so a drag's burst of versions is one message. The first version is a load, not a change.
+  const announcedVersion = useRef(boardVersion);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on the board version
+  useEffect(() => {
+    if (announcedVersion.current === boardVersion) return;
+    announcedVersion.current = boardVersion;
+    const file = fileRef.current;
+    if (!file || typeof window === 'undefined' || window.parent === window) return;
+    const t = window.setTimeout(() => {
+      try {
+        window.parent.postMessage({ dgn: 'annotations-changed', file }, '*');
+      } catch {
+        /* detached */
+      }
+    }, 120);
+    return () => window.clearTimeout(t);
+  }, [boardVersion]);
+  // S4.9 - Edit shows the layer quiet, and a quiet layer holds no selection: a chord (⇧⌘L, ⌘G, ] [ ...) can
+  // never land on a sticky the user cannot see as selectable.
+  useEffect(() => {
+    if (posture === 'quiet' && annotSel && annotSel.selectedIds.length > 0) annotSel.clear();
+  }, [posture, annotSel]);
+  // ⇧⌘A from Edit: Preview has landed, select them all (the bar says "N annotations").
+  useEffect(() => {
+    if (posture !== 'drawn' || !selectAllPending.current || !annotSel) return;
+    selectAllPending.current = false;
+    annotSel.replace(strokesRef.current.map((s) => s.id));
+  }, [posture, annotSel]);
+
+  // S4.9 - annotations are Preview's to change: in Edit the layer asks for Preview first and selects them
+  // once it has landed (the effect above). One routine for the shell's run-action and the canvas's own
+  // ⇧⌘A (S4.18: the key pressed inside the canvas never reached it).
+  const selectAllAnnotationsRef = useRef<() => void>(() => {});
+  selectAllAnnotationsRef.current = () => {
+    const governed = canvasModeStore(window).get().mode;
+    if (governed && !modeShows(governed, 'annotations-editable')) {
+      selectAllPending.current = true;
+      postModeRequest({ mode: 'preview', cause: 'key' });
+      window.setTimeout(() => {
+        selectAllPending.current = false;
+      }, 2000);
+      return;
+    }
+    if (annotSel) annotSel.replace(strokesRef.current.map((s) => s.id));
+  };
+  useCanvasKeys(
+    {
+      'select.all-annotations': (e) => {
+        e.preventDefault();
+        selectAllAnnotationsRef.current();
+      },
+    },
+    { target: 'document', capture: true }
+  );
+
   // Menubar bridge (Phase 5.1 Task 10) — listen for postMessages from the
-  // dev-server shell. `selection-clear` + `tool-set` live in canvas-shell
-  // (those providers are above us); we own visibility + annotation-select-all
+  // dev-server shell. `run-action` select.none + `tool-set` live in canvas-shell
+  // (those providers are above us); we own visibility + select.all-annotations
   // because they read this layer's local state.
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1696,8 +1990,68 @@ export function AnnotationsLayer() {
         if (typeof m.visible === 'boolean') setVisible(m.visible);
         return;
       }
-      if (m.dgn === 'annotation-select-all') {
-        if (annotSel) annotSel.replace(strokes.map((s) => s.id));
+      // S4.9 - the Preview annotation list (client/v2/annotations/annotation-list.jsx) selects and filters.
+      if (m.dgn === 'annotation-filter') {
+        const a = (m as { v?: unknown; authors?: unknown }).authors;
+        if ((m as { v?: unknown }).v !== 1 || !Array.isArray(a)) return;
+        setAuthorFilter(
+          a.filter((x): x is string => typeof x === 'string' && x.length <= 200).slice(0, 64)
+        );
+        return;
+      }
+      if (m.dgn === 'annotation-select') {
+        const ids = (m as { v?: unknown; ids?: unknown }).ids;
+        if ((m as { v?: unknown }).v !== 1 || !Array.isArray(ids) || !annotSel) return;
+        annotSel.replace(
+          knownIds(
+            ids.filter((x): x is string => typeof x === 'string').slice(0, 5000),
+            strokesRef.current
+          )
+        );
+        return;
+      }
+      if (
+        m.dgn === 'run-action' &&
+        (m as { v?: unknown; id?: unknown }).v === 1 &&
+        (m as { id?: unknown }).id === 'annotations.hide-resolved'
+      ) {
+        setHideResolved((h) => !h);
+        return;
+      }
+      // S4.11 — Point to… (an-dangling): re-aim the selected arrow's lost end (else its end).
+      if (
+        m.dgn === 'run-action' &&
+        (m as { v?: unknown; id?: unknown }).v === 1 &&
+        (m as { id?: unknown }).id === 'annotation.point-to'
+      ) {
+        const sel = annotSel?.selectedIds ?? [];
+        const arrow = strokesRef.current.find((s) => s.tool === 'arrow' && sel.includes(s.id));
+        if (arrow) {
+          const lost = danglingRef.current.find((d) => d.arrowId === arrow.id);
+          setPointTo({ arrowId: arrow.id, end: lost?.end ?? 'end' });
+        }
+        return;
+      }
+      // S4.12 - Resolve, Fan out, Fold, Turn into a comment, Ask AI about it and the ⌘K clean-up of resolved
+      // stickies ride the same lane (registry rows in actions/defs/annotation.ts).
+      if (
+        m.dgn === 'run-action' &&
+        (m as { v?: unknown }).v === 1 &&
+        typeof (m as { id?: unknown }).id === 'string' &&
+        STICKY_RUN_ACTIONS.has((m as { id: string }).id)
+      ) {
+        const rid = (m as { id: string }).id;
+        if (rid === 'annotation.ask-ai') askAiRef.current();
+        else runAnnotationActionRef.current(rid);
+        return;
+      }
+      // V2-2.4 — Select all annotations rides the `run-action` lane (V2-1.3 §5.7).
+      if (
+        m.dgn === 'run-action' &&
+        (m as { v?: unknown; id?: unknown }).v === 1 &&
+        (m as { id?: unknown }).id === 'select.all-annotations'
+      ) {
+        selectAllAnnotationsRef.current();
         return;
       }
       // Stage F3 — the shell's AssetPicker (main-origin, DDR-054) resolved a new
@@ -1716,10 +2070,12 @@ export function AnnotationsLayer() {
         const before = strokesRef.current;
         const target = before.find((s) => s.id === id);
         if (!target || (target.tool !== 'image' && target.tool !== 'mediaref')) return;
+        // S4.13 - Replace… on a gallery sticker names the new one; any other pick clears the sticker identity.
+        const ref = stickerRefOf((m as { sticker?: unknown }).sticker);
         const after = before.map((s) => {
           if (s.id !== id) return s;
           return target.tool === 'image'
-            ? ({ ...s, href: path } as ImageStroke)
+            ? ({ ...s, ...replacePatch(target, { path, sticker: ref }) } as ImageStroke)
             : ({ ...s, src: path } as MediaRefStroke);
         });
         commitStrokes(before, after, 'replace media');
@@ -1734,28 +2090,20 @@ export function AnnotationsLayer() {
       // cursor position to reuse. Inlines the screenToWorld formula (that
       // callback isn't declared until below this effect) against vpRef, which
       // is.
-      if (m.dgn === 'insert-sticker' && typeof (m as { path?: unknown }).path === 'string') {
-        const path = (m as { path: string }).path;
-        const v = vpRef.current ?? { x: 0, y: 0, zoom: 1 };
-        const z = v.zoom || 1;
+      // S4.13 - a gallery pick / stamp / template trails the pointer until a click (`follow`), and a stamp stays
+      // armed; without `follow` a sticker or template lands mid-view at once, as before. One Pending, three kinds.
+      const placement =
+        m.dgn === 'insert-sticker' || m.dgn === 'insert-template' ? placementOf(m) : null;
+      if (placement) {
+        const armed =
+          placement.kind === 'stamp' || ('follow' in placement && placement.follow === true);
+        if (armed) {
+          setPlacing(placement);
+          return;
+        }
         const cx = typeof window !== 'undefined' ? window.innerWidth / 2 : 0;
         const cy = typeof window !== 'undefined' ? window.innerHeight / 2 : 0;
-        const wx = (cx - v.x) / z;
-        const wy = (cy - v.y) / z;
-        const size = STICKER_DROP_SIZE;
-        const id = rid();
-        const stroke: ImageStroke = {
-          id,
-          tool: 'image',
-          x: wx - size / 2,
-          y: wy - size / 2,
-          w: size,
-          h: size,
-          href: path,
-        };
-        const before = strokesRef.current;
-        commitStrokes(before, [...before, stroke], 'add sticker');
-        annotSel?.replace([id]);
+        placeRef.current(placement, { x: cx, y: cy });
       }
       // feature-bulk-media-insert Task 11 — the shell's AssetPicker (main-
       // origin) multi-select "Add as annotation" confirm. Every path is
@@ -1789,8 +2137,14 @@ export function AnnotationsLayer() {
     const onKey = (e: KeyboardEvent) => {
       if (isEditable(e.target)) return;
       if (e.key === 'P' && e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        // V2-4 gate (WCAG 2.1.4): ⇧P is a character key — off with the "Single-key shortcuts" switch.
+        if (!canvasSingleKeys()) return;
         e.preventDefault();
-        setVisible((v) => !v);
+        const next = !visiblePrefRef.current;
+        setVisible(next);
+        // S4.18 (an-visibility) - the shell keeps the pref and owns the "Annotations hidden" toast
+        // (decision v2-S4.9-shell-owns-hidden-toast): tell it what ⇧P did here.
+        reportAnnotationsVisibility(window, next);
       }
     };
     document.addEventListener('keydown', onKey, true);
@@ -1807,6 +2161,43 @@ export function AnnotationsLayer() {
     },
     [vp]
   );
+
+  // S4.13 - what a click (or a mid-view drop) makes of a pick. Kept in a ref so the message effect above, which
+  // is declared first, calls the latest closure. Returns true when the pick is spent (a stamp stays armed).
+  const placeRef = useRef<(p: Pending, client: { x: number; y: number }) => boolean>(() => true);
+  placeRef.current = (p, client) => {
+    const [wx, wy] = screenToWorld(client.x, client.y);
+    const before = strokesRef.current;
+    const name = collab?.myName ?? '';
+    if (p.kind === 'sticker') {
+      const stroke = dropSticker(
+        p,
+        { x: wx, y: wy },
+        rid(),
+        name ? { name, id: collab?.myConnId } : undefined
+      );
+      commitStrokes(before, [...before, stroke], 'add sticker');
+      annotSel?.replace([stroke.id]);
+      return true;
+    }
+    if (p.kind === 'stamp') {
+      const target = stampTargetAt({ x: wx, y: wy }, before, canvasRectsNow()?.artboards ?? []);
+      const el = stampElement({
+        kind: p.stampKind,
+        who: { name: name || 'Someone' },
+        target,
+        x: wx,
+        y: wy,
+      });
+      commitStrokes(before, upsertStampStroke(before, el), 'add stamp');
+      return false;
+    }
+    const placed = expandTemplate(p.id, { x: wx, y: wy }, name || null);
+    if (!placed) return true;
+    commitStrokes(before, [...before, ...placed.strokes], `add ${p.id} template`);
+    annotSel?.replace(placed.selectIds);
+    return true;
+  };
 
   // ── Phase 23 — media intake (drag-drop / paste / file-picker / link input) ──
   // Image: optimistic blob: preview stroke (LOCAL only — never persisted) →
@@ -1976,18 +2367,15 @@ export function AnnotationsLayer() {
       const tol = 8 / zoom;
       const prev = strokesRef.current;
       const locked = lockedStrokeIds(prev); // #137 — the eraser passes over a locked element
-      for (let i = prev.length - 1; i >= 0; i--) {
-        const candidate = prev[i];
-        if (candidate && !locked.has(candidate.id) && strokeHitTest(candidate, wx, wy, tol)) {
-          const removedId = candidate.id;
-          const next = prev
-            .slice(0, i)
-            .concat(prev.slice(i + 1))
-            .filter((s) => !(s.tool === 'text' && s.anchorId === removedId));
-          commitStrokes(prev, next, 'erase 1 stroke');
-          return;
-        }
-      }
+      // S4.8 — it rubs out Marker strokes only: never a sticky, a shape, a section or text.
+      const i = eraseTargetIndex(prev, locked, wx, wy, tol);
+      if (i < 0) return;
+      const removedId = (prev[i] as Stroke).id;
+      const next = prev
+        .slice(0, i)
+        .concat(prev.slice(i + 1))
+        .filter((s) => !(s.tool === 'text' && s.anchorId === removedId));
+      commitStrokes(prev, next, 'erase 1 stroke');
     },
     [vp, commitStrokes]
   );
@@ -1998,6 +2386,8 @@ export function AnnotationsLayer() {
       if (e.button !== 0) return false;
       if (spaceHeld) return false;
       if (e.metaKey || e.ctrlKey) return false;
+      if (finishingRef.current) return true;
+      if (tool === 'arrow') aimRectsRef.current = canvasRectsNow() as AimRects | null;
       // We do NOT stopPropagation — viewport-controller listens on the host
       // ancestor and never claims a bare-left/no-space pointerdown anyway.
       e.preventDefault();
@@ -2076,6 +2466,7 @@ export function AnnotationsLayer() {
           });
         }
       } else if (tool === 'arrow') {
+        // S4.11 (an-arrow-kinds): a new arrow is Curved with a filled head.
         setDrawing({
           id,
           tool: 'arrow',
@@ -2085,6 +2476,7 @@ export function AnnotationsLayer() {
           y1: wy,
           x2: wx,
           y2: wy,
+          ...NEW_ARROW,
         });
       } else if (tool === 'sticky') {
         // Phase 21 — drag-create a paper card. Default size if the user just
@@ -2103,6 +2495,7 @@ export function AnnotationsLayer() {
           text: '',
           fontSize: DEFAULT_FONT_SIZE,
           cornerRadius: STICKY_CORNER_RADIUS,
+          at: new Date().toISOString(), // S4.13 — when it was made (the author line's "2 h ago")
           ...(collab?.myName ? { authorName: collab.myName, authorId: collab.myConnId } : null),
         });
       } else if (tool === 'section') {
@@ -2118,6 +2511,17 @@ export function AnnotationsLayer() {
           label: 'Section',
           color: DEFAULT_SECTION_COLOR,
         });
+      } else if (tool === 'el-text') {
+        // S2.12b — Edit's Text is click to type: editable text under the click types in place, a
+        // click on nothing adds a text element (the toolbar insert verb), never an annotation.
+        const how = clickToType(document, findEditableElementAt(e.clientX, e.clientY), e);
+        if (how === 'code')
+          showCanvasToast(
+            'This text is filled in from code (a variable) — edit it via chat or /design:edit.'
+          );
+        // Editing ARTBOARD content is an edit-mode activity: back to Select, as the Text tool does.
+        setTool('move');
+        return true;
       } else if (tool === 'text') {
         // Dogfood fix + Phase 4 (unified-text-editing) — the Text tool
         // clicking EXISTING editable text edits it in place rather than
@@ -2193,9 +2597,43 @@ export function AnnotationsLayer() {
     ]
   );
 
+  /** S4.11 — what the pointer is over, for the ring / edge light / outlines (null = not aiming). */
+  const updateAim = useCallback((wx: number, wy: number, on: boolean) => {
+    if (!on) {
+      if (aimRef.current) {
+        aimRef.current = null;
+        setAim(null);
+      }
+      return;
+    }
+    if (!aimRectsRef.current) aimRectsRef.current = canvasRectsNow() as AimRects | null;
+    const rects = aimRectsRef.current;
+    if (!rectsReady(rects)) return;
+    const zoom = getLiveViewport()?.zoom || 1;
+    const hot = pickCandidate(rects, wx, wy, { band: edgeBand(zoom), labelOf: artboardLabel });
+    const near = nearbyOutlines(rects, wx, wy, 240 / zoom);
+    const prev = aimRef.current;
+    const same =
+      prev &&
+      !!prev.hot === !!hot &&
+      (!hot ||
+        !prev.hot ||
+        (prev.hot.box.x === hot.box.x &&
+          prev.hot.box.y === hot.box.y &&
+          prev.hot.box.w === hot.box.w &&
+          prev.hot.edge === hot.edge)) &&
+      prev.near.length === near.length &&
+      prev.near.every((b, i) => b.x === near[i]?.x && b.y === near[i]?.y && b.w === near[i]?.w);
+    if (same) return;
+    const next: AimState = { hot, near };
+    aimRef.current = next;
+    setAim(next);
+  }, []);
+
   const moveStroke = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {
       if (!isActive || !visible) return;
+      if (finishingRef.current) return;
       const [wx, wy] = screenToWorld(e.clientX, e.clientY);
       cmdHeldRef.current = e.metaKey || e.ctrlKey;
       if (isErase) {
@@ -2207,6 +2645,8 @@ export function AnnotationsLayer() {
       // cursor so a translucent preview can follow it; an active draw hides it.
       if (drawingRef.current == null) {
         if (ghostCapable) setGhost({ x: wx, y: wy });
+        // S4.11 — an armed Arrow tool shows what it would point at before the drag starts.
+        if (tool === 'arrow') updateAim(wx, wy, !cmdHeldRef.current);
         return;
       }
       setGhost(null);
@@ -2221,6 +2661,8 @@ export function AnnotationsLayer() {
           ? null
           : bindCandidate(wx, wy, strokesRef.current, BIND_THRESHOLD_PX / zoom);
         setBindHintId(cand?.hostId ?? null);
+        // A board item under the pointer wins over the canvas (the shipped behaviour); else aim.
+        updateAim(wx, wy, !cand && !cmdHeldRef.current);
       }
       setDrawing((cur) => {
         if (!cur) return cur;
@@ -2236,7 +2678,7 @@ export function AnnotationsLayer() {
         return applyDrawModifiers(cur, anchor, wx, wy, mods);
       });
     },
-    [isActive, isErase, visible, screenToWorld, eraseAt, ghostCapable]
+    [isActive, isErase, visible, screenToWorld, eraseAt, ghostCapable, tool, updateAim]
   );
 
   const endStroke = useCallback(() => {
@@ -2273,6 +2715,15 @@ export function AnnotationsLayer() {
         Math.abs(norm.w) < STICKY_MIN_SIZE || Math.abs(norm.h) < STICKY_MIN_SIZE
           ? { ...norm, w: STICKY_DEFAULT_W, h: STICKY_DEFAULT_H }
           : norm;
+      // S4.12 (an-sticky cell 3) - a drop on another sticky lands 12 px down and right, so the one under it
+      // still shows. A drag-sized card keeps its drawn corner; only a tap (the default card) stacks.
+      if (
+        final.tool === 'sticky' &&
+        (final.w === STICKY_DEFAULT_W || final.h === STICKY_DEFAULT_H)
+      ) {
+        const hit = stackLanding({ x: cur.x, y: cur.y }, stickyBoxes(strokesRef.current), cur.id);
+        if (hit) final = { ...final, x: hit.x, y: hit.y };
+      }
     } else if (cur.tool === 'section') {
       const norm = normalizeBox(cur);
       final =
@@ -2312,81 +2763,228 @@ export function AnnotationsLayer() {
       }
     }
     setBindHintId(null);
-    if (final) {
-      const committed = final;
-      const prev = strokesRef.current;
-      // FigJam — sections are CONTAINERS: they slot in at the BACK of the
-      // z-order so content placed on them keeps rendering above — and a
-      // section drawn INSIDE another goes right above that one (Task 20), so
-      // it renders in front of its outer section and adopts what sits on it.
-      let next: Stroke[];
-      if (committed.tool === 'section') {
-        const bb = strokeBBox(committed);
-        const outer = bb
-          ? new Containment(strokesToElementMap(prev, board.committed).values()).containerAt(
-              bb.x + bb.w / 2,
-              bb.y + bb.h / 2
-            )
-          : null;
-        next = insertSection(prev, committed, outer);
-      } else {
-        next = [...prev, committed];
+    updateAim(0, 0, false);
+    const finish = (final: Stroke | null): void => {
+      if (final) {
+        const committed = final;
+        const prev = strokesRef.current;
+        // FigJam — sections are CONTAINERS: they slot in at the BACK of the
+        // z-order so content placed on them keeps rendering above — and a
+        // section drawn INSIDE another goes right above that one (Task 20), so
+        // it renders in front of its outer section and adopts what sits on it.
+        let next: Stroke[];
+        if (committed.tool === 'section') {
+          const bb = strokeBBox(committed);
+          const outer = bb
+            ? new Containment(strokesToElementMap(prev, board.committed).values()).containerAt(
+                bb.x + bb.w / 2,
+                bb.y + bb.h / 2
+              )
+            : null;
+          next = insertSection(prev, committed, outer);
+        } else {
+          next = [...prev, committed];
+        }
+        commitStrokes(prev, next, `draw ${committed.tool}`);
+        // T18 — auto-select the freshly drawn shape so the user can immediately
+        // see + adjust it. annotSel is optional (some test harnesses mount
+        // AnnotationsLayer without the provider), so guard the call.
+        if (annotSel) annotSel.replace(committed.id);
+        // Phase 21 — a fresh sticky opens in edit mode (FigJam parity: drop a
+        // note, type immediately). Phase 1 whiteboard-improvements — shapes get
+        // the same treatment (rect/ellipse/polygon are all AnchorHost, so
+        // setEditingId resolves them via editingTarget's 'anchored' branch same
+        // as a double-click would).
+        if (
+          committed.tool === 'sticky' ||
+          committed.tool === 'rect' ||
+          committed.tool === 'ellipse' ||
+          committed.tool === 'polygon'
+        ) {
+          setEditingId(committed.id);
+          showOnceHint('chain', '⌘Enter commits and creates the next one beside it.');
+        }
       }
-      commitStrokes(prev, next, `draw ${committed.tool}`);
-      // T18 — auto-select the freshly drawn shape so the user can immediately
-      // see + adjust it. annotSel is optional (some test harnesses mount
-      // AnnotationsLayer without the provider), so guard the call.
-      if (annotSel) annotSel.replace(committed.id);
-      // Phase 21 — a fresh sticky opens in edit mode (FigJam parity: drop a
-      // note, type immediately). Phase 1 whiteboard-improvements — shapes get
-      // the same treatment (rect/ellipse/polygon are all AnchorHost, so
-      // setEditingId resolves them via editingTarget's 'anchored' branch same
-      // as a double-click would).
-      if (
-        committed.tool === 'sticky' ||
-        committed.tool === 'rect' ||
-        committed.tool === 'ellipse' ||
-        committed.tool === 'polygon'
-      ) {
-        setEditingId(committed.id);
-        showOnceHint('chain', '⌘Enter commits and creates the next one beside it.');
+      // T18 / T19 — flip the tool back to the MODE's resting tool after every
+      // commit UNLESS sticky mode is locked on this tool (DDR-223: move in edit
+      // — byte-identical to the old hardcode — browse in preview, so drawing an
+      // annotation never silently exits the alive posture). Sticky lets the user
+      // draw many shapes in a row (canonical pattern: tldraw double-click to
+      // lock). Map a highlighter pen (a 'pen' stroke with the flag) back to the
+      // 'highlighter' tool id so its sticky-lock check matches the active tool.
+      //
+      // No eraser case here: an eraser commits no stroke, so `cur.tool` (a stroke
+      // KIND, off `drawingRef`) can never be 'eraser' — erase leaves through the
+      // `isErase` branch above. It stays armed by being unreachable from here,
+      // not by a guard. The typecheck surface completion (A2) proved the old
+      // `!== 'eraser'` test was dead.
+      const toolJustUsed = cur.tool === 'pen' && cur.highlighter ? 'highlighter' : cur.tool;
+      const stickyOnThis = sticky.locked && sticky.tool === toolJustUsed;
+      if (!stickyOnThis) resetTool();
+      drawAnchorRef.current = null;
+      lastDrawPointRef.current = null;
+      setDrawing(null);
+    };
+    // S4.11 (an-arrow-bind) — an end dropped on a canvas element, or on an artboard's edge, binds to
+    // THAT: `el:<artboard>/<id>` / `ab:<artboard>`. An element without an authored id is named first
+    // through the edit-op `element.stamp` (Q12); busy, it falls back to the artboard with the tag
+    // "Bound to the artboard". A board item under the end already won above (the shipped bind).
+    const rects =
+      aimRectsRef.current ??
+      (final?.tool === 'arrow' ? (canvasRectsNow() as AimRects | null) : null);
+    aimRectsRef.current = null;
+    if (final && final.tool === 'arrow' && !cmdHeldRef.current && rectsReady(rects)) {
+      const arrow = final;
+      const band = edgeBand(vpRef.current?.zoom || 1);
+      const pick = (x: number, y: number) =>
+        pickCandidate(rects, x, y, { band, labelOf: artboardLabel });
+      const jobs: Array<{ end: 'start' | 'end'; cand: BindCandidate }> = [];
+      const sc = arrow.startBind ? null : pick(arrow.x1, arrow.y1);
+      const ec = arrow.endBind ? null : pick(arrow.x2, arrow.y2);
+      if (sc) jobs.push({ end: 'start', cand: sc });
+      // Both ends on one host is a loop: the end stays free.
+      if (ec && !(sc && hostRefOf(sc) === hostRefOf(ec))) jobs.push({ end: 'end', cand: ec });
+      if (jobs.length) {
+        const resolve = resolverFromRects(asHostRects(rects));
+        const attach = (done: Array<{ end: 'start' | 'end'; bound: BoundEnd | null }>): Stroke =>
+          attachHosts(
+            arrow,
+            {
+              start: done.find((d) => d.end === 'start')?.bound?.bind,
+              end: done.find((d) => d.end === 'end')?.bound?.bind,
+            },
+            resolve
+          );
+        const now = jobs.map((j) => ({ end: j.end, bound: bindNow(j.cand) }));
+        if (now.every((j) => j.bound)) {
+          finish(attach(now));
+          return;
+        }
+        finishingRef.current = true;
+        void Promise.all(
+          jobs.map(async (j) => ({ end: j.end, bound: await bindEnd(j.cand, stampViaEditOp) }))
+        ).then((done) => {
+          finishingRef.current = false;
+          const tag = done.find((d) => d.bound?.tag)?.bound?.tag;
+          if (tag) {
+            setBoundTag({ text: tag, at: [arrow.x2, arrow.y2] });
+            setTimeout(() => setBoundTag(null), 2400);
+          }
+          finish(done.some((d) => d.bound) ? attach(done) : arrow);
+        });
+        return;
       }
     }
-    // T18 / T19 — flip the tool back to the MODE's resting tool after every
-    // commit UNLESS sticky mode is locked on this tool (DDR-223: move in edit
-    // — byte-identical to the old hardcode — browse in preview, so drawing an
-    // annotation never silently exits the alive posture). Sticky lets the user
-    // draw many shapes in a row (canonical pattern: tldraw double-click to
-    // lock). Map a highlighter pen (a 'pen' stroke with the flag) back to the
-    // 'highlighter' tool id so its sticky-lock check matches the active tool.
-    //
-    // No eraser case here: an eraser commits no stroke, so `cur.tool` (a stroke
-    // KIND, off `drawingRef`) can never be 'eraser' — erase leaves through the
-    // `isErase` branch above. It stays armed by being unreachable from here,
-    // not by a guard. The typecheck surface completion (A2) proved the old
-    // `!== 'eraser'` test was dead.
-    const toolJustUsed = cur.tool === 'pen' && cur.highlighter ? 'highlighter' : cur.tool;
-    const stickyOnThis = sticky.locked && sticky.tool === toolJustUsed;
-    if (!stickyOnThis) resetTool();
-    drawAnchorRef.current = null;
-    lastDrawPointRef.current = null;
-    setDrawing(null);
-  }, [isActive, isErase, visible, commitStrokes, annotSel, resetTool, sticky]);
+    finish(final);
+  }, [isActive, isErase, visible, commitStrokes, annotSel, resetTool, sticky, updateAim]);
+
+  // S4.11 — Point to…: while it is armed, the next click on a canvas element / artboard edge binds
+  // that end of the arrow (stamping the element first when it has no authored id); Esc cancels.
+  // Capture-phase on the window so the click never also selects or draws.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: armed by `pointTo` only
+  useEffect(() => {
+    if (!pointTo) return;
+    const { arrowId, end } = pointTo;
+    aimRectsRef.current = canvasRectsNow() as AimRects | null;
+    const stop = () => {
+      aimRectsRef.current = null;
+      updateAim(0, 0, false);
+      setPointTo(null);
+    };
+    const onMove = (e: PointerEvent) => {
+      const [x, y] = screenToWorld(e.clientX, e.clientY);
+      updateAim(x, y, true);
+    };
+    const onDown = (e: PointerEvent) => {
+      const t = e.target as Element | null;
+      if (t?.closest?.(CHROME_SELECTOR)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      const rects = aimRectsRef.current;
+      if (!rectsReady(rects)) return;
+      const [x, y] = screenToWorld(e.clientX, e.clientY);
+      const cand = pickCandidate(rects, x, y, {
+        band: edgeBand(getLiveViewport()?.zoom || 1),
+        labelOf: artboardLabel,
+      });
+      if (!cand) return; // empty canvas: keep aiming
+      void bindEnd(cand, stampViaEditOp).then((bound) => {
+        stop();
+        if (!bound) return;
+        const prev = strokesRef.current;
+        const a = prev.find((st) => st.id === arrowId);
+        if (!a || a.tool !== 'arrow') return;
+        const placed = attachHosts(
+          a,
+          end === 'start' ? { start: bound.bind } : { end: bound.bind },
+          resolverFromRects(asHostRects(rects))
+        );
+        commitStrokes(
+          prev,
+          prev.map((st) => (st.id === arrowId ? placed : st)),
+          'point arrow'
+        );
+        if (bound.tag) {
+          setBoundTag({ text: bound.tag, at: [placed.x2, placed.y2] });
+          setTimeout(() => setBoundTag(null), 2400);
+        }
+      });
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopPropagation();
+      stop();
+    };
+    window.addEventListener('pointermove', onMove, true);
+    window.addEventListener('pointerdown', onDown, true);
+    window.addEventListener('keydown', onKey, true);
+    return () => {
+      window.removeEventListener('pointermove', onMove, true);
+      window.removeEventListener('pointerdown', onDown, true);
+      window.removeEventListener('keydown', onKey, true);
+    };
+  }, [pointTo, commitStrokes]);
+
+  /** S4.11 — the words written on an arrow commit as one undoable edit; empty removes them. */
+  const commitLabel = useCallback(
+    (id: string, text: string) => {
+      setLabelEdit(null);
+      const prev = strokesRef.current;
+      const a = prev.find((st) => st.id === id);
+      if (!a || a.tool !== 'arrow') return;
+      const patch = labelPatch(text);
+      if ((a.label || undefined) === patch.label) return;
+      commitStrokes(
+        prev,
+        prev.map((st) => (st.id === id ? ({ ...st, ...patch } as Stroke) : st)),
+        patch.label ? 'label arrow' : 'clear arrow label'
+      );
+    },
+    [commitStrokes]
+  );
 
   // T21 — abort a mid-stroke draw without committing. Dispatched by the
   // canvas-shell Esc handler (`maude:cancel-stroke`). Safe to call when
   // nothing is being drawn — the early-return on drawingRef keeps it
   // a no-op.
-  const cancelStroke = useCallback(() => {
-    if (!drawingRef.current) return;
+  const cancelStroke = useCallback((): boolean => {
+    if (!drawingRef.current) return false;
     drawAnchorRef.current = null;
     lastDrawPointRef.current = null;
     setDrawing(null);
+    return true;
   }, []);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
-    const onCancel = () => cancelStroke();
+    // S3.12 — the event carries `{ cancelled }` so the esc ladder knows this press WAS the stroke's rung.
+    const onCancel = (e: Event) => {
+      const hit = cancelStroke();
+      const detail = (e as CustomEvent<{ cancelled?: boolean } | null>).detail;
+      if (hit && detail && typeof detail === 'object') detail.cancelled = true;
+    };
     document.addEventListener('maude:cancel-stroke', onCancel);
     return () => document.removeEventListener('maude:cancel-stroke', onCancel);
   }, [cancelStroke]);
@@ -2415,10 +3013,105 @@ export function AnnotationsLayer() {
     };
   }, []);
 
-  const renderStrokes = useMemo(
-    () => (drawing ? [...strokes, drawing] : strokes),
-    [strokes, drawing]
+  // S4.11 — the live canvas under bound arrows (host-view.ts). The manifest is re-read on a board
+  // change and every 1.5 s while any arrow is bound (an element moved, AI rewrote it, it left the
+  // canvas), and kept only when a bound host's box (or its absence) changed — so a quiet canvas
+  // re-renders nothing. Nothing is derived until the canvas has painted an artboard.
+  const [liveRects, setLiveRects] = useState<AimRects | null>(null);
+  const liveSigRef = useRef('');
+  const bound = useMemo(() => hasHosts(strokes), [strokes]);
+  const strokesForRects = useRef(strokes);
+  strokesForRects.current = strokes;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-read per board version
+  useEffect(() => {
+    if (!bound) {
+      liveSigRef.current = '';
+      setLiveRects(null);
+      return;
+    }
+    const tick = () => {
+      const r = canvasRectsNow() as AimRects | null;
+      const sig = hostSignature(strokesForRects.current, r);
+      if (sig === liveSigRef.current) return;
+      liveSigRef.current = sig;
+      setLiveRects(rectsReady(r) ? r : null);
+    };
+    tick();
+    const first = [60, 250, 800].map((ms) => setTimeout(tick, ms));
+    const id = setInterval(tick, 1500);
+    return () => {
+      for (const t of first) clearTimeout(t);
+      clearInterval(id);
+    };
+  }, [bound, boardVersion]);
+  const viewedStrokes = useMemo(() => viewStrokes(strokes, liveRects), [strokes, liveRects]);
+  const danglingCards = useMemo<DanglingCardModel[]>(
+    () => (liveRects ? danglingOf(strokes, liveRects).map((d) => danglingCard(d, liveRects)) : []),
+    [strokes, liveRects]
   );
+  const danglingRef = useRef(danglingCards);
+  danglingRef.current = danglingCards;
+  // S4.11 — the artboards an elbow arrow routes around at rest. Read from the layout (drag bus)
+  // when there is one, else the manifest; refreshed on a board change and after an artboard move.
+  const [boards, setBoards] = useState<BoardRect[]>([]);
+  const boardsSigRef = useRef('');
+  const anyElbow = useMemo(
+    () => strokes.some((s) => s.tool === 'arrow' && s.lineType === 'elbow'),
+    [strokes]
+  );
+  // biome-ignore lint/correctness/useExhaustiveDependencies: layoutTick / boardVersion are the triggers
+  useEffect(() => {
+    if (!anyElbow) {
+      if (boardsSigRef.current) {
+        boardsSigRef.current = '';
+        setBoards([]);
+      }
+      return;
+    }
+    const layout = dragBusRef.current?.layoutRects() ?? [];
+    const list: BoardRect[] = layout.length
+      ? layout.map((a) => ({ id: a.id, x: a.x, y: a.y, w: a.w, h: a.h }))
+      : (canvasRectsNow()?.artboards ?? []).map((a) => ({
+          id: a.id,
+          x: a.x,
+          y: a.y,
+          w: a.w,
+          h: a.h,
+        }));
+    const sig = list.map((a) => `${a.id}:${a.x},${a.y},${a.w},${a.h}`).join('|');
+    if (sig === boardsSigRef.current) return;
+    boardsSigRef.current = sig;
+    setBoards(list);
+  }, [anyElbow, layoutTick, boardVersion]);
+  const renderStrokes = useMemo(
+    () => (drawing ? [...viewedStrokes, drawing] : viewedStrokes),
+    [viewedStrokes, drawing]
+  );
+  // S4.9 - the person filter and C29's Hide resolved stickies leave elements out of the DRAWING only.
+  // S4.12 - a folded section's members are left out of the drawing too (they stay in the file).
+  const shownStrokes = useMemo(() => {
+    const seen = withoutResolved(
+      filterByAuthors(renderStrokes, authorFilter, collab?.myName),
+      hideResolved
+    );
+    return withoutFolded(seen, (id) =>
+      new Containment(strokesToElementMap(renderStrokes, board.committed).values()).contentsOf(id)
+    );
+  }, [renderStrokes, authorFilter, hideResolved, collab?.myName, board.committed]);
+  // S4.12 - the count line on a folded section's chip: what is inside, and how many people wrote it.
+  // S4.13 - and an open section says how many it holds (canvas 15 an-plan: "Nápady 4"): its value is just the number.
+  const foldNotes = useMemo(() => {
+    const m = new Map<string, string>();
+    if (!viewedStrokes.some((s) => s.tool === 'section')) return m;
+    const c = new Containment(strokesToElementMap(viewedStrokes, board.committed).values());
+    for (const s of viewedStrokes) {
+      if (s.tool !== 'section') continue;
+      const members = membersOf(viewedStrokes, s.id, (id) => c.contentsOf(id));
+      if (s.folded) m.set(s.id, foldSummary(members, collab?.myName));
+      else if (members.length > 0) m.set(s.id, String(members.length));
+    }
+    return m;
+  }, [viewedStrokes, board.committed, collab?.myName]);
   // Task 22 — what is being drawn, live for peers (pen ink tail, or the box).
   const drawPublishedRef = useRef(false);
   useEffect(() => {
@@ -2478,9 +3171,9 @@ export function AnnotationsLayer() {
 
   const strokesById = useMemo(() => {
     const map = new Map<string, Stroke>();
-    for (const s of strokes) map.set(s.id, s);
+    for (const s of viewedStrokes) map.set(s.id, s);
     return map;
-  }, [strokes]);
+  }, [viewedStrokes]);
 
   // ──────────────────────────────────────────────────────────────────────────
   // Move-tool selection + drag (Phase 5.1 Tasks 6 + 7). Single doc-level
@@ -2536,7 +3229,7 @@ export function AnnotationsLayer() {
   // biome-ignore lint/correctness/useExhaustiveDependencies: commitStrokes/strokesStore are stable refs from parent context; manual dep list reflects effect-trigger semantics, not internal callbacks
   useEffect(() => {
     if (typeof document === 'undefined') return;
-    if (tool !== 'move') return;
+    if (!annotationPicks(tool, posture)) return;
     if (!annotSel) return;
 
     const findStrokeId = (el: Element | null): string | null => {
@@ -2590,7 +3283,9 @@ export function AnnotationsLayer() {
         // isn't needed (photoSel already takes precedence in tab resolution) and
         // is the only case that races with a still-in-flight photo-tab request.
         const strokeTool = target?.closest?.('[data-id][data-tool]')?.getAttribute('data-tool');
-        if (strokeTool !== 'image') elementSel?.clear();
+        // S4.19 G6 - a gallery sticker never rides the Photo tab, so it clears the DOM selection like any other.
+        const hitStroke = strokesStoreRef.current.strokes.find((x) => x.id === strokeId);
+        if (strokeTool !== 'image' || !opensPhotoInspector(hitStroke)) elementSel?.clear();
         // FigJam v3 — clicking a group member acts on the WHOLE outermost
         // group. Double-click deep-selects the member (see the dblclick
         // handler); an already-selected stroke keeps the current selection, so
@@ -2646,7 +3341,7 @@ export function AnnotationsLayer() {
           canvasEl &&
           (!focused ||
             !canvasEl.contains(focused) ||
-            focused.closest?.('.dc-annot-ctx, .dc-context-menu, .dc-annot-chrome'))
+            focused.closest?.('.dc-annot-ctx, .dc-context-menu, .dc-tool-palette'))
         ) {
           canvasEl.focus({ preventScroll: true });
         }
@@ -2655,7 +3350,10 @@ export function AnnotationsLayer() {
         // unlocked COPIES and leaves the originals where they are.
         if (!e.altKey) {
           const locked = lockedStrokeIds(strokesRef.current);
-          if (locked.size && ids.some((id) => locked.has(id))) return { kind: 'locked' };
+          if (locked.size && ids.some((id) => locked.has(id))) {
+            setLockedTip({ x: e.clientX, y: e.clientY });
+            return { kind: 'locked' };
+          }
         }
         // Capture a snapshot of all strokes at drag start. Every pointermove
         // re-translates FROM the snapshot using the cumulative cursor delta
@@ -2796,9 +3494,27 @@ export function AnnotationsLayer() {
             if (st.altDup) annotSel.replace(preAltIds);
             return;
           }
+          // S4.12 (an-sticky cell 3) - one sticky dropped onto another lands 12 px down and right of it.
+          let landed = final;
+          const lone = st.movedIds.length === 1 ? final.find((x) => x.id === st.movedIds[0]) : null;
+          if (lone?.tool === 'sticky' && !st.altDup) {
+            const [uwx, uwy] = screenToWorld(up.clientX, up.clientY);
+            const hit = stackLanding({ x: uwx, y: uwy }, stickyBoxes(final), lone.id);
+            if (hit) {
+              const bx = Math.min(lone.x, lone.x + lone.w);
+              const by = Math.min(lone.y, lone.y + lone.h);
+              landed = recomputeBoundArrows(
+                final.map((x) =>
+                  x.id === lone.id
+                    ? ({ ...lone, x: lone.x + (hit.x - bx), y: lone.y + (hit.y - by) } as Stroke)
+                    : x
+                )
+              );
+            }
+          }
           commitStrokes(
             st.undoBase,
-            final,
+            landed,
             `${st.altDup ? 'duplicate' : 'move'} ${st.movedIds.length} stroke${
               st.movedIds.length === 1 ? '' : 's'
             }`
@@ -2820,6 +3536,25 @@ export function AnnotationsLayer() {
       // the additive annotation marquee, so it rubber-bands annotations
       // sitting ON an artboard instead of falling through to artboard-drag.
       if (!strokeId && !e.shiftKey && target?.closest?.('[data-dc-screen]')) return;
+
+      // S4.18b - the Hand (Preview's resting tool) picks stickies but never rubber-bands: a drag on empty
+      // canvas is the canvas's pan, so this stage claims nothing. A bare click still lets go of the selection.
+      if (!annotationMarquees(tool)) {
+        if (!e.shiftKey && annotSel.selectedIds.length > 0) {
+          const letGo = (up: PointerEvent) => {
+            document.removeEventListener('pointerup', letGo, true);
+            document.removeEventListener('pointercancel', letGo, true);
+            if (
+              up.type === 'pointerup' &&
+              !crossedDragThreshold(startClientX, startClientY, up.clientX, up.clientY)
+            )
+              annotSel.clear();
+          };
+          document.addEventListener('pointerup', letGo, true);
+          document.addEventListener('pointercancel', letGo, true);
+        }
+        return;
+      }
 
       // Empty world — start a drag-select gesture. A bare click without
       // moving clears annotation selection (post-Wave-3 feedback: click-to-
@@ -2872,7 +3607,7 @@ export function AnnotationsLayer() {
     // commitStrokes is included defensively (it is a stable useCallback([]) ref,
     // so this never re-registers the stage) to remove the latent stale-closure
     // trap flagged in the Phase 24 frontend review.
-  }, [pipeline, tool, annotSel, elementSel, screenToWorld, strokesStore, commitStrokes]);
+  }, [pipeline, tool, posture, annotSel, elementSel, screenToWorld, strokesStore, commitStrokes]);
 
   // Latest marquee + strokes refs for the doc-level pointerup callback
   // (avoids re-binding the listener on every state tick).
@@ -2894,7 +3629,7 @@ export function AnnotationsLayer() {
   // use-annotation-resize.tsx.
   useEffect(() => {
     if (typeof document === 'undefined') return;
-    if (tool !== 'move') return;
+    if (!annotationPicks(tool, posture)) return;
     if (!annotSel) return;
 
     const onDown = (e: PointerEvent): Claim => {
@@ -2989,14 +3724,14 @@ export function AnnotationsLayer() {
       commitStrokes(d.undoBase, final, `resize ${d.ids.length} strokes`);
     };
     return pipeline.add({ priority: 3, name: 'group-resize', down: onDown });
-  }, [pipeline, tool, annotSel, screenToWorld, anchorsById, commitStrokes]);
+  }, [pipeline, tool, posture, annotSel, screenToWorld, anchorsById, commitStrokes]);
 
   // Double-click enters text-edit mode: rect/ellipse (anchored text), sticky
   // (its own body), or a standalone text node (re-edit in place). Anchored text
   // nodes are edited via their host, so a data-anchor-id text node is skipped.
   useEffect(() => {
     if (typeof document === 'undefined') return;
-    if (tool !== 'move') return;
+    if (!annotationPicks(tool, posture)) return;
     const onDbl = (e: MouseEvent) => {
       if (isMediaPlayerTarget(e)) return; // mediaref inline player owns this event
       const target = e.target as Element | null;
@@ -3036,6 +3771,14 @@ export function AnnotationsLayer() {
         e.stopPropagation();
         annotSel.replace(id);
       }
+      if (t === 'arrow') {
+        // S4.11 (an-arrow-kinds 3): the words on the line. Claimed so the canvas-shell
+        // dblclick-empty→fit() handler does not jump the view.
+        e.preventDefault();
+        e.stopPropagation();
+        setLabelEdit(id);
+        return;
+      }
       if (t === 'rect' || t === 'ellipse' || t === 'polygon' || t === 'sticky' || t === 'section') {
         // A double-click we've claimed for editing must not also reach the
         // canvas-shell dblclick-empty→fit() handler (bubble phase, below us) —
@@ -3054,7 +3797,7 @@ export function AnnotationsLayer() {
     };
     document.addEventListener('dblclick', onDbl, true);
     return () => document.removeEventListener('dblclick', onDbl, true);
-  }, [tool, annotSel]);
+  }, [tool, posture, annotSel]);
 
   const commitText = useCallback(
     (anchorId: string, text: string, fmt?: EditorFmt) => {
@@ -3103,18 +3846,18 @@ export function AnnotationsLayer() {
         | StickyStroke
         | undefined;
       if (!existing) return;
-      // issue-106 — grow the card to whatever the editor actually rendered, so
-      // the lines the user just typed survive the return to the clipped read
-      // view. Null when the text already fits (the common case).
-      // The growth rides along with a real edit — it is NOT itself a reason to
-      // write. Otherwise opening a peer's already-overflowing note and clicking
-      // away, having typed nothing, would produce an undo entry, a
-      // full-document PUT and a sync broadcast.
-      if (existing.text === text && fmtEqual(existing, fmt)) return;
-      const grown = measuredH == null ? null : grownStickyBox(existing, measuredH);
-      const next = prev.map((s) =>
-        s.id === id ? { ...existing, text, ...normFmt(fmt), ...(grown ?? {}) } : s
+      // issue-106 / S4.12 / S4.V4 G1 - grow the card to fit the words (annotations-model.ts
+      // stickyEditNext). The edit session's base text decides "nothing was typed": an idle draft has
+      // usually put the final words on the board already, so the stored text alone would skip the fit.
+      const edited = stickyEditNext(
+        existing,
+        text,
+        fmt,
+        measuredH,
+        commitSessionRef.current?.base ?? existing.text
       );
+      if (!edited) return;
+      const next = prev.map((s) => (s.id === id ? edited : s));
       commitStrokes(prev, next, 'edit sticky');
     },
     [commitStrokes]
@@ -3204,6 +3947,13 @@ export function AnnotationsLayer() {
   editingTargetRef.current = editingTarget;
   const editingIdRef = useRef(editingId);
   editingIdRef.current = editingId;
+  // S4.12 - while a sticky is typed in, the peers see it edged in this person's colour (awareness only).
+  const typingStickyId = editingTarget?.kind === 'sticky' ? editingTarget.sticky.id : null;
+  useEffect(() => {
+    if (!typingStickyId) return;
+    publishGesture({ kind: 'type', ids: [typingStickyId] });
+    return () => publishGesture(null);
+  }, [typingStickyId, publishGesture]);
 
   // One edit session per opened element (Task 19). Opened from the board as
   // last delivered, so its base is what everyone agreed on at that moment.
@@ -3244,7 +3994,7 @@ export function AnnotationsLayer() {
       if (!session) return;
       const op = draftOp(session, board.committed.get(id), text);
       if (!op) return;
-      void sendOps([op]);
+      void sendOps([op], false, true, session.sid);
       textSessionRef.current = markSent(session, text);
     },
     [sessionFor, sendOps]
@@ -3271,15 +4021,18 @@ export function AnnotationsLayer() {
         if (!session || !lastKnown || !stored.trim()) return;
         const parentExists = !!lastKnown.parent && board.committed.has(lastKnown.parent);
         const bb = strokeBBox(editTargetStroke(target));
-        applyOpsLocal([
-          restoreOp(
-            session,
-            lastKnown,
-            stored,
-            parentExists,
-            bb ? { x: bb.x, y: bb.y } : undefined
-          ),
-        ]);
+        applyOpsLocal(
+          [
+            restoreOp(
+              session,
+              lastKnown,
+              stored,
+              parentExists,
+              bb ? { x: bb.x, y: bb.y } : undefined
+            ),
+          ],
+          session.sid
+        );
         return;
       }
       commitSessionRef.current = session;
@@ -3300,7 +4053,7 @@ export function AnnotationsLayer() {
       // back to the text the element keeps (no undo step: nothing changed).
       if (session && !sessionCommittedRef.current) {
         const op = draftOp(session, board.committed.get(id), stored);
-        if (op) applyOpsLocal([op]);
+        if (op) applyOpsLocal([op], session.sid);
       }
       textSessionRef.current = null;
     },
@@ -3527,6 +4280,7 @@ export function AnnotationsLayer() {
     if (typeof document === 'undefined') return;
     if (!annotSel) return;
     const onKey = (e: KeyboardEvent) => {
+      if (!boardChordsLive(window)) return;
       if (isEditable(e.target)) return;
       const store = strokesStoreRef.current;
       const sel = annotSel.selectedIds;
@@ -3602,6 +4356,23 @@ export function AnnotationsLayer() {
     return () => document.removeEventListener('keydown', onKey, true);
   }, [annotSel, chainCreate, copySelection]);
 
+  // V2-4.2 — the project menu's Cut / Copy / Paste on the `run-action` lane (V2-1.3 §5.7), only from
+  // the shell itself. They reach the same functions ⌘X / ⌘C / the context menu's Paste do.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onRunAction = (e: MessageEvent) => {
+      if (e.source !== window.parent) return;
+      const m = e.data as { dgn?: string; v?: unknown; id?: unknown } | null;
+      if (!m || m.dgn !== 'run-action' || m.v !== 1) return;
+      if (m.id === 'edit.copy') copySelection(false);
+      else if (m.id === 'edit.cut') copySelection(true);
+      // Paste is not read here: the frame may not read the clipboard (DDR-054). The shell's Edit › Paste
+      // forwards what it read as `paste-data`, replayed as a paste event (canvas-shell.tsx).
+    };
+    window.addEventListener('message', onRunAction);
+    return () => window.removeEventListener('message', onRunAction);
+  }, [copySelection]);
+
   // FigJam v3 — paste strokes. ⌘C serialized the selection as a JSON text
   // payload; this CAPTURE-phase listener claims it before the media-intake
   // hook (bubble phase) so a strokes payload never falls through to the URL/
@@ -3668,7 +4439,7 @@ export function AnnotationsLayer() {
   const [addTextHintId, setAddTextHintId] = useState<string | null>(null);
   useEffect(() => {
     if (typeof document === 'undefined') return;
-    if (tool !== 'move') {
+    if (!annotationPicks(tool, posture)) {
       setAddTextHintId(null);
       return;
     }
@@ -3687,7 +4458,7 @@ export function AnnotationsLayer() {
     };
     document.addEventListener('pointermove', onMove, { passive: true });
     return () => document.removeEventListener('pointermove', onMove);
-  }, [tool]);
+  }, [tool, posture]);
 
   // FigJam v3 — connector draft: dragging from a connection dot (the side
   // magnets shown on a selected bindable shape) draws a BOUND curved
@@ -3705,7 +4476,7 @@ export function AnnotationsLayer() {
   connDraftRef.current = connDraft;
   useEffect(() => {
     if (typeof document === 'undefined') return;
-    if (tool !== 'move') return;
+    if (!annotationPicks(tool, posture)) return;
     const onDown = (e: PointerEvent): Claim => {
       if (isMediaPlayerTarget(e)) return; // mediaref inline player owns this event
       if (e.button !== 0) return;
@@ -3787,16 +4558,35 @@ export function AnnotationsLayer() {
       };
     };
     return pipeline.add({ priority: 2, name: 'connector', down: onDown });
-  }, [pipeline, tool, screenToWorld, commitStrokes, annotSel, theme]);
+  }, [pipeline, tool, posture, screenToWorld, commitStrokes, annotSel, theme]);
 
   // FigJam v3 — right-click on a stroke SELECTS it (keeping a multi-selection
   // the press lands inside) and opens the annotation context menu (z-order,
   // group, copy/paste, delete). Capture phase on document so it claims the
   // event before the input-router's host-level contextmenu handler.
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
+  // S4.12 - what the menu offers a sole sticky / section (canvas 15 an-convert, an-section).
+  const soleSelected =
+    annotSel?.selectedIds.length === 1
+      ? strokesById.get(annotSel.selectedIds[0] as string)
+      : undefined;
+  const stickyMenu =
+    soleSelected?.tool === 'sticky'
+      ? {
+          resolveWord:
+            resolveVerb(strokes, [soleSelected.id]) === 'reopen'
+              ? ('Reopen' as const)
+              : ('Resolve' as const),
+          canFanOut: stackMembers(stickyBoxes(strokes), soleSelected.id).length > 1,
+        }
+      : null;
+  const sectionMenu =
+    soleSelected?.tool === 'section'
+      ? { foldWord: soleSelected.folded ? ('Unfold' as const) : ('Fold' as const) }
+      : null;
   useEffect(() => {
     if (typeof document === 'undefined') return;
-    if (tool !== 'move') return;
+    if (!annotationPicks(tool, posture)) return;
     if (!annotSel) return;
     const strokeAt = (target: Element | null): string | null => {
       if (target?.closest?.(CHROME_SELECTOR)) return null;
@@ -3834,7 +4624,7 @@ export function AnnotationsLayer() {
       document.removeEventListener('contextmenu', onCtx, true);
       unstage();
     };
-  }, [pipeline, tool, annotSel]);
+  }, [pipeline, tool, posture, annotSel]);
 
   // Keyboard: arrow nudge + Backspace/Delete remove selected strokes.
   useEffect(() => {
@@ -3883,20 +4673,8 @@ export function AnnotationsLayer() {
       const sel = annotSel.selectedIds;
       if (action === 'copy') copySelection(false);
       else if (action === 'cut') copySelection(true);
-      else if (action === 'paste') {
-        try {
-          void navigator.clipboard
-            ?.readText()
-            .then((t) => {
-              pasteStrokesText(t);
-            })
-            .catch(() => {
-              /* clipboard read blocked — paste is best-effort from the menu */
-            });
-        } catch {
-          /* clipboard API absent */
-        }
-      } else if (action === 'duplicate') {
+      // 'paste' rests in the menu (no in-frame clipboard read — PASTE_KEY_REASON); ⌘V is the paste event
+      else if (action === 'duplicate') {
         const ids = store.duplicateSelection(sel, 16, 16);
         if (ids.length) annotSel.replace(ids);
       } else if (action === 'delete') {
@@ -3916,6 +4694,19 @@ export function AnnotationsLayer() {
         store.ungroupSelection(sel);
       } else if (action === 'lock' || action === 'unlock') {
         store.setLocked(sel, action === 'lock');
+      } else if (
+        action === 'resolve' ||
+        action === 'fan-out' ||
+        action === 'fold' ||
+        action === 'to-comment'
+      ) {
+        runAnnotationActionRef.current(`annotation.${action}`);
+      } else if (action === 'history') {
+        // the sticky menu shows for a sole sticky, so the shell already heard it in `annotation-selection`
+        // (object-history-ask.js checks that); the shell runs `history.object`
+        if (sel.length === 1) postToShell({ dgn: 'object-history', annotation: sel[0] });
+      } else if (action === 'ask-ai') {
+        askAiRef.current();
       } else if (action === 'replace') {
         // Stage F3 — "Replace…" on an ImageStroke/MediaRefStroke. The canvas
         // REQUESTS (untrusted-origin postMessage, DDR-054); the main-origin shell
@@ -3951,8 +4742,120 @@ export function AnnotationsLayer() {
         }
       }
     },
-    [annotSel, copySelection, pasteStrokesText, strokesById]
+    [annotSel, copySelection, strokesById]
   );
+
+  // S4.12 - stickies and sections up close. One entry point for the menu rows, the small toolbar and the
+  // registry actions (`run-action` from ⌘K / the keyboard): resolve, fan out, fold, turn into a comment, and
+  // the ⌘K clean-up of resolved stickies. Every write is one `commitStrokes` = one undo step.
+  const runAnnotationAction = useCallback(
+    (id: string): boolean => {
+      const cur = strokesRef.current;
+      const sel = annotSel?.selectedIds ?? [];
+      const me = collab?.myName ?? 'Someone';
+      const say = (message: string, undo: boolean) => {
+        if (!postToShell({ dgn: 'annotation-toast', v: 1, message, undo }))
+          showCanvasToast(message);
+      };
+      switch (id) {
+        case 'annotation.resolve': {
+          const verb = resolveVerb(cur, sel);
+          if (!verb) return false;
+          const next = toggleResolved(cur, sel, me, new Date().toISOString());
+          commitStrokes(cur, next, verb === 'reopen' ? 'reopen sticky' : 'resolve sticky');
+          return true;
+        }
+        case 'annotation.fan-out': {
+          const placed = stickyBoxes(cur);
+          const picked = placed.filter((p) => sel.includes(p.id));
+          const ids =
+            picked.length >= 2
+              ? picked.map((p) => p.id)
+              : stackMembers(placed, picked[0]?.id ?? '');
+          const row = fanOut(placed.filter((p) => ids.includes(p.id)));
+          if (row.length === 0) return false;
+          const at = new Map(row.map((r) => [r.id, r]));
+          const next = cur.map((x) => {
+            const r = at.get(x.id);
+            return r && x.tool === 'sticky' ? ({ ...x, x: r.x, y: r.y } as Stroke) : x;
+          });
+          commitStrokes(cur, recomputeBoundArrows(next), 'fan out stickies');
+          return true;
+        }
+        case 'annotation.fold': {
+          const verb = foldVerb(cur, sel);
+          if (!verb) return false;
+          let next = cur;
+          for (const sid of sel) next = setFolded(next, sid, verb === 'fold');
+          commitStrokes(cur, next, verb === 'fold' ? 'fold section' : 'unfold section');
+          return true;
+        }
+        case 'annotation.to-comment': {
+          const only = sel.length === 1 ? cur.find((x) => x.id === sel[0]) : undefined;
+          if (!only || only.tool !== 'sticky') return false;
+          return postToShell({ dgn: 'annotation-to-comment', id: only.id });
+        }
+        case 'annotations.select-resolved': {
+          const ids = selectResolvedIds(cur);
+          if (ids.length === 0) say(NO_RESOLVED_LINE, false);
+          else annotSel?.replace(ids);
+          return true;
+        }
+        case 'annotations.trash-resolved': {
+          const ids = withoutResolvedStickies(cur).ids;
+          if (ids.length === 0) {
+            say(NO_RESOLVED_LINE, false);
+            return true;
+          }
+          // The same delete ⌫ does (arrows bound to a removed sticky keep their end), so ⌘Z restores all.
+          strokesStoreRef.current.deleteStrokes(ids);
+          annotSel?.clear();
+          say(trashedLine(ids.length), true);
+          return true;
+        }
+        default:
+          return false;
+      }
+    },
+    [annotSel, collab?.myName, commitStrokes]
+  );
+  runAnnotationActionRef.current = runAnnotationAction;
+  // ⌘/ with annotations selected asks the AI about them (registry `annotation.ask-ai`, Preview only; in Edit
+  // ⌘/ is `ai.ask-selection`'s). The shell opens the chat; the scope is the `annotation-selection` above.
+  askAiRef.current = () => {
+    if ((annotSel?.selectedIds.length ?? 0) === 0) return;
+    postToShell({ dgn: 'annotation-ask-ai', v: 1 });
+  };
+  useEffect(() => {
+    if (typeof document === 'undefined' || posture !== 'drawn') return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== '/' || !(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return;
+      if (isEditable(e.target) || (annotSel?.selectedIds.length ?? 0) === 0) return;
+      e.preventDefault();
+      askAiRef.current();
+    };
+    document.addEventListener('keydown', onKey, true);
+    return () => document.removeEventListener('keydown', onKey, true);
+  }, [annotSel, posture]);
+
+  // S4.12 - the AI chat's scope: what is selected, coalesced to one message per 50 ms (S4-S5 §1).
+  const scopeSentRef = useRef('');
+  const selIdsKey = (annotSel?.selectedIds ?? []).join(',');
+  // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on the selection ids + board
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      const scope = selectionScope(
+        strokesRef.current,
+        annotSel?.selectedIds ?? [],
+        (sid) => board.committed.get(sid)?.parentArtboard as string | undefined
+      );
+      const key = scopeKey(scope);
+      if (key === scopeSentRef.current) return;
+      scopeSentRef.current = key;
+      postToShell({ dgn: 'annotation-selection', ...scope });
+    }, 50);
+    return () => window.clearTimeout(t);
+  }, [selIdsKey, boardVersion]);
 
   // FigJam v3 — first time a multi-selection lands, surface the group /
   // duplicate affordances once (behaviour-triggered, never a tour).
@@ -3976,8 +4879,9 @@ export function AnnotationsLayer() {
   // requiring a right-click detour to reach it was pure friction. Same
   // `edit-annotation-photo-request` message + confused-deputy gate (DDR-054)
   // the context-menu action already used.
+  // S4.19 G6 - a gallery sticker is annotation chrome: it selects with the small toolbar, not the Photo tab.
   const singleSelectedImageId =
-    selCount === 1 && strokesById.get(annotSel?.selectedIds[0] as string)?.tool === 'image'
+    selCount === 1 && opensPhotoInspector(strokesById.get(annotSel?.selectedIds[0] as string))
       ? (annotSel?.selectedIds[0] as string)
       : null;
   useEffect(() => {
@@ -3993,6 +4897,15 @@ export function AnnotationsLayer() {
       /* detached / cross-origin teardown */
     }
   }, [singleSelectedImageId, strokesById]);
+
+  // 15 an-stk-drop - the dock keeps Stickers (E) pressed while exactly one gallery sticker is selected (the drop
+  // selects what it placed); the palette reads this through toolbars/shell-panels.ts.
+  const oneStickerSelected =
+    selCount === 1 && isGallerySticker(strokesById.get(annotSel?.selectedIds[0] as string));
+  useEffect(() => {
+    setStickerSelected(oneStickerSelected);
+    return () => setStickerSelected(false);
+  }, [oneStickerSelected]);
 
   // Selected stroke halos — bboxes in world coords, vector-effect non-scaling-stroke.
   const selectedStrokes = useMemo(() => {
@@ -4011,9 +4924,42 @@ export function AnnotationsLayer() {
     return selectedStrokes.some((s) => locked.has(s.id));
   }, [selectedStrokes, strokes]);
 
+  // S4.11 — what the arrow cards draw: the aim, the lost ends, the selected arrow's rewritten rings.
+  const selectedArrow =
+    selectedStrokes.length === 1 && selectedStrokes[0]?.tool === 'arrow'
+      ? (selectedStrokes[0] as ArrowStroke)
+      : null;
+  const arrowUi: ArrowUi = {
+    aim: aim && (tool === 'arrow' || pointTo) ? aim : null,
+    boundTag,
+    dangling: danglingCards,
+    selectedArrowId: selectedArrow?.id ?? null,
+    rewritten: selectedArrow && liveRects ? rewrittenFor(selectedArrow, liveRects) : [],
+    onPointTo: (arrowId, end) => setPointTo({ arrowId, end }),
+    canEdit: !quiet,
+    labelEditId: labelEdit,
+    onLabelCommit: commitLabel,
+    onLabelCancel: () => setLabelEdit(null),
+    boards,
+  };
+
   return (
     <AnnotationPipelineContext.Provider value={pipeline}>
       <StrokesStoreContext.Provider value={strokesStore}>
+        <LockedDragTip at={lockedTip} onDone={clearLockedTip} />
+        <PlacementGhost
+          pending={pendingFor(placing, visible)}
+          zoom={vp?.zoom || 1}
+          resolveAsset={resolveAssetHref}
+          templateSize={templateExtent}
+          onPlace={(at) => {
+            if (placing && placeRef.current(placing, at)) setPlacing(null);
+          }}
+          onCancel={() => {
+            postStampDisarmed(placing);
+            setPlacing(null);
+          }}
+        />
         <AnnotationsInput
           isActive={isActive}
           visible={visible}
@@ -4021,14 +4967,19 @@ export function AnnotationsLayer() {
           beginStroke={beginStroke}
           moveStroke={moveStroke}
           endStroke={endStroke}
-          onLeave={() => setGhost(null)}
+          onLeave={() => {
+            setGhost(null);
+            aimRectsRef.current = null;
+            updateAim(0, 0, false);
+          }}
         />
         {visible ? (
           <AnnotationsSvg
             worldRef={worldRef}
-            strokes={renderStrokes}
+            strokes={shownStrokes}
+            quiet={quiet}
             anchorsById={anchorsById}
-            selectMode={tool === 'move'}
+            selectMode={annotationPicks(tool, posture) && !quiet}
             selectedStrokes={selectedStrokes}
             selectionLocked={selectionLocked}
             marquee={marquee}
@@ -4048,12 +4999,20 @@ export function AnnotationsLayer() {
             gestureState={gestureState}
             editNotice={editGone ? 'deleted' : remoteEdited ? 'edited' : null}
             unknownElements={unknownElements}
+            arrowUi={arrowUi}
+            foldNotes={foldNotes}
+          />
+        ) : null}
+        {visible && !quiet ? (
+          <BelongsOutline
+            worldRef={worldRef}
+            artboard={belongsTo(selectedStrokes, board.committed)}
           />
         ) : null}
         {/* DDR-150 dogfood #8 — inline players for media-reference chips (HTML
           overlay in the world div; see MediaRefPlayers for why not
           foreignObject). */}
-        <MediaRefPlayers worldRef={worldRef} strokes={renderStrokes} visible={visible} />
+        <MediaRefPlayers worldRef={worldRef} strokes={shownStrokes} visible={visible} />
         <AnnotationContextToolbar
           editingId={
             editingTarget?.kind === 'anchored'
@@ -4080,30 +5039,14 @@ export function AnnotationsLayer() {
               selectedStrokes[0]?.tool === 'image' &&
               /assets\/[0-9a-f]{8}\.[a-z0-9]+/i.test((selectedStrokes[0] as ImageStroke).href || '')
             }
+            sticky={stickyMenu}
+            section={sectionMenu}
             onAction={onMenuAction}
             onClose={() => setCtxMenu(null)}
           />
         ) : null}
-        {visible && tool === 'move' ? <AnnotationResizeOverlay store={strokesStore} /> : null}
-        {isActive ? (
-          <AnnotationsChrome
-            tool={tool}
-            theme={theme}
-            color={color}
-            setColor={setColor}
-            stickyColor={stickyColor}
-            setStickyColor={setStickyColor}
-            highlighterColor={highlighterColor}
-            setHighlighterColor={setHighlighterColor}
-            highlighterWidth={highlighterWidth}
-            setHighlighterWidth={setHighlighterWidth}
-            supportsFill={supportsFill}
-            fill={fill}
-            setFill={setFill}
-            supportsThickness={supportsThickness}
-            thickness={thickness}
-            setThickness={setThickness}
-          />
+        {visible && !quiet && annotationPicks(tool, posture) ? (
+          <AnnotationResizeOverlay store={strokesStore} />
         ) : null}
       </StrokesStoreContext.Provider>
     </AnnotationPipelineContext.Provider>
@@ -4199,6 +5142,7 @@ function AnnotationsSvg({
   strokes,
   anchorsById,
   selectMode,
+  quiet,
   selectedStrokes,
   selectionLocked,
   marquee,
@@ -4218,9 +5162,15 @@ function AnnotationsSvg({
   editNotice,
   gestureState,
   unknownElements,
+  arrowUi,
+  foldNotes,
 }: {
   worldRef: ReturnType<typeof useWorldRefContext>;
+  /** S4.12 - folded section id -> its count line. */
+  foldNotes: ReadonlyMap<string, string>;
   strokes: readonly Stroke[];
+  /** S4.11 — aiming, lost ends, labels and the artboards an elbow routes around. */
+  arrowUi: ArrowUi;
   /** Elements of a type this build does not know — drawn as placeholders, never dropped. */
   unknownElements: readonly AnnotationElement[];
   /** Idle-typing draft of the open editor (Task 19). */
@@ -4233,6 +5183,8 @@ function AnnotationsSvg({
   editNotice: 'edited' | 'deleted' | null;
   anchorsById: Map<string, AnchorHost>;
   selectMode: boolean;
+  /** S4.9 - Edit's posture: faded, readable, click-through (annotations/ui/posture.ts). */
+  quiet: boolean;
   selectedStrokes: readonly Stroke[];
   /** #137 — a locked member pins the selection: no handles, a lock badge. */
   selectionLocked: boolean;
@@ -4274,10 +5226,35 @@ function AnnotationsSvg({
     return () => clearTimeout(id);
   }, [worldRef]);
   // DDR-242 AD7/AD8 — one node per element, text as HTML (annotations/ui/).
+  const restRouter = useMemo(() => createArrowRouter(), []);
+  const zoomNow = useLiveViewport().zoom || 1;
+  const { boards: restBoards, dangling: lostEnds } = arrowUi;
+  const moving = gestureState !== 'idle';
   const baseItems = useMemo(
-    () => renderItemsFromStrokes(strokes, unknownElements),
-    [strokes, unknownElements]
+    () =>
+      markDangling(
+        routeElbowsAtRest(
+          renderItemsFromStrokes(strokes, unknownElements),
+          restBoards,
+          restRouter,
+          moving ? 'drag' : 'settle'
+        ),
+        lostEnds
+      ),
+    [strokes, unknownElements, restBoards, restRouter, moving, lostEnds]
   );
+  // S4.13 - the stamps gather into clusters on their target: where an artboard sits and what it is called.
+  const stampHosts = useMemo(() => {
+    if (!baseItems.some((it) => it.el.type === 'stamp')) return undefined;
+    const boards = canvasRectsNow()?.artboards ?? [];
+    return {
+      box: (t: string) => {
+        const a = t.startsWith('ab:') ? boards.find((b) => b.id === t.slice(3)) : undefined;
+        return a ? { x: a.x, y: a.y, w: a.w, h: a.h } : null;
+      },
+      label: (t: string | null) => (t?.startsWith('ab:') ? artboardLabelNow(t.slice(3)) : ''),
+    };
+  }, [baseItems]);
   // The element whose text slot is open: a shape's label edits on the shape,
   // everything else on itself; `pending` is a caret not yet backed by an element.
   const editingId =
@@ -4338,19 +5315,91 @@ function AnnotationsSvg({
       onCancel: () => cancelRef.current(),
     };
   }, [sessionKey, editNotice]);
+  // S4.9 (an-crowd) - below 25 % the stickies and sections draw as a mosaic (annotations/ui/lod.tsx).
+  // The PUBLISHED zoom (settle cadence), so a pinch never flips it mid-gesture.
+  const lodCtl = useViewportControllerContext();
+  const lodZoom = lodCtl?.viewport?.zoom ?? 1;
+  const lod = useMemo(
+    () => (inMosaic(lodZoom) && !editingId ? lodModel(strokes) : null),
+    [lodZoom, editingId, strokes]
+  );
+  if (lod) items = items.filter((it) => !lod.covered.has(it.el.id));
+  const zoomToRect = useCallback(
+    (r: Rect) => {
+      lodCtl?.jumpTo(r as unknown as Parameters<NonNullable<typeof lodCtl>['jumpTo']>[0]);
+    },
+    [lodCtl]
+  );
   const target = worldRef?.current ?? null;
+  // S4.12 - the author line follows the selection; a collaborator typing in a sticky edges it in their colour.
+  const selectedIdSet = useMemo(() => new Set(selectedStrokes.map((s) => s.id)), [selectedStrokes]);
+  const collab = useCollab();
+  const peers = useForeignAwareness();
+  const typists = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const p of peers) {
+      const g = p.annotationGesture;
+      if (g?.kind !== 'type') continue;
+      for (const id of g.ids.slice(0, 4)) m.set(id, colorForName(p.name ?? ''));
+    }
+    return m;
+  }, [peers]);
+  const labelItem = arrowUi.labelEditId
+    ? items.find((it) => it.el.id === arrowUi.labelEditId && it.ends)
+    : undefined;
   if (!target) return null;
   return (
     <>
+      <AiSeenRings />
+      {lod
+        ? createPortal(
+            <LodMosaic model={lod} zoom={lodZoom} quiet={quiet} onZoomTo={zoomToRect} />,
+            target
+          )
+        : null}
       {createPortal(
         <AnnotationScene
           items={items}
           interactive={selectMode}
+          quiet={quiet}
           editingId={editingId}
           edit={edit}
           pending={pending}
           resolveAsset={resolveAssetHref}
+          selectedIds={selectedIdSet}
+          me={collab?.myName ?? null}
+          typists={typists}
+          foldNotes={foldNotes}
+          stampHosts={stampHosts}
         />,
+        target
+      )}
+      {createPortal(
+        <div className="dc-annot-arrowui">
+          {arrowUi.aim ? <AimOverlay aim={arrowUi.aim} zoom={zoomNow} /> : null}
+          {arrowUi.boundTag ? (
+            <BoundTag text={arrowUi.boundTag.text} at={arrowUi.boundTag.at} zoom={zoomNow} />
+          ) : null}
+          <HostMarks
+            zoom={zoomNow}
+            dangling={arrowUi.dangling}
+            selectedId={arrowUi.selectedArrowId}
+            rewritten={arrowUi.rewritten}
+            onPointTo={arrowUi.onPointTo}
+            canEdit={arrowUi.canEdit}
+          />
+          {labelItem ? (
+            <ArrowLabelEditor
+              key={labelItem.el.id}
+              at={labelPoint(labelItem.el, labelItem.ends as ResolvedEnds)}
+              initial={typeof labelItem.el.label === 'string' ? labelItem.el.label : ''}
+              zoom={zoomNow}
+              onCommit={(text) => arrowUi.onLabelCommit(labelItem.el.id, text)}
+              onCancel={arrowUi.onLabelCancel}
+            />
+          ) : null}
+          <VoteDots zoom={zoomNow} />
+        </div>,
         target
       )}
       {createPortal(
@@ -4410,7 +5459,7 @@ function AnnotationsSvg({
               y1={g.axis === 'x' ? g.from : g.at}
               x2={g.axis === 'x' ? g.at : g.to}
               y2={g.axis === 'x' ? g.to : g.at}
-              stroke="var(--maude-hud-accent, #d63b1f)"
+              stroke="var(--maude-hud-accent, oklch(0.53 0.175 238))"
               strokeWidth={1}
               vectorEffect="non-scaling-stroke"
               pointerEvents="none"
@@ -4470,7 +5519,7 @@ function AnnotationsSvg({
                     width={bb.w + 4}
                     height={bb.h + 4}
                     fill="none"
-                    stroke="var(--maude-hud-accent, #d63b1f)"
+                    stroke="var(--maude-hud-accent, oklch(0.53 0.175 238))"
                     strokeWidth={1.5}
                     strokeDasharray="5 3"
                     vectorEffect="non-scaling-stroke"
@@ -4483,7 +5532,7 @@ function AnnotationsSvg({
                 y={resizeInfo.box.y + resizeInfo.box.h + 18}
                 textAnchor="middle"
                 fontSize={11}
-                fill="var(--maude-hud-accent, #d63b1f)"
+                fill="var(--maude-hud-accent, oklch(0.53 0.175 238))"
                 style={{
                   fontFamily: 'var(--u-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)',
                 }}
@@ -4493,6 +5542,13 @@ function AnnotationsSvg({
             </g>
           ) : null}
           {ghost ? <GhostPreview ghost={ghost} /> : null}
+          {/* S4.13 - a sticker from the gallery says how big it is: "160 × 160" (corners keep it square). */}
+          {selectedStrokes.length === 1 && isGallerySticker(selectedStrokes[0]) ? (
+            <StickerSizeChip
+              box={strokeBBox(selectedStrokes[0]) ?? { x: 0, y: 0, w: 0, h: 0 }}
+              zoom={zoomNow}
+            />
+          ) : null}
         </svg>,
         target
       )}
@@ -4664,21 +5720,35 @@ function ConnectorDots({ stroke }: { stroke: Stroke }) {
         const dx = pt[0] - center[0];
         const dy = pt[1] - center[1];
         const len = Math.hypot(dx, dy) || 1;
+        const cx = pt[0] + (dx / len) * offset;
+        const cy = pt[1] + (dy / len) * offset;
+        // 15 an-stk-drop: the board draws no dots beside a selected sticker/shape until a connector is
+        // dragged. The magnet stays (a transparent hit circle carries the gesture) and its dot shows
+        // under the pointer only.
         return (
-          <circle
-            key={`${nx}-${ny}`}
-            className="dc-annot-conn-dot"
-            data-host={stroke.id}
-            data-nx={nx}
-            data-ny={ny}
-            cx={pt[0] + (dx / len) * offset}
-            cy={pt[1] + (dy / len) * offset}
-            r={5 / zoom}
-            fill="var(--maude-hud-accent, #d63b1f)"
-            stroke="var(--maude-chrome-bg-0, #ffffff)"
-            strokeWidth={1.5 / zoom}
-            pointerEvents="all"
-          />
+          <g key={`${nx}-${ny}`} className="dc-annot-conn">
+            <circle
+              className="dc-annot-conn-dot"
+              data-host={stroke.id}
+              data-nx={nx}
+              data-ny={ny}
+              cx={cx}
+              cy={cy}
+              r={11 / zoom}
+              fill="transparent"
+              pointerEvents="all"
+            />
+            <circle
+              className="dc-annot-conn-vis"
+              cx={cx}
+              cy={cy}
+              r={5 / zoom}
+              fill="var(--maude-hud-accent, oklch(0.53 0.175 238))"
+              stroke="var(--maude-chrome-bg-0, #ffffff)"
+              strokeWidth={1.5 / zoom}
+              pointerEvents="none"
+            />
+          </g>
         );
       })}
     </g>
@@ -4690,16 +5760,25 @@ function ConnectorDots({ stroke }: { stroke: Stroke }) {
  * `.dc-context-menu` visual language (stylesheet injected by context-menu.tsx)
  * so the annotation menu and the canvas menu read as one product surface.
  */
-function AnnotationContextMenu({
+/** The annotation menu's Paste reason — CONTRACT.md's Edit-menu words (no in-frame clipboard read). */
+export const PASTE_KEY_REASON = 'Paste ⌘V';
+
+export function AnnotationContextMenu({
   pos,
   selCount,
   canUngroup,
   allLocked,
   canReplace,
   canEditPhoto,
+  sticky,
+  section,
   onAction,
   onClose,
 }: {
+  /** S4.12 - the sticky rows (canvas 15 an-convert): only for a sole sticky / section. */
+  sticky?: { resolveWord: 'Resolve' | 'Reopen'; canFanOut: boolean } | null;
+  /** S4.12 - the section rows: Fold / Unfold, and the AI question. */
+  section?: { foldWord: 'Fold' | 'Unfold' } | null;
   pos: { x: number; y: number };
   selCount: number;
   canUngroup: boolean;
@@ -4746,13 +5825,15 @@ function AnnotationContextMenu({
     id: string,
     label: string,
     shortcut?: string,
-    opts?: { destructive?: boolean; disabled?: boolean }
+    opts?: { destructive?: boolean; disabled?: boolean; reason?: string }
   ) => (
     <button
       type="button"
       role="menuitem"
       data-action={id}
+      data-testid={`annot-menu-${id}`}
       disabled={opts?.disabled}
+      {...reasonProps(!!opts?.disabled && !!opts?.reason, opts?.reason)}
       className={`dc-menu-item${opts?.destructive ? ' is-destructive' : ''}`}
       onClick={() => {
         if (opts?.disabled) return;
@@ -4772,9 +5853,29 @@ function AnnotationContextMenu({
       aria-label="Annotation actions"
       style={{ left: at.x, top: at.y }}
     >
+      {sticky ? (
+        <>
+          {item('to-comment', 'Turn into a comment')}
+          {item('resolve', sticky.resolveWord)}
+          {sticky.canFanOut ? item('fan-out', 'Fan out') : null}
+          {/* p8-dead-reasons — `history.object`: the shell opens Version history filtered to this sticky */}
+          {item('history', 'Version history of this object')}
+          <div className="dc-menu-sep" aria-hidden="true" />
+        </>
+      ) : null}
+      {section ? (
+        <>
+          {item('fold', section.foldWord)}
+          <div className="dc-menu-sep" aria-hidden="true" />
+        </>
+      ) : null}
       {item('copy', 'Copy', '⌘C')}
       {item('cut', 'Cut', '⌘X', { disabled: allLocked })}
-      {item('paste', 'Paste', '⌘V')}
+      {/* p8-sweep-leftovers — this menu lives in the untrusted canvas frame, which may not read the clipboard
+          (iframe `allow="clipboard-write"` only, DDR-054) and must not get the shell to read it on its own say
+          (planted code could spam it). The row rests and points at the key: ⌘V raises a real paste event the
+          frame does receive. Words: CONTRACT.md's Edit-menu entry "Paste ⌘V". */}
+      {item('paste', 'Paste', '⌘V', { disabled: true, reason: PASTE_KEY_REASON })}
       {item('duplicate', 'Duplicate', '⌘D')}
       {canReplace ? item('replace', 'Replace…') : null}
       {canEditPhoto ? item('edit-photo', 'Edit Photo…') : null}
@@ -4787,10 +5888,31 @@ function AnnotationContextMenu({
       {item('group', 'Group selection', '⌘G', { disabled: selCount < 2 })}
       {canUngroup ? item('ungroup', 'Ungroup', '⌘⇧G') : null}
       {allLocked ? item('unlock', 'Unlock', '⌘⇧L') : item('lock', 'Lock', '⌘⇧L')}
+      {sticky || section ? (
+        <>
+          <div className="dc-menu-sep" aria-hidden="true" />
+          {item('ask-ai', sticky ? 'Ask AI about this sticky' : 'Ask AI about it', '⌘/')}
+        </>
+      ) : null}
       <div className="dc-menu-sep" aria-hidden="true" />
-      {item('delete', 'Delete', '⌫', { destructive: true, disabled: allLocked })}
+      {item('delete', 'Move to trash', '⌫', { destructive: true, disabled: allLocked })}
     </div>
   );
+}
+
+/** S4.11 — everything the arrow cards need from the layer (annotations/ui/arrow-cards.tsx). */
+interface ArrowUi {
+  aim: AimState | null;
+  boundTag: { text: string; at: [number, number] } | null;
+  dangling: DanglingCardModel[];
+  selectedArrowId: string | null;
+  rewritten: ReturnType<typeof rewrittenFor>;
+  onPointTo: (arrowId: string, end: 'start' | 'end') => void;
+  canEdit: boolean;
+  labelEditId: string | null;
+  onLabelCommit: (id: string, text: string) => void;
+  onLabelCancel: () => void;
+  boards: BoardRect[];
 }
 
 /**
@@ -4817,7 +5939,7 @@ function BindHintHalo({
       width={bbox.w + pad * 2}
       height={bbox.h + pad * 2}
       fill="none"
-      stroke="var(--maude-hud-accent, #d63b1f)"
+      stroke="var(--maude-hud-accent, oklch(0.53 0.175 238))"
       strokeWidth={2}
       strokeOpacity={0.8}
       vectorEffect="non-scaling-stroke"
@@ -4863,7 +5985,7 @@ function SelectionHalo({
       width={bbox.w + pad * 2}
       height={bbox.h + pad * 2}
       fill="none"
-      stroke="var(--maude-hud-accent, #d63b1f)"
+      stroke="var(--maude-hud-accent, oklch(0.53 0.175 238))"
       strokeWidth={multi ? 1.5 : 2}
       vectorEffect="non-scaling-stroke"
       pointerEvents="none"
@@ -4882,6 +6004,73 @@ function SelectionHalo({
  * #137 — a lock glyph at the selection's top-right corner: says why the
  * resize handles are missing. Counter-scaled to a constant screen size.
  */
+/**
+ * S4.10 — the artboard a selection rides with: every selected element is top-level and names
+ * the same `parentArtboard`. A section's items answer through their section (section wins).
+ */
+export function belongsTo(
+  selected: readonly { id: string }[],
+  committed: ReadonlyMap<string, { parent?: string; parentArtboard?: unknown }>
+): string | null {
+  let ab: string | null = null;
+  for (const s of selected) {
+    let el = committed.get(s.id);
+    for (let i = 0; el?.parent !== undefined && i < 64; i++) el = committed.get(el.parent);
+    const p = el && typeof el.parentArtboard === 'string' ? el.parentArtboard : null;
+    if (!p || (ab !== null && ab !== p)) return null;
+    ab = p;
+  }
+  return ab;
+}
+
+/**
+ * S4.10 — membership you can see: the artboard a selection belongs to, outlined, with
+ * "On <artboard> · moves with it" (canvas 15 `an-follow`). It follows a drag through the bus
+ * imperatively (a translate per frame, no render).
+ */
+function BelongsOutline({
+  worldRef,
+  artboard,
+}: {
+  worldRef: RefObject<HTMLDivElement | null> | null;
+  artboard: string | null;
+}) {
+  const world = useArtboardsContext();
+  const rect = artboard ? (world?.rectFor(artboard) ?? null) : null;
+  const ref = useRef<HTMLSpanElement | null>(null);
+  const idRef = useRef(artboard);
+  idRef.current = artboard;
+  useDragBusRide({
+    frame: (f) => {
+      const n = ref.current;
+      if (!n) return;
+      const m = f.moved.find((x) => x.id === idRef.current);
+      if (f.phase === 'cancel' || !m || f.alt) n.style.translate = '';
+      else if (f.phase !== 'end') n.style.translate = `${m.dx}px ${m.dy}px`;
+    },
+  });
+  // The committed layout landed: the rect itself is the new position.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset on a new rect
+  useLayoutEffect(() => {
+    if (ref.current) ref.current.style.translate = '';
+  }, [rect?.x, rect?.y]);
+  const target = worldRef?.current ?? null;
+  if (!artboard || !rect || !target) return null;
+  return createPortal(
+    <span
+      ref={ref}
+      className="dc-annot-belongs"
+      data-testid="annot-belongs"
+      data-artboard={artboard}
+      aria-hidden="true"
+      style={{ left: rect.x - 4, top: rect.y - 4, width: rect.w + 8, height: rect.h + 8 }}
+    >
+      <span className="dc-annot-belongs-t">On {artboardLabel(artboard)} · moves with it</span>
+    </span>,
+    target
+  );
+}
+
 function LockBadge({
   selectedStrokes,
   anchorsById,
@@ -4907,7 +6096,14 @@ function LockBadge({
       data-testid="annot-lock-badge"
       transform={`translate(${xMax + pad} ${yMin - size - pad}) scale(${size / 24})`}
     >
-      <rect x={-2} y={-2} width={28} height={28} rx={6} fill="var(--maude-hud-accent, #d63b1f)" />
+      <rect
+        x={-2}
+        y={-2}
+        width={28}
+        height={28}
+        rx={6}
+        fill="var(--maude-hud-accent, oklch(0.53 0.175 238))"
+      />
       <g fill="none" stroke="#fff" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
         <rect x="5" y="11" width="14" height="9" rx="2" />
         <path d="M8 11V8a4 4 0 018 0v3" />
@@ -4979,7 +6175,7 @@ function AnnotGroupBbox({
         width={w}
         height={h}
         fill="none"
-        stroke="var(--maude-hud-accent, #d63b1f)"
+        stroke="var(--maude-hud-accent, oklch(0.53 0.175 238))"
         strokeWidth={1}
         strokeDasharray="4 3"
         vectorEffect="non-scaling-stroke"
@@ -5011,7 +6207,7 @@ function AnnotGroupBbox({
               y={c.y}
               width={handle}
               height={handle}
-              fill="var(--maude-hud-accent, #d63b1f)"
+              fill="var(--maude-hud-accent, oklch(0.53 0.175 238))"
               stroke="var(--maude-chrome-bg-0, #ffffff)"
               strokeWidth={1}
               vectorEffect="non-scaling-stroke"
@@ -5120,197 +6316,4 @@ function renderArrowPrimitive(p: SvgPrimitive, key: number): JSX.Element {
     case 'circle':
       return <circle key={key} cx={p.cx} cy={p.cy} r={p.r} fill={p.fill} />;
   }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Chrome — color swatches + (optional fill picker) + (optional thickness chip)
-// + presentation toggle + help button.
-
-function AnnotationsChrome({
-  tool,
-  theme,
-  color,
-  setColor,
-  stickyColor,
-  setStickyColor,
-  highlighterColor,
-  setHighlighterColor,
-  highlighterWidth,
-  setHighlighterWidth,
-  supportsFill,
-  fill,
-  setFill,
-  supportsThickness,
-  thickness,
-  setThickness,
-}: {
-  tool: Tool;
-  /** Canvas theme — the ink swatch (slot 8) renders the themed default so the
-   *  active default reads true on dark canvases. */
-  theme: string;
-  color: string;
-  setColor: (c: string) => void;
-  stickyColor: string;
-  setStickyColor: (c: string) => void;
-  highlighterColor: string;
-  setHighlighterColor: (c: string) => void;
-  highlighterWidth: number;
-  setHighlighterWidth: (w: number) => void;
-  supportsFill: boolean;
-  fill: string | null;
-  setFill: (f: string | null) => void;
-  supportsThickness: boolean;
-  thickness: Thickness;
-  setThickness: (t: Thickness) => void;
-}) {
-  // Sticky tool picks a paper tint (its own palette); every other draw tool
-  // picks ink from the stroke PALETTE.
-  if (tool === 'sticky') {
-    return (
-      <div className="dc-annot-chrome" role="toolbar" aria-label="Sticky note tools">
-        <div className="dc-annot-swatches" role="radiogroup" aria-label="Sticky color">
-          {STICKY_PALETTE.map((c) => (
-            <button
-              key={c}
-              type="button"
-              className="dc-annot-sw"
-              aria-pressed={c === stickyColor}
-              aria-label={`Sticky color ${c}`}
-              title={`Sticky color ${c}`}
-              style={{ background: c }}
-              onClick={() => setStickyColor(c)}
-            />
-          ))}
-        </div>
-      </div>
-    );
-  }
-  // Highlighter picks a translucent marker hue (item 8) — its own palette,
-  // mirroring sticky. Each swatch previews on a dark chip via its alpha.
-  if (tool === 'highlighter') {
-    return (
-      <div className="dc-annot-chrome" role="toolbar" aria-label="Highlighter tools">
-        <div className="dc-annot-swatches" role="radiogroup" aria-label="Highlighter color">
-          {HIGHLIGHTER_PALETTE.map((c) => (
-            <button
-              key={c}
-              type="button"
-              className="dc-annot-sw"
-              aria-pressed={c === highlighterColor}
-              aria-label={`Highlighter color ${c}`}
-              title={`Highlighter color ${c}`}
-              style={{ background: c }}
-              onClick={() => setHighlighterColor(c)}
-            />
-          ))}
-        </div>
-        <div className="dc-annot-sep" />
-        {/* Nib width — three filled dots of increasing size (item 8). */}
-        <div className="dc-annot-swatches" role="radiogroup" aria-label="Highlighter width">
-          {HIGHLIGHTER_WIDTHS.map((w) => {
-            const dot = Math.round(6 + (w / 28) * 8); // 8–14 px preview dot
-            return (
-              <button
-                key={w}
-                type="button"
-                className="dc-annot-ibtn"
-                aria-pressed={w === highlighterWidth}
-                aria-label={`Highlighter width ${w}`}
-                title={`Width ${w}px`}
-                onClick={() => setHighlighterWidth(w)}
-              >
-                <span
-                  aria-hidden="true"
-                  style={{
-                    width: dot,
-                    height: dot,
-                    borderRadius: '50%',
-                    background: 'currentColor',
-                    display: 'inline-block',
-                  }}
-                />
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div className="dc-annot-chrome" role="toolbar" aria-label="Annotation tools">
-      <div className="dc-annot-swatches" role="radiogroup" aria-label="Stroke color">
-        {STROKE_PALETTE.map((base, i) => {
-          // The last slot is the default ink — render it themed so the active
-          // default reads true on dark canvases (white-ish ink) without
-          // touching the other hues. Key by the immutable base hex so a theme
-          // flip recolours the swatch in place rather than remounting.
-          const c = i === STROKE_PALETTE.length - 1 ? resolveDefaultInk(theme) : base;
-          return (
-            <button
-              key={base}
-              type="button"
-              className="dc-annot-sw"
-              aria-pressed={c === color}
-              aria-label={`Color ${c}`}
-              title={`Color ${c}`}
-              style={{ background: c }}
-              onClick={() => setColor(c)}
-            />
-          );
-        })}
-      </div>
-      {supportsFill ? (
-        <>
-          <div className="dc-annot-sep" />
-          <div className="dc-annot-swatches" role="radiogroup" aria-label="Fill color">
-            <button
-              type="button"
-              className="dc-annot-fill dc-annot-fill--none"
-              aria-pressed={fill == null}
-              aria-label="No fill"
-              title="No fill"
-              onClick={() => setFill(null)}
-            />
-            {FILL_PALETTE.map((c) => (
-              <button
-                key={c}
-                type="button"
-                className="dc-annot-fill"
-                aria-pressed={c === fill}
-                aria-label={`Fill ${c}`}
-                title={`Fill ${c}`}
-                style={{ background: c }}
-                onClick={() => setFill(c)}
-              />
-            ))}
-          </div>
-        </>
-      ) : null}
-      {supportsThickness ? (
-        <>
-          <div className="dc-annot-sep" />
-          <button
-            type="button"
-            className="dc-annot-ibtn"
-            aria-label="Thin stroke"
-            aria-pressed={thickness === STROKE_WIDTH_THIN}
-            title="Thin (3px)"
-            onClick={() => setThickness(STROKE_WIDTH_THIN)}
-          >
-            <IconLineThin />
-          </button>
-          <button
-            type="button"
-            className="dc-annot-ibtn"
-            aria-label="Thick stroke"
-            aria-pressed={thickness === STROKE_WIDTH_THICK}
-            title="Thick (6px)"
-            onClick={() => setThickness(STROKE_WIDTH_THICK)}
-          >
-            <IconLineThick />
-          </button>
-        </>
-      ) : null}
-    </div>
-  );
 }

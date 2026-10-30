@@ -30,15 +30,17 @@
 // artboard (a dropped photo, a large-format piece authored at a fraction of
 // its real physical size — e.g. a billboard at 1:10 scale) embeds as a
 // bitmap whose pixel density is set by the CAPTURING context's
-// deviceScaleFactor. `resolveDeviceScale` (exporters/png.ts) is reused here
-// unchanged so `dpi` means the same physical resolution in both exporters.
+// deviceScaleFactor. `dpi` means the same physical resolution as in png.ts
+// (`clampDpi` + dpi / 96); only the DEFAULT differs, see `resolvePdfDeviceScale`:
+// absent `dpi` is 1×, except a print artboard's page, which defaults to 300 dpi
+// (V2-2.8 / B5).
 
 import { mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { PDFDocument, type PDFPage, rgb } from 'pdf-lib';
-import { readArtboardPrintProp } from '../canvas-edit.ts';
+import { readAllArtboardPrintProps, readArtboardPrintProp } from '../canvas-edit.ts';
 import { computeMarksGeometry, MARK_STROKE_PT, requiredSlugPt } from '../print/marks.ts';
 import { CSS_DPI, getPaperPreset, mmToPt, resolveBleedMm, trimSizeMm } from '../print/units.ts';
 import { exportShimPath, runShim } from './_runtime.ts';
@@ -332,18 +334,60 @@ export function assertOutlinedSizeOk(byteLength: number): void {
 }
 
 /**
+ * A PDF page that holds a PRINT artboard is captured at this density when the caller gives no
+ * `dpi` (V2-2.8 / B5). It is the print shop's number: raster content on the artboard (a dropped
+ * photo) has to reach the RIP at 300 dpi, and a designer who forgot the option must not get a
+ * 96 dpi photo in a leaflet.
+ */
+export const PRINT_PDF_DEFAULT_DPI = 300;
+
+/**
  * PDF's own device-scale resolver — deliberately NOT `png.ts`'s
  * `resolveDeviceScale`, which defaults an absent `dpi` to `clampScale(undefined)`
  * = 2× (PNG's own "a 1× export was uselessly small" UX default). A vector PDF's
  * text/shapes are already crisp at 1×; only embedded raster content benefits
- * from a higher capture density, and only when the caller actually asks for
- * it via `dpi` — defaulting every PDF export to 2× would silently double
- * embedded-image weight/render time for the common "just export a PDF" case.
+ * from a higher capture density — so the general default stays 1×: defaulting
+ * every PDF export to 2× would silently double embedded-image weight/render
+ * time for the common "just export a PDF" case.
+ *
+ * Order: an explicit `dpi` always wins, in either direction (`dpi=96` on a print
+ * artboard is a real request for 1×). With none, a PRINT page gets
+ * `PRINT_PDF_DEFAULT_DPI` and every other page stays 1×.
  */
-export function resolvePdfDeviceScale(options: ExportOptions): number {
+export function resolvePdfDeviceScale(
+  options: ExportOptions,
+  page: { print?: boolean } = {}
+): number {
   const dpi = clampDpi(options.dpi);
-  return dpi !== undefined ? dpi / CSS_DPI : 1;
+  if (dpi !== undefined) return dpi / CSS_DPI;
+  return page.print ? PRINT_PDF_DEFAULT_DPI / CSS_DPI : 1;
 }
+
+/**
+ * The ids of a canvas's print artboards — the exporter's own definition of "print": `kind="print"`
+ * with a `print` prop that resolves to an object (the same test the box/marks post-pass applies via
+ * `readArtboardPrintProp`). A render worker has no checkout, so it reads what the cell shipped in
+ * `options.printProps` instead. Anything unreadable is "not print": the default must never throw.
+ */
+function printArtboardIdsFor(file: string, options: ExportOptions, repoRoot: string): Set<string> {
+  const shipped = shippedPrintProps(options);
+  if (shipped) return new Set(Object.keys(shipped[file] ?? {}));
+  const abs = resolveSourceFileUnderRoot(repoRoot, file);
+  if (!abs) return new Set();
+  try {
+    return new Set(Object.keys(readAllArtboardPrintProps(abs, readFileSync(abs, 'utf8'))));
+  } catch {
+    return new Set();
+  }
+}
+
+/** The shim's `assertRenderOutputSizeOk` refusal (bin/_pw-launch.mjs) as it surfaces through `runShim`. */
+function isRenderGuardError(e: unknown): boolean {
+  return e instanceof Error && /exceeds the render guard/.test(e.message);
+}
+
+/** The shim names a multi artboard's file after the id only when it is this shape (bin/_pw-launch.mjs). */
+const SAFE_ARTBOARD_ID_RE = /^[A-Za-z][\w-]{0,63}$/;
 
 /**
  * Apply the print-ready post-pass to one page: enlarge MediaBox (negative
@@ -469,11 +513,24 @@ export async function applyPageFit(
   doc.removePage(pageIndex + 1); // the original, now shifted one slot later
 }
 
+/** The capture step `run` drives — injectable so the density it asks for can be tested without Chromium. */
+export type PdfCapture = typeof capturePdf;
+
 export async function run(
   targets: Target[],
   options: ExportOptions,
   ctx: ExportContext,
   hooks?: ExportHooks
+): Promise<ExportResult> {
+  return runWithCapture(targets, options, ctx, hooks, capturePdf);
+}
+
+export async function runWithCapture(
+  targets: Target[],
+  options: ExportOptions,
+  ctx: ExportContext,
+  hooks: ExportHooks | undefined,
+  capture: PdfCapture
 ): Promise<ExportResult> {
   if (!targets.length) {
     return { filename: 'export.pdf', contentType: 'application/pdf', body: new Uint8Array(0) };
@@ -491,9 +548,43 @@ export async function run(
   // Dogfood follow-up — raster CONTENT on the artboard (a dropped photo, a
   // large-format piece authored at a fraction of its physical size) needs a
   // real deviceScaleFactor to embed at print density; the page itself stays
-  // vector regardless (see the file header comment). Default 1× (today's
-  // behavior) when `dpi` is absent.
-  const deviceScale = resolvePdfDeviceScale(options);
+  // vector regardless (see the file header comment). With no `dpi`: 1× (today's
+  // behavior) — except a PRINT artboard's page, which defaults to 300 dpi
+  // (V2-2.8 / B5; `resolvePdfDeviceScale`). A given `dpi` is one density for the
+  // whole export, exactly as before, so none of the per-page work below applies.
+  const explicitDpi = clampDpi(options.dpi) !== undefined;
+  const printIdsByFile = new Map<string, Set<string>>();
+  const printIdsFor = (file: string): Set<string> => {
+    if (explicitDpi) return new Set();
+    let ids = printIdsByFile.get(file);
+    if (!ids) {
+      ids = printArtboardIdsFor(file, options, ctx.repoRoot);
+      printIdsByFile.set(file, ids);
+    }
+    return ids;
+  };
+  // The 300 dpi DEFAULT must never turn an export that worked at 1× into a failure: a print
+  // artboard so large that 300 dpi trips the shim's render guard (a roll-up banner, a huge custom
+  // bleed) falls back to the density it always had. A dpi the caller ASKED for still fails loud.
+  const captureDefaulted = async (
+    target: Extract<Target, { kind: 'element' }>,
+    outDir: string,
+    hk: ExportHooks | undefined
+  ): Promise<string[]> => {
+    try {
+      return await capture(
+        target,
+        ctx,
+        outDir,
+        timeoutSec,
+        resolvePdfDeviceScale(options, { print: true }),
+        hk
+      );
+    } catch (e) {
+      if (!isRenderGuardError(e)) throw e;
+      return capture(target, ctx, outDir, timeoutSec, resolvePdfDeviceScale(options), hk);
+    }
+  };
   const tmp = mkdtempSync(path.join(tmpdir(), 'maude-pdf-'));
   try {
     // written[i] = { path, sourceFile (repo-relative canvas), artboardId }.
@@ -502,14 +593,42 @@ export async function run(
     const written: Array<{ path: string; sourceFile: string; artboardId: string | null }> = [];
     for (let i = 0; i < elementTargets.length; i += 1) {
       const target = elementTargets[i] as Extract<Target, { kind: 'element' }>;
-      const paths = await capturePdf(target, ctx, tmp, timeoutSec, deviceScale, hooks);
+      const printIds = printIdsFor(target.file);
+      const singleArtboardId =
+        target.multi || target.region ? null : artboardIdFromCssPath(target.cssPath);
+      const isPrintPage = singleArtboardId !== null && printIds.has(singleArtboardId);
+      const paths = isPrintPage
+        ? await captureDefaulted(target, tmp, hooks)
+        : await capture(target, ctx, tmp, timeoutSec, resolvePdfDeviceScale(options), hooks);
       if (target.multi) {
         // _pdf-playwright.mjs names multi output `${data-dc-screen}.pdf`.
         for (const p of paths) {
+          const artboardId = path.basename(p, '.pdf');
+          let pagePath = p;
+          // One capture has ONE device scale, so a canvas that mixes print and other artboards
+          // renders its non-print pages at 1× above. Each print page is captured again on its
+          // own at the print default and replaces its 1× page in place (document order kept).
+          // Only ids the shim names safely are re-selected — they also go into a CSS selector.
+          if (printIds.has(artboardId) && SAFE_ARTBOARD_ID_RE.test(artboardId)) {
+            const again = mkdtempSync(path.join(tmp, 'print-'));
+            const single = {
+              ...target,
+              multi: false,
+              widen: false,
+              cssPath: `[data-dc-screen="${artboardId}"]`,
+            };
+            // No progress forwarding: the shim reports 1-of-1, which would rewind the bar.
+            const [redone] = await captureDefaulted(
+              single,
+              again,
+              hooks?.signal ? { signal: hooks.signal } : undefined
+            );
+            if (redone) pagePath = redone;
+          }
           written.push({
-            path: p,
+            path: pagePath,
             sourceFile: target.file,
-            artboardId: path.basename(p, '.pdf'),
+            artboardId,
           });
         }
       } else {

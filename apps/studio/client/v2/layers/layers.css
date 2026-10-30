@@ -1,0 +1,94 @@
+/* client/v2/layers/layers.css — gate-b-polish3: the Layers tab by artboard (08 · ak-mixed-fit, 14 · the Layers tab).
+ * Kit `.k-cp-t` / `.k-ly` / `.k-ly-ic` / `.k-cp-name`: body face, sentence case, the kind glyph in --fg-2, the
+ * current artboard's glyph in the accent ink. The element tree under it keeps its own rows (.sh-layer). */
+@layer components {
+  .ly2 {
+    display: flex;
+    flex-direction: column;
+    flex: 1 0 auto; /* fills the panel body, so the kind filter's foot sits at the panel's foot (08 ak-mixed-fit) */
+    min-width: 0;
+    font-family: var(--font-body);
+  }
+  .ly2-t {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-2);
+    margin: var(--space-3) 0 var(--space-1);
+    padding: 0 var(--space-2);
+    font-size: var(--type-sm);
+    font-weight: 600;
+    color: var(--fg-0);
+  }
+  .ly2-t-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ly2-t-count {
+    flex: none;
+    font-size: var(--type-xs);
+    font-weight: 400;
+    color: var(--fg-2);
+  }
+  .ly2-list {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .ly2-board {
+    appearance: none;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    min-width: 0;
+    padding: var(--space-1) var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-sm);
+    text-align: left;
+    cursor: pointer;
+    transition:
+      background var(--dur-soft) var(--ease-out),
+      opacity var(--dur-soft) var(--ease-out);
+  }
+  .ly2-board:hover {
+    background: var(--bg-2);
+  }
+  .ly2-board:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .ly2-board[aria-current="true"] {
+    background: var(--accent-tint);
+    color: var(--fg-0);
+    font-weight: 500;
+  }
+  .ly2-ic {
+    flex: none;
+    display: grid;
+    color: var(--fg-2);
+  }
+  .ly2-board[aria-current="true"] .ly2-ic {
+    color: var(--accent-text, var(--accent));
+  }
+  .ly2-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ly2-tree {
+    padding-left: var(--space-4);
+  }
+  .ly2-tree--loose {
+    padding-left: 0;
+    margin-top: var(--space-2);
+  }
+}

@@ -80,7 +80,14 @@ function StatusIcon({ present }) {
   );
 }
 
-export function SetupChecklist({ report, loading, refresh, onStartTour, onBringBrand, onImportFigma }) {
+export function SetupChecklist({
+  report,
+  loading,
+  refresh,
+  onStartTour,
+  onBringBrand,
+  onImportFigma,
+}) {
   return (
     <div className="setup-cl">
       <ul className="setup-cl-list">
@@ -202,8 +209,8 @@ export default function SetupChecklistDialog({
         </header>
         <div className="help-modal-body">
           <p className="setup-cl-note">
-            Empty → design system → first canvas → your first AI edit. Ask the Assistant to build
-            each step, or take the guided tour to see where everything lives.
+            Empty → design system → first canvas → your first AI edit. Ask AI to build each step, or
+            take the guided tour to see where everything lives.
           </p>
           {report ? (
             <SetupChecklist

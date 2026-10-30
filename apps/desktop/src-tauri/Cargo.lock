@@ -2317,15 +2317,20 @@ checksum = "47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3"
 
 [[package]]
 name = "maude-desktop"
-version = "1.10.0"
+version = "2.0.0-rc.1"
 dependencies = [
  "futures-util",
  "getrandom 0.2.17",
  "keyring",
+ "notify-rust",
+ "objc2",
+ "objc2-app-kit",
+ "objc2-foundation",
  "open",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
+ "sha2",
  "tauri",
  "tauri-build",
  "tauri-plugin-deep-link",
@@ -4527,8 +4532,6 @@ dependencies = [
 [[package]]
 name = "tauri-plugin-wdio-webdriver"
 version = "1.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30c5bffe978c41b06ad44a5f4b5b543405918cf316b98756c678a6431061f2e9"
 dependencies = [
  "async-trait",
  "axum",

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { rememberReturnTo } from './return-to.mjs';
+import { unloadByIdentity } from './unload-by-identity.mjs';
 
 // Maude Hub — self-hostable Yjs sync backend.
 //
@@ -58,7 +59,18 @@ import { join, resolve } from 'node:path';
 
 import { SQLite } from '@hocuspocus/extension-sqlite';
 import { Server } from '@hocuspocus/server';
+import { legacyClaim, resolveAccess } from '../../studio/access/scope.ts';
 import { canvasSlugFromRel } from '../../studio/canvas-slug.ts';
+import {
+  DOC_REFUSAL_REASON,
+  docContextFields,
+  docDoor,
+  peerAccess,
+  stampHubRole,
+  stripSummon,
+} from './access-docs.mjs';
+import { createPokeVisibility, registerKnownCanvases } from './access-files.mjs';
+import { claimForMatch, planPausedFromEnv } from './access-gate.mjs';
 import { ADMIN_CSS, ADMIN_HTML, ADMIN_JS, adminAssetsLoaded } from './admin-assets.mjs';
 import {
   generateAdminSecret,
@@ -76,6 +88,7 @@ import {
   transientFailures,
   writeBehindKey,
 } from './asset-lane.mjs';
+import { createAssetPresence } from './asset-presence.mjs';
 import {
   handleAssetProbeRoute,
   handleAssetRoute,
@@ -88,7 +101,14 @@ import {
   handleUserAdminRoutes,
   permissiveDevAuthDisabled,
 } from './auth-routes.mjs';
-import { scheduleBackups, targetFromConfig, targetFromEnv } from './backup.mjs';
+import {
+  fileTarget,
+  prefixedTarget,
+  runBackup,
+  scheduleBackups,
+  targetFromConfig,
+  targetFromEnv,
+} from './backup.mjs';
 import { maybeIssueOnBoot, verifyAndConsume } from './bootstrap.mjs';
 import {
   BROWSER_SESSION_COOKIE,
@@ -122,7 +142,14 @@ import {
   handleDocumentItemRoute,
   handleDocumentsRoute,
 } from './documents.mjs';
+import { createDsGrantRoutes, createDsGrantStore, DS_GRANTS_CAPABILITY } from './ds-grants.mjs';
+import {
+  createDsLibraryRoutes,
+  createDsLibraryUsage,
+  DS_LIBRARY_CAPABILITY,
+} from './ds-library.mjs';
 import { embedSignInPage, isEmbedPageRequest, parseEmbedOrigins } from './embed-page.mjs';
+import { endedSessionReason } from './ended-sessions.mjs';
 import {
   FILE_DOOR_PREFIX,
   FILE_LIMITS_PATH,
@@ -157,6 +184,7 @@ import {
   walkImport,
   walkIntervalFromEnv,
 } from './journal.mjs';
+import { createKnownCanvasesFile, storedGrantCanvases } from './known-canvases.mjs';
 import { LOOPBACK_HOSTS, sanitizeForLog } from './log-safety.mjs';
 import {
   cacheBudgetFor,
@@ -165,6 +193,7 @@ import {
   MATERIALIZE_PATH,
 } from './materializer.mjs';
 import { assertStrictIsSurvivable, oidcConfig } from './oidc-routes.mjs';
+import { stripPresent } from './present-strip.mjs';
 import { handleProjectConfigDoor, PROJECT_CONFIG_PATH } from './project-config-door.mjs';
 import {
   createAcceptedRevisions,
@@ -179,6 +208,21 @@ import { createRateStore } from './rate-store.mjs';
 import { canvasTokenTtlMs, mintRenderToken, verifyRenderToken } from './render-token.mjs';
 import { isRevoked } from './revocations.mjs';
 import { isReadOnlyRole, ROLES } from './role-matrix.mjs';
+import { createAccessService, withRolesV2 } from './routes-v2/access.mjs';
+import { COMMENTS_PATH, createMentionForwarder } from './routes-v2/comments.mjs';
+import { runHubRoutes } from './routes-v2/index.mjs';
+import {
+  createRenderJobsRoutes,
+  RENDER_JOBS_CAPABILITY,
+  renderDoorEnabled,
+} from './routes-v2/render-jobs.mjs';
+import {
+  createVotesPoke,
+  createVotesRoutes,
+  stripVoteAwareness,
+  VOTES_CAPABILITY,
+} from './routes-v2/votes.mjs';
+import { RUNS_CAPABILITY, sanitizeHoldingAwareness } from './runs-routes.mjs';
 import { defaultS3Source } from './s3-creds.mjs';
 import { seedRepo } from './seed-repo.mjs';
 import { DEFAULT_HUB_NAME, readSettings, writeSettings } from './settings.mjs';
@@ -189,6 +233,8 @@ import {
   isHubOwned,
   PAUSED_MESSAGE,
   servicePage,
+  signInRefusal,
+  signInUrl,
 } from './studio-door.mjs';
 import { createStudioProxy, sessionKeyFor } from './studio-proxy.mjs';
 import { tenantStats } from './tenant-stats.mjs';
@@ -207,6 +253,7 @@ import {
 import { clearTombstone, isTombstoned, listTombstones, recordTombstone } from './tombstones.mjs';
 import { handleUploadSessions, UPLOADS_PREFIX } from './upload-sessions.mjs';
 import { countLinkedOidc } from './users.mjs';
+import { BACKUP_PREFIX, conversionGate, createV2Conversion } from './v2-convert.mjs';
 import { createWorkspaceAgent } from './workspace-agent.mjs';
 import { ensureWorkspaceId } from './workspace-identity.mjs';
 
@@ -316,34 +363,12 @@ function authError(reason) {
 /** Methods that cannot change anything, so a read-only session may use them. */
 const READ_ONLY_SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
-/**
- * The mutating paths a READ-ONLY session is still allowed (Cloud Phase 25 C1).
- *
- * Deliberately a short, explicit list rather than a pattern:
- *   /auth/logout  — ending your OWN session is not changing the project, and a
- *                   viewer who cannot sign out is a viewer stuck signed in.
- *   /api/export   — "look, comment and download" is what the role means; the
- *                   export is a READ of the project, POSTed only because it
- *                   takes work to build.
- * Comments join this list when they exist (Phase 25 C3).
- */
-function readOnlyAllowedPath(path) {
-  return (
-    path === '/auth/logout' ||
-    path === '/api/export' ||
-    // Cloud Phase 25 B5 — comments. THE ONE WRITE A VIEWER HOLDS, promised in
-    // those words on the People page and stated in the role matrix
-    // (`src/role-matrix.mjs`: viewer.comment === true, viewer.annotate ===
-    // false). It is exactly where a scope bug turns "may leave a note" into
-    // "may edit the project", so it is ONE exact path, never a prefix — the
-    // handler behind it touches `_comments/` and nothing else, and it offers
-    // no delete.
-    path === '/api/studio/comments' ||
-    // Signing out of the browser door is ending your own session, same as
-    // /auth/logout is for the desktop's.
-    path === '/auth/browser/signout'
-  );
-}
+// The writes a READ-ONLY session may still make (Cloud Phase 25 C1) are no longer
+// a path allowlist here: each route's row in `routes-v2/` names its capability
+// (`/auth/logout` + `/auth/browser/signout` → session, `/api/export` → export),
+// and `access-gate.mjs` asks the one matrix (S9.3). The handler-less
+// `/api/studio/comments` string went with it; the comment door is
+// `POST /api/comments` (S9.7), whose row says `comment` (routes-v2/comments.mjs).
 
 /**
  * The HTTP write doors a writer of the wrong FILE FORMAT is refused at
@@ -356,7 +381,7 @@ function readOnlyAllowedPath(path) {
  */
 export function formatGatedWritePath(path, prefixes) {
   if (path === prefixes.projectConfig) return true;
-  if (path === '/api/studio/comments') return true;
+  if (path === COMMENTS_PATH) return true;
   return (
     path.startsWith(prefixes.fileDoor) ||
     path.startsWith(prefixes.uploads) ||
@@ -422,6 +447,11 @@ export function createHub(config = {}) {
 
   if (!existsSync(dataDir)) mkdirSync(dataDir, { recursive: true });
   const sqlitePath = join(dataDir, 'hub.db');
+  // F2 (wave B) — a live, not-yet-stored document is advertised only once it
+  // holds content (`liveDocHasContent`). Read at request time: `server` is
+  // declared below.
+  const liveHasContent = (name) => liveDocHasContent(server?.hocuspocus?.documents?.get?.(name));
+  const listDocs = () => listCanvases(sqlitePath, peers, { liveHasContent });
 
   /** @type {Map<string, { socketId: string, documentName: string, user: string, connectedAt: number, connection: any }>} */
   const peers = new Map();
@@ -536,6 +566,12 @@ export function createHub(config = {}) {
   /** Per-IP rate limit buckets (admin API): ip → { count, windowStart } */
   const rateBuckets = new Map();
 
+  /** Per-IP buckets for `GET /api/file-limits` alone: ip → { count, windowStart }. Its OWN map
+   *  (and its own `file-limits:` keyspace in the rate store): every linked desktop asks once per sync
+   *  start WITH a valid token, and on the shared map above those reads spent the address's
+   *  sign-in allowance — the next `/auth/login` from that Mac was a 429 (p8-cloud-attach-regress). */
+  const fileLimitsBuckets = new Map();
+
   /** Per-token rate limit buckets (valid WS auth): label → { count, windowStart } */
   const connBuckets = new Map();
 
@@ -590,6 +626,9 @@ export function createHub(config = {}) {
   // durability half has to have soaked before anything depends on the seqs.
   const journalDesignRoot = workspaceMode && repoDir ? designRootFor() : null;
   const journal = journalDesignRoot ? openJournal(dataDir) : null;
+  // p8-c4b — a canvas any stored grant names is a canvas for the file plane's closure.
+  if (journalDesignRoot)
+    registerKnownCanvases(journalDesignRoot, () => storedGrantCanvases(dataDir));
   // CELL MATERIALIZER (Phase 1). On a cell with object storage the disk is a
   // cache: the journal says what exists, the bucket holds the bytes, and inert
   // media is materialized into `<designRoot>/_cache/` on demand. Off — exactly
@@ -736,10 +775,17 @@ export function createHub(config = {}) {
     Object.keys(studioEnvExtra).length > 0 ? { ...process.env, ...studioEnvExtra } : undefined;
   /** The project format, handed to the studio child (hub-owned path). */
   const studioFormatFile = studioEnabled ? join(dataDir, 'project-format.json') : null;
+  // p8-c4b — the canvases the stored grants name, handed to the child the same way; rewritten
+  // (only on a change) before every forward below, so a new grant counts on the next request.
+  const knownCanvasesFile = studioEnabled
+    ? createKnownCanvasesFile({ dataDir, file: join(dataDir, 'known-canvases.json') })
+    : null;
+  knownCanvasesFile?.refresh();
   const studio = studioEnabled
     ? createStudioChild({
         ...(studioEnv ? { env: studioEnv } : {}),
         formatFile: studioFormatFile,
+        knownCanvasesFile: knownCanvasesFile?.file ?? null,
       })
     : null;
   const studioProxy = studioEnabled
@@ -759,6 +805,15 @@ export function createHub(config = {}) {
         onAssetWritten: () => {
           writeBehind?.note();
         },
+        // Update project in a cell (lead, Michal 2A): the owner's migrate landed in the checkout —
+        // the hub's own project format rises to its marker NOW (raise-only, the owner's flip), not
+        // at the next boot's one-time seed. Awaited before the browser hears it.
+        onProjectMigrated: async ({ session }) => {
+          if (!accepted) return;
+          await accepted.raiseFormatToCheckout(checkoutFormatVersion(), {
+            by: session?.email || 'owner',
+          });
+        },
         // NEVER LET THIS THROW INTO THE REQUEST LOOP.
         //
         // `mintRenderToken` refuses without a hub secret — correctly; a
@@ -771,7 +826,7 @@ export function createHub(config = {}) {
         // The canvas token is OPTIONAL by construction — `?? null` at the call
         // site, and the canvas origin simply stays unauthenticated without it.
         // So a mint that cannot happen degrades to "no token", loudly, once.
-        mintCanvasToken: (session, { readOnly = false } = {}) => {
+        mintCanvasToken: (session, { readOnly = false, follow = null } = {}) => {
           try {
             return mintRenderToken({
               secret,
@@ -785,6 +840,9 @@ export function createHub(config = {}) {
               // the viewer floor instead, enforced by the canvas door.
               role: readOnly ? 'viewer' : session.role,
               readOnly,
+              // S3.7c — a presentation follower's capability: ONE canvas,
+              // receive-only, no project role (render-token.mjs drops `r`).
+              follow,
               ttlMs: canvasTokenTtlMs(),
             });
           } catch (err) {
@@ -802,13 +860,16 @@ export function createHub(config = {}) {
         // canvas, and a read-only capability is all a browser-bearing process
         // that evaluates tenant TSX may hold. Never the write-capable canvas
         // token above.
-        mintRenderToken: (session) => {
+        // S8.5b-2 — the render door's capability for a canvas-only session carries its grants
+        // (`g`), so the canvas origin holds the worker to that closure.
+        mintRenderToken: (session, { grants = [] } = {}) => {
           try {
             return mintRenderToken({
               secret,
               project: process.env.MAUDE_TENANT_ID ?? 'local',
               subject: session.email,
               role: 'viewer',
+              grants,
             });
           } catch {
             // Same failure mode as the canvas token — a hub without a secret
@@ -819,10 +880,45 @@ export function createHub(config = {}) {
         },
       })
     : null;
+  // S9.12b (V2-1.16 U6) — a token's kick also closes the studio sockets its session opened
+  // through the proxy (raw splices the Hocuspocus kick never reaches).
+  const kickLabel = (label) =>
+    kickSessionsForLabel(peers, label) + (studioProxy?.closeUpgrades({ label }) ?? 0);
   /** @type {ReturnType<typeof scheduleMirror>|null} */
   let mirror = null;
   /** @type {ReturnType<typeof scheduleRevocationSweep>|null} */
   let revocationSweep = null;
+
+  // V2-1.7 §5.6 (S9.6) — the access API's hub half: the self-hosted authority,
+  // the cloud forwarder, and the `maude.access` / `maude.access-request`
+  // notices. `rolesV2` is the Q13 flip (default: `ROLES_V2_ADVERTISED`).
+  const accessService = createAccessService({
+    dataDir,
+    secret,
+    publicUrl,
+    ...(config.rolesV2 !== undefined ? { rolesV2: config.rolesV2 } : {}),
+    graceMs: config.switchGraceMs ?? 1500,
+    connections: () => [...peers.values()].map((p) => p.connection).filter(Boolean),
+    kickLabel,
+    kickEmail: (email) => studioProxy?.closeUpgrades({ email }) ?? 0,
+    sweepNow: () => (revocationSweep?.enabled ? revocationSweep.tick() : null),
+  });
+
+  // S8.19 — who holds which asset, and whose sweep finished (hub runtime in the
+  // data dir, never a project file). Fed by `/_asset-probe`, read by the
+  // routes-v2 `asset-presence` row.
+  const assetPresence = createAssetPresence({ dataDir, salt: secret ?? '' });
+  const presenceDeps = () => ({
+    store: assetPresence,
+    dataDir,
+    designRoot:
+      workspaceMode && repoDir ? join(repoDir, process.env.MAUDE_DESIGN_ROOT ?? '.design') : null,
+    journal,
+    materializer,
+    checkReadRateLimit: rateLimit
+      ? (label) => checkConnRateLimit(fileReadBuckets, label, assetWriteRateLimitMax)
+      : undefined,
+  });
 
   /**
    * Who is asking an accepted-revisions or project-format route — the ONE
@@ -838,6 +934,8 @@ export function createHub(config = {}) {
         actor: m.owner || m.label,
         readOnly: !!m.readOnly,
         scope: m.scope ?? '*',
+        // V2-1.16 L4 (S9.5): the claim, so the routes can scope a canvas-only session.
+        access: peerAccess(m).access,
         admin: !m.readOnly && (m.role === 'owner' || m.role === 'admin' || (!m.role && !m.owner)),
         // THE PROJECT OWNER, strictly (V2-1.12 §5.5 — the format flip): an
         // owner/admin-role token over the WHOLE project, or the operator's env
@@ -875,6 +973,82 @@ export function createHub(config = {}) {
   // the hooks below read it lazily, so `null` simply means "legacy".
   /** @type {ReturnType<typeof createAcceptedRevisions>|null} */
   let accepted = null;
+  // Gate 0 A18 (S4.6 / S9.13) — formal votes; assigned once the store is open.
+  /** @type {ReturnType<typeof createVotesRoutes>|null} */
+  let votesRoutes = null;
+  // S8.5b-2 — the cloud render door (`routes-v2/render-jobs.mjs`): dark unless this hub runs a
+  // studio child, a render service and `MAUDE_RENDER_DOOR=1` (M1 — off in the fleet).
+  const renderJobsRoutes = createRenderJobsRoutes({
+    projectId: process.env.MAUDE_TENANT_ID || 'local',
+    tenant: process.env.MAUDE_TENANT_ID ?? 'local',
+    auth: (req) => acceptedAuth(req),
+    enabled: () => renderDoorEnabled({ studio }),
+    proxy: () => studioProxy,
+    designRoot: () => (studioProxy ? designRootFor() : null),
+    journal: () => journal,
+    ...(rateLimit ? {} : { limits: null }),
+  });
+  // S10.18a — team libraries (`ds-library.mjs`): a system's head + revisions, to members and
+  // to a non-member's library read grant. S10.18a-2 — the grant is a token this hub mints
+  // (`ds-grants.mjs`), dark until MAUDE_DS_LIBRARY_GRANTS=1: until then verifyGrant is null
+  // and a non-member is refused — fail closed.
+  const dsGrants = createDsGrantStore({
+    dataDir,
+    projectId: process.env.MAUDE_TENANT_ID || 'local',
+  });
+  const dsLibraryRoutes = createDsLibraryRoutes({
+    projectId: process.env.MAUDE_TENANT_ID || 'local',
+    designRoot: () => (studioProxy ? designRootFor() : null),
+    systems: () => acceptedProjectConfig()?.designSystems ?? [],
+    auth: (req) => acceptedAuth(req),
+    verifyGrant: dsGrants.verifyGrant,
+    usage: createDsLibraryUsage({ file: join(dataDir, 'ds-library-usage.json') }),
+    clientIp: (req) => clientIp(req),
+    ...(rateLimit ? {} : { limits: null }),
+  });
+  const dsGrantRoutes = createDsGrantRoutes({
+    store: dsGrants,
+    projectId: process.env.MAUDE_TENANT_ID || 'local',
+    systems: () => acceptedProjectConfig()?.designSystems ?? [],
+    auth: (req) => acceptedAuth(req),
+  });
+
+  // S9.7 — what the comment door (`routes-v2/comments.mjs`) needs from this hub.
+  const commentsDeps = {
+    designRel: process.env.MAUDE_DESIGN_REL || '.design',
+    projectId: process.env.MAUDE_TENANT_ID || 'local',
+    personKey: secret || dataDir,
+    accepted: () => accepted,
+    matchesScope,
+    async docExists(name) {
+      if (accepted?.acceptedMode()) {
+        const { docs = [] } = (await accepted.kernel.bootstrap()) ?? {};
+        return docs.some((d) => d.doc === name && !d.retired);
+      }
+      return listDocs().some((d) => d.name === name) && !isTombstoned(dataDir, name);
+    },
+    async withDoc(name, context, fn) {
+      const conn = await server.hocuspocus.openDirectConnection(name, context);
+      try {
+        await conn.transact(fn);
+      } finally {
+        await conn.disconnect();
+      }
+    },
+    async formatRefusal(request) {
+      if (!accepted) return null;
+      if (!accepted.isReady()) await accepted.refreshOnce().catch(() => {});
+      const fmt = accepted.projectFormat();
+      if (declaredFormatFromRequest(request) === fmt) return null;
+      return { error: FORMAT_REFUSAL, reason: 'format', formatVersion: fmt };
+    },
+    *connections() {
+      for (const document of server.hocuspocus?.documents?.values?.() ?? [])
+        yield* document.getConnections?.() ?? [];
+    },
+    // S9.18 — a cloud cell forwards a mention nobody heard live; self-hosted: null.
+    forwardMentions: createMentionForwarder({ env: process.env, secret }),
+  };
 
   const server = new Server({
     port,
@@ -953,6 +1127,9 @@ export function createHub(config = {}) {
         // Viewer (`match.readOnly`) tokens are admitted here too, deliberately:
         // knowing the journal moved tells you nothing you could not learn by
         // asking, and the ask is scope-filtered.
+        // The access claim (V2-1.7 §5.3) — carried on every context so the
+        // ctl poke (S9.4, L3), the fence and the awareness hook can read it.
+        const peer = peerAccess(match);
         if (isFilesCtlDoc(documentName)) {
           if (connectionConfig) connectionConfig.readOnly = true;
           return {
@@ -963,13 +1140,23 @@ export function createHub(config = {}) {
               readOnly: true,
               ctl: true,
               format,
+              // The CLAIM (serializable), not the resolved Access: the ctl
+              // poke (S9.4 access-files) resolves it per connection.
+              access: claimForMatch(match),
             },
           };
         }
         // DDR-053 §3: scope binding gates Chain B (token leak → full hub).
         if (!matchesScope(match.scope, documentName)) {
-          throw authError('token not authorized for this documentName');
+          throw authError(DOC_REFUSAL_REASON);
         }
+        // V2-1.16 L2 (S9.5) — AFTER the machine scope: a canvas-only session
+        // opens its granted canvases' documents only, and nobody below
+        // `export` opens one at all (the document IS the canvas's source —
+        // Can view's browser cookie is refused here, A19). The SAME reason as
+        // out of scope, so invisible answers exactly as missing (U1).
+        const door = docDoor(peer, documentName);
+        if (!door.ok) throw authError(DOC_REFUSAL_REASON);
         // DDR-102 — valid-token ceiling: generous (default 600/min per label),
         // sized so multi-peer boot bursts of large projects (auth fires once
         // per DOCUMENT even on a multiplexed socket) never starve sync. The
@@ -990,10 +1177,24 @@ export function createHub(config = {}) {
         // messages, so a viewer whose client is patched, scripted, or simply
         // out of date still cannot mutate the document. Hiding the buttons is
         // the last layer, never the only one.
-        if (connectionConfig && match.readOnly) connectionConfig.readOnly = true;
+        // Per connection, per document (L2): `!can('edit', canvas)`.
+        if (connectionConfig && door.readOnly) connectionConfig.readOnly = true;
+        // A3 (S9.15b) — a paused project syncs read-only: same protocol gate,
+        // so its documents stay readable live and nothing writes to them. On
+        // the context too (`readOnly` below), because the per-message fence
+        // (`accepted.fence`) re-derives `connection.readOnly` from it.
+        const paused = planPausedFromEnv();
+        if (connectionConfig && paused) connectionConfig.readOnly = true;
         // DDR-241 §7 — in accepted-revisions mode every content connection is
         // read-only: changes arrive as proposals, only the kernel writes.
         if (connectionConfig && accepted?.acceptedMode()) connectionConfig.readOnly = true;
+        // A brand-new project takes the format of the writer that founds it
+        // (hub-integration foundNewProject) — before the fence below reads it.
+        // Never a viewer, a paused project, or the hub's own paired studio.
+        if (connectionConfig)
+          await accepted?.foundNewProject?.(format, {
+            writer: !door.readOnly && !paused && match.label !== LOOPBACK_SYNC_TOKEN_LABEL,
+          });
         // V2-1.12 §5.4 — a writer of another format is a reader (handshake
         // scope `readonly`, so a patched client knows from the first message).
         if (connectionConfig && accepted?.isReady() && format !== accepted.projectFormat())
@@ -1004,8 +1205,9 @@ export function createHub(config = {}) {
             source: match.source,
             dev: !!match.dev,
             scope: match.scope ?? '*',
-            readOnly: !!match.readOnly,
+            readOnly: door.readOnly || paused,
             format,
+            ...docContextFields(match, door),
             // The address the token was minted for. Carried so the server-side
             // workspace agent can attribute a commit to the PERSON rather than
             // to their machine's token label — `git blame` on a design should
@@ -1030,6 +1232,7 @@ export function createHub(config = {}) {
         }
         // DDR-241 §7 — accepted revisions: no client writes content, ever.
         if (connectionConfig && accepted?.acceptedMode()) connectionConfig.readOnly = true;
+        if (connectionConfig) await accepted?.foundNewProject?.(format);
         if (connectionConfig && accepted?.isReady() && format !== accepted.projectFormat())
           connectionConfig.readOnly = true;
         return { user: { name: 'anon', anon: true, format } };
@@ -1111,9 +1314,30 @@ export function createHub(config = {}) {
           // project format, fences writers by their declared format, keeps
           // extension fields through its validators, and serves
           // `POST /api/project-format`.
-          capabilities: journal
-            ? ['ledger', 'annotations-v2', 'format-v2']
-            : ['annotations-v2', 'format-v2'],
+          // `runs-v1` (V2-1.15 §5.3): AI runs + per-artboard leases at
+          // `/api/projects/:p/v1/runs*`, the proposal `fence`, `{t:'runs'}`.
+          // `roles-v2` (V2-1.7 §5.8 step 4): this cell honours observer and
+          // canvas-scoped credentials — the control plane mints `m2.` only
+          // when it is here. Added by the lead's Q13 flip, never before.
+          // `votes-v1` (Gate 0 A18, S9.13): hub-held ballots at
+          // `/api/projects/:p/v1/votes*`.
+          // `render-jobs-v1` (S8.5b §4.4): the cloud render door, only while it is on here.
+          // `ds-library` (V2-1.6 §5.14, S10.18a): team-library head + revisions at
+          // `/api/projects/:p/v1/ds/*`, only where a checkout's design root is served.
+          // `ds-library-grants` (S10.18a-2): this hub mints library grants at
+          // `/api/projects/:p/v1/ds-grants*` and admits them at the ds door — only while
+          // MAUDE_DS_LIBRARY_GRANTS=1 AND it serves a library.
+          capabilities: withRolesV2(
+            [
+              ...(journal
+                ? ['ledger', 'annotations-v2', 'format-v2', RUNS_CAPABILITY, VOTES_CAPABILITY]
+                : ['annotations-v2', 'format-v2', RUNS_CAPABILITY, VOTES_CAPABILITY]),
+              ...(renderDoorEnabled({ studio }) ? [RENDER_JOBS_CAPABILITY] : []),
+              ...(dsLibraryRoutes.enabled() ? [DS_LIBRARY_CAPABILITY] : []),
+              ...(dsLibraryRoutes.enabled() && dsGrants.enabled() ? [DS_GRANTS_CAPABILITY] : []),
+            ],
+            accessService.rolesV2Options
+          ),
           // The project's file format — null while the store is unread.
           formatVersion: accepted?.isReady() ? accepted.projectFormat() : null,
           // T19/T29 — the project coordinator (accepted revisions) apart from
@@ -1121,6 +1345,13 @@ export function createHub(config = {}) {
           coordinator: accepted?.health?.({ privileged }) ?? null,
           privileged,
         });
+        // V2-1.7 §5.6 — what this project's server can hold (authority,
+        // roles, scopes, links, requests): the Share sheet's posture. A
+        // protocol marker, not customer data, so it rides the public half.
+        health.access = accessService.posture();
+        // The boot conversion's counts (v2-convert.mjs) — collected by cells-deploy.yml.
+        const converted = v2Conversion?.health();
+        if (converted) health.v2Convert = converted;
         // 503, not 200-with-ok-false. A router reads the STATUS; a payload it
         // has to parse to learn the truth is a payload it will not parse.
         respondJson(response, health.ok ? 200 : 503, health);
@@ -1163,27 +1394,48 @@ export function createHub(config = {}) {
       // the Hocuspocus catch-all.
       const authPath = url.split('?')[0];
 
-      // ---- READ-ONLY SESSIONS (Cloud Phase 25 C1) -------------------------
+      // ---- THE ACCESS GATE + THE v2 ROUTE TABLE (Cloud Phase 25 C1 → S9.3) -
       //
       // ONE gate, at the single HTTP entry point, rather than a branch inside
-      // each of the sixteen mutating handlers — because a capability check
-      // that has to be remembered sixteen times is a capability check that is
-      // eventually forgotten once, and the once is the whole hole.
+      // each mutating handler — a capability check that has to be remembered
+      // sixteen times is eventually forgotten once, and the once is the hole.
       //
-      // A viewer may still do the things "viewer" means (Phase 25: look,
-      // comment, download), so the exceptions are named explicitly and are
-      // few. Everything else that changes state is refused with the same
-      // sentence the People page promises.
-      if (!READ_ONLY_SAFE_METHODS.has(method) && !readOnlyAllowedPath(authPath)) {
-        const presented = (request.headers?.authorization ?? '').replace(/^Bearer\s+/i, '').trim();
-        const bearer = presented ? verifyToken(dataDir, presented, secret) : null;
-        if (bearer?.readOnly) {
-          respondJson(response, 403, {
-            error: 'You can look at this project, comment and download it, but not change it.',
-            reason: 'read-only',
-          });
-          bailFromOnRequest();
-        }
+      // Every hub route is a row in `routes-v2/` naming the capability each
+      // method half needs (V2-1.7 §5.2): a write needs `edit` unless its row
+      // says `session` or `export`, and a byte route needs `export` on a GET
+      // too — Can view is refused every download (A19). New v2 routes are rows
+      // with handlers, answered here; never another branch below.
+      if (
+        await runHubRoutes({
+          request,
+          response,
+          method,
+          path: authPath,
+          canvasHost: Boolean(studioProxy && isCanvasHost(request)),
+          verify: (token) => verifyToken(dataDir, token, secret),
+          respondJson: (status, payload) => respondJson(response, status, payload),
+          // The v2 handlers' doors into the project (S1.7 routes-v2/trash.mjs, S9.6 access,
+          // S9.7 comments, S4.6 votes) and S3.7b `/present/<canvas>`'s collaborators.
+          deps: {
+            access: accessService,
+            accepted: () => accepted,
+            auth: acceptedAuth,
+            comments: commentsDeps,
+            browserSession: (req) => browserSession(dataDir, secret, req),
+            designRoot: () => (studioProxy ? designRootFor() : null),
+            signInUrl: (req) => signInUrl({ request: req }),
+            // Gate 0 A18 (S9.13) — the votes runtime, null until the store is open.
+            votes: votesRoutes,
+            presence: presenceDeps(), // S8.19
+            renderJobs: renderJobsRoutes, // S8.5b-2
+            dsLibrary: dsLibraryRoutes, // S10.18a
+            dsGrants: dsGrantRoutes, // S10.18a-2
+            // P8 — `/_api/share/*` for a cloud tab (routes-v2/share.mjs): only where a studio is served.
+            share: studioProxy ? { publicUrl } : null,
+          },
+        })
+      ) {
+        bailFromOnRequest();
       }
 
       // ---- THE FORMAT GATE (V2-1.12 §5.4 / §5.11 F2) ----------------------
@@ -1285,6 +1537,7 @@ export function createHub(config = {}) {
       // widely enough to cover it would be readable by the untrusted canvas
       // origin. The capability lives in the URL and the lane is read-only.
       if (studioProxy && isCanvasHost(request)) {
+        knownCanvasesFile?.refresh();
         const handled = await studioProxy.handleCanvas({
           request,
           response,
@@ -1457,6 +1710,7 @@ export function createHub(config = {}) {
             workspaceMode && repoDir
               ? join(repoDir, process.env.MAUDE_DESIGN_ROOT ?? '.design')
               : null,
+          presence: assetPresence,
           checkRateLimit: rateLimit
             ? (req) => checkRateLimit(rateBuckets, req, { store: rateStore, ip: clientIp(req) })
             : undefined,
@@ -1477,7 +1731,7 @@ export function createHub(config = {}) {
           bearer: (request.headers?.authorization ?? '').replace(/^Bearer\s+/i, '').trim() || null,
           verify: (token) => verifyToken(dataDir, token, secret),
           matchesScope,
-          listDocuments: () => listCanvases(sqlitePath, peers),
+          listDocuments: listDocs,
           listTombstones: () => listTombstones(dataDir),
           respondJson: (status, payload) => respondAdminJson(response, status, payload),
         });
@@ -1507,12 +1761,12 @@ export function createHub(config = {}) {
           matchesScope,
           deleteDocument: (name) => {
             deleteDocument({ name, server, sqlitePath, dataDir, docsTail });
-            documentEvents.changed();
+            documentEvents.changed({ documentName: name });
           },
           reviveDocument: (name) => {
             try {
               clearTombstone(dataDir, name);
-              documentEvents.changed();
+              documentEvents.changed({ documentName: name });
             } catch {
               /* an unwritable store degrades to today's behaviour */
             }
@@ -1589,8 +1843,15 @@ export function createHub(config = {}) {
             // unauthenticated caller must not be able to drive that path at
             // will. Every neighbouring route threads this; the first version of
             // this one did not (found in the security review of this change).
+            // ITS OWN per-IP bucket (`fileLimitsBuckets`), never the sign-in one: a valid
+            // desktop's reads must not leave its next `/auth/login` refused.
             checkRateLimit: rateLimit
-              ? (req) => checkRateLimit(rateBuckets, req, { store: rateStore, ip: clientIp(req) })
+              ? (req) =>
+                  checkRateLimit(fileLimitsBuckets, req, {
+                    store: rateStore,
+                    ip: clientIp(req),
+                    keyspace: 'file-limits',
+                  })
               : undefined,
           })
         ) {
@@ -1854,7 +2115,7 @@ export function createHub(config = {}) {
             respondRateLimited: () => respondRateLimited(response),
             respondJson: (status, payload) => respondAdminJson(response, status, payload),
             readJsonBody,
-            kickLabel: (label) => kickSessionsForLabel(peers, label),
+            kickLabel,
             pushActivity: (evt) => pushActivity(activity, evt),
           });
         } catch (err) {
@@ -1898,6 +2159,8 @@ export function createHub(config = {}) {
           port,
           startedAt,
           peers,
+          liveHasContent,
+          kickLabel,
           publicUrl,
           rateBuckets,
           rateStore,
@@ -1961,10 +2224,19 @@ export function createHub(config = {}) {
             response.writeHead(302, { location: verdict.to, 'cache-control': 'no-store' });
             response.end();
           } else {
-            respondJson(response, 401, { error: 'sign in to open this project' });
+            // S9.21d — a cookie whose session an access notice ENDED hears why
+            // (link-off / access-withdrawn); any other cookie, today's answer.
+            respondJson(
+              response,
+              401,
+              signInRefusal(
+                endedSessionReason(dataDir, cookieValue(request, BROWSER_SESSION_COOKIE))
+              )
+            );
           }
           bailFromOnRequest();
         }
+        knownCanvasesFile?.refresh();
         const handled = await studioProxy.handle({
           request,
           response,
@@ -2045,8 +2317,21 @@ export function createHub(config = {}) {
      * what the re-encode downstream sees, so nothing is stored and nothing
      * fans out. Every other document keeps presence untouched.
      */
-    async beforeHandleAwareness({ document, states }) {
-      dropCtlAwareness({ document, states });
+    async beforeHandleAwareness({ document, states, context, connection }) {
+      if (dropCtlAwareness({ document, states })) return;
+      // V2-1.15 §5.3 (A10) — a person's `holding` is stamped with the bearer's
+      // identity, and dropped from a read-only connection.
+      sanitizeHoldingAwareness({ context, connection, states });
+      // V2-1.7 §5.5 / L11 (S9.5): Bring everyone here needs `summon` on this
+      // document — the field is stripped from any connection lacking it.
+      stripSummon({ states, context });
+      // V2-8.9 round B L1 — the presence role word is the hub's, from this connection's access.
+      stampHubRole({ states, context });
+      // Gate 0 A18 (S9.13): picks never ride presence, whoever sends them.
+      stripVoteAwareness({ states });
+      // S3.7b (S3-present-session §2, D11): `present` + the presenter's `pointer`
+      // need `edit` on this document; `watching` is never stripped.
+      stripPresent({ states, context });
     },
 
     // A content change tells the cell's DO, so a parked desktop's
@@ -2089,6 +2374,10 @@ export function createHub(config = {}) {
     },
   });
 
+  // Hocuspocus unloads by NAME: a direct connection's second unload could delete the
+  // document a peer had just loaded. See unload-by-identity.mjs.
+  unloadByIdentity(server.hocuspocus);
+
   // Sync v2 Increment 2 — the poke. Built here because it needs the running
   // instance's document map; subscribed to the journal in
   // `startJournalReconciler`, so a hub with no checkout never emits one.
@@ -2098,8 +2387,15 @@ export function createHub(config = {}) {
   // says so loudly if it can find neither; passing the wrong one used to be a
   // silent no-op, because "no document" is also what an unattached project
   // legitimately looks like. See `documentMap` in files-ctl.mjs.
-  const filesPoke = createFilesPoke({ instance: server });
-  const documentsPoke = createFilesPoke({ instance: server, documentsOnly: true, coalesceMs: 50 });
+  // V2-1.16 L3 (S9.4): a canvas-only ctl connection is told only what it sees.
+  const pokeVisibility = createPokeVisibility({ designRoot: journalDesignRoot, journal });
+  const filesPoke = createFilesPoke({ instance: server, visibility: pokeVisibility });
+  const documentsPoke = createFilesPoke({
+    instance: server,
+    documentsOnly: true,
+    coalesceMs: 50,
+    visibility: pokeVisibility,
+  });
   const documentEvents = createDocumentEvents({ poke: documentsPoke });
   // Keeps an idle peer's sockets — control AND canvas — from recycling every
   // ~33 s (and re-running discovery each time). See `createSocketKeepalive`.
@@ -2119,6 +2415,16 @@ export function createHub(config = {}) {
         token: process.env.MAUDE_PROJECT_STORE_TOKEN || null,
       })
     : openSqliteProjectStore(dataDir);
+  // Gate 0 A18 (S4.6 / S9.13) — the hub holds a linked project's ballots and
+  // the timer; the routes are rows in `routes-v2/votes.mjs`.
+  votesRoutes = createVotesRoutes({
+    store: projectStore,
+    projectId: process.env.MAUDE_TENANT_ID || 'local',
+    auth: (req) => acceptedAuth(req),
+    poke: createVotesPoke({ instance: server, visibility: pokeVisibility }),
+    // Per-person write budget (`VOTES_WRITE_LIMIT`); off with the hub's other limits.
+    ...(rateLimit ? {} : { writeLimit: null }),
+  });
   // A disposable data directory (a cloud container) cannot back an
   // acknowledgement — the mode switch refuses rather than promise saves it
   // could lose on the next rollout (T11: no weakened "saved" semantics).
@@ -2249,10 +2555,16 @@ export function createHub(config = {}) {
         /* the revived document is recreated either way */
       }
     },
-    onAccepted: () => documentEvents.changed(),
+    // Each accepted document named, so the poke can be scoped (L3); a
+    // structure-only action (dirs) names none and reaches project sessions.
+    onAccepted: ({ changes } = {}) => {
+      const names = (changes ?? []).map((ch) => ch?.doc).filter((d) => typeof d === 'string');
+      if (names.length === 0) documentEvents.changed();
+      for (const documentName of names) documentEvents.changed({ documentName });
+    },
     // Baseline import (T30): the storage listing, the project's deletions,
     // and — in workspace mode — the checkout as the path/folder authority.
-    listDocuments: () => listCanvases(sqlitePath, peers),
+    listDocuments: listDocs,
     tombstoned: () => new Set(listTombstones(dataDir).map((t) => t.name)),
     checkoutPath: (slug) => checkoutCanvasPaths().get(slug) ?? null,
     checkoutBody: (rel) => {
@@ -2320,6 +2632,47 @@ export function createHub(config = {}) {
       if (fd >= 0) closeSync(fd);
     }
   };
+  // p8-v1-drop-cloud — the boot conversion's gate, its backup and its handle. A test may hand in
+  // the two versions, or `v2Convert: false` (createHub is never configured from env, so nothing
+  // in a fleet can). p8-selfhost-convert: a cell OR a self-hosted workspace hub converts, and the
+  // env's `CELL_V2_CONVERT=0` (the operator's kill switch, for both) stops it.
+  const v2Conversion = createV2Conversion({
+    gate:
+      config.v2Convert === false
+        ? { run: false, reason: 'off' }
+        : conversionGate({
+            hubVersion: config.v2Convert?.versions?.hub ?? HUB_VERSION,
+            releaseVersion: config.v2Convert?.versions?.release ?? releaseVersion(),
+            workspaceMode,
+          }),
+    projects: () => [
+      {
+        // A self-hosted hub has no tenant: its one project is `local`, as everywhere else here.
+        id: process.env.MAUDE_TENANT_ID || 'local',
+        coordinator: accepted,
+        backup: config.v2Convert?.backup ?? (() => backupBeforeConversion()),
+      },
+    ],
+  });
+  // The pre-conversion generation: the documents AND the checkout, in the hub's configured backup
+  // target (a cell's bucket prefix, a self-hosted hub's MAUDE_BACKUP_TARGET / MAUDE_S3_*) under
+  // `v2-convert/` (its own keyspace, so the regular schedule never prunes it). A hub with no
+  // backup target keeps it in `<dataDir>/v2-convert/` — unless that disk is disposable, when
+  // there is nowhere durable to put it and the project is not converted.
+  async function backupBeforeConversion() {
+    let target;
+    if (bootTarget) target = prefixedTarget(await backupTarget(), BACKUP_PREFIX);
+    else if (process.env.MAUDE_DATA_EPHEMERAL !== '1')
+      target = fileTarget(join(dataDir, BACKUP_PREFIX));
+    else throw Object.assign(new Error('no durable backup target'), { code: 'no-durable-backup' });
+    const out = await runBackup({
+      dataDir,
+      target,
+      repoDir: process.env.MAUDE_REPO_DIR || null,
+      run: process.env.MAUDE_REPO_DIR ? createGitRunner() : null,
+    });
+    return `${target.describe} ${out.prefix}`;
+  }
   const acceptedReady = accepted
     .refresh()
     // V2-1.12 §5.2 — a hub with a checkout (a cell, a workspace hub) seeds the
@@ -2338,7 +2691,10 @@ export function createHub(config = {}) {
     // A brand-new project may start in accepted revisions (G3a).
     .then(() => accepted.adoptNewProjectMode(process.env.MAUDE_NEW_PROJECT_MODE))
     .then(() => accepted.reconcile())
-    .catch((err) => console.error(`[transactions] startup reconcile failed: ${err.message}`));
+    .catch((err) => console.error(`[transactions] startup reconcile failed: ${err.message}`))
+    // The stable 2.0.0 cloud converts every project (decision maude/v2-michal-drop-v1-auto-convert,
+    // v2-convert.mjs) — after the store was read, never on an rc or a 1.x image, never throwing.
+    .then(() => v2Conversion.run());
 
   return {
     server,
@@ -2393,6 +2749,7 @@ export function createHub(config = {}) {
         // these through the session gate is exactly the 401 that kept cloud
         // collaboration dead (RCA issue-cloud-live-collaboration-dead). Checked
         // before the `/_ws` prefix test because the HMR socket's path IS `/_ws`.
+        knownCanvasesFile?.refresh();
         if (isCanvasHost(request)) {
           studioProxy.handleCanvasUpgrade({
             request,
@@ -2474,7 +2831,7 @@ export function createHub(config = {}) {
         revocationSweep = scheduleRevocationSweep({
           dataDir,
           revokeForOwner: revokeTokensForOwner,
-          kickLabel: (label) => kickSessionsForLabel(peers, label),
+          kickLabel,
         });
         if (revocationSweep.enabled) console.log('[revocation] sweep armed');
       }
@@ -2580,6 +2937,7 @@ export function createHub(config = {}) {
     accepted,
     acceptedReady,
     projectStore,
+    assetPresence,
     /** Flush the pending commit and detach. The SIGTERM path depends on this. */
     async stopWorkspaceAgent() {
       if (!workspace) return;
@@ -2599,6 +2957,7 @@ export function createHub(config = {}) {
      * was written in between (F3 S17 on the cloud cell, 2026-09-24).
      */
     async finalBackup() {
+      assetPresence.flush();
       try {
         server.hocuspocus?.flushPendingStores?.();
         const debouncer = server.hocuspocus?.debouncer;
@@ -2638,6 +2997,7 @@ export function createHub(config = {}) {
 
 async function handleAdminApi(ctx) {
   const { request, response, dataDir, secret, peers, publicUrl, rateBuckets, rateLimit } = ctx;
+  const kickLabel = ctx.kickLabel ?? ((label) => kickSessionsForLabel(peers, label));
   const { rateStore, clientIp } = ctx;
   const rateOpts = { store: rateStore, ip: clientIp?.(request) };
   const { activity, sqlitePath } = ctx;
@@ -2704,7 +3064,7 @@ async function handleAdminApi(ctx) {
       publicUrl,
       respondJson: (status, payload) => respondAdminJson(response, status, payload),
       readJsonBody,
-      kickLabel: (label) => kickSessionsForLabel(peers, label),
+      kickLabel,
       pushActivity: (evt) => pushActivity(activity, evt),
     });
     if (handled) return;
@@ -2780,7 +3140,7 @@ async function handleAdminApi(ctx) {
   // flat slugs are not hidden — they collect in one `legacy: true` group, so a
   // hub mid-rollout shows both kinds at once instead of appearing to lose docs.
   if (method === 'GET' && path === '/canvases') {
-    const canvases = listCanvases(sqlitePath, peers);
+    const canvases = listCanvases(sqlitePath, peers, { liveHasContent: ctx.liveHasContent });
     respondAdminJson(response, 200, { canvases, groups: groupCanvases(canvases) });
     return;
   }
@@ -2870,7 +3230,7 @@ async function handleAdminApi(ctx) {
       // DDR-053 §4: kick existing WS sessions for the rotated label so dwell
       // time on a compromised token is bounded by rotate latency, not by the
       // attacker's choice to never disconnect.
-      const disconnected = kickSessionsForLabel(peers, label);
+      const disconnected = kickLabel(label);
       pushActivity(activity, {
         type: 'warn',
         user: label,
@@ -2890,7 +3250,7 @@ async function handleAdminApi(ctx) {
       assertValidLabel(label);
       removeToken(dataDir, label);
       // Kick live sessions that authenticated with the deleted token (DDR-053 §4).
-      const disconnected = kickSessionsForLabel(peers, label);
+      const disconnected = kickLabel(label);
       pushActivity(activity, {
         type: 'warn',
         user: label,
@@ -3346,8 +3706,10 @@ function studioIdentityPaths(env = process.env) {
  * fails closed on purpose (A4): the local gate this replaces returns `false`
  * (i.e. writable) from its own `catch`, which is correct for a local tool and is
  * the whole ballgame on the internet.
+ *
+ * Exported for its test (`test/access-browser-lane.test.mjs`); the hub calls it per request.
  */
-function browserSession(dataDir, secret, request) {
+export function browserSession(dataDir, secret, request) {
   const cookieToken = cookieValue(request, BROWSER_SESSION_COOKIE);
   if (!cookieToken) return null;
   let match;
@@ -3380,11 +3742,43 @@ function browserSession(dataDir, secret, request) {
   // correctly-minted one. Refusing costs a sign-in; guessing costs either the
   // owner's own project or somebody else's write access.
   const role = ROLES.includes(match.role) ? match.role : null;
-  if (!role) return null;
+  // S3.7b — a CANVAS-ONLY cookie (no project role, a stored claim with canvas
+  // grants: V2-1.7 §5.3, minted by the S9.2 door) is a canvas-scoped session,
+  // not a stale one. It carries its claim and the fail-closed read-only
+  // projection; every project-scope door still refuses it (the S9.3 gate and
+  // the `canvasDoor` rows decide; the studio proxy forwards it with its claim
+  // and the studio's per-request reader decides — S3.7c). A role-null cookie
+  // WITHOUT such a claim is still no session at all.
+  if (!role) return canvasOnlyBrowserSession(match);
   return {
     email: match.owner,
     role,
+    // S9.12b (U6) — the token this cookie is, so its kick closes the sockets it opened.
+    label: match.label ?? null,
+    // S9.3 — the stored access claim travels with the session (the proxy's `x-maude-access`),
+    // so Can view reaches the studio as Can view; a v1 session gets its role's legacy claim.
+    access: match.access ?? legacyClaim(role),
     readOnly: isReadOnlyRole(role),
+    sessionKey: sessionKeyFor(process.env.MAUDE_TENANT_ID ?? 'local', match.owner, (input) =>
+      createHash('sha256').update(input).digest('hex')
+    ),
+  };
+}
+
+/** S3.7b — a role-null cookie as a canvas-scoped session, or null (see `browserSession`). */
+function canvasOnlyBrowserSession(match) {
+  const claim = match.access;
+  if (!claim || claim.role !== null || !Array.isArray(claim.grants) || claim.grants.length === 0) {
+    return null;
+  }
+  if (!resolveAccess(claim).canvasOnly) return null;
+  return {
+    email: match.owner,
+    role: null,
+    label: match.label ?? null,
+    access: claim,
+    readOnly: true,
+    canvasOnly: true,
     sessionKey: sessionKeyFor(process.env.MAUDE_TENANT_ID ?? 'local', match.owner, (input) =>
       createHash('sha256').update(input).digest('hex')
     ),
@@ -3474,12 +3868,32 @@ function peerCountsByDoc(peers) {
   return counts;
 }
 
-function docsFromPeers(peerCounts) {
-  return Array.from(peerCounts.entries()).map(([name, count]) => ({
-    name,
-    bytes: 0,
-    peers: count,
-  }));
+function docsFromPeers(peerCounts, liveHasContent) {
+  return Array.from(peerCounts.entries())
+    .filter(([name]) => liveHasContent(name))
+    .map(([name, count]) => ({ name, bytes: 0, peers: count }));
+}
+
+/**
+ * F2 (wave B) — does a live Hocuspocus document hold any content?
+ *
+ * The peer-derived half of the listing ("a live-but-unsaved canvas") used to
+ * advertise every document a peer had OPEN. A read-only session that makes a
+ * canvas locally opens a name the hub never stored; Hocuspocus drops its
+ * SyncStep2/Update, so the document stays empty — but the listing named it,
+ * every writable peer pulled it (the cell's own studio first) and stamped
+ * `syncMeta.path` from where it would land on ITS disk, and the hub stored
+ * that: a stub nobody wrote, then advertised to every desktop (1.9.1 pulls
+ * every listed name as a canvas). Content is the only proof a WRITER put the
+ * document there, whatever the door decided — read-only, paused, accepted
+ * mode, a format fence or a refused handshake all leave it empty.
+ *
+ * `store.clients` is Yjs's struct store: empty until some update integrated,
+ * and never empty again (a deletion keeps its items) — so a writer's canvas
+ * that is not stored yet stays listed.
+ */
+export function liveDocHasContent(doc) {
+  return !!doc && doc.store?.clients?.size > 0;
 }
 
 /**
@@ -3491,11 +3905,11 @@ function docsFromPeers(peerCounts) {
  * missing table (no syncs yet) / lock / schema drift falls back to the
  * peer-derived view.
  */
-function listCanvases(sqlitePath, peers) {
+function listCanvases(sqlitePath, peers, { liveHasContent = () => false } = {}) {
   const peerCounts = peerCountsByDoc(peers);
-  if (!sqlitePath || !existsSync(sqlitePath)) return docsFromPeers(peerCounts);
+  if (!sqlitePath || !existsSync(sqlitePath)) return docsFromPeers(peerCounts, liveHasContent);
   const Database = loadSqlite();
-  if (!Database) return docsFromPeers(peerCounts);
+  if (!Database) return docsFromPeers(peerCounts, liveHasContent);
 
   let db;
   try {
@@ -3518,12 +3932,14 @@ function listCanvases(sqlitePath, peers) {
         peers: peerCounts.get(name) ?? 0,
       });
     }
+    // F2 — only a live document a writer put content into (`liveDocHasContent`).
     for (const [name, count] of peerCounts) {
-      if (!byName.has(name)) byName.set(name, { name, bytes: 0, peers: count });
+      if (!byName.has(name) && liveHasContent(name))
+        byName.set(name, { name, bytes: 0, peers: count });
     }
     return Array.from(byName.values()).sort((a, b) => a.name.localeCompare(b.name));
   } catch {
-    return docsFromPeers(peerCounts);
+    return docsFromPeers(peerCounts, liveHasContent);
   } finally {
     try {
       db?.close();
@@ -3611,12 +4027,16 @@ function deleteDocumentRow(sqlitePath, name) {
  * X-Forwarded-For intentionally not trusted in v1.1 — operators behind a
  * proper reverse proxy get accurate buckets in Task 6 when trustProxy lands.
  */
-function checkRateLimit(buckets, request, { store = null, ip: resolvedIp } = {}) {
+function checkRateLimit(
+  buckets,
+  request,
+  { store = null, ip: resolvedIp, keyspace = 'http' } = {}
+) {
   const ip = resolvedIp ?? request.socket?.remoteAddress ?? '0.0.0.0';
   // When a persistent store is wired, it IS the limiter — the in-memory bucket
   // below stays only as the fallback path (and for the pure-unit tests that
   // call this without a store).
-  if (store) return store.check(`http:${ip}`, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS);
+  if (store) return store.check(`${keyspace}:${ip}`, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS);
   const now = Date.now();
   // Opportunistic eviction (~1% of calls) so a long-running hub doesn't
   // accumulate entries for one-shot IPs (botnet / IPv6 rotation). Cheap.

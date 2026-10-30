@@ -1,0 +1,1 @@
+{"lane":"terminal","tool":"Bash","code":"not-a-writer","reason":"PreToolUse:Bash hook error: not-a-writer: files in .design/ (ui/Alligators Cinematic Cut.meta.json) are written with Edit/Write or a `maude design` verb, so every change is checked. Edit the file instead."}

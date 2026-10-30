@@ -23,9 +23,11 @@
 // pair had). The ledger is seeded from disk once at construction so history
 // survives a server restart even though job state itself doesn't.
 
+import { createHash } from 'node:crypto';
 import { readFileSync, realpathSync } from 'node:fs';
 import { mkdir, rm } from 'node:fs/promises';
 import path from 'node:path';
+import JSZip from 'jszip';
 import { readAllArtboardPrintProps } from '../canvas-edit.ts';
 
 import type { Bus } from '../context.ts';
@@ -49,8 +51,26 @@ import {
   renderRemotely,
   resolveRenderService,
 } from './remote.ts';
-import { type ResolveScopeArgs, resolveScope, type Target } from './scope.ts';
+import { noteRenderMs } from './render-seconds.ts';
+import {
+  enforceAnnotationsPolicy,
+  type ResolveScopeArgs,
+  resolveScope,
+  type SpecUnit,
+  type Target,
+} from './scope.ts';
+import {
+  collectGroup,
+  type ExportJobItem,
+  type GroupFile,
+  type GroupPlan,
+  itemsFor,
+  packGroup,
+  runGroup,
+} from './spec-run.ts';
+import type { ExportSpecV2 } from './spec-v2.ts';
 import { scanUnsupportedMedia } from './unsupported-media.ts';
+import { type AiRunReader, holdJobForAi } from './wait-ai.ts';
 
 /** Extended shape of the old Phase 6.5 T10 history entry — additive fields only. */
 export interface ExportHistoryEntry {
@@ -73,6 +93,12 @@ export interface ExportHistoryEntry {
    * download that would 404.
    */
   deliveredInBrowser?: boolean;
+  /** S8.1 — the ExportSpec v2 this row ran, so Export again replays it exactly (§5.6). */
+  spec?: ExportSpecV2;
+  /** S8.1 — a group job's per-item results. */
+  items?: ExportJobItem[];
+  /** S8.4 — where it ran (the panel says so on every row). */
+  runsOn?: 'this-mac' | 'cloud';
 }
 
 export type ExportJobStatus = 'queued' | 'running' | 'done' | 'failed';
@@ -100,6 +126,19 @@ export interface ExportJob {
   /** DDR-231 browser lane — produced and saved in the member's own browser;
    * this process stores no bytes for it. See {@link ExportHistoryEntry}. */
   deliveredInBrowser?: boolean;
+  /** S8.1 — a v2 body: the spec, and one item per engine unit (contract §5.6 group job). */
+  spec?: ExportSpecV2;
+  items?: ExportJobItem[];
+  /**
+   * S8.4 — some item of this group job did not make it AND the plan to run it again is still in
+   * this process (a restart forgets it). Only then does the panel offer Retry.
+   */
+  retryable?: boolean;
+  /**
+   * S8.4 — where this ran, for the Exports panel's "On this Mac" / "In the cloud". `cloud` is a
+   * workspace lane (the render service, or the cell itself); the desktop's own lane is `this-mac`.
+   */
+  runsOn?: 'this-mac' | 'cloud';
 }
 
 export interface EnqueueArgs {
@@ -122,6 +161,37 @@ export interface EnqueueArgs {
    * `''` (desktop, CLI, tests) is the one shared owner a desktop always had.
    */
   session?: string;
+  /**
+   * S8.1 — an ExportSpec v2 as ONE group job: `resolveSpecV2`'s units run one after the
+   * other through this job's own lane (spec-run.ts). `format`/`scope` then name the first
+   * unit (the lane and the timeout read them).
+   */
+  group?: GroupPlan;
+  /**
+   * S8.5b-1 — the client's own job id (the cloud render door's outbox record id, contract S8.5b
+   * §7). It BECOMES this job's id, owner-scoped: the same owner asking again for the same export
+   * gets the job it already has (`already`), anyone else — or the same owner with a different
+   * export — is refused `taken`, never handed that job. Only the door sets it (http.ts honours
+   * `x-maude-door-job` off the local lane); everything else gets a fresh random id.
+   */
+  clientId?: string;
+}
+
+/** S8.5b-1 — a client job id: the outbox record id shape (`i_` + 20 of [a-z0-9], ~100 bits). */
+export const CLIENT_JOB_ID_RE = /^i_[a-z0-9]{20}$/;
+
+/** S8.5b-1 — why a client job id was not taken. `taken` answers a foreign owner like a mismatch. */
+export class ExportJobIdError extends Error {
+  constructor(readonly reason: 'invalid' | 'no-owner' | 'taken') {
+    super(
+      reason === 'taken'
+        ? 'that job id is taken'
+        : reason === 'no-owner'
+          ? 'a client job id needs a session'
+          : 'invalid job id'
+    );
+    this.name = 'ExportJobIdError';
+  }
 }
 
 export type DownloadResult =
@@ -137,8 +207,40 @@ export type DownloadResult =
  * exactly like a missing one (U1). On a desktop every key is `''`, so the
  * answers are unchanged.
  */
+/** S8.4 — why a retry did not start. `missing` is also what another member's job answers (U1). */
+export type RetryResult =
+  | { ok: true; items: string[] }
+  | {
+      ok: false;
+      reason: 'missing' | 'not-retryable' | 'nothing-to-retry' | 'busy' | 'not-allowed';
+    };
+
 export interface ExportJobQueue {
-  enqueue(args: EnqueueArgs): { id: string; result: Promise<ExportResult> };
+  /**
+   * `already: true` — a replay of a `clientId` this owner already holds (S8.5b-1): nothing new is
+   * queued; `result` is the running job's own, or (finished) a settled rejection nobody awaits.
+   * Throws `ExportQueueFullError`, or `ExportJobIdError` for a refused `clientId`.
+   */
+  enqueue(args: EnqueueArgs): { id: string; result: Promise<ExportResult>; already?: true };
+  /**
+   * S8.5b-1 (contract §7, T11) — hand a not-yet-finished remote job a fresher render token (the
+   * door mints a new one on every status poll; a 15-min token would expire while queued). Owner-
+   * scoped like every read: another member's id answers false, exactly like a missing one.
+   */
+  refreshRenderToken(id: string, token: string, session?: string): boolean;
+  /**
+   * S8.4 — run again ONLY the failed (or waiting) items of a group job, named by `items` when
+   * given. Returns once the re-run is started; the job goes back to `running` and its items
+   * and result update in place. The new files join the ones the job already holds.
+   * `allow(canvas)` is asked of every canvas a retried item reaches (`null` = the whole project):
+   * access can change after the job was made, so a retry is gated again, never inherited.
+   */
+  retry(
+    id: string,
+    items?: readonly string[],
+    session?: string,
+    allow?: (canvas: string | null) => boolean
+  ): Promise<RetryResult>;
   /**
    * Record an export the MEMBER'S BROWSER produced and saved (DDR-231 browser
    * lane) so it appears in the same ledger every other export does. No bytes
@@ -177,7 +279,8 @@ const DEFAULT_JOB_TIMEOUT_MS = 5 * 60 * 1000;
 // end-to-end for renders bigger than the ceiling (e.g. if MAX_FRAMES is raised)
 // — it DELIBERATELY bypasses the 60-min cap, since removing the backstop is the
 // whole point of an operator escape hatch (trusted env, not attacker-reachable).
-const VIDEO_FORMATS = new Set(['mp4', 'webm', 'gif']);
+// S8.6: Sound only renders the video first, so it gets a video's budget
+const VIDEO_FORMATS = new Set(['mp4', 'webm', 'gif', 'audio']);
 const VIDEO_TIMEOUT_MIN_MS = 5 * 60 * 1000; // 5 min — same baseline as image exports
 const VIDEO_TIMEOUT_CEIL_MS = 60 * 60 * 1000; // 60 min hard ceiling (runaway backstop)
 const VIDEO_PER_FRAME_BUDGET_MS = 2500; // ~2.5 s/frame — covers the slow frame-step path up to 3× scale
@@ -319,7 +422,49 @@ function readPrintPropsFor(
   return out;
 }
 
-export function createExportJobQueue(bus: Bus, designRoot: string): ExportJobQueue {
+/** Two degradations of one job (the first run's and a retry's) as one: reasons joined, flags kept. */
+function mergeDegraded(
+  a: ExportDegradation | undefined,
+  b: ExportDegradation | undefined
+): ExportDegradation | undefined {
+  if (!a || !b) return a ?? b;
+  const fonts = [...new Set([...(a.fontsNotEmbedded ?? []), ...(b.fontsNotEmbedded ?? [])])];
+  return {
+    ...a,
+    ...b,
+    ...(a.audioDropped || b.audioDropped ? { audioDropped: true } : {}),
+    ...(fonts.length ? { fontsNotEmbedded: fonts } : {}),
+    reason: [...new Set([a.reason, b.reason])].join(' '),
+  };
+}
+
+/** Seams a test replaces (the engine call); production passes nothing. */
+export interface ExportJobQueueDeps {
+  runExport?: typeof runExport;
+  /** S8.9 — the run registry a `wait:'ai'` job holds on (server.ts passes `() => runRegistry`) */
+  runs?: () => AiRunReader | null;
+  /** A clock for the render-seconds meter (ms); tests move it by hand. */
+  now?: () => number;
+}
+
+export function createExportJobQueue(
+  bus: Bus,
+  designRoot: string,
+  deps: ExportJobQueueDeps = {}
+): ExportJobQueue {
+  const engine = deps.runExport ?? runExport;
+  const clock = deps.now ?? Date.now;
+  // Michal 2026-10-21 (render-seconds.ts): a cloud-lane job's time from taking its render slot to
+  // settling is the tenant's render load. One helper so the first run and a retry count alike.
+  const meterRender = (lane: ReturnType<typeof resolveRenderLane>, since: number): void => {
+    if (lane === 'remote') noteRenderMs(clock() - since);
+  };
+  // S8.4 — what a retry needs to run a group job's items again: the enqueue args (their lane
+  // inputs, render origin and token) and the lane the job took. In-memory like the job itself.
+  const groups = new Map<
+    string,
+    { args: EnqueueArgs; lane: ReturnType<typeof resolveRenderLane> }
+  >();
   const jobsDir = path.join(designRoot, '_export-jobs');
   const historyPath = path.join(designRoot, '_export-history.json');
   const maxConcurrent = Math.max(1, Number(process.env.MAUDE_EXPORT_MAX_CONCURRENT) || 2);
@@ -331,6 +476,9 @@ export function createExportJobQueue(bus: Bus, designRoot: string): ExportJobQue
   const owners = new Map<string, string>();
   const ownerOf = (id: string): string => owners.get(id) ?? '';
   const ownedBy = (session: string) => (job: ExportJob) => ownerOf(job.id) === session;
+  // S8.5b-1 — the args of every job not yet finished (the render reads `remoteCanvas` off them at
+  // dispatch, so a swapped token reaches the render) and its result (what a replay hands back).
+  const live = new Map<string, { args: EnqueueArgs; result: Promise<ExportResult> }>();
 
   // Seed the ledger from disk ONCE — the only read of the history file. Every
   // later persist derives fresh from `jobs` and overwrites; there is no
@@ -360,6 +508,14 @@ export function createExportJobQueue(bus: Bus, designRoot: string): ExportJobQue
           finishedAt,
           filename: e.filename as string | undefined,
           error: e.error as string | undefined,
+          ...(e.runsOn === 'cloud' || e.runsOn === 'this-mac' ? { runsOn: e.runsOn } : {}),
+          // S8.4 — a v2 row keeps what it was (the panel reads "Exported 114 of 115" after a
+          // restart, and Export again replays the stored spec); the plan to RETRY it is gone.
+          ...(e.spec && typeof e.spec === 'object' ? { spec: e.spec as ExportSpecV2 } : {}),
+          ...(Array.isArray(e.items) ? { items: e.items as ExportJobItem[] } : {}),
+          ...(e.degraded && typeof e.degraded === 'object'
+            ? { degraded: e.degraded as ExportDegradation }
+            : {}),
         });
         // V2-2.8 S5 — a row written before ownership existed has no `session`
         // and stays the shared ('') owner's, which in a cell is nobody.
@@ -411,6 +567,8 @@ export function createExportJobQueue(bus: Bus, designRoot: string): ExportJobQue
         // history entry is what a later session (or an agent) reads back.
         degraded: j.degraded,
         deliveredInBrowser: j.deliveredInBrowser,
+        ...(j.spec ? { spec: j.spec, items: j.items } : {}),
+        ...(j.runsOn ? { runsOn: j.runsOn } : {}),
       }));
   }
 
@@ -446,6 +604,7 @@ export function createExportJobQueue(bus: Bus, designRoot: string): ExportJobQue
     for (const job of staleBytes) {
       jobs.delete(job.id);
       owners.delete(job.id);
+      groups.delete(job.id);
       await rm(path.join(jobsDir, job.id), { recursive: true, force: true }).catch(() => {});
     }
 
@@ -458,32 +617,263 @@ export function createExportJobQueue(bus: Bus, designRoot: string): ExportJobQue
     for (const job of byteless.slice(HISTORY_DEPTH)) {
       jobs.delete(job.id);
       owners.delete(job.id);
+      groups.delete(job.id);
     }
   }
 
-  function enqueue(args: EnqueueArgs): { id: string; result: Promise<ExportResult> } {
+  /** S8.1 — one render: the v1 body's, or one unit of a v2 group (same spine). Shared by the first run and S8.4's retry. */
+  function makeRenderOne(
+    outer: EnqueueArgs,
+    lane: ReturnType<typeof resolveRenderLane>,
+    controller: AbortController,
+    job: ExportJob
+  ) {
+    return async (u: {
+      format: Format;
+      scope: Scope;
+      options: ExportOptions;
+    }): Promise<ExportResult> => {
+      const dispatchRemote = lane !== 'local' && formatNeedsBrowser(u.format);
+      const args = { ...outer, format: u.format, scope: u.scope, options: u.options };
+      // Scope resolves HERE, against the cell's own checkout — Target is
+      // pure data, and the render service holds no tenant store to resolve
+      // against (DDR-230 §1).
+      const remoteTargets = dispatchRemote
+        ? enforceAnnotationsPolicy(
+            await resolveScope({ scope: args.scope, ...args.resolve, options: args.options }),
+            args.format,
+            args.options,
+            args.resolve.designRoot
+          )
+        : [];
+      const res = dispatchRemote
+        ? await renderRemotely({
+            format: args.format,
+            targets: remoteTargets,
+            // Same rule for anything ELSE the adapter would read off disk: a
+            // print artboard's `print` prop (bleed, paper) lives in the canvas
+            // source, which only this process has. Resolve it here and ship
+            // it as data, or the worker's PDF silently loses its boxes/marks.
+            options:
+              args.format === 'pdf'
+                ? {
+                    ...args.options,
+                    printProps: readPrintPropsFor(
+                      remoteTargets,
+                      args.resolve.repoRoot,
+                      args.resolve.designRoot
+                    ),
+                  }
+                : VIDEO_FORMATS.has(args.format)
+                  ? {
+                      ...args.options,
+                      // The <Audio>/<OffthreadVideo> pre-flight reads the canvas
+                      // source — same "only the cell has the checkout" rule.
+                      unsupportedMedia: readUnsupportedMediaFor(
+                        remoteTargets,
+                        args.resolve.repoRoot,
+                        args.resolve.designRoot
+                      ),
+                      // Ship the FULL frame-scaled render budget to the worker.
+                      // The cell sizes jobTimeoutMs to the frame count (a 704-
+                      // frame comp gets ~30 min), but the worker's shim caps
+                      // renderMediaOnWeb + its hard-kill on `options.timeoutSec`,
+                      // which defaulted to 60 s — so every real video fell back
+                      // to frame-step after 60 s and then hard-killed at 150 s,
+                      // long before a legitimate render could finish. Without
+                      // this the worker never knows the job it was handed is
+                      // allowed minutes, not seconds.
+                      timeoutSec: Math.ceil(jobTimeoutMs(args) / 1000),
+                    }
+                  : args.options,
+            canvas: args.remoteCanvas ?? { origin: '' },
+            // resolveRenderService() is non-null on the `remote` lane by
+            // construction (the lane IS the presence of MAUDE_RENDER_URL).
+            service: resolveRenderService()!,
+            signal: controller.signal,
+          })
+        : await engine({
+            format: args.format,
+            scope: args.scope,
+            options: args.options,
+            resolve: args.resolve,
+            ctx: args.ctx,
+            hooks: {
+              signal: controller.signal,
+              onProgress: (update) => {
+                job.progress = update;
+                emit(job);
+              },
+            },
+          });
+      return res;
+    };
+  }
+
+  /** S8.4 — Retry is offered while the plan is in memory and an item did not make it. */
+  function settleRetryable(job: ExportJob): void {
+    const failed = job.items?.some((i) => i.status === 'failed' || i.status === 'waiting') ?? false;
+    if (groups.has(job.id) && failed) job.retryable = true;
+    else delete job.retryable;
+  }
+
+  /** The files a group job already holds, read back from its result (one file, or one zip). */
+  async function heldFiles(job: ExportJob, keep: readonly ExportJobItem[]): Promise<GroupFile[]> {
+    if (!job.filename) return [];
+    const file = Bun.file(path.join(jobsDir, job.id, job.filename));
+    if (!(await file.exists())) return [];
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const named = keep.flatMap((i) => i.files ?? []);
+    if (named.length === 1 && named[0]?.replace(/^.*\//, '') === job.filename)
+      return [{ name: named[0] as string, bytes }];
+    const zip = await JSZip.loadAsync(bytes);
+    const out: GroupFile[] = [];
+    for (const entry of Object.values(zip.files)) {
+      if (!entry.dir) out.push({ name: entry.name, bytes: await entry.async('uint8array') });
+    }
+    return out;
+  }
+
+  async function retry(
+    id: string,
+    itemIds?: readonly string[],
+    session: string = currentSession(),
+    allow?: (canvas: string | null) => boolean
+  ): Promise<RetryResult> {
+    const job = jobs.get(id);
+    // Another member's job answers exactly like a missing one (V2-1.16 U1).
+    if (!job || ownerOf(id) !== normalizeSessionKey(session))
+      return { ok: false, reason: 'missing' };
+    const held = groups.get(id);
+    const group = held?.args.group;
+    if (!held || !group || !job.items) return { ok: false, reason: 'not-retryable' };
+    if (job.status === 'queued' || job.status === 'running') return { ok: false, reason: 'busy' };
+    const wanted = itemIds ? new Set(itemIds) : null;
+    const at: number[] = [];
+    job.items.forEach((item, i) => {
+      const unfinished = item.status === 'failed' || item.status === 'waiting';
+      if (unfinished && (!wanted || wanted.has(item.id))) at.push(i);
+    });
+    if (at.length === 0) return { ok: false, reason: 'nothing-to-retry' };
+    if (allow && at.some((i) => !allow((group.units[i] as SpecUnit).canvas)))
+      return { ok: false, reason: 'not-allowed' };
+
+    const items = job.items;
+    const again = at.map((i) => items[i] as ExportJobItem);
+    const rest = items.filter((i) => !again.includes(i));
+    const plan: GroupPlan = { ...group, units: at.map((i) => group.units[i] as SpecUnit) };
+    for (const item of again) {
+      item.status = 'queued';
+      delete item.reason;
+    }
+    job.status = 'running';
+    delete job.retryable;
+    delete job.error;
+    delete job.progress;
+    emit(job);
+
+    const controller = new AbortController();
+    const done = (async () => {
+      const release = await semaphore.acquire();
+      const ranFrom = clock();
+      const timer = setTimeout(() => controller.abort(), jobTimeoutMs(held.args));
+      try {
+        const renderOne = makeRenderOne(held.args, held.lane, controller, job);
+        const before = await heldFiles(job, rest);
+        const got = await collectGroup(
+          plan,
+          again,
+          (u) => renderOne(u as { format: Format; scope: Scope; options: ExportOptions }),
+          () => emit(job),
+          controller.signal,
+          rest.flatMap((i) => i.files ?? [])
+        );
+        const files = [...before, ...got.files];
+        if (files.length === 0) {
+          job.status = 'failed';
+          job.error = again.find((i) => i.reason)?.reason ?? 'export failed';
+          return;
+        }
+        const degraded = mergeDegraded(job.degraded, got.degraded);
+        const res = await packGroup(group, { files, ...(degraded ? { degraded } : {}) });
+        const dir = path.join(jobsDir, id);
+        await mkdir(dir, { recursive: true });
+        await Bun.write(path.join(dir, res.filename), res.body);
+        if (job.filename && job.filename !== res.filename)
+          await rm(path.join(dir, job.filename), { force: true }).catch(() => {});
+        job.status = 'done';
+        job.filename = res.filename;
+        job.contentType = res.contentType;
+        if (res.degraded) job.degraded = res.degraded;
+      } catch (err) {
+        job.status = 'failed';
+        job.error = err instanceof Error ? err.message : String(err);
+      } finally {
+        clearTimeout(timer);
+        meterRender(held.lane, ranFrom);
+        job.finishedAt = new Date().toISOString();
+        settleRetryable(job);
+        emit(job);
+        await persistAndEvict();
+        release();
+      }
+    })();
+    done.catch(() => {});
+    return { ok: true, items: again.map((i) => i.id) };
+  }
+
+  /** S8.5b-1 — what a job asked for, so a replay of its id can be told from a different export. */
+  function requestKeyOf(x: { spec?: unknown; format: unknown; scope: unknown; options: unknown }) {
+    const body =
+      x.spec !== undefined ? { spec: x.spec } : { f: x.format, s: x.scope, o: x.options };
+    return createHash('sha256').update(stableJson(body)).digest('hex');
+  }
+
+  /** S8.5b-1 — a replay of `clientId` by its owner, or null (a new id); throws when refused. */
+  function replayOf(
+    args: EnqueueArgs,
+    owner: string
+  ): { id: string; result: Promise<ExportResult>; already: true } | null {
+    const id = args.clientId as string;
+    if (!CLIENT_JOB_ID_RE.test(id)) throw new ExportJobIdError('invalid');
+    // A cell job always has its member's session; an owner-less id would be anybody's.
+    if (!owner) throw new ExportJobIdError('no-owner');
+    const had = jobs.get(id);
+    if (!had) return null;
+    const same =
+      ownerOf(id) === owner &&
+      requestKeyOf(had) ===
+        requestKeyOf({
+          spec: args.group?.spec,
+          format: args.format,
+          scope: args.scope,
+          options: args.options,
+        });
+    if (!same) throw new ExportJobIdError('taken');
+    const running = live.get(id)?.result;
+    if (running) return { id, result: running, already: true };
+    const settled = Promise.reject(new Error('export already finished'));
+    settled.catch(() => {});
+    return { id, result: settled, already: true };
+  }
+
+  function enqueue(args: EnqueueArgs): {
+    id: string;
+    result: Promise<ExportResult>;
+    already?: true;
+  } {
+    const owner = normalizeSessionKey(args.session ?? currentSession());
+    if (args.clientId !== undefined) {
+      const replay = replayOf(args, owner);
+      if (replay) return replay;
+    }
     let pending = 0;
     for (const job of jobs.values()) {
       if (job.status === 'queued' || job.status === 'running') pending += 1;
     }
     if (pending >= MAX_PENDING) throw new ExportQueueFullError();
 
-    const id = crypto.randomUUID();
-    const job: ExportJob = {
-      id,
-      format: args.format,
-      scope: args.scope,
-      options: args.options,
-      status: 'queued',
-      createdAt: new Date().toISOString(),
-    };
-    const owner = normalizeSessionKey(args.session ?? currentSession());
-    if (owner) owners.set(id, owner);
-    jobs.set(id, job);
-    emit(job);
-
-    const controller = new AbortController();
-
+    const id = args.clientId ?? crypto.randomUUID();
     // DDR-230 — where this job renders. `local` is the pre-render-workers
     // spine, byte-identical. In a workspace the browser formats dispatch to
     // the maude-render service (`remote`) or refuse with a remedy (`none`);
@@ -491,11 +881,29 @@ export function createExportJobQueue(bus: Bus, designRoot: string): ExportJobQue
     // nothing to evaluate. Resolved per job, not per process, so tests can
     // exercise the lanes without a reboot.
     const lane = resolveRenderLane();
+    const job: ExportJob = {
+      id,
+      format: args.format,
+      scope: args.scope,
+      options: args.options,
+      status: 'queued',
+      createdAt: new Date().toISOString(),
+      runsOn: lane === 'local' ? 'this-mac' : 'cloud',
+      ...(args.group ? { spec: args.group.spec, items: itemsFor(args.group) } : {}),
+    };
+    if (owner) owners.set(id, owner);
+    jobs.set(id, job);
+    emit(job);
+
+    const controller = new AbortController();
+
     const dispatchRemote = lane !== 'local' && formatNeedsBrowser(args.format);
+    if (args.group) groups.set(id, { args, lane });
     console.error(
       `[jobs] ${args.format}: lane=${lane} dispatchRemote=${dispatchRemote} (renderUrl=${process.env.MAUDE_RENDER_URL ? 'set' : 'unset'})`
     );
 
+    const outer = args;
     const result = (async (): Promise<ExportResult> => {
       // Fail BEFORE taking a render slot: a job that can never render must not
       // queue behind ones that can, and the refusal message is the remedy the
@@ -514,84 +922,45 @@ export function createExportJobQueue(bus: Bus, designRoot: string): ExportJobQue
         await persistAndEvict();
         throw new Error(laneRefusal);
       }
+      // S8.9 — `wait:'ai'`: held here (queued, items `waiting`), BEFORE a render slot, until the
+      // AI run on the target ends; dies with the run. See exporters/wait-ai.ts.
+      const diedWith = await holdJobForAi(job, args.group, {
+        bus,
+        reader: deps.runs?.() ?? null,
+        emit: () => emit(job),
+        signal: controller.signal,
+      });
+      if (diedWith) {
+        job.status = 'failed';
+        job.finishedAt = new Date().toISOString();
+        job.error = diedWith;
+        emit(job);
+        await persistAndEvict();
+        throw new Error(diedWith);
+      }
       const release = await semaphore.acquire();
       // Started here, not at enqueue — the timeout bounds RENDER time (the
       // intent), not queue-wait time. A job can legitimately sit `queued`
       // behind MAUDE_EXPORT_MAX_CONCURRENT other jobs for longer than its
       // render budget; arming the timer before the semaphore resolves would
       // abort it before it ever ran (code-review finding, /flow:done).
+      const ranFrom = clock();
       const timer = setTimeout(() => controller.abort(), jobTimeoutMs(args));
       try {
         job.status = 'running';
         job.startedAt = new Date().toISOString();
         emit(job);
 
-        // Scope resolves HERE, against the cell's own checkout — Target is
-        // pure data, and the render service holds no tenant store to resolve
-        // against (DDR-230 §1).
-        const remoteTargets = dispatchRemote
-          ? await resolveScope({ scope: args.scope, ...args.resolve, options: args.options })
-          : [];
-        const res = dispatchRemote
-          ? await renderRemotely({
-              format: args.format,
-              targets: remoteTargets,
-              // Same rule for anything ELSE the adapter would read off disk: a
-              // print artboard's `print` prop (bleed, paper) lives in the canvas
-              // source, which only this process has. Resolve it here and ship
-              // it as data, or the worker's PDF silently loses its boxes/marks.
-              options:
-                args.format === 'pdf'
-                  ? {
-                      ...args.options,
-                      printProps: readPrintPropsFor(
-                        remoteTargets,
-                        args.resolve.repoRoot,
-                        args.resolve.designRoot
-                      ),
-                    }
-                  : VIDEO_FORMATS.has(args.format)
-                    ? {
-                        ...args.options,
-                        // The <Audio>/<OffthreadVideo> pre-flight reads the canvas
-                        // source — same "only the cell has the checkout" rule.
-                        unsupportedMedia: readUnsupportedMediaFor(
-                          remoteTargets,
-                          args.resolve.repoRoot,
-                          args.resolve.designRoot
-                        ),
-                        // Ship the FULL frame-scaled render budget to the worker.
-                        // The cell sizes jobTimeoutMs to the frame count (a 704-
-                        // frame comp gets ~30 min), but the worker's shim caps
-                        // renderMediaOnWeb + its hard-kill on `options.timeoutSec`,
-                        // which defaulted to 60 s — so every real video fell back
-                        // to frame-step after 60 s and then hard-killed at 150 s,
-                        // long before a legitimate render could finish. Without
-                        // this the worker never knows the job it was handed is
-                        // allowed minutes, not seconds.
-                        timeoutSec: Math.ceil(jobTimeoutMs(args) / 1000),
-                      }
-                    : args.options,
-              canvas: args.remoteCanvas ?? { origin: '' },
-              // resolveRenderService() is non-null on the `remote` lane by
-              // construction (the lane IS the presence of MAUDE_RENDER_URL).
-              service: resolveRenderService()!,
-              signal: controller.signal,
-            })
-          : await runExport({
-              format: args.format,
-              scope: args.scope,
-              options: args.options,
-              resolve: args.resolve,
-              ctx: args.ctx,
-              hooks: {
-                signal: controller.signal,
-                onProgress: (update) => {
-                  job.progress = update;
-                  emit(job);
-                },
-              },
-            });
+        const renderOne = makeRenderOne(outer, lane, controller, job);
+        const res = args.group
+          ? await runGroup(
+              args.group,
+              job.items ?? [],
+              (u) => renderOne(u as { format: Format; scope: Scope; options: ExportOptions }),
+              () => emit(job),
+              controller.signal
+            )
+          : await renderOne(args);
 
         // Bytes land on disk BEFORE the job reads `done`. The other way round,
         // a poller saw `done` while the write was still in flight and its
@@ -612,6 +981,7 @@ export function createExportJobQueue(bus: Bus, designRoot: string): ExportJobQue
         // the desktop app's stderr — see RCA
         // issue-mp4-audio-export-html5audio-silent-degrade.
         if (res.degraded) job.degraded = res.degraded;
+        settleRetryable(job);
         emit(job);
         await persistAndEvict();
         return res;
@@ -619,20 +989,40 @@ export function createExportJobQueue(bus: Bus, designRoot: string): ExportJobQue
         job.status = 'failed';
         job.finishedAt = new Date().toISOString();
         job.error = err instanceof Error ? err.message : String(err);
+        settleRetryable(job);
         emit(job);
         await persistAndEvict();
         throw err;
       } finally {
         clearTimeout(timer);
+        meterRender(lane, ranFrom);
         release();
       }
     })();
+    live.set(id, { args, result });
+    // Every settle path (lane refusal, AI hold, render) ends here: the job is finished.
+    result.then(
+      () => live.delete(id),
+      () => live.delete(id)
+    );
 
     return { id, result };
   }
 
   return {
     enqueue,
+    retry,
+    refreshRenderToken(id, token, session = currentSession()) {
+      if (typeof token !== 'string' || token.length === 0 || token.length > 4096) return false;
+      const held = live.get(id);
+      const job = jobs.get(id);
+      if (!held || !job || isFinished(job)) return false;
+      if (ownerOf(id) !== normalizeSessionKey(session)) return false;
+      // Only a job that renders remotely carries a render token; a local one has none to swap.
+      if (!held.args.remoteCanvas) return false;
+      held.args.remoteCanvas = { ...held.args.remoteCanvas, token };
+      return true;
+    },
     get(id, session = currentSession()) {
       const job = jobs.get(id);
       return job && ownerOf(id) === normalizeSessionKey(session) ? job : undefined;
@@ -694,4 +1084,18 @@ export function createExportJobQueue(bus: Bus, designRoot: string): ExportJobQue
       };
     },
   };
+}
+
+/** Key-sorted JSON: two equal requests hash equal whatever order their keys arrived in. */
+function stableJson(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(stableJson).join(',')}]`;
+  if (v && typeof v === 'object') {
+    const o = v as Record<string, unknown>;
+    return `{${Object.keys(o)
+      .filter((k) => o[k] !== undefined)
+      .sort()
+      .map((k) => `${JSON.stringify(k)}:${stableJson(o[k])}`)
+      .join(',')}}`;
+  }
+  return JSON.stringify(v ?? null);
 }

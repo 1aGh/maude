@@ -8,7 +8,7 @@
 // as the persistent re-check surface — `refresh()` re-probes without a reinstall.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getClaudeAutoSetup, isNativeApp, setClaudeAutoSetup } from '../github.js';
+import { isNativeApp } from '../github.js';
 
 /** Fetch + cache the readiness report. `refresh()` re-probes (the re-check button). */
 export function useReadiness(enabled = true) {
@@ -49,19 +49,49 @@ export function useReadiness(enabled = true) {
 function StatusIcon({ status }) {
   if (status === 'present')
     return (
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 16 16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
         <polyline points="3 8.4 6.4 11.8 13 4.4" />
       </svg>
     );
   if (status === 'unknown')
     return (
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 16 16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
         <path d="M6 6a2 2 0 1 1 2.6 1.9c-.4.2-.6.5-.6 1V10" />
         <circle cx="8" cy="12.4" r="0.6" fill="currentColor" stroke="none" />
       </svg>
     );
   return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
       <circle cx="8" cy="8" r="5.5" />
       <line x1="8" y1="5" x2="8" y2="8.6" />
     </svg>
@@ -148,7 +178,9 @@ function SetupAction({ mode, refresh }) {
       if (Date.now() > timerRef.current.deadline) {
         stopPoll();
         setPhase('error');
-        setError('Install is taking longer than expected — it may still finish in the background; you can also run the command below yourself, then Re-check.');
+        setError(
+          'Install is taking longer than expected — it may still finish in the background; you can also run the command below yourself, then Re-check.'
+        );
         return;
       }
       const state = await fetch('/_api/claude/install-status')
@@ -286,7 +318,12 @@ function Row({ item, refresh }) {
               <Inline text={item.remediation} />
             </span>
             {!item.installCommand && !item.action ? (
-              <button type="button" className="rdy-copy" onClick={copyFix} aria-label={`Copy the fix for ${item.label}`}>
+              <button
+                type="button"
+                className="rdy-copy"
+                onClick={copyFix}
+                aria-label={`Copy the fix for ${item.label}`}
+              >
                 {copied ? 'Copied' : 'Copy'}
               </button>
             ) : null}
@@ -311,8 +348,8 @@ function Row({ item, refresh }) {
           <>
             {item.action === 'install' ? (
               <span className="rdy-fix-tx rdy-fallback-label">
-                Clicking above runs this command, then opens your browser to sign in. Prefer to do it
-                yourself?
+                Clicking above runs this command, then opens your browser to sign in. Prefer to do
+                it yourself?
               </span>
             ) : null}
             <InstallCommand command={item.installCommand} />
@@ -333,7 +370,12 @@ export default function ReadinessList({ report, loading, refresh }) {
       </ul>
       {refresh ? (
         <div className="rdy-foot">
-          <button type="button" className="btn btn--ghost btn--sm rdy-recheck" onClick={refresh} disabled={loading}>
+          <button
+            type="button"
+            className="btn btn--ghost btn--sm rdy-recheck"
+            onClick={refresh}
+            disabled={loading}
+          >
             {loading ? 'Checking…' : 'Re-check'}
           </button>
         </div>
@@ -342,40 +384,8 @@ export default function ReadinessList({ report, loading, refresh }) {
   );
 }
 
-// DDR-166 Decision 5 — the settings-UI opt-out for the auto-install/auto-
-// sign-in buttons above. DEFAULT ON. Native-only (the toggle is backed by a
-// Tauri command); a terminal-launched `maude design serve` web session has
-// no automated action to opt out of in the first place.
-function AutoSetupToggle() {
-  const [on, setOn] = useState(true);
-  useEffect(() => {
-    let alive = true;
-    getClaudeAutoSetup()
-      .then((v) => alive && setOn(v !== false))
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, []);
-  if (!isNativeApp()) return null;
-  return (
-    <label className="rdy-autosetup-toggle">
-      <input
-        type="checkbox"
-        checked={on}
-        onChange={(e) => {
-          const next = e.target.checked;
-          setOn(next);
-          setClaudeAutoSetup(next).catch(() => setOn(!next));
-        }}
-      />
-      <span>
-        Offer to install Claude Code and sign in automatically. Turn off to see only the copy-paste
-        command — takes effect next launch or project switch.
-      </span>
-    </label>
-  );
-}
+// DDR-166 Decision 5's opt-out (offer to install Claude Code and sign in) lives in Settings ›
+// Advanced › Claude Code (V2-4.7a; the dialog's own copy went in V2-4.7c). The dialog says where.
 
 // Standalone readiness modal reachable any time from Help ▸ Check AI editing
 // readiness… (DDR-128, T6 — the persistent re-check surface, not gated on
@@ -400,12 +410,22 @@ export function ReadinessDialog({ open, onClose }) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="help-modal rdy-modal" role="dialog" aria-modal="true" aria-labelledby="rdy-modal-title">
+      <div
+        className="help-modal rdy-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="rdy-modal-title"
+      >
         <header className="help-modal-hd">
           <span className="title" id="rdy-modal-title">
             Check AI editing readiness
           </span>
-          <button type="button" className="help-modal-close" aria-label="Close (Esc)" onClick={onClose}>
+          <button
+            type="button"
+            className="help-modal-close"
+            aria-label="Close (Esc)"
+            onClick={onClose}
+          >
             ×
           </button>
         </header>
@@ -421,7 +441,12 @@ export function ReadinessDialog({ open, onClose }) {
               {loading ? 'Checking…' : "Couldn't reach the readiness probe."}
             </p>
           )}
-          <AutoSetupToggle />
+          {isNativeApp() && (
+            <p className="rdy-modal-note" data-testid="readiness-autosetup-where">
+              To stop the install and sign-in offers, turn off Settings › Advanced › Claude Code ›
+              Install and sign in automatically.
+            </p>
+          )}
         </div>
       </div>
     </div>

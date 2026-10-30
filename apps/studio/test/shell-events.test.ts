@@ -1,0 +1,316 @@
+// shell-events — a project window and the Rust shell's own events (V2-3.3 / V2-3.5, contract
+// V2-1.1 §5.4 + §5.10): `shell://navigate {canvas, artboard}` opens the canvas and focuses the
+// artboard through the `?open=` / `maude design open` road, and opened-existing / tabs-restored
+// are toasts — tabs-restored also pulled once on start, because Rust emits it before the page is up.
+
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { GlobalRegistrator } from '@happy-dom/global-registrator';
+
+beforeAll(() => {
+  GlobalRegistrator.register({ url: 'http://localhost:4400/' });
+});
+afterAll(() => {
+  GlobalRegistrator.unregister();
+});
+
+import { invoke, listenHere } from '../client/github.js';
+import {
+  applyShellNavigate,
+  linkOpenedWords,
+  navigatePlan,
+  openedExistingWords,
+  startShellEvents,
+  tabsRestoredWords,
+} from '../client/shell-events.js';
+import { OPEN_LADDER_MS } from '../client/ui-open.js';
+
+type Handler = (e: { payload: unknown }) => void;
+type Ch = { onmessage?: (m: { kind: string; payload: unknown }) => void };
+// Finding 1d: the shell reaches this page ONLY on the Channel it hands `shell_subscribe`
+// (client/shell-bus.js). `here` = the kinds with a live handler on that bus; calling
+// `here[kind]({payload})` delivers one message on the channel.
+let channel: Ch | null = null;
+const liveKinds = (): string[] => {
+  const bus = (window as unknown as { __maudeShellBus?: { handlers: Map<string, Set<unknown>> } })
+    .__maudeShellBus;
+  return bus ? [...bus.handlers].filter(([, set]) => set.size > 0).map(([k]) => k) : [];
+};
+const here: Record<string, Handler> = new Proxy({} as Record<string, Handler>, {
+  get: (_t, kind) =>
+    liveKinds().includes(String(kind))
+      ? (e: { payload: unknown }) =>
+          channel?.onmessage?.({ kind: String(kind), payload: e.payload })
+      : undefined,
+  ownKeys: () => liveKinds(),
+  getOwnPropertyDescriptor: () => ({ enumerable: true, configurable: true }),
+});
+let global: Record<string, Handler> = {};
+let invokes: string[] = [];
+let answers: Record<string, unknown> = {};
+
+// The Tauri global a project webview sees. A global or window-scoped `listen` must never be used
+// (an `emit_to` aimed at another webview reaches it too) — `global` / the webviewWindow stay to
+// prove nothing registers there.
+function installTauri() {
+  (window as unknown as { __TAURI__: unknown }).__TAURI__ = {
+    core: {
+      Channel: class {
+        onmessage?: Ch['onmessage'];
+      },
+      invoke: async (cmd: string, args?: { onMessage?: Ch }) => {
+        invokes.push(cmd);
+        if (cmd === 'shell_subscribe') {
+          channel = args?.onMessage ?? null;
+          return null;
+        }
+        if (!(cmd in answers)) throw new Error(`command ${cmd} not found`);
+        return answers[cmd];
+      },
+    },
+    event: {
+      listen: async (name: string, cb: Handler) => {
+        global[name] = cb;
+        return () => delete global[name];
+      },
+    },
+    webviewWindow: {
+      getCurrentWebviewWindow: () => ({
+        listen: async (name: string, cb: Handler) => {
+          global[`here:${name}`] = cb;
+          return () => delete global[`here:${name}`];
+        },
+      }),
+    },
+  };
+}
+
+const tick = async (n = 4) => {
+  for (let i = 0; i < n; i++) await new Promise((r) => setTimeout(r, 0));
+};
+
+beforeEach(() => {
+  channel = null;
+  (window as unknown as { __maudeShellBus?: unknown }).__maudeShellBus = undefined;
+  global = {};
+  invokes = [];
+  answers = {};
+  installTauri();
+});
+
+function start() {
+  const toasts: string[] = [];
+  const extras: unknown[] = [];
+  const navs: unknown[] = [];
+  const stop = startShellEvents({
+    invoke,
+    listen: listenHere,
+    toast: (t: string, _ok?: boolean, _a?: unknown, extra?: unknown) => {
+      toasts.push(t);
+      extras.push(extra);
+    },
+    onNavigate: (p: unknown) => navs.push(p),
+  });
+  return { toasts, extras, navs, stop };
+}
+
+describe('shell events reach this window', () => {
+  test('words are the contract §5.10 words', () => {
+    expect(openedExistingWords('Alligators brand')).toBe(
+      'Alligators brand is open in this window.'
+    );
+    expect(tabsRestoredWords(20)).toBe('20 tabs reopened. Each one starts when you open it.');
+  });
+
+  test('opened-existing → toast; listened on this window, not app-wide', async () => {
+    const s = start();
+    await tick();
+    expect(Object.keys(here).sort()).toEqual(
+      ['shell://navigate', 'shell://opened-existing', 'shell://tabs-restored'].sort()
+    );
+    expect(Object.keys(global)).toEqual([]);
+    here['shell://opened-existing']?.({ payload: { name: 'Alligators brand' } });
+    here['shell://opened-existing']?.({ payload: { name: '' } });
+    expect(s.toasts).toEqual(['Alligators brand is open in this window.']);
+    s.stop();
+    expect(Object.keys(here)).toEqual([]);
+  });
+
+  test('tabs-restored emitted before the page existed is pulled once on start', async () => {
+    answers.take_tabs_restored = { count: 20 };
+    const s = start();
+    await tick();
+    expect(invokes).toContain('take_tabs_restored');
+    expect(s.toasts).toEqual(['20 tabs reopened. Each one starts when you open it.']);
+    // 11 pn-relaunch: the one-line top pill wears the tabs glyph (the board's icon="tab"), no success colouring
+    expect(s.extras[0]).toEqual({ kind: 'info', placement: 'top', icon: 'tab' });
+    // the event arriving too (page was up in time) never toasts twice
+    here['shell://tabs-restored']?.({ payload: { count: 20 } });
+    expect(s.toasts.length).toBe(1);
+  });
+
+  test('a link that opened this NEW tab is pulled once and toasted (V2-3.6 L1)', async () => {
+    answers.take_link_opened = { name: 'Alligators brand' };
+    const s = start();
+    await tick();
+    expect(invokes).toContain('take_link_opened');
+    expect(s.toasts).toEqual(['Opened Alligators brand from a link.']);
+    expect(linkOpenedWords('x')).toBe('Opened x from a link.');
+  });
+
+  test('a link-opened note with no usable name toasts nothing', async () => {
+    answers.take_link_opened = { name: '' };
+    const s = start();
+    await tick();
+    expect(s.toasts).toEqual([]);
+  });
+
+  // The page restarts this subscription when its tree / cloud state flips (hooks/use-tabs.jsx deps). Rust's park is
+  // one-shot, so a take answered AFTER its own subscription stopped was the only copy of "2 tabs reopened" — the
+  // relaunch lane lost the pill that way once (V2-8.3 chain run, 2026-10-28).
+  test('a take answered after its subscription stopped goes to the one that is live now', async () => {
+    let release: (v: unknown) => void = () => {};
+    let taken = false;
+    const held = new Promise((r) => {
+      release = r;
+    });
+    const core = (
+      window as unknown as { __TAURI__: { core: { invoke: (c: string, a?: unknown) => unknown } } }
+    ).__TAURI__.core;
+    const was = core.invoke;
+    core.invoke = (cmd: string, args?: unknown) => {
+      if (cmd === 'take_tabs_restored') {
+        invokes.push(cmd);
+        if (taken) return Promise.resolve(null); // already emptied by the first take
+        taken = true;
+        return held;
+      }
+      return was(cmd, args);
+    };
+    const first = start();
+    await tick();
+    first.stop(); // the page re-ran its effect: the first take is still in flight
+    const second = start();
+    await tick();
+    release({ count: 2 });
+    await tick();
+    expect(first.toasts).toEqual([]);
+    expect(second.toasts).toEqual(['2 tabs reopened. Each one starts when you open it.']);
+    second.stop();
+  });
+
+  test('a shell without take_tabs_restored still toasts from the event', async () => {
+    const s = start();
+    await tick();
+    expect(s.toasts).toEqual([]);
+    here['shell://tabs-restored']?.({ payload: { count: 3 } });
+    expect(s.toasts).toEqual(['3 tabs reopened. Each one starts when you open it.']);
+  });
+
+  test('shell://navigate is handed on; a parked navigate (new tab from a link) is pulled once', async () => {
+    answers.take_pending_navigate = { canvas: 'ui/Hero.tsx', artboard: 'cover' };
+    const s = start();
+    await tick();
+    expect(s.navs).toEqual([{ canvas: 'ui/Hero.tsx', artboard: 'cover' }]);
+    here['shell://navigate']?.({ payload: { canvas: 'ui/Plakat.tsx', artboard: null } });
+    expect(s.navs.length).toBe(2);
+    s.stop();
+    // after stop nothing lands
+    answers.take_pending_navigate = null;
+  });
+});
+
+describe('applyShellNavigate — the ?open= road plus the artboard focus', () => {
+  const PATHS = ['.design/ui/Hero.tsx', '.design/ui/Plakat.tsx', '.design/assets/logo.svg'];
+  function run(payload: unknown, activePath: string | null = null) {
+    const calls: string[] = [];
+    const posted: unknown[] = [];
+    const timers: number[] = [];
+    const frame = { contentWindow: { postMessage: (m: unknown) => posted.push(m) } };
+    const plan = applyShellNavigate(payload, {
+      paths: PATHS,
+      designRel: '.design',
+      activePath,
+      openLinkedFile: (rel: string) => calls.push(`link:${rel}`),
+      openTab: (f: string) => calls.push(`tab:${f}`),
+      frameFor: () => frame,
+      setPresent: () => calls.push('present'),
+      schedule: (fn: () => void, ms: number) => {
+        timers.push(ms);
+        fn();
+      },
+    });
+    return { plan, calls, posted, timers };
+  }
+
+  test('canvas + artboard → that tab opens and the artboard is focused on the ladder', () => {
+    const r = run({ canvas: 'ui/Hero.tsx', artboard: 'cover' });
+    expect(r.calls).toEqual(['tab:.design/ui/Hero.tsx']);
+    expect(r.timers).toEqual(OPEN_LADDER_MS);
+    expect(r.posted[0]).toEqual({
+      dgn: 'run-action',
+      v: 1,
+      id: 'view.zoom-to-artboard',
+      params: { id: 'cover' },
+    });
+  });
+
+  test('canvas only → the link opener (same as ?open=), no artboard posts', () => {
+    const r = run({ canvas: 'ui/Plakat.tsx', artboard: null });
+    expect(r.calls).toEqual(['link:ui/Plakat.tsx']);
+    expect(r.posted).toEqual([]);
+  });
+
+  test('a canvas not in this tree → the link opener says "Not here yet"', () => {
+    const r = run({ canvas: 'ui/Gone.tsx', artboard: 'a' });
+    expect(r.plan?.file).toBeNull();
+    expect(r.calls).toEqual(['link:ui/Gone.tsx']);
+  });
+
+  test('artboard only → focused in the open canvas', () => {
+    const r = run({ canvas: null, artboard: 'cover' }, '.design/ui/Hero.tsx');
+    expect(r.calls).toEqual(['tab:.design/ui/Hero.tsx']);
+    expect(r.posted.length).toBeGreaterThan(0);
+  });
+
+  test('untrusted junk does nothing', () => {
+    for (const p of [
+      null,
+      'x',
+      { canvas: '../../etc/passwd' },
+      { canvas: 'ui/a\\b.tsx' },
+      { canvas: null, artboard: 'x' },
+      { canvas: null, artboard: 'a\nb' },
+    ])
+      expect(run(p).plan).toBeNull();
+    expect(
+      navigatePlan(
+        { canvas: 'ui/Hero.tsx', artboard: 'x'.repeat(129) },
+        {
+          paths: PATHS,
+          designRel: '.design',
+          activePath: null,
+        }
+      )?.artboard
+    ).toBeNull();
+  });
+
+  test('use-tabs subscribes it once the tree is loaded, reading the live openers through a ref', () => {
+    const src = readFileSync(
+      join(import.meta.dir, '..', 'client', 'hooks', 'use-tabs.jsx'),
+      'utf8'
+    );
+    const at = src.indexOf('return startShellEvents({');
+    expect(at).toBeGreaterThan(0);
+    const call = src.slice(at, src.indexOf('});', at));
+    for (const k of [
+      'listen: listenHere',
+      'onNavigate: (p) => applyShellNavigate(p, shellNavRef.current)',
+    ])
+      expect({ k, present: call.includes(k) }).toEqual({ k, present: true });
+    const ref = src.slice(src.indexOf('shellNavRef.current = {'), at);
+    for (const k of ['openLinkedFile,', 'openTab,', 'iframesRef.current.get'])
+      expect({ k, present: ref.includes(k) }).toEqual({ k, present: true });
+  });
+});

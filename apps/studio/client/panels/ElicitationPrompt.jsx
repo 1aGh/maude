@@ -199,8 +199,8 @@ function Question({
       ) : null}
       {secretShaped ? (
         <p className="chat-elicit-secret-warning" data-testid="chat-elicit-secret-warning">
-          This looks like it's asking for a password, key, or other credential — Maude never
-          needs your real ones here.
+          This looks like it's asking for a password, key, or other credential — Maude never needs
+          your real ones here.
         </p>
       ) : null}
     </fieldset>
@@ -278,7 +278,8 @@ export default function ElicitationPrompt({ request, onRespond }) {
 
   const canSubmit = questions.filter((q) => q.required).every((q) => isAnswered(q, answers));
   const currentQuestion = isWizard ? questions[step] : null;
-  const canAdvance = !currentQuestion || !currentQuestion.required || isAnswered(currentQuestion, answers);
+  const canAdvance =
+    !currentQuestion || !currentQuestion.required || isAnswered(currentQuestion, answers);
   const isLastStep = !isWizard || step === questions.length - 1;
 
   const submit = () => {

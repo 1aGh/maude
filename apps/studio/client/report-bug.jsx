@@ -21,6 +21,9 @@ import {
   pickMediaFile,
   readPickedMediaBlob,
 } from './github.js';
+import { reportLogsConsent, reportLogsPolicy } from './v2/settings/settings-model.js';
+import { crashLogsTicked, takeReportEntry } from './v2/shell/recovery-store.js';
+import { reasonProps } from './v2/access/disabled-reason.js';
 
 // Two of these are auto-captured (window + artboard), so the ceiling leaves
 // room for the user to still attach their own.
@@ -156,7 +159,12 @@ function ShotTile({ shot, redacting, onRects, onRemove }) {
             Clear redactions
           </button>
         )}
-        <button type="button" className="rb-link" data-testid="report-bug-shot-remove" onClick={onRemove}>
+        <button
+          type="button"
+          className="rb-link"
+          data-testid="report-bug-shot-remove"
+          onClick={onRemove}
+        >
           Remove
         </button>
       </div>
@@ -170,12 +178,16 @@ export function ReportBugDialog({ open, onClose, activeCanvas = null }) {
   const [bundle, setBundle] = useState(null);
   const [shots, setShots] = useState([]); // {url, blob, source, rects:[{x,y,w,h} normalized]}
   const [crashLogs, setCrashLogs] = useState([]); // native only: {name, firstLine}
+  // The log rows start unticked — "Ask each time" is the default and the person opts in per report;
+  // Settings › Privacy › "Always" ticks them once the prefs arrive (below).
   const [consent, setConsent] = useState({
-    logTail: true,
+    logTail: false,
     activeCanvas: true,
     projectName: false,
-    crashLogs: true,
+    crashLogs: false,
   });
+  // S11.13 — Settings › Privacy › Logs in bug reports (prefs.json `reportLogs`), read per open.
+  const [logs, setLogs] = useState(() => reportLogsConsent('ask'));
   const [shellPending, setShellPending] = useState(false);
   const [redacting, setRedacting] = useState(false);
   const [result, setResult] = useState(null); // {issueUrl, issueNumber} | {fallbackDir}
@@ -240,6 +252,21 @@ export function ReportBugDialog({ open, onClose, activeCanvas = null }) {
   useEffect(() => {
     if (!open) return;
     let alive = true;
+    // S11.17 — opened from the crash line ("Maude quit unexpectedly…"): the crash logs start ticked.
+    const entry = takeReportEntry();
+    fetch('/_api/ui-prefs')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((prefs) => {
+        if (!alive) return;
+        const policy = reportLogsConsent(reportLogsPolicy(prefs));
+        setLogs(policy);
+        setConsent((c) => ({
+          ...c,
+          logTail: policy.on,
+          crashLogs: crashLogsTicked(policy, entry),
+        }));
+      })
+      .catch(() => {});
     fetch('/_api/debug-bundle')
       .then((r) => (r.ok ? r.json() : null))
       .then((b) => alive && setBundle(b))
@@ -424,24 +451,24 @@ export function ReportBugDialog({ open, onClose, activeCanvas = null }) {
   const canPreview = description.trim().length > 0;
 
   return (
-    <div className="st-scrim" onClick={close} data-testid="report-bug-dialog">
+    <div className="sh-scrim" onClick={close} data-testid="report-bug-dialog">
       <div
-        className="st-dialog rb-dialog"
+        className="sh-dialog rb-dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby="rb-title"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="st-dialog-hd">
-          <span className="st-dialog-title" id="rb-title">
+        <div className="sh-dialog-hd">
+          <span className="sh-dialog-title" id="rb-title">
             Report a bug
           </span>
-          <button type="button" className="st-iconbtn" onClick={close} aria-label="Close">
+          <button type="button" className="sh-iconbtn" onClick={close} aria-label="Close">
             ×
           </button>
         </div>
 
-        <div className="st-dialog-bd rb-body">
+        <div className="sh-dialog-bd rb-body">
           {step === 'describe' && (
             <>
               <label className="rb-label" htmlFor="rb-desc">
@@ -461,14 +488,15 @@ export function ReportBugDialog({ open, onClose, activeCanvas = null }) {
                 Next you'll see exactly what gets attached — nothing is sent until you approve it.
               </p>
               <footer className="rb-actions">
-                <button type="button" className="st-btn" onClick={close}>
+                <button type="button" className="sh-btn" onClick={close}>
                   Cancel
                 </button>
                 <button
                   type="button"
-                  className="st-btn rb-primary"
+                  className="sh-btn rb-primary"
                   data-testid="report-bug-preview"
                   disabled={!canPreview}
+                  {...reasonProps(!canPreview, 'Describe what happened first.')}
                   onClick={() => setStep('preview')}
                 >
                   Review &amp; attach
@@ -521,7 +549,9 @@ export function ReportBugDialog({ open, onClose, activeCanvas = null }) {
                 ) : (
                   <>
                     {redacting && (
-                      <p className="rb-hint">Drag over anything private — it ships as solid black.</p>
+                      <p className="rb-hint">
+                        Drag over anything private — it ships as solid black.
+                      </p>
                     )}
                     <div className="rb-shots">
                       {shots.map((shot, i) => (
@@ -578,7 +608,7 @@ export function ReportBugDialog({ open, onClose, activeCanvas = null }) {
                     </span>
                   </label>
                 )}
-                {bundle?.logs?.serverLogTail ? (
+                {logs.offer && bundle?.logs?.serverLogTail ? (
                   <label className="rb-check">
                     <input
                       type="checkbox"
@@ -587,8 +617,8 @@ export function ReportBugDialog({ open, onClose, activeCanvas = null }) {
                       onChange={(e) => setConsent({ ...consent, logTail: e.target.checked })}
                     />
                     <span>
-                      Recent server log ({bundle.logs.serverLogTail.split('\n').length} lines,
-                      paths &amp; secrets scrubbed)
+                      Recent server log ({bundle.logs.serverLogTail.split('\n').length} lines, paths
+                      &amp; secrets scrubbed)
                       {bundle?.process
                         ? ` + server memory (${Math.round(bundle.process.rssBytes / 1048576)} MB)`
                         : ''}{' '}
@@ -600,7 +630,7 @@ export function ReportBugDialog({ open, onClose, activeCanvas = null }) {
                     </span>
                   </label>
                 ) : null}
-                {isNativeApp() && crashLogs.length > 0 && (
+                {logs.offer && isNativeApp() && crashLogs.length > 0 && (
                   <label className="rb-check">
                     <input
                       type="checkbox"
@@ -608,7 +638,8 @@ export function ReportBugDialog({ open, onClose, activeCanvas = null }) {
                       onChange={(e) => setConsent({ ...consent, crashLogs: e.target.checked })}
                     />
                     <span>
-                      Crash logs ({crashLogs.length}) — <code>{crashLogs.map((l) => l.name).join(', ')}</code>
+                      Crash logs ({crashLogs.length}) —{' '}
+                      <code>{crashLogs.map((l) => l.name).join(', ')}</code>
                     </span>
                   </label>
                 )}
@@ -620,12 +651,12 @@ export function ReportBugDialog({ open, onClose, activeCanvas = null }) {
                 repository only maintainers can open.
               </p>
               <footer className="rb-actions">
-                <button type="button" className="st-btn" onClick={() => setStep('describe')}>
+                <button type="button" className="sh-btn" onClick={() => setStep('describe')}>
                   Back
                 </button>
                 <button
                   type="button"
-                  className="st-btn rb-primary"
+                  className="sh-btn rb-primary"
                   data-testid="report-bug-send"
                   onClick={send}
                 >
@@ -657,8 +688,7 @@ export function ReportBugDialog({ open, onClose, activeCanvas = null }) {
                     }}
                   >
                     report #{result.issueNumber}
-                  </button>
-                  {' '}
+                  </button>{' '}
                   on the public Maude issue tracker. Screenshots and logs stay in a private
                   repository only maintainers can open — the issue links to them.
                 </p>
@@ -675,7 +705,7 @@ export function ReportBugDialog({ open, onClose, activeCanvas = null }) {
                 </p>
               )}
               <footer className="rb-actions">
-                <button type="button" className="st-btn rb-primary" onClick={close}>
+                <button type="button" className="sh-btn rb-primary" onClick={close}>
                   Done
                 </button>
               </footer>
@@ -689,14 +719,14 @@ export function ReportBugDialog({ open, onClose, activeCanvas = null }) {
               </p>
               <p className="rb-hint">
                 You can save the report locally instead and file it on GitHub yourself — the
-                prefilled issue carries the text; screenshots stay on this machine unless you
-                attach them by hand.
+                prefilled issue carries the text; screenshots stay on this machine unless you attach
+                them by hand.
               </p>
               <footer className="rb-actions">
-                <button type="button" className="st-btn" onClick={() => setStep('preview')}>
+                <button type="button" className="sh-btn" onClick={() => setStep('preview')}>
                   Back
                 </button>
-                <button type="button" className="st-btn rb-primary" onClick={saveFallback}>
+                <button type="button" className="sh-btn rb-primary" onClick={saveFallback}>
                   Save locally &amp; open GitHub
                 </button>
               </footer>

@@ -8,6 +8,7 @@ import {
   clearComposer,
   messageCount,
   openAssistant,
+  requireAi,
   setPermissionMode,
   waitForTurnSettled,
 } from '../helpers/assistant';
@@ -32,11 +33,13 @@ import { waitForSidecar } from '../helpers/sidecar';
  *  2. A write OUTSIDE the project RAISES the prompt, and the card names the
  *     RESOLVED absolute path. This is the security half.
  *
- * Both need a REAL model turn (the model has to actually decide to call the
- * write tool), which is inherently less deterministic than a client-side event
- * — same caveat as acp-ask-user-question, and the same mitigation: an explicit
- * instruction plus a generous timeout that absorbs latency, not unreliability.
- * Requires a real, signed-in `claude`; self-skips if the panel is not connected.
+ * RUNS ON THE FAKE AGENT (wdio.acp-fake.conf.ts). What this proves is MAUDE's gate and card, not a model's choice
+ * to call Write: a scripted ACP agent (fixtures/fake-acp/scripted-agent.mjs) answers each prompt with the adapter's
+ * recorded wire — a `tool_call` carrying the tool name, then `session/request_permission` — and the REAL bridge
+ * decides. Two things only a real adapter can show are V2-8.16 live journeys (ai-write-scope-real-adapter): that a
+ * real model reaches for Write when asked, and that the person's own `~/.claude/settings.json` `permissions.allow`
+ * rule for Write (which makes the CLI approve the call itself, so `requestPermission` is never asked) leaves no card
+ * on a real session. On the fake agent neither can occur, so this spec no longer reads the person's settings at all.
  *
  * THE MODE IS PINNED TO MANUAL (`default`). The gate lives in the bridge's
  * `requestPermission`, and `bypassPermissions` / `dontAsk` short-circuit in the
@@ -45,14 +48,6 @@ import { waitForSidecar } from '../helpers/sidecar';
  * whose default is Bypass neither half exercised the gate at all: half 1 passed
  * vacuously and half 2 could never see a card. Manual is the mode in which the
  * gate decides BOTH halves.
- *
- * ONE PRECONDITION THE SCENARIO CANNOT SET: the session reads the user's own
- * `~/.claude/settings.json` (`settingSources: ['user']`, DDR-144), and a bare
- * `permissions.allow` entry for `Write`/`Edit` makes the CLI approve those calls
- * itself — `requestPermission`, and the gate in it, is never asked. On such a
- * machine half 2 fails with that diagnosis (and half 1 cannot tell the gate's
- * approval from the CLI's). The scenario reports it rather than editing the
- * user's settings or skipping.
  *
  * NOTHING IS EVER APPROVED HERE. The out-of-project case is rejected, so the
  * scenario proves the gate without the test suite writing outside its own
@@ -107,11 +102,7 @@ describe('acp-write-scope (native-desktop)', () => {
     if (!(await isNativeShell())) this.skip(); // ACP panel is native-only (DDR-123)
 
     await openAssistant();
-
-    const notConnected = await $(tid('acp-not-connected'));
-    if (await notConnected.isDisplayed().catch(() => false)) {
-      this.skip(); // no signed-in claude on this machine — not this scenario's job to set that up
-    }
+    await requireAi(this);
 
     modeBefore = await setPermissionMode('default');
     await capture('00-manual-mode');
@@ -181,9 +172,8 @@ describe('acp-write-scope (native-desktop)', () => {
     const outcome = sawPrompt
       ? 'prompt shown'
       : existsSync(OUTSIDE_ABS)
-        ? `the write to ${OUTSIDE_ABS} COMPLETED with no prompt — the gate failed open or was never ` +
-          'asked (a Write pre-approved by ~/.claude/settings.json permissions.allow skips requestPermission)'
-        : 'the turn ended with no prompt and no write (the model did not call Write)';
+        ? `the write to ${OUTSIDE_ABS} COMPLETED with no prompt — the gate failed open`
+        : 'the turn ended with no prompt and no write (the scripted agent did not call Write)';
     expect(outcome).toBe('prompt shown');
 
     // The out-of-project BLOCK, not just any permission card — a generic prompt

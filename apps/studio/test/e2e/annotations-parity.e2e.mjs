@@ -65,7 +65,7 @@ let server;
 let c;
 before(async () => {
   server = await startServer(await makeProjectFor(PARITY_BOARD));
-  c = await openCanvas(server);
+  c = await openCanvas(server, { clearTop: 120 });
 });
 after(async () => {
   await c?.close();
@@ -74,8 +74,22 @@ after(async () => {
 
 async function reset() {
   for (let i = 0; i < 3; i++) await c.page.keyboard.press('Escape');
-  await c.page.keyboard.press('v');
+  // (no `v`: it is Edit's Select, which would leave Preview; Preview's resting tool is the Hand)
   await sleep(200);
+}
+
+/**
+ * Arm a Marker tip (S4.8, canvas 14): M arms the last-used tip and opens its popover, a press on the canvas closes
+ * the popover again, and the lit Marker slot reopens it. v1 had a key per tool (B pen, I highlighter, E eraser).
+ */
+async function armTip(tip) {
+  await c.page.keyboard.press('m');
+  await sleep(200);
+  const tips = c.frame.locator('[data-testid="toolbar-popover-marker-tips"]');
+  if (!(await tips.count()))
+    await c.frame.locator('[data-testid^="toolbar-slot-"][data-tip]').first().click();
+  await c.frame.locator(`[data-testid="toolbar-tip-${tip}"]`).click();
+  await sleep(150);
 }
 
 /** World → page through `ref` (world 100,100, 100 wide). */
@@ -93,7 +107,7 @@ describe('P1 — drawing tools', () => {
   test('pen: a drag draws ink', async () => {
     await reset();
     const b0 = await board();
-    await c.page.keyboard.press('b');
+    await armTip('pen');
     await c.drag(await w2p(100, 600), await w2p(260, 640), { steps: 16 });
     const b1 = await waitForBoard(
       server.root,
@@ -107,7 +121,7 @@ describe('P1 — drawing tools', () => {
   test('highlighter: a drag draws highlighter ink', async () => {
     await reset();
     const b0 = await board();
-    await c.page.keyboard.press('i');
+    await armTip('highlighter');
     await c.drag(await w2p(100, 700), await w2p(260, 720), { steps: 12 });
     const b1 = await waitForBoard(
       server.root,
@@ -150,7 +164,7 @@ describe('P1 — drawing tools', () => {
   test('section: drawn around an element, it contains it', async () => {
     await reset();
     const b0 = await board();
-    await c.page.keyboard.press('Shift+S');
+    await c.page.keyboard.press('s');
     await c.drag(await w2p(560, 260), await w2p(760, 420));
     const b1 = await waitForBoard(
       server.root,
@@ -179,7 +193,7 @@ describe('P1 — drawing tools', () => {
     const b0 = await board();
     const pens = [...b0.values()].filter((e) => e.type === 'pen' && !e.highlighter);
     assert.equal(pens.length, 1, 'precondition: the pen stroke from P1');
-    await c.page.keyboard.press('e');
+    await armTip('eraser');
     await c.drag(await w2p(180, 560), await w2p(180, 680), { steps: 12 });
     const b1 = await waitForBoard(server.root, (b) => !b.has(pens[0].id));
     assert.equal(b1.has(pens[0].id), false);
@@ -248,10 +262,19 @@ describe('P2 — the context toolbar', () => {
 
   test('bold and a bulleted list on a sticky', async () => {
     await reset();
+    // S4.19: a selected sticky's bar has one List toggle (bullets first); while it is typed in, the bar flips to text
+    // formatting and bold is the key (⌘B, R6 in annotations-ui)
     await select('C');
-    await ctl('Bold').click();
-    await ctl('Bulleted list').click();
-    const b = await waitForBoard(server.root, (bd) => bd.get('C')?.list === 'bullet');
+    await c.frame.locator('[data-testid="annot-sticky-list"]').click();
+    const [cx, cy] = await c.center('C');
+    await c.page.mouse.dblclick(cx, cy);
+    await sleep(300);
+    await c.page.keyboard.press('Meta+b');
+    await c.click(20 + 300, 1400); // outside → commit (the edit lands on the board with it)
+    const b = await waitForBoard(
+      server.root,
+      (bd) => bd.get('C')?.list === 'bullet' && bd.get('C')?.bold === true
+    );
     assert.equal(b.get('C').bold, true);
   });
 
@@ -261,13 +284,13 @@ describe('P2 — the context toolbar', () => {
     await reset();
     await select('ref');
     await select('B', true);
-    await ctl('Group selection').click();
+    await ctl('Group selection').dispatchEvent('click'); // the top row's bar can sit under the Preview bar island
     let b = await waitForBoard(server.root, (bd) => (bd.get('ref')?.groups ?? []).length > 0);
     assert.deepEqual(b.get('ref').groups, b.get('B').groups);
     await reset();
     await select('ref');
     assert.deepEqual(await c.selection(), ['B', 'ref'], 'a click selects the whole group');
-    await ctl('Ungroup selection').click();
+    await ctl('Ungroup selection').dispatchEvent('click');
     b = await waitForBoard(server.root, (bd) => !(bd.get('ref')?.groups ?? []).length);
     assert.equal((b.get('B').groups ?? []).length, 0);
   });
@@ -432,17 +455,13 @@ describe('P5 — kinds, sections, selection, media', () => {
   test('font size from the toolbar', async () => {
     await reset();
     await select('C');
-    await c.frame.locator('.dc-annot-ctx .dc-annot-ctx-fs-trigger').first().click();
-    const items = c.frame.locator('.dc-annot-ctx-fs-item');
-    const n = await items.count();
-    assert.ok(n > 2, 'size presets');
-    const px = Number(
-      await items
-        .nth(n - 1)
-        .locator('.dc-annot-ctx-fs-px')
-        .textContent()
-    );
-    await items.nth(n - 1).click();
+    // a sticky's bar carries a size select (S4.19), not the shapes' preset dropdown
+    const size = c.frame.locator('[data-testid="annot-sticky-size"]');
+    const values = await size.locator('option').evaluateAll((os) => os.map((o) => o.value));
+    const sizes = values.filter((v) => /^\d+$/.test(v));
+    assert.ok(sizes.length > 2, 'size presets');
+    const px = Number(sizes[sizes.length - 1]);
+    await size.selectOption(String(px));
     const b = await waitForBoard(server.root, (bd) => bd.get('C')?.fontSize === px);
     assert.equal(b.get('C').fontSize, px);
   });

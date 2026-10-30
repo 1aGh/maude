@@ -1,0 +1,47 @@
+Maude v2 — Phase 5 wave B gate (S6–S12) — Ready to try (7) — 2026-10-22
+
+Build
+  feat/maude-v2 at the READY TO TRY (7) commit (Progress log)
+  apps/desktop/src-tauri/target/release/bundle/macos/Maude.app — 1.9.1, release, updater-archive signing skipped locally
+  check-bundle-completeness.mjs <app> --smoke : PASS ("Bundle is self-contained — all checks passed")
+  check-client-boots.mjs <app>                : PASS (#root children 1; menu, ⌘K palette, tree answer)
+  WebDriver strings: maude-desktop 0, maude-server 0, maude 0 (agent-browser 4 — its own automation, as in (6))
+  release client: check-client-boots-source OK, opening-card-clears PASS (chromium)
+
+Security — C4 (per-frame canvas capability), fixed properly before any rc (Michal 2026-10-21)
+  gate-b-c4 / c4b   per-frame capability; shell cfg carries frameKey; session fallback subject; bridge targets from activePath
+  gate-b-c4c        bg-remove harness nonce + Sec-Fetch belt + delete on every exit (high); shell doc inlines meta/pairing only for a visible canvas (medium)
+  gate-b-c4d        capture redirect mints fc only for UA-started / same-origin requests; export/screenshot shims confined (medium)
+  gate-b-c4e        frame key out of the design root; build refuses _* imports; served modules held to the closure; collab rooms bound (high)
+  gate-b-c4f        canvas= read like the server (playwright screenshot --screen / canvas-rects hung under C4 — product regression)
+  gate-b-c4g        build judges the file Bun actually reads (package.json/symlink redirect reproduced, high); inputs fail closed; slug twins own no sidecars
+  gate-b-c4h        (superseded by c4j) importing frame read-only; import-figma slug-twin guard kept
+  gate-b-c4i        canvas-side asset uploads work again (C4 regression); Can view sockets cannot comment (hole)
+  gate-b-c4j        a frame never inlines a canvas outside its grant (lead, supersedes c4h); imports card
+  gate-b-c4k        canvas-ness from the file (DesignCanvas / meta / board), not per-machine config; per-frame upload budget
+  gate-b-c4l        a blocked import walk keeps only owned files (structural backstop); marker errs to canvas; hub Dockerfile COPY graph (release blocker)
+  gate-b-c4m        import walk admits only module/style/JSON extensions (.html canvases); specimen CSS importable again; carriedBy fixed point
+  gate-b-c4n        HIGH (pre-existing, found in round 8): Bun macro imports ran code at build time — refused before Bun parses any canvas text (Michal: no 1.x patch, accepted risk for 1.x)
+  Security pair (flow:security-auditor + flow:ethical-hacker, opus, read-only), 8 rounds. Round 8 on the c4m diff: attacker 0 high / 0 medium in-diff, defender 0 high / 1 medium; the out-of-diff macro high was probed, confirmed and fixed (c4n).
+  Known gaps to fix BEFORE any rc (keeper rule: Ready to try is not an rc):
+    - carriedPass short-circuit can cache a stale proxy answer in a 3-module re-export cycle (defender round 8, medium) — two-grant order case
+    - per-use photo edit JSON (assets/<img8>.<edit8>.photo.json) importable when its hash is guessable (attacker round 8, low)
+    - the specimen-stylesheet exemption covers ui_kits showcase canvases' own .css (attacker round 8, low)
+    - macro guard read-then-load swap race (c4n, low); transpile flag trusts err.name in the worker (note)
+    - canvas-ness for old meta-less canvases without DesignCanvas: hub doc / stored grant signal not wired (c4k split)
+  Accepted, named gaps: sibling open frames on one canvas origin can read each other's fc (incl. the DS reach view); >64 canvases using one photo → harness fails closed; cell canvas-origin paths carry only the member; the bg-remove nonce is visible in local argv; Safari <16.4 sends no Sec-Fetch-Site; agent-browser capture lanes are not route-confined (the capture origin is read-only).
+
+Goldens
+  v1 characterization: --build --update, --build --repeat 0 changed (one flaky = the run's own port, masked; settings re-verified 3/3)
+  v1-keys: regenerated; verify 237/240, three named lane-state variants (two ⌘, Settings hidden-hash, in-canvas Shift+P debounced ui-prefs write)
+
+Harness safety
+  shared stubClaudeEnv (scripts/lib/stub-claude.mjs), bun-test preload stub (MAUDE_TEST_REAL_CLAUDE=1 opts out), tripwire test; v1 characterization + v1-keys stubbed — no throwaway-HOME harness reaches the real claude or keychain
+
+Tests on the final tree (affected sets, through the lane)
+  export E2E (browser + worker lanes, 11 worker formats), artboard-fixed-size, collab-plan-paused, c4i, c4j: 37/37
+  per-builder lane runs: c4c 163/163, c4d 278 (4 pre-existing, triaged in c4f/c4i), c4e 693, c4g 662→38/38, c4h 677, c4i 885/886 (photo-pipeline passes alone), c4j 127/127 re-run
+  helper-deps: a bare specifier must be a valid npm name (the .app build died on package "+") — red→green 4/4
+
+Known gaps carried to the overall check (as wave A)
+  design-critic pass 2 + fidelity rows; the 38 deferred wave-A rows; open desktop e2e specs (export-formats, cloud-attach, first-canvas, generate-takes, team-project); Open for Michal: JSX-only cut storyline lane (polish3), optional export preflight paper-size-first.

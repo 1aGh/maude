@@ -1013,8 +1013,10 @@ describe('createSyncRuntime', () => {
 
     const runtime = createSyncRuntime(ctx, { providerFactory: factory });
     await runtime?.start();
-    // Reconcile fires after onceSynced resolves.
-    await new Promise((res) => setTimeout(res, 20));
+    // Reconcile fires after onceSynced resolves. Wait for it (up to 3 s) instead of a fixed 20 ms: under a
+    // loaded machine or a cold compile the reconcile lands later than that (gate-b, 4 of 7 loaded runs).
+    for (let i = 0; i < 150 && !(runtime?.status()?.conflicts.length ?? 0); i++)
+      await new Promise((res) => setTimeout(res, 20));
 
     const status = runtime?.status();
     expect(status?.conflicts.length).toBeGreaterThanOrEqual(1);

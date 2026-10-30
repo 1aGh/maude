@@ -1,15 +1,19 @@
 #!/usr/bin/env bash
 # Maude v2 single test lane (plan "Single test lane").
 #
-#   scripts/v2-test-lane.sh [--keep-dist] [--wait <seconds>] -- <command…>
+#   scripts/v2-test-lane.sh [--keep-dist] [--wait <seconds>] [--max <seconds>] -- <command…>
 #
 # One machine, one suite at a time: parallel runs fabricate failures, and `bun test` has
 # clobbered apps/studio/dist/ before. This wrapper
 #   1. takes the machine-wide lock `<git common dir>/v2-test.lock` — shared by the main checkout and
 #      every lane worktree (waits up to --wait seconds, default 900; a lock whose pid is gone is stale
-#      and is taken over),
+#      and is taken over). Waiters queue first-come first-served through tickets in
+#      `<git common dir>/v2-test.queue.<host>/` (`<epoch>.<pid>`; a dead pid's ticket is dropped), so a
+#      caller that re-runs in a tight loop cannot starve everyone else,
 #   2. records `git status apps/studio/dist/` before the run,
-#   3. runs the command,
+#   3. runs the command — at most --max seconds (default 2700): a run past that is stopped with its
+#      whole process tree (a test that leaves a server handle open once held the lane 20 min with ten
+#      runs queued, 2026-10-18) and the wrapper exits 124,
 #   4. compares dist/ after the run and reverts tracked files the run changed (unless --keep-dist),
 #      reporting any new untracked files instead of deleting them,
 #   5. releases the lock and exits with the command's exit code.
@@ -21,22 +25,60 @@ COMMON="$(git -C "$ROOT" rev-parse --path-format=absolute --git-common-dir 2>/de
 LOCK="$COMMON/v2-test.lock"
 KEEP_DIST=0
 WAIT=900
+MAX=2700
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --keep-dist) KEEP_DIST=1; shift ;;
     --wait) WAIT="$2"; shift 2 ;;
+    --max) MAX="$2"; shift 2 ;;
     --) shift; break ;;
     *) break ;;
   esac
 done
 if [[ $# -eq 0 ]]; then
-  echo "usage: scripts/v2-test-lane.sh [--keep-dist] [--wait <s>] -- <command…>" >&2
+  echo "usage: scripts/v2-test-lane.sh [--keep-dist] [--wait <s>] [--max <s>] -- <command…>" >&2
   exit 2
 fi
 
+# Per host: the git dir syncs between machines (Syncthing), and a peer must never see — and drop
+# as dead — this machine's waiters (security review, Phase 1 gate).
+HOST="$(hostname -s 2>/dev/null | tr -cd 'A-Za-z0-9-')"
+QUEUE="$COMMON/v2-test.queue.${HOST:-host}"
+mkdir -p "$QUEUE"
+TICKET="$QUEUE/$(date +%s).$$"
+: >"$TICKET"
+trap 'rm -f "$TICKET"' EXIT INT TERM
+# First live ticket in arrival order (seconds, then pid); dead waiters' tickets are dropped.
+first_ticket() {
+  local t pid
+  for t in "$QUEUE"/*; do
+    [[ -e "$t" ]] || continue
+    # only `<epoch>.<pid>` with a real pid: `0` / `-1` would pass `kill -0` forever and stall the lane
+    if [[ ! "${t##*/}" =~ ^[0-9]+\.[0-9]+$ ]]; then rm -f "$t"; continue; fi
+    pid="${t##*.}"
+    if ((pid <= 1)) || ! kill -0 "$pid" 2>/dev/null; then rm -f "$t"; fi
+  done
+  ls "$QUEUE" 2>/dev/null | sort -t. -k1,1n -k2,2n | head -1
+}
+take_lock() {
+  [[ "$QUEUE/$(first_ticket)" == "$TICKET" ]] || return 1
+  (set -o noclobber; printf '%s\t%s\t%s\n' "$$" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" >"$LOCK") 2>/dev/null
+}
+
+# Every studio a run boots (bun preload, node tests, e2e apps and their sidecars, rigs) writes its
+# project snapshot and covers into $MAUDE_INDEX_DIR, default ~/.maude/index/v1 — which Home lists
+# (P8: 2,292 entries on the person's Mac, ~2,120 of them test copies). One throwaway per run unless
+# the caller named one; it is removed with the run.
+LANE_INDEX=""
+if [[ -z "${MAUDE_INDEX_DIR:-}" ]]; then
+  LANE_INDEX="$(mktemp -d "${TMPDIR:-/tmp}/v2-lane-index.XXXXXX")"
+  export MAUDE_INDEX_DIR="$LANE_INDEX"
+fi
+trap 'rm -f "$TICKET"; [[ -n "$LANE_INDEX" ]] && rm -rf "$LANE_INDEX"' EXIT INT TERM
+
 waited=0
-while ! (set -o noclobber; printf '%s\t%s\t%s\n' "$$" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" >"$LOCK") 2>/dev/null; do
+while ! take_lock "$@"; do
   holder_pid="$(cut -f1 "$LOCK" 2>/dev/null)"
   if [[ -n "$holder_pid" ]] && ! kill -0 "$holder_pid" 2>/dev/null; then
     echo "v2-test-lane: stale lock (pid $holder_pid gone) — taking it over" >&2
@@ -44,14 +86,15 @@ while ! (set -o noclobber; printf '%s\t%s\t%s\n' "$$" "$(date -u +%Y-%m-%dT%H:%M
     continue
   fi
   if [[ $waited -ge $WAIT ]]; then
-    echo "v2-test-lane: lane busy — $(cat "$LOCK" 2>/dev/null)" >&2
+    echo "v2-test-lane: lane busy — $(cat "$LOCK" 2>/dev/null || echo "queued behind $(first_ticket)")" >&2
     exit 75
   fi
-  [[ $waited -eq 0 ]] && echo "v2-test-lane: waiting for the lane — $(cut -f3 "$LOCK" 2>/dev/null)" >&2
-  sleep 5
-  waited=$((waited + 5))
+  [[ $waited -eq 0 ]] && echo "v2-test-lane: waiting for the lane — $(cut -f3 "$LOCK" 2>/dev/null || echo "queued")" >&2
+  sleep 1
+  waited=$((waited + 1))
 done
-trap 'rm -f "$LOCK"' EXIT INT TERM
+rm -f "$TICKET"
+trap 'rm -f "$LOCK"; [[ -n "$LANE_INDEX" ]] && rm -rf "$LANE_INDEX"' EXIT INT TERM
 
 dist_status() { git -C "$ROOT" status --porcelain -- apps/studio/dist/ | sort; }
 # Content fingerprint, so a run that rewrites an already-modified file is still noticed.
@@ -59,8 +102,40 @@ dist_print() { { dist_status; git -C "$ROOT" diff -- apps/studio/dist/; } | shas
 before_status="$(dist_status)"
 before_print="$(dist_print)"
 
-"$@"
+# The person's own ~/.config/maude (prefs.json, hubs.json, keys.json, cloud.json) is never a
+# job's: an ad-hoc harness that booted a studio without a sandbox rewrote the real prefs.json
+# (2026-10-10). Every job gets a throwaway config unless it names its own; a run that genuinely
+# needs the signed-in config sets V2_LANE_REAL_CONFIG=1. (~/.gitconfig lives under HOME, untouched.)
+lane_cfg=""
+if [[ -z "${V2_LANE_REAL_CONFIG:-}" ]]; then
+  lane_tmp="${TMPDIR:-/tmp}"
+  lane_cfg="$(mktemp -d "${lane_tmp%/}/v2-lane-config.XXXXXX")"
+  export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$lane_cfg}"
+  export MAUDE_UI_PREFS_PATH="${MAUDE_UI_PREFS_PATH:-$XDG_CONFIG_HOME/maude/prefs.json}"
+  export MAUDE_CLOUD_CONFIG="${MAUDE_CLOUD_CONFIG:-$XDG_CONFIG_HOME/maude/cloud.json}"
+fi
+
+kill_tree() {
+  local c
+  for c in $(pgrep -P "$1" 2>/dev/null); do kill_tree "$c"; done
+  kill -TERM "$1" 2>/dev/null
+}
+"$@" &
+cmd_pid=$!
+(
+  sleep "$MAX"
+  if kill -0 "$cmd_pid" 2>/dev/null; then
+    echo "v2-test-lane: the run passed --max ${MAX}s — stopping it and everything it started" >&2
+    : >"$LOCK.timedout"
+    kill_tree "$cmd_pid"
+  fi
+) &
+dog_pid=$!
+wait "$cmd_pid"
 code=$?
+kill_tree "$dog_pid"
+if [[ -e "$LOCK.timedout" ]]; then rm -f "$LOCK.timedout"; code=124; fi
+[[ -n "$lane_cfg" ]] && rm -rf "$lane_cfg"
 
 if [[ "$(dist_print)" != "$before_print" ]]; then
   after_status="$(dist_status)"

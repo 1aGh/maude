@@ -1,0 +1,144 @@
+{
+  "format": "maude.agent-journey/1",
+  "id": "S10",
+  "package": "S10",
+  "title": "A token change in the design system: read first, change the source, check, say who uses it",
+  "ledger": [],
+  "fixture": "app5",
+  "allow": ["maude design ds pending", "maude design ds publish"],
+  "setup": [],
+  "turns": [
+    {
+      "say": "Which design systems does this project have, and is anything waiting on them?"
+    },
+    {
+      "say": "In the maude design system, make the light theme’s accent a little darker: lightness 0.47 instead of 0.52. Then check the system still passes and tell me which canvases use it."
+    }
+  ],
+  "graders": [
+    {
+      "id": "status-read",
+      "grader": "tool-used",
+      "tool": "Bash",
+      "input": "maude design ds status"
+    },
+    {
+      "id": "accent-darker",
+      "grader": "text",
+      "path": "system/maude/colors_and_type.css",
+      "has": ["--accent:\\s+oklch\\(0\\.47"],
+      "lacks": ["--accent:\\s+oklch\\(0\\.520 0\\.195 268\\)"]
+    },
+    {
+      "id": "dark-accent-kept",
+      "grader": "text",
+      "path": "system/maude/colors_and_type.css",
+      "has": ["--accent:\\s+oklch\\(0\\.680 0\\.180 268\\)"]
+    },
+    {
+      "id": "system-checked",
+      "grader": "tool-used",
+      "tool": "Bash",
+      "input": "maude design ds[- ]check"
+    },
+    {
+      "id": "usage-read",
+      "grader": "tool-used",
+      "tool": "Bash",
+      "input": "maude design ds usage"
+    },
+    {
+      "id": "manifest-by-the-verb",
+      "grader": "no-tool",
+      "tool": "Edit|Write",
+      "input": "tokens\\.json|revisions/|head\\.json"
+    },
+    {
+      "id": "canvases-untouched",
+      "grader": "untouched",
+      "path": "ui/GitPanel.tsx"
+    }
+  ],
+  "dry": {
+    "good": [
+      {
+        "tag": "status",
+        "op": "tool",
+        "name": "Bash",
+        "input": {
+          "command": "maude design ds status --json"
+        }
+      },
+      {
+        "tag": "css",
+        "op": "edit",
+        "path": "system/maude/colors_and_type.css",
+        "old": "--accent:        oklch(0.520 0.195 268);",
+        "new": "--accent:        oklch(0.470 0.195 268);"
+      },
+      {
+        "tag": "check",
+        "op": "tool",
+        "name": "Bash",
+        "input": {
+          "command": "maude design ds-check maude --emit"
+        }
+      },
+      {
+        "tag": "usage",
+        "op": "tool",
+        "name": "Bash",
+        "input": {
+          "command": "maude design ds usage maude --json"
+        }
+      }
+    ],
+    "faults": {
+      "status-read": {
+        "drop": ["status"]
+      },
+      "accent-darker": {
+        "drop": ["css"]
+      },
+      "dark-accent-kept": {
+        "add": [
+          {
+            "op": "edit",
+            "path": "system/maude/colors_and_type.css",
+            "old": "--accent:        oklch(0.680 0.180 268);",
+            "new": "--accent:        oklch(0.600 0.180 268);"
+          }
+        ]
+      },
+      "system-checked": {
+        "drop": ["check"]
+      },
+      "usage-read": {
+        "drop": ["usage"]
+      },
+      "manifest-by-the-verb": {
+        "add": [
+          {
+            "op": "tool",
+            "name": "Edit",
+            "input": {
+              "file_path": ".design/system/maude/tokens.json",
+              "old_string": "\"dark\"",
+              "new_string": "\"light\""
+            }
+          }
+        ]
+      },
+      "canvases-untouched": {
+        "add": [
+          {
+            "op": "edit",
+            "path": "ui/GitPanel.tsx",
+            "old": ">Save all<",
+            "new": ">Save everything<"
+          }
+        ]
+      }
+    }
+  }
+}

@@ -278,13 +278,40 @@ fi
 #     captured and already holds.
 #   /_api/export-warmup   — proxies GET /_health to the render service so the
 #     container wakes while the member picks options. No job body, no secret.
+#
+# Maude v2 (decision maude/v2-p8-containment-v2-export-routes) added four, and
+# this pin went unchecked because an earlier Quality step failed first:
+#   /_api/export-estimate   — numbers from the project index + history ledger.
+#   /_api/export-jobs/retry — re-enqueues a session's own failed job items into
+#     the same job lane as /_api/export-jobs (render dispatches to maude-render).
+#   /_api/export-preflight  — paper, back, fonts. Its safe-margin measure runs a
+#     headless canvas-rects render, so a cell is wired WITHOUT the rects runner
+#     (pinned below) and answers "unmeasured".
+#   /_api/export-preview    — row pictures from the thumbnail service, which is
+#     constructed `enabled: !isWorkspaceMode()` (pinned below) and so answers
+#     `no-engine` in a cell.
 EXCEPT_ACTUAL=$(node -e "
   const s = require('fs').readFileSync('$MODULE', 'utf8');
   const m = s.match(/except:\s*\[([^\]]*)\]/g) ?? [];
   const paths = m.flatMap((x) => [...x.matchAll(/'([^']+)'/g)].map((g) => g[1]));
   console.log(paths.sort().join(','));
 ")
-EXCEPT_EXPECTED="/_api/export-assemble,/_api/export-history,/_api/export-jobs,/_api/export-jobs/download,/_api/export-warmup"
+EXCEPT_EXPECTED="/_api/export-assemble,/_api/export-estimate,/_api/export-history,/_api/export-jobs,/_api/export-jobs/download,/_api/export-jobs/retry,/_api/export-preflight,/_api/export-preview,/_api/export-warmup"
+# The two excepted routes that sit next to a renderer stay render-free in a cell.
+HTTP_TS="apps/studio/http.ts"
+if ! node -e "
+  const s = require('fs').readFileSync('$HTTP_TS', 'utf8');
+  const i = s.indexOf('preflight: {');
+  const block = i < 0 ? '' : s.slice(i, s.indexOf('createRectsRunner', i) + 1);
+  process.exit(/isWorkspaceMode\(\)\s*\?\s*\{\}/.test(block) ? 0 : 1);
+"; then
+  echo "FAIL: /_api/export-preflight's rects runner is wired in a cell — it renders tenant TSX (DDR-193)." >&2
+  fail=1
+fi
+if ! grep -qE "enabled: !isWorkspaceMode\(\)" "$HTTP_TS"; then
+  echo "FAIL: the thumbnail service is no longer disabled in a cell — /_api/export-preview would render there (DDR-193)." >&2
+  fail=1
+fi
 if [ "$EXCEPT_ACTUAL" != "$EXCEPT_EXPECTED" ]; then
   echo "FAIL: the forbidden-prefix except-list changed (DDR-230)." >&2
   echo "      expected: $EXCEPT_EXPECTED" >&2

@@ -1,0 +1,259 @@
+// actions/types.ts — the action + shortcut registry schema (Maude v2, V2-1.3 contract §5.2; V2-2.4).
+//
+// Data only: no React, no DOM, no closures. Erasable TypeScript only (no enum, namespace or
+// parameter properties) so the shell bundle, the canvas runtime bundle, Bun and Node 24 (type
+// stripping) can all import it. Handlers are bound per runtime by action id, never stored here.
+//
+// Owner: the lead (schema, resolver, menu tree, "?" layout). Per-area entries live in
+// `defs/<area>.ts` (V2-1.3 §5.1).
+
+/** Dotted '<area>.<verb>[-<object>]', lower kebab segments. Append-only (invariant 8). */
+export type ActionId = string;
+
+/** Hub roles (Gate 0 A6). A local project is 'owner'. */
+export type Role = 'view' | 'comment' | 'edit' | 'owner';
+export const ROLE_RANK: Readonly<Record<Role, number>> = { view: 0, comment: 1, edit: 2, owner: 3 };
+
+/** Where the client runs — predicates name shells, never ad-hoc flags (rule 12). */
+export type Shell = 'desktop' | 'browser' | 'cloud' | 'viewer' | 'embed' | 'home';
+
+/** Shell-owned mode (V2-1.2). 'viewing' = the read-only slot in the Share cluster. */
+export type Mode = 'edit' | 'preview' | 'present' | 'viewing';
+
+/** What has keyboard focus — computed by the document that received the event (§5.3). */
+export type Focus = 'text' | 'timeline' | 'canvas' | 'chrome' | 'modal';
+
+/** Kind of the current selection (the C26 'selection' layer discriminant). */
+export type SelKind =
+  | 'none'
+  | 'artboard'
+  | 'object'
+  | 'annotation'
+  | 'video-artboard'
+  | 'generated-image'
+  | 'clip';
+
+/** Resolution layers, highest priority first (Gate 0 C26). A focused text field is not a layer:
+ *  it swallows the key unless the binding opts in (`inText`). */
+export const LAYERS = ['timeline', 'selection', 'tools', 'global'] as const;
+export type Layer = (typeof LAYERS)[number];
+
+/**
+ * Named runtime booleans a predicate may test. Closed set: adding one is a registry change.
+ *
+ * `selectFocused` / `rangeFocused` exist only for the V2-2.4 pure swap: v1's three shell key
+ * listeners disagree on whether a focused `<select>` or `<input type=range>` is "typing" (the
+ * global handler counts a range slider but not a select; the timeline transport the reverse; the
+ * ⌫ guard counts both). They are deleted when §5.3's `computeFocus` tightens (S7 / V2-8.0).
+ */
+export type Fact =
+  | 'native'
+  | 'canvasOpen'
+  | 'videoCanvas'
+  | 'timelineVisible'
+  | 'linkedHub'
+  | 'aiConnected'
+  | 'online'
+  | 'hasShareLink'
+  | 'canUndo'
+  | 'canRedo'
+  | 'presenting'
+  | 'commentFocused'
+  | 'selfHostedHub'
+  | 'selectFocused'
+  | 'rangeFocused'
+  // S2.21 — a create tool (F · R · T) is armed in the canvas: ↵ adds one at its default size, not "go inside"
+  | 'toolArmed'
+  // S8.12 — a tile is picked in the Assets tab and keyboard focus is inside it: ↵ places it, ⌘I opens its details
+  | 'assetTileSelected'
+  // S8.16 — the one selected picture is a generated take with siblings: ← → step between the takes, not nudge
+  | 'selectionHasTakes'
+  // p8-v1-drop — a design system in this project is below Conformant: ⌘K offers "Bring it up to the schema"
+  | 'dsUpgradeOffered';
+
+/** Declarative predicate — serialisable into the manifest, evaluable in the shell, the iframe and
+ *  (role half) the server. Every present field must hold (AND); `any` is an OR of sub-predicates. */
+export interface Pred {
+  minRole?: Role;
+  shell?: Shell[];
+  notShell?: Shell[];
+  mode?: Mode[];
+  focus?: Focus[];
+  selection?: SelKind[];
+  facts?: Fact[];
+  notFacts?: Fact[];
+  any?: Pred[];
+}
+
+/** Canonical chord, produced only by keys.ts: modifiers in macOS order ⌃⌥⇧⌘, then the key. */
+export type Chord = string;
+
+export interface KeyBinding {
+  chord: Chord;
+  layer: Layer;
+  /** Binding-specific condition, on top of the action's `visible`. */
+  when?: Pred;
+  /** Fires while a text field has focus. Default: the chord has ⌘/⌃ and is not TEXT_RESERVED. */
+  inText?: boolean;
+  /** Fires while a modal (dialog / sheet / menu / popover) is open. Default false. */
+  inModal?: boolean;
+  /** Press-and-hold (Space = Hand). Taps and holds never compete. */
+  hold?: boolean;
+  /** Secondary key ("?" lists it as "or"); never the primary shown in menus or ⌘K. */
+  alias?: boolean;
+}
+
+/** Which runtime owns the handler. */
+export type Exec = 'shell' | 'canvas' | 'native' | 'server';
+
+export type HelpGroup =
+  | 'edit-tools'
+  | 'preview-tools'
+  | 'file'
+  | 'tabs-windows'
+  | 'finding'
+  | 'canvas'
+  | 'panels-ai'
+  | 'objects'
+  | 'timeline'
+  | 'present';
+
+export type NativeMenu = 'App' | 'File' | 'Edit' | 'View' | 'Window' | 'Help';
+
+export interface ActionDef {
+  id: ActionId;
+  /** CONTRACT §3 words; one label on every surface. */
+  label: string;
+  /** 'place' = a navigable home (⌘K "Places"). */
+  kind: 'command' | 'toggle' | 'tool' | 'place';
+  /** maude-v2 icon name. */
+  icon?: string;
+  /** keys[0] is the primary (menus, ⌘K). */
+  keys?: KeyBinding[];
+  exec: Exec;
+  /** Rule 12: the ONE visibility predicate set every surface calls. */
+  visible?: Pred;
+  /** Shown greyed when false — never hidden. */
+  enabled?: Pred;
+  /** May be invoked from the canvas iframe (§5.7). Legal only for effect 'none' (V2-1.11). */
+  fromCanvas?: boolean;
+  /** Non-menu homes: ids of kind:'place' actions. */
+  homes?: ActionId[];
+  /** "?" placement; the Advanced fold is derived (§5.10). */
+  help?: { group: HelpGroup; order: number };
+  native?: { menu: NativeMenu; order: number; predefined?: string };
+  /** Old ids that still resolve here (append-only). */
+  aliases?: ActionId[];
+  /** ⌘K matching. */
+  /** `note`: said after the label when ⌘K shows the row greyed ("AI chat — in the desktop app"). */
+  /** `where`: the path ⌘K shows beside a row that has no menu home ("AI chat panel › Advanced"). */
+  search?: { keywords?: string[]; hidden?: boolean; note?: string; where?: string };
+  /** v1 display strings — deleted in V2-8.0. */
+  legacy?: { palette?: string; menu?: string; sheet?: string };
+  // V2-1.11 / V2-2.4b: the AI fields (`ActionDefAI` below) live in actions/agents.ts, keyed by id.
+}
+
+// ── V2-1.11 §5.1: registry AI fields ──────────────────────────────────────────────────────────
+
+export type Effect =
+  | 'none' // reads, computes, navigates the user's window, writes only runtime `_*` state
+  | 'project' // writes versioned files of THIS project; undone by the run's undo step
+  | 'destructive' // removes/replaces content beyond the run's undo step
+  | 'shared' // changes what other people see or receive outside the file plane
+  | 'external'; // third-party network, paid providers, downloads, outside writes, model code
+
+/** Each has a schema + a skill section (§5.2). */
+export type FormatId =
+  | 'canvas-tsx'
+  | 'canvas-meta'
+  | 'annotations'
+  | 'comments'
+  | 'tokens'
+  | 'components'
+  | 'ds-config'
+  | 'photo-edit' // both photo sidecar shapes: every use + per use (S8 §5.5)
+  | 'gen' // assets/<sha8>.gen.json, maude.gen v1 (S8 §5.2)
+  | 'footage'
+  | 'edl'
+  | 'transcript' // S7.1: assets/<sha8>.transcript.json (video/format-ids.ts)
+  | 'beats' // S7.1: assets/<sha8>.beats.json
+  | 'design-config';
+export type SkillRef = `${'design' | 'flow'}:${string}`;
+/** Closed: a new value needs a lead-owned change + a decision id (§5.7 rule 4). */
+export type HumanReason =
+  | 'invite'
+  | 'roles'
+  | 'links'
+  | 'clear-trash'
+  | 'accounts'
+  | 'hub-link'
+  | 'billing'
+  | 'summon'
+  | 'report-bug'
+  | 'view-pref'
+  | 'native-window'
+  | 'onboarding'
+  // V2-1.5 §5.3: ⌘Z / ⇧⌘Z walk the person's own undo stack; an agent undoes one action by id
+  // (`maude design history undo --action <id>`) — decision:maude/v2-2.4b-undo-keys-human
+  | 'keys'
+  // S5 (V2-1.15 Q5): the AI chat's own surface — the panel, its composer and its chat list. An
+  // agent already holds the capability the chat wraps (it IS the AI); the row is the person's way
+  // to drive that conversation — decision:maude/v2-S5.7-chat-actions-human-ai-chat
+  | 'ai-chat'
+  // S11.10: the git half of Version history › Advanced (branch, save with a note, publish, open a pull
+  // request…). The person's working tree and remote; an agent runs git itself in the project folder —
+  // decision:maude/v2-S11.10-git-actions-human
+  | 'git'
+  // S4.14: a formal vote is people's decision (Gate 0 A18). The agent has no vote verb; it reads the
+  // result section the vote leaves (`maude design read-annotations`) — decision:maude/v2-S4.14-votes-human
+  | 'vote'
+  // S8.20 (V2-1.17 §9 Q9): the yes to AI describing a project's pictures with the person's own Claude account, and its
+  // Stop. Consent is the person's; an agent cannot give it for them — decision:maude/v2-S8.20-describe-consent-human
+  | 'consent';
+
+export type AgentPath =
+  | { path: 'file'; format: FormatId; skill: SkillRef; how: string }
+  | { path: 'cli'; verb: string; skill?: SkillRef }
+  | { path: 'human'; because: HumanReason; note?: string };
+
+/** `pending` is allowed only under the §5.7 ratchet; `package` names who builds the path. */
+export type AgentPending = { path: 'pending'; package: string; want: AgentPath };
+
+export interface ActionDefAI {
+  effect: Effect;
+  agent: AgentPath | AgentPending;
+  minRole?: Role;
+  undo?: 'step' | 'version' | 'none';
+  server?: { route: string; method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' };
+  askAI?: string;
+}
+
+/** What the resolver needs of an action — the full `ActionDef`, or a row of the slim generated
+ *  canvas keymap (`keymap.gen.ts`, no labels or docs). */
+export type KeyedAction = Pick<
+  ActionDef,
+  'id' | 'exec' | 'visible' | 'enabled' | 'fromCanvas' | 'keys'
+>;
+
+/** "?" › Advanced › "Keys and tools that moved" (D1–D4, rule 13). Append-only. */
+export interface MovedKey {
+  was: string;
+  now: string;
+  note?: string;
+  to?: ActionId;
+}
+
+export interface KeyCtx {
+  role: Role;
+  shell: Shell;
+  mode: Mode;
+  focus: Focus;
+  selection: SelKind;
+  facts: ReadonlySet<Fact>;
+  /**
+   * V2-4 gate (WCAG 2.1.4): the per-Mac "Single-key shortcuts" switch. `false` — a chord of one
+   * character key (keys.ts › isCharacterChord: V, /, ?, ⇧0 …) resolves to nothing, in the shell AND the
+   * canvas (bridge `key-prefs`); ⌘ / ⌥ chords and named keys are untouched. Absent = on.
+   */
+  singleKeys?: boolean;
+}

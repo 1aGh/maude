@@ -11,17 +11,20 @@
 // webview loads the dev-server UI from a REMOTE (loopback http://) origin. Letting
 // that origin invoke the updater plugin would mean granting `updater:default` to
 // remote content (it could trigger an install). Instead we keep all updater calls
-// in the trusted Rust core and expose only the narrow `restart_to_update` command.
+// in the trusted Rust core and expose only the narrow `restart_to_update` command
+// plus `check_for_updates` (V2-4.7c, Settings › Advanced) — the menu's own check,
+// no arguments, throttled.
 //
 // Cadence: an initial check shortly after boot, on every window focus, and every
 // 4 h. Checks never block the UI and failures are logged, not fatal (a dev / un-
 // bundled build has nothing to install — that's expected and quiet).
 
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Duration;
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 use serde::Serialize;
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 use tauri_plugin_updater::UpdaterExt;
 
@@ -35,6 +38,32 @@ const INITIAL_DELAY_SECS: u64 = 15;
 /// call from the (CSP-less, DDR-109-F2) main origin can't loop-restart the app —
 /// you can only "restart to update" when there genuinely IS a staged update.
 static UPDATE_STAGED: AtomicBool = AtomicBool::new(false);
+
+/// V2-4.7c: a page may ask for an interactive check at most this often. Each
+/// interactive check can end in a native dialog, so a forged call loop from the
+/// main origin could otherwise stack dialogs; a person clicking twice loses nothing.
+const PAGE_CHECK_COOLDOWN: Duration = Duration::from_secs(10);
+static LAST_PAGE_CHECK: Mutex<Option<Instant>> = Mutex::new(None);
+
+/// Whether a page-requested check may start now (pure; `check_for_updates` records `now`).
+fn page_check_allowed(last: Option<Instant>, now: Instant) -> bool {
+    last.is_none_or(|t| now.saturating_duration_since(t) >= PAGE_CHECK_COOLDOWN)
+}
+
+/// Whether the SILENT checks (the background loop and the focus check) are off: a debug build,
+/// or a local test build compiled with `MAUDE_NO_AUTO_UPDATE=1` in the environment
+/// (`MAUDE_NO_AUTO_UPDATE=1 pnpm tauri build`). Without it a locally built freeze `.app` that
+/// carries an older version than the stable release silently became that release within ~20 min
+/// (2026-10-29: the v2 freeze build turned into the signed 1.10.0 and was tested as v2). The
+/// explicit "Check for Updates…" menu and Settings check stay, as in debug. Release CI never sets
+/// it (scripts/test/updater-no-auto-update.test.mjs). Pure; `auto_update_off` feeds it.
+fn auto_update_disabled(debug: bool, no_auto_update: Option<&str>) -> bool {
+    debug || no_auto_update.is_some_and(|v| !v.is_empty() && v != "0")
+}
+
+fn auto_update_off() -> bool {
+    auto_update_disabled(cfg!(debug_assertions), option_env!("MAUDE_NO_AUTO_UPDATE"))
+}
 
 /// Payload for the `update-ready` event the client banner listens for.
 #[derive(Clone, Serialize)]
@@ -50,8 +79,9 @@ pub fn spawn_update_loop(handle: AppHandle) {
     // changes get dogfooded, and the silent loop was replacing the dev app
     // with the released version MID-TEST (2026-07-30). The explicit
     // "Check for Updates…" menu path stays available in debug.
-    if cfg!(debug_assertions) {
-        eprintln!("[maude] debug build — background auto-update disabled");
+    // A local test build (MAUDE_NO_AUTO_UPDATE=1 at build time) is the same case.
+    if auto_update_off() {
+        eprintln!("[maude] debug or local test build — background auto-update disabled");
         return;
     }
     tauri::async_runtime::spawn(async move {
@@ -67,8 +97,8 @@ pub fn spawn_update_loop(handle: AppHandle) {
 /// One-shot check (used on window focus). Safe to call concurrently with the loop —
 /// the updater plugin no-ops a second in-flight check.
 pub fn check_now(handle: AppHandle) {
-    if cfg!(debug_assertions) {
-        return; // silent focus-check — same dev-build guard as the loop
+    if auto_update_off() {
+        return; // silent focus-check — same guard as the loop (debug / local test build)
     }
     tauri::async_runtime::spawn(async move {
         check_and_apply(&handle, false).await;
@@ -83,6 +113,28 @@ pub fn check_now_interactive(handle: AppHandle) {
     tauri::async_runtime::spawn(async move {
         check_and_apply(&handle, true).await;
     });
+}
+
+/// Webview → shell (V2-4.7c): Settings › Advanced › Check for updates. The SAME
+/// path as Maude ▸ Check for Updates… (`check_now_interactive`): the signed feed
+/// from tauri.conf.json, the same dialogs, the same `update-ready` broadcast.
+/// Takes no input — no URL, no path, no channel — and only a project page may call it.
+#[tauri::command]
+pub fn check_for_updates(app: AppHandle, webview: tauri::Webview) -> Result<(), String> {
+    crate::windows::caller_project(&webview, false)?;
+    {
+        let mut last = LAST_PAGE_CHECK
+            .lock()
+            .map_err(|_| "updater state poisoned".to_string())?;
+        let now = Instant::now();
+        if !page_check_allowed(*last, now) {
+            eprintln!("[maude] check_for_updates ignored — a check ran moments ago");
+            return Ok(());
+        }
+        *last = Some(now);
+    }
+    check_now_interactive(app);
+    Ok(())
 }
 
 /// `interactive` = the user asked for this check (menu), so give explicit feedback
@@ -115,9 +167,8 @@ async fn check_and_apply(handle: &AppHandle, interactive: bool) {
             match result {
                 Ok(()) => {
                     UPDATE_STAGED.store(true, Ordering::Relaxed);
-                    if let Err(e) = handle.emit("update-ready", UpdateReady { version, notes }) {
-                        eprintln!("[maude] could not emit update-ready: {e}");
-                    }
+                    // Every page, each through its own channel (bus.rs, finding 1d).
+                    crate::bus::broadcast("update-ready", UpdateReady { version, notes });
                 }
                 Err(e) => {
                     eprintln!("[maude] update download/install failed: {e}");
@@ -202,19 +253,61 @@ fn notify_check_failed(handle: &AppHandle, err: &str) {
 /// could loop-restart the app as a DoS. With it, the worst an injected call can do is
 /// nothing.
 #[tauri::command]
-pub fn restart_to_update(app: AppHandle) {
+pub fn restart_to_update(app: AppHandle, webview: tauri::Webview) -> Result<(), String> {
+    crate::windows::caller_project(&webview, false)?;
     if !UPDATE_STAGED.load(Ordering::Relaxed) {
         eprintln!("[maude] restart_to_update ignored — no update staged");
-        return;
+        return Ok(());
     }
     eprintln!("[maude] restart_to_update — killing sidecar and relaunching into the update");
     crate::sidecar::kill_server(&app);
+    // S11.16: an update restart is a clean quit, not a crash.
+    crate::lifecycle::clean_exit(&app);
     app.restart();
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{up_to_date_message, up_to_date_title};
+    use super::{
+        auto_update_disabled, page_check_allowed, up_to_date_message, up_to_date_title,
+        PAGE_CHECK_COOLDOWN,
+    };
+    use std::time::{Duration, Instant};
+
+    #[test]
+    fn a_local_test_build_turns_off_the_silent_update_but_a_release_does_not() {
+        // a release build with no switch: the loop and the focus check run
+        assert!(!auto_update_disabled(false, None));
+        // a debug build never auto-updates
+        assert!(auto_update_disabled(true, None));
+        // MAUDE_NO_AUTO_UPDATE=1 at build time: a local release build keeps its own bytes
+        assert!(auto_update_disabled(false, Some("1")));
+        // empty or "0" is not a request
+        assert!(!auto_update_disabled(false, Some("")));
+        assert!(!auto_update_disabled(false, Some("0")));
+    }
+
+    #[test]
+    fn the_loop_and_the_focus_check_both_honour_the_switch_and_the_menu_check_does_not() {
+        let src = include_str!("updater.rs");
+        let body = |name: &str| {
+            let i = src.find(name).unwrap();
+            &src[i..i + src[i..].find("\n}\n").unwrap()]
+        };
+        assert!(body("pub fn spawn_update_loop(").contains("if auto_update_off()"));
+        assert!(body("pub fn check_now(").contains("if auto_update_off()"));
+        assert!(!body("pub fn check_now_interactive(").contains("auto_update_off"));
+        assert!(src.contains("option_env!(\"MAUDE_NO_AUTO_UPDATE\")"));
+    }
+
+    #[test]
+    fn a_page_check_runs_first_time_and_again_only_after_the_cooldown() {
+        let t0 = Instant::now();
+        assert!(page_check_allowed(None, t0));
+        assert!(!page_check_allowed(Some(t0), t0));
+        assert!(!page_check_allowed(Some(t0), t0 + Duration::from_secs(3)));
+        assert!(page_check_allowed(Some(t0), t0 + PAGE_CHECK_COOLDOWN));
+    }
 
     #[test]
     fn linux_manual_check_explains_that_automatic_updates_are_unavailable() {

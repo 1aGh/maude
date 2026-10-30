@@ -1,0 +1,104 @@
+/* client/v2/kinds/kind-filter.css — S7.24: the kind filter chips (08 `ak-chips`, 05 `es-kchips`).
+ * Copied from canvas 08's `.ak-chip*` rules under a `kf-` prefix; tokens only; reduced motion collapses the one
+ * transition to 1 ms. */
+
+@layer shell {
+  .kf-chips {
+    display: flex;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+  }
+  .kf-chip {
+    appearance: none;
+    border: 0;
+    flex: 1 1 0;
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1);
+    height: 22px;
+    padding: 0 var(--space-1);
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-xs);
+    font-weight: var(--w-medium);
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    transition: background var(--dur-flip) var(--ease-out);
+  }
+  .kf-chip:hover {
+    background: var(--bg-4);
+  }
+  .kf-chip:focus-visible {
+    outline: var(--focus-ring-width, 2px) solid var(--focus-ring);
+    outline-offset: 1px;
+  }
+  .kf-chip[data-on] {
+    /* the chip that is on keeps its whole word + count + × (05 es-filter: never "Pr… 0"); the others share the rest */
+    flex: 0 0 auto;
+    min-width: max-content;
+    background: var(--accent-muted);
+    color: var(--accent-text);
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+  .kf-chip[data-zero] {
+    color: var(--fg-3);
+  }
+  .kf-chip[data-zero][data-on] {
+    color: var(--accent-text);
+  }
+  .kf-chip-w {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .kf-chip-x {
+    display: inline-grid;
+    flex: none;
+    color: inherit;
+    opacity: 0.8;
+  }
+  .kf-chip-n {
+    font-size: var(--type-xs);
+  }
+  /* S7.24b — the Layers half: the sentence under the chips and its way out (08 `ak-fp-foot`, `ak-link`) */
+  .kf-layers {
+    display: flex;
+    flex-direction: column;
+    flex: none;
+  }
+  .kf-foot {
+    margin: auto var(--space-2) 0; /* the foot of the panel (08 ak-fp-foot), under the list */
+    padding: var(--space-2) var(--space-1) 0;
+    box-shadow: inset 0 0.5px 0 var(--border-subtle);
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+  }
+  .kf-foot-link {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    font: inherit;
+    font-weight: var(--w-medium);
+    color: var(--accent-text);
+    cursor: pointer;
+    border-radius: var(--radius-xs);
+  }
+  .kf-foot-link:hover {
+    color: var(--fg-0);
+  }
+  .kf-foot-link:focus-visible {
+    outline: var(--focus-ring-width, 2px) solid var(--focus-ring);
+    outline-offset: 1px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .kf-chip {
+      transition-duration: 1ms;
+    }
+  }
+}

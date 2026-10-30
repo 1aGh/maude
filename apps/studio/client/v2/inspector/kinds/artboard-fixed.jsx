@@ -1,0 +1,111 @@
+// client/v2/inspector/kinds/artboard-fixed.jsx — S7.21: the Fixed size artboard's rows (08 ak-social).
+//
+//   Size            "Story 9:16 (still)" — a preset of the one catalogue (App + Social), or Custom
+//   (W × H)         the exact pixels
+//
+// Fill is artboard.jsx's; Safe zones + Show on canvas are S7.22's section; Export is S8's (its default here is
+// `exportDefaults('digital')` — "PNG · 1×"). Clip content and Kind sit under Advanced. A fixed size keeps its exact
+// pixels and lets you place things anywhere, so there is no Height mode and no Add a width.
+
+import { useState } from 'react';
+
+import { planConvert } from '../../../../kinds/convert.ts';
+import { intendSelection } from '../../../selection-scope.js';
+import ConvertDialog from '../../kinds/ConvertDialog.jsx';
+import { convertMarksMessage, selectCopyPlan } from '../../kinds/convert-api.js';
+import { registerSlot } from '../slots.js';
+import { sourceWord } from './artboard-model.js';
+import { SizePairRow, SizeSelectRow, useArtboardWrites } from './artboard-rows.jsx';
+
+/** When the marks are sent again after "Make A6 print" (the select-by-id's own delays are 0 / 450 / 1200 ms). */
+export const MARKS_RETRY_MS = Object.freeze([2500, 4500, 7000]);
+
+function FixedRows({ el, ctx }) {
+  const { f, id, can, resize, commitHeight } = useArtboardWrites(el, ctx);
+  // S7.25 — Change kind: a paper picked here opens the dialog; the plan is the server's own module, so it opens at once
+  const [asking, setAsking] = useState(null);
+  const ask = (paper) => {
+    const plan =
+      id && Number.isFinite(f.w) && Number.isFinite(f.h)
+        ? planConvert(
+            {
+              id,
+              label: el?.attrs?.['data-dc-label'] || id,
+              widthPx: f.w,
+              heightPx: f.h,
+              background: f.bg || null,
+              safeZones: el?.attrs?.['data-dc-safe-zones'] || null,
+            },
+            { paper }
+          )
+        : null;
+    if (plan) setAsking({ plan, paper });
+  };
+  return (
+    <>
+      <SizeSelectRow k="Size" f={f} resize={resize} onConvert={ask} />
+      <SizePairRow f={f} can={can} resize={resize} commitHeight={commitHeight} />
+      {asking && ctx?.canvasFile ? (
+        <ConvertDialog
+          plan={asking.plan}
+          paper={asking.paper}
+          canvas={ctx.canvasFile}
+          artboardId={id}
+          sourceWord={sourceWord(f, el?.attrs?.['data-dc-label'])}
+          onUndo={() => ctx.onUndoRedo?.('undo')}
+          onDone={(r) => {
+            // 08 ak-convert-after: the A6 copy is selected, the post stays as it was
+            const plan = selectCopyPlan(r);
+            if (!plan) return;
+            // …and the canvas marks the pair for a few seconds: "✓ Unchanged" under the post, "+ 13 % height · Ink
+            // fill" on the copy (the canvas draws them once it has re-rendered with the copy — they wait by id)
+            const marks = convertMarksMessage({ from: id, to: r.copy, plan: asking.plan });
+            // the shell's own put-back after the canvas reloads must not return the selection to the post
+            intendSelection(ctx.canvasFile, { from: id, to: r.copy });
+            for (const d of plan.delays) {
+              const send = () => {
+                ctx.onRunAction?.(plan.message);
+                ctx.onRunAction?.(marks);
+              };
+              if (d === 0) send();
+              else setTimeout(send, d);
+            }
+            // the canvas may reload around the new copy (its module state starts empty): the marks are asked again
+            // until the new document is up — each answer restarts their few seconds
+            for (const d of MARKS_RETRY_MS) setTimeout(() => ctx.onRunAction?.(marks), d);
+          }}
+          onClose={() => setAsking(null)}
+        />
+      ) : null}
+    </>
+  );
+}
+
+const kindOf = (selection) => {
+  const el = Array.isArray(selection) ? selection[0] : selection;
+  return el?.attrs?.['data-dc-kind'] || 'digital';
+};
+
+export const ARTBOARD_FIXED_SLOTS = Object.freeze([
+  [
+    'size',
+    {
+      id: 'size.artboard-fixed',
+      order: 10,
+      kinds: ['artboard'],
+      title: 'Artboard',
+      when: ({ selection }) => kindOf(selection) === 'digital',
+      Body: FixedRows,
+    },
+  ],
+]);
+
+/** @returns {() => void} take the Fixed size rows back out of the registry */
+export function registerArtboardFixedSlots() {
+  const offs = ARTBOARD_FIXED_SLOTS.map(([section, entry]) => registerSlot(section, entry));
+  return () => {
+    for (const off of offs) off();
+  };
+}
+
+export const offArtboardFixed = registerArtboardFixedSlots();

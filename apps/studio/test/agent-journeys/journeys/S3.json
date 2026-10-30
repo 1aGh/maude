@@ -1,0 +1,78 @@
+{
+  "format": "maude.agent-journey/1",
+  "id": "S3",
+  "package": "S3",
+  "title": "Present order + notes, then `maude design open --mode present`",
+  "fixture": "app5",
+  "setup": [],
+  "turns": [
+    {
+      "say": "Get ui/GitPanel.tsx ready to present: play only “D · Nothing to save”, then “A · Changes”, then “C · Publish + Get latest nudge”, and skip the other two. Give “D · Nothing to save” the speaker note “Start with the calm state.” Then start presenting it in my Maude window."
+    }
+  ],
+  "graders": [
+    {
+      "id": "order",
+      "grader": "present",
+      "path": "ui/GitPanel.tsx",
+      "run": ["empty", "changes", "publish"]
+    },
+    {
+      "id": "notes",
+      "grader": "present",
+      "path": "ui/GitPanel.tsx",
+      "notes": { "empty": "calm state" }
+    },
+    { "id": "presenting", "grader": "ui-open", "canvas": "ui/GitPanel.tsx", "mode": "present" },
+    { "id": "canvas-untouched", "grader": "untouched", "path": "ui/GitPanel.tsx" }
+  ],
+  "dry": {
+    "good": [
+      {
+        "tag": "order",
+        "op": "meta",
+        "path": "ui/GitPanel.tsx",
+        "set": {
+          "present": {
+            "order": ["empty", "changes", "publish"],
+            "skip": ["save-version", "conflict"]
+          }
+        }
+      },
+      {
+        "tag": "notes",
+        "op": "meta",
+        "path": "ui/GitPanel.tsx",
+        "set": { "artboardMeta": { "empty": { "notes": "Start with the calm state." } } }
+      },
+      { "tag": "open", "op": "ui-open", "open": { "canvas": "ui/GitPanel.tsx", "mode": "present" } }
+    ],
+    "faults": {
+      "order": {
+        "replace": {
+          "order": {
+            "op": "meta",
+            "path": "ui/GitPanel.tsx",
+            "set": { "present": { "order": ["empty", "changes", "publish"] } }
+          }
+        }
+      },
+      "notes": { "drop": ["notes"] },
+      "presenting": {
+        "replace": {
+          "open": { "op": "ui-open", "open": { "canvas": "ui/GitPanel.tsx", "mode": "preview" } }
+        }
+      },
+      "canvas-untouched": {
+        "add": [
+          {
+            "op": "edit",
+            "path": "ui/GitPanel.tsx",
+            "old": ">Nothing to save</h3>",
+            "new": ">Nothing to save yet</h3>"
+          }
+        ]
+      }
+    }
+  }
+}

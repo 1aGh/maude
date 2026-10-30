@@ -67,6 +67,59 @@ COPY apps/studio/git/safe-rel.ts /build/apps/studio/git/safe-rel.ts
 # at all while it calls the REAL slug function rather than a copy of it.
 COPY apps/studio/sync/canvas-path.ts /build/apps/studio/sync/canvas-path.ts
 COPY apps/studio/canvas-slug.ts /build/apps/studio/canvas-slug.ts
+# The ONE role table and the access claim (V2-1.7, S9.1/S9.2): role-matrix.mjs
+# re-exports roles.ts, and cloud-identity / render-token / the mint door import
+# scope.ts (its closure.ts import is type-only, erased by the bundler).
+COPY apps/studio/access/roles.ts /build/apps/studio/access/roles.ts
+COPY apps/studio/access/scope.ts /build/apps/studio/access/scope.ts
+# The Share sheet's fixed map (P8): a cell's hub answers a browser tab's /_api/share/*
+# by the SAME map the desktop's routes/share.ts uses (routes-v2/share.mjs). Import-free.
+COPY apps/studio/access/share-map.ts /build/apps/studio/access/share-map.ts
+# The canvas closure (V2-1.7 G2–G4, S9.4): access-files.mjs computes what a
+# canvas-only session may read with the studio's OWN scanner, so the build and
+# the ACL agree on what a canvas imports. Its import graph: the artifact
+# inventory, the DS resolver (+ system / css-scan) and paths.ts.
+COPY apps/studio/access/closure.ts /build/apps/studio/access/closure.ts
+# door-fingerprint.ts (the render door, routes-v2/render-jobs.mjs) reaches these; the bundler-copies test was
+# blind to them (a `//` comment naming `access/*` hid the imports) and the image did not build (V2-8.18).
+COPY apps/studio/access/request.ts /build/apps/studio/access/request.ts
+COPY apps/studio/access/filters.ts /build/apps/studio/access/filters.ts
+COPY apps/studio/access/known-canvases.ts /build/apps/studio/access/known-canvases.ts
+COPY apps/studio/sync/hubs-config.ts /build/apps/studio/sync/hubs-config.ts
+COPY apps/studio/workspace-mode.ts /build/apps/studio/workspace-mode.ts
+COPY apps/studio/sync/file-membership.ts /build/apps/studio/sync/file-membership.ts
+COPY apps/studio/canvas-artifacts.ts /build/apps/studio/canvas-artifacts.ts
+COPY apps/studio/ds/ds-resolver.ts /build/apps/studio/ds/ds-resolver.ts
+COPY apps/studio/ds/system.ts /build/apps/studio/ds/system.ts
+COPY apps/studio/ds/css-scan.ts /build/apps/studio/ds/css-scan.ts
+COPY apps/studio/paths.ts /build/apps/studio/paths.ts
+# gate-b-c4l (M2) — the canvas marker and import scanner the closure reads (since gate-b-c4g); the
+# image did not bundle without it. test/dockerfile-bundler-copies.test.mjs walks the hub's real
+# import graph and fails when a module it reaches is not COPY'd here.
+COPY apps/studio/skip-dirs.ts /build/apps/studio/skip-dirs.ts
+# The comment door (routes-v2/comments.mjs) applies the studio's own ops + mentions + anchors.
+COPY apps/studio/comment-anchor.ts /build/apps/studio/comment-anchor.ts
+COPY apps/studio/comments/anchors.ts /build/apps/studio/comments/anchors.ts
+COPY apps/studio/comments/mentions.ts /build/apps/studio/comments/mentions.ts
+COPY apps/studio/comments/ops.ts /build/apps/studio/comments/ops.ts
+COPY apps/studio/sync/atomic-write.ts /build/apps/studio/sync/atomic-write.ts
+# The render door's fingerprint (routes-v2/render-jobs.mjs → exporters/door-fingerprint.ts) hashes
+# the generated `@maude/ds` module with the studio's own DS engine.
+COPY apps/studio/exporters/door-fingerprint.ts /build/apps/studio/exporters/door-fingerprint.ts
+COPY apps/studio/draw/palette.ts /build/apps/studio/draw/palette.ts
+COPY apps/studio/ds/board/build-model.ts /build/apps/studio/ds/board/build-model.ts
+COPY apps/studio/ds/board/brand-notes.ts /build/apps/studio/ds/board/brand-notes.ts
+COPY apps/studio/ds/board/component-states.ts /build/apps/studio/ds/board/component-states.ts
+COPY apps/studio/ds/board/directions-model.ts /build/apps/studio/ds/board/directions-model.ts
+COPY apps/studio/ds/board/types.ts /build/apps/studio/ds/board/types.ts
+COPY apps/studio/ds/contrast.ts /build/apps/studio/ds/contrast.ts
+COPY apps/studio/ds/emit.ts /build/apps/studio/ds/emit.ts
+COPY apps/studio/ds/engine.ts /build/apps/studio/ds/engine.ts
+COPY apps/studio/ds/generate.ts /build/apps/studio/ds/generate.ts
+COPY apps/studio/ds/head.ts /build/apps/studio/ds/head.ts
+COPY apps/studio/ds/registry.ts /build/apps/studio/ds/registry.ts
+COPY apps/studio/ds/revision.ts /build/apps/studio/ds/revision.ts
+COPY apps/studio/ds/value-types.ts /build/apps/studio/ds/value-types.ts
 # The source validator the studio projector gates disk writes with, and the
 # byte ceilings it reads. The workspace agent refuses to write or commit a body
 # it rejects (audit 2026-09-13 P0 #2) — with the SAME parser, not a hub-side
@@ -78,6 +131,9 @@ COPY apps/studio/sync/limits.ts /build/apps/studio/sync/limits.ts
 # with the studio's own three-way merge (diff is a hub dependency, bundled), and
 # sanitizes annotation SVG with the studio's sanitizer — never a hub-side copy.
 COPY apps/studio/sync/source-merge.ts /build/apps/studio/sync/source-merge.ts
+# S9.24 — the object-level conflict rule the annotations lane holds a same-sticky
+# race with (`objects: 'hold'`), shared with the studio's local kernel.
+COPY apps/studio/sync/object-conflict.ts /build/apps/studio/sync/object-conflict.ts
 # The repeated-module guard the accepted-revisions import collapses doubled
 # canvases with (the Alligators seed race, 2026-09-15).
 COPY apps/studio/sync/repeated-module.ts /build/apps/studio/sync/repeated-module.ts
@@ -166,6 +222,20 @@ COPY plugins/design/templates /build/plugins/design/templates
 # single file is the whole closure; a new `../../cli/` import from studio needs
 # its own line (there is exactly one today — grep guards it in CI would be nice).
 COPY cli/lib/design-ownership.mjs /build/cli/lib/design-ownership.mjs
+# V2-8.18 — the v2 studio reaches more than that: the hub's transactions kernel + lanes (sync/local-kernel.ts,
+# canvas-edit.ts, element-ids.ts), hub-held votes (annotations/votes-local.ts) and the cli/lib guards
+# (routes/agent.ts, ai/lease-home.ts; acp/index.ts replays an Edit through cli/lib/design-hook.mjs `replayEdit`). Unstaged, `docker build` failed with `Could not resolve`. The test
+# `dockerfile-bundler-copies.test.mjs` walks the studio's import graph against this stage's COPY list.
+COPY apps/hub/src/project-transactions/baseline.mjs \
+     apps/hub/src/project-transactions/kernel.mjs \
+     apps/hub/src/project-transactions/lanes.mjs \
+     apps/hub/src/project-transactions/runs-core.mjs \
+     apps/hub/src/project-transactions/store-core.mjs \
+     /build/apps/hub/src/project-transactions/
+COPY apps/hub/src/votes.mjs /build/apps/hub/src/votes.mjs
+COPY cli/lib/bash-guard.mjs cli/lib/finding-text.mjs cli/lib/confine-out.mjs \
+     cli/lib/confine-root.mjs cli/lib/studio-locate.mjs cli/lib/handoff.mjs \
+     cli/lib/json-schema-lite.mjs cli/lib/pkg-root.mjs cli/lib/design-hook.mjs /build/cli/lib/
 # The client bundle + stylesheet are COMMITTED artifacts (see CLAUDE.md: what
 # you commit is what ships) — MAUDE_SKIP_RUNTIME_BUILD keeps the runtime bundles
 # verbatim for the same reason. The E1 seal below records what came out of here.

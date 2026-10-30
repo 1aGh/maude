@@ -1,7 +1,17 @@
+import { claimCreatedCanvas, runForCreate } from './ai/create-claim.ts';
+import {
+  claimWritesForChat,
+  hookClaims,
+  routeWriteClaim,
+  withWriteClaim,
+} from './ai/write-claim.ts';
 import { MAX_ELEMENTS } from './annotations/constants.ts';
 import { parseOps as parseAnnotationOps } from './annotations/ops.ts';
+import { runTagGate, runTagRefusalResponse } from './annotations/run-tag.ts';
 import { serializeBoard } from './annotations/schema.ts';
+import { VOTE_DOOR_REFUSAL, voteDoorOnly } from './annotations/vote-guard.ts';
 import { validAnnotationWriteId } from './annotations-sync.ts';
+import { artboardLabels } from './edit-ops/duplicate-at-width.ts';
 import { MAX_ANNOTATIONS_BYTES } from './sync/limits.ts';
 // HTTP layer for Bun.serve.
 //
@@ -9,11 +19,67 @@ import { MAX_ANNOTATIONS_BYTES } from './sync/limits.ts';
 // the route table without rewriting this module. The `fetch` export is the
 // top-level fall-through for paths Bun's `routes` field doesn't cover.
 
-import { createHash } from 'node:crypto';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { existsSync, readFileSync, realpathSync, unlinkSync, watch } from 'node:fs';
-import { basename, dirname, join, posix, relative, resolve, sep } from 'node:path';
+import { basename, join, posix, relative, resolve, sep } from 'node:path';
 // Ownership mutations live with the CLI on purpose — see /_api/sync/ownership.
 import { adoptToHub, detachToRepo, ownershipState } from '../../cli/lib/design-ownership.mjs';
+import { assetReferrers, type Closure, localDepsFromSource } from './access/closure.ts';
+import {
+  canvasOnlyLogPaths,
+  canvasOriginTarget,
+  diffRefusal,
+  diffShaVisible,
+  exportTargetVerdict,
+  filterAcceptedHistory,
+  filterAssetListing,
+  filterConfig,
+  filterGitBranches,
+  filterGitDiff,
+  filterGitStatus,
+  filterIndexSearch,
+  filterIndexSnapshot,
+  filterTrashListing,
+  mergeCanvasOnlyLog,
+  projectVisibility,
+  type Seer,
+  seerOf,
+} from './access/filters.ts';
+import {
+  currentFrame,
+  FRAME_PARAM,
+  type FrameScope,
+  frameKeyFor,
+  frameSubjectOf,
+  frameTokenOf,
+  inputsRefusal,
+  loadFrameSecret,
+  mintFrameCap,
+  narrowToFrame,
+  verifyFrameCap,
+} from './access/frame.ts';
+import { closureConfigFor } from './access/known-canvases.ts';
+import {
+  ACP_REFUSAL,
+  accessForDesktop,
+  accessFromProxy,
+  COMMENT_WRITE_PATTERNS,
+  COMMENT_WRITES,
+  canvasOnlyRefused,
+  canvasScopeRefusal,
+  diskProjectReader,
+  EXPORT_WRITES,
+  type GateInput,
+  localGate,
+  notInScopeResponse,
+  SESSION_WRITES,
+  targetOf,
+  toDesignRel,
+  writeCapability,
+} from './access/request.ts';
+import { type Access, sees as accessSees, accessView } from './access/scope.ts';
+import { type AskQueue, createAskQueue, currentAllowanceResetsAt } from './acp/ask-queue.ts';
+import { createConnectedFact } from './acp/connected-fact.ts';
 import {
   cancelSignin,
   getClaudeAuthStatus,
@@ -22,44 +88,73 @@ import {
   startInstall,
   startSignin,
 } from './acp/login-state.ts';
-import { probeAcpAvailabilityAuthed } from './acp/probe.ts';
+import { probeAcpAvailability, probeAcpAvailabilityAuthed } from './acp/probe.ts';
 import { activitySnapshot, runningChats } from './acp/running.ts';
 import {
   chatTranscriptSeq,
   deleteChat,
+  groupChatsByCanvas,
   listChats,
   readChatMessages,
   writeChatMeta,
 } from './acp/transcript.ts';
+import { actionsManifestVersion } from './actions/manifest-version.ts';
+import { createLocalLeaseHome } from './ai/lease-home.ts';
+import { createRunRegistry, type RunRegistry } from './ai/runs.ts';
 import { type Api, ASSET_CHUNK_BYTES, ASSET_MAX_BYTES, ASSET_MAX_VIDEO_BYTES } from './api.ts';
-import { ImportAssetError, importSvg, SVG_MAX_BYTES } from './bin/_import-asset.mjs';
-import { ImportBrandError, importBrand } from './bin/_import-brand.mjs';
+import { importBrandRequest } from './bin/_brand-site.mjs';
 import { buildCanvasModule } from './canvas-build.ts';
 import { buildCanvasSandboxed, buildStats } from './canvas-build-sandbox.ts';
 import { canvasLibPath } from './canvas-lib-resolver.ts';
 import { TranspileError } from './canvas-pipeline.ts';
+import { CanvasBuildError, canvasSourceSig, recordCanvasBuild } from './canvas-source/errors.ts';
 import { rememberCanvasBuild } from './canvas-source-memo.ts';
 import { createCloudEndpoints } from './cloud/endpoints.ts';
 import type { AiActivity } from './collab/ai-activity.ts';
+import { localAuthor } from './comments/local-author.ts';
 import type { Context } from './context.ts';
 import { reloadConfig } from './context.ts';
 import { buildDebugBundle } from './debug-bundle.ts';
+import { createDescribeService, type DescribeService, envDescriber } from './describe/batch.ts';
 import { probeSetupReadiness } from './design-setup-readiness.ts';
+import { diagnostics, registerStatus, report } from './diagnostics/store.ts';
+import { createDsEngine, kernelPortFrom } from './ds/engine.ts';
+import { heldArtboards } from './ds/make.ts';
+import { createDsOutsideWatcher } from './ds/outside.ts';
+import { injectFallbacks } from './ds/shell-fallbacks.ts';
+import { registerDsUndoHook } from './ds/undo-hook.ts';
+import { createReferenceLanes } from './edit-ops/references.ts';
 import { frameAncestors } from './embed-origins.ts';
+import { closureFingerprint } from './exporters/door-fingerprint.ts';
+import { contentDisposition } from './exporters/file-names.ts';
 import { isScopeValidForFormat, scopeRefusalMessage } from './exporters/format-scopes.ts';
+import { createHubRenderDoorGetter } from './exporters/hub-render-door.ts';
 import { type Format, isFormat, isScope, type Scope } from './exporters/index.ts';
-import { type ExportJobQueue, ExportQueueFullError } from './exporters/jobs.ts';
-import type { ActiveJsonShape } from './exporters/scope.ts';
+import { ExportJobIdError, type ExportJobQueue, ExportQueueFullError } from './exporters/jobs.ts';
+import { createRectsRunner } from './exporters/rects-runner.ts';
+import {
+  type CloudRenderDoor,
+  cloudLabel,
+  cloudTargetFacts,
+  createCloudExports,
+  desktopCloudFacts,
+  intentRole,
+} from './exporters/remote.ts';
+import { renderSecondsStats } from './exporters/render-seconds.ts';
+import { type ActiveJsonShape, resolveScope } from './exporters/scope.ts';
+import { isV2Body } from './exporters/spec-v2.ts';
 import { createFigmaEndpoints } from './figma/endpoints.ts';
 import { generatedClipAnalysis } from './footage/schema.ts';
 import { createFootageStore, FOOTAGE_MAX_BYTES } from './footage-store.ts';
 import {
+  asFormat,
   canvasFormatLine,
+  FORMAT_GATE_OPTS,
+  formatConfigFields,
   formatGate,
   formatGateAllowsWrite,
   formatRefusalResponse,
   projectFormat,
-  STAGED_FORMAT_GATE_OPTS,
 } from './format.ts';
 import {
   type AudioMatch,
@@ -114,70 +209,104 @@ import {
 } from './generation/whisper-models.ts';
 import { refuseCheckoutRewrite } from './git/accepted-guard.ts';
 import { createGitEndpoints } from './git/endpoints.ts';
-import { gitShowFile } from './git/service.ts';
+import { gitCommitFiles, gitShowFile } from './git/service.ts';
 import { createGitHubEndpoints } from './github/endpoints.ts';
+import { createHandoffs } from './handoff/run.ts';
+import { trashArtboardRestorer } from './history/restore-artboard-action.ts';
+import {
+  cssOverridesFor,
+  injectVersionMeta,
+  type LaneReaders,
+  laneAtRef,
+  type VersionSource,
+} from './history/version-lanes.ts';
+import type { GitEntry } from './history/versions.ts';
+import { createHistory } from './history.ts';
+import { assetsResponse } from './index/assets-response.ts';
+import { warmDsUsage } from './index/ds-usage.ts';
+import { extractCanvas } from './index/extract.ts';
+import {
+  type AttributionCache,
+  attributionDir,
+  createAttributionCache,
+} from './index/extractors/attribution-cache.ts';
+import { historySourceFromRuntime } from './index/history-source.ts';
+import { kickWhenReady } from './index/scan-kick.ts';
+import { createIndexService } from './index/service.ts';
+import { pidOf, projectDir } from './index/snapshot.ts';
+import { feedVersionsToIndex } from './index/version-feed.ts';
 import type { InspectRegistry } from './inspect.ts';
 import { canvasSlug, writeLocator } from './locator.ts';
 import { prepareManagedProject } from './managed-projects.ts';
 import { materializeMissing } from './materialize-client.ts';
+import { createHubReachability } from './outbox/hub-reachability.ts';
+import { createOutbox, type GateFacts, type IntentRecord } from './outbox/index.ts';
+import { exportCloudSender } from './outbox/senders/export-cloud.ts';
 import { isUnderOrEqual, resolveUrlPathUnder } from './path-containment.ts';
 import { BIN_DIR, DEV_SERVER_ROOT, MEDIA_DIR, STICKERS_DIR } from './paths.ts';
-import { createPhotoStore, PHOTO_EDIT_MAX_BYTES } from './photo-store.ts';
+import { createPhotoStore, EDIT8_RE, PHOTO_EDIT_MAX_BYTES } from './photo-store.ts';
 import { probeReadiness } from './readiness.ts';
+import {
+  type AgentRouteDeps,
+  allSpecs,
+  announceAction,
+  assetStateDepsFor,
+  canvasPathsOfIndex,
+  cloudExportResponse,
+  createTrashWriteStop,
+  voteHomeResolver as createVoteHomeResolver,
+  type ExportRouteDeps,
+  gateSpecV2,
+  generateDepsFor,
+  type HandoffRouteDeps,
+  heldByAiRefusal,
+  planExportV2,
+  resolveQueuedHandoff,
+  riderPatch,
+  runStageHooks,
+  type ShareRouteDeps,
+  shareAskToEditSender,
+  shareInviteSender,
+  trashAccess,
+  withTrashStop,
+} from './routes/index.ts';
+import { checkRouteTable, mountRoutes, type RouteSpec } from './routes/table.ts';
 import { getRuntimeBundle, packageForSlug } from './runtime-bundle.ts';
 import { currentSession } from './session-scope.ts';
+import { resolveProfile } from './shell/profile.ts';
+import {
+  cacheControlFor,
+  documentCsp,
+  ext,
+  isRefusedDotPath,
+  MIME,
+  serveClientAsset,
+  serveFile,
+  serveIndexHtml,
+} from './static-lane.ts';
 import { sanitizeForLog } from './sync/cell-pairing.ts';
 import { linkHub } from './sync/hub-link.ts';
-import { isHubReadOnly } from './sync/hubs-config.ts';
+import { accessFor, getHubRecord } from './sync/hubs-config.ts';
+import { hubHealth } from './sync/journal-client.ts';
+import { createKeepBothResolver } from './sync/keep-both.ts';
+import { createLinkGate } from './sync/link-consent.ts';
+import { createResyncTrace, type ResyncStatusSource } from './sync/resync-trace.ts';
 import { isFirstAnchorMode, readSyncSettings, writeSyncSettings } from './sync/settings.ts';
 import { listTrash, pruneTrash, restoreFromTrash } from './sync/trash.ts';
 import { signInToWorkspace, workspaceDisclosure } from './sync/workspace-signin.ts';
+import { thumbNotFound, thumbResponse, wantResponse } from './thumbs/routes.ts';
+import { BOOT_COVERS_DELAY_MS, createThumbService } from './thumbs/service.ts';
 import { normalizeTreeState } from './tree-state.ts';
-import { readUiPrefs, type UiPrefs, writeUiPrefs } from './ui-prefs.ts';
+import { readUiPrefs, validateUiPrefsPatch, writeUiPrefs } from './ui-prefs.ts';
 import { loadWhatsNew, resolveMaudeVersion } from './whats-new.ts';
 import { isWorkspaceMode, resolveRenderLane } from './workspace-mode.ts';
 import { isLoopbackHost } from './ws.ts';
 
+export { cacheControlFor, MIME, serveIndexHtml } from './static-lane.ts';
+
 // Real disk install root — never the virtual `/$bunfs/root` of compiled bins.
 // See paths.ts for the resolution logic + Phase 19.1 / v0.18.1 rationale.
 const HERE = DEV_SERVER_ROOT;
-
-export const MIME: Record<string, string> = {
-  '.html': 'text/html; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.js': 'application/javascript; charset=utf-8',
-  '.mjs': 'application/javascript; charset=utf-8',
-  '.jsx': 'text/plain; charset=utf-8',
-  '.ts': 'text/plain; charset=utf-8',
-  '.tsx': 'text/plain; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
-  '.md': 'text/markdown; charset=utf-8',
-  '.svg': 'image/svg+xml',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.gif': 'image/gif',
-  '.webp': 'image/webp',
-  '.ico': 'image/x-icon',
-  '.woff': 'font/woff',
-  '.woff2': 'font/woff2',
-  '.ttf': 'font/ttf',
-  '.otf': 'font/otf',
-  // DDR-148 — video/audio media referenced by a video-comp `<Video>`/`<Audio>`.
-  '.mp4': 'video/mp4',
-  '.m4v': 'video/mp4',
-  '.mov': 'video/quicktime',
-  '.webm': 'video/webm',
-  '.mp3': 'audio/mpeg',
-  '.wav': 'audio/wav',
-  '.m4a': 'audio/mp4',
-  '.ogg': 'audio/ogg',
-};
-
-function ext(p: string): string {
-  const i = p.lastIndexOf('.');
-  return i === -1 ? '' : p.slice(i).toLowerCase();
-}
 
 /**
  * T2 (9.1-A) — build the strict CSP for the canvas-content shell. Every inline
@@ -192,14 +321,16 @@ function ext(p: string): string {
  * is not the F1 RCE vector (script + connect are). No `'unsafe-eval'` — the
  * POC verifies the runtime (motion/pixi/Bun.build output) doesn't need it.
  *
- * `webrtc 'block'` (A6, DDR-060 F1 re-audit) — `connect-src` governs only
+ * WebRTC (A6, DDR-060 F1 re-audit) — `connect-src` governs only
  * fetch/XHR/WebSocket/sendBeacon; WebRTC does NOT flow through Fetch, so an
  * `RTCPeerConnection` with an attacker STUN/TURN hostname smuggles bytes out via
- * ICE DNS/STUN even under `connect-src 'self'`. ⚠️ This directive is specified
- * (CSP3) but UNIMPLEMENTED in shipping Chrome/Firefox as of 2026 (Chromium
- * #40188662, Firefox bug 1783489) — currently a NO-OP. The enforceable control
- * today is the RTC-constructor lockout in `templates/_shell.html`; this directive
- * is kept for when browsers honor it. WebRTC + self-navigation exfil remain
+ * ICE DNS/STUN even under `connect-src 'self'`. The CSP3 `webrtc 'block'`
+ * directive was REMOVED (p8-sweep-leftovers): it is enforced nowhere we ship —
+ * Chromium (capture/export workers) logs "Unrecognized … 'webrtc'" and ignores
+ * it (#40188662), and WKWebView (the desktop app) parses it but still gathers
+ * ICE candidates (measured, macOS 26.5). The enforceable controls are the
+ * RTC-constructor lockout in `templates/_shell.html` and the capture browser's
+ * `--force-webrtc-ip-handling-policy` (p8-secfix-m1). WebRTC + self-navigation exfil remain
  * DOCUMENTED residuals of opt-in linked mode (the reachable data is collab
  * metadata, not repo files — traversal is closed). Do NOT treat this as a closed
  * exfil lane. The canvas runtime itself uses zero WebRTC.
@@ -290,15 +421,17 @@ export function cspForCanvasShell(
     // DDR-148 — a video-comp's <Video>/<Audio> loads media from the canvas
     // origin's own designRoot (assets/). Same inert-bytes trust as img-src
     // 'self'; without it default-src 'none' blocks all media (black video, no
-    // sound). `blob:` covers Remotion's processed-media URLs.
-    "media-src 'self' blob:",
+    // sound). `blob:` covers Remotion's processed-media URLs; `data:` its silent
+    // `data:audio/mp3` unlock clip (p8-sweep-leftovers — refused, it logged on every
+    // video canvas). A media `data:` URL is decoded bytes: no script, no host.
+    // `data:` is for media-src ONLY — script-src never takes it.
+    "media-src 'self' blob: data:",
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self' data:",
     "frame-src 'self'",
     "base-uri 'none'",
     "object-src 'none'",
     "form-action 'none'",
-    "webrtc 'block'",
   ];
   // DDR-247 — an embedder of the studio page is an ANCESTOR of this frame too,
   // and frame-ancestors checks every ancestor, so it is listed here as well.
@@ -313,9 +446,7 @@ export function cspForCanvasShell(
  * main origin at all — the main origin 307s them to the read-only capture
  * origin, which serves the strict canvas CSP (`cspForCanvasShell`, DDR-232).
  * This policy now applies only where a capture still renders on the main
- * origin: with the split OFF (`MAUDE_CANVAS_ORIGIN_SPLIT=0`). (Maude's own
- * local `_draw/` / `_photo/` harnesses stay on the main origin too, but only
- * as bare `?canvas=` requests — one carrying `hide-chrome` is redirected.)
+ * origin: with the split OFF (`MAUDE_CANVAS_ORIGIN_SPLIT=0`).
  *
  * Original rationale: the export rendered the (untrusted, DDR-054) canvas on
  * the MAIN origin — where the normal
@@ -345,7 +476,6 @@ export function cspForCapture(): string {
     "object-src 'none'",
     "base-uri 'none'",
     "form-action 'none'",
-    "webrtc 'block'",
   ].join('; ');
 }
 
@@ -456,6 +586,57 @@ export function sameOriginRead(req: Request): boolean {
   return site === 'same-origin' || site === 'none';
 }
 
+/**
+ * Every table route is privileged (migrate rewrites the tree; the outbox lists queued intents):
+ * the same double gate every main-origin route carries — Origin check (reads and writes) +
+ * the DNS-rebinding guard — before the handler runs. V2-2.5: module-level (was `guardLane`
+ * inside createHttp, verbatim) so test/csrf-write-guard.test.ts can hold every spec to it.
+ */
+export function guardTableRoute(spec: RouteSpec): RouteSpec {
+  return {
+    ...spec,
+    handle: (req, params) => {
+      const sameOrigin = spec.method === 'GET' ? sameOriginRead(req) : sameOriginWrite(req);
+      if (!sameOrigin)
+        return (
+          spec.refuse?.('cross-origin') ?? new Response('cross-origin rejected', { status: 403 })
+        );
+      if (!isTrustedRequestHost(req))
+        return (
+          spec.refuse?.('untrusted-host') ??
+          new Response('local request required (DNS-rebinding guard)', { status: 403 })
+        );
+      return spec.handle(req, params);
+    },
+  };
+}
+
+/**
+ * p8-a1-claims — a main-only table route that writes answers inside its run's write claim when the
+ * request names an AI chat (`X-Maude-Chat`, `_studio-verb.mjs` / `curl-local`): what it writes then
+ * joins that chat's LIVE run by its bytes (ai/write-claim.ts), with no time window. A canvas-origin
+ * spec is never wrapped (the untrusted canvas frame can set any header on its own origin), nor a read;
+ * the claim needs the same two gates `guardTableRoute` applies, checked again here.
+ */
+export function claimingTableRoute(
+  spec: RouteSpec,
+  runs: Parameters<typeof routeWriteClaim>[1]
+): RouteSpec {
+  if (spec.origin === 'canvas' || spec.method === 'GET') return spec;
+  // p8-sec2-attrib A2 — the run's own bookkeeping (the hook routes) and the closing page's flush of a
+  // person's held saves are never a run's writes: answering them inside its claim made the landing the AI's
+  if (spec.path.startsWith('/_api/agent/') || spec.path === '/_api/diagnostics/save-hold-flush')
+    return spec;
+  return {
+    ...spec,
+    handle: (req, params) =>
+      withWriteClaim(
+        sameOriginWrite(req) && isTrustedRequestHost(req) ? routeWriteClaim(req, runs) : null,
+        () => spec.handle(req, params)
+      ),
+  };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Cloud Phase 25 C2 — the local half of the read-only gate.
 //
@@ -471,60 +652,16 @@ export function sameOriginRead(req: Request): boolean {
 // DDR-115, plus the two role-granted verbs the cell itself allows —
 // export ≈ `/api/export`, session management ≈ `/auth/logout`):
 const READ_ONLY_SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
-export const READ_ONLY_ALLOWED_WRITES = new Set([
-  '/_hmr', // build-watch rebuild hint — dev plumbing, not project state
-  '/_canvas-state', // per-user camera / view state (DDR-115: never versioned)
-  '/_api/canvas-meta', // viewport lane only — the layout lane is refused in-handler
-  '/_api/ui-prefs', // per-user UI preferences
-  '/_api/tree-state', // per-user Files-panel disclosure (issue #124)
-  '/_api/timeline-media', // per-user runtime media cache (scrub read path)
-  '/_api/export', // "look, comment and download" — the cell allows /api/export too
-  '/_api/export-jobs',
-  '/_api/export-jobs/download',
-  // DDR-231 Phase 2 T6 — the browser lane's ledger row. A viewer may already
-  // EXPORT (the two entries above), so recording that they did is the same
-  // class of write: it touches no project state, only the recent-exports list.
-  // Refusing it here while allowing the export produced exactly the reported
-  // symptom for viewers — a file downloads and nothing anywhere says so.
-  '/_api/export-history',
-  // …and the deck's composition half. The member's own browser captured the
-  // PNGs; this route only packs bytes they already hold into a .pptx and hands
-  // it back — it writes no project state. Missing from this list, a VIEWER's
-  // PPTX export captured every artboard and then died on a 403 with the dialog
-  // still saying "Capturing 10/10" (found by the T7 export E2E, which runs
-  // unauthenticated and therefore as a viewer).
-  '/_api/export-assemble',
-  '/_api/report', // bug reports are about Maude, not the project
-  '/_api/report-fallback',
-  // Cloud Phase 27 — COMMENT IS THE ONE WRITE A VIEWER HOLDS. The role matrix
-  // has said so since Phase 25 C4 (`viewer.comment === true`), the People page
-  // promises it in those words, and the cell's proxy allows it — but this list
-  // did not, so a viewer's comment was accepted by the authority and then
-  // refused by the defence-in-depth layer behind it. Found by commenting as a
-  // viewer against a real cell. A second gate that is STRICTER than the first is
-  // still a gate that is wrong.
-  '/_comments',
-  '/_api/hub/link', // link/unlink ≈ session management (cell allows /auth/logout)
-  '/_api/cloud/detach', // unlink — the same session-management class as hub/link
-  '/_api/workspace/sign-in', // signing in is how the role is (re)learned
-  '/_api/workspace/disclosure',
-  '/_api/cloud/signin/start', // account session, not project state
-  '/_api/cloud/signin/poll',
-  '/_api/cloud/signout',
-  // Fetch moves remote-tracking refs and nothing else — no working tree, no
-  // index. It stays a read.
-  '/_api/git/fetch',
-  // `pull` and `checkout` USED TO BE HERE, on the reasoning that "viewing
-  // another branch is not changing one". Cloud Phase 27 D2 retired that: both
-  // rewrite the working tree, and the tree is SHARED — in a cell by every
-  // member, and on a hub-linked desktop by whoever else has that project open.
-  // A viewer switching branches replaces the files under someone mid-edit.
-  //
-  // The proxy's manifest already refuses them, but this gate is the one the
-  // hub-linked desktop and self-host path consult (`isHubReadOnly`), where no
-  // manifest runs at all — so leaving them here would have left the hole open
-  // exactly where the proxy cannot reach. Two gates, and neither is trusted to
-  // be the last word.
+// S9.9 (V2-1.7 §5.7) — split by capability in access/request.ts: SESSION_WRITES
+// (`session`), COMMENT_WRITES (`comment`), EXPORT_WRITES (`export`). This is their
+// union — what a session WITHOUT `edit` may still write at all; which of them a given
+// role may write is `localGate`'s answer (an observer holds session, not comment or
+// export). `pull` / `checkout` stay off it (Cloud Phase 27 D2: they rewrite the shared
+// working tree).
+export const READ_ONLY_ALLOWED_WRITES = new Set<string>([
+  ...SESSION_WRITES,
+  ...COMMENT_WRITES,
+  ...EXPORT_WRITES,
 ]);
 
 /**
@@ -535,9 +672,14 @@ export const READ_ONLY_ALLOWED_WRITES = new Set([
  * the list above, so the bar for adding one is that an exact path genuinely
  * cannot express it.
  */
-export const READ_ONLY_ALLOWED_WRITE_PATTERNS: RegExp[] = [
-  /^\/_api\/comments\/[A-Za-z0-9_-]+\/reply$/,
-];
+export const READ_ONLY_ALLOWED_WRITE_PATTERNS: RegExp[] = [...COMMENT_WRITE_PATTERNS];
+
+/** The `/_api/canvas-meta` PATCH lanes that are per-user state (`_canvas-state/`, DDR-115). */
+export const CANVAS_META_SESSION_LANES: ReadonlySet<string> = new Set([
+  'viewport',
+  'overlays',
+  'locked',
+]);
 
 /** The refusal a read-only session gets for a project-mutating write. */
 export function readOnlyRefusalResponse(): Response {
@@ -575,8 +717,34 @@ function safePathUnderRoot(reqUrl: string, repoRoot: string): string | null {
 
 // `dist/` lives next to server.ts when running source-mode (bun run server.ts)
 // and inside the standalone binary's embedded FS in --compile mode.
+/**
+ * `/_config.saveMode` (p8-update-to-accepted): the live sync's DDR-241 mode, null in solo.
+ * p8-fix-a F19 — `'pending'` until the hub has answered once (a project that has never heard from it, and
+ * has no remembered answer, is NOT `legacy`): the shell shows "saves the old way" only for a real `legacy`.
+ */
+export function saveModeOf(
+  runtime: { acceptedMode?(): boolean; acceptedModeKnown?(): boolean } | null | undefined
+): 'accepted' | 'legacy' | 'pending' | null {
+  if (!runtime?.acceptedMode) return null;
+  if (runtime.acceptedModeKnown && !runtime.acceptedModeKnown()) return 'pending';
+  return runtime.acceptedMode() ? 'accepted' : 'legacy';
+}
+
+/**
+ * p8-fix-a F19 — this project's own page on the cloud dashboard (`<dashboard>/projects/<id>`), for the
+ * links that name a setting on it (Saving). Needs BOTH the configured dashboard and the cell's tenant id
+ * (the dashboard's project id: the studio door builds its sign-in URL from the same pair); absent when
+ * either is missing, and the client falls back to the dashboard root.
+ */
+export function projectDashboardUrl(
+  env: Record<string, string | undefined> = process.env
+): string | null {
+  const dashboard = (env.HUB_DASHBOARD_URL ?? '').replace(/\/+$/, '');
+  const tenant = env.MAUDE_TENANT_ID ?? '';
+  return dashboard && tenant ? `${dashboard}/projects/${encodeURIComponent(tenant)}` : null;
+}
+
 const DIST_DIR = join(HERE, 'dist');
-const CLIENT_DIR = join(HERE, 'client');
 // Templates stayed under the design *plugin* (plugins/design/templates) when the
 // dev-server moved to apps/studio (DDR-095) — both ship in the npm tarball, so
 // from DEV_SERVER_ROOT (apps/studio) reach across with ../../plugins/design.
@@ -600,8 +768,27 @@ interface CanvasCacheEntry {
    *  local `.tsx/.ts` modules, incl. unresolved extensionless candidates) —
    *  re-statted each request to recompute `sig` without re-reading the source. */
   deps: string[];
+  /** gate-b-c4e — every file the build inlined (absolute), held to the frame's closure on serve. */
+  inputs: readonly string[];
 }
 const canvasCache = new Map<string, CanvasCacheEntry>();
+
+/**
+ * gate-b-c4e — may THIS request receive a module built from `inputs` (absolute paths)? null = yes.
+ * The build is shared by every requester (cached per path), so the check runs on every serve.
+ * gate-b-c4g — `entry`: the canvas the module was built from; a list that does not name it is
+ * refused (an empty metafile is no evidence the module inlined nothing).
+ */
+export type CanvasInputsGate = ((inputs: readonly string[], entry: string) => Response | null) & {
+  /**
+   * gate-b-c4l (defender L-b) — judged BEFORE any build: a frame on a canvas whose import walk the
+   * closure blocked (another canvas, a file that is never a module, an import that resolves to
+   * nothing) is refused with the one not-in-scope answer. Without it a planted import of a MISSING
+   * file failed the build (500, "Could not resolve") while an existing canvas built and was refused
+   * (403): an existence probe. The build's own errors also quote the files they read.
+   */
+  before?: (entry: string) => Response | null;
+};
 
 // Per-process boot id, folded into every canvas ETag. The canvas transpile
 // BUNDLES the shared chrome (canvas-lib → tool-palette / annotations-layer /
@@ -625,63 +812,8 @@ const RUNTIME_BOOT_ID = `${Date.now().toString(36)}${Math.random().toString(36).
 // gets the stale bundle even after the HMR hard-reload. (DDR-067.)
 let CHROME_EPOCH = 0;
 
-/** Relative import specifiers in a canvas source → absolute paths (the files
- *  Bun.build inlines): sibling `.css`, and — RC6 of
- *  rca/issue-canvas-hmr-optimistic-update-consistency — imported local
- *  `.tsx/.ts/.jsx/.js` modules, which are inlined exactly like CSS (only
- *  RUNTIME_PACKAGES stay external, canvas-build.ts), so an edit to an imported
- *  sibling must bust the mtime-keyed cache the same way. Extensionless
- *  specifiers contribute EVERY resolution candidate (`.tsx`, `.ts`, …,
- *  `index.tsx`); missing candidates stat as 0, so a dep file APPEARING later
- *  also changes the signature. One level only — no transitive graph (the
- *  import-graph HMR re-emit is a tracked follow-up). Bare / virtual specifiers
- *  (`@maude/…`, npm) are skipped. Resolved paths are clamped to `designRoot`:
- *  a canvas source is attacker-influenced under linked mode (DDR-054), and
- *  these paths are `stat`-ed for mtime, so a `../../../etc/…` specifier must
- *  not let the freshness probe reach outside the design tree. Legit DS imports
- *  (`../../system/<ds>/…`) stay inside designRoot. */
-export function localDepsFromSource(
-  source: string,
-  canvasAbsPath: string,
-  designRoot: string
-): string[] {
-  const dir = dirname(canvasAbsPath);
-  const root = resolve(designRoot);
-  const deps: string[] = [];
-  const seen = new Set<string>();
-  const push = (abs: string) => {
-    if (abs !== root && !abs.startsWith(root + sep)) return; // clamp (DDR-054)
-    if (seen.has(abs)) return;
-    seen.add(abs);
-    deps.push(abs);
-  };
-  const specRes = [
-    /\bimport\s+["']([^"']+)["']/g, // side-effect: import './x.css'
-    /\bfrom\s+["']([^"']+)["']/g, // import … from / export … from
-    /\bimport\(\s*["']([^"']+)["']\s*\)/g, // dynamic import('./x')
-  ];
-  for (const re of specRes) {
-    for (let m = re.exec(source); m !== null; m = re.exec(source)) {
-      const spec = m[1];
-      if (!spec?.startsWith('.')) continue;
-      const base = resolve(dir, spec);
-      if (/\.(css|tsx|ts|jsx|js)$/i.test(spec)) {
-        push(base);
-      } else {
-        for (const cand of [
-          `${base}.tsx`,
-          `${base}.ts`,
-          `${base}.jsx`,
-          `${base}.js`,
-          resolve(base, 'index.tsx'),
-          resolve(base, 'index.ts'),
-        ])
-          push(cand);
-      }
-    }
-  }
-  return deps;
-}
+// `localDepsFromSource` (the canvas build's freshness deps) lives in `access/closure.ts` since S9.1:
+// the ACL closure scanner walks the same import graph (V2-1.7 G3), so there is one home for it.
 
 /** mtime signature over the .tsx + every inlined relative dep (`.css` + local
  *  modules). A missing/unreadable file contributes 0 — a delete is itself a
@@ -707,7 +839,7 @@ export interface ServeCanvasTestHooks {
  */
 function canvasBuildErrorResponse(err: unknown, ctx: Context): Response {
   const msg = err instanceof Error ? err.message : String(err);
-  const line = canvasFormatLine(msg, formatGate(ctx, STAGED_FORMAT_GATE_OPTS));
+  const line = canvasFormatLine(msg, formatGate(ctx, FORMAT_GATE_OPTS));
   return new Response(`Canvas build error: ${line ? `${line}\n\n` : ''}${msg}`, {
     status: 500,
     headers: { 'Content-Type': 'text/plain; charset=utf-8' },
@@ -719,7 +851,8 @@ export async function serveCanvasTsx(
   req: Request,
   ctx: Context,
   locatorAbsPath: string,
-  testHooks?: ServeCanvasTestHooks
+  testHooks?: ServeCanvasTestHooks,
+  inputsGate?: CanvasInputsGate
 ): Promise<Response> {
   // Phase 27 (E2) — DiffView "before" pane. `?sha=<ref>` builds the canvas from
   // its source AT a past version (git show) instead of the working-tree file, so
@@ -728,10 +861,12 @@ export async function serveCanvasTsx(
   // resolves sibling imports against the CURRENT on-disk files (an accepted
   // approximation: the canvas code at the sha, with today's DS/lib).
   const shaParam = new URL(req.url).searchParams.get('sha');
-  if (shaParam) return serveHistoricalCanvas(absPath, shaParam, req, ctx);
+  if (shaParam) return serveHistoricalCanvas(absPath, shaParam, req, ctx, inputsGate);
 
   const file = Bun.file(absPath);
   if (!(await file.exists())) return new Response('Not found', { status: 404 });
+  const refusedBefore = inputsGate?.before?.(absPath);
+  if (refusedBefore) return refusedBefore;
 
   // Freshness = the .tsx mtime AND every inlined sibling `.css` mtime. Keying on
   // the .tsx alone meant a direct edit to `<canvas>.css` was a cache HIT, so the
@@ -772,6 +907,11 @@ export async function serveCanvasTsx(
         assetUrlBase: designRootUrlBase(ctx.paths),
       });
       if (!built.ok) {
+        // gate-b-c4m (defender L-B) — a frame's failed build answers like a refused one: Bun
+        // resolves imports the closure walk does not follow (a CSS `url()`), and "Could not resolve"
+        // beside the refusal's 403 was an existence oracle. A syntax error in the canvas's own source
+        // stays legible — the session can already read that file.
+        if (inputsGate && !built.transpile) return notInScopeResponse();
         return new Response(`Canvas build error: ${built.error}`, {
           status: built.kind === 'build' ? 422 : 500,
           headers: { 'Content-Type': 'text/plain; charset=utf-8' },
@@ -781,12 +921,18 @@ export async function serveCanvasTsx(
         js: built.js,
         locator: built.locator,
         etag: built.etag,
+        inputs: built.inputs,
       } as Awaited<ReturnType<typeof buildCanvasModule>>;
+      // gate-b-c4g — judged BEFORE anything is kept or written: a refused request leaves no
+      // cache entry, no remembered source and no locator file (the sandbox caches the build).
+      const refusedHere = inputsGate?.(result.inputs, absPath);
+      if (refusedHere) return refusedHere;
       cached = {
         sig: builtSig,
         etag: `${result.etag}-${RUNTIME_BOOT_ID}-${CHROME_EPOCH}`,
         js: result.js,
         deps,
+        inputs: result.inputs,
       };
       canvasCache.set(absPath, cached);
       rememberCanvasBuild(absPath, { source, locator: result.locator });
@@ -805,14 +951,28 @@ export async function serveCanvasTsx(
         assetUrlBase: designRootUrlBase(ctx.paths),
       });
     } catch (err) {
+      // S11.6 — the build's own error (an import, the allowlist) for `/_api/canvas-errors`;
+      // a syntax error is re-read from the file there, so only these need remembering.
+      recordCanvasBuild(
+        absPath,
+        canvasSourceSig(source),
+        err instanceof CanvasBuildError ? (err.errors[0] ?? null) : null
+      );
       if (err instanceof TranspileError) {
         return new Response(`Transpile error: ${err.message}`, {
           status: 500,
           headers: { 'Content-Type': 'text/plain; charset=utf-8' },
         });
       }
+      // gate-b-c4m (defender L-B) — to a frame, any other build failure answers like a refusal (the
+      // sandboxed branch above says why); the error itself reaches the shell via /_api/canvas-errors.
+      if (inputsGate) return notInScopeResponse();
       return canvasBuildErrorResponse(err, ctx);
     }
+    // gate-b-c4g — judged BEFORE anything is kept or written: a refused request leaves no cache
+    // entry, no remembered source and no locator file; the next permitted request builds afresh.
+    const refusedHere = inputsGate?.(result.inputs, absPath);
+    if (refusedHere) return refusedHere;
     // The signature against the freshly-parsed deps — this very edit may have
     // added or removed a `.css` import — stamped before the build (above).
     cached = {
@@ -823,17 +983,20 @@ export async function serveCanvasTsx(
       etag: `${result.etag}-${RUNTIME_BOOT_ID}-${CHROME_EPOCH}`,
       js: result.js,
       deps,
+      inputs: result.inputs,
     };
     canvasCache.set(absPath, cached);
     rememberCanvasBuild(absPath, { source, locator: result.locator });
+    recordCanvasBuild(absPath, canvasSourceSig(source), null);
     // Persist the locator map. Awaited so the inspector / Phase-12 layers
     // panel sees a consistent (cdId -> source) view by the time the canvas
     // mounts. Per-path mutex inside writeLocator() makes concurrent transpiles
     // safe.
     await writeLocator(locatorAbsPath, canvasSlug(absPath, ctx.paths.designRoot), result.locator);
+    return respondWithCanvasModule(req, cached);
   }
 
-  return respondWithCanvasModule(req, cached);
+  return inputsGate?.(cached.inputs, absPath) ?? respondWithCanvasModule(req, cached);
 }
 
 /** The conditional-GET half of serving a built canvas module. Shared by the
@@ -865,7 +1028,12 @@ function respondWithCanvasModule(req: Request, cached: { js: string; etag: strin
 // can't grow the heap unbounded — the route is reachable from the UNTRUSTED
 // canvas origin (it's on the canvas-serve path), so a hub-pushed canvas could
 // otherwise OOM the sidecar (security review — ethical-hacker, Finding 1).
-const historicalCanvasCache = new Map<string, { js: string; etag: string }>();
+// `cssSig`: today's same-name CSS file as the build saw it — set only when the version had no CSS
+// lane of its own (the build then used today's file), so such an entry goes stale with that file.
+const historicalCanvasCache = new Map<
+  string,
+  { js: string; etag: string; cssSig: string | null; inputs: readonly string[] }
+>();
 const HIST_MAX_CACHE = 96;
 // Rate-limit the EXPENSIVE miss path (git show + Bun.build, or a non-resolving
 // git lookup) so a distinct-sha spray from the canvas origin can't starve the
@@ -928,6 +1096,30 @@ function cloudHistoryApi(ctx: Context): ReturnType<typeof createCloudEndpoints> 
   return cloudHistoryFor.api;
 }
 
+/**
+ * S1.11 / S1.12 — every reader a version's lanes come from (V2-1.9 §5.6): the project's store for
+ * `r<rev>`, git then the linked cell for a sha. One object so the build, the shell's meta and the
+ * row pictures (thumbs) all read a version the same way.
+ */
+function versionReaders(ctx: Context): LaneReaders {
+  return {
+    accepted: async (repoRel, revision, lane) =>
+      (await ctx.syncControl?.current?.()?.acceptedVersion?.(repoRel, revision, lane)) ?? null,
+    git: (sha, repoRel) => gitShowFile(ctx.paths.repoRoot, sha, repoRel),
+    cloud: async (sha, repoRel) => {
+      const r = await cloudHistoryApi(ctx).historyFile(sha, repoRel);
+      return r.ok ? r.source : null;
+    },
+  };
+}
+
+/** Today's same-name CSS as a build would read it (mtime + size; a missing file is its own value). */
+function todayCssSig(absTsx: string): string {
+  const f = Bun.file(absTsx.replace(/\.tsx$/i, '.css'));
+  const mt = f.lastModified;
+  return Number.isFinite(mt) && mt > 0 ? `${mt}:${f.size}` : 'none';
+}
+
 function historicalBuildAllowed(): boolean {
   const now = Date.now();
   if (now - histWindowStart >= HIST_WINDOW_MS) {
@@ -938,15 +1130,48 @@ function historicalBuildAllowed(): boolean {
   histBuilds++;
   return true;
 }
+
+/**
+ * S11.6 — a past version's SOURCE for `GET /_api/canvas-source?sha=` (routes/canvas-source.ts):
+ * the same three readers as the `?sha=` build below (an accepted revision `r<n>`, local git, the
+ * linked cell), under the same global budget. `'busy'` = over budget (the route answers 429).
+ */
+async function historicalCanvasSource(
+  ctx: Context,
+  repoRel: string,
+  sha: string
+): Promise<string | null | 'busy'> {
+  if (!historicalBuildAllowed()) return 'busy';
+  const acceptedRev = /^r(\d{1,12})$/.exec(sha);
+  if (acceptedRev)
+    return (
+      (await ctx.syncControl
+        ?.current?.()
+        ?.acceptedVersion?.(repoRel, Number(acceptedRev[1]))
+        .catch(() => null)) ?? null
+    );
+  const local = await gitShowFile(ctx.paths.repoRoot, sha, repoRel);
+  if (local != null) return local;
+  const fromCloud = await cloudHistoryApi(ctx).historyFile(sha, repoRel);
+  return fromCloud.ok ? fromCloud.source : null;
+}
 async function serveHistoricalCanvas(
   absPath: string,
   sha: string,
   req: Request,
-  ctx: Context
+  ctx: Context,
+  inputsGate?: CanvasInputsGate
 ): Promise<Response> {
+  const refusedBefore = inputsGate?.before?.(absPath);
+  if (refusedBefore) return refusedBefore;
   const repoRel = relative(ctx.paths.repoRoot, absPath).replace(/\\/g, '/');
   const key = `${absPath}\0${sha}\0${RUNTIME_BOOT_ID}\0${CHROME_EPOCH}`;
   let cached = historicalCanvasCache.get(key);
+  // A version without its own CSS lane was built over TODAY's file: that file changed → rebuild.
+  if (cached && cached.cssSig !== null && cached.cssSig !== todayCssSig(absPath)) {
+    historicalCanvasCache.delete(key);
+    cached = undefined;
+  }
   if (cached) {
     // LRU touch — re-insert so the hot entry isn't the next eviction victim.
     historicalCanvasCache.delete(key);
@@ -979,6 +1204,7 @@ async function serveHistoricalCanvas(
     // ACCEPTED REVISIONS: `r<revision>` names a project revision (T27), read
     // from the project's store — immutable, so it caches like a sha.
     const acceptedRev = /^r(\d{1,12})$/.exec(sha);
+    let from: VersionSource = acceptedRev ? 'accepted' : 'git';
     let source = acceptedRev
       ? ((await ctx.syncControl
           ?.current?.()
@@ -988,6 +1214,7 @@ async function serveHistoricalCanvas(
     if (source == null && !acceptedRev) {
       const fromCloud = await cloudHistoryApi(ctx).historyFile(sha, repoRel);
       source = fromCloud.ok ? fromCloud.source : null;
+      from = 'cloud';
       // ONLY AN AUTHORITATIVE ABSENCE IS REMEMBERED (security re-review of
       // 8134ca8f, finding F1). Two things must never be cached here:
       //
@@ -1012,8 +1239,12 @@ async function serveHistoricalCanvas(
       }
     }
     if (source == null) return new Response('No saved version of this canvas', { status: 404 });
+    // The version's same-name CSS from the SAME source as its TSX (V2-1.9 §5.6); none → today's file.
+    const css = await laneAtRef(versionReaders(ctx), repoRel, sha, 'css', from);
+    const cssSig = css == null ? todayCssSig(absPath) : null;
     try {
       const result = await buildCanvasModule(absPath, source, {
+        overrides: cssOverridesFor(absPath, css),
         designRoot: ctx.paths.designRoot,
         // Same unconditional allowlist as the live build above — a HISTORICAL
         // source is still tenant/peer-authored content.
@@ -1023,6 +1254,8 @@ async function serveHistoricalCanvas(
       cached = {
         js: result.js,
         etag: `${result.etag}-${sha}-${RUNTIME_BOOT_ID}-${CHROME_EPOCH}`,
+        cssSig,
+        inputs: result.inputs,
       };
       historicalCanvasCache.set(key, cached);
       if (historicalCanvasCache.size > HIST_MAX_CACHE) {
@@ -1030,9 +1263,14 @@ async function serveHistoricalCanvas(
         if (oldest !== undefined) historicalCanvasCache.delete(oldest);
       }
     } catch (err) {
+      // gate-b-c4l (L-b) — a past version is not what the closure walked: to a gated session
+      // (a frame) a failed build answers like a refused one, so it probes nothing.
+      if (inputsGate) return notInScopeResponse();
       return canvasBuildErrorResponse(err, ctx);
     }
   }
+  const refused = inputsGate?.(cached.inputs, absPath);
+  if (refused) return refused;
   if (req.headers.get('if-none-match') === cached.etag) {
     return new Response(null, {
       status: 304,
@@ -1045,107 +1283,6 @@ async function serveHistoricalCanvas(
       'Content-Type': 'application/javascript; charset=utf-8',
       ETag: cached.etag,
       'Cache-Control': 'no-cache',
-    },
-  });
-}
-
-/**
- * How long a served file may be reused — Cloud Phase 27 B2.
- *
- * `no-store` on everything is correct on a laptop, where the round trip is a
- * memcpy and the designer is editing the file you just served. Over the
- * internet it means a teammate re-downloads every photograph on every pan, on
- * a project whose media is 266 MB. So:
- *
- *   content-addressed name  →  immutable, a year. The name IS the content
- *                              (sha8), so a changed file is a changed URL and
- *                              a stale answer is impossible by construction.
- *   everything else         →  revalidate (`no-cache` + ETag). A designer
- *                              editing `hero.png` in place still sees their
- *                              edit; the wire cost of not having changed it is
- *                              a 304, not the file.
- *
- * Universal, not cloud-only: the rule is true on all three shells, and a
- * caching policy that differs per shell is a bug report nobody can reproduce.
- */
-export function cacheControlFor(absPath: string): { cacheControl: string; addEtag: boolean } {
-  const name = absPath.slice(absPath.lastIndexOf('/') + 1);
-  // The shape every writer emits — timeline insert/replace/assemble, the asset
-  // upload route, `maude design fetch-asset`: <sha8>.<ext>, lowercase hex.
-  if (/^[0-9a-f]{8,64}\.[A-Za-z0-9]+$/.test(name)) {
-    return { cacheControl: 'public, max-age=31536000, immutable', addEtag: false };
-  }
-  return { cacheControl: 'no-cache', addEtag: true };
-}
-
-/**
- * The studio page, with its bundle and stylesheet URLs VERSIONED.
- *
- * `/_client/client.bundle.js` used to be a fixed URL answered `no-cache`. Behind
- * Cloudflare that header does not survive: the zone's default Browser Cache
- * TTL turns a `.js` into `max-age=14400`, so after a release a cloud user ran
- * the previous client for up to four hours, against a server that had moved on
- * (measured on alligators after v1.6.5: new server, old bundle, none of the
- * release's UI). A query that changes whenever the built file does makes every
- * cache, ours or anyone's in front of us, fetch it again. `serveFile` ignores
- * the query, so the old URL keeps working for anything that still asks for it.
- */
-export async function serveIndexHtml(extraHeaders: Record<string, string> = {}): Promise<Response> {
-  const index = Bun.file(join(CLIENT_DIR, 'index.html'));
-  if (!(await index.exists())) return new Response('Not found', { status: 404 });
-  let html = await index.text();
-  for (const name of ['client.bundle.js', 'styles.css']) {
-    const built = Bun.file(join(DIST_DIR, name));
-    if (!(await built.exists())) continue;
-    const v = `${built.size.toString(16)}-${Math.trunc(built.lastModified).toString(16)}`;
-    html = html.replaceAll(`"/_client/${name}"`, `"/_client/${name}?v=${v}"`);
-  }
-  return new Response(html, {
-    headers: {
-      'Content-Type': 'text/html; charset=utf-8',
-      'Cache-Control': 'no-cache',
-      'X-Content-Type-Options': 'nosniff',
-      ...extraHeaders,
-    },
-  });
-}
-
-/** A weak validator from the file's own metadata — no read, no hash. */
-function etagFor(file: { size: number; lastModified: number }): string {
-  return `W/"${file.size.toString(16)}-${Math.trunc(file.lastModified).toString(16)}"`;
-}
-
-/**
- * An SVG is a DOCUMENT, and a document runs script.
- *
- * `image/svg+xml` is inert as an `<img>`, a CSS `url()` or a `<use>` target —
- * none of those are browsing contexts. Navigate to one directly and it is a
- * page, with `<script>` in it, executing on whatever origin served it. On the
- * canvas origin that is a stored-XSS primitive: canvases carry the tenant's own
- * SVGs, only the shell HTML gets a CSP, and every other static response here
- * has carried `nosniff` and nothing else.
- *
- * `default-src 'none'; sandbox` costs the legitimate uses nothing (an image is
- * not a document, so the policy never applies to them) and makes the
- * navigate-to-it case a blank page instead of a foothold. Found by an
- * adversarial pass as step one of a three-link cross-tenant chain; the other
- * two links are closed in the same change, and this is the cheapest of the
- * three to break.
- */
-const INERT_DOCUMENT_CSP = "default-src 'none'; sandbox";
-
-async function serveFile(absPath: string, headers: Record<string, string> = {}): Promise<Response> {
-  const file = Bun.file(absPath);
-  if (!(await file.exists())) return new Response('Not found', { status: 404 });
-  const e = ext(absPath);
-  const policy = cacheControlFor(absPath);
-  return new Response(file, {
-    headers: {
-      'Content-Type': MIME[e] || 'application/octet-stream',
-      'Cache-Control': policy.cacheControl,
-      ...(policy.addEtag ? { ETag: etagFor(file) } : {}),
-      ...(e === '.svg' ? { 'Content-Security-Policy': INERT_DOCUMENT_CSP } : {}),
-      ...headers,
     },
   });
 }
@@ -1181,7 +1318,7 @@ async function serveMaterialized(
     'X-Content-Type-Options': 'nosniff',
     // The blob's name IS its sha256 — a stronger validator than size+mtime.
     ...(policy.addEtag ? { ETag: `"${basename(cacheAbs)}"` } : {}),
-    ...(e === '.svg' ? { 'Content-Security-Policy': INERT_DOCUMENT_CSP } : {}),
+    ...documentCsp(e),
   };
   if (RANGE_MEDIA_EXTS.has(e)) return serveMediaFile(cacheAbs, req, headers);
   return new Response(Bun.file(cacheAbs), { headers });
@@ -1275,9 +1412,27 @@ export interface Http {
   /**
    * V2-2.8 S6 — handlers the canvas origins mount INSTEAD of the main-origin
    * one at the same path, because they answer a narrower projection
-   * (server.ts `startCanvasServer` routes map). Same path, same allowlists.
+   * (routes/canvas-origin.ts, the canvas server's routes map). Same path, same allowlists.
    */
-  canvasRoutes: Record<'/_api/git-committers', (req: Request) => Response | Promise<Response>>;
+  canvasRoutes: Record<
+    '/_api/git-committers' | '/_api/annotations/ops',
+    (req: Request) => Response | Promise<Response>
+  >;
+  /**
+   * V2-2.5 — the exact paths of the table's `origin: 'canvas'` specs. Both canvas
+   * allowlists derive them: `CANVAS_SAFE_API` here and routes/canvas-origin.ts.
+   */
+  tableCanvasPaths: readonly string[];
+  /** S9.9 — THIS request's access (V2-1.7 §5.4); server.ts `withSession` puts it in ALS. */
+  accessOf(req?: Request): Access;
+  /** S9.11 — the closure of a session's grants on this child's disk (null without grants). */
+  closureOf(access: Access): Closure | null;
+  /**
+   * gate-b-c4 — the frame a canvas / capture listener request was opened for (its verified `fc`
+   * capability; `canvases: null` = frame-less). server.ts runs the request inside it, and
+   * `accessOf` then answers the opener's access narrowed to those canvases (access/frame.ts).
+   */
+  frameScopeOf(req: Request): FrameScope;
   fetch(req: Request): Promise<Response>;
   /**
    * T2 (9.1-A) — build the canvas mount-harness response. `applyCsp` adds the
@@ -1285,7 +1440,14 @@ export interface Http {
    * origin keeps it env-gated for the POC). Shared so both listeners produce
    * byte-identical HTML.
    */
-  serveCanvasShell(applyCsp: boolean, capture?: boolean): Promise<Response>;
+  serveCanvasShell(
+    applyCsp: boolean,
+    capture: boolean,
+    query: URLSearchParams | undefined,
+    // gate-b-c4d — required: what the shell inlines about a canvas is held to this request's frame,
+    // and a caller that left it out would read with unnarrowed access.
+    req: Request
+  ): Promise<Response>;
   /**
    * T2 (9.1-A) — allowlist gate for the segregated canvas origin. Returns true
    * only for the routes the canvas runtime legitimately needs (shell, runtime
@@ -1295,6 +1457,8 @@ export interface Http {
    * the app shell, or arbitrary repo files. WS upgrades are gated in server.ts.
    */
   isCanvasSafeRoute(pathname: string): boolean;
+  /** S5.6 — the chat's outbox door (acp/ask-queue.ts): server.ts hands it to `createAcp`. */
+  askQueue: AskQueue;
 }
 
 export function createHttp(
@@ -1305,12 +1469,48 @@ export function createHttp(
   inspects: InspectRegistry,
   ai: AiActivity,
   exportJobs: ExportJobQueue,
-  generateJobs: GenerationJobQueue
+  generateJobs: GenerationJobQueue,
+  /** V2-2.4b — the attached shell count for `maude design open` (ws.ts owns the sockets; ws is
+   *  created first in server.ts). Lazy: read per request, never while building the table. */
+  opts: {
+    shellCount?: () => number;
+    /** S5.3 — THE run registry (server.ts builds it on the lease home); absent = in-memory */
+    runs?: RunRegistry;
+    /** S8.5 — the cloud render door for this Mac; absent/null = no cloud (videos render here) */
+    cloudRenderDoor?: () => CloudRenderDoor | null;
+    /** V2-1.15 §4 #13 — the people holding an element of a canvas now (collab/holds.ts) */
+    personHolds?: AgentRouteDeps['personHolds'];
+  } = {}
 ): Http {
   /** The current request's inspector state (Cloud Phase 27 D3). Resolved per
    *  call rather than captured, because "whose" changes per request and a
    *  captured instance would hand one member another's open canvas. */
   const inspect = () => inspects.for(currentSession());
+
+  // V2-2.9 (T23) — the Diagnostics API's status providers for the sources this layer owns
+  // (sync registers itself in server.ts). Cheap, synchronous snapshots; scrubbed on read.
+  const countBy = (items: { status?: string }[]) =>
+    items.reduce<Record<string, number>>((acc, j) => {
+      const k = j.status ?? 'unknown';
+      acc[k] = (acc[k] ?? 0) + 1;
+      return acc;
+    }, {});
+  registerStatus('server', () => ({
+    version: resolveMaudeVersion(),
+    project: ctx.cfg.name ?? null,
+    pid: process.pid,
+    uptimeSeconds: Math.round(process.uptime()),
+    rssBytes: process.memoryUsage().rss,
+  }));
+  registerStatus('ai', () => ({
+    // the ACP chat's AiActivity entries + the banner the run registry derives (S5.3)
+    activeCanvases: ai.list().length + runs.bannerEntries().length,
+    runs: runs.view().live,
+    // Q2 — a linked hub without runs-v1 keeps per-Mac leases, and Diagnostics says so
+    leaseHome: runs.diagnostics(),
+    generation: countBy(generateJobs.list()),
+  }));
+  registerStatus('export', () => ({ jobs: countBy(exportJobs.list()) }));
 
   // Task 2.7 (approach A) — in-flight whisper-model download state (one at a
   // time), polled by the Settings "Download model" card via GET
@@ -1468,6 +1668,10 @@ export function createHttp(
   // untrusted canvas iframe origin can never read/write the director's analysis.
   const footageStore = createFootageStore(ctx);
   const gitApi = createGitEndpoints(ctx);
+  // S9.10 (V2-1.16 L6–L10) — what THIS request's session may see. A project role sees
+  // everything (every filter is the identity, U7); a canvas-only session its grants + closure.
+  const visibility = projectVisibility(ctx);
+  const visOf = (req: Request) => visibility.visibilityFor(accessOf(req));
   // Phase 28 (E3) — `/_api/github/*`. Same dual-allowlist rule: main-origin only,
   // and every route is token-bearing (server-held keychain token via the loopback
   // bridge), so all four also carry a loopback-Host check.
@@ -1634,25 +1838,1007 @@ export function createHttp(
         // NOT `x-maude-canvas-token`, which carries the member's own (up to
         // write-capable) role. The worker only reads, so it holds only read.
         token: req.headers.get('x-maude-render-token') ?? undefined,
+        // gate-b-c4 — the render is a frame too: renderRemotely mints its capability over the
+        // job's canvases from this (stripped before the body crosses — exporters/remote.ts).
+        ...(frameKeyOf(req)
+          ? {
+              frameMint: {
+                key: (frameKeyOf(req) as Buffer).toString('base64url'),
+                designRel: ctx.paths.designRel,
+              },
+            }
+          : {}),
         tokensCssRel: ctx.cfg.designSystems?.[0]?.tokensCssRel ?? ctx.cfg.tokensCssRel,
       },
     };
   }
 
-  // V2-1.12 §5.6 — the format gate, STAGED: `newerOnly: true` gates only a
-  // project newer than this build. One constant in format.ts, so the sync
-  // runtime (sync/format-sync.ts) can never disagree with this gate.
-  // (V2-2.18 1.x compat cut: the outbox and `maude migrate v2` route tables
-  // of V2-2.14/V2-2.16 are v2-only and are not mounted here — a 1.x build
-  // has no "Update project".)
-  const gateNow = () => formatGate(ctx, STAGED_FORMAT_GATE_OPTS);
-  /** What a read-only session may still write (the module allowlist). */
+  // V2-2.16 / V2-2.14 — the lanes' route tables (V2-2.5 folds them into its
+  // one table). MAIN ORIGIN ONLY: none is in CANVAS_SAFE_API or the canvas
+  // server's routes map. The outbox has no senders yet — S5 / S8 / S9 register
+  // their doors and enqueue in-process; until then it serves the content-lane
+  // view and the (empty) intent list, and nothing is sent.
+  // S5.6 — the first sender: `ai.prompt` → the run registry (acp/ask-queue.ts). The drain reads
+  // `senders[kind]` per pass, so the door is filled in once the registry exists (below).
+  const outboxSenders: Parameters<typeof createOutbox>[0]['senders'] = {};
+  // ONE source of gate facts for the chat (queue or send now) and the drain (release).
+  // `online` has no server-side source yet (the shell's reachability) — it stays open, as before.
+  // S5.18 (G10): `ai-connected` is the SIGNED-IN answer (the one `/_api/acp/status` gives the panel), not "claude is
+  // installed" — a signed-out Mac keeps the prompt. A status probe that finds it connected wakes the drain.
+  const aiConnectedFact = createConnectedFact({
+    probe: probeAcpAvailabilityAuthed,
+    sync: () => probeAcpAvailability().available,
+    onOpen: () => void outbox.drain.wake().catch(() => null),
+  });
+  // P8 G1b (01 cf-offline-create) — the `hub` gate's fact, from the sync runtime's own connection state:
+  // a linked project's prompt waits while the hub is past the grace window (V2-1.14 §5.4), and the
+  // hub's return wakes the drain.
+  const hubReach = createHubReachability({
+    linkedHub: () => ctx.cfg.linkedHub?.url ?? null,
+    onReachable: () => void outbox.drain.wake().catch(() => null),
+  });
+  ctx.bus.on('sync:status', (p: unknown) => hubReach.note(p));
+  const outboxGates = (): GateFacts => ({
+    online: true,
+    hubReachable: hubReach.reachable(),
+    signedIn: true,
+    aiConnected: aiConnectedFact.read(),
+    aiReady: true,
+    allowanceResetsAt: currentAllowanceResetsAt(),
+  });
+  // S8.5 — the gone-target facts (V2-1.14 §5.9) from this Mac's own files. Every other kind keeps
+  // the facts it had; an `export.cloud` record is also judged by its canvas / artboards (G3) and
+  // your role now (G14 Can view, G9 removed). The trash write stop is built further down: read lazily.
+  const cloudFacts = desktopCloudFacts(ctx.paths.designRoot, () => trashWriteStop.stopped());
+  const outboxTarget = (r: IntentRecord) => {
+    const base = { projectId: null, projectName: ctx.projectLabel, role: 'owner' as const };
+    if (r.kind !== 'export.cloud') return base;
+    const url = ctx.cfg.linkedHub?.url;
+    const role = url ? intentRole(accessFor(url).role) : 'owner';
+    return cloudTargetFacts(r, { ...base, role }, cloudFacts);
+  };
+  const outbox = createOutbox({
+    designRoot: ctx.paths.designRoot,
+    senders: outboxSenders,
+    gates: outboxGates,
+    target: (r) => outboxTarget(r),
+    onChange: (seq) => ctx.bus.emit('outbox:changed', { seq }),
+  });
+  outbox.store.load();
+  outbox.store.prune();
+  // V2-1.12 §5.6 — the format gate, FULL (CONTRACT §4.1, Michal 2A): a project
+  // not at this build's format is view only; a format-1 one until "Update
+  // project". One constant in format.ts, so the sync runtime
+  // (sync/format-sync.ts) can never disagree with this gate.
+  const gateNow = () => formatGate(ctx, FORMAT_GATE_OPTS);
+  // V2-2.5 — THE route table (routes/index.ts), every spec behind `guardTableRoute`. Its exact
+  // paths merge into `routes` below, so `readOnlyRefusal` wraps them like every legacy key; its
+  // `:param` paths run first in the fall-through (behind the same `guardedFetch` refusal).
+  // S5.3 — one run registry for the hook routes, `/_api/ai/runs*` and the v1 banner routes.
+  // S2.1 — the edit-op route's pre-op snapshots (/design:rollback), the same store api.ts writes.
+  const editOpHistory = createHistory(ctx);
+  const runs =
+    opts.runs ??
+    createRunRegistry({
+      designRoot: null,
+      designRel: ctx.paths.designRel,
+      home: createLocalLeaseHome({ actor: 'you' }),
+      autoRenew: false,
+      emit: (e, p) => ctx.bus.emit(e, p),
+      // S5.5b — THE end of every run's stage, by its run id: publish / partial / hold, and the
+      // published run is announced as `project:action` with the artboards it touched.
+      stage: runStageHooks({
+        control: () => ctx.syncControl?.current?.() ?? null,
+        emit: (e, p) => ctx.bus.emit(e, p),
+      }),
+    });
+  const askQueue = createAskQueue({
+    outbox,
+    gates: outboxGates,
+    project: () => hubReach.project(),
+    runs: () => runs,
+    ready: () => aiConnectedFact.pending(),
+  });
+  outboxSenders['ai.prompt'] = askQueue.sender;
+  // S9.19 — the Share sheet's door to the linked hub (routes/share.ts). The hub is the one this
+  // project is linked to AND that this Mac holds a credential for (a committed config alone names no
+  // hub a token is sent to); an invite the hub cannot hear yet waits in the outbox and this sends it.
+  const shareDeps: ShareRouteDeps = {
+    hub: () => {
+      const url = ctx.cfg.linkedHub?.url;
+      const rec = url ? getHubRecord(url) : null;
+      return url && rec?.token ? { url, token: rec.token } : null;
+    },
+    outbox,
+  };
+  outboxSenders['share.invite'] = shareInviteSender(shareDeps);
+  // S9.21 — an Ask to edit queued while the hub could not hear it; sends `{ canvas? }` only.
+  outboxSenders['share.ask-to-edit'] = shareAskToEditSender(shareDeps);
+  // S8.5 — a cloud video asked while the cloud could not hear it: `export.cloud`, record id = job id.
+  // The sender hands it over; the tracker follows it to the file (and resumes after a restart).
+  // S8.5b-3 — the default door is the linked hub's, and only while its `/health` lists `render-jobs-v1`
+  // (otherwise null: the Render row stays hidden). Never in a cell (it IS the hub). A test or embedder
+  // can still inject its own via `opts.cloudRenderDoor`.
+  const hubRenderDoor = createHubRenderDoorGetter({
+    hub: () => (isWorkspaceMode() ? null : shareDeps.hub()),
+  });
+  hubRenderDoor.warm();
+  const cloudExports = createCloudExports({
+    designRoot: ctx.paths.designRoot,
+    outbox,
+    door: () => opts.cloudRenderDoor?.() ?? hubRenderDoor.door(),
+    emit: (row) => ctx.bus.emit('export:job', row),
+  });
+  outboxSenders['export.cloud'] = exportCloudSender({
+    door: cloudExports.door,
+    accepted: cloudExports.accepted,
+    settle: opts.cloudRenderDoor ? undefined : hubRenderDoor.settle,
+    // S8.5b — what this Mac holds of the export's canvases, taken at send time (exporters/door-fingerprint.ts):
+    // a Canvas scope is its canvas, a Folder scope every canvas in it, otherwise the project.
+    fingerprint: (spec) => {
+      const all = projectIndex.snapshot().canvases.map((c) => c.rel);
+      const folder = spec.folder ? spec.folder.replace(/\/+$/, '') : null;
+      const list = spec.canvas
+        ? [spec.canvas]
+        : folder
+          ? all.filter((r) => r.startsWith(`${folder}/`))
+          : all;
+      // gate-b-c4k — judged with the effective config, like the frame's closure (access/filters.ts)
+      const r = closureFingerprint(ctx.paths.designRoot, list, {
+        config: closureConfigFor(ctx), // p8-c4b — with the authority's known canvases
+      });
+      return r.ok ? r.expect : r.reason === 'too-large' ? 'too-big' : null;
+    },
+  });
+  cloudExports.resume();
+  // S8.10 — Handoff to production: one AI run whose write scope is the target file only. Offline or
+  // before Connect it waits as `export.handoff` and starts by itself (routes/handoff.ts, handoff/run.ts).
+  // Every closure is lazy: the index is built further down.
+  const handoffRoute: HandoffRouteDeps = {
+    designRoot: ctx.paths.designRoot,
+    designRel: ctx.paths.designRel,
+    repoRoot: ctx.paths.repoRoot,
+    access: (req) => accessOf(req),
+    readCanvas: (rel) => {
+      try {
+        return readFileSync(join(ctx.paths.designRoot, rel), 'utf8');
+      } catch {
+        return null;
+      }
+    },
+    config: () => {
+      try {
+        return JSON.parse(readFileSync(join(ctx.paths.designRoot, 'config.json'), 'utf8'));
+      } catch {
+        return null;
+      }
+    },
+    designSystems: () => (ctx.cfg.designSystems ?? []).map((d) => d.name),
+    dsOf: (rel) => projectIndex.canvas(rel)?.ds ?? null,
+    // S8 Q12 — the cell route `/r/<name>.json` is the L4 lane's; until it serves, no cloud line
+    registryUrl: () => null,
+    aiConnected: () => aiConnectedFact.read(),
+    handoffs: null as unknown as HandoffRouteDeps['handoffs'],
+  };
+  handoffRoute.handoffs = createHandoffs({
+    repoRoot: ctx.paths.repoRoot,
+    designRel: ctx.paths.designRel,
+    outbox,
+    gates: outboxGates,
+    runs: () => runs,
+    resolve: (payload) => resolveQueuedHandoff(handoffRoute, payload),
+  });
+  outboxSenders['export.handoff'] = handoffRoute.handoffs.sender;
+  // boot: a prompt queued before a restart is released once its gates are open (V2-1.14 §5.5)
+  void outbox.drain.wake().catch(() => null);
+  // S11.11 — Resync's trace (sync/resync-trace.ts): `POST /_api/sync/resync` (routes/sync.ts) starts
+  // it, `/_sync-status` below reports it ("Resyncing… 1 204 of 1 318", then the result).
+  // S11.12 — the held source conflict's third answer (one attempt per canvas at a time).
+  const keepBothConflict = createKeepBothResolver({
+    runtime: () => ctx.syncControl?.current?.() ?? null,
+    designRoot: ctx.paths.designRoot,
+    fileForSlug: (slug) => api.fileForSlug(slug),
+    duplicate: (input) => api.duplicateCanvas(input),
+  });
+  const resyncTrace = createResyncTrace({
+    // ctx.syncControl's structural type (context.ts) omits `status()`; the live runtime has it
+    read: () =>
+      (
+        ctx.syncControl?.current?.() as { status?(): ResyncStatusSource | null } | null | undefined
+      )?.status?.() ?? null,
+    expectFiles: () => readSyncSettings(ctx.paths.repoRoot)?.syncFiles !== false,
+  });
+  // S8.1 — what the v2 export doors read: the index rows (the expansion runs over the ones the
+  // session sees), the active canvas, this session's access and export history, the lane.
+  const exportV2Deps: ExportRouteDeps = {
+    designRel: ctx.paths.designRel,
+    projectName: () => ctx.cfg.name || ctx.projectLabel || 'export',
+    canvases: () => projectIndex.snapshot().canvases,
+    activeCanvas: () => {
+      const active = (inspect().state as { active?: string | null }).active;
+      return active ? toDesignRel(active, ctx.paths.designRel) : null;
+    },
+    // a cell child's session is the proxy's claim ON THE REQUEST (never the ambient default)
+    access: (req) => accessOf(req),
+    history: () => exportJobs.loadHistory(),
+    // P8 C2 — /_api/export-preview: row and tile pictures from the project's picture service (created further down)
+    thumb: (req) => thumbs.thumb(req),
+    renderLane: () => resolveRenderLane(),
+    // S8.5 — the Render row: a cloud door on this Mac, and a comp's own length (Suggest each time)
+    cloudRender: () => resolveRenderLane() === 'local' && cloudExports.available(),
+    videoSeconds: (rel) => cloudFacts.videoSeconds(rel),
+    // S8.4 — Retry: only the failed items of one of THIS session's group jobs
+    retry: (id, items, session, allow) => exportJobs.retry(id, items, session, allow),
+    // S8.7 — the Print preflight: fonts are read under the design root; the safe margin is measured from the
+    // canvas-rects manifest (a headless render of the canvas, through the capture origin's 307 like every
+    // capture). One render at a time (the browser session is single), a short memory per file version, and a
+    // failure is "unmeasured" — never an error the sheet shows. A cell gets no rects runner at all: it
+    // renders tenant TSX, and a cell must not evaluate it (DDR-193) — the margin is then "unmeasured".
+    preflight: {
+      designRoot: ctx.paths.designRoot,
+      ...(isWorkspaceMode()
+        ? {}
+        : {
+            rects: createRectsRunner({
+              repoRoot: ctx.paths.repoRoot,
+              designRoot: ctx.paths.designRoot,
+              script: join(BIN_DIR, 'canvas-rects.sh'),
+            }),
+          }),
+    },
+  };
+  // S10.3 — the design-system engine (S10.2) over THE kernel port, its one ⌘Z hook, and the
+  // outside-change watcher (W = 5 s quiet per system folder, fed by the design-root fs events).
+  const dsEngine = createDsEngine({
+    designRoot: ctx.paths.designRoot,
+    kernel: kernelPortFrom(() => ctx.syncControl?.current?.() ?? null),
+  });
+  registerDsUndoHook(dsEngine);
+  const dsOutside = createDsOutsideWatcher({
+    designRoot: ctx.paths.designRoot,
+    engine: dsEngine,
+    onChange: (system) => ctx.bus.emit('ds:outside', { system }),
+  });
+  ctx.bus.on('fs:any', (rel: string) => dsOutside.notify(rel));
+  // S10.3b — a file the file plane delivered is a peer's change, not an unknown outside edit
+  ctx.bus.on('file-plane:delivered', (p: { rel?: unknown }) => {
+    if (typeof p?.rel === 'string') dsOutside.notify(p.rel, { kind: 'peer' });
+  });
+  // S8.20 — built with the thumbnail service below; the describe routes read it lazily
+  let describeSvc: DescribeService | null = null;
+  const tableSpecs = allSpecs({
+    outbox: { outbox },
+    // S11.4 — what is on this Mac vs still coming: the runtime's in-memory listing against the
+    // index's own disk scan (never a hub request); filtered by the request's access.
+    availability: {
+      source: () => ctx.syncControl?.current?.()?.availability?.() ?? null,
+      local: async () => canvasPathsOfIndex(await api.buildIndexData()),
+      designRel: ctx.paths.designRel,
+      access: (req) => accessOf(req),
+      project: () => ctx.cfg.name ?? null,
+    },
+    // S9.24 — the object conflicts THIS Mac lost (_state/conflicts/): the card's list, and a pick
+    // as one ordinary lane edit through the canvas's own op path (one batch = one undo step).
+    syncConflicts: {
+      designRoot: ctx.paths.designRoot,
+      designRel: ctx.paths.designRel,
+      fileForSlug: (slug) => api.fileForSlug(slug),
+      readBoard: (file) => api.readBoard(file),
+      applyAnnotationOps: (file, ops) => api.applyAnnotationOps(file, ops),
+      access: (req) => accessOf(req),
+      emit: (e, p) => ctx.bus.emit(e, p),
+    },
+    // S10.3 — `/_api/ds/*` (routes/ds.ts): Q15 gates on the session's access, the person by
+    // the same rule as a sticky's converter, the usage index the project index hosts (S10.5)
+    ds: {
+      engine: () => dsEngine,
+      outside: () => dsOutside,
+      usage: () => projectIndex.dsUsage(),
+      access: (req) => accessOf(req),
+      person: async (req) => {
+        const vouched = isWorkspaceMode() ? req.headers.get('x-maude-user') : null;
+        return { name: vouched || (await api.gitCurrentUser()) || 'You' };
+      },
+      emit: (e, p) => ctx.bus.emit(e, p),
+      // S10.16a — a Design system canvas's section reads 'drawing' while a run holds its artboard
+      held: (canvasRel) => heldArtboards(runs, canvasRel),
+    },
+    // S4.14 — `/_api/votes*` (routes/votes.ts): board ballots locally, a proxy to a `votes-v1` hub when
+    // linked, off in a cell / on an older hub. The voter is this machine's person, never the body.
+    votes: {
+      designRel: ctx.paths.designRel,
+      home: createVoteHomeResolver({
+        linked: () => {
+          const url = ctx.cfg.linkedHub?.url;
+          return url ? { hubUrl: url, token: () => getHubRecord(url)?.token ?? null } : null;
+        },
+        workspace: () => isWorkspaceMode(),
+        health: (hubUrl) => hubHealth({ hubUrl }),
+      }),
+      person: async () => ((await api.gitCurrentUser()) || 'You').slice(0, 64),
+      // S4.V4 G4 — a live room's board, ahead of its flush: start → GET must see the vote it just wrote
+      readBoard: (file) => api.readBoardLive(file),
+      applyOps: (file, ops) => api.applyAnnotationOps(file, ops),
+      // sec-a C1(c) — the result names come from the canvas source, never the canvas's vote-board
+      labels: (canvas) => {
+        if (!canvas || canvas.startsWith('/') || canvas.split('/').some((s) => s === '..' || !s))
+          return {};
+        try {
+          const src = readFileSync(join(ctx.paths.designRoot, ...canvas.split('/')), 'utf8');
+          const out: Record<string, string> = {};
+          for (const [id, label] of artboardLabels(src)) out[`ab:${id}`] = label;
+          return out;
+        } catch {
+          return {};
+        }
+      },
+      scope: (req, file) => {
+        const see = seerFor(req);
+        if (!see) return null;
+        const rel = toDesignRel(file, ctx.paths.designRel);
+        return rel === null || !see(rel) ? notInScopeResponse() : null;
+      },
+    },
+    // S5.5 — undo over the one op log (V2-1.5 §5.3); the home answers, the bus hears it
+    // S1.7 — the shared Trash (routes/trash.ts). The access: in a cell the proxy's vouched
+    // `x-maude-access` claim (fail closed); on a desktop the person at the keyboard — a local
+    // project's owner, or the role the hub vouched at sign-in (the hub re-checks every op).
+    trash: {
+      control: () => ctx.syncControl?.current?.() ?? null,
+      access: (req) =>
+        trashAccess({
+          workspace: isWorkspaceMode(),
+          header: req.headers.get('x-maude-access'),
+          localRole: ctx.cfg.linkedHub
+            ? (getHubRecord(ctx.cfg.linkedHub.url)?.role ?? null)
+            : 'owner',
+        }),
+      readSource: (rel) => {
+        if (!rel || rel.startsWith('/') || rel.split('/').some((s) => s === '..' || s === ''))
+          return null;
+        try {
+          return readFileSync(join(ctx.paths.designRoot, ...rel.split('/')), 'utf8');
+        } catch {
+          return null;
+        }
+      },
+      emit: (e, p) => ctx.bus.emit(e, p),
+      // S1.13b — an artboard comes back through S1.13's splice, from the revision before its
+      // trash action, as ONE `restore` action (S1 Q3; history/restore-artboard-action.ts).
+      restoreArtboard: trashArtboardRestorer({
+        control: () => ctx.syncControl?.current?.() ?? null,
+        designRel: ctx.paths.designRel,
+        announce: (actionId) =>
+          void announceAction(
+            {
+              control: () => ctx.syncControl?.current?.() ?? null,
+              emit: (e, p) => ctx.bus.emit(e, p),
+            },
+            actionId
+          ),
+      }),
+    },
+    projectUndo: {
+      control: () => ctx.syncControl?.current?.() ?? null,
+      designRel: ctx.paths.designRel,
+      emit: (e, p) => ctx.bus.emit(e, p),
+    },
+    // S1.12b — Version history (V2-1.9 §5.11): rows, words, names, kept-aside versions. The
+    // session's access is `currentAccess()` (S9.9, server.ts withSession).
+    // S11.17 — the crash line's "Your work up to …" reads the project home; the disk hold is the studio's
+    diagnostics: { control: () => ctx.syncControl?.current?.() ?? null },
+    history: {
+      control: () => ctx.syncControl?.current?.() ?? null,
+      designRel: ctx.paths.designRel,
+      // S1.13 — Go back reads `_state/render-ok.json` under the design root
+      designRoot: ctx.paths.designRoot,
+      // S1.14 — row pictures from the project's picture service; `thumbs` is created further down,
+      // so it is read lazily (S1.V G4: without it every versions row drew an empty box)
+      thumb: (req) => thumbs.thumb(req),
+      cache: (() => {
+        let cache: AttributionCache | null = null;
+        return () => {
+          cache ??= createAttributionCache({ dir: attributionDir(pidOf(ctx.paths.repoRoot)) });
+          return cache;
+        };
+      })(),
+      // a hub without accepted revisions: its commit history of the canvas (§5.2 last line)
+      gitHistory: async (repoRel, limit) => {
+        const r = await cloudApi.history(repoRel, String(limit));
+        const j = r.json as { ok?: boolean; reason?: string; entries?: GitEntry[] } | null;
+        if (j?.ok) return j.entries ?? [];
+        return j?.reason === 'unreachable' ? undefined : null;
+      },
+      gitLane: async (repoRel, sha, lane) => {
+        const readers = versionReaders(ctx);
+        if (lane !== 'html') return laneAtRef(readers, repoRel, `git:${sha}`, lane);
+        const fromCommit = await readers.git?.(sha, repoRel).catch(() => null);
+        if (fromCommit != null) return fromCommit;
+        return (await readers.cloud?.(sha, repoRel).catch(() => null)) ?? null;
+      },
+      emit: (e, p) => ctx.bus.emit(e, p),
+    },
+    // S1.18 — stable canvas links over the same home (entry → current path)
+    links: {
+      control: () => ctx.syncControl?.current?.() ?? null,
+      designRel: ctx.paths.designRel,
+      // S9.9 — the session's access, read per request: a canvas-only visitor resolves only the
+      // canvases it holds (history/links.ts answers `unknown` for the rest — no existence oracle).
+      scope: (req) => accessOf(req),
+    },
+    // S4.7 — sticky ↔ comment as one action; the converter is the session (a cell's vouched
+    // member, else this machine's git identity) — never the body (contract S4-S9 §3.1).
+    annotations: {
+      api,
+      control: () => ctx.syncControl?.current?.() ?? null,
+      // S4.16 - POST /_api/annotations/figjam plans the import under the project (the S4.5 engine)
+      figjam: { root: ctx.paths.repoRoot, designRel: ctx.paths.designRel },
+      // the same name a reply of yours is stamped with (`commentsAddReply` → localAuthor: git user, else
+      // this Mac's account) — else, on a machine with no git user.name, your own reply reads as foreign
+      person: async (req) => {
+        const vouched = isWorkspaceMode() ? req.headers.get('x-maude-user') : null;
+        return { name: vouched || localAuthor(await api.gitCurrentUser()) };
+      },
+      // S9.9 — a canvas-only session converts only on a canvas it sees (`not-in-scope`, like missing).
+      scope: (req, file) => {
+        const see = seerFor(req);
+        if (!see) return null;
+        const rel = toDesignRel(file, ctx.paths.designRel);
+        return rel === null || !see(rel) ? notInScopeResponse() : null;
+      },
+    },
+    ai: {
+      registry: runs,
+      repoRoot: ctx.paths.repoRoot,
+      designRel: ctx.paths.designRel,
+      // the ACP chat's own banner entries (acp/index.ts → AiActivity) until S5.6 moves the
+      // chat turn onto the registry
+      legacyEntries: () => ai.list(),
+      // S9.11 (V2-1.16 L13) — a canvas-only session's runs and banner entries
+      seerFor: (req) => seerFor(req),
+      // T16 — a v1 `/design:edit` is ONE project action
+      beginAction: (key, name) => ctx.syncControl?.current?.()?.beginAiAction?.(key, name),
+      endAction: (key, outcome) => ctx.syncControl?.current?.()?.endAiAction?.(key, outcome),
+      // S5.11b — Run on a copy: the accepted source + the waiting run's stage
+      control: () => ctx.syncControl?.current?.() ?? null,
+      // S5.18 (G2) — the copy's name + place go into the canvas sidecar through the layout-write door
+      meta: { write: (file, text, base, o) => api.writeCanvasMetaText(file, text, base, o) },
+    },
+    agent: {
+      repoRoot: ctx.paths.repoRoot,
+      designRel: ctx.paths.designRel,
+      shells: () => opts.shellCount?.() ?? 0,
+      emit: (e, p) => ctx.bus.emit(e, p),
+      personHolds: opts.personHolds,
+      // §5.4 `read-only`: the agent routes are non-browser, so only the format gate applies here
+      // (a hub role is a browser-session property).
+      readOnly: () => gateNow() !== null,
+      // p8-a1-claims — POST /_api/agent/write/claim: a disk-writing verb's bytes, claimed for its chat's live run
+      claimWrites: (chat, writes) =>
+        claimWritesForChat(runs, ctx.syncControl?.current?.(), ctx.paths.designRel, chat, writes),
+      // the run bracket onto today's T16 project action + the ai-activity banner, keyed like the
+      // Maude chat's (acp/index.ts keyFor): `${designRel}/${designRoot-relative canvas}`.
+      // A Maude chat run (actor maude-chat, MAUDE_AGENT_ACTOR from acp/bridge.ts) is bracketed by
+      // acp/index.ts already — its T16 action + banner; the hook routes skip it, so it is never
+      // bracketed twice. Every other run is a terminal Claude Code.
+      bracket: {
+        // S5.5b — the stage is begun under the registry's run id; the REGISTRY ends it
+        // (`stage` above), so there is no `end` here: one turn is never two stages.
+        begin: (r) => {
+          if (r.actor === 'maude-chat') return;
+          ctx.syncControl
+            ?.current?.()
+            ?.beginAiAction?.(`agent:${r.session}`, r.label || 'AI', { runId: r.run });
+        },
+        // S5.3 — the ai-activity banner of a hook run is DERIVED from the registry (ai/runs.ts
+        // `bannerEntries`), never a second entry in AiActivity. p8-a1-claims — `touch` (after the
+        // write) no longer claims what the disk holds then: those could be a person's bytes. The
+        // claims are made BEFORE the write: `claim` (edit/check's replayed bytes) and `window`
+        // (a Bash call that cannot claim, for the canvases it names).
+        ...hookClaims(() => ctx.syncControl?.current?.(), ctx.paths.designRel),
+      },
+    },
+    projectFormat: {
+      repoRoot: ctx.paths.repoRoot,
+      designRel: ctx.paths.designRel,
+      hub: () => {
+        const url = ctx.cfg.linkedHub?.url;
+        const rec = url ? getHubRecord(url) : null;
+        return url && rec ? { url, token: rec.token, role: rec.role ?? 'member' } : null;
+      },
+      formatView: (req) => formatConfigFields(ctx, roleReadOnly(req), FORMAT_GATE_OPTS),
+      onMigrated: () => {
+        if (reloadConfig(ctx)) ctx.bus.emit('config-updated');
+      },
+    },
+    // S9.7b — POST /_api/comments/op (routes/comments.ts). The author is the session: a cell's
+    // vouched member, else this machine's git identity — never a name in the body.
+    comments: {
+      designRel: ctx.paths.designRel,
+      actor: async (req) => ({
+        name:
+          (isWorkspaceMode() ? req.headers.get('x-maude-user') : null)?.slice(0, 120) ||
+          localAuthor(await api.gitCurrentUser()),
+      }),
+      fileOf: (id) => api.commentFileOf(id),
+      apply: (file, op, actor) => api.commentOp(file, op, actor),
+    },
+    // V2-3.4 — GET /_api/shell/status (routes/shell.ts): the desktop shell's token-gated probe.
+    shell: { outbox, exportJobs, generateJobs },
+    pins: { designRoot: ctx.paths.designRoot },
+    // S3.10a — where an on-click link goes, read from the versioned TSX (routes/element-links.ts)
+    elementLinks: {
+      designRoot: ctx.paths.designRoot,
+      designRel: ctx.paths.designRel,
+      // the session's own predicate (S9.9): a canvas-only session reads its grants' closure and nothing else,
+      // so a link to a canvas it was not granted reads `dangling` (no existence oracle, V2-1.16 U1)
+      sees: (req, rel) => {
+        const access = accessOf(req);
+        // S9.11's closure (the same one readOnlyRefusal / the seer use), null without grants
+        return accessSees(access, closureOf(access), rel);
+      },
+    },
+    // S11.11 — POST /_api/sync/resync (routes/sync.ts), moved from the legacy literal.
+    // gate-b-sec4 — GET /_api/sync/link + POST /_api/sync/link/confirm: the parked committed link.
+    sync: { control: () => ctx.syncControl, trace: resyncTrace, link: createLinkGate(ctx) },
+    // S11.13 — Settings › Advanced reads: the decision-memory count and the bundled plugin versions.
+    settings: { repoRoot: ctx.paths.repoRoot },
+    // S5.7 — the chat store's search / trash / resume-session routes (routes/chat.ts).
+    chat: {
+      designRoot: ctx.paths.designRoot,
+      outbox: outbox.store,
+      isRunning: (id) => runningChats().includes(id),
+    },
+    // S2.1 — POST /_api/edit-op (routes/edit.ts): one dispatch route, pure writers in edit-ops/.
+    // The write announces its base like every lane writer; AI holds read the run registry above.
+    edit: {
+      designRoot: ctx.paths.designRoot,
+      designRel: ctx.paths.designRel,
+      repoRoot: ctx.paths.repoRoot,
+      emit: (e, p) => ctx.bus.emit(e, p),
+      snapshot: (rel, before, reason) => editOpHistory.writeSnapshot(rel, before, reason),
+      actionFor: (repoRel, after) =>
+        ctx.syncControl?.current?.()?.acceptedActionForContent?.(repoRel, after) ?? null,
+      // S2.2b — `element.set-id` moves comment pins + board hosts through api.ts's write paths
+      references: createReferenceLanes({
+        designRel: ctx.paths.designRel,
+        loadComments: (f) => api.loadCommentsForFile(f),
+        rewriteComments: (f, fn) =>
+          api.rewriteComments(f, fn as Parameters<Api['rewriteComments']>[1]),
+        readBoard: (f) => api.readBoard(f),
+        applyBoardOps: (f, ops) => api.applyAnnotationOps(f, ops),
+        acceptedMode: () => !!ctx.syncControl?.current?.()?.acceptedMode?.(),
+      }),
+      // S2.10 — an artboard copy's place goes to the layout lane in the same request (routes/edit.ts)
+      meta: {
+        load: (file) => api.loadCanvasMeta(file),
+        patch: (file, patch) => api.patchCanvasMeta(file, patch),
+        writeText: (file, next, base, o) => api.writeCanvasMetaText(file, next, base, o),
+      },
+      // S2.10b — an op-log home lands the source + the layout lane as ONE action (routes/edit.ts `land`)
+      control: () => ctx.syncControl?.current?.() ?? null,
+      // S2.10c — a trashed artboard's annotations leave in the same action (the board's own writer)
+      board: {
+        read: (file) => api.readBoard(file),
+        apply: (file, ops, o) => api.applyAnnotationOps(file, ops, undefined, o),
+      },
+      // S2.16 — GET /_api/ds/components is minRole edit: the route asks the session's access
+      access: (req) => accessOf(req),
+      // S8.15 — /_api/photo-every-use (routes/photo-every-use.ts): Apply to every use
+      photoEveryUse: {
+        access: (req) => accessOf(req),
+        closure: (access) => closureOf(access),
+        usedIn: (rel) =>
+          projectIndex.assetsAnswer().assets.find((a) => a.rel === rel)?.usedIn ?? [],
+        read: (rel) => {
+          try {
+            return readFileSync(join(ctx.paths.designRoot, rel), 'utf8');
+          } catch {
+            return null;
+          }
+        },
+        exists: (rel) => existsSync(join(ctx.paths.designRoot, rel)),
+        saveEveryUse: (asset, edit) => photoStore.savePhotoEdit(asset, edit),
+      },
+    },
+    // S8.19 — GET /_api/asset-state (routes/asset-state.ts): built once, over the live runtime.
+    assetState: assetStateDepsFor({
+      designRoot: ctx.paths.designRoot,
+      designRel: ctx.paths.designRel,
+      runtime: () => ctx.syncControl?.current?.() ?? null,
+      access: (req) => accessOf(req),
+    }),
+    // S8.13 — POST /_api/assets/trash (routes/asset-trash.ts): the verdict is the index's row for the file.
+    assetTrash: {
+      designRoot: ctx.paths.designRoot,
+      access: (req) => accessOf(req),
+      rows: () => projectIndex.assetsAnswer().assets,
+      announce: (rel) => {
+        if (isWorkspaceMode()) ctx.bus.emit('fs:any', rel);
+      },
+    },
+    // S8.17 — POST /_api/figma/frames + /_api/figma/import-frames (routes/figma.ts): the verb, lazily.
+    figma: {
+      root: ctx.paths.repoRoot,
+      designRel: ctx.paths.designRel,
+      access: (req) => accessOf(req),
+      announce: (rel) => {
+        if (isWorkspaceMode()) ctx.bus.emit('fs:any', rel);
+      },
+      // S8.17b — imported Figma comment pins are stamped `by` the importer: the vouched member in a cell,
+      // the git user on this Mac (same rule as the comments deps).
+      importer: async (req) =>
+        (isWorkspaceMode() ? req.headers.get('x-maude-user') : null)?.slice(0, 120) ||
+        (await api.gitCurrentUser()),
+    },
+    // S8.22 — POST /_api/import-asset (routes/assets.ts): v2 body, PSD/HEIC through the sandboxed sips, dedupe answer.
+    assetImport: {
+      root: ctx.paths.repoRoot,
+      designRel: ctx.paths.designRel,
+      access: (req) => accessOf(req),
+      announce: (rel) => {
+        if (isWorkspaceMode()) ctx.bus.emit('fs:any', rel);
+      },
+    },
+    // S8.20 — /_api/describe* (routes/describe.ts): search in pictures — the consent, Stop, and what AI saw. A Mac only.
+    describe: {
+      service: () => describeSvc,
+      access: (req) => accessOf(req),
+      inCell: isWorkspaceMode(),
+    },
+    // S8.21 — GET /_api/asset-details, /_api/asset-generated (routes/asset-details.ts): details per kind, the Generated runs.
+    // The Original path is this Mac's own record: a cell has no Mac, so it keeps none.
+    assetDetails: {
+      designRoot: ctx.paths.designRoot,
+      access: (req) => accessOf(req),
+      usedIn: (rel) => projectIndex.assetsAnswer().assets.find((a) => a.rel === rel)?.usedIn ?? [],
+      read: (rel) => {
+        try {
+          return readFileSync(join(ctx.paths.designRoot, rel), 'utf8');
+        } catch {
+          return null;
+        }
+      },
+      inCell: isWorkspaceMode(),
+    },
+    // S8.16 — /_api/generate-takes* (routes/generate.ts): N takes on the generation queue, the consent quote, ← →.
+    generate: generateDepsFor({
+      designRoot: ctx.paths.designRoot,
+      designRel: ctx.paths.designRel,
+      access: (req) => accessOf(req),
+      artboard: (canvas, id) => {
+        const ab = projectIndex.canvas(canvas)?.artboards.find((a) => a.id === id);
+        return ab ? { w: ab.w, h: ab.h, label: ab.label } : null;
+      },
+      jobs: generateJobs,
+      saveAsset: (bytes) => api.saveAsset(bytes),
+      emit: (g) => ctx.bus.emit('generate:takes', g),
+    }),
+    // S8.10 — /_api/handoff* (routes/handoff.ts): built with the outbox above (its sender is the same).
+    handoff: handoffRoute,
+    // S9.19 — /_api/share/*: the desktop's door to the linked hub's access API.
+    share: shareDeps,
+    // S3.5 — PATCH /_api/present-meta (routes/present.ts): order, skip and notes in the versioned
+    // meta, through the layout lane's writer. Ids are checked against a FRESH parse of the source
+    // (the index may lag an artboard added a moment ago); a canvas whose artboards a parse cannot
+    // list is complete once the renderer harvested them (V2-1.17 §5.8).
+    present: {
+      repoRoot: ctx.paths.repoRoot,
+      designRoot: ctx.paths.designRoot,
+      artboards: (srcAbs) => {
+        const rel = relative(ctx.paths.designRoot, srcAbs).replace(/\\/g, '/');
+        try {
+          const row = extractCanvas(
+            {
+              designRoot: ctx.paths.designRoot,
+              repoRoot: ctx.paths.repoRoot,
+              groups: ctx.cfg.canvasGroups,
+              defaultDs: null,
+              designSystems: ctx.cfg.designSystems ?? [],
+            },
+            rel
+          );
+          if (row.parse !== 'ok') return null;
+          if (!row.dynamic) return { ids: row.artboards.map((a) => a.id), complete: true };
+          const live = projectIndex.canvas(rel);
+          return live?.artboardsFrom === 'runtime'
+            ? { ids: [...row.artboards, ...live.artboards].map((a) => a.id), complete: true }
+            : { ids: row.artboards.map((a) => a.id), complete: false };
+        } catch {
+          return null;
+        }
+      },
+      write: async (file, nextText, baseText) => {
+        await api.writeCanvasMetaText(file, nextText, baseText);
+      },
+    },
+    // S8.1 — ExportSpec v2: the estimate route, and the v2 half of /_api/export(-jobs) below
+    export: exportV2Deps,
+    // S11.6 — GET /_api/canvas-source + /_api/canvas-errors (routes/canvas-source.ts): main origin
+    // only, `export` on the canvas (Can view refused), a canvas-only session its grants only.
+    canvasSource: {
+      designRoot: ctx.paths.designRoot,
+      designRel: ctx.paths.designRel,
+      historicalSource: (repoRel, ref) => historicalCanvasSource(ctx, repoRel, ref),
+      // A GET of project source is CORS-readable once a rebound page shares this origin.
+      trustedHost: (req) => isTrustedRequestHost(req),
+    },
+    // S5.10 — attachments + folder consent (routes/chat-attach.ts). Main origin only.
+    chatAttach: {
+      designRoot: ctx.paths.designRoot,
+      projectRoot: ctx.paths.repoRoot,
+      saveAsset: (stream) => api.saveAssetFromStream(stream),
+    },
+    // S6.0b — POST|GET /_api/cloud/move (routes/cloud-move.ts): main origin only, on the attach lane.
+    cloudMove: {
+      designRoot: ctx.paths.designRoot,
+      projectName: () => ctx.cfg.name ?? null,
+      localFormat: () => asFormat(ctx.cfg.formatVersion),
+      cloud: cloudApi,
+    },
+    // S6.15 — POST /_api/help/add-guides (routes/help-guides.ts): main origin only, Can edit and up.
+    helpGuides: { uiDir: () => join(ctx.paths.designRoot, ctx.cfg.newCanvasDir || 'ui') },
+    // S9.20b — GET /_api/cloud/plan (routes/cloud-plan.ts): main origin only, the device token.
+    cloudPlan: { cloud: cloudApi },
+    // S11.14 — GET /_api/connections/hub (routes/connections.ts): main origin only, the hub credential.
+    connections: { designRoot: ctx.paths.designRoot },
+  }).map(guardTableRoute);
+  // p8-a1-claims — outside the gates: a write that names an AI chat answers inside its run's claim
+  // (in place, so every consumer of the table — the mount, the local gate — sees the same specs)
+  tableSpecs.splice(0, tableSpecs.length, ...tableSpecs.map((s) => claimingTableRoute(s, runs)));
+  const laneRoutes = mountRoutes(tableSpecs);
+  // V2-2.17 — the project index (contract V2-1.17): built now, updated per fs event, persisted
+  // in the machine cache (~/.maude/index/v1, outside the project). Cells write none.
+  const projectIndex = createIndexService({
+    root: ctx.paths.repoRoot,
+    designRel: ctx.paths.designRel,
+    context: () => ({
+      designRoot: ctx.paths.designRoot,
+      repoRoot: ctx.paths.repoRoot,
+      groups: ctx.cfg.canvasGroups,
+      defaultDs: ctx.cfg.defaultDesignSystem || ctx.cfg.designSystems?.[0]?.name || null,
+      designSystems: ctx.cfg.designSystems ?? [],
+      componentDir: ctx.cfg.newComponentDir,
+    }),
+    project: () => ({
+      name: ctx.cfg.name ?? ctx.projectLabel,
+      label: ctx.projectLabel ?? null,
+      formatVersion: projectFormat(ctx).value,
+      linkedHub: ctx.cfg.linkedHub ? { url: ctx.cfg.linkedHub.url } : null,
+      managed: isWorkspaceMode(),
+    }),
+    persist: !isWorkspaceMode(),
+    // S10.5 — host the ds-usage index (lazy; persisted on a desktop, memory-only in a cell)
+    dsUsage: { persist: !isWorkspaceMode() },
+    // S8.12 — "Not used" reads the retained versions through the sync runtime Version history reads; null (no home
+    // answers yet) leaves the verdict at 'checking', never at "not used"
+    history: () => historySourceFromRuntime(ctx.syncControl?.current?.(), ctx.paths.designRel),
+  });
+  // S8.12 — server.ts attaches the sync runtime after this runs; the history scan starts when a home answers
+  kickWhenReady({
+    ready: () => !!ctx.syncControl?.current?.(),
+    kick: () => projectIndex.startHistoryScan(),
+  });
+  ctx.bus.on('fs:any', (rel: string) => {
+    projectIndex.update([rel]);
+  });
+  ctx.bus.on('config-updated', () => projectIndex.rebuild());
+  // V2-8.5 r7 — the first Design system board reads the persisted usage file: build it soon after boot
+  warmDsUsage(projectIndex.dsUsage(), () => (ctx.cfg.designSystems?.length ?? 0) > 0);
+  projectIndex.on('changed', (e) => ctx.bus.emit('index-changed', e));
+  // S8.11 — a version recorded after the history scan joins the asset index ("Not used" counts it).
+  feedVersionsToIndex({
+    control: () => ctx.syncControl?.current?.(),
+    designRel: ctx.paths.designRel,
+    index: projectIndex,
+    on: (e, fn) => ctx.bus.on(e, fn),
+  });
+  // V2-2.17 — the thumbnail service (contract V2-1.17 §5.8): renders only on the read-only capture
+  // origin (R1), pictures in the machine cache next to the index, served below on the main origin
+  // only (R4). Cells render nothing (R7). At boot only the missing/stale covers render (below).
+  const thumbs = createThumbService({
+    pid: pidOf(ctx.paths.repoRoot),
+    designRoot: ctx.paths.designRoot,
+    index: projectIndex,
+    freshDepsHash: (rel) => {
+      try {
+        return extractCanvas(
+          {
+            designRoot: ctx.paths.designRoot,
+            repoRoot: ctx.paths.repoRoot,
+            groups: ctx.cfg.canvasGroups,
+            defaultDs: null,
+            designSystems: ctx.cfg.designSystems ?? [],
+          },
+          rel
+        ).depsHash;
+      } catch {
+        return null;
+      }
+    },
+    config: () => ({
+      theme: ctx.cfg.themeDefault,
+      tokensCssRel: ctx.cfg.designSystems?.[0]?.tokensCssRel ?? ctx.cfg.tokensCssRel,
+    }),
+    serverOrigin: () => ctx.mainOrigin?.split(' ')[0],
+    captureOrigin: () => ctx.captureOrigin,
+    enabled: !isWorkspaceMode(),
+    exportBusy: () => exportJobs.list().some((j) => j.status === 'running'),
+    readVersion: async (rel, at) => {
+      const repoRel = relative(ctx.paths.repoRoot, join(ctx.paths.designRoot, rel)).replace(
+        /\\/g,
+        '/'
+      );
+      if ('sha' in at) return gitShowFile(ctx.paths.repoRoot, at.sha, repoRel);
+      return (
+        (await ctx.syncControl
+          ?.current?.()
+          ?.acceptedVersion?.(repoRel, at.rev)
+          .catch(() => null)) ?? null
+      );
+    },
+    // S1.11 — the version's own CSS / meta, from the reader the historical build overlays it from.
+    readVersionLane: (rel, lane, at) => {
+      const repoRel = relative(ctx.paths.repoRoot, join(ctx.paths.designRoot, rel)).replace(
+        /\\/g,
+        '/'
+      );
+      return laneAtRef(
+        versionReaders(ctx),
+        repoRel,
+        'sha' in at ? at.sha : `r${at.rev}`,
+        lane,
+        'sha' in at ? 'git' : 'accepted'
+      );
+    },
+    onReady: (key) => ctx.bus.emit('thumb-ready', { key }),
+  });
+  // P8 — the index is built: queue background covers for the canvases whose cover is missing or
+  // stale (Home has no renderer, so a project opened before v2 kept grey covers). Nothing to do =
+  // no renderer started. After the first paint has settled; the bun test preload opts out
+  // (MAUDE_NO_BOOT_COVERS=1) so a test server does not start a Chromium of its own.
+  if (process.env.MAUDE_NO_BOOT_COVERS !== '1')
+    void thumbs.bootCovers({ delayMs: BOOT_COVERS_DELAY_MS }).catch(() => {});
+  // S8.20 — search in pictures (describe/, contract V2-1.17 §5.9): opt-in per person on this Mac, never in a cell (A5).
+  // The picture that goes is the Assets tile the renderer made; the describer is S12.13's asset-describer agent (describe/claude.ts via envDescriber; the stub under MAUDE_DESCRIBE_STUB=1).
+  describeSvc = isWorkspaceMode()
+    ? null
+    : createDescribeService({
+        designRoot: ctx.paths.designRoot,
+        pid: pidOf(ctx.paths.repoRoot),
+        rows: () => projectIndex.assetsAnswer().assets,
+        describer: envDescriber,
+        prepare: async (row) => {
+          const t = await thumbs.assetTile(row.rel, 'card');
+          return t.status === 'ready' ? thumbs.read(t.key) : null;
+        },
+        auto: true,
+      });
+  projectIndex.on('changed', () => describeSvc?.poke());
+  ctx.bus.on('thumb-ready', () => describeSvc?.poke());
+  describeSvc?.poke();
+
+  /** What a read-only session may still write: the module allowlist plus what
+   *  the lane tables declare (`readOnly: 'allowed'`). */
   const readOnlyAllowed = {
-    exact: READ_ONLY_ALLOWED_WRITES as ReadonlySet<string>,
-    patterns: READ_ONLY_ALLOWED_WRITE_PATTERNS as readonly RegExp[],
+    exact: new Set<string>([...READ_ONLY_ALLOWED_WRITES, ...laneRoutes.readOnlyAllowed.exact]),
+    patterns: [...READ_ONLY_ALLOWED_WRITE_PATTERNS, ...laneRoutes.readOnlyAllowed.patterns],
   };
 
-  const routes = {
+  // The client's config (see the '/_config' route below for the gate in front of it).
+  // S9.10 (V2-1.16 L8) — a canvas-only session gets no canvas groups, only the DS its
+  // canvases render with, no new-canvas dir and no hub link (`filterConfig`); U7 identity.
+  const configJson = (req: Request, body: Record<string, unknown>) =>
+    Response.json(filterConfig(body, visOf(req), ctx.cfg.designSystems ?? []));
+  const configResponse = (req: Request) =>
+    configJson(req, {
+      ...ctx.cfg,
+      canvasOrigin: ctx.canvasOrigin,
+      // V2-1.12 §5.6 — readOnly is the role OR the format gate
+      // (projectReadOnly covers both); the client shows WHY, and
+      // `formatGate` drives the banner. Named one by one: the client
+      // projection names every computed field (config-projection.test.ts).
+      readOnly: projectReadOnly(req),
+      formatVersion: projectFormat(ctx).value,
+      formatGate: gateNow(),
+      readOnlyReason: roleReadOnly(req) ? 'role' : gateNow() ? 'format' : null,
+      // p8-update-to-accepted — how this project saves (DDR-241) as its sync last heard from the
+      // hub: 'accepted' | 'legacy'; null when nothing syncs (solo). A hint for the Update project
+      // offer only — the migrator's dry run asks the hub itself before anything is offered.
+      saveMode: saveModeOf(ctx.syncControl?.current?.()),
+      // S9.22b — may this session comment (reply, resolve) on the project? The SERVER's answer from
+      // the session's access, never the client's: Can comment and up. A canvas-only session answers
+      // like a missing one (project-level `comment` needs a project role); the op door still judges
+      // every op on its own canvas (hidden ≠ refused). The client turns it into the canvas URL's `cm=1`.
+      canComment: accessOf(req).can('comment', null),
+      // p8-e2e-rolefix — WHO this session is, as the server resolved it: the project role (null = a
+      // canvas-only session) and its canvas grants. The shell's access word ("Can view" / "Can comment")
+      // and the mode switch's caps read it; before it a desktop sent no role at all (only a cloud tab's
+      // `cloud.role`), so every read-only desktop session — a Can view invitee included — read "Can
+      // comment". The session's own claim, main origin only; the gates above stay the lock.
+      access: accessView(accessOf(req)),
+      // gate-b-c4 — the key this session's shell mints each frame's capability with
+      // (client/frame-cap.js). Only while a canvas origin exists (the split on): with it off the
+      // canvas runs on this origin and there is no frame to scope. MAIN ORIGIN ONLY — `/_config`
+      // is in neither canvas allowlist, so canvas code never sees it.
+      ...(ctx.canvasOrigin && frameKeyOf(req)
+        ? { frameKey: (frameKeyOf(req) as Buffer).toString('base64url') }
+        : {}),
+      // DDR-247 — the apps allowed to frame this studio for `?embed=1`. The
+      // embed view posts its status ONLY to a parent on this list, never to
+      // '*'. Public already: the same origins ride in the page's CSP header.
+      ...(ctx.embedOrigins?.length ? { embedOrigins: ctx.embedOrigins } : {}),
+      // WHICH RELEASE THIS IS. `/_config` reaches the browser in cloud mode,
+      // so the bar for adding a field here is "would I publish it" — and a
+      // version is the git tag, which is public. Nothing else rides along.
+      //
+      // Resolved through `resolveMaudeVersion`, the same function the What's
+      // New feed uses: one answer, so the chip in the status bar and the feed
+      // can never name different versions.
+      version: resolveMaudeVersion(),
+      // feature-cloud-export-render-workers — which export lane this server
+      // holds (`local` | `remote` | `none`). The client gates the export
+      // dialogs on it so a cell without a render service says WHY a format
+      // is unavailable instead of firing a request the proxy 404s.
+      exportLane: resolveRenderLane(),
+      // V2-3.4 — WHICH account profile this server runs as (shell/profile.ts): set per tab by
+      // the desktop shell, validated + sanitized; absent env ⇒ { id: 'default' }.
+      profile: resolveProfile(),
+      // Cloud Phase 27 (DDR-209) — the capability that opens the cookieless
+      // canvas origin, minted per session by the proxy. Absent on a desktop,
+      // where the canvas origin is loopback and needs none. `canvasUrl()`
+      // appends it exactly the way it already appends `readOnly`, which is
+      // what keeps this a FLAG on the shared client rather than a fork of it.
+      ...(req.headers.get('x-maude-canvas-token')
+        ? { canvasToken: req.headers.get('x-maude-canvas-token') }
+        : {}),
+      // Cloud Phase 27 C2/C4 — the ONE cloud-only input the shared client
+      // takes. Its presence says "you are in a browser tab, on somebody
+      // else's machine", which is what lets the client state the agent's
+      // absence and offer a way back to the dashboard. A flag, not a fork:
+      // every other difference between the three shells stays zero.
+      ...(isWorkspaceMode()
+        ? {
+            cloud: {
+              // PRESENCE IS THE SWITCH — never a default. `HUB_DASHBOARD_URL`
+              // is written only by the managed fleet (cli/lib/cell-plan.mjs);
+              // a self-hosted `maude hub workspace` never sets it and has no
+              // multi-project dashboard to return to. Defaulting it to the
+              // SaaS put a `← Dashboard` link in every self-hoster's menubar
+              // that walked them off their own deployment onto cloud.maude.sh
+              // — a dead end for an account most of them do not have. Same
+              // rule the hub landing already keeps (server.mjs `isPlatform`)
+              // and the auth pages already keep (browser-auth.mjs): no URL,
+              // no link. Absent, not null, so the client's own check is the
+              // single one — exactly like `canvasToken` two fields down.
+              ...(process.env.HUB_DASHBOARD_URL
+                ? { dashboardUrl: process.env.HUB_DASHBOARD_URL }
+                : {}),
+              // F19 — this project's own dashboard page, when the cell knows its id.
+              ...(projectDashboardUrl() ? { projectUrl: projectDashboardUrl() } : {}),
+              projectName: process.env.MAUDE_PROJECT_NAME ?? ctx.cfg.name ?? null,
+              // WHO the tab is signed in as, and WHAT that makes them —
+              // per REQUEST, from the proxy's injected headers, never from
+              // this process's environment (one cell serves an owner and a
+              // viewer at the same time).
+              //
+              // The owner who could not edit his own project could not see
+              // why: the stamp said VIEW ONLY and nothing on screen said
+              // which account that verdict was about. Naming the account and
+              // the role turns "this is broken" into "I am signed in as the
+              // wrong person", which is a thing someone can act on — and the
+              // sign-out beside it is how they act on it.
+              user: req.headers.get('x-maude-user') || null,
+              role: req.headers.get('x-maude-role') || null,
+            },
+          }
+        : {}),
+    });
+
+  // The LEGACY route literal (V2-2.5): every key here predates the table. A NEW route is a
+  // `routes/<area>.ts` spec (routes/index.ts), not a new key — so work packages never edit the
+  // same switch. Merged with the table's exact paths into `routes` below.
+  const legacyRoutes = {
     '/_health': () =>
       Response.json({
         ok: true,
@@ -1671,6 +2857,10 @@ export function createHttp(
         // server filesystem path is not something it should learn. The
         // supervisor hashes its own expected root and compares.
         rootId: rootIdentity(ctx.paths.repoRoot),
+        // V2-1.11 §5.6 — the app↔plugin↔CLI handshake: the design plugin's session-start hook
+        // compares its bundled actions.manifest.json with these. Public data (action ids, tiers).
+        manifestVersion: actionsManifestVersion(),
+        version: resolveMaudeVersion(),
         pid: process.pid,
         // Cloud Phase 26 Stage 4 — the build sandbox's own counters, so the
         // €3/cell model finally has figures instead of a prediction. Counts and
@@ -1684,7 +2874,11 @@ export function createHttp(
         // it discloses nothing across a tenant boundary. Inventing a privileged
         // route would have meant inventing an auth path for the supervisor's
         // loopback probe, for data the tenant already has.
-        render: buildStats(),
+        //
+        // Michal 2026-10-21 (S8.5b M2): `renderSeconds` (+ `renderJobs`, `renderSecondsSince`) is the seconds this tenant's export jobs
+        // spent rendering on the cloud lane since the studio booted, with the boot time beside it
+        // so a restart reads as a reset. Additive. Counts and durations only.
+        render: { ...buildStats(), ...renderSecondsStats() },
       }),
 
     '/_active': () => Response.json(inspect().state),
@@ -1703,7 +2897,9 @@ export function createHttp(
       if (!sameOriginRead(req)) return new Response('cross-origin rejected', { status: 403 });
       if (!isTrustedRequestHost(req))
         return new Response('local request required (DNS-rebinding guard)', { status: 403 });
-      return Response.json(await probeAcpAvailabilityAuthed(), {
+      const availability = await probeAcpAvailabilityAuthed();
+      aiConnectedFact.note(availability.available); // S5.18: the panel's answer is the queue's answer
+      return Response.json(availability, {
         headers: { 'Cache-Control': 'no-store' },
       });
     },
@@ -1869,10 +3065,19 @@ export function createHttp(
 
     // Phase 31 — repo-level chat list + history (for the chat switcher +
     // hydration). MAIN-ORIGIN ONLY. Read-only; ids are sanitized before disk.
-    '/_api/acp/chats': () =>
-      Response.json(listChats(ctx.paths.designRoot), {
-        headers: { 'Cache-Control': 'no-store' },
-      }),
+    // S5.7: `?trashed=1` is the trash's own list (S1's Trash panel provider); `?group=canvas`
+    // answers `{ groups: [{ canvas, chats }] }` instead of the flat array. No query = the
+    // flat, newest-first array every existing consumer reads.
+    '/_api/acp/chats': (req: Request) => {
+      const q = new URL(req.url).searchParams;
+      const chats = listChats(ctx.paths.designRoot, { trashed: q.get('trashed') === '1' });
+      return Response.json(
+        q.get('group') === 'canvas' ? { groups: groupChatsByCanvas(chats) } : chats,
+        {
+          headers: { 'Cache-Control': 'no-store' },
+        }
+      );
+    },
     '/_api/acp/chat': async (req: Request) => {
       const id = (new URL(req.url).searchParams.get('id') ?? '')
         .replace(/[^a-z0-9_-]/gi, '')
@@ -1996,7 +3201,9 @@ export function createHttp(
     // Phase 9 Task 8 — offline-mode banner poll fallback. The linked-mode sync
     // runtime writes `_sync.json`; browser tabs also get live pushes over the
     // WS ('sync:status'). Returns `{ linked: false }` in solo mode.
-    '/_sync-status': () => {
+    '/_sync-status': (req: Request) => {
+      // S9.11 (V2-1.16 L16) — `project` class: sync trouble names every canvas's slug.
+      if (accessOf(req).canvasOnly) return notInScopeResponse();
       const file = join(ctx.paths.designRoot, '_sync.json');
       if (!existsSync(file)) {
         return Response.json({ linked: false }, { headers: { 'Cache-Control': 'no-store' } });
@@ -2011,7 +3218,9 @@ export function createHttp(
         if (!(Number(status?.updatedAt) >= PROCESS_STARTED_AT)) {
           return Response.json({ linked: false }, { headers: { 'Cache-Control': 'no-store' } });
         }
-        return Response.json(status, {
+        // S11.11 — the last Resync, while it runs and for a while after (sync/resync-trace.ts)
+        const resync = resyncTrace.view();
+        return Response.json(resync ? { ...status, resync } : status, {
           headers: { 'Cache-Control': 'no-store' },
         });
       } catch {
@@ -2024,83 +3233,15 @@ export function createHttp(
     // knows before it draws anything. It decides what the UI OFFERS and is
     // never what stops a write — the cell enforces that (Phase 25 C1),
     // whatever a patched client believes.
+    // Phase 4 gate security review (D1 / EH-P4-1): the same double gate as the /_api/* reads. The
+    // config names the project, its hub link and workspace, the canvas origin and port and the
+    // build — recon a DNS-rebound page must not read. The cell vouches with x-maude-role.
     '/_config': (req: Request) =>
-      Response.json({
-        ...ctx.cfg,
-        canvasOrigin: ctx.canvasOrigin,
-        // V2-1.12 §5.6 — readOnly is the role OR the format gate
-        // (projectReadOnly covers both); the client shows WHY, and
-        // `formatGate` drives the banner. Named one by one: the client
-        // projection names every computed field (config-projection.test.ts).
-        readOnly: projectReadOnly(req),
-        formatVersion: projectFormat(ctx).value,
-        formatGate: gateNow(),
-        readOnlyReason: roleReadOnly(req) ? 'role' : gateNow() ? 'format' : null,
-        // DDR-247 — the apps allowed to frame this studio for `?embed=1`. The
-        // embed view posts its status ONLY to a parent on this list, never to
-        // '*'. Public already: the same origins ride in the page's CSP header.
-        ...(ctx.embedOrigins?.length ? { embedOrigins: ctx.embedOrigins } : {}),
-        // WHICH RELEASE THIS IS. `/_config` reaches the browser in cloud mode,
-        // so the bar for adding a field here is "would I publish it" — and a
-        // version is the git tag, which is public. Nothing else rides along.
-        //
-        // Resolved through `resolveMaudeVersion`, the same function the What's
-        // New feed uses: one answer, so the chip in the status bar and the feed
-        // can never name different versions.
-        version: resolveMaudeVersion(),
-        // feature-cloud-export-render-workers — which export lane this server
-        // holds (`local` | `remote` | `none`). The client gates the export
-        // dialogs on it so a cell without a render service says WHY a format
-        // is unavailable instead of firing a request the proxy 404s.
-        exportLane: resolveRenderLane(),
-        // Cloud Phase 27 (DDR-209) — the capability that opens the cookieless
-        // canvas origin, minted per session by the proxy. Absent on a desktop,
-        // where the canvas origin is loopback and needs none. `canvasUrl()`
-        // appends it exactly the way it already appends `readOnly`, which is
-        // what keeps this a FLAG on the shared client rather than a fork of it.
-        ...(req.headers.get('x-maude-canvas-token')
-          ? { canvasToken: req.headers.get('x-maude-canvas-token') }
-          : {}),
-        // Cloud Phase 27 C2/C4 — the ONE cloud-only input the shared client
-        // takes. Its presence says "you are in a browser tab, on somebody
-        // else's machine", which is what lets the client state the agent's
-        // absence and offer a way back to the dashboard. A flag, not a fork:
-        // every other difference between the three shells stays zero.
-        ...(isWorkspaceMode()
-          ? {
-              cloud: {
-                // PRESENCE IS THE SWITCH — never a default. `HUB_DASHBOARD_URL`
-                // is written only by the managed fleet (cli/lib/cell-plan.mjs);
-                // a self-hosted `maude hub workspace` never sets it and has no
-                // multi-project dashboard to return to. Defaulting it to the
-                // SaaS put a `← Dashboard` link in every self-hoster's menubar
-                // that walked them off their own deployment onto cloud.maude.sh
-                // — a dead end for an account most of them do not have. Same
-                // rule the hub landing already keeps (server.mjs `isPlatform`)
-                // and the auth pages already keep (browser-auth.mjs): no URL,
-                // no link. Absent, not null, so the client's own check is the
-                // single one — exactly like `canvasToken` two fields down.
-                ...(process.env.HUB_DASHBOARD_URL
-                  ? { dashboardUrl: process.env.HUB_DASHBOARD_URL }
-                  : {}),
-                projectName: process.env.MAUDE_PROJECT_NAME ?? ctx.cfg.name ?? null,
-                // WHO the tab is signed in as, and WHAT that makes them —
-                // per REQUEST, from the proxy's injected headers, never from
-                // this process's environment (one cell serves an owner and a
-                // viewer at the same time).
-                //
-                // The owner who could not edit his own project could not see
-                // why: the stamp said VIEW ONLY and nothing on screen said
-                // which account that verdict was about. Naming the account and
-                // the role turns "this is broken" into "I am signed in as the
-                // wrong person", which is a thing someone can act on — and the
-                // sign-out beside it is how they act on it.
-                user: req.headers.get('x-maude-user') || null,
-                role: req.headers.get('x-maude-role') || null,
-              },
-            }
-          : {}),
-      }),
+      !sameOriginRead(req)
+        ? new Response('cross-origin rejected', { status: 403 })
+        : !isTrustedRequestHost(req)
+          ? new Response('local request required (DNS-rebinding guard)', { status: 403 })
+          : configResponse(req),
 
     // What's New feed (DDR-A) — read-only product-update list surfaced in the
     // Maude UI chrome. Main-origin only by omission from the canvas-origin
@@ -2113,6 +3254,69 @@ export function createHttp(
     // the scrubber runs here, server-side): MAIN-ORIGIN ONLY — absent from
     // CANVAS_SAFE_API + startCanvasServer routes — plus the same double gate as
     // /_api/acp/status (a drive-by page must not read logs via DNS rebinding).
+    // V2-2.9 (T23) — local diagnostics: every source's status + recent lines (JSON) and the
+    // "Copy diagnostic report" text. PRIVILEGED like /_api/debug-bundle: main-origin only (absent
+    // from CANVAS_SAFE_API + startCanvasServer routes, DDR-088) + the DNS-rebinding guard.
+    '/_api/diagnostics': (req: Request) => {
+      if (!sameOriginRead(req)) return new Response('cross-origin rejected', { status: 403 });
+      if (!isTrustedRequestHost(req))
+        return new Response('local request required (DNS-rebinding guard)', { status: 403 });
+      // V2-4.7b — Diagnostics › Advanced › Project folder (a copy-value row). This Mac's own path
+      // (it names the user), so it rides here behind the rebinding guard and never on /_config
+      // (unguarded); a cloud tab (somebody else's machine) never gets it (Phase 4 gate review D1).
+      return Response.json(
+        { ...diagnostics(), ...(!isWorkspaceMode() ? { projectFolder: ctx.paths.repoRoot } : {}) },
+        { headers: { 'Cache-Control': 'no-store' } }
+      );
+    },
+    '/_api/diagnostics/report': (req: Request) => {
+      if (!sameOriginRead(req)) return new Response('cross-origin rejected', { status: 403 });
+      if (!isTrustedRequestHost(req))
+        return new Response('local request required (DNS-rebinding guard)', { status: 403 });
+      const text = report({
+        maude: resolveMaudeVersion(),
+        platform: `${process.platform}-${process.arch}`,
+        project: ctx.cfg.name ?? '',
+      });
+      return new Response(text, {
+        headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' },
+      });
+    },
+
+    // V2-2.17 — the project index: the snapshot (`?since=<seq>` answers {unchanged} when
+    // current) or a search (`?q=`). Main origin only (absent from both canvas allowlists,
+    // DDR-088) + the DNS-rebinding guard; cells will filter by V2-1.16 `sees` (S9).
+    '/_api/index': (req: Request) => {
+      if (!sameOriginRead(req)) return new Response('cross-origin rejected', { status: 403 });
+      if (!isTrustedRequestHost(req))
+        return new Response('local request required (DNS-rebinding guard)', { status: 403 });
+      const url = new URL(req.url);
+      const q = url.searchParams.get('q');
+      // S9.10 (V2-1.16 L8/L9) — a canvas-only session's index is its canvases only: counts,
+      // stamp and seq derived from them (U5). Identity for a project role (U7).
+      const vis = visOf(req);
+      // S8.12 — the Assets tab's read: rows, usage, the history scan state (index/assets-response.ts)
+      if (url.searchParams.get('part') === 'assets') return assetsResponse(projectIndex, vis);
+      if (q !== null)
+        return Response.json(filterIndexSearch(projectIndex.search(q, { limit: 200 }), vis), {
+          headers: { 'Cache-Control': 'no-store' },
+        });
+      const snap = filterIndexSnapshot(projectIndex.snapshot(), vis);
+      const since = Number(url.searchParams.get('since'));
+      if (Number.isFinite(since) && since > 0 && since === snap.writer.seq)
+        return Response.json({ unchanged: true, seq: snap.writer.seq });
+      return Response.json(snap, { headers: { 'Cache-Control': 'no-store' } });
+    },
+
+    // V2-2.17 — raise on-screen picture keys to `visible` (§5.3). Main origin only; answers
+    // nothing about any key (L14). GET /_api/thumb/<key> is dynamic: see handleFallthrough.
+    '/_api/thumbs/want': (req: Request) => {
+      if (!sameOriginWrite(req)) return new Response('cross-origin rejected', { status: 403 });
+      if (!isTrustedRequestHost(req))
+        return new Response('local request required (DNS-rebinding guard)', { status: 403 });
+      return wantResponse(thumbs, req);
+    },
+
     '/_api/debug-bundle': (req: Request) => {
       if (!sameOriginRead(req)) return new Response('cross-origin rejected', { status: 403 });
       if (!isTrustedRequestHost(req))
@@ -2337,8 +3541,33 @@ export function createHttp(
         // the api layer — DDR-115). The layout lane mutates the versioned
         // `.meta.json`, so a read-only session is refused here, in-handler,
         // where the two lanes are distinguishable.
-        if (projectReadOnly(req) && 'layout' in body.patch) {
-          return readOnlyRefusalFor(req);
+        //
+        // S9.9 — the layout lane needs `edit` ON THE TARGET canvas (a canvas grant
+        // counts, V2-1.7 G1), and a session without `edit` there may send ONLY the
+        // per-user lanes: any other key is refused rather than ignored, so a
+        // planted or stale client can never widen what this route writes.
+        const target = toDesignRel(body.file, designRel);
+        const access = accessOf(req);
+        const editsTarget =
+          !gateNow() &&
+          (access.can('edit', null) || (target !== null && access.can('edit', target)));
+        if (!editsTarget) {
+          const keys = Object.keys(body.patch);
+          if (keys.includes('layout') || keys.some((k) => !CANVAS_META_SESSION_LANES.has(k)))
+            return readOnlyRefusalFor(req);
+        }
+        // S2.9b — the `annotations` rider: the move and the annotations riding with it as ONE
+        // action. Needs `annotate` on the target as well as the layout lane's `edit`, and holds
+        // the rider to the move delta on every origin (routes/canvas-meta-rider.ts).
+        const rider = (body as { annotations?: unknown }).annotations;
+        if (rider !== undefined) {
+          const annotates =
+            access.can('annotate', null) || (target !== null && access.can('annotate', target));
+          if (!editsTarget || !annotates) return readOnlyRefusalFor(req);
+          return riderPatch(
+            { api, control: () => ctx.syncControl?.current?.() ?? null },
+            { file: body.file, patch: body.patch, annotations: rider }
+          );
         }
         const next = await api.patchCanvasMeta(body.file, body.patch);
         if (!next) return new Response('Not found or rejected', { status: 404 });
@@ -2361,10 +3590,26 @@ export function createHttp(
       // rebinding on every method.
       if (!isTrustedRequestHost(req))
         return new Response('local request required (DNS-rebinding guard)', { status: 403 });
-      const asset = new URL(req.url).searchParams.get('asset');
+      const q = new URL(req.url).searchParams;
+      const asset = q.get('asset');
+      // S8.15 — `?edit=<edit8>` reads one use's edit; `?perUse=1` writes one (the server names it)
+      const editName = q.get('edit');
+      if (editName !== null && !EDIT8_RE.test(editName))
+        return new Response('invalid edit name', { status: 400 });
       if (req.method === 'GET') {
-        const edit = await photoStore.getPhotoEdit(asset);
+        const edit = editName
+          ? await photoStore.getPerUseEdit(asset, editName)
+          : await photoStore.getPhotoEdit(asset);
         return Response.json(edit ?? {}, { headers: { 'Cache-Control': 'no-store' } });
+      }
+      if ((req.method === 'PUT' || req.method === 'POST') && q.get('perUse') === '1') {
+        const body = await readJson<unknown>(req, PHOTO_EDIT_MAX_BYTES + 1024);
+        if (body == null) return new Response('body required', { status: 400 });
+        const r = await photoStore.savePerUseEdit(asset, body);
+        return Response.json(r.ok ? { ok: true, path: r.path, edit: r.edit8, value: r.edit } : r, {
+          status: r.ok ? 200 : r.status,
+          headers: { 'Cache-Control': 'no-store' },
+        });
       }
       if (req.method === 'PUT' || req.method === 'POST') {
         const body = await readJson<unknown>(req, PHOTO_EDIT_MAX_BYTES + 1024);
@@ -2431,33 +3676,9 @@ export function createHttp(
       return new Response('Method not allowed', { status: 405 });
     },
 
-    '/_api/canvas-source': async (req: Request) => {
-      // DDR-148 — read-only raw .tsx source for the Timeline panel's sequence/
-      // keyframe parser. GET ?file=<canvas rel or slug> → { source }.
-      // MAIN-ORIGIN ONLY: intentionally absent from CANVAS_SAFE_API +
-      // startCanvasServer's routes (dual-allowlist, DDR-054) — the untrusted
-      // canvas iframe must never read arbitrary project source. Containment via
-      // api.loadCanvasSource → resolveCanvasAbs (stays under designRoot).
-      if (req.method !== 'GET') return new Response('Method not allowed', { status: 405 });
-      // DNS-rebinding guard — a GET read of project source is CORS-readable once
-      // a rebound page shares this origin; the dev-server always binds 127.0.0.1,
-      // so a real browser (Host: localhost:<port>) passes and only a rebound
-      // foreign hostname 403s. (No sameOriginWrite here — GET.)
-      if (!isTrustedRequestHost(req))
-        return new Response('local request required (DNS-rebinding guard)', { status: 403 });
-      const file = new URL(req.url).searchParams.get('file');
-      const r = await api.loadCanvasSource(file);
-      if (!r.ok) {
-        return Response.json(
-          { ok: false, error: r.error },
-          { status: r.status, headers: { 'Cache-Control': 'no-store' } }
-        );
-      }
-      return Response.json(
-        { ok: true, source: r.source },
-        { headers: { 'Cache-Control': 'no-store' } }
-      );
-    },
+    // '/_api/canvas-source' (DDR-148's Timeline read) moved to the route table in S11.6:
+    // routes/canvas-source.ts — same `?file=` answer, now with the code view's fields and its
+    // access rule (`export` on the canvas: Can view refused, a canvas-only session its grants).
 
     '/_api/git-committers': async (req: Request) => {
       // Phase 6 — feed for the @mention autocomplete in composer + reply box.
@@ -2488,92 +3709,8 @@ export function createHttp(
       return Response.json({ name }, { headers: { 'Cache-Control': 'no-store' } });
     },
 
-    '/_api/ai': async (req: Request) => {
-      // Phase 8 Task 4 — read-only snapshot of the current AI activity map.
-      // GET → { entries: [{ file, author, startedAt, lastHeartbeat }, …] }
-      // Clients use this on mount to backfill the banner state without
-      // waiting for the next bus event.
-      if (req.method !== 'GET') return new Response('Method not allowed', { status: 405 });
-      return Response.json({ entries: ai.list() }, { headers: { 'Cache-Control': 'no-store' } });
-    },
-
-    '/_api/ai/start': async (req: Request) => {
-      // Phase 8 Task 4 — `/design:edit` (or any external slash command driving
-      // Claude work) POSTs here when work begins. body = { file, author }.
-      // Replaces any prior entry for the file.
-      if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
-      // CSRF guard: phase-30 bridges ai-activity onto room awareness, which
-      // crosses the hub — a forged cross-origin POST would inject a fake
-      // "<x> is editing <file>" presence to every connected peer. The loopback
-      // slash-command driver omits Origin (→ allowed); a browser drive-by can't.
-      if (!sameOriginWrite(req))
-        return new Response('cross-origin write rejected', { status: 403 });
-      if (!isTrustedRequestHost(req))
-        return new Response('local request required (DNS-rebinding guard)', { status: 403 });
-      const body = await readJson<{ file?: string; author?: string }>(req);
-      if (!body || typeof body.file !== 'string' || !body.file.trim()) {
-        return new Response('body.file required', { status: 400 });
-      }
-      const author =
-        typeof body.author === 'string' && body.author.trim()
-          ? body.author.trim().slice(0, 120)
-          : 'Claude';
-      const entry = ai.start(body.file.trim(), author);
-      // T16 — the edit is ONE project action: what the agent writes until
-      // /end is published together (or held, if it fails).
-      const name =
-        body.file
-          .trim()
-          .split('/')
-          .pop()
-          ?.replace(/\.(tsx|html)$/i, '') ?? 'canvas';
-      ctx.syncControl
-        ?.current?.()
-        ?.beginAiAction?.(`edit:${body.file.trim()}`, `${author} edited ${name}`);
-      return Response.json(entry, { headers: { 'Cache-Control': 'no-store' } });
-    },
-
-    '/_api/ai/heartbeat': async (req: Request) => {
-      // Refresh the lastHeartbeat. Returns 404 if no entry — slash command
-      // can treat that as "the server bounced; re-issue /start".
-      if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
-      if (!sameOriginWrite(req))
-        return new Response('cross-origin write rejected', { status: 403 });
-      if (!isTrustedRequestHost(req))
-        return new Response('local request required (DNS-rebinding guard)', { status: 403 });
-      const body = await readJson<{ file?: string }>(req);
-      if (!body || typeof body.file !== 'string' || !body.file.trim()) {
-        return new Response('body.file required', { status: 400 });
-      }
-      const entry = ai.heartbeat(body.file.trim());
-      if (!entry) return new Response('no active entry', { status: 404 });
-      return Response.json(entry, { headers: { 'Cache-Control': 'no-store' } });
-    },
-
-    '/_api/ai/end': async (req: Request) => {
-      // Explicit completion (normal or error). Banner clears immediately.
-      if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
-      if (!sameOriginWrite(req))
-        return new Response('cross-origin write rejected', { status: 403 });
-      if (!isTrustedRequestHost(req))
-        return new Response('local request required (DNS-rebinding guard)', { status: 403 });
-      const body = await readJson<{ file?: string; outcome?: string }>(req);
-      if (!body || typeof body.file !== 'string' || !body.file.trim()) {
-        return new Response('body.file required', { status: 400 });
-      }
-      // T16 — close the action BEFORE the banner clears: `done` publishes
-      // what the agent wrote as one action, `failed` keeps it unpublished for
-      // the person's decision. (No outcome = done, the pre-T16 contract.)
-      const action = await ctx.syncControl
-        ?.current?.()
-        ?.endAiAction?.(`edit:${body.file.trim()}`, body.outcome === 'failed' ? 'failed' : 'done')
-        .catch(() => null);
-      const cleared = ai.end(body.file.trim());
-      return Response.json(
-        { cleared, ...(action ? { action } : {}) },
-        { status: cleared ? 200 : 404, headers: { 'Cache-Control': 'no-store' } }
-      );
-    },
+    // S5.3 — `/_api/ai` (GET, canvas-safe) and `/_api/ai/start|heartbeat|end` moved to
+    // routes/ai.ts, on the run registry (the banner is derived from it).
 
     '/_api/sync/offline': async (req: Request) => {
       // T19 — "Download everything for offline": every file of the project
@@ -2611,6 +3748,22 @@ export function createHttp(
       if (!sameOriginWrite(req))
         return new Response('cross-origin write rejected', { status: 403 });
       const body = await readJson<{ file?: string; choice?: string }>(req);
+      // S11.12 — Keep both: theirs becomes the canvas, mine a sibling "<name> this Mac" (sync/keep-both.ts).
+      if (body?.file && body.choice === 'keep-both') {
+        const kb = await keepBothConflict(body.file);
+        if (kb.status === 'none')
+          return Response.json(
+            { ok: false, error: 'No conflict on that canvas.' },
+            { status: 404 }
+          );
+        return Response.json(
+          { ok: kb.status === 'kept-both', ...kb },
+          {
+            status: kb.status === 'kept-both' ? 200 : 409,
+            headers: { 'Cache-Control': 'no-store' },
+          }
+        );
+      }
       const choice = body?.choice === 'mine' ? 'mine' : body?.choice === 'theirs' ? 'theirs' : null;
       if (!body?.file || !choice)
         return Response.json({ ok: false, error: 'file and choice required' }, { status: 400 });
@@ -2630,20 +3783,37 @@ export function createHttp(
         return new Response('cross-origin write rejected', { status: 403 });
       if (!isTrustedRequestHost(req))
         return new Response('local request required', { status: 403 });
-      const body = await readJson<{ choice?: string }>(req);
+      const body = await readJson<{ choice?: string; runId?: unknown }>(req);
       const choice =
         body?.choice === 'discard' ? 'discard' : body?.choice === 'publish' ? 'publish' : null;
+      // S5.5b — the held card keeps or undoes ONE run; no id = every held run (v1).
+      const runId =
+        typeof body?.runId === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(body.runId)
+          ? body.runId
+          : undefined;
+      if (body?.runId !== undefined && !runId)
+        return Response.json({ ok: false, error: 'runId is a run id' }, { status: 400 });
       if (!choice)
         return Response.json(
           { ok: false, error: 'choice must be publish or discard' },
           { status: 400 }
         );
-      const r = await ctx.syncControl?.current?.()?.resolveAiAction?.(choice);
+      const r = await ctx.syncControl?.current?.()?.resolveAiAction?.(choice, runId);
       if (!r)
         return Response.json(
           { ok: false, error: 'There is no unfinished AI edit.' },
           { status: 409 }
         );
+      if (r.status === 'accepted' && r.actionId) {
+        void announceAction(
+          {
+            control: () => ctx.syncControl?.current?.() ?? null,
+            emit: (e, p) => ctx.bus.emit(e, p),
+          },
+          r.actionId,
+          r.touched ?? {}
+        ).catch(() => {});
+      }
       return Response.json(
         { ok: r.status !== 'rejected', ...r },
         { headers: { 'Cache-Control': 'no-store' } }
@@ -2706,37 +3876,9 @@ export function createHttp(
       return new Response('Method not allowed', { status: 405 });
     },
 
-    '/_api/annotations/ops': async (req: Request) => {
-      // DDR-242 §4 — the canvas write path: an op batch applied under the one
-      // merge rule. Canvas-origin reachable (inert collab data, DDR-054) — every
-      // op is validated element-by-element and the board stays capped.
-      // POST body { file, actionId, ops: Op[] } → 200 { ok, changed, rejected[] }
-      if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
-      const body = await readJson<{ file?: unknown; actionId?: unknown; ops?: unknown }>(
-        req,
-        MAX_ANNOTATIONS_BYTES + 2048
-      );
-      if (!body || typeof body.file !== 'string' || !body.file) {
-        return new Response('body must include { file, actionId, ops }', { status: 400 });
-      }
-      if (body.actionId !== undefined && !validAnnotationWriteId(body.actionId)) {
-        return new Response('invalid actionId', { status: 400 });
-      }
-      if (!Array.isArray(body.ops))
-        return new Response('body.ops must be an array', { status: 400 });
-      // Bounded to what a whole board can need (select-all + delete on a full
-      // board) and REFUSED past it — never truncated, which would half-apply a
-      // gesture. Batch cost is linear in the ops (ops.ts indexes).
-      if (body.ops.length > MAX_ELEMENTS) {
-        return new Response('too many ops in one batch', { status: 413 });
-      }
-      const { ops } = parseAnnotationOps(body.ops, MAX_ELEMENTS);
-      const r = await api.applyAnnotationOps(body.file, ops, body.actionId as string | undefined);
-      return Response.json(r, {
-        status: r.ok ? 200 : r.unreadable ? 409 : 413,
-        headers: { 'Cache-Control': 'no-store' },
-      });
-    },
+    // T-S4.5b — the handler lives in annotationOps (below) so the canvas listener mounts its
+    // own variant (canvasRoutes): a `run:<id>` tag is main-origin only.
+    '/_api/annotations/ops': (req: Request) => annotationOps(req, 'main'),
 
     '/_api/canvas': async (req: Request) => {
       // Phase 22 — create + soft-delete a canvas from the browser file tree.
@@ -2759,8 +3901,34 @@ export function createHttp(
       }
       if (req.method === 'DELETE') {
         const file = new URL(req.url).searchParams.get('file');
-        const result = await api.deleteCanvas({ file });
+        // p8-a1-claims (F17) — `maude design trash move` names its chat (X-Maude-Chat): the delete is that
+        // chat's live run's, claimed BEFORE the file leaves, so the run publishes it and its undo restores it.
+        const mine = runForCreate(req, runs);
+        // p8-sec2-lows I1 — the claim must not outlive a delete that did not happen.
+        let release: (() => void) | null = null;
+        if (mine && typeof file === 'string' && /\.tsx$/i.test(file)) {
+          const rel = file.replace(/^\/+/, '');
+          const repoRel = rel.startsWith(`${ctx.paths.designRel}/`)
+            ? rel
+            : `${ctx.paths.designRel}/${rel}`;
+          const control = ctx.syncControl?.current?.();
+          control?.beginAiAction?.(`run:${mine.runId}`, mine.label, {
+            runId: mine.runId,
+            chatId: mine.chatId,
+            claimOnly: true,
+          });
+          control?.claimAiDelete?.(mine.runId, repoRel);
+          release = () => control?.unclaimAiDelete?.(mine.runId, repoRel);
+        }
+        let result: Awaited<ReturnType<typeof api.deleteCanvas>>;
+        try {
+          result = await api.deleteCanvas({ file });
+        } catch (err) {
+          release?.();
+          throw err;
+        }
         if (!result.ok) {
+          release?.();
           return Response.json(
             { ok: false, error: result.error },
             { status: result.status, headers: { 'Cache-Control': 'no-store' } }
@@ -2803,6 +3971,18 @@ export function createHttp(
           { ok: false, error: result.error },
           { status: result.status, headers: { 'Cache-Control': 'no-store' } }
         );
+      }
+      // S12.16 — the AI chat creates through `maude design curl-local`, which names its chat
+      // (ai/create-claim.ts): the new canvas is that chat's live run's write, not an outside one.
+      const mine = runForCreate(req, runs);
+      if (mine) {
+        claimCreatedCanvas(ctx.syncControl?.current?.(), {
+          runId: mine.runId,
+          chatId: mine.chatId,
+          label: mine.label,
+          repoRel: result.file,
+          abs: join(ctx.paths.repoRoot, result.file),
+        });
       }
       return Response.json(
         { ok: true, file: result.file, rel: result.rel, slug: result.slug },
@@ -2902,7 +4082,12 @@ export function createHttp(
       // security review A3). That probe lands in phase-28 over the server-held
       // keychain token (server-side, never client-supplied), not here.
       const checkRemote = new URL(req.url).searchParams.get('remote') === '1';
-      return gitJson(await gitApi.status({ checkRemote }));
+      // S9.12 (V2-1.16 L6) — a canvas-only session's changed files are its visible ones.
+      const status = await gitApi.status({ checkRemote });
+      return gitJson({
+        ...status,
+        json: filterGitStatus(status.json, visOf(req), ctx.paths.designRel),
+      });
     },
 
     '/_api/git/log': async (req: Request) => {
@@ -2911,12 +4096,47 @@ export function createHttp(
       // ONLY (this route is absent from CANVAS_SAFE_API) — the path is
       // containment-validated in the endpoint before it reaches git.
       const u = new URL(req.url).searchParams;
-      return gitJson(await gitApi.log(u.get('limit'), u.get('path')));
+      // S9.10 (V2-1.16 L6, U4) — a canvas-only session's log runs over its own canvases'
+      // files only (`?path=` is already scope-checked); subjects are rewritten from them and
+      // the author's e-mail is dropped. A project role's log is unchanged (U7).
+      const logPaths = canvasOnlyLogPaths(visOf(req), u.get('path'), ctx.paths.designRel);
+      if (logPaths === null) return gitJson(await gitApi.log(u.get('limit'), u.get('path')));
+      const limit = Math.min(Math.max(Math.floor(Number(u.get('limit')) || 30), 1), 200);
+      const runs = await Promise.all(
+        logPaths.map(async ({ repoRel, canvas }) => {
+          const r = await gitApi.log(String(limit), repoRel);
+          const entries = (
+            r.json as { entries?: Parameters<typeof mergeCanvasOnlyLog>[0][0]['entries'] }
+          ).entries;
+          return { canvas, entries: r.status === 200 && Array.isArray(entries) ? entries : [] };
+        })
+      );
+      return gitJson({ status: 200, json: { entries: mergeCanvasOnlyLog(runs, limit) } });
     },
 
     '/_api/git/diff': async (req: Request) => {
       if (req.method !== 'GET') return new Response('Method not allowed', { status: 405 });
-      return gitJson(await gitApi.diff(new URL(req.url).searchParams.get('sha')));
+      // S9.10 (V2-1.16 L6) — a diff is raw source: the export class. A canvas-only list
+      // holds only the files its canvases own.
+      const vis = visOf(req);
+      if (diffRefusal(vis)) return readOnlyRefusalResponse();
+      const sha = new URL(req.url).searchParams.get('sha');
+      // S9.12b (U1) — a named sha whose own change touched nothing it may diff answers like
+      // a missing one (no sha = the dirty set, which every session may ask for).
+      if (
+        !vis.full &&
+        sha !== null &&
+        sha !== 'HEAD' &&
+        !diffShaVisible(await gitCommitFiles(ctx.paths.repoRoot, sha), vis, ctx.paths.designRel)
+      )
+        return gitJson({ status: 200, json: { entries: [] } });
+      const result = await gitApi.diff(sha);
+      if (vis.full || result.status !== 200) return gitJson(result);
+      const entries = (result.json as { entries?: Array<{ file: string }> }).entries ?? [];
+      return gitJson({
+        ...result,
+        json: { entries: filterGitDiff(entries, vis, ctx.paths.designRel) },
+      });
     },
 
     // ── Phase 29 (E4) — drafts (branches). MAIN-ORIGIN ONLY (absent from
@@ -2925,7 +4145,9 @@ export function createHttp(
     // watcher turns into a Yjs flush + reload (DDR-051) — no logic duplicated here.
     '/_api/git/branches': async (req: Request) => {
       if (req.method !== 'GET') return new Response('Method not allowed', { status: 405 });
-      return gitJson(await gitApi.branches());
+      // S9.12 (V2-1.16 L6, U4) — draft names are free text: a canvas-only session lists none.
+      const branches = await gitApi.branches();
+      return gitJson({ ...branches, json: filterGitBranches(branches.json, visOf(req)) });
     },
 
     '/_api/git/branch': async (req: Request) => {
@@ -3057,7 +4279,8 @@ export function createHttp(
       if (!sameOriginRead(req)) return new Response('cross-origin rejected', { status: 403 });
       if (!isTrustedRequestHost(req))
         return new Response('local request required', { status: 403 });
-      return gitJson(cloudApi.status());
+      // S9.20b — carries the account's `plan` (cloud /api/home, cached; null when not answered)
+      return gitJson(await cloudApi.statusWithPlan());
     },
     '/_api/cloud/signin/start': async (req: Request) => {
       if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
@@ -3155,97 +4378,10 @@ export function createHttp(
     // (DDR-054) and must not be able to command the desktop to re-push a whole
     // project — a canvas that could would be an amplification primitive against
     // the person's own hub, and a way to spend their rate-limit budget.
-    // ACCEPTED REVISIONS — the project's logical history (DDR-241, T27/T28).
-    // Main origin only: history names people, restore and undo are writes.
-    '/_api/project/history': async (req: Request) => {
-      if (req.method !== 'GET') return new Response('Method not allowed', { status: 405 });
-      if (!isTrustedRequestHost(req)) return new Response('Forbidden', { status: 403 });
-      const url = new URL(req.url);
-      const runtime = ctx.syncControl?.current?.();
-      const rows = runtime?.acceptedHistory
-        ? await runtime
-            .acceptedHistory({
-              limit: Number(url.searchParams.get('limit') ?? 50) || 50,
-              before: Number(url.searchParams.get('before') ?? 0) || null,
-              path: url.searchParams.get('path'),
-            })
-            .catch(() => undefined)
-        : null;
-      if (rows === undefined) {
-        return gitJson({ status: 200, json: { ok: false, reason: 'unreachable' } });
-      }
-      if (rows === null) return gitJson({ status: 200, json: { ok: false, reason: 'legacy' } });
-      return gitJson({ status: 200, json: { ok: true, history: rows } });
-    },
-    '/_api/project/restore': async (req: Request) => {
-      if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
-      if (!sameOriginWrite(req) || !isTrustedRequestHost(req))
-        return new Response('Forbidden', { status: 403 });
-      const body = await readJson<{ path?: unknown; revision?: unknown }>(req, 4096);
-      const revision = Number(body?.revision);
-      if (typeof body?.path !== 'string' || !Number.isSafeInteger(revision) || revision < 0) {
-        return new Response('body must include { path, revision }', { status: 400 });
-      }
-      const r = await ctx.syncControl?.current?.()?.acceptedRestore?.(body.path, revision);
-      if (!r) return gitJson({ status: 200, json: { ok: false, reason: 'legacy' } });
-      return gitJson({
-        status: r.status === 'accepted' ? 200 : 409,
-        json: { ok: r.status === 'accepted', ...r },
-      });
-    },
-    '/_api/project/undo': async (req: Request) => {
-      if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
-      if (!sameOriginWrite(req) || !isTrustedRequestHost(req))
-        return new Response('Forbidden', { status: 403 });
-      const body = await readJson<{ actionId?: unknown; redo?: unknown }>(req, 4096);
-      if (typeof body?.actionId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(body.actionId)) {
-        return new Response('body must include { actionId }', { status: 400 });
-      }
-      const r = await ctx.syncControl
-        ?.current?.()
-        ?.acceptedUndo?.(body.actionId, body.redo === true);
-      if (!r) return gitJson({ status: 200, json: { ok: false, reason: 'legacy' } });
-      return gitJson({
-        status: r.status === 'accepted' ? 200 : 409,
-        json: { ok: r.status === 'accepted', ...r },
-      });
-    },
-    '/_api/sync/resync': async (req: Request) => {
-      if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
-      // REFUSALS ANSWER IN JSON, WITH A REASON.
-      //
-      // These were plain-text 403s, so the panel — which reads `json.detail` and
-      // falls back to a fixed string — rendered every one of them as "Resync
-      // could not start.", a sentence naming no cause and offering no next step.
-      // A person hitting the gate legitimately (a canvas iframe, a stale tab,
-      // the wrong host) got the same six words as a person hitting a bug, and
-      // neither could tell which they had. The GATES are unchanged: what a
-      // refusal SAYS is not a security property, and saying nothing was never
-      // protecting anything.
-      if (!sameOriginWrite(req)) return syncRefusal('cross-origin', 'Resync must be started');
-      if (!isTrustedRequestHost(req))
-        return syncRefusal('untrusted-host', 'Resync must be started');
-      const control = ctx.syncControl;
-      if (!control) {
-        return gitJson({
-          status: 200,
-          json: { ok: false, reason: 'no-supervisor', detail: 'Restart Maude to start syncing.' },
-        });
-      }
-      // REFUSED, not queued — see `SyncSupervisor.busy`. A second press must
-      // not buy a second full re-link of every canvas.
-      if (control.busy?.()) {
-        return gitJson({
-          status: 409,
-          json: { ok: false, reason: 'busy', detail: 'Syncing is already restarting.' },
-        });
-      }
-      // No argument: KEEP the configured hub. Only an explicit `null` unlinks,
-      // and this route must never be able to.
-      const sync = await control.restart();
-      return gitJson({ status: 200, json: { ok: true, sync } });
-    },
-
+    // ACCEPTED REVISIONS — `/_api/project/history` + `/_api/project/restore` are table routes
+    // since S1.12b (routes/history.ts), judged per session with Version history's new routes.
+    // `/_api/project/undo` + `/_api/project/undo-stack` are table routes since
+    // S5.5 (routes/project-undo.ts): one id, several, or a whole chat.
     // feature-before-first-external-users Task 2 — the three user-facing sync
     // toggles (syncFiles / propagateDeletes / resolveFirstAnchor), so the
     // breaker remediation stops meaning "edit JSON by hand" (DDR-177: the
@@ -3422,7 +4558,8 @@ export function createHttp(
       if (!isTrustedRequestHost(req))
         return new Response('local request required (DNS-rebinding guard)', { status: 403 });
       if (req.method === 'GET') {
-        const entries = listTrash(ctx.paths.designRoot);
+        // S9.12b — a canvas-only session lists only the copies of canvases it sees.
+        const entries = filterTrashListing(listTrash(ctx.paths.designRoot), visOf(req));
         const bytes = entries.reduce((n, e) => n + e.size, 0);
         return Response.json(
           // Cap the wire size; totals stay exact so the panel never lies.
@@ -3748,10 +4885,19 @@ export function createHttp(
         expected?: unknown;
       }>(req, 8 * 1024);
       if (!body) return new Response('body required', { status: 400 });
+      // S5.4 / S2.18 — a live AI run's element is AI's until it's done: 409 held-by-ai.
+      const held = heldByAiRefusal(runs, ctx.paths.designRel, body.canvas, body.id);
+      if (held) return held;
       const result = await api.editCss(body);
       if (!result.ok) {
         return Response.json(
-          { ok: false, error: result.error, ...(result.conflict ? { conflict: true } : {}) },
+          {
+            ok: false,
+            error: result.error,
+            ...(result.conflict ? { conflict: true } : {}),
+            // p8-lock-reasons — a locked target answers the edit-op's 409 shape (code + message)
+            ...(result.code ? { code: result.code, message: result.error } : {}),
+          },
           { status: result.status, headers: { 'Cache-Control': 'no-store' } }
         );
       }
@@ -3784,10 +4930,18 @@ export function createHttp(
         before?: unknown;
       }>(req, 16 * 1024);
       if (!body) return new Response('body required', { status: 400 });
+      // S5.4 / S2.18 — a live AI run's element is AI's until it's done: 409 held-by-ai.
+      const held = heldByAiRefusal(runs, ctx.paths.designRel, body.canvas, body.id);
+      if (held) return held;
       const result = await api.editText(body);
       if (!result.ok) {
         return Response.json(
-          { ok: false, error: result.error },
+          {
+            ok: false,
+            error: result.error,
+            // p8-lock-reasons — a locked target answers the edit-op's 409 shape (code + message)
+            ...(result.code ? { code: result.code, message: result.error } : {}),
+          },
           { status: result.status, headers: { 'Cache-Control': 'no-store' } }
         );
       }
@@ -3818,10 +4972,19 @@ export function createHttp(
         expected?: unknown;
       }>(req, 8 * 1024);
       if (!body) return new Response('body required', { status: 400 });
+      // S5.4 / S2.18 — a live AI run's element is AI's until it's done: 409 held-by-ai.
+      const held = heldByAiRefusal(runs, ctx.paths.designRel, body.canvas, body.id);
+      if (held) return held;
       const result = await api.editAttr(body);
       if (!result.ok) {
         return Response.json(
-          { ok: false, error: result.error, ...(result.conflict ? { conflict: true } : {}) },
+          {
+            ok: false,
+            error: result.error,
+            ...(result.conflict ? { conflict: true } : {}),
+            // p8-lock-reasons — a locked target answers the edit-op's 409 shape (code + message)
+            ...(result.code ? { code: result.code, message: result.error } : {}),
+          },
           { status: result.status, headers: { 'Cache-Control': 'no-store' } }
         );
       }
@@ -3863,7 +5026,12 @@ export function createHttp(
       const result = await api.reorder(body);
       if (!result.ok) {
         return Response.json(
-          { ok: false, error: result.error },
+          {
+            ok: false,
+            error: result.error,
+            // p8-lock-reasons — a locked target answers the edit-op's 409 shape (code + message)
+            ...(result.code ? { code: result.code, message: result.error } : {}),
+          },
           { status: result.status, headers: { 'Cache-Control': 'no-store' } }
         );
       }
@@ -3914,52 +5082,7 @@ export function createHttp(
       );
     },
 
-    '/_api/clip-edit': async (req: Request) => {
-      // feature-enhanced-video-editing (Phase 2) — parametric clip verbs, one
-      // dispatch route: POST { canvas, artboardId?, stableId, contentHash?,
-      // verb: speed|trim-in|audio|detach-audio|framing|grade|transition, …verb
-      // params }. Same MAIN-ORIGIN-ONLY trust boundary as the other source
-      // writes (absent from CANVAS_SAFE_API + startCanvasServer routes,
-      // DDR-054) — this is also the agent door for /design:edit's timeline
-      // vocabulary.
-      if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
-      if (!sameOriginWrite(req))
-        return new Response('cross-origin write rejected', { status: 403 });
-      if (!isTrustedRequestHost(req))
-        return new Response('local request required (DNS-rebinding guard)', { status: 403 });
-      const body = await readJson<{
-        canvas?: unknown;
-        artboardId?: unknown;
-        stableId?: unknown;
-        contentHash?: unknown;
-        verb?: unknown;
-        rate?: unknown;
-        deltaFrames?: unknown;
-        muted?: unknown;
-        volume?: unknown;
-        framing?: unknown;
-        grade?: unknown;
-        presentation?: unknown;
-        durationInFrames?: unknown;
-        atFrame?: unknown;
-        src?: unknown;
-        mediaKind?: unknown;
-        text?: unknown;
-        toIndex?: unknown;
-      }>(req, 16 * 1024);
-      if (!body) return new Response('body required', { status: 400 });
-      const result = await api.clipEditOp(body);
-      if (!result.ok) {
-        return Response.json(
-          { ok: false, error: result.error },
-          { status: result.status, headers: { 'Cache-Control': 'no-store' } }
-        );
-      }
-      return Response.json(
-        { ok: true, seq: result.seq, ...result.extra },
-        { status: 200, headers: { 'Cache-Control': 'no-store' } }
-      );
-    },
+    // '/_api/clip-edit' moved to routes/edit.ts (S7.6): an alias of the edit-op dispatcher.
 
     '/_api/remove-sequence': async (req: Request) => {
       // DDR-150 P3 — remove a clip. POST { canvas, stableId, artboardId?,
@@ -4202,7 +5325,12 @@ export function createHttp(
       const result = await api.deleteElementOp(body);
       if (!result.ok) {
         return Response.json(
-          { ok: false, error: result.error },
+          {
+            ok: false,
+            error: result.error,
+            // p8-lock-reasons — a locked target answers the edit-op's 409 shape (code + message)
+            ...(result.code ? { code: result.code, message: result.error } : {}),
+          },
           { status: result.status, headers: { 'Cache-Control': 'no-store' } }
         );
       }
@@ -4239,7 +5367,12 @@ export function createHttp(
       const result = await api.insertElementOp(body);
       if (!result.ok) {
         return Response.json(
-          { ok: false, error: result.error },
+          {
+            ok: false,
+            error: result.error,
+            // p8-lock-reasons — a locked target answers the edit-op's 409 shape (code + message)
+            ...(result.code ? { code: result.code, message: result.error } : {}),
+          },
           { status: result.status, headers: { 'Cache-Control': 'no-store' } }
         );
       }
@@ -4275,7 +5408,12 @@ export function createHttp(
       const result = await api.convertChildrenToAbsoluteOp(body);
       if (!result.ok) {
         return Response.json(
-          { ok: false, error: result.error },
+          {
+            ok: false,
+            error: result.error,
+            // p8-lock-reasons — a locked target answers the edit-op's 409 shape (code + message)
+            ...(result.code ? { code: result.code, message: result.error } : {}),
+          },
           { status: result.status, headers: { 'Cache-Control': 'no-store' } }
         );
       }
@@ -4303,7 +5441,12 @@ export function createHttp(
       const result = await api.detachComponentOp(body);
       if (!result.ok) {
         return Response.json(
-          { ok: false, error: result.error },
+          {
+            ok: false,
+            error: result.error,
+            // p8-lock-reasons — a locked target answers the edit-op's 409 shape (code + message)
+            ...(result.code ? { code: result.code, message: result.error } : {}),
+          },
           { status: result.status, headers: { 'Cache-Control': 'no-store' } }
         );
       }
@@ -4416,7 +5559,8 @@ export function createHttp(
         return new Response('local request required (DNS-rebinding guard)', { status: 403 });
       const r = await api.listAssets();
       return Response.json(
-        { ok: true, assets: r.assets },
+        // S9.12 (V2-1.16 L8) — a canvas-only session lists the assets its closure reads.
+        { ok: true, assets: filterAssetListing(r.assets, visOf(req)) },
         { headers: { 'Cache-Control': 'no-store' } }
       );
     },
@@ -4847,74 +5991,8 @@ export function createHttp(
       );
     },
 
-    // DDR-167 (Phase 3 / T10) — hardened LOCAL-file SVG ingestion for the
-    // in-app Brand-upload panel (T12). Privileged + main-origin-only (Decision
-    // 4): absent from CANVAS_SAFE_API + startCanvasServer's routes map — the
-    // untrusted canvas iframe must never reach it. Raw-bytes body only, never
-    // multipart (this dev server has no multipart parsing anywhere). The
-    // `X-Import-Kind` header is a dispatch HINT ONLY — never trusted for the
-    // security-relevant decision; the sanitize pipeline's own pre-parse
-    // structural sniff decides. PDF import is wired but not yet available —
-    // see the DDR's addendum on why the planned rasterization mechanism
-    // (headless-Chromium navigating a file:// PDF) doesn't render content
-    // under browser automation; a `kind: pdf` request 501s naming that.
-    '/_api/import-asset': async (req: Request) => {
-      if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
-      if (!sameOriginWrite(req))
-        return new Response('cross-origin write rejected', { status: 403 });
-      if (!isTrustedRequestHost(req))
-        return new Response('local request required (DNS-rebinding guard)', { status: 403 });
-      const kind = (req.headers.get('x-import-kind') || 'svg').toLowerCase();
-      if (kind !== 'svg') {
-        return Response.json(
-          {
-            ok: false,
-            error: 'PDF import is not yet available (DDR-167 addendum) — only SVG import is wired.',
-          },
-          { status: 501, headers: { 'Cache-Control': 'no-store' } }
-        );
-      }
-      const declared = Number(req.headers.get('content-length') || '0');
-      if (Number.isFinite(declared) && declared > SVG_MAX_BYTES) {
-        return Response.json(
-          { ok: false, error: `SVG exceeds the ${SVG_MAX_BYTES / (1024 * 1024)} MB cap` },
-          { status: 413, headers: { 'Cache-Control': 'no-store' } }
-        );
-      }
-      if (!req.body) return new Response('empty body', { status: 400 });
-      let svgText: string;
-      try {
-        svgText = await new Response(req.body).text();
-      } catch {
-        return new Response('could not read body', { status: 400 });
-      }
-      try {
-        const result = await importSvg(svgText, {
-          root: ctx.paths.repoRoot,
-          designRootRel: ctx.paths.designRel,
-        });
-        return Response.json(
-          { ok: true, path: result.path },
-          { status: 201, headers: { 'Cache-Control': 'no-store' } }
-        );
-      } catch (err) {
-        const status =
-          err instanceof ImportAssetError
-            ? err.code === 3
-              ? 400
-              : err.code === 5
-                ? 415
-                : err.code === 6
-                  ? 500
-                  : 400
-            : 500;
-        const message = err instanceof Error ? err.message : String(err);
-        return Response.json(
-          { ok: false, error: message },
-          { status, headers: { 'Cache-Control': 'no-store' } }
-        );
-      }
-    },
+    // DDR-167 (Phase 3 / T10) — hardened local-file ingestion, privileged + main-origin-only (Decision 4).
+    // S8.22: `/_api/import-asset` moved to the route table (routes/assets.ts) with its v2 body.
 
     // DDR-173 (Phase 3 / T12) — brand-file typed-cue extraction for the
     // in-app Brand-upload panel. Privileged + main-origin-only, same posture
@@ -4931,54 +6009,22 @@ export function createHttp(
         return new Response('cross-origin write rejected', { status: 403 });
       if (!isTrustedRequestHost(req))
         return new Response('local request required (DNS-rebinding guard)', { status: 403 });
-      let body: { assetPath?: unknown };
+      // S8.18 — `{ assetPath }` (v1: a logo), `{ url }` (a website, read through the fetch-asset
+      // gate — typed values only), or both. The body rules live in bin/_brand-site.mjs.
+      let body: { assetPath?: unknown; url?: unknown };
       try {
-        body = (await req.json()) as { assetPath?: unknown };
+        body = (await req.json()) as { assetPath?: unknown; url?: unknown };
       } catch {
         return new Response('invalid JSON body', { status: 400 });
       }
-      const assetPath = body.assetPath;
-      if (typeof assetPath !== 'string' || !/^assets\/[a-z0-9]{8}\.svg$/.test(assetPath)) {
-        return Response.json(
-          { ok: false, error: 'assetPath must be a server-generated assets/<sha8>.svg path' },
-          { status: 400, headers: { 'Cache-Control': 'no-store' } }
-        );
-      }
-      const designAbs = resolve(ctx.paths.repoRoot, ctx.paths.designRel);
-      const resolvedAsset = resolve(designAbs, assetPath);
-      if (!resolvedAsset.startsWith(resolve(designAbs, 'assets') + sep)) {
-        return Response.json(
-          { ok: false, error: 'assetPath escapes the assets directory' },
-          { status: 400, headers: { 'Cache-Control': 'no-store' } }
-        );
-      }
-      try {
-        const result = await importBrand({
-          sanitizedSvgPath: resolvedAsset,
-          root: ctx.paths.repoRoot,
-          designRootRel: ctx.paths.designRel,
-        });
-        return Response.json(
-          { ok: true, ...result },
-          { status: 201, headers: { 'Cache-Control': 'no-store' } }
-        );
-      } catch (err) {
-        const status =
-          err instanceof ImportBrandError
-            ? err.code === 3
-              ? 400
-              : err.code === 4
-                ? 404
-                : err.code === 6
-                  ? 500
-                  : 400
-            : 500;
-        const message = err instanceof Error ? err.message : String(err);
-        return Response.json(
-          { ok: false, error: message },
-          { status, headers: { 'Cache-Control': 'no-store' } }
-        );
-      }
+      const answer = await importBrandRequest(body, {
+        repoRoot: ctx.paths.repoRoot,
+        designRel: ctx.paths.designRel,
+      });
+      return Response.json(answer.body, {
+        status: answer.status,
+        headers: { 'Cache-Control': 'no-store' },
+      });
     },
 
     '/_api/export-history': async (req: Request) => {
@@ -5048,22 +6094,34 @@ export function createHttp(
         options?: Record<string, unknown>;
       }>(req, 64 * 1024);
       if (!body) return new Response('body required', { status: 400 });
-      if (!isFormat(body.format)) return new Response('unknown or missing format', { status: 400 });
-      if (!isScope(body.scope)) return new Response('unknown or missing scope', { status: 400 });
+      // S8.1 — `{v:2, spec}` beside the v1 body: one spec = one group job (routes/export.ts).
+      const v2 = isV2Body(body) ? planExportV2(body.spec, exportV2Deps, req) : null;
+      if (v2 && !v2.ok) return v2.response;
+      if (!v2 && !isFormat(body.format))
+        return new Response('unknown or missing format', { status: 400 });
+      if (!v2 && !isScope(body.scope))
+        return new Response('unknown or missing scope', { status: 400 });
       // DDR-231 Phase 2 T4 — the PAIR, not just each half. `pdf` + `project-raw`
       // is two individually-valid values that resolve to a `file-tree` target,
       // which the render service refuses as `invalid render job` — a refusal
       // that named neither the field nor the remedy. Reproduced locally against
       // a real maude-render; see test/export-format-scope-coherence.test.ts.
-      if (!isScopeValidForFormat(body.format, body.scope)) {
-        return new Response(scopeRefusalMessage(body.format, body.scope), { status: 400 });
+      if (!v2 && !isScopeValidForFormat(body.format as Format, body.scope as Scope)) {
+        return new Response(scopeRefusalMessage(body.format as Format, body.scope as Scope), {
+          status: 400,
+        });
       }
-      const format = body.format;
-      const scope = body.scope;
+      const format = (v2?.ok ? v2.first.format : body.format) as Format;
+      const scope = (v2?.ok ? v2.first.scope : body.scope) as Scope;
       try {
-        const { result } = exportJobs.enqueue(
-          buildExportArgs(req, { format, scope, options: body.options })
-        );
+        const { result } = exportJobs.enqueue({
+          ...buildExportArgs(req, {
+            format,
+            scope,
+            options: v2?.ok ? v2.first.options : body.options,
+          }),
+          ...(v2?.ok ? { group: v2.group } : {}),
+        });
         const finished = await result;
         // Bun.serve accepts Uint8Array directly; the cast satisfies the
         // SharedArrayBuffer-strict BodyInit narrowing on @types/bun.
@@ -5071,7 +6129,8 @@ export function createHttp(
           status: 200,
           headers: {
             'Content-Type': finished.contentType,
-            'Content-Disposition': `attachment; filename="${finished.filename}"`,
+            // S8.1 — an ASCII name is the v1 header byte for byte; a v2 name adds `filename*`
+            'Content-Disposition': contentDisposition(finished.filename),
             'Cache-Control': 'no-store',
           },
         });
@@ -5095,8 +6154,21 @@ export function createHttp(
       if (!isTrustedRequestHost(req))
         return new Response('local request required (DNS-rebinding guard)', { status: 403 });
       if (req.method === 'GET') {
+        // S8.5b-1 (§7, T11) — the hub mints a fresh viewer render token on every status read;
+        // a job that has not finished renders with it (owner-scoped, like every read here).
+        const fresh = req.headers.get('x-maude-render-token');
+        const one = new URL(req.url).searchParams.get('id');
+        if (one !== null) {
+          // S8.5b-1 — one job by id (the render door's status read); another member's is missing
+          const job = exportJobs.get(one);
+          if (!job) return new Response('Not found', { status: 404 });
+          if (fresh) exportJobs.refreshRenderToken(one, fresh);
+          return Response.json({ jobs: [job] }, { headers: { 'Cache-Control': 'no-store' } });
+        }
+        if (fresh) for (const j of exportJobs.list()) exportJobs.refreshRenderToken(j.id, fresh);
         return Response.json(
-          { jobs: exportJobs.list() },
+          // S8.5 — this Mac's cloud rows (queued in the outbox, rendering, done) beside its own jobs
+          { jobs: [...cloudExports.rows(), ...exportJobs.list()] },
           { headers: { 'Cache-Control': 'no-store' } }
         );
       }
@@ -5109,6 +6181,50 @@ export function createHttp(
         options?: Record<string, unknown>;
       }>(req, 64 * 1024);
       if (!body) return new Response('body required', { status: 400 });
+      // S8.1 — `{v:2, spec}` beside the v1 body (same plan as /_api/export above).
+      const v2 = isV2Body(body) ? planExportV2(body.spec, exportV2Deps, req) : null;
+      if (v2 && !v2.ok) return v2.response;
+      if (v2?.ok) {
+        // S8.5 — a video sent to the cloud from this Mac waits in the outbox (id = job id)
+        const cloud = cloudExportResponse(v2.group, {
+          cloud: cloudExports,
+          renderLane: resolveRenderLane(),
+          label: cloudLabel(v2.group.spec, ctx.cfg.name || ctx.projectLabel || ''),
+          actor: 'you',
+          device: 'studio',
+          project: { id: null, hub: ctx.cfg.linkedHub?.url ?? null },
+        });
+        if (cloud) return cloud;
+        // S8.5b-1 — the cloud render door names its job (the desktop's outbox record id). The hub
+        // proxy strips every inbound x-maude-*, so only the door sets it, and only a cell (a render
+        // lane that is not this Mac's) honours it.
+        const doorJob =
+          resolveRenderLane() !== 'local' ? req.headers.get('x-maude-door-job') : null;
+        try {
+          const { id, result, already } = exportJobs.enqueue({
+            ...buildExportArgs(req, {
+              format: v2.first.format as Format,
+              scope: v2.first.scope,
+              options: v2.first.options,
+            }),
+            group: v2.group,
+            ...(doorJob !== null ? { clientId: doorJob } : {}),
+          });
+          result.catch(() => {});
+          return Response.json(already ? { jobId: id, already: true } : { jobId: id }, {
+            status: already ? 200 : 202,
+            headers: { 'Cache-Control': 'no-store' },
+          });
+        } catch (err) {
+          if (err instanceof ExportQueueFullError)
+            return new Response(err.message, { status: 429 });
+          if (err instanceof ExportJobIdError)
+            return err.reason === 'taken'
+              ? Response.json({ code: 'id-taken' }, { status: 409 })
+              : Response.json({ code: 'bad-job-id' }, { status: 400 });
+          throw err;
+        }
+      }
       if (!isFormat(body.format)) return new Response('unknown or missing format', { status: 400 });
       if (!isScope(body.scope)) return new Response('unknown or missing scope', { status: 400 });
       // DDR-231 Phase 2 T4 — the PAIR, not just each half. `pdf` + `project-raw`
@@ -5152,6 +6268,17 @@ export function createHttp(
         return new Response('local request required (DNS-rebinding guard)', { status: 403 });
       const id = new URL(req.url).searchParams.get('id');
       if (!id) return new Response('id query param required', { status: 400 });
+      // S8.5 — a cloud job's file came down to this Mac (`_state/export-cloud/<id>/`)
+      const cloudDl = cloudExports.bytes(id);
+      if (cloudDl.ok)
+        return new Response(cloudDl.body as unknown as BodyInit, {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/octet-stream',
+            'Content-Disposition': contentDisposition(cloudDl.filename),
+            'Cache-Control': 'no-store',
+          },
+        });
       const dl = await exportJobs.getBytes(id);
       if (!dl.ok) {
         return new Response(dl.reason === 'not-done' ? 'job not finished' : 'Not found', {
@@ -5162,7 +6289,7 @@ export function createHttp(
         status: 200,
         headers: {
           'Content-Type': dl.contentType,
-          'Content-Disposition': `attachment; filename="${dl.filename}"`,
+          'Content-Disposition': contentDisposition(dl.filename),
           'Cache-Control': 'no-store',
         },
       });
@@ -5530,36 +6657,23 @@ export function createHttp(
       if (!body || typeof body !== 'object')
         return new Response('body must be a JSON object', { status: 400 });
       // Build a clean patch — only well-typed known keys pass through, so a bad
-      // field is rejected rather than silently resetting a stored value.
-      const patch: Partial<UiPrefs> = {};
-      if ('theme' in body) {
-        if (body.theme !== 'light' && body.theme !== 'dark')
-          return new Response('theme must be light|dark', { status: 400 });
-        patch.theme = body.theme;
-      }
-      for (const k of ['minimap', 'zoom', 'annotations', 'autoOpenInspector'] as const) {
-        if (k in body) {
-          if (typeof body[k] !== 'boolean')
-            return new Response(`${k} must be a boolean`, { status: 400 });
-          patch[k] = body[k] as boolean;
-        }
-      }
-      if ('layersMode' in body) {
-        if (body.layersMode !== 'separate' && body.layersMode !== 'in-inspector')
-          return new Response('layersMode must be separate|in-inspector', { status: 400 });
-        patch.layersMode = body.layersMode;
-      }
-      if ('panelSides' in body) {
-        const ps = body.panelSides;
-        if (!ps || typeof ps !== 'object' || Array.isArray(ps))
-          return new Response('panelSides must be an object', { status: 400 });
-        for (const v of Object.values(ps as Record<string, unknown>)) {
-          if (v !== 'left' && v !== 'right')
-            return new Response('panelSides values must be left|right', { status: 400 });
-        }
-        // writeUiPrefs → coerce keeps only known ids, so unknown keys are dropped.
-        patch.panelSides = ps as UiPrefs['panelSides'];
-      }
+      // field is rejected rather than silently resetting a stored value
+      // (validateUiPrefsPatch in ui-prefs.ts owns the whitelist, V2-2.7).
+      const checked = validateUiPrefsPatch(body);
+      if (!checked.ok) return new Response(checked.error, { status: 400 });
+      const patch = checked.patch;
+      // A6c (S11.13 security) — `ownPluginCopy` / `experimentalTeams` change how THIS Mac's AI
+      // chat starts (plugin-bootstrap, the adapter's env), so they are the AI chat's, not a view
+      // preference: only a session that edits the project may flip them (D2, like `acpRefusal`),
+      // and never in a cloud cell (no one's Mac). The whole patch is refused, nothing half-saved.
+      if (
+        ('ownPluginCopy' in patch || 'experimentalTeams' in patch) &&
+        (isWorkspaceMode() || !accessOf(req).can('edit', null))
+      )
+        return Response.json(ACP_REFUSAL, {
+          status: 403,
+          headers: { 'Cache-Control': 'no-store' },
+        });
       try {
         return Response.json(writeUiPrefs(patch), { headers: { 'Cache-Control': 'no-store' } });
       } catch (err) {
@@ -5938,12 +7052,28 @@ export function createHttp(
     '/index.html': (req: Request) => serveStudioPage(req),
   } satisfies Record<string, (req: Request) => Response | Promise<Response>>;
 
+  // V2-2.5 — one map: the table's exact paths, then the legacy keys (the order the spread had).
+  // A table path that is also a legacy key would be dropped by this spread without a word, so the
+  // table is checked here, at construction, and the server refuses to boot on a problem — the
+  // same fail-loud posture as the containment boot-assert (test/routes-table.test.ts).
+  const routeProblems = checkRouteTable({
+    specs: tableSpecs,
+    legacyKeys: Object.keys(legacyRoutes),
+    readOnlyAllowedWrites: READ_ONLY_ALLOWED_WRITES,
+    readOnlyAllowedPatterns: READ_ONLY_ALLOWED_WRITE_PATTERNS,
+  });
+  if (routeProblems.length > 0)
+    throw new Error(`[studio] the route table is unsound:\n  ${routeProblems.join('\n  ')}`);
+  const routes = { ...laneRoutes.exact, ...legacyRoutes };
+
   // Named `handleFallthrough`, not `fetch` — a same-named local function shadows
   // the global `fetch` for every call site in this module's scope, which is how
   // the `/_api/report` route ended up calling itself instead of the network (see
   // the `globalThis.fetch` comment on that route; RCA issue-report-a-bug-http-500).
   async function handleFallthrough(req: Request): Promise<Response> {
     try {
+      const laneResponse = laneRoutes.dynamic(req);
+      if (laneResponse) return await laneResponse;
       const url = new URL(req.url);
       const pathname = url.pathname;
 
@@ -5951,6 +7081,19 @@ export function createHttp(
       // the fall-through instead of the static `routes` map. `<id>` is the
       // c_<hex> id of the parent comment; body is `{ body, author? }`. Bodies
       // share the same 4000-char cap as a top-level comment.
+      // V2-2.17 — GET /_api/thumb/<key> (contract V2-1.17 §5.3, R4–R6). Main origin only: absent
+      // from CANVAS_SAFE_API and the canvas routes map, so the canvas and capture origins 403 it
+      // at their door. Unreferenced and missing keys are the same 404.
+      const thumbMatch = /^\/_api\/thumb\/([^/]*)$/.exec(pathname);
+      if (thumbMatch) {
+        if (req.method !== 'GET' && req.method !== 'HEAD')
+          return new Response('Method not allowed', { status: 405 });
+        if (!sameOriginRead(req)) return new Response('cross-origin rejected', { status: 403 });
+        if (!isTrustedRequestHost(req))
+          return new Response('local request required (DNS-rebinding guard)', { status: 403 });
+        return thumbMatch[1] ? thumbResponse(thumbs, thumbMatch[1]) : thumbNotFound();
+      }
+
       const replyMatch = pathname.match(/^\/_api\/comments\/([A-Za-z0-9_]+)\/reply$/);
       if (replyMatch) {
         if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
@@ -5972,13 +7115,8 @@ export function createHttp(
 
       // Bundled client assets (preferred path — bundle from dist/).
       if (pathname.startsWith('/_client/')) {
-        const rel = decodeURIComponent(pathname.slice('/_client/'.length));
-        if (rel.includes('..')) return new Response('Forbidden', { status: 403 });
         // Try dist/ first (built bundle + styles), fall back to client/ (raw source files).
-        const distHit = join(DIST_DIR, rel);
-        if (await Bun.file(distHit).exists()) return serveFile(distHit);
-        const srcHit = join(CLIENT_DIR, rel);
-        return serveFile(srcHit);
+        return serveClientAsset(decodeURIComponent(pathname.slice('/_client/'.length)));
       }
 
       // React 19 runtime bundles for TSX canvases. The browser pulls these
@@ -6020,10 +7158,16 @@ export function createHttp(
         // V2-2.8 S9 (V2-1.16 L21) — only the MAIN listener reaches this branch
         // (the canvas and capture listeners answer the shell themselves, in
         // server.ts). While the split is on, every request here goes to the
-        // read-only capture origin, bar Maude's own local harnesses (see
-        // captureRedirect) — so what follows serves only those, and every
-        // shell when the split is OFF.
-        const toCapture = captureRedirect(req, url);
+        // read-only capture origin, Maude's own local harnesses included (see
+        // captureRedirect) — so what follows serves a shell only when the
+        // split is OFF.
+        // gate-b-c4 — the photo-bg-remove harness (exactly `?canvas=_photo/<slug>.bgremove.tsx
+        // &nonce=<the helper's one-time nonce>`, gate-b-c4c) renders on the INTERACTIVE canvas
+        // origin (it needs that origin's asset + photo-edit writes); the main origin sends it
+        // there with the frame's capability, which a local helper cannot mint itself.
+        const toHarness = bgRemoveRedirect(url, req);
+        if (toHarness) return toHarness;
+        const toCapture = captureRedirect(url, req);
         if (toCapture) return toCapture;
         // The segregated canvas origin (server.ts) calls serveCanvasShell(true)
         // directly with CSP always on; on the legacy main origin the CSP stays
@@ -6031,7 +7175,7 @@ export function createHttp(
         // render (?hide-chrome=1) that still lands here ALWAYS gets the
         // network-locked capture CSP so it can't SSRF/exfil (attacker F1).
         const capture = url.searchParams.get('hide-chrome') === '1';
-        return serveCanvasShell(process.env.MAUDE_CSP_POC === '1', capture);
+        return serveCanvasShell(process.env.MAUDE_CSP_POC === '1', capture, url.searchParams, req);
       }
 
       // DDR-150 dogfood — canvas-relative assets alias. A comp's
@@ -6041,6 +7185,8 @@ export function createHttp(
       // the canvas origin). Without this, every src the timeline insert /
       // replace / assemble writers emit 404'd in the Player.
       if (pathname.startsWith('/assets/')) {
+        // DNS rebinding (Phase 2 gate) — the same Host check as the repo-file lane below.
+        if (!isTrustedRequestHost(req)) return new Response('Forbidden', { status: 403 });
         let name = '';
         try {
           name = decodeURIComponent(pathname.slice('/assets/'.length));
@@ -6163,6 +7309,9 @@ export function createHttp(
       if (!isTrustedRequestHost(req)) return new Response('Forbidden', { status: 403 });
       const fp = safePathUnderRoot(req.url, ctx.paths.repoRoot);
       if (!fp) return new Response('Forbidden', { status: 403 });
+      // V2-8.9 re-check 2 H-a — no dot path outside the design root (static-lane.ts).
+      if (isRefusedDotPath(fp, ctx.paths.repoRoot, ctx.paths.designRoot))
+        return new Response('Not found', { status: 404 });
 
       const file = Bun.file(fp);
       const exists = await file.exists();
@@ -6180,7 +7329,14 @@ export function createHttp(
       const underDesignRoot = isUnderOrEqual(fp, ctx.paths.designRoot);
       // .tsx under designRoot is a canvas — transpile + emit locator, return JS.
       if (e === '.tsx' && underDesignRoot) {
-        return serveCanvasTsx(fp, req, ctx, join(ctx.paths.designRoot, '_locator.json'));
+        return serveCanvasTsx(
+          fp,
+          req,
+          ctx,
+          join(ctx.paths.designRoot, '_locator.json'),
+          undefined,
+          canvasInputsGate(req)
+        );
       }
       // Video/audio get Range support (scrubbing + WKWebView compat) — the
       // `/.design/assets/…` form comps reference goes through here.
@@ -6218,8 +7374,9 @@ export function createHttp(
           // whether you sniff it or not. See INERT_DOCUMENT_CSP: an SVG
           // NAVIGATED TO is a page with `<script>` in it, executing on this
           // origin, and "the canvas CSP blocks script" above is true only of
-          // the shell — not of the asset served on its own.
-          ...(e === '.svg' ? { 'Content-Security-Policy': INERT_DOCUMENT_CSP } : {}),
+          // the shell — not of the asset served on its own. A repo `.html` is
+          // the same case on the privileged origin (REPO_HTML_CSP).
+          ...documentCsp(e),
         },
       });
     } catch (err) {
@@ -6265,45 +7422,156 @@ export function createHttp(
    * URL will load and redirecting "only the dangerous ones" fails open on any
    * input the prediction misreads (V2-2.8 security review).
    *
-   * The ONE exception (a named residual): Maude's own local harnesses, matched
-   * exactly — `maude design draw-proof` (`_draw/<slug>.proof.tsx`) and
-   * `photo-bg-remove` (`_photo/<slug>.bgremove.tsx`), with no parameter beyond
-   * `canvas` and the server's own `designRel`. They live under DDR-115
-   * runtime dirs the canvas-safe table refuses, and are generated on this
-   * machine (never synced), so they keep rendering here exactly as before —
-   * but only when the helper itself navigated there: Fetch Metadata `none`
-   * (a browser-initiated `goto`/`open`) or absent (a non-browser client). A
-   * page — another site, or a canvas on the canvas origin (same-site) —
-   * steering a browser to a leftover harness URL is redirected like the rest.
-   * Nothing is redirected when the split is off or in a cell (no capture
-   * listener; a cell's proxy never routes the main-origin shell).
+   * NO exceptions — Maude's own local harnesses included (V2-2.4b gate). They
+   * used to stay here on direct navigation as "generated on this machine", but
+   * the AI agent is on this machine too: it can write `_draw/x.proof.tsx`
+   * itself and open it with an auto-approved verb, and even a helper-generated
+   * proof mounts model-authored SVG. `maude design draw-proof` therefore
+   * renders on the capture origin like every other capture, and
+   * `photo-bg-remove` opens its harness on the canvas origin directly (it
+   * needs that origin's canvas-safe asset + photo-edit writes). Both reach
+   * their module through the exact `LOCAL_HARNESS` shape `isCanvasSafeRoute`
+   * admits under the runtime dirs. Nothing is redirected when the split is off
+   * or in a cell (no capture listener; a cell's proxy never routes the
+   * main-origin shell).
    */
   const LOCAL_HARNESS =
     /^_(?:draw\/[a-z0-9_][a-z0-9._-]*\.proof|photo\/[a-z0-9_][a-z0-9._-]*\.bgremove)\.tsx$/;
-  function isLocalHarness(req: Request, url: URL): boolean {
-    const site = req.headers.get('sec-fetch-site');
-    if (site !== null && site !== 'none') return false;
-    const params = [...url.searchParams.keys()];
-    if (params.some((k) => k !== 'canvas' && k !== 'designRel')) return false;
-    const canvases = url.searchParams.getAll('canvas');
-    if (canvases.length !== 1 || !LOCAL_HARNESS.test(canvases[0] ?? '')) return false;
-    const own = ctx.paths.designRel.replace(/^\/+|\/+$/g, '');
-    const asked = url.searchParams.getAll('designRel');
-    return asked.length === 0 || (asked.length === 1 && asked[0] === own);
-  }
-  function captureRedirect(req: Request, url: URL): Response | null {
-    if (!ctx.captureOrigin) return null;
-    if (isLocalHarness(req, url)) return null;
+  const BG_REMOVE_HARNESS = /^_photo\/[a-z0-9_][a-z0-9._-]*\.bgremove\.tsx$/;
+  const HARNESS_NONCE = /^[0-9a-f]{32}$/;
+  const HARNESS_NONCE_LINE = /^\/\/ maude-harness-nonce: ([0-9a-f]{32})$/m;
+  function bgRemoveRedirect(url: URL, req: Request): Response | null {
+    if (!ctx.canvasOrigin || isWorkspaceMode()) return null;
+    // gate-b-c4c — exactly {canvas, nonce}: the helper's one-time nonce, which it also wrote into
+    // the harness it generated. The harness name is the photo's hash (guessable), so without the
+    // nonce any canvas could frame this URL, land on its OWN origin with the capability in the
+    // URL and read it from `iframe.contentWindow.location`. Canvas code cannot read the nonce:
+    // the harness module is served only inside the harness's own frame.
+    const keys = [...url.searchParams.keys()].sort();
+    if (keys.length !== 2 || keys[0] !== 'canvas' || keys[1] !== 'nonce') return null;
+    const rel = url.searchParams.get('canvas') ?? '';
+    const nonce = url.searchParams.get('nonce') ?? '';
+    if (!BG_REMOVE_HARNESS.test(rel) || !HARNESS_NONCE.test(nonce)) return null;
+    // Belt over the nonce: only a navigation the user agent started itself (agent-browser's
+    // `open` — `none`; no header from a non-browser client). A canvas's iframe is `same-site`.
+    if (!startedByUserAgent(req)) return null;
+    // gate-b-c4b (lead: Option A) — the frame spans the harness AND every canvas that uses the
+    // photo it processes (`source=` in the generated harness): it must read that photo and write
+    // its every-use edit, which only a frame that may edit every user of the photo may. The
+    // harness is local runtime state (`_photo/`, never synced); no other exception.
+    let text: string;
+    try {
+      text = readFileSync(join(ctx.paths.designRoot, rel), 'utf8');
+    } catch {
+      return null;
+    }
+    const want = HARNESS_NONCE_LINE.exec(text)?.[1];
+    if (!want || !timingSafeEqual(Buffer.from(want), Buffer.from(nonce))) return null;
+    const source =
+      /\bsource=["'](assets\/[0-9a-f]{8,64}\.[A-Za-z0-9]{1,8})["']/.exec(text)?.[1] ?? null;
+    // gate-b-c4c — `.tsx` canvases only: `assetReferrers` is a text match, so it also names a
+    // stylesheet or a note that mentions the photo (it already skips `_` first segments).
+    const users = source
+      ? assetReferrers(
+          diskProjectReader(ctx.paths.designRoot, () => String(Date.now())),
+          source
+        ).filter((u) => u.endsWith('.tsx'))
+      : [];
+    const fc = frameCapFor(req, [rel, ...users]);
+    if (!fc) return null;
+    const qs = new URLSearchParams({ canvas: rel, [FRAME_PARAM]: fc });
     return new Response(null, {
       status: 307,
       headers: {
-        Location: `${ctx.captureOrigin}/_canvas-shell.html${url.search}`,
+        Location: `${ctx.canvasOrigin}/_canvas-shell.html?${qs.toString()}`,
         'Cache-Control': 'no-store',
       },
     });
   }
 
-  async function serveCanvasShell(applyCsp: boolean, capture = false): Promise<Response> {
+  /**
+   * gate-b-c4d — Fetch Metadata: did the user agent start this request itself (a typed URL, an
+   * automation `goto`/`open` — `none`), did one of this origin's own pages (`same-origin`), or is it
+   * a non-browser client (no header)? Anything else was started by another site — and every
+   * canvas runs on one (the canvas and capture origins are other ports: `same-site`).
+   */
+  function startedByUserAgent(req: Request): boolean {
+    const site = req.headers.get('sec-fetch-site');
+    return site === null || site === 'none' || site === 'same-origin';
+  }
+
+  function captureRedirect(url: URL, req: Request): Response | null {
+    if (!ctx.captureOrigin) return null;
+    // gate-b-c4 — the capture is a frame too: scoped to the canvas the URL names (a server-minted
+    // capability; a URL naming no canvas, or a bad path, goes frame-less and reads nothing).
+    const search = new URLSearchParams(url.search);
+    search.delete(FRAME_PARAM);
+    // gate-b-c4c — a bg-remove nonce that did not mint the harness frame is not forwarded.
+    search.delete('nonce');
+    // `frame` names the canvas of a shell that imports its module itself (a thumbnail tile).
+    const named = search.get('canvas') ?? search.get('frame');
+    const rel = named ? toDesignRel(named, designRel) : null;
+    // gate-b-c4d — minted only for a navigation the user agent or this origin started. Canvas A
+    // running in a capture could otherwise `window.open` this URL for canvas B: the popup lands
+    // on A's own (capture) origin, A reads `fc` from its `location` and reads B as the owner. Such
+    // a request (`same-site`) still redirects — frame-less, so the capture reads nothing.
+    const fc = rel && startedByUserAgent(req) ? frameCapFor(req, [rel]) : null;
+    if (fc) search.set(FRAME_PARAM, fc);
+    const qs = search.toString();
+    return new Response(null, {
+      status: 307,
+      headers: {
+        Location: `${ctx.captureOrigin}/_canvas-shell.html${qs ? `?${qs}` : ''}`,
+        'Cache-Control': 'no-store',
+      },
+    });
+  }
+
+  /** The meta lane of the canvas a `?sha=` shell renders, or null (no sha, no such lane, bad path). */
+  async function versionMetaFor(query?: URLSearchParams): Promise<string | null> {
+    const ref = query?.get('sha');
+    const canvasParam = query?.get('canvas');
+    if (!ref || !canvasParam) return null;
+    // The shell's own normalisation (designRoot-relative OR repo-relative), confined to the design root.
+    const clean = canvasParam.replace(/^\/+/, '');
+    const designRel = ctx.paths.designRel.replace(/^\/+|\/+$/g, '');
+    const rel = clean.startsWith(`${designRel}/`) ? clean.slice(designRel.length + 1) : clean;
+    const abs = resolve(ctx.paths.designRoot, rel);
+    if (!abs.startsWith(ctx.paths.designRoot + sep) || !/\.tsx$/i.test(abs)) return null;
+    const repoRel = relative(ctx.paths.repoRoot, abs).replace(/\\/g, '/');
+    return laneAtRef(versionReaders(ctx), repoRel, ref, 'meta');
+  }
+
+  /**
+   * gate-b-c4c — may this request's access (on the canvas / capture listeners: narrowed to its
+   * frame) read the canvas a shell query names? The shell document itself is frame-less, so what
+   * it inlines about that canvas (a past version's meta, its `dsPairing` aliases) needs this. Both
+   * normalisations the two readers use are asked — this server's design root (`versionMetaFor`)
+   * and the query's own `designRel` (`pairingCssFor`) — so neither reads a canvas the other did
+   * not check. A query naming no canvas inlines nothing about one.
+   */
+  function shellCanvasVisible(req: Request, query?: URLSearchParams): boolean {
+    const raw = query?.get('canvas');
+    if (!raw) return true;
+    const access = accessOf(req);
+    const clean = raw.replace(/^\/+/, '');
+    for (const root of [ctx.paths.designRel, query?.get('designRel') || '.design']) {
+      const d = root.replace(/^\/+|\/+$/g, '');
+      const rel = d && clean.startsWith(`${d}/`) ? clean.slice(d.length + 1) : clean;
+      const abs = resolve(ctx.paths.designRoot, rel);
+      if (!abs.startsWith(ctx.paths.designRoot + sep)) continue; // neither reader reads it
+      if (!access.seesCanvas(relative(ctx.paths.designRoot, abs).split(sep).join('/')))
+        return false;
+    }
+    return true;
+  }
+
+  async function serveCanvasShell(
+    applyCsp: boolean,
+    capture: boolean,
+    query: URLSearchParams | undefined,
+    req: Request
+  ): Promise<Response> {
     // `comment-mount.js` is versioned for the same reason as the studio page's
     // bundle (see `serveIndexHtml`): a fixed URL outlives a release in any
     // cache in front of the canvas origin. Replaced BEFORE the CSP hashes are
@@ -6316,8 +7584,30 @@ export function createHttp(
       "'/_client/comment-mount.js'",
       `'/_client/comment-mount.js${mountV}'`
     );
-    // Inject inspector overlay — Cmd+Click selection + add-comment flow.
-    const injected = inspect().injectInspector(shellHtml);
+    // Inject inspector overlay — Cmd+Click selection + add-comment flow, then the canvas
+    // system's schema fallbacks (V2-1.13 §5.5 P-2: only the roles/classes it never declares,
+    // inline — both canvas CSPs allow inline styles, so no new route).
+    // S1.11 — a past version (`?sha=`) carries its own meta lane (V2-1.9 §5.6): injected here,
+    // BEFORE the CSP hashes the inline scripts, escaped for a script tag (past meta is peer-authored).
+    // S10.4b — the past meta also carries that version's `dsPairing` aliases into the fallback slot.
+    // gate-b-c4c — only for a request that sees the named canvas: canvas A's code could otherwise
+    // fetch this document for B and read B's meta. Anyone else gets the bare shell (the canvas's
+    // module is refused to that frame anyway).
+    const withInspector = inspect().injectInspector(shellHtml);
+    let injected = withInspector;
+    if (shellCanvasVisible(req, query)) {
+      const pastMeta = await versionMetaFor(query);
+      injected = injectVersionMeta(
+        injectFallbacks(
+          withInspector,
+          ctx.paths.designRoot,
+          ctx.cfg as unknown as Record<string, unknown>,
+          query,
+          pastMeta
+        ),
+        pastMeta
+      );
+    }
     const headers: Record<string, string> = {
       'Content-Type': 'text/html; charset=utf-8',
       'Cache-Control': 'no-store',
@@ -6365,25 +7655,10 @@ export function createHttp(
     '.ogg',
   ]);
 
-  // Exact API paths the canvas iframe needs (collab + display data). See
-  // isCanvasSafeRoute for the trust rationale. Mutations are limited to inert
-  // collab data (annotations SVG, comment replies via the dynamic route).
-  const CANVAS_SAFE_API = new Set([
-    '/_api/git-user', // presence display name
-    '/_api/canvas-meta', // layout/viewport sidecar (GET + PATCH)
-    '/_api/annotations', // annotation board (GET + whole-board PUT) — drives the collab bridge
-    '/_api/annotations/ops', // DDR-242 annotation op batches (POST). MIRROR in server.ts routes.
-    '/_api/asset', // Phase 23 — capped binary image upload (sniff+category cap+sha8 name+no-SVG)
-    // Issue #126 — chunked video/audio upload (fixed chunks, session cap, budget
-    // reserved at start, sniff on the reassembled stream). MIRROR in server.ts routes.
-    '/_api/asset/chunk-start',
-    '/_api/asset/chunk',
-    '/_api/asset/chunk-finish',
-    '/_api/photo-edit', // feature-photo-editor — PhotoEdit sidecar GET/PUT (cap-stack gated). MIRROR in server.ts routes.
-    '/_api/git-committers', // @mention autocomplete — a no-e-mail projection here (V2-2.8 S6)
-    '/_api/ai', // AI-activity banner
-    '/_comments', // per-file comment list (renders pins)
-  ]);
+  // The canvas fall-through's exact paths: the hand-listed CANVAS_SAFE_API (module level, after
+  // createHttp — V2-2.5 moved it there verbatim so a test can read it) plus the table's
+  // `origin: 'canvas'` specs. test/canvas-origin-parity.test.ts holds it to the canvas map.
+  const canvasSafeApi = new Set([...CANVAS_SAFE_API, ...laneRoutes.canvasPaths]);
 
   function isCanvasSafeRoute(pathname: string): boolean {
     // A1/A2 (DDR-060 F1 re-audit, phase-9.1-t2-f1-cross-origin-reaudit.md) —
@@ -6423,9 +7698,9 @@ export function createHttp(
     // execution, secrets, export, /_config, /_sync-status, or files outside
     // designRoot/annotations; the canvas origin's CSP `connect-src 'self'` still
     // confines the iframe so hub-pushed JSX can't reach IMDS/LAN/main-origin.
-    if (CANVAS_SAFE_API.has(safe)) return true;
+    if (canvasSafeApi.has(safe)) return true;
     // POST /_api/comments/<id>/reply — dynamic path (fetch-handled).
-    if (/^\/_api\/comments\/[A-Za-z0-9_]+\/reply$/.test(safe)) return true;
+    if (CANVAS_SAFE_DYNAMIC.some((re) => re.test(safe))) return true;
     const designPrefix = `/${ctx.paths.designRel.replace(/^\/+|\/+$/g, '')}/`;
     if (safe.startsWith(designPrefix)) {
       const rest = safe.slice(designPrefix.length);
@@ -6445,6 +7720,11 @@ export function createHttp(
       // "aggregate, not a specimen". It 403'd, so every canvas rendered with
       // its component styles missing and looked broken in a way that pointed
       // nowhere near this line.
+      // …except Maude's two generated harness modules, by their exact shape
+      // (draw-proof on the capture origin, photo-bg-remove on the canvas
+      // origin — see LOCAL_HARNESS). Untrusted code on an untrusted origin,
+      // like any canvas: nothing else under `_draw/` / `_photo/` is served.
+      if (LOCAL_HARNESS.test(rest)) return true;
       if (rest.split('/')[0].startsWith('_')) return false;
       return CANVAS_ASSET_EXTS.has(ext(safe));
     }
@@ -6468,30 +7748,90 @@ export function createHttp(
   // covers all three doors at once: the main-origin `routes` table, the
   // canvas-origin `routes` allowlist in server.ts (it references these same
   // handlers), and the dynamic-path `fetch` fall-through (comment replies).
+  //
+  // S9.9 (V2-1.7 §5.4) — the role is now an ACCESS: the project role + canvas
+  // grants, established per request by `accessOf`. A cell child reads the proxy's
+  // `x-maude-access` claim (DEFAULT CLOSED: no proven edit role = read-only); a
+  // desktop reads the linked hub's stored claim (`accessFor`, re-read each call so
+  // a sign-in lands on the next write); an unlinked project is the owner's.
+  function accessOf(req?: Request): Access {
+    const base = isWorkspaceMode()
+      ? accessFromProxy(req?.headers ?? new Headers())
+      : accessForDesktop(ctx.cfg.linkedHub?.url, accessFor);
+    // gate-b-c4 — on the canvas / capture listeners, the opener narrowed to the frame's canvas.
+    const frame = currentFrame();
+    return frame ? narrowToFrame(base, frame.canvases) : base;
+  }
+
+  // gate-b-c4 — the per-frame capability's key material (access/frame.ts). The secret lives in
+  // this machine's per-project state OUTSIDE the design root (gate-b-c4e: the canvas build can
+  // inline any file under it; the old `_state/frame-cap.key` is deleted on boot); a key is per
+  // SUBJECT: a desktop's is '' (the secret is its own), a cell's is the proxy's vouched member —
+  // and a cell request without one gets no key (one shared key would let a capability baked into
+  // canvas code verify for everybody).
+  const frameSecret = loadFrameSecret(
+    join(projectDir(pidOf(ctx.paths.repoRoot)), 'frame-cap.key'),
+    join(ctx.paths.designRoot, '_state', 'frame-cap.key'),
+    // gate-b-c4g (L2) — asserted at boot: never inside the design root or the repo.
+    [ctx.paths.designRoot, ctx.paths.repoRoot]
+  );
+  function frameKeyOf(req?: Request): Buffer | null {
+    if (!isWorkspaceMode()) return frameKeyFor(frameSecret, '');
+    const subject = frameSubjectOf(req?.headers ?? new Headers());
+    return subject ? frameKeyFor(frameSecret, subject) : null;
+  }
+  function frameScopeOf(req: Request): FrameScope {
+    const key = frameKeyOf(req);
+    // gate-b-c4k — the subject the key was minted for (the same rule as frameKeyOf): a desktop's is
+    // '' whatever the request's headers say, so canvas code cannot rotate it for a fresh budget.
+    const subject = isWorkspaceMode() ? (frameSubjectOf(req.headers) ?? '') : '';
+    return { canvases: key ? verifyFrameCap(key, frameTokenOf(req)) : null, subject };
+  }
+  /** A capability for `canvases`, minted for the subject of `req` (headless callers, redirects). */
+  function frameCapFor(req: Request | undefined, canvases: readonly string[]): string | null {
+    const key = frameKeyOf(req);
+    return key ? mintFrameCap(key, canvases) : null;
+  }
+
+  /** May NOT edit at project level — the 1-bit projection old callers read. */
   function roleReadOnly(req?: Request): boolean {
-    // ---- Cloud Phase 27 A3/A4 (DDR-209): the role is PER SESSION ----------
-    //
-    // In a cell this process serves an owner and a viewer at the same time, so
-    // the on-disk answer below — one role per hub URL — is not merely stale, it
-    // is the wrong SHAPE. The proxy in front vouches a role per request and
-    // injects the capability it derived from the one role table.
-    //
-    // AND IT DEFAULTS CLOSED. The local path fails OPEN by design: `catch`
-    // returns false, an unset `linkedHub` returns false, and a fully writable
-    // studio is the correct answer for a tool running on your own laptop. On
-    // the internet it is the whole ballgame — so in a cloud build read-only is
-    // the default and an edit role requires positive proof.
-    if (isWorkspaceMode()) {
-      return req?.headers.get('x-maude-readonly') !== '0';
-    }
-    return ctx.cfg.linkedHub ? isHubReadOnly(ctx.cfg.linkedHub.url) : false;
+    return !accessOf(req).can('edit', null);
+  }
+
+  // The closure of a session's grants is computed HERE, from this child's own disk
+  // (V2-1.7 G4), cached per (grants, generation); every file change bumps it. S9.10 —
+  // one source per project (access/filters.ts), shared with api.ts's read filters.
+  const designRel = relative(ctx.paths.repoRoot, ctx.paths.designRoot).split(sep).join('/');
+  const tableSession = {
+    exact: new Set(laneRoutes.readOnlyAllowed.exact),
+    patterns: laneRoutes.readOnlyAllowed.patterns,
+  };
+  function gateInput(access: Access): GateInput {
+    return {
+      access,
+      designRel,
+      tableSession,
+      closure: access.grants.length > 0 ? () => visibility.closureOf(access) : undefined,
+      // S8.15 — a per-use photo edit that already holds these bytes is no overwrite
+      exists: (rel, body) =>
+        body === undefined
+          ? existsSync(join(ctx.paths.designRoot, rel))
+          : photoStore.holdsOther(rel, body),
+      // S9.7b — a table route's own target (a reply by comment id: the thread's canvas);
+      // S8.15 — /_api/photo-edit names its sidecar (the per-use one by the bytes it writes)
+      targetFor: (req, pathname) =>
+        pathname === '/_api/photo-edit'
+          ? photoStore.gateTarget(req)
+          : laneRoutes.targetFor(req, pathname),
+      bodyFor: (req) => photoStore.gateBody(req),
+    };
   }
 
   /**
    * V2-1.12 §5.6 — read-only for the ROLE, or because this build does not
-   * edit this project's FORMAT (format.ts `formatGate`: a 1.x build on a
-   * format-2 project). Every in-handler `projectReadOnly` check therefore
-   * covers both.
+   * edit this project's FORMAT (format.ts `formatGate`: a v2 build on a
+   * format-1 project until "Update project", a 1.x build on a format-2 one).
+   * Every in-handler `projectReadOnly` check therefore covers both.
    */
   function projectReadOnly(req?: Request): boolean {
     return roleReadOnly(req) || gateNow() !== null;
@@ -6504,42 +7844,273 @@ export function createHttp(
     return gate ? formatRefusalResponse(gate) : readOnlyRefusalResponse();
   }
 
-  function readOnlyRefusal(req: Request): Response | null {
+  // S9.9 (V2-1.7 §5.7) — the local gate. Was binary (read-only or not); now ONE
+  // capability per write (access/request.ts `writeCapability`), checked against the
+  // session's access — on the request's target canvas when the session has grants.
+  // A canvas-only session naming a target outside its grants + closure is refused
+  // with `not-in-scope` on ANY method (`canvasScopeRefusal`), the same 403 a missing
+  // file gets.
+  /** S9.11 — the session's seer (null = a project session, the identity). */
+  function seerFor(req?: Request): Seer | null {
+    const access = accessOf(req);
+    return seerOf(access, () => closureOf(access));
+  }
+
+  // gate-b-c4e — the design root in both spellings (the bundler reports real paths).
+  const designRoots = [ctx.paths.designRoot];
+  try {
+    const real = realpathSync(ctx.paths.designRoot);
+    if (real !== ctx.paths.designRoot) designRoots.push(real);
+  } catch {
+    /* gone — the logical spelling only */
+  }
+  /**
+   * gate-b-c4e — a built canvas module reaches a canvas-only session (every frame on the canvas
+   * and capture listeners is one) only when every design-root file it inlined is in that
+   * session's closure (access/frame.ts `inputsRefusal`). A project session: no gate.
+   */
+  function canvasInputsGate(req: Request): CanvasInputsGate | undefined {
+    const see = seerFor(req);
+    if (see === null) return undefined;
+    const gate: CanvasInputsGate = (inputs, entry) =>
+      inputsRefusal(inputs, designRoots, see, { entry });
+    // gate-b-c4l (L-b) — a canvas whose import walk the closure blocked is refused before the build.
+    gate.before = (entry) => {
+      const closure = closureOf(accessOf(req));
+      if (!closure?.blocked.size) return null;
+      for (const root of designRoots) {
+        const rel = relative(root, resolve(entry)).split(sep).join('/');
+        if (rel.startsWith('..') || rel === '') continue;
+        return closure.blocked.has(rel) ? notInScopeResponse() : null;
+      }
+      return null;
+    };
+    return gate;
+  }
+
+  function closureOf(access: Access): Closure | null {
+    return access.grants.length > 0 ? visibility.closureOf(access) : null;
+  }
+
+  // S9.21b — a canvas trashed while a tab has it open takes no writes (routes/trash.ts): a write the
+  // access gate lets through but that names a canvas the shared Trash holds gets 409 in-trash.
+  const trashWriteStop = createTrashWriteStop({
+    control: () => ctx.syncControl?.current?.() ?? null,
+    target: (req) => {
+      let pathname = '';
+      try {
+        pathname = new URL(req.url).pathname;
+      } catch {
+        return Promise.resolve(null);
+      }
+      return laneRoutes.targetFor(req, pathname) ?? targetOf(req, designRel);
+    },
+    on: (e, fn) => ctx.bus.on(e, fn),
+    emit: (e, p) => ctx.bus.emit(e, p),
+  });
+  const readOnlyRefusal = withTrashStop(accessRefusal, trashWriteStop, (req) => {
+    try {
+      return writeCapability(new URL(req.url).pathname, tableSession);
+    } catch {
+      return 'edit';
+    }
+  });
+
+  async function accessRefusal(req: Request): Promise<Response | null> {
+    const access = accessOf(req);
+    const g = gateInput(access);
+    // S9.11 (V2-1.16 L15) — a file of the design root (the static lane, its `/assets/`
+    // alias, `?sha=` builds) is judged on its PATH, before any query names a target: a
+    // `?file=` of a visible canvas must not lend its answer to the module being served.
+    if (access.canvasOnly) {
+      let pathname = '';
+      try {
+        pathname = new URL(req.url).pathname;
+      } catch {
+        /* unparseable — the gates below refuse it */
+      }
+      const file = canvasOriginTarget(pathname, designRel);
+      const see = seerOf(access, () => closureOf(access));
+      if (file !== undefined && (file === null || see?.(file) !== true))
+        return notInScopeResponse();
+    }
+    const scope = await canvasScopeRefusal(req, g);
+    if (scope) return scope;
+    // p8-c4 (403 sweep) — desktop-only project routes with no scope check of their own (U3).
+    if (access.canvasOnly && canvasOnlyRefused(new URL(req.url).pathname))
+      return notInScopeResponse();
     if (READ_ONLY_SAFE_METHODS.has(req.method)) return null;
-    const role = roleReadOnly(req);
     const gate = gateNow();
-    if (!role && !gate) return null;
     let pathname: string;
     try {
       pathname = new URL(req.url).pathname;
     } catch {
       return readOnlyRefusalFor(req);
     }
+    // An editor passes every write it holds the capability for — not `delete` (S1.7b's Trash
+    // clear-out is the owner's, V2-1.7 §5.2): that one goes on to `localGate`, which refuses it.
+    if (!gate && access.can(writeCapability(pathname, g.tableSession), null)) return null;
     // The format gate: per-user runtime, export, reports and sign-in still
-    // work; comments are look-only (V2-1.12 §9 Q3).
+    // work; comments are look-only (V2-1.12 §9 Q3); "Update project" is the
+    // one write that leads out.
     if (gate && !formatGateAllowsWrite(pathname, readOnlyAllowed))
       return formatRefusalResponse(gate);
-    if (!role) return null;
-    if (readOnlyAllowed.exact.has(pathname)) return null;
-    // The dynamic half of the comment lane. An exact-match set cannot express
-    // it, and leaving it out would mean a viewer may leave a comment but not
-    // reply to one — a distinction nobody promised and nobody wants.
-    if (readOnlyAllowed.patterns.some((re) => re.test(pathname))) return null;
-    return readOnlyRefusalResponse();
+    // S8.1 (V2-1.16 L7) — an ExportSpec v2 body names its target INSIDE `spec`, which the
+    // generic target reader cannot see. For a session whose grants decide, the spec's own gate
+    // answers (routes/export.ts `gateSpecV2`): Folder / Whole project and an ungranted canvas
+    // are `not-in-scope` — the missing-file body — and every reached canvas must hold export.
+    // S9.10 (V2-1.16 L7 / L10) — two write lanes whose TARGET is not a request param, for a
+    // session whose grants (not its project role) decide: an export job's target is resolved
+    // the way the exporter resolves it; a reply's canvas is its comment's, looked up among the
+    // comments this session sees — so an invisible id is a missing one (U1).
+    if (access.grants.length > 0 && req.method === 'POST') {
+      // S8.4 — Retry names a job, not a canvas: the route gates every canvas its items reach
+      if (pathname === '/_api/export-jobs/retry') return null;
+      if (V2_EXPORT_DOORS.has(pathname)) {
+        const body = (await req
+          .clone()
+          .json()
+          .catch(() => null)) as { spec?: unknown } | null;
+        if (pathname === '/_api/export-estimate' || isV2Body(body)) {
+          const v2 = gateSpecV2(body?.spec, exportV2Deps, req);
+          return v2.ok ? null : v2.response;
+        }
+      }
+      const lane = await grantLaneRefusal(req, pathname, access);
+      if (lane !== undefined) return lane;
+    }
+    const verdict = await localGate(req, pathname, g);
+    if (verdict.ok) return null;
+    return verdict.reason === 'not-in-scope' ? notInScopeResponse() : readOnlyRefusalResponse();
+  }
+
+  /** S8.1 — the routes that take an ExportSpec v2 body (the estimate takes nothing else). */
+  const V2_EXPORT_DOORS = new Set(['/_api/export', '/_api/export-jobs', '/_api/export-estimate']);
+
+  const EXPORT_TARGET_ROUTES = new Set(['/_api/export', '/_api/export-jobs']);
+  const REPLY_RE = /^\/_api\/comments\/([A-Za-z0-9_]+)\/reply$/;
+
+  /** The refusal (or null = pass) for an export / reply by a grant session; undefined = not this lane. */
+  async function grantLaneRefusal(
+    req: Request,
+    pathname: string,
+    access: Access
+  ): Promise<Response | null | undefined> {
+    if (EXPORT_TARGET_ROUTES.has(pathname)) {
+      if (access.can('export', null)) return undefined;
+      const body = await req
+        .clone()
+        .json()
+        .catch(() => null);
+      const b = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
+      if (!isScope(b.scope)) return undefined; // no target to judge: the role gate decides
+      const options = b.options && typeof b.options === 'object' ? b.options : {};
+      const targets =
+        b.scope === 'project-raw'
+          ? []
+          : await resolveScope({
+              scope: b.scope,
+              activeJson: inspect().state as unknown as ActiveJsonShape,
+              designRoot: ctx.paths.designRoot,
+              repoRoot: ctx.paths.repoRoot,
+              options: options as Record<string, unknown>,
+            });
+      const files = targets.flatMap((t) => (t.kind === 'element' ? [t.file] : []));
+      const verdict = exportTargetVerdict(
+        visibility.visibilityFor(access),
+        b.scope,
+        files,
+        ctx.paths.designRel
+      );
+      if (verdict === 'ok') return null;
+      return verdict === 'not-in-scope' ? notInScopeResponse() : readOnlyRefusalResponse();
+    }
+    const reply = REPLY_RE.exec(pathname);
+    if (reply) {
+      if (access.can('comment', null)) return undefined;
+      // `loadAllComments` answers only the canvases this request's session sees.
+      const all = await api.loadAllComments();
+      const file = Object.entries(all).find(([, list]) => list.some((c) => c.id === reply[1]))?.[0];
+      if (!file) return new Response('Not found', { status: 404 });
+      const rel = toDesignRel(file, ctx.paths.designRel);
+      return rel !== null && access.can('comment', rel) ? null : readOnlyRefusalResponse();
+    }
+    return undefined;
   }
 
   const guardedRoutes = Object.fromEntries(
     Object.entries(routes).map(([path, handler]) => [
       path,
-      (req: Request) => readOnlyRefusal(req) ?? handler(req),
+      async (req: Request) => (await readOnlyRefusal(req)) ?? handler(req),
     ])
-  ) as typeof routes;
+  ) as unknown as typeof routes;
 
   async function guardedFetch(req: Request): Promise<Response> {
-    return readOnlyRefusal(req) ?? handleFallthrough(req);
+    return (await readOnlyRefusal(req)) ?? handleFallthrough(req);
+  }
+
+  /**
+   * DDR-242 §4 — the canvas write path: an op batch applied under the one merge rule.
+   * Canvas-origin reachable (inert collab data, DDR-054) — every op is validated
+   * element-by-element and the board stays capped.
+   * POST body { file, actionId, ops: Op[] } → 200 { ok, changed, rejected[] }
+   * T-S4.5b — `actionId: 'run:<runId>'` (contract S4-S5-ai-annotations §2) is accepted only on
+   * the main listener, same-origin, while that run is open (annotations/run-tag.ts); a refused
+   * tag writes nothing.
+   */
+  async function annotationOps(req: Request, listener: 'main' | 'canvas'): Promise<Response> {
+    if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
+    const body = await readJson<{ file?: unknown; actionId?: unknown; ops?: unknown }>(
+      req,
+      MAX_ANNOTATIONS_BYTES + 2048
+    );
+    if (!body || typeof body.file !== 'string' || !body.file) {
+      return new Response('body must include { file, actionId, ops }', { status: 400 });
+    }
+    const tag = runTagGate(req, body.actionId, {
+      listener,
+      runs,
+      sameOrigin: (r) => sameOriginWrite(r) && sameOriginRead(r) && isTrustedRequestHost(r),
+    });
+    if ('refusal' in tag) return runTagRefusalResponse(tag.refusal);
+    if (
+      tag.runId === null &&
+      body.actionId !== undefined &&
+      !validAnnotationWriteId(body.actionId)
+    ) {
+      return new Response('invalid actionId', { status: 400 });
+    }
+    if (!Array.isArray(body.ops)) return new Response('body.ops must be an array', { status: 400 });
+    // Bounded to what a whole board can need (select-all + delete on a full
+    // board) and REFUSED past it — never truncated, which would half-apply a
+    // gesture. Batch cost is linear in the ops (ops.ts indexes).
+    if (body.ops.length > MAX_ELEMENTS) {
+      return new Response('too many ops in one batch', { status: 413 });
+    }
+    const { ops } = parseAnnotationOps(body.ops, MAX_ELEMENTS);
+    // sec-a M1 — no HTTP caller (canvas or main origin) writes a vote or a ballot: those land
+    // only through the vote door (routes/votes.ts → api.applyAnnotationOps in-process).
+    const r = await api.applyAnnotationOps(body.file, ops, body.actionId as string | undefined, {
+      guard: voteDoorOnly,
+    });
+    if (r.refused) {
+      return Response.json(
+        { ok: false, changed: false, rejected: [], error: VOTE_DOOR_REFUSAL },
+        { status: 403, headers: { 'Cache-Control': 'no-store' } }
+      );
+    }
+    return Response.json(r, {
+      status: r.ok ? 200 : r.unreadable ? 409 : 413,
+      headers: { 'Cache-Control': 'no-store' },
+    });
   }
 
   const canvasRoutes: Http['canvasRoutes'] = {
+    // T-S4.5b — the same op path, minus the `run:` tag (refused 400 here). A write: it keeps the
+    // read-only refusal every `routes` entry carries (guardedRoutes).
+    // S9.9 made the gate async: await it, or the pending Promise short-circuits `??`.
+    '/_api/annotations/ops': async (req: Request) =>
+      (await readOnlyRefusal(req)) ?? annotationOps(req, 'canvas'),
     // V2-2.8 S6 — the @mention feed without e-mails (see canvasCommitters).
     '/_api/git-committers': async (req: Request) => {
       if (req.method !== 'GET') return new Response('Method not allowed', { status: 405 });
@@ -6551,8 +8122,39 @@ export function createHttp(
   return {
     routes: guardedRoutes,
     canvasRoutes,
+    tableCanvasPaths: laneRoutes.canvasPaths,
+    accessOf,
+    frameScopeOf,
+    closureOf,
     fetch: guardedFetch,
     serveCanvasShell,
     isCanvasSafeRoute,
+    askQueue,
   };
 }
+
+// Exact API paths the canvas iframe needs (collab + display data). See
+// isCanvasSafeRoute for the trust rationale. Mutations are limited to inert
+// collab data (annotations SVG, comment replies via the dynamic route).
+// V2-2.5 — moved verbatim out of createHttp (exported for the parity test). Each entry needs its
+// MIRROR in routes/canvas-origin.ts; a NEW canvas-safe route is an `origin: 'canvas'` table spec
+// instead, which both lists derive.
+export const CANVAS_SAFE_API: ReadonlySet<string> = new Set([
+  '/_api/git-user', // presence display name
+  '/_api/canvas-meta', // layout/viewport sidecar (GET + PATCH)
+  '/_api/annotations', // annotation board (GET + whole-board PUT) — drives the collab bridge
+  '/_api/annotations/ops', // DDR-242 annotation op batches (POST). MIRROR in routes/canvas-origin.ts.
+  '/_api/asset', // Phase 23 — capped binary image upload (sniff+category cap+sha8 name+no-SVG)
+  // Issue #126 — chunked video/audio upload (fixed chunks, session cap, budget
+  // reserved at start, sniff on the reassembled stream). MIRROR in routes/canvas-origin.ts.
+  '/_api/asset/chunk-start',
+  '/_api/asset/chunk',
+  '/_api/asset/chunk-finish',
+  '/_api/photo-edit', // feature-photo-editor — PhotoEdit sidecar GET/PUT (cap-stack gated). MIRROR in routes/canvas-origin.ts.
+  '/_api/git-committers', // @mention autocomplete — a no-e-mail projection here (V2-2.8 S6)
+  '/_comments', // per-file comment list (renders pins)
+]);
+
+/** The canvas origins' ONE dynamic path (fetch-handled, in no routes map): POST
+ *  /_api/comments/<id>/reply. A new dynamic canvas route is not added here. */
+export const CANVAS_SAFE_DYNAMIC: readonly RegExp[] = [/^\/_api\/comments\/[A-Za-z0-9_]+\/reply$/];

@@ -37,11 +37,49 @@ after(() => {
   for (const d of dirs) rmSync(d, { recursive: true, force: true });
 });
 
-const lane = (args) =>
+const lane = (args, env = process.env) =>
   spawnSync('bash', [join(root, 'scripts/v2-test-lane.sh'), ...args], {
     cwd: root,
     encoding: 'utf8',
+    env,
   });
+
+// The person's ~/.config/maude is never a job's (a harness once rewrote the real prefs.json).
+const ECHO_CFG = [
+  '--',
+  'bash',
+  '-c',
+  'echo "$XDG_CONFIG_HOME|$MAUDE_UI_PREFS_PATH|$MAUDE_CLOUD_CONFIG"',
+];
+const bareEnv = (extra = {}) => {
+  const e = { ...process.env, ...extra };
+  for (const k of [
+    'XDG_CONFIG_HOME',
+    'MAUDE_UI_PREFS_PATH',
+    'MAUDE_CLOUD_CONFIG',
+    'V2_LANE_REAL_CONFIG',
+  ])
+    if (!(k in extra)) delete e[k];
+  return e;
+};
+
+test('every job gets a throwaway config, never ~/.config', () => {
+  const r = lane(ECHO_CFG, bareEnv());
+  assert.equal(r.status, 0);
+  const [xdg, prefs, cloud] = r.stdout.trim().split('|');
+  assert.ok(xdg, 'XDG_CONFIG_HOME is set');
+  assert.ok(!xdg.startsWith(join(process.env.HOME ?? '', '.config')), xdg);
+  assert.equal(prefs, join(xdg, 'maude/prefs.json'));
+  assert.equal(cloud, join(xdg, 'maude/cloud.json'));
+});
+
+test('an explicit sandbox wins, and V2_LANE_REAL_CONFIG=1 opts out', () => {
+  assert.equal(
+    lane(ECHO_CFG, bareEnv({ XDG_CONFIG_HOME: '/sandbox' })).stdout.trim(),
+    '/sandbox|/sandbox/maude/prefs.json|/sandbox/maude/cloud.json'
+  );
+  assert.equal(lane(ECHO_CFG, bareEnv({ V2_LANE_REAL_CONFIG: '1' })).stdout.trim(), '||');
+});
 
 test('passes the command exit code through and releases the lock', () => {
   assert.equal(lane(['--', 'bash', '-c', 'exit 3']).status, 3);
@@ -99,4 +137,32 @@ test('a stale lock (dead pid) is taken over', () => {
   const r = lane(['--wait', '0', '--', 'true']);
   assert.equal(r.status, 0);
   assert.match(r.stderr, /stale lock/);
+});
+
+const HOST = (spawnSync('hostname', ['-s'], { encoding: 'utf8' }).stdout ?? '').replace(
+  /[^A-Za-z0-9-]/g,
+  ''
+);
+const Q = () => join(root, `.git/v2-test.queue.${HOST || 'host'}`);
+
+test('waiters are served in arrival order — an older live ticket goes first', async () => {
+  const older = spawn('sleep', ['5']);
+  mkdirSync(Q(), { recursive: true });
+  writeFileSync(join(Q(), `1000000000.${older.pid}`), '');
+  const r = lane(['--wait', '1', '--', 'true']);
+  assert.equal(r.status, 75, 'the lane is free but an older waiter is queued');
+  assert.match(r.stderr, /queued behind 1000000000\./);
+  older.kill();
+  await new Promise((res) => older.on('exit', res));
+  const r2 = lane(['--wait', '2', '--', 'true']);
+  assert.equal(r2.status, 0, 'a dead waiter’s ticket is dropped');
+  assert.equal(existsSync(join(Q(), `1000000000.${older.pid}`)), false);
+});
+
+test('a forged ticket (pid 0, -1, or not <epoch>.<pid>) never stalls the lane', () => {
+  mkdirSync(Q(), { recursive: true });
+  for (const n of ['1.0', '1.1', '1.-1', 'junk']) writeFileSync(join(Q(), n), '');
+  const r = lane(['--wait', '2', '--', 'true']);
+  assert.equal(r.status, 0, r.stderr);
+  for (const n of ['1.0', '1.1', '1.-1', 'junk']) assert.equal(existsSync(join(Q(), n)), false);
 });

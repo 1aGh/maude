@@ -1,0 +1,30 @@
+{
+  "canvas": "ui/panels/GitHubIdentity.tsx",
+  "from": "maude",
+  "to": "maude-v2",
+  "meta": { "designSystem": "maude-v2" },
+  "edits": [
+    {
+      "old": " * @ds          maude\n",
+      "new": " * @ds          maude-v2\n",
+      "why": "Header names the system the canvas follows."
+    },
+    {
+      "old": "import \"../../system/maude/colors_and_type.css\";\nimport \"../../system/maude/preview/_components.css\";\n",
+      "new": "",
+      "why": "S5: the canvas pins maude's own CSS. The shell injects the system named in .meta.json, so the import goes."
+    },
+    {
+      "old": "  return <div className=\"maude\" data-theme=\"dark\" style={{ position: \"absolute\", inset: 0 }}>{children}</div>;",
+      "new": "  return <div className=\"ds\" data-theme=\"dark\" style={{ position: \"absolute\", inset: 0 }}>{children}</div>;",
+      "why": "S6: the `.maude` wrapper only matches the old system. `.ds` matches whichever system the canvas follows."
+    }
+  ],
+  "notes": [
+    "The theme stays dark. maude-v2 defaults to light: a decision for you.",
+    "The `Mark` component (around lines 57–67) draws maude's spark-on-bubble (S7). maude-v2 ships system/maude-v2/assets/logos/mark.svg. Not changed.",
+    "The comment above `Board` (line 306) still says `.maude[data-theme]`. It is only a comment, so it can be updated when the switch is applied.",
+    "GitHubIdentity.css uses --canvas-bg/-dot/-grid (24–26), --accent-muted (199, 231) and --accent-tint (230). They still resolve as maude-v2 aliases. Renaming is optional.",
+    "S3/S4 literal warnings are left as they are."
+  ]
+}

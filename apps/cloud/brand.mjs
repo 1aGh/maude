@@ -51,7 +51,7 @@ export const TOKENS = `
   --fg-0: oklch(0.955 0.005 250);
   --fg-1: oklch(0.790 0.008 250);
   --fg-2: oklch(0.660 0.010 250);
-  --fg-3: oklch(0.500 0.010 250);
+  --fg-3: oklch(0.650 0.010 250);
   --accent:        oklch(0.680 0.180 268);
   --accent-hover:  oklch(0.730 0.170 268);
   --accent-active: oklch(0.630 0.180 268);
@@ -265,6 +265,92 @@ export const LOCKUP_CSS = `
 /** Everything a cloud page needs, in one string. */
 export const PAGE_CSS = TOKENS + CHROME + LOCKUP_CSS;
 
+// ─────────────────────────── The public page (v2) ───────────────────────────
+//
+// Maude v2 S9.14 — the pages a person reaches from OUTSIDE (sign in, an
+// invitation, a shared link) share one shell, lifted from the onboarding canvas
+// (`.design/ui/v2/02 Onboarding.tsx`, artboards ob-signin-browser and
+// ob-invite-page): one centred column, the mark on top, one sentence of title,
+// one of help, full-width buttons, the fine print under them, and — when the
+// app sent you — a quiet way back to it. Before this, three modules each
+// carried their own copy of the document skeleton and its headers, and two of
+// them had already drifted (one never set a CSP of its own).
+
+/** The headers every public page answers with. Stricter than the edge floor, never looser. */
+export const PUBLIC_PAGE_HEADERS = Object.freeze({
+  'content-type': 'text/html; charset=utf-8',
+  'cache-control': 'no-store',
+  'x-content-type-options': 'nosniff',
+  'content-security-policy':
+    "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
+  'referrer-policy': 'no-referrer',
+});
+
+export const PUBLIC_CSS = `
+  body { display: grid; place-items: center; min-height: 100vh; padding: var(--space-8) var(--space-5); }
+  main.public { width: 100%; max-width: 26rem; }
+  main.public > :last-child { margin-bottom: 0; }
+  .public-top { display: grid; justify-items: center; text-align: center; margin-bottom: var(--space-6); }
+  .public-top .lockup { margin-bottom: var(--space-5); }
+  .public-top h1 { margin-bottom: var(--space-2); }
+  .public-top .sub { color: var(--fg-2); font-size: var(--type-base); line-height: var(--lh-base); margin: 0; }
+  .btn.wide, button.wide { display: flex; width: 100%; justify-content: center; text-align: center; }
+  .btn.secondary { background: var(--bg-2); color: var(--fg-0); border-color: var(--border-default); }
+  .btn.secondary:hover { background: var(--bg-3); color: var(--fg-0); }
+  .stack { display: grid; gap: var(--space-3); margin-bottom: var(--space-5); }
+  .fine { color: var(--fg-2); font-size: var(--type-sm); line-height: var(--lh-sm); text-align: center; }
+  .back-to-app { display: block; text-align: center; margin-top: var(--space-6); color: var(--fg-2); font-size: var(--type-sm); }
+  .who { display: flex; gap: var(--space-4); align-items: flex-start; }
+  .who strong { display: block; }
+  .steps { display: grid; gap: var(--space-2); padding: 0; margin: 0 0 var(--space-5); list-style: none; color: var(--fg-1); font-size: var(--type-sm); line-height: var(--lh-sm); counter-reset: step; }
+  .steps li { counter-increment: step; display: flex; gap: var(--space-3); align-items: baseline; }
+  .steps li::before { content: counter(step); font-variant-numeric: tabular-nums; font-weight: 600; color: var(--fg-0); min-width: 1.2em; }
+`;
+
+function escText(s) {
+  return String(s).replace(
+    /[&<>"']/g,
+    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]
+  );
+}
+
+/**
+ * One public page.
+ *
+ * `title` and `sub` are plain text (escaped here); `body` is trusted markup the
+ * caller built with its own escaping. `extraHead` is trusted markup for
+ * `<head>` — only the sign-in done page uses it, for its one `meta refresh`.
+ */
+export function publicPage({ title, sub = null, body = '', extraHead = '', css = '', tab = null }) {
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">${extraHead}<title>${escText(tab ?? title)} — Maude</title><style>${PAGE_CSS}${GOOGLE_BUTTON_CSS}${PUBLIC_CSS}${css}</style></head><body><main class="public"><div class="public-top">${lockup({ size: 40 })}<h1>${escText(title)}</h1>${sub ? `<p class="sub">${escText(sub)}</p>` : ''}</div>${body}</main></body></html>`;
+}
+
+/** A public page as a Response. */
+export function publicResponse(markup, status = 200, extraHeaders = {}) {
+  const headers = new Headers(PUBLIC_PAGE_HEADERS);
+  for (const [k, v] of Object.entries(extraHeaders)) {
+    if (Array.isArray(v)) for (const one of v) headers.append(k, one);
+    else if (v != null) headers.set(k, v);
+  }
+  return new Response(markup, { status, headers });
+}
+
+/**
+ * The quiet way back to the app on a page the app opened (S6↔S9 §5.1 step 7).
+ *
+ * A plain link and nothing else: no server state changes, the sign-in code
+ * simply runs out. `state` must already be validated by `appState` — anything
+ * that is not 32 lowercase hex never reaches markup (invariant 2).
+ */
+export function backToAppLink(state) {
+  if (!isAppState(state)) return '';
+  return `<a class="back-to-app" href="maude://auth/cancelled?state=${state}">Cancel and go back to the app</a>`;
+}
+
+/** The app's per-attempt sign-in nonce: 16 random bytes as 32 lowercase hex. */
+export const APP_STATE = /^[0-9a-f]{32}$/;
+export const isAppState = (s) => typeof s === 'string' && APP_STATE.test(s);
+
 // ───────────────────────────── The admin shell ─────────────────────────────
 //
 // Lifted from the DS platform showcase (`ui_kits-desktop-showcase`), the
@@ -465,7 +551,7 @@ export function appShell({
     <form method="post" action="/auth/logout"><button type="submit" class="ghost">Sign out</button></form>
   </header>
   <nav class="nav" aria-label="Main">
-    <div class="nav-hd">Workspace</div>
+    <div class="nav-hd">Projects</div>
     ${navItem({ href: '/', label: 'Your projects', glyph: 'grid', active: active === 'projects' })}
     ${navItem({ href: '/projects/new', label: 'Start a project', glyph: 'plus', active: active === 'new' })}
     ${navItem({ href: '/account', label: 'Account', glyph: 'people', active: active === 'account' })}

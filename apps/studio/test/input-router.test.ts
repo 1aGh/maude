@@ -3,13 +3,18 @@
 import { describe, expect, test } from 'bun:test';
 
 import {
+  annotationToolOwnsPointer,
   type ClassifyInput,
   classify,
   crossedDragThreshold,
   DRAG_THRESHOLD_PX,
+  dragPansCanvas,
   isArtboardDragChrome,
+  isDesignSurface,
   isEditableTarget,
+  isOpenTextEditor,
   isOverlayTarget,
+  pressStartsPan,
   type Tool,
   yieldsClickToArtboardChrome,
   yieldsToArtboardDrag,
@@ -271,40 +276,43 @@ describe('input-router / keydown — tool letters', () => {
   });
 });
 
-describe('input-router / keydown — Phase 5 draw tools', () => {
-  test('B → tool pen', () => {
-    expect(classify(base({ type: 'keydown', key: 'b' }))).toEqual({
-      kind: 'tool',
-      tool: 'pen',
-    });
+// V2-4.5b — the letters are the two toolbars' (MODE_TOOLS), rewritten deliberately: B I E O ⇧S and the
+// ⇧-letter aliases died with the keys that took them (rule 13). These rows are UNGOVERNED (no
+// `set-mode` — a standalone canvas): the keys resolve against the posture the tool implies and a
+// crossing applies locally, as v1's mode-neutral tools did. The governed half is tool-keys.test.ts.
+describe('input-router / keydown — the toolbar letters, ungoverned', () => {
+  const key = (k: string, extra: Partial<ClassifyInput> = {}) =>
+    classify(base({ type: 'keydown', key: k, ...extra }));
+  const preview = { activeTool: 'browse' as Tool };
+
+  test('B, O, ⇧S, ⇧B → no-op (Pen → Marker M, Ellipse → Edit › More, Section → S)', () => {
+    expect(key('b').kind).toBe('no-op');
+    expect(key('o').kind).toBe('no-op');
+    expect(key('S', { shiftKey: true }).kind).toBe('no-op');
+    expect(key('B', { shiftKey: true }).kind).toBe('no-op');
   });
 
-  test('R → tool shape (Phase 24 — single Shape tool)', () => {
-    expect(classify(base({ type: 'keydown', key: 'r' }))).toEqual({
-      kind: 'tool',
-      tool: 'shape',
-    });
+  test("R in Edit's posture → the design Shape tool (S2.13); in Preview's → annotation shape", () => {
+    expect(key('r')).toEqual({ kind: 'tool', tool: 'el-shape' });
+    expect(key('r', preview)).toEqual({ kind: 'tool', tool: 'shape' });
   });
 
-  test('A → tool arrow', () => {
-    expect(classify(base({ type: 'keydown', key: 'a' }))).toEqual({
-      kind: 'tool',
-      tool: 'arrow',
-    });
+  test('N A S M → the annotation tool, locally (standalone)', () => {
+    expect(key('n')).toEqual({ kind: 'tool', tool: 'sticky' });
+    expect(key('a')).toEqual({ kind: 'tool', tool: 'arrow' });
+    expect(key('s')).toEqual({ kind: 'tool', tool: 'section' });
+    expect(key('m')).toEqual({ kind: 'tool', tool: 'pen' });
+    expect(key('m', { markerTip: 'highlighter' })).toEqual({ kind: 'tool', tool: 'highlighter' });
   });
 
-  test('E → tool eraser', () => {
-    expect(classify(base({ type: 'keydown', key: 'e' }))).toEqual({
-      kind: 'tool',
-      tool: 'eraser',
-    });
+  test('E → the Stickers panel (no tool); I → the Assets tab (S2.15), not the highlighter', () => {
+    expect(key('e')).toEqual({ kind: 'panel', panel: 'stickers' });
+    expect(key('i')).toEqual({ kind: 'panel', panel: 'assets' });
   });
 
-  test('O → tool shape (Phase 24 — legacy ellipse key now arms Shape)', () => {
-    expect(classify(base({ type: 'keydown', key: 'o' }))).toEqual({
-      kind: 'tool',
-      tool: 'shape',
-    });
+  test("T: Edit's posture arms click-to-type (el-text, S2.12); Preview's arms annotation Text", () => {
+    expect(key('t')).toEqual({ kind: 'tool', tool: 'el-text' });
+    expect(key('t', preview)).toEqual({ kind: 'tool', tool: 'text' });
   });
 
   test('shape tool owns bare pointer events (SVG overlay claims)', () => {
@@ -314,29 +322,8 @@ describe('input-router / keydown — Phase 5 draw tools', () => {
     expect(classify(base({ type: 'pointermove', activeTool: 'shape' })).kind).toBe('no-op');
   });
 
-  test('N → tool sticky (Phase 21)', () => {
-    expect(classify(base({ type: 'keydown', key: 'n' }))).toEqual({
-      kind: 'tool',
-      tool: 'sticky',
-    });
-  });
-
-  test('T → tool text (Phase 21)', () => {
-    expect(classify(base({ type: 'keydown', key: 't' }))).toEqual({
-      kind: 'tool',
-      tool: 'text',
-    });
-  });
-
-  test('uppercase B (shift held) — still maps to pen (lowercased)', () => {
-    expect(classify(base({ type: 'keydown', key: 'B', shiftKey: true }))).toEqual({
-      kind: 'tool',
-      tool: 'pen',
-    });
-  });
-
   test('Cmd+B (modifier-held) → no-op so the browser keeps it', () => {
-    expect(classify(base({ type: 'keydown', key: 'b', metaKey: true })).kind).toBe('no-op');
+    expect(key('b', { metaKey: true }).kind).toBe('no-op');
   });
 });
 
@@ -753,5 +740,85 @@ describe('input-router / keydown — undo + redo (Phase 20)', () => {
     expect(classify(base({ type: 'keydown', key: 'y', metaKey: true, shiftKey: true })).kind).toBe(
       'no-op'
     );
+  });
+});
+
+// S3.9 (V2-1.2 Q3) — Preview's Hand rests on `browse`: a click uses the design, a drag on empty canvas (or
+// outside an artboard's design surface) pans, a drag on the design goes to the design, Space-drag pans
+// everywhere. The viewport controller asks this per pointerdown.
+describe('input-router / dragPansCanvas — Preview Hand (Q3)', () => {
+  test('hand pans anywhere', () => {
+    expect(dragPansCanvas('hand', true)).toBe(true);
+    expect(dragPansCanvas('hand', false)).toBe(true);
+  });
+  test('browse pans on empty canvas and outside the design surface, never on the design', () => {
+    expect(dragPansCanvas('browse', false)).toBe(true);
+    expect(dragPansCanvas('browse', true)).toBe(false);
+  });
+  test('every other tool leaves the drag to its own handler', () => {
+    for (const t of ['move', 'comment', 'pen', 'shape', 'sticky', 'text', 'eraser'] as Tool[]) {
+      expect(dragPansCanvas(t, false)).toBe(false);
+      expect(dragPansCanvas(t, true)).toBe(false);
+    }
+  });
+  // A press inside an open text editor is text editing (caret, word select): Preview's Hand must not start a pan
+  // there, because the pan takes the pointer (setPointerCapture) and the editor then never sees its mouseup, click or
+  // dblclick — the dblclick lands on the canvas and fit() throws the view away (annotations-ui R2b).
+  test('pressStartsPan: the Hand does not pan from inside an open text editor', () => {
+    const el = (sel: string) => ({ closest: (q: string) => (q.includes(sel) ? {} : null) });
+    const editor = el('[data-annot-editor]') as unknown as EventTarget;
+    const bare = el('nothing') as unknown as EventTarget;
+    expect(pressStartsPan('browse', bare)).toBe(true);
+    expect(pressStartsPan('browse', editor)).toBe(false);
+    expect(pressStartsPan('hand', editor)).toBe(true); // the dedicated Hand pans anywhere
+    expect(isOpenTextEditor(editor)).toBe(true);
+    expect(isOpenTextEditor(null)).toBe(false);
+  });
+  test('isDesignSurface: inside an artboard body, not its label strip or the bare canvas', () => {
+    const el = (hit: boolean) => ({
+      closest: (sel: string) => (hit && sel === '.dc-artboard-body' ? {} : null),
+    });
+    expect(isDesignSurface(el(true) as unknown as EventTarget)).toBe(true);
+    expect(isDesignSurface(el(false) as unknown as EventTarget)).toBe(false);
+    expect(isDesignSurface(null)).toBe(false);
+    expect(isDesignSurface({} as EventTarget)).toBe(false);
+  });
+});
+
+// S4.9 (an-visibility) - the posture rows: Edit shows the annotation layer quiet and click-through, so a
+// leftover annotation tool id owns no pointer there; Preview's owns it; a canvas no shell governs is v1.
+describe('input-router / annotation tools by mode (S4.9)', () => {
+  test('Edit: a bare click with a leftover annotation tool selects the design under the sticky', () => {
+    const action = classify(
+      base({ type: 'pointerdown', button: 0, activeTool: 'sticky' as Tool, mode: 'edit' })
+    );
+    expect(action).toMatchObject({ kind: 'select', mode: 'replace' });
+  });
+
+  test('Edit: hover with a leftover annotation tool still paints the design halo', () => {
+    const action = classify(base({ type: 'pointermove', activeTool: 'pen' as Tool, mode: 'edit' }));
+    expect(action.kind).toBe('hover');
+  });
+
+  test('Preview: the armed annotation tool owns the click', () => {
+    expect(
+      classify(
+        base({ type: 'pointerdown', button: 0, activeTool: 'sticky' as Tool, mode: 'preview' })
+      )
+    ).toEqual({ kind: 'no-op' });
+    expect(
+      classify(base({ type: 'pointermove', activeTool: 'pen' as Tool, mode: 'preview' }))
+    ).toEqual({ kind: 'no-op' });
+  });
+
+  test('a canvas no shell governs keeps v1: the armed annotation tool owns the click', () => {
+    expect(
+      classify(base({ type: 'pointerdown', button: 0, activeTool: 'sticky' as Tool }))
+    ).toEqual({ kind: 'no-op' });
+  });
+
+  test('Viewing and Present never hand the pointer to an annotation tool', () => {
+    for (const mode of ['viewing', 'present'] as const)
+      expect(annotationToolOwnsPointer({ activeTool: 'pen' as Tool, mode })).toBe(false);
   });
 });

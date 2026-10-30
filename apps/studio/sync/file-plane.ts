@@ -499,6 +499,13 @@ export interface FilePlaneOptions {
    * the file plane was still working.
    */
   onProgress?: () => void;
+  /**
+   * S10.3b — a pull landed the hub's bytes at design-root-relative `rel` (after the atomic
+   * rename). The DS outside watcher attributes the change to a peer (ds/outside.ts `notify(rel,
+   * {kind:'peer'})`) instead of reading it as an unknown outside edit. Bookkeeping only: a
+   * throw is swallowed.
+   */
+  onDelivered?: (rel: string) => void;
 }
 
 interface SyncableLocalFile {
@@ -1526,6 +1533,49 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     }
   }
 
+  /**
+   * How many paths have work on THIS disk the hub has not taken — what a held pass, or a pass the hub
+   * stopped at the cursor read, reports as `waiting` (the sync-stuck callout's number, 06 ad-edge-sync).
+   *
+   * Counting only `stuck` rows said 0 for every file written while the door was shut: those rows are
+   * `local-only` (or an edited `on-hub` row whose bytes moved on), never `stuck`, because no request was
+   * spent on them. A conflict, a refusal and an unoffered reference are not "on their way".
+   */
+  function waitingHere(): number {
+    const uploadsCode = opts.canUploadCodeModules ?? opts.allowCodeModules;
+    let n = 0;
+    for (const [rel, r] of Object.entries(ledger.rows())) {
+      if (r.state === 'stuck' || r.state === 'pushing') n += 1;
+      else if (
+        r.state === 'conflict' ||
+        r.state === 'refused' ||
+        r.state === 'referenced-but-unoffered'
+      )
+        continue;
+      else if (r.localHash && r.localHash !== r.syncedHash) {
+        // a code module this machine may not upload is dropped every pass, never "on its way"
+        if (
+          !uploadsCode &&
+          classifyProjectFile(rel, { canvasGroups: opts.canvasGroups }) === 'code-module'
+        )
+          continue;
+        n += 1;
+      }
+    }
+    return n;
+  }
+
+  /**
+   * The cursor read met the wall (P8 G1b): look at THIS disk before the pass ends, without a request, so
+   * the hold can say how much waits. The scan only records observations (`noteLocal`) — no decision, no
+   * ancestor moves.
+   */
+  function holdAtCursor(out: FilePlaneResult): FilePlaneResult {
+    if (hitRateLimit === null) return out;
+    scanLocalFiles(designRoot, ledger, opts.canvasGroups);
+    return holdIfRateLimited(out, waitingHere());
+  }
+
   function holdIfRateLimited(out: FilePlaneResult, waiting: number): FilePlaneResult {
     // Idempotent: the apply loop arms the hold itself (it is the only caller
     // that knows how many paths were left), and the pass tail then calls this
@@ -1571,10 +1621,10 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         until: rateLimitedUntil,
         retryAfterMs: rateLimitedUntil - now(),
         // The pass that armed the hold counted what it had LEFT; a held pass
-        // has not looked, so it reports what the ledger still calls stuck.
-        // Close enough to be useful, and honest about being a count of rows
-        // rather than a promise about the next pass.
-        waiting: Object.values(ledger.rows()).filter((r) => r.state === 'stuck').length,
+        // has not looked, so it reports what the ledger still has unsent on
+        // this disk (`waitingHere`). Close enough to be useful, and honest
+        // about being a count of rows rather than a promise about the next pass.
+        waiting: waitingHere(),
       };
       return out;
     }
@@ -1634,7 +1684,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     });
     // Unreachable / refused / journal-less: this pass does nothing, and the
     // next one asks again. NEVER "nothing changed".
-    if (page === null) return holdIfRateLimited(out, 0);
+    if (page === null) return holdAtCursor(out);
 
     // Whether our ANCESTORS still describe the hub's log.
     //
@@ -1692,7 +1742,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
           await refusal(res);
         },
       });
-      if (page === null || page.reanchor) return holdIfRateLimited(out, 0);
+      if (page === null || page.reanchor) return holdAtCursor(out);
     }
 
     if (!out.reanchored) {
@@ -2284,6 +2334,11 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
           // pass re-hashes everything it just wrote.
           restat(rel);
           out.pulled.push(rel);
+          try {
+            opts.onDelivered?.(rel);
+          } catch {
+            /* attribution only */
+          }
         } else {
           out.failed.push({ rel, reason: 'could not materialize' });
         }

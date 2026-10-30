@@ -67,7 +67,14 @@ export interface SignInInput {
 /** Injected in tests. */
 export interface SignInDeps {
   fetchImpl?: typeof fetch;
-  save?: (normUrl: string, token: string, role?: string, expiresAt?: number) => void;
+  save?: (
+    normUrl: string,
+    token: string,
+    role?: string,
+    expiresAt?: number,
+    /** the account the workspace vouched (`user.email`), for "Signed in as" */
+    account?: string
+  ) => void;
 }
 
 /**
@@ -79,7 +86,10 @@ export async function signInToWorkspace(
   deps: SignInDeps = {}
 ): Promise<SignInResult> {
   const doFetch = deps.fetchImpl ?? fetch;
-  const save = deps.save ?? saveHubCredential;
+  const save =
+    deps.save ??
+    ((u: string, t: string, r?: string, e?: number, a?: string) =>
+      saveHubCredential(u, t, r, e, undefined, a));
 
   if (typeof input.url !== 'string' || !input.url.trim()) {
     return fail(400, 'Enter the workspace address your team sent you.', 'bad-address');
@@ -191,7 +201,8 @@ export async function signInToWorkspace(
   //    with no deadline to renew against.
   const expiresAt = typeof body.expiresAt === 'number' ? body.expiresAt : undefined;
   try {
-    save(norm, body.token, vouchedRole, expiresAt);
+    const account = typeof body.user?.email === 'string' ? body.user.email : undefined;
+    save(norm, body.token, vouchedRole, expiresAt, account);
   } catch {
     return fail(500, "Couldn't save the workspace connection on this computer.", 'save-failed');
   }

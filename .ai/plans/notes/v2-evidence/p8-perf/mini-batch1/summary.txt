@@ -1,0 +1,28 @@
+
+## studio lane — Chromium, studio shell, dpr 2, fit-all
+| batch | arm | p50 | p95 | p95 spread | zoom p95 | long frames (range) | jank ≥25 | artboard renders | boards | kept |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| batch1 | base | missing | | | | | | | | |
+| batch1 | v2 | missing | | | | | | | | |
+
+## bare lane — Chromium, bare canvas page, fit-all
+| batch | arm | p50 | p95 | p95 spread | zoom p95 | long frames (range) | jank ≥25 | artboard renders | boards | kept |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| batch1 | base | missing | | | | | | | | |
+| batch1 | v2 | missing | | | | | | | | |
+
+## lod lane — Chromium, studio shell, dpr 2, mixed annotation board (1,500 elements, 64 boards) at a fit-all zoom below 25 %, fit-all
+| batch | arm | p50 | p95 | p95 spread | zoom p95 | long frames (range) | jank ≥25 | artboard renders | boards | kept |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| batch1 | base | missing | | | | | | | | |
+| batch1 | v2 | missing | | | | | | | | |
+
+## peers lane — v2 studio shell, 12 people (11 simulated at 15 Hz) against none, fit-all
+| batch | peers | p50 | p95 | p95 spread | zoom p95 | long frames (range) | jank ≥25 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+
+## panel — the 93-canvas Canvases panel in the studio shell (median of kept runs)
+| batch | arm | first row ms | rows mounted | scroll p95 / max / long | flat list rows (of 93) | flat scroll p95 / max / long | search p95 / max ms | open canvas ms |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| batch1 | base | 258 (max 300) | 31 | 116.7 / 133.4 / 68 | 94 | 116.6 / 133.4 / 76 | 37 / 67 | 396 |
+| batch1 | v2 | 450 (max 722) | 18 | 133.3 / 133.4 / 62 | 28 | 116.7 / 133.4 / 47 | 35 / 37 | 172 |

@@ -33,8 +33,10 @@ import path from 'node:path';
 import MagicString from 'magic-string';
 import { parseSync } from 'oxc-parser';
 
-import { buildLibMap, inlineUsedExports } from './canvas-lib-inline.ts';
+import { buildLibMap, inlineDsImport } from './canvas-lib-inline.ts';
 import { canvasLibPath } from './canvas-lib-resolver.ts';
+import { hoverCssForSource } from './edit-ops/hover-rules.ts';
+import { assertNoMacroImports } from './macro-guard.ts';
 
 // biome-ignore lint/suspicious/noExplicitAny: oxc AST nodes are heterogeneous.
 type AnyNode = any;
@@ -141,8 +143,9 @@ export function resolveCanvasKind(rawSource: string): string {
 // Strip data-cd-id from source — the inverse of canvas-pipeline.ts pass 1.
 
 /**
- * Remove every pipeline-emitted attribute — ` data-cd-id="<hex>"` and the
- * Phase-6 ` data-cd-editable="text"` marker — from a TSX source string.
+ * Remove every canvas-only `data-cd-*` attribute — the pipeline's ` data-cd-id`
+ * / ` data-cd-editable` and the authored id, lock and hide marker (V2-2.19) —
+ * from a TSX source string. Same result as element-ids.ts `stripCanvasOnly`.
  * Pure: caller persists. Uses the same oxc-parser + magic-string toolchain as
  * the pipeline that emitted them.
  */
@@ -171,7 +174,9 @@ export function stripDataCdId(canvasAbsPath: string, source: string): string {
           if (
             a?.type === 'JSXAttribute' &&
             a.name?.type === 'JSXIdentifier' &&
-            (a.name.name === 'data-cd-id' || a.name.name === 'data-cd-editable') &&
+            // V2-2.19 (contract V2-1.4 §5.5): the whole canvas-only namespace — the id, the
+            // pipeline's editable marker, the lock and the hide marker — never reaches a handoff.
+            String(a.name.name).startsWith('data-cd-') &&
             typeof a.start === 'number' &&
             typeof a.end === 'number'
           ) {
@@ -215,6 +220,9 @@ export function classifyImports(canvasAbsPath: string, source: string): Classifi
   const deps = new Set<string>();
   const regDeps = new Set<string>();
 
+  // gate-b-c4n — `scanImports` does not run a macro import today (Bun 1.4; `scan` and `transform`
+  // do), so this is the guard every Bun.Transpiler call on canvas text carries, not a fix.
+  assertNoMacroImports(source, path.basename(canvasAbsPath));
   // Bun.Transpiler.scanImports() is the documented fast path; pulls every
   // ImportDeclaration / dynamic import / require call.
   const scanner = new Bun.Transpiler({ loader: 'tsx' });
@@ -606,7 +614,8 @@ export async function emitRegistryItem(opts: EmitOptions): Promise<RegistryItem>
       const libSource = await libFile.text();
       const libMap = buildLibMap(libPath, libSource);
       applyHandoffStaticOverrides(libMap);
-      const inlined = inlineUsedExports(tsx, libMap);
+      // `@maude/ds` too (V2-1.13 §5.11): its names + the system registration, same as the canvas
+      const inlined = inlineDsImport(tsx, opts.designRoot, opts.canvasAbsPath, libMap);
       tsx = inlined.content;
       // Detect motion-helper usage from the inlined surface (the body refs
       // _motionImpl / _useReducedMotion / _MotionAnimatePresence). We probe
@@ -690,6 +699,16 @@ export async function emitRegistryItem(opts: EmitOptions): Promise<RegistryItem>
         }
       }
     }
+  }
+
+  // S8.10 (S2-hover-format §5) — an On hover survives into handoff: the fixed rule set, only for the
+  // presets this canvas uses, appended to the emitted CSS. `data-hover` stays on the element.
+  const hoverCss = hoverCssForSource(rawTsx);
+  if (hoverCss) {
+    const style = files.find((f) => f.path === `styles/${slug}.css`);
+    if (style) style.content = `${style.content}${hoverCss}\n`;
+    else
+      files.push({ path: `styles/${slug}.css`, content: `${hoverCss}\n`, type: 'registry:style' });
   }
 
   const item: RegistryItem = {

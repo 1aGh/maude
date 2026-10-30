@@ -13,6 +13,121 @@
 // A move-only refactor must leave every snapshot byte-identical. Any diff is a behaviour
 // change and fails the check with a unified diff of the first differing lines.
 //
+// Approved delta (V2-4 gate polish-a + polish-b, decision:maude/v2-4-gate-polish-a, decision:maude/v2-4-gate-polish-b):
+// 20 shell states gain the tour as a `callout-tour-usage` row in the callouts stack (the old floating nudge is
+// gone) and the Toaster region moves after the shell (bottom-center); the project pill's accessible name reads
+// "<project>, project menu"; ⌘K is an ARIA combobox (`role=combobox`, `aria-expanded`, `aria-haspopup=listbox`)
+// over a `listbox` labelled Results, its dialog takes `tabindex=-1` for the focus helper; the Settings rail's tabs
+// sit in their own `.v2s-tabs` tablist. Then `browser/shortcuts` alone (V2-4 gate, decision:maude/v2-4-gate-help-keys-once):
+// the "?" sheet lists a key once (⌘Z was shown twice for Undo, Esc twice for Step back), drops v1 "any modifier"
+// alias sets (⌥⇧⌘Esc, ⌘⌫ …) and merges same-label same-key rows (Nudge / Remove for objects and annotations);
+// then (f1607c3e) ⌥⌘1 … ⌥⌘9 reads as one range ⌥⌘1–9 and each "or" sits with its key in a `.so-alt` span.
+// Verified identical on a second run.
+//
+// Approved delta (V2-4.5–4.8 + 4.10, decision:maude/v2-4.8a-menubar-removed, decision:maude/v2-4.8b-callout-stack,
+// decision:maude/v2-4.6-search-is-a-render-model, decision:maude/v2-4.7a-settings-model-is-the-gate,
+// decision:maude/v2-4.10-fold-in-prefs-json-fold-map): all 30 states — the in-app menubar and the status bar are
+// gone (every shell state gains the always-present `callouts` stack, the menu-* states open the project pill's
+// menu), the left-panel footer cloud rail becomes `cloud-host`, the Settings dialog becomes the three-section
+// sheet (`settings-sheet`, `settings-tab-*`), ⌘K is the v2 search (`palette-input`, `palette-list`, new
+// placeholder), the cloud role banner becomes `callout-role`, the long-offline banner `callout-sync-offline-long`,
+// Canvases › Advanced gains "Open canvas", the canvas toolbar slots carry `toolbar-slot-*`. Verified identical on
+// a second run.
+//
+// Approved delta (V2-4.4a+b, decision:maude/v2-4.4a-left-panel-tabs, decision:maude/v2-4.4b-right-islands):
+// 21 states — the dock tab strip becomes the left panel's own header (`panel-head-left`, `panel-tab-*`,
+// `panel-fold-left`), grips gain testids, Settings › Layout reads Canvases/Assets with `panel-side-*` and a new
+// note, the right dock tab strip and the Assistant strip are gone (the AI chat header replaces the latter).
+// The tour anchor `data-tour="sidebar"` is still there. Verified identical on a second run.
+//
+// Approved delta (V2-4.1, decision:maude/v2-4.1-floating-panels): 21 of the 30 states changed, all in
+// the same two places — the shell body is the floating layout (`div.sh-body.sh-body--float`; the left
+// dock slot `.sh-dockslot` › `.island.sh-dockslot-inner` replaces the always-present `.st-rail`, a right
+// slot or the top-right corner icon `[data-testid="panel-icon-right"]` stands where the closed right
+// slot was) and the View menu's first row is "Hide panels  ⌘ \" (was "Project Tree  T") with a new
+// last row "Pin panels to the side". `browser/menu-view` shows the second; the other 20 the first. The
+// shortcut sheet's row reads "Hide / show panels". No other region moved.
+// Lead refresh (V2-4.1, V2-1.2 §5.6 I2): the canvas re-fits once on the shell's first insets, so the
+// boot zoom is the inset-aware fit; `browser/inspector-selected` shows it in the box-model core, which
+// reads the selection's on-screen size ("663 × 180" → "512 × 139"). No other state moved.
+// Approved delta (V2-3.11, decision:maude/v2-3.11-browser-tab-keys — CONTRACT §2 "keys that moved"):
+// Actual size moved ⌘1 → ⇧0 (⌘1–⌘9 pick a tab), so the View menu's "Actual Size · 100 %" row in
+// `browser/menu-view` and the sheet's "Fit · actual size" second combo in `browser/shortcuts` read
+// "⇧ 0". Only those two states were refreshed (`--update --only`).
+// Approved delta (V2-4.2, decision:maude/v2-4.2-project-pill-and-menu): 20 of the 30 states (every one that shows the
+// shell body) gain ONE element as the first child of `div.sh-body` — the project pill
+// `span.sh-pill.island[data-occludes="top"]` › `button[data-testid="project-pill"]` ("Project menu",
+// mark + project name [+ open canvas]). Nothing else in the DOM moved: the left dock slot and the
+// left corner icon sit 52px lower (CSS only), the menubar stays until V2-4.8. The ⌘K palette's list
+// with nothing typed is unchanged (the menu's rows join it once something is typed).
+// Approved delta (V2-4.3a, decision:maude/v2-4.3a-share-cluster-and-status-machine): all 21 states that show the
+// shell body gain ONE element after the project pill — the Share cluster
+// `div.island.sh-share[data-testid="share-cluster"]`: `ul.sh-faces` (you), the status word
+// `span.sh-saved[data-testid="share-cluster-status"]` ("Local project" in the local fixture, "Offline — kept on this
+// Mac" in `sync-offline/`, "Can comment" in the viewer shells), the comments button, Hide panels, and Share (Ask to
+// edit for the viewer shells). The right panel and the right corner icon sit 52px lower (CSS only). `browser/palette-query`
+// also gains the registered "Exports" row under View (`view.exports`: Menu › View › Exports, ⌘K "Exports"). The
+// menubar and the status bar stay until V2-4.8.
+// Approved delta (V2-4.3b, decision:maude/v2-4.3b-shell-owns-mode-switch — V2-1.2 §8 step 7): the 21 shell states gain
+// the mode switch inside the Share cluster, after Comments — `div.sh-modes[data-testid="share-cluster-mode"]` ›
+// `palette-mode-edit` (Edit, pressed) or, in `viewer/` and `cloud-viewer/`, `palette-mode-viewing` with
+// `palette-mode-preview` pressed (a view-only link boots Preview, DDR-223), then Preview and the Present slot
+// (`palette-mode-present` + the `mode-present-menu` chevron; both [disabled] with no canvas open). `browser/palette-open`
+// and `browser/palette-query` list the three segment buttons. The canvas states' "You're in Edit" notice now reads
+// "Switch to Preview at the top right" (it named "the toolbar"). Nothing else moved: the boot Preview of a viewer does
+// NOT fold the panels (only a chosen Preview does). Refreshed all states (`--update`), then `--repeat` green.
+// Approved delta (V2-4.4a, decision:maude/v2-4.4a-left-panel-tabs): the 20 states that show the left panel read
+// Canvases · Layers · Assets. In every one: the dock tab `dock-tab-tree` says "Canvases" (was "Files") and a third
+// tab `dock-tab-assets` "Assets" follows Layers; the sidebar `nav` is `aria-label="Canvases"`, its title
+// `span.cv-sb-title` "Canvases", the search input `aria-label="Filter canvases"`. The header loses the Refresh button
+// (`.sh-refresh`) and the live "4 / 4" count — both moved under Canvases › Advanced (`canvases-refresh`, the foot's
+// "N of M shown"). The DESIGN SYSTEM section (`tree-section-design-system` + its `demo` DsFolderRow) is gone from the
+// default list: the project's system is the pinned row `div.lp-pinned › button[data-testid="canvases-ds-row"]` ("Design
+// system") above the list (19 states; `browser/system-view` shows it `.is-sel[aria-current]`), and its files render
+// inside Advanced. The tree's roving tab stop (`tabindex="0"`) therefore lands on UI CANVASES (it was the first item,
+// DESIGN SYSTEM). After the list: `button[data-testid="canvases-trash-row"]` "Trash" (17 states — the three viewer
+// states, `viewer/*` and `cloud-viewer/`, have no trash to open) and `div.lp-adv` › `button[data-testid="canvases-advanced"]`
+// "Advanced" (`aria-expanded="false"`). Nothing else in the 20 states moved. Refreshed with `--update`, then a second
+// run green (`--repeat`).
+//
+// Approved delta (V2-4.8a, decision:maude/v2-4.8a-menubar-removed): the in-app menubar (`header.st-menubar`: brand,
+// six menus, presence, Assistant / Share / bug / What's new buttons, stamp, path, artboard count, project name) is
+// deleted. Every shell state loses that row (the shell body starts at the top of the window) and the `menu-*`
+// states open the project pill's menu instead (see `MENU_SECTION`). Goldens are refreshed by the lead.
+//
+// Approved delta (wave-B gate, 2026-10-20, decision:maude/v2-waveB-gate-v1-goldens): all 30 states move with shipped
+// wave-A/B slices and nothing else. The Share cluster wraps the faces in `span.sh-faces-host` and marks the session's
+// own face `.is-you` (S9); the project pill's menu gains `hr.sh-pm-sep` group separators (S11.18); ⌘K opens on a
+// "Recent" group (`palette-recent-empty` "Nothing opened yet." on a fresh fixture, S1.4) and a near-miss row reads
+// `.is-quiet` with its `.sh-pal-where` place (S1.4/S11.18); the remaining states carry the same cluster/menu rows.
+// Refreshed with `--build --update`, then `--build --repeat` all 30 identical.
+//
+// Approved delta (wave-B gate, Ready to try (7), 2026-10-22, decision:maude/v2-waveB-gate-v1-goldens-2): 21 states
+// move with the gate's own fixes and nothing else. No tour offer in the callout stack (polish2: tours stay at
+// Menu › Help); a shell with no canvas shows the `sh-empty` "No canvas open" card with Start quick setup
+// (polish2); the AI panel is a normal conversation (`chat-feed` labelled Conversation, tabindex 0 — a11y) and the
+// v1 "AI editing isn't ready yet" readiness list (`acp-not-connected`, `rdy-*`) is gone from it — it lives at
+// Menu › Diagnostics › AI setup (polish2 RC-C); Settings › General › Look is one Theme segmented row Light · Dark ·
+// Auto (`v2s-seg`), the Inspector-words radio left for Inspector › Advanced (polish2; nothing-deleted row
+// A-inspector-vocabulary-advanced-designer); the account row reads "cloud.maude.sh" and the e-mail hint "while
+// you're away" (S9.20 / copy). The harness now boots every server with a stub `claude` first on PATH and
+// MAUDE_CLAUDE_BIN empty (a throwaway HOME + the real CLI raised macOS keychain dialogs), and masks the Settings
+// "Local server port" value (it is the run's own port). `--build --update`, then `--build --repeat`: 0 changed.
+//
+// Approved delta (P8 C0, 2026-10-22, decision:maude/v2-p8-c0-one-shell-ladder): 8 states. The token flip itself is
+// CSS-only and moves ONE value: `browser/inspector-selected` reads the selection's Height 217 (was 216) — the v2
+// ladder re-sizes the panels, so the inset-aware fit lands on another zoom and the rounding shifts by a pixel. The
+// other 7 (`browser/export-dialog`, `browser/handoff-dialog`, `browser/menu-file`, `tauri/menu-file`,
+// `browser/settings`, `browser/settings-tabs`, `cloud/settings`) were already stale on the feat tip from merged
+// slices, not from C0: the no-selection export sheet is the whole-project sheet grouped by kind, the handoff sheet
+// is not reachable without a canvas, the project menu's canvas rows read aria-disabled with no canvas open, and a
+// Settings row reads "Version history" (was "Changes"). `--build --update`, then `--build --repeat`: all 30 identical.
+//
+// Approved delta (V2-8.0 part C, decision:maude/v2-p8-st-rename-by-family): class names only. Every `st-<family>…`
+// class moves to its area's v2 namespace (the share family → `sh-share…`, follow → `pv-follow…`, …); the
+// goldens were rewritten with the same rename map and re-sorted (the snapshot sorts classes). No structure, text or
+// attribute moved.
+//
 // Usage (from the repo root):
 //   node scripts/check-v1-characterization.mjs [--update] [--only <state-prefix>]
 //                                              [--build] [--shots <dir>] [--repeat]
@@ -47,6 +162,7 @@ import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { stubClaudeEnv } from './lib/stub-claude.mjs';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const STUDIO = join(REPO, 'apps', 'studio');
@@ -284,12 +400,22 @@ async function bootServer() {
   const server = spawn('bun', [join(STUDIO, 'server.ts'), '--root', project], {
     env: {
       ...process.env,
+      // Never the real `claude` under a throwaway HOME (macOS keychain dialogs) — the shared stub.
+      ...stubClaudeEnv(home),
       HOME: home,
       XDG_CONFIG_HOME: join(home, '.config'),
+      // S5.1b — the local kernel's machine stamp stays in the throwaway HOME, never the person's.
+      MAUDE_MACHINE_FILE: join(home, '.config', 'maude', 'machine.json'),
+      MAUDE_INDEX_DIR: join(home, '.maude-index'), // P8: never the person's ~/.maude/index (Home lists every project indexed there)
       NO_OPEN: '1',
+      MAUDE_PORT_BASE: process.env.MAUDE_PORT_BASE ?? '48399', // never the person's 4399–4408 (port.ts)
       MAUDE_NO_AUTOBUILD: '1',
       MAUDE_SYNC_IN_CI: '1',
       TZ: 'UTC',
+      // The goldens were taken with no local Ollama answering; a host Ollama changes the AI
+      // readiness rows in Settings (2026-10-13: 359 → 354 nodes). Port 9 (discard) on loopback
+      // refuses fast, so the run never depends on what this Mac has running.
+      OLLAMA_HOST: '127.0.0.1:9',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -547,6 +673,28 @@ const afterKeys =
     return sel;
   };
 
+// V2-4.8a — the in-app menubar is gone; the six `menu-*` states now open the SAME sections in the project
+// pill's one menu (its snapshot root is the pill, `.sh-pill`, which holds the open menu). Selection and
+// Tools are not menus any more: Selection's two rows ("Deselect all", "Select all annotations") are rows of
+// Edit, and Tools are the canvas toolbar's slots — so `menu-selection` shows Edit (the section that holds
+// them) and `menu-tools` shows the menu's top level with no section open (the old Tools position has no
+// menu to open; the tools are on the toolbar over a canvas, see `browser/canvas-open`).
+const MENU_SECTION = {
+  file: 'File',
+  edit: 'Edit',
+  view: 'View',
+  selection: 'Edit',
+  tools: null,
+  help: 'Help',
+};
+async function openProjectMenu(page, section) {
+  await page.locator('[data-testid="project-pill"]').click();
+  await page.locator('[data-testid="project-menu"]').waitFor();
+  if (section)
+    await page.locator(`[data-testid="project-menu-row-sub-${section.toLowerCase()}"]`).click();
+  await settle(page);
+}
+
 // Each state: [name, shell, async (page) => selector-to-snapshot]
 const STATES = [
   ['browser/shell-empty', 'browser', async () => '#root'],
@@ -554,9 +702,8 @@ const STATES = [
     `browser/menu-${m}`,
     'browser',
     async (page) => {
-      await page.locator(`[data-testid="menu-${m}"]`).click();
-      await settle(page);
-      return '.st-menubar';
+      await openProjectMenu(page, MENU_SECTION[m]);
+      return '.sh-pill';
     },
   ]),
   [
@@ -564,7 +711,7 @@ const STATES = [
     'browser',
     async (page) => {
       await press(page, 'Meta+k');
-      return '[role="dialog"], .st-palette, .cmdk, [data-testid*="palette"]';
+      return '[role="dialog"], .sh-palette, .cmdk, [data-testid*="palette"]';
     },
   ],
   [
@@ -574,7 +721,7 @@ const STATES = [
       await press(page, 'Meta+k');
       await page.keyboard.type('export');
       await settle(page);
-      return '[role="dialog"], .st-palette, .cmdk, [data-testid*="palette"]';
+      return '[role="dialog"], .sh-palette, .cmdk, [data-testid*="palette"]';
     },
   ],
   ['browser/shortcuts', 'browser', afterKeys('Shift+Slash')],
@@ -585,7 +732,7 @@ const STATES = [
     'browser',
     async (page) => {
       await press(page, 'Meta+Comma');
-      const tabs = page.locator('[role="dialog"] [role="tab"], .st-settings [role="tab"]');
+      const tabs = page.locator('[role="dialog"] [role="tab"], .v2s-settings [role="tab"]');
       const n = await tabs.count();
       const snaps = [];
       for (let i = 0; i < n; i++) {
@@ -666,9 +813,8 @@ const STATES = [
     'tauri/menu-file',
     'tauri',
     async (page) => {
-      await page.locator('[data-testid="menu-file"]').click();
-      await settle(page);
-      return '.st-menubar';
+      await openProjectMenu(page, MENU_SECTION.file);
+      return '.sh-pill';
     },
   ],
   ['viewer/shell-empty', 'viewer', async () => '#root'],
@@ -704,8 +850,13 @@ async function runState([name, shell, drive]) {
   const { context, page, errors } = await openShell(ctx, shell);
   try {
     const r = await drive(page);
-    const text =
-      typeof r === 'string' ? await page.evaluate(snapshotInPage, snapArg(page, r)) : r.text;
+    // The Settings "Local server port" row shows this run's own port (4400, 4403 …) as bare digits.
+    const text = (
+      typeof r === 'string' ? await page.evaluate(snapshotInPage, snapArg(page, r)) : r.text
+    ).replace(
+      /(data-testid="settings-server-port"\][^"]*(?:"[^"]*"[^"]*)*?v2s-val--mono ")\d{2,5}"/g,
+      '$1<port>"'
+    );
     let shot = null;
     if (SHOTS && SHOT_STATES.has(name)) {
       await page.evaluate(() => document.fonts?.ready);
@@ -874,7 +1025,8 @@ for (const [i, state] of selected.entries()) {
 if (!UPDATE && !ONLY) {
   const known = new Set(selected.map(([n]) => `${n.replace('/', '__')}.txt`));
   for (const f of existsSync(GOLDEN) ? readdirSync(GOLDEN) : []) {
-    if (!known.has(f)) {
+    // keys.txt is the v1 KEY characterization's golden (test/characterization/v1-keys.test.ts).
+    if (!known.has(f) && f !== 'keys.txt') {
       console.log(`GONE  ${f} — golden without a state`);
       changed++;
     }

@@ -1,5 +1,7 @@
 import { $, browser } from '@wdio/globals';
 
+import { onFakeAi } from './fake-ai';
+
 /**
  * The Assistant (ACP chat) panel, driven the way the ACP scenarios need it.
  *
@@ -17,15 +19,59 @@ import { $, browser } from '@wdio/globals';
 const tid = (s: string) => `[data-testid="${s}"]`;
 
 /** Open the Assistant panel if it is closed — never toggles an open one shut.
- *  `assistant-toggle[data-active]` is the panel's own open state. */
+ *  V2-4.8a: the panel's own open state is its island — `ai-chat-header` is on screen while it shows, and
+ *  the spark corner icon `panel-icon-assistant` stands in its place while it is folded (⌘\ hides every
+ *  panel, which also shows the icon). The menubar's `assistant-toggle` is gone. */
 export async function openAssistant(): Promise<void> {
-  const toggle = await $(tid('assistant-toggle'));
-  await toggle.waitForDisplayed({ timeout: 30_000 });
-  if ((await toggle.getAttribute('data-active')) !== 'true') await toggle.click();
-  await browser.waitUntil(async () => (await toggle.getAttribute('data-active')) === 'true', {
+  const header = await $(tid('ai-chat-header'));
+  const shown = async () => header.isDisplayed().catch(() => false);
+  if (!(await shown())) {
+    const icon = await $(tid('panel-icon-assistant'));
+    await icon.waitForDisplayed({ timeout: 30_000 });
+    await icon.click();
+  }
+  await browser.waitUntil(shown, {
     timeout: 10_000,
     timeoutMsg: 'the Assistant panel never opened',
   });
+}
+
+/** Open the panel's "Advanced" fold if it is closed — never toggles an open one shut. The "Ask before" picker
+ *  (`chat-mode-picker`), Model, Effort and the rest live inside it (V2-4.8 S5.12): a closed fold has no body in the
+ *  DOM at all, so a spec that reads the picker without this finds nothing. The fold is remembered per Mac. */
+export async function openAdvanced(): Promise<void> {
+  const body = await $(tid('fold-ai.chat-body'));
+  if (await body.isDisplayed().catch(() => false)) return;
+  const toggle = await $(tid('ai-advanced'));
+  await toggle.waitForDisplayed({ timeout: 30_000 });
+  await toggle.click();
+  await body.waitForDisplayed({ timeout: 10_000 });
+}
+
+/** The lane's AI gate. On the fake-AI lanes a missing connection is a FAILURE (the stub was meant to supply it);
+ *  on any other lane it is a quiet skip, as before. Call from a `before` with `this`. */
+export async function requireAi(ctx: { skip(): void }): Promise<void> {
+  if (await aiConnected()) return;
+  if (onFakeAi()) {
+    throw new Error(
+      'the fake AI lane is not connected: /_api/acp/status says unavailable — check MAUDE_CLAUDE_BIN / MAUDE_ACP_ADAPTER_ENTRY in the lane conf'
+    );
+  }
+  ctx.skip();
+}
+
+/** Is a signed-in Claude connected? gate-b-polish2 (CONTRACT §7): the panel looks the same either way (the
+ *  v1 `acp-not-connected` body is gone), so ask the bridge itself — the probe the panel runs. */
+export async function aiConnected(): Promise<boolean> {
+  const available = await browser.execute(async () => {
+    try {
+      const r = await fetch('/_api/acp/status');
+      return (await r.json())?.available === true;
+    } catch {
+      return false;
+    }
+  });
+  return available === true;
 }
 
 /** Empty the composer textarea the way React sees it (native value setter +
@@ -63,6 +109,7 @@ export async function clearComposer(): Promise<void> {
  * session itself has switched — reading it back is the round-trip check.
  */
 export async function pickMode(value: string): Promise<void> {
+  await openAdvanced();
   await browser.execute((v: string) => {
     const sel = document.querySelector(
       '[data-testid="chat-mode-picker"]'
@@ -77,21 +124,17 @@ export async function pickMode(value: string): Promise<void> {
  * Switch the live session to permission mode `id` (an ACP mode id, e.g.
  * `default` = "Manual") and wait for the session to report it back.
  *
- * Typing `/` warms the session (acp-capability-picker's trick) so the picker
- * exists even on a chat that has never run a turn; the composer is cleared
- * again afterwards. Returns the mode the session was in before, so a spec can
- * hand the shared session back unchanged.
+ * Opens the Advanced fold (the picker lives in it) and waits for the session's roster — the visible chat warms its
+ * session on its own, no `/` needed. Returns the mode the session was in before, so a spec can hand the shared
+ * session back unchanged.
  */
 export async function setPermissionMode(id: string): Promise<string> {
   const composer = await $(tid('chat-composer'));
   await composer.waitForDisplayed({ timeout: 60_000 });
+  // The panel warms its session when it is on screen, and the picker sits in the Advanced fold.
+  await openAdvanced();
   const picker = await $(tid('chat-mode-picker'));
-  if (!(await picker.isDisplayed().catch(() => false))) {
-    const input = await composer.$('.chat-input');
-    await input.click();
-    await input.addValue('/');
-    await picker.waitForDisplayed({ timeout: 30_000 });
-  }
+  await picker.waitForDisplayed({ timeout: 30_000 });
   const previous = await picker.getValue();
   if (previous !== id) await pickMode(id);
   await browser.waitUntil(async () => (await picker.getValue()) === id, {
@@ -103,14 +146,14 @@ export async function setPermissionMode(id: string): Promise<string> {
 }
 
 /** One sample of the panel's turn state, from hooks the product already has:
- *  the menubar busy pulse, the composer's Stop button (rendered only while the
+ *  the header's running-chats count (and the folded icon's dot), the composer's Stop button (rendered only while the
  *  thread is running) and the per-message action rows (one per message, user
  *  AND assistant). */
 async function turnState() {
   return browser.execute(() => ({
     busy:
-      document.querySelector('[data-testid="assistant-toggle"]')?.getAttribute('data-busy') ===
-      'true',
+      !!document.querySelector('[data-testid="ai-chat-count"]') ||
+      !!document.querySelector('[data-testid="panel-icon-assistant"] .sh-corner-dot'),
     stop: !!document.querySelector('[data-testid="chat-composer"] [aria-label="Stop"]'),
     messages: document.querySelectorAll('[data-testid="chat-msg-actions"]').length,
   }));

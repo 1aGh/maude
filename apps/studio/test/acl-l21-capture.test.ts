@@ -35,9 +35,10 @@
 //      pre-fix capture path).
 
 import { describe, expect, test } from 'bun:test';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { frameCap } from './_acl-cell.ts';
 import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
 
 const PROBE_TSX = `import { DesignCanvas, DCSection, DCArtboard } from "@maude/canvas-lib";
@@ -165,7 +166,12 @@ describe('captures render on the read-only capture origin (V2-2.8 S9, V2-1.16 L2
         const loc = new URL(r.headers.get('location') ?? '');
         expect(loc.origin).toBe(capture);
         expect(loc.pathname).toBe('/_canvas-shell.html');
-        expect(loc.search).toBe(new URL(`http://x${path}`).search);
+        // gate-b-c4 — the query intact, plus the capture's frame capability for that canvas.
+        expect(loc.searchParams.get('fc')).toMatch(/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
+        loc.searchParams.delete('fc');
+        expect(loc.searchParams.toString()).toBe(
+          new URL(`http://x${path}`).searchParams.toString()
+        );
       }
 
       // FAIL CLOSED. The shell builds its module URL from the REQUEST's own
@@ -187,38 +193,24 @@ describe('captures render on the read-only capture origin (V2-2.8 S9, V2-1.16 L2
         '?canvas=_draw/mark.proof.tsx&components=ui/x.css', // harness name, extra loads
         '?canvas=_draw/mark.proof.tsx&canvas=ui/Probe.tsx', // two canvases
         '?canvas=_draw/sub/mark.proof.tsx', // not the generated shape
-      ]) {
-        expect(`${q} ${await status(q)}`).toBe(`${q} 307`);
-      }
-
-      // …except Maude's OWN local harnesses, matched EXACTLY (a named residual:
-      // `maude design draw-proof` → `_draw/<slug>.proof.tsx`, `photo-bg-remove`
-      // → `_photo/<slug>.bgremove.tsx`). They live under DDR-115 runtime dirs
-      // the canvas-safe table refuses, are generated on this machine and never
-      // synced, so they keep rendering on the main origin exactly as before.
-      for (const q of [
+        // Maude's own local harnesses get NO exception either (V2-2.4b gate):
+        // the AI agent is on this machine and can write `_draw/x.proof.tsx` /
+        // `_photo/x.bgremove.tsx` itself, so "generated here" proves nothing.
         '?canvas=_draw/mark.proof.tsx',
         '?canvas=_draw/brand.v2_mark-1.proof.tsx&designRel=.design',
         '?canvas=_photo/a1b2c3d4.bgremove.tsx',
       ]) {
-        expect(`${q} ${await status(q)}`).toBe(`${q} 200`);
+        expect(`${q} ${await status(q)}`).toBe(`${q} 307`);
       }
-      // …and only when the helper itself navigated there (Fetch Metadata
-      // `none`, or no header from a non-browser client). A page — another
-      // site, or a canvas on the canvas origin (same-site) — navigating a
-      // browser to a leftover harness URL is redirected like everything else.
-      for (const site of ['cross-site', 'same-site', 'same-origin']) {
+      // …whoever navigated there — the helper itself (Fetch Metadata `none`,
+      // or no header from a non-browser client) included.
+      for (const site of ['none', 'cross-site', 'same-site', 'same-origin']) {
         const r = await fetch(
           `http://localhost:${port}/_canvas-shell.html?canvas=_draw/mark.proof.tsx`,
           { redirect: 'manual', headers: { 'sec-fetch-site': site } }
         );
         expect(`${site} ${r.status}`).toBe(`${site} 307`);
       }
-      const direct = await fetch(
-        `http://localhost:${port}/_canvas-shell.html?canvas=_draw/mark.proof.tsx`,
-        { redirect: 'manual', headers: { 'sec-fetch-site': 'none' } }
-      );
-      expect(direct.status).toBe(200);
     } finally {
       await killProc(proc);
     }
@@ -271,9 +263,18 @@ describe('captures render on the read-only capture origin (V2-2.8 S9, V2-1.16 L2
         expect(`${p} ${r.status}`).toBe(`${p} 403`);
       }
 
-      // Canvas-safe reads still serve (the capture must render).
-      expect((await at('/.design/ui/Probe.tsx')).status).toBe(200);
-      expect((await at('/_api/canvas-meta?file=.design/ui/Probe.tsx')).status).toBe(200);
+      // Canvas-safe reads still serve (the capture must render) — inside the capture's frame
+      // (gate-b-c4: the main origin's 307 carries its capability; frame-less reads nothing).
+      const redirect = await fetch(
+        `http://localhost:${port}/_canvas-shell.html?canvas=ui/Probe.tsx&hide-chrome=1`,
+        { redirect: 'manual' }
+      );
+      const fc = new URL(redirect.headers.get('location') ?? '').searchParams.get('fc') ?? '';
+      const framed = (p: string) =>
+        `${p}${p.includes('?') ? '&' : '?'}fc=${encodeURIComponent(fc)}`;
+      expect((await at(framed('/.design/ui/Probe.tsx'))).status).toBe(200);
+      expect((await at(framed('/_api/canvas-meta?file=.design/ui/Probe.tsx'))).status).toBe(200);
+      expect((await at('/.design/ui/Probe.tsx')).status).toBe(403);
 
       // A DNS-rebound page (foreign Host) reads nothing here — the listener is
       // loopback-only and never sits behind a proxy.
@@ -306,7 +307,12 @@ describe('captures render on the read-only capture origin (V2-2.8 S9, V2-1.16 L2
       // …while the interactive canvas origin's collab room still does (control).
       const info = JSON.parse(readFileSync(join(designRoot, '_server.json'), 'utf8'));
       const wsCanvas = String(info.canvasOrigin).replace(/^http/, 'ws');
-      expect(await upgradeOpens(`${wsCanvas}/_ws/collab/ui-probe`)).toBe(true);
+      // gate-b-c4 — inside the canvas's frame; frame-less, no room opens.
+      const fcProbe = encodeURIComponent(
+        (await frameCap({ base: `http://localhost:${port}` }, {}, 'ui/Probe.tsx')) ?? ''
+      );
+      expect(await upgradeOpens(`${wsCanvas}/_ws/collab/ui-probe?fc=${fcProbe}`)).toBe(true);
+      expect(await upgradeOpens(`${wsCanvas}/_ws/collab/ui-probe`)).toBe(false);
     } finally {
       await killProc(proc);
     }
@@ -330,6 +336,108 @@ describe('captures render on the read-only capture origin (V2-2.8 S9, V2-1.16 L2
       const meta = join(designRoot, 'ui', 'Probe.meta.json');
       expect(existsSync(meta) ? readFileSync(meta, 'utf8') : '').not.toContain('7777');
     } finally {
+      await killProc(proc);
+    }
+  }, 120_000);
+
+  test("Maude's local harness modules are served on the untrusted origins, by exact shape only", async () => {
+    const { root, designRoot } = makeSandbox();
+    writeFileSync(join(designRoot, 'ui', 'Probe.tsx'), PROBE_TSX);
+    mkdirSync(join(designRoot, '_draw', 'sub'), { recursive: true });
+    mkdirSync(join(designRoot, '_photo'), { recursive: true });
+    for (const rel of [
+      '_draw/mark.proof.tsx',
+      '_draw/notes.tsx',
+      '_draw/sub/mark.proof.tsx',
+      '_photo/a1b2c3d4.bgremove.tsx',
+      '_photo/a1b2c3d4.tsx',
+    ]) {
+      writeFileSync(join(designRoot, rel), STATIC_TSX);
+    }
+    const port = nextPort();
+    const proc = await bootServer(root, port, BASE_ENV);
+    try {
+      const capture = await captureOriginOf(port);
+      const info = JSON.parse(readFileSync(join(designRoot, '_server.json'), 'utf8'));
+      for (const origin of [capture, String(info.canvasOrigin)]) {
+        const status = async (p: string) =>
+          (await fetch(`${origin}${p}`, { signal: AbortSignal.timeout(5000) })).status;
+        // The two generated shapes render there (draw-proof via the main
+        // origin's 307 to the capture origin; photo-bg-remove on the canvas
+        // origin, whose canvas-safe asset + photo-edit writes it needs)…
+        // gate-b-c4 — inside their own frame (the capability the main origin's 307 carries).
+        const framed = async (rel: string) =>
+          `/.design/${rel}?fc=${encodeURIComponent((await frameCap({ base: `http://localhost:${port}` }, {}, rel)) ?? '')}`;
+        expect(await status(await framed('_draw/mark.proof.tsx'))).toBe(200);
+        expect(await status(await framed('_photo/a1b2c3d4.bgremove.tsx'))).toBe(200);
+        // …and nothing else under the runtime dirs does.
+        for (const p of [
+          '/.design/_draw/notes.tsx',
+          '/.design/_draw/sub/mark.proof.tsx',
+          '/.design/_photo/a1b2c3d4.tsx',
+          '/.design/_history/mark.proof.tsx',
+          '/.design/_draw/mark.proof.tsx.map',
+        ]) {
+          expect(`${p} ${await status(p)}`).toBe(`${p} 403`);
+        }
+      }
+    } finally {
+      await killProc(proc);
+    }
+  }, 30_000);
+
+  test('THE HARNESS PROBE: a planted draw-proof / bg-remove canvas reaches no privileged route', async () => {
+    // The AI agent can write `_draw/<slug>.proof.tsx` itself and open it with
+    // the auto-approved `maude design screenshot` / agent-browser verbs. Before
+    // the V2-2.4b gate fix that rendered on the MAIN origin (Fetch Metadata
+    // `none`), where `/_api/ui-prefs` — and git push, paid generation,
+    // `/_config` — answered 200.
+    const { root, designRoot } = makeSandbox();
+    mkdirSync(join(designRoot, '_draw'), { recursive: true });
+    mkdirSync(join(designRoot, '_photo'), { recursive: true });
+    writeFileSync(join(designRoot, '_draw', 'planted.proof.tsx'), PROBE_TSX);
+    // gate-b-c4c — with the one-time nonce line the helper writes (and passes on the URL), so this
+    // planted harness takes the real path: the main origin's 307 to the canvas origin.
+    const nonce = 'fedcba9876543210fedcba9876543210';
+    writeFileSync(
+      join(designRoot, '_photo', 'deadbeef.bgremove.tsx'),
+      `// maude-harness-nonce: ${nonce}\n${PROBE_TSX}`
+    );
+    const prefs = join(root, 'prefs.json');
+    writeFileSync(prefs, `${JSON.stringify({ theme: 'light' })}\n`);
+    const port = nextPort();
+    const proc = await bootServer(root, port, { ...BASE_ENV, MAUDE_UI_PREFS_PATH: prefs });
+    const { launchChromium } = (await import('../bin/_pw-launch.mjs')) as {
+      launchChromium: () => Promise<{
+        newContext: () => Promise<{ newPage: () => Promise<unknown> }>;
+        close: () => Promise<void>;
+      }>;
+    };
+    const browser = await launchChromium();
+    try {
+      const main = `http://localhost:${port}`;
+      for (const url of [
+        // what `maude design draw-proof` / `screenshot --canvas` open
+        `${main}/_canvas-shell.html?canvas=_draw/planted.proof.tsx`,
+        // where `maude design photo-bg-remove` opens it (gate-b-c4: the main origin 307s it to the
+        // canvas origin with the frame's capability)
+        `${main}/_canvas-shell.html?canvas=_photo/deadbeef.bgremove.tsx&nonce=${nonce}`,
+      ]) {
+        // biome-ignore lint/suspicious/noExplicitAny: playwright page surface
+        const page: any = await (await browser.newContext()).newPage();
+        await page.goto(url);
+        const handle = await page.waitForSelector('[data-probe]', {
+          state: 'attached',
+          timeout: 30_000,
+        });
+        const out = JSON.parse((await handle.getAttribute('data-probe')) ?? '{}');
+        expect(`${url} ${out.prefsWrite}`).not.toBe(`${url} 200`);
+        expect(`${url} ${out.indexRead}`).not.toBe(`${url} 200`);
+        expect(JSON.parse(readFileSync(prefs, 'utf8')).theme).toBe('light');
+        expect(new URL(page.url()).origin).not.toBe(main);
+      }
+    } finally {
+      await browser.close();
       await killProc(proc);
     }
   }, 120_000);

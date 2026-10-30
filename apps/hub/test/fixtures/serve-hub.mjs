@@ -5,7 +5,7 @@
 // SIGTERM.
 //
 //   node serve-hub.mjs <dataDir> [port] [--transactions] [--users]
-//     [--conn-rate-limit N] [--max-pending-documents N]
+//     [--conn-rate-limit N] [--max-pending-documents N] [--asset-write-rate-limit N]
 //
 // --users adds password accounts (the self-hosted sign-in a designer uses):
 // designer@x.test (member) and admin@x.test (admin), password `designer-pass-1`.
@@ -32,6 +32,10 @@ const connRateLimit = rateIdx > 0 ? Number(process.argv[rateIdx + 1]) : undefine
 // (Hocuspocus closes a socket with more than 100 documents mid-authentication).
 const pendingIdx = process.argv.indexOf('--max-pending-documents');
 const maxPendingDocuments = pendingIdx > 0 ? Number(process.argv[pendingIdx + 1]) : undefined;
+// --asset-write-rate-limit N: authenticated file/asset writes (and file reads) per token label per minute, small
+// enough that a test reaches the hub's 429 + Retry-After (06 ad-edge-sync: "N changes are waiting to reach the cloud").
+const writeIdx = process.argv.indexOf('--asset-write-rate-limit');
+const assetWriteRateLimit = writeIdx > 0 ? Number(process.argv[writeIdx + 1]) : undefined;
 export const TEST_PASSWORD = 'designer-pass-1';
 if (!dataDir) {
   process.stderr.write('usage: serve-hub.mjs <dataDir> [port] [--transactions]\n');
@@ -59,6 +63,13 @@ if (existsSync(tokensFile)) {
       owner: 'bob@x.test',
     }).value,
     viewer: addToken(dataDir, { label: 'viewer', scope: '*', readOnly: true }).value,
+    // a teammate with her own name (desktop e2e ai-runs: Tereza's studio — the hub names her "tereza")
+    tereza: addToken(dataDir, {
+      label: 'tereza-laptop',
+      scope: '*',
+      role: 'member',
+      owner: 'tereza@x.test',
+    }).value,
   };
   writeFileSync(tokensFile, JSON.stringify(tokens));
 }
@@ -79,6 +90,7 @@ const built = createHub({
   verbose: connRateLimit !== undefined,
   ...(connRateLimit !== undefined ? { connRateLimit } : {}),
   ...(maxPendingDocuments !== undefined ? { maxPendingDocuments } : {}),
+  ...(assetWriteRateLimit !== undefined ? { assetWriteRateLimit } : {}),
 });
 await built.server.listen();
 await built.acceptedReady;
@@ -92,10 +104,16 @@ if (transactions) {
   }
 }
 
+// A workspace-mode hub (MAUDE_WORKSPACE_MODE=1 + MAUDE_REPO_DIR, as a cell runs): arm the file journal's
+// poke + walk-import the way `main()` in server.mjs does, so a peer learns a file landed without waiting for
+// its poll. No object storage here, so no tail. A plain hub has no journal and this is a no-op.
+if (built.workspaceMode) await built.startJournalReconciler({ target: null });
+
 process.stdout.write(`${JSON.stringify({ http, ws, port: new URL(http).port, tokens })}\n`);
 
 const stop = async () => {
   try {
+    if (built.workspaceMode) await built.stopJournal().catch(() => {});
     await built.server.destroy();
   } finally {
     process.exit(0);

@@ -1,0 +1,2395 @@
+/* @layer components — Phase 31 (DDR-123) ACP chat sidepanel.
+ *
+ * Ported from `.design/ui/ChatPanel.css` (the approved mock), styling only the
+ * canvas-LOCAL `chat-*` content inside the `sh-rpanel` Assistant tab. Every value
+ * is a maude token from `1-tokens-maude.css` / a component class from
+ * the shell kit / `v2/shell/floating-panels.css`. Differences from the mock: the feed scrolls live
+ * (`overflow-y:auto`, not the mock's static `hidden`) and a few wrappers
+ * (`.chat-thread`, `.sh-rp-body--chat`, `.chat-tool-path`) the live panel needs.
+ */
+
+/* ── V2-8.0: rules moved here from the retired styles/ layer files, in their original order and ahead of this file's own rules, so the cascade is unchanged. ── */
+
+/* from styles/3-shell-maude.css */
+@layer shell {
+  /* ── Phase 28 (E3) — GitHub identity rail + create/pull/share dialogs.
+ *    All chrome is the SHELL maude DS: solid surfaces (var(--bg-1)/2) and the
+ *    .sh-dialog scrim+card treatment — NEVER the canvas-side `.panel` (it isn't in
+ *    the client bundle, which made the cards transparent). The identity rail docks
+ *    at the BOTTOM of the sidebar as a compact avatar; the menu opens upward. */
+  /* text inputs — the maude DS .input/.textarea recipe (lifted from the canvas-side
+ * _components.css, which isn't in the client bundle → my fields fell back to native).
+ * Scoped to the github dialogs so it can't collide with the shell's .cv-search / the v1 field. */
+  .gi-dialog .input,
+  .cp-dialog .input,
+  .gi-dialog .textarea,
+  .cp-dialog .textarea,
+  .rb-dialog .textarea {
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+    color: var(--fg-0);
+    background: var(--bg-3);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    padding: var(--space-2) var(--space-3);
+    width: 100%;
+    transition:
+      border-color var(--dur-soft) var(--ease-out),
+      box-shadow var(--dur-soft) var(--ease-out);
+  }
+
+  .gi-dialog .input::placeholder,
+  .cp-dialog .input::placeholder,
+  .gi-dialog .textarea::placeholder,
+  .cp-dialog .textarea::placeholder,
+  .rb-dialog .textarea::placeholder {
+    color: var(--fg-2);
+  }
+
+  .gi-dialog .input:focus,
+  .cp-dialog .input:focus,
+  .gi-dialog .textarea:focus,
+  .cp-dialog .textarea:focus,
+  .rb-dialog .textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-tint);
+  }
+
+  /* identity rail — sidebar footer */
+  .gi-rail {
+    position: relative;
+    flex: 0 0 auto;
+    margin-top: auto;
+    padding: var(--space-1) var(--space-2);
+    border-top: 1px solid var(--border-default);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  /* Truncation the code already assumed: CloudBar.jsx documents `title` as "the
+   full sentence on hover (the rail truncates)" — and this rule did not exist,
+   so a long hub-supplied project name wrapped and grew, pushing the rail into
+   adjacent chrome. Its sibling .gi-rail-err has carried the same three
+   properties all along. `anywhere` so a single unbreakable 60-char token
+   cannot overflow horizontally either. */
+  .gi-rail-hint {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    padding: 2px 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow-wrap: anywhere;
+  }
+
+  .gi-rail-signin {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* …but the deep-link confirm strip is a paragraph that MUST wrap — it explains
+   both sides of a consent decision, and one ellipsised line would hide half of
+   what the person is agreeing to. */
+  .gi-rail-err {
+    font-size: var(--type-xs);
+    color: var(--status-error);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .gi-avatar {
+    border-radius: var(--radius-pill);
+    display: grid;
+    place-items: center;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--accent-fg);
+    background: var(--accent);
+    flex: 0 0 auto;
+  }
+
+  .gi-rail-account {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    width: 100%;
+    padding: 2px var(--space-1);
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--fg-0);
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .gi-rail-account:hover {
+    background: var(--bg-2);
+  }
+
+  .gi-rail-account.is-open {
+    background: var(--bg-2);
+    border-color: var(--border-default);
+  }
+
+  .gi-rail-account:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .gi-rail-login {
+    flex: 1;
+    min-width: 0;
+    font-family: var(--font-mono);
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .gi-rail-caret {
+    color: var(--fg-2);
+    flex: 0 0 auto;
+    display: inline-flex;
+  }
+
+  /* account menu — opens UPWARD, solid surface */
+  .gi-menu {
+    position: absolute;
+    bottom: calc(100% + 2px);
+    left: var(--space-2);
+    right: var(--space-2);
+    z-index: 9500;
+    background: var(--bg-1);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    padding: var(--space-1);
+  }
+
+  .gi-menu-hd {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-1) var(--space-2);
+    border-bottom: 1px solid var(--border-subtle);
+    margin-bottom: 2px;
+  }
+
+  .gi-menu-id {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .gi-menu-name {
+    font-weight: 600;
+    color: var(--fg-0);
+    font-size: var(--type-sm);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .gi-menu-login {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+
+  .gi-menu-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    padding: var(--space-1) var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-1);
+    font-size: var(--type-sm);
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .gi-menu-item svg {
+    color: var(--fg-2);
+  }
+
+  .gi-menu-item:hover {
+    background: var(--bg-2);
+    color: var(--fg-0);
+  }
+
+  .gi-menu-item:hover svg {
+    color: var(--fg-1);
+  }
+
+  .gi-menu-item:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+
+  /* the already-linked project's row — a state, not an action (fix 7, sync RCA) */
+  .gi-menu-item.is-connected {
+    cursor: default;
+  }
+
+  .gi-menu-item.is-connected:hover {
+    background: transparent;
+    color: var(--fg-1);
+  }
+
+  .gi-menu-item.is-connected:hover svg {
+    color: var(--fg-2);
+  }
+
+  .gi-menu-item--danger,
+  .gi-menu-item--danger svg {
+    color: var(--status-error);
+  }
+
+  .gi-menu-item--danger:hover {
+    background: color-mix(in oklab, var(--status-error) 14%, transparent);
+    color: var(--status-error);
+  }
+
+  .gi-menu-sep {
+    height: 1px;
+    background: var(--border-subtle);
+    margin: 2px 0;
+  }
+
+  /* shared dialog shell (device-code + create/pull/share) — lifts .sh-scrim/.sh-dialog */
+  .gi-modal,
+  .cp-modal {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    z-index: 9600;
+    padding: var(--space-5);
+  }
+
+  .gi-scrim,
+  .cp-scrim {
+    position: fixed;
+    inset: 0;
+    background: color-mix(in oklab, var(--bg-0) 72%, transparent);
+  }
+
+  /* the kit dialog material (Phase 8 C1-kit, _kit.css .k-dialog): bg-2, radius-xl, the 0.5 px island edge,
+     shadow-lg. It was bg-1 + a 1 px border, radius-lg. */
+  .gi-dialog,
+  .cp-dialog {
+    position: relative;
+    background: var(--bg-2);
+    border: 0;
+    border-radius: var(--radius-xl);
+    box-shadow:
+      var(--shadow-lg),
+      inset 0 0 0 0.5px var(--island-edge);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: sh-pop var(--dur-route) var(--ease-out);
+  }
+
+  /* device-code dialog */
+  .gi-dialog--code {
+    width: min(460px, 92vw);
+    padding: var(--space-5);
+    gap: var(--space-4);
+  }
+
+  .gi-dc-head {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: var(--space-2);
+  }
+
+  .gi-dc-head h2 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--type-lg);
+    font-weight: 600;
+    color: var(--fg-0);
+  }
+
+  .gi-dc-marks {
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    border-radius: var(--radius-lg);
+    background: var(--bg-2);
+    border: 1px solid var(--border-default);
+    color: var(--fg-0);
+  }
+
+  .gi-dc-head p {
+    margin: 0;
+    color: var(--fg-2);
+    font-size: var(--type-sm);
+    line-height: var(--lh-base);
+    max-width: 38ch;
+  }
+
+  .gi-dc-steps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .gi-dc-steps li {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+
+  .gi-dc-step-n {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    display: grid;
+    place-items: center;
+    border-radius: var(--radius-pill);
+    background: var(--accent-tint);
+    border: 1px solid var(--accent-muted);
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    font-weight: 600;
+  }
+
+  .gi-dc-step-tx {
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+    line-height: var(--lh-base);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  .gi-dc-url {
+    font-family: var(--font-mono);
+    color: var(--fg-0);
+    background: var(--bg-2);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-xs);
+    padding: 1px var(--space-1);
+  }
+
+  .gi-code {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    background: var(--bg-2);
+  }
+
+  .gi-code-val {
+    font-family: var(--font-mono);
+    font-size: var(--type-2xl);
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    color: var(--fg-0);
+  }
+
+  .gi-code-copy {
+    flex: 0 0 auto;
+  }
+
+  /* the manual path out of the device dialog — always rendered, never a fallback
+   that only appears once something has already failed */
+  .gi-dc-link {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .gi-dc-link-lbl {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+
+  .gi-dc-link-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  .gi-dc-link-a {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--type-xs);
+    color: var(--accent);
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .gi-dc-link-a:hover {
+    text-decoration: underline;
+  }
+
+  .gi-dc-link-a:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .gi-dc-status {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--type-sm);
+    color: var(--fg-2);
+  }
+
+  .gi-pulse {
+    width: 9px;
+    height: 9px;
+    flex: 0 0 auto;
+    border-radius: var(--radius-pill);
+    background: var(--status-info);
+    animation: gi-pulse 1.8s var(--ease-out) infinite;
+  }
+
+  @keyframes gi-pulse {
+    0% {
+      box-shadow: 0 0 0 0 color-mix(in oklch, var(--status-info) 55%, transparent);
+    }
+    70% {
+      box-shadow: 0 0 0 7px transparent;
+    }
+    100% {
+      box-shadow: 0 0 0 0 transparent;
+    }
+  }
+
+  .gi-dc-foot {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .gi-dc-foot-note {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    line-height: var(--lh-sm);
+  }
+
+  /* maude:// decision modal — same dialog family, one job: name both sides */
+  .gi-dl-pair {
+    display: flex;
+    align-items: stretch;
+    gap: var(--space-2);
+  }
+
+  .gi-dl-side {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--space-2);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    background: var(--bg-2);
+  }
+
+  .gi-dl-lbl {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+
+  .gi-dl-val {
+    font-family: var(--font-mono);
+    font-size: var(--type-sm);
+    font-weight: 600;
+    color: var(--fg-0);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .gi-dl-arrow {
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    color: var(--fg-2);
+  }
+
+  .gi-dl-what {
+    margin: 0;
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+    line-height: var(--lh-base);
+  }
+
+  .gi-dl-what code {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    background: var(--bg-2);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-xs);
+    padding: 1px 2px;
+  }
+
+  .gi-dl-note {
+    margin: 0;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    line-height: var(--lh-base);
+  }
+
+  /* The warn colour rides the border + wash ONLY — `--status-warn` as text fails
+   AA at this size (DDR-097's file-tree badge fix; the ACP elicitation warning
+   carries the same note). Text stays on --fg-1/--fg-0. */
+  .gi-dl-warn {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-2);
+    border: 1px solid var(--status-warn);
+    border-radius: var(--radius-md);
+    background: color-mix(in oklab, var(--status-warn) 12%, transparent);
+    font-size: var(--type-sm);
+    line-height: var(--lh-base);
+    color: var(--fg-1);
+  }
+
+  .gi-dl-warn strong {
+    color: var(--fg-0);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .gi-dialog,
+    .cp-dialog {
+      animation: none;
+    }
+  }
+
+  /* ── Team projects (plan T22) — the designer's way in: recent managed copies,
+   Maude Cloud projects, a team server sign-in. Composes the ob-* door parts; the
+   dialog frame reuses gi-modal/gi-dialog from the project switcher. ── */
+  .gi-dl-open {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-1);
+    padding-bottom: var(--space-3);
+    border-bottom: 1px solid var(--border-default);
+  }
+
+  .gi-dialog.tp-dialog {
+    width: min(620px, 94vw);
+    max-height: min(760px, 90vh);
+    overflow: auto;
+    padding: var(--space-5);
+    gap: var(--space-3);
+  }
+}
+
+/* from styles/4-components.css */
+@layer components {
+  /* ── Generate dialog (feature-ai-media-generation, DDR-16x) ─────────────── */
+  .ai-gen-prompt {
+    width: 100%;
+    resize: vertical;
+    min-height: 60px;
+    font-family: var(--font-body, system-ui, sans-serif);
+    margin-bottom: 10px;
+  }
+
+  .ai-gen-go {
+    color: var(--accent);
+    border-color: var(--accent-muted, var(--accent));
+  }
+
+  .ai-gen-result {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    margin-top: 12px;
+    padding: 10px;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+  }
+
+  .ai-gen-thumb {
+    width: 96px;
+    height: 96px;
+    object-fit: cover;
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+  }
+
+  .ai-gen-result-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+}
+
+/* ── end of the moved rules ── */
+
+@layer components {
+  .sh-rp-body--chat {
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .chat-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .chat-thread {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  /* Chat switcher bar — recents dropdown + New chat (repo-level history). */
+  .chat-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  /* Custom chat dropdown — status dot (running/open/saved) + delete per row. */
+  .chat-switch {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+  }
+  .chat-switch-trigger {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    width: 100%;
+    appearance: none;
+    border: 1px solid var(--border-default);
+    background: var(--bg-3);
+    color: var(--fg-1);
+    font-family: var(--font-body);
+    font-size: var(--type-xs);
+    border-radius: var(--radius-sm);
+    padding: 4px var(--space-2);
+    cursor: pointer;
+    transition: border-color var(--dur-soft) var(--ease-out);
+  }
+  .chat-switch-trigger:hover {
+    border-color: var(--border-strong);
+  }
+  .chat-switch-title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: left;
+  }
+  .chat-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    z-index: 51;
+    max-height: 260px;
+    overflow-y: auto;
+    background: var(--bg-2);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-lg);
+    padding: 2px;
+  }
+  .chat-menu-title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* Connection status strip */
+  .chat-status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: var(--radius-pill);
+    background: var(--presence-offline);
+  }
+  .chat-status-dot--working {
+    background: var(--presence-agent);
+    animation: chat-pip 1s var(--ease-out) infinite;
+  }
+  @keyframes chat-pip {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.35;
+    }
+  }
+
+  /* "Still working" indicator — inline under the latest message in the feed. */
+  .chat-activity {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--presence-agent);
+  }
+  .chat-activity-spin {
+    width: 10px;
+    height: 10px;
+    flex-shrink: 0;
+    border: 1.5px solid var(--presence-agent);
+    border-top-color: transparent;
+    border-radius: var(--radius-pill);
+    animation: chat-spin 0.7s linear infinite;
+  }
+  @keyframes chat-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  .chat-activity-text {
+    font-weight: 600;
+    color: var(--presence-agent);
+  }
+  /* Live elapsed counter — dimmer than the label; tabular so it doesn't jitter. */
+  .chat-activity-elapsed {
+    font-variant-numeric: tabular-nums;
+    color: var(--fg-2);
+    opacity: 0.8;
+  }
+
+  /* Feed (scrolls live) */
+  /* P8-C6 (03 `.k-ai-msgs`): the island carries the padding; the feed is a column of bubbles, gap space-2. */
+  .chat-feed {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  /* Messages */
+  .chat-msg {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    animation: chat-msg-in var(--dur-soft) var(--ease-out) both;
+  }
+  @keyframes chat-msg-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  /* P8-C6 (03 `.k-ai-msg`, CONTRACT §5 "AI chat replies: --type-base (14), never 12"): AI's words and yours are
+     bubbles, 8/12 padding, radius-md, 14 px. Yours sits right at 86 % on bg-4; AI's fills the width on bg-3. No role
+     label above a reply: the spark in the header says whose panel it is. */
+  .chat-msg--user {
+    align-self: flex-end;
+    align-items: flex-end;
+    max-width: 86%;
+  }
+  .chat-msg--user .chat-bubble {
+    max-width: 100%;
+    font-size: var(--type-base);
+    line-height: var(--lh-base);
+    color: var(--fg-0);
+    background: var(--bg-4);
+    border: 0;
+    border-radius: var(--radius-md);
+    padding: var(--space-2) var(--space-3);
+    white-space: pre-wrap;
+  }
+  .chat-bubble code {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--accent-text);
+  }
+  .chat-msg--assistant .chat-bubble {
+    font-size: var(--type-base);
+    color: var(--fg-0);
+    line-height: var(--lh-base);
+    background: var(--bg-3);
+    border-radius: var(--radius-md);
+    padding: var(--space-2) var(--space-3);
+  }
+  /* P8-C6 (03 `ai-working`): progress is ONE line. While the working line is up, the reply that is still streaming
+     waits (its words land whole when the turn ends) — a half-sentence above the line made one run read as four items. */
+  .chat-feed:has(.ai-working) .chat-msg--live {
+    display: none;
+  }
+  /* a turn that has only called tools says nothing yet — no empty row (and no empty gap) */
+  .chat-msg--bare:not(:has(.ai-nc, .ai-unchanged)) {
+    display: none;
+  }
+
+  /* Continuation bubble — background work (subagent results / consolidation)
+     that streamed in after the turn's premature settle (RCA F2). A dashed rule
+     marks it as a continuation of the message above, not a fresh reply. */
+  .chat-msg--continued {
+    border-top: 1px dashed var(--border-subtle);
+    padding-top: var(--space-2);
+  }
+
+  /* Per-message hover actions (Task C2 — Copy / Retry). Absolutely positioned
+     so it never reflows the bubble; hover- AND focus-revealed (keyboard users
+     tab to the buttons, which triggers :focus-within even without a pointer). */
+  .chat-msg-actions {
+    position: absolute;
+    top: calc(-1 * var(--space-1));
+    right: 0;
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--dur-flip, 120ms) ease;
+  }
+  .chat-msg:hover .chat-msg-actions,
+  .chat-msg:focus-within .chat-msg-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .chat-msg-action {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--fg-2);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: var(--radius-xs);
+    cursor: pointer;
+  }
+  .chat-msg-action:hover {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+  .chat-msg-action:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+  .chat-msg-action[data-copied="true"] {
+    color: var(--status-success);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .chat-msg-actions {
+      transition: none;
+    }
+  }
+
+  /* Rendered markdown inside the assistant bubble (chat-markdown.jsx) */
+  .chat-msg--assistant .chat-bubble > * + * {
+    margin-top: var(--space-1);
+  }
+  .chat-md-p {
+    margin: 0;
+    white-space: pre-wrap;
+  }
+  .chat-md-h {
+    margin: 0;
+    font-weight: 600;
+    color: var(--fg-0);
+  }
+  .chat-md-list {
+    margin: 0;
+    padding-left: var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .chat-md-list li {
+    font-size: var(--type-sm);
+  }
+  .chat-code {
+    margin: 0;
+    padding: var(--space-2);
+    background: var(--bg-3);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    overflow-x: auto;
+  }
+  .chat-md-table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+  }
+  .chat-md-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--type-xs);
+  }
+  .chat-md-table th,
+  .chat-md-table td {
+    padding: var(--space-1) var(--space-2);
+    text-align: left;
+    border-bottom: 1px solid var(--border-subtle);
+    white-space: pre-wrap;
+  }
+  .chat-md-table th {
+    background: var(--bg-2);
+    font-weight: 600;
+    color: var(--fg-0);
+  }
+  .chat-md-table td {
+    color: var(--fg-1);
+  }
+  .chat-md-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+  .chat-code code {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+    white-space: pre;
+  }
+  .chat-bubble strong {
+    font-weight: 600;
+    color: var(--fg-0);
+  }
+  .chat-bubble em {
+    font-style: italic;
+  }
+  .chat-bubble a {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+
+  /* Collapsed "Thinking" disclosure (extended-thinking / reasoning parts) */
+  .chat-think {
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    overflow: hidden;
+  }
+  .chat-think-sum {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+  }
+  .chat-think-sum::-webkit-details-marker {
+    display: none;
+  }
+  .chat-think-sum::after {
+    content: "▸";
+    margin-left: auto;
+    transition: transform var(--dur-soft) var(--ease-out);
+  }
+  .chat-think[open] .chat-think-sum::after {
+    transform: rotate(90deg);
+  }
+  .chat-think-spark {
+    color: var(--presence-agent);
+    display: inline-flex;
+  }
+  .chat-think[open] .chat-think-sum {
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .chat-think-body {
+    padding: var(--space-2);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    line-height: var(--lh-base);
+  }
+  .chat-think-body .chat-md-p {
+    white-space: pre-wrap;
+  }
+
+  /* Collapsed consecutive-tool-call group (Task C1) — mirrors .chat-think's
+     <details>/<summary> disclosure pattern exactly. */
+  .chat-toolgroup {
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    overflow: hidden;
+  }
+  .chat-toolgroup-sum {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+  }
+  .chat-toolgroup-sum::-webkit-details-marker {
+    display: none;
+  }
+  .chat-toolgroup-sum::after {
+    content: "▸";
+    margin-left: auto;
+    color: var(--fg-2);
+    transition: transform var(--dur-soft) var(--ease-out);
+  }
+  .chat-toolgroup[open] .chat-toolgroup-sum::after {
+    transform: rotate(90deg);
+  }
+  .chat-toolgroup[open] .chat-toolgroup-sum {
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .chat-toolgroup-body {
+    display: flex;
+    flex-direction: column;
+  }
+  /* Flat accordion row (Task C1 revision) — a bordered card-in-a-card per
+     tool read as "divné" (weird) in dogfooding; a group's individual tool
+     calls are now plain rows separated by a hairline, not their own
+     `.chat-tool` card, so the whole group stays one lightweight shape. */
+  .chat-tool-row {
+    padding: var(--space-1) var(--space-2);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .chat-tool-row + .chat-tool-row {
+    border-top: 1px solid var(--border-subtle);
+  }
+  .chat-tool-row-main {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+  }
+  .chat-tool-row-main b {
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .chat-tool-row-status {
+    margin-left: auto;
+    color: var(--fg-2);
+  }
+  .chat-tool-row-status.del {
+    color: var(--status-error);
+  }
+
+  /* Tool-call card (standalone — a lone tool call outside a group). */
+  .chat-tool {
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    overflow: hidden;
+  }
+  .chat-tool-hd {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .chat-tool-hd b {
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .chat-tool-path {
+    color: var(--fg-2);
+  }
+  .chat-tool-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: var(--radius-pill);
+    margin-left: auto;
+  }
+  .chat-tool-dot--run {
+    background: var(--presence-agent);
+    animation: chat-pip 1s var(--ease-out) infinite;
+  }
+  .chat-tool-dot--done {
+    background: var(--status-success);
+  }
+  .chat-tool-body {
+    padding: var(--space-2);
+    display: grid;
+    gap: 2px;
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+  }
+  .chat-tool-line {
+    display: flex;
+    gap: var(--space-1);
+    color: var(--fg-1);
+  }
+  .chat-tool-line.add {
+    color: var(--status-success);
+  }
+  .chat-tool-line.del {
+    color: var(--status-error);
+  }
+  /* Raw args/result preview — Verbose transcript view only (Task C4). */
+  .chat-tool-detail {
+    margin: 0;
+    padding: var(--space-1);
+    background: var(--bg-3);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-xs);
+    color: var(--fg-2);
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  /* SECURITY (ethical-hacker finding) — the title is adapter/model-controlled
+     (for Bash, it's the raw shell command) with no length bound; without a
+     clamp a crafted/long command could push its dangerous tail off-screen in
+     a card whose entire point is "you can see what you're approving". Clamps
+     to one legible line; the full string is still reachable via the native
+     title-attribute tooltip (see PermissionPrompt.jsx). */
+  .chat-perm-queue {
+    flex-shrink: 0;
+    color: var(--fg-2);
+    font-weight: 400;
+  }
+
+  /* feature-acp-write-path-scope Task 4 — the out-of-project WRITE variant.
+     Distinguished from an ordinary permission card because the two ask
+     materially different questions: the ordinary one is "do you want this
+     tool to run", this one is "do you want a file written somewhere your
+     project's history stack cannot roll back". The danger tint is the whole
+     point — a card that looks identical to the routine one gets clicked
+     through at the same rate. */
+  .chat-perm-outside {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  /* The resolved absolute paths. Monospaced + wrapping at any character: these
+     are the one string on the card the user actually has to READ, and a path
+     that overflows or ellipsizes is a path whose dangerous tail is hidden —
+     the same failure the .chat-perm-hd b clamp above exists to prevent, but
+     with the opposite fix, because here truncation is what would be unsafe. */
+  .chat-perm-paths {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  /* Form-elicitation card (feature-acp-ask-user-question — AskUserQuestion +
+     generic MCP form input). Same slot + shape as .chat-perm, mutually
+     exclusive with it — see the mount site in ChatPanel.jsx. */
+  .chat-elicit {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin: 0 var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border-default);
+    border-left: 2px solid var(--accent);
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+  }
+  .chat-elicit:focus-visible {
+    outline: none;
+  }
+  .chat-elicit-hd {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .chat-elicit-hd b {
+    color: var(--fg-0);
+    font-size: var(--type-sm);
+    font-weight: 600;
+    line-height: var(--lh-sm);
+  }
+  .chat-elicit-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .chat-elicit-meta > span + span::before {
+    content: "·";
+    margin-right: var(--space-1);
+  }
+  .chat-elicit-question {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    margin: 0;
+    padding: 0;
+    border: none;
+  }
+  .chat-elicit-question-hd {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: 0;
+    font-size: var(--type-sm);
+    color: var(--fg-0);
+    line-height: var(--lh-sm);
+  }
+  .chat-elicit-question-chip {
+    align-self: flex-start;
+    padding: 2px var(--space-1);
+    border-radius: var(--radius-pill);
+    background: var(--bg-3);
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .chat-elicit-options {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .chat-elicit-option {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-1);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+    cursor: pointer;
+    accent-color: var(--accent);
+  }
+  /* "Other" rides in the radio group itself (single-select only — see
+     ElicitationPrompt.jsx) rather than a separate link below it, so the
+     either/or truth (one field, one answer) is visible for free through
+     native radio-group exclusivity. Styled as a peer option, not a
+     secondary action — no visual demotion, it's a real 4th choice. */
+  .chat-elicit-option--other {
+    color: var(--fg-2);
+  }
+  .chat-elicit-custom--inline {
+    margin-left: calc(
+      16px +
+      var(--space-1)
+    ); /* aligns under the "Other" label, not the radio dot */
+  }
+  .chat-elicit-option-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .chat-elicit-option-desc {
+    color: var(--fg-2);
+  }
+  .chat-elicit-option-preview {
+    margin: 0;
+    padding: 2px var(--space-1);
+    background: var(--bg-3);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-xs);
+    color: var(--fg-2);
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .chat-elicit-text {
+    width: 100%;
+    padding: 2px var(--space-1);
+    background: var(--bg-3);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-xs);
+    color: var(--fg-0);
+    font-size: var(--type-xs);
+    font-family: inherit;
+  }
+  .chat-elicit-custom-toggle {
+    align-self: flex-start;
+    padding: 0;
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: var(--type-xs);
+    cursor: pointer;
+    text-decoration: underline;
+  }
+  .chat-elicit-custom-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .chat-elicit-custom-note {
+    margin: 0;
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+  }
+  /* Credential-shaped question warning (ethical-hacker finding — see
+     acp-elicitation.js's looksLikeSecretRequest). Border/left-accent carries
+     the warning color; TEXT stays on --fg-1 rather than --status-warn
+     directly — that token fails AA contrast at this size (bit the a11y
+     review once already, per DDR-097's file-tree badge fix). */
+  .chat-elicit-secret-warning {
+    margin: 0;
+    padding: 2px var(--space-1);
+    border: 1px solid var(--status-warn);
+    border-radius: var(--radius-xs);
+    background: color-mix(in oklab, var(--status-warn) 12%, transparent);
+    color: var(--fg-1);
+    font-size: var(--type-xs);
+  }
+  /* SECURITY (ethical-hacker finding) — shown when a question reads as a
+     credential ask; pairs with the masked input in ElicitationPrompt.jsx. */
+  .chat-elicit-secret-warning {
+    margin: 0;
+    color: var(--status-warn-text, hsl(38 92% 50%));
+    font-size: var(--type-xs);
+  }
+  .chat-elicit-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  .chat-elicit-actions-spacer {
+    flex: 1 1 auto;
+  }
+
+  /* Connection-problem error card (Task C3) — transient bridge/socket failure,
+     recoverable with a retry. Same slot as .chat-perm (mutually exclusive). */
+  .chat-error-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    margin: 0 var(--space-3);
+    padding: var(--space-2);
+    border: 1px solid var(--status-error);
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+  }
+  .chat-error-detail {
+    margin: 0;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+
+  /* Usage (Milestone D) — context-window bar, rendered inside .chat-foot-popover. */
+  .chat-usage-bar {
+    display: inline-block;
+    width: 32px;
+    height: 4px;
+    border-radius: var(--radius-pill);
+    background: var(--bg-4, var(--bg-3));
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .chat-usage-bar-fill {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+    border-radius: var(--radius-pill);
+  }
+  /* Full-width variant for the .chat-foot-popover context section (the
+     32px pill above is sized for an inline ambient indicator, not a form
+     bar). */
+  .chat-usage-bar--wide {
+    display: block;
+    width: 100%;
+    height: 5px;
+  }
+
+  /* Event-driven single-window rate-limit banner — rendered INSIDE
+     .chat-composer's own padding (unlike .chat-perm/.chat-error-card, which
+     are siblings of the composer at the thread-root level), so no extra
+     horizontal margin here. */
+  .chat-usage-banner {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin: 0 0 var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    color: var(--fg-1);
+    font-size: var(--type-xs);
+  }
+  .chat-usage-banner-x {
+    margin-left: auto;
+    flex-shrink: 0;
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--fg-2);
+    cursor: pointer;
+    font-size: var(--type-sm);
+    line-height: 1;
+    padding: 0 2px;
+  }
+  .chat-usage-banner-x:hover {
+    color: var(--fg-0);
+  }
+
+  /* Quick-action row */
+  .chat-quick {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-3) 0;
+  }
+  .chat-qa {
+    font-family: var(--font-mono);
+  }
+  /* Issue #74 — the "Implement N comments" action. Its siblings are literal
+     slash commands (hence mono); this one is prose ABOUT the canvas's current
+     state and only appears when there is something to act on, so it reads as
+     the row's contextual action: proportional type + a light accent tint. */
+  .chat-qa--comments {
+    font-family: inherit;
+    border-color: var(--accent-muted);
+    color: var(--accent);
+  }
+  .chat-qa--comments:hover {
+    background: var(--accent-tint);
+  }
+
+  /* Composer */
+  .chat-composer {
+    flex: none;
+    padding: 0;
+    border-top: 0;
+    margin-top: 0;
+  }
+  /* Context attachment chip (feature-acp-context-hardening) — the visible
+     reveal of the frozen <maude-context> block; label + a remove ×. */
+  .chat-ctx-x {
+    flex: none;
+    padding: 0 2px;
+    border: 0;
+    background: none;
+    color: var(--fg-2);
+    font-size: var(--type-sm);
+    line-height: 1;
+    cursor: pointer;
+  }
+  .chat-ctx-x:hover {
+    color: var(--fg-0);
+  }
+
+  /* Composer box (P8-C6, 03 `.ask.ai-ask`): ONE row — 📎 · ◆ scope chip · text · send — in a radius-lg bg-2 well with a
+     0.5 px inset edge; what you attach sits on top; a long prompt wraps ABOVE the row (`--multi`, set by the
+     composer from the textarea's own height). No divider between the feed and the field. Layout is `order`, so the DOM
+     stays the v1 one (chips, clip, chip, text, send). */
+  .chat-box {
+    --chat-in-pad: 6px var(--space-1);
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 36px;
+    padding: var(--space-1);
+    border: 0;
+    border-radius: var(--radius-lg);
+    background: var(--bg-2);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+    transition: box-shadow var(--dur-soft) var(--ease-out);
+  }
+  .chat-box--multi {
+    --chat-in-pad: var(--space-1) var(--space-2) 0;
+  }
+  .chat-box:focus-within {
+    box-shadow:
+      0 0 0 3px var(--accent-tint),
+      inset 0 0 0 1px var(--focus-ring);
+  }
+  .chat-box > .ai-ask-chips-wrap {
+    order: 0;
+    flex: 1 0 100%;
+  }
+  .chat-box > .ai-clip-wrap {
+    order: 1;
+    margin-right: calc(-1 * var(--space-1));
+  }
+  .chat-box > .ai-scope {
+    order: 2;
+  }
+  .chat-box > .chat-input-wrap {
+    order: 3;
+    flex: 1 1 0;
+    min-width: 40px;
+  }
+  .chat-box > .chat-send {
+    order: 4;
+  }
+  .chat-box--multi > .chat-input-wrap {
+    order: 1;
+    flex: 1 0 100%;
+  }
+  .chat-box--multi > .ai-clip-wrap {
+    order: 2;
+  }
+  .chat-box--multi > .ai-scope {
+    order: 3;
+  }
+  .chat-box--multi > .chat-send {
+    margin-left: auto;
+  }
+  .chat-input {
+    appearance: none;
+    border: none;
+    background: transparent;
+    resize: none;
+    display: block;
+    width: 100%;
+    min-height: 0;
+    padding: var(--chat-in-pad);
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+    color: var(--fg-0);
+    outline: none;
+  }
+  .chat-input::placeholder {
+    color: var(--fg-2);
+  }
+  .chat-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px var(--space-1);
+  }
+  /* Compact toolbar dropdowns — borderless, hover-revealed (Zed-style).
+     Without `field-sizing`, a closed <select> sizes itself to its WIDEST
+     option (not the one it's currently showing) — Model ends up as wide as
+     its longest model name even while displaying "Sonnet". That's what made
+     2-3 short picks unable to share a row in a narrow panel — each one was
+     wider than it looked and forced onto its own wrapped line. `field-sizing:
+     content` sizes it to what's actually shown instead; it degrades
+     harmlessly where unsupported (the max-width + ellipsis below is that
+     fallback net), and `flex-shrink: 0` keeps the (now much smaller) content
+     width from being squeezed further by the toolbar row. */
+  .chat-send {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-md);
+    background: var(--accent);
+    color: var(--accent-fg);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: background var(--dur-soft) var(--ease-out);
+  }
+  .chat-send:hover {
+    background: var(--accent-hover);
+  }
+  .chat-send:disabled {
+    background: var(--bg-3);
+    color: var(--fg-3);
+    cursor: default;
+  }
+  /* Attachment reveal strip — shows what each paste chip expands to BEFORE send,
+     so a collapsed [file-1]/[link-1]/[image-N] can never carry a value the user
+     can't see into the auto-approving agent (DDR-140 / security-review mitigation). */
+  .chat-attach {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: var(--space-1);
+  }
+  .chat-attach-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-width: 0;
+    font-size: var(--type-xs);
+  }
+  .chat-attach-tok {
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    color: var(--fg-1);
+    background: var(--bg-4, var(--bg-3));
+    border-radius: var(--radius-xs);
+    padding: 0 4px;
+  }
+  .chat-attach-arrow {
+    flex-shrink: 0;
+    color: var(--fg-2);
+  }
+  .chat-attach-val {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--fg-2);
+    font-family: var(--font-mono);
+  }
+  .chat-foot-spacer {
+    flex: 1;
+  }
+  /* Composer footer info (Milestone D, revised twice after dogfooding — the
+     keyboard hint + context gauge + mode footnote + subscription note first
+     collapsed behind an icon on its own row, then that icon moved INTO
+     .chat-toolbar next to Send so it costs no extra vertical space). The
+     popover is grouped into labeled sections (context / cost / mode /
+     meta) with dividers, rather than a flat stack of unrelated lines. */
+  .chat-foot-info {
+    position: relative;
+    display: inline-flex;
+  }
+  .chat-foot-info-btn {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    color: var(--fg-2);
+    font-size: var(--type-sm);
+    line-height: 1;
+    padding: 2px 2px;
+    border-radius: var(--radius-xs);
+  }
+  .chat-foot-info-btn:hover,
+  .chat-foot-info-btn[aria-expanded="true"] {
+    color: var(--fg-1);
+    background: var(--bg-3);
+  }
+  .chat-foot-info-btn:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-tint);
+  }
+  /* `position: fixed` (not absolute) — `.chat-foot-info` sits inside
+     `.chat-box`, which clips its content with `overflow: hidden` for the
+     composer's rounded-corner focus ring. An absolutely-positioned popover
+     anchored there got clipped to that box instead of floating above the
+     whole composer. `bottom`/`right` are computed from the button's own
+     rect and set inline (see ChatFootInfo in ChatPanel.jsx). */
+  .chat-foot-popover {
+    position: fixed;
+    z-index: 52;
+    display: flex;
+    flex-direction: column;
+    min-width: 240px;
+    padding: var(--space-2);
+    background: var(--bg-2);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-lg);
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .chat-foot-popover-section {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .chat-foot-popover-sep {
+    height: 1px;
+    background: var(--border-subtle);
+    margin: var(--space-1) calc(var(--space-2) * -1);
+  }
+  .chat-foot-popover-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-1);
+    color: var(--fg-0);
+    font-weight: 600;
+  }
+  .chat-foot-popover-row--muted {
+    color: var(--fg-2);
+  }
+  .chat-foot-popover-foot {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  /* ── Slash-command autocomplete + inline highlight ────────────────────────
+     The composer becomes command-aware: typing "/" opens `.chat-cmd-menu`
+     (populated from the static list ∪ the live ACP catalogue), and a recognized
+     command renders as a `.chat-cmd-pill` INSIDE the input via a mirror overlay. */
+
+  /* Relative anchor so the popover floats above the composer box. */
+  .chat-cmd-anchor {
+    position: relative;
+  }
+
+  /* Mirror-overlay: a text layer behind a transparent-text textarea. The mirror
+     is the visible text; the textarea owns the caret + input. Their box models
+     MUST stay identical (padding / font / line-height / wrap) or the pill drifts. */
+  .chat-input-wrap {
+    position: relative;
+    display: block;
+  }
+  .chat-input-mirror {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    padding: var(--chat-in-pad);
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+    line-height: var(--lh-sm);
+    letter-spacing: 0;
+    color: var(--fg-0);
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .chat-input--overlay {
+    position: relative;
+    z-index: 1;
+    line-height: var(--lh-sm);
+    letter-spacing: 0;
+    color: transparent;
+    caret-color: var(--fg-0);
+    background: transparent;
+  }
+  /* The recognized-command pill. NO padding/margin/letter-spacing — those would
+     change glyph advance and desync the mirror from the textarea caret. The 2px
+     box-shadow fakes padding without touching layout. */
+  .chat-cmd-pill {
+    background: var(--accent-tint);
+    color: var(--accent);
+    border-radius: var(--radius-xs);
+    box-shadow: 0 0 0 2px var(--accent-tint);
+  }
+
+  /* Pasted-path / URL chip ([image-1] / [file-1] / [link-1]). Same zero-advance
+     discipline as .chat-cmd-pill (no padding/margin/letter-spacing → the mirror
+     stays glyph-aligned with the textarea caret). Neutral tint so it reads as an
+     attachment badge, distinct from the accent command pill. Reused verbatim in
+     the sent-message bubble, where the box-shadow padding is harmless. */
+  .chat-paste-chip {
+    background: var(--bg-4, var(--bg-3));
+    color: var(--fg-1);
+    border-radius: var(--radius-xs);
+    box-shadow: 0 0 0 2px var(--bg-4, var(--bg-3));
+  }
+  .chat-msg--user .chat-paste-chip {
+    color: var(--accent);
+  }
+
+  /* Autocomplete popover — opens upward (composer sits at the panel bottom). */
+  .chat-cmd-menu {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: calc(100% + var(--space-1));
+    z-index: 20;
+    max-height: 280px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: 2px;
+    background: var(--bg-2);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-lg);
+  }
+  /* S5.18 G8 — the "Slash commands" group header (03 `ai-adv-edges`) */
+  .chat-cmd-group {
+    padding: 2px var(--space-2);
+    font-size: var(--type-xs);
+    font-weight: 600;
+    color: var(--fg-2);
+  }
+  .chat-cmd-item--more .chat-cmd-name {
+    font-family: inherit;
+    color: var(--fg-1);
+  }
+  .chat-cmd-item {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-1);
+    width: 100%;
+    text-align: left;
+    appearance: none;
+    border: 0;
+    background: transparent;
+    border-radius: var(--radius-xs);
+    padding: var(--space-1) var(--space-2);
+    cursor: pointer;
+    color: var(--fg-1);
+  }
+  .chat-cmd-item:hover,
+  .chat-cmd-item.is-active {
+    background: var(--bg-3);
+  }
+  .chat-cmd-name {
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--accent);
+  }
+  .chat-cmd-name--flow {
+    color: var(--presence-agent);
+  }
+  .chat-cmd-desc {
+    flex: 1;
+    min-width: 0;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Streaming → Stop bar */
+  .chat-stopbar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .chat-stop-meta {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  /* Pasted-image thumbnail — a focusable button in the user bubble; clicking
+     opens the lightbox. Sized like a chip row, never dominating the bubble. */
+  .chat-thumb-btn {
+    appearance: none;
+    display: inline-block;
+    padding: 0;
+    margin: 2px 0;
+    border: 0;
+    background: transparent;
+    border-radius: var(--radius-sm);
+    cursor: zoom-in;
+    line-height: 0;
+    vertical-align: middle;
+  }
+  .chat-thumb {
+    display: block;
+    max-width: 180px;
+    max-height: 140px;
+    object-fit: cover;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    transition: border-color var(--dur-flip, 120ms) ease;
+  }
+  .chat-thumb-btn:hover .chat-thumb {
+    border-color: var(--border-strong);
+  }
+  .chat-thumb-btn:focus-visible {
+    outline: none;
+  }
+  .chat-thumb-btn:focus-visible .chat-thumb {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-tint);
+  }
+
+  /* Thumbnail strip under an assistant bubble — every designRoot image path the
+     agent mentioned (DDR-145), previewed without leaving the chat. */
+  .chat-thumbrow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    margin-top: var(--space-1);
+  }
+  /* A REFERENCED image (assistant merely named the path) — captioned with its
+     filename so it reads as "a file that was referenced", not first-class agent
+     media (attacker F2, DDR-145). */
+  .chat-thumb-fig {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-width: 180px;
+  }
+  .chat-thumb-cap {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Lightbox — single fixed overlay above the whole shell (ESC / backdrop / ×).
+     Scrim mixes the base background so it tracks light/dark themes. z sits above
+     the shell modal band (.gi-modal 9600) but below the tour/topmost layer
+     (10050+) — an enlarged image must never bury the guided tour. */
+  .chat-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 9700;
+    display: grid;
+    place-items: center;
+    background: color-mix(in oklch, var(--bg-0) 80%, transparent);
+    animation: chat-lightbox-in 120ms ease;
+  }
+  .chat-lightbox img {
+    max-width: 90vw;
+    max-height: 90vh;
+    object-fit: contain;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--bg-1);
+    box-shadow: var(--shadow-lg);
+  }
+  .chat-lightbox-close {
+    position: absolute;
+    top: var(--space-3);
+    right: var(--space-3);
+    appearance: none;
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    color: var(--fg-1);
+    font-size: var(--type-base);
+    line-height: 1;
+    cursor: pointer;
+  }
+  .chat-lightbox-close:hover {
+    color: var(--fg-0);
+    background: var(--bg-3);
+  }
+  .chat-lightbox-close:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-tint);
+  }
+  @keyframes chat-lightbox-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .chat-status-dot--working,
+    .chat-tool-dot--run,
+    .chat-activity-spin,
+    .chat-msg,
+    .chat-lightbox {
+      animation: none;
+    }
+    .chat-thumb {
+      transition: none;
+    }
+  }
+
+  /* V2-4.4b / P8-C6 — the 03 header (kit `.k-ai-hd` + `.k-ai-title` + `.k-ai-count`): spark (vermilion, the AI's
+     colour) · the chat's title in the rounded face with a chevron (it opens the list; no status dot, no text caret) ·
+     "✦ N" · New chat · Pin · Hide, one row. No rule under it: the island is one surface. */
+  .chat-bar--v2 {
+    gap: var(--space-1);
+    padding: 0;
+    margin-bottom: var(--space-2);
+    border-bottom: 0;
+  }
+  .chat-bar--v2 .chat-hd-spark {
+    display: inline-flex;
+    flex: none;
+    color: var(--spark);
+  }
+  .chat-bar--v2 .chat-hd-title {
+    flex: 1;
+    min-width: 0;
+    margin-left: var(--space-1);
+    font-family: var(--font-rounded);
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+  .chat-bar--v2 .chat-switch-trigger {
+    width: auto;
+    max-width: 100%;
+    margin-left: var(--space-1);
+    border: 0;
+    background: transparent;
+    padding: 0;
+    color: var(--fg-0);
+    font-family: var(--font-rounded);
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+  }
+  .chat-bar--v2 .chat-switch-trigger:hover {
+    background: transparent;
+  }
+  .chat-bar--v2 .chat-switch-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .chat-bar--v2 .chat-switch-chev {
+    display: inline-flex;
+    flex: none;
+    color: var(--fg-2);
+  }
+  .chat-bar--v2 .chat-switch-trigger:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+  .chat-bar--v2 .chat-hd-count {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    flex: none;
+    height: 22px;
+    border: 0;
+    background: var(--bg-3);
+    color: var(--spark);
+    border-radius: var(--radius-sm);
+    padding: 0 var(--space-1) 0 var(--space-2);
+    font-size: var(--type-xs);
+    cursor: pointer;
+  }
+  .chat-bar--v2 .chat-hd-count b {
+    font-weight: var(--w-semibold);
+    font-variant-numeric: tabular-nums;
+    color: var(--fg-0);
+  }
+  .chat-bar--v2 .chat-hd-count svg:last-child {
+    color: var(--fg-2);
+  }
+  .chat-bar--v2 .chat-hd-count:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+  }
+}
+
+/* DDR-128 — AI-editing readiness list (ReadinessList.jsx). Shared by the onboarding
+   readiness strip and the ChatPanel not-connected explainer. Detect-and-guide:
+   present rows reassure, missing rows carry a copy-paste fix, optional rows stay
+   muted (never alarming). */
+@layer components {
+  .rdy {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .rdy-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .rdy-row {
+    display: flex;
+    gap: var(--space-1);
+    align-items: flex-start;
+    padding: var(--space-1) var(--space-2);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    text-align: left;
+  }
+  .rdy-ic {
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .rdy-row--present .rdy-ic {
+    color: var(--status-success);
+  }
+  .rdy-row--missing .rdy-ic {
+    color: var(--status-error);
+  }
+  .rdy-row--unknown .rdy-ic {
+    color: var(--status-info);
+  }
+  /* optional, missing → muted, not alarming */
+  .rdy-row--opt.rdy-row--missing .rdy-ic {
+    color: var(--fg-2);
+  }
+  .rdy-tx {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .rdy-label {
+    font-size: var(--type-sm);
+    font-weight: 600;
+    color: var(--fg-0);
+  }
+  .rdy-detail {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    line-height: var(--lh-xs);
+  }
+  .rdy-fix {
+    margin-top: var(--space-1);
+    display: flex;
+    gap: var(--space-1);
+    align-items: flex-start;
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+    line-height: var(--lh-xs);
+  }
+  .rdy-fix-tx {
+    min-width: 0;
+  }
+  .rdy code {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-0);
+    background: var(--bg-3);
+    padding: 1px 5px;
+    border-radius: var(--radius-xs);
+    overflow-wrap: anywhere;
+  }
+  .rdy-copy {
+    flex-shrink: 0;
+    cursor: pointer;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    background: transparent;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-xs);
+    padding: 1px 6px;
+  }
+  .rdy-copy:hover {
+    color: var(--fg-0);
+    background: var(--bg-3);
+  }
+  .rdy-foot {
+    display: flex;
+    justify-content: flex-end;
+  }
+  /* DDR-166 T0c/T0d — verbatim install command + Sign-in action rows. */
+  .rdy-cmd {
+    margin-top: var(--space-1);
+    display: flex;
+    gap: var(--space-1);
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .rdy-cmd-tx {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-0);
+    background: var(--bg-3);
+    padding: 2px var(--space-1);
+    border-radius: var(--radius-xs);
+    overflow-wrap: anywhere;
+    flex: 1 1 auto;
+  }
+  .rdy-fix-tx--err {
+    color: var(--status-error);
+  }
+  .rdy-fallback-label {
+    display: block;
+    margin-top: var(--space-1);
+    color: var(--fg-2);
+  }
+  /* DDR-166 Decision 3 — the resolved-binary disclosure shown before Sign-in. */
+  .rdy-resolved-path {
+    display: block;
+    margin-top: var(--space-1);
+    /* gate-B polish (RC-E): the line rendered at the inherited ~15 px outside .rdy-fix */
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+    word-break: break-all;
+  }
+  .rdy-resolved-path code {
+    font-family: var(--font-mono);
+    color: var(--fg-1);
+  }
+  .rdy-signin {
+    flex-shrink: 0;
+    cursor: pointer;
+    font-size: var(--type-xs);
+    font-weight: 600;
+    color: var(--bg-0);
+    background: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-xs);
+    padding: 3px 10px;
+  }
+  .rdy-signin:hover {
+    filter: brightness(1.08);
+  }
+  /* Help ▸ Check AI editing readiness… modal (reuses .help-modal chrome). */
+  .rdy-modal {
+    max-width: 520px;
+  }
+  .rdy-modal-note {
+    margin: 0 0 var(--space-2);
+    color: var(--fg-2);
+    font-size: var(--type-sm);
+    line-height: var(--lh-md);
+  }
+}
+
+/* DDR-166 plan, Phase 2 (T7/T8) — design-setup checklist (SetupChecklist.jsx).
+   Mirrors .rdy-* above (same present/missing two-state shape, no remediation
+   copy — this probe never offers an automated fix, just progress). */
+@layer components {
+  .setup-cl {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .setup-cl-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .setup-cl-row {
+    display: flex;
+    gap: var(--space-1);
+    align-items: flex-start;
+    padding: var(--space-1) var(--space-2);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    text-align: left;
+  }
+  .setup-cl-ic {
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .setup-cl-row--present .setup-cl-ic {
+    color: var(--status-success);
+  }
+  .setup-cl-row--missing .setup-cl-ic {
+    color: var(--fg-2);
+  }
+  .setup-cl-tx {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .setup-cl-label {
+    font-size: var(--type-sm);
+    font-weight: 600;
+    color: var(--fg-0);
+  }
+  .setup-cl-detail {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    line-height: var(--lh-xs);
+  }
+  .setup-cl-foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-1);
+    flex-wrap: wrap;
+  }
+  .setup-cl-brand {
+    text-decoration: none;
+  }
+  .setup-cl-modal {
+    max-width: 520px;
+  }
+  .setup-cl-note {
+    margin: 0 0 var(--space-2);
+    color: var(--fg-2);
+    font-size: var(--type-sm);
+    line-height: var(--lh-md);
+  }
+}
+
+/* T12 (DDR-173) — the in-app Brand-upload panel (BrandUploadPanel.jsx).
+   Reuses .help-modal-* chrome; new rules cover the pick/result content only. */
+@layer components {
+  .brand-up-error {
+    margin: var(--space-1) 0 0;
+    color: var(--status-error);
+    font-size: var(--type-sm);
+  }
+  .brand-up-fonts {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+  }
+
+  /* DDR-184 #3 — loud top-of-thread alert while the current mode can't edit
+     (Plan / Don't-Ask). Warn-toned so it reads as "you're blocked", distinct
+     from the neutral usage banner. One-click hop back to an editing mode. */
+  .chat-mode-banner {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin: 0 var(--space-3) var(--space-1);
+    padding: var(--space-1) var(--space-2);
+    border: 1px solid var(--status-warn, hsl(38 92% 50%));
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    color: var(--fg-1);
+    font-size: var(--type-xs);
+    line-height: var(--lh-md);
+  }
+  .chat-mode-banner-text {
+    flex: 1 1 auto;
+  }
+  .chat-mode-banner-text b {
+    color: var(--fg-0);
+  }
+}

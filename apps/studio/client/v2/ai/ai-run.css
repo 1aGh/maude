@@ -1,0 +1,281 @@
+/* @layer components — S5.9: the AI chat's run surface (03 AI Chat `ai-working`, `ai-done`, `ai-long`,
+   `ai-long-pinned`). Tokens only: no hex, weights ≤ 600, motion collapses to 1 ms under reduced motion.
+   The working line and the result card are the feed's tail; the pill and the full-height state are the
+   long chat's. Vermilion (--spark*) is the AI's presence; the actions stay neutral/azure. */
+@layer components {
+  /* ── The one-line progress: what AI is doing right now, and Stop ── */
+  .ai-working {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    margin: var(--space-2) 0;
+    padding: var(--space-1) var(--space-1) var(--space-1) var(--space-2);
+    border-radius: var(--radius-md);
+    background: var(--spark-muted);
+    font-size: var(--type-sm);
+  }
+  .ai-working-spark {
+    display: grid;
+    padding-top: 3px;
+    color: var(--spark);
+    animation: ai-working-pulse 1600ms var(--ease-out, ease-out) infinite;
+  }
+  .ai-working-txt {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+    padding: 2px 0;
+    color: var(--spark-text);
+    font-weight: var(--w-medium);
+  }
+  .ai-working-main {
+    overflow-wrap: anywhere;
+  }
+  .ai-step {
+    color: var(--fg-1);
+    font-size: var(--type-xs);
+    font-weight: var(--w-regular);
+    overflow-wrap: anywhere;
+  }
+  .ai-working-clock {
+    font-variant-numeric: tabular-nums;
+  }
+  .ai-stop {
+    flex: none;
+    gap: var(--space-1);
+  }
+  /* The working line IS the Stop; the composer's duplicate row steps aside (its button stays in the
+     DOM for the e2e helpers that look for it). */
+  .ai-island .chat-stopbar {
+    display: none;
+  }
+  @keyframes ai-working-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.45;
+    }
+  }
+
+  /* ── The result: the AI's sentence above, then Undo first and the way on ── */
+  /* an earlier turn's result (TurnResult) wraps the same card under its own reply: the wrapper adds no box */
+  .ai-turn-result {
+    display: contents;
+  }
+  .ai-result {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin: var(--space-1) 0 var(--space-2);
+  }
+  .ai-result-line {
+    margin: 0;
+    color: var(--fg-0);
+    font-size: var(--type-base);
+    line-height: var(--lh-base);
+  }
+  /* S5.19 G4 (03 `ai-long`): the run's Before / After pictures, from the versions list */
+  .ai-ba {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding-left: var(--space-1);
+    color: var(--fg-2);
+  }
+  .ai-ba-pic {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  .ai-ba-img {
+    display: block;
+    width: 64px;
+    height: 114px;
+    object-fit: cover;
+    border-radius: var(--radius-xs);
+    background: var(--bg-3);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+  }
+  .ai-ba-l {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .ai-result-acts {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1);
+    padding-left: var(--space-1);
+  }
+  .ai-act,
+  .ai-followup {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    height: 28px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--bg-2);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+    color: var(--fg-0);
+    font: inherit;
+    font-size: var(--type-xs);
+    font-weight: var(--w-medium);
+    cursor: pointer;
+    transition: background var(--dur-flip) var(--ease-out, ease-out);
+  }
+  .ai-act:hover:not(:disabled),
+  .ai-followup:hover {
+    background: var(--bg-3);
+  }
+  .ai-act:focus-visible,
+  .ai-followup:focus-visible,
+  .ai-stop:focus-visible,
+  .ai-jump:focus-visible,
+  .ai-fold-sum:focus-visible {
+    outline: 2px solid var(--accent-text);
+    outline-offset: 2px;
+  }
+  .ai-act:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+  .ai-act svg {
+    color: var(--fg-1);
+  }
+  .ai-followup svg {
+    color: var(--spark);
+  }
+  .ai-result-state {
+    color: var(--fg-1);
+    font-size: var(--type-sm);
+  }
+  .ai-result-note {
+    margin: 0;
+    padding-left: var(--space-1);
+    color: var(--fg-1);
+    font-size: var(--type-xs);
+  }
+  .ai-followups {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    padding-left: var(--space-1);
+  }
+
+  /* "What AI did · N steps · T" — folded; the steps live behind it */
+  .ai-fold {
+    padding-left: var(--space-1);
+  }
+  .ai-fold-sum {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    height: 24px;
+    border-radius: var(--radius-sm);
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+    font-weight: var(--w-medium);
+    cursor: pointer;
+    list-style: none;
+  }
+  .ai-fold-sum::-webkit-details-marker {
+    display: none;
+  }
+  .ai-fold-ch {
+    display: inline-grid;
+    color: var(--fg-2);
+    transition: transform var(--dur-flip) var(--ease-out, ease-out);
+  }
+  .ai-fold[open] .ai-fold-ch {
+    transform: rotate(90deg);
+  }
+  .ai-fold-list {
+    margin: var(--space-1) 0 0;
+    padding-left: var(--space-5, 20px);
+    color: var(--fg-1);
+    font-size: var(--type-xs);
+    line-height: var(--lh-sm);
+  }
+
+  /* The polite live region: there for a screen reader, never on screen. */
+  .ai-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* ── A long chat ── */
+  /* Jump to latest · N new: a zero-height sticky row at the foot of the feed; the pill rides above it. */
+  .ai-jump-host {
+    position: sticky;
+    bottom: var(--space-3);
+    z-index: 2;
+    display: flex;
+    justify-content: center;
+    height: 0;
+    overflow: visible;
+    pointer-events: none;
+  }
+  .ai-jump {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    height: 28px;
+    margin-top: -28px;
+    padding: 0 var(--space-3) 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--bg-2);
+    box-shadow:
+      var(--shadow-md),
+      inset 0 0 0 0.5px var(--border-default);
+    color: var(--fg-0);
+    font: inherit;
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    cursor: pointer;
+    pointer-events: auto;
+  }
+  .ai-jump svg {
+    color: var(--fg-1);
+  }
+  .ai-jump-n {
+    margin-left: var(--space-1);
+    color: var(--accent-text);
+    font-weight: var(--w-medium);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Full height: the AI island takes the whole slot (floating layout; pinned is already a column). */
+  .sh-body--float .sh-dockslot-ai:has(> .ai-island[data-full="true"]) {
+    flex: 1 1 100%;
+  }
+
+  /* The header's pin (the shell's pin model: panels docked, the canvas makes room) */
+  .ai-pinbtn.is-pressed {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ai-working-spark {
+      animation: none;
+    }
+    .ai-act,
+    .ai-fold-ch {
+      transition-duration: 1ms;
+    }
+  }
+}

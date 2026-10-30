@@ -55,7 +55,11 @@ export function replyToAddress(env) {
  * marketing, and text-only mail with one link has the best odds with both
  * spam filters and skeptical recipients. The link is the whole payload.
  */
-export function inviteEmail({ projectName, role, inviteUrl, invitedBy }) {
+export function inviteEmail({ projectName: rawProject, role, inviteUrl, invitedBy: rawBy }) {
+  // Both are chosen by a person (a project name, an inviter's address/name): one line each, so neither can add a
+  // header to the subject or a fake paragraph to the body (gate-b-sec3 finding 3).
+  const projectName = oneLine(rawProject, 80) || 'a project';
+  const invitedBy = oneLine(rawBy, 80) || 'Someone';
   const doing =
     role === 'viewer' ? 'look at the work and leave comments' : 'design and edit alongside them';
   return {
@@ -151,7 +155,8 @@ function day(ms) {
  * that intent and sent nothing. This is the email; it carries both halves,
  * because a pause notice with no copy attached is the notice people ignore.
  */
-export function projectPausedEmail({ projectName, downloadUrl, deletesAt }) {
+export function projectPausedEmail({ projectName: raw, downloadUrl, deletesAt }) {
+  const projectName = oneLine(raw, 80) || 'Your project';
   return {
     subject: `${projectName} has paused`,
     text: [
@@ -172,7 +177,8 @@ export function projectPausedEmail({ projectName, downloadUrl, deletesAt }) {
 }
 
 /** The last-chance notice, two days out (canvas board E0, email 2). */
-export function deletionWarningEmail({ projectName, downloadUrl, deletesAt }) {
+export function deletionWarningEmail({ projectName: raw, downloadUrl, deletesAt }) {
+  const projectName = oneLine(raw, 80) || 'your project';
   return {
     subject: `Two days left to keep ${projectName}`,
     text: [
@@ -184,6 +190,66 @@ export function deletionWarningEmail({ projectName, downloadUrl, deletesAt }) {
       `  ${downloadUrl}`,
       '',
       'Restarting the subscription before that date keeps everything instead.',
+    ].join('\n'),
+  };
+}
+
+/**
+ * One line of untrusted text, safe for a subject or a quote: control
+ * characters and line breaks become spaces (no header can be smuggled into a
+ * subject, no fake paragraph into the body), runs collapse, and anything past
+ * `max` is cut with an ellipsis.
+ */
+export function oneLine(raw, max = 120) {
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: stripping them is the point
+  const flat = String(raw ?? '').replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, ' ');
+  const s = flat.replace(/\s+/g, ' ').trim();
+  return s.length > max ? `${s.slice(0, max - 1).trimEnd()}…` : s;
+}
+
+/** How much of the comment the mention e-mail quotes (canvas 10: one sentence). */
+export const MENTION_EXCERPT_MAX = 200;
+
+/**
+ * "Jonas mentioned you" — Maude v2 S9.18, canvas 10 co-mention-notify (the
+ * "Maude closed" lane). One mention, one e-mail, never a digest.
+ *
+ * WHAT IT MAY SAY. The caller has already decided the recipient can open the
+ * canvas, so the quoted words are words they could read in the thread anyway;
+ * nothing else from the project travels. `fromName` is a NAME (the author's
+ * address never appears), `canvasName` is null when the mention named no
+ * canvas, and the excerpt is one short line or nothing.
+ */
+export function mentionEmail({
+  fromName,
+  projectName,
+  canvasName = null,
+  excerpt = '',
+  openUrl,
+  unsubscribeUrl,
+  settingsUrl,
+}) {
+  const who = oneLine(fromName, 80) || 'Someone';
+  const project = oneLine(projectName, 80) || 'your project';
+  const canvas = canvasName ? oneLine(canvasName, 80) : '';
+  const quote = oneLine(excerpt, MENTION_EXCERPT_MAX);
+  return {
+    subject: `${who} mentioned you in ${project}`,
+    text: [
+      canvas
+        ? `${who} mentioned you on ${canvas} in ${project}.`
+        : `${who} mentioned you in ${project}.`,
+      ...(quote ? ['', `  “${quote}”`] : []),
+      '',
+      'Open in the Mac app:',
+      '',
+      `  ${openUrl}`,
+      '',
+      'Change which e-mails you get in Settings › General.',
+      `  ${settingsUrl}`,
+      '',
+      'Or stop mention e-mails right away:',
+      `  ${unsubscribeUrl}`,
     ].join('\n'),
   };
 }

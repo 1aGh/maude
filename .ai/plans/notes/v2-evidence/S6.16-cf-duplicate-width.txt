@@ -1,0 +1,40 @@
+S6.16 evidence — 01/cf-duplicate-width   (10 · Duplicate at another width)
+canvas: .design/ui/v2/01 Create Flow.tsx line 501
+words : Same artboard, another width. Right-click an artboard: Duplicate at another width › Laptop. The next frame shows where the copy lands.
+verdict proposed: verified
+
+How to re-check the pins (from the repo root): grep -E "^[0-9a-f]{64}  " <this file> | shasum -a 256 -c
+Unit/component run: scripts/v2-test-lane.sh -- bash -c "cd apps/studio && NO_OPEN=1 MAUDE_NO_AUTOBUILD=1 bun test <the test files below, all rows>" → 523 pass · 0 fail · 27 files (2026-10-20, branch s6-16 on feat/maude-v2 435b37e75)
+
+IMPLEMENTED BY (code, hash-pinned):
+c6718d06232a5bd6cb008f888b70bb5628270070b6a8f062e39fc6cc84426bac  apps/studio/editing/artboard-menu.tsx
+      ↳ the artboard menu: Ask AI · Duplicate ⌘D · Duplicate at another width ▸ Laptop 1280 · Tablet 834 · Mobile 390 · Custom width… · Rename · Export… · Move to trash
+3d19dbddf0ffbabd7f4c956aff7e1c12a2cee8632945514bb41d8694aa3b7eca  apps/studio/editing/artboard-commands.tsx
+      ↳ runs the menu commands in the canvas
+2e80234713ab3fcbbf268796b404079d917045414e6fda43aa9348e80093ca2f  apps/studio/editing/artboard-actions.ts
+      ↳ writeCopies → artboard.duplicate-at-width
+d0cfe6f7723b877c81a32ad050ed9ca0ce0d9bb81444a5f51ff2e250249cb6c0  apps/studio/edit-ops/duplicate-at-width.ts
+      ↳ the op: a copy at width W, its own id, no inherited element ids or lock
+0d074924c1d545c9d38b5eb348eb1b185700be2d56d7ed9b652c993450ea602c  apps/studio/actions/defs/edit.ts
+      ↳ registry artboard.duplicate-at-width (agent path: file)
+
+PINNED BY (tests, hash-pinned):
+6a28108a457aec847271a67d4943b9de1922ce829fcaddeced3200a9fed2a738  apps/studio/test/v2-artboard-menu.test.tsx
+      ↳ "the rows in the design’s order" · "Duplicate at another width ▸ Laptop · Tablet · Mobile · Custom width…, each runs its width" · "every action is registered for Can edit … with an agent path"
+c6c4e9967913d314f811db4b8ed5da2eb6cba10d836b9ed57c7ee31be977bc62  apps/studio/test/v2-artboard-duplicate-op.test.ts
+      ↳ the op table; one request is one source write; the copy inherits no element id and no lock
+c3bcc95d54dbf24b0e11379d008eb4508801c1176e0ecf90003330af656d0c56  apps/studio/test/s2-22-menus.test.tsx
+      ↳ the menu words
+
+LIVE (written, not run — needs the debug app, an unlocked screen and the e2e lock):
+c619d4c187a589ca8d0169e153b2b189939f8510ec25910d39315a999f9bada0  apps/desktop/e2e/scenarios/first-canvas.e2e.ts
+  → apps/desktop/e2e/scenarios/first-canvas.e2e.ts step 4 (right-click Desktop → Duplicate at another width → Laptop → id desktop-1280 at width 1280)
+54b05befd65bd6c4d37dbd73babcc596b7a83b8d7b4fa34b42e9ea2426135f96  apps/desktop/e2e/wdio.first-canvas.conf.ts
+02a6d0c73edd7db6d1a84f205a30c45b7760c5550ff1ef084874bfcf9501b9eb  apps/desktop/e2e/fixtures/fake-acp/first-canvas-agent.mjs
+545834d2e31beaea6d653bac13b01dd544eee03e6f81a6aa6bd7c14e347d74c3  .ai/scenarios/maude-v2/s6-first-canvas.md
+
+EARLIER EVIDENCE on the topic canvases (rows already verified in the ledger):
+  14/ed-ab-menu → .ai/plans/notes/v2-evidence/S2.V2/ed-ab-menu.v2-sub.png (verified: the menu and its width submenu)
+
+GAPS:
+  none against the 01 words (Copy ⌘C / Paste ⌘V sit in the object menu rows as in v1; the artboard menu list is the 14 ed-ab-menu one).

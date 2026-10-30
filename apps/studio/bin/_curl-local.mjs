@@ -9,8 +9,10 @@
 // "is my backend up on :3000?"). Claude Code's `Bash(prefix:*)` allowlist is a
 // plain string-prefix match with no host awareness, so a prefix-list can't
 // express "curl, but only to localhost" reliably. This verb does the real
-// check instead. Covered for free by the EXISTING `Bash(maude:*)` allow-list
-// rule — no widening of the session's Bash surface.
+// check instead. It used to be covered by the `Bash(maude:*)` allow-list rule;
+// V2-2.8 S4 made it PROMPT-tier (actions/verbs.ts) — any method and body
+// against any loopback port reaches every studio route, so it is not auto-run.
+// The loopback check below still holds for the approved call.
 //
 // SECURITY ADDENDUM, ROUND 2 — this file's FIRST hardening pass (an argv
 // allowlist over raw curl flags: reject -K/--resolve/--connect-to/etc.,
@@ -67,9 +69,72 @@
 
 import { spawnSync } from 'node:child_process';
 import { lookup } from 'node:dns/promises';
+import { readFileSync } from 'node:fs';
 import { isIP } from 'node:net';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseIPv4, parseIPv6 } from './_fetch-asset.mjs';
+
+// V2-3.6 H1 (defence in depth) — the Home server (`maude-server --home`) writes its
+// `{pid, port, url, mode:'home'}` to an APP-OWNED info file: `<app data>/run/home-server.json`
+// (apps/desktop/src-tauri/src/home.rs `spawn_home`; app data = Tauri's `app_data_dir`, keyed by
+// the bundle identifier). The port is not a secret — this only keeps the loopback helper off the
+// Home server. The real gate is the Home page secret the server requires on every page route.
+const APP_IDENTIFIERS = Object.freeze(['com.maude.app', 'com.maude.app.e2e']);
+
+/** `<app data>/run/<name>` for every app identifier (prod + e2e). */
+function appRunFiles(name, env = process.env, platform = process.platform) {
+  const home = env.HOME || homedir();
+  let base;
+  if (platform === 'darwin') base = join(home, 'Library', 'Application Support');
+  else if (platform === 'win32') base = env.APPDATA || join(home, 'AppData', 'Roaming');
+  else base = env.XDG_DATA_HOME || join(home, '.local', 'share');
+  return APP_IDENTIFIERS.map((id) => join(base, id, 'run', name));
+}
+
+/** True iff one of `files` is a `mode` record naming `port`. A missing/garbled file says no. */
+function recordNamesPort(port, files, mode) {
+  for (const f of files) {
+    try {
+      const rec = JSON.parse(readFileSync(f, 'utf8'));
+      if (rec && rec.mode === mode && Number(rec.port) === port) return true;
+    } catch {
+      /* not there / not ours */
+    }
+  }
+  return false;
+}
+
+/** The info files a running Home server may have written (prod + e2e identifiers). */
+export function homeInfoFiles(env = process.env, platform = process.platform) {
+  return appRunFiles('home-server.json', env, platform);
+}
+
+/** True iff one of `files` is a Home record naming `port`. */
+export function isHomePort(port, files = homeInfoFiles()) {
+  return recordNamesPort(port, files, 'home');
+}
+
+// V2-3.6 M4 — the desktop's GitHub-token bridge (keychain.rs) answers any loopback caller that
+// presents a per-spawn key, and that key is in the sidecar's env (`MAUDE_TOKEN_KEY`), which a
+// same-user `ps -Eww` prints. This helper is auto-allowed for the agent, so it must never be
+// the second half of that theft: it refuses the `X-Maude-Token-Key` header (any case, any
+// spelling, no CR/LF smuggling — see parseRequestArgv) AND the bridge's port, which the app
+// writes to `<app data>/run/token-bridge.json` (keychain.rs `write_bridge_port_file`).
+// RESIDUAL (accepted under P3 — the AI chat keeps Claude Code's default permission behaviour):
+// an approved ARBITRARY Bash command as the same OS user can still read the env and call the
+// bridge with plain curl. That needs the person's approval; this verb does not.
+
+/** The records a running app may have written for its token bridge (prod + e2e identifiers). */
+export function tokenBridgeFiles(env = process.env, platform = process.platform) {
+  return appRunFiles('token-bridge.json', env, platform);
+}
+
+/** True iff one of `files` is a token-bridge record naming `port`. */
+export function isTokenBridgePort(port, files = tokenBridgeFiles()) {
+  return recordNamesPort(port, files, 'token-bridge');
+}
 
 /** True iff this parsed 4-byte IPv4 is in the loopback range 127.0.0.0/8. */
 function isLoopbackIPv4(bytes) {
@@ -213,6 +278,29 @@ export function parseRequestArgv(argv) {
         }
         out.method = m;
       } else if (a === '--header') {
+        // V2-3.6 M4: no line break may ride in a header — it would let one `--header` smuggle a
+        // second one (e.g. the token-bridge key) past every check below.
+        if (/[\r\n]/.test(value)) {
+          throw new CurlLocalArgvError('--header may not contain a line break; refused');
+        }
+        // V2-3.6 M4: the token-bridge key is the sidecar's alone (see tokenBridgeFiles).
+        if (/^\s*x-maude-token-key\s*[:;]/i.test(value)) {
+          throw new CurlLocalArgvError(
+            '--header x-maude-token-key is the desktop token bridge’s key; refused'
+          );
+        }
+        // V2-3.6 H1 (defence in depth): `x-maude-home` carries the Home server's page capability.
+        // Only the Home window holds it; this helper never speaks for Home, in any spelling.
+        if (/^\s*x-maude-home\s*[:;]/i.test(value)) {
+          throw new CurlLocalArgvError('--header x-maude-home is the Home window’s alone; refused');
+        }
+        // S12.16: the chat header is set below from this shell's own MAUDE_CHAT_ID, never typed — a
+        // typed one would let one chat's call claim a canvas for another chat's run.
+        if (/^\s*x-maude-chat\s*[:;]/i.test(value)) {
+          throw new CurlLocalArgvError(
+            '--header x-maude-chat is set by curl-local itself from MAUDE_CHAT_ID; refused'
+          );
+        }
         if (!/^[\w-]+:.*/.test(value)) {
           throw new CurlLocalArgvError(`--header must look like "Name: value" (got "${value}")`);
         }
@@ -227,6 +315,9 @@ export function parseRequestArgv(argv) {
       } else if (a === '--data') {
         out.data = value;
       } else if (a === '--user-agent') {
+        if (/[\r\n]/.test(value)) {
+          throw new CurlLocalArgvError('--user-agent may not contain a line break; refused');
+        }
         out.userAgent = value;
       } else if (a === '--max-time') {
         const n = Number(value);
@@ -263,6 +354,22 @@ export function parseRequestArgv(argv) {
   return out;
 }
 
+/**
+ * S12.16 — the chat this shell is (`MAUDE_CHAT_ID`, set per chat by the ACP spawn), named on a request
+ * so the studio can claim what it writes for the chat's live run (ai/create-claim.ts, ai/write-claim.ts).
+ * p8-a1-claims: every WRITE to a studio `/_api/` route (any method but GET/HEAD) carries it — a write
+ * that names no chat is the person's, with no time window. A read and any other path send nothing.
+ * Pure; null = send nothing.
+ */
+export function chatHeaderFor(req, env = process.env) {
+  const id = env.MAUDE_CHAT_ID;
+  if (typeof id !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(id)) return null;
+  const method = String(req.method || 'GET').toUpperCase();
+  if (method === 'GET' || method === 'HEAD') return null;
+  if (!req.parsedUrl.pathname.startsWith('/_api/')) return null;
+  return `X-Maude-Chat: ${id}`;
+}
+
 /** Build the fixed-shape curl argv for a parsed request. Every user-supplied
  * value rides as its OWN argv array element (never concatenated into a
  * flag), and every flag NAME is one of this file's own hardcoded literals —
@@ -292,7 +399,9 @@ export function buildCurlArgs(req, pinIp, port) {
   if (req.insecure) args.push('-k');
   if (req.include) args.push('-i');
   if (req.verbose) args.push('-v');
-  args.push('--', req.url);
+  // V2-3.10: the PARSED url whose host + port were checked — never the raw string, which
+  // curl's own parser could read as another port (a backslash, a userinfo split).
+  args.push('--', req.parsedUrl.href);
   return args;
 }
 
@@ -338,6 +447,16 @@ async function main() {
     : req.parsedUrl.protocol === 'https:'
       ? 443
       : 80;
+  if (isHomePort(port)) {
+    process.stderr.write('curl-local: that port is Maude Home; refused\n');
+    process.exit(3);
+  }
+  if (isTokenBridgePort(port)) {
+    process.stderr.write('curl-local: that port is the desktop token bridge; refused\n');
+    process.exit(3);
+  }
+  const chatHeader = chatHeaderFor(req);
+  if (chatHeader) req.headers.push(chatHeader);
   const curlArgs = buildCurlArgs(req, pinIp, port);
   const result = spawnSync('curl', curlArgs, { stdio: 'inherit' });
   if (result.error) {

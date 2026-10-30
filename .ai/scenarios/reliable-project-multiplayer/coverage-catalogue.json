@@ -18,15 +18,15 @@
   "sources": [
     {
       "path": "apps/studio/tool-palette.tsx",
-      "sha256": "a49ad681bce407ca8c6a27034c532777791f6acc01447bc10e185dff6b365069"
+      "sha256": "0f9427e049fc3b4cc93c36dfcf917f480cf2cc33bd61c66dbd4b15e559c9a025"
     },
     {
       "path": "apps/studio/annotations-context-toolbar.tsx",
-      "sha256": "53417a17e31731e5f70765563426bca660633356e0a688ba8005359b06ff086a"
+      "sha256": "bf3afd61f3adfe4a144ac1746a73826c43f3cccec688e4826ed1c2230a4bfbc0"
     },
     {
       "path": "apps/studio/client/photo-knobs.jsx",
-      "sha256": "44ec5bd02a3218e517934089fa3fa82a7989f833556614b1d04f74c8d3d5cd8f"
+      "sha256": "53741fe242aa1632b7fa34bf4a4dcd0dd8fa779ce6f2ce639ada1442ea87f5a2"
     },
     {
       "path": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
@@ -49,7 +49,6 @@
       "eraser"
     ],
     "shapeKinds": [
-      "square",
       "rounded",
       "circle",
       "diamond",
@@ -417,66 +416,6 @@
     },
     {
       "id": "L09.highlighter.redo",
-      "source": "apps/studio/tool-palette.tsx",
-      "repairTask": "T26",
-      "directions": [
-        "hub-to-peers",
-        "native-to-peers",
-        "peer-to-peers"
-      ]
-    },
-    {
-      "id": "L09.shape-square.create",
-      "source": "apps/studio/tool-palette.tsx",
-      "repairTask": "T26",
-      "directions": [
-        "hub-to-peers",
-        "native-to-peers",
-        "peer-to-peers"
-      ]
-    },
-    {
-      "id": "L09.shape-square.move",
-      "source": "apps/studio/tool-palette.tsx",
-      "repairTask": "T26",
-      "directions": [
-        "hub-to-peers",
-        "native-to-peers",
-        "peer-to-peers"
-      ]
-    },
-    {
-      "id": "L09.shape-square.resize",
-      "source": "apps/studio/tool-palette.tsx",
-      "repairTask": "T26",
-      "directions": [
-        "hub-to-peers",
-        "native-to-peers",
-        "peer-to-peers"
-      ]
-    },
-    {
-      "id": "L09.shape-square.delete",
-      "source": "apps/studio/tool-palette.tsx",
-      "repairTask": "T26",
-      "directions": [
-        "hub-to-peers",
-        "native-to-peers",
-        "peer-to-peers"
-      ]
-    },
-    {
-      "id": "L09.shape-square.undo",
-      "source": "apps/studio/tool-palette.tsx",
-      "repairTask": "T26",
-      "directions": [
-        "hub-to-peers",
-        "native-to-peers",
-        "peer-to-peers"
-      ]
-    },
-    {
-      "id": "L09.shape-square.redo",
       "source": "apps/studio/tool-palette.tsx",
       "repairTask": "T26",
       "directions": [
@@ -1332,6 +1271,19 @@
       "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
     },
     {
+      "id": "L09.context-control.unlock-selection",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "label": "Unlock selection",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true,
+      "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
+    },
+    {
       "id": "L09.context-control.media-reference-properties",
       "source": "apps/studio/annotations-context-toolbar.tsx",
       "repairTask": "T26",
@@ -1345,10 +1297,23 @@
       "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
     },
     {
-      "id": "L09.context-control.delete-media-reference",
+      "id": "L09.context-control.sticker-properties",
       "source": "apps/studio/annotations-context-toolbar.tsx",
       "repairTask": "T26",
-      "label": "Delete media reference",
+      "label": "Sticker properties",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true,
+      "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
+    },
+    {
+      "id": "L09.context-control.duplicate",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "label": "Duplicate",
       "directions": [
         "hub-to-peers",
         "native-to-peers",
@@ -1375,19 +1340,6 @@
       "source": "apps/studio/annotations-context-toolbar.tsx",
       "repairTask": "T26",
       "label": "Image alt text",
-      "directions": [
-        "hub-to-peers",
-        "native-to-peers",
-        "peer-to-peers"
-      ],
-      "requiresTargetExpansion": true,
-      "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
-    },
-    {
-      "id": "L09.context-control.delete-image",
-      "source": "apps/studio/annotations-context-toolbar.tsx",
-      "repairTask": "T26",
-      "label": "Delete image",
       "directions": [
         "hub-to-peers",
         "native-to-peers",
@@ -1436,19 +1388,6 @@
       "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
     },
     {
-      "id": "L09.context-control.delete-link",
-      "source": "apps/studio/annotations-context-toolbar.tsx",
-      "repairTask": "T26",
-      "label": "Delete link",
-      "directions": [
-        "hub-to-peers",
-        "native-to-peers",
-        "peer-to-peers"
-      ],
-      "requiresTargetExpansion": true,
-      "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
-    },
-    {
       "id": "L09.context-control.annotation-properties",
       "source": "apps/studio/annotations-context-toolbar.tsx",
       "repairTask": "T26",
@@ -1466,6 +1405,19 @@
       "source": "apps/studio/annotations-context-toolbar.tsx",
       "repairTask": "T26",
       "label": "Swatch target",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true,
+      "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
+    },
+    {
+      "id": "L09.context-control.arrow-line",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "label": "Arrow line",
       "directions": [
         "hub-to-peers",
         "native-to-peers",
@@ -1518,6 +1470,32 @@
       "source": "apps/studio/annotations-context-toolbar.tsx",
       "repairTask": "T26",
       "label": "Thick stroke",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true,
+      "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
+    },
+    {
+      "id": "L09.context-control.text-size",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "label": "Text size",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true,
+      "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
+    },
+    {
+      "id": "L09.context-control.list",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "label": "List",
       "directions": [
         "hub-to-peers",
         "native-to-peers",
@@ -1618,6 +1596,19 @@
       "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
     },
     {
+      "id": "L09.context-control.turn-into-a-comment",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "label": "Turn into a comment",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true,
+      "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
+    },
+    {
       "id": "L09.context-control.group-selection",
       "source": "apps/studio/annotations-context-toolbar.tsx",
       "repairTask": "T26",
@@ -1644,10 +1635,10 @@
       "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
     },
     {
-      "id": "L09.context-control.delete-selected-annotations",
+      "id": "L09.context-control.more",
       "source": "apps/studio/annotations-context-toolbar.tsx",
       "repairTask": "T26",
-      "label": "Delete selected annotations",
+      "label": "More",
       "directions": [
         "hub-to-peers",
         "native-to-peers",

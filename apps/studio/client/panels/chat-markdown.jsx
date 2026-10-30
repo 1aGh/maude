@@ -39,8 +39,10 @@ function inline(text) {
           <a key={key++} href={href} target="_blank" rel="noreferrer noopener">
             {link[1]}
           </a>
+        ) : link ? (
+          link[1]
         ) : (
-          link ? link[1] : tok
+          tok
         )
       );
     }
@@ -121,7 +123,9 @@ export function Markdown({ text }) {
       const ordered = /^\s*\d+\.\s/.test(line);
       const items = [];
       while (i < lines.length && isList(lines[i])) {
-        items.push(<li key={items.length}>{inline(lines[i].replace(/^\s*(?:[-*]|\d+\.)\s/, ''))}</li>);
+        items.push(
+          <li key={items.length}>{inline(lines[i].replace(/^\s*(?:[-*]|\d+\.)\s/, ''))}</li>
+        );
         i++;
       }
       blocks.push(

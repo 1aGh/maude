@@ -24,7 +24,7 @@
 // pass because the render service quietly did the work instead.
 
 import { describe, expect, test } from 'bun:test';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
@@ -150,6 +150,7 @@ interface PwPage {
   keyboard: { press(k: string): Promise<void> };
   click(sel: string, o?: unknown): Promise<void>;
   waitForSelector(sel: string, o?: unknown): Promise<unknown>;
+  waitForTimeout(ms: number): Promise<void>;
   selectOption(sel: string, v: string): Promise<unknown>;
   textContent(sel: string): Promise<string | null>;
   waitForEvent(e: string, o?: unknown): Promise<PwDownload>;
@@ -171,6 +172,9 @@ interface PwDownload {
  * Open the studio, open a canvas, and open the Export dialog.
  * Returns the page plus a `download(format)` driver.
  */
+/** gate-b-c4 — the member the e2e plays (the hub proxy would vouch it on every request). */
+const E2E_USER = 'e2e@example.com';
+
 async function openExportDialog(port: number) {
   const { launchChromium } = (await import('../bin/_pw-launch.mjs')) as {
     launchChromium: () => Promise<{
@@ -182,6 +186,11 @@ async function openExportDialog(port: number) {
   const ctx = await browser.newContext({
     viewport: { width: 1400, height: 900 },
     acceptDownloads: true,
+    // gate-b-c4 — what the hub proxy injects on every request a member makes (studio-proxy.mjs
+    // upstreamHeaders): the vouched member is the subject the cell mints its frame key for, and a
+    // cell without one hands out no key, so the canvas iframe would open frame-less and render
+    // nothing.
+    extraHTTPHeaders: { 'x-maude-user': E2E_USER },
   });
   const page = await ctx.newPage();
   await page.goto(`http://localhost:${port}/`, { waitUntil: 'domcontentloaded' });
@@ -208,6 +217,7 @@ async function openExportDialog(port: number) {
   // `maude-canvas-iframe-unreachable-by-dom`). Playwright is not bound by the
   // same-origin policy, so drive the FRAME directly.
   const deadline = Date.now() + 60_000;
+  let canvasFrame: ReturnType<PwPage['frames']>[number] | null = null;
   for (;;) {
     const frame = page
       .frames()
@@ -215,14 +225,35 @@ async function openExportDialog(port: number) {
     if (frame) {
       try {
         await frame.waitForSelector('[data-dc-screen]', { timeout: 5_000 });
+        canvasFrame = frame;
         break;
       } catch {
         /* still building — the first load transpiles the canvas */
       }
     }
-    if (Date.now() > deadline) throw new Error('artboard never mounted in the canvas iframe');
+    if (Date.now() > deadline)
+      throw new Error(
+        `artboard never mounted in the canvas iframe (frames: ${page
+          .frames()
+          .map((f) => f.url().replace(/fc=[^&]+/, 'fc=<cap>'))
+          .join(' | ')})`
+      );
     await Bun.sleep(250);
   }
+  // S8.2: "this artboard" is the sheet's `selection` scope, off while nothing is selected ("Nothing is
+  // selected."), and without the render service a workspace exports one artboard only. The cell's shell
+  // opens in Preview (esc → Viewing); select the artboard by clicking its name, as a person does.
+  // gate-a-polish (v2-gate-a-polish-artboard-name-out-of-flow): the name sits ABOVE the frame now, so a
+  // click at the frame's corner lands on the board's content and selects that element — an HTML export
+  // then refuses it (`format-unit`). The name is what selects the artboard.
+  await page.evaluate(() => {
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  });
+  await canvasFrame
+    ?.locator('[data-dc-screen] .dc-artboard-label')
+    .first()
+    .click({ timeout: 15_000 });
+  await page.waitForTimeout(400);
   // ⌘⇧E opens the dialog. Dispatch it on the SHELL window rather than through
   // `keyboard.press`: once the canvas iframe has mounted it holds focus, and a
   // synthetic keypress would be delivered to the iframe's document instead of
@@ -244,6 +275,29 @@ async function openExportDialog(port: number) {
  * this a refused export (the viewer-role 403 on `/_api/export-assemble`, found
  * exactly this way) reads as a test timeout with no cause attached.
  */
+/**
+ * S8.2 — the Export sheet: PNG/JPG sit in the section, every other format is a row under Other…; Scope is a
+ * radio group (`export-scope-<selection|canvas|folder|project>`) where v1 had a <select> of engine scopes.
+ */
+const V2_SCOPE: Record<string, string> = {
+  artboard: 'selection',
+  selection: 'selection',
+  'canvas-as-separate': 'canvas',
+  'canvas-whole': 'canvas',
+  'project-raw': 'project',
+};
+async function pickFormat(page: PwPage, format: string): Promise<void> {
+  if (format === 'png' || format === 'jpg') {
+    await page.click(`[data-testid="export-format-${format}"]`);
+    return;
+  }
+  await page.click('[data-testid="export-other"]');
+  await page.click(`[data-testid="export-other-menu"] [data-testid="export-format-${format}"]`);
+}
+async function pickScope(page: PwPage, scope: string): Promise<void> {
+  await page.click(`[data-testid="export-scope-${V2_SCOPE[scope] ?? scope}"]`);
+}
+
 async function exportAndDownload(page: PwPage, timeoutMs = 180_000): Promise<PwDownload> {
   const failed = page
     .waitForSelector('[data-testid="export-status"][data-ok="0"]', { timeout: timeoutMs })
@@ -293,8 +347,8 @@ describe('export E2E — browser lane, real dialog, real artifact', () => {
         const { page } = opened;
 
         for (const format of ['png', 'svg'] as const) {
-          await page.click(`[data-testid="export-format-${format}"]`);
-          await page.selectOption('[data-testid="export-scope"]', 'artboard');
+          await pickFormat(page, format);
+          await pickScope(page, 'artboard');
           const download = await exportAndDownload(page, 120_000);
           const file = await download.path();
           const bytes = await Bun.file(file).arrayBuffer();
@@ -320,7 +374,7 @@ describe('export E2E — browser lane, real dialog, real artifact', () => {
         // The DECK: every artboard captured here, composed in-cell. The
         // reported symptom was a silent modal close with nothing to show for
         // it, so assert the artifact AND the finished status.
-        await page.click('[data-testid="export-format-pptx"]');
+        await pickFormat(page, 'pptx');
         const deck = await exportAndDownload(page);
         const deckBytes = new Uint8Array(await Bun.file(await deck.path()).arrayBuffer());
         // PPTX is a zip — PK\x03\x04.
@@ -519,11 +573,42 @@ describe('export E2E — worker lane, real render service, real artifact', () =>
       const studioPort = nextPort();
       const renderPort = nextPort();
       const secret = 'e2e-render-secret';
+      // gate-b-c4 — a cell's PUBLIC canvas origin is the hub's studio proxy, which vouches the
+      // member on every request (`x-maude-user` — for the render worker, its render token's
+      // subject: the member the job's frame capability was minted for). This stand-in is that
+      // proxy: it strips any inbound `x-maude-*`, injects the member, and forwards to the cell's
+      // loopback canvas listener (its port from `_server.json`).
+      const vouch = Bun.serve({
+        hostname: '127.0.0.1',
+        port: 0,
+        fetch: async (req) => {
+          const info = JSON.parse(readFileSync(join(box.designRoot, '_server.json'), 'utf8')) as {
+            canvasPort?: number;
+          };
+          const u = new URL(req.url);
+          const headers = new Headers(req.headers);
+          for (const k of [...headers.keys()]) if (k.startsWith('x-maude-')) headers.delete(k);
+          headers.set('x-maude-user', E2E_USER);
+          headers.delete('host');
+          const r = await fetch(`http://localhost:${info.canvasPort}${u.pathname}${u.search}`, {
+            method: req.method,
+            headers,
+            body:
+              req.method === 'GET' || req.method === 'HEAD' ? undefined : await req.arrayBuffer(),
+            redirect: 'manual',
+          });
+          const out = new Headers(r.headers);
+          out.delete('content-encoding');
+          out.delete('content-length');
+          return new Response(r.body, { status: r.status, headers: out });
+        },
+      });
       const proc = await bootServer(box.root, studioPort, {
         MAUDE_WORKSPACE_MODE: '1',
         MAUDE_WORKSPACE_ALLOW_DEV_MODULES: '1',
         MAUDE_RENDER_URL: `http://127.0.0.1:${renderPort}`,
         MAUDE_RENDER_SECRET: secret,
+        MAUDE_PUBLIC_CANVAS_ORIGIN: `http://localhost:${vouch.port}`,
       });
       // Tee the STUDIO's stderr too — a video job can render in-process here
       // (when the lane resolves local, or a remote dispatch degrades), and its
@@ -633,8 +718,12 @@ describe('export E2E — worker lane, real render service, real artifact', () =>
             // Renders target the ACTIVE canvas's artboard — switch to the
             // fixture this entry needs. The dialog's scrim is still up from
             // the last submit and would swallow the tree click; dismiss it.
+            // S8.2: the sheet closes on Esc through its own key handler (focus inside it), not a
+            // window listener — so the key goes to a control inside the sheet and bubbles up.
             await page.evaluate(() => {
-              window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+              document
+                .querySelector('[data-testid="export-submit"]')
+                ?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
             });
             await page.waitForSelector('[data-testid="export-submit"]', {
               state: 'detached',
@@ -665,8 +754,8 @@ describe('export E2E — worker lane, real render service, real artifact', () =>
             }
           }
           if (viaDialog) {
-            await page.click(`[data-testid="export-format-${format}"]`);
-            await page.selectOption('[data-testid="export-scope"]', scope);
+            await pickFormat(page, format);
+            await pickScope(page, scope);
             await page.click('[data-testid="export-submit"]');
           } else {
             const r = await fetch(`http://localhost:${studioPort}/_api/export-jobs`, {
@@ -674,6 +763,8 @@ describe('export E2E — worker lane, real render service, real artifact', () =>
               headers: {
                 'content-type': 'application/json',
                 origin: `http://localhost:${studioPort}`,
+                // the member the hub proxy vouches (gate-b-c4: the job's frame key subject)
+                'x-maude-user': E2E_USER,
               },
               body: JSON.stringify({
                 format,
@@ -782,7 +873,12 @@ describe('export E2E — worker lane, real render service, real artifact', () =>
             // The CHROME ELEMENT is gone (a stylesheet rule naming the class
             // may legitimately remain — every rule is inlined).
             expect(html as string).not.toMatch(/<[a-z]+[^>]*class="[^"]*dc-artboard-label/);
-            expect(html as string).not.toContain('Board A · export fixture');
+            // The board's NAME may ride along as an attribute (S2.22 `data-dc-label`, which the inspector
+            // reads); what must not be there is the label as rendered text.
+            const rendered = (html as string)
+              .replace(/<style[\s\S]*?<\/style>/g, ' ')
+              .replace(/<[^>]+>/g, ' ');
+            expect(rendered).not.toContain('Board A · export fixture');
           } else {
             // pptx IS a zip — PK\x03\x04.
             expect(head4).toEqual([0x50, 0x4b, 0x03, 0x04]);
@@ -860,6 +956,7 @@ describe('export E2E — worker lane, real render service, real artifact', () =>
           new Promise((r) => setTimeout(r, 10_000)),
         ]);
         render?.kill();
+        vouch.stop(true);
         killProc(proc);
         console.error('[worker-lane] teardown complete');
       }

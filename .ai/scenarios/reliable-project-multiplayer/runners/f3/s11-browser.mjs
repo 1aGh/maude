@@ -85,8 +85,11 @@ try {
   const teammate = await signIn('a');
   const live = (p) => p.frameLocator('[data-testid="canvas-frame"]');
   await live(teammate).locator('img[alt="New media"]').waitFor({ timeout: 60000 });
-  if ((await owner.locator('[data-testid="open-changes"][aria-pressed="true"]').count()) === 0)
-    await owner.locator('[data-testid="open-changes"]').click();
+  if ((await owner.locator('[data-testid="git-panel"]').count()) === 0) {
+    // V2-4.8b: Menu › Version history (the status-bar Changes chip is gone).
+    await owner.locator('[data-testid="project-pill"]').click();
+    await owner.locator('[data-testid="project-menu-row-history.open"]').click();
+  }
   await owner.locator(`[data-testid="project-history-preview-${created.revision}"]`).click({ timeout: 30000 });
   await owner.locator('[data-testid="history-preview-version"]').waitFor();
   await owner.locator('[data-testid="history-preview-version"]').selectOption(`r${created.revision}`);

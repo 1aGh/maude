@@ -56,8 +56,8 @@ done
 
 # ── Tier-0 prior: the platform SHOWCASE layout (the canonical "DS in use" shell) ──
 # `ui_kits-<platform>-showcase.tsx` is the single highest-leverage specimen the DS
-# scaffold produces — the established arrangement of chrome (nav / sidebar / toolbar /
-# main / status) for a full product surface. Feeding it as a prior is what lets a NEW
+# scaffold produces — the established arrangement of chrome (nav / side nav / toolbar /
+# main / status row) for a full product surface. Feeding it as a prior is what lets a NEW
 # feature canvas reuse "where it goes" instead of re-deriving a shell. (Gap fix — pre-this,
 # step 5a globbed only components-*.tsx and the showcase never entered the envelope.)
 # Resolve the canvas platform (mirror step 4's detection; tablet rides the mobile family
@@ -110,11 +110,11 @@ The `PRIORS_LIST`, `PREVIEW_LIST`, `SHOWCASE_BLOCK`, and `BRAND_BLOCK` strings a
 
 #### 5b. Persist envelope as audit artifact
 
-**Always write the envelope to `<DESIGN_ROOT>/_history/<slug>/000-envelope.md` before invoking generation** — regardless of which path (Skill vs orchestrator-direct) ultimately produces the canvas. This makes the brief auditable for future retros and lets the user see what creative directive actually drove the output.
+**Always write the envelope to `$RUN/envelope-<slug>.md` (the run folder) before invoking generation** — regardless of which path (Skill vs orchestrator-direct) ultimately produces the artboards. This makes the brief auditable for future retros and lets the person see what creative directive actually drove the output. It is runtime state, so it never lands in the canvas's versions.
 
 ```bash
-mkdir -p "$DESIGN_ROOT/_history/$SLUG"
-cat > "$DESIGN_ROOT/_history/$SLUG/000-envelope.md" << EOF
+mkdir -p "$RUN"
+cat > "$RUN/envelope-$SLUG.md" << EOF
 # Envelope — <Name>
 
 Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)
@@ -132,14 +132,14 @@ Generation path: {to be filled in step 6}
 
 ## Pattern priors — existing canvases to study before inventing
 
-For any compositional element (card, panel, snippet, toolbar, sidebar, modal, button, badge), FIRST check if any prior listed below has the same shape. If yes, **lift it** — same class names, same paddings, same border treatment. Reinventing is the exception, not the default — leave a one-line JSX comment in the new canvas explaining what your variant does that the prior didn't.
+For any compositional element (card, panel, snippet, toolbar, side nav, modal, button, badge), FIRST check if any prior listed below has the same shape. If yes, **lift it** — same class names, same paddings, same border treatment. Reinventing is the exception, not the default — leave a one-line JSX comment in the new canvas explaining what your variant does that the prior didn't.
 
 The `design-system-keeper` agent (step 9.5) audits compliance with this directive after generation. Surfaced reinventions feed into the critic panel as additional context.
 
 ### Platform showcase layout — the canonical shell (adopt this skeleton)
 <SHOWCASE_BLOCK from step 5a — resolved `ui_kits-<platform>-showcase.tsx` path + role from its header comment, plus the `-index` catalog as a secondary line. If empty, the literal "(none — …)" marker.>
 
-This specimen is the DS's authoritative <platform> product shell — the established arrangement of chrome (nav / sidebar / toolbar / main / status). For any **full-screen surface** in this canvas, ADOPT its spatial skeleton and chrome material: same region placement, same shell framing, same hairline/elevation/radius treatment. Do NOT re-derive a new product shell. Reinventing the shell is the exception, not the default — leave a one-line JSX comment explaining what this surface needs that the showcase shell couldn't give. (If the line above reads "(none …)", this DS ships no showcase for this platform — compose the shell freely from the DS readme + the component priors below.) This is **reference, not a wireframe** — adopt the skeleton, but you still own element-level decisions and the signature moment; do not transcribe the showcase region-by-region.
+This specimen is the DS's authoritative <platform> product shell — the established arrangement of chrome (nav / side nav / toolbar / main / status row). For any **full-screen surface** in this canvas, ADOPT its spatial skeleton and chrome material: same region placement, same shell framing, same hairline/elevation/radius treatment. Do NOT re-derive a new product shell. Reinventing the shell is the exception, not the default — leave a one-line JSX comment explaining what this surface needs that the showcase shell couldn't give. (If the line above reads "(none …)", this DS ships no showcase for this platform — compose the shell freely from the DS readme + the component priors below.) This is **reference, not a wireframe** — adopt the skeleton, but you still own element-level decisions and the signature moment; do not transcribe the showcase region-by-region.
 
 ### Brand assets — canonical identity (REUSE, do not invent) (DDR-141)
 <BRAND_BLOCK from step 5a — resolved logo/iconography specimen paths + assets/ inventory. If empty, the literal "(none — …)" marker.>
@@ -167,6 +167,12 @@ The logo above IS the brand mark. Aspiration directive 10 ("brand mark featured 
 - Reference products (for IA / behavior, NOT visual): <payload.reference_products[].name, csv>
 - [if step 4.5 skipped/failed: "UX pattern research unavailable — generation proceeds on DS + brief alone."]
 
+## Artboard plan (kinds and sizes from the preset catalogue — skills/design/_guide-28-artboards.md)
+<one line per artboard: id · label · group (App | Web page | Social | Print | Video) · preset id · kind · width × height. A plan, not a layout: the drafting stages (step 6) add all of these empty first.>
+
+## Output contract
+Emit ONLY the artboard subtree for the artboard you are drafting — one `<DCArtboard>` body, no `<DesignCanvas>` wrapper and no imports. The canvas already exists and every artboard is already in it with its kind and size; you fill them in, big before small, and words last.
+
 ## Constraints
 - rootClass: <ROOT_CLASS>
 - tokens: <TOKENS_REL>
@@ -184,7 +190,7 @@ The logo above IS the brand mark. Aspiration directive 10 ("brand mark featured 
 - A11y is independent — keep WCAG AA compliance regardless of scope.
 
 ## Artboard isolation (HARD-STOP — applies at EVERY opt-out scope)
-Each `<DCArtboard>` is a **fixed-size design surface**. Its content MUST render identically regardless of the studio chrome (Assistant panel, sidebar, window size) and of pan/zoom. Do NOT use CSS that resolves against the browser viewport — inside an artboard the viewport is the studio's canvas stage, not the artboard box, so these silently reflow the mock when the workspace resizes:
+Each `<DCArtboard>` is a **sized design surface** (a Web page artboard's height is a floor that grows; every other kind is exact). Its content MUST render identically regardless of the studio chrome (the AI chat panel, the side panels, window size) and of pan/zoom. Do NOT use CSS that resolves against the browser viewport — inside an artboard the viewport is the studio's canvas stage, not the artboard box, so these silently reflow the mock when the workspace resizes:
 - **No viewport length units** — `vw` / `vh` / `vmin` / `vmax` / `svh` / `dvh` / `lvh` (and the `*vw` variants), including Tailwind `min-h-screen` / `h-screen` / `w-screen` / `h-[100vh]` / `text-[4vw]`. Size to a fixed design width, `%`, or `h-full` against the artboard body.
 - **No viewport `@media` width queries** for layout — neither raw `@media (min-width: …)` nor Tailwind responsive prefixes (`sm:` / `md:` / `lg:` / `xl:` / `2xl:`). One artboard = one form factor; make a *second* `<DCArtboard>` for another breakpoint instead of reflowing one.
 - **Need responsiveness inside a single artboard?** Use container queries — `@container` + `cqw` / `cqh` — they resolve against the artboard body (canvas-lib sets `container-type: inline-size` there), so they stay isolated. `position: fixed` is fine (the canvas world re-roots it).
@@ -198,3 +204,20 @@ EOF
 After step 6, append the chosen generation path (Skill vs orchestrator-direct) to the file's "Generation path:" line.
 
 **Why mandatory:** scooter retro (2026-05-09) flagged that without an envelope artifact, future retros can't see what brief drove generation — the orchestrator's mental model of the brief disappears with the conversation. The envelope being on disk also surfaces over-prescriptive briefs (wireframe-spec smell) for review independent of the canvas itself.
+
+#### 5x. Schema cheat-sheet (V2-2.15, design-system schema v1)
+
+Add the system's role cheat-sheet to the envelope — names, not a file list (≤ 60 lines):
+
+```bash
+DS_CHEATSHEET=$(maude design ds-check --cheatsheet "$DS_NAME" --root "$PROJECT_ROOT")
+```
+
+It lists every Tier-1 role by group with its meaning, this system's Tier-2 / `--x-*` names, the
+`@maude/ds` component names, the `.t-*` type roles and the icon vocabulary (names the system has
+no glyph for are listed as gaps — don't use them). The generator writes **only** those names:
+wrap artboard content in a theme wrapper whose class is `ds` (`<DSRoot>` from `@maude/canvas-lib`
+where the installed canvas-lib exports it, else `<div className="ds" data-theme="…">` — never the
+system's own root class), use the system's component classes (or `@maude/ds` components where
+available), and never import `system/<ds>/preview/*.tsx`. A palette opt-out (`--opt-out=palette`) puts its colours in a
+`--c-*` block on the canvas root instead of inline literals.

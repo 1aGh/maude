@@ -1,0 +1,204 @@
+# Phase 8 fidelity — stage A evidence — 05 Empty States
+
+Branch `p8-fid-g1` (from `feat/maude-v2` 6d780ab1b). 20 artboards · 38 pairs (light + dark where an implementation frame exists) · 2 not reachable · 6 reachable only in part.
+Evidence only — no product code changed. Pair = SPEC left, IMPL right, same height, strip `<id> · <theme>` on top; committed copies are JPEG q55 ≤ 1100 px wide, full-size PNGs are at the path in `full-size-path.txt`.
+
+## How the frames were made
+- **SPEC.** The board rendered from a scratch copy of this repo's `.design/` (`.scr/design-copy`, `linkedHub` stripped), studio booted with `NO_OPEN=1 MAUDE_NO_AUTOBUILD=1`, throwaway HOME / XDG (stub `claude`), release-built client. Each `<DCArtboard>` captured through the canvas shell (capture origin, 307 from the main origin) at 100 % (⇧0, panned to the artboard), element screenshot. Stage boards are 1440 × 980 (window 1440 × 900 + a note strip): the pair crops the window (1440 × 900) so it compares like for like; other boards (close-ups, filmstrips) are shown whole. The "Note" strip text is quoted in the meta / canvas, not in the pair.
+- **Light vs dark.** The boards DRAW light only (`data-theme="light"` scopes; the studio host injects the app theme's tokens on `[data-dc-screen] [data-theme]`, pinned-light pictures keep their palette). **Light SPEC** = the host rule removed, the board exactly as authored. **Dark SPEC** = the host's own dark injection (what a dark-theme studio shows) — it is NOT a designed dark artboard, so a dark-only difference is as likely the board's as the app's. IMPL dark/light = prefs `theme` + colour scheme.
+- **IMPL.** Release client, Playwright Chromium 1600 × 1000, `window.__TAURI__` stub, throwaway HOME / XDG / machine file, `claude` stubbed. Screens: the e2e fixture project, a generated 93-canvas project, an empty project, a "g1" fixture (base + an empty folder, a video artboard with no clips, a two-artboard canvas), and the project-less Home server (`--home`) with route interception of Home's own APIs. AI states use the e2e FAKE ACP agent (a slowed variant of `apps/desktop/e2e/fixtures/fake-acp/first-canvas-agent.mjs`, never a provider). Intercepted: `/_home/*`, `/_api/sync/availability`; "offline" = `navigator.onLine=false` (the local server stays up) except where a row says otherwise.
+- **Systematic differences (every pair, not repeated per row).** The browser lane has no native window chrome or tab strip (spec draws them); the impl left panel is a full-height column, the spec's a floating island; the spec shows a bottom-left undo / redo / zoom chip, the impl does not (Settings › Zoom controls is off by default); the status cluster reads "Local project" + avatar YO in the fixture project where the spec shows "Saved" + faces; fixtures are not the Studio site / Alligators data the boards draw (no real covers, names, collaborators).
+
+## Not reachable (findings, not skips)
+- `es-viewer` — a view-only / comment-only member session — needs the hub / a workspace cell vouching a role (`MAUDE_WORKSPACE_MODE` boot assertions); not attempted in the browser lane
+- `es-all-trashed` — the card did not appear — with the canvas empty the generic "Your canvas is ready." shows and the trashed artboard is not offered back; the UI refuses to trash the last artboard ("A canvas keeps at least one artboard.") so the state only arises from another person / a sync
+
+## Artboards
+| id | state (board label) | how reached | impl reachable? | first-glance differences | pairs |
+| --- | --- | --- | --- | --- | --- |
+| `es-home-cloud` | 1 · Home — signed in, no projects yet | project-less Home server (`server.ts --home`) + Tauri stub; Home's own APIs route-intercepted per scene (`/_home/cloud`, `/_home/index`, `/_home/thumb`, `/_home/whats-new`, sign-in start/poll, invite peek) and `shell_state` stubbed; signed in, no projects | yes | • "No projects yet. Your first canvas starts one — and everyone you invite sees it here." ✓ same words<br>• impl adds "Recent canvases — Canvases you open show up here." above; spec has none and a 120 px wider shelf; prompt text differs (spec typed) | [light](es-home-cloud-light.jpg) · [dark](es-home-cloud-dark.jpg) |
+| `es-home-local` | 2 · Home — a local project, not signed in | project-less Home server (`server.ts --home`) + Tauri stub; Home's own APIs route-intercepted per scene (`/_home/cloud`, `/_home/index`, `/_home/thumb`, `/_home/whats-new`, sign-in start/poll, invite peek) and `shell_state` stubbed; one local project (0 canvases), not signed in | partial: the spec draws "No projects on this Mac yet" with a registered-less shelf; with a project registered the shelf lists it | • "Sign in to cloud.maude.sh" top-right ✓<br>• impl shows the Studio site row instead of the empty "No projects on this Mac yet" card; extra "Recent canvases" line | [light](es-home-local-light.jpg) · [dark](es-home-local-dark.jpg) |
+| `es-home-shared` | 3 · Home — nothing shared with you yet | project-less Home server (`server.ts --home`) + Tauri stub; Home's own APIs route-intercepted per scene (`/_home/cloud`, `/_home/index`, `/_home/thumb`, `/_home/whats-new`, sign-in start/poll, invite peek) and `shell_state` stubbed; signed in, one project of mine, nothing shared | yes | • spec: "Your projects" shelf first (full width) and "Shared with you — Nothing shared with you yet. When Tereza or Jonas share…" below; impl: two columns, Shared left and Projects right, below Recent canvases; ghost words say "When someone shares a project with you" (spec names people) | [light](es-home-shared-light.jpg) · [dark](es-home-shared-dark.jpg) |
+| `es-project-new` | 4 · A new project with no canvases | empty project (Studio site), nothing open | yes | • panel: "No canvases yet." ✓ but impl has a full-height column with the Trash / Advanced foot and a stray project name line; spec small island with "0 canvases" and "Folders appear when you make one."<br>• canvas prompt in impl is a narrow field (placeholder clipped "A one-page portfolio with…"); spec is a wide card with a round send button<br>• no toolbar in either; impl shows the dock | [light](es-project-new-light.jpg) · [dark](es-project-new-dark.jpg) |
+| `es-canvas-ai` | 5 · A new canvas — online, AI ready | ⌘K › New canvas on the empty project | yes | • same spot art and line ✓; impl adds a "New artboard" button next to Ask AI, spec has one button; toolbar + zoom chip differences as cf-blank | [light](es-canvas-ai-light.jpg) · [dark](es-canvas-ai-dark.jpg) |
+| `es-landing` | 6 · How the empty canvas arrives — one drop of spring | new canvas through ⌘K, screenshots every ≈60 ms; the four frames from the first one that shows the words | yes (the stickies landing is caught) | • frames are the real animation; spec board also carries the --ease-spring curve and timings, which impl cannot show<br>• first impl frame already has stickies in flight (the 0 ms frame without stickies is the loading card) | [light](es-landing-light.jpg) · [dark](es-landing-dark.jpg) |
+| `es-canvas-three` | 7 · New canvas — AI ready · offline · AI not connected yet | online: es-canvas-ai; offline: navigator.onLine = false + ⌘N; not connected: first send with the signed-out stub (AI panel) | partial: three canvases ✓; the "after you send" cards (Drafting… / Queued — sends when this Mac is online.) are not captured | • Connect sheet is cramped inside the AI panel (spec: centred card, 290 px) — see ob-ai-connect<br>• offline word on the canvas ✓ ("AI is back when this Mac is online."); status word stays "Local project" | [light](es-canvas-three-light.jpg) · [dark](es-canvas-three-dark.jpg) |
+| `es-artboard-new` | 8 · Empty artboard after “New artboard” | empty canvas › "New artboard" | partial: the new Desktop artboard appears blank; the floating hint card ("Empty artboard. Draw a frame with F, place an image I … + Ask AI to fill Tablet") is NOT shown | • no hint card, no AI chip on the empty artboard<br>• Layers tab frame shows what the empty artboard Layers says (second frame)<br>• spec shows the artboard selected beside two others with a compact inspector (Preset Tablet · W 834 · H 1194) | [light](es-artboard-new-light.jpg) · [dark](es-artboard-new-dark.jpg) |
+| `es-panels-canvas` | 9 · Canvases folder · Comments · all resolved · Version history | g1 fixture: empty folder 2027 clicked; Comments empty; Comments after one comment is resolved; Version history | yes | • empty folder: "Nothing in 2027 yet. Drag canvases in, or start one here. + New canvas in 2027" ✓ words match<br>• comments none / all done / history: words and spot art match; "All done." has the confetti ✓; spec panels are floating cards 205 px wide with a × and tabs "Open 0 · Mine 0 · Resolved 4", impl panel is a full-height column; history says "Versions appear here as you work" ✓ | [light](es-panels-canvas-light.jpg) · [dark](es-panels-canvas-dark.jpg) |
+| `es-panels-make` | 10 · AI chat · Assets · Exports · Trash | AI panel empty; Assets tab; Exports; Trash | yes | • AI chat: impl "Ask for a change, a few variants, or an answer. AI works on what the chip says." with no suggestion chips; spec "Ask about Pricing." + three chips written for the canvas (Add a yearly toggle, …) and a spot picture<br>• Assets: ✓ "No images or footage yet. … Generate an image"<br>• Exports: "No exports yet. Every export of this project lands here" ✓ (spec "of Studio site")<br>• Trash: "Trash is empty." ✓ (impl lacks the Studio site chip and sits inside the left panel) | [light](es-panels-make-light.jpg) · [dark](es-panels-make-dark.jpg) |
+| `es-timeline` | 11 · Timeline on a video artboard with no clips | g1 fixture: a video artboard with an empty composition; click the artboard label | partial: "No clips on reel yet." is shown; the "Cut 15 s from those clips" AI chip (needs 38 clips), the 0:00–0:30 ruler and the Captions / Music tracks are not | • timeline bar has transport controls + a scrubber; spec has a ruler, an empty clip track as a drop zone with one AI chip, Captions and Music lanes<br>• inspector for the video artboard (Preset Reels 9:16 · size · Length · Frame rate) is not shown — selection is the artboard's page element | [light](es-timeline-light.jpg) · [dark](es-timeline-dark.jpg) |
+| `es-search-k` | 12 · ⌘K — nothing called “pricng” | ⌘K, type "pricng" on the empty project | yes | • spot art + "Nothing called “pricng”." + "Ask AI to find “pricng”" ✓; the "Did you mean Pricing" row is missing because the fixture has no Pricing canvas<br>• palette is wider in impl | [light](es-search-k-light.jpg) · [dark](es-search-k-dark.jpg) |
+| `es-search-more` | 13 · ⌘K with nothing recent · Assets search with no hits | ⌘K on a project with nothing opened; Assets search "zzz" | yes | • ⌘K: "Nothing opened yet." + a "Start here" list (New canvas, Open project, Import from Figma, Keyboard shortcuts) + Ask AI ✓ close<br>• Assets no hits: "No images or footage yet" instead of "Nothing called “zzz”" + "Let AI describe your pictures" (the project has no assets so the generic empty wins) | [light](es-search-more-light.jpg) · [dark](es-search-more-dark.jpg) |
+| `es-search-panel` | 14 · Panel search — 93 canvases, none match | big fixture (93 canvases); panel search "sponzoři 2024" | yes | • "Nothing called “sponzoři 2024”. Try another word, or ask AI to find it." + "Ask AI to find it" ✓ and the foot "Searched 93 canvases and their artboards" ✓<br>• spec is a floating panel on a populated canvas; impl panel is a full-height column | [light](es-search-panel-light.jpg) · [dark](es-search-panel-dark.jpg) |
+| `es-filter` | 15 · A filter that hides every artboard | g1 fixture; Layers tab, Print chip with a canvas that has no print artboard | yes | • card ✓: "No print artboards in Smoke. The Print filter is on. The one artboard here is web page." + Clear filter + "1 other artboard is dimmed · Show all"; spec says "The Print filter is still on from Combine-kampan. All 5 artboards here are digital or web." and the canvas artboards are dimmed (impl artboard is dimmed too)<br>• chip row shows "Print 0 ×" in spec; impl chip "Print 0" without × | [light](es-filter-light.jpg) · [dark](es-filter-dark.jpg) |
+| `es-viewer` | 16 · A shared canvas you can comment on, not edit | — | no: a view-only / comment-only member session — needs the hub / a workspace cell vouching a role (`MAUDE_WORKSPACE_MODE` boot assertions); not attempted in the browser lane | — | — no pair (nothing to show) |
+| `es-arriving` | 17 · The cloud copy hasn't arrived yet | g1 fixture; `GET /_api/sync/availability` intercepted → phase arriving (41 of 93, six pending names); the open canvas answers "arriving" | partial: ghost rows with names + the foot "Getting Alligators brand · 41 of 93 canvases" are reached; the skeleton artboards (names and sizes kept) and the foot progress bar / "Syncing…" status are not | • impl canvas area shows one centred card "Smoke is on its way." (the Q13 fallback); spec shows skeleton artboards with names, a "4 artboards on their way" tag and a pulsing thumb<br>• no progress bar in the foot; no "Syncing…" word | [light](es-arriving-light.jpg) · [dark](es-arriving-dark.jpg) |
+| `es-offline-uncached` | 18 · Offline, and this canvas was never downloaded | g1 fixture; availability intercepted → phase offline, open canvas "not-local" | yes | • near pixel match: icon, "Smoke isn't on this Mac yet.", the two sentences, "Show canvases on this Mac" ✓; ghost rows dimmed with a cloud ✓<br>• spec top-right word "Offline — kept on this Mac" (hub-linked); impl "Local project" | [light](es-offline-uncached-light.jpg) · [dark](es-offline-uncached-dark.jpg) |
+| `es-all-trashed` | 19 · Every artboard moved to the trash | g1 fixture: trash Desktop in the UI (one frame), then the canvas file is rewritten with no artboard | no: the card did not appear — with the canvas empty the generic "Your canvas is ready." shows and the trashed artboard is not offered back; the UI refuses to trash the last artboard ("A canvas keeps at least one artboard.") so the state only arises from another person / a sync | • no dashed outlines where artboards stood, no "Restore 4 artboards" card, no "Jonas moved all four to the trash 10 min ago" | [light](es-all-trashed-light.jpg) · [dark](es-all-trashed-dark.jpg) |
+| `es-edge-panels` | 20 · Chat search with no hits · a team of one | signed-in AI through a FAKE ACP agent (`MAUDE_ACP_ADAPTER_ENTRY` = the e2e fake agent, slowed in steps, + the e2e `claude` stub that answers "signed in") — never a provider: one chat exists, chat list, search "invoice" | partial: chat search with no hits ✓; the "team of one" Share sheet needs a cloud project | • "No chat mentions “invoice”. Searched 1 chats in e2e-fixture — titles and every message. + Start a chat about it" ✓ same words<br>• spec Share sheet: empty people list as the reason to Invite — not reached | [light](es-edge-panels-light.jpg) · [dark](es-edge-panels-dark.jpg) |
+
+
+## After (stage D, 2739edc35)
+Re-shoot of the IMPL side on `feat/maude-v2` tip 2739edc35 (stage C round 2 merged), no product code changed. 19 artboards with pairs (light + dark), 1 without a frame. Evidence only — no match / mismatch judged here.
+
+- **IMPL.** Same stage-A harness (`_harness-g1/`, copied and repointed; kept as `_d-harness-g1/`), fresh release client, throwaway HOME/XDG + stub claude, `NO_OPEN=1 MAUDE_NO_AUTOBUILD=1`, Playwright Chromium 1600 × 1000. Harness adaptations (the product moved; no product code touched): the What’s new notice’s dismiss is now `.maude-notice-close` (its first button became "See all" and opened the panel over every shot); Esc no longer closes Version history, so 05 closes it by its own button (`vh-close`); the right-hand panels, Settings and the sheets moved, so the impl crops of es-panels-canvas (history), es-panels-make (AI), es-canvas-three, ob-adv-sheets and ob-settings were re-fitted to the new geometry; the dark es-landing filmstrip now finds its first frame by the blue Ask AI button (stage A picked loading skeletons).
+- **SPEC.** reused (board 05 .tsx/.css unchanged since stage A — git log 04c20ad74..tip empty); light = host dark-token rule removed, dark = host injection, as in stage A.
+- **Full-size pairs.** `full-size-path.txt` (stage D line); committed `<id>-<theme>.jpg` overwritten (JPEG q55 ≤ 1100 px).
+
+| id | light | dark | note |
+| --- | --- | --- | --- |
+| `es-home-cloud` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `es-home-local` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `es-home-shared` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `es-project-new` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `es-canvas-ai` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `es-landing` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `es-canvas-three` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused **Round 3 (p8-c3-ai):** IMPL re-shot after the AI-on-canvas / chat fixes; SPEC reused. |
+| `es-artboard-new` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `es-panels-canvas` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `es-panels-make` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `es-timeline` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `es-search-k` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `es-search-more` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `es-search-panel` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `es-filter` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `es-viewer` | unreachable | unreachable | a view-only / comment-only member session needs a hub / workspace cell vouching a role — not attempted in the browser lane |
+| `es-arriving` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `es-offline-uncached` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `es-all-trashed` | re-shot (state not reached) | re-shot (state not reached) | the all-trashed card still never mounts (fix-navcreate.md: "AllTrashed never mounted"); the pair shows the one-left and empty states re-shot |
+| `es-edge-panels` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+
+## after (stage D, round 3 — p8-c3-shell, impl c7f1a0efd)
+
+All rows above re-shot, IMPL side only, light + dark (SPEC reused, boards unchanged). What changed in the shell frame: the Undo · Redo · zoom % island bottom left, the Canvases panel hugs its rows (no twisty at rest), kind chips only for a mixed project. See `fix-c3-shell.md`.
+
+## FINAL (stage D2, d3881fe41)
+Final re-shoot of the IMPL side on the merged `feat/maude-v2` tip d3881fe41 (stage C rounds 1-4 merged); no product code changed. This section supersedes every per-round "after" section above. 19 artboards with pairs (light + dark), 1 without a frame. Evidence only — no match / mismatch judged here.
+
+- **IMPL.** Stage-D harness (`_d-harness-g1/`) plus the round-3 `_c3-ai-harness/` (fake agent writes through the design plugin's hook; panel folded for the result toast), repointed to this worktree; fresh release client, throwaway HOME/XDG + stub claude, `NO_OPEN=1 MAUDE_NO_AUTOBUILD=1`, Playwright Chromium 1600 x 1000. The AI finish moment (cf-ai-done, ob-first-draw's done frame) is shot while `[data-fresh]` is on the artboard. Undo waits 7 s for the canvas to settle. The final harness is kept in `_d-harness-g1-final/`.
+- **SPEC.** reused (board 05 .tsx/.css unchanged: no `.design` commit since the stage-D spec shots).
+- **Full-size pairs.** `full-size-path.txt` (the last line, "final (D2)"); committed `<id>-<theme>.jpg` overwritten (JPEG q55, <= 1100 px).
+
+| id | light | dark | note |
+| --- | --- | --- | --- |
+| `es-home-cloud` | re-shot | re-shot |  |
+| `es-home-local` | re-shot | re-shot |  |
+| `es-home-shared` | re-shot | re-shot |  |
+| `es-project-new` | re-shot | re-shot |  |
+| `es-canvas-ai` | re-shot | re-shot |  |
+| `es-landing` | re-shot | re-shot |  |
+| `es-canvas-three` | re-shot | re-shot |  |
+| `es-artboard-new` | re-shot | re-shot |  |
+| `es-panels-canvas` | re-shot | re-shot | harness: the Share cluster now draws the Comments icon only once the canvas has comments, so the empty Comments panel is opened by ⌘K › Comments (view.comments); the left Canvases panel is re-opened after `h.open` where the harness had folded it |
+| `es-panels-make` | re-shot | re-shot |  |
+| `es-timeline` | re-shot | re-shot |  |
+| `es-search-k` | re-shot | re-shot |  |
+| `es-search-more` | re-shot | re-shot |  |
+| `es-search-panel` | re-shot | re-shot |  |
+| `es-filter` | re-shot | re-shot |  |
+| `es-viewer` | unreachable | unreachable | unreachable — a view-only / comment-only member session needs a hub / workspace cell vouching a role |
+| `es-arriving` | re-shot | re-shot |  |
+| `es-offline-uncached` | re-shot | re-shot |  |
+| `es-all-trashed` | re-shot | re-shot | the pair shows the states the app reaches (one left, empty); the all-trashed card itself is not reached by a local route |
+| `es-edge-panels` | re-shot | re-shot |  |
+
+## After (round 5, p8-c5-panels @ 2e203e9e6)
+IMPL re-shot light + dark on the round-5 tip (stage-D harness, repointed, system Chrome channel). SPEC reused. Every id with a pair was overwritten. Evidence only.
+
+- Changed in the product for these frames: the Canvases panel island; the empty block centred on the free canvas (es-canvas-ai, es-offline-uncached); the empty-project prompt box (es-project-new); the empty-artboard hint after "New artboard" selects the board (es-artboard-new); the all-trashed card is mounted (es-all-trashed, still needs the Trash to hold the canvas's artboards); plain layer names, "a web page", "Searched 1 chat", the "New canvas" start-here row, the project named on Exports.
+- Still open: es-arriving skeleton artboards (no artboard data for a canvas on its way), es-viewer, es-timeline lanes.
+
+## FINAL (D3, 63592219a)
+Final re-shoot D3 of the IMPL side on the merged `feat/maude-v2` tip 63592219a (stage C rounds 1-5 + bugs3 merged); no product code changed. This section supersedes every earlier "after" / FINAL section above. 19 artboards with pairs (light + dark), 1 without a frame. Evidence only — no match / mismatch judged here.
+
+- **IMPL.** D2 harness (`_d-harness-g1-final/`, round-5 revision of the 01/02/05 scenarios) plus the bugs3 `s01ai.mjs` (waits for the run's end before ⌘Z), repointed to this worktree; kept in `_d-harness-g1-d3/`. Changes for D3: the fake agent steps every 9 s (was 7 s) so the harness's folding clicks finish before the run does; the finish moment is detected by a MutationObserver inside the canvas frame (re-armed on reload) and shot while `[data-fresh]` is on, panel folded, result toast up; the undo frame is shot while the "Undone — <label> · Redo" toast is still up. Fresh release client, throwaway HOME/XDG + stub claude, `NO_OPEN=1 MAUDE_NO_AUTOBUILD=1`, Playwright Chromium 1600 x 1000, light + dar- **SPEC.** reused (board 05 .tsx/.css unchanged since 2026-10-18).
+- **Full-size pairs.** `full-size-path.txt` (the last line, "final (D3)"); committed `<id>-<theme>.jpg` overwritten (JPEG q55, <= 1100 px).
+
+| id | light | dark | note |
+| --- | --- | --- | --- |
+| `es-home-cloud` | re-shot | re-shot |  |
+| `es-home-local` | re-shot | re-shot |  |
+| `es-home-shared` | re-shot | re-shot |  |
+| `es-project-new` | re-shot | re-shot |  |
+| `es-canvas-ai` | re-shot | re-shot |  |
+| `es-landing` | re-shot | re-shot |  |
+| `es-canvas-three` | re-shot | re-shot |  |
+| `es-artboard-new` | re-shot | re-shot |  |
+| `es-panels-canvas` | re-shot | re-shot | harness: the Share cluster now draws the Comments icon only once the canvas has comments, so the empty Comments panel is opened by ⌘K › Comments (view.comments); the left Canvases panel is re-opened after `h.open` where the harness had folded it |
+| `es-panels-make` | re-shot | re-shot |  |
+| `es-timeline` | re-shot | re-shot |  |
+| `es-search-k` | re-shot | re-shot |  |
+| `es-search-more` | re-shot | re-shot |  |
+| `es-search-panel` | re-shot | re-shot |  |
+| `es-filter` | re-shot | re-shot |  |
+| `es-viewer` | unreachable | unreachable | unreachable — a view-only / comment-only member session needs a hub / workspace cell vouching a role |
+| `es-arriving` | re-shot | re-shot |  |
+| `es-offline-uncached` | re-shot | re-shot |  |
+| `es-all-trashed` | re-shot | re-shot | the pair shows the states the app reaches (one left, empty); the all-trashed card itself is not reached by a local route |
+| `es-edge-panels` | re-shot | re-shot |  |
+
+## After (round 7, p8-c7-oboard @ 6f503db82 + p8-c7-oboard)
+IMPL re-shot light + dark with the newest harness (`_d-harness-g1-d3` repointed, stage D): the committed `<id>-<theme>.jpg` pairs of this canvas that the round's scenarios reach are overwritten. Changed on purpose: es-project-new (one New canvas row), es-timeline (ruler + drop track + Captions/Music lanes), es-filter (chip x, Clear filter x, no tree), es-offline-uncached (block centred on the free canvas), es-home-local (no registered project), es-landing.
+Harness notes: run.mjs dismisses `.maude-notice-close` before each shot; home2.mjs `es-home-local` registers no project; the What's new toast is still caught in some frames (fixture/notice timing, not product).
+
+
+## FINAL (D5, e37e7d82a)
+Final verification re-shoot of the IMPL side on the merged `feat/maude-v2` tip e37e7d82a (stage C rounds 1-7 merged, release client); no product code changed. Supersedes every earlier "after" / FINAL section. 19 of 20 artboards with pairs (light + dark). Evidence only — no match / mismatch judged here.
+
+- **IMPL.** `_d5-harness-g1/` (= _d-harness-g1-d4 + the round-7 / 7b scenario files, repo-relative), shot on the Mac mini through `scripts/remote-lane.sh` in Google Chrome (the mini has no Playwright chromium build; viewport 1600 × 1000), throwaway HOME/XDG + stub claude, `NO_OPEN=1 MAUDE_NO_AUTOBUILD=1`, release-built client. Harness deltas this round: es-home-local registers no project; s05f opens the Comments panel through ⌘K (the share-cluster icon no longer opened it); home thumbnails are committed flat JPEGs (no ImageMagick on the mini).
+- **SPEC.** reused — no board 01 / 02 / 05 file (.tsx / .css / .meta.json) changed since the D3 shoot (git log 63592219a..tip empty); the spec PNGs are the D3 set (02 re-rendered then).
+- **Full-size pairs.** `full-size-path.txt` (last line, "final (D5)"); committed `<id>-<theme>.jpg` overwritten (JPEG q55, <= 1100 px).
+
+| id | light | dark | note |
+| --- | --- | --- | --- |
+| `es-home-cloud` | re-shot | re-shot |  |
+| `es-home-local` | re-shot | re-shot | Home with NO project registered, signed out; the frame shows the first-run Home (the board's "No projects on this Mac yet." card does not appear in it) |
+| `es-home-shared` | re-shot | re-shot |  |
+| `es-project-new` | re-shot | re-shot | ONE "New canvas" row (round 7) |
+| `es-canvas-ai` | re-shot | re-shot |  |
+| `es-landing` | re-shot | re-shot |  |
+| `es-canvas-three` | re-shot | re-shot |  |
+| `es-artboard-new` | re-shot | re-shot |  |
+| `es-panels-canvas` | re-shot | re-shot | four frames; the Comments panel is opened via ⌘K › Comments (s05f) and the one thread resolved for "All done." |
+| `es-panels-make` | re-shot | re-shot |  |
+| `es-timeline` | re-shot | re-shot | empty comp keeps the timeline anatomy (round 7) |
+| `es-search-k` | re-shot | re-shot |  |
+| `es-search-more` | re-shot | re-shot |  |
+| `es-search-panel` | re-shot | re-shot |  |
+| `es-filter` | re-shot | re-shot | chip on keeps word + count + ×, "Clear filter" ghost button (round 7) |
+| `es-viewer` | unreachable | unreachable | unreachable: a view-only / comment-only member session needs a hub / workspace cell vouching a role; no local route |
+| `es-arriving` | re-shot | re-shot | card centred on the free canvas (round 7) |
+| `es-offline-uncached` | re-shot | re-shot | card centred on the free canvas (round 7) |
+| `es-all-trashed` | re-shot | re-shot | two frames: one artboard trashed, then every artboard trashed |
+| `es-edge-panels` | re-shot | re-shot |  |
+
+
+## FINAL (D6, 3d58f57df)
+Final verification re-shoot of the IMPL side on the merged `feat/maude-v2` tip 3d58f57df (stage C rounds 1-8 merged, release client); no product code changed. Supersedes every earlier "after" / FINAL (incl. D5) section. 19 of 20 artboards with pairs (light + dark). Evidence only — no match / mismatch judged here.
+
+- **IMPL.** `_d6-harness-g1/` (= _c8-harness-g1, the round-8 harness, + the Home first-run flag per scene; repo-relative), shot on the Mac mini through `scripts/remote-lane.sh` in Google Chrome (the mini has no Playwright chromium build; viewport 1600 × 1000), throwaway HOME/XDG + stub claude, `NO_OPEN=1 MAUDE_NO_AUTOBUILD=1`, release-built client. Harness deltas this round: round-8 s01b (folds before the select pick, two filled stickies, Comments closed); home2.mjs writes home.json firstRunSeen:true for es-home-local ONLY (the Mac has seen the first-run card: the quiet sign-in pill and the empty shelf) and removes it for every other scene (ob-first-launch and siblings keep the card).
+- **SPEC.** reused — no board 01 / 02 / 05 file (.tsx / .css / .meta.json) changed after the D3 shoot (the last board edit, 3840271a0 = 02 chip words, precedes D3; the spec ob-first-launch frame was checked: its chip reads "a project on this Mac"); the spec PNGs are the D3 set.
+- **Full-size pairs.** `full-size-path.txt` (last line, "final (D6)"); committed `<id>-<theme>.jpg` overwritten (JPEG q55, <= 1100 px).
+
+| id | light | dark | note |
+| --- | --- | --- | --- |
+| `es-home-cloud` | re-shot | re-shot |  |
+| `es-home-local` | re-shot | re-shot | Home with NO project registered, signed out, first-run flag ALREADY set (home.json firstRunSeen:true): the empty shelf "No projects on this Mac yet." + the quiet sign-in pill (round 8) |
+| `es-home-shared` | re-shot | re-shot |  |
+| `es-project-new` | re-shot | re-shot | ONE "New canvas" row (round 7) |
+| `es-canvas-ai` | re-shot | re-shot |  |
+| `es-landing` | re-shot | re-shot |  |
+| `es-canvas-three` | re-shot | re-shot |  |
+| `es-artboard-new` | re-shot | re-shot |  |
+| `es-panels-canvas` | re-shot | re-shot | four frames; the Comments panel is opened via ⌘K › Comments (s05f) and the one thread resolved for "All done." |
+| `es-panels-make` | re-shot | re-shot |  |
+| `es-timeline` | re-shot | re-shot | empty comp keeps the timeline anatomy (round 7) |
+| `es-search-k` | re-shot | re-shot |  |
+| `es-search-more` | re-shot | re-shot |  |
+| `es-search-panel` | re-shot | re-shot |  |
+| `es-filter` | re-shot | re-shot | chip on keeps word + count + ×, "Clear filter" ghost button (round 7) |
+| `es-viewer` | unreachable | unreachable | unreachable: a view-only / comment-only member session needs a hub / workspace cell vouching a role; no local route |
+| `es-arriving` | re-shot | re-shot | card centred on the free canvas (round 7) |
+| `es-offline-uncached` | re-shot | re-shot | card centred on the free canvas (round 7) |
+| `es-all-trashed` | re-shot | re-shot | two frames: one artboard trashed, then every artboard trashed |
+| `es-edge-panels` | re-shot | re-shot |  |

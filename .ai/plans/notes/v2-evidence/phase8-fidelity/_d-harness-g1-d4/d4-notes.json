@@ -1,0 +1,9 @@
+{
+  "body": "- **IMPL.** D3 harness (`_d-harness-g1-d3/`; the round-6 `_c6-harness-g2/s01ai.mjs` differs from it only in the fake-acp path, so the D3 copy ran unchanged), repointed to this worktree and kept in `_d-harness-g1-d4/` with a 01-only chain (`chain01.mjs`: s01ai, s01b, s01c, s01d, then home2 for `cf-home-prompt`) and `final-index-d4.mjs`. No scenario needed adapting to the round-6 product: every id was reached. Fresh release client, throwaway HOME/XDG + stub claude, `NO_OPEN=1 MAUDE_NO_AUTOBUILD=1`, Playwright Chromium 1600 x 1000, light + dark. The AI frames use the fake agent (9 s steps); the finish frame is shot inside the 1.8 s `data-fresh` window with the panel folded and the result toast up; `cf-undo-ai` waits for the run's Done, then shoots while the \"Undone — <label> · Redo\" toast is up.",
+  "ids": {
+    "cf-ai-done": "IMPL = two frames: the panel-folded frame with the result toast shot while `[data-fresh]` is on, and the panel reopened ~2 s later (settled)",
+    "cf-undo-ai": "shot after the run ended (⌘Z is refused while your own AI works), while the undo toast \"Undone — Try a dark hero · Redo\" is up",
+    "cf-busy": "unreachable — needs other people on the canvas (presence, two AI chats, a second person): a hub / collab peers; no local route",
+    "cf-ai-drafting": "IMPL = drafting frame + the tablet-landed frame (the shell fits the camera while AI drafts)"
+  }
+}

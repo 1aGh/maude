@@ -1,213 +1,557 @@
 // hooks/use-palette-and-panels.jsx — moved verbatim out of client/app.jsx (Maude v2 plan V2-0.2, move-only split).
 
-import { useMemo } from 'react';
-import { copyShareLink } from '../share-dialog.jsx';
-import { isNativeApp } from '../github.js';
+import { onUpgradeOffers, upgradeOffers } from '../v2/ds/upgrade-offers.js';
+import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+import { ACTIONS_BY_ID } from '../../actions/index.ts';
+import { V1_PALETTE } from '../../actions/legacy.ts';
+import { copyShareLink } from '../v2/share/link-dialog.js';
+import { normalizeOpenPath } from '../share-link.js';
+import { copyPresentationLink } from '../v2/present/copy-link.js';
+import { copyExportCommand } from '../v2/export/copy-command.js';
+import { bindCopyPng, runCopyPng } from '../v2/export/copy-png.js';
+import {
+  folderOfCanvas,
+  newCanvasDesignSystem,
+  setNewCanvasDsProvider,
+} from '../v2/ds/new-canvas-default.js';
+import { useDsSearchSystems } from '../v2/ds/use-ds-search.js';
+import { dsSearchRows } from '../v2/search/search-ds.js';
+import { clipSearchRows, useClipRowsVersion } from '../v2/timeline/clip-search.js';
+import { menuRunner } from '../v2/shell/menu-runner.js';
+import { panelAvailable as panelAvailableIn } from '../v2/shell/panel-availability.js';
+import { keyHint, menuCtx, menuPaletteRows } from '../v2/shell/project-menu-model.js';
+import { roleRefuses } from '../v2/shell/role-gate.js';
+import { ROLE_DENIAL } from '../v2/shell/use-canvas-mode-lane.js';
+import { bindPaletteEnv, sendToAskAI } from '../v2/search/search-env.js';
+import { desktopProjectsEnv } from '../v2/search/search-projects.js';
+import { actionSearchRows, settingsSearchRows } from '../v2/search/search-model.js';
+import { isNativeApp, onMenuAction } from '../github.js';
 import { DOCK_PANELS, PANEL_SIDES_DEFAULTS } from '../shell/dock.jsx';
 import { EMPTY_GROUPS, SYSTEM_TAB } from '../shell/constants.js';
-import { openCount } from '../shell/util.js';
+import { basename, displayName, openCount, shellToast } from '../shell/util.js';
+import { planJump, JUMP_LADDER_MS, JUMP_NOW_MS } from '../v2/canvases/jump-model.js';
+import { createBlankCanvas, openBriefBoardComposer } from '../v2/create/new-canvas.js';
+import { CANVAS_OP_EVENT } from '../v2/left-panel/left-panel-bus.js';
+import {
+  goneWords,
+  OPEN_LINK_EVENT,
+  openedFromWords,
+  planOpenLink,
+  resolveLink,
+  stableLinkFor,
+  takeOpenLinks,
+} from '../v2/canvases/open-link.js';
 import { Sidebar } from '../tree/tree.jsx';
-import GitPanel from '../panels/GitPanel.jsx';
-import SyncPanel from '../panels/SyncPanel.jsx';
+import { annotationLayersFor } from '../v2/annotations/annotation-list.jsx';
+import { importsWaitHereFrom } from '../v2/assets/import-offline.js';
+import { placeTargetOf } from '../v2/assets/place-asset.js';
+import { AssetsPanel } from '../v2/left-panel/assets-panel.jsx';
+import { VersionHistoryHost } from '../v2/history/history-host.jsx';
+import { setHistoryOpener } from '../v2/history/object-filter.js';
 import { InspectorPanel } from '../inspector/inspector-panel.jsx';
+import { layerOpMessage } from '../v2/inspector/layers-row-tools.jsx';
+import { runUndoKey } from '../v2/undo/use-undo-projection.jsx';
 import { CommentsPanel } from '../shell/comments-panel.jsx';
+import { commentPanelActions } from '../v2/comments/comment-client.js';
+import { useBoardLabels } from '../v2/ai/RunList.jsx';
+import { artboardLabel as artboardLabelOf } from '../v2/ai/runs-model.js';
+import { addGuides } from '../v2/help/add-guides.js';
+import { LayersKindFilter } from '../v2/kinds/LayersKindFilter.jsx';
+
+/** The offers as one string (a stable snapshot for useSyncExternalStore). */
+const upgradeOffersKey = () => upgradeOffers().join('\n');
 
 export function usePaletteAndPanels({
-  groups, treeLoaded, treeLoadFailures, project, activePath, previewPath, onPreview, selected,
-  editScope, layersBusyRef, layersTree, componentMap, wsConnected, syncStatus, cloudLinkedHub,
-  setCloudLinkedHub, localProjectName, setLocalProjectName, gitStatus, remoteSync, changesOpen,
-  setChangesOpen, syncPanelOpen, setSyncPanelOpen, setDiffTarget, search, setSearch, systemData,
-  dragSide, cfg, cellManaged, cloudManaged, savingIsManaged, viewerMode, commentsByFile,
-  focusedCommentId, commentsPanelOpen, commentsFilter, setCommentsFilter, cpMode, setCpMode,
-  sidebarOpen, showHidden, treeExp, sectionsExpanded, setHelpOpen, setReportBugOpen,
-  setShortcutsOpen, setExportDialog, setSettingsOpen, setGenerateOpen, inspectorOpen,
-  setInspectorOpen, layersOpen, setLayersOpen, panelSide, layersMode, assistantOpen, inspectorTab,
-  setInspectorTab, photoSel, photoRev, openPanelExclusive, togglePanel, openRightPanel,
-  toggleRightPanel, whatsNew, postToActiveCanvas, onPhotoEdit, onPhotoRecordEdit, performPhotoUndo,
-  onPhotoRemoveBackground, lockedKeys, toggleLockedKey, toggleSection, treeExpansion, toggleTheme,
-  gitCommit, gitDiscard, gitPublish, gitGetLatest, gitLoadLog, cloudHistory, gitLoadCloudLog,
-  projectHistoryOn, setProjectHistoryOn, projectHistoryRefresh, loadAcceptedLog,
-  restoreProjectVersion, dirtyByPath, openTab, openLinkedFile, sharePath, shareShell, shareLinksFor,
-  showShare, openSystem, reloadActive, treeRefreshing, refreshTree, createBoard, createVideo,
-  deleteBoard, moveCanvasReq, newFolderReq, deleteFolderReq, renameFolderReq, renameCanvasReq,
-  duplicateCanvasReq, deleteFileReq, applyOptimisticStyle, recordSourceEdit, reorderLayer,
-  detachInstanceShell, resizeArtboardShell, duplicateArtboardShell, setArtboardHugShell,
-  setArtboardStyleShell, setArtboardKindShell, setArtboardPrintShell, onReplaceMedia, resolveComment,
-  reopenComment, deleteComment, jumpToComment
+  activeArtboards,
+  groups,
+  treeLoaded,
+  treeLoadFailures,
+  project,
+  activePath,
+  previewPath,
+  onPreview,
+  selected,
+  editScope,
+  layersBusyRef,
+  layersTree,
+  componentMap,
+  wsConnected,
+  syncStatus,
+  cloudLinkedHub,
+  setCloudLinkedHub,
+  localProjectName,
+  setLocalProjectName,
+  gitStatus,
+  remoteSync,
+  changesOpen,
+  setChangesOpen,
+  syncPanelOpen,
+  setDiffTarget,
+  search,
+  setSearch,
+  systemData,
+  dragSide,
+  cfg,
+  cellManaged,
+  cloudManaged,
+  viewerMode,
+  commentsByFile,
+  focusedCommentId,
+  commentsPanelOpen,
+  commentsFilter,
+  setCommentsFilter,
+  sidebarOpen,
+  showHidden,
+  treeExp,
+  sectionsExpanded,
+  setHelpOpen,
+  setReportBugOpen,
+  setShortcutsOpen,
+  setExportDialog,
+  setSettingsOpen,
+  setGenerateOpen,
+  inspectorOpen,
+  setInspectorOpen,
+  layersOpen,
+  setLayersOpen,
+  assetsOpen,
+  panelSide,
+  layersMode,
+  assistantOpen,
+  inspectorTab,
+  setInspectorTab,
+  photoSel,
+  photoRev,
+  openPanelExclusive,
+  togglePanel,
+  openRightPanel,
+  toggleRightPanel,
+  whatsNew,
+  postToActiveCanvas,
+  onPhotoEdit,
+  onPhotoRecordEdit,
+  performPhotoUndo,
+  onPhotoRemoveBackground,
+  lockedKeys,
+  toggleLockedKey,
+  toggleSection,
+  treeExpansion,
+  toggleTheme,
+  gitCommit,
+  gitDiscard,
+  gitPublish,
+  gitGetLatest,
+  gitLoadLog,
+  cloudHistory,
+  gitLoadCloudLog,
+  projectHistoryOn,
+  setProjectHistoryOn,
+  projectHistoryRefresh,
+  loadAcceptedLog,
+  restoreProjectVersion,
+  dirtyByPath,
+  openTab,
+  openLinkedFile,
+  sharePath,
+  shareShell,
+  shareLinksFor,
+  showShare,
+  openSystem,
+  reloadActive,
+  treeRefreshing,
+  refreshTree,
+  createBoard,
+  createVideo,
+  deleteBoard,
+  moveCanvasReq,
+  newFolderReq,
+  deleteFolderReq,
+  renameFolderReq,
+  renameCanvasReq,
+  duplicateCanvasReq,
+  deleteFileReq,
+  applyOptimisticStyle,
+  recordSourceEdit,
+  reorderLayer,
+  detachInstanceShell,
+  resizeArtboardShell,
+  duplicateArtboardShell,
+  setArtboardHugShell,
+  setArtboardStyleShell,
+  setArtboardKindShell,
+  setArtboardPrintShell,
+  onReplaceMedia,
+  resolveComment,
+  reopenComment,
+  deleteComment,
+  jumpToComment,
+  // S9.22b / S4.17 — the viewer's display name (comment "Mine", annotation "You"); optional
+  gitUser = null,
 }) {
+  // S9.22b — the Comments panel's actions for whoever holds `comment` (comment-client.js).
+  const commentActions = commentPanelActions({
+    viewerMode,
+    canComment: cfg?.canComment === true,
+    ws: { resolve: resolveComment, reopen: reopenComment, remove: deleteComment },
+    notify: (msg) => shellToast(msg),
+  });
+  const meName = typeof gitUser === 'string' && gitUser.trim() ? gitUser.trim() : null;
+  // S4.17 / S9.22 — artboard names from the project index (an id until the index lists it).
+  const boardLabels = useBoardLabels(cfg?.designRel, activePath);
+  const labelOfArtboard = (file, abId) => artboardLabelOf(boardLabels, file, abId);
   // ⌘K palette actions — shell-doable only (in-canvas export lives in the iframe).
   // T4 (Plan C) — grouped command set per `.design/ui/Studio.tsx` AB-D.
   // `group` drives the section headers; the list stays a flat array so keyboard
-  // nav indexes straight across groups.
-  const paletteActions = useMemo(
-    () => [
-      // ── Canvas ──────────────────────────────────────────────────────────
-      {
-        id: 'new',
-        group: 'Canvas',
-        label: 'New canvas…',
-        icon: 'plus',
-        kbd: 'N',
-        run: () => {
-          openPanelExclusive('tree');
-          setTimeout(
-            () => document.querySelector('[aria-label="New blank brief board"]')?.click(),
-            60
-          );
-        },
-      },
-      {
-        id: 'new-video',
-        group: 'Canvas',
-        label: 'New video…',
-        icon: 'plus',
-        run: () => createVideo(),
-      },
-      {
-        id: 'export',
-        group: 'Canvas',
-        label: 'Export…',
-        icon: 'download',
-        kbd: '⇧⌘E',
-        run: () => setExportDialog({ mode: 'export' }),
-      },
-      {
-        id: 'share-link',
-        group: 'Canvas',
-        label: 'Copy share link',
-        icon: 'link',
-        run: () => { const links = shareLinksFor(sharePath); const link = links.web ?? links.app ?? links.local; if (link) copyShareLink(link); },
-      },
-      {
-        id: 'handoff',
-        group: 'Canvas',
-        label: 'Handoff to production',
-        icon: 'external',
-        kbd: '⇧⌘H',
-        run: () => setExportDialog({ mode: 'handoff' }),
-      },
-      {
-        id: 'generate',
-        group: 'Canvas',
-        label: 'Generate with AI…',
-        icon: 'sparkle',
-        run: () => setGenerateOpen(true),
-      },
-      {
-        id: 'settings',
-        group: 'Canvas',
-        label: 'Settings…',
-        icon: 'sliders',
-        kbd: '⌘,',
-        run: () => setSettingsOpen(true),
-      },
-      // ── View ────────────────────────────────────────────────────────────
-      {
-        id: 'system',
-        group: 'View',
-        label: 'Open design system view',
-        icon: 'sliders',
-        kbd: 'S',
-        run: () => openSystem(),
-      },
-      {
-        id: 'comments',
-        group: 'View',
-        label: 'Toggle comments panel',
-        icon: 'resolve',
-        kbd: '⌘⇧M',
-        run: () => toggleRightPanel('comments'),
-      },
-      {
-        id: 'inspector',
-        group: 'View',
-        label: 'Open inspector',
-        icon: 'sliders',
-        kbd: '⌘⇧I',
-        run: () => openRightPanel('inspector'),
-      },
-      {
-        id: 'reload',
-        group: 'View',
-        label: 'Reload active canvas',
-        icon: 'reload',
-        kbd: '⌘R',
-        run: () => reloadActive(),
-      },
-      // ── Tools ───────────────────────────────────────────────────────────
-      {
-        id: 'draw',
-        group: 'Tools',
-        label: 'Draw a mark with the SVG agent',
-        icon: 'pen',
-        run: () => {
-          // The shell can't invoke Claude — surface the command for the user to
-          // paste into Claude Code (clipboard is the honest, useful affordance).
-          try {
-            navigator.clipboard?.writeText('/design:draw ');
-          } catch {}
-        },
-      },
-      {
-        id: 'theme',
-        group: 'Tools',
-        label: 'Toggle light / dark theme',
-        icon: 'sun',
-        run: () => toggleTheme(),
-      },
-      // ── Help ────────────────────────────────────────────────────────────
-      {
-        id: 'whatsnew',
-        group: 'Help',
-        label: "What's new in maude",
-        icon: 'sparkle',
-        run: () => whatsNew.openPanel(),
-      },
-      {
-        id: 'shortcuts',
-        group: 'Help',
-        label: 'Keyboard shortcuts',
-        icon: 'help',
-        kbd: '?',
-        run: () => setShortcutsOpen(true),
-      },
-      {
-        id: 'help',
-        group: 'Help',
-        label: 'Help · commands & flows',
-        icon: 'help',
-        kbd: 'F1',
-        run: () => setHelpOpen(true),
-      },
-      {
-        id: 'report-bug',
-        group: 'Help',
-        label: 'Report a bug…',
-        icon: 'help',
-        run: () => setReportBugOpen(true),
-      },
-    ],
-    [openSystem, toggleTheme, reloadActive, whatsNew, createVideo, sharePath, shareShell, cloudLinkedHub, localProjectName, cfg.designRel]
+  // nav indexes straight across groups. V2-2.4 — the rows (which actions, order,
+  // group, label, icon, key) render from the action registry's v1 layout
+  // (actions/legacy.ts `V1_PALETTE`); what each row RUNS stays v1's, keyed by
+  // action id (the palette opened what the key toggles — Phase 4 unifies them).
+  // S1.2 — "Copy link" on a canvas row, and its File-menu / ⌘K twins (`canvas.copy-link`, `canvas.trash`),
+  // which reach here as a `maude:canvas-op` event from the menu runner (it holds no shell closures for
+  // these). S1.18: the stable link (`maude://open/<project>?c=<entry>`, survives a move or rename) when this
+  // project has an op log; otherwise — a legacy project, the cloud shell — the one Share offers today.
+  const copyCanvasLink = async (path) => {
+    const links = shareLinksFor(path);
+    const stable =
+      shareShell === 'cloud'
+        ? null
+        : await stableLinkFor({ path, appLink: links.app }).catch(() => null);
+    const link = stable ?? links.web ?? links.app ?? links.local;
+    if (link) copyShareLink(link);
+  };
+  // S1.18 — a canvas link the shell delivered to this window (CloudBar → open-link.js): resolve its entry
+  // here, then open the canvas, glide to the artboard (the S1.3 jump), open the comment, say where it came
+  // from. In the Trash → the Trash; not here → "This canvas isn't in <project> any more."
+  const commentsRef = useRef(commentsByFile);
+  commentsRef.current = commentsByFile;
+  const openLinkRef = useRef(null);
+  openLinkRef.current = async (link) => {
+    const plan = planOpenLink(await resolveLink(link.entry), link);
+    if (plan.kind === 'trash') return menuRunner.run('view.trash');
+    if (plan.kind !== 'open') {
+      if (plan.kind === 'gone') shellToast(goneWords(localProjectName || project?.name));
+      return;
+    }
+    const designRel = cfg?.designRel ?? '.design';
+    const file =
+      (groups ?? [])
+        .flatMap((g) => g.paths || [])
+        .find((p) => normalizeOpenPath(p, designRel) === plan.path) ?? null;
+    if (!file) return void openLinkedFile(plan.path);
+    if (plan.artboard) canvasOpRef.current?.({ op: 'jump', path: file, artboardId: plan.artboard });
+    else if (file !== activePath) openTab(file);
+    if (plan.comment) {
+      jumpToComment(file, plan.comment);
+      openRightPanel('comments');
+    }
+    const say = () => {
+      const c = plan.comment
+        ? (commentsRef.current?.[file] ?? []).find((x) => x?.id === plan.comment)
+        : null;
+      shellToast(
+        openedFromWords({
+          who: typeof c?.author === 'string' && c.author.trim() ? c.author.trim() : null,
+          canvas: displayName(basename(file)),
+          artboard: plan.artboard,
+        }),
+        true
+      );
+    };
+    // A comment's author is known once its canvas's comments load.
+    if (plan.comment) setTimeout(say, JUMP_LADDER_MS[1]);
+    else say();
+  };
+  useEffect(() => {
+    const drain = () => {
+      for (const link of takeOpenLinks()) void openLinkRef.current?.(link);
+    };
+    if (!treeLoaded) return undefined;
+    drain();
+    window.addEventListener(OPEN_LINK_EVENT, drain);
+    return () => window.removeEventListener(OPEN_LINK_EVENT, drain);
+  }, [treeLoaded]);
+  const canvasOpRef = useRef(null);
+  canvasOpRef.current = ({ op, path, label, artboardId }) => {
+    if (!path) return;
+    if (op === 'jump') {
+      // S1.3 — a click in the Canvases panel's jump list: open the canvas if it is not the open one, then take
+      // the camera to the artboard (glide + flash when the bridge has `reveal-artboard`, else today's jump).
+      // A fresh frame mounts its listener late, so the post repeats on the ladder; every message is idempotent.
+      const reduced = !!window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+      const plan = planJump({ activePath, path, artboardId, reducedMotion: reduced });
+      if (plan.open) openTab(path);
+      for (const delay of plan.open ? JUMP_LADDER_MS : JUMP_NOW_MS)
+        for (const msg of plan.messages) setTimeout(() => postToActiveCanvas(msg), delay);
+      return;
+    }
+    // S11.7 — the broken-canvas card's "Ask AI to fix it": open the AI chat panel and PRE-FILL its composer
+    // (`label` carries the text). It never sends: that is the person's press.
+    if (op === 'ask-ai-fix') {
+      openPanelExclusive('assistant');
+      sendToAskAI(label ?? '');
+    } else if (op === 'open') openTab(path);
+    else if (op === 'copy-link') copyCanvasLink(path);
+    else if (op === 'trash') deleteBoard(path, label || displayName(basename(path)));
+  };
+  useEffect(() => {
+    const on = (e) => canvasOpRef.current?.(e.detail || {});
+    window.addEventListener(CANVAS_OP_EVENT, on);
+    return () => window.removeEventListener(CANVAS_OP_EVENT, on);
+  }, []);
+
+  // S8.8 — ⇧⌘C, the menu row and ⌘K "Copy as PNG" are one function, run on what the shell has selected.
+  const copyPngRef = useRef(null);
+  copyPngRef.current = {
+    selected,
+    canvasFile: activePath && activePath !== SYSTEM_TAB ? activePath : null,
+    designRel: (cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, ''),
+  };
+  useEffect(() => bindCopyPng(() => copyPngRef.current), []);
+  // S10.13 — a canvas made now starts on its folder's one system (13 · ds-multi-menu); a project with a single
+  // system needs no answer, so nothing is sent and the server uses the default.
+  useEffect(
+    () =>
+      setNewCanvasDsProvider(() => {
+        if ((cfg?.designSystems?.length ?? 0) < 2) return null;
+        const designRel = (cfg?.designRel || cfg?.designRoot || '.design').replace(
+          /^\/+|\/+$/g,
+          ''
+        );
+        return newCanvasDesignSystem({
+          folder:
+            activePath && activePath !== SYSTEM_TAB ? folderOfCanvas(activePath, designRel) : null,
+          canvasDesignSystems: cfg?.canvasDesignSystems,
+          designSystems: cfg?.designSystems,
+          defaultDs: cfg?.defaultDesignSystem,
+          designRel,
+        });
+      }),
+    [cfg, activePath]
   );
+
+  const dsSystems = useDsSearchSystems(cfg);
+  const clipRowsVersion = useClipRowsVersion(); // S7.16 — the clips of the video on the timeline, by name
+  // p8-v1-drop — the systems offered "Bring it up to the schema" (the Canvases panel publishes them)
+  const dsUpgradeOffers = useSyncExternalStore(onUpgradeOffers, upgradeOffersKey, upgradeOffersKey);
+  const paletteActions = useMemo(() => {
+    const run = {
+      'canvas.new': () => {
+        createBlankCanvas({ toast: shellToast });
+      },
+      'canvas.new-brief': () => openBriefBoardComposer({ openPanelExclusive }),
+      'canvas.new-video': () => createVideo(),
+      'export.open': () => setExportDialog({ mode: 'export' }),
+      'export.copy-png': () => runCopyPng().then((r) => shellToast(r.message, r.ok)),
+      // 06 ad-search — Export › Advanced › the same export from a terminal, as a ⌘K row
+      'export.copy-command': () => copyExportCommand().then((r) => shellToast(r.message, r.ok)),
+      'share.copy-link': () => {
+        const links = shareLinksFor(sharePath);
+        const link = links.web ?? links.app ?? links.local;
+        if (link) copyShareLink(link);
+      },
+      // S3.7b — the presentation link (hub `/present/<canvas>`), off the share link's public origin.
+      'present.copy-link': () =>
+        copyPresentationLink({
+          rel: normalizeOpenPath(sharePath, cfg.designRel),
+          webLink: shareLinksFor(sharePath).web,
+          online: typeof navigator === 'undefined' || navigator.onLine !== false,
+          writeText: (s) => navigator.clipboard.writeText(s),
+          notify: ({ title, kind }) => shellToast(title, kind === 'success'),
+        }),
+      'handoff.open': () => setExportDialog({ mode: 'handoff' }),
+      'ai.generate': () => setGenerateOpen(true),
+      'settings.open': () => setSettingsOpen(true),
+      'view.design-system': () => openSystem(),
+      'view.comments': () => toggleRightPanel('comments'),
+      'view.inspector': () => openRightPanel('inspector'),
+      'canvas.reload': () => reloadActive(),
+      'ai.draw-mark': () => {
+        // The shell can't invoke Claude — surface the command for the user to
+        // paste into Claude Code (clipboard is the honest, useful affordance).
+        try {
+          navigator.clipboard?.writeText('/design:draw ');
+        } catch {}
+      },
+      'settings.theme': () => toggleTheme(),
+      'help.whats-new': () => whatsNew.openPanel(),
+      'help.shortcuts': () => setShortcutsOpen(true),
+      'help.guides': () => setHelpOpen(true),
+      // S6.15 (Q10): the same function as the Help dialog's button; the answer is a toast.
+      'help.add-guides': () => {
+        void addGuides().then((r) => shellToast(r.words, r.ok));
+      },
+      'help.report-bug': () => setReportBugOpen(true),
+    };
+    const searchCtx = menuCtx({
+      native: isNativeApp(),
+      cloudTab: !!cfg.cloud, // V2-4.8a: "Back to Home" and "Sign out" are a cloud tab's rows
+      readOnly: viewerMode,
+      canvasOpen: !!activePath && activePath !== SYSTEM_TAB,
+      linkedHub: !!cloudLinkedHub?.url,
+      // p8-v1-drop — "Bring it up to the schema" is a ⌘K row while a system is below Conformant
+      dsUpgradeOffered: dsUpgradeOffers !== '',
+    });
+    // V2-4 gate (design blocker 6): a row's key is the registry's live chord in this shell, written by
+    // `formatChord` (⌥⇧⌘), or none — never v1's display string (New canvas "N" was Sticky's key, the
+    // design-system "S" retired, "⌘⇧M" the wrong modifier order).
+    const keyOf = (id) => keyHint(ACTIONS_BY_ID.get(id), searchCtx);
+    const v1 = V1_PALETTE.map((r) => {
+      const kbd = keyOf(r.id);
+      return {
+        id: r.id,
+        group: r.group,
+        label: ACTIONS_BY_ID.get(r.id).legacy.palette,
+        icon: r.icon,
+        ...(kbd ? { kbd } : {}),
+        run: run[r.id],
+      };
+    });
+    // V2-4.2 — ⌘K finds every row of the project menu too: typing a word finds the menu's row for it
+    // (the list with nothing typed stays v1's). Same runner as the pill, so a row and its ⌘K twin
+    // are one function.
+    const menuRows = menuPaletteRows(searchCtx, { existing: v1, run: (id) => menuRunner.run(id) });
+    // V2-4.6 — Search ⌘K: the registry's visible actions + the toolbars' tools + the Settings rows, each
+    // with its where-path (v2/search). A row runs through the one menu runner; the few v1 palette
+    // closures the runner has no handler for (theme, New video, Generate…) are its fallback, not a
+    // second dispatcher. Runnable is asked when the list opens: the runner binds after this first render.
+    const runAction = (id) => (menuRunner.canRun(id) ? menuRunner.run(id) : run[id]?.());
+    const searchRows = [
+      ...actionSearchRows(searchCtx, {
+        eager: false,
+        isRunnable: (id) => menuRunner.canRun(id) || typeof run[id] === 'function',
+        run: runAction,
+      }),
+      ...settingsSearchRows({
+        cloud: cfg.cloud,
+        readOnly: viewerMode,
+        run: (section) => setSettingsOpen(section),
+      }),
+      // S10.13 — the Design system and everything in it by name (a converted system opens its canvas, an
+      // older one its v1 view)
+      ...dsSearchRows({
+        systems: dsSystems,
+        run: (p) =>
+          cfg.dsConverted?.[p.ds] === true ? menuRunner.run('ds.go-to', p) : openSystem(p.ds),
+        runAction: (id, p) => menuRunner.run(id, p),
+      }),
+      // S7.16 (07 · ve-long) — ⌘K finds a clip of the video on the timeline by name (provider `timeline.clips`)
+      ...clipSearchRows(),
+    ].map((r) => ({ ...r, onlyWhenSearched: true }));
+    // V2-4.4a — ⌘K "Trash" and "Refresh tree" (CONTRACT §1 C10, §2 ⇧⌘R). Neither is a menu row; both are
+    // the left panel's. Same runner as the panel's own controls.
+    const leftRows = [
+      {
+        id: 'canvases.refresh',
+        actionId: 'canvases.refresh',
+        group: 'Canvases',
+        label: 'Refresh tree',
+        icon: 'chevron-right',
+        kbd: keyOf('canvases.refresh'),
+        run: () => refreshTree(),
+        onlyWhenSearched: true,
+      },
+      ...(viewerMode
+        ? []
+        : [
+            {
+              id: 'view.trash',
+              actionId: 'view.trash',
+              group: 'Canvases',
+              label: 'Trash',
+              icon: 'chevron-right',
+              run: () => menuRunner.run('view.trash'),
+              onlyWhenSearched: true,
+            },
+          ]),
+    ];
+    return [...v1, ...menuRows, ...leftRows, ...searchRows];
+  }, [
+    dsUpgradeOffers,
+    cfg.cloud,
+    viewerMode,
+    activePath,
+    openSystem,
+    toggleTheme,
+    reloadActive,
+    whatsNew,
+    createVideo,
+    sharePath,
+    shareShell,
+    cloudLinkedHub,
+    localProjectName,
+    cfg.designRel,
+    cfg.dsConverted,
+    dsSystems,
+    clipRowsVersion,
+    refreshTree,
+  ]);
+
+  // Open a canvas and select an artboard in it — ⌘K's result rows and the Assets details' "Used in" rows (S8.21) go the same way.
+  const openCanvasAt = useCallback(
+    (path, artboardId) => {
+      openTab(path);
+      // the canvas mounts a moment later; select the artboard the way a tree click settles one
+      if (artboardId)
+        for (const delay of [400, 1200, 2800])
+          setTimeout(() => postToActiveCanvas({ dgn: 'select-by-id', artboardId }), delay);
+    },
+    [openTab, postToActiveCanvas]
+  );
+
+  // V2-4.6 — what ⌘K needs from the shell besides rows: open a canvas (and its artboard), hand a query to
+  // the AI chat (desktop only — the chat panel is native), where the design root is.
+  useEffect(
+    () =>
+      bindPaletteEnv({
+        // S1.5: the other projects' groups — the desktop app's tabs only ({} in a browser tab)
+        ...desktopProjectsEnv({ projectName: cfg?.cloud?.projectName || project || '' }),
+        designRel: cfg.designRel,
+        projectName: cfg?.cloud?.projectName || project || '',
+        canAskAI: () => isNativeApp() && !viewerMode,
+        // S10.16c — `opts` ({ send, origin }) goes on to the composer, which sends only for the DS origins and
+        // only through its gates; a viewer's ask never asks to send (the composer checks the role again).
+        askAI: (text, opts) => {
+          openPanelExclusive('assistant');
+          sendToAskAI(text, globalThis, viewerMode ? { ...opts, send: false } : opts);
+        },
+        openCanvas: openCanvasAt,
+      }),
+    [cfg.designRel, cfg?.cloud?.projectName, project, viewerMode, openPanelExclusive, openCanvasAt]
+  );
+
+  // Native menu items whose registry action runs in the webview (`menu://action {id}`,
+  // V2-1.3 §5.8 — File ▸ New Canvas, Help ▸ Report a Bug…) run the palette's row for that
+  // id. `project.new` is IdentityBar's (its dialog state lives there).
+  const paletteRef = useRef(paletteActions);
+  paletteRef.current = paletteActions;
+  // S1.16 - openHistory({ element }) (S2's object menu, S4's sticky menu) shows the Version history panel.
+  useEffect(() => setHistoryOpener(() => setChangesOpen(true)), [setChangesOpen]);
+  const viewerRef = useRef(viewerMode);
+  viewerRef.current = viewerMode;
+  useEffect(() => {
+    if (!isNativeApp()) return undefined;
+    const p = onMenuAction((id) => {
+      // V2-4 gate (roles): AppKit draws File ▸ New Canvas ⌘N without knowing the hub role, so a
+      // Can comment person's press is answered here with the one denial line (role-gate.js).
+      const ctx = menuCtx({ native: true, readOnly: !!viewerRef.current, canvasOpen: true });
+      if (roleRefuses(ACTIONS_BY_ID.get(id), ctx)) {
+        shellToast(ROLE_DENIAL);
+        return;
+      }
+      paletteRef.current.find((a) => a.id === id)?.run?.();
+    });
+    return () => {
+      p?.then?.((fn) => fn?.());
+    };
+  }, []);
 
   // feature-configurable-panel-docking — resolve, for each slot, the panels
   // assigned to it and which one is active (the open one). Layers is only a
   // dockable panel in `separate` mode; Assistant is native-only.
-  const panelAvailable = (id) => {
-    // The AGENT is genuinely absent for a viewer (it edits; Phase 25 C2).
-    //
-    // Inspector and Layers are NOT — Cloud Phase 27 C1 reversed that, and this
-    // line had been left behind: `viewerHiddenPanels` stopped hiding them in
-    // the View menu while this still refused to give them a dock slot, so the
-    // menu offered a panel that could never appear. Read-only means cannot
-    // CHANGE, not cannot SEE: a reviewer needs structure and measured values,
-    // which is the whole reason C1 exists.
-    if (viewerMode && id === 'assistant') return false;
-    // feature-sync-progress-modal — the Sync panel only exists for a linked
-    // project (solo has no hub, so the tab would open onto nothing).
-    if (id === 'sync') return !!syncStatus;
-    return id === 'assistant' ? isNativeApp() : id === 'layers' ? layersMode === 'separate' : true;
-  };
+  // The rule — what a read-only session lacks, and why Inspector and Layers are NOT among it (Cloud
+  // Phase 27 C1) — is panel-availability.js; the shell parity table (V2-4.9) reads the same one.
+  const panelAvailable = (id) =>
+    panelAvailableIn(id, { viewerMode, native: isNativeApp(), layersMode });
   const idsForSide = (side) =>
     DOCK_PANELS.filter(
       (p) => panelAvailable(p.id) && (panelSide[p.id] || PANEL_SIDES_DEFAULTS[p.id]) === side
@@ -215,6 +559,7 @@ export function usePaletteAndPanels({
   const panelIsOpen = {
     tree: sidebarOpen,
     layers: layersOpen,
+    assets: assetsOpen,
     inspector: inspectorOpen,
     comments: commentsPanelOpen,
     changes: changesOpen,
@@ -225,9 +570,12 @@ export function usePaletteAndPanels({
   // IS the history (the hub commits server-side), so its tab must say so —
   // otherwise the one visible word still promises a working-tree surface that
   // panel no longer has.
-  const dockLabels = cfg.cloud ? { changes: 'History' } : null;
-  const leftIds = idsForSide('left');
-  const rightIds = idsForSide('right');
+  const dockLabels = cfg.cloud ? { changes: 'Version history' } : null;
+  // V2-4.4b — the AI chat is its own island (CONTRACT §7), not one of a side's tabbed panels: the ids and
+  // the "active" panel below are the side's MAIN panel only; `leftHostsAssistant` / `rightHostsAssistant`
+  // say which side the chat island sits on, `assistantOpen` whether it shows.
+  const leftIds = idsForSide('left').filter((id) => id !== 'assistant');
+  const rightIds = idsForSide('right').filter((id) => id !== 'assistant');
   const leftActive = leftIds.find((id) => panelIsOpen[id]) || null;
   const rightActive = rightIds.find((id) => panelIsOpen[id]) || null;
   // Cloud Phase 25 C2 — the Assistant edits; a viewer's session never mounts it.
@@ -238,15 +586,15 @@ export function usePaletteAndPanels({
   const resizingFor = (id) =>
     (panelSide[id] || PANEL_SIDES_DEFAULTS[id]) === 'left' ? dragSide === 'sb' : dragSide === 'rp';
   const activeCanvasFile =
-    activePath && activePath !== SYSTEM_TAB && /\.(tsx|html)$/i.test(activePath) ? activePath : null;
+    activePath && activePath !== SYSTEM_TAB && /\.(tsx|html)$/i.test(activePath)
+      ? activePath
+      : null;
   // Issue #74 — drives the chat panel's "Implement N comments" quick action.
   // Canvas-wide on purpose: the verb operates on every open comment of the
   // active canvas, so it is deliberately NOT scoped to the current selection.
-  const activeOpenComments = activeCanvasFile
-    ? openCount(commentsByFile[activeCanvasFile])
-    : 0;
+  const activeOpenComments = activeCanvasFile ? openCount(commentsByFile[activeCanvasFile]) : 0;
 
-  // Render a panel body by id (width undefined ⇒ fills the .st-dockslot wrapper,
+  // Render a panel body by id (width undefined ⇒ fills the .sh-dockslot wrapper,
   // which owns the resizable width). Assistant is handled separately below as an
   // always-mounted ChatPanel so its stream survives a tab switch.
   const renderPanelBody = (id) => {
@@ -254,7 +602,7 @@ export function usePaletteAndPanels({
     // viewer; what they must not do is offer an edit, and that is already
     // handled inside them (`readOnly` is threaded through every control).
     // Refusing to mount was a blunter instrument than the role model asks for.
-    
+
     if (id === 'tree')
       return (
         <Sidebar
@@ -273,6 +621,8 @@ export function usePaletteAndPanels({
           treeLoadFailures={treeLoadFailures}
           onShare={showShare}
           onOpenSystem={openSystem}
+          dsCfg={cfg}
+          onDsAction={(id, params) => menuRunner.run(id, params)}
           wsConnected={wsConnected}
           search={search}
           setSearch={setSearch}
@@ -290,115 +640,164 @@ export function usePaletteAndPanels({
           onRenameCanvas={renameCanvasReq}
           onDuplicateCanvas={duplicateCanvasReq}
           onDeleteFile={deleteFileReq}
+          onCopyLink={copyCanvasLink}
+          // S1.3 — the artboard in view on the open canvas, so the jump list can highlight it
+          activeArtboard={(() => {
+            const sel = Array.isArray(selected) ? selected[0] : selected;
+            return sel && sel.file === activePath ? (sel.artboardId ?? null) : null;
+          })()}
           onRefresh={refreshTree}
+          onToggleShowHidden={() => menuRunner.run('view.hidden-files')}
           refreshing={treeRefreshing}
           collapsed={false}
           onCollapse={() => togglePanel('tree')}
           resizing={resizingFor('tree')}
           dirtyByPath={dirtyByPath}
           project={project}
-          gitBranch={gitStatus?.branch}
-          remoteSync={remoteSync}
-          onGetLatest={gitGetLatest}
           canvasKinds={cfg?.canvasKinds}
           syncStatus={syncStatus}
           onLinkedHub={setCloudLinkedHub}
           onLocalProject={setLocalProjectName}
-          savingIsManaged={savingIsManaged}
+          role={viewerMode ? (cfg?.cloud?.role === 'observer' ? 'view' : 'comment') : undefined}
         />
       );
+    // V2-4.4a — the left panel's third tab. Lists today's asset library (the Choose-media dialog's list).
+    if (id === 'assets')
+      return (
+        <AssetsPanel
+          designRel={(cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, '')}
+          readOnly={viewerMode}
+          // S2.15 — ↵ on a picture tile places it on the selected artboard / frame
+          placeTarget={placeTargetOf(selected, activePath)}
+          // S8.12 — "Place in MVP zápasu": the selected artboard's name
+          placeLabel={(() => {
+            const t = placeTargetOf(selected, activePath);
+            return t ? labelOfArtboard(activePath, t.artboardId) || null : null;
+          })()}
+          onRecord={recordSourceEdit}
+          postToActiveCanvas={postToActiveCanvas}
+          toast={shellToast}
+          // S8.22b — read when the files land: a linked project that cannot reach its hub keeps them on this Mac
+          isOffline={() => importsWaitHereFrom({ cfg, cloudLinkedHub, syncStatus, project })}
+          // S8.21 — "Used in" in an asset's details opens that artboard
+          onOpenCanvas={openCanvasAt}
+        />
+      );
+    // S1.14 — Version history (⌥⌘H): the dock id `changes` stays (testids, the dock strip, `history.open`).
+    // S11.10 — its Advanced fold holds the git in plain words (v2/history/git-advanced.jsx), which retired the
+    // Changes / History panel: every prop that panel took rides in `git` below, unchanged in meaning.
     if (id === 'changes')
       return (
-        <GitPanel
-          status={gitStatus && remoteSync ? { ...gitStatus, ...remoteSync } : gitStatus}
-          project={project}
-          readOnly={!isNativeApp() || viewerMode}
-          // A cloud cell commits every edit server-side as it lands, so the
-          // working-tree half of this panel describes work that is already
-          // saved. `cfg.cloud` is present exactly when the hub runs the
-          // workspace agent that owns this project's history, which is the
-          // same condition.
-          //
-          // PRESENTATION, NOT A CONTROL — nothing may come to depend on this.
-          // `/_api/git/commit` and `/_api/git/discard` are classified `edit` in
-          // the cell's route manifest and stay reachable by any member with a
-          // session; withdrawing the buttons removes an offer that would
-          // mislead, it does not remove a capability. The real gates are
-          // server-side (`projectReadOnly`, the manifest's role matrix), and
-          // they are unchanged by this flag.
-          historyOnly={cellManaged}
-          // DDR-218 (fix 8) — the DESKTOP half of the same withdrawal: a repo
-          // linked+credentialed to Maude Cloud is cloud-managed (the cell
-          // commits every edit as it lands), so the local Changes surface is
-          // the second save mechanism the sync RCA's user was confused by.
-          // Live: CloudBar lifts every link change (resolve/attach/detach)
-          // into `cloudLinkedHub`. Same presentation-not-a-control rule as
-          // `historyOnly` above; Disconnect restores the panel in place.
-          cloudManaged={cloudManaged}
+        <VersionHistoryHost
+          path={activeCanvasFile}
+          canvasLabel={activeCanvasFile ? displayName(basename(activeCanvasFile)) : ''}
+          canEdit={!viewerMode}
+          role={viewerMode ? 'view' : 'edit'}
+          refreshKey={`${syncStatus?.appliedRevision ?? 0}:${projectHistoryRefresh}`}
           resizing={resizingFor('changes')}
           onClose={() => setChangesOpen(false)}
-          onCommit={gitCommit}
-          onDiscard={gitDiscard}
-          onPublish={gitPublish}
-          onGetLatest={gitGetLatest}
-          // WHICH HISTORY, decided at the ONE place the posture is named — not
-          // inside the panel, which would be a second derivation of the rule
-          // `cloud-managed-save-surfaces.test.ts` exists to keep singular.
-          loadLog={async (path) => {
-            // The project's accepted history when it has one; Git otherwise.
-            const accepted = await loadAcceptedLog(path);
-            setProjectHistoryOn(accepted !== 'legacy');
-            if (accepted !== 'legacy') return accepted;
-            return (cloudManaged ? gitLoadCloudLog : gitLoadLog)(path);
+          // S1.15 — Version history › Advanced › Compare pictures: today's picture DiffView
+          onComparePictures={({ file, beforeSha }) =>
+            setDiffTarget({ file, beforeSha, conflict: false })
+          }
+          git={{
+            status: gitStatus && remoteSync ? { ...gitStatus, ...remoteSync } : gitStatus,
+            project,
+            // Web studio: awareness only — the developer commits and pushes from their terminal (DDR-119).
+            native: isNativeApp(),
+            // A cloud cell commits every edit server-side as it lands, so the working-tree half describes work
+            // that is already saved. `cfg.cloud` is present exactly when the hub runs the workspace agent that
+            // owns this project's history, which is the same condition.
+            //
+            // PRESENTATION, NOT A CONTROL — nothing may come to depend on this. `/_api/git/commit` and
+            // `/_api/git/discard` are classified `edit` in the cell's route manifest and stay reachable by any
+            // member with a session; withdrawing the buttons removes an offer that would mislead, it does not
+            // remove a capability. The real gates are server-side (`projectReadOnly`, the manifest's role
+            // matrix), and they are unchanged by this flag.
+            historyOnly: cellManaged,
+            cellManaged,
+            // DDR-218 (fix 8) — the DESKTOP half of the same withdrawal: a repo linked+credentialed to Maude
+            // Cloud is cloud-managed (the cell commits every edit as it lands). Same presentation-not-a-control
+            // rule; Disconnect restores the panel live.
+            cloudManaged,
+            onCommit: gitCommit,
+            onDiscard: gitDiscard,
+            onPublish: gitPublish,
+            onGetLatest: gitGetLatest,
+            liveBranch: gitStatus?.branch,
+            // WHICH HISTORY, decided at the ONE place the posture is named — not inside the fold, which would be
+            // a second derivation of the rule `cloud-managed-save-surfaces.test.ts` exists to keep singular.
+            loadLog: async (path) => {
+              // The project's accepted history when it has one; Git otherwise.
+              const accepted = await loadAcceptedLog(path);
+              setProjectHistoryOn(accepted !== 'legacy');
+              if (accepted !== 'legacy') return accepted;
+              return (cloudManaged ? gitLoadCloudLog : gitLoadLog)(path);
+            },
+            historySource: projectHistoryOn ? 'project' : cloudManaged ? 'cloud' : 'local',
+            historyRefresh: `${syncStatus?.appliedRevision ?? 0}:${projectHistoryRefresh}`,
+            onRestoreVersion: (revision) =>
+              restoreProjectVersion(activePath, revision).then((r) => !!r.ok),
+            // Not through a cell's door: every browser editor proposes under the studio's one credential there,
+            // so "your own action" is not knowable and the hub refuses the route (studio-manifest.mjs).
+            onUndoAction: cellManaged
+              ? undefined
+              : async (actionId) => {
+                  const r = await fetch('/_api/project/undo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ actionId }),
+                  }).catch(() => null);
+                  const j = r ? await r.json().catch(() => null) : null;
+                  return !!j?.ok;
+                },
+            // What the cloud half of the header names. The cell reports its own project and branch with the log;
+            // the hub host is the fallback, because a header that names the LOCAL folder while listing the CLOUD's
+            // commits is the confusion this feature exists to end.
+            cloudHistory,
+            onOpenCanvas: (p) => openTab(p),
+            onOpenDiff: (file) => setDiffTarget({ file, beforeSha: 'HEAD', conflict: false }),
+            onPreviewVersion: (sha) =>
+              setDiffTarget({ file: activePath, beforeSha: sha, conflict: false }),
+            designRel: (cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, ''),
           }}
-          historySource={projectHistoryOn ? 'project' : cloudManaged ? 'cloud' : 'local'}
-          historyRefresh={`${syncStatus?.appliedRevision ?? 0}:${projectHistoryRefresh}`}
-          onRestoreVersion={(revision) => restoreProjectVersion(activePath, revision).then((r) => !!r.ok)}
-          // Not through a cell's door: every browser editor proposes under the
-          // studio's one credential there, so "your own action" is not
-          // knowable and the hub refuses the route (studio-manifest.mjs).
-          onUndoAction={cellManaged ? undefined : async (actionId) => {
-            const r = await fetch('/_api/project/undo', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ actionId }),
-            }).catch(() => null);
-            const j = r ? await r.json().catch(() => null) : null;
-            return !!j?.ok;
-          }}
-          // What the cloud half of the header names. The cell reports its own
-          // project and branch with the log; the hub host is the fallback,
-          // because a header that names the LOCAL folder while listing the
-          // CLOUD's commits is the confusion this feature exists to end.
-          cloudHistory={cloudHistory}
-          onOpenCanvas={(p) => openTab(p)}
-          onOpenDiff={(file) => setDiffTarget({ file, beforeSha: 'HEAD', conflict: false })}
-          activeCanvas={activeCanvasFile}
-          onPreviewVersion={(sha) => setDiffTarget({ file: activePath, beforeSha: sha, conflict: false })}
-          designRel={(cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, '')}
         />
       );
-    if (id === 'sync')
-      return (
-        <SyncPanel
-          status={syncStatus}
-          project={cfg?.cloud?.projectName || project}
-          cloud={cfg?.cloud ?? null}
-          groupPaths={(groups || []).map((g) => g.path).filter(Boolean)}
-          resizing={resizingFor('sync')}
-          onClose={() => setSyncPanelOpen(false)}
-        />
-      );
+    // S11.12b: no 'sync' branch — the dock's Sync panel is retired (panel-availability.js); Sync details lives
+    // in Menu › Diagnostics › Sync. SyncPanel.jsx and SourceConflictPanel.jsx stay as files, mounted nowhere.
     if (id === 'inspector' || id === 'layers')
-      return (
+      return annotationLayersFor(
+        id,
+        {
+          file: activePath,
+          post: postToActiveCanvas,
+          // S4.17 — "You" resolves to the signed-in person; a row names its artboard, not its id
+          me: meName ? { name: meName } : null,
+          artboardLabel: (abId) => labelOfArtboard(activePath, abId),
+        },
         <InspectorPanel
           // Cloud Phase 27 E4 — the parity spec asserts these two panels exist
           // in BOTH shells, so each needs a name a spec can ask for.
           testId={id === 'layers' ? 'layers-panel' : 'inspector-panel'}
           layersOnly={id === 'layers'}
+          artboardCount={id === 'layers' ? activeArtboards : undefined}
+          // S7.24b — the kind chips in the Layers header, counted over the open canvas's artboards
+          layersHeader={
+            activeCanvasFile ? (
+              <LayersKindFilter
+                boards={boardLabels.get(activePath)}
+                canvasName={displayName(basename(activeCanvasFile))}
+              />
+            ) : null
+          }
+          // gate-b-polish3 — Layers by artboard: the open canvas's artboards, its name, a row selects one
+          layersBoards={id === 'layers' && activeCanvasFile ? boardLabels.get(activePath) : null}
+          layersCanvasName={activeCanvasFile ? displayName(basename(activeCanvasFile)) : ''}
+          onSelectArtboard={(artboardId) => postToActiveCanvas({ dgn: 'select-by-id', artboardId })}
+          onSelectBySelector={(selector) =>
+            postToActiveCanvas({ dgn: 'select-by-selector', v: 1, selector })
+          }
           hideLayersTab={layersMode === 'separate'}
-          cpMode={cpMode}
-          onSetCpMode={setCpMode}
           selected={selected}
           cfg={cfg}
           tab={id === 'layers' ? 'layers' : inspectorTab}
@@ -406,15 +805,34 @@ export function usePaletteAndPanels({
           onClose={() => (id === 'layers' ? setLayersOpen(false) : setInspectorOpen(false))}
           onOptimistic={applyOptimisticStyle}
           onRecordEdit={recordSourceEdit}
+          // S2.11b — the Position row's pins ask the canvas for one `object.constrain` (run-action)
+          onRunAction={postToActiveCanvas}
           onReplaceMedia={onReplaceMedia}
           onResizeArtboard={resizeArtboardShell}
           onSetArtboardHug={setArtboardHugShell}
           onSetArtboardStyle={setArtboardStyleShell}
           onSetArtboardKind={setArtboardKindShell}
           onSetArtboardPrint={setArtboardPrintShell}
+          // S2.8 — Inspector › Advanced › Theme: the canvas pins (or frees) that artboard's theme; the pin is
+          // session state in the canvas, the same one the artboard menu's Theme submenu sets
+          onSetArtboardTheme={(artboardId, mode) =>
+            postToActiveCanvas({
+              dgn: 'run-action',
+              v: 1,
+              id: 'artboard.set-theme',
+              params: { artboard: artboardId, mode },
+            })
+          }
           onDuplicateArtboard={duplicateArtboardShell}
           editScope={editScope}
-          onUndoRedo={(dir) => postToActiveCanvas({ dgn: dir })}
+          // S10.8 — `ds.review-update` / `ds.go-to`: the Inspector's links run through the one runner
+          onShellAction={(actionId, params) => menuRunner.run(actionId, params)}
+          onUndoRedo={(dir) =>
+            // V2-2.4 retired the canvas's `undo`/`redo` lanes for run-action; the inspector
+            // knobs' ⌘Z rides the same lane (it reached no handler after step 6 — V2-2.10).
+            // S2.20 — the ⌘Z projection over the op log (no canvas stack since p8-v1-drop).
+            void runUndoKey(activePath, dir === 'redo')
+          }
           photoSel={photoSel}
           photoRev={photoRev}
           onPhotoEdit={onPhotoEdit}
@@ -424,7 +842,20 @@ export function usePaletteAndPanels({
           layersTree={layersTree}
           componentMap={componentMap}
           lockedKeys={lockedKeys}
-          onToggleLock={toggleLockedKey}
+          // S2.6 — lock and hide are shared edits in the TSX (`object.lock` / `object.hide`), run by the
+          // canvas like the object menu's; an old per-user padlock (view.json) still unlocks the old way.
+          onToggleLock={(key, node) =>
+            !node?.locked && lockedKeys.has(key)
+              ? toggleLockedKey(key)
+              : postToActiveCanvas(
+                  layerOpMessage('object.lock', node, layersTree?.artboardId ?? '', !node.locked)
+                )
+          }
+          onToggleHide={(node, hide) =>
+            postToActiveCanvas(
+              layerOpMessage('object.hide', node, layersTree?.artboardId ?? '', hide)
+            )
+          }
           onDetachInstance={detachInstanceShell}
           canvasFile={activePath}
           onSelectLayer={(n) =>
@@ -457,18 +888,34 @@ export function usePaletteAndPanels({
           activePath={activePath}
           focusedId={focusedCommentId}
           onJump={jumpToComment}
-          // Cloud Phase 25 C2 — a viewer READS threads; the mutating actions
-          // are absent until C3 lands comments on the cell's allowlist.
-          onResolve={viewerMode ? undefined : resolveComment}
-          onReopen={viewerMode ? undefined : reopenComment}
-          onDelete={viewerMode ? undefined : deleteComment}
+          // Cloud Phase 25 C2 — a Can view session READS threads. S9.22b — a Can comment one
+          // (read-only, `/_config.canComment`) resolves / reopens / deletes its own through the op door.
+          {...commentActions}
+          me={meName}
+          // S11.3 (05 · es-panels-canvas / es-viewer): "Share for feedback" where this session can share; the
+          // viewer's empty line names the people who see a comment right away
+          onShare={viewerMode ? undefined : () => showShare()}
+          viewer={viewerMode}
+          // 10 co-comment-thread: the panel's own close (Hide Comments), beside its title
+          onClose={() => togglePanel('comments')}
+          artboardLabel={labelOfArtboard}
           resizing={resizingFor('comments')}
         />
       );
     return null;
   };
   return {
-    activeCanvasFile, activeOpenComments, dockLabels, leftActive, leftHostsAssistant, leftIds,
-    paletteActions, renderPanelBody, resizingFor, rightActive, rightHostsAssistant, rightIds
+    activeCanvasFile,
+    activeOpenComments,
+    dockLabels,
+    leftActive,
+    leftHostsAssistant,
+    leftIds,
+    paletteActions,
+    renderPanelBody,
+    resizingFor,
+    rightActive,
+    rightHostsAssistant,
+    rightIds,
   };
 }

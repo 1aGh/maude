@@ -1,0 +1,554 @@
+/* @layer components — S5.13: the AI chat's inline cards (03 `ai-permission`, `ai-choice-fail`, `ai-not-ready`,
+   `ai-needs-hidden`). Tokens only: no hex, weights ≤ 600, motion by --dur-* (reduced motion collapses to 1 ms).
+   A card sits in the chat between the feed and the field — never a modal, never an overlay on the app. */
+@layer components {
+  .ai-nc-slot {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    /* The slot yields to the field below it (it scrolls); it never pushes the composer out of the island. */
+    flex: 0 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0 var(--space-3) var(--space-2);
+  }
+  /* 03 `.ai-conn` (ai-not-ready): the setup sheet floats as its own card over a dimmed panel — nothing but the
+     sheet and the sent prompt is read, so the strip, the scope chip and the feed step back. */
+  .ai-island:has(.ai-conn-sheet--inline) {
+    position: relative;
+  }
+  .ai-island:has(.ai-conn-sheet--inline) .ai-suggest {
+    display: none;
+  }
+  .ai-island:has(.ai-conn-sheet--inline) .chat-feed,
+  .ai-island:has(.ai-conn-sheet--inline) .chat-input-wrap {
+    opacity: 0.6;
+  }
+  .chat-thread:has(.ai-conn-sheet) .chat-feed {
+    padding-block: 0;
+  }
+
+  /* ── The card ── */
+  .ai-nc {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--bg-2);
+    box-shadow: inset 0 0 0 1px var(--border-default);
+    outline: none;
+  }
+  /* 03 `.ai-card` (R7): a question is a neutral card — the accent is only its help disc and the focus ring. */
+  .ai-nc:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--accent);
+  }
+  .ai-nc-t {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    font-size: var(--type-base);
+    line-height: var(--lh-base);
+    font-weight: var(--w-medium);
+  }
+  .ai-nc-tt {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .ai-nc-ic {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    margin-top: -1px;
+    border-radius: var(--radius-pill);
+    background: var(--bg-3);
+    color: var(--fg-1);
+  }
+  .ai-nc-ic--ask {
+    background: var(--accent-muted);
+    color: var(--accent-text);
+  }
+  .ai-nc-ic--prob {
+    color: var(--status-error-text);
+  }
+  .ai-nc-more {
+    flex: none;
+    font-size: var(--type-xs);
+    font-weight: var(--w-regular);
+    color: var(--fg-2);
+  }
+  .ai-nc-d {
+    padding-left: calc(22px + var(--space-2));
+    font-size: var(--type-sm);
+    line-height: var(--lh-sm);
+    color: var(--fg-1);
+    overflow-wrap: anywhere;
+  }
+  /* S5.17b: the failure card's › Advanced (the raw message lives behind it) */
+  .ai-nc-adv {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin-left: calc(22px + var(--space-2));
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--fg-2);
+    font: inherit;
+    font-size: var(--type-xs);
+    cursor: pointer;
+  }
+  .ai-nc-adv:hover {
+    color: var(--fg-0);
+  }
+  .ai-nc-adv:focus-visible {
+    outline: 2px solid var(--accent-text);
+    outline-offset: 2px;
+  }
+  .ai-nc-adv-ch {
+    display: inline-grid;
+    transition: transform var(--dur-flip);
+  }
+  .ai-nc-adv[aria-expanded="true"] .ai-nc-adv-ch {
+    transform: rotate(90deg);
+  }
+  .ai-nc-raw {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .ai-nc-fine {
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+  }
+  .ai-nc-paths {
+    margin: var(--space-1) 0;
+    padding: 0;
+    list-style: none;
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-0);
+  }
+  .ai-nc-a {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-1);
+    row-gap: var(--space-2);
+  }
+  .ai-nc-a .btn {
+    white-space: nowrap;
+  }
+  /* Decline keeps `.btn--danger` (the desktop e2e reads it) but is drawn quiet: "Not now" is not an alarm. */
+  /* (gate-a-polish: `.maude .btn--danger` is 0,2,0 and painted this red; the selector below is 0,3,0 so the
+     decline really is the plain button 03 draws, hover included.) */
+  .ai-nc-a .btn.ai-nc-decline {
+    background: var(--bg-3);
+    border-color: transparent;
+    color: var(--fg-1);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+  }
+  .ai-nc-a .btn.ai-nc-decline:hover:not(:disabled) {
+    background: var(--bg-4);
+    border-color: transparent;
+    color: var(--fg-0);
+  }
+
+  /* "Always for this canvas" gets its own line so the two verbs never wrap. */
+  .ai-nc-check {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    flex-basis: 100%;
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+    cursor: pointer;
+  }
+  .ai-nc-check input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .ai-nc-box {
+    display: grid;
+    place-items: center;
+    width: 14px;
+    height: 14px;
+    border-radius: var(--radius-xs);
+    background: var(--bg-2);
+    box-shadow: inset 0 0 0 1px var(--border-strong);
+    color: var(--accent-fg);
+  }
+  .ai-nc-check input:checked + .ai-nc-box {
+    background: var(--accent);
+    box-shadow: none;
+  }
+  .ai-nc-check input:focus-visible + .ai-nc-box {
+    outline: 2px solid var(--accent-text);
+    outline-offset: 2px;
+  }
+
+  /* ── The choice rows ── */
+  .ai-nc-opts {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-left: calc(22px + var(--space-1));
+  }
+  /* S5.17b: a row IS the answer (03 draws picks, no Send) — a button, so arrow keys never answer by themselves. */
+  .ai-nc-opt {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    min-height: 36px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background var(--dur-flip);
+  }
+  .ai-nc-opt:focus-visible {
+    outline: 2px solid var(--accent-text);
+    outline-offset: 1px;
+  }
+  /* 03 `.ai-sw`: the 18 px colour disc in front of a row (only when the option names a colour) */
+  .ai-nc-sw {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    border-radius: var(--radius-pill);
+    box-shadow: inset 0 0 0 0.5px var(--border-strong);
+    color: var(--fg-2);
+  }
+  .ai-nc-sw--none {
+    background: var(--bg-3);
+    box-shadow: none;
+  }
+  /* 03 `.ai-perm-list`: what will change — 28 x 22 artboard tiles and their names */
+  .ai-nc-will {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding-left: calc(22px + var(--space-2));
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+    min-width: 0;
+  }
+  .ai-nc-will-th {
+    /* tiles stay 28 x 22 however long the names run */
+    flex: none;
+    width: 28px;
+    height: 22px;
+    border-radius: var(--radius-xs);
+    background: var(--bg-3);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+    overflow: hidden;
+  }
+  .ai-nc-will-th img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .ai-nc-will-names {
+    min-width: 0;
+    /* 03 `.ai-perm-list` lets the names wrap beside the tiles ("Obrana, útok, speciální týmy, trenéři") */
+    overflow-wrap: anywhere;
+  }
+  .ai-nc-opt:hover {
+    background: var(--bg-3);
+  }
+  .ai-nc-opt[aria-current="true"] {
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+  /* S5.18 G6: an answered question — the rows are read only, the picked one keeps its ring */
+  .ai-nc-choice--settled .ai-nc-opt {
+    cursor: default;
+  }
+  .ai-nc-choice--settled .ai-nc-opt:hover {
+    background: transparent;
+  }
+  .ai-nc-choice--settled .ai-nc-opt:not([aria-current="true"]) {
+    color: var(--fg-2);
+  }
+  .ai-nc-opt-t {
+    display: flex;
+    flex-direction: column;
+    line-height: var(--lh-sm);
+  }
+  .ai-nc-opt-h {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .ai-nc-input {
+    margin-left: calc(22px + var(--space-1));
+    height: 32px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: var(--bg-1);
+    box-shadow: inset 0 0 0 1px var(--border-default);
+    color: var(--fg-0);
+    font: inherit;
+  }
+  .ai-nc-input:focus-visible {
+    outline: 2px solid var(--accent-text);
+    outline-offset: 1px;
+  }
+
+  /* ── Kept prompts: offline · setting up · used up · the meter ── */
+  .ai-nr {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .ai-nr-queued {
+    align-self: flex-end;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+  }
+  .ai-nr-offline {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+    font-size: var(--type-sm);
+    line-height: var(--lh-sm);
+    font-weight: var(--w-medium);
+    color: var(--status-warn-text);
+  }
+  .ai-nr-state {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+    font-size: var(--type-base);
+    line-height: var(--lh-base);
+    color: var(--fg-1);
+  }
+  .ai-nr-state strong {
+    color: var(--fg-0);
+    font-weight: var(--w-semibold);
+  }
+  .ai-nr-ic {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: var(--radius-md);
+    background: var(--bg-2);
+    color: var(--fg-1);
+  }
+  .ai-nr-ic--busy {
+    background: var(--spark-muted);
+    color: var(--spark);
+  }
+  .ai-nr-bar {
+    width: 100%;
+    height: 4px;
+    border-radius: var(--radius-pill);
+    background: var(--bg-4);
+    overflow: hidden;
+  }
+  .ai-nr-bar i {
+    display: block;
+    width: 38%;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--spark);
+    animation: ai-nr-slide var(--dur-signature-1) ease-in-out infinite alternate;
+  }
+  @keyframes ai-nr-slide {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(163%);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ai-nr-bar i {
+      animation: none;
+    }
+  }
+  [data-reduced-motion="true"] .ai-nr-bar i {
+    animation: none;
+  }
+  .ai-nr-quota {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0 var(--space-3) var(--space-2);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+    font-variant-numeric: tabular-nums;
+  }
+  .ai-nr-meter {
+    flex: none;
+    width: 40px;
+    height: 4px;
+    border-radius: var(--radius-pill);
+    background: var(--bg-4);
+    overflow: hidden;
+  }
+  .ai-nr-meter i {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--fg-1);
+  }
+
+  /* ── The one sheet ── */
+  .ai-conn-sheet {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-5);
+    border-radius: var(--radius-xl);
+    background: var(--bg-2);
+    box-shadow:
+      var(--shadow-md),
+      inset 0 0 0 0.5px var(--island-edge);
+    color: var(--fg-0);
+  }
+  .ai-conn-sheet--inline {
+    position: absolute;
+    z-index: 12;
+    left: var(--space-2);
+    right: var(--space-2);
+    top: 76px;
+  }
+  /* P8 C3 (02 ob-ai-connect, 05 es-canvas-three): the Connect sheet is a CENTRED card over a strong veil
+     (kit `.k-veil--strong`: the canvas ground at 72 %), in the window - not a strip inside the panel. */
+  .ai-conn-veil {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: grid;
+    place-items: center;
+    padding: var(--space-5);
+    background: color-mix(in srgb, var(--canvas-bg) 72%, transparent);
+  }
+  .ai-conn-veil:focus {
+    outline: none;
+  }
+  /* The sheet's paragraphs carry no browser margin: their gaps are the flex gap's alone (a bare <p> added
+     ~78 px and pushed Connect / Cancel out of the AI island). */
+  .ai-conn-t,
+  .ai-conn-b p,
+  .ai-conn-fine {
+    margin: 0;
+  }
+  .ai-conn-t {
+    font-size: var(--type-md);
+    line-height: var(--lh-md);
+    font-weight: var(--w-semibold);
+  }
+  .ai-conn-b {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    font-size: var(--type-sm);
+    line-height: var(--lh-sm);
+    color: var(--fg-1);
+  }
+  .ai-conn-opt {
+    display: flex;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--bg-1);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+  }
+  .ai-conn-ic {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-md);
+    background: var(--spark-muted);
+    color: var(--spark);
+  }
+  .ai-conn-txt {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .ai-conn-txt strong {
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+  .ai-conn-txt > span {
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+  }
+  .ai-conn-fine {
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+  }
+  .ai-conn-err {
+    font-size: var(--type-xs);
+    color: var(--status-error-text);
+  }
+  .ai-conn-a {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2);
+  }
+
+  /* ── The folded spark (v2/shell/corner-icons.jsx): an azure count wins over the busy dot ── */
+  .sh-corner--needs {
+    box-shadow:
+      var(--island-shadow),
+      0 0 0 2px var(--accent);
+  }
+  .ai-fold-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    display: grid;
+    place-items: center;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+    color: var(--accent-fg);
+    box-shadow: 0 0 0 2px var(--bg-1);
+    font-size: var(--type-xs);
+    font-style: normal;
+    font-weight: var(--w-semibold);
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+}

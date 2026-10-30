@@ -22,22 +22,39 @@
 
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { isAllLocked, lockedStrokeIds } from './annotations/lock.ts';
+import {
+  ARROW_HEAD_CHOICES,
+  ARROW_INK_FRONT,
+  ARROW_INK_MORE,
+  ARROW_KINDS,
+  headPatch,
+  isTwoWay,
+  kindPatch,
+  twoWayPatch,
+} from './annotations/ui/arrow-kinds.ts';
+import { barTopFor } from './annotations/ui/bar-place.ts';
 import { type FormatKey, formatCommands, formatState } from './annotations/ui/editor-channel.ts';
+import { LOCKED_LINE } from './annotations/ui/locked.tsx';
+import { SECTION_TONES } from './annotations/ui/section-fold.ts';
+import { postToShell } from './annotations/ui/shell-asks.ts';
+import { flipPatch, isGallerySticker } from './annotations/ui/sticker-drop.ts';
+import { STICKY_FRONT, STICKY_MORE } from './annotations/ui/tool-prefs.ts';
 import type { AlignEdge } from './annotations-align.ts';
 import {
   type ArrowHead,
   type ArrowLineType,
   type ConvertibleShapeKind,
   convertShapeKind,
+  DEFAULT_FONT_SIZE,
   FILL_PALETTE,
   type ListType,
-  STICKY_PALETTE,
   STROKE_PALETTE,
   type Stroke,
   shapeKindOf,
   type TextAlign,
   useStrokesStore,
 } from './annotations-layer.tsx';
+import { canvasInsets } from './bridge/canvas-mode-store.ts';
 import {
   IconAlignCenter,
   IconAlignLeft,
@@ -50,9 +67,12 @@ import {
   IconArrowNone,
   IconBold,
   IconChevronDown,
+  IconComment,
   IconDash,
   IconDistributeH,
   IconDistributeV,
+  IconDuplicate,
+  IconFlip,
   IconGroup,
   IconItalic,
   IconLineCurved,
@@ -71,12 +91,13 @@ import {
   IconObjAlignRight,
   IconObjAlignTop,
   IconObjAlignVCenter,
+  IconStampDisc,
   IconStrike,
-  IconTrash,
   IconUnderline,
   IconUngroup,
   SHAPE_KIND_ICONS,
 } from './canvas-icons.tsx';
+import { IconMore } from './toolbars/toolbar-icons.tsx';
 import { useAnnotationSelectionOptional } from './use-annotation-selection.tsx';
 import { isHttpUrl, linkDomain } from './use-canvas-media-drop.tsx';
 
@@ -94,7 +115,7 @@ const HEAD_OPTIONS: ReadonlyArray<{ value: ArrowHead; label: string }> = [
   { value: 'none', label: 'None' },
   { value: 'line', label: 'Line' },
   { value: 'triangle', label: 'Triangle' },
-  { value: 'triangle-outline', label: 'Triangle (outline)' },
+  { value: 'triangle-outline', label: 'Triangle outline' },
   { value: 'circle', label: 'Circle' },
   { value: 'diamond', label: 'Diamond' },
 ];
@@ -148,6 +169,19 @@ const FONT_SIZE_PRESETS: ReadonlyArray<{ px: number; label: string }> = [
   { px: 36, label: 'Extra large' },
   { px: 64, label: 'Huge' },
 ];
+/** S4.19 - a sticky's five front papers (canvas 15 `an-sticky`); the other five sit behind "+5". */
+// Read at render time, never at module top level: annotations-layer and this file import each other.
+// P8-C2 (15 R1b): ONE front five for the dock's colour row and this toolbar — yellow · coral · green · sky · lilac
+// (tool-prefs STICKY_FRONT) — instead of the first five array slots (yellow · white · grey · salmon · peach).
+const stickyPapersFront = (): readonly string[] => STICKY_FRONT.map((s) => s.hex);
+const stickyPapersRest = (): readonly string[] => STICKY_MORE.map((s) => s.hex);
+/** A sticky's Small..Huge: its Medium is the sticky's own default size, so a fresh sticky reads "Medium". */
+const stickySizes = (): ReadonlyArray<{ px: number; label: string }> =>
+  FONT_SIZE_PRESETS.map((p) => (p.label === 'Medium' ? { ...p, px: DEFAULT_FONT_SIZE } : p));
+/** The size select's value: the preset's px, a custom px kept as itself, or `mixed`. */
+export function stickySizeValue(px: number | undefined): string {
+  return px == null ? 'mixed' : String(px);
+}
 const FONT_SIZE_MIN = 8;
 const FONT_SIZE_MAX = 200;
 
@@ -163,7 +197,7 @@ const FONT_SIZE_MAX = 200;
 // near-black rounded pill that floats above the selection; swatches + icons sit
 // on dark so colour reads true. Fixed dark values (not canvas tokens) so the
 // bar looks identical on any canvas / DS.
-const CTX_SURFACE = '#26262b';
+const CTX_SURFACE = 'var(--maude-chrome-bg-2, #26262b)';
 const TOOLBAR_CSS = `
 .dc-annot-ctx {
   position: fixed;
@@ -171,14 +205,20 @@ const TOOLBAR_CSS = `
   display: flex;
   align-items: center;
   gap: 2px;
-  background: ${CTX_SURFACE};
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px;
-  padding: 5px 7px;
-  box-shadow: 0 8px 28px rgba(0,0,0,0.34), 0 2px 6px rgba(0,0,0,0.22);
-  font-family: var(--u-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  /* P8-C2 (15 R4): the board's an-ctx island - the HUD island material (frosted, the 0.5 px edge, the island
+     shadow), 40 px tall, radius-lg - not a heavy 0 8 28 dark card */
+  background: var(--maude-hud-island-bg, ${CTX_SURFACE});
+  -webkit-backdrop-filter: saturate(1.4) blur(18px);
+  backdrop-filter: saturate(1.4) blur(18px);
+  border: 0;
+  border-radius: var(--maude-hud-radius-lg, 14px);
+  padding: 4px 6px;
+  min-height: 40px;
+  box-sizing: border-box;
+  box-shadow: var(--maude-hud-island-shadow, 0 2px 10px rgba(0,0,0,0.12)), inset 0 0 0 0.5px var(--maude-hud-island-edge, transparent);
+  font-family: var(--maude-chrome-font-body, system-ui, sans-serif);
   font-size: 12px;
-  color: rgba(255,255,255,0.85);
+  color: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 85%, transparent);
   user-select: none;
   pointer-events: auto;
 }
@@ -193,7 +233,7 @@ const TOOLBAR_CSS = `
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  border: 1px solid rgba(255,255,255,0.16);
+  border: 1px solid color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 16%, transparent);
   cursor: pointer;
   padding: 0;
   margin: 0;
@@ -202,11 +242,11 @@ const TOOLBAR_CSS = `
 }
 .dc-annot-ctx-sw:hover { transform: scale(1.1); }
 .dc-annot-ctx-sw[aria-pressed="true"] {
-  box-shadow: 0 0 0 2px ${CTX_SURFACE}, 0 0 0 3px rgba(255,255,255,0.92);
+  box-shadow: 0 0 0 2px ${CTX_SURFACE}, 0 0 0 3px color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 92%, transparent);
   border-color: transparent;
 }
 .dc-annot-ctx-sw:focus-visible {
-  outline: 2px solid #ffffff;
+  outline: 2px solid var(--maude-chrome-fg-0, #fff);
   outline-offset: 1px;
 }
 .dc-annot-ctx-fill--none {
@@ -218,13 +258,13 @@ const TOOLBAR_CSS = `
   position: absolute; inset: 4px;
   border-radius: 50%;
   background:
-    linear-gradient(135deg, transparent 44%, rgba(255,255,255,0.55) 44%, rgba(255,255,255,0.55) 56%, transparent 56%);
+    linear-gradient(135deg, transparent 44%, color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 55%, transparent) 44%, color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 55%, transparent) 56%, transparent 56%);
 }
 .dc-annot-ctx-sep {
   width: 1px;
   height: 16px;
   align-self: center;
-  background: rgba(255,255,255,0.09);
+  background: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 9%, transparent);
   margin: 0 4px;
 }
 /* Collapsed Stroke|Fill mode toggle (rect / ellipse selections). */
@@ -232,7 +272,7 @@ const TOOLBAR_CSS = `
   display: inline-flex;
   border-radius: 7px;
   overflow: hidden;
-  background: rgba(255,255,255,0.07);
+  background: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 7%, transparent);
   padding: 2px;
   gap: 2px;
 }
@@ -243,22 +283,22 @@ const TOOLBAR_CSS = `
   border-radius: 5px;
   padding: 3px 9px;
   font: inherit;
-  color: rgba(255,255,255,0.6);
+  color: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 60%, transparent);
   cursor: pointer;
   font-size: 11px;
   letter-spacing: 0.02em;
   line-height: 1;
 }
 .dc-annot-ctx-mode-btn[aria-pressed="true"] {
-  background: rgba(255,255,255,0.16);
-  color: #ffffff;
+  background: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 16%, transparent);
+  color: var(--maude-chrome-fg-0, #fff);
   font-weight: 600;
 }
 .dc-annot-ctx-mode-btn:not([aria-pressed="true"]):hover {
-  color: rgba(255,255,255,0.9);
+  color: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 90%, transparent);
 }
 .dc-annot-ctx-mode-btn:focus-visible {
-  outline: 2px solid #ffffff;
+  outline: 2px solid var(--maude-chrome-fg-0, #fff);
   outline-offset: -1px;
 }
 
@@ -274,28 +314,35 @@ const TOOLBAR_CSS = `
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255,255,255,0.78);
+  color: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 78%, transparent);
   cursor: pointer;
   padding: 0;
   position: relative;
   transition: background-color 80ms linear, color 80ms linear;
 }
 .dc-annot-ctx-ibtn:hover {
-  background: rgba(255,255,255,0.1);
-  color: #ffffff;
+  background: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 10%, transparent);
+  color: var(--maude-chrome-fg-0, #fff);
 }
 .dc-annot-ctx-ibtn[aria-pressed="true"] {
-  background: rgba(255,255,255,0.18);
-  color: #ffffff;
+  /* a pressed segment is the accent outline + accent words (15 an-arrow-kinds), not a grey fill */
+  background: var(--maude-hud-accent-muted, color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 18%, transparent));
+  color: var(--maude-hud-accent-text, var(--maude-chrome-fg-0, #fff));
+  box-shadow: inset 0 0 0 1px var(--maude-hud-accent, transparent);
 }
 .dc-annot-ctx-ibtn:focus-visible {
-  outline: 2px solid #ffffff;
+  outline: 2px solid var(--maude-chrome-fg-0, #fff);
   outline-offset: -2px;
 }
-.dc-annot-ctx-ibtn--danger { color: rgba(255,255,255,0.7); }
+/* the sticky's "..." menu: the words that used to sit in the bar (Resolve, Turn into a comment) */
+.dc-annot-ctx-menu--words { flex-direction: column; left: auto; right: 0; transform: none; min-width: 210px; gap: 0; }
+.dc-annot-ctx-menu--words .dc-annot-ctx-tbtn { width: 100%; height: 28px; justify-content: flex-start; }
+/* S4.12 - a word button (Resolve, Fold, Turn into a comment, Ask AI about it) */
+.dc-annot-ctx-tbtn { width: auto; padding: 0 9px; gap: 6px; font-size: 12px; font-weight: 600; font-family: inherit; white-space: nowrap; }
+.dc-annot-ctx-ibtn--danger { color: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 70%, transparent); }
 .dc-annot-ctx-ibtn--danger:hover {
   background: color-mix(in oklab, #ff5a4d 26%, transparent);
-  color: #ffffff;
+  color: var(--maude-chrome-fg-0, #fff);
 }
 /* Phase 23 — media (image alt / link url) inline text field inside the dark
    property bar. */
@@ -305,20 +352,20 @@ const TOOLBAR_CSS = `
   gap: 6px;
   padding: 0 2px;
 }
-.dc-annot-ctx-field label { color: rgba(255,255,255,0.6); font-size: 11px; }
+.dc-annot-ctx-field label { color: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 60%, transparent); font-size: 11px; }
 .dc-annot-ctx-input {
   width: 220px;
   max-width: 44vw;
   padding: 4px 7px;
-  border: 1px solid rgba(255,255,255,0.18);
+  border: 1px solid color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 18%, transparent);
   border-radius: 6px;
-  background: rgba(255,255,255,0.06);
-  color: #fff;
+  background: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 6%, transparent);
+  color: var(--maude-chrome-fg-0, #fff);
   font: inherit;
   font-size: 12px;
 }
-.dc-annot-ctx-input::placeholder { color: rgba(255,255,255,0.4); }
-.dc-annot-ctx-input:focus-visible { outline: 2px solid #ffffff; outline-offset: -1px; }
+.dc-annot-ctx-input::placeholder { color: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 40%, transparent); }
+.dc-annot-ctx-input:focus-visible { outline: 2px solid var(--maude-chrome-fg-0, #fff); outline-offset: -1px; }
 /* Phase 24 — icon dropdown (arrowhead / line-type / text-align). The wrapper
    anchors the menu directly above the trigger. */
 .dc-annot-ctx-dd { position: relative; display: inline-flex; }
@@ -340,14 +387,14 @@ const TOOLBAR_CSS = `
   gap: 1px;
   padding: 4px;
   background: ${CTX_SURFACE};
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 10%, transparent);
   border-radius: 9px;
   box-shadow: 0 8px 28px rgba(0,0,0,0.4), 0 2px 6px rgba(0,0,0,0.24);
   z-index: 9;
 }
 .dc-annot-ctx-menu button[aria-checked="true"] {
-  background: rgba(255,255,255,0.18);
-  color: #ffffff;
+  background: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 18%, transparent);
+  color: var(--maude-chrome-fg-0, #fff);
 }
 /* Font-size dropdown — wider trigger showing the current px + a vertical menu
    of named presets and a numeric input. */
@@ -358,6 +405,20 @@ const TOOLBAR_CSS = `
   font-variant-numeric: tabular-nums;
 }
 .dc-annot-ctx-fs-val { font-size: 12px; }
+/* S4.19 - the sticky's Small to Huge size select (canvas 15 an-sticky). */
+.dc-annot-ctx-sel {
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.dc-annot-ctx-sel:hover { background: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 12%, transparent); }
+.dc-annot-ctx-sel option { color: #111; }
 .dc-annot-ctx-fs-menu {
   position: absolute;
   bottom: calc(100% + 6px);
@@ -369,7 +430,7 @@ const TOOLBAR_CSS = `
   padding: 4px;
   min-width: 132px;
   background: ${CTX_SURFACE};
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 10%, transparent);
   border-radius: 9px;
   box-shadow: 0 8px 28px rgba(0,0,0,0.4), 0 2px 6px rgba(0,0,0,0.24);
   z-index: 9;
@@ -385,25 +446,25 @@ const TOOLBAR_CSS = `
   gap: 16px;
   font: inherit;
   font-size: 12px;
-  color: rgba(255,255,255,0.85);
+  color: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 85%, transparent);
   cursor: pointer;
 }
-.dc-annot-ctx-fs-item:hover { background: rgba(255,255,255,0.1); }
-.dc-annot-ctx-fs-item[aria-checked="true"] { background: rgba(255,255,255,0.18); color: #fff; }
+.dc-annot-ctx-fs-item:hover { background: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 10%, transparent); }
+.dc-annot-ctx-fs-item[aria-checked="true"] { background: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 18%, transparent); color: var(--maude-chrome-fg-0, #fff); }
 .dc-annot-ctx-fs-px { opacity: 0.5; font-variant-numeric: tabular-nums; }
 .dc-annot-ctx-fs-input {
   margin-top: 3px;
   width: 100%;
   box-sizing: border-box;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.14);
+  background: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 8%, transparent);
+  border: 1px solid color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 14%, transparent);
   border-radius: 6px;
   padding: 4px 8px;
-  color: #fff;
+  color: var(--maude-chrome-fg-0, #fff);
   font: inherit;
   font-size: 12px;
 }
-.dc-annot-ctx-fs-input:focus-visible { outline: 2px solid #fff; outline-offset: -1px; }
+.dc-annot-ctx-fs-input:focus-visible { outline: 2px solid var(--maude-chrome-fg-0, #fff); outline-offset: -1px; }
 @media (prefers-reduced-motion: reduce) {
   .dc-annot-ctx-ibtn, .dc-annot-ctx-sw { transition: none; }
 }
@@ -473,6 +534,8 @@ export function AnnotationContextToolbar({
   // auto-reverts to 'stroke' whenever caps.fill is false so the toggle
   // can't get stranded on a hidden mode after the selection changes type.
   const [swatchMode, setSwatchMode] = useState<SwatchMode>('stroke');
+  // S4.19 - a sticky's five front papers; "+5" opens the rest in place.
+  const [papersMore, setPapersMore] = useState(false);
 
   const selectedStrokes = useMemo<Stroke[]>(() => {
     if (!annotSel || !store) return [];
@@ -496,6 +559,7 @@ export function AnnotationContextToolbar({
         arrowDir: false,
         dash: false,
         shapeKind: false,
+        stickyBar: false,
       };
     }
     // Wave H — polygons (diamond / triangle) are full shapes: fill + stroke
@@ -534,6 +598,10 @@ export function AnnotationContextToolbar({
       fontSize: fontSizeApplicable,
       arrowDir: allArrow,
       dash: allDashable,
+      // S4.19 (canvas 15 an-sticky, lead decision v2-lead-sticky-toolbar-follows-canvas): a selection of only
+      // stickies gets the sticky's own small toolbar - papers, a Small-Huge size, list, Lock - not the text
+      // cluster. The sticky's face stays fixed: no B/I/S/U, no alignment.
+      stickyBar: selectedStrokes.every((s) => s.tool === 'sticky'),
       // Wave H — the shape-kind switcher (square/rounded/circle/diamond/
       // triangle conversion) shows when EVERY selected stroke is a closed
       // shape. Conversions keep ids, so anchored text + binds follow.
@@ -569,8 +637,8 @@ export function AnnotationContextToolbar({
       // (halo pad + connection dots at ~16 px + the corner rotate zones)
       // instead of sitting glued to the bbox and covering the top dot.
       const margin = 28;
-      let top = u.y - tbH - margin;
-      if (top < 8) top = u.y + u.h + margin;
+      // p8-fix-a F21 — headroom counts the shell's top island (Preview bar), not only the iframe's edge
+      const top = barTopFor(u, tbH, margin, canvasInsets().top);
       let left = u.x + (u.w - tbW) / 2;
       const winW = typeof window !== 'undefined' ? window.innerWidth : tbW + 16;
       if (left < 8) left = 8;
@@ -711,11 +779,29 @@ export function AnnotationContextToolbar({
     },
     [store, selectedIds]
   );
+  // S4.11 (an-arrow-kinds): the end head (a two-way arrow keeps both alike) and the two-way toggle.
+  const setHeadPicked = useCallback(
+    (head: ArrowHead) => {
+      store?.applyToStrokes(
+        selectedIds,
+        (s) => (s.tool === 'arrow' ? headPatch(s, head) : null),
+        'set arrowhead'
+      );
+    },
+    [store, selectedIds]
+  );
+  const toggleTwoWay = useCallback(() => {
+    store?.applyToStrokes(
+      selectedIds,
+      (s) => (s.tool === 'arrow' ? twoWayPatch(s) : null),
+      'toggle two-way arrow'
+    );
+  }, [store, selectedIds]);
   const setLineType = useCallback(
     (lineType: ArrowLineType) => {
       store?.applyToStrokes(
         selectedIds,
-        (s) => (s.tool === 'arrow' ? ({ lineType } as Partial<Stroke>) : null),
+        (s) => (s.tool === 'arrow' ? kindPatch(lineType) : null),
         'set line type'
       );
     },
@@ -847,7 +933,42 @@ export function AnnotationContextToolbar({
         style={{ display: 'flex', top: -9999, left: -9999 }}
         onPointerDown={(e) => e.stopPropagation()}
       >
-        {lockBtn}
+        {allLocked ? (
+          // S4.19 G5 (canvas 15 an-layers): "Locked · Unlock ⇧⌘L", the words the shell list speaks too.
+          <span
+            data-testid="annotation-locked-toolbar"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+          >
+            <span
+              className="dc-annot-ctx-label"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                padding: '0 6px 0 8px',
+                fontSize: 12,
+                opacity: 0.85,
+              }}
+            >
+              <IconLock size={12} />
+              {LOCKED_LINE.label}
+            </span>
+            <div className="dc-annot-ctx-sep" />
+            <button
+              type="button"
+              className="dc-annot-ctx-ibtn dc-annot-ctx-tbtn"
+              data-testid="annot-ctx-unlock"
+              aria-label="Unlock selection"
+              title="Unlock (⌘⇧L)"
+              onClick={() => store.setLocked(annotSel.selectedIds, false)}
+            >
+              {LOCKED_LINE.action}
+              <span style={{ marginLeft: 6, opacity: 0.6 }}>{LOCKED_LINE.kbd}</span>
+            </button>
+          </span>
+        ) : (
+          lockBtn
+        )}
       </div>
     );
   }
@@ -894,15 +1015,67 @@ export function AnnotationContextToolbar({
           {mr.title}
         </span>
         <div className="dc-annot-ctx-sep" />
+        <ToolbarMore onDelete={remove} />
+      </div>
+    );
+  }
+  if (soleMedia?.tool === 'image' && isGallerySticker(soleMedia)) {
+    // S4.13 (canvas 15 `an-stk-drop`) - a sticker from the gallery: Replace… swaps the picture in place
+    // (same spot, same size), Flip mirrors it, then Lock and Duplicate. It is never part of the design.
+    const stk = soleMedia;
+    const flipped = stk.sticker.flip === true;
+    return (
+      <div
+        ref={ref}
+        className="dc-annot-ctx"
+        role="toolbar"
+        aria-label="Sticker properties"
+        style={{ display: 'flex', top: -9999, left: -9999 }}
+      >
         <button
           type="button"
-          className="dc-annot-ctx-ibtn dc-annot-ctx-ibtn--danger"
-          aria-label="Delete media reference"
-          title="Delete"
-          onClick={remove}
+          className="dc-annot-ctx-ibtn dc-annot-ctx-tbtn"
+          data-testid="annot-ctx-replace"
+          title="Swap this sticker for another, in the same place and size"
+          onClick={() =>
+            postToShell({
+              dgn: 'tool-panel-open',
+              panel: 'stickers',
+              anchor: null,
+              replace: stk.id,
+            })
+          }
         >
-          <IconTrash />
+          <IconStampDisc size={14} />
+          Replace…
         </button>
+        <button
+          type="button"
+          className="dc-annot-ctx-ibtn dc-annot-ctx-tbtn"
+          data-testid="annot-ctx-flip"
+          aria-pressed={flipped}
+          title="Mirror this sticker"
+          onClick={() => {
+            const patch = flipPatch(stk);
+            if (patch) store.updateStroke(stk.id, patch);
+          }}
+        >
+          <IconFlip size={14} />
+          Flip
+        </button>
+        <div className="dc-annot-ctx-sep" />
+        {lockBtn}
+        <button
+          type="button"
+          className="dc-annot-ctx-ibtn"
+          data-testid="annot-ctx-duplicate"
+          aria-label="Duplicate"
+          title="Duplicate (⌘D)"
+          onClick={() => store.runAction?.('annotation.duplicate')}
+        >
+          <IconDuplicate size={14} />
+        </button>
+        <ToolbarMore onDelete={remove} />
       </div>
     );
   }
@@ -942,15 +1115,7 @@ export function AnnotationContextToolbar({
           />
         </div>
         <div className="dc-annot-ctx-sep" />
-        <button
-          type="button"
-          className="dc-annot-ctx-ibtn dc-annot-ctx-ibtn--danger"
-          aria-label="Delete image"
-          title="Delete"
-          onClick={remove}
-        >
-          <IconTrash />
-        </button>
+        <ToolbarMore onDelete={remove} />
       </div>
     );
   }
@@ -1021,15 +1186,7 @@ export function AnnotationContextToolbar({
           />
         </div>
         <div className="dc-annot-ctx-sep" />
-        <button
-          type="button"
-          className="dc-annot-ctx-ibtn dc-annot-ctx-ibtn--danger"
-          aria-label="Delete link"
-          title="Delete"
-          onClick={remove}
-        >
-          <IconTrash />
-        </button>
+        <ToolbarMore onDelete={remove} />
       </div>
     );
   }
@@ -1142,6 +1299,9 @@ export function AnnotationContextToolbar({
         selectedStrokes.map((s) => (s.tool === 'arrow' ? (s.lineType ?? 'straight') : undefined))
       )
     : undefined;
+  const uniqTwoWay = caps.arrowDir
+    ? uniformValue(selectedStrokes.map((s) => (s.tool === 'arrow' ? isTwoWay(s) : undefined)))
+    : undefined;
   const uniqDashed = caps.dash
     ? uniformValue(
         selectedStrokes.map((s) =>
@@ -1162,15 +1322,86 @@ export function AnnotationContextToolbar({
   // write to `color` (the paper tint). No Stroke|Fill toggle for sticky
   // (caps.fill is already false).
   const allSticky = selectedStrokes.every((s) => s.tool === 'sticky');
+  // S4.12 - a section picks one of its six tones (canvas 15 an-section), not ink.
+  const allSection = selectedStrokes.every((s) => s.tool === 'section');
+  const soleSticky =
+    selectedStrokes.length === 1 && selectedStrokes[0]?.tool === 'sticky'
+      ? selectedStrokes[0]
+      : null;
+  const soleSection =
+    selectedStrokes.length === 1 && selectedStrokes[0]?.tool === 'section'
+      ? selectedStrokes[0]
+      : null;
+  const activeRest = allSticky && uniqColor != null && stickyPapersRest().includes(uniqColor);
+  const papersOpen = papersMore || activeRest;
   const showPalette = allSticky
-    ? STICKY_PALETTE
-    : effectiveMode === 'stroke'
-      ? STROKE_PALETTE
-      : FILL_PALETTE;
+    ? papersOpen
+      ? [...stickyPapersFront(), ...stickyPapersRest()]
+      : stickyPapersFront()
+    : allSection
+      ? SECTION_TONES.map((t) => t.value)
+      : effectiveMode === 'stroke'
+        ? STROKE_PALETTE
+        : FILL_PALETTE;
   const onSwatchClick =
     !allSticky && effectiveMode === 'fill' ? (c: string) => setFill(c) : (c: string) => setColor(c);
   const activeValue = allSticky || effectiveMode === 'stroke' ? uniqColor : (uniqFill ?? null);
-  const swatchKind = allSticky ? 'Sticky color' : effectiveMode === 'stroke' ? 'Color' : 'Fill';
+  const swatchKind = allSticky
+    ? 'Sticky color'
+    : allSection
+      ? 'Section color'
+      : effectiveMode === 'stroke'
+        ? 'Color'
+        : 'Fill';
+
+  // The "…" at the end of every selection bar (15: the board ends each one in a more button). Delete lives here, and
+  // whatever the board does not draw on the bar: Resolve for a sticky; an arrow's widths, two-way and dashes.
+  const moreItems: MoreItem[] = [];
+  if (soleSticky) {
+    moreItems.push({
+      key: 'resolve',
+      label: soleSticky.resolved ? 'Reopen' : 'Resolve',
+      testid: 'annot-ctx-resolve',
+      title: soleSticky.resolved ? 'Reopen this sticky' : 'Resolve — strike it through',
+      resolved: !!soleSticky.resolved,
+      onPick: () => store.runAction?.('annotation.resolve'),
+    });
+  }
+  if (caps.arrowDir) {
+    moreItems.push(
+      {
+        key: 'two-way',
+        label: 'Two-way',
+        testid: 'annot-arrow-two-way',
+        title: 'Two-way — a head on both ends',
+        checked: uniqTwoWay === true,
+        onPick: toggleTwoWay,
+      },
+      {
+        key: 'dashed',
+        label: 'Dashed line',
+        testid: 'annot-ctx-dashed',
+        checked: uniqDashed === true,
+        onPick: () => setDashed(!(uniqDashed === true)),
+      },
+      {
+        key: 'thin',
+        label: 'Thin line',
+        testid: 'annot-ctx-thin',
+        title: 'Thin (3px)',
+        checked: uniqThickness === 3,
+        onPick: () => setThickness(3),
+      },
+      {
+        key: 'thick',
+        label: 'Thick line',
+        testid: 'annot-ctx-thick',
+        title: 'Thick (6px)',
+        checked: uniqThickness === 6,
+        onPick: () => setThickness(6),
+      }
+    );
+  }
 
   return (
     <div
@@ -1180,6 +1411,18 @@ export function AnnotationContextToolbar({
       aria-label="Annotation properties"
       style={{ display: 'flex', top: -9999, left: -9999 }}
     >
+      {selectedStrokes.length > 1 ? (
+        <>
+          <span
+            className="dc-annot-ctx-label"
+            data-testid="annot-ctx-count"
+            style={{ padding: '0 8px', fontSize: 12, whiteSpace: 'nowrap' }}
+          >
+            <b>{selectedStrokes.length} annotations</b>
+          </span>
+          <div className="dc-annot-ctx-sep" />
+        </>
+      ) : null}
       {caps.fill ? (
         <>
           <div className="dc-annot-ctx-mode" role="radiogroup" aria-label="Swatch target">
@@ -1203,31 +1446,76 @@ export function AnnotationContextToolbar({
           <div className="dc-annot-ctx-sep" />
         </>
       ) : null}
-      <div className="dc-annot-ctx-swrow" role="radiogroup" aria-label="Color">
-        {effectiveMode === 'fill' ? (
-          <button
-            type="button"
-            className="dc-annot-ctx-sw dc-annot-ctx-fill--none"
-            aria-label="No fill"
-            aria-pressed={uniqFill == null}
-            title="No fill"
-            onClick={() => setFill(null)}
+      {caps.arrowDir ? (
+        // 15 an-arrow-kinds: kind + head come first, the inks after, then Lock (the bar's own order)
+        <>
+          <div className="dc-annot-ctx-mode" role="radiogroup" aria-label="Arrow line">
+            {ARROW_KINDS.map((k) => (
+              <button
+                key={k.value}
+                type="button"
+                className="dc-annot-ctx-mode-btn"
+                data-testid={`annot-arrow-kind-${k.value}`}
+                aria-pressed={uniqLineType === k.value}
+                onClick={() => setLineType(k.value)}
+              >
+                {k.label}
+              </button>
+            ))}
+          </div>
+          <div className="dc-annot-ctx-sep" />
+          <IconDropdown
+            ariaLabel="Arrowhead"
+            value={uniqEndHead ?? 'triangle'}
+            options={ARROW_HEAD_CHOICES}
+            renderIcon={(v) => {
+              const I = HEAD_ICON[v as ArrowHead];
+              return I ? <I size={16} /> : null;
+            }}
+            onPick={(v) => setHeadPicked(v as ArrowHead)}
           />
-        ) : null}
-        {showPalette.map((c) => (
-          <button
-            key={c}
-            type="button"
-            className="dc-annot-ctx-sw"
-            aria-label={`${swatchKind} ${c}`}
-            aria-pressed={activeValue === c}
-            title={`${swatchKind} ${c}`}
-            style={{ background: c }}
-            onClick={() => onSwatchClick(c)}
-          />
-        ))}
-      </div>
-      {caps.thickness && effectiveMode === 'stroke' ? (
+          <div className="dc-annot-ctx-sep" />
+          <ArrowInks value={uniqColor} onPick={setColor} />
+        </>
+      ) : (
+        <div className="dc-annot-ctx-swrow" role="radiogroup" aria-label="Color">
+          {effectiveMode === 'fill' ? (
+            <button
+              type="button"
+              className="dc-annot-ctx-sw dc-annot-ctx-fill--none"
+              aria-label="No fill"
+              aria-pressed={uniqFill == null}
+              title="No fill"
+              onClick={() => setFill(null)}
+            />
+          ) : null}
+          {showPalette.map((c) => (
+            <button
+              key={c}
+              type="button"
+              className="dc-annot-ctx-sw"
+              aria-label={`${swatchKind} ${c}`}
+              aria-pressed={activeValue === c}
+              title={`${swatchKind} ${c}`}
+              style={{ background: c }}
+              onClick={() => onSwatchClick(c)}
+            />
+          ))}
+          {allSticky && !papersOpen ? (
+            <button
+              type="button"
+              className="dc-annot-ctx-ibtn"
+              data-testid="annot-sticky-paper-more"
+              aria-label={`${stickyPapersRest().length} more papers`}
+              title="All papers"
+              onClick={() => setPapersMore(true)}
+            >
+              +{stickyPapersRest().length}
+            </button>
+          ) : null}
+        </div>
+      )}
+      {caps.thickness && effectiveMode === 'stroke' && !caps.arrowDir ? (
         <>
           <div className="dc-annot-ctx-sep" />
           <button
@@ -1252,7 +1540,52 @@ export function AnnotationContextToolbar({
           </button>
         </>
       ) : null}
-      {caps.fontSize ? (
+      {caps.stickyBar ? (
+        <>
+          <div className="dc-annot-ctx-sep" />
+          <select
+            className="dc-annot-ctx-sel"
+            data-testid="annot-sticky-size"
+            aria-label="Text size"
+            title="Text size"
+            value={stickySizeValue(uniqFontSize)}
+            onChange={(e) => {
+              const px = Number(e.target.value);
+              if (Number.isFinite(px) && px > 0) setFontSize(px);
+            }}
+          >
+            {uniqFontSize != null && !stickySizes().some((p) => p.px === uniqFontSize) ? (
+              <option value={String(uniqFontSize)}>{uniqFontSize} px</option>
+            ) : null}
+            {uniqFontSize == null ? <option value="mixed">Mixed</option> : null}
+            {stickySizes().map((p) => (
+              <option key={p.px} value={String(p.px)}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="dc-annot-ctx-ibtn"
+            data-testid="annot-sticky-list"
+            aria-label="List"
+            aria-pressed={uniqListType === 'bullet' || uniqListType === 'number'}
+            title="List - bullets, then numbers, then off"
+            onClick={() =>
+              setListType(
+                uniqListType === 'bullet'
+                  ? 'number'
+                  : uniqListType === 'number'
+                    ? undefined
+                    : 'bullet'
+              )
+            }
+          >
+            {uniqListType === 'number' ? <IconListOrdered /> : <IconListBullet />}
+          </button>
+        </>
+      ) : null}
+      {caps.fontSize && !caps.stickyBar ? (
         <>
           <div className="dc-annot-ctx-sep" />
           <FontSizeDropdown value={uniqFontSize} onPick={setFontSize} />
@@ -1359,42 +1692,7 @@ export function AnnotationContextToolbar({
           })}
         </>
       ) : null}
-      {caps.arrowDir ? (
-        <>
-          <div className="dc-annot-ctx-sep" />
-          <IconDropdown
-            ariaLabel="Start arrowhead"
-            value={uniqStartHead ?? 'none'}
-            options={HEAD_OPTIONS}
-            renderIcon={(v) => {
-              const I = HEAD_ICON[v as ArrowHead];
-              return I ? <I size={16} /> : null;
-            }}
-            onPick={(v) => setStartHead(v as ArrowHead)}
-          />
-          <IconDropdown
-            ariaLabel="End arrowhead"
-            value={uniqEndHead ?? 'triangle'}
-            options={HEAD_OPTIONS}
-            renderIcon={(v) => {
-              const I = HEAD_ICON[v as ArrowHead];
-              return I ? <I size={16} /> : null;
-            }}
-            onPick={(v) => setEndHead(v as ArrowHead)}
-          />
-          <IconDropdown
-            ariaLabel="Line type"
-            value={uniqLineType ?? 'straight'}
-            options={LINETYPE_OPTIONS}
-            renderIcon={(v) => {
-              const I = LINETYPE_ICON[v as ArrowLineType];
-              return I ? <I size={16} /> : null;
-            }}
-            onPick={(v) => setLineType(v as ArrowLineType)}
-          />
-        </>
-      ) : null}
-      {caps.dash ? (
+      {caps.dash && !caps.arrowDir ? (
         <>
           <div className="dc-annot-ctx-sep" />
           <button
@@ -1409,8 +1707,44 @@ export function AnnotationContextToolbar({
           </button>
         </>
       ) : null}
+      {soleSection ? (
+        <>
+          <div className="dc-annot-ctx-sep" />
+          <button
+            type="button"
+            className="dc-annot-ctx-ibtn dc-annot-ctx-tbtn"
+            data-testid="annot-ctx-fold"
+            aria-pressed={!!soleSection.folded}
+            title={soleSection.folded ? 'Unfold this section' : 'Fold this section to one line'}
+            onClick={() => store.runAction?.('annotation.fold')}
+          >
+            {soleSection.folded ? 'Unfold' : 'Fold'}
+          </button>
+          <button
+            type="button"
+            className="dc-annot-ctx-ibtn dc-annot-ctx-tbtn"
+            data-testid="annot-ctx-ask-ai"
+            title="Ask AI about this section (⌘/)"
+            onClick={() => store.runAction?.('annotation.ask-ai')}
+          >
+            ✦ Ask AI about it
+          </button>
+        </>
+      ) : null}
       <div className="dc-annot-ctx-sep" />
       {lockBtn}
+      {soleSticky ? (
+        <button
+          type="button"
+          className="dc-annot-ctx-ibtn"
+          data-testid="annot-ctx-to-comment"
+          aria-label="Turn into a comment"
+          title="Turn into a comment — its words become a thread, the sticky goes to the trash"
+          onClick={() => store.runAction?.('annotation.to-comment')}
+        >
+          <IconComment size={14} />
+        </button>
+      ) : null}
       {canGroup || canUngroup || canAlign ? (
         <>
           <div className="dc-annot-ctx-sep" />
@@ -1451,16 +1785,7 @@ export function AnnotationContextToolbar({
           ) : null}
         </>
       ) : null}
-      <div className="dc-annot-ctx-sep" />
-      <button
-        type="button"
-        className="dc-annot-ctx-ibtn dc-annot-ctx-ibtn--danger"
-        title="Delete (Backspace)"
-        aria-label="Delete selected annotations"
-        onClick={remove}
-      >
-        <IconTrash />
-      </button>
+      <ToolbarMore items={moreItems} onDelete={remove} />
     </div>
   );
 }
@@ -1472,6 +1797,47 @@ AnnotationContextToolbar.displayName = 'AnnotationContextToolbar';
  * is a single row of icon-only radio items. Closes on outside-pointerdown or
  * Escape. Reuses the existing `.dc-annot-ctx-ibtn` button styling.
  */
+/** S4.11 — an arrow's inks: four up front (black first), "+5" opens the rest in place. */
+function ArrowInks({
+  value,
+  onPick,
+}: {
+  value: string | undefined;
+  onPick: (hex: string) => void;
+}) {
+  const [more, setMore] = useState(false);
+  const all = more ? [...ARROW_INK_FRONT, ...ARROW_INK_MORE] : ARROW_INK_FRONT;
+  return (
+    <div className="dc-annot-ctx-swrow" role="radiogroup" aria-label="Color">
+      {all.map((c) => (
+        <button
+          key={c.hex}
+          type="button"
+          className="dc-annot-ctx-sw"
+          data-testid={`annot-arrow-ink-${c.name.toLowerCase()}`}
+          aria-label={`Color ${c.name}`}
+          aria-pressed={value === c.hex}
+          title={c.name}
+          style={{ background: c.hex }}
+          onClick={() => onPick(c.hex)}
+        />
+      ))}
+      {more ? null : (
+        <button
+          type="button"
+          className="dc-annot-ctx-ibtn"
+          data-testid="annot-arrow-ink-more"
+          aria-label={`${ARROW_INK_MORE.length} more colors`}
+          title="More colors"
+          onClick={() => setMore(true)}
+        >
+          +{ARROW_INK_MORE.length}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function IconDropdown({
   ariaLabel,
   value,
@@ -1549,6 +1915,100 @@ function IconDropdown({
  * item fires an operation instead of reflecting a current value. Used by the
  * align/distribute cluster; distribute items disable below three strokes.
  */
+interface MoreItem {
+  key: string;
+  label: string;
+  testid: string;
+  title?: string;
+  /** a toggle: the row is a checkbox */
+  checked?: boolean;
+  resolved?: boolean;
+  onPick: () => void;
+}
+
+/**
+ * The "…" every selection toolbar ends in (canvas 15: the sticky, arrow, section and sticker bars all close on a
+ * more button). A word menu: the bar's extras first, then "Move to trash" - Delete is one click away here and on
+ * the key.
+ */
+function ToolbarMore({
+  items = [],
+  onDelete,
+}: {
+  items?: readonly MoreItem[];
+  onDelete: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('pointerdown', onDown, true);
+    document.addEventListener('keydown', onKey, true);
+    return () => {
+      document.removeEventListener('pointerdown', onDown, true);
+      document.removeEventListener('keydown', onKey, true);
+    };
+  }, [open]);
+  return (
+    <div ref={ref} className="dc-annot-ctx-dd">
+      <button
+        type="button"
+        className="dc-annot-ctx-ibtn"
+        data-testid="annot-ctx-more"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label="More"
+        title="More"
+        onClick={() => setOpen((o) => !o)}
+      >
+        <IconMore size={16} />
+      </button>
+      {open ? (
+        <div className="dc-annot-ctx-menu dc-annot-ctx-menu--words" role="menu" aria-label="More">
+          {items.map((it) => (
+            // biome-ignore lint/a11y/useAriaPropsSupportedByRole: aria-checked is set only when the role is menuitemcheckbox
+            <button
+              key={it.key}
+              type="button"
+              role={it.checked === undefined ? 'menuitem' : 'menuitemcheckbox'}
+              aria-checked={it.checked === undefined ? undefined : it.checked}
+              className="dc-annot-ctx-ibtn dc-annot-ctx-tbtn"
+              data-testid={it.testid}
+              data-resolved={it.resolved ? 'true' : undefined}
+              title={it.title}
+              onClick={() => {
+                it.onPick();
+                setOpen(false);
+              }}
+            >
+              {it.label}
+            </button>
+          ))}
+          <button
+            type="button"
+            role="menuitem"
+            className="dc-annot-ctx-ibtn dc-annot-ctx-tbtn"
+            data-testid="annot-ctx-delete"
+            title="Move to trash (⌫)"
+            onClick={() => {
+              onDelete();
+              setOpen(false);
+            }}
+          >
+            Move to trash
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function ActionDropdown({
   ariaLabel,
   triggerIcon,

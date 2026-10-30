@@ -1,0 +1,133 @@
+{
+  "task": "d2",
+  "group": "ds",
+  "fixture": "multids",
+  "topology": "A",
+  "delegates": null,
+  "run": {
+    "code": 0,
+    "killed": false,
+    "wallMs": 177072
+  },
+  "metrics": {
+    "subtype": "success",
+    "isError": false,
+    "costUsd": 1.0963568,
+    "durationMs": 175180,
+    "apiMs": 168430,
+    "turns": 26,
+    "tokens": 1070663,
+    "inTok": 38,
+    "outTok": 14616,
+    "cacheRead": 980024,
+    "cacheWrite": 75985,
+    "freshTokens": 90639,
+    "models": [
+      "claude-opus-5-5"
+    ],
+    "permissionDenials": [
+      {
+        "tool": "Bash",
+        "input": "{\"command\":\"cd /private/var/folders/t_/kf80xz3j79sfmkrq4snj2qk00000gn/T/maude-agent-evals/v2-8.16/trials/d2.A.2/project/.design; ls system/maude-v2/preview | head -40; echo ---; used=$(grep -ohE 'var\\"
+      },
+      {
+        "tool": "Bash",
+        "input": "{\"command\":\"cd /private/var/folders/t_/kf80xz3j79sfmkrq4snj2qk00000gn/T/maude-agent-evals/v2-8.16/trials/d2.A.2/project; maude design ds-check --canvas .design/ui/panels/GitPanel.tsx 2>&1 | head -12; "
+      }
+    ],
+    "subagents": 0,
+    "subagentTypes": [],
+    "mainToolUses": 25,
+    "subToolUses": 0
+  },
+  "agents": [],
+  "invariants": {
+    "check": {
+      "pass": true,
+      "why": ""
+    },
+    "scope": {
+      "pass": true,
+      "why": ""
+    },
+    "ids-kept": {
+      "pass": true,
+      "why": ""
+    },
+    "locked-kept": {
+      "pass": true,
+      "why": ""
+    },
+    "no-bash-writes": {
+      "pass": true,
+      "why": ""
+    },
+    "owns": {
+      "pass": true,
+      "why": ""
+    },
+    "ds-review-not-apply": {
+      "pass": true,
+      "why": ""
+    }
+  },
+  "quality": {
+    "ds-proposals": {
+      "pass": true,
+      "why": "1 proposal file(s)"
+    },
+    "ds-review-summary": {
+      "pass": true,
+      "why": ""
+    },
+    "ds-proposals-apply": {
+      "pass": true,
+      "why": "17/17 edits apply cleanly"
+    },
+    "finished": {
+      "pass": true,
+      "why": "success"
+    },
+    "judge": {
+      "pass": true,
+      "why": "pass (4): No canvas file was changed; only a cache file was added. One proposal for GitPanel covers the imports, the meta designSystem and the class mapping, and review.md lists the decisions. The locked Changes tab is left alone, and the proposal notes say so. The summary is somewhat long, and the dark-to-light theme change is an extra, but it is flagged as a decision.",
+      "unknown": false
+    }
+  },
+  "invPass": true,
+  "qualPass": true,
+  "judge": {
+    "verdict": "pass",
+    "score": 4,
+    "why": "No canvas file was changed; only a cache file was added. One proposal for GitPanel covers the imports, the meta designSystem and the class mapping, and review.md lists the decisions. The locked Changes tab is left alone, and the proposal notes say so. The summary is somewhat long, and the dark-to-light theme change is an extra, but it is flagged as a decision.",
+    "costUsd": 0.0392428,
+    "model": "sonnet"
+  },
+  "render": {
+    "ran": false,
+    "error": null,
+    "shots": []
+  },
+  "changed": [
+    "?? .design/_cache/index/ds-usage.json"
+  ],
+  "runState": [
+    {
+      "session": "5ccff756-f71b-44b6-81e6-d9bd7f7ebb5e",
+      "touched": {},
+      "stopBlocks": 0,
+      "shots": 0,
+      "bases": 1
+    }
+  ],
+  "hooks": {
+    "events": 0,
+    "denies": [],
+    "blocks": [],
+    "errors": [],
+    "ms": {},
+    "checkMs": []
+  },
+  "harnessFailure": false,
+  "finalText": "I haven't changed GitPanel yet. Switching a canvas to another design system is a review you apply, so I wrote a proposal instead of editing the canvas.\n\n**The proposal** (17 edits, plus setting the design system to maude-v2 in the canvas's settings):\n- **System:** the canvas points at maude-v2 instead of maude.\n- **Shared parts:** each maude piece is swapped for the maude-v2 one:\n  - the floating preview card becomes an island;\n  - the \"More\" button becomes maude-v2's icon button;\n  - the checkboxes and the seven file-tree rows move to maude-v2's versions.\n- **Callouts:** maude-v2 has no blue info or warning style. The \"Anna published 2 changes\" nudge becomes a plain callout. The \"Publish didn't go through\" warning gets maude-v2's heads-up grey background.\n- **Theme:** the artboards go light, maude-v2's default.\n\nAll the colours, spacing and type sizes the canvas uses exist in maude-v2, so it will render after the switch.\n\n**Decisions for you:**\n- **Locked tab:** maude-v2 has no tab style, so Changes and History will look like plain buttons. The Changes tab is locked, so I left both tabs as they are. Unlock it (⇧⌘L) and ask again if you want them restyled.\n- **Theme:** I proposed light. To keep it dark, change one line in the proposal.\n- **Logo:** the canvas draws maude's logo. maude-v2 has its own logo and wordmark files.\n\n**Left for later in GitPanel.css:**\n- **Contrast:** in light, the \"M\" (Modified) badge's letter fails contrast. The fix is to use maude-v2's text-on-fill colours for the badges.\n- **Mono font:** maude-v2 uses it only in Advanced sections and code, and about ten parts of this panel use it.\n- **Logo spark:** it's blue (the accent) where maude-v2 uses its orange-red spark.\n\nTwo read-only checks were blocked by the permission prompt, which nobody can answer in this session. I got the same information another way.\n\nFiles are in `.design/_runs/5ccff756-f71b-44b6-81e6-d9bd7f7ebb5e/ds-switch/`:\n- `ui-panels-gitpanel.json`\n- `review.md`"
+}

@@ -381,7 +381,7 @@ export default function Onboarding() {
         <DCArtboard id="ob-first-launch" label="1 · First launch is Home" width={W} height={H} fixed>
           <Stage note={<Note n={1} title="One headline, one obvious button.">First launch is Home itself — the question, the prompt, and one card: Sign in to cloud.maude.sh, or Just a local project. Everything else waits behind Advanced options.</Note>}>
             <Window tabs={[TABS.home]} activeTab="home" label="Maude — first launch">
-              <Canvas><ObHome target="a new project" below={<SignInCard />} /></Canvas>
+              <Canvas><ObHome target="a project on this Mac" below={<SignInCard />} /></Canvas>
               <Callout outline n={1} x={404} y={458} />
             </Window>
           </Stage>
@@ -390,7 +390,7 @@ export default function Onboarding() {
         <DCArtboard id="ob-signin-browser" label="2 · Sign in in the browser" width={W} height={H} fixed>
           <Stage note={<Note n={2} title="Sign in where you already sign in.">Google or email; the same buttons make a new account. The app waits in words with Cancel — it can't see a closed tab, so the page has its own Cancel too. Then the browser asks, once, to open Maude.</Note>}>
             <Window tabs={[TABS.home]} activeTab="home">
-              <Canvas><ObHome target="a new project" below={<SignInCard state="waiting" />} /></Canvas>
+              <Canvas><ObHome target="a project on this Mac" below={<SignInCard state="waiting" />} /></Canvas>
               <Callout outline n={1} x={404} y={524} />
               <div className="ob-osprompt" style={{ left: 40, top: 640 }}>
                 <span className="chip ob-osprompt-tag">The browser's own prompt — then, once</span>
@@ -582,7 +582,7 @@ export default function Onboarding() {
         <DCArtboard id="ob-local-name" label="10 · Name it — that's all" width={W} height={H} fixed>
           <Stage note={<Note n={10} title="A name, and you're in.">The project is kept in your Maude folder on this Mac — said in words. The folder path is under Advanced (opened on the right), never in the way.</Note>}>
             <Window tabs={[TABS.home]} activeTab="home">
-              <Canvas><ObHome target="a new project" below={<SignInCard />} /></Canvas>
+              <Canvas><ObHome target="a project on this Mac" below={<SignInCard />} /></Canvas>
               <Veil strong />
               <ObSheet title="Create a local project" actions={<><span className="btn">Cancel</span><span className="btn btn--primary">Create project</span></>}>
                 <span className="field">
@@ -673,7 +673,7 @@ export default function Onboarding() {
         <DCArtboard id="ob-adv-open" label="14 · Advanced options, opened" width={W} height={H} fixed>
           <Stage note={<Note n={14} title="Everything today's onboarding could do — folded.">One click opens the list beside the card; each row is one sheet. It is closed again next time; the same rows live in Settings › Connections and › Advanced.</Note>}>
             <Window tabs={[TABS.home]} activeTab="home">
-              <Canvas><ObHome target="a new project" below={<SignInCard adv />} /></Canvas>
+              <Canvas><ObHome target="a project on this Mac" below={<SignInCard adv />} /></Canvas>
             </Window>
           </Stage>
         </DCArtboard>
@@ -824,7 +824,7 @@ export default function Onboarding() {
         <DCArtboard id="ob-edge-timeout" label="18 · Sign-in never finished" width={W} height={H} fixed>
           <Stage note={<Note n={18} title="Cancelled or forgotten — not a failure.">Cancel in the app or on the web page brings the card back at once; a tab left open ends the wait after 10 minutes. One line says nothing changed, buttons live.</Note>}>
             <Window tabs={[TABS.home]} activeTab="home">
-              <Canvas><ObHome target="a new project" below={<SignInCard state="timeout" />} /></Canvas>
+              <Canvas><ObHome target="a project on this Mac" below={<SignInCard state="timeout" />} /></Canvas>
               <Callout outline n={1} x={404} y={524} />
             </Window>
           </Stage>

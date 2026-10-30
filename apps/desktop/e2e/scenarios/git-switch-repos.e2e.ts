@@ -1,5 +1,6 @@
 import { $, browser, expect } from '@wdio/globals';
 
+import { currentBranch } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
 import { invokeTauri } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
@@ -19,10 +20,18 @@ const PRIMARY = process.env.MAUDE_PROJECT_ROOT as string;
 const SECONDARY = process.env.MAUDE_E2E_SECONDARY_ROOT as string;
 const tid = (s: string) => `[data-testid="${s}"]`;
 
+/**
+ * The branch HEAD is on — Version history › Advanced › Branch (S11.10); the dock names the project only.
+ * '' until the project pill shows. A fresh query every poll, never a wait on a held handle: the vendored macOS
+ * WebDriver reports a stale element as "A JavaScript exception occurred", which webdriverio does not refetch
+ * (the project-tabs red, 2026-10-28; scripts/test/desktop-e2e-tabs-requery.test.mjs).
+ */
 async function triggerText(): Promise<string> {
-  const t = await $(tid('repo-switcher-trigger'));
-  await t.waitForDisplayed({ timeout: 120_000 });
-  return t.getText();
+  const shown = await $(tid('repo-switcher-trigger'))
+    .isDisplayed()
+    .catch(() => false);
+  if (!shown) return '';
+  return currentBranch();
 }
 const triggerHas = (s: string) => async () => {
   try {
@@ -31,7 +40,11 @@ const triggerHas = (s: string) => async () => {
     return false; // element stale mid-reload / re-navigation — keep polling
   }
 };
-async function switchTo(path: string, expectBranch: string): Promise<void> {
+async function switchTo(path: string, expectBranch: string, pick = false): Promise<void> {
+  // V2-3.6 M3: a project page may only switch to a registered project or the
+  // folder its last picker returned — "Open another folder…" is pick, then
+  // open. The conf points MAUDE_E2E_PICK_DIR at the secondary repo.
+  if (pick) expect(await invokeTauri('pick_directory')).toBe(path);
   // The respawn interrupts the execute/async response, so the invoke may reject even
   // though the switch succeeds — swallow it, then reconnect to the re-navigated webview.
   await invokeTauri('open_local_project', { path }).catch(() => undefined);
@@ -56,7 +69,14 @@ describe('git-switch-repos (native-desktop)', function () {
     await browser.waitUntil(triggerHas('main'), { timeout: 120_000 });
     await capture('1-on-primary-repo-main');
 
-    await switchTo(SECONDARY, 'feat/nav-redesign');
+    // V2-3.6 M3: a folder that is neither registered nor picked is refused.
+    const refused = await invokeTauri('open_local_project', { path: '/tmp' }).then(
+      () => 'opened',
+      (e: unknown) => String(e)
+    );
+    expect(refused).toContain('Open another folder');
+
+    await switchTo(SECONDARY, 'feat/nav-redesign', true);
     expect(await triggerText()).toContain('feat/nav-redesign');
     await capture('2-switched-to-secondary-repo');
 

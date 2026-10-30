@@ -1,0 +1,142 @@
+/* @layer components — S2.19: ⌘/ on a selection, in place (14 Editing `ed-edge-ask`). Tokens only: no hex,
+   weights ≤ 600, motion through --dur-* (reduced motion collapses to 1 ms). The send is azure with a white
+   spark (rule `send-and-ask-ai-are-azure`); vermilion is only for AI presence, which the canvas draws. */
+@layer components {
+  .as-bubble,
+  .as-asked {
+    position: fixed;
+    z-index: 30;
+  }
+  .as-bubble {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    box-sizing: border-box;
+    min-height: 44px;
+    padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+    border-radius: var(--radius-lg);
+    background: var(--island-bg);
+    box-shadow:
+      var(--island-shadow),
+      inset 0 0 0 0.5px var(--island-edge);
+    animation: as-in var(--dur-flip) var(--ease-out);
+  }
+  /* 14 `ed-edge-ask`: the bubble and its hint share a line; where the viewport has no room the hint drops below */
+  .as-asked {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    max-width: min(760px, calc(100vw - var(--space-8)));
+  }
+  .as-asked .as-bubble {
+    position: static;
+    width: auto;
+    max-width: 448px;
+  }
+  .as-chip {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    height: 24px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--accent-muted);
+    color: var(--accent-text);
+    font-size: var(--type-xs);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .as-input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    color: var(--fg-0);
+    font: inherit;
+    font-size: var(--type-sm);
+  }
+  .as-input::placeholder {
+    color: var(--fg-2);
+  }
+  .as-input:focus-visible {
+    outline: none;
+  }
+  .as-bubble:focus-within {
+    box-shadow:
+      var(--island-shadow),
+      inset 0 0 0 1.5px var(--accent);
+  }
+  .as-send {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: var(--accent);
+    color: var(--accent-fg);
+    cursor: pointer;
+  }
+  .as-send:hover {
+    background: var(--accent-hover);
+  }
+  .as-send:focus-visible {
+    outline: 2px solid var(--accent-text);
+    outline-offset: 2px;
+  }
+  .as-spark {
+    flex: none;
+    display: grid;
+    place-items: center;
+    color: var(--accent-text);
+  }
+  .as-text {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--type-sm);
+    color: var(--fg-0);
+  }
+  .as-kbd {
+    flex: none;
+    font: inherit;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  /* the board's `.ed-hint`: a pill on its own surface — the line sits over the artboard, so bare grey ink fails AA on a
+     dark one in the light theme */
+  .as-hint {
+    display: inline-flex;
+    align-items: center;
+    height: 26px;
+    margin: 0;
+    padding: 0 var(--space-3);
+    border-radius: var(--radius-pill);
+    background: var(--bg-2);
+    color: var(--fg-1);
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    white-space: nowrap;
+    box-shadow:
+      var(--shadow-sm),
+      inset 0 0 0 0.5px var(--island-edge);
+  }
+  @keyframes as-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .as-bubble {
+      animation-duration: 1ms;
+    }
+  }
+}

@@ -1,0 +1,390 @@
+{
+ "a": "93e454a3a",
+ "b": "2a8c97c8a",
+ "aBytes": 638261,
+ "bBytes": 638316,
+ "states": [
+  {
+   "state": "home",
+   "theme": "dark",
+   "attempts": 1,
+   "elements": 108,
+   "styleDiffs": 0,
+   "pixelDiff": 0,
+   "pixelPct": 0,
+   "result": "identical"
+  },
+  {
+   "state": "shell",
+   "theme": "dark",
+   "attempts": 2,
+   "elements": 406,
+   "styleDiffs": 0,
+   "pixelDiff": 0,
+   "pixelPct": 0,
+   "result": "identical"
+  },
+  {
+   "state": "canvases-panel",
+   "theme": "dark",
+   "attempts": 1,
+   "elements": 406,
+   "styleDiffs": 0,
+   "pixelDiff": 0,
+   "pixelPct": 0,
+   "result": "identical"
+  },
+  {
+   "state": "canvas-edit",
+   "theme": "dark",
+   "attempts": 1,
+   "elements": 424,
+   "styleDiffs": 0,
+   "pixelDiff": 0,
+   "pixelPct": 0,
+   "result": "identical"
+  },
+  {
+   "state": "select-text",
+   "theme": "dark",
+   "attempts": 1,
+   "elements": 374,
+   "styleDiffs": 0,
+   "pixelDiff": 0,
+   "pixelPct": 0,
+   "result": "identical"
+  },
+  {
+   "state": "layers",
+   "theme": "dark",
+   "attempts": 1,
+   "elements": 538,
+   "styleDiffs": 0,
+   "pixelDiff": 0,
+   "pixelPct": 0,
+   "result": "identical"
+  },
+  {
+   "state": "assets",
+   "theme": "dark",
+   "attempts": 1,
+   "elements": 419,
+   "styleDiffs": 0,
+   "pixelDiff": 0,
+   "pixelPct": 0,
+   "result": "identical"
+  },
+  {
+   "state": "select-artboard",
+   "theme": "dark",
+   "attempts": 1,
+   "elements": 673,
+   "styleDiffs": 0,
+   "pixelDiff": 0,
+   "pixelPct": 0,
+   "result": "identical"
+  },
+  {
+   "state": "select-picture",
+   "theme": "dark",
+   "attempts": 1,
+   "elements": 368,
+   "styleDiffs": 0,
+   "pixelDiff": 0,
+   "pixelPct": 0,
+   "result": "identical"
+  },
+  {
+   "state": "palette",
+   "theme": "dark",
+   "attempts": 1,
+   "elements": 562,
+   "styleDiffs": 0,
+   "pixelDiff": 0,
+   "pixelPct": 0,
+   "result": "identical"
+  },
+  {
+   "state": "export-sheet",
+   "theme": "dark",
+   "attempts": 1,
+   "elements": 494,
+   "styleDiffs": 0,
+   "pixelDiff": 0,
+   "pixelPct": 0,
+   "result": "identical"
+  },
+  {
+   "state": "share-sheet",
+   "theme": "dark",
+   "attempts": 1,
+   "elements": 440,
+   "styleDiffs": 0,
+   "pixelDiff": 0,
+   "pixelPct": 0,
+   "result": "identical"
+  },
+  {
+   "state": "settings-general",
+   "theme": "dark",
+   "attempts": 1,
+   "elements": 596,
+   "styleDiffs": 0,
+   "pixelDiff": 0,
+   "pixelPct": 0,
+   "result": "identical"
+  },
+  {
+   "state": "settings-connections",
+   "theme": "dark",
+   "attempts": 1,
+   "elements": 677,
+   "styleDiffs": 0,
+   "pixelDiff": 0,
+   "pixelPct": 0,
+   "result": "identical"
+  },
+  {
+   "state": "settings-advanced",
+   "theme": "dark",
+   "attempts": 1,
+   "elements": 892,
+   "styleDiffs": 0,
+   "pixelDiff": 0,
+   "pixelPct": 0,
+   "result": "identical"
+  },
+  {
+   "state": "ai-chat",
+   "theme": "dark",
+   "attempts": 1,
+   "elements": 484,
+   "styleDiffs": 0,
+   "pixelDiff": 0,
+   "pixelPct": 0,
+   "result": "identical"
+  },
+  {
+   "state": "version-history",
+   "theme": "dark",
+   "attempts": 2,
+   "elements": 479,
+   "styleDiffs": 0,
+   "pixelDiff": 0,
+   "pixelPct": 0,
+   "result": "identical"
+  },
+  {
+   "state": "video-timeline",
+   "theme": "dark",
+   "attempts": 1,
+   "elements": 222,
+   "styleDiffs": 0,
+   "pixelDiff": 0,
+   "pixelPct": 0,
+   "result": "identical"
+  },
+  {
+   "state": "video-timeline-full",
+   "theme": "dark",
+   "attempts": 1,
+   "elements": 237,
+   "styleDiffs": 0,
+   "pixelDiff": 0,
+   "pixelPct": 0,
+   "result": "identical"
+  },
+  {
+   "state": "home",
+   "theme": "light",
+   "attempts": 1,
+   "elements": 108,
+   "styleDiffs": 0,
+   "pixelDiff": 0,
+   "pixelPct": 0,
+   "result": "identical"
+  },
+  {
+   "state": "shell",
+   "theme": "light",
+   "attempts": 1,
+   "elements": 240,
+   "styleDiffs": 0,
+   "pixelDiff": 0,
+   "pixelPct": 0,
+   "result": "identical"
+  },
+  {
+   "state": "canvases-panel",
+   "theme": "light",
+   "attempts": 1,
+   "elements": 587,
+   "styleDiffs": 0,
+   "pixelDiff": 0,
+   "pixelPct": 0,
+   "result": "identical"
+  },
+  {
+   "state": "canvas-edit",
+   "theme": "light",
+   "attempts": 1,
+   "elements": 458,
+   "styleDiffs": 0,
+   "pixelDiff": 0,
+   "pixelPct": 0,
+   "result": "identical"
+  },
+  {
+   "state": "select-text",
+   "theme": "light",
+   "attempts": 2,
+   "elements": 364,
+   "styleDiffs": 0,
+   "pixelDiff": 0,
+   "pixelPct": 0,
+   "result": "identical"
+  },
+  {
+   "state": "layers",
+   "theme": "light",
+   "attempts": 2,
+   "elements": 538,
+   "styleDiffs": 0,
+   "pixelDiff": 0,
+   "pixelPct": 0,
+   "result": "identical"
+  },
+  {
+   "state": "assets",
+   "theme": "light",
+   "attempts": 1,
+   "elements": 419,
+   "styleDiffs": 0,
+   "pixelDiff": 0,
+   "pixelPct": 0,
+   "result": "identical"
+  },
+  {
+   "state": "select-artboard",
+   "theme": "light",
+   "attempts": 2,
+   "elements": 715,
+   "styleDiffs": 0,
+   "pixelDiff": 0,
+   "pixelPct": 0,
+   "result": "identical"
+  },
+  {
+   "state": "select-picture",
+   "theme": "light",
+   "attempts": 1,
+   "elements": 368,
+   "styleDiffs": 0,
+   "pixelDiff": 0,
+   "pixelPct": 0,
+   "result": "identical"
+  },
+  {
+   "state": "palette",
+   "theme": "light",
+   "attempts": 2,
+   "elements": 570,
+   "styleDiffs": 0,
+   "pixelDiff": 0,
+   "pixelPct": 0,
+   "result": "identical"
+  },
+  {
+   "state": "export-sheet",
+   "theme": "light",
+   "attempts": 1,
+   "elements": 516,
+   "styleDiffs": 0,
+   "pixelDiff": 0,
+   "pixelPct": 0,
+   "result": "identical"
+  },
+  {
+   "state": "share-sheet",
+   "theme": "light",
+   "attempts": 1,
+   "elements": 462,
+   "styleDiffs": 0,
+   "pixelDiff": 0,
+   "pixelPct": 0,
+   "result": "identical"
+  },
+  {
+   "state": "settings-general",
+   "theme": "light",
+   "attempts": 1,
+   "elements": 618,
+   "styleDiffs": 0,
+   "pixelDiff": 0,
+   "pixelPct": 0,
+   "result": "identical"
+  },
+  {
+   "state": "settings-connections",
+   "theme": "light",
+   "attempts": 1,
+   "elements": 699,
+   "styleDiffs": 0,
+   "pixelDiff": 0,
+   "pixelPct": 0,
+   "result": "identical"
+  },
+  {
+   "state": "settings-advanced",
+   "theme": "light",
+   "attempts": 1,
+   "elements": 914,
+   "styleDiffs": 0,
+   "pixelDiff": 0,
+   "pixelPct": 0,
+   "result": "identical"
+  },
+  {
+   "state": "ai-chat",
+   "theme": "light",
+   "attempts": 1,
+   "elements": 506,
+   "styleDiffs": 0,
+   "pixelDiff": 0,
+   "pixelPct": 0,
+   "result": "identical"
+  },
+  {
+   "state": "version-history",
+   "theme": "light",
+   "attempts": 1,
+   "elements": 501,
+   "styleDiffs": 0,
+   "pixelDiff": 0,
+   "pixelPct": 0,
+   "result": "identical"
+  },
+  {
+   "state": "video-timeline",
+   "theme": "light",
+   "attempts": 1,
+   "elements": 222,
+   "styleDiffs": 0,
+   "pixelDiff": 0,
+   "pixelPct": 0,
+   "result": "identical"
+  },
+  {
+   "state": "video-timeline-full",
+   "theme": "light",
+   "attempts": 1,
+   "elements": 237,
+   "styleDiffs": 0,
+   "pixelDiff": 0,
+   "pixelPct": 0,
+   "result": "identical"
+  }
+ ],
+ "pageErrors_dark": [],
+ "pageErrors_light": []
+}

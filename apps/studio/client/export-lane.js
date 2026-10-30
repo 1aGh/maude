@@ -12,6 +12,123 @@
 // formats, multi-artboard scopes, selection captures) continues to the jobs
 // lane: `remote` renders it on maude-render, `none` refuses with a remedy.
 
+// ── S8.5 — cloud or this Mac, for a video (09 ex-offline, ex-advanced "Where it renders") ─────────
+//
+// The person's standing choice is a per-viewer convenience kept in this browser: "Suggest each
+// time" (the default), "Always the cloud", "Always this Mac". Under "Suggest each time" the sheet
+// ticks what the estimate's `render.suggest` says — the cloud for 4K and long videos. The server
+// decides again (exporters/remote.ts `chooseRenderLane`): this is the question, not the gate.
+// Images and PDFs never ask: they always export on this Mac, in seconds, offline too.
+
+/** Advanced › Where it renders › Video — the stored choice. */
+export const LANE_PREFS = ['auto', 'cloud', 'this-mac'];
+const LANE_PREF_KEY = 'maude-export-video-lane';
+
+/** The stored choice, or 'auto'. Storage may be missing or throw (private window): 'auto'. */
+export function readLanePref(storage = globalThis.localStorage) {
+  try {
+    const v = storage?.getItem(LANE_PREF_KEY);
+    return LANE_PREFS.includes(v) ? v : 'auto';
+  } catch {
+    return 'auto';
+  }
+}
+
+/** Remember the choice for the next sheet. A storage failure only forgets it. */
+export function writeLanePref(value, storage = globalThis.localStorage) {
+  if (!LANE_PREFS.includes(value)) return;
+  try {
+    storage?.setItem(LANE_PREF_KEY, value);
+  } catch {
+    /* a per-viewer convenience: the export itself is unaffected */
+  }
+}
+
+/** 09 ex-offline — the Render row's words, online and offline (CONTRACT §4: drawn strings). */
+export const RENDER_ROW = 'Render';
+export const CLOUD_TITLE = 'In the cloud';
+export const THIS_MAC_TITLE = 'On this Mac';
+export const CLOUD_WAITS = 'Waits for a connection, then starts by itself.';
+export const CLOUD_ONLINE = 'Keeps going if this Mac sleeps.';
+export const THIS_MAC_ONLINE = "Keep this window open until it's done.";
+export const THIS_MAC_OFFLINE = "Starts now. Keep this window open until it's done.";
+/** Why the cloud is ticked under "Suggest each time". */
+export const SUGGEST_WHY = {
+  '4k': 'Suggested for 4K — the cloud renders it faster.',
+  long: 'Suggested for a video past a minute — the cloud renders it faster.',
+};
+
+/** "About 3 min" / "A few seconds" — the this-Mac estimate, as the option's first words (§5.5 rounding). */
+function aboutTime(seconds) {
+  if (typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds <= 0) return null;
+  if (seconds < 10) return 'A few seconds';
+  if (seconds < 60) return `About ${Math.max(5, Math.round(seconds / 5) * 5)} seconds`;
+  return `About ${Math.round(seconds / 60)} min`;
+}
+
+function thisMacSub(online, seconds) {
+  const t = aboutTime(seconds);
+  if (online) return t ? `${t}. ${THIS_MAC_ONLINE}` : THIS_MAC_ONLINE;
+  return t ? `Starts now. ${t} — keep this window open until it's done.` : THIS_MAC_OFFLINE;
+}
+
+/**
+ * The Render row for one sheet.
+ * @param {{ pref?: string, render?: { cloud: boolean, suggest: string, why: string|null } | null,
+ *           online?: boolean, picked?: string|null, seconds?: number|null }} o
+ *   `render` = the estimate's block; `picked` = what the person clicked in this sheet (wins);
+ *   `seconds` = the estimate's this-Mac time (the option says it when known).
+ * @returns {{ show: boolean, lane: 'cloud'|'this-mac', suggested: boolean, why: string|null,
+ *             options: Array<{ id: string, title: string, sub: string, icon: string }> }}
+ */
+export function renderChoice({
+  pref = 'auto',
+  render = null,
+  online = true,
+  picked = null,
+  seconds = null,
+} = {}) {
+  const show = !!render?.cloud;
+  if (!show) return { show: false, lane: 'this-mac', suggested: false, why: null, options: [] };
+  let lane;
+  let suggested = false;
+  if (picked === 'cloud' || picked === 'this-mac') lane = picked;
+  else if (pref === 'cloud' || pref === 'this-mac') lane = pref;
+  else {
+    // 09 ex-offline: with no connection the cloud card only waits, so "Suggest each time" ticks this Mac; a standing
+    // choice (or a click) above still wins
+    lane = online && render.suggest === 'cloud' ? 'cloud' : 'this-mac';
+    suggested = lane === 'cloud';
+  }
+  const why = suggested && render.why ? (SUGGEST_WHY[render.why] ?? null) : null;
+  return {
+    show,
+    lane,
+    suggested,
+    why,
+    options: [
+      {
+        id: 'cloud',
+        title: CLOUD_TITLE,
+        sub: online ? CLOUD_ONLINE : CLOUD_WAITS,
+        icon: online ? 'cloud' : 'offline',
+      },
+      {
+        id: 'this-mac',
+        title: THIS_MAC_TITLE,
+        sub: thisMacSub(online, seconds),
+        icon: 'laptop',
+      },
+    ],
+  };
+}
+
+/** The spec the button sends: the chosen lane on a video that asked; untouched otherwise. */
+export function withRenderLane(spec, choice) {
+  if (!choice?.show) return spec;
+  return { ...spec, options: { ...(spec.options ?? {}), lane: choice.lane } };
+}
+
 /** Formats the canvas-lib export-capture bridge can produce today. */
 export const BROWSER_CAPTURE_FORMATS = new Set(['png', 'svg']);
 

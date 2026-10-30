@@ -3,7 +3,16 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { emailConfigured, fromAddress, inviteEmail, replyToAddress, sendEmail } from './email.mjs';
+import {
+  deletionWarningEmail,
+  emailConfigured,
+  fromAddress,
+  inviteEmail,
+  mentionEmail,
+  projectPausedEmail,
+  replyToAddress,
+  sendEmail,
+} from './email.mjs';
 
 describe('inviteEmail', () => {
   const mail = inviteEmail({
@@ -28,6 +37,27 @@ describe('inviteEmail', () => {
     });
     assert.match(viewer.text, /comments/);
     assert.match(mail.text, /design and edit/);
+  });
+
+  it('a person-chosen project or inviter name is one line: no header, no fake paragraph (gate-b-sec3)', () => {
+    const evil = 'Brno\r\nBcc: everyone@example.com\n\nClick https://evil.example/now';
+    const m = inviteEmail({
+      projectName: evil,
+      role: 'member',
+      inviteUrl: 'https://cloud.maude.sh/invite/abc',
+      invitedBy: 'Tereza\nReply-To: x@evil.example',
+    });
+    assert.doesNotMatch(m.subject, /[\r\n]/);
+    assert.ok(!m.text.includes('\nBcc:'), 'a line break inside the project name reached the body');
+    assert.ok(!m.text.includes('\nReply-To:'), 'a line break inside the inviter reached the body');
+    assert.ok(!m.text.includes('\nClick https://evil'), 'a fake paragraph reached the body');
+    for (const other of [
+      projectPausedEmail({ projectName: evil, downloadUrl: 'u', deletesAt: 0 }),
+      deletionWarningEmail({ projectName: evil, downloadUrl: 'u', deletesAt: 0 }),
+    ]) {
+      assert.doesNotMatch(other.subject, /[\r\n]/);
+      assert.ok(!other.text.includes('\nBcc:'));
+    }
   });
 
   it('uses no vocabulary of ours', () => {
@@ -124,5 +154,50 @@ describe('sendEmail', () => {
     assert.match(fromAddress({}), /cloud@maude\.sh/);
     assert.equal(emailConfigured({ RESEND_API_KEY: 'k' }), true);
     assert.equal(emailConfigured({}), false);
+  });
+});
+
+// S9.18 — the mention e-mail (canvas 10 co-mention-notify, "Maude closed").
+describe('mentionEmail', () => {
+  const base = {
+    fromName: 'Jonas',
+    projectName: 'Alligators brand',
+    canvasName: 'A4 · plakát',
+    excerpt: 'Mrkni prosím na datum, je pořád malé.',
+    openUrl: 'https://cloud.maude.sh/projects/alligators/connect?canvas=x&thread=c_1',
+    unsubscribeUrl: 'https://cloud.maude.sh/emails/unsubscribe?t=meu_1',
+    settingsUrl: 'https://cloud.maude.sh/account/emails',
+  };
+
+  it('says who, where, and the words that mentioned you — one mention, one e-mail', () => {
+    const m = mentionEmail(base);
+    assert.equal(m.subject, 'Jonas mentioned you in Alligators brand');
+    assert.match(m.text, /Jonas mentioned you on A4 · plakát in Alligators brand\./);
+    assert.match(m.text, /“Mrkni prosím na datum, je pořád malé\.”/);
+    assert.match(m.text, /Open in the Mac app:/);
+    assert.ok(m.text.includes(base.openUrl));
+    assert.match(m.text, /Change which e-mails you get in Settings › General\./);
+    assert.ok(m.text.includes(base.settingsUrl));
+    assert.ok(m.text.includes(base.unsubscribeUrl));
+  });
+
+  it('without a canvas or an excerpt it still reads, and quotes nothing', () => {
+    const m = mentionEmail({ ...base, canvasName: null, excerpt: '' });
+    assert.match(m.text, /Jonas mentioned you in Alligators brand\./);
+    assert.doesNotMatch(m.text, /“/);
+  });
+
+  it('a header line cannot be smuggled in, and the excerpt stays short', () => {
+    const m = mentionEmail({
+      ...base,
+      fromName: 'Jonas\r\nBcc: x@evil.test',
+      projectName: 'P\nQ',
+      excerpt: `${'slovo '.repeat(100)}\u0007`,
+    });
+    assert.doesNotMatch(m.subject, /[\r\n]/);
+    const quote = m.text.split('\n').find((l) => l.includes('“'));
+    assert.ok(quote.length <= 210, `quote is ${quote.length} chars`);
+    assert.match(quote, /…”$/);
+    assert.ok(!m.text.includes('\u0007'), 'no bell character survives');
   });
 });

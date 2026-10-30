@@ -1,0 +1,97 @@
+{
+  "root": "/private/tmp/p8perf-link/alli2",
+  "at": "2026-10-25T22:41:16.730Z",
+  "index": {
+    "canvases": 95,
+    "staticArtboards": 225,
+    "buildMs": {
+      "p50": 205,
+      "p95": 214,
+      "budgetP95": 250
+    },
+    "stampMs": {
+      "p50": 6,
+      "p95": 13,
+      "budget": 10
+    },
+    "homeMerge20Ms": {
+      "p50": 37,
+      "p95": 44,
+      "budget": 150,
+      "note": "20 × (read + stamp) of this snapshot"
+    }
+  },
+  "coversCold": {
+    "totalMs": 244863,
+    "first12Ms": 4247,
+    "budget": {
+      "totalMs": 45000,
+      "first12Ms": 3000
+    },
+    "perCanvasMs": {
+      "p50": 858,
+      "p95": 2451
+    },
+    "tally": {
+      "ready": 87,
+      "unavailable:failed": 8
+    },
+    "failed": [
+      {
+        "rel": "ui/2026/combine/Combine-admin.tsx",
+        "status": "unavailable",
+        "reason": "failed"
+      },
+      {
+        "rel": "ui/club-web/admin-details.tsx",
+        "status": "unavailable",
+        "reason": "failed"
+      },
+      {
+        "rel": "ui/club-web/admin-states.tsx",
+        "status": "unavailable",
+        "reason": "failed"
+      },
+      {
+        "rel": "ui/club-web/admin.tsx",
+        "status": "unavailable",
+        "reason": "failed"
+      },
+      {
+        "rel": "ui/club-web/flows.tsx",
+        "status": "unavailable",
+        "reason": "failed"
+      },
+      {
+        "rel": "ui/club-web/public-states.tsx",
+        "status": "unavailable",
+        "reason": "failed"
+      },
+      {
+        "rel": "ui/club-web/responsive.tsx",
+        "status": "unavailable",
+        "reason": "failed"
+      },
+      {
+        "rel": "ui/club-web/website.tsx",
+        "status": "unavailable",
+        "reason": "failed"
+      }
+    ],
+    "avgBytes": 20562,
+    "artboardsAfterHarvest": 345
+  },
+  "coversWarm": {
+    "totalMs": 231804,
+    "first12Ms": 4073,
+    "perCanvasMs": {
+      "p50": 738,
+      "p95": 1512
+    }
+  },
+  "chromiumLaunchMs": {
+    "cold": 243,
+    "warm": 202,
+    "budgetWarm": 500
+  }
+}

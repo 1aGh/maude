@@ -3,11 +3,16 @@
 
 import type { ServerWebSocket, WebSocketHandler } from 'bun';
 
+import { canvasOfSlug, type WsVisibility } from './access/filters.ts';
+import { toDesignRel } from './access/request.ts';
+import { type Access, accessWiderThan } from './access/scope.ts';
 import type { Acp } from './acp/index.ts';
 import type { Activity } from './activity.ts';
 import type { Api } from './api.ts';
+import { canvasSlugFromRel } from './canvas-slug.ts';
 import type { Collab, RoomConn } from './collab/index.ts';
 import type { Context } from './context.ts';
+import { createRenderOkSignal } from './history/render-ok-signal.ts';
 import { createContainerWriteBridge, createHmrBroadcaster } from './hmr-broadcast.ts';
 import type { InspectRegistry } from './inspect.ts';
 import { startCellFileEvents } from './sync/cell-file-events.ts';
@@ -40,6 +45,12 @@ export type WsData =
       /** WHO opened this socket, as the proxy vouched it — Cloud Phase 27.
        *  `''` on a desktop, where the project's git identity is the person. */
       user?: string;
+      /** S9.11 (V2-1.16 L12) — WHAT this socket may hear: the upgrade request's access,
+       *  stamped by server.ts. Absent = the identity (a hand-built test socket). */
+      access?: Access;
+      /** S9.15c — no comment write either (a paused project): `comments-add` is refused
+       *  with the patch/delete pair. Stamped by server.ts from the proxy's projection. */
+      lanesClosed?: boolean;
     }
   | {
       id: string;
@@ -58,6 +69,14 @@ export type WsData =
        *  gated to the comment lane in collab/room.ts — the WS mirror of the
        *  role matrix's `viewer.comment === true`. */
       readOnly?: boolean;
+      /** S9.11 (L11) — the upgrade request's access (`summon` is stripped without it). */
+      access?: Access;
+      /** S3.7c — a presentation follower's socket: receive-only in the room (collab/room.ts). */
+      follow?: boolean;
+      /** V2-8.9 round B A2 — WHO opened it (a cell's proxy-vouched user; `''` on a desktop). */
+      user?: string;
+      /** S9.15c — read-only with no writable lane, comments included (collab/room.ts). */
+      lanesClosed?: boolean;
     }
   | {
       // T2 (9.1-A) — HMR-only socket for the segregated canvas origin. Receives
@@ -68,6 +87,8 @@ export type WsData =
       id: string;
       remote: string;
       kind: 'canvas-hmr';
+      /** S9.11 (L12) — the render token's access, stamped at the upgrade. */
+      access?: Access;
     }
   | {
       // Phase 31 (DDR-123) — ACP chat bridge socket. Main origin ONLY,
@@ -149,11 +170,35 @@ export function isSameOriginWs(req: Request): boolean {
   return hostPort(originHost) === hostPort(reqHost ?? '');
 }
 
+function safeParse(raw: string): unknown {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
 export interface Ws {
   handler: WebSocketHandler<WsData>;
   broadcast(payload: unknown): void;
   clientCount(): number;
+  /** V2-2.4b — the shells `maude design open` can reach (see `ui-open` below). */
+  shellCount(): number;
+  /**
+   * S9.12b (V2-1.16 U6) — close every inspector / collab / canvas-HMR socket whose stamped
+   * access is wider than `current` (the clients reconnect at the new access). Returns how many.
+   */
+  closeWiderThan(current: Access): number;
 }
+
+/** P8 G2 (b) — the conn's role on this canvas for the room's stamp; no access → no role. */
+function roleOfConn(access: Access | undefined, canvas: string | null): Pick<RoomConn, 'role'> {
+  const role = access?.roleFor(canvas) ?? null;
+  return role ? { role } : {};
+}
+
+/** The close a socket gets when the access it was opened under is no longer the session's. */
+export const ACCESS_CHANGED_CLOSE = Object.freeze({ code: 4403, reason: 'access-changed' });
 
 export function createWs(
   ctx: Context,
@@ -164,9 +209,35 @@ export function createWs(
   inspects: InspectRegistry,
   collab: Collab,
   activity: Activity,
-  acp: Acp
+  acp: Acp,
+  /** S9.11 (V2-1.16 L12) — the canvas-only frame filter; absent = every frame to everyone. */
+  scope?: WsVisibility
 ): Ws {
   const clients = new Set<ServerWebSocket<WsData>>();
+  // S6.12 — the canvas said it drew fine (relayed by the shell): the server decides what that is worth.
+  const noteRenderOk = createRenderOkSignal({
+    designRoot: ctx.paths.designRoot,
+    designRel: ctx.paths.designRel,
+  });
+  // S9.12b (U6) — every socket that carries a stamped access, whichever set it joins below.
+  const stamped = new Set<ServerWebSocket<WsData>>();
+
+  /**
+   * S9.11 — `frame` as THIS socket may receive it (`msg` is its JSON): the same string for
+   * a project session (U7), the filtered frame for a canvas-only one, or null (not sent).
+   */
+  function scoped(
+    ws: ServerWebSocket<WsData>,
+    frame: unknown,
+    msg: string,
+    addressed = false
+  ): string | null {
+    if (!scope || scope.seerFor(ws) === null) return msg;
+    const obj = typeof frame === 'string' ? safeParse(frame) : frame;
+    if (!obj || typeof obj !== 'object') return null;
+    const out = scope.frameFor(ws, obj as Record<string, unknown>, { addressed });
+    return out === null ? null : out === obj ? msg : JSON.stringify(out);
+  }
 
   function send(ws: ServerWebSocket<WsData>, payload: unknown) {
     try {
@@ -188,7 +259,8 @@ export function createWs(
       // PROJECT and reaches everyone, which is why the audience is opt-in
       // rather than the default.
       if (session && ws.data.session !== session) continue;
-      send(ws, msg);
+      const out = scoped(ws, payload, msg, !!session);
+      if (out !== null) send(ws, out);
     }
   }
 
@@ -199,7 +271,8 @@ export function createWs(
     const msg = typeof payload === 'string' ? payload : JSON.stringify(payload);
     for (const ws of clients) {
       if (ws.data.kind !== 'inspector' && ws.data.kind !== 'canvas-hmr') continue;
-      send(ws, msg);
+      const out = scoped(ws, payload, msg);
+      if (out !== null) send(ws, out);
     }
   }
 
@@ -257,16 +330,100 @@ export function createWs(
   ctx.bus.on('canvas-list-update', (payload: unknown) =>
     broadcast({ type: 'canvas-list-update', payload })
   );
+  // S1.7b — the shared Trash changed (here, or on another Mac: sync/trash-watch.ts). `{ seq }`
+  // only, never an item — the view re-reads `GET /_api/trash`, which is L18-filtered per session.
+  // S9.11's frame classes: project-level, but it names nothing, so canvas-only sockets may get it.
+  // S9.21b (V2-1.7 §5.6) — the hub's access notices, deduped and rebuilt key by key in
+  // sync/access-notices.ts. Inspector (shell) sockets only — never the canvas iframe's socket.
+  // `access` carries no canvas and no text (a canvas-only session hears its own ending);
+  // `access-request` names a person and a canvas, for the owner's toast: project class.
+  // Desktop-shaped shells only (session ''): in a cell one studio serves several members over a
+  // link that is the cell's own, so a notice it heard is about nobody here (a cell's members hear
+  // the hub through their own sessions).
+  const toDesktopShell = (payload: Record<string, unknown>) => {
+    const msg = JSON.stringify(payload);
+    for (const ws of clients) {
+      if (ws.data.kind !== 'inspector' || ws.data.session !== '') continue;
+      const out = scoped(ws, payload, msg);
+      if (out !== null) send(ws, out);
+    }
+  };
+  ctx.bus.on('access:notice', (frame: { type?: unknown } & Record<string, unknown>) => {
+    if (frame?.type === 'maude.access')
+      toDesktopShell({
+        type: 'access',
+        change: frame.change,
+        ...(frame.reason ? { reason: frame.reason } : {}),
+        // P8 G1a — a narrowing's who + role now (already cleaned by sync/access-notices.ts)
+        ...(frame.by ? { by: frame.by } : {}),
+        ...(frame.role ? { role: frame.role } : {}),
+      });
+    else if (frame?.type === 'maude.access-request')
+      toDesktopShell({
+        type: 'access-request',
+        id: frame.id,
+        from: frame.from,
+        ...(frame.canvas ? { canvas: frame.canvas } : {}),
+        at: frame.at,
+      });
+  });
+  // p8-e2e-rolefix (2) — hubs.json changed (a re-exchange, a raise or a drop): desktop shells re-read
+  // /_config so Viewing / editing follows the new claim. No claim data rides along.
+  ctx.bus.on('access:changed', () => toDesktopShell({ type: 'access-changed' }));
+  ctx.bus.on('trash:changed', (p: { seq?: unknown }) =>
+    broadcast({ type: 'trash:changed', payload: { seq: typeof p?.seq === 'number' ? p.seq : 0 } })
+  );
 
   // Config hot-reload (server.ts fs:json subscriber) — the shell refetches
   // /_config so cfg-derived state (designSystems, tokensCssRel, canvasGroups)
   // matches the reloaded server config. Inspector clients only.
   ctx.bus.on('config-updated', () => broadcast({ type: 'config-updated' }));
+  // V2-2.17 — the project index changed: `seq` + the canvases it touched (contract V2-1.17 §5.3).
+  ctx.bus.on('index-changed', (e: { seq: number; rels: string[] }) =>
+    broadcast({ type: 'index-changed', seq: e.seq, rels: e.rels })
+  );
+  // V2-2.17 — a picture landed (contract V2-1.17 §5.3): `{type:'thumb-ready', key}` only, never bytes.
+  ctx.bus.on('thumb-ready', (e: { key: string }) => broadcast({ type: 'thumb-ready', key: e.key }));
+  // S5.3 — the AI run registry changed (V2-1.15 §5.4): `{type:'ai:runs', seq}` only — the shell
+  // re-reads `GET /_api/ai/runs`. Shell (inspector) sockets only, never the canvas origin.
+  ctx.bus.on('ai:runs', (e: { seq: number }) => broadcast({ type: 'ai:runs', seq: e.seq }));
+  // p8-a1-save-hold — a person's save waits behind an AI call / landed (ai/save-hold.ts): the shell's
+  // notice. Shell (inspector) sockets only, never the canvas origin; a path + a state + the words
+  // (class `canvas`: a canvas-only session hears only its own canvases' — access/filters.ts).
+  ctx.bus.on(
+    'save-hold',
+    (n: { file?: unknown; state?: unknown; warning?: unknown; text?: unknown }) =>
+      broadcast({
+        type: 'save-hold',
+        file: n?.file,
+        state: n?.state,
+        ...(n?.warning ? { warning: n.warning } : {}),
+        text: n?.text,
+      })
+  );
+  // S5.5 — an accepted action (V2-1.5 §5.3 `project:action`): the shell's ⌘Z projection and
+  // Made by AI read it. Shell (inspector) sockets only, never the canvas origin.
+  ctx.bus.on('project:action', (action: unknown) => broadcast({ type: 'project:action', action }));
 
   // Phase 31 (DDR-123) — `/design:chat` → `maude design chat-open` → POST
   // /_api/acp/focus emits this; the shell (app.jsx, native-only) opens the
   // Assistant panel. Inspector clients only — same-origin shell, like the rest.
   ctx.bus.on('acp-focus', () => broadcast({ type: 'acp-focus' }));
+
+  // V2-2.4b (contract V2-1.11 §5.3) — `maude design open` → POST /_api/ui/open (routes/agent.ts)
+  // emits this; the shell (client/ui-open.js) opens the canvas and runs the registry actions.
+  // Only a desktop-shaped shell (session '') is a target: in a cell every socket belongs to one
+  // member and a local CLI call names none of them, so `open` answers "no window" there.
+  const isOpenTarget = (ws: ServerWebSocket<WsData>) =>
+    ws.data.kind === 'inspector' && ws.data.session === '';
+  ctx.bus.on('ui-open', (open: unknown) => {
+    const msg = JSON.stringify({ type: 'ui-open', open });
+    for (const ws of clients) {
+      if (!isOpenTarget(ws)) continue;
+      const out = scoped(ws, { type: 'ui-open', open }, msg);
+      if (out !== null) send(ws, out);
+    }
+  });
 
   // feature-background-export-notification-center — export job queue state
   // changes (queued → running → progress ticks → done/failed). Full-snapshot
@@ -327,16 +484,56 @@ export function createWs(
   // right room to disconnect from. Multiplexed via ws.data.id.
   const collabConns = new Map<string, { roomSlug: string; conn: RoomConn }>();
 
+  // S9.21b (decision v2-lead-trashed-while-open-stops-writes) — a canvas moved to the trash while a tab
+  // has it open takes no writes: routes/trash.ts's write stop names the stopped canvases after every
+  // read of the Trash, and every collab socket on one of them turns read-only with no writable lane
+  // (comments included) until it is restored. Presence still flows.
+  let trashStopped: ReadonlySet<string> = new Set();
+  ctx.bus.on('trash:write-stop', (p: { stems?: unknown }) => {
+    const stems = Array.isArray(p?.stems) ? p.stems : [];
+    trashStopped = new Set(
+      stems
+        .filter((s): s is string => typeof s === 'string' && s !== '')
+        .map((s) => canvasSlugFromRel(`${s}.tsx`, ctx.paths.designRel))
+    );
+  });
+
   function bindCollab(
     ws: ServerWebSocket<WsData>,
     slug: string,
     realm: 'main' | 'canvas',
     readOnly: boolean
   ): RoomConn {
+    const access = ws.data.kind === 'collab' ? ws.data.access : undefined;
+    const follow = ws.data.kind === 'collab' && ws.data.follow === true;
+    // gate-b-c4i — a socket whose access cannot COMMENT on this canvas writes no lane: Can view
+    // (`observer`, access/roles.ts) holds read, session and request only, and a read-only conn
+    // alone keeps the comments lane writable (collab/room.ts — the Can comment path). Both
+    // listeners stamp `access`; a hand-built test socket without one keeps the old rule.
+    const mayComment =
+      access === undefined ||
+      access.can('comment', canvasOfSlug(access, slug, ctx.paths.designRel));
+    const lanesClosed = ws.data.kind === 'collab' && (ws.data.lanesClosed === true || !mayComment);
     const conn: RoomConn = {
       id: ws.data.id,
       realm,
-      readOnly,
+      // S9.15c — a lanes-closed conn is read-only too (presence strip, gated path).
+      // S9.21b — read per frame, so a canvas trashed under an open socket stops at once.
+      get readOnly() {
+        return readOnly || lanesClosed || trashStopped.has(slug);
+      },
+      get lanesClosed() {
+        return lanesClosed || trashStopped.has(slug);
+      },
+      ...(follow ? { follow: true } : {}),
+      // V2-8.9 round B A2 — a freed presence clientID stays with this person (collab/room.ts)
+      person: ws.data.kind === 'collab' ? (ws.data.user ?? '') : '',
+      // S9.11 (V2-1.7 §5.5) — `summon` only from a socket whose access holds it on this canvas
+      ...(access
+        ? { summon: access.can('summon', scope?.canvasOfSlug(access, slug) ?? null) }
+        : {}),
+      // P8 G2 (b) — the role word peers see ("· Can edit"), stamped by the room (collab/room.ts)
+      ...roleOfConn(access, access ? canvasOfSlug(access, slug, ctx.paths.designRel) : null),
       send(payload: Uint8Array) {
         try {
           // Bun's ws.send accepts Uint8Array directly as binary.
@@ -352,6 +549,7 @@ export function createWs(
 
   const handler: WebSocketHandler<WsData> = {
     async open(ws) {
+      if (ws.data.kind !== 'acp') stamped.add(ws);
       if (ws.data.kind === 'collab') {
         const room = collab.registry.get(ws.data.slug);
         const conn = bindCollab(
@@ -377,13 +575,16 @@ export function createWs(
       // opening mid-edit seeds its overlay state (Phase 13). Inspector-origin
       // sockets only — `canvas-hmr` sockets get no snapshot by design and rely
       // on live `activity` broadcasts.
-      send(ws, {
+      const snapshot = {
         type: 'snapshot',
         state: inspects.for(ws.data.kind === 'inspector' ? ws.data.session : '').state,
         activity: activity.state,
-      });
+      };
+      const out = scoped(ws, snapshot, JSON.stringify(snapshot));
+      if (out !== null) send(ws, out);
     },
     async close(ws) {
+      stamped.delete(ws);
       if (ws.data.kind === 'acp') {
         acp.onClose(ws);
         return;
@@ -449,6 +650,19 @@ export function createWs(
         // `comments-add` is deliberately NOT here: comment is the one write a
         // viewer holds (role matrix, `viewer.comment === true`). Patch and
         // delete are not — they change or remove somebody else's note.
+        //
+        // S9.15c — a paused project (`lanesClosed`) holds no comment write at all,
+        // `comments-add` included (its HTTP comment writes answer 402 plan at the proxy).
+        const COMMENT_FRAMES = new Set(['comments-add', 'comments-patch', 'comments-delete']);
+        const lanesClosedSocket = ws.data.kind === 'inspector' && ws.data.lanesClosed === true;
+        if (lanesClosedSocket && COMMENT_FRAMES.has(msg.type)) {
+          send(ws, {
+            type: 'refused',
+            reason: 'plan',
+            message: 'Editing is paused for this project — that change was not applied.',
+          });
+          return;
+        }
         const readOnlySocket = ws.data.kind === 'inspector' && ws.data.readOnly === true;
         const MUTATES_OTHERS = new Set(['comments-patch', 'comments-delete']);
         if (readOnlySocket && MUTATES_OTHERS.has(msg.type)) {
@@ -459,6 +673,34 @@ export function createWs(
           });
           return;
         }
+        // S9.11 (L10/L12) — a canvas-only socket names only canvases it sees: asking for (or
+        // commenting on) another canvas is answered as if it did not exist — nothing at all.
+        // gate-b-c4k — judged on the file each frame ACTS on: `comments-request` reads `msg.file`,
+        // `comments-add` writes `msg.payload.file` (the handler and the comment check below), so a
+        // top-level `file` naming a visible canvas cannot vouch for the payload's.
+        if (
+          scope &&
+          (msg.type === 'comments-request' || msg.type === 'comments-add') &&
+          !scope.visibleTo(ws, {
+            file: msg.type === 'comments-add' ? msg.payload?.file : msg.file,
+          })
+        )
+          return;
+        // gate-b-c4i — `comments-add` needs the `comment` capability on the canvas it names: a
+        // Can view socket (`observer`) is read-only AND may not comment (access/roles.ts). After
+        // the scope check, so a canvas the socket does not see stays answered with nothing.
+        if (ws.data.kind === 'inspector' && ws.data.access && msg.type === 'comments-add') {
+          const file = typeof msg.payload?.file === 'string' ? msg.payload.file : '';
+          const canvas = toDesignRel(file, ctx.paths.designRel);
+          if (!ws.data.access.can('comment', canvas)) {
+            send(ws, {
+              type: 'refused',
+              reason: 'read-only',
+              message: 'Your access here is view-only — that comment was not added.',
+            });
+            return;
+          }
+        }
         const inspect = inspects.for(ws.data.kind === 'inspector' ? ws.data.session : '');
         if (msg.type === 'active' && typeof msg.file === 'string') inspect.setActive(msg.file);
         else if (msg.type === 'tabs' && Array.isArray(msg.tabs)) inspect.setOpenTabs(msg.tabs);
@@ -468,7 +710,17 @@ export function createWs(
         // Feeds the desktop park (`sync/park.ts`): presence keeps the cloud
         // link up and wakes a parked one. Carries nothing; acts on nothing.
         else if (msg.type === 'presence') ctx.bus.emit('ui:active');
-        else if (msg.type === 'comments-add' && msg.payload) {
+        // S6.12 (C5) — "this canvas drew without an error": the source it hashes is read from disk here, so
+        // a frame can only name a canvas, never a hash. Not for a read-only or paused session (it writes
+        // `_state/render-ok.json`), nor for a canvas the socket does not see.
+        else if (msg.type === 'render-ok' && typeof msg.file === 'string') {
+          if (
+            !readOnlySocket &&
+            !lanesClosedSocket &&
+            (!scope || scope.visibleTo(ws, { file: msg.file }))
+          )
+            noteRenderOk(msg.file);
+        } else if (msg.type === 'comments-add' && msg.payload) {
           // In a cell the author is the vouched member, never a claim in the
           // frame and never the cell's own git identity (the machine).
           const vouched = ws.data.kind === 'inspector' ? ws.data.user : '';
@@ -486,5 +738,25 @@ export function createWs(
     },
   };
 
-  return { handler, broadcast, clientCount: () => clients.size };
+  return {
+    handler,
+    broadcast,
+    clientCount: () => clients.size,
+    shellCount: () => [...clients].filter(isOpenTarget).length,
+    closeWiderThan(current: Access): number {
+      let n = 0;
+      for (const ws of [...stamped]) {
+        const was = ws.data.kind === 'acp' ? undefined : ws.data.access;
+        if (!was || !accessWiderThan(was, current)) continue;
+        stamped.delete(ws);
+        try {
+          ws.close(ACCESS_CHANGED_CLOSE.code, ACCESS_CHANGED_CLOSE.reason);
+        } catch {
+          /* already closing */
+        }
+        n += 1;
+      }
+      return n;
+    },
+  };
 }

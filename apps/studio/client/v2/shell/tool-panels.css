@@ -1,0 +1,39 @@
+/* client/v2/shell/tool-panels.css — V2-4.5c: a canvas-toolbar tool panel drawn by the shell.
+ *
+ * The Stickers picker keeps its dialog (same rows, same search) but is pinned next to the toolbar
+ * island the canvas reported (`toolbar-rect`) instead of centred: `placePanel` gives left/width and
+ * top (toolbar sits high) or bottom (toolbar sits low) as inline px. The scrim stays — an outside click
+ * closes the panel, and an open modal dialog is what the mode lane's M4 check reads — but it neither
+ * tints the canvas nor centres anything, so the work stays visible behind the panel. */
+
+@layer shell {
+  .sh-scrim.sh-scrim--anchored {
+    background: transparent;
+    display: block;
+    padding-top: 0;
+  }
+  .sh-sticker-picker.sh-sticker-picker--anchored {
+    position: fixed;
+    max-width: none;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+  }
+  .sh-sticker-picker--anchored .sh-dialog-bd {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    min-height: 0;
+    flex: 1;
+  }
+  .sh-sticker-picker--anchored .sh-sp-body {
+    max-height: none;
+    flex: 1;
+    min-height: 0;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .sh-sticker-picker--anchored {
+      animation: none;
+    }
+  }
+}

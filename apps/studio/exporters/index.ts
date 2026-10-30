@@ -7,21 +7,29 @@
 // replace them with real renderers.
 
 import path from 'node:path';
-
+// DDR-148 — temporal formats (capture-spine encode). Named exports mp4/webm/gif.
+import { audio } from './audio.ts';
 import * as canva from './canva.ts';
 import type { ExportDegradation } from './degraded.ts';
 import * as html from './html.ts';
+import * as jpg from './jpg.ts';
 import * as pdf from './pdf.ts';
 import * as png from './png.ts';
 import * as pptx from './pptx.ts';
-import { type ResolveScopeArgs, resolveScope, type Scope, type Target } from './scope.ts';
+import {
+  enforceAnnotationsPolicy,
+  type ResolveScopeArgs,
+  resolveScope,
+  type Scope,
+  type Target,
+} from './scope.ts';
 import * as svg from './svg.ts';
-// DDR-148 — temporal formats (capture-spine encode). Named exports mp4/webm/gif.
 import { gif, mp4, webm } from './video.ts';
 import * as zip from './zip.ts';
 
 export type Format =
   | 'png'
+  | 'jpg'
   | 'pdf'
   | 'svg'
   | 'html'
@@ -30,10 +38,12 @@ export type Format =
   | 'zip'
   | 'mp4'
   | 'webm'
-  | 'gif';
+  | 'gif'
+  | 'audio';
 
 export const FORMATS: readonly Format[] = [
   'png',
+  'jpg',
   'pdf',
   'svg',
   'html',
@@ -43,6 +53,7 @@ export const FORMATS: readonly Format[] = [
   'mp4',
   'webm',
   'gif',
+  'audio',
 ];
 
 /** Options bag forwarded to the adapter. Format-specific keys are validated by each adapter. */
@@ -96,6 +107,7 @@ export interface Adapter {
 
 const REGISTRY: Record<Format, Adapter> = {
   png,
+  jpg,
   pdf,
   svg,
   html,
@@ -105,6 +117,7 @@ const REGISTRY: Record<Format, Adapter> = {
   mp4,
   webm,
   gif,
+  audio,
 };
 
 export function getAdapter(format: Format): Adapter | null {
@@ -138,12 +151,21 @@ export async function runExport(args: {
   resolve: Omit<ResolveScopeArgs, 'scope'>;
   ctx: ExportContext;
   hooks?: ExportHooks;
+  /** Test seam: run this adapter instead of the format's own. */
+  adapter?: Adapter;
 }): Promise<ExportResult> {
   // Thread the options bag into the resolver so submit-time selection /
   // active-artboard hints (DDR — selection-passthrough) win over the persisted
   // `_active.json`. Additive — existing `resolve` callers stay valid.
-  const targets = await resolveScope({ ...args.resolve, scope: args.scope, options: args.options });
-  const adapter = getAdapter(args.format);
+  // S4.16 - a format that may not carry the annotation layer (print PDF, video, decks) never gets it,
+  // whatever the request's `includeAnnotations` said (exporters/scope.ts `enforceAnnotationsPolicy`).
+  const targets = enforceAnnotationsPolicy(
+    await resolveScope({ ...args.resolve, scope: args.scope, options: args.options }),
+    args.format,
+    args.options,
+    args.resolve.designRoot
+  );
+  const adapter = args.adapter ?? getAdapter(args.format);
   if (!adapter) {
     throw new Error(`unknown format: ${args.format}`);
   }
@@ -171,10 +193,28 @@ export { resolveScope };
  * is the single normalization point. `ctx.tokensCssRel` is supplied by the
  * HTTP handler from `cfg.tokensCssRel`.
  */
+/**
+ * S8.1b — a past version travels as a commit sha only (`ExportSpecV2.at`, validated the same way
+ * by spec-v2.ts). The capture origin's shell builds that version from the server's OWN history
+ * store (`serveHistoricalCanvas`: git, else the cloud's history) — no source ever crosses here,
+ * and nothing is checked out. Ref names (`HEAD~1`, a branch) are refused: an export of "that
+ * version" must not move under the user.
+ */
+export const PAST_VERSION_SHA = /^[0-9a-f]{7,40}$/;
+
+/** The validated past-version sha an engine option bag carries (`options.atSha`), or undefined. */
+export function pastVersionOf(options: ExportOptions | undefined): string | undefined {
+  const at = options?.atSha;
+  if (at === undefined || at === null) return undefined;
+  if (typeof at !== 'string' || !PAST_VERSION_SHA.test(at))
+    throw new Error('a past version is named by its commit sha (7–40 hex characters)');
+  return at;
+}
+
 export function canvasShellUrl(
   ctx: ExportContext,
   file: string,
-  opts: { annotations?: boolean } = {}
+  opts: { annotations?: boolean; at?: string } = {}
 ): string {
   const designRel = path.basename(ctx.designRoot);
   const stripPrefix = `${designRel}/`;
@@ -192,5 +232,11 @@ export function canvasShellUrl(
   // `[data-mdcc-annotations]` scene; comment pins and selection chrome stay
   // hidden, and `hide-chrome` (which also selects the capture CSP) stays on.
   if (opts.annotations) params.set('annotations', '1');
+  // S8.1b — the version the shell renders (its TSX, its same-name CSS, its meta lane). The main
+  // origin 307s this URL, query intact, to the read-only capture origin like every capture.
+  if (opts.at !== undefined) {
+    const at = pastVersionOf({ atSha: opts.at });
+    if (at) params.set('sha', at);
+  }
   return `${ctx.serverOrigin}/_canvas-shell.html?${params.toString()}`;
 }

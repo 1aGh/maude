@@ -1,0 +1,213 @@
+/* client/v2/shell/project-pill.css — V2-4.2: the project pill and the one menu.
+ *
+ * Geometry is the kit's (.design/ui/v2/_kit.css `.k-pill`, `.k-menu`): the pill is a 40px island 16px
+ * in from the window's top-left; the left panel island starts at 68px (pill 40 + 12 gap) — see
+ * floating-panels.css, which reads `--pill-h` / `--pill-gap`. The menu is the POPOVER plane: opaque,
+ * the largest shadow, radius 14, 252px wide, submenus open to the right at 272px. No backdrop-filter
+ * anywhere (V2-1.8 M1) — `.island` is the one rule that sets material, and the pill is an `.island`.
+ *
+ * Pinned (View › Advanced › Pin panels to the side): the pill sits at the top of the pinned left
+ * column (06 Advanced `ad-dock-pill`) — `data-docked` takes the island chrome off it; the column
+ * leaves room for it. With the left column gone the pill is a floating island again.
+ *
+ * Motion: the menu is a cut — it appears and disappears; reduced motion has nothing to collapse. */
+
+@layer shell {
+  .sh-body {
+    --pill-h: 40px;
+    --pill-gap: 12px;
+  }
+
+  /* `.sh-pill.island`, not bare `.sh-pill`: other surfaces use `sh-pill` for a small badge (Settings'
+     provider cards; the tree's group count did until V2-4.gate) and must not inherit an absolutely
+     positioned island. */
+  .sh-pill.island {
+    position: absolute;
+    left: var(--float-gap, 16px);
+    top: var(--float-gap, 16px);
+    z-index: 30;
+    display: inline-flex;
+    height: var(--pill-h);
+    max-width: min(440px, calc(100% - 2 * var(--float-gap, 16px)));
+  }
+  /* Pinned: the island chrome that `.sh-body--float .island` gives is not applied, so give it here. */
+  .sh-body:not(.sh-body--float) .sh-pill {
+    background: var(--bg-1);
+    border-radius: 14px;
+    box-shadow: var(--shadow-md);
+  }
+  .sh-pill[data-open="true"] {
+    background: var(--bg-2);
+  }
+  /* "Opening <project>…" / a failed switch: a quiet line under the pill (the switcher moved here, P8 C4) */
+  .sh-pill > .rb-switching,
+  .sh-pill > .rb-switcher-err {
+    position: absolute;
+    left: 0;
+    top: calc(100% + var(--space-1));
+    white-space: nowrap;
+  }
+  .sh-body:not(.sh-body--float) .sh-pill[data-docked="true"] {
+    left: var(--space-2, 8px);
+    top: var(--space-2, 8px);
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .sh-pill-btn {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--fg-0);
+    font: inherit;
+    font-size: var(--type-sm, 13px);
+    font-weight: var(--w-semibold, 600);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    min-width: 0;
+    padding: 0 var(--space-3, 12px) 0 var(--space-2, 8px);
+    border-radius: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .sh-pill-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .sh-pill-mark {
+    display: grid;
+    flex: none;
+    color: var(--accent);
+  }
+  .sh-pill-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .sh-pill-sep {
+    color: var(--fg-2);
+    font-weight: var(--w-regular, 400);
+  }
+  .sh-pill-canvas {
+    max-width: 280px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--fg-1);
+    font-weight: var(--w-medium, 500);
+  }
+  .sh-pill-caret {
+    display: inline-grid;
+    flex: none;
+    color: var(--fg-2);
+  }
+
+  /* ── the menu ── */
+  .sh-pm-root {
+    position: absolute;
+    left: 0;
+    top: calc(100% + 6px);
+  }
+  .sh-pm {
+    display: flex;
+    flex-direction: column;
+    width: 252px;
+    padding: var(--space-1, 4px);
+    border-radius: var(--island-radius, 14px);
+    background: var(--bg-2);
+    color: var(--fg-0);
+    box-shadow:
+      var(--shadow-lg, 0 12px 32px oklch(0 0 0 / 0.28)),
+      inset 0 0 0 0.5px var(--island-edge, var(--border-subtle));
+    font-size: var(--type-sm, 13px);
+    text-align: left;
+  }
+  .sh-pm--sub {
+    position: absolute;
+    left: calc(100% + var(--space-2, 8px));
+    top: -4px;
+    width: 272px;
+    max-height: calc(100vh - 16px);
+    overflow-y: auto;
+    /* a scroll box never scrolls sideways: the panel nested in it is placed on the window (placeNested) */
+    overflow-x: hidden;
+  }
+  .sh-pm-li {
+    position: relative;
+    display: block;
+  }
+  .sh-pm-row {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    width: 100%;
+    min-height: 28px;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    padding: 0 var(--space-2, 8px);
+    border-radius: var(--radius-md, 8px);
+    text-align: left;
+    white-space: nowrap;
+    cursor: default;
+  }
+  .sh-pm-row:hover,
+  .sh-pm-row:focus-visible,
+  .sh-pm-row[aria-expanded="true"] {
+    background: var(--accent-muted, var(--bg-3));
+    outline: none;
+  }
+  .sh-pm-row[aria-disabled="true"] {
+    color: var(--fg-3, var(--fg-2));
+  }
+  .sh-pm-row--adv {
+    min-height: 26px;
+    font-size: var(--type-xs, 12px);
+    font-weight: var(--w-semibold, 600);
+    color: var(--fg-1);
+  }
+  .sh-pm-ic {
+    display: grid;
+    place-items: center;
+    width: 16px;
+    flex: none;
+    color: var(--fg-2);
+  }
+  .sh-pm-lab {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .sh-pm-ch {
+    display: grid;
+    color: var(--fg-2);
+  }
+  .sh-pm-sep {
+    display: block;
+    flex: none;
+    border: 0;
+    height: 1px;
+    margin: var(--space-1, 4px) var(--space-2, 8px);
+    background: var(--border-subtle);
+  }
+  .sh-pm-row .kbd {
+    margin-left: auto;
+    font-size: var(--type-xs, 12px);
+    color: var(--fg-2);
+  }
+
+  /* Pinned: the left column leaves room for the pill above its first panel. */
+  .sh-body:not(.sh-body--float) > .sh-dockslot--left {
+    padding-top: calc(var(--pill-h) + var(--space-2, 8px) * 2);
+    box-sizing: border-box;
+    background: var(--bg-1);
+  }
+}
+
+/* S3.9 - Preview folds the pill to its mark (04 md-preview `ProjectPill folded`): a 40px square island. */
+@layer shell {
+  .sh-pill[data-folded="true"] .sh-pill-btn {
+    padding: 0 var(--space-2, 8px);
+  }
+}

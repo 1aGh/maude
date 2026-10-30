@@ -178,6 +178,10 @@ if [ "$MODE" = "shell" ] && [ $CANVAS_SET -eq 0 ] && [ -z "$ACTIVE" ]; then
   fi
 fi
 
+# V2-8.9 B2 — whatever the URL came from (--url, --port, _server.json), only http(s) to this Mac:
+# never file://, never another host (_url-guard.mjs). Checked before any browser starts.
+. "$(dirname "$0")/_url-guard.sh" && maude_url_guard "$URL" || exit 2
+
 # The file-tree row testid the client stamps (app.jsx `pathTestIdSlug`):
 # designRoot dot-folder stripped, extension stripped, non-alphanumerics folded
 # to single dashes, lowercased, dashes trimmed. Lowercasing happens BEFORE the
@@ -211,11 +215,20 @@ AB="${MAUDE_AGENT_BROWSER:-agent-browser}"
 # agent-browser sessions are SHARED by name (default: "default"). Shell mode is
 # fired automatically by the Report-a-Bug dialog, so on the shared session it
 # would navigate whatever browser an agent has mid-task out from under it. Pin
-# it to its own session; the canvas modes keep the shared one deliberately, so
-# an agent's `/design:*` captures stay in the session it is already driving.
+# it to its own session; the canvas modes keep the shared SESSION NAME deliberately, so
+# an agent's `/design:*` captures reuse the one name. On exit every capture parks its page and
+# closes the session it STARTED (_ab-park.sh, which also waits for the daemon's socket to go so
+# the next capture on the same name starts a fresh one); a session that was already running (the
+# agent's own browsing) is parked on about:blank and left running (p8-fix-a F6).
 if [ "$MODE" = "shell" ] && [ -z "$AGENT_BROWSER_SESSION" ]; then
   export AGENT_BROWSER_SESSION="maude-shell-shot"
 fi
+# V2-8.9 M1: AI may › Search the web off (MAUDE_NO_EGRESS=1) → this browser reaches loopback only.
+. "$(dirname "$0")/_no-egress.sh"
+# p8-e2e-fix-r10: on exit, a page this capture opened is parked on about:blank and its session closed.
+. "$(dirname "$0")/_ab-park.sh"
+# p8-e2e-fix-r11: a headless browser, and a daemon that shuts itself down when a killed capture leaves it idle.
+. "$(dirname "$0")/_ab-headless.sh"
 if [ "$ENGINE" = "auto" ]; then
   if command -v "$AB" >/dev/null 2>&1; then
     ENGINE="agent-browser"
@@ -224,25 +237,9 @@ if [ "$ENGINE" = "auto" ]; then
   fi
 fi
 
-# ---------- browser resolution for agent-browser (DDR — bundled screenshots) ----------
-# agent-browser needs a Chrome-family engine. On a fresh desktop machine there's
-# no system Chrome, so resolve (or, on the desktop path only, one-time download)
-# `chrome-headless-shell` and point agent-browser at it via
-# AGENT_BROWSER_EXECUTABLE_PATH. Honor a caller-set value; leave the web/CLI path
-# untouched (--no-download → resolve an EXISTING browser only, never a surprise
-# ~94 MB fetch; agent-browser keeps its own system-Chrome default if nothing's
-# found). The desktop bundle sets MAUDE_DEV_SERVER_ROOT (sidecar.rs) — the signal
-# that a one-time provisioning download is wanted for the zero-install experience.
-if [ "$ENGINE" = "agent-browser" ] && [ -z "$AGENT_BROWSER_EXECUTABLE_PATH" ]; then
-  ES_DIR="$(cd "$(dirname "$0")" && pwd)"
-  ES_FLAGS="--quiet"
-  [ -z "$MAUDE_DEV_SERVER_ROOT" ] && ES_FLAGS="--quiet --no-download"
-  BROWSER_PATH="$(bash "$ES_DIR/ensure-browser.sh" $ES_FLAGS 2>/dev/null)"
-  if [ -n "$BROWSER_PATH" ] && [ -x "$BROWSER_PATH" ]; then
-    export AGENT_BROWSER_EXECUTABLE_PATH="$BROWSER_PATH"
-    echo "→ agent-browser browser: $BROWSER_PATH" >&2
-  fi
-fi
+# ---------- browser resolution for agent-browser (DDR-144 — bundled screenshots) ----------
+# chrome-headless-shell, resolved (desktop: provisioned once) by _ab-headless.sh — canvas-rects.sh uses the same.
+ab_headless_browser
 echo "→ screenshot engine: $ENGINE | url: $URL" >&2
 
 # ---------- engine: agent-browser ----------
@@ -484,6 +481,19 @@ capture_resilient() {
   return 1
 }
 
+# ---------- Stop-gate evidence (V2-1.11 §5.4 step 2) ----------
+# One line per successful capture of a canvas → <designRoot>/_runs/…/shots.jsonl (_record-shot.sh).
+# The design plugin's Stop hook asks for a capture of every artboard the AI changed. Best effort.
+record_shot() {
+  [ "$MODE" = "shell" ] && return 0
+  [ -n "$ACTIVE" ] || return 0
+  local repo="${REPO:-${ROOT:-${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}}}"
+  bash "$(cd "$(dirname "$0")" && pwd)/_record-shot.sh" --root "$repo" --canvas "$ACTIVE" "$@" >/dev/null 2>&1 || true
+}
+
+# A capture never outlives itself as a collab peer (_ab-park.sh): every path below opens the page.
+[ "$ENGINE" = "agent-browser" ] && ab_park_arm
+
 # ---------- --all-screens loop ----------
 if [ $ALL_SCREENS -eq 1 ]; then
   mkdir -p "$OUT_DIR"
@@ -525,12 +535,14 @@ if [ $ALL_SCREENS -eq 1 ]; then
     fi
     if capture_resilient "[data-dc-screen=\"$ID\"], [data-dc-slot=\"$ID\"]" "$OUT_FILE"; then
       echo "$OUT_FILE"
+      record_shot --artboard "$ID"
     else
       echo "✗ failed: $ID" >&2
       FAILED=$((FAILED + 1))
     fi
   done
   [ $FAILED -gt 0 ] && exit 3
+  record_shot --all
   exit 0
 fi
 
@@ -546,6 +558,10 @@ if ! navigate_once; then
 fi
 if capture_resilient "$CSS_SEL" "$OUT"; then
   echo "$OUT"
+  case "$MODE" in
+    full) record_shot --all ;;
+    screen) record_shot --artboard "$SEL" ;;
+  esac
   exit 0
 fi
 exit 3

@@ -70,9 +70,10 @@ test('findTranscript + sessionUsage + formatUsage on an isolated HOME', () => {
   assert.equal(p, join(dir, 'S1.jsonl'));
   assert.equal(
     findTranscript('S1', { root: '/elsewhere', home, configDir: '' }),
-    p,
-    'falls back to scanning every project'
+    null,
+    'never scans another project folder (A3: no cross-project read)'
   );
+  assert.equal(findTranscript('S1', { home, configDir: '' }), null, 'no root, no search');
   assert.equal(findTranscript('nope', { root, home, configDir: '' }), null);
   const u = sessionUsage(p);
   assert.equal(u.agents[0].type, 'flow:worker');
@@ -86,4 +87,48 @@ test('findTranscript refuses a session id that is not a plain id (no path traver
     findTranscript('../../etc/x', { root: '/work/repo', home: '/nonexistent', configDir: '' }),
     null
   );
+});
+
+test('maude flow usage in an AI session: --root other than the project is refused, descriptions are dropped (A3)', async () => {
+  const { spawnSync } = await import('node:child_process');
+  const { fileURLToPath } = await import('node:url');
+  const bin = fileURLToPath(new URL('../bin/maude.mjs', import.meta.url));
+  const home = mkdtempSync(join(tmpdir(), 'flow-usage-cli-'));
+  const root = join(home, 'proj');
+  const other = join(home, 'other');
+  mkdirSync(root, { recursive: true });
+  mkdirSync(other, { recursive: true });
+  const mk = (r, sid, desc) => {
+    const dir = join(home, '.claude/projects', projectSlug(r));
+    mkdirSync(join(dir, `${sid}/subagents`), { recursive: true });
+    writeFileSync(join(dir, `${sid}.jsonl`), turn('l1', 'claude-opus-5-5', 1000, 100));
+    writeFileSync(join(dir, `${sid}/subagents/a.jsonl`), turn('w1', 'claude-sonnet-5-5', 5, 5));
+    writeFileSync(
+      join(dir, `${sid}/subagents/a.meta.json`),
+      JSON.stringify({ agentType: 'flow:worker', description: desc })
+    );
+  };
+  mk(root, 'MINE', 'my-own-task');
+  mk(other, 'THEIRS', 'secret-other-project-text');
+  const run = (args, env) =>
+    spawnSync(process.execPath, [bin, 'flow', 'usage', ...args], {
+      encoding: 'utf8',
+      env: { ...process.env, HOME: home, CLAUDE_CONFIG_DIR: '', CLAUDE_PROJECT_DIR: root, ...env },
+    });
+  const refused = run(['THEIRS', '--root', other], { MAUDE_CHAT_ID: 'c1' });
+  assert.notEqual(refused.status, 0);
+  assert.doesNotMatch(refused.stdout, /secret-other-project-text/);
+  const crossSid = run(['THEIRS'], { MAUDE_CHAT_ID: 'c1' });
+  assert.doesNotMatch(
+    crossSid.stdout,
+    /secret-other-project-text/,
+    'a sid of another project is not found'
+  );
+  const ai = run(['MINE', '--json'], { MAUDE_CHAT_ID: 'c1' });
+  assert.equal(ai.status, 0, ai.stderr);
+  assert.doesNotMatch(ai.stdout, /my-own-task/, 'no subagent description in an AI session');
+  const person = run(['MINE'], { MAUDE_CHAT_ID: '' });
+  assert.match(person.stdout, /my-own-task/, 'a person at a terminal still sees it');
+  const personOther = run(['THEIRS', '--root', other], { MAUDE_CHAT_ID: '' });
+  assert.match(personOther.stdout, /secret-other-project-text/, '--root works for a person');
 });

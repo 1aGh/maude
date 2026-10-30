@@ -1,0 +1,26 @@
+{
+  "canvas": "ui/panels/GitHubIdentity.tsx",
+  "from": "maude",
+  "to": "maude-v2",
+  "meta": { "designSystem": "maude-v2" },
+  "edits": [
+    {
+      "old": "import \"../../system/maude/colors_and_type.css\";\nimport \"../../system/maude/preview/_components.css\";",
+      "new": "import \"../../system/maude-v2/colors_and_type.css\";\nimport \"../../system/maude/preview/_components.css\";\nimport \"../../system/maude-v2/preview/_components.css\";",
+      "why": "Tokens come from maude-v2. The v2 component sheet loads last, so the shared controls take the v2 look. The old sheet stays only as a bridge for .panel, .tree-row, .callout and .btn--danger, which v2 doesn't have."
+    },
+    {
+      "old": " * @ds          maude\n",
+      "new": " * @ds          maude-v2\n",
+      "why": "The canvas header names its design system. It should match the meta."
+    }
+  ],
+  "notes": [
+    "Every var(--…) token in this canvas also exists in maude-v2, so no token is renamed.",
+    "Classes that v2 doesn't have, used here: .panel (lines 109, 174, 195, 241), .tree-row (134–138), .btn--danger (249), .callout with --warn/--error/--success/--info (262–294). The edge-states artboard is built on .callout, so it depends on the bridge.",
+    "The theme stays forced to dark (line 309).",
+    "The device code uses mono. That fits maude-v2, which keeps mono for Advanced and code.",
+    "Not in this switch: the IdentityBar is docked in a full-height sidebar. That breaks maude-v2's 'Chrome floats; it never frames.' Fixing it is a redesign.",
+    "The prose in the header comment (lines 11–16) and the comment in the sibling GitHubIdentity.css still name the maude DS. Both are text only."
+  ]
+}

@@ -1,0 +1,18 @@
+V2-4.3 — Share cluster: faces · status word · mode switch · Hide panels · Share / Ask to edit · Exports · comments
+Date: 2026-10-16 · feat/maude-v2
+Commits: 7560208c (4.3a, Sonnet) · fd5255ac merge · 57630b70 bundle · e7618dce c01e793d (4.3b, Opus) · 2c41afd3 merge · lead: daab8bec (Follow moved with the faces) · 873ffb0a (I2 boot re-fit persists nothing; keys golden) · format · b99661cd (Share button width, seen on screen)
+
+Done-when: status machine covers Saved / Syncing… / Offline — kept on this Mac / Local project / Not saved (C2)
+- client/v2/shell/save-status.js, v2-save-status.test.ts (24): every word, precedence Not saved > Local project > Offline > Syncing… > Saved, Not saved only while true with Retry (POST /_api/sync/resync), disk-full sentence (C37), Can view / Can comment + Ask to edit for non-editors. Red with the precedence swapped (1 fail) → restored.
+- share-cluster.test.tsx: faces, comments count, Share vs Ask to edit, Exports hidden until an export exists then a ring, Hide panels = view.panels, data-occludes=top (red with the attribute removed, 2 fail), peer face = Follow / Stop following (red with the button branch disabled).
+- mode switch (4.3b): set-mode / mode-changed / mode-request live (governed path built — V2-2.10e had never landed); insets flushed before set-mode; one echo per seq (M2); M3/M4; Viewing for read-only; Preview folds panels (panel-layout.folded); Present = shell Present (DDR-117); palette mode segments + present-enter retired in the same commit; palette-mode-* testids on the cluster; mode-toggle.test.tsx rewritten; mode-lane.test.tsx (ordering, M2–M4, peers gate/caps, Follow state).
+- peers: canvas → shell `peers` (active gate, ≤32, names ≤64, strict colour, following:boolean), the canvas hides its covered stack; Follow kept via run-action peer.follow.
+
+Gates (on b99661cd, code = 873ffb0a + CSS)
+- typecheck / lint (ratchet 142) / format ok; check-client-boots-source OK
+- studio suite (lane, alone, on 873ffb0a): 8098 pass / 2 fail = notifications + schema-drift (pass alone; fail in every full run since V2-4.1 — follow-up)
+- v1-keys refreshed once and verified identical twice; 30-state characterization 30/30 identical
+- desktop e2e (debug build, Arc hidden, probe 2 s): default 12/12 (1:59) · tabs 1/1 (0:38); covered samples only in the first ~10 s of boot (Claude/1Password over a 5100-px pre-layout window), none after
+- on screen (Chromium 1440×900): cluster = faces · "Offline — kept on this Mac" · comments · Edit/Preview/Present⌄ · Exports · Hide panels · Share; Preview folds the panels to their corner icon and compacts the cluster
+
+Follow-ups: Not saved has one producer (hub refused) — a server failed-write signal is needed for disk-full / failed local write (C37); Ask to edit toasts until S9's sender; Show in Finder waits for V2-4.7; Present⌄ lists only "Present the canvas" (artboard rows with S3); view-only links boot in Preview without folding panels; ⌥⌘P / View rows for modes go with V2-4.5; the v1 offline banner overlaps the cluster faces until V2-4.8; notifications + schema-drift fail in every full-suite run (pass alone); builders' peaks: 4.3a 313k, 4.3b 446k (> 300k).

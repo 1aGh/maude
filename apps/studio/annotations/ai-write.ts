@@ -18,12 +18,15 @@
  *             instead of overwriting it (DDR-242 §4).
  */
 
+import { type ParsedHostRef, parseHostRef } from './elements/_shared.ts';
 import { anchorPoint, facingAnchor } from './elements/arrow.model.ts';
 import { compareOrder, keyBetween } from './fractional-index.ts';
 import { guardLockedOps, isLocked } from './lock.ts';
 import { type ApplyResult, applyOps, type Op } from './ops.ts';
-import './ops-merge.ts';
-import { defOf, REGISTRY, specOf } from './registry.ts';
+// No `import './ops-merge.ts'` here: ai-write is reached from the canvas-lib graph (S4.13 template-place),
+// and ops-merge pulls sync/source-merge + the npm `diff` package into the canvas iframe. Server entry points
+// (api.ts, collab, codec, bin/annotate.mjs) register the merge themselves.
+import { defOf, extSpecOf, REGISTRY, specOf } from './registry.ts';
 import { Scene } from './scene.ts';
 import type { AnnotationElement, Box } from './types.ts';
 
@@ -60,11 +63,36 @@ const PLUMBING = new Set([
   'y1',
   'x2',
   'y2',
+  'fromLabel',
+  'toLabel',
   'expect',
 ]);
 
 /** Fields `update` must not set directly (they have their own verbs). */
 const IMMUTABLE = new Set(['id', 'type', 'index', 'parent', 'author']);
+
+/**
+ * Types that are people's, not the agent's (contract S4 Q5/Q7, Gate 0 A18): a vote, its ballots and a
+ * stamp are a person's feedback — a made-up one would be a forged opinion. The agent reads them
+ * (`read-annotations`) and answers with its own marks (stickies, status stickers); every write to one
+ * of these is refused, whatever the op.
+ */
+export const PEOPLE_ONLY_TYPES: ReadonlySet<string> = new Set(['vote', 'ballot', 'stamp']);
+
+/** What `resolved.by` says when the agent resolved a sticky (the UI draws "resolved by AI"). */
+export const AI_RESOLVER = 'AI';
+
+/** A canvas host the verb found in a `canvas-rects` manifest / canvas state: `ab:` or `el:` → its WORLD box. */
+export type HostLookup = (ref: string) => { box: Box; label: string } | null;
+
+export interface AiBatchOptions {
+  /** Finds the world box + name of an `ab:` / `el:` host, so a bound end can cache its endpoint. */
+  hosts?: HostLookup;
+  /** Artboard rects (world), so a new box element can ride with the artboard its centre lands in (Q3). */
+  artboards?: ReadonlyArray<{ id: string; x: number; y: number; w: number; h: number }>;
+  /** `resolved.at` — injectable for tests. */
+  now?: () => Date;
+}
 
 export function mintId(prefix = 's'): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 10).padEnd(8, '0')}`;
@@ -77,7 +105,12 @@ export function describeTypes(): string {
     const fields = Object.keys(def.fields).join(' ');
     const extra = def.caps.textSlot ? ` · text → ${def.caps.textSlot}` : '';
     const bind = def.caps.bindable ? ' · bindable' : '';
-    lines.push(`  ${type.padEnd(9)} ${fields}${extra}${bind}`);
+    if (PEOPLE_ONLY_TYPES.has(type)) {
+      lines.push(`  ${type.padEnd(9)} (people only — read it, never write it)`);
+      continue;
+    }
+    const ext = Object.keys(extSpecOf(type) ?? {}).join(' ');
+    lines.push(`  ${type.padEnd(9)} ${fields}${extra}${bind}${ext ? ` · also ${ext}` : ''}`);
   }
   return lines.join('\n');
 }
@@ -100,6 +133,16 @@ export function textBox(text: string, fontSize: number): { w: number; h: number 
   };
 }
 
+type EndSpec =
+  | { kind: 'el'; id: string }
+  | { kind: 'free'; x: number; y: number }
+  | { kind: 'host'; ref: string; parsed: ParsedHostRef; cache: [number, number] | null };
+
+/** A host's name when nothing better is known: the element id / artboard id from its ref. */
+function hostName(p: ParsedHostRef): string {
+  return p.kind === 'ab' ? p.artboard : p.element;
+}
+
 export class AiBatch {
   state: Map<string, AnnotationElement>;
   /** The ops to send / persist, in order. */
@@ -111,7 +154,10 @@ export class AiBatch {
   readonly deleted: string[] = [];
   private sceneCache: Scene | null = null;
 
-  constructor(elements: Iterable<AnnotationElement>) {
+  constructor(
+    elements: Iterable<AnnotationElement>,
+    private readonly opts: AiBatchOptions = {}
+  ) {
     this.state = new Map([...elements].map((e) => [e.id, e]));
   }
 
@@ -126,6 +172,17 @@ export class AiBatch {
 
   /** Apply ops to the local copy; any rejection fails the whole batch loudly. */
   private apply(ops: Op[], what: string): ApplyResult {
+    // Votes, ballots and stamps are people's (PEOPLE_ONLY_TYPES): no op may create, change or remove one.
+    for (const o of ops) {
+      const type = o.op === 'put' ? o.el.type : this.state.get(o.id)?.type;
+      if (type && PEOPLE_ONLY_TYPES.has(type)) {
+        const id = o.op === 'put' ? o.el.id : o.id;
+        throw new AiOpError(
+          `${what}: "${id}" is a ${type} — those are people's own votes and reactions; read them, ` +
+            'but answer with a sticky or a status sticker of your own'
+        );
+      }
+    }
     // #137 — a locked element is the user's "don't touch": the agent gets a
     // clear refusal (and how to unlock), never a silent partial edit.
     if (guardLockedOps(this.state, ops).blocked) {
@@ -157,6 +214,10 @@ export class AiBatch {
     if (!id) throw new AiOpError(`${what}: unknown ref "${idOrRef}"`);
     if (!this.state.has(id)) throw new AiOpError(`${what}: unknown id "${id}"`);
     return id;
+  }
+
+  private now(): Date {
+    return this.opts.now ? this.opts.now() : new Date();
   }
 
   private get(id: string): AnnotationElement {
@@ -204,6 +265,7 @@ export class AiBatch {
     const spec = specOf(type);
     const def = defOf(type);
     if (!spec || !def) throw new AiOpError(`${what}: unknown type "${type}"`);
+    const ext = extSpecOf(type) ?? {};
     const set: Record<string, unknown> = {};
     const unset: string[] = [];
     const put = (k: string, v: unknown) => {
@@ -236,13 +298,32 @@ export class AiBatch {
           `${what}: "${k}" can't be set here${k === 'parent' ? ' — use reparent' : ''}`
         );
       }
-      // `locked` is a tail field every type carries (#137).
-      if (!Object.hasOwn(def.fields, k) && k !== 'locked') {
+      // `locked` is a tail field every type carries (#137); the format-2 extension fields are
+      // typed by `extSpecOf` (V2-1.12 R5) and obey the same strictness as the rest.
+      const extField = Object.hasOwn(ext, k) ? ext[k] : undefined;
+      if (!Object.hasOwn(def.fields, k) && !extField && k !== 'locked') {
         throw new AiOpError(
-          `${what}: ${type} has no field "${k0}" (fields: ${Object.keys(def.fields).join(', ')})`
+          `${what}: ${type} has no field "${k0}" (fields: ${[...Object.keys(def.fields), ...Object.keys(ext)].join(', ')})`
         );
       }
-      if (val !== null && spec[k]?.parse(val) === undefined) {
+      if (k === 'resolved' && !Object.hasOwn(def.fields, k)) {
+        // The agent says `true` (resolve now, as the AI) or `null` (reopen); it never forges who/when.
+        if (val === true)
+          val = {
+            by: AI_RESOLVER,
+            at: this.now()
+              .toISOString()
+              .replace(/\.\d+Z$/, 'Z'),
+          };
+        else if (val === false) val = null;
+        else if (val !== null) {
+          throw new AiOpError(
+            `${what}: resolved is true (resolve) or null (reopen) — the board stamps who and when`
+          );
+        }
+      }
+      const parser = extField ?? spec[k];
+      if (val !== null && parser?.parse(val) === undefined) {
         throw new AiOpError(`${what}: invalid value for ${type}.${k}: ${JSON.stringify(val)}`);
       }
       put(k, val);
@@ -282,8 +363,7 @@ export class AiBatch {
       }
       Object.assign(world, { x: op.x, y: op.y, w, h });
     } else if (type === 'arrow') {
-      world.start = this.arrowEnd(op, 'start', what);
-      world.end = this.arrowEnd(op, 'end', what);
+      Object.assign(world, this.arrowEnds(op, what));
     } else if (type === 'pen') {
       if (!Array.isArray(op.points)) throw new AiOpError(`${what}: needs points [x0,y0,x1,y1,…]`);
     }
@@ -303,6 +383,11 @@ export class AiBatch {
     }
     draft.index = this.topIndex(parent);
     draft.author = { kind: 'ai' };
+    // Ride with the artboard the centre lands in (contract S4 Q3) — unless a section owns it.
+    if (def.caps.box && !parent && draft.parentArtboard === undefined) {
+      const ab = this.artboardAt(draft);
+      if (ab) draft.parentArtboard = ab;
+    }
     if (!def.meaningful(draft)) {
       throw new AiOpError(
         `${what}: too small or empty to keep (a ${type} needs real content/size)`
@@ -314,20 +399,166 @@ export class AiBatch {
     return id;
   }
 
-  private arrowEnd(op: Record<string, unknown>, which: 'start' | 'end', what: string): unknown {
+  /** One arrow side as the agent wrote it: an annotation (id / @ref), a canvas host (`ab:` / `el:`), or a free point. */
+  private endSpec(op: Record<string, unknown>, which: 'start' | 'end', what: string): EndSpec {
     const bound = which === 'start' ? op.from : op.to;
     if (bound !== undefined) {
+      if (typeof bound === 'string' && parseHostRef(bound)) {
+        const [kx, ky] = which === 'start' ? ['x1', 'y1'] : ['x2', 'y2'];
+        const cache = num(op[kx]) && num(op[ky]) ? ([op[kx], op[ky]] as [number, number]) : null;
+        return { kind: 'host', ref: bound, parsed: parseHostRef(bound) as ParsedHostRef, cache };
+      }
       const id = this.resolve(bound, what);
       if (!this.bindable(id)) {
         throw new AiOpError(`${what}: "${id}" (${this.get(id).type}) can't take an arrow end`);
       }
-      return { el: id };
+      return { kind: 'el', id };
     }
     const raw = op[which];
-    if (isRec(raw) && num(raw.x) && num(raw.y)) return { x: raw.x, y: raw.y };
+    if (isRec(raw) && num(raw.x) && num(raw.y)) return { kind: 'free', x: raw.x, y: raw.y };
     const [kx, ky] = which === 'start' ? ['x1', 'y1'] : ['x2', 'y2'];
-    if (num(op[kx]) && num(op[ky])) return { x: op[kx], y: op[ky] };
+    if (num(op[kx]) && num(op[ky])) return { kind: 'free', x: op[kx], y: op[ky] };
     throw new AiOpError(`${what}: needs ${which === 'start' ? 'from or x1/y1' : 'to or x2/y2'}`);
+  }
+
+  /**
+   * Both ends of a new arrow. A host end (`ab:<artboard>` / `el:<artboard>/<id>`, contract S4 Q1) is
+   * written as the cached free point in `start` / `end` (a 1.x peer draws the arrow frozen there) plus
+   * the `startHost` / `endHost` bind. The cache is where the arrow meets the host's box facing the
+   * other end, so the verb needs the host's geometry (`hosts`, from a canvas-rects manifest) or an
+   * explicit x/y — never a guess.
+   */
+  private arrowEnds(op: Record<string, unknown>, what: string): Record<string, unknown> {
+    const specs = { start: this.endSpec(op, 'start', what), end: this.endSpec(op, 'end', what) };
+    const found = (s: EndSpec) => (s.kind === 'host' ? (this.opts.hosts?.(s.ref) ?? null) : null);
+    const hosts = { start: found(specs.start), end: found(specs.end) };
+    const centre = (which: 'start' | 'end'): [number, number] | null => {
+      const s = specs[which];
+      if (s.kind === 'free') return [s.x, s.y];
+      if (s.kind === 'el') {
+        const b = this.worldBox(s.id);
+        return b ? [b.x + b.w / 2, b.y + b.h / 2] : null;
+      }
+      const h = hosts[which];
+      if (h) return [h.box.x + h.box.w / 2, h.box.y + h.box.h / 2];
+      return s.cache;
+    };
+    const out: Record<string, unknown> = {};
+    const round = (n: number) => Math.round(n * 10) / 10;
+    for (const which of ['start', 'end'] as const) {
+      const s = specs[which];
+      if (s.kind === 'el') out[which] = { el: s.id };
+      else if (s.kind === 'free') out[which] = { x: s.x, y: s.y };
+      else {
+        const h = hosts[which];
+        let point: [number, number];
+        if (s.cache) point = s.cache;
+        else if (h) {
+          const other = centre(which === 'start' ? 'end' : 'start') ?? [
+            h.box.x + h.box.w + 40,
+            h.box.y + h.box.h / 2,
+          ];
+          const a = facingAnchor(h.box, other[0], other[1]);
+          point = anchorPoint(h.box, 0, a.nx, a.ny);
+        } else {
+          throw new AiOpError(
+            `${what}: can't place ${s.ref} — pass --rects (a canvas-rects manifest) or --canvas-state so the ` +
+              `verb can find it, or give ${which === 'start' ? 'x1/y1' : 'x2/y2'} as the end's last known point`
+          );
+        }
+        out[which] = { x: round(point[0]), y: round(point[1]) };
+        const given = op[which === 'start' ? 'fromLabel' : 'toLabel'];
+        const label = h?.label || (typeof given === 'string' && given ? given : hostName(s.parsed));
+        out[`${which}Host`] = {
+          ref: s.ref,
+          label,
+          ...(h
+            ? {
+                box: { x: round(h.box.x), y: round(h.box.y), w: round(h.box.w), h: round(h.box.h) },
+              }
+            : {}),
+        };
+      }
+    }
+    for (const k of ['startHost', 'endHost'] as const) {
+      if (out[k] !== undefined && extSpecOf('arrow')?.[k]?.parse(out[k]) === undefined) {
+        throw new AiOpError(`${what}: invalid ${k}: ${JSON.stringify(out[k])}`);
+      }
+    }
+    return out;
+  }
+
+  /** The artboard an element's centre is over, if the verb was told where the artboards are. */
+  private artboardAt(el: AnnotationElement): string | null {
+    const abs = this.opts.artboards;
+    const def = defOf(el.type);
+    if (!abs?.length || !def) return null;
+    const b = def.bounds(el, { origin: { x: 0, y: 0 }, resolve: () => null });
+    if (!b) return null;
+    const cx = b.x + b.w / 2;
+    const cy = b.y + b.h / 2;
+    return (
+      abs.find((r) => cx >= r.x && cx <= r.x + r.w && cy >= r.y && cy <= r.y + r.h)?.id ?? null
+    );
+  }
+
+  /**
+   * Resolve stickies (`{"op":"resolve","id"|"ids"}`): stamps `resolved: {by: "AI", at}`. A sticky a
+   * person already resolved keeps their name and time. Only stickies resolve; a locked one is the
+   * person's to touch.
+   */
+  resolveStickies(op: Record<string, unknown>): string[] {
+    const raw = Array.isArray(op.ids) ? op.ids : op.id !== undefined ? [op.id] : [];
+    if (!raw.length) throw new AiOpError('resolve: needs id or ids');
+    const done: string[] = [];
+    for (const r of raw) {
+      const id = this.resolve(r, 'resolve');
+      const cur = this.get(id);
+      if (cur.type !== 'sticky') {
+        throw new AiOpError(`resolve: "${id}" is a ${cur.type} — only stickies are resolved`);
+      }
+      if (cur.resolved !== undefined) continue; // already resolved — keep who and when
+      this.update({ id, resolved: true });
+      done.push(id);
+    }
+    return done;
+  }
+
+  /**
+   * Wrap elements in one new section sized to hold them (`{"op":"wrap-section","ids":[…],"text"?}`).
+   * The section joins their shared container (top level when they differ), sits behind them, and every
+   * member keeps its world position. A member nested inside another member stays where it is.
+   */
+  wrapSection(op: Record<string, unknown>): string {
+    const raw = Array.isArray(op.ids) ? op.ids.map((r) => this.resolve(r, 'wrap-section')) : [];
+    const ids = [...new Set(raw)];
+    if (!ids.length) throw new AiOpError('wrap-section: needs ids');
+    const chosen = new Set(ids);
+    const members = ids.filter((id) => !this.scene.ancestors(id).some((a) => chosen.has(a)));
+    const boxes = members.map((id) => this.worldBox(id)).filter((b): b is Box => !!b);
+    if (!boxes.length) throw new AiOpError('wrap-section: those elements have no position');
+    const pad = 40;
+    const x0 = Math.min(...boxes.map((b) => b.x)) - pad;
+    const y0 = Math.min(...boxes.map((b) => b.y)) - pad - 24; // room for the title
+    const x1 = Math.max(...boxes.map((b) => b.x + b.w)) + pad;
+    const y1 = Math.max(...boxes.map((b) => b.y + b.h)) + pad;
+    const parents = new Set(members.map((id) => this.scene.effectiveParent(this.get(id)) ?? null));
+    const parent = parents.size === 1 ? ([...parents][0] ?? null) : null;
+    const title =
+      typeof op.text === 'string' ? op.text : typeof op.title === 'string' ? op.title : '';
+    const sec = this.create('section', {
+      ...(title ? { text: title } : {}),
+      ...(typeof op.color === 'string' ? { color: op.color } : {}),
+      x: Math.round(x0),
+      y: Math.round(y0),
+      w: Math.round(x1 - x0),
+      h: Math.round(y1 - y0),
+      parent,
+    });
+    const order = [...members].sort((a, b) => compareOrder(this.get(a), this.get(b)));
+    for (const id of order) this.reparent({ id, parent: sec });
+    this.reorder({ id: sec, to: 'back' });
+    return sec;
   }
 
   /** Whether an arrow end can bind to `id` — the registry's answer, not a list. */
@@ -343,7 +574,10 @@ export class AiBatch {
 
   /** A bound connector between two elements; a label becomes a text at its midpoint. */
   connect(op: Record<string, unknown>): string {
+    // V2-8.5 round 4 — a connector is born the way a drawn arrow is: Curved (arrow-kinds.ts NEW_ARROW; 15 an-follow ·
+    // an-plan · an-ai-write draw curves), unless the op says Straight / Elbow
     const id = this.create('arrow', {
+      line: 'curved',
       ...Object.fromEntries(
         Object.entries(op).filter(([k]) => k !== 'label' && k !== 'text' && k !== 'op')
       ),
@@ -370,7 +604,7 @@ export class AiBatch {
     if (!from) return null;
     const a = facingAnchor(target, from.x + from.w / 2, from.y + from.h / 2);
     const [ex, ey] = anchorPoint(target, 0, a.nx, a.ny);
-    return this.create('arrow', { from: fromId, x2: ex, y2: ey, parent: null });
+    return this.create('arrow', { from: fromId, x2: ex, y2: ey, parent: null, line: 'curved' });
   }
 
   /** Patch fields of an element (world x/y). `text` goes to the type's text slot. */
@@ -442,15 +676,39 @@ export class AiBatch {
     for (const k of Object.keys(set)) expect[k] = cur[k];
     this.apply([{ op: 'patch', id, set, expect }], `move ${id}`);
     this.updated.add(id);
-    if (op.keepParent === true || !def.caps.box) return;
-    const b = this.worldBox(id);
-    if (!b) return;
-    const exclude = new Set([id]);
-    const hit = this.scene.containerAt(b.x + b.w / 2, b.y + b.h / 2, exclude);
-    const target = hit?.id ?? null;
-    if (target !== (this.scene.effectiveParent(this.get(id)) ?? null)) {
-      this.reparent({ id, parent: target });
+    if (op.keepParent !== true && def.caps.box) {
+      const b = this.worldBox(id);
+      if (b) {
+        const exclude = new Set([id]);
+        const hit = this.scene.containerAt(b.x + b.w / 2, b.y + b.h / 2, exclude);
+        const target = hit?.id ?? null;
+        if (target !== (this.scene.effectiveParent(this.get(id)) ?? null)) {
+          this.reparent({ id, parent: target });
+        }
+      }
     }
+    this.refreshMembership(id);
+  }
+
+  /** A top-level box element rides with the artboard its centre is over now (Q3), when artboards are known. */
+  private refreshMembership(id: string): void {
+    const cur = this.get(id);
+    if (!this.opts.artboards?.length || !defOf(cur.type)?.caps.box) return;
+    if (this.scene.effectiveParent(cur)) return; // a section owns its members
+    const want = this.artboardAt(cur) ?? undefined;
+    if (want === cur.parentArtboard) return;
+    this.apply(
+      [
+        {
+          op: 'patch',
+          id,
+          set: want ? { parentArtboard: want } : {},
+          ...(want ? {} : { unset: ['parentArtboard'] }),
+          expect: { parentArtboard: cur.parentArtboard },
+        },
+      ],
+      `move ${id}`
+    );
   }
 
   /** Move an element into a section (or to top level with `parent: null`), keeping its world position. */

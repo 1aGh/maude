@@ -1,0 +1,571 @@
+// client/v2/search/search-model.js — V2-4.6: ⌘K as a render model.
+//
+// PURE (no DOM, no React). Search ⌘K finds, by name, everything the registry, the Settings sheet, the
+// toolbars and the project index know — and every result carries WHERE it lives, so a person learns
+// the way back (06 ad-search: "Every Search result carries its path … and ↵ runs it").
+//
+//   rows    = registry actions (visible, runnable) · toolbar tools · Settings rows   (local, sync)
+//   remote  = canvases + artboards from /_api/index?q=                                 (async)
+//   groups  = Canvases and artboards (one list) · Actions · Tools · Settings · (Ask AI, last, desktop only)
+//
+// One matcher: index/match.ts `scoreRow` (accent fold, every word, any order) on a sanitised query —
+// "New artboard — A4" has a dash a word-split would keep as a word and then fail on.
+// Nothing here names a label or a key: labels, keys and visibility come from the registry at call time
+// (V2-4.5b re-binds tool keys while this lands), settings labels from the Settings model.
+
+import { ACTIONS, ACTIONS_BY_ID } from '../../../actions/index.ts';
+import { menuPaths } from '../../../actions/menu.ts';
+import { holds, isVisible } from '../../../actions/resolve.ts';
+import { MODE_TOOLS } from '../../../bridge/canvas-modes.ts';
+import { fold, scoreRow, withinOneEdit } from '../../../index/match.ts';
+import { copy } from '../empty/empty-copy.js';
+import { keyHint } from '../shell/project-menu-model.js';
+import { rowShown, SETTINGS_ROWS } from '../settings/settings-model.js';
+import { ACTION_KEYWORDS, SETTINGS_SEARCH } from './search-keywords.js';
+
+/** Group order on screen. Ask AI is not a group: it is the last row (CONTRACT §4, S5). */
+export const GROUPS = Object.freeze([
+  // S10.13 (13 · ds-where-gator): the Design system(s) first, then everything in them by name
+  { id: 'design-system', title: 'Design system' },
+  {
+    id: 'in-design-system',
+    title: 'In the Design system',
+    aside: 'colours, type and components by name',
+  },
+  { id: 'canvases', title: 'Canvases' },
+  { id: 'artboards', title: 'Artboards' },
+  // S7.16 (07 · ve-long): the clips of the video on the timeline, by name — the provider is timeline/clip-search.js
+  { id: 'clips', title: 'Clips' },
+  { id: 'actions', title: 'Actions' },
+  // S11.18 (06 ad-search): when a search finds hidden tools, the ordinary actions that matched too sit apart
+  { id: 'also', title: 'Also' },
+  { id: 'tools', title: 'Tools' },
+  { id: 'settings', title: 'Settings' },
+]);
+
+/** A `search.where` that names a fold or Diagnostics: the thing is hidden until you open it. */
+const ADVANCED_HOME = /^(?!Settings\b).*(?:^|\s›\s)(?:Advanced|Diagnostics)(?:\s›|$)/;
+
+/** Rows per local group on screen — the rest are reachable by typing one more word. */
+export const GROUP_CAP = 8;
+
+/**
+ * Registry actions that are real but not "things to look for": tab switching is the browser's habit,
+ * Step back is esc, a held key and a nudge are not commands, and ⌘K is where you already are.
+ * (Marking these `search: { hidden: true }` in the registry is the proper home — patch request;
+ * until then this list is the one place.)
+ */
+const NOT_SEARCHABLE = [
+  /^tab\./,
+  /^ui\./,
+  /^search\./,
+  /^canvases\.(search|find)$/,
+  /-hold$/,
+  /\.nudge$/,
+  /^timeline\./,
+  /^annotation\./,
+  /^object\./,
+  /^select\.(none|all-annotations)$/,
+  /^edit\.(copy|cut|paste)$/,
+  /^home\.open$/,
+  /^export\.canvas-dialog$/,
+];
+
+/** Modes ⌘K evaluates visibility in: a tool the other toolbar owns is still findable (the key
+ *  switches to it); Present has no toolbar and no search. */
+const SEARCH_MODES = ['edit', 'preview'];
+
+/** Replace everything that is not a letter or a digit with a space — "New artboard — A4" → words. */
+export function sanitizeQuery(q) {
+  return String(q ?? '')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim();
+}
+
+/** visible in some mode ⌘K searches in (rule 12: the same predicate every surface calls). */
+function visibleSomewhere(def, ctx) {
+  return SEARCH_MODES.some((mode) => isVisible(def, { ...ctx, mode }));
+}
+
+function disabledIn(def, ctx) {
+  return !SEARCH_MODES.some((mode) => holds(def.enabled, { ...ctx, mode }));
+}
+
+/** "Menu › View › Advanced" — the path's parents; the row's own label is the result's name. */
+function parentPath(path) {
+  const at = path.lastIndexOf(' › ');
+  return at < 0 ? path : path.slice(0, at);
+}
+
+const TOOL_ALIAS = Object.freeze({ select: 'move' });
+
+/** The toolbar a `tool.*` action sits on, by MODE_TOOLS (slots name tools; labels are the fallback). */
+export function toolbarOf(def, modeTools = MODE_TOOLS) {
+  const tool = def.id.replace(/^tool\./, '');
+  const want = TOOL_ALIAS[tool] ?? tool;
+  const label = def.label.toLowerCase();
+  const hit = [];
+  for (const mode of ['edit', 'preview']) {
+    const bar = modeTools[mode];
+    if (!bar || bar.hidden) continue;
+    const found = bar.slots.some((s) => {
+      if (s.tool === want || s.lights?.includes(want) || s.tips?.includes(want)) return true;
+      if (s.label.toLowerCase() === label) return true;
+      return s.more?.some((m) => m.tool === want || m.label.toLowerCase() === label) ?? false;
+    });
+    if (found) hit.push(mode);
+  }
+  if (hit.length === 0) return null;
+  // Hand sits on both; the Edit toolbar is the one a person starts on, so it names the home
+  return `${hit[0] === 'edit' ? 'Edit' : 'Preview'} toolbar`;
+}
+
+/**
+ * The registry as searchable rows.
+ * @param ctx KeyCtx (`menuCtx()`)
+ * @param opts.isRunnable (id) => boolean — a row nothing can run is not offered
+ * @param opts.run (id) => void — what ↵ does
+ */
+export function actionSearchRows(
+  ctx,
+  {
+    isRunnable = () => true,
+    run = () => {},
+    // false: build every row and let the caller ask `row.runnable()` when the list opens — the shell's
+    // runner binds after the first render, so a build-time check would drop rows for good
+    eager = true,
+    actions = ACTIONS,
+    byId = ACTIONS_BY_ID,
+  } = {}
+) {
+  const paths = menuPaths(byId);
+  const rows = [];
+  const seen = new Set();
+  for (const def of actions) {
+    if (def.search?.hidden) continue;
+    if (NOT_SEARCHABLE.some((re) => re.test(def.id))) continue;
+    if (!visibleSomewhere(def, ctx)) continue;
+    if (eager && !isRunnable(def.id)) continue;
+    const isTool = def.kind === 'tool';
+    // a tool no toolbar slot arms any more (Browse, the v1 Rect) has nothing to find: "?" › moved says where it went
+    const toolbar = isTool ? toolbarOf(def) : null;
+    if (isTool && !toolbar) continue;
+    const menu = paths.get(def.id) ?? [];
+    // a label shown twice (Export… sits in File and at the top level) is one result
+    const key = `${isTool ? 'tool' : 'action'}:${def.label.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const where = isTool ? toolbar : menu[0] ? parentPath(menu[0].path) : (def.search?.where ?? '');
+    // a hidden tool: its menu home passes through an Advanced group or Diagnostics, or `search.where` names an
+    // Advanced fold (S11.18: "Inspector › Advanced") — Settings rows are their own group, not hidden tools
+    const advanced =
+      menu.some((p) => p.advanced) ||
+      menu.some((p) => /^Menu › Diagnostics/.test(p.path)) ||
+      (!menu.length && !isTool && ADVANCED_HOME.test(where));
+    rows.push({
+      group: isTool ? 'tools' : 'actions',
+      id: `${isTool ? 'tool' : 'action'}:${def.id}`,
+      actionId: def.id,
+      // A greyed row says where the thing lives (V2-4.9: "AI chat — in the desktop app").
+      name:
+        def.search?.note && disabledIn(def, ctx) ? `${def.label} — ${def.search.note}` : def.label,
+      keys: keyHint(def, ctx),
+      where,
+      advanced,
+      icon: def.icon ?? null,
+      disabled: disabledIn(def, ctx),
+      keywords: [...(ACTION_KEYWORDS[def.id] ?? []), ...(def.search?.keywords ?? [])],
+      searchRow: true,
+      runnable: () => isRunnable(def.id),
+      run: () => run(def.id),
+    });
+  }
+  return rows;
+}
+
+/** "Settings › Advanced › This project › Sync project files (…)" → the row's words + its path. */
+function settingsPathOf(where) {
+  const bare = where
+    .replace(/\s+/g, ' ')
+    .replace(/\s*\([^)]*\)\s*$/, '')
+    .replace(/\s+—\s.*$/, '')
+    .trim();
+  const parts = bare.split(' › ');
+  return { name: parts[parts.length - 1], parts };
+}
+
+/** The path shown beside a result: at most "Settings › Section › Group", never the row itself. */
+function settingsWhere(parts, name) {
+  const head = parts.slice(0, Math.min(3, parts.length - 1));
+  if (head[head.length - 1] === name) head.pop();
+  return head.join(' › ');
+}
+
+/**
+ * The Settings sheet's rows as results. A local-machine row (`local`) is absent from a cloud tab and from a
+ * read-only session, as it is in the sheet (`rowShown`); `open` is the section the sheet opens on.
+ */
+export function settingsSearchRows(opts = {}) {
+  const { cloud = null, readOnly = false, rows = SETTINGS_ROWS, run = () => {} } = opts;
+  const out = [];
+  const seen = new Set();
+  for (const r of rows) {
+    if (!rowShown(r, { cloud, readOnly })) continue;
+    if (r.searchTwin) continue; // the ⌘K action of the same name is the result (one row, not two)
+    const extra = SETTINGS_SEARCH[r.testid] ?? {};
+    const derived = settingsPathOf(r.where);
+    const name = extra.label ?? derived.name;
+    // Two rows of the same control (Sync project files) are one result
+    const dedupe = `${r.section}:${name.toLowerCase()}`;
+    if (seen.has(dedupe)) continue;
+    seen.add(dedupe);
+    out.push({
+      group: 'settings',
+      id: `setting:${r.section}:${r.testid}:${out.length}`,
+      testid: r.testid,
+      name,
+      keys: '',
+      where: settingsWhere(derived.parts, name),
+      advanced: r.section === 'advanced',
+      icon: 'settings',
+      disabled: false,
+      keywords: [...(extra.keywords ?? []), derived.name],
+      section: r.section,
+      searchRow: true,
+      runnable: () => true,
+      run: () => run(r.section, r),
+    });
+  }
+  return out;
+}
+
+/** Score `rows` against a query. Every word must match; label beats keyword/path; `close` = typo. */
+export function rankRows(rows, query, { limit = 200 } = {}) {
+  const q = sanitizeQuery(query);
+  if (!q) return [];
+  const qWords = fold(q).split(/\s+/).filter(Boolean);
+  const hits = [];
+  for (const row of rows) {
+    const hit = scoreRow(
+      { key: row.id, name: row.name, meta: [...row.keywords, row.where].filter(Boolean).join(' ') },
+      qWords
+    );
+    if (hit)
+      hits.push({
+        row,
+        score: hit.score,
+        close: hit.close,
+        weak: hit.weak,
+        // a typo's token is marked like an exact word (11 · pn-k-close: "Uniformy" lit for "unifromy")
+        marks: mergeMarks(hit.marks, hit.closeMarks),
+      });
+  }
+  hits.sort(
+    (a, b) =>
+      b.score - a.score ||
+      Number(a.row.disabled) - Number(b.row.disabled) ||
+      a.row.name.localeCompare(b.row.name)
+  );
+  return hits.slice(0, limit);
+}
+
+/** Two sorted lists of [start, end) ranges as one sorted list, overlaps merged. */
+export function mergeMarks(...lists) {
+  const all = lists.flat().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const out = [];
+  for (const r of all) {
+    const last = out[out.length - 1];
+    if (last && r[0] <= last[1]) last[1] = Math.max(last[1], r[1]);
+    else out.push([r[0], r[1]]);
+  }
+  return out;
+}
+
+/**
+ * A design-system specimen's meta line: "system/maude-v2/preview" → "Design system · maude-v2 · preview".
+ * The index keeps these canvases in the same list as the project's own (kind `specimen`); the line says
+ * what they are, so a person who typed "button" can tell the DS page from a canvas of theirs.
+ */
+export function canvasMeta(rel, folder) {
+  const m = /^system\/([^/]+)\/(.*)$/.exec(rel);
+  if (!m) return (folder || '').trim();
+  const sub = m[2].split('/').slice(0, -1);
+  return ['Design system', m[1], ...sub].join(' · ');
+}
+
+/** The canvas group a project keeps its canvases in when it names none — a folder line never says it. */
+const GROUP_ROOTS = ['ui'];
+const THUMB_KEY = /^[0-9a-f]{64}$/;
+
+/** "ui/2026/dresy" → "2026/dresy"; a canvas straight in the group → "" (11 · pn-k-close shows the folder, not the path). */
+function folderWithoutGroup(folder) {
+  const f = String(folder ?? '').trim();
+  for (const g of GROUP_ROOTS) {
+    if (f === g) return '';
+    if (f.startsWith(`${g}/`)) return f.slice(g.length + 1);
+  }
+  return f;
+}
+
+/**
+ * A canvas row's meta line: "<project> · 2026/dresy · 12 artboards" (11 · pn-k-close). Any part the answer does
+ * not have is left out; a design-system specimen keeps its own line (`canvasMeta`).
+ */
+function canvasRowMeta(rel, folder, { project = '', boards = null } = {}) {
+  if (/^system\//.test(rel)) return canvasMeta(rel, folder);
+  const count =
+    Number.isInteger(boards) && boards > 0
+      ? `${boards} ${boards === 1 ? 'artboard' : 'artboards'}`
+      : '';
+  return [String(project || '').trim(), folderWithoutGroup(folder), count]
+    .filter(Boolean)
+    .join(' · ');
+}
+
+/**
+ * The canvases / artboards `/_api/index?q=` answered → result rows.
+ * `query` (what was asked) lets the row mark its meta line too — "artboard in LetakA6 · print" lights
+ * LetakA6 when the person typed it — and tell a row that matched only through typos (`weak`) from one
+ * that has a word right. Without it the server's own name marks stand.
+ */
+export function remoteRows(result, { designRel = '.design', query = '', project = '' } = {}) {
+  const qWords = fold(sanitizeQuery(query)).split(/\s+/).filter(Boolean);
+  const out = [];
+  for (const r of result?.rows ?? []) {
+    const rel = r.key.split('#')[0];
+    // a system's own board (and its artboards) is the "Design system" row above, not a canvas to list twice
+    if (/^system\/[^/]+\/design-system\.tsx$/.test(rel)) continue;
+    const board = r.group === 'artboards' ? r.key.split('#')[1] : null;
+    const canvas = rel.replace(/^.*\//, '').replace(/\.tsx$/, '');
+    // "artboard in LetakA6 · print" / "Alligators brand · 2026/combine · 12 artboards"
+    const meta = board
+      ? `artboard in ${canvas}${r.kind === 'print' ? ' · print' : ''}`
+      : canvasRowMeta(rel, r.meta, { project, boards: r.boards });
+    // Re-score the strings the row SHOWS (the index matched on more: the folder, the kind).
+    const shown = qWords.length ? scoreRow({ key: r.key, name: r.name, meta }, qWords) : null;
+    out.push({
+      group: board ? 'artboards' : 'canvases',
+      // the index's own score: canvases and artboards share one list now, ranked by it (a tie: the canvas first)
+      score: Number.isFinite(r.score) ? r.score : 0,
+      id: `${board ? 'artboard' : 'canvas'}:${r.key}`,
+      // the system's own canvas is "Design system" to people, never its file slug (CONTRACT §7)
+      name: r.name === 'design-system' ? 'Design system' : r.name,
+      marks: shown ? mergeMarks(shown.marks, shown.closeMarks) : (r.marks ?? []),
+      metaMarks: shown?.metaMarks ?? [],
+      close: shown ? shown.close : !!r.close,
+      weak: shown?.weak ?? false,
+      path: `${designRel}/${rel}`,
+      artboardId: board,
+      meta,
+      keys: '',
+      where: '',
+      advanced: false,
+      // an artboard wears its KIND's glyph (11 pn-k-close: print → the printer), a canvas the page
+      icon: board ? (r.kind === 'print' ? 'print' : 'frame') : 'file',
+      // a canvas shows its cover picture when one is rendered (the icon stays for a canvas without one)
+      thumb: !board && THUMB_KEY.test(r.cover ?? '') ? `/_api/thumb/${r.cover}` : null,
+      disabled: false,
+      keywords: [],
+    });
+  }
+  return out;
+}
+
+/**
+ * Everything on screen for a query.
+ * @returns {{ groups: {id,title,aside?,rows:object[]}[], items: object[], total: number,
+ *   empty: boolean, closeOnly: boolean, closeWord: string|null, ask: object|null }}
+ *   `items` is `groups`' rows in order plus the Ask AI row — the list the arrow keys walk.
+ */
+export function assemble({ query, local = [], remote = [], canAskAI = false, cap = GROUP_CAP }) {
+  const q = sanitizeQuery(query);
+  const localHits = rankRows(local, q);
+  const byGroup = new Map(GROUPS.map((g) => [g.id, []]));
+  for (const h of localHits)
+    byGroup.get(h.row.group)?.push({ ...h.row, marks: h.marks, close: h.close, weak: h.weak });
+  // 11 pn-k-close: canvases and artboards are ONE list in the order the index ranked them ("Canvases and artboards"); a row
+  // keeps its own `group` (an artboard still opens as an artboard), only the heading is shared
+  for (const r of remote) byGroup.get(r.group === 'artboards' ? 'canvases' : r.group)?.push(r);
+  // one list: by the index's score, and on a tie a canvas before its artboards (Array.sort is stable)
+  byGroup
+    .get('canvases')
+    ?.sort(
+      (a, b) =>
+        (b.score || 0) - (a.score || 0) ||
+        (a.group === 'artboards' ? 1 : 0) - (b.group === 'artboards' ? 1 : 0)
+    );
+  // Hidden tools lead under "Actions" with their count; the plain actions that matched too go under "Also".
+  // With no hidden tool among the matches there is nothing to set apart, and they stay under "Actions".
+  const acts = byGroup.get('actions');
+  if (acts?.some((r) => r.advanced) && acts.some((r) => !r.advanced)) {
+    byGroup.set(
+      'also',
+      acts.filter((r) => !r.advanced)
+    );
+    byGroup.set(
+      'actions',
+      acts.filter((r) => r.advanced)
+    );
+  }
+  const groups = [];
+  let total = 0;
+  // 11 pn-k-across / pn-k-close: next to canvases and artboards the hidden tools are "Tools and settings · not on
+  // screen" (what they are), not 06's "Actions · N hidden tools" (that is the search with only tools in it).
+  const withProjectRows = (byGroup.get('canvases')?.length ?? 0) > 0;
+  for (const g of GROUPS) {
+    const all = byGroup.get(g.id) ?? [];
+    if (all.length === 0) continue;
+    const rows = all.slice(
+      0,
+      g.id === 'canvases' ? 12 : g.id === 'in-design-system' ? Math.min(cap, 4) : cap
+    );
+    // S11.18 (a11y): the count is the rows drawn — "31 results" over 13 rows told a screen reader a lie
+    total += rows.length;
+    const hidden = all.filter((r) => r.advanced).length;
+    const toolsNextToProjects = g.id === 'actions' && hidden > 0 && withProjectRows;
+    const both = g.id === 'canvases' && rows.some((r) => r.group === 'artboards');
+    const onlyBoards = both && rows.every((r) => r.group === 'artboards');
+    groups.push({
+      id: g.id,
+      title: toolsNextToProjects
+        ? 'Tools and settings'
+        : onlyBoards
+          ? 'Artboards'
+          : both
+            ? 'Canvases and artboards'
+            : g.title,
+      ...(toolsNextToProjects
+        ? { aside: 'not shown' }
+        : g.id === 'actions' && hidden
+          ? { aside: `${hidden} hidden ${hidden === 1 ? 'tool' : 'tools'}` }
+          : g.aside
+            ? { aside: g.aside }
+            : {}),
+      rows,
+    });
+  }
+  const raw = groups.flatMap((g) => g.rows);
+  const closeOnly = raw.length > 0 && raw.every((r) => r.close);
+  // Every row got here through a typo and not one word was right (11 · pn-k-close, 05 · es-search-k):
+  // that is a misspelling to correct, not a search that found things — "Did you mean".
+  const didYouMean = closeOnly && raw.every((r) => r.weak);
+  // Among rows that DO have a word right, a near miss with none is drawn quiet (after the hits).
+  const hush = (r) => (!didYouMean && r.close && r.weak ? { ...r, quiet: true } : r);
+  const outGroups = didYouMean
+    ? [{ id: 'did-you-mean', title: 'Did you mean', rows: raw }]
+    : groups.map((g) => ({ ...g, rows: g.rows.map(hush) }));
+  const shown = outGroups.flatMap((g) => g.rows);
+  const state = shown.length === 0 || didYouMean ? 'none' : 'hits';
+  const ask = canAskAI ? askRow(q, state) : null;
+  return {
+    groups: outGroups,
+    items: ask ? [...shown, ask] : shown,
+    total,
+    empty: Boolean(q) && total === 0,
+    closeOnly,
+    didYouMean,
+    closeWord: closeOnly ? closeWordFor(q, shown) : null,
+    // 11 pn-k-close: the note quotes the word that was mistyped ("unifromy"), not the whole query
+    closeTyped: closeOnly ? closeTypedFor(q, shown) : null,
+    ask,
+  };
+}
+
+/**
+ * The Ask AI row, last on every screen (CONTRACT §4, ⌘↵). Its words follow what is above it:
+ *   none   nothing matched (or only a misspelling): "Ask AI to find “pricng” — it looks inside canvases too"
+ *   hits   something matched: "Ask AI — find “letak a6 predni” by what it looks like"
+ *   idle   nothing typed: "Ask AI — describe what you want on the canvas"
+ *   first  nothing typed and nothing opened yet: "Ask AI — type what to make, or what to find"
+ * @param state 'none' | 'hits' | 'idle' | 'first'
+ */
+export function askRow(query, state) {
+  const q = sanitizeQuery(query);
+  const base = { group: 'ask-ai', id: 'ask-ai', keys: '⌘↵', icon: 'spark' };
+  if (q && state === 'none')
+    return { ...base, name: `Ask AI to find “${q}”`, meta: ' — it looks inside canvases too' };
+  if (q) return { ...base, name: 'Ask AI', meta: ` — find “${q}” by what it looks like` };
+  return {
+    ...base,
+    name: 'Ask AI',
+    meta:
+      state === 'first'
+        ? ' — type what to make, or what to find'
+        : ' — describe what you want on the canvas',
+  };
+}
+
+/**
+ * The word the close matches stand for: "Nothing called “unifromy”. Showing close matches for uniformy."
+ * It is the first query word that is NOT in any shown name as typed — "unifromy", not "2027".
+ */
+function closeWordFor(q, rows) {
+  const row = rows[0];
+  if (!row) return null;
+  const typed = fold(q).split(/\s+/).filter(Boolean);
+  const hay = fold(rows.map((r) => r.name).join(' '));
+  for (const w of typed) {
+    if (/\d/.test(w) || hay.includes(w)) continue;
+    for (const r of rows)
+      for (const t of r.name.split(/[^\p{L}\p{N}]+/u)) {
+        const f = fold(t);
+        if (f && (withinOneEdit(w, f) || withinOneEdit(w, f.slice(0, w.length)))) return t;
+      }
+  }
+  return null;
+}
+
+/** The query word the close matches stand for, as typed ("unifromy" in "unifromy 2027"). */
+function closeTypedFor(q, rows) {
+  const word = closeWordFor(q, rows);
+  if (!word) return null;
+  const f = fold(word);
+  const typed = String(q ?? '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  const hay = fold(rows.map((r) => r.name).join(' '));
+  return (
+    typed.find((w) => {
+      const fw = fold(w);
+      return (
+        !/\d/.test(fw) &&
+        !hay.includes(fw) &&
+        (withinOneEdit(fw, f) || withinOneEdit(fw, f.slice(0, fw.length)))
+      );
+    }) ?? null
+  );
+}
+
+/** CONTRACT §4: "Nothing called “pricng”. Try another word, or ask AI to find it." (no AI → no 2nd half) */
+export function emptyCopy(query, canAskAI) {
+  const q = String(query ?? '').trim();
+  // S11.3: the words are 05's (es-search-k), read from the kit's table; no AI → no second half
+  const words = copy('es-search-k.search-none', { q });
+  return {
+    headline: words.title,
+    next: canAskAI ? words.next : 'Try another word.',
+  };
+}
+
+/** The footer count, CONTRACT §4: "N results" (never "1 results"). */
+export function resultsCount(total) {
+  return `${total} ${total === 1 ? 'result' : 'results'}`;
+}
+
+/** "1 close match" / "4 close matches" — the typo-only list's count (11 · pn-k-close). */
+export function closeCount(total) {
+  return `${total} close ${total === 1 ? 'match' : 'matches'}`;
+}
+
+/**
+ * The footer's count for a typed query, CONTRACT §4:
+ *   hits           "N results"
+ *   typo-only      "4 close matches" (the note above says what they stand for)
+ *   Did you mean   "0 results · 1 close match" (05 · es-search-k)
+ */
+export function footerCount(view) {
+  if (view.didYouMean) return `${resultsCount(0)} · ${closeCount(view.total)}`;
+  if (view.closeOnly) return closeCount(view.total);
+  return resultsCount(view.total);
+}

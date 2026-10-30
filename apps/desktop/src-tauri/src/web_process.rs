@@ -12,10 +12,13 @@
 // URL the window held — if that server died too and another local process took
 // its loopback port, that process's page would load into the privileged
 // top-level webview (security review, attacker finding 3). So the target is
-// re-derived from the CURRENT project's live sidecar: `_server.json` must name
-// the pid of the child we spawned, and its url must pass the DDR-109 loopback
-// guard. No verified server ⇒ we navigate nowhere and leave it to the sidecar
-// supervisor, which re-navigates once it has respawned.
+// re-derived from the CURRENT project's live sidecar: the address its child
+// wrote to the APP-OWNED shell info file (V2-1.1 decision 8,
+// `sidecar::read_shell_origin`, DDR-109 loopback guard) — never the in-project
+// `_server.json`, which an agent can rewrite with our child's pid and its own
+// loopback port and so inherit the project's IPC (V2-3.6 H2). No info file ⇒
+// we navigate nowhere and leave it to the sidecar supervisor, which
+// re-navigates once it has respawned.
 //
 // A page that kills the process again on load would loop, so recoveries are
 // rate-limited (`CrashGuard`): past the budget we stop and ask the user instead.
@@ -28,8 +31,7 @@ use std::time::{Duration, Instant};
 use tauri::{Manager, Runtime, Url, Webview};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 
-use crate::server_json::{is_loopback_url, read_server_pid_url};
-use crate::sidecar::{log_line, SidecarState};
+use crate::sidecar::{log_line, read_shell_origin, SidecarState};
 
 /// Automatic reloads allowed inside `WINDOW` before we stop and ask.
 const MAX_AUTO_RELOADS: usize = 3;
@@ -128,6 +130,16 @@ fn recover<R: Runtime>(webview: &Webview<R>) {
         return;
     };
     let target = recovery_target(webview.url().ok().as_ref(), &live);
+    // The shell is navigating this window: record the origin its commands are
+    // answered for (V2-3.2 `windows::check_caller`) — a respawn may have moved
+    // the server to another port since the last navigate.
+    if let Some(state) = webview.app_handle().try_state::<SidecarState>() {
+        state
+            .windows
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .set_origin(webview.label(), &live.origin().ascii_serialization());
+    }
     if let Err(e) = webview.navigate(target) {
         log_line(&format!(
             "[maude] navigate after web process crash failed: {e}"
@@ -135,31 +147,34 @@ fn recover<R: Runtime>(webview: &Webview<R>) {
     }
 }
 
-/// The current project's server url — only when `_server.json` names the pid of
-/// the sidecar child WE spawned for that project and the url is loopback.
+/// The crashed window's OWN project's server url (V2-3.2: the root of this
+/// webview's window role, not "the displayed project" — a background tab can
+/// crash too), read from the info file of the child WE spawned for that
+/// project. Never `_server.json` (V2-3.6 H2).
 fn live_server_url<R: Runtime>(webview: &Webview<R>) -> Option<Url> {
     let state = webview.app_handle().try_state::<SidecarState>()?;
     let root = state
-        .project_root
+        .windows
         .lock()
         .unwrap_or_else(|p| p.into_inner())
-        .clone();
-    let child_pid = {
+        .root_of(webview.label())?;
+    let info_file = {
         let instances = state.instances.lock().unwrap_or_else(|p| p.into_inner());
-        instances.get(&root)?.child.as_ref()?.pid()
+        instances
+            .get(&root)
+            .filter(|inst| inst.child.is_some())
+            .and_then(|inst| inst.shell.as_ref())
+            .map(|probe| probe.info_file.clone())
     };
-    let design_root = std::path::Path::new(&root).join(".design");
-    let (pid, url) = read_server_pid_url(&design_root)?;
-    verified_url(pid, child_pid, &url)
+    recovery_origin(info_file.as_deref())
 }
 
-/// Pure half of `live_server_url`: pid must match our child, url must be loopback.
-fn verified_url(file_pid: u32, child_pid: u32, url: &str) -> Option<Url> {
-    if file_pid != child_pid {
-        return None;
-    }
-    let parsed: Url = url.parse().ok()?;
-    is_loopback_url(&parsed).then_some(parsed)
+/// Pure half of `live_server_url`: the loopback origin the app-owned info file
+/// names (`read_shell_origin` refuses anything off loopback), or `None`. It
+/// takes no project root on purpose: nothing inside the project can steer
+/// where a recovered window goes.
+fn recovery_origin(info_file: Option<&std::path::Path>) -> Option<Url> {
+    read_shell_origin(info_file?)?.parse().ok()
 }
 
 /// Keep the user's place (path + query) when the window was already on the live
@@ -179,17 +194,34 @@ mod tests {
         s.parse().unwrap()
     }
 
+    /// V2-3.6 H2: an agent rewrites the in-project `_server.json` with OUR
+    /// child's pid and its own loopback port. Recovery must not follow it.
     #[test]
-    fn verified_url_requires_our_pid_and_loopback() {
-        assert_eq!(
-            verified_url(42, 42, "http://localhost:4403"),
-            Some(url("http://localhost:4403"))
-        );
-        // Another process wrote the file or now owns the port.
-        assert_eq!(verified_url(43, 42, "http://localhost:4403"), None);
-        // DDR-109: never off loopback, even with a matching pid.
-        assert_eq!(verified_url(42, 42, "http://attacker.tld"), None);
-        assert_eq!(verified_url(42, 42, "-K/tmp/x"), None);
+    fn recovery_ignores_a_planted_server_json() {
+        let project = std::env::temp_dir().join(format!(
+            "maude-webproc-planted-{}-{:?}",
+            std::process::id(),
+            std::time::SystemTime::now()
+        ));
+        std::fs::create_dir_all(project.join(".design")).unwrap();
+        std::fs::write(
+            project.join(".design/_server.json"),
+            format!(
+                r#"{{"pid":{},"port":6666,"url":"http://localhost:6666"}}"#,
+                std::process::id()
+            ),
+        )
+        .unwrap();
+        let info = project.join("app-owned-info.json");
+        std::fs::write(&info, r#"{"url":"http://localhost:4403","port":4403}"#).unwrap();
+        assert_eq!(recovery_origin(Some(&info)), Some(url("http://localhost:4403")));
+        // No app-owned info file (not spawned by us, or retired) ⇒ nowhere,
+        // however plausible `_server.json` looks.
+        assert_eq!(recovery_origin(None), None);
+        // DDR-109 holds for the app-owned file too.
+        std::fs::write(&info, r#"{"url":"http://attacker.tld"}"#).unwrap();
+        assert_eq!(recovery_origin(Some(&info)), None);
+        let _ = std::fs::remove_dir_all(&project);
     }
 
     #[test]

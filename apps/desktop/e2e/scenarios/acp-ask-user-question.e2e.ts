@@ -1,6 +1,6 @@
 import { $, $$, browser, expect } from '@wdio/globals';
 
-import { clearComposer, openAssistant } from '../helpers/assistant';
+import { aiConnected, clearComposer, openAssistant } from '../helpers/assistant';
 import { capture, startReport } from '../helpers/evidence';
 import { isNativeShell } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
@@ -37,9 +37,7 @@ describe('acp-ask-user-question (native-desktop)', () => {
     // spec files, so the panel may already be open (see helpers/assistant.ts).
     await openAssistant();
 
-    const notConnected = await $(tid('acp-not-connected'));
-    const isNotConnected = await notConnected.isDisplayed().catch(() => false);
-    if (isNotConnected) {
+    if (!(await aiConnected())) {
       this.skip(); // no signed-in claude on this machine — not this scenario's job to set that up
     }
   });
@@ -68,14 +66,11 @@ describe('acp-ask-user-question (native-desktop)', () => {
     expect(options.length).toBeGreaterThan(0);
   });
 
-  it('2 · picking an option and Submit resolves the turn', async () => {
-    const firstOption = await $('[data-testid^="chat-elicit-option-"] input');
+  it('2 · picking an option resolves the turn', async () => {
+    // S5.17b: 03 draws picks only — a row IS the answer (no Send button on the simple card)
+    const firstOption = await $('[data-testid^="chat-elicit-option-"]');
     await firstOption.waitForDisplayed({ timeout: 10_000 });
     await firstOption.click();
-
-    const submit = await $(tid('chat-elicit-submit'));
-    await submit.waitForEnabled({ timeout: 5_000 });
-    await submit.click();
     await capture('02-submitted');
 
     // The card must disappear once the response is sent — mutually exclusive
@@ -83,7 +78,7 @@ describe('acp-ask-user-question (native-desktop)', () => {
     const prompt = await $(tid('chat-elicit-prompt'));
     await browser.waitUntil(async () => !(await prompt.isDisplayed().catch(() => false)), {
       timeout: 15_000,
-      timeoutMsg: 'the elicitation card never cleared after Submit',
+      timeoutMsg: 'the elicitation card never cleared after the pick',
     });
 
     // The composer must still be usable — the turn resolved, not hung.

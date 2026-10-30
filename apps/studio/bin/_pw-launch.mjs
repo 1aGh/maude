@@ -83,12 +83,35 @@ export function isMissingBrowserError(message) {
 }
 
 /**
+ * V2-8.9 M1 (decision maude/v2-8.9-lead-m1-canvas-navigation-gate): the Chromium
+ * flags a launch gets while the AI chat's "Search the web" is off — the agent's
+ * session carries MAUDE_NO_EGRESS=1 (acp/may-scope.ts `mayEnv`) and every shim a
+ * `maude design` helper runs for it inherits it. Resolve only loopback (no DNS
+ * lookup leaves the machine), send everything else to a dead loopback proxy, and
+ * keep WebRTC off unproxied UDP (a STUN server at an IP literal skips both).
+ * The agent-browser lane gets the same effect from bin/_no-egress.sh.
+ */
+export const NO_EGRESS_CHROMIUM_ARGS = Object.freeze([
+  '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1, EXCLUDE localhost',
+  '--proxy-server=http://127.0.0.1:9',
+  '--force-webrtc-ip-handling-policy=disable_non_proxied_udp',
+]);
+
+/** `opts` with the no-egress flags appended when `env.MAUDE_NO_EGRESS === '1'`. Pure. */
+export function noEgressLaunchOptions(opts, env = process.env) {
+  const base = opts ?? {};
+  if (env?.MAUDE_NO_EGRESS !== '1') return base;
+  return { ...base, args: [...(base.args ?? []), ...NO_EGRESS_CHROMIUM_ARGS] };
+}
+
+/**
  * Launch Chromium, mapping the missing-binary failure to a clean exit. Drop-in
  * for `chromium.launch(opts)` — same signature, same resolved Browser.
  */
 export async function launchChromium(opts) {
+  const safe = noEgressLaunchOptions(opts);
   try {
-    return await chromium.launch(opts);
+    return await chromium.launch(safe);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     if (isMissingBrowserError(msg)) {
@@ -100,7 +123,7 @@ export async function launchChromium(opts) {
       const executablePath = resolveBrowserExecutable();
       if (executablePath) {
         try {
-          return await chromium.launch({ ...opts, executablePath });
+          return await chromium.launch({ ...safe, executablePath });
         } catch {
           /* fall through to the install hint */
         }
@@ -212,4 +235,103 @@ export async function addScriptCspSafe(page, { content, type, name = 'lib', time
     await page.unroute(url).catch(() => {});
   }
   void timeout;
+}
+
+/**
+ * gate-b-c4d — may a shim's page at `pageUrl` make a request to `url`? Only to the origin its main
+ * frame committed (the capture origin once the main origin's 307 has landed; the render worker's
+ * loopback proxy in a cell), plus `data:` / `blob:`. A page that has not committed an http(s)
+ * document (a popup's `about:blank`, no page at all) reaches nothing. Pure, so it is unit-tested.
+ *
+ * @param {string} url
+ * @param {string | null | undefined} pageUrl
+ */
+export function shellRequestAllowed(url, pageUrl) {
+  let u;
+  try {
+    u = new URL(url);
+  } catch {
+    return false;
+  }
+  if (u.protocol === 'data:' || u.protocol === 'blob:') return true;
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return false;
+  if (!pageUrl) return false;
+  let origin;
+  try {
+    origin = new URL(pageUrl).origin;
+  } catch {
+    return false;
+  }
+  return origin !== 'null' && u.origin === origin;
+}
+
+function sameHref(a, b) {
+  try {
+    return new URL(a).href === new URL(b).href;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * gate-b-c4d — a browser context for rendering a canvas shell, confined like the thumbnail worker
+ * (`_thumbs-playwright.mjs`). THE CANVAS IS UNTRUSTED CODE (DDR-054): in its owner's export it
+ * could `window.open` the main origin's shell for ANOTHER canvas and, landing on its own capture
+ * origin, read that frame. So every request the context makes is aborted unless it is
+ *   - the shim's own navigation (`goto`), to exactly the URL it passed (one-shot per page; the
+ *     main origin only 307s it — redirect hops are not routed), or
+ *   - to the origin the requesting page's main frame committed (`shellRequestAllowed`).
+ * Popups (their first navigation has no committed page), other origins, the main origin once the
+ * shell has landed elsewhere, service workers (blocked) and WebSockets (closed) all fail.
+ *
+ * Use the returned `goto(page, url, opts)` for every navigation the shim makes itself; a bare
+ * `page.goto` is refused.
+ *
+ * @param {import('playwright').Browser} browser
+ * @param {import('playwright').BrowserContextOptions} [options]
+ */
+export async function newShellContext(browser, options = {}) {
+  const ctx = await browser.newContext({ ...options, serviceWorkers: 'block' });
+  /** @type {Map<import('playwright').Page, string>} */
+  const entries = new Map();
+  await ctx.route('**/*', (route) => {
+    const req = route.request();
+    let frame = null;
+    let page = null;
+    try {
+      frame = req.frame();
+      page = frame.page();
+    } catch {
+      /* a service worker, or a navigation issued before its frame exists (a popup) */
+    }
+    if (
+      page &&
+      req.isNavigationRequest() &&
+      frame === page.mainFrame() &&
+      entries.has(page) &&
+      sameHref(entries.get(page), req.url())
+    ) {
+      entries.delete(page);
+      return route.continue();
+    }
+    return shellRequestAllowed(req.url(), page ? page.mainFrame().url() : null)
+      ? route.continue()
+      : route.abort('blockedbyclient');
+  });
+  // The capture origin refuses upgrades anyway; nothing a capture renders needs a socket.
+  await ctx.routeWebSocket(/.*/, (ws) => ws.close({ code: 1008, reason: 'canvas capture' }));
+  /**
+   * @param {import('playwright').Page} page
+   * @param {string} url
+   * @param {Parameters<import('playwright').Page['goto']>[1]} [opts]
+   */
+  const goto = async (page, url, opts) => {
+    entries.set(page, url);
+    try {
+      return await page.goto(url, opts);
+    } finally {
+      entries.delete(page);
+    }
+  };
+  return { ctx, goto };
 }

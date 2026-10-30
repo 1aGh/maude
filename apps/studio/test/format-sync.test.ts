@@ -18,9 +18,9 @@ import { join } from 'node:path';
 
 import {
   CELL_SELF_HUB,
+  FORMAT_GATE_OPTS,
   formatHubUrl,
   readHubFormatCache,
-  STAGED_FORMAT_GATE_OPTS,
   SUPPORTED_FORMAT,
 } from '../format.ts';
 import {
@@ -82,17 +82,21 @@ describe('declare', () => {
   });
 
   test('editable → the project format; gated → this build’s own (a mismatch the hub sees)', () => {
-    expect(declaredFormat(ctx())).toBe(1);
-    expect(formatGated(ctx())).toBe(false);
-    // The hub says the project is newer than this build: gated, declares its own.
-    learnHubFormat(ctx(), { formatVersion: NEWER });
+    expect(declaredFormat(ctx(SUPPORTED_FORMAT))).toBe(SUPPORTED_FORMAT);
+    expect(formatGated(ctx(SUPPORTED_FORMAT))).toBe(false);
+    // The full gate (CONTRACT §4.1): a format-1 project is view only here — nothing goes up,
+    // and the declaration is this build's own, so a v2 hub fences it too.
     expect(formatGated(ctx())).toBe(true);
     expect(declaredFormat(ctx())).toBe(SUPPORTED_FORMAT);
+    // The hub says the project is newer than this build: gated, declares its own.
+    learnHubFormat(ctx(SUPPORTED_FORMAT), { formatVersion: NEWER });
+    expect(formatGated(ctx(SUPPORTED_FORMAT))).toBe(true);
+    expect(declaredFormat(ctx(SUPPORTED_FORMAT))).toBe(SUPPORTED_FORMAT);
   });
 
-  test('the sync gate uses the SAME options as the HTTP gate (one constant: STAGED_FORMAT_GATE_OPTS)', () => {
-    // One object, not two equal literals: the sync runtime IS the staged constant…
-    expect(SYNC_FORMAT_GATE_OPTS).toBe(STAGED_FORMAT_GATE_OPTS);
+  test('the sync gate uses the SAME options as the HTTP gate (one constant: FORMAT_GATE_OPTS)', () => {
+    // One object, not two equal literals: the sync runtime IS the studio's gate constant…
+    expect(SYNC_FORMAT_GATE_OPTS).toBe(FORMAT_GATE_OPTS);
     // …and every gate call in http.ts passes that constant, never a local copy.
     const http = readFileSync(join(import.meta.dir, '..', 'http.ts'), 'utf8');
     expect(http).not.toMatch(/FORMAT_GATE_OPTS\s*=/);
@@ -101,9 +105,9 @@ describe('declare', () => {
     ];
     expect(calls.length).toBeGreaterThan(0);
     for (const [call, , args] of calls) {
-      expect({ call, staged: args.trimEnd().endsWith('STAGED_FORMAT_GATE_OPTS') }).toEqual({
+      expect({ call, gate: /(^|[^_])FORMAT_GATE_OPTS$/.test(args.trimEnd()) }).toEqual({
         call,
-        staged: true,
+        gate: true,
       });
     }
   });
@@ -161,7 +165,9 @@ describe('learn', () => {
     process.env.MAUDE_WORKSPACE_MODE = '1';
     process.env.MAUDE_HUB_FORMAT_FILE = file;
     try {
-      const cellCtx = { cfg: {}, paths: { designRoot: dir } };
+      // a format-1 checkout is view only in v2 (the full gate), so the cell's checkout is format 2
+      expect(formatGated({ cfg: {}, paths: { designRoot: dir } })).toBe(true);
+      const cellCtx = { cfg: { formatVersion: SUPPORTED_FORMAT }, paths: { designRoot: dir } };
       expect(formatHubUrl(cellCtx)).toBe(CELL_SELF_HUB);
       expect(formatGated(cellCtx)).toBe(false);
       writeFileSync(file, JSON.stringify({ hub: CELL_SELF_HUB, formatVersion: NEWER, epoch: 1 }));
@@ -181,8 +187,7 @@ describe('learn', () => {
 
   test('a hub BELOW this copy’s config (an unflip not taken here yet) pauses outbound too', () => {
     learnHubFormat(ctx(2), { formatVersion: 2, epoch: 1 });
-    // v2: editable. The 1.x cut: already paused — format 2 is newer than it.
-    expect(formatGated(ctx(2))).toBe(SUPPORTED_FORMAT < 2);
+    expect(formatGated(ctx(2))).toBe(false);
     learnHubFormat(ctx(2), { formatVersion: 1, epoch: 2 }); // the owner's unflip
     expect(formatGated(ctx(2))).toBe(true);
   });

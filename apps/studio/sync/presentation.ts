@@ -226,7 +226,18 @@ function readLanes(status: SyncStatusLike): LaneFacts {
       if (Array.isArray(files.held)) {
         for (const h of files.held) facts.held += isRecord(h) && isCount(h.count) ? h.count : 1;
       }
-      if (isRecord(files.rateLimited)) facts.paused = true;
+      // The hub asked the lane to wait with changes still on this Mac: that is syncing (paused), never
+      // "synced" — the Share cluster must not say Saved over a callout that says changes are waiting.
+      let waitingBehindPause = 0;
+      if (isRecord(files.rateLimited)) {
+        facts.paused = true;
+        if (isCount(files.rateLimited.waiting)) waitingBehindPause = files.rateLimited.waiting;
+        // P8-T G1b-3: the pass that met the 429 also counts the file it was refused as `failed`. While the hub
+        // holds the lane, that file is one of the `waiting` (the callout lists it there), not a failure for a
+        // person to review — else "1 file could not be delivered" outranks the pause and the word reads Saved.
+        // A real failure reports again on the first pass after the pause lifts.
+        if (waitingBehindPause > 0) facts.failedFiles = 0;
+      }
       const progress = files.progress;
       if (isRecord(progress)) {
         if (Array.isArray(progress.blocked)) {
@@ -251,6 +262,8 @@ function readLanes(status: SyncStatusLike): LaneFacts {
               : { delivered: 0, tracked: 0 };
         }
       } else if (progress !== undefined) facts.unreadable = true;
+      if (waitingBehindPause > 0 && !facts.moving)
+        facts.moving = { delivered: 0, tracked: waitingBehindPause };
     }
   }
   if (assets !== undefined) {

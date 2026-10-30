@@ -1,0 +1,19 @@
+V2-4.5 · V2-4.6 · V2-4.7 · V2-4.8 · V2-4.9 · V2-4.10 — the rest of Phase 4, verified at the Phase 4 gate
+Date: 2026-10-17/18 · feat/maude-v2 · gate HEAD: see the Progress-log line (this file is committed with it)
+
+Commits per task (feat, 5ae2c90e..)
+- V2-4.5 two toolbars + ToolbarMorph + tool keys: 0112bf66 fe19112e (4.5a) dc603470 · 675acb95 ae3755f1 (4.5b) · 9f864de1 7f940b1b (4.5c) · 8dfdb011 (lead)
+- V2-4.6 ⌘K Search + "?" sheet: ad701500 9e2a450b 0d054c2e 109293a3 · gate 4b6521d0 (a key listed once) f1607c3e (⌥⌘1–9, "or" kept with its key)
+- V2-4.7 Settings + Diagnostics: f1465083 b385837b (4.7a) · 005f168e 63f73d69 ce1e2cc2 (4.7b) · ff777449 48c54110 8f1be4ac 82231c23 (4.7c)
+- V2-4.8 old chrome replaced: aca4ce5b 54c65427 4835ac2e (4.8b) · b3292da5 9be04701 (4.8a) · 283214cd e7343c20 (lead)
+- V2-4.9 every shell parity: 2cd91786 cc13bcd8 9156efa8 03ed9b0d df3a59a3 25762ca2 b103e57f c33e10bd · gate fb2b9652 (parity e2e helper + cloud stand-in)
+- V2-4.10 fold component: 05efac5f 4fc5bfd9 8dfdb011
+- gate work: polish-a c9e1a38f · polish-b 6c493f49 · roles cc2270f3 · nothing-deleted tooling a69d22cd 299d57ca 6fe72e46 b9fef89e · static 0829ea6c · security 4b6521d0 2cd0bbbd · pins 2cb0b4ab · goldens ec2ad93f 31dbf38d · a11y floor f1607c3e
+
+Done-when, each
+- V2-4.5 "mode-toggle + toolbar tests rewritten and green": test/mode-toggle.test.tsx, tool-keys.test.ts, v2-tool-panels.test.tsx, v2-gate-keys.test.ts green in the full suite. Edit toolbar Shape R / Pen P / Component ⇧I / More are data-pending S2 in bridge/canvas-modes.ts MODE_TOOLS (the plan row's tools land with S2; recorded exception, design-critic scope note).
+- V2-4.6 "⌘K finds every Advanced item by name": test/v2-search.test.ts ("hub", "figma", "api key", "print guides", "New artboard — A4") + v2-search-ui.test.tsx green; "?" sheet: every visible registry key on the sheet, each key once.
+- V2-4.7 "every today-setting has a row (ledger)": test/v2-settings.test.tsx + nothing-deleted Settings rows mapped; Diagnostics v2-diagnostics-model/render green; /_api/diagnostics carries the project folder behind the rebinding guard (security D1).
+- V2-4.8 "none of them remain; the nothing-deleted test resolves each to a v2 path": test/v2-menubar-retired.test.ts green; check-v2-nothing-deleted.mjs 100 % on the gate probe (below).
+- V2-4.9 "shell-parity rewritten as the v2 parity contract; green in :parity and :parity:cloud": test/v2-shell-parity.test.tsx green; desktop e2e parity 1/1 (native, window on screen after boot) and parity:cloud 1/1 as viewer, owner and member (headless Chrome).
+- V2-4.10 "fold state persists; Reset in Settings › Advanced": test/v2-fold.test.tsx (real prefs route on a temp file) + v2-settings.test.tsx Reset green.

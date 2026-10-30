@@ -1,0 +1,440 @@
+/* client/v2/empty/empty.css — S11.1: the empty kit's look (05 Empty States' `es-*` classes, lifted).
+ *
+ * Tokens only — no hex, no colour function. The type roles are the specimen's: the situation line in the
+ * rounded face, the next step in the body face. Motion: ONE spring, on the spot's notes (`--dur-spring` ·
+ * `--ease-spring`, transform + opacity), and a quiet opacity pulse on "arriving" things. Reduced motion:
+ * the tokens collapse every --dur-* to 1 ms, and both animations are dropped outright (a 1 ms infinite loop
+ * would strobe) so the final frame shows at once.
+ *
+ * LAYER (P8 C0): the base block sits in @layer shell, not components. It is kit anatomy that panels embed and
+ * adjust from their own shell-layer files (canvases.css `.cv-empty .es-*`, comments.css); in components it beat
+ * every one of those by layer whatever their specificity (a panel's empty line rendered at the 17 px kit size).
+ * Same place as the kit file (3-kit-maude-v2.css): a context rule wins by specificity. */
+
+@layer shell {
+  /* ─── the spot art ─── */
+  .es-spot {
+    display: block;
+    flex: none;
+  }
+  .es-spot--quiet {
+    opacity: 0.5;
+  }
+  /* Each landing note is wrapped so the landing transform never fights its placement. */
+  .es-st {
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  @keyframes v2-empty-land {
+    from {
+      opacity: 0;
+      transform: translateY(-34px) scale(0.86) rotate(-8deg);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  .es-spot--land .es-st {
+    animation: v2-empty-land var(--dur-spring) var(--ease-spring) both;
+    animation-delay: calc(var(--dur-flip) * 0.4 * var(--i, 0));
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .es-spot--land .es-st {
+      animation: none;
+    }
+    .es-pulse {
+      animation: none;
+    }
+  }
+  [data-reduced-motion="true"] .es-spot--land .es-st {
+    animation: none;
+  }
+  [data-reduced-motion="true"] .es-pulse {
+    animation: none;
+  }
+
+  /* ─── the block: what's missing · what to do · one action ─── */
+  .es-e {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+    text-align: center;
+  }
+  .es-e--left {
+    align-items: flex-start;
+    text-align: left;
+  }
+  .es-sit {
+    margin: 0;
+    font-family: var(--font-rounded);
+    font-size: var(--type-md);
+    line-height: var(--lh-md);
+    font-weight: var(--w-semibold);
+    letter-spacing: 0; /* Rounded stays at 0 — tightening closes its terminals */
+    color: var(--fg-0);
+    text-wrap: balance;
+  }
+  .es-e--canvas .es-sit {
+    font-size: var(--type-lg);
+    line-height: var(--lh-lg);
+  }
+  .es-next {
+    margin: 0;
+    max-width: 44ch;
+    font-size: var(--type-sm);
+    line-height: var(--lh-sm);
+    color: var(--fg-1);
+    text-wrap: pretty;
+  }
+  .es-e--canvas .es-next {
+    max-width: 46ch;
+  }
+  .es-next .kbd {
+    margin: 0 2px;
+  }
+  .es-e--canvas .es-spot {
+    margin-bottom: var(--space-1);
+  }
+  .es-glyph {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+    color: var(--fg-2);
+  }
+  .es-glyph--spark {
+    background: var(--spark-muted);
+    color: var(--spark);
+  }
+  .es-q {
+    white-space: nowrap;
+  }
+  .es-chips {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-1);
+    margin-top: var(--space-1);
+  }
+  .es-e--left .es-chips {
+    justify-content: flex-start;
+  }
+  .es-acts {
+    display: flex;
+    justify-content: center;
+    gap: var(--space-2);
+    margin-top: var(--space-1);
+  }
+  .es-e--left .es-acts {
+    justify-content: flex-start;
+  }
+  .es-fine {
+    margin: 0;
+    max-width: 30ch;
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+  }
+  .es-e--left .es-fine {
+    max-width: 44ch;
+  }
+
+  /* ─── Ask AI: azure acts, the spark only as the glyph in the button's own colour ─── */
+  .es-ask {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    height: 26px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: var(--accent);
+    color: var(--accent-fg);
+    font-family: var(--font-body);
+    font-size: var(--type-xs);
+    font-weight: var(--w-medium);
+    cursor: pointer;
+    transition: background var(--dur-flip) var(--ease-out);
+  }
+  .es-ask:hover {
+    background: var(--accent-hover);
+  }
+  .es-ask:focus-visible {
+    outline: 2px solid var(--focus-ring, var(--accent));
+    outline-offset: 2px;
+  }
+  .es-ask:disabled {
+    background: var(--bg-3);
+    color: var(--fg-3);
+    cursor: not-allowed;
+  }
+  .es-keys {
+    margin-left: var(--space-1);
+    font-size: var(--type-xs);
+    font-variant-numeric: tabular-nums;
+    /* gate-b-a11y: the chord sits on the accent button — dimming it by opacity took it to 4.0:1 (needs 4.5) */
+    opacity: 1;
+  }
+
+  /* ─── Suggestions: things you'd say ─── */
+  .es-sugg {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+    color: var(--fg-1);
+    font-family: var(--font-body);
+    font-size: var(--type-xs);
+    font-weight: var(--w-medium);
+    cursor: default;
+    transition: background var(--dur-flip) var(--ease-out);
+  }
+  button.es-sugg {
+    cursor: pointer;
+  }
+  button.es-sugg:hover {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+  button.es-sugg:focus-visible {
+    outline: 2px solid var(--focus-ring, var(--accent));
+    outline-offset: 2px;
+  }
+
+  /* ─── Confetti: the one celebratory empty state (Comments "All done.") ─── */
+  .es-confetti {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.9;
+  }
+  .maude-v2[data-theme="dark"] .es-confetti {
+    opacity: 0.55;
+  }
+
+  /* ─── Arriving: named, dimmed, quietly pulsing — never nameless bars ─── */
+  @keyframes v2-empty-pulse {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0.55;
+    }
+  }
+  .es-pulse {
+    animation: v2-empty-pulse calc(var(--dur-panel) * 6) var(--ease-in-out) infinite alternate;
+  }
+  /* 05 es-arriving: the panel foot's progress - "Getting <project> · 41 of 93 canvases" over a 4 px bar */
+  .es-progress {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .es-bar {
+    display: block;
+    height: 4px;
+    border-radius: var(--radius-pill);
+    background: var(--bg-4);
+    overflow: hidden;
+  }
+  .es-bar i {
+    display: block;
+    height: 100%;
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+  }
+  .es-sk {
+    display: block;
+    flex: none;
+    height: 8px;
+    border-radius: var(--radius-pill);
+    background: var(--bg-4);
+  }
+  .es-sk--thumb {
+    width: 28px;
+    height: 20px;
+    border-radius: var(--radius-xs);
+  }
+  .es-sk--folder {
+    width: 14px;
+    height: 12px;
+    border-radius: var(--radius-xs);
+  }
+  .es-arr-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 30px;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    font-size: var(--type-sm);
+  }
+  .es-arr .es-arr-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    color: var(--fg-2);
+  }
+  .es-arr-count,
+  .es-arr-meta {
+    color: var(--fg-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .es-skab {
+    position: absolute;
+    z-index: 2;
+  }
+  .es-skab-name {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + 6px);
+    max-width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .es-skab-page {
+    position: absolute;
+    inset: 0;
+    border-radius: var(--radius-xs);
+    background: var(--bg-3);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+  }
+  .es-skab-page i {
+    position: absolute;
+    left: 10%;
+    display: block;
+    height: 8%;
+    border-radius: var(--radius-xs);
+    background: var(--bg-4);
+  }
+  .es-skab-page i:nth-child(1) {
+    top: 12%;
+    width: 56%;
+  }
+  .es-skab-page i:nth-child(2) {
+    top: 26%;
+    width: 38%;
+    height: 5%;
+  }
+  .es-skab-page i:nth-child(3) {
+    left: 10%;
+    right: 10%;
+    top: 44%;
+    height: 44%;
+  }
+
+  /* ─── S11.5: every artboard moved to the trash — the card over the empty canvas ─── */
+  .es-alltrashed {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: var(--space-2);
+    pointer-events: none; /* only the card takes the pointer; the outlines and the canvas stay reachable */
+  }
+  .es-alltrashed .es-trashcard {
+    pointer-events: auto;
+    width: min(460px, 100%);
+    margin-bottom: 12%;
+    padding: var(--space-5);
+    border-radius: var(--radius-xl);
+    background: var(--bg-2);
+    box-shadow:
+      var(--shadow-lg),
+      inset 0 0 0 0.5px var(--island-edge);
+  }
+  .es-alltrashed .es-fine {
+    color: var(--fg-1);
+  }
+
+  /* ─── S11.4 (A6c): a canvas that is not on this Mac — the card where the frame would be ─── */
+  .viewport > .sh-not-local {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    /* the middle of the free canvas (--es-cx, px from the window's left), not of the window: the grid's centre
+       moves right by half of the left inset. 50% (no var) leaves it centred on the window. */
+    padding-left: max(0px, calc(2 * var(--es-cx, 50%) - 100%));
+    background: var(--bg-0);
+  }
+
+  /* ─── S11.2: the empty canvas, the empty-artboard hint, Layers' empty line, the connect veil ─── */
+  /* The canvas is the whole window body: the block centres on it, above the toolbar. Only its buttons take
+     the pointer, so panning and drawing pass straight through the words. */
+  .es-host {
+    position: fixed;
+    inset: 0;
+    z-index: 5;
+    pointer-events: none;
+  }
+  .es-ec {
+    position: absolute;
+    left: var(--es-cx, 50%);
+    top: 45%;
+    translate: -50% -50%;
+    width: 520px;
+    max-width: calc(100% - var(--space-8));
+  }
+  .es-ec .es-acts,
+  .es-ec .es-acts > * {
+    pointer-events: auto;
+  }
+  .es-off-line {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin-top: var(--space-2);
+    color: var(--status-warn-text);
+    font-weight: var(--w-medium);
+  }
+  /* The hint floats over the empty artboard as chrome (so it follows the app theme). */
+  .es-abhint {
+    position: fixed;
+    z-index: 6;
+    padding: var(--space-4) var(--space-3);
+    border-radius: var(--radius-lg);
+    background: var(--island-bg);
+    box-shadow:
+      var(--island-shadow),
+      inset 0 0 0 0.5px var(--island-edge);
+  }
+  .es-abhint .es-next {
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+  }
+  .es-e--inpanel {
+    padding: var(--space-5) var(--space-2) var(--space-4);
+  }
+  /* 05 .es-e--inpanel: the situation line is type-base, the next line xs fg-2 (the panel is 248 wide) */
+  .es-e--inpanel .es-sit {
+    font-size: var(--type-base);
+    line-height: var(--lh-base, var(--lh-md));
+  }
+  .es-e--inpanel .es-next {
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+  }
+}

@@ -17,6 +17,7 @@
 import { homedir } from 'node:os';
 
 import { redactMaudeCredentials, SECRET_ENV_PATTERN } from './credential-grammar.ts';
+import { record as recordDiagnostic } from './diagnostics/store.ts';
 
 const RING_MAX = 500;
 const ring: string[] = [];
@@ -24,6 +25,8 @@ let tapInstalled = false;
 
 /** Append one line to the ring (public for tests + non-console callers). */
 export function recordLogLine(line: string): void {
+  // V2-2.9: the same line feeds the per-source diagnostics store (server · sync · ai · export).
+  recordDiagnostic(line);
   ring.push(line);
   if (ring.length > RING_MAX) ring.splice(0, ring.length - RING_MAX);
 }
@@ -103,12 +106,25 @@ export function scrub(text: string, opts: ScrubOptions = {}): string {
     /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{4,}\.[A-Za-z0-9_-]{4,}\b/g,
     '[redacted]'
   );
-  // Bearer headers, however they were logged.
-  out = out.replace(/\b(Bearer)\s+[^\s"']+/gi, '$1 [redacted]');
-  // key=value / "key": "value" forms for secret-shaped keys — keep the key,
-  // redact the value.
+  // Vendor key shapes (V2-2.9 review): AWS access key ids, Stripe, Slack, Google API keys.
+  out = out.replace(/\bAKIA[0-9A-Z]{16}\b/g, '[redacted]');
+  out = out.replace(/\b(?:sk|rk|pk)_(?:live|test)_[A-Za-z0-9]{10,}\b/g, '[redacted]');
+  out = out.replace(/\bxox[abprs]-[A-Za-z0-9-]{10,}\b/g, '[redacted]');
+  out = out.replace(/\bAIza[0-9A-Za-z_-]{30,}\b/g, '[redacted]');
+  // Authorization schemes, however they were logged — the whole credential, not just the scheme.
+  out = out.replace(/\b(Bearer|Basic|Token|Digest)\s+[^\s"']+/gi, '$1 [redacted]');
+  // Cookie headers carry sessions.
+  out = out.replace(/\b(Set-Cookie|Cookie)(\s*:\s*)[^\n]+/gi, '$1$2[redacted]');
+  // A secret in a query string (`?key=…`, `&access_token=…`).
   out = out.replace(
-    /\b(token|secret|password|passwd|api[_-]?key|authorization|access[_-]?key)("?\s*[:=]\s*"?)[^\s"',}]+/gi,
+    /([?&](?:key|apikey|api_key|token|access_token|refresh_token|sig|signature|code)=)[^&\s"'#]+/gi,
+    '$1[redacted]'
+  );
+  // key=value / "key": "value" forms for secret-shaped keys — keep the key, redact the value.
+  // Case-insensitive and allowed after `_` (`access_token=`, `client_secret:`), which a plain
+  // `\b` boundary never matched.
+  out = out.replace(
+    /((?:^|[^A-Za-z0-9])[A-Za-z0-9_-]*(?:token|secret|password|passwd|api[_-]?key|authorization|access[_-]?key))("?\s*[:=]\s*"?)[^\s"',}&]+/gi,
     '$1$2[redacted]'
   );
 

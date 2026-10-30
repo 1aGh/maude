@@ -1,0 +1,2879 @@
+/* client/v2/timeline/timeline.css — S7.7: the timeline island (07 Video Editing · `.ve-tl`, lifted).
+ *
+ * A floating panel in the shell's own material (`.sh-body--float .island`, `--island-bg-strong`: a large
+ * island over a busy canvas), 900 wide and centred under the selected video artboard with a notch pointing
+ * at it, or edge to edge. Tokens only — no hex, no raw durations; reduced motion collapses --dur-panel to
+ * 1 ms, so the slide becomes a cut. */
+
+/* ── V2-8.0: rules moved here from the retired styles/ layer files, in their original order and ahead of this file's own rules, so the cascade is unchanged. ── */
+
+/* from styles/3-shell-maude.css */
+@layer shell {
+  /* ── Timeline (DDR-148) — BOTTOM-docked transport + per-sequence track ── */
+  .tl-panel {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    width: 100%;
+    background: var(--bg-1);
+    border-top: 1px solid var(--border-default);
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* DDR-150 P4 — drop-media-to-insert affordance */
+  .tl-panel.is-drop {
+    outline: 2px dashed var(--accent);
+    outline-offset: -3px;
+    background: color-mix(in oklch, var(--accent) 8%, var(--bg-1));
+  }
+
+  /* drag the top edge to resize the panel taller/shorter */
+  .tl-resize-handle {
+    position: absolute;
+    top: -3px;
+    left: 0;
+    right: 0;
+    height: 8px;
+    cursor: ns-resize;
+    z-index: 6;
+    touch-action: none;
+  }
+
+  .tl-resize-handle::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 44px;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--fg-2);
+    opacity: 0;
+    transition: opacity 0.12s;
+  }
+
+  .tl-resize-handle:hover::after {
+    opacity: 0.55;
+  }
+
+  .tl-volume {
+    width: 66px;
+    height: 4px;
+    margin: 0 2px 0 4px;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+
+  .tl-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    height: 40px;
+    padding: 0 var(--space-2) 0 var(--space-2);
+    border-bottom: 1px solid var(--border-subtle);
+    flex: none;
+  }
+
+  .tl-title {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: var(--type-md);
+    color: var(--fg-0);
+  }
+
+  .tl-spacer {
+    flex: 1;
+  }
+
+  /* Task 4 — zoom slider in the transport head. */
+  .tl-zoom {
+    width: 90px;
+    accent-color: var(--accent);
+  }
+
+  /* Task 4 — labels stay pinned while the scaled track scrolls horizontally. */
+  .tl-row-label {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    background: var(--bg-1);
+  }
+
+  /* Task 5 — the three-band storyline layout. */
+  .tl-row--storyline {
+    height: 44px;
+  }
+
+  .tl-row--overlay {
+    height: 24px;
+  }
+
+  .tl-row--overlay .tl-seq-block {
+    top: 2px;
+    bottom: 2px;
+  }
+
+  .tl-storyline-track .tl-seq-block.tl-beat {
+    border-radius: 0;
+    border-right-width: 0;
+  }
+
+  .tl-storyline-track .tl-seq-block.tl-beat:first-child {
+    border-top-left-radius: var(--radius-sm);
+    border-bottom-left-radius: var(--radius-sm);
+  }
+
+  /* ⧓ seam chip between storyline beats (read-only until transition edit lands). */
+  .tl-seam {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 24px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--bg-0);
+    border: 1px solid var(--accent-muted, var(--accent));
+    color: var(--fg-1);
+    font-size: 13px;
+    line-height: 1;
+    padding: 0;
+    cursor: pointer;
+    z-index: 2;
+    pointer-events: auto;
+    transition:
+      transform var(--dur-flip, 120ms) var(--ease-out, ease),
+      border-color var(--dur-flip, 120ms) ease;
+  }
+
+  .tl-seam:hover {
+    transform: translateY(-50%) scale(1.12);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* Task 23 — timeline comment pins (💬 strip above the ruler). */
+  .tl-comments-strip {
+    position: absolute;
+    top: -2px;
+    left: 0;
+    right: 0;
+    height: 18px;
+    z-index: 5;
+    pointer-events: none;
+  }
+
+  .tl-comment-pin {
+    position: absolute;
+    top: 0;
+    width: 16px;
+    height: 16px;
+    display: grid;
+    place-items: center;
+    border: none;
+    background: none;
+    font-size: 11px;
+    cursor: pointer;
+    pointer-events: auto;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
+  }
+
+  .tl-comment-pin.is-resolved {
+    opacity: 0.4;
+  }
+
+  .tl-comment-pin.is-detached::after {
+    content: "!";
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    font-size: 8px;
+    color: #ef4444;
+    font-weight: 700;
+  }
+
+  .tlci-comment-text {
+    margin: 0;
+    font-size: var(--type-sm);
+    color: var(--fg-0);
+    line-height: 1.5;
+    white-space: pre-wrap;
+  }
+
+  /* Task 21 — AI placeholder blocks: dashed accent slate. */
+  .tl-seq-block[data-kind="placeholder"] {
+    border-style: dashed;
+    border-color: var(--accent);
+    background: color-mix(in oklab, var(--accent) 12%, var(--bg-2));
+  }
+
+  /* Task 17 — "+" affordance on hard-cut seams. Sits ABOVE the lane so it never
+   collides with trim handles / replace buttons at block edges. */
+  .tl-seam-add {
+    opacity: 0;
+    top: -12px;
+    transform: none;
+    width: 22px;
+    height: 22px;
+    cursor: pointer;
+    background: var(--bg-1);
+    transition:
+      opacity var(--dur-flip, 120ms) ease,
+      border-color var(--dur-flip, 120ms) ease;
+  }
+
+  .tl-seam-add svg {
+    display: block;
+  }
+
+  .tl-storyline-track:hover .tl-seam-add {
+    opacity: 0.85;
+  }
+
+  .tl-seam-add:hover {
+    opacity: 1;
+    transform: none;
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* Inspector text tab */
+  .tlci-textarea {
+    width: 100%;
+    box-sizing: border-box;
+    resize: vertical;
+    padding: 6px 8px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--bg-3);
+    background: var(--bg-0);
+    color: var(--fg-0);
+    font-size: var(--type-sm);
+    font-family: inherit;
+  }
+
+  .tlci-textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  /* Task 9 — the clip inspector popover (Speed · Audio · Crop · Grade · Transition). */
+  .tlci {
+    position: fixed;
+    z-index: 90;
+    width: 264px;
+    background: var(--bg-1);
+    border: 1px solid var(--bg-3);
+    border-radius: var(--radius-md);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    font-size: var(--type-sm);
+  }
+
+  /* DS voice (components-inspector-controls / .insp-cp-*): mono uppercase micro-
+   labels, hairline --border-subtle separations, squared segments over pill
+   chips, --accent-tint for the active state (dogfood 2026-07-30, image #30). */
+  .tlci-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: 7px 10px;
+    cursor: grab;
+    border-bottom: 1px solid var(--border-subtle, var(--bg-3));
+  }
+
+  .tlci-title {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-wide, 0.08em);
+    color: var(--fg-2);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .tlci-x {
+    border: none;
+    background: none;
+    color: var(--fg-2);
+    font-size: 14px;
+    cursor: pointer;
+    padding: 0 4px;
+  }
+
+  .tlci-x:hover {
+    color: var(--fg-0);
+  }
+
+  .tlci-body {
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .tlci-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .tlci-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .tlci-chip {
+    border: 1px solid var(--border-subtle, var(--bg-3));
+    background: var(--bg-2);
+    color: var(--fg-1);
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    padding: 3px 8px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+  }
+
+  .tlci-chip:hover:not(.is-on) {
+    background: var(--bg-4, var(--bg-3));
+    color: var(--fg-0);
+  }
+
+  .tlci-chip.is-on {
+    background: var(--accent-tint, var(--bg-3));
+    border-color: var(--accent);
+    color: var(--fg-0);
+  }
+
+  .tlci-btn {
+    border: 1px solid var(--border-subtle, var(--bg-3));
+    background: var(--bg-2);
+    color: var(--fg-0);
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    padding: 5px 10px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    align-self: flex-start;
+  }
+
+  .tlci-btn:hover {
+    border-color: var(--accent);
+    background: var(--bg-4, var(--bg-3));
+  }
+
+  .tlci-note {
+    margin: 0;
+    color: var(--fg-2);
+    font-size: 10px;
+    line-height: 1.5;
+  }
+
+  /* Phase 2 — block chips (speed / mute) + the left in-point trim handle. */
+  .tl-chip {
+    position: relative;
+    z-index: 1;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    padding: 0 4px;
+    border-radius: 3px;
+    background: var(--bg-0);
+    color: var(--fg-1);
+    border: 1px solid var(--bg-3);
+    margin-right: 3px;
+  }
+
+  .tl-seq-trim-in {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 7px;
+    cursor: ew-resize;
+    z-index: 3;
+    border-radius: 2px;
+  }
+
+  .tl-seq-trim-in:hover {
+    background: color-mix(in oklab, var(--accent) 50%, transparent);
+  }
+
+  /* Task 8 — live trim/move delta tooltip; red at a clamp (source bounds / 1f). */
+  .tl-trim-tip {
+    position: absolute;
+    top: -20px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: var(--bg-0);
+    border: 1px solid var(--accent-muted, var(--accent));
+    color: var(--fg-0);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    white-space: nowrap;
+    z-index: 6;
+    pointer-events: none;
+  }
+
+  .tl-trim-tip.is-clamped {
+    border-color: #ef4444;
+    color: #ef4444;
+  }
+
+  /* Task 7 — filmstrip thumbnails behind the clip label + real waveforms. */
+  .tl-strip {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    overflow: hidden;
+    border-radius: inherit;
+    opacity: 0.55;
+    pointer-events: none;
+  }
+
+  .tl-strip img {
+    flex: 1 1 0;
+    min-width: 0;
+    object-fit: cover;
+    height: 100%;
+  }
+
+  .tl-seq-block .tl-seq-name {
+    position: relative;
+    z-index: 1;
+  }
+
+  .tl-wave-real {
+    fill: currentColor;
+    stroke: none;
+    opacity: 0.85;
+  }
+
+  /* Task 6 — magnetic reorder: siblings glide to their preview slots, the
+   dragged beat floats above. */
+  /* superseded by the tokenised rule below */
+  .tl-seq-block.is-dragging {
+    z-index: 4;
+    opacity: 0.85;
+    cursor: grabbing;
+  }
+
+  /* Task 6 — file-drop insertion caret. */
+  .tl-drop-caret {
+    position: absolute;
+    top: -2px;
+    bottom: -2px;
+    width: 2px;
+    background: var(--accent);
+    border-radius: 1px;
+    z-index: 5;
+    pointer-events: none;
+  }
+
+  .tl-drop-caret::before {
+    content: "";
+    position: absolute;
+    top: -3px;
+    left: -3px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  /* Task 3 — selected clip: the same accent outline vocabulary as canvas
+   selection, so "selected" means one thing everywhere. */
+  .tl-seq-block.is-selected {
+    outline: 2px solid var(--accent);
+    outline-offset: -1px;
+    z-index: 2;
+  }
+
+  /* Long-comp badge — comp length beyond the 900-frame safe export tier. */
+  .tl-long-badge {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--accent);
+    border: 1px solid color-mix(in oklab, var(--accent) 45%, transparent);
+    border-radius: 4px;
+    padding: 0 6px;
+    white-space: nowrap;
+    cursor: help;
+  }
+
+  .tl-x {
+    appearance: none;
+    border: none;
+    background: transparent;
+    color: var(--fg-2);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: var(--radius-xs);
+  }
+
+  .tl-x:hover {
+    color: var(--fg-1);
+    background: var(--bg-3);
+  }
+
+  .tl-empty {
+    padding: var(--space-3);
+    color: var(--fg-2);
+    font-size: var(--type-sm);
+    line-height: 1.5;
+  }
+
+  .tl-empty code,
+  .tl-empty b {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+  }
+
+  .tl-empty code {
+    background: var(--bg-2);
+    padding: 1px 4px;
+    border-radius: var(--radius-xs);
+    color: var(--fg-1);
+  }
+
+  /* The shell could not resolve the artboard — read as a warning, not as a name. */
+  .tl-readout {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    display: inline-flex;
+    align-items: baseline;
+    gap: 4px;
+    margin-left: var(--space-1);
+  }
+
+  .tl-readout b {
+    color: var(--fg-0);
+    font-weight: 600;
+  }
+
+  /* the scrolling track area */
+  .tl-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: var(--space-1) var(--space-2) var(--space-2);
+  }
+
+  .tl-tracks {
+    position: relative;
+    min-width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-top: 20px;
+    cursor: ew-resize;
+  }
+
+  .tl-ruler {
+    position: absolute;
+    top: 0;
+    left: 96px;
+    right: 0;
+    height: 16px;
+  }
+
+  .tl-tick {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--border-subtle);
+  }
+
+  .tl-tick-label {
+    position: absolute;
+    top: -1px;
+    left: 3px;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--fg-2);
+    white-space: nowrap;
+  }
+
+  .tl-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    height: 30px;
+  }
+
+  .tl-row-label {
+    flex: none;
+    width: 88px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 3px;
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    overflow: hidden;
+    white-space: nowrap;
+    text-align: right;
+  }
+
+  .tl-row-label-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+
+  /* Clip layer decomposition — expand toggle + indented sub-rows. */
+  .tl-expand {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--fg-1);
+    font-size: 10px;
+    line-height: 1;
+    cursor: pointer;
+    border-radius: 3px;
+  }
+
+  .tl-expand:hover:not(.tl-expand--spacer) {
+    color: var(--fg-0);
+    background: var(--accent);
+  }
+
+  .tl-expand--spacer {
+    width: 16px;
+    cursor: default;
+    pointer-events: none;
+  }
+
+  .tl-row--layer .tl-row-label {
+    color: var(--fg-2);
+  }
+
+  .tl-row--layer {
+    opacity: 0.92;
+  }
+
+  .tl-layer-indent {
+    flex: none;
+    width: 10px;
+  }
+
+  .tl-layer-block {
+    top: 5px;
+    bottom: 5px;
+    opacity: 0.7;
+    border-style: dashed;
+  }
+
+  /* Hidden clip — dimmed + hatched so it reads as "won't render" but keeps its slot. */
+  .tl-seq-block.is-hidden {
+    opacity: 0.4;
+    background-image: repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 5px,
+      rgba(0, 0, 0, 0.25) 5px,
+      rgba(0, 0, 0, 0.25) 10px
+    );
+  }
+
+  .tl-seq-block.is-hidden .tl-seq-name {
+    text-decoration: line-through;
+  }
+
+  /* Kind tint on the block itself — a video clip reads different from JSX motion. */
+  .tl-seq-block[data-kind="video"] {
+    border-color: color-mix(in oklch, #0ea5e9 55%, var(--accent-muted));
+    background: color-mix(in oklch, #0ea5e9 16%, var(--bg-2));
+  }
+
+  .tl-seq-block[data-kind="image"] {
+    border-color: color-mix(in oklch, #22c55e 45%, var(--accent-muted));
+    background: color-mix(in oklch, #22c55e 13%, var(--bg-2));
+  }
+
+  /* DDR-150 P5 — z-order raise/lower. Stacked ▲/▼; later sibling paints on top. */
+  .tl-row-track {
+    position: relative;
+    flex: 1;
+    height: 100%;
+    background: var(--bg-2);
+    border-radius: var(--radius-sm);
+  }
+
+  .tl-seq-block {
+    position: absolute;
+    top: 3px;
+    bottom: 3px;
+    appearance: none;
+    border: 1px solid var(--accent-muted);
+    border-radius: var(--radius-xs);
+    background: color-mix(in oklch, var(--accent) 20%, var(--bg-2));
+    color: var(--fg-0);
+    cursor: pointer;
+    overflow: hidden;
+    padding: 0;
+    min-width: 6px;
+    transition: background var(--dur-soft) var(--ease-out);
+  }
+
+  .tl-seq-block:hover {
+    background: color-mix(in oklch, var(--accent) 32%, var(--bg-2));
+  }
+
+  .tl-seq-block:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  .tl-seq-name {
+    position: absolute;
+    left: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--fg-0);
+    pointer-events: none;
+    white-space: nowrap;
+  }
+
+  .tl-seq-block.is-resizing {
+    background: color-mix(in oklch, var(--accent) 42%, var(--bg-2));
+    border-color: var(--accent);
+  }
+
+  /* drag-to-retime handle at the block's right edge */
+  .tl-seq-resize {
+    position: absolute;
+    top: 3px;
+    bottom: 3px;
+    width: 10px;
+    z-index: 4;
+    cursor: ew-resize;
+    border-radius: 2px;
+    touch-action: none;
+  }
+
+  .tl-seq-resize::after {
+    content: "";
+    position: absolute;
+    top: 20%;
+    bottom: 20%;
+    left: 4px;
+    width: 2px;
+    border-radius: 1px;
+    background: var(--fg-2);
+    opacity: 0;
+  }
+
+  .tl-seq-resize:hover::after {
+    opacity: 0.9;
+    background: var(--accent);
+  }
+
+  /* DDR-150 P3 — per-clip remove (×). Subtle until the row is hovered. */
+  .tl-seq-block.is-moving {
+    cursor: grabbing;
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+
+  /* DDR-150 P3 — per-clip replace-media (⇄). */
+  .tl-seq-replace {
+    position: absolute;
+    top: 3px;
+    width: 15px;
+    height: 15px;
+    z-index: 5;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-xs);
+    background: color-mix(in oklch, var(--bg-0) 70%, transparent);
+    color: var(--fg-1);
+    font-size: 11px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--dur-flip, 120ms) ease;
+  }
+
+  .tl-row:hover .tl-seq-replace {
+    opacity: 0.7;
+  }
+
+  .tl-seq-replace:hover {
+    opacity: 1;
+    background: var(--accent);
+    color: var(--accent-fg, #fff);
+  }
+
+  /* DDR-150 P5 Task 14 — keyframe markers are click-to-seek. 07 ve-advanced (P8 C10): a DIAMOND (the board's
+     `.ve-kf`), one at each end of an animated window — outlined, filled where the playhead is. */
+  .tl-kf {
+    position: absolute;
+    top: 50%;
+    z-index: 3;
+    width: 9px;
+    height: 9px;
+    translate: -50% -50%;
+    rotate: 45deg;
+    border-radius: 0;
+    background: var(--bg-2);
+    box-shadow: inset 0 0 0 1.5px var(--fg-1);
+    pointer-events: auto;
+    cursor: pointer;
+  }
+
+  .tl-kf:hover {
+    box-shadow: inset 0 0 0 1.5px var(--fg-0);
+  }
+
+  .tl-kf.is-at {
+    background: var(--accent);
+    box-shadow: none;
+  }
+
+  /* audio / music bed row — a distinct teal so it reads as a separate layer */
+  .tl-audio-block {
+    position: absolute;
+    top: 3px;
+    bottom: 3px;
+    border: 1px solid color-mix(in oklch, var(--status-success, #16a34a) 60%, transparent);
+    border-radius: var(--radius-xs);
+    background: color-mix(in oklch, var(--status-success, #16a34a) 18%, var(--bg-2));
+    overflow: hidden;
+    min-width: 6px;
+  }
+
+  .tl-audio-block .tl-seq-name {
+    color: var(--fg-0);
+    opacity: 0.9;
+  }
+
+  .tl-wave {
+    position: absolute;
+    inset: 3px 6px;
+    width: calc(100% - 12px);
+    height: calc(100% - 6px);
+    fill: none;
+    stroke: color-mix(in oklch, var(--status-success, #16a34a) 80%, var(--fg-2));
+    stroke-width: 1;
+    opacity: 0.55;
+    pointer-events: none;
+  }
+
+  .tl-playhead {
+    position: absolute;
+    top: 16px;
+    bottom: 0;
+    width: 2px;
+    background: var(--fg-0);
+    box-shadow: 0 0 0 1px var(--bg-1);
+    pointer-events: none;
+    z-index: 3;
+  }
+
+  .tl-playhead::before {
+    content: "";
+    position: absolute;
+    top: -4px;
+    left: -4px;
+    border: 5px solid transparent;
+    border-top-color: var(--fg-0);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tl-seq-block {
+      transition: none;
+    }
+  }
+
+  /* ── enhanced-video-editing visual pass (FCP/iMovie proportions) ──────────── */
+  .tl-row--storyline {
+    height: 64px;
+  }
+
+  .tl-row--overlay {
+    height: 36px;
+  }
+
+  .tl-row--overlay .tl-seq-block {
+    top: 3px;
+    bottom: 3px;
+  }
+
+  .tl-storyline-track .tl-seq-block {
+    border-radius: 6px;
+  }
+
+  .tl-storyline-track .tl-seq-block.tl-beat {
+    border-right: 1px solid var(--bg-0);
+  }
+
+  /* Filmstrip fills the block; identity moves into a small scrimmed chip.
+     gate-b-polish3 (07 · ve-cut, dark): the chip was pinned top:50% AND bottom:4px, so in a 26 px block its box
+     collapsed below the line height and clipped the name to a dark sliver (~1.3:1). The chip is now centred on
+     the block, in the body face at --type-xs, on the panel ink of the CURRENT theme over a token scrim. */
+  .tl-strip {
+    opacity: 1;
+  }
+
+  .tl-seq-block .tl-seq-name {
+    position: absolute;
+    left: calc(2px + 14px);
+    top: 50%;
+    bottom: auto;
+    transform: translateY(-50%);
+    max-width: calc(100% - 2px - 18px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--font-body);
+    font-size: var(--type-xs);
+    font-weight: 500;
+    line-height: 1.3;
+    padding: 0 2px;
+    border-radius: var(--radius-xs);
+    background: color-mix(in oklch, var(--bg-1) 78%, transparent);
+    color: var(--fg-0);
+    z-index: 1;
+  }
+
+  /* Overlay layers read FCP-purple; audio stays green via data-kind. */
+  .tl-row--overlay .tl-seq-block[data-kind="video"],
+  .tl-row--overlay .tl-seq-block[data-kind="image"] {
+    border-color: color-mix(in oklch, #8b5cf6 55%, var(--accent-muted));
+    background: color-mix(in oklch, #8b5cf6 16%, var(--bg-2));
+  }
+
+  /* Ruler: quieter frame ticks, prominent second ticks. */
+  .tl-ruler {
+    height: 20px;
+    border-bottom: 1px solid var(--bg-3);
+  }
+
+  .tl-tick {
+    background: none;
+    bottom: auto;
+    width: 0;
+    border-left: 1px solid var(--bg-3);
+    height: 6px;
+    top: 14px;
+  }
+
+  .tl-tick.is-major {
+    height: 12px;
+    top: 8px;
+    border-left-color: var(--fg-2);
+  }
+
+  .tl-tick-label {
+    top: -12px;
+    left: 3px;
+    font-size: 9px;
+    color: var(--fg-2);
+  }
+
+  .tl-tick.is-major .tl-tick-label {
+    color: var(--fg-2);
+  }
+
+  /* Playhead: strong line + grab head, FCP style. */
+  .tl-playhead {
+    width: 2px;
+    background: var(--accent);
+  }
+
+  .tl-playhead::before {
+    content: "";
+    position: absolute;
+    top: -1px;
+    left: -5px;
+    width: 12px;
+    height: 10px;
+    background: var(--accent);
+    clip-path: polygon(0 0, 100% 0, 100% 45%, 50% 100%, 0 45%);
+  }
+
+  .tl-tracks {
+    padding-top: 24px;
+    min-height: 100%;
+  }
+
+  /* ── Debate-driven UX pass: figure/ground, identity, predictive feedback ──── */
+  /* One dominant lane: the storyline is an inset trough; overlays recede. */
+  .tl-storyline-track {
+    background: color-mix(in oklab, var(--fg-0) 7%, var(--bg-2));
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.18);
+    border-radius: var(--radius-sm);
+  }
+
+  .tl-row--overlay .tl-row-track {
+    background: color-mix(in oklab, var(--bg-2) 55%, var(--bg-1));
+  }
+
+  .tl-row--audio .tl-row-track {
+    background: color-mix(in oklab, #22c55e 6%, var(--bg-1));
+  }
+
+  /* Blocks read as physical objects: stronger fill + inner top highlight. */
+  .tl-seq-block {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.28),
+      0 1px 2px rgba(0, 0, 0, 0.12);
+  }
+
+  .tl-storyline-track .tl-seq-block.tl-beat {
+    background: color-mix(in oklab, #0ea5e9 22%, var(--bg-1));
+    border-color: color-mix(in oklab, #0ea5e9 60%, var(--bg-3));
+  }
+
+  /* Lane identity: V1/V2/A1 chips in a left-aligned gutter. */
+  .tl-row-label {
+    justify-content: flex-start;
+    padding-left: 6px;
+    gap: 5px;
+  }
+
+  /* Dogfood 2026-07-30 — vertical layer reorder: the V-chip is the drag handle. */
+  .tl-row.is-layer-dragging {
+    opacity: 0.6;
+  }
+
+  .tl-row.is-layer-target {
+    box-shadow: inset 0 0 0 1px var(--accent);
+    background: color-mix(in oklab, var(--accent) 8%, transparent);
+  }
+
+  /* Comment tool armed: the whole track area places pins. */
+  .tl-panel.is-commenting .tl-row-track,
+  .tl-panel.is-commenting .tl-seq-block,
+  .tl-panel.is-commenting .tl-ruler {
+    cursor: crosshair;
+  }
+
+  /* In-place 💬 badge pinned ON a clip at the comment's frame offset. */
+  .tl-clip-pin {
+    position: absolute;
+    top: -7px;
+    width: 16px;
+    height: 16px;
+    display: grid;
+    place-items: center;
+    font-size: 11px;
+    line-height: 1;
+    cursor: pointer;
+    z-index: 4;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
+  }
+
+  .tl-clip-pin.is-resolved {
+    opacity: 0.4;
+  }
+
+  /* Expand chevron on a decomposable storyline beat (old scene components). */
+  .tl-beat-expand {
+    position: absolute;
+    left: 3px;
+    top: 3px;
+    width: 15px;
+    height: 15px;
+    display: grid;
+    place-items: center;
+    font-size: 9px;
+    color: var(--fg-2);
+    background: color-mix(in oklab, var(--bg-0) 70%, transparent);
+    border-radius: 3px;
+    cursor: pointer;
+    z-index: 3;
+  }
+
+  .tl-beat-expand:hover {
+    color: var(--fg-0);
+    background: var(--bg-0);
+  }
+
+  /* Image overlays show the still itself. */
+  .tl-strip--img img {
+    flex: 1 1 auto;
+    width: 100%;
+    object-fit: cover;
+  }
+
+  /* Dragged beat LIFTS (grabbing hand, shadow, slight scale) — compositor-only. */
+  .tl-seq-block.is-dragging {
+    cursor: grabbing;
+    opacity: 0.95;
+    transform: scale(1.02);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+    z-index: 6;
+  }
+
+  /* Neighbour shuffle + drops ride the DS motion tokens, not hardcoded ms. */
+  .tl-storyline-track.is-reordering .tl-seq-block:not(.is-dragging) {
+    transition: left var(--dur-panel, 160ms) var(--ease-out, ease-out);
+  }
+
+  /* Vertical layer-move target: the storyline glows while a clip hovers over it. */
+  .tl-storyline-track.is-drop-target {
+    outline: 2px dashed var(--accent);
+    outline-offset: -2px;
+    background: color-mix(in oklab, var(--accent) 10%, var(--bg-2));
+  }
+
+  /* Snap confirmation: momentary accent rule at the latched frame. */
+  .tl-snapline {
+    position: absolute;
+    top: 18px;
+    bottom: 0;
+    width: 1px;
+    background: var(--accent);
+    box-shadow: 0 0 6px var(--accent);
+    z-index: 5;
+    pointer-events: none;
+    animation: tl-snap-pulse 0.35s var(--ease-out, ease-out);
+  }
+
+  @keyframes tl-snap-pulse {
+    0% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0.25;
+    }
+  }
+
+  /* Affordances visible at REST (promote on hover) — zero-opacity told nothing. */
+  .tl-seq-resize,
+  .tl-seq-trim-in {
+    opacity: 0.35;
+    background: color-mix(in oklab, var(--fg-0) 18%, transparent);
+    border-radius: 2px;
+  }
+
+  .tl-seq-resize:hover,
+  .tl-seq-trim-in:hover {
+    opacity: 1;
+    background: var(--accent);
+  }
+
+  .tl-seam {
+    opacity: 0.8;
+  }
+
+  /* The dead space below the lanes IS the new-layer drop target. */
+  .tl-newlayer-zone {
+    flex: 1;
+    min-height: 44px;
+    margin-top: 6px;
+    border: 1.5px dashed var(--bg-3);
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+    font-family: var(--font-mono);
+    transition:
+      border-color var(--dur-panel, 160ms) var(--ease-out, ease-out),
+      background var(--dur-panel, 160ms) var(--ease-out, ease-out);
+  }
+
+  .tl-newlayer-zone.is-active,
+  .tl-panel.is-drop .tl-newlayer-zone {
+    border-color: var(--accent);
+    color: var(--fg-1);
+    background: color-mix(in oklab, var(--accent) 7%, transparent);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tl-snapline {
+      animation: none;
+    }
+    .tl-storyline-track.is-reordering .tl-seq-block:not(.is-dragging) {
+      transition: none;
+    }
+    .tl-newlayer-zone {
+      transition: none;
+    }
+  }
+}
+
+/* ── end of the moved rules ── */
+
+@layer components {
+  /* the click-through frame the island is placed in (the canvas is the whole window body, V2-4.1) */
+  .tl-host {
+    position: fixed;
+    inset: 0;
+    z-index: 12;
+    pointer-events: none;
+  }
+
+  .tl-island {
+    position: absolute;
+    bottom: 80px; /* above the canvas toolbar (07: bottom 80) */
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background: var(--island-bg-strong, var(--bg-1));
+    pointer-events: auto;
+    animation: tl-island-in var(--dur-panel) var(--ease-out) both;
+  }
+  .sh-body--float .tl-island {
+    background: var(--island-bg-strong);
+  }
+  .tl-island.is-leaving {
+    pointer-events: none;
+    animation: tl-island-out var(--dur-panel) var(--ease-out) both;
+  }
+  @keyframes tl-island-in {
+    from {
+      opacity: 0;
+      transform: translateY(var(--space-6)) scale(0.98);
+    }
+  }
+  @keyframes tl-island-out {
+    to {
+      opacity: 0;
+      transform: translateY(var(--space-6)) scale(0.98);
+    }
+  }
+
+  /* the v1 body inside: the island is the surface now, the dock's own paint steps aside */
+  .tl-island .tl-panel {
+    background: transparent;
+    border-top: 0;
+    border-radius: inherit;
+  }
+
+  /* the notch points up at the artboard this timeline edits (compact only) */
+  .tl-notch {
+    position: absolute;
+    top: -7px;
+    z-index: 1;
+    width: 14px;
+    height: 14px;
+    translate: -50% 0;
+    rotate: 45deg;
+    border-radius: var(--radius-xs) 0 0 0;
+    background: var(--island-bg-strong);
+    box-shadow:
+      inset 1px 1px 0 var(--border-strong),
+      -2px -2px 6px color-mix(in oklab, var(--fg-0) 8%, transparent);
+    clip-path: polygon(-40% -40%, 140% -40%, -40% 140%);
+    pointer-events: none;
+  }
+
+  /* header additions: Kept open · Expand / Compact */
+  .tl-kept {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin-left: auto;
+    color: var(--fg-1);
+    font-size: var(--type-xs);
+    white-space: nowrap;
+  }
+  .tl-kept + .tl-size {
+    margin-left: var(--space-2);
+  }
+  .tl-size {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    height: 24px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-xs);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background var(--dur-flip) var(--ease-out);
+  }
+  .tl-size:hover {
+    background: var(--bg-3);
+  }
+  .tl-size:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  /* the empty comp (05 · es-timeline): the kit's block where the tracks would be */
+  .tl-kit {
+    flex: 1;
+    min-width: 0;
+    align-items: flex-start;
+    padding: 0;
+  }
+  .tl-kit-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .tl-kit-ruler {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 var(--space-2);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .tl-kit-ruler i {
+    font-style: normal;
+  }
+  /* the one drop track: the dashed outline says "drop here" */
+  .tl-kit-drop {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-md);
+    background: var(--bg-1);
+    outline: 1.5px dashed var(--border-strong);
+    outline-offset: -1.5px;
+  }
+  .tl-kit-drop-ic {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+    color: var(--fg-2);
+  }
+  .tl-kit-lane {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    height: 26px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+
+  /* ═══ P8 C3 — the board's body (07 Video Editing · `_video.css` .ve-tl*, lifted) ═══════════════════════════════
+     The v1 TimelinePanel rules live in @layer shell (the top of this file); these are @layer components, so they win
+     whatever the specificity. Every property the v1 rule set is set again here, so no v1 paint leaks through. */
+
+  .tl-panel {
+    /* track tints — the object palette over the surface (designer-tool colour coding, never hue alone) */
+    --tl-text-bg: color-mix(in oklab, var(--object-lilac) 42%, var(--bg-2));
+    --tl-text-edge: color-mix(in oklab, var(--object-lilac) 80%, var(--fg-2));
+    --tl-gfx-bg: color-mix(in oklab, var(--object-yellow) 40%, var(--bg-2));
+    --tl-gfx-edge: color-mix(in oklab, var(--object-yellow) 80%, var(--fg-2));
+    --tl-music-bg: color-mix(in oklab, var(--object-green) 30%, var(--bg-2));
+    --tl-music-wave: color-mix(in oklab, var(--object-green) 55%, var(--fg-2));
+    --tl-row-gap: 4px;
+    font-size: var(--type-xs);
+  }
+  .tl-island .tl-panel {
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3) var(--space-3);
+  }
+  .tl-island .tl-panel[data-size="full"] {
+    padding-top: var(--space-3);
+  }
+
+  /* the grip on the top edge of a full timeline makes it taller; compact has none */
+  .tl-resize-handle {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    z-index: 3;
+    width: 52px;
+    height: 12px;
+    translate: -50% 0;
+    background: none;
+    cursor: ns-resize;
+  }
+  .tl-resize-handle::after {
+    content: "";
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    top: 4px;
+    height: 4px;
+    border-radius: var(--radius-pill);
+    background: var(--border-strong);
+    opacity: 1;
+  }
+  .tl-panel[data-size="compact"] .tl-resize-handle {
+    display: none;
+  }
+
+  /* ─── header (.ve-tl-hd) ─── */
+  .tl-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    height: auto;
+    min-height: 28px;
+    padding: 0;
+    border: 0;
+  }
+  .tl-head .icon-btn svg {
+    width: 14px;
+    height: 14px;
+  }
+  .tl-readout {
+    padding: 0;
+    background: none;
+    font-family: inherit;
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+    font-variant-numeric: tabular-nums;
+    color: var(--fg-0);
+    white-space: nowrap;
+  }
+  .tl-readout b {
+    font-weight: var(--w-semibold);
+  }
+  .tl-readout-len {
+    font-weight: var(--w-regular);
+    color: var(--fg-2);
+  }
+  .tl-name {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-width: 0;
+    margin-left: var(--space-1);
+    overflow: hidden;
+    color: var(--fg-2);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .tl-name .tl-ic {
+    flex: none;
+  }
+  /* 10 co-comment-video — "2 comments on this video" at the header's right, over the markers it counts */
+  .tl-comments-n {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin-left: auto;
+    color: var(--fg-1);
+    font-size: var(--type-xs);
+    white-space: nowrap;
+  }
+  /* the markers have a row of their own above the ruler (the board's `.co-tl-row--marks`, 22 px): the strip
+     takes the top, the ruler moves down under it */
+  .tl-tracks .tl-comments-strip {
+    top: 0;
+    height: 22px;
+  }
+  .tl-tracks.has-comment-row {
+    padding-top: calc(16px + var(--tl-row-gap) + 24px);
+  }
+  .tl-tracks.has-comment-row .tl-ruler {
+    top: 24px;
+  }
+  /* …and each marker is its author's face on their tone (the board's `.co-tl-mk .k-cpin-dot`, 20 px) */
+  .tl-comment-pin.tl-comment-pin--face {
+    width: 20px;
+    height: 20px;
+    filter: none;
+  }
+  .tl-comment-pin--face .k-av {
+    box-shadow:
+      var(--shadow-sm),
+      0 0 0 2px var(--bg-2);
+  }
+  .tl-name.is-unknown {
+    color: var(--status-warn-text);
+  }
+  .tl-status,
+  .tl-kept,
+  .tl-shared {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    height: 24px;
+    margin: 0;
+    padding: 0 var(--space-1);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-xs);
+    white-space: nowrap;
+  }
+  button.tl-status {
+    cursor: pointer;
+  }
+  button.tl-status:hover {
+    background: var(--bg-3);
+  }
+  button.tl-status:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+  }
+  .tl-status--warn {
+    color: var(--status-warn-text);
+  }
+  .tl-meter {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 12px;
+  }
+  .tl-meter i {
+    width: 3px;
+    background: var(--status-success);
+  }
+  .tl-meter i:nth-child(1) {
+    height: 6px;
+  }
+  .tl-meter i:nth-child(2) {
+    height: 11px;
+  }
+  .tl-meter i:nth-child(3) {
+    height: 8px;
+  }
+  .tl-tools {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  .tl-div {
+    flex: none;
+    width: 1px;
+    height: 18px;
+    margin: 0 var(--space-1);
+    background: var(--border-default);
+  }
+  /* full: zoom − bar +, Fit (.ve-zoom) */
+  .tl-zoomer {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    color: var(--fg-2);
+  }
+  .tl-zoomer .icon-btn.tl-zoom-step {
+    width: 20px;
+    height: 20px;
+    color: var(--fg-2);
+  }
+  .tl-zoomer .icon-btn.tl-zoom-step svg {
+    width: 12px;
+    height: 12px;
+  }
+  .tl-zoom,
+  .tl-volume {
+    appearance: none;
+    width: 84px;
+    height: 12px;
+    margin: 0;
+    background: transparent;
+    cursor: pointer;
+  }
+  .tl-zoom::-webkit-slider-runnable-track,
+  .tl-volume::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: var(--radius-pill);
+    background: var(--bg-4);
+  }
+  .tl-zoom::-moz-range-track,
+  .tl-volume::-moz-range-track {
+    height: 4px;
+    border-radius: var(--radius-pill);
+    background: var(--bg-4);
+  }
+  .tl-zoom::-webkit-slider-thumb,
+  .tl-volume::-webkit-slider-thumb {
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    margin-top: -4px;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--bg-2);
+    box-shadow:
+      var(--shadow-sm),
+      inset 0 0 0 0.5px var(--border-strong);
+  }
+  .tl-zoom::-moz-range-thumb,
+  .tl-volume::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--bg-2);
+    box-shadow:
+      var(--shadow-sm),
+      inset 0 0 0 0.5px var(--border-strong);
+  }
+  .tl-zoom:focus-visible,
+  .tl-volume:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-pill);
+  }
+
+  /* ─── the grid: a gutter of track chips + the lanes (.ve-tl-body) ─── */
+  .tl-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow: auto hidden;
+    padding: 0 3px 3px;
+  }
+  .tl-panel[data-size="full"] .tl-scroll {
+    overflow: auto;
+    /* the tracks never vanish under an open Advanced (07 ve-advanced: the ruler switches to frames, tracks stay) —
+       and the Full body at rest shows what the board draws: the ruler (16 + 4) and the four lanes
+       (Text 24 · Graphics 24 · Video 52 · Music 30, 4 px apart) plus the 3 px under them (P8 C9) */
+    min-height: 168px;
+  }
+  /* an open Advanced grows the island, never past the window: the cards scroll inside it */
+  .tl-island .tl-panel[data-size="full"] {
+    max-height: calc(100vh - 80px - 72px);
+    /* never shorter than its own parts: padding 12 + head 28 + gap 8 + the body (168) + gap 8 + the Advanced foot 30 +
+       padding 12. The shell's default timeline height (216) is shorter than that, so the foot used to hang out of the
+       island once the body kept its ruler and four lanes (P8 C9) */
+    min-height: 266px;
+  }
+  .tl-tracks {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-row-gap);
+    min-height: 0;
+    padding-top: calc(16px + var(--tl-row-gap));
+    cursor: default;
+  }
+  .tl-track {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-row-gap);
+    --tl-row-h: 24px;
+  }
+  .tl-track[data-track="video"],
+  .tl-track[data-track="video2"] {
+    --tl-row-h: 46px;
+  }
+  .tl-panel[data-size="full"] .tl-track[data-track="video"],
+  .tl-panel[data-size="full"] .tl-track[data-track="video2"] {
+    --tl-row-h: 52px;
+  }
+  .tl-track[data-track="music"],
+  .tl-track[data-track="music2"] {
+    --tl-row-h: 30px;
+  }
+  .tl-track[data-folded="1"] {
+    --tl-row-h: 10px;
+  }
+  .tl-row,
+  .tl-row--storyline,
+  .tl-row--overlay,
+  .tl-row--audio,
+  .tl-row--layer,
+  .tl-row--captions {
+    display: flex;
+    align-items: stretch;
+    gap: var(--space-2);
+    height: var(--tl-row-h);
+    margin: 0;
+  }
+  /* titles side by side share a lane: a joined row is drawn onto the one above; only its blocks take the pointer */
+  .tl-row[data-lane-join="1"] {
+    margin-top: calc(-1 * (var(--tl-row-h) + var(--tl-row-gap)));
+  }
+  .tl-row[data-lane-join="1"] .tl-row-track {
+    background: none;
+    box-shadow: none;
+    pointer-events: none;
+  }
+  .tl-row[data-lane-join="1"] .tl-row-track > * {
+    pointer-events: auto;
+  }
+  /* the gutter stays put while the lanes scroll under it (sticky, v1's), painted the island's own material */
+  .tl-row-label {
+    flex: none;
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    padding: 0;
+    background: var(--island-bg-strong, var(--bg-1));
+    width: calc(var(--tl-gutter) - var(--space-2));
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: var(--space-1);
+    overflow: hidden;
+    font-family: inherit;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    text-align: left;
+    pointer-events: none;
+  }
+  .tl-row-label > * {
+    pointer-events: auto;
+  }
+  .tl-row-label-text {
+    display: none;
+  }
+  /* P8 C8 (07 · ve-trim-split) — only a LAYER row names itself in the gutter. A lane's name is its track chip ("Video"):
+     a clip's own name printed beside it overprinted the chip (the last beat's name over "Video"). */
+  .tl-panel[data-size="full"] .tl-row--layer .tl-row-label-text {
+    display: block;
+    margin-left: 26px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .tl-layer-indent {
+    display: none;
+  }
+  .tl-panel[data-size="compact"] .tl-expand {
+    display: none;
+  }
+  .tl-row-track {
+    position: relative;
+    flex: none;
+    height: 100%;
+    border-radius: var(--radius-sm);
+    background: none;
+    box-shadow: none;
+  }
+  .tl-storyline-track,
+  .tl-row--overlay .tl-row-track,
+  .tl-row--audio .tl-row-track {
+    background: none;
+    box-shadow: none;
+  }
+  .tl-storyline-track.is-drop-target {
+    background: var(--accent-soft);
+  }
+  /* the layer grip of a stacked row (full only): no code-made id, it shows on the row's hover */
+  .tl-row-grip {
+    position: absolute;
+    right: 2px;
+    top: 50%;
+    width: 8px;
+    height: 14px;
+    translate: 0 -50%;
+    border-radius: var(--radius-xs);
+    background: radial-gradient(circle, var(--fg-2) 1px, transparent 1.5px) 0 0 / 4px 4px;
+    opacity: 0;
+    cursor: grab;
+  }
+  .tl-row:hover .tl-row-grip {
+    opacity: 1;
+  }
+
+  /* the track chip (.ve-lab) — drawn once per track, at its first lane, in the gutter */
+  .tl-track-cap {
+    position: sticky;
+    left: 0;
+    top: 0;
+    z-index: 4;
+    flex: none;
+    /* it takes no room of its own: drawn over its track's first lane */
+    margin-bottom: calc(-1 * (var(--tl-row-h) + var(--tl-row-gap)));
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    width: calc(var(--tl-gutter) - var(--space-2));
+    height: var(--tl-row-h);
+    min-height: 0;
+    padding: 0;
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+    line-height: 1;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  .tl-track-cap > * {
+    pointer-events: auto;
+  }
+  .tl-lab-ic {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    border-radius: var(--radius-xs);
+    background: var(--bg-4);
+    color: var(--fg-0);
+  }
+  .tl-track[data-track="text"] .tl-lab-ic {
+    background: var(--tl-text-bg);
+  }
+  .tl-track[data-track="gfx"] .tl-lab-ic {
+    background: var(--tl-gfx-bg);
+  }
+  .tl-track[data-track="music"] .tl-lab-ic,
+  .tl-track[data-track="music2"] .tl-lab-ic {
+    background: var(--tl-music-bg);
+  }
+  .tl-track[data-folded="1"] .tl-lab-ic {
+    width: auto;
+    height: auto;
+    background: none;
+    color: var(--fg-2);
+  }
+  .tl-track-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--fg-1);
+    font-weight: var(--w-medium);
+    letter-spacing: 0;
+    text-overflow: ellipsis;
+  }
+  /* compact: the chip alone — the name stays for a screen reader */
+  .tl-panel[data-size="compact"] .tl-track-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .tl-track-fold {
+    appearance: none;
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .tl-track-fold:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+  }
+  /* with the view / volume button beside it, the fold button takes the room that is left */
+  .tl-track-cap > .tl-track-fold {
+    width: auto;
+    flex: 1;
+    min-width: 0;
+  }
+  /* P8 C8 (07 · .ve-lab-b) — the track's view / volume button: 20 px, quiet until pointed at; off = struck dim */
+  .tl-lab-b {
+    appearance: none;
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: transparent;
+    color: var(--fg-2);
+    cursor: pointer;
+  }
+  .tl-lab-b:hover:not(:disabled) {
+    background: var(--hover-bg, var(--bg-3));
+    color: var(--fg-0);
+  }
+  .tl-lab-b:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+  }
+  .tl-lab-b:disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
+  .tl-lab-b.is-off {
+    color: var(--fg-3, var(--fg-2));
+  }
+  /* a track with nothing on it still draws its lane (.ve-row--empty) */
+  .tl-row--empty .tl-row-track {
+    background: var(--bg-3);
+    box-shadow: inset 0 0 0 1px var(--border-subtle);
+  }
+  .tl-row-hint {
+    position: absolute;
+    left: var(--space-2);
+    top: 50%;
+    translate: 0 -50%;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    color: var(--fg-2);
+    white-space: nowrap;
+  }
+  .tl-music-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  .tl-music-hint .tl-link {
+    appearance: none;
+    margin: 0 0 0 var(--space-1);
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--accent-text);
+    font: inherit;
+    font-weight: var(--w-medium);
+    cursor: pointer;
+  }
+  .tl-music-hint .tl-link:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-xs);
+  }
+  .tl-music-or {
+    color: var(--fg-2);
+  }
+  /* a folded track: one striped line (.ve-fold-bar) */
+  .tl-fold-bar {
+    position: absolute;
+    inset: 2px 0;
+    border-radius: var(--radius-pill);
+    background: repeating-linear-gradient(90deg, var(--bg-4) 0 14px, transparent 14px 18px);
+  }
+
+  /* ─── the ruler: body-face labels, no tick lines (.ve-tick) ─── */
+  .tl-ruler {
+    position: absolute;
+    top: 0;
+    left: var(--tl-gutter);
+    height: 16px;
+    border: 0;
+  }
+  .tl-tick,
+  .tl-tick.is-major {
+    position: absolute;
+    top: 0;
+    bottom: auto;
+    width: 0;
+    height: 16px;
+    border: 0;
+    background: none;
+  }
+  .tl-tick-label,
+  .tl-tick.is-major .tl-tick-label {
+    position: absolute;
+    top: 0;
+    left: 0;
+    translate: -50% 0;
+    font-family: inherit;
+    font-size: var(--type-xs);
+    line-height: 16px;
+    color: var(--fg-2);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .tl-tick.is-start .tl-tick-label {
+    translate: 0 0;
+  }
+  .tl-panel[data-ruler="frames"] .tl-tick-label {
+    font-family: var(--font-mono);
+  }
+  .tl-poster-flag,
+  .tl-marker-flag {
+    position: absolute;
+    top: 0;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    max-width: 120px;
+    padding: 0 var(--space-1);
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: var(--bg-2);
+    box-shadow: inset 0 0 0 1px var(--border-strong);
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-xs);
+    font-weight: var(--w-medium);
+    line-height: 14px;
+    white-space: nowrap;
+    translate: 6px 0;
+  }
+  .tl-poster-flag {
+    pointer-events: none;
+  }
+  .tl-marker-flag {
+    translate: -3px 0;
+    box-shadow:
+      inset 2px 0 0 var(--fg-1),
+      inset 0 0 0 1px var(--border-strong);
+    cursor: pointer;
+  }
+  .tl-marker-flag:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+  }
+  .tl-marker-name {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* the loop range (I / O): a band on the ruler with accent edges, a tint down the lanes (.ve-loop) */
+  .tl-loop {
+    position: absolute;
+    top: 0;
+    bottom: auto;
+    z-index: 1;
+    height: 16px;
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: var(--accent-tint);
+    box-shadow:
+      inset 2px 0 0 var(--accent),
+      inset -2px 0 0 var(--accent);
+    pointer-events: none;
+  }
+  /* the band's two ends: "I" and "O" badges on the ruler (07 .ve-inout) — draggable, keyboard-steppable */
+  .tl-loop-handle {
+    position: absolute;
+    top: -1px;
+    z-index: 3;
+    translate: -50% 0;
+    padding: 0 3px;
+    border-radius: var(--radius-xs);
+    background: var(--accent);
+    color: var(--accent-fg);
+    font-weight: var(--w-semibold);
+    line-height: 16px;
+    cursor: ew-resize;
+    touch-action: none;
+    user-select: none;
+  }
+  .tl-loop-handle:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+  }
+  .tl-loop-lane {
+    position: absolute;
+    top: calc(16px + var(--tl-row-gap));
+    bottom: 0;
+    z-index: 0;
+    background: color-mix(in oklab, var(--accent) 7%, transparent);
+    pointer-events: none;
+  }
+
+  /* ─── clips: the footage as a filmstrip with its name on a chip (.ve-clip) ─── */
+  .tl-seq-block {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    min-width: 6px;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: var(--bg-4);
+    box-shadow: inset 0 0 0 0.5px var(--border-strong);
+    color: var(--fg-0);
+    font: inherit;
+    text-align: left;
+    transition: none;
+  }
+  .tl-seq-block:hover {
+    background: var(--bg-4);
+  }
+  .tl-seq-block.tl-beat {
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: var(--object-ink);
+    box-shadow: inset 0 0 0 0.5px var(--border-strong);
+  }
+  .tl-track[data-track="video"] .tl-seq-block,
+  .tl-track[data-track="video2"] .tl-seq-block {
+    background: var(--object-ink);
+  }
+  .tl-storyline-track .tl-seq-block.tl-beat:first-child {
+    border-radius: var(--radius-sm);
+  }
+  .tl-strip {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    overflow: hidden;
+    opacity: 1;
+    box-shadow: inset 0 0 0 0.5px color-mix(in oklab, var(--object-ink) 40%, transparent);
+  }
+  .tl-strip img {
+    flex: 1 0 auto;
+    height: 100%;
+    min-width: 0;
+    object-fit: cover;
+  }
+  .tl-strip--img img {
+    width: 100%;
+  }
+  .tl-seq-block .tl-seq-name.tl-clip-lab,
+  .tl-seq-block .tl-clip-lab {
+    position: absolute;
+    left: 3px;
+    top: 3px;
+    bottom: auto;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    max-width: calc(100% - 6px);
+    padding: 0 var(--space-1);
+    overflow: hidden;
+    transform: none;
+    border-radius: var(--radius-xs);
+    background: color-mix(in oklab, var(--object-ink) 78%, transparent);
+    color: var(--object-grey);
+    font-family: inherit;
+    font-size: var(--type-xs);
+    font-weight: var(--w-medium);
+    line-height: 16px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  /* titles and graphics are tinted chips with their track's glyph (.ve-item) */
+  .tl-track[data-track="text"] .tl-seq-block,
+  .tl-track[data-track="gfx"] .tl-seq-block {
+    border-radius: var(--radius-xs);
+    background: var(--tl-text-bg);
+    box-shadow: inset 0 0 0 1px var(--tl-text-edge);
+  }
+  .tl-track[data-track="gfx"] .tl-seq-block {
+    background: var(--tl-gfx-bg);
+    box-shadow: inset 0 0 0 1px var(--tl-gfx-edge);
+  }
+  .tl-track[data-track="text"] .tl-seq-block .tl-clip-lab,
+  .tl-track[data-track="gfx"] .tl-seq-block .tl-clip-lab {
+    inset: 0;
+    max-width: none;
+    padding: 0 var(--space-1);
+    background: none;
+    color: var(--fg-0);
+    line-height: 1;
+  }
+  .tl-track[data-track="text"] .tl-seq-block .tl-clip-lab {
+    font-weight: var(--w-semibold);
+  }
+  .tl-track[data-track="gfx"] .tl-seq-block .tl-clip-lab {
+    font-weight: var(--w-regular);
+  }
+  .tl-clip-lab .tl-ic {
+    flex: none;
+    color: var(--fg-1);
+  }
+  .tl-seq-block.is-selected,
+  .tl-track[data-track] .tl-seq-block.is-selected {
+    z-index: 2;
+    outline: none;
+    box-shadow: 0 0 0 2px var(--accent);
+  }
+  .tl-seq-block:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+  }
+  .tl-seq-block.is-hidden {
+    opacity: 0.42;
+  }
+  /* the clip being moved lifts and tilts (.ve-clip--lift); its neighbours make room */
+  .tl-seq-block.is-dragging,
+  .tl-seq-block.is-moving {
+    z-index: 4;
+    translate: 0 -10px;
+    rotate: -1.5deg;
+    box-shadow:
+      var(--shadow-lg),
+      0 0 0 2px var(--accent);
+    cursor: grabbing;
+  }
+  /* a shot AI is placing lands with a spark ring (.ve-clip--land) */
+  .tl-seq-block.is-landing {
+    z-index: 3;
+    translate: 0 -6px;
+    box-shadow:
+      0 0 0 2px var(--spark),
+      0 0 0 6px var(--spark-muted),
+      var(--shadow-md);
+  }
+  /* footage not here yet: quiet grey hatch (CONTRACT §7 — never an error colour); missing: the hatch + a warn edge */
+  .tl-seq-block[data-footage="waiting"],
+  .tl-seq-block[data-footage="missing"] {
+    opacity: 1;
+    background-color: var(--bg-3);
+    background-image: repeating-linear-gradient(
+      135deg,
+      color-mix(in oklab, var(--fg-2) 16%, transparent) 0 2px,
+      transparent 2px 7px
+    );
+    box-shadow: inset 0 0 0 1.5px var(--border-strong);
+    color: var(--fg-1);
+  }
+  .tl-seq-block[data-footage="missing"] {
+    box-shadow: inset 0 0 0 1.5px var(--status-warn);
+  }
+  .tl-seq-block[data-footage="waiting"] .tl-clip-lab,
+  .tl-seq-block[data-footage="missing"] .tl-clip-lab,
+  .tl-seq-block[data-footage="preparing"] .tl-clip-lab {
+    background: var(--bg-2);
+    color: var(--fg-1);
+  }
+  .tl-seq-block[data-footage="preparing"] {
+    background-color: var(--bg-3);
+    background-image: repeating-linear-gradient(135deg, var(--bg-4) 0 6px, transparent 6px 12px);
+    box-shadow: inset 0 0 0 1px var(--border-default);
+  }
+  .tl-seq-block[data-names="off"] .tl-seq-name {
+    display: none;
+  }
+  .tl-chip,
+  .tl-chip-mute,
+  .tl-chip-speed {
+    position: absolute;
+    right: 3px;
+    bottom: 3px;
+    top: auto;
+    left: auto;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    min-width: 18px;
+    height: 14px;
+    padding: 0 3px;
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: color-mix(in oklab, var(--object-ink) 78%, transparent);
+    color: var(--object-grey);
+    font-family: inherit;
+    font-size: var(--type-xs);
+    font-variant-numeric: tabular-nums;
+    line-height: 14px;
+  }
+  .tl-chip-speed + .tl-chip-mute {
+    right: 26px;
+  }
+  .tl-chip-prep {
+    position: absolute;
+    left: auto;
+    margin: 0;
+  }
+  /* trim handles (.ve-trim): 8 px accent with a grip, on the clip you point at or picked */
+  .tl-seq-resize,
+  .tl-seq-trim-in {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 3;
+    width: 8px;
+    border: 0;
+    background: var(--accent);
+    opacity: 0;
+    cursor: ew-resize;
+  }
+  .tl-seq-resize {
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    translate: -3px 0;
+  }
+  .tl-seq-trim-in {
+    border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+    translate: 1px 0;
+  }
+  .tl-seq-resize::after,
+  .tl-seq-trim-in::after {
+    content: "";
+    position: absolute;
+    left: 3px;
+    top: 30%;
+    bottom: 30%;
+    width: 2px;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--accent-fg);
+    opacity: 1;
+  }
+  .tl-seq-block:is(:hover, .is-selected, .is-resizing) + .tl-seq-resize,
+  .tl-seq-block:is(:hover, .is-selected) + .tl-seq-resize + .tl-seq-trim-in,
+  .tl-seq-resize:hover,
+  .tl-seq-trim-in:hover {
+    opacity: 1;
+  }
+  .tl-seq-replace {
+    appearance: none;
+    position: absolute;
+    top: 3px;
+    z-index: 3;
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: var(--bg-2);
+    box-shadow: var(--shadow-sm);
+    color: var(--fg-1);
+    opacity: 0;
+    cursor: pointer;
+  }
+  .tl-row:hover .tl-seq-replace,
+  .tl-seq-replace:focus-visible {
+    opacity: 1;
+  }
+  .tl-seq-replace:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+  }
+
+  /* ─── joins: a round dot where a transition is; "+" only on hover or keyboard focus (.ve-join) ─── */
+  .tl-seam,
+  .tl-seam.tl-join,
+  .tl-seam-add {
+    appearance: none;
+    position: absolute;
+    top: 50%;
+    z-index: 3;
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    margin: 0;
+    padding: 0;
+    translate: -50% -50%;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--bg-2);
+    color: var(--fg-1);
+    box-shadow:
+      var(--shadow-sm),
+      inset 0 0 0 0.5px var(--border-strong);
+    font: inherit;
+    cursor: pointer;
+    opacity: 1;
+  }
+  .tl-seam.tl-join[data-sel] {
+    background: var(--accent);
+    color: var(--accent-fg);
+    box-shadow:
+      var(--shadow-sm),
+      0 0 0 3px var(--accent-tint);
+  }
+  .tl-seam:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+  .tl-seam-add {
+    opacity: 0;
+    color: var(--fg-2);
+  }
+  .tl-seam-add:focus-visible,
+  .tl-storyline-track:hover .tl-seam-add {
+    opacity: 1;
+  }
+  .tl-seam-add:hover {
+    color: var(--accent-text);
+  }
+
+  /* ─── music: the song as a bar waveform, its beats, the volume line (.ve-music) ─── */
+  .tl-audio-block {
+    appearance: none;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: var(--tl-music-bg);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+    color: var(--fg-1);
+    font: inherit;
+    text-align: left;
+  }
+  .tl-audio-block.is-selected {
+    z-index: 2;
+    box-shadow: 0 0 0 2px var(--accent);
+  }
+  .tl-audio-block:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+  }
+  .tl-row--audio .tl-seq-block,
+  .tl-track[data-track="music"] .tl-seq-block,
+  .tl-track[data-track="music2"] .tl-seq-block {
+    background: var(--tl-music-bg);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+  }
+  .tl-wave-bars {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 5px;
+    bottom: 5px;
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    padding: 0 var(--space-1);
+  }
+  .tl-wave-bars i {
+    flex: 1;
+    min-width: 1px;
+    background: var(--tl-music-wave);
+  }
+  .tl-wave {
+    position: absolute;
+    left: 0;
+    top: 5px;
+    width: 100%;
+    height: calc(100% - 10px);
+  }
+  .tl-wave path,
+  .tl-wave-real {
+    fill: var(--tl-music-wave);
+    stroke: none;
+  }
+  .tl-music-lab {
+    position: absolute;
+    left: var(--space-1);
+    bottom: 3px;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    max-width: calc(100% - var(--space-2));
+    padding: 0 var(--space-1);
+    overflow: hidden;
+    border-radius: var(--radius-xs);
+    background: var(--bg-2);
+    color: var(--fg-1);
+    font-weight: var(--w-medium);
+    line-height: 14px;
+    white-space: nowrap;
+  }
+  .tl-music-lab .tl-ic {
+    flex: none;
+  }
+  .tl-music-n {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .tl-music-ov {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    /* over the song's block (z 2, 3 selected): the beat ticks and the volume line were painted UNDER it, so no tick was
+       ever seen (P8 C9, 07 ve-music) */
+    z-index: 4;
+    overflow: visible;
+    border-radius: var(--radius-sm);
+    pointer-events: none;
+  }
+  .tl-music-svg {
+    display: block;
+    overflow: visible;
+  }
+  .tl-beat-tick {
+    fill: none;
+    stroke: var(--fg-2);
+    stroke-width: 1;
+    opacity: 1;
+    vector-effect: non-scaling-stroke;
+  }
+  .tl-beat-tick--bar {
+    stroke: var(--fg-0);
+    stroke-width: 2;
+    opacity: 1;
+  }
+  .tl-duck-line {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+  }
+  .tl-music-bpm,
+  .tl-music-lab .tl-music-bpm {
+    position: static;
+    padding: 0;
+    background: none;
+    color: inherit;
+    font-variant-numeric: tabular-nums;
+  }
+  .tl-music-n + .tl-music-bpm::before {
+    content: "·";
+    margin-right: 3px;
+  }
+  .tl-duck-label,
+  .tl-music-finding {
+    position: absolute;
+    z-index: 2;
+    padding: 0 var(--space-1);
+    border-radius: var(--radius-xs);
+    background: var(--bg-2);
+    color: var(--accent-text);
+    font-family: inherit;
+    font-size: var(--type-xs);
+    font-weight: var(--w-medium);
+    line-height: 14px;
+    white-space: nowrap;
+  }
+  .tl-duck-label {
+    top: auto;
+    bottom: 3px;
+  }
+  .tl-music-finding {
+    top: 50%;
+    left: var(--space-2);
+    translate: 0 -50%;
+    transform: none;
+    color: var(--fg-1);
+  }
+
+  /* ─── captions on the Text track: one chip per word (.ve-item--word) ─── */
+  .tl-row--captions .tl-cap {
+    border-radius: var(--radius-xs);
+    background: var(--bg-3);
+    box-shadow: inset 0 0 0 1px var(--border-default);
+    color: var(--fg-1);
+    font-family: inherit;
+    font-size: var(--type-xs);
+  }
+  .tl-row--captions .tl-cap[data-hl="true"] {
+    background: var(--accent-muted);
+    color: var(--accent-text);
+    font-weight: var(--w-semibold);
+  }
+  .tl-row--captions .tl-cap[data-sel="true"] {
+    z-index: 2;
+    background: var(--bg-2);
+    color: var(--fg-0);
+    box-shadow:
+      0 0 0 2px var(--accent),
+      0 0 0 5px var(--accent-tint);
+  }
+
+  /* ─── the playhead: a line with a rounded knob, no time tag (.ve-head) ─── */
+  .tl-playhead {
+    position: absolute;
+    top: 0;
+    bottom: -4px;
+    z-index: 6;
+    width: 2px;
+    translate: -50% 0;
+    background: var(--accent);
+    box-shadow: none;
+    pointer-events: none;
+  }
+  .tl-playhead::before {
+    content: "";
+    position: absolute;
+    left: -4px;
+    top: 0;
+    width: 10px;
+    height: 11px;
+    border: 0;
+    border-radius: var(--radius-xs) var(--radius-xs) var(--radius-pill) var(--radius-pill);
+    background: var(--accent);
+    clip-path: none;
+  }
+  .tl-snapline {
+    position: absolute;
+    top: calc(16px + var(--tl-row-gap));
+    bottom: 0;
+    z-index: 5;
+    width: 0;
+    border-left: 1.5px dashed var(--accent);
+    background: none;
+    pointer-events: none;
+  }
+  /* the empty space under the lanes takes a drop as a new layer; it says so only while something is dragged */
+  .tl-newlayer-zone {
+    display: none;
+  }
+  .tl-panel.is-drop .tl-newlayer-zone {
+    display: flex;
+    align-items: center;
+    min-height: 24px;
+    border-radius: var(--radius-sm);
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+  }
+  .tl-panel.is-drop {
+    outline: 0;
+    background: transparent;
+  }
+
+  /* V2-8.5 c4-video (07 `.ve-tip`, `.ve-tip--up`): the play button's key tip and the step tip — a dark pill over the
+     button, key caps outlined in it. Hover / keyboard focus shows the first; stepping shows the second. */
+  .tl-play-wrap {
+    position: relative;
+    display: inline-flex;
+  }
+  .tl-keytip {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + var(--space-2));
+    z-index: 20;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--fg-0);
+    color: var(--bg-2);
+    font-size: var(--type-xs);
+    font-weight: var(--w-medium);
+    white-space: nowrap;
+    box-shadow: var(--shadow-md);
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+  }
+  .tl-keytip .kbd {
+    background: transparent;
+    color: var(--bg-2);
+    box-shadow: inset 0 0 0 0.5px var(--bg-2);
+  }
+  .tl-keytip-dim {
+    opacity: 0.72;
+  }
+  .tl-keytip--play {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity var(--dur-flip) var(--ease-out);
+  }
+  .tl-play-wrap:hover .tl-keytip--play,
+  .tl-play-wrap:focus-within .tl-keytip--play {
+    opacity: 1;
+    visibility: visible;
+  }
+  /* the two never stack: the play tip wins while the button is pointed at */
+  .tl-play-wrap:hover .tl-keytip--step,
+  .tl-play-wrap:focus-within .tl-keytip--step {
+    visibility: hidden;
+  }
+
+  /* S7.9 — what a gesture says before the pointer lets go: a tip (title over a dimmer line), the insert line where
+     a dragged beat lands, and the catcher that takes a drop over the artboard (the canvas draws the chip). */
+  .tl-tip {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    top: -34px;
+    padding: var(--space-1) var(--space-2);
+    font-family: var(--font-body, inherit);
+    font-size: var(--type-xs);
+    line-height: 14px;
+  }
+  .tl-tip-title {
+    color: inherit;
+    font-weight: var(--w-semibold);
+  }
+  .tl-tip-dim {
+    color: inherit;
+    opacity: 0.72;
+    font-variant-numeric: tabular-nums;
+  }
+  .tl-insert-line,
+  .tl-drop-caret {
+    position: absolute;
+    top: -4px;
+    bottom: -4px;
+    z-index: 5;
+    width: 2px;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+    pointer-events: none;
+  }
+  .tl-insert-line::before,
+  .tl-insert-line::after,
+  .tl-drop-caret::before,
+  .tl-drop-caret::after {
+    content: "";
+    position: absolute;
+    left: -3px;
+    width: 8px;
+    height: 2px;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+  }
+  .tl-insert-line::before,
+  .tl-drop-caret::before {
+    top: 0;
+  }
+  .tl-insert-line::after,
+  .tl-drop-caret::after {
+    top: auto;
+    bottom: 0;
+  }
+  .tl-artboard-drop {
+    position: fixed;
+    z-index: 13;
+    border-radius: var(--radius-sm);
+  }
+
+  /* S7.16 — the long-video badge and "N clips still preparing" sit in the header's status slot */
+  .tl-long-badge {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* the Advanced foot's first row: the v1 header's other tools, one disclosure down (07 · note 26) */
+  /* V2-8.5 c4-video: the row is a small island of its own above the foot (the cards sit above it, `--tla-tools`) */
+  .tla-tools {
+    position: absolute;
+    right: calc(-1 * var(--space-2));
+    bottom: calc(100% + var(--tla-lift, 0px) + var(--space-2));
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-1);
+    max-width: 100%;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--island-radius, var(--radius-xl));
+    background: var(--island-bg-strong, var(--bg-1));
+    box-shadow:
+      var(--island-shadow, var(--shadow-lg)),
+      inset 0 0 0 0.5px var(--island-edge);
+  }
+  .tla-tools .btn {
+    gap: var(--space-1);
+  }
+  .tla-tools .btn[aria-pressed="true"] {
+    background: var(--accent-muted);
+    color: var(--accent-text);
+  }
+  .tla-vol {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-left: var(--space-2);
+    color: var(--fg-2);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tl-seq-block.is-dragging,
+    .tl-seq-block.is-moving,
+    .tl-seq-block.is-landing {
+      rotate: 0deg;
+    }
+  }
+  /* ─── Round 11 (10 · co-comment-video): the read-only comment strip of a video board in Preview ───
+     The island's own material (`.tl-island`); the header is the board's (`0:12 / 0:30`, name, count), the track a
+     hairline with each timed thread's face on its second. Nothing here is a control but the faces (they seek). */
+  .tl-cs {
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3) var(--space-3);
+  }
+  .tl-cs-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 24px;
+  }
+  .tl-cs-track {
+    position: relative;
+    height: 28px;
+    margin: 0 10px; /* a face at either end stays inside the island */
+  }
+  .tl-cs-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 2px;
+    translate: 0 -50%;
+    border-radius: var(--radius-pill);
+    background: var(--border-strong);
+  }
+  .tl-cs-playhead {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    translate: -50% 0;
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+    pointer-events: none;
+  }
+  .tl-cs-mark {
+    appearance: none;
+    position: absolute;
+    top: 4px;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: none;
+    translate: -50% 0;
+    cursor: pointer;
+  }
+  .tl-cs-mark .k-av {
+    box-shadow:
+      var(--shadow-sm),
+      0 0 0 2px var(--bg-2);
+  }
+  /* the thread at the playhead wears the accent ring (the board's `data-on`) */
+  .tl-cs-mark.is-on .k-av {
+    box-shadow:
+      var(--shadow-sm),
+      0 0 0 2px var(--bg-2),
+      0 0 0 4px var(--accent);
+  }
+  .tl-cs-mark.is-resolved {
+    opacity: 0.55;
+  }
+  .tl-cs-mark:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  /* p8-r11-15 (15 · an-video): a note pinned to this video — a bar in its paper over the hairline, from its start
+     to its end (the board's `an-tl-mk--st`); the one at the playhead wears the accent ring. */
+  .tl-cs-note {
+    appearance: none;
+    position: absolute;
+    top: 50%;
+    height: 10px;
+    min-width: 6px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-pill);
+    translate: 0 -50%;
+    cursor: pointer;
+    box-shadow: 0 0 0 1.5px var(--bg-2);
+  }
+  .tl-cs-note[data-on] {
+    box-shadow:
+      0 0 0 1.5px var(--bg-2),
+      0 0 0 3px var(--accent);
+  }
+  .tl-cs-note:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+}

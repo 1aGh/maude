@@ -1,0 +1,150 @@
+/* client/v2/timeline/reframe.css — S7.13: the Re-frame island (07 Video Editing · ve-reframe), the Timeline's
+ * "Shared by N formats" status and the inspector's Formats rows (ve-formats). Lifted from the canvas's `.ve-reframe`, `.ve-src`, `.ve-crop` and
+ * `.ve-tl-status` rules; tokens only. The drag is the person's hand, so nothing animates (reduced motion needs nothing).
+ * B3: no track box or motion path — those are the subject-following parts this release does not build. */
+
+@layer components {
+  .ve-reframe {
+    position: fixed;
+    top: 72px;
+    left: 50%;
+    translate: -50% 0;
+    z-index: 60;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    width: 592px;
+    max-width: calc(100vw - 2 * var(--space-4));
+    background: var(--island-bg-strong);
+  }
+  .ve-reframe .ve-panel-h {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+  }
+  .ve-reframe .ve-panel-h .insp-cp-seg {
+    margin-left: auto;
+  }
+  .ve-src {
+    position: relative;
+    align-self: center;
+    overflow: hidden;
+    border-radius: var(--radius-sm);
+    background-color: var(--object-ink);
+  }
+  .ve-src-media {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: fill;
+    pointer-events: none;
+  }
+  .ve-crop {
+    position: absolute;
+    z-index: 2;
+    box-sizing: border-box;
+    border: 2px solid var(--accent);
+    box-shadow: 0 0 0 999px color-mix(in oklab, var(--object-ink) 55%, transparent);
+    cursor: grab;
+    touch-action: none;
+  }
+  .ve-crop.is-dragging {
+    cursor: grabbing;
+  }
+  .ve-crop.is-locked {
+    cursor: default;
+  }
+  .ve-crop:focus-visible {
+    outline: 2px solid var(--focus-ring, var(--accent));
+    outline-offset: 2px;
+  }
+  .ve-crop-tag {
+    position: absolute;
+    left: -2px;
+    top: 4px;
+    padding: 1px var(--space-1);
+    border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
+    background: var(--accent);
+    color: var(--accent-fg);
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  .ve-reframe-foot {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--type-sm);
+  }
+  .ve-reframe-foot .ve-tl-sp {
+    flex: 1;
+  }
+  .ve-reframe-note {
+    margin: 0;
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+  }
+
+  /* the Timeline header: "Shared by 3 formats" with the link glyph */
+  .tl-shared {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin-left: auto;
+    color: var(--fg-1);
+    font-size: var(--type-xs);
+    white-space: nowrap;
+  }
+  .tl-shared + .tl-kept,
+  .tl-shared + .tl-size {
+    margin-left: var(--space-2);
+  }
+
+  /* the inspector's Formats rows: a link glyph, the format, its size or "this one" */
+  .insp-fmts {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 100%;
+  }
+  .insp-fmt-row {
+    appearance: none;
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: 2px var(--space-1);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-0);
+    font: inherit;
+    font-size: var(--type-xs);
+    text-align: left;
+    white-space: nowrap;
+  }
+  .insp-fmt-row > svg {
+    color: var(--fg-2);
+  }
+  .insp-fmt-row > span {
+    margin-left: auto;
+    color: var(--fg-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .insp-fmt-row[data-on] {
+    background: var(--accent-muted);
+  }
+  button.insp-fmt-row {
+    cursor: pointer;
+  }
+  button.insp-fmt-row:hover {
+    background: var(--bg-3);
+  }
+  .insp-fmt-row--add,
+  .insp-fmt-row--add > svg {
+    color: var(--accent-text);
+  }
+}

@@ -2,7 +2,7 @@
 name: setup-ds
 category: setup
 description: "Create or re-bootstrap a named design system."
-argument-hint: "<name> [\"<brief>\"] [--force] [--quick]"
+argument-hint: "<name> [\"<brief>\"] [--force | --upgrade-schema | --app] [--allow-partial] [--quick]"
 ---
 
 # /design:setup-ds — create / extend a design system
@@ -13,6 +13,8 @@ Dedicated entry point for **creating a design system** in this project. Three mo
 
 - **first-bootstrap** — `.design/config.json` does not exist (or `designSystems[]` is empty). The skill runs **staged discovery** (DDR-033 + DDR-147: Stage 0 scope picker → Stage 1 vision prompts → Stage 2 research → **Stage 3 direction gate** (moodboard pick of ~`moodboard.variants` directions) → **Stage 4 refinement residue** → **LOCK gate**), scaffolds `system/<name>/`, writes `config.json` with `designSystems: [{ name, path, description }]`.
 - **additional-ds** — `config.json` exists and `<name>` is **not** in `designSystems[]`. The skill runs the same stages plus a Q_purpose prompt at the start and an inheritance picker between Stage 2 and the Stage-3 direction gate (inherited fields are frozen across all direction tiles).
+- **app** — `--app`: the Maude app has already made the system (a `designSystems[]` entry, an empty `system/<name>/`, a Design system canvas of outlines, `revisions/head.json` with no head) from its three-input sheet and sent you the brief. No interview and no scaffold roster: the three directions are written with `maude design ds draft`, the person picks in the app, the sections fill through the working files. See **App mode** below.
+- **upgrade-schema** — `--upgrade-schema`: `<name>` exists but was made before the schema (ds-check level 11, or an amber dot on its row in the Maude app). No interview, no scaffold: the system is brought up to the schema by the deterministic `maude design ds-upgrade` steps plus your judgement of the few roles it cannot derive, proved pixel-identical, and handed back for the person to apply. See **Upgrade-schema mode** below.
 - **re-bootstrap** — `<name>` already exists in `designSystems[]` AND `--force` was passed. Stage 1 is lossy-inferred from the existing DS README + tokens + `_layout.css`; user confirms / corrects in a single chat message; Stage 2 always re-runs; the Stage-3 direction gate runs with **1 tile**; Stage 4 residue + LOCK proceed identically.
 
 This command **does NOT create a canvas** — use `/design:new` for that. It also does NOT prepare the project environment (deps, CLAUDE.md, .ai/) — that's `/design:init`'s job.
@@ -21,6 +23,8 @@ This command **does NOT create a canvas** — use `/design:new` for that. It als
 
 - `<name>` — required. Kebab-case slug (`marketing`, `admin`, `consumer-mobile`, …). For the first DS in a **single-DS project**, the literal value `project` is the conventional default — every `/design:edit` / `/design:new` auto-detects it without `--ds=<name>` flag. **Name-validation rule (Phase 19 / DDR-044):** when first-bootstrap is detected AND `<name>` exactly matches the repo basename (e.g. user typed `/design:setup-ds my-repo` from `~/git/my-repo`), the skill warns: `You passed '<name>'; for first-bootstrap projects the conventional default is 'project' (auto-detected by /design:edit). Continue with '<name>'? [Y/n]` and proceeds on Y/enter. The user-supplied name is honored either way — the warning is informational, not gating. The completeness-critic's C2 dirname check (`system/<name>/` vs `system/project/`) reads `vision-brief.json#name_source` to distinguish `user`-supplied from `default`-applied names; user-supplied names do NOT trigger C2.
 - `<brief>` — optional. If absent, Stage 1 asks all 11 prompts. If present, the skill pre-fills the matching `vision-brief.json` fields (typically P1 elevator pitch, sometimes P5 lineage / P10 OST hypothesis) and prints a one-line `→ Skipping P<N> (covered in brief)` per skipped prompt so the user can correct misfires.
+- `--app` — the Maude app started this system (13 · "Make a design system"); see **App mode**. Only valid for a system that is mid-make (its `revisions/head.json` has `head: null`); a system that is already made answers `ds-not-making` from the verbs. The `<brief>` is the person's sentence, passed **verbatim**.
+- `--upgrade-schema` — bring an existing, pre-schema system up to the schema (13 · "Bring <system> up to the schema?"); see **Upgrade-schema mode**. Mutually exclusive with `--force`, `--app` and `<brief>`: the system keeps every look it has. A system already on a Design system canvas answers `ds-upgrade-converted` and nothing is changed.
 - `--force` — required for re-bootstrap of an existing DS. Without it, an existing-DS target produces an error pointing at the right verb (`/design:edit` for incremental change, `/design:setup-ds <new-name>` to add a sibling DS).
 - `--quick` — opt out of Stage 1's full 11 prompts. The skill collapses Stage 1 to 4 prompts (P1 elevator + P5 lineage + P8 primary emotion + P10 OST hypothesis), forces the Stage-3 direction gate to **1 tile** (auto-proceed-but-still-ask), and runs Stage 4 refinement normally. Output is structurally valid but typically scores ~3.5/5 aspiration instead of the 4.0+/5 the full 3-stage flow targets. Use when scaffolding a throwaway DS or when the user explicitly wants the fast path.
 - `--imprint` — steer Stage 2 research toward an explicit brand prior (rare; usually used when the brief already names a strong gold-standard, e.g. "use the studyfi imprint pattern"). The skill still runs Stage 1 + Stage 2 + Stage 3 in full BUT seeds the research agent's payload with the prior. **Phase 3.7 / DDR-049:** the post-scaffold critic panel is gated by an explicit `AskUserQuestion` (Full 4 rounds / Imprint-only / Custom) regardless of `--imprint` — the flag does NOT silently skip Rounds 2 + 3. `motion-critic` is always-on whenever `motion.tsx` is scaffolded, regardless of `--opt-out=motion`. See SKILL.md "Spec-bypass discipline" — any deviation from spec routes through `<designRoot>/_history/_system/<ds>-bypass-log.md`.
@@ -82,6 +86,8 @@ target_ds: <name>
 brief:     <brief or empty>
 force:     true|false
 quick:     true|false           # --quick → collapse Stage 1 to 4 prompts
+app:       true|false           # --app → the Maude app made the outline; see "App mode"
+upgrade_schema: true|false      # --upgrade-schema → no bootstrap; see "Upgrade-schema mode"
 ```
 
 The skill detects the sub-mode internally (first-bootstrap / additional-ds / re-bootstrap) based on `.design/config.json` state.
@@ -127,6 +133,35 @@ Load **`flow:kgai-backend`** and check `maude kg resolve --json`.
 
 The skill prints its "Bootstrap complete" block. This command body has no Post-flight of its own.
 
+## App mode (`--app`, from the Maude app)
+
+The app's "Make a design system" sheet asks three things — a sentence (required), anything to learn from (a logo, a website, a Figma library, the project's canvases; optional) and what it is mostly for — and starts the system as an outline before it sends you the brief. Everything you do now goes through `maude design ds …`; nothing in `config.json` or `revisions/` is edited by hand.
+
+**The brief is the person's sentence, verbatim.** It sits between triple quotes in the message. Pass it to the skill and to every sub-agent exactly as written: never reworded, polished or padded with "vibe references", and never turned into an option ladder that names specific products (the research agent exists to find domain anchors; brand names at the brief stage are the bias it removes). The references the message names are anchors for Stage 2 and nothing more: a logo path is read with `maude design import-brand` (typed palette and fonts only), a host with `maude design fetch-asset`, "Figma" only if it is connected. Say plainly in the chat when it is not.
+
+**What you do, in order** (the full spec is `skills/design-system/_bootstrap.md` § "`app` adaptation"):
+
+1. Stage 2 research on the verbatim brief. There is no Stage 0/1 interview; "mostly for" is the scope.
+2. **Three directions**, not a moodboard canvas: `maude design ds draft <name> --direction a|b|c --tokens <file.json>` (`{label, tokens: {"--name": "value" | {light, dark, valueNames?}}}`; every colour has a Light and a Dark value; `label` is a descriptive name such as "Calm daylight", never a brand). They appear as the `ds-dir-a|b|c` artboards on the Design system canvas.
+3. **The gate is the in-app pick.** Tell the person in one short message what you read and what you could not (say if Figma was not connected), ask the one question that changes the outcome, then **stop and wait**. They choose Use A, or Mix with… (B's type, C's colours, corners), or say it in the chat. Then you run `maude design ds use <name> a` or `maude design ds mix <name> a --take type=b --take colour=c`.
+4. **Fill the rest through the working files** — `colors_and_type.css`, `components.json`, `preview/_components.css`, the logo and icons — Brand and Colour first, then Type, Space & shape, Motion, Components, Patterns. Check with `maude design ds-check <name>` between sections. The app draws each section from an outline as its files land, so a person can edit Brand and Colour while Type is still being drawn.
+5. **Say what is partial, plainly**, in the chat (a logo that is a small PNG, Patterns waiting for real copy). **Do not run `maude design ds done`**: the person's "Use as <name>'s style" does. It publishes the first revision, makes the system the project default and offers the existing canvases one switch review.
+
+If the person stops you, what already landed stays. Never delete a working file to "restart"; say what is missing and offer to continue.
+
+## Upgrade-schema mode (`--upgrade-schema`)
+
+The Maude app opens "Bring <system> up to the schema?" from the amber dot on a system's row, from its menu, or when a switch to or from it is refused; its "✦ Bring it up" sends you here. The same flow runs by hand: `/design:setup-ds <name> --upgrade-schema`. Skip Steps 1.5 to 4 above — the skill's **upgrade-schema** flow is the whole job, and `Skill design-system` is invoked with `mode: upgrade-schema`, `target_ds: <name>`.
+
+**What you do, in order** (the full spec is `plugins/design/skills/design-system/SKILL.md` § upgrade-schema):
+
+1. `maude design ds-upgrade analyse <name>` — the mechanical plan and what is left open.
+2. Judge only what is left open (missing functional roles, collisions, component names), from the system's own colours and type; a new colour is built from its own tokens, never a new hue (a kind it lacks entirely needs three options and the person's pick).
+3. `maude design ds-upgrade validate <name> <judged.json>`, then `maude design ds-upgrade <name> --stage <judged.json>`, then `maude design ds-upgrade <name> --prove <stamp>`.
+4. **Stop at the proved stage** and say what it does in one short message. **You do not apply it.** In the app the sheet's primary button does, as one undo step; here, the person asks you and the permission card for `--apply` appears.
+
+If the person cancels in the app (`--cancel`, `--discard`) the stage is gone and the live tree was never touched. Nothing in this mode ever starts on its own: boot, sync and `maude migrate v2` do not run it.
+
 ## Failure modes
 
 - **`<name>` already exists AND `--force` was NOT passed** → fail with:
@@ -144,4 +179,5 @@ The skill prints its "Bootstrap complete" block. This command body has no Post-f
 
 - **No canvas creation.** Use `/design:new "<Name>" "<brief>" --ds=<this-name>`.
 - **No environment init.** That's `/design:init` (auto-invoked here when needed).
-- **No incremental edits to an existing DS.** That's `/design:edit "<feedback>"` against a specimen file, or hand-editing `colors_and_type.css` directly.
+- **No incremental edits to an existing DS.** On a system that is on its Design system canvas, change tokens there (or with `maude design ds pending <ds> --set <file.json>`) and apply them with **Update N canvases**; a hand edit of its CSS shows up as an outside change to keep or undo. A system still in a folder has no review: edit its token CSS directly (`tokensCssRel`, default `system/<ds>/colors_and_type.css`), then `maude design ds-check <ds> --emit` refreshes its `tokens.json`; its specimens are edited with `/design:edit "<feedback>"`.
+- **No default, switch, migrate or token import.** That's `/design:system` (`default`, `switch`, `migrate` onto the Design system canvas, `import-tokens`).

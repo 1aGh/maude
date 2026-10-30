@@ -53,6 +53,11 @@ describe('file-membership — the RCA miss-list flows', () => {
     ['ui/Card.registry.json', 'companion-text'],
     ['ui-reel.edl.json', 'companion-text'],
     ['assets/47d9b6d1.vtt', 'companion-text'],
+    // S8 asset sidecars (contract S8-asset-sidecars §5.1–§5.2): the per-use photo
+    // edit (dot spelling) and the generation provenance sidecar.
+    ['assets/0a1b2c3d.9f8e7d6c.photo.json', 'companion-text'],
+    ['assets/0a1b2c3d.9f8e7d6c0b1a.photo.json', 'companion-text'],
+    ['assets/0a1b2c3d.gen.json', 'companion-text'],
   ];
 
   test.each(missList)('%s → %s', (rel, expected) => {
@@ -135,6 +140,9 @@ describe('file-membership — canvas-owned is Plane A, never Plane B', () => {
     expect(classifyProjectFile('assets/47d9b6d1.srt')).toBe('companion-text');
     expect(classifyProjectFile('assets/data.json')).toBe('never');
     expect(classifyProjectFile('photo.json')).toBe('never'); // the suffix, alone, is not a name
+    expect(classifyProjectFile('gen.json')).toBe('never');
+    // The plan's `~` spelling never syncs — the S8 contract chose the dot (§3).
+    expect(classifyProjectFile('assets/0a1b2c3d~9f8e7d6c.photo.json')).toBe('never');
   });
 });
 
@@ -152,6 +160,7 @@ describe('file-membership — never means never', () => {
     '_history/ui-card/2026-08-14.tsx',
     '_trash/old-deleted-123/old.tsx',
     '_canvas-state/ui-card.view.json',
+    '_canvas-state/asset-origins.json', // S8 §5.4 — per Mac, never synced
     '_export-history.json',
     '_cache/blobs/9f2c1d0e5b7a4e3f8c6d2b1a0e9f8d7c6b5a4e3f2d1c0b9a8f7e6d5c4b3a2f10.jpg',
     'system/ds/_history/x.png', // nested runtime state
@@ -227,6 +236,7 @@ describe('file-membership — the DDR-115 replica tripwire (4th copy)', () => {
     '_smoke/report.json',
     '_reports/r.md',
     '_canvas-state/ui-card.view.json',
+    '_canvas-state/asset-origins.json', // S8 §5.4 — the per-Mac original path
     '_state/s.json',
     '_chat/c.json',
     '_comments/ui-card.json',
@@ -238,6 +248,16 @@ describe('file-membership — the DDR-115 replica tripwire (4th copy)', () => {
     '_cache/blobs/9f2c1d0e5b7a4e3f8c6d2b1a0e9f8d7c6b5a4e3f2d1c0b9a8f7e6d5c4b3a2f10',
     '_cache/tmp/fill-1a2b',
     '.kgai/store/log/a.ndjson',
+    // V2-2.16 — v2's runtime paths: one new class, the rest under `_state/`.
+    '_runs/sess-1/snap/toolu_01',
+    '_runs/shots.jsonl',
+    '_state/runs/run_01.json',
+    // S5.3 — the run registry's record and its tmp-before-rename sibling (ai/runs.ts persist)
+    '_state/runs/x.json',
+    '_state/runs/r_0123456789ab.json.4242.tmp',
+    '_state/outbox/intents/1760000000000-i_abcdefghij0123456789.json',
+    // S5.10 — this Mac's folder grants for the AI chat (routes/chat-attach.ts): never synced
+    '_state/ai-grants.json',
     'nested/_history/x.png',
     'nested/.kgai/y',
     '_history',
@@ -312,6 +332,21 @@ describe('file-membership — studio ↔ hub parity (the doc-name precedent)', (
     'ui-reel.edl.json',
     'assets/47d9b6d1.vtt',
     'evil.photo.json.txt', // the suffix must END the name
+    // S8 asset sidecars — the per-use edit, the provenance sidecar, the rejected `~`
+    'assets/0a1b2c3d.9f8e7d6c.photo.json',
+    'assets/0a1b2c3d.gen.json',
+    'assets/0a1b2c3d~9f8e7d6c.photo.json',
+    'evil.gen.json.txt',
+    '_canvas-state/asset-origins.json',
+    // V2-1.12 C1 / V2-1.6 / V2-1.10 — versioned v2 companions, both copies
+    'system/ds/tokens.json',
+    'system/ds/components.json',
+    'system/ds/revisions/head.json',
+    `system/ds/revisions/${'ab'.repeat(32)}.json`,
+    'system/ds/revisions/not-hex.json',
+    'assets/ab12cd34.transcript.json',
+    'assets/ab12cd34.beats.json',
+    '_runs/shots.jsonl',
     '',
     'dir/file.png ',
     'system/_private/x.css',

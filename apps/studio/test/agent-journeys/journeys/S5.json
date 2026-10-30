@@ -1,0 +1,95 @@
+{
+  "format": "maude.agent-journey/1",
+  "id": "S5",
+  "package": "S5",
+  "title": "One run = one undo step; a busy artboard is denied",
+  "ledger": ["00/rule/one-ai-per-artboard"],
+  "fixture": "app5",
+  "setup": [
+    {
+      "op": "hold",
+      "canvas": "ui/GitPanel.tsx",
+      "artboard": "publish",
+      "old": "Get the latest before you publish yours.",
+      "new": "Get the latest first."
+    }
+  ],
+  "turns": [
+    {
+      "say": "In ui/GitPanel.tsx, change the “Save all” button in “B · Save a version” to “Save everything”, and in “C · Publish + Get latest nudge” change “Get the latest before you publish yours.” to “Update first, then publish.”"
+    }
+  ],
+  "graders": [
+    { "id": "busy-denied", "grader": "denied", "code": "artboard-busy" },
+    {
+      "id": "busy-untouched",
+      "grader": "untouched",
+      "path": "ui/GitPanel.tsx",
+      "artboard": "publish"
+    },
+    {
+      "id": "free-part-done",
+      "grader": "text",
+      "path": "ui/GitPanel.tsx",
+      "has": ["Save everything"]
+    },
+    {
+      "id": "one-undo-step",
+      "grader": "one-undo-step",
+      "path": "ui/GitPanel.tsx",
+      "minRuns": 1,
+      "maxRuns": 1
+    }
+  ],
+  "dry": {
+    "good": [
+      {
+        "op": "action",
+        "kind": "migration.import",
+        "label": "Version history starts here",
+        "effects": [{ "lane": "@manifest", "op": "create", "path": "ui/GitPanel.tsx" }]
+      },
+      {
+        "tag": "edit",
+        "op": "edit",
+        "path": "ui/GitPanel.tsx",
+        "old": ">Save all<",
+        "new": ">Save everything<"
+      },
+      {
+        "tag": "step",
+        "op": "action",
+        "kind": "ai",
+        "run": "run-1",
+        "label": "Change two buttons",
+        "effects": [{ "lane": "html", "op": "replace", "path": "ui/GitPanel.tsx" }]
+      },
+      { "tag": "deny", "op": "deny", "tool": "Edit", "code": "artboard-busy" }
+    ],
+    "faults": {
+      "busy-denied": { "drop": ["deny"] },
+      "busy-untouched": {
+        "add": [
+          {
+            "op": "edit",
+            "path": "ui/GitPanel.tsx",
+            "old": "Get the latest before you publish yours.",
+            "new": "Update first, then publish."
+          }
+        ]
+      },
+      "free-part-done": { "drop": ["edit"] },
+      "one-undo-step": {
+        "add": [
+          {
+            "op": "action",
+            "kind": "ai",
+            "run": "run-1",
+            "label": "Change two buttons",
+            "effects": [{ "lane": "html", "op": "replace", "path": "ui/GitPanel.tsx" }]
+          }
+        ]
+      }
+    }
+  }
+}

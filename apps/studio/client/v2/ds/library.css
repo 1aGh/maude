@@ -1,0 +1,148 @@
+/* client/v2/ds/library.css — S10.18c: a linked team library (13 · ds-many-library, ds-many-linked): the card in the
+ * inspector's empty place, the "Update from …?" dialog (reuses the .dsr-* rows of review.css), the "Linked from …"
+ * banner and the link dialog. Tokens only; motion collapses under reduced motion. */
+
+/* P8 C0: was unlayered. In @layer components: above the v1 shell layer and after the v1 component files, the place an unlayered v2 rule held over v1 — without beating every layer. */
+@layer components {
+  .dsl {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--bg-2);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+    text-align: left;
+  }
+  .dsl-kind {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin: 0;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    overflow-wrap: anywhere;
+  }
+  .dsl-name {
+    margin: 0;
+    font-size: var(--type-base);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+    overflow-wrap: anywhere;
+  }
+  .dsl-line {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0;
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
+  .dsl-wait.is-waiting {
+    color: var(--fg-0);
+  }
+  .dsl-quiet {
+    margin: 0;
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+  }
+  .dsl-note {
+    margin: 0;
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--status-warn-text);
+  }
+  .dsl-acts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .dsl-dialog {
+    width: min(560px, calc(100vw - 32px));
+  }
+  .dsl-changes {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .dsl-change {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+    overflow-wrap: anywhere;
+  }
+  .dsl-change b {
+    color: var(--fg-0);
+    font-weight: var(--w-semibold);
+  }
+  .dsl-more {
+    color: var(--fg-2);
+  }
+  .dsl-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .dsl-field em {
+    font-style: normal;
+    color: var(--fg-3);
+  }
+  .dsl-input {
+    padding: var(--space-2) var(--space-3);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+    font: inherit;
+    font-size: var(--type-sm);
+    color: var(--fg-0);
+  }
+  .dsl-input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  /* "Linked from …" — bottom centre, like the preview banner it never shares a screen with */
+  .dsl-banner {
+    position: fixed;
+    left: 50%;
+    bottom: var(--space-5);
+    z-index: 54;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    width: min(560px, calc(100vw - 32px));
+    padding: var(--space-2) var(--space-3);
+    transform: translateX(-50%);
+  }
+  .dsl-banner-t {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .dsl-banner-t b {
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+  .dsl-banner-t em {
+    font-style: normal;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .dsl,
+    .dsl-banner {
+      transition-duration: 1ms;
+      animation-duration: 1ms;
+    }
+  }
+}

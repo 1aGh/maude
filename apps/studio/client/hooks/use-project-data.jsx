@@ -3,9 +3,19 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { createIndexLoader } from '../index-loader.ts';
 import { buildTree } from '../shell/util.js';
+import { writeThemeAuto } from '../v2/settings/theme-auto.js';
 
-export function useProjectData({ setGroups, setTreeLoaded, setTreeLoadFailures, setProject, setSystemData, setCfg, setTheme }) {
+export function useProjectData({
+  setGroups,
+  setTreeLoaded,
+  setTreeLoadFailures,
+  setProject,
+  setSystemData,
+  setCfg,
+  setTheme,
+}) {
   const toggleTheme = useCallback(() => {
+    writeThemeAuto(false); // a picked theme ends Auto (Settings › General › Look)
     setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
   }, []);
 
@@ -16,7 +26,10 @@ export function useProjectData({ setGroups, setTreeLoaded, setTreeLoadFailures, 
     const loader = createIndexLoader({
       read: async (signal) => {
         const r = await fetch('/_index-data', { signal, cache: 'no-store' });
-        if (!r.ok) throw Object.assign(new Error(`Project index request failed: ${r.status}`), { status: r.status });
+        if (!r.ok)
+          throw Object.assign(new Error(`Project index request failed: ${r.status}`), {
+            status: r.status,
+          });
         const data = await r.json();
         const built = data.groups.map((g) => ({
           ...g,
@@ -42,6 +55,14 @@ export function useProjectData({ setGroups, setTreeLoaded, setTreeLoadFailures, 
           // only `reconstructed-experimental`), folded in the same way + for the
           // same reason as canvasDesignSystems above.
           canvasKinds: data.canvasKinds ?? {},
+          // S10.4 (V2-1.6 §5.8) — which revision each canvas renders; absent until a system is
+          // converted, which canvasUrl() reads as "today's working files".
+          canvasDsRevs: data.canvasDsRevs ?? {},
+          systemHeads: data.systemHeads ?? {},
+          dsConverted: data.dsConverted ?? {},
+          dsRevGaps: data.dsRevGaps ?? {},
+          // gate-b-c4j — canvases that import another canvas do not render; the stage says why (viewport.jsx).
+          canvasImportsCanvases: data.canvasImportsCanvases ?? {},
         }));
       },
       onError: (error) => {

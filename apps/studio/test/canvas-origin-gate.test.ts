@@ -9,6 +9,7 @@ import { describe, expect, test } from 'bun:test';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { frameCap, withFc } from './_acl-cell.ts';
 import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
 
 async function readCanvasOrigin(designRoot: string): Promise<string> {
@@ -23,6 +24,17 @@ async function readCanvasOrigin(designRoot: string): Promise<string> {
     await Bun.sleep(50);
   }
   throw new Error('canvasOrigin never appeared in _server.json');
+}
+
+/**
+ * gate-b-c4 — the project declares `system/ds` as its design system, as a real one does: a
+ * frame reads its canvas's closure, which includes the system it renders under.
+ */
+function declareDs(designRoot: string): void {
+  const file = join(designRoot, 'config.json');
+  const cfg = JSON.parse(readFileSync(file, 'utf8'));
+  cfg.designSystems = [{ name: 'ds', path: 'system/ds' }];
+  writeFileSync(file, JSON.stringify(cfg, null, 2));
 }
 
 describe('canvas-origin gate — A1/A2 traversal + privilege containment', () => {
@@ -51,13 +63,18 @@ describe('canvas-origin gate — A1/A2 traversal + privilege containment', () =>
     writeFileSync(join(designRoot, '_history', 'gate', 'snap.tsx'), 'export default 1\n');
     mkdirSync(join(designRoot, 'system', 'ds', 'preview'), { recursive: true });
     writeFileSync(join(designRoot, 'system', 'ds', 'preview', '_components.css'), '.a{}\n');
+    declareDs(designRoot);
 
     const port = nextPort();
     const proc = await bootServer(root, port, { MAUDE_CANVAS_ORIGIN_SPLIT: '1' });
     try {
       const canvas = await readCanvasOrigin(designRoot);
+      // gate-b-c4 — every probe runs INSIDE a legitimate frame (the capability the shell mints
+      // for Gate.tsx), so each 403 below is the traversal / privilege gate's own answer, not the
+      // frame gate's. A frame-less request reaches nothing per canvas (pinned at the end).
+      const fc = await frameCap({ base: `http://localhost:${port}` }, {}, 'ui/Gate.tsx');
       const code = async (p: string) =>
-        (await fetch(canvas + p, { signal: AbortSignal.timeout(2000) })).status;
+        (await fetch(withFc(canvas + p, fc), { signal: AbortSignal.timeout(2000) })).status;
 
       // (1) The confirmed bypass — must now be 403, not 200.
       expect(await code('/.design/..%2fsecret-outside.css')).toBe(403);
@@ -107,6 +124,8 @@ describe('canvas-origin gate — A1/A2 traversal + privilege containment', () =>
         '/_api/edit-css',
         '/_api/edit-text',
         '/_api/edit-attr',
+        // S2.1 — the edit-op dispatch is a source write, MAIN-ORIGIN ONLY (routes/edit.ts).
+        '/_api/edit-op',
         // DDR-148 — raw canvas source for the Timeline parser is MAIN-ORIGIN
         // ONLY (the untrusted canvas iframe must never read project source).
         // Cloud Phase 23 C3 — the Maude Cloud lane holds the PERSONAL TOKEN
@@ -177,6 +196,9 @@ describe('canvas-origin gate — A1/A2 traversal + privilege containment', () =>
         // CANVAS_SAFE_API + startCanvasServer's routes, so a GET from the
         // canvas origin 403s at the gate, never reaching the handler.
         '/_api/debug-bundle',
+        // V2-2.9 — the diagnostics status + log tails and the copyable report: same posture.
+        '/_api/diagnostics',
+        '/_api/diagnostics/report',
         '/_api/report',
         '/_api/report-fallback',
         // …and the shell capture SPAWNS A PROCESS (screenshot.sh → a headless
@@ -330,6 +352,20 @@ describe('canvas-origin gate — A1/A2 traversal + privilege containment', () =>
         // file-write surface (writes assets/logos/*), same privileged
         // posture as /_api/import-asset above; MAIN-ORIGIN ONLY.
         '/_api/import-brand',
+        // p8-import-link — the studio fetches a URL the caller names (SSRF if a canvas could reach it); MAIN-ORIGIN ONLY.
+        '/_api/import-link',
+        '/_api/import-link/key',
+        // V2-2.4b (contract V2-1.11 §5.4, §5.8 invariant 5) — the agent routes drive the user's
+        // window (`maude design open`) and the run bracket; MAIN-ORIGIN ONLY, in neither allowlist
+        // (test/agent-routes-origin.test.ts pins the tables). A GET here 403s at the gate.
+        '/_api/ui/open',
+        '/_api/agent/run/begin',
+        '/_api/agent/edit/check',
+        '/_api/agent/check',
+        '/_api/agent/edit/touched',
+        '/_api/agent/run/end',
+        '/_api/agent/write/claim', // p8-a1-claims — the claim door is never canvas-reachable
+        '/_api/agent/bash/window',
         '/package.json',
       ]) {
         expect(await code(p)).toBe(403);
@@ -366,7 +402,7 @@ describe('canvas-origin gate — A1/A2 traversal + privilege containment', () =>
       // DDR-148 — media-src must be present so a video-comp's <Video>/<Audio>
       // isn't blocked by default-src 'none' (black video / silent audio).
       expect(csp).toContain("media-src 'self'");
-      expect(csp).toContain("webrtc 'block'");
+      expect(csp).not.toContain('webrtc'); // dropped: enforced nowhere we ship (p8-leftovers-canvas-csp)
       expect(csp).toContain('frame-ancestors');
       expect(csp).toContain(`http://localhost:${port}`);
 
@@ -390,6 +426,22 @@ describe('canvas-origin gate — A1/A2 traversal + privilege containment', () =>
         redirect: 'manual',
       });
       expect(plainMain.status).toBe(307);
+
+      // (6) gate-b-c4 — frame-less: the canvas and the DS stylesheet are not served without a
+      // capability, a forged one, or one minted for another canvas's path under no key.
+      const bare = async (p: string) =>
+        (await fetch(canvas + p, { signal: AbortSignal.timeout(2000) })).status;
+      expect(await bare('/.design/ui/Gate.tsx')).toBe(403);
+      expect(await bare('/.design/system/ds/preview/_components.css')).toBe(403);
+      expect(await bare('/_health')).toBe(200);
+      const forged = `${(fc ?? '').split('.')[0]}.AAAAAAAAAAAAAAAAAAAAAA`;
+      expect(
+        (
+          await fetch(withFc(`${canvas}/.design/ui/Gate.tsx`, forged), {
+            signal: AbortSignal.timeout(2000),
+          })
+        ).status
+      ).toBe(403);
     } finally {
       await killProc(proc);
     }
@@ -413,13 +465,17 @@ describe('an SVG served from the canvas origin is not a scripting document', () 
       '<svg xmlns="http://www.w3.org/2000/svg"><script>1</script></svg>\n'
     );
     writeFileSync(join(designRoot, 'system', 'ds', 'assets', 'tokens.css'), ':root{}\n');
+    declareDs(designRoot);
 
     const port = nextPort();
     const proc = await bootServer(root, port, { MAUDE_CANVAS_ORIGIN_SPLIT: '1' });
     try {
       const canvas = await readCanvasOrigin(designRoot);
+      // gate-b-c4 — as a canvas frame loads them (with its capability).
+      writeFileSync(join(designRoot, 'ui.tsx'), 'export default function U(){return <main/>}\n');
+      const fc = await frameCap({ base: `http://localhost:${port}` }, {}, 'ui.tsx');
       const head = async (p: string) =>
-        (await fetch(canvas + p, { signal: AbortSignal.timeout(2000) })).headers;
+        (await fetch(withFc(canvas + p, fc), { signal: AbortSignal.timeout(2000) })).headers;
 
       const svg = await head('/.design/system/ds/assets/mark.svg');
       expect(svg.get('content-type')).toContain('image/svg+xml');

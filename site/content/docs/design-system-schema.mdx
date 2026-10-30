@@ -1,0 +1,211 @@
+---
+title: Design-system schema
+description: The names a design system must define so a canvas can switch systems without mapping tokens — 95 core roles, optional slots, the system's own x- names, the component class contract and the checks behind maude design ds-check.
+---
+
+A design system is a folder of CSS, tokens and previews under `.design/system/<name>/`. The **schema** is the short list of names every system agrees on. Because a canvas asks for `--accent`, `--bg-1` or `.btn` and every system answers to those names, the canvas can move from one system to another without anyone mapping tokens by hand.
+
+The schema checks **structure only**: that a name exists, that it has the right kind of value, that colours exist in both themes. It never judges how a value looks. A system with an unusual palette is still a valid system.
+
+<Callout type="info" title="Where the schema lives">
+The registry is one file, `apps/studio/schema/ds-schema-v1.json`, with its JSON Schema beside it. The checker, the fallback layer, the `/design:new` cheat-sheet and the critics all read that file; none of them restate it. This page is written by hand from it, so a name here is a name in the registry.
+</Callout>
+
+## Three tiers
+
+| Tier | What it is | Required |
+| ---- | ---------- | -------- |
+| **Core** | 95 named roles with fixed meanings (`--bg-0`, `--fg-1`, `--accent`, `--space-3`, …) | Yes. A missing role is served by a fallback, but it is reported. |
+| **Slots** | Numbered families a system may add (`--display-1`, `--palette-3`, `--chart-2`, …) | No. A switch pairs slots by kind and index. |
+| **Own** | The system's private names: `--x-*` tokens, `.x-*` classes, `ext.*` components | No. Handed to AI as context on a switch, never required elsewhere. |
+
+A canvas may also declare `--c-*` for colours that belong to that canvas alone.
+
+## Core roles
+
+An asterisk marks a **colour role**, which must exist in every theme the system declares. A system that declares Light and Dark defines each asterisked name in both. A theme block counts when it is a top-level rule, a rule in a layer, a `:root` rule (for the default theme) or a `light-dark()` value (for both).
+
+| Group | Roles |
+| ----- | ----- |
+| Surfaces | `--bg-0`* `--bg-1`* `--bg-2`* `--bg-3`* `--bg-4`* |
+| Text | `--fg-0`* `--fg-1`* `--fg-2`* `--fg-3`* |
+| Borders | `--border-subtle`* `--border-default`* `--border-strong`* |
+| Accent | `--accent`* `--accent-hover`* `--accent-active`* `--accent-fg`* `--accent-soft`* `--accent-on-soft`* `--accent-text`* |
+| Status | `--status-success`* `--status-warn`* `--status-error`* `--status-info`*, each also with `-fg`, `-soft` and `-text` (16 names) |
+| Presence | `--presence-online`* `--presence-away`* `--presence-offline`* |
+| Focus | `--focus-ring`* `--focus-ring-width` `--focus-ring-offset` |
+| Selection and overlay | `--selection`* `--scrim`* |
+| Elevation | `--shadow-sm` `--shadow-md` `--shadow-lg` |
+| Radius | `--radius-xs` `--radius-sm` `--radius-md` `--radius-lg` `--radius-xl` `--radius-pill` |
+| Space | `--space-0` to `--space-8` |
+| Fonts | `--font-display` `--font-body` `--font-mono` |
+| Type sizes | `--type-xs` `--type-sm` `--type-base` `--type-md` `--type-lg` `--type-xl` `--type-2xl` `--type-3xl` |
+| Line heights | `--lh-xs` to `--lh-3xl`, one per size |
+| Weight | `--weight-regular` `--weight-medium` `--weight-semibold` `--weight-bold` |
+| Tracking | `--tracking-tight` `--tracking-normal` `--tracking-wide` |
+| Motion | `--dur-flip` `--dur-soft` `--dur-panel` `--dur-route` `--ease-out` `--ease-in-out` |
+| Layout | `--layout-max-w` `--layout-gutter` |
+
+The three presence names count only when the system turns the presence family on. The first 68 names come from the original design-system contract; the other 27 (the functional roles such as `--accent-on-soft`, `--status-*-text`, `--focus-ring`, `--scrim`) were added so that components do not need a private colour for every state.
+
+### Value types
+
+Each role has a type, and the checker tests the **form** of the value, not the value itself.
+
+| Type | Accepted forms |
+| ---- | -------------- |
+| `color` | `var()`, hex, a colour function (`oklch()`, `rgb()`, `color-mix()`, …), a named colour, `light-dark()` |
+| `length` | `var()`, `0`, a dimension, a percentage, `calc()` and friends |
+| `duration` | `var()`, a time (`180ms`), `calc()` |
+| `easing` | `var()`, an easing keyword, `cubic-bezier()`, `steps()`, `linear()` |
+| `number` | `var()`, a number, `calc()` |
+| `line-height` | `var()`, a number, a dimension, a percentage, `normal` |
+| `font-family` | `var()`, a family list |
+| `shadow` | `var()`, `none`, one or more shadow layers |
+
+A `--focus-ring` written as a `box-shadow`, for example, is a type error.
+
+## Slots
+
+Slots are optional families. They matter at switch time: a canvas that uses `--palette-4` keeps working on a system with only two palette entries, because the switch writes a pairing for the missing indexes.
+
+| Kind | Names | Pairs by | If the target has none |
+| ---- | ----- | -------- | ---------------------- |
+| `display` | `--display-N`, with `--display-lh`, `--display-tracking`, `--display-weight` | rank | uses `--type-3xl` |
+| `brand` | `--brand`, `--brand-N`, each with an optional `-fg` | index | handed to AI |
+| `palette` | `--palette-N`, `-fg`, `--palette-ink` | index, wrapping | handed to AI |
+| `chart` | `--chart-N`, `--chart-grid`, `--chart-axis` | index | handed to AI |
+| `texture` | `--texture-N-opacity`, `--texture-N-size`, `.texture-N` | role (backdrop, surface, overlay), then index | handed to AI |
+| `device` | `.device-N` (divider, frame, ornament, mascot, badge) | role, then index | handed to AI |
+| `signature-motion` | `--dur-signature-N`, `--ease-signature-N` | role (celebrate, ambient, playful, emphasis), then index | uses `--dur-route` |
+| `accent-n` | `--accent-2` to `--accent-12`, with `-hover` `-active` `-fg` `-soft` `-on-soft` `-text` | index | uses `--accent` |
+| `extension` | `--shadow-xl`, `--radius-2xl`, `--font-serif`, `--font-rounded`, `--touch-target`, `--layout-reading` | name | none |
+
+"Handed to AI" means the switch's restyle pass sees the canvas's use of that slot and decides; nothing is invented silently.
+
+## Own names
+
+| Kind | Pattern | Example |
+| ---- | ------- | ------- |
+| Token | `--x-<name>` | `--x-spark` |
+| Class | `.x-<name>` | `.x-island` |
+| Component | `ext.<Name>` | `ext.Island` |
+| Canvas-local colour | `--c-<name>` | `--c-hero-wash` |
+
+Any other custom property that is neither core, a slot nor `--x-*` is reported as `unprefixed-own`. It still works; it is simply not portable, and a switch cannot know what it means.
+
+## Aliases and collisions
+
+Many systems predate the schema and use their own spellings, for example `--w-semibold` for `--weight-semibold`, `--accent-muted` for `--accent-soft` or `--ease-spring` for `--ease-signature-1`. The registry carries **69 aliases**. An alias is accepted, flagged, and fixed mechanically: the system declares the schema name and keeps the old name as `var(--schema-name)`.
+
+A **collision** is a name that exists but means something else. The checker finds the ones it can by form:
+
+| Collision | How it is found | What it means |
+| --------- | --------------- | ------------- |
+| Type mismatch | the value's type is not the role's type | `--focus-ring` declared as a shadow |
+| Accent as a hover colour | `--accent-foreground` is also declared | `--accent` means a pale background (shadcn convention); it maps to `--accent-soft` |
+
+and notes the ones only a person can judge (`--status-*-fg` as text colour, `--bg-4` as pressed or elevated, `--space-N` as multiples of 4px, an overshoot `--ease-out`). Judgement collisions never change a level; they go to the Bring-up step as notes.
+
+## Components
+
+A system ships `components.json` (schema version 1) next to its CSS. It names the component classes, their variants and sizes, the type-role classes, the icon map and any slots or `ext.*` components. The class contract is what lets a canvas write `<Button variant="secondary">` and have any conformant system draw it.
+
+| Group | Components and classes |
+| ----- | ---------------------- |
+| Core (14) | Button `btn`, IconButton, Input `input`, Field `field`, Switch `switch`, Checkbox `checkbox`, Segmented `seg`, Tabs `tabs`, Chip `chip`, Badge `badge`, Card `card`, Callout `callout`, Dialog `dialog`, Tooltip `tooltip` |
+| Brand (3) | Logo (needs `assets/logos/*` and `preview/logo.*`), Icon (needs the icon map), Text (needs the required type roles) |
+| Extended (14) | Menu, MenuItem, Toast, Table, ListRow, Avatar, Kbd, Skeleton, EmptyState, Banner, Panel, Sheet, TabBar, CommandPalette |
+| Packs | `marketing`: FeatureGrid, Testimonial, MarketingCard. `mobile`: BottomSheet, PullToRefresh |
+
+Core components have variants and sizes: Button has `primary` `secondary` `ghost` `danger` and `sm` `lg`; Badge has `success` `warn` `error` `info` `accent`; Card has `raised` `interactive` `flat`; Callout has `info` `success` `warn` `error`. A variant a system lacks is written as `null` with a `fallback` naming the variant drawn instead.
+
+State selectors are fixed: `:hover`, `:active`, `:focus-visible`, `:disabled`, `[aria-pressed="true"]`, `[aria-busy="true"]`, `[aria-invalid="true"]`, `[aria-checked="true"]` or `:checked`, `:indeterminate`, `[aria-selected="true"]`, `[open]` and `[data-side]`.
+
+**Type roles.** Eleven classes carry text styles, and ten are required: `t-title`, `t-heading`, `t-subheading`, `t-body`, `t-body-sm`, `t-caption`, `t-label`, `t-eyebrow`, `t-code`, `t-num`. `t-display-N` follows the `display` slot.
+
+**Icons.** Forty names make up the shared vocabulary: `home`, `search`, `add`, `close`, `check`, `chevron-up`, `chevron-down`, `chevron-left`, `chevron-right`, `arrow-up`, `arrow-down`, `arrow-left`, `arrow-right`, `more`, `settings`, `user`, `users`, `bell`, `share`, `link`, `trash`, `edit`, `copy`, `download`, `upload`, `lock`, `info`, `warning`, `error`, `success`, `star`, `heart`, `calendar`, `clock`, `image`, `file`, `folder`, `play`, `pause`, `external`. The system’s icon map says which of its own icons answers each name.
+
+**Scope and themes.** A system's tokens live under the scope class `ds` (or the system's own root class), and the theme is the `data-theme` attribute on a wrapper. Canvases use the `<DSRoot>` wrapper instead of writing either by hand.
+
+## Levels and exit codes
+
+`maude design ds-check <name>` gives a system one of three levels.
+
+| Level | Exit | When |
+| ----- | ---- | ---- |
+| **Conformant** | `0` | Every core role, in every theme, with the right type; components and brand present. |
+| **Missing roles** | `10` | Something is absent or non-portable, and a fallback or a mechanical alias fix covers it. |
+| **Private-only** | `11` | A core name is missing outright, exists only under an alias, or has the wrong type, so a canvas cannot rely on it. |
+
+Reasons behind the level (an excerpt):
+
+| Reason | Level |
+| ------ | ----- |
+| `missing-core`: one of the 68 original names is not declared | Private-only |
+| `native-only`: a missing name exists only under its alias | Private-only |
+| `type-collision`, `signature-collision` | Private-only |
+| `missing-functional`: one of the 27 added roles is not declared | Missing roles |
+| `theme-gap`: a colour role is absent in one theme | Missing roles |
+| `single-theme`: only one theme is declared | Missing roles |
+| `no-ds-scope`: a theme block has no `.ds[data-theme]` | Missing roles |
+| `unprefixed-own`, `alias-not-inverted`, `unresolved-ref` | Missing roles |
+| `components-missing`, `brand-missing` | Missing roles |
+| `manifest-stale`: `tokens.json` differs from the CSS | Missing roles |
+
+Other exit codes: `12` when canvas mode finds a blocking finding, `13` when a write flag is refused and nothing is written, `1` for an error and `2` for a usage mistake. A single-theme system is never colour-inverted for you: that would be a visual guess, so it is reported and left alone.
+
+## Fallbacks
+
+A level below Conformant does not break a canvas. For each system, Maude injects only the roles and classes that system never declares, in a CSS layer (`@layer maude.fallback`) placed before the tokens. The layer is the lowest in the cascade, so it can never shadow a value the system sets. Colours in it derive from the system's own tokens (`--accent-on-soft` falls back to `--accent-text`), weights are numeric, tracking is `0`, and nothing adds a look the system did not have.
+
+## What a canvas is checked for
+
+`maude design ds-check <name> --canvases` runs nine rules on each canvas's `.tsx` and the stylesheets it imports.
+
+| Rule | Looks for | Default | With `dsFidelity: strict` |
+| ---- | --------- | ------- | -------------------------- |
+| S1 | colour literals in CSS, `style` and SVG paint attributes | warning | blocker |
+| S2 | `var()` names that are undefined, belong to another system, or are an alias | blocker (alias is fixed mechanically) | blocker |
+| S3 | type literals on elements without a `.t-*` class | warning | warning |
+| S4 | spacing and radius literals | warning | warning |
+| S5 | imports from `system/` (a system's own CSS is removed; kit modules and other systems block) | blocker | blocker |
+| S6 | a wrapper that sets both the root class and `data-theme` by hand | warning (fixed mechanically) | warning |
+| S7 | inline SVG paths where the system ships a logo or an icon map | warning | blocker |
+| S8 | font declarations and font-service links | warning | warning |
+| S9 | a missing `.meta.json`, or a `designSystem` that is not in `config.json` | blocker | blocker |
+
+Each canvas lands in one of four states, first match wins:
+
+| State | Meaning |
+| ----- | ------- |
+| **pinned** | `meta.dsPinned: true`, or the canvas opted out of the system completely. Left out of every switch. |
+| **blocked** | A blocking finding. The switch lists it unticked, with the reason. |
+| **review** | Colour literals, `--x-*` uses, a `--c-*` block or `ext.*` imports. It switches, and the restyle pass looks at those. |
+| **switchable** | Anything else. |
+
+Pins are computed on every run; only `dsPinned` is stored.
+
+## Commands
+
+```sh
+maude design ds-check <name>                    # a system's level; read-only
+maude design ds-check --all --json              # every system, machine-readable
+maude design ds-check <name> --canvases         # plus every canvas's state and findings
+maude design ds-check <name> --emit             # (re)write system/<name>/tokens.json from the CSS
+maude design ds-check --canvas "ui/home.tsx" --fix=mechanical --dry-run
+maude design ds-check --cheatsheet <name>       # the role cheat-sheet the AI gets
+maude design ds-upgrade <name> --analyse        # start Bring-up (never writes the system)
+```
+
+`ds-check` runs without a prompt in Claude Code: without a write flag it is read-only, and `--emit` and `--fix` only write inside the project. In a project shared through a team server, `--emit` and `--fix` ask first when the chat has read a file that someone who can see the target canvas is not allowed to see. Autofix is limited to three byte-minimal changes on canvases: an alias becomes its schema name, a system's own CSS import is removed, and a hand-written wrapper becomes `ds`. System files change only through Bring-up.
+
+<Callout type="tip" title="Bring it up to the schema">
+For a system below Conformant, **Bring it up to the schema** (in the app, or `maude design ds-upgrade`) analyses the system, plans mechanical edits, asks AI only for the judgement calls, stages the result, renders a visual proof against the current look, and applies as **one undo step** after review. It never runs implicitly, and it never edits another project's system.
+</Callout>
+
+## Related
+
+- [Multi-DS](/docs/design/multi-ds): several systems in one project and per-canvas attribution.
+- [Bootstrap](/docs/design/bootstrap): creating a system with `/design:setup-ds`.
+- [`/design:system`](/docs/commands-design/system): opening a system's canvas.

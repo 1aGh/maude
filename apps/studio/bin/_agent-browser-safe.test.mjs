@@ -14,6 +14,7 @@ import {
   ALLOWED_SUBCOMMANDS,
   CLEARED_ENV_KEYS,
   SUBCOMMAND_ARITY,
+  safeEnv,
   validateArgv,
 } from './_agent-browser-safe.mjs';
 
@@ -21,7 +22,10 @@ describe('validateArgv — subcommand allow-list', () => {
   for (const sub of ALLOWED_SUBCOMMANDS) {
     test(`accepts "${sub}" with its minimum expected argument count`, () => {
       const [min] = SUBCOMMAND_ARITY[sub];
-      const args = Array.from({ length: min }, (_, i) => `arg${i}`);
+      // `open` takes a URL, and only http(s) to this Mac passes (V2-8.9 B2).
+      const args = Array.from({ length: min }, (_, i) =>
+        sub === 'open' ? 'http://localhost:4399/' : `arg${i}`
+      );
       expect(validateArgv([sub, ...args])).toBeNull();
     });
   }
@@ -161,5 +165,36 @@ describe('the forced --config target (round 3: closes ./agent-browser.json auto-
     // subcommand, not just fail safe.
     const raw = readFileSync(new URL('./_agent-browser-safe-config.json', import.meta.url), 'utf8');
     expect(JSON.parse(raw)).toEqual({});
+  });
+});
+
+// V2-8.9 re-check 2 H-b — with "Search the web" off the bridge sets MAUDE_NO_EGRESS=1, but this
+// wrapper cleared AGENT_BROWSER_PROXY and never set the dead proxy (_no-egress.sh is sourced by the
+// shell helpers only): a repo .html opened here could navigate or <img> out. Same rule as the helpers.
+describe('safeEnv — MAUDE_NO_EGRESS is honoured after the env is cleared', () => {
+  test('web off: the dead loopback proxy, no bypass lists, WebRTC proxied-only, its own session', () => {
+    const env = safeEnv({
+      MAUDE_NO_EGRESS: '1',
+      AGENT_BROWSER_PROXY: 'http://evil.example:8080',
+      AGENT_BROWSER_PROXY_BYPASS: '*',
+      NO_PROXY: '*',
+      no_proxy: '*',
+      HTTPS_PROXY: 'http://evil.example:8080',
+    });
+    expect(env.AGENT_BROWSER_PROXY).toBe('http://127.0.0.1:9');
+    expect(env.AGENT_BROWSER_PROXY_BYPASS).toBeUndefined();
+    expect(env.NO_PROXY).toBeUndefined();
+    expect(env.no_proxy).toBeUndefined();
+    expect(env.HTTPS_PROXY).toBeUndefined();
+    expect(env.AGENT_BROWSER_ARGS).toContain(
+      '--force-webrtc-ip-handling-policy=disable_non_proxied_udp'
+    );
+    expect(env.AGENT_BROWSER_SESSION).toBe('default-noegress');
+    expect(env.AGENT_BROWSER_ALLOWED_DOMAINS).toBe('localhost,127.0.0.1');
+  });
+  test('web on: no proxy at all, the ambient one cleared', () => {
+    const env = safeEnv({ AGENT_BROWSER_PROXY: 'http://evil.example:8080' });
+    expect(env.AGENT_BROWSER_PROXY).toBeUndefined();
+    expect(env.AGENT_BROWSER_SESSION).toBeUndefined();
   });
 });

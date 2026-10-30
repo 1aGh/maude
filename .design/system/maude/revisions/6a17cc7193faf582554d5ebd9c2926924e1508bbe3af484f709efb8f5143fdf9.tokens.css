@@ -1,0 +1,245 @@
+/*
+ * maude — design tokens · "Unified Pro Studio"
+ *
+ * Authoritative token file. Every specimen in system/maude/preview/ and every
+ * canvas that opts into this DS links here. Production code consumes the same values.
+ *
+ * Direction (locked Stage-4 moodboard, variant B — Zed × Webflow):
+ *   Dark-first cool-neutral elevation ladder (hue ~255) framing a dotted infinite
+ *   canvas; ONE confident indigo accent (hue 268). Mono is a first-class citizen.
+ *   The chrome is a deliberate, integrated instrument — dense but calm — that frames
+ *   the canvas without competing with it. Cohesion is the identity: every panel,
+ *   inspector and toolbar shares ONE material (same hairlines, radii, elevation).
+ *
+ * Invariants:
+ *   1. prefers-reduced-motion: reduce collapses every duration to 1ms (a11y).
+ *   2. Tokens live under documented family prefixes
+ *      (--bg-*, --fg-*, --accent*, --border-*, --status-*, --presence-*,
+ *       --space-*, --type-*, --lh-*, --radius-*, --shadow-*, --dur-*, --ease-*,
+ *       --layout-*, --font-*, --canvas-*).
+ *
+ * Theme model: dark is the DEFAULT (canvas-browser / studio surface); light is an
+ * equal-status secondary (reading / handoff). Both blocks share token shapes.
+ */
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * DARK — default theme. Applies at :root and under .maude[data-theme="dark"].
+ * ───────────────────────────────────────────────────────────────────────── */
+:root,
+.maude[data-theme="dark"],
+.ds[data-theme="dark"] {
+  /* ─── Surfaces (deepest → highest) ─── cool-neutral ladder, hue 255 ─────── */
+  --bg-0: oklch(0.165 0.012 255);   /* canvas / page bg (deepest)            */
+  --bg-1: oklch(0.198 0.012 255);   /* panel / card bg                       */
+  --bg-2: oklch(0.232 0.013 255);   /* nested panel / popover / inspector    */
+  --bg-3: oklch(0.270 0.013 252);   /* input bg / subtle row hover           */
+  --bg-4: oklch(0.310 0.014 252);   /* hover / pressed state                 */
+
+  /* ─── Borders — crisp 1px hairlines carry separation (hairline-mono) ────── */
+  --border-subtle:  oklch(0.290 0.012 255);
+  --border-default: oklch(0.360 0.013 252);
+  --border-strong:  oklch(0.450 0.014 250);
+
+  /* ─── Text ──────────────────────────────────────────────────────────────── */
+  --fg-0: oklch(0.955 0.005 250);   /* primary text                          */
+  --fg-1: oklch(0.790 0.008 250);   /* secondary text                        */
+  --fg-2: oklch(0.660 0.010 250);   /* tertiary / muted — computed 6.2:1 on --bg-0, AA */
+  --fg-3: oklch(0.650 0.010 250);   /* quietest text - 4.7:1 on --bg-1..3 (a11y gate) */
+
+  /* ─── Accent (single — confident indigo, hue 268) ─────────────────────────
+   * Bright on dark so it reads as text/icons/selection (accent/--bg-0 = 6.4:1).
+   * The primary fill therefore takes a DARK --accent-fg (navy), not white
+   * (dark-fg/accent = 6.3:1; white/accent would be only 3.0:1). Light theme
+   * inverts: darker accent + white fg. */
+  --accent:        oklch(0.680 0.180 268);   /* brand accent — text + primary fill */
+  --accent-hover:  oklch(0.730 0.170 268);   /* brighter → forward on dark    */
+  --accent-active: oklch(0.630 0.180 268);
+  --accent-fg:     oklch(0.180 0.030 268);   /* dark navy — text on accent fills */
+  --accent-soft:  oklch(0.460 0.110 268);
+  --accent-muted: var(--accent-soft);   /* subtle accent border / chip   */
+  --selection:   color-mix(in oklab, var(--accent) 16%, transparent);
+  --accent-tint: var(--selection); /* selection / active row */
+
+  /* ─── Status ────────────────────────────────────────────────────────────── */
+  --status-success: oklch(0.760 0.150 162);
+  --status-warn:    oklch(0.800 0.130 78);
+  --status-error:   oklch(0.660 0.190 25);
+  --status-info:    oklch(0.720 0.120 238);
+
+  /* ─── Presence (collaborators + the AI agent on the canvas) ─────────────── */
+  --presence-online:  oklch(0.740 0.160 145);
+  --presence-away:    oklch(0.800 0.130 78);
+  --presence-offline: oklch(0.560 0.020 255);
+  --x-presence-agent:   oklch(0.700 0.190 322);
+  --presence-agent: var(--x-presence-agent);   /* AI agent cursor — violet-magenta, held 54° off the indigo accent so it never reads as "the accent" */
+
+  /* ─── Shadows — subtle on dark; hairlines do most of the work ───────────── */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.40);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.46);
+  --shadow-lg: 0 14px 38px rgba(0, 0, 0, 0.56);
+
+  /* ─── Radii — mild, crisp ──────────────────────────────────────────────── */
+  --radius-xs: 3px;
+  --radius-sm: 5px;
+  --radius-md: 7px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --radius-pill: 999px;
+
+  /* ─── Spacing — dense, 4px base ─────────────────────────────────────────── */
+  --space-0: 0;
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 8px;
+  --space-4: 12px;
+  --space-5: 16px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 48px;
+
+  /* ─── Typography ────────────────────────────────────────────────────────── */
+  --font-display: "Inter Tight", "Inter", system-ui, -apple-system, sans-serif;
+  --font-body:    "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono:    "JetBrains Mono", "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* Type scale — precise UI ladder, ~1.2 ratio, tightened for dense ──────── */
+  --type-xs:   11px;   --lh-xs:   16px;
+  --type-sm:   12px;   --lh-sm:   18px;
+  --type-base: 14px;   --lh-base: 20px;
+  --type-md:   16px;   --lh-md:   24px;
+  --type-lg:   19px;   --lh-lg:   26px;
+  --type-xl:   23px;   --lh-xl:   30px;
+  --type-2xl:  28px;   --lh-2xl:  34px;
+  --type-3xl:  34px;   --lh-3xl:  40px;
+
+  /* Numeric fields use tabular figures — set on .mono / inputs in chrome.     */
+  --tracking-tight: -0.014em;   /* display headings                          */
+  --tracking-wide:   0.04em;    /* mono eyebrows / SKU labels                 */
+
+  /* ─── Motion — crisp, snappy (Zed-fast) ─────────────────────────────────── */
+  --dur-flip:  140ms;
+  --dur-panel: 220ms;
+  --dur-route: 280ms;
+  --dur-soft:  120ms;
+  --ease-out:    cubic-bezier(0.2, 0, 0, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ─── Canvas (the signature surface — dotted infinite canvas) ───────────── */
+  --x-canvas-bg:   var(--bg-0);
+  --canvas-bg: var(--x-canvas-bg);
+  --x-canvas-dot:  oklch(0.340 0.012 255);
+  --canvas-dot: var(--x-canvas-dot);   /* dot-grid colour                 */
+  --x-canvas-grid: 24px;
+  --canvas-grid: var(--x-canvas-grid);                     /* dot pitch                       */
+
+  /* ─── Layout ────────────────────────────────────────────────────────────── */
+  --layout-max-w:  none;            /* app surface, full-bleed                */
+  --layout-gutter: var(--space-5);
+
+  /* ─── Schema v1 roles (V2-2.15 bring-up) ─── */
+  --accent-on-soft: var(--fg-0); /* text on --accent-soft */
+  --accent-text: var(--accent); /* the accent reads as text in both themes */
+  --focus-ring: var(--accent); /* _components.css outlines use the accent */
+  --focus-ring-width: 2px; /* _components.css outlines are 2px */
+  --focus-ring-offset: 1px; /* _components.css .btn offset */
+  --scrim: color-mix(in oklch, var(--bg-0) 60%, transparent); /* modal backdrop */
+  --status-success-fg: var(--bg-0); /* text on the fill */
+  --status-warn-fg: var(--bg-0); /* text on the fill */
+  --status-error-fg: var(--bg-0); /* text on the fill */
+  --status-info-fg: var(--bg-0); /* text on the fill */
+  --status-success-soft: color-mix(in oklch, var(--status-success) 16%, transparent); /* tint, same mix as --selection */
+  --status-warn-soft: color-mix(in oklch, var(--status-warn) 16%, transparent); /* tint, same mix as --selection */
+  --status-error-soft: color-mix(in oklch, var(--status-error) 16%, transparent); /* tint, same mix as --selection */
+  --status-info-soft: color-mix(in oklch, var(--status-info) 16%, transparent); /* tint, same mix as --selection */
+  --status-success-text: var(--status-success);
+  --status-warn-text: var(--status-warn);
+  --status-error-text: var(--status-error);
+  --status-info-text: var(--status-info);
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --tracking-normal: 0;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * LIGHT — equal-status secondary theme.
+ * ───────────────────────────────────────────────────────────────────────── */
+.maude[data-theme="light"],
+.ds[data-theme="light"] {
+  --bg-0: oklch(0.975 0.004 255);
+  --bg-1: oklch(1.000 0 0);
+  --bg-2: oklch(0.987 0.003 255);
+  --bg-3: oklch(0.955 0.005 255);
+  --bg-4: oklch(0.928 0.006 255);
+
+  --border-subtle:  oklch(0.922 0.005 255);
+  --border-default: oklch(0.868 0.007 255);
+  --border-strong:  oklch(0.780 0.009 255);
+
+  --fg-0: oklch(0.225 0.015 260);
+  --fg-1: oklch(0.400 0.014 260);
+  --fg-2: oklch(0.510 0.012 260);   /* tertiary — computed 5.35:1 on --bg-0 light, AA */
+  --fg-3: oklch(0.520 0.012 260);   /* 4.8:1 on --bg-0..3 */
+
+  --accent:        oklch(0.520 0.195 268);   /* deeper on light for contrast  */
+  --accent-hover:  oklch(0.470 0.195 268);
+  --accent-active: oklch(0.430 0.190 268);
+  --accent-fg:     oklch(0.995 0.004 268);
+  --accent-soft:  oklch(0.895 0.050 268);
+  --accent-muted: var(--accent-soft);
+  --selection:   color-mix(in oklab, var(--accent) 12%, transparent);
+  --accent-tint: var(--selection);
+
+  --status-success: oklch(0.560 0.150 162);
+  --status-warn:    oklch(0.640 0.140 70);
+  --status-error:   oklch(0.560 0.200 25);
+  --status-info:    oklch(0.530 0.150 238);
+
+  --presence-online:  oklch(0.560 0.160 145);
+  --presence-away:    oklch(0.640 0.140 70);
+  --presence-offline: oklch(0.700 0.010 255);
+  --x-presence-agent:   oklch(0.520 0.190 322);
+  --presence-agent: var(--x-presence-agent);
+
+  --shadow-sm: 0 1px 2px rgba(18, 20, 30, 0.08);
+  --shadow-md: 0 4px 14px rgba(18, 20, 30, 0.10);
+  --shadow-lg: 0 14px 38px rgba(18, 20, 30, 0.14);
+
+  --x-canvas-bg:  oklch(0.965 0.004 255);
+  --canvas-bg: var(--x-canvas-bg);
+  --x-canvas-dot: oklch(0.860 0.008 255);
+
+  /* ─── Schema v1 roles (V2-2.15 bring-up) ─── */
+  --accent-on-soft: var(--accent-active); /* text on --accent-soft */
+  --accent-text: var(--accent); /* the accent reads as text in both themes */
+  --focus-ring: var(--accent); /* _components.css outlines use the accent */
+  --scrim: color-mix(in oklch, var(--fg-0) 40%, transparent); /* modal backdrop */
+  --status-success-fg: var(--accent-fg); /* text on the fill */
+  --status-warn-fg: var(--fg-0); /* text on the fill */
+  --status-error-fg: var(--accent-fg); /* text on the fill */
+  --status-info-fg: var(--accent-fg); /* text on the fill */
+  --status-success-soft: color-mix(in oklch, var(--status-success) 12%, transparent); /* tint, same mix as --selection */
+  --status-warn-soft: color-mix(in oklch, var(--status-warn) 12%, transparent); /* tint, same mix as --selection */
+  --status-error-soft: color-mix(in oklch, var(--status-error) 12%, transparent); /* tint, same mix as --selection */
+  --status-info-soft: color-mix(in oklch, var(--status-info) 12%, transparent); /* tint, same mix as --selection */
+  --status-success-text: var(--status-success);
+  --status-warn-text: var(--status-warn);
+  --status-error-text: var(--status-error);
+  --status-info-text: var(--status-info);
+  --canvas-dot: var(--x-canvas-dot);
+}
+
+/* Reduced-motion: collapse durations everywhere (a11y invariant). */
+@media (prefers-reduced-motion: reduce) {
+  :root,
+  .maude[data-theme="dark"],
+  .ds[data-theme="dark"],
+  .maude[data-theme="light"],
+  .ds[data-theme="light"] {
+    --dur-flip:  1ms;
+    --dur-panel: 1ms;
+    --dur-route: 1ms;
+    --dur-soft:  1ms;
+  }
+}

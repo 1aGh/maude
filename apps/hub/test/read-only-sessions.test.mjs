@@ -18,6 +18,8 @@ import { after, describe, it } from 'node:test';
 
 import { fileURLToPath } from 'node:url';
 
+import { can } from '../src/role-matrix.mjs';
+import { HUB_ROUTE_ROWS } from '../src/routes-v2/index.mjs';
 import { addToken, rotateToken, verifyToken } from '../src/tokens.mjs';
 
 const SERVER_SRC = readFileSync(
@@ -93,14 +95,65 @@ describe('the capability lives on the token, not in the UI', () => {
 // constraint attached — the point is not to forbid the change, it is to make
 // nobody make it by accident.
 describe('the read-only allowlist is a decision, not a convenience', () => {
-  const ALLOWED = ['/auth/logout', '/api/export'];
+  // S9.3: the allowlist is no longer a path list in server.mjs — it is every row
+  // of the hub route table whose WRITE half names a capability a viewer holds.
+  // (`/auth/browser/signout` was on the old list too; the old 400-character
+  // source scrape simply never reached it.)
+  const ALLOWED = [
+    // Gate 0 A18 (S4.6) — a vote's ballot: a server-held pick, never a document byte
+    // (test/votes-*.test.mjs; picks never ride presence).
+    String(/^\/api\/projects\/([A-Za-z0-9._-]{1,128})\/v1\/votes\/([A-Za-z0-9_-]{1,128})\/ballot$/),
+    // S9.6 — your own access answer, and asking the owner for access: rows in the access
+    // store, never the project (routes-v2/access.mjs).
+    '/api/access/me',
+    '/api/access/requests',
+    // S9.7 — the comment door (C3): a server-authored envelope with a shape-checked body; a
+    // comment on the viewer's own Y connection is still dropped (test/comments-door.test.mjs).
+    '/api/comments',
+    '/api/export',
+    // S8.5b-2 — the cloud render door: it enqueues the session's OWN export job (owner-scoped
+    // in the studio) and writes no project byte; the handler refuses a read-only PROJECT session
+    // (403) and judges a canvas-only session's grant per target (test/render-jobs-route.test.mjs).
+    String(/^\/api\/projects\/([A-Za-z0-9._-]{1,128})\/v1\/render-jobs$/),
+    '/auth/browser/signout',
+    '/auth/logout',
+  ];
+  // Doors that authenticate with something other than a peer token answer for
+  // themselves, so the gate checks nothing on their write half. Pinned the same way.
+  const SELF_AUTHENTICATING = [
+    // P8 — a cloud tab's Share door: the browser session (cookie, same-origin only) — every call
+    // it makes is judged by the /api/access/* row it lands on (routes-v2/share.mjs).
+    '/_api/share/*',
+    '/_materialize',
+    '/admin',
+    '/admin/*',
+    '/auth/browser',
+    '/auth/login',
+    '/auth/oidc/callback',
+    '/auth/oidc/start',
+    '/auth/session',
+    // S9.6 — the control plane's access-changed poke: authenticated by its own shared secret.
+    '/internal/access-changed',
+    '/internal/revocation-sweep',
+    '/join',
+    '/join/*',
+    // S3.7b — the presentation link writes nothing: GET/HEAD redirect, every
+    // other method is the handler's 405 (cookie or bearer, judged per canvas).
+    '/present/*',
+    '/studio/signin',
+  ];
 
   it('has nothing added to it without reading this', () => {
-    const fn = SERVER_SRC.slice(
-      SERVER_SRC.indexOf('function readOnlyAllowedPath'),
-      SERVER_SRC.indexOf('function readOnlyAllowedPath') + 400
+    const viewerWrites = HUB_ROUTE_ROWS.filter(
+      (row) => row.cap.unsafe !== null && can('viewer', row.cap.unsafe) && row.cap.unsafe !== 'edit'
+    ).map((row) => row.path ?? String(row.pattern));
+    assert.deepEqual(
+      HUB_ROUTE_ROWS.filter((row) => row.cap.unsafe === null)
+        .map((row) => row.path)
+        .sort(),
+      SELF_AUTHENTICATING
     );
-    const paths = [...fn.matchAll(/path === '([^']+)'/g)].map((m) => m[1]).sort();
+    const paths = viewerWrites.sort();
     assert.deepEqual(
       paths,
       [...ALLOWED].sort(),

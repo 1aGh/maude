@@ -214,6 +214,9 @@ export async function hubHealth(opts: {
   try {
     const timeout = AbortSignal.timeout(HEALTH_TIMEOUT_MS);
     const res = await fetchImpl(`${base}/health`, {
+      // a hub answers its own /health: a redirect is never followed (gate-b-sec1 A5 — a bounce to an internal
+      // http address from a cell). The other sync requests do not follow one either (`redirect: 'manual'`).
+      redirect: 'error',
       signal: opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout,
     });
     if (!res.ok) return { capabilities: null, formatVersion: null };

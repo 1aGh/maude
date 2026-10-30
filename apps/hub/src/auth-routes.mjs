@@ -18,7 +18,12 @@
 // `owner` (an exact match in tokens.mjs), never by prefix or label pattern.
 
 import { randomBytes } from 'node:crypto';
-
+import {
+  ACCESS_VERSION,
+  ACCESS_VERSION_REFUSAL,
+  declaredAccessOf,
+  peerTokenDoor,
+} from '../../studio/access/scope.ts';
 import {
   formOriginAllowed,
   readForm,
@@ -26,7 +31,12 @@ import {
   STUDIO_SESSION_TTL_MS,
   setSessionCookie,
 } from './browser-auth.mjs';
-import { authenticateForMode, cloudIdentityStrict } from './cloud-identity.mjs';
+import {
+  authenticateForMode,
+  claimOf,
+  cloudIdentityStrict,
+  peerSessionFields,
+} from './cloud-identity.mjs';
 import {
   createInvite,
   inviteUrl,
@@ -38,7 +48,6 @@ import {
 } from './invites.mjs';
 import { joinPage } from './join-page.mjs';
 import { isRevoked } from './revocations.mjs';
-import { isReadOnlyRole, projectRoleForAccount } from './role-matrix.mjs';
 import { servicePage } from './studio-door.mjs';
 
 import {
@@ -58,6 +67,7 @@ import {
   listUsers,
   removePendingOidc,
   removeUser,
+  setUserAccess,
   setUserDisabled,
   setUserPassword,
   userCount,
@@ -175,17 +185,37 @@ export async function handleAuthRoutes(ctx) {
     }
 
     const user = result.user;
+    // THE MINT DOOR (V2-1.7 §5.4, S9.2). The client declares what it
+    // understands with `X-Maude-Access: 2`; a claim a v1 client cannot honour
+    // (observer, canvas-only, grants) is refused BY VERSION (426, never 403 —
+    // V2-1.12), and an observer who declared goes to the browser door (409):
+    // observers are never minted a peer token, so never a local file-plane
+    // copy (A19). owner / member / viewer answer exactly as 1.9.1 did.
+    //
+    // Cloud Phase 27: TRANSLATED first (`claimOf` → `legacyClaim`). `user.role`
+    // is an ACCOUNT role ('admin' | 'member'); the token stores a PROJECT role.
+    // Passing one to the other made every admin's session read-only — right for
+    // 'member' by coincidence, wrong for 'admin' because an unknown role gets
+    // nothing.
+    const door = peerTokenDoor(claimOf(result), {
+      declaredAccess: declaredAccessOf(ctx.request?.headers?.['x-maude-access']),
+      doorUrl: ctx.publicUrl,
+    });
+    if (door.outcome === 'update' || door.outcome === 'browser-door') {
+      respondJson(door.status, door.body);
+      return true;
+    }
+    if (door.outcome !== 'mint') {
+      // A role the matrix does not know holds nothing: the same opaque answer.
+      console.warn(`[hub] login rejected (no-access) for ${String(user.email).slice(0, 120)}`);
+      respondJson(401, { error: 'invalid email or password' });
+      return true;
+    }
     // A token-exchanged session dies WITH the project token that minted it
     // (Phase 23 B2) — never the default 30 days beyond the removal window.
     const expiresAt = Math.min(Date.now() + userTokenTtlMs(), result.expiresAt ?? Infinity);
-    // Cloud Phase 27: TRANSLATED first. `user.role` is an ACCOUNT role
-    // ('admin' | 'member'); the token stores a PROJECT role. Passing one to
-    // the other made every admin's session read-only — right for 'member' by
-    // coincidence, wrong for 'admin' because an unknown role gets nothing.
-    const projectRole = projectRoleForAccount(user.role);
     const minted = addToken(dataDir, {
       label: mintLabel(),
-      scope: user.scope ?? '*',
       owner: user.email,
       expiresAt,
       // Cloud Phase 25 C1. The capability is decided HERE, once, from the role
@@ -198,8 +228,7 @@ export async function handleAuthRoutes(ctx) {
       // every HTTP write surface answers with 401. browser-auth.mjs stores the
       // role; this door forgot to — desktop/API sessions hit the same wall the
       // pre-roll stale cookies did.
-      role: projectRole,
-      readOnly: isReadOnlyRole(projectRole),
+      ...peerSessionFields(door, { scope: user.scope ?? '*' }),
     });
     ctx.pushActivity?.({ type: 'login', user: user.email, doc: minted.label });
     respondJson(200, {
@@ -388,12 +417,28 @@ export async function handleAuthRoutes(ctx) {
       else respondJson(400, { ok: false, error: err.message });
       return true;
     }
+    // THE MINT DOOR (S9.6b). The landing form IS the browser lane — the cell's
+    // own studio understands a v2 claim and the cookie never becomes a local
+    // file-plane copy, so it declares v2 and admits an observer (as
+    // `/auth/browser` does). An API caller declares with `X-Maude-Access`.
+    const declaredAccess = isForm
+      ? ACCESS_VERSION
+      : declaredAccessOf(ctx.request?.headers?.['x-maude-access']);
+    // A caller that cannot honour a canvas invite's claim never SPENDS it: the
+    // redeem refuses before the account exists (`access-version`), and the
+    // client is told to update below — the invite survives the upgrade.
     const result = redeemInvite(dataDir, {
       value: body?.token,
       email: body?.email,
       password: body?.password,
-      createAccount: ({ email, password, role }) => createUser(dataDir, { email, password, role }),
+      honoursAccess: declaredAccess === ACCESS_VERSION,
+      createAccount: ({ email, password, role, access, bound }) =>
+        createOrAccept(dataDir, { email, password, role, access, bound }),
     });
+    if (!result.ok && result.reason === 'access-version') {
+      respondJson(426, ACCESS_VERSION_REFUSAL);
+      return true;
+    }
     if (!result.ok) {
       const status = result.reason === 'account-failed' ? 400 : 410;
       // A duplicate address is an account-existence oracle for whoever holds
@@ -423,7 +468,13 @@ export async function handleAuthRoutes(ctx) {
               token: body.token,
               workspace: ctx.publicUrl ?? null,
               email: look.invite.email,
-              error,
+              // On a page for a named address the form is also where an account holder signs in to accept
+              // (gate-b-sec3b), so the sentence points at the password. It depends on the invite, never on
+              // whether the address has an account — only the refusal itself differs, as before.
+              error:
+                taken && look.invite.email
+                  ? "That address can't be used with this invitation. If you already have an account on this project, enter its password."
+                  : error,
               env,
             })
           );
@@ -445,16 +496,36 @@ export async function handleAuthRoutes(ctx) {
     // `browserSession` treats a token without one as no session at all. Until
     // 2026-08-21 this door minted without it — a freshly invited member held a
     // token every HTTP write surface answered with 401.
-    const projectRole = projectRoleForAccount(result.user.role);
+    //
+    // THROUGH THE MINT DOOR (S9.6b): the claim is the account's `access` when it
+    // has one (a canvas invite), else the account role translated — never the
+    // account role alone, which handed a one-canvas guest a member session.
+    const door = peerTokenDoor(
+      claimOf({
+        user: result.user,
+        ...(result.user.access ? { access: result.user.access } : {}),
+      }),
+      { declaredAccess, doorUrl: ctx.publicUrl, browserLane: isForm }
+    );
+    if (door.outcome === 'update' || door.outcome === 'browser-door') {
+      // The account exists now; the person signs in through the door named.
+      respondJson(door.status, door.body);
+      return true;
+    }
+    if (door.outcome !== 'mint') {
+      console.warn(`[hub] invite redeem minted nothing (no-access) for ${result.user.email}`);
+      const error = 'This invitation gives no access yet. Ask whoever invited you.';
+      if (isForm) respondPage(403, servicePage('You do not have access', error));
+      else respondJson(403, { ok: false, reason: 'no-access', error });
+      return true;
+    }
     const ttlMs = isForm ? STUDIO_SESSION_TTL_MS : userTokenTtlMs();
     const expiresAt = Date.now() + ttlMs;
     const minted = addToken(dataDir, {
       label: isForm ? `studio-${randomBytes(4).toString('hex')}` : mintLabel(),
-      scope: '*',
       owner: result.user.email,
       expiresAt,
-      role: projectRole,
-      readOnly: isReadOnlyRole(projectRole),
+      ...peerSessionFields(door, { scope: '*' }),
     });
     ctx.pushActivity?.({ type: 'invite-redeem', user: result.user.email, doc: result.invite.id });
     if (isForm) {
@@ -476,6 +547,37 @@ export async function handleAuthRoutes(ctx) {
   }
 
   return false;
+}
+
+/**
+ * The invite's account: a new one, or — gate-b-sec3 finding 1 — the EXISTING account at the address the invite is
+ * bound to, when the person proves it is theirs by signing in as it on the join page. Accepting raises, never lowers: an account that
+ * already sees every canvas keeps that, a canvas-only one gains the invite's canvas (or the whole project), and the
+ * account role is never changed here. A wrong password answers exactly as before (`already exists` → the one
+ * neutral sentence), so the join page still says nothing about whether the address has an account.
+ */
+function createOrAccept(dataDir, { email, password, role, access, bound = false }) {
+  if (!getUser(dataDir, email)) {
+    return createUser(dataDir, { email, password, role, ...(access ? { access } : {}) });
+  }
+  // An open (unbound) link is a sign-UP door only: accepting into an existing account needs the owner to have
+  // named that address.
+  if (!bound) throw new Error(`user "${email}" already exists`);
+  const auth = authenticate(dataDir, email, password);
+  if (!auth.ok) throw new Error(`user "${email}" already exists`);
+  const user = auth.user;
+  if (!user.access) return user; // a project role already sees every canvas
+  if (!access) return setUserAccess(dataDir, user.email, null) ?? user;
+  const have = new Set(user.access.grants.map((g) => g.c));
+  const add = (access.grants ?? []).filter((g) => !have.has(g.c)).map(({ c, r }) => ({ c, r }));
+  if (!add.length) return user;
+  return (
+    setUserAccess(dataDir, user.email, {
+      v: 1,
+      role: null,
+      grants: [...user.access.grants, ...add],
+    }) ?? user
+  );
 }
 
 /** One plain sentence per failure. Never mentions tokens (DDR-193 §5). */

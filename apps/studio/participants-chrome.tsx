@@ -15,9 +15,20 @@
  */
 
 import type { JSX } from 'react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { useViewportControllerContext } from './canvas-lib.tsx';
+import { canvasModeStore } from './bridge/canvas-mode-store.ts';
+import { PEER_NAME_MAX, PEERS_MAX } from './bridge/dgn-protocol.ts';
+import { useArtboardsContext, useViewportControllerContext } from './canvas-lib.tsx';
+import {
+  canSummonWith,
+  type PresenceDeps,
+  PresenceOverlay,
+  runPresenceAction,
+  usePresence,
+} from './presence/canvas-presence.tsx';
+import { surfaceFromSearch } from './presence/fields.ts';
+import { isEmbedCanvas } from './read-only-mode.ts';
 import { type AgentPresence, useAgentPresence } from './use-agent-presence.tsx';
 import { type ForeignAwareness, useCollab, useForeignAwareness } from './use-collab.tsx';
 
@@ -43,7 +54,7 @@ const CHROME_CSS = `
   font-size: 10px;
   line-height: 1;
   letter-spacing: 0.02em;
-  color: var(--maude-hud-accent-fg, #fff);
+  color: oklch(0.180 0.030 268);
   border: 1.5px solid var(--maude-chrome-bg-0, #fff);
   margin-left: -6px;
   cursor: pointer;
@@ -320,56 +331,62 @@ function AgentAvatar({ agent }: { agent: AgentPresence }): JSX.Element {
   );
 }
 
+/** Inside the Maude shell (an iframe that is not an embed): the cluster owns the faces. */
+export function isHostedByShell(): boolean {
+  return typeof window !== 'undefined' && window.parent !== window && !isEmbedCanvas();
+}
+
+/** The `peers` payload: the table's caps applied here too, so an honest canvas never trips them.
+ *  Names only — the cluster draws initials, so no colour crosses. */
+export function peersPayload(
+  list: readonly (Pick<ForeignAwareness, 'clientID' | 'name'> &
+    Partial<
+      Pick<
+        ForeignAwareness,
+        'artboard' | 'idleSince' | 'surface' | 'inComments' | 'summon' | 'role'
+      >
+    >)[],
+  followTarget: number | null = null
+): Array<{
+  clientID: number;
+  name: string;
+  following?: boolean;
+  artboard?: string;
+  idleSince?: number;
+  surface?: 'browser';
+  inComments?: boolean;
+  role?: 'owner' | 'member' | 'viewer' | 'observer';
+}> {
+  return list.slice(0, PEERS_MAX).map((p) => {
+    const out: ReturnType<typeof peersPayload>[number] = {
+      clientID: p.clientID,
+      name: String(p.name ?? '').slice(0, PEER_NAME_MAX),
+    };
+    if (p.clientID === followTarget) out.following = true;
+    // S9.23 — presence, only when it says something (a quiet peer's entry is the pre-v2 shape).
+    if (p.artboard) out.artboard = p.artboard;
+    if (p.idleSince) out.idleSince = p.idleSince;
+    if (p.surface === 'browser') out.surface = 'browser';
+    if (p.inComments) out.inComments = true;
+    if (p.role) out.role = p.role; // P8 G2 (b) — room-stamped
+    return out;
+  });
+}
+const peerListKey = (list: readonly ForeignAwareness[]) =>
+  list
+    .map(
+      (p) =>
+        `${p.clientID}:${p.name}:${p.artboard ?? ''}:${p.idleSince ?? ''}:${p.surface ?? ''}:${p.inComments ? 1 : 0}:${p.summon?.id ?? ''}:${p.role ?? ''}`
+    )
+    .join('|');
+
 export function ParticipantsChrome(): JSX.Element | null {
   ensureChromeStyles();
   const collab = useCollab();
   const peers = useForeignAwareness();
   const agent = useAgentPresence();
   const controller = useViewportControllerContext();
-
-  const [followTarget, setFollowTarget] = useState<number | null>(null);
-
-  const onToggleFollow = useCallback(
-    (clientID: number) => {
-      setFollowTarget((prev) => (prev === clientID ? null : clientID));
-      if (collab) {
-        collab.publishAwareness({
-          selection: collab.awareness.getLocalState()?.selection ?? null,
-        });
-        // Tag follow target as an Awareness key so Phase 9 follow-back UIs
-        // can read it; not currently used by anything else.
-        const state = collab.awareness.getLocalState() ?? {};
-        collab.awareness.setLocalState({
-          ...state,
-          followTarget: clientID === followTarget ? null : clientID,
-        });
-      }
-    },
-    [collab, followTarget]
-  );
-
-  // Apply follow — when followTarget is set, mirror the target's viewport
-  // onto our local controller. Each peer-Awareness update re-fires this; we
-  // skip when the viewport hasn't actually changed (saves a controller write).
-  const lastAppliedRef = useRef<{ x: number; y: number; zoom: number } | null>(null);
-  useEffect(() => {
-    if (followTarget === null) {
-      lastAppliedRef.current = null;
-      return;
-    }
-    if (!controller) return;
-    const target = peers.find((p) => p.clientID === followTarget);
-    if (!target) {
-      // Target peer disconnected; release follow.
-      setFollowTarget(null);
-      return;
-    }
-    const v = target.viewport;
-    const last = lastAppliedRef.current;
-    if (last && last.x === v.x && last.y === v.y && last.zoom === v.zoom) return;
-    lastAppliedRef.current = { x: v.x, y: v.y, zoom: v.zoom };
-    controller.setViewport(v);
-  }, [controller, followTarget, peers]);
+  const world = useArtboardsContext();
 
   // Phase 30 / DDR-120 — drop the authoring machine's own server-side editing
   // echo: a foreign peer carrying MY name with editing set but no cursor/
@@ -377,24 +394,125 @@ export function ParticipantsChrome(): JSX.Element | null {
   // already see via the local ai-activity avatar. A remote peer never matches
   // (different name), so they still get the "X is editing" heads-up.
   const myName = collab?.myName;
-  const visiblePeers = peers.filter((p) => !isOwnEditingEcho(p, myName));
+  const visiblePeers = useMemo(
+    () => peers.filter((p) => !isOwnEditingEcho(p, myName)),
+    [peers, myName]
+  );
+
+  // S9.23 — presence (publish, Follow, Go to, Bring everyone here) lives in presence/canvas-presence.tsx;
+  // this component hands it the live collaborators through a ref so its deps keep one identity.
+  const live = useRef({ collab, controller, world });
+  live.current = { collab, controller, world };
+  const deps = useMemo<PresenceDeps>(
+    () => ({
+      publish: (patch) => live.current.collab?.publishAwareness(patch as never),
+      myClientID: () => live.current.collab?.awareness.clientID ?? -1,
+      myCursor: () => live.current.collab?.awareness.getLocalState()?.cursor ?? null,
+      setViewport: (v) => live.current.controller?.setViewport(v),
+      frameArtboard: (id) => {
+        const rect = live.current.world?.rectFor(id);
+        if (!rect || !live.current.controller) return false;
+        live.current.controller.jumpTo(rect);
+        return true;
+      },
+      camera: () => live.current.controller?.viewport ?? null,
+      viewCentre: () => {
+        const host = live.current.world?.hostRef.current;
+        const vp = live.current.controller?.viewport;
+        if (!host || !vp) return null;
+        return {
+          x: (host.clientWidth / 2 - vp.x) / vp.zoom,
+          y: (host.clientHeight / 2 - vp.y) / vp.zoom,
+        };
+      },
+      canSummon: () => canSummonWith(canvasModeStore(window).get().caps),
+      reducedMotion: () =>
+        typeof window.matchMedia === 'function' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+      now: () => Date.now(),
+    }),
+    []
+  );
+  const published = useMemo(
+    () => ({
+      artboard: world?.activeArtboardId ?? null,
+      surface: surfaceFromSearch(typeof window === 'undefined' ? '' : window.location.search),
+    }),
+    [world?.activeArtboardId]
+  );
+  const view = usePresence(visiblePeers, deps, published);
+  const followTarget = view.follow.target;
+
+  // V2-4.3b — hosted by the shell, the Share cluster shows who is here (its faces), so this stack
+  // steps aside and the canvas reports its peers instead: `{dgn:'peers'}` on every change, and again
+  // whenever the shell (re)seeds `set-mode` — it does that when this canvas becomes the active one,
+  // and the shell takes `peers` from the active canvas only.
+  const hosted = isHostedByShell();
+  const peerKey = hosted ? `${peerListKey(visiblePeers)}#${followTarget ?? ''}` : '';
+  // Follow / Go to / Bring everyone here / Stop come from the shell over the parent-gated `run-action`
+  // lane (the faces' menu and the registry's `presence.*` rows); the state rides back on `peers`.
+  const viewRef = useRef(view);
+  viewRef.current = view;
+  useEffect(() => {
+    if (!hosted) return;
+    const onRunAction = (e: MessageEvent) => {
+      if (e.source !== window.parent) return;
+      const m = e.data as {
+        dgn?: string;
+        v?: unknown;
+        id?: unknown;
+        params?: Record<string, unknown>;
+      } | null;
+      if (m?.dgn !== 'run-action' || m.v !== 1 || typeof m.id !== 'string') return;
+      runPresenceAction(viewRef.current, m.id, m.params);
+    };
+    window.addEventListener('message', onRunAction);
+    return () => window.removeEventListener('message', onRunAction);
+  }, [hosted]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `peerKey` is the list's value identity
+  useEffect(() => {
+    if (!hosted) return;
+    const post = () => {
+      try {
+        window.parent.postMessage(
+          { dgn: 'peers', peers: peersPayload(visiblePeers, followTarget) },
+          '*'
+        );
+      } catch {
+        /* detached */
+      }
+    };
+    post();
+    const store = canvasModeStore(window);
+    let seq = store.get().modeSeq;
+    return store.subscribe((s) => {
+      if (s.modeSeq === seq) return;
+      seq = s.modeSeq;
+      post();
+    });
+  }, [hosted, peerKey]);
+  const overlay = <PresenceOverlay view={view} camera={deps.camera()} />;
+  if (hosted) return overlay;
 
   // Render whenever there's a visible human peer OR an active agent (so an agent
   // shows even with no human collaborators connected).
-  if (visiblePeers.length === 0 && !agent) return null;
+  if (visiblePeers.length === 0 && !agent) return overlay;
 
   return (
-    <div className="dc-participants" aria-label="Active collaborators">
-      {visiblePeers.map((p) => (
-        <Avatar
-          key={p.clientID}
-          peer={p}
-          isFollowing={followTarget === p.clientID}
-          onToggleFollow={onToggleFollow}
-        />
-      ))}
-      {agent ? <AgentAvatar key={agent.id} agent={agent} /> : null}
-    </div>
+    <>
+      <div className="dc-participants" aria-label="Active collaborators">
+        {visiblePeers.map((p) => (
+          <Avatar
+            key={p.clientID}
+            peer={p}
+            isFollowing={followTarget === p.clientID}
+            onToggleFollow={view.toggle}
+          />
+        ))}
+        {agent ? <AgentAvatar key={agent.id} agent={agent} /> : null}
+      </div>
+      {overlay}
+    </>
   );
 }
 

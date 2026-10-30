@@ -1,0 +1,541 @@
+# 03 AI Chat - spec vs implementation, evidence (V2-8.5 stage A)
+
+Canvas `.design/ui/v2/03 AI Chat.tsx`. **29 artboards**, 58 pairs (dark + light), **24 reached in the app**, 5 not reachable (placeholder on the right of the pair, reason in the row).
+
+How the two sides were made. SPEC: the board rendered from a scratch copy of `.design/` (`.scr/design-copy`, own studio, throwaway HOME, claude stubbed), camera forced to 1:1, host theme set dark (default) then light (`data-maude-theme`: the host re-themes every unpinned artboard; pinned user designs stay light). IMPL: Playwright Chromium 1440x900 (the spec's Stage window size) with a `window.__TAURI__` stub, release client, `theme` in prefs.json, on a generated fixture project. AI states are driven by a scripted FAKE ACP agent (MAUDE_ACP_ADAPTER_ENTRY, never a provider) that calls the design plugin's own hook code, so the studio's run registry, leases, scope checks and result card are the real ones; the prompt text picks the behaviour (hang / permission / question / fail / tell / default edit). Project: generated "Alligators brand" with a 5-artboard Combine-kampan. The not-ready frames use the default signed-out claude stub.
+Theme: both themes were made for every artboard. Differences below are the dark pair's unless the "theme" column says otherwise; a theme-only difference (a token that does not flip) is called out there.
+
+**Common differences (not repeated per row; C1-C6):**
+- **C1** The spec draws the macOS title bar and the project tab strip (traffic lights, "Studio site | Alligators brand"); the browser lane has no native title bar or tabs. Desktop-shell only, expected.
+- **C2** The spec folds the left panel on most boards (or draws the 93-canvas Alligators tree: 2026 > combine ...); the app opens Canvases by default and lists the fixture's flat canvas list (11 canvases).
+- **C3** Share cluster: spec shows two faces (T, J) and "Saved/Syncing" (a cloud team project); the app shows "YO - Local project" (local project, no collaborators).
+- **C4** Canvas content and camera: the spec draws the designed Alligators artwork on 5 to 15 artboards at a fixed 38 % camera; the app shows a 5-artboard stand-in "Combine-kampan" (fixture) at fit-all, wrapped in a different layout. Artwork is fixture; camera and layout are real differences.
+- **C5** The 80 px note strip under each spec Stage has no app counterpart; the IMPL side is the 1440x900 window only, padded grey under it. Panel-detail boards compare against a crop of the app panel (crop rect in the pair's label strip).
+- **C6** The scope chip reads the artboard id in lowercase ("post") or "Whole canvas"; the spec draws "(diamond) Post 1:1" (the artboard label). Check whether the chip should use the label.
+- **H** Harness limits (not app findings): the AI is a scripted fake ACP agent (`.scr/impl/fake-agent.mjs`, kept next to the full-size pairs' scripts), so working-line words come from generic tool titles ("Edit the canvas") not the model's description, there is no second person (Tereza, Jonas) and Version history rows are attributed "You - changed outside the app" instead of "Made by AI".
+
+| id | state (spec) | how the impl was reached | impl reachable? | first-glance differences | theme | pair |
+|---|---|---|---|---|---|---|
+| `ai-hero` | 1 - two AIs, two artboards: the finish lands in place (Post wipe, Tereza's AI on the poster) | chat 1 hangs on A4 (second AI), chat 2 asks on Post and finishes; edit attributed through the plugin hooks | partially: no second person; no wipe / ring / Made-by-AI tag | No before-to-after wipe, no solid ring, no 'Made by AI' tag on Post after the finish (spec draws all three); result card has Undo and Keep going plus an extra 'What AI did - 1 step' fold; spec shows the folder consent card (Let AI read 'Combine 2026 fotky'? Not now / Let AI read) and three attach chips inside the same panel; Tereza's cursor and her AI's tag ('Tereza's AI - translating to English') absent (own chat shows 'AI is working'); C1-C4 | base | `03-ai-chat/ai-hero-dark.jpg` |
+| `ai-hero` | 1 - two AIs, two artboards: the finish lands in place (Post wipe, Tereza's AI on the poster) | chat 1 hangs on A4 (second AI), chat 2 asks on Post and finishes; edit attributed through the plugin hooks | partially: no second person; no wipe / ring / Made-by-AI tag | No before-to-after wipe, no solid ring, no 'Made by AI' tag on Post after the finish (spec draws all three); result card has Undo and Keep going plus an extra 'What AI did - 1 step' fold; spec shows the folder consent card (Let AI read 'Combine 2026 fotky'? Not now / Let AI read) and three attach chips inside the same panel; Tereza's cursor and her AI's tag ('Tereza's AI - translating to English') absent (own chat shows 'AI is working'); C1-C4 | same structure; chrome follows the light host theme | `03-ai-chat/ai-hero-light.jpg` |
+| `ai-open` | 2 - cmd-slash opens the AI chat panel (Post selected, suggestions, Inspector) | click the Post artboard label, then the AI corner icon. cmd-slash itself is in the extra frame ai-open-cmdslash-* | partially: cmd-slash does not open the panel | Cmd-slash in the app opens an in-place ask bar on the selection ('1 element' chip + Ask AI...) over the Inspector, not the panel (extra frame ai-open-cmdslash); via the corner icon the panel is the empty state ('Ask for a change, a few variants, or an answer.' / 'AI works on what the chip says.') with NO suggestion chips and no why line (spec: Resolve 3 comments / Three variants / English version, 'Because Tereza left 3 comments on Post 1:1'); no Inspector card for the selected artboard beside it; C6; C1-C4 | base | `03-ai-chat/ai-open-dark.jpg` |
+| `ai-open` | 2 - cmd-slash opens the AI chat panel (Post selected, suggestions, Inspector) | click the Post artboard label, then the AI corner icon. cmd-slash itself is in the extra frame ai-open-cmdslash-* | partially: cmd-slash does not open the panel | Cmd-slash in the app opens an in-place ask bar on the selection ('1 element' chip + Ask AI...) over the Inspector, not the panel (extra frame ai-open-cmdslash); via the corner icon the panel is the empty state ('Ask for a change, a few variants, or an answer.' / 'AI works on what the chip says.') with NO suggestion chips and no why line (spec: Resolve 3 comments / Three variants / English version, 'Because Tereza left 3 comments on Post 1:1'); no Inspector card for the selected artboard beside it; C6; C1-C4 | same structure; chrome follows the light host theme | `03-ai-chat/ai-open-light.jpg` |
+| `ai-suggest` | 3 - suggestions follow what you were doing (four contexts) | panel crop of the ai-open frame; the only suggestion strip reachable is after a run (see ai-done) | partially: one of four contexts, and only after a run | Empty chat shows no suggestion strip; after a finished run the strip appears with 'Same on the other artboards / A darker shade / Apply it everywhere' and the line 'Because you last asked about colour' (matches the spec's 4th context in spirit, copy differs: spec 'Same for the story / A darker green / Same on all 21'). Comments-open, clips-selected and just-shared contexts not driven (no comments, footage, hub) | base | `03-ai-chat/ai-suggest-dark.jpg` |
+| `ai-suggest` | 3 - suggestions follow what you were doing (four contexts) | panel crop of the ai-open frame; the only suggestion strip reachable is after a run (see ai-done) | partially: one of four contexts, and only after a run | Empty chat shows no suggestion strip; after a finished run the strip appears with 'Same on the other artboards / A darker shade / Apply it everywhere' and the line 'Because you last asked about colour' (matches the spec's 4th context in spirit, copy differs: spec 'Same for the story / A darker green / Same on all 21'). Comments-open, clips-selected and just-shared contexts not driven (no comments, footage, hub) | same structure; chrome follows the light host theme | `03-ai-chat/ai-suggest-light.jpg` |
+| `ai-scope` | 4 - the chip says what AI touches (folded, one artboard, nothing selected, several) | click the scope chip: menu rows Whole canvas / the artboard / No canvas - just ask | partially: menu only | Menu rows match (Whole canvas, tick on the artboard, No canvas - just ask) but the artboard row reads 'post' (id) not 'Post 1:1 - Combine 2026'; no 'Choose artboards...' row visible; folded spark ('Ask AI' key cap) and the multi-artboard count chip not driven; menu opens downward, spec upward | base | `03-ai-chat/ai-scope-dark.jpg` |
+| `ai-scope` | 4 - the chip says what AI touches (folded, one artboard, nothing selected, several) | click the scope chip: menu rows Whole canvas / the artboard / No canvas - just ask | partially: menu only | Menu rows match (Whole canvas, tick on the artboard, No canvas - just ask) but the artboard row reads 'post' (id) not 'Post 1:1 - Combine 2026'; no 'Choose artboards...' row visible; folded spark ('Ask AI' key cap) and the multi-artboard count chip not driven; menu opens downward, spec upward | same structure; chrome follows the light host theme | `03-ai-chat/ai-scope-light.jpg` |
+| `ai-working` | 5 - AI works where you can see it (ring + tag on the artboard, working line + Stop) | prompt containing 'hang' on Post; pre-edit hook claims the artboard lease | yes | Working line says 'AI is working' / 'Edit the canvas 0:02' (spec: 'AI is making it greener' / 'Background done - badge next') - words come from the fake agent's generic tool title (harness H); dashed spark ring + tag 'AI is working' exist on the artboard (spec tag 'AI is making it greener'); Stop present; Post does not turn green live (fake agent writes nothing until done); chip 'post' (C6) | base | `03-ai-chat/ai-working-dark.jpg` |
+| `ai-working` | 5 - AI works where you can see it (ring + tag on the artboard, working line + Stop) | prompt containing 'hang' on Post; pre-edit hook claims the artboard lease | yes | Working line says 'AI is working' / 'Edit the canvas 0:02' (spec: 'AI is making it greener' / 'Background done - badge next') - words come from the fake agent's generic tool title (harness H); dashed spark ring + tag 'AI is working' exist on the artboard (spec tag 'AI is making it greener'); Stop present; Post does not turn green live (fake agent writes nothing until done); chip 'post' (C6) | same structure; chrome follows the light host theme | `03-ai-chat/ai-working-light.jpg` |
+| `ai-done` | 6 - done: the finish, then Undo or Keep going (wipe before/after, Made by AI) | second chat 'Make it greener': tool call, pre-edit, write, post-edit hook, end_turn | yes | Result line 'Done - Post 1:1 is greener: background, badge and button. The logo stays white.' + Undo + Keep going present and identical in words; MISSING on the artboard: Before/After wipe pills, solid ring, 'Made by AI' tag; extra 'What AI did - 1 step - 1 s' fold; suggestion strip is below the result (spec chips sit in the result block: Same on Story 9:16 / A darker green) | base | `03-ai-chat/ai-done-dark.jpg` |
+| `ai-done` | 6 - done: the finish, then Undo or Keep going (wipe before/after, Made by AI) | second chat 'Make it greener': tool call, pre-edit, write, post-edit hook, end_turn | yes | Result line 'Done - Post 1:1 is greener: background, badge and button. The logo stays white.' + Undo + Keep going present and identical in words; MISSING on the artboard: Before/After wipe pills, solid ring, 'Made by AI' tag; extra 'What AI did - 1 step - 1 s' fold; suggestion strip is below the result (spec chips sit in the result block: Same on Story 9:16 / A darker green) | same structure; chrome follows the light host theme | `03-ai-chat/ai-done-light.jpg` |
+| `ai-attach` | 7 - drop a photo or footage in (Drop to attach overlay, footage + PDF chips) | a file set on the hidden attach input (one image) | partially: no drag overlay, no footage or PDF chip | Only a small thumbnail chip appears inside the field after the scope chip; the 'Drop to attach / AI can use it in this chat' overlay (drag-over) not driven; footage chip (length, 'Use this clip for the fit...') and PDF chip with page count not driven; spec panel is taller with the chips row above the field | base | `03-ai-chat/ai-attach-dark.jpg` |
+| `ai-attach` | 7 - drop a photo or footage in (Drop to attach overlay, footage + PDF chips) | a file set on the hidden attach input (one image) | partially: no drag overlay, no footage or PDF chip | Only a small thumbnail chip appears inside the field after the scope chip; the 'Drop to attach / AI can use it in this chat' overlay (drag-over) not driven; footage chip (length, 'Use this clip for the fit...') and PDF chip with page count not driven; spec panel is taller with the chips row above the field | same structure; chrome follows the light host theme | `03-ai-chat/ai-attach-light.jpg` |
+| `ai-attach-menu` | 8 - the paperclip: files, a folder, Assets, a screenshot (+ what a chip shows, folder asks once) | click the paperclip, crop to the panel | yes (menu); the other two spec columns not driven | Menu rows match (Attach files..., Choose a folder..., From Assets, Paste a screenshot cmd-V, 'Or drag files here'); menu opens above the field (spec: same, with 'Choose a folder' highlighted); the spec's 'what a chip shows' legend and the folder consent card ('Let AI read ...? Not now / Let AI read') are not part of the app frame | base | `03-ai-chat/ai-attach-menu-dark.jpg` |
+| `ai-attach-menu` | 8 - the paperclip: files, a folder, Assets, a screenshot (+ what a chip shows, folder asks once) | click the paperclip, crop to the panel | yes (menu); the other two spec columns not driven | Menu rows match (Attach files..., Choose a folder..., From Assets, Paste a screenshot cmd-V, 'Or drag files here'); menu opens above the field (spec: same, with 'Choose a folder' highlighted); the spec's 'what a chip shows' legend and the folder consent card ('Let AI read ...? Not now / Let AI read') are not part of the app frame | same structure; chrome follows the light host theme | `03-ai-chat/ai-attach-menu-light.jpg` |
+| `ai-question` | 9 - a question: AI answers in words, canvas unchanged, spark pin on the poster, follow-up chips | prompt with 'question': the fake agent asks a choice (elicitation) rather than answering in prose | partially: the choice-card path, not the answer-in-words path | Spec is a prose answer ('Mostly, COMBINE 2026 reads from five metres...The canvas didn't change.') with follow-up chips ('Make the date line 14 pt', 'Check LetakAB too') and a '9 pt' spark pin on the poster; the app frame is the Which-green choice card (that is board 25's left half); the prose-answer path appears in ai-long (plain answers, 'The canvas did not change.') but without follow-up chips or a pin; azure 'Waiting for you' tags on every artboard while a question is open (spec: none) | base | `03-ai-chat/ai-question-dark.jpg` |
+| `ai-question` | 9 - a question: AI answers in words, canvas unchanged, spark pin on the poster, follow-up chips | prompt with 'question': the fake agent asks a choice (elicitation) rather than answering in prose | partially: the choice-card path, not the answer-in-words path | Spec is a prose answer ('Mostly, COMBINE 2026 reads from five metres...The canvas didn't change.') with follow-up chips ('Make the date line 14 pt', 'Check LetakAB too') and a '9 pt' spark pin on the poster; the app frame is the Which-green choice card (that is board 25's left half); the prose-answer path appears in ai-long (plain answers, 'The canvas did not change.') but without follow-up chips or a pin; azure 'Waiting for you' tags on every artboard while a question is open (spec: none) | same structure; chrome follows the light host theme | `03-ai-chat/ai-question-light.jpg` |
+| `ai-long` | 10 - a long chat: full height, resizable, scrolled up, attachments, Jump to latest | six turns before anything else runs (plain answers) | partially: long text chat only | Panel grows to full window height (good); MISSING: photos / PDF / folder chips inside the transcript, 'Jump to latest' pill with unread count, the edge-resize tooltip 'Drag to resize - double-click for full height', 'What AI did' folds; left Canvases panel still open; transcript shows the user's turns as pills and answers as plain text, same as spec | base | `03-ai-chat/ai-long-dark.jpg` |
+| `ai-long` | 10 - a long chat: full height, resizable, scrolled up, attachments, Jump to latest | six turns before anything else runs (plain answers) | partially: long text chat only | Panel grows to full window height (good); MISSING: photos / PDF / folder chips inside the transcript, 'Jump to latest' pill with unread count, the edge-resize tooltip 'Drag to resize - double-click for full height', 'What AI did' folds; left Canvases panel still open; transcript shows the user's turns as pills and answers as plain text, same as spec | same structure; chrome follows the light host theme | `03-ai-chat/ai-long-light.jpg` |
+| `ai-long-pinned` | 11 - pinned to the side: a full-height column, canvas re-fits to the left | ai-chat-pin on the long chat | yes | Pinned full-height column present with the pin pressed; the left Canvases panel body collapses to its header, search and Trash (the canvas list is empty) while pinned at 1440x900 - looks like a layout bug; canvas does not re-fit to the narrower area the way the spec's artboards do; spec shows a Reels recap with attachments in the transcript (H) | base | `03-ai-chat/ai-long-pinned-dark.jpg` |
+| `ai-long-pinned` | 11 - pinned to the side: a full-height column, canvas re-fits to the left | ai-chat-pin on the long chat | yes | Pinned full-height column present with the pin pressed; the left Canvases panel body collapses to its header, search and Trash (the canvas list is empty) while pinned at 1440x900 - looks like a layout bug; canvas does not re-fit to the narrower area the way the spec's artboards do; spec shows a Reels recap with attachments in the transcript (H) | same structure; chrome follows the light host theme | `03-ai-chat/ai-long-pinned-light.jpg` |
+| `ai-two-artboards` | 12 - two chats, two artboards (list popover with 'Working' rows, each artboard with its own verb) | second chat on A4 while the first works on Post | partially | Both artboards carry a ring and 'AI is working' (spec: distinct verbs 'AI is making it greener' / 'AI is translating to English'); header shows the '2' running chip but no popover list of chats with 'Working' rows (title chevron opens the Chats list instead, see ai-chat-list); working card says 'AI is working / Edit the canvas' | base | `03-ai-chat/ai-two-artboards-dark.jpg` |
+| `ai-two-artboards` | 12 - two chats, two artboards (list popover with 'Working' rows, each artboard with its own verb) | second chat on A4 while the first works on Post | partially | Both artboards carry a ring and 'AI is working' (spec: distinct verbs 'AI is making it greener' / 'AI is translating to English'); header shows the '2' running chip but no popover list of chats with 'Working' rows (title chevron opens the Chats list instead, see ai-chat-list); working card says 'AI is working / Edit the canvas' | same structure; chrome follows the light host theme | `03-ai-chat/ai-two-artboards-light.jpg` |
+| `ai-same-artboard` | 13 - same artboard: the second one waits (Waiting card, Run on a copy) | third chat asks on the busy A4 | yes | Waiting card matches: 'Waiting for "..." to finish on A4 - plakat. Starts by itself, on top of its result.' + 'Run on a copy'; artboard tag reads 'AI is working - 1 waiting' like the spec; the spec's card names the other ask ('Make it greener' on Post 1:1) and its own ask sits above as a pill; app shows two waiting cards stacked because a whole-canvas ask queued too; working text generic (H) | base | `03-ai-chat/ai-same-artboard-dark.jpg` |
+| `ai-same-artboard` | 13 - same artboard: the second one waits (Waiting card, Run on a copy) | third chat asks on the busy A4 | yes | Waiting card matches: 'Waiting for "..." to finish on A4 - plakat. Starts by itself, on top of its result.' + 'Run on a copy'; artboard tag reads 'AI is working - 1 waiting' like the spec; the spec's card names the other ask ('Make it greener' on Post 1:1) and its own ask sits above as a pill; app shows two waiting cards stacked because a whole-canvas ask queued too; working text generic (H) | same structure; chrome follows the light host theme | `03-ai-chat/ai-same-artboard-light.jpg` |
+| `ai-copy` | 14 - run on a copy: both versions side by side, 'Copied from Post 1:1 before ...' | click 'Run on a copy' on the waiting card; frame taken 2.5 s later | partially: the copy starts but the frame is mid-run | A copy artboard 'A4 - plakat (copy)' appears next to the original and the copy is working (tag 'AI is working'); spec shows the finished copy with 'Made by AI' tag and the caption 'Copied from Post 1:1 before "Make it greener"', result card 'Undo / Keep the copy'; not captured after completion | base | `03-ai-chat/ai-copy-dark.jpg` |
+| `ai-copy` | 14 - run on a copy: both versions side by side, 'Copied from Post 1:1 before ...' | click 'Run on a copy' on the waiting card; frame taken 2.5 s later | partially: the copy starts but the frame is mid-run | A copy artboard 'A4 - plakat (copy)' appears next to the original and the copy is working (tag 'AI is working'); spec shows the finished copy with 'Made by AI' tag and the caption 'Copied from Post 1:1 before "Make it greener"', result card 'Undo / Keep the copy'; not captured after completion | same structure; chrome follows the light host theme | `03-ai-chat/ai-copy-light.jpg` |
+| `ai-queue-rule` | 15 - the rule drawn once (timeline of queued asks) | not reachable: an explanatory graphic | no - documentation board | n/a (the rule is exercised in ai-same-artboard / ai-copy) | base | `03-ai-chat/ai-queue-rule-dark.jpg` |
+| `ai-queue-rule` | 15 - the rule drawn once (timeline of queued asks) | not reachable: an explanatory graphic | no - documentation board | n/a (the rule is exercised in ai-same-artboard / ai-copy) | same structure; chrome follows the light host theme | `03-ai-chat/ai-queue-rule-light.jpg` |
+| `ai-other-tab` | 16 - running in another project tab (tab mark, toast 'Show') | not reachable: needs a second project tab | no - desktop shell tabs (the lane has one project) | n/a | base | `03-ai-chat/ai-other-tab-dark.jpg` |
+| `ai-other-tab` | 16 - running in another project tab (tab mark, toast 'Show') | not reachable: needs a second project tab | no - desktop shell tabs (the lane has one project) | n/a | same structure; chrome follows the light host theme | `03-ai-chat/ai-other-tab-light.jpg` |
+| `ai-tereza` | 17 - Tereza's AI on the same canvas (her tag and outline, 'Your' / 'On this canvas' list) | not reachable: needs a second person | no - hub / cloud project | n/a | base | `03-ai-chat/ai-tereza-dark.jpg` |
+| `ai-tereza` | 17 - Tereza's AI on the same canvas (her tag and outline, 'Your' / 'On this canvas' list) | not reachable: needs a second person | no - hub / cloud project | n/a | same structure; chrome follows the light host theme | `03-ai-chat/ai-tereza-light.jpg` |
+| `ai-chat-list` | 18 - 41 chats: Running, then Earlier by canvas; search; row menu | click the chat title (chevron) in the panel header | partially | Structure matches (back chevron 'Chats', 'Alligators brand' chip, +, search, 'Running 3' section, rows with title + 'Combine-kampan > Post' + 'now', footer '3 chats - kept with the project'); BUG-LOOKING: the first chat's title reads 'Make it greener hang [maude-...' - the attachment header text leaks into the title when a prompt carried an attachment; no 'Earlier' groups, no 'Needs you' state, row menu (Open / Rename / Copy transcript / Archive / Move to trash) and the search-with-hits state not driven | base | `03-ai-chat/ai-chat-list-dark.jpg` |
+| `ai-chat-list` | 18 - 41 chats: Running, then Earlier by canvas; search; row menu | click the chat title (chevron) in the panel header | partially | Structure matches (back chevron 'Chats', 'Alligators brand' chip, +, search, 'Running 3' section, rows with title + 'Combine-kampan > Post' + 'now', footer '3 chats - kept with the project'); BUG-LOOKING: the first chat's title reads 'Make it greener hang [maude-...' - the attachment header text leaks into the title when a prompt carried an attachment; no 'Earlier' groups, no 'Needs you' state, row menu (Open / Rename / Copy transcript / Archive / Move to trash) and the search-with-hits state not driven | same structure; chrome follows the light host theme | `03-ai-chat/ai-chat-list-light.jpg` |
+| `ai-panel-closed` | 19 - panel hidden, AI keeps going (ring stays, spark dot, 'Done ... Show' toast) | ai-chat-hide while the poster chat works | partially | Panel hides to the corner spark icon; ring and 'AI is working' tag stay on A4; no completion toast ('Done - Post 1:1 is greener. The logo stays white. Show') in this frame because the chat that finished is not the hidden one; spark icon dot not clearly visible | base | `03-ai-chat/ai-panel-closed-dark.jpg` |
+| `ai-panel-closed` | 19 - panel hidden, AI keeps going (ring stays, spark dot, 'Done ... Show' toast) | ai-chat-hide while the poster chat works | partially | Panel hides to the corner spark icon; ring and 'AI is working' tag stay on A4; no completion toast ('Done - Post 1:1 is greener. The logo stays white. Show') in this frame because the chat that finished is not the hidden one; spark icon dot not clearly visible | same structure; chrome follows the light host theme | `03-ai-chat/ai-panel-closed-light.jpg` |
+| `ai-quit` | 20 - quitting mid-run: 'Quit while AI is working?' + the panel after relaunch | a quit://ask message pushed through a stubbed shell Channel (the dialog listens for it) | yes (dialog only) | Dialog copy identical ('2 chats stop where they are. Everything AI finished so far is kept as a version, and each chat can carry on next time.' Cancel / Quit); app dims the whole shell and the dialog is small and centred, spec shows it inside a framed excerpt; the 'next launch' half (Stopped when the app quit divider, 'Post 1:1 is half done', Undo / Keep going) not driven | base | `03-ai-chat/ai-quit-dark.jpg` |
+| `ai-quit` | 20 - quitting mid-run: 'Quit while AI is working?' + the panel after relaunch | a quit://ask message pushed through a stubbed shell Channel (the dialog listens for it) | yes (dialog only) | Dialog copy identical ('2 chats stop where they are. Everything AI finished so far is kept as a version, and each chat can carry on next time.' Cancel / Quit); app dims the whole shell and the dialog is small and centred, spec shows it inside a framed excerpt; the 'next launch' half (Stopped when the app quit divider, 'Post 1:1 is half done', Undo / Keep going) not driven | same structure; chrome follows the light host theme | `03-ai-chat/ai-quit-light.jpg` |
+| `ai-needs-hidden` | 21 - needs you, panel hidden, another canvas (spark count, row says Needs you, one toast 'Show') | permission ask, then hide the panel | partially | Bottom toast 'AI needs you on Combine-kampan - edit Combine-kampan.tsx? Open' with a close x (spec: pill 'AI needs you on Uniformy-2027 - replace 4 team photos? Show'); canvas row shows 'Needs you' like the spec; corner spark shows a dot; the app tags ALL five artboards 'Waiting for you' (spec: only the affected one); the ask names the file, not what changes (H) | base | `03-ai-chat/ai-needs-hidden-dark.jpg` |
+| `ai-needs-hidden` | 21 - needs you, panel hidden, another canvas (spark count, row says Needs you, one toast 'Show') | permission ask, then hide the panel | partially | Bottom toast 'AI needs you on Combine-kampan - edit Combine-kampan.tsx? Open' with a close x (spec: pill 'AI needs you on Uniformy-2027 - replace 4 team photos? Show'); canvas row shows 'Needs you' like the spec; corner spark shows a dot; the app tags ALL five artboards 'Waiting for you' (spec: only the affected one); the ask names the file, not what changes (H) | same structure; chrome follows the light host theme | `03-ai-chat/ai-needs-hidden-light.jpg` |
+| `ai-needs-tab` | 22 - needs you in another project tab | not reachable | no - desktop shell tabs | n/a | base | `03-ai-chat/ai-needs-tab-dark.jpg` |
+| `ai-needs-tab` | 22 - needs you in another project tab | not reachable | no - desktop shell tabs | n/a | same structure; chrome follows the light host theme | `03-ai-chat/ai-needs-tab-light.jpg` |
+| `ai-needs-away` | 23 - needs you, the app in the background (Mac notification, Dock badge) | not reachable | no - OS notification, native only | n/a | base | `03-ai-chat/ai-needs-away-dark.jpg` |
+| `ai-needs-away` | 23 - needs you, the app in the background (Mac notification, Dock badge) | not reachable | no - OS notification, native only | n/a | same structure; chrome follows the light host theme | `03-ai-chat/ai-needs-away-light.jpg` |
+| `ai-permission` | 24 - asks before replacing your work (4 photos, ring on what changes, Not now / Replace 4 photos) | prompt with 'permission': a real requestPermission | yes | Card present with the same two verbs shape (Not now / primary) but reads 'Edit Combine-kampan.tsx? Replace the photos on 4 team artboards' with the verb 'Edit'; spec: 'Replace 4 team photos in Uniformy-2027?' with a strip of the four photo thumbnails, an 'Always for this canvas' checkbox and the verb 'Replace 4 photos'; outline on the affected artboards only (app: all five tagged) | base | `03-ai-chat/ai-permission-dark.jpg` |
+| `ai-permission` | 24 - asks before replacing your work (4 photos, ring on what changes, Not now / Replace 4 photos) | prompt with 'permission': a real requestPermission | yes | Card present with the same two verbs shape (Not now / primary) but reads 'Edit Combine-kampan.tsx? Replace the photos on 4 team artboards' with the verb 'Edit'; spec: 'Replace 4 team photos in Uniformy-2027?' with a strip of the four photo thumbnails, an 'Always for this canvas' checkbox and the verb 'Replace 4 photos'; outline on the affected artboards only (app: all five tagged) | same structure; chrome follows the light host theme | `03-ai-chat/ai-permission-light.jpg` |
+| `ai-choice-fail` | 25 - a question back (Which green? picks) and a failure (what happened, nothing changed, one verb) | prompt with 'fail' for the failure; the choice card is in ai-question | partially: failure card here, choice card in ai-question | Failure card present: 'Couldn't finish - the connection to Claude was interrupted. Nothing changed.' + Advanced + 'Try again' (spec: 'the footage file is missing. Nothing changed.' + the file detail + the one fixing verb 'Pick another clip') - app maps my error to a generic cause (H); choice rows lack the colour dot and sub-line ('from the Alligators design system') the spec draws | base | `03-ai-chat/ai-choice-fail-dark.jpg` |
+| `ai-choice-fail` | 25 - a question back (Which green? picks) and a failure (what happened, nothing changed, one verb) | prompt with 'fail' for the failure; the choice card is in ai-question | partially: failure card here, choice card in ai-question | Failure card present: 'Couldn't finish - the connection to Claude was interrupted. Nothing changed.' + Advanced + 'Try again' (spec: 'the footage file is missing. Nothing changed.' + the file detail + the one fixing verb 'Pick another clip') - app maps my error to a generic cause (H); choice rows lack the colour dot and sub-line ('from the Alligators design system') the spec draws | same structure; chrome follows the light host theme | `03-ai-chat/ai-choice-fail-light.jpg` |
+| `ai-not-ready` | 26 - not connected, offline, setting up, used up, almost used up (five panels) | default signed-out claude stub; the first send opens the connect sheet | partially: only the first of five | Connect sheet ('Connect your Claude account?', Claude Pro or Max, Cancel / Connect) opens INSIDE the panel (spec: as a card to the left of the panel with 'Your prompt waits here and sends as soon as it's connected' line); offline, setting up, used up, almost used up not reachable (network / quota states); extra frame ai-not-ready-after = after Cancel | base | `03-ai-chat/ai-not-ready-dark.jpg` |
+| `ai-not-ready` | 26 - not connected, offline, setting up, used up, almost used up (five panels) | default signed-out claude stub; the first send opens the connect sheet | partially: only the first of five | Connect sheet ('Connect your Claude account?', Claude Pro or Max, Cancel / Connect) opens INSIDE the panel (spec: as a card to the left of the panel with 'Your prompt waits here and sends as soon as it's connected' line); offline, setting up, used up, almost used up not reachable (network / quota states); extra frame ai-not-ready-after = after Cancel | same structure; checked | `03-ai-chat/ai-not-ready-light.jpg` |
+| `ai-advanced` | 27 - Advanced, inside the panel: model, effort, fast mode, ask before, AI may..., session, raw log | click the panel's Advanced fold | partially | Fold opens with Ask before (Replace or move to the trash, with 'default' on a second line instead of beside it), Show in chat (Normal), Suggestions (On), 'AI may'; the crop is cut by the window height so Raw log / Copy transcript / Open in terminal are below the fold; no Model / Effort / Fast mode / Context used / 5-hour limit / Session rows because the fake agent offers no config (H); spec's side cards (raw log, slash commands, search-the-palette) not part of the live frame | base | `03-ai-chat/ai-advanced-dark.jpg` |
+| `ai-advanced` | 27 - Advanced, inside the panel: model, effort, fast mode, ask before, AI may..., session, raw log | click the panel's Advanced fold | partially | Fold opens with Ask before (Replace or move to the trash, with 'default' on a second line instead of beside it), Show in chat (Normal), Suggestions (On), 'AI may'; the crop is cut by the window height so Raw log / Copy transcript / Open in terminal are below the fold; no Model / Effort / Fast mode / Context used / 5-hour limit / Session rows because the fake agent offers no config (H); spec's side cards (raw log, slash commands, search-the-palette) not part of the live frame | same structure; chrome follows the light host theme | `03-ai-chat/ai-advanced-light.jpg` |
+| `ai-adv-edges` | 28 - modes, slash, paste, Copy and Retry, the terminal (four panels) | type / in the field | partially: one of four | Slash menu present (/design:critic, :edit, :screenshot, :export + 'More... 27 more') matching the spec's third panel; Ask-before menu (Replace or move to the trash / When unsure / Nothing - change freely / Suggest only / Skip what needs asking / Skip every check), the 'AI is set to suggest only - Allow changes' banner and the Copy / Retry hover not driven | base | `03-ai-chat/ai-adv-edges-dark.jpg` |
+| `ai-adv-edges` | 28 - modes, slash, paste, Copy and Retry, the terminal (four panels) | type / in the field | partially: one of four | Slash menu present (/design:critic, :edit, :screenshot, :export + 'More... 27 more') matching the spec's third panel; Ask-before menu (Replace or move to the trash / When unsure / Nothing - change freely / Suggest only / Skip what needs asking / Skip every check), the 'AI is set to suggest only - Allow changes' banner and the Copy / Retry hover not driven | same structure; chrome follows the light host theme | `03-ai-chat/ai-adv-edges-light.jpg` |
+| `ai-history` | 29 - made by AI, in Version history (Made by AI rows, Undo this chat, Compare side by side) | alt-cmd-H after an AI edit | partially | Version history panel opens with All / Named / Made by AI / People tabs and the row actions; but the new version is attributed 'You - changed outside the app' (harness: the fake agent edits through hooks, not the real write path), so no 'Made by AI' badge, no 'Undo this chat' / 'Restore' pair on the row, no Compare bar (Side by side / Overlay) and no before/after pair on the canvas | base | `03-ai-chat/ai-history-dark.jpg` |
+| `ai-history` | 29 - made by AI, in Version history (Made by AI rows, Undo this chat, Compare side by side) | alt-cmd-H after an AI edit | partially | Version history panel opens with All / Named / Made by AI / People tabs and the row actions; but the new version is attributed 'You - changed outside the app' (harness: the fake agent edits through hooks, not the real write path), so no 'Made by AI' badge, no 'Undo this chat' / 'Restore' pair on the row, no Compare bar (Side by side / Overlay) and no before/after pair on the canvas | same structure; chrome follows the light host theme | `03-ai-chat/ai-history-light.jpg` |
+
+
+## after (stage D, 6d19daa9a)
+
+Re-shoot of the IMPL side on tip 6d19daa9a (stage C round 2 merged), both themes, so the critic re-check compares the board with what the app draws now. No match / mismatch judged here. Pair images (`<id>-<theme>.jpg`, SPEC left | IMPL right) were overwritten in place; the SPEC side is **reused** from stage A for every id (no `.design/ui/v2/03 *` change since the stage-A shot; `git log` shows only 02 and 09 touched). The `extra-impl-*` frames were re-shot too.
+
+- Same harness as stage A (fake ACP agent, Alligators brand fixture, Chromium 1440x900 with a window.__TAURI__ stub, release-built client of the tip). Harness adaptations only, no product change: the What's new toast is dismissed through its close button; the composer is picked with `:visible` (a hidden earlier chat now keeps its composer in the DOM); the pin toggle is clicked through a dispatched click (the pin button sits under the settings corner icon while the chat is pinned, so a pointer click never lands).
+- Panel-detail crops were widened from x 1130 / w 310 to x 1050 / w 390 because the chat is now a floating island (bottom right) instead of a docked column.
+- Not reachable in the browser lane, unchanged since stage A: ai-queue-rule (a drawn rule), ai-other-tab / ai-needs-tab (second desktop tab), ai-needs-away (OS notification), ai-tereza (second person on a hub).
+
+| id | dark | light |
+|---|---|---|
+| `ai-hero` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-open` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-suggest` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-scope` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-working` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-done` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-attach` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-attach-menu` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-question` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-long` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-long-pinned` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-two-artboards` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-same-artboard` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-copy` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-queue-rule` | unreachable (A drawn rule (timeline of queued asks), not an app surface. The rule itself is exercised in ai-same-artboard / ai-copy.) | unreachable (same) |
+| `ai-other-tab` | unreachable (Needs a second project tab with a running chat (desktop shell tabs); the browser lane has one project.) | unreachable (same) |
+| `ai-tereza` | unreachable (Needs a second person's AI on the same canvas (hub / cloud project).) | unreachable (same) |
+| `ai-chat-list` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-panel-closed` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-quit` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-needs-hidden` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-needs-tab` | unreachable (Needs a second project tab (desktop shell tabs).) | unreachable (same) |
+| `ai-needs-away` | unreachable (The app in the background: an OS notification and Dock badge, native only.) | unreachable (same) |
+| `ai-permission` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-choice-fail` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-not-ready` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-advanced` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-adv-edges` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-history` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+
+## Round 3 (p8-c3-ai)
+IMPL re-shot (light + dark) after the AI-on-canvas / chat fixes, SPEC reused: every id above except ai-queue-rule, ai-other-tab, ai-tereza, ai-needs-tab, ai-needs-away (unreachable). Judged by the lead critic; what this round did and left open: `fix-c3-ai.md`.
+
+
+## FINAL (stage D2, d3881fe41)
+
+Re-shoot of the IMPL side on the merged tip d3881fe41 (stage C rounds 1-4 all merged), both themes, **every reachable id**, so the critic re-check compares the board with what the app draws now; this section supersedes the per-round "after" sections above. The committed `<id>-<theme>.jpg` pairs (SPEC left | IMPL right) are overwritten in place. SPEC side **reused** from stage A for every id (`git log` shows no change to `.design/ui/v2/03 *` after the stage-A shot). No match / mismatch is judged here.
+
+- Harness: the stage-D scripts plus the round-3 additions. The fake ACP agent writes the canvas through the design plugin's hook code (so rings / "Made by AI" attribute like a real run) and now takes its behaviour from a one-shot `next-mode` file, so the chat shows the board's own words as the prompt (`Make it greener, keep the logo white`, `Translate the poster to English, keep the layout`, `Headline in one word`, `Swap the 2025 team photos for the new ones in Assets › Foto 2026`, `Cut the hype reel to 15 s from the training footage`, the long-chat questions) and the board's own tool step lines ("Background done · badge next"). No trigger words ("hang", "permission") show any more.
+- **Finish moment (ai-hero, ai-done, ai-copy, ai-history)** is captured inside the 1.8 s `data-fresh` window: the shot waits for `.dc-ai-ring[data-fresh]` in the canvas frame and fires at once (ai-done then ai-hero are two frames of the same window; ai-history presses ⌥⌘H inside the window of a second finish; ai-copy waits for the copy run's finish).
+- **ai-question** is the board's state (a question answered in the chat, canvas stays put: `Is the A4 poster readable from three metres?`); the elicitation card ("Which green?") that stage A/D showed as ai-question is now frame `ai-choice-q` (committed as `extra-impl-ai-choice-q-<theme>.jpg`). **ai-choice-fail** is the failure card (`Couldn't finish - the footage file is missing`) as before; the board draws the question and the failure side by side, the app draws them in two chats.
+- **Menus**: ai-scope and ai-attach-menu are cropped 390x620 from the panel foot, so the whole menu is in the crop. **Finding for the lead: the scope menu is clipped by the app itself** - its DOM menu is 128 px tall (Whole canvas / Post 1:1 · Combine 2026 / Choose artboards… / No canvas - just ask, top 662 px) but the chat card cuts it at y 728, so only the last two rows show. Not a crop artefact (a probe frame of the bare page shows the same). The attach menu shows all four rows.
+- Panel-detail crops use x 1050 / w 390 (the chat is a floating island).
+- Not reachable in the browser lane, unchanged: ai-queue-rule (a drawn rule), ai-other-tab / ai-needs-tab (second desktop tab), ai-needs-away (OS notification), ai-tereza (second person on a hub).
+
+| id | dark | light |
+|---|---|---|
+| `ai-hero` | re-shot (in the finish window) | re-shot (in the finish window) |
+| `ai-open` | re-shot | re-shot |
+| `ai-suggest` | re-shot | re-shot |
+| `ai-scope` | re-shot | re-shot |
+| `ai-working` | re-shot | re-shot |
+| `ai-done` | re-shot (in the finish window) | re-shot (in the finish window) |
+| `ai-attach` | re-shot | re-shot |
+| `ai-attach-menu` | re-shot | re-shot |
+| `ai-question` | re-shot | re-shot |
+| `ai-long` | re-shot | re-shot |
+| `ai-long-pinned` | re-shot | re-shot |
+| `ai-two-artboards` | re-shot | re-shot |
+| `ai-same-artboard` | re-shot | re-shot |
+| `ai-copy` | re-shot (in the finish window) | re-shot (in the finish window) |
+| `ai-queue-rule` | unreachable (A drawn rule (timeline of queued asks), not an app surface. The rule itself is exercised in ai-same-artboard / ai-copy.) | unreachable (same) |
+| `ai-other-tab` | unreachable (Needs a second project tab with a running chat (desktop shell tabs); the browser lane has one project.) | unreachable (same) |
+| `ai-tereza` | unreachable (Needs a second person's AI on the same canvas (hub / cloud project).) | unreachable (same) |
+| `ai-chat-list` | re-shot | re-shot |
+| `ai-panel-closed` | re-shot | re-shot |
+| `ai-quit` | re-shot | re-shot |
+| `ai-needs-hidden` | re-shot | re-shot |
+| `ai-needs-tab` | unreachable (Needs a second project tab (desktop shell tabs).) | unreachable (same) |
+| `ai-needs-away` | unreachable (The app in the background: an OS notification and Dock badge, native only.) | unreachable (same) |
+| `ai-permission` | re-shot | re-shot |
+| `ai-choice-fail` | re-shot | re-shot |
+| `ai-not-ready` | re-shot | re-shot |
+| `ai-advanced` | re-shot | re-shot |
+| `ai-adv-edges` | re-shot | re-shot |
+| `ai-history` | re-shot (in the finish window) | re-shot (in the finish window) |
+
+## Round 5 (p8-c5-aichat) — after
+
+Re-shot light + dark with `_d2-harness-g2/s03c.mjs` (clean chats, one at a time). Not judged here; see `fix-c5-aichat.md`.
+
+| id | what the frame shows now | pair |
+|---|---|---|
+| `ai-scope` | the scope menu escapes the chat card: all four rows (Whole canvas, Post 1:1, Choose artboards, No canvas) | `03-ai-chat/ai-scope-{dark,light}.jpg` |
+| `ai-attach-menu` | the paperclip menu flush to the field, 8 px over its top | `03-ai-chat/ai-attach-menu-{dark,light}.jpg` |
+| `ai-permission` | non-file ask with "Always for this canvas" (the fake agent offers allow_always), headline not repeated as detail | `03-ai-chat/ai-permission-{dark,light}.jpg` |
+| `ai-choice-fail` | file named, detail line, verb "Pick another clip", no Advanced fold, no ghost line | `03-ai-chat/ai-choice-fail-{dark,light}.jpg` |
+| `ai-advanced` | full "Ask before" value, Model select, Effort segmented, Fast mode switch, no "default" line | `03-ai-chat/ai-advanced-{dark,light}.jpg` |
+| `ai-long-pinned` | 420 column inside the window with a 12 px gutter, canvas fitted to the room left of it, nothing selected | `03-ai-chat/ai-long-pinned-{dark,light}.jpg` |
+
+
+## FINAL (D3, 63592219a)
+
+Re-shoot of the IMPL side on the merged tip 63592219a (stage C rounds 1-5 + bugs3 merged), both themes, **every reachable id**; this section supersedes every earlier "after" / FINAL section above. The committed `<id>-<theme>.jpg` pairs (SPEC left | IMPL right) are overwritten in place. SPEC side **reused** from stage A for every id (`git log` shows no change to `.design/ui/v2/03 *` since 2026-10-19, before the stage-A shot). No match / mismatch is judged here.
+
+- Harness: `_d3-harness-g2/` = the D2 harness (`_d2-harness-g2/`, round-5 `s03c`, fake agent with the board's words) plus: **`s03e`** (the old `s03b` sequence with every artboard picked by its label chip in the canvas frame, because the camera fits to the room left of a pinned chat and the panels fold, so fixed coordinates picked "Whole canvas" and the chats queued behind the poster run), **`s03d`** (ai-needs-hidden from a clean chat: the permission ask open, then the panel hidden), **`s03n`** (the stage-A signed-out claude stub: ai-not-ready). `s03a` (open / working / two artboards / copy / list) and `s03c` (scope, attach menu, advanced, permission, failure, pinned) are unchanged apart from the repointed paths.
+- Product state this run draws: the Canvases list ends in "+ New canvas", Trash only with trash, "Search ⌘K"; the fake agent finishes with the board's words; the AI scope menu is `position:fixed` over the field (ai-scope / ai-attach-menu crops 390x620 from y 280 show the whole menu); ⌘Z is not used (the finish frames wait for `[data-fresh]` only).
+- **Finish moment (ai-hero, ai-done, ai-copy, ai-history)** is captured inside the 1.8 s `data-fresh` window (`h.fresh()`; ai-done then ai-hero are two frames of the same window; ai-history presses ⌥⌘H inside the window of a second finish; ai-copy waits for the copy run's finish). No "NO FRESH WINDOW" in the final runs (one miss in a first `s03a` light pass was re-run).
+- **ai-question** is the board's state (a question answered in the chat, canvas stays put); the elicitation card ("Which green?") is frame `ai-choice-q` (committed as `extra-impl-ai-choice-q-<theme>.jpg`). **ai-choice-fail** is the failure card with the missing file named.
+- Not reachable in the browser lane, unchanged: ai-queue-rule (a drawn rule), ai-other-tab / ai-needs-tab (second desktop tab), ai-needs-away (OS notification), ai-tereza (second person on a hub).
+
+| id | dark | light |
+|---|---|---|
+| `ai-hero` | re-shot (in the finish window) | re-shot (in the finish window) |
+| `ai-open` | re-shot | re-shot |
+| `ai-suggest` | re-shot | re-shot |
+| `ai-scope` | re-shot | re-shot |
+| `ai-working` | re-shot | re-shot |
+| `ai-done` | re-shot (in the finish window) | re-shot (in the finish window) |
+| `ai-attach` | re-shot | re-shot |
+| `ai-attach-menu` | re-shot | re-shot |
+| `ai-question` | re-shot | re-shot |
+| `ai-long` | re-shot | re-shot |
+| `ai-long-pinned` | re-shot | re-shot |
+| `ai-two-artboards` | re-shot | re-shot |
+| `ai-same-artboard` | re-shot | re-shot |
+| `ai-copy` | re-shot (in the finish window) | re-shot (in the finish window) |
+| `ai-queue-rule` | unreachable (A drawn rule (timeline of queued asks), not an app surface. The rule itself is exercised in ai-same-artboard / ai-copy.) | unreachable (same) |
+| `ai-other-tab` | unreachable (Needs a second project tab with a running chat (desktop shell tabs); the browser lane has one project.) | unreachable (same) |
+| `ai-tereza` | unreachable (Needs a second person's AI on the same canvas (hub / cloud project).) | unreachable (same) |
+| `ai-chat-list` | re-shot | re-shot |
+| `ai-panel-closed` | re-shot | re-shot |
+| `ai-quit` | re-shot | re-shot |
+| `ai-needs-hidden` | re-shot | re-shot |
+| `ai-needs-tab` | unreachable (Needs a second project tab (desktop shell tabs).) | unreachable (same) |
+| `ai-needs-away` | unreachable (The app in the background: an OS notification and Dock badge, native only.) | unreachable (same) |
+| `ai-permission` | re-shot | re-shot |
+| `ai-choice-fail` | re-shot | re-shot |
+| `ai-not-ready` | re-shot | re-shot |
+| `ai-advanced` | re-shot | re-shot |
+| `ai-adv-edges` | re-shot | re-shot |
+| `ai-history` | re-shot (in the finish window) | re-shot (in the finish window) |
+
+
+## Round 6 (p8-c6-aisurf, 89a794e96)
+
+Re-shot on the p8-c6-aisurf worktree tip, both themes, committed pairs overwritten (spec left | impl right). The critic judges; this builder does not.
+
+- Harness: `_c6-harness-g2/` = D3 `_d3-harness-g2/` over `_d2-harness-g2/` with round-6 edits: the chat is opened BEFORE the artboard is picked (an artboard pick with the chat open is the ask scope, not an Inspector pick), `s03e` runs ai-done on ONE chat (no hung poster chat) and starts the poster chat only for ai-hero, ai-history is shot with the chat hidden (Version history alone), ai-panel-closed drives a real finish while the panel is hidden (the Done toast), `s03a` attaches photo + footage + PDF and shows the drop overlay (`dragenter` with Files), the left Canvases panel is folded at the start of `s03e`.
+- Product (p8-c6-aisurf): no Inspector on an artboard pick with the chat open + a re-announced selection after an AI reload is not a new pick; the file-write dashed rim + wash yield to the AI ring layer while a run of yours is live; ONE follow-up row under a finish ("Same on <artboard>" + a variation of the ask), the suggestion strip and its "Because you last asked …" line yield to it; "What AI did" only folds a run of 4+ steps; the permission question is the work ("Replace 4 team photos in Uniformy-2027?" + the button "Replace 4 team photos"); the needs-you toast reads one line and its x shows on hover/focus only; the chat is titled from the ask while it runs.
+- Still open (named in fix-c6-aisurf.md): suggestion strips of the other contexts, consent card, chip kinds column, run-list popover driven, copy caption frame, history row actions + Compare, chat-list groups / row menu, Advanced "AI may" switches (no capability behind them), 3-tab History (CONTRACT keeps Named).
+
+| id | dark | light |
+|---|---|---|
+| `ai-hero` | re-shot (round 6) | re-shot (round 6) |
+| `ai-open` | re-shot (round 6) | re-shot (round 6) |
+| `ai-suggest` | re-shot (round 6) | re-shot (round 6) |
+| `ai-scope` | re-shot (round 6) | re-shot (round 6) |
+| `ai-working` | re-shot (round 6) | re-shot (round 6) |
+| `ai-done` | re-shot (round 6) | re-shot (round 6) |
+| `ai-attach` | re-shot (round 6) | re-shot (round 6) |
+| `ai-attach-menu` | re-shot (round 6) | re-shot (round 6) |
+| `ai-question` | re-shot (round 6) | re-shot (round 6) |
+| `ai-long` | re-shot (round 6) | re-shot (round 6) |
+| `ai-long-pinned` | re-shot (round 6) | re-shot (round 6) |
+| `ai-two-artboards` | re-shot (round 6) | re-shot (round 6) |
+| `ai-same-artboard` | re-shot (round 6) | re-shot (round 6) |
+| `ai-copy` | re-shot (round 6) | re-shot (round 6) |
+| `ai-chat-list` | re-shot (round 6) | re-shot (round 6) |
+| `ai-panel-closed` | re-shot (round 6) | re-shot (round 6) |
+| `ai-quit` | re-shot (round 6) | re-shot (round 6) |
+| `ai-needs-hidden` | re-shot (round 6) | re-shot (round 6) |
+| `ai-permission` | re-shot (round 6) | re-shot (round 6) |
+| `ai-choice-fail` | re-shot (round 6) | re-shot (round 6) |
+| `ai-not-ready` | re-shot (round 6) | re-shot (round 6) |
+| `ai-advanced` | re-shot (round 6) | re-shot (round 6) |
+| `ai-adv-edges` | re-shot (round 6) | re-shot (round 6) |
+| `ai-history` | re-shot (round 6) | re-shot (round 6) |
+
+
+## FINAL (D4, 21c9714cf)
+
+Final re-shoot of the IMPL side on the merged tip 21c9714cf (stage C rounds 1-6), both themes, committed pairs overwritten (spec left | impl right). SPEC images reused (stage A: `.design/ui/v2/03 AI Chat.tsx` last changed 2026-10-08, before the stage-A shot, so no spec re-render). The critic judges; this builder does not. Harness: `_c6-harness-g2/` (round-6 builders adapted to the product) unchanged, repointed to this worktree (`_d4-harness-g2/README.md`).
+
+- Run order: `s03a`, `s03e`, `s03d`, `s03c`, `s03n` (later scripts win where two shoot the same id: `s03c` after `s03a` / `s03e`). Chromium 1440x900, Tauri stub, release client, fake ACP agent through the design plugin hooks, throwaway HOME/XDG + stubbed claude, NO_OPEN=1 MAUDE_NO_AUTOBUILD=1.
+- Finish-moment ids (ai-hero, ai-done, ai-copy, ai-history) are captured inside the 1.8 s `data-fresh` window (wait for `[data-fresh]`, then shoot). The first light pass of `s03a` missed the window for ai-copy ("NO FRESH WINDOW"), so `s03a` was run again for light and the second pass caught it; every s03a light frame is from that second pass.
+- Menus / popovers (ai-scope, ai-attach-menu) keep the panel crop of the round-6 map; the `position:fixed` scope menu shows whole.
+- Extra frames (not board ids): `ai-open-cmdslash`, `ai-choice-q`, `ai-not-ready-after` re-shot in `.scr/impl-out/03-ai-chat/` only (the committed extras from stage A stay).
+- Harness note: s03c logs a page error `ENOENT /Assets/Footage/trenink-0412.mov` (the attach-chip footage preview of the fixture path); the frames are not affected.
+
+| id | dark | light |
+|---|---|---|
+| `ai-hero` | re-shot (D4) | re-shot (D4) |
+| `ai-open` | re-shot (D4) | re-shot (D4) |
+| `ai-suggest` | re-shot (D4) | re-shot (D4) |
+| `ai-scope` | re-shot (D4) | re-shot (D4) |
+| `ai-working` | re-shot (D4) | re-shot (D4) |
+| `ai-done` | re-shot (D4) | re-shot (D4) |
+| `ai-attach` | re-shot (D4) | re-shot (D4) |
+| `ai-attach-menu` | re-shot (D4) | re-shot (D4) |
+| `ai-question` | re-shot (D4) | re-shot (D4) |
+| `ai-long` | re-shot (D4) | re-shot (D4) |
+| `ai-long-pinned` | re-shot (D4) | re-shot (D4) |
+| `ai-two-artboards` | re-shot (D4) | re-shot (D4) |
+| `ai-same-artboard` | re-shot (D4) | re-shot (D4) |
+| `ai-copy` | re-shot (D4) | re-shot (D4) |
+| `ai-chat-list` | re-shot (D4) | re-shot (D4) |
+| `ai-panel-closed` | re-shot (D4) | re-shot (D4) |
+| `ai-quit` | re-shot (D4) | re-shot (D4) |
+| `ai-needs-hidden` | re-shot (D4) | re-shot (D4) |
+| `ai-permission` | re-shot (D4) | re-shot (D4) |
+| `ai-choice-fail` | re-shot (D4) | re-shot (D4) |
+| `ai-not-ready` | re-shot (D4) | re-shot (D4) |
+| `ai-advanced` | re-shot (D4) | re-shot (D4) |
+| `ai-adv-edges` | re-shot (D4) | re-shot (D4) |
+| `ai-history` | re-shot (D4) | re-shot (D4) |
+| `ai-queue-rule` | unreachable (A drawn rule (timeline of queued asks), not an app surface. The rule itself is exercised in ai-same-artboard / ai-copy) | unreachable (same) |
+| `ai-other-tab` | unreachable (Needs a second project tab with a running chat (desktop shell tabs); the browser lane has one project) | unreachable (same) |
+| `ai-tereza` | unreachable (Needs a second person's AI on the same canvas (hub / cloud project)) | unreachable (same) |
+| `ai-needs-tab` | unreachable (Needs a second project tab (desktop shell tabs)) | unreachable (same) |
+| `ai-needs-away` | unreachable (The app in the background: an OS notification and Dock badge, native only) | unreachable (same) |
+
+
+## Round 7 (p8-c7-ai, p8-c7-ai)
+
+Re-shot on the p8-c7-ai worktree tip, both themes, committed pairs overwritten (spec left | impl right). The critic judges; this builder does not.
+
+- Harness: `_c7-ai-harness/` over `_c6-harness-g2/` (layers as that README): new `s03g.mjs` (comments seeded for the lead strip, Canvases + Inspector as the board for ai-open, photo/footage/PDF chips + the drop overlay, the second ask on POST 1:1 for ai-same-artboard / ai-copy, Uniformy-2027 with the four photo artboards picked for ai-permission, an element picked for ai-question), `s03e` (the history row selected, so its Undo this chat / Restore show), `s03c` (ai-scope with nothing picked = Whole canvas), `fake-agent` (an "Agent persona" option), real fixtures for the footage (42 s mov), photo and 12-page PDF.
+- Product (p8-c7-ai): the chat title is the first clause of the ask (`shownChatTitle`); Advanced › AI may = Change canvases (the ask-before mode) · Use Assets and footage · Search the web (told to the agent with every ask, `[maude-may …]`) · Write outside (Asks every time), Ask before after Fast mode; the panel-closed done toast quotes both sentences and offers Show for an ask about named artboards (Undo stays for a whole-canvas draft).
+- Still open (fix-c7-ai.md): the "Copied from …" caption + dashed link, the point ring chip text ("9 pt"), Always-allowed + Reset, Images/video/voice group, day divider / jump pill / sent thumbnails on ai-long, the run-list popover, 01 cf-ai-drafting (stacked tags, Tablet/Mobile ghost: needs a dgn hold for a run on a blank canvas), 01 not re-shot this round.
+
+| id | dark | light |
+|---|---|---|
+| `ai-open` | re-shot (round 7) | re-shot (round 7) |
+| `ai-suggest` | re-shot (round 7) | re-shot (round 7) |
+| `ai-scope` | re-shot (round 7) | re-shot (round 7) |
+| `ai-attach` | re-shot (round 7) | re-shot (round 7) |
+| `ai-attach-menu` | re-shot (round 7) | re-shot (round 7) |
+| `ai-advanced` | re-shot (round 7) | re-shot (round 7) |
+| `ai-working` | re-shot (round 7) | re-shot (round 7) |
+| `ai-two-artboards` | re-shot (round 7) | re-shot (round 7) |
+| `ai-same-artboard` | re-shot (round 7) | re-shot (round 7) |
+| `ai-copy` | re-shot (round 7) | re-shot (round 7) |
+| `ai-chat-list` | re-shot (round 7) | re-shot (round 7) |
+| `ai-needs-hidden` | re-shot (round 7) | re-shot (round 7) |
+| `ai-permission` | re-shot (round 7) | re-shot (round 7) |
+| `ai-choice-fail` | re-shot (round 7) | re-shot (round 7) |
+| `ai-long-pinned` | re-shot (round 7) | re-shot (round 7) |
+| `ai-not-ready` | re-shot (round 7) | re-shot (round 7) |
+| `ai-long` | re-shot (round 7) | re-shot (round 7) |
+| `ai-done` | re-shot (round 7) | re-shot (round 7) |
+| `ai-hero` | re-shot (round 7) | re-shot (round 7) |
+| `ai-history` | re-shot (round 7) | re-shot (round 7) |
+| `ai-panel-closed` | re-shot (round 7) | re-shot (round 7) |
+| `ai-question` | re-shot (round 7) | re-shot (round 7) |
+| `ai-adv-edges` | re-shot (round 7) | re-shot (round 7) |
+| `ai-quit` | re-shot (round 7) | re-shot (round 7) |
+
+
+## Round 7b (p8-c7-ai2, p8-c7-ai2)
+
+Re-shot on the p8-c7-ai worktree tip, both themes, committed pairs overwritten (spec left | impl right). The critic judges; this builder does not.
+
+- Harness: `_c7b-ai-harness/` over `_c7-ai-harness/` (and its layers): new `s03h` (earlier chats seeded across Combine-kampan / Uniformy-2027 / video-hype for the chat list, the long "Combine recap" chat with a first ask from yesterday, opened in the panel and scrolled up), `s03i` (ai-needs-hidden: the question is on Uniformy-2027, the person is on Combine-kampan with the panel hidden), `s03k` (ai-question: an element of the A4 poster picked, asked about with cmd-slash, nothing picked afterwards), `s03a` (ai-two-artboards: the run list opened from the header count), `s03g` (the question moved out).
+- Product (p8-c7-ai2): the canvas draws "Copied from <name>" under a run's copy and a dashed link back to the original (`ai-copies`, a new parent-gated dgn row, ids only; artboard-ai-copies.tsx); the point ring chip says the spot's own size in pt on a print artboard; each chat-list canvas group carries its canvas cover.
+- Still open: sent thumbnails + Before/After pair in ai-long (need an attached-image ask and a versioned run in the seeded chat), "before <the busy chat's title>" in the copy caption (a prompt-derived string never crosses to the canvas), Always allowed on this canvas / Images, video and voice (no store behind them), 01 cf-ai-drafting (another builder).
+
+| id | dark | light |
+|---|---|---|
+| `ai-hero` | re-shot (round 7b) | re-shot (round 7b) |
+| `ai-open` | re-shot (round 7b) | re-shot (round 7b) |
+| `ai-suggest` | re-shot (round 7b) | re-shot (round 7b) |
+| `ai-scope` | re-shot (round 7b) | re-shot (round 7b) |
+| `ai-working` | re-shot (round 7b) | re-shot (round 7b) |
+| `ai-done` | re-shot (round 7b) | re-shot (round 7b) |
+| `ai-attach` | re-shot (round 7b) | re-shot (round 7b) |
+| `ai-attach-menu` | re-shot (round 7b) | re-shot (round 7b) |
+| `ai-question` | re-shot (round 7b) | re-shot (round 7b) |
+| `ai-long` | re-shot (round 7b) | re-shot (round 7b) |
+| `ai-long-pinned` | re-shot (round 7b) | re-shot (round 7b) |
+| `ai-two-artboards` | re-shot (round 7b) | re-shot (round 7b) |
+| `ai-same-artboard` | re-shot (round 7b) | re-shot (round 7b) |
+| `ai-copy` | re-shot (round 7b) | re-shot (round 7b) |
+| `ai-chat-list` | re-shot (round 7b) | re-shot (round 7b) |
+| `ai-panel-closed` | re-shot (round 7b) | re-shot (round 7b) |
+| `ai-quit` | re-shot (round 7b) | re-shot (round 7b) |
+| `ai-needs-hidden` | re-shot (round 7b) | re-shot (round 7b) |
+| `ai-permission` | re-shot (round 7b) | re-shot (round 7b) |
+| `ai-choice-fail` | re-shot (round 7b) | re-shot (round 7b) |
+| `ai-not-ready` | re-shot (round 7b) | re-shot (round 7b) |
+| `ai-advanced` | re-shot (round 7b) | re-shot (round 7b) |
+| `ai-adv-edges` | re-shot (round 7b) | re-shot (round 7b) |
+| `ai-history` | re-shot (round 7b) | re-shot (round 7b) |
+
+
+## FINAL (D5, e37e7d82a)
+
+Final verification shoot on the merged tip after stage C round 7 (harness `_d5-harness-g2/`, a flattened copy of the newest per-canvas layers; shot on the Mac mini with Google Chrome, not the Playwright headless shell). Spec side reused (the boards `.design/ui/v2/03|04|06` are unchanged since 2026-10-19). Committed JPEG pairs overwritten (spec left | impl right). The critic judges; this builder does not.
+
+- Impl frames: scenarios s03a s03e s03d s03c s03n s03g s03h s03i s03k (later wins) both themes in one chain on the mini; ai-attach-drop and the extra-impl frames (ai-open-cmdslash, ai-choice-q, ai-not-ready-after) were shot too.
+
+| id | dark | light |
+|---|---|---|
+| `ai-hero` | re-shot | re-shot |
+| `ai-open` | re-shot | re-shot |
+| `ai-suggest` | re-shot | re-shot |
+| `ai-scope` | re-shot | re-shot |
+| `ai-working` | re-shot | re-shot |
+| `ai-done` | re-shot | re-shot |
+| `ai-attach` | re-shot | re-shot |
+| `ai-attach-menu` | re-shot | re-shot |
+| `ai-question` | re-shot | re-shot |
+| `ai-long` | re-shot | re-shot |
+| `ai-long-pinned` | re-shot | re-shot |
+| `ai-two-artboards` | re-shot | re-shot |
+| `ai-same-artboard` | re-shot | re-shot |
+| `ai-copy` | re-shot | re-shot |
+| `ai-queue-rule` | unreachable (A drawn rule (timeline of queued asks), not an app surface. The rule itself is exercised in ai-same-artboard / ai-copy.) | unreachable (A drawn rule (timeline of queued asks), not an app surface. The rule itself is exercised in ai-same-artboard / ai-copy.) |
+| `ai-other-tab` | unreachable (Needs a second project tab with a running chat (desktop shell tabs); the browser lane has one project.) | unreachable (Needs a second project tab with a running chat (desktop shell tabs); the browser lane has one project.) |
+| `ai-tereza` | unreachable (Needs a second person's AI on the same canvas (hub / cloud project).) | unreachable (Needs a second person's AI on the same canvas (hub / cloud project).) |
+| `ai-chat-list` | re-shot | re-shot |
+| `ai-panel-closed` | re-shot | re-shot |
+| `ai-quit` | re-shot | re-shot |
+| `ai-needs-hidden` | re-shot | re-shot |
+| `ai-needs-tab` | unreachable (Needs a second project tab (desktop shell tabs).) | unreachable (Needs a second project tab (desktop shell tabs).) |
+| `ai-needs-away` | unreachable (The app in the background: an OS notification and Dock badge, native only.) | unreachable (The app in the background: an OS notification and Dock badge, native only.) |
+| `ai-permission` | re-shot | re-shot |
+| `ai-choice-fail` | re-shot | re-shot |
+| `ai-not-ready` | re-shot | re-shot |
+| `ai-advanced` | re-shot | re-shot |
+| `ai-adv-edges` | re-shot | re-shot |
+| `ai-history` | re-shot | re-shot |
+
+
+## FINAL (D6, 3d58f57df)
+
+Final verification shoot on the merged tip after stage C round 8 (harness `_d6-harness-g2/`, a flattened copy of the newest per-canvas layers; shot on the Mac mini with Google Chrome, not the Playwright headless shell). Spec side reused (the boards `.design/ui/v2/03|04|06` are unchanged since 2026-10-19). Committed JPEG pairs overwritten (spec left | impl right). The critic judges; this builder does not.
+
+- Shot on feat/maude-v2 tip 3d58f57df (stage C round 8 merged); harness _d6-harness-g2 = _d5 + the round-8 edits (_c8-ai-harness s03a/s03c/s03e/s03g/fake-agent).
+
+| id | dark | light |
+|---|---|---|
+| `ai-hero` | re-shot | re-shot |
+| `ai-open` | re-shot | re-shot |
+| `ai-suggest` | re-shot | re-shot |
+| `ai-scope` | re-shot | re-shot |
+| `ai-working` | re-shot | re-shot |
+| `ai-done` | re-shot | re-shot |
+| `ai-attach` | re-shot | re-shot |
+| `ai-attach-menu` | re-shot | re-shot |
+| `ai-question` | re-shot | re-shot |
+| `ai-long` | re-shot | re-shot |
+| `ai-long-pinned` | re-shot | re-shot |
+| `ai-two-artboards` | re-shot | re-shot |
+| `ai-same-artboard` | re-shot | re-shot |
+| `ai-copy` | re-shot | re-shot |
+| `ai-queue-rule` | unreachable (A drawn rule (timeline of queued asks), not an app surface. The rule itself is exercised in ai-same-artboard / ai-copy.) | unreachable (A drawn rule (timeline of queued asks), not an app surface. The rule itself is exercised in ai-same-artboard / ai-copy.) |
+| `ai-other-tab` | unreachable (Needs a second project tab with a running chat (desktop shell tabs); the browser lane has one project.) | unreachable (Needs a second project tab with a running chat (desktop shell tabs); the browser lane has one project.) |
+| `ai-tereza` | unreachable (Needs a second person's AI on the same canvas (hub / cloud project).) | unreachable (Needs a second person's AI on the same canvas (hub / cloud project).) |
+| `ai-chat-list` | re-shot | re-shot |
+| `ai-panel-closed` | re-shot | re-shot |
+| `ai-quit` | re-shot | re-shot |
+| `ai-needs-hidden` | re-shot | re-shot |
+| `ai-needs-tab` | unreachable (Needs a second project tab (desktop shell tabs).) | unreachable (Needs a second project tab (desktop shell tabs).) |
+| `ai-needs-away` | unreachable (The app in the background: an OS notification and Dock badge, native only.) | unreachable (The app in the background: an OS notification and Dock badge, native only.) |
+| `ai-permission` | re-shot | re-shot |
+| `ai-choice-fail` | re-shot | re-shot |
+| `ai-not-ready` | re-shot | re-shot |
+| `ai-advanced` | re-shot | re-shot |
+| `ai-adv-edges` | re-shot | re-shot |
+| `ai-history` | re-shot | re-shot |
+
+
+## ROUND 10 (8580b42e6)
+
+Final verification shoot on the merged tip after stage C round 8 (harness `_c10-ai-harness/`, a flattened copy of the newest per-canvas layers; shot on the Mac mini with Google Chrome, not the Playwright headless shell). Spec side reused (the boards `.design/ui/v2/03|04|06` are unchanged since 2026-10-19). Committed JPEG pairs overwritten (spec left | impl right). The critic judges; this builder does not.
+
+- p8-c10-ai: ai-hero consent card + folder/PDF chips, ai-advanced on a Done chat with the lower half, ai-long and ai-long-pinned older-turn result cards + sent strips + composer prefill, ai-copy scope chip
+
+| id | dark | light |
+|---|---|---|
+| `ai-hero` | re-shot | re-shot |
+| `ai-open` | re-shot | re-shot |
+| `ai-suggest` | re-shot | re-shot |
+| `ai-scope` | re-shot | re-shot |
+| `ai-working` | re-shot | re-shot |
+| `ai-done` | re-shot | re-shot |
+| `ai-attach` | re-shot | re-shot |
+| `ai-attach-menu` | re-shot | re-shot |
+| `ai-question` | re-shot | re-shot |
+| `ai-long` | re-shot | re-shot |
+| `ai-long-pinned` | re-shot | re-shot |
+| `ai-two-artboards` | re-shot | re-shot |
+| `ai-same-artboard` | re-shot | re-shot |
+| `ai-copy` | re-shot | re-shot |
+| `ai-queue-rule` | unreachable (A drawn rule (timeline of queued asks), not an app surface. The rule itself is exercised in ai-same-artboard / ai-copy.) | unreachable (A drawn rule (timeline of queued asks), not an app surface. The rule itself is exercised in ai-same-artboard / ai-copy.) |
+| `ai-other-tab` | unreachable (Needs a second project tab with a running chat (desktop shell tabs); the browser lane has one project.) | unreachable (Needs a second project tab with a running chat (desktop shell tabs); the browser lane has one project.) |
+| `ai-tereza` | unreachable (Needs a second person's AI on the same canvas (hub / cloud project).) | unreachable (Needs a second person's AI on the same canvas (hub / cloud project).) |
+| `ai-chat-list` | re-shot | re-shot |
+| `ai-panel-closed` | re-shot | re-shot |
+| `ai-quit` | re-shot | re-shot |
+| `ai-needs-hidden` | re-shot | re-shot |
+| `ai-needs-tab` | unreachable (Needs a second project tab (desktop shell tabs).) | unreachable (Needs a second project tab (desktop shell tabs).) |
+| `ai-needs-away` | unreachable (The app in the background: an OS notification and Dock badge, native only.) | unreachable (The app in the background: an OS notification and Dock badge, native only.) |
+| `ai-permission` | re-shot | re-shot |
+| `ai-choice-fail` | re-shot | re-shot |
+| `ai-not-ready` | re-shot | re-shot |
+| `ai-advanced` | re-shot | re-shot |
+| `ai-adv-edges` | re-shot | re-shot |
+| `ai-history` | re-shot | re-shot |
+
+## FINAL (D7, 98ed9c011)
+
+Final verification re-shoot of the IMPL side (every artboard id x light + dark) on the merged `feat/maude-v2` tip 98ed9c011 (stage C rounds 1-10 merged, release client); no product code changed. Supersedes every earlier "after" / FINAL / ROUND section, round 10 included. 24 of 29 artboards with pairs. Evidence only: no match / mismatch judged here.
+
+- **IMPL.** `_d7-harness-g1/g2/` (the D6 G2 harness + the round-10 03 deltas (s03c s03e s03h s03z, fake-agent)), shot on the Mac mini through `scripts/remote-lane.sh` in Google Chrome (viewport 1600 x 1000), throwaway HOME/XDG + stub claude, `NO_OPEN=1 MAUDE_NO_AUTOBUILD=1`, release-built client.
+- **SPEC.** reused: the boards `.design/ui/v2/03*` (.tsx / .css / .meta.json) have not changed since the D3 shoot (last board edits on 2026-10-19 / 10-24 touch other canvases); the spec PNGs are the D3 set.
+- **Pairs.** full-size: `.scr/pairs/03-ai-chat/<id>-<theme>.png` in the p8-d7-g1 worktree (spec left | impl right); the committed `<id>-<theme>.jpg` here were overwritten (<= 1100 px, q55).
+
+| id | dark | light |
+|---|---|---|
+| `ai-hero` | re-shot | re-shot |
+| `ai-open` | re-shot | re-shot |
+| `ai-suggest` | re-shot | re-shot |
+| `ai-scope` | re-shot | re-shot |
+| `ai-working` | re-shot | re-shot |
+| `ai-done` | re-shot | re-shot |
+| `ai-attach` | re-shot | re-shot |
+| `ai-attach-menu` | re-shot | re-shot |
+| `ai-question` | re-shot | re-shot |
+| `ai-long` | re-shot | re-shot |
+| `ai-long-pinned` | re-shot | re-shot |
+| `ai-two-artboards` | re-shot | re-shot |
+| `ai-same-artboard` | re-shot | re-shot |
+| `ai-copy` | re-shot | re-shot |
+| `ai-queue-rule` | unreachable (A drawn rule (timeline of queued asks), not an app surface. The rule itself is exercised in ai-same-artboard / ai-copy.) | unreachable (A drawn rule (timeline of queued asks), not an app surface. The rule itself is exercised in ai-same-artboard / ai-copy.) |
+| `ai-other-tab` | unreachable (Needs a second project tab with a running chat (desktop shell tabs); the browser lane has one project.) | unreachable (Needs a second project tab with a running chat (desktop shell tabs); the browser lane has one project.) |
+| `ai-tereza` | unreachable (Needs a second person's AI on the same canvas (hub / cloud project).) | unreachable (Needs a second person's AI on the same canvas (hub / cloud project).) |
+| `ai-chat-list` | re-shot | re-shot |
+| `ai-panel-closed` | re-shot | re-shot |
+| `ai-quit` | re-shot | re-shot |
+| `ai-needs-hidden` | re-shot | re-shot |
+| `ai-needs-tab` | unreachable (Needs a second project tab (desktop shell tabs).) | unreachable (Needs a second project tab (desktop shell tabs).) |
+| `ai-needs-away` | unreachable (The app in the background: an OS notification and Dock badge, native only.) | unreachable (The app in the background: an OS notification and Dock badge, native only.) |
+| `ai-permission` | re-shot | re-shot |
+| `ai-choice-fail` | re-shot | re-shot |
+| `ai-not-ready` | re-shot | re-shot |
+| `ai-advanced` | re-shot | re-shot |
+| `ai-adv-edges` | re-shot | re-shot |
+| `ai-history` | re-shot | re-shot |
+
+- D7 harness note: on the merged tip the Version-history step of s03e left the app in Viewing (esc stands down while the composer has focus), which blocked the next ask; s03e now leaves Viewing through the view bar's `vh-viewbar-back` button. The s03e + s03h frames (ai-long, ai-done, ai-hero, ai-history, ai-panel-closed, ai-choice-q, ai-question, ai-adv-edges, ai-quit, ai-chat-list) come from that second run of the same chain (`chain.sh 03x`); the other frames from the first full `chain.sh 03` run.
+
+## Round 11 (p8-r11-03)
+
+Re-shot on the Mac mini with `_r11-harness-g1/` (the D7 harness trimmed to 03): `ai-done`, `ai-question`, `ai-long`, `ai-long-pinned`, both themes; the committed pairs are overwritten. What changed: the folded inspector's corner icon stands beside a full-height chat (`ai-long`); the `ai-six` thumbnail strip is built under the picked-shots reply (`ai-long-pinned`); `ai-done` is shot once the finish has settled into the "Made by AI" label in both themes; `ai-question` comes from the scene with an element picked (spark ring on the date line); `ai-long` has the "What AI did · 6 steps · 41 s" fold in both themes. Done / open per item: `fix-r11-03.md`.
+
+| id | dark | light |
+|---|---|---|
+| `ai-done` | re-shot | re-shot |
+| `ai-question` | re-shot | re-shot |
+| `ai-long` | re-shot | re-shot |
+| `ai-long-pinned` | re-shot | re-shot |

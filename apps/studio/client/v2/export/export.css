@@ -1,0 +1,832 @@
+/* client/v2/export/export.css — S8.2: the Export sheet (09 Export `ex-*`, lifted).
+ *
+ * One dialog over a scrim, in the shell's own material (.island). Tokens only — no hex, no raw durations;
+ * the sheet's entrance runs on --dur-panel, which collapses to 1 ms under prefers-reduced-motion. The
+ * kit's `.seg` / `.k-seg-b` / `.k-dialog` are canvas-only, so their look is rebuilt here from the tokens. */
+
+/* ── V2-8.0: rules moved here from the retired styles/ layer files, in their original order and ahead of this file's own rules, so the cascade is unchanged. ── */
+
+/* from styles/3-shell-maude.css */
+@layer shell {
+  .ex-export-recent {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 132px;
+    overflow-y: auto;
+  }
+
+  .ex-export-recent-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+
+  .ex-export-recent-row:hover {
+    background: var(--bg-2);
+  }
+
+  .ex-export-recent-row .sh-mono {
+    color: var(--fg-1);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 50%;
+  }
+}
+
+/* from styles/4-components.css */
+@layer components {
+  /* ───────── Export notification center — feature-background-export-notification-center ─────────
+   Panel shell reuses .help-modal-backdrop (above); list/item/progress are new
+   — no prior job-row or progress-bar component existed in the client. */
+  .ex-export-item__error {
+    color: var(--status-error);
+    font-size: 12px;
+  }
+
+  /* A degraded export is `done` but not clean — it must never read as success.
+   Overrides --done, so declaration order matters. */
+  .ex-export-degraded {
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--status-warn, var(--accent));
+    padding: 6px 8px;
+    border-radius: var(--radius-sm, 6px);
+    background: color-mix(in oklab, var(--status-warn, var(--accent)) 10%, transparent);
+  }
+
+  .ex-export-degraded__fix {
+    margin-top: 4px;
+    color: var(--fg-2);
+    font-family: var(--font-mono, ui-monospace, monospace);
+    font-size: 11px;
+    overflow-wrap: anywhere;
+  }
+
+  .ex-export-progress {
+    position: relative;
+    height: 4px;
+    border-radius: var(--radius-pill, 999px);
+    background: var(--bg-3);
+    overflow: hidden;
+  }
+
+  .ex-export-progress-bar {
+    height: 100%;
+    background: var(--accent);
+    transition: width 0.2s ease-out;
+  }
+
+  .ex-export-progress--indeterminate::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    width: 40%;
+    background: var(--accent);
+    border-radius: var(--radius-pill, 999px);
+    animation: ex-export-indeterminate 1.2s ease-in-out infinite;
+  }
+
+  @keyframes ex-export-indeterminate {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(350%);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ex-export-progress--indeterminate::after {
+      animation-duration: 1ms;
+    }
+  }
+
+  .maude-notice .ex-export-progress {
+    margin-top: 2px;
+  }
+
+  /* Seed progress (feature-large-project-seed).
+   A bar rather than a number alone: a large project's seed is minutes to hours
+   of work, and "1 412" reads the same whether it is a quarter done or finished.
+   Track and fill use existing tokens — no new colours enter the system here. */
+  /* Issue #103: full export diagnostics are opt-in and stay inside the panel. */
+  .ex-export-item__error {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .ex-export-item__error summary {
+    cursor: pointer;
+  }
+
+  .ex-export-item__error pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    max-height: 320px;
+    overflow: auto;
+    font: inherit;
+  }
+}
+
+/* ── end of the moved rules ── */
+
+@layer shell {
+  .ex-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: grid;
+    place-items: center;
+    padding: var(--space-4, 16px);
+    background: var(--scrim);
+  }
+  .ex-sheet.island {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3, 12px);
+    width: min(100%, 660px);
+    /* C4-export: the sheet holds its height and the open Advanced body scrolls inside it */
+    max-height: calc(100vh - var(--space-7, 48px));
+    overflow: hidden;
+    /* the kit dialog material (_kit.css .k-dialog; Phase 8 C1-kit, C0's left-over): bg-2, radius-xl, the
+       0.5 px island edge + shadow-lg, 24 px padding — it was bg-1, radius-lg, shadow-md, 16 px */
+    padding: var(--space-5, 24px);
+    border-radius: var(--radius-xl, 20px);
+    background: var(--bg-2);
+    box-shadow:
+      var(--shadow-lg),
+      inset 0 0 0 0.5px var(--island-edge);
+    animation: ex-in var(--dur-panel, 220ms) var(--ease-out, cubic-bezier(0.2, 0, 0, 1));
+  }
+  @keyframes ex-in {
+    from {
+      opacity: 0;
+      translate: 0 6px;
+    }
+  }
+  /* 09: each kind's sheet has its own width (post 660 · web 680 · batch 700 · video 720 · print 780) */
+  .ex-sheet.island[data-section="web"] {
+    width: min(100%, 680px);
+  }
+  .ex-sheet.island[data-section="batch"] {
+    width: min(100%, 700px);
+  }
+  .ex-sheet.island[data-section="video"] {
+    width: min(100%, 720px);
+  }
+  .ex-sheet.island[data-section="print"] {
+    width: min(100%, 780px);
+  }
+  /* the part that scrolls: scope, rows, the open Advanced; the header, the summary and the footer stay */
+  .ex-sheet-main {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    gap: var(--space-3, 12px);
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+  .ex-sheet-body {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-4, 16px);
+  }
+  /* the preview column: a quiet well beside the rows (a picture, or the paper) */
+  .ex-prev {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    width: 176px;
+    padding: var(--space-3, 12px);
+    border-radius: var(--radius-lg, 14px);
+    background: var(--bg-3);
+  }
+  .ex-prev--print {
+    width: 300px;
+  }
+  .ex-pic {
+    position: relative;
+    display: block;
+    flex: none;
+    overflow: hidden;
+    border-radius: var(--radius-xs, 3px);
+    background: var(--bg-2);
+    box-shadow:
+      var(--shadow-sm),
+      0 0 0 0.5px var(--border-default);
+  }
+  .ex-fill {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  /* the first screen of a long page: everything under the dashed line is below the fold */
+  .ex-long-fold {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    border-bottom: 1.5px dashed var(--accent);
+    pointer-events: none;
+  }
+
+  .ex-sheet-hd {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .ex-title {
+    margin: 0;
+    font-size: var(--type-md, 15px);
+    line-height: var(--lh-md);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+    overflow-wrap: anywhere;
+  }
+  .ex-sheet-sub {
+    margin: 0;
+    font-size: var(--type-sm, 13px);
+    line-height: var(--lh-sm, 1.4);
+    color: var(--fg-2);
+  }
+
+  /* Scope — always on top, every option with its artboard count. */
+  .ex-scope {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3, 12px);
+    padding-bottom: var(--space-3, 12px);
+    box-shadow: inset 0 -0.5px 0 var(--border-default);
+  }
+  .ex-scope-k {
+    flex: none;
+    width: 84px;
+    font-size: var(--type-sm, 13px);
+    color: var(--fg-1);
+  }
+  .ex-scope-u {
+    font-size: var(--type-xs, 11px);
+    color: var(--fg-2);
+  }
+
+  /* The segmented control (formats, sizes, scope). */
+  .ex-seg {
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+    border-radius: var(--radius-md, 10px);
+    background: var(--bg-3);
+  }
+  .ex-seg-b {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--space-1, 4px);
+    padding: var(--space-1, 4px) var(--space-3, 12px);
+    border: 0;
+    border-radius: calc(var(--radius-md, 10px) - 2px);
+    background: transparent;
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-sm, 13px);
+    cursor: pointer;
+    transition: background var(--dur-flip, 120ms) var(--ease-out, ease);
+  }
+  .ex-seg-b:hover:not(:disabled) {
+    color: var(--fg-0);
+  }
+  /* the kit's pressed segment (_kit.css .k-seg-b[aria-pressed]): raised bg-2 + the 1 px accent ring — a
+     white-on-bg-3 fill alone was 1.09:1 L / 1.20:1 D against its neighbours (09 a11y R1). */
+  .ex-seg-b[aria-checked="true"] {
+    background: var(--bg-2);
+    color: var(--fg-0);
+    box-shadow:
+      var(--shadow-sm, 0 1px 2px oklch(0 0 0 / 0.08)),
+      inset 0 0 0 1px var(--accent);
+  }
+  .ex-seg-b:disabled {
+    color: var(--fg-3);
+    cursor: default;
+  }
+  .ex-seg-b:focus-visible {
+    outline: 2px solid var(--focus-ring, var(--accent));
+    outline-offset: 1px;
+  }
+  .ex-seg-b small {
+    min-width: 1.5em;
+    text-align: right;
+    font-size: var(--type-xs, 11px);
+    color: var(--fg-2);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .ex-rows {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: var(--space-1, 4px);
+    min-width: 0;
+  }
+  /* File name · Save to */
+  /* the name is typed inside the well, its extension is the well's own last word (board: `Field`) */
+  .ex-field-wrap {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: var(--space-1, 4px);
+    min-width: 0;
+    height: 30px;
+    padding: 0 var(--space-3, 12px);
+    border-radius: var(--radius-md, 10px);
+    background: var(--bg-3);
+    box-shadow: inset 0 0 0 0.5px var(--border-subtle);
+  }
+  .ex-field-wrap:focus-within {
+    background: var(--bg-2);
+    box-shadow:
+      0 0 0 3px var(--accent-tint, transparent),
+      inset 0 0 0 1px var(--focus-ring, var(--accent));
+  }
+  .ex-field-wrap .input.ex-field {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .ex-field-wrap .input.ex-field:focus {
+    background: transparent;
+    box-shadow: none;
+  }
+  .ex-field-ext {
+    flex: none;
+    font-size: var(--type-sm, 13px);
+    color: var(--fg-2);
+  }
+  span.input.ex-field {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .ex-field-t {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ex-more {
+    flex: none;
+    font-size: var(--type-xs, 11px);
+    color: var(--fg-2);
+  }
+  .input.ex-field {
+    width: 100%;
+    height: 30px;
+    padding: 0 var(--space-3, 12px);
+  }
+  /* .ex-row-n comes later in this file and sets flex-basis: 100%; the in-line note must beat it (09 ex-video: the note sits beside the switch) */
+  .ex-row-n.ex-row-n--in {
+    flex: 1;
+    flex-basis: auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ex-row--top {
+    align-items: flex-start;
+  }
+  .ex-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3, 12px);
+    min-height: 34px;
+    font-size: var(--type-sm, 13px);
+  }
+  .ex-row--note {
+    align-items: flex-start;
+  }
+  .ex-row-k {
+    flex: none;
+    width: 84px;
+    color: var(--fg-1);
+  }
+  .ex-row--note .ex-row-k {
+    line-height: 30px;
+  }
+  .ex-row-v {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1, 4px) var(--space-2, 8px);
+  }
+  .ex-row-n {
+    flex-basis: 100%;
+    font-size: var(--type-xs, 11px);
+    line-height: var(--lh-xs, 1.36);
+    color: var(--fg-2);
+  }
+  .ex-val {
+    font-size: var(--type-sm, 13px);
+    color: var(--fg-0);
+  }
+
+  .ex-check {
+    position: relative;
+    display: inline-flex;
+    align-items: flex-start;
+    gap: var(--space-2, 8px);
+    font-size: var(--type-sm, 13px);
+    line-height: var(--lh-sm, 1.4);
+    color: var(--fg-0);
+    cursor: pointer;
+  }
+  .ex-check small {
+    display: block;
+    font-size: var(--type-xs, 11px);
+    color: var(--fg-2);
+  }
+  .ex-check--off {
+    color: var(--fg-2);
+    cursor: default;
+  }
+  .ex-check-in {
+    position: absolute;
+    opacity: 0;
+    width: 16px;
+    height: 16px;
+    margin: 0;
+  }
+  .ex-box {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 16px;
+    height: 16px;
+    margin-top: 1px;
+    border-radius: var(--radius-xs, 4px);
+    background: var(--bg-2);
+    /* the DS checkbox's off edge is --control-off (3.3:1) — --border-strong was 2.0:1 L / 2.3:1 D (09 a11y R6) */
+    box-shadow: inset 0 0 0 1px var(--control-off);
+    color: var(--accent-fg);
+  }
+  .ex-box[data-on] {
+    background: var(--accent);
+    box-shadow: none;
+  }
+  .ex-check-in:focus-visible + .ex-box {
+    outline: 2px solid var(--focus-ring, var(--accent));
+    outline-offset: 1px;
+  }
+
+  /* Other… — every format, one list away. */
+  .ex-other {
+    position: relative;
+  }
+  .ex-other-menu.island {
+    position: absolute;
+    z-index: 5;
+    top: calc(100% + var(--space-1, 4px));
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1, 4px);
+    width: 380px;
+    max-height: min(440px, calc(100vh - 160px));
+    overflow: auto;
+    padding: var(--space-2, 8px);
+    border-radius: var(--radius-md, 10px);
+    background: var(--bg-1);
+    box-shadow: var(--shadow-md);
+  }
+  .ex-other-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1, 4px);
+  }
+  .ex-other-search {
+    width: 100%;
+    height: 28px;
+    padding: 0 var(--space-2, 8px);
+    border: 0;
+    border-radius: var(--radius-sm, 6px);
+    background: var(--bg-3);
+    color: var(--fg-0);
+    font: inherit;
+    font-size: var(--type-sm, 13px);
+  }
+  .ex-other-gh {
+    margin: var(--space-2, 8px) var(--space-2, 8px) 2px;
+    font-size: var(--type-xs, 11px);
+    font-weight: var(--w-semibold);
+    color: var(--fg-2);
+  }
+  .ex-other-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    width: 100%;
+    padding: var(--space-1, 4px) var(--space-2, 8px) var(--space-1, 4px) 28px;
+    border: 0;
+    border-radius: var(--radius-sm, 6px);
+    background: transparent;
+    color: var(--fg-0);
+    font: inherit;
+    font-size: var(--type-sm, 13px);
+    text-align: left;
+    cursor: pointer;
+  }
+  .ex-other-row:hover,
+  .ex-other-row:focus-visible {
+    background: var(--bg-3);
+    outline: none;
+  }
+  /* the tick leads the row, in its own column */
+  .ex-other-row {
+    position: relative;
+  }
+  .ex-other-row[aria-checked="true"]::before {
+    content: "✓";
+    position: absolute;
+    left: var(--space-2, 8px);
+    color: var(--accent-text);
+  }
+  .ex-other-row[aria-disabled] {
+    color: var(--fg-3);
+    cursor: default;
+  }
+  .ex-other-row[aria-disabled]:hover {
+    background: transparent;
+  }
+  /* one line: the label, then its reason at the right (board `k-mi-note`) */
+  .ex-other-n {
+    margin-left: auto;
+    font-size: var(--type-xs, 11px);
+    color: var(--fg-2);
+    white-space: nowrap;
+  }
+  .ex-other-row[aria-disabled] .ex-other-n {
+    color: var(--fg-3);
+  }
+  .ex-other-none {
+    margin: var(--space-2, 8px);
+    font-size: var(--type-sm, 13px);
+    color: var(--fg-2);
+  }
+  .ex-kbd {
+    margin-left: auto;
+    font: inherit;
+    font-size: var(--type-xs, 11px);
+    color: var(--fg-2);
+  }
+
+  /* A quiet line inside the sheet. */
+  .ex-hint {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2, 8px);
+    padding: var(--space-2, 8px) var(--space-3, 12px);
+    border-radius: var(--radius-md, 10px);
+    background: var(--bg-3);
+    font-size: var(--type-sm, 13px);
+    line-height: var(--lh-sm, 1.4);
+    color: var(--fg-0);
+  }
+  .ex-hint-ic {
+    display: grid;
+    flex: none;
+    margin-top: 1px;
+    color: var(--fg-1);
+  }
+  .ex-hint-t {
+    flex: 1;
+    min-width: 0;
+  }
+  .ex-hint-a {
+    flex: none;
+    margin: -3px 0;
+    color: var(--accent-text);
+  }
+  /* 09 ex-huge: the Include row's ticks sit side by side */
+  .ex-checks.ex-checks--row {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--space-2, 8px) var(--space-4, 16px);
+  }
+
+  .ex-code {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    margin-top: var(--space-2, 8px);
+    padding-top: var(--space-2, 8px);
+    box-shadow: inset 0 0.5px 0 var(--border-default);
+    font-size: var(--type-sm, 13px);
+    color: var(--fg-1);
+  }
+  .ex-code .ex-kbd {
+    margin-left: 0;
+  }
+  .ex-code-a {
+    margin-left: auto;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--accent-text);
+    font: inherit;
+    font-weight: var(--w-medium);
+    cursor: pointer;
+  }
+
+  .ex-lane {
+    margin: 0;
+    font-size: var(--type-sm, 13px);
+    line-height: var(--lh-sm, 1.4);
+    color: var(--fg-1);
+  }
+  .ex-status {
+    padding: var(--space-2, 8px) var(--space-3, 12px);
+    border-radius: var(--radius-md, 10px);
+    font-size: var(--type-sm, 13px);
+  }
+  .ex-status--ok {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+  .ex-status--err {
+    background: color-mix(in oklab, var(--status-warn) 14%, var(--bg-2));
+    color: var(--fg-0);
+  }
+  .ex-sum {
+    flex: none;
+    margin: 0;
+    font-size: var(--type-xs, 11px);
+    color: var(--fg-2);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .ex-recent {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1, 4px);
+    font-size: var(--type-xs, 11px);
+    color: var(--fg-1);
+  }
+  .ex-recent-h {
+    margin: 0;
+    color: var(--fg-2);
+  }
+  .ex-recent-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+  }
+  .ex-recent-f {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--fg-2);
+  }
+
+  /* The foot: Cancel and the verb (↵). */
+  .ex-sheet-a {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3, 12px);
+    padding-top: var(--space-3, 12px);
+    box-shadow: inset 0 0.5px 0 var(--border-default);
+  }
+  /* the batch sheet's rarer rows (Other format, Annotations) at the top of Advanced: rows in a column, a
+     hairline under them before the fold's own fields */
+  .ex-adv-extra {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1, 4px);
+    padding-bottom: var(--space-2, 8px);
+    border-bottom: 0.5px solid var(--border-default);
+  }
+  .ex-adv-btn.v2-fold-btn {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+  }
+  .ex-adv-btn {
+    font-size: var(--type-sm, 13px);
+    font-weight: var(--w-semibold);
+    color: var(--fg-1);
+  }
+  /* the hint follows the word (board: "› Advanced  Scale, colour, file names"), not the buttons */
+  .ex-adv-btn .v2-fold-hint {
+    margin-left: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--type-xs, 11px);
+    font-weight: var(--w-regular);
+  }
+  /* the toggle is not inside the fold's own root, so its chevron turns on its own state */
+  .ex-adv-btn[aria-expanded="true"] .v2-fold-ch {
+    transform: rotate(90deg);
+  }
+  .ex-btns {
+    display: flex;
+    flex: none;
+    gap: var(--space-2, 8px);
+  }
+  .btn.ex-go {
+    gap: var(--space-2, 8px);
+  }
+  .ex-ret {
+    font-size: var(--type-xs, 11px);
+    opacity: 0.72;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* S8.8 — the inspector's Export section (09 Export › ex-inspector): one row per size, the one-click button,
+ * and the two quiet lines under it. Tokens only; nothing here moves, so there is no motion to reduce. */
+@layer shell {
+  .insp-export-sizes {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1, 4px);
+  }
+  .insp-export-size {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    min-height: 28px;
+  }
+  .insp-export-go.btn {
+    align-self: flex-start;
+    margin-top: var(--space-1, 4px);
+  }
+  .insp-export-line {
+    appearance: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2, 8px);
+    width: 100%;
+    min-height: 24px;
+    padding: 0 var(--space-1, 4px);
+    border: 0;
+    border-radius: var(--radius-sm, 6px);
+    background: transparent;
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-xs, 11px);
+    text-align: left;
+    cursor: pointer;
+  }
+  .insp-export-line:hover:not(:disabled) {
+    background: var(--bg-2);
+    color: var(--fg-0);
+  }
+  .insp-export-line:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .insp-export-line:disabled {
+    cursor: default;
+    opacity: 0.6;
+  }
+  .insp-export-keys {
+    font: inherit;
+    font-size: var(--type-xs, 11px);
+    color: var(--fg-2);
+    letter-spacing: 0.04em;
+  }
+}
+
+@layer components {
+  /* the Maude kit ghost button (components layer) greyed the link; the board draws it in the accent text */
+  .maude .ex-hint .ex-hint-a,
+  .maude .ex-hint .ex-hint-a:hover {
+    color: var(--accent-text);
+  }
+}

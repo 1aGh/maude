@@ -263,3 +263,16 @@ if [ $bun_drift -gt 0 ]; then
   exit 1
 fi
 echo "bun pin OK: $BUN_PIN (.bun-version → workflows via bun-version-file, hub Dockerfile stages)"
+
+# ---------- V2-1.11 §5.6: the design plugin's bundled action manifest ----------
+# The design plugin ships a byte copy of the generated manifest (scripts/gen-actions.mjs writes
+# both). `maude design hook session-start` compares its manifestVersion with the app's
+# (/_health) and warns when the plugin is older; the copy must never drift from the source.
+APP_MANIFEST="$ROOT/apps/studio/actions.manifest.json"
+PLUGIN_MANIFEST="$ROOT/plugins/design/actions.manifest.json"
+if ! cmp -s "$APP_MANIFEST" "$PLUGIN_MANIFEST"; then
+  echo "manifest: plugins/design/actions.manifest.json is not a byte copy of apps/studio/actions.manifest.json" >&2
+  echo "Fix: node scripts/gen-actions.mjs   (it writes both), then commit both" >&2
+  exit 1
+fi
+echo "manifest OK: plugins/design/actions.manifest.json = apps/studio/actions.manifest.json ($(sed -nE 's/.*"manifestVersion": "([0-9a-f]+)".*/\1/p' "$APP_MANIFEST" | head -n1))"

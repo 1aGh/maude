@@ -54,6 +54,14 @@ COMMANDS
         the contract plugin markdown uses instead of a raw bin path (DDR-062).
         See 'maude design help' for usage.
 
+  migrate v2 [--apply] [--reverse [--strip]] [--json] [--root PATH]
+        Update a project's files for Maude 2 (writes "formatVersion": 2).
+        Dry run by default; --apply writes, after a snapshot to
+        .design/_history/_migrate/. Idempotent. --reverse returns the project
+        to Maude 1 (byte for byte when nothing was edited since); --strip also
+        removes Maude 2-only fields. Exit 0 done, 10 already there, 11 refused
+        (nothing written), 1 error, 2 usage.
+
   scenario-report <run-dir> [--out <path>]
         Deterministically generate the mechanical sections of a cross-platform
         scenario report.md (TL;DR, counter-delta parity, per-step pivot, path

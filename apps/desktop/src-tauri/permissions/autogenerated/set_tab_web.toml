@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-set-tab-web"
+description = "Enables the set_tab_web command without any pre-configured scope."
+commands.allow = ["set_tab_web"]
+
+[[permission]]
+identifier = "deny-set-tab-web"
+description = "Denies the set_tab_web command without any pre-configured scope."
+commands.deny = ["set_tab_web"]

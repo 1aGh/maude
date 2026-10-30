@@ -1,0 +1,31 @@
+# 10 Share and Collaboration — stage D critic re-check (one critic, four lenses)
+
+_2026-10-24 · stage D pairs @ 53ceb26c5 · dark read for every re-shot id, light read for share-sheet, share-roles, browser-view, presence, comment-print, local-cloud, access-ends (the rest share the same chrome; stage B found every difference identical in both themes, so a dark blocker is recorded for both)._
+
+**Result: 0 ids match in both themes, 0 in one theme, 15 differ, 5 unreachable.** Stage B's accent hue, button anatomy, role-menu clip, grey faces, native select, v1 toast, grey conflict stickies and access-card craft are gone in the shots. What is left is mostly missing STATES, one shared cluster item, and board-vs-04 Preview chrome.
+
+Shared leftovers (they put a blocker on every id whose frame draws the cluster):
+- **S1 Comments icon always drawn in the cluster** (spec: none unless the canvas has comments) — open lead decision, `client/v2/shell/share-cluster.jsx:147`.
+- **S2 Undo / redo / zoom island (ZoomUndo) absent bottom-left** in edit frames (`hooks/use-shell-core.jsx:1090`, pref default off).
+- **S3 Preview / Viewing frames**: folded pill + "Previewing X" bar + compact cluster (no faces, no Saved). 04 Modes owns this, so it is a warning, not counted. The viewer-pill a11y blocker (viewer cannot see the project name) is not closed.
+- Fixture / not counted: Michal vs You, white canvases, one local user, "Print" names, "Invited · expires" without "2 days ago".
+
+| id | theme | verdict | remaining blockers |
+|---|---|---|---|
+| co-share-sheet | dark, light | differs | design: team row "Everyone in Alligators brand · 9 people" and "+ 9 in Alligators brand" not in the shot (cannot confirm); S1; S2; header × still drawn (kept on purpose, warning). Fixed and verified: azure accent, 20 px radius, segment ring, tokened select, tone faces, Resend accent, link tile, "Links, link rules, sync", 64 px top |
+| co-share-roles | dark, light | differs | copy/design: "Make owner" row hidden (lead decision, not CONTRACT); scope columns "This canvas — Petra sees one canvas / Whole project — Lukáš sees all 93" not shot and the third line has no string. Menu clip, check glyph, danger row fixed |
+| co-browser-view | dark, light | differs | design: S1; panel-left corner icon drawn for a viewer (spec none); a11y: project name hidden (S3, pill folded). "Can view" and "Ask to edit" fixed |
+| co-presence | dark, light | differs | state: face menu (Follow / Go to / Tereza's AI / Bring everyone here), other faces and "+4", cursors, AI tags not reachable (no peers); S1; S2. Own face is one tone-filled letter now |
+| co-follow, co-bring, co-spotlight, co-twelve | both | unreachable | need N live Yjs awareness peers + fixture `apps/studio/test/fixtures/presence-peers.mjs`; the "Following Tereza" and "Everyone here is following you · 3 people" pills have no client string |
+| co-mention-notify | both | unreachable | OS banner and e-mail: needs a native lane and a hub mention-mail template (none exists) |
+| co-comment-thread | dark, light | differs | state: mention picker ("Tereza · Can edit") not open, thread with Jonas/Tereza replies + Resolve not shown; design: comment pin still 24 px square with a number (spec 28 px tone pill with initial), Preview dock is the thin 32 px palette; S1; Comments panel side/filters are board-side (CONTRACT §6) |
+| co-comment-video | dark, light | differs | state: timeline strip with comment markers and "2 comments on this video" absent; thread header glyphs (video, clock) absent; composer is the new-comment state, not the thread; S1 |
+| co-comment-print | dark, light | differs | state: print guides + "Bleed 3 mm · trim · safe margin 5 mm" off; existing Jonas thread + Resolve not shown; position words "from the top" vs "above the trim"; a11y: white-on-accent size tag (`inspect-overlay.tsx:41`) 3.0:1 still in the shot |
+| co-sync-offline | dark, light | differs | state: tooltip "Invites send when this Mac is online." not in the shot (hover/focus only), queued comment, per-row "not sent" missing; design: Canvases panel is the full-height pane (11 owns, warning); S1 |
+| co-sync-back | dark, light | differs | state: "Tereza changed this · 09:15" tag, "2 versions" mark on the sticky, per-row "sending" tags, "one sticky needs a look · Show" missing. Top pill toast with sync icon fixed |
+| co-conflict | dark, light | differs | design: card is a fixed banner top-left over the panel, not on the canvas under the sticky (`co-twin`); "Keep both" pill floats detached from the pair; stickies are 200 px wide fixed (spec smaller); "Tereza changed this" tag absent. Yellow stickies, who lines with face + time, Version history card, duplicate glyph fixed |
+| co-trashed | dark, light | differs | design: cluster is the compact Viewing one (comment icon, no face, no Saved, Preview pressed) vs the board's Edit cluster — S1 plus 04 mode; ghost row has no thumbnail (warning). Banner top 16 px with chip, zoom pill clear of the panel, copy all fixed |
+| co-local-cloud | dark, light | differs (cannot confirm) | the sheet matches the board (one heading, no Advanced, body fg-1, Cancel filled), but the shot crops out the cluster that the board frame draws; S1 is known to be present. Step 3 toast drops the canvas count (`move-to-cloud.jsx:67`, warning). **Would be `match` once the cluster is in the crop and S1 is decided** |
+| co-ask-edit | dark, light | differs | state: owner-side "Ask to edit waits at the top of Share" request block (`.co-req`, "Petra can view it now") not shot and restyle not done; S1; S3 pill folded. View-only tip now reachable and matches |
+| co-access-ends | dark, light | differs (cannot confirm) | middle frame (card: 36 px chip, type-md, home glyph, low) matches; the left "Remove Lukáš?" confirm and the right link-off card are not shot. Becomes `match` once those two frames are shot |
+| co-share-advanced | dark, light | differs | design/state: roles matrix column and GitHub / Where it syncs rows not visible (clipped by the sheet); "Role" select disabled in the shot; App link / This Mac values are truncated boxes with a stacked hint, spec is inline mono + 22 px copy glyph; link values show `.tsx` paths; extra line "Opens the folder on this Mac only."; "247 assets" absent |

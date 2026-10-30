@@ -1,0 +1,8 @@
+{
+  "ds-edge-suggest": { "blocker": "AI offers the closest system colour — needs a signed-in Claude (stubbed signed-out here); no off-system question surface reachable without AI." },
+  "ds-many-library": { "blocker": "A team library on a hub (3 projects read it) needs a linked hub + library; not reachable in a local single-project lane." },
+  "ds-many-linked": { "blocker": "A project that links a team library (view-only Design system row) needs a hub-linked library; not reachable locally." },
+  "ds-multi-schema": { "blocker": "An older-schema system brought up by AI first — AI-driven (signed out here); no schema-upgrade surface reachable without it." },
+  "ed-edge-tereza": { "blocker": "Another person's presence (sky ring + name on an object, fields read-only) needs a second synced collaborator; none locally." },
+  "an-viewer": { "blocker": "Can comment (viewer role: Hand + Comment only) needs a share-grant session; no local way to open the app as a viewer." }
+}

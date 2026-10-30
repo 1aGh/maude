@@ -1,0 +1,379 @@
+// S2.20 — the shell's ⌘Z / ⇧⌘Z / Undo history over the op log (V2-1.5 §5.4, §7 — the U-key rows
+// S2 owns: ⌘Z order across you + your AI (U1, U2), stale skip + toast (U4), redo cleared by an AI
+// landing, ⌘Z on a pending entry, the stack outliving a canvas reload (HMR), undo-to-here as ONE
+// action (U18), the comment that is not an entry (U20), a project off the op log falling back to the
+// canvas stack).
+//
+// The server half is REAL: `routes/project-undo.ts` (the same reducer folded over history) over a
+// fake op log whose undo semantics mirror the kernel's at the level the projection reads — an undo
+// row names its targets, ⌘Z rows are labelled "Undo"/"Redo", panel undos by what they undid.
+
+import { describe, expect, test } from 'bun:test';
+import {
+  createUndoProjection,
+  runUndoKey,
+  undoWords,
+} from '../client/v2/undo/use-undo-projection.jsx';
+import { createProjectUndoRoutes } from '../routes/project-undo.ts';
+
+const CANVAS = 'ui/Combine.tsx';
+const REPO = `.design/${CANVAS}`;
+
+type Row = {
+  revision: number;
+  actionId: string;
+  actor: string;
+  mine: boolean;
+  kind: string;
+  label: string | null;
+  committedAt: number;
+  madeAt?: number;
+  undoes: string | string[] | null;
+  canvases: string[];
+  runId?: string;
+  transactionId?: string;
+};
+
+function fakeHome(opts: { legacy?: boolean } = {}) {
+  const rows: Row[] = [];
+  const conflicts = new Set<string>();
+  const skips = new Map<string, number>();
+  let rev = 0;
+  let clock = 1_000;
+  const add = (r: Partial<Row> & { actionId: string; kind: string }) => {
+    const row: Row = {
+      revision: ++rev,
+      actor: 'you',
+      mine: true,
+      label: null,
+      committedAt: ++clock,
+      undoes: null,
+      canvases: [CANVAS],
+      ...r,
+    };
+    rows.push(row);
+    return row;
+  };
+  let n = 0;
+  // S2.20c — the run's waiting list: your edits behind it, and inverses ⌘Z queued on them.
+  const waiting: Array<{ transactionId: string; label: string; madeAt: number; undoes?: string }> =
+    [];
+  const pendingCalls: unknown[] = [];
+  const runtime = {
+    pendingEdits(repoRel: string) {
+      return repoRel === REPO ? waiting.map((w) => ({ ...w })) : [];
+    },
+    async undoPendingEdit(repoRel: string, tx: string) {
+      pendingCalls.push({ repoRel, tx });
+      if (!waiting.some((w) => w.transactionId === tx && !w.undoes))
+        return { status: 'rejected' as const, code: 'not-pending' };
+      const inv = { transactionId: `tx_inv${++n}`, label: 'Undo', madeAt: ++clock, undoes: tx };
+      waiting.push(inv);
+      return { status: 'accepted' as const, transactionId: inv.transactionId };
+    },
+    async acceptedHistory(q: { mine?: boolean }) {
+      if (opts.legacy) return null;
+      return rows.filter((r) => !q.mine || r.mine).map((r) => ({ ...r }));
+    },
+    async acceptedUndo(
+      target: { actionId?: string; actionIds?: string[] },
+      redo = false,
+      o?: { via?: 'keys' | 'panel' }
+    ) {
+      if (opts.legacy) return null;
+      const ids = target.actionIds ?? [target.actionId as string];
+      if (ids.some((id) => conflicts.has(id)))
+        return { status: 'rejected' as const, code: 'undo-conflict' };
+      const via = o?.via ?? 'keys';
+      const label = via === 'keys' ? (redo ? 'Redo' : 'Undo') : `Undo ${ids.length} changes`;
+      const row = add({
+        actionId: `u${++n}`,
+        kind: redo ? 'redo' : 'undo',
+        label,
+        undoes: target.actionIds ? ids : ids[0],
+      });
+      const skipped = Array.from({ length: skips.get(ids[0]) ?? 0 }, () => ({
+        doc: 'd',
+        lane: 'html',
+        reason: 'changed by someone else since',
+      }));
+      return {
+        status: 'accepted' as const,
+        actionId: row.actionId,
+        undoes: row.undoes ?? undefined,
+        ...(skipped.length ? { skipped } : {}),
+      };
+    },
+  };
+  const specs = createProjectUndoRoutes({ control: () => runtime, designRel: '.design' });
+  const posts: unknown[] = [];
+  const request = async (method: string, url: string, body?: unknown) => {
+    const u = new URL(url, 'http://studio.test');
+    if (u.pathname === '/_api/project/history') {
+      return { status: 200, body: { ok: true, history: rows.slice().reverse() } };
+    }
+    if (method === 'POST') posts.push(body);
+    const spec = specs.find((s) => s.method === method && s.path === u.pathname);
+    if (!spec) return { status: 404, body: null };
+    const res = await spec.handle(
+      new Request(u, {
+        method,
+        ...(body !== undefined
+          ? { body: JSON.stringify(body), headers: { 'content-type': 'application/json' } }
+          : {}),
+      }),
+      {} as never
+    );
+    return { status: res.status, body: await res.json().catch(() => null) };
+  };
+  return {
+    rows,
+    add,
+    conflicts,
+    skips,
+    request,
+    posts,
+    waiting,
+    pendingCalls,
+    setClock: (t: number) => (clock = t),
+  };
+}
+
+function setup(o: { legacy?: boolean } = {}) {
+  const home = fakeHome(o);
+  const toasts: string[] = [];
+  let now = 500;
+  const store = createUndoProjection({
+    request: home.request,
+    now: () => now,
+    announce: (t) => toasts.push(t),
+    designRel: () => '.design',
+  });
+  return { home, store, toasts, setNow: (t: number) => (now = t) };
+}
+
+const ids = (posts: unknown[]) => posts.map((p) => JSON.stringify(p));
+
+describe('S2.20 ⌘Z projection — the U-keys S2 owns', () => {
+  test('U1: ⌘Z takes back your AI run first (one step), then your edit; ⇧⌘Z re-applies in order', async () => {
+    const { home, store, toasts } = setup();
+    await store.open(REPO);
+    home.add({ actionId: 'title', kind: 'edit', label: 'Headline text', madeAt: 600 });
+    home.add({ actionId: 'run1', kind: 'ai', label: 'Restyle story', madeAt: 700, runId: 'r1' });
+
+    expect((await store.undo(REPO)).undid).toBe('run1');
+    expect((await store.undo(REPO)).undid).toBe('title');
+    expect((await store.redo(REPO)).redid).toBe('title');
+    expect((await store.redo(REPO)).redid).toBe('run1');
+    expect(ids(home.posts)).toEqual([
+      JSON.stringify({ actionId: 'run1', via: 'keys' }),
+      JSON.stringify({ actionId: 'title', via: 'keys' }),
+      // ⇧⌘Z names THE UNDO it re-applies (`redo takes the undo`)
+      JSON.stringify({ actionId: 'u2', redo: true, via: 'keys' }),
+      JSON.stringify({ actionId: 'u1', redo: true, via: 'keys' }),
+    ]);
+    expect(toasts).toEqual([
+      'Undone — Restyle story',
+      'Undone — Headline text',
+      'Redone — Headline text',
+      'Redone — Restyle story',
+    ]);
+  });
+
+  test('U2: gesture time orders, not acceptance — an edit made during the run is undone after it', async () => {
+    const { home, store } = setup();
+    await store.open(REPO);
+    // The run landed at 900 and was accepted FIRST; your headline (made at 800, during the run)
+    // was published right behind it.
+    home.add({ actionId: 'run1', kind: 'ai', label: 'Footer', madeAt: 900 });
+    home.add({ actionId: 'head', kind: 'edit', label: 'Headline text', madeAt: 800 });
+    expect((await store.undo(REPO)).undid).toBe('run1');
+    expect((await store.undo(REPO)).undid).toBe('head');
+  });
+
+  test('U4: a fully conflicting ⌘Z marks the entry stale, names who changed it, and the next ⌘Z continues below', async () => {
+    const { home, store, toasts } = setup();
+    await store.open(REPO);
+    home.add({ actionId: 'red', kind: 'edit', label: 'Colour', madeAt: 600 });
+    home.add({ actionId: 'title', kind: 'edit', label: 'Headline text', madeAt: 610 });
+    home.add({
+      actionId: 'blue',
+      kind: 'edit',
+      label: 'Edit canvas',
+      mine: false,
+      actor: 'Tereza',
+      madeAt: 620,
+    });
+    home.conflicts.add('title');
+
+    const r = await store.undo(REPO);
+    expect(r).toMatchObject({ handled: true, ok: false, stale: true });
+    expect(toasts).toEqual([undoWords.stale('Headline text', 'Tereza')]);
+    expect(store.rows(REPO).find((e) => e.actionId === 'title')?.state).toBe('stale');
+
+    // skipped from now on — survives the next refresh (the server's fold does not know it)
+    expect((await store.undo(REPO)).undid).toBe('red');
+    expect(ids(home.posts)).toEqual([
+      JSON.stringify({ actionId: 'title', via: 'keys' }),
+      JSON.stringify({ actionId: 'red', via: 'keys' }),
+    ]);
+  });
+
+  test('a partly conflicting ⌘Z undoes what is still yours and says how many parts it kept', async () => {
+    const { home, store, toasts } = setup();
+    await store.open(REPO);
+    home.add({ actionId: 'p', kind: 'edit', label: 'Card padding', madeAt: 600 });
+    home.add({
+      actionId: 't',
+      kind: 'edit',
+      label: 'Edit canvas',
+      mine: false,
+      actor: 'Tereza',
+      madeAt: 610,
+    });
+    home.skips.set('p', 2);
+    await store.undo(REPO);
+    expect(toasts).toEqual([
+      'Undone — Card padding',
+      undoWords.skipped('Card padding', 2, 'Tereza'),
+    ]);
+  });
+
+  test('redo is cleared by your AI run landing (a new entry)', async () => {
+    const { home, store } = setup();
+    await store.open(REPO);
+    home.add({ actionId: 'e1', kind: 'edit', label: 'Headline text', madeAt: 600 });
+    await store.undo(REPO);
+    home.add({ actionId: 'run', kind: 'ai', label: 'Footer', madeAt: 700 });
+    store.onAction({ actionId: 'run', mine: true, kind: 'ai', canvases: [CANVAS] });
+    const r = await store.redo(REPO);
+    expect(r).toMatchObject({ handled: true, ok: false, reason: 'empty' });
+    expect(home.posts.length).toBe(1); // only the ⌘Z
+  });
+
+  test('S2.20c: ⌘Z on a pending entry (your edit behind your AI run) queues its inverse behind the run — never an older entry, never the run', async () => {
+    const { home, store, toasts } = setup();
+    await store.open(REPO);
+    home.add({ actionId: 'old', kind: 'edit', label: 'Headline text', madeAt: 600 });
+    // the server's view lists the waiting edit (no notePending needed)
+    home.waiting.push({ transactionId: 'tx1', label: 'Moved See pricing 10 px', madeAt: 700 });
+    await store.refresh(REPO);
+    expect(store.rows(REPO)[0]).toMatchObject({ actionId: null, pendingTx: 'tx1', top: true });
+
+    const r = await store.undo(REPO);
+    expect(r).toMatchObject({ handled: true, ok: true, pending: true, pendingTx: 'tx_inv1' });
+    expect(ids(home.posts)).toEqual([
+      JSON.stringify({ pendingTx: 'tx1', canvas: REPO, via: 'keys' }),
+    ]);
+    expect(home.pendingCalls).toEqual([{ repoRel: REPO, tx: 'tx1' }]);
+    expect(toasts).toEqual(['Undone — Moved See pricing 10 px']);
+    // undone, and it stays so on the next refresh (the server folds the queued inverse)
+    await store.refresh(REPO);
+    expect(store.rows(REPO).map((e) => e.actionId ?? e.pendingTx)).toEqual(['old']);
+    // ⇧⌘Z while the inverse still waits: nothing to redo yet
+    expect(await store.redo(REPO)).toMatchObject({ handled: true, ok: false, reason: 'pending' });
+
+    // the run publishes: the edit lands behind it, then its inverse as an Undo of it
+    home.waiting.length = 0;
+    home.add({ actionId: 'run', kind: 'ai', label: 'Footer', madeAt: 800 });
+    home.add({
+      actionId: 'p',
+      kind: 'edit',
+      label: 'Moved See pricing 10 px',
+      madeAt: 700,
+      transactionId: 'tx1',
+    });
+    home.add({ actionId: 'u9', kind: 'undo', label: 'Undo', undoes: 'p', madeAt: 750 });
+    await store.refresh(REPO);
+    expect(store.rows(REPO).map((e) => e.actionId)).toEqual(['run', 'old']);
+    // the next ⌘Z takes the run; ⇧⌘Z after it re-applies the run, not the edit
+    expect((await store.undo(REPO)).undid).toBe('run');
+  });
+
+  test('HMR keeps the stack: re-opening the canvas keeps its session scope (shell-owned, keyed by canvas)', async () => {
+    const { home, store, setNow } = setup();
+    setNow(500);
+    await store.open(REPO);
+    home.add({ actionId: 'e1', kind: 'edit', label: 'Headline text', madeAt: 600 });
+    setNow(5_000); // the iframe reloaded (a text edit's HMR) and the canvas re-announced itself
+    await store.open(REPO);
+    expect(store.rows(REPO).map((e) => e.actionId)).toEqual(['e1']);
+    expect((await store.undo(REPO)).undid).toBe('e1');
+  });
+
+  test('membership: before the canvas opened, other people, outside writes and comments are not entries (U20)', async () => {
+    const { home, store, setNow } = setup();
+    home.add({ actionId: 'early', kind: 'edit', label: 'Before', madeAt: 100 });
+    setNow(500);
+    await store.open(REPO);
+    home.add({ actionId: 'c', kind: 'comment', label: 'Comment', madeAt: 600 });
+    home.add({ actionId: 'o', kind: 'outside', label: 'Combine', madeAt: 610 });
+    home.add({
+      actionId: 'z',
+      kind: 'edit',
+      label: 'Edit canvas',
+      mine: false,
+      actor: 'Tereza',
+      madeAt: 620,
+    });
+    home.add({ actionId: 'ann', kind: 'edit', label: 'Edit annotations', madeAt: 630 });
+    await store.refresh(REPO);
+    expect(store.rows(REPO).map((e) => e.actionId)).toEqual(['ann']);
+    expect(await store.loadOthers(REPO)).toEqual(['Tereza']);
+  });
+
+  test('U18: undo to here is ONE multi-target undo; the panel undo is the new top row ⌘Z takes back', async () => {
+    const { home, store, toasts } = setup();
+    await store.open(REPO);
+    home.add({ actionId: 'a', kind: 'edit', label: 'Duplicated Desktop at Tablet', madeAt: 600 });
+    home.add({ actionId: 'b', kind: 'ai', label: 'Hero picture', madeAt: 610 });
+    home.add({ actionId: 'c', kind: 'edit', label: 'Moved See pricing 10 px', madeAt: 620 });
+    home.add({ actionId: 'd', kind: 'edit', label: 'Headline text', madeAt: 630 });
+    home.setClock(2_000);
+    await store.refresh(REPO);
+    // newest first: d, c, b, a — click the 3rd row (k = 2)
+    const r = await store.undoToHere(REPO, 2);
+    expect(r).toMatchObject({ ok: true, undid: ['d', 'c', 'b'] });
+    expect(ids(home.posts)).toEqual([JSON.stringify({ actionIds: ['d', 'c', 'b'], via: 'panel' })]);
+    expect(toasts).toEqual(['Undone — Hero picture']);
+    const rows = store.rows(REPO);
+    expect(rows[0]).toMatchObject({ actionId: 'u1', top: true });
+    expect(rows.filter((e) => e.covered).map((e) => e.actionId)).toEqual(['d', 'c', 'b']);
+    // ⌘Z takes the panel undo back (one step), not row 'a'
+    expect((await store.undo(REPO)).undid).toBe('u1');
+  });
+
+  test('⇧⌘Z redoes an undo the store did not send (Version history row, another window): the server view names the undo', async () => {
+    const { home, store } = setup();
+    await store.open(REPO);
+    home.add({ actionId: 'e1', kind: 'edit', label: 'Headline text', madeAt: 600 });
+    // a single-id undo from Version history is labelled like a ⌘Z (via: keys) — a flip of e1
+    home.add({ actionId: 'vh1', kind: 'undo', label: 'Undo', undoes: 'e1' });
+    const r = await store.redo(REPO);
+    expect(r).toMatchObject({ ok: true, redid: 'e1' });
+    expect(ids(home.posts)).toEqual([JSON.stringify({ actionId: 'vh1', redo: true, via: 'keys' })]);
+  });
+
+  test('presses are serialized: two ⌘Z at once undo two different entries', async () => {
+    const { home, store } = setup();
+    await store.open(REPO);
+    home.add({ actionId: 'e1', kind: 'edit', label: 'One', madeAt: 600 });
+    home.add({ actionId: 'e2', kind: 'edit', label: 'Two', madeAt: 610 });
+    const [a, b] = await Promise.all([store.undo(REPO), store.undo(REPO)]);
+    expect([a.undid, b.undid]).toEqual(['e2', 'e1']);
+  });
+
+  test('a project off the op log answers legacy: nothing runs (p8-v1-drop: no canvas stack), the store sends nothing', async () => {
+    const { home, store } = setup({ legacy: true });
+    const r = await runUndoKey(REPO, false, store);
+    expect(r.handled).toBe(false);
+    expect(store.mode(REPO)).toBe('legacy');
+    expect(home.posts).toEqual([]);
+  });
+
+  test('op-log mode with nothing to undo answers empty', async () => {
+    const { store } = setup();
+    const r = await runUndoKey(REPO, false, store);
+    expect(r).toMatchObject({ handled: true, reason: 'empty' });
+  });
+});

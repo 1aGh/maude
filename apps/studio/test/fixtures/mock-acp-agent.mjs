@@ -60,7 +60,14 @@ acp
             `apiKey=${process.env.ANTHROPIC_API_KEY ?? '<unset>'} ` +
             `model=${process.env.ANTHROPIC_MODEL ?? '<unset>'} ` +
             `thinking=${process.env.MAX_THINKING_TOKENS ?? '<unset>'} ` +
-            `claudeExe=${process.env.CLAUDE_CODE_EXECUTABLE ?? '<unset>'}`,
+            `claudeExe=${process.env.CLAUDE_CODE_EXECUTABLE ?? '<unset>'} ` +
+            `actor=${process.env.MAUDE_AGENT_ACTOR ?? '<unset>'} ` +
+            `chatId=${process.env.MAUDE_CHAT_ID ?? '<unset>'} ` +
+            `sessionRoot=${process.env.MAUDE_SESSION_ROOT ?? '<unset>'} ` +
+            `readRoots=${process.env.MAUDE_READ_ROOTS ?? '<unset>'} ` +
+            `grantsFile=${process.env.MAUDE_GRANTS_FILE ?? '<unset>'} ` +
+            `ownPorts=${process.env.MAUDE_OWN_PORTS ?? '<unset>'} ` +
+            `tmpdir=${process.env.TMPDIR ?? '<unset>'}`,
         },
       },
     });

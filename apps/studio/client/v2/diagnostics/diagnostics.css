@@ -1,0 +1,612 @@
+/* client/v2/diagnostics/diagnostics.css — V2-4.7b: Menu › Diagnostics (06 Advanced ad-diag · ad-logs ·
+ * ad-syncd). Two things: the status word / value a Diagnostics menu row carries (.sh-pm-status), and the
+ * sheet it opens (.dg-*). The sheet is the POPOVER plane — opaque, the large shadow, no backdrop-filter
+ * (V2-1.8 M1) — laid over the canvas under the Share cluster. Mono is allowed here: this is the Advanced
+ * side of the app. No motion beyond what the shell already has. */
+
+@layer shell {
+  /* ── a menu row's status word / value ── */
+  .sh-pm-status {
+    margin-left: auto;
+    padding-left: var(--space-3, 12px);
+    font-size: var(--type-xs, 12px);
+    color: var(--fg-2);
+    white-space: nowrap;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* a row that carries a value keeps its label whole ("Project folder", not "Project fo…") — the value is what
+     gives way (ellipsis at its max-width), 06 ad-diag ③ */
+  .sh-pm-row:has(.sh-pm-status) .sh-pm-lab {
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+  .sh-pm-status--mono {
+    font-family: var(--font-mono);
+  }
+  /* the kit status word (_kit.css .k-sw, Phase 8 C1-kit): a 7 px status dot + the word in fg-1 — never a
+     coloured word alone (06 R7; colour is not the only carrier). A neutral value (a version) has no dot. */
+  .sh-pm-status:is([data-tone="ok"], [data-tone="warn"], [data-tone="error"], [data-tone="info"]),
+  .dg-word:is([data-tone], [data-state]) {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    color: var(--fg-1);
+  }
+  .sh-pm-status:is(
+    [data-tone="ok"],
+    [data-tone="warn"],
+    [data-tone="error"],
+    [data-tone="info"]
+  )::before,
+  .dg-word:is([data-tone], [data-state])::before {
+    content: "";
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-radius: var(--radius-pill);
+    background: var(--fg-3);
+  }
+  :is(.sh-pm-status, .dg-word)[data-tone="ok"]::before {
+    background: var(--status-success);
+  }
+  :is(.sh-pm-status, .dg-word):is([data-tone="warn"], [data-state="warn"])::before {
+    background: var(--status-warn);
+  }
+  :is(.sh-pm-status, .dg-word)[data-tone="error"]::before {
+    background: var(--status-error);
+  }
+  :is(.sh-pm-status, .dg-word)[data-tone="info"]::before {
+    background: var(--status-info);
+  }
+  /* the key hint stays right of the word */
+  .sh-pm-status + .kbd {
+    margin-left: var(--space-2, 8px);
+  }
+
+  /* ── the sheet ── */
+  /* 06 ad-logs: the popover plane — one container, the three boxes inside (Logs · Server + AI setup). It is
+     opaque with the large shadow and no backdrop-filter (V2-1.8 M1), laid over the canvas under the Share cluster. */
+  .dg-sheet {
+    position: absolute;
+    /* Above the informational callout stack (8990) so the tour never covers the close, still below modal
+       scrims (9000) and above-the-scrim warnings (9100) that must stay readable. */
+    z-index: 8995;
+    top: calc(var(--float-gap, 16px) + 52px);
+    right: var(--float-gap, 16px);
+    width: min(760px, calc(100% - 2 * var(--float-gap, 16px)));
+    max-height: calc(100% - var(--float-gap, 16px) * 2 - 52px);
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-2);
+    border-radius: var(--radius-xl);
+    box-shadow:
+      var(--shadow-lg),
+      inset 0 0 0 0.5px var(--island-edge);
+    overflow: hidden;
+    outline: none;
+    font-family: var(--font-body);
+    color: var(--fg-1);
+  }
+  /* Logs 660 + Server / AI setup 400 side by side (06 .ad-logs-wrap / .ad-logs-side) */
+  .dg-sheet[data-layout="trio"] {
+    width: min(1120px, calc(100% - 2 * var(--float-gap, 16px)));
+  }
+  .dg-top {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3, 12px);
+    padding: var(--space-3) var(--space-4) 0;
+  }
+  .dg-title {
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+  .dg-top-sp {
+    flex: 1;
+  }
+  .dg-x {
+    width: 24px;
+    height: 24px;
+  }
+  .dg-body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: var(--space-3) var(--space-4) var(--space-4);
+  }
+  .dg-trio {
+    display: flex;
+    gap: var(--space-4);
+    align-items: flex-start;
+  }
+  .dg-trio > .dg-logs {
+    flex: 1;
+    min-width: 0;
+  }
+  .dg-side {
+    width: 400px;
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  @media (max-width: 1100px) {
+    .dg-trio {
+      flex-direction: column;
+    }
+    .dg-trio > .dg-logs,
+    .dg-side {
+      width: 100%;
+    }
+  }
+  .dg-copy.icon-btn {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 0;
+    flex: none;
+  }
+
+  /* ── cards, rows, words ── */
+  /* a box: bg-1 on the container (06 .island--pad) */
+  .dg-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2, 8px);
+    padding: var(--space-4);
+    border-radius: var(--radius-lg);
+    background: var(--bg-1);
+    box-shadow: inset 0 0 0 0.5px var(--island-edge);
+  }
+  .dg-sheet[data-layout="sync"] .dg-card {
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+  }
+  .dg-hd,
+  .dg-logs-hd {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    flex-wrap: wrap;
+    min-height: 28px;
+  }
+  /* 06 .ad-logs-hd: one line — title, source filter, find, then the actions */
+  .dg-logs-hd {
+    flex-wrap: nowrap;
+  }
+  .dg-hd strong,
+  .dg-logs-hd strong {
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+    margin-right: var(--space-1);
+  }
+  .dg-word {
+    font-size: var(--type-xs, 12px);
+    color: var(--fg-2);
+  }
+  .dg-when {
+    margin-left: auto;
+    font-size: var(--type-xs, 12px);
+    color: var(--fg-2);
+  }
+  /* the kit ARow (06 .ad-row): key fg-1 sm and flexible; value fg-0, right; Copy is a 24 px icon button */
+  .dg-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    min-height: 28px;
+    font-size: var(--type-sm, 13px);
+  }
+  .dg-k {
+    flex: 1;
+    min-width: max-content;
+    color: var(--fg-1);
+  }
+  .dg-v {
+    min-width: 0;
+    color: var(--fg-0);
+    text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .dg-mono {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs, 12px);
+  }
+  .dg-hint,
+  .dg-empty {
+    margin: var(--space-1, 4px) 0 0;
+    font-size: var(--type-xs, 12px);
+    color: var(--fg-2);
+  }
+  .dg-btn,
+  .dg-copy {
+    appearance: none;
+    border: 1px solid var(--border-default);
+    background: transparent;
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-xs, 12px);
+    min-height: 26px;
+    padding: 0 var(--space-2, 8px);
+    border-radius: var(--radius-md, 8px);
+    cursor: default;
+  }
+  .dg-btn:hover:not(:disabled),
+  .dg-copy:hover:not(:disabled),
+  .dg-btn:focus-visible,
+  .dg-copy:focus-visible {
+    background: var(--bg-3);
+    outline: none;
+  }
+  .dg-btn:disabled,
+  .dg-copy:disabled {
+    color: var(--fg-3, var(--fg-2));
+  }
+  .dg-btn--primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-fg, var(--bg-0));
+  }
+  .dg-btn--primary:hover:not(:disabled) {
+    background: var(--accent);
+    filter: brightness(1.06);
+  }
+  .dg-notice,
+  .dg-latest {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    padding: var(--space-2, 8px) var(--space-3, 12px);
+    background: var(--bg-2);
+    border-radius: var(--radius-md, 8px);
+    font-size: var(--type-sm, 13px);
+  }
+  .dg-notice > span:first-child,
+  .dg-latest > span:first-child {
+    flex: 1;
+  }
+  .dg-latest {
+    margin-bottom: var(--space-2, 8px);
+  }
+
+  /* ── logs ── */
+  .dg-seg {
+    display: inline-flex;
+    gap: 2px;
+    margin: 0;
+    min-inline-size: 0;
+    border: 0;
+    padding: 2px;
+    background: var(--bg-3);
+    border-radius: var(--radius-md, 8px);
+  }
+  .dg-seg-b {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-xs, 12px);
+    min-height: 22px;
+    padding: 0 var(--space-2, 8px);
+    border-radius: calc(var(--radius-md) - 2px);
+    cursor: pointer;
+  }
+  .dg-seg-b:hover {
+    color: var(--fg-0);
+  }
+  /* the kit pressed segment (Phase 8 C1-kit, 06 InSeg) */
+  .dg-seg-b[aria-pressed="true"] {
+    background: var(--bg-2);
+    color: var(--fg-0);
+    box-shadow:
+      var(--shadow-sm),
+      inset 0 0 0 1px var(--accent);
+  }
+  .dg-seg-b:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  /* the kit find (06 .k-find): bg-3, radius-md, a search glyph, compact */
+  .dg-find-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex: 1 1 110px;
+    max-width: 150px;
+    margin-left: auto;
+    height: 28px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+    color: var(--fg-2);
+  }
+  .dg-find-wrap:focus-within {
+    background: var(--bg-2);
+    box-shadow:
+      0 0 0 3px var(--accent-tint),
+      inset 0 0 0 1px var(--accent);
+  }
+  .dg-find {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: var(--fg-0);
+    font: inherit;
+    font-size: var(--type-sm);
+  }
+  .dg-lines {
+    list-style: none;
+    margin: 0;
+    padding: var(--space-2, 8px) 0;
+    max-height: 420px;
+    overflow: auto;
+    /* 06 .ad-logs-lines: a bg-3 well, radius-md */
+    background: var(--bg-3);
+    border-radius: var(--radius-md, 8px);
+    font-family: var(--font-mono);
+    font-size: var(--type-xs, 12px);
+    line-height: var(--lh-xs, 1.55);
+  }
+  .dg-line {
+    display: grid;
+    grid-template-columns: 8ch 7ch 1fr;
+    gap: var(--space-3);
+    padding: 3px var(--space-3);
+    color: var(--fg-1);
+    overflow-wrap: anywhere;
+  }
+  .dg-line-t {
+    color: var(--fg-2);
+    font-variant-numeric: tabular-nums;
+  }
+  /* 06 .ad-ll-s: the source reads fg-0, semibold, 7 characters wide */
+  .dg-line-s {
+    color: var(--fg-0);
+    font-weight: var(--w-semibold);
+  }
+  /* the message column: the one that wraps (a long path or stack frame never widens the box) */
+  .dg-line-m {
+    min-width: 0;
+  }
+  /* 06 .ad-ll--warn: the whole row marks — bg-4 and an inset 2 px status bar; error uses the error colour */
+  .dg-line[data-level="warn"],
+  .dg-line[data-level="error"] {
+    background: var(--bg-4);
+    color: var(--fg-0);
+    box-shadow: inset 2px 0 0 var(--status-warn);
+  }
+  .dg-line[data-level="error"] {
+    box-shadow: inset 2px 0 0 var(--status-error);
+  }
+
+  /* ── AI setup: four rows (06 ad-logs) ── */
+  .dg-ai-rows {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1, 4px);
+  }
+  .dg-ai-row {
+    display: grid;
+    grid-template-columns: 18px max-content minmax(0, 1fr);
+    align-items: center;
+    gap: var(--space-2, 8px);
+    min-height: 28px;
+    font-size: var(--type-sm, 13px);
+  }
+  /* 06 .ad-check-ic: an 18 px success disc with the check */
+  .dg-ai-ic {
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    border-radius: var(--radius-pill);
+    background: var(--status-success);
+    color: var(--accent-fg);
+  }
+  .dg-ai-row[data-state="missing"] .dg-ai-ic {
+    background: var(--status-warn);
+  }
+  .dg-ai-row[data-state="unknown"] .dg-ai-ic {
+    background: var(--bg-4);
+    color: var(--fg-1);
+  }
+  .dg-ai-v {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs, 12px);
+    color: var(--fg-1);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+    text-align: right;
+  }
+  .dg-ai-sub {
+    margin: var(--space-3, 12px) 0 var(--space-1, 4px);
+    font-size: var(--type-xs, 12px);
+    color: var(--fg-2);
+  }
+
+  /* ── Resync: the card that says how far it got (06 ad-trace step 3-4) ── */
+  .dg-resync {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2, 8px);
+    margin-bottom: var(--space-3, 12px);
+    padding: var(--space-3, 12px);
+    background: var(--bg-2);
+    border-radius: var(--radius-md, 8px);
+    font-size: var(--type-sm, 13px);
+  }
+  .dg-bar {
+    display: block;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--bg-3);
+    overflow: hidden;
+  }
+  .dg-bar > i {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+    border-radius: inherit;
+    transition: width var(--dur-panel) var(--ease-out);
+  }
+
+  /* ── Sync: today's panel, whole, inside the sheet ── */
+  .dg-sync .sh-rpanel {
+    border-left: 0;
+    animation: none;
+    background: transparent;
+    min-height: 0;
+  }
+  .dg-fold {
+    margin-top: var(--space-3, 12px);
+    font-size: var(--type-sm, 13px);
+  }
+  .dg-fold-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1, 4px);
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    color: var(--fg-2);
+    font-size: var(--type-xs, 12px);
+    cursor: pointer;
+  }
+  .dg-fold-btn:hover {
+    color: var(--fg-1);
+  }
+  .dg-fold-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .dg-fold-ch {
+    display: inline-grid;
+  }
+  .dg-fold[data-open] .dg-fold-ch {
+    transform: rotate(90deg);
+  }
+  .dg-cmd {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: var(--type-xs, 12px);
+    padding: var(--space-1, 4px) var(--space-2, 8px);
+    background: var(--bg-2);
+    border-radius: var(--radius-md, 8px);
+  }
+  .dg-sync .gp-x {
+    display: none;
+  }
+
+  /* ── S11.12 Sync details (06 ad-syncd) ── */
+  .sd {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2, 8px);
+  }
+  .sd-sub {
+    margin: var(--space-2, 8px) 0 0;
+    font-size: var(--type-xs, 12px);
+    color: var(--fg-2);
+  }
+  .sd-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1, 4px);
+    padding: var(--space-2, 8px) var(--space-3, 12px);
+    background: var(--bg-2);
+    border-radius: var(--radius-md, 8px);
+    font-size: var(--type-sm, 13px);
+  }
+  .sd-cd {
+    color: var(--fg-1);
+  }
+  .sd-acts {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    margin-top: var(--space-1, 4px);
+  }
+  .sd-link {
+    appearance: none;
+    border: 0;
+    background: none;
+    padding: 0;
+    color: var(--accent);
+    font: inherit;
+    cursor: pointer;
+  }
+  .sd-link:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .sd-diff {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    max-height: 240px;
+    overflow: auto;
+    font-size: var(--type-xs, 12px);
+  }
+  .sd-diff li {
+    display: flex;
+    gap: var(--space-2, 8px);
+  }
+  .sd-side {
+    flex: none;
+    width: 3.5em;
+    color: var(--fg-2);
+  }
+  .sd-xfer {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    font-size: var(--type-sm, 13px);
+  }
+  .sd-xfer .dg-bar {
+    flex: 1;
+  }
+  .sd-xfer-n {
+    min-width: 3em;
+    text-align: right;
+    color: var(--fg-2);
+  }
+  .sd-held,
+  .sd-failed {
+    margin: 0;
+    font-size: var(--type-xs, 12px);
+    color: var(--fg-1);
+  }
+
+  /* the ghost / icon buttons of the kit (06 Btn ghost, icon-btn k-icon-sm) win over the bordered .dg-btn above */
+  .dg-btn.btn,
+  .dg-btn.icon-btn,
+  .dg-copy.icon-btn {
+    border: 0;
+    gap: var(--space-1);
+  }
+  .dg-btn.icon-btn,
+  .dg-copy.icon-btn {
+    width: 24px;
+    height: 24px;
+    min-height: 24px;
+    padding: 0;
+  }
+}

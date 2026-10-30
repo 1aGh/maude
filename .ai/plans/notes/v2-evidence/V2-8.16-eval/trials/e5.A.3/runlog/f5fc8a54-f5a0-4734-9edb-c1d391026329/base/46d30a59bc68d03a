@@ -1,0 +1,1525 @@
+/**
+ * @canvas      2026/combine/Combine-kampan — Combine 2026: kampaň (release plan + social)
+ * @ds          alligators
+ * @platform    marketing (social · Instagram + Facebook)
+ * @kind        canvas
+ * @history     .design/_history/ui-2026-combine-combine-kampan
+ *
+ * @brief       Vytěženo z annotations boardu `Combine-7-10.tsx` (16 stickies).
+ *              Kampaň na první brněnské combine: RELEASE PLAN (co / kdy / kam /
+ *              v jaké kombinaci, včetně série 6 doprovodných videí od hosta ze
+ *              zámoří), FB EVENT COVER, GRAFIKA 7 COMBINE DISCIPLÍN jako IG
+ *              carousel (cover + 7 slidů) a IG/FB KREATIVA (post, stories, reel
+ *              cover). Konverzní cesta (A5 leták + landing page s formulářem)
+ *              žije ve vedlejším canvasu `Combine-letak-registrace.tsx`.
+ *
+ * Fakta o akci = `combine-web/lib/akce.ts` (landing combine.alligators.cz je
+ * jediný zdroj pravdy, stav 15. 9. 2026): STŘEDA 7. 10. 2026 (potvrzeno 1aGh
+ * 3. 9.), 18:00-21:00, Atletický stadion CESA (areál CESA VUT v Brně),
+ * Technická 12, šatny zajištěny, od 15 let. Názvosloví: NE „CESA VUT
+ * Brno“ (1aGh 4. 9.). Místo upřesněno 1aGh 15. 9. 2026. Jméno hosta ze zámoří NENÍ v podkladech →
+ * `HOST` je vědomý placeholder (hlas klubu: žádné vymyšlené fakty).
+ *
+ * Fotky: jen záběry, kde je hlavní postavou hráč Alligators (pravidlo
+ * `photos-cut/README.md`). `frame-run` (míč chytá hráč Knights) a `frame-line`
+ * (míč nese hráč Nitry) jsou proto z kampaně vyřazené.
+ *
+ * Copy = hlas klubu (skill alligators-voice): tykání, žádná emoji, žádné
+ * em-dash, plná diakritika, nulová bariéra, CTA akčním slovesem. Kampaňový
+ * motiv "STOPKY NELŽOU" — combine je měření, ne casting. Signature moves
+ * (scute-divider, Duo foto-módy, ghost A, halftone, CTA šipka) se sem
+ * IMPORTUJÍ z `./_social` (DDR-002), nereimplementují se.
+ */
+import { DesignCanvas, DCSection, DCArtboard } from "@maude/canvas-lib";
+import {
+  FMT, SocialDefs, Board, Eyebrow, Logo, Hero, InfoRows, QRSlot, Cta,
+  BrandFooter, CamoCorner, GhostA, GhostWordmark, ScuteDivider,
+  Duo, Halftone, Sash, SponsorBar, Tag,
+  INK_1, INK_2, PANEL_2, SPONSOR_LOGOS,
+  G, G2, G_DEEP, Y, W, GRAY, INK, PAPER, PC, GFX, A, mono, disp, body, filled, outline,
+} from "../../social/_social";
+/* CSS-import kontrakt: canvas, který používá komponenty z `preview/`, musí sám
+ * přivázat `_layout.css` — ten @importuje `colors_and_type.css` (tokeny včetně
+ * --font-display / --font-body) i `_components.css`. Bez něj `var(--font-*)`
+ * nic neresolvuje a display font tiše spadne na patkový fallback. Stejný
+ * import má `ui/AlligatorsAcko.tsx`. */
+import "../../../system/alligators/preview/_layout.css";
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * FAKTA — jediný zdroj pravdy pro copy napříč formáty. Shodné s
+ * `combine-web/lib/akce.ts` (landing) — posty, leták i web říkají totéž.
+ * ───────────────────────────────────────────────────────────────────────── */
+const AKCE = {
+  den: "středa",
+  datum: "7. 10. 2026",
+  cas: "18:00 - 21:00",
+  /* Stadion, ne ředitelství CESA (Technická 2896/2) — areál je velký.
+   * `areal` = krátká podoba pro úzké nowrap sloupce (posty, story). */
+  misto: "Atletický stadion CESA",
+  areal: "Stadion CESA",
+  provozovatel: "Areál CESA VUT v Brně",
+  komu: "od 15 let, i úplným nováčkům",
+  zazemi: "šatny a sprchy zajištěny",
+  web: "combine.alligators.cz",
+  handle: "@brno_alligators",
+};
+
+/* QR kódy (1aGh 10. 9. 2026). SVG vygenerované přes segno a ověřené
+ * dekódováním (zbarimg).
+ *  · výsledková karta → krátký odkaz hov.to
+ *  · pozvánka (post)  → přímo na landing, `?zdroj=` podle tracking plánu
+ *    v `brand/qr/combine-2026/README.md` (volný text, uloží se k registraci). */
+const QR_LINK = "https://alligators.cz/pridej-se";
+const QR_SRC = "/.design/assets/combine-qr-pridej-se.svg";
+const QR_POST_LINK = "https://combine.alligators.cz/?zdroj=post-pozvanka";
+const QR_POST_SRC = "/.design/assets/combine-qr-post-pozvanka.svg";
+
+/* Host ze zámoří — jméno v podkladech NENÍ. Placeholder k doplnění před
+ * publikací; hlas klubu zakazuje vymýšlet fakta (SKILL.md pravidlo 10). */
+const HOST = "[JMÉNO HOSTA]";
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * DISCIPLÍNY — 7 stickies ze sekce "combine discipliny" boardu, přepsané do
+ * hlasu klubu. Jeden zdroj pro carousel i pro přehledový post. Přidat další
+ * slide = přidat položku sem, artboardy se generují mapou níž.
+ * ───────────────────────────────────────────────────────────────────────── */
+const DISCIPLINY = [
+  {
+    id: "40yd", n: "01", name: "40 YARD DASH", cz: "Sprint na 40 yardů",
+    meri: "čas na 36,6 m",
+    text: "Rovinka, stopky, nic víc. Čistá rychlost a zrychlení z místa. V zámoří je to číslo, které skaut čte úplně první.",
+    photo: "player-running-open-field-2026.jpg", pos: "center 42%",
+  },
+  {
+    id: "bench", n: "02", name: "BENCH PRESS", cz: "Tlak na lavičce, 100 a 80 kg",
+    meri: "počet opakování",
+    text: "Dvě kategorie, sto kilo a osmdesát, a jediná otázka: kolikrát? Vybereš si činku podle sebe, měříme sílu a výdrž horní půlky těla. Bez výmluv a bez diskuze.",
+    photo: "player-portrait-bench-2026.jpg", pos: "center 34%",
+  },
+  {
+    id: "vert", n: "03", name: "VERTICAL JUMP", cz: "Výskok z místa",
+    meri: "dosah v centimetrech",
+    text: "Stojíš, vyskočíš, změříme dosah. Výbušnost nohou zabalená do jednoho čísla, které se nedá ukecat.",
+    photo: "endzone-catch-2026.jpg", pos: "center 30%",
+  },
+  {
+    id: "broad", n: "04", name: "BROAD JUMP", cz: "Skok do dálky z místa",
+    meri: "délka v centimetrech",
+    text: "Snožmo, bez rozběhu, co nejdál. Ta samá výbušnost jako u výskoku, jen položená dopředu.",
+    photo: "ball-carrier-sprint-2026.jpg", pos: "center 38%",
+  },
+  {
+    id: "3cone", n: "05", name: "3-CONE DRILL", cz: "Běh mezi třemi kužely do L",
+    meri: "čas na trati",
+    text: "Tři kužely do L, ty mezi nimi. Prudká změna směru a koordinace těla, kde samotná rychlost nestačí.",
+    photo: "chase-action-2026.jpg", pos: "center 36%",
+  },
+  {
+    id: "shuttle", n: "06", name: "20-YARD SHUTTLE", cz: "Pro Agility, 5-10-5",
+    meri: "čas na trati",
+    text: "Pět, deset, pět. Tam a zpátky. Boční rychlost, brzdy a hlava, která ví, kam se otočit dřív než nohy.",
+    /* Dřív quarterback-run: dva soupeři v černo-oranžové zabírali půl záběru.
+     * Tady je hráč Alligators sám a vlevo zbývá klidná plocha pro schéma. */
+    photo: "quarterback-pass-2025.jpg", pos: "center 36%",
+  },
+  {
+    id: "pos", n: "07", name: "POSITION DRILLS", cz: "Cvičení podle postu",
+    meri: "technika v akci",
+    text: "Quarterback hází, receiver běhá routy, linie tlačí. Tady se ukáže, co s tebou hřiště opravdu udělá.",
+    photo: "quarterback-pass-blades-2026.jpg", pos: "center 32%",
+  },
+];
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * Kanálové čipy release-planu — držíme single-accent: žlutá = akce (FEED),
+ * tmavě zelená = REELS/VIDEO (pohyb), šedá = STORY (rychlé, mizí),
+ * bílý outline = OFFLINE (leták, škola, stánek).
+ * ───────────────────────────────────────────────────────────────────────── */
+const CH: Record<string, { fg: string; bg: string; bd: string; label: string }> = {
+  post:    { fg: INK, bg: Y,    bd: Y,                      label: "POST" },
+  video:   { fg: W,   bg: G2,   bd: "rgba(255,255,255,0.4)", label: "VIDEO" },
+  story:   { fg: INK, bg: GRAY, bd: GRAY,                   label: "STORY" },
+  event:   { fg: W,   bg: "transparent", bd: Y,             label: "FB UDÁLOST" },
+  offline: { fg: W,   bg: "transparent", bd: "rgba(255,255,255,0.55)", label: "OFFLINE" },
+};
+
+/* Co-branding s VUT — hostitel akce (stadion v areálu CESA VUT v Brně). Logo
+ * VUT musí být na KAŽDÉ sociální kreativě kampaně (1aGh 4. 10. 2026), proto
+ * jeden lockup místo holého <Logo>. Verze značky dle manuálu JVS VUT: na tmavé
+ * zeleni negativ, na papíře barevná, na žluté černá monochromní (červená na
+ * žluté nemá kontrast, bílá zmizí) — `cerna` = negativ přebarvený filtrem.
+ * VUT = 0,8 h, aby host nepřebil klubovou značku; mezera k dělicí linii =
+ * ochranná zóna X (⅓ výšky VUT). `stack` = VUT pod logem (úzké hlavičky). */
+function LogoVUT({ tone = "white", h = 50, variant = "mark", vut, stack = false, style }: any) {
+  const vh = Math.max(36, Math.round(h * 0.8));
+  const x = Math.round(vh / 3);
+  const verze = vut || (tone === "white" ? "negativ" : "barva");
+  const vutImg = (
+    <img src={`${A}/partners/${verze === "barva" ? "vut" : "vut-negativ"}.svg`} alt="Vysoké učení technické v Brně"
+      style={{ height: vh, display: "block", filter: verze === "cerna" ? "brightness(0)" : undefined }} />
+  );
+  if (stack) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: x, ...style }}>
+        <Logo variant={variant} tone={tone} h={h} />
+        {vutImg}
+      </div>
+    );
+  }
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: x, ...style }}>
+      <Logo variant={variant} tone={tone} h={h} />
+      <span aria-hidden="true" style={{ width: 2, height: vh, background: tone === "white" ? "rgba(255,255,255,0.32)" : "rgba(19,50,43,0.3)" }} />
+      {vutImg}
+    </div>
+  );
+}
+
+function ChTag({ kind, style }: any) {
+  const c = CH[kind];
+  return (
+    <span style={{ ...mono(12, c.fg), background: c.bg, border: `1.5px solid ${c.bd}`, padding: "4px 11px", letterSpacing: "0.16em", fontWeight: 700, whiteSpace: "nowrap", ...style }}>
+      {c.label}
+    </span>
+  );
+}
+
+/* Jeden milník na časové ose kampaně (svislá osa, ne 6 sloupců jako letní kemp
+ * — kampaň běží čtyři týdny, ne jeden). `hot` = den D a jeho okolí. */
+function Milnik({ kdy, datum, chips, headline, note, hot = false, last = false }: any) {
+  return (
+    <div style={{ display: "flex", gap: 28, alignItems: "stretch" }}>
+      {/* osa + uzel */}
+      <div style={{ width: 132, flexShrink: 0, textAlign: "right", paddingTop: 4 }}>
+        <div style={disp(38, { color: hot ? Y : W })}>{kdy}</div>
+        <div style={{ ...mono(12, GRAY), marginTop: 6 }}>{datum}</div>
+      </div>
+      <div style={{ width: 24, flexShrink: 0, position: "relative", display: "flex", justifyContent: "center" }}>
+        {!last && <div style={{ position: "absolute", top: 22, bottom: -18, width: 2, background: "rgba(255,255,255,0.18)" }} aria-hidden="true" />}
+        <div style={{ width: hot ? 22 : 14, height: hot ? 22 : 14, marginTop: 8, background: hot ? Y : W, opacity: hot ? 1 : 0.7, position: "relative", zIndex: 2, transform: "rotate(45deg)" }} aria-hidden="true" />
+      </div>
+      {/* obsah */}
+      <div style={{ flex: 1, paddingBottom: 34, borderBottom: last ? "none" : "1px solid rgba(255,255,255,0.1)" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 12 }}>
+          {chips.map((k: string, i: number) => <ChTag key={i} kind={k} />)}
+        </div>
+        <div style={{ ...disp(40, { color: hot ? Y : W }) }}>{headline}</div>
+        <div style={{ ...body(21, GRAY), marginTop: 10, maxWidth: 900, lineHeight: 1.44 }}>{note}</div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * DRILL SCHÉMA — abstraktní piktogram jedné disciplíny do slidu carouselu.
+ * Záměrně to NENÍ ilustrace hráče (na to je fotka nad textem), ale půdorys
+ * stanoviště: bílá = hřiště a značky, žlutá = to, co se měří. Jednotný
+ * viewBox 320x230, jednotná tloušťka tahu, ať sedmičlenná série drží rytmus.
+ * Klíč = `d.id`, takže přidání disciplíny do DISCIPLINY si vyžádá i schéma.
+ * ───────────────────────────────────────────────────────────────────────── */
+const SW = 2.5;                      // základní tloušťka bílého tahu
+const FAINT = "rgba(255,255,255,0.34)";
+
+/* Kužel jako trojúhelník — sdílený prvek agility schémat. */
+function Cone({ x, y, s = 13, fill = Y }: any) {
+  return <path d={`M${x} ${y - s} L${x + s * 0.82} ${y + s * 0.62} L${x - s * 0.82} ${y + s * 0.62} Z`} fill={fill} />;
+}
+
+function DrillShape({ id }: { id: string }) {
+  const c = { fill: "none", stroke: W, strokeWidth: SW, strokeLinecap: "round" as const };
+  const acc = { fill: "none", stroke: Y, strokeWidth: 4, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+
+  switch (id) {
+    /* 01 — rovinka: start, cíl, průběžné značky po 10 yardech, šipka = směr. */
+    case "40yd":
+      return (
+        <>
+          <path d="M28 40 V190" {...c} />
+          <path d="M292 40 V190" {...c} />
+          {[93, 158, 223].map((x) => <path key={x} d={`M${x} 78 V152`} stroke={FAINT} strokeWidth={SW} strokeDasharray="7 9" />)}
+          <path d="M28 115 H272" {...acc} strokeDasharray="14 11" />
+          <path d="M268 100 L294 115 L268 130 Z" fill={Y} />
+          <text data-cd-id="start" x="28" y="212" fill={W} fontFamily="var(--font-body)" fontWeight="700" fontSize="17">START</text>
+          <text x="292" y="212" fill={Y} fontFamily="var(--font-body)" fontWeight="700" fontSize="17" textAnchor="end">40 YD</text>
+        </>
+      );
+
+    /* 02 — osa činky nad lavicí, žluté šipky = opakovaný zdvih. */
+    case "bench":
+      return (
+        <>
+          <rect x="96" y="150" width="128" height="18" fill={FAINT} />
+          <path d="M112 168 V196 M208 168 V196" {...c} />
+          <path d="M46 92 H274" stroke={W} strokeWidth="6" strokeLinecap="round" />
+          {[[60, 26], [78, 38], [242, 38], [260, 26]].map(([x, h], i) => (
+            <rect key={i} x={x - 6} y={92 - h / 2} width="12" height={h} fill={Y} />
+          ))}
+          <path d="M160 138 V104" {...acc} />
+          <path d="M148 112 L160 96 L172 112 Z" fill={Y} />
+          <path d="M160 46 V76" {...acc} />
+          <path d="M148 68 L160 84 L172 68 Z" fill={Y} />
+          <text x="160" y="220" fill={Y} fontFamily="var(--font-body)" fontWeight="700" fontSize="17" textAnchor="middle">100 / 80 KG · OPAKOVÁNÍ</text>
+        </>
+      );
+
+    /* 03 — svislé pravítko, žlutý sloupec = naměřený dosah nad stojným dosahem. */
+    case "vert":
+      return (
+        <>
+          <path d="M60 200 H292" {...c} />
+          <path d="M232 200 V34" {...c} />
+          {[56, 90, 124, 158, 192].map((y) => <path key={y} d={`M232 ${y} H256`} stroke={FAINT} strokeWidth={SW} />)}
+          <rect x="212" y="34" width="40" height="8" fill={Y} />
+          <path d="M232 148 H272" stroke={FAINT} strokeWidth={SW} strokeDasharray="8 8" />
+          <path d="M196 140 V60" {...acc} />
+          <path d="M182 74 L196 46 L210 74 Z" fill={Y} />
+          <path d="M96 200 V150 M96 150 L74 118 M96 150 L118 118" {...c} />
+          <circle cx="96" cy="100" r="15" fill="none" stroke={W} strokeWidth={SW} />
+          <text data-cd-id="dosah-v-cm" x="60" y="224" fill={Y} fontFamily="var(--font-body)" fontWeight="700" fontSize="17">DOSAH V CM</text>
+        </>
+      );
+
+    /* 04 — odrazová čára, dráha letu obloukem, doskok a měřená vzdálenost. */
+    case "broad":
+      return (
+        <>
+          <path d="M20 168 H300" {...c} />
+          <path d="M64 148 V188" {...c} />
+          <path d="M256 148 V188" {...c} />
+          <path d="M64 168 C 118 44, 202 44, 256 168" {...acc} strokeDasharray="13 12" />
+          <circle cx="64" cy="168" r="8" fill={W} />
+          <circle cx="256" cy="168" r="8" fill={Y} />
+          <path d="M64 206 H256" stroke={Y} strokeWidth={SW} />
+          <path d="M64 198 V214 M256 198 V214" stroke={Y} strokeWidth={SW} />
+          <text data-cd-id="delka" x="160" y="196" fill={Y} fontFamily="var(--font-body)" fontWeight="700" fontSize="17" textAnchor="middle">DÉLKA</text>
+          <text data-cd-id="odraz" x="64" y="140" fill={W} fontFamily="var(--font-body)" fontWeight="700" fontSize="16">ODRAZ</text>
+        </>
+      );
+
+    /* 05 — tři kužely do L a dráha, která je obíhá. */
+    case "3cone":
+      return (
+        <>
+          <path d="M56 176 H300" stroke={FAINT} strokeWidth={SW} />
+          <path d="M56 176 V40" stroke={FAINT} strokeWidth={SW} />
+          <path d="M56 172 C 150 172, 150 172, 196 172 C 244 172, 244 114, 196 114 C 150 114, 96 124, 62 56" {...acc} />
+          <path d="M50 70 L60 38 L76 64 Z" fill={Y} />
+          <Cone x={56} y={176} fill={W} />
+          <Cone x={196} y={176} fill={W} />
+          <Cone x={196} y={108} fill={W} />
+          <text data-cd-id="tri-kuzely-do" x="160" y="222" fill={Y} fontFamily="var(--font-body)" fontWeight="700" fontSize="17" textAnchor="middle">TŘI KUŽELY DO L</text>
+        </>
+      );
+
+    /* 06 — 5-10-5: střed, dvě boční čáry, dráha tam a zpátky. */
+    case "shuttle":
+      return (
+        <>
+          <path d="M46 42 V178 M160 42 V178 M274 42 V178" {...c} />
+          <path d="M160 74 H274" {...acc} />
+          <path d="M274 106 H46" {...acc} />
+          <path d="M46 140 H160" {...acc} />
+          <path d="M150 92 L172 74 L150 56 Z" fill={Y} />
+          <path d="M170 88 L48 106 L170 124 Z" fill={Y} opacity="0" />
+          <path d="M70 88 L46 106 L70 124 Z" fill={Y} />
+          <path d="M150 122 L172 140 L150 158 Z" fill={Y} />
+          <text x="103" y="204" fill={W} fontFamily="var(--font-body)" fontWeight="700" fontSize="17" textAnchor="middle">5</text>
+          <text x="160" y="204" fill={Y} fontFamily="var(--font-body)" fontWeight="700" fontSize="17" textAnchor="middle">10</text>
+          <text x="217" y="204" fill={W} fontFamily="var(--font-body)" fontWeight="700" fontSize="17" textAnchor="middle">5</text>
+          <text data-cd-id="yardu" x="160" y="228" fill={FAINT} fontFamily="var(--font-body)" fontWeight="700" fontSize="15" textAnchor="middle">YARDŮ</text>
+        </>
+      );
+
+    /* 07 — routy podle postu: jeden start, tři různá zakončení. */
+    default:
+      return (
+        <>
+          <path d="M24 182 H296" {...c} />
+          {[70, 122, 174].map((y) => <path key={y} d={`M24 ${y} H296`} stroke={FAINT} strokeWidth="2" strokeDasharray="6 12" />)}
+          <circle cx="86" cy="182" r="9" fill={W} />
+          <path d="M86 182 V64" {...acc} />
+          <path d="M74 78 L86 50 L98 78 Z" fill={Y} />
+          <path d="M86 182 V134 L200 96" {...acc} />
+          <path d="M190 82 L216 90 L196 110 Z" fill={Y} />
+          <path d="M86 182 V154 H244" {...acc} />
+          <path d="M236 140 L264 154 L236 168 Z" fill={Y} />
+          <text data-cd-id="routy-podle-postu" x="296" y="218" fill={Y} fontFamily="var(--font-body)" fontWeight="700" fontSize="17" textAnchor="end">ROUTY PODLE POSTU</text>
+        </>
+      );
+  }
+}
+
+/* Schéma stanoviště jako OVERLAY přes fotku — žádný box, žádné pozadí, žádná
+ * hlavička (komentář 1aGh, 2. 9. 2026). Půdorys leží rovnou na snímku jako
+ * technický přetisk: kužely, dráha a šipky, nic víc. Aby držel čitelnost na
+ * proměnlivé fotce, nese měkký drop-shadow místo podkladové desky — tón zůstává
+ * na fotce, ne na plné ploše. Kotví se do dolní třetiny fotky, kde už běží
+ * ztmavovací gradient, takže bílý tah má vždy pod sebou tmavý podklad. */
+function DrillOverlay({ id, style }: any) {
+  return (
+    <svg viewBox="0 0 320 236" width={480} height={354} role="img"
+      aria-label="Zjednodušené schéma stanoviště přetištěné přes fotografii"
+      style={{ position: "absolute", filter: "drop-shadow(0 4px 18px rgba(6,14,12,0.85))", opacity: 0.94, ...style }}>
+      <DrillShape id={id} />
+    </svg>
+  );
+}
+
+/* Karta jednoho dílu videosérie od hosta ze zámoří (6 dílů dle sticky). */
+function VideoDil({ n, titul, popis, kdy }: any) {
+  return (
+    <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.14)", padding: "18px 20px", display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
+        <span style={disp(34, { color: Y })}>{n}</span>
+        <span style={mono(12, GRAY)}>{kdy}</span>
+      </div>
+      <div style={disp(28, { color: W })}>{titul}</div>
+      <div style={{ ...body(18, GRAY), lineHeight: 1.4 }}>{popis}</div>
+    </div>
+  );
+}
+
+/* Papírová info-karta KDY/KDE/KOMU — čitelný blok na zeleni i na fotce. */
+function InfoCard({ lead, rows, qr = null, style }: any) {
+  return (
+    <div style={{ background: "rgba(244,243,239,0.96)", padding: "26px 28px", borderRadius: 6, boxShadow: "0 12px 32px rgba(16,24,32,0.2)", ...style }}>
+      {lead ? <div style={{ ...body(26, INK), marginBottom: 16 }}>{lead}</div> : null}
+      <InfoRows rows={rows} />
+      {qr ? <div style={{ marginTop: 20 }}>{qr}</div> : null}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * Slide carouselu disciplín (IG post 4:5). Foto nahoře v módu "dnes",
+ * dole zelený blok s číslem, názvem a tím, co se měří.
+ * ───────────────────────────────────────────────────────────────────────── */
+function DiscSlide({ d, index, total }: any) {
+  return (
+    <Board w={FMT.post.w} h={FMT.post.h} bg={G}>
+      <Duo src={`${PC}/${d.photo}`} mode="today" green={0.52} gold={0.05} halftone pos={d.pos}
+        style={{ left: 0, top: 0, width: FMT.post.w, height: 800, zIndex: 1 }} />
+      {/* Fotka sahá až k textovému bloku (kotvenému odspodu), jinak mezi nimi
+       * na 4:5 zůstával prázdný zelený pruh. Zastávky gradientu jsou v px.
+       * zIndex 2: bez něj leží scrim POD fotkou (ta má zIndex 1) a na švu
+       * zůstává tvrdá hrana místo přechodu. */}
+      <div style={{ position: "absolute", inset: 0, zIndex: 2, background: `linear-gradient(180deg, rgba(12,33,27,0.55) 0px, rgba(12,33,27,0.1) 340px, rgba(12,33,27,0.75) 600px, ${G} 740px)` }} aria-hidden="true" />
+
+      {/* hlavička nad fotkou */}
+      <div style={{ position: "absolute", top: 44, left: 48, right: 48, display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 3, textShadow: "0 2px 12px rgba(6,14,12,0.9)" }}>
+        <Eyebrow>COMBINE 2026 · DISCIPLÍNA {d.n} ZE 7</Eyebrow>
+        <LogoVUT tone="white" h={46} />
+      </div>
+
+      {/* obří pořadové číslo jako tonální kotva — celé UVNITŘ fotky (0..800),
+       * ať nesedí na švu mezi fotkou a zeleným blokem a nečte se jako artefakt */}
+      <div aria-hidden="true" style={{ position: "absolute", right: 34, top: 290, zIndex: 2, ...outline(300, "rgba(255,255,255,0.2)"), lineHeight: 0.8 }}>{d.n}</div>
+
+      {/* Půdorys stanoviště přetištěný rovnou přes fotku — vlevo dole ve fotce,
+       * kde gradient nejvíc ztmavuje, takže bílý tah drží kontrast. */}
+      {/* left = 48 (grid slidu), výška 354 při top 340 končí na 694 — uvnitř
+       * fotky (0..800) a nad nejdelším textovým blokem (bench, od ~745). */}
+      <DrillOverlay id={d.id} style={{ left: 48, top: 340, zIndex: 3 }} />
+
+      {/* Textový blok je kotvený ODSPODU — délka popisku se liší slide od slidu
+       * a při horním kotvení zůstávala pod ním mrtvá díra až k patičce.
+       * bottom 250 = ~70 px vzduchu nad scute hranou patičky (dřív 18 px). */}
+      <div style={{ position: "absolute", left: 48, right: 48, bottom: 250, zIndex: 4 }}>
+        <div style={{ ...mono(15, Y), marginBottom: 14 }}>{d.cz.toUpperCase()}</div>
+        <div style={filled(d.name.length > 14 ? 88 : 104, W, INK, 0)}>{d.name}</div>
+
+        {/* Schéma se přesunulo na fotku (viz DrillOverlay výš), takže popisek
+         * dostal celou šířku slidu — dřív se mačkal do poloviny vedle boxu. */}
+        <div style={{ marginTop: 22 }}>
+          <div style={{ ...body(28, GRAY), lineHeight: 1.42, maxWidth: 820 }}>{d.text}</div>
+          <div style={{ marginTop: 28, display: "inline-flex", alignItems: "center", gap: 16, background: G2, border: `2px solid ${Y}`, padding: "14px 22px" }}>
+            <span data-cd-id="co-merime" style={mono(13, Y)}>CO MĚŘÍME</span>
+            <span style={disp(38, { color: W })}>{d.meri}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* patička: pozice v carouselu + CTA */}
+      <ScuteDivider width={FMT.post.w} height={40} color={Y} style={{ position: "absolute", left: 0, bottom: 138, zIndex: 3 }} />
+      <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 138, background: G_DEEP, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 48px", zIndex: 4 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }} aria-label={`slide ${index + 1} z ${total}`}>
+          {Array.from({ length: total }).map((_, i) => (
+            <span key={i} aria-hidden="true" style={{ width: i === index ? 30 : 12, height: 6, background: i === index ? Y : "rgba(255,255,255,0.3)" }} />
+          ))}
+        </div>
+        <div style={{ ...body(22, W) }}>{AKCE.datum} · {AKCE.areal}</div>
+      </div>
+    </Board>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * FACEBOOK EVENT COVER — geometrie a safe zóna
+ *
+ * Facebook doporučuje pro cover události 1920×1005 px (poměr 1.91:1); starší
+ * 1920×1080 se na mobilu ořezává shora a zdola, proto tenhle rozměr. Plocha se
+ * ale NEZOBRAZÍ celá všude — obrázek se v užších kontextech ořezává na střed:
+ *
+ *   · DESKTOP     — celých 1920×1005 nad detailem události.
+ *   · MOBIL       — ořez na střed, uříznou se levý a pravý okraj. Držíme
+ *                   konzervativní pás 1240 px na střed → 340 px rezerva
+ *                   z každé strany.
+ *   · NÁHLED/FEED — dlaždice se vykresluje ve 516×315 (poměr 1.638:1). Zpětně
+ *                   přepočteno na náš canvas to je střed 1646×1005, tedy
+ *                   137 px z každé strany pryč.
+ *
+ * Pravidlo pro kompozici: logo, headline, datum a místo musí ležet uvnitř
+ * SAFE_MOBILE. Fotka, ghost wordmark a halftone smí přetékat až do hrany —
+ * to je dekorace, u které ořez nevadí.
+ *
+ * Zdroje (ověřeno 2. 9. 2026): socialsizes.io/facebook-cover-photo-size,
+ * postfa.st/sizes/facebook/event-cover, birdeye.com blog „facebook event
+ * cover photo size". Před další kampaní ověřit znovu — Facebook rozměry mění.
+ * ───────────────────────────────────────────────────────────────────────── */
+const EV_MOBILE_INSET = 340;   // mobilní ořez na střed → bezpečný pás 1240 px
+const EV_TILE_INSET = 137;     // náhledová dlaždice 516×315 → střed 1646 px
+
+/* Vodítka safe zóny. Renderuje se JEN na kontrolním artboardu, nikdy v exportu. */
+function EventGuides() {
+  const band = (inset: number, color: string, label: string, top: number) => (
+    <>
+      <div aria-hidden="true" style={{ position: "absolute", left: inset, top: 0, bottom: 0, width: FMT.event.w - inset * 2, border: `2px dashed ${color}`, pointerEvents: "none" }} />
+      <div aria-hidden="true" style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: inset, background: `${color}22`, pointerEvents: "none" }} />
+      <div aria-hidden="true" style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: inset, background: `${color}22`, pointerEvents: "none" }} />
+      <div style={{ position: "absolute", left: inset + 12, top, ...mono(12, color), background: "rgba(6,14,12,0.8)", padding: "6px 10px" }}>{label}</div>
+    </>
+  );
+  return (
+    <div style={{ position: "absolute", inset: 0, zIndex: 9 }}>
+      {band(EV_TILE_INSET, "#7FD4FF", `NÁHLEDOVÁ DLAŽDICE · STŘED ${FMT.event.w - EV_TILE_INSET * 2} PX`, 16)}
+      {band(EV_MOBILE_INSET, "#FF6B6B", `MOBILNÍ OŘEZ · STŘED ${FMT.event.w - EV_MOBILE_INSET * 2} PX`, 900)}
+    </div>
+  );
+}
+
+/* Cover události. `guides` zapne kontrolní vodítka (jen pro kontrolní artboard). */
+function FbEventCover({ guides = false }: any) {
+  /* Klíčový obsah nesmí jen „být uvnitř" safe zóny — když leží PŘESNĚ na její
+   * hraně, čte se odstup jako náhoda a při jakékoli změně ořezu to ustřelí.
+   * Proto ještě 48 px vnitřní rezerva. */
+  const L = EV_MOBILE_INSET + 48;
+  const RW = FMT.event.w - L * 2;
+  return (
+    <Board w={FMT.event.w} h={FMT.event.h} bg={G}>
+      {/* Fotka smí téct až do hrany — ořez na dekoraci nevadí. */}
+      {/* Duo mód „dnes" — cover byl jediný artboard v setu se syrovou barevnou
+       * fotkou, takže vedle sousedních formátů nečetl jako stejná kampaň. */}
+      {/* Dřív frame-run, kde míč chytal hráč Knights — cover pozvánky nesmí
+        * mít za hlavní postavu soupeře. Teď Alligators #18 s míčem, soupeř
+        * leží na zemi mimo střed záběru. */}
+      <Duo src={`${PC}/tackle-action-2026.jpg`} mode="today" green={0.5} gold={0.05} halftone pos="55% 34%"
+        style={{ top: 0, right: 0, width: 1240, height: FMT.event.h, zIndex: 1, maskImage: "linear-gradient(90deg, transparent, #000 40%)" }} />
+      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, rgba(9,26,20,0.96) 0%, rgba(9,26,20,0.9) 46%, rgba(9,26,20,0.3) 84%)" }} aria-hidden="true" />
+      <Halftone opacity={0.07} size={7} color="255,255,255" />
+      {/* Ghost drží levý pás, který jinak nenesl nic — safe zóna posunula
+       * obsah doprava a vlevo zbylo 340 px ploché zeleně. */}
+      <GhostWordmark lines={5} size={104} color={W} style={{ left: -30, top: 60 }} />
+
+      {/* KLÍČOVÝ OBSAH — celý uvnitř SAFE_MOBILE (x od 340 do 1580). */}
+      <div style={{ position: "absolute", left: L, top: "160px", width: RW, zIndex: 3 }}>
+        <LogoVUT tone="white" h={52} />
+
+        <div style={{ marginTop: 44 }}>
+          <div data-cd-id="combine-2026-brno" style={mono(17, Y)}>COMBINE 2026 · BRNO · {AKCE.cas}</div>
+          <div style={{ marginTop: 16 }}>
+            <span data-cd-id="stopky" style={filled(112, Y, INK, 0)}>STOPKY</span>
+            <div style={{ marginTop: 4 }}><span data-cd-id="nelzou" style={outline(112, W)}>NELŽOU</span></div>
+          </div>
+          <div data-cd-id="sedm-disciplin-z" style={{ ...body(28, W), marginTop: 22, maxWidth: 720, lineHeight: 1.36 }}>
+            Sedm disciplín z NFL combine. Jedno odpoledne. Tvoje čísla černé na bílém.
+          </div>
+        </div>
+
+        <div style={{ marginTop: 40, display: "flex", alignItems: "flex-end", gap: 34 }}>
+          <div>
+            <div data-cd-id="kdy" style={mono(13, GRAY)}>KDY</div>
+            <div style={{ ...disp(46, { color: W }), marginTop: 8 }}>{AKCE.datum}</div>
+            <div style={{ ...body(20, GRAY), marginTop: 6 }}>{AKCE.den} · {AKCE.cas}</div>
+          </div>
+          <div style={{ width: 2, height: 82, background: "rgba(255,255,255,0.22)" }} aria-hidden="true" />
+          <div>
+            <div data-cd-id="kde" style={mono(13, GRAY)}>KDE</div>
+            <div style={{ ...disp(46, { color: W }), marginTop: 8 }}>{AKCE.areal.toUpperCase()}</div>
+            <div style={{ ...body(20, GRAY), marginTop: 6 }}>{AKCE.provozovatel}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Spodní pás jde přes celou šířku (dekorace), ale jeho TEXT drží uvnitř
+       * bezpečného pásu — proto padding = EV_MOBILE_INSET, ne 76 px. */}
+      <ScuteDivider width={FMT.event.w} height={36} color={Y} style={{ position: "absolute", left: 0, bottom: 62, zIndex: 3 }} />
+      <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 62, background: G_DEEP, display: "flex", alignItems: "center", justifyContent: "space-between", padding: `0 ${L}px`, zIndex: 4 }}>
+        <span data-cd-id="od-15-let" style={body(21, W)}>Od 15 let. Zkušenost nechceme, dres ti půjčíme.</span>
+        <span style={mono(14, Y)}>{AKCE.web.toUpperCase()}</span>
+      </div>
+
+      {guides ? <EventGuides /> : null}
+    </Board>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * VARIANTA B — „datum vpředu", centrovaná kompozice.
+ *
+ * Cover události skoro nikdo nevidí v plných 1920 px: na mobilu zbyde střed
+ * 1240, v náhledové dlaždici střed 1646. Centrovaná kompozice přežije OBA
+ * ořezy beze změny, protože se ořezává symetricky — u varianty A se levý pás
+ * musí hlídat ručně. Druhý rozdíl je hierarchie: hero není claim, ale DATUM.
+ * U události je první otázka „kdy", ne „proč"; claim jde o patro níž.
+ * ───────────────────────────────────────────────────────────────────────── */
+function FbEventCoverDatum() {
+  const CW = FMT.event.w - (EV_MOBILE_INSET + 48) * 2;   // 1144 px na střed
+  return (
+    <Board w={FMT.event.w} h={FMT.event.h} bg={G_DEEP}>
+      {/* Foto přes celou plochu — u centrované kompozice není kam ho odsunout,
+       * takže ho drží dole scrim, ne maska. */}
+      {/* Dřív frame-line (míč nesl hráč Nitry). Nástup týmu pod brankou s
+        * klubovou vlajkou je náborový motiv a pod centrovaným scrimem drží. */}
+      <Duo src={`${PC}/hero-team-entrance-2026.jpg`} mode="today" green={0.74} gold={0.04} halftone pos="center 58%"
+        style={{ left: 0, top: 0, width: FMT.event.w, height: FMT.event.h, zIndex: 1 }} />
+      <div aria-hidden="true" style={{ position: "absolute", inset: 0, zIndex: 2, background: "radial-gradient(122% 96% at 50% 44%, rgba(9,26,20,0.42) 0%, rgba(9,26,20,0.88) 62%, rgba(9,26,20,0.97) 100%)" }} />
+      <GhostA tone="white" size={880} opacity={0.05} style={{ left: "50%", top: -30, transform: "translateX(-50%)", zIndex: 2 }} />
+
+      {/* KLÍČOVÝ OBSAH — centrovaný sloupec 1144 px, celý uvnitř SAFE_MOBILE. */}
+      <div style={{ position: "absolute", left: "960px", transform: "translateX(-50%)", top: "220px", width: CW, zIndex: 3, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
+        <LogoVUT tone="white" h={46} />
+        <div data-cd-id="prvni-brnenske-combine" style={{ ...mono(16, Y), marginTop: 28 }}>PRVNÍ BRNĚNSKÉ COMBINE · SEDM DISCIPLÍN Z NFL</div>
+        <div style={{ marginTop: 18 }}><span style={filled(146, Y, INK, 0)}>{AKCE.datum}</span></div>
+        <div style={{ ...disp(56, { color: W }), marginTop: 10 }}>{AKCE.misto.toUpperCase()}</div>
+        <div style={{ ...body(27, GRAY), marginTop: 20 }}>{AKCE.den} · {AKCE.cas} · {AKCE.komu}</div>
+        {/* Claim zůstává, ale jako podpis kampaně, ne jako hlavní sdělení. */}
+        <div style={{ marginTop: 34 }}><span data-cd-id="stopky-nelzou" style={outline(62, W)}>STOPKY NELŽOU</span></div>
+      </div>
+
+      <ScuteDivider width={FMT.event.w} height={36} color={Y} style={{ position: "absolute", left: 0, bottom: 62, zIndex: 3 }} />
+      <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 62, background: G_DEEP, display: "flex", alignItems: "center", justifyContent: "center", gap: 28, zIndex: 4 }}>
+        <span data-cd-id="satny-a-sprchy" style={body(21, W)}>Šatny a sprchy zajištěny. Dres ti půjčíme.</span>
+        <span style={{ width: 2, height: 22, background: "rgba(255,255,255,0.24)" }} aria-hidden="true" />
+        <span style={mono(14, Y)}>{AKCE.web.toUpperCase()}</span>
+      </div>
+    </Board>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * VARIANTA C — žlutá, výřez hráče.
+ *
+ * A i B jsou tmavě zelené, tedy přesně to, co ve feedu dělá každý sportovní
+ * klub. Tahle varianta obrací poměr brand barev: žlutá drží plochu, zelená
+ * nese typografii. Ve výpisu událostí je to jediná dlaždice, která není tmavá.
+ * Místo fotky v ploše jde výřez hráče — na ploché žluté drží silueta líp než
+ * duotónovaná scéna, která by se ve žlutém poli rozpadla. Výřez `wr89-point.png`
+ * (IMG_2096, Hurricanes 2026, maska popředí macOS Vision): #89 ukazuje prstem
+ * na diváka, takže gesto nese stejnou výzvu jako CTA „Zapiš se“. Dřív `wr83`,
+ * který už nese pozvánka 4:5 a leták — dva formáty se stejným hráčem se slévaly.
+ *
+ * Kontrast: G (#13322B) na Y (#FFCD00) = 8,1:1, INK na Y = 12,4:1 — obojí nad
+ * AA i pro drobný text.
+ * ───────────────────────────────────────────────────────────────────────── */
+function FbEventCoverZluta() {
+  const L = EV_MOBILE_INSET + 48;
+  /* Textový sloupec končí dřív než u A — od 1080 px vpravo sedí výřez hráče. */
+  const TW = 1080 - L;
+  return (
+    <Board w={FMT.event.w} h={FMT.event.h} bg={Y}>
+      <CamoCorner size={520} corner="tl" opacity={0.14} />
+      <GhostA tone="green" size={840} opacity={0.07} style={{ left: 60, top: -70, zIndex: 1 }} />
+      <Halftone opacity={0.09} size={7} color="19,50,43" />
+
+      {/* Výřez je dekorace. Výřez je 728×1600, při výšce 960 má 437 px →
+       * x 1130–1567, celý uvnitř mobilního ořezu (do 1580). Spodní rovná hrana
+       * (řez nad koleny) mizí za scute pásem. */}
+      <img src={`${PC}/wr89-point.png`} alt="" aria-hidden="true"
+        style={{ position: "absolute", left: 1130, bottom: 0, height: 960, zIndex: 2, display: "block" }} />
+
+      {/* KLÍČOVÝ OBSAH — od 388 do 1080 px, uvnitř SAFE_MOBILE. */}
+      <div style={{ position: "absolute", left: L, top: 68, width: TW, zIndex: 3 }}>
+        <LogoVUT tone="green" vut="cerna" h={50} />
+
+        <div style={{ marginTop: 40 }}>
+          <div style={mono(17, G)}>{AKCE.den.toUpperCase()} {AKCE.datum} · {AKCE.cas}</div>
+          <div style={{ marginTop: 18 }}>
+            <div data-cd-id="stopky-2" style={filled(104, G, Y, 0)}>STOPKY</div>
+            <div style={{ marginTop: -4 }}><span data-cd-id="nelzou-2" style={outline(104, G)}>NELŽOU</span></div>
+          </div>
+          <div data-cd-id="sedm-disciplin-z-2" style={{ ...body(26, INK), marginTop: 24, maxWidth: 640, lineHeight: 1.38 }}>
+            Sedm disciplín z NFL combine za jedno odpoledne. Odejdeš s čísly, ne s dojmem.
+          </div>
+        </div>
+
+        <div style={{ marginTop: 36, display: "flex", alignItems: "flex-end", gap: 30 }}>
+          <div>
+            <div data-cd-id="kde-2" style={mono(13, G)}>KDE</div>
+            <div style={{ ...disp(36, { color: G }), marginTop: 8, whiteSpace: "nowrap" }}>{AKCE.areal.toUpperCase()}</div>
+            <div style={{ ...body(19, INK), marginTop: 6 }}>{AKCE.provozovatel}</div>
+          </div>
+          <div style={{ width: 2, height: 72, background: "rgba(19,50,43,0.28)" }} aria-hidden="true" />
+          <div style={{ paddingBottom: 4 }}>
+            {/* Slovník konverzní cesty je „Zapiš se“ (leták, landing, formulář). */}
+            <Cta label="ZAPIŠ SE" bg={G} fg={Y} size={32} />
+          </div>
+        </div>
+      </div>
+
+      <ScuteDivider width={FMT.event.w} height={36} color={G} style={{ position: "absolute", left: 0, bottom: 62, zIndex: 4 }} />
+      <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 62, background: G, display: "flex", alignItems: "center", justifyContent: "space-between", padding: `0 ${L}px`, zIndex: 5 }}>
+        <span data-cd-id="od-15-let-2" style={body(21, W)}>Od 15 let, i úplným nováčkům. Dres ti půjčíme.</span>
+        <span style={mono(14, Y)}>{AKCE.web.toUpperCase()}</span>
+      </div>
+    </Board>
+  );
+}
+
+/* IG oznámení události (4:5). Instagram události nemá — ekvivalent coveru je
+ * post do feedu na výšku (4:5 zabere ve feedu nejvíc plochy). Stejná fakta a
+ * stejné pořadí čtení jako na FB, jen srovnané na výšku. */
+function IgEventSquare() {
+  const P = 76;
+  return (
+    <Board w={FMT.post.w} h={FMT.post.h} bg={G}>
+      {/* Stejný záběr jako FB cover A (dvojice cover + oznámení). */}
+      <Duo src={`${PC}/tackle-action-2026.jpg`} mode="today" green={0.56} gold={0.05} halftone pos="center 30%"
+        style={{ left: 0, top: 0, width: FMT.post.w, height: 720, zIndex: 1 }} />
+      <div style={{ position: "absolute", inset: 0, background: `linear-gradient(180deg, rgba(12,33,27,0.6) 0px, rgba(12,33,27,0.14) 320px, rgba(12,33,27,0.82) 620px, ${G} 740px)` }} aria-hidden="true" />
+      {/* Šev mezi fotkou a zeleným blokem nesl brand device — scute hranu,
+        * ne tvrdou linku. Ghost se posunul NAD textový blok, přes headline
+        * dřív běžel a utíkal za pravou hranu. */}
+      <ScuteDivider width={FMT.post.w} height={30} color={G} style={{ position: "absolute", left: 0, top: 696, zIndex: 2 }} />
+      <GhostWordmark lines={3} size={70} color={W} style={{ right: -20, top: 96 }} />
+
+      <div style={{ position: "absolute", top: 44, left: P, right: P, display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 3, textShadow: "0 2px 12px rgba(6,14,12,0.9)" }}>
+        <Eyebrow>COMBINE 2026 · BRNO</Eyebrow>
+        <LogoVUT tone="white" h={44} />
+      </div>
+
+      {/* Blok (~416 px) svisle na středu zelené plochy mezi švem (726) a
+        * spodní scute hranou (1222). */}
+      <div style={{ position: "absolute", left: P, right: P, top: 766, zIndex: 4 }}>
+        <div style={{ marginTop: 4 }}>
+          <span data-cd-id="stopky-3" style={filled(112, Y, INK, 0)}>STOPKY</span>
+          <div style={{ marginTop: 2 }}><span data-cd-id="nelzou-3" style={outline(112, W)}>NELŽOU</span></div>
+        </div>
+        <div data-cd-id="sedm-disciplin-z-3" style={{ ...body(26, GRAY), marginTop: 20, lineHeight: 1.38, maxWidth: 820 }}>
+          Sedm disciplín z NFL combine. Jedno odpoledne. Tvoje čísla černé na bílém.
+        </div>
+
+        <div style={{ marginTop: 30, display: "flex", gap: 30 }}>
+          {[["KDY", AKCE.datum, `${AKCE.den} · ${AKCE.cas}`], ["KDE", AKCE.areal.toUpperCase(), AKCE.provozovatel]].map(([k, v, sub]) => (
+            <div key={k} style={{ flex: 1, borderTop: `3px solid ${Y}`, paddingTop: 14 }}>
+              <div style={mono(12, Y)}>{k}</div>
+              <div style={{ ...disp(38, { color: W }), marginTop: 8, whiteSpace: "nowrap" }}>{v}</div>
+              <div style={{ ...body(18, GRAY), marginTop: 6 }}>{sub}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <ScuteDivider width={FMT.post.w} height={32} color={Y} style={{ position: "absolute", left: 0, bottom: 96, zIndex: 3 }} />
+      <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 96, background: G_DEEP, display: "flex", alignItems: "center", justifyContent: "space-between", padding: `0 ${P}px`, zIndex: 4 }}>
+        <span data-cd-id="od-15-let-3" style={body(21, W)}>Od 15 let. Dres ti půjčíme.</span>
+        <span style={mono(14, Y)}>{AKCE.web.toUpperCase()}</span>
+      </div>
+    </Board>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * VÝSLEDKOVÁ KARTA — A4 na šířku, přeložená napůl na A5 na výšku
+ *
+ * „Výsledky si odneseš na kartě" je z landingu i letáku, takže karta musí být
+ * reálný tiskový artefakt, ne jen slib. Dvojlist: A4 LANDSCAPE (297×210 mm) se
+ * přeloží svisle uprostřed → dvě A5 portrait stránky (148,5×210 mm). Tiskne se
+ * oboustranně, takže jsou to DVA artboardy = dva archy:
+ *
+ *   ARCH 1 (vnějšek)  levá půlka = str. 4 (zadní obálka)  · pravá = str. 1 (titul)
+ *   ARCH 2 (vnitřek)  levá půlka = str. 2 (osobní údaje)  · pravá = str. 3 (výsledky)
+ *
+ * Po přeložení jde karta číst 1 → 2 → 3 → 4. Na str. 1 se vyplňuje jméno (aby
+ * byla karta adresná hned po převzetí), na str. 2 kontakt (e-mail, telefon,
+ * věk) — to je zároveň offline záložní kanál k webové registraci.
+ *
+ * Geometrie (bleed 3 mm): trim 1122×794 px @96dpi, artboard (= bleed box)
+ * 1144×816 px, lom uprostřed na x = 572. Kritický obsah drží SAFE (44 px) od
+ * hrany artboardu a stejnou rezervu od lomu — přes lom nesmí nic důležitého.
+ * Vyplňovací linky jsou plné 1,5 px tahy, ne tečkované: na levném tisku
+ * tečkovaná linka mizí a propiska po ní neklouže.
+ * ───────────────────────────────────────────────────────────────────────── */
+const A4L_W = 1144;
+const A4L_H = 816;
+const A4L_PRINT = { paper: "a4", orientation: "landscape", bleedMm: 3 } as const;
+const KSAFE = 44;                 // rezerva od hrany artboardu
+const FOLD = A4L_W / 2;           // osa lomu
+const PW = FOLD - KSAFE * 2;      // využitelná šířka jedné A5 stránky
+
+/* Jedna vyplňovací kolonka: popisek + linka. `w` v procentech řádku. */
+function FillLine({ label, hint, dark = false, h = 40, style }: any) {
+  /* Linka měla 30 px, což je na A5 ≈ 5,4 mm — pod tím, co propiska potřebuje.
+   * 40 px ≈ 7,2 mm. Tón zesílen z 45 % na 65 %: 45% rastr tmavé zelené je na
+   * levném tisku nespolehlivý a linka místy zmizí. */
+  const line = dark ? "rgba(255,255,255,0.6)" : "rgba(19,50,43,0.65)";
+  return (
+    <div style={{ ...style }}>
+      <div style={{ ...mono(10, dark ? Y : G) }}>{label}</div>
+      <div style={{ height: h, borderBottom: `1.5px solid ${line}` }} />
+      {/* body(11) ≈ 8,25 pt — karta se vyplňuje venku, po sprintu, k večeru. */}
+      {hint ? <div style={{ ...body(13, dark ? GRAY : INK_2), marginTop: 5 }}>{hint}</div> : null}
+    </div>
+  );
+}
+
+/* Každá disciplína má vždy tři pokusy → tři chlívky. Rozšířeno z 58 na 80 px
+ * (1aGh 6. 10. 2026): 58 px ≈ 15 mm bylo na A5 u delších čísel ("112", "4,85")
+ * těsné na psaní propiskou a trojice vizuálně nesahala ani do poloviny
+ * tabulky. 80 px × 3 ≈ polovina šířky PW. Hlavička tabulky bere stejnou
+ * šířku, ať sloupce lícují. */
+const POKUSY = 3;
+const POKUS_W = 80;
+const RULE = "1.5px solid rgba(19,50,43,0.22)";
+
+/* Řádek tabulky výsledků — číslo, disciplína, jednotka, tři prázdná pole. */
+function ResultRow({ d, last = false }: any) {
+  return (
+    <div style={{ display: "flex", alignItems: "stretch", borderTop: RULE, borderBottom: last ? RULE : undefined }}>
+      <div style={{ width: 30, flexShrink: 0, display: "flex", alignItems: "center" }}>
+        <span style={disp(19, { color: G })}>{d.n}</span>
+      </div>
+      <div style={{ flex: 1, minWidth: 0, padding: "7px 8px 7px 0" }}>
+        <div style={disp(21, { color: INK })}>{d.name}</div>
+        <div style={{ ...body(11, INK_2), marginTop: 2 }}>{d.meri}</div>
+      </div>
+      {/* Prázdná pole na naměřené hodnoty — žlutý podtisk, ať měřič na první
+       * pohled vidí, kam píše, a ať karta po vyplnění vypadá dokončeně. */}
+      {Array.from({ length: POKUSY }, (_, i) => (
+        <div key={i} style={{ width: POKUS_W, flexShrink: 0, borderLeft: RULE, background: "rgba(255,205,0,0.12)" }} />
+      ))}
+    </div>
+  );
+}
+
+/* Popisky sloupců nad chlívky — „POKUS" přes celou trojici, pod ním 1 / 2 / 3.
+ * „1. POKUS" do 58px sloupce v mono 10 nevejde a popisky se slévaly. */
+function PokusyHlavicka() {
+  return (
+    <div style={{ width: POKUS_W * POKUSY }}>
+      <div data-cd-id="pokus" style={{ ...mono(10, G), textAlign: "center", whiteSpace: "nowrap" }}>POKUS</div>
+      <div style={{ display: "flex", marginTop: 4 }}>
+        {Array.from({ length: POKUSY }, (_, i) => (
+          <div key={i} style={{ width: POKUS_W, textAlign: "center" }}>
+            <span style={disp(19, { color: G })}>{i + 1}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* Partneři 1:1 s combine webem — stejný seznam, pořadí i soubory jako
+ * `combine-web/components/kit/kit.tsx` (SPONSOR_NAMES / SPONSOR_H), loga jsou
+ * kopie `combine-web/public/assets/sponsors/2026/` (bílé siluety).
+ * Kitový `SponsorBar` z DS má starší sadu, proto tu nejde použít. Při změně
+ * partnerů na webu upravit i tady. */
+/* Kopie 1:1 z combine-web/public/assets/sponsors/2026/ — PDF exportér nenačte
+ * soubory mimo .design/, takže přímý odkaz do combine-web v tisku vypadl. */
+const WEB_SP = `${A}/sponsors/2026`;
+const WEB_PARTNERI: [string, string][] = [
+  ["koala", "Koala elektronik"],
+  ["jihomoravsky_kraj", "Jihomoravský kraj"],
+  ["brno", "Statutární město Brno"],
+  ["thaurus", "Thaurus Guru"],
+  ["machac_dentist", "Machač dentist"],
+  ["autonova", "Autonova Brno"],
+  ["agro_trnava", "Agro Trnava u Třebíče"],
+  ["slant", "Slant"],
+  ["kp_cranes", "Královo Pole Cranes"],
+  ["servis_rizik", "Servis podnikatelských rizik"],
+  ["koffein", "Koffein"],
+  ["honzuv_les", "Honzův les"],
+  ["nsa", "Národní sportovní agentura"],
+  ["sun_drive", "Sun Drive"],
+  ["surgal", "SurGal Clinic"],
+];
+/* Výškové stropy z webu (základ 30 px) přepočtené na kartu (základ 17 px). */
+const WEB_SP_H: Record<string, number> = { koala: 38, machac_dentist: 42, autonova: 36, agro_trnava: 34, servis_rizik: 46, koffein: 50, nsa: 44, sun_drive: 46, surgal: 32 };
+
+function KartaPartneri({ width }: { width: number }) {
+  const cols = 5, gap = 8, cellH = 30;
+  const colW = Math.floor((width - gap * (cols - 1)) / cols);
+  return (
+    <div>
+      <div data-cd-id="partneri-klubu" style={{ ...mono(10, W), marginBottom: 10 }}>PARTNEŘI KLUBU</div>
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, ${colW}px)`, gap }}>
+        {WEB_PARTNERI.map(([n, name]) => (
+          <div key={n} style={{ width: colW, height: cellH, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+            <img src={`${WEB_SP}/${n}.png`} alt={name}
+              style={{ maxHeight: Math.round(((WEB_SP_H[n] ?? 30) * 17) / 30), maxWidth: colW - 6, width: "auto", objectFit: "contain", display: "block" }} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* Rám jedné A5 stránky uvnitř A4 archu. `side` = která půlka archu. */
+function KartaPage({ side = "left", bg = PAPER, children }: any) {
+  const left = side === "left" ? 0 : FOLD;
+  return (
+    <div style={{ position: "absolute", left, top: 0, width: FOLD, height: A4L_H, background: bg, overflow: "hidden" }}>
+      {children}
+    </div>
+  );
+}
+
+/* ARCH 1 — vnějšek: zadní obálka (vlevo) + titul (vpravo). */
+function KartaVnejsek() {
+  return (
+    <div style={{ position: "relative", width: A4L_W, height: A4L_H, overflow: "hidden", background: PAPER }}>
+      {/* Vodítko lomu je jen pro orientaci v canvasu — v PDF (print media) se skryje. */}
+      <style>{`@media print { .karta-lom { display: none !important; } }`}</style>
+
+      {/* ── str. 4 · zadní obálka: co dál + QR + partneři ── */}
+      <KartaPage side="left" bg={G}>
+        <div style={{ position: "absolute", inset: 0, backgroundImage: `url("${GFX}/camo-bg.png")`, backgroundSize: "cover", backgroundPosition: "center", opacity: 0.3 }} aria-hidden="true" />
+        <Halftone opacity={0.08} size={6} color="255,255,255" />
+        <GhostA tone="white" size={480} opacity={0.05} style={{ bottom: -140, left: -150 }} />
+
+        <div style={{ position: "absolute", left: KSAFE, top: KSAFE, width: PW, bottom: KSAFE, display: "flex", flexDirection: "column", justifyContent: "space-between", zIndex: 3 }}>
+          <div>
+            <div data-cd-id="combine-jsou-dvere" style={mono(10, Y)}>COMBINE JSOU DVEŘE, NE CÍL</div>
+            {/* Druhý řádek nese Ě i Í; na lineHeight 0,84 se záporným marginem
+              * jejich háčky prorážely „TRÉNINKY" nad nimi. Lockup proto stojí
+              * na 0,95 bez záporného odsazení. */}
+            <div style={{ marginTop: 12, lineHeight: 0.95 }}>
+              <span data-cd-id="treninky" style={filled(46, Y, INK, 0)}>TRÉNINKY</span>
+              <div><span data-cd-id="bezi-cely-rok" style={outline(46, W)}>BĚŽÍ CELÝ ROK</span></div>
+            </div>
+            <div data-cd-id="cisla-na-tehle" style={{ ...body(14, W), marginTop: 16, lineHeight: 1.45 }}>
+              Čísla na téhle kartě jsou tvůj startovní bod. Jestli tě odpoledne chytlo, ozvi se. Dres ti půjčíme, zkušenost nechceme.
+            </div>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 16 }}>
+            <QRSlot size={96} label="" tone="dark" src={QR_SRC} alt={`QR kód, odkaz ${QR_LINK}`} />
+            <div style={{ flex: 1 }}>
+              <div data-cd-id="prijd-na-trenink" style={disp(24, { color: Y })}>PŘIJĎ NA TRÉNINK</div>
+              <div style={{ ...mono(10, GRAY), marginTop: 6, lineHeight: 1.8 }}>
+                {QR_LINK.replace(/^https?:\/\//, "").toUpperCase()}<br />{AKCE.handle}
+              </div>
+            </div>
+          </div>
+
+          <div>
+            {/* VUT = hostitel (stadion CESA VUT v Brně), shodně s webem. Negativní
+              * značka z manuálu JVS VUT (01. 14) — na zeleni povolená. Tisk:
+              * výška ≥ 10 mm (20 %) = 39 px při 3,85 px/mm; ochranná zóna
+              * X = ⅓ výšky (13 px) drží odstup popisku i linky pod ním.
+              * `-print` varianta je bez SVG <mask> — převod PDF na křivky masku
+              * zahazoval a logo vycházelo jako bílé bloky. */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+              <img src={`${A}/logos/horizontal-white.svg`} alt="Brno Alligators" style={{ height: 26 }} />
+              <div>
+                <div data-cd-id="ve-spolupraci-s" style={{ ...mono(10, W), marginBottom: 13 }}>VE SPOLUPRÁCI S</div>
+                <img src={`${A}/partners/vut-negativ-print.svg`} alt="Vysoké učení technické v Brně" style={{ height: 40, display: "block" }} />
+              </div>
+            </div>
+            {/* Všech 15 partnerů z webu (5 × 3). Dřív tři řady přetékaly, protože
+              * `fixed` artboard ořezával tělo o výšku popisku — to je opravené. */}
+            <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.18)" }}>
+              <KartaPartneri width={PW} />
+            </div>
+          </div>
+        </div>
+      </KartaPage>
+
+      {/* ── str. 1 · titul: branding + jméno vlastníka ── */}
+      <KartaPage side="right" bg={PAPER}>
+        <GhostA tone="green" size={470} opacity={0.05} style={{ top: -120, right: -140 }} />
+        {/* `space-between` tu rozhazovalo dvě ~120px díry v různých výškách,
+          * takže titul nepároval se zadní obálkou. Odstupy jsou teď explicitní. */}
+        <div style={{ position: "absolute", left: KSAFE, top: KSAFE, width: PW, bottom: KSAFE, display: "flex", flexDirection: "column", zIndex: 3 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <img src={`${A}/logos/horizontal-green.svg`} alt="Brno Alligators" style={{ height: 30 }} />
+            <span data-cd-id="est-1991" style={mono(10, G)}>EST. 1991</span>
+          </div>
+
+          <div style={{ marginTop: 96 }}>
+            <div data-cd-id="combine-2026-brno-2" style={mono(11, G)}>COMBINE 2026 · BRNO · {AKCE.datum}</div>
+            <div style={{ marginTop: 14 }}>
+              <span data-cd-id="vysledkova" style={filled(62, G, PAPER, 0)}>VÝSLEDKOVÁ</span>
+              <div style={{ marginTop: -2 }}><span data-cd-id="karta" style={outline(62, G)}>KARTA</span></div>
+            </div>
+            <div data-cd-id="sedm-disciplin-sedm" style={{ ...body(15, INK_1), marginTop: 16, lineHeight: 1.45 }}>
+              Sedm disciplín, sedm čísel. Všechno se měří, nic se neodhaduje.
+            </div>
+          </div>
+
+          {/* Jméno a číslo se vyplňují hned při převzetí, ať karta nikomu nezapadne
+            * a měřiči ji spárují s účastníkem i bez čtení jména. */}
+          <div style={{ marginTop: 84, display: "flex", gap: 20 }}>
+            <FillLine label="JMÉNO A PŘÍJMENÍ" hint="Vyplň hned na startu, ať se karta neztratí." h={48} style={{ flex: 3 }} />
+            <FillLine label="ČÍSLO" h={48} style={{ flex: 1 }} />
+          </div>
+
+          <div style={{ marginTop: "auto", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+            <div style={{ ...mono(10, G) }}>{AKCE.web.toUpperCase()}</div>
+            <Tag skew={-6} px={13}>Sedm čísel</Tag>
+          </div>
+        </div>
+        {/* naznačení lomu — netiskne se, jen orientace v canvasu */}
+        <div className="karta-lom" aria-hidden="true" style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 1, background: "rgba(19,50,43,0.25)" }} />
+      </KartaPage>
+    </div>
+  );
+}
+
+/* ARCH 2 — vnitřek: osobní údaje (vlevo) + tabulka výsledků (vpravo). */
+function KartaVnitrek() {
+  return (
+    <div style={{ position: "relative", width: A4L_W, height: A4L_H, overflow: "hidden", background: PAPER }}>
+      <style>{`@media print { .karta-lom { display: none !important; } }`}</style>
+
+      {/* ── str. 2 · kdo jsi (offline záloha registrace) ── */}
+      <KartaPage side="left" bg={PAPER}>
+        <div style={{ position: "absolute", left: KSAFE, top: KSAFE, width: PW, bottom: KSAFE, display: "flex", flexDirection: "column", zIndex: 3 }}>
+          <div data-cd-id="abychom-se-ozvali" style={mono(10, G)}>ABYCHOM SE OZVALI</div>
+          <div style={{ marginTop: 10 }}>
+            <span data-cd-id="kdo-jsi" style={filled(40, G, PAPER, 0)}>KDO JSI</span>
+          </div>
+          <div data-cd-id="kartu-si-odnasis" style={{ ...body(13, INK_2), marginTop: 10, lineHeight: 1.45 }}>
+            Kartu si odnášíš ty, tenhle sloupec zůstává nám. Píšeme jenom kvůli termínu nejbližšího tréninku, nikam jinam údaje nedáváme.
+          </div>
+
+          {/* Rozestup 40 px, ne 18: pole se mačkala u horní hrany a zbytek
+            * stránky byl zbytek po `margin-top: auto`. Vyplňovaná stránka chce
+            * místo na psaní rozložené po celé výšce, ne nahoře. */}
+          <div style={{ marginTop: 26, display: "flex", flexDirection: "column", gap: 40 }}>
+            <FillLine label="JMÉNO A PŘÍJMENÍ" />
+            <FillLine label="E-MAIL" hint="Sem přijdou tvoje čísla i v digitální podobě." />
+            <div style={{ display: "flex", gap: 20 }}>
+              <FillLine label="TELEFON" style={{ flex: 1.6 }} />
+              <FillLine label="VĚK" style={{ flex: 1 }} />
+            </div>
+            <FillLine label="ODKUD VÍŠ O COMBINE" hint="Leták, Instagram, Facebook, od kamaráda, ve škole…" />
+          </div>
+
+          <div style={{ marginTop: 34, borderTop: "1.5px solid rgba(19,50,43,0.22)", paddingTop: 12, display: "flex", gap: 12, alignItems: "flex-start" }}>
+            <span aria-hidden="true" style={{ width: 18, height: 18, border: `2px solid ${G}`, flexShrink: 0, marginTop: 2 }} />
+            <div data-cd-id="souhlasim-aby-me" style={{ ...body(13, INK_2), lineHeight: 1.4 }}>
+              Souhlasím, aby mě Brno Alligators, z. s. kontaktovali ohledně tréninků. Souhlas můžu kdykoli odvolat na info@alligators.cz.
+            </div>
+          </div>
+
+          {/* Zelený pruh páruje s patou protější strany (1aGh 5. 10. 2026) —
+            * `marginTop: auto` drží obě lišty na stejné výšce dvojstrany bez
+            * ohledu na to, kolik místa zabere obsah nad nimi. */}
+          <div style={{ marginTop: "auto", background: G, padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span data-cd-id="zadny-spam-zadna" style={{ ...body(12, W), lineHeight: 1.4, maxWidth: 300 }}>
+              Žádný spam, žádná reklama. Jen termín dalšího tréninku.
+            </span>
+            <img src={`${A}/logos/horizontal-white.svg`} alt="Brno Alligators" style={{ height: 20 }} />
+          </div>
+        </div>
+        <div className="karta-lom" aria-hidden="true" style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 1, background: "rgba(19,50,43,0.25)" }} />
+      </KartaPage>
+
+      {/* ── str. 3 · tabulka výsledků ── */}
+      <KartaPage side="right" bg={PAPER}>
+        <div style={{ position: "absolute", left: KSAFE, top: KSAFE, width: PW, bottom: KSAFE, display: "flex", flexDirection: "column", zIndex: 3 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+            <div>
+              <div data-cd-id="co-jsi-nameril" style={mono(10, G)}>CO JSI NAMĚŘIL</div>
+              <div style={{ marginTop: 8 }}><span data-cd-id="tva-cisla" style={filled(40, G, PAPER, 0)}>TVÁ ČÍSLA</span></div>
+            </div>
+            <PokusyHlavicka />
+          </div>
+
+          <div style={{ marginTop: 12 }}>
+            {DISCIPLINY.map((d, i) => <ResultRow key={d.id} d={d} last={i === DISCIPLINY.length - 1} />)}
+          </div>
+
+          <div style={{ marginTop: 26, display: "flex", gap: 20 }}>
+            <FillLine label="MĚŘIL" style={{ flex: 1 }} />
+            <FillLine label="DATUM" hint={AKCE.datum} style={{ flex: 1 }} />
+          </div>
+
+          {/* Poznámka vyplňuje pás, který byl dřív prázdný. */}
+          <div style={{ marginTop: 20, borderTop: "1.5px solid rgba(19,50,43,0.22)", paddingTop: 12 }}>
+            <div data-cd-id="poznamka" style={{ ...mono(10, G) }}>POZNÁMKA</div>
+            <div style={{ height: 40, borderBottom: "1.5px solid rgba(19,50,43,0.65)" }} />
+          </div>
+
+          {/* SH Club = časomíra a online výsledkový systém Combine (1aGh 5. 10.
+            * 2026). Klubová zelená lišta ze dna téhle strany šla pryč (1aGh
+            * 5. 10. 2026) — SH Club odkaz teď drží dno sám, `marginTop: auto`. */}
+          <div style={{ marginTop: "auto", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16 }}>
+            <div>
+              <div data-cd-id="vysledky-online" style={{ ...mono(10, G) }}>VÝSLEDKY ONLINE</div>
+              <div data-cd-id="combinecz-shclub-cz" style={{ ...mono(10, INK_2), marginTop: 2 }}>COMBINECZ.SHCLUB.CZ</div>
+            </div>
+            <img src={`${A}/partners/shclub.png`} alt="SH Club" style={{ height: 20 }} />
+          </div>
+        </div>
+      </KartaPage>
+    </div>
+  );
+}
+
+export default function CombineKampan() {
+  return (
+    <DesignCanvas>
+      <SocialDefs />
+
+      {/* ═══════════════════ RELEASE PLAN ═══════════════════ */}
+      <DCSection id="plan" title="Release plan" subtitle="co · kdy · kam · v jaké kombinaci — čtyři týdny kampaně od oznámení po recap, včetně série 6 videí od hosta ze zámoří">
+
+        {/* Výška 2760: 9 milníků osy zabere ~1750 px, hlavička 400, spodní pás 560.
+         * Při 2120 se poslední tři milníky schovaly pod spodní pás. */}
+        <DCArtboard id="release-plan" label="Release plan · Combine 2026 (4 týdny)" width={1920} height={2760}>
+          <Board w={1920} h={2760} bg={G}>
+            <CamoCorner size={460} corner="tr" opacity={0.12} />
+            <GhostA tone="white" size={1200} opacity={0.04} style={{ bottom: -300, left: -260 }} />
+            <Halftone opacity={0.06} size={7} color="255,255,255" />
+
+            {/* Hlavička */}
+            <div style={{ position: "absolute", top: 64, left: 76, right: 76, display: "flex", justifyContent: "space-between", alignItems: "flex-start", zIndex: 3 }}>
+              <div>
+                <Eyebrow>RELEASE PLAN · INSTAGRAM + FACEBOOK · COMBINE 2026</Eyebrow>
+                <div style={{ marginTop: 16 }}>
+                  <span data-cd-id="stopky-4" style={filled(84, Y, INK, 0)}>STOPKY </span>
+                  <span data-cd-id="nelzou-4" style={outline(84, W)}>NELŽOU</span>
+                </div>
+                <div data-cd-id="ctyri-tydny-jeden" style={{ ...body(25, GRAY), marginTop: 16, maxWidth: 1060, lineHeight: 1.42 }}>
+                  Čtyři týdny, jeden cíl: dostat na stadion CESA lidi, kteří si chtějí změřit vlastní čísla. Plán níž říká, co postnout, kdy a v jaké kombinaci. Feed nese fakta, video nese chuť, story nese naléhavost.
+                </div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <Logo tone="white" h={66} />
+                <div data-cd-id="den-d" style={{ ...mono(14, Y), marginTop: 22 }}>DEN D</div>
+                <div style={{ ...disp(56, { color: W }), marginTop: 6 }}>{AKCE.datum}</div>
+                <div style={{ ...body(20, GRAY), marginTop: 6 }}>{AKCE.cas}</div>
+              </div>
+            </div>
+
+            {/* Časová osa kampaně */}
+            <div style={{ position: "absolute", top: 400, left: 76, right: 76, zIndex: 3, display: "flex", flexDirection: "column", gap: 0 }}>
+              <Milnik kdy="T-4" datum="čt 10. 9." chips={["event", "post", "story", "video"]}
+                headline="Spouštíme. Combine je venku."
+                note={`Založit FB událost a hned ji sdílet. Feed post 4:5 s KDY/KDE/KOMU a QR na registraci. Story: sdílení postu plus anketa „přijdeš si to změřit?“. Video 1 od ${HOST} jako osobní pozvánka.`} />
+              <Milnik kdy="T-3" datum="čt 17. 9." chips={["video", "post", "offline"]}
+                headline="Carousel disciplín, díl první."
+                note="Video 2 (40 yardů) a první dva slidy carouselu disciplín. Zároveň roznos A5 letáků: VUT koleje, fitka, střední školy, skateparky. QR na letáku má vlastní tracking, ať víme, co táhne." />
+              <Milnik kdy="T-2" datum="čt 24. 9." chips={["video", "post", "story"]}
+                headline="Bench a nulová bariéra."
+                note="Video 3 (bench press) a slidy 3 a 4. Ke každému postu story s otázkou v boxu. Tady se tlačí hlavně na to, že zkušenost nechceme: přijít může úplný nováček." />
+              <Milnik kdy="T-1" datum="čt 1. 10." chips={["video", "post", "event"]}
+                headline="Zbytek disciplín a připomínka události."
+                note="Video 4 (výskok a dálka) a slidy 5 a 6. Připomínka ve FB události plus příspěvek do brněnských skupin. Registrace už běží týdny, teď se hlídají čísla." />
+              <Milnik kdy="T-4 dny" datum="so 3. 10." chips={["video", "post"]}
+                headline="Přehled všech sedmi na jednom postu."
+                note="Video 5 (agilita) a přehledový post 4:5 se všemi sedmi disciplínami. Ten se sdílí i na Facebook, kde starší publikum chce vidět celek najednou." />
+              <Milnik kdy="T-2 dny" datum="po 5. 10." chips={["video", "story"]}
+                headline="Co tě čeká, řekne to host."
+                note={`Video 6 (position drills a co tě na místě čeká) uzavírá sérii. Story: pin přímo na horní hřiště s oválem na stadionu CESA (ne na ředitelství CESA ani na spodní stadion), co si vzít s sebou, připomínka že šatny jsou zajištěné.`} />
+              <Milnik kdy="D-1" datum="út 6. 10." chips={["story", "event"]} hot
+                headline="Zítra. Poslední výzva."
+                note="Countdown story, pin lokace, poslední volná místa. Do FB události krátký post s časovým harmonogramem odpoledne." />
+              <Milnik kdy="DEN D" datum={`st ${AKCE.datum}`} chips={["story", "post"]} hot
+                headline="Dnes se měří."
+                note="Ráno story „dnes od 18:00 na stadionu CESA“. Během odpoledne živé story ze stanovišť, ideálně první naměřená čísla. Večer feed post s atmosférou." />
+              <Milnik kdy="D+2" datum="pá 9. 10." chips={["video", "post", "story"]} last
+                headline="Recap a pozvánka na trénink."
+                note="Reel z combine, výsledkové karty do story k označení účastníků, poděkování partnerům. Poslední snímek vždycky vede na trénink: combine je dveře, ne cíl." />
+            </div>
+
+            <ScuteDivider width={1920} height={44} color={Y} style={{ position: "absolute", left: 0, bottom: 560, zIndex: 2 }} />
+
+            {/* Spodní pás — videosérie + pravidlo kombinace + partneři */}
+            <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 560, background: G_DEEP, padding: "40px 76px 0", zIndex: 3 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                <div>
+                  <div data-cd-id="serie-6-videi" style={mono(14, Y)}>SÉRIE 6 VIDEÍ · POZVÁNKA OD HOSTA ZE ZÁMOŘÍ</div>
+                  <div data-cd-id="jedna-tvar-provede" style={{ ...body(21, GRAY), marginTop: 8, maxWidth: 1180, lineHeight: 1.4 }}>
+                    Jedna tvář provede celou kampaní. {HOST} přijede na combine a postupně, díl po dílu, ukáže, co které stanoviště obnáší. První čtyři díly vycházejí ve čtvrtek, aby to lidem sedlo do týdne, zbylé dva v posledním týdnu před středou.
+                  </div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div data-cd-id="doplnit-pred-startem" style={mono(13, GRAY)}>DOPLNIT PŘED STARTEM</div>
+                  <div data-cd-id="jmeno-a-role" style={{ ...body(19, W), marginTop: 6 }}>jméno a role hosta</div>
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 14, marginTop: 26 }}>
+                <VideoDil n="01" kdy="T-4" titul="POZVÁNKA" popis="Kdo jsem, proč jedu do Brna a proč bys měl přijít." />
+                <VideoDil n="02" kdy="T-3" titul="40 YARDŮ" popis="Rovinka a stopky. Jak se startuje a co číslo znamená." />
+                <VideoDil n="03" kdy="T-2" titul="BENCH" popis="Sto dva kilo. Technika, dech, kolik je slušných opakování." />
+                <VideoDil n="04" kdy="T-1" titul="VÝSKOK" popis="Vertical a broad jump. Dvě čísla, jedna výbušnost." />
+                <VideoDil n="05" kdy="T-4 dny" titul="AGILITA" popis="Kužely a shuttle. Kde končí rychlost a začíná hlava." />
+                <VideoDil n="06" kdy="T-2 dny" titul="CO TĚ ČEKÁ" popis="Position drills a průchod odpolednem minutu po minutě." />
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 40, marginTop: 30, paddingTop: 24, borderTop: "1px solid rgba(255,255,255,0.14)" }}>
+                <div style={{ maxWidth: 940 }}>
+                  <div data-cd-id="pravidlo-kombinace" style={mono(13, Y)}>PRAVIDLO KOMBINACE</div>
+                  <div data-cd-id="nikdy-tri-posty" style={{ ...body(20, W), marginTop: 8, lineHeight: 1.36 }}>
+                    Nikdy tři posty v jeden den. Každé video doprovodí story se stejnou myšlenkou, ale jinými slovy. Feed nese KDY a KDE, video nese chuť, story nese „teď“. Odkaz vždy na {AKCE.web}.
+                  </div>
+                </div>
+                <div>
+                  <div style={mono(13, Y)}>OSLOVIT PARTNERY</div>
+                  <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+                    {["Under Armour", "fyzio", "DPMB"].map((p) => (
+                      <span key={p} style={{ ...body(19, W), border: "1.5px dashed rgba(255,255,255,0.4)", padding: "9px 16px" }}>{p}</span>
+                    ))}
+                  </div>
+                  <div style={{ ...mono(12, GRAY), marginTop: 10 }}>MĚŘENÍ · REGENERACE · DOPRAVA DO AREÁLU</div>
+                </div>
+              </div>
+            </div>
+          </Board>
+        </DCArtboard>
+      </DCSection>
+
+      {/* ═══════════════════ UDÁLOST — FB COVER + IG ═══════════════════ */}
+      <DCSection id="event" title="Událost — cover a oznámení" subtitle="FB event cover 1920×1005 ve třech variantách (A headline · B datum · C žlutá), kontrolní artboard s vodítky safe zóny a oznámení pro Instagram 4:5">
+
+        {/* Čistý cover — tohle je soubor, který jde na Facebook. */}
+        <DCArtboard id="fb-event-cover" label={`FB event cover · ${FMT.event.label}`} width={FMT.event.w} height={FMT.event.h}>
+          <FbEventCover />
+        </DCArtboard>
+
+        {/* VARIANTA B — centrovaná, datum jako hero. */}
+        <DCArtboard id="fb-event-cover-datum" label={`FB event cover · varianta B, datum vpředu · ${FMT.event.label}`} width={FMT.event.w} height={FMT.event.h}>
+          <FbEventCoverDatum />
+        </DCArtboard>
+
+        {/* VARIANTA C — žlutá plocha, výřez hráče. */}
+        <DCArtboard id="fb-event-cover-zluta" label={`FB event cover · varianta C, žlutá · ${FMT.event.label}`} width={FMT.event.w} height={FMT.event.h}>
+          <FbEventCoverZluta />
+        </DCArtboard>
+
+        {/* Kontrolní artboard s vodítky — netiskne se a nenahrává, slouží ke
+         * kontrole, že klíčový obsah přežije mobilní ořez a náhledovou dlaždici. */}
+        <DCArtboard id="fb-event-safe" label="FB event cover · kontrola safe zóny (nenahrávat)" width={FMT.event.w} height={FMT.event.h}>
+          <FbEventCover guides />
+        </DCArtboard>
+
+        {/* Instagram nemá události, takže ekvivalent coveru je oznámení do
+         * feedu na výšku 4:5 — stejná fakta, stejná hierarchie, jiný ořez.
+         * ID artboardu zůstává kvůli exportům a odkazům. */}
+        <DCArtboard id="ig-event-square" label={`Oznámení události · Instagram · ${FMT.post.label}`} width={FMT.post.w} height={FMT.post.h}>
+          <IgEventSquare />
+        </DCArtboard>
+      </DCSection>
+
+      {/* ═══════════════════ DISCIPLÍNY — IG CAROUSEL ═══════════════════ */}
+      <DCSection id="discipliny" title="Disciplíny — carousel" subtitle="IG post 4:5 · cover a 7 slidů; jeden slide na disciplínu, data v konstantě DISCIPLINY">
+
+        {/* COVER CAROUSELU */}
+        <DCArtboard id="disc-cover" label={`Carousel cover · sedm disciplín · ${FMT.post.label}`} width={FMT.post.w} height={FMT.post.h}>
+          <Board w={FMT.post.w} h={FMT.post.h} bg={G}>
+            <div style={{ position: "absolute", inset: 0, backgroundImage: `url("${GFX}/camo-bg.png")`, backgroundSize: "cover", backgroundPosition: "center", opacity: 0.4 }} aria-hidden="true" />
+            <Halftone opacity={0.1} size={7} color="255,255,255" />
+            <GhostA tone="white" size={1180} opacity={0.05} style={{ bottom: -320, right: -300 }} />
+            <Sash side="tr" w={250} color={Y} />
+
+            <div style={{ position: "absolute", top: 48, left: 48, zIndex: 3 }}>
+              <LogoVUT tone="white" h={52} />
+            </div>
+
+            <div style={{ position: "absolute", top: 180, left: 48, right: 48, zIndex: 3 }}>
+              <div style={mono(16, Y)}>COMBINE 2026 · CO TĚ ČEKÁ</div>
+              <div style={{ marginTop: 18 }}>
+                <span style={filled(158, Y, INK, 0)}>SEDM</span>
+                <div style={{ marginTop: -12 }}><span style={outline(158, W)}>DISCIPLÍN</span></div>
+              </div>
+              <div style={{ ...body(29, W), marginTop: 24, maxWidth: 880, lineHeight: 1.4 }}>
+                Ty samé testy, kterými v zámoří prochází hráči před draftem. Jedno odpoledne v Brně, sedm čísel, která jsou jenom tvoje.
+              </div>
+            </div>
+
+            <div style={{ position: "absolute", left: 48, right: 48, top: "675px", zIndex: 3, display: "flex", flexDirection: "column", gap: 0 }}>
+              {DISCIPLINY.map((d, i) => (
+                <div key={d.id} style={{ display: "flex", alignItems: "baseline", gap: 20, padding: "10px 0", borderTop: i === 0 ? "2px solid rgba(255,255,255,0.2)" : "1px solid rgba(255,255,255,0.14)" }}>
+                  <span style={{ ...disp(32, { color: Y }), width: 54, flexShrink: 0 }}>{d.n}</span>
+                  <span style={{ ...disp(40, { color: W }), flex: 1 }}>{d.name}</span>
+                  <span style={{ ...body(19, GRAY), textAlign: "right" }}>{d.meri}</span>
+                </div>
+              ))}
+            </div>
+
+            <ScuteDivider width={FMT.post.w} height={44} color={Y} style={{ position: "absolute", left: 0, bottom: 150, zIndex: 3 }} />
+            <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 150, background: G_DEEP, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 48px", zIndex: 4 }}>
+              <div>
+                <div style={mono(13, GRAY)}>{AKCE.handle} · {AKCE.web}</div>
+                <div style={{ ...body(24, W), marginTop: 4 }}>Listuj dál, projdeme je jednu po druhé.</div>
+              </div>
+              <Cta label="Zapiš se" />
+            </div>
+          </Board>
+        </DCArtboard>
+
+        {/* 7 SLIDŮ — jeden na disciplínu */}
+        {DISCIPLINY.map((d, i) => (
+          <DCArtboard
+            key={d.id}
+            id={`disc-${d.id}`}
+            label={`Slide ${d.n} · ${d.name} · ${FMT.post.label}`}
+            width={FMT.post.w}
+            height={FMT.post.h}
+          >
+            <DiscSlide d={d} index={i} total={DISCIPLINY.length} />
+          </DCArtboard>
+        ))}
+
+        {/* PŘEHLED VŠECH 7 — jeden post 4:5 (IG feed i Facebook) */}
+        <DCArtboard id="disc-prehled" label={`Přehled všech sedmi · ${FMT.post.label}`} width={FMT.post.w} height={FMT.post.h}>
+          <Board w={FMT.post.w} h={FMT.post.h} bg={PAPER}>
+            <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0.05, mixBlendMode: "multiply", pointerEvents: "none" }} aria-hidden="true">
+              <filter id="grainPrehled"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" /></filter>
+              <rect width="100%" height="100%" filter="url(#grainPrehled)" />
+            </svg>
+            <GhostA tone="green" size={860} opacity={0.05} style={{ bottom: -240, right: -190 }} />
+
+            <div style={{ position: "absolute", top: 52, left: 52, right: 52, display: "flex", justifyContent: "space-between", alignItems: "flex-start", zIndex: 3 }}>
+              <div>
+                <div style={mono(15, G)}>COMBINE 2026 · BRNO · {AKCE.datum}</div>
+                <div style={{ marginTop: 34 }}>
+                  <span style={filled(96, G, PAPER, 0)}>SEDM ČÍSEL,</span>
+                  <div style={{ marginTop: -8 }}><span style={outline(96, G)}>JEDNO ODPOLEDNE</span></div>
+                </div>
+              </div>
+              <LogoVUT variant="horizontal" tone="green" h={46} stack />
+            </div>
+
+            <div style={{ position: "absolute", left: 52, right: 52, top: 320, zIndex: 3, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 34px" }}>
+              {DISCIPLINY.map((d) => (
+                <div key={d.id} style={{ display: "flex", gap: 16, alignItems: "flex-start", padding: "62px 0", borderTop: "2px solid rgba(19,50,43,0.16)" }}>
+                  <span style={{ ...disp(34, { color: G }), width: 46, flexShrink: 0 }}>{d.n}</span>
+                  <div>
+                    <div style={disp(34, { color: INK })}>{d.name}</div>
+                    <div style={{ ...body(19, INK_1), marginTop: 4 }}>{d.cz}</div>
+                  </div>
+                </div>
+              ))}
+              {/* dorovnání gridu — sedmá položka stojí sama v levém sloupci */}
+              <div style={{ padding: "62px 0", borderTop: "2px solid rgba(19,50,43,0.16)", display: "flex", alignItems: "center" }}>
+                <span style={{ ...body(19, INK_1) }}>Všechno se měří, nic se neodhaduje. Výsledky si odneseš na kartě.</span>
+              </div>
+            </div>
+
+            <div style={{ position: "absolute", left: 52, right: 52, bottom: 52, display: "flex", justifyContent: "space-between", alignItems: "flex-end", zIndex: 4 }}>
+              <div>
+                <div style={{ ...body(26, INK), maxWidth: 620, lineHeight: 1.36 }}>
+                  Nikdy jsi fotbal nehrál? Stopkám je to jedno. Přijď v teniskách, zbytek vyřešíme na místě.
+                </div>
+                <div style={{ ...mono(14, G), marginTop: 14 }}>{AKCE.web.toUpperCase()}</div>
+              </div>
+              <Cta label="Chci se změřit" bg={G} fg={W} size={32} />
+            </div>
+          </Board>
+        </DCArtboard>
+      </DCSection>
+
+      {/* ═══════════════════ IG / FB KREATIVA ═══════════════════ */}
+      <DCSection id="social" title="Posty a stories" subtitle="hlavní pozvánka do feedu, obálka videosérie a naléhavé stories kolem dne D">
+
+        {/* HLAVNÍ POZVÁNKA · POST 4:5 */}
+        <DCArtboard id="post-pozvanka" label={`Pozvánka na combine · ${FMT.post.label}`} width={FMT.post.w} height={FMT.post.h}>
+          <Board w={FMT.post.w} h={FMT.post.h} bg={G}>
+            <div style={{ position: "absolute", inset: 0, backgroundImage: `url("${GFX}/camo-bg.png")`, backgroundSize: "cover", backgroundPosition: "center", opacity: 0.42 }} aria-hidden="true" />
+            <Halftone opacity={0.1} size={7} color="255,255,255" />
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, rgba(9,26,20,0.72) 0%, rgba(9,26,20,0.12) 66%)" }} aria-hidden="true" />
+            <img src={`${PC}/wr83.png`} alt="Hráč Alligators v dresu číslo 83" style={{ position: "absolute", right: -100, bottom: 128, height: 1030, zIndex: 2 }} />
+
+            <div style={{ position: "absolute", top: 48, left: 48, right: 48, display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 3 }}>
+              <Eyebrow>COMBINE 2026 · BRNO · {AKCE.datum}</Eyebrow>
+              <LogoVUT tone="white" h={50} />
+            </div>
+
+            {/* top 150 + px 130: popisek končí ~520, info karta od 570 má vzduch
+             * (dřív se popisek karty dotýkal). */}
+            <div style={{ position: "absolute", top: 150, left: 48, zIndex: 4 }}>
+              <Hero a="Stopky" b="nelžou" px={130} gap={18} />
+              {/* Šířka 500 (ne 560) drží řádky mimo ořez hráče — na jeho dresu
+               * text ztrácel kontrast. */}
+              <div style={{ ...body(29, W), marginTop: 22, width: 470, lineHeight: 1.4, textShadow: "0 2px 14px rgba(6,14,12,0.92)" }}>
+                Sedm disciplín z NFL combine. Za jedno odpoledne budeš vědět, kde přesně jsi.
+              </div>
+            </div>
+
+            {/* Hodnoty jsou zkrácené schválně — na šířku karty se každá musí vejít
+             * na JEDEN řádek, jinak se info-blok láme a ztrácí skenovatelnost. */}
+            <InfoCard
+              style={{ position: "absolute", left: 48, top: 570, width: 600, zIndex: 5 }}
+              lead="Registrace předem, kapacita stanovišť je omezená."
+              rows={[
+                ["KDY", "st 7. 10. · 18:00-21:00"],
+                ["KDE", "Atletický stadion CESA"],
+                ["KOMU", "od 15 let, i nováčkům"],
+                ["ZÁZEMÍ", "šatny a sprchy"],
+              ]}
+              qr={<QRSlot size={150} label={"Naskenuj a zapiš\u00a0se"} tone="light" src={QR_POST_SRC} alt={`QR kód, odkaz ${QR_POST_LINK}`} />}
+            />
+
+            <ScuteDivider width={FMT.post.w} height={44} color={Y} style={{ position: "absolute", left: 0, bottom: 150, zIndex: 4 }} />
+            <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 150, background: G_DEEP, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 48px", zIndex: 5 }}>
+              <div>
+                <div style={mono(13, GRAY)}>{AKCE.handle} · {AKCE.web}</div>
+                <div style={{ ...body(24, W), marginTop: 4 }}>Zkušenost nechceme, dres ti půjčíme.</div>
+              </div>
+              <Cta label="Zapiš se" />
+            </div>
+          </Board>
+        </DCArtboard>
+
+        {/* OBÁLKA VIDEOSÉRIE · REEL 9:16 */}
+        <DCArtboard id="reel-host" label={`Obálka videosérie · pozvánka od hosta · ${FMT.story.label}`} width={FMT.story.w} height={FMT.story.h}>
+          <Board w={FMT.story.w} h={FMT.story.h} bg={G_DEEP}>
+            {/* Podklad je BRANDOVÁ TEXTURA, ne fotka: obálka mluví o hostovi,
+             * kterého zatím nemáme nafoceného. Fotka hráče (natož soupeře) by se
+             * na téhle obálce četla jako „tohle je ten host“ — vymyšlený fakt.
+             * Portrét hosta proto dostává vlastní, jasně označený slot níž. */}
+            <div style={{ position: "absolute", inset: 0, backgroundImage: `url("${GFX}/camo-bg.png")`, backgroundSize: "cover", backgroundPosition: "center", opacity: 0.3 }} aria-hidden="true" />
+            <GhostWordmark lines={7} size={112} color={W} style={{ left: -30, top: 700 }} />
+            <GhostA tone="white" size={1180} opacity={0.06} style={{ top: 180, right: -320 }} />
+            <Halftone opacity={0.08} size={7} color="255,255,255" />
+
+            <div style={{ position: "absolute", top: 264, left: 64, right: 64, display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 3 }}>
+              <Eyebrow>SÉRIE · DÍL 1 ZE 6</Eyebrow>
+              <LogoVUT tone="white" h={48} />
+            </div>
+
+            <div style={{ position: "absolute", top: 470, left: 64, right: 64, zIndex: 3 }}>
+              <span style={outline(140, W)}>PŘILETÍ</span>
+              <div style={{ marginTop: -8 }}><span style={filled(140, Y, INK, 0)}>NA JEDNO</span></div>
+              <div style={{ marginTop: -8 }}><span style={filled(140, W, INK, 0)}>ODPOLEDNE</span></div>
+              <div style={{ ...body(30, W), marginTop: 26, width: 700, lineHeight: 1.38, textShadow: "0 2px 10px rgba(6,14,12,0.85)" }}>
+                {HOST} přijede na brněnské combine a šest dílů dopředu ukáže, co tě na každém stanovišti čeká. Začínáme dneškem.
+              </div>
+            </div>
+
+            {/* Slot na portrét hosta — nahradit reálnou fotkou, až ji budeme mít. */}
+            <div style={{ position: "absolute", left: 64, top: 1040, zIndex: 3, display: "flex", gap: 22, alignItems: "flex-end" }}>
+              <div style={{ width: 400, height: 460, border: `3px dashed ${Y}`, background: "rgba(255,205,0,0.09)", display: "grid", placeItems: "center", padding: 20, textAlign: "center" }}>
+                <div>
+                  <div style={mono(14, Y)}>FOTO HOSTA</div>
+                  <div style={{ ...body(20, W), marginTop: 12, lineHeight: 1.4 }}>Sem přijde portrét {HOST}</div>
+                </div>
+              </div>
+              <div style={{ paddingBottom: 8 }}>
+                <div style={{ ...disp(40, { color: INK }), background: Y, padding: "12px 22px", display: "inline-block" }}>PŘEHRÁT</div>
+                <div style={{ ...mono(14, W), background: "rgba(9,26,20,0.7)", padding: "9px 15px", marginTop: 12, display: "inline-block" }}>30 s · zvuk zapni</div>
+              </div>
+            </div>
+
+            <div style={{ position: "absolute", left: 64, right: 64, bottom: 190, zIndex: 3, display: "flex", gap: 8 }} aria-label="díl 1 ze 6">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <span key={i} aria-hidden="true" style={{ flex: 1, height: 6, background: i === 0 ? Y : "rgba(255,255,255,0.28)" }} />
+              ))}
+            </div>
+
+            <BrandFooter handle={AKCE.handle} web={AKCE.web} tone="white" style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: "0 64px 58px", zIndex: 4 }} />
+          </Board>
+        </DCArtboard>
+
+        {/* POZVÁNKA · STORY 9:16 */}
+        <DCArtboard id="story-pozvanka" label={`Pozvánka · story · ${FMT.story.label}`} width={FMT.story.w} height={FMT.story.h}>
+          <Board w={FMT.story.w} h={FMT.story.h} bg={G}>
+            <CamoCorner size={440} corner="tl" opacity={0.16} />
+            <GhostA tone="white" size={1240} opacity={0.05} style={{ top: 660, right: -320 }} />
+            <Halftone opacity={0.07} size={6} color="255,255,255" />
+
+            <div style={{ position: "absolute", top: 290, left: 64, right: 64, zIndex: 3 }}>
+              <LogoVUT tone="white" h={56} />
+              <div style={{ ...mono(18, Y), marginTop: 42 }}>STŘEDA 7. ŘÍJNA · POD PALACKÉHO VRCHEM</div>
+              <div style={{ marginTop: 44 }}>
+                <span style={outline(146, W)}>ZMĚŘ SE</span>
+                <div style={{ marginTop: -8 }}><span style={filled(146, Y, INK, 0)}>S NÁMI</span></div>
+              </div>
+              <div style={{ ...body(31, W), marginTop: 26, width: 680, lineHeight: 1.38 }}>
+                Sedm disciplín z NFL combine. Sprint, bench, výskok, kužely. Tvoje čísla si odneseš domů.
+              </div>
+            </div>
+
+            <div style={{ position: "absolute", left: 64, right: 64, top: 930, zIndex: 3 }}>
+              <InfoCard
+                rows={[
+                  ["KDY", `${AKCE.den} ${AKCE.datum} · ${AKCE.cas}`],
+                  ["KDE", "Atletický stadion CESA"],
+                  ["KOMU", AKCE.komu],
+                ]}
+              />
+            </div>
+
+            <Duo src={`${PC}/sideline-team-huddle-2026.jpg`} mode="today" green={0.5} gold={0.05} halftone pos="center 42%"
+              style={{ left: 64, top: 1210, width: 952, height: 280, zIndex: 2 }} />
+
+            {/* slot na IG odkazový sticker */}
+            <div style={{ position: "absolute", left: "201.53px", right: 64, bottom: 322, zIndex: 3, background: "rgba(9,26,20,0.72)", border: `2px dashed ${Y}`, padding: "18px 0", textAlign: "center", ...mono(15, Y) , width: "676.94px" , height: "64px" }}>
+              vlož IG odkazový sticker → {AKCE.web}
+            </div>
+
+            <ScuteDivider width={FMT.story.w} height={40} color={Y} style={{ position: "absolute", left: 0, bottom: 250, zIndex: 3 }} />
+          </Board>
+        </DCArtboard>
+
+        {/* COUNTDOWN · STORY 9:16 */}
+        <DCArtboard id="story-countdown" label={`Zítra se měří · countdown story · ${FMT.story.label}`} width={FMT.story.w} height={FMT.story.h}>
+          <Board w={FMT.story.w} h={FMT.story.h} bg={G_DEEP}>
+            <img src={`${PC}/helmet-detail-2026.jpg`} alt="Tři helmy Alligators položené na čáře hřiště" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 45%", opacity: 0.62, zIndex: 1 }} />
+            {/* Fotka nese zIndex 1 a tím zakládá stacking context — scrim proto musí mít
+                 * VYŠŠÍ zIndex, jinak leží POD fotkou a text nemá kontrast. */}
+            <div style={{ position: "absolute", inset: 0, zIndex: 2, background: "linear-gradient(180deg, rgba(12,33,27,0.9) 0%, rgba(12,33,27,0.82) 40%, rgba(12,33,27,0.9) 66%, rgba(12,33,27,0.97) 100%)" }} aria-hidden="true" />
+            <Halftone opacity={0.08} size={7} color="255,255,255" />
+
+            <div style={{ position: "absolute", top: 300, left: 64, right: 64, zIndex: 3, textAlign: "center" }}>
+              <LogoVUT tone="white" h={52} style={{ justifyContent: "center", marginBottom: 40 }} />
+              <Eyebrow style={{ display: "inline-block" }}>ZBÝVÁ</Eyebrow>
+              <div style={{ marginTop: 28 }}>
+                <span style={filled(230, Y, INK, 0)}>1</span>
+                <span style={{ ...disp(92, { color: W }), marginLeft: 10 }}>DEN</span>
+              </div>
+              <div style={{ ...body(34, W), marginTop: 30 }}>Zítra od 18:00 na stadionu CESA.</div>
+              <div style={{ ...body(26, GRAY), marginTop: 12 }}>Sedm stanovišť, sedm čísel. Šatny jsou zajištěné, tenisky si vezmi.</div>
+            </div>
+
+            {/* slot na IG countdown sticker */}
+            <div style={{ position: "absolute", left: "324px", right: 120, bottom: 700, zIndex: 3, background: "rgba(255,205,0,0.14)", border: `2px dashed ${Y}`, padding: "20px 0", textAlign: "center", ...mono(16, Y) , width: "410.25px" , height: "68px" , top: "1152px" }}>
+              vlož IG countdown sticker
+            </div>
+
+            <div style={{ position: "absolute", left: 64, right: 64, bottom: 330, zIndex: 3, background: G2, borderLeft: `6px solid ${Y}`, padding: "26px 30px" }}>
+              <div style={mono(13, Y)}>JEŠTĚ NEJSI ZAPSANÝ?</div>
+              <div style={{ ...body(26, W), marginTop: 10, lineHeight: 1.36 }}>
+                Registrace běží do večera. Pak už jenom doufej, že zbude místo na stanovišti.
+              </div>
+              <div style={{ ...mono(14, GRAY), marginTop: 12 }}>{AKCE.web.toUpperCase()}</div>
+            </div>
+
+            <BrandFooter handle={AKCE.handle} web={AKCE.web} tone="white" style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: "0 64px 58px", zIndex: 4 }} />
+          </Board>
+        </DCArtboard>
+      </DCSection>
+
+      {/* ═══════════════════ VÝSLEDKOVÁ KARTA (PRINT) ═══════════════════ */}
+      <DCSection id="karta" title="Výsledková karta" subtitle="A4 na šířku přeložená napůl na A5 na výšku — dva archy (vnějšek / vnitřek), branding na obálce, kolonky na jméno a číslo, kontakt a tři pokusy u každé ze sedmi disciplín">
+
+        {/* Bez `fixed`: s ním má artboard výšku A4L_H VČETNĚ popisku (~39 px),
+          * tělo pak bylo nižší než arch a spodek karty se ořezával. */}
+        <DCArtboard id="karta-vnejsek" label="Arch 1 · vnějšek (str. 4 + str. 1) · A4 landscape, spadávka 3 mm"
+          width={A4L_W} height={A4L_H} padding={0} background="transparent" kind="print" print={A4L_PRINT as any}>
+          <KartaVnejsek />
+        </DCArtboard>
+
+        <DCArtboard id="karta-vnitrek" label="Arch 2 · vnitřek (str. 2 + str. 3) · A4 landscape, spadávka 3 mm"
+          width={A4L_W} height={A4L_H} padding={0} background="transparent" kind="print" print={A4L_PRINT as any}>
+          <KartaVnitrek />
+        </DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}

@@ -1,0 +1,1823 @@
+/* client/v2/left-panel/left-panel.css — V2-4.4a: the left panel's v2 look. Canvases · Layers · Assets is a
+ * segmented strip (kit `.seg` / `.k-seg-b`); the pinned Design system row, the Trash row, Advanced and the
+ * Assets tab are `.lp-*`. Every class is namespaced `lp-` (V2-4.3 hit a v1 class collision — `.sh-share-btn`
+ * — so nothing here reuses a bare v1 name). Tokens are the shell's (maude-v2 since P8 C0). */
+
+/* ── V2-8.0: rules moved here from the retired styles/ layer files, in their original order and ahead of this file's own rules, so the cascade is unchanged. ── */
+
+/* from styles/3-shell-maude.css */
+@layer shell {
+  .cv-sb-hd {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2) 0;
+  }
+
+  /* Visually hidden, not removed: the tab row above already says "Canvases". */
+  .cv-sb-title {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .cv-search {
+    padding: var(--space-2) var(--space-2) var(--space-1);
+  }
+
+  .cv-search-box {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    background: var(--bg-3);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    padding: var(--space-1) var(--space-2);
+    color: var(--fg-2);
+  }
+
+  .cv-search-box svg {
+    flex: none;
+  }
+
+  .cv-search-box input {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--fg-0);
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+    width: 100%;
+    min-width: 0;
+  }
+
+  .cv-search-box input::placeholder {
+    color: var(--fg-2);
+  }
+
+  .cv-search-box .kbd {
+    margin-left: auto;
+  }
+
+  .cv-search-clear {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--fg-2);
+    cursor: pointer;
+    margin-left: auto;
+    font-size: 14px;
+    line-height: 1;
+    padding: 0 2px;
+  }
+
+  .cv-search-clear:hover {
+    color: var(--fg-0);
+  }
+
+  /* New-board composer (Phase 22) — opens inline below the header on the + click. */
+  .cv-newboard {
+    display: flex;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+  }
+
+  .cv-newboard input {
+    flex: 1;
+    min-width: 0;
+    appearance: none;
+    background: var(--bg-3);
+    border: 1px solid var(--accent-muted);
+    border-radius: var(--radius-sm);
+    color: var(--fg-0);
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+    padding: var(--space-1) var(--space-2);
+  }
+
+  .cv-newboard-go {
+    appearance: none;
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: var(--accent-fg);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    padding: 0 var(--space-2);
+    font-family: var(--font-mono);
+    font-size: var(--type-sm);
+  }
+
+  .cv-newboard-go:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .cv-newboard-err {
+    padding: 2px var(--space-3) var(--space-1);
+    color: var(--status-error);
+    font-size: var(--type-xs);
+  }
+
+  /* DS-folder row — chevron toggles disclosure, name opens the system view. */
+  .cv-ds-folder {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 0;
+  }
+
+  .cv-ds-folder.is-sel {
+    background: var(--accent-tint);
+    border-radius: var(--radius-xs);
+    box-shadow: inset 2px 0 0 var(--accent);
+  }
+
+  .cv-ds-chev {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    color: var(--fg-2);
+    display: inline-flex;
+    padding: var(--space-1) 0 var(--space-1) var(--space-1);
+  }
+
+  .cv-ds-open {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    color: var(--fg-1);
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    text-align: left;
+    padding: var(--space-1) var(--space-2) var(--space-1) 0;
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+  }
+
+  .cv-ds-folder.is-sel .cv-ds-open {
+    color: var(--fg-0);
+  }
+
+  /* DS input recipe (`_components.css` .input:focus) — accent hairline + 3px tint
+ * ring, never the default UA outline. */
+  .cv-search-box:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-tint);
+    color: var(--fg-2);
+  }
+
+  .cv-search-box input:focus {
+    outline: none;
+  }
+
+  .cv-newboard input:focus,
+  .cv-newboard input:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-tint);
+  }
+
+  /* tree disclosure chevron — one glyph, rotated (animatable) */
+  .cv-chev {
+    transition: transform var(--dur-flip) var(--ease-out);
+  }
+
+  .cv-chev.is-open {
+    transform: rotate(90deg);
+  }
+
+  /* tree dirty badge — mirrors the activity-overlay badge style (DDR-075) */
+  .cv-git-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 15px;
+    height: 15px;
+    margin-left: auto;
+    border-radius: var(--radius-xs);
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 1;
+    color: oklch(0.11 0.012 260);
+    flex: none;
+  }
+
+  .cv-git-badge[data-kind="M"] {
+    background: var(--status-warn);
+  }
+
+  .cv-git-badge[data-kind="A"] {
+    background: var(--status-success);
+  }
+
+  .cv-git-badge[data-kind="D"] {
+    background: var(--status-error);
+  }
+
+  .cv-git-badge[data-kind="U"] {
+    background: transparent;
+    border: 1px dashed var(--border-strong);
+    color: var(--fg-2);
+  }
+}
+
+/* ── end of the moved rules ── */
+
+@layer shell {
+  /* ── the panel's own header: Canvases · Layers · Assets, then Hide (V2-4.4b — was the dock's tab strip) ── */
+  .lp-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin: var(--space-2) var(--space-2) var(--space-1);
+    flex: none;
+  }
+  .lp-tabs {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+    gap: 2px;
+    padding: 2px;
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+  }
+  .lp-tab {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    flex: 1 1 0;
+    min-width: 0;
+    padding: var(--space-1) var(--space-2);
+    border-radius: calc(var(--radius-md) - 2px);
+    font-family: var(--font-body);
+    font-size: var(--type-xs);
+    text-align: center;
+    white-space: nowrap;
+    color: var(--fg-1);
+    transition:
+      color var(--dur-soft) var(--ease-out),
+      background var(--dur-soft) var(--ease-out);
+  }
+  .lp-tab:hover {
+    color: var(--fg-0);
+  }
+  .lp-tab.is-active {
+    background: var(--bg-2);
+    color: var(--fg-0);
+    box-shadow:
+      var(--shadow-sm, 0 1px 2px oklch(0 0 0 / 0.12)),
+      inset 0 0 0 1px var(--accent);
+  }
+  .lp-tab:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .lp-fold {
+    flex: none;
+  }
+
+  /* ── rows (pinned Design system, Trash) ───────────────────────────────────── */
+  .lp-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    min-width: 0;
+    padding: var(--space-2) var(--space-3);
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: transparent;
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+    text-align: left;
+    cursor: pointer;
+  }
+  .lp-row:hover {
+    background: var(--bg-2);
+  }
+  .lp-row.is-sel,
+  .lp-row[aria-current="true"] {
+    background: var(--accent-tint);
+    color: var(--fg-0);
+  }
+  .lp-row:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .lp-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .lp-count {
+    flex: none;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .lp-pinned {
+    flex: none;
+    margin: 0 var(--space-2) var(--space-1);
+    padding-bottom: var(--space-1);
+    box-shadow: inset 0 -0.5px 0 var(--border-default);
+  }
+  .lp-ds-ic {
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    flex: none;
+    border-radius: var(--radius-xs);
+    background: var(--accent-muted);
+    color: var(--accent-text);
+  }
+  /* S10.13 — a system row of two lines, its ⋯ menu, the amber dot, "Design systems · 2 in use", the empty row */
+  .lp-ds-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .lp-ds--two {
+    align-items: center;
+    padding-block: var(--space-1);
+  }
+  /* P8 round 7 — Rename… (13 · ds-multi-menu): the row's name is the field (canvases' own cv-rename look) */
+  .lp-ds--rename {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    cursor: text;
+  }
+  .lp-ds-rename {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+  }
+  .lp-ds-two {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+  }
+  .lp-ds-two .lp-name {
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+  .lp-ds-sub {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  /* 11 pn-ds: the one system's card stacks its two lines (the board's .pn-ds-l) */
+  .lp-ds-line {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .lp-ds-warn {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--status-warn);
+  }
+  .lp-ds-more {
+    appearance: none;
+    flex: none;
+    width: 22px;
+    height: 22px;
+    margin-left: -26px;
+    margin-right: 4px;
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: transparent;
+    color: var(--fg-2);
+    font-family: var(--font-body);
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--dur-soft) var(--ease-out);
+  }
+  .lp-ds-wrap:hover .lp-ds-more,
+  .lp-ds-more:focus-visible,
+  .lp-ds-more[aria-expanded="true"] {
+    opacity: 1;
+  }
+  .lp-ds-more:hover {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+  .lp-ds-more:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .lp-ds-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin: var(--space-1) var(--space-3) 0;
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    color: var(--fg-1);
+  }
+  .lp-ds-head em {
+    font-style: normal;
+    font-weight: var(--w-regular);
+    color: var(--fg-2);
+  }
+  .lp-ds-make {
+    color: var(--accent-text);
+  }
+  .lp-dd-note {
+    margin-left: auto;
+    padding-left: var(--space-3);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .lp-ds-more {
+      transition-duration: 1ms;
+    }
+  }
+
+  .lp-trashrow {
+    flex: none;
+    margin: auto var(--space-2) 0;
+    width: auto;
+    color: var(--fg-1);
+    box-shadow: inset 0 0.5px 0 var(--border-default);
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  }
+  /* "+ New canvas" (kit .k-cp-new / .k-cp-plus): the list's last row, a 28 px plus well then the words */
+  .lp-newrow {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin: 0 var(--space-2) var(--space-1);
+  }
+  .lp-newrow-main {
+    flex: 1 1 auto;
+    width: auto;
+    padding-left: 0;
+    color: var(--fg-1);
+  }
+  .lp-new-ic {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    flex: none;
+    color: var(--fg-2);
+  }
+  /* The quiet folder button: always drawn (a hidden control is invisible to keys, touch and the WebDriver), at
+     fg-3 until the row is hovered / focused. */
+  .lp-newrow-folder {
+    flex: none;
+    color: var(--fg-3);
+  }
+  .lp-newrow:hover .lp-newrow-folder,
+  .lp-newrow:focus-within .lp-newrow-folder,
+  .lp-newrow-folder[aria-expanded="true"] {
+    color: var(--fg-1);
+  }
+  .lp-trash-ic {
+    display: grid;
+    place-items: center;
+    width: 22px;
+    flex: none;
+    color: var(--fg-2);
+  }
+
+  /* ── the Trash list ───────────────────────────────────────────────────────── */
+  .lp-trash {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .lp-trash-hd {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+  }
+  .lp-back .lp-back-ch {
+    transform: rotate(180deg);
+  }
+  .lp-trash-title {
+    flex: 1;
+    font-size: var(--type-sm);
+    color: var(--fg-0);
+  }
+  .lp-trash-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0 var(--space-2);
+  }
+  .lp-ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .lp-trash-item {
+    cursor: default;
+  }
+  /* 11 pn-trash — Today / Earlier headings in sentence case (type-xs semibold fg-2); Restore is on every
+     row without a hover, a thumbnail leads the name. */
+  .lp-trash-grp {
+    margin: var(--space-2) var(--space-2) var(--space-1);
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    color: var(--fg-2);
+  }
+  .lp-trash-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .lp-trash-item .lp-restore {
+    flex: none;
+  }
+  .lp-trash-thumb {
+    flex: none;
+  }
+  /* S1.8 — "Kept on this Mac" inside Canvases › Advanced. */
+  .lp-adv-kept .lp-kept--fold {
+    margin: var(--space-1) 0 var(--space-2);
+  }
+  .lp-two {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .lp-sub {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .lp-more,
+  .lp-note,
+  .lp-foot {
+    margin: var(--space-1) var(--space-3);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .lp-note--err {
+    color: var(--fg-0);
+  }
+  .lp-trash-foot {
+    flex: none;
+    flex-wrap: wrap;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    box-shadow: inset 0 0.5px 0 var(--border-default);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .lp-ask {
+    flex: none;
+    margin: var(--space-2);
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--bg-2);
+    box-shadow: inset 0 0 0 1px var(--border-default);
+  }
+  .lp-ask-t {
+    margin: 0 0 var(--space-1);
+    font-size: var(--type-sm);
+    font-weight: 600;
+    color: var(--fg-0);
+  }
+  .lp-ask-b {
+    margin: 0 0 var(--space-2);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+  }
+  .lp-ask-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2);
+  }
+  .lp-empty {
+    padding: var(--space-4) var(--space-3);
+  }
+  .lp-empty-t {
+    margin: 0 0 var(--space-1);
+    font-size: var(--type-sm);
+    font-weight: 600;
+    color: var(--fg-0);
+  }
+  .lp-empty-b {
+    margin: 0;
+    padding: 0 var(--space-3);
+    font-size: var(--type-sm);
+    line-height: 1.4;
+    color: var(--fg-2);
+  }
+  .lp-empty .lp-empty-b {
+    padding: 0;
+  }
+
+  /* ── Canvases › Advanced ──────────────────────────────────────────────────── */
+  .lp-adv {
+    flex: none;
+    margin: var(--space-1) var(--space-2) var(--space-2);
+    padding-top: var(--space-1);
+    box-shadow: inset 0 0.5px 0 var(--border-default);
+  }
+  .lp-adv-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    height: 28px;
+    padding: 0 var(--space-1);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    font-family: var(--font-body);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    cursor: pointer;
+  }
+  .lp-adv-btn:hover {
+    background: var(--bg-2);
+    color: var(--fg-1);
+  }
+  .lp-adv-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .lp-adv-ch {
+    display: inline-grid;
+    color: var(--fg-2);
+  }
+  .lp-adv[data-open] .lp-adv-ch {
+    transform: rotate(90deg);
+  }
+  .lp-adv-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+    max-height: 40vh;
+    overflow-y: auto;
+    padding: var(--space-1) var(--space-1) 2px;
+  }
+  .lp-adv-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    min-height: 28px;
+    /* the kit ARow (06 .ad-row): key fg-1 sm and flexible, value fg-0 and right */
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
+  .lp-adv-k {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex: 1 0 auto; /* the key never gives way to a long value (the path / folder clips instead) */
+    white-space: nowrap;
+  }
+  .lp-adv-v {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-2);
+    min-width: 0;
+    color: var(--fg-0);
+  }
+  .lp-adv-copy {
+    width: 24px;
+    height: 24px;
+    flex: none;
+  }
+  .lp-adv-foot .lp-adv-k {
+    flex: 0 1 auto;
+  }
+  /* The open canvas's path (V2-4.8b): mono, one line, the head of a long path clipped. */
+  .lp-adv-path {
+    display: block;
+    min-width: 0;
+    font-family: var(--font-mono);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .lp-adv-foot {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .lp-live {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--fg-3);
+  }
+  .lp-live.is-connected {
+    background: var(--accent);
+  }
+  /* .lp-switch: the DS switch — 3-kit-maude-v2.css "Switch" (Phase 8 C1-kit: one switch, not four). */
+  .lp-refresh.is-spinning svg {
+    animation: lp-spin 0.9s linear infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .lp-refresh.is-spinning svg {
+      animation: none;
+    }
+  }
+  @keyframes lp-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  /* ── Assets ───────────────────────────────────────────────────────────────── */
+  .lp-assets {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .lp-head-row {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2) var(--space-2);
+  }
+  .lp-find {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    height: 30px;
+    padding: 0 var(--space-1) 0 var(--space-2);
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+    color: var(--fg-2);
+  }
+  /* 12 · ia-assets-find (`.k-find--on`): focused, or holding a word — bg-2, a 3 px tint round it, 1 px accent inside */
+  .lp-find:focus-within,
+  .lp-find:has(input:not(:placeholder-shown)) {
+    background: var(--bg-2);
+    color: var(--fg-1);
+    box-shadow:
+      0 0 0 3px var(--accent-tint),
+      inset 0 0 0 1px var(--accent);
+  }
+  .lp-find input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    font: inherit;
+    font-size: var(--type-sm);
+    color: var(--fg-0);
+  }
+  .lp-assets-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0 var(--space-2) var(--space-2);
+  }
+  .lp-mac {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    height: 30px;
+    margin-top: var(--space-2);
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-sm);
+    text-align: left;
+    cursor: pointer;
+  }
+  .lp-mac:hover:not(:disabled) {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+  .lp-mac:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  .lp-group {
+    display: flex;
+    justify-content: space-between;
+    margin: var(--space-3) var(--space-1) var(--space-1);
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    color: var(--fg-1);
+  }
+  .lp-group .lp-count {
+    font-weight: var(--w-regular);
+    color: var(--fg-2);
+  }
+  .lp-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-1);
+  }
+  .lp-tile {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+    color: var(--fg-1);
+  }
+  .lp-tile:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .lp-tile[aria-pressed="true"] .lp-thumb {
+    box-shadow: 0 0 0 2px var(--accent);
+  }
+  .lp-thumb {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+    box-shadow: inset 0 0 0 0.5px var(--k-chrome-edge, var(--border-default));
+  }
+  /* S8.12 — the picture first; the name and where it's used show over its foot on hover AND keyboard focus */
+  .lp-tile {
+    position: relative;
+  }
+  .lp-tile-tip {
+    position: absolute;
+    left: 50%;
+    top: calc(100% + var(--space-1));
+    translate: -50% 0;
+    z-index: 30;
+    display: none;
+    flex-direction: column;
+    gap: 0;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--fg-0);
+    color: var(--bg-2);
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    white-space: nowrap;
+    box-shadow: var(--shadow-md);
+    pointer-events: none;
+  }
+  .lp-tile-tip strong {
+    font-weight: var(--w-semibold);
+  }
+  .lp-tile-tip span {
+    color: inherit;
+  }
+  /* the outer columns align to their tile's edge so the tip never leaves the panel */
+  .lp-grid > .lp-tile:nth-child(3n + 1) .lp-tile-tip {
+    left: 0;
+    translate: 0 0;
+  }
+  .lp-grid > .lp-tile:nth-child(3n) .lp-tile-tip {
+    left: auto;
+    right: 0;
+    translate: 0 0;
+  }
+  .lp-tile:hover .lp-tile-tip,
+  .lp-tile:focus-visible .lp-tile-tip {
+    display: flex;
+  }
+  .lp-assets[data-dropping="true"] .lp-assets-list {
+    outline: 2px dashed var(--accent);
+    outline-offset: -4px;
+    border-radius: var(--radius-sm);
+  }
+  /* S8.21 — an asset's details (⌘I): opens in place of the list; ← Assets goes back (12 · ia-asset-details, ia-advanced) */
+  .lp-dt {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: 0 var(--space-3) var(--space-3);
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-1);
+  }
+  .lp-dt-hd {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0 calc(var(--space-1) * -1);
+  }
+  .lp-dt-back {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+    color: var(--fg-1);
+    cursor: pointer;
+  }
+  .lp-dt-back:hover {
+    background: var(--bg-2);
+  }
+  .lp-dt-back:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .lp-dt-back svg {
+    rotate: 180deg;
+  }
+  .lp-dt-heroed {
+    position: relative;
+    flex: none;
+  }
+  .lp-dt-pic {
+    display: block;
+    width: 100%;
+    max-height: 220px;
+    object-fit: contain;
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+  }
+  .lp-dt-snd {
+    display: flex;
+    align-items: center;
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+  }
+  .lp-dt-snd audio {
+    width: 100%;
+  }
+  .lp-dt-made {
+    position: absolute;
+    left: var(--space-2);
+    bottom: var(--space-2);
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-pill, 999px);
+    background: var(--bg-2);
+    box-shadow: var(--shadow-sm);
+    font-size: var(--type-xs);
+    color: var(--spark);
+  }
+  .lp-dt-name {
+    margin: 0;
+    font-size: var(--type-base);
+    line-height: var(--lh-base);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+    overflow-wrap: anywhere;
+  }
+  .lp-dt-row {
+    display: grid;
+    grid-template-columns: 72px 1fr;
+    gap: var(--space-2);
+    align-items: baseline;
+  }
+  .lp-dt-k {
+    color: var(--fg-2);
+  }
+  .lp-dt-v {
+    min-width: 0;
+    color: var(--fg-0);
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+  .lp-dt-quote {
+    display: block;
+    max-height: 9em;
+    overflow-y: auto;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+    color: var(--fg-1);
+    font-variant-numeric: normal;
+  }
+  .lp-dt-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+  }
+  .lp-dt-chip {
+    padding: 1px var(--space-2);
+    border-radius: var(--radius-pill, 999px);
+    background: var(--bg-3);
+    color: var(--fg-1);
+  }
+  .lp-dt-fine {
+    margin: 0;
+    max-width: 60ch;
+    color: var(--fg-2);
+  }
+  .lp-dt-place {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    height: 28px;
+    padding: 0 var(--space-3);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: var(--accent);
+    color: var(--accent-fg);
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+    cursor: pointer;
+  }
+  .lp-dt-place:focus-visible {
+    outline: 2px solid var(--fg-0);
+    outline-offset: 2px;
+  }
+  .lp-dt-kbd {
+    padding: 0 var(--space-1);
+    border-radius: var(--radius-xs, 3px);
+    box-shadow: inset 0 0 0 0.5px var(--accent-fg);
+    font-family: var(--font-body);
+    font-size: var(--type-xs);
+  }
+  .lp-dt-sec {
+    margin: var(--space-1) 0 0;
+    font-weight: var(--w-semibold);
+    color: var(--fg-2);
+  }
+  .lp-dt-uses {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .lp-dt-use {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    font-family: var(--font-body);
+    font-size: var(--type-xs);
+    color: var(--fg-0);
+    text-align: left;
+    cursor: pointer;
+  }
+  .lp-dt-use:hover {
+    background: var(--bg-2);
+  }
+  .lp-dt-use:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .lp-dt-use {
+    min-height: 34px;
+    justify-content: flex-start;
+  }
+  .lp-dt-use > :last-child {
+    margin-left: auto;
+    color: var(--fg-2);
+  }
+  /* the canvas's cover (`UsedRow` Thumb): a small rounded picture, an empty well while it loads */
+  .lp-dt-use-th {
+    flex: none;
+    width: 28px;
+    height: 22px;
+    overflow: hidden;
+    border-radius: var(--radius-xs);
+    background: var(--bg-3);
+    box-shadow: inset 0 0 0 0.5px var(--k-chrome-edge, var(--border-default));
+  }
+  .lp-dt-use-th img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .lp-dt-use-t {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+  }
+  .lp-dt-use-t > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .lp-dt-more {
+    display: inline-grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--fg-1);
+    cursor: pointer;
+  }
+  .lp-dt-more:hover {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+  .lp-dt-more:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  /* a photo: a 150 px cover crop (`.ia-dt-pic--short`), not a contained thumbnail */
+  .lp-dt[data-kind="photo"] img.lp-dt-pic,
+  .lp-dt[data-kind="made"] img.lp-dt-pic {
+    height: 150px;
+    max-height: none;
+    object-fit: cover;
+  }
+  .lp-dt-use-b {
+    color: var(--fg-2);
+  }
+  /* Advanced is the only place mono lives (CONTRACT §5) */
+  .lp-dt-adv {
+    margin-top: auto;
+    padding-top: var(--space-1);
+    box-shadow: inset 0 0.5px 0 var(--border-default);
+  }
+  .lp-dt-adv-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    height: 28px;
+    padding: 0 var(--space-1);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    font-family: var(--font-body);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    cursor: pointer;
+  }
+  .lp-dt-adv-btn:hover {
+    background: var(--bg-2);
+    color: var(--fg-1);
+  }
+  .lp-dt-adv-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .lp-dt-adv-ch {
+    display: inline-grid;
+  }
+  .lp-dt-adv[data-open] .lp-dt-adv-ch {
+    transform: rotate(90deg);
+  }
+  .lp-dt-adv-hint {
+    margin-left: auto;
+    color: var(--fg-2);
+  }
+  .lp-dt-adv-body {
+    display: grid;
+    gap: 2px;
+    padding: var(--space-1) 0 0;
+  }
+  .lp-dt-arow {
+    display: grid;
+    grid-template-columns: 78px 1fr auto;
+    align-items: baseline;
+    gap: var(--space-2);
+    padding: 2px var(--space-1);
+  }
+  .lp-dt-ak {
+    color: var(--fg-2);
+  }
+  .lp-dt-av {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    color: var(--fg-0);
+    font-family: var(--font-mono);
+    overflow-wrap: anywhere;
+  }
+  .lp-dt-copy {
+    padding: 1px var(--space-2);
+    border: 0;
+    border-radius: var(--radius-pill, 999px);
+    background: var(--bg-3);
+    font-family: var(--font-body);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+    cursor: pointer;
+  }
+  .lp-dt-copy:hover {
+    background: var(--bg-2);
+  }
+  .lp-dt-cmd {
+    display: grid;
+    gap: var(--space-1);
+    margin-top: var(--space-1);
+    padding: var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+  }
+  .lp-dt-cmd-h {
+    color: var(--fg-2);
+  }
+  .lp-dt-cmd-l {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+  /* S8.21 — Generated: one block per generation run */
+  .lp-run {
+    display: grid;
+    gap: var(--space-1);
+    margin-bottom: var(--space-2);
+  }
+  .lp-run-t {
+    display: flex;
+    flex-direction: column;
+    margin: 0 var(--space-2);
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+  }
+  .lp-run-p {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--fg-1);
+  }
+  .lp-run-m {
+    color: var(--fg-2);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .lp-dt-adv-ch {
+      transition: transform var(--dur-flip, 120ms) var(--ease-out, ease-out);
+    }
+  }
+  .lp-foot {
+    flex: none;
+    padding-top: var(--space-2);
+    box-shadow: inset 0 0.5px 0 var(--border-default);
+  }
+
+  /* ── S11.9 · Canvases and Layers › Advanced (06 · ad-left) ── */
+  /* Show file names: the row grows a second, mono line under the name (ROW_H_FILE tall). */
+  .cv-names {
+    flex: 0 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    line-height: 1.25;
+  }
+  .cv-file {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .lp-adv-mono {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+  }
+  .lp-adv-copyable {
+    min-width: 0;
+    max-width: 70%;
+  }
+  .lp-adv-footl {
+    min-width: 0;
+    flex: 0 1 auto;
+    white-space: normal;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+  }
+  .lp-adv-updated {
+    color: var(--fg-2);
+  }
+  /* Select by selector: a stacked row — the label above a mono field, the refusal under it. */
+  .lp-adv-stack {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: var(--space-1);
+    padding-block: var(--space-1);
+  }
+  .lp-selector {
+    box-sizing: border-box;
+    width: 100%;
+    height: 26px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: var(--bg-2);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+    color: var(--fg-0);
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+  }
+  .lp-selector::placeholder {
+    color: var(--fg-3);
+  }
+  .lp-selector:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -1px;
+  }
+  .lp-selector[aria-invalid="true"] {
+    box-shadow: inset 0 0 0 1px var(--status-error);
+  }
+  .lp-selector-err {
+    color: var(--status-error);
+    font-size: var(--type-xs);
+  }
+  /* Show tags and ids: the tag and id after a layer's name. */
+  .sh-layer-tag {
+    flex: none;
+    margin-left: var(--space-1);
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    white-space: nowrap;
+  }
+
+  /* ── S8.13: Not used, Move to the trash, and the wide Browse view (12 · ia-assets-browse, ia-assets-tidy) ───── */
+  .lp-chips {
+    flex: none;
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: 0 var(--space-2) var(--space-1);
+  }
+  /* 12 · ia-ap-icons: Generate and Add files… at the right end of the chip row; the spark has its own colour */
+  .lp-bar-icons {
+    margin-left: auto;
+    display: inline-flex;
+    gap: 0;
+  }
+  .lp-bar-icons .lp-add {
+    width: 28px;
+    height: 28px;
+  }
+  .lp-gen {
+    color: var(--spark-text);
+  }
+  .lp-kinds {
+    position: relative;
+    display: inline-flex;
+  }
+  .lp-kinds-b {
+    gap: 2px;
+    cursor: pointer;
+    border: 0;
+  }
+  .lp-kinds-menu {
+    position: absolute;
+    left: 0;
+    top: calc(100% + var(--space-1));
+    z-index: 40;
+    min-width: 132px;
+  }
+  .lp-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    height: 22px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-xs);
+    font-weight: var(--w-medium);
+    cursor: pointer;
+  }
+  /* the soft chip (_components.css .chip--accent, Phase 8 C1-kit): accent-muted + accent-text + its check —
+     a solid accent fill is the one Share button's, not a filter's */
+  .lp-chip[aria-pressed="true"] {
+    background: var(--accent-muted);
+    color: var(--accent-text);
+  }
+  .lp-chip:focus-visible,
+  .lp-group-b:focus-visible,
+  .lp-browse-back:focus-visible,
+  .lp-browse-size-b:focus-visible,
+  .lp-undo:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .lp-group {
+    padding: 0;
+  }
+  .lp-group-b {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+  .lp-group-b:hover {
+    color: var(--fg-0);
+  }
+  .lp-group-b .lp-count {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  /* S8.14 — "Just added" names a run, it does not open one: the heading without the button */
+  .lp-group-s {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+  }
+  /* S8.14 — a picture still going up to the cloud: a thin bar along the foot of its tile */
+  .lp-tile-up {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 3px;
+    overflow: hidden;
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    background: color-mix(in oklab, var(--accent) 22%, transparent);
+    pointer-events: none;
+  }
+  .lp-tile-up > b {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+    transition: width var(--dur-soft) var(--ease-out);
+  }
+  .lp-tile-up[data-known="false"] > b {
+    width: 40%;
+    animation: lp-tile-up-slide 1.2s ease-in-out infinite;
+  }
+  @keyframes lp-tile-up-slide {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(250%);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .lp-tile-up > b {
+      transition-duration: 1ms;
+    }
+    .lp-tile-up[data-known="false"] > b {
+      animation: none;
+      width: 100%;
+      opacity: 0.5;
+    }
+  }
+  .lp-notcounted {
+    flex: none;
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-1);
+    margin: 0 var(--space-2) var(--space-1);
+    padding: var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-1);
+  }
+  .lp-notcounted > :first-child {
+    flex: none;
+    margin-top: 1px;
+    color: var(--fg-2);
+  }
+  .lp-tidy-foot {
+    container-type: inline-size;
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    /* P8 C7 (12 ia-assets-tidy): ONE line inside the panel, as the board draws it — the numbers give way (ellipsis),
+       the button never wraps or runs past the edge (C4's wrap made it two stacked lines) */
+    flex-wrap: nowrap;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    box-shadow: inset 0 0.5px 0 var(--border-default);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+    font-variant-numeric: tabular-nums;
+  }
+  .lp-tidy-foot > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* a narrow panel keeps the count and the button on ONE line: the size gives way first (it is in the title and the dialog) */
+  @container (max-width: 270px) {
+    .lp-tidy-size {
+      display: none;
+    }
+  }
+  .lp-tidy-foot .btn {
+    flex: none;
+    white-space: nowrap;
+  }
+  .lp-note--undo {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    color: var(--fg-0);
+  }
+  /* P8 round 7 — Rename…: the find field's focused look (12 · ia-assets-find `.k-find--on`), the extension fixed after it */
+  .lp-rename {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    height: 30px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-md);
+    background: var(--bg-2);
+    box-shadow:
+      0 0 0 3px var(--accent-tint),
+      inset 0 0 0 1px var(--accent);
+  }
+  .lp-rename-in {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    font: inherit;
+    font-size: var(--type-sm);
+    color: var(--fg-0);
+  }
+  .lp-rename-ext {
+    flex: none;
+    font-size: var(--type-sm);
+    color: var(--fg-2);
+  }
+  .lp-undo {
+    flex: none;
+    padding: 0 var(--space-1);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--accent);
+    font: inherit;
+    font-weight: var(--w-semibold);
+    cursor: pointer;
+  }
+  .lp-tile--cap {
+    gap: var(--space-1);
+  }
+  .lp-tile-cap {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+  }
+  /* the wide view sits over the canvas beside the panel (box from the panel's own rect; no dock resize) */
+  .lp-browse {
+    position: fixed;
+    z-index: 60;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    min-width: 0;
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--bg-2);
+    box-shadow:
+      var(--shadow-md),
+      inset 0 0 0 0.5px var(--border-default);
+    color: var(--fg-0);
+  }
+  .lp-browse-hd {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .lp-browse-back {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: 0 var(--space-1);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-sm);
+    cursor: pointer;
+  }
+  .lp-browse-back svg {
+    transform: rotate(180deg);
+  }
+  .lp-browse-t {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    font-size: var(--type-base);
+    font-weight: var(--w-semibold);
+  }
+  .lp-browse-find {
+    flex: 1;
+  }
+  .lp-browse-sort {
+    height: 30px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-xs);
+  }
+  .lp-browse-size {
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+  }
+  .lp-browse-size-b {
+    padding: 2px var(--space-2);
+    border: 0;
+    border-radius: calc(var(--radius-md) - 2px);
+    background: transparent;
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-xs);
+    cursor: pointer;
+  }
+  /* the kit pressed segment (Phase 8 C1-kit): + the 1 px accent ring — bg-2 on a bg-2 sheet was ≈1.2:1 */
+  .lp-browse-size-b[aria-pressed="true"] {
+    background: var(--bg-2);
+    color: var(--fg-0);
+    box-shadow:
+      var(--shadow-sm),
+      inset 0 0 0 1px var(--accent);
+  }
+  .lp-browse-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  .lp-browse-day {
+    margin: var(--space-2) var(--space-1) var(--space-1);
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    color: var(--fg-1);
+  }
+  .lp-browse-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: var(--space-3) var(--space-2);
+    padding: 2px;
+  }
+  .lp-browse--small .lp-browse-grid {
+    grid-template-columns: repeat(11, minmax(0, 1fr));
+    gap: var(--space-2) var(--space-1);
+  }
+  .lp-browse--small .lp-tile-cap {
+    display: none;
+  }
+  .lp-browse-bar {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2);
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+    font-variant-numeric: tabular-nums;
+  }
+  .lp-browse-sel strong {
+    color: var(--fg-0);
+    font-weight: var(--w-semibold);
+  }
+  .lp-browse-or {
+    margin-left: auto;
+    color: var(--fg-2);
+  }
+  .lp-browse-bar .btn--primary {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  /* 12 · ia-assets-find: a match is two across, footed with the name that matched (`.ia-grid--2`, `.ia-tile-match`) */
+  .lp-grid--2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .lp-tile {
+    position: relative;
+  }
+  .lp-tile-match {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2;
+    padding: var(--space-1) var(--space-1) 2px;
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    background: linear-gradient(
+      to top,
+      color-mix(in oklch, var(--object-ink, #000) 82%, transparent),
+      transparent
+    );
+    color: var(--bg-2);
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    font-weight: var(--w-medium);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* the scrim is --object-ink in both themes, so the name stays light: in dark --bg-2 is dark (1.5:1), --fg-0 is light */
+  .maude[data-theme="dark"] .lp-tile-match {
+    color: var(--fg-0);
+  }
+  /* 12 · ia-assets-browse: a pick circle on every thumb — an empty ring, or accent with its check (`.ia-tile-pick`) */
+  .lp-tile-pick {
+    position: absolute;
+    left: var(--space-1);
+    top: var(--space-1);
+    z-index: 3;
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    border-radius: var(--radius-pill);
+    background: color-mix(in oklch, var(--bg-2) 70%, transparent);
+    box-shadow: inset 0 0 0 1.5px var(--bg-2);
+    color: var(--accent-fg);
+  }
+  .lp-tile-pick[data-on="true"] {
+    background: var(--accent);
+    box-shadow: 0 0 0 1.5px var(--bg-2);
+  }
+}

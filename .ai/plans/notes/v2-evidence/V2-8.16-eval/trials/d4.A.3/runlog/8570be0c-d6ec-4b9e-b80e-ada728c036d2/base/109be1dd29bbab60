@@ -1,0 +1,344 @@
+/**
+ * @canvas      RepoBranchSwitcher — project + version switching for the native Maude app · NOT a permanent header: a compact one-line dock at the BOTTOM of the sidebar (next to the identity avatar) that opens a single popup menu upward · switching repos/versions is occasional, so it earns a compact resting state, not nonstop real-estate · 6 artboards docked in the studio shell · dark studio
+ * @ds          maude
+ * @platform    desktop
+ * @opt_out     palette
+ * @artboards   resting | switch-popup | on-draft | fold-confirm | new-draft | switching
+ * @brief       Phase 29 (native collab app, epic E4). Redesigned to match the real shell (apps/studio/client/app.jsx): the file tree fills the sidebar, and the BOTTOM dock holds the project/version switcher ABOVE the GitHub identity avatar (gi-rail). Switching is infrequent, so the switcher collapses to a single compact line — "📁 Northwind Rebrand · Shared version ⌃" — that opens ONE popup menu UPWARD (mirrors IdentityBar's gi-menu) with a Project section (recent + open another) and a Version section (Shared version / drafts / new draft). Vocabulary contract: a git branch is a "draft", the main branch is the "Shared version" — no branch / checkout / main / merge / PR jargon. When you're ON a draft, the Version section surfaces the one strong fold-back action — "Add this draft to the Shared version" (Task 7) — a filled accent CTA; confirming shows a plain-words sheet then reuses the switching spinner. Lifts the gi-rail bottom-dock + gi-menu upward-popup anatomy so the two sibling surfaces (identity, switcher) read as one bottom dock.
+ * @stack       React 19 · TSX · Bun.build · css_mode=inline (sibling RepoBranchSwitcher.css)
+ * @history     .design/_history/repobranchswitcher/
+ *
+ * Authored under the `maude` DS ("Unified Pro Studio", dark-first). Tokens + shared
+ * classes arrive via the imports below. Every artboard is the switcher DOCKED at the
+ * BOTTOM of the sidebar, mirroring IdentityBar.jsx (`gi-rail`).
+ */
+
+import "../../system/maude/colors_and_type.css";
+import "../../system/maude/preview/_components.css";
+import "./RepoBranchSwitcher.css";
+import { DesignCanvas, DCSection, DCArtboard } from "@maude/canvas-lib";
+
+type IconName = keyof typeof ICONS;
+const ICONS = {
+  check: <polyline points="3 8.2 6.4 11.5 13 4.2" />,
+  "chevron-down": <polyline points="3.5 6 8 10.5 12.5 6" />,
+  "chevron-up": <polyline points="3.5 10 8 5.5 12.5 10" />,
+  "chevron-right": <polyline points="6 3.5 10.5 8 6 12.5" />,
+  "chevron-up-down": (<><polyline points="5 6.5 8 3.5 11 6.5" /><polyline points="5 9.5 8 12.5 11 9.5" /></>),
+  folder: <path d="M2 4.5h4l1.3 1.5H14V13H2z" />,
+  "folder-open": (<><path d="M2 4.5h4l1.3 1.5H14" /><path d="M2 6h12.5l-1.4 7H3.4z" /></>),
+  file: (<><path d="M4 2h5l3 3v9H4z" /><polyline points="9 2 9 5 12 5" /></>),
+  share: (<><circle cx="4" cy="8" r="1.6" /><circle cx="12" cy="4" r="1.6" /><circle cx="12" cy="12" r="1.6" /><line x1="5.4" y1="7.2" x2="10.6" y2="4.6" /><line x1="5.4" y1="8.8" x2="10.6" y2="11.4" /></>),
+  draft: (<><path d="M3 11.5 11 3.5l1.5 1.5L4.5 13l-2 .5z" /><line x1="9.5" y1="5" x2="11" y2="6.5" /></>),
+  plus: (<><line x1="8" y1="3" x2="8" y2="13" /><line x1="3" y1="8" x2="13" y2="8" /></>),
+  spinner: <path d="M8 2.2a5.8 5.8 0 1 0 5.8 5.8" />,
+  /* "lift this draft up into the Shared version" — the fold-back action. The top
+   * bar is the shared line; the arrow promotes your work into it. Reads as
+   * "add to shared", never as a git merge fork. */
+  "arrow-up-to-line": (<><line x1="3.5" y1="3" x2="12.5" y2="3" /><line x1="8" y1="13" x2="8" y2="6" /><polyline points="5 8.5 8 5.5 11 8.5" /></>),
+} as const;
+
+function Icon({ name, size = 16, className }: { name: IconName; size?: number; className?: string }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 16 16" fill="none"
+      stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {ICONS[name]}
+    </svg>
+  );
+}
+
+/* The Maude mark — spark-on-bubble (the menubar brand). */
+function Mark() {
+  return (
+    <span className="rb-mark">
+      <svg width={18} height={18} viewBox="0 0 16 16" aria-hidden="true">
+        <path d="M2.4 7.2a5 5 0 1 1 1.7 3.8L2.2 13.6l.5-2.7a5 5 0 0 1-.3-3.7z" fill="var(--bg-3)" stroke="var(--border-strong)" strokeWidth="0.8" />
+        <path className="rb-mark-spark" d="M9.6 4.4l.7 2.3 2.3.7-2.3.7-.7 2.3-.7-2.3-2.3-.7 2.3-.7z" fill="var(--accent)" />
+      </svg>
+      <b data-cd-id="maude">Maude</b>
+    </span>
+  );
+}
+
+function Avatar({ initials, hue }: { initials: string; hue?: string }) {
+  return <span className="rb-avatar" style={{ background: hue ?? "var(--accent)" }}>{initials}</span>;
+}
+
+/* ── the popup body — ONE menu, two sections (Project · Version) ───────────────
+ * Mirrors IdentityBar's gi-menu: opens upward from the bottom dock. The Version
+ * section carries the Task-7 fold-back CTA when you're on a draft. ──────────── */
+function SwitchPopup({ onDraft }: { onDraft?: boolean }) {
+  return (
+    <div className="rb-pop rb-pop--up panel" id="rb-switch-pop" role="menu" aria-label="Switch project or version">
+      <div data-cd-id="project" className="rb-pop-hd">Project</div>
+      {[
+        ["Northwind Rebrand", "~/Projects/northwind-rebrand", true],
+        ["Mobile Checkout", "~/Projects/mobile-checkout", false],
+        ["Marketing Site", "~/work/marketing-site", false],
+      ].map(([name, path, current]) => (
+        <button type="button" key={name as string} className={"rb-pop-item" + (current ? " is-current" : "")} role="menuitem">
+          <span className="rb-pop-icon"><Icon name="folder" size={14} /></span>
+          <span className="rb-pop-tx">
+            <span className="rb-pop-name">{name}</span>
+            <span className="rb-pop-sub">{path}</span>
+          </span>
+          {current ? <Icon name="check" size={14} className="rb-pop-check" /> : null}
+        </button>
+      ))}
+      <button type="button" className="rb-pop-item rb-pop-item--action" role="menuitem">
+        <span className="rb-pop-icon"><Icon name="folder-open" size={14} /></span>
+        <span className="rb-pop-tx"><span data-cd-id="open-another-folder" className="rb-pop-name">Open another folder…</span></span>
+      </button>
+
+      <div className="rb-pop-sep" />
+      <div data-cd-id="version" className="rb-pop-hd">Version</div>
+
+      {onDraft ? (
+        <>
+          {/* You're on a draft — it's the current row, and the one strong action
+           * is folding it back into the Shared version (Task 7). */}
+          <button type="button" className="rb-pop-item is-current" role="menuitem" aria-current="true">
+            <span className="rb-pop-icon rb-pop-icon--draft"><Icon name="draft" size={14} /></span>
+            <span className="rb-pop-tx">
+              <span data-cd-id="nav-redesign" className="rb-pop-name">Nav redesign</span>
+              <span data-cd-id="you-2h-ago" className="rb-pop-sub">you · 2h ago · 12 changes</span>
+            </span>
+            <Icon name="check" size={14} className="rb-pop-check" />
+          </button>
+          <button type="button" className="rb-fold" role="menuitem">
+            <span className="rb-fold-icon"><Icon name="arrow-up-to-line" size={15} /></span>
+            <span className="rb-fold-tx">
+              <span data-cd-id="add-this-draft" className="rb-fold-title">Add this draft to the Shared version</span>
+              <span data-cd-id="make-it-the" className="rb-fold-sub">make it the version everyone works from</span>
+            </span>
+          </button>
+          <button type="button" className="rb-pop-item" role="menuitem">
+            <span className="rb-pop-icon rb-pop-icon--shared"><Icon name="share" size={14} /></span>
+            <span className="rb-pop-tx">
+              <span data-cd-id="shared-version" className="rb-pop-name">Shared version</span>
+              <span data-cd-id="what-everyone-sees" className="rb-pop-sub">what everyone sees</span>
+            </span>
+          </button>
+          <button type="button" className="rb-pop-item" role="menuitem">
+            <span className="rb-pop-icon"><Icon name="draft" size={14} /></span>
+            <span className="rb-pop-tx">
+              <span data-cd-id="pricing-experiment" className="rb-pop-name">Pricing experiment</span>
+              <span data-cd-id="octocat-yesterday" className="rb-pop-sub">octocat · yesterday</span>
+            </span>
+          </button>
+        </>
+      ) : (
+        <>
+          <button type="button" className="rb-pop-item is-current" role="menuitem" aria-current="true">
+            <span className="rb-pop-icon rb-pop-icon--shared"><Icon name="share" size={14} /></span>
+            <span className="rb-pop-tx">
+              <span data-cd-id="shared-version-2" className="rb-pop-name">Shared version</span>
+              <span data-cd-id="what-everyone-sees-2" className="rb-pop-sub">what everyone sees</span>
+            </span>
+            <Icon name="check" size={14} className="rb-pop-check" />
+          </button>
+          <div data-cd-id="drafts" className="rb-pop-grouplabel">Drafts</div>
+          {[
+            ["Nav redesign", "you · 2h ago"],
+            ["Pricing experiment", "octocat · yesterday"],
+          ].map(([name, who]) => (
+            <button type="button" key={name} className="rb-pop-item" role="menuitem">
+              <span className="rb-pop-icon"><Icon name="draft" size={14} /></span>
+              <span className="rb-pop-tx">
+                <span className="rb-pop-name">{name}</span>
+                <span className="rb-pop-sub">{who}</span>
+              </span>
+            </button>
+          ))}
+        </>
+      )}
+
+      <button type="button" className="rb-pop-item rb-pop-item--action" role="menuitem">
+        <span className="rb-pop-icon"><Icon name="plus" size={14} /></span>
+        <span className="rb-pop-tx">
+          <span data-cd-id="new-draft" className="rb-pop-name">New draft</span>
+          <span data-cd-id="a-separate-line" className="rb-pop-sub">a separate line of work, just yours for now</span>
+        </span>
+      </button>
+    </div>
+  );
+}
+
+/* ── the new-draft inline form — anchored upward above the dock ────────────────*/
+function NewDraftForm() {
+  return (
+    <div className="rb-newdraft rb-newdraft--up panel">
+      <label className="rb-newdraft-field">
+        <span data-cd-id="name-your-draft" className="rb-newdraft-label">Name your draft</span>
+        <input className="input rb-newdraft-input" type="text" defaultValue="Nav redesign" aria-label="Draft name" />
+        <span data-cd-id="creates-a-draft" className="rb-pop-sub">Creates a draft called <b data-cd-id="nav-redesign-2">nav-redesign</b></span>
+      </label>
+      <div className="rb-newdraft-actions">
+        <button data-cd-id="cancel" type="button" className="btn btn--ghost btn--sm">Cancel</button>
+        <button data-cd-id="create-draft" type="button" className="btn btn--primary btn--sm"><Icon name="draft" size={13} /> Create draft</button>
+      </div>
+      <p data-cd-id="a-draft-is" className="rb-newdraft-hint">A draft is your own copy to try things in. Add it to the Shared version when you're happy, or throw it away — nothing else changes.</p>
+    </div>
+  );
+}
+
+/* ── the bottom dock: the compact switcher trigger (or the open popup / new-draft
+ *    / switching state) sitting ABOVE the identity avatar. ───────────────────── */
+function SwitcherDock({ open, onDraft, switching, switchingLabel, newDraft }: {
+  open?: boolean; onDraft?: boolean; switching?: boolean; switchingLabel?: React.ReactNode; newDraft?: boolean;
+}) {
+  return (
+    <div className="rb-dock">
+      {open && <SwitchPopup onDraft={onDraft} />}
+      {newDraft && <NewDraftForm />}
+
+      {switching ? (
+        <div className="rb-switching" role="status" aria-live="polite">
+          <Icon name="spinner" size={14} className="rb-spin" />
+          <span>{switchingLabel ?? <>Opening <b data-cd-id="mobile-checkout">Mobile Checkout</b>…</>}</span>
+        </div>
+      ) : (
+        <button type="button" className={"rb-trigger" + (open ? " is-open" : "")} aria-expanded={!!open} aria-haspopup="menu" aria-controls="rb-switch-pop">
+          <span className="rb-trigger-icon"><Icon name="folder" size={14} /></span>
+          <span className="rb-trigger-proj">Northwind Rebrand</span>
+          <span className="rb-trigger-sep" aria-hidden="true">·</span>
+          <span className={"rb-trigger-ver" + (onDraft ? " is-draft" : "")}>
+            <Icon name={onDraft ? "draft" : "share"} size={12} />
+            <span className="rb-trigger-ver-name">{onDraft ? "Nav redesign" : "Shared version"}</span>
+          </span>
+          <Icon name="chevron-up" size={13} className="rb-trigger-caret" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* The GitHub identity avatar (gi-rail) — the sibling that already lives at the
+ * bottom. Static here; grounds the switcher as part of one bottom dock. */
+function IdentityRow() {
+  return (
+    <div className="rb-identity">
+      <button type="button" className="rb-identity-account" aria-haspopup="menu" title="Signed in as @octocat">
+        <Avatar initials="OC" hue="var(--accent)" />
+        <span className="rb-identity-login">@octocat</span>
+        <Icon name="chevron-up" size={13} className="rb-identity-caret" />
+      </button>
+    </div>
+  );
+}
+
+/* ── the file tree (fills the sidebar above the dock) ─────────────────────────*/
+function FileTree({ skeleton }: { skeleton?: boolean }) {
+  if (skeleton) {
+    return (
+      <div className="rb-tree-body" aria-hidden="true">
+        {[58, 84, 72, 90, 66, 80].map((w, i) => (
+          <div className="rb-sk-row" key={i}><span className="rb-sk" style={{ width: `${w}%` }} /></div>
+        ))}
+      </div>
+    );
+  }
+  return (
+    <div className="rb-tree-body" role="tree" aria-label="Project files">
+      <div className="tree-row rb-row" data-depth="0" role="treeitem" aria-expanded="true"><Icon name="chevron-down" size={12} className="rb-row-icon" /><span className="rb-row-name">ui</span></div>
+      <div className="tree-row rb-row" data-depth="1" role="treeitem" aria-selected="true"><Icon name="file" size={13} className="rb-row-icon" /><span className="rb-row-name">Pricing v3</span></div>
+      <div className="tree-row rb-row" data-depth="1" role="treeitem"><Icon name="file" size={13} className="rb-row-icon" /><span className="rb-row-name">Checkout Sheet</span></div>
+      <div className="tree-row rb-row" data-depth="1" role="treeitem"><Icon name="file" size={13} className="rb-row-icon" /><span className="rb-row-name">Settings</span></div>
+      <div className="tree-row rb-row" data-depth="0" role="treeitem" aria-expanded="false"><Icon name="chevron-right" size={12} className="rb-row-icon" /><span className="rb-row-name">system</span></div>
+    </div>
+  );
+}
+
+function MenuBar() {
+  return (
+    <div className="rb-menubar">
+      <Mark />
+      <span className="rb-spacer" />
+      {/* Live presence — who else is here right now (distinct from YOUR identity,
+       * which lives in the bottom dock). */}
+      <span className="rb-avatars">
+        <Avatar initials="AN" hue="var(--presence-online)" />
+        <Avatar initials="MK" hue="var(--presence-agent)" />
+      </span>
+    </div>
+  );
+}
+
+/* ShellFrame: file tree fills the sidebar; the switcher + identity form the
+ * bottom dock. Every artboard is this shell with a different dock state. */
+function ShellFrame({ open, onDraft, switching, switchingLabel, foldConfirm, newDraft }: {
+  open?: boolean; onDraft?: boolean; switching?: boolean; switchingLabel?: React.ReactNode;
+  foldConfirm?: boolean; newDraft?: boolean;
+}) {
+  return (
+    <div className="rb-shell">
+      <MenuBar />
+      <div className="rb-main">
+        <nav className="rb-side" aria-label="Project and files">
+          <div className="rb-side-label">Files</div>
+          <FileTree skeleton={switching} />
+          <div className="rb-dock-wrap">
+            <SwitcherDock open={open} onDraft={onDraft} switching={switching} switchingLabel={switchingLabel} newDraft={newDraft} />
+            <IdentityRow />
+          </div>
+        </nav>
+        <div className="rb-stage rb-canvas-bleed">
+          <div className="panel rb-mini">
+            <div className="rb-mini-bar"><span className="rb-mini-dot" /><span className="rb-mini-dot" /><span className="rb-mini-dot" /></div>
+            <div className="rb-mini-body">
+              <div className="rb-msk" style={{ width: "58%", height: 14 }} />
+              <div className="rb-msk" style={{ width: "90%" }} />
+              <div className="rb-msk" style={{ width: "76%" }} />
+              <div className="rb-msk is-accent" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Fold-back confirm — the one modal in this surface. Plain words: what
+       * becomes shared, and the reassurance that the draft survives. No git
+       * jargon (no "merge"/"PR"/"checkout"); the canonical verb is "Get latest". */}
+      {foldConfirm && (
+        <div className="rb-scrim" role="presentation">
+          <div className="rb-sheet panel" role="dialog" aria-modal="true" aria-labelledby="rb-sheet-title" aria-describedby="rb-sheet-body">
+            <span className="rb-sheet-icon"><Icon name="arrow-up-to-line" size={20} /></span>
+            <h2 className="rb-sheet-title" id="rb-sheet-title">Add this draft to the Shared version</h2>
+            <p className="rb-sheet-body" id="rb-sheet-body"><b>12 changes</b> from <b>“Nav redesign”</b> will become part of the Shared version everyone sees.</p>
+            <p className="rb-sheet-meta">Everyone else picks them up the next time they Get latest. Your draft stays around until you remove it.</p>
+            <div className="rb-sheet-actions">
+              <button type="button" className="btn btn--ghost">Cancel</button>
+              <button type="button" className="btn btn--primary"><Icon name="arrow-up-to-line" size={15} /> Add to the Shared version</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function RepoBranchSwitcher() {
+  return (
+    <DesignCanvas background="var(--bg-0)">
+      <DCSection id="switcher" title="RepoBranchSwitcher · maude" subtitle="MAUDE/E4 · 6 artboards · compact bottom dock + upward popup · plain words (draft / shared version)">
+        <DCArtboard id="resting" label="A · Resting — one compact line at the bottom, above the identity" width={1280} height={860}>
+          <div className="maude" data-theme="dark"><ShellFrame /></div>
+        </DCArtboard>
+        <DCArtboard id="switch-popup" label="B · Popup — Project + Version in one menu, opens upward" width={1280} height={860}>
+          <div className="maude" data-theme="dark"><ShellFrame open /></div>
+        </DCArtboard>
+        <DCArtboard id="on-draft" label="C · On a draft — the 'Add to the Shared version' fold-back (Task 7)" width={1280} height={860}>
+          <div className="maude" data-theme="dark"><ShellFrame open onDraft /></div>
+        </DCArtboard>
+        <DCArtboard id="fold-confirm" label="D · Confirm — what becomes shared (no merge UI, plain words)" width={1280} height={860}>
+          <div className="maude" data-theme="dark"><ShellFrame onDraft foldConfirm /></div>
+        </DCArtboard>
+        <DCArtboard id="new-draft" label="E · New draft — name a separate line of work" width={1280} height={860}>
+          <div className="maude" data-theme="dark"><ShellFrame newDraft /></div>
+        </DCArtboard>
+        <DCArtboard id="switching" label="F · Switching — reuses the spinner idiom (here: folding a draft)" width={1280} height={860}>
+          <div className="maude" data-theme="dark"><ShellFrame onDraft switching switchingLabel={<>Adding <b>Nav redesign</b> to the Shared version…</>} /></div>
+        </DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}

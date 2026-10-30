@@ -16,26 +16,37 @@
 //                             in the canvas; the card shows a "⌘-click to continue"
 //                             hint and the spotlight snaps onto the real row the
 //                             moment a selection lands.
+//   optional: true         → skip the step when its target is absent (a role or shell state
+//                             without that element: no Share button for a read-only person, no
+//                             AI chat panel in the web studio). Back, the counter and Done step
+//                             over a skipped step; see tour-model.js.
 // A step whose target still can't be resolved shows centered (no spotlight) — the
-// tour never dead-ends on a missing element.
+// tour never dead-ends on a missing element. `target` may be a comma list: the first match
+// with a box on screen is spotlit.
 //
 // A11y: role="dialog" + aria-modal, focus moves to the primary button on each
 // step and is trapped within the card, focus is restored on close, Esc skips,
 // ←/→ navigate. prefers-reduced-motion disables the spotlight transition.
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { afterSkip, isLastVisible, position, stepFrom } from './tour-model.js';
 
-function getRect(target) {
+// The first element the selector (or comma list of selectors) matches that has a box on screen. A
+// list is how a step follows a panel that has two forms (the AI chat panel, or its folded icon): a
+// hidden form earlier in the document must not hide the visible one.
+function findTarget(target) {
   if (typeof document === 'undefined' || !target) return null;
   try {
-    const el = document.querySelector(target);
-    if (!el) return null;
-    const r = el.getBoundingClientRect();
-    if (r.width === 0 && r.height === 0) return null;
-    return r;
-  } catch {
-    return null;
-  }
+    for (const el of document.querySelectorAll(target)) {
+      const r = el.getBoundingClientRect();
+      if (r.width !== 0 || r.height !== 0) return { el, rect: r };
+    }
+  } catch {}
+  return null;
+}
+
+function getRect(target) {
+  return findTarget(target)?.rect ?? null;
 }
 
 const CARD_W = 320;
@@ -64,6 +75,9 @@ function computeCardStyle(rect) {
 export function TourOverlay({ steps, open, onClose, onComplete, bus, hasSelection, hasCanvas }) {
   const [i, setI] = useState(0);
   const [rect, setRect] = useState(null);
+  // Indices of `optional` steps whose target turned out to be absent (skipped, see tour-model.js).
+  const [skipped, setSkipped] = useState([]);
+  const dirRef = useRef(1);
   const cardRef = useRef(null);
   const prevFocus = useRef(null);
   const pollRef = useRef(null);
@@ -71,6 +85,8 @@ export function TourOverlay({ steps, open, onClose, onComplete, bus, hasSelectio
   // churn never re-triggers the per-step setup effect (which would thrash).
   const busRef = useRef(bus);
   busRef.current = bus;
+  const doneRef = useRef({ onClose, onComplete });
+  doneRef.current = { onClose, onComplete };
 
   const step = steps[i] || null;
 
@@ -86,7 +102,11 @@ export function TourOverlay({ steps, open, onClose, onComplete, bus, hasSelectio
 
   // Reset to the first step whenever a tour (re)opens.
   useEffect(() => {
-    if (open) setI(0);
+    if (open) {
+      setI(0);
+      setSkipped([]);
+      dirRef.current = 1;
+    }
   }, [open]);
 
   // Per-step: run the step's setup (open canvas / inspector / switch tab), then
@@ -105,15 +125,29 @@ export function TourOverlay({ steps, open, onClose, onComplete, bus, hasSelectio
     } catch {}
 
     let tries = 0;
-    const MAX = 24; // ~3s at 130ms
+    // An optional step gives its target a short moment (it is absent for this role / shell, not
+    // still rendering); any other step waits ~3s at 130ms for a panel the setup just opened.
+    const MAX = step.optional && step.target ? 6 : 24;
     const tick = () => {
       if (cancelled) return;
       const r = measure();
       const settled = r || tries >= MAX;
       if (settled) {
+        if (!r && step.optional && step.target) {
+          // Skipped, not broken: go on the way the user was travelling.
+          setSkipped((s) => (s.includes(i) ? s : [...s, i]));
+          const to = afterSkip(i, dirRef.current, steps.length, skipped);
+          if (to >= steps.length) {
+            doneRef.current.onComplete?.();
+            doneRef.current.onClose?.();
+          } else {
+            setI(to);
+          }
+          return;
+        }
         if (r) {
           try {
-            document.querySelector(step.target)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+            findTarget(step.target)?.el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
           } catch {}
           // Re-measure after the scroll so the spotlight is glued post-layout.
           requestAnimationFrame(() => {
@@ -152,16 +186,23 @@ export function TourOverlay({ steps, open, onClose, onComplete, bus, hasSelectio
     };
   }, [open, measure]);
 
-  const last = i >= steps.length - 1;
+  const last = isLastVisible(i, steps.length, skipped);
   const next = useCallback(() => {
+    dirRef.current = 1;
     if (last) {
       onComplete?.();
       onClose?.();
     } else {
-      setI((n) => Math.min(n + 1, steps.length - 1));
+      setI((n) => Math.min(stepFrom(n, 1, steps.length, skipped), steps.length - 1));
     }
-  }, [last, onComplete, onClose, steps.length]);
-  const back = useCallback(() => setI((n) => Math.max(0, n - 1)), []);
+  }, [last, onComplete, onClose, steps.length, skipped]);
+  const back = useCallback(() => {
+    dirRef.current = -1;
+    setI((n) => {
+      const j = stepFrom(n, -1, steps.length, skipped);
+      return j < 0 ? n : j;
+    });
+  }, [steps.length, skipped]);
 
   // Keyboard: Esc skips, ←/→ navigate, Tab is trapped within the card buttons.
   useEffect(() => {
@@ -210,6 +251,7 @@ export function TourOverlay({ steps, open, onClose, onComplete, bus, hasSelectio
 
   if (!open || !steps.length || !step) return null;
   const pad = 6;
+  const pos = position(i, steps.length, skipped);
   const spot = rect
     ? {
         top: rect.top - pad,
@@ -247,7 +289,7 @@ export function TourOverlay({ steps, open, onClose, onComplete, bus, hasSelectio
         style={computeCardStyle(rect)}
       >
         <div className="mdcc-tour__step">
-          {i + 1} / {steps.length}
+          {pos.n} / {pos.total}
         </div>
         {Graphic && (
           <div className="mdcc-tour__graphic">
@@ -273,7 +315,7 @@ export function TourOverlay({ steps, open, onClose, onComplete, bus, hasSelectio
             Skip
           </button>
           <div className="mdcc-tour__nav">
-            {i > 0 && (
+            {pos.n > 1 && (
               <button type="button" className="mdcc-tour__back" onClick={back}>
                 Back
               </button>

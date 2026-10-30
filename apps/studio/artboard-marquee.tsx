@@ -18,9 +18,23 @@
 import { useEffect, useRef } from 'react';
 
 import { useArtboardsContext } from './canvas-lib.tsx';
+import { hoverTargetToSelection } from './dom-selection.ts';
 import { DRAG_THRESHOLD_PX } from './input-router.tsx';
 import { type Selection, useSelectionSet } from './use-selection-set.tsx';
 import { useToolMode } from './use-tool-mode.tsx';
+
+/**
+ * The whole-artboard selection a marquee hit makes. P8 C7 (14 ed-ab-tidy): the SAME snapshot a click on the
+ * artboard makes — its attrs (kind, print, bg), world size and geometry — because the inspector's multi-artboard
+ * card compares them (a slim `{selector, artboardId}` read "Size — × —" where the board says a shared size or Mixed).
+ */
+export function artboardHit(el: Element, id: string): Selection {
+  return {
+    ...hoverTargetToSelection({ el, cdId: null, artboardId: id } as never),
+    selector: `[data-dc-screen="${id}"]`,
+    artboardId: id,
+  };
+}
 
 const MARQUEE_CSS = `
 .dc-cv-marquee {
@@ -42,7 +56,7 @@ function ensureMarqueeStyles(): void {
   document.head.appendChild(s);
 }
 
-function shouldIgnoreTarget(t: EventTarget | null): boolean {
+export function shouldIgnoreTarget(t: EventTarget | null): boolean {
   if (!t || !(t as Element).closest) return true;
   const el = t as Element;
   // Skip if the pointerdown landed inside any artboard — that's a select-
@@ -51,7 +65,7 @@ function shouldIgnoreTarget(t: EventTarget | null): boolean {
   // Skip floating chrome and existing overlays (their click handlers run).
   if (
     el.closest(
-      '.dc-mm, .dc-zoom-tb, .dc-tool-palette, .dc-context-menu, .dc-cv-halo, .dc-cv-group-bbox, .cm-composer, .cm-thread, .cm-mention-popup, .cm-pin, .dc-annot-svg, .dc-annot-ctx, .dc-tp-popover, .dc-annot-resize-handle, .dc-el-resize-handle, .dc-multi-artboard-tb, .dc-elem-ctx-tb, .dc-cv-eq-spacing-layer'
+      '.dc-mm, .dc-zoom-tb, .dc-tool-palette, .dc-context-menu, .dc-cv-halo, .dc-cv-group-bbox, .cm-composer, .cm-thread, .cm-mention-popup, .cm-pin, .dc-annot-svg, .dc-annot-ctx, .dc-tp-popover, .dc-annot-resize-handle, .dc-el-resize-handle, .dc-multi-artboard-tb, .dc-elem-ctx-tb, .dc-cv-eq-spacing-layer, .ed-pen-svg'
     )
   ) {
     return true;
@@ -148,10 +162,7 @@ export function ArtboardMarqueeOverlay() {
         // AABB intersection test — any overlap counts as a hit.
         if (b.right < left || b.left > right) continue;
         if (b.bottom < top || b.top > bottom) continue;
-        hits.push({
-          selector: `[data-dc-screen="${r.id}"]`,
-          artboardId: r.id,
-        });
+        hits.push(artboardHit(el, r.id));
       }
       if (hits.length === 0) return;
       if (s.shift) selSet.add(hits);

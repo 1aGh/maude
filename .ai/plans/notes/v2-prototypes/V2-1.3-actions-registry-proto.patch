@@ -1,0 +1,1019 @@
+diff --git a/apps/studio/actions/keys.ts b/apps/studio/actions/keys.ts
+new file mode 100644
+index 000000000..ed366bcb2
+--- /dev/null
++++ b/apps/studio/actions/keys.ts
+@@ -0,0 +1,144 @@
++// actions/keys.ts — PROTOTYPE for spike V2-1.3. Chord normalisation shared by shell, iframe,
++// generator and tests. One canonical form so '⌘⇧M', '⌘ ⇧ M' and '⇧⌘M' are the same chord.
++
++import type { Chord } from './types.ts';
++
++const MOD_ORDER = ['⌃', '⌥', '⇧', '⌘'] as const; // macOS menu order (CONTRACT §2: ⌥⇧⌘)
++const NAMED: Record<string, string> = {
++  Enter: '↵',
++  Return: '↵',
++  '↩': '↵',
++  Escape: 'esc',
++  Esc: 'esc',
++  ' ': 'Space',
++  Spacebar: 'Space',
++  ArrowLeft: '←',
++  ArrowRight: '→',
++  ArrowUp: '↑',
++  ArrowDown: '↓',
++  Backspace: '⌫',
++  Delete: '⌦',
++  Tab: 'tab',
++  '-': '−',
++  '–': '−',
++};
++
++/** Parse any human spelling ('⌘ ⇧ M', '⌘⇧M', 'Cmd+Shift+M', 'Esc', '⌘ click') into canonical form.
++ *  Returns null for pointer gestures ('⌘ click', '⌘ hover') — those are not key bindings. */
++export function chord(spec: string): Chord | null {
++  let s = spec.trim();
++  if (/click|hover|drag|scroll/i.test(s)) return null;
++  const mods = new Set<string>();
++  const words: Record<string, string> = {
++    cmd: '⌘',
++    command: '⌘',
++    meta: '⌘',
++    ctrl: '⌃',
++    control: '⌃',
++    alt: '⌥',
++    opt: '⌥',
++    option: '⌥',
++    shift: '⇧',
++  };
++  s = s.replace(/\b(cmd|command|meta|ctrl|control|alt|opt|option|shift)\s*\+?\s*/gi, (_m, w) => {
++    mods.add(words[w.toLowerCase()]);
++    return '';
++  });
++  // Peel glyph modifiers off the front (any order, spaces allowed).
++  for (;;) {
++    s = s.replace(/^\s+/, '');
++    const g = MOD_ORDER.find((m) => s.startsWith(m));
++    if (!g || s.length === g.length) break; // a lone '⇧' would be a key, not a modifier
++    mods.add(g);
++    s = s.slice(g.length);
++  }
++  let key = s.trim();
++  if (NAMED[key]) key = NAMED[key];
++  if (/^[a-z]$/i.test(key)) key = key.toUpperCase();
++  const prefix = MOD_ORDER.filter((m) => mods.has(m)).join('');
++  return prefix + key;
++}
++
++const CODE_KEY: Record<string, string> = {
++  Minus: '−',
++  Equal: '=',
++  Slash: '/',
++  Backslash: '\\',
++  BracketLeft: '[',
++  BracketRight: ']',
++  Comma: ',',
++  Period: '.',
++  Semicolon: ';',
++  Quote: "'",
++  Backquote: '`',
++};
++
++/** Minimal shape of a KeyboardEvent the resolver needs (testable without a DOM). */
++export interface KeyEventLike {
++  key: string;
++  code?: string;
++  metaKey?: boolean;
++  ctrlKey?: boolean;
++  altKey?: boolean;
++  shiftKey?: boolean;
++}
++
++/** Canonical chord from a keyboard event.
++ *  - `e.key` when it is a plain ASCII letter/digit/symbol (layout-aware: what macOS menus show);
++ *  - else `e.code` (physical) — covers ⌥ chords on macOS (⌥⌘P gives e.key 'π') and the Czech
++ *    number row (⌘1 gives e.key '+').
++ *  - Shift is dropped for shifted symbols whose key already encodes it ('?', '+', ':').
++ *  - ⌃ folds into ⌘ (Windows/Linux browsers), matching v1's `metaKey || ctrlKey`. */
++export function chordFromEvent(e: KeyEventLike): Chord {
++  const mods = new Set<string>();
++  if (e.metaKey || e.ctrlKey) mods.add('⌘');
++  if (e.altKey) mods.add('⌥');
++  let key = e.key;
++  if (NAMED[key]) key = NAMED[key];
++  else if (/^F\d{1,2}$/.test(key)) {
++    /* F1…F12 */
++  } else if (/^[\x21-\x7e]$/.test(key)) {
++    if (/^[a-z]$/i.test(key)) key = key.toUpperCase();
++  } else if (e.code) {
++    const m = /^Key([A-Z])$/.exec(e.code) ?? /^Digit(\d)$/.exec(e.code);
++    key = m ? m[1] : (CODE_KEY[e.code] ?? key);
++  }
++  // Digits count as shift-encoded too: a layout that types digits WITH ⇧ (Czech QWERTZ: the
++  // unshifted number row is "+ěščřžýáíé") must still reach ⌘0 / ⌘1 — v1 ignored shift there.
++  const shiftEncodedInKey = !/^[A-Z]$/.test(key) && !NAMED_VALUES.has(key) && !/^F\d/.test(key);
++  if (e.shiftKey && !shiftEncodedInKey) mods.add('⇧');
++  return MOD_ORDER.filter((m) => mods.has(m)).join('') + key;
++}
++const NAMED_VALUES = new Set(Object.values(NAMED));
++
++export function hasCommandMod(c: Chord): boolean {
++  return c.includes('⌘') || c.includes('⌃');
++}
++
++/** Chords a focused text field owns natively (C26: the text field wins). */
++export const TEXT_RESERVED: ReadonlySet<Chord> = new Set(
++  [
++    '⌘Z',
++    '⇧⌘Z',
++    '⌘Y',
++    '⌘A',
++    '⌘C',
++    '⌘X',
++    '⌘V',
++    '⇧⌘V',
++    '⌥⇧⌘V',
++    '⌘B',
++    '⌘I',
++    '⌘U',
++    '⌘←',
++    '⌘→',
++    '⌘↑',
++    '⌘↓',
++    '⇧⌘←',
++    '⇧⌘→',
++    '⌥←',
++    '⌥→',
++    '⌘⌫',
++    '⌥⌫',
++  ].map((c) => chord(c) as Chord)
++);
+diff --git a/apps/studio/actions/menu.ts b/apps/studio/actions/menu.ts
+new file mode 100644
+index 000000000..b7046469b
+--- /dev/null
++++ b/apps/studio/actions/menu.ts
+@@ -0,0 +1,156 @@
++// actions/menu.ts — PROTOTYPE for spike V2-1.3. CONTRACT §1 "the one menu" as data. Nodes name
++// action ids; labels, keys and visibility come from the registry, so the menu cannot drift from
++// ⌘K or "?". `where` paths ("Menu › File › Export…") are DERIVED from this tree.
++
++import type { ActionDef, ActionId } from './types.ts';
++
++export type MenuNode =
++  | { id: ActionId }
++  | { sep: true }
++  | { submenu: string; advanced?: boolean; items: MenuNode[] };
++
++export const PROJECT_MENU: MenuNode[] = [
++  { id: 'nav.home' },
++  {
++    submenu: 'File',
++    items: [
++      { id: 'canvas.new' },
++      { id: 'project.new' },
++      { id: 'project.open' },
++      { sep: true },
++      { id: 'canvas.duplicate' },
++      { id: 'canvas.rename' },
++      { id: 'canvas.move' },
++      { sep: true },
++      { id: 'import.figma' },
++      { id: 'import.brand' },
++      { id: 'video.assemble' },
++      { sep: true },
++      { id: 'export.open' },
++      { id: 'handoff.open' },
++      { id: 'canvas.close' },
++    ],
++  },
++  {
++    submenu: 'Edit',
++    items: [
++      { id: 'edit.undo' },
++      { id: 'edit.redo' },
++      { id: 'edit.undo-history' },
++      { sep: true },
++      { id: 'edit.cut' },
++      { id: 'edit.copy' },
++      { id: 'edit.paste' },
++      { id: 'edit.copy-properties' },
++      { id: 'edit.paste-properties' },
++      { sep: true },
++      { id: 'select.all' },
++      { id: 'select.none' },
++      { id: 'select.all-annotations' },
++      {
++        submenu: 'Advanced',
++        advanced: true,
++        items: [
++          {
++            submenu: 'New artboard',
++            items: [
++              { id: 'artboard.new.desktop' },
++              { id: 'artboard.new.laptop' },
++              { id: 'artboard.new.tablet' },
++              { id: 'artboard.new.mobile' },
++              { id: 'artboard.new.a4' },
++              { id: 'artboard.new.letter' },
++            ],
++          },
++        ],
++      },
++    ],
++  },
++  {
++    submenu: 'View',
++    items: [
++      { id: 'view.panels.toggle' },
++      { id: 'view.comments' },
++      { id: 'view.assets' },
++      { id: 'view.annotations' },
++      { id: 'present.canvas' },
++      { sep: true },
++      { id: 'view.zoom-in' },
++      { id: 'view.zoom-out' },
++      { id: 'view.zoom-fit' },
++      { id: 'view.zoom-actual' },
++      {
++        submenu: 'Advanced',
++        advanced: true,
++        items: [
++          { id: 'view.layers-panel' },
++          { id: 'view.inspector' },
++          { id: 'view.inspector-on-select' },
++          { id: 'view.timeline-keep-open' },
++          { id: 'view.minimap' },
++          { id: 'view.zoom-controls' },
++          { id: 'view.print-guides' },
++          { id: 'view.hidden-files' },
++          { id: 'view.pin-panels' },
++        ],
++      },
++    ],
++  },
++  {
++    submenu: 'Help',
++    items: [
++      { id: 'help.shortcuts' },
++      { id: 'help.guides' },
++      { id: 'help.whats-new' },
++      { id: 'help.tour' },
++      { id: 'help.intro' },
++      { id: 'help.sharing' },
++      { id: 'help.report-bug' },
++    ],
++  },
++  { id: 'history.open' },
++  { id: 'share.open' },
++  { id: 'export.open' }, // CONTRACT §1 lists Export… both top-level and under File
++  {
++    submenu: 'Diagnostics',
++    items: [
++      { id: 'diag.sync' },
++      { id: 'diag.server' },
++      { id: 'diag.ai' },
++      { id: 'diag.logs' },
++      { id: 'canvas.reload' },
++      { id: 'diag.ai-recheck' },
++      {
++        submenu: 'Advanced',
++        advanced: true,
++        items: [
++          { id: 'diag.address' },
++          { id: 'diag.process' },
++          { id: 'diag.project-folder' },
++          { id: 'sync.resync' },
++          { id: 'sync.download-all' },
++        ],
++      },
++    ],
++  },
++  { id: 'settings.open' },
++];
++
++/** Every menu path an action appears at ("Menu › File › Export…"). Derived — never declared. */
++export function menuPaths(tree: MenuNode[], byId: Map<ActionId, ActionDef>): Map<ActionId, string[]> {
++  const out = new Map<ActionId, string[]>();
++  const walk = (nodes: MenuNode[], trail: string[]) => {
++    for (const n of nodes) {
++      if ('sep' in n) continue;
++      if ('submenu' in n) {
++        walk(n.items, [...trail, n.submenu]);
++        continue;
++      }
++      const a = byId.get(n.id);
++      const path = [...trail, a?.label ?? n.id].join(' › ');
++      out.set(n.id, [...(out.get(n.id) ?? []), path]);
++    }
++  };
++  walk(tree, ['Menu']);
++  return out;
++}
+diff --git a/apps/studio/actions/resolve.ts b/apps/studio/actions/resolve.ts
+new file mode 100644
+index 000000000..8c3532bc6
+--- /dev/null
++++ b/apps/studio/actions/resolve.ts
+@@ -0,0 +1,98 @@
++// actions/resolve.ts — PROTOTYPE for spike V2-1.3. Pure: predicate evaluation + focus-scoped key
++// resolution (Gate 0 C26). No DOM, no React — runs in the shell, the canvas iframe, the server
++// (predicate half) and tests.
++
++import { hasCommandMod, TEXT_RESERVED } from './keys.ts';
++import {
++  type ActionDef,
++  type Chord,
++  type KeyBinding,
++  type KeyCtx,
++  LAYERS,
++  type Layer,
++  type Pred,
++  ROLE_RANK,
++} from './types.ts';
++
++export function holds(p: Pred | undefined, ctx: KeyCtx): boolean {
++  if (!p) return true;
++  if (p.minRole && ROLE_RANK[ctx.role] < ROLE_RANK[p.minRole]) return false;
++  if (p.shell && !p.shell.includes(ctx.shell)) return false;
++  if (p.notShell?.includes(ctx.shell)) return false;
++  if (p.mode && !p.mode.includes(ctx.mode)) return false;
++  if (p.focus && !p.focus.includes(ctx.focus)) return false;
++  if (p.selection && !p.selection.includes(ctx.selection)) return false;
++  if (p.facts && !p.facts.every((f) => ctx.facts.has(f))) return false;
++  if (p.notFacts?.some((f) => ctx.facts.has(f))) return false;
++  if (p.any && !p.any.some((q) => holds(q, ctx))) return false;
++  return true;
++}
++
++/** Rule 12 — the one visibility test every surface calls. */
++export function isVisible(a: ActionDef, ctx: KeyCtx): boolean {
++  return holds(a.visible, ctx);
++}
++export function isEnabled(a: ActionDef, ctx: KeyCtx): boolean {
++  return isVisible(a, ctx) && holds(a.enabled, ctx);
++}
++
++export interface Bound {
++  action: ActionDef;
++  binding: KeyBinding;
++}
++
++/** Index: chord → every binding that uses it. Built once per registry. */
++export function indexKeys(actions: readonly ActionDef[]): Map<Chord, Bound[]> {
++  const m = new Map<Chord, Bound[]>();
++  for (const action of actions)
++    for (const binding of action.keys ?? []) {
++      const list = m.get(binding.chord) ?? [];
++      list.push({ action, binding });
++      m.set(binding.chord, list);
++    }
++  return m;
++}
++
++function layerActive(layer: Layer, ctx: KeyCtx): boolean {
++  // 'timeline' bindings need timeline focus; the rest are reachable from canvas or chrome focus.
++  if (layer === 'timeline') return ctx.focus === 'timeline';
++  return true;
++}
++
++function bindingLive(b: Bound, ctx: KeyCtx): boolean {
++  if (ctx.focus === 'text') {
++    const inText = b.binding.inText ?? (hasCommandMod(b.binding.chord) && !TEXT_RESERVED.has(b.binding.chord));
++    if (!inText) return false;
++  }
++  if (ctx.focus === 'modal' && !b.binding.inModal) return false;
++  return layerActive(b.binding.layer, ctx) && isVisible(b.action, ctx) && holds(b.binding.when, ctx);
++}
++
++export interface Resolution {
++  action: ActionDef;
++  binding: KeyBinding;
++  /** Same-layer competitors — must be empty; the uniqueness test enforces it. */
++  ambiguous: Bound[];
++}
++
++/** C26: focused text field > timeline focus > selection > mode tools > global. The first layer
++ *  (in LAYERS order) that has a live binding for the chord wins; a disabled winner still
++ *  swallows the key (no fall-through), so a key never does something different just because
++ *  the thing it targets is momentarily unavailable. */
++export function resolveChord(
++  index: Map<Chord, Bound[]>,
++  chord: Chord,
++  ctx: KeyCtx,
++  press: 'tap' | 'hold' = 'tap'
++): Resolution | null {
++  // Tap and hold never compete: Space can be "play" on tap and "Hand" while held (CONTRACT §7).
++  const live = (index.get(chord) ?? []).filter(
++    (b) => (press === 'hold') === !!b.binding.hold && bindingLive(b, ctx)
++  );
++  if (!live.length) return null;
++  for (const layer of LAYERS) {
++    const here = live.filter((b) => b.binding.layer === layer);
++    if (here.length) return { action: here[0].action, binding: here[0].binding, ambiguous: here.slice(1) };
++  }
++  return null;
++}
+diff --git a/apps/studio/actions/types.ts b/apps/studio/actions/types.ts
+new file mode 100644
+index 000000000..c6b1fac60
+--- /dev/null
++++ b/apps/studio/actions/types.ts
+@@ -0,0 +1,137 @@
++// actions/types.ts — PROTOTYPE for spike V2-1.3 (not committed; the contract note is the deliverable).
++// Erasable TypeScript only (no enums / namespaces / parameter properties) so Bun, the client
++// bundle, the canvas runtime bundle and Node 24 (type stripping) can all import it.
++
++export type ActionId = string; // dotted, stable, append-only: 'canvas.new', 'view.panels.toggle'
++
++/** Hub roles (A6). A local project is 'owner'. */
++export type Role = 'view' | 'comment' | 'edit' | 'owner';
++export const ROLE_RANK: Readonly<Record<Role, number>> = { view: 0, comment: 1, edit: 2, owner: 3 };
++
++/** Where the client runs (rule 12 — predicates name shells, never ad-hoc flags). */
++export type Shell = 'desktop' | 'browser' | 'cloud' | 'viewer' | 'embed' | 'home';
++
++/** Shell-owned mode (V2-1.2). 'viewing' = the read-only slot in the Share cluster. */
++export type Mode = 'edit' | 'preview' | 'present' | 'viewing';
++
++/** What currently has keyboard focus — computed by the side that receives the event. */
++export type Focus = 'text' | 'timeline' | 'canvas' | 'chrome' | 'modal';
++
++/** Kind of the current selection (C26 'selection' layer discriminant). */
++export type SelKind =
++  | 'none'
++  | 'artboard'
++  | 'object'
++  | 'annotation'
++  | 'video-artboard'
++  | 'generated-image'
++  | 'clip';
++
++/** Resolution layers, highest priority first (Gate 0 C26). 'text' never appears on a binding:
++ *  a focused text field is not a layer that owns commands, it is the thing that swallows keys. */
++export const LAYERS = ['timeline', 'selection', 'tools', 'global'] as const;
++export type Layer = (typeof LAYERS)[number];
++
++/** Named runtime booleans a predicate may test. Closed set: adding one is a registry change. */
++export type Fact =
++  | 'native' // running inside the Tauri shell
++  | 'canvasOpen'
++  | 'videoCanvas'
++  | 'timelineVisible'
++  | 'linkedHub'
++  | 'aiConnected'
++  | 'online'
++  | 'hasShareLink'
++  | 'canUndo'
++  | 'canRedo'
++  | 'presenting'
++  | 'commentFocused'
++  | 'photoTab';
++
++/** Declarative predicate — serialisable into the manifest, evaluable on client, iframe and server
++ *  (server evaluates only minRole/shell). All present fields must hold (AND). */
++export interface Pred {
++  minRole?: Role;
++  shell?: Shell[];
++  notShell?: Shell[];
++  mode?: Mode[];
++  focus?: Focus[];
++  selection?: SelKind[];
++  facts?: Fact[]; // all must be true
++  notFacts?: Fact[]; // all must be false
++  any?: Pred[]; // at least one must hold
++}
++
++/** Canonical chord string, macOS glyph order ⌃⌥⇧⌘ then the key: '⇧⌘E', '⌥⌘↵', 'V', '?', 'Space',
++ *  'F1', '←'. Letters upper-case. Produced only by keys.ts `chord()` / `chordFromEvent()`. */
++export type Chord = string;
++
++export interface KeyBinding {
++  chord: Chord;
++  layer: Layer;
++  /** Extra condition for THIS binding (on top of the action's `visible`). */
++  when?: Pred;
++  /** Fires while a text field has focus. Default: chord has ⌘/⌃ and is not TEXT_RESERVED. */
++  inText?: boolean;
++  /** Fires while a modal (dialog/sheet/menu/popover) is open. Default false. */
++  inModal?: boolean;
++  /** Hold-to-activate (Space = Hand while held). */
++  hold?: boolean;
++  /** Not shown as the primary key anywhere; listed in "?" as an alternative (⌘G for ⌥⌘G). */
++  alias?: boolean;
++}
++
++export type Exec = 'shell' | 'canvas' | 'native' | 'server';
++
++export type HelpGroup =
++  | 'edit-tools'
++  | 'preview-tools'
++  | 'file'
++  | 'canvas'
++  | 'panels-ai'
++  | 'objects'
++  | 'timeline';
++
++export interface ActionDef {
++  id: ActionId;
++  /** CONTRACT §3 words. One label everywhere (menu, ⌘K, "?", native, docs). */
++  label: string;
++  kind: 'command' | 'toggle' | 'tool' | 'place';
++  icon?: string;
++  /** First binding is the primary (shown in menus and ⌘K). */
++  keys?: KeyBinding[];
++  /** Which runtime owns the handler. */
++  exec: Exec;
++  /** Rule 12: the ONE predicate set — menus, ⌘K, "?", panels, native menu and (minRole) server. */
++  visible?: Pred;
++  /** Shown but greyed. Never used to hide. */
++  enabled?: Pred;
++  /** May be triggered by a chord or click forwarded from the canvas iframe (DDR-054).
++   *  Only legal for effect 'none' (opens UI, mutates nothing) — enforced by test. */
++  fromCanvas?: boolean;
++  /** Non-menu homes ('Canvases › Advanced', 'Inspector › Advanced', 'Toolbar · Edit').
++   *  Menu homes are derived from menu.ts and must not be repeated here. */
++  homes?: string[];
++  help?: { group: HelpGroup; order: number; advanced?: boolean };
++  native?: { menu: 'App' | 'File' | 'Edit' | 'View' | 'Window' | 'Help'; order: number };
++  /** Old ids that still resolve to this action (append-only; renames never break callers). */
++  aliases?: ActionId[];
++  search?: { keywords?: string[]; hidden?: boolean };
++}
++
++/** "?" › Advanced › "Keys and tools that moved" (D1–D4, rule 13). */
++export interface MovedKey {
++  was: string; // 'Changes ⇧⌘G'
++  now: string; // 'Version history ⌥⌘H'
++  note?: string; // 'T is Text'
++  to?: ActionId;
++}
++
++export interface KeyCtx {
++  role: Role;
++  shell: Shell;
++  mode: Mode;
++  focus: Focus;
++  selection: SelKind;
++  facts: ReadonlySet<Fact>;
++}
+diff --git a/apps/studio/actions/v1.ts b/apps/studio/actions/v1.ts
+new file mode 100644
+index 000000000..bc653c64b
+--- /dev/null
++++ b/apps/studio/actions/v1.ts
+@@ -0,0 +1,89 @@
++// actions/v1.ts — PROTOTYPE for spike V2-1.3: today's (v1) global bindings expressed as registry
++// entries, to prove the schema can represent every one and the resolver reproduces today's
++// handler choice. Ids are v1 handler names; labels are v1 strings. Not product code.
++
++import { chord } from './keys.ts';
++import type { ActionDef, KeyBinding, Layer, Pred } from './types.ts';
++
++const k = (spec: string, layer: Layer, extra: Partial<KeyBinding> = {}): KeyBinding => ({
++  chord: chord(spec) as string,
++  layer,
++  ...extra,
++});
++const SHELL_FOCUS: Pred = { focus: ['chrome', 'timeline', 'text', 'modal'] }; // v1: shell window listener
++const CANVAS_FOCUS: Pred = { focus: ['canvas', 'text'] }; // v1: iframe listeners
++const NOT_VIEWER: Pred = { minRole: 'edit' };
++
++/** use-keyboard-shortcuts.jsx (shell window keydown) + inspect.ts forwarder + canvas-lib +
++ *  input-router `classify` + use-keyboard-discipline. `inText` mirrors v1's early return. */
++export const V1_ACTIONS: ActionDef[] = [
++  // ── shell, works in text fields (before v1's `if (inEditable) return`) ──
++  { id: 'v1.present-exit', label: 'Exit present', kind: 'command', exec: 'shell', keys: [k('esc', 'global', { inText: true, inModal: true, when: { facts: ['presenting'] } })] },
++  { id: 'v1.palette', label: 'Command palette', kind: 'command', exec: 'shell', fromCanvas: true, keys: [k('⌘K', 'global', { inText: true, inModal: true })] },
++  { id: 'v1.undo', label: 'Undo', kind: 'command', exec: 'canvas', keys: [k('⌘Z', 'global', { when: { facts: ['canvasOpen'] } })] },
++  { id: 'v1.redo', label: 'Redo', kind: 'command', exec: 'canvas', keys: [k('⇧⌘Z', 'global', { when: { facts: ['canvasOpen'] } }), k('⌘Y', 'global', { alias: true, when: { facts: ['canvasOpen'] } })] },
++  { id: 'v1.refresh-tree', label: 'Refresh files', kind: 'command', exec: 'shell', keys: [k('⇧⌘R', 'global', { inText: true })] },
++  { id: 'v1.reload', label: 'Reload canvas', kind: 'command', exec: 'shell', fromCanvas: true, keys: [k('⌘R', 'global', { inText: true })] },
++  { id: 'v1.comments', label: 'Comments sidebar', kind: 'toggle', exec: 'shell', fromCanvas: true, keys: [k('⇧⌘M', 'global', { inText: true })] },
++  { id: 'v1.changes', label: 'Changes', kind: 'toggle', exec: 'shell', fromCanvas: true, keys: [k('⇧⌘G', 'global', { inText: true })] },
++  { id: 'v1.inspector', label: 'Inspector', kind: 'toggle', exec: 'shell', fromCanvas: true, keys: [k('⇧⌘I', 'global', { inText: true })] },
++  { id: 'v1.assistant', label: 'Assistant', kind: 'toggle', exec: 'shell', visible: { facts: ['native'], minRole: 'edit' }, keys: [k('⇧⌘A', 'global', { inText: true, when: SHELL_FOCUS })] },
++  { id: 'v1.export', label: 'Export…', kind: 'command', exec: 'shell', fromCanvas: true, keys: [k('⇧⌘E', 'global', { inText: true })] },
++  { id: 'v1.handoff', label: 'Handoff to production', kind: 'command', exec: 'shell', fromCanvas: true, keys: [k('⇧⌘H', 'global', { inText: true })] },
++  { id: 'v1.settings', label: 'Settings…', kind: 'command', exec: 'shell', visible: NOT_VIEWER, keys: [k('⌘,', 'global', { inText: true, when: SHELL_FOCUS })] },
++  { id: 'v1.timeline', label: 'Timeline', kind: 'toggle', exec: 'shell', fromCanvas: true, keys: [k('⇧⌘T', 'global', { inText: true })] },
++  // ── shell, not in text fields ──
++  { id: 'v1.search-files', label: 'Search files', kind: 'command', exec: 'shell', keys: [k('/', 'global', { when: { focus: ['chrome', 'timeline'] } }), k('⌘F', 'global', { inText: false, when: { focus: ['chrome', 'timeline'] } })] },
++  { id: 'v1.tree', label: 'Project tree', kind: 'toggle', exec: 'shell', keys: [k('T', 'global', { when: { focus: ['chrome', 'timeline'] } })] },
++  { id: 'v1.hidden-files', label: 'Hidden files', kind: 'toggle', exec: 'shell', keys: [k('H', 'global', { when: { focus: ['chrome', 'timeline'] } })] },
++  { id: 'v1.system-view', label: 'Design system view', kind: 'toggle', exec: 'shell', keys: [k('S', 'global', { when: { focus: ['chrome', 'timeline'] } })] },
++  { id: 'v1.new-board', label: 'New brief board', kind: 'command', exec: 'shell', keys: [k('N', 'global', { when: { focus: ['chrome', 'timeline'] } })] },
++  { id: 'v1.shortcuts', label: 'This cheat sheet', kind: 'toggle', exec: 'shell', keys: [k('?', 'global', { when: { focus: ['chrome', 'timeline'] } })] },
++  { id: 'v1.help', label: 'Help', kind: 'command', exec: 'shell', keys: [k('F1', 'global', { when: { focus: ['chrome', 'timeline'] } })] },
++  { id: 'v1.unfocus-pin', label: 'Clear focused comment', kind: 'command', exec: 'shell', keys: [k('esc', 'global', { when: { focus: ['chrome', 'canvas'], facts: ['commentFocused'], notFacts: ['presenting'] } })] },
++  // ── canvas iframe: input-router `classify` (tools layer) ──
++  { id: 'v1.tool.move', label: 'Select', kind: 'tool', exec: 'canvas', keys: [k('V', 'tools', { when: CANVAS_FOCUS })] },
++  { id: 'v1.tool.hand', label: 'Hand', kind: 'tool', exec: 'canvas', keys: [k('H', 'tools', { when: CANVAS_FOCUS })] },
++  { id: 'v1.tool.comment', label: 'Comment', kind: 'tool', exec: 'canvas', visible: { minRole: 'comment' }, keys: [k('C', 'tools', { when: CANVAS_FOCUS })] },
++  { id: 'v1.tool.pen', label: 'Pen', kind: 'tool', exec: 'canvas', visible: NOT_VIEWER, keys: [k('B', 'tools', { when: CANVAS_FOCUS })] },
++  { id: 'v1.tool.highlighter', label: 'Highlighter', kind: 'tool', exec: 'canvas', visible: NOT_VIEWER, keys: [k('I', 'tools', { when: CANVAS_FOCUS })] },
++  { id: 'v1.tool.shape', label: 'Shape', kind: 'tool', exec: 'canvas', visible: NOT_VIEWER, keys: [k('R', 'tools', { when: CANVAS_FOCUS }), k('O', 'tools', { alias: true, when: CANVAS_FOCUS })] },
++  { id: 'v1.tool.arrow', label: 'Arrow', kind: 'tool', exec: 'canvas', visible: NOT_VIEWER, keys: [k('A', 'tools', { when: CANVAS_FOCUS })] },
++  { id: 'v1.tool.sticky', label: 'Sticky', kind: 'tool', exec: 'canvas', visible: NOT_VIEWER, keys: [k('N', 'tools', { when: CANVAS_FOCUS })] },
++  { id: 'v1.tool.text', label: 'Text', kind: 'tool', exec: 'canvas', visible: NOT_VIEWER, keys: [k('T', 'tools', { when: CANVAS_FOCUS })] },
++  { id: 'v1.tool.section', label: 'Section', kind: 'tool', exec: 'canvas', visible: NOT_VIEWER, keys: [k('⇧S', 'tools', { when: CANVAS_FOCUS })] },
++  { id: 'v1.tool.eraser', label: 'Eraser', kind: 'tool', exec: 'canvas', visible: NOT_VIEWER, keys: [k('E', 'tools', { when: CANVAS_FOCUS })] },
++  { id: 'v1.canvas-escape', label: 'Deselect', kind: 'command', exec: 'canvas', keys: [k('esc', 'selection', { when: { focus: ['canvas'] } })] },
++  // ── canvas-lib viewport controller ──
++  { id: 'v1.zoom-fit', label: 'Fit', kind: 'command', exec: 'canvas', keys: [k('⌘0', 'global', { when: { focus: ['canvas'] } })] },
++  { id: 'v1.zoom-actual', label: 'Actual size', kind: 'command', exec: 'canvas', keys: [k('⌘1', 'global', { when: { focus: ['canvas'] } })] },
++  { id: 'v1.zoom-in', label: 'Zoom in', kind: 'command', exec: 'canvas', keys: [k('⌘=', 'global', { when: { focus: ['canvas'] } }), k('⌘+', 'global', { alias: true, when: { focus: ['canvas'] } })] },
++  { id: 'v1.zoom-out', label: 'Zoom out', kind: 'command', exec: 'canvas', keys: [k('⌘-', 'global', { when: { focus: ['canvas'] } })] },
++  { id: 'v1.hand-hold', label: 'Hand (hold)', kind: 'tool', exec: 'canvas', keys: [k('Space', 'tools', { hold: true, when: { focus: ['canvas'] } })] },
++  // ── use-keyboard-discipline (selection layer) ──
++  { id: 'v1.nudge', label: 'Nudge', kind: 'command', exec: 'canvas', visible: NOT_VIEWER, keys: ['←', '→', '↑', '↓', '⇧←', '⇧→', '⇧↑', '⇧↓'].map((c) => k(c, 'selection', { when: { focus: ['canvas'], selection: ['artboard', 'object'] } })) },
++  { id: 'v1.select-all-in-artboard', label: 'Select all', kind: 'command', exec: 'canvas', keys: [k('⌘A', 'selection', { when: { focus: ['canvas'] } })] },
++  { id: 'v1.duplicate', label: 'Duplicate', kind: 'command', exec: 'canvas', visible: NOT_VIEWER, keys: [k('⌘D', 'selection', { when: { focus: ['canvas'], selection: ['artboard', 'object'] } })] },
++  { id: 'v1.copy-style', label: 'Copy style', kind: 'command', exec: 'canvas', keys: [k('⌥⌘C', 'selection', { when: { focus: ['canvas'], selection: ['object'] } })] },
++  { id: 'v1.paste-style', label: 'Paste style', kind: 'command', exec: 'canvas', visible: NOT_VIEWER, keys: [k('⌥⌘V', 'selection', { when: { focus: ['canvas'], selection: ['object'] } })] },
++  { id: 'v1.select-all-annotations', label: 'Select all annotations', kind: 'command', exec: 'canvas', visible: NOT_VIEWER, keys: [k('⇧⌘A', 'selection', { when: { focus: ['canvas'] } })] },
++  { id: 'v1.lock', label: 'Lock', kind: 'toggle', exec: 'canvas', visible: NOT_VIEWER, keys: [k('⇧⌘L', 'selection', { when: { focus: ['canvas'], selection: ['annotation'] } })] },
++  { id: 'v1.annotations-toggle', label: 'Annotations', kind: 'toggle', exec: 'canvas', keys: [k('⇧P', 'global', { when: { focus: ['canvas'] } })] },
++  { id: 'v1.jump-artboard', label: 'Jump to artboard N', kind: 'command', exec: 'canvas', keys: ['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((n) => k(`⌥⌘${n}`, 'global', { when: { focus: ['canvas'] } })) },
++  // ── shell: Backspace artboard delete (use-canvas-bridge) ──
++  { id: 'v1.delete-artboard', label: 'Delete artboard', kind: 'command', exec: 'shell', keys: [k('⌫', 'selection', { when: { focus: ['chrome'], selection: ['artboard'] } }), k('⌦', 'selection', { when: { focus: ['chrome'], selection: ['artboard'] } })] },
++  // ── shell: timeline transport (use-photo-and-timeline, window listener, timeline open) ──
++  // v1 has no real "timeline focus": the transport fires whenever the timeline is open and focus
++  // is in the shell. Modelled as focus 'timeline' (the v2 meaning) — see the contract note.
++  { id: 'v1.tl.undo', label: 'Timeline undo', kind: 'command', exec: 'shell', keys: [k('⌘Z', 'timeline')] },
++  { id: 'v1.tl.redo', label: 'Timeline redo', kind: 'command', exec: 'shell', keys: [k('⇧⌘Z', 'timeline')] },
++  { id: 'v1.tl.split', label: 'Split at playhead', kind: 'command', exec: 'shell', keys: [k('⌘B', 'timeline')] },
++  { id: 'v1.tl.play', label: 'Play / pause', kind: 'toggle', exec: 'shell', keys: [k('Space', 'timeline')] },
++  { id: 'v1.tl.step', label: 'Step a frame', kind: 'command', exec: 'shell', keys: ['←', '→', '⇧←', '⇧→'].map((c) => k(c, 'timeline')) },
++  { id: 'v1.tl.ends', label: 'First / last frame', kind: 'command', exec: 'shell', keys: ['Home', 'End'].map((c) => k(c, 'timeline')) },
++  { id: 'v1.tl.keyframe', label: 'Next / previous keyframe', kind: 'command', exec: 'shell', keys: [',', '.'].map((c) => k(c, 'timeline')) },
++  { id: 'v1.tl.deselect', label: 'Deselect clip', kind: 'command', exec: 'shell', keys: [k('esc', 'timeline')] },
++  { id: 'v1.tl.remove-clip', label: 'Remove clip', kind: 'command', exec: 'shell', keys: [k('⌫', 'timeline', { when: { selection: ['clip'] } }), k('⌦', 'timeline', { when: { selection: ['clip'] } })] },
++  { id: 'v1.tl.zoom', label: 'Timeline zoom', kind: 'command', exec: 'shell', keys: [k('⌘=', 'timeline'), k('⌘+', 'timeline', { alias: true }), k('⌘-', 'timeline'), k('0', 'timeline')] },
++  { id: 'v1.tl.comment-mode', label: 'Timeline comment mode', kind: 'toggle', exec: 'shell', keys: [k('C', 'timeline')] },
++];
+diff --git a/apps/studio/actions/v2.ts b/apps/studio/actions/v2.ts
+new file mode 100644
+index 000000000..363cc816f
+--- /dev/null
++++ b/apps/studio/actions/v2.ts
+@@ -0,0 +1,122 @@
++// actions/v2.ts — PROTOTYPE for spike V2-1.3: the v2 key map (CONTRACT §2 + Gate 0 A7, A11, C3,
++// C21, C26, D1–D4, §7 timeline) as registry entries, so the per-scope uniqueness check can be run
++// against the SPEC before anyone builds it. Ids are the proposed v2 ids. Not product code.
++
++import { chord } from './keys.ts';
++import type { ActionDef, KeyBinding, Layer, Pred } from './types.ts';
++
++const k = (spec: string, layer: Layer, extra: Partial<KeyBinding> = {}): KeyBinding => ({
++  chord: chord(spec) as string,
++  layer,
++  ...extra,
++});
++const EDIT: Pred = { mode: ['edit'] };
++const PREVIEW: Pred = { mode: ['preview'] };
++const EDIT_OR_PREVIEW: Pred = { mode: ['edit', 'preview'] };
++const PRESENT: Pred = { mode: ['present'] };
++const CAN_EDIT: Pred = { minRole: 'edit' };
++const CAN_COMMENT: Pred = { minRole: 'comment' };
++const DESKTOP: Pred = { shell: ['desktop'] };
++const OBJ: Pred = { selection: ['object', 'artboard'], mode: ['edit'] };
++const ANN: Pred = { selection: ['annotation'], mode: ['preview'] };
++
++const tool = (id: string, label: string, key: string, when: Pred, visible: Pred = CAN_EDIT): ActionDef => ({
++  id,
++  label,
++  kind: 'tool',
++  exec: 'canvas',
++  visible,
++  keys: [k(key, 'tools', { when })],
++});
++
++export const V2_ACTIONS: ActionDef[] = [
++  // ── global (CONTRACT §2 right column, §1 menu keys) ──
++  { id: 'search.open', label: 'Search', kind: 'command', exec: 'shell', fromCanvas: true, keys: [k('⌘K', 'global', { inText: true })] },
++  { id: 'view.panels.toggle', label: 'Hide panels', kind: 'toggle', exec: 'shell', fromCanvas: true, keys: [k('⌘\\', 'global', { inText: true })] },
++  { id: 'ai.ask', label: 'Ask AI', kind: 'command', exec: 'shell', fromCanvas: true, visible: CAN_EDIT, keys: [k('⌘/', 'global', { inText: true })] },
++  { id: 'help.shortcuts', label: 'Keyboard shortcuts', kind: 'toggle', exec: 'shell', fromCanvas: true, keys: [k('?', 'global')] },
++  { id: 'help.guides', label: 'Help and guides', kind: 'command', exec: 'shell', fromCanvas: true, keys: [k('F1', 'global')] },
++  { id: 'ui.step-back', label: 'Step back', kind: 'command', exec: 'shell', fromCanvas: true, keys: [k('esc', 'global', { inModal: true })] },
++  { id: 'edit.undo', label: 'Undo', kind: 'command', exec: 'canvas', visible: CAN_EDIT, keys: [k('⌘Z', 'global')] },
++  { id: 'edit.redo', label: 'Redo', kind: 'command', exec: 'canvas', visible: CAN_EDIT, keys: [k('⇧⌘Z', 'global')] },
++  { id: 'view.zoom-fit', label: 'Zoom to fit', kind: 'command', exec: 'canvas', keys: [k('⌘0', 'global')] },
++  { id: 'view.zoom-actual', label: 'Actual size', kind: 'command', exec: 'canvas', keys: [k('⌘1', 'global')] },
++  { id: 'view.zoom-in', label: 'Zoom in', kind: 'command', exec: 'canvas', keys: [k('⌘+', 'global'), k('⌘=', 'global', { alias: true })] },
++  { id: 'view.zoom-out', label: 'Zoom out', kind: 'command', exec: 'canvas', keys: [k('⌘−', 'global')] },
++  { id: 'history.open', label: 'Version history', kind: 'command', exec: 'shell', fromCanvas: true, keys: [k('⌥⌘H', 'global', { inText: true })] },
++  { id: 'mode.preview', label: 'Preview', kind: 'command', exec: 'shell', fromCanvas: true, keys: [k('⌥⌘P', 'global', { inText: true })] },
++  { id: 'present.from-selection', label: 'Present', kind: 'command', exec: 'shell', fromCanvas: true, keys: [k('⌥⌘↵', 'global')] },
++  { id: 'present.from-start', label: 'Present from the start', kind: 'command', exec: 'shell', fromCanvas: true, keys: [k('⇧⌥⌘↵', 'global')] },
++  { id: 'export.open', label: 'Export…', kind: 'command', exec: 'shell', fromCanvas: true, keys: [k('⇧⌘E', 'global', { inText: true })] },
++  { id: 'handoff.open', label: 'Handoff to production', kind: 'command', exec: 'shell', fromCanvas: true, visible: CAN_EDIT, keys: [k('⇧⌘H', 'global', { inText: true })] },
++  { id: 'view.comments', label: 'Comments', kind: 'toggle', exec: 'shell', fromCanvas: true, keys: [k('⇧⌘M', 'global', { inText: true })] },
++  { id: 'view.annotations', label: 'Annotations', kind: 'toggle', exec: 'shell', fromCanvas: true, keys: [k('⇧P', 'global')] },
++  { id: 'view.inspector', label: 'Inspector', kind: 'toggle', exec: 'shell', fromCanvas: true, keys: [k('⇧⌘I', 'global', { inText: true })] },
++  { id: 'view.timeline-keep-open', label: 'Keep timeline open', kind: 'toggle', exec: 'shell', fromCanvas: true, keys: [k('⇧⌘T', 'global', { inText: true })] },
++  { id: 'select.all-annotations', label: 'Select all annotations', kind: 'command', exec: 'canvas', visible: CAN_EDIT, keys: [k('⇧⌘A', 'global')] },
++  { id: 'select.all', label: 'Select all', kind: 'command', exec: 'canvas', keys: [k('⌘A', 'global')] },
++  { id: 'settings.open', label: 'Settings…', kind: 'command', exec: 'shell', fromCanvas: true, keys: [k('⌘,', 'global', { inText: true })] },
++  { id: 'canvas.reload', label: 'Reload canvas', kind: 'command', exec: 'shell', fromCanvas: true, keys: [k('⌘R', 'global', { inText: true })] },
++  { id: 'canvases.refresh', label: 'Refresh canvases', kind: 'command', exec: 'shell', fromCanvas: true, keys: [k('⇧⌘R', 'global', { inText: true })] },
++  // native-menu accelerators (C3) — desktop only; browsers never deliver ⌘N / ⌘T / ⌘O to a page
++  { id: 'canvas.new', label: 'New canvas', kind: 'command', exec: 'native', visible: CAN_EDIT, keys: [k('⌘N', 'global', { inText: true, when: DESKTOP })] },
++  { id: 'project.new', label: 'New project…', kind: 'command', exec: 'native', keys: [k('⇧⌘N', 'global', { inText: true, when: DESKTOP })] },
++  { id: 'project.open', label: 'Open project…', kind: 'command', exec: 'native', keys: [k('⌘O', 'global', { inText: true, when: DESKTOP })] },
++  { id: 'home.new-tab', label: 'New Home tab', kind: 'command', exec: 'native', keys: [k('⌘T', 'global', { inText: true, when: DESKTOP })] },
++  // ── tools layer: Edit toolbar (CONTRACT §2 left column) ──
++  tool('tool.select', 'Select', 'V', EDIT, {}),
++  tool('tool.hand', 'Hand', 'H', EDIT_OR_PREVIEW, {}),
++  { id: 'tool.hand-hold', label: 'Hand (hold Space)', kind: 'tool', exec: 'canvas', keys: [k('Space', 'tools', { hold: true, when: { mode: ['edit', 'preview', 'viewing'] } })] }, // 04: in Present, space moves on
++  tool('tool.frame', 'Frame', 'F', EDIT),
++  tool('tool.shape', 'Shape', 'R', EDIT),
++  tool('tool.pen', 'Pen', 'P', EDIT),
++  tool('tool.text', 'Text', 'T', EDIT),
++  tool('tool.image', 'Image', 'I', EDIT),
++  tool('tool.component', 'Component', '⇧I', EDIT),
++  // ── tools layer: Preview toolbar; N C M A E S also from Edit (switch to Preview with that tool) ──
++  tool('tool.sticky', 'Sticky', 'N', EDIT_OR_PREVIEW, CAN_COMMENT),
++  tool('tool.comment', 'Comment', 'C', EDIT_OR_PREVIEW, CAN_COMMENT),
++  tool('tool.marker', 'Marker', 'M', EDIT_OR_PREVIEW, CAN_COMMENT),
++  tool('tool.arrow', 'Arrow', 'A', EDIT_OR_PREVIEW, CAN_COMMENT),
++  tool('tool.stickers', 'Stickers', 'E', EDIT_OR_PREVIEW, CAN_COMMENT),
++  tool('tool.section', 'Section', 'S', EDIT_OR_PREVIEW, CAN_COMMENT),
++  tool('tool.note-shape', 'Shape', 'R', PREVIEW, CAN_COMMENT),
++  tool('tool.note-text', 'Text', 'T', PREVIEW, CAN_COMMENT),
++  // ── Present ──
++  { id: 'present.pointer', label: 'Pointer', kind: 'tool', exec: 'canvas', keys: [k('L', 'tools', { when: PRESENT })] },
++  { id: 'present.next', label: 'Next artboard', kind: 'command', exec: 'canvas', keys: [k('→', 'tools', { when: PRESENT }), k('Space', 'tools', { when: PRESENT })] },
++  { id: 'present.prev', label: 'Previous artboard', kind: 'command', exec: 'canvas', keys: [k('←', 'tools', { when: PRESENT })] },
++  // ── selection layer: objects in Edit (A11) ──
++  { id: 'object.frame', label: 'Frame selection', kind: 'command', exec: 'canvas', visible: CAN_EDIT, keys: [k('⌥⌘G', 'selection', { when: OBJ }), k('⌘G', 'selection', { alias: true, when: OBJ })] },
++  { id: 'object.unframe', label: 'Remove frame', kind: 'command', exec: 'canvas', visible: CAN_EDIT, keys: [k('⇧⌘G', 'selection', { when: OBJ })] },
++  { id: 'object.forward', label: 'Bring forward', kind: 'command', exec: 'canvas', visible: CAN_EDIT, keys: [k(']', 'selection', { when: OBJ })] },
++  { id: 'object.backward', label: 'Send backward', kind: 'command', exec: 'canvas', visible: CAN_EDIT, keys: [k('[', 'selection', { when: OBJ })] },
++  { id: 'object.front', label: 'Bring to front', kind: 'command', exec: 'canvas', visible: CAN_EDIT, keys: [k('⌘]', 'selection', { when: OBJ })] },
++  { id: 'object.back', label: 'Send to back', kind: 'command', exec: 'canvas', visible: CAN_EDIT, keys: [k('⌘[', 'selection', { when: OBJ })] },
++  { id: 'object.nudge', label: 'Nudge', kind: 'command', exec: 'canvas', visible: CAN_EDIT, keys: ['←', '→', '↑', '↓', '⇧←', '⇧→', '⇧↑', '⇧↓'].map((c) => k(c, 'selection', { when: OBJ })) },
++  { id: 'object.duplicate', label: 'Duplicate', kind: 'command', exec: 'canvas', visible: CAN_EDIT, keys: [k('⌘D', 'selection', { when: OBJ })] },
++  { id: 'object.remove', label: 'Remove', kind: 'command', exec: 'canvas', visible: CAN_EDIT, keys: [k('⌫', 'selection', { when: OBJ }), k('⌦', 'selection', { alias: true, when: OBJ })] },
++  { id: 'object.lock', label: 'Lock / unlock', kind: 'toggle', exec: 'canvas', visible: CAN_EDIT, keys: [k('⇧⌘L', 'selection', { when: OBJ })] },
++  { id: 'edit.copy-properties', label: 'Copy properties', kind: 'command', exec: 'canvas', keys: [k('⌥⌘C', 'selection', { when: OBJ })] },
++  { id: 'edit.paste-properties', label: 'Paste properties', kind: 'command', exec: 'canvas', visible: CAN_EDIT, keys: [k('⌥⌘V', 'selection', { when: OBJ })] },
++  { id: 'export.copy-png', label: 'Copy as PNG', kind: 'command', exec: 'canvas', keys: [k('⇧⌘C', 'selection', { when: { selection: ['object', 'artboard', 'video-artboard'] } })] },
++  { id: 'video.play', label: 'Play / pause', kind: 'toggle', exec: 'canvas', keys: [k('Space', 'selection', { when: { selection: ['video-artboard'], mode: ['edit', 'preview'] } })] },
++  { id: 'image.next-take', label: 'Next take', kind: 'command', exec: 'canvas', keys: [k('→', 'selection', { when: { selection: ['generated-image'] } })] },
++  { id: 'image.prev-take', label: 'Previous take', kind: 'command', exec: 'canvas', keys: [k('←', 'selection', { when: { selection: ['generated-image'] } })] },
++  // ── selection layer: annotations in Preview (A11 second half) ──
++  { id: 'annotation.group', label: 'Group', kind: 'command', exec: 'canvas', visible: CAN_COMMENT, keys: [k('⌘G', 'selection', { when: ANN })] },
++  { id: 'annotation.ungroup', label: 'Ungroup', kind: 'command', exec: 'canvas', visible: CAN_COMMENT, keys: [k('⇧⌘G', 'selection', { when: ANN })] },
++  { id: 'annotation.lock', label: 'Lock / unlock', kind: 'toggle', exec: 'canvas', visible: CAN_COMMENT, keys: [k('⇧⌘L', 'selection', { when: ANN })] },
++  { id: 'annotation.duplicate', label: 'Duplicate', kind: 'command', exec: 'canvas', visible: CAN_COMMENT, keys: [k('⌘D', 'selection', { when: ANN })] },
++  { id: 'annotation.remove', label: 'Remove', kind: 'command', exec: 'canvas', visible: CAN_COMMENT, keys: [k('⌫', 'selection', { when: ANN })] },
++  { id: 'annotation.nudge', label: 'Nudge', kind: 'command', exec: 'canvas', visible: CAN_COMMENT, keys: ['←', '→', '↑', '↓', '⇧←', '⇧→', '⇧↑', '⇧↓'].map((c) => k(c, 'selection', { when: ANN })) },
++  // ── timeline layer (C26 + 07): S split, I/O loop, ←/→ frames, ⌘+/− zoom; ⌘B always splits ──
++  { id: 'timeline.split', label: 'Split at playhead', kind: 'command', exec: 'shell', visible: CAN_EDIT, keys: [k('S', 'timeline'), k('⌘B', 'timeline', { alias: true })] },
++  { id: 'timeline.split-anywhere', label: 'Split at playhead', kind: 'command', exec: 'shell', visible: CAN_EDIT, keys: [k('⌘B', 'selection', { when: { facts: ['timelineVisible'] } })] },
++  { id: 'timeline.loop-in', label: 'Loop in', kind: 'command', exec: 'shell', keys: [k('I', 'timeline')] },
++  { id: 'timeline.loop-out', label: 'Loop out', kind: 'command', exec: 'shell', keys: [k('O', 'timeline')] },
++  { id: 'timeline.step', label: 'Step a frame', kind: 'command', exec: 'shell', keys: ['←', '→', '⇧←', '⇧→'].map((c) => k(c, 'timeline')) },
++  { id: 'timeline.zoom-in', label: 'Zoom timeline in', kind: 'command', exec: 'shell', keys: [k('⌘+', 'timeline'), k('⌘=', 'timeline', { alias: true })] },
++  { id: 'timeline.zoom-out', label: 'Zoom timeline out', kind: 'command', exec: 'shell', keys: [k('⌘−', 'timeline')] },
++  { id: 'timeline.play', label: 'Play / pause', kind: 'toggle', exec: 'shell', keys: [k('Space', 'timeline')] },
++];
+diff --git a/apps/studio/test/actions-registry-proto.test.ts b/apps/studio/test/actions-registry-proto.test.ts
+new file mode 100644
+index 000000000..28e8d7948
+--- /dev/null
++++ b/apps/studio/test/actions-registry-proto.test.ts
+@@ -0,0 +1,231 @@
++// PROTOTYPE test for spike V2-1.3 (not committed). Proves:
++//  1. every v1 binding is representable in the registry schema;
++//  2. the pure resolver reproduces today's handler choice for each (chord, focus, context);
++//  3. the per-scope uniqueness check runs over the whole finite context lattice and reports
++//     exactly the same-layer ambiguities (none allowed in the real registry).
++import { describe, expect, test } from 'bun:test';
++
++import { chord, chordFromEvent } from '../actions/keys.ts';
++import { indexKeys, resolveChord } from '../actions/resolve.ts';
++import type { ActionDef, Fact, Focus, KeyCtx, Mode, Role, SelKind, Shell } from '../actions/types.ts';
++import { LAYERS } from '../actions/types.ts';
++import { V1_ACTIONS } from '../actions/v1.ts';
++
++const ctx = (o: Partial<Omit<KeyCtx, 'facts'>> & { facts?: Fact[] } = {}): KeyCtx => ({
++  role: o.role ?? 'owner',
++  shell: o.shell ?? 'browser',
++  mode: o.mode ?? 'edit',
++  focus: o.focus ?? 'chrome',
++  selection: o.selection ?? 'none',
++  facts: new Set<Fact>(o.facts ?? ['canvasOpen']),
++});
++
++const idx = indexKeys(V1_ACTIONS);
++const R = (spec: string, c: KeyCtx) => resolveChord(idx, chord(spec) as string, c)?.action.id ?? null;
++
++describe('chord normalisation', () => {
++  test('spellings converge', () => {
++    for (const s of ['⌘⇧M', '⌘ ⇧ M', '⇧⌘M', 'Cmd+Shift+M', 'shift+cmd+m']) expect(chord(s)).toBe('⇧⌘M');
++    expect(chord('Esc')).toBe('esc');
++    expect(chord('⌘ click')).toBeNull();
++    expect(chord('⌥⌘↵')).toBe('⌥⌘↵');
++  });
++  test('events', () => {
++    expect(chordFromEvent({ key: 'E', code: 'KeyE', metaKey: true, shiftKey: true })).toBe('⇧⌘E');
++    expect(chordFromEvent({ key: '?', code: 'Slash', shiftKey: true })).toBe('?');
++    expect(chordFromEvent({ key: 'π', code: 'KeyP', metaKey: true, altKey: true })).toBe('⌥⌘P'); // macOS ⌥ chord
++    expect(chordFromEvent({ key: 'Enter', code: 'Enter', metaKey: true, altKey: true })).toBe('⌥⌘↵');
++    expect(chordFromEvent({ key: 'k', code: 'KeyK', ctrlKey: true })).toBe('⌘K'); // ⌃ folds into ⌘ (v1 parity)
++    expect(chordFromEvent({ key: 'ArrowLeft', code: 'ArrowLeft', shiftKey: true })).toBe('⇧←');
++    expect(chordFromEvent({ key: ' ', code: 'Space' })).toBe('Space');
++    expect(chordFromEvent({ key: 'S', code: 'KeyS', shiftKey: true })).toBe('⇧S');
++    // Czech QWERTZ: ⌘1 is typed as ⌘⇧ + the "+" key; ⌘+ is the unshifted "+" key
++    expect(chordFromEvent({ key: '1', code: 'Digit1', metaKey: true, shiftKey: true })).toBe('⌘1');
++    expect(chordFromEvent({ key: '+', code: 'Digit1', metaKey: true })).toBe('⌘+');
++  });
++});
++
++describe('v1 parity — the resolver picks today’s handler', () => {
++  const cases: [string, KeyCtx, string | null][] = [
++    ['⌘K', ctx({ focus: 'text' }), 'v1.palette'],
++    ['⌘K', ctx({ focus: 'canvas' }), 'v1.palette'],
++    ['⌘Z', ctx({ focus: 'chrome' }), 'v1.undo'],
++    ['⌘Z', ctx({ focus: 'timeline' }), 'v1.tl.undo'],
++    ['⌘Z', ctx({ focus: 'text' }), null], // native text undo wins
++    ['T', ctx({ focus: 'chrome' }), 'v1.tree'],
++    ['T', ctx({ focus: 'canvas' }), 'v1.tool.text'],
++    ['T', ctx({ focus: 'text' }), null],
++    ['H', ctx({ focus: 'chrome' }), 'v1.hidden-files'],
++    ['H', ctx({ focus: 'canvas' }), 'v1.tool.hand'],
++    ['N', ctx({ focus: 'chrome' }), 'v1.new-board'],
++    ['N', ctx({ focus: 'canvas' }), 'v1.tool.sticky'],
++    ['N', ctx({ focus: 'canvas', role: 'comment' }), null], // viewer: tool absent
++    ['S', ctx({ focus: 'chrome' }), 'v1.system-view'],
++    ['⇧S', ctx({ focus: 'canvas' }), 'v1.tool.section'],
++    ['⇧⌘A', ctx({ focus: 'chrome', shell: 'desktop', facts: ['native', 'canvasOpen'] }), 'v1.assistant'],
++    ['⇧⌘A', ctx({ focus: 'chrome', shell: 'browser' }), null],
++    ['⇧⌘A', ctx({ focus: 'canvas' }), 'v1.select-all-annotations'],
++    ['⌘,', ctx({ focus: 'chrome', role: 'comment' }), null], // viewer refused
++    ['⌘,', ctx({ focus: 'chrome' }), 'v1.settings'],
++    ['esc', ctx({ focus: 'chrome', facts: ['canvasOpen', 'presenting'] }), 'v1.present-exit'],
++    ['esc', ctx({ focus: 'canvas', facts: ['canvasOpen', 'presenting'] }), 'v1.canvas-escape'], // v1 bug #5, by layer
++    ['⌘B', ctx({ focus: 'timeline' }), 'v1.tl.split'],
++    ['⌘B', ctx({ focus: 'chrome' }), null],
++    ['Space', ctx({ focus: 'timeline' }), 'v1.tl.play'],
++    ['Space', ctx({ focus: 'canvas' }), null], // tap: nothing in v1 canvas; hold → v1.hand-hold (below)
++    ['←', ctx({ focus: 'canvas', selection: 'object' }), 'v1.nudge'],
++    ['←', ctx({ focus: 'timeline' }), 'v1.tl.step'],
++    ['⌫', ctx({ focus: 'chrome', selection: 'artboard' }), 'v1.delete-artboard'],
++    ['⌫', ctx({ focus: 'timeline', selection: 'clip' }), 'v1.tl.remove-clip'],
++    ['⌘=', ctx({ focus: 'canvas' }), 'v1.zoom-in'],
++    ['⌘=', ctx({ focus: 'timeline' }), 'v1.tl.zoom'],
++    ['⌥⌘3', ctx({ focus: 'canvas' }), 'v1.jump-artboard'],
++    ['?', ctx({ focus: 'chrome' }), 'v1.shortcuts'],
++    ['?', ctx({ focus: 'canvas' }), null], // v1: not forwarded from the canvas (finding #10)
++  ];
++  for (const [spec, c, want] of cases)
++    test(`${spec} · focus=${c.focus} role=${c.role} shell=${c.shell} → ${want}`, () => expect(R(spec, c)).toBe(want));
++});
++
++// ── per-scope uniqueness over the finite context lattice ──
++const ROLES: Role[] = ['view', 'comment', 'edit', 'owner'];
++const SHELLS: Shell[] = ['desktop', 'browser', 'cloud', 'viewer', 'embed', 'home'];
++const MODES: Mode[] = ['edit', 'preview', 'present', 'viewing'];
++const FOCI: Focus[] = ['text', 'timeline', 'canvas', 'chrome', 'modal'];
++const SELS: SelKind[] = ['none', 'artboard', 'object', 'annotation', 'video-artboard', 'generated-image', 'clip'];
++const FACT_SETS: Fact[][] = [
++  ['canvasOpen'],
++  ['canvasOpen', 'native'],
++  ['canvasOpen', 'presenting'],
++  ['canvasOpen', 'commentFocused'],
++  ['canvasOpen', 'timelineVisible', 'videoCanvas'],
++  [],
++];
++
++export function ambiguities(actions: readonly ActionDef[]) {
++  const index = indexKeys(actions);
++  const found = new Map<string, Set<string>>();
++  let contexts = 0;
++  for (const role of ROLES)
++    for (const shell of SHELLS)
++      for (const mode of MODES)
++        for (const focus of FOCI)
++          for (const selection of SELS)
++            for (const facts of FACT_SETS) {
++              contexts++;
++              const c: KeyCtx = { role, shell, mode, focus, selection, facts: new Set(facts) };
++              for (const ch of index.keys()) {
++                for (const press of ['tap', 'hold'] as const) { const r = resolveChord(index, ch, c, press);
++                if (r && r.ambiguous.length) {
++                  const key = `${ch} @${r.binding.layer}`;
++                  const ids = found.get(key) ?? new Set<string>();
++                  ids.add(r.action.id);
++                  for (const a of r.ambiguous) ids.add(a.action.id);
++                  found.set(key, ids);
++                }
++                }
++              }
++            }
++  return { contexts, found };
++}
++
++test('per-scope uniqueness — v1 table has no same-layer ambiguity', () => {
++  const t0 = performance.now();
++  const { contexts, found } = ambiguities(V1_ACTIONS);
++  const ms = performance.now() - t0;
++  console.log(`lattice: ${contexts} contexts × ${idx.size} chords in ${ms.toFixed(0)} ms`);
++  console.log('ambiguities:', [...found].map(([k, v]) => `${k}: ${[...v].join(' | ')}`));
++  expect([...found.keys()]).toEqual([]);
++});
++
++test('the uniqueness check catches a planted collision (red-first)', () => {
++  const planted: ActionDef = {
++    id: 'planted.tree-on-T',
++    label: 'Planted',
++    kind: 'command',
++    exec: 'shell',
++    keys: [{ chord: 'T', layer: 'tools', when: { focus: ['canvas'] } }],
++  };
++  const { found } = ambiguities([...V1_ACTIONS, planted]);
++  expect([...found.keys()]).toContain('T @tools');
++});
++
++test('LAYERS order is C26', () => expect([...LAYERS]).toEqual(['timeline', 'selection', 'tools', 'global']));
++
++// ── v2 spec (CONTRACT §2 + Gate 0) — run the same uniqueness check against the plan's key map ──
++import { V2_ACTIONS } from '../actions/v2.ts';
++
++test('v2 spec key map — per-scope uniqueness', () => {
++  const { contexts, found } = ambiguities(V2_ACTIONS);
++  console.log(`v2 lattice: ${contexts} contexts × ${indexKeys(V2_ACTIONS).size} chords`);
++  console.log('v2 ambiguities:', [...found].map(([k, v]) => `${k}: ${[...v].join(' | ')}`));
++  expect([...found.keys()]).toEqual([]);
++});
++
++describe('v2 spec — C26 resolution examples', () => {
++  const i2 = indexKeys(V2_ACTIONS);
++  const R2 = (spec: string, c: KeyCtx) => resolveChord(i2, chord(spec) as string, c)?.action.id ?? null;
++  const cases: [string, KeyCtx, string | null][] = [
++    ['S', ctx({ focus: 'timeline', selection: 'video-artboard', facts: ['canvasOpen', 'timelineVisible'] }), 'timeline.split'],
++    ['S', ctx({ focus: 'canvas' }), 'tool.section'],
++    ['S', ctx({ focus: 'text' }), null],
++    ['⌘B', ctx({ focus: 'canvas', selection: 'video-artboard', facts: ['canvasOpen', 'timelineVisible'] }), 'timeline.split-anywhere'],
++    ['⌘B', ctx({ focus: 'text', facts: ['canvasOpen', 'timelineVisible'] }), null], // open question Q1
++    ['→', ctx({ focus: 'timeline', selection: 'generated-image' }), 'timeline.step'],
++    ['→', ctx({ focus: 'canvas', selection: 'generated-image' }), 'image.next-take'],
++    ['→', ctx({ focus: 'canvas', selection: 'object' }), 'object.nudge'],
++    ['→', ctx({ focus: 'canvas', mode: 'present' }), 'present.next'],
++    ['⌘+', ctx({ focus: 'timeline' }), 'timeline.zoom-in'],
++    ['⌘+', ctx({ focus: 'canvas' }), 'view.zoom-in'],
++    ['⌘G', ctx({ focus: 'canvas', selection: 'object' }), 'object.frame'],
++    ['⌘G', ctx({ focus: 'canvas', mode: 'preview', selection: 'annotation' }), 'annotation.group'],
++    ['T', ctx({ focus: 'chrome' }), 'tool.text'], // v2: tools work from chrome focus too (D4: T is Text)
++    ['T', ctx({ focus: 'chrome', mode: 'preview' }), 'tool.note-text'],
++    ['N', ctx({ focus: 'canvas', role: 'view' }), null], // Can view: no annotation tools
++    ['N', ctx({ focus: 'canvas', role: 'comment' }), 'tool.sticky'],
++    ['⌘N', ctx({ focus: 'chrome', shell: 'browser' }), null], // browsers never deliver ⌘N
++    ['⌘N', ctx({ focus: 'chrome', shell: 'desktop' }), 'canvas.new'],
++    ['Space', ctx({ focus: 'canvas', selection: 'video-artboard' }), 'video.play'], // tap; hold = Hand (separate press)
++    ['Space', ctx({ focus: 'canvas', mode: 'present' }), 'present.next'],
++    ['I', ctx({ focus: 'timeline' }), 'timeline.loop-in'],
++    ['I', ctx({ focus: 'canvas' }), 'tool.image'],
++  ];
++  for (const [spec, c, want] of cases)
++    test(`${spec} · focus=${c.focus} mode=${c.mode} sel=${c.selection} → ${want}`, () => expect(R2(spec, c)).toBe(want));
++});
++
++test('hold presses resolve separately from taps', () => {
++  const i2 = indexKeys(V2_ACTIONS);
++  const hold = (c: KeyCtx) => resolveChord(i2, 'Space', c, 'hold')?.action.id ?? null;
++  expect(hold(ctx({ focus: 'canvas', selection: 'video-artboard' }))).toBe('tool.hand-hold');
++  expect(hold(ctx({ focus: 'canvas', mode: 'present' }))).toBeNull(); // 04: space moves on in Present
++  expect(resolveChord(idx, 'Space', ctx({ focus: 'canvas' }), 'hold')?.action.id).toBe('v1.hand-hold');
++});
++
++// ── rule 13 — which v1 bindings a v2 binding shadows (they must die in the same commit) ──
++test('rule 13 pairing — v2 bindings that shadow or are shadowed by v1 bindings', () => {
++  const all = [...V1_ACTIONS, ...V2_ACTIONS];
++  const index = indexKeys(all);
++  const pairs = new Map<string, Set<string>>();
++  for (const role of ROLES)
++    for (const shell of SHELLS)
++      for (const mode of MODES)
++        for (const focus of FOCI)
++          for (const selection of SELS)
++            for (const facts of FACT_SETS) {
++              const c: KeyCtx = { role, shell, mode, focus, selection, facts: new Set(facts) };
++              for (const [ch, list] of index) {
++                const live = list.filter((b) => resolveChord(new Map([[ch, [b]]]), ch, c, b.binding.hold ? 'hold' : 'tap'));
++                const v1 = live.filter((b) => b.action.id.startsWith('v1.'));
++                const v2 = live.filter((b) => !b.action.id.startsWith('v1.'));
++                if (v1.length && v2.length) {
++                  const s = pairs.get(ch) ?? new Set<string>();
++                  for (const a of v1) for (const b of v2) s.add(`${a.action.id} ⟷ ${b.action.id}`);
++                  pairs.set(ch, s);
++                }
++              }
++            }
++  const out = [...pairs].map(([ch, s]) => `${ch}: ${[...s].join(', ')}`);
++  console.log(`rule-13 pairs (${out.length} chords):\n` + out.join('\n'));
++  expect(out.length).toBeGreaterThan(0);
++});

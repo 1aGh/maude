@@ -1,0 +1,199 @@
+/* p8-c3-dsboard — the board draws the SPECIMEN, not the token file (13 · ds-board-studio, RC1).
+   Lifted from `.design/ui/v2/13 Design System.css` (§ The board): role rows of swatches, the contrast
+   pairs, the hero, type roles, the layout grid, motion cards and the variants × states grid. */
+
+/* ─── Hero (the top of Brand) ─── */
+.ds-hero {
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  column-gap: 12px;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 10px; /* c7: the hero does not run into the Logo block under it */
+}
+.ds-hero-ic {
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md, 8px);
+  background: var(--accent-soft, var(--bg-3, transparent));
+  color: var(--accent-text, var(--accent, currentColor));
+}
+.ds-hero-t {
+  margin: 0;
+  font-family: var(--font-display, inherit);
+  font-size: var(--type-md, 17px);
+  line-height: 1.2;
+  font-weight: var(--weight-semibold, 600);
+}
+.ds-hero-t span {
+  margin-left: 6px;
+  font-size: var(--type-sm, 13px);
+  font-weight: 400;
+  color: var(--fg-2, inherit);
+}
+.ds-hero-s {
+  grid-column: 2;
+  margin: 2px 0 0;
+  font-size: var(--type-xs, 11px);
+  line-height: 1.4;
+  color: var(--fg-2, inherit);
+}
+
+/* ─── Colour: roles two to a row, the contrast pairs under them ─── */
+.ds-colour {
+  gap: 14px;
+}
+.ds-swrow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 28px;
+  align-items: flex-start;
+}
+.ds-swg {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.ds-colour .ds-sw {
+  width: 88px;
+}
+.ds-colour .ds-chip {
+  height: 40px;
+}
+.ds-pairs {
+  margin-top: 2px;
+}
+.ds-pairs-row {
+  display: flex;
+  gap: 12px;
+}
+.ds-pair {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 136px;
+  min-width: 0;
+}
+.ds-pair-t {
+  display: flex;
+  height: 38px;
+  overflow: hidden;
+  border-radius: var(--radius-sm, 6px);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 14%, transparent);
+}
+.ds-pair-t > span {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  font-size: var(--type-md, 17px);
+  font-weight: var(--weight-semibold, 600);
+}
+.ds-pair b {
+  margin-top: 3px;
+  font-size: var(--type-xs, 11px);
+  font-weight: var(--weight-semibold, 600);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ds-pair em {
+  font-style: normal;
+  font-size: 10px;
+  color: var(--fg-3, color-mix(in srgb, currentColor 55%, transparent));
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ds-pair[data-warn] em {
+  color: var(--status-warn-text, var(--status-warn, #b7791f));
+}
+
+/* ─── Type: roles as real sentences ─── */
+.ds-type {
+  gap: 2px;
+}
+.ds-trow {
+  grid-template-columns: 112px 1fr;
+  padding: 6px 0;
+}
+.ds-type-foot {
+  margin-top: auto;
+  white-space: nowrap;
+}
+
+/* ─── Space & shape: the layout grid ─── */
+.ds-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 8px;
+  width: 100%;
+  height: 44px;
+}
+.ds-grid i {
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--accent, currentColor) 16%, transparent);
+}
+.ds-bps {
+  margin-top: 6px;
+  font-size: var(--type-xs, 11px);
+  color: var(--fg-3, color-mix(in srgb, currentColor 55%, transparent));
+}
+.ds-bps b {
+  font-weight: var(--weight-semibold, 600);
+  color: var(--fg-1, inherit);
+}
+
+/* ─── Motion: four cards, each with its curve drawn ─── */
+.ds-mo {
+  gap: 6px;
+  padding: 12px;
+  border-radius: var(--radius-md, 8px);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 12%, transparent);
+}
+.ds-mo .ds-curve {
+  width: 100%;
+  height: auto;
+  max-height: 74px;
+}
+.ds-mo > span {
+  font-size: var(--type-xs, 11px);
+  color: var(--fg-2, inherit);
+}
+.ds-mo--line {
+  grid-column: 1 / -1;
+  padding: 6px 12px;
+  box-shadow: none;
+}
+.ds-mo--line b {
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+/* ─── Components: variants × states ─── */
+.ds-m-body > .ds-var {
+  flex: 1 1 100%;
+}
+.ds-var {
+  display: grid;
+  align-items: center;
+  gap: 8px 10px;
+}
+.ds-var-h {
+  font-size: 10px;
+  color: var(--fg-3, color-mix(in srgb, currentColor 55%, transparent));
+}
+.ds-var-n {
+  font-size: var(--type-xs, 11px);
+  color: var(--fg-3, color-mix(in srgb, currentColor 55%, transparent));
+}
+.ds-var-c {
+  display: flex;
+  min-width: 0;
+}
+.ds-var-sizes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}

@@ -1,0 +1,19 @@
+A 5731 entries, B 5731; missing 0, extra 0; moved 1313; conflicts 9
+3-shell-maude.css → shell/floating-panels.css :: .sh-dialog.is-settings
+     styles/3-shell-maude.css: .sh-dialog.is-settings  ⟷  .rb-dialog .textarea  [width/width]
+3-shell-maude.css → inspector/inspector.css :: .insp-swatch-row
+     styles/3-shell-maude.css: .insp-swatch-row  ⟷  .sh-insp-swatch  [display/display]
+3-shell-maude.css → inspector/inspector.css :: .insp-cp-cf:has(.insp-cp-cf-in:focus)
+     styles/3-shell-maude.css: .insp-cp-cf:has(.insp-cp-cf-in:focus)  ⟷  .maude :is(button, [role="tab"], select, summary, a):focus-visible  [box-shadow/box-shadow]
+3-shell-maude.css → shell/floating-panels.css :: .maude :is(button, [role="tab"], select, summary, a):focus-visible
+     styles/3-shell-maude.css: .maude :is(button, [role="tab"], select, summary, a):focus-visible  ⟷  .gi-dialog .input:focus  [outline/outline,outline-offset/outline,box-shadow/box-shadow]
+4-components.css → ds/review.css :: .system-view
+     styles/4-components.css: .system-view  ⟷  .help-modal  [display/display,background/background]
+4-components.css → settings/settings.css :: .v2s-provider-status
+     styles/4-components.css: .v2s-provider-status  ⟷  .ai-gen-result  [margin-top/margin-top]
+4-components-maude.css → shell/floating-panels.css :: .maude .kbd
+     ai/ai-list-advanced.css: .maude .kbd  ⟷  .ai-modebar .btn  [box-shadow/box-shadow]
+     ai/ask-selection.css: .maude .kbd  ⟷  .as-bubble:focus-within  [box-shadow/box-shadow]
+4-components-maude.css → shell/floating-panels.css :: .maude .callout
+     ai/ai-list-advanced.css: .maude .callout  ⟷  .ai-modebar .btn  [background/background]
+8 moved rules with conflicts

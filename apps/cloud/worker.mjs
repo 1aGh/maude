@@ -16,6 +16,13 @@
 // Queues (Phase 11 unlock) will drain the same jobs table faster; the table —
 // not the queue — is the durable record either way.
 
+import { declaredAccessOf, peerTokenDoor } from '../studio/access/scope.ts';
+import {
+  cellSupportsRolesV2,
+  handleAccessForward,
+  loadClaim,
+  SERVER_UPDATE,
+} from './access-forward.mjs';
 import { track } from './analytics.mjs';
 import { currentAccount, handleAuth } from './auth-routes.mjs';
 import { deriveCellSecret, mintProjectToken, secretsMatch } from './cell-token.mjs';
@@ -37,11 +44,14 @@ import { deletionWarningEmail, projectPausedEmail, sendEmail } from './email.mjs
 import { normalizeRoute } from './events.mjs';
 import { mintInstallationToken } from './github-app.mjs';
 import { handleHandoff } from './handoff.mjs';
+import { handleHomeApi } from './home-api.mjs';
 import { handleInviteRoutes } from './invites.mjs';
+import { handleLinkRoutes, sweepExpiredLinks } from './links.mjs';
+import { handleMentionRoutes } from './mentions.mjs';
 import { applySchema } from './migrate.mjs';
 import { statsDatapoints } from './operator.mjs';
 import { handleOperatorRoutes } from './operator-routes.mjs';
-import { ACCESS_MESSAGES, decideAccess } from './project-access.mjs';
+import { ACCESS_MESSAGES, planState } from './project-access.mjs';
 import { handleProjectAdminRoutes } from './project-admin.mjs';
 import { handleProjectRoutes } from './project-routes.mjs';
 import {
@@ -50,6 +60,7 @@ import {
   ensureProjectCanvasDomain,
   probeCellBody,
   removeCellDomain,
+  restartCell,
 } from './provision.mjs';
 import { purgeTenantObjects } from './purge.mjs';
 import { mintingConfigured, mintTenantCredentials } from './r2-creds.mjs';
@@ -86,26 +97,31 @@ async function openProject(request, env, ctx) {
   // through two doors (Phase 23 C2).
   const account =
     (await personalTokenAccount(env, request)) ?? (await currentAccount(request, env));
-  let project = null;
-  let members = [];
-  try {
-    project = await env.DB.prepare('SELECT * FROM projects WHERE id = ?').bind(projectId).first();
-    const rows = await env.DB.prepare(
-      'SELECT account_id, role FROM project_members WHERE project_id = ?'
-    )
-      .bind(projectId)
-      .all();
-    members = rows?.results ?? [];
-  } catch {
-    /* an unreadable membership list is not access — decideAccess sees [] */
-  }
-
-  const verdict = decideAccess({ accountId: account?.id ?? null, project, members });
+  // The claim (role + canvas grants), from D1 — an unreadable row is no access.
+  const { verdict } = await loadClaim(env.DB, projectId, account?.id ?? null);
   if (!verdict.ok) {
     // 404 for everything that is not "sign in", so the response never
     // distinguishes a project that exists from one that does not.
     const status = verdict.reason === 'not-signed-in' ? 401 : 404;
     return json({ error: ACCESS_MESSAGES[verdict.reason] }, status);
+  }
+  // The mint door (V2-1.7 §5.4): owner / member / viewer without grants get
+  // today's v1 token, declared or not. Can view or a canvas grant needs a
+  // client that declares `X-Maude-Access: 2` (else 426), Can view goes to the
+  // browser door (409), and a v2 credential needs a `roles-v2` cell.
+  const door = peerTokenDoor(
+    { v: 1, role: verdict.role, grants: verdict.grants },
+    {
+      declaredAccess: declaredAccessOf(request.headers.get('x-maude-access')),
+      doorUrl: `https://${projectId}.${env.CELL_ZONE ?? 'cloud.maude.sh'}`,
+    }
+  );
+  if (door.outcome === 'update' || door.outcome === 'browser-door') {
+    return json(door.body, door.status);
+  }
+  if (door.outcome !== 'mint') return json({ error: ACCESS_MESSAGES['no-access'] }, 404);
+  if (door.v2 && !(await cellSupportsRolesV2(env, projectId))) {
+    return json(SERVER_UPDATE, 409);
   }
 
   if (!env.CELL_SECRET_MASTER) {
@@ -119,7 +135,8 @@ async function openProject(request, env, ctx) {
     master: env.CELL_SECRET_MASTER ?? '',
     project: projectId,
     email: account.email,
-    role: verdict.role,
+    role: door.claim.role,
+    grants: door.claim.grants,
   });
 
   // Which DOOR somebody came through is the one thing the open path knows that
@@ -268,6 +285,11 @@ export default {
       });
     }
 
+    // Mention e-mails (Maude v2 S9.18): the cell's `/internal/mentions`
+    // forward, the per-account switch, and the unsubscribe link.
+    const mentionSurface = await handleMentionRoutes(request, env, { account });
+    if (mentionSurface) return mentionSurface;
+
     // Identity surface (pages, signup/login, Google, grant mint) — Phase 13.
     const auth = await handleAuth(request, env, { ctx, account });
     if (auth) return auth;
@@ -276,6 +298,11 @@ export default {
     // the Bearer client API.
     const deviceSurface = await handleDeviceAuth(request, env, { account, ctx });
     if (deviceSurface) return deviceSurface;
+
+    // Home's cloud source (Maude v2 S6.14, V2-1.1 §5.7): the caller's own
+    // projects and "Shared with you" — Bearer device token or the session.
+    const homeSurface = await handleHomeApi(request, env, { account });
+    if (homeSurface) return homeSurface;
 
     // The one-time browser→app handoff (Phase 23 B3 / Phase 17): a code in a
     // maude:// URL, a project token only ever in a POST body.
@@ -307,6 +334,17 @@ export default {
     // one link signs somebody up AND lands them in the project.
     const inviteSurface = await handleInviteRoutes(request, env, { account, ctx });
     if (inviteSurface) return inviteSurface;
+
+    // Share links (Maude v2 S9.8): the redeem lives on the control plane,
+    // where sign-in is, at /l/<id>.<secret>.
+    const linkSurface = await handleLinkRoutes(request, env, { account, ctx });
+    if (linkSurface) return linkSurface;
+
+    // The access authority (Maude v2 S9.8, V2-1.7 §5.6): a cloud cell
+    // forwards /api/access/* here with its derived secret and the vouched
+    // actor; the actor's role is re-decided from D1.
+    const accessSurface = await handleAccessForward(request, env, { ctx });
+    if (accessSurface) return accessSurface;
 
     // Starting a project + billing (Cloud Phase 14 / DDR-203): the wizard,
     // the Checkout return, the waiting room that settles provision-first,
@@ -370,6 +408,22 @@ export default {
       } catch {
         /* an unreadable row is "no per-tenant config", never another tenant's */
       }
+      // The plan (A3, Maude v2 S9.15b) — its OWN query, so a D1 that has not
+      // run v19 yet (no `trial_ends_at`) still hands the cell its seed repo.
+      // The cell starts with MAUDE_PLAN_STATE=paused exactly when this says
+      // `paused`; anything else, including "could not tell", is not paused.
+      let plan = null;
+      if (row && row.state !== 'purged') {
+        try {
+          plan = await env.DB.prepare(
+            'SELECT subscription_id, trial_ends_at FROM projects WHERE id = ?'
+          )
+            .bind(tenant)
+            .first();
+        } catch {
+          /* pre-v19: no trial column, so no trial — and nothing to pause */
+        }
+      }
       // Absent is a real answer, and the cell's fail-closed default. It must
       // never be filled in from a shared value — that is the bug this exists
       // to close.
@@ -379,12 +433,13 @@ export default {
       // out that project's name, seed repository and owner address afterwards
       // makes it not quite true (attacker review, 2026-08-01).
       if (row?.state === 'purged') {
-        return json({ projectName: null, seedRepo: null, adminEmail: null });
+        return json({ projectName: null, seedRepo: null, adminEmail: null, planState: 'none' });
       }
       return json({
         projectName: row?.name ?? null,
         seedRepo: row?.seed_repo ?? null,
         adminEmail: row?.owner_email ?? null,
+        planState: planState(plan),
       });
     }
 
@@ -592,6 +647,13 @@ export default {
       console.error(`[migrate] failed: ${err.message}`);
       return; // never reconcile against a schema we could not establish
     }
+    // Share links that expired lose the grants they made (V2-1.7 §5.6) — on
+    // the same clock, and never in the way of the sweep below.
+    try {
+      await sweepExpiredLinks(env);
+    } catch (err) {
+      console.error(`[links] expiry sweep: ${err.message}`);
+    }
     // Cloud Phase 25 A4 — the segregated canvas origin's hostname, ensured
     // hourly rather than at deploy time. It is idempotent and it self-heals:
     // an operator never has to remember it exists, and a route deleted by
@@ -723,6 +785,7 @@ async function runOne(env, projectId, { jobId = null, now }) {
     // must leave a state we can re-derive on the next sweep, not a state we
     // never wrote down.
     const performed = await performActions(env, projectId, row, actions, { now });
+    await applyPlanPause(env, projectId, row, { now });
     const detail = actions.length ? JSON.stringify({ actions, performed }) : null;
     if (jobId) await finishJob(env.DB, jobId, 'ok', detail, { now });
     if (actions.length) {
@@ -993,15 +1056,51 @@ async function notifyOwner(env, projectId, row, which, { deletesAt }) {
  */
 async function stopCell(env, projectId) {
   if (!env.CELL_SECRET_MASTER) return;
+  const stopped = await restartCell(env, projectId);
+  if (!stopped.ok) {
+    console.warn(
+      `[reconcile] ${projectId}: could not stop the cell — ${stopped.reason ?? `HTTP ${stopped.status}`}`
+    );
+  }
+}
+
+/**
+ * A trial that just ran out (A3, Maude v2 S9.15b): restart the cell ONCE, so
+ * its next start reads `planState: paused` from `/internal/cell-config` and
+ * the hub refuses writes with 402 plan. Env applies only at container start,
+ * so without this a running cell keeps editing until it next sleeps.
+ *
+ * Once per expiry, and the audit log is the idempotence — the same device the
+ * deletion warning uses: a `do.plan-paused` row at or after `trial_ends_at`
+ * means this flip was already applied. Recorded only when the restart LANDED,
+ * so an unreachable data plane is retried next hour (one call an hour, never a
+ * storm). Only an `active` project: a suspended or purged one has no cell to
+ * pause. Best-effort — never fails the sweep.
+ */
+async function applyPlanPause(env, projectId, row, { now }) {
+  if (row.state !== 'active' || planState(row, { now }) !== 'paused') return;
   try {
-    const secret = await deriveCellSecret(env.CELL_SECRET_MASTER, projectId);
-    await fetch(`https://${projectId}.${env.CELL_ZONE ?? 'cloud.maude.sh'}/_cell/restart`, {
-      method: 'POST',
-      headers: { authorization: `Bearer ${secret}` },
-      signal: AbortSignal.timeout(30_000),
-    });
+    const already = await env.DB.prepare(
+      `SELECT 1 AS x FROM audit_log
+        WHERE project_id = ? AND action = 'do.plan-paused' AND at >= ?`
+    )
+      .bind(projectId, Number(row.trial_ends_at))
+      .first();
+    if (already) return;
+    const restarted = await restartCell(env, projectId);
+    if (!restarted.ok) {
+      console.warn(
+        `[plan] ${projectId}: restart for the pause did not land — ${restarted.reason ?? `HTTP ${restarted.status}`}`
+      );
+      return;
+    }
+    await audit(
+      env.DB,
+      { projectId, actor: 'system', action: 'do.plan-paused', detail: 'trial ended' },
+      { now }
+    );
   } catch (err) {
-    console.warn(`[reconcile] ${projectId}: could not stop the cell — ${err.message}`);
+    console.error(`[plan] ${projectId}: ${err.message}`);
   }
 }
 

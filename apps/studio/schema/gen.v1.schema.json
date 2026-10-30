@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://maude.sh/schema/gen/v1",
+  "title": "Maude generation provenance (assets/<sha8>.gen.json), maude.gen v1",
+  "description": "One file per AI take, named by that take's own sha8 (contract S8-asset-sidecars §5.2; skill design:ai-generation). The runtime source is `validateGen` in apps/studio/generation/gen-sidecar.ts — `maude design check --strict` runs it; test/gen-sidecar.test.ts holds this file to the same verdicts. LENIENT: unknown keys are allowed and kept (V2-1.12 R8 does not apply). A file with `v` above 1 is treated as absent by this version, never rewritten. File limit 16 KiB.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["format", "v", "prompt", "provider", "model", "at", "takes"],
+  "properties": {
+    "format": { "const": "maude.gen" },
+    "v": { "const": 1 },
+    "prompt": { "type": "string", "maxLength": 4000 },
+    "provider": { "type": "string", "pattern": "^[A-Za-z0-9._/-]{1,80}$" },
+    "model": { "type": "string", "pattern": "^[A-Za-z0-9._/-]{1,80}$" },
+    "at": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,9})?Z$"
+    },
+    "takes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "items": { "type": "string", "pattern": "^[0-9a-f]{8}$" }
+    },
+    "licence": { "type": "string", "maxLength": 300 },
+    "group": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$" },
+    "by": {
+      "type": "string",
+      "maxLength": 120,
+      "not": { "pattern": "@" }
+    }
+  }
+}

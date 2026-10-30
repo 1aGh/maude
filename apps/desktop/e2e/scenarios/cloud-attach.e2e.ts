@@ -4,15 +4,19 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { $, browser, expect } from '@wdio/globals';
 
+import { closeDiagnostics, openSyncDetails, pressDiagnosticsAdvancedRow } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
+import { invokeTauri } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
+import { openSwitcher } from '../helpers/switcher';
+import { canvasRow } from '../helpers/tree';
 
 /**
  * cloud-attach (Cloud Phase 23 C4 + Phase 17) — the CloudBar lane end to end,
- * DOM-driven, control plane + cell stubbed by wdio.cloud.conf.ts (which
+ * DOM-driven, control plane stubbed and cell = a LOCAL throwaway hub, both by wdio.cloud.conf.ts (which
  * primes MAUDE_CLOUD_URL/MAUDE_CLOUD_CONFIG/HUBS_CONFIG_PATH before the app
- * spawns, so no real account or credential is ever touched).
+ * spawns, so no real account, hub or credential is ever touched).
  *
  * Proven here:
  *   1. sign-in flips the rail to the account email without a human (the stub
@@ -30,6 +34,16 @@ import { waitForSidecar } from '../helpers/sidecar';
  *      by anyone, so "contains your folder name" was the attacker's off-switch);
  *   6. a link naming an unrelated project warns, demotes connecting to "Connect
  *      anyway", and is still refused server-side by the claimed↔actual check.
+ *   2b (S9.20b). local → cloud: a LOCAL project's Share offers Move to cloud; the window's own
+ *      click creates the cloud project, links the folder (linkedHub), and Settings › Account then
+ *      reads "Free trial · 12 days left" from the stub's /api/home. The step unlinks again
+ *      (`/_api/cloud/detach`) so step 3 still starts from a local folder.
+ *      WRITTEN, NOT YET RUN on a desktop build (S9.20b hand-back).
+ *
+ * V2-4.7a moved the account (sign-in, the email, the projects) from the left panel's footer into
+ * Settings › Connections — the footer's CloudBar is now an invisible `cloud-host` that only answers
+ * maude:// links. So every account step first opens Settings (the project pill → Settings…) and
+ * its Connections section (V2-4.7c); the deep-link dialogs still come from the host.
  *
  * Note what makes scenario 4 quiet: the stub's handoff exchange returns the
  * fixture folder's own name, an EXACT match. That is the only name-based verdict
@@ -39,15 +53,51 @@ import { waitForSidecar } from '../helpers/sidecar';
  */
 const tid = (s: string) => `[data-testid="${s}"]`;
 const HERE = dirname(fileURLToPath(import.meta.url));
-const FIXTURE_CONFIG = join(HERE, '..', 'fixtures', 'project', '.design', 'config.json');
+// The lane runs on a throwaway copy of the fixture (wdio.cloud.conf.ts, p8-e2e-fix-r10): the project the app opened.
+const FIXTURE_CONFIG = join(
+  process.env.MAUDE_E2E_CLOUD_ROOT ?? join(HERE, '..', 'fixtures', 'project'),
+  '.design',
+  'config.json'
+);
 const STUB_CODE = `mhc_${'a'.repeat(64)}`;
-
-/** Only the sliver of the Tauri global this scenario reaches for. */
-interface TauriGlobal {
-  event: { emit: (name: string, payload: unknown) => void };
-}
+/** An attach note that reports an outcome (sync/presentation.ts): in flight, connected, or already in step. */
+const ATTACH_NOTE = /Connecting to|Syncing with|Connected to|Synced with/;
 
 const fixtures = createFixtureGuard('cloud-attach', [FIXTURE_CONFIG]);
+
+/** Settings › Connections, opened from the one menu (project pill → Settings…) unless it is up. */
+async function openConnections() {
+  const panel = await $(tid('settings-panel-connections'));
+  if (await panel.isDisplayed().catch(() => false)) return;
+  if (!(await (await $(tid('settings-sheet'))).isExisting())) {
+    await (await $(tid('project-pill'))).click();
+    const row = await $(tid('project-menu-row-settings.open'));
+    await row.waitForDisplayed({ timeout: 10_000 });
+    await row.click();
+    await (await $(tid('settings-sheet'))).waitForDisplayed({ timeout: 10_000 });
+  }
+  await (await $(tid('settings-tab-connections'))).click();
+  await panel.waitForDisplayed({ timeout: 10_000 });
+}
+
+/** Close the sheet so a deep-link dialog (from the footer's host) is the top layer. */
+async function closeSettings() {
+  const close = await $(tid('settings-close'));
+  if (await close.isExisting()) await close.click();
+}
+
+/**
+ * The connect / refusal sentence wherever this build says it: the Settings instance's account
+ * block (`cloud-bar`) or the footer host (`cloud-host`) that answered the deep link.
+ */
+async function cloudText() {
+  let text = '';
+  for (const id of ['cloud-bar', 'cloud-host']) {
+    const el = await $(tid(id));
+    if (await el.isExisting()) text += ` ${await el.getText()}`;
+  }
+  return text;
+}
 
 describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)', () => {
   before(async function () {
@@ -98,13 +148,15 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
     fixtures.restore();
   });
 
-  it('1 · signed out: the rail offers Maude Cloud sign-in', async () => {
+  it('1 · signed out: Settings › Connections offers Maude Cloud sign-in', async () => {
+    await openConnections();
     const signin = await $(tid('cloud-signin'));
     await signin.waitForDisplayed({ timeout: 30_000 });
-    await capture('signed-out rail');
+    await capture('signed-out, Settings › Connections');
   });
 
   it('2 · sign-in completes without a human — the stub approves the first poll', async () => {
+    await openConnections();
     await (await $(tid('cloud-signin'))).click();
     // The dialog may flash (the stub approves in one interval tick) — what
     // must hold is the END state: the account chip with the stub email.
@@ -114,8 +166,75 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
     await capture('signed in');
   });
 
+  it('2b · local → cloud: Share › Move to cloud links the folder; Settings says the plan', async () => {
+    await closeSettings();
+    // Share needs an open canvas (share-cluster-share is aria-disabled without one).
+    await (await canvasRow('canvas-row-ui-smoke')).click();
+    const share = await $(tid('share-cluster-share'));
+    await share.waitForDisplayed({ timeout: 30_000 });
+    await share.click();
+    const confirm = await $(tid('share-move-confirm'));
+    await confirm.waitForDisplayed({ timeout: 15_000 });
+    await capture('local project — Share offers Move to cloud');
+    // A real click: the move route needs the window's own `Sec-Fetch-Site: same-origin`.
+    await confirm.click();
+    await browser.waitUntil(
+      () => {
+        const cfg = JSON.parse(readFileSync(FIXTURE_CONFIG, 'utf8'));
+        return typeof cfg.linkedHub?.url === 'string';
+      },
+      { timeout: 60_000, timeoutMsg: 'Move to cloud never wrote linkedHub' }
+    );
+    const moved = await $(tid('share-moved'));
+    await moved.waitForDisplayed({ timeout: 15_000 });
+    // linkedHub lands first; the card says "Setting up the cloud project…" until the stub answers, then the final words
+    await browser.waitUntil(async () => (await moved.getText()).includes('Moved to the cloud'), {
+      timeout: 30_000,
+      timeoutMsg: 'the card never reached its final words ("Moved to the cloud")',
+    });
+    // 02 ob-local-moved — the exact words (move-to-cloud.jsx movingWords; the board's "3 canvases" count is the
+    // board's, CONTRACT wins), and Share now invites: the e-mail field and its Invite are in the same sheet.
+    expect((await moved.getText()).replace(/\s+/g, ' ').trim()).toBe(
+      'Moved to the cloud — your canvases are going up now.'
+    );
+    const inviteEmail = await $(tid('share-invite-email'));
+    await inviteEmail.waitForDisplayed({ timeout: 30_000 });
+    expect((await (await $(tid('share-invite-submit'))).getText()).trim()).toBe('Invite');
+    expect(await (await $(tid('share-move-confirm'))).isExisting()).toBe(false);
+    await capture('moved to the cloud');
+    await (await $(tid('share-close'))).click();
+
+    // Settings › General › Account: the plan words are the cloud's (stub /api/home), never a sum.
+    await (await $(tid('project-pill'))).click();
+    const row = await $(tid('project-menu-row-settings.open'));
+    await row.waitForDisplayed({ timeout: 10_000 });
+    await row.click();
+    // The sheet re-opens on the section it was left on (settings-sheet.jsx `remembered()`) — Connections, after
+    // steps 1–2 — and the Account block with the plan is General's.
+    await (await $(tid('settings-tab-general'))).click();
+    const plan = await $(tid('settings-account-plan'));
+    await plan.waitForDisplayed({ timeout: 15_000 });
+    expect(await plan.getText()).toBe('Free trial · 12 days left');
+    await capture('Settings › Account — the plan from the cloud');
+    await closeSettings();
+
+    // Back to a local folder so step 3's picker still connects from scratch — the way a person does it, the linked
+    // row's Disconnect in Settings › Connections (`connections.cloud-project-disconnect` → POST /_api/cloud/detach).
+    // A detach posted from the page behind the panel's back left the panel's own link state on "Connected", so
+    // step 3 read "Stub Project · Connected · Disconnect" where Connect should be.
+    await openConnections();
+    const disconnect = await $('[data-testid^="cloud-disconnect-"]');
+    await disconnect.waitForDisplayed({ timeout: 15_000 });
+    await disconnect.click();
+    await browser.waitUntil(() => !JSON.parse(readFileSync(FIXTURE_CONFIG, 'utf8')).linkedHub, {
+      timeout: 20_000,
+      timeoutMsg: 'detach left linkedHub in the fixture',
+    });
+  });
+
   it('3 · the picker: member → Connect, viewer → View in the browser; Connect writes linkedHub', async () => {
-    await (await $(tid('cloud-account'))).click();
+    // Settings lists the projects inline under the account — no menu to open.
+    await openConnections();
 
     const viewer = await $(tid('cloud-project-stub-gallery'));
     await viewer.waitForDisplayed({ timeout: 15_000 });
@@ -130,12 +249,15 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
     // never "restart the studio server" — a task naming something a desktop
     // user cannot see. Which arm fires depends on what the fixture has to sync,
     // so assert the shape: this project, and a state we told the truth about.
+    // `Synced with` too: the lane's cell holds a checkout now (p8-fix-e), so a
+    // 10-canvas fixture can be all in step before the first poll — the outcome
+    // step 7 already counts as terminal (presentation.ts), not a missing note.
     let seen = '';
     await browser
       .waitUntil(
         async () => {
           seen = await (await $(tid('cloud-bar'))).getText();
-          return /Connecting to|Syncing with|Connected to/.test(seen);
+          return ATTACH_NOTE.test(seen);
         },
         { timeout: 20_000 }
       )
@@ -154,19 +276,14 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
    *  assertions were green but the screenshots were unreadable. */
   const settled = () => browser.pause(450);
 
-  /** Emit the same event the Rust deep-link handler emits — the UI cannot tell
-   *  the difference, which is the point. */
+  /** Have the shell deliver the link to this window — the same park + event
+   *  the Rust deep-link handler uses, so the UI cannot tell the difference.
+   *  (Pages can no longer `emit`, V2-3.6 M5.) */
   const arrive = (project: string) =>
-    browser.execute(
-      (p: string, code: string) => {
-        const tauri = (window as unknown as { __TAURI__: TauriGlobal }).__TAURI__;
-        tauri.event.emit('maude://deep-link', `maude://open/${p}?code=${code}`);
-      },
-      project,
-      STUB_CODE
-    );
+    invokeTauri('e2e_deliver_deep_link', { url: `maude://open/${project}?code=${STUB_CODE}` });
 
   it('4 · a maude:// deep link explains both sides, then the one-time code attaches', async () => {
+    await closeSettings();
     // The fixture folder IS `project` — an exact identity match, the only
     // name-based verdict allowed to pass without a warning.
     await arrive('project');
@@ -192,8 +309,8 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
     await browser
       .waitUntil(
         async () => {
-          seen = await (await $(tid('cloud-bar'))).getText();
-          return /Connecting to|Syncing with|Connected to/.test(seen);
+          seen = await cloudText();
+          return ATTACH_NOTE.test(seen);
         },
         { timeout: 20_000 }
       )
@@ -249,10 +366,10 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
     await capture('deep-link mismatch warning');
 
     await connect.click();
-    await browser.waitUntil(
-      async () => (await (await $(tid('cloud-bar'))).getText()).includes('Nothing was connected'),
-      { timeout: 20_000, timeoutMsg: 'the claimed↔actual refusal never surfaced' }
-    );
+    await browser.waitUntil(async () => (await cloudText()).includes('Nothing was connected'), {
+      timeout: 20_000,
+      timeoutMsg: 'the claimed↔actual refusal never surfaced',
+    });
     // The link that was already there is untouched — a refused attach writes
     // nothing.
     const cfg = JSON.parse(readFileSync(FIXTURE_CONFIG, 'utf8'));
@@ -267,11 +384,11 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
     // including a link that never connected at all. Nothing in the DOM ever
     // changed again, which is exactly what "reálně se nic nestane" looked like.
     //
-    // This stub has NO Yjs hub behind it — the control plane is faked and the
-    // WS upgrade goes nowhere. So the honest terminal state here is
-    // "unreachable", and reaching it is the proof the sentence is live: an
+    // The control plane is faked but the cell behind it is a real LOCAL hub
+    // (wdio.cloud.conf.ts), so the honest terminal state is usually "Synced
+    // with …" — and any terminal sentence is the proof the line is live: an
     // intention-derived string could never have arrived at it.
-    await (await $(tid('cloud-account'))).click();
+    await openConnections();
     const member = await $(tid('cloud-project-stub-project'));
     await member.waitForDisplayed({ timeout: 15_000 });
     await member.click();
@@ -284,27 +401,42 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
     // for it plus the handshake attempts. Any of the four terminal shapes is a
     // pass — which one depends on the fixture, and pinning that would make this
     // a test of the fixture rather than of the pipeline.
-    await browser.waitUntil(
-      async () =>
-        // `Not reachable: <project>.` is the offline sentence `presentation.ts`
-        // actually writes; the lowercase `unreachable` this used to look for
-        // only ever appears as a SUFFIX on the refusal case, so the plain
-        // offline outcome — the one this stub always produces — could never
-        // match and the step timed out on a state that was already terminal.
-        /Synced with|Not reachable|unreachable|were refused by|nothing to sync yet/.test(
-          await note.getText()
-        ),
-      { timeout: 60_000, timeoutMsg: 'the connect note never reached a terminal state' }
-    );
+    let said = '';
+    // `Not reachable: <project>.` is the offline sentence `presentation.ts` actually writes; the lowercase
+    // `unreachable` only ever appears as a SUFFIX on the refusal case (the plain offline outcome — the one this stub
+    // always produces — could never match it, and the step timed out on a state that was already terminal)
+    // p8-fix-e (F9): a failed media upload is a FAIL, never an accepted terminal state. It used to be accepted
+    // ("3 media uploads failed" in 3 of 3 V2-8.3 runs): the lane's cell had no checkout, so it refused every
+    // upload. The cell is cell-shaped now (fixtures/local-hub.mjs `startCloudLaneCell`), so a failed upload is a
+    // real defect — the wait stops on it at once instead of passing.
+    const uploadsFailed = /media uploads? failed|uploads? failed/i;
+    const terminal = async () => {
+      said = await note.getText().catch(() => said);
+      if (uploadsFailed.test(said))
+        throw new Error(`media uploads failed on the cloud lane: "${said}"`);
+      // …and the attention phase (presentation.ts `attention`: "A change needs / N changes need your attention in …"),
+      // which waits for the person — terminal, for every cause but a failed upload (above)
+      return /Synced with|Not reachable|unreachable|were refused by|nothing to sync yet|needs? your attention in/.test(
+        said
+      );
+    };
+    await browser.waitUntil(terminal, { timeout: 60_000 }).catch((err: Error) => {
+      if (uploadsFailed.test(said)) throw err;
+      throw new Error(`the connect note never reached a terminal state (it said "${said}")`);
+    });
     const text = await note.getText();
     expect(text).not.toContain('Connecting to');
+    expect(text).not.toMatch(uploadsFailed);
 
     // And the terminal state names the move. `title` carries it (the rail
     // truncates), so an empty one means the person was told a state and left to
     // work out the next step themselves — the whole complaint.
-    const title = await note.getAttribute('title');
+    const title = (await note.getAttribute('title')) ?? '';
     expect(title.length).toBeGreaterThan(text.length - 1);
-    expect(/—|resumes by itself|Reconnect|Open one|Create a canvas/.test(title)).toBe(true);
+    // (the attention phase's move is "Open the Sync panel to see what is waiting and why.")
+    expect(
+      /—|resumes by itself|Reconnect|Open one|Create a canvas|Open the Sync panel/.test(title)
+    ).toBe(true);
     await capture('connect note, terminal state');
   });
 
@@ -316,53 +448,53 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
     expect(await note.getAttribute('role')).toBe('status');
   });
 
-  it('9 · Resync re-runs the WHOLE sync from the panel, and the app survives it', async () => {
-    // feature-sync-resync-and-out-of-process-sweep. Two things are proven here
-    // that no unit test can reach:
+  it('9 · Resync re-runs the WHOLE sync from the menu, and the app survives it', async () => {
+    // feature-sync-resync-and-out-of-process-sweep, moved by S11.12b: the v1 Sync panel (and its header
+    // button, `sync-resync`) is retired, so Resync is the Diagnostics > Advanced row `sync.resync` and its
+    // trace card `diag-resync` in Diagnostics > Sync (S11.11). Two things are proven here that no unit
+    // test can reach:
     //
-    //   • the control is wired to the whole-sync route in the PACKAGED client
-    //     bundle (the committed artifact is what ships — a rebuild forgotten in
-    //     the last task ships a UI without its own button);
-    //   • pressing it leaves the app ALIVE. Resync tears down every provider,
-    //     re-authenticates every document and re-fires the asset sweep — the
-    //     exact sequence that used to take the dev server down with it. The
-    //     canvas list still rendering afterwards IS the assertion.
-    const chip = await $(tid('open-sync'));
-    await chip.waitForDisplayed({ timeout: 30_000 });
-    await chip.click();
+    //   - the row is wired to the whole-sync route in the PACKAGED client bundle (the committed
+    //     artifact is what ships: a rebuild forgotten in the last task ships a UI without its button);
+    //   - pressing it leaves the app ALIVE. Resync tears down every provider, re-authenticates every
+    //     document and re-fires the asset sweep, the exact sequence that used to take the dev server
+    //     down with it. The canvas list still rendering afterwards IS the assertion.
+    await closeDiagnostics();
+    await pressDiagnosticsAdvancedRow('sync.resync');
+    await openSyncDetails();
 
-    // `waitForExist`, not `waitForDisplayed` — the right dock in this harness's
-    // window geometry is the same one `shell-parity` had to assert existence on.
+    // `waitForExist`, not `waitForDisplayed`: the sheet in this harness's window geometry is the same
+    // one `shell-parity` had to assert existence on.
     const panel = await $(tid('sync-panel'));
     await panel.waitForExist({ timeout: 15_000 });
-    const resync = await $(tid('sync-resync'));
-    await resync.waitForExist({ timeout: 10_000 });
-    expect(await resync.isEnabled()).toBe(true);
-    await capture('sync panel with Resync');
+    const card = await $(tid('diag-resync'));
+    await card.waitForExist({ timeout: 30_000 });
+    expect(['running', 'done', 'attention']).toContain(await card.getAttribute('data-state'));
+    await capture('resync trace in Diagnostics');
 
-    await resync.click();
-    // It refuses a second press — while the cycle runs AND through the
-    // cooldown after it, so an impatient person cannot pin their own hub's
-    // rate limit (DDR-102: a restart is one WS auth per document).
-    await browser.waitUntil(async () => !(await resync.isEnabled()), {
-      timeout: 15_000,
-      timeoutMsg: 'Resync stayed pressable — the cycle/cooldown guard is gone',
+    // The cycle ends in a sentence, never in silence.
+    await browser.waitUntil(async () => (await card.getAttribute('data-state')) !== 'running', {
+      timeout: 120_000,
+      timeoutMsg: 'Resync never finished',
     });
-    await capture('resync in flight');
+    expect(await (await $(tid('diag-resync-result'))).getText()).toMatch(
+      /^Resync (done|stopped early)/
+    );
 
-    // The app is still an app: the canvas list is there, and the panel is still
-    // rendering sync state rather than a blank aside.
+    // The app is still an app: the canvas list is there, and Sync details is still rendering sync state
+    // rather than a blank sheet.
+    await closeDiagnostics();
     await (await $(tid('canvas-list'))).waitForDisplayed({ timeout: 20_000 });
-    expect((await panel.getText()).length).toBeGreaterThan(0);
-    await capture('after resync — the studio is still up');
+    await openSyncDetails();
+    expect((await (await $(tid('sync-panel'))).getText()).length).toBeGreaterThan(0);
+    await capture('after resync: the studio is still up');
+    await closeDiagnostics();
   });
 
   it('10 · a cloud project opens as its OWN copy — no folder chosen (plan T21/T22)', async () => {
     // The project-switcher way in: Maude Cloud (already signed in above) lists
     // the account's projects; Open makes the managed copy and switches to it.
-    const trigger = await $(tid('repo-switcher-trigger'));
-    await trigger.waitForDisplayed({ timeout: 30_000 });
-    await trigger.click();
+    await openSwitcher();
     await (await $(tid('switcher-open-team'))).click();
     const dialog = await $(tid('team-projects-dialog'));
     await dialog.waitForDisplayed({ timeout: 15_000 });

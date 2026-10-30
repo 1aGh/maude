@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-shell-subscribe"
+description = "Enables the shell_subscribe command without any pre-configured scope."
+commands.allow = ["shell_subscribe"]
+
+[[permission]]
+identifier = "deny-shell-subscribe"
+description = "Denies the shell_subscribe command without any pre-configured scope."
+commands.deny = ["shell_subscribe"]

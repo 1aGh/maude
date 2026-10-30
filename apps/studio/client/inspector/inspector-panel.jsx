@@ -1,13 +1,31 @@
 // inspector/inspector-panel.jsx — moved verbatim out of client/app.jsx (Maude v2 plan V2-0.2, move-only split).
 
-import { useEffect, useRef, useState } from 'react';
-import { CssKnobs, trackRecordableWrite } from './css-knobs.jsx';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { trackRecordableWrite } from './css-knobs.jsx';
 import { LAYER_VOID_TAGS, LayerRow } from './layers.jsx';
-import { Kbd, StIcon } from '../shell/icons.jsx';
+import { StIcon } from '../shell/icons.jsx';
+import { shellToast } from '../shell/util.js';
 import { PhotoKnobs } from '../photo-knobs.jsx';
+import { PhotoSection } from '../v2/photo/photo-section.jsx';
 import { ColorPicker } from './color-picker.jsx';
-import { InspectComputed } from './inspect-computed.jsx';
-import { ArtboardKnobs, resolveArtboardIdFromSelection } from './artboard-knobs.jsx';
+import { renameElementId } from '../v2/inspector/element-id.js';
+import { useEmptyArtboard } from '../v2/empty/empty-hint-store.js';
+import { LayersEmpty } from '../v2/empty/layers-empty.jsx';
+import { useDsAdvanced } from '../v2/ds/advanced.jsx';
+import { useDsTruthCards } from '../v2/ds/truth-card.jsx';
+import { InspectorFrame } from '../v2/inspector/frame.jsx';
+import { isArtboardSelection, kindChipOf } from '../v2/inspector/kinds/index.js';
+import { useLayersSlot, withSlot } from '../v2/inspector/layers-slot.jsx';
+import { isFilterKind } from '../v2/kinds/kind-filter-model.js';
+import { useKindFilter } from '../v2/kinds/kind-filter-store.js';
+import { artboardCounts } from '../v2/kinds/layers-kind-model.js';
+import { LayersAdvanced } from '../v2/left-panel/layers-advanced.jsx';
+import { ArtboardLayers, currentBoard } from '../v2/layers/artboard-layers.jsx';
+import { timelineSelectionElement, useTimelineSelection } from '../v2/timeline/selection.js';
+import '../v2/inspector/sections/index.js'; // S2.3: the Position · Size · Layout bodies register themselves
+
+/** gate-b-polish3 — the tree's keys, in the README's key names (⌥, not Alt). */
+export const LAYERS_KEYS_HINT = 'Drag or ↑/↓ to select · ⌥↑/↓ moves · ⌥⇧↑/↓ moves across';
 
 // feature-photo-editor (Task 13/14) — derive the content-addressed photo asset a
 // DOM selection points at (an artboard `<img src="assets/<sha8>.<ext>">`). Prefers
@@ -22,8 +40,34 @@ export const PHOTO_ASSET_RE = /assets\/[0-9a-f]{8}\.[a-z0-9]+/i;
 // and not the other).
 export const PHOTO_ASSET_RE_G = new RegExp(PHOTO_ASSET_RE.source, 'gi');
 
+/**
+ * S8.15 — does the Photo tab edit ONE use? An artboard picture the canvas names (`data-cd-id`) and resolved as the
+ * picture itself (`photoAsset` is stamped only on an `<img>`): yes. An annotation image, or a picture without an id,
+ * keeps the v1 every-use knobs.
+ */
+export function isPhotoPerUse(photoTarget, el) {
+  return photoTarget?.kind === 'artboard-img' && !!el?.id && !!el?.photoAsset;
+}
+
+/**
+ * 12 · ia-photo-inspector: a placed photo opens on its Photo card. A picture pasted from Figma is Figma's exact
+ * picture, not a photo to retouch — 14 · ed-edge-paste draws its Image card (From Figma · W · H · Fit), so that is
+ * where it opens; Photo stays one click away on the seg.
+ */
+export function opensOnPhotoCard({ layersOnly, photoPerUse, el, picked, selKey }) {
+  return (
+    !layersOnly &&
+    !!photoPerUse &&
+    (el?.tag || '').toLowerCase() === 'img' &&
+    el?.attrs?.['data-source'] !== 'figma' &&
+    picked !== selKey
+  );
+}
+
 export function photoAssetOfSelection(el) {
   if (!el || Array.isArray(el)) return null;
+  // V2-8.5 C2 (08 · ak-web-hug) — a whole artboard is never a photo, however many pictures it holds
+  if (isArtboardSelection(el)) return null;
   if (el.photoAsset) return el.photoAsset;
   const html = el.html || '';
   // feature-4 regression fix (2026-07-20) — the select tool's bare click now
@@ -57,7 +101,7 @@ export function InspectorPanel({
   /** E4 — `inspector-panel` / `layers-panel`, so one parity spec can assert
    *  both shells show them. Undefined elsewhere; the attribute simply absent. */
   testId,
-  selected,
+  selected: selectedFromCanvas,
   onClose,
   layersTree,
   // feature-4 T7a — { [cdId]: { component, root, usages } } for purple rows.
@@ -65,8 +109,12 @@ export function InspectorPanel({
   // feature-4 T7b — locked layer keys (`"<id>:<index>"`) + toggle.
   lockedKeys,
   onToggleLock,
+  // S2.6 — the eye: `object.hide` (shared, in the TSX) run by the canvas.
+  onToggleHide,
   // feature-4 detach-component — clone-definition detach for a shared instance.
   onDetachInstance,
+  // S10.8 — the shell runs a registry action for the Inspector (`ds.review-update`, `ds.go-to`)
+  onShellAction,
   canvasFile,
   onSelectLayer,
   onHoverLayer,
@@ -75,12 +123,14 @@ export function InspectorPanel({
   cfg,
   onOptimistic,
   onRecordEdit,
+  onRunAction,
   onReplaceMedia,
   onResizeArtboard,
   onSetArtboardHug,
   onSetArtboardStyle,
   onSetArtboardKind,
   onSetArtboardPrint,
+  onSetArtboardTheme,
   onDuplicateArtboard,
   onUndoRedo,
   editScope,
@@ -104,16 +154,42 @@ export function InspectorPanel({
   // when Layers has been split into its own panel.
   layersOnly = false,
   hideLayersTab = false,
-  // DDR-171 — CSS-panel vocabulary mode ('advanced' | 'designer'), owned by App
-  // (single source of truth shared with Settings → Appearance).
-  cpMode,
-  onSetCpMode,
+  // V2-4.8b — the open canvas's artboard count (was the status bar's "N artboards"), shown in the
+  // standalone Layers panel's header; undefined elsewhere.
+  artboardCount,
+  // S7.24b — the Layers header slot: a node drawn above the Layers view (the kind chips, v2/kinds/LayersKindFilter)
+  layersHeader = null,
+  // gate-b-polish3 — the open canvas's artboards ({ id, label, kind }), its name, and how a row selects one
+  layersBoards = null,
+  layersCanvasName = '',
+  onSelectArtboard,
+  // S11.9 — Layers › Advanced › Select by selector: posts `select-by-selector {selector}` to the open canvas.
+  onSelectBySelector,
+  // S2.2 — the element-id rename (registry `element.set-id`); defaults to the dispatch route's client.
+  onRenameElementId = renameElementId,
 }) {
+  // S7.10 — a clip selected on the Timeline takes this panel (07 · ve-select: "clip select → right inspector"); a
+  // canvas selection hands it back (TimelineHost listens for it and releases the clip). The standalone Layers panel
+  // keeps the canvas's own selection.
+  const tlSel = useTimelineSelection();
+  const tlEl = useMemo(
+    () => (layersOnly ? null : timelineSelectionElement(tlSel)),
+    [tlSel, layersOnly]
+  );
+  const selected = tlEl ?? selectedFromCanvas;
   // Tab is controllable from the parent (the guided tour drives it to 'css' /
   // 'layers' so a spotlight step lands on a real row) but falls back to local
   // state for normal use. A user click both updates local state and notifies the
   // parent, so the two stay in lockstep whichever owns it.
+  // S11.2 — the artboard the canvas says is empty (Layers says so in the kit's words)
+  const emptyBoard = useEmptyArtboard();
+  // S10.11 — a Design system canvas whose files changed outside the app (or in two places) says so here
+  const dsTruth = useDsTruthCards();
+  // S10.19 — …and shows the system itself (Advanced, Check the system) when nothing else is waiting
+  const dsSystem = useDsAdvanced();
   const [tabState, setTabState] = useState('inspect');
+  // S8.15 — what the Image section's Adjust… / ✦ Remove background asked Photo for on the way in
+  const [photoIntent, setPhotoIntent] = useState(null);
   const tab = layersOnly ? 'layers' : (tabProp ?? tabState);
   const setTab = (t) => {
     setTabState(t);
@@ -163,7 +239,7 @@ export function InspectorPanel({
     requestAnimationFrame(() => {
       try {
         document
-          .querySelector(`.st-layer--row[data-layer-key="${matchedKey}"]`)
+          .querySelector(`.sh-layer--row[data-layer-key="${matchedKey}"]`)
           ?.scrollIntoView({ block: 'nearest' });
       } catch {
         /* selector edge case — non-fatal */
@@ -184,24 +260,26 @@ export function InspectorPanel({
   // HMR reload re-posts the tree with the new label.
   const renameLayer = (node, value) => {
     if (!canvasFile || !node?.id) return;
-    trackRecordableWrite(fetch('/_api/edit-attr', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ canvas: canvasFile, id: node.id, attr: 'data-dc-element', value }),
-    })
-      .then((r) => r.json().catch(() => ({})))
-      .then((j) => {
-        if (!j.ok) return;
-        onRecordEdit?.({
-          op: 'attr',
-          canvas: canvasFile,
-          id: node.id,
-          key: 'data-dc-element',
-          before: node.dcElement ?? null,
-          after: value,
-        });
+    trackRecordableWrite(
+      fetch('/_api/edit-attr', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ canvas: canvasFile, id: node.id, attr: 'data-dc-element', value }),
       })
-      .catch(() => {}));
+        .then((r) => r.json().catch(() => ({})))
+        .then((j) => {
+          if (!j.ok) return;
+          onRecordEdit?.({
+            op: 'attr',
+            canvas: canvasFile,
+            id: node.id,
+            key: 'data-dc-element',
+            before: node.dcElement ?? null,
+            after: value,
+          });
+        })
+        .catch(() => {})
+    );
   };
   const handleReorder = onReorderLayer
     ? (dragged, ref, position) => {
@@ -291,8 +369,11 @@ export function InspectorPanel({
   // release. Same-origin shell, so it's all local (no dgn bus).
   const layerDragRef = useRef(null);
   const layerTreeRef = useRef(null);
+  // S2.11b — the slot a lifted card would land in, drawn in the tree too
+  const layersSlot = useLayersSlot();
   const startLayerDrag = (e, node, key) => {
-    if (!handleReorder || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    if (!handleReorder || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)
+      return;
     if (layersBusyRef?.current) return; // a prior reorder is still landing (ids churning)
     const startX = e.clientX;
     const startY = e.clientY;
@@ -331,8 +412,11 @@ export function InspectorPanel({
       // Visible rows in DOM (== flat) order, minus the dragged one (its rect is
       // floated, so it's meaningless for gap math).
       const rows = [].slice
-        .call(document.querySelectorAll('.st-layer--row[data-layer-key]'))
-        .map((el) => ({ rect: el.getBoundingClientRect(), it: flatByKey.get(el.getAttribute('data-layer-key')) }))
+        .call(document.querySelectorAll('.sh-layer--row[data-layer-key]'))
+        .map((el) => ({
+          rect: el.getBoundingClientRect(),
+          it: flatByKey.get(el.getAttribute('data-layer-key')),
+        }))
         .filter((r) => r.it && r.it.key !== key);
       if (rows.length) {
         const rowLeft = rows[0].rect.left;
@@ -389,7 +473,14 @@ export function InspectorPanel({
         if (refIt && refIt.key !== key && !forbidden.has(refIt.key)) {
           const y = prev ? rows[gap - 1].rect.bottom : rows[0].rect.top;
           const left = rowLeft + BASE + targetDepth * INDENT;
-          target = { refId: refIt.id, position, node: refIt.node, y, left, w: Math.max(24, rowRight - left) };
+          target = {
+            refId: refIt.id,
+            position,
+            node: refIt.node,
+            y,
+            left,
+            w: Math.max(24, rowRight - left),
+          };
         }
       }
       const next = { key, node, dx, dy, target };
@@ -454,30 +545,28 @@ export function InspectorPanel({
       prop: 'display',
       value: willHide ? 'none' : null,
     });
-    if (!canvasFile || !node.id) return;
-    fetch('/_api/edit-css', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(
-        willHide
-          ? { canvas: canvasFile, id: node.id, property: 'display', value: 'none' }
-          : { canvas: canvasFile, id: node.id, property: 'display', reset: true }
-      ),
-    }).catch(() => {});
-    // Record onto the canvas undo stack (Cmd+Z), same as any other inline CSS
-    // edit — fire-and-forget alongside the POST above, mirroring CssKnobs'
-    // commit()/reset() (which don't gate the record on the fetch resolving).
-    onRecordEdit?.({
-      op: 'css',
-      canvas: canvasFile,
-      id: node.id,
-      key: 'display',
-      before: wasHidden ? 'none' : null,
-      after: willHide ? 'none' : null,
-    });
+    if (!node.id) return;
+    onToggleHide?.(node, willHide);
   };
   // `selected` may be a single element, an array (multi-select), or null.
   const el = Array.isArray(selected) ? selected[0] : selected;
+  // gate-b-polish3 (08 · ak-mixed-fit / 14) — the Layers tab by artboard: every artboard a row (kind glyph +
+  // label), the tree of the one you are in nested under it. No artboard list known → the tree alone.
+  const byArtboard = (inner) => (
+    <ArtboardLayers
+      boards={layersBoards}
+      canvasName={layersCanvasName}
+      count={artboardCount}
+      current={currentBoard({
+        boards: layersBoards ?? [],
+        treeArtboard: layersTree?.artboardId ?? emptyBoard?.artboardId ?? null,
+        selectedArtboard: el?.artboardId ?? null,
+      })}
+      onPick={onSelectArtboard}
+    >
+      {inner}
+    </ArtboardLayers>
+  );
   // feature-photo-editor (Task 13) — resolve the Photo-tab target. Priority: an
   // annotation-image threaded up (`photoSel`, no DOM selection) → a Photo-ONLY
   // panel; else a content-addressed artboard `<img>` selection → Photo alongside
@@ -489,6 +578,9 @@ export function InspectorPanel({
         return a ? { asset: a, kind: 'artboard-img' } : null;
       })();
   const photoOnly = photoTarget?.kind === 'annotation-image';
+  // S8.15 — an artboard picture with an id is edited one use at a time (the v2 Photo section); an annotation
+  // image, or a picture the canvas cannot name, keeps the v1 every-use knobs.
+  const photoPerUse = isPhotoPerUse(photoTarget, el);
   // Cmd+Z / Cmd+Shift+Z (or Cmd+Y) while focus is still inside a Photo-tab
   // slider — mirrors `onKnobKeyDown` above for the same reason: the window-
   // level shortcut listener bails out whenever `document.activeElement` is an
@@ -510,90 +602,111 @@ export function InspectorPanel({
   // photo-eligible — onto CSS, the editing tab a fresh selection opens on (Stage
   // C). Landing on read-only Inspect meant that after touching a sticker, the
   // next element you clicked showed facts instead of the controls to change it.
-  const effTab = photoOnly ? 'photo' : tab === 'photo' && !photoTarget ? 'css' : tab;
-  const tabBtn = (id, label, icon) => (
+  // S2.2 — Inspect and CSS were one idea twice: both open the Inspector frame (its Advanced fold carries what
+  // each showed), so a tab id the tour or a saved state still names lands on the frame.
+  // V2-8.5 C2 (12 · ia-photo-inspector) — a placed photo opens on its Photo card; the viewer's own pick of a view
+  // (the seg below) holds for that selection only.
+  const selKey = `${el?.id ?? ''}:${el?.index ?? 0}:${el?.selector ?? ''}`;
+  const [picked, setPicked] = useState(null);
+  // 05 es-filter: a kind filter that matches no artboard of this canvas leaves the kit's block alone under the chips —
+  // the layer tree waits until the filter is cleared (the artboards are only dimmed, never hidden, on the canvas).
+  const [kindFilter] = useKindFilter();
+  const layersKindNone = useMemo(() => {
+    const counts = artboardCounts(layersBoards);
+    return (
+      counts.all > 0 && isFilterKind(kindFilter) && kindFilter !== 'all' && counts[kindFilter] === 0
+    );
+  }, [layersBoards, kindFilter]);
+  const opensOnPhoto = opensOnPhotoCard({ layersOnly, photoPerUse, el, picked, selKey });
+  const effTab = photoOnly
+    ? 'photo'
+    : opensOnPhoto
+      ? 'photo'
+      : tab === 'photo' && !photoTarget
+        ? 'css'
+        : tab === 'inspect'
+          ? 'css'
+          : tab;
+  // V2-8.5 C2 — the inspector is a card (14 Editing `.k-insp`): no title row, no close button (the corner icon is
+  // the way back) and no tab strip. Two views of one selection — the element's rows and the Photo card — are a
+  // `.seg` that exists only where both apply (12 · ia-photo-inspector: a photo opens on Photo).
+  const tabBtn = (id, label) => (
     <button
       type="button"
-      className={'st-rp-tab' + (effTab === id ? ' is-active' : '')}
-      onClick={() => setTab(id)}
+      className="k-seg-b"
+      data-testid={`inspector-view-${id}`}
+      aria-pressed={effTab === id}
+      onClick={() => {
+        setPicked(selKey);
+        setTab(id);
+      }}
     >
-      <StIcon name={icon} size={14} />
       {label}
     </button>
   );
-  const b = el?.bounds || null;
+  const showViews = !layersOnly && !photoOnly && !!photoTarget;
+  const showTabs = layersOnly ? false : !hideLayersTab;
   return (
     <aside
-      className={'st-rpanel' + (resizing ? ' is-resizing' : '')}
+      className={
+        'sh-rpanel' + (layersOnly ? '' : ' sh-rpanel--insp') + (resizing ? ' is-resizing' : '')
+      }
       style={width ? { width, flexBasis: width } : undefined}
-      aria-label="Inspector"
+      aria-label={layersOnly ? 'Layers' : 'Inspector'}
       data-tour="inspector"
       data-testid={testId}
     >
-      <div
-        className="st-rp-tabs"
-        data-tour="inspector-tabs"
-        style={layersOnly ? { display: 'none' } : undefined}
-      >
-        {photoOnly ? (
-          tabBtn('photo', 'Photo', 'image')
-        ) : (
-          <>
-            {tabBtn('inspect', 'Inspect', 'sliders')}
-            {!hideLayersTab && tabBtn('layers', 'Layers', 'layers')}
-            {tabBtn('css', 'CSS', 'code')}
-            {photoTarget ? tabBtn('photo', 'Photo', 'image') : null}
-          </>
-        )}
-        <button
-          type="button"
-          className="st-iconbtn"
-          aria-label="Close inspector"
-          style={{ marginLeft: 'auto' }}
-          onClick={onClose}
-        >
-          <StIcon name="x" size={14} />
-        </button>
-      </div>
-      {/* Stage H (INV-3) — edit-scope strip: is an edit local to this element or
-          shared across N rendered places? Visible across every tab so it's never
-          a surprise. Only for a single element selection with a resolved verdict. */}
-      {el?.id && !(Array.isArray(selected) && selected.length > 1) && editScope ? (
-        <div
-          className={`st-scope st-scope--${editScope.scope}`}
-          title={
-            editScope.scope === 'shared'
-              ? `Editing this element's style changes ${editScope.affects} place${
-                  editScope.affects === 1 ? '' : 's'
-                }${
-                  editScope.componentName ? ` (component ${editScope.componentName})` : ''
-                }. Move/resize a whole instance to keep it local.`
-              : 'This edit affects only this element.'
-          }
-        >
-          <span className="st-scope-dot" aria-hidden="true" />
-          {editScope.scope === 'shared'
-            ? `Shared${editScope.componentName ? ` · ${editScope.componentName}` : ''} · edits ${
-                editScope.affects
-              } place${editScope.affects === 1 ? '' : 's'}`
-            : 'Local · this element only'}
-          {/* feature-4 detach-component (2026-07-19) — make THIS instance its
-              own single-usage component so edits (incl. absolute positions)
-              stay local per artboard. */}
-          {editScope.scope === 'shared' && onDetachInstance ? (
-            <button
-              type="button"
-              className="st-scope-detach"
-              title="Clone this component for this instance only — edits stop affecting the other places"
-              onClick={() => onDetachInstance(el.id, el.index)}
-            >
-              Detach
-            </button>
-          ) : null}
+      {showViews ? (
+        <div className="sh-rp-views" data-tour="inspector-tabs">
+          {/* biome-ignore lint/a11y/useSemanticElements: a two-view segmented control, not a form fieldset */}
+          <span className="seg k-in-seg" role="group" aria-label="Inspector view">
+            {tabBtn('css', kindChipOf(selected) || 'Object')}
+            {tabBtn('photo', 'Photo')}
+          </span>
         </div>
       ) : null}
-      <div className="st-rp-body">
-        {effTab === 'photo' && photoTarget ? (
+      {showTabs && !showViews ? (
+        <div className="sh-rp-tabs" data-tour="inspector-tabs">
+          <button
+            type="button"
+            className={'sh-rp-tab' + (effTab === 'css' ? ' is-active' : '')}
+            onClick={() => setTab('css')}
+          >
+            Inspector
+          </button>
+          <button
+            type="button"
+            className={'sh-rp-tab' + (effTab === 'layers' ? ' is-active' : '')}
+            onClick={() => setTab('layers')}
+          >
+            Layers
+          </button>
+        </div>
+      ) : null}
+      {/* S11.18: the edit-scope strip (Stage H, INV-3: "Shared · Card · edits N places", Detach) is retired from
+          the header. Inspector > Advanced > Used in says the same and keeps Detach (v2/inspector/advanced-rows-default.jsx,
+          `adv-used-in`, `adv-detach`); `editScope` and `onDetachInstance` still reach it through the frame below. */}
+      <div className="sh-rp-body">
+        {effTab === 'layers' ? layersHeader : null}
+        {effTab === 'layers' && layersKindNone ? null : effTab === 'photo' &&
+          photoTarget &&
+          photoPerUse ? (
+          <PhotoSection
+            key={`${photoTarget.asset}:${el.id}:${el.index ?? 0}`}
+            asset={photoTarget.asset}
+            el={el}
+            canvasFile={canvasFile}
+            intent={photoIntent}
+            onIntentUsed={() => setPhotoIntent(null)}
+            ColorPicker={ColorPicker}
+            StIcon={StIcon}
+            onPreview={(edit, use) => onPhotoEdit?.(photoTarget.asset, edit, use)}
+            onRemoveBackground={onPhotoRemoveBackground}
+            onReplaceMedia={onReplaceMedia}
+            onRecordEdit={onRecordEdit}
+            onRunAction={onRunAction}
+          />
+        ) : effTab === 'photo' && photoTarget ? (
           <div onKeyDown={onPhotoKnobKeyDown}>
             <PhotoKnobs
               key={`${photoTarget.asset}:${photoRev ?? 0}`}
@@ -602,93 +715,53 @@ export function InspectorPanel({
               StIcon={StIcon}
               onEdit={(edit) => onPhotoEdit?.(photoTarget.asset, edit)}
               onRemoveBackground={onPhotoRemoveBackground}
-              onRecordEdit={(before, after) => onPhotoRecordEdit?.(photoTarget.asset, before, after)}
+              onRecordEdit={(before, after) =>
+                onPhotoRecordEdit?.(photoTarget.asset, before, after)
+              }
             />
           </div>
+        ) : effTab === 'layers' &&
+          emptyBoard &&
+          layersTree?.artboardId === emptyBoard.artboardId &&
+          !layersTree?.nodes?.length ? (
+          byArtboard(<LayersEmpty artboard={emptyBoard.label} />)
+        ) : effTab === 'layers' && layersBoards?.length && !el && !layersTree?.nodes?.length ? (
+          byArtboard(null)
+        ) : !el && !(effTab === 'layers' && layersTree?.nodes?.length) && (dsTruth || dsSystem) ? (
+          // c7 · 13 truth shots: a waiting review is the whole empty place — the system block (Which way changes flow,
+          // Advanced) is what it shows when nothing else is waiting (advanced.jsx header)
+          <>{dsTruth || dsSystem}</>
         ) : !el && !(effTab === 'layers' && layersTree?.nodes?.length) ? (
-          <div className="st-rp-empty">
-            {/* <p> wrapper — st-rp-empty is a flex column, bare text nodes +
+          <div className="sh-rp-empty">
+            {/* <p> wrapper — sh-rp-empty is a flex column, bare text nodes +
                 kbd would stack as stretched flex items. */}
-            <p>
-              Press <Kbd>V</Kbd>, then click an element to select it — or <Kbd>⌘</Kbd>-click
-              straight from Browse.
-            </p>
+            <p>Click an object on the canvas to see its properties here.</p>
           </div>
-        ) : el && effTab === 'inspect' ? (
-          <>
-            <div className="st-rp-hd">{el.selector || el.tag || 'element'}</div>
-            <div className="st-insp-row">
-              <span className="st-insp-label">Pos</span>
-              <div className="st-insp-fields">
-                <span className="st-fmini">
-                  <span className="st-mtag">X</span>
-                  <input value={b ? Math.round(b.x) : '—'} readOnly aria-label="x position" />
-                </span>
-                <span className="st-fmini">
-                  <span className="st-mtag">Y</span>
-                  <input value={b ? Math.round(b.y) : '—'} readOnly aria-label="y position" />
-                </span>
-              </div>
-            </div>
-            <div className="st-insp-row">
-              <span className="st-insp-label">Size</span>
-              <div className="st-insp-fields">
-                <span className="st-fmini">
-                  <span className="st-mtag">W</span>
-                  <input value={b ? Math.round(b.w) : '—'} readOnly aria-label="width" />
-                </span>
-                <span className="st-fmini">
-                  <span className="st-mtag">H</span>
-                  <input value={b ? Math.round(b.h) : '—'} readOnly aria-label="height" />
-                </span>
-              </div>
-            </div>
-            <div className="st-insp-row">
-              <span className="st-insp-label">Tag</span>
-              <div className="st-insp-fields">
-                <span className="st-mono" style={{ fontSize: 11, color: 'var(--fg-0)' }}>
-                  {el.tag || '—'}
-                </span>
-              </div>
-            </div>
-            {el.classes ? (
-              <div className="st-insp-row">
-                <span className="st-insp-label">Class</span>
-                <div className="st-insp-fields">
-                  <span className="st-mono" style={{ fontSize: 11, color: 'var(--fg-1)' }}>
-                    {el.classes}
-                  </span>
-                </div>
-              </div>
-            ) : null}
-            <InspectComputed el={el} />
-          </>
         ) : effTab === 'layers' ? (
-          <>
-            <div className="st-rp-hd">Layers{layersTree?.nodes?.length ? '' : ' · ancestry'}</div>
-            {layersTree?.nodes?.length ? (
+          byArtboard(
+            layersTree?.nodes?.length ? (
               <>
-                {handleReorder ? (
-                  <div className="st-rp-hint" aria-hidden="true">
-                    Drag or ↑/↓ select · Alt+↑/↓ move · Alt+Shift+↑/↓ move across
-                  </div>
-                ) : null}
+                {/* gate-b-polish3 — the key strip is no longer default chrome (README: no dev chrome in the
+                    default view); the same words ride on the tree as its tooltip and its accessible description. */}
                 {/* Keyboard nav/move handled at the container (tabIndex=0), driven
                     by the SELECTION not row focus — survives the HMR re-render. */}
                 <div
                   role="tree"
                   aria-label="Artboard layers"
+                  title={handleReorder ? LAYERS_KEYS_HINT : undefined}
+                  aria-description={handleReorder ? LAYERS_KEYS_HINT : undefined}
                   tabIndex={0}
                   ref={layerTreeRef}
                   onKeyDown={onTreeKeyDown}
                 >
-                  {layersTree.nodes.map((n, ni) => (
+                  {withSlot(layersTree.nodes, layersSlot).map((n, ni) => (
                     <LayerRow
                       key={`${n.id}:${n.index}`}
                       node={n}
                       depth={0}
                       selectedId={el?.id}
                       selectedIndex={el?.index}
+                      selectedAlso={Array.isArray(selected) ? selected.slice(1) : undefined}
                       collapsed={collapsed}
                       hiddenOverride={hiddenOverride}
                       onToggle={toggleCollapse}
@@ -710,7 +783,7 @@ export function InspectorPanel({
                 </div>
                 {dragState?.target ? (
                   <div
-                    className="st-layer-divider"
+                    className="sh-layer-divider"
                     aria-hidden="true"
                     style={{
                       left: dragState.target.left,
@@ -727,7 +800,7 @@ export function InspectorPanel({
               el.dom_path.map((node, i) => (
                 <div
                   key={i}
-                  className={'st-layer' + (i === el.dom_path.length - 1 ? ' is-sel' : '')}
+                  className={'sh-layer' + (i === el.dom_path.length - 1 ? ' is-sel' : '')}
                   style={{ paddingLeft: 8 + i * 12 }}
                 >
                   <StIcon name="square" size={13} />
@@ -735,35 +808,71 @@ export function InspectorPanel({
                 </div>
               ))
             ) : (
-              <div className="st-rp-empty">
+              <div className="sh-rp-empty">
                 Select an element (⌘-click in the canvas) to see its layer tree.
               </div>
-            )}
-          </>
-        ) : !el.id && resolveArtboardIdFromSelection(el) ? (
-          <ArtboardKnobs
-            el={el}
+            )
+          )
+        ) : (
+          <InspectorFrame
+            selected={selected}
+            layersTree={layersTree}
             cfg={cfg}
+            canvasFile={canvasFile}
+            onOptimistic={onOptimistic}
+            onRecordEdit={onRecordEdit}
+            onRunAction={onRunAction}
+            onReplaceMedia={onReplaceMedia}
+            // S2.15 — Adjust… / Remove background hand off to the Photo tab (only for a photo the panel can edit)
+            onOpenPhoto={
+              photoTarget && !photoOnly
+                ? (intent) => {
+                    setPhotoIntent(typeof intent === 'string' ? intent : null);
+                    setPicked(selKey);
+                    setTab('photo');
+                  }
+                : undefined
+            }
+            // S8.15 — "Edits apply to this use only" is true only where Photo edits one use
+            photoPerUse={photoPerUse}
+            onUndoRedo={onUndoRedo}
+            onRenameElementId={async (req) => {
+              const r = await onRenameElementId(req);
+              // S2.2b — a legacy link / unlinked project undoes through the edit-op revert
+              // (`revert {writeId}` restores the source AND the moved references); an op-log
+              // project's ⌘Z binds to the action instead.
+              if (r?.ok && r.writeId && r.actionId == null)
+                onRecordEdit?.({ op: 'edit-op', writeId: r.writeId, label: 'Rename id' });
+              return r;
+            }}
             onResizeArtboard={onResizeArtboard}
             onSetArtboardHug={onSetArtboardHug}
             onSetArtboardStyle={onSetArtboardStyle}
             onSetArtboardKind={onSetArtboardKind}
             onSetArtboardPrint={onSetArtboardPrint}
+            onSetArtboardTheme={onSetArtboardTheme}
             onDuplicateArtboard={onDuplicateArtboard}
-          />
-        ) : (
-          <CssKnobs
-            el={el}
-            cfg={cfg}
-            onOptimistic={onOptimistic}
-            onRecordEdit={onRecordEdit}
-            onReplaceMedia={onReplaceMedia}
-            onUndoRedo={onUndoRedo}
-            mode={cpMode}
-            onSetMode={onSetCpMode}
+            // S11.8 — › Advanced › Used in: "Shared · 4 places" + Detach
+            editScope={editScope}
+            onDetachInstance={onDetachInstance}
+            onShellAction={onShellAction}
+            // S2.1 — a crumb selects that level (ref null = the artboard) through the Layers path
+            onSelectCrumb={(ref) =>
+              onSelectLayer?.({ id: ref?.element, index: ref?.occurrence ?? 0 })
+            }
           />
         )}
       </div>
+      {/* S11.9 — the standalone Layers panel's Advanced: tags and ids, counts, select by selector, element id */}
+      {layersOnly ? (
+        <LayersAdvanced
+          tree={layersTree}
+          artboardCount={artboardCount}
+          elementId={el?.id ?? null}
+          onSelectBySelector={onSelectBySelector}
+          toast={shellToast}
+        />
+      ) : null}
     </aside>
   );
 }

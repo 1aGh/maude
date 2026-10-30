@@ -22,9 +22,15 @@ describe('artboard-activity-overlay', () => {
     expect(html).toContain('dc-activity-rim');
     expect(html).toContain('dc-activity-badge');
     expect(html).toContain('dc-activity-scan'); // Phase 13.3 full-artboard scan beam
-    expect(html).toContain('editing —');
-    expect(html).toContain('Smoke TSX.tsx');
+    expect(html).toContain('AI’s new Smoke TSX.tsx — shown live');
     expect(html).toContain('aria-hidden');
+  });
+
+  test('04 md-edge-ai: the AI wears a pointer — an arrow and a "+ AI" label — on the artboard it is changing', () => {
+    const html = renderToStaticMarkup(<ArtboardActivityOverlay rect={RECT} label="x" active />);
+    expect(html).toContain('dc-activity-ptr');
+    expect(html).toMatch(/dc-activity-ptr-l[^>]*>\+ AI</);
+    expect(html).toContain('<svg');
   });
 
   test('agent color overrides the activity CSS var', () => {

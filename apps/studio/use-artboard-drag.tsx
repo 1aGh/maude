@@ -36,7 +36,7 @@ import {
   useState,
 } from 'react';
 
-import { DRAG_THRESHOLD_PX as INPUT_DRAG_THRESHOLD_PX } from './input-router.tsx';
+import { DRAG_THRESHOLD_PX as INPUT_DRAG_THRESHOLD_PX, isPageHit } from './input-router.tsx';
 import type { Selection } from './use-selection-set.tsx';
 import { computeSnap, type Rect, type SnapResult } from './use-snap-guides.tsx';
 
@@ -95,6 +95,50 @@ export type DragState =
       snap: SnapResult;
       alt: boolean;
     };
+
+/**
+ * S2.9b — one live frame of an artboard drag, emitted OUTSIDE React (contract
+ * S2-S4-artboard-motion-ids §1) at most once per animation frame, before the
+ * React state update, so a subscriber draws in the same frame as the ghost.
+ */
+export interface DragFrame {
+  phase: 'start' | 'move' | 'end' | 'cancel';
+  /** Every artboard the gesture moves (leader + followers), in WORLD units from its start rect, after snapping. */
+  moved: Array<{ id: string; dx: number; dy: number }>;
+  /** Start rects of the moved artboards (world), the same object for every frame of one gesture. */
+  startRects: Readonly<Record<string, { x: number; y: number; w: number; h: number }>>;
+  /** ⌥-drag duplicates: the originals stay, so their members must NOT follow. */
+  alt: boolean;
+}
+
+/** The start rects of a gesture's moved artboards (leader + followers). */
+export function startRectsOf(state: DragState): DragFrame['startRects'] {
+  if (state.kind === 'idle') return {};
+  const out: Record<string, { x: number; y: number; w: number; h: number }> = {};
+  const put = (id: string, r: Rect) => {
+    out[id] = { x: r.x, y: r.y, w: r.w, h: r.h };
+  };
+  put(state.leaderId, state.leaderStart);
+  for (const f of state.followers) put(f.id, f.startRect);
+  return Object.freeze(out);
+}
+
+/** A dragging state → its frame (followers move rigidly with the leader). Null unless dragging. */
+export function frameOf(
+  state: DragState,
+  phase: DragFrame['phase'],
+  startRects: DragFrame['startRects']
+): DragFrame | null {
+  if (state.kind !== 'dragging') return null;
+  const dx = state.leaderRect.x - state.leaderStart.x;
+  const dy = state.leaderRect.y - state.leaderStart.y;
+  return {
+    phase,
+    moved: [state.leaderId, ...state.followers.map((f) => f.id)].map((id) => ({ id, dx, dy })),
+    startRects,
+    alt: state.alt,
+  };
+}
 
 export type DragEvent =
   | {
@@ -280,8 +324,14 @@ export interface UseArtboardDragOptions {
   liveZoom?: () => number;
   /** False short-circuits all event handling (e.g. activeTool !== "move"). */
   enabled: boolean;
-  /** Called on drop with final positions for leader + followers. */
-  onCommit: (next: { id: string; x: number; y: number }[]) => void;
+  /** Called on drop with final positions for leader + followers (`alt`: the ⌥-drag duplicate gesture). */
+  onCommit: (next: { id: string; x: number; y: number }[], info: { alt: boolean }) => void;
+  /**
+   * S2.9b — live frames (`DragStateBus.subscribeFrames`): `start` when the drag leaves pending,
+   * `move` at most once per animation frame, `end` right before `onCommit`, `cancel` on esc / a
+   * lost pointer (nothing is committed). Called outside React, before the state update.
+   */
+  onFrame?: (frame: DragFrame) => void;
   /** Snap config — defaults via DDR-028. */
   gridSize?: number;
   tolerance?: number;
@@ -304,15 +354,50 @@ export function useArtboardDrag(opts: UseArtboardDragOptions): UseArtboardDragHa
     liveZoom,
     enabled,
     onCommit,
+    onFrame,
     gridSize = DEFAULT_GRID_SIZE,
     tolerance = DEFAULT_SNAP_TOLERANCE,
   } = opts;
 
-  const [dragState, setDragState] = useState<DragState>({ kind: 'idle' });
+  const [dragState, setReactState] = useState<DragState>({ kind: 'idle' });
 
   // Keep stable refs for callbacks that close over fast-changing inputs.
+  // S2.9b — `stateRef` is the LIVE state (pointer events write it at once); React state follows
+  // at most once per animation frame, so a render never resets it to a frame-old value.
   const stateRef = useRef<DragState>(dragState);
-  stateRef.current = dragState;
+  const setDragState = useCallback((next: DragState) => {
+    stateRef.current = next;
+    setReactState(next);
+  }, []);
+  const onFrameRef = useRef(onFrame);
+  onFrameRef.current = onFrame;
+  /** The gesture's start rects once it left pending (null = no frame emitted yet). */
+  const gestureRef = useRef<DragFrame['startRects'] | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const emit = useCallback((phase: DragFrame['phase'], state: DragState) => {
+    const fn = onFrameRef.current;
+    let rects = gestureRef.current;
+    if (rects === null) {
+      // Never left pending: a click, or an esc before the threshold — nothing to report.
+      if (phase === 'cancel' || state.kind !== 'dragging') return;
+      rects = startRectsOf(state);
+      gestureRef.current = rects;
+      const start = frameOf(state, 'start', rects);
+      if (start && fn) fn(start);
+      if (phase === 'start' || phase === 'move') return; // the first frame IS the start
+    }
+    const f: DragFrame | null =
+      phase === 'cancel'
+        ? {
+            phase,
+            moved: Object.keys(rects).map((id) => ({ id, dx: 0, dy: 0 })),
+            startRects: rects,
+            alt: state.kind === 'dragging' ? state.alt : false,
+          }
+        : frameOf(state, phase, rects);
+    if (phase === 'end' || phase === 'cancel') gestureRef.current = null;
+    if (f && fn) fn(f);
+  }, []);
   // The zoom a drag divides by must be the CURRENT one. `viewport` here is the
   // published (settle-cadence) value, so mirroring it alone would leave this
   // ref a gesture behind: pan, then grab an artboard within the settle window,
@@ -354,9 +439,7 @@ export function useArtboardDrag(opts: UseArtboardDragOptions): UseArtboardDragHa
   // When `enabled` flips to false mid-drag, cancel (no commit). Mirrors the
   // tool-mode flip scenario in the plan.
   useEffect(() => {
-    if (!enabled && stateRef.current.kind !== 'idle') {
-      setDragState({ kind: 'idle' });
-    }
+    if (!enabled && stateRef.current.kind !== 'idle') cancelRef.current();
   }, [enabled]);
 
   // Suppress the synthetic click that fires after a drag's pointerup so the
@@ -386,7 +469,14 @@ export function useArtboardDrag(opts: UseArtboardDragOptions): UseArtboardDragHa
       // events that originate inside `.dc-artboard-body` stay click-through
       // so Cmd-select continues to work on inner content.
       const target = e.target as Element | null;
-      if (target && typeof target.closest === 'function' && target.closest('.dc-artboard-body')) {
+      // V2-8.5 round 3 — except a press ON the page itself (nothing under it but the artboard's own root): the page
+      // is the artboard, so dragging it moves the artboard (14 ed-ab-arrange).
+      if (
+        target &&
+        typeof target.closest === 'function' &&
+        target.closest('.dc-artboard-body') &&
+        !isPageHit(target, e.clientX, e.clientY)
+      ) {
         return;
       }
       const leaderStart = rectForRef.current(artboardId);
@@ -416,8 +506,31 @@ export function useArtboardDrag(opts: UseArtboardDragOptions): UseArtboardDragHa
         )
       );
     },
-    [artboardId]
+    [artboardId, setDragState]
   );
+
+  // S2.9b — one flush per animation frame: the frame first (subscribers draw with the ghost),
+  // then React. Without rAF (a headless env) the flush runs at once. Reads refs only: stable.
+  const frameLoop = useMemo(() => {
+    const cancel = () => {
+      if (rafRef.current !== null && typeof cancelAnimationFrame === 'function')
+        cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    };
+    const flush = () => {
+      rafRef.current = null;
+      const s = stateRef.current;
+      if (s.kind === 'idle') return;
+      if (s.kind === 'dragging') emit(gestureRef.current === null ? 'start' : 'move', s);
+      setReactState(s);
+    };
+    const schedule = () => {
+      if (rafRef.current !== null) return;
+      if (typeof requestAnimationFrame !== 'function') flush();
+      else rafRef.current = requestAnimationFrame(flush);
+    };
+    return { cancel, schedule };
+  }, [emit]);
 
   // Global pointermove / pointerup while a drag is in flight. Bound at the
   // window level so a fast drag past any element still feeds the reducer.
@@ -440,36 +553,64 @@ export function useArtboardDrag(opts: UseArtboardDragOptions): UseArtboardDragHa
         gridSize: gridSizeRef.current,
         tolerance: toleranceRef.current,
       });
+      if (next === stateRef.current) return; // still under the threshold
       // Detect the pending → dragging transition to arm the click suppressor.
       if (stateRef.current.kind === 'pending' && next.kind === 'dragging') {
         armClickSuppressor();
       }
-      setDragState(next);
+      // S2.9b — the live state now; the frame + the React update once per animation frame.
+      stateRef.current = next;
+      frameLoop.schedule();
     };
 
     const onUp = () => {
+      frameLoop.cancel();
       const finalState = stateRef.current;
       const commit = commitFromState(finalState);
+      // `end` right before the commit (contract §1); a drag that never left pending sends nothing.
+      if (commit) emit('end', finalState);
       setDragState({ kind: 'idle' });
       if (commit) {
         try {
-          onCommitRef.current(commit);
+          onCommitRef.current(commit, { alt: finalState.kind === 'dragging' && finalState.alt });
         } catch (err) {
           console.warn('[use-artboard-drag] commit failed:', err);
         }
       }
     };
 
+    // A lost pointer or esc cancels: the artboards snap back and nothing is written.
+    const onCancel = () => cancelRef.current();
+    const onKey = (ev: KeyboardEvent) => {
+      if (ev.key !== 'Escape') return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      cancelRef.current();
+    };
+
     window.addEventListener('pointermove', onMove, { capture: true });
     window.addEventListener('pointerup', onUp, { capture: true });
-    window.addEventListener('pointercancel', onUp, { capture: true });
+    window.addEventListener('pointercancel', onCancel, { capture: true });
+    window.addEventListener('keydown', onKey, { capture: true });
 
     return () => {
       window.removeEventListener('pointermove', onMove, { capture: true } as EventListenerOptions);
       window.removeEventListener('pointerup', onUp, { capture: true } as EventListenerOptions);
-      window.removeEventListener('pointercancel', onUp, { capture: true } as EventListenerOptions);
+      window.removeEventListener('pointercancel', onCancel, {
+        capture: true,
+      } as EventListenerOptions);
+      window.removeEventListener('keydown', onKey, { capture: true } as EventListenerOptions);
     };
-  }, [dragState.kind, armClickSuppressor]);
+  }, [dragState.kind, armClickSuppressor, emit, setDragState, frameLoop]);
+
+  const cancelRef = useRef<() => void>(() => {});
+  cancelRef.current = () => {
+    frameLoop.cancel();
+    const s = stateRef.current;
+    emit('cancel', s);
+    if (s.kind !== 'idle') setDragState({ kind: 'idle' });
+  };
+  useEffect(() => () => frameLoop.cancel(), [frameLoop]);
 
   const bindHandle = useCallback(
     (): HTMLAttributes<HTMLElement> => ({

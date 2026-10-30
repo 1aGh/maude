@@ -18,8 +18,20 @@
 //                 CAS journal (DDR-226), not the canvas kernel (DDR-241 §8).
 //   git         — operates on the checkout's Git graph; never a project action.
 //   local       — this machine only: credentials, caches, jobs, activity, UI.
+//   migration   — a whole-project format rewrite (V2-1.12): all-or-nothing, after the
+//                 hub's format flip; peers get the rewritten files like an outside edit.
+//
+// Every route in routes/*.ts (the V2-2.5 table) is listed here too: the test scrapes
+// http.ts AND routes/*.ts, so a table route cannot ship unclassified either.
 
-export type WriterClass = 'read' | 'lane' | 'structural' | 'file-plane' | 'git' | 'local';
+export type WriterClass =
+  | 'read'
+  | 'lane'
+  | 'structural'
+  | 'file-plane'
+  | 'git'
+  | 'local'
+  | 'migration';
 
 export interface WriterEntry {
   class: WriterClass;
@@ -42,6 +54,23 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/edit-text': { ...LANE_SOURCE, rows: 'S01' },
   '/_api/edit-css': { ...LANE_SOURCE, rows: 'S02' },
   '/_api/edit-attr': { ...LANE_SOURCE, rows: 'S03' },
+  // S2.1 — the one dispatch route for S2/S3 structural edits (routes/edit.ts, edit-ops/)
+  // S2.10b — in accepted mode an op with a layout part (a copy and its place, an artboard moved to the
+  // trash) is ONE proposal: proposeLanes, html + meta (kind / label / origin.trashed from the op).
+  '/_api/edit-op': {
+    ...LANE_SOURCE,
+    rows: 'S2-ops',
+    via: 'an op that places or removes artboards: proposeLanes → one action, html + meta lane.replace with the read bases, written raw after acceptance; any other op: the source write path',
+    test: 'test/v2-artboard-one-step-hub.test.ts',
+  },
+  // S8.15 — Apply to every use: the every-use edit (`assets/<img8>.photo.json`) on the file plane, then
+  // `photo.every-use` once per canvas through the edit-op writer above (one action per canvas)
+  '/_api/photo-every-use': {
+    ...LANE_SOURCE,
+    rows: 'S2-ops',
+    via: 'savePhotoEdit (the file plane carries the sidecar), then the edit-op dispatch per canvas: the source write path',
+    test: 'test/photo-every-use.test.ts',
+  },
   '/_api/reorder': { ...LANE_SOURCE, rows: 'S04' },
   '/_api/delete-element': { ...LANE_SOURCE, rows: 'S05' },
   '/_api/insert-element': { ...LANE_SOURCE, rows: 'S06' },
@@ -67,10 +96,18 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/edit-array-src': { ...LANE_SOURCE, rows: 'V06' },
   '/_api/clip-edit': { ...LANE_SOURCE, rows: 'V07–V10' },
   // --- shared meta, annotations, comments (S19, S23, S24)
+  // S9.7b — the comment door: one comments/ops.ts op as the session.
+  '/_api/comments/op': {
+    class: 'lane',
+    rows: 'S24',
+    via: 'api.commentOp → publishComments (onCommentsChanged, doc first) → comments lane',
+    test: 'test/comments-op-route.test.ts',
+  },
   '/_api/canvas-meta': {
     class: 'lane',
     rows: 'S19',
-    via: 'onMetaChanged hook → meta lane.replace with the replaced file as base; camera/overlays/locked stay local',
+    // S2.9b — a PATCH with an `annotations` rider is ONE action: proposeLanes, meta + annotations.
+    via: 'onMetaChanged hook → meta lane.replace with the replaced file as base; camera/overlays/locked stay local; with an annotations rider → proposeLanes, meta + annotations as one action',
     test: 'test/sync-accepted-runtime.test.ts',
   },
   '/_api/annotations': {
@@ -88,8 +125,59 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
     via: 'onAnnotationsChanged hook → annotations lane.replace with the pre-batch board as base',
     test: 'test/sync-accepted-projection.test.ts',
   },
+  // S4.7 — sticky ↔ comment: ONE action carrying the board and the thread list of one canvas
+  // (contract S4-S9-votes-comments §3.2), so one undo restores both.
+  '/_api/annotations/to-comment': {
+    class: 'lane',
+    rows: 'S23',
+    via: 'proposeLanes → one action, annotations + comments lane.replace with the read bases',
+    test: 'test/annotations-convert.test.ts',
+  },
+  '/_api/comments/to-sticky': {
+    class: 'lane',
+    rows: 'S23',
+    via: 'proposeLanes → one action, comments + annotations lane.replace with the read bases',
+    test: 'test/annotations-convert.test.ts',
+  },
+  // S4.14 — formal votes (routes/votes.ts). Local: the vote + your ballot element are board ops;
+  // hub: the board gets the vote element (start) and its counts + the result section (end) only.
+  '/_api/votes': { class: 'read' }, // the canvas's votes + the session's own picks
+  '/_api/votes/start': {
+    class: 'lane',
+    rows: 'S23',
+    via: 'api.applyAnnotationOps → onAnnotationsChanged hook → annotations lane.replace (the vote element)',
+    test: 'test/votes-local.test.ts',
+  },
+  '/_api/votes/ballot': {
+    class: 'lane',
+    rows: 'S23',
+    via: 'local: api.applyAnnotationOps (your ballot element) → annotations lane; hub: nothing on the board',
+    test: 'test/votes-cloud-client.test.ts',
+  },
+  '/_api/votes/end': {
+    class: 'lane',
+    rows: 'S23',
+    via: 'api.applyAnnotationOps → annotations lane (the counts + the result section)',
+    test: 'test/votes-local.test.ts',
+  },
+  // No op log (a legacy link): the conversion's in-memory undo token puts both files back.
+  '/_api/annotations/convert-undo': {
+    class: 'lane',
+    rows: 'S23',
+    via: 'legacy only — both files written back through the comments/annotations hooks',
+    test: 'test/annotations-convert.test.ts',
+  },
+  // S4.16 - a FigJam board arrives as one section: one board change through the same two-lane door
+  // as the conversions above (the comments lane is carried unchanged), so one undo takes it all back.
+  '/_api/annotations/figjam': {
+    class: 'lane',
+    rows: 'S23',
+    via: 'proposeLanes → one action, annotations lane.replace with the read base (comments carried unchanged)',
+    test: 'test/figjam-into-route.test.ts',
+  },
   // --- accepted history (T27/T28)
   '/_api/project/history': { class: 'read' },
+  '/_api/links': { class: 'read' }, // S3.10a routes/element-links.ts: where on-click links go, parsed from the TSX
   '/_api/project/restore': {
     class: 'lane',
     rows: 'X15',
@@ -99,7 +187,7 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/project/conflict': {
     class: 'lane',
     rows: 'X15',
-    via: 'mine: html lane.replace on top of the accepted version (a new action); theirs: accepted body back to disk',
+    via: 'mine: html lane.replace on top of the accepted version (a new action); theirs: accepted body back to disk; keep-both (S11.12): mine as a new canvas (ONE doc.create) + history.aside, theirs back to disk',
     test: 'test/sync-accepted-runtime.test.ts',
   },
   '/_api/project/ai-action': {
@@ -111,9 +199,137 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/project/undo': {
     class: 'lane',
     rows: 'S18',
-    via: 'history.undo/redo — effect-aware compensation of one of this actor’s actions',
-    test: 'test/sync-accepted-runtime.test.ts',
+    via: 'history.undo/redo — effect-aware compensation of this actor’s actions: one id, several (actionIds), or a chat (S5.5)',
+    test: 'test/project-undo-routes.test.ts',
   },
+  '/_api/project/undo-stack': { class: 'read' },
+  // S11.6 — the structured canvas errors (routes/canvas-source.ts, with /_api/canvas-source)
+  '/_api/canvas-errors': { class: 'read' },
+  // S1.12b routes/history.ts — Version history (V2-1.9 §5.11)
+  '/_api/project/versions': { class: 'read' },
+  '/_api/project/changes': { class: 'read' },
+  '/_api/project/object-history': { class: 'read' },
+  '/_api/project/source': { class: 'read' },
+  '/_api/project/name': {
+    class: 'structural',
+    via: 'history.name { doc, revision, name|null } — one `name` action, an @name effect + names row, no head moves',
+    test: 'test/history-routes-access.test.ts',
+  },
+  '/_api/project/aside': {
+    class: 'structural',
+    via: 'history.aside { doc, lane, content, label? } — one `aside` action, the body as an @aside blob, no head moves',
+    test: 'test/history-routes-access.test.ts',
+  },
+  // S1.7 routes/trash.ts — the shared Trash over the one op log (S1-trash.md)
+  '/_api/trash': { class: 'read' },
+  '/_api/trash/restore': {
+    class: 'structural',
+    via: 'trash.restore { entry } — the canvas comes back with the same entry, in place or at "<name> 2"',
+    test: 'test/trash-derive.test.ts',
+  },
+  '/_api/trash/clear': {
+    class: 'structural',
+    via: 'trash.clear { items? } — owner-only clear-out: @trash effects + trash_cleared rows, no head moves',
+    test: 'test/acl-l18-trash.test.ts',
+  },
+  // S10.3 routes/ds.ts — a converted design system's reviews (V2-1.6 §5.11–§5.12)
+  '/_api/ds/state': { class: 'read' },
+  '/_api/ds/board': { class: 'read' }, // S10.7 the model the token editor reads (ds/board/build-model.ts)
+  '/_api/ds/revision': { class: 'read' },
+  '/_api/ds/revisions': { class: 'read' },
+  '/_api/ds/usage': { class: 'read' },
+  '/_api/ds/make-state': { class: 'read' }, // S10.16a section states (ds/make.ts)
+  // S10.19 — Design system › Advanced: the files view (GET) and Check the system (GET the last answer, POST a run).
+  // The run keeps one file under `_state/ds-check/` — per Mac, ignored, never synced (ds/check-system.ts).
+  '/_api/ds/system-files': { class: 'read' },
+  '/_api/ds/check-system': {
+    class: 'local',
+    rows: 'S10.19 (_state/ds-check/<ds>.json, runtime state)',
+  },
+  '/_api/ds/publish': {
+    class: 'lane',
+    via: 'ONE kernel action (proposeFiles: meta/TSX lane.replace ops) for the Plane-A half; revisions, working files and head.json ride the file plane, head.json last (ds/engine.ts, S10.2)',
+    test: 'test/ds-publish.test.ts',
+  },
+  '/_api/ds/pending': {
+    class: 'lane',
+    via: 'the DS canvas meta (dsPending) as ONE kernel action (proposeFiles)',
+    test: 'test/ds-routes-roles.test.ts',
+  },
+  '/_api/ds/outside': {
+    class: 'file-plane',
+    rows: 'keep: a revision + head.json base; undo: the working files from base — Plane B only',
+  },
+  '/_api/ds/pick': {
+    class: 'lane',
+    via: 'the pending entry dropped from the DS canvas meta (proposeFiles) + head.json base = K',
+    test: 'test/ds-conflict-pick.test.ts',
+  },
+  '/_api/ds/canvas': {
+    class: 'lane',
+    via: 'a canvas meta dsRev (+ its data-ds-rev="head" strips) as ONE kernel action (proposeFiles)',
+    test: 'test/ds-undo-hook.test.ts',
+  },
+  '/_api/ds/trash': {
+    class: 'lane',
+    via: 'ONE kernel action (proposeFiles: meta/TSX lane.replace ops) for the Plane-A half; revisions, working files and head.json ride the file plane, head.json last (ds/engine.ts, S10.2)',
+    test: 'test/ds-trash-token.test.ts',
+  },
+  '/_api/ds/restore': {
+    class: 'lane',
+    via: 'ONE kernel action (proposeFiles: meta/TSX lane.replace ops) for the Plane-A half; revisions, working files and head.json ride the file plane, head.json last (ds/engine.ts, S10.2)',
+    test: 'test/ds-trash-token.test.ts',
+  },
+  '/_api/ds/clear': {
+    class: 'lane',
+    via: 'ONE kernel action (proposeFiles: meta/TSX lane.replace ops) for the Plane-A half; revisions, working files and head.json ride the file plane, head.json last (ds/engine.ts, S10.2)',
+    test: 'test/ds-trash-token.test.ts',
+  },
+  '/_api/ds/make': {
+    class: 'file-plane',
+    rows: 'config.json + a NEW design-system.tsx/.meta.json (observed into existence like createCanvas) + revisions + head.json, last — Plane B only (ds/make.ts, S10.16a)',
+  },
+  '/_api/ds/switch': {
+    class: 'lane',
+    via: 'ONE kernel action (proposeFiles: meta lane.replace ops, plus the TSX where a data-ds-rev pin goes) for every switched canvas (ds/switch.ts, S10.14); nothing on Plane B',
+    test: 'test/ds-switch.test.ts',
+  },
+  '/_api/ds/convert': {
+    class: 'file-plane',
+    rows: 'per system: revisions + tokens.json + a NEW design-system.tsx/.meta.json (observed into existence like createCanvas), head.json last; Restore moves head.json + the canvas to _trash — Plane B only, all or nothing (ds/convert.ts, S10.12)',
+  },
+  '/_api/ds/library': {
+    class: 'lane',
+    via: "update: ONE kernel action (proposeFiles: the left-out canvases' metas, dsRev = the old head) for the Plane-A half; the verified upstream revision, the working files and head.json ride the file plane, head.json last. link / unlink / check: Plane B only (config + a NEW design-system.tsx like createCanvas; head.json) (ds/library.ts, S10.18b)",
+    test: 'test/ds-library.test.ts',
+  },
+  '/_api/ds/fix-contrast': {
+    class: 'lane',
+    via: 'the DS canvas meta (dsPending) as ONE kernel action (proposeFiles) — the lightness fix is a waiting edit (ds/edges.ts, S10.17)',
+    test: 'test/ds-edges.test.ts',
+  },
+  '/_api/ds/add-colour': {
+    class: 'lane',
+    via: 'the DS canvas meta (dsPending add entry) as ONE kernel action (proposeFiles) (ds/edges.ts, S10.17)',
+    test: 'test/ds-edges.test.ts',
+  },
+  '/_api/ds/nearest': { class: 'read' }, // S10.17 the closest system colour (ds/nearest.ts)
+  '/_api/ds/off-system': { class: 'read' }, // S10.17 hand-picked colours on the changed lines (ds/edges.ts)
+  '/_api/ds/upgrade': {
+    class: 'lane',
+    via: 'apply: ONE kernel action (proposeFiles: the codemodded canvases that passed the visual gate); the system files (tokens CSS, tokens.json, config.json schema) follow on Plane B only after acceptance, and the ds-upgrade undo hook moves them with its undo / redo. The other steps write only runtime state (_state/ds-upgrade/) and a throwaway stage under the OS temp dir (ds/upgrade-apply.ts, S10.15a)',
+    test: 'test/ds-upgrade-apply.test.ts',
+  },
+  '/_api/ds/default': {
+    class: 'file-plane',
+    rows: 'config.json defaultDesignSystem, written atomically (ds/default.ts, S10.13) — Plane B only',
+  },
+  '/_api/ds/rename': {
+    class: 'file-plane',
+    rows: 'config.json designSystems[].label, written atomically (ds/rename.ts, P8 round 7) — Plane B only; canvases pin the system by name, so nothing else moves',
+  },
+  // S1.18 — a stable canvas link's entry → path (history/links.ts)
+  '/_api/link/resolve': { class: 'read' },
   // --- manifest (S20–S22)
   '/_api/canvas': {
     class: 'structural',
@@ -149,12 +365,34 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/asset/chunk': { class: 'local' },
   '/_api/asset/chunk-finish': { class: 'file-plane', rows: 'S27' },
   '/_api/assets': { class: 'file-plane', rows: 'S27' },
+  // S8.13 — Move assets to the trash: the files leave `assets/` (parked in this machine's `_trash/`), and the file plane
+  // carries the removal to peers as a tombstone, exactly like a trashed canvas (sync/tombstone-apply.ts quarantines it there)
+  '/_api/assets/trash': { class: 'file-plane', rows: 'S27 (delete lane)' },
+  // P8 round 7 — Rename… an asset: assets/<name> + its sidecars move to the new name (a delete + a create on the file plane);
+  // a picture a canvas uses is refused, so no reference changes (asset-rename.ts)
+  '/_api/assets/rename': { class: 'file-plane', rows: 'S27 (rename = delete + create)' },
   '/_api/import-asset': { class: 'file-plane', rows: 'S28/I08' },
+  // p8-import-link — Add from a link…: the bytes land through the same Assets writer (assets/<sha8>.<ext>)
+  '/_api/import-link': { class: 'file-plane', rows: 'S28/I08' },
+  '/_api/import-link/key': { class: 'read' }, // F2 — the shell page's key for the link import, no effect
   '/_api/import-brand': { class: 'file-plane', rows: 'S28/I07' },
   '/_api/figma/import': { class: 'file-plane', rows: 'I04/I05 (canvases join by cold start)' },
   '/_api/figma/explode': { class: 'file-plane', rows: 'I04/I05 (canvases join by cold start)' },
+  // S8.17 — the Import from Figma sheet: the picked frames land as ONE new canvas (+ its board, + tokens)
+  '/_api/figma/import-frames': {
+    class: 'file-plane',
+    rows: 'I04/I05 (canvases join by cold start)',
+  },
   '/_api/generate-jobs': { class: 'file-plane', rows: 'S29' },
+  // S8.16 — N takes land in assets/ with their `.gen.json` sidecars (companion text); the quote and the reads write nothing
+  '/_api/generate-takes': { class: 'file-plane', rows: 'S29' },
   '/_api/generate/audio-reuse': { class: 'file-plane', rows: 'S30' },
+  // S8.10 — Handoff to production: the route starts ONE AI run (or keeps the request in this Mac's outbox); it
+  // writes no project file itself. The run's one file travels like every AI write (the registry item is a
+  // versioned sidecar next to the canvas; an app component lands in the repo, outside the design root).
+  '/_api/handoff': { class: 'local' },
+  '/_api/handoff/targets': { class: 'read' },
+  '/_api/handoff/result': { class: 'read' },
   '/_api/stickers': { class: 'file-plane', rows: 'S27' },
   '/_api/generate/prefs': { class: 'local', rows: 'S31 (config.assign schema gap)' },
   // --- git (H09/H10)
@@ -193,15 +431,45 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/setup-readiness': { class: 'read' },
   '/_api/whats-new': { class: 'read' },
   '/_api/figma/probe': { class: 'read' },
+  '/_api/figma/frames': { class: 'read' }, // S8.17 — lists a page's frames, writes nothing
   '/_api/figma/status': { class: 'read' },
   '/_api/generate/providers': { class: 'read' },
   '/_api/generate/audio-search': { class: 'read' },
   '/_api/export-history': { class: 'read' },
+  '/_api/diagnostics': { class: 'read' }, // V2-2.9: this machine's logs, never written here
+  '/_api/diagnostics/report': { class: 'read' },
+  '/_api/index': { class: 'read' }, // V2-2.17: the in-memory index, persisted only to the user cache
+  // V2-2.17: raises picture keys in this server's render queue; GET /_api/thumb/<key> (dynamic,
+  // fetch-handled) reads the per-Mac picture cache — neither touches the project
+  '/_api/thumbs/want': { class: 'local' },
+  '/_api/ui/open': { class: 'local' }, // V2-2.4b `maude design open` → the shells (ws relay)
+  '/_api/agent/run/begin': { class: 'local' }, // V2-2.4b the design plugin's hooks (V2-1.11 §5.4)
+  '/_api/agent/edit/check': { class: 'local' }, // V2-2.4b the design plugin's hooks (V2-1.11 §5.4)
+  '/_api/agent/check': { class: 'local' }, // V2-2.4b the design plugin's hooks (V2-1.11 §5.4)
+  '/_api/agent/edit/touched': { class: 'local' }, // V2-2.4b the design plugin's hooks (V2-1.11 §5.4)
+  '/_api/agent/run/end': { class: 'local' }, // V2-2.4b the design plugin's hooks (V2-1.11 §5.4)
+  '/_api/agent/write/claim': { class: 'local' }, // p8-a1-claims — a disk-writing verb claims its bytes for its run
+  '/_api/agent/bash/window': { class: 'local' }, // p8-a1-claims — a Bash call that cannot claim names its files
   // --- this machine only
   '/_api/acp/activity': { class: 'local' },
   '/_api/acp/attachment': { class: 'local' },
   '/_api/acp/chat': { class: 'local' },
   '/_api/acp/chats': { class: 'local' },
+  // S5.7 routes/chat.ts: chats are per Mac (`_chat/`, DDR-115) - search, Move to trash (a `trashedAt` in the
+  // chat's own sidecar), Restore, Clear out, and the session id Open in terminal resumes
+  '/_api/acp/chat/session': { class: 'local' },
+  '/_api/acp/chats/clear': { class: 'local' },
+  '/_api/acp/chats/restore': { class: 'local' },
+  '/_api/acp/chats/search': { class: 'local' },
+  '/_api/acp/chats/trash': { class: 'local' },
+  // S5.10 routes/chat-attach.ts: a photo / footage / sound attachment lands in Assets (the same
+  // writer as /_api/asset); a PDF and every folder grant are this Mac's (`_chat/`, `_state/`)
+  '/_api/ai/attach/file': { class: 'file-plane', rows: 'S27' },
+  '/_api/ai/attach/folder': { class: 'local' },
+  '/_api/ai/attach/folder/detach': { class: 'local' },
+  '/_api/ai/attach/folder/revoke': { class: 'local' },
+  '/_api/ai/attach/folders': { class: 'local' },
+  '/_api/ai/attach/folder/list': { class: 'local' },
   '/_api/acp/focus': { class: 'local' },
   '/_api/acp/running': { class: 'local' },
   '/_api/acp/status': { class: 'local' },
@@ -209,6 +477,20 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/ai/end': { class: 'local', rows: 'I02' },
   '/_api/ai/heartbeat': { class: 'local', rows: 'I02' },
   '/_api/ai/start': { class: 'local', rows: 'I02' },
+  // S5.3 — the AI run registry (routes/ai.ts): this Mac's `_state/runs/` + its lease home. A
+  // stop's partial version publishes through the run's stage (S5.5), not through this route.
+  '/_api/ai/runs': { class: 'read' },
+  '/_api/ai/runs/stop-all': { class: 'local' },
+  '/_api/ai/runs/:id/stop': { class: 'local' },
+  '/_api/ai/runs/:id/cancel': { class: 'local' },
+  '/_api/ai/runs/:id/keep-going': { class: 'local' },
+  // S5.11b — Run on a copy writes the canvas source as the WAITING run's tool write: claimed for
+  // that run's stage before it lands, so it is published with the run's own action (one version).
+  '/_api/ai/runs/:id/copy': {
+    class: 'lane',
+    via: "copy write claimed for the waiting run's stage (claimAiWrite) → watcher import → staged into that run's action",
+    test: 'test/ai-run-copy.test.ts',
+  },
   '/_api/claude/install': { class: 'local' },
   '/_api/claude/install-status': { class: 'local' },
   '/_api/claude/signin': { class: 'local' },
@@ -218,6 +500,16 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/cloud/attach/code': { class: 'local' },
   '/_api/cloud/detach': { class: 'local' },
   '/_api/cloud/history': { class: 'read' },
+  // S6.0b routes/cloud-move.ts: creates the cloud project + links THIS folder (the attach lane);
+  // the seed-up is the sync runtime's, never this route's
+  '/_api/cloud/move': { class: 'local' },
+  // S6.15 — Help › Help and guides adds the two guide canvases: NEW files observed into existence (like createCanvas)
+  '/_api/help/add-guides': {
+    class: 'file-plane',
+    rows: 'How to use Maude / How to make video .tsx + .meta.json, new files only (routes/help-guides.ts; never over an existing file)',
+  },
+  // S9.20b routes/cloud-plan.ts: the account's plan from cloud /api/home (device token); writes nothing
+  '/_api/cloud/plan': { class: 'read' },
   '/_api/cloud/projects': { class: 'read' },
   '/_api/cloud/signin/poll': { class: 'local' },
   '/_api/cloud/signin/start': { class: 'local' },
@@ -226,8 +518,12 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/debug-bundle': { class: 'local' },
   '/_api/export': { class: 'local' },
   '/_api/export-assemble': { class: 'local' },
+  '/_api/export-estimate': { class: 'local' }, // S8.1 — numbers only, writes nothing
   '/_api/export-jobs': { class: 'local' },
   '/_api/export-jobs/download': { class: 'local' },
+  '/_api/export-jobs/retry': { class: 'local' }, // S8.4 — re-runs a job's failed items; the files stay on this Mac
+  '/_api/export-preflight': { class: 'local' }, // S8.7 — names and numbers about a print export, writes nothing
+  '/_api/export-preview': { class: 'local' }, // P8 C2 — artboard stills of what an export reaches, from the picture service; writes nothing
   '/_api/export-warmup': { class: 'local' },
   '/_api/figma/connect': { class: 'local' },
   '/_api/generate/keyframe-model': { class: 'local' },
@@ -240,6 +536,15 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/sync/cancel-assets': { class: 'local' },
   '/_api/sync/ownership': { class: 'local' },
   '/_api/sync/resync': { class: 'local', rows: 'X16' },
+  // gate-b-sec4 — Connect a committed link this Mac never made: a per-Mac record + a sync restart
+  '/_api/sync/link': { class: 'read' },
+  '/_api/sync/link/confirm': { class: 'local', rows: 'X16' },
+  // S11.17 — Retry lands the canvas writes a full disk held; each then travels like any studio write
+  '/_api/diagnostics/disk-retry': { class: 'local' },
+  // p8-a1-save-hold — the closing page lands the saves held behind an AI call; each then travels like any studio write
+  '/_api/diagnostics/save-hold-flush': { class: 'local' },
+  '/_api/diagnostics/disk': { class: 'read' },
+  '/_api/diagnostics/last-work': { class: 'read' },
   '/_api/sync/offline': { class: 'local', rows: 'T19 (pull the whole file plane now)' },
   '/_api/sync/settings': { class: 'local' },
   '/_api/sync/trash': { class: 'local', rows: 'X15 (restore re-enters through cold start)' },
@@ -248,4 +553,74 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/ui-prefs': { class: 'local' },
   '/_api/workspace/disclosure': { class: 'local' },
   '/_api/workspace/sign-in': { class: 'local' },
+  // --- the V2-2.5 table (routes/*.ts) — classified by the lead (decision v2-2.5 classification)
+  '/_api/outbox': { class: 'read' }, // routes/outbox.ts: the queue's view
+  '/_api/outbox/:id': { class: 'read' },
+  '/_api/outbox/:id/cancel': { class: 'local' }, // this machine's queue (_state/outbox)
+  '/_api/outbox/:id/retry': { class: 'local' },
+  '/_api/shell/status': { class: 'read' }, // routes/shell.ts: the desktop shell's probe — four counts, no effect
+  '/_api/project/format': { class: 'read' }, // routes/project-format.ts
+  '/_api/asset-state': { class: 'read' }, // routes/asset-state.ts (S8.19): disk + queue + hub presence, no effect
+  // routes/asset-details.ts (S8.21): the details of one asset and the Generated runs — reads of the project's own sidecars
+  '/_api/asset-details': { class: 'read' },
+  '/_api/asset-generated': { class: 'read' },
+  // routes/generate.ts (S8.16): the consent quote is this process's memory; `of` reads a take's `.gen.json`
+  '/_api/generate-takes/quote': { class: 'local' },
+  '/_api/generate-takes/of': { class: 'read' },
+  '/_api/pins': { class: 'local' }, // routes/pins.ts: _canvas-state/_pins.json (DDR-115 runtime)
+  // routes/describe.ts (S8.20): search in pictures — the answer is _canvas-state/_describe.json (DDR-115 runtime), the words
+  // live in ~/.maude/index (this Mac): nothing reaches a peer
+  '/_api/describe': { class: 'read' },
+  '/_api/describe/consent': { class: 'local' },
+  '/_api/describe/stop': { class: 'local' },
+  // S11.13 routes/settings.ts — Settings › Advanced reads (a count; plugin versions)
+  '/_api/kg/summary': { class: 'read' },
+  '/_api/settings/about': { class: 'read' },
+  '/_api/sync/availability': { class: 'read' }, // routes/availability.ts (S11.4): listed minus on disk, no effect
+  '/_api/sync/conflicts': { class: 'read' }, // routes/sync-conflicts.ts (S9.24): this Mac's _state/conflicts/, no effect
+  // S9.24 — a conflict pick is the canvas's own op path: one batch, one annotations lane.replace.
+  '/_api/sync/conflicts/resolve': {
+    class: 'lane',
+    rows: 'S23',
+    via: 'applyAnnotationOps → onAnnotationsChanged hook → annotations lane.replace with the pre-batch board as base',
+    test: 'test/sync-conflicts-route.test.ts',
+  },
+  // S3.5 — routes/present.ts: Present order / skip / notes in the versioned .meta.json
+  '/_api/present-meta': {
+    class: 'lane',
+    rows: 'S19',
+    via: 'onMetaChanged hook → meta lane.replace with the replaced file as base (api writeCanvasMetaText, the layout lane writer)',
+    test: 'test/present-meta-route.test.ts',
+  },
+  '/_api/ds/components': { class: 'read' }, // S2.16 routes/edit.ts: what the Component picker lists (minRole edit)
+  '/_api/kinds/presets': { class: 'read' }, // S7.20 routes/kinds.ts: what the F size picker lists (minRole edit)
+  '/_api/kinds/warnings': { class: 'read' }, // S7.25 routes/kinds.ts: the things to check on each artboard (minRole read)
+  '/_api/kinds/convert-plan': { class: 'read' }, // S7.25 routes/kinds.ts: what Change kind will do, and its Check after list (minRole edit)
+  '/_api/edit-instance': { class: 'read' }, // S2.17 routes/edit.ts: what an object is (instance of a component?) — read from the TSX, anyone who sees the canvas
+  '/_api/comp-media': { class: 'read' }, // S7.4 routes/video.ts: the comp's words / speech / beats, derived from the cut
+  // S7.11b — routes/video.ts: runs transcribe-local / beats on one assets/<8 hex>.<ext>; the only file written is the
+  // companion sidecar (`<8 hex>.transcript.json` / `.beats.json`) next to it, which the file plane carries (S26)
+  '/_api/media-analysis': { class: 'file-plane', rows: 'S26' },
+  // S9.19 — routes/share.ts: the desktop's door to the linked hub's /api/access/*. Who has access
+  // lives on the hub (users / invites / grants), never in the project's files: no lane carries it.
+  '/_api/share/posture': { class: 'read' },
+  '/_api/share/me': { class: 'read' },
+  '/_api/share/people': { class: 'read' },
+  '/_api/share/invites': { class: 'local' }, // the hub's invitation (or this Mac's outbox while offline)
+  '/_api/share/invites/:id/resend': { class: 'local' },
+  '/_api/share/invites/:id/revoke': { class: 'local' },
+  '/_api/share/people/:id': { class: 'local' },
+  '/_api/share/people/:id/remove': { class: 'local' },
+  // S9.20 — the project's link and its rules (the hub's `share_links` row; nothing in the folder)
+  '/_api/share/links': { class: 'local' },
+  '/_api/share/links/:id': { class: 'local' },
+  // S9.21 — Ask to edit: the hub's access request (nothing in the folder)
+  '/_api/share/requests': { class: 'local' },
+  // S11.14 — Settings › Connections › the team hub row (token last 4 + tokenless /health version; reads only)
+  '/_api/connections/hub': { class: 'read' },
+  '/_api/project/migrate': {
+    class: 'migration',
+    via: 'the migrate engine rewrites files after the hub format flip (V2-1.12 §5.10 I7, all-or-nothing with its own snapshot); peers receive the rewritten files through the file plane / watcher import like any outside edit',
+    test: 'test/format-mixed-peer.test.ts',
+  },
 };

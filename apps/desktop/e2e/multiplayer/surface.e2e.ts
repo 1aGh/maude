@@ -22,6 +22,7 @@ import { $, browser } from '@wdio/globals';
 import { unresolvedRequirements } from '../../../../scripts/dev/sync-e2e/surface-requirements.mjs';
 import { isNativeShell } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
+import { pinCurrentWindow } from '../helpers/windows';
 
 const runPath = process.env.MAUDE_SURFACE_CONFIG;
 if (!runPath) throw new Error('Missing isolated surface configuration');
@@ -31,6 +32,17 @@ let notesSidecar = 'ui-surfacemedia.annotations.json';
 let currentCase: Record<string, unknown> | null = null;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const selector = (id: string) => `[data-testid="${id}"]`;
+
+// The v1 status bar is gone (V2-4.8b). Where its controls went:
+//   · the sync chip's text         → the Share cluster word `share-cluster-status` (+ `data-sync-label`, `title`)
+//   · the sync chip button         → Menu › Diagnostics › Sync (the Sync panel, whole)
+//   · the Changes chip             → Menu › Version history (`git-panel` is its root)
+//   · the selection chip           → the Inspector header `inspector-selection`
+const SYNC_WORD = selector('share-cluster-status');
+const SYNC_CHIP_JS = `(() => {
+  const el = document.querySelector('${SYNC_WORD}');
+  return el ? [el.textContent, el.getAttribute('data-sync-label'), el.getAttribute('title')].filter(Boolean).join(' · ') : null;
+})()`;
 const slug = (s: string) => s.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
 type ProbeResult = {
   text: string | null;
@@ -109,6 +121,27 @@ type Surface = {
    *  shell's own handlers receive — never a store or API mutation). */
   shell: (script: string) => Promise<unknown>;
 };
+
+/** Menu › Version history on one surface: the pill, then the row (the action toggles the panel). */
+async function toggleHistoryOf(p: Surface): Promise<void> {
+  await p.click(selector('project-pill'));
+  await p.click(selector('project-menu-row-history.open'));
+}
+async function openHistoryPanelOf(p: Surface): Promise<void> {
+  if ((await p.read(selector('git-panel'))) === null) await toggleHistoryOf(p);
+}
+/** Menu › Diagnostics › Sync on one surface: today's Sync panel inside the Diagnostics sheet. */
+async function openSyncDetailsOf(p: Surface): Promise<void> {
+  if ((await p.read(selector('diag-sync'))) !== null) return;
+  await p.click(selector('project-pill'));
+  await p.click(selector('project-menu-row-sub-diagnostics'));
+  await p.click(selector('project-menu-row-diag.sync'));
+  const end = Date.now() + 15000;
+  while ((await p.read(selector('diag-sync'))) === null) {
+    if (Date.now() > end) throw new Error(`Diagnostics › Sync did not open on ${p.name}`);
+    await new Promise((r) => setTimeout(r, 200));
+  }
+}
 // Read browser code verbatim: TS function serialization can capture esbuild's
 // Node-side __name helper, which does not exist inside Chromium/WKWebView.
 const treeDragSource = readFileSync(new URL('./tree-drag.js', import.meta.url), 'utf8');
@@ -432,6 +465,25 @@ async function gesture(p: Surface, q: string, op: string, value: ProbeArgument =
   const result = await p.probe(q, op, value);
   if (!result || result.error)
     throw new Error(`DOM gesture ${op} on ${q}: ${result?.error ?? 'target absent'}`);
+}
+/** The toolbar slot's testid for an annotation tool (V2-4.5c: the Preview toolbar; Highlighter and Eraser
+ *  are Marker tips, so they share the `pen` slot). */
+const annotationSlot = (tool: string) =>
+  `[data-testid="toolbar-slot-${tool === 'highlighter' || tool === 'eraser' ? 'pen' : tool}"]`;
+/** The slot with `tool` armed (a Marker tip also names itself in `data-tip`). */
+const annotationArmed = (tool: string) =>
+  `${annotationSlot(tool)}[aria-pressed="true"]${
+    tool === 'pen' || tool === 'highlighter' || tool === 'eraser' ? `[data-tip="${tool}"]` : ''
+  }`;
+/** Arm an annotation tool in the Preview toolbar (the caller clicked `palette-mode-preview`). Marker tips
+ *  (C14): the first click arms the remembered tip, a second opens the tips and a tip arms it. */
+async function armAnnotationTool(p: Surface, tool: string) {
+  await gesture(p, annotationSlot(tool), 'click');
+  if (tool !== 'pen' && tool !== 'highlighter' && tool !== 'eraser') return;
+  if ((await p.probe(annotationArmed(tool)))?.visible) return;
+  if (!(await p.probe('[data-testid="toolbar-popover-marker-tips"]'))?.visible)
+    await gesture(p, annotationSlot(tool), 'click');
+  await gesture(p, `[data-testid="toolbar-tip-${tool}"]`, 'click');
 }
 async function openCanvas(p: Surface, rel: string) {
   if ((await p.read(`[data-testid="canvas-frame"][data-path=".design/${rel}"]`)) === null)
@@ -787,9 +839,9 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
     // every native command paid it, and a three-row run no longer fit 15
     // minutes. This app has one window: name it once, and the service stops
     // re-deciding (an explicit switch suppresses the auto-focus).
-    await (browser as unknown as { tauri?: { switchWindow(label: string): Promise<void> } }).tauri
-      ?.switchWindow('main')
-      .catch((error: unknown) => console.warn(`[surface] window pin failed: ${String(error)}`));
+    await pinCurrentWindow().catch((error: unknown) =>
+      console.warn(`[surface] window pin failed: ${String(error)}`)
+    );
     let closingBrowser = false;
     // The public server handle exposes process termination without DEBUG logs
     // (which include capability-bearing URLs). Keep its RPC loopback-only.
@@ -1151,8 +1203,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               for (const p of all) await openCanvas(p, rel);
               for (const p of all) await until(async () => (await p.read('h1', true)) !== null);
               const before = bytes(from.root, rel).toString();
-              await until(async () => !!(await from.probe(selector('palette-mode-edit')))?.visible);
-              await gesture(from, selector('palette-mode-edit'), 'click');
+              await until(async () => (await from.read(selector('palette-mode-edit'))) !== null);
+              await from.click(selector('palette-mode-edit'));
               const editor = 'h1[contenteditable="plaintext-only"]';
               // Double-click drills the real selection hierarchy before entering
               // the leaf editor, matching the existing native text-edit scenario.
@@ -1219,8 +1271,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           }
           window[key].push({ at: performance.now(), kind: 'preparation-start' });
         })()`);
-        await until(async () => !!(await p.probe(selector('palette-mode-edit')))?.visible);
-        await gesture(p, selector('palette-mode-edit'), 'click');
+        await until(async () => (await p.read(selector('palette-mode-edit'))) !== null);
+        await p.click(selector('palette-mode-edit'));
         const selectedValue = '[aria-label="Selected element"] .val';
         // Discard the parked selection through the visible shell control.
         // Waiting for it to disappear prevents a same-id heading in the old
@@ -1244,7 +1296,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           await until(async () => {
             const selected = await p.read(selectedValue);
             return (
-              (await p.read('.st-cp-idtag')) === 'h1' &&
+              (await p.read('.insp-cp-idtag')) === 'h1' &&
               !!selected?.includes(`[data-cd-id="${id}"]`) &&
               selected.includes(headingText) &&
               (await p.read(weight)) !== null
@@ -1266,7 +1318,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             )
           );
           throw new Error(
-            `Inspector did not select current h1 ${id} (selected: ${await p.read(selectedValue)}, tag: ${await p.read('.st-cp-idtag')}): ${String(error)}`
+            `Inspector did not select current h1 ${id} (selected: ${await p.read(selectedValue)}, tag: ${await p.read('.insp-cp-idtag')}): ${String(error)}`
           );
         }
       };
@@ -1489,7 +1541,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           const menu = await from.read('[role="menu"]');
           await from.screenshot(join(run.out, `L01-folder-menu-${from.name}.png`));
           if (!menu?.includes('Rename folder')) {
-            await from.click('.st-sb-title');
+            await from.click('.cv-sb-title');
             throw new Error('Folder menu has no Rename folder');
           }
           await from.promptNext(renamed);
@@ -1556,7 +1608,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
       for (const from of all) {
         await check('L04.canvas.create.tree', `${from.name}-to-peers`, async () => {
           const name = `SurfaceBoard-${from.name}`;
-          await from.click('[aria-label="New blank brief board"]');
+          await from.click('[aria-label="New canvas"]');
           await from.fill('[aria-label="New brief board name"]', name);
           const start = performance.now();
           await from.click('[aria-label="Create brief board"]');
@@ -1655,9 +1707,10 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             );
           }
           await from.hover(selector(`canvas-row-ui-${slug(destination)}-${slug(name)}`));
-          await from.confirmNext();
+          await from.click(selector(`tree-row-menu-ui-${slug(destination)}-${slug(name)}`));
           const start = performance.now();
-          await from.click(`[aria-label="Delete canvas ${name}"]`);
+          // S1.2: the red × is the row menu's "Move to trash" now, and it asks nothing
+          await from.menu('Move to trash');
           return observeAll(
             all,
             `L04-delete-${from.name}-to`,
@@ -1688,9 +1741,9 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             await until(async () => (await p.read('h1', true)) === name);
           }
           await from.hover(selector(`canvas-row-ui-${slug(name)}`));
-          await from.confirmNext();
+          await from.click(selector(`tree-row-menu-ui-${slug(name)}`));
           const start = performance.now();
-          await from.click(`[aria-label="Delete canvas ${name}"]`);
+          await from.menu('Move to trash');
           return observeAll(
             all,
             `L04-independent-delete-${from.name}`,
@@ -1729,10 +1782,11 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             for (const p of all) {
               await openCanvas(p, `ui/${name}.tsx`);
               await until(async () => (await p.read('h1', true)) === 'Surface shapes baseline');
-              await until(async () => !!(await p.probe(selector('palette-mode-edit')))?.visible);
+              await until(async () => (await p.read(selector('palette-mode-edit'))) !== null);
             }
-            await gesture(from, selector('palette-mode-edit'), 'click');
-            const shapeButton = '[aria-label^="Shape (R)"]';
+            // V2-4.5c: annotation tools live only in the Preview toolbar (Edit's Shape R draws a design shape).
+            await from.click(selector('palette-mode-preview'));
+            const shapeButton = '[data-testid="toolbar-slot-shape"]';
             await gesture(from, shapeButton, 'click');
             await until(
               async () => !!(await from.probe(`${shapeButton}[aria-pressed="true"]`))?.visible
@@ -1777,7 +1831,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             if (!shapeId) throw new Unexercised('Shape creation did not establish an ID');
             const before = await snapshot();
             const old = shapeDisk(from, shapeId);
-            await gesture(from, selector('palette-mode-edit'), 'click');
+            await from.click(selector('palette-mode-edit'));
             const start = performance.now();
             await gesture(from, q(), 'pointer', { dx: 65, dy: 35 });
             return observeAll(
@@ -1823,7 +1877,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           await check(`L09.shape-${kind}.delete`, `${from.name}-to-peers`, async () => {
             if (!shapeId) throw new Unexercised('Shape creation did not establish an ID');
             await snapshot();
-            await gesture(from, selector('palette-mode-edit'), 'click');
+            await from.click(selector('palette-mode-edit'));
             await gesture(from, q(), 'pointer');
             const start = performance.now();
             await gesture(from, 'body', 'key', { key: 'Backspace' });
@@ -1862,7 +1916,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
         }
       }
       for (const from of all) {
-        for (const [kind, label, tool] of [
+        for (const [kind, , tool] of [
           ['pen', 'Pen', 'pen'],
           ['highlighter', 'Highlighter', 'pen'],
           ['arrow', 'Arrow', 'arrow'],
@@ -1894,14 +1948,11 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             for (const p of all) {
               await openCanvas(p, `ui/${name}.tsx`);
               await until(async () => (await p.read('h1', true)) === 'Surface drawing baseline');
-              await until(async () => !!(await p.probe(selector('palette-mode-edit')))?.visible);
+              await until(async () => (await p.read(selector('palette-mode-edit'))) !== null);
             }
-            await gesture(from, selector('palette-mode-edit'), 'click');
-            const button = `[aria-label^="${label} ("]`;
-            await gesture(from, button, 'click');
-            await until(
-              async () => !!(await from.probe(`${button}[aria-pressed="true"]`))?.visible
-            );
+            await from.click(selector('palette-mode-preview'));
+            await armAnnotationTool(from, kind);
+            await until(async () => !!(await from.probe(annotationArmed(kind)))?.visible);
             const before = new Set(
               (await from.probe('[data-tool][data-id]'))?.matches?.map((m) => m.id)
             );
@@ -1946,7 +1997,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           if (kind === 'text' || kind === 'section') {
             await check(`L09.${kind}.edit-text`, `${from.name}-to-peers`, async () => {
               await snapshot();
-              await gesture(from, selector('palette-mode-edit'), 'click');
+              await from.click(selector('palette-mode-edit'));
               await gesture(from, grabQ(), 'doubleClick');
               // A section's title is renamed in its chip; a text in place.
               const editor =
@@ -1971,7 +2022,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             await check(`L09.${kind}.${action}`, `${from.name}-to-peers`, async () => {
               const before = await snapshot();
               const old = drawingDisk(from, drawingId);
-              await gesture(from, selector('palette-mode-edit'), 'click');
+              await from.click(selector('palette-mode-edit'));
               let target = grabQ();
               if (action === 'resize') {
                 await gesture(from, grabQ(), 'pointer');
@@ -2022,7 +2073,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           }
           await check(`L09.${kind}.delete`, `${from.name}-to-peers`, async () => {
             await snapshot();
-            await gesture(from, selector('palette-mode-edit'), 'click');
+            await from.click(selector('palette-mode-edit'));
             await gesture(from, grabQ(), 'pointer');
             const start = performance.now();
             await gesture(from, 'body', 'key', { key: 'Backspace' });
@@ -2069,12 +2120,12 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             // strokes under the next direction's resize/selection gestures.
             await openCanvas(p, `ui/${notesCanvas}.tsx`);
             await until(async () => (await p.read('h1', true)) === 'Surface media baseline');
-            await gesture(p, selector('palette-mode-edit'), 'click');
+            await p.click(selector('palette-mode-preview'));
           }
           const before = new Set(
             (await from.probe('[data-tool="sticky"][data-id]'))?.matches?.map((m) => m.id)
           );
-          await gesture(from, '[aria-label^="Sticky ("]', 'click');
+          await armAnnotationTool(from, 'sticky');
           await until(async () => !!(await from.probe('.dc-annot-input'))?.visible);
           const start = performance.now();
           await gesture(from, '.dc-annot-input', 'pointer', { x: 0.3, y: 0.3, dx: 130, dy: 100 });
@@ -2129,7 +2180,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               return result.rect;
             })
           );
-          await gesture(from, selector('palette-mode-edit'), 'click');
+          await from.click(selector('palette-mode-edit'));
           const oldDisk = stickyDisk(from, strokeId);
           const start = performance.now();
           await gesture(from, q, 'pointer', { dx: 80, dy: 35 });
@@ -2205,7 +2256,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           for (const p of all)
             if (!(await p.probe(q))?.visible)
               throw new Error(`Delete precondition absent at ${p.name}`);
-          await gesture(from, selector('palette-mode-edit'), 'click');
+          await from.click(selector('palette-mode-edit'));
           await gesture(from, q, 'pointer');
           const start = performance.now();
           await gesture(from, 'body', 'key', { key: 'Backspace' });
@@ -2264,13 +2315,11 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           for (const p of all) {
             await openCanvas(p, `ui/${name}.tsx`);
             await until(async () => (await p.read('h1', true)) === 'Surface drawing baseline');
-            await until(async () => !!(await p.probe(selector('palette-mode-edit')))?.visible);
+            await until(async () => (await p.read(selector('palette-mode-edit'))) !== null);
           }
-          await gesture(from, selector('palette-mode-edit'), 'click');
-          await gesture(from, '[aria-label^="Pen ("]', 'click');
-          await until(
-            async () => !!(await from.probe('[aria-label^="Pen ("][aria-pressed="true"]'))?.visible
-          );
+          await from.click(selector('palette-mode-preview'));
+          await armAnnotationTool(from, 'pen');
+          await until(async () => !!(await from.probe(annotationArmed('pen')))?.visible);
           await gesture(from, '.dc-annot-input', 'pointer', { x: 0.35, y: 0.3, dx: 110, dy: 80 });
           await until(async () => {
             eraseId =
@@ -2285,11 +2334,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
                 sameRecord(drawingDisk(p, eraseId), originalRecord)
             );
           const stroke = (await from.probe(q()))?.rect;
-          await gesture(from, '[aria-label^="Eraser ("]', 'click');
-          await until(
-            async () =>
-              !!(await from.probe('[aria-label^="Eraser ("][aria-pressed="true"]'))?.visible
-          );
+          await armAnnotationTool(from, 'eraser');
+          await until(async () => !!(await from.probe(annotationArmed('eraser')))?.visible);
           const input = (await from.probe('.dc-annot-input'))?.rect;
           if (!stroke || !input?.width || !input.height)
             throw new Unexercised('Eraser target geometry unavailable');
@@ -2353,7 +2399,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           for (const p of all) {
             await openCanvas(p, `ui/${name}.tsx`);
             await until(async () => (await p.read('h1', true)) === 'Surface upload baseline');
-            await until(async () => !!(await p.probe(selector('palette-mode-edit')))?.visible);
+            await until(async () => (await p.read(selector('palette-mode-edit'))) !== null);
             if ((await p.probe('[data-type="image"][data-id]')) !== null)
               throw new Unexercised(`Upload requires a clean image fixture at ${p.name}`);
           }
@@ -2415,8 +2461,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             const editRel = assetRel.replace(/\.png$/, '.photo.json');
             const start = performance.now();
             if (brightness) {
-              await from.fill('.st-cp-num input[aria-label="Brightness"]', String(brightness));
-              await from.click('.st-cp-num input[aria-label="Contrast"]');
+              await from.fill('.insp-cp-num input[aria-label="Brightness"]', String(brightness));
+              await from.click('.insp-cp-num input[aria-label="Contrast"]');
             } else {
               await from.click('[aria-label="reset Adjustments section"]');
             }
@@ -2486,9 +2532,9 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           // what blurs it everywhere: a click on plain text does in Chromium,
           // not in WKWebView (the native rows never committed).
           const setNumber = async (label: string, value: number) => {
-            await from.fill(`.st-cp-num input[aria-label="${label}"]`, String(value));
+            await from.fill(`.insp-cp-num input[aria-label="${label}"]`, String(value));
             const other = label === 'Brightness' ? 'Contrast' : 'Brightness';
-            await from.click(`.st-cp-num input[aria-label="${other}"]`);
+            await from.click(`.insp-cp-num input[aria-label="${other}"]`);
           };
           const steps: Array<{
             id: string;
@@ -2706,13 +2752,13 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             if (!imageId || !assetRel || !input)
               throw new Unexercised('Photo requires the uploaded image');
             await until(async () => (await from.read(selector('photo-knobs'))) !== null);
-            await from.fill('.st-cp-num input[aria-label="Brightness"]', '0.4');
-            await from.click('.st-cp-num input[aria-label="Contrast"]');
+            await from.fill('.insp-cp-num input[aria-label="Brightness"]', '0.4');
+            await from.click('.insp-cp-num input[aria-label="Contrast"]');
             await until(() => all.every((p) => brightnessOf(p) === 0.4), 30000);
             for (const p of all) await until(async () => bright(p), 30000);
             const before = await Promise.all(all.map(async (p) => (await p.probe(q()))?.rect));
             const start = performance.now();
-            await gesture(from, selector('palette-mode-edit'), 'click');
+            await from.click(selector('palette-mode-edit'));
             await gesture(from, q(), 'pointer', { dx: 60, dy: 30 });
             return observeAll(
               all,
@@ -2735,7 +2781,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             // Photo tab is the one showing, then the shortcut.
             await gesture(from, q(), 'pointer');
             await until(async () => (await from.read(selector('photo-knobs'))) !== null);
-            await from.click('.st-cp-num input[aria-label="Contrast"]');
+            await from.click('.insp-cp-num input[aria-label="Contrast"]');
             const start = performance.now();
             await from.press('Meta+z');
             return observeAll(
@@ -2751,7 +2797,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               throw new Unexercised('Photo requires the uploaded image');
             if (all.some((p) => brightnessOf(p) === 0.4))
               throw new Unexercised('Redo needs the undone adjustment everywhere');
-            await from.click('.st-cp-num input[aria-label="Contrast"]');
+            await from.click('.insp-cp-num input[aria-label="Contrast"]');
             const start = performance.now();
             await from.press('Meta+Shift+z');
             return observeAll(
@@ -2774,12 +2820,12 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           for (const p of all)
             if (!(await p.probe(q))?.visible)
               throw new Unexercised(`Image not rendered before replace at ${p.name}`);
-          await gesture(from, selector('palette-mode-edit'), 'click');
+          await from.click(selector('palette-mode-edit'));
           await gesture(from, q, 'contextMenu');
           const replace = '.dc-context-menu [data-action="replace"]';
           await until(async () => !!(await from.probe(replace))?.visible);
           await gesture(from, replace, 'click');
-          const cell = '[aria-label="Choose media"] .st-ap-cell[title^="surface-pattern.png"]';
+          const cell = '[aria-label="Choose media"] .sh-ap-cell[title^="surface-pattern.png"]';
           await until(async () => (await from.read(cell)) !== null);
           const start = performance.now();
           await from.click(cell);
@@ -2861,7 +2907,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               throw new Unexercised(
                 `Image must be rendered and persisted before deletion at ${p.name}`
               );
-          await gesture(from, selector('palette-mode-edit'), 'click');
+          await from.click(selector('palette-mode-edit'));
           await gesture(from, q, 'pointer');
           const start = performance.now();
           await gesture(from, 'body', 'key', { key: 'Backspace' });
@@ -3001,12 +3047,12 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           for (const p of all)
             if (!(await p.probe(q()))?.visible)
               throw new Unexercised(`Video not rendered before replace at ${p.name}`);
-          await gesture(from, selector('palette-mode-edit'), 'click');
+          await from.click(selector('palette-mode-edit'));
           await gesture(from, `${q()} > text`, 'contextMenu');
           const replace = '.dc-context-menu [data-action="replace"]';
           await until(async () => !!(await from.probe(replace))?.visible);
           await gesture(from, replace, 'click');
-          const cell = '[aria-label="Choose media"] .st-ap-cell[title^="surface-colors.mp4"]';
+          const cell = '[aria-label="Choose media"] .sh-ap-cell[title^="surface-colors.mp4"]';
           await until(async () => (await from.read(cell)) !== null);
           const start = performance.now();
           await from.click(cell);
@@ -3062,7 +3108,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           for (const p of all)
             if (!(await p.probe(q()))?.visible || !drawingDisk(p, videoId))
               throw new Unexercised(`Video reference absent before deletion at ${p.name}`);
-          await gesture(from, selector('palette-mode-edit'), 'click');
+          await from.click(selector('palette-mode-edit'));
           await gesture(from, `${q()} > text`, 'pointer');
           const start = performance.now();
           await gesture(from, 'body', 'key', { key: 'Backspace' });
@@ -3155,7 +3201,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             },
           ]);
           await page.goto(`${run.hub}/`);
-          await page.waitForSelector('[data-testid="menubar"]', { timeout: 60000 });
+          await page.waitForSelector('[data-testid="project-pill"]', { timeout: 60000 });
           await page.waitForTimeout(1500);
           // A string, not a function: esbuild's __name helper does not exist in
           // the page (the same reason tree-drag.js is read verbatim).
@@ -3170,7 +3216,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               innerWidth: window.innerWidth,
               scrollWidth: document.documentElement.scrollWidth,
               canvasRowVisible: visible('[data-testid^="canvas-row-"]'),
-              syncStatusVisible: visible('.st-sb-sync'),
+              syncStatusVisible: visible(SYNC_WORD),
             };
           })()`)) as {
             innerWidth: number;
@@ -3221,7 +3267,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           await openCanvas(viewer, 'ui/SurfaceMedia.tsx');
           await until(async () => (await viewer.read('h1', true)) === 'Surface media baseline');
           const controls = [];
-          for (const q of [selector('tree-new-folder'), '[aria-label="New blank brief board"]']) {
+          for (const q of [selector('tree-new-folder'), '[aria-label="New canvas"]']) {
             const element = page.locator(q);
             const writable =
               (await element.count()) > 0 &&
@@ -3230,7 +3276,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             controls.push({ selector: q, writable });
             if (writable) throw new Error(`Viewer offered a writable control: ${q}`);
           }
-          if ((await viewer.probe('[aria-label^="Sticky ("]'))?.visible)
+          if ((await viewer.probe(annotationSlot('sticky')))?.visible)
             throw new Error('Viewer offered a writable annotation tool');
           const before = bytes(viewer.root, 'ui/SurfaceMedia.tsx');
           // The frame may re-render between the read above and the gesture
@@ -3445,9 +3491,12 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           await openSeeded(rel, `Rename ${from.name}`, `L04-rename-${from.name}`);
           await from.hover(rowOf(rel));
           await from.click(selector(`tree-row-menu-${slug(rel.replace(/\.tsx$/, ''))}`));
-          await from.promptNext(`SurfaceRen-${from.name}-renamed`);
+          // S1.2: Rename is in place — the row's name turns into a field (↵ renames, esc keeps it)
+          await from.menu('Rename');
+          const field = selector(`canvas-rename-input-${slug(rel.replace(/\.tsx$/, ''))}`);
+          await from.fill(field, `SurfaceRen-${from.name}-renamed`);
           const start = performance.now();
-          await from.menu('Rename…');
+          await from.press('Enter');
           return observeAll(
             all,
             `L04-rename-${from.name}`,
@@ -3678,7 +3727,9 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
         await check('L11.comment.create', `${from.name}-to-peers`, async () => {
           await seedCanvas(from, rel, elementCanvas(`Comments ${from.name}`));
           await openSeeded(rel, `Comments ${from.name}`, `L11-${from.name}`);
-          await gesture(from, '.dc-tool-palette button[aria-label^="Comment"]', 'click');
+          // Comment is a Preview / Viewing tool (V2-4.5c): Edit has none.
+          await from.click(selector('palette-mode-preview'));
+          await gesture(from, annotationSlot('comment'), 'click');
           await gesture(from, 'h1', 'pointer');
           await until(
             async () => !!(await from.probe('[aria-label="Comment body"]'))?.visible
@@ -3790,7 +3841,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           const id = idOf();
           if (!id || statusOf(from, id) !== 'resolved')
             throw new Unexercised('reopen needs a resolved thread');
-          await from.click(selector('dock-tab-comments'));
+          // V2-4.4b — Comments is a right island, opened from the Share cluster (the dock tab strip is gone).
+          await from.click(selector('share-cluster-comments'));
           await from.click(selector('comment-filter-resolved'));
           const reopen = `${selector(`comment-item-${id}`)} [aria-label="Reopen"]`;
           await until(async () => (await from.read(reopen)) !== null);
@@ -3862,7 +3914,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
         const onSticky = `On the sticky from ${from.name}`;
         const onCanvas = `On the canvas from ${from.name}`;
         const composeAt = async (q: string, where: Record<string, number> | null, text: string) => {
-          await gesture(from, '.dc-tool-palette button[aria-label^="Comment"]', 'click');
+          await from.click(selector('palette-mode-preview'));
+          await gesture(from, annotationSlot('comment'), 'click');
           await gesture(from, q, 'pointer', where);
           await until(async () => !!(await from.probe('[aria-label="Comment body"]'))?.visible);
           await gesture(from, '[aria-label="Comment body"]', 'fill', text);
@@ -4112,7 +4165,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
         });
         const toolbar = '[aria-label="Annotation properties"]';
         const select = async (targets: string[]) => {
-          await gesture(from, selector('palette-mode-edit'), 'click');
+          await from.click(selector('palette-mode-edit'));
           // Start from nothing: Shift+click on an element already in the
           // selection removes it (annotations v2), so re-selecting the same
           // three from the previous step would leave only the first.
@@ -4338,7 +4391,9 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             if (!ready) throw new Unexercised('Context controls need the seeded annotations');
             await select([ids.rect]);
             const start = performance.now();
-            await gesture(from, inToolbar('[aria-label="Delete selected annotations"]'), 'click');
+            // P8 C8: Delete is the "Move to trash" row of the toolbar's closing "…"
+            await gesture(from, inToolbar('[data-testid="annot-ctx-more"]'), 'click');
+            await gesture(from, inToolbar('[data-testid="annot-ctx-delete"]'), 'click');
             return observeAll(
               all,
               `L09-ctx-delete-${from.name}`,
@@ -4370,7 +4425,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
         const q = (id: string) => `[data-id="${id}"]`;
         // A section is grabbed by its title chip; its body is click-through.
         const chip = (id: string) => `${q(id)} [data-section-chip="1"]`;
-        const editMode = (p: Surface) => gesture(p, selector('palette-mode-edit'), 'click');
+        const editMode = (p: Surface) => p.click(selector('palette-mode-edit'));
         const stickyEditor = '[aria-label="Edit sticky note text"]';
         const swatch = (c: string) =>
           `[aria-label="Annotation properties"] [aria-label="Sticky color ${c}"]`;
@@ -4994,7 +5049,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           });
           await check('L19.selection.shown', `${from.name}-to-peers`, async () => {
             const others = all.filter((p) => p !== from);
-            await gesture(from, selector('palette-mode-edit'), 'click');
+            await from.click(selector('palette-mode-edit'));
             const start = performance.now();
             // A press, not a bare click event: the canvas selects on pointerdown.
             await gesture(from, 'h1', 'pointer');
@@ -5043,7 +5098,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             (p, i) =>
               (existsSync(metaPath(p)) ? readFileSync(metaPath(p), 'utf8') : null) !== metaBefore[i]
           );
-          await gesture(from, selector('palette-mode-edit'), 'click');
+          await from.click(selector('palette-mode-edit'));
           return {
             status: leaked.length === 0 && !contentChanged && !metaChanged ? 'pass' : 'fail',
             viewChangedAt: leaked,
@@ -5069,7 +5124,9 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             ).catch(() => {
               throw new Unexercised('not everyone was on the canvas before leaving');
             });
-            await from.click(selector('menu-file'));
+            // V2-4.8a: File is a submenu of the project pill's menu (the in-app menubar is gone).
+            await from.click(selector('project-pill'));
+            await from.menu('File');
             const start = performance.now();
             await from.menu('Close canvas');
             return observeAll(
@@ -5243,8 +5300,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               async () => (await peer.read('h1', true)) === 'Edited offline by peer',
               30000
             );
-            await gesture(peer, selector('palette-mode-edit'), 'click');
-            await gesture(peer, '[aria-label^="Sticky ("]', 'click');
+            await peer.click(selector('palette-mode-preview'));
+            await armAnnotationTool(peer, 'sticky');
             await until(async () => !!(await peer.probe('.dc-annot-input'))?.visible, 30000);
             await gesture(peer, '.dc-annot-input', 'pointer', { x: 0.3, y: 0.3, dx: 130, dy: 100 });
             await until(async () => {
@@ -5279,7 +5336,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
                 return '';
               }
             };
-            await gesture(peer, '.dc-tool-palette button[aria-label^="Comment"]', 'click');
+            await gesture(peer, annotationSlot('comment'), 'click');
             await gesture(peer, 'h1', 'pointer');
             await until(
               async () => !!(await peer.probe('[aria-label="Comment body"]'))?.visible,
@@ -5340,7 +5397,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             // "synced", but offline with the change kept.
             let statusWhileOffline = '';
             await until(async () => {
-              statusWhileOffline = (await peer.read('.st-sb-sync')) ?? '';
+              statusWhileOffline = ((await peer.shell(SYNC_CHIP_JS)) as string | null) ?? '';
               return /offline|saving|queued|not reachable/i.test(statusWhileOffline);
             }, 30000);
             if (/\bsynced\b/i.test(statusWhileOffline))
@@ -5418,8 +5475,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           try {
             await offlineThen(() => writeFileSync(join(peer.root, '.design', rel), edited));
             await nativeSide.hover(rowOf(rel));
-            await nativeSide.confirmNext();
-            await nativeSide.click('[aria-label="Delete canvas SurfaceDelEdit"]');
+            await nativeSide.click(selector(`tree-row-menu-${slug(rel.replace(/\.tsx$/, ''))}`));
+            await nativeSide.menu('Move to trash');
             await until(() => [hubSide, nativeSide].every((p) => text(p, rel) === null), 30000);
             const start = performance.now();
             await fetch(`${control}/online`, { method: 'POST' });
@@ -5435,7 +5492,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             await sleep(3000);
             const copies = all.map((p) => ({ receiver: p.name, present: text(p, rel) !== null }));
             const told = notices(peer);
-            const shown = (await peer.read('.st-sb-sync')) ?? '';
+            const shown = ((await peer.shell(SYNC_CHIP_JS)) as string | null) ?? '';
             for (const p of all) {
               await p.screenshot(join(run.out, `L21-del-edit-${p.name}.png`));
               const sync = join(p.root, '.design', '_sync.json');
@@ -5503,7 +5560,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             }, 60000).catch(() => {});
             await sleep(3000);
             const told = notices(peer);
-            const shown = (await peer.read('.st-sb-sync')) ?? '';
+            const shown = ((await peer.shell(SYNC_CHIP_JS)) as string | null) ?? '';
             const layout = all.map((p) => ({
               receiver: p.name,
               old: text(p, rel) === null ? 'absent' : text(p, rel) === edited ? 'edited' : 'other',
@@ -5621,8 +5678,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           writeFileSync(join(hubSide.root, '.design', edited), editedBody);
           await until(async () => (await nativeSide.read(rowOf(doomed))) !== null, 30000);
           await nativeSide.hover(rowOf(doomed));
-          await nativeSide.confirmNext();
-          await nativeSide.click('[aria-label="Delete canvas SurfaceRestartDelete"]');
+          await nativeSide.click(selector(`tree-row-menu-${slug(doomed.replace(/\.tsx$/, ''))}`));
+          await nativeSide.menu('Move to trash');
           mkdirSync(join(nativeSide.root, '.design', folder), { recursive: true });
           writeFileSync(join(nativeSide.root, '.design', folder, '.gitkeep'), '');
           writeFileSync(join(peer.root, '.design', own), ownBody);
@@ -5696,15 +5753,9 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             }
           }, 120000);
           // Hop 3 — the shell says it, where the person looks.
-          if ((await peer.read(selector('open-sync'))) !== null) {
-            const pressed = await peerPage
-              .locator(selector('open-sync'))
-              .getAttribute('aria-pressed')
-              .catch(() => null);
-            if (pressed !== 'true') await peer.click(selector('open-sync'));
-          }
+          await openSyncDetailsOf(peer);
           await until(async () => (await peer.read('.sp-note-dot.is-refused')) !== null, 60000);
-          const statusWhileRefused = (await peer.read('.st-sb-sync')) ?? '';
+          const statusWhileRefused = ((await peer.shell(SYNC_CHIP_JS)) as string | null) ?? '';
           if (/\bsynced\b/i.test(statusWhileRefused))
             throw new Error(`A refused peer claimed synced: ${statusWhileRefused}`);
           // Hop 4 — nothing from the refused peer reached anyone.
@@ -5844,7 +5895,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           let shown = '';
           let toldByName = false;
           await until(async () => {
-            shown = (await from.read('.st-sb-sync')) ?? '';
+            shown = ((await from.shell(SYNC_CHIP_JS)) as string | null) ?? '';
             toldByName = named();
             return HELD_STATUS.test(shown) && toldByName;
           }, 30000).catch(() => {});
@@ -5881,13 +5932,9 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
       {
         const statusTitle = async (p: Surface) =>
           ((await p.shell(
-            `document.querySelector('.st-sb-sync')?.getAttribute('title') || document.querySelector('.st-sb-sync')?.getAttribute('data-tip') || ''`
+            `document.querySelector('${SYNC_WORD}')?.getAttribute('title') || ''`
           )) as string) ?? '';
-        const openSyncPanel = async (p: Surface) => {
-          const button = selector('open-sync');
-          await until(async () => (await p.read(button)) !== null, 10000);
-          if ((await p.read(`${button}[aria-pressed="true"]`)) === null) await p.click(button);
-        };
+        const openSyncPanel = async (p: Surface) => openSyncDetailsOf(p);
         for (const from of all.filter((p) => p.name !== 'hub')) {
           const rel = `ui/SurfaceHuge-${from.name}.mp4`;
           await check('L22.blocked-file', `${from.name}-to-peers`, async () => {
@@ -5907,7 +5954,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
                   told = true;
                 })
                 .catch(() => {});
-              const status = (await from.read('.st-sb-sync')) ?? '';
+              const status = ((await from.shell(SYNC_CHIP_JS)) as string | null) ?? '';
               await sleep(3000);
               const leaked = all
                 .filter((p) => p !== from && existsSync(join(p.root, '.design', rel)))
@@ -5956,7 +6003,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             try {
               writeFileSync(join(from.root, '.design', file), readFileSync(input.path));
               await until(async () => {
-                waitingShown = (await from.read('.st-sb-sync')) ?? '';
+                waitingShown = ((await from.shell(SYNC_CHIP_JS)) as string | null) ?? '';
                 const n = /(\d+)\s*\/\s*(\d+) files/.exec(waitingShown);
                 return HELD_STATUS.test(waitingShown) || (!!n && Number(n[1]) < Number(n[2]));
               }, 60000).catch(() => {});
@@ -6140,13 +6187,15 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
         await check('L10.sticker.add', `${from.name}-to-peers`, async () => {
           await seedCanvas(from, rel, elementCanvas(`Stickers ${from.name}`));
           await openSeeded(rel, `Stickers ${from.name}`, `L10-${from.name}`);
-          await gesture(from, selector('palette-mode-edit'), 'click');
+          await from.click(selector('palette-mode-preview'));
           const before = new Set(
             (await from.probe('[data-tool="image"][data-id]'))?.matches?.map((m) => m.id)
           );
-          await gesture(from, '.dc-tool-palette button[aria-label="Stickers"]', 'click');
+          // V2-4.5c: the Stickers slot asks the shell (`tool-panel-open`); the picker is a shell panel
+          // pinned next to the toolbar (`tool-panel-stickers`), same dialog label and cells.
+          await gesture(from, '[data-testid="toolbar-slot-stickers"]', 'click');
           const firstSticker =
-            '[aria-label="Stickers"] .st-sp-body > div:first-child .st-sp-cell:first-child';
+            '[aria-label="Stickers"] .sh-sp-body > div:first-child .sh-sp-cell:first-child';
           await until(async () => (await from.read(firstSticker)) !== null, 15000);
           const start = performance.now();
           await from.click(firstSticker).catch(async (error) => {
@@ -6228,12 +6277,12 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           if (!id) throw new Unexercised('Add did not produce a sticker');
           const sid = id;
           const next = 'assets/surface-pattern.png';
-          await gesture(from, selector('palette-mode-edit'), 'click');
+          await from.click(selector('palette-mode-edit'));
           await gesture(from, q(sid), 'contextMenu');
           const replace = '.dc-context-menu [data-action="replace"]';
           await until(async () => !!(await from.probe(replace))?.visible);
           await gesture(from, replace, 'click');
-          const cell = '[aria-label="Choose media"] .st-ap-cell[title^="surface-pattern.png"]';
+          const cell = '[aria-label="Choose media"] .sh-ap-cell[title^="surface-pattern.png"]';
           await until(async () => (await from.read(cell)) !== null);
           const start = performance.now();
           await from.click(cell);
@@ -6279,7 +6328,11 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
         await check('L08.artboard.add', `${from.name}-to-peers`, async () => {
           await seedCanvas(from, rel, boardsCanvas(`Boards ${from.name}`));
           await openSeeded(rel, `Boards ${from.name}`, `L08-${from.name}`);
+          // V2-4.8a: Edit › Advanced › New artboard — the project pill's menu (no in-app menubar).
+          await from.click(selector('project-pill'));
           await from.menu('Edit');
+          await from.menu('Advanced');
+          await from.menu('New artboard');
           const start = performance.now();
           await from.menu('New artboard: Mobile');
           return observeAll(
@@ -6390,14 +6443,14 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           // The palette's "+ Element → Text" appends to the active artboard.
           const texts = (p: Surface) => count(p, rel, '<p\\b');
           const before = all.map((p) => texts(p));
-          await gesture(from, selector('palette-mode-edit'), 'click');
-          await gesture(from, '[aria-label="Insert element — Div, Text, or Image"]', 'click');
+          await from.click(selector('palette-mode-edit'));
+          // V2-4.5c: Edit's Text slot is momentary — one click adds a text at its default size
+          // (the old "+ Insert element" menu's second item).
           await until(
-            async () =>
-              !!(await from.probe('[aria-label="Insert element"] [role="menuitem"]'))?.visible
+            async () => !!(await from.probe('[data-testid="toolbar-slot-el-text"]'))?.visible
           );
           const start = performance.now();
-          await gesture(from, '.dc-tp-insert-popover button:nth-of-type(2)', 'click');
+          await gesture(from, '[data-testid="toolbar-slot-el-text"]', 'click');
           return observeAll(
             all,
             `L07-insert-${from.name}`,
@@ -6414,7 +6467,10 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           // The insert above left its new text selected: pick the heading.
           for (
             let n = 0;
-            n < 6 && !((await from.read('.st-sb-sel .val')) ?? '').includes(`Element ${from.name}`);
+            n < 6 &&
+            !((await from.read(selector('inspector-selection'))) ?? '').includes(
+              `Element ${from.name}`
+            );
             n++
           ) {
             await gesture(from, 'h1', n === 0 ? 'click' : 'doubleClick');
@@ -6423,11 +6479,13 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           // Act on what the designer sees: the heading named in the selection
           // chip, on a canvas that has stopped re-rendering the duplicate.
           await until(async () => {
-            const chip = await from.read('.st-sb-sel .val');
+            const chip = await from.read(selector('inspector-selection'));
             if (!chip?.includes(`Element ${from.name}`) || (await headings(from)) !== 2)
               return false;
             await sleep(300);
-            return (await headings(from)) === 2 && !!(await from.read('.st-sb-sel .val'));
+            return (
+              (await headings(from)) === 2 && !!(await from.read(selector('inspector-selection')))
+            );
           });
           // The drill above double-clicks, which can open the heading's text
           // editor (`plaintext-only`): Delete then edits text at the caret
@@ -6442,7 +6500,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             await sleep(150);
           }
           const before = {
-            chip: await from.read('.st-sb-sel .val').catch(() => null),
+            chip: await from.read(selector('inspector-selection')).catch(() => null),
             textEditing: await editing(),
           };
           const start = performance.now();
@@ -6461,7 +6519,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
                 ...result,
                 beforeDelete: before,
                 afterDelete: {
-                  chip: await from.read('.st-sb-sel .val').catch(() => null),
+                  chip: await from.read(selector('inspector-selection')).catch(() => null),
                   authorHeadings: await headings(from).catch(() => null),
                   authorSourceHeadings: count(from, rel, '<h1'),
                 },
@@ -6524,7 +6582,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           await selectHeading(from);
           // The heading ALONE — the inspector also offers weight on the
           // section around it, and dragging that moves the whole section.
-          const chip = async () => (await from.read('.st-sb-sel .val')) ?? '';
+          const chip = async () => (await from.read(selector('inspector-selection'))) ?? '';
           for (
             let n = 0;
             n < 6 &&
@@ -6566,7 +6624,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           if (!(await from.canvasDrag?.('h1', 0, dy, 700)))
             await gesture(from, 'h1', 'pointer', { dx: 0, dy, hold: 600 });
           await from.screenshot(join(run.out, `L07-reorder-dropped-${from.name}.png`));
-          const selText = await from.read('.st-sb-sel');
+          const selText = await from.read(selector('inspector-selection'));
           const h1 = await from.probe('h1');
           writeFileSync(
             join(run.out, `L07-reorder-diag-${from.name}.json`),
@@ -6611,7 +6669,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
         await check('L08.artboard.resize', `${from.name}-to-peers`, async () => {
           await seedCanvas(from, rel, boardsCanvas(`Board size ${from.name}`));
           await openSeeded(rel, `Board size ${from.name}`, `L08-size-${from.name}`);
-          await gesture(from, selector('palette-mode-edit'), 'click');
+          await from.click(selector('palette-mode-edit'));
           // The artboard itself (its empty area), not its name: the name
           // selects it for board actions, the body for the resize handles.
           await gesture(from, '[data-dc-screen="main"] .dc-artboard-body', 'pointer', {
@@ -6702,9 +6760,9 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
       // heading in its leaf editor while another restyles the paragraph from
       // the inspector. Both changes survive everywhere, nobody gets a conflict.
       const selectEl = async (p: Surface, q: string) => {
-        await gesture(p, selector('palette-mode-edit'), 'click');
+        await p.click(selector('palette-mode-edit'));
         for (let level = 0; level < 6; level++) {
-          const chip = (await p.read('.st-sb-sel .val')) ?? '';
+          const chip = (await p.read(selector('inspector-selection'))) ?? '';
           if ((await p.read(weight)) !== null && chip.includes('Kept paragraph')) return;
           await gesture(p, q, level === 0 ? 'click' : 'doubleClick');
           await sleep(150);
@@ -6719,7 +6777,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           await seedCanvas(from, rel, elementCanvas(`Independent ${from.name}`));
           await openSeeded(rel, `Independent ${from.name}`, `L21-ind-${from.name}`);
           await selectEl(other, 'p');
-          await gesture(from, selector('palette-mode-edit'), 'click');
+          await from.click(selector('palette-mode-edit'));
           const editor = 'h1[contenteditable="plaintext-only"]';
           for (let level = 0; level < 12 && !(await from.probe(editor))?.visible; level++) {
             await gesture(from, 'h1', 'doubleClick');
@@ -6819,7 +6877,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
                 async () =>
                   (
                     (await from.shell(
-                      `document.querySelector('.st-prompt')?.getAttribute('aria-label') ?? ''`
+                      `document.querySelector('.sh-prompt')?.getAttribute('aria-label') ?? ''`
                     )) as string
                   ).match(title) !== null,
                 10000
@@ -6851,7 +6909,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
                 .screenshot(join(run.out, `L15-create-${from.name}-stuck.png`))
                 .catch(() => {});
               const prompt = await from
-                .shell(`document.querySelector('.st-prompt')?.getAttribute('aria-label') ?? null`)
+                .shell(`document.querySelector('.sh-prompt')?.getAttribute('aria-label') ?? null`)
                 .catch(() => 'unreadable');
               const active = await from
                 .shell(
@@ -7153,12 +7211,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               )
             ).json()) as { history: Array<{ kind: string; label: string; effects: unknown[] }> }
           ).history;
-        // The toolbar's Sync button (it toggles; pressed = the panel shows).
-        const openSync = async (p: Surface) => {
-          const button = selector('open-sync');
-          await until(async () => (await p.read(button)) !== null, 10000);
-          if ((await p.read(`${button}[aria-pressed="true"]`)) === null) await p.click(button);
-        };
+        // Menu › Diagnostics › Sync (the status bar's chip is gone — V2-4.8b).
+        const openSync = async (p: Surface) => openSyncDetailsOf(p);
         for (const from of all.filter((p) => p.name !== 'hub')) {
           const a = `ui/SurfaceAi-${from.name}-a.tsx`;
           const b = `ui/SurfaceAi-${from.name}-b.tsx`;
@@ -7303,7 +7357,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             await until(async () => !!(await from.probe('[data-id="s_gesture"]'))?.visible, 15000);
             beforeDrag = disk(from);
             const seen = new Set((await projectHistory()).map((a) => JSON.stringify(a)));
-            await gesture(from, selector('palette-mode-edit'), 'click');
+            await from.click(selector('palette-mode-edit'));
             const start = performance.now();
             // A dozen moves while held, like a hand settling a shape (the probe
             // answers within a second, so the hold stays under it).
@@ -7369,10 +7423,9 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
         const src = (p: Surface) => readFileSync(join(p.root, '.design', rel), 'utf8');
         const rowsQ = '[data-testid^="project-history-row-"]';
         const openHistory = async (p: Surface) => {
-          // The dock tabs do not exist until a panel is open. The status-bar
-          // button also works in an isolated history-only run (no prior L07).
-          if ((await p.read(`${selector('open-changes')}[aria-pressed="true"]`)) === null)
-            await p.click(selector('open-changes'));
+          // The dock tabs do not exist until a panel is open. Menu › Version history
+          // also works in an isolated history-only run (no prior L07).
+          await openHistoryPanelOf(p);
           await until(
             async () =>
               ((await p.probe('body'))?.visible ?? false) && (await p.read(rowsQ)) !== null,
@@ -7430,12 +7483,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               const state = {
                 heading: await p.probe('h1'),
                 weight: await inspectedWeight(p),
-                inspectorSelected: await p.read(
-                  `${selector('dock-tab-inspector')}[aria-selected="true"]`
-                ),
-                historySelected: await p.read(
-                  `${selector('dock-tab-changes')}[aria-selected="true"]`
-                ),
+                inspectorSelected: await p.read(selector('inspector-panel')),
+                historySelected: await p.read(selector('git-panel')),
                 previewOpen: (await p.read(selector('history-preview-version'))) !== null,
                 previewHeadings,
                 previewBodies: await p.shell(previewFrameProbe('body')).catch((e) => String(e)),
@@ -7449,7 +7498,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
                     resources: performance.getEntriesByType('resource').filter(e => e.name === frame.src)
                       .map(e => ({ start: e.startTime, duration: e.duration, responseStatus: e.responseStatus })) };
                 })`),
-                historyPanel: await p.read('.gp-panel'),
+                historyPanel: await p.read(selector('git-panel')),
                 historyRequests: await p.shell(
                   `performance.getEntriesByType('resource').filter(e => e.name.includes('/_api/project/history')).map(e => ({ path: new URL(e.name).pathname, start: e.startTime, duration: e.duration, responseStatus: e.responseStatus }))`
                 ),
@@ -7461,13 +7510,11 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               await until(
                 async () => (await p.read('h1', true)) === `Preview current ${from.name}`
               ).catch((error) => failedStep('current-heading', p, error));
-              // Auto-open intentionally preserves a different active dock
-              // panel. Establish this case's Inspector precondition explicitly
-              // after the previous direction left History selected.
-              if (
-                (await p.read(`${selector('dock-tab-inspector')}[aria-selected="false"]`)) !== null
-              )
-                await p.click(selector('dock-tab-inspector'));
+              // Auto-open intentionally preserves a different open right panel
+              // (V2-4.4b: one main right island at a time). Establish this case's
+              // Inspector precondition explicitly after the previous direction
+              // left History open: close it, so the selection below opens the Inspector.
+              if ((await p.read(selector('git-panel'))) !== null) await toggleHistoryOf(p);
               await selectHeading(p);
               await until(async () => (await inspectedWeight(p)) === '700').catch((error) =>
                 failedStep('current-inspector', p, error)
@@ -7582,13 +7629,13 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           await until(
             async () =>
               (await author.read(
-                `.gp-version:nth-of-type(2) [data-testid^="project-history-restore-"]`
+                `.vh-git-ver:nth-of-type(2) [data-testid^="project-history-restore-"]`
               )) !== null,
             30000
           );
           const start = performance.now();
           await author.click(
-            `.gp-version:nth-of-type(2) [data-testid^="project-history-restore-"]`
+            `.vh-git-ver:nth-of-type(2) [data-testid^="project-history-restore-"]`
           );
           return observeAll(
             all,
@@ -7689,8 +7736,13 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
         const specimenBody = (title: string) =>
           `import { DesignCanvas, DCArtboard } from '@maude/canvas-lib';\nexport default function Specimen() {\n  return (\n    <DesignCanvas>\n      <DCArtboard id="specimen" label="Specimen" width={360} height={200}>\n        <h1 style={{ padding: 24 }}>${title}</h1>\n      </DCArtboard>\n    </DesignCanvas>\n  );\n}\n`;
         // The DESIGN SYSTEM section of every tree shows the project's design
-        // system (a copy learns it from the project) with its specimens.
+        // system (a copy learns it from the project) with its specimens. V2-4.4a:
+        // it lives under Canvases › Advanced now (the pinned Design system row opens
+        // the canvas view), so open that fold first.
         const openDsSection = async (p: Surface) => {
+          const adv = selector('canvases-advanced');
+          await until(async () => (await p.read(adv)) !== null, 30000);
+          if ((await p.read(`${adv}[aria-expanded="false"]`)) !== null) await p.click(adv);
           const hd = selector('tree-section-design-system');
           await until(async () => (await p.read(hd)) !== null, 30000);
           if ((await p.read(`${hd}[aria-expanded="false"]`)) !== null) await p.click(hd);

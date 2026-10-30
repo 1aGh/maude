@@ -1,0 +1,4 @@
+{"lane":"acp","name":"Bash","input":{"command":"maude design logs 2>&1 | tail -100","description":"Read Maude studio logs"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design sync status 2>&1","description":"Check Maude design sync status"}}
+{"lane":"acp","name":"Skill","input":{"skill":"design:comments","args":"ui/GitPanel.tsx"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design comments list ui/GitPanel.tsx --open --json 2>&1","description":"List open comments on GitPanel.tsx canvas"}}

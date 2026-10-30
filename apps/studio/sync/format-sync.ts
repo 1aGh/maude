@@ -16,25 +16,26 @@
 
 import {
   asFormat,
+  FORMAT_GATE_OPTS,
   type FormatCtx,
   type FormatGateOptions,
   formatGate,
   formatHubUrl,
+  MAX_HUB_FORMAT,
   noteHubFormat,
   projectFormat,
   readHubFormatCache,
-  STAGED_FORMAT_GATE_OPTS,
   SUPPORTED_FORMAT,
 } from '../format.ts';
 
 /**
  * The gate the studio enforces — the SAME options `http.ts` passes
- * (`STAGED_FORMAT_GATE_OPTS`: only a project newer than this build is
- * gated). Pinned against http.ts by test/format-sync.test.ts so the sync
+ * (`FORMAT_GATE_OPTS`: the full gate — any format but this build's is view
+ * only). Pinned against http.ts by test/format-sync.test.ts so the sync
  * runtime and the HTTP gate can never disagree about whether a project is
  * editable here.
  */
-export const SYNC_FORMAT_GATE_OPTS: FormatGateOptions = STAGED_FORMAT_GATE_OPTS;
+export const SYNC_FORMAT_GATE_OPTS: FormatGateOptions = FORMAT_GATE_OPTS;
 
 /** Does this build NOT edit the project right now? (Outbound is paused.) */
 export function formatGated(ctx: FormatCtx): boolean {
@@ -49,8 +50,8 @@ export function formatGated(ctx: FormatCtx): boolean {
 
 /**
  * The format this studio WRITES in, for the hub's fence. While the project is
- * editable here that is the project's format (under the staged gate a v2 build
- * still writes a format-1 project as a format-1 writer); while it is gated it
+ * editable here that is the project's format (under the full gate that is
+ * always this build's own); while it is gated it
  * is this build's own format, so a mismatch is exactly what the hub sees.
  */
 export function declaredFormat(ctx: FormatCtx): number {
@@ -102,10 +103,15 @@ export function isFormatRefusal(status: number, body?: unknown): boolean {
   );
 }
 
+/** Re-exported from format.ts, where the on-disk mirror's reader clamps by it too (R5). */
+export { MAX_HUB_FORMAT };
+
 /** The project format a `/health` body or a `maude.mode` notice states, or null. */
 export function formatFromHub(body: unknown): number | null {
   const v = (body as { formatVersion?: unknown } | null)?.formatVersion;
-  return typeof v === 'number' && Number.isSafeInteger(v) && v >= 1 ? v : null;
+  return typeof v === 'number' && Number.isSafeInteger(v) && v >= 1 && v <= MAX_HUB_FORMAT
+    ? v
+    : null;
 }
 
 /**

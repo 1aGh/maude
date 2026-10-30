@@ -1,13 +1,31 @@
 // shell/viewport.jsx — moved verbatim out of client/app.jsx (Maude v2 plan V2-0.2, move-only split).
 
-import { useEffect, useRef, useState } from 'react';
-import { canvasUrl } from '../canvas-url.js';
-import { MDCC_VERSION, SYSTEM_TAB } from './constants.js';
+import { useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { canvasFrameCfg, canvasImportsOf, canvasUrl } from '../canvas-url.js';
+import { CompareHost } from '../v2/history/compare-view.jsx';
+import { useDsPreviewTarget, withDsPreview } from '../v2/ds/preview-mode.js';
+import { useViewing } from '../v2/history/history-host.jsx';
+import { SYSTEM_TAB } from './constants.js';
 import { FilePreview, sanitizeDisplayText } from '../panels/file-preview.jsx';
-import { basename, previewKind } from './util.js';
-import { Kbd } from './icons.jsx';
-import { isNativeApp } from '../github.js';
+import { basename, previewKind, shellToast } from './util.js';
 import { SystemView } from '../system/system-view.jsx';
+import { isNativeApp } from '../github.js';
+import { exportSelectionFor } from '../selection-scope.js';
+import { ShellStoreContext } from '../stores/shell-store.jsx';
+import { subscribeViewCode } from '../v2/code/code-bus.js';
+import { CanvasLoadFailure } from '../v2/code/canvas-error-card.jsx';
+import { CanvasImportsCard } from '../v2/code/canvas-imports-card.jsx';
+import { CodeView, mayViewCode } from '../v2/code/code-view.jsx';
+import { dispatchCanvasOp } from '../v2/left-panel/left-panel-bus.js';
+import { nativeDoors } from '../v2/shell/native-doors.js';
+import { EmptyProjectSlot } from '../v2/create/empty-project.jsx';
+import { RenderErrorHost } from '../v2/create/render-error.jsx';
+import { useRenderSignal } from '../v2/create/use-render-error.js';
+import { freeCentre } from '../v2/empty/free-centre.js';
+import { ArrivingCanvas, NotLocalCanvas, useCanvasAvailability } from '../v2/empty/not-local.jsx';
+import { insetsNow } from '../v2/shell/insets-now.js';
+import { normalizeOpenPath } from '../share-link.js';
+import { framesIsolated, sessionRole } from '../v2/access/access-client.js';
 
 export function Viewport({
   tabs,
@@ -40,6 +58,33 @@ export function Viewport({
   useEffect(() => {
     if (previewPath) previewRef.current?.focus();
   }, [previewPath]);
+
+  // S11.7 — View code (⌘K / the Canvases row menu): the open canvas's TSX, read-only, with the selected
+  // artboard's lines marked. The request waits in code-bus.js until this mounts; a code view of one
+  // canvas follows the open canvas when the tab changes. Can view is never offered it (the server
+  // refuses the source to them too). The shell store is read optionally so a bare Viewport still renders.
+  const shell = useContext(ShellStoreContext)?.shellCore;
+  // P8 G1a — the server's role on the open canvas (`/_config.access`), not a cloud tab's `cloud.role` alone
+  const role = sessionRole(cfg, activePath ? normalizeOpenPath(activePath, cfg?.designRel) : null);
+  const [codeReq, setCodeReq] = useState(null);
+  useEffect(
+    () =>
+      subscribeViewCode((r) => {
+        if (mayViewCode(role)) setCodeReq(r);
+      }),
+    [role]
+  );
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a tab change re-points the code view at the open canvas
+  useEffect(() => {
+    setCodeReq((c) => (c ? { canvas: null } : c));
+  }, [activePath]);
+  const codeCanvas = codeReq ? (codeReq.canvas ?? activePath) : null;
+  const codeShown = !!codeCanvas && /\.tsx$/i.test(codeCanvas) && mayViewCode(role);
+  const doors = useMemo(() => nativeDoors(), []);
+  const designRel = (cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, '');
+  const codeArtboard = shell
+    ? exportSelectionFor(shell.selected, activePath, shell.canvasActiveArtboard).activeArtboardId
+    : null;
   // An open canvas keeps the URL it was opened with. The capability in it is
   // re-minted on a timer (canvas-url.js); letting that change the `src` of a
   // live iframe would reload every open canvas every few minutes. The fresh
@@ -52,12 +97,34 @@ export function Viewport({
   for (const [key, entry] of srcCache.current) {
     if (!openPaths.has(entry.path)) srcCache.current.delete(key);
   }
+  // S1.14 — Version history's Viewing: the held canvas is framed at that version (`?sha=`, read-only);
+  // the frame is a different document, so it remounts (below) and comes back at now when the hold ends.
+  const viewing = useViewing();
+  // S10.14 — "Preview in …": every open canvas is framed through `?dsPreview=<ds>` while the person steps
+  // through the systems; a session-only override (preview-mode.js), never stored.
+  const dsPreview = useDsPreviewTarget();
+  // 05 es-offline-uncached / es-arriving: the card centres on what the panels leave free, like the empty canvas
+  const insets = useSyncExternalStore(insetsNow.subscribe, insetsNow.get, insetsNow.get);
+  const freeCx = `${freeCentre(insets, window.innerWidth, window.innerHeight)}px`;
+  // S6.12 (C5) — what the open canvases say about drawing: one listener for every frame. The card is below.
+  const wsSend = useContext(ShellStoreContext)?.local?.wsSend;
+  const renderSignal = useRenderSignal({ cfg, wsSend, viewingPath: viewing?.path ?? null });
   const stableSrc = (path) => {
-    const bare = canvasUrl(path, { ...cfg, canvasToken: undefined });
+    const held = viewing?.path === path ? { viewing: viewing.at } : undefined;
+    const opts = withDsPreview(held, dsPreview);
+    // A frame that changes between now and a past version is a new frame: the entry it comes back to is
+    // built afresh, so it carries the capability that is live THEN, not the one of the first open.
+    // The same holds for a frame entering or leaving a design-system preview, or stepping to another system.
+    for (const [k, e] of srcCache.current)
+      if (e.path === path && (!!e.viewing !== !!held || (e.preview ?? null) !== dsPreview))
+        srcCache.current.delete(k);
+    // A head that moves is a swap at the next look (v2/ds/use-ds-frames.js), not a new frame:
+    // `canvasFrameCfg` leaves the head out of the identity.
+    const bare = canvasUrl(path, canvasFrameCfg(cfg), opts);
     const key = `${path}#${canvasReloadNonce}|${bare}`;
     let entry = srcCache.current.get(key);
     if (!entry) {
-      entry = { path, src: canvasUrl(path, cfg) };
+      entry = { path, src: canvasUrl(path, cfg, opts), viewing: !!held, preview: dsPreview };
       srcCache.current.set(key, entry);
     }
     return entry.src;
@@ -67,6 +134,14 @@ export function Viewport({
   // three states are named together. `ready` is `dgn:'loaded'`-backed, so it
   // cannot be faked by a timer expiring (which is exactly how the bug used to
   // look successful: skeleton gone, pane white).
+  // S11.4 (05 es-offline-uncached) — the open canvas is asked once per open (and per Retry): offline and
+  // never downloaded, the tab shows the card INSTEAD of the frame. No frame = no toolbar and no zoom (both
+  // live in the canvas runtime), and no loading card waiting on a frame that will never load.
+  const canvasTab = activePath && activePath !== SYSTEM_TAB ? activePath : null;
+  const availability = useCanvasAvailability(canvasTab, { stamp: canvasReloadNonce });
+  const notLocal = !!canvasTab && availability === 'not-local';
+  // Still coming down (Q13 fallback): the "<name> is on its way." card, same stand-in for the frame.
+  const arriving = !!canvasTab && availability === 'arriving';
   const canvasState =
     canvasError && canvasError.path === activePath
       ? 'error'
@@ -75,8 +150,10 @@ export function Viewport({
         : loadingPath && loadingPath === activePath
           ? 'loading'
           : 'idle';
+  const soloFrame = framesIsolated(cfg);
   return (
-    <div className="viewport st-stage" data-tour="viewport" data-canvas-state={canvasState}>
+    // V2-8.7 — the stage IS the page's main landmark (axe landmark-one-main: with no canvas open the shell had none)
+    <main className="viewport sh-stage" data-tour="viewport" data-canvas-state={canvasState}>
       {previewPath && (
         // feature-studio-file-preview — an overlay, not a tab: the canvas
         // iframe (if any) stays mounted underneath so switching back to it
@@ -84,7 +161,7 @@ export function Viewport({
         // written into `tabs`/`activePath` (see App()'s onPreview).
         <div
           ref={previewRef}
-          className="st-file-preview-overlay"
+          className="sh-file-preview-overlay"
           role="region"
           aria-label={`Preview: ${sanitizeDisplayText(basename(previewPath))}`}
           tabIndex={0}
@@ -93,46 +170,26 @@ export function Viewport({
         </div>
       )}
       {tabs.length === 0 && !previewPath && (
-        <div className="st-empty">
-          <div className="st-empty-brand">
-            <span className="st-brand-mark">
-              <svg viewBox="0 0 32 32" width="100%" height="100%" fill="none" aria-hidden="true"><path d="M16 5l2.8 8.2L27 16l-8.2 2.8L16 27l-2.8-8.2L5 16l8.2-2.8z" fill="currentColor" /></svg>
-            </span>
-            <span className="st-empty-wm">maude</span>
-            <span className="st-empty-sub st-mono">
-              CANVAS · {(project || 'MAUDE').toUpperCase()} / v{MDCC_VERSION} /
-              localhost:{typeof window !== 'undefined' ? window.location.port : '4399'}
-            </span>
+        // S6.2 (shared): a project with 0 canvases shows the 05 es-project-new card; any other
+        // no-tab state keeps the placeholder below as the slot's fallback.
+        <EmptyProjectSlot>
+          <div className="sh-empty">
+            <div className="sh-empty-title">No canvas open</div>
+            <div className="sh-empty-body">
+              Open a canvas from the Canvases panel, or start a new one.
+            </div>
+            {showQuickSetup && (
+              <button
+                type="button"
+                data-testid="st-empty-start-quick-setup"
+                className="btn btn--primary sh-empty-quick-setup"
+                onClick={onStartQuickSetup}
+              >
+                Start quick setup
+              </button>
+            )}
           </div>
-          <div className="st-empty-title">Nothing open yet</div>
-          <div className="st-empty-body">
-            ← Pick a screen from the list on the left, or open <strong>Design system</strong> above
-            it to see your colors, type, and components.
-            <br />
-            <br />
-            <strong>To select something on the canvas:</strong> hold <Kbd>⌘</Kbd> and hover to
-            preview an element, click to select it — <Kbd>⌘⇧</Kbd>+click selects more than one.
-            Right-click for more options.
-            {isNativeApp() ? (
-              <>
-                <br />
-                <br />
-                Claude can see whatever's selected when you ask for a change in the Assistant
-                panel, so pointing is often faster than describing it.
-              </>
-            ) : null}
-          </div>
-          {showQuickSetup && (
-            <button
-              type="button"
-              data-testid="st-empty-start-quick-setup"
-              className="btn btn--primary st-empty-quick-setup"
-              onClick={onStartQuickSetup}
-            >
-              Start quick setup
-            </button>
-          )}
-        </div>
+        </EmptyProjectSlot>
       )}
       {tabs.map((t) => {
         if (t.path === SYSTEM_TAB) {
@@ -147,12 +204,35 @@ export function Viewport({
             </div>
           );
         }
+        if (notLocal && t.path === activePath)
+          return (
+            <div
+              key={`${t.path}#not-local`}
+              className="sh-not-local active"
+              style={{ '--es-cx': freeCx }}
+            >
+              <NotLocalCanvas name={basename(t.path).replace(/\.(tsx|html)$/i, '')} />
+            </div>
+          );
+        if (arriving && t.path === activePath)
+          return (
+            <div
+              key={`${t.path}#arriving`}
+              className="sh-not-local active"
+              style={{ '--es-cx': freeCx }}
+            >
+              <ArrivingCanvas name={basename(t.path).replace(/\.(tsx|html)$/i, '')} />
+            </div>
+          );
+        // p8-secfix-f F1 — sibling frames on the one canvas origin can read each other; a canvas-only
+        // session's frames carry different grants, so only its active canvas is framed (no keep-alive).
+        if (soloFrame && t.path !== activePath) return null;
         return (
           <iframe
             // The nonce is part of the key ONLY so the #115 Retry can force a
             // remount; it is otherwise constant, so normal switching keys on the
             // path exactly as before.
-            key={`${t.path}#${canvasReloadNonce}`}
+            key={`${t.path}#${canvasReloadNonce}${viewing?.path === t.path ? `@${viewing.at}` : ''}`}
             ref={(el) => registerIframe(t.path, el)}
             src={stableSrc(t.path)}
             title={`Canvas: ${t.path}`}
@@ -171,52 +251,98 @@ export function Viewport({
           />
         );
       })}
-      {loadingPath && loadingPath === activePath && (
+      {codeShown && (
+        <CodeView
+          key={`${codeCanvas}#code`}
+          canvas={codeCanvas}
+          designRel={designRel}
+          artboardId={codeArtboard}
+          doors={doors}
+          stamp={canvasReloadNonce}
+          onClose={() => setCodeReq(null)}
+        />
+      )}
+      {loadingPath && loadingPath === activePath && !notLocal && !arriving && (
         // DS skeletons recipe — calm .skel pulse while the canvas-shell compiles
         // the TSX. Cleared by the iframe's dgn:'loaded' message (or the onLoad
         // fallback timer for legacy .html canvases that never post it).
-        <CanvasLoading key={loadingPath} path={loadingPath} cloud={!!cfg?.cloud} />
+        //
+        // KEYS: every keyed child of this div shares ONE key space, and several are keyed by the canvas
+        // path (the frame list is its own array; this card, the code view and the render-error host are
+        // not). Each carries a `#<surface>` suffix — two siblings keyed by the bare path made React orphan
+        // a fresh card on every re-render while opening, so the card never left (fix-opening-hang).
+        <CanvasLoading key={`${loadingPath}#loading`} path={loadingPath} cloud={!!cfg?.cloud} />
       )}
-      {canvasError && canvasError.path === activePath && (
+      {canvasError && canvasError.path === activePath && !notLocal && !arriving && (
         // issue #115 — what the blank pane used to be. Names which of the two
         // failures happened and offers the recovery that used to require
         // quitting the app (or knowing that switching projects and back
         // re-reads /_config).
-        <div className="st-canvas-error" role="alert" data-testid="canvas-load-error">
-          <div className="st-canvas-error-card">
-            <div className="st-canvas-error-title">
-              {canvasError.kind === 'server'
-                ? "Maude's server isn't responding"
-                : "This canvas didn't finish loading"}
+        <div
+          className={`sh-canvas-error${canvasError.kind === 'server' ? '' : ' sh-canvas-error--v2'}`}
+          role="alert"
+          data-testid="canvas-load-error"
+        >
+          {canvasError.kind === 'server' ? (
+            <div className="sh-canvas-error-card">
+              <div className="sh-canvas-error-title">Maude's server isn't responding</div>
+              <div className="sh-canvas-error-body">
+                The canvas couldn't be reached. This usually means Maude's server restarted
+                underneath this window — your files on disk are untouched.
+              </div>
+              <button
+                type="button"
+                className="btn btn--primary"
+                data-testid="canvas-load-retry"
+                onClick={() => onRetryCanvasLoad?.(canvasError.path)}
+              >
+                Reload canvas
+              </button>
             </div>
-            <div className="st-canvas-error-body">
-              {canvasError.kind === 'server' ? (
-                <>
-                  The canvas couldn't be reached. This usually means Maude's
-                  server restarted underneath this window — your files on disk
-                  are untouched.
-                </>
-              ) : (
-                <>
-                  The server is up, but{' '}
-                  <code>{sanitizeDisplayText(basename(canvasError.path))}</code>{' '}
-                  never finished compiling. Its own error, if it has one, is in
-                  the canvas frame.
-                </>
-              )}
-            </div>
-            <button
-              type="button"
-              className="btn btn--primary"
-              data-testid="canvas-load-retry"
-              onClick={() => onRetryCanvasLoad?.(canvasError.path)}
-            >
-              Reload canvas
-            </button>
-          </div>
+          ) : canvasImportsOf(cfg, canvasError.path) ? (
+            // gate-b-c4j — it imports another canvas, so its frame refused the module: say that, not "can't
+            // be drawn" (v2/code/canvas-imports-card.jsx).
+            <CanvasImportsCard
+              key={`${canvasError.path}#imports`}
+              imports={canvasImportsOf(cfg, canvasError.path)}
+              componentDir={cfg?.newComponentDir}
+            />
+          ) : (
+            // S11.7 — "<Canvas> can't be drawn right now." + Ask AI to fix it. The error, the line and the
+            // way back sit under Show details; `canvas-load-retry` lives there as "Reload canvas".
+            <CanvasLoadFailure
+              key={canvasError.path}
+              canvas={canvasError.path}
+              designRel={designRel}
+              doors={doors}
+              canEdit={!cfg?.readOnly}
+              askAiAvailable={isNativeApp() && !cfg?.readOnly}
+              onAskAi={(text) => dispatchCanvasOp('ask-ai-fix', canvasError.path, text)}
+              onReload={() => onRetryCanvasLoad?.(canvasError.path)}
+              onNotify={(msg, ok) => shellToast(msg, ok)}
+            />
+          )}
         </div>
       )}
-    </div>
+      {canvasTab && !notLocal && !arriving && (
+        // S6.12 — the code compiles and then throws while drawing: S11.7's card over the dimmed last good
+        // render, with Go back to 14:05. Silent while this Mac's own AI run draws on it.
+        <RenderErrorHost
+          key={`${canvasTab}#render-error`}
+          canvas={canvasTab}
+          entry={renderSignal[canvasTab]}
+          designRel={designRel}
+          loadFailed={canvasState === 'error'}
+          viewing={viewing?.path === canvasTab}
+          canEdit={!cfg?.readOnly}
+          askAiAvailable={isNativeApp() && !cfg?.readOnly}
+          onReload={() => onRetryCanvasLoad?.(canvasTab)}
+          onNotify={(msg, ok) => shellToast(msg, ok)}
+        />
+      )}
+      {/* S1.15 — Compare two versions: over the canvas while a Compare rides on the Viewing hold */}
+      <CompareHost cfg={cfg} />
+    </main>
   );
 }
 
@@ -234,16 +360,21 @@ export function CanvasLoading({ path, cloud }) {
   }, []);
   const name = sanitizeDisplayText(basename(path || '').replace(/\.(tsx|jsx|html?)$/i, ''));
   return (
-    <div className="st-canvas-loading" role="status" aria-live="polite" data-testid="canvas-loading">
-      <div className="st-skel-card">
-        <div className="st-canvas-loading-head">
-          <span className="st-canvas-loading-spinner" aria-hidden="true" />
-          <span className="st-canvas-loading-title">Opening {name}…</span>
+    <div
+      className="sh-canvas-loading"
+      role="status"
+      aria-live="polite"
+      data-testid="canvas-loading"
+    >
+      <div className="sh-skel-card">
+        <div className="sh-canvas-loading-head">
+          <span className="sh-canvas-loading-spinner" aria-hidden="true" />
+          <span className="sh-canvas-loading-title">Opening {name}…</span>
         </div>
-        <span className="skel st-skel-thumb" aria-hidden="true" />
-        <span className="skel st-skel-line" style={{ width: '72%' }} aria-hidden="true" />
-        <span className="skel st-skel-line" style={{ width: '46%' }} aria-hidden="true" />
-        <div className={'st-canvas-loading-hint' + (slow ? ' is-shown' : '')}>
+        <span className="skel sh-skel-thumb" aria-hidden="true" />
+        <span className="skel sh-skel-line" style={{ width: '72%' }} aria-hidden="true" />
+        <span className="skel sh-skel-line" style={{ width: '46%' }} aria-hidden="true" />
+        <div className={'sh-canvas-loading-hint' + (slow ? ' is-shown' : '')}>
           {cloud
             ? 'Still working — the first open of a canvas fetches its images and fonts from cloud storage. It is quicker next time.'
             : 'Still working — large canvases take a moment to build.'}

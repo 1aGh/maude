@@ -1,0 +1,19 @@
+15/an-viewer — Can comment: Hand and Comment only
+Steps: as 04/md-comment-only, plus the draw keys N, M, A, E in Viewing/Preview.
+Seen: N/M/A/E answer one line each — "Stickies need Can edit." / "Marker needs Can edit." / "Arrows need Can edit." / "Stickers need
+Can edit." — with Ask to edit; C is allowed. Before 054cdd3e7 the Preview toolbar was Hand alone (defect, see 04-md-comment-only);
+after it, Hand + Comment. Everyone's annotations read-only: no annotations on this canvas, so not exercised.
+Side note: the denial toasts stack (four at once after N M A E) rather than replacing each other.
+Shots: r-viewer-key-n.png … r-viewer-key-e.png, r-viewer-preview-toolbar.png, r-viewer-comment-tool.png
+Verdict: defect → fixed (054cdd3e7); read-only display of others' annotations unexercised.
+
+Rig (2026-10-21, gate-b-compat fork): local cell from scripts/dev/local-cell.mjs on port 4890 (--no-watch --keep),
+hub process binary /Users/iagh/.nvm/versions/node/v24.13.0/bin/node (lsof txt of the hub pid), studio child bun on 4690.
+Cloud identity: MAUDE_CLOUD_IDENTITY=1 (hybrid), MAUDE_TENANT_ID=alligators, MAUDE_CONTROL_PLANE_URL=http://127.0.0.1:4899 —
+a LOOPBACK fake control plane (scratchpad gate/b/fake-cp.mjs) that answers only POST /auth/handoff/exchange with a token signed by
+apps/hub/src/cloud-identity.mjs (signAccessToken / signAccessTokenV2). Browser sessions go through the cell's real /auth/browser door.
+/health.access = {authority:control-plane, roles:[viewer,member,owner], scopes:[project], links:false} (rolesV2 dark, production posture).
+Identities (each its own Playwright context; Tereza in a separate browser process where focus matters):
+  owner  you@local.test (password sign-in) · member tereza@local.test · Can comment klara@local.test (role viewer) ·
+  Can view jonas@local.test (v2 claim role observer). Canvas ui/pitch.tsx (3 artboards Cover/Plan/Ask) seeded into the cell checkout.
+No real cloud, hub, Stripe or Cloudflare was contacted. Scripts: scratchpad gate/b/p*.mjs. Shots: shots/ (this dir).

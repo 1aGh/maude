@@ -4,39 +4,64 @@
 // NEVER exposed on the canvas origin (DDR-054/DDR-123) — the untrusted iframe
 // must not reach the agent bridge.
 
-import { isAbsolute, join, relative, resolve, sep } from 'node:path';
-
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import type {
   AvailableCommand,
   CreateElicitationRequest,
   SessionUpdate,
 } from '@agentclientprotocol/sdk';
 import type { ServerWebSocket } from 'bun';
-
+import { namedDesignFiles } from '../../../cli/lib/bash-guard.mjs';
+import { replayEdit } from '../../../cli/lib/design-hook.mjs';
+import { projectVisibility } from '../access/filters.ts';
+import { knownCanvasesFor } from '../access/known-canvases.ts';
+import { resolveAccess } from '../access/scope.ts';
 import { isCanvasFile } from '../activity.ts';
+import { chatReadRootsFor, grantsFileFor, readOnlyRootsFor } from '../ai/attach-grants.ts';
+import {
+  ASK_ID_RE,
+  type ElementRef,
+  isLive,
+  type RunRecord,
+  type RunScope,
+} from '../ai/run-lifecycle.ts';
+import type { RunRegistry } from '../ai/runs.ts';
+import { saveHold } from '../ai/save-hold.ts';
+import { claimHashOf } from '../ai/write-claim.ts';
+import { canvasSlugFromRel } from '../canvas-slug.ts';
 import type { AiActivity } from '../collab/ai-activity.ts';
 import type { Context } from '../context.ts';
+import { runWriteScope } from '../handoff/write-scopes.ts';
+import { listCanvases } from '../routes/canvas-source.ts';
+import { isCanvasSource, isUnderscoreModuleRel } from '../skip-dirs.ts';
+import { getHubRecord } from '../sync/hubs-config.ts';
 import type { WsData } from '../ws.ts';
+import { type AskQueue, noteRateLimit, promptLabel } from './ask-queue.ts';
+import { createHubWriteAudience, type WriteAudienceSource } from './audience.ts';
 import { buildStudioBrief } from './bootstrap-brief.ts';
 import { AcpBridge, type BridgeUsage } from './bridge.ts';
+import { shellOpensWindow, shellOutlivesCall } from './design-write-verb.ts';
+import { type AiMay, parseMay } from './may-scope.ts';
 import { isNativePluginContext, resolveSessionPlugins } from './plugin-bootstrap.ts';
 import { probeAcpAvailability } from './probe.ts';
 import { registerActivityProbe, registerRunningChatsProbe } from './running.ts';
-import { readChatLinesAfter } from './transcript.ts';
+import { linkChatCanvas, noteChatArtboards, readChatLinesAfter } from './transcript.ts';
 
 /**
  * Browser → server frames: `{ t: 'attach', chat, seq }` (Addendum Task 8 — bind
  * this socket to the chat's possibly-already-running bridge and replay the
  * transcript lines after `seq`, which is what the client hydrated over HTTP),
- * `{ t: 'prompt', text, chat?, model?, effort?, mode? }`,
- * `{ t: 'cancel', chat? }`, `{ t: 'warm', chat?, model?, effort?, mode? }` (spawn +
+ * `{ t: 'prompt', text, chat?, model?, effort?, mode?, may? }`,
+ * `{ t: 'cancel', chat? }`, `{ t: 'warm', chat?, model?, effort?, mode?, may? }` (spawn +
  * create the session so the agent publishes its slash-command catalogue — no
  * prompt sent), `{ t: 'set-mode', chat?, modeId }`, `{ t: 'set-config', chat?,
  * configId, value }` (live change on an already-established session —
  * feature-acp-panel-dynamic-claude-code-capabilities), `{ t: 'permission-response',
  * id, decision }` (Milestone B), `{ t: 'elicitation-response', id, action,
  * content? }` (feature-acp-ask-user-question — `action` is `accept`/`decline`/
- * `cancel`; `content` only meaningful alongside `accept`).
+ * `cancel`; `content` only meaningful alongside `accept`). `may` is Advanced › AI may
+ * (`{assets, web}`, P8 c7 — acp/may-scope.ts): the bridge HOLDS an off switch (deny rules + its gate).
  * Server → browser frames: `ready` (availability on open), `connected` (session
  * live), `update` (each streamed session/update), `commands` (the agent's
  * `available_commands_update` catalogue — cached + replayed on open), `caps`
@@ -82,6 +107,177 @@ export interface Acp {
    *  path. Extending a session across a *switch* is the whole point; extending
    *  it across a quit is not. */
   stopAll(): void;
+  /**
+   * S5.6 — the run registry's `turns.send` (V2-1.15 §5.4): run the turn of a run that just became
+   * `starting`. `text` is a generated continuation turn; else the ask's own prompt, or for a Keep
+   * going (`resumeOf`) the carry-on line — on the chat's persisted ACP session (`loadSession`).
+   */
+  sendTurn(rec: RunRecord, text: string | null): Promise<void>;
+  /** S5.6 — the registry's `turns.cancel`: Stop / quit / lease lost cancel the run's live turn. */
+  cancelTurn(rec: RunRecord): Promise<void>;
+}
+
+export interface AcpOptions {
+  /**
+   * S5.6 (S5-slices D3, decision v2-S5-acp-role-gate-per-frame) — the LIVE read-only predicate
+   * (role + format gate, the one the agent routes use). Read on EVERY state-changing frame, never
+   * stamped at upgrade: the role can drop mid-socket. A throw counts as read-only (fail closed).
+   */
+  readOnly?: () => boolean;
+  /** S5.6 — THE run registry (ai/runs.ts). Absent = the pre-S5.6 direct turn (tests, web serve). */
+  runs?: RunRegistry;
+  /** S5.6 — the outbox door for a prompt that cannot go now (acp/ask-queue.ts). Needs `runs`.
+   *  A getter: server.ts builds the outbox (inside createHttp) after the ACP manager. */
+  queue?: () => AskQueue | null;
+  /** tests only — the bridges' permission deadline */
+  permissionTimeoutMs?: number;
+  /**
+   * S5.10 — the folders granted read-only (`ai/attach-grants.ts`), read per write request by every
+   * bridge's write gate. Default: this project's app-owned grants (`grantsFileFor`, V2-8.9 B1).
+   */
+  readOnlyRoots?: () => readonly string[];
+  /**
+   * V2-8.9 H1 — who besides the project's people sees a write target (acp/audience.ts). Default:
+   * the linked hub's canvas grants over this project's closure (`projectWriteAudience`).
+   */
+  writeAudience?: WriteAudienceSource;
+}
+
+/**
+ * V2-8.9 H1 (decision maude/v2-8.9-lead-h1-audience-aware-write-gate) — the default audience source:
+ * the linked hub this Mac holds a credential for (the Share sheet's hub, http.ts `shareDeps`) and
+ * the project's own closure (the one the read filters use, `projectVisibility`). Lazy: a project
+ * with no linked hub never builds a closure or makes a call — every audience is "only you".
+ */
+export function projectWriteAudience(ctx: Context): WriteAudienceSource {
+  const canvasAccess = (c: string) =>
+    resolveAccess({ v: 1, role: null, grants: [{ c, r: 'viewer' }] });
+  return createHubWriteAudience({
+    hub: () => {
+      const url = ctx.cfg?.linkedHub?.url;
+      const rec = url ? getHubRecord(url) : null;
+      return url && rec?.token ? { url, token: rec.token } : null;
+    },
+    canvases: () => listCanvases(ctx.paths.designRoot),
+    closureOf: (canvas) => projectVisibility(ctx).closureOf(canvasAccess(canvas))?.read ?? null,
+    isCanvas: (rel) =>
+      audienceIsCanvas(ctx.paths.designRoot, rel, () => knownCanvasesFor(ctx.cfg ?? undefined)),
+  });
+}
+
+/**
+ * Is `rel` a canvas for the write audience — the access closure's answer (access/closure.ts
+ * `walkEnv`): a `_` file (`ui/club-web/_frames.tsx`) is a module whatever it renders, unless its own
+ * meta / board or a stored grant says canvas (lead decision maude/v2-p8-lead-underscore-file-is-a-module);
+ * any other `.tsx` is one when it renders DesignCanvas. A module's audience is every canvas that
+ * inlines it — so calling one a canvas would hide those canvases' grantees.
+ */
+export function audienceIsCanvas(
+  designRoot: string,
+  rel: string,
+  known: () => readonly string[]
+): boolean {
+  if (isUnderscoreModuleRel(rel)) {
+    const slug = canvasSlugFromRel(rel, '');
+    return (
+      existsSync(join(designRoot, rel.replace(/\.tsx$/i, '.meta.json'))) ||
+      existsSync(join(designRoot, `${slug}.annotations.json`)) ||
+      existsSync(join(designRoot, `${slug}.annotations.svg`)) ||
+      known().includes(rel)
+    );
+  }
+  try {
+    return isCanvasSource(readFileSync(join(designRoot, rel), 'utf8'));
+  } catch {
+    return false;
+  }
+}
+
+/** The refusal a read-only session's state-changing frame gets (CONTRACT §4 voice). */
+export const READ_ONLY_CHAT_WORDS =
+  'This project is view only for you, so AI can’t change it. Ask the owner for edit access.';
+
+/** S5.6 — Keep going (a `resumeOf` run without a prompt of its own) on the resumed session. */
+export const KEEP_GOING_TEXT = 'Keep going from where you stopped.';
+
+/** Same chat + same text within this window is one ask (the double "Try again", V2-1.14 §5.6). */
+export const DOUBLE_SUBMIT_MS = 2000;
+
+const ARTBOARD_ID_RE = /^[A-Za-z0-9_.:-]{1,128}$/;
+const MAX_SCOPE_ARTBOARDS = 64;
+
+/**
+ * The structured `prompt {scope}` (S5.6). designRoot-relative canvas, artboard ids or `'*'`. Anything
+ * malformed is no scope at all — the pre-S5.6 lazy run (each edit claims what it reaches), never a
+ * guess. Element refs need the kernel's entry key, which the client does not have: not carried yet.
+ */
+export function parseRunScope(raw: unknown, designRel = ''): RunScope | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as { canvas?: unknown; artboards?: unknown; elements?: unknown };
+  if (typeof o.canvas !== 'string' || !o.canvas || o.canvas.length > 512) return null;
+  if (o.canvas.includes('\0') || o.canvas.includes('\\') || o.canvas.startsWith('/')) return null;
+  // S5.17 G1 — ONE path form: design-relative. The shell sends the frame's repo-relative data-path
+  // (`.design/ui/Site.tsx`); the hook, the lease key (`path:<designRel>/<rel>`) and a terminal run
+  // speak `ui/Site.tsx`. Strip the design root once; every check below runs on the stripped form.
+  const root = designRel.replace(/^\/+|\/+$/g, '');
+  const canvas =
+    root && o.canvas.startsWith(`${root}/`) ? o.canvas.slice(root.length + 1) : o.canvas;
+  const parts = canvas.split('/');
+  // inside the design root only: no traversal, no hidden segment (`.git/…`, a second `.design/`)
+  if (parts.some((p) => p === '' || p === '.' || p === '..' || p.startsWith('.'))) return null;
+  if (!isCanvasFile(canvas)) return null;
+  if (o.artboards === '*') return o.elements === undefined ? { canvas, artboards: '*' } : null;
+  if (!Array.isArray(o.artboards) || o.artboards.length === 0) return null;
+  if (o.artboards.length > MAX_SCOPE_ARTBOARDS) return null;
+  if (!o.artboards.every((a) => typeof a === 'string' && ARTBOARD_ID_RE.test(a))) return null;
+  const artboards = [...new Set(o.artboards as string[])];
+  if (o.elements === undefined) return { canvas, artboards };
+  // S2.19 — a ⌘/ ask on a selection names its elements; they sit on artboards the ask leases
+  const elements = parseScopeElements(o.elements, canvas, artboards);
+  return elements ? { canvas, artboards, elements } : null;
+}
+
+/**
+ * S5.17 G3 — the Version-history label of a chat turn: what the person typed, never the frozen
+ * `[maude-context …]` / `[maude-scope …]` / `[selected: …]` lines the shell appends (promptLabel).
+ */
+export function turnLabelOf(prompt: string): string {
+  const words = promptLabel(prompt);
+  return words || 'AI edit';
+}
+
+/** S2.19 — the most elements one ask names (the registry's per-run cap). */
+export const MAX_SCOPE_ELEMENTS = 200;
+
+function parseScopeElements(
+  raw: unknown,
+  canvas: string,
+  artboards: string[]
+): ElementRef[] | null {
+  if (!Array.isArray(raw) || raw.length === 0 || raw.length > MAX_SCOPE_ELEMENTS) return null;
+  const out: ElementRef[] = [];
+  const seen = new Set<string>();
+  for (const e of raw as Array<{ artboard?: unknown; element?: unknown; occurrence?: unknown }>) {
+    if (!e || typeof e !== 'object') return null;
+    if (typeof e.artboard !== 'string' || !artboards.includes(e.artboard)) return null;
+    if (typeof e.element !== 'string' || !ARTBOARD_ID_RE.test(e.element)) return null;
+    const occ = e.occurrence;
+    if (
+      occ !== undefined &&
+      !(typeof occ === 'number' && Number.isInteger(occ) && occ >= 0 && occ < 10000)
+    )
+      return null;
+    const key = `${e.artboard}\u0000${e.element}\u0000${occ ?? ''}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      canvas,
+      artboard: e.artboard,
+      element: e.element,
+      ...(occ !== undefined ? { occurrence: occ } : {}),
+    });
+  }
+  return out;
 }
 
 // RC5 (rca/issue-canvas-hmr-optimistic-update-consistency) — the ACP chat agent
@@ -102,15 +298,52 @@ const BEAT_MS = 4000;
 interface AgentActivityTracker {
   onUpdate(update: SessionUpdate): void;
   /**
+   * V2-8.9 round B A1 — a permission card opened for `toolCallId` (`decided` absent), or the person
+   * answered it. A shell verb's window is shut while its card waits and reopens only on a grant.
+   */
+  onPermission?(toolCallId: string | undefined, decided?: { granted: boolean }): void;
+  /**
    * Turn finished (normal, cancel, error) or socket closed — clear banners.
    * T16: `done` publishes what the turn wrote as ONE project action; anything
    * else (cancel, error, token limit, reap) keeps it unpublished for the
    * person's decision. Default `failed` — only a clean end publishes.
    */
   endTurn(outcome?: 'done' | 'failed'): void;
-  /** The prompt this turn answers — the action's history label. */
-  beginTurn?(prompt: string): void;
+  /**
+   * The prompt this turn answers — the action's history label. `runId` = the registry run the
+   * turn belongs to (S5.6): its stage is begun under that id and the REGISTRY ends it
+   * (routes/project-undo.ts `runStageHooks`) — this tracker then never ends it itself, so one
+   * turn is never two stages and Stop publishes partial instead of holding (S5.5b).
+   */
+  beginTurn?(prompt: string, runId?: string | null): void;
 }
+
+/**
+ * V2-8.9 re-check 2 H-a — the loopback ports THIS server listens on (main, canvas, capture), from the
+ * origins server.ts sets. A public (cell) canvas origin is not a port on this machine and is skipped.
+ * Exported for tests.
+ */
+export function ownServerPorts(
+  ctx: Pick<Context, 'mainOrigin' | 'canvasOrigin' | 'captureOrigin'>
+): number[] {
+  const ports: number[] = [];
+  const main = ctx.mainOrigin?.split(/\s+/)[0];
+  for (const o of [main, ctx.canvasOrigin, ctx.captureOrigin]) {
+    if (!o) continue;
+    try {
+      const u = new URL(o);
+      if (u.hostname !== 'localhost' && u.hostname !== '127.0.0.1') continue;
+      const p = Number(u.port);
+      if (Number.isInteger(p) && p > 0 && !ports.includes(p)) ports.push(p);
+    } catch {
+      /* not a URL */
+    }
+  }
+  return ports;
+}
+
+/** The registry's run ids (ai/run-lifecycle.ts RUN_ID_RE) — the stage's own id pattern. */
+const STAGE_ID = /^[A-Za-z0-9_-]{1,64}$/;
 
 /** Exported for tests (acp-ai-activity.test.ts); not part of the Acp surface. */
 export function createAgentActivityTracker(
@@ -119,19 +352,139 @@ export function createAgentActivityTracker(
   chatId = 'default'
 ): AgentActivityTracker {
   const kindByToolCall = new Map<string, string>(); // toolCallId → kind
+  // S12.16 — toolCallId → the canvas keys its earlier updates named. The adapter's `completed`
+  // update carries no path (it came with the input, before): without this the turn never claims
+  // its write, and with two runs open the store cannot tell whose it is (`outside`).
+  const keysByToolCall = new Map<string, Set<string>>();
   const lastBeat = new Map<string, number>(); // ai-activity key → last beat ms
   const actionKey = `acp:${chatId}`;
   let turnLabel = 'Claude edit';
   let actionOpen = false;
+  /** p8-a1-claims — `${toolCallId}|${key}` whose bytes were claimed (once per call and canvas). */
+  const claimedCalls = new Set<string>();
+  /** A1 — the repo-relative canvases each windowed call names (its window takes only those). */
+  const shellFiles = new Map<string, string[]>();
+  /**
+   * p8-sec2-attrib A1 — windowed calls that name NO canvas (`sed -i … *.tsx`, `find -exec`, a computed
+   * name): the stage window covers every canvas. No hold: a person's save lands as theirs at once.
+   */
+  const shellAll = new Set<string>();
+  /** A1 — interpreter calls whose window is open, waiting on a card, or finished. */
+  const shellOpen = new Set<string>();
+  const shellCard = new Set<string>();
+  const shellSeen = new Set<string>();
+  /** p8-secfix-hook F2 — calls that leave a process running: their window shuts at the turn's end. */
+  const shellOutlives = new Set<string>();
+  /** S5.5b — the registry run of the current turn (null: a pre-S5.6 direct turn). */
+  let turnRun: string | null = null;
+
+  /**
+   * p8-a1-claims (Michal 2026-10-29) — an edit tool claims the EXACT bytes it is about to write, as soon
+   * as its input is known: a Write's content, an Edit/MultiEdit replayed on the file's current bytes
+   * (cli/lib/design-hook.mjs `replayEdit`, the same replay the PreToolUse hook makes — the hook's claim
+   * is the one that is sure to come first; this one is the backup when no hook runs). Nothing is ever
+   * claimed from what the disk holds AFTER the call: those could be a person's bytes. A write whose
+   * bytes cannot be told (an Edit whose text is gone) is not claimed and lands as the person's.
+   */
+  function claimToolBytes(toolCallId: string, key: string, raw: unknown): void {
+    if (claimedCalls.has(`${toolCallId}|${key}`) || !raw || typeof raw !== 'object') return;
+    const ti = raw as Record<string, unknown>;
+    const tool =
+      typeof ti.content === 'string'
+        ? 'Write'
+        : Array.isArray(ti.edits)
+          ? 'MultiEdit'
+          : typeof ti.old_string === 'string'
+            ? 'Edit'
+            : null;
+    if (!tool) return;
+    const posix = key.slice(ctx.paths.designRel.length + 1);
+    let cur: string | null = null;
+    try {
+      cur = readFileSync(join(ctx.paths.designRoot, posix), 'utf8');
+    } catch {
+      cur = null; // a new file: a Write's content is all of it
+    }
+    const after = replayEdit(tool, ti, cur);
+    const hash = typeof after === 'string' ? claimHashOf(key, after) : null;
+    if (!hash) return;
+    claimedCalls.add(`${toolCallId}|${key}`);
+    openAction();
+    ctx.syncControl?.current?.()?.claimAiWrite?.(turnRun ?? actionKey, key, hash);
+  }
+
+  /** `abs` relative to the design root, by the path as given first, then by REAL paths (null: outside). */
+  function relUnderDesignRoot(abs: string): string | null {
+    const inside = (r: string) => !!r && !r.startsWith('..') && !isAbsolute(r);
+    const direct = relative(ctx.paths.designRoot, abs);
+    if (inside(direct)) return direct;
+    // The agent reports real paths (`process.cwd()` resolves links), while the project may sit behind one —
+    // macOS /tmp and /var, a linked ~/git: without this the edit never opens the run's stage and lands as
+    // "changed outside the app" instead of an AI action.
+    try {
+      const root = realpathSync(ctx.paths.designRoot);
+      let real: string;
+      try {
+        real = realpathSync(abs);
+      } catch {
+        real = join(realpathSync(dirname(abs)), basename(abs)); // the file is new: its folder is real
+      }
+      const via = relative(root, real);
+      return inside(via) ? via : null;
+    } catch {
+      return null;
+    }
+  }
 
   function keyFor(p: unknown): string | null {
     if (typeof p !== 'string' || !p) return null;
     const abs = isAbsolute(p) ? p : resolve(ctx.paths.repoRoot, p);
-    const rel = relative(ctx.paths.designRoot, abs);
-    if (!rel || rel.startsWith('..') || isAbsolute(rel)) return null;
+    const rel = relUnderDesignRoot(abs);
+    if (!rel) return null;
     const posix = rel.split(sep).join('/');
     if (!isCanvasFile(posix)) return null;
     return `${ctx.paths.designRel}/${posix}`;
+  }
+
+  /**
+   * Open the turn's project action (its run stage, always claim-only); `shell` = the window of one
+   * call that cannot claim, for the canvases its command names (A1, S7).
+   */
+  function openAction(shell?: {
+    call: string;
+    open: boolean;
+    files: string[];
+    all?: boolean;
+  }): void {
+    actionOpen = true;
+    ctx.syncControl?.current?.()?.beginAiAction?.(actionKey, turnLabel, {
+      ...(turnRun ? { runId: turnRun } : {}),
+      ...(STAGE_ID.test(chatId) ? { chatId } : {}),
+      claimOnly: true,
+      ...(shell ? { shell } : {}),
+    });
+  }
+
+  function shellWindow(call: string, open: boolean): void {
+    if (open) shellOpen.add(call);
+    else shellOpen.delete(call);
+    const files = shellFiles.get(call) ?? [];
+    // p8-a1-save-hold — while it is open a person's save to these files waits (ai/save-hold.ts)
+    saveHold().window(
+      call,
+      open,
+      files.map((f) => resolve(ctx.paths.repoRoot, f)),
+      actionKey
+    );
+    openAction({ call, open, files, ...(shellAll.has(call) ? { all: true } : {}) });
+  }
+
+  function onPermission(toolCallId: string | undefined, decided?: { granted: boolean }): void {
+    if (!toolCallId || !shellSeen.has(toolCallId)) return;
+    if (!decided) {
+      shellCard.add(toolCallId);
+      if (shellOpen.has(toolCallId)) shellWindow(toolCallId, false);
+    } else if (shellCard.delete(toolCallId) && decided.granted) shellWindow(toolCallId, true);
   }
 
   function onUpdate(update: SessionUpdate): void {
@@ -139,6 +492,7 @@ export function createAgentActivityTracker(
       sessionUpdate?: string;
       toolCallId?: string;
       kind?: string;
+      status?: string;
       locations?: Array<{ path?: string } | null> | null;
       rawInput?: unknown;
     };
@@ -147,6 +501,54 @@ export function createAgentActivityTracker(
     const kind =
       (typeof u.kind === 'string' ? u.kind : u.toolCallId && kindByToolCall.get(u.toolCallId)) ||
       '';
+    if (kind === 'execute') {
+      // p8-t-video-3 — an agent that edits THROUGH THE SHELL (`maude design reel-place …`) opens the turn's
+      // stage at the verb's start, before its first write: the watcher then stages that write into the run
+      // instead of recording it as "changed outside the app" (no AI action, no Made by AI, no one-step Undo).
+      // V2-8.9 round B A1 — but such a stage is claim-scoped (sync/action-stage.ts `claimOnly`): it takes an
+      // unclaimed write only while THIS call's window is open — from its tool_call until it completes or
+      // fails, shut while its permission card waits, never reopened by a denial. Everything else must be
+      // claimed by hash (the design hook's post-bash `edit/touched`), so a person's own edit made between
+      // or after the verb's calls is never folded into the AI run or its Undo.
+      // V2-8.16 S7 — not only a verb: every call that is not provably a read gets that window (a python
+      // heredoc cut the shot and nothing attributed it). See design-write-verb.ts `shellOpensWindow`.
+      // p8-a1-claims (Michal 2026-10-29) — and no longer a verb at all: a `maude design` verb claims its
+      // own bytes before they land (ai/write-claim.ts), so a call whose only writers are verbs opens
+      // NOTHING. The window is the named fallback for what cannot claim (python, node -e, sed -i, bash -c).
+      const id = u.toolCallId;
+      if (!id) return;
+      const command = (u.rawInput as { command?: unknown } | null | undefined)?.command;
+      // p8-a1-claims — and only for the canvases the command NAMES (cli/lib/bash-guard.mjs
+      // `namedDesignFiles`): a person's save to any other canvas during the call stays theirs.
+      // p8-sec2-attrib A1 — a call that may write but names none (a glob, `find -exec`, a computed
+      // name) used to open nothing, so its writes landed as the person's: it now opens a window over
+      // every canvas for the run stage (outside writes only; no hold), and the design hook's post-bash
+      // binds exactly the bytes it changed.
+      const opens = !shellSeen.has(id) && shellOpensWindow(command);
+      const named = opens
+        ? namedDesignFiles(ctx.paths.designRoot, command).map(
+            (rel: string) => `${ctx.paths.designRel}/${rel}`
+          )
+        : [];
+      if (opens) {
+        shellSeen.add(id);
+        shellFiles.set(id, named);
+        if (!named.length) shellAll.add(id);
+        // p8-secfix-hook F2 — `nohup python3 w.py &` / `run_in_background` returns at once and
+        // writes later: its window stays open until the turn ends (endTurn), not return + settle
+        if (shellOutlivesCall(u.rawInput)) shellOutlives.add(id);
+        shellWindow(id, true);
+      }
+      if (
+        shellSeen.has(id) &&
+        u.sessionUpdate === 'tool_call_update' &&
+        (u.status === 'completed' || u.status === 'failed')
+      ) {
+        shellCard.delete(id);
+        if (shellOpen.has(id) && !shellOutlives.has(id)) shellWindow(id, false);
+      }
+      return;
+    }
     if (!EDIT_KINDS.has(kind)) return;
     const candidates: unknown[] = [];
     if (Array.isArray(u.locations)) for (const l of u.locations) candidates.push(l?.path);
@@ -156,14 +558,17 @@ export function createAgentActivityTracker(
       | undefined;
     if (raw && typeof raw === 'object') candidates.push(raw.file_path, raw.abs_path, raw.path);
     const now = Date.now();
+    const seen = u.toolCallId ? keysByToolCall.get(u.toolCallId) : undefined;
+    const keys = new Set<string>(seen ?? []);
     for (const p of candidates) {
       const key = keyFor(p);
-      if (!key) continue;
-      if (!actionOpen) {
-        // T16 — the turn's first canvas edit opens its project action.
-        actionOpen = true;
-        ctx.syncControl?.current?.()?.beginAiAction?.(actionKey, turnLabel);
-      }
+      if (key) keys.add(key);
+    }
+    if (u.toolCallId && keys.size) keysByToolCall.set(u.toolCallId, keys);
+    for (const key of keys) {
+      // p8-a1-claims — the bytes are claimed BEFORE they land; the run stays claim-only (an edit tool
+      // no longer lifts it for the rest of the turn, so a person's save after it stays theirs)
+      if (u.toolCallId) claimToolBytes(u.toolCallId, key, u.rawInput);
       const last = lastBeat.get(key);
       if (last == null) {
         ai.start(key, AGENT_AUTHOR);
@@ -179,21 +584,33 @@ export function createAgentActivityTracker(
     for (const key of lastBeat.keys()) ai.end(key);
     lastBeat.clear();
     kindByToolCall.clear();
+    keysByToolCall.clear();
+    for (const call of [...shellOpen]) shellWindow(call, false);
+    shellCard.clear();
+    shellSeen.clear();
+    shellFiles.clear();
+    shellAll.clear();
+    claimedCalls.clear();
+    shellOutlives.clear();
     if (actionOpen) {
       actionOpen = false;
-      void ctx.syncControl
-        ?.current?.()
-        ?.endAiAction?.(actionKey, outcome)
-        ?.catch(() => {});
+      // A registry run's stage is the registry's to end (publish / partial / hold).
+      if (!turnRun) {
+        void ctx.syncControl
+          ?.current?.()
+          ?.endAiAction?.(actionKey, outcome)
+          ?.catch(() => {});
+      }
     }
+    turnRun = null;
   }
 
-  function beginTurn(prompt: string): void {
-    const words = prompt.replace(/\s+/g, ' ').trim().slice(0, 80);
-    turnLabel = words ? `Claude: ${words}` : 'Claude edit';
+  function beginTurn(prompt: string, runId: string | null = null): void {
+    turnLabel = turnLabelOf(prompt);
+    turnRun = runId && STAGE_ID.test(runId) ? runId : null;
   }
 
-  return { onUpdate, endTurn, beginTurn };
+  return { onUpdate, onPermission, endTurn, beginTurn };
 }
 
 // ── Detached bridge lifetime (feature-acp-write-path-scope Addendum, Task 8) ──
@@ -257,9 +674,27 @@ interface BridgeEntry {
   /** Last prompt/attach, for least-recently-active eviction. */
   lastActive: number;
   reapTimer: ReturnType<typeof setTimeout> | null;
+  /** S5.6 — the registry run whose turn this bridge is running (null between turns). */
+  runId: string | null;
+  /** S5.6 — the last `{t:'run'}` frame sent per run, so only a change is sent again. */
+  sentRuns: Map<string, string>;
 }
 
-export function createAcp(ctx: Context, aiActivity?: AiActivity): Acp {
+export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOptions = {}): Acp {
+  const runs = options.runs ?? null;
+  // V2-8.9 H1 — one audience source (and its hub-answer cache) for every chat's bridge.
+  const writeAudience = options.writeAudience ?? projectWriteAudience(ctx);
+  /** D3 — read per frame; a throw is read-only (fail closed). */
+  function readOnlyNow(): boolean {
+    if (!options.readOnly) return false;
+    try {
+      return options.readOnly() === true;
+    } catch {
+      return true;
+    }
+  }
+  /** chatId → the last old-client (no askId) prompt, for the 2 s double-submit fold. */
+  const lastAsk = new Map<string, { text: string; at: number; askId: string }>();
   /** chatId → entry. Keyed by CHAT, not by socket — see the block comment above. */
   const bridges = new Map<string, BridgeEntry>();
   /** ws.data.id → the chat ids that socket is attached to (one, in practice —
@@ -378,9 +813,35 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity): Acp {
       detachedSince: 0,
       lastActive: Date.now(),
       reapTimer: null,
+      runId: null,
+      sentRuns: new Map(),
     };
     entry.bridge = new AcpBridge({
+      // V2-1.15 §5.4 — the adapter carries MAUDE_CHAT_ID=<this chat> (the hook's run binding).
+      chatId,
+      // S5.10 — a folder AI may read is never a write path (acp/write-scope `read-only-grant`).
+      readOnlyRoots:
+        options.readOnlyRoots ??
+        (() =>
+          readOnlyRootsFor({ projectRoot: ctx.paths.repoRoot, designRoot: ctx.paths.designRoot })),
+      // M2 (decision maude/v2-michal-m2-read-boundary) — the folders THIS chat may read: allowed and
+      // attached (Remove takes one back on the next read). Read live per request by the read gate.
+      readRoots: () =>
+        chatReadRootsFor(
+          { projectRoot: ctx.paths.repoRoot, designRoot: ctx.paths.designRoot },
+          chatId
+        ),
+      // V2-8.9 H2 — the same store, read live by the source-reading maude verbs (MAUDE_GRANTS_FILE).
+      grantsFile: grantsFileFor(ctx.paths.repoRoot),
+      // V2-8.9 re-check 2 H-a — this server's own ports: the browser helpers open no other one.
+      ownPorts: () => ownServerPorts(ctx),
+      // S8.10 — a Handoff to production chat writes its target file only (handoff/write-scopes.ts).
+      writeOnlyRoots: () => runWriteScope(chatId),
+      // V2-8.9 H1 — a write that carries a file this chat read to someone who cannot see it asks.
+      writeAudience,
       repoRoot: ctx.paths.repoRoot,
+      // P8 c7 — "Use Assets and footage" covers `<designRoot>/assets/` (acp/may-scope.ts).
+      designRoot: ctx.paths.designRoot,
       // Static, config-derived environment brief for every new session
       // (feature-acp-context-hardening; see bootstrap-brief.ts guardrails).
       studioBrief: buildStudioBrief({
@@ -398,15 +859,27 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity): Acp {
       // here; carried on the readonly bridge options so it survives an adapter
       // re-spawn (model/effort change).
       plugins: resolveSessionPlugins(),
+      // S5.6 (D7) — Needs you waits while a socket is attached; a detached bridge still denies
+      // once nobody has watched it for the full timeout (a never-attached one counts from birth).
+      detachedFor: () =>
+        entry.sinks.size > 0 ? 0 : Date.now() - (entry.detachedSince || entry.lastActive),
+      ...(options.permissionTimeoutMs ? { permissionTimeoutMs: options.permissionTimeoutMs } : {}),
       onUpdate: (update, seq) => {
         tracker?.onUpdate(update);
+        noteAnswered(entry);
         // `seq` is the update's transcript line — the re-attach seam. The
         // client drops anything it already hydrated and keeps the rest, so a
         // reload mid-stream neither duplicates nor drops output.
         broadcast(entry, { t: 'update', update, seq });
       },
-      onPermission: (req) => broadcast(entry, { t: 'permission', toolCall: req.toolCall }),
-      onPermissionRequest: (id, req, scope) =>
+      onPermission: (req) => {
+        tracker?.onPermission?.(req.toolCall?.toolCallId);
+        broadcast(entry, { t: 'permission', toolCall: req.toolCall });
+      },
+      onPermissionDecided: (req, granted) =>
+        tracker?.onPermission?.(req.toolCall?.toolCallId, { granted }),
+      onPermissionRequest: (id, req, scope) => {
+        noteNeedsYou(entry, req.toolCall?.title);
         // NOTE (Addendum hazard): if this chat is DETACHED, `broadcast` is a
         // no-op — nobody sees the request, and the bridge's own 120 s timeout
         // denies it (`PERMISSION_TIMEOUT_MS` → `'cancelled'`). That is the
@@ -430,8 +903,10 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity): Acp {
           // can name what will actually be written rather than echoing the
           // model's own (possibly `../`-laden) string.
           scope,
-        }),
-      onElicitationRequest: (id, req: CreateElicitationRequest) =>
+        });
+      },
+      onElicitationRequest: (id, req: CreateElicitationRequest) => {
+        noteNeedsYou(entry, req.message);
         // Same detached-bridge note as onPermissionRequest above: nobody
         // watching ⇒ the bridge's own timeout declines it.
         broadcast(entry, {
@@ -454,13 +929,17 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity): Acp {
           // disambiguate a built-in AskUserQuestion form from an arbitrary
           // connected MCP server's form.
           toolCallId: 'toolCallId' in req ? req.toolCallId : undefined,
-        }),
+        });
+      },
       // A pending elicitation settled via ANY path, including one the
       // client never initiated (a bridge-side timeout, cancel(), stop()) —
       // tells the client to drop it from its own pending list even though
       // it didn't send the `elicitation-response` itself. See the doc
       // comment on `onElicitationSettled` in bridge.ts.
-      onElicitationSettled: (id) => broadcast(entry, { t: 'elicitation-resolved', id }),
+      onElicitationSettled: (id) => {
+        broadcast(entry, { t: 'elicitation-resolved', id });
+        noteAnswered(entry);
+      },
       onCommands: (commands) => {
         latestCommands = commands;
         broadcast(entry, { t: 'commands', commands });
@@ -469,6 +948,7 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity): Acp {
       onSessionInfo: (info) => broadcast(entry, { t: 'session-info', ...info }),
       onUsage: (usage) => {
         latestUsage = usage;
+        noteRateLimit(usage.rateLimit); // S5.6 — the outbox's `ai-allowance` gate fact
         broadcast(entry, { t: 'usage', usage });
       },
     });
@@ -558,32 +1038,37 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity): Acp {
     return chatFilePathFor(chatId, '.session.json');
   }
 
-  async function handlePrompt(
-    ws: ServerWebSocket<WsData>,
-    text: string,
-    chatId: string,
-    model: string | null,
-    effort: string | null,
-    modeId: string | null
-  ): Promise<void> {
-    const entry = attach(ws, sanitizeChatId(chatId));
-    if (!entry) {
-      send(ws, { t: 'error', message: 'Too many chats are open. Close one and try again.' });
-      return;
-    }
+  /** Point the bridge at this chat's transcript + persisted ACP session (the `loadSession` seam). */
+  function bindChatFiles(entry: BridgeEntry): void {
+    entry.bridge.setTranscriptPath(transcriptPathFor(entry.chatId));
+    entry.bridge.setSessionStorePath(sessionStorePathFor(entry.chatId));
+  }
+
+  /**
+   * One agent turn on a chat's bridge — the pre-S5.6 body of `handlePrompt`. `run` brackets it on
+   * the registry: `accepted` right before the prompt goes out, `turn-end` / `fail` after.
+   */
+  async function runTurn(entry: BridgeEntry, text: string, runId: string | null): Promise<void> {
     const { bridge } = entry;
-    bridge.setTranscriptPath(transcriptPathFor(chatId));
-    bridge.setSessionStorePath(sessionStorePathFor(chatId));
-    bridge.setConfig(model, effort, modeId);
     // Marks this bridge as worth keeping alive through a detach. Set BEFORE the
     // first await, so a socket that closes during the spawn still counts as a
     // live turn rather than an abandoned bridge.
     entry.turnActive = true;
-    entry.tracker?.beginTurn?.(text);
+    entry.runId = runId;
+    entry.tracker?.beginTurn?.(text, runId);
     let turnOutcome: 'done' | 'failed' = 'failed';
+    let stopReason: string | null = null;
     try {
       await bridge.ensureStarted();
-      const { stopReason } = await bridge.prompt(text, sanitizeChatId(chatId));
+      if (runId && runs) {
+        await runs.started(runId);
+        // stopped (or its lease lost) while the adapter spawned: the prompt never goes out
+        if (runs.get(runId)?.state !== 'running') {
+          broadcast(entry, { t: 'turn-end', stopReason: 'cancelled' });
+          return;
+        }
+      }
+      ({ stopReason } = await bridge.prompt(text, entry.chatId));
       // Only a turn that ended on its own publishes; a cancel, a refusal or a
       // token limit leaves its edits for the person (T16).
       if (stopReason === 'end_turn') turnOutcome = 'done';
@@ -596,6 +1081,7 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity): Acp {
       });
     } finally {
       entry.turnActive = false;
+      entry.runId = null;
       entry.lastActive = Date.now();
       // RC5 — the turn is over (success, error, or cancel-induced stop): clear
       // every "Claude is editing …" banner this turn raised. The 30 s heartbeat
@@ -608,7 +1094,180 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity): Acp {
         if (!entry.detachedSince) entry.detachedSince = Date.now();
         armReap(entry);
       }
+      // V2-1.15 §5.5 — AFTER the bridge is free, so the chat's next ask (the chat-level line,
+      // a continuation) finds it idle. A run already ended by Stop / quit refuses the event.
+      const cur = runId ? runs?.get(runId) : null;
+      if (runId && runs && cur && isLive(cur)) {
+        void runs.turnEnded(runId, turnOutcome).catch(() => null);
+      }
     }
+  }
+
+  /** The run frames of a chat: its live runs, plus every run already shown, when it changed. */
+  function pushRunFrames(entry: BridgeEntry): void {
+    if (!runs || entry.sinks.size === 0) return;
+    for (const run of runs.view().mine) {
+      if (run.chatId !== entry.chatId) continue;
+      const prior = entry.sentRuns.get(run.runId);
+      if (prior === undefined && run.state === 'ended') continue;
+      const json = JSON.stringify(run);
+      if (json === prior) continue;
+      entry.sentRuns.set(run.runId, json);
+      broadcast(entry, { t: 'run', run });
+    }
+  }
+
+  /** A permission / elicitation is open: the chat's run needs you (§5.5 running → needs-you). */
+  function noteNeedsYou(entry: BridgeEntry, question: unknown): void {
+    const id = entry.runId;
+    if (!runs || !id || runs.get(id)?.state !== 'running') return;
+    const q = typeof question === 'string' && question.trim() ? question : 'Claude is asking';
+    void runs.needsYou(id, q).catch(() => null);
+  }
+
+  /** Every open question is settled: the run is running again (§5.5 needs-you → running). */
+  function noteAnswered(entry: BridgeEntry): void {
+    const id = entry.runId;
+    if (!runs || !id || runs.get(id)?.state !== 'needs-you') return;
+    if (entry.bridge.awaitingInputCount > 0) return;
+    void runs.answered(id).catch(() => null);
+  }
+
+  /** The askId of a prompt frame: the client's, else the 2 s double-submit fold for old clients. */
+  function askIdFor(chatId: string, text: string, raw: unknown): string | undefined {
+    if (typeof raw === 'string' && ASK_ID_RE.test(raw)) return raw;
+    const prior = lastAsk.get(chatId);
+    const now = Date.now();
+    if (prior && prior.text === text && now - prior.at < DOUBLE_SUBMIT_MS) return prior.askId;
+    const askId = `a_${crypto.randomUUID().replace(/-/g, '').slice(0, 20)}`;
+    lastAsk.set(chatId, { text, at: now, askId });
+    return askId;
+  }
+
+  async function handlePrompt(
+    ws: ServerWebSocket<WsData>,
+    text: string,
+    chatId: string,
+    model: string | null,
+    effort: string | null,
+    modeId: string | null,
+    ask: { askId?: unknown; scope?: unknown } = {},
+    may: AiMay | null = null
+  ): Promise<void> {
+    const safeChat = sanitizeChatId(chatId);
+    // S5.17 G1 — a scope that was sent but names nothing inside the design root (`..`, absolute, a
+    // hidden segment, a malformed list) refuses the prompt. It never degrades to the unscoped lazy
+    // run: that run may change every canvas, so a bad scope would WIDEN what the turn can write.
+    if (ask.scope != null && !parseRunScope(ask.scope, ctx.paths.designRel)) {
+      send(ws, {
+        t: 'error',
+        code: 'bad-scope',
+        chat: safeChat,
+        message: 'That selection is not on a canvas in this project. Choose it again and resend.',
+      });
+      return;
+    }
+    const entry = attach(ws, safeChat);
+    if (!entry) {
+      send(ws, { t: 'error', message: 'Too many chats are open. Close one and try again.' });
+      return;
+    }
+    bindChatFiles(entry);
+    entry.bridge.setConfig(model, effort, modeId);
+    // P8 c7 (decision maude/v2-p8-c7-ai-may-enforced) — Advanced › AI may, from this main-origin frame's
+    // `may` field only (never the ask text). Before the turn, so its session is spawned with the rules.
+    entry.bridge.setMay(may);
+    // S5.17 G5 — the chat list groups a chat under the canvas it asked about (design-relative)
+    const asked = ask.scope != null ? parseRunScope(ask.scope, ctx.paths.designRel) : null;
+    if (asked) {
+      try {
+        linkChatCanvas(ctx.paths.designRoot, safeChat, asked.canvas);
+        // S5.18 G5 — the list's "where" line: the artboards this ask named
+        noteChatArtboards(ctx.paths.designRoot, safeChat, asked.canvas, asked.artboards);
+      } catch {
+        /* a read-only _chat/ keeps the chat under "No canvas" — never blocks the prompt */
+      }
+    }
+    if (!runs) {
+      await runTurn(entry, text, null);
+      return;
+    }
+    // V2-1.15 §5.4 — the ask goes to the registry BEFORE any turn: it leases the scope's
+    // artboards (or lines up behind their holder, or behind this chat's own live run — chat-level
+    // FIFO), and the registry sends the turn (`sendTurn`) only once the run is `starting`. The
+    // `[maude-scope …]` text line stays in `text` for the agent (old clients send only that).
+    const scope = asked;
+    // V2-1.14 — a closed gate (offline, AI not connected, allowance used up, setting up), or an
+    // earlier prompt of this chat still queued (O2), keeps the prompt in the outbox; the drain
+    // releases it into `registry.ask` by itself. Nothing is lost and nothing jumps the line.
+    // S5.18 (G10): the signed-in check settles first — a Mac that is not signed in keeps the prompt.
+    const settling = options.queue?.()?.ready();
+    if (settling) await settling; // only while the sign-in answer is stale: a fresh one stays synchronous
+    const queued = options.queue?.()?.maybeQueue({ chatId: safeChat, text, scope }) ?? null;
+    if (queued && 'refused' in queued) {
+      send(ws, { t: 'error', code: 'not-queued', chat: safeChat, message: queued.refused });
+      return;
+    }
+    if (queued) {
+      broadcast(entry, { t: 'queued', chat: safeChat, ...queued });
+      return;
+    }
+    try {
+      await runs.ask({
+        askId: askIdFor(safeChat, text, ask.askId),
+        chatId: safeChat,
+        sessionId: entry.bridge.sessionId ?? null,
+        origin: 'maude-chat',
+        label: promptLabel(text),
+        prompt: text,
+        scope,
+      });
+    } catch (err) {
+      send(ws, { t: 'error', message: err instanceof Error ? err.message : String(err) });
+    }
+    pushRunFrames(entry);
+  }
+
+  /** The registry's `turns.send` — see `Acp.sendTurn`. */
+  async function sendTurn(rec: RunRecord, generated: string | null): Promise<void> {
+    if (!runs || !rec.chatId) return;
+    const text =
+      generated ?? rec.prompt ?? (rec.resumeOf || rec.continuationOf ? KEEP_GOING_TEXT : null);
+    const fail = () => {
+      if (isLive(runs.get(rec.runId) ?? rec)) void runs.turnEnded(rec.runId, 'failed');
+    };
+    const entry = getOrCreateEntry(sanitizeChatId(rec.chatId));
+    if (!entry || !text) return fail();
+    // D3 — a turn the registry generates by itself (a continuation, a run that waited in line,
+    // Keep going) is a write as much as a typed prompt: the live predicate gates it too.
+    if (readOnlyNow()) {
+      broadcast(entry, {
+        t: 'error',
+        code: 'read-only',
+        chat: entry.chatId,
+        message: READ_ONLY_CHAT_WORDS,
+      });
+      return fail();
+    }
+    if (entry.turnActive) return fail(); // never two turns on one bridge (the FIFO forbids it)
+    if (entry.sinks.size === 0 && !entry.detachedSince) entry.detachedSince = Date.now();
+    bindChatFiles(entry);
+    await runTurn(entry, text, rec.runId);
+  }
+
+  /** The registry's `turns.cancel` — see `Acp.cancelTurn`. */
+  async function cancelTurn(rec: RunRecord): Promise<void> {
+    const entry = rec.chatId ? bridges.get(sanitizeChatId(rec.chatId)) : undefined;
+    if (!entry || entry.runId !== rec.runId) return;
+    entry.tracker?.endTurn();
+    await entry.bridge.cancel();
+  }
+
+  // V2-1.15 §5.4 — `{t:'run', run}` on every change of a chat's runs.
+  if (runs) {
+    ctx.bus?.on?.('ai:runs', () => {
+      for (const entry of bridges.values()) pushRunFrames(entry);
+    });
   }
 
   /**
@@ -621,13 +1280,15 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity): Acp {
     chatId: string,
     model: string | null,
     effort: string | null,
-    modeId: string | null
+    modeId: string | null,
+    may: AiMay | null = null
   ): Promise<void> {
     const entry = attach(ws, sanitizeChatId(chatId));
     if (!entry) return; // at the ceiling — warm-up is best-effort, stay silent
     const { bridge } = entry;
     bridge.setSessionStorePath(sessionStorePathFor(chatId));
     bridge.setConfig(model, effort, modeId);
+    bridge.setMay(may); // P8 c7 — a warmed session is spawned with the person's "AI may" rules
     try {
       await bridge.warmUp(sanitizeChatId(chatId));
     } catch {
@@ -750,9 +1411,26 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity): Acp {
         action?: unknown;
         content?: unknown;
         seq?: unknown;
+        askId?: unknown;
+        scope?: unknown;
+        may?: unknown;
       };
 
       const chatId = typeof frame.chat === 'string' && frame.chat ? frame.chat : 'default';
+
+      // S5.6 (D3, decision v2-S5-acp-role-gate-per-frame) — the read-only gate, PER FRAME against
+      // the live predicate: a role that drops mid-socket refuses the very next frame. Refused:
+      // everything that makes the agent act or loosens its gate. Open: attach / warm (no turn),
+      // cancel, and the deny direction of a response — stopping the agent is never a write.
+      if (refusedWhenReadOnly(frame) && readOnlyNow()) {
+        send(ws, {
+          t: 'error',
+          code: 'read-only',
+          chat: sanitizeChatId(chatId),
+          message: READ_ONLY_CHAT_WORDS,
+        });
+        return;
+      }
       // Model/effort/mode are opaque, dynamic option ids/values now (no
       // hardcoded allowlist) — a persisted pick that isn't actually offered by
       // the resolved session is silently skipped by the bridge's own
@@ -764,6 +1442,9 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity): Acp {
       const model = typeof frame.model === 'string' && frame.model ? frame.model : null;
       const effort = typeof frame.effort === 'string' && frame.effort ? frame.effort : null;
       const modeId = typeof frame.mode === 'string' && frame.mode ? frame.mode : null;
+      // P8 c7 — Advanced › AI may (`{assets, web}`; only an explicit false is off; no field = no news).
+      // A read-only socket's `may` is no news: its (open) warm frame must not loosen a member's switch.
+      const may = readOnlyNow() ? null : parseMay(frame.may);
 
       if (frame.t === 'attach') {
         // Addendum Task 8 — bind this socket to the chat's (possibly still
@@ -790,15 +1471,29 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity): Acp {
         // the busy state) rather than a finished one. Without this a reload
         // mid-turn would look idle while the agent kept working.
         send(ws, { t: 'attached', chat: safeChat, running: entry.turnActive });
+        entry.sentRuns.clear(); // a re-attached client gets the chat's live runs again
+        pushRunFrames(entry);
       } else if (frame.t === 'prompt' && typeof frame.text === 'string') {
-        void handlePrompt(ws, frame.text, chatId, model, effort, modeId);
+        void handlePrompt(
+          ws,
+          frame.text,
+          chatId,
+          model,
+          effort,
+          modeId,
+          { askId: frame.askId, scope: frame.scope },
+          may
+        );
       } else if (frame.t === 'warm') {
-        void handleWarm(ws, chatId, model, effort, modeId);
+        void handleWarm(ws, chatId, model, effort, modeId, may);
       } else if (frame.t === 'cancel') {
         // RC5 — a cancelled turn may never resolve prompt(); clear banners now.
         const entry = entryForSocket(ws, typeof frame.chat === 'string' ? frame.chat : undefined);
         entry?.tracker?.endTurn();
-        void entry?.bridge.cancel();
+        // S5.6 — a registry run's turn is stopped through the registry (V2-1.5 `stopped`: partial
+        // publish, the lease released, the chat's line moves); its `turns.cancel` cancels the bridge.
+        if (runs && entry?.runId) void runs.stop(entry.runId, 'you').catch(() => null);
+        else void entry?.bridge.cancel();
       } else if (frame.t === 'set-mode' && typeof frame.modeId === 'string' && frame.modeId) {
         // Pass the RAW frame.chat (undefined when absent), not the
         // `'default'`-defaulted `chatId` — otherwise `entryForSocket` takes its
@@ -827,10 +1522,9 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity): Acp {
         // id, so a malformed decision here just denies, never allows blind.
         const decision =
           typeof frame.decision === 'string' && frame.decision ? frame.decision : 'cancelled';
-        entryForSocket(
-          ws,
-          typeof frame.chat === 'string' ? frame.chat : undefined
-        )?.bridge.resolvePermission(frame.id, decision);
+        const entry = entryForSocket(ws, typeof frame.chat === 'string' ? frame.chat : undefined);
+        entry?.bridge.resolvePermission(frame.id, decision);
+        if (entry) noteAnswered(entry);
       } else if (frame.t === 'elicitation-response' && typeof frame.id === 'string' && frame.id) {
         // feature-acp-ask-user-question — the human's answer/skip/cancel for a
         // pending `elicitation-request`. `action`/`content` are forwarded
@@ -883,5 +1577,28 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity): Acp {
     stopAll() {
       for (const entry of [...bridges.values()]) reap(entry);
     },
+
+    sendTurn,
+    cancelTurn,
   };
+}
+
+/**
+ * D3 — the frames a read-only session may not send. A response frame is refused only in the
+ * allow direction: a `'cancelled'` permission decision and an elicitation decline / cancel stay
+ * open, so a person whose role dropped mid-turn can still say no.
+ */
+function refusedWhenReadOnly(frame: { t?: unknown; decision?: unknown; action?: unknown }) {
+  switch (frame.t) {
+    case 'prompt':
+    case 'set-mode':
+    case 'set-config':
+      return true;
+    case 'permission-response':
+      return frame.decision !== 'cancelled';
+    case 'elicitation-response':
+      return frame.action === 'accept';
+    default:
+      return false;
+  }
 }

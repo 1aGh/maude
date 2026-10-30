@@ -1,0 +1,137 @@
+{
+  "task": "d1",
+  "group": "ds",
+  "fixture": "multids",
+  "topology": "A",
+  "delegates": "ds-switcher",
+  "run": {
+    "code": 0,
+    "killed": false,
+    "wallMs": 218338
+  },
+  "metrics": {
+    "subtype": "success",
+    "isError": false,
+    "costUsd": 1.2256324,
+    "durationMs": 216557,
+    "apiMs": 210346,
+    "turns": 38,
+    "tokens": 1351594,
+    "inTok": 46,
+    "outTok": 18647,
+    "cacheRead": 1257782,
+    "cacheWrite": 75119,
+    "freshTokens": 93812,
+    "models": [
+      "claude-opus-5-5"
+    ],
+    "permissionDenials": [
+      {
+        "tool": "Bash",
+        "input": "{\"command\":\"cd \\\"$PWD\\\"; ls .design .design/ui/panels .design/system; maude design ds status --json; maude design ds switch ui/panels --to maude-v2 --dry-run --json; maude design runs list\",\"descripti"
+      },
+      {
+        "tool": "Bash",
+        "input": "{\"command\":\"P=/private/var/folders/t_/kf80xz3j79sfmkrq4snj2qk00000gn/T/maude-agent-evals/v2-8.16/trials/d1.A.2/project/.design; cd $P\\necho \\\"== v1 scopes\\\"; grep -nE '^\\\\s*[:.\\\\[][^{]*\\\\{' system/mau"
+      },
+      {
+        "tool": "Bash",
+        "input": "{\"command\":\"grep -ohE 'className=\\\"[^\\\"]*\\\"' ui/panels/*.tsx | tr ' \\\"' '\\\\n\\\\n' | grep -vE '^(className=|gp-|gi-|dv-|rb-|$)' | sort | uniq -c | sort -rn | head -40\",\"description\":\"List shared DS clas"
+      }
+    ],
+    "subagents": 0,
+    "subagentTypes": [],
+    "mainToolUses": 36,
+    "subToolUses": 0
+  },
+  "agents": [],
+  "invariants": {
+    "check": {
+      "pass": true,
+      "why": ""
+    },
+    "scope": {
+      "pass": true,
+      "why": ""
+    },
+    "ids-kept": {
+      "pass": true,
+      "why": ""
+    },
+    "locked-kept": {
+      "pass": true,
+      "why": ""
+    },
+    "no-bash-writes": {
+      "pass": true,
+      "why": ""
+    },
+    "owns": {
+      "pass": true,
+      "why": ""
+    },
+    "ds-review-not-apply": {
+      "pass": true,
+      "why": ""
+    }
+  },
+  "quality": {
+    "ds-proposals": {
+      "pass": true,
+      "why": "4 proposal file(s)"
+    },
+    "ds-review-summary": {
+      "pass": true,
+      "why": ""
+    },
+    "ds-proposals-apply": {
+      "pass": true,
+      "why": "24/24 edits apply cleanly"
+    },
+    "finished": {
+      "pass": true,
+      "why": "success"
+    },
+    "judge": {
+      "pass": true,
+      "why": "pass (4): No canvas or meta file was changed (the diff shows only a cache file). There is one proposal for each of the four canvases plus review.md. The GitPanel proposal retargets the CSS imports and meta to maude-v2, maps tokens and classes, lists decisions, and leaves the locked Changes tab alone. I read only the GitPanel proposal and did not open the other three or review.md. The glob for ui/panels files returned nothing, so I couldn't confirm there are exactly four canvases, and I relied on the assistant's summary for the rest.",
+      "unknown": false
+    }
+  },
+  "invPass": true,
+  "qualPass": true,
+  "judge": {
+    "verdict": "pass",
+    "score": 4,
+    "why": "No canvas or meta file was changed (the diff shows only a cache file). There is one proposal for each of the four canvases plus review.md. The GitPanel proposal retargets the CSS imports and meta to maude-v2, maps tokens and classes, lists decisions, and leaves the locked Changes tab alone. I read only the GitPanel proposal and did not open the other three or review.md. The glob for ui/panels files returned nothing, so I couldn't confirm there are exactly four canvases, and I relied on the assistant's summary for the rest.",
+    "costUsd": 0.0352472,
+    "model": "sonnet"
+  },
+  "render": {
+    "ran": false,
+    "error": null,
+    "shots": []
+  },
+  "changed": [
+    "?? .design/_cache/index/ds-usage.json"
+  ],
+  "runState": [
+    {
+      "session": "d608b55e-d764-4c52-9b6f-dc41d78c7c1c",
+      "touched": {},
+      "stopBlocks": 0,
+      "shots": 0,
+      "bases": 0
+    }
+  ],
+  "hooks": {
+    "events": 0,
+    "denies": [],
+    "blocks": [],
+    "errors": [],
+    "ms": {},
+    "checkMs": []
+  },
+  "harnessFailure": false,
+  "finalText": "I've written up the switch for all four canvases in ui/panels as a review. Nothing is switched yet: in this project, changing a canvas's design system is a review you apply yourself. None of the canvases or their `.meta.json` files were touched.\n\nThe studio's own preview of the switch found no blockers: all four canvases (GitPanel, DiffView, GitHubIdentity, RepoBranchSwitcher) can move from `maude` to `maude-v2`. Every token they use has the same name in `maude-v2`.\n\n**What the proposals change on each canvas:**\n- The two style imports point to `maude-v2` instead of `maude`.\n- The artboard wrapper becomes `className=\"maude-v2 ds\"`. `maude-v2` only applies its tokens under `.maude-v2`, so the old `.maude` wrapper would leave the canvases unstyled. Its shared parts, like callouts, only apply under `.ds`.\n- The design system named in each `.meta.json` and canvas header becomes `maude-v2`.\n- Two buttons move to the nearest `maude-v2` class: GitPanel's \"More\" button becomes an icon button, and GitHubIdentity's red Sign out button falls back to a plain one.\n\n**Decisions for you:**\n1. **Callout colours:** `maude-v2` callouts have no info, success, warning or error colours. GitHubIdentity's four edge states would all look the same.\n2. **Sign out button:** `maude-v2` has no red \"danger\" button. Should Sign out lose its red, or keep a red style of its own?\n3. **GitPanel tabs:** someone has locked the \"Changes\" tab, so I left it as it is. I left \"History\" too, so the two tabs still match. To move them to the `maude-v2` tabs, unlock Changes first (⇧⌘L).\n4. **Panels and list rows:** `maude-v2` has no rules for these. The canvases' own styles keep them visible, so moving them to the `maude-v2` look is your call.\n\n**Left alone:**\n- DiffView's three Close buttons are written identically, so they can't each be one exact-match edit. The review lists the change to make by hand.\n- Text everywhere runs slightly tighter, because line heights become ratios instead of fixed sizes.\n- All canvases stay dark.\n- Code comments that still mention the old system.\n- The handoff bundles, which describe the `maude` version until they're redone.\n\nSome of the commands I tried were blocked because they needed an approval nobody could give in this session. I got the same information with simpler commands, so nothing is missing from the review.\n\nFiles are in `.design/_runs/d608b55e-d764-4c52-9b6f-dc41d78c7c1c/ds-switch/`:\n- review.md\n- ui-panels-gitpanel.json\n- ui-panels-diffview.json\n- ui-panels-githubidentity.json\n- ui-panels-repobranchswitcher.json"
+}

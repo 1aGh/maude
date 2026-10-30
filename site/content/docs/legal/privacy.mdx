@@ -7,7 +7,7 @@ description: What personal data Maude Cloud holds, why, for how long, who else s
 Maude Cloud is in private pilot. This notice describes the service as it is built today; the pack is reviewed by counsel before the first live charge.
 </Callout>
 
-**Last updated:** 1 August 2026
+**Last updated:** 9 October 2026
 
 ## Who holds your data
 
@@ -37,6 +37,17 @@ We hold **no tracking pixels, no advertising identifiers, and no third-party ana
 One thing worth naming plainly: a **project id** is the short name you chose when you created the project, and it becomes part of that project's web address. If you name a project after yourself or a client, that name is in these records. Nothing else about the project travels — not its contents, not its file names.
 
 **About the size figures.** Your project counts its own designs and reports the totals to us once an hour, so we can see what running it actually costs. Counts and sizes only: never a design's name, never a file path, never anything you wrote.
+
+## The desktop app and the `maude` command on your computer
+
+Neither sends telemetry: no usage data, no analytics, nothing from your designs. On their own, they make two network calls, and both only ask whether a newer version exists:
+
+- **The desktop app's update check** asks `maude.sh/releases/<platform>/<architecture>/<installed version>` shortly after it starts, when its window gets focus, and every 4 hours. The request carries your platform, your processor architecture and the version you have installed, plus your IP address, which any web request carries. Nothing else.
+- **The `maude` command's version check** asks the public npm registry for the latest version at most once a day, and only when it runs in a terminal. Set `MAUDE_NO_UPDATE_CHECK=1` to turn it off.
+
+**Diagnostics stay on your computer.** The app keeps its own logs for the server, sync, AI and export in `~/.maude/logs`. Paths, credentials and email addresses are removed before anything is written, and the logs are deleted after 7 days. Crash logs, if you turn them on in the first-run setup, are local files too. Logs and crash files leave your computer only when you choose to send them: by copying a diagnostic report, or by sending a bug report.
+
+Anything else the app reaches over the network, it reaches because you connected it: a team project or hub you link, the AI assistant you sign in to, a media-generation provider whose key you add.
 
 ## What we never do
 

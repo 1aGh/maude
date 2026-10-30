@@ -17,7 +17,15 @@
 // Pruning is USER-TRIGGERED ONLY (per the plan: "never silently on boot") and
 // reports what it removed.
 
-import { existsSync, mkdirSync, readdirSync, renameSync, rmSync, statSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  statSync,
+} from 'node:fs';
 import path from 'node:path';
 
 export interface TrashEntry {
@@ -45,7 +53,8 @@ function walkFiles(
 ): void {
   let names: string[];
   try {
-    names = readdirSync(absDir);
+    // by name: one bundle's files share their `at`, and the stable newest-first sort keeps this order
+    names = readdirSync(absDir).sort();
   } catch {
     return;
   }
@@ -63,12 +72,40 @@ function walkFiles(
   }
 }
 
+// S1.2 — `api.deleteCanvas` parks a canvas as `<stamp>__<slug>/` and writes `_trash-manifest.json`
+// {canvas, slug, trashed[]} beside it, `trashed` being the design-root-relative path of everything it moved.
+// The bundle's file names are the basename (primary + siblings) or the rel with `/` → `__` (slug-keyed
+// sidecars, which may be whole directories), so the manifest is enough to say where each file belongs and the
+// "moved to the trash" toast can Undo through the ordinary per-file restore. An artboard bundle
+// (`kind: 'artboard'`) is not a canvas and keeps its null source.
+const CANVAS_BUNDLE_RE = /^(\d{4}-\d{2}-\d{2}T[\d-]+Z)__.+$/;
+
+function bundleSources(trashAbs: string, top: string): Map<string, string> | null {
+  let m: { kind?: unknown; trashed?: unknown };
+  try {
+    m = JSON.parse(readFileSync(path.join(trashAbs, top, '_trash-manifest.json'), 'utf8'));
+  } catch {
+    return null;
+  }
+  if (!m || m.kind === 'artboard' || !Array.isArray(m.trashed)) return null;
+  const out = new Map<string, string>();
+  for (const rel of m.trashed) {
+    if (typeof rel !== 'string' || !rel || rel.includes('..') || path.isAbsolute(rel)) continue;
+    const flat = rel.split('/').join('__');
+    if (!out.has(flat)) out.set(flat, rel);
+    const base = rel.slice(rel.lastIndexOf('/') + 1);
+    if (!out.has(base)) out.set(base, rel);
+  }
+  return out;
+}
+
 /** Every parked file under `<designRoot>/_trash/`, newest first. */
 export function listTrash(designRoot: string): TrashEntry[] {
   const trashAbs = path.join(designRoot, '_trash');
   if (!existsSync(trashAbs)) return [];
   const files: { rel: string; size: number; mtime: number }[] = [];
   walkFiles(trashAbs, '', files);
+  const bundles = new Map<string, Map<string, string> | null>();
 
   const entries: TrashEntry[] = files.map((f) => {
     const top = f.rel.split('/')[0];
@@ -90,6 +127,17 @@ export function listTrash(designRoot: string): TrashEntry[] {
     const moved = MOVED_DIR_RE.exec(top);
     if (moved) {
       return entry(f, null, 'moved', isoStampMs(moved[1]) ?? f.mtime);
+    }
+    const bundle = CANVAS_BUNDLE_RE.exec(top);
+    if (bundle && rest) {
+      if (!bundles.has(top)) bundles.set(top, bundleSources(trashAbs, top));
+      const sources = bundles.get(top);
+      if (sources) {
+        const seg = rest.split('/')[0];
+        const src = sources.get(seg);
+        const tail = rest.slice(seg.length);
+        return entry(f, src ? `${src}${tail}` : null, 'deleted', isoStampMs(bundle[1]) ?? f.mtime);
+      }
     }
     const deleted = DELETED_DIR_RE.exec(top);
     if (deleted) {

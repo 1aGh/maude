@@ -10,6 +10,7 @@
 // The lane, end to end (every hop verified live against production):
 //   sign-in   POST /auth/device/code → human approves on /activate → poll
 //   projects  GET /api/projects (Bearer personal token)
+//   plan      GET /api/home -> `account.plan` (Bearer personal token; S9.20b)
 //   attach    POST /projects/open → project token → the CELL exchanges it at
 //             POST /auth/login {token} (a POST body, never a URL) → a hub
 //             user token → saveHubCredential() + linkedHub in config.json —
@@ -24,11 +25,13 @@ import {
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { homedir } from 'node:os';
 import { basename, dirname, join, relative, sep } from 'node:path';
-
+import { browserDoorOf } from '../client/v2/cloud/browser-door.js';
+import { asFormat, formatToKeep } from '../format.ts';
 import { deleteHubCredential, saveHubCredential } from '../sync/hub-link.ts';
 import { getHubToken, normalizeUrl } from '../sync/hubs-config.ts';
+import { deleteProjectLink, linksPath, recordProjectLink } from '../sync/link-consent.ts';
+import { boundCloudToken, cloudConfigPath } from './config-path.ts';
 
 /**
  * Where Maude Cloud lives, resolved PER CALL rather than at module load.
@@ -39,8 +42,35 @@ import { getHubToken, normalizeUrl } from '../sync/hubs-config.ts';
  * the assertion failed 410), and the desktop shell could not set the env
  * after the module graph was already warm.
  */
-function cloudUrl(): string {
+export function cloudUrl(): string {
   return (process.env.MAUDE_CLOUD_URL ?? 'https://cloud.maude.sh').replace(/\/+$/, '');
+}
+
+/**
+ * S9.17b: a managed open declares the access-claim version it understands (V2-1.7 §5.4) at every
+ * mint door it calls — `/projects/open`, `/auth/handoff/exchange`, the cell's `/auth/login` — so a
+ * Can view account is answered `409 browser-door` (a cell tab) rather than `426`. The folder attach
+ * lanes (`attach`, `attachCode`) do not declare: an account that may only look has no folder to sync.
+ */
+const ACCESS_DECLARED = { 'x-maude-access': '2' } as const;
+
+/**
+ * A mint door's `409 {reason:'browser-door', url}` → the page's answer, with the door's own
+ * `error` words beside it for a page that predates the door. The `url` is untrusted: only a cell
+ * front door of `project` passes (browser-door.js `cellDoorUrl`, the Rust `cell_door` shape);
+ * anything else is null and the caller answers as it always has.
+ */
+function browserDoorResult(
+  status: number,
+  body: unknown,
+  project: string | null | undefined,
+  error: string
+): CloudEndpointResult | null {
+  if (status !== 409) return null;
+  const door = browserDoorOf(body, project ?? null);
+  return door
+    ? { status: 409, json: { ok: false, reason: 'browser-door', url: door.url, error } }
+    : null;
 }
 
 export interface CloudEndpointResult {
@@ -90,24 +120,22 @@ interface CloudFile {
   connectedAt: number;
 }
 
-function cloudConfigPath(): string {
-  return process.env.MAUDE_CLOUD_CONFIG ?? join(homedir(), '.config', 'maude', 'cloud.json');
-}
+/** Re-exported for the Home server (home/cloud.ts); the one resolver is cloud/config-path.ts (V2-3.4). */
+export { cloudConfigPath };
 
-function readCloudFile(): CloudFile | null {
-  const p = cloudConfigPath();
+function readCloudFile(p = cloudConfigPath()): CloudFile | null {
   if (!existsSync(p)) return null;
   try {
     const parsed = JSON.parse(readFileSync(p, 'utf8'));
-    if (parsed && typeof parsed.token === 'string') return parsed as CloudFile;
+    // W4: a file another control plane issued is signed out HERE; its token never travels.
+    if (boundCloudToken(parsed, cloudUrl()) !== null) return parsed as CloudFile;
   } catch {
     /* malformed → treat as signed out */
   }
   return null;
 }
 
-function writeCloudFile(file: CloudFile): void {
-  const p = cloudConfigPath();
+function writeCloudFile(file: CloudFile, p = cloudConfigPath()): void {
   const dir = dirname(p);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true, mode: 0o700 });
   writeFileSync(p, `${JSON.stringify(file, null, 2)}\n`, { encoding: 'utf8', mode: 0o600 });
@@ -135,8 +163,51 @@ async function cloudFetch(
   }
 }
 
+/**
+ * S9.20b (decision v2-lead-plan-words-via-home-route) — what Settings › Account needs to say
+ * "Free trial · N days left": the cloud's own trial view, never one this Mac computes. Only the
+ * state, the days left and the plan name survive; anything else the control plane sends is
+ * dropped here, so no billing detail can reach the page.
+ */
+export interface CloudPlan {
+  state: 'none' | 'trialing' | 'ended';
+  daysLeft: number | null;
+  name: string | null;
+}
+
+const PLAN_STATES = new Set(['none', 'trialing', 'ended']);
+
+/** The control plane's `account.plan`, clamped to `CloudPlan` — or null when it is not one. */
+export function cleanPlan(raw: unknown): CloudPlan | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const { state, daysLeft, name } = raw as Record<string, unknown>;
+  if (typeof state !== 'string' || !PLAN_STATES.has(state)) return null;
+  const days =
+    typeof daysLeft === 'number' && Number.isInteger(daysLeft) && daysLeft >= 0 && daysLeft <= 366
+      ? daysLeft
+      : null;
+  const words = typeof name === 'string' && name.trim() && name.length <= 40 ? name.trim() : null;
+  return { state: state as CloudPlan['state'], daysLeft: days, name: words };
+}
+
+/** How long one plan read is reused. The days change once a day; Settings opens often. */
+const PLAN_TTL_MS = 5 * 60_000;
+/** A status read waits at most this long for the plan; past it the line is simply not drawn. */
+const PLAN_TIMEOUT_MS = 4_000;
+
 interface Ctx {
   paths: { repoRoot: string; designRoot: string };
+  /**
+   * Which device session this endpoint set speaks for (V2-3.3): the Home server prepares a
+   * project with ONE profile's `cloud.json`. Absent = `cloudConfigPath()`, as every project
+   * server has always read it.
+   */
+  cloudConfigPath?: string;
+  /**
+   * Where a hub credential this endpoint set obtains is stored (N-H1): the same profile's
+   * `hubs.json` as `cloudConfigPath`. Absent = `hubsConfigPath()`.
+   */
+  hubsConfigPath?: string;
   /**
    * The live sync runtime's owner (server.ts → sync/supervisor.ts). Optional:
    * unit tests and any non-serving embedder construct a Ctx without one, and a
@@ -150,6 +221,11 @@ interface Ctx {
    * would distinguish them.
    */
   onLinkChanged?: () => void;
+  /**
+   * gate-b-sec4 — the folder's committed `linkedHub` this Mac never linked (context.ts parks it).
+   * While set, no credential is resolved for the folder's link: History asks nothing.
+   */
+  unconfirmedHub?: { url: string };
   syncControl?: {
     /** `null` = unlink: clear the runtime's in-memory link, cycle to solo. */
     restart(
@@ -163,6 +239,14 @@ interface Ctx {
 }
 
 export function createCloudEndpoints(ctx: Ctx) {
+  const cfgFile = () => ctx.cloudConfigPath ?? cloudConfigPath();
+  /** gate-b-sec4 — the per-Mac link record, beside the same profile's hubs.json. */
+  const linksFile = () =>
+    linksPath(
+      ctx.hubsConfigPath ? { ...process.env, HUBS_CONFIG_PATH: ctx.hubsConfigPath } : process.env
+    );
+  /** The last plan read, for THIS token only (a new sign-in never sees the old account's plan). */
+  let planRead: { token: string; at: number; plan: CloudPlan | null } | null = null;
   return {
     /**
      * Signed in? Who? And WHICH folder is asking? Cheap — reads two files,
@@ -176,7 +260,7 @@ export function createCloudEndpoints(ctx: Ctx) {
      * config.json) — no credential material widens by being reported here.
      */
     status(): CloudEndpointResult {
-      const file = readCloudFile();
+      const file = readCloudFile(cfgFile());
       return {
         status: 200,
         json: {
@@ -187,6 +271,50 @@ export function createCloudEndpoints(ctx: Ctx) {
           linkedHub: readLinkedHub(),
         },
       };
+    },
+
+    /**
+     * S9.20b — `status()` plus the account's plan (`null` when signed out, or when the control
+     * plane did not answer in time). `/_api/cloud/status` answers with this.
+     */
+    async statusWithPlan(): Promise<CloudEndpointResult> {
+      const base = this.status();
+      const connected = (base.json as { connected?: boolean }).connected === true;
+      const read = connected ? await this.plan() : null;
+      const plan = read?.status === 200 ? ((read.json as { plan?: unknown }).plan ?? null) : null;
+      return { status: base.status, json: { ...(base.json as object), plan } };
+    },
+
+    /**
+     * S9.20b — `GET /_api/cloud/plan`: the account's plan, read from `GET /api/home` with the
+     * device token. A 401 here is a plain read failure, never a sign-out: the Settings sheet
+     * reading a plan at the wrong second must not delete a working credential (the F6 rule the
+     * History read follows too).
+     */
+    async plan(): Promise<CloudEndpointResult> {
+      const file = readCloudFile(cfgFile());
+      if (!file)
+        return {
+          status: 401,
+          json: { ok: false, reason: 'signed-out', error: 'Sign in to Maude Cloud first.' },
+        };
+      if (planRead && planRead.token === file.token && Date.now() - planRead.at < PLAN_TTL_MS)
+        return { status: 200, json: { ok: true, plan: planRead.plan } };
+      const r = await cloudFetch(
+        '/api/home',
+        { headers: { authorization: `Bearer ${file.token}` } },
+        { timeoutMs: PLAN_TIMEOUT_MS }
+      );
+      if (r.status === 401)
+        return {
+          status: 401,
+          json: { ok: false, reason: 'signed-out', error: 'Sign in to Maude Cloud again.' },
+        };
+      if (r.status !== 200)
+        return { status: 502, json: { ok: false, error: 'Maude Cloud could not be reached.' } };
+      const plan = cleanPlan((r.body.account as { plan?: unknown } | undefined)?.plan);
+      planRead = { token: file.token, at: Date.now(), plan };
+      return { status: 200, json: { ok: true, plan } };
     },
 
     /** Start the device flow: hand the client the human-facing half. */
@@ -229,12 +357,15 @@ export function createCloudEndpoints(ctx: Ctx) {
           json: { ok: false, error: 'The code expired. Start the sign-in again.' },
         };
       }
-      writeCloudFile({
-        url: cloudUrl(),
-        token: r.body.token,
-        email: r.body.account?.email ?? undefined,
-        connectedAt: Date.now(),
-      });
+      writeCloudFile(
+        {
+          url: cloudUrl(),
+          token: r.body.token,
+          email: r.body.account?.email ?? undefined,
+          connectedAt: Date.now(),
+        },
+        cfgFile()
+      );
       return {
         status: 200,
         json: { ok: true, pending: false, email: r.body.account?.email ?? null },
@@ -244,7 +375,7 @@ export function createCloudEndpoints(ctx: Ctx) {
     /** Forget the local credential. (Revocation lives on /account.) */
     signout(): CloudEndpointResult {
       try {
-        unlinkSync(cloudConfigPath());
+        unlinkSync(cfgFile());
       } catch {
         /* already gone */
       }
@@ -253,7 +384,7 @@ export function createCloudEndpoints(ctx: Ctx) {
 
     /** The signed-in account's projects, states included. */
     async projects(): Promise<CloudEndpointResult> {
-      const file = readCloudFile();
+      const file = readCloudFile(cfgFile());
       if (!file)
         return { status: 401, json: { ok: false, error: 'Sign in to Maude Cloud first.' } };
       const r = await cloudFetch('/api/projects', {
@@ -281,7 +412,7 @@ export function createCloudEndpoints(ctx: Ctx) {
      * second step for the person to discover.
      */
     async attach(projectId: string): Promise<CloudEndpointResult> {
-      const file = readCloudFile();
+      const file = readCloudFile(cfgFile());
       if (!file)
         return { status: 401, json: { ok: false, error: 'Sign in to Maude Cloud first.' } };
       if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(String(projectId ?? ''))) {
@@ -316,7 +447,7 @@ export function createCloudEndpoints(ctx: Ctx) {
      * project's own copy and switches to it.
      */
     async openManaged(projectId: string): Promise<CloudEndpointResult> {
-      const file = readCloudFile();
+      const file = readCloudFile(cfgFile());
       if (!file)
         return { status: 401, json: { ok: false, error: 'Sign in to Maude Cloud first.' } };
       if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(String(projectId ?? ''))) {
@@ -324,14 +455,18 @@ export function createCloudEndpoints(ctx: Ctx) {
       }
       const opened = await cloudFetch('/projects/open', {
         method: 'POST',
-        headers: { authorization: `Bearer ${file.token}`, 'content-type': 'application/json' },
+        headers: {
+          authorization: `Bearer ${file.token}`,
+          'content-type': 'application/json',
+          ...ACCESS_DECLARED,
+        },
         body: JSON.stringify({ project: projectId }),
       });
+      const notOpened = 'The project could not be opened with this account.';
+      const door = browserDoorResult(opened.status, opened.body, projectId, notOpened);
+      if (door) return door;
       if (opened.status !== 200 || !opened.body?.token || !opened.body.url) {
-        return {
-          status: 502,
-          json: { ok: false, error: 'The project could not be opened with this account.' },
-        };
+        return { status: 502, json: { ok: false, error: notOpened } };
       }
       return exchangeAtCell({
         workspaceUrl: opened.body.url,
@@ -348,18 +483,17 @@ export function createCloudEndpoints(ctx: Ctx) {
       }
       const exchanged = await cloudFetch('/auth/handoff/exchange', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', ...ACCESS_DECLARED },
         body: JSON.stringify({ code }),
       });
+      const expired =
+        'That link expired — it works once, for two minutes. Press “Open in Maude” on the project page again.';
+      // The door must name the project the person confirmed (when the link claimed one) — the
+      // same agreement the token path checks below.
+      const door = browserDoorResult(exchanged.status, exchanged.body, claimedProject, expired);
+      if (door) return door;
       if (exchanged.status !== 200 || !exchanged.body?.token || !exchanged.body.url) {
-        return {
-          status: 410,
-          json: {
-            ok: false,
-            error:
-              'That link expired — it works once, for two minutes. Press “Open in Maude” on the project page again.',
-          },
-        };
+        return { status: 410, json: { ok: false, error: expired } };
       }
       if (claimedProject && exchanged.body.project && claimedProject !== exchanged.body.project) {
         return {
@@ -536,6 +670,19 @@ export function createCloudEndpoints(ctx: Ctx) {
       const linked = (cfg as { linkedHub?: { url?: unknown } }).linkedHub;
       const url = typeof linked?.url === 'string' ? linked.url : null;
       if (linked) {
+        // Decision 2A: the project's format is max(config, hub). A project
+        // pulled from, or raised through, a hub can hold its format ONLY in the
+        // per-hub mirror; dropping the link would then read it back as format
+        // 1 (view only, never auto-migrated). Carry the hub's value into the
+        // config in the same write — raise only, never lower. Clamped to this
+        // build's format (formatToKeep → persistableFormat, p8-secfix-studio
+        // F5/D4): /health is unauthenticated, and a hostile hub's 2^53-1 must
+        // not lock the person's own project view only after they leave it.
+        const kept = formatToKeep({
+          cfg: { formatVersion: cfg.formatVersion, linkedHub: url ? { url } : null },
+          paths: { designRoot: ctx.paths.designRoot },
+        });
+        if (kept > asFormat(cfg.formatVersion)) cfg.formatVersion = kept;
         delete cfg.linkedHub;
         // Temp + rename (security review 2026-08-10, F5) — config.json is the
         // SERVED project config (tokensCssRel, canvasGroups); a crash mid-write
@@ -553,6 +700,7 @@ export function createCloudEndpoints(ctx: Ctx) {
           /* an unparseable stored URL has no credential entry to drop */
         }
       }
+      deleteProjectLink(ctx.paths.repoRoot, linksFile());
       try {
         await ctx.syncControl?.restart(null);
       } catch {
@@ -580,6 +728,8 @@ export function createCloudEndpoints(ctx: Ctx) {
       const url = cfg?.linkedHub?.url;
       if (typeof url !== 'string' || !url) return null;
       let credentialed = false;
+      // gate-b-sec4 — a link this Mac never made vouches for nothing and is sent nothing.
+      if (ctx.unconfirmedHub) return { url, credentialed: false };
       try {
         credentialed = !!getHubToken(normalizeUrl(url));
       } catch {
@@ -748,39 +898,45 @@ export function createCloudEndpoints(ctx: Ctx) {
     role?: string;
     project?: string;
   }): Promise<CloudEndpointResult> {
-    const r = await exchangeCredential(workspaceUrl, projectToken);
-    if (!r) {
-      return {
-        status: 502,
-        json: {
-          ok: false,
-          error: 'The workspace did not accept the sign-in. Try again in a minute.',
-        },
-      };
+    const r = await exchangeCredential(workspaceUrl, projectToken, project);
+    const refused = 'The workspace did not accept the sign-in. Try again in a minute.';
+    if (r && 'reason' in r) {
+      return { status: 409, json: { ok: false, reason: r.reason, url: r.url, error: refused } };
     }
+    if (!r) return { status: 502, json: { ok: false, error: refused } };
     return {
       status: 200,
       json: { ok: true, url: r.url, role: r.role ?? role ?? null, project: project ?? null },
     };
   }
 
+  /**
+   * The cell's `/auth/login`, declared (S9.17b): a hub credential, or — for an account the cell
+   * sends to its browser door — `{reason:'browser-door', url}` with a validated front door of
+   * `project` (no credential exists to store). null = refused; the caller says so.
+   */
   async function exchangeCredential(
     workspaceUrl: string,
-    projectToken: string
-  ): Promise<{ url: string; role?: string } | null> {
+    projectToken: string,
+    project?: string | null
+  ): Promise<{ url: string; role?: string } | { reason: 'browser-door'; url: string } | null> {
     let hubToken: string | null = null;
     let hubTokenExpiresAt: number | undefined;
     let vouchedRole: string | undefined;
     try {
       const res = await fetch(`${workspaceUrl}/auth/login`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', ...ACCESS_DECLARED },
         body: JSON.stringify({ token: projectToken }),
       });
       const body = (await res.json().catch(() => ({}))) as CloudBody & {
         expiresAt?: unknown;
         user?: { role?: unknown };
       };
+      if (res.status === 409) {
+        const door = browserDoorOf(body, project ?? null);
+        if (door) return { reason: 'browser-door', url: door.url };
+      }
       if (res.ok && body?.token) {
         hubToken = body.token;
         if (typeof body.expiresAt === 'number' && Number.isFinite(body.expiresAt))
@@ -792,7 +948,7 @@ export function createCloudEndpoints(ctx: Ctx) {
     }
     if (!hubToken) return null;
     const norm = normalizeUrl(workspaceUrl);
-    saveHubCredential(norm, hubToken, vouchedRole, hubTokenExpiresAt);
+    saveHubCredential(norm, hubToken, vouchedRole, hubTokenExpiresAt, ctx.hubsConfigPath);
     return { url: norm, role: vouchedRole };
   }
 
@@ -845,7 +1001,7 @@ export function createCloudEndpoints(ctx: Ctx) {
     }
 
     const norm = normalizeUrl(workspaceUrl);
-    saveHubCredential(norm, hubToken, vouchedRole, hubTokenExpiresAt);
+    saveHubCredential(norm, hubToken, vouchedRole, hubTokenExpiresAt, ctx.hubsConfigPath);
 
     // Project side — linkedHub in .design/config.json (committed; no token).
     const cfgPath = join(ctx.paths.designRoot, 'config.json');
@@ -868,6 +1024,12 @@ export function createCloudEndpoints(ctx: Ctx) {
     if (prior?.syncTsx === false) linkedHub.syncTsx = false;
     cfg.linkedHub = linkedHub;
     writeFileSync(cfgPath, `${JSON.stringify(cfg, null, 2)}\n`, 'utf8');
+    // gate-b-sec4 — the person linked this folder on this Mac: the next boot honours it.
+    try {
+      recordProjectLink(ctx.paths.repoRoot, { url: norm }, 'cloud-attach', { file: linksFile() });
+    } catch (err) {
+      console.warn(`[cloud] could not record the link on this Mac: ${(err as Error).message}`);
+    }
 
     // START SYNCING — do not hand the person a "restart the server" note and
     // call the job done. The runtime captures linkedHub once at boot, so this

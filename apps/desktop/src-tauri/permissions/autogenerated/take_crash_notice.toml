@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-take-crash-notice"
+description = "Enables the take_crash_notice command without any pre-configured scope."
+commands.allow = ["take_crash_notice"]
+
+[[permission]]
+identifier = "deny-take-crash-notice"
+description = "Denies the take_crash_notice command without any pre-configured scope."
+commands.deny = ["take_crash_notice"]

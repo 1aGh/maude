@@ -106,6 +106,13 @@ mkdir -p "$OUT_DIR"
 # captured evidence actually lands in OUT_DIR. See DDR-021.
 OUT_DIR="$(cd "$OUT_DIR" && pwd)"
 
+# V2-8.9 round 2 (R2-M1) — "AI may › Search the web: off" holds here too: a canvas the agent wrote
+# renders on loopback only (dead loopback proxy, WebRTC pinned, a session of its own). The
+# playwright lane goes through screenshot.sh, which sources the same file.
+. "$(dirname "$0")/_no-egress.sh"
+# p8-e2e-fix-r10: on exit, the page the sweep opened is parked on about:blank and its session closed.
+. "$(dirname "$0")/_ab-park.sh"
+
 # ---------- engine resolution ----------
 if [ "$ENGINE" = "auto" ]; then
   if command -v agent-browser >/dev/null 2>&1; then
@@ -474,6 +481,8 @@ lint_artboard_isolation
 
 FAILED=0
 N=0
+# A sweep never leaves a canvas open as a collab peer (_ab-park.sh); the loop below opens one per canvas.
+[ "$ENGINE" = "agent-browser" ] && ab_park_arm
 while IFS= read -r CANVAS; do
   [ -z "$CANVAS" ] && continue
   N=$((N + 1))
@@ -484,6 +493,7 @@ while IFS= read -r CANVAS; do
   # phase-9.1) — only `/_canvas-shell.html?canvas=<rel>` mounts the canvas
   # (works in both split-on and legacy same-origin modes).
   URL="http://localhost:$PORT/_canvas-shell.html?canvas=$REL_ENC"
+  . "$SCRIPT_DIR/_url-guard.sh" && maude_url_guard "$URL" || exit 2 # V2-8.9 B2 — http(s) to this Mac only
   SLUG=$(bash "$SLUG_HELPER" "$REL" 2>/dev/null || printf '%s' "$REL" | tr '/ ' '__' | tr '[:upper:]' '[:lower:]')
   OUT_PNG="$OUT_DIR/$SLUG.png"
   # DS preview specimens get the computed-style gate; ui/ app canvases don't.

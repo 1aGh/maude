@@ -20,11 +20,11 @@ export function InspectComputed({ el }) {
     const resolved = c[prop] || a[prop];
     if (!resolved) return null;
     return (
-      <div className="st-insp-row" key={lbl}>
-        <span className="st-insp-label">{lbl}</span>
-        <div className="st-swatch-row">
-          <span className="st-insp-swatch" style={{ background: resolved }} aria-hidden="true" />
-          <span className="st-mono" style={{ fontSize: 11, color: 'var(--fg-1)' }}>
+      <div className="sh-insp-row" key={lbl}>
+        <span className="sh-insp-label">{lbl}</span>
+        <div className="insp-swatch-row">
+          <span className="sh-insp-swatch" style={{ background: resolved }} aria-hidden="true" />
+          <span className="sh-mono" style={{ fontSize: 11, color: 'var(--fg-1)' }}>
             {valueLabel(prop)}
           </span>
         </div>
@@ -42,24 +42,26 @@ export function InspectComputed({ el }) {
   return (
     <>
       {hasRadius ? (
-        <div className="st-insp-row">
-          <span className="st-insp-label">Radius</span>
-          <div className="st-insp-fields">
-            <span className="st-fmini" style={{ flex: '0 0 auto', maxWidth: 84 }}>
-              <span className="st-mtag">r</span>
+        <div className="sh-insp-row">
+          <span className="sh-insp-label">Radius</span>
+          <div className="sh-insp-fields">
+            <span className="insp-fmini" style={{ flex: '0 0 auto', maxWidth: 84 }}>
+              <span className="insp-mtag">r</span>
               <input value={radiusN} readOnly aria-label="border radius" />
             </span>
-            <span className="st-insp-unit">px</span>
+            <span className="sh-insp-unit">px</span>
           </div>
         </div>
       ) : null}
       {colorRow('Fill', 'background-color')}
       {colorRow('Text', 'color')}
       {font ? (
-        <div className="st-insp-row">
-          <span className="st-insp-label">Font</span>
-          <div className="st-insp-fields">
-            <span className="st-mono" style={{ fontSize: 11, color: 'var(--fg-0)' }}>{font}</span>
+        <div className="sh-insp-row">
+          <span className="sh-insp-label">Font</span>
+          <div className="sh-insp-fields">
+            <span className="sh-mono" style={{ fontSize: 11, color: 'var(--fg-0)' }}>
+              {font}
+            </span>
           </div>
         </div>
       ) : null}

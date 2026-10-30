@@ -1,0 +1,268 @@
+{
+  "$comment": "Lead-owned (contract V2-1.11 §5.7). humanMax/pendingMax may only be lowered; raising either, or adding a humanDecisions reason, is a lead change citing a decision id.",
+  "humanMax": 175,
+  "pendingMax": 0,
+  "pending": [],
+  "humanDecisions": {
+    "accounts": "decision:maude/v2-4-gate-github-doors",
+    "ai-chat": "decision:maude/v2-S5.7-chat-actions-human-ai-chat",
+    "billing": "decision:maude/v2-lead-cloud-move-window-only",
+    "clear-trash": "decision:maude/v2-lead-trash-clear-human-only",
+    "git": "decision:maude/v2-S11.10-git-actions-human",
+    "hub-link": "decision:maude/v2-4.7b-diagnostics-in-the-menu",
+    "invite": "decision:maude/v2-S9.19-share-actions-human",
+    "keys": "decision:maude/v2-2.4b-undo-keys-human",
+    "links": "decision:maude/v2-V2-1.11-ai-operability",
+    "native-window": "decision:maude/v2-V2-1.11-ai-operability",
+    "onboarding": "decision:maude/v2-V2-1.11-ai-operability",
+    "report-bug": "decision:maude/v2-V2-1.11-ai-operability",
+    "roles": "decision:maude/v2-S9.19-share-actions-human",
+    "summon": "decision:maude/v2-V2-1.11-ai-operability",
+    "view-pref": "decision:maude/v2-V2-1.11-ai-operability",
+    "vote": "decision:maude/v2-S4.14-votes-human",
+    "consent": "decision:maude/v2-S8.20-describe-consent-human"
+  },
+  "humanMaxRaised": [
+    {
+      "to": 90,
+      "from": 86,
+      "by": "decision:maude/v2-S5.3-run-actions-human-until-s5.4",
+      "why": "S5.3 registers the AI run registry's row actions (V2-1.15 §5.10): Keep going and Cancel the waiting prompt are human 'ai-chat' by Q5 (the same reason S5.7 adds); AI runs and Stop are human until S5.4 builds `maude design runs list|stop`, which turns them cli and lowers this by 2. Four human rows."
+    },
+    {
+      "to": 96,
+      "from": 90,
+      "by": "decision:maude/v2-S5.7-chat-actions-human-ai-chat",
+      "why": "S5.7 registers the AI chat list's row commands (New chat, Rename…, Archive, Move to trash, Copy transcript: human 'ai-chat', the conversation is the person's to drive) and Open in terminal (human 'native-window', a Tauri command that spawns Terminal). Six human rows."
+    },
+    {
+      "to": 100,
+      "from": 96,
+      "by": "decision:maude/v2-S1.2-human-view-prefs",
+      "why": "S1.2: Pin canvas, Unpin canvas, Sort canvases and Copy canvas link are per-person view state (pins are the person's, the sort order is a per-project view preference, the link goes to the clipboard) — human (view-pref) by design, the same reason as view.pin-panels and edit.copy-properties. Four human rows."
+    },
+    {
+      "to": 99,
+      "from": 98,
+      "by": "decision:maude/v2-S3.2b-pointer-is-human",
+      "why": "S3.2b: tool.pointer (L, Present's one tool) is the presenter's mouse made visible to the audience; an agent has no pointer to show and no equivalent of one, so it is human 'keys' by design. present.next / present.prev are NAV (`maude design open <canvas>#<artboard> --mode present`), not human. One human row."
+    },
+    {
+      "to": 106,
+      "from": 99,
+      "by": "decision:maude/v2-S5.12-advanced-rows-in-registry",
+      "why": "S5.12: the AI chat's Advanced fold (Model, Effort, Fast mode, Ask before, Show in chat, Suggestions, Raw log) is seven chat.advanced.* registry actions so ⌘K finds them as \"AI chat panel › Advanced\"; they tune the person's own conversation, human 'ai-chat' like S5.7's rows. Seven human rows."
+    },
+    {
+      "to": 107,
+      "from": 106,
+      "by": "decision:maude/v2-S2.6-select-matching-client-only",
+      "why": "S2.6: object.select-matching (same style) is a selection in the person's window, with no route and no edit-op; an agent greps the canvas for the same className and style. Human 'view-pref'. One human row."
+    },
+    {
+      "to": 99,
+      "from": 98,
+      "by": "decision:maude/v2-lead-trash-clear-human-only",
+      "why": "S1.7b registers trash.clear (the Trash's Clear out…): deleting for good what the team could still restore is the project owner's own confirmation, never an agent's — human 'clear-trash'. One human row. trash.restore gets its agent path with S1.17's `maude design trash restore` and is not registered yet."
+    },
+    {
+      "to": 112,
+      "from": 108,
+      "by": "decision:maude/v2-S5.10-grant-per-realpath-attach-per-chat",
+      "why": "S5.10 registers the paperclip's four ways in (ai.attach-files, ai.attach-folder, ai.attach-assets, ai.attach-screenshot): attaching is how a PERSON hands the AI a file or a folder, and a folder grant is consent only the person can give; an agent reads files itself. Human 'ai-chat'. Four human rows."
+    },
+    {
+      "to": 113,
+      "from": 112,
+      "by": "decision:maude/v2-S3-presenter-view-desktop-only",
+      "why": "S3.6b registers present.presenter-view (Presenter view on another display): a window-level preference only a person's click sets, on a second display an agent has no window on — human 'native-window'. One human row."
+    },
+    {
+      "to": 114,
+      "from": 113,
+      "by": "decision:maude/v2-S2.10-ask-ai-row-human",
+      "why": "S2.10: artboard.ask-ai is the artboard menu's Ask AI row (⌘/), a request the person makes of the AI chat; an agent has nobody to ask. Human 'ai-chat' like every chat row. The row is greyed until S5's composer takes the artboard."
+    },
+    {
+      "to": 115,
+      "from": 114,
+      "by": "decision:maude/v2-lead-set-id-human-only",
+      "why": "S2.2b: element.set-id renames an id AND every durable reference to it (comments, arrow hosts, votes) as one undo step; an agent editing the literal gets id-lost and moves nothing. Human 'keys' (A5 lead patch, applied at A6a)."
+    },
+    {
+      "to": 116,
+      "from": 115,
+      "by": "decision:maude/v2-2.4b-undo-keys-human",
+      "why": "S2.20: edit.undo-history (Menu › Edit › Undo history…) shows the person's own ⌘Z projection; an agent reads history with `maude design history list` and undoes one action by id. Human 'keys' like edit.undo / edit.redo."
+    },
+    {
+      "to": 117,
+      "from": 116,
+      "by": "decision:maude/v2-S1.12b-history-filter-human",
+      "why": "S1.12b: history.filter (All · Named · Made by AI · People) is the person's own panel state — human (view-pref)."
+    },
+    {
+      "to": 116,
+      "from": 117,
+      "by": "decision:maude/v2-S1.17-view-trash-cli",
+      "why": "S1.17: view.trash turns cli (the trash list verb) — one human row fewer."
+    },
+    {
+      "to": 118,
+      "from": 116,
+      "by": "decision:maude/v2-S1.22b-tab-overview-rename-native-window",
+      "why": "S1.22b: tab.overview and tab.rename are native-window rows of the desktop tab strip; an agent has no window. Two human rows."
+    },
+    {
+      "to": 129,
+      "from": 118,
+      "by": "decision:maude/v2-S11.10-git-actions-human",
+      "why": "A6b-1 integration, measured from the merged registry (+20 human, -9): S11.10 +8 (history.branch-switch, continue-draft, discard-file, fetch, new-branch, open-pr, publish, save-with-note: human 'git', decision:maude/v2-S11.10-git-actions-human); S1.15 +1 (history.compare-pictures: view-pref, decision:maude/v2-S1.15-compare-pictures-human); S11.9 +5 (canvases.show-file-names, layers.show-tags, layers.select-by-selector: view-pref; canvas.reveal-in-finder, canvas.open-in-editor: native-window, decision:maude/v2-S11.9-left-advanced-view-prefs-human); S11.13 +4 (settings.experimental-teams, reset-all, reset-panel-layout, use-own-plugin-copy: view-pref); S11.2 +1 (ai.ask-fill-artboard: summon); S11.11 +1 diag.logs-show-in-finder (native-window) -1 diag.logs (cli); S12.8 -7 (view.design-system, view.inspector, view.layers, view.layers-panel, settings.open, help.shortcuts, help.whats-new now `maude design open --panel`); S11.11 -1 sync.resync (cli)."
+    },
+    {
+      "to": 130,
+      "from": 129,
+      "by": "decision:maude/v2-lead-cloud-move-window-only",
+      "why": "A6b-2 integration, measured from the merged registry (+1): S6.0c share.move-to-cloud (human 'billing': it uploads the whole project to the person's billed Maude Cloud account — the Maude window only, the studio refuses a POST without its Sec-Fetch-Site and the design hook denies one). S8.x adds no human row: export.retry, asset.relink and export.copy-png all have an agent path."
+    },
+    {
+      "to": 135,
+      "from": 130,
+      "by": "decision:maude/v2-S9.23-presence-actions-human-summon",
+      "why": "A6b-3 integration, measured from the merged registry (+5): S9.23 +3 — presence.follow, presence.bring-everyone and presence.stop are one person watching or moving other people's cameras through awareness; an agent has no camera and no cursor in the room, and Bring everyone here is the `summon` capability itself (V2-1.7 §5.5). presence.go-to is NAV (`maude design open <canvas>#<artboard>`), not human. Human reason 'summon' (already cited). Three human rows. S9.19 +4 — share.invite, share.set-role, share.remove, share.resend (human 'invite' / 'roles': who has access is the owner's and the linked hub decides; routes/share.ts is the door, an agent has no seat to give). S7.6b −2 — timeline.undo / timeline.redo retired (the transport's ⌘Z is edit.undo / edit.redo)."
+    },
+    {
+      "to": 138,
+      "from": 135,
+      "by": "decision:maude/v2-lead-humanmax-138-wave-a-tail",
+      "why": "Measured from the merged registry after A7 + S2.21 + S4.9 (+3): S2.19 ai.ask-selection (human 'ai-chat': it opens the chat composer on the selection; the agent already has the selection through _active.json), S2.21 ui.cycle-region (view-pref: where the keyboard is in the window), S4.9 annotations.hide-resolved (view-pref: per-person C29 filter, never written to the board). Every other slice in A7/S2.21/S4.8/S4.9 adds no human row."
+    },
+    {
+      "to": 140,
+      "from": 138,
+      "by": "decision:maude/v2-S4.14-votes-human",
+      "why": "S4.14 registers Start a vote… and End vote: a formal vote is people's decision (Gate 0 A18, contract S4-S9 §2.6: the agent has no vote verb); the agent reads the result section with maude design read-annotations. Two human rows (reason vote)."
+    },
+    {
+      "to": 141,
+      "from": 140,
+      "by": "decision:maude/v2-S9.20-link-settings-human",
+      "why": "S9.20 registers Share › Advanced › This link (share.link-settings): who can open the project's link, the role it gives and when it ends are the owner's to change about other people — human 'links', the same reason share.open and share.copy-link already have (V2-1.11: no CLI verb touches an invite/links route). One human row; lead ack needed."
+    },
+    {
+      "to": 144,
+      "from": 141,
+      "by": "decision:maude/v2-S9.21-ask-to-edit-human",
+      "why": "S9.21 registers share.ask-to-edit, share.request-approve and share.request-decline: asking for and granting edit access on someone else's behalf is the owner's/person's call about other people — human 'roles', the same reason as the S9.19 share actions (V2-1.11: no CLI verb touches an invite/access route). Three human rows; lead ack (wave-B integration)."
+    },
+    {
+      "to": 145,
+      "from": 144,
+      "by": "decision:maude/v2-S6.4-open-remote-human",
+      "why": "S6.4 registers cloud.open-remote (Open on a cloud project or a share that is not on this Mac yet, V2-1.1 §5.9): it makes the person's own copy of someone else's cloud project, then opens a tab — the hub link, human 'hub-link' like sync.download-all. The agent works inside one project and never reaches the cross-project Home. One human row (lead ack needed)."
+    },
+    {
+      "to": 149,
+      "from": 145,
+      "by": "decision:maude/v2-S11.14-connections-actions-human",
+      "why": "S11.14 registers Settings › Connections' four capabilities on their existing routes: Replace the team server's access token (POST /_api/hub/link) and Connect / Disconnect this folder to a cloud project (POST /_api/cloud/attach|detach) are human 'hub-link' — the `link` / `unlink` verbs are themselves human-tier (verbs.ts), an agent never types a credential; the Figma Test (POST /_api/figma/probe) is human 'accounts' — it spends the person's token, and the agent's Figma door is `maude design import-figma`. Four human rows; lead ack needed."
+    },
+    {
+      "to": 150,
+      "from": 149,
+      "by": "decision:maude/v2-S6.8-signin-human",
+      "why": "S6.8 registers home.signin (Sign in to cloud.maude.sh on Home's card and top bar): the person signs in to their own account in their own browser; the credential reaches only the Home server and Rust — human 'accounts', the same reason as account.switch. One human row (lead ack needed)."
+    },
+    {
+      "to": 152,
+      "from": 150,
+      "by": "decision:maude/v2-S11.12-sync-details-human-rows",
+      "why": "S11.12 registers Sync details' rows: sync.get-latest is the git pull Version history had (human 'git', the S11.10 GIT() reason — an agent runs git itself) and sync.sign-in-again is the person's own cloud credential (human 'hub-link'). The conflict picks, the AI edit's Publish/Discard and the transfer's Cancel are cli (curl-local on their routes). Two human rows (lead ack needed)."
+    },
+    {
+      "to": 156,
+      "from": 152,
+      "by": "decision:maude/v2-S6.9-advanced-sheets-human",
+      "why": "S6.9 registers the four Advanced sheets Home opens (02 ob-adv-sheets): hub.connect (hub-link — the person's hub password goes to the Home server once; an agent links a folder with the human-tier `link` verb), project.open-github and ai.connect (accounts — a GitHub token stays in Rust and the Claude sign-in is the person's own browser; the agent runs on one already) and cli.install (onboarding — it links the bundled maude, which the agent is already running through). Import from Figma is the existing import.figma (cli). Four human rows; lead ack needed."
+    },
+    {
+      "to": 158,
+      "from": 156,
+      "by": "decision:maude/v2-S7.7-timeline-size-view-pref",
+      "why": "S7.7 registers timeline.expand / timeline.compact: the island's size is the person's own view preference — human 'view-pref' like the other view prefs (V2-1.11). Two human rows; lead ack (wave-B integration)."
+    },
+    {
+      "to": 162,
+      "from": 161,
+      "by": "decision:maude/v2-S7.24-kind-filter-view-pref",
+      "why": "S7.24 registers canvases.filter-kind: the kind chips narrow the Canvases list in the person's own window — human 'view-pref' like canvases.sort. One human row (raised from the current feat 161); lead ack."
+    },
+    {
+      "to": 163,
+      "from": 162,
+      "by": "decision:maude/v2-S6.15-add-guides-human",
+      "why": "S6.15 registers help.add-guides (Help › Help and guides › Add the guide canvases to this project, Q10): human 'onboarding' like the other Help rows — the person's own question to Help; an agent that wants a canvas makes one. POST /_api/help/add-guides refuses every role below edit. One human row; lead ack needed."
+    },
+    {
+      "to": 164,
+      "from": 163,
+      "by": "decision:maude/v2-S10.14-preview-is-a-view-state",
+      "why": "S10.14 registers ds.preview (13 · ds-many-switch): looking at the project in another design system is a session-only render override of the canvas URL's tokens / components the person steps through with the arrow keys — human 'view-pref'. An agent screenshots the canvas URL with that system's files via `maude design screenshot --url`. The switch itself (ds.switch) is cli. One human row."
+    },
+    {
+      "to": 165,
+      "from": 164,
+      "by": "decision:maude/v2-S10.19-reveal-files-is-a-native-door",
+      "why": "S10.19 registers ds.reveal-files (13 · ds-advanced): Finder opens on the person's Mac (the Mac app's confined project_reveal_path) — human 'native-window', like canvas.reveal-in-finder. An agent already holds system/<ds>/ and reads it in place. ds.check-system is cli and ds.handoff-tokens is a file path. One human row."
+    },
+    {
+      "to": 166,
+      "from": 165,
+      "by": "decision:maude/v2-S7.11-transcript-island-by-has",
+      "why": "S7.11 registers video.transcript.open (Timeline › Transcript, human view: opens the Transcript island; the agent reads and edits the transcript sidecar and the comp's <Captions> directly). Stacks on S10.19's 164 -> 165 (both slices raised from 164 in parallel)."
+    },
+    {
+      "to": 167,
+      "from": 166,
+      "by": "decision:maude/v2-S7.18-add-track-view-pref",
+      "why": "S7.18 registers timeline.add-track (Timeline › Advanced › + track, C35): which empty Video 2 / Music 2 lane the timeline draws is the person's own view of a comp whose tracks are DERIVED from what it says (no byte changes), so there is nothing for an agent to write — human 'view-pref'. video.allow-longer (a canvas-meta path) and video.easing.set (a canvas-tsx path) are not human. One human row (raised from the current feat 166); lead ack."
+    },
+    {
+      "to": 168,
+      "from": 167,
+      "by": "decision:maude/v2-S7.16-fold-track-view-pref",
+      "why": "S7.16 registers timeline.fold-track (Timeline, 07 · ve-long: fold a track to 'Text · 18'): which tracks of a long video one person has put away is their own view of a comp whose tracks are DERIVED from what it says (no byte changes, nothing reaches a peer), so there is nothing for an agent to write — human 'view-pref', like timeline.add-track. Stacks on S7.18's 166 -> 167 (rebase to the merged value)."
+    },
+    {
+      "to": 169,
+      "from": 168,
+      "by": "decision:maude/v2-S7.16-marker-jump-view-pref",
+      "why": "S7.16 registers timeline.marker.jump (Timeline › Markers): where the playhead is is the person's own view, so it is human 'view-pref' like timeline.step. timeline.marker.add and timeline.marker.remove write artboardMeta[id].markers and are effect 'project' with the canvas-meta agent path, so they are not human. Stacks on this slice's fold-track 167 -> 168 (rebase to the merged value)."
+    },
+    {
+      "to": 170,
+      "from": 169,
+      "by": "decision:maude/v2-S7.24b-layers-filter-kind-view-pref",
+      "why": "S7.24b registers layers.filter-kind: the kind chips in the Layers header dim the other artboards in the person's own window (the filter is in memory, never written to the project) — human 'view-pref' like canvases.filter-kind and layers.show-tags. One human row (raised from the current feat 169); lead ack."
+    },
+    {
+      "to": 172,
+      "from": 170,
+      "by": "decision:maude/v2-S8.20-describe-consent-human",
+      "why": "S8.20 registers assets.describe (Search in pictures: the person's yes to AI describing a project's pictures with their own Claude account on their Mac, V2-1.17 §5.9 / §9 Q9) and assets.describe-stop (Stop / Resume of that describing). Both human 'consent', a new reason: an agent cannot consent for the person whose account it spends. Two human rows (raised from the current feat 169)."
+    },
+    {
+      "to": 173,
+      "from": 172,
+      "by": "decision:maude/v2-gate-b-sec4-link-is-this-macs",
+      "why": "gate-b-sec4 registers sync.connect-link (Connect a folder whose committed linkedHub this Mac never linked). Human 'hub-link': it is the person consenting that this Mac's hub credential may serve this folder, which neither a committed config nor an agent can give. One human row."
+    },
+    {
+      "to": 175,
+      "from": 173,
+      "by": "decision:maude/v2-gate-b-sec3b-home-invite-actions-human",
+      "why": "gate-b-sec3b registers invite.join and invite.leave (Home › Shared with you: accept or turn down an invitation addressed to the person's own cloud account). Both human 'accounts': an agent invites others with share.invite but never answers for the person; the Home server holds the device token. Two human rows (raised from the current feat 172)."
+    }
+  ],
+  "humanMaxRaisedNote": "V2-5 A1 integration: the three slice raises stack on 86 (84 -> 86 by decision:maude/v2-4-gate-github-doors, human 'accounts'). S4.1/S4.3/S4.4 and S2.2-S2.4 add no human row. 86 + 4 + 6 + 4 = 100 human actions in the merged registry. V2-5 A2 integration: S5.4 builds `maude design runs list|stop`, so ai.runs.list and ai.stop turn cli (decision:maude/v2-S5.3-run-actions-human-until-s5.4 resolved by decision:maude/v2-S5.4-runs-fallback-prompts) and the cap lowers 100 -> 98; S3.1, S4.2, S4.5, S9.4, S2.5 and S1.4 add no human row. V2-5 A4 integration: measured 107 human actions in the merged registry (98 on feat + tool.pointer from S3.2b + 7 chat.advanced.* from S5.12 + object.select-matching from S2.6); every other A4 slice adds no human row. V2-5 A5 integration: measured 113 human actions in the merged registry (107 on feat + trash.clear from S1.7b + four ai.attach-* from S5.10 + present.presenter-view from S3.6b); every other A5 slice adds no human row. V2-5 A6a integration: measured 118 human actions in the merged registry (113 on feat + artboard.ask-ai S2.10 + element.set-id S2.2b/lead + edit.undo-history S2.20 + history.filter S1.12b − view.trash S1.17 (cli) + tab.overview + tab.rename S1.22b); every other A6a slice adds no human row."
+}

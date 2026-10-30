@@ -710,6 +710,12 @@ Which rule families to evaluate. Drop "ai" if the project has no model / MCP sur
 
 Shortcut to enable/disable §B AI-era rules in security-rules skill. When false, ethical-hacker still threat-models classic surface but the mandatory AI/MCP section reads "N/A — disabled by config".
 
+### `security.projectChecklist`
+
+**Type:** `string`
+
+Repo-relative path of a project-owned security checklist (markdown). security-auditor and ethical-hacker read it, when the file exists, and check the change against every item as well as the generic rules. Keep project-specific rules (tiers, roles, trust boundaries) there, not in the flow plugin.
+
 ## `skills`
 
 **Type:** `object`
@@ -987,7 +993,7 @@ Path (repo-relative) to the project-owned release runbook that /flow:release wal
 
 **Type:** `object`
 
-In-product "What's New" feed. When enabled, /flow:done offers to append a user-facing entry for the closed-out feature to `feed`, delegating to the named project skill if set. Generic + opt-in: absent or `enabled:false` → /flow:done skips it silently. Maude wires this to apps/studio/whats-new.json, surfaced in the canvas browser.
+In-product "What's New" feed. When enabled, /flow:done offers to append a user-facing entry for the closed-out feature to `feed`, delegating to the named project skill if set. Generic + opt-in: absent or `enabled:false` → /flow:done skips it silently. Maude wires this to apps/studio/whats-new.json, surfaced in the Maude app (Home after an update, and Help › What's new).
 
 #### `integrations.whatsNew.enabled`
 

@@ -1,5 +1,5 @@
 import { $, browser, expect } from '@wdio/globals';
-
+import { aiConnected, openAssistant } from '../helpers/assistant';
 import { capture, startReport } from '../helpers/evidence';
 import { isNativeShell } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
@@ -8,12 +8,11 @@ import { waitForSidecar } from '../helpers/sidecar';
  * DDR-166 Phase 0 / T0f — the ZERO-TERMINAL ACP COLD START. Proves a person who
  * has never touched a terminal can go from "no `claude` installed" to "AI
  * editing connected" purely by clicking buttons in the app:
- *   1. Open the Assistant panel → not-connected → claude reads "missing" with
- *      an "Install Claude Code" / "Set up AI editing" action.
- *   2. Click it → the guided install runs (stubbed, see wdio config) → flips
- *      straight into sign-in.
- *   3. Sign-in completes (stubbed) → the panel reconnects IN PLACE, no restart
- *      → the real chat composer renders.
+ *   1. Open the Assistant panel → it looks the same as always (CONTRACT §7, gate-b-polish2): the composer,
+ *      no setup list, though claude is "missing".
+ *   2. Send a prompt → it is kept and the one Connect sheet asks.
+ *   3. Connect → the guided install runs (stubbed, see wdio config) → flips straight into sign-in →
+ *      sign-in completes (stubbed) → the panel connects IN PLACE, no restart.
  *
  * Only runs under wdio.acp-cold-start.conf.ts, which sets the three debug-only
  * stub envs (force-missing + fake install + a disposable install path — never
@@ -31,81 +30,45 @@ describe('acp-cold-start (native-desktop)', () => {
     await browser.setTimeout({ script: 60_000 });
   });
 
-  it('1 · opens to a not-connected Assistant panel with an install action', async () => {
+  it('1 · the Assistant panel looks the same as always: the composer, no setup list', async () => {
     await waitForSidecar();
     expect(await isNativeShell()).toBe(true);
-
-    await (await $(tid('assistant-toggle'))).waitForDisplayed({ timeout: 30_000 });
-    await (await $(tid('assistant-toggle'))).click();
-
-    const notConnected = await $(tid('acp-not-connected'));
-    await notConnected.waitForDisplayed({ timeout: 30_000 });
-    await capture('01-not-connected-claude-missing');
-
-    const claudeRow = await $(tid('rdy-row-claude'));
-    await claudeRow.waitForDisplayed({ timeout: 10_000 });
-    expect(await claudeRow.getAttribute('class')).toContain('rdy-row--missing');
-
-    const installBtn = await $(tid('acp-setup-install'));
-    await installBtn.waitForDisplayed({ timeout: 10_000 });
+    // V2-4.8a: the menubar's Assistant toggle is the AI chat's own island (its header, or the spark
+    // corner icon when it is folded) — reach "open" from either start.
+    await openAssistant();
+    // gate-b-polish2 (CONTRACT §7): no v1 "AI editing isn't ready yet" body — Ask AI looks the same
+    const composer = await $(tid('chat-composer'));
+    await composer.waitForDisplayed({ timeout: 30_000 });
+    expect(await aiConnected()).toBe(false);
+    expect(await $(tid('acp-not-connected')).isExisting()).toBe(false);
+    await capture('01-composer-claude-missing');
   });
 
-  it('2 · clicking install runs the guided installer, then chains into sign-in', async () => {
-    await (await $(tid('acp-setup-install'))).click();
-    // The stubbed installer takes ~1.2s before writing the fake binary — the
-    // "Installing…" text is a real (if brief) intermediate render.
-    try {
-      await browser.waitUntil(
-        async () =>
-          (await $('.rdy-fix-tx'))
-            .getText()
-            .then((t) => t.includes('Installing'))
-            .catch(() => false),
-        { timeout: 4_000, interval: 200 }
-      );
-      await capture('02-installing');
-    } catch {
-      /* best-effort — a fast poll tick can miss this transient state */
-    }
-    // One click covers both steps (login-state.ts's pollForInstall → runSignin
-    // chain) — once the fake install verifies fresh, sign-in starts on its own
-    // with no second click. The fake install (~1.2s) + fake sign-in (~1s) +
-    // poll ticks are fast enough that the whole chain can finish inside this
-    // step's own wait window — so "the waiting-for-signin state was visible"
-    // is NOT asserted as a hard requirement (step 3 is the real, unambiguous
-    // proof the chain reached connected); this only checks it never landed on
-    // an error state, whichever intermediate state it's caught in.
+  it('2 · the first send is kept and the one Connect sheet asks', async () => {
+    const input = await (await $(tid('chat-composer'))).$('.chat-input');
+    await input.click();
+    await input.addValue('Say hello.');
+    await (await $('[aria-label="Send message"]')).click();
+    const sheet = await $(tid('ai-connect-sheet'));
+    await sheet.waitForDisplayed({ timeout: 15_000 });
+    await capture('02-connect-sheet');
+  });
+
+  it('3 · Connect runs the guided install, then sign-in, and the panel connects in place', async () => {
+    await (await $(tid('ai-connect-go'))).click();
+    // One click covers both steps (connect-flow.js: install when missing → browser sign-in → wait). The
+    // stubbed install (~1.2 s) + sign-in (~1 s) are fast, so the intermediate phases are best-effort only.
     await browser.waitUntil(
       async () => {
-        const errorTx = await $('.rdy-fix-tx--err');
-        if (await errorTx.isDisplayed().catch(() => false)) {
-          throw new Error(
-            `install/sign-in reported an error: ${await errorTx.getText().catch(() => '?')}`
-          );
+        const err = await $(tid('ai-connect-error'));
+        if (await err.isDisplayed().catch(() => false)) {
+          throw new Error(`connect reported an error: ${await err.getText().catch(() => '?')}`);
         }
-        const cancel = await $('.rdy-copy');
-        const notConnected = await $(tid('acp-not-connected'));
-        const stillWaiting = await cancel.isDisplayed().catch(() => false);
-        const alreadyConnected = !(await notConnected.isDisplayed().catch(() => false));
-        return stillWaiting || alreadyConnected;
+        return aiConnected();
       },
-      { timeout: 15_000, timeoutMsg: 'never reached the waiting-for-signin state nor connected' }
+      { timeout: 60_000, interval: 1_000, timeoutMsg: 'never connected after Connect' }
     );
-    await capture('03-waiting-for-signin-or-already-connected');
-  });
-
-  it('3 · the panel reconnects in place — no restart — and the composer renders', async () => {
-    // The fake claude script's `auth login` sleeps 1s then marks itself signed
-    // in; the next 2s poll tick picks it up, resolveClaudePath's verified-
-    // override takes precedence over the force-missing stub, and
-    // probeAcpAvailabilityAuthed flips available:true.
-    const notConnected = await $(tid('acp-not-connected'));
-    await browser.waitUntil(async () => !(await notConnected.isDisplayed().catch(() => false)), {
-      timeout: 30_000,
-      timeoutMsg: 'still showing the not-connected panel after sign-in should have completed',
-    });
-    await capture('04-not-connected-panel-gone');
-
+    await capture('03-connected');
     const composer = await $(tid('chat-composer'));
     await composer.waitForDisplayed({ timeout: 15_000 });
     await capture('05-chat-composer-connected');

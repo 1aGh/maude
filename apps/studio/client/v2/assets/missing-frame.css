@@ -1,0 +1,60 @@
+/* client/v2/assets/missing-frame.css — S8.19c: the Inspector's box for a picture that is not here, and the
+ * relink sheet's error line (12 Import and Assets, ia-missing). Tokens only. */
+
+@layer shell {
+  /* 12 · .ia-missbox: a bg-3 well, no border; the state is a status word (a dot and the word), not a coloured frame */
+  .asset-absent {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-2);
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+    color: var(--fg-1);
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+  }
+  .asset-absent-t strong {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  .asset-absent-t strong::before {
+    content: "";
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--fg-3);
+  }
+  .asset-absent[data-state="missing"] .asset-absent-t strong::before {
+    background: var(--status-error);
+  }
+  .asset-absent[data-state="waiting"] .asset-absent-t strong::before {
+    background: var(--status-warn);
+  }
+  .asset-absent p {
+    margin: 0;
+  }
+  .asset-absent-t strong {
+    color: var(--fg-0);
+    font-weight: var(--w-semibold);
+  }
+  .asset-absent[data-state="waiting"] .asset-absent-t strong,
+  .asset-absent[data-state="missing"] .asset-absent-t strong {
+    color: var(--fg-1);
+  }
+  .asset-absent-d {
+    color: var(--fg-1);
+  }
+  .asset-absent-a {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+  .asset-relink-err {
+    margin: 0;
+    color: var(--status-error-text);
+  }
+}

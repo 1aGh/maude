@@ -1,43 +1,124 @@
 # browser/menu-selection
-header .st-menubar [data-testid="menubar"] [aria-label="Application menubar"]
-  span .st-brand [data-tour="brand"]
-    span .st-brand-mark
+span .island.sh-pill
+  button .sh-pill-btn [data-testid="project-pill"] [aria-label="characterization, project menu"] [aria-expanded="true"] [aria-haspopup="menu"] [data-tour="menus"] [title="Project menu"] [type="button"]
+    span .sh-pill-mark [data-tour="brand"]
       svg [aria-hidden="true"]
-    span .st-brand-name "maude"
-  nav .st-menus [role="menubar"] [aria-label="Application menus"] [data-tour="menus"]
-    button .st-menu [data-testid="menu-file"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "File"
-    button .st-menu [data-testid="menu-edit"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "Edit"
-    button .st-menu [data-testid="menu-view"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "View"
-    button .st-menu [data-testid="menu-selection"] [role="menuitem"] [aria-expanded="true"] [aria-haspopup="menu"] [type="button"] "Selection"
-    button .st-menu [data-testid="menu-tools"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "Tools"
-    button .st-menu [data-testid="menu-help"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [data-tour="help"] [type="button"] "Help"
-  div .st-dropdown [role="menu"] [aria-label="Selection"]
-    button .st-dd-item [role="menuitem"] [type="button"]
-      span .st-dd-lead
-        span .st-dd-check
-        span "Deselect all"
-      span .kbd "Esc"
-    button .st-dd-item [role="menuitem"] [type="button"]
-      span .st-dd-lead
-        span .st-dd-check
-        span "Select all annotations"
-      span .kbd "⌘ ⇧ A"
-  div .st-mb-right [data-tour="status"]
-    div .st-presence
-      span .st-avatar [aria-label="You"] "YO"
-    button .st-mb-icon.st-share-btn [data-testid="share-btn"] [aria-label="Share link"] [type="button"] [disabled]
+    span .sh-pill-name "characterization"
+    span .sh-pill-caret [aria-hidden="true"]
       svg [aria-hidden="true"]
-    button .st-exports [aria-label="Exports"] [data-tour="exports"] [type="button"]
-      span [aria-hidden="true"] "⬇"
-    button .st-reportbug [data-testid="report-bug-toggle"] [aria-label="Report a bug"] [type="button"]
-      svg [aria-hidden="true"]
-    button .st-whatsnew [aria-label="What's new"] [data-tour="whatsnew"] [type="button"]
-      svg [aria-hidden="true"]
-    span .st-stamp "IDLE"
-    span .st-mb-file [title]
-      span "no canvas open"
-    span .st-mb-sep
-    span .st-mb-count "0 ARTBOARDS"
-      span .st-dot
-    span .st-mb-sep
-    span .st-mb-proj "characterization"
+  div .sh-pm-root
+    div .sh-pm [data-testid="project-menu"] [role="menu"] [aria-label="Project menu"]
+      div .sh-pm-li [role="none"]
+        button .sh-pm-row [data-testid="project-menu-row-sub-file"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] [tabindex="-1"]
+          span .sh-pm-ic [aria-hidden="true"]
+          span .sh-pm-lab "File"
+          span .sh-pm-ch [aria-hidden="true"]
+            svg [aria-hidden="true"]
+      div .sh-pm-li [role="none"]
+        button .sh-pm-row [data-testid="project-menu-row-sub-edit"] [role="menuitem"] [aria-expanded="true"] [aria-haspopup="menu"] [type="button"] [tabindex="-1"]
+          span .sh-pm-ic [aria-hidden="true"]
+          span .sh-pm-lab "Edit"
+          span .sh-pm-ch [aria-hidden="true"]
+            svg [aria-hidden="true"]
+        div .sh-pm.sh-pm--sub [data-testid="project-menu-sub-edit"] [role="menu"] [aria-label="Edit"]
+          div .sh-pm-li [role="none"]
+            button .sh-pm-row [data-testid="project-menu-row-edit.undo"] [role="menuitem"] [type="button"] [tabindex="0"]
+              span .sh-pm-ic [aria-hidden="true"]
+              span .sh-pm-lab "Undo"
+              span .kbd "⌘Z"
+          div .sh-pm-li [role="none"]
+            button .sh-pm-row [data-testid="project-menu-row-edit.redo"] [role="menuitem"] [type="button"] [tabindex="-1"]
+              span .sh-pm-ic [aria-hidden="true"]
+              span .sh-pm-lab "Redo"
+              span .kbd "⇧⌘Z"
+          div .sh-pm-li [role="none"]
+            button .sh-pm-row [data-testid="project-menu-row-edit.undo-history"] [role="menuitem"] [aria-disabled="true"] [type="button"] [tabindex="-1"]
+              span .sh-pm-ic [aria-hidden="true"]
+              span .sh-pm-lab "Undo history…"
+          hr .sh-pm-sep
+          div .sh-pm-li [role="none"]
+            button .sh-pm-row [data-testid="project-menu-row-edit.cut"] [role="menuitem"] [type="button"] [tabindex="-1"]
+              span .sh-pm-ic [aria-hidden="true"]
+              span .sh-pm-lab "Cut"
+              span .kbd "⌘X"
+          div .sh-pm-li [role="none"]
+            button .sh-pm-row [data-testid="project-menu-row-edit.copy"] [role="menuitem"] [type="button"] [tabindex="-1"]
+              span .sh-pm-ic [aria-hidden="true"]
+              span .sh-pm-lab "Copy"
+              span .kbd "⌘C"
+          div .sh-pm-li [role="none"]
+            button .sh-pm-row [data-testid="project-menu-row-edit.paste"] [role="menuitem"] [type="button"] [tabindex="-1"]
+              span .sh-pm-ic [aria-hidden="true"]
+              span .sh-pm-lab "Paste"
+              span .kbd "⌘V"
+          div .sh-pm-li [role="none"]
+            button .sh-pm-row [data-testid="project-menu-row-edit.copy-properties"] [role="menuitem"] [type="button"] [tabindex="-1"]
+              span .sh-pm-ic [aria-hidden="true"]
+              span .sh-pm-lab "Copy properties"
+              span .kbd "⌥⌘C"
+          div .sh-pm-li [role="none"]
+            button .sh-pm-row [data-testid="project-menu-row-edit.paste-properties"] [role="menuitem"] [type="button"] [tabindex="-1"]
+              span .sh-pm-ic [aria-hidden="true"]
+              span .sh-pm-lab "Paste properties"
+              span .kbd "⌥⌘V"
+          hr .sh-pm-sep
+          div .sh-pm-li [role="none"]
+            button .sh-pm-row [data-testid="project-menu-row-select.all"] [role="menuitem"] [type="button"] [tabindex="-1"]
+              span .sh-pm-ic [aria-hidden="true"]
+              span .sh-pm-lab "Select all"
+              span .kbd "⌘A"
+          div .sh-pm-li [role="none"]
+            button .sh-pm-row [data-testid="project-menu-row-select.none"] [role="menuitem"] [type="button"] [tabindex="-1"]
+              span .sh-pm-ic [aria-hidden="true"]
+              span .sh-pm-lab "Deselect all"
+          div .sh-pm-li [role="none"]
+            button .sh-pm-row [data-testid="project-menu-row-select.all-annotations"] [role="menuitem"] [type="button"] [tabindex="-1"]
+              span .sh-pm-ic [aria-hidden="true"]
+              span .sh-pm-lab "Select all annotations"
+              span .kbd "⇧⌘A"
+          hr .sh-pm-sep
+          div .sh-pm-li [role="none"]
+            button .sh-pm-row.sh-pm-row--adv [data-testid="project-menu-row-sub-advanced"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] [tabindex="-1"]
+              span .sh-pm-ic [aria-hidden="true"]
+              span .sh-pm-lab "Advanced"
+              span .sh-pm-ch [aria-hidden="true"]
+                svg [aria-hidden="true"]
+      div .sh-pm-li [role="none"]
+        button .sh-pm-row [data-testid="project-menu-row-sub-view"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] [tabindex="-1"]
+          span .sh-pm-ic [aria-hidden="true"]
+          span .sh-pm-lab "View"
+          span .sh-pm-ch [aria-hidden="true"]
+            svg [aria-hidden="true"]
+      div .sh-pm-li [role="none"]
+        button .sh-pm-row [data-testid="project-menu-row-sub-help"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] [tabindex="-1"]
+          span .sh-pm-ic [aria-hidden="true"]
+          span .sh-pm-lab "Help"
+          span .sh-pm-ch [aria-hidden="true"]
+            svg [aria-hidden="true"]
+      hr .sh-pm-sep
+      div .sh-pm-li [role="none"]
+        button .sh-pm-row [data-testid="project-menu-row-history.open"] [role="menuitemcheckbox"] [aria-checked="false"] [type="button"] [tabindex="-1"]
+          span .sh-pm-ic [aria-hidden="true"]
+          span .sh-pm-lab "Version history"
+          span .kbd "⌥⌘H"
+      div .sh-pm-li [role="none"]
+        button .sh-pm-row [data-testid="project-menu-row-share.open"] [role="menuitem"] [type="button"] [tabindex="-1"]
+          span .sh-pm-ic [aria-hidden="true"]
+          span .sh-pm-lab "Share…"
+      div .sh-pm-li [role="none"]
+        button .sh-pm-row [data-testid="project-menu-row-export.open"] [role="menuitem"] [type="button"] [tabindex="-1"]
+          span .sh-pm-ic [aria-hidden="true"]
+          span .sh-pm-lab "Export…"
+          span .kbd "⇧⌘E"
+      hr .sh-pm-sep
+      div .sh-pm-li [role="none"]
+        button .sh-pm-row [data-testid="project-menu-row-sub-diagnostics"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] [tabindex="-1"]
+          span .sh-pm-ic [aria-hidden="true"]
+          span .sh-pm-lab "Diagnostics"
+          span .sh-pm-ch [aria-hidden="true"]
+            svg [aria-hidden="true"]
+      div .sh-pm-li [role="none"]
+        button .sh-pm-row [data-testid="project-menu-row-settings.open"] [role="menuitem"] [type="button"] [tabindex="-1"]
+          span .sh-pm-ic [aria-hidden="true"]
+          span .sh-pm-lab "Settings…"
+          span .kbd "⌘,"

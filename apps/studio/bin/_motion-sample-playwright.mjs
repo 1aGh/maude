@@ -72,7 +72,7 @@ const isEntry = Boolean(process.argv[1]) && import.meta.url === pathToFileURL(pr
 
 // Browser driver — runs ONLY as the entry point, never on import.
 if (isEntry) {
-  const { launchChromium } = await import('./_pw-launch.mjs');
+  const { launchChromium, newShellContext } = await import('./_pw-launch.mjs');
 
   const args = Object.fromEntries(
     process.argv.slice(2).reduce((acc, cur, i, all) => {
@@ -91,9 +91,12 @@ if (isEntry) {
 
   const browser = await launchChromium();
   try {
-    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    // gate-b-c4d — confined to the origin the shell lands on (popups, other origins refused).
+    const { ctx, goto: gotoShell } = await newShellContext(browser, {
+      viewport: { width: 1440, height: 900 },
+    });
     const page = await ctx.newPage();
-    await page.goto(url, { waitUntil: 'networkidle', timeout: timeoutMs });
+    await gotoShell(page, url, { waitUntil: 'networkidle', timeout: timeoutMs });
     await page.evaluate(() => document.fonts.ready);
 
     const first = await page.evaluate(SAMPLE_FN, selector ?? null);

@@ -1,0 +1,4 @@
+Stage D3 harness, G4 canvas 10 only (Share and Collaboration). Start from ../_d2-harness-g4 (lib/run/fx/pair/s10/s10c/s10d unchanged, REPO repointed to the shooting worktree).
+Run order: s10 (all ids), s10cm (round-5 comment frames: the Comment tool docks the Comments panel itself; thread frame = pin opened + reply being typed; overwrites co-comment-* from s10), s10c (co-access-ends), s10d (co-ask-edit-tip), s10e (new: co-share-advanced on a 1440x1040 window so the whole sheet incl. "Where it syncs" shows), then mkpairs.mjs 10-share-and-collaboration.
+Deltas in mkpairs: co-share-advanced uses implFile co-share-advanced-tall (crop 470x880+960+55); co-ask-edit impl crop 740x520+700+0 (tip + cluster instead of the whole window scaled down).
+Needs node_modules symlinks (apps/studio/node_modules, node_modules) to the main checkout before `bun run build.ts --release`. s10cm: dark thread frame is flaky once (pin click timeout) — rerun dark alone.

@@ -1,5 +1,7 @@
 /**
  * @file       ai-banner.tsx — yellow "Claude is editing this canvas" banner
+ *             NOT MOUNTED since P8 C3 (03 ai-working): v2 says it with the ring + tag on the artboard
+ *             (artboard-activity-overlay.tsx). The module stays as the `ai-activity` reader the dgn table names.
  * @scope      apps/studio/ai-banner.tsx
  * @purpose    Mounted by canvas-shell. Subscribes to the inspector WS
  *             `ai-activity` event for the canvas's own file path; shows a
@@ -13,21 +15,10 @@
 
 import type { JSX } from 'react';
 import { useEffect, useState } from 'react';
+import { currentCanvasFile } from './shell-canvas-file.ts';
 
 function deriveFile(): string | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const p = window.location.pathname;
-    if (p === '/_canvas-shell.html' || p === '/_canvas-shell') {
-      const qs = new URLSearchParams(window.location.search);
-      const canvas = qs.get('canvas') ?? '';
-      const designRel = (qs.get('designRel') ?? '.design').replace(/^\/+|\/+$/g, '');
-      return canvas ? `${designRel}/${canvas}` : null;
-    }
-    return decodeURIComponent(p).replace(/^\//, '');
-  } catch {
-    return null;
-  }
+  return currentCanvasFile();
 }
 
 const BANNER_CSS = `
@@ -183,10 +174,13 @@ export function AiBanner(): JSX.Element | null {
   }, [file]);
 
   if (!entry) return null;
+  // gate-a-polish (CONTRACT 3): the product never says "Claude" - the AI is "AI", and the app does not name itself
+  // ("Claude (Maude chat)" -> "AI"). Any other author (a person) is shown as written.
+  const who = /claude|maude/i.test(entry.author) ? 'AI' : entry.author;
   return (
     <div className="dc-ai-banner" role="status" aria-live="polite">
       <span className="dc-ai-banner__dot" aria-hidden="true" />
-      <span>{entry.author} is editing this canvas — your changes may conflict</span>
+      <span>{who} is editing this canvas — your changes may conflict</span>
     </div>
   );
 }

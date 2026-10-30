@@ -15,9 +15,10 @@
 // downstream needs the address.
 
 import { describe, expect, test } from 'bun:test';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { frameCap, withFc } from './_acl-cell.ts';
 import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
 
 const AUTHORS = [
@@ -70,12 +71,17 @@ describe('/_api/git-committers — canvas-origin projection (V2-2.8 S6)', () => 
   test('the canvas origin answers names without any e-mail; the shell keeps the full list', async () => {
     const { root, designRoot } = makeSandbox();
     seedRepo(root);
+    mkdirSync(join(designRoot, 'ui'), { recursive: true });
+    writeFileSync(join(designRoot, 'ui', 'c.tsx'), 'export default function C(){return <main/>}\n');
     const port = nextPort();
     const proc = await bootServer(root, port, { MAUDE_NO_AUTOBUILD: '1' });
     try {
       const canvas = await readCanvasOrigin(designRoot);
+      // gate-b-c4 — the composer runs inside a canvas frame: read with that frame's capability.
+      const fc = await frameCap({ base: `http://localhost:${port}` }, {}, 'ui/c.tsx');
+      const inFrame = (p: string) => withFc(`${canvas}${p}`, fc);
 
-      const c = await fetch(`${canvas}/_api/git-committers`);
+      const c = await fetch(inFrame('/_api/git-committers'));
       expect(c.status).toBe(200);
       const raw = await c.text();
       // Not one address — in a field, in a name, anywhere in the body.
@@ -101,7 +107,7 @@ describe('/_api/git-committers — canvas-origin projection (V2-2.8 S6)', () => 
       for (const a of AUTHORS) expect(emails).toContain(a.email);
 
       // Still a GET-only route on the canvas origin (DDR-088 posture).
-      const post = await fetch(`${canvas}/_api/git-committers`, { method: 'POST', body: '{}' });
+      const post = await fetch(inFrame('/_api/git-committers'), { method: 'POST', body: '{}' });
       expect(post.status).toBe(405);
     } finally {
       await killProc(proc);

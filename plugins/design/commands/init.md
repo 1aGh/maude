@@ -18,6 +18,8 @@ Project-level environment init for the `design` plugin. Mirrors `/flow:init` in 
 
 This command does **not** create a design system. That's `/design:setup-ds <name> "[brief]"`'s job. This one only prepares the ground.
 
+**A project with no canvases is valid.** `init` never creates one, and nothing downstream needs one: Maude opens on Home for an empty project, and the first canvas comes from Home (the prompt box, or New canvas), `/design:new` or `/design:edit`. Do not treat an empty `ui/` as a problem to fix.
+
 ## What it does
 
 1. **Pre-flight** — checks hard + soft dependencies and current `.design/` state.
@@ -115,7 +117,7 @@ If `.design/config.json` already exists, **do not overwrite** — re-run pre-fli
 Honor `--skip-prompts` (auto-invoked-by-`setup-ds` path passes this). Otherwise, surface a single AskUserQuestion (multiSelect = true) listing the soft deps that came up missing.
 
 ```
-What should I help with next? (multi-select; "none" is fine)
+What next? (multi-select; "none" is fine)
 
   [ ] Print `npm i -g agent-browser` install hint (needed for screenshot + 5 critics)
   [ ] Print `npm i -g @1agh/maude` install hint (faster scaffold via CLI helper)
@@ -144,6 +146,7 @@ Onboard complete.
 
 Next:
   /design:setup-ds <name> "[brief]"   — create your first design system
+  /design:new "<describe a product>"  — make the first canvas (or start from Home in Maude)
   /design:edit "<describe a product>" — bootstrap implicitly via /design:edit
 ```
 

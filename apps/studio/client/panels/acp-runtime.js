@@ -5,6 +5,12 @@
 // the panel costs nothing. A custom `ChatModelAdapter` translates the bridge's
 // JSON frames into the streamed assistant message parts assistant-ui renders.
 
+import { attachmentBlock } from '../v2/ai/attach.js';
+import { recordSent, sentFromChips } from '../v2/ai/sent-attachments.js';
+import { readMay } from '../v2/ai/ai-may.js';
+import { mayField, mergeOutbox, newAskId, promptFrame, reduceQueued } from '../v2/ai/ask-frame.js';
+import { noteAskedAnnotations } from '../v2/ai/ai-offer.js';
+
 const WS_PATH = '/_ws/acp';
 
 /**
@@ -171,6 +177,8 @@ export function createAcpConnection() {
   // subscribe like caps/commands/sessionInfo above. Parsed into render-ready
   // shape by acp-usage.js's parseUsage, not here (keep this file transport-only).
   const usageListeners = new Set();
+  // S5.9 — the run registry's frames for this chat (`{t:'run', run}`, S5.6): working line + result card.
+  const runListeners = new Set();
   let usage = null;
 
   // Pending permission requests (Milestone B — retires DDR-125 F2's blanket
@@ -244,13 +252,31 @@ export function createAcpConnection() {
   // it as its own channel too so the panel can render a proper retry card
   // instead — same "chrome, not turn content" treatment as commands/caps.
   const errorListeners = new Set();
-  let lastError = null; // { message } | null
+  let lastError = null; // { message, code? } | null — `code` is the server's (S5.6: read-only | not-queued)
   function emitError() {
     for (const fn of errorListeners) fn(lastError);
   }
-  function setError(message) {
-    lastError = message ? { message } : null;
+  function setError(message, code) {
+    lastError = message ? (code ? { message, code } : { message }) : null;
     emitError();
+  }
+
+  // S5.13 — the chat's waiting prompts (`{t:'queued'}`, S5.6) and the runs it has (`{t:'run'}`). Neither is
+  // turn content: a queued prompt did not start a turn, a run frame is bookkeeping. Chrome, like caps.
+  const queuedListeners = new Set();
+  let queuedList = [];
+  function setQueuedList(next) {
+    if (next === queuedList) return;
+    queuedList = next;
+    for (const fn of queuedListeners) fn(queuedList);
+  }
+  let askCanvas = null; // the canvas the last prompt was scoped to (a toast names it: "AI needs you on X")
+  // S5.13: the snapshot listeners (`onRuns`), apart from S5.9's per-frame `onRun` listeners.
+  const runsListeners = new Set();
+  const runs = new Map(); // runId -> the last RunView this chat was told about
+  function emitRuns() {
+    const snap = [...runs.values()];
+    for (const fn of runsListeners) fn(snap);
   }
 
   function onFrame(frame) {
@@ -303,6 +329,30 @@ export function createAcpConnection() {
     if (frame.t === 'usage') {
       usage = frame.usage ?? null;
       for (const fn of usageListeners) fn(usage);
+      return;
+    }
+    if (frame.t === 'queued') {
+      setQueuedList(reduceQueued(queuedList, frame));
+      // The prompt that was just sent did not start a turn: let its generator finish (a turn already
+      // streaming ignores it, it has produced updates by then).
+      if (turnHandler) turnHandler(frame);
+      return;
+    }
+    if (frame.t === 'run') {
+      // S5.9 — the working line + result card take each frame as it comes.
+      for (const fn of runListeners) fn(frame.run);
+      // S5.13 — the chat's run snapshot and the kept-prompt lines.
+      if (frame.run?.runId) {
+        runs.set(frame.run.runId, frame.run);
+        emitRuns();
+      }
+      setQueuedList(reduceQueued(queuedList, frame));
+      return;
+    }
+    // A refusal with a code (S5.6: `read-only`, `not-queued`) can arrive with no turn in flight (a
+    // continuation, or a role that dropped mid-socket). It is a card, not a thrown turn.
+    if (frame.t === 'error' && frame.code && !turnHandler) {
+      setError(frame.message || 'AI could not do that.', frame.code);
       return;
     }
     if (frame.t === 'permission-request') {
@@ -386,9 +436,7 @@ export function createAcpConnection() {
         // prompt.
         if (attachedChatId) {
           try {
-            sock.send(
-              JSON.stringify({ t: 'attach', chat: attachedChatId, seq: hydratedSeq })
-            );
+            sock.send(JSON.stringify({ t: 'attach', chat: attachedChatId, seq: hydratedSeq }));
           } catch {
             /* the frame handlers below surface a dead socket */
           }
@@ -433,6 +481,26 @@ export function createAcpConnection() {
     },
 
     /** Subscribe to the connection-problem error card's source (Task C3); replays the current one, if any. */
+    /** S5.13: this chat's waiting prompts; `fn(list)` now and on every change. */
+    onQueued(fn) {
+      queuedListeners.add(fn);
+      fn(queuedList);
+      return () => queuedListeners.delete(fn);
+    },
+    /** The outbox's view of the same prompts (reload / poll), merged into the list the frames built. */
+    syncQueued(fromOutbox) {
+      setQueuedList(mergeOutbox(queuedList, fromOutbox));
+    },
+    /** S5.13: the runs the server told this chat about (`{t:'run'}`); `fn(runs[])`. */
+    onRuns(fn) {
+      runsListeners.add(fn);
+      fn([...runs.values()]);
+      return () => runsListeners.delete(fn);
+    },
+    /** The canvas of the last ask (its scope), or null. */
+    get askCanvas() {
+      return askCanvas;
+    },
     onError(fn) {
       errorListeners.add(fn);
       fn(lastError);
@@ -458,6 +526,12 @@ export function createAcpConnection() {
       sessionInfoListeners.add(fn);
       fn(sessionInfo);
       return () => sessionInfoListeners.delete(fn);
+    },
+
+    /** S5.9 — subscribe to this chat's run frames (a RunView each time it changes). No replay. */
+    onRun(fn) {
+      runListeners.add(fn);
+      return () => runListeners.delete(fn);
     },
 
     /** Subscribe to the raw usage frame (Milestone D); replays the current snapshot (may be null). */
@@ -586,6 +660,7 @@ export function createAcpConnection() {
             model: model || undefined,
             effort: effort || undefined,
             mode: mode || undefined,
+            may: mayField(readMay()), // P8 c7 — a warmed session is spawned with the AI may rules
           })
         );
       } catch {
@@ -598,7 +673,7 @@ export function createAcpConnection() {
      * `turn-end`; throws on `error`; sends `cancel` when `abortSignal` aborts.
      * `model`/`effort`/`mode` — see `warm`.
      */
-    async *prompt(text, chatId, abortSignal, model, effort, mode) {
+    async *prompt(text, chatId, abortSignal, model, effort, mode, ask) {
       try {
         await ensureOpen();
       } catch (err) {
@@ -609,12 +684,21 @@ export function createAcpConnection() {
       let wake = null;
       let ended = false;
       let failure = null;
+      if (ask?.scope?.canvas) askCanvas = ask.scope.canvas;
+      let sawTurn = false; // an update / permission already streamed: this prompt IS running
       turnHandler = (frame) => {
         if (frame.t === 'turn-end') ended = true;
-        else if (frame.t === 'error') {
+        else if (frame.t === 'queued') {
+          // S5.13: the server kept the prompt in the outbox instead of starting a turn. Only a prompt
+          // that has produced nothing is the one that was kept (a running turn's own frames come first).
+          if (!sawTurn) ended = true;
+        } else if (frame.t === 'error') {
           failure = frame.message || 'The Claude bridge errored.';
-          setError(failure); // Task C3 — the styled retry card's source
-        } else queue.push(frame); // update / connected / permission
+          setError(failure, frame.code); // Task C3: the styled retry card's source
+        } else {
+          sawTurn = true;
+          queue.push(frame); // update / connected / permission
+        }
         if (wake) {
           const w = wake;
           wake = null;
@@ -642,15 +726,22 @@ export function createAcpConnection() {
         emitActivity();
       }
       try {
+        // S5.13 (S5.6's client patch): `askId` makes one typed ask one run, and `scope` is the same scope the
+        // `[maude-scope ...]` line in `text` states. The line stays for an older server and the agent.
         ws.send(
-          JSON.stringify({
-            t: 'prompt',
-            text,
-            chat: chatId || undefined,
-            model: model || undefined,
-            effort: effort || undefined,
-            mode: mode || undefined,
-          })
+          JSON.stringify(
+            promptFrame({
+              text,
+              chat: chatId,
+              model,
+              effort,
+              mode,
+              askId: ask?.askId || newAskId(),
+              scope: ask?.scope,
+              // P8 c7 — Advanced › AI may, read per send: the server holds an off switch (bridge.ts)
+              may: readMay(),
+            })
+          )
         );
         for (;;) {
           while (queue.length) yield queue.shift();
@@ -840,7 +931,8 @@ export function makeAcpAdapter(
   getEffort,
   getAttachments,
   getContext,
-  getMode
+  getMode,
+  getAskId
 ) {
   return {
     async *run({ messages, abortSignal }) {
@@ -849,8 +941,18 @@ export function makeAcpAdapter(
       // image and hits Enter immediately).
       const att = getAttachments?.();
       if (att?.pending?.size) await Promise.allSettled([...att.pending]);
-      const typed = expandPasteChips(lastUserText(messages), att?.map);
-      if (!typed) return;
+      const words = expandPasteChips(lastUserText(messages), att?.map);
+      if (!words) return;
+      // S5.10 — the chips (photos, footage, PDFs, folders AI may read) ride after the words, by the
+      // paths the SERVER answered (client/v2/ai/attach.js). A folder still waiting on consent stays.
+      const attached = attachmentBlock(att?.chips?.current);
+      const typed = attached ? `${words}\n\n${attached}` : words;
+      // P8 c10 (03 `ai-long`): the chips that rode are drawn above this ask's bubble
+      recordSent(
+        [...messages].reverse().find((m) => m.role === 'user')?.id,
+        sentFromChips(att?.chips?.current)
+      );
+      att?.onSent?.();
       // Freeze the canvas/selection context AT SEND (feature-acp-context-
       // hardening): the turn keeps the context it had when the user hit Enter,
       // immune to the user switching canvases while it runs. The same object
@@ -859,6 +961,7 @@ export function makeAcpAdapter(
       // APPENDED after the typed text (paste-chip semantics) so the user's own
       // words stay first — chat titles and history read naturally.
       const frozen = getContext?.();
+      noteAskedAnnotations(frozen); // S4.15: the offer card checks the AI's answer against this ask
       const text = frozen?.block ? `${typed}\n\n${frozen.block}` : typed;
 
       const parts = [];
@@ -870,7 +973,9 @@ export function makeAcpAdapter(
         abortSignal,
         getModel?.(),
         getEffort?.(),
-        getMode?.()
+        getMode?.(),
+        // S5.13: the scope as data (`frozen.runScope`, the same freeze as the text's bracket lines).
+        { askId: getAskId?.() || newAskId(), scope: frozen?.runScope }
       )) {
         if (frame.t !== 'update') continue;
         applyUpdate(parts, toolIndex, frame.update);

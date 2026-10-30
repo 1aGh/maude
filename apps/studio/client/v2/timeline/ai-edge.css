@@ -1,0 +1,104 @@
+/* client/v2/timeline/ai-edge.css — S7.14: the AI cut on the timeline (07 · ve-ai-scrub, ve-ai-proposal).
+ *
+ * The AI edge is a spark line (the playhead is the person's, in --fg-0; the edge is AI's, in --spark), the
+ * shot that just landed rises into its lane, the status chip sits in the timeline head, and the landing
+ * island floats beside the artboard. Tokens only; reduced motion collapses --dur-* to 1 ms, so the landing
+ * becomes a cut. */
+
+@layer components {
+  .tl-ai-edge {
+    position: absolute;
+    top: 16px;
+    bottom: 0;
+    width: 2px;
+    margin-left: -1px;
+    background: var(--spark);
+    pointer-events: none;
+    z-index: 2;
+    transition: left var(--dur-soft) var(--ease-out);
+  }
+  .tl-ai-edge-tag {
+    position: absolute;
+    top: -16px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 0 var(--space-1);
+    border-radius: var(--radius-xs);
+    font-size: var(--type-xs);
+    line-height: 14px;
+    color: var(--spark-text);
+    background: var(--spark-muted);
+    white-space: nowrap;
+  }
+  .tl-seq-block.is-landing {
+    animation: tl-ai-land var(--dur-panel) var(--ease-out) both;
+    box-shadow: 0 0 0 1px var(--spark);
+  }
+  @keyframes tl-ai-land {
+    from {
+      opacity: 0;
+      transform: translateY(-6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  .tl-ai-status {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-pill);
+    font-size: var(--type-xs);
+    line-height: 20px;
+    color: var(--spark-text);
+    background: var(--spark-muted);
+    white-space: nowrap;
+  }
+  .tl-ai-keep-going {
+    font: inherit;
+    color: var(--spark-text);
+    background: none;
+    border: 0;
+    padding: 0 0 0 var(--space-1);
+    text-decoration: underline;
+    cursor: pointer;
+  }
+  .tl-ai-landing {
+    position: fixed;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    max-width: 280px;
+    padding: var(--space-2) var(--space-3);
+    pointer-events: none;
+    z-index: 4;
+    animation: tl-ai-land var(--dur-panel) var(--ease-out) both;
+  }
+  .tl-ai-landing-text {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+  }
+  .tl-ai-landing-text b {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--type-sm);
+    color: var(--fg-0);
+  }
+  .tl-ai-landing-text b svg {
+    color: var(--spark);
+  }
+  .tl-ai-landing-text small {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

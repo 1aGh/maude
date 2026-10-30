@@ -1,0 +1,176 @@
+{
+  "task": "b2",
+  "group": "board",
+  "fixture": "board300",
+  "topology": "A",
+  "delegates": "board-reader",
+  "run": {
+    "code": 0,
+    "killed": false,
+    "wallMs": 216283
+  },
+  "metrics": {
+    "subtype": "success",
+    "isError": false,
+    "costUsd": 1.3182634,
+    "durationMs": 214711,
+    "apiMs": 190986,
+    "turns": 38,
+    "tokens": 1849825,
+    "inTok": 52,
+    "outTok": 16117,
+    "cacheRead": 1753017,
+    "cacheWrite": 80639,
+    "freshTokens": 96808,
+    "models": [
+      "claude-opus-5-5"
+    ],
+    "permissionDenials": [
+      {
+        "tool": "Bash",
+        "input": "{\"command\":\"cd \\\"$PWD\\\"; ls .design .design/ui; maude design runs list; maude design read-annotations \\\".design/ui/GitPanel.tsx\\\" --json | head -c 6000\",\"description\":\"List design files, active runs, "
+      },
+      {
+        "tool": "Bash",
+        "input": "{\"command\":\"cd /private/tmp/claude-501/-private-var-folders-t--kf80xz3j79sfmkrq4snj2qk00000gn-T-maude-agent-evals-v2-8-16-trials-b2-A-2-project/02bc38c6-f141-4000-a650-5cca4a151d31/scratchpad && sips "
+      }
+    ],
+    "subagents": 0,
+    "subagentTypes": [],
+    "mainToolUses": 36,
+    "subToolUses": 0
+  },
+  "agents": [],
+  "invariants": {
+    "check": {
+      "pass": true,
+      "why": ""
+    },
+    "scope": {
+      "pass": true,
+      "why": ""
+    },
+    "artboard-scope": {
+      "pass": true,
+      "why": ""
+    },
+    "ids-kept": {
+      "pass": true,
+      "why": ""
+    },
+    "locked-kept": {
+      "pass": true,
+      "why": ""
+    },
+    "no-bash-writes": {
+      "pass": true,
+      "why": ""
+    },
+    "owns": {
+      "pass": true,
+      "why": ""
+    }
+  },
+  "quality": {
+    "new-artboards:ui/GitPanel.tsx": {
+      "pass": true,
+      "why": "added 1 (onboarding-feedback), want 1"
+    },
+    "stop-gate-settled": {
+      "pass": true,
+      "why": "the Stop gate blocked the run and it ended with a failing check"
+    },
+    "changed:ui/GitPanel.tsx": {
+      "pass": true,
+      "why": ""
+    },
+    "finished": {
+      "pass": true,
+      "why": "success"
+    },
+    "render-non-blank": {
+      "pass": true,
+      "why": ""
+    },
+    "judge": {
+      "pass": true,
+      "why": "pass (3): The new \"Onboarding feedback\" artboard is in the dark maude style. It has a checklist of all 10 topics plus the praise item, and it notes the Done-section conflict on the sign-in loop. The diff only adds a new artboard, so the five existing ones are unchanged. The ordering is weak: the assistant says every topic has 4 mentions and ranks by number of people, which I did not check against the board. The screenshot is too small to confirm fine detail.",
+      "unknown": false
+    }
+  },
+  "invPass": true,
+  "qualPass": true,
+  "judge": {
+    "verdict": "pass",
+    "score": 3,
+    "why": "The new \"Onboarding feedback\" artboard is in the dark maude style. It has a checklist of all 10 topics plus the praise item, and it notes the Done-section conflict on the sign-in loop. The diff only adds a new artboard, so the five existing ones are unchanged. The ordering is weak: the assistant says every topic has 4 mentions and ranks by number of people, which I did not check against the board. The screenshot is too small to confirm fine detail.",
+    "costUsd": 0.042289900000000005,
+    "model": "sonnet"
+  },
+  "render": {
+    "ran": true,
+    "error": null,
+    "shots": [
+      {
+        "canvas": "ui/GitPanel.tsx",
+        "artboard": "onboarding-feedback",
+        "blank": false,
+        "exit": 0
+      }
+    ]
+  },
+  "changed": [
+    "M .design/ui/GitPanel.css",
+    "M .design/ui/GitPanel.meta.json",
+    "M .design/ui/GitPanel.tsx",
+    "?? .design/_cache/index/ds-usage.json"
+  ],
+  "runState": [
+    {
+      "session": "02bc38c6-f141-4000-a650-5cca4a151d31",
+      "touched": {
+        "ui/GitPanel.tsx": {
+          "at": 1793199317505,
+          "by": "main",
+          "via": "tool",
+          "artboards": [
+            "changes",
+            "save-version",
+            "publish",
+            "empty",
+            "conflict",
+            "onboarding-feedback"
+          ]
+        },
+        "ui/GitPanel.css": {
+          "at": 1793199232254,
+          "by": "main",
+          "via": "tool",
+          "artboards": []
+        },
+        "ui/GitPanel.meta.json": {
+          "at": 1793199305571,
+          "by": "main",
+          "via": "tool",
+          "artboards": []
+        }
+      },
+      "stopBlocks": 1,
+      "shots": 11,
+      "bases": 3
+    }
+  ],
+  "hooks": {
+    "events": 2,
+    "denies": [],
+    "blocks": [
+      "posttooluse:0 [meta-unknown-field] ui/GitPanel.meta.json › \"artboards\" ·",
+      "stop:run-folder"
+    ],
+    "errors": [],
+    "ms": {},
+    "checkMs": []
+  },
+  "harnessFailure": false,
+  "finalText": "I've now screenshotted all six artboards, and none of the five existing ones was changed by my edit. They only share the CSS file, where I added new styles that nothing else uses.\n\nTwo of them do look cluttered in the screenshots, but that comes from the board, not from my change:\n\n- **Changes:** the board's stickies and arrows cover almost the whole artboard.\n- **Publish:** some of the board's text notes show faintly over the left side.\n\nThe board puts its stickies in the same space as the artboards, so they were sitting on top of Changes before I started. That's also why I moved the new artboard down. I didn't move any stickies, because that would rearrange other people's board. If you want them out of the way of the artboards, you could drag the Onboarding section aside, or ask me to.\n\nThe new Onboarding feedback artboard shows cleanly, and Save a version, Nothing to save and Publish rejected look normal."
+}

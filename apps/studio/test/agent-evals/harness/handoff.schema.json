@@ -1,0 +1,197 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://maude.sh/schema/agent-handoff/1",
+  "title": "maude.agent-handoff/1",
+  "description": "PROTOTYPE (V2-1.18). The envelope a Maude main agent hands a sub-agent (role \"in\") and the result the sub-agent hands back (role \"out\"). Both live under <designRoot>/_runs/<runId>/ (runtime state, never synced, never versioned). The shipped copy is cli/lib/handoff.schema.json (V2-2.4b).",
+  "oneOf": [{ "$ref": "#/$defs/in" }, { "$ref": "#/$defs/out" }],
+  "$defs": {
+    "runId": { "type": "string", "pattern": "^r_[A-Za-z0-9_-]{4,64}$" },
+    "relPath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "not": { "pattern": "(^/)|(^\\.\\./)|(/\\.\\./)" }
+    },
+    "glob": { "type": "string", "minLength": 1, "maxLength": 512 },
+    "agent": { "type": "string", "pattern": "^([a-z0-9-]+:)?[a-z0-9-]{2,64}$" },
+    "elementId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "maxLength": 48
+    },
+    "in": {
+      "type": "object",
+      "required": ["contract", "role", "runId", "agent", "task", "owns", "output"],
+      "additionalProperties": false,
+      "properties": {
+        "contract": { "const": "maude.agent-handoff/1" },
+        "role": { "const": "in" },
+        "runId": { "$ref": "#/$defs/runId" },
+        "agent": { "$ref": "#/$defs/agent" },
+        "n": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 63,
+          "description": "worker index in a fan-out"
+        },
+        "task": { "type": "string", "minLength": 1, "maxLength": 4000 },
+        "scope": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "canvas": { "$ref": "#/$defs/relPath" },
+            "artboardIds": {
+              "type": "array",
+              "maxItems": 200,
+              "items": { "type": "string", "maxLength": 64 }
+            },
+            "elementIds": {
+              "type": "array",
+              "maxItems": 200,
+              "items": { "$ref": "#/$defs/elementId" }
+            }
+          }
+        },
+        "owns": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": { "$ref": "#/$defs/glob" },
+          "description": "the ONLY paths this agent may write (repo-relative); every one under .design/_runs/<runId>/ unless the agent is a declared bounded writer"
+        },
+        "reads": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/glob" } },
+        "context": {
+          "type": "object",
+          "description": "decided facts every worker of a fan-out shares (the style contract) + the person's words verbatim",
+          "properties": {
+            "brief": { "type": "string", "maxLength": 8000 },
+            "ds": { "type": "string" },
+            "dsRev": { "type": "string" },
+            "fidelity": { "enum": ["strict", "loose"] },
+            "styleContract": { "type": ["string", "object"] }
+          }
+        },
+        "checks": {
+          "type": "array",
+          "maxItems": 16,
+          "items": { "type": "string", "maxLength": 300 }
+        },
+        "budget": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "maxIterations": { "type": "integer", "minimum": 1, "maximum": 10 },
+            "maxTokensHint": { "type": "integer", "minimum": 1000, "maximum": 2000000 }
+          }
+        },
+        "output": {
+          "$ref": "#/$defs/relPath",
+          "description": "where the agent writes its role:\"out\" file"
+        }
+      }
+    },
+    "out": {
+      "type": "object",
+      "required": [
+        "contract",
+        "role",
+        "agent",
+        "status",
+        "summary",
+        "changed",
+        "decisions",
+        "findings",
+        "open_questions"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "contract": { "const": "maude.agent-handoff/1" },
+        "role": { "const": "out" },
+        "runId": { "$ref": "#/$defs/runId" },
+        "agent": { "$ref": "#/$defs/agent" },
+        "n": { "type": "integer", "minimum": 0, "maximum": 63 },
+        "status": { "enum": ["done", "partial", "blocked", "refused"] },
+        "summary": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "≤ 2 000 characters — the same text the agent's final message carries"
+        },
+        "changed": {
+          "type": "array",
+          "maxItems": 200,
+          "items": {
+            "type": "object",
+            "required": ["file", "kind"],
+            "additionalProperties": false,
+            "properties": {
+              "file": { "$ref": "#/$defs/relPath" },
+              "kind": { "enum": ["new-file", "edit", "proposal", "draft", "brief", "report"] },
+              "artboardIds": { "type": "array", "items": { "type": "string", "maxLength": 64 } },
+              "elementIds": { "type": "array", "items": { "type": "string", "maxLength": 64 } }
+            }
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "object",
+            "required": ["kind"],
+            "additionalProperties": false,
+            "properties": {
+              "kind": { "enum": ["check", "screenshot", "cmd"] },
+              "cmd": { "type": "string", "maxLength": 500 },
+              "exit": { "type": "integer" },
+              "path": { "$ref": "#/$defs/relPath" }
+            }
+          }
+        },
+        "decisions": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "object",
+            "required": ["decision", "why"],
+            "additionalProperties": false,
+            "properties": {
+              "decision": { "type": "string", "maxLength": 500 },
+              "why": { "type": "string", "maxLength": 1000 },
+              "alternatives": {
+                "type": "array",
+                "maxItems": 8,
+                "items": { "type": "string", "maxLength": 300 }
+              },
+              "reversible": { "type": "boolean" },
+              "confidence": { "enum": ["high", "medium", "low"] }
+            }
+          }
+        },
+        "findings": {
+          "type": "array",
+          "maxItems": 200,
+          "items": {
+            "type": "object",
+            "required": ["severity", "what"],
+            "additionalProperties": false,
+            "properties": {
+              "severity": { "enum": ["blocker", "warning", "info"] },
+              "where": { "type": "string", "maxLength": 300 },
+              "what": { "type": "string", "maxLength": 1000 },
+              "fix": { "type": "string", "maxLength": 1000 }
+            }
+          }
+        },
+        "open_questions": {
+          "type": "array",
+          "maxItems": 20,
+          "items": { "type": "string", "maxLength": 500 }
+        },
+        "result": {
+          "type": "object",
+          "description": "reader payload (e.g. a board brief) — free shape, ≤ 64 KB serialized"
+        },
+        "next": { "type": "string", "maxLength": 64 }
+      }
+    }
+  }
+}

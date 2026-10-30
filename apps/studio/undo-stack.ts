@@ -347,6 +347,16 @@ export function saveStackState(canvasFile: string, state: UndoStackState): void 
   }
 }
 
+/** S2.20b — forget a canvas's stack in both layers (an op-log canvas keeps no durable stack). */
+export function dropStackState(canvasFile: string): void {
+  ensureStoreMap().delete(canvasFile);
+  try {
+    getSessionStore()?.removeItem(SS_PREFIX + canvasFile);
+  } catch {
+    /* no sessionStorage in this runtime */
+  }
+}
+
 /** Test seam — wipe the cross-iframe store between bun:test cases. */
 export function _clearStackStore(): void {
   getStoreHost().__maude_undo_stacks = new Map();

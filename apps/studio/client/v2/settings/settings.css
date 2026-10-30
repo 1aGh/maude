@@ -1,0 +1,975 @@
+/* client/v2/settings/settings.css — V2-4.7a: the Settings sheet. A rail (General · Connections · Advanced)
+ * beside the section's groups (06 ad-settings). Every class is namespaced `v2s-`, and `cb-settings-*`
+ * for the rows CloudBar / IdentityBar draw inside Connections — nothing here reuses a bare v1 name
+ * (V2-4.3 hit a collision on `.sh-share-btn`). Tokens are the shell's (maude-v2 since P8 C0).
+ * The inner cards (provider keys, engines, theme radios) keep their own `v2s-*` look (the rules at the top of this file). */
+
+/* ── V2-8.0: rules moved here from the retired styles/ layer files, in their original order and ahead of this file's own rules, so the cascade is unchanged. ── */
+
+/* from styles/3-shell-maude.css */
+@layer shell {
+  /* The scrolling pane — this is the fix for the AI-generation section overflowing
+ * the viewport; the pane scrolls, the page never does. */
+  .v2s-pref-row {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    justify-content: space-between;
+    padding: var(--space-2) 0;
+    border-bottom: 1px solid var(--border-subtle);
+    cursor: pointer;
+  }
+
+  .v2s-pref-row:last-child {
+    border-bottom: 0;
+  }
+
+  .v2s-pref-row.is-disabled {
+    cursor: default;
+    opacity: 0.6;
+  }
+
+  .v2s-pref-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .v2s-pref-label {
+    font-size: var(--type-sm);
+    color: var(--fg-0);
+    font-weight: 500;
+  }
+
+  .v2s-pref-note {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    line-height: 1.45;
+  }
+
+  /* .v2s-switch: the DS switch — 3-kit-maude-v2.css "Switch" (Phase 8 C1-kit: one switch, not four). */
+  /* Layout tab — left/right segmented control per panel. */
+  .v2s-sidetoggle {
+    display: inline-flex;
+    flex: none;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+
+  .v2s-sidebtn {
+    appearance: none;
+    border: 0;
+    background: var(--bg-2);
+    color: var(--fg-2);
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    padding: 2px var(--space-2);
+    min-width: 46px;
+    transition:
+      background var(--dur-soft) var(--ease-out),
+      color var(--dur-soft) var(--ease-out);
+  }
+
+  .v2s-sidebtn + .v2s-sidebtn {
+    border-left: 1px solid var(--border-default);
+  }
+
+  .v2s-sidebtn:hover:not(:disabled) {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+
+  .v2s-sidebtn.is-active {
+    background: var(--accent);
+    color: var(--accent-fg);
+  }
+
+  .v2s-sidebtn:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .v2s-sidebtn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+
+  /* First-upgrade sync consent (feature-before-first-external-users Task 2) —
+   rides the shared .sh-scrim/.sh-dialog shell. */
+  .v2s-consent .sh-dialog-bd {
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+    line-height: var(--lh-base);
+  }
+
+  .v2s-consent .sh-dialog-bd p {
+    margin: 0 0 var(--space-1);
+  }
+
+  .v2s-consent-list {
+    margin: 0 0 var(--space-1);
+    padding-left: var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .v2s-consent-fine {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+
+  .v2s-consent-note {
+    font-size: var(--type-xs);
+    color: var(--status-error);
+  }
+
+  .v2s-consent .sh-dialog-ft {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-1);
+  }
+}
+
+/* from styles/4-components.css */
+@layer components {
+  /* ── Settings — AI generation (feature-ai-media-generation, DDR-16x) ─────── */
+  .v2s-provider-card {
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    padding: 12px;
+    margin-bottom: 10px;
+  }
+
+  .v2s-provider-hd {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .v2s-provider-name {
+    font-family: var(--font-mono);
+    font-size: var(--type-sm, 13px);
+    color: var(--fg-1);
+    font-weight: 600;
+  }
+
+  .v2s-provider-card .sh-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--fg-2);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-pill, 999px);
+    padding: 1px 7px;
+  }
+
+  .v2s-provider-card .sh-pill.is-local {
+    color: var(--accent);
+    border-color: var(--accent-muted, var(--accent));
+  }
+
+  .v2s-provider-configured {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--accent);
+  }
+
+  .v2s-provider-modalities {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--fg-2);
+    margin-top: 4px;
+  }
+
+  .v2s-provider-notes {
+    font-size: 11px;
+    color: var(--fg-2);
+    line-height: 1.5;
+    margin-top: 6px;
+  }
+
+  /* Scout setup (feature-scene-aware-keyframes) — the shortest path as numbered
+   steps; every alternative route folds behind one disclosure so the default
+   view is two commands, not seven. */
+  .v2s-setup {
+    margin-top: 8px;
+  }
+
+  .v2s-step {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    margin-top: 8px;
+  }
+
+  .v2s-step-n {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1px solid var(--border-subtle);
+    color: var(--fg-2);
+    font-size: 10px;
+    line-height: 16px;
+    text-align: center;
+  }
+
+  .v2s-step.is-done .v2s-step-n {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .v2s-step-body {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .v2s-step-title {
+    display: block;
+    font-size: 11px;
+    color: var(--fg-1);
+  }
+
+  .v2s-step.is-done .v2s-step-title {
+    color: var(--fg-2);
+  }
+
+  .v2s-setup-more {
+    margin-top: 10px;
+  }
+
+  .v2s-setup-more > summary {
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--fg-2);
+  }
+
+  .v2s-setup-more > summary:hover {
+    color: var(--fg-1);
+  }
+
+  .v2s-setup-option {
+    display: block;
+    margin-top: 8px;
+  }
+
+  .v2s-setup-option-label {
+    display: block;
+    font-size: 11px;
+    color: var(--fg-2);
+  }
+
+  .v2s-provider-keylink {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--accent);
+    text-decoration: none;
+    margin-top: 6px;
+  }
+
+  .v2s-provider-keylink:hover {
+    text-decoration: underline;
+  }
+
+  .v2s-provider-keyrow {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .v2s-provider-keyinput {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .v2s-provider-status {
+    font-size: 11px;
+    margin-top: 6px;
+  }
+
+  /* ── Transcription-engine selector (Task 2.6) ───────────────────────────── */
+  .v2s-engine-radios {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .v2s-engine-radio {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    padding: 9px 11px;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--bg-1);
+    cursor: pointer;
+  }
+
+  .v2s-engine-radio.is-selected {
+    border-color: var(--accent);
+    background: var(--bg-2);
+  }
+
+  .v2s-engine-radio input {
+    margin-top: 2px;
+    accent-color: var(--accent);
+  }
+
+  .v2s-engine-radio-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .v2s-engine-radio-label {
+    font-size: var(--type-sm, 13px);
+    color: var(--fg-1);
+    font-weight: 600;
+  }
+
+  .v2s-engine-radio-note {
+    font-size: 11px;
+    color: var(--fg-2);
+  }
+}
+
+/* ── end of the moved rules ── */
+
+@layer shell {
+  .v2s-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 9000; /* below .gi-modal (9600): the sign-in code and the team-server form open ABOVE the sheet */
+    display: grid;
+    place-items: center;
+    padding: var(--space-6);
+    /* the kit veil (06 Veil: --canvas-bg at 55 %): the canvas stays readable behind the sheet */
+    background: color-mix(in oklab, var(--canvas-bg, var(--bg-0)) 55%, transparent);
+  }
+  .v2s-sheet {
+    display: grid;
+    grid-template-columns: 176px minmax(0, 1fr);
+    /* 06 .ad-settings: 1300 x 700, three columns in Advanced */
+    width: min(1300px, 100%);
+    height: min(700px, 100%);
+    overflow: hidden;
+    /* the kit dialog material (06 .ad-settings; Phase 8 C1-kit, C0's left-over): bg-2, radius-xl, the island
+       edge — the rail is the bg-1 column with a hairline (06 .ad-set-rail) */
+    background: var(--bg-2);
+    border: 0;
+    border-radius: var(--radius-xl);
+    box-shadow:
+      var(--shadow-lg),
+      inset 0 0 0 0.5px var(--island-edge);
+    animation: sh-pop var(--dur-route) var(--ease-out);
+  }
+  /* Body copy is the body font; mono is for keys, paths, commands and tabular numbers only (CONTRACT §5). The
+     sheet's own classes inherit this; the v1 cards inside it set their own mono in the components layer,
+     so they are re-pointed below. */
+  .v2s-sheet {
+    font-family: var(--font-body);
+  }
+  .v2s-rail {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--space-4) var(--space-2);
+    background: var(--bg-1);
+    border-right: 0;
+    box-shadow: inset -0.5px 0 0 var(--border-default);
+  }
+  .v2s-title {
+    margin: 0 0 var(--space-3);
+    padding: 0 var(--space-2);
+    font-size: var(--type-md);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+  .v2s-tabs {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .v2s-tab {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    appearance: none;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+    padding: var(--space-2);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+    transition:
+      color var(--dur-soft) var(--ease-out),
+      background var(--dur-soft) var(--ease-out);
+  }
+  .v2s-tab:hover {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+  /* 06 .ad-set-tab[aria-current]: accent-muted + accent-text, the glyph follows */
+  .v2s-tab-ic {
+    color: var(--fg-2);
+  }
+  .v2s-tab[aria-selected="true"] {
+    background: var(--accent-muted);
+    color: var(--accent-text);
+    font-weight: var(--w-medium);
+  }
+  .v2s-tab[aria-selected="true"] .v2s-tab-ic {
+    color: var(--accent-text);
+  }
+  .v2s-tab:focus-visible,
+  .v2s-close:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .v2s-rail-sp {
+    flex: 1 1 auto;
+  }
+  .v2s-foot {
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    font-variant-numeric: tabular-nums;
+  }
+  /* 06 draws no Done: esc and a click on the veil close the sheet. The button stays for the keyboard and
+     assistive tech — out of sight until it takes focus (WCAG 2.4.7). */
+  .v2s-close:not(:focus-visible) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    border: 0;
+    padding: 0;
+    margin: -1px;
+  }
+  .v2s-close {
+    appearance: none;
+    cursor: pointer;
+    margin-top: var(--space-1);
+    padding: var(--space-2);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--bg-1);
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+    color: var(--fg-0);
+  }
+  .v2s-close:hover {
+    background: var(--bg-3);
+  }
+
+  .v2s-main {
+    min-width: 0;
+    overflow: auto;
+    /* room under the last row, so a scrolled sheet never ends mid-row at its edge */
+    padding: var(--space-4) var(--space-5) var(--space-7, 32px);
+  }
+  /* Advanced: This Mac · Engines · This project (06 .ad-sg-cols) */
+  .v2s-cols {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-6, 24px);
+    align-items: start;
+  }
+  .v2s-col {
+    min-width: 0;
+  }
+  @media (max-width: 1100px) {
+    .v2s-cols {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+  .v2s-panel[hidden] {
+    display: none;
+  }
+  .v2s-group {
+    margin: 0 0 var(--space-5);
+  }
+  .v2s-group-t {
+    margin: 0 0 var(--space-2);
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    color: var(--fg-2);
+  }
+  .v2s-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-2) 0;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .v2s-row-t {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .v2s-row-k {
+    font-size: var(--type-sm);
+    color: var(--fg-0);
+  }
+  .v2s-hint {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    line-height: 1.4;
+  }
+  .v2s-val {
+    flex: none;
+    max-width: 55%;
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+    text-align: right;
+  }
+  .v2s-val--mono {
+    font-family: var(--font-mono, ui-monospace, monospace);
+    font-size: var(--type-xs);
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+  .v2s-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .v2s-select {
+    flex: none;
+    padding: var(--space-1) var(--space-2);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    color: var(--fg-0);
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+  }
+  /* Reset all settings…: the confirm dialog rides the shell's modal frame (.gi-modal / .gi-dialog). */
+  .v2s-confirm-dialog {
+    width: min(440px, 92vw);
+    padding: var(--space-6);
+    gap: var(--space-3);
+  }
+  .v2s-confirm-t {
+    margin: 0;
+    font-size: var(--type-lg, 16px);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+  .v2s-confirm-d {
+    margin: 0;
+    font-size: var(--type-sm);
+    line-height: 1.5;
+    color: var(--fg-1);
+  }
+  .v2s-confirm-foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+  }
+  .v2s-note {
+    margin: var(--space-2) 0 0;
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+  }
+  .v2s-confirm {
+    margin: var(--space-2) 0;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    font-size: var(--type-xs);
+    line-height: 1.5;
+    color: var(--fg-1);
+  }
+
+  /* The left panel's footer hosts the dialogs only (CloudBar / IdentityBar variant "host"): no strip. */
+  .cb-host,
+  .gi-host {
+    display: contents;
+  }
+
+  /* A deep-link Connect's outcome sentence / refusal, started with Settings closed (V2-4.7c). */
+  .cb-host-out {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--type-xs);
+    line-height: 1.5;
+    color: var(--fg-1);
+  }
+
+  /* ── rows Connections draws from CloudBar / IdentityBar ("settings" variant) ── */
+  .cb-settings,
+  .gi-settings {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .cb-settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-2) 0;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .cb-settings-t {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .cb-settings-t strong {
+    font-size: var(--type-sm);
+    font-weight: var(--w-medium);
+    color: var(--fg-0);
+  }
+  .cb-settings-t span {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .cb-settings-h {
+    margin: var(--space-2) 0 0;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  /* the project rows are the rail menu's `gi-menu-item`s — drawn here as a plain list, not a popover */
+  .cb-settings-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .cb-settings-list .gi-menu-item {
+    width: 100%;
+  }
+  .cb-settings-adv {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: var(--space-1) var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    font-size: var(--type-xs);
+  }
+  .cb-settings-k {
+    color: var(--fg-2);
+  }
+  .cb-settings-v {
+    color: var(--fg-1);
+    font-family: var(--font-mono, ui-monospace, monospace);
+    overflow-wrap: anywhere;
+  }
+
+  /* 06 ad-settings Engines: a select row per engine, then a quiet box per model (the board's ad-model). */
+  .v2s-eng .v2s-hint {
+    margin: var(--space-1) 0 0;
+  }
+  .v2s-hint[data-ok="false"] {
+    color: var(--status-error);
+  }
+  .v2s-models {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    margin: var(--space-2) 0 var(--space-3);
+  }
+  .v2s-model {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-2);
+    border-radius: var(--radius-md);
+    background: var(--bg-1);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+  }
+  .v2s-model-hd,
+  .v2s-model-st {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+  .v2s-model-hd {
+    font-size: var(--type-sm);
+    color: var(--fg-0);
+  }
+  .v2s-model-hd strong {
+    font-weight: var(--w-semibold);
+  }
+  .v2s-model-sz {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .v2s-model-st {
+    font-size: var(--type-xs);
+  }
+  /* Reset: the board's one wrapping action row (ad-acts--wrap) + the red Reset all settings…. */
+  .v2s-acts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    padding: var(--space-2) 0;
+  }
+  .v2s-acts > span {
+    display: contents;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .v2s-sheet {
+      animation: none;
+    }
+    .v2s-tab {
+      transition: none;
+    }
+  }
+}
+
+/* The v1 cards Settings reuses (provider keys, engines, theme radios, model list, readiness) carry
+   `font-family: var(--font-mono)` in the components layer, which a shell-layer rule cannot beat. Same
+   layer, one class more of specificity; `:where()` keeps the list from adding any. Commands, paths and
+   sizes (`code`, `.rdy-cmd-tx`, `.v2s-model-size`, `.v2s-val--mono`) stay mono. */
+@layer components {
+  /* Reset all settings…: the board's `.btn.ad-btn-warn`. `.btn` sets its ink in this layer (above `shell`), so the rule
+     lives here, one class up, and reads the text-grade error token (AA on the sheet in both themes). */
+  .btn.v2s-warn,
+  .btn.v2s-warn:hover {
+    color: var(--status-error-text);
+  }
+  .v2s-sheet
+    .v2s-main
+    :where(
+      .v2s-provider-name,
+      .v2s-provider-notes,
+      .v2s-provider-configured,
+      .v2s-provider-keylink,
+      .v2s-settings-intro,
+      .v2s-engine-radio-label,
+      .v2s-engine-radio-note,
+      .v2s-pref-label,
+      .v2s-pref-note,
+      .v2s-sidebtn,
+      .sh-btn,
+      .v2s-step-title,
+      .v2s-model-label,
+      .v2s-model-action-note,
+      .sh-pill,
+      .v2s-setup-option-label,
+      .rdy-copy,
+      summary
+    ) {
+    font-family: var(--font-body);
+  }
+
+  /* S11.18 (a11y): a row that cannot be used dims its label and its switch, not its note — the note says WHY, so it
+     keeps the full note colour (the old whole-row opacity left it at 2.5:1). */
+  .v2s-sheet .v2s-pref-row.is-disabled {
+    opacity: 1;
+  }
+  .v2s-sheet .v2s-pref-row.is-disabled .v2s-pref-label,
+  .v2s-sheet .v2s-pref-row.is-disabled .v2s-switch,
+  .v2s-sheet .v2s-pref-row.is-disabled input {
+    opacity: 0.6;
+  }
+
+  /* S9.20 — Settings › General › Account: the five account pages on the web (02 ob-settings) */
+  .v2s-acct-links {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .v2s-acct-link {
+    display: flex;
+    width: 100%;
+    justify-content: space-between;
+    align-items: center;
+    background: none;
+    border: 0;
+    font: inherit;
+    color: var(--fg-1);
+    cursor: pointer;
+  }
+
+  /* ── S11.14 Connections (06 ad-edge-hub): one row per connection, each with its own Advanced ── */
+  .v2s-conns {
+    display: flex;
+    flex-direction: column;
+  }
+  .v2s-conn {
+    padding: var(--space-3) 0;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .v2s-conn-r {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+  .v2s-conn-ic {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    color: var(--fg-1);
+  }
+  .v2s-conn-t {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+    font-size: var(--type-sm);
+    color: var(--fg-0);
+  }
+  .v2s-conn-d {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .v2s-conn-s {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .v2s-conn-s--ok::before {
+    content: "";
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-right: var(--space-1);
+    border-radius: 50%;
+    background: var(--status-success);
+    vertical-align: middle;
+  }
+  .v2s-conn-a {
+    flex: none;
+    display: inline-flex;
+    gap: var(--space-2);
+  }
+  .v2s-conn-fold,
+  .v2s-conn-list,
+  .v2s-conn-keys,
+  .v2s-conn > .v2s-conn-replace,
+  .v2s-conn > .v2s-hint,
+  .v2s-conn > .v2s-conn-err,
+  .v2s-conn-more {
+    margin: var(--space-2) 0 0 calc(28px + var(--space-3));
+  }
+  .v2s-conn-body {
+    margin-left: calc(28px + var(--space-3));
+  }
+  .v2s-conn-body > .v2s-conn-list {
+    margin-left: 0;
+  }
+  .v2s-conn-h {
+    margin: 0 0 var(--space-1);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .v2s-conn-li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: var(--space-1) 0;
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
+  .v2s-conn-k {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) 0;
+    font-size: var(--type-xs);
+  }
+  .v2s-conn-kk {
+    flex: none;
+    width: 120px;
+    color: var(--fg-2);
+  }
+  .v2s-conn-kv {
+    flex: 1;
+    min-width: 0;
+    color: var(--fg-1);
+  }
+  .v2s-conn-kv--mono {
+    font-family: var(--font-mono, ui-monospace, monospace);
+    overflow-wrap: anywhere;
+  }
+  .v2s-conn-inline,
+  .v2s-conn-replace {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+  }
+  .v2s-conn-err {
+    margin: var(--space-1) 0 0;
+    font-size: var(--type-xs);
+    color: var(--status-error);
+  }
+
+  /* gate-b-polish2 — Look › Theme: Light · Dark · Auto (02 ob-settings), the DS `.seg` with native radios */
+  .v2s-seg {
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+  }
+  .v2s-seg-b {
+    position: relative;
+    padding: var(--space-1) var(--space-3);
+    border-radius: calc(var(--radius-md) - 2px);
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+    cursor: pointer;
+    transition:
+      background var(--dur-flip) var(--ease-out),
+      color var(--dur-flip) var(--ease-out);
+  }
+  .v2s-seg-b[data-on] {
+    background: var(--bg-2);
+    color: var(--fg-0);
+    box-shadow:
+      var(--shadow-sm),
+      inset 0 0 0 1px var(--accent);
+  }
+  .v2s-seg-in {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+  .v2s-seg-b:has(.v2s-seg-in:focus-visible) {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+  }
+}

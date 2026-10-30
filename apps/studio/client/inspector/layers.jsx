@@ -2,6 +2,10 @@
 
 import { useState } from 'react';
 import { StIcon } from '../shell/icons.jsx';
+import { LayerRowTools } from '../v2/inspector/layers-row-tools.jsx';
+import { LayerSlotRow } from '../v2/inspector/layers-slot.jsx';
+import { tagLabel } from '../v2/left-panel/advanced-model.js';
+import { useViewPref, VIEW_PREF_KEYS } from '../v2/left-panel/view-prefs.js';
 
 // ---------- Inspector panel (display-only) ----------
 //
@@ -74,8 +78,20 @@ export function moveLayerNode(nodes, draggedId, refId, position) {
 // Void / self-closing tags can't hold children → not a nest target. Everything
 // else (div, section, span, …) can be nested into (matches "drop into any div").
 export const LAYER_VOID_TAGS = new Set([
-  'img', 'input', 'br', 'hr', 'area', 'base', 'col', 'embed', 'link', 'meta',
-  'param', 'source', 'track', 'wbr',
+  'img',
+  'input',
+  'br',
+  'hr',
+  'area',
+  'base',
+  'col',
+  'embed',
+  'link',
+  'meta',
+  'param',
+  'source',
+  'track',
+  'wbr',
 ]);
 
 export function LayerRow({
@@ -83,6 +99,7 @@ export function LayerRow({
   depth,
   selectedId,
   selectedIndex,
+  selectedAlso,
   collapsed,
   hiddenOverride,
   onToggle,
@@ -100,6 +117,8 @@ export function LayerRow({
   onRename,
 }) {
   const key = `${node.id}:${node.index}`;
+  // S11.9 — Layers › Advanced › Show tags and ids: the tag and id after the name (the person's own view)
+  const [showTags] = useViewPref(VIEW_PREF_KEYS.tags);
   const hasKids = node.children && node.children.length > 0;
   const isCollapsed = collapsed.has(key);
   // feature-4 T7 — a synthetic group row (unstamped wrapper) is a pure
@@ -110,7 +129,9 @@ export function LayerRow({
   // instantiated component. `root` = the component's own frame root (◆).
   const inst = !isSynthetic && componentMap ? componentMap[node.id] : null;
   // feature-4 T7b — locked layers can't be selected/dragged on the canvas.
-  const isLocked = !isSynthetic && !!lockedKeys?.has(key);
+  // S2.6 — lock is shared (`data-cd-locked`, the tree's `locked`); `lockedKeys` carries the old
+  // per-user locks until V2-2.14 migrates them.
+  const isLocked = !isSynthetic && (!!node.locked || !!lockedKeys?.has(key));
   // feature-4 T7c — inline rename (dblclick the label).
   const [renaming, setRenaming] = useState(false);
   const [renameDraft, setRenameDraft] = useState('');
@@ -119,8 +140,12 @@ export function LayerRow({
   // clones at once. Fall back to id-only when the selection carries no index.
   const isSel =
     !isSynthetic &&
-    node.id === selectedId &&
-    (selectedIndex == null || node.index === selectedIndex);
+    ((node.id === selectedId && (selectedIndex == null || node.index === selectedIndex)) ||
+      // P8 c8 (14 ed-obj-multi): "Layers shows the same selection" — every object of a multi-selection is lit
+      (selectedAlso?.some(
+        (s) => s?.id === node.id && (s.index == null || node.index === s.index)
+      ) ??
+        false));
   const isHidden = hiddenOverride?.has(key) ? hiddenOverride.get(key) : !!node.hidden;
   // A shared data-cd-id (reused component instance) IS reorderable now — the
   // server maps the occurrence index to the parent <Component> usage — so these
@@ -159,7 +184,7 @@ export function LayerRow({
     <>
       <div
         className={
-          'st-layer st-layer--row' +
+          'sh-layer sh-layer--row' +
           (isSel ? ' is-sel' : '') +
           (isHidden ? ' is-hidden' : '') +
           (isSynthetic ? ' is-group' : '') +
@@ -171,7 +196,10 @@ export function LayerRow({
         aria-selected={isSynthetic ? undefined : isSel}
         aria-expanded={hasKids ? !isCollapsed : undefined}
         aria-grabbed={canDrag ? isDragging : undefined}
-        tabIndex={0}
+        aria-level={depth + 1}
+        // S11.18 (a11y): the tree container is the one tab stop (it drives the arrows from the selection); a row is
+        // reached by click or by the arrows, so the stops no longer scale with the layers
+        tabIndex={-1}
         title={
           isSynthetic
             ? `${node.tag} · group (unstamped wrapper)`
@@ -205,30 +233,31 @@ export function LayerRow({
         {hasKids ? (
           <button
             type="button"
-            className="st-layer-caret"
+            className="sh-layer-caret"
+            tabIndex={-1}
             aria-label={isCollapsed ? 'Expand' : 'Collapse'}
             onClick={(e) => {
               e.stopPropagation();
               onToggle(key);
             }}
           >
-            {isCollapsed ? '▸' : '▾'}
+            <StIcon name={isCollapsed ? 'submenu' : 'chevron'} size={12} />
           </button>
         ) : (
-          <span className="st-layer-caret" aria-hidden="true" />
+          <span className="sh-layer-caret" aria-hidden="true" />
         )}
         {inst ? (
           // feature-4 T7a — Figma vocabulary: ◆ the component's own frame root,
           // ◇ an inner member of an instance. Purple via .is-instance CSS.
-          <span className="st-layer-inst-glyph" aria-hidden="true">
+          <span className="sh-layer-inst-glyph" aria-hidden="true">
             {inst.root ? '◆' : '◇'}
           </span>
         ) : (
-          <StIcon name={LAYER_TYPE_ICON[node.type] || 'box'} size={12} className="st-layer-ticon" />
+          <StIcon name={LAYER_TYPE_ICON[node.type] || 'box'} size={12} className="sh-layer-ticon" />
         )}
         {renaming ? (
           <input
-            className="st-layer-rename"
+            className="sh-layer-rename"
             value={renameDraft}
             autoFocus
             aria-label={`Rename ${node.label}`}
@@ -245,7 +274,7 @@ export function LayerRow({
           />
         ) : (
           <span
-            className="st-layer-label"
+            className="sh-layer-label"
             onDoubleClick={
               onRename && !isSynthetic
                 ? (e) => {
@@ -261,61 +290,57 @@ export function LayerRow({
             {node.label}
           </span>
         )}
-        <span className="st-layer-type">{inst ? inst.component : node.type}</span>
-        {onToggleLock && !isSynthetic ? (
-          <button
-            type="button"
-            className="st-layer-lock"
-            aria-label={isLocked ? `Unlock ${node.label}` : `Lock ${node.label}`}
-            aria-pressed={isLocked}
-            title={isLocked ? 'Unlock' : 'Lock'}
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleLock(key);
-            }}
-          >
-            <StIcon name={isLocked ? 'lock' : 'unlock'} size={12} />
-          </button>
+        {showTags && tagLabel(node) ? (
+          <span className="sh-layer-tag" data-testid="layer-tag">
+            {tagLabel(node)}
+          </span>
         ) : null}
-        {onToggleVisibility && !isSynthetic ? (
-          <button
-            type="button"
-            className="st-layer-eye"
-            aria-label={isHidden ? `Show ${node.label}` : `Hide ${node.label}`}
-            aria-pressed={isHidden}
-            title={isHidden ? 'Show' : 'Hide'}
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleVisibility(node);
-            }}
-          >
-            <StIcon name={isHidden ? 'eye-off' : 'eye'} size={13} />
-          </button>
+        {/* gate-b-polish3 — the type word is developer chrome: a component instance names its component, and
+            Layers › Advanced › Show tags and ids brings the type back (the row's tooltip always says it) */}
+        {inst || showTags ? (
+          <span className="sh-layer-type">{inst ? inst.component : node.type}</span>
+        ) : null}
+        {!isSynthetic ? (
+          <LayerRowTools
+            node={node}
+            isLocked={isLocked}
+            hideRefused={!!node.locked}
+            isHidden={isHidden}
+            tabbable={isSel}
+            onToggleLock={onToggleLock}
+            onToggleVisibility={onToggleVisibility}
+          />
         ) : null}
       </div>
       {hasKids && !isCollapsed
-        ? node.children.map((c, ci) => (
-            <LayerRow
-              key={`${c.id}:${c.index}`}
-              node={c}
-              depth={depth + 1}
-              selectedId={selectedId}
-              selectedIndex={selectedIndex}
-              collapsed={collapsed}
-              hiddenOverride={hiddenOverride}
-              onToggle={onToggle}
-              onSelect={onSelect}
-              onHover={onHover}
-              onToggleVisibility={onToggleVisibility}
-              onReorder={onReorder}
-              onRowPointerDown={onRowPointerDown}
-              dragState={dragState}
-              componentMap={componentMap}
-              lockedKeys={lockedKeys}
-              onToggleLock={onToggleLock}
-              onRename={onRename}
-            />
-          ))
+        ? node.children.map((c, ci) =>
+            // S2.11b — the numbered slot a lifted card would land in (drawn from a copy of the tree)
+            c.slot ? (
+              <LayerSlotRow key="__slot__" node={c} depth={depth + 1} />
+            ) : (
+              <LayerRow
+                key={`${c.id}:${c.index}`}
+                node={c}
+                depth={depth + 1}
+                selectedId={selectedId}
+                selectedIndex={selectedIndex}
+                selectedAlso={selectedAlso}
+                collapsed={collapsed}
+                hiddenOverride={hiddenOverride}
+                onToggle={onToggle}
+                onSelect={onSelect}
+                onHover={onHover}
+                onToggleVisibility={onToggleVisibility}
+                onReorder={onReorder}
+                onRowPointerDown={onRowPointerDown}
+                dragState={dragState}
+                componentMap={componentMap}
+                lockedKeys={lockedKeys}
+                onToggleLock={onToggleLock}
+                onRename={onRename}
+              />
+            )
+          )
         : null}
     </>
   );

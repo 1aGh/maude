@@ -1,9 +1,12 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { $, browser, expect } from '@wdio/globals';
 import { capture, startReport } from '../helpers/evidence';
+import { connectHubFromHome } from '../helpers/home-entry';
 import { isNativeShell } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
+import { pinCurrentWindow } from '../helpers/windows';
 
 const run = JSON.parse(process.env.MAUDE_SELFHOST_ENTRY_RUN ?? 'null') as {
   input: string;
@@ -16,6 +19,11 @@ const target = JSON.parse(readFileSync(run.input, 'utf8')) as {
   email: string;
   password: string;
 };
+// the same dir selfhost-entry.conf.ts cleans (macOS: the shared e2e bundle's app dir)
+const e2eAppDir = (scratch: string) =>
+  process.platform === 'darwin'
+    ? join(homedir(), 'Library', 'Application Support', 'com.maude.app.e2e')
+    : join(scratch, 'data', 'com.maude.app.e2e');
 const tid = (id: string) => `[data-testid="${id}"]`;
 const canvasName = `Native selfhost ${run.scratch.split('-').at(-1)}`;
 const editedTitle = `${canvasName} edited by designer`;
@@ -35,25 +43,22 @@ async function probe(query: string, operation = 'read', value: unknown = null) {
   );
 }
 
-describe('S01 self-host entry on a clean Linux native profile', () => {
+describe('S01 self-host entry on a clean native profile (Linux, or macOS on a local container)', () => {
   it('signs in to the team server, opens its project and creates a canvas through its UI', async () => {
     startReport('S01 actual self-host entry — Linux native debug');
-    await (
-      browser as unknown as { tauri?: { switchWindow(label: string): Promise<void> } }
-    ).tauri?.switchWindow('main');
+    await pinCurrentWindow();
     await waitForSidecar();
     expect(await isNativeShell()).toBe(true);
     expect(existsSync(process.env.HUBS_CONFIG_PATH as string)).toBe(false);
-    const door = await $(tid('ob-door-team'));
-    await door.waitForDisplayed({ timeout: 120_000 });
     await capture('clean-first-run');
-    await door.click();
-    // The fields a teammate's invitation told them: address, email, password.
-    await (await $(tid('team-hub-url'))).setValue(target.hubUrl);
-    await (await $(tid('team-hub-email'))).setValue(target.email);
-    await (await $(tid('team-hub-password'))).setValue(target.password);
+    // Home → Advanced options → Use a self-hosted hub: the fields a teammate's invitation told them —
+    // address, email, password. (The v1 first-run wizard door is retired with the wizard, S6.15.)
+    await connectHubFromHome({
+      hub: target.hubUrl,
+      email: target.email,
+      password: target.password,
+    });
     await capture('team-server-form');
-    await (await $(tid('team-hub-open'))).click();
     // The project is open once its canvases arrive. A consent step, when this
     // server asks for one, is the same choice a person makes.
     try {
@@ -68,19 +73,23 @@ describe('S01 self-host entry on a clean Linux native profile', () => {
     } catch (error) {
       writeFileSync(
         join(run.out, 'open-failure.txt'),
-        await browser.execute(
-          () => document.querySelector('[data-testid="team-projects"]')?.textContent ?? ''
-        )
+        await browser.execute(() => document.body.innerText.slice(0, 4000))
       );
       await capture('open-failure');
       throw error;
     }
     await capture('managed-copy-open');
 
-    const roots = join(run.scratch, 'data/com.maude.app.e2e/projects');
-    const copies = readdirSync(roots).filter((name) =>
-      existsSync(join(roots, name, '.design/config.json'))
-    );
+    const roots = join(e2eAppDir(run.scratch), 'projects');
+    // this server's copies only: on macOS the e2e app dir is shared with the other lanes
+    const copies = readdirSync(roots).filter((name) => {
+      try {
+        const c = JSON.parse(readFileSync(join(roots, name, '.design/config.json'), 'utf8'));
+        return new URL(c.linkedHub?.url).origin === new URL(target.hubUrl).origin;
+      } catch {
+        return false;
+      }
+    });
     expect(copies).toHaveLength(1);
     const copy = join(roots, copies[0]);
     const cfg = JSON.parse(readFileSync(join(copy, '.design/config.json'), 'utf8'));
@@ -89,7 +98,7 @@ describe('S01 self-host entry on a clean Linux native profile', () => {
     const hubs = readFileSync(process.env.HUBS_CONFIG_PATH as string, 'utf8');
     expect(hubs.includes(target.password)).toBe(false);
 
-    await (await $('button[aria-label="New blank brief board"]')).click();
+    await (await $('button[aria-label="New canvas"]')).click();
     await (await $('input[aria-label="New brief board name"]')).setValue(canvasName);
     await (await $('button[aria-label="Create brief board"]')).click();
     const row = `canvas-row-ui-${canvasName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
@@ -100,7 +109,7 @@ describe('S01 self-host entry on a clean Linux native profile', () => {
       timeoutMsg: 'Created board did not render in native canvas',
     });
     await capture('first-ui-create');
-    await probe(tid('palette-mode-edit'), 'click');
+    await (await browser.$(tid('palette-mode-edit'))).click(); // V2-4.3b: the switch is the Share cluster's (shell document)
     const editor = '[contenteditable="plaintext-only"]';
     await browser.waitUntil(
       async () => {

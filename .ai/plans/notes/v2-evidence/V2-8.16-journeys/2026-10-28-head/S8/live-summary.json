@@ -1,0 +1,156 @@
+[
+  {
+    "journey": "S8",
+    "lane": "terminal",
+    "pass": true,
+    "harnessFailure": false,
+    "infra": null,
+    "turns": [
+      {
+        "turn": 1,
+        "code": 0,
+        "ok": true,
+        "costUsd": 0.2019186,
+        "numTurns": 6
+      },
+      {
+        "turn": 2,
+        "code": 0,
+        "ok": true,
+        "costUsd": 0.33811700000000006,
+        "numTurns": 5
+      },
+      {
+        "turn": 3,
+        "code": 0,
+        "ok": true,
+        "costUsd": 0.37134740000000005,
+        "numTurns": 2
+      }
+    ],
+    "results": [
+      {
+        "id": "asset-imported",
+        "grader": "files",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "asset-clean",
+        "grader": "files",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "import-by-verb",
+        "grader": "tool-used",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "export-written",
+        "grader": "files",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "export-by-verb",
+        "grader": "tool-used",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "exports-listed",
+        "grader": "tool-used",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "no-route-by-hand",
+        "grader": "no-tool",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "canvas-untouched",
+        "grader": "untouched",
+        "pass": true,
+        "why": ""
+      }
+    ]
+  },
+  {
+    "journey": "S8",
+    "lane": "acp",
+    "pass": true,
+    "harnessFailure": false,
+    "infra": null,
+    "turns": [
+      {
+        "turn": 1,
+        "ok": true,
+        "stopReason": "end_turn"
+      },
+      {
+        "turn": 2,
+        "ok": true,
+        "stopReason": "end_turn"
+      },
+      {
+        "turn": 3,
+        "ok": true,
+        "stopReason": "end_turn"
+      }
+    ],
+    "results": [
+      {
+        "id": "asset-imported",
+        "grader": "files",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "asset-clean",
+        "grader": "files",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "import-by-verb",
+        "grader": "tool-used",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "export-written",
+        "grader": "files",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "export-by-verb",
+        "grader": "tool-used",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "exports-listed",
+        "grader": "tool-used",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "no-route-by-hand",
+        "grader": "no-tool",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "canvas-untouched",
+        "grader": "untouched",
+        "pass": true,
+        "why": ""
+      }
+    ]
+  }
+]

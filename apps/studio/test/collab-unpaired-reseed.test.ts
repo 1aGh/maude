@@ -66,6 +66,12 @@ function harness() {
     loadAnnotations: async () => read(annPath()),
     loadCommentsForFile: async () => JSON.parse((await read(commentsPath())) ?? '[]'),
     saveAnnotations: async (_f: string, svg: string) => writeFileSync(annPath(), svg),
+    // the room's projection goes through projectAnnotations (it checks freshness before its write)
+    projectAnnotations: async (_f: string, text: string, isCurrent: () => boolean) => {
+      if (!isCurrent()) return false;
+      writeFileSync(annPath(), text);
+      return true;
+    },
     saveCommentsForFile: async (_f: string, list: unknown[]) =>
       writeFileSync(commentsPath(), JSON.stringify(list)),
   } as unknown as Api;

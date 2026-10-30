@@ -1,0 +1,26 @@
+{
+  "gate": "V2-8.9",
+  "pass": true,
+  "qualityHash": "ca053cd5bbc8fa64231dfde679d7b0108280b8f384c154322c75c50c872e7071",
+  "reportHashes": {
+    ".ai/plans/notes/v2-evidence/V2-8.9-final-defender.md": "c3179e85c5372a6feeb268b330b0934a077557d365c5b4e8e40e3d6404908da0",
+    ".ai/plans/notes/v2-evidence/V2-8.9-final-attacker.md": "c735c5eb8f8eb2a0a1d8520912321241b52f3c1037048af04240a6eb69d0423d",
+    ".ai/plans/notes/v2-evidence/V2-8.9-final-v2-8.17.md": "0705c4e51474195c8bb314c152e4bb4204e4915b9c144cc17e8580cf1678858e",
+    ".ai/plans/notes/v2-evidence/V2-8.9-final-recheck.md": "0020775e679941e607d600380b064425fbe6f2ca0097eb4fc717ff759148f32a",
+    ".ai/plans/notes/v2-evidence/V2-8.9-final-delta-defender.md": "56d7e44a99a3d7586d2c60023f51603c722ea2d28ed5044c014b6e693445c257",
+    ".ai/plans/notes/v2-evidence/V2-8.9-final-delta-attacker.md": "c66273af49a362fc83621c9dbb29b7be4348754abf5fed153df219ed53a046bf",
+    ".ai/plans/notes/v2-evidence/V2-8.9-final-delta-recheck.md": "81d518a46fccb8f97190128e08d56b0801bace6c1abc3bdd4ef179a8e691d0ad"
+  },
+  "head": "5acbe9e86a28f32778f4350a333d6c0f65bc7a08",
+  "ts": "2026-10-29T14:24:39.703Z",
+  "reports": [
+    ".ai/plans/notes/v2-evidence/V2-8.9-final-defender.md",
+    ".ai/plans/notes/v2-evidence/V2-8.9-final-attacker.md",
+    ".ai/plans/notes/v2-evidence/V2-8.9-final-v2-8.17.md",
+    ".ai/plans/notes/v2-evidence/V2-8.9-final-recheck.md",
+    ".ai/plans/notes/v2-evidence/V2-8.9-final-delta-defender.md",
+    ".ai/plans/notes/v2-evidence/V2-8.9-final-delta-attacker.md",
+    ".ai/plans/notes/v2-evidence/V2-8.9-final-delta-recheck.md"
+  ],
+  "note": "final pair + delta pair over every fix since, 0 blockers; recheck closes the delta lows (p8-secfix-hook-2); after b55561072 only biome format, two assign-in-expression rewrites, one biome-ignore, e2e + site"
+}

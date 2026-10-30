@@ -33,6 +33,12 @@ export function hubsConfigPath() {
   if (process.env.HUBS_CONFIG_PATH) return process.env.HUBS_CONFIG_PATH;
   const xdg = process.env.XDG_CONFIG_HOME;
   const base = xdg && xdg.length > 0 ? xdg : join(homedir(), '.config');
+  // V2-8.9 M2 — an AI session's env carries the profile id but not the pointer (acp/env.ts
+  // scrubs it): a non-default id resolves to its own file, the layout profiles.rs `paths_in`
+  // writes. Anything that is not a plain id is the default profile (shell/profile.ts).
+  const id = process.env.MAUDE_PROFILE_ID;
+  if (id && id !== 'default' && /^[a-z0-9-]{1,32}$/.test(id))
+    return join(base, 'maude', 'profiles', id, 'hubs.json');
   return join(base, 'maude', 'hubs.json');
 }
 
@@ -107,6 +113,9 @@ export function addHub(url, token, extra = {}) {
   const cfg = loadHubsConfig();
   const prior = cfg.hubs[norm];
   const priorRole = prior?.role;
+  // S9.9 — `access` is the hub's real claim (role + canvas grants) cached next to the v1 `role`
+  // projection; a relink has no fresher answer, so it survives the same way `role` does.
+  const priorAccess = prior?.access;
   // LOCAL CONSENT SURVIVES EVERY RE-SAVE. `role` is a cache of what the hub
   // said about you at sign-in; `codeModulesAllowed` is what YOU said about the
   // hub, and a login response must not be able to change it.
@@ -132,6 +141,7 @@ export function addHub(url, token, extra = {}) {
     token,
     linkedAt: Date.now(),
     ...(priorRole ? { role: priorRole } : {}),
+    ...(priorAccess && typeof priorAccess === 'object' ? { access: priorAccess } : {}),
     ...(typeof priorExpiry === 'number' ? { expiresAt: priorExpiry } : {}),
     ...(typeof priorConsent === 'boolean' ? { codeModulesAllowed: priorConsent } : {}),
     ...(typeof priorDeletes === 'boolean' ? { unlimitedDeletes: priorDeletes } : {}),

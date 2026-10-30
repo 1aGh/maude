@@ -1,0 +1,232 @@
+/* client/v2/sync-states/sync-states.css — S9.24: the "2 versions" mark and the conflict card
+ * (10 · co-sync-back `.co-needs`, co-conflict `.co-twin` + `.co-vh`). Over the viewport, centred under
+ * the pill row; tokens only. No motion of their own (the shell's island entry is enough).
+ *
+ * P8 C7: lifted from the board — the two versions are real yellow stickies (the object yellow with
+ * the object ink, 200 px, the DS `.sticky` anatomy) outside the island that says what happened, each
+ * with its author's face and a "Keep …" button under it; Version history sits beside them with what
+ * was not kept. The mark is two faces in their tones and the warn words, ringed. */
+
+@layer shell {
+  .sy-mark,
+  .sy-stage {
+    position: fixed;
+    left: 50%;
+    translate: -50% 0;
+    top: calc(var(--float-gap, 16px) + var(--pill-h, 40px) + 64px);
+    z-index: 8980;
+  }
+  /* round 7 (10 co-conflict): the card is on the canvas, under the artboards, not a banner under the pill
+     row — the board's twin sits at about half the window's height; the clamp keeps the pair clear of
+     the dock on a short window. */
+  .sy-stage {
+    top: clamp(120px, 48vh, calc(100vh - 380px));
+    pointer-events: none;
+  }
+  .sy-stage .island,
+  .sy-stage .sy-one,
+  .sy-stage button {
+    pointer-events: auto;
+  }
+
+  /* `.co-needs` — a pill on bg-2 with a 1 px warn ring: the thing that waits for a pick */
+  .sy-mark {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: 2px var(--space-2) 2px 2px;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--bg-2);
+    box-shadow:
+      var(--shadow-sm),
+      inset 0 0 0 1px var(--status-warn);
+    font: inherit;
+    font-size: var(--type-xs);
+    font-weight: var(--w-medium);
+    color: var(--status-warn-text);
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .sy-mark:focus-visible,
+  .sy-stage button:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+  .sy-faces {
+    display: inline-flex;
+  }
+  .sy-faces .k-av {
+    box-shadow: 0 0 0 1.5px var(--bg-2);
+  }
+  .sy-faces .k-av + .k-av {
+    margin-left: -4px;
+    margin-right: var(--space-1);
+  }
+
+  /* the stage: the twin (card + pair + Keep both) and, beside it, Version history */
+  .sy-stage {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: var(--space-8, 64px);
+    width: max-content;
+    max-width: calc(100vw - 2 * var(--float-gap, 16px));
+  }
+  .sy-twin {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    width: min(600px, calc(100vw - 2 * var(--float-gap, 16px)));
+  }
+  .sy-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--space-3) var(--space-4);
+    padding-right: calc(var(--space-4) + 28px);
+  }
+  .sy-card > strong {
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+  }
+  .sy-card > span {
+    font-size: var(--type-sm);
+    line-height: var(--lh-sm);
+    color: var(--fg-1);
+  }
+
+  .sy-pair {
+    display: flex;
+    justify-content: center;
+    gap: var(--space-6);
+  }
+  .sy-vs {
+    align-self: center;
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    color: var(--fg-2);
+  }
+  .sy-one {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+  }
+  .sy-who {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+  }
+  /* the DS `.sticky` (preview/_components.css:197): 200 px here, the yellow object, its ink, the lift */
+  .sy-sticky {
+    margin: 0;
+    box-sizing: border-box;
+    width: 200px;
+    min-height: 104px;
+    padding: var(--space-3);
+    border-radius: var(--radius-xs);
+    background: var(--object-yellow);
+    color: var(--object-ink);
+    font-family: var(--font-rounded, var(--font-body));
+    font-weight: var(--w-semibold);
+    font-size: var(--type-base);
+    line-height: var(--lh-sm);
+    box-shadow: 0 6px 12px oklch(0 0 0 / 0.12);
+    overflow-wrap: anywhere;
+  }
+  .sy-both {
+    align-self: center;
+    gap: var(--space-1);
+  }
+  .sy-more {
+    margin: 0;
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+    text-align: center;
+  }
+
+  /* `.co-vh` — Version history beside the pair: this sticky, each version, Restore, the foot */
+  .sy-vh {
+    flex: none;
+    width: 340px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--space-3);
+    background: var(--island-bg-strong, var(--bg-1));
+  }
+  .sy-vh-t {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin: 0;
+    padding-bottom: var(--space-2);
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+  }
+  .sy-vh-t > span {
+    margin-left: auto;
+    font-size: var(--type-xs);
+    font-weight: var(--w-regular);
+    color: var(--fg-2);
+  }
+  .sy-vh-r {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 44px;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+  }
+  .sy-vh-w {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .sy-vh-w strong {
+    color: var(--fg-0);
+    font-weight: var(--w-semibold);
+  }
+  .sy-vh-w em {
+    font-style: normal;
+    color: var(--fg-2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .sy-vh-r .btn {
+    flex: none;
+  }
+  .sy-vh-f {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin: 0;
+    padding: var(--space-2) var(--space-2) 0;
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+  }
+
+  /* not enough width for both: Version history goes under the pair */
+  @media (max-width: 1040px) {
+    .sy-stage {
+      flex-direction: column;
+      align-items: center;
+    }
+  }
+  @media (max-width: 560px) {
+    .sy-pair {
+      flex-direction: column;
+      align-items: center;
+    }
+  }
+}

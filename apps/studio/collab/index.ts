@@ -1,6 +1,7 @@
 // Public surface of the collab module. Bundles the registry + persistence
 // wiring so ws.ts + server.ts don't need to know about the internal split.
 
+import { randomBytes } from 'node:crypto';
 import { readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 
@@ -79,6 +80,20 @@ export function createCollab(ctx: Context, api: Api): Collab {
       list.push(board);
       ownProjections.set(slug, list.slice(-4));
       diskBase.set(slug, board);
+      // S2.20b (U20) — the room's board is about to land on disk: a local project's home records
+      // it as the person's `edit` (sync/local-kernel.ts), never `outside`. Emitted before the write.
+      // `contested` (p8-undo-collab-refuse): texts a collaborator changed during this step — the
+      // home refuses its ⌘Z (annotations/text-steps.ts).
+      const contested = registryRef?.takeTextContest(slug) ?? [];
+      // `draft` (p8-fix-d F13): only a text session's idle-typing drafts — the home records them
+      // with that session's commit, as one step.
+      const draft = registryRef?.takeDraftOnly(slug) === true;
+      ctx.bus.emit('annotations-projected', {
+        slug,
+        board,
+        contested,
+        ...(draft ? { draft } : {}),
+      });
     },
     onAnnotationsSeeded: (slug, board) => {
       diskBase.set(slug, board);
@@ -121,6 +136,11 @@ export function createCollab(ctx: Context, api: Api): Collab {
   // (the room doc is the hub's accepted replica). Asked per frame — the save
   // mode can change while the studio runs.
   persistence.acceptedMode = () => ctx.syncControl?.current?.()?.acceptedMode?.() === true;
+  // p8-collab-epoch (decision `v2-p8-collab-epoch`) — this instance's epoch.
+  // A peer that synced with an earlier instance (a tab, the canvas frame, a
+  // browser through a cell's proxy that stayed open across the restart) is
+  // never replayed into these rooms; it starts a fresh doc (use-collab.tsx).
+  persistence.epoch = randomBytes(9).toString('base64url');
   const registry = createRegistry(persistence);
   registryRef = registry;
 

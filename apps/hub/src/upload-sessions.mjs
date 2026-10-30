@@ -51,7 +51,8 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
-
+import { contentAddressedAsset, isAssetCreate } from '../../studio/access/scope.ts';
+import { fileAccessFor, NOT_IN_SCOPE_REFUSAL } from './access-files.mjs';
 import { assetPrefixFromEnv } from './asset-key.mjs';
 import { diskPressureRefusal, respondDiskPressure } from './disk.mjs';
 import {
@@ -279,20 +280,50 @@ function authorize(ctx) {
   const token = typeof auth === 'string' ? auth.replace(/^Bearer\s+/i, '').trim() : '';
   const match = token ? verifyToken(dataDir, token, secret) : null;
   if (!match) return { status: 401, error: 'unauthorized' };
-  if (match.readOnly) return { status: 403, error: 'this token is read-only' };
+  // V2-1.16 L1 — a canvas-only session is judged by its claim in `admit`,
+  // never by the fail-closed `read_only` bit its token stores.
+  const access = fileAccessFor(match, {
+    designRoot: ctx.designRoot,
+    journal: ctx.journal,
+    dataDir,
+  });
+  if (match.readOnly && !access.claimDecides) {
+    return { status: 403, error: 'this token is read-only' };
+  }
   if (!ctx.designRoot) return { status: 405, error: 'this hub does not accept file writes' };
   if (ctx.checkWriteRateLimit && !ctx.checkWriteRateLimit(match.label)) {
     return { status: 429, error: 'too many writes' };
   }
-  return { match };
+  return { match, access };
 }
 
-/** Admission for a path — the file door's rules, judged on the landing path. */
-function admit(ctx, match, rel) {
+/**
+ * Admission for a path — the file door's rules, judged on the landing path.
+ * `sha256` is the session's declared hash: a canvas-only session's new asset
+ * must be named by it (`assets/<sha8>.<ext>`); completion checks the assembled
+ * bytes against that same hash.
+ */
+function admit(ctx, match, rel, access, sha256 = null) {
   const target = resolveCheckoutFileWrite(ctx.designRoot, rel);
-  if (!target.ok) return { status: 400, error: 'invalid path' };
+  // U1 for a canvas-only session: the class half of admission reads the
+  // checkout, so a 400 would tell it which other canvases exist.
+  if (!target.ok) {
+    return access?.claimDecides
+      ? { status: 403, body: { ...NOT_IN_SCOPE_REFUSAL } }
+      : { status: 400, error: 'invalid path' };
+  }
   const landing = target.realRel;
-  if (!matchesScope(match.scope, landing)) {
+  if (access?.claimDecides) {
+    const exists =
+      existsSync(target.abs) ||
+      (ctx.journal ? currentHashFor(ctx.journal, landing) !== null : false);
+    if (
+      !access.writes(landing, { exists }) ||
+      (isAssetCreate(landing, { exists }) && !contentAddressedAsset(landing, sha256 ?? ''))
+    ) {
+      return { status: 403, body: { ...NOT_IN_SCOPE_REFUSAL } };
+    }
+  } else if (!matchesScope(match.scope, landing)) {
     return { status: 403, error: 'this token is not scoped to that path' };
   }
   const cls = checkoutFileClass(landing, ctx.designRoot);
@@ -335,7 +366,7 @@ export async function handleUploadSessions(ctx) {
     respondJson(response, a.status, { error: a.error });
     return true;
   }
-  const { match } = a;
+  const { match, access } = a;
   sweepUploadSessions(dataDir);
   const store = storeFor(ctx);
 
@@ -360,9 +391,9 @@ export async function handleUploadSessions(ctx) {
       });
       return true;
     }
-    const ad = admit(ctx, match, rel);
+    const ad = admit(ctx, match, rel, access, sha256);
     if (!ad.landing) {
-      respondJson(response, ad.status, { error: ad.error });
+      respondJson(response, ad.status, ad.body ?? { error: ad.error });
       return true;
     }
     // On a cell, code and companion text stay checkout files and are capped
@@ -531,9 +562,9 @@ export async function handleUploadSessions(ctx) {
         }
       }
     }
-    const ad = admit(ctx, match, s.path);
+    const ad = admit(ctx, match, s.path, access, s.sha256);
     if (!ad.landing) {
-      respondJson(response, ad.status, { error: ad.error });
+      respondJson(response, ad.status, ad.body ?? { error: ad.error });
       return true;
     }
     const target = ad.target;

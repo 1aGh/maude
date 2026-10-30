@@ -1,0 +1,11 @@
+{"lane":"acp","name":"Skill","input":{"skill":"design:system","args":"status"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design ds status --json","description":"Get design system status"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design ds usage maude --json","description":"Get design system usage count"}}
+{"lane":"acp","name":"Bash","input":{"command":"cat .design/system/maude/config.json 2>/dev/null; echo \"---\"; find .design/system/maude -maxdepth 2 -type f","description":"Find design system config and token file paths"}}
+{"lane":"acp","name":"Grep","input":{"pattern":"accent","path":".design/system/maude/colors_and_type.css","-n":true}}
+{"lane":"acp","name":"Bash","input":{"command":"grep -n -i \"accent\" .design/system/maude/colors_and_type.css","description":"Search for accent token lines in CSS"}}
+{"lane":"acp","name":"Read","input":{"file_path":".design/system/maude/colors_and_type.css","offset":170,"limit":25}}
+{"lane":"acp","name":"Edit","input":{"file_path":".design/system/maude/colors_and_type.css"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design ds-check maude --emit --json","description":"Regenerate tokens.json for maude design system"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design ds check-system maude --json","description":"Run full design system check"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design ds usage maude --json","description":"List canvases using the maude design system"}}

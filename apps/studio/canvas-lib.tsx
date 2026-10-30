@@ -41,6 +41,7 @@
  *   ColorSwatch        Square + label for a color token.
  *   TypeScaleRow       One row of a type-ladder specimen.
  *   ThemeToggle        Light/dark <button> group writing data-theme on <html>.
+ *   DSRoot             <div class="ds" data-theme> — the system-agnostic theme wrapper (V2-1.13 §5.11).
  *
  *   Hooks ──────────────────────────────────────────────────────────────────
  *   useTokens(prefix?) Resolves CSS custom properties from <html> computed style.
@@ -84,6 +85,7 @@ import {
   useReducedMotion as _useReducedMotion,
 } from 'motion/react';
 import {
+  type ComponentProps,
   type CSSProperties,
   createContext,
   Fragment,
@@ -99,16 +101,41 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from 'react';
 
+import { canvasKeyIndex, resolveCanvasKey } from './actions/canvas-keys.ts';
 import { ArtboardActivityOverlay } from './artboard-activity-overlay.tsx';
+import { ArtboardConvertMarks } from './artboard-convert-marks.tsx';
+import { ArtboardGapMark } from './artboard-gap-mark.tsx';
+import { ArtboardGhostsLayer } from './artboard-ghosts-overlay.tsx';
+import { ArtboardGrowthTag, useGrowthDelta } from './artboard-growth-tag.tsx';
 import {
   ArtboardGuidesOverlay,
   type GuideDefinitions,
   type OverlayVisibility,
 } from './artboard-guides-overlay.tsx';
+import { ArtboardNewSection, useNewSection } from './artboard-new-section.tsx';
+import {
+  ArtboardWarnMark,
+  ArtboardWarnOutlines,
+  madeFromLabel,
+  useArtboardWarnings,
+  warningsAttr,
+} from './artboard-warn-mark.tsx';
+import { AssetPlaceholderLayer } from './asset-placeholder.tsx';
+import { modeShows } from './bridge/mode-shows.ts';
+import { DsIcon } from './canvas-ds-icons.tsx';
 import { CanvasShell } from './canvas-shell.tsx';
+import { pressStartsPan } from './input-router.tsx';
+import { summaryWords } from './kinds/warnings.ts';
+import { presentHidesCss, usePresentStage } from './present/present-stage.tsx';
+import { usePreviewCamera, usePreviewing } from './preview/preview-camera.tsx';
+import { previewWheelPassthrough } from './preview/wheel-scroll.ts';
 import type { ArtboardPrintProp } from './print/units.ts';
+import { useGovernedMode } from './use-governed-mode.ts';
+import { VideoLinksLayer } from './video-links-overlay.tsx';
+import { viewportAtFit } from './viewport-fit.ts';
 // feature-2-print-artboards T3 — side-effect import: registers the print
 // kind's overlay content (bleed/trim/margin) into artboard-guides-overlay's
 // registry at module load, per that file's own "call registerKindOverlay at
@@ -120,10 +147,29 @@ import './print-overlay-content.tsx';
 // registration above, for the 'web' kind's breakpoint-band chip.
 import './web-overlay-content.tsx';
 import {
-  buildMoveArtboardsRecord,
-  diffLayoutPositions,
-} from './commands/move-artboards-command.ts';
+  type AutoFit,
+  canvasInsets,
+  canvasModeStore,
+  canvasSingleKeys,
+  onFirstInsets,
+  shouldBootRefit,
+  shouldResizeRefit,
+} from './bridge/canvas-mode-store.ts';
+import { type Insets, visibleRect, ZERO_INSETS } from './bridge/occlusion.ts';
+import { buildMoveArtboardsRecord, type LayoutRider } from './commands/move-artboards-command.ts';
 import { scopedCdSelector, selectorIndex, shortText } from './dom-selection.ts';
+import {
+  type CommitPositionsOptions,
+  type CommitRider,
+  canvasMetaBody,
+  createDragBusCore,
+  type DragBusCore,
+  type DragFrame,
+  type LayoutRect,
+} from './drag-bus.ts';
+import { routeDrop } from './editing/duplicate-rhythm.ts';
+import { growCh, nextRenameId, RENAME_EVENT, requestRename } from './editing/rename-order.ts';
+import { createSpaceTap, sendSpaceTap } from './editing/space-tap.ts';
 import { applyCaptureChrome } from './exporters/capture-chrome.ts';
 import {
   type DomToSvgApi,
@@ -139,8 +185,13 @@ import {
 // (photo/pipeline.ts, which imports pixi.js) is loaded via a DYNAMIC import
 // inside <PhotoLayer> only when an edited photo actually mounts — see there.
 import { isDefaultEdit, type PhotoEdit } from './photo/schema.ts';
-import { isEmbedCanvas, isReadOnlyCanvas } from './read-only-mode.ts';
-import { AgentPresenceProvider, useAgentPresence } from './use-agent-presence.tsx';
+import {
+  isEmbedCanvas,
+  isFollowCanvas,
+  isReadOnlyCanvas,
+  persistsCanvasMeta,
+} from './read-only-mode.ts';
+import { AgentPresenceProvider } from './use-agent-presence.tsx';
 import { type DragState, useArtboardDrag } from './use-artboard-drag.tsx';
 import {
   CanvasActivityProvider,
@@ -159,7 +210,26 @@ import { UndoStackProvider, useUndoSinks, useUndoStackOptional } from './use-und
 import { VideoComp } from './video-comp.tsx';
 
 export type { CompSnapshot, VideoCompMeta, VideoCompProps } from './video-comp.tsx';
+// S7.5 — the comp vocabulary (V2-1.10 §5.3): literal-prop components; the build injects their
+// derived data (`__words`, `__speech`, video/inject.ts). A 1.x build lacks these exports, so a
+// canvas that uses them says "This canvas uses Maude 2" there (V2-1.12 §5.8).
+export type {
+  CaptionsProps,
+  DuckProps,
+  PlaceProps,
+  ReframeProps,
+  TitleMotionProps,
+} from './video-vocab.tsx';
+export { Captions, Duck, Place, Reframe, TitleMotion } from './video-vocab.tsx';
 export { VideoComp };
+
+/** The viewport's zoom keys, resolved from the registry (V2-3.11) — `useViewportController`'s keydown. */
+const CANVAS_ZOOM_KEYS = canvasKeyIndex([
+  'view.zoom-in',
+  'view.zoom-out',
+  'view.zoom-fit',
+  'view.zoom-actual',
+]);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AIPlaceholder — feature-enhanced-video-editing (Task 21). A prompt-carrying
@@ -306,10 +376,9 @@ const ENGINE_CSS = `
      down on zoom-out. Inherited, so this covers every descendant. No-op on Blink. */
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
-  /* DDR-046 — snap-layer magenta is distinct from --accent so the snap chrome
-     never visually melts into the selection halo during a drag-snap gesture.
-     OKLCH default approximates FigJam magenta in the project's color space. */
-  --guide-magenta: oklch(62% 0.28 350);
+  /* DDR-046 — the guide colour (--guide, was --guide-magenta) is distinct from --accent so the snap chrome
+     never visually melts into the selection halo during a drag-snap gesture. It is defined once, by the
+     generated HUD block (canvas-hud-tokens.gen.ts, from maude-v2); the literal below is the fallback only. */
   /* Canvas-shell chrome — the workspace plane + dotted grid follow the Maude
      chrome theme (--maude-chrome-*), NOT the DS palette. See canvas-shell.tsx
      HUD_TOKENS_CSS. Artboards (.dc-artboard) keep the DS theme. */
@@ -329,8 +398,8 @@ const ENGINE_CSS = `
   transform-origin: center;
 }
 .dc-snap-guide--sibling {
-  background: var(--guide-magenta, oklch(62% 0.28 350));
-  box-shadow: 0 0 4px color-mix(in oklab, var(--guide-magenta, oklch(62% 0.28 350)) 35%, transparent);
+  background: var(--guide, oklch(0.55 0.20 328));
+  box-shadow: 0 0 4px color-mix(in oklab, var(--guide, oklch(0.55 0.20 328)) 35%, transparent);
 }
 .dc-snap-guide--grid {
   background: color-mix(in oklab, var(--maude-chrome-fg-1, #4a3f30) 40%, transparent);
@@ -339,12 +408,12 @@ const ENGINE_CSS = `
   position: fixed;
   pointer-events: none;
   z-index: 7;
-  font-family: var(--maude-chrome-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-family: var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
   font-size: 11px;
   font-weight: 600;
   line-height: 1;
-  color: #fff;
-  background: var(--guide-magenta, oklch(62% 0.28 350));
+  color: var(--guide-fg, #fff);
+  background: var(--guide, oklch(0.55 0.20 328));
   padding: 3px 6px;
   border-radius: 3px;
   white-space: nowrap;
@@ -359,9 +428,19 @@ const ENGINE_CSS = `
   from { opacity: 0; transform: translate(-50%, -50%) scale(0.88); }
   to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
+/* A6c — reveal-artboard's flash (S1.3 jump list, S1.15 Compare): one ring, then gone. */
+.dc-reveal-flash {
+  animation: dc-reveal-flash 700ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes dc-reveal-flash {
+  0%   { box-shadow: 0 0 0 0 transparent; }
+  25%  { box-shadow: 0 0 0 4px var(--guide, oklch(0.55 0.20 328)); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
 @media (prefers-reduced-motion: reduce) {
   .dc-snap-guide,
-  .dc-snap-pill {
+  .dc-snap-pill,
+  .dc-reveal-flash {
     animation: none !important;
   }
 }
@@ -423,31 +502,50 @@ const ENGINE_CSS = `
   will-change: transform;
 }
 .dc-canvas .dc-artboard.dc-positioned { position: absolute; }
+/* gate-a-polish - a placed artboard's NAME sits above the frame (04/14 canvases, _kit.css .k-ab-name): a constant
+   11 px sans label in screen px at every zoom, not a strip inside the frame. It has to paint outside the frame, so
+   the frame stops clipping (overflow / paint containment) and the BODY carries both - the design surface still
+   clips, the compositor layer (will-change + isolation, above) is unchanged. */
+.dc-canvas .dc-artboard.dc-positioned {
+  overflow: visible;
+  contain: none;
+}
+.dc-canvas .dc-artboard.dc-positioned > .dc-artboard-body {
+  contain: paint;
+}
+/* S3.14 - Present draws the work only (04 md-present-*): the editor chrome list is present/present-stage.tsx
+   PRESENT_HIDES, keyed on the root attribute the stage sets while any Present is on. */
+${presentHidesCss()}
 .dc-canvas .dc-artboard-label {
   flex-shrink: 0;
-  background: var(--bg-2, #e8e3d8);
-  border-bottom: 1px solid var(--fg-0, #2a2520);
+  background: var(--maude-chrome-bg-2, #e8e3d8);
+  border-bottom: 1px solid var(--maude-chrome-border, #2a2520);
   padding: 6px 14px;
   font-size: 10px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--fg-1, #4a3f30);
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  color: var(--maude-chrome-fg-1, #4a3f30);
+  font-family: var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
 }
-/* T3 — per-kind chrome. Subtle tint on the header + a small glyph before the
-   label text, for any non-digital kind. digital (the default, and every
-   unmigrated canvas) renders no chip and no tint — byte-identical chrome. */
-.dc-canvas .dc-artboard[data-dc-kind]:not([data-dc-kind='digital']) .dc-artboard-label {
-  background: color-mix(in oklab, var(--accent, var(--fg-2, #4a3f30)) 10%, var(--bg-2, #e8e3d8));
+/* P8 C5 (08 RC-3) - every label keeps its kind glyph (the DS family: web / digital / video / print), in the label's
+   own colour. The strip header tints a non-digital kind from the HUD accent, never from the project's tokens. */
+.dc-canvas .dc-artboard:not(.dc-positioned)[data-dc-kind]:not([data-dc-kind='digital']) .dc-artboard-label {
+  background: color-mix(in oklab, var(--maude-hud-accent, var(--maude-chrome-fg-2, #4a3f30)) 10%, var(--maude-chrome-bg-2, #e8e3d8));
+}
+.dc-canvas .dc-artboard[data-dc-kind='video'] > .dc-artboard-label[data-dc-vtail]::after {
+  content: attr(data-dc-vtail);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.86;
+  white-space: pre;
 }
 .dc-canvas .dc-artboard-kind-chip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   margin-right: 6px;
-  color: var(--accent, var(--fg-1, #4a3f30));
-  opacity: 0.85;
-  vertical-align: -1px;
+  color: inherit;
+  vertical-align: -2px;
 }
 .dc-canvas .dc-artboard-body {
   flex: 1;
@@ -488,6 +586,56 @@ input.dc-artboard-rename {
   outline: 2px solid var(--maude-hud-accent, #d63b1f);
   outline-offset: -2px;
 }
+/* gate-a-polish - the placed artboard's name (and its rename field). Out of flow above the frame; scale(1 / zoom)
+   cancels the world's zoom (CSS zoom on Chromium, transform scale on WebKit) so it is 11 screen px at 8% and 800%.
+   Its box is the size of the text, capped to the frame's on-screen width. Unselected it reads --maude-chrome-fg-1;
+   selected (editing/artboard-handles.tsx) it is the accent pill with --maude-hud-accent-fg. */
+.dc-canvas .dc-artboard.dc-positioned > .dc-artboard-label {
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  margin-bottom: 4px;
+  z-index: 2;
+  display: block;
+  width: auto;
+  min-width: 0;
+  max-width: calc(100% * var(--dc-zoom, 1));
+  box-sizing: border-box;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--maude-chrome-fg-1, #4a3f30);
+  font-family: var(--maude-chrome-font-body, system-ui, sans-serif);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.36;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transform: scale(calc(1 / var(--dc-zoom, 1)));
+  transform-origin: 0 100%;
+}
+/* V2-8.8 (WebKit M7) - on the WebKit scale path (transform, see writeTransform) the name and the video badge get
+   their OWN compositor layer. They are re-sized every zoom frame by the counter-scale above and paint outside the
+   frame, so inside the board's layer (will-change, the per-board raster freeze) they moved its bounds every frame
+   and WebKit re-rastered every board on every zoom frame. Blink (CSS zoom) relayouts the world anyway; untouched. */
+.dc-world[data-dc-scale='transform'] .dc-artboard.dc-positioned > .dc-artboard-label,
+.dc-world[data-dc-scale='transform'] .dc-artboard.dc-positioned > .dc-artboard-video-badge {
+  will-change: transform;
+}
+.dc-canvas .dc-artboard.dc-positioned > .dc-artboard-label:focus-visible { outline-offset: 0; }
+.dc-canvas .dc-artboard.dc-positioned > input.dc-artboard-rename {
+  background: var(--maude-chrome-bg-2, #fff);
+  color: var(--maude-chrome-fg-0, #2a2520);
+  padding: 2px 8px;
+  max-width: none;
+  text-overflow: clip;
+  outline-offset: 0;
+}
+.dc-canvas .dc-artboard.dc-positioned > .dc-artboard-label .dc-artboard-kind-chip { margin-right: 4px; }
 /* DDR-148 — video-artboard badge, overlaid top-right of the header. Opens
    the timeline panel (same postMessage the context-menu entry sends). */
 .dc-canvas .dc-artboard-video-badge {
@@ -503,12 +651,26 @@ input.dc-artboard-rename {
   padding: 0;
   appearance: none;
   border: none;
-  border-radius: 3px;
-  background: var(--bg-2, #e8e3d8);
-  color: var(--fg-1, #4a3f30);
+  border-radius: var(--maude-hud-radius-xs, 3px);
+  background: var(--maude-chrome-bg-3, #e8e3d8);
+  color: var(--maude-chrome-fg-1, #4a3f30);
   cursor: pointer;
 }
-.dc-canvas .dc-artboard-video-badge:hover { background: color-mix(in oklab, var(--fg-0, #2a2520) 12%, var(--bg-2, #e8e3d8)); }
+/* gate-a-polish - the badge rides the name row above the frame, at the right end, in screen px. */
+.dc-canvas .dc-artboard.dc-positioned > .dc-artboard-video-badge {
+  top: auto;
+  right: 0;
+  bottom: 100%;
+  margin-bottom: 4px;
+  transform: scale(calc(1 / var(--dc-zoom, 1)));
+  transform-origin: 100% 100%;
+  /* V2-8.5 c4-video (07): the board's label row is the kind glyph, the name and the length — no camera chip at its
+     right end. The badge stays (a door to the timeline for a keyboard or a hover) but is quiet until one arrives. */
+  opacity: 0;
+}
+.dc-canvas .dc-artboard.dc-positioned:hover > .dc-artboard-video-badge,
+.dc-canvas .dc-artboard.dc-positioned > .dc-artboard-video-badge:focus-visible { opacity: 1; }
+.dc-canvas .dc-artboard-video-badge:hover { background: color-mix(in oklab, var(--maude-chrome-fg-0, #2a2520) 12%, var(--maude-chrome-bg-3, #e8e3d8)); }
 .dc-canvas .dc-artboard-video-badge:focus-visible { outline: 2px solid var(--maude-hud-accent, #d63b1f); outline-offset: 1px; }
 /* Active-artboard ring is in canvas-shell HALO_CSS (subtle 1 px tint). */
 /* Phase 4.2 — drag chrome. */
@@ -615,7 +777,7 @@ export function useWorldRefContext(): RefObject<HTMLDivElement | null> | null {
 
 const VP_GRID = { cols: 3, w: 1280, h: 820, gutter: 80 } as const;
 
-interface ArtboardSeed {
+export interface ArtboardSeed {
   id: string;
   w: number;
   h: number;
@@ -696,7 +858,7 @@ function subtreeHasVideoComp(children: ReactNode): boolean {
   return visit(children);
 }
 
-function synthDefaultGrid(seeds: ArtboardSeed[]): ArtboardRect[] {
+export function synthDefaultGrid(seeds: ArtboardSeed[]): ArtboardRect[] {
   // Render order (the order DCArtboards appear in JSX), not alphabetical —
   // authors label artboards DS-01 / DS-02 / CV-01 etc. and expect that
   // numeric order to show top-left → bottom-right, but their ids are usually
@@ -724,7 +886,15 @@ function synthDefaultGrid(seeds: ArtboardSeed[]): ArtboardRect[] {
 
 // Exported for the same reason as `clampZoom` above — lets a unit test prove
 // the raw fit computation for a wide board isn't what's clamping the zoom.
-export function computeFit(rects: ArtboardRect[], hostEl: HTMLElement, pad = 24): ViewportState {
+// V2-2.10 (V2-1.2 §5.6) — `insets`: the shell's occluded insets. The fit centres the union in the
+// VISIBLE rect (bridge/occlusion.ts visibleRect); all-zero / absent insets are byte-identical to
+// the whole-host fit (I3, test/occlusion-geometry.test.ts).
+export function computeFit(
+  rects: ArtboardRect[],
+  hostEl: HTMLElement,
+  pad = 24,
+  insets: Readonly<Insets> = ZERO_INSETS
+): ViewportState {
   if (rects.length === 0) return { x: 0, y: 0, zoom: 1 };
   let xMin = Number.POSITIVE_INFINITY;
   let yMin = Number.POSITIVE_INFINITY;
@@ -741,9 +911,10 @@ export function computeFit(rects: ArtboardRect[], hostEl: HTMLElement, pad = 24)
   const vw = hostEl.clientWidth;
   const vh = hostEl.clientHeight;
   if (!vw || !vh || bw <= 0 || bh <= 0) return { x: 0, y: 0, zoom: 1 };
-  const zoom = Math.min((vw - pad * 2) / bw, (vh - pad * 2) / bh, 1.0);
-  const x = (vw - bw * zoom) / 2 - xMin * zoom;
-  const y = (vh - bh * zoom) / 2 - yMin * zoom;
+  const v = visibleRect(vw, vh, insets);
+  const zoom = Math.min((v.w - pad * 2) / bw, (v.h - pad * 2) / bh, 1.0);
+  const x = v.x + (v.w - bw * zoom) / 2 - xMin * zoom;
+  const y = v.y + (v.h - bh * zoom) / 2 - yMin * zoom;
   return { x, y, zoom };
 }
 
@@ -823,15 +994,21 @@ export function isMetaSelfEcho(now: number = Date.now()): boolean {
   return now - last < META_SELF_ECHO_WINDOW_MS;
 }
 
-function patchCanvasMeta(patch: {
-  viewport?: ViewportState;
-  layout?: { artboards: ArtboardRect[] };
-}): void {
+function patchCanvasMeta(
+  patch: {
+    viewport?: ViewportState;
+    layout?: { artboards: ArtboardRect[] };
+  },
+  /** S2.9b — annotations riding with the layout (one action); `onRefused` when the server refuses. */
+  rider?: LayoutRider & { onRefused?: () => void }
+): void {
   if (typeof window === 'undefined' || typeof fetch === 'undefined') return;
   // DDR-247 — an embedded view persists nothing, camera included: its fit is
   // not the designer's view, and the next time they open the canvas in the
-  // studio it must be where they left it.
-  if (isEmbedCanvas()) return;
+  // studio it must be where they left it. S3.7a — nor does a Present follower: its camera is the
+  // presenter's, and the audience window shares the designer's own `_canvas-state/` view file.
+  // S1.14 — nor does a past version (`?sha=`, Version history's Viewing): it is not the designer's view.
+  if (!persistsCanvasMeta()) return;
   // Cloud Phase 25 C2 — a read-only session persists its CAMERA (per-user
   // `_canvas-state/` view, DDR-115) but never the LAYOUT lane (versioned
   // `.meta.json`). The dev-server refuses the layout lane too (http.ts);
@@ -876,13 +1053,19 @@ function patchCanvasMeta(patch: {
   // (PATCH → server write → fs:json broadcast → iframe message) lands
   // safely inside the echo window even on a fast network.
   window.__maude_last_meta_self_write_at = Date.now();
+  const body = canvasMetaBody(file, sanitized, rider);
   fetch('/_api/canvas-meta', {
     method: 'PATCH',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ file, patch: sanitized }),
-  }).catch((err) => {
-    console.warn('[canvas-lib] persist viewport failed:', err);
-  });
+    body: JSON.stringify(body),
+  })
+    .then((res) => {
+      // A refused rider refused the whole move (nothing was written): show what the disk holds.
+      if (body.annotations && !res.ok) rider?.onRefused?.();
+    })
+    .catch((err) => {
+      console.warn('[canvas-lib] persist viewport failed:', err);
+    });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -922,7 +1105,12 @@ export interface ViewportControllerOptions {
    * state. Omit / return `false` to keep the Phase-4 behavior (drag only
    * with Space or middle-mouse).
    */
-  isPanDragActive?: () => boolean;
+  isPanDragActive?: (e: PointerEvent) => boolean;
+  /**
+   * S3.9 (Preview) — true hands this wheel event to the design underneath instead of panning (a web
+   * artboard scrolling inside itself). Read per event; omit to keep today's wheel (always the canvas').
+   */
+  wheelPassthrough?: (e: WheelEvent) => boolean;
 }
 
 export interface ViewportControllerHandle {
@@ -936,6 +1124,11 @@ export interface ViewportControllerHandle {
   zoomAt: (factor: number, cx: number, cy: number) => void;
   /** Cmd+0 — fit-to-screen on the artboard union. */
   fit: () => void;
+  /**
+   * V2-1.2 §5.6 I2 — the boot re-fit: re-run the boot fit in place (crisp, no ease, no settle), so the
+   * camera is still a boot camera — nothing is persisted, exactly like the boot fit itself.
+   */
+  refitBoot: () => void;
   /** Cmd+1 — actual size (zoom = 1.0), recentered on viewport midpoint. */
   reset: () => void;
   /** Cmd+= — zoom in 1.2× at host center. */
@@ -982,8 +1175,8 @@ function prefersReducedMotion(): boolean {
   }
 }
 
-function fitRectIntoHost(rect: ArtboardRect, hostEl: HTMLElement, pad = 24): ViewportState {
-  return computeFit([rect], hostEl, pad);
+export function fitRectIntoHost(rect: ArtboardRect, hostEl: HTMLElement, pad = 24): ViewportState {
+  return computeFit([rect], hostEl, pad, canvasInsets());
 }
 
 // RC3 (rca/issue-canvas-hmr-optimistic-update-consistency) — the LIVE camera,
@@ -999,6 +1192,8 @@ function fitRectIntoHost(rect: ArtboardRect, hostEl: HTMLElement, pad = 24): Vie
 // outlives the subtree. A full page load clears it — correct, view.json seeds
 // then. Written on every applyViewport (exact — no settle/publish lag).
 let liveViewport: ViewportState | null = null;
+// V2-8.5 c7 — where the last Zoom to fit put the camera (viewport-fit.ts); the reporter tells the shell while it still sits there.
+let fitMark: ViewportState | null = null;
 
 /**
  * The current pan/zoom, read from OUTSIDE the React tree — the
@@ -1096,9 +1291,12 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
     onSettle,
     jumpTargets,
     isPanDragActive,
+    wheelPassthrough,
   } = opts;
-  const isPanDragActiveRef = useRef<(() => boolean) | undefined>(isPanDragActive);
+  const isPanDragActiveRef = useRef<((e: PointerEvent) => boolean) | undefined>(isPanDragActive);
   isPanDragActiveRef.current = isPanDragActive;
+  const wheelPassthroughRef = useRef<((e: WheelEvent) => boolean) | undefined>(wheelPassthrough);
+  wheelPassthroughRef.current = wheelPassthrough;
 
   // Canonical viewport in a ref — synchronous, drives the world transform.
   const vpRef = useRef<ViewportState>({ x: 0, y: 0, zoom: 1 });
@@ -1302,10 +1500,22 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
   const PROGRAMMATIC_EASE_MS = 200;
   const fit = useCallback(() => {
     const next = computeFitRef.current();
+    fitMark = { ...next, zoom: clampZoom(next.zoom) };
+    // already on the target: nothing moves, so republish the same camera and let the reporter say "fit"
+    if (viewportAtFit(vpRef.current, fitMark)) setViewportPublished({ ...vpRef.current });
     const a = animateToRef.current;
     if (a) a(next, PROGRAMMATIC_EASE_MS);
     else applyViewport(next);
   }, [applyViewport]);
+
+  const refitBoot = useCallback(() => {
+    if (interactingRef.current) return;
+    const next = computeFitRef.current();
+    vpRef.current = { ...next };
+    liveViewport = { ...next };
+    writeTransform(vpRef.current, { crisp: true });
+    setViewportPublished({ ...vpRef.current });
+  }, []);
 
   const reset = useCallback(() => {
     const host = hostRef.current;
@@ -1457,6 +1667,8 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
     };
 
     const spaceHeld = { current: false };
+    // S7.8 — a tap on Space (up inside 200 ms, no drag between) is "play", not the Hand; the shell plays.
+    const spaceTap = createSpaceTap();
     const panState: {
       active: boolean;
       pointerId: number;
@@ -1546,11 +1758,12 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
     const onPointerDown = (e: PointerEvent) => {
       const isMiddle = e.button === 1;
       const isLeftWithSpace = e.button === 0 && spaceHeld.current;
+      if (isLeftWithSpace) spaceTap.drag(); // the Hand panned: this Space was never a tap
       // Phase 4.1 hand tool: bare left-button initiates pan when the consumer
       // signals hand-mode via `isPanDragActive`. Read per-event so the live
       // tool state controls the gate.
       const isLeftWithHandTool =
-        e.button === 0 && !spaceHeld.current && !!isPanDragActiveRef.current?.();
+        e.button === 0 && !spaceHeld.current && !!isPanDragActiveRef.current?.(e);
       if (!isMiddle && !isLeftWithSpace && !isLeftWithHandTool) return;
       e.preventDefault();
       try {
@@ -1590,15 +1803,15 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
       // Spacebar pan affordance — only when no input is focused.
       if (e.code === 'Space' && !isEditableTarget(e.target)) {
         spaceHeld.current = true;
+        spaceTap.down(e.timeStamp);
         host.style.cursor = panState.active ? 'grabbing' : 'grab';
         e.preventDefault();
         return;
       }
       const mod = e.metaKey || e.ctrlKey;
-      if (!mod) return;
       // Cmd+Option+1..9 → jump to artboard N (Option avoids Chrome's
       // Cmd+1..9 tab-switching shortcut).
-      if (e.altKey && /^Digit[1-9]$/.test(e.code)) {
+      if (mod && e.altKey && /^Digit[1-9]$/.test(e.code)) {
         const n = Number(e.code.slice(-1));
         const target = jumpTargetsRef.current?.[n - 1];
         if (target) {
@@ -1608,21 +1821,22 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
         return;
       }
       if (e.altKey) return;
-      switch (e.key) {
-        case '0':
+      // V2-3.11 — the zoom keys come from the registry (⌘= / ⌘+ / ⌘− / ⌘0 Fit / ⇧0 Actual size).
+      // ⌘1…⌘9 are the native tab accelerators: this listener must never prevent them.
+      switch (resolveCanvasKey(CANVAS_ZOOM_KEYS, e, false, undefined, canvasSingleKeys())) {
+        case 'view.zoom-fit':
           e.preventDefault();
           fit();
           return;
-        case '1':
+        case 'view.zoom-actual':
           e.preventDefault();
           reset();
           return;
-        case '=':
-        case '+':
+        case 'view.zoom-in':
           e.preventDefault();
           zoomIn();
           return;
-        case '-':
+        case 'view.zoom-out':
           e.preventDefault();
           zoomOut();
           return;
@@ -1631,6 +1845,7 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
     const onKeyUp = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
         spaceHeld.current = false;
+        if (spaceTap.up(e.timeStamp)) sendSpaceTap(window);
         host.style.cursor = panState.active ? 'grabbing' : '';
       }
     };
@@ -1647,6 +1862,7 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
     const doc = host.ownerDocument || document;
     const captureWheel = (e: WheelEvent) => {
       if (!host.contains(e.target as Node)) return;
+      if (wheelPassthroughRef.current?.(e)) return; // S3.9: Preview — the design scrolls itself
       onWheel(e);
     };
     const captureKeyDown = (e: KeyboardEvent) => {
@@ -1706,6 +1922,7 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
     panBy,
     zoomAt,
     fit,
+    refitBoot,
     reset,
     zoomIn,
     zoomOut,
@@ -1734,36 +1951,73 @@ export function useViewportControllerContext(): ViewportControllerHandle | null 
   return useContext(ControllerContext);
 }
 
+export type { MovedArtboard } from './drag-bus.ts';
 // Drag-state context (Phase 4.2) — published by DesignCanvas so SnapGuideOverlay
 // (mounted by CanvasShell) can read the active drag's snap guides + so each
 // DCArtboard can know whether it's being dragged as a follower (multi-select
 // drag). A single source-of-truth: only one drag can be active at a time, so
 // the bus holds a single DragState. Each DCArtboard's hook writes here when
 // non-idle and resets to idle on release.
-/** Optional metadata accompanying a position commit. */
-export interface CommitPositionsOptions {
-  /**
-   * HUD / undo-stack label override. Default = `"move N artboard(s)"`.
-   * Distribute / align gestures pass their own label so undo HUD reads
-   * `"Undo: equal-space 4 artboards"` instead of `"Undo: move 4 artboards"`.
-   */
-  label?: string;
-}
+// S2.9b — the bus's stable half (frames, riders, layoutRects, the commit door) lives in
+// drag-bus.ts; contract client/v2/contracts/S2-S4-artboard-motion-ids.md §1–§2.
+export type { CommitPositionsOptions, CommitRider, DragFrame, LayoutRect };
 
-interface DragStateBus {
+interface DragStateBus extends DragBusCore {
   current: DragState;
   setCurrent: (s: DragState) => void;
-  /** Commit drag positions — DesignCanvas wires this to patchCanvasMeta. */
-  commitPositions: (
-    moved: { id: string; x: number; y: number }[],
-    opts?: CommitPositionsOptions
-  ) => void;
 }
 
 const DragStateContext = createContext<DragStateBus | null>(null);
+/** S2.9b — the same stable core, in a context whose value never changes during a drag. */
+const DragFramesContext = createContext<DragBusCore | null>(null);
 
 export function useDragStateContext(): DragStateBus | null {
   return useContext(DragStateContext);
+}
+
+/**
+ * S2.9b — `subscribeFrames` / `onCommit` / `layoutRects` without re-rendering per frame: a layer
+ * that moves 200 stickies at 60 fps reads the bus here, not through `useDragStateContext` (whose
+ * value changes with `current`).
+ */
+export function useDragFrames(): DragBusCore | null {
+  return useContext(DragFramesContext);
+}
+
+/** S4.10 — the handlers a layer rides the bus with (contract §1–§2). */
+export interface DragBusRide {
+  /** Every drag frame, synchronously, outside React. */
+  frame?: (f: DragFrame) => void;
+  /** The ops that ride with a position commit (one undo group). */
+  rider?: CommitRider;
+}
+
+/**
+ * S4.10 — subscribe a frame handler and a commit rider to `bus` THROUGH A REF: the
+ * handlers may change on every render, the subscription does not, and a frame never
+ * sets React state — a layer moving 200 members at 60 fps renders nothing per frame
+ * (S4 Risk 1). Returns the bus (null outside a DesignCanvas: nothing rides).
+ */
+export function useDragBusRideOn(bus: DragBusCore | null, ride: DragBusRide): DragBusCore | null {
+  const ref = useRef(ride);
+  ref.current = ride;
+  useEffect(() => {
+    if (!bus) return;
+    const offFrames = bus.subscribeFrames((f) => ref.current.frame?.(f));
+    const offRider = bus.onCommit(
+      (moved, undoGroup) => ref.current.rider?.(moved, undoGroup) ?? null
+    );
+    return () => {
+      offFrames();
+      offRider();
+    };
+  }, [bus]);
+  return bus;
+}
+
+/** `useDragBusRideOn` on this DesignCanvas's bus. */
+export function useDragBusRide(ride: DragBusRide): DragBusCore | null {
+  return useDragBusRideOn(useDragFrames(), ride);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1803,7 +2057,8 @@ export function DesignCanvas(props: DesignCanvasProps) {
   // CollabProvider is omitted; useCollab() falls back gracefully to null.
   const collabSlug = canvasSlugFromPath(canvasFile);
   const inner = (
-    <MaybeToolProvider>
+    // V2-4.3b — this instance owns the toolbar, so it is the one the shell's `set-mode` governs.
+    <MaybeToolProvider governed>
       <DesignCanvasInner {...props} />
     </MaybeToolProvider>
   );
@@ -2080,10 +2335,16 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
   const artboardsRef = useRef(artboards);
   artboardsRef.current = artboards;
 
+  // V2-1.2 §5.6 I2 — the camera getInitial() fitted at boot (null: persisted / resumed / already inset).
+  const bootFitRef = useRef<ViewportState | null>(null);
+  // p8-edit-multi-flake — the camera the runtime placed by itself and the host size it fits (null: persisted /
+  // resumed, or the camera has moved since). A host that grows from a placeholder size re-fits (below).
+  const autoFitRef = useRef<AutoFit | null>(null);
+
   const computeFitForArtboards = useCallback((): ViewportState => {
     const host = hostRef.current;
     if (!host) return { x: 0, y: 0, zoom: 1 };
-    return computeFit(artboardsRef.current, host);
+    return computeFit(artboardsRef.current, host, 24, canvasInsets());
   }, []);
 
   const getInitial = useCallback((): ViewportState | null => {
@@ -2098,7 +2359,12 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
     }
     const host = hostRef.current;
     if (!host) return null;
-    return computeFit(artboardsRef.current, host);
+    const fit = computeFit(artboardsRef.current, host, 24, canvasInsets());
+    // §5.6 I2 — remember the boot fit only if no insets had arrived yet (else it already honours them).
+    bootFitRef.current =
+      typeof window !== 'undefined' && canvasModeStore(window).get().insetsSeq < 0 ? fit : null;
+    autoFitRef.current = { camera: { ...fit }, w: host.clientWidth, h: host.clientHeight };
+    return fit;
   }, []);
 
   const onSettle = useCallback((v: ViewportState) => {
@@ -2108,7 +2374,16 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
   const toolModeCtx = useToolModeOptional();
   const toolRef = useRef(toolModeCtx?.tool ?? 'move');
   toolRef.current = toolModeCtx?.tool ?? 'move';
-  const isPanDragActive = useCallback(() => toolRef.current === 'hand', []);
+  // S3.9 — Hand pans anywhere; Preview's Hand (`browse`) pans only off the design (V2-1.2 Q3).
+  const isPanDragActive = useCallback(
+    (e: PointerEvent) => pressStartsPan(toolRef.current, e.target),
+    []
+  );
+  // S3.9 — a web artboard scrolls inside itself in Preview; any other wheel pans as before.
+  const wheelPassthrough = useCallback(
+    (e: WheelEvent) => previewWheelPassthrough(e, canvasModeStore(window).get().mode),
+    []
+  );
 
   const controller = useViewportController({
     hostRef,
@@ -2118,7 +2393,75 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
     onSettle,
     jumpTargets: artboards,
     isPanDragActive,
+    wheelPassthrough,
   });
+
+  // S3.9 — Edit ⇄ Preview: the camera eases onto the artboard in view, once (preview/preview-camera.tsx).
+  usePreviewCamera({
+    hostRef,
+    artboards,
+    controller,
+    getCamera: getLiveViewport,
+    fit: (rect) => {
+      const host = hostRef.current;
+      return host ? computeFit([rect], host, 24, canvasInsets()) : { x: 0, y: 0, zoom: 1 };
+    },
+  });
+
+  // V2-1.2 §5.6 I2 — boot re-fit, once only. The shell's first `occluded-insets` usually lands after
+  // the boot fit (the runtime listener installs after `loaded`), which would leave a fresh canvas fitted
+  // under a floating panel. Re-fit once if the camera is still exactly the boot fit; any later inset
+  // change never moves the camera (I1).
+  const controllerRef = useRef(controller);
+  controllerRef.current = controller;
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    return onFirstInsets(canvasModeStore(window), (s) => {
+      const c = controllerRef.current;
+      const boot = bootFitRef.current;
+      bootFitRef.current = null;
+      if (shouldBootRefit(boot, c.viewport, c.isInteracting, s.insets)) {
+        c.refitBoot();
+        const host = hostRef.current;
+        const now = getLiveViewport();
+        if (host && now)
+          autoFitRef.current = { camera: now, w: host.clientWidth, h: host.clientHeight };
+      }
+    });
+  }, []);
+
+  // p8-edit-multi-flake — the boot fit follows the host until the camera moves. A frame can lay out at an
+  // iframe's 300 x 150 default before the shell sizes it; a camera fitted then stayed thumbnail-small on the
+  // full-size frame. Re-fit in place (crisp, nothing persisted — still a boot camera) while the camera is
+  // exactly the runtime's own fit; drop the record the first time it is not.
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => {
+      const auto = autoFitRef.current;
+      if (!auto) return;
+      const c = controllerRef.current;
+      const now = getLiveViewport();
+      const w = host.clientWidth;
+      const h = host.clientHeight;
+      if (shouldResizeRefit(auto, now, c.isInteracting, w, h)) {
+        c.refitBoot();
+        const after = getLiveViewport();
+        autoFitRef.current = after ? { camera: after, w, h } : null;
+      } else if (
+        now &&
+        (now.x !== auto.camera.x || now.y !== auto.camera.y || now.zoom !== auto.camera.zoom)
+      ) {
+        autoFitRef.current = null;
+      }
+    });
+    ro.observe(host);
+    return () => ro.disconnect();
+  }, []);
+
+  // S3.2a — Present · Artboards: inert until the shell's `set-mode` says so (present/present-stage.tsx).
+  const presentSelection = useSelectionSetOptional();
+  usePresentStage({ hostRef, worldRef, artboards, controller, selection: presentSelection });
 
   const rectById = useMemo(() => {
     const m = new Map<string, ArtboardRect>();
@@ -2221,9 +2564,13 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
    * undo stack — both the initial commit (do) and every undo/redo replay
    * route through here, so React state always tracks the server.
    */
-  const applyArtboardLayout = useCallback((layout: unknown) => {
+  const applyArtboardLayout = useCallback((layout: unknown, rider?: LayoutRider) => {
+    const was = artboardsRef.current;
     setArtboards(layout as ArtboardRect[]);
-    patchCanvasMeta({ layout: { artboards: layout as ArtboardRect[] } });
+    patchCanvasMeta(
+      { layout: { artboards: layout as ArtboardRect[] } },
+      rider ? { ...rider, onRefused: () => setArtboards(was) } : undefined
+    );
   }, []);
 
   // Register the layout patch sink with the undo provider so the rebuilt
@@ -2234,43 +2581,46 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
     return () => undoSinks.setSink('layoutPatchFn', undefined);
   }, [undoSinks, applyArtboardLayout]);
 
-  const commitArtboardPositions = useCallback(
-    (moved: { id: string; x: number; y: number }[], opts?: CommitPositionsOptions) => {
-      const movedById = new Map(moved.map((m) => [m.id, m]));
-      const before = artboardsRef.current;
-      const next = before.map((r) => {
-        const m = movedById.get(r.id);
-        if (m) return { ...r, x: m.x, y: m.y };
-        return r;
-      });
-      // Phase 20 — skip pushing no-op drags (click-without-movement). The
-      // user got back what they had, no edit happened, undo would do nothing.
-      if (!diffLayoutPositions(before, next)) return;
-      const record = buildMoveArtboardsRecord({
-        before: before.map((r) => ({ id: r.id, x: r.x, y: r.y, w: r.w, h: r.h })),
-        after: next.map((r) => ({ id: r.id, x: r.x, y: r.y, w: r.w, h: r.h })),
-        ...(opts?.label ? { label: opts.label } : {}),
-      });
-      // push() invokes the rebuilt cmd.do() = applyArtboardLayout(next) BEFORE
-      // updating the stack, so the optimistic local + PATCH flow is preserved.
-      void undoStackRef.current.push(record);
-    },
+  // S2.9b — the bus core: one per mount, stable across drags (frames, riders, layoutRects and
+  // the commit door every artboard-position commit goes through — drag, nudge, align, Tidy).
+  // Phase 20's no-op skip (click without movement) lives in the core.
+  const busCore = useMemo(
+    () =>
+      createDragBusCore({
+        layout: () => artboardsRef.current,
+        commit: (after, before, opts) => {
+          const record = buildMoveArtboardsRecord({
+            before,
+            after,
+            ...(opts.label ? { label: opts.label } : {}),
+            ...(opts.rider ? { rider: opts.rider } : {}),
+          });
+          // push() invokes the rebuilt cmd.do() = applyArtboardLayout(next, rider) BEFORE
+          // updating the stack, so the optimistic local + PATCH flow is preserved.
+          void undoStackRef.current.push(record);
+        },
+      }),
     []
   );
 
   const dragBus = useMemo<DragStateBus>(
-    () => ({
-      current: dragCurrent,
-      setCurrent: setDragCurrent,
-      commitPositions: commitArtboardPositions,
-    }),
-    [dragCurrent, commitArtboardPositions]
+    () => ({ ...busCore, current: dragCurrent, setCurrent: setDragCurrent }),
+    [dragCurrent, busCore]
   );
 
   const inner = (
     <div className="dc-canvas" ref={hostRef}>
-      <div className="dc-world" ref={worldRef} style={worldStyle}>
+      <div
+        className="dc-world"
+        ref={worldRef}
+        style={worldStyle}
+        data-dc-scale={IS_WEBKIT ? 'transform' : 'zoom'}
+      >
         {children}
+        {/* S11.5 — the outlines an all-trashed canvas keeps (world coords, no hit area, shell-told). */}
+        <ArtboardGhostsLayer />
+        {/* S7.13 — the link glyphs between linked video artboards, and "Unlinked copy — its own cut" (derived, never exported). */}
+        <VideoLinksLayer />
       </div>
       {showMiniMap ? <DCMiniMap /> : null}
       {/* Plan C F6 — separate bottom-left zoom pill (the design's ZoomHud).
@@ -2279,15 +2629,21 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
           ToolPalette's inline zoom is removed in tool-palette.tsx). It carries
           MORE than the mock — fit + actual-size — so no capability is lost. */}
       {showZoom ? <DCZoomToolbar /> : null}
+      <ViewportZoomReporter />
+      {/* ── S8.19 (L1) placeholder frames ── "Waiting for Jonas's Mac" / Missing over a picture
+          that failed to load; driven only by the shell's dgn `asset-state` (asset-placeholder.tsx). */}
+      <AssetPlaceholderLayer />
     </div>
   );
 
   return (
     <WorldContext.Provider value={ctxValue}>
       <ControllerContext.Provider value={controller}>
-        <DragStateContext.Provider value={dragBus}>
-          <CanvasShell hostRef={hostRef}>{inner}</CanvasShell>
-        </DragStateContext.Provider>
+        <DragFramesContext.Provider value={busCore}>
+          <DragStateContext.Provider value={dragBus}>
+            <CanvasShell hostRef={hostRef}>{inner}</CanvasShell>
+          </DragStateContext.Provider>
+        </DragFramesContext.Provider>
       </ControllerContext.Provider>
     </WorldContext.Provider>
   );
@@ -2335,53 +2691,11 @@ export function DCSection({
 DCSection.displayName = 'DCSection';
 
 /**
- * Small monochrome glyph shown in the SKU-strip header for a non-`digital`
- * artboard (T3). Mirrors the corner video-badge's stroke style (viewBox 16,
- * `currentColor`, ~1.2px stroke) for chrome consistency. `video` reuses that
- * exact badge glyph.
+ * The kind glyph before an artboard's name (T3, 08 RC-3): the DS family's `web` / `digital` / `video` / `print`
+ * (`canvas-ds-icons.tsx`, pinned path-for-path to the kit), 12 px, `currentColor`. Every kind has one - digital too.
  */
 function ArtboardKindIcon({ kind }: { kind: ArtboardKind }) {
-  if (kind === 'print') {
-    return (
-      <svg viewBox="0 0 16 16" width="10" height="10" fill="none" aria-hidden="true">
-        <rect
-          x="3"
-          y="1.5"
-          width="10"
-          height="5"
-          rx="0.5"
-          stroke="currentColor"
-          strokeWidth="1.2"
-        />
-        <rect x="1.5" y="6" width="13" height="6" rx="1" stroke="currentColor" strokeWidth="1.2" />
-        <rect x="4.5" y="10.5" width="7" height="4" stroke="currentColor" strokeWidth="1.1" />
-      </svg>
-    );
-  }
-  if (kind === 'web') {
-    return (
-      <svg viewBox="0 0 16 16" width="10" height="10" fill="none" aria-hidden="true">
-        <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.2" />
-        <path
-          d="M2 8h12M8 2c2 2 2 10 0 12M8 2c-2 2-2 10 0 12"
-          stroke="currentColor"
-          strokeWidth="1.1"
-        />
-      </svg>
-    );
-  }
-  // video — same glyph as the corner Timeline badge.
-  return (
-    <svg viewBox="0 0 16 16" width="10" height="10" fill="none" aria-hidden="true">
-      <rect x="1.5" y="4.5" width="8" height="7" rx="1.2" stroke="currentColor" strokeWidth="1.3" />
-      <path
-        d="M9.5 7l4-2.3v6.6l-4-2.3"
-        stroke="currentColor"
-        strokeWidth="1.3"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
+  return <DsIcon name={kind} size={12} />;
 }
 ArtboardKindIcon.displayName = 'ArtboardKindIcon';
 
@@ -2392,7 +2706,7 @@ ArtboardKindIcon.displayName = 'ArtboardKindIcon';
  * layout has no matching id. Outside DesignCanvas (DS specimens, legacy
  * uses) it renders a plain fixed-size block.
  */
-export function DCArtboard({
+function DCArtboardBody({
   id,
   label,
   width,
@@ -2405,6 +2719,7 @@ export function DCArtboard({
   kind,
   guides,
   print,
+  safeZones,
   children,
 }: {
   id: string;
@@ -2439,11 +2754,19 @@ export function DCArtboard({
    *  Only meaningful when `kind="print"`; the overlay (T3) reads it to draw
    *  bleed/trim/margin guides against THIS artboard's own resolved px size. */
   print?: ArtboardPrintProp;
+  /** S7.22 — where a platform's own interface covers this artboard: one preset id from
+   *  `kinds/safe-zones.ts` ("instagram-story", "instagram-reels", "instagram-grid", "tiktok",
+   *  "youtube-shorts", "facebook-event-cover"). Design intent (DDR-181); whether it is DRAWN is per-person
+   *  view state (`overlays.safeZones`). The bands are canvas-only and never exported. A 1.x peer ignores it. */
+  safeZones?: string;
   children: ReactNode;
 }) {
   countRender('artboardRenders');
   const ctx = useWorldContext();
-  const _controller = useViewportControllerContext();
+  // No `useViewportControllerContext()` here: its value was never read, and subscribing to it
+  // re-rendered EVERY board each time a gesture burst started, ended or published the viewport
+  // (V2-8.8: 1,785 / 5,440 renders per fit-all gesture at 21 / 64 boards, against 966 / 2,944
+  // before v2). What a board needs from the viewport it takes from `useLiveViewport()` below it.
   const toolMode = useToolModeOptional();
   const chrome = useChromeVisibility();
   const selSet = useSelectionSetOptional();
@@ -2451,15 +2774,15 @@ export function DCArtboard({
   // Phase 13 / DDR-029 — live "agent works here" overlay. Inert (present=false)
   // outside CanvasActivityProvider, so specimens / legacy mounts never show it.
   const activity = useCanvasActivity();
-  // Phase 13.2 / DDR-078 — when an agent is the editor, tint the overlay with
-  // its presence color + show its funny name instead of the generic file label.
-  const agent = useAgentPresence();
   const rect = ctx ? ctx.rectFor(id) : null;
   // T1/T2 — explicit `kind` wins; `subtreeHasVideoComp` is the fallback that
   // keeps existing unmigrated video canvases badged identically without
   // requiring a JSX edit (Design Decision 1).
   const hasVideoContent = useMemo(() => subtreeHasVideoComp(children), [children]);
-  const resolvedKind: ArtboardKind = kind ?? (hasVideoContent ? 'video' : 'digital');
+  // a kind the four do not know (an old `kind="social"`) resolves like no kind: the inspector's rows, the Layers
+  // filter and the label all match on digital · web · print · video
+  const resolvedKind: ArtboardKind =
+    kind && ARTBOARD_KINDS.has(kind) ? kind : hasVideoContent ? 'video' : 'digital';
   // DDR-148 — badge video artboards in the header; clicking the badge opens
   // the timeline panel via the same postMessage the context-menu "Open
   // Timeline" entry already sends (canvas-shell.tsx artboardHasVideo/handler).
@@ -2490,9 +2813,14 @@ export function DCArtboard({
     // Cloud Phase 25 C2 — a read-only canvas keeps the Move tool for
     // selection, but artboards don't drag (editing is absent, not hidden).
     enabled: !!ctx && (toolMode?.tool ?? 'move') === 'move' && !isReadOnlyCanvas(),
-    onCommit: (moved) => {
-      if (dragBus) dragBus.commitPositions(moved);
+    // S2.9b — the ⌥-drag duplicate gesture carries no riders (contract §2: annotations are not
+    // duplicated with an artboard in v2.0); every other drop rides.
+    onCommit: (moved, { alt }) => {
+      // S2.10 — an ⌥ drop copies (the originals stay; `editing/artboard-commands.tsx` writes the copy);
+      // with nothing listening (an embed, a specimen) it is the v1 move, without riders (contract §2).
+      if (dragBus) routeDrop(alt, moved, window, (m, o) => dragBus.commitPositions(m, o));
     },
+    onFrame: (f) => dragBus?.emitFrame(f),
   });
 
   // Publish this artboard's drag state to the bus. Only push when non-idle;
@@ -2521,6 +2849,17 @@ export function DCArtboard({
   // shell writes the `label` prop), Escape or an unchanged name cancels.
   const [renaming, setRenaming] = useState(false);
   const renameDoneRef = useRef(false);
+  // S2.10 — the registry's `artboard.rename` and Tab from the previous name open this one's field.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const open = (e: Event) => {
+      if ((e as CustomEvent<{ id?: string }>).detail?.id !== id || isReadOnlyCanvas()) return;
+      renameDoneRef.current = false;
+      setRenaming(true);
+    };
+    window.addEventListener(RENAME_EVENT, open);
+    return () => window.removeEventListener(RENAME_EVENT, open);
+  }, [id]);
   const commitRename = (value: string) => {
     if (renameDoneRef.current) return;
     renameDoneRef.current = true;
@@ -2537,19 +2876,80 @@ export function DCArtboard({
     }
   };
   const articleRef = useRef<HTMLElement | null>(null);
-  const measured = useArtboardBounds(articleRef as RefObject<HTMLElement | null>);
+  // half a CSS px: Blink's zoom re-measures the frame with sub-pixel noise on every pinch frame (V2-8.8)
+  const measured = useArtboardBounds(articleRef as RefObject<HTMLElement | null>, 0.5);
   useEffect(() => {
-    if (!ctx || fixed) return;
+    // Fixed artboards report too: their frame is label + the declared body,
+    // so the model rect must be the measured frame like a hug board's. Never
+    // a feedback loop — the fixed body height reads the `height` prop, not
+    // rect.h — and never persisted (patchCanvasMeta strips w/h, DDR-027).
+    if (!ctx) return;
     if (dragHook.dragState.kind !== 'idle') return;
     if (measured.height <= 0) return;
     ctx.reportMeasuredHeight(id, Math.round(measured.height));
-  }, [ctx, fixed, dragHook.dragState.kind, measured.height, id]);
+  }, [ctx, dragHook.dragState.kind, measured.height, id]);
+  // S7.21 (08 ak-web-hug) — "+ 373 px" beside a web page that just grew (a hugging page only; never exported)
+  const growth = useGrowthDelta(resolvedKind === 'web' && !fixed, measured.height, id);
+  // P8 C3 (04 X1) - the breakpoint chip and the growth tag are Edit's chrome (the what-shows `object-tools` cell;
+  // an ungoverned canvas keeps v1): Preview / Viewing / Present show the design, not Maude's marks on it.
+  const governedMode = useGovernedMode();
+  const artboardEditChrome = modeShows(governedMode, 'object-tools');
+
+  // The design surface (`.dc-artboard-body`) inside the frame, in world px —
+  // offsets are layout values, untouched by the world's pan/zoom transform.
+  // Guides (print bleed/trim/margins, layout grids) describe the DESIGN, so
+  // they are drawn over it, not over the frame with its label strip.
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+  // ... and the section that arrived, framed and named beside it (08 ak-web-hug "Rozpis zápasů · new section")
+  const newSection = useNewSection(bodyRef, resolvedKind === 'web' && !fixed, measured.height, id);
+  // S7.25 — the one warning style: this artboard checks itself (print · web · video) and marks its label
+  const warnings = useArtboardWarnings({
+    id,
+    kind: resolvedKind,
+    width: typeof width === 'number' ? width : undefined,
+    height: typeof height === 'number' ? height : undefined,
+    fixed: !!fixed,
+    print,
+    bodyRef,
+  });
+  const [surface, setSurface] = useState<{ dx: number; dy: number; w: number; h: number } | null>(
+    null
+  );
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the measured frame size is the re-measure trigger; refs are read inside.
+  useLayoutEffect(() => {
+    const a = articleRef.current;
+    const b = bodyRef.current;
+    if (!a || !b) return;
+    const next = {
+      dx: a.clientLeft + b.offsetLeft,
+      dy: a.clientTop + b.offsetTop,
+      w: b.offsetWidth,
+      h: b.offsetHeight,
+    };
+    setSurface((prev) =>
+      prev && prev.dx === next.dx && prev.dy === next.dy && prev.w === next.w && prev.h === next.h
+        ? prev
+        : next
+    );
+  }, [measured.width, measured.height]);
 
   // Phase 2 — background/padding/layout/gap apply to the BODY (content box),
   // not the frame (label header stays chrome-styled). Undefined keys are
   // simply absent from the style object — no engine-CSS default is clobbered.
   const bodyStyle = useMemo<CSSProperties>(() => {
     const st: CSSProperties = {};
+    // V2-2.8 "fixed artboard loses 24 px" — a FIXED artboard's declared height
+    // is its design surface: the body is exactly `height` tall (border-box, so
+    // a padding knob stays inside it) and never flexes. The label strip sits
+    // ABOVE it inside the frame, as before, so nothing on an existing canvas
+    // moves; the frame simply grows by the label at the bottom instead of the
+    // body losing the label's height (which clipped the foot and made the
+    // canvas disagree with the export, where the label is hidden).
+    if (fixed) {
+      st.height = heightFloor;
+      st.flex = 'none';
+      st.boxSizing = 'border-box';
+    }
     if (background) st.background = background;
     // number → px; string → a var(--token) binding (validated server-side).
     if (typeof padding === 'number' || typeof padding === 'string') st.padding = padding;
@@ -2564,7 +2964,7 @@ export function DCArtboard({
       st.display = 'grid';
     }
     return st;
-  }, [background, padding, gap, layout]);
+  }, [fixed, heightFloor, background, padding, gap, layout]);
 
   // Read-back surface for the Inspector's ArtboardKnobs panel — the SAME
   // generic "custom HTML attributes" escape hatch dom-selection.ts already
@@ -2572,6 +2972,8 @@ export function DCArtboard({
   // panel pre-fills current state with no new plumbing. React omits an
   // attribute entirely when its value is `undefined`.
   const readBackAttrs = {
+    // S2.22 G1 — the artboard's own name, so the inspector title says "Desktop", not the id "desktop".
+    'data-dc-label': typeof label === 'string' && label ? label : undefined,
     'data-dc-fixed': fixed ? 'true' : undefined,
     'data-dc-bg': background,
     'data-dc-padding': padding != null ? String(padding) : undefined,
@@ -2588,6 +2990,13 @@ export function DCArtboard({
     // Inspector editor. Small object (≤ ~150 bytes), so a plain JSON attr is
     // simpler than adding parallel data-dc-print-* scalar attrs per field.
     'data-dc-print': print ? JSON.stringify(print) : undefined,
+    // S7.22 — read-back for the Inspector's Safe zones row (same "stamp the resolved prop" shape as print).
+    'data-dc-safe-zones': typeof safeZones === 'string' && safeZones ? safeZones : undefined,
+    // S7.23 — read-back for the Inspector's Advanced › Guides row (same "stamp the resolved prop" shape as print).
+    'data-dc-guides': guides ? JSON.stringify(guides) : undefined,
+    // S7.25 — the Inspector's top rows (the warnings) and "Made from" (Change kind's copy), read back like print
+    'data-dc-warnings': warningsAttr(warnings),
+    'data-dc-made-from': madeFromLabel(id) ?? undefined,
   };
 
   if (!ctx || !rect) {
@@ -2596,11 +3005,11 @@ export function DCArtboard({
         className="dc-artboard"
         data-dc-screen={id}
         ref={articleRef}
-        style={fixed ? { width, height } : { width, height: 'auto', minHeight: heightFloor }}
+        style={fixed ? { width } : { width, height: 'auto', minHeight: heightFloor }}
         {...readBackAttrs}
       >
         <header className="dc-artboard-label sku">{label}</header>
-        <div className="dc-artboard-body" style={bodyStyle}>
+        <div className="dc-artboard-body" ref={bodyRef} style={bodyStyle}>
           {children}
         </div>
       </article>
@@ -2642,12 +3051,8 @@ export function DCArtboard({
   // this artboard (null scope = file-level = every artboard). Rendered as a
   // world-coord sibling of the <article> so it pans/zooms with the artboard.
   const showActivity = activity.present && matchesArtboard(activity.artboardIds, id);
-  // Agent-driven → funny name + agent color; manual edit → file label + default hue.
-  const activityLabel = agent
-    ? agent.name
-    : activity.artboardIds
-      ? `${activity.fileLabel}:${label}`
-      : activity.fileLabel;
+  // P8 C3 (04 X8) - the tag speaks as the AI ("AI’s new Desktop — shown live"), in the agent's colour; it names the
+  // artboard, never the file or the agent's nickname (v1's `editing — Combine-kampan.tsx`).
 
   return (
     <>
@@ -2662,9 +3067,11 @@ export function DCArtboard({
           top: liveY,
           width: rect.w,
           // Hug default: height:auto + minHeight floor, content dictates the
-          // box; the ResizeObserver above mirrors the settled size back into
-          // rect.h for other consumers. Fixed: today's exact-height behavior.
-          ...(fixed ? { height: rect.h } : { height: 'auto', minHeight: heightFloor }),
+          // box. Fixed: the BODY carries the exact declared height (bodyStyle)
+          // and the frame hugs label + body. Either way the ResizeObserver
+          // above mirrors the settled frame size back into rect.h for other
+          // consumers (fit, snapping, the minimap, culling).
+          ...(fixed ? { height: 'auto' } : { height: 'auto', minHeight: heightFloor }),
           // Off-screen artboards skip layout+paint. On a large multi-board
           // canvas (e.g. an 18-board moodboard) every board otherwise paints
           // onto one huge .dc-world plane whose device-pixel size exceeds
@@ -2674,8 +3081,7 @@ export function DCArtboard({
           // box so the model-based fit math (computeFit reads ArtboardRects,
           // never the DOM) and drag hit-testing are unaffected. RCA:
           // .ai/logs/rca/issue-canvas-pan-zoom-jank-large-moodboard.md
-          contentVisibility: 'auto',
-          containIntrinsicSize: `${rect.w}px ${rect.h}px`,
+          // gate-a-polish - the culling lives on the BODY (the frame no longer clips, so its name can sit above it).
         }}
         {...handleProps}
       >
@@ -2686,6 +3092,12 @@ export function DCArtboard({
             aria-label="Artboard name"
             defaultValue={label}
             maxLength={80}
+            // S2.10 — the field is as wide as the whole name (never the artboard's width, which would hide
+            // the end of a long one); it grows with every key.
+            style={{ width: 'max-content', minWidth: `${growCh(label)}ch` }}
+            onInput={(e) => {
+              e.currentTarget.style.minWidth = `${growCh(e.currentTarget.value)}ch`;
+            }}
             // biome-ignore lint/a11y/noAutofocus: the rename field opens on the designer's own double-click
             autoFocus
             onFocus={(e) => e.currentTarget.select()}
@@ -2696,7 +3108,13 @@ export function DCArtboard({
             onKeyDown={(e) => {
               e.stopPropagation();
               if (e.key === 'Enter') commitRename(e.currentTarget.value);
-              else if (e.key === 'Escape') {
+              else if (e.key === 'Tab') {
+                // S2.10 — save, then the next artboard's name opens (reading order; ⇧ goes back)
+                e.preventDefault();
+                const to = nextRenameId(ctx?.artboards ?? [], id, e.shiftKey);
+                commitRename(e.currentTarget.value);
+                if (to) requestRename(to);
+              } else if (e.key === 'Escape') {
                 renameDoneRef.current = true;
                 setRenaming(false);
               }
@@ -2717,18 +3135,17 @@ export function DCArtboard({
             // redundant with the Inspector's Kind picker), so a non-digital kind
             // must still reach the artboard's own accessible name or it's
             // invisible to AT users entirely.
-            aria-label={
+            aria-label={`${
               resolvedKind !== 'digital'
                 ? `Artboard ${label}, ${resolvedKind}`
                 : `Artboard ${label}`
-            }
+            }${warnings.length ? `, ${summaryWords(warnings.length)}` : ''}`}
           >
-            {resolvedKind !== 'digital' ? (
-              <span className="dc-artboard-kind-chip" aria-hidden="true">
-                <ArtboardKindIcon kind={resolvedKind} />
-              </span>
-            ) : null}
+            <span className="dc-artboard-kind-chip" aria-hidden="true">
+              <ArtboardKindIcon kind={resolvedKind} />
+            </span>
             {label}
+            <ArtboardWarnMark count={warnings.length} />
           </button>
         )}
         {hasVideo ? (
@@ -2758,16 +3175,25 @@ export function DCArtboard({
             </svg>
           </button>
         ) : null}
-        <div className="dc-artboard-body" style={bodyStyle}>
+        <div
+          className="dc-artboard-body"
+          ref={bodyRef}
+          style={{
+            ...bodyStyle,
+            contentVisibility: 'auto',
+            containIntrinsicSize: `${rect.w}px ${rect.h}px`,
+          }}
+        >
           {children}
         </div>
       </article>
       {showActivity ? (
         <ArtboardActivityOverlay
           rect={{ x: liveX, y: liveY, w: rect.w, h: rect.h }}
-          label={activityLabel}
+          label={label}
           active={activity.active}
-          color={agent?.color}
+          // 04 md-edge-ai: the AI is the spark token, whoever the agent is — the rim and its tag carry no
+          // per-agent presence colour (that hue read purple on a light canvas); `agent.color` stays for presence.
         />
       ) : null}
       {/* T4 — world-coord sibling, same reasoning as ArtboardActivityOverlay
@@ -2775,14 +3201,77 @@ export function DCArtboard({
           content-visibility subtree so guides are never culled/frozen with
           exported content (they're never exported at all). */}
       <ArtboardGuidesOverlay
-        rect={{ x: liveX, y: liveY, w: rect.w, h: rect.h }}
+        rect={
+          surface
+            ? { x: liveX + surface.dx, y: liveY + surface.dy, w: surface.w, h: surface.h }
+            : { x: liveX, y: liveY, w: rect.w, h: rect.h }
+        }
         kind={resolvedKind}
         guides={guides}
         print={print}
-        visibility={{ guides: chrome?.guides ?? false, print: chrome?.print ?? false }}
+        safeZones={safeZones}
+        artboardId={id}
+        visibility={{
+          guides: chrome?.guides ?? false,
+          print: chrome?.print ?? false,
+          safeZones: chrome?.safeZones ?? true,
+          editChrome: artboardEditChrome,
+        }}
       />
+      <ArtboardWarnOutlines
+        warnings={warnings}
+        bodyRef={bodyRef}
+        rect={
+          surface
+            ? { x: liveX + surface.dx, y: liveY + surface.dy, w: surface.w, h: surface.h }
+            : { x: liveX, y: liveY, w: rect.w, h: rect.h }
+        }
+        show={artboardEditChrome}
+      />
+      <ArtboardGrowthTag
+        x={liveX + rect.w}
+        bottom={liveY + rect.h}
+        delta={artboardEditChrome ? growth : null}
+      />
+      <ArtboardNewSection
+        x={liveX + (surface?.dx ?? 0)}
+        y={liveY + (surface?.dy ?? 0)}
+        section={artboardEditChrome ? newSection : null}
+      />
+      {/* V2-8.5 c7 (08 ak-convert-after) — "✓ Unchanged" / "+ 13 % height · Ink fill" after Make A6 print */}
+      <ArtboardConvertMarks
+        id={id}
+        x={liveX}
+        y={liveY}
+        w={rect.w}
+        h={rect.h}
+        show={artboardEditChrome}
+      />
+      {/* V2-8.5 c7 (01 cf-duplicate-done) — the gap to the source and the shared left edge after a menu duplicate */}
+      <ArtboardGapMark id={id} show={artboardEditChrome} />
     </>
   );
+}
+DCArtboardBody.displayName = 'DCArtboardBody';
+
+let thumbOnlyMemo: { search: string; id: string | null } | null = null;
+/**
+ * The thumbnail renderer's hint (`?thumb-only=<artboard id>`, added on the read-only capture origin
+ * for a version picture): mount that one artboard and none of the others (V2-8.14). Absent = no
+ * filtering. Read per render — it is a string compare — so a test can move the URL.
+ */
+function thumbOnly(): string | null {
+  if (typeof window === 'undefined') return null;
+  const search = window.location.search;
+  if (thumbOnlyMemo?.search !== search)
+    thumbOnlyMemo = { search, id: new URLSearchParams(search).get('thumb-only') };
+  return thumbOnlyMemo.id;
+}
+
+export function DCArtboard(props: ComponentProps<typeof DCArtboardBody>) {
+  const only = thumbOnly();
+  if (only !== null && props.id !== only) return null;
+  return <DCArtboardBody {...props} />;
 }
 DCArtboard.displayName = 'DCArtboard';
 
@@ -2814,6 +3303,8 @@ export interface CanvasRectsElement {
   h: number;
   tag: string;
   text: string;
+  /** S7.25 — a picture's own pixel width, for the effective-ppi warning (absent for anything else) */
+  naturalW?: number;
 }
 
 export interface CanvasRectsManifest {
@@ -2826,7 +3317,7 @@ export interface CanvasRectsManifest {
 // mirrors the pickSpecimenEl chrome denylist (canvas-comment-mount.tsx) plus
 // the annotation layer's own root.
 const RECTS_CHROME_SELECTOR =
-  '.cm-composer, .cm-thread, .cm-mention-popup, .cm-pin, [data-mc-hover-halo], [data-mdcc-annotations], .dc-minimap, .dc-zoom-toolbar';
+  '.cm-composer, .cm-thread, .cm-mention-popup, .cm-pin, [data-mc-hover-halo], [data-mdcc-annotations], .dc-minimap, .dc-zoom-toolbar, .dc-absent-layer';
 
 const RECTS_INTERACTIVE_TAGS = new Set([
   'button',
@@ -2879,7 +3370,17 @@ function buildCanvasRectsManifest(): CanvasRectsManifest {
   const artboards: ArtboardRect[] = [];
   const artboardEls = Array.from(document.querySelectorAll('[data-dc-screen]'));
   for (const el of artboardEls) {
-    const rect = (el as HTMLElement).getBoundingClientRect();
+    // An artboard's geometry is its DESIGN SURFACE (`.dc-artboard-body`) — the
+    // box that exports, at the size the canvas declares — not the frame with
+    // its label strip and 1 px border around it (V2-2.8: a fixed 1080×1350
+    // artboard reports 1080×1350). Falls back to the element itself for a
+    // `[data-dc-screen]` that has no body (legacy/specimen markup).
+    const body = Array.from(el.children).find((c) => c.classList.contains('dc-artboard-body'));
+    const bodyRect = body ? (body as HTMLElement).getBoundingClientRect() : null;
+    const rect =
+      bodyRect && bodyRect.width > 0 && bodyRect.height > 0
+        ? bodyRect
+        : (el as HTMLElement).getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) continue;
     const id = el.getAttribute('data-dc-screen');
     if (!id) continue;
@@ -2919,6 +3420,9 @@ function buildCanvasRectsManifest(): CanvasRectsManifest {
       ...toWorld(rect),
       tag: el.tagName.toLowerCase(),
       text: shortText(el, 120),
+      ...(el instanceof HTMLImageElement && el.naturalWidth > 0
+        ? { naturalW: el.naturalWidth }
+        : {}),
     });
   }
 
@@ -3245,6 +3749,59 @@ export function extractAssetRef(el: Element): string | null {
   return photoRefOf(el).match(ASSET_REF_RE)?.[0] ?? null;
 }
 
+// S8.15 — one use of a photo can carry its own edit: the authored attribute
+// `data-photo-edit="<edit8>"` names `assets/<img8>.<edit8>.photo.json` (contract
+// S8-asset-sidecars §5.1). Render order: that use's edit when its file is valid,
+// else the every-use `assets/<img8>.photo.json`, else the original. The bridge keys
+// its work by PHOTO KEY — `assets/<img8>.<ext>` for every use, `…#<edit8>` for one
+// use — so two uses of one picture bake apart. A 1.x canvas-lib never reads the
+// attribute and shows the every-use look.
+const PHOTO_EDIT_NAME_RE = /^[0-9a-f]{8,16}$/;
+
+/** The photo key of an element: its asset, plus `#<edit8>` when it carries its own edit. */
+export function photoKeyOf(el: Element): string | null {
+  const asset = extractAssetRef(el);
+  if (!asset) return null;
+  const edit = el.getAttribute('data-photo-edit');
+  return edit && PHOTO_EDIT_NAME_RE.test(edit) ? `${asset}#${edit}` : asset;
+}
+
+const keyAsset = (key: string): string => key.split('#')[0] as string;
+
+/**
+ * Every element showing `key` — or, with `use` (the `data-cd-id` of the one use the
+ * inspector is editing), that element only, whatever its key: its first edit has no
+ * name yet.
+ */
+export function findPhotoEls(key: string, use?: string): Element[] {
+  if (typeof document === 'undefined') return [];
+  const asset = keyAsset(key);
+  const out: Element[] = [];
+  for (const n of document.querySelectorAll('img, image')) {
+    if (use !== undefined) {
+      if (n.getAttribute('data-cd-id') === use && extractAssetRef(n) === asset) out.push(n);
+    } else if (photoKeyOf(n) === key) out.push(n);
+  }
+  return out;
+}
+
+/** The edit a key shows: its own file, else the every-use file (render order above). */
+async function fetchEditFor(key: string): Promise<PhotoEdit | null> {
+  const [asset, edit] = key.split('#') as [string, string | undefined];
+  const get = (q: string): Promise<Record<string, unknown> | null> =>
+    fetch(`/_api/photo-edit?${q}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null);
+  const a = `asset=${encodeURIComponent(asset)}`;
+  if (edit) {
+    const own = await get(`${a}&edit=${edit}`);
+    if (own && Object.keys(own).length > 0 && !isDefaultEdit(own as PhotoEdit))
+      return own as PhotoEdit;
+  }
+  const every = await get(a);
+  return every && Object.keys(every).length > 0 ? (every as PhotoEdit) : null;
+}
+
 function setPhotoElSrc(el: Element, url: string): void {
   if (el.tagName.toLowerCase() === 'image') {
     el.setAttribute(el.hasAttribute('xlink:href') ? 'xlink:href' : 'href', url);
@@ -3280,44 +3837,49 @@ export function PhotoPreviewBridge() {
     []
   );
 
-  const bake = useCallback((asset: string, original: string, edit: PhotoEdit) => {
-    const token = (tokenRef.current.get(asset) ?? 0) + 1;
-    tokenRef.current.set(asset, token);
-    import('./photo/pipeline.ts')
-      .then(({ renderPhotoDataUrl }) => renderPhotoDataUrl({ source: original, edit }))
-      .then((dataUrl) => {
-        if (tokenRef.current.get(asset) !== token) return; // superseded by a newer edit
-        const live = findPhotoEl(asset);
-        if (live) setPhotoElSrc(live, dataUrl);
-      })
-      .catch((err) => {
-        console.error('[PhotoPreviewBridge] bake failed', err);
-      });
-  }, []);
+  const bake = useCallback(
+    (slot: string, original: string, edit: PhotoEdit, key: string, use?: string) => {
+      const token = (tokenRef.current.get(slot) ?? 0) + 1;
+      tokenRef.current.set(slot, token);
+      import('./photo/pipeline.ts')
+        .then(({ renderPhotoDataUrl }) => renderPhotoDataUrl({ source: original, edit }))
+        .then((dataUrl) => {
+          if (tokenRef.current.get(slot) !== token) return; // superseded by a newer edit
+          for (const live of findPhotoEls(key, use)) setPhotoElSrc(live, dataUrl);
+        })
+        .catch((err) => {
+          console.error('[PhotoPreviewBridge] bake failed', err);
+        });
+    },
+    []
+  );
 
   const apply = useCallback(
-    (asset: string, edit: PhotoEdit | null) => {
-      const el = findPhotoEl(asset);
-      if (!el) return;
-      if (!el.hasAttribute('data-photo-asset')) el.setAttribute('data-photo-asset', asset);
+    (key: string, edit: PhotoEdit | null, use?: string) => {
+      const els = findPhotoEls(key, use);
+      if (els.length === 0) return;
+      const asset = keyAsset(key);
+      for (const el of els)
+        if (!el.hasAttribute('data-photo-asset')) el.setAttribute('data-photo-asset', asset);
       if (!originalRef.current.has(asset)) {
-        const orig =
-          el.getAttribute('src') || el.getAttribute('href') || el.getAttribute('xlink:href') || '';
-        originalRef.current.set(asset, orig);
+        const orig = photoRefOf(els[0] as Element);
+        if (!orig.startsWith('data:')) originalRef.current.set(asset, orig);
       }
       const original = originalRef.current.get(asset) ?? '';
+      // One bake slot per key — or per use while the inspector previews one use.
+      const slot = use === undefined ? key : `${key}@${use}`;
       const timers = bakeTimers.current;
-      clearTimeout(timers.get(asset));
+      clearTimeout(timers.get(slot));
       if (!edit || isDefaultEdit(edit)) {
-        timers.delete(asset);
+        timers.delete(slot);
         // A bake already rendering an earlier edit must not land over this.
-        tokenRef.current.set(asset, (tokenRef.current.get(asset) ?? 0) + 1);
-        setPhotoElSrc(el, original);
+        tokenRef.current.set(slot, (tokenRef.current.get(slot) ?? 0) + 1);
+        if (original) for (const el of els) setPhotoElSrc(el, original);
         return;
       }
       timers.set(
-        asset,
-        setTimeout(() => bake(asset, original, edit), BAKE_DEBOUNCE_MS)
+        slot,
+        setTimeout(() => bake(slot, original, edit, key, use), BAKE_DEBOUNCE_MS)
       );
     },
     [bake]
@@ -3340,27 +3902,24 @@ export function PhotoPreviewBridge() {
     const onRefreshed = (e: Event) => {
       const sha8 = (e as CustomEvent<{ sha8?: unknown }>).detail?.sha8;
       if (typeof sha8 !== 'string' || !/^[0-9a-f]{8}$/i.test(sha8)) return;
-      // Resolve the full `assets/<sha8>.<ext>` ref from the live DOM — the
-      // event carries only the hash (the sidecar name has no extension).
-      let asset: string | null = null;
+      // Resolve every photo key of that asset from the live DOM — the event
+      // carries only the hash (the sidecar name has no extension), and each use
+      // with its own edit (S8.15) is a key of its own.
+      const keys = new Set<string>();
       for (const n of document.querySelectorAll('img, image')) {
-        const ref = extractAssetRef(n);
-        if (ref?.includes(`assets/${sha8}.`)) {
-          asset = ref;
-          break;
-        }
+        const key = photoKeyOf(n);
+        if (key?.includes(`assets/${sha8}.`)) keys.add(key);
       }
-      if (!asset) return; // no photo on this canvas uses that asset
-      const target = asset;
-      const g = nextFetchGen(target);
-      fetch(`/_api/photo-edit?asset=${encodeURIComponent(target)}`)
-        .then((r) => (r.ok ? r.json() : null))
-        .then((edit) => {
-          if (!isLatestFetch(target, g)) return; // a newer answer owns the render
-          // A deleted/reset edit applies as null → restores the original src.
-          apply(target, edit && !isDefaultEdit(edit) ? (edit as PhotoEdit) : null);
-        })
-        .catch(() => {});
+      for (const target of keys) {
+        const g = nextFetchGen(target);
+        fetchEditFor(target)
+          .then((edit) => {
+            if (!isLatestFetch(target, g)) return; // a newer answer owns the render
+            // A deleted/reset edit applies as null → restores the original src.
+            apply(target, edit && !isDefaultEdit(edit) ? edit : null);
+          })
+          .catch(() => {});
+      }
     };
     document.addEventListener('maude:photo-edit-refreshed', onRefreshed);
     return () => document.removeEventListener('maude:photo-edit-refreshed', onRefreshed);
@@ -3368,7 +3927,13 @@ export function PhotoPreviewBridge() {
 
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
-      const m = e.data as { dgn?: string; asset?: unknown; edit?: unknown; busy?: unknown } | null;
+      const m = e.data as {
+        dgn?: string;
+        asset?: unknown;
+        edit?: unknown;
+        busy?: unknown;
+        use?: unknown;
+      } | null;
       if (!m) return;
       // Background-removal busy shimmer (Task 12 reveal) — a `data-photo-busy`
       // attribute toggle on the real element, styled by inspect.ts's single CSS
@@ -3388,8 +3953,16 @@ export function PhotoPreviewBridge() {
       if (m.dgn !== 'photo-preview' || typeof m.asset !== 'string') return;
       const asset = m.asset;
       const edit = (m.edit ?? null) as PhotoEdit | null;
-      nextFetchGen(asset);
-      apply(asset, edit);
+      // S8.15 — `use` (a `data-cd-id`) previews that one use; without it, every use
+      // that has no edit of its own.
+      const use = typeof m.use === 'string' && m.use ? m.use : undefined;
+      if (use !== undefined) {
+        for (const el of findPhotoEls(asset, use)) {
+          const key = photoKeyOf(el);
+          if (key) nextFetchGen(key);
+        }
+      } else nextFetchGen(asset);
+      apply(asset, edit, use);
     };
     window.addEventListener('message', onMsg);
     return () => window.removeEventListener('message', onMsg);
@@ -3423,16 +3996,15 @@ export function PhotoPreviewBridge() {
     const scan = () => {
       let scanned = 0;
       for (const n of document.querySelectorAll('img, image')) {
-        const asset = extractAssetRef(n);
-        if (!asset || attempted.has(asset)) continue;
+        const key = photoKeyOf(n);
+        if (!key || attempted.has(key)) continue;
         if (++scanned > MAX_SCAN_PER_PASS) break;
-        attempted.add(asset);
-        const g = nextFetchGen(asset);
-        fetch(`/_api/photo-edit?asset=${encodeURIComponent(asset)}`)
-          .then((r) => (r.ok ? r.json() : null))
+        attempted.add(key);
+        const g = nextFetchGen(key);
+        fetchEditFor(key)
           .then((edit) => {
-            if (cancelled || !isLatestFetch(asset, g) || !edit || isDefaultEdit(edit)) return;
-            apply(asset, edit);
+            if (cancelled || !isLatestFetch(key, g) || !edit || isDefaultEdit(edit)) return;
+            apply(key, edit);
           })
           .catch(() => {});
       }
@@ -3446,7 +4018,7 @@ export function PhotoPreviewBridge() {
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ['src', 'href'],
+      attributeFilter: ['src', 'href', 'data-photo-edit'],
     });
     return () => {
       cancelled = true;
@@ -3576,7 +4148,7 @@ export function SnapGuideOverlay() {
       {s.snap.guides.map((g, i) => {
         const kindClass = g.kind === 'grid' ? 'dc-snap-guide--grid' : 'dc-snap-guide--sibling';
         const delta = g.delta ?? 0;
-        const showPill = g.kind !== 'grid' && Math.abs(delta) > 0;
+        const showPill = g.kind !== 'grid' && Math.round(Math.abs(delta)) > 0; // "Δ0" says nothing (14 ed-ab-arrange)
         if (g.axis === 'x') {
           const sx = vp.x + g.pos * vp.zoom;
           const sFrom = vp.y + g.from * vp.zoom;
@@ -3685,7 +4257,7 @@ const OVERLAY_CSS = `
   background: var(--maude-chrome-bg-0, #ffffff);
   border: 1px solid var(--maude-chrome-fg-0, #1c1917);
   border-radius: ${FLOATING_RADIUS};
-  font-family: var(--maude-chrome-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-family: var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
   font-size: 10px;
   color: var(--maude-chrome-fg-1, rgba(40,30,20,0.7));
   z-index: 6;
@@ -3731,14 +4303,16 @@ const OVERLAY_CSS = `
 .dc-zoom-tb {
   position: absolute;
   left: 16px;
-  bottom: 16px;
+  /* P8 C3: the shell's Undo · Redo · zoom % island owns the bottom-left corner (16px + 40px tall + a gap); this
+     fit / 1:1 pill (View › Zoom controls) stacks above it instead of under it. */
+  bottom: 64px;
   display: flex;
   align-items: stretch;
   background: var(--maude-chrome-bg-0, #ffffff);
   border: 1px solid var(--maude-chrome-fg-0, #1c1917);
   border-radius: ${FLOATING_RADIUS};
   overflow: hidden;
-  font-family: var(--maude-chrome-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-family: var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
   font-size: 11px;
   color: var(--maude-chrome-fg-1, rgba(40,30,20,0.85));
   z-index: 6;
@@ -3958,7 +4532,9 @@ export function DCZoomToolbar() {
   // Before the early returns — hooks cannot sit behind a branch. Live, because
   // a zoom readout that only updates on settle reads as a frozen UI.
   const liveVp = useLiveViewport();
-  if (!controller) return null;
+  // S3.9 — Preview shows the shell's ZoomOnly readout instead (04 md-preview), so this pill steps aside.
+  const previewing = usePreviewing();
+  if (!controller || previewing) return null;
   // Menubar "View ▸ Zoom controls" toggle + Presentation Mode.
   if (chrome && (!chrome.zoom || chrome.present)) return null;
   const pct = Math.round(liveVp.zoom * 100);
@@ -3988,6 +4564,43 @@ export function DCZoomToolbar() {
   );
 }
 DCZoomToolbar.displayName = 'DCZoomToolbar';
+
+/**
+ * S3.9 — tells the shell the zoom (`viewport-zoom`): its ZoomOnly readout in Preview (and ZoomUndo later)
+ * draws it. `useLiveViewport` is the same ≤ 20 Hz cadence the pill above reads — live during a gesture,
+ * the settled value after — and an unchanged percentage posts nothing.
+ */
+function ViewportZoomReporter() {
+  const vp = useLiveViewport();
+  // A fresh `set-mode` (the shell seeds a canvas that just became the active one) re-posts the zoom: the
+  // shell only listens to the ACTIVE canvas, so a background canvas' last post was dropped.
+  const store = typeof window === 'undefined' ? null : canvasModeStore(window);
+  const modeSeq = useSyncExternalStore(
+    store ? store.subscribe : () => () => {},
+    () => (store ? store.get().modeSeq : -1),
+    () => -1
+  );
+  const lastKey = useRef('');
+  useEffect(() => {
+    if (typeof window === 'undefined' || window.parent === window) return;
+    const fitted = viewportAtFit(vp, fitMark);
+    const key = `${Math.round(vp.zoom * 100)}|${modeSeq}|${fitted ? 'fit' : ''}`;
+    if (key === lastKey.current) return;
+    lastKey.current = key;
+    try {
+      window.parent.postMessage(
+        fitted
+          ? { dgn: 'viewport-zoom', zoom: vp.zoom, fit: true }
+          : { dgn: 'viewport-zoom', zoom: vp.zoom },
+        '*'
+      );
+    } catch {
+      /* detached */
+    }
+  }, [vp, modeSeq]);
+  return null;
+}
+ViewportZoomReporter.displayName = 'ViewportZoomReporter';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Specimen helpers
@@ -4088,6 +4701,55 @@ export function TypeScaleRow({
   );
 }
 
+// ── <DSRoot> + the canvas's design system (V2-1.13 §5.11) ─────────────────
+// The generated `@maude/ds` module (canvas-build.ts) calls `__registerDesignSystem` on import
+// with the canvas's system, so the default theme travels with the canvas code into every render
+// path — the shell, exports and the handoff inline alike. A canvas that never imports
+// `@maude/ds` registers nothing, and `<DSRoot>` then writes no data-theme.
+
+let registeredDesignSystem: { name: string; themeDefault: string | null } | null = null;
+
+/** Called by the generated `@maude/ds` module. Idempotent; the last import wins. */
+export function __registerDesignSystem(ds: { name: string; themeDefault?: string | null }): void {
+  const next = { name: ds.name, themeDefault: ds.themeDefault ?? null };
+  const prev = registeredDesignSystem;
+  if (
+    prev &&
+    prev.name !== next.name &&
+    !(typeof process !== 'undefined' && process.env?.NODE_ENV === 'production')
+  ) {
+    console.warn(
+      `[@maude/ds] two design systems registered in one canvas bundle ("${prev.name}", then "${next.name}"); the last one wins.`
+    );
+  }
+  registeredDesignSystem = next;
+}
+
+/**
+ * The theme wrapper a canvas can switch systems under: `class="ds"` plus `data-theme` from the
+ * `theme` prop, else the registered system's default, else none (S6-clean, unlike a wrapper
+ * carrying a system's rootClass).
+ */
+export function DSRoot({
+  theme,
+  as: Tag = 'div',
+  className,
+  children,
+  ...rest
+}: {
+  theme?: string;
+  as?: 'div' | 'section' | 'main' | 'article' | 'span';
+  className?: string;
+  children?: ReactNode;
+} & Record<string, unknown>) {
+  const dataTheme = theme ?? registeredDesignSystem?.themeDefault ?? undefined;
+  return (
+    <Tag {...rest} className={className ? `ds ${className}` : 'ds'} data-theme={dataTheme}>
+      {children}
+    </Tag>
+  );
+}
+
 /** Light/dark toggle. Writes `data-theme` on `<html>` and persists to memory. */
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
@@ -4177,8 +4839,17 @@ export function useTheme(): { theme: string; setTheme: (t: string) => void } {
 /**
  * ResizeObserver wrapper. Pass a ref to any element (typically the active
  * artboard); returns its current `{ width, height }` in CSS pixels.
+ *
+ * An unchanged size keeps the same object (no re-render). `minDelta` also
+ * ignores changes smaller than that many CSS px: under Blink's CSS `zoom` the
+ * observer fires on every zoom frame with sub-pixel layout noise
+ * (1279.875 ↔ 1279.92 for a 1280 px board), which re-rendered every artboard
+ * ~2× per frame of a pinch (V2-8.8). Default 0 = every real change.
  */
-export function useArtboardBounds(ref: RefObject<HTMLElement | null>): {
+export function useArtboardBounds(
+  ref: RefObject<HTMLElement | null>,
+  minDelta = 0
+): {
   width: number;
   height: number;
 } {
@@ -4190,11 +4861,15 @@ export function useArtboardBounds(ref: RefObject<HTMLElement | null>): {
       const e = entries[0];
       if (!e) return;
       const r = e.contentRect;
-      setBounds({ width: r.width, height: r.height });
+      setBounds((prev) =>
+        Math.abs(prev.width - r.width) <= minDelta && Math.abs(prev.height - r.height) <= minDelta
+          ? prev
+          : { width: r.width, height: r.height }
+      );
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, [ref]);
+  }, [ref, minDelta]);
   return bounds;
 }
 

@@ -137,6 +137,12 @@ export interface FilePlaneStatus {
    *  half of its own, so this is absent on a journal-less hub. */
   pushed?: number;
   /**
+   * `'v1'` — this report is a whole pass of the v1 manifest pull, the lane of a journal-less hub (no file
+   * plane, so never a `progress`). Set only once the runtime decided that lane. Resync reads one such
+   * report from the new runtime as its finished comparison (sync/resync-trace.ts).
+   */
+  lane?: 'v1';
+  /**
    * A BREAKER IS HOLDING, and this is how anyone finds out.
    *
    * The breakers shipped with their state living only in a `console.warn` and

@@ -2,7 +2,7 @@
 // Returns plain objects; http.ts wraps them in Response.json().
 
 import crypto from 'node:crypto';
-import { type Dirent, renameSync } from 'node:fs';
+import { type Dirent, existsSync, renameSync } from 'node:fs';
 import {
   lstat,
   mkdir,
@@ -14,6 +14,15 @@ import {
   stat as statp,
 } from 'node:fs/promises';
 import path from 'node:path';
+import {
+  filterCommentsAll,
+  filterIndexData,
+  filterSystemData,
+  projectVisibility,
+} from './access/filters.ts';
+import { currentFrameKey } from './access/frame.ts';
+import { currentAccess, toDesignRel } from './access/request.ts';
+import { asPersonSave, saveHold } from './ai/save-hold.ts';
 import { canonicalAnnotations } from './annotations/board-text.ts';
 import {
   type Op as AnnotationOp,
@@ -22,18 +31,44 @@ import {
   diffToOps,
 } from './annotations/ops.ts';
 import './annotations/ops-merge.ts';
+import { runTagOf } from './annotations/run-tag.ts';
 import { parseBoard, serializeBoard } from './annotations/schema.ts';
 import type { AnnotationElement } from './annotations/types.ts';
+import { type BoardGuard, voteDoorOnly } from './annotations/vote-guard.ts';
 import { createAssetMirror, s3ConfigFromEnv } from './assets-s3.ts';
 import { canvasArtifacts, locatorKeyFor, relocatedName } from './canvas-artifacts.ts';
-import { renderBriefBoard, validateCanvasName, validateFolderName } from './canvas-create.ts';
+import {
+  foldToAllowedName,
+  nameFromPrompt,
+  nextFreeCanvasName,
+  renderBlankCanvas,
+  renderBriefBoard,
+  UNTITLED_CANVAS,
+  validateCanvasName,
+  validateFolderName,
+} from './canvas-create.ts';
 import { rewriteRelativeImports } from './canvas-imports.ts';
 import { canvasSlugFromRel } from './canvas-slug.ts';
 import { isAnnotationId, isWorldPoint } from './comment-anchor.ts';
+import { readAnchors, withSanitizedAnchors } from './comments/anchors.ts';
+import { type ImportedFrom, withSanitizedImportedFrom } from './comments/imported-from.ts';
+import { localAuthor } from './comments/local-author.ts';
+import { mentionsOf } from './comments/mentions.ts';
+import {
+  applyCommentOp,
+  type CommentOp,
+  type CommentRecord,
+  type OpActor,
+  type OpResult,
+} from './comments/ops.ts';
+import { readHead } from './ds/head.ts';
+import { dsRenderIndex } from './ds/render-rev.ts';
+import { dropPin, rekeyUserState } from './home/user-state.ts';
 import { atomicWrite } from './sync/atomic-write.ts';
 import { dedupeCommentsById } from './sync/comment-identity.ts';
 import { isRuntimeStateRel } from './sync/file-membership.ts';
 import { MAX_ANNOTATIONS_BYTES } from './sync/limits.ts';
+import { findCloseName, tooCloseText } from './sync-name-key.ts';
 
 // Re-exported so existing external callers (canvas-list-watch.ts, tests) keep
 // importing it from api.ts — the actual implementation now lives in
@@ -84,6 +119,7 @@ import {
   retimeSequence,
   retimeSequenceByClip,
   editText as runEditText,
+  sayingCanvasWrites,
   setArtboardGuides,
   setArtboardHug,
   setArtboardKind,
@@ -91,31 +127,18 @@ import {
   setArtboardPrint,
   setArtboardStyle,
   toggleClipHidden,
+  usageIdOf,
 } from './canvas-edit.ts';
 import {
-  applyClipAudio,
-  applyClipFraming,
-  applyClipGrade,
-  applyDetachAudio,
-  applyEditTransition,
   applyFitTotalToContent,
-  applyInsertTransition,
-  applyMoveClipToOverlay,
-  applyMoveClipToStoryline,
   applyOnDisk,
-  applyRemoveTransition,
-  applyReorderOverlayLayer,
-  applyResolvePlaceholder,
-  applySetClipText,
-  applySetPlaybackRate,
-  applySplitClip,
-  applyTrimIn,
-  type GradeParams,
   insertClipAt,
   removeClipRippled,
   seriesMove,
 } from './clip-ops.ts';
 import type { Context } from './context.ts';
+import { lockedRefusal } from './edit-ops/dispatch.ts';
+import { walkIdElements } from './element-ids.ts';
 import {
   type AudioMatch,
   type Candidate,
@@ -129,25 +152,14 @@ import { resolveUrlPathUnder } from './path-containment.ts';
 import { STICKERS_DIR } from './paths.ts';
 import { getPaperPreset, MAX_PRINT_MM } from './print/units.ts';
 import { currentSession, normalizeSessionKey, sessionDir } from './session-scope.ts';
+import { SKIP_DIRS } from './skip-dirs.ts';
 import { describeSourceOp } from './sync/source-ops.ts';
 import { normalizeTreeState, type TreeState } from './tree-state.ts';
 import { isWorkspaceMode } from './workspace-mode.ts';
 
-// Directories that never hold user-facing canvases. Exported so the
-// external-canvas watcher (`canvas-list-watch.ts`) shares one source instead of
-// a hand-synced copy. (activity.ts still carries its own historical mirror.)
-export const SKIP_DIRS = new Set([
-  'node_modules',
-  '.git',
-  '.next',
-  '.turbo',
-  'dist',
-  'build',
-  '.expo',
-  'coverage',
-  'dev-server',
-  '_history',
-]);
+// Directories that never hold user-facing canvases (one source: skip-dirs.ts).
+export { SKIP_DIRS };
+
 const HIDDEN_OK = new Set(['.ai', '.claude', '.design']);
 
 // feature-studio-file-preview — binary/media extensions the tree lists so a
@@ -367,6 +379,8 @@ export interface Reply {
   author: string;
   body: string;
   created: string;
+  /** S8.17b — a reply written in another tool (Figma). `author` stays the person who imported it. */
+  importedFrom?: ImportedFrom;
 }
 
 export interface Comment {
@@ -404,6 +418,9 @@ export interface Comment {
   /** World point of the comment: the anchor of a floating comment, the last
    *  known place of an anchored one. Absent on legacy comments. */
   world?: { x: number; y: number };
+  /** S8.17b — the thread was written in another tool (Figma): who wrote it there, as a label.
+   *  `author` stays the person who imported it. Never a mention target (comments/imported-from.ts). */
+  importedFrom?: ImportedFrom;
 }
 
 export interface GitCommitter {
@@ -411,6 +428,19 @@ export interface GitCommitter {
   email: string;
   commits: number;
 }
+
+/** S11.12 — how Keep both names and fills its copy (`duplicateCanvas`). */
+export interface DuplicateCanvasOpts {
+  /** The word after the name: "copy" (the default) or "this Mac" (Keep both). */
+  suffix?: 'copy' | 'this Mac';
+  /** The copy's `.meta.json` title (Keep both: "<name> (this Mac)"). */
+  title?: string;
+  /** The copy's source, instead of the original file's bytes now. */
+  source?: string;
+}
+
+/** P8 G1a — the hub comment door refused or could not be reached (sync/comment-door.ts). */
+export type DoorRefusal = { ok: false; status: number; code: string; error: string };
 
 export type CreateCanvasResult =
   | { ok: true; file: string; rel: string; slug: string }
@@ -434,8 +464,9 @@ export type EditOpResult =
   /** `previous` — what a css/attr write replaced (`null` = was unset); absent
    *  when it was an expression no literal undo can restore. */
   | { ok: true; delta: number; seq?: number; previous?: string | null }
-  /** `conflict` = the target no longer held the caller's expected value. */
-  | { ok: false; status: number; error: string; conflict?: true };
+  /** `conflict` = the target no longer held the caller's expected value; `code: 'locked'` = the target carries
+   *  the shared lock (409, the edit-op's own refusal — p8-lock-reasons). */
+  | { ok: false; status: number; error: string; conflict?: true; code?: 'locked' };
 
 /**
  * Optional expected-current value for a css/attr write (audit 2026-09-13 P1
@@ -462,17 +493,90 @@ function expectedValueOf(input: {
  */
 export type ReorderOpResult =
   | { ok: true; delta: number; movedId: string | null; semanticId: string | null; seq: number }
-  | { ok: false; status: number; error: string };
+  | { ok: false; status: number; error: string; code?: 'locked' };
 
 export type ReorderRevertResult =
   | { ok: true; dir: 'undo' | 'redo' }
   | { ok: false; status: number; error: string };
+
+/** S4.7 — one lane of a two-lane action, as file text (the runtime canonicalizes). */
+export interface LaneChange {
+  /** S2.9b adds `meta`: an artboard move and its annotation riders (one action). S2.10b adds `html`:
+   *  an edit-op's source and its layout lane (a copy and its place, an artboard moved to the trash). */
+  lane: 'annotations' | 'comments' | 'meta' | 'html';
+  text: string;
+  baseText: string;
+}
+
+/** S2.9b — the `annotations` rider of an artboard move (routes/canvas-meta-rider.ts). */
+export interface RiderMove {
+  ops: readonly AnnotationOp[];
+  /** The bus's `undoGroup`: the write id the layout and its riders share. */
+  actionId: string;
+  /** The move-delta rule over the board and the layout the meta holds now; a refusal writes nothing. */
+  check(
+    board: readonly AnnotationElement[],
+    layoutBefore: unknown
+  ): { status: number; body: Record<string, unknown> } | null;
+}
+
+export type RiderMoveResult =
+  | { ok: true; meta: Record<string, unknown>; actionId?: string; queued?: boolean }
+  | { ok: false; status: number; body: Record<string, unknown> };
+
+export interface LanesOutcome {
+  status: 'accepted' | 'rejected';
+  code?: string;
+  actionId?: string;
+  /** Not answered yet: the proposal waits in the durable outbox. */
+  queued?: boolean;
+}
+
+/** S4.7 — the home a two-lane action goes to (the hub runtime or the local home). */
+export interface LanesProposer {
+  /** Accepted-revisions mode: the action IS the change; the disk is written raw. */
+  accepted: boolean;
+  send(lanes: LaneChange[]): Promise<LanesOutcome>;
+}
+
+export type ConvertChange<T> = (cur: {
+  board: AnnotationElement[];
+  comments: Comment[];
+}) =>
+  | { ok: true; ops: AnnotationOp[]; comments: Comment[]; result: T }
+  | { ok: false; status: number; body: Record<string, unknown> };
+
+/** What a conversion replaced — the no-home undo token's payload. */
+export interface ConvertSnapshot {
+  file: string;
+  /** canonical board text ('' = no board) */
+  boardBefore: string;
+  boardAfter: string;
+  commentsBefore: Comment[];
+  commentsAfter: Comment[];
+}
+
+export type ConvertResult<T> =
+  | {
+      ok: true;
+      result: T;
+      snapshot: ConvertSnapshot;
+      actionId?: string;
+      queued?: boolean;
+    }
+  | { ok: false; status: number; body: Record<string, unknown> };
 
 export interface Api {
   // File tree
   fileSlug(file: string): string;
   loadCommentsForFile(file: string): Promise<Comment[]>;
   saveCommentsForFile(file: string, list: Comment[]): Promise<void>;
+  /**
+   * S2.2b — rewrite one canvas's comment list through the one publish path (shared doc first, then
+   * disk): `fn` gets the current list and returns the new one, or null for "no change". Used by
+   * `element.set-id` to move element pins with a renamed id.
+   */
+  rewriteComments(file: string, fn: (list: Comment[]) => Comment[] | null): Promise<void>;
   loadAllComments(): Promise<Record<string, Comment[]>>;
   /**
    * Resolve a canvas URL slug back to its repo-relative `file` path by scanning
@@ -487,6 +591,9 @@ export interface Api {
   commentsPatch(id: string, patch: Partial<Comment>): Promise<Comment | null>;
   commentsDelete(id: string): Promise<boolean>;
   commentsAddReply(id: string, payload: { body: string; author?: string }): Promise<Comment | null>;
+  /** S9.7b — `POST /_api/comments/op` (routes/comments.ts): one op on `file`'s threads. */
+  commentOp(file: string, op: CommentOp, actor: OpActor): Promise<OpResult | DoorRefusal>;
+  commentFileOf(id: string): Promise<string | null>;
   gitCommitters(): Promise<GitCommitter[]>;
   /**
    * Phase 8 — local `git config user.name`, cached for the process lifetime.
@@ -512,11 +619,32 @@ export interface Api {
     file: string,
     patch: Record<string, unknown>
   ): Promise<Record<string, unknown> | null>;
+  /**
+   * S3.5 — the versioned `.meta.json` writer outside the layout lane (`PATCH /_api/present-meta`):
+   * writes `nextText` and fires the same `onMetaChanged` hook (→ meta `lane.replace`, `baseText` =
+   * the file text it replaced) and cell announce as a layout write. No `last_modified` stamp. False
+   * when the path is refused.
+   */
+  writeCanvasMetaText(
+    file: string,
+    nextText: string,
+    baseText: string | null,
+    /** S2.10b — `hooks: false`: an accepted-mode action already carries the lane (no `onMetaChanged`) */
+    opts?: { hooks?: boolean }
+  ): Promise<boolean>;
   // Annotations board (DDR-242 — .design/<slug>.annotations.json)
   /** Canonical board text; a not-yet-migrated legacy SVG is read through the migration. */
   loadAnnotations(file: string): Promise<string | null>;
   /** Strict read: an existing board that can't be read is `ok: false`, never an empty board. */
   readBoard(
+    file: string
+  ): Promise<{ ok: true; text: string | null } | { ok: false; error: string }>;
+  /**
+   * S4.V4 G4 — `readBoard`, but a live collab room's board wins over the file its debounced flush has
+   * not caught up with: read-your-writes for a door that reads right after `applyAnnotationOps` (the vote
+   * door: start → GET, start → ballot).
+   */
+  readBoardLive(
     file: string
   ): Promise<{ ok: true; text: string | null } | { ok: false; error: string }>;
   /** Whole-board write (board text or legacy SVG, canonicalized). */
@@ -525,10 +653,33 @@ export interface Api {
   applyAnnotationOps(
     file: string,
     ops: readonly AnnotationOp[],
-    actionId?: string
+    actionId?: string,
+    /** S2.10c — `hooks: false`: the file only (no live room, no change hook) — an accepted-mode
+     *  action already carries the annotations lane (routes/edit.ts, an artboard moved to the trash) */
+    opts?: {
+      hooks?: boolean;
+      /** sec-a M1 — refuse the WHOLE batch when the guard names a change (HTTP writers pass
+       *  `voteDoorOnly`; the in-process vote door passes none). `refused` in the result. */
+      guard?: BoardGuard;
+    }
   ): Promise<AnnotationOpsResult>;
   /** Materialize a document snapshot without publishing it as another user edit. */
   projectAnnotations(file: string, text: string, isCurrent: () => boolean): Promise<boolean>;
+  /** S4.7 — the board and the comments of one canvas as ONE project action. */
+  convertLanes<T>(
+    file: string,
+    change: ConvertChange<T>,
+    proposer: LanesProposer | null
+  ): Promise<ConvertResult<T>>;
+  /** S4.7 — the no-home undo of a conversion (refused `stale` once a lane moved on). */
+  restoreConversion(s: ConvertSnapshot): Promise<{ ok: boolean; reason?: string }>;
+  /** S2.9b — an artboard move + its annotation riders as ONE project action. */
+  moveArtboardsWithRider(
+    file: string,
+    layout: unknown,
+    rider: RiderMove,
+    proposer: LanesProposer | null
+  ): Promise<RiderMoveResult>;
   // Phase 23 — content-addressed binary image write (drag-drop / paste / picker)
   saveAsset(bytes: Uint8Array): Promise<SaveAssetResult>;
   /** Stage F1 — list content-addressed image/video assets for the AssetPicker. */
@@ -590,6 +741,7 @@ export interface Api {
     name?: unknown;
     kind?: unknown;
     group?: unknown;
+    fromPrompt?: unknown;
     clips?: unknown;
     fps?: unknown;
     width?: unknown;
@@ -598,7 +750,7 @@ export interface Api {
   // Duplicate a canvas beside itself ("<name> copy") — POST /_api/canvas
   // { duplicateOf }. Source, meta and the whiteboard layer; not comments or
   // history, which belong to the original.
-  duplicateCanvas(input: { file?: unknown }): Promise<CreateCanvasResult>;
+  duplicateCanvas(input: { file?: unknown } & DuplicateCanvasOpts): Promise<CreateCanvasResult>;
   // Soft-delete a canvas from the browser (Phase 22 — DELETE /_api/canvas)
   deleteCanvas(input: { file?: unknown }): Promise<DeleteCanvasResult>;
   // feature-file-tree-drag-drop-folders (Task 3) — move/rename a canvas + its
@@ -658,31 +810,6 @@ export interface Api {
     durationInFrames?: unknown;
     from?: unknown;
   }): Promise<{ ok: true; seq?: number } | { ok: false; status: number; error: string }>;
-  // feature-enhanced-video-editing (Phase 2) — parametric clip verbs (speed ·
-  // trim-in · audio · detach-audio · framing · grade · transition).
-  clipEditOp(input: {
-    canvas?: unknown;
-    artboardId?: unknown;
-    stableId?: unknown;
-    contentHash?: unknown;
-    verb?: unknown;
-    rate?: unknown;
-    deltaFrames?: unknown;
-    muted?: unknown;
-    volume?: unknown;
-    framing?: unknown;
-    grade?: unknown;
-    presentation?: unknown;
-    durationInFrames?: unknown;
-    atFrame?: unknown;
-    src?: unknown;
-    mediaKind?: unknown;
-    text?: unknown;
-    toIndex?: unknown;
-  }): Promise<
-    | { ok: true; seq?: number; extra?: Record<string, unknown> }
-    | { ok: false; status: number; error: string }
-  >;
   // DDR-150 P3 — remove a clip addressed by stableId (fingerprint + semantic
   // gate; refuses the only clip; drops an adjacent transition in a series).
   removeSequenceOp(input: {
@@ -759,7 +886,8 @@ export interface Api {
     id?: unknown;
     idIndex?: unknown;
   }): Promise<
-    { ok: true; deletedId: string; seq?: number } | { ok: false; status: number; error: string }
+    | { ok: true; deletedId: string; seq?: number }
+    | { ok: false; status: number; error: string; code?: 'locked' }
   >;
   /**
    * feature-4 T8 (convert-to-absolute, DDR-188) — rewrite a container's stamped
@@ -775,7 +903,9 @@ export interface Api {
     children?: unknown;
     containers?: unknown;
     dissolve?: unknown;
-  }): Promise<{ ok: true; seq?: number } | { ok: false; status: number; error: string }>;
+  }): Promise<
+    { ok: true; seq?: number } | { ok: false; status: number; error: string; code?: 'locked' }
+  >;
   /**
    * Insert a synthesized div/text/image relative to a reference element, OR —
    * when the artboard has no element to anchor on yet — as a direct child of
@@ -791,7 +921,8 @@ export interface Api {
     src?: unknown;
     refIndex?: unknown;
   }): Promise<
-    { ok: true; newId: string | null; seq?: number } | { ok: false; status: number; error: string }
+    | { ok: true; newId: string | null; seq?: number }
+    | { ok: false; status: number; error: string; code?: 'locked' }
   >;
   /** Insert a new empty artboard from a screen-size preset. */
   insertArtboardOp(input: {
@@ -890,7 +1021,8 @@ export interface Api {
     id?: unknown;
     idIndex?: unknown;
   }): Promise<
-    { ok: true; detachedName: string; seq?: number } | { ok: false; status: number; error: string }
+    | { ok: true; detachedName: string; seq?: number }
+    | { ok: false; status: number; error: string; code?: 'locked' }
   >;
   // Undo/redo a prior reorder by seq (Cmd+Z from the canvas undo stack). Whole-
   // file content swap from the in-memory revert log — immune to the positional
@@ -926,19 +1058,31 @@ export interface ApiHooks {
   /**
    * Fires after every successful annotations write with the new canonical
    * board text, the action/write id and the board text it replaced (a merge
-   * base for accepted revisions).
+   * base for accepted revisions). `recordedWithLanes`: the caller sends this board to the op log in the
+   * same action as another lane (`proposer.send(lanes)` — the artboard move rider, a conversion), so the
+   * hook must not record it a second time as a stroke of its own; the room bridge still runs.
    */
-  onAnnotationsChanged?: (file: string, text: string, writeId?: string, base?: string) => void;
+  onAnnotationsChanged?: (
+    file: string,
+    text: string,
+    writeId?: string,
+    base?: string,
+    recordedWithLanes?: boolean
+  ) => void;
   /**
    * Apply an op batch to the canvas's LIVE collab room, when one holds the
    * board (code review H1). `null` = no live room / accepted mode — the batch
    * goes to disk. The room's persistence projects the result to the file.
    */
+  /** S4.V4 G4 — the live room's board text (`null` = no live room / accepted mode: read the file). */
+  readAnnotationsLive?: (file: string) => string | null;
   applyAnnotationOpsLive?: (
     file: string,
     ops: readonly AnnotationOp[],
-    actionId?: string
-  ) => ApplyResult | 'too-large' | null;
+    actionId?: string,
+    /** sec-a M1 — checked against the ROOM's before/after; a hit writes nothing (`'refused'`). */
+    guard?: BoardGuard
+  ) => ApplyResult | 'too-large' | 'refused' | null;
   /**
    * Accepted-revisions mode (DDR-241): propose a folder operation as ONE
    * project action before touching disk. Absent, or answering `null`, means
@@ -995,6 +1139,8 @@ export interface AnnotationOpsResult {
   error?: string;
   /** The board on disk exists but can't be read — nothing was written (HTTP 409). */
   unreadable?: boolean;
+  /** sec-a M1 — the batch's guard refused it (a vote / ballot change off the vote door; HTTP 403). */
+  refused?: string;
 }
 
 /**
@@ -1027,6 +1173,31 @@ export const ASSET_SESSION_BUDGET = (() => {
   // restart). Still an aggregate per-server-instance disk-fill bound, now also
   // charged up front by chunk-session reservations; env-overridable.
   return Number.isFinite(env) && env > 0 ? env : 4 * 1024 * 1024 * 1024;
+})();
+
+/**
+ * gate-b-c4k — what ONE canvas frame (subject + canvas set, access/frame.ts `currentFrameKey`) may
+ * write to `assets/` per server instance, inside `ASSET_SESSION_BUDGET` (still the global
+ * backstop). Canvas code in a frame is untrusted (DDR-054) and c4i lets an editable frame upload:
+ * without this one frame's loop spent the whole budget and the owner's own drops answered 429
+ * until a restart. Two full chunked clips by default; `MAUDE_ASSET_FRAME_BUDGET` (bytes).
+ */
+export const ASSET_FRAME_BUDGET = (() => {
+  const env = Number(process.env.MAUDE_ASSET_FRAME_BUDGET);
+  return Number.isFinite(env) && env > 0 ? env : 1024 * 1024 * 1024;
+})();
+
+/**
+ * gate-b-c4l (LOW) — what ALL frames together may write per server instance: one shared counter
+ * over every frame-originated upload, capped at half of `ASSET_SESSION_BUDGET` (an override,
+ * `MAUDE_ASSET_FRAMES_BUDGET`, can only lower it). Per-frame budgets alone summed to the global
+ * one across N frames (one per canvas the opener can open), and the owner's main-origin drops then
+ * answered 429; the main origin now always keeps at least the other half.
+ */
+export const ASSET_FRAMES_BUDGET = (() => {
+  const half = Math.floor(ASSET_SESSION_BUDGET / 2);
+  const env = Number(process.env.MAUDE_ASSET_FRAMES_BUDGET);
+  return Number.isFinite(env) && env > 0 ? Math.min(env, half) : half;
 })();
 
 /**
@@ -1271,6 +1442,13 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   const onCommentsChanged = hooks.onCommentsChanged;
   const onAnnotationsChanged = hooks.onAnnotationsChanged;
   const { paths, cfg } = ctx;
+  // p8-a1-save-hold — a person's save held behind an AI interpreter call says its bytes when it lands;
+  // p8-sec2-attrib A1 — and every person's source save it hears is noted as theirs (`notePersonWrite`)
+  saveHold().attach({
+    emit: (ev, p) => ctx.bus.emit(ev, p),
+    on: (ev, fn) => ctx.bus.on(ev, fn),
+    designRoot: paths.designRoot,
+  });
 
   // Phase 12.1 — in-memory reorder revert log (Cmd+Z for drag/keyboard moves).
   // Whole-file {before, after} per reorder, keyed by a monotonic seq the client
@@ -1297,6 +1475,49 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       reorderLog.delete(oldest);
     }
     return seq;
+  }
+
+  /**
+   * The studio just wrote `after` to canvas `rel` itself: say so, with what it did. The home then records the
+   * person's own `edit` (undoable by ⌘Z) rather than an `outside` change the ⌘Z projection never reaches —
+   * the file-watcher alone cannot tell a ⌘D from an external editor's save (P8-B2).
+   */
+  function noteSourceWritten(rel: string, after: string, label: string): void {
+    ctx.bus.emit('source-written', { rel, content: after, label });
+  }
+
+  /**
+   * F4 — `fn`'s canvas writes said BEFORE their bytes land (`source-writing`, the local home's early note),
+   * like routes/edit.ts: the watcher, or a ⌘Z's undo-stack read, arriving between the bytes and
+   * `source-written` (one file read later) then finds the person's edit, never an `outside` change. A
+   * write that throws takes its note back (`source-write-failed`, F5).
+   */
+  function sayingWrites<T>(
+    base: string,
+    label: string | undefined,
+    fn: () => Promise<T>
+  ): Promise<T> {
+    let replaced = base;
+    return sayingCanvasWrites(
+      {
+        ...(label ? { label } : {}),
+        writing: (abs, content) => {
+          ctx.bus.emit('source-writing', {
+            rel: path.relative(paths.designRoot, abs),
+            content,
+            base: replaced,
+            ...(label ? { label } : {}),
+          });
+          replaced = content;
+        },
+        failed: (abs, content) =>
+          ctx.bus.emit('source-write-failed', {
+            rel: path.relative(paths.designRoot, abs),
+            content,
+          }),
+      },
+      fn
+    );
   }
 
   // ── Structural-write throttle + source-size ceiling (G3 security, DDR-152) ──
@@ -1348,6 +1569,81 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     return canvasSlugFromRel(file, paths.designRel);
   }
 
+  // S1.23b — names that collide in sync. Two names that differ only in what the sync slug flattens
+  // (an em dash vs a hyphen, `a%20b` vs `a b`, case, `ui/a/b` vs `ui/a-b`) share ONE sync document,
+  // and one canvas would overwrite the other on every peer. Every path that writes a new canvas or
+  // folder name asks here first; `sync-name-key.ts` holds the key and the words.
+  /** Every canvas under a canvas group, as design-root-relative paths (`ui/Poster.tsx`). */
+  async function allCanvasRels(): Promise<string[]> {
+    const drPrefix = paths.designRel.replace(/^\/+|\/+$/g, '');
+    const out: string[] = [];
+    for (const g of cfg.canvasGroups) {
+      let files: string[];
+      try {
+        files = await findHtmlFiles(
+          path.join(paths.designRoot, g.path),
+          path.posix.join(paths.designRel, g.path)
+        );
+      } catch {
+        continue;
+      }
+      for (const f of files)
+        out.push(f.startsWith(`${drPrefix}/`) ? f.slice(drPrefix.length + 1) : f);
+    }
+    return out;
+  }
+
+  /** The 409 for `toRel` (a canvas or a folder, design-root-relative) when its sync key is one an
+   *  existing different canvas already has. `except` is what is moving (the same canvas, or a batch
+   *  that goes together). Returns null when the name is clear. */
+  async function closeCanvasName(
+    name: string,
+    toRel: string,
+    except: (rel: string) => boolean = () => false
+  ): Promise<{ ok: false; status: 409; error: string } | null> {
+    const other = findCloseName(toRel, await allCanvasRels(), except);
+    if (!other) return null;
+    const dir = path.posix.dirname(toRel);
+    return {
+      ok: false,
+      status: 409,
+      error: tooCloseText(name, other, dir === '.' ? '' : dir),
+    };
+  }
+
+  /** Same, for a FOLDER name among the folders beside it: two sibling folders that share a key give
+   *  every same-named canvas inside them one document. */
+  async function closeFolderName(
+    name: string,
+    parentRel: string,
+    selfRel?: string
+  ): Promise<{ ok: false; status: 409; error: string } | null> {
+    let entries: Dirent[];
+    try {
+      entries = await readdir(path.join(paths.designRoot, parentRel), { withFileTypes: true });
+    } catch {
+      return null;
+    }
+    const siblings = entries
+      .filter((e) => e.isDirectory() && !e.name.startsWith('.') && !e.name.startsWith('_'))
+      .map((e) => path.posix.join(parentRel, e.name));
+    const toRel = path.posix.join(parentRel, name);
+    const other = findCloseName(toRel, siblings, (r) => r === selfRel);
+    if (!other) return null;
+    return { ok: false, status: 409, error: tooCloseText(name, other, parentRel) };
+  }
+
+  /** True when both paths are the one file or folder (a case-only rename on a case-insensitive
+   *  volume: the target "exists" because it is the source). */
+  async function isSameEntry(a: string, b: string): Promise<boolean> {
+    try {
+      const [sa, sb] = await Promise.all([statp(a), statp(b)]);
+      return sa.dev === sb.dev && sa.ino === sb.ino && sa.ino !== 0;
+    } catch {
+      return false;
+    }
+  }
+
   async function fileForSlug(slug: string): Promise<string | null> {
     // Authoritative slug → canvas-file resolver: enumerate the real canvas
     // files under each canvas group and match by the canonical slug. Unlike a
@@ -1370,8 +1666,41 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     return null;
   }
 
+  /**
+   * sec-a2 (Windows backslash) — a per-canvas sidecar is ONE file directly in `dir`.
+   * `canvasSlugFromRel` flattens `/` but not `\`, and on Windows `path.join` treats `\` as a
+   * separator, so a canvas named `..\..\x` reached a board or comment file outside the design
+   * root. A slug carrying `\` is refused everywhere (it is never a canvas a person made in the
+   * studio, which writes `/`), and the result must still sit directly in `dir`. Throws — every
+   * caller is a read that already fails soft or a write that must not happen.
+   */
+  function sidecarPath(dir: string, file: string, suffix: string): string {
+    const slug = fileSlug(file);
+    const base = path.resolve(dir);
+    const abs = path.resolve(base, `${slug}${suffix}`);
+    if (!slug || slug.includes('\\') || slug.includes('\0') || path.dirname(abs) !== base) {
+      throw new Error('not a canvas path');
+    }
+    if (slugSidecarRefused(abs)) throw new Error('not a canvas path');
+    return abs;
+  }
+
+  /**
+   * gate-b-c4g — a canvas-only session (every frame is one) reaches a SLUG-keyed sidecar only when
+   * its closure owns it. `ui/a-b.tsx`, `ui/a/b.tsx` and `UI/A-B.tsx` fold to one slug and so share
+   * one comments file and one board; the closure gives that shared set to none of them
+   * (access/closure.ts `ownedOf`), so a frame on A neither reads nor writes B's threads.
+   */
+  function slugSidecarRefused(abs: string): boolean {
+    const access = currentAccess();
+    if (!access.canvasOnly) return false;
+    const closure = projectVisibility(ctx).closureOf(access);
+    const rel = path.relative(paths.designRoot, abs).split(path.sep).join('/');
+    return !closure?.owned.has(rel);
+  }
+
   function commentsPath(file: string): string {
-    return path.join(paths.commentsDir, `${fileSlug(file)}.json`);
+    return sidecarPath(paths.commentsDir, file, '.json');
   }
 
   async function loadCommentsForFile(file: string): Promise<Comment[]> {
@@ -1395,41 +1724,19 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     }
   }
 
-  // Security (adversarial review 2026-07-30): the timeline anchor is read by
-  // the /design:edit agent (edit.md §0.6b treats `lane` as navigation), and a
-  // comment can arrive from an UNTRUSTED hub peer (DDR-054) via the sync-persist
-  // path — which does NOT go through commentsAdd's validation. So re-clamp the
-  // anchor HERE, at the read boundary every consumer (incl. /_comments served to
-  // the agent) passes through: bound `lane`/`clipStableId` length, coerce frame
-  // ints, and drop unknown fields — a poisoned over-long `lane` can't smuggle an
-  // instruction past the 40-char label the feature is documented to carry.
-  function sanitizeTimelineAnchor(raw: unknown): Comment['timeline'] | undefined {
-    if (!raw || typeof raw !== 'object') return undefined;
-    const t = raw as Record<string, unknown>;
-    const anchor: NonNullable<Comment['timeline']> = {};
-    if (typeof t.clipStableId === 'string' && t.clipStableId.length <= 200)
-      anchor.clipStableId = t.clipStableId;
-    if (Number.isFinite(Number(t.frameOffset)))
-      anchor.frameOffset = Math.max(0, Math.round(Number(t.frameOffset)));
-    if (Number.isFinite(Number(t.frame))) anchor.frame = Math.max(0, Math.round(Number(t.frame)));
-    if (typeof t.lane === 'string' && t.lane.length <= 40) anchor.lane = t.lane;
-    return anchor.clipStableId != null || anchor.frame != null ? anchor : undefined;
-  }
-
+  // Security (adversarial review 2026-07-30): every anchor is read by the /design:edit agent as
+  // navigation, and a comment can arrive from an UNTRUSTED hub peer (DDR-054) via the sync-persist
+  // path, which does NOT go through commentsAdd. So the anchors are re-clamped HERE, at the read
+  // boundary every consumer passes through (comments/anchors.ts — one reader for the studio and
+  // the hub door): a shape that fails is dropped, the comment renders detached, never deleted.
   function backfillComment(raw: unknown): Comment {
-    const c = (raw ?? {}) as Partial<Comment>;
-    const timeline = sanitizeTimelineAnchor((c as { timeline?: unknown }).timeline);
+    // S8.17b — + the Figma-writer label on the root and each reply (comments/imported-from.ts).
+    const c = withSanitizedImportedFrom(withSanitizedAnchors((raw ?? {}) as Partial<Comment>));
     return {
       ...(c as Comment),
       author: typeof c.author === 'string' ? c.author : '',
       thread: Array.isArray(c.thread) ? c.thread : [],
       mentions: Array.isArray(c.mentions) ? c.mentions : [],
-      ...(timeline ? { timeline } : { timeline: undefined }),
-      // Same trust boundary for the #134/#136 anchors: a peer-synced comment
-      // never passed commentsAdd, so an anchor that fails its shape is dropped
-      // (the comment then renders from `bounds`, detached — never deleted).
-      annotationId: isAnnotationId(c.annotationId) ? c.annotationId : undefined,
-      world: isWorldPoint(c.world) ? { x: c.world.x, y: c.world.y } : undefined,
     };
   }
 
@@ -1469,6 +1776,15 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     await saveCommentsForFile(file, settled);
   }
 
+  async function rewriteComments(
+    file: string,
+    fn: (list: Comment[]) => Comment[] | null
+  ): Promise<void> {
+    const list = await loadCommentsForFile(file);
+    const next = fn(structuredClone(list));
+    if (next) await publishComments(file, next, list);
+  }
+
   async function loadAllComments(): Promise<Record<string, Comment[]>> {
     const out: Record<string, Comment[]> = {};
     let entries: Dirent[];
@@ -1484,13 +1800,24 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         const arr = JSON.parse(raw);
         if (!Array.isArray(arr) || arr.length === 0) continue;
         const file = arr[0]?.file as string | undefined;
+        // gate-b-c4g — a canvas's own (slug-named) comments file that its canvas-only session's
+        // closure does not own is a file two canvases share (one slug): the map below keys it by
+        // its first row's canvas, which may be the other one. Not this session's.
+        if (
+          file &&
+          `${fileSlug(file)}.json` === e.name &&
+          slugSidecarRefused(path.join(paths.commentsDir, e.name))
+        )
+          continue;
         // Backfill legacy rows so callers see the v2 shape uniformly.
         if (file) out[file] = arr.map(backfillComment);
       } catch {
         /* ignore */
       }
     }
-    return out;
+    // S9.10 (V2-1.16 L10) — only the canvases THIS request's session sees. Every id-based
+    // mutation below scans this map, so an invisible id answers as a missing one (U1).
+    return filterCommentsAll(out, projectVisibility(ctx).current(), paths.designRel);
   }
 
   function newCommentId(): string {
@@ -1590,11 +1917,6 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     return out;
   }
 
-  function mentionsUnion(c: Comment): string[] {
-    const all = [c.text, ...c.thread.map((r) => r.body)].join('\n');
-    return parseMentions(all);
-  }
-
   async function commentsAdd(payload: Partial<Comment> & { file: string; text: string }) {
     if (!payload || typeof payload.file !== 'string' || !payload.file) return null;
     if (typeof payload.text !== 'string' || !payload.text.trim()) return null;
@@ -1604,7 +1926,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     const author =
       typeof payload.author === 'string' && payload.author.trim()
         ? payload.author.trim().slice(0, 120)
-        : await gitCurrentUser();
+        : localAuthor(await gitCurrentUser());
     const c: Comment = {
       id: newCommentId(),
       file: payload.file,
@@ -1650,6 +1972,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     // #134/#136 — annotation / world anchors (peer-supplied: shape-checked).
     if (isAnnotationId(payload.annotationId)) c.annotationId = payload.annotationId;
     if (isWorldPoint(payload.world)) c.world = { x: payload.world.x, y: payload.world.y };
+    Object.assign(c, readAnchors(payload)); // S9.7 — + artboard / t / mm
     list.push(c);
     await publishComments(payload.file, list, base);
     return c;
@@ -1671,7 +1994,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       const author =
         typeof payload.author === 'string' && payload.author.trim()
           ? payload.author.trim().slice(0, 120)
-          : await gitCurrentUser();
+          : localAuthor(await gitCurrentUser());
       const reply: Reply = {
         id: newReplyId(),
         author,
@@ -1679,7 +2002,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         created: new Date().toISOString(),
       };
       entry.thread = [...entry.thread, reply];
-      entry.mentions = mentionsUnion(entry);
+      entry.mentions = mentionsOf(entry);
       await publishComments(file, list, base);
       return entry;
     }
@@ -1706,14 +2029,56 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
           entry.status = patch.status;
           entry.resolved_at = patch.status === 'resolved' ? new Date().toISOString() : null;
         }
-        if (typeof patch.text === 'string' && patch.text.trim()) {
+        // S8.17b — an imported thread's words are the Figma writer's; the importer cannot rewrite them.
+        if (typeof patch.text === 'string' && patch.text.trim() && !entry.importedFrom) {
           entry.text = patch.text.trim().slice(0, 4000);
-          entry.mentions = mentionsUnion(entry);
+          entry.mentions = mentionsOf(entry);
         }
       }
       await publishComments(file, list, base);
       return first;
     }
+    return null;
+  }
+
+  /** S9.7b — one comment op (comments/ops.ts) on `file`'s threads, as the session's `actor`. */
+  async function commentOp(
+    file: string,
+    op: CommentOp,
+    actor: OpActor
+  ): Promise<OpResult | DoorRefusal> {
+    const list = await loadCommentsForFile(file);
+    // P8 G1a — a session that may not edit this canvas (Can comment) holds a read-only
+    // connection: its comment goes to the hub's comment door (sync/comment-door.ts), which
+    // saves it as that person. The replica brings the saved record back here; until it does,
+    // the window is shown the hub's own record (same id), so the author sees it at once.
+    const canvasRel = toDesignRel(file, paths.designRel);
+    const door =
+      canvasRel === null
+        ? null
+        : (ctx.syncControl?.current?.()?.commentDoor?.(fileSlug(file), canvasRel, op, actor) ??
+          null);
+    if (door) {
+      const sent = await door;
+      if (!sent.ok) return sent;
+      const saved = sent.comment;
+      if (saved) {
+        const shown = [...list.filter((c) => c.id !== saved.id), saved as Comment];
+        ctx.bus.emit('comments', { file, comments: dedupeCommentsById(shown) });
+      }
+      return { ok: true, list: list as CommentRecord[], comment: saved, mentioned: [] };
+    }
+    const now = new Date().toISOString();
+    const opCtx = { actor, now, newId: newCommentId, newReplyId };
+    const result = applyCommentOp(list as CommentRecord[], op, opCtx);
+    if (result.ok) await publishComments(file, result.list, list);
+    return result;
+  }
+
+  /** The canvas file a thread lives in — how the op route judges a reply by id alone. */
+  async function commentFileOf(id: string): Promise<string | null> {
+    for (const [file, list] of Object.entries(await loadAllComments()))
+      if (list.some((c) => c.id === id)) return file;
     return null;
   }
 
@@ -2232,8 +2597,10 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     // --- Shared document lane: layout → versioned meta, stamps last_modified. ---
     if (patch.layout !== undefined) {
       let current: Record<string, unknown> = {};
+      // p8-a1-save-hold — a layout move held behind an AI interpreter call is what the meta WILL hold
+      const waiting = saveHold().read(metaAbs);
       try {
-        const parsed = JSON.parse(await Bun.file(metaAbs).text());
+        const parsed = JSON.parse(waiting ?? (await Bun.file(metaAbs).text()));
         if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
           current = parsed as Record<string, unknown>;
         }
@@ -2265,7 +2632,28 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       // (mergeSharedMetaIntoLocal), so a layout edit doesn't churn the newline.
       const baseText = Object.keys(current).length ? JSON.stringify(current) : null;
       const nextText = `${JSON.stringify(next, null, 2)}\n`;
+      // p8-a1-save-hold — a person's move to a canvas a running interpreter call names waits until the
+      // call is done (+ settle), then lands through this same write and proposal, as theirs
+      if (saveHold().holds(metaAbs)) {
+        let diskText = '';
+        try {
+          diskText = await Bun.file(metaAbs).text();
+        } catch {
+          /* no meta yet */
+        }
+        saveHold().hold(metaAbs, nextText, {
+          base: waiting ?? diskText,
+          landWith: async (bytes, landedBase) => {
+            await Bun.write(metaAbs, bytes);
+            hooks.onMetaChanged?.(file, bytes, landedBase || null);
+            announceWritten(path.relative(paths.designRoot, metaAbs));
+          },
+        });
+        return { ...((await loadCanvasMeta(file)) ?? {}), layout: next.layout };
+      }
       await Bun.write(metaAbs, nextText);
+      // p8-sec2-attrib A1 — the person's bytes: a call that wrote without naming files leaves them
+      saveHold().notePersonWrite(metaAbs, nextText);
       hooks.onMetaChanged?.(file, nextText, baseText);
       // Same reason as the annotations sidecar below, and the same bug: this
       // lane writes the FILE and nothing else, so in a cell — where there is no
@@ -2285,6 +2673,20 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     return await loadCanvasMeta(file);
   }
 
+  async function writeCanvasMetaText(
+    file: string,
+    nextText: string,
+    baseText: string | null,
+    opts?: { hooks?: boolean }
+  ): Promise<boolean> {
+    const metaAbs = canvasMetaPath(file);
+    if (!metaAbs) return false;
+    await Bun.write(metaAbs, nextText);
+    if (opts?.hooks !== false) hooks.onMetaChanged?.(file, nextText, baseText);
+    announceWritten(path.relative(paths.designRoot, metaAbs));
+    return true;
+  }
+
   // ---------- Annotations sidecar (DDR-242 — annotations v2) ----------
   //
   // Each canvas keeps ONE `<slug>.annotations.json` board under `<designRoot>/`
@@ -2299,11 +2701,11 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   // migrate-boot.ts) rewrites it on disk.
 
   function annotationsPath(file: string): string {
-    return path.join(paths.designRoot, `${fileSlug(file)}.annotations.json`);
+    return sidecarPath(paths.designRoot, file, '.annotations.json');
   }
 
   function legacyAnnotationsPath(file: string): string {
-    return path.join(paths.designRoot, `${fileSlug(file)}.annotations.svg`);
+    return sidecarPath(paths.designRoot, file, '.annotations.svg');
   }
 
   type BoardRead = { ok: true; text: string | null } | { ok: false; error: string };
@@ -2314,7 +2716,13 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
    * empty board, or the next write would silently erase it (code review H2).
    */
   async function readBoard(file: string): Promise<BoardRead> {
-    for (const p of [annotationsPath(file), legacyAnnotationsPath(file)]) {
+    let candidates: string[];
+    try {
+      candidates = [annotationsPath(file), legacyAnnotationsPath(file)];
+    } catch {
+      return { ok: false, error: 'not a canvas path' };
+    }
+    for (const p of candidates) {
       const f = Bun.file(p);
       if (!(await f.exists())) continue;
       // Untrusted (peer / git) content: size gate BEFORE reading (DDR-054).
@@ -2335,6 +2743,20 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     return { ok: true, text: null };
   }
 
+  async function readBoardLive(file: string): Promise<BoardRead> {
+    let live: string | null = null;
+    try {
+      live = hooks.readAnnotationsLive?.(file) ?? null;
+    } catch {
+      live = null;
+    }
+    if (live !== null) {
+      const text = canonicalAnnotations(live);
+      if (text !== null) return { ok: true, text };
+    }
+    return readBoard(file);
+  }
+
   /** Canonical board text, or null when the canvas has no annotations (or they can't be read). */
   async function loadAnnotations(file: string): Promise<string | null> {
     const r = await readBoard(file);
@@ -2353,6 +2775,24 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       next.catch(() => {})
     );
     return next;
+  }
+
+  /**
+   * p8-a1-save-hold — run a person's board / layout ACTION now, or — while a running interpreter call names
+   * one of these files — once the call is done (+ settle), at the cap, or on a flush (ai/save-hold.ts
+   * `defer`): it then runs on what the files hold, so its ops land on top of the AI's bytes, as theirs.
+   */
+  function deferSave<T>(files: Array<() => string | null>, fn: () => Promise<T>): Promise<T> {
+    const abs: string[] = [];
+    for (const f of files) {
+      try {
+        const a = f();
+        if (a) abs.push(a);
+      } catch {
+        /* not a canvas path: the action refuses it itself */
+      }
+    }
+    return saveHold().defer(abs, fn);
   }
 
   async function writeBoardFile(file: string, text: string): Promise<void> {
@@ -2381,29 +2821,41 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       typeof base === 'string' && base.length <= MAX_ANNOTATIONS_BYTES
         ? (canonicalAnnotations(base) ?? undefined)
         : undefined;
-    return onAnnotationChain(file, async () => {
-      // Never overwrite a board we can't read — it may hold work (review H2).
-      const read = await readBoard(file);
-      if (!read.ok) return false;
-      let next = clean;
-      if (cleanBase !== undefined) {
-        // With a base, the write is "what changed since base", merged onto the
-        // current board — a whole-board PUT no longer erases concurrent edits
-        // (code review M5). Same one merge rule as the op path.
-        const byId = (t: string) => new Map(parseBoard(t).elements.map((e) => [e.id, e]));
-        const ops = diffToOps(byId(cleanBase), byId(clean));
-        const live = hooks.applyAnnotationOpsLive?.(file, ops, writeId) ?? null;
-        if (live === 'too-large') return false;
-        if (live) return true;
-        const current = read.text ?? serializeBoard([]);
-        next = serializeBoard([...applyAnnotationOpsPure(byId(current), ops).state.values()]);
-        if (next.length > MAX_ANNOTATIONS_BYTES) return false;
-        if (next === current) return true;
-      }
-      await writeBoardFile(file, next);
-      onAnnotationsChanged?.(file, next, writeId, cleanBase);
-      return true;
-    });
+    return onAnnotationChain(file, () =>
+      deferSave([() => annotationsPath(file)], async () => {
+        // Never overwrite a board we can't read — it may hold work (review H2).
+        const read = await readBoard(file);
+        if (!read.ok) return false;
+        let next = clean;
+        if (cleanBase !== undefined) {
+          // With a base, the write is "what changed since base", merged onto the
+          // current board — a whole-board PUT no longer erases concurrent edits
+          // (code review M5). Same one merge rule as the op path.
+          const byId = (t: string) => new Map(parseBoard(t).elements.map((e) => [e.id, e]));
+          const ops = diffToOps(byId(cleanBase), byId(clean));
+          // sec-a M1 — a whole-board write never touches a vote or a ballot (the vote door does).
+          const live = hooks.applyAnnotationOpsLive?.(file, ops, writeId, voteDoorOnly) ?? null;
+          if (live === 'too-large' || live === 'refused') return false;
+          if (live) return true;
+          const current = read.text ?? serializeBoard([]);
+          const currentMap = byId(current);
+          const merged = applyAnnotationOpsPure(currentMap, ops).state;
+          if (voteDoorOnly(currentMap, merged) !== null) return false;
+          next = serializeBoard([...merged.values()]);
+          if (next.length > MAX_ANNOTATIONS_BYTES) return false;
+          if (next === current) return true;
+        }
+        if (cleanBase === undefined) {
+          // A replace: every vote and ballot must be exactly the stored ones (sec-a M1).
+          const byId = (t: string | null) =>
+            new Map((t ? parseBoard(t).elements : []).map((e) => [e.id, e]));
+          if (voteDoorOnly(byId(read.text), byId(next)) !== null) return false;
+        }
+        await writeBoardFile(file, next);
+        onAnnotationsChanged?.(file, next, writeId, cleanBase);
+        return true;
+      })
+    );
   }
 
   /**
@@ -2414,8 +2866,18 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   async function applyAnnotationOps(
     file: string,
     ops: readonly AnnotationOp[],
-    actionId?: string
+    actionId?: string,
+    opts?: { hooks?: boolean; guard?: BoardGuard }
   ): Promise<AnnotationOpsResult> {
+    const withHooks = opts?.hooks !== false;
+    const guard = opts?.guard;
+    const refusedResult = (id: string): AnnotationOpsResult => ({
+      ok: false,
+      changed: false,
+      rejected: [],
+      error: 'votes and ballots change only through the vote',
+      refused: id,
+    });
     return onAnnotationChain(file, async () => {
       const rejectedOf = (r: ApplyResult) =>
         r.rejected.map((x) => ({
@@ -2425,27 +2887,39 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         }));
       // A live room is ahead of the file (its flush is debounced): the batch
       // goes to its replica, or it would revert a peer's unflushed edit (H1).
-      const live = hooks.applyAnnotationOpsLive?.(file, ops, actionId) ?? null;
+      // A run-tagged batch (`run:<runId>`, an AI run's resolves and review stickies) never takes the live-room
+      // shortcut: the room's flush would publish it as a person's "Edit annotations" action, outside the run's
+      // stage, and ⌘Z / "Undo this chat" would miss it (contract S4-S5-ai-annotations §2; S4.20).
+      const live =
+        withHooks && runTagOf(actionId) === null
+          ? (hooks.applyAnnotationOpsLive?.(file, ops, actionId, guard) ?? null)
+          : null;
+      if (live === 'refused') return refusedResult('?');
       if (live === 'too-large') {
         return { ok: false, changed: false, rejected: [], error: 'board exceeds the size cap' };
       }
       if (live) return { ok: true, changed: live.touched.size > 0, rejected: rejectedOf(live) };
-      const read = await readBoard(file);
-      if (!read.ok) {
-        return { ok: false, changed: false, rejected: [], error: read.error, unreadable: true };
-      }
-      const before = read.text ? parseBoard(read.text).elements : [];
-      const beforeText = serializeBoard(before);
-      const r = applyAnnotationOpsPure(new Map(before.map((e) => [e.id, e])), ops);
-      const rejected = rejectedOf(r);
-      if (!r.touched.size) return { ok: true, changed: false, rejected };
-      const text = serializeBoard([...r.state.values()]);
-      if (text.length > MAX_ANNOTATIONS_BYTES) {
-        return { ok: false, changed: false, rejected, error: 'board exceeds the size cap' };
-      }
-      await writeBoardFile(file, text);
-      onAnnotationsChanged?.(file, text, actionId, beforeText);
-      return { ok: true, changed: true, rejected };
+      return deferSave([() => annotationsPath(file)], async (): Promise<AnnotationOpsResult> => {
+        const read = await readBoard(file);
+        if (!read.ok) {
+          return { ok: false, changed: false, rejected: [], error: read.error, unreadable: true };
+        }
+        const before = read.text ? parseBoard(read.text).elements : [];
+        const beforeText = serializeBoard(before);
+        const beforeMap = new Map(before.map((e) => [e.id, e]));
+        const r = applyAnnotationOpsPure(beforeMap, ops);
+        const hit = guard?.(beforeMap, r.state) ?? null;
+        if (hit !== null) return refusedResult(hit);
+        const rejected = rejectedOf(r);
+        if (!r.touched.size) return { ok: true, changed: false, rejected };
+        const text = serializeBoard([...r.state.values()]);
+        if (text.length > MAX_ANNOTATIONS_BYTES) {
+          return { ok: false, changed: false, rejected, error: 'board exceeds the size cap' };
+        }
+        await writeBoardFile(file, text);
+        if (withHooks) onAnnotationsChanged?.(file, text, actionId, beforeText);
+        return { ok: true, changed: true, rejected };
+      });
     });
   }
 
@@ -2456,8 +2930,29 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   ): Promise<boolean> {
     if (typeof text !== 'string' || text.length > MAX_ANNOTATIONS_BYTES) return false;
     if (!isCurrent()) return false;
+    let dest: string;
+    try {
+      dest = annotationsPath(file);
+    } catch {
+      return false;
+    }
     const clean = canonicalAnnotations(text);
     if (clean === null) return false;
+    // p8-a1-save-hold — the room's flush IS the person's strokes (an AI run's batch never takes the live
+    // room): while a running interpreter call names the board it waits; a newer flush supersedes it
+    // (`isCurrent`), so the last one lands
+    return asPersonSave(() =>
+      saveHold().defer([dest], () => projectBoard(file, dest, clean, isCurrent))
+    );
+  }
+
+  async function projectBoard(
+    file: string,
+    dest: string,
+    clean: string,
+    isCurrent: () => boolean
+  ): Promise<boolean> {
+    if (!isCurrent()) return false;
     // Runtime scratch stays out of the file plane. The async IO must not touch
     // the serving file until we recheck the document; another edit may have
     // arrived while Bun.write was pending. Check + rename have no await gap.
@@ -2467,12 +2962,238 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     try {
       await Bun.write(temp, clean);
       if (!isCurrent()) return false;
-      renameSync(temp, annotationsPath(file));
+      renameSync(temp, dest);
       announceWritten(`${fileSlug(file)}.annotations.json`);
       return true;
     } finally {
       await rm(temp, { force: true });
     }
+  }
+
+  /**
+   * S4.7 — one canvas's board AND its comments as ONE project action (contract
+   * S4-S9-votes-comments §3.2, V2-1.5). `change` sees both lanes as they are and
+   * answers the board ops + the next comment list; the two lanes then reach the
+   * home together:
+   *
+   *   - accepted mode (hub): both files are written raw — the per-lane hooks
+   *     would propose each lane as its own action — and `proposer.send` carries
+   *     both `lane.replace` ops in one proposal;
+   *   - the local home: the ordinary write paths (live room bridge, sidebar), then
+   *     `proposer.send` records both lanes as one action;
+   *   - no home (`proposer` null): the ordinary write paths; the caller keeps the
+   *     returned snapshot for its undo token.
+   *
+   * Serialized on the board's chain, so no op batch lands between the read and
+   * the write.
+   */
+  async function convertLanes<T>(
+    file: string,
+    change: ConvertChange<T>,
+    proposer: LanesProposer | null
+  ): Promise<ConvertResult<T>> {
+    return onAnnotationChain(file, () =>
+      deferSave([() => annotationsPath(file)], async (): Promise<ConvertResult<T>> => {
+        const read = await readBoard(file);
+        if (!read.ok) return { ok: false, status: 409, body: { ok: false, reason: 'unreadable' } };
+        const elements = read.text ? parseBoard(read.text).elements : [];
+        const boardBefore = read.text ?? '';
+        const comments = await loadCommentsForFile(file);
+        const commentsBefore = structuredClone(comments);
+        const c = change({ board: elements, comments: structuredClone(comments) });
+        if (!c.ok) return c;
+        const r = applyAnnotationOpsPure(new Map(elements.map((e) => [e.id, e])), c.ops);
+        if (r.rejected.length) {
+          return { ok: false, status: 409, body: { ok: false, reason: 'stale' } };
+        }
+        const boardAfter = serializeBoard([...r.state.values()]);
+        if (boardAfter.length > MAX_ANNOTATIONS_BYTES) {
+          return { ok: false, status: 413, body: { ok: false, reason: 'too-large' } };
+        }
+        const commentsAfter = dedupeCommentsById(c.comments);
+        const lanes: LaneChange[] = [
+          { lane: 'annotations', text: boardAfter, baseText: boardBefore },
+          {
+            lane: 'comments',
+            text: JSON.stringify(commentsAfter),
+            baseText: JSON.stringify(commentsBefore),
+          },
+        ];
+        const snapshot: ConvertSnapshot = {
+          file,
+          boardBefore,
+          boardAfter,
+          commentsBefore,
+          commentsAfter,
+        };
+        if (proposer?.accepted) {
+          // The project decides first: a refused conversion leaves both files as they are.
+          const answer = await proposer.send(lanes);
+          if (answer.status !== 'accepted') {
+            return {
+              ok: false,
+              status: 409,
+              body: { ok: false, reason: answer.code ?? 'rejected' },
+            };
+          }
+          await writeBoardFile(file, boardAfter);
+          await saveCommentsForFile(file, commentsAfter);
+          ctx.bus.emit('comments', { file, comments: commentsAfter });
+          return { ok: true, result: c.result, snapshot, ...actionOf(answer) };
+        }
+        const live = hooks.applyAnnotationOpsLive?.(file, c.ops) ?? null;
+        if (live === 'too-large') {
+          return { ok: false, status: 413, body: { ok: false, reason: 'too-large' } };
+        }
+        if (!live) {
+          await writeBoardFile(file, boardAfter);
+          onAnnotationsChanged?.(file, boardAfter, undefined, boardBefore, !!proposer);
+        }
+        await publishComments(file, commentsAfter, commentsBefore);
+        if (!proposer) return { ok: true, result: c.result, snapshot };
+        const answer = await proposer.send(lanes);
+        return { ok: true, result: c.result, snapshot, ...actionOf(answer) };
+      })
+    );
+  }
+
+  const actionOf = (a: LanesOutcome): { actionId?: string; queued?: boolean } => ({
+    ...(a.status === 'accepted' && a.actionId ? { actionId: a.actionId } : {}),
+    ...(a.queued ? { queued: true } : {}),
+  });
+
+  /**
+   * S2.9b — an artboard move and the annotations riding with it as ONE project
+   * action (contract S2-S4-artboard-motion-ids §2): the layout lane of the
+   * versioned `.meta.json` and the board, then one `proposer.send` with both
+   * lanes. Same three homes as `convertLanes`: accepted mode decides first and
+   * writes raw (no per-lane hooks, which would propose each lane on its own); the
+   * local home and no home take the ordinary write paths, the local home then
+   * records both lanes as one action. `rider.check` refuses before anything is
+   * written; a rejected op (gone / stale) refuses the whole move.
+   */
+  async function moveArtboardsWithRider(
+    file: string,
+    layout: unknown,
+    rider: RiderMove,
+    proposer: LanesProposer | null
+  ): Promise<RiderMoveResult> {
+    const metaAbs = canvasMetaPath(file);
+    const srcAbs = canvasSourceAbs(file);
+    if (!metaAbs || !srcAbs || !(await Bun.file(srcAbs).exists()))
+      return { ok: false, status: 404, body: { ok: false, reason: 'not-found' } };
+    const raw = layout as Record<string, unknown> | null;
+    const artboards =
+      raw && typeof raw === 'object' && !Array.isArray(raw) && 'artboards' in raw
+        ? normalizeLayoutArtboards(raw.artboards)
+        : null;
+    if (!raw || !artboards)
+      return { ok: false, status: 400, body: { ok: false, reason: 'layout.artboards required' } };
+    return onAnnotationChain(file, () =>
+      deferSave(
+        [() => metaAbs, () => annotationsPath(file)],
+        async (): Promise<RiderMoveResult> => {
+          let currentText: string | null = null;
+          let current: Record<string, unknown> = {};
+          try {
+            currentText = await Bun.file(metaAbs).text();
+            const parsed = JSON.parse(currentText);
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed))
+              current = parsed as Record<string, unknown>;
+          } catch {
+            currentText = null;
+          }
+          const read = await readBoard(file);
+          if (!read.ok)
+            return { ok: false, status: 409, body: { ok: false, reason: 'unreadable' } };
+          const elements = read.text ? parseBoard(read.text).elements : [];
+          const boardBefore = read.text ?? '';
+          const refused = rider.check(elements, current.layout);
+          if (refused) return { ok: false, ...refused };
+          const r = applyAnnotationOpsPure(new Map(elements.map((e) => [e.id, e])), rider.ops);
+          if (r.rejected.length)
+            return { ok: false, status: 409, body: { ok: false, reason: 'stale' } };
+          const boardAfter = r.touched.size ? serializeBoard([...r.state.values()]) : boardBefore;
+          if (boardAfter.length > MAX_ANNOTATIONS_BYTES)
+            return { ok: false, status: 413, body: { ok: false, reason: 'too-large' } };
+          const next: Record<string, unknown> = { ...current, layout: { ...raw, artboards } };
+          next.viewport = undefined;
+          next.last_modified = new Date().toISOString();
+          const nextText = `${JSON.stringify(next, null, 2)}\n`;
+          const metaRel = path.relative(paths.designRoot, metaAbs);
+          const lanes: LaneChange[] = [
+            { lane: 'meta', text: nextText, baseText: currentText ?? '{}' },
+            ...(boardAfter !== boardBefore
+              ? [{ lane: 'annotations' as const, text: boardAfter, baseText: boardBefore }]
+              : []),
+          ];
+          if (proposer?.accepted) {
+            const answer = await proposer.send(lanes);
+            if (answer.status !== 'accepted')
+              return {
+                ok: false,
+                status: 409,
+                body: { ok: false, reason: answer.code ?? 'rejected' },
+              };
+            await Bun.write(metaAbs, nextText);
+            announceWritten(metaRel);
+            if (boardAfter !== boardBefore) await writeBoardFile(file, boardAfter);
+            return { ok: true, meta: (await loadCanvasMeta(file)) ?? {}, ...actionOf(answer) };
+          }
+          if (boardAfter !== boardBefore) {
+            const live = hooks.applyAnnotationOpsLive?.(file, rider.ops, rider.actionId) ?? null;
+            if (live === 'too-large')
+              return { ok: false, status: 413, body: { ok: false, reason: 'too-large' } };
+            if (!live) {
+              await writeBoardFile(file, boardAfter);
+              onAnnotationsChanged?.(file, boardAfter, rider.actionId, boardBefore, !!proposer);
+            }
+          }
+          await Bun.write(metaAbs, nextText);
+          hooks.onMetaChanged?.(
+            file,
+            nextText,
+            Object.keys(current).length ? JSON.stringify(current) : null
+          );
+          announceWritten(metaRel);
+          const meta = (await loadCanvasMeta(file)) ?? {};
+          if (!proposer) return { ok: true, meta };
+          return { ok: true, meta, ...actionOf(await proposer.send(lanes)) };
+        }
+      )
+    );
+  }
+
+  /**
+   * S4.7 — put a conversion's two lanes back as they were (the no-home undo
+   * token, contract §3.2 "Legacy link / no op log"). Refused as `stale` once
+   * either lane moved on since the conversion — a later change is never undone
+   * along with it.
+   */
+  async function restoreConversion(s: ConvertSnapshot): Promise<{ ok: boolean; reason?: string }> {
+    return onAnnotationChain(s.file, () =>
+      deferSave(
+        [() => annotationsPath(s.file)],
+        async (): Promise<{ ok: boolean; reason?: string }> => {
+          const read = await readBoard(s.file);
+          if (!read.ok) return { ok: false, reason: 'unreadable' };
+          const comments = await loadCommentsForFile(s.file);
+          const sameComments = JSON.stringify(comments) === JSON.stringify(s.commentsAfter);
+          if ((read.text ?? '') !== s.boardAfter || !sameComments)
+            return { ok: false, reason: 'stale' };
+          const byId = (t: string) => new Map(parseBoard(t).elements.map((e) => [e.id, e]));
+          const ops = diffToOps(byId(s.boardAfter), byId(s.boardBefore || serializeBoard([])));
+          const live = hooks.applyAnnotationOpsLive?.(s.file, ops) ?? null;
+          if (live === 'too-large') return { ok: false, reason: 'too-large' };
+          if (!live) {
+            await writeBoardFile(s.file, s.boardBefore || serializeBoard([]));
+            onAnnotationsChanged?.(s.file, s.boardBefore, undefined, s.boardAfter);
+          }
+          await publishComments(s.file, s.commentsBefore, s.commentsAfter);
+          return { ok: true };
+        }
+      )
+    );
   }
 
   // Phase 23 — content-addressed asset write. Reachable from the (potentially
@@ -2490,6 +3211,22 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   //     user input, but a poisoned designRoot must still not escape).
   // Running total of bytes this server instance has actually written (post-dedupe).
   let assetBytesWritten = 0;
+  // gate-b-c4k — per frame (`currentFrameKey`): bytes written + held by its open chunk sessions.
+  const frameAssetBytes = new Map<string, number>();
+  // gate-b-c4l — the sum over every frame (`ASSET_FRAMES_BUDGET`), kept with the per-frame entries.
+  let framesAssetBytes = 0;
+  const frameOver = (key: string | null, bytes: number) =>
+    key !== null &&
+    ((frameAssetBytes.get(key) ?? 0) + bytes > ASSET_FRAME_BUDGET ||
+      framesAssetBytes + bytes > ASSET_FRAMES_BUDGET);
+  const frameCharge = (key: string | null, bytes: number) => {
+    if (key === null) return;
+    const prev = frameAssetBytes.get(key) ?? 0;
+    const next = Math.max(0, prev + bytes);
+    framesAssetBytes = Math.max(0, framesAssetBytes + next - prev);
+    if (next === 0) frameAssetBytes.delete(key);
+    else frameAssetBytes.set(key, next);
+  };
   // S3/R2 asset lane (Cloud Phase 3 Task 2). Unconfigured by default — a local
   // project and a single-box self-hoster both work with no bucket at all.
   const assetMirror = createAssetMirror(s3ConfigFromEnv());
@@ -2537,7 +3274,21 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     mediaCap: number;
     /** 'reserved' — a chunk session already charged the budget at chunk-start. */
     budget: 'check' | 'reserved';
+    /** gate-b-c4k — the frame the write is charged to (null: the main origin / no frame). */
+    frameKey: string | null;
     allowImages: boolean;
+  }
+
+  /** Streamed sha-256 of a file on disk (a dedupe hit must prove its bytes, not just its name). */
+  async function sha256File(abs: string): Promise<string> {
+    const h = crypto.createHash('sha256');
+    const reader = Bun.file(abs).stream().getReader();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      h.update(value);
+    }
+    return h.digest('hex');
   }
 
   async function consumeAssetStream(
@@ -2632,17 +3383,40 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       if (sink) await sink.end();
 
       const digest = hash.digest('hex');
-      const sha8 = digest.slice(0, 8);
-      const name = `${sha8}.${typeInfo.ext}`;
-      const fileAbs = path.join(assetsDir, name);
-      // Containment backstop — the name is content-addressed (sha8 hex + sniffed
-      // ext), no user-controlled segment, but assert anyway (poisoned designRoot).
-      if (path.resolve(fileAbs) !== path.join(path.resolve(assetsDir), name)) {
-        await rm(tmpAbs, { force: true });
-        return { ok: false, status: 400, error: 'resolved asset path escapes assets dir' };
+      // The short name is the usual one; a file already sitting under it that does NOT hash to
+      // this digest (planted, or a sha8 collision) is never returned as the dedupe hit (security
+      // batch 2, A4) — the bytes go under a longer name instead. It keeps the sha8 as its prefix
+      // (`<sha8>-<more digest>.<ext>`) so the S3 mirror's path check still verifies the bytes.
+      let name = `${digest.slice(0, 8)}.${typeInfo.ext}`;
+      let fileAbs = path.join(assetsDir, name);
+      let deduped = false;
+      const longStem = `${digest.slice(0, 8)}-${digest.slice(8, 32)}`;
+      for (const stem of [digest.slice(0, 8), longStem]) {
+        name = `${stem}.${typeInfo.ext}`;
+        fileAbs = path.join(assetsDir, name);
+        // Containment backstop — the name is content-addressed (hex digest + sniffed
+        // ext), no user-controlled segment, but assert anyway (poisoned designRoot).
+        if (path.resolve(fileAbs) !== path.join(path.resolve(assetsDir), name)) {
+          await rm(tmpAbs, { force: true });
+          return { ok: false, status: 400, error: 'resolved asset path escapes assets dir' };
+        }
+        if (!(await Bun.file(fileAbs).exists())) break;
+        if ((await sha256File(fileAbs)) === digest) {
+          deduped = true;
+          break;
+        }
+        if (stem === longStem) {
+          // Even the long name holds other bytes: refuse, never serve them.
+          await rm(tmpAbs, { force: true });
+          return {
+            ok: false,
+            status: 409,
+            error: 'an asset with this name already holds other bytes',
+          };
+        }
       }
-      // Dedupe — identical bytes hash to the same name; drop the temp copy.
-      if (await Bun.file(fileAbs).exists()) {
+      // Dedupe — identical bytes (verified above), drop the temp copy.
+      if (deduped) {
         await rm(tmpAbs, { force: true });
         return { ok: true, path: `assets/${name}` };
       }
@@ -2652,7 +3426,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       // what those sessions were promised.
       if (
         opts.budget === 'check' &&
-        assetBytesWritten + assetBytesReserved + total > ASSET_SESSION_BUDGET
+        (assetBytesWritten + assetBytesReserved + total > ASSET_SESSION_BUDGET ||
+          frameOver(opts.frameKey, total))
       ) {
         await rm(tmpAbs, { force: true });
         return {
@@ -2663,6 +3438,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       }
       await rename(tmpAbs, fileAbs);
       assetBytesWritten += total;
+      // a chunk session's reservation is released when it drops (finish included), like the global
+      frameCharge(opts.frameKey, total);
       const rel = `assets/${name}`;
       announceWritten(rel);
       // S3/R2 lane (Cloud Phase 3) — mirror the bytes so a second machine can
@@ -2704,6 +3481,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     return consumeAssetStream(stream, {
       mediaCap: ASSET_MAX_VIDEO_BYTES,
       budget: 'check',
+      frameKey: currentFrameKey(),
       allowImages: true,
     });
   }
@@ -2717,6 +3495,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   // never the versioned + synced `assets/`. See DDR-248.
   interface ChunkSession {
     id: string;
+    /** gate-b-c4k — the frame that started it (its reservation is charged there too), or null. */
+    frameKey: string | null;
     dir: string;
     totalSize: number;
     chunkCount: number;
@@ -2738,6 +3518,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     if (chunkSessions.get(s.id) === s) {
       chunkSessions.delete(s.id);
       assetBytesReserved = Math.max(0, assetBytesReserved - s.totalSize);
+      frameCharge(s.frameKey, -s.totalSize);
     }
     try {
       await rm(s.dir, { recursive: true, force: true });
@@ -2815,7 +3596,11 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     if (chunkSessions.size >= ASSET_CHUNK_MAX_SESSIONS) {
       return { ok: false, status: 429, error: 'too many uploads in progress — try again shortly' };
     }
-    if (assetBytesWritten + assetBytesReserved + totalSize > ASSET_SESSION_BUDGET) {
+    const frameKey = currentFrameKey();
+    if (
+      assetBytesWritten + assetBytesReserved + totalSize > ASSET_SESSION_BUDGET ||
+      frameOver(frameKey, totalSize)
+    ) {
       return {
         ok: false,
         status: 429,
@@ -2830,6 +3615,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     const now = Date.now();
     const session: ChunkSession = {
       id,
+      frameKey,
       dir,
       totalSize,
       chunkCount: Math.ceil(totalSize / ASSET_CHUNK_BYTES),
@@ -2841,6 +3627,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     };
     chunkSessions.set(id, session);
     assetBytesReserved += totalSize;
+    frameCharge(frameKey, totalSize);
     try {
       await mkdir(dir, { recursive: true });
     } catch (err) {
@@ -2968,6 +3755,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       return await consumeAssetStream(reassembledStream(s), {
         mediaCap: ASSET_MAX_CHUNKED_BYTES,
         budget: 'reserved',
+        frameKey: s.frameKey,
         allowImages: false,
       });
     } finally {
@@ -3033,7 +3821,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       }
       out.push({ path: `assets/${name}`, name, ext: ext.slice(1), kind, size, mtimeMs });
     }
-    out.sort((a, b) => b.mtimeMs - a.mtimeMs);
+    // Newest first; equal mtimes (a coarse filesystem clock stamps files written back to back alike) by
+    // name — never readdir order, which differs per filesystem and so per machine (p8-ci-linux-2).
+    out.sort((a, b) => b.mtimeMs - a.mtimeMs || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
     return { ok: true, assets: out.slice(0, 500) };
   }
 
@@ -3189,7 +3979,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     const assetsDir = path.join(paths.designRoot, 'assets');
     let entries: string[];
     try {
-      entries = await readdir(assetsDir);
+      entries = (await readdir(assetsDir)).sort(); // a defined order for the cap and for ties
     } catch {
       return [];
     }
@@ -3362,21 +4152,51 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   // gated by `validateCanvasName` (path + JSX + JSON injection boundary); `group`
   // is allowlisted to the configured canvas groups; a `resolve()` containment
   // assert is the defense-in-depth backstop.
+  // V2 S6.1 (C4) — a `blank` create with no name is named by the server ("Untitled canvas", " 2", …, or
+  // from `fromPrompt`). Creates run one at a time so two ⌘N in the same instant cannot both pick the
+  // same free name (the pick and the write are separated by awaits).
+  let blankCreateQueue: Promise<unknown> = Promise.resolve();
   async function createCanvas(input: {
     name?: unknown;
     kind?: unknown;
     group?: unknown;
+    fromPrompt?: unknown;
+    // S10.13 — the system a new canvas starts on (its folder's one system, client/v2/ds/new-canvas-default.js)
+    designSystem?: unknown;
     // DDR-150 P4 Task 12 — video-comp assemble payload (kind === 'video-comp').
     clips?: unknown;
     fps?: unknown;
     width?: unknown;
     height?: unknown;
   }): Promise<CreateCanvasResult> {
+    const run = blankCreateQueue.then(() => createCanvasNow(input));
+    blankCreateQueue = run.catch(() => undefined);
+    return run;
+  }
+
+  async function createCanvasNow(input: {
+    name?: unknown;
+    kind?: unknown;
+    group?: unknown;
+    fromPrompt?: unknown;
+    designSystem?: unknown;
+    clips?: unknown;
+    fps?: unknown;
+    width?: unknown;
+    height?: unknown;
+  }): Promise<CreateCanvasResult> {
     // v1 stamps blank brief-boards + assembled video-comps — richer generation
-    // stays with `/design:new` (Claude).
-    const kind = input.kind == null || input.kind === '' ? 'brief-board' : input.kind;
-    if (kind !== 'brief-board' && kind !== 'video-comp') {
-      return { ok: false, status: 400, error: 'kind must be "brief-board" or "video-comp"' };
+    // stays with `/design:new` (Claude). V2 S6.1 adds the blank canvas: with no `kind`, a name means a
+    // brief board (every v1 caller) and no name means a blank canvas.
+    const noName = input.name == null || input.name === '';
+    const kind =
+      input.kind == null || input.kind === '' ? (noName ? 'blank' : 'brief-board') : input.kind;
+    if (kind !== 'brief-board' && kind !== 'video-comp' && kind !== 'blank') {
+      return {
+        ok: false,
+        status: 400,
+        error: 'kind must be "blank", "brief-board" or "video-comp"',
+      };
     }
     // Parse + validate the assemble clip list up front (video-comp only).
     const assembleClips: AssembleClip[] = [];
@@ -3401,7 +4221,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         assembleClips.push({ src, mediaKind, durationInFrames });
       }
     }
-    const v = validateCanvasName(input.name);
+    // A blank canvas with no name is named below, once the folder is known.
+    const autoName = kind === 'blank' && noName;
+    let v = autoName ? validateCanvasName(UNTITLED_CANVAS) : validateCanvasName(input.name);
     if (!v.ok || !v.name || !v.componentName) {
       return { ok: false, status: 400, error: v.error ?? 'invalid name' };
     }
@@ -3416,6 +4238,24 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     }
 
     const groupAbs = path.join(paths.designRoot, group);
+    if (autoName) {
+      const base =
+        input.fromPrompt == null ? UNTITLED_CANVAS : nameFromPrompt(input.fromPrompt).canvas;
+      // A canvas in the trash is not in the folder, so it does not hold its name.
+      const existingRels = await allCanvasRels();
+      const free = nextFreeCanvasName(
+        base,
+        (n) =>
+          existsSync(path.join(groupAbs, `${n}.tsx`)) ||
+          existsSync(path.join(groupAbs, `${n}.meta.json`)) ||
+          // S1.23b — a name too close to one already here is taken too.
+          findCloseName(path.posix.join(group, `${n}.tsx`), existingRels) !== null
+      );
+      v = validateCanvasName(free);
+      if (!v.ok || !v.name || !v.componentName) {
+        return { ok: false, status: 400, error: v.error ?? 'invalid name' };
+      }
+    }
     const fileAbs = path.join(groupAbs, `${v.name}.tsx`);
     // Containment backstop, two layers (Phase 22 security review F2). The name
     // regex already forbids traversal, but `group` comes from config
@@ -3440,6 +4280,10 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     ) {
       return { ok: false, status: 400, error: 'resolved path escapes the canvas group' };
     }
+    // S1.23b — before the plain "already exists", so a case-only variant says the same words on a
+    // case-insensitive volume (where it IS the file) as on a case-sensitive one.
+    const closeToCreate = await closeCanvasName(v.name, path.posix.join(group, `${v.name}.tsx`));
+    if (closeToCreate) return closeToCreate;
     if (await Bun.file(fileAbs).exists()) {
       return {
         ok: false,
@@ -3450,7 +4294,12 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
 
     const rel = path.posix.join(group, `${v.name}.tsx`);
     const slug = fileSlug(rel);
-    const dsName = cfg.defaultDesignSystem || 'project';
+    // S10.13 — a system the person asked for counts only when the project holds it (else the default)
+    const askedDs = typeof input.designSystem === 'string' ? input.designSystem : '';
+    const dsName =
+      askedDs && cfg.designSystems?.some((d) => d.name === askedDs)
+        ? askedDs
+        : cfg.defaultDesignSystem || 'project';
     const platform = 'desktop';
     let tsx: string;
     if (kind === 'video-comp') {
@@ -3468,6 +4317,14 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
           error: err instanceof Error ? err.message : 'assemble failed',
         };
       }
+    } else if (kind === 'blank') {
+      tsx = renderBlankCanvas({
+        name: v.name,
+        componentName: v.componentName,
+        dsName,
+        platform,
+        historyDir: path.posix.join(paths.designRel, '_history', slug),
+      });
     } else {
       tsx = renderBriefBoard({
         name: v.name,
@@ -3492,16 +4349,28 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
             created: now,
             last_modified: now,
           }
-        : {
-            kind: 'brief-board',
-            title: v.name,
-            subtitle: 'brief board',
-            brief: v.name,
-            designSystem: dsName,
-            platform,
-            created: now,
-            last_modified: now,
-          };
+        : kind === 'blank'
+          ? {
+              // `canvas`, not a new kind: the index and a v1 peer both know it (V2 S6.1).
+              kind: 'canvas',
+              title: v.name,
+              subtitle: 'blank canvas',
+              brief: '',
+              designSystem: dsName,
+              platform,
+              created: now,
+              last_modified: now,
+            }
+          : {
+              kind: 'brief-board',
+              title: v.name,
+              subtitle: 'brief board',
+              brief: v.name,
+              designSystem: dsName,
+              platform,
+              created: now,
+              last_modified: now,
+            };
     await Bun.write(fileAbs, tsx);
     await Bun.write(
       path.join(groupAbs, `${v.name}.meta.json`),
@@ -3523,7 +4392,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     return { ok: true, file: path.posix.join(paths.designRel, rel), rel, slug };
   }
 
-  async function duplicateCanvas(input: { file?: unknown }): Promise<CreateCanvasResult> {
+  async function duplicateCanvas(
+    input: { file?: unknown } & DuplicateCanvasOpts
+  ): Promise<CreateCanvasResult> {
     const raw = input?.file;
     if (typeof raw !== 'string' || !raw.trim()) {
       return { ok: false, status: 400, error: 'file is required' };
@@ -3562,30 +4433,42 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     if (!(await Bun.file(fileAbs).exists())) {
       return { ok: false, status: 404, error: 'canvas not found' };
     }
-    const base = path.basename(rel).replace(/\.tsx$/i, '');
+    // A canvas made before names were held to the allowed set (S1.23c) may carry an accent or a dash the
+    // set no longer takes: its copy is named from the folded base, so duplicating is never refused.
+    const srcBase = path.basename(rel).replace(/\.tsx$/i, '');
+    const base = foldToAllowedName(srcBase) || UNTITLED_CANVAS;
     const dir = path.posix.dirname(rel) === '.' ? '' : path.posix.dirname(rel);
-    // "<name> copy", then "<name> copy 2", … — the first free, valid name.
+    // "<name> copy", then "<name> copy 2", … — the first free, valid name (S11.12 Keep both:
+    // "<name> this Mac", "<name> this Mac 2", …).
+    const word = input.suffix ?? 'copy';
     let name: string | null = null;
     for (let n = 1; n < 100 && !name; n++) {
-      const suffix = n === 1 ? ' copy' : ` copy ${n}`;
+      const suffix = n === 1 ? ` ${word}` : ` ${word} ${n}`;
       const v = validateCanvasName(`${base.slice(0, 60 - suffix.length)}${suffix}`);
       if (!v.ok || !v.name) return { ok: false, status: 400, error: v.error ?? 'invalid name' };
       const candidate = path.posix.join(dir, `${v.name}.tsx`);
       if (await Bun.file(path.join(paths.designRoot, candidate)).exists()) continue;
       if (await fileForSlug(fileSlug(candidate))) continue;
+      // S1.23b — a copy name that shares a sync document with another canvas is taken too.
+      if (await closeCanvasName(v.name, candidate)) continue;
       name = v.name;
     }
     if (!name) return { ok: false, status: 409, error: 'too many copies of this canvas' };
     const toRel = path.posix.join(dir, `${name}.tsx`);
     const toAbs = path.join(paths.designRoot, toRel);
-    await Bun.write(toAbs, await Bun.file(fileAbs).arrayBuffer());
+    // Keep both writes the version it was handed (the one this Mac held), never a later disk read.
+    await Bun.write(
+      toAbs,
+      typeof input.source === 'string' ? input.source : await Bun.file(fileAbs).arrayBuffer()
+    );
     const metaAbs = fileAbs.replace(/\.tsx$/i, '.meta.json');
     if (await Bun.file(metaAbs).exists()) {
       let text = await Bun.file(metaAbs).text();
       try {
         const meta = JSON.parse(text) as Record<string, unknown>;
         const now = new Date().toISOString();
-        if (typeof meta.title !== 'string' || meta.title === base) meta.title = name;
+        if (typeof input.title === 'string') meta.title = input.title.slice(0, 120);
+        else if (typeof meta.title !== 'string' || meta.title === srcBase) meta.title = name;
         meta.created = now;
         meta.last_modified = now;
         text = `${JSON.stringify(meta, null, 2)}\n`;
@@ -3718,6 +4601,13 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       `${JSON.stringify({ canvas: rel, slug, deletedAt: new Date().toISOString(), trashed }, null, 2)}\n`
     );
 
+    // V2-1.1 §5.5 — a trashed canvas drops its pin (a restore does not bring it back).
+    try {
+      dropPin(paths.designRoot, rel);
+    } catch {
+      /* best-effort */
+    }
+
     // Phase 30 — live tree refresh for other local tabs (see createCanvas).
     ctx.bus.emit('canvas-list-update', { action: 'removed', rel, slug });
     // A SEPARATE EVENT, DELIBERATELY. `canvas-list-update` is emitted by this
@@ -3793,7 +4683,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       if (depth > 12) return null;
       let entries: import('node:fs').Dirent[];
       try {
-        entries = await readdir(dirAbs, { withFileTypes: true });
+        entries = (await readdir(dirAbs, { withFileTypes: true })).sort((a, b) =>
+          a.name < b.name ? -1 : a.name > b.name ? 1 : 0
+        );
       } catch {
         return null;
       }
@@ -4219,7 +5111,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       return { ok: false, status: 400, error: 'source and destination are the same' };
     }
     const toAbs = path.join(paths.designRoot, toRel);
-    if (await Bun.file(toAbs).exists()) {
+    // S1.23b — a rename onto ITSELF with a case change is the same file on a case-insensitive
+    // volume: it "exists", and is not a collision. Anything else already at the target is.
+    if ((await Bun.file(toAbs).exists()) && !(await isSameEntry(fileAbs, toAbs))) {
       return {
         ok: false,
         status: 409,
@@ -4253,6 +5147,10 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         };
       }
     }
+    // S1.23b — the exact slug is the case above; this is the SYNC key, which flattens further (an
+    // em dash and a hyphen are one document on the wire). The canvas itself is not a collision.
+    const closeTo = await closeCanvasName(base.replace(/\.tsx$/i, ''), toRel, (r) => r === rel);
+    if (closeTo) return closeTo;
 
     // Collab guard — a pinned room (shared-doc hub provider attached, DDR-064)
     // must not have its file renamed out from under it. The old behaviour was
@@ -4283,6 +5181,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     // Primary `.tsx` moves FIRST — abort the whole op if this fails so the
     // tree is never wrong about where the canvas lives.
     await mkdir(toDirAbs, { recursive: true });
+    // Said BEFORE the rename: the local history must not read the old path vanishing as a delete (a
+    // Trash row for a rename) while the sidecars below are still moving; `moved` follows when all is done.
+    ctx.bus.emit('canvas-move-begin', { rel: toRel, fromRel: rel });
     try {
       await rename(fileAbs, toAbs);
     } catch (err) {
@@ -4339,6 +5240,13 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       }
     } catch {
       /* best-effort — a stale locator entry re-derives on next transpile */
+    }
+
+    // V2-3.3 — its pin and "last opened" (`_canvas-state/_pins.json`, `_recent.json`) follow it.
+    try {
+      rekeyUserState(paths.designRoot, [[rel, toRel]]);
+    } catch {
+      /* best-effort — a lost pin is not worth failing a move that already happened */
     }
 
     // Retarget `_active.json` (active canvas / open tabs / selection) if this
@@ -4474,11 +5382,18 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       return { ok: false, status: 400, error: 'source and destination are the same' };
     }
     const toDirFinalAbs = path.join(paths.designRoot, toRelDir);
-    try {
-      await statp(toDirFinalAbs);
-      return { ok: false, status: 409, error: `"${base}" already exists in ${toDir || '.'}` };
-    } catch {
-      /* good — doesn't exist yet */
+    // S1.23b — a folder renamed onto ITSELF with a case change is the same folder on a
+    // case-insensitive volume; a sibling that shares a sync key with the new name is a collision.
+    const caseOnlyFolder = await isSameEntry(dirAbs, toDirFinalAbs);
+    if (!caseOnlyFolder) {
+      const closeFolder = await closeFolderName(base, toDir, relDir);
+      if (closeFolder) return closeFolder;
+      try {
+        await statp(toDirFinalAbs);
+        return { ok: false, status: 409, error: `"${base}" already exists in ${toDir || '.'}` };
+      } catch {
+        /* good — doesn't exist yet */
+      }
     }
 
     // Enumerate every .tsx canvas under this folder (recursive) BEFORE the
@@ -4520,6 +5435,13 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
           };
         }
       }
+      // S1.23b — the SYNC key, which flattens further than the exact slug above.
+      const closeNested = await closeCanvasName(
+        path.posix.basename(toRel).replace(/\.tsx$/i, ''),
+        toRel,
+        (o) => batchRelSet.has(o)
+      );
+      if (closeNested) return closeNested;
     }
 
     // ONE project action for the whole folder (accepted-revisions mode) —
@@ -4567,7 +5489,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     // leaving the old folder in this person's tree while every teammate had
     // the move (plan T31/L02). A destination holding nothing but placeholders
     // is that projection; it is replaced, never merged into.
-    if (await onlyFolderPlaceholders(toDirFinalAbs)) {
+    // (Never when this IS the source — a case-only rename — or the source would be removed.)
+    if (!caseOnlyFolder && (await onlyFolderPlaceholders(toDirFinalAbs))) {
       await rm(toDirFinalAbs, { recursive: true, force: true });
     }
     try {
@@ -4659,6 +5582,16 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       });
     }
 
+    // V2-3.3 — every nested canvas's pin and "last opened" follow it, in one rewrite per file.
+    try {
+      rekeyUserState(
+        paths.designRoot,
+        canvasRels.map((fromRel) => [fromRel, toRelDir + fromRel.slice(relDir.length)])
+      );
+    } catch {
+      /* best-effort */
+    }
+
     return { ok: true, fromRel: relDir, toRel: toRelDir, fromSlug: '', toSlug: '', moved };
   }
 
@@ -4719,6 +5652,10 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     ) {
       return { ok: false, status: 400, error: 'resolved path escapes the parent folder' };
     }
+    // S1.23b — a sibling folder that shares a sync key with this name is a collision (before the
+    // plain "already exists", so a case-only variant says the same words on either volume).
+    const closeFolder = await closeFolderName(v.name, parent);
+    if (closeFolder) return closeFolder;
     try {
       await statp(dirAbs); // throws if absent (works for files AND dirs)
       return { ok: false, status: 409, error: `"${v.name}" already exists` };
@@ -4830,7 +5767,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     abs: string,
     run: () => Promise<{ delta: number; changed?: boolean; previous?: AttributeState }>,
     errLabel: string,
-    describe?: Parameters<typeof describeSourceOp>[2]
+    describe?: Parameters<typeof describeSourceOp>[2],
+    /** S2.25 G2: what the undo history calls this write (one line); absent = the default row */
+    label?: string
   ): Promise<EditOpResult> {
     const rel = path.relative(paths.designRoot, abs);
     ctx.bus.emit('activity:suppress', rel);
@@ -4845,7 +5784,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         const op = describeSourceOp(abs, before, describe);
         if (op) ctx.bus.emit('source-op', { rel, op });
       }
-      const res = await run();
+      const res = await sayingWrites(before, label, run);
       const previous =
         res.previous?.kind === 'absent'
           ? { previous: null }
@@ -4863,7 +5802,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       // This API write is complete: accepted sync need not wait for an
       // external editor's quiet window. It is still only a proposal, not an
       // acknowledgement; the normal hub validation/acceptance path owns that.
-      if (after !== before) ctx.bus.emit('source-written', { rel, content: after });
+      if (after !== before)
+        ctx.bus.emit('source-written', { rel, content: after, ...(label ? { label } : {}) });
       return { ok: true, delta: res.delta, seq, ...previous };
     } catch (err) {
       ctx.bus.emit('activity:unsuppress', rel);
@@ -4878,6 +5818,38 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     }
   }
 
+  /**
+   * p8-lock-reasons — the edit-op's 409 `locked` for the first shared-locked object of `targets` in the canvas at
+   * `abs`, else null. Every direct object write asks it before it writes (S2-edit-ops §3 rule 6). A target with an
+   * `occurrence` is a component instance: the write lands on its `<Component>` usage, so that usage is asked too.
+   */
+  async function lockedTarget(
+    abs: string,
+    targets: ReadonlyArray<string | { id: string; occurrence?: number }>
+  ): Promise<{ ok: false; status: 409; error: string; code: 'locked' } | null> {
+    let source: string;
+    try {
+      source = await Bun.file(abs).text();
+    } catch {
+      return null; // a missing canvas is the writer's own 404
+    }
+    const walk = walkIdElements(source, abs);
+    if (!walk.ok) return null; // an unparsable canvas is the writer's own refusal
+    const ids: string[] = [];
+    for (const t of targets) {
+      const { id, occurrence } = typeof t === 'string' ? { id: t, occurrence: undefined } : t;
+      ids.push(id);
+      if (typeof occurrence === 'number') {
+        const usage = usageIdOf(abs, source, id, occurrence);
+        if (usage !== id) ids.push(usage);
+      }
+    }
+    const lock = lockedRefusal(walk.elements, ids);
+    return lock && lock.code === 'locked'
+      ? { ok: false, status: 409, error: lock.message, code: 'locked' }
+      : null;
+  }
+
   async function editCss(input: {
     canvas?: unknown;
     id?: unknown;
@@ -4886,6 +5858,10 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     reset?: unknown;
     idIndex?: unknown;
     expected?: unknown;
+    /** S2.25 G2: more properties of the SAME element, written in the same request (a move is left + top) */
+    also?: unknown;
+    /** S2.25 G2: what the undo history calls this write */
+    label?: unknown;
   }): Promise<EditOpResult> {
     const r = resolveCanvasAbs(input.canvas);
     if (!r.ok) return r;
@@ -4893,6 +5869,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     if (!pre.ok) return { ok: false, status: 400, error: 'invalid expected value' };
     const id = typeof input.id === 'string' ? input.id.trim() : '';
     if (!CD_ID_RE.test(id)) return { ok: false, status: 400, error: 'invalid data-cd-id' };
+    const said = typeof input.label === 'string' ? input.label.trim().slice(0, 120) : '';
     // Stage H3 — optional DOM-occurrence index. Present only for a whole-instance
     // move/resize (reposition/resize-request); routes the write to the dragged
     // component instance's own `<Component/>` usage so it stays LOCAL. Absent for
@@ -4901,6 +5878,10 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       typeof input.idIndex === 'number' && Number.isInteger(input.idIndex) && input.idIndex >= 0
         ? input.idIndex
         : undefined;
+    // p8-lock-reasons — only the lock op may touch a locked object (S2-edit-ops §3 rule 6): the dispatcher's
+    // own lookup, so a style control on a locked object hears the edit-op's 409 `locked`, not a write
+    const locked = await lockedTarget(r.abs, [{ id, occurrence: idIndex }]);
+    if (locked) return locked;
     const property = typeof input.property === 'string' ? input.property.trim() : '';
     // CSS property names are ASCII letters + hyphens only (optionally a leading
     // `-` for vendor prefixes) — reject anything that could smuggle a second key
@@ -4929,12 +5910,60 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
           id,
           attr: `style.${camel}`,
           ...(idIndex !== undefined ? { occurrence: idIndex } : {}),
-        }
+        },
+        said || undefined
       );
     }
     const value = typeof input.value === 'string' ? input.value : '';
     if (!value.trim()) return { ok: false, status: 400, error: 'value required' };
     if (value.length > 256) return { ok: false, status: 413, error: 'value too long' };
+    // S2.25 G2 — the other properties of the same move, validated like the first (a name, a short value)
+    const more: Array<{ camel: string; value: string }> = [];
+    if (input.also !== undefined) {
+      const list = Array.isArray(input.also) ? input.also : null;
+      if (!list || list.length > 4) return { ok: false, status: 400, error: 'invalid also' };
+      for (const item of list as Array<{ property?: unknown; value?: unknown }>) {
+        const p = typeof item?.property === 'string' ? item.property.trim() : '';
+        const v = typeof item?.value === 'string' ? item.value : '';
+        if (!/^-?[a-z][a-z-]*$/.test(p) || !v.trim() || v.length > 256) {
+          return { ok: false, status: 400, error: 'invalid also' };
+        }
+        more.push({ camel: p.replace(/-([a-z])/g, (_m, c: string) => c.toUpperCase()), value: v });
+      }
+    }
+    if (more.length > 0) {
+      // ONE write for the whole move: one undo step, one `source-written` (a half-moved element has no row)
+      return suppressedEdit(
+        r.abs,
+        async () => {
+          const first = await editAttribute(
+            r.abs,
+            id,
+            `style.${camel}`,
+            JSON.stringify(value),
+            idIndex,
+            pre.expected === undefined ? undefined : { expected: pre.expected, next: value }
+          );
+          let delta = first.delta;
+          let changed = first.changed !== false;
+          for (const m of more) {
+            const next = await editAttribute(
+              r.abs,
+              id,
+              `style.${m.camel}`,
+              JSON.stringify(m.value),
+              idIndex
+            );
+            delta += next.delta;
+            if (next.changed !== false) changed = true;
+          }
+          return { delta, changed, previous: first.previous };
+        },
+        'edit failed',
+        undefined,
+        said || undefined
+      );
+    }
     // The value is always written as a JS STRING literal: JSON.stringify escapes
     // quotes/backslashes/newlines so it can never break out of the string, and
     // React accepts string values for every style prop — so `var(--accent)`,
@@ -4957,7 +5986,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         attr: `style.${camel}`,
         value: JSON.stringify(value),
         ...(idIndex !== undefined ? { occurrence: idIndex } : {}),
-      }
+      },
+      said || undefined
     );
   }
 
@@ -4974,6 +6004,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     if (!CD_ID_RE.test(id)) return { ok: false, status: 400, error: 'invalid data-cd-id' };
     if (typeof input.text !== 'string') return { ok: false, status: 400, error: 'text required' };
     if (input.text.length > 5000) return { ok: false, status: 413, error: 'text too long' };
+    const lockedText = await lockedTarget(r.abs, [id]);
+    if (lockedText) return lockedText;
     const text = input.text;
     // Optional context for editing `{variable}` text (unified-text-editing
     // follow-up): which rendered instance, and its pre-edit text — both used
@@ -5022,6 +6054,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     ) {
       return { ok: false, status: 400, error: 'invalid attribute' };
     }
+    const lockedAttr = await lockedTarget(r.abs, [id]);
+    if (lockedAttr) return lockedAttr;
     // Phase 12.3 — `reset: true` REMOVES the custom attribute. No-op if absent.
     if (input.reset === true) {
       return suppressedEdit(
@@ -5109,6 +6143,17 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     if (id === refId && (idIndex ?? 0) === (refIndex ?? 0)) {
       return { ok: false, status: 422, error: 'cannot move an element relative to itself' };
     }
+    // p8-lock-reasons — the moved object, and the one it moves into (an inside-* ref changes its children)
+    const lockedMove = await lockedTarget(
+      r.abs,
+      position === 'inside-start' || position === 'inside-end'
+        ? [
+            { id, occurrence: idIndex },
+            { id: refId, occurrence: refIndex },
+          ]
+        : [{ id, occurrence: idIndex }]
+    );
+    if (lockedMove) return lockedMove;
     const rel = path.relative(paths.designRoot, r.abs);
     // Arm the "user did this — don't light the agent-editing rim" suppression
     // BEFORE the write so it catches the debounced fs:any. It's disarmed below if
@@ -5349,172 +6394,6 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     }
   }
 
-  /**
-   * feature-enhanced-video-editing (Phase 2) — the parametric clip verbs, one
-   * dispatch op: speed · trim-in · audio · detach-audio · framing · grade ·
-   * transition. Every verb is a pure clip-ops fn run under the file lock, with
-   * the same stableId + contentHash optimistic-concurrency discipline, pre-op
-   * snapshot, and whole-file undo seq as the structural clip ops.
-   */
-  async function clipEditOp(input: {
-    canvas?: unknown;
-    artboardId?: unknown;
-    stableId?: unknown;
-    contentHash?: unknown;
-    verb?: unknown;
-    rate?: unknown;
-    deltaFrames?: unknown;
-    muted?: unknown;
-    volume?: unknown;
-    framing?: unknown;
-    grade?: unknown;
-    presentation?: unknown;
-    durationInFrames?: unknown;
-    atFrame?: unknown;
-    src?: unknown;
-    mediaKind?: unknown;
-    text?: unknown;
-    toIndex?: unknown;
-  }): Promise<
-    | { ok: true; seq?: number; extra?: Record<string, unknown> }
-    | { ok: false; status: number; error: string }
-  > {
-    const r = resolveCanvasAbs(input.canvas);
-    if (!r.ok) return r;
-    const stableId = typeof input.stableId === 'string' ? input.stableId : null;
-    if (!stableId) return { ok: false, status: 400, error: 'stableId required' };
-    const artboardId = typeof input.artboardId === 'string' ? input.artboardId : undefined;
-    const hash = typeof input.contentHash === 'string' ? input.contentHash : undefined;
-    const verb = typeof input.verb === 'string' ? input.verb : '';
-    const abs = r.abs;
-    // Just `{ source: string }`: the `& Record<string, unknown>` was there for
-    // the rest-spread below, but an INTERFACE return (SpeedResult and friends)
-    // has no implicit index signature, so no verb's function was actually
-    // assignable — every branch failed the check the same way.
-    let run: ((source: string) => { source: string }) | null = null;
-    switch (verb) {
-      case 'speed': {
-        const rate = Number(input.rate);
-        run = (src) => applySetPlaybackRate(abs, src, artboardId, stableId, hash, rate);
-        break;
-      }
-      case 'trim-in': {
-        const delta = Number(input.deltaFrames);
-        if (!Number.isFinite(delta))
-          return { ok: false, status: 400, error: 'deltaFrames required' };
-        run = (src) => applyTrimIn(abs, src, artboardId, stableId, hash, delta);
-        break;
-      }
-      case 'audio': {
-        const opts: { muted?: boolean; volume?: number | null } = {};
-        if (typeof input.muted === 'boolean') opts.muted = input.muted;
-        if (input.volume !== undefined)
-          opts.volume = input.volume == null ? null : Number(input.volume);
-        run = (src) => applyClipAudio(abs, src, artboardId, stableId, hash, opts);
-        break;
-      }
-      case 'detach-audio': {
-        run = (src) => applyDetachAudio(abs, src, artboardId, stableId, hash);
-        break;
-      }
-      case 'framing': {
-        const f = input.framing as { scale?: unknown; x?: unknown; y?: unknown } | null;
-        const framing =
-          f == null
-            ? null
-            : { scale: Number(f.scale) || 1, x: Number(f.x) || 0, y: Number(f.y) || 0 };
-        run = (src) => applyClipFraming(abs, src, artboardId, stableId, hash, framing);
-        break;
-      }
-      case 'grade': {
-        const grade = input.grade == null ? null : (input.grade as GradeParams);
-        run = (src) => applyClipGrade(abs, src, artboardId, stableId, hash, grade);
-        break;
-      }
-      case 'transition': {
-        const opts: { presentation?: string; durationInFrames?: number } = {};
-        if (typeof input.presentation === 'string') opts.presentation = input.presentation;
-        if (input.durationInFrames != null) opts.durationInFrames = Number(input.durationInFrames);
-        run = (src) => applyEditTransition(abs, src, artboardId, stableId, hash, opts);
-        break;
-      }
-      case 'split': {
-        const atFrame = Number(input.atFrame);
-        if (!Number.isFinite(atFrame)) return { ok: false, status: 400, error: 'atFrame required' };
-        run = (src) => applySplitClip(abs, src, artboardId, stableId, hash, atFrame);
-        break;
-      }
-      case 'insert-transition': {
-        const presentation = typeof input.presentation === 'string' ? input.presentation : 'fade';
-        const frames = Number(input.durationInFrames) || 15;
-        run = (src) =>
-          applyInsertTransition(abs, src, artboardId, stableId, hash, presentation, frames);
-        break;
-      }
-      case 'remove-transition': {
-        run = (src) => applyRemoveTransition(abs, src, artboardId, stableId, hash);
-        break;
-      }
-      case 'set-text': {
-        const t = typeof input.text === 'string' ? input.text : '';
-        run = (src) => applySetClipText(abs, src, artboardId, stableId, hash, t);
-        break;
-      }
-      case 'to-overlay': {
-        run = (src) => applyMoveClipToOverlay(abs, src, artboardId, stableId, hash);
-        break;
-      }
-      case 'to-storyline': {
-        run = (src) => applyMoveClipToStoryline(abs, src, artboardId, stableId, hash);
-        break;
-      }
-      case 'layer-order': {
-        const toIndex = Number(input.toIndex);
-        if (!Number.isFinite(toIndex)) return { ok: false, status: 400, error: 'toIndex required' };
-        run = (src) => applyReorderOverlayLayer(abs, src, artboardId, stableId, hash, toIndex);
-        break;
-      }
-      case 'resolve-placeholder': {
-        const src2 = typeof input.src === 'string' ? input.src : '';
-        const mediaKind = input.mediaKind === 'image' ? 'image' : 'video';
-        run = (src) =>
-          applyResolvePlaceholder(abs, src, artboardId, stableId, hash, src2, mediaKind);
-        break;
-      }
-      default:
-        return { ok: false, status: 400, error: `unknown clip verb "${verb}"` };
-    }
-    const rel = path.relative(paths.designRoot, abs);
-    ctx.bus.emit('activity:suppress', rel);
-    try {
-      const before = await Bun.file(abs).text();
-      // The switch above either assigned `run` or returned; say so to the checker.
-      if (!run) return { ok: false, status: 400, error: `unknown clip verb "${verb}"` };
-      const result = await applyOnDisk(abs, run);
-      const after = await Bun.file(abs).text();
-      let seq: number | undefined;
-      if (after === before) {
-        ctx.bus.emit('activity:unsuppress', rel);
-      } else {
-        try {
-          await history.writeSnapshot(rel, before, `pre-clip-${verb}`);
-        } catch {
-          /* snapshot best-effort */
-        }
-        seq = logUndo(abs, before, after);
-      }
-      const { source: _src, ...extra } = result;
-      return { ok: true, seq, extra };
-    } catch (err) {
-      ctx.bus.emit('activity:unsuppress', rel);
-      return {
-        ok: false,
-        status: err instanceof CanvasEditError ? 422 : 500,
-        error: err instanceof Error ? err.message : `clip ${verb} failed`,
-      };
-    }
-  }
-
   // Stage I (feature-element-editing-robustness) — general element structural
   // edits (delete / insert / new-artboard) + free-hand artboard resize (D4). All
   // MAIN-ORIGIN ONLY at the route layer; each logs a whole-file {before, after}
@@ -5528,7 +6407,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     id?: unknown;
     idIndex?: unknown;
   }): Promise<
-    { ok: true; deletedId: string; seq?: number } | { ok: false; status: number; error: string }
+    | { ok: true; deletedId: string; seq?: number }
+    | { ok: false; status: number; error: string; code?: 'locked' }
   > {
     const r = resolveCanvasAbs(input.canvas);
     if (!r.ok) return r;
@@ -5536,6 +6416,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     const id = typeof input.id === 'string' ? input.id.trim() : '';
     if (!CD_ID_RE.test(id)) return { ok: false, status: 400, error: 'invalid data-cd-id' };
     const idIndex = Number.isInteger(input.idIndex) ? (input.idIndex as number) : undefined;
+    const lockedDel = await lockedTarget(r.abs, [{ id, occurrence: idIndex }]);
+    if (lockedDel) return lockedDel;
     const rel = path.relative(paths.designRoot, r.abs);
     ctx.bus.emit('activity:suppress', rel);
     try {
@@ -5545,7 +6427,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         id,
         ...(idIndex !== undefined ? { occurrence: idIndex } : {}),
       });
-      const res = await deleteElement(r.abs, id, idIndex);
+      const res = await sayingWrites(before, 'Deleted an object', () =>
+        deleteElement(r.abs, id, idIndex)
+      );
       const after = await Bun.file(r.abs).text();
       if (after === before) {
         ctx.bus.emit('activity:unsuppress', rel);
@@ -5556,7 +6440,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       } catch {
         /* snapshot best-effort */
       }
-      return { ok: true, deletedId: res.deletedId, seq: logUndo(r.abs, before, after) };
+      const seq = logUndo(r.abs, before, after);
+      noteSourceWritten(rel, after, 'Deleted an object');
+      return { ok: true, deletedId: res.deletedId, seq };
     } catch (err) {
       ctx.bus.emit('activity:unsuppress', rel);
       return {
@@ -5578,7 +6464,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     src?: unknown;
     refIndex?: unknown;
   }): Promise<
-    { ok: true; newId: string | null; seq?: number } | { ok: false; status: number; error: string }
+    | { ok: true; newId: string | null; seq?: number }
+    | { ok: false; status: number; error: string; code?: 'locked' }
   > {
     const r = resolveCanvasAbs(input.canvas);
     if (!r.ok) return r;
@@ -5613,6 +6500,11 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     }
     const src = typeof input.src === 'string' ? input.src : undefined;
     const refIndex = Number.isInteger(input.refIndex) ? (input.refIndex as number) : undefined;
+    // p8-lock-reasons — a new object INSIDE a locked one changes it; beside it does not
+    if (hasRefId && (position === 'inside-start' || position === 'inside-end')) {
+      const lockedIn = await lockedTarget(r.abs, [{ id: refId, occurrence: refIndex }]);
+      if (lockedIn) return lockedIn;
+    }
     const rel = path.relative(paths.designRoot, r.abs);
     ctx.bus.emit('activity:suppress', rel);
     try {
@@ -5621,18 +6513,23 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         ctx.bus.emit('activity:unsuppress', rel);
         return { ok: false, status: 413, error: 'canvas source too large to grow' };
       }
-      const res = hasArtboardId
-        ? await insertElementIntoArtboard(
-            r.abs,
-            artboardId,
-            position as 'inside-start' | 'inside-end',
-            kind as InsertKind,
-            { src }
-          )
-        : await insertElement(r.abs, refId, position as MovePosition, kind as InsertKind, {
-            src,
-            occurrence: refIndex,
-          });
+      const res = await sayingWrites(
+        before,
+        kind === 'text' ? 'Added text' : kind === 'image' ? 'Added a picture' : 'Added a box',
+        () =>
+          hasArtboardId
+            ? insertElementIntoArtboard(
+                r.abs,
+                artboardId,
+                position as 'inside-start' | 'inside-end',
+                kind as InsertKind,
+                { src }
+              )
+            : insertElement(r.abs, refId, position as MovePosition, kind as InsertKind, {
+                src,
+                occurrence: refIndex,
+              })
+      );
       const after = await Bun.file(r.abs).text();
       if (after === before) {
         ctx.bus.emit('activity:unsuppress', rel);
@@ -5643,7 +6540,13 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       } catch {
         /* snapshot best-effort */
       }
-      return { ok: true, newId: res.newId, seq: logUndo(r.abs, before, after) };
+      const seq = logUndo(r.abs, before, after);
+      noteSourceWritten(
+        rel,
+        after,
+        kind === 'text' ? 'Added text' : kind === 'image' ? 'Added a picture' : 'Added a box'
+      );
+      return { ok: true, newId: res.newId, seq };
     } catch (err) {
       ctx.bus.emit('activity:unsuppress', rel);
       return {
@@ -5672,7 +6575,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     children?: unknown;
     containers?: unknown;
     dissolve?: unknown;
-  }): Promise<{ ok: true; seq?: number } | { ok: false; status: number; error: string }> {
+  }): Promise<
+    { ok: true; seq?: number } | { ok: false; status: number; error: string; code?: 'locked' }
+  > {
     const r = resolveCanvasAbs(input.canvas);
     if (!r.ok) return r;
     if (!takeStructuralToken()) return RATE_LIMITED;
@@ -5796,6 +6701,23 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
           dissolve.push(id);
         }
       }
+      // p8-lock-reasons — every container, child and dissolved wrapper this write rewrites
+      const lockedConv = await lockedTarget(r.abs, [
+        ...(containersSpec
+          ? containersSpec.flatMap((c) => [
+              ...(c.containerId ? [{ id: c.containerId, occurrence: c.containerIdIndex }] : []),
+              ...c.children.map((k) => ({ id: k.id, occurrence: k.idIndex })),
+            ])
+          : [
+              { id: containerId, occurrence: containerIdIndex },
+              ...children.map((k) => ({ id: k.id, occurrence: k.idIndex })),
+            ]),
+        ...(dissolve ?? []),
+      ]);
+      if (lockedConv) {
+        ctx.bus.emit('activity:unsuppress', rel);
+        return lockedConv;
+      }
       const res = await convertToAbsolute(
         r.abs,
         containersSpec
@@ -5839,7 +6761,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     id?: unknown;
     idIndex?: unknown;
   }): Promise<
-    { ok: true; detachedName: string; seq?: number } | { ok: false; status: number; error: string }
+    | { ok: true; detachedName: string; seq?: number }
+    | { ok: false; status: number; error: string; code?: 'locked' }
   > {
     const r = resolveCanvasAbs(input.canvas);
     if (!r.ok) return r;
@@ -5847,6 +6770,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     const id = typeof input.id === 'string' ? input.id.trim() : '';
     if (!CD_ID_RE.test(id)) return { ok: false, status: 400, error: 'invalid data-cd-id' };
     const idIndex = Number.isInteger(input.idIndex) ? (input.idIndex as number) : undefined;
+    const lockedDetach = await lockedTarget(r.abs, [{ id, occurrence: idIndex ?? 0 }]);
+    if (lockedDetach) return lockedDetach;
     const rel = path.relative(paths.designRoot, r.abs);
     ctx.bus.emit('activity:suppress', rel);
     try {
@@ -6450,7 +7375,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         id,
         ...(idIndex !== undefined ? { occurrence: idIndex } : {}),
       });
-      const res = await duplicateElement(r.abs, id, idIndex);
+      const res = await sayingWrites(before, 'Duplicated an object', () =>
+        duplicateElement(r.abs, id, idIndex)
+      );
       const after = await Bun.file(r.abs).text();
       if (after === before) {
         ctx.bus.emit('activity:unsuppress', rel);
@@ -6461,7 +7388,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       } catch {
         /* snapshot best-effort */
       }
-      return { ok: true, newId: res.newId, seq: logUndo(r.abs, before, after) };
+      const seq = logUndo(r.abs, before, after);
+      noteSourceWritten(rel, after, 'Duplicated an object');
+      return { ok: true, newId: res.newId, seq };
     } catch (err) {
       ctx.bus.emit('activity:unsuppress', rel);
       return {
@@ -6771,6 +7700,17 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         error: 'reorder not found (server restarted or log rotated)',
       };
     }
+    // p8-a1-save-hold — a revert to a canvas a running interpreter call names waits until the call is done
+    // (+ settle); it then checks the canvas as it is (an AI write meanwhile makes it an honest 409)
+    return saveHold().defer([r.abs], () => revertNow(r.abs, entry, dir));
+  }
+
+  async function revertNow(
+    abs: string,
+    entry: { abs: string; before: string; after: string; undoActionId?: string },
+    dir: 'undo' | 'redo'
+  ): Promise<ReorderRevertResult> {
+    const r = { abs };
     try {
       const current = await Bun.file(r.abs).text();
       const expect = dir === 'undo' ? entry.after : entry.before;
@@ -6851,6 +7791,14 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     // instead of unconditionally designSystems[0]. Populated from the canvas
     // groups below; returned on the payload and folded into the client cfg.
     const canvasDesignSystems: Record<string, string> = {};
+    // S10.4 (V2-1.6 §5.8) — the revision a canvas was left on (`dsRev`), for the converted systems only:
+    // an unconverted project builds none of this, and its payload is what it always was.
+    const convertedDs = new Set(
+      (cfg.designSystems ?? [])
+        .filter((d) => readHead(path.join(paths.designRoot, d.path)).state === 'ok')
+        .map((d) => d.name)
+    );
+    const canvasRevs: Record<string, { system: string; dsRev: string; kept?: string }> = {};
     // DDR-174 (T15) — surface a canvas's `.meta.json` `kind` in the file tree
     // when it's a value the user should notice at a glance (today: only
     // `reconstructed-experimental`, so this map stays empty on every project
@@ -6954,14 +7902,28 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       for (const fp of filePaths) {
         if (!fp.endsWith('.tsx')) continue;
         let dsName = ownerDsName(fp);
+        let meta: Record<string, unknown> | null = null;
         if (!dsName) {
-          const meta = await loadCanvasMeta(fp);
+          meta = await loadCanvasMeta(fp);
           const declared = meta?.designSystem;
           dsName = typeof declared === 'string' && declared.trim() ? declared : defaultDs;
           const kind = meta?.kind;
           if (typeof kind === 'string' && NOTABLE_KINDS.has(kind)) canvasKinds[fp] = kind;
         }
         canvasDesignSystems[fp] = dsName;
+        if (convertedDs.has(dsName)) {
+          // a canvas inside the system's own folder carries no sidecar read above
+          meta ??= await loadCanvasMeta(fp);
+          const dsRev = meta?.dsRev;
+          // p8-dead-reasons — `dsKept`: the head a person declined with "Keep this version" (the card stays away)
+          const kept = meta?.dsKept;
+          if (typeof dsRev === 'string' && dsRev)
+            canvasRevs[fp] = {
+              system: dsName,
+              dsRev,
+              ...(typeof kept === 'string' && kept ? { kept } : {}),
+            };
+        }
       }
       // Strip down to `g.path` so per-DS folders (`project`, `beta`, …) show
       // up as the top-level dirs inside the DS section. Single-DS configs get
@@ -7033,14 +7995,55 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       });
     }
 
-    return {
-      project: cfg.name,
-      projectLabel: ctx.projectLabel,
-      designRoot: paths.designRel,
-      groups,
-      canvasDesignSystems,
-      canvasKinds,
-    };
+    // S10.4 — which revision each canvas renders. Present only once a system is converted: a project that
+    // has none gets the payload it always had.
+    const dsRender =
+      convertedDs.size > 0
+        ? dsRenderIndex(paths.designRoot, cfg.designSystems ?? [], canvasRevs)
+        : null;
+
+    // gate-b-c4j — a canvas importing another canvas does not render in its frame (access/closure.ts
+    // `walkImports`: the module is refused); the shell says why on it. The same for every reader;
+    // filterIndexData below holds both sides to what this reader sees.
+    const prefix = `${paths.designRel}/`;
+    const canvasRels = Object.keys(canvasDesignSystems)
+      .filter((fp) => fp.startsWith(prefix))
+      .map((fp) => fp.slice(prefix.length))
+      .sort();
+    const imports = projectVisibility(ctx).canvasImports(canvasRels);
+    const canvasImportsCanvases: Record<string, string[]> = {};
+    for (const [rel, list] of imports) canvasImportsCanvases[`${prefix}${rel}`] = list;
+
+    // S9.10 (V2-1.16 L8) — a canvas-only session's tree: what it sees, nothing else.
+    return filterIndexData(
+      {
+        project: cfg.name,
+        projectLabel: ctx.projectLabel,
+        designRoot: paths.designRel,
+        groups,
+        canvasDesignSystems,
+        canvasKinds,
+        ...(imports.size ? { canvasImportsCanvases } : {}),
+        ...(dsRender
+          ? {
+              canvasDsRevs: Object.fromEntries(
+                Object.entries(canvasRevs).map(([fp, r]) => [fp, r.dsRev])
+              ),
+              canvasDsKept: Object.fromEntries(
+                Object.entries(canvasRevs)
+                  .filter(([, r]) => r.kept)
+                  .map(([fp, r]) => [fp, r.kept as string])
+              ),
+              systemHeads: dsRender.systemHeads,
+              dsConverted: dsRender.dsConverted,
+              dsRevGaps: dsRender.dsRevGaps,
+            }
+          : {}),
+      },
+      projectVisibility(ctx).current(),
+      paths.designRel,
+      cfg.designSystems ?? []
+    );
   }
 
   function tokenKind(name: string, value: string): string {
@@ -7111,7 +8114,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       path.join(sysAbs, 'README.md'),
     ];
     try {
-      const subs = await readdir(sysAbs, { withFileTypes: true });
+      const subs = (await readdir(sysAbs, { withFileTypes: true })).sort((a, b) =>
+        a.name < b.name ? -1 : a.name > b.name ? 1 : 0
+      );
       for (const s of subs)
         if (s.isDirectory()) readmeCandidates.push(path.join(sysAbs, s.name, 'README.md'));
     } catch {
@@ -7155,7 +8160,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         // the DS-relative `<folderName>` subdir — scanning sub-dirs here
         // would treat the DS's own `preview/` as a sibling DS root.
         if (!dsEntry) {
-          const subs = await readdir(sysAbs, { withFileTypes: true });
+          const subs = (await readdir(sysAbs, { withFileTypes: true })).sort((a, b) =>
+            a.name < b.name ? -1 : a.name > b.name ? 1 : 0
+          );
           for (const s of subs) {
             if (!s.isDirectory()) continue;
             const candidate = path.join(sysAbs, s.name, folderName);
@@ -7205,44 +8212,55 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       description: d.description ?? null,
     }));
 
-    return {
-      project: cfg.name,
-      designRoot: paths.designRel,
-      systemDir: sysRel,
-      ds: dsEntry
-        ? {
-            name: dsEntry.name,
-            path: dsEntry.path,
-            description: dsEntry.description ?? null,
-            rootClass: dsEntry.rootClass ?? null,
-            themeDefault: dsEntry.themeDefault ?? null,
-          }
-        : null,
-      availableDesignSystems,
-      defaultDesignSystem: cfg.defaultDesignSystem ?? availableDesignSystems[0]?.name ?? null,
-      readme,
-      readmePath,
-      tokens,
-      tokenGroups,
-      tokensPath,
-      previewGallery,
-      uiKitsGallery,
-      rootClass: dsEntry?.rootClass ?? cfg.rootClass,
-      themeDefault: dsEntry?.themeDefault ?? cfg.themeDefault,
-      teamAccentDefault: cfg.teamAccentDefault,
-    };
+    // S9.10 (V2-1.16 L8/L9) — a canvas-only session: only the DS its canvases render with
+    // (an invisible `ds` is an unknown one — null, the caller's 404), no README.
+    return filterSystemData(
+      {
+        project: cfg.name,
+        designRoot: paths.designRel,
+        systemDir: sysRel,
+        ds: dsEntry
+          ? {
+              name: dsEntry.name,
+              path: dsEntry.path,
+              description: dsEntry.description ?? null,
+              rootClass: dsEntry.rootClass ?? null,
+              themeDefault: dsEntry.themeDefault ?? null,
+            }
+          : null,
+        availableDesignSystems,
+        defaultDesignSystem: cfg.defaultDesignSystem ?? availableDesignSystems[0]?.name ?? null,
+        readme,
+        readmePath,
+        tokens,
+        tokenGroups,
+        tokensPath,
+        previewGallery,
+        uiKitsGallery,
+        rootClass: dsEntry?.rootClass ?? cfg.rootClass,
+        themeDefault: dsEntry?.themeDefault ?? cfg.themeDefault,
+        teamAccentDefault: cfg.teamAccentDefault,
+      },
+      projectVisibility(ctx).current(),
+      paths.designRel,
+      cfg.designSystems ?? [],
+      tokensCssRel
+    );
   }
 
   return {
     fileSlug,
     loadCommentsForFile,
     saveCommentsForFile,
+    rewriteComments,
     loadAllComments,
     fileForSlug,
     commentsAdd,
     commentsPatch,
     commentsDelete,
     commentsAddReply,
+    commentOp,
+    commentFileOf,
     gitCommitters,
     gitCurrentUser,
     parseMentions,
@@ -7255,11 +8273,16 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     loadCanvasMeta,
     loadCanvasSource,
     patchCanvasMeta,
+    writeCanvasMetaText,
     loadAnnotations,
     readBoard,
+    readBoardLive,
     saveAnnotations,
     applyAnnotationOps,
     projectAnnotations,
+    convertLanes,
+    moveArtboardsWithRider,
+    restoreConversion,
     saveAsset,
     listAssets,
     readAssetBytes,
@@ -7282,7 +8305,6 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     editCss,
     editText,
     editAttr,
-    clipEditOp,
     removeSequenceOp,
     insertSequenceOp,
     reorderSequenceOp,

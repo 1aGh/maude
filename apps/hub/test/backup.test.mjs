@@ -138,12 +138,14 @@ test('runBackup writes every present database plus a manifest', async () => {
   // mode is a resurrected canvas and it expires in 30 days regardless.
   // `project-store.sqlite` joined with accepted revisions (DDR-241 / plan
   // T30): it IS the project's canonical history once a project switches.
+  // `ds-grants.db` (S10.18a-2): team-library grants, hashed — a rollout must not void them.
   assert.deepEqual(BACKUP_DATABASES, [
     'hub.db',
     'tokens.db',
     'users.db',
     'journal.db',
     'project-store.sqlite',
+    'ds-grants.db',
   ]);
 });
 

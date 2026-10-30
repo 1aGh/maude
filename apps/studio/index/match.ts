@@ -1,0 +1,307 @@
+// index/match.ts — the ONE matcher every search uses (V2-2.17, contract V2-1.17 §5.7): the panel
+// search, ⌘K and the marks. Pure; imported by the server and the client bundle.
+//
+//   fold(s)  NFD, strip combining marks, lower-case — "Trenéři" and "treneri" are the same word.
+//   query    folded words; EVERY word must match, in any order.
+//   per word contained in `name` → 3 (+1 when it starts a token) · in `meta` → 1 ·
+//            else (≥ 4 characters, NO digit in the word) a token within one edit (insert / delete /
+//            substitute / swap of two neighbours) of the word, or of the token's prefix of the word's
+//            length → 0.5, `close`. A word with a digit is a number, not a spelling: "2023" is another
+//            year than 2026, so it must be there exactly (S1.4, folding in S1.3's follow-up).
+//            A word that matches nothing drops the row.
+//   marks    `marks` = exact words in the name · `closeMarks` = the name's tokens a typo stood for ·
+//            `metaMarks` = the words found in the meta (exact or typo). Ranges index the UNFOLDED text.
+//   weak     no word of the query was there exactly — every one was a typo (⌘K shows such a row quiet).
+//   seen     S8.20 — an asset row may carry what AI saw in the picture (`seen`: caption, tags, text; only with the
+//            person's consent, describe/). A word found there scores 1, like meta, after name and meta; a typo of
+//            it 0.5 and `close`. `seenMarks` = where, per field (caption / text ranges, tag indexes), and
+//            `seenOnly` = at least one word was found ONLY there ("Seen in the picture", not "In the name").
+//   order    score ↓, then openedAt ↓, then name.
+
+export function fold(s: string): string {
+  return s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+}
+
+/** Fold `s` and remember, for every folded index, the index in `s` it came from. */
+function foldMapped(s: string): { text: string; map: number[] } {
+  let text = '';
+  const map: number[] = [];
+  let i = 0;
+  for (const ch of s) {
+    const f = fold(ch);
+    for (let k = 0; k < f.length; k++) map.push(i);
+    text += f;
+    i += ch.length;
+  }
+  map.push(s.length);
+  return { text, map };
+}
+
+export function words(q: string): string[] {
+  return fold(q)
+    .split(/\s+/)
+    .map((w) => w.trim())
+    .filter(Boolean);
+}
+
+const tokenize = (s: string) => s.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+
+/** Damerau (adjacent swap) distance ≤ 1? */
+export function withinOneEdit(a: string, b: string): boolean {
+  if (a === b) return true;
+  const la = a.length;
+  const lb = b.length;
+  if (Math.abs(la - lb) > 1) return false;
+  if (la === lb) {
+    let first = -1;
+    let diffs = 0;
+    for (let i = 0; i < la; i++) {
+      if (a[i] !== b[i]) {
+        diffs++;
+        if (first < 0) first = i;
+        if (diffs > 2) return false;
+      }
+    }
+    if (diffs === 1) return true;
+    // a swap of two neighbours
+    return diffs === 2 && a[first] === b[first + 1] && a[first + 1] === b[first];
+  }
+  // one insertion / deletion
+  const [s, l] = la < lb ? [a, b] : [b, a];
+  let i = 0;
+  let j = 0;
+  let skipped = false;
+  while (i < s.length && j < l.length) {
+    if (s[i] === l[j]) {
+      i++;
+      j++;
+    } else {
+      if (skipped) return false;
+      skipped = true;
+      j++;
+    }
+  }
+  return true;
+}
+
+/** S8.20 — what AI saw in a picture (validated, describe/validate.ts). */
+export interface SeenFields {
+  caption?: string;
+  tags?: readonly string[];
+  text?: string;
+}
+
+export interface MatchInput {
+  key: string;
+  name: string;
+  meta?: string;
+  openedAt?: number;
+  seen?: SeenFields;
+}
+
+export interface SeenMarks {
+  caption: Range[];
+  text: Range[];
+  /** indexes into `seen.tags` */
+  tags: number[];
+}
+
+export type Range = [number, number];
+
+export interface MatchHit<T extends MatchInput> {
+  row: T;
+  score: number;
+  close: boolean;
+  marks: Range[];
+  closeMarks: Range[];
+  metaMarks: Range[];
+  weak: boolean;
+  /** S8.20 — only on a row that carries `seen` */
+  seenMarks?: SeenMarks;
+  seenOnly?: boolean;
+}
+
+/** The letter/digit runs of an already-folded text, with where each starts. */
+function tokensAt(text: string): Array<{ t: string; at: number }> {
+  const out: Array<{ t: string; at: number }> = [];
+  for (const m of text.matchAll(/[\p{L}\p{N}]+/gu)) out.push({ t: m[0], at: m.index ?? 0 });
+  return out;
+}
+
+/** Sorted, with touching or overlapping ranges merged. */
+function mergeRanges(ranges: Range[]): Range[] {
+  const sorted = [...ranges].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const out: Range[] = [];
+  for (const r of sorted) {
+    const last = out[out.length - 1];
+    if (last && r[0] <= last[1]) last[1] = Math.max(last[1], r[1]);
+    else out.push([r[0], r[1]]);
+  }
+  return out;
+}
+
+/** Where a typo of `w` sits among `toks`: the token's range (folded indexes), or null. */
+function nearToken(w: string, toks: Array<{ t: string; at: number }>): Range | null {
+  for (const k of toks) {
+    if (withinOneEdit(w, k.t)) return [k.at, k.at + k.t.length];
+    if (withinOneEdit(w, k.t.slice(0, w.length)))
+      return [k.at, k.at + Math.min(k.t.length, w.length)];
+  }
+  return null;
+}
+
+/** Score one row against folded query words; null = dropped. */
+export function scoreRow<T extends MatchInput>(row: T, qWords: string[]): MatchHit<T> | null {
+  const name = foldMapped(row.name);
+  const meta = foldMapped(row.meta ?? '');
+  const nameTokens = tokensAt(name.text);
+  const metaTokens = tokensAt(meta.text);
+  let score = 0;
+  let close = false;
+  let exact = 0;
+  const marks: Range[] = [];
+  const closeMarks: Range[] = [];
+  const metaMarks: Range[] = [];
+  const toOriginal = (m: { map: number[] }, [a, b]: Range): Range => [
+    m.map[a] as number,
+    m.map[b] as number,
+  ];
+  const seen = row.seen ? seenOf(row.seen) : null;
+  const seenMarks: SeenMarks = { caption: [], text: [], tags: [] };
+  let seenOnly = false;
+  for (const w of qWords) {
+    const at = name.text.indexOf(w);
+    if (at >= 0) {
+      const startsToken = at === 0 || !/[\p{L}\p{N}]/u.test(name.text[at - 1] ?? '');
+      score += startsToken ? 4 : 3;
+      exact++;
+      marks.push(toOriginal(name, [at, at + w.length]));
+      continue;
+    }
+    const inMeta = meta.text.indexOf(w);
+    if (inMeta >= 0) {
+      score += 1;
+      exact++;
+      metaMarks.push(toOriginal(meta, [inMeta, inMeta + w.length]));
+      continue;
+    }
+    if (seen && seenExact(seen, w, seenMarks, toOriginal)) {
+      score += 1;
+      exact++;
+      seenOnly = true;
+      continue;
+    }
+    if (w.length >= 4 && !/\d/.test(w)) {
+      const inName = nearToken(w, nameTokens);
+      const viaMeta = inName ? null : nearToken(w, metaTokens);
+      if (inName || viaMeta) {
+        score += 0.5;
+        close = true;
+        if (inName) closeMarks.push(toOriginal(name, inName));
+        else if (viaMeta) metaMarks.push(toOriginal(meta, viaMeta));
+        continue;
+      }
+      if (seen && seenNear(seen, w, seenMarks, toOriginal)) {
+        score += 0.5;
+        close = true;
+        seenOnly = true;
+        continue;
+      }
+    }
+    return null;
+  }
+  marks.sort((a, b) => a[0] - b[0]);
+  return {
+    row,
+    score,
+    close,
+    marks,
+    closeMarks: mergeRanges(closeMarks),
+    metaMarks: mergeRanges(metaMarks),
+    weak: qWords.length > 0 && exact === 0,
+    ...(seen
+      ? {
+          seenMarks: {
+            caption: mergeRanges(seenMarks.caption),
+            text: mergeRanges(seenMarks.text),
+            tags: [...new Set(seenMarks.tags)].sort((a, b) => a - b),
+          },
+          seenOnly,
+        }
+      : {}),
+  };
+}
+
+type Folded = { text: string; map: number[] };
+type ToOriginal = (m: { map: number[] }, r: Range) => Range;
+interface SeenFolded {
+  caption: Folded;
+  text: Folded;
+  tags: Folded[];
+}
+
+function seenOf(s: SeenFields): SeenFolded {
+  return {
+    caption: foldMapped(s.caption ?? ''),
+    text: foldMapped(s.text ?? ''),
+    tags: (s.tags ?? []).map((t) => foldMapped(t)),
+  };
+}
+
+/** A word contained in the caption, a tag or the text; marks every field it is in. */
+function seenExact(s: SeenFolded, w: string, out: SeenMarks, toOriginal: ToOriginal): boolean {
+  let found = false;
+  for (const f of ['caption', 'text'] as const) {
+    const at = s[f].text.indexOf(w);
+    if (at >= 0) {
+      out[f].push(toOriginal(s[f], [at, at + w.length]));
+      found = true;
+    }
+  }
+  s.tags.forEach((t, i) => {
+    if (t.text.includes(w)) {
+      out.tags.push(i);
+      found = true;
+    }
+  });
+  return found;
+}
+
+/** A typo of a word (≥ 4 letters) against the caption's, the text's and the tags' tokens. */
+function seenNear(s: SeenFolded, w: string, out: SeenMarks, toOriginal: ToOriginal): boolean {
+  for (const f of ['caption', 'text'] as const) {
+    const r = nearToken(w, tokensAt(s[f].text));
+    if (r) {
+      out[f].push(toOriginal(s[f], r));
+      return true;
+    }
+  }
+  const i = s.tags.findIndex((t) => nearToken(w, tokensAt(t.text)));
+  if (i >= 0) {
+    out.tags.push(i);
+    return true;
+  }
+  return false;
+}
+
+/** Match rows against a query: every word must match; ranked; capped. */
+export function match<T extends MatchInput>(
+  rows: readonly T[],
+  q: string,
+  limit = 200
+): MatchHit<T>[] {
+  const qWords = words(q);
+  if (!qWords.length) return [];
+  const hits: MatchHit<T>[] = [];
+  for (const row of rows) {
+    const hit = scoreRow(row, qWords);
+    if (hit) hits.push(hit);
+  }
+  hits.sort(
+    (a, b) =>
+      b.score - a.score ||
+      (b.row.openedAt ?? 0) - (a.row.openedAt ?? 0) ||
+      a.row.name.localeCompare(b.row.name)
+  );
+  return hits.slice(0, limit);
+}

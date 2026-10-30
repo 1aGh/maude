@@ -5,7 +5,7 @@
 // lockstep with the pipeline.
 
 import { describe, expect, test } from 'bun:test';
-
+import { renderBlankCanvas } from '../canvas-create.ts';
 import {
   applyDeleteElement,
   applyDuplicateArtboard,
@@ -119,15 +119,15 @@ describe('canvas-edit / applyInsertElement', () => {
     const out = applyInsertElement(CANVAS, base, id, 'after', 'div');
     expect(out.source).toContain("background: 'var(--bg-2)'");
     expect(parses(out.source)).toBe(true);
-    expect(out.newId).toMatch(/^[0-9a-f]{8}$/);
-    // The recomputed id matches the pipeline-stamped id of the new <div>.
-    expect(idsOf(out.source).div).toBe(out.newId);
+    // V2-2.19: a writer that creates an element stamps it with a readable id (contract V2-1.4 §5.2).
+    expect(out.newId).toBe('div');
+    expect(out.source).toContain('<div data-cd-id="div" style=');
   });
 
   test('inserts a text node BEFORE the anchor', () => {
     const id = idsOf(base).button as string;
     const out = applyInsertElement(CANVAS, base, id, 'before', 'text');
-    expect(out.source).toContain('<p style={{ margin: 0 }}>Text</p>');
+    expect(out.source).toContain('<p data-cd-id="text" style={{ margin: 0 }}>Text</p>');
     // Order: the <p> precedes the <button> in source.
     expect(out.source.indexOf('<p ')).toBeLessThan(out.source.indexOf('<button'));
     expect(parses(out.source)).toBe(true);
@@ -180,12 +180,12 @@ describe('canvas-edit / applyInsertElementIntoArtboard (empty-artboard fallback)
       /<DCArtboard id="home"[^>]*>[\s\S]*var\(--bg-2\)[\s\S]*<\/DCArtboard>/
     );
     expect(parses(out.source)).toBe(true);
-    expect(out.newId).toMatch(/^[0-9a-f]{8}$/);
+    expect(out.newId).toBe('div');
   });
 
   test('inside-start lands the new element right after the opening tag', () => {
     const out = applyInsertElementIntoArtboard(CANVAS, emptyCanvas, 'home', 'inside-start', 'text');
-    expect(out.source).toContain('<p style={{ margin: 0 }}>Text</p>');
+    expect(out.source).toContain('<p data-cd-id="text" style={{ margin: 0 }}>Text</p>');
     expect(parses(out.source)).toBe(true);
   });
 
@@ -710,6 +710,90 @@ describe('canvas-edit / applyInsertArtboard (I4)', () => {
     // It lands AFTER the existing artboard.
     expect(out.source.indexOf('id="mobile"')).toBeGreaterThan(out.source.indexOf('id="home"'));
     expect(parses(out.source)).toBe(true);
+  });
+
+  // G4 (gate B): the ⌘N canvas has no artboard and no section; "New artboard" used to refuse it.
+  const BLANK = renderBlankCanvas({
+    name: 'Untitled canvas',
+    componentName: 'UntitledCanvas',
+    dsName: 'maude-v2',
+    platform: 'web',
+    historyDir: '_history/untitled-canvas',
+  });
+  const NEW = { id: 'desktop', label: 'Desktop', width: 1440, height: 900 };
+
+  test('a blank canvas gets an artboard: a section is made, and the imports it needs', () => {
+    const out = applyInsertArtboard(CANVAS, BLANK, NEW);
+    expect(out.artboardId).toBe('desktop');
+    expect(out.source).toContain('<DCSection id="main" title="Main">');
+    expect(out.source).toContain(
+      '<DCArtboard id="desktop" label="Desktop" width={1440} height={900}></DCArtboard>'
+    );
+    expect(out.source.indexOf('<DCSection')).toBeLessThan(out.source.indexOf('<DCArtboard'));
+    expect(out.source.indexOf('</DCArtboard>')).toBeLessThan(out.source.indexOf('</DCSection>'));
+    expect(out.source.indexOf('</DCSection>')).toBeLessThan(out.source.indexOf('</DesignCanvas>'));
+    expect(out.source).toContain(
+      'import { DesignCanvas, DCSection, DCArtboard } from "@maude/canvas-lib";'
+    );
+    expect(parses(out.source)).toBe(true);
+  });
+
+  test('a second artboard on that canvas goes after the first, not in a second section', () => {
+    const one = applyInsertArtboard(CANVAS, BLANK, NEW).source;
+    const two = applyInsertArtboard(CANVAS, one, {
+      id: 'mobile',
+      label: 'Mobile',
+      width: 390,
+      height: 844,
+    }).source;
+    expect(two.match(/<DCSection id=/g)?.length).toBe(1);
+    expect(two.indexOf('id="mobile"')).toBeGreaterThan(two.indexOf('id="desktop"'));
+    expect(parses(two)).toBe(true);
+  });
+
+  test('a canvas with a section but no artboard: the artboard goes in the last section', () => {
+    const src = [
+      'import { DesignCanvas, DCSection, DCArtboard } from "@maude/canvas-lib";',
+      'export default function C() {',
+      '  return (',
+      '    <DesignCanvas>',
+      '      <DCSection id="a" title="A"></DCSection>',
+      '      <DCSection id="b" title="B">',
+      '      </DCSection>',
+      '    </DesignCanvas>',
+      '  );',
+      '}',
+    ].join('\n');
+    const out = applyInsertArtboard(CANVAS, src, NEW).source;
+    expect(out.match(/<DCSection\b/g)?.length).toBe(2);
+    expect(out.indexOf('id="desktop"')).toBeGreaterThan(out.indexOf('id="b"'));
+    expect(out.indexOf('id="desktop"')).toBeLessThan(
+      out.indexOf('</DCSection>', out.indexOf('id="b"'))
+    );
+    expect(parses(out)).toBe(true);
+  });
+
+  test('self-closing <DesignCanvas /> and a missing canvas-lib import are both handled', () => {
+    const src = ['export default function C() {', '  return <DesignCanvas />;', '}'].join('\n');
+    const out = applyInsertArtboard(CANVAS, src, NEW).source;
+    expect(out).toContain('<DesignCanvas>');
+    expect(out).toContain('</DesignCanvas>');
+    expect(out).toContain('import { DCSection, DCArtboard } from "@maude/canvas-lib";');
+    expect(parses(out)).toBe(true);
+  });
+
+  test('a file that does not parse still refuses, in plain words', () => {
+    const broken = BLANK.replace('</DesignCanvas>', '');
+    expect(() => applyInsertArtboard(CANVAS, broken, NEW)).toThrow(CanvasEditError);
+    expect(() => applyInsertArtboard(CANVAS, broken, NEW)).toThrow(
+      'this canvas does not parse; fix it before editing'
+    );
+  });
+
+  test('a file with no <DesignCanvas> at all refuses (nothing to put the artboard in)', () => {
+    expect(() =>
+      applyInsertArtboard(CANVAS, 'export default function C() { return <div />; }', NEW)
+    ).toThrow('there is no canvas in this file to add an artboard to');
   });
 
   test('rejects a duplicate artboard id', () => {

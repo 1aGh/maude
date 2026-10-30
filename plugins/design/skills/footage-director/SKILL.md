@@ -23,4 +23,5 @@ here, not permission to skip that requirement. Do not read all references at onc
 | When performing this stage: The two artifacts (schema: `apps/studio/footage/schema.ts`) | [The two artifacts (schema: `apps/studio/footage/schema.ts`)](./_guide-01-the-two-artifacts-schema-apps-studio-footage-schema-ts.md) |
 | When performing this stage: Transitions — Remotion already has the library, and Maude ships it | [Transitions — Remotion already has the library, and Maude ships it](./_guide-02-transitions-remotion-already-has-the-library-and-maude-.md) |
 | When performing this stage: EDL → `<TransitionSeries>` codegen contract (the load-bearing part) | [EDL → `<TransitionSeries>` codegen contract (the load-bearing part)](./_guide-03-edl-transitionseries-codegen-contract-the-load-bearing-.md) |
+| When placing the cut on the video (Maude 2: one shot per `maude design reel-place` call, beat-grid shot lengths) | [Place the cut shot by shot](./_guide-05-place-the-cut-shot-by-shot-reel-place.md) |
 | Before reporting results or handing off | [Verify + hand off](./_guide-04-verify-hand-off.md) |

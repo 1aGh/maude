@@ -13,7 +13,12 @@
 //   node scripts/v2-ledger.mjs gen     regenerate from the sources, keeping every row's status/evidence/commit
 //   node scripts/v2-ledger.mjs stats   counts per kind × status
 //   node scripts/v2-ledger.mjs check   exit 1 unless the ledger is complete (no open rows, evidence hash-pinned)
-//   node scripts/v2-ledger.mjs set <rowId> <status> [--evidence <path>] [--commit <sha>]
+//   node scripts/v2-ledger.mjs set <rowId> <status> [--evidence <path>] [--commit <sha>] [--note <text>]
+//   node scripts/v2-ledger.mjs pr-soak write the rc-soak checklist (every `soak` row) into PR.md's marked block
+//
+// Besides `verified`, a row closes as `soak` (cannot be driven locally; checked on the rc soak) or
+// `not-a-state` (the board draws something the product never reaches). Both need a written note
+// (Michal 2026-10-29); PR.md lists every `soak` row as the rc-soak checklist, and `check` fails on drift.
 //
 // Rows are never deleted: a row whose source disappeared is kept with `orphaned: true`
 // (nothing-deleted applies to the ledger itself). One row per line keeps diffs per row.
@@ -28,7 +33,11 @@ const PLAN = join(ROOT, '.ai/plans/feature-maude-v2-redesign.md');
 const CANVAS_DIR = join(ROOT, '.design/ui/v2');
 export const LEDGER = join(ROOT, '.ai/scenarios/maude-v2/ledger.json');
 
-const STATUSES = ['open', 'built', 'verified'];
+const STATUSES = ['open', 'built', 'verified', 'soak', 'not-a-state'];
+const NOTED = new Set(['soak', 'not-a-state']);
+export const PR_MD = join(ROOT, '.ai/scenarios/maude-v2/PR.md');
+const SOAK_START = '<!-- v2-ledger:soak:start -->';
+const SOAK_END = '<!-- v2-ledger:soak:end -->';
 
 // Coverage matrix: canvas number → work package(s) that own it.
 const PACKAGES = {
@@ -245,20 +254,25 @@ export function generate() {
 export function stats(ledger) {
   const out = {};
   for (const r of ledger.rows) {
-    out[r.kind] ??= { open: 0, built: 0, verified: 0 };
+    out[r.kind] ??= { open: 0, built: 0, verified: 0, soak: 0, 'not-a-state': 0 };
     out[r.kind][r.status] = (out[r.kind][r.status] ?? 0) + 1;
   }
   return out;
 }
 
-// Completeness: no open rows; task/package/artboard/rule/home rows verified; owner rows at least built;
-// every verified artboard row's evidence exists and is hash-pinned to the canvas file it was taken against.
+// Completeness: no open rows; task/package/artboard/rule/home rows verified, or closed as `soak` /
+// `not-a-state` with a note; owner rows at least built; every verified artboard row's evidence exists and
+// is hash-pinned to the canvas file it was taken against.
 export function checkComplete(ledger) {
   const errors = [];
   for (const r of ledger.rows) {
     if (r.orphaned) continue;
     if (r.status === 'open') {
       errors.push(`${r.id}: open`);
+      continue;
+    }
+    if (NOTED.has(r.status)) {
+      if (!r.note?.trim()) errors.push(`${r.id}: ${r.status} needs a note`);
       continue;
     }
     if (r.kind !== 'owner' && r.status !== 'verified')
@@ -276,6 +290,36 @@ export function checkComplete(ledger) {
     }
   }
   return errors;
+}
+
+/** The rc-soak checklist: one line per `soak` row, in ledger order. */
+export function soakChecklist(ledger) {
+  return ledger.rows
+    .filter((r) => !r.orphaned && r.status === 'soak')
+    .map((r) => `- [ ] \`${r.id}\` — ${r.note.trim()}\n`)
+    .join('');
+}
+
+function soakBlock(ledger) {
+  const list = soakChecklist(ledger);
+  return `${SOAK_START}\n${list || '_No row is left to the soak._\n'}${SOAK_END}`;
+}
+
+/** Null when PR.md's marked block is the ledger's checklist; else what is wrong. */
+export function prSoakDrift(prText, ledger) {
+  const a = prText.indexOf(SOAK_START);
+  const b = prText.indexOf(SOAK_END);
+  if (a < 0 || b < a) return `PR.md has no rc-soak markers (${SOAK_START} … ${SOAK_END})`;
+  return prText.slice(a, b + SOAK_END.length) === soakBlock(ledger)
+    ? null
+    : 'PR.md rc-soak checklist is out of date — run: node scripts/v2-ledger.mjs pr-soak';
+}
+
+export function withSoakBlock(prText, ledger) {
+  const a = prText.indexOf(SOAK_START);
+  const b = prText.indexOf(SOAK_END);
+  if (a < 0 || b < a) throw new Error(`PR.md has no rc-soak markers (${SOAK_START} … ${SOAK_END})`);
+  return prText.slice(0, a) + soakBlock(ledger) + prText.slice(b + SOAK_END.length);
 }
 
 function main(argv) {
@@ -298,6 +342,8 @@ function main(argv) {
   }
   if (cmd === 'check') {
     const errors = checkComplete(ledger);
+    const drift = existsSync(PR_MD) ? prSoakDrift(readFileSync(PR_MD, 'utf8'), ledger) : null;
+    if (drift) errors.push(drift);
     const open = ledger.rows.filter((r) => r.status === 'open').length;
     if (errors.length) {
       console.error(`ledger incomplete: ${errors.length} problems (${open} open rows)`);
@@ -308,11 +354,18 @@ function main(argv) {
     console.log('ledger complete');
     return 0;
   }
+  if (cmd === 'pr-soak') {
+    writeFileSync(PR_MD, withSoakBlock(readFileSync(PR_MD, 'utf8'), ledger));
+    console.log(
+      `${ledger.rows.filter((r) => r.status === 'soak').length} soak rows → ${relative(ROOT, PR_MD)}`
+    );
+    return 0;
+  }
   if (cmd === 'set') {
     const [rowId, status] = rest;
     if (!rowId || !STATUSES.includes(status)) {
       console.error(
-        'usage: set <rowId> <open|built|verified> [--evidence <path>] [--commit <sha>]'
+        `usage: set <rowId> <${STATUSES.join('|')}> [--evidence <path>] [--commit <sha>] [--note <text>]`
       );
       return 2;
     }
@@ -325,6 +378,12 @@ function main(argv) {
       const i = rest.indexOf(name);
       return i >= 0 ? rest[i + 1] : undefined;
     };
+    const note = opt('--note');
+    if (NOTED.has(status) && !note?.trim() && !row.note?.trim()) {
+      console.error(`${status} needs --note "<why it is not verified locally>"`);
+      return 2;
+    }
+    if (note) row.note = note;
     row.status = status;
     const ev = opt('--evidence');
     if (ev) {
@@ -338,7 +397,7 @@ function main(argv) {
     return 0;
   }
   console.error(
-    'usage: v2-ledger.mjs gen | stats | check | set <rowId> <status> [--evidence p] [--commit sha]'
+    'usage: v2-ledger.mjs gen | stats | check | pr-soak | set <rowId> <status> [--evidence p] [--commit sha] [--note t]'
   );
   return 2;
 }

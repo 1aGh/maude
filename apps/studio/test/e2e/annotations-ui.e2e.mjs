@@ -141,29 +141,23 @@ describe('R2b — double-click INSIDE an open editor selects a word; the view ne
 });
 
 describe('R3 — marquee and sections', () => {
-  test('a marquee over content inside a section selects the content, not the section', async () => {
-    await reset();
-    const cb = await c.pageBox('circle');
-    const rb = await c.pageBox('box');
-    await c.drag(
-      [Math.min(cb.x, rb.x) - 20, Math.min(cb.y, rb.y) - 20],
-      [
-        Math.max(cb.x + cb.width, rb.x + rb.width) + 20,
-        Math.max(cb.y + cb.height, rb.y + rb.height) + 20,
-      ]
-    );
-    await sleep(300);
-    assert.deepEqual(await c.selection(), ['box', 'circle', 'link']);
-  });
-
-  test('a marquee that encloses the whole section selects the section too', async () => {
+  // decision maude/v2-S4.18b-hand-picks-one-predicate (annotations/ui/posture.ts `annotationMarquees`): only the Move
+  // tool rubber-bands, and Move is Edit's, where the layer is quiet and holds no selection. In Preview the Hand is
+  // the resting tool and a drag on empty canvas pans. So the v1 marquee scenarios (content inside a section, a
+  // section enclosed whole) have no v2 gesture; what v2 promises is that the drag pans and selects nothing.
+  test('a Hand drag over a section and its content pans the canvas; it selects nothing', async () => {
     await reset();
     const sb = await c.pageBox('sec');
-    // Start just above the title chip — still inside the canvas iframe.
+    const before = await c.pageBox('circle');
+    // Start just above the title chip — still inside the canvas iframe, on empty canvas.
     await c.drag([sb.x - 20, sb.y - 12], [sb.x + sb.width + 30, sb.y + sb.height + 30]);
     await sleep(300);
-    const sel = await c.selection();
-    assert.ok(sel.includes('sec'), `section selected (${sel})`);
+    assert.deepEqual(await c.selection(), [], 'no rubber band in Preview');
+    const after = await c.pageBox('circle');
+    assert.ok(
+      Math.abs(after.x - before.x) > 20 || Math.abs(after.y - before.y) > 20,
+      'the Hand drag panned the camera'
+    );
   });
 });
 
@@ -449,7 +443,9 @@ describe('R7 — Task 19: drafts and a collaborator while editing', () => {
     assert.ok(await c.editorState(), 'still editing');
   });
 
-  test('a collaborator’s edit shows a marker; the commit keeps both texts; undo removes only mine', async () => {
+  // p8-undo-collab-refuse (Michal option b2): ⌘Z on a text a collaborator changed meanwhile is
+  // refused — their text stays and the shell says so (its stale-entry notice).
+  test('a collaborator’s edit shows a marker; the commit keeps both texts; undo is refused and keeps theirs', async () => {
     const cur = (await waitForBoard(server.root, () => true)).get('duo').text;
     await peerOps(server, [
       { op: 'patch', id: 'duo', set: { text: `Peer: ${cur}` }, expect: { text: cur } },
@@ -467,11 +463,19 @@ describe('R7 — Task 19: drafts and a collaborator while editing', () => {
     await c.page.keyboard.press('Enter');
     let board = await waitForBoard(server.root, (b) => b.get('duo')?.text === 'Peer: shared A B');
     assert.equal(board.get('duo').text, 'Peer: shared A B');
-    // Undo reverts this edit only — the collaborator's prefix stays.
+    // Undo is refused: the collaborator changed this text during the edit, so nothing is undone.
     await sleep(300);
     await c.page.keyboard.press('Meta+z');
-    board = await waitForBoard(server.root, (b) => b.get('duo')?.text === 'Peer: shared');
-    assert.equal(board.get('duo').text, 'Peer: shared');
+    const notice = await c.page
+      .getByText(/Can't undo .+ changed it since/)
+      .first()
+      .waitFor({ timeout: 5000 })
+      .then(() => true)
+      .catch(() => false);
+    assert.ok(notice, 'the "can’t undo — someone else changed it since" notice is shown');
+    await sleep(800);
+    board = await waitForBoard(server.root, () => true);
+    assert.equal(board.get('duo').text, 'Peer: shared A B', 'the collaborator’s text stays');
   });
 
   test('a collaborator deletes the sticky mid-edit — the editor stays, Enter restores it with the text', async () => {
@@ -722,6 +726,105 @@ describe('R11 — a pasted board payload is foreign input (security review A3)',
     assert.ok(link, 'the card was pasted');
     assert.equal(link.domain, 'attacker.example');
     assert.notEqual(link.author?.name, 'Team Lead');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// S4.8 — the Preview toolbar's popovers and the keys that open them (written, not run in the lane).
+// A standalone canvas has no shell above it, so the keys apply locally (V2-1.2 §5.4 "standalone");
+// the governed Edit → Preview crossing and "remembered across reloads" are covered by
+// tool-palette.test.tsx / annotation-tool-prefs.test.ts (the shell lane), and by the desktop e2e.
+
+const STICKY_SKY = '#bcd2f0'; // STICKY_PALETTE[7]
+const hasId = (id) => c.frame.evaluate((i) => !!document.querySelector(`[data-testid="${i}"]`), id);
+
+describe('S4.8 — N opens Sticky with its colours; the next click places one in that colour', () => {
+  test('N arms Sticky and the colours open above it: five up front, "+5" for the rest', async () => {
+    await reset();
+    await c.page.keyboard.press('n');
+    await sleep(300);
+    assert.ok(await hasId('toolbar-popover-sticky-colours'), 'the colours open with the tool');
+    const front = await c.frame
+      .locator(
+        '[data-testid="toolbar-popover-sticky-colours"] button[aria-label]:not([aria-expanded])'
+      )
+      .count();
+    assert.equal(front, 5);
+    assert.equal(await c.frame.locator('[data-testid="toolbar-sticky-more"]').textContent(), '+5');
+    assert.equal(
+      await c.frame.locator('[data-dc-banner], .dc-mode-banner').count(),
+      0,
+      'no banner'
+    );
+  });
+
+  test('a picked colour is the colour of the next sticky placed', async () => {
+    await c.frame.locator('[data-testid="toolbar-sticky-sky"]').click();
+    const before = readBoard(server.root);
+    const target = await c.pageBox('sec');
+    await c.page.mouse.click(target.x + target.width - 40, target.y + target.height - 40);
+    const b = await waitForBoard(server.root, (bd) =>
+      [...bd.values()].some((e) => e.type === 'sticky' && !before?.has(e.id))
+    );
+    const note = [...b.values()].find((e) => e.type === 'sticky' && !before?.has(e.id));
+    assert.equal(note.fill, STICKY_SKY);
+    await c.page.keyboard.press('Meta+z');
+  });
+});
+
+describe('S4.8 — esc runs the ladder: tool, then Hand', () => {
+  test('esc puts Sticky down for Hand and closes its colours', async () => {
+    await reset();
+    await c.page.keyboard.press('n');
+    await sleep(200);
+    assert.ok(await hasId('toolbar-popover-sticky-colours'));
+    await c.page.keyboard.press('Escape');
+    await sleep(250);
+    assert.equal(await hasId('toolbar-popover-sticky-colours'), false);
+    assert.equal(
+      await c.frame.locator('[data-testid="toolbar-slot-browse"]').getAttribute('aria-pressed'),
+      'true',
+      'Hand is the resting tool'
+    );
+  });
+});
+
+describe('S4.8 — M opens the Marker with its inks; the Eraser never takes a sticky', () => {
+  test('M shows the tips, five inks with "+4", and two thicknesses', async () => {
+    await reset();
+    await c.page.keyboard.press('m');
+    await sleep(250);
+    assert.ok(await hasId('toolbar-popover-marker-tips'));
+    assert.equal(await c.frame.locator('[aria-label="Ink"] button').count(), 5);
+    assert.equal(await c.frame.locator('[data-testid="toolbar-ink-more"]').textContent(), '+4');
+    assert.equal(await c.frame.locator('[aria-label="Thickness"] button').count(), 2);
+  });
+
+  test('the Eraser rubs out a Marker stroke and leaves the sticky under it', async () => {
+    await reset();
+    const [x, y] = await c.center('note');
+    const before = readBoard(server.root);
+    await c.page.keyboard.press('m');
+    await sleep(200);
+    await c.drag([x - 30, y + 10], [x + 30, y + 10]);
+    const drawn = await waitForBoard(server.root, (bd) =>
+      [...bd.values()].some((e) => e.type === 'pen' && !before?.has(e.id))
+    );
+    // drawing closed the tips popover (a press outside it); the lit Marker slot reopens it
+    if (!(await hasId('toolbar-popover-marker-tips')))
+      await c.frame.locator('[data-testid^="toolbar-slot-"][data-tip]').first().click();
+    await c.frame.locator('[data-testid="toolbar-tip-eraser"]').click();
+    await c.drag([x - 30, y + 10], [x + 30, y + 10]);
+    const after = await waitForBoard(
+      server.root,
+      (bd) => ![...bd.values()].some((e) => e.type === 'pen' && !before?.has(e.id))
+    );
+    assert.ok(
+      [...drawn.values()].some((e) => e.type === 'pen'),
+      'a stroke was drawn'
+    );
+    assert.ok(after.get('note'), 'the sticky is still on the board');
+    await c.page.keyboard.press('Escape');
   });
 });
 

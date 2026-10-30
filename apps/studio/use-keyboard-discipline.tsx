@@ -25,9 +25,22 @@
 
 import { useEffect, useRef } from 'react';
 
+import { canvasModeStore, canvasSingleKeys } from './bridge/canvas-mode-store.ts';
 import { useArtboardsContext, useDragStateContext } from './canvas-lib.tsx';
-import { resolveSelectionEl, scopedCdSelector, selectorIndex } from './dom-selection.ts';
-import { isEditableTarget } from './input-router.tsx';
+import {
+  hoverTargetToSelection,
+  resolveSelectionEl,
+  scopedCdSelector,
+  selectorIndex,
+  shortText,
+} from './dom-selection.ts';
+import {
+  installTakeAssetsLane,
+  pictureAssetOf,
+  postTakeStep,
+  takeStepOf,
+} from './editing/take-keys.ts';
+import { type HoverTarget, isEditableTarget } from './input-router.tsx';
 import { isReadOnlyCanvas } from './read-only-mode.ts';
 import { type Selection, useSelectionSet } from './use-selection-set.tsx';
 import { useToolModeOptional } from './use-tool-mode.tsx';
@@ -38,6 +51,19 @@ const STEP_LARGE = 10;
 export interface NudgeInput {
   key: string;
   shift: boolean;
+}
+
+/**
+ * S2.24 — the selection ↵ (descend) and ⇧↵ (parent) land on: the same payload a pointer pick makes (its text, classes,
+ * measured box, authored and computed style), so the inspector reads the same kind. A bare id/tag/index payload made
+ * an `h1` read as a Frame, because the inspector decides a text object by its `text`.
+ */
+export function keyboardSelection(el: Element): Selection {
+  return hoverTargetToSelection({
+    el,
+    cdId: el.getAttribute('data-cd-id'),
+    artboardId: el.closest('[data-dc-screen]')?.getAttribute('data-dc-screen') ?? null,
+  } as HoverTarget);
 }
 
 /**
@@ -58,6 +84,20 @@ export function nudgeDelta(input: NudgeInput): { dx: number; dy: number } | null
     default:
       return null;
   }
+}
+
+/** ⌘A (⌃A) and nothing else: ⇧⌘A is Select all annotations (S4.9), never the design objects (S4.18). */
+export function isSelectAllElementsChord(
+  e: Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey' | 'shiftKey' | 'altKey'>
+): boolean {
+  return (e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'a';
+}
+
+/** ⌘A's level: no selection, or only whole artboards (no element id), is the canvas level. */
+export function selectsArtboardLevel(
+  selected: readonly Pick<Selection, 'id' | 'artboardId'>[]
+): boolean {
+  return selected.length === 0 || selected.every((s) => !!s.artboardId && !s.id);
 }
 
 export function useKeyboardDiscipline(): void {
@@ -87,18 +127,41 @@ export function useKeyboardDiscipline(): void {
     timer: ReturnType<typeof setTimeout>;
   } | null>(null);
 
+  // S8.16 — which pictures have other takes (the shell's `gen-takes`); ← → step them instead of nudging
+  useEffect(() => (typeof window === 'undefined' ? undefined : installTakeAssetsLane(window)), []);
+
   useEffect(() => {
     if (typeof document === 'undefined') return;
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (isEditableTarget(e.target)) return;
       // feature-4 — browse is a pure pass-through; the mock owns the keyboard.
-      if (toolRef.current === 'browse') return;
+      // S3.11 — Inspect reads: the same keyboard editing ops are off there too.
+      if (toolRef.current === 'browse' || toolRef.current === 'inspect') return;
 
-      // Cmd+A → select all stamped elements in the active artboard.
+      // Cmd+A → select all stamped elements in the active artboard. Not ⇧⌘A: that chord is Select all
+      // annotations (S4.9); v1 matched any ⇧ (V2-1.3 defect 1) and kept winning it in Edit (S4.18).
       const isMeta = e.metaKey || e.ctrlKey;
-      if (isMeta && e.key.toLowerCase() === 'a') {
+      if (isSelectAllElementsChord(e)) {
         if (!artboardsCtx) return;
+        // V2-8.5 C2 (08 · ak-mixed-select) — select all is "everything at this level": with nothing selected, or only
+        // artboards, the level is the canvas, so ⌘A takes every artboard (the inspector then speaks for them all: "2
+        // artboards · 2 kinds"); once an object is selected the level is that artboard's own objects, below.
+        if (selectsArtboardLevel(selSet.selected)) {
+          const ids = [...document.querySelectorAll('[data-dc-screen]')]
+            .map((n) => n.getAttribute('data-dc-screen'))
+            .filter((n): n is string => !!n);
+          if (ids.length > 0) {
+            e.preventDefault();
+            selSet.replace(
+              ids.map((boardId) => ({
+                selector: `[data-dc-screen="${CSS.escape(boardId)}"]`,
+                artboardId: boardId,
+              }))
+            );
+            return;
+          }
+        }
         const id = artboardsCtx.activeArtboardId;
         if (!id) return;
         const root = document.querySelector(`[data-dc-screen="${id}"] .dc-artboard-body`);
@@ -116,6 +179,7 @@ export function useKeyboardDiscipline(): void {
             artboardId: id,
             index: selectorIndex(document, kdSelector, el),
             tag: el.tagName.toLowerCase(),
+            text: shortText(el, 240),
           });
         }
         if (hits.length === 0) return;
@@ -168,10 +232,11 @@ export function useKeyboardDiscipline(): void {
       }
 
       // Keyboard tree traversal (Task L2) — Enter = first child, Shift+Enter =
-      // parent, Tab / Shift+Tab = next / previous sibling. Mouse-free selection of
-      // the deeply-nested / overlapping elements the plan's predictability goal is
-      // about. Scoped to a single element selection + no meta modifier.
-      if (!isMeta && !e.altKey && (e.key === 'Enter' || e.key === 'Tab')) {
+      // parent. Mouse-free selection of the deeply-nested / overlapping elements the
+      // plan's predictability goal is about. Scoped to a single element selection +
+      // no meta modifier. (Tab / Shift+Tab, the siblings, are `object.select-next` /
+      // `-prev` since S2.21 — editing/focus-model.tsx walks them in reading order.)
+      if (!isMeta && !e.altKey && e.key === 'Enter') {
         const one = selSet.selected.length === 1 ? selSet.selected[0] : null;
         if (!one?.id) return;
         const el = resolveSelectionEl(document, one) as HTMLElement | null;
@@ -181,42 +246,11 @@ export function useKeyboardDiscipline(): void {
           next = el.querySelector('[data-cd-id]'); // first descendant
         } else if (e.key === 'Enter' && e.shiftKey) {
           next = el.parentElement?.closest('[data-cd-id]') ?? null; // parent
-        } else if (e.key === 'Tab') {
-          // Next / previous stamped sibling in document order.
-          const forward = !e.shiftKey;
-          let s: Element | null = forward ? el.nextElementSibling : el.previousElementSibling;
-          while (s) {
-            if (s.hasAttribute('data-cd-id')) {
-              next = s;
-              break;
-            }
-            const inner = s.querySelector('[data-cd-id]');
-            if (inner) {
-              next = inner;
-              break;
-            }
-            s = forward ? s.nextElementSibling : s.previousElementSibling;
-          }
         }
         // Don't leave the artboard body (a parent hop past the artboard root).
         if (next?.closest('.dc-artboard-body') && next.getAttribute('data-cd-id')) {
           e.preventDefault();
-          const cdId = next.getAttribute('data-cd-id') as string;
-          const artboardId =
-            next.closest('[data-dc-screen]')?.getAttribute('data-dc-screen') ?? null;
-          const sel = scopedCdSelector(cdId, artboardId);
-          selSet.replace([
-            {
-              id: cdId,
-              selector: sel,
-              artboardId,
-              index: selectorIndex(document, sel, next),
-              tag: next.tagName.toLowerCase(),
-            },
-          ]);
-        } else if (e.key === 'Tab') {
-          // Swallow Tab even with no target, so focus doesn't jump out of the canvas.
-          e.preventDefault();
+          selSet.replace([keyboardSelection(next)]);
         }
         return;
       }
@@ -257,6 +291,27 @@ export function useKeyboardDiscipline(): void {
           }
         }
         return;
+      }
+
+      // S8.16 — a selected picture with other takes: ← → ask the shell for the next / previous take (the
+      // registry's `selectionHasTakes` fact takes the bare arrows from `object.nudge`). The shell judges role and target.
+      {
+        const one = selSet.selected.length === 1 ? selSet.selected[0] : null;
+        if (one?.id && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+          const el = resolveSelectionEl(document, one);
+          const dir = takeStepOf(e, {
+            typing: false,
+            mode: canvasModeStore(window).get().mode ?? 'edit',
+            selection: 'object',
+            asset: pictureAssetOf(el, one),
+            singleKeys: canvasSingleKeys(),
+          });
+          if (dir) {
+            e.preventDefault();
+            if (!e.repeat) postTakeStep(window, dir);
+            return;
+          }
+        }
       }
 
       const delta = nudgeDelta({ key: e.key, shift: e.shiftKey });

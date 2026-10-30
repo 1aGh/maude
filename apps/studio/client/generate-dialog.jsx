@@ -7,7 +7,7 @@
 // secondary affordance. Sibling of `maude design generate` (same route).
 //
 // Main-origin shell UI (the route is privileged — never canvas-reachable).
-// Modal chrome mirrors ExportDialog (st-scrim / st-dialog); a running job polls
+// Modal chrome mirrors ExportDialog (sh-scrim / sh-dialog); a running job polls
 // the job list every 1.5s until done/failed (the same completion signal the
 // notification center consumes via the generate:job WS push). Auto-insert reuses
 // the AssetPicker's main-origin source-write lane (insertElementShell →
@@ -23,9 +23,7 @@ function Icon({ name, size = 16 }) {
         <line x1="12" y1="4" x2="4" y2="12" />
       </>
     ),
-    sparkle: (
-      <path d="M8 2.5l1.2 3.3L12.5 7 9.2 8.2 8 11.5 6.8 8.2 3.5 7l3.3-1.2z" />
-    ),
+    sparkle: <path d="M8 2.5l1.2 3.3L12.5 7 9.2 8.2 8 11.5 6.8 8.2 3.5 7l3.3-1.2z" />,
     copy: (
       <>
         <rect x="5.5" y="5.5" width="7.5" height="7.5" rx="1.2" />
@@ -122,7 +120,11 @@ export default function GenerateDialog({ onClose, onInsert }) {
     const ok = onInsert(resultAsset) === true;
     setPlaced(ok);
     if (ok) setStatus({ ok: true, msg: 'Placed on canvas ✓' });
-    else setStatus({ ok: true, msg: 'Generated — open a canvas artboard to place it, or insert below.' });
+    else
+      setStatus({
+        ok: true,
+        msg: 'Generated — open a canvas artboard to place it, or insert below.',
+      });
   }, [resultAsset, placeOnCanvas, onInsert]);
 
   const current = providers.find((p) => p.id === provider);
@@ -198,36 +200,36 @@ export default function GenerateDialog({ onClose, onInsert }) {
 
   return (
     <div
-      className="st-scrim"
+      className="sh-scrim"
       role="presentation"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="st-dialog" role="dialog" aria-modal="true" aria-label="Generate media">
-        <div className="st-dialog-hd">
-          <span className="st-dialog-title">Generate with AI</span>
-          <button type="button" className="st-iconbtn" aria-label="Close" onClick={onClose}>
+      <div className="sh-dialog" role="dialog" aria-modal="true" aria-label="Generate media">
+        <div className="sh-dialog-hd">
+          <span className="sh-dialog-title">Generate with AI</span>
+          <button type="button" className="sh-iconbtn" aria-label="Close" onClick={onClose}>
             <Icon name="x" size={15} />
           </button>
         </div>
-        <div className="st-dialog-bd">
-          <div className="st-rp-hd">Prompt</div>
+        <div className="sh-dialog-bd">
+          <div className="sh-rp-hd">Prompt</div>
           <textarea
-            className="input st-gen-prompt"
+            className="input ai-gen-prompt"
             rows={3}
             value={prompt}
             placeholder="a minimal hero image of a mountain lake at dawn, soft light"
             aria-label="Generation prompt"
             onChange={(e) => setPrompt(e.target.value)}
           />
-          <div className="st-dialog-row">
-            <label className="st-dialog-lbl" htmlFor="st-gen-provider">
+          <div className="sh-dialog-row">
+            <label className="sh-dialog-lbl" htmlFor="ai-gen-provider">
               Provider
             </label>
             <select
-              id="st-gen-provider"
-              className="st-select"
+              id="ai-gen-provider"
+              className="sh-select"
               value={provider}
               onChange={(e) => setProvider(e.target.value)}
             >
@@ -240,13 +242,13 @@ export default function GenerateDialog({ onClose, onInsert }) {
             </select>
           </div>
           {models.length > 0 && (
-            <div className="st-dialog-row">
-              <label className="st-dialog-lbl" htmlFor="st-gen-model">
+            <div className="sh-dialog-row">
+              <label className="sh-dialog-lbl" htmlFor="ai-gen-model">
                 Model
               </label>
               <select
-                id="st-gen-model"
-                className="st-select"
+                id="ai-gen-model"
+                className="sh-select"
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
               >
@@ -258,13 +260,13 @@ export default function GenerateDialog({ onClose, onInsert }) {
               </select>
             </div>
           )}
-          <div className="st-dialog-row">
-            <label className="st-dialog-lbl" htmlFor="st-gen-aspect">
+          <div className="sh-dialog-row">
+            <label className="sh-dialog-lbl" htmlFor="ai-gen-aspect">
               Aspect
             </label>
             <select
-              id="st-gen-aspect"
-              className="st-select"
+              id="ai-gen-aspect"
+              className="sh-select"
               value={aspect}
               onChange={(e) => setAspect(e.target.value)}
             >
@@ -276,30 +278,30 @@ export default function GenerateDialog({ onClose, onInsert }) {
             </select>
           </div>
           {onInsert && (
-            <label className="st-dialog-row" style={{ gap: 8, cursor: 'pointer' }}>
+            <label className="sh-dialog-row" style={{ gap: 8, cursor: 'pointer' }}>
               <input
                 type="checkbox"
                 checked={placeOnCanvas}
                 onChange={(e) => setPlaceOnCanvas(e.target.checked)}
                 aria-label="Place the generated image on the canvas"
               />
-              <span className="st-dialog-lbl" style={{ margin: 0 }}>
+              <span className="sh-dialog-lbl" style={{ margin: 0 }}>
                 Place on canvas
               </span>
             </label>
           )}
           {notConfigured && (
-            <div className="st-provider-status" style={{ color: 'var(--fg-3)' }}>
+            <div className="v2s-provider-status" style={{ color: 'var(--fg-2)' }}>
               No key for {current.label} — add one in Settings (⌘,).
             </div>
           )}
           {resultAsset && (
-            <div className="st-gen-result">
-              <img className="st-gen-thumb" src={`/${resultAsset}`} alt="generated" />
-              <div className="st-gen-result-actions">
+            <div className="ai-gen-result">
+              <img className="ai-gen-thumb" src={`/${resultAsset}`} alt="generated" />
+              <div className="ai-gen-result-actions">
                 <button
                   type="button"
-                  className="st-btn"
+                  className="sh-btn"
                   onClick={() => navigator.clipboard?.writeText(`/${resultAsset}`)}
                 >
                   <Icon name="copy" size={13} /> Copy path
@@ -310,7 +312,7 @@ export default function GenerateDialog({ onClose, onInsert }) {
                 {onInsert && placed !== true && (
                   <button
                     type="button"
-                    className="st-btn"
+                    className="sh-btn"
                     onClick={() => {
                       const ok = onInsert(resultAsset) === true;
                       setPlaced(ok);
@@ -329,16 +331,16 @@ export default function GenerateDialog({ onClose, onInsert }) {
           )}
           {status && (
             <div
-              className="st-provider-status"
+              className="v2s-provider-status"
               style={{ color: status.ok ? 'var(--accent)' : 'var(--danger, #e5484d)' }}
             >
               {status.msg}
             </div>
           )}
-          <div className="st-dialog-row" style={{ justifyContent: 'flex-end', marginTop: 12 }}>
+          <div className="sh-dialog-row" style={{ justifyContent: 'flex-end', marginTop: 12 }}>
             <button
               type="button"
-              className="st-btn st-gen-go"
+              className="sh-btn ai-gen-go"
               disabled={busy || !prompt.trim() || !provider}
               onClick={generate}
             >

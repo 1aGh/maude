@@ -1,0 +1,298 @@
+/* client/v2/ds/reach.css — S10.9: the reach view (13 · ds-edit-reach). Tokens only; motion collapses under reduced
+   motion (the global rule), and every transition below is a duration token. */
+/* P8 C0: was unlayered. In @layer components: above the v1 shell layer and after the v1 component files, the place an unlayered v2 rule held over v1 — without beating every layer. */
+@layer components {
+  .dsx {
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    display: flex;
+    flex-direction: column;
+    background: var(--canvas-bg);
+    color: var(--fg-0);
+    outline: none;
+  }
+  .dsx-hd {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-5) var(--space-6) var(--space-3);
+    max-width: 1100px;
+  }
+  .dsx-t {
+    margin: 0;
+    font-size: var(--type-md);
+    font-weight: var(--w-semibold);
+  }
+  .dsx-s {
+    margin: 0;
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
+  .dsx-x {
+    position: fixed;
+    top: var(--space-4);
+    right: var(--space-5);
+  }
+  .dsx-stage {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    display: grid;
+    grid-template-columns: minmax(220px, 280px) 1fr;
+    grid-template-rows: auto auto 1fr;
+    column-gap: var(--space-8);
+    row-gap: var(--space-4);
+    align-content: start;
+    padding: var(--space-5) var(--space-6);
+    background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1.2px);
+    background-size: var(--canvas-grid) var(--canvas-grid);
+  }
+  .dsx-lines {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 4;
+    overflow: visible;
+    pointer-events: none;
+  }
+  .dsx-lines path {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 2;
+    stroke-linecap: round;
+  }
+  .dsx-lines circle {
+    fill: var(--accent);
+    stroke: var(--canvas-bg);
+    stroke-width: 2;
+  }
+  .island.dsx-token {
+    grid-column: 1;
+    grid-row: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    align-self: start;
+  }
+  .dsx-k {
+    margin: 0;
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+  }
+  .dsx-ch {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    color: var(--fg-2);
+  }
+  .dsx-dot {
+    position: relative;
+  }
+  .dsx-dot--bare {
+    width: 22px;
+    height: 22px;
+    border-radius: var(--radius-xs);
+    background: var(--accent);
+  }
+  .dsx-used {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .dsx-link {
+    margin-left: auto;
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    color: var(--accent);
+    cursor: pointer;
+  }
+  .dsx-tag {
+    display: inline-block;
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+    color: var(--accent-fg);
+    font-size: var(--type-xs);
+    line-height: 20px;
+    font-weight: var(--w-semibold);
+    white-space: nowrap;
+  }
+  .dsx-tag--all {
+    align-self: flex-start;
+  }
+  .dsx-frames {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-6);
+    align-content: flex-start;
+  }
+  /* 13 · ds-edit-reach: the token's colour as Light | Dark halves (the chip on the board), then the change under it */
+  .dsx-halves {
+    display: flex;
+    height: 72px;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    box-shadow: inset 0 0 0 1px var(--border-default);
+  }
+  .dsx-half {
+    flex: 1;
+    display: flex;
+    align-items: flex-end;
+    padding: var(--space-2);
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    color: #fff;
+  }
+  .dsx-half em {
+    font-style: normal;
+  }
+  /* the system's own Patterns strip leads, on a row of its own; the canvases follow beside each other */
+  .dsx-frame[data-board] {
+    flex-basis: 100%;
+  }
+  .dsx-frame {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .dsx-cap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
+  .dsx-cap b {
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+  .dsx-shot {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius-sm);
+    background: var(--bg-0);
+    box-shadow: inset 0 0 0 1px var(--border-default);
+  }
+  .dsx-iframe {
+    position: absolute;
+    left: 0;
+    top: 0;
+    border: 0;
+    transform-origin: 0 0;
+    pointer-events: none;
+  }
+  /* p8-secfix-f F1 — a canvas-only session gets no frames in the grid, only this line */
+  .dsx-off {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 0 var(--space-4);
+    text-align: center;
+    font-size: var(--type-sm);
+    color: var(--fg-2);
+  }
+  .dsx-rings {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .dsx-ring {
+    position: absolute;
+    box-sizing: border-box;
+    border-radius: var(--radius-xs);
+    box-shadow:
+      0 0 0 2px var(--accent),
+      0 0 0 4px var(--canvas-bg);
+    animation: dsx-ring-in var(--dur-panel, 220ms) var(--ease-out, cubic-bezier(0.2, 0, 0, 1));
+  }
+  @keyframes dsx-ring-in {
+    from {
+      opacity: 0;
+      scale: 1.06;
+    }
+  }
+  .dsx-more {
+    grid-column: 1;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0;
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
+  .island.dsx-rev {
+    grid-column: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    z-index: 5;
+    background: var(--island-bg-strong);
+    animation: dsx-rev-in var(--dur-panel, 220ms) var(--ease-out, cubic-bezier(0.2, 0, 0, 1));
+  }
+  @keyframes dsx-rev-in {
+    from {
+      opacity: 0;
+      translate: 0 6px;
+    }
+  }
+  .dsx-rev .dsr-thumb {
+    width: 52px;
+    height: 34px;
+  }
+  .dsx-rev-t {
+    margin: 0 0 var(--space-1);
+    font-size: var(--type-md);
+    font-weight: var(--w-semibold);
+  }
+  .dsx-contrast {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
+  .dsx-contrast[data-tone="warn"] {
+    color: var(--status-warn-text, var(--fg-1));
+  }
+  .dsx-note b {
+    color: var(--fg-0);
+    font-weight: var(--w-semibold);
+  }
+  .dsx-note {
+    margin: 0;
+    padding: var(--space-3) var(--space-6);
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
+
+  /* the "Show" link on the inspector's "Used in 5 canvases" line (kinds/token.jsx) */
+  .ds-tk-show {
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    color: var(--accent);
+    cursor: pointer;
+  }
+  .ds-tk-show:focus-visible {
+    outline: 2px solid var(--focus-ring, var(--accent));
+    outline-offset: 2px;
+  }
+}

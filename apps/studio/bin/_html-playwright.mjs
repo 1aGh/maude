@@ -14,7 +14,7 @@
 
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { launchChromium, safeArtboardFilename } from './_pw-launch.mjs';
+import { launchChromium, newShellContext, safeArtboardFilename } from './_pw-launch.mjs';
 
 const args = Object.fromEntries(
   process.argv.slice(2).reduce((acc, cur, i, all) => {
@@ -44,12 +44,13 @@ const timeoutMs = Number(timeout) * 1000;
 
 const browser = await launchChromium();
 try {
-  const ctx = await browser.newContext({
+  // gate-b-c4d — confined to the origin the shell lands on (popups, other origins refused).
+  const { ctx, goto: gotoShell } = await newShellContext(browser, {
     viewport: { width: 1440, height: 900 },
     serviceWorkers: 'block',
   });
   const page = await ctx.newPage();
-  await page.goto(url, { waitUntil: 'load', timeout: timeoutMs });
+  await gotoShell(page, url, { waitUntil: 'load', timeout: timeoutMs });
   await page.evaluate(() => document.fonts.ready);
   // `load` fires before React mounts (and a video comp never reaches
   // `networkidle`), so gate on the artboard rendering before we query it —
@@ -247,6 +248,12 @@ async function serializeOne(locator, widenToArtboard) {
           for (const attr of Array.from(el.attributes ?? [])) {
             const name = attr.name.toLowerCase();
             if (name.startsWith('on')) {
+              el.removeAttribute(attr.name);
+              continue;
+            }
+            // V2-2.19 (contract V2-1.4 §5.5, element-ids.ts isCanvasOnlyAttr): canvas-only
+            // state — ids, lock, hide marker — never reaches an exported page.
+            if (name.startsWith('data-cd-')) {
               el.removeAttribute(attr.name);
               continue;
             }

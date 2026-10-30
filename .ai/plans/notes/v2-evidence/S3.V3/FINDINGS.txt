@@ -1,0 +1,13 @@
+S3.V3 wave-A final recheck, canvas 04 Modes, base feat/maude-v2 60f49a322 (after S3.15). Rig: scripts/v2-verify/s34-rig.mjs (S34_PORT=4493 S34_CDP=9395), Chromium headless 1600x1000, MAUDE_CANVAS_ORIGIN_SPLIT=0.
+
+VERIFIED
+md-preview-combine  Preview, wheel over the Homepage (web, 1200×900 fixed, content 2103 px) scrolls the artboard body (scrollTop 0 -> 607 after two 300 px wheels) and the canvas does not pan (md-preview-combine.v4-after-wheel.png).
+md-esc              Preview, ⌘-click on a heading: Inspect panel + outline; first esc clears the inspection and stays in Preview ("Previewing Site | esc to edit" bar kept); second esc returns to Edit (md-esc.v4-inspected.png, md-esc.v4-esc1.png).
+md-model            Edit selection (Pricing h1) then Preview: the selection stays as the blue outline "Pricing · 1200 × 56"; NO Inspect panel opens (only a ⌘-click opens it) (md-model.v4-preview.png).
+md-edit             Linked button selected: tag "Book a call · 118 × 41" at y 203-221, link chip "Go to Pricing" at y 225-243 — clear of the tag, no overlap (md-edit.v4-chip.png). Hover wording stays the S2.5 vocabulary (known lead default).
+md-edit-image       Left panel › Assets: Photos · pic.png tile and the "From this Mac…" row (assets-from-mac) (md-edit-image.v4-assets.png).
+md-keys             Project menu › View: "Zoom in ⌘+", "Zoom out ⌘−", "Present from the start ⌥⇧⌘↵", Preview ⌥⌘P, Present ⌥⌘↵; Edit: ⌥⌘C / ⌥⌘V, ⇧⌘A — Apple order (⌃⌥⇧⌘). View › Exports row present (known). (md-keys.v4-view.png)
+                    U (desktop lane): the native Tauri menu renders its own accelerator string — not reachable in the browser lane.
+
+LEFT ALONE
+md-comment (wave B); the md-* rows already U for cloud / two displays / hub session.

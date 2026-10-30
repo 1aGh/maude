@@ -23,7 +23,7 @@
         gap: 18px;
         user-select: none;
       }
-      .wordmark { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; }
+      .wordmark { margin: 0; font-size: 28px; font-weight: 600; letter-spacing: -0.02em; }
       .status { color: #8a8a92; font-size: 13px; }
       .retry {
         padding: 6px 16px;
@@ -45,13 +45,15 @@
       }
       @keyframes spin { to { transform: rotate(360deg); } }
       @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+      /* Resting tab (V2-1.1 §5.2 "Rest (cap)"): no spinner — nothing is loading. */
+      .splash.resting .spinner { display: none; }
     </style>
   </head>
   <body>
     <main class="splash">
       <div class="spinner" aria-hidden="true"></div>
-      <div class="wordmark">Maude</div>
-      <div class="status">Starting…</div>
+      <h1 class="wordmark" data-testid="splash-name">Maude</h1>
+      <div class="status" data-testid="splash-status">Starting…</div>
     </main>
     <script>
       // Self-healing splash (#92). This document is the webview's ENTRY
@@ -62,7 +64,10 @@
       // force-quit. On every show, ask Rust for the dev-server URL and replace
       // ourselves with it. The page never chooses or constructs the target —
       // `resolve_dev_server_url` takes no input and returns only a
-      // DDR-109-validated loopback URL.
+      // DDR-109-validated loopback URL, or, for a RESTING tab (its server was
+      // stopped to keep five running — V2-1.1 §5.2), `{ resting, name }`: the
+      // page then names the project and waits. Focusing the tab is what wakes
+      // it, and Rust does that navigate itself; this page sends no input.
       (function () {
         var tauri = window.__TAURI__;
         var invoke = tauri && tauri.core && tauri.core.invoke;
@@ -84,6 +89,25 @@
         function setStatus(text) {
           var el = document.querySelector('.status');
           if (el) el.textContent = text;
+        }
+
+        // textContent only: the name comes from the project's config.
+        function showResting(name) {
+          var splash = document.querySelector('.splash');
+          if (splash) splash.classList.add('resting');
+          var word = document.querySelector('.wordmark');
+          if (word && name) word.textContent = name;
+          setStatus('Opens when you come back to it.');
+        }
+
+        function showStarting() {
+          var splash = document.querySelector('.splash');
+          if (splash && splash.classList.contains('resting')) {
+            splash.classList.remove('resting');
+            var word = document.querySelector('.wordmark');
+            if (word) word.textContent = 'Maude';
+            setStatus('Starting…');
+          }
         }
 
         // Escape hatch: name the state and offer a manual kick, so a genuinely
@@ -122,10 +146,26 @@
           inFlight = true;
           attempt += 1;
           invoke('resolve_dev_server_url').then(
-            function (url) {
+            function (answer) {
+              // S1.19: this tab's folder is gone (moved or renamed) — the card says so.
+              if (answer && typeof answer === 'object' && answer.missing) {
+                inFlight = false;
+                window.location.replace('root-missing.html');
+                return;
+              }
+              if (answer && typeof answer === 'object' && answer.resting) {
+                inFlight = false;
+                showResting(String(answer.name || ''));
+                // Keep asking, slowly: Rust navigates the tab when focus wakes
+                // it, and this is the fallback if that navigate is missed.
+                startedAt = Date.now();
+                schedule(2000);
+                return;
+              }
+              showStarting();
               // replace(), not href: leave no splash entry in session history
               // for a future back-navigation to land on.
-              window.location.replace(url);
+              window.location.replace(String(answer));
             },
             function () {
               inFlight = false;

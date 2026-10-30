@@ -19,6 +19,7 @@ describe('use-tool-mode / static', () => {
       // feature-4 (browse/move split) — browse leads, Move (V) is the select tool.
       'browse',
       'move',
+      'inspect', // S3.11 — Viewing's resting tool
       'hand',
       'comment',
       'pen',
@@ -28,11 +29,21 @@ describe('use-tool-mode / static', () => {
       'section',
       'arrow',
       'text',
+      'el-text', // S2.12b — Edit's click-to-type Text
+      'frame', // S2.13 — the drag tools
+      'el-shape',
+      'ellipse',
+      'line',
+      'polygon',
+      'slice',
+      'el-pen', // S2.14 — Edit's Pen
+      'crop',
       'eraser',
     ]);
     expect(DEFAULT_TOOLS.map((t) => t.shortcut)).toEqual([
       '', // browse — no letter shortcut (palette / Esc-from-draw only)
       'V',
+      '', // inspect — Viewing's H arms it
       'H',
       'C',
       'B',
@@ -42,6 +53,15 @@ describe('use-tool-mode / static', () => {
       '⇧S',
       'A',
       'T',
+      'T', // el-text
+      'F', // frame
+      'R', // el-shape
+      '', // ellipse
+      '', // line
+      '', // polygon
+      '', // slice (Export area)
+      'P', // el-pen (S2.14)
+      '', // crop (S2.15)
       'E',
     ]);
   });
@@ -167,10 +187,11 @@ describe('use-tool-mode / SSR render', () => {
 // its `tools` when the canvas booted with ?ro=1; the pure function is what the
 // contract pins: navigate/inspect only, every write tool absent.
 describe('use-tool-mode / read-only filter', () => {
-  test('read-only keeps exactly browse + move + hand, in order', () => {
+  test('read-only keeps exactly browse + move + inspect + hand, in order', () => {
     expect(filterToolsForReadOnly(DEFAULT_TOOLS, true).map((t) => t.id)).toEqual([
       'browse',
       'move',
+      'inspect',
       'hand',
     ]);
   });
@@ -178,6 +199,17 @@ describe('use-tool-mode / read-only filter', () => {
   test('comment is filtered too — the cell refuses viewer comments until C3', () => {
     const ids = filterToolsForReadOnly(DEFAULT_TOOLS, true).map((t) => t.id);
     expect(ids).not.toContain('comment');
+  });
+
+  // Wave-B gate (15 an-viewer, 04 md-comment-only): a Can comment session boots `ro=1&cm=1`. Its
+  // Preview toolbar is Hand and Comment — so the Comment tool must survive the read-only filter,
+  // or the slot has nothing to arm and the bar shows Hand alone (seen on a local cell).
+  test('a read-only Can comment session keeps Comment; Can view still does not', () => {
+    const commenter = filterToolsForReadOnly(DEFAULT_TOOLS, true, true).map((t) => t.id);
+    expect(commenter).toEqual(['browse', 'move', 'inspect', 'hand', 'comment']);
+    expect(filterToolsForReadOnly(DEFAULT_TOOLS, true, false).map((t) => t.id)).not.toContain(
+      'comment'
+    );
   });
 
   test('readOnly=false is identity', () => {

@@ -1,7 +1,9 @@
 // shell/icons.jsx — moved verbatim out of client/app.jsx (Maude v2 plan V2-0.2, move-only split).
 
 // lucide wrapper — hairline stroke to match the shell's icon weight (handoff).
-export const Lu = ({ as: C, size = 14 }) => <C size={size} strokeWidth={1.75} style={{ display: 'block' }} />;
+export const Lu = ({ as: C, size = 14 }) => (
+  <C size={size} strokeWidth={1.75} style={{ display: 'block' }} />
+);
 
 // ---------- Components ----------
 
@@ -32,6 +34,69 @@ export function Icon({ d, size = 14, color }) {
 export const STICONS = {
   'chevron-down': <polyline points="3.5 6 8 10.5 12.5 6" />,
   'chevron-right': <polyline points="6 3.5 10.5 8 6 12.5" />,
+  // Phase 8 C1-kit: the maude-v2 kit glyphs the boards draw (.design/ui/v2/_kit.tsx `Icon`), path for path.
+  // `chevron` is the small select/menu caret (a select, a chip, the "‹ Assets" back rotated); `submenu` is
+  // the row "›" (a fold, a group count, a Used-in row). StIcon draws an empty svg for an unknown name.
+  chevron: <path d="M5 6.5l3 3 3-3" />,
+  submenu: <path d="M6 4.5l3.5 3.5L6 11.5" />,
+  // P8 C7 (11 pn-relaunch): the kit's `tab` glyph, path for path — the restore pill's icon
+  tab: <path d="M1.5 13.5h2v-7A2.5 2.5 0 0 1 6 4h4a2.5 2.5 0 0 1 2.5 2.5v7h2" />,
+  more: (
+    <g fill="currentColor" stroke="none">
+      <circle cx="3.5" cy="8" r="1.1" />
+      <circle cx="8" cy="8" r="1.1" />
+      <circle cx="12.5" cy="8" r="1.1" />
+    </g>
+  ),
+  // Phase 8 C3: Undo / Redo for the bottom-left island (the kit's `undo` / `redo`, path for path).
+  undo: <path d="M6 3.5L3 6.5l3 3M3 6.5h6.25a3.75 3.75 0 0 1 0 7.5H7.5" />,
+  redo: <path d="M10 3.5l3 3-3 3M13 6.5H6.75a3.75 3.75 0 0 0 0 7.5H8.5" />,
+  history: <path d="M2.75 8A5.25 5.25 0 1 0 4.3 4.3M4.3 1.8v2.5h2.5M8 5.25V8l2 1.5" />,
+  pin: <path d="M6 2.5h4l-.5 4 2.5 2.5H4l2.5-2.5zM8 9v4.5" />,
+  duplicate: (
+    <>
+      <rect x="5.5" y="5.5" width="8" height="8" rx="1.75" />
+      <path d="M10.5 5.5V4a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 4v5A1.5 1.5 0 0 0 4 10.5h1.5" />
+    </>
+  ),
+  home: (
+    <path d="M2.5 7.25L8 2.75l5.5 4.5v5.25a1 1 0 0 1-1 1h-2.75V10h-3.5v3.5H3.5a1 1 0 0 1-1-1z" />
+  ),
+  trash: (
+    <path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.1a1 1 0 0 0 1 .9h3.8a1 1 0 0 0 1-.9l.6-8.1" />
+  ),
+  // Phase 8 C1/C10 — glyphs the boards draw from the kit (_kit.tsx FAMILY, same 16 grid): the gear-ish "settings"
+  // (sliders with two knobs), "corner" (the AI mark's turn), "done" (a ringed check), "view" (an eye), "minus",
+  // and the AI "spark" (a filled four-point star, the mark of AI).
+  settings: (
+    <>
+      <path d="M2.5 5h4.5M10 5h3.5M2.5 11h1.5M7 11h6.5" />
+      <circle cx="8.5" cy="5" r="1.5" />
+      <circle cx="5.5" cy="11" r="1.5" />
+    </>
+  ),
+  corner: <path d="M3.5 12.5V8a4.5 4.5 0 0 1 4.5-4.5h4.5" />,
+  done: (
+    <>
+      <circle cx="8" cy="8" r="5.75" />
+      <path d="M5.5 8.25l1.75 1.75 3.25-3.75" />
+    </>
+  ),
+  view: (
+    <>
+      <path d="M1.75 8S4 3.75 8 3.75 14.25 8 14.25 8 12 12.25 8 12.25 1.75 8 1.75 8z" />
+      <circle cx="8" cy="8" r="1.75" />
+    </>
+  ),
+  minus: <path d="M3 8h10" />,
+  spark: (
+    <path
+      d="M16 3L19.309 12.691L29 16L19.309 19.309L16 29L12.691 19.309L3 16L12.691 12.691Z"
+      transform="scale(0.5)"
+      fill="currentColor"
+      stroke="none"
+    />
+  ),
   file: (
     <>
       <path d="M4 2h5l3 3v9H4z" />
@@ -45,6 +110,14 @@ export const STICONS = {
     <>
       <path d="M2 4.5h4l1.3 1.5H14V13H2z" />
       <path d="M8 7.5v3.5M6.25 9.25h3.5" />
+    </>
+  ),
+  // 12 · the kit's `warn` triangle: the Couldn't-read callout and the Missing card wear it
+  warn: (
+    <>
+      <path d="M8 2.2 14.2 13H1.8z" />
+      <path d="M8 6.4v3.2" />
+      <path d="M8 11.3h.01" />
     </>
   ),
   // feature-4 T7b — Layers padlock (closed / open).
@@ -94,7 +167,11 @@ export const STICONS = {
   ),
   moon: <path d="M12.5 9.6A5 5 0 1 1 7 3a4 4 0 0 0 5.5 6.6z" />,
   sparkle: (
-    <path d="M8 1.8l1.4 4.8L14 8l-4.6 1.4L8 14.2l-1.4-4.8L2 8l4.6-1.4z" fill="currentColor" stroke="none" />
+    <path
+      d="M8 1.8l1.4 4.8L14 8l-4.6 1.4L8 14.2l-1.4-4.8L2 8l4.6-1.4z"
+      fill="currentColor"
+      stroke="none"
+    />
   ),
   megaphone: (
     <>
@@ -313,6 +390,89 @@ export const STICONS = {
     </>
   ),
   square: <rect x="3.5" y="3.5" width="9" height="9" rx="1" />,
+  // V2-4.3a — the Share cluster's glyphs, lifted from .design/ui/v2/_kit.tsx (same 16 grid, same stroke).
+  cloud: (
+    <path d="M4.75 12.5a2.75 2.75 0 0 1-.4-5.47A3.75 3.75 0 0 1 11.6 6a3.25 3.25 0 0 1 .15 6.5zM6.25 9.5l1.25 1.25 2.25-2.5" />
+  ),
+  sync: (
+    <path d="M3 7.25a5 5 0 0 1 8.6-3L13 5.5M13 2.5v3h-3M13 8.75a5 5 0 0 1-8.6 3L3 10.5M3 13.5v-3h3" />
+  ),
+  offline: (
+    <>
+      <path d="M4.75 12.5a2.75 2.75 0 0 1-.4-5.47A3.75 3.75 0 0 1 11.6 6a3.25 3.25 0 0 1 .15 6.5z" />
+      <path d="M2.5 2.5l11 11" />
+    </>
+  ),
+  laptop: (
+    <>
+      <rect x="3.5" y="3.5" width="9" height="6.5" rx="1.25" />
+      <path d="M1.75 12.5h12.5" />
+    </>
+  ),
+  problem: (
+    <>
+      <path d="M8 2.75l5.75 10H2.25z" />
+      <path d="M8 6.75v2.5M8 11h.01" />
+    </>
+  ),
+  'panel-right': (
+    <>
+      <rect x="2" y="3" width="12" height="10" rx="2.5" />
+      <path d="M10 3v10" />
+    </>
+  ),
+  comment: (
+    <path d="M5 2.5h6A2.5 2.5 0 0 1 13.5 5v8.5H5A2.5 2.5 0 0 1 2.5 11V5A2.5 2.5 0 0 1 5 2.5z" />
+  ),
+  // The Share cluster's Comments button: a speech bubble with a tail. The DS `comment` glyph above (round on
+  // three corners, square on the fourth — "cut from the logo tile") is the on-canvas tool's; at 16 px beside
+  // other controls it read as an empty box (design-critic blocker 8), so the panel button gets a bubble
+  // that reads as one. Same 16-unit grid, 1.5 stroke, 2.5 container radius.
+  'comment-bubble': (
+    <path d="M5 2.5h6A2.5 2.5 0 0 1 13.5 5v3.5A2.5 2.5 0 0 1 11 11H8l-3 2.5V11A2.5 2.5 0 0 1 2.5 8.5V5A2.5 2.5 0 0 1 5 2.5z" />
+  ),
+  export: (
+    <>
+      <path d="M8 2.5V10M5.25 7.25L8 10l2.75-2.75" />
+      <path d="M2.75 10.5V12a1.5 1.5 0 0 0 1.5 1.5h7.5a1.5 1.5 0 0 0 1.5-1.5v-1.5" />
+    </>
+  ),
+  // S11.15 — the sync callout that says "waiting" (06 · ad-edge-sync)
+  clock: (
+    <>
+      <circle cx="8" cy="8" r="5.75" />
+      <path d="M8 4.75V8l2.25 1.5" />
+    </>
+  ),
+  'share-up': (
+    <>
+      <path d="M8 9.5v-7M5.25 5.25L8 2.5l2.75 2.75" />
+      <path d="M5 7.5h-.5A1.5 1.5 0 0 0 3 9v3a1.5 1.5 0 0 0 1.5 1.5h7a1.5 1.5 0 0 0 1.5-1.5V9a1.5 1.5 0 0 0-1.5-1.5H11" />
+    </>
+  ),
+  // P8-C8 (11 pn-k-close · pn-ds-search · 05 es-search-more): the kit glyphs a ⌘K row names — an artboard
+  // (frame), a print artboard, the design system, a new canvas.
+  frame: <path d="M5 2.5v11M11 2.5v11M2.5 5h11M2.5 11h11" />,
+  print: (
+    <>
+      <path d="M4.5 6V2.5h7V6M4.5 11.5h-1A1.5 1.5 0 0 1 2 10V7.5A1.5 1.5 0 0 1 3.5 6h9A1.5 1.5 0 0 1 14 7.5V10a1.5 1.5 0 0 1-1.5 1.5h-1" />
+      <path d="M4.5 9.5h7v4h-7z" />
+    </>
+  ),
+  system: (
+    <>
+      <rect x="2.5" y="2.5" width="4.75" height="4.75" rx="1.25" />
+      <rect x="8.75" y="2.5" width="4.75" height="4.75" rx="1.25" />
+      <rect x="2.5" y="8.75" width="4.75" height="4.75" rx="1.25" />
+      <circle cx="11.125" cy="11.125" r="2.375" />
+    </>
+  ),
+  insert: (
+    <>
+      <rect x="2.5" y="2.5" width="11" height="11" rx="2.5" />
+      <path d="M8 5.5v5M5.5 8h5" />
+    </>
+  ),
 };
 
 export function StIcon({ name, size = 16, className }) {
@@ -335,34 +495,18 @@ export function StIcon({ name, size = 16, className }) {
   );
 }
 
-// P3 (Plan C) — menubar presence avatar (matches `.design/ui/Studio.tsx` Avatar).
-// Up to two uppercase glyphs from a name; falls back to "?" for empties.
+// Up to two uppercase glyphs from a name (the Share cluster's faces); falls back to "?" for empties.
 export function initialsOf(name) {
   if (!name || typeof name !== 'string') return '?';
-  const parts = name.trim().split(/[\s._-]+/).filter(Boolean);
+  const parts = name
+    .trim()
+    .split(/[\s._-]+/)
+    .filter(Boolean);
   if (!parts.length) return '?';
   // Single-token names (e.g. a git username "1aGh") → first two chars, so the
   // avatar reads as initials rather than a lone count badge.
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return ((parts[0][0] || '') + (parts[parts.length - 1][0] || '')).toUpperCase() || '?';
-}
-
-export function StAvatar({ initials, hue, title, pulse }) {
-  // Hue rides a custom property so CSS can mix it into the surface (DS avatar
-  // recipe: tinted bg + hue border + fg-0 text — solid fill + white text broke
-  // the accent-fg contrast rule and washed out in light theme). `pulse` plays
-  // the DS motion-presence role (scale+opacity ring) — the AI agent's "live"
-  // tell while it's editing.
-  return (
-    <span
-      className={'st-avatar' + (pulse ? ' is-pulsing' : '')}
-      style={{ '--av-hue': hue }}
-      data-tip={title}
-      aria-label={title}
-    >
-      {initials}
-    </span>
-  );
 }
 
 export function Kbd({ children }) {

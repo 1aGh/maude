@@ -1,0 +1,65 @@
+Wave-B gate — a v1 desktop client against the new hub (gate-b-compat, 2026-10-21)
+
+RIG (local only; nothing contacted the real cloud, a real hub, Stripe or Cloudflare)
+  Which hub: the hub FROM SOURCE in workspace mode (scripts/dev/local-cell.mjs), NOT the
+  apps/hub/Dockerfile image (decision v2-michal-gate-hub-local-docker allows this when the
+  source cell already works; no Docker image was built).
+  Feat cell A   : feat 0ac68fb3d, port 4790, --no-watch (the container watcher gap), studio child 4590.
+  Runtime       : the hub process runs /Users/iagh/.nvm/versions/node/v24.13.0/bin/node
+                  (lsof txt of the listening pid), better_sqlite3.node dlopen-ed from the pnpm store.
+  v1 client     : `git archive v1.9.1 apps/studio cli …` (the field 1.9.1; release/1.x-compat is
+                  v1.9.0), `bun server.ts --root <cell>/desktop-project --port 4791`, scratch HOME,
+                  scratch MAUDE_MACHINE_FILE, HUBS_CONFIG_PATH in the cell dir. Lockfiles for
+                  apps/studio and apps/hub are byte-identical between v1.9.1 and feat.
+  Baseline      : a v1.9.1 HUB local cell (git archive v1.9.1 apps/hub apps/cloud apps/cells
+                  scripts/dev) on 4795, same Node 24, same v1.9.1 client on 4796.
+  Tokens        : minted with apps/hub/src/tokens.mjs addToken — owner (role owner), member,
+                  viewer (readOnly), plus a second "cloud" member peer that writes from the other side.
+  Driver        : scratchpad gate/v1-drive.mjs, gate/v1-role.sh <role>, gate/board-ab.sh,
+                  gate/feat-board-write.ts (a FEAT peer writes the board with feat's own codec).
+
+RESULTS — v1.9.1 desktop vs feat hub (per role)            owner  member viewer
+  pairing: shared-doc on, "N/N synced", file plane + ctl     PASS   PASS   PASS
+  project config push (PUT /api/project-config)              200    403*   403*   (*same door + bar as 1.9.1)
+  desktop → hub: new canvas reaches the cloud checkout       PASS   PASS   refused (as 1.9.1, read-only)
+  hub → desktop: file written by another peer arrives        PASS   PASS   PASS   (2-4 s, poke path)
+  DS revision set (S10.18): <rev>.tokens.css arrives          PASS   PASS   PASS
+  DS revision set: head.json + <rev>.json stay OFF v1         PASS   PASS   PASS   (by design, see F1)
+  v1 /_index-data + /_system-data still answer after          PASS   PASS   PASS
+  comment via hub POST /api/comments (S9.7) shows on v1      PASS   PASS   PASS   (~1 s)
+  v1 annotation board (PUT /_api/annotations) → cloud        PASS   PASS   refused (as 1.9.1)
+  feat-peer board write (annotations2 lane) → v1 board       PASS   PASS   —      both stickies kept
+  GET /api/access/me answers the v2 role words               owner  member viewer
+
+  Response shapes, live A/B (gate/keys.sh), 1.9.1 hub vs feat hub — IDENTICAL key sets:
+    /api/journal {entries,epoch,head,truncated}; entry {atMs,class,deleted,mirroredAtMs,mtimeMs,path,seq,sha256,size}
+    /api/files   {count,files}; entry {class,mtimeMs,path,sha256,size}
+    /api/documents {count,documents,tombstones}; entry {bytes,name}
+    /health: feat adds `access` (additive); capabilities add runs-v1, votes-v1, ds-library.
+
+FINDINGS
+  F1 (by design, note only) — a 1.9.1 desktop never receives the v2 DS manifests
+     (tokens.json, components.json, revisions/head.json, revisions/<64hex>.json): 1.9.1 keeps bare
+     .json default-closed; V2-1.12 C1 opened exactly those names on v2 only. It still receives the
+     stylesheets, so a v1 peer renders the system it had. Consequence to know: the hub's per-file
+     delivery for that peer never reports those paths present.
+  F2 (DEFECT, named, not fixed) — a read-only (viewer) v1 desktop leaves a document STUB on the
+     feat hub. Repro: v1.9.1 desktop with a readOnly token; create ui/viewer-local2.tsx locally;
+     after ~25 s `GET /api/documents` on the feat hub lists `ui-viewer-local2` (48 bytes; decoded:
+     only syncMeta.path = "ui/viewer-local2.tsx", no html — gate/stub.mjs). The SAME steps on the
+     v1.9.1 hub (4795) list nothing new. A stub that a read-only peer creates is then advertised to
+     every peer: a 1.9.1 desktop pulls every listed name as a canvas (sync/remote-docs.ts
+     pullTargets). Not isolated to one slice: the WS door changed from `match.readOnly` to
+     `door.readOnly` (S9.5, docDoor), plus the paused/accepted fences — the syncMeta-only write
+     survives somewhere on that path. Needs an RCA (hub server.mjs onAuthenticate + Hocuspocus
+     readOnly handling of SyncStep2), not a gate-time patch.
+  F3 (rig only) — local-cell.mjs mints the desktop token as member but writes role "owner" into
+     hubs.json, so a fresh local cell logs "the workspace did not take this project's config (403)".
+     Harness artefact, not a product defect.
+
+COMPAT TEST (apps/hub/test/v1-client-compat.test.mjs, new describe "Wave B")
+  The 1.9.1 key sets above frozen; library doors + grants on, a revision set in the checkout and a
+  grant minted: /health keeps 1.9.1 fields + plain-word capabilities, journal/manifest/document
+  entries keep every 1.9.1 key for owner/member/viewer, no listed document name is a
+  library/grant/revision and every name passes 1.9.1's own slugFromDocName, and the grant is
+  never a v1 session (login ≠ 200, journal 401).

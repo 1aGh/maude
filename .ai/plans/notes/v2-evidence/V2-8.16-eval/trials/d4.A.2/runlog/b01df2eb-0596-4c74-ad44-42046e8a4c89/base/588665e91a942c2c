@@ -1,0 +1,263 @@
+/**
+ * @canvas      DiffView — visual before/after comparison for a changed canvas + the conflict resolver · the Maude-specific differentiator (rendered diff, not a text diff) · 3 artboards (side-by-side compare · overlay/slider · Keep mine/theirs/both conflict picker) · dark studio
+ * @ds          maude
+ * @platform    desktop
+ * @opt_out     palette
+ * @artboards   compare | overlay | conflict
+ * @brief       Phase 27 (native collab app, epic E2). When a non-technical collaborator looks at "what changed" in a canvas, they see a RENDERED before/after — two thumbnails of the actual canvas, not a code diff. Opens from GitPanel's History/Get-latest. The conflict path offers a plain-language "Keep mine / Keep theirs / Keep both" picker; Keep both is the default (zero data loss). Vocabulary: Last published / Your version / Get latest — never HEAD/working-tree/merge.
+ * @stack       React 19 · TSX · Bun.build · css_mode=inline (sibling DiffView.css)
+ * @history     .design/_history/diffview/
+ *
+ * maude DS, dark-first. Self-contained token + component imports (mirrors Studio.tsx /
+ * GitPanel.tsx) so it renders in `maude` regardless of host injection. The before/after
+ * thumbnails are mock rendered pages whose differences are ringed in --status hues
+ * (changed=warn, added=success) — the visual-diff idea made concrete.
+ */
+
+import "../../system/maude/colors_and_type.css";
+import "../../system/maude/preview/_components.css";
+import "./DiffView.css";
+import { DesignCanvas, DCSection, DCArtboard } from "@maude/canvas-lib";
+
+/* thin-stroke geometric glyphs, no emoji (DS rule) */
+type IconName = keyof typeof ICONS;
+const ICONS = {
+  x: (<><line x1="4.3" y1="4.3" x2="11.7" y2="11.7" /><line x1="11.7" y1="4.3" x2="4.3" y2="11.7" /></>),
+  file: (<><path d="M4 2h5l3 3v9H4z" /><polyline points="9 2 9 5 12 5" /></>),
+  check: <polyline points="3 8.2 6.4 11.5 13 4.2" />,
+  "split": (<><line x1="8" y1="2.5" x2="8" y2="13.5" /><polyline points="5 6 2.5 8 5 10" /><polyline points="11 6 13.5 8 11 10" /></>),
+  user: (<><circle cx="8" cy="5.5" r="2.6" /><path d="M3.5 13a4.5 4.5 0 0 1 9 0" /></>),
+  users: (<><circle cx="6" cy="6" r="2.2" /><path d="M2.5 12.5a3.6 3.6 0 0 1 7 0" /><path d="M10.5 4.2a2.2 2.2 0 0 1 0 4.1" /><path d="M11 12.5a3.6 3.6 0 0 0-1.2-2.7" /></>),
+  copy: (<><rect x="5" y="5" width="8" height="8" rx="1.2" /><path d="M11 5V3.5a1 1 0 0 0-1-1H3.5a1 1 0 0 0-1 1V10a1 1 0 0 0 1 1H5" /></>),
+} as const;
+
+function Icon({ name, size = 16, className }: { name: IconName; size?: number; className?: string }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 16 16" fill="none"
+      stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {ICONS[name]}
+    </svg>
+  );
+}
+
+function Mark() {
+  return (
+    <span data-cd-id="maude" className="dv-mark">
+      <svg width="17" height="17" viewBox="0 0 16 16" aria-hidden="true">
+        <path d="M2.4 7.2a5 5 0 1 1 1.7 3.8L2.2 13.6l.5-2.7a5 5 0 0 1-.3-3.7z" fill="var(--bg-3)" stroke="var(--border-strong)" strokeWidth="0.8" />
+        <path className="dv-mark-spark" d="M9.6 4.4l.7 2.3 2.3.7-2.3.7-.7 2.3-.7-2.3-2.3-.7 2.3-.7z" fill="currentColor" />
+      </svg>
+      Maude
+    </span>
+  );
+}
+
+/* A mock rendered pricing page used as the diff thumbnail.
+ *  variant "before" = 2 plain cards · "after" = 3 cards (one added, one changed-to-accent). */
+function MockPage({ variant }: { variant: "before" | "after" }) {
+  const after = variant === "after";
+  return (
+    <div className="dv-mock">
+      <div className="dv-mock-bar">
+        <span className="dv-mock-logo" />
+        <span className="dv-mock-nav" />
+      </div>
+      <div className="dv-mock-h" />
+      <div className="dv-mock-cards">
+        <div className="dv-card">
+          <div className="l w70" /><div className="l w50" /><div className="pill" />
+        </div>
+        <div className={"dv-card" + (after ? " is-accent changed" : "")}>
+          {after && <span data-cd-id="changed" className="dv-tag-float t-changed">CHANGED</span>}
+          <div className="l w70" /><div className="l w50" /><div className="pill" />
+        </div>
+        {after && (
+          <div className="dv-card added">
+            <span data-cd-id="added" className="dv-tag-float t-added">ADDED</span>
+            <div className="l w70" /><div className="l w50" /><div className="pill" />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────── Artboard 1 — side-by-side compare ─────────────── */
+function Compare() {
+  return (
+    <div className="dv-shell">
+      <div className="panel dv-sheet">
+        <div className="dv-hd">
+          <Mark />
+          <span data-cd-id="what-changed" className="dv-title">What changed</span>
+          <span data-cd-id="pricing-v3" className="dv-file"><Icon name="file" size={13} /> Pricing v3</span>
+          <span data-cd-id="changes-since-you" className="dv-changes"><b>3</b> changes since you last published</span>
+          <span className="dv-spacer" />
+          <div className="seg" role="group" aria-label="Comparison mode">
+            <button data-cd-id="side-by-side" type="button" aria-pressed="true">Side by side</button>
+            <button data-cd-id="overlay" type="button" aria-pressed="false">Overlay</button>
+          </div>
+          <button type="button" className="btn btn--icon dv-close" aria-label="Close"><Icon name="x" size={14} /></button>
+        </div>
+
+        <div className="dv-stage">
+          <div className="dv-pair">
+            <div className="dv-col">
+              <div className="dv-col-hd">
+                <span data-cd-id="last-published" className="dv-col-tag is-before">Last published</span>
+                <span data-cd-id="anna-2-days" className="dv-col-who">Anna · 2 days ago</span>
+              </div>
+              <div className="dv-thumb"><MockPage variant="before" /></div>
+            </div>
+            <div className="dv-col">
+              <div className="dv-col-hd">
+                <span data-cd-id="your-version" className="dv-col-tag is-after">Your version</span>
+                <span data-cd-id="you-just-now" className="dv-col-who">you · just now</span>
+              </div>
+              <div className="dv-thumb is-after"><MockPage variant="after" /></div>
+            </div>
+          </div>
+        </div>
+
+        <div className="dv-ft">
+          <span data-cd-id="a-rendered-before" className="dv-note">A rendered before/after — see the change, not the code. Added a Team plan and recolored Pro.</span>
+          <button data-cd-id="restore-last-published" type="button" className="btn btn--ghost btn--sm">Restore last published</button>
+          <button data-cd-id="keep-my-version" type="button" className="btn btn--primary btn--sm">Keep my version</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────── Artboard 2 — overlay / slider ─────────────────── */
+function Overlay() {
+  return (
+    <div className="dv-shell">
+      <div className="panel dv-sheet">
+        <div className="dv-hd">
+          <Mark />
+          <span data-cd-id="what-changed-2" className="dv-title">What changed</span>
+          <span data-cd-id="pricing-v3-2" className="dv-file"><Icon name="file" size={13} /> Pricing v3</span>
+          <span className="dv-spacer" />
+          <div className="seg" role="group" aria-label="Comparison mode">
+            <button data-cd-id="side-by-side-2" type="button" aria-pressed="false">Side by side</button>
+            <button data-cd-id="overlay-2" type="button" aria-pressed="true">Overlay</button>
+          </div>
+          <button type="button" className="btn btn--icon dv-close" aria-label="Close"><Icon name="x" size={14} /></button>
+        </div>
+
+        <div className="dv-stage">
+          <div className="dv-overlay">
+            <MockPage variant="before" />
+            <div className="dv-overlay-after"><MockPage variant="after" /></div>
+            <span data-cd-id="last-published-2" className="dv-overlay-tag l">Last published</span>
+            <span data-cd-id="your-version-2" className="dv-overlay-tag r">Your version</span>
+            <div className="dv-split">
+              <span className="dv-split-handle" role="slider" aria-label="Drag to compare before and after" aria-valuemin={0} aria-valuemax={100} aria-valuenow={52} tabIndex={0}>
+                <Icon name="split" size={14} />
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="dv-ft">
+          <span data-cd-id="drag-the-handle" className="dv-note">Drag the handle to wipe between the published version and yours.</span>
+          <button data-cd-id="restore-last-published-2" type="button" className="btn btn--ghost btn--sm">Restore last published</button>
+          <button data-cd-id="keep-my-version-2" type="button" className="btn btn--primary btn--sm">Keep my version</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────── Artboard 3 — conflict picker ──────────────────── */
+function Conflict() {
+  return (
+    <div className="dv-shell">
+      <div className="panel dv-sheet">
+        <div className="dv-hd">
+          <Mark />
+          <span className="dv-title">You both changed this canvas</span>
+          <span className="dv-file"><Icon name="file" size={13} /> Pricing v3</span>
+          <span className="dv-spacer" />
+          <button type="button" className="btn btn--icon dv-close" aria-label="Close"><Icon name="x" size={14} /></button>
+        </div>
+
+        <div className="dv-pick-intro">
+          <div className="callout callout--info" style={{ marginTop: "var(--space-4)" }}>
+            <span>
+              While you were working, <strong style={{ color: "var(--fg-0)" }}>Anna</strong> published her own
+              changes to <strong style={{ color: "var(--fg-0)" }}>Pricing v3</strong>. Pick which to keep —
+              <strong style={{ color: "var(--fg-0)" }}> Keep both</strong> saves yours as a copy so nothing is lost.
+            </span>
+          </div>
+        </div>
+
+        <div className="dv-stage" style={{ paddingBottom: 0 }}>
+          <div className="dv-pair is-conflict">
+            <div className="dv-col">
+              <div className="dv-col-hd">
+                <span className="dv-col-tag"><Icon name="user" size={12} /> Yours</span>
+                <span className="dv-col-who">you · just now</span>
+              </div>
+              <div className="dv-thumb ring-mine"><MockPage variant="after" /></div>
+            </div>
+            <div className="dv-col">
+              <div className="dv-col-hd">
+                <span className="dv-col-tag"><Icon name="users" size={12} /> Anna's</span>
+                <span className="dv-col-who">Anna · 5 min ago</span>
+              </div>
+              <div className="dv-thumb ring-theirs"><MockPage variant="before" /></div>
+            </div>
+          </div>
+        </div>
+
+        {/* roving tabindex: the checked radio is the single Tab stop; arrow keys
+            move selection in the wired build (a11y iter-1). */}
+        <div className="dv-picker" role="radiogroup" aria-label="How to resolve">
+          <button type="button" className="dv-pick" role="radio" aria-checked="false" tabIndex={-1}>
+            <span className="dv-pick-hd"><Icon name="user" size={14} /><span className="dv-pick-title">Keep mine</span></span>
+            <span className="dv-pick-desc">Use your version. Anna's edits to this canvas are set aside.</span>
+          </button>
+          <button type="button" className="dv-pick" role="radio" aria-checked="false" tabIndex={-1}>
+            <span className="dv-pick-hd"><Icon name="users" size={14} /><span className="dv-pick-title">Keep Anna's</span></span>
+            <span className="dv-pick-desc">Use the published version. Your edits to this canvas are set aside.</span>
+          </button>
+          <button type="button" className="dv-pick is-rec" role="radio" aria-checked="true" tabIndex={0}>
+            <span className="dv-pick-hd"><Icon name="copy" size={14} /><span className="dv-pick-title">Keep both</span><span className="dv-pick-rec">Default</span></span>
+            <span className="dv-pick-desc">Keep Anna's and save yours as “Pricing v3 (yours)”. Nothing is lost.</span>
+          </button>
+        </div>
+
+        <div className="dv-ft">
+          <span className="dv-note">You can change your mind later — both versions stay in History.</span>
+          <button type="button" className="btn btn--ghost btn--sm">Cancel</button>
+          <button type="button" className="btn btn--primary btn--sm"><Icon name="check" size={14} /> Keep both</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* world wrapper — scope each artboard to the maude DS token ladder (mirrors Studio.tsx) */
+function Board({ children }: { children: React.ReactNode }) {
+  return <div className="maude" data-theme="dark" style={{ position: "absolute", inset: 0 }}>{children}</div>;
+}
+
+export default function DiffView() {
+  return (
+    <DesignCanvas>
+      <DCSection id="diff" title="DiffView — see the change, resolve a conflict" subtitle="MAUDE/DIFF · 3 artboards · rendered before/after (never a text diff) · Keep both = zero data loss">
+        <DCArtboard id="compare" label="A · Before / after, side by side" width={1040} height={760}>
+          <Board><Compare /></Board>
+        </DCArtboard>
+        <DCArtboard id="overlay" label="B · Overlay / slider compare" width={1040} height={760}>
+          <Board><Overlay /></Board>
+        </DCArtboard>
+        <DCArtboard id="conflict" label="C · Keep mine / theirs / both" width={1040} height={860}>
+          <Board><Conflict /></Board>
+        </DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}

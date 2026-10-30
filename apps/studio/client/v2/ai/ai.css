@@ -1,0 +1,261 @@
+/* @layer components — S5.8: the AI chat panel host (03 AI Chat). Tokens only: no hex, weights ≤ 600.
+   The v1 `chat-*` classes still style the thread (chat.css); this file adds what 03 draws on top —
+   the scope chip + menu, the suggestion strip with its why line, the answer note — and pins the send
+   button to azure with a white spark (rule `send-and-ask-ai-are-azure`: an AI action is still an action;
+   vermilion is only for AI presence). */
+@layer components {
+  /* Send (kit `.ask .send`): azure fill, white spark glyph, 28 px radius-md. Empty = the DS disabled look
+     (bg-3 / fg-3), never a faded azure — a fade reads as "loading". */
+  .maude .chat-send {
+    background: var(--accent);
+    color: var(--accent-fg);
+  }
+  .maude .chat-send:hover:not(:disabled) {
+    background: var(--accent-hover);
+  }
+  .maude .chat-send:disabled {
+    opacity: 1;
+    background: var(--bg-3);
+    color: var(--fg-3);
+  }
+  .maude .chat-send:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+
+  /* The empty chat (03 `.ai-hint`): one quiet paragraph above the suggestion strip. */
+  .ai-hint {
+    margin: 0;
+    padding: var(--space-1) var(--space-1) 0;
+    color: var(--fg-2);
+    font-size: var(--type-sm);
+    line-height: var(--lh-sm);
+  }
+
+  /* ── The scope chip (kit `.chip.chip--accent.k-selchip`) — lives INSIDE the field, after the paperclip ── */
+  .ai-scope {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    flex: none;
+    max-width: 132px;
+  }
+  .ai-scope-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-width: 0;
+    max-width: 100%;
+    height: 22px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: var(--accent-muted);
+    color: var(--accent-text);
+    font: inherit;
+    font-size: var(--type-xs);
+    font-weight: var(--w-medium);
+    cursor: pointer;
+  }
+  .ai-scope-chip:hover {
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+  .ai-scope-chip:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+  }
+  .ai-scope-dot {
+    flex: none;
+    font-size: 8px;
+    line-height: 1;
+  }
+  /* Long names are cut, never wrapped. */
+  .ai-scope-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ai-scope--none .ai-scope-chip {
+    background: var(--bg-3);
+    color: var(--fg-2);
+  }
+  .ai-scope--stale .ai-scope-chip {
+    box-shadow: inset 0 0 0 1px var(--status-warn);
+  }
+  .ai-scope-warn {
+    flex: none;
+  }
+  /* The v1 remove ×: there for keyboard and pointer, a small disc on the chip's corner once it is looked at
+     (it takes no room of its own, so the chip is the board's width). */
+  .ai-scope-x {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    display: grid;
+    place-items: center;
+    width: 14px;
+    height: 14px;
+    padding: 0;
+    border-radius: var(--radius-pill);
+    background: var(--bg-2);
+    box-shadow:
+      var(--shadow-sm),
+      inset 0 0 0 0.5px var(--border-strong);
+    color: var(--fg-1);
+    font-size: 11px;
+    line-height: 1;
+    opacity: 0;
+    transition: opacity var(--dur-soft) var(--ease-out);
+  }
+  .ai-scope:hover .ai-scope-x,
+  .ai-scope:focus-within .ai-scope-x {
+    opacity: 1;
+  }
+  /* A several-artboards chip lists its names on hover. */
+  .ai-scope-names {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + var(--space-1));
+    z-index: 21;
+    display: none;
+    max-width: 260px;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--bg-4, var(--bg-3));
+    color: var(--fg-0);
+    font-size: var(--type-xs);
+    box-shadow: var(--shadow-md);
+  }
+  .ai-scope:hover .ai-scope-names {
+    display: block;
+  }
+  /* The popover plane (kit `.k-menu`): opaque bg-2, radius-lg, the largest shadow, 28 px rows. */
+  .ai-scope-menu {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + var(--space-2));
+    z-index: 22;
+    display: flex;
+    flex-direction: column;
+    min-width: 216px;
+    max-width: 280px;
+    padding: var(--space-1);
+    border: 0;
+    border-radius: var(--radius-lg);
+    background: var(--bg-2);
+    box-shadow:
+      var(--shadow-lg),
+      inset 0 0 0 0.5px var(--island-edge, var(--border-default));
+    font-size: var(--type-sm);
+  }
+  .ai-scope-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 28px;
+    padding: var(--space-1) var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: none;
+    color: var(--fg-0);
+    font: inherit;
+    font-size: var(--type-sm);
+    text-align: left;
+    cursor: default;
+  }
+  .ai-scope-item:hover,
+  .ai-scope-item:focus-visible {
+    background: var(--bg-3);
+    outline: none;
+  }
+  .ai-scope-item:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: -2px;
+  }
+  .ai-scope-item[aria-checked="true"] {
+    font-weight: var(--w-semibold);
+  }
+  /* the tick is the kit's check icon (an SVG), 16 px wide, empty when the row is not the current one */
+  .ai-scope-check {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 16px;
+    color: var(--accent-text);
+  }
+  .ai-scope-item-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ai-scope-sep {
+    height: 0.5px;
+    border: 0;
+    margin: var(--space-1) var(--space-2);
+    background: var(--border-default);
+  }
+
+  /* ── Suggestions (03 `Suggest`): up to three chips, one quiet reason ── */
+  .ai-suggest {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: 0;
+  }
+  .ai-suggest-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+  }
+  /* the kit `.chip`: 22 px, bg-3, no border — a suggestion is a quiet nudge, not a button */
+  .ai-chip {
+    max-width: 100%;
+    overflow: hidden;
+    border: 0;
+    cursor: pointer;
+    font: inherit;
+    font-size: var(--type-xs);
+    font-weight: var(--w-medium);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ai-chip:hover {
+    color: var(--fg-0);
+    box-shadow: inset 0 0 0 1px var(--border-strong);
+  }
+  .ai-chip:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+  }
+  /* the lead chip: what the strip follows — bg-2, fg-0, a strong edge, its context glyph */
+  .ai-sugg-lead {
+    background: var(--bg-2);
+    color: var(--fg-0);
+    box-shadow: inset 0 0 0 0.5px var(--border-strong);
+  }
+  .ai-sugg-lead svg {
+    color: var(--fg-1);
+  }
+  .ai-suggest-why {
+    margin: 0 0 var(--space-2);
+    padding: 0 var(--space-1);
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+  }
+
+  /* ── An answer that touched nothing ── */
+  .ai-unchanged {
+    margin: var(--space-2) 0 0;
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ai-scope-x {
+      transition-duration: 1ms;
+    }
+  }
+}

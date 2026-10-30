@@ -4,7 +4,7 @@
 // Tauri `externalBin` as `binaries/maude-server-<target-triple>` and spawned with
 // `--root <project>`. Loopback-only (DDR-109): the dev-server binds localhost.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -109,24 +109,116 @@ pub struct SidecarInstance {
     /// Monotonic tick of when this instance was last the DISPLAYED project —
     /// drives least-recently-shown eviction.
     pub last_shown: u64,
+    /// The identity profile the CURRENT child was spawned on (V2-3.1). Read at
+    /// spawn from `app_state::profile_for`; a rebinding takes effect only on the
+    /// next spawn — env is never hot-swapped.
+    pub profile_id: String,
+    /// The per-spawn token-bridge key the CURRENT child holds (keychain.rs
+    /// `mint_key`). Revoked the moment that child is shut down, dies, or is
+    /// replaced, so a key never outlives its process (plan T3 gotcha).
+    pub bridge_key: Option<String>,
+    /// The app-owned info file + per-spawn token the CURRENT child was given
+    /// (V2-1.1 decision 8). Retired with that child, exactly like `bridge_key`:
+    /// a respawn gets a fresh path and a fresh token, so a dead child's file or
+    /// token never answers for its successor.
+    pub shell: Option<ShellProbe>,
+}
+
+/// Where the shell's authenticated probe for ONE spawn goes (V2-1.1 decision 8):
+/// an app-owned file the server writes its address to — outside the project, so
+/// an agent, a `git checkout` or a planted file cannot point it anywhere — and
+/// the per-spawn token `/_api/shell/status` checks.
+#[derive(Clone, Debug)]
+pub struct ShellProbe {
+    pub info_file: PathBuf,
+    pub token: String,
+}
+
+/// What `GET /_api/shell/status` answers (apps/studio/routes/shell.ts).
+#[derive(Clone, Debug, Default, PartialEq, serde::Deserialize)]
+pub struct ShellStatus {
+    #[serde(default)]
+    pub version: String,
+    #[serde(default)]
+    pub ai: AiCounts,
+    #[serde(default)]
+    pub unsent: u32,
+    #[serde(default)]
+    pub jobs: u32,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, serde::Deserialize)]
+pub struct AiCounts {
+    #[serde(default)]
+    pub running: u32,
+    #[serde(default)]
+    pub awaiting: u32,
+}
+
+impl ShellStatus {
+    /// AI is running or waiting for the person — the close confirm's trigger.
+    pub fn ai_active(&self) -> bool {
+        self.ai.running + self.ai.awaiting > 0
+    }
+
+    /// Anything that resting would lose (§5.2 "Rest (cap)"): AI, unsent
+    /// changes, an export or generation job.
+    pub fn busy(&self) -> bool {
+        self.ai_active() || self.unsent > 0 || self.jobs > 0
+    }
+}
+
+/// The identity env for one spawn (V2-3.1, plan T6). `default` sets only the id
+/// and label: the server's own path defaults ARE the default profile's files
+/// (hubs-config.ts, cloud/endpoints.ts), and leaving them unset keeps a
+/// pre-profiles install byte-identical. Any other profile points the server at its
+/// own `cloud.json` / `hubs.json`.
+pub(crate) fn profile_env(
+    profile_id: &str,
+    label: &str,
+    paths: Option<&crate::profiles::ProfilePaths>,
+) -> Vec<(&'static str, String)> {
+    let mut env = vec![
+        ("MAUDE_PROFILE_ID", profile_id.to_string()),
+        ("MAUDE_PROFILE_LABEL", label.to_string()),
+    ];
+    if profile_id != crate::profiles::DEFAULT_ID {
+        if let Some(p) = paths {
+            env.push((
+                "MAUDE_CLOUD_CONFIG",
+                p.cloud_config.to_string_lossy().into_owned(),
+            ));
+            env.push((
+                "HUBS_CONFIG_PATH",
+                p.hubs_config.to_string_lossy().into_owned(),
+            ));
+        }
+    }
+    env
 }
 
 /// Managed state holding the live sidecar pool + supervision flags.
 pub struct SidecarState {
-    /// project root → its running dev-server. At most `MAX_INSTANCES` entries.
+    /// project root → its running dev-server. At most `running_cap()` entries,
+    /// unless every candidate is busy (the cap overflows, `enforce_cap`).
     pub instances: Mutex<std::collections::HashMap<String, SidecarInstance>>,
     /// Set true on app quit so the supervisor does not respawn during shutdown.
     pub shutting_down: AtomicBool,
-    /// The project the webview is CURRENTLY showing. Every consumer that asks
-    /// "where are we" (export download URLs, the deep-link handler) means this
-    /// one — not "the only one", which it no longer is.
-    pub project_root: Mutex<String>,
+    /// Every live window and which one is focused (V2-3.2, contract §5.2).
+    /// Replaces `project_root`: "the displayed project" is now the project of
+    /// the focused window, and a command answers for the window that called it
+    /// (`windows::caller_project`), never for "the current project".
+    pub windows: Mutex<crate::windows::WindowBook>,
     /// Source for `last_shown`. A counter, not a clock: `Instant`/`SystemTime`
     /// would drag time handling into a comparison that only needs an ordering.
     pub tick: AtomicU64,
+    /// The one Home server (V2-3.3, contract V2-1.1 decision 1): never in
+    /// `instances`, never counted in the pool, never reaped. `None` until the
+    /// first spawn (home.rs).
+    pub home: Mutex<Option<crate::home::HomeInstance>>,
 }
 
-const MAX_RESTARTS: u32 = 3;
+pub(crate) const MAX_RESTARTS: u32 = 3;
 
 /// How long a child must stay up before its death counts as an ISOLATED crash
 /// rather than another turn of a loop. A crash loop is a server that cannot get
@@ -134,19 +226,36 @@ const MAX_RESTARTS: u32 = 3;
 /// working, and the next crash starts a fresh budget.
 const HEALTHY_UPTIME: Duration = Duration::from_secs(60);
 
-/// How many project servers may run at once.
+/// How many project servers may run at once (V2-1.1 decision 4, "Running cap 5").
 ///
-/// The ceiling is load-bearing, not polish: each instance is a Bun process plus
-/// however many `claude` adapters its chats have spawned, and DDR-125 already
-/// books "N processes" as the cost of parallel chats WITHIN one project. Without
-/// a cap, a user clicking through ten recent projects would accumulate ten of
-/// those stacks. Small on purpose — the point is "switch back and your work is
-/// still running", which is a two-or-three-project habit, not a workspace.
-const MAX_INSTANCES: usize = 3;
+/// Tabs are the workspace now: a person keeps every project they work on open as
+/// a tab, and the cap no longer limits what is open — only what is RUNNING. A
+/// tab over the cap rests (its server stops, the tab stays, focusing it wakes
+/// it), so the ceiling is purely the process cost DDR-125 books per project: a
+/// Bun server plus however many `claude` adapters its chats have spawned.
+/// Five covers the "two or three projects at once, plus a couple I glanced at"
+/// habit without letting twenty tabs mean twenty process stacks.
+const RUNNING_CAP: usize = 5;
 
-/// Milliseconds allowed for the "does this project still have a chat running?"
-/// probe before eviction proceeds anyway. Short: a wedged server must not be
-/// able to make itself un-evictable by never answering.
+/// The cap in force. Debug builds honour `MAUDE_E2E_RUNNING_CAP` so a desktop
+/// e2e can reach resting with three projects instead of six; a release build
+/// never reads it.
+pub(crate) fn running_cap() -> usize {
+    #[cfg(debug_assertions)]
+    if let Some(n) = std::env::var("MAUDE_E2E_RUNNING_CAP")
+        .ok()
+        .and_then(|v| v.trim().parse::<usize>().ok())
+        .filter(|n| *n >= 1)
+    {
+        return n;
+    }
+    RUNNING_CAP
+}
+
+/// Milliseconds allowed for one `/_api/shell/status` probe. Short: a wedged
+/// server must not stall a close or the cap for long. A probe that times out
+/// reads as "no status" — busy for resting (never rest what we can't see),
+/// no confirm for a close (we can't claim AI is running).
 const RUNNING_PROBE_TIMEOUT_MS: u64 = 1500;
 
 /// Resolve the user's real PATH by asking their login shell, so a Finder/Dock-
@@ -204,6 +313,49 @@ fn resolve_login_path() -> Option<String> {
     None
 }
 
+/// p8-app-port-range (decision maude/v2-michal-desktop-own-port-range) — set to "1" on every project-server spawn, so
+/// `resolvePort` (apps/studio/port.ts `APP_SIDECAR_ENV`) starts the server's ladder at 46399, never the CLI's 4399 a
+/// person's own `maude design serve` uses. An e2e lane's `MAUDE_E2E_*` marker wins over it there (47399). A crashed
+/// server's respawn walks the same ladder, so it finds its predecessor's port free again ("same URL, same port").
+/// The Home server (home.rs) is not marked: it binds any free port and the app remembers it (`home_port`).
+pub(crate) const APP_SIDECAR_ENV: &str = "MAUDE_SHELL_SIDECAR";
+
+/// p8-port-gc — the port this project's server bound last time (app-state.json `projects.<pid>.port`), tried first by
+/// port.ts `portCandidates` (`PREFERRED_PORT_ENV`), so a rested tab's wake, a relaunch and a crash respawn keep their
+/// origin — per-origin web storage and the crash-recovery reload both rely on it. Taken → the server walks the rest of
+/// its ladder and `spawn_record_port` records the new port. In the MAUDE_SHELL_* namespace the agent never inherits.
+pub(crate) const PREFERRED_PORT_ENV: &str = "MAUDE_SHELL_PORT";
+
+/// How long a spawn's port recorder waits for the server to write its info file (250 ms ticks, 30 s).
+const RECORD_PORT_TICKS: u32 = 120;
+
+/// p8-e2e-isolation-r13 — true when any `MAUDE_E2E_*` variable is set non-empty: this app was launched by a desktop
+/// e2e lane (wdio.conf.ts), never by a person. Mirrors `isE2eEnv` in apps/studio/acp/probe.ts.
+pub(crate) fn is_e2e_env<I>(vars: I) -> bool
+where
+    I: IntoIterator<Item = (std::ffi::OsString, std::ffi::OsString)>,
+{
+    vars.into_iter().any(|(k, v)| {
+        k.to_str().is_some_and(|k| k.starts_with("MAUDE_E2E_")) && !v.is_empty()
+    })
+}
+
+/// The PATH a project sidecar starts with. A person's `.app` gets the login-shell PATH (DDR-128, `resolve_login_path`);
+/// an e2e lane keeps the PATH it was launched with (p8-e2e-isolation-r13). The lane puts its stub `claude` first on
+/// that PATH, and the login shell sources the person's own rc files — in the 2026-10-27 V2-8.3 record it put the real
+/// `~/.local/bin/claude` back in front, and the ACP adapter spawned it with the person's HOME (the real keychain).
+/// `login` is never called for an e2e lane.
+fn sidecar_base_path(
+    e2e: bool,
+    inherited: Option<String>,
+    login: impl FnOnce() -> Option<String>,
+) -> String {
+    if e2e {
+        return inherited.unwrap_or_default();
+    }
+    login().unwrap_or_else(|| inherited.unwrap_or_default())
+}
+
 /// DDR-166 T0b — stage the bundled `maude` binary as the ONLY entry in a
 /// narrow, single-purpose directory, and return that entry's own path (the
 /// symlink, not the real target — this is exactly what a PATH lookup for
@@ -249,20 +401,10 @@ fn stage_bundled_cli_link(app: &AppHandle) -> Option<PathBuf> {
     Some(link)
 }
 
-/// Spawn the dev-server sidecar and store the child in managed state. Drains the
-/// command's event stream; on unexpected termination (not a quit), respawns with
-/// linear backoff up to `MAX_RESTARTS`. Re-entrant: the respawn path calls back in.
-pub fn spawn_server(app: &AppHandle) -> Result<(), String> {
-    let root = app
-        .state::<SidecarState>()
-        .project_root
-        .lock()
-        .expect("sidecar mutex poisoned")
-        .clone();
-    spawn_for(app, &root)
-}
-
-/// Spawn a dev-server for ONE project root and register it in the pool.
+/// Spawn a dev-server for ONE project root and register it in the pool. Drains
+/// the command's event stream; on unexpected termination (not a quit), respawns
+/// with linear backoff up to `MAX_RESTARTS`. Re-entrant: the respawn path calls
+/// back in.
 ///
 /// Takes the root EXPLICITLY rather than reading `project_root` (Task 10): with
 /// a pool, "the current project" and "the project this child serves" are no
@@ -305,7 +447,13 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
         .args(["--root", project_root.as_str()])
         // The webview IS the UI — suppress the dev-server's default
         // open-the-browser-on-boot behavior (server.ts honors NO_OPEN).
-        .env("NO_OPEN", "1");
+        .env("NO_OPEN", "1")
+        // p8-app-port-range — the app's own port ladder, 46399–46408 (port.ts).
+        .env(APP_SIDECAR_ENV, "1");
+    // p8-port-gc — ask for the port this project had last time first (rest-wake, relaunch, respawn).
+    if let Some(port) = crate::app_state::preferred_port(app, &project_root) {
+        command = command.env(PREFERRED_PORT_ENV, port.to_string());
+    }
 
     // DDR-128 — a `.app` launched from Finder/Dock inherits the truncated launchd
     // PATH (`/usr/bin:/bin:…`), NOT the user's shell PATH. The sidecar would then
@@ -317,8 +465,11 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
     // claude) then sees the real PATH. Best-effort: on failure we leave PATH
     // untouched (no regression). The /_api/preflight readiness probe reports what's
     // still genuinely missing on top of this.
-    let base_path =
-        resolve_login_path().unwrap_or_else(|| std::env::var("PATH").unwrap_or_default());
+    let base_path = sidecar_base_path(
+        is_e2e_env(std::env::vars_os()),
+        std::env::var("PATH").ok(),
+        resolve_login_path,
+    );
     eprintln!(
         "[maude] sidecar PATH ← login shell ({} entries)",
         base_path.split(':').count()
@@ -417,34 +568,61 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
         if auto_setup { "1" } else { "0" },
     );
 
+    // Identity profile (V2-3.1): which GitHub / Cloud account this project talks
+    // as. Resolved per spawn from the project's registry binding (missing ⇒
+    // `default`), so a respawn after a rebinding picks the new account up.
+    let profile_id = crate::app_state::profile_for(app, &project_root);
+    let profile_paths = crate::profiles::paths(&profile_id).ok();
+    for (k, v) in profile_env(
+        &profile_id,
+        &crate::profiles::label_of(&profile_id),
+        profile_paths.as_ref(),
+    ) {
+        command = command.env(k, v);
+    }
+
+    // gate-b-sec4 — the hub the app itself bound this folder to (a managed copy), so the studio
+    // honours that link without asking. A committed `linkedHub` is never this (sync/link-consent.ts).
+    if let Some(hub) = crate::app_state::app_bound_hub(app, &project_root) {
+        command = command.env("MAUDE_APP_BOUND_HUB", hub);
+    }
+
     // Loopback GitHub-token bridge (DDR-108): the dev-server's /_api/github/*
-    // endpoints fetch the keychain token from this endpoint at request time, with
-    // the per-launch key. Absent in non-Tauri `maude design serve` → those
-    // endpoints degrade to "sign in via the desktop app".
-    if let Some((endpoint, key)) = crate::keychain::bridge_env() {
+    // endpoints fetch the keychain token from this endpoint at request time. The
+    // key is minted FOR THIS SPAWN and maps to this project's profile only — it
+    // replaces the old one-key-per-launch shared by every server, which let any
+    // project's server read the one token there was. Absent in non-Tauri `maude
+    // design serve` → those endpoints degrade to "sign in via the desktop app".
+    let bridge_key = match crate::keychain::bridge_env(&profile_id) {
+        Some((endpoint, key)) => {
+            command = command
+                .env("MAUDE_TOKEN_ENDPOINT", endpoint)
+                .env("MAUDE_TOKEN_KEY", key.clone());
+            Some(key)
+        }
+        None => None,
+    };
+
+    // V2-1.1 decision 8 — the authenticated shell probe. A fresh app-owned info
+    // file path and a fresh token FOR THIS SPAWN; the server writes its address
+    // to the file (shell/info-file.ts) and answers `/_api/shell/status` only to
+    // this token. No probe ⇒ no env: the server then has no shell route (404) and
+    // every probe of it reads "no status".
+    let shell = mint_shell_probe(app, &project_root);
+    // p8-port-gc — the port is recorded from THIS spawn's app-owned info file, never from `_server.json`.
+    let record_from = shell.as_ref().map(|p| p.info_file.clone());
+    if let Some(p) = &shell {
         command = command
-            .env("MAUDE_TOKEN_ENDPOINT", endpoint)
-            .env("MAUDE_TOKEN_KEY", key);
+            .env("MAUDE_SHELL_INFO_FILE", p.info_file.to_string_lossy().to_string())
+            .env("MAUDE_SHELL_TOKEN", p.token.clone());
     }
 
     // In a packaged .app the sidecar binary sits alone in Contents/MacOS/ with no
     // apps/studio/ up-tree, so paths.ts walk-up can't find the runtime. Point it at
     // the runtime we ship as a bundle resource (Resources/apps/studio). In dev this
     // dir doesn't exist → left unset → walk-up resolves the source tree (DDR-106).
-    if let Ok(resource_dir) = app.path().resource_dir() {
-        // Tauri's resource-path mapping varies by version/config; probe the likely
-        // landing spots for the staged `apps/studio` runtime (anchor: it has `dist/`).
-        let candidates = [
-            resource_dir.join("apps").join("studio"),
-            resource_dir.join("resources").join("apps").join("studio"),
-            resource_dir.join("_up_").join("apps").join("studio"),
-            resource_dir.join("studio"),
-        ];
-        if let Some(studio) = candidates.into_iter().find(|p| p.join("dist").exists()) {
-            // #141 — resource_dir is a verbatim `\\?\C:\…` path on Windows, and
-            // `node \\?\C:\…\index.js` (the ACP adapter) dies on it. Export
-            // the ordinary form; the walk-up probes above don't care.
-            let studio = crate::win_process::strip_verbatim(&studio);
+    {
+        if let Some(studio) = bundled_studio_root(app) {
             command = command.env(
                 "MAUDE_DEV_SERVER_ROOT",
                 studio.to_string_lossy().to_string(),
@@ -477,9 +655,17 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
         }
     }
 
-    let (mut rx, child) = command
-        .spawn()
-        .map_err(|e| format!("sidecar spawn failed: {e}"))?;
+    let (mut rx, child) = match command.spawn() {
+        Ok(spawned) => spawned,
+        Err(e) => {
+            // No process holds the freshly minted key — it must not stay live.
+            if let Some(k) = &bridge_key {
+                crate::keychain::revoke_key(k);
+            }
+            retire_shell_probe(shell);
+            return Err(format!("sidecar spawn failed: {e}"));
+        }
+    };
 
     eprintln!(
         "[maude] dev-server sidecar spawned (pid {}) --root {}",
@@ -494,7 +680,19 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
             restarts: 0,
             last_shown: tick,
             spawned_at: Instant::now(),
+            profile_id: profile_id.clone(),
+            bridge_key: None,
+            shell: None,
         });
+        // The previous child's key (a respawn, or a racing double spawn) dies
+        // with that child; the new one carries its own.
+        if let Some(old_key) = std::mem::replace(&mut entry.bridge_key, bridge_key) {
+            crate::keychain::revoke_key(&old_key);
+        }
+        // Same for the shell probe: the old child's info file and token are
+        // retired, so nothing can read the old address as the new child's.
+        retire_shell_probe(std::mem::replace(&mut entry.shell, shell));
+        entry.profile_id = profile_id.clone();
         // CORRECTNESS (security-auditor A5) — `or_insert` overwrites an EXISTING
         // entry's `child`, and the first cut did exactly that: a racing second
         // `spawn_for` for the same root would drop a live CommandChild on the
@@ -513,6 +711,9 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
     if let Some(old) = displaced {
         eprintln!("[maude] replacing a live sidecar for {project_root} — terminating the old one");
         terminate(old);
+    }
+    if let Some(info_file) = record_from {
+        spawn_record_port(app, project_root.clone(), info_file);
     }
 
     let app = app.clone();
@@ -576,6 +777,13 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
                                 let uptime = inst.spawned_at.elapsed();
                                 inst.restarts = next_restart_count(inst.restarts, uptime);
                                 inst.child = None;
+                                // The dead child's bridge key goes with it,
+                                // BEFORE any respawn — the respawn mints its own
+                                // (and on give-up nothing should hold one).
+                                if let Some(k) = inst.bridge_key.take() {
+                                    crate::keychain::revoke_key(&k);
+                                }
+                                retire_shell_probe(inst.shell.take());
                                 log_line(&format!(
                                     "[maude] dev-server was up {}s before it died — restart {}/{}",
                                     uptime.as_secs(),
@@ -592,6 +800,9 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
                             }
                         }
                     };
+                    // N-M3: the dead child's port vouches for nothing from now on —
+                    // the respawn's own info file records the next origin.
+                    crate::windows::on_server_died(&app, &supervised_root, attempt > MAX_RESTARTS);
                     if attempt > MAX_RESTARTS {
                         log_line(&format!(
                             "[maude] sidecar gave up after {MAX_RESTARTS} restarts ({supervised_root})"
@@ -615,11 +826,6 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
                         "[maude] respawning dev-server (attempt {attempt}/{MAX_RESTARTS})"
                     ));
                     tokio::time::sleep(Duration::from_millis(500 * attempt as u64)).await;
-                    // Stamped BEFORE the spawn so the recovery wait below can
-                    // tell the fresh child's `_server.json` from the dead one's
-                    // (issue #115). `spawn_for` also removes the stale file; this
-                    // is the half that does not depend on that removal working.
-                    let spawn_at = std::time::SystemTime::now();
                     if let Err(e) = spawn_for(&app, &supervised_root) {
                         log_line(&format!("[maude] respawn failed: {e}"));
                     } else {
@@ -631,55 +837,31 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
                         // hangs against a connection nothing is listening on
                         // anymore. Re-navigate once the fresh child is up, so
                         // the page reloads and reopens its sockets against the
-                        // new process — but only if the crashed root is still
-                        // what's on screen; the user may have switched projects
-                        // while this one was down, and we must not yank them
-                        // back to it.
+                        // new process — in THE WINDOW FOR THAT ROOT (V2-3.2,
+                        // §5.2 "Respawn after a crash"; was "main" + "is it
+                        // still the displayed project"). A window that was
+                        // closed or switched to another project meanwhile gets
+                        // no navigate: we must not yank it back.
                         let app2 = app.clone();
                         let root2 = supervised_root.clone();
                         tauri::async_runtime::spawn(async move {
-                            let design_root = std::path::Path::new(&root2).join(".design");
-                            match crate::server_json::wait_for_server_since(
-                                design_root,
-                                120_000,
-                                Some(spawn_at),
-                            )
-                            .await
-                            {
+                            // The fresh child's OWN info file (a new path per
+                            // spawn), so the dead child's address can never
+                            // satisfy this wait — issue #115's stale-file trap
+                            // is closed by construction, not by an mtime.
+                            match wait_for_shell_url(&app2, &root2, 120_000).await {
                                 Ok(url) => {
-                                    let still_shown = app2
-                                        .state::<SidecarState>()
-                                        .project_root
-                                        .lock()
-                                        .expect("sidecar mutex poisoned")
-                                        .clone()
-                                        == root2;
-                                    if !still_shown {
+                                    let Some(label) =
+                                        crate::windows::label_for_root(&app2, &root2)
+                                    else {
                                         return;
-                                    }
-                                    match url.parse::<tauri::Url>() {
-                                        Ok(parsed)
-                                            if crate::server_json::is_loopback_url(&parsed) =>
-                                        {
-                                            if let Some(window) = app2.get_webview_window("main")
-                                            {
-                                                log_line(&format!(
-                                                    "[maude] dev-server recovered — reloading webview for {root2}"
-                                                ));
-                                                if let Err(e) = window.navigate(parsed) {
-                                                    log_line(&format!(
-                                                        "[maude] post-respawn navigate failed: {e}"
-                                                    ));
-                                                }
-                                            }
-                                        }
-                                        Ok(parsed) => log_line(&format!(
-                                            "[maude] refusing non-loopback navigate (DDR-109): {parsed}"
-                                        )),
-                                        Err(e) => {
-                                            log_line(&format!("[maude] invalid server url {url}: {e}"))
-                                        }
-                                    }
+                                    };
+                                    log_line(&format!(
+                                        "[maude] dev-server recovered — reloading {label} for {root2}"
+                                    ));
+                                    crate::windows::navigate_to_server(
+                                        &app2, &label, &root2, &url, None,
+                                    );
                                 }
                                 Err(e) => log_line(&format!(
                                     "[maude] post-respawn: dev-server did not come back up: {e}"
@@ -697,6 +879,26 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// The staged `apps/studio` runtime inside a packaged app (`MAUDE_DEV_SERVER_ROOT`
+/// for every server this shell spawns — projects and Home), or `None` in dev,
+/// where `paths.ts` walk-up resolves the source tree (DDR-106).
+pub(crate) fn bundled_studio_root(app: &AppHandle) -> Option<PathBuf> {
+    let resource_dir = app.path().resource_dir().ok()?;
+    // Tauri's resource-path mapping varies by version/config; probe the likely
+    // landing spots for the staged `apps/studio` runtime (anchor: it has `dist/`).
+    let candidates = [
+        resource_dir.join("apps").join("studio"),
+        resource_dir.join("resources").join("apps").join("studio"),
+        resource_dir.join("_up_").join("apps").join("studio"),
+        resource_dir.join("studio"),
+    ];
+    let studio = candidates.into_iter().find(|p| p.join("dist").exists())?;
+    // #141 — resource_dir is a verbatim `\\?\C:\…` path on Windows, and
+    // `node \\?\C:\…\index.js` (the ACP adapter) dies on it. Export the
+    // ordinary form; the walk-up probes above don't care.
+    Some(crate::win_process::strip_verbatim(&studio))
+}
+
 /// Restart-budget accounting: what this death costs the instance.
 ///
 /// Extracted from the supervisor so the loop-vs-isolated distinction is unit-
@@ -706,7 +908,7 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
 /// A death after `HEALTHY_UPTIME` opens a fresh budget at 1 rather than spending
 /// the previous one. Returning 1 and not 0 is deliberate: this WAS a crash, and
 /// three more in quick succession from here must still reach the cap.
-fn next_restart_count(previous: u32, uptime: Duration) -> u32 {
+pub(crate) fn next_restart_count(previous: u32, uptime: Duration) -> u32 {
     if uptime >= HEALTHY_UPTIME {
         1
     } else {
@@ -741,7 +943,7 @@ fn report_sidecar_gave_up(app: &AppHandle, project_root: &str) {
     // fallback below widens that to a full path. Capping and stripping here
     // costs nothing and keeps the two OS-facing surfaces honest about the same
     // input.
-    let name = crate::notify::sanitize_notify_field(
+    let name = crate::notify::sanitize_title(
         &std::path::Path::new(project_root)
             .file_name()
             .map(|n| n.to_string_lossy().to_string())
@@ -769,40 +971,95 @@ fn report_sidecar_gave_up(app: &AppHandle, project_root: &str) {
         });
 }
 
-/// Switch the open project IN-PROCESS (File ▸ Open Project…): point the dev-server
-/// at a new root and reload the webview — WITHOUT `app.restart()`.
+/// Switch the CALLING window to another project in-tab (the repo switcher, the
+/// onboarding doors, a managed cloud copy): point it at the new root's server
+/// and reload it — WITHOUT `app.restart()`.
 ///
 /// Why not restart: `app.restart()` relaunches the binary, and on a non-bundled
 /// `tauri dev` binary macOS delivers an "open" Apple Event that aborts `tao` in
 /// `did_finish_launching` (SIGABRT). Switching in-process avoids that entirely and
-/// is better UX (no window flash). The supervisor's respawn (Terminated → spawn)
-/// reads the updated `project_root`, so killing the child re-spawns it with the new
-/// root; we then re-navigate once the new `_server.json` lands.
-pub fn switch_project(app: &AppHandle, new_root: PathBuf, open: Option<String>) {
+/// is better UX (no window flash).
+///
+/// V2-3.2: the switch belongs to ONE window (`label`), not to "the app". The
+/// window keeps its label (labels never change, §5.2) while its role moves to
+/// the new project; every root lookup goes through the role. Open once
+/// (decision 3): if another window already shows the target, that window is
+/// focused instead and this one stays where it is.
+pub fn switch_project(app: &AppHandle, label: &str, new_root: PathBuf, open: Option<String>) {
     let state = app.state::<SidecarState>();
     let root = new_root.to_string_lossy().to_string();
-    *state.project_root.lock().expect("sidecar mutex poisoned") = root.clone();
-    eprintln!("[maude] switching project → {}", new_root.display());
+    let other = {
+        let mut book = state.windows.lock().expect("windows mutex poisoned");
+        match book.label_for_root(&root) {
+            Some(other) if other != label => Some(other),
+            _ => {
+                if !book.set_project(label, &root) {
+                    log_line(&format!("[maude] switch: no window {label} — ignoring"));
+                    return;
+                }
+                // N-M5: what was parked for the label while it showed the old
+                // project (a link, an intent, a navigate) is not the new one's.
+                crate::windows::drop_parked_for(label);
+                None
+            }
+        }
+    };
+    if let Some(other) = other {
+        log_line(&format!("[maude] {root} is already open in {other} — focusing it"));
+        let name = crate::windows::project_display_name(&root);
+        crate::windows::WindowHost::reveal(&crate::windows::TauriHost { app }, &other, &name);
+        return;
+    }
+    log_line(&format!("[maude] {label}: switching project → {root}"));
+    // V2-3.7: the strip (and the shell title) show the tab's new project.
+    crate::tabs::changed(app);
+    attach_or_spawn(app, &root);
 
-    let design_root = new_root.join(".design");
+    // Apply the cap AFTER the switch: the window just switched is the focused
+    // one, so it can never be the one rested.
+    spawn_enforce_cap(app);
 
-    // SPAWN-OR-ATTACH (Task 10). This used to unconditionally kill the child and
-    // delete `_server.json` so the supervisor would respawn at the new root.
-    // Both halves are now wrong in the pool world:
-    //
-    //  • Killing tore down the WHOLE server process, so every chat in the
-    //    project we're leaving died — not just the visible one. Keeping it
-    //    alive is the entire point of this task.
-    //  • Deleting `_server.json` was safe when it could only ever be a stale
-    //    file from a previous app session. With a pool it may be a LIVE
-    //    instance's state for a project that is already running, and removing
-    //    it would orphan a healthy server (`wait_for_server` would then block
-    //    on a write that never comes, because that server already wrote it).
-    //    So it is deleted ONLY when we are actually about to spawn.
+    // Re-navigate once the target project's dev-server is up. Unchanged for the
+    // spawn path; instant for the attach path, since `_server.json` is already
+    // there from the live instance. The DDR-109 loopback guard applies per
+    // instance exactly as before — a pool does not relax it.
+    crate::windows::navigate_when_up(app, label.to_string(), root, open);
+}
+
+/// SPAWN-OR-ATTACH (Task 10) the server for `root`: attach to a live instance
+/// (stamping it most-recently-shown and giving it its restart budget back), or
+/// spawn one. Returns whether it spawned.
+///
+/// The old switch unconditionally killed the child and deleted `_server.json`.
+/// Both halves are wrong in the pool world:
+///
+///  • Killing tore down the WHOLE server process, so every chat in the project
+///    we're leaving died — not just the visible one.
+///  • Deleting `_server.json` was safe when it could only ever be a stale file
+///    from a previous app session. With a pool it may be a LIVE instance's
+///    state, and removing it would orphan a healthy server (`wait_for_server`
+///    would then block on a write that never comes). So it is deleted ONLY when
+///    we are actually about to spawn.
+pub(crate) fn attach_or_spawn(app: &AppHandle, root: &str) -> bool {
+    let state = app.state::<SidecarState>();
+    // V2-3.8: a live server spawned on another profile than the project's
+    // binding now holds (a sign-in rebound it; an unbound project adopted the
+    // last sign-in's profile on this open) is NOT attached to — env is never
+    // hot-swapped, so it is replaced by a server on the bound profile.
+    let bound = crate::app_state::profile_for(app, root);
+    let stale = {
+        let pool = state.instances.lock().expect("sidecar mutex poisoned");
+        pool.get(root)
+            .is_some_and(|inst| inst.child.is_some() && inst.profile_id != bound)
+    };
+    if stale {
+        log_line(&format!("[maude] {root} is bound to profile {bound} — restarting its server"));
+        shutdown_instance(app, root);
+    }
     let already_running = {
         let mut pool = state.instances.lock().expect("sidecar mutex poisoned");
         let tick = state.tick.fetch_add(1, Ordering::SeqCst);
-        match pool.get_mut(&root) {
+        match pool.get_mut(root) {
             Some(inst) if inst.child.is_some() => {
                 inst.last_shown = tick;
                 // A deliberate return to this project is not evidence of a
@@ -813,185 +1070,413 @@ pub fn switch_project(app: &AppHandle, new_root: PathBuf, open: Option<String>) 
             _ => false,
         }
     };
-
     if already_running {
-        eprintln!("[maude] project already running — attaching to its live server");
-    } else {
-        let _ = std::fs::remove_file(design_root.join("_server.json"));
-        if let Err(e) = spawn_for(app, &root) {
-            eprintln!("[maude] switch: could not spawn dev-server: {e}");
-        }
+        log_line(&format!("[maude] {root} already running — attaching to its live server"));
+        return false;
     }
+    let _ = std::fs::remove_file(std::path::Path::new(root).join(".design").join("_server.json"));
+    if let Err(e) = spawn_for(app, root) {
+        log_line(&format!("[maude] could not spawn dev-server for {root}: {e}"));
+    }
+    true
+}
 
-    // Trim the pool AFTER the switch, so the project we just moved to (now the
-    // most-recently-shown) can never be the one evicted.
-    reap_instances(app);
+/// V2-3.8: the project in window `label` was just rebound to another profile
+/// (a sign-in that would have re-signed a shared profile): restart its server
+/// onto the new profile's env (`attach_or_spawn` replaces the stale instance)
+/// and reload the window on it, so its identity bar reads the new account.
+pub fn restart_on_binding(app: &AppHandle, label: &str, root: &str) {
+    attach_or_spawn(app, root);
+    crate::windows::navigate_when_up(app, label.to_string(), root.to_string(), None);
+}
 
-    // Re-navigate once the target project's dev-server is up. Unchanged for the
-    // spawn path; instant for the attach path, since `_server.json` is already
-    // there from the live instance. The DDR-109 loopback guard applies per
-    // instance exactly as before — a pool does not relax it.
-    //
-    // Every print in the task below goes through `log_line` (issue #115): a
-    // panic here is silent and would take `window.navigate` with it, so the
-    // user switches project and the webview simply never follows.
+/// A window showing `root` was focused: stamp its instance most-recently-shown
+/// (drives least-recently-shown eviction in `reap_instances`).
+pub(crate) fn mark_shown(app: &AppHandle, root: &str, tick: u64) {
+    let state = app.state::<SidecarState>();
+    let mut pool = state.instances.lock().expect("sidecar mutex poisoned");
+    if let Some(inst) = pool.get_mut(root) {
+        inst.last_shown = tick;
+    }
+}
+
+// ── Authenticated shell probes (V2-1.1 decision 8) ──────────────────────────
+//
+// Before this, `has_running_chat` and the notify poller read the address to
+// probe from `<project>/.design/_server.json` — in-project, so writable by a
+// prompt-injected agent, a `git checkout` or a planted file — and believed
+// whatever answered there. A fake responder could hold the pool open forever or
+// answer "idle" and get a running chat killed. Now the address comes ONLY from
+// the app-owned info file this spawn was given, and the server answers only to
+// this spawn's token. `_server.json` is still written for the slash commands
+// and helpers; nothing in this file reads it.
+
+/// The directory every instance's info file lives in: under the app's own data
+/// dir, never inside a project. 0700 — no other local user lists the ports.
+fn shell_info_dir(app: &AppHandle) -> Option<PathBuf> {
+    let dir = app.path().app_data_dir().ok()?.join("shell-info");
+    std::fs::create_dir_all(&dir).ok()?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700));
+    }
+    Some(dir)
+}
+
+/// `bytes` of OS randomness, hex. `None` if the RNG is unavailable: the probe
+/// is then simply off for this spawn (fail closed, never a guessable token).
+fn random_hex(bytes: usize) -> Option<String> {
+    let mut buf = vec![0u8; bytes];
+    getrandom::getrandom(&mut buf).ok()?;
+    Some(buf.iter().map(|b| format!("{b:02x}")).collect())
+}
+
+/// A fresh probe for one spawn of `root`: `<shell-info>/<pid>-<nonce>.json`
+/// (a new name per spawn, so a slow-dying old child cannot overwrite its
+/// successor's file) and a 32-byte token.
+fn mint_shell_probe(app: &AppHandle, root: &str) -> Option<ShellProbe> {
+    let dir = shell_info_dir(app)?;
+    let nonce = random_hex(4)?;
+    let token = random_hex(32)?;
+    let pid = crate::windows::pid_for_root(root);
+    Some(ShellProbe {
+        info_file: dir.join(format!("{pid}-{nonce}.json")),
+        token,
+    })
+}
+
+/// Delete a retired probe's info file. The token dies with the struct.
+fn retire_shell_probe(probe: Option<ShellProbe>) {
+    if let Some(p) = probe {
+        let _ = std::fs::remove_file(&p.info_file);
+    }
+}
+
+/// The loopback origin an info file names, or `None` (absent, unparseable,
+/// not loopback — DDR-109 holds here too, even for an app-owned file).
+pub(crate) fn read_shell_origin(info_file: &Path) -> Option<String> {
+    #[derive(serde::Deserialize)]
+    struct Info {
+        url: Option<String>,
+        port: Option<u16>,
+    }
+    let info: Info = serde_json::from_slice(&std::fs::read(info_file).ok()?).ok()?;
+    let raw = match info.url.filter(|u| !u.is_empty()) {
+        Some(u) => u,
+        None => format!("http://localhost:{}", info.port.filter(|p| *p != 0)?),
+    };
+    let parsed = raw.parse::<tauri::Url>().ok()?;
+    if !crate::server_json::is_loopback_url(&parsed) {
+        log_line(&format!(
+            "[maude] refusing a non-loopback shell info url (DDR-109): {parsed}"
+        ));
+        return None;
+    }
+    Some(parsed.origin().ascii_serialization())
+}
+
+/// p8-port-gc — the port the loopback address in an info file names (the port the server actually bound), or
+/// `None` — the same DDR-109 loopback gate as `read_shell_origin`.
+pub(crate) fn read_shell_port(info_file: &Path) -> Option<u16> {
+    read_shell_origin(info_file)?
+        .parse::<tauri::Url>()
+        .ok()?
+        .port_or_known_default()
+        .filter(|p| *p != 0)
+}
+
+/// p8-port-gc — once this spawn's server has written its address, record its port for `root` (app_state
+/// `record_port`). Polls only this spawn's own info file: a respawn retires it (the file goes) and records through
+/// its own recorder, so an old address is never written over a new one.
+fn spawn_record_port(app: &AppHandle, root: String, info_file: PathBuf) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
-        match crate::server_json::wait_for_server(design_root, 120_000).await {
-            Ok(url) => {
-                log_line(&format!("[maude] project switched — navigating to {url}"));
-                if let Some(window) = app.get_webview_window("main") {
-                    match url.parse::<tauri::Url>() {
-                        Ok(mut parsed) if crate::server_json::is_loopback_url(&parsed) => {
-                            if let Some(ref rel) = open {
-                                parsed.query_pairs_mut().append_pair("open", rel);
-                            }
-                            if let Err(e) = window.navigate(parsed) {
-                                log_line(&format!("[maude] navigate failed: {e}"));
-                            }
-                        }
-                        Ok(parsed) => log_line(&format!(
-                            "[maude] refusing non-loopback navigate (DDR-109): {parsed}"
-                        )),
-                        Err(e) => log_line(&format!("[maude] invalid server url {url}: {e}")),
-                    }
-                }
+        for _ in 0..RECORD_PORT_TICKS {
+            if let Some(port) = read_shell_port(&info_file) {
+                crate::app_state::record_port(&app, &root, port);
+                return;
             }
-            Err(e) => log_line(&format!("[maude] switch: dev-server did not come up: {e}")),
+            tokio::time::sleep(Duration::from_millis(250)).await;
         }
     });
 }
 
-/// Is a chat mid-turn in the project served at `design_root`?
-///
-/// Asks that instance's own dev-server (`/_api/acp/running`, added for the
-/// branch-switch warning). Any failure — no `_server.json`, refused connection,
-/// timeout, unparseable body — answers `false`, i.e. "evictable". That default
-/// is deliberate: a server we cannot talk to is not one whose running turns we
-/// can protect, and letting it veto its own eviction forever would turn a wedged
-/// process into an unkillable one.
-fn has_running_chat(design_root: &std::path::Path) -> bool {
-    let Some(base) = crate::server_json::read_server_url(design_root) else {
-        return false;
-    };
-    // SECURITY (security-auditor A1, HIGH) — `_server.json` lives under the
-    // (untrusted, DDR-054) PROJECT root, and `server_json.rs` says so explicitly:
-    // its `url` "originates from a file under the (potentially untrusted) project
-    // root, so the navigate target is validated rather than trusted (security
-    // review F3)". The first cut of this function passed that string straight
-    // into curl's argv, skipping the very guard the navigate site 25 lines above
-    // already applies. Two exploitable shapes, both reached by a prompt-injected
-    // session writing `_server.json` — which is IN-PROJECT and therefore
-    // auto-approved by the write gate this same feature added:
-    //   • `{"url":"http://attacker.tld"}` → an outbound beacon from the native
-    //     app, off the permission surface entirely.
-    //   • `{"url":"-K/path/to/attacker.conf"}` → the leading `-` makes curl read
-    //     it as `--config`, which can specify an arbitrary URL *and* an
-    //     arbitrary output file. Arbitrary outbound request + arbitrary write.
-    // Triggered whenever `reap_instances` probes that project.
-    //
-    // Parse and enforce loopback with the SAME `is_loopback_url` the navigate
-    // site uses — one rule, one place. A non-loopback or unparseable url ⇒
-    // "evictable", the same safe default as every other failure below.
-    let Ok(parsed) = base.parse::<tauri::Url>() else {
-        eprintln!("[maude] refusing to probe unparseable _server.json url: {base}");
-        return false;
-    };
-    if !crate::server_json::is_loopback_url(&parsed) {
-        eprintln!("[maude] refusing non-loopback _server.json url (DDR-109): {parsed}");
-        return false;
+/// The canvas origin the same app-owned info file names (N-M2), loopback only.
+pub(crate) fn read_shell_canvas_origin(info_file: &Path) -> Option<String> {
+    #[derive(serde::Deserialize)]
+    struct Info {
+        #[serde(rename = "canvasOrigin")]
+        canvas_origin: Option<String>,
     }
-    // Built from the parsed url's ORIGIN, never the raw string — so a leading
-    // `-` cannot survive to be read as a curl flag even if parsing somehow
-    // admitted it. Origin rather than Display: `Url`'s Display keeps whatever
-    // path the file supplied, so a `_server.json` carrying
-    // `http://localhost:4399/foo` would concatenate into `/foo_api/acp/running`
-    // and 404 — which this function reads as "busy", quietly making that project
-    // un-evictable. `ascii_serialization()` is scheme+host+port only, so the
-    // path we append is always the one we mean.
-    let url = format!("{}/_api/acp/running", parsed.origin().ascii_serialization());
-    // `curl` rather than a new HTTP crate: this is one loopback GET on a rare
-    // path, and it mirrors resolve_login_path's existing shell-out-to-a-system-
-    // binary pattern rather than adding a dependency for it.
-    let out = crate::win_process::hidden_command("curl")
-        .args([
-            "-s",
-            "--max-time",
-            &format!("{:.1}", RUNNING_PROBE_TIMEOUT_MS as f64 / 1000.0),
-            // `--` terminates option parsing: belt-and-braces alongside the
-            // loopback validation above, so no argv position can ever be
-            // reinterpreted as a flag (`-K` being the dangerous one).
-            "--",
-            &url,
-        ])
-        .output();
-    match out {
-        Ok(o) => {
-            let body = String::from_utf8_lossy(&o.stdout);
-            // `{"running":0,...}` ⇒ idle. Substring rather than a JSON parse:
-            // the shape is ours, one field, and a parse failure would have to
-            // fall back to this anyway.
-            !body.contains("\"running\":0")
-        }
-        Err(_) => false,
-    }
+    let info: Info = serde_json::from_slice(&std::fs::read(info_file).ok()?).ok()?;
+    let parsed = info.canvas_origin?.parse::<tauri::Url>().ok()?;
+    crate::server_json::is_loopback_url(&parsed).then(|| parsed.origin().ascii_serialization())
 }
 
-/// Enforce MAX_INSTANCES by shutting down the least-recently-shown IDLE project.
-///
-/// "Idle" means no chat is mid-turn — the reap policy the plan asks for. The
-/// currently-displayed project is never a candidate. If every non-displayed
-/// instance is busy, the pool is allowed to exceed the ceiling rather than kill
-/// a running turn: the ceiling exists to stop unbounded accumulation, and a user
-/// who has three projects genuinely working at once has made that choice
-/// explicitly. It re-trims on the next switch, once something goes idle.
-fn reap_instances(app: &AppHandle) {
+/// One client for every probe: loopback only, so no proxy (an `HTTP_PROXY` in
+/// the login env must never see the token), no redirects, a short timeout.
+pub(crate) fn probe_client() -> Option<&'static reqwest::Client> {
+    static CLIENT: std::sync::OnceLock<Option<reqwest::Client>> = std::sync::OnceLock::new();
+    CLIENT
+        .get_or_init(|| {
+            reqwest::Client::builder()
+                .no_proxy()
+                .timeout(Duration::from_millis(RUNNING_PROBE_TIMEOUT_MS))
+                .redirect(reqwest::redirect::Policy::none())
+                .build()
+                .ok()
+        })
+        .as_ref()
+}
+
+/// `GET /_api/shell/status` at the address `probe.info_file` names, with the
+/// token in `X-Maude-Shell` (a header — never argv, which `ps` shows every local
+/// user, and never a URL). Any failure is `None`.
+pub(crate) async fn probe_status(probe: &ShellProbe) -> Option<ShellStatus> {
+    let origin = read_shell_origin(&probe.info_file)?;
+    let resp = probe_client()?
+        .get(format!("{origin}/_api/shell/status"))
+        .header("X-Maude-Shell", &probe.token)
+        .send()
+        .await
+        .ok()?;
+    if !resp.status().is_success() {
+        return None;
+    }
+    resp.json::<ShellStatus>().await.ok()
+}
+
+/// The probe of `root`'s RUNNING instance, cloned out from under the lock.
+pub(crate) fn shell_probe_for(app: &AppHandle, root: &str) -> Option<ShellProbe> {
+    let state = app.try_state::<SidecarState>()?;
+    let pool = state.instances.lock().unwrap_or_else(|e| e.into_inner());
+    pool.get(root)
+        .filter(|inst| inst.child.is_some())
+        .and_then(|inst| inst.shell.clone())
+}
+
+/// `shell_status(root)` (V2-1.1 decision 8): what `root`'s own server says
+/// about AI, unsent changes and jobs — or `None` (not running, not up yet,
+/// wrong token, no answer).
+pub async fn shell_status(app: &AppHandle, root: &str) -> Option<ShellStatus> {
+    let probe = shell_probe_for(app, root)?;
+    probe_status(&probe).await
+}
+
+/// The app-owned info file of `root`'s running instance.
+pub(crate) fn shell_info_file(app: &AppHandle, root: &str) -> Option<PathBuf> {
+    shell_probe_for(app, root).map(|p| p.info_file)
+}
+
+/// The loopback origin `root`'s running instance wrote to its info file — the
+/// one address the shell navigates a window to and the notify poller probes.
+pub fn shell_origin(app: &AppHandle, root: &str) -> Option<String> {
+    read_shell_origin(&shell_probe_for(app, root)?.info_file)
+}
+
+/// Poll `root`'s info file until it names an address (every 200 ms, up to
+/// `timeout_ms`). Looked up afresh each tick: a respawn mid-wait swaps in a new
+/// file, and a rest or close removes the instance (this then times out and the
+/// caller navigates nowhere).
+pub async fn wait_for_shell_url(
+    app: &AppHandle,
+    root: &str,
+    timeout_ms: u64,
+) -> Result<String, String> {
+    for _ in 0..(timeout_ms / 200).max(1) {
+        if let Some(origin) = shell_origin(app, root) {
+            return Ok(origin);
+        }
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    }
+    Err(format!(
+        "timed out after {timeout_ms} ms waiting for {root}'s server"
+    ))
+}
+
+// ── Running cap + resting (V2-1.1 decision 4, §5.2 "Rest (cap)") ────────────
+
+/// One running instance the cap may stop.
+#[derive(Clone, Debug)]
+pub struct RestCandidate {
+    pub root: String,
+    /// The window showing it; `None` = windowless (an in-tab switch left it
+    /// behind) — stopped outright, there is no tab to put to rest.
+    pub label: Option<String>,
+    /// `last_focused` of its window (or the instance's `last_shown` when
+    /// windowless) — the same `SidecarState.tick` clock, so they compare.
+    pub recency: u64,
+    pub status: Option<ShellStatus>,
+    /// Still booting: its child has not written an address to its info file
+    /// yet, so it has no status to read (V2-3.6 L2).
+    pub booting: bool,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum RestPick {
+    UnderCap,
+    /// Stop this root; rest `label`'s tab if it has one.
+    Rest { root: String, label: Option<String> },
+    /// Over the cap and every candidate is busy: allow it (today's rule).
+    Overflow,
+    /// Over the cap, nothing restable YET, but a candidate is still booting:
+    /// a booting server counts toward the cap, so look again once it binds
+    /// instead of leaving the burst over the cap until the next spawn (V2-3.6 L2).
+    Wait,
+}
+
+/// The rest policy, pure. Over the cap, the candidates are every running
+/// instance except the focused window's; windowless instances first (nobody is
+/// looking at them), then least-recently-focused. A busy instance — or one
+/// whose status could not be read — is never rested: the conservative side of
+/// "never lose running AI, unsent changes or a job".
+pub fn pick_rest(
+    running: usize,
+    cap: usize,
+    focused_label: Option<&str>,
+    mut candidates: Vec<RestCandidate>,
+) -> RestPick {
+    if running <= cap {
+        return RestPick::UnderCap;
+    }
+    candidates.retain(|c| c.label.is_none() || c.label.as_deref() != focused_label);
+    candidates.sort_by_key(|c| (c.label.is_some(), c.recency));
+    let booting = candidates.iter().any(|c| c.booting);
+    candidates
+        .into_iter()
+        .find(|c| c.status.as_ref().is_some_and(|s| !s.busy()))
+        .map(|c| RestPick::Rest {
+            root: c.root,
+            label: c.label,
+        })
+        .unwrap_or(if booting { RestPick::Wait } else { RestPick::Overflow })
+}
+
+/// How long `enforce_cap` keeps looking again for booting servers to bind
+/// (one second apart) before it allows the overflow.
+const CAP_BOOT_WAIT: u32 = 60;
+
+/// Serializes `enforce_cap` runs: two spawns in quick succession must not both
+/// pick a victim when resting one was enough.
+static CAP_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
+/// Apply the cap after a spawn, in the background (the probes are HTTP).
+pub(crate) fn spawn_enforce_cap(app: &AppHandle) {
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        enforce_cap(&app).await;
+    });
+}
+
+/// While more than `running_cap()` servers run, rest one idle candidate.
+async fn enforce_cap(app: &AppHandle) {
+    let _serial = CAP_LOCK.lock().await;
     let state = app.state::<SidecarState>();
-    let current = state
-        .project_root
-        .lock()
-        .expect("sidecar mutex poisoned")
-        .clone();
+    let mut waits = 0u32;
     loop {
-        let candidates: Vec<String> = {
-            let pool = state.instances.lock().expect("sidecar mutex poisoned");
-            if pool.len() <= MAX_INSTANCES {
-                return;
-            }
-            let mut sorted: Vec<(String, u64)> = pool
-                .iter()
-                .filter(|(root, _)| **root != current)
+        if state.shutting_down.load(Ordering::SeqCst) {
+            return;
+        }
+        let running: Vec<(String, u64)> = {
+            let pool = state.instances.lock().unwrap_or_else(|e| e.into_inner());
+            pool.iter()
+                .filter(|(_, inst)| inst.child.is_some())
                 .map(|(root, inst)| (root.clone(), inst.last_shown))
-                .collect();
-            sorted.sort_by_key(|(_, tick)| *tick);
-            sorted.into_iter().map(|(root, _)| root).collect()
+                .collect()
         };
-        // CORRECTNESS (security-auditor A2) — walk the WHOLE least-recently-shown
-        // list looking for an idle instance, rather than giving up at the first
-        // busy one. The first cut returned there, so a single long-running old
-        // project pinned the pool above MAX_INSTANCES indefinitely: the ceiling
-        // silently stopped being a ceiling, which is exactly the process
-        // accumulation this constant exists to prevent.
-        let mut evicted = false;
-        for root in candidates {
-            // Probed OUTSIDE the mutex — the curl is bounded but still slow
-            // enough that holding the pool lock across it would stall an
-            // unrelated switch.
-            if has_running_chat(&PathBuf::from(&root).join(".design")) {
-                eprintln!("[maude] not evicting {root} — a chat is still running");
+        let cap = running_cap();
+        if running.len() <= cap {
+            return;
+        }
+        let (focused, mut candidates) = {
+            let book = state.windows.lock().unwrap_or_else(|e| e.into_inner());
+            let focused = book.front_label();
+            let candidates: Vec<RestCandidate> = running
+                .iter()
+                .map(|(root, last_shown)| {
+                    let label = book.label_for_root(root);
+                    let recency = label
+                        .as_deref()
+                        .and_then(|l| book.last_focused(l))
+                        .unwrap_or(*last_shown);
+                    RestCandidate {
+                        root: root.clone(),
+                        label,
+                        recency,
+                        status: None,
+                        booting: false,
+                    }
+                })
+                .collect();
+            (focused, candidates)
+        };
+        // Probed OUTSIDE both locks: an HTTP round trip must not stall a switch.
+        for c in candidates.iter_mut() {
+            if c.label.is_some() && c.label == focused {
                 continue;
             }
-            eprintln!("[maude] pool over {MAX_INSTANCES} — shutting down idle project {root}");
-            shutdown_instance(app, &root);
-            evicted = true;
-            break;
+            // No address in its info file yet = still booting (L2).
+            c.booting = shell_origin(app, &c.root).is_none();
+            if !c.booting {
+                c.status = shell_status(app, &c.root).await;
+            }
         }
-        // EVERY non-displayed instance is busy. Allow the overflow rather than
-        // kill a running turn — the ceiling exists to stop unbounded drift, and
-        // a user with three projects genuinely working at once chose that. The
-        // next switch re-trims once something goes idle.
-        if !evicted {
-            return;
+        log_line(&format!(
+            "[maude] cap {cap}, {} running, focused {focused:?}: {}",
+            running.len(),
+            candidates
+                .iter()
+                .map(|c| format!(
+                    "{}@{}={}",
+                    c.label.as_deref().unwrap_or("(no window)"),
+                    c.recency,
+                    match &c.status {
+                        None => "unknown".to_string(),
+                        Some(s) if s.busy() => format!(
+                            "busy(ai {}+{}, unsent {}, jobs {})",
+                            s.ai.running, s.ai.awaiting, s.unsent, s.jobs
+                        ),
+                        Some(_) => "idle".to_string(),
+                    }
+                ))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
+        match pick_rest(running.len(), cap, focused.as_deref(), candidates) {
+            RestPick::UnderCap => return,
+            RestPick::Overflow => {
+                log_line(&format!(
+                    "[maude] {} servers running (cap {cap}) and every candidate is busy — allowing the overflow",
+                    running.len()
+                ));
+                return;
+            }
+            RestPick::Wait if waits < CAP_BOOT_WAIT => {
+                waits += 1;
+                tokio::time::sleep(Duration::from_secs(1)).await;
+            }
+            RestPick::Wait => {
+                log_line(&format!(
+                    "[maude] {} servers running (cap {cap}); one never finished booting — allowing the overflow",
+                    running.len()
+                ));
+                return;
+            }
+            RestPick::Rest { root, label } => match label {
+                Some(label) => {
+                    log_line(&format!(
+                        "[maude] over the cap of {cap} — resting {label} ({root})"
+                    ));
+                    crate::windows::rest_window(app, &label, &root);
+                }
+                None => {
+                    log_line(&format!(
+                        "[maude] over the cap of {cap} — stopping windowless {root}"
+                    ));
+                    shutdown_instance(app, &root);
+                }
+            },
         }
     }
 }
@@ -999,22 +1484,30 @@ fn reap_instances(app: &AppHandle) {
 /// Remove ONE instance from the pool and terminate its child. Removing it from
 /// the map first is what tells the supervisor task (which checks membership on
 /// `Terminated`) that this death was deliberate and must not be respawned.
-fn shutdown_instance(app: &AppHandle, root: &str) {
+pub(crate) fn shutdown_instance(app: &AppHandle, root: &str) {
     let state = app.state::<SidecarState>();
     let child = {
         let mut pool = state.instances.lock().expect("sidecar mutex poisoned");
-        pool.remove(root).and_then(|inst| inst.child)
+        pool.remove(root).and_then(|inst| {
+            // Revoke first: the moment this instance leaves the pool its key
+            // must stop working, even while the child is still in its SIGTERM
+            // grace period below.
+            if let Some(k) = &inst.bridge_key {
+                crate::keychain::revoke_key(k);
+            }
+            retire_shell_probe(inst.shell);
+            inst.child
+        })
     };
     if let Some(child) = child {
         terminate(child);
     }
     // feature-acp-turn-notifications — clear ONLY the transition-detection
-    // state, not the notification budget: this is the reap-eviction path,
-    // driven by `has_running_chat`'s answer on the SAME untrusted
-    // `_server.json` an attacker already controls in the threat model this
-    // feature's own security review is about — a full clear here would let a
-    // compromised project reset its notification cap on demand by answering
-    // one probe "idle". See `clear_project_reaped`'s doc comment.
+    // state, not the notification budget: a rest or a close is driven by what
+    // the project's own server answered, and that server runs the (untrusted,
+    // DDR-054) project's code — a full clear here would let a compromised
+    // project reset its notification cap on demand by answering one probe
+    // "idle". See `clear_project_reaped`'s doc comment.
     crate::notify::clear_project_reaped(app, root);
 }
 
@@ -1028,7 +1521,7 @@ fn shutdown_instance(app: &AppHandle, root: &str) {
 /// is what stops the detached ACP bridges (Task 8) from outliving the server.
 /// A bare SIGKILL here would orphan every `claude` subprocess this instance had
 /// spawned. Security-review finding, extended.
-fn terminate(child: CommandChild) {
+pub(crate) fn terminate(child: CommandChild) {
     let pid = child.pid();
     #[cfg(unix)]
     {
@@ -1076,11 +1569,20 @@ pub fn log_shutdown(line: &str) {
 pub(crate) fn log_line(line: &str) {
     use std::io::Write;
     let _ = writeln!(std::io::stderr(), "{line}");
+    // Debug builds only: a desktop e2e launches the app through WebDriver, which
+    // drops its stderr — `MAUDE_E2E_SHELL_LOG=<file>` keeps the shell's own
+    // decisions (rest, wake, overflow) readable after a run.
+    #[cfg(debug_assertions)]
+    if let Some(p) = std::env::var_os("MAUDE_E2E_SHELL_LOG") {
+        if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(p) {
+            let _ = writeln!(f, "{line}");
+        }
+    }
 }
 
 /// `log_line` without the trailing newline — for mirroring sidecar output that
 /// already carries its own.
-fn log_raw(chunk: &str) {
+pub(crate) fn log_raw(chunk: &str) {
     use std::io::Write;
     let _ = write!(std::io::stderr(), "{chunk}");
 }
@@ -1096,11 +1598,23 @@ fn log_raw(chunk: &str) {
 /// point; keeping it alive across a quit is an orphan.
 pub fn kill_server(app: &AppHandle) {
     if let Some(state) = app.try_state::<SidecarState>() {
-        state.shutting_down.store(true, Ordering::SeqCst);
+        // The session is saved ONCE, before anything is torn down (§5.5
+        // `session`): quitting destroys every window, and the per-close saves
+        // that follow must not shrink the saved tab set to nothing. Only the
+        // first call saves — `Exit` follows `ExitRequested` with the book empty.
+        if !state.shutting_down.swap(true, Ordering::SeqCst) {
+            crate::windows::save_session_now(app);
+        }
         let children: Vec<(String, CommandChild)> = {
             let mut pool = state.instances.lock().expect("sidecar mutex poisoned");
             pool.drain()
-                .filter_map(|(root, inst)| inst.child.map(|c| (root, c)))
+                .filter_map(|(root, inst)| {
+                    if let Some(k) = &inst.bridge_key {
+                        crate::keychain::revoke_key(k);
+                    }
+                    retire_shell_probe(inst.shell);
+                    inst.child.map(|c| (root, c))
+                })
                 .collect()
         };
         for (root, child) in children {
@@ -1114,7 +1628,122 @@ pub fn kill_server(app: &AppHandle) {
 
 #[cfg(test)]
 mod tests {
+    // p8-app-port-range — a project server the app starts carries the marker port.ts maps to 46399–46408; Home does
+    // not (it keeps its own remembered port), and the name is the one the server reads.
+    #[test]
+    fn project_spawn_carries_the_app_port_range_marker_and_home_does_not() {
+        let src = include_str!("sidecar.rs");
+        let spawn = &src[src.find("pub fn spawn_for(").unwrap()..];
+        let spawn = &spawn[..spawn.find("\n}\n").unwrap()];
+        assert!(spawn.contains(".env(APP_SIDECAR_ENV, \"1\")"), "spawn_for must mark an app sidecar");
+        assert!(!include_str!("home.rs").contains("APP_SIDECAR_ENV"), "Home is not a project server");
+        let port_ts = include_str!("../../../studio/port.ts");
+        assert!(
+            port_ts.contains(&format!("export const APP_SIDECAR_ENV = '{}';", super::APP_SIDECAR_ENV)),
+            "port.ts reads a different marker"
+        );
+        assert!(port_ts.contains("export const APP_PORT_BASE = 46399;"));
+    }
+
+    // p8-port-gc — the spawn asks for the recorded port under the name port.ts reads, and records the bound port
+    // from this spawn's own info file (never `_server.json`).
+    #[test]
+    fn project_spawn_asks_for_its_recorded_port_and_records_the_bound_one() {
+        let src = include_str!("sidecar.rs");
+        let spawn = &src[src.find("pub fn spawn_for(").unwrap()..];
+        let spawn = &spawn[..spawn.find("\n}\n").unwrap()];
+        assert!(spawn.contains("crate::app_state::preferred_port(app, &project_root)"));
+        assert!(spawn.contains(".env(PREFERRED_PORT_ENV, port.to_string())"));
+        assert!(spawn.contains("spawn_record_port(app, project_root.clone(), info_file)"));
+        let port_ts = include_str!("../../../studio/port.ts");
+        assert!(
+            port_ts.contains(&format!("export const PREFERRED_PORT_ENV = '{}';", super::PREFERRED_PORT_ENV)),
+            "port.ts reads a different name"
+        );
+    }
+
+    #[test]
+    fn the_recorded_port_comes_from_the_info_file_and_only_a_loopback_one() {
+        let dir = std::env::temp_dir().join(format!("maude-port-info-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let f = dir.join("info.json");
+        let read = |body: &str| {
+            std::fs::write(&f, body).unwrap();
+            super::read_shell_port(&f)
+        };
+        assert_eq!(read(r#"{"port":46403}"#), Some(46403));
+        assert_eq!(read(r#"{"url":"http://127.0.0.1:46405/","port":46405}"#), Some(46405));
+        assert_eq!(read(r#"{"url":"http://evil.example:46405/"}"#), None, "never a non-loopback address");
+        assert_eq!(read(r#"{"port":0}"#), None);
+        assert_eq!(read("not json"), None);
+        std::fs::remove_file(&f).unwrap();
+        assert_eq!(super::read_shell_port(&f), None, "no file yet → nothing to record");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // p8-e2e-isolation-r13 — the V2-8.3 record: the lane's stub-first PATH was replaced by the person's login-shell
+    // PATH, and the sidecar's ACP adapter found the real ~/.local/bin/claude on it.
+    #[test]
+    fn e2e_lane_keeps_its_stub_first_path_and_never_runs_the_login_shell() {
+        let lane = "/tmp/lane-stub/bin:/usr/bin".to_string();
+        let mut shelled = false;
+        let got = super::sidecar_base_path(true, Some(lane.clone()), || {
+            shelled = true;
+            Some("/Users/u/.local/bin:/usr/bin".to_string())
+        });
+        assert_eq!(got, lane);
+        assert!(!shelled, "an e2e lane must not source the person's shell rc files");
+    }
+
+    #[test]
+    fn a_person_still_gets_the_login_shell_path() {
+        let got = super::sidecar_base_path(false, Some("/usr/bin:/bin".into()), || {
+            Some("/Users/u/.local/bin:/usr/bin".into())
+        });
+        assert_eq!(got, "/Users/u/.local/bin:/usr/bin");
+        assert_eq!(
+            super::sidecar_base_path(false, Some("/usr/bin".into()), || None),
+            "/usr/bin"
+        );
+    }
+
+    #[test]
+    fn e2e_markers_are_any_non_empty_maude_e2e_variable() {
+        use std::ffi::OsString;
+        let v = |k: &str, x: &str| (OsString::from(k), OsString::from(x));
+        assert!(super::is_e2e_env(vec![v("MAUDE_E2E_NO_KEYCHAIN", "1")]));
+        assert!(super::is_e2e_env(vec![v("PATH", "/usr/bin"), v("MAUDE_E2E_RUN_DIR", "/r")]));
+        assert!(!super::is_e2e_env(vec![v("MAUDE_E2E_ON_TOP", "")]));
+        assert!(!super::is_e2e_env(vec![v("MAUDE_CLAUDE_BIN", ""), v("PATH", "/usr/bin")]));
+    }
+
     use super::*;
+
+    #[test]
+    fn profile_env_default_keeps_the_servers_own_paths() {
+        let paths = crate::profiles::ProfilePaths {
+            cloud_config: PathBuf::from("/c/cloud.json"),
+            hubs_config: PathBuf::from("/c/hubs.json"),
+        };
+        fn keys(env: &[(&'static str, String)]) -> Vec<&'static str> {
+            env.iter().map(|(k, _)| *k).collect()
+        }
+        let d = profile_env("default", "Default", Some(&paths));
+        assert_eq!(keys(&d), vec!["MAUDE_PROFILE_ID", "MAUDE_PROFILE_LABEL"]);
+        let w = profile_env("work", "Work", Some(&paths));
+        assert_eq!(
+            keys(&w),
+            vec![
+                "MAUDE_PROFILE_ID",
+                "MAUDE_PROFILE_LABEL",
+                "MAUDE_CLOUD_CONFIG",
+                "HUBS_CONFIG_PATH"
+            ]
+        );
+        assert_eq!(w[0].1, "work");
+        assert_eq!(w[2].1, "/c/cloud.json");
+        assert_eq!(w[3].1, "/c/hubs.json");
+    }
 
     #[test]
     fn a_server_that_dies_during_startup_spends_the_budget() {
@@ -1298,5 +1927,149 @@ mod tests {
              it dead; use log_line / log_raw:\n{}",
             offenders.join("\n")
         );
+    }
+
+    // ── rest_policy (V2-1.1 decision 4, §5.2 "Rest (cap)", §7) ──────────────
+
+    fn idle() -> Option<ShellStatus> {
+        Some(ShellStatus::default())
+    }
+
+    fn cand(root: &str, label: Option<&str>, recency: u64, status: Option<ShellStatus>) -> RestCandidate {
+        RestCandidate {
+            root: root.to_string(),
+            label: label.map(str::to_string),
+            recency,
+            status,
+            booting: false,
+        }
+    }
+
+    fn rested(root: &str, label: Option<&str>) -> RestPick {
+        RestPick::Rest {
+            root: root.to_string(),
+            label: label.map(str::to_string),
+        }
+    }
+
+    /// V2-3.6 L2: a burst of opens leaves servers still booting. They count
+    /// toward the cap: with nothing restable yet the policy waits for them to
+    /// bind instead of overflowing until some later spawn.
+    #[test]
+    fn rest_policy_counts_booting_servers_toward_the_cap() {
+        let mut booting = cand("/boot", Some("p-boot"), 1, None);
+        booting.booting = true;
+        let c = vec![booting.clone(), cand("/f", Some("p-f"), 2, idle())];
+        assert_eq!(pick_rest(2, 1, Some("p-f"), c), RestPick::Wait);
+        // Once it has bound and reports idle, it is the one rested.
+        let mut bound = booting;
+        bound.booting = false;
+        bound.status = idle();
+        assert_eq!(
+            pick_rest(2, 1, Some("p-f"), vec![bound, cand("/f", Some("p-f"), 2, idle())]),
+            rested("/boot", Some("p-boot"))
+        );
+        // A FOCUSED booting tab is never the reason to wait (it cannot rest).
+        let mut focused = cand("/f", Some("p-f"), 2, None);
+        focused.booting = true;
+        assert_eq!(
+            pick_rest(2, 1, Some("p-f"), vec![cand("/a", Some("p-a"), 1, None), focused]),
+            RestPick::Overflow
+        );
+    }
+
+    #[test]
+    fn rest_policy_cap_is_five_and_nothing_rests_at_or_under_it() {
+        assert_eq!(RUNNING_CAP, 5);
+        let six: Vec<RestCandidate> = (0..6)
+            .map(|i| cand(&format!("/r{i}"), Some(&format!("p-{i}")), i, idle()))
+            .collect();
+        assert_eq!(pick_rest(5, 5, Some("p-5"), six.clone()), RestPick::UnderCap);
+        assert_eq!(pick_rest(6, 5, Some("p-5"), six), rested("/r0", Some("p-0")));
+    }
+
+    #[test]
+    fn rest_policy_rests_the_least_recently_focused_idle_tab() {
+        let c = vec![
+            cand("/c", Some("p-c"), 30, idle()),
+            cand("/a", Some("p-a"), 10, idle()),
+            cand("/b", Some("p-b"), 20, idle()),
+            cand("/f", Some("p-f"), 40, idle()),
+        ];
+        assert_eq!(pick_rest(4, 3, Some("p-f"), c), rested("/a", Some("p-a")));
+    }
+
+    #[test]
+    fn rest_policy_never_rests_a_busy_instance() {
+        let ai = ShellStatus {
+            ai: AiCounts { running: 0, awaiting: 1 },
+            ..ShellStatus::default()
+        };
+        let unsent = ShellStatus {
+            unsent: 2,
+            ..ShellStatus::default()
+        };
+        let job = ShellStatus {
+            jobs: 1,
+            ..ShellStatus::default()
+        };
+        let c = vec![
+            cand("/ai", Some("p-ai"), 1, Some(ai)),
+            cand("/unsent", Some("p-unsent"), 2, Some(unsent)),
+            cand("/job", Some("p-job"), 3, Some(job)),
+            // No status (wedged, not up yet, wrong token): busy, conservatively.
+            cand("/unknown", Some("p-unknown"), 4, None),
+            cand("/idle", Some("p-idle"), 5, idle()),
+            cand("/f", Some("p-f"), 6, idle()),
+        ];
+        assert_eq!(pick_rest(6, 5, Some("p-f"), c), rested("/idle", Some("p-idle")));
+    }
+
+    #[test]
+    fn rest_policy_overflows_when_every_candidate_is_busy() {
+        let busy = Some(ShellStatus {
+            ai: AiCounts { running: 1, awaiting: 0 },
+            ..ShellStatus::default()
+        });
+        let c = vec![
+            cand("/a", Some("p-a"), 1, busy.clone()),
+            cand("/b", Some("p-b"), 2, None),
+            cand("/f", Some("p-f"), 3, idle()),
+        ];
+        assert_eq!(pick_rest(3, 2, Some("p-f"), c), RestPick::Overflow);
+    }
+
+    #[test]
+    fn rest_policy_never_picks_the_focused_window() {
+        // The focused tab is the least recent by tick (focus stamps can lag)
+        // and idle — it still must not rest.
+        let c = vec![
+            cand("/f", Some("p-f"), 1, idle()),
+            cand("/b", Some("p-b"), 2, None),
+        ];
+        assert_eq!(pick_rest(2, 1, Some("p-f"), c.clone()), RestPick::Overflow);
+        let mut c = c;
+        c[1].status = idle();
+        assert_eq!(pick_rest(2, 1, Some("p-f"), c), rested("/b", Some("p-b")));
+    }
+
+    #[test]
+    fn rest_policy_stops_windowless_instances_first() {
+        // A windowless instance (an in-tab switch left it behind) goes before
+        // any tab, however recently that tab was focused.
+        let c = vec![
+            cand("/tab", Some("p-tab"), 1, idle()),
+            cand("/orphan", None, 99, idle()),
+            cand("/f", Some("p-f"), 100, idle()),
+        ];
+        assert_eq!(pick_rest(3, 2, Some("p-f"), c), rested("/orphan", None));
+    }
+
+    #[test]
+    fn running_cap_override_is_debug_only_and_sane() {
+        // Unset (the normal case) is the cap itself.
+        if std::env::var("MAUDE_E2E_RUNNING_CAP").is_err() {
+            assert_eq!(running_cap(), RUNNING_CAP);
+        }
     }
 }

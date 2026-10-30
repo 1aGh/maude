@@ -51,6 +51,13 @@ export function pathTestIdSlug(p) {
     .replace(/^-+|-+$/g, '');
 }
 
+// The Layers tree is whatever the open canvas last posted, tagged with that canvas. A tree posted by
+// another canvas is not this canvas's (a blank canvas posts none, and kept listing the previous canvas's
+// `div`): no tree until this one posts its own.
+export function layersTreeOf(tree, canvas) {
+  return tree && canvas && tree.canvas === canvas ? tree : null;
+}
+
 // A layers tree's identity: its element ids in document order. Two trees with
 // the same signature are the same DOM as far as positional ids go.
 export function layersTreeSig(nodes) {
@@ -145,8 +152,10 @@ export function basename(p) {
 }
 
 // Keep call sites (including Undo actions) on the shared notification stack.
-export function shellToast(message, ok = false, action) {
-  notify({ title: message, kind: ok ? 'success' : 'error', action });
+// `extra` carries the pill's placement / icon / kind for events that are states of the app, not outcomes
+// (06 ad-open-all, 10 co-sync-back: the one-line pill at the top).
+export function shellToast(message, ok = false, action, extra) {
+  notify({ title: message, kind: ok ? 'success' : 'error', action, ...extra });
 }
 
 export function browseFirstRunHint(readOnly = false) {
@@ -160,7 +169,9 @@ export function browseFirstRunHint(readOnly = false) {
   browseFirstRunHint.active = true;
   const dismiss = () => {
     browseFirstRunHint.active = false;
-    try { localStorage.setItem(MODE_HINT_SEEN, '1'); } catch {}
+    try {
+      localStorage.setItem(MODE_HINT_SEEN, '1');
+    } catch {}
     document.removeEventListener('keydown', onV, true);
   };
   const onV = (e) => {
@@ -170,17 +181,24 @@ export function browseFirstRunHint(readOnly = false) {
     }
   };
   if (readOnly) document.addEventListener('keydown', onV, true);
-  notify({ id: 'mode-hint', title: readOnly ? 'Your mock is live' : 'You’re in Edit',
-    description: readOnly ? 'Click things to try it. Press V to select & inspect.'
-      : 'Click selects, like Figma. Switch to Preview in the toolbar to use the live mock.',
-    onDismiss: dismiss });
+  notify({
+    id: 'mode-hint',
+    title: readOnly ? 'Your mock is live' : 'You’re in Edit',
+    description: readOnly
+      ? 'Click things to try it. Press V to select & inspect.'
+      : 'Click selects. Switch to Preview (top right) to use the design live.',
+    onDismiss: dismiss,
+  });
 }
 
 // Strip canvas extensions for display. `Canvas Viewport.tsx` → `Canvas Viewport`.
 // Sidecars (`.meta.json`, `.css`, `.registry.json`) keep their extensions so
 // the file type stays unambiguous.
+// A system's own canvas file is `design-system.tsx`; people see "Design system" (CONTRACT §7), never the slug.
+const DS_CANVAS_SLUG = 'design-system';
 export function displayName(name) {
-  return name.replace(CANVAS_EXT_RE, '');
+  const base = name.replace(CANVAS_EXT_RE, '');
+  return base === DS_CANVAS_SLUG ? 'Design system' : base;
 }
 
 // Primary base = name with the canvas extension stripped. `Canvas Viewport.tsx`
@@ -246,7 +264,9 @@ export function groupBySidecar(files) {
 export function buildTree(paths, stripPrefix, dirs) {
   const root = {};
   for (const d of dirs || []) {
-    const stripped = d.startsWith(stripPrefix) ? d.slice(stripPrefix.length).replace(/^\/+/, '') : d;
+    const stripped = d.startsWith(stripPrefix)
+      ? d.slice(stripPrefix.length).replace(/^\/+/, '')
+      : d;
     const parts = stripped.split('/').filter(Boolean);
     let node = root;
     for (const key of parts) node = node[key] = node[key] || {};

@@ -1,7 +1,7 @@
 ---
 name: browse
 category: daily
-description: "Open the local Maude canvas browser."
+description: "Start the Maude studio for this project and open it."
 argument-hint: "[--port <n>]"
 ---
 
@@ -9,18 +9,18 @@ argument-hint: "[--port <n>]"
 
 Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
-Starts the Maude Studio server through the installed `maude` CLI that scans the project's design root (`<designRoot>` from `.design/config.json`, default `.design/`) and builds a 2-pane UI in the browser:
+Starts the Maude Studio server through the installed `maude` CLI. It scans the project's design root (`<designRoot>` from `.design/config.json`, default `.design/`) and serves the studio in the browser:
 
-- **Left column** — file tree (collapsible by hierarchy + group labels from the config)
-- **Right side** — tabbed iframe preview, like in an editor
-- **Inspector overlay** inside every canvas (Cmd+hover highlight, Cmd+click select, Esc clear)
-- **Status bar** — active file + selection (`<designRoot>/_active.json`)
+- **Canvases panel** — the project's canvases and folders, with the design system pinned at the top.
+- **The canvas** — an infinite surface that fills the window. **Edit** changes the design; **Preview** uses the annotation tools (Hand · Sticky · Comment · Marker · Arrow · Shape · Text · Stickers · Section).
+- **Selecting** — in Edit, click an object to select it; Esc or a click on empty canvas clears it. The selection is mirrored to `<designRoot>/_active.json`, so `/design:edit` can scope its change to it.
+- **Search** (⌘K) and **Version history** (⌥⌘H). **Hide panels** (⌘\) leaves only the canvas.
 
-The server reads `<repo>/.design/config.json` at boot. Auto-finds a free port from **4321** and opens the default browser. Idempotent: if already running, it just prints the URL. `Ctrl+C` in the terminal stops it.
+The server reads `<repo>/.design/config.json` at boot. Binds **4399**, or the next free port up to 4408, and opens the default browser (`NO_OPEN=1` skips that). Idempotent: if already running, it just prints the URL. `Ctrl+C` in the terminal stops it.
 
 **Input `$ARGUMENTS`:** `[--port <n>]`
 
-- `--port <n>` — force a specific port (default = first free port from 4321).
+- `--port <n>` — force a specific port (also `$PORT`). Default: 4399, walking up to 4408 when it is busy. An explicit port is never walked: a collision is an error.
 
 ## Procedure
 
@@ -56,32 +56,29 @@ it implements this same project-root and lifecycle contract.
 
 ## What the server supports
 
-- **Live re-scan** — the `↻ tree` button in the UI re-scans the disk (or Cmd+R / F5 on the index page).
-- **Per-tab reload** — the `↻ active` button (or Cmd+R inside the UI) reloads only the active iframe, not the whole app.
-- **Open in system browser** — the `↗ system` link opens the active mock in a new tab (useful for DevTools, screenshots).
-- **Keyboard:** `Cmd+W` closes the active tab, `Cmd+R` reloads the active iframe.
+- **Live re-scan** — the canvas redraws as its file changes. A new file on disk appears after **Refresh tree** (⇧⌘R, or ⌘K "Refresh tree").
 - **Path safety:** the server rejects everything outside the repo root.
 
 ## Server endpoints
 
 | Endpoint | Purpose |
 |---|---|
-| `/` | UI (file tree + tabs + inspector) |
+| `/` | The studio (Home, canvases, panels) |
 | `/_health` | Health check `{ ok, app, project, pid, port }` |
 | `/_active` | Current `_active.json` content |
 | `/_config` | Resolved per-repo config (echoed from `.design/config.json` + defaults) |
-| `/_ws` | WebSocket for tab/selection state |
+| `/_ws` | WebSocket for open-canvas and selection state |
 
 ## When /design:browse vs `open <file>`
 
 - **`open <file>`** — a quick one-off look at a single file via `file://`. **No inspector overlay, no `_active.json` tracking.**
-- **`/design:browse`** — when you want the orchestrator with the `/design:edit "<feedback>"` flow. Tab tracking, element selection (Cmd+click), inspector overlay, snapshots — all of it runs through the server.
+- **`/design:browse`** — when you want the orchestrator with the `/design:edit "<feedback>"` flow. Open canvases, object selection, Version history and live updates all run through the server.
 
 The orchestrator (`/design:edit`, `/design:new`, etc.) auto-starts the server itself if it isn't running — `/design:browse` is just an explicit boot for the browsing-only use case.
 
 ## Failure modes
 
-- **Ports 4321–4420 all taken** → the server throws `no free port`. Choose a free port with `--port <n>`.
+- **Ports 4399–4408 all taken** → the server stops with a message naming the range. Stop another dev server or pass `--port <n>`.
 - **Missing runtime** → install the `maude` CLI and its platform runtime. Source development uses Bun; there is no supported Node-only Studio server.
 - **Spaces in filenames** — the server URL-decodes, link generation encodes. It works.
 - **`.design/config.json` missing or invalid** — the server warns in the log and uses defaults.

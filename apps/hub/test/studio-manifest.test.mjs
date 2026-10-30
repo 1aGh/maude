@@ -17,23 +17,40 @@
 // below exists exactly to catch a regex that silently stops matching.
 
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import { CAPABILITIES } from '../src/role-matrix.mjs';
-import { capabilitiesUsed, classify, decide, STUDIO_ROUTES } from '../src/studio-manifest.mjs';
+import {
+  capabilitiesUsed,
+  classify,
+  decide,
+  REFUSED,
+  STUDIO_ROUTES,
+} from '../src/studio-manifest.mjs';
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const HTTP_TS = join(REPO, 'apps', 'studio', 'http.ts');
 const WORKSPACE_TS = join(REPO, 'apps', 'studio', 'workspace-mode.ts');
 
-/** Route keys declared in the studio's `routes` object literal. */
-function studioRouteKeys() {
-  const src = readFileSync(HTTP_TS, 'utf8');
+/**
+ * Route keys declared in the studio's `routes` object literal, plus every EXACT spec `path:`
+ * in its route table (`apps/studio/routes/*.ts`, V2-2.5) — a route added there is served
+ * in a cell like one in http.ts. `:param` spec paths are left out: like the fall-through's
+ * dynamic routes they match no exact entry here and are refused default-closed.
+ */
+function studioRouteKeys(studioDir = join(REPO, 'apps', 'studio')) {
+  const src = readFileSync(join(studioDir, 'http.ts'), 'utf8');
   const keys = new Set();
   for (const m of src.matchAll(/^ {4}'(\/[^']*)':/gm)) keys.add(m[1]);
+  const tableDir = join(studioDir, 'routes');
+  for (const f of readdirSync(tableDir).filter((n) => n.endsWith('.ts'))) {
+    const table = readFileSync(join(tableDir, f), 'utf8');
+    for (const m of table.matchAll(/\bpath:\s*'(\/[^':]*)'/g)) keys.add(m[1]);
+  }
   return [...keys].sort();
 }
 
@@ -54,6 +71,24 @@ test('the route-key scrape still finds the studio table', () => {
   assert.ok(keys.length > 80, `expected the studio route table, scraped ${keys.length} keys`);
   assert.ok(keys.includes('/_config'), 'the scrape must see /_config');
   assert.ok(keys.includes('/_health'), 'the scrape must see /_health');
+  // V2-2.5 — and the route table beside it.
+  assert.ok(keys.includes('/_api/project/migrate'), 'the scrape must see routes/*.ts');
+});
+
+test('the route-key scrape sees a route planted in the studio route table (V2-2.5)', () => {
+  const studio = mkdtempSync(join(tmpdir(), 'studio-manifest-'));
+  mkdirSync(join(studio, 'routes'));
+  writeFileSync(
+    join(studio, 'http.ts'),
+    "  const legacyRoutes = {\n    '/_api/legacy-x': () => null,\n"
+  );
+  writeFileSync(
+    join(studio, 'routes', 'plant.ts'),
+    "[{ method: 'POST', path: '/_api/planted', origin: 'main' },\n" +
+      " { method: 'GET', path: '/_api/planted/:id', origin: 'main' }]\n"
+  );
+  // The exact path is seen; the `:param` one is default-closed, so it is not a key.
+  assert.deepEqual(studioRouteKeys(studio), ['/_api/legacy-x', '/_api/planted']);
 });
 
 test('every route a cell serves is classified', () => {
@@ -96,9 +131,24 @@ test('a write-classified route is never a GET-only handler (the edit-scope inver
   const getOnly = (b) =>
     /req\.method !== 'GET'\)?\s*return new Response\('Method not allowed'/.test(b);
 
+  // V2-2.5 — a table route (apps/studio/routes/*.ts) declares its methods: it is GET-only when
+  // every spec for its path says `method: 'GET'`.
+  const tableMethods = new Map();
+  const tableDir = join(REPO, 'apps', 'studio', 'routes');
+  for (const f of readdirSync(tableDir).filter((n) => n.endsWith('.ts'))) {
+    const t = readFileSync(join(tableDir, f), 'utf8');
+    for (const m of t.matchAll(/method:\s*'([A-Z]+)',\s*path:\s*'([^']+)'/g))
+      tableMethods.set(m[2], [...(tableMethods.get(m[2]) ?? []), m[1]]);
+  }
+
   const inverted = [];
   for (const [path, cls] of Object.entries(STUDIO_ROUTES)) {
     if (cls === null || cls === undefined) continue;
+    const methods = tableMethods.get(path);
+    if (methods) {
+      if (cls.unsafe && cls.safe === null && methods.every((m) => m === 'GET')) inverted.push(path);
+      continue;
+    }
     const body = bodyOf(path);
     if (!body) continue; // dynamic / fetch-served — not an exact route literal
     if (cls.unsafe && cls.safe === null && getOnly(body)) inverted.push(path);
@@ -139,6 +189,30 @@ test('a viewer may read, comment and keep their own place — and nothing else',
   assert.equal(decide('POST', '/_api/edit-text', 'viewer').allow, false);
   assert.equal(decide('PUT', '/_api/annotations', 'viewer').allow, false);
   assert.equal(decide('POST', '/_api/git/commit', 'viewer').allow, false);
+});
+
+test('Can comment draws nothing: annotation ops, the FigJam import and the sticky doors are refused, a member’s are not', () => {
+  // S4.16 (canvas 15 an-viewer) - the same answer the local gate gives (apps/studio test/access-role-matrix.test.ts).
+  for (const path of [
+    '/_api/annotations',
+    '/_api/annotations/ops',
+    '/_api/annotations/figjam',
+    '/_api/annotations/to-comment',
+    '/_api/comments/to-sticky',
+  ]) {
+    const method = path === '/_api/annotations' ? 'PUT' : 'POST';
+    assert.equal(
+      decide(method, path, 'viewer').allow,
+      false,
+      `${path} reached a Can comment viewer`
+    );
+    assert.equal(
+      decide(method, path, 'observer').allow,
+      false,
+      `${path} reached a Can view observer`
+    );
+    assert.equal(decide(method, path, 'member').allow, true, `${path} refused a member`);
+  }
 });
 
 test('a viewer may not switch the branch everyone else is looking at', () => {
@@ -338,4 +412,57 @@ test('a percent-encoded traversal cannot reach a css outside designRoot', () => 
     decide('GET', '/.design/system/%2e%2e/%2e%2e/secrets/creds.css', 'owner').allow,
     false
   );
+});
+
+// ---------------------------------------------------------------- S9.3 — A19
+
+test('Can view is refused every export row; Can comment keeps every one (R3)', () => {
+  const exportHalves = [];
+  for (const [path, entry] of Object.entries(STUDIO_ROUTES)) {
+    if (entry.safe === 'export') exportHalves.push(['GET', path]);
+    if (entry.unsafe === 'export') exportHalves.push(['POST', path]);
+  }
+  assert.ok(exportHalves.length >= 6, `found only ${exportHalves.length} export halves`);
+  for (const [method, path] of exportHalves) {
+    assert.deepEqual(
+      decide(method, path, 'observer'),
+      { allow: false, reason: 'role', capability: 'export' },
+      `${method} ${path}`
+    );
+    assert.equal(decide(method, path, 'viewer').allow, true, `viewer ${method} ${path}`);
+  }
+});
+
+test('the raw source and raw patches are export, not read (A19)', () => {
+  assert.equal(classify('GET', '/_api/canvas-source').capability, 'export');
+  assert.equal(classify('GET', '/_api/git/diff').capability, 'export');
+  assert.equal(classify('POST', '/_api/git/diff').capability, 'export');
+  assert.equal(decide('GET', '/_api/canvas-source', 'observer').allow, false);
+  assert.equal(decide('POST', '/_api/git/diff', 'observer').allow, false);
+  // Looking is still looking: the canvas, its comments, the history list.
+  for (const path of ['/_config', '/_index-data', '/_comments-all', '/_api/git/log']) {
+    assert.equal(decide('GET', path, 'observer').allow, true, path);
+  }
+  // Can view keeps its own place, holds no comment and no edit.
+  assert.equal(decide('PUT', '/_canvas-state', 'observer').allow, true);
+  assert.equal(decide('POST', '/_comments', 'observer').allow, false);
+  assert.equal(decide('POST', '/_api/edit-text', 'observer').allow, false);
+});
+
+test('S1.18 — a cell visitor may resolve a stable link; the studio narrows it to their canvases', () => {
+  // The studio reads each session's claim per request (S9.9) and answers a canvas-only visitor
+  // `unknown` for any canvas outside their grants (history/links.ts), so the cell lets the read through.
+  assert.deepEqual(STUDIO_ROUTES['/_api/link/resolve'], { safe: 'read', unsafe: 'read' });
+  for (const role of ['observer', 'viewer', 'member', 'owner'])
+    assert.equal(decide('GET', '/_api/link/resolve', role).allow, true, role);
+});
+
+test('gate-b-sec1 A5 — a cell serves no team-library door: its grant store is every member’s, its fetches leave from the cloud', () => {
+  assert.equal(STUDIO_ROUTES['/_api/ds/library'], REFUSED);
+  for (const role of ['observer', 'viewer', 'member', 'owner'])
+    assert.deepEqual(decide('POST', '/_api/ds/library', role), {
+      allow: false,
+      reason: 'refused',
+      capability: null,
+    });
 });

@@ -1,10 +1,23 @@
 import { afterAll, beforeAll, expect, spyOn, test } from 'bun:test';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 import { act, createRef } from 'react';
-import { createRoot } from 'react-dom/client';
-import { CanvasShell } from '../canvas-shell.tsx';
-import { ToolProvider } from '../use-tool-mode.tsx';
-import { UndoStackProvider } from '../use-undo-stack.tsx';
+import type { createRoot as CreateRoot } from 'react-dom/client';
+import type { disposeCanvasToastHost as DisposeToastHost } from '../canvas-notifications.tsx';
+import type { CanvasShell as CanvasShellT } from '../canvas-shell.tsx';
+import type { textOpDeps as TextOpDeps } from '../editing/text-actions.ts';
+import type { ToolProvider as ToolProviderT } from '../use-tool-mode.tsx';
+import type { UndoStackProvider as UndoStackProviderT } from '../use-undo-stack.tsx';
+
+// Everything that touches react-dom or the shell loads AFTER the DOM is registered (beforeAll). react-dom
+// decides `canUseDOM` once, at first evaluation, for the whole `bun test` process: a static import here
+// loaded it with no DOM and every later React test file lost its `onChange` (a text field's `input` event
+// never reached its handler).
+let createRoot: typeof CreateRoot;
+let disposeCanvasToastHost: typeof DisposeToastHost;
+let CanvasShell: typeof CanvasShellT;
+let textOpDeps: typeof TextOpDeps;
+let ToolProvider: typeof ToolProviderT;
+let UndoStackProvider: typeof UndoStackProviderT;
 
 // The standalone shell opens its unrelated AI-notice socket and export list.
 // Give it an empty local notification service; document saving is the real
@@ -19,9 +32,15 @@ const notifications = Bun.serve({
   },
   websocket: { message() {} },
 });
-beforeAll(() => {
+beforeAll(async () => {
   GlobalRegistrator.register({ url: `${notifications.url}_canvas-shell.html?canvas=ui/Text.tsx` });
   (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  ({ createRoot } = await import('react-dom/client'));
+  ({ disposeCanvasToastHost } = await import('../canvas-notifications.tsx'));
+  ({ CanvasShell } = await import('../canvas-shell.tsx'));
+  ({ textOpDeps } = await import('../editing/text-actions.ts'));
+  ({ ToolProvider } = await import('../use-tool-mode.tsx'));
+  ({ UndoStackProvider } = await import('../use-undo-stack.tsx'));
 });
 afterAll(async () => {
   await GlobalRegistrator.unregister();
@@ -34,6 +53,11 @@ test('a same-element selection refresh preserves an open text editor and its com
   const root = createRoot(host);
   const canvasRef = createRef<HTMLDivElement>();
   const messages: Array<Record<string, unknown>> = [];
+  // S2.12 (decision v2-S2.12-text-set-edit-op): typed copy commits as the edit-op `text.set`, one write,
+  // one undo step; the legacy `edit-text` post is only the old-studio fallback. Answer the op in place so
+  // the commit is observable without a backend.
+  const asks: Array<{ op: string; params?: Record<string, unknown> }> = [];
+  const prevDeps = textOpDeps.current;
   const post = spyOn(window.parent, 'postMessage').mockImplementation((message: unknown) => {
     if (message && typeof message === 'object') messages.push(message as Record<string, unknown>);
   });
@@ -62,6 +86,14 @@ test('a same-element selection refresh preserves an open text editor and its com
         </ToolProvider>
       );
     });
+    // EditingLayer installs its own deps when it mounts; answer the op after that, in the same slot.
+    textOpDeps.current = {
+      ...textOpDeps.current,
+      run: async (ask) => {
+        asks.push(ask as { op: string; params?: Record<string, unknown> });
+        return { ok: true, actionId: 'text.set', writeId: 'w1', rev: 'r1', refs: [] };
+      },
+    };
     const heading = host.querySelector('h1');
     if (!heading) throw new Error('Heading fixture absent');
     await act(async () => {
@@ -80,17 +112,20 @@ test('a same-element selection refresh preserves an open text editor and its com
     expect(heading.getAttribute('contenteditable')).toBe('plaintext-only');
     expect(document.activeElement).toBe(heading);
     expect(heading.textContent).toBe('Uncommitted local typing');
-    expect(messages.filter((m) => m.dgn === 'edit-text')).toEqual([]);
+    expect(asks).toEqual([]);
     await act(async () => {
       heading.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     });
-    expect(messages.filter((m) => m.dgn === 'edit-text')).toEqual([
+    expect(asks).toEqual([
       expect.objectContaining({
-        id: 'heading',
-        text: 'Uncommitted local typing',
-        before: 'Original title',
+        op: 'text.set',
+        params: expect.objectContaining({
+          text: 'Uncommitted local typing',
+          before: 'Original title',
+        }),
       }),
     ]);
+    expect(messages.filter((m) => m.dgn === 'edit-text')).toEqual([]);
     expect(heading.hasAttribute('contenteditable')).toBe(false);
     await act(async () => {
       heading.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }));
@@ -105,9 +140,13 @@ test('a same-element selection refresh preserves an open text editor and its com
     });
     expect(heading.textContent).toBe('Uncommitted local typing');
     expect(heading.hasAttribute('contenteditable')).toBe(false);
-    expect(messages.filter((m) => m.dgn === 'edit-text')).toHaveLength(1);
+    expect(asks).toHaveLength(1);
   } finally {
+    textOpDeps.current = prevDeps;
     await act(async () => root.unmount());
+    // A standalone shell (no parent frame) mounts its own notification host; left mounted, it keeps
+    // its Sonner subscription and renders the next file's toasts into this file's dead DOM.
+    await act(async () => disposeCanvasToastHost());
     post.mockRestore();
     host.remove();
   }

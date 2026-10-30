@@ -1,0 +1,8 @@
+{"lane":"acp","name":"Read","input":{"file_path":".design/ui/Alligators Cinematic Cut.tsx"}}
+{"lane":"acp","name":"Edit","input":{"file_path":".design/ui/Alligators Cinematic Cut.tsx"}}
+{"lane":"acp","name":"Edit","input":{"file_path":".design/ui/Alligators Cinematic Cut.tsx"}}
+{"lane":"acp","name":"Edit","input":{"file_path":".design/ui/Alligators Cinematic Cut.tsx"}}
+{"lane":"acp","name":"Edit","input":{"file_path":".design/ui/Alligators Cinematic Cut.tsx"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design check \"ui/Alligators Cinematic Cut.tsx\"","description":"Check the canvas renders correctly after the edit"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design screenshot --canvas \"ui/Alligators Cinematic Cut.tsx\" --screen cinematic --out \"_runs/b4adb390-3d63-49ed-aa84-435fc005817a/huddle-cut.png\" 2>&1 || maude design screenshot --canvas \"ui/Alligators Cinematic Cut.tsx\" --screen cinematic --out \".design/_runs/b4adb390-3d63-49ed-aa84-435fc005817a/huddle-cut.png\"","description":"Screenshot the cinematic artboard after the huddle cut edit"}}
+{"lane":"acp","name":"Read","input":{"file_path":"/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/live/r2a/S7/acp/project/_runs/b4adb390-3d63-49ed-aa84-435fc005817a/huddle-cut.png"}}

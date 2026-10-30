@@ -1,0 +1,8 @@
+{"lane":"acp","name":"Bash","input":{"command":"ls -la .design/incoming/ && maude design import-asset .design/incoming/brand-mark.svg","description":"Import the logo SVG into project assets"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design export --help 2>&1 | head -40; ls .design/ui | head","description":"Show export command usage"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design export 2>&1 | head -40; grep -n -i \"publish\" .design/ui/GitPanel.tsx | head","description":"Show export usage and find publish artboard"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design export png --help 2>&1 | head -30; maude design export png ui/GitPanel#publish --out .design/out/ 2>&1 | tail -20","description":"Export publish artboard as PNG"}}
+{"lane":"acp","name":"Bash","input":{"command":"cd .design/out && ls -la && unzip -l ui-gitpanel.zip","description":"Inspect export output"}}
+{"lane":"acp","name":"Bash","input":{"command":"unzip -o ui-gitpanel.zip publish.png && rm ui-gitpanel.zip && ls -la","description":"Extract publish.png, remove the zip"}}
+{"lane":"acp","name":"Bash","input":{"command":"unzip -o ui-gitpanel.zip publish.png && ls -la","description":"Extract publish.png from the export zip"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design exports list","description":"List the project's exports"}}

@@ -6,6 +6,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { linkConsent } from './sync/link-consent.ts';
+
 export type ConfigSource = '.design/config.json' | 'defaults' | 'defaults (config invalid)';
 
 export interface CanvasGroup {
@@ -23,6 +25,8 @@ export interface DesignSystemEntry {
   themes?: string[];
   newCanvasDir?: string;
   newComponentDir?: string;
+  /** V2-1.13 §5.4 — conforms to design-system schema v1 (written only when ds-check exits 0). */
+  schema?: 1;
 }
 
 export interface LinkedHub {
@@ -218,6 +222,13 @@ export interface Context {
   paths: Paths;
   bus: Bus;
   /**
+   * gate-b-sec4 (M1) — the folder's committed `linkedHub` when THIS Mac never linked or confirmed it
+   * (sync/link-consent.ts). Parked here, NOT in `cfg`: everything that reads `cfg.linkedHub` sees a
+   * solo project and nothing reaches that hub. Connect (routes/sync.ts) records consent, adopts it
+   * and clears this. Never set in a workspace cell (the hub's env gates that one).
+   */
+  unconfirmedHub?: LinkedHub;
+  /**
    * T2 (9.1-A) — origin of the segregated canvas-content server (e.g.
    * `http://localhost:51234`), set by server.ts once the second listener binds.
    * The client reads it via /_config to build absolute, cross-origin iframe
@@ -278,7 +289,21 @@ export interface Context {
      *  retire step. Null in solo mode. Structural on purpose — see above. */
     current?(): {
       cancelAssetSweep(): boolean;
+      /** S8.19 — see SyncRuntime.assetPresenceAsker / assetUploading (routes/asset-state.ts). */
+      assetPresenceAsker?(): {
+        ask(rels: readonly string[]): Promise<Map<
+          string,
+          {
+            rel: string;
+            state: 'here' | 'waiting' | 'missing' | 'unknown';
+            who?: { name: string | null; kind: 'mac' | 'pc' | 'linux' | null; self: boolean };
+          }
+        > | null>;
+      } | null;
+      assetUploading?(): ReadonlyMap<string, { progress?: number }> | null;
       retireForMove?(fromSlug: string, toRel: string): Promise<boolean>;
+      /** P8 G1a — a non-editor's comment op to the hub's comment door (SyncRuntime.commentDoor). */
+      commentDoor?: import('./sync/comment-door.ts').CommentDoor;
       /** Accepted-revisions mode (DDR-241) — see SyncRuntime.proposeLane. */
       proposeLane?(
         slug: string,
@@ -286,6 +311,12 @@ export interface Context {
         text: string,
         opts?: { baseText?: string; writeId?: string }
       ): Promise<{ status: 'accepted' | 'rejected'; code?: string }> | null;
+      /** S4.7 — several lanes of one canvas as ONE action (SyncRuntime / the local home). */
+      proposeLanes?(
+        slug: string,
+        lanes: Array<{ lane: 'comments' | 'annotations' | 'meta'; text: string; baseText: string }>,
+        opts: { kind: string; label: string; writeId?: string }
+      ): Promise<{ status: 'accepted' | 'rejected'; code?: string; actionId?: string }> | null;
       /** Accepted-revisions mode (DDR-241) — see SyncRuntime.proposeFolder. */
       proposeFolder?(
         op:
@@ -294,25 +325,46 @@ export interface Context {
           | { op: 'dir.move'; from: string; to: string }
       ): Promise<{ status: 'accepted' | 'rejected'; code?: string; queued?: boolean }> | null;
       acceptedMode?(): boolean;
+      /** p8-fix-a F19 — has the hub (or a remembered answer for this hub) said how the project saves yet? */
+      acceptedModeKnown?(): boolean;
+      /** S11.4 — the availability read model's input (sync/availability.ts); a read, never a fetch. */
+      availability?(): import('./sync/availability.ts').AvailabilitySource;
       commentsConfirmedOnHub?(slug: string): boolean;
       acceptedHistory?(q: {
         limit?: number;
         before?: number | null;
         path?: string | null;
+        chat?: string | null;
+        kind?: string | null;
+        mine?: boolean;
       }): Promise<unknown[] | null>;
-      acceptedVersion?(repoRel: string, revision: number): Promise<string | null>;
+      acceptedVersion?(
+        repoRel: string,
+        revision: number,
+        lane?: 'html' | 'css' | 'meta'
+      ): Promise<string | null>;
+      /** S1.18 — the manifest rows a stable link resolves over (history/links.ts). */
+      acceptedLinkDocs?(): Promise<
+        { entry: string; path: string | null; retired: boolean }[] | null
+      >;
+      /** S1.18 — the shared Trash, where the home knows it (the local op log). */
+      acceptedTrashed?(entry: string): Promise<boolean>;
       acceptedRestore?(
         repoRel: string,
         revision: number
       ): Promise<{ status: 'accepted' | 'rejected'; code?: string; queued?: boolean } | null>;
+      /** S5.5 — `{ actionId } | { actionIds } | { chatId }` (a bare id = `{ actionId }`). */
       acceptedUndo?(
-        actionId: string,
-        redo?: boolean
+        target: string | import('./sync/undo-target.ts').UndoTarget,
+        redo?: boolean,
+        o?: { via?: 'keys' | 'panel' }
       ): Promise<{
         status: 'accepted' | 'rejected';
         code?: string;
         queued?: boolean;
         actionId?: string;
+        undoes?: string | string[];
+        skipped?: Array<{ doc?: string; lane?: string; reason: string; conflictWith?: string }>;
       } | null>;
       acceptedActionForContent?(repoRel: string, content: string): string | null;
       prepareOffline?(): Promise<{
@@ -329,15 +381,52 @@ export interface Context {
         choice: 'mine' | 'theirs'
       ): Promise<{ status: 'accepted' | 'rejected' | 'taken'; code?: string } | null>;
       /** T16 — AI action boundaries (see sync/action-stage.ts). */
-      beginAiAction?(key: string, label: string): void;
+      beginAiAction?(
+        key: string,
+        label: string,
+        meta?: {
+          runId?: string;
+          chatId?: string;
+          actor?: string;
+          /** V2-8.9 round B A1 — a shell verb call's window (sync/action-stage.ts `claimOnly`). */
+          shell?: { call: string; open: boolean; files?: string[] };
+          /** p8-a1-claims — begun by a claim: takes only claimed writes (sync/action-stage.ts). */
+          claimOnly?: boolean;
+        }
+      ): void;
       endAiAction?(
         key: string,
-        outcome: 'done' | 'failed'
-      ): Promise<{ status: 'accepted' | 'rejected'; code?: string } | null>;
-      resolveAiAction?(choice: 'publish' | 'discard'): Promise<{
+        outcome: 'done' | 'failed' | 'stopped',
+        o?: {
+          fence?: {
+            runId: string;
+            leases: Array<{ entry: string; artboard: string; token: number }>;
+          };
+        }
+      ): Promise<{
+        status: 'accepted' | 'rejected';
+        code?: string;
+        actionId?: string;
+        /** S5.5b — the run's touched artboards (canvas → ids), for `project:action`. */
+        touched?: Record<string, string[]>;
+      } | null>;
+      /** S5.5 — a tool reported writing `hash` (sha256) to canvas `repoRel` for run `key`. */
+      claimAiWrite?(key: string, repoRel: string, hash?: string | null): void;
+      /** p8-a1-claims (F17) — run `key` is about to delete canvas `repoRel`: the delete joins the run. */
+      claimAiDelete?(key: string, repoRel: string): void;
+      /** p8-sec2-lows I1 — the claimed delete failed: the claim is dropped. */
+      unclaimAiDelete?(key: string, repoRel: string): void;
+      /** S5.11b — a canvas's accepted source under the staged runs; null = the disk is accepted. */
+      acceptedCanvas?(repoRel: string): string | null;
+      resolveAiAction?(
+        choice: 'publish' | 'discard',
+        runId?: string
+      ): Promise<{
         status: 'accepted' | 'rejected' | 'discarded';
         code?: string;
         canvases?: number;
+        actionId?: string;
+        touched?: Record<string, string[]>;
       } | null>;
     } | null;
   };
@@ -353,9 +442,45 @@ function resolveRepoRoot(): string {
 /** Where the sync runtime keeps what the linked project says about itself. */
 export const PROJECT_CONFIG_CACHE_REL = '_state/project-config.json';
 
+/** P-5 (V2-1.13 §5.12): a system's schema fields as they cross a sync hop. */
+export interface SystemSchemaFields {
+  schema?: 1;
+  rootClass?: string;
+  themes?: string[];
+  themeDefault?: string;
+}
+
 export interface ProjectConfig {
   canvasGroups: { label: string; path: string }[];
-  designSystems: { name: string; path: string; tokensCssRel?: string }[];
+  designSystems: ({ name: string; path: string; tokensCssRel?: string } & SystemSchemaFields)[];
+}
+
+const CLASS_NAME = /^[a-z][a-z0-9-]{0,63}$/;
+
+/**
+ * The hub door's own rule (apps/hub/src/project-config-door.mjs `schemaFields`): `schema` is 1
+ * only; `rootClass` and theme names keep to the class charset (they land in selectors and an
+ * inline <style>); `themeDefault` must be one of `themes` when `themes` is given.
+ */
+export function sanitizeSchemaFields(d: unknown): SystemSchemaFields {
+  const r = (d ?? {}) as Record<string, unknown>;
+  const out: SystemSchemaFields = {};
+  if (r.schema === 1) out.schema = 1;
+  if (typeof r.rootClass === 'string' && CLASS_NAME.test(r.rootClass)) out.rootClass = r.rootClass;
+  if (Array.isArray(r.themes)) {
+    const themes = [
+      ...new Set(r.themes.filter((x): x is string => typeof x === 'string' && CLASS_NAME.test(x))),
+    ].slice(0, 8);
+    if (themes.length) out.themes = themes;
+  }
+  if (
+    typeof r.themeDefault === 'string' &&
+    CLASS_NAME.test(r.themeDefault) &&
+    (!out.themes || out.themes.includes(r.themeDefault))
+  ) {
+    out.themeDefault = r.themeDefault;
+  }
+  return out;
 }
 
 /**
@@ -395,6 +520,7 @@ export function sanitizeProjectConfig(raw: unknown): ProjectConfig | null {
       name: d.name,
       path: d.path.replace(/^\/+|\/+$/g, ''),
       ...(typeof d.tokensCssRel === 'string' ? { tokensCssRel: d.tokensCssRel } : {}),
+      ...sanitizeSchemaFields(d),
     }));
   return { canvasGroups, designSystems };
 }
@@ -428,10 +554,16 @@ function withProjectConfig(cfg: DevServerConfig, repoRoot: string): DevServerCon
   });
   const declared = new Set((cfg.designSystems ?? []).map((d) => d.name));
   const groupPaths = canvasGroups.map((g) => String(g.path).replace(/^\/+|\/+$/g, ''));
-  const adopted = project.designSystems.filter(
-    (d) =>
-      !declared.has(d.name) && groupPaths.some((g) => d.path === g || d.path.startsWith(`${g}/`))
-  );
+  const adopted: DesignSystemEntry[] = project.designSystems
+    .filter(
+      (d) =>
+        !declared.has(d.name) && groupPaths.some((g) => d.path === g || d.path.startsWith(`${g}/`))
+    )
+    // DesignSystemEntry types themeDefault as the studio's two app themes; a system default
+    // outside them is dropped here, as a local entry could not declare one either
+    .map(({ themeDefault, ...d }) =>
+      themeDefault === 'dark' || themeDefault === 'light' ? { ...d, themeDefault } : d
+    );
   if (adopted.length === 0 && canvasGroups.every((g, i) => g === cfg.canvasGroups[i])) return cfg;
   return {
     ...cfg,
@@ -440,7 +572,7 @@ function withProjectConfig(cfg: DevServerConfig, repoRoot: string): DevServerCon
   };
 }
 
-function loadConfig(repoRoot: string): DevServerConfig {
+export function loadConfig(repoRoot: string): DevServerConfig {
   const configPath = path.join(repoRoot, '.design', 'config.json');
   let raw: string;
   try {
@@ -548,9 +680,11 @@ export function createContext(): Context {
   const designRel = cfg.designRoot.replace(/^\/+|\/+$/g, '');
   const designRoot = path.join(repoRoot, designRel);
   const systemDirRel = cfg.canvasGroups.find((g) => /system/i.test(g.path))?.path ?? 'system';
+  const unconfirmedHub = parkUnconfirmedLink(cfg, repoRoot, designRoot);
 
   return {
     cfg,
+    ...(unconfirmedHub ? { unconfirmedHub } : {}),
     projectLabel: cfg.projectLabel || `${cfg.name} Design`,
     paths: {
       repoRoot,
@@ -621,6 +755,10 @@ export function reloadConfig(ctx: Context): boolean {
   // trusted app chrome, whose hub credential this same process just stored.
   // That path cycles the runtime itself (sync/supervisor.ts) instead of hoping
   // a watcher notices.
+  // A parked claim (gate-b-sec4) is the file's value by definition — keep it parked, quietly.
+  const parkedAgain =
+    !!ctx.unconfirmedHub && JSON.stringify(next.linkedHub) === JSON.stringify(ctx.unconfirmedHub);
+  if (parkedAgain) delete next.linkedHub;
   if (JSON.stringify(next.linkedHub) !== JSON.stringify(ctx.cfg.linkedHub)) {
     console.warn('  warn: linkedHub changed — not hot-reloadable, restart the server to apply.');
     if (ctx.cfg.linkedHub === undefined) delete next.linkedHub;
@@ -664,4 +802,31 @@ export function reloadConfig(ctx: Context): boolean {
  */
 export function adoptLinkedHub(ctx: Context, linkedHub: LinkedHub): void {
   ctx.cfg.linkedHub = linkedHub;
+  delete ctx.unconfirmedHub;
+}
+
+/**
+ * gate-b-sec4 (M1) — a committed `linkedHub` this Mac never linked or confirmed is a claim: take it
+ * OUT of `cfg` (returned, to park on the context) so the sync runtime, the share / history doors and
+ * every `cfg.linkedHub` reader run solo. A cell keeps its own gates (cell-pairing.ts) and holds no
+ * person's credential. Exported for tests.
+ */
+export function parkUnconfirmedLink(
+  cfg: DevServerConfig,
+  repoRoot: string,
+  designRoot: string,
+  env: Record<string, string | undefined> = process.env
+): LinkedHub | undefined {
+  const claim = cfg.linkedHub;
+  if (!claim || env.MAUDE_WORKSPACE_MODE === '1') return undefined;
+  const verdict = linkConsent(
+    { url: claim.url, ...(claim.workspaceId ? { workspaceId: claim.workspaceId } : {}) },
+    { repoRoot, designRoot, env }
+  );
+  if (verdict.ok) return undefined;
+  delete cfg.linkedHub;
+  console.warn(
+    `[sync] this project says it syncs with ${String(claim.url).slice(0, 200)}, but that link was not made on this Mac — solo until Connect.`
+  );
+  return claim;
 }

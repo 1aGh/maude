@@ -67,6 +67,59 @@ function encodeDepartures(from: Awareness, clients: readonly number[]): Uint8Arr
   return encoding.toUint8Array(enc);
 }
 
+/**
+ * S2.18 (V2-1.15 §5.3 / §5.12) — the studio's half of the `holding` sanitizer, on the way OUT.
+ *
+ * A hold's `actor` is the hub's stamp (the bearer's identity, `sanitizeHoldingAwareness` in the hub's
+ * runs-routes.mjs); whatever a local tab claimed is never forwarded, so an older hub that does not
+ * stamp relays no forged identity either. A hold that is not a small plain object leaves as `null`
+ * (not holding) rather than fanning out to every peer. The full grammar check is the receiver's
+ * (`sanitizeHoldingState`, use-collab.tsx); this side only keeps the relay honest and small.
+ */
+export const HOLDING_WIRE_MAX = 1024;
+
+function scrubHolding(state: unknown): unknown {
+  if (!state || typeof state !== 'object' || !('holding' in state)) return state;
+  const { holding, ...rest } = state as { holding?: unknown };
+  if (holding === null || holding === undefined) return state;
+  if (typeof holding !== 'object' || Array.isArray(holding)) return { ...rest, holding: null };
+  const { actor: _claimed, ...hold } = holding as Record<string, unknown>;
+  let size = Number.POSITIVE_INFINITY;
+  try {
+    size = JSON.stringify(hold).length;
+  } catch {
+    /* a cycle — not a hold */
+  }
+  return { ...rest, holding: size <= HOLDING_WIRE_MAX ? hold : null };
+}
+
+/** `a`'s states for `clients`, as they may leave this studio. */
+function outbound(a: Awareness, clients: readonly number[]): Map<number, unknown> {
+  const states = a.getStates();
+  const out = new Map<number, unknown>();
+  for (const id of clients) if (states.has(id)) out.set(id, scrubHolding(states.get(id)));
+  return out;
+}
+
+/**
+ * V2-8.9 round B L1 (belt and braces) — `b`'s states for `clients` as they may enter the room: a `role`
+ * word the hub did not vouch for (no `roleBy: 'hub'`, apps/hub access-docs.mjs `stampHubRole`) is dropped,
+ * so a peer on an older hub cannot show itself as "· Owner".
+ */
+function inbound(b: Awareness, clients: readonly number[]): Map<number, unknown> {
+  const states = b.getStates();
+  const out = new Map<number, unknown>();
+  for (const id of clients) {
+    if (!states.has(id)) continue;
+    const s = states.get(id);
+    if (s && typeof s === 'object' && 'role' in s && (s as { roleBy?: unknown }).roleBy !== 'hub') {
+      const { role: _role, ...rest } = s as Record<string, unknown>;
+      out.set(id, rest);
+    } else out.set(id, s);
+  }
+  return out;
+}
+
 interface AwarenessChange {
   added: number[];
   updated: number[];
@@ -92,7 +145,12 @@ export function bridgeAwareness(a: Awareness, b: Awareness): () => void {
   const aToB = ({ added, updated, removed }: AwarenessChange, origin: unknown) => {
     if (origin === BRIDGE) return;
     const present = added.concat(updated);
-    if (present.length > 0) applyAwarenessUpdate(b, encodeAwarenessUpdate(a, present), BRIDGE);
+    if (present.length > 0)
+      applyAwarenessUpdate(
+        b,
+        encodeAwarenessUpdate(a, present, outbound(a, present) as Map<number, never>),
+        BRIDGE
+      );
     const gone = removed.filter((id) => id !== b.clientID && b.getStates().has(id));
     if (gone.length > 0) applyAwarenessUpdate(b, encodeDepartures(b, gone), BRIDGE);
   };
@@ -104,7 +162,12 @@ export function bridgeAwareness(a: Awareness, b: Awareness): () => void {
     const departed = added.concat(updated).filter((id) => isDeparted(states.get(id)));
     const live = added.concat(updated).filter((id) => !isDeparted(states.get(id)));
     const changed = live.concat(removed);
-    if (changed.length > 0) applyAwarenessUpdate(a, encodeAwarenessUpdate(b, changed), BRIDGE);
+    if (changed.length > 0)
+      applyAwarenessUpdate(
+        a,
+        encodeAwarenessUpdate(b, changed, inbound(b, changed) as Map<number, never>),
+        BRIDGE
+      );
     const leaving = departed.filter((id) => a.getStates().has(id));
     if (leaving.length > 0) removeAwarenessStates(a, leaving, BRIDGE);
   };
@@ -112,11 +175,21 @@ export function bridgeAwareness(a: Awareness, b: Awareness): () => void {
   // Initial state exchange — push each side's current states to the other
   // (departed markers are not a presence).
   const aClients = Array.from(a.getStates().keys());
-  if (aClients.length > 0) applyAwarenessUpdate(b, encodeAwarenessUpdate(a, aClients), BRIDGE);
+  if (aClients.length > 0)
+    applyAwarenessUpdate(
+      b,
+      encodeAwarenessUpdate(a, aClients, outbound(a, aClients) as Map<number, never>),
+      BRIDGE
+    );
   const bClients = Array.from(b.getStates().entries())
     .filter(([, state]) => !isDeparted(state))
     .map(([id]) => id);
-  if (bClients.length > 0) applyAwarenessUpdate(a, encodeAwarenessUpdate(b, bClients), BRIDGE);
+  if (bClients.length > 0)
+    applyAwarenessUpdate(
+      a,
+      encodeAwarenessUpdate(b, bClients, inbound(b, bClients) as Map<number, never>),
+      BRIDGE
+    );
 
   a.on('update', aToB);
   b.on('update', bToA);
@@ -125,4 +198,58 @@ export function bridgeAwareness(a: Awareness, b: Awareness): () => void {
     a.off('update', aToB);
     b.off('update', bToA);
   };
+}
+
+/**
+ * Awareness fields a connection may publish only while holding a capability (V2-1.7 §5.5,
+ * S9 Q9): `summon` (Bring everyone here) needs `summon` — owner and member. The hub strips
+ * it in `beforeHandleAwareness`; the studio room strips the same field here.
+ */
+export const CAPABILITY_FIELDS: Readonly<Record<string, string>> = Object.freeze({
+  summon: 'summon',
+});
+
+/**
+ * P8 G2 lead decision (b) — write the connection's `role` onto the states `clients` published,
+ * IN PLACE (beside `stripUnheldFields`, before the room re-encodes them): whatever the client
+ * sent is overwritten, and with no `role` the field is removed — a client never names its own.
+ */
+export function stampRole(
+  awareness: Awareness,
+  clients: readonly number[],
+  role: string | undefined
+): void {
+  const states = awareness.getStates();
+  for (const id of clients) {
+    const state = states.get(id) as Record<string, unknown> | undefined;
+    if (!state || typeof state !== 'object') continue;
+    if (role) state.role = role;
+    else delete state.role;
+  }
+}
+
+/**
+ * Drop every capability field `held` lacks from the states `clients` published, IN PLACE,
+ * before the room re-encodes them for its peers (and before `bridgeAwareness` relays them
+ * to the hub — the room's own listener is registered first, so it runs first). Returns how
+ * many fields were dropped.
+ */
+export function stripUnheldFields(
+  awareness: Awareness,
+  clients: readonly number[],
+  held: (capability: string) => boolean
+): number {
+  let dropped = 0;
+  const states = awareness.getStates();
+  for (const id of clients) {
+    const state = states.get(id) as Record<string, unknown> | undefined;
+    if (!state || typeof state !== 'object') continue;
+    for (const [field, cap] of Object.entries(CAPABILITY_FIELDS)) {
+      if (field in state && !held(cap)) {
+        delete state[field];
+        dropped++;
+      }
+    }
+  }
+  return dropped;
 }

@@ -1,0 +1,26 @@
+/**
+ * @canvas      Settings
+ * @ds          maude
+ * @platform    desktop
+ * @kind        canvas
+ * @stack       React 19 · TSX · Bun.build
+ * @history     .design/_history/ui-settings
+ *
+ * A blank canvas (V2 S6.1): an empty DesignCanvas, no artboards, no content. ⌘N makes this, and
+ * so does Home's "Start with an empty canvas". The first thing on it is whatever the person
+ * (or AI) adds — an artboard (F), a sticky, or a sentence in the AI chat panel.
+ *
+ * To add an artboard, put a <DCSection> inside <DesignCanvas> and a <DCArtboard> in that. Give
+ * each artboard a stable id, a label, and a width/height — and a `kind` when it is not a digital
+ * screen. Capture-safe by construction: it imports the canvas library and nothing else.
+ */
+
+import { DesignCanvas } from "@maude/canvas-lib";
+
+export default function Settings() {
+  return (
+    <DesignCanvas>
+      {/* Empty. Add <DCSection> / <DCArtboard> here. */}
+    </DesignCanvas>
+  );
+}

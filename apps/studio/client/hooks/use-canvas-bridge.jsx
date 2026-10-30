@@ -3,33 +3,188 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SYSTEM_TAB, isModuleCanvasPath } from '../shell/constants.js';
 import { acceptCanvasNotice } from '../../canvas-notice-message.ts';
-import { notifyCanvasText } from '../../notifications.tsx';
-import { browseFirstRunHint, layersTreeSig } from '../shell/util.js';
+import { acceptFromCanvas, C2S_ACTIVE, DGN_TABLE } from '../../bridge/dgn-protocol.ts';
+import { layersSlot } from '../v2/inspector/layers-slot.jsx';
+import { notify, notifyCanvasText } from '../../notifications.tsx';
+import { isNativeApp } from '../github.js';
+import {
+  annotationScopeOf,
+  noteAnnotationSelection,
+  turnIntoComment,
+  undoConversion,
+} from '../v2/annotations/annotation-asks.js';
+import { objectHistoryTarget } from '../v2/history/object-history-ask.js';
+import { browseFirstRunHint, layersTreeSig, shellToast } from '../shell/util.js';
+// S7.21 — the toast after the inspector's "Add a width" (08 ak-web-widths) and the video artboard's length
+import { settleDuplicateAtWidth } from '../v2/create/duplicate-done.js';
+import { menuRunner } from '../v2/shell/menu-runner.js';
+import { panelLayout } from '../v2/shell/use-panel-layout.js';
+
+// 01 cf-duplicate-done / 08 ak-web-widths: a copy made is told with the copy glyph, not a success tick
+const DUPLICATE_TOAST = { kind: 'info', icon: 'duplicate' };
+import { settleAddedWidths } from '../v2/inspector/kinds/add-width.js';
+import { publishVideoComps } from '../v2/inspector/kinds/video-facts.js';
 import { resolveToolCursor } from '../../canvas-cursors.ts';
 import { afterRecordableWrites } from '../inspector/css-knobs.jsx';
 import { applyEditRequest } from '../apply-edit-request.ts';
-import { localSelectRecord } from '../selection-scope.js';
+import {
+  editOpBody,
+  legacyRecordPayload,
+  readEditOpAnswer,
+  TRASH_RECORD_LABEL,
+  trashArtboardBody,
+} from '../edit-op-relay.ts';
+import {
+  frameClipResult,
+  noteClipResult,
+  notePasteIntent,
+  shapeClipRequest,
+} from '../clipboard-relay.ts';
+import { exportRegionOf } from '../export-region.ts';
+import {
+  localSelectRecord,
+  RESTORE_LEAD_MS,
+  shellSelectionOf,
+  stampSelectionFile,
+  renamesOf,
+  startSelectionRestore,
+} from '../selection-scope.js';
 import { PHOTO_ASSET_RE } from '../inspector/inspector-panel.jsx';
 import { sanitizeArtboardText } from '../panels/timeline-comp-target.js';
-import { isNativeApp } from '../github.js';
-import { browserCaptureEligible, captureDeckViaBrowser, captureScale, sanitizeCapturedItems } from '../export-lane.js';
+import { runActionMessage, runForwardedKey } from '../actions/shell-key-handlers.js';
+import {
+  browserCaptureEligible,
+  captureDeckViaBrowser,
+  captureScale,
+  sanitizeCapturedItems,
+} from '../export-lane.js';
 import { downloadCapturedBlob } from '../dialogs/export-dialog.jsx';
 import { moveLayerNode } from '../inspector/layers.jsx';
+import { moveLabel } from '../../edit-ops/op-label.ts';
 import { SCREEN_PRESETS, replacedValue } from '../inspector/css-vocab.jsx';
 import { PAPER_PRESETS, resolvePrintArtboard } from '../../print/units.ts';
+import { bridgedExportPayload, bridgedHistory } from '../export-bridge-scope.js';
+import { VIEW_ONLY_EVENT } from '../v2/access/access-client.js';
+import { commentFocusMessage, replyFocusFor } from '../v2/comments/reply-focus.js';
+import {
+  acceptCommentBridge,
+  handleCommentBridgeMessage,
+  isCommentBridgeMessage,
+} from '../v2/comments/comment-bridge.js';
+import { createCommentToolWatch } from '../v2/comments/comment-tool.js';
+import { selectNewArtboard } from '../v2/empty/select-new-artboard.js';
+import { createStampFollow } from '../stamp-follow.js';
+
+// one shell, one watch: the Comment tool's arming edge (P8 C5)
+const commentToolWatch = createCommentToolWatch();
+
+// p8-sweep-close — Copy style / Paste style say what happened (the sweep found Copy style DEAD: it filled a
+// ref and drew nothing, so a copy and a miss looked the same). One notice id: a second press replaces it.
+const styleNotice = (title, kind) => notify({ id: 'copy-style', title, kind });
 
 export function useCanvasBridge({
-  activePath, selected, setSelected, selectedRef, lastLocalSelectRef, scheduleHaloRestore,
-  scheduleArtboardResync, pendingReorderRef, lastLayersTreeRef, settlePendingSelectionRef,
-  reorderLayerRef, repositionElementRef, resizeElementRef, layersBusyRef, layersBusyTimerRef,
-  layersTree, setLayersTree, setLoadingPath, setCanvasError, setLoadedPath, cfg, viewerMode,
-  commentsByFile, focusedCommentId, setFocusedCommentId, theme, setPaletteOpen, setExportDialog,
-  setTimelineOpen, setActiveComps, setTimelineFrame, setTimelinePlaying, canvasActiveArtboard,
-  setCanvasActiveArtboard, timelineFrameRef, timelineCompIdRef, setInspectorTab, setPhotoSel,
-  openRightPanel, toggleRightPanel, maybeAutoOpenInspectorOnSelect, toggleTimeline, minimapVisible,
-  zoomCtlVisible, presentMode, setPresentMode, setActiveArtboards, iframesRef, postToActiveCanvas,
-  captureFromCanvas, broadcastChrome, wsSend, reloadActive
+  activePath,
+  selected,
+  setSelected,
+  selectedRef,
+  lastLocalSelectRef,
+  scheduleHaloRestore,
+  scheduleArtboardResync,
+  pendingReorderRef,
+  lastLayersTreeRef,
+  settlePendingSelectionRef,
+  reorderLayerRef,
+  repositionElementRef,
+  resizeElementRef,
+  layersBusyRef,
+  layersBusyTimerRef,
+  layersTree,
+  setLayersTree,
+  setLoadingPath,
+  setCanvasError,
+  setLoadedPath,
+  cfg,
+  viewerMode,
+  commentsByFile,
+  focusedCommentId,
+  setFocusedCommentId,
+  theme,
+  setPaletteOpen,
+  setExportDialog,
+  setSettingsOpen,
+  setShortcutsOpen,
+  setTimelineOpen,
+  setActiveComps,
+  setTimelineFrame,
+  setTimelinePlaying,
+  canvasActiveArtboard,
+  setCanvasActiveArtboard,
+  timelineFrameRef,
+  timelineCompIdRef,
+  setInspectorTab,
+  setPhotoSel,
+  openRightPanel,
+  toggleRightPanel,
+  maybeAutoOpenInspectorOnSelect,
+  toggleTimeline,
+  minimapVisible,
+  zoomCtlVisible,
+  presentMode,
+  setActiveArtboards,
+  iframesRef,
+  postToActiveCanvas,
+  captureFromCanvas,
+  broadcastChrome,
+  wsSend,
+  reloadActive,
+  // S9.22b — the viewer's display name (left out of the mention people); optional
+  gitUser = null,
 }) {
+  // p8-sweep-close — an edit-op built from a tree of before a stamp follows it (client/stamp-follow.js).
+  const stampFollowRef = useRef(null);
+  if (!stampFollowRef.current) stampFollowRef.current = createStampFollow();
+  // V2-8.9 defender L2 (checklist C6) — every shell → canvas post names the canvas origin, never '*':
+  // a frame that navigated elsewhere hears nothing. The same origin onMessage accepts from.
+  const canvasOriginRef = useRef('');
+  canvasOriginRef.current = cfg?.canvasOrigin || window.location.origin;
+  // S2.24 — the selection ladder (selection-scope.js `startSelectionRestore`): one at a time, the newest wins.
+  const selectionRestoreRef = useRef(null);
+  // S2.25 G1 — ids a write gave to texts the shell has selected (content-hash id → authored name); read when each rung fires
+  const renamedIdsRef = useRef(new Map());
+  const restoreSelectionOn = useCallback(
+    (file, lead) => {
+      selectionRestoreRef.current?.();
+      selectionRestoreRef.current = startSelectionRestore({
+        file,
+        lead,
+        getSelected: () => selectedRef.current,
+        renames: renamedIdsRef.current,
+        post: (msg) => {
+          try {
+            iframesRef.current.get(file)?.contentWindow?.postMessage(msg, canvasOriginRef.current);
+          } catch {}
+        },
+      });
+    },
+    [selectedRef, iframesRef]
+  );
+  useEffect(() => () => selectionRestoreRef.current?.(), []);
+  // P8 C5: the ladder that selects a just-added artboard once the canvas has reloaded with it; a canvas switch
+  // (or unmount) drops what is left of it
+  const newArtboardSelect = useRef(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: activePath is the trigger — another canvas, drop the ladder
+  useEffect(() => () => newArtboardSelect.current?.(), [activePath]);
+  // S7.22 — the inspector's "Show on canvas" is the person's own view state (view.json, already stored); this tells the
+  // open canvas to redraw its safe zones now. Only that one boolean is forwarded, and only to the canvas it names.
+  useEffect(() => {
+    const onChrome = (e) => {
+      const d = e.detail;
+      if (!d || d.canvas !== activePath || typeof d.patch?.safeZones !== 'boolean') return;
+      postToActiveCanvas({ dgn: 'view-chrome', safeZones: d.patch.safeZones });
+    };
+    window.addEventListener('maude:canvas-view-chrome', onChrome);
+    return () => window.removeEventListener('maude:canvas-view-chrome', onChrome);
+  }, [activePath, postToActiveCanvas]);
   // ----- Inbound messages from iframes -----
   useEffect(() => {
     // Does this comment id belong to the canvas the user is actually looking
@@ -54,10 +209,54 @@ export function useCanvasBridge({
       const m = e.data;
       if (!m || typeof m !== 'object' || !m.dgn) return;
       if (m.dgn === 'canvas-notice') {
-        const activeWin = activePath && activePath !== SYSTEM_TAB
-          ? iframesRef.current.get(activePath)?.contentWindow : null;
+        const activeWin =
+          activePath && activePath !== SYSTEM_TAB
+            ? iframesRef.current.get(activePath)?.contentWindow
+            : null;
         const notice = acceptCanvasNotice(e, expectedOrigin, activeWin);
         if (notice) notifyCanvasText(notice.title, notice.kind);
+        return;
+      }
+      // V2-2.10 — the typed table (bridge/dgn-protocol.ts) names every canvas→shell
+      // type gated `active`: it acts on the canvas the user is looking at, so the
+      // origin check above (which every canvas iframe passes, DDR-054) is not
+      // enough. One up-front check for all of them (V2-2.8 S1 added comment-compose,
+      // layers-tree, open-inspector, comment-click, tool-cursor, artboards and
+      // export-history-request); the branches keep their own extra conditions
+      // (modal, owns-comment, shape). `activeWin &&` closes `null === null` (a
+      // discarded source with no active canvas).
+      if (C2S_ACTIVE.has(m.dgn)) {
+        const activeWin =
+          activePath && activePath !== SYSTEM_TAB
+            ? iframesRef.current.get(activePath)?.contentWindow
+            : null;
+        if (!activeWin || e.source !== activeWin) return;
+      }
+      // S9.22b — the overlay's comment door + mention people (comment-bridge.js). Accepted only from the
+      // active canvas's own window and only once the dgn table's parser has cleaned it; the answer goes
+      // back to that window alone. An `add` is pinned to `activePath` inside the handler.
+      if (isCommentBridgeMessage(m)) {
+        const activeWin =
+          activePath && activePath !== SYSTEM_TAB
+            ? iframesRef.current.get(activePath)?.contentWindow
+            : null;
+        const msg = acceptCommentBridge(e, activeWin);
+        if (!msg) return;
+        const replyTo = e.source;
+        void handleCommentBridgeMessage(msg, {
+          activePath,
+          // gate-b-c4 — an op naming a thread acts only on a thread of the active canvas.
+          ownsComment: ownsActiveComment,
+          designRel: cfg?.designRel,
+          me: typeof gitUser === 'string' ? gitUser : null,
+          reply: (answer) => {
+            try {
+              replyTo?.postMessage(answer, expectedOrigin);
+            } catch {
+              /* detached */
+            }
+          },
+        });
         return;
       }
       if (m.dgn === 'tool-cursor') {
@@ -74,6 +273,8 @@ export function useCanvasBridge({
         // global shell cursor, so the shell chrome keeps its own affordance
         // cursors (pointer over buttons). Also fire the one-time "press V" hint
         // — a live canvas booting in browse is exactly when it's teachable.
+        // P8 C5 (04 md-comment): the Comment tool in hand docks the Comments panel (on the arming edge only).
+        if (commentToolWatch.armed(m.tool)) openRightPanel('comments');
         if (m.tool === 'browse') {
           document.body.style.cursor = '';
           const el = document.getElementById('dc-app-cursor');
@@ -120,6 +321,7 @@ export function useCanvasBridge({
         m.dgn === 'clear-select' ||
         m.dgn === 'edit-text' ||
         m.dgn === 'apply-edit' ||
+        m.dgn === 'edit-op' ||
         m.dgn === 'undo-barrier'
       ) {
         const activeWin =
@@ -144,19 +346,32 @@ export function useCanvasBridge({
         // For shell purposes we track the focused entry (head of array, or
         // the bare object) — comments + halo only act on one element at a
         // time today. Multi-target editing is an explicit Phase-4.1 non-goal.
-        const payload = m.selection;
+        // 09 ex-batch-pick — a list's entries name no file; they are about the canvas that is open
+        const payload = stampSelectionFile(m.selection, activePath);
+        // S2.1 (S2-edit-ops.md §7) — refs / crumbs / kind ride the selection into the shell's
+        // state (the inspector reads them), never into the ws `select` broadcast.
+        const described = (sel) =>
+          sel && (m.crumbs || m.kind || m.refs)
+            ? {
+                ...sel,
+                ...(Array.isArray(m.crumbs) ? { crumbs: m.crumbs } : {}),
+                ...(typeof m.kind === 'string' ? { kind: m.kind } : {}),
+                ...(Array.isArray(m.refs) ? { refs: m.refs } : {}),
+              }
+            : sel;
         if (payload == null) {
           wsSend({ type: 'clear-select' });
           setSelected(null);
         } else if (Array.isArray(payload)) {
           const head = payload[0] ?? null;
           if (head) wsSend({ type: 'select', selection: head });
-          setSelected(head);
+          // S2.22 G4/G6 — several stay several: the inspector reads the list ("4 artboards · Mixed")
+          setSelected(shellSelectionOf(payload, described));
           // Stage C — auto-open only for a genuine SINGLE selection, never multi.
           if (payload.length === 1) maybeAutoOpenInspectorOnSelect(head);
         } else {
           wsSend({ type: 'select', selection: payload });
-          setSelected(payload);
+          setSelected(described(payload));
           maybeAutoOpenInspectorOnSelect(payload); // Stage C
         }
       } else if (m.dgn === 'clear-select') {
@@ -177,14 +392,19 @@ export function useCanvasBridge({
         const editSource = e.source;
         const revert = (reason) => {
           try {
-            editSource?.postMessage({ dgn: 'edit-reverted', op: 'text', id: m.id, reason }, '*');
+            editSource?.postMessage(
+              { dgn: 'edit-reverted', op: 'text', id: m.id, reason },
+              expectedOrigin
+            );
           } catch {}
         };
         fetch('/_api/edit-text', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
-            canvas: m.file,
+            // gate-b-c4 — the canvas the ACTIVE frame was opened for (the source check above), never
+            // the file the frame names: canvas code in A must not rewrite B with the opener's rights.
+            canvas: activePath,
             id: m.id,
             text: m.text ?? '',
             // Context for editing `{variable}` text — which rendered instance +
@@ -203,12 +423,21 @@ export function useCanvasBridge({
         // (and so posted it — window messages arrive in order), so the canvas's
         // Cmd+Z sees the edit that is on screen. Read-only; nothing is written.
         const source = e.source;
-        Promise.all([editApplyChainRef.current.catch(() => {}), afterRecordableWrites()]).then(() => {
-          try {
-            source?.postMessage({ dgn: 'undo-barrier-ok', requestId: m.requestId }, '*');
-          } catch {}
-        });
-      } else if (m.dgn === 'apply-edit' && m.id && (m.op === 'css' || m.op === 'text' || m.op === 'attr')) {
+        Promise.all([editApplyChainRef.current.catch(() => {}), afterRecordableWrites()]).then(
+          () => {
+            try {
+              source?.postMessage(
+                { dgn: 'undo-barrier-ok', requestId: m.requestId },
+                expectedOrigin
+              );
+            } catch {}
+          }
+        );
+      } else if (
+        m.dgn === 'apply-edit' &&
+        m.id &&
+        (m.op === 'css' || m.op === 'text' || m.op === 'attr')
+      ) {
         // Inline-edit undo/redo (DDR-103/104 follow-up). The canvas iframe's
         // `edit-source` command can't call the main-origin-only `/_api/edit-*`
         // routes (DDR-054), so it asks us to re-apply the before/after value.
@@ -217,13 +446,18 @@ export function useCanvasBridge({
         // never overwrite a teammate's newer value (audit 2026-09-13 P1 #5);
         // the outcome goes back to the canvas so a refused undo/redo does not
         // advance its stack.
-        const req = applyEditRequest(m);
+        // gate-b-c4 — the canvas the ACTIVE frame was opened for, never the `canvas` the frame
+        // names (same rule as edit-text above): canvas code in A must not re-apply an edit to B.
+        const req = applyEditRequest({ ...m, canvas: activePath });
         if (!req) return;
         const replyTo = e.source;
         const reply = (result) => {
           if (typeof m.requestId !== 'string') return;
           try {
-            replyTo?.postMessage({ dgn: 'apply-edit-result', requestId: m.requestId, ...result }, '*');
+            replyTo?.postMessage(
+              { dgn: 'apply-edit-result', requestId: m.requestId, ...result },
+              expectedOrigin
+            );
           } catch {}
         };
         const value = typeof m.value === 'string' ? m.value : null;
@@ -249,11 +483,137 @@ export function useCanvasBridge({
               })
               .catch(() => reply({ ok: false, error: 'network error' }))
           );
+      } else if (m.dgn === 'edit-op') {
+        // S2.1 (S2-edit-ops.md §6) — one structural edit from the active canvas. The shell pins
+        // `file` to the active canvas (a canvas edits only its own file) and forwards a well-formed
+        // request to the main-origin-only dispatch route; the answer goes back by requestId. On the
+        // same chain as apply-edit so two source writes to one file never race.
+        const asked = editOpBody(m, activePath && activePath !== SYSTEM_TAB ? activePath : null);
+        if (!asked) return;
+        const replyTo = e.source;
+        const reply = (result) => {
+          try {
+            replyTo?.postMessage(
+              { dgn: 'edit-op-result', requestId: m.requestId, ...result },
+              expectedOrigin
+            );
+          } catch {}
+        };
+        // V2-clipboard-objects — the clipboard is the shell's (client/clipboard-relay.ts): a paste names the
+        // shell's handle, never the canvas's; a clip from ANOTHER canvas waits for a click on the shell's toast.
+        const shaped = shapeClipRequest(asked);
+        if (shaped.kind === 'reply') {
+          reply(shaped.result);
+          return;
+        }
+        if (shaped.kind === 'confirm') {
+          reply(shaped.reply);
+          const askedFile = asked.file;
+          shellToast(shaped.line, true, {
+            label: 'Paste',
+            onClick: () => {
+              // the canvas that asked is still open (the toast may be clicked later)
+              if (iframesRef.current.get(askedFile)?.contentWindow !== replyTo) return;
+              editApplyChainRef.current = editApplyChainRef.current
+                .catch(() => {})
+                .then(() =>
+                  fetch('/_api/edit-op', {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify(shaped.body),
+                  })
+                    .then(readEditOpAnswer)
+                    .then((r) => {
+                      if (!r.ok) {
+                        replyTo?.postMessage(
+                          { dgn: 'op-toast', message: r.message },
+                          expectedOrigin
+                        );
+                        return;
+                      }
+                      const payload = legacyRecordPayload(r, 'Paste');
+                      if (payload)
+                        replyTo?.postMessage({ dgn: 'record-edit', payload }, expectedOrigin);
+                    })
+                    .catch(() => {})
+                );
+            },
+          });
+          return;
+        }
+        // p8-sweep-close — built from the tree of now; sent once the writes before it answered, by which time
+        // one of them may have stamped an object this request still names by its computed id.
+        const follow = stampFollowRef.current;
+        const builtAt = follow.generation();
+        let body = shaped.body;
+        editApplyChainRef.current = editApplyChainRef.current
+          .catch(() => {})
+          .then(() => {
+            body = follow.rewrite(body, builtAt);
+          })
+          .then(() =>
+            fetch('/_api/edit-op', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify(body),
+            })
+              .then(readEditOpAnswer)
+              .then((result) => {
+                if (result?.ok) follow.record(body.file, body.targets, result.refs);
+                noteClipResult(body, result);
+                // V2-8.9 attacker L3 — the canvas hears kind + count, never the handle
+                reply(frameClipResult(body, result));
+                // S7.21 — "Tablet and Mobile are beside Desktop." + Undo, when the inspector asked for the copies
+                const added = settleAddedWidths(body, result);
+                if (added) shellToast(added.message, true, added.action, DUPLICATE_TOAST);
+                else {
+                  // S6.16b (01 cf-duplicate-done) — the artboard menu's "Duplicate at another width ▸": the
+                  // shell says it, off the request it forwarded and the server's answer, with its own ⌘Z.
+                  const done = settleDuplicateAtWidth(body, result, () =>
+                    menuRunner.run('edit.undo')
+                  );
+                  if (done) shellToast(done.message, true, done.action, DUPLICATE_TOAST);
+                }
+                // S2.24 G1 — a write to the selected text changes what the inspector measured (the style it wears,
+                // what differs from it, the size): put the selection back so the canvas probes it again.
+                if (result?.ok && /^text\./.test(body.op) && body.file) {
+                  // S2.25 G1 — and a write that gives the text an authored name (`Use a style` on a text that had only a
+                  // content-hash id) leaves the id the shell holds naming nothing: follow it to the new one.
+                  const map = renamedIdsRef.current;
+                  if (map.size > 64) map.clear();
+                  for (const [k, v] of renamesOf(body.targets, result.refs)) map.set(k, v);
+                  restoreSelectionOn(body.file, RESTORE_LEAD_MS);
+                }
+              })
+              .catch(() =>
+                reply({
+                  ok: false,
+                  code: 'invalid',
+                  message: 'The studio could not be reached; try again.',
+                })
+              )
+          );
+      } else if (m.dgn === 'reorder-slot') {
+        // S2.11b — the slot a lifted card would land in; Layers draws the same numbered place.
+        // The row is parsed through the typed table (a planted canvas sends whatever it likes).
+        const slot = DGN_TABLE.c2s['reorder-slot'].parse(m);
+        layersSlot.set(slot);
       } else if (m.dgn === 'layers-tree') {
         // Phase 12 Task 4 — browsable layers tree for the active artboard.
-        setLayersTree({ artboardId: m.artboardId, nodes: Array.isArray(m.tree) ? m.tree : [] });
+        stampFollowRef.current.bump(); // requests from now on carry this tree's ids
+        setLayersTree({
+          artboardId: m.artboardId,
+          nodes: Array.isArray(m.tree) ? m.tree : [],
+          // the frame is the active one (acceptFromCanvas), so the tree is the open canvas's
+          canvas: activePath,
+        });
         const sig = layersTreeSig(m.tree);
-        lastLayersTreeRef.current = { tree: m.tree, sig, artboardId: m.artboardId ?? null };
+        lastLayersTreeRef.current = {
+          tree: m.tree,
+          sig,
+          artboardId: m.artboardId ?? null,
+          canvas: activePath,
+        };
         // fresh tree (correct ids) landed — drags OK again
         layersBusyRef.current = false;
         if (layersBusyTimerRef.current) {
@@ -353,8 +713,7 @@ export function useCanvasBridge({
         // before:{width,height,left,top} } — px strings, before values null when
         // the prop was unset (reset on undo).
         const activeWin = activePath ? iframesRef.current.get(activePath)?.contentWindow : null;
-        const okShape =
-          typeof m.id === 'string' && m.patch && typeof m.patch === 'object';
+        const okShape = typeof m.id === 'string' && m.patch && typeof m.patch === 'object';
         if (e.source === activeWin && okShape) {
           resizeElementRef.current?.(
             m.id,
@@ -370,7 +729,10 @@ export function useCanvasBridge({
         // pinned to the ACTIVE canvas (never `m.canvas`).
         const activeWin = activePath ? iframesRef.current.get(activePath)?.contentWindow : null;
         if (e.source === activeWin && typeof m.id === 'string') {
-          deleteElementShellRef.current?.(m.id, Number.isInteger(m.idIndex) ? m.idIndex : undefined);
+          deleteElementShellRef.current?.(
+            m.id,
+            Number.isInteger(m.idIndex) ? m.idIndex : undefined
+          );
         }
       } else if (m.dgn === 'duplicate-request') {
         // Cmd+D (Task L3) — duplicate the selected element. Confused-deputy gated
@@ -510,7 +872,7 @@ export function useCanvasBridge({
               // surface server refusals (.map children etc.) as a toast
               // instead of a console.warn nobody sees.
               onOk: () => {
-                postToActiveCanvas({ dgn: 'selection-clear' });
+                postToActiveCanvas(runActionMessage('select.none'));
                 postToActiveCanvas({
                   dgn: 'op-toast',
                   message: `Converted ${count} element${count === 1 ? '' : 's'} to absolute — press V and drag them freely (⌘Z to undo).`,
@@ -551,21 +913,83 @@ export function useCanvasBridge({
           openRightPanel('inspector');
           setInspectorTab('photo');
         }
-      } else if (m.dgn === 'open-sticker-picker') {
-        // Phase 4 (whiteboard-improvements) — the toolbar's Stickers button.
-        // Confused-deputy gated + pinned to the active canvas like the other
-        // request verbs above.
+      } else if (
+        m.dgn === 'annotation-to-comment' ||
+        m.dgn === 'annotation-toast' ||
+        m.dgn === 'annotation-selection' ||
+        m.dgn === 'annotation-ask-ai' ||
+        m.dgn === 'view-only-gesture' ||
+        m.dgn === 'object-history'
+      ) {
+        // S4.12 — the annotation layer asks (annotations/ui/shell-asks.ts). Only the active canvas is heard,
+        // and only once the dgn table's parser has cleaned the payload (sec-a M3): a raw `e.data` field
+        // reached notify() as a number and unmounted the shell.
         const activeWin = activePath ? iframesRef.current.get(activePath)?.contentWindow : null;
-        if (e.source === activeWin) {
-          openStickerPickerRef.current?.({ canvas: activePath });
+        if (e.source !== activeWin || !activePath) return;
+        const msg = acceptFromCanvas(e, { canvasOrigin: expectedOrigin, active: activeWin });
+        if (!msg) return;
+        const file = activePath;
+        if (msg.dgn === 'annotation-to-comment') {
+          // the shell owns this Undo: `r.undo` is the server's own conversion token (S4.7)
+          void turnIntoComment({ file, id: msg.id }).then((r) => {
+            if (!r.ok || !r.undo) {
+              notify({ title: r.line, kind: r.ok ? 'success' : 'error' });
+              return;
+            }
+            notify({
+              title: r.line,
+              kind: 'success',
+              action: {
+                label: 'Undo',
+                onClick: () =>
+                  void undoConversion(r.undo).then((u) => {
+                    if (!u.ok) notify({ title: u.line, kind: 'error' });
+                  }),
+              },
+            });
+          });
+        } else if (msg.dgn === 'annotation-toast') {
+          // sec-a M3 — canvas words are canvas notices: rate-limited, two slots, and NO shell Undo button
+          // (it would run the person's own ⌘Z on the canvas's say-so, under the canvas's text). ⌘Z still
+          // undoes the step the canvas just made — that is the person's key, not the canvas's.
+          notifyCanvasText(msg.message, msg.undo ? 'undo' : 'info');
+        } else if (msg.dgn === 'annotation-selection') {
+          noteAnnotationSelection(file, {
+            ids: msg.ids,
+            kinds: msg.kinds,
+            artboards: msg.artboards,
+          });
+        } else if (msg.dgn === 'annotation-ask-ai') {
+          // The chat opens; the scope chip that reads `noteAnnotationSelection` is S4.15's.
+          if (isNativeApp()) openRightPanel('assistant');
+          else notify({ title: 'AI chat is in the Maude desktop app.' });
+        } else if (msg.dgn === 'object-history') {
+          // p8-dead-reasons — the object / sticky menu's "Version history of this object". No path from the frame:
+          // the object must be one this frame showed (its selection, layers tree, annotation selection), then the
+          // registry action `history.object` opens the filtered panel.
+          const s = lastLocalSelectRef.current;
+          const target = objectHistoryTarget(msg, {
+            activePath: file,
+            selection: s ? { file: s.file, sel: s.sel } : null,
+            layers: lastLayersTreeRef.current,
+            annotations: annotationScopeOf(file),
+          });
+          if (target) menuRunner.run('history.object', target);
+        } else if (msg.dgn === 'view-only-gesture') {
+          // S9.21b — the access host's tip; its words are the shell's (the canvas sent none). Round 7: the
+          // pointer's position in the frame, moved by the frame's own corner into the shell's coordinates.
+          const fr = iframesRef.current.get(activePath)?.getBoundingClientRect?.();
+          const at =
+            fr && Number.isFinite(msg.x) && Number.isFinite(msg.y)
+              ? { x: fr.left + msg.x, y: fr.top + msg.y }
+              : null;
+          window.dispatchEvent(new CustomEvent(VIEW_ONLY_EVENT, { detail: at }));
         }
       } else if (m.dgn === 'insert-artboard-request') {
         // Stage I4 — insert a new empty artboard from a screen-size preset.
         const activeWin = activePath ? iframesRef.current.get(activePath)?.contentWindow : null;
         const okShape =
-          typeof m.id === 'string' &&
-          Number.isFinite(m.width) &&
-          Number.isFinite(m.height);
+          typeof m.id === 'string' && Number.isFinite(m.width) && Number.isFinite(m.height);
         if (e.source === activeWin && okShape) {
           insertArtboardShellRef.current?.({
             id: m.id,
@@ -626,7 +1050,11 @@ export function useCanvasBridge({
         // feature-3-web-artboards T3 — context-menu "Duplicate at width…"
         // submenu (inside the untrusted iframe).
         const activeWin = activePath ? iframesRef.current.get(activePath)?.contentWindow : null;
-        if (e.source === activeWin && typeof m.artboardId === 'string' && Number.isFinite(m.width)) {
+        if (
+          e.source === activeWin &&
+          typeof m.artboardId === 'string' &&
+          Number.isFinite(m.width)
+        ) {
           duplicateArtboardShellRef.current?.(m.artboardId, m.width);
         }
       } else if (m.dgn === 'open-inspector') {
@@ -637,25 +1065,10 @@ export function useCanvasBridge({
         // target from that selection's `photoAsset`).
         openRightPanel('inspector');
         if (typeof m.tab === 'string') setInspectorTab(m.tab);
-      } else if (m.dgn === 'present-enter') {
-        // Canvas tool-palette "Presentation mode" button — Present Mode is a
-        // shell-level state (hides the menubar / sidebar / panels), so the
-        // canvas requests it here and the shell flips it on + broadcasts
-        // dgn:'view-chrome' back to every iframe. Enter-only (the palette is
-        // hidden while presenting); exit is Esc or the floating pill. The
-        // inbound origin gate above (DDR-054) already authenticates the canvas.
-        // Hardening (phase-28 audit F-2): honor it ONLY from the ACTIVE canvas
-        // (a background tab's untrusted canvas must not flip the foreground),
-        // and NEVER while a modal dialog is open — present mode hides Sidebar-
-        // descendant modals (OAuth device-code / Share-invite), so an untrusted
-        // canvas could otherwise blank an in-flight confirmation.
-        const activeWin = activePath ? iframesRef.current.get(activePath)?.contentWindow : null;
-        const modalOpen = !!document.querySelector('[role="dialog"][aria-modal="true"]');
-        if (e.source === activeWin && !modalOpen && !presentMode) {
-          setPresentMode(true);
-          broadcastChrome({ present: true });
-        }
       } else if (m.dgn === 'comment-compose' && m.selection) {
+        // (`present-enter` retired in V2-4.3b: Present lives in the Share cluster's mode switch, and
+        // a canvas asks for a mode through `mode-request` — the same active + no-modal hardening
+        // (phase-28 F-2), generalised as M4 in v2/shell/use-canvas-mode-lane.js.)
         // Phase 6 — the iframe overlay owns the composer surface now. The
         // shell just mirrors `selected` so the StatusBar / sidebar still
         // reflect the target, and skips the legacy `startDraftFor` path that
@@ -754,7 +1167,10 @@ export function useCanvasBridge({
           .map((c) => ({
             id: String(c.id).slice(0, 120),
             fps: Math.max(1, Math.min(120, Math.round(Number(c.fps) || 30))),
-            durationInFrames: Math.max(1, Math.min(1_000_000, Math.round(Number(c.durationInFrames) || 1))),
+            durationInFrames: Math.max(
+              1,
+              Math.min(1_000_000, Math.round(Number(c.durationInFrames) || 1))
+            ),
             width: Math.max(1, Math.round(Number(c.width) || 0)),
             height: Math.max(1, Math.round(Number(c.height) || 0)),
             // The enclosing artboard (issue #75) — the key the transport target
@@ -766,6 +1182,8 @@ export function useCanvasBridge({
             artboardLabel: sanitizeArtboardText(c.artboardLabel),
           }));
         setActiveComps(safe);
+        // S7.21 — the Video inspector's Length reads what the comp announces
+        publishVideoComps(activePath, safe);
         // rca/issue-video-artboard-frame-reset-on-edit — the SAME comp
         // re-announcing means its Player just remounted (an edit-triggered
         // HMR remount, or a ⌘R hard iframe reload that wiped video-comp.tsx's
@@ -794,6 +1212,16 @@ export function useCanvasBridge({
         // artboard's Player must not fight it for the readout (multi-comp canvas).
         if (m.id && timelineCompIdRef.current && m.id !== timelineCompIdRef.current) return;
         if (Number.isFinite(m.frame)) setTimelineFrame(Math.max(0, Math.round(m.frame)));
+      } else if (m.dgn === 'timeline-playing' && typeof m.playing === 'boolean') {
+        // S7.8 — the Player's own play / pause (the artboard's play button, Space, a scrub): the shell's
+        // transport follows what the Player is actually doing.
+        const activeWin =
+          activePath && activePath !== SYSTEM_TAB
+            ? iframesRef.current.get(activePath)?.contentWindow
+            : null;
+        if (e.source !== activeWin) return;
+        if (m.id && timelineCompIdRef.current && m.id !== timelineCompIdRef.current) return;
+        setTimelinePlaying(m.playing);
       } else if (m.dgn === 'timeline-ended') {
         // The Player stopped itself at the last frame (loop off) — resync the
         // shell's Play/Pause button, which otherwise has no way to learn
@@ -805,52 +1233,62 @@ export function useCanvasBridge({
         if (e.source !== activeWin) return;
         if (m.id && timelineCompIdRef.current && m.id !== timelineCompIdRef.current) return;
         setTimelinePlaying(false);
-      } else if (m.dgn === 'toggle-palette') {
-        // ⌘K pressed while focus was inside the canvas iframe — the injected
-        // inspector forwards the chord here since the iframe's keydown never
-        // reaches the shell's window listener. Mirror that handler's toggle.
+      } else if (m.dgn === 'key' && m.v === 1 && typeof m.chord === 'string') {
+        // V2-1.3 §5.7 — a chord pressed while focus was inside the canvas iframe:
+        // its keydown never reaches the shell's window listener, so the injected
+        // inspector forwards it (inspect.ts, generated from the registry). The shell
+        // re-resolves the chord itself and runs only a `fromCanvas` action (⌘K ⌘R
+        // ⇧⌘I/M/E/H/T/G) — the canvas names a chord, never an action. Replaces the
+        // `toggle-palette` + `shell-shortcut` lanes (V2-2.4).
         //
-        // SECURITY (V2-2.8 S3) — the same `activeWin` gate as `shell-shortcut`
-        // below: the chord is pressed inside the canvas in view, so a
-        // background/synced canvas (DDR-054) must not pop the palette on demand.
-        // `activeWin &&` closes the `null === null` path (no active canvas + a
-        // discarded source) the comment relays above document.
+        // SECURITY — a chord the user pressed INSIDE the canvas they are looking
+        // at: only the active frame. Ungated, a background canvas could reload the
+        // active file out from under an edit or pop the palette / Export dialog on
+        // demand — a modal-timing primitive (V2-2.8 S3). `activeWin &&` closes the
+        // `null === null` path (no active canvas + a discarded source).
         const activeWin = activePath ? iframesRef.current.get(activePath)?.contentWindow : null;
-        if (activeWin && e.source === activeWin) setPaletteOpen((v) => !v);
-      } else if (m.dgn === 'shell-shortcut') {
-        // Same forwarding lane for the other shell chords (inspect.ts) — so
-        // ⌘R / ⌘⇧I / ⌘⇧M / ⌘⇧E / ⌘⇧H behave identically wherever focus is.
-        //
-        // SECURITY — every one of these is a chord the user pressed INSIDE the
-        // canvas they are looking at, so it gets the same `activeWin` gate as
-        // its siblings. Ungated, a background canvas could reload the active
-        // file out from under an edit or pop the Export/Handoff dialog on
-        // demand — a modal-timing primitive, and the mirror image of the
-        // present-enter branch that was already hardened against modal HIDING.
-        const activeWin = activePath ? iframesRef.current.get(activePath)?.contentWindow : null;
-        if (e.source === activeWin) {
-          if (m.id === 'reload') reloadActive();
-          else if (m.id === 'inspector') toggleRightPanel('inspector');
-          else if (m.id === 'assistant' && isNativeApp()) toggleRightPanel('assistant');
-          else if (m.id === 'comments') toggleRightPanel('comments');
-          else if (m.id === 'changes') toggleRightPanel('changes');
-          else if (m.id === 'timeline') toggleTimeline();
-          else if (m.id === 'export') setExportDialog({ mode: 'export' });
-          else if (m.id === 'handoff') setExportDialog({ mode: 'handoff' });
+        if (activeWin && e.source === activeWin && m.chord === '⌘V') {
+          // V2-8.9 attacker L2 — a ⌘V in the canvas is a paste intent only while the active frame
+          // holds the focus of a focused window (the sec-a undo-key gate): the shell's cross-canvas
+          // paste ask may follow it for ~1 s (client/clipboard-relay.ts). It runs no action.
+          const frame = iframesRef.current.get(activePath);
+          if (document.hasFocus() && document.activeElement === frame) notePasteIntent();
+          return;
+        }
+        if (activeWin && e.source === activeWin) {
+          runForwardedKey(m.chord.slice(0, 32), {
+            // EH-P4-3 (S2.1) — the session's role decides, as for a key pressed in the shell
+            readOnly: !!viewerMode,
+            setPaletteOpen,
+            reloadActive,
+            toggleRightPanel,
+            toggleTimeline,
+            setExportDialog,
+            // P8-B2: "?" and ⌘, are forwarded from the canvas too (their handlers need these two)
+            setSettingsOpen,
+            setShortcutsOpen,
+          });
         }
       } else if (m.dgn === 'open-export') {
         // Plan C — the in-canvas toolbar / context menu route here so they open
         // the SAME shell Export dialog as the menubar (one look, all settings).
         // Carry the context-menu's scope hint (e.g. "Export selection").
         //
-        // SECURITY — gated with `shell-shortcut` above rather than separately:
+        // SECURITY — gated like the `key` lane above rather than separately:
         // both reach the same `setExportDialog`, so leaving this one open would
         // hand back the capability the other now refuses.
         const activeWin = activePath ? iframesRef.current.get(activePath)?.contentWindow : null;
         if (e.source === activeWin) {
+          const region = exportRegionOf(m.detail);
+          const asked = m.detail && typeof m.detail.scope === 'string' ? m.detail.scope : undefined;
+          // S2.13 → S8.2 — the Export area is a world rectangle of THIS canvas, drawn as one picture: scope
+          // canvas + region + unit one (not "the selection", which the legacy name maps to).
+          const area = asked === 'selection-bounds' && region;
           setExportDialog({
             mode: 'export',
-            scope: m.detail && typeof m.detail.scope === 'string' ? m.detail.scope : undefined,
+            scope: area ? 'canvas' : asked,
+            region,
+            ...(area ? { unit: 'one' } : {}),
           });
         }
       } else if (m.dgn === 'open-timeline-request') {
@@ -868,8 +1306,19 @@ export function useCanvasBridge({
         // one is not enough. Only from the frame IN VIEW, like every branch
         // that changes what the user sees (review F5).
         const activeWin = activePath ? iframesRef.current.get(activePath)?.contentWindow : null;
-        if (e.source === activeWin) setLoadingPath((p) => (p === m.file ? null : p));
+        if (e.source === activeWin) {
+          setLoadingPath((p) => (p === m.file ? null : p));
+          // G6 (gate B) — `canvas-failed` is the shell saying the module would not build (a file that does
+          // not parse: a missing closing tag). Dropping the loading card was ALL this did, and it also
+          // cancelled the 15 s cap that raises the load-failure card, so the stage was left empty with no
+          // card (a canvas that threw while drawing had one, via `render-error`). Raise the card now; the
+          // page it names is the open canvas (the frame is the proof, not the `file` it claims), and the
+          // next `loaded` (Reload canvas) retires it.
+          if (m.dgn === 'canvas-failed' && activePath)
+            setCanvasError({ path: activePath, kind: 'compile' });
+        }
       } else if (m.dgn === 'loaded' && m.file) {
+        stampFollowRef.current.bump(); // a reloaded canvas carries the file's ids (stamp-follow.js)
         // The shell document ran — push current comments + carry over the
         // focused pin. For a TSX/JSX canvas this is NOT "drawn": the module
         // still has to build and render, which on a cold cloud canvas takes
@@ -887,26 +1336,37 @@ export function useCanvasBridge({
         const el = [...iframesRef.current.entries()].find(([k]) => k === m.file)?.[1];
         if (el && el.contentWindow) {
           try {
-            el.contentWindow.postMessage({ dgn: 'comments-set', comments: list }, '*');
+            el.contentWindow.postMessage({ dgn: 'comments-set', comments: list }, expectedOrigin);
           } catch {}
           // System-review D9 — seed the just-loaded canvas with the current
           // chrome theme so a canvas opened AFTER a theme toggle starts
           // correct (no flash from the dark default).
           try {
-            el.contentWindow.postMessage({ dgn: 'theme', theme }, '*');
+            el.contentWindow.postMessage({ dgn: 'theme', theme }, expectedOrigin);
           } catch {}
           // Seed the just-loaded canvas with the current chrome-visibility
           // state (minimap / zoom-controls toggles + Presentation Mode) so a
           // canvas opened after a toggle starts in the right state.
           try {
             el.contentWindow.postMessage(
-              { dgn: 'view-chrome', minimap: minimapVisible, zoom: zoomCtlVisible, present: presentMode },
-              '*'
+              {
+                dgn: 'view-chrome',
+                minimap: minimapVisible,
+                zoom: zoomCtlVisible,
+                present: presentMode,
+                // P8 C8 (01 cf-open-big): a frame opened while the panels are hidden folds its toolbar too
+                zen: panelLayout.get().userHidden,
+              },
+              expectedOrigin
             );
           } catch {}
           if (focusedCommentId && list.some((c) => c.id === focusedCommentId)) {
             try {
-              el.contentWindow.postMessage({ dgn: 'comment-focus', id: focusedCommentId }, '*');
+              // S6.11b — a thread landing's reply focus rides the re-send to a just-opened frame
+              el.contentWindow.postMessage(
+                commentFocusMessage(focusedCommentId, replyFocusFor(focusedCommentId)),
+                expectedOrigin
+              );
             } catch {}
           }
           // Phase 12.1 (DDR-138) — a reorder just wrote source: the moved
@@ -920,7 +1380,7 @@ export function useCanvasBridge({
             try {
               el.contentWindow.postMessage(
                 { dgn: 'request-layers', artboardId: pend.artboardId ?? null },
-                '*'
+                expectedOrigin
               );
             } catch {}
             if (pend.movedId) {
@@ -932,7 +1392,7 @@ export function useCanvasBridge({
                     artboardId: pend.artboardId ?? null,
                     index: 0,
                   },
-                  '*'
+                  expectedOrigin
                 );
               } catch {}
             }
@@ -946,11 +1406,13 @@ export function useCanvasBridge({
             // Retry-laddered: dgn:'loaded' fires from the inline inspector script
             // BEFORE the React canvas-shell mounts its listener, so a one-shot
             // post is lost on fresh iframes (canvas-switch restore case).
-            const sel0 = selectedRef.current;
-            const sel = Array.isArray(sel0) ? sel0[0] : sel0;
-            if (sel && sel.id && sel.file === m.file) {
-              scheduleHaloRestore(sel);
-            }
+            // S2.22 G2 — a whole artboard (no element id) is put back by its name, so a resize that
+            // reloaded the canvas leaves the board selected, with its new size in the inspector.
+            // S2.23: not at 50 ms — a write of the person's own (a drawing, a paste) has the canvas select what it
+            // made a beat after it reloads, and this restore must not land on top of that.
+            // S2.24 G2: and what it puts back is read when each rung FIRES, not now — the drawn rectangle's
+            // `select-set` arrives after this `loaded`, and a restore planned for the board dropped it.
+            restoreSelectionOn(m.file, RESTORE_LEAD_MS);
           }
         }
       } else if (m.dgn === 'export-request' && m.id && m.payload) {
@@ -975,29 +1437,36 @@ export function useCanvasBridge({
         void runBridgedExport(e.source, m.id, m.payload);
       } else if (m.dgn === 'export-history-request' && m.id) {
         // Same bridge for the dialog's Recent tab (/_api/export-history is
-        // also main-origin-only).
+        // also main-origin-only). gate-b-c4b — the active frame only, and only
+        // its own canvas's exports (bridgedHistory).
+        const activeWin = activePath ? iframesRef.current.get(activePath)?.contentWindow : null;
+        if (!activeWin || e.source !== activeWin) return;
         void runBridgedHistory(e.source, m.id);
       }
     }
     // Reply target for the export bridge: the canvas iframe's own origin.
     const replyOrigin = cfg?.canvasOrigin || window.location.origin;
-    async function runBridgedExport(source, id, payload) {
-      // The in-canvas dialog exports the canvas it LIVES IN — which the M1
-      // gate above just proved is `activePath`. Stamp it so scope resolution
-      // never falls back to the server's (asynchronously written, possibly
-      // stale) `_active.json` — same rule as the shell dialog's canvasFile.
-      // OVERWRITE, not fill-if-absent: the M1 gate above proved the sender IS
-      // the active canvas iframe (untrusted, DDR-054), so a canvasFile IT
-      // supplied must not survive — the bridged export renders the canvas it
-      // lives in, full stop (security review W2).
-      if (payload?.options && activePath && activePath !== SYSTEM_TAB) {
-        payload.options.canvasFile = activePath;
-      }
+    async function runBridgedExport(source, id, asked) {
       const reply = (msg) => {
         try {
           if (source) source.postMessage({ dgn: 'export-result', id, ...msg }, replyOrigin);
         } catch {}
       };
+      // The in-canvas dialog exports the canvas it LIVES IN — which the M1
+      // gate above just proved is `activePath`. OVERWRITE, never fill-if-absent:
+      // the sender is the untrusted canvas (DDR-054), so a target IT supplied
+      // must not survive (security review W2). gate-b-c4b — and only that canvas:
+      // a v1 `project-raw` / v2 Folder / Whole-project scope is refused here (the
+      // shell's own Export sheet still offers them), the v2 `canvas` is pinned.
+      const scoped =
+        activePath && activePath !== SYSTEM_TAB
+          ? bridgedExportPayload(asked, activePath, cfg?.designRel)
+          : { ok: false, error: 'Open a canvas to export it.' };
+      if (!scoped.ok) {
+        reply({ ok: false, error: scoped.error });
+        return;
+      }
+      const payload = scoped.payload;
       // DDR-231 — the browser lane, mirrored for the IN-CANVAS dialog: png/svg
       // of a known artboard is captured by the asking canvas itself (the shell
       // relays the request back over the export-capture bridge and downloads
@@ -1080,7 +1549,8 @@ export function useCanvasBridge({
         const r = await fetch('/_api/export-history');
         if (r.ok) {
           const data = await r.json();
-          if (Array.isArray(data.history)) history = data.history;
+          if (Array.isArray(data.history))
+            history = bridgedHistory(data.history, activePath, cfg?.designRel);
         }
       } catch {
         /* best-effort — empty list */
@@ -1104,6 +1574,8 @@ export function useCanvasBridge({
     activePath,
     postToActiveCanvas,
     captureFromCanvas,
+    gitUser,
+    restoreSelectionOn,
   ]);
 
   // Tell the active canvas iframe to drop any persistent selection (canvas
@@ -1115,7 +1587,7 @@ export function useCanvasBridge({
     const el = iframesRef.current.get(activePath);
     if (el && el.contentWindow) {
       try {
-        el.contentWindow.postMessage({ dgn: 'force-clear' }, '*');
+        el.contentWindow.postMessage({ dgn: 'force-clear' }, canvasOriginRef.current);
       } catch {}
     }
   }, [activePath]);
@@ -1129,7 +1601,7 @@ export function useCanvasBridge({
       const el = iframesRef.current.get(activePath);
       if (el && el.contentWindow) {
         try {
-          el.contentWindow.postMessage({ dgn: 'apply-style', ...payload }, '*');
+          el.contentWindow.postMessage({ dgn: 'apply-style', ...payload }, canvasOriginRef.current);
         } catch {}
       }
     },
@@ -1146,7 +1618,7 @@ export function useCanvasBridge({
       const el = iframesRef.current.get(activePath);
       if (el && el.contentWindow) {
         try {
-          el.contentWindow.postMessage({ dgn: 'record-edit', payload }, '*');
+          el.contentWindow.postMessage({ dgn: 'record-edit', payload }, canvasOriginRef.current);
         } catch {}
       }
     },
@@ -1277,31 +1749,34 @@ export function useCanvasBridge({
       // fix as resizeElement; also covers the keyboard nudge (L1) which reuses this.
       applyOptimisticStyle({ id, prop: 'left', value: `${left}px` });
       applyOptimisticStyle({ id, prop: 'top', value: `${top}px` });
-      let j1ref = null;
-      const writeProp = (property, value) =>
-        fetch('/_api/edit-css', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ canvas, id, property, value: `${value}px`, idIndex: occ }),
-        }).then((r) => r.json().catch(() => ({})));
+      // S2.25 G2 — ONE request writes left and top together and says what it did ("Moved See pricing 10 px"): one
+      // write, one history row, one ⌘Z for the whole move (two calls were two writes, each an unlabelled "Edit canvas").
       editApplyChainRef.current = editApplyChainRef.current
         .catch(() => {})
-        .then(() => writeProp('left', left))
-        .then((j1) => {
-          if (!j1.ok) throw new Error(j1.error || 'left write failed');
-          j1ref = j1;
-          return writeProp('top', top);
-        })
-        .then((j2) => {
-          if (!j2.ok) throw new Error(j2.error || 'top write failed');
-          // Record BOTH properties onto the canvas undo stack — two Cmd+Z
-          // steps (top, then left), same as committing two CSS knobs by hand.
+        .then(() =>
+          fetch('/_api/edit-css', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              canvas,
+              id,
+              property: 'left',
+              value: `${left}px`,
+              also: [{ property: 'top', value: `${top}px` }],
+              label: moveLabel(id, left - beforeLeft, top - beforeTop),
+              idIndex: occ,
+            }),
+          }).then((r) => r.json().catch(() => ({})))
+        )
+        .then((j) => {
+          if (!j.ok) throw new Error(j.error || 'move write failed');
+          // The canvas undo stack (the lane without the op log) keeps a record per property.
           recordSourceEdit({
             op: 'css',
             canvas,
             id,
             key: 'left',
-            before: replacedValue(j1ref, `${beforeLeft}px`),
+            before: replacedValue(j, `${beforeLeft}px`),
             after: `${left}px`,
           });
           recordSourceEdit({
@@ -1309,7 +1784,7 @@ export function useCanvasBridge({
             canvas,
             id,
             key: 'top',
-            before: replacedValue(j2, `${beforeTop}px`),
+            before: `${beforeTop}px`,
             after: `${top}px`,
           });
         })
@@ -1372,11 +1847,7 @@ export function useCanvasBridge({
       // artboardId/index (when it matches `id`) so every optimistic apply +
       // the belt-and-suspenders reselect below target the SAME instance.
       const curSel = selectedRef.current;
-      const curOne = Array.isArray(curSel)
-        ? curSel.length === 1
-          ? curSel[0]
-          : null
-        : curSel;
+      const curOne = Array.isArray(curSel) ? (curSel.length === 1 ? curSel[0] : null) : curSel;
       const selArtboardId = curOne && curOne.id === id ? (curOne.artboardId ?? null) : null;
       const selIndex = curOne && curOne.id === id ? (curOne.index ?? 0) : 0;
       // INV-2 (DDR-105) — arm the reload-suppression window BEFORE the edit-css
@@ -1502,7 +1973,7 @@ export function useCanvasBridge({
       structuralWrite(
         '/_api/delete-element',
         { id, idIndex: Number.isInteger(idIndex) ? idIndex : undefined },
-        { label: 'delete element', onOk: () => postToActiveCanvas({ dgn: 'selection-clear' }) }
+        { label: 'delete element', onOk: () => postToActiveCanvas(runActionMessage('select.none')) }
       );
     },
     [structuralWrite, postToActiveCanvas]
@@ -1527,7 +1998,12 @@ export function useCanvasBridge({
           // on transpile — best-effort, like reorder's pendingReorderRef).
           onOk: (j, canvas) => {
             if (!j.newId) return;
-            pendingReorderRef.current = { file: canvas, movedId: j.newId, artboardId: null, staleSig };
+            pendingReorderRef.current = {
+              file: canvas,
+              movedId: j.newId,
+              artboardId: null,
+              staleSig,
+            };
             const last = lastLayersTreeRef.current;
             if (last) settlePendingSelectionRef.current?.(last.tree, last.sig, last.artboardId);
           },
@@ -1574,7 +2050,7 @@ export function useCanvasBridge({
         {
           label: 'detach instance',
           onOk: (j) => {
-            postToActiveCanvas({ dgn: 'selection-clear' });
+            postToActiveCanvas(runActionMessage('select.none'));
             postToActiveCanvas({
               dgn: 'op-toast',
               message: `Detached — this instance is now ${j.detachedName || 'its own component'}; edits stay local (⌘Z to undo).`,
@@ -1603,7 +2079,12 @@ export function useCanvasBridge({
           // one, where the copy's id still names the next sibling.
           onOk: (j, canvas) => {
             if (!j.newId) return;
-            pendingReorderRef.current = { file: canvas, movedId: j.newId, artboardId: null, staleSig };
+            pendingReorderRef.current = {
+              file: canvas,
+              movedId: j.newId,
+              artboardId: null,
+              staleSig,
+            };
             const last = lastLayersTreeRef.current;
             if (last) settlePendingSelectionRef.current?.(last.tree, last.sig, last.artboardId);
           },
@@ -1644,10 +2125,14 @@ export function useCanvasBridge({
       ]),
     []
   );
+  // p8-sweep-close — both say what happened (`styleNotice`, top of file).
   const copyStyle = useCallback(() => {
     const sel = selectedRef.current;
     const one = Array.isArray(sel) ? (sel.length === 1 ? sel[0] : null) : sel;
-    if (!one) return;
+    if (!one) {
+      styleNotice('Nothing copied. Select one object, then choose Copy style.', 'info');
+      return;
+    }
     const map = {};
     for (const [k, v] of Object.entries(one.authored || {})) {
       if (!PASTE_STYLE_EXCLUDE.has(k)) map[k] = v;
@@ -1655,12 +2140,29 @@ export function useCanvasBridge({
     for (const [k, v] of Object.entries(one.customStyles || {})) {
       if (!PASTE_STYLE_EXCLUDE.has(k)) map[k] = v;
     }
-    copiedStyleRef.current = Object.keys(map).length ? map : null;
+    const n = Object.keys(map).length;
+    if (!n) {
+      // The earlier copy (if any) is kept — a miss does not empty the clipboard.
+      styleNotice(
+        'Nothing copied. This object has no style of its own — its look comes from its classes.',
+        'info'
+      );
+      return;
+    }
+    copiedStyleRef.current = map;
+    styleNotice(
+      `Style copied — ${n} ${n === 1 ? 'property' : 'properties'}. Select another object and choose Paste style.`,
+      'success'
+    );
   }, [PASTE_STYLE_EXCLUDE]);
   const pasteStyle = useCallback(
     (id) => {
       const canvas = activePath;
       const map = copiedStyleRef.current;
+      if (canvas && id && !map) {
+        styleNotice('Nothing to paste yet. Choose Copy style on an object first.', 'info');
+        return;
+      }
       if (!canvas || !id || !map) return;
       const entries = Object.entries(map);
       let chain = editApplyChainRef.current.catch(() => {});
@@ -1697,10 +2199,28 @@ export function useCanvasBridge({
       structuralWrite(
         '/_api/insert-artboard',
         { id, label, width, height },
-        { label: 'insert artboard' }
+        // plain words (G4, gate B): the toast reads "Couldn't add an artboard — <why>."
+        {
+          label: 'add an artboard',
+          // P8 C5 (05 es-artboard-new): the new board is the selected one — its hint and its Inspector follow
+          onOk: (_j, canvas) => {
+            const file = canvas || activePath;
+            newArtboardSelect.current?.();
+            newArtboardSelect.current = selectNewArtboard({
+              artboardId: id,
+              post: (msg) => {
+                try {
+                  iframesRef.current
+                    .get(file)
+                    ?.contentWindow?.postMessage(msg, canvasOriginRef.current);
+                } catch {}
+              },
+            });
+          },
+        }
       );
     },
-    [structuralWrite]
+    [structuralWrite, activePath, iframesRef]
   );
 
   const resizeArtboardShell = useCallback(
@@ -1724,11 +2244,41 @@ export function useCanvasBridge({
     [structuralWrite, postToActiveCanvas, scheduleArtboardResync, activePath]
   );
 
+  // S2.10b — ⌫ / "Move to trash" on an artboard (the canvas's ⌫, its menu row, the shell's ⌫ guard)
+  // is the `artboard.trash` edit-op: on an op-log project ONE `kind: 'trash'` action (the Trash lists
+  // it, one ⌘Z brings the board and its place back); on a legacy link one write + one revert record
+  // on the canvas's undo stack. `/_api/delete-artboard` stays for its v1 callers.
   const deleteArtboardShell = useCallback(
     (artboardId) => {
-      structuralWrite('/_api/delete-artboard', { artboardId }, { label: 'delete artboard' });
+      if (!activePath || activePath === SYSTEM_TAB) return;
+      const body = trashArtboardBody(activePath, [artboardId]);
+      if (!body) return;
+      editApplyChainRef.current = editApplyChainRef.current
+        .catch(() => {})
+        .then(() =>
+          fetch('/_api/edit-op', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(body),
+          })
+            .then(readEditOpAnswer)
+            .then((r) => {
+              if (!r.ok) {
+                postToActiveCanvas({ dgn: 'op-toast', message: r.message });
+                return;
+              }
+              const payload = legacyRecordPayload(r, TRASH_RECORD_LABEL);
+              if (payload) postToActiveCanvas({ dgn: 'record-edit', payload });
+            })
+            .catch(() =>
+              postToActiveCanvas({
+                dgn: 'op-toast',
+                message: 'The studio could not be reached; try again.',
+              })
+            )
+        );
     },
-    [structuralWrite]
+    [activePath, postToActiveCanvas]
   );
 
   // feature-3-web-artboards T3 — "Duplicate at width…". No onOk auto-select
@@ -1765,10 +2315,14 @@ export function useCanvasBridge({
   // Artboard "more settings" (background/padding/layout/gap) from ArtboardKnobs.
   const setArtboardStyleShell = useCallback(
     (artboardId, patch) => {
-      structuralWrite('/_api/set-artboard-style', { artboardId, ...patch }, {
-        label: 'artboard style',
-        onOk: () => scheduleArtboardResync(artboardId, activePath),
-      });
+      structuralWrite(
+        '/_api/set-artboard-style',
+        { artboardId, ...patch },
+        {
+          label: 'artboard style',
+          onOk: () => scheduleArtboardResync(artboardId, activePath),
+        }
+      );
     },
     [structuralWrite, scheduleArtboardResync, activePath]
   );
@@ -1794,10 +2348,14 @@ export function useCanvasBridge({
   const pendingPrintSeedRef = useRef(null);
   const directArtboardKindWrite = useCallback(
     (artboardId, kind) => {
-      structuralWrite('/_api/set-artboard-kind', { artboardId, kind }, {
-        label: 'artboard kind',
-        onOk: () => scheduleArtboardResync(artboardId, activePath),
-      });
+      structuralWrite(
+        '/_api/set-artboard-kind',
+        { artboardId, kind },
+        {
+          label: 'artboard kind',
+          onOk: () => scheduleArtboardResync(artboardId, activePath),
+        }
+      );
       const seed = pendingPrintSeedRef.current;
       if (kind === 'print' && seed && seed.artboardId === artboardId) {
         pendingPrintSeedRef.current = null;
@@ -1850,10 +2408,14 @@ export function useCanvasBridge({
   // context-menu caller inside the iframe).
   const setArtboardPrintShell = useCallback(
     (artboardId, print) => {
-      structuralWrite('/_api/set-artboard-print', { artboardId, print }, {
-        label: 'artboard print',
-        onOk: () => scheduleArtboardResync(artboardId, activePath),
-      });
+      structuralWrite(
+        '/_api/set-artboard-print',
+        { artboardId, print },
+        {
+          label: 'artboard print',
+          onOk: () => scheduleArtboardResync(artboardId, activePath),
+        }
+      );
     },
     [structuralWrite, scheduleArtboardResync, activePath]
   );
@@ -1930,38 +2492,10 @@ export function useCanvasBridge({
     pasteStyle,
   ]);
 
-  // Shell-level Backspace/Delete guard. CRITICAL: in the Tauri desktop app, an
-  // unhandled Backspace triggers WKWebView back-navigation, which reloads the
-  // WHOLE app to "Starting…" (dogfood crash). When an artboard is selected, focus
-  // sits on the shell (not the canvas iframe), so the in-canvas key handler never
-  // sees the keydown — the shell must catch it. Preventing the default here stops
-  // the back-nav universally; if a single artboard is the selection, also delete
-  // it (Backspace parity with the context menu). Element delete stays in the
-  // canvas iframe (which has focus when an element is selected; its keydown never
-  // reaches this window, so there's no double-handling).
-  useEffect(() => {
-    const onKey = (e) => {
-      if (e.key !== 'Backspace' && e.key !== 'Delete') return;
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
-      const t = e.target;
-      const editable =
-        t &&
-        (t.tagName === 'INPUT' ||
-          t.tagName === 'TEXTAREA' ||
-          t.tagName === 'SELECT' ||
-          t.isContentEditable);
-      if (editable) return;
-      // Suppress the WKWebView back-nav unconditionally once focus isn't editable —
-      // the activePath/SYSTEM_TAB check below is app logic, not default-action gating,
-      // so it must not gate preventDefault (that gap caused the desktop "Starting…" hang).
-      e.preventDefault();
-      if (!activePath || activePath === SYSTEM_TAB) return;
-      const one = Array.isArray(selected) ? (selected.length === 1 ? selected[0] : null) : selected;
-      if (one?.artboardId && !one.id) deleteArtboardShell(one.artboardId);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [activePath, selected, deleteArtboardShell]);
+  // The shell-level Backspace/Delete guard (blocks WKWebView back-navigation;
+  // deletes a single selected artboard) is the `object.remove` registry action now
+  // (V2-2.4 — client/actions/shell-key-handlers.js); it calls deleteArtboardShell,
+  // returned below.
 
   // feature-element-editing-robustness Stage F — AssetPicker request. `req` is
   // { purpose:'insert-image', refId, position, refIndex } (Insert ▸ Image) or
@@ -1972,15 +2506,11 @@ export function useCanvasBridge({
     openAssetPickerRef.current = (req) => setAssetPickerReq(req);
   }, []);
 
-  // Phase 4 (whiteboard-improvements) — { canvas: activePath } when open, null
-  // when closed. Mirrors assetPickerReq's ref-indirection (the message
-  // listener below is set up with a minimal dep array, so it reaches a FRESH
-  // opener via a ref rather than needing setStickerPickerReq in its own deps).
+  // Phase 4 (whiteboard-improvements) — { canvas: activePath, anchor } when open, null when closed.
+  // V2-4.5c: opened by the shell's `tool-panel-open` handler (client/v2/shell/use-tool-panels.js),
+  // which hands app.jsx `setStickerPickerReq`; `anchor` is the panel's placement above/below the
+  // toolbar island (null = the centred dialog).
   const [stickerPickerReq, setStickerPickerReq] = useState(null);
-  const openStickerPickerRef = useRef(null);
-  useEffect(() => {
-    openStickerPickerRef.current = (req) => setStickerPickerReq(req);
-  }, []);
   const onAssetPicked = useCallback(
     (pickedPath) => {
       const req = assetPickerReq;
@@ -2006,31 +2536,57 @@ export function useCanvasBridge({
         // Re-point an authored <img>/<video> src via /_api/edit-attr (+ undo).
         const canvas = activePath;
         if (!canvas || !req.id) return;
+        const viaEditAttr = () =>
+          fetch('/_api/edit-attr', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ canvas, id: req.id, attr: 'src', value: pickedPath }),
+          })
+            .then((r) => r.json().catch(() => ({})))
+            .then((j) => {
+              if (j.ok) {
+                recordSourceEdit({
+                  op: 'attr',
+                  canvas,
+                  id: req.id,
+                  key: 'src',
+                  before: replacedValue(j, req.before ?? null),
+                  after: pickedPath,
+                });
+              } else {
+                console.warn('[replace-src]', j.error || 'failed');
+              }
+            })
+            .catch(() => {});
+        // S2.15 — a picture the inspector names by ref is replaced by the `image.replace` edit-op: one write, one
+        // undo step, and a per-use photo edit of the old picture goes with it. An older studio (no such op) and a
+        // video keep the edit-attr write above.
+        const viaEditOp = () =>
+          fetch('/_api/edit-op', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              file: canvas,
+              op: 'image.replace',
+              targets: [req.ref],
+              params: { asset: pickedPath },
+            }),
+          })
+            .then(async (r) => ({ status: r.status, j: await r.json().catch(() => ({})) }))
+            .then(({ status, j }) => {
+              if (status === 404 || status === 405) return viaEditAttr();
+              if (j.ok) {
+                const payload = legacyRecordPayload(j, 'Replace picture');
+                if (payload) recordSourceEdit(payload);
+              } else {
+                console.warn('[replace-src]', j.message || 'failed');
+              }
+              return undefined;
+            })
+            .catch(() => {});
         editApplyChainRef.current = editApplyChainRef.current
           .catch(() => {})
-          .then(() =>
-            fetch('/_api/edit-attr', {
-              method: 'POST',
-              headers: { 'content-type': 'application/json' },
-              body: JSON.stringify({ canvas, id: req.id, attr: 'src', value: pickedPath }),
-            })
-              .then((r) => r.json().catch(() => ({})))
-              .then((j) => {
-                if (j.ok) {
-                  recordSourceEdit({
-                    op: 'attr',
-                    canvas,
-                    id: req.id,
-                    key: 'src',
-                    before: replacedValue(j, req.before ?? null),
-                    after: pickedPath,
-                  });
-                } else {
-                  console.warn('[replace-src]', j.error || 'failed');
-                }
-              })
-              .catch(() => {})
-          );
+          .then(req.ref ? viaEditOp : viaEditAttr);
         return;
       }
       if (req.purpose === 'replace-annotation-media') {
@@ -2083,6 +2639,18 @@ export function useCanvasBridge({
   const onStickerPicked = useCallback(
     async (sticker) => {
       const req = stickerPickerReq;
+      // S4.13: a vote stamp has no picture to upload. The canvas arms it (the pick trails the pointer and
+      // stays armed), and the gallery stays open - folded to the Stamps row by the gallery itself.
+      if (sticker?.pack === 'stamps') {
+        if (req && (!req.canvas || req.canvas === activePath))
+          postToActiveCanvas({
+            dgn: 'insert-sticker',
+            path: '',
+            follow: true,
+            sticker: { pack: 'stamps', id: sticker.id },
+          });
+        return;
+      }
       setStickerPickerReq(null);
       if (!req || !sticker?.url) return;
       // G3 security (DDR-152) — same re-check as onAssetPicked: the request
@@ -2106,7 +2674,21 @@ export function useCanvasBridge({
           console.warn('[sticker-picker]', j.error || `upload failed (HTTP ${res.status})`);
           return;
         }
-        postToActiveCanvas({ dgn: 'insert-sticker', path: j.path });
+        // S4.3: name the bundled sticker the bytes came from (the gallery's pack slug + file)
+        const ref =
+          sticker.pack && sticker.id ? { sticker: { pack: sticker.pack, id: sticker.id } } : {};
+        if (req.replace) {
+          // S4.13: Replace… swaps the picture of the selected sticker in place (same spot, same size)
+          postToActiveCanvas({
+            dgn: 'replace-annotation-media',
+            id: req.replace,
+            path: j.path,
+            ...ref,
+          });
+        } else {
+          // S4.13: the pick follows the pointer until a click, then lands at 160 px
+          postToActiveCanvas({ dgn: 'insert-sticker', path: j.path, follow: true, ...ref });
+        }
       } catch {
         console.warn('[sticker-picker] could not load or upload that sticker');
       }
@@ -2124,6 +2706,12 @@ export function useCanvasBridge({
         canvas: activePath,
         id: elSel.id,
         before: elSel.attrs?.src ?? null,
+        // S2.15 — the picture as an edit-op target; absent on an old canvas bundle (then edit-attr)
+        ref:
+          Array.isArray(elSel.refs) &&
+          (elSel.tag === 'img' || elSel.attrs?.['data-image-tile'] !== undefined)
+            ? (elSel.refs[0] ?? null)
+            : null,
       });
     },
     [activePath]
@@ -2140,11 +2728,30 @@ export function useCanvasBridge({
     setFocusedCommentId((prev) => (prev === id ? null : prev));
   }, []);
   return {
-    applyOptimisticStyle, assetPickerReq, clearActiveCanvasSelection, deleteComment,
-    detachInstanceShell, duplicateArtboardShell, insertGeneratedImage, onAssetPicked,
-    onInsertArtboard, onPickMany, onReplaceMedia, onStickerPicked, recordSourceEdit, reopenComment,
-    reorderLayer, resizeArtboardShell, resolveComment, setArtboardHugShell, setArtboardKindShell,
-    setArtboardPrintShell, setArtboardStyleShell, setAssetPickerReq, setStickerPickerReq,
-    stickerPickerReq
+    applyOptimisticStyle,
+    assetPickerReq,
+    clearActiveCanvasSelection,
+    deleteArtboardShell,
+    deleteComment,
+    detachInstanceShell,
+    duplicateArtboardShell,
+    insertGeneratedImage,
+    onAssetPicked,
+    onInsertArtboard,
+    onPickMany,
+    onReplaceMedia,
+    onStickerPicked,
+    recordSourceEdit,
+    reopenComment,
+    reorderLayer,
+    resizeArtboardShell,
+    resolveComment,
+    setArtboardHugShell,
+    setArtboardKindShell,
+    setArtboardPrintShell,
+    setArtboardStyleShell,
+    setAssetPickerReq,
+    setStickerPickerReq,
+    stickerPickerReq,
   };
 }

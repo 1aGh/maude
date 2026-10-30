@@ -39,6 +39,11 @@ const NOT_A_FILE_PLANE_WRITE = new Map([
   ['admin-auth.mjs', 'admin credential file in dataDir'],
   ['bootstrap.mjs', 'the boot bootstrap token file in dataDir'],
   ['settings.mjs', 'the hub settings JSON in dataDir'],
+  // S8.19: who holds which asset — `<dataDir>/asset-presence.json`, a hint the
+  // probe feeds and the presence query reads; never a designRoot path.
+  ['asset-presence.mjs', 'the asset-presence hint store in dataDir'],
+  // S10.18a: the team library's "used by N projects" count — `<dataDir>/ds-library-usage.json`.
+  ['ds-library.mjs', 'the ds-library usage count in dataDir'],
   // Plane A. The doc→file projection writes canvas bodies, sibling css, meta
   // and annotations — every one of them `canvas-owned`, which the classifier
   // refuses from the file plane by construction (DDR-226 §1: the planes are
@@ -53,13 +58,21 @@ const NOT_A_FILE_PLANE_WRITE = new Map([
   // the file plane refuses to carry it in either direction, so a journal row
   // for it could not exist. The owner sets it through its own door instead.
   ['project-config-door.mjs', "writes config.json, which the file plane classifies 'never'"],
+  // p8-c4b: the stored-grant canvas list handed to the studio child —
+  // `<dataDir>/known-canvases.json`, never a designRoot path.
+  ['known-canvases.mjs', 'the known-canvas list for the studio child, in dataDir'],
 ]);
 
-/** Every hub source file, flat (the tree has no nested source dirs today). */
+/**
+ * Every hub source file, nested ones included (`routes-v2/`,
+ * `project-transactions/` arrived in wave A — a flat walk would not see a
+ * write door added there). Names are paths relative to `src/`.
+ */
 function hubSources() {
-  return readdirSync(SRC, { withFileTypes: true })
-    .filter((e) => e.isFile() && e.name.endsWith('.mjs'))
-    .map((e) => e.name);
+  return readdirSync(SRC, { recursive: true })
+    .map(String)
+    .filter((rel) => rel.endsWith('.mjs'))
+    .sort();
 }
 
 describe('every checkout write door is journal-hooked', () => {

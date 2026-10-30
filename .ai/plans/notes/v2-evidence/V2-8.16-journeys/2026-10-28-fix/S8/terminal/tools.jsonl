@@ -1,0 +1,10 @@
+{"lane":"terminal","name":"Read","input":{"file_path":"/private/var/folders/t_/kf80xz3j79sfmkrq4snj2qk00000gn/T/maude-agent-journeys/2026-10-28-fix/S8/terminal/project/.design/incoming/brand-mark.svg"}}
+{"lane":"terminal","name":"Bash","input":{"command":"maude design import-asset --help 2>&1 | head -40","description":"Show help for the asset import command"}}
+{"lane":"terminal","name":"Bash","input":{"command":"maude design import-asset .design/incoming/brand-mark.svg --root . --kind svg 2>&1","description":"Import the brand mark SVG into project assets"}}
+{"lane":"terminal","name":"Bash","input":{"command":"f=$(find . -path ./node_modules -prune -o -name 'cb46edc4.svg' -print | head -1); echo \"$f\"; cat \"$f\"","description":"Locate and show the imported SVG contents"}}
+{"lane":"terminal","name":"Bash","input":{"command":"find /private/var/folders/t_/kf80xz3j79sfmkrq4snj2qk00000gn/T/maude-agent-journeys/2026-10-28-fix/S8/terminal/project -name cb46edc4.svg -not -path '*/node_modules/*'","description":"Locate the imported SVG file"}}
+{"lane":"terminal","name":"Read","input":{"file_path":"/private/var/folders/t_/kf80xz3j79sfmkrq4snj2qk00000gn/T/maude-agent-journeys/2026-10-28-fix/S8/terminal/project/.design/assets/cb46edc4.svg"}}
+{"lane":"terminal","name":"Skill","input":{"skill":"design:export","args":"ui/GitPanel.tsx --artboard publish --format png --out .design/out/"}}
+{"lane":"terminal","name":"Bash","input":{"command":"maude design export png --scope selection --canvas ui/GitPanel.tsx --artboard publish --out .design/out/ 2>&1","description":"Export the publish artboard as PNG"}}
+{"lane":"terminal","name":"Read","input":{"file_path":"/private/var/folders/t_/kf80xz3j79sfmkrq4snj2qk00000gn/T/maude-agent-journeys/2026-10-28-fix/S8/terminal/project/.design/out/GitPanel — C · Publish + Get latest nudge@1x.png"}}
+{"lane":"terminal","name":"Bash","input":{"command":"maude design exports list 2>&1","description":"List the project's recent exports"}}

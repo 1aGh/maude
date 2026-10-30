@@ -1,0 +1,9 @@
+{"lane":"terminal","name":"Bash","input":{"command":"head -c 600 .design/incoming/brand-mark.svg; echo; maude design import-asset --help 2>&1 | head -30","description":"Peek at the logo file and import command help"}}
+{"lane":"terminal","name":"Bash","input":{"command":"maude design import-asset .design/incoming/brand-mark.svg --root . --kind svg --json 2>&1","description":"Import the logo through the hardened asset importer"}}
+{"lane":"terminal","name":"Bash","input":{"command":"cat assets/cb46edc4.svg","description":"Show the imported, cleaned logo file"}}
+{"lane":"terminal","name":"Bash","input":{"command":"find . -name 'cb46edc4.svg' -not -path './node_modules/*' | head; ","description":"Locate the imported logo file"}}
+{"lane":"terminal","name":"Read","input":{"file_path":"/private/var/folders/t_/kf80xz3j79sfmkrq4snj2qk00000gn/T/maude-agent-journeys/2026-10-28-head/S8/S8/terminal/project/.design/assets/cb46edc4.svg"}}
+{"lane":"terminal","name":"Skill","input":{"skill":"design:export","args":"ui/GitPanel.tsx --artboard publish --format png --out .design/out/"}}
+{"lane":"terminal","name":"Bash","input":{"command":"maude design export png --scope selection --canvas ui/GitPanel.tsx --artboard publish --out .design/out/ 2>&1","description":"Export the publish artboard as PNG to .design/out"}}
+{"lane":"terminal","name":"Read","input":{"file_path":"/private/var/folders/t_/kf80xz3j79sfmkrq4snj2qk00000gn/T/maude-agent-journeys/2026-10-28-head/S8/S8/terminal/project/.design/out/GitPanel — C · Publish + Get latest nudge@1x.png"}}
+{"lane":"terminal","name":"Bash","input":{"command":"maude design exports list 2>&1","description":"List the project's recent exports"}}

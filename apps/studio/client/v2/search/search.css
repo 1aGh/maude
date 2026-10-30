@@ -1,0 +1,500 @@
+/* client/v2/search/search.css — V2-4.6: Search ⌘K (01 cf-search-k, 05 es-search-k, 06 ad-search) and the
+ * "?" sheet. Extends the v1 `.sh-palette` / `.so-overlay` looks in v2/shell/floating-panels.css (loaded earlier, so
+ * equal-specificity rules here win). Tokens are the shell's (maude-v2 since P8 C0). */
+
+@layer shell {
+  /* ── ⌘K ── */
+  /* 11 pn-pal: 620 wide, field at --type-md with the search glyph in accent-text and an esc key, rows 36 px
+     on --radius-md, the selected row accent-muted + semibold with its tile staying --bg-3 */
+  .sh-palette--search {
+    width: 620px;
+  }
+  .sh-palette--search .sh-pal-search {
+    color: var(--accent-text);
+  }
+  .sh-palette--search .sh-pal-search input {
+    font-size: var(--type-md);
+  }
+  .sh-palette--search .sh-pal-item {
+    min-height: 36px;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-md);
+  }
+  .sh-palette--search .sh-pal-item.is-active {
+    background: var(--accent-muted);
+    font-weight: var(--w-semibold);
+  }
+  .sh-palette--search .sh-pal-icon {
+    width: 24px;
+    height: 24px;
+    background: var(--bg-3);
+  }
+  .sh-palette--search .sh-pal-item.is-active .sh-pal-icon {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+  .sh-palette--search .sh-pal-item.is-active .sh-pal-icon--spark {
+    background: var(--spark);
+    color: var(--spark-fg, var(--accent-fg));
+  }
+  .sh-palette--search .sh-pal-list {
+    max-height: min(480px, 62vh);
+  }
+  .sh-pal-group {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+  }
+  /* S1.5 · pn-k-across: the project's square on its group header (Home's tones, same id → same tone) */
+  .sh-pal-sq {
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    align-self: center;
+    width: 16px;
+    height: 16px;
+    border-radius: var(--radius-xs);
+    font-family: var(--font-rounded);
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    line-height: 1;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--object-ink);
+  }
+  .sh-pal-sq--lilac {
+    background: var(--object-lilac);
+  }
+  .sh-pal-sq--yellow {
+    background: var(--object-yellow);
+  }
+  .sh-pal-sq--sky {
+    background: var(--object-sky);
+  }
+  .sh-pal-sq--green {
+    background: var(--object-green);
+  }
+  .sh-pal-sq--coral {
+    background: var(--object-coral);
+  }
+  .sh-pal-sq--grey {
+    background: var(--object-grey);
+  }
+  /* another project's canvas wears its picture where a row has its icon */
+  .sh-pal-thumb {
+    width: 32px;
+    height: 22px;
+    flex: none;
+    border-radius: var(--radius-sm);
+    object-fit: cover;
+    background: var(--bg-4);
+  }
+  .sh-pal-aside {
+    font-family: var(--font-body);
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--fg-2);
+  }
+  .sh-pal-label {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  /* 01 cf-search-k: a canvas row wears a picture (32 × 22, the kit's k-thumb--pal); one without a cover yet keeps the
+     same tile with the page glyph, so the rows do not shift when the pictures arrive */
+  .sh-palette--search .sh-pal-icon--pic {
+    width: 32px;
+    height: 22px;
+    border-radius: var(--radius-sm);
+  }
+  .sh-pal-ltxt {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* the meta is its own column at the right (the kit's k-pal-meta), not glued to the name */
+  .sh-pal-meta {
+    flex: none;
+    margin-left: auto;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  /* a11y gate B4: --fg-2 on the highlighted row (--accent-muted) was 4.24:1 */
+  [role="option"][aria-selected="true"] .sh-pal-meta {
+    color: var(--fg-1);
+  }
+  /* where it lives — the path a person learns the way back by */
+  .sh-pal-where {
+    flex: none;
+    max-width: 46%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    /* the DS .chip: 22 px, radius-sm, fg-1, medium (06 ad-search path chip) */
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+    font-size: var(--type-xs);
+    font-weight: var(--w-medium);
+    color: var(--fg-1);
+  }
+  /* S15-A2: the project on another project's row in "Did you mean" (square · name · where it is) */
+  .sh-pal-proj {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .sh-pal-item.is-active .sh-pal-where {
+    background: var(--bg-2);
+    color: var(--fg-1);
+  }
+  /* 06 .k-pal-row / .k-pal-ic: 36 px rows, radius-md, accent-muted when selected; the glyph tile is a quiet 24 px
+     bg-3 square that does NOT turn accent when the row is active (only the Ask-AI spark tile is accent). */
+  .sh-palette--search .sh-pal-item {
+    min-height: 36px;
+    gap: var(--space-3);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-md);
+  }
+  .sh-palette--search .sh-pal-item.is-active {
+    background: var(--accent-muted);
+  }
+  .sh-palette--search .sh-pal-icon {
+    width: 24px;
+    height: 24px;
+    background: var(--bg-3);
+    color: var(--fg-1);
+  }
+  .sh-palette--search .sh-pal-item.is-active .sh-pal-icon {
+    background: var(--bg-3);
+    color: var(--fg-1);
+  }
+  .sh-pal-item.is-dim .sh-pal-ltxt {
+    color: var(--fg-3);
+  }
+  /* S1.4 · 11 pn-k-close: a near miss among rows that have a word right — quieter, never dimmed out */
+  .sh-pal-item.is-quiet .sh-pal-ltxt {
+    color: var(--fg-1);
+  }
+  /* S1.4 · 05 es-search-more: Recent on a Mac where nothing was opened yet */
+  .sh-pal-recent-none {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0 0 var(--space-2);
+    padding: var(--space-2) var(--space-3) var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--bg-1);
+  }
+  .sh-pal-recent-none .sh-pal-sit {
+    font-size: var(--type-base);
+    line-height: var(--lh-base);
+  }
+  .sh-pal-recent-none .sh-pal-next {
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+  }
+  .sh-pal-mark {
+    background: var(--accent-tint);
+    color: inherit;
+    border-radius: var(--radius-xs);
+    padding: 0 1px;
+  }
+  /* gate-b-a11y: a match inside the quiet meta ("Video" in "Video · ui") sits on the accent tint — --fg-2 there
+     was 4.24:1 (wave-A B4's twin: it fixed the selected row's meta, not the marks inside every row's meta) */
+  .sh-pal-meta .sh-pal-mark {
+    color: var(--fg-0);
+  }
+  .sh-pal-icon--spark,
+  .sh-pal-item.is-active .sh-pal-icon--spark,
+  .sh-palette--search .sh-pal-icon--spark,
+  .sh-palette--search .sh-pal-item.is-active .sh-pal-icon--spark {
+    background: var(--accent);
+    color: var(--accent-fg);
+  }
+  /* Ask AI is always the last row AND always in view: pinned to the foot of a long list (01 cf-search-k) */
+  .sh-pal-ask {
+    position: sticky;
+    /* the list keeps a --space-1 padding all round and sticky measures inside it: -padding reaches the scrollport
+       edge, else the next group's header scrolls through the 4 px strip under the row (cf-search-k critic bar3) */
+    bottom: calc(var(--space-1) * -1);
+    z-index: 1;
+    margin-top: var(--space-1);
+    padding-top: var(--space-1);
+    padding-bottom: var(--space-1);
+    background: var(--bg-2);
+    border-top: 1px solid var(--border-subtle);
+  }
+  .sh-pal-none {
+    display: grid;
+    gap: var(--space-1);
+    padding: var(--space-5) var(--space-4);
+    text-align: left;
+  }
+  /* S11.3 — 05 · es-search-k: the spot beside the two lines (a palette is wide, not tall) */
+  .sh-pal-none--spot {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-3) var(--space-5) var(--space-2) var(--space-3);
+  }
+  .sh-pal-txt {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  /* 05 es-search-k: the situation line is the kit's Rounded type-md semibold, the next line fg-1 */
+  .sh-pal-sit {
+    font-family: var(--font-rounded);
+    font-size: var(--type-md);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+  .sh-pal-next {
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
+  /* 11 pn-pal-note: the close-match note is a bg-3 box with a search glyph */
+  .sh-pal-note {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: var(--space-1);
+    padding: var(--space-2);
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+  }
+  .sh-pal-note strong {
+    color: var(--fg-0);
+    font-weight: var(--w-semibold);
+  }
+  .sh-pal-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    padding: var(--space-2) var(--space-4);
+    border-top: 1px solid var(--border-subtle);
+    font-family: var(--font-body);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .sh-pal-hints {
+    display: flex;
+    gap: var(--space-3);
+  }
+  .sh-pal-hints > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  /* ── "?" ── */
+  .so-overlay--v2 {
+    font-family: var(--font-body);
+    max-width: 880px;
+    max-height: 86vh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    /* the sticky footer owns the sheet's bottom padding: a sticky bar sticks above the scroller's padding, and
+       the rows scrolled past it showed through that 24 px strip, under "close with esc" */
+    padding-bottom: 0;
+  }
+  .so-overlay--v2 .so-overlay-hd {
+    align-items: center;
+  }
+  .so-overlay--v2 .so-title {
+    margin: 0;
+  }
+  .so-find {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    max-width: 280px;
+    margin-left: auto;
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--bg-2);
+    color: var(--fg-2);
+  }
+  .so-find input::placeholder {
+    color: var(--fg-2);
+  }
+  .so-find input {
+    flex: 1;
+    min-width: 0;
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--fg-0);
+    font: inherit;
+    font-size: var(--type-sm);
+  }
+  .so-close {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: var(--radius-sm);
+    color: var(--fg-2);
+    cursor: pointer;
+  }
+  .so-close:hover {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+  /* A bare `1fr` track is `minmax(auto, 1fr)`: a long key list (the Step back row) stretched the grid to
+     2707px inside an 830px sheet and pushed two columns off-screen. `minmax(0, 1fr)` + `min-width: 0` on
+     the items keeps three columns inside the sheet and lets the combos wrap instead. */
+  /* S11.18 (? sheet W2): groups FLOW down three columns — a grid left holes under the short groups and ran
+     the long ones off the sheet. A group never splits across two columns. */
+  .so-columns--3 {
+    display: block;
+    column-count: 3;
+    column-gap: var(--space-7);
+  }
+  .so-columns > .so-section {
+    min-width: 0;
+    break-inside: avoid;
+    margin-bottom: var(--space-6);
+  }
+  /* the count and "close with esc" stay in view while the sheet scrolls: the end of the list is never a clip */
+  .so-overlay--v2 .so-overlay-ft {
+    position: sticky;
+    bottom: 0;
+    background: var(--bg-1);
+    padding-top: var(--space-3);
+    padding-bottom: var(--space-6);
+    border-top: 1px solid var(--border-subtle);
+  }
+  /* The label keeps a floor (a word never breaks mid-letter); the combos take what is left and wrap. */
+  .so-overlay--v2 .so-pair {
+    grid-template-columns: minmax(7.5rem, 1fr) minmax(0, auto);
+    align-items: start;
+  }
+  .so-overlay--v2 .so-pair dd {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .so-overlay--v2 .so-alt {
+    display: inline-flex;
+    align-items: center;
+    gap: inherit;
+    white-space: nowrap;
+  }
+  .so-overlay--v2 .so-combos {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    row-gap: var(--space-1);
+  }
+  .so-overlay--v2 .so-pair--adv {
+    grid-template-columns: minmax(7.5rem, 1fr) auto auto;
+  }
+  .so-note {
+    margin: calc(-1 * var(--space-2)) 0 var(--space-2);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .so-path {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .so-none {
+    margin: 0 0 var(--space-4);
+    font-size: var(--type-sm);
+    color: var(--fg-2);
+  }
+  .so-adv {
+    margin-top: var(--space-5);
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--border-subtle);
+  }
+  .so-adv-btn {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) 0;
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-sm);
+    cursor: pointer;
+  }
+  .so-adv-ch {
+    display: inline-grid;
+    color: var(--fg-2);
+  }
+  .so-adv[data-open] .so-adv-ch {
+    transform: rotate(90deg);
+  }
+  .so-adv-count {
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+  }
+  .so-adv-body {
+    display: grid;
+    gap: var(--space-1);
+    margin-top: var(--space-2);
+  }
+  .so-adv-label {
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
+  .so-adv-path {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .so-sub {
+    margin: var(--space-3) 0 var(--space-1);
+    font-family: var(--font-body);
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold, 600);
+    color: var(--fg-2);
+  }
+  .so-moved {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-1) var(--space-6);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .so-mv {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    font-size: var(--type-sm);
+    color: var(--fg-2);
+  }
+  .so-mv-was {
+    flex: none;
+    color: var(--fg-1);
+  }
+  .so-mv svg {
+    flex: none;
+    align-self: center;
+    color: var(--fg-3);
+  }
+  @media (max-width: 760px) {
+    .so-columns--3 {
+      column-count: 1;
+    }
+    .so-moved {
+      grid-template-columns: 1fr;
+    }
+  }
+}

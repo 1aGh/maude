@@ -1,0 +1,828 @@
+/* client/v2/share/share.css — S9.19: the Share sheet (10 co-share-sheet · co-share-roles). It hangs
+ * under the Share cluster on the popover plane, as the canvas draws `.co-pop`. Every class is
+ * namespaced `v2sh-` (V2-4.3 hit a collision on a bare v1 name). Tokens only; motion is `--dur-*`,
+ * which the reduced-motion collapse already shortens to 1 ms. */
+
+/* ── V2-8.0: rules moved here from the retired styles/ layer files, in their original order and ahead of this file's own rules, so the cascade is unchanged. ── */
+
+/* from styles/5-maude-overrides.css */
+@layer components {
+  .cm-info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .cm-live {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-3);
+    border: 1px solid color-mix(in oklab, var(--presence-online) 32%, var(--border-default));
+    border-radius: var(--radius-md);
+    background: color-mix(in oklab, var(--presence-online) 8%, var(--bg-2));
+  }
+
+  .cm-live-hd {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
+
+  .cm-live-hd b {
+    color: var(--fg-0);
+  }
+
+  .cm-live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: var(--radius-pill);
+    background: var(--presence-online);
+    box-shadow: 0 0 0 4px color-mix(in oklab, var(--presence-online) 22%, transparent);
+    flex: 0 0 auto;
+  }
+
+  .cm-live-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+  }
+
+  .cm-live-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px var(--space-1);
+    border-radius: var(--radius-pill);
+    background: var(--bg-1);
+    border: 1px solid var(--border-subtle);
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+  }
+
+  .cm-live-item svg {
+    color: var(--presence-online);
+  }
+
+  .cm-live-note {
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+  }
+
+  .cm-bridge {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .cm-bridge-line {
+    flex: 1;
+    height: 1px;
+    background: var(--border-default);
+  }
+
+  .cm-bridge-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    color: var(--fg-2);
+  }
+
+  .cm-cycle {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: var(--space-1);
+  }
+
+  .cm-cycle::before {
+    content: "";
+    position: absolute;
+    top: 30px;
+    left: 14%;
+    right: 14%;
+    height: 2px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      var(--accent-muted) 18%,
+      var(--accent-muted) 82%,
+      transparent
+    );
+    border-radius: var(--radius-pill);
+  }
+
+  .cm-step {
+    position: relative;
+    flex: 1 1 0;
+    max-width: 160px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-1);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    background: var(--bg-1);
+    text-align: center;
+  }
+
+  .cm-step-icon {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border-radius: var(--radius-md);
+    background: var(--accent-tint);
+    color: var(--accent);
+  }
+
+  .cm-step-label {
+    font-weight: 600;
+    color: var(--fg-0);
+    font-size: var(--type-xs);
+  }
+
+  .cm-step-sub {
+    color: var(--fg-2);
+    font-size: 10px;
+    line-height: var(--lh-sm);
+  }
+
+  .cm-cyc-arrow {
+    color: var(--accent);
+    align-self: center;
+    padding-top: 14px;
+  }
+}
+
+/* ── end of the moved rules ── */
+
+@layer shell {
+  .v2sh-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 9000;
+    background: transparent;
+  }
+  .v2sh-sheet {
+    position: absolute;
+    right: var(--space-4);
+    top: 64px; /* 10 `.co-pop`: 64 px under the window top, 16 px under the Share cluster */
+    width: min(440px, calc(100vw - 2 * var(--space-4)));
+    max-height: calc(100vh - 80px);
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-5); /* the kit dialog padding (Phase 8 C1-kit) */
+    border-radius: var(--radius-xl);
+    background: var(--bg-2);
+    box-shadow:
+      var(--shadow-lg),
+      inset 0 0 0 0.5px var(--island-edge, var(--border-subtle));
+    color: var(--fg-0);
+    font-size: var(--type-sm);
+    line-height: var(--lh-sm);
+    animation: sh-pop var(--dur-route) var(--ease-out);
+  }
+  .v2sh-sheet:focus {
+    outline: none;
+  }
+  .v2sh-hd {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .v2sh-t {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    font-size: var(--type-md);
+    line-height: var(--lh-md);
+    font-weight: var(--w-semibold);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* the kit's `.icon-btn.k-icon-sm` (28 px) — a drawn × glyph, not a text one */
+  .v2sh-x {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 28px;
+    height: 28px;
+    margin: -2px -4px -2px 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--fg-1);
+    cursor: pointer;
+  }
+  .v2sh-x:hover {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+  .v2sh-x:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+  }
+  /* `.co-sh-sub` — the line under the title (a project the canvas belongs to) */
+  .v2sh-sub-t {
+    margin: calc(var(--space-2) * -1) 0 0;
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+  }
+  .v2sh-hint {
+    margin: 0;
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+  }
+  .v2sh-err {
+    margin: 0;
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--status-error-text, var(--fg-0));
+  }
+
+  /* Scope segment: This canvas · Whole project */
+  /* the kit `.seg` (Phase 8 C1-kit): bg-3 track, type-xs segments, pressed = bg-2 + shadow-sm + the 1 px
+     accent ring — the bespoke bg-1 track / bg-3 press was 1.25:1 D / 1.13:1 L (10 a11y R1) */
+  .v2sh-seg {
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+  }
+  .v2sh-seg-b {
+    flex: 1;
+    padding: var(--space-1) var(--space-3);
+    border: 0;
+    border-radius: calc(var(--radius-md) - 2px);
+    background: transparent;
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-xs);
+    cursor: pointer;
+    transition:
+      background var(--dur-flip) var(--ease-out),
+      color var(--dur-flip) var(--ease-out);
+  }
+  .v2sh-seg-b:hover {
+    color: var(--fg-0);
+  }
+  .v2sh-seg-b[aria-pressed="true"] {
+    background: var(--bg-2);
+    color: var(--fg-0);
+    box-shadow:
+      var(--shadow-sm),
+      inset 0 0 0 1px var(--accent);
+  }
+  .v2sh-seg-b:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+  }
+
+  /* Invite row */
+  .v2sh-inv {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .v2sh-inv-in {
+    flex: 1;
+    min-width: 0;
+  }
+  /* `InSelect` — 140 × 28, tokened; the caret and the well come from the kit's one select rule */
+  .v2sh-inv-role {
+    flex: none;
+    width: 140px;
+    height: 28px;
+    color: var(--fg-0);
+    font: inherit;
+  }
+
+  /* People */
+  .v2sh-ppl {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .v2sh-ppl-h {
+    display: flex;
+    justify-content: space-between;
+    margin: 0;
+    padding-bottom: var(--space-1);
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    color: var(--fg-2);
+  }
+  .v2sh-ppl-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  /* S11.3 — "Only you on …" sits under your own row, aligned with the names above it */
+  .v2sh-alone {
+    padding: var(--space-3) var(--space-2) var(--space-1);
+  }
+  .v2sh-pp {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 36px;
+    padding: 0 var(--space-1);
+    border-radius: var(--radius-sm);
+  }
+  .v2sh-pp[data-hl] {
+    background: var(--bg-3);
+  }
+  /* the team row's tile — `.co-pp-team`: the people glyph on a bg-3 square, the size of a face */
+  .v2sh-pp-team {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    flex: none;
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+    color: var(--fg-1);
+  }
+  .v2sh-pp-t {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .v2sh-pp-n,
+  .v2sh-pp-s {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .v2sh-pp-s {
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+  }
+  .v2sh-pp-act {
+    flex: none;
+  }
+  .v2sh-role {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    flex: none;
+    padding: 2px var(--space-1);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-xs);
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .v2sh-role:hover {
+    background: var(--bg-3);
+  }
+  .v2sh-role--quiet {
+    color: var(--fg-2);
+    cursor: default;
+  }
+  .v2sh-role--quiet:hover {
+    background: transparent;
+  }
+  .v2sh-role-ch {
+    display: inline-grid;
+    color: var(--fg-2);
+  }
+
+  /* Role menu (co-rolemenu). `fixed`, placed from the role button by role-menu.jsx: the sheet scrolls,
+     and a menu inside a scroll parent was clipped below Can view (Make owner / Remove hidden). */
+  .v2sh-menu {
+    position: fixed;
+    z-index: 9100;
+    width: 296px;
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-1);
+    border-radius: var(--radius-lg);
+    background: var(--bg-2);
+    box-shadow:
+      var(--shadow-lg),
+      inset 0 0 0 0.5px var(--border-subtle);
+  }
+  .v2sh-mi {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    padding: var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-0);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .v2sh-mi:hover,
+  .v2sh-mi:focus-visible,
+  .v2sh-mi[aria-checked="true"] {
+    background: var(--bg-3);
+  }
+  /* a focused row is told from the checked one by its ring (the checked row keeps the fill) */
+  .v2sh-mi:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: -2px;
+  }
+  .v2sh-mi-ic {
+    display: grid;
+    place-items: center;
+    width: 16px;
+    flex: none;
+    padding-top: 2px;
+    color: var(--accent-text);
+  }
+  .v2sh-mi-t {
+    display: flex;
+    flex-direction: column;
+  }
+  .v2sh-mi-t span {
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+  }
+  .v2sh-mi--danger {
+    color: var(--status-error-text, var(--fg-0));
+  }
+  .v2sh-msep {
+    height: 0.5px;
+    margin: var(--space-1) 0;
+    border: 0;
+    background: var(--border-subtle);
+  }
+
+  /* Link row + "Other ways in" */
+  .v2sh-link {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding-top: var(--space-3);
+    box-shadow: inset 0 0.5px 0 var(--border-subtle);
+  }
+  /* `.co-link-ic` — the link glyph on a bg-3 tile */
+  .v2sh-link-ic {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    flex: none;
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+    color: var(--fg-1);
+  }
+  .v2sh-link-t {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .v2sh-link-t span {
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+  }
+  .v2sh-arow {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-1) 0;
+  }
+  .v2sh-arow-k {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .v2sh-arow-v {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .v2sh-arow-v .input {
+    flex: 1;
+    min-width: 0;
+  }
+  .v2sh-mono {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+  }
+  /* 10 `.co-arow` — a key on the left (type-sm, fg-1), its value on the right, 28 px rows. A value to
+     copy is inline mono text with a 22 px copy glyph, not a well and a "Copy" word. */
+  .v2sh-arow--row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 28px;
+    padding: 0;
+  }
+  .v2sh-arow--row .v2sh-arow-k {
+    flex: none;
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
+  .v2sh-arow--row .v2sh-arow-v {
+    flex: 0 1 auto;
+    min-width: 0;
+    gap: var(--space-1);
+  }
+  /* the value stays a read-only field (select-all, the stable testid) drawn as plain mono text */
+  .v2sh-arow-v input.v2sh-val {
+    /* the UA's inset border is the white outline the board never draws; the whole value shows, right-aligned */
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    height: 22px;
+    padding: 0 var(--space-1);
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: transparent;
+    box-shadow: none;
+    color: var(--fg-0);
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    text-align: right;
+    text-overflow: ellipsis;
+  }
+  .v2sh-arow-v input.v2sh-val:focus {
+    background: var(--bg-3);
+    box-shadow: inset 0 0 0 1px var(--focus-ring);
+  }
+  .v2sh-copy {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: transparent;
+    color: var(--fg-2);
+    cursor: pointer;
+  }
+  .v2sh-copy:hover {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+  .v2sh-copy:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+  }
+  .v2sh-copy[data-done="true"] {
+    color: var(--status-success-text);
+  }
+  .v2sh-val-text {
+    min-width: 0;
+    color: var(--fg-0);
+  }
+
+  /* Remove dialog */
+  .v2sh-veil {
+    position: fixed;
+    inset: 0;
+    z-index: 9001;
+    display: grid;
+    place-items: center;
+    padding: var(--space-6);
+    background: color-mix(in oklab, var(--bg-0) 62%, transparent);
+  }
+  .v2sh-confirm {
+    width: min(380px, 100%);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border-radius: var(--radius-lg);
+    background: var(--bg-1);
+    border: 1px solid var(--border-default);
+    box-shadow: var(--shadow-lg);
+  }
+  .v2sh-confirm-t {
+    margin: 0;
+    font-size: var(--type-md);
+    font-weight: var(--w-semibold);
+  }
+  .v2sh-confirm-b {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2);
+  }
+
+  /* S9.20 — Share › Advanced (10 co-share-advanced), the link row's rules, Move to cloud */
+  /* `.co-adv-sub` — the group heads inside the fold: type-xs semibold fg-2, a space-2 above */
+  .v2sh-sub {
+    margin: 0;
+    padding-top: var(--space-2);
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    color: var(--fg-2);
+  }
+  /* a CopyRow's hint / "Open in the Mac app" line wraps under its row */
+  .v2sh-arow--wrap {
+    flex-wrap: wrap;
+  }
+  .v2sh-arow--wrap > .v2sh-hint,
+  .v2sh-arow--wrap > a {
+    flex-basis: 100%;
+  }
+  /* the GitHub invite: its label on top, then a 160 px field and Invite, left-aligned (`.co-arow--stack`) */
+  .v2sh-arow--stack .v2sh-arow-v {
+    justify-content: flex-start;
+  }
+  .v2sh-arow--stack .v2sh-arow-v .input {
+    flex: none;
+    width: 160px;
+  }
+  .v2sh-adv {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .v2sh-arow--pick {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+  /* `InSelect` — 140 × 28 whatever the value (the caret is the kit's one select rule) */
+  .v2sh-pick {
+    flex: none;
+    width: 140px;
+    min-width: 0;
+    height: 28px;
+  }
+  .v2sh-mx-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .v2sh-mx {
+    border-collapse: collapse;
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+  }
+  .v2sh-mx {
+    width: 100%;
+  }
+  .v2sh-mx th,
+  .v2sh-mx td {
+    height: 32px;
+    padding: 0 var(--space-1);
+    text-align: center;
+    vertical-align: middle;
+    font-weight: var(--w-semibold);
+    color: var(--fg-1);
+    box-shadow: inset 0 -0.5px 0 var(--border-subtle);
+  }
+  /* `.co-mx-k` — the row key is type-sm fg-0; the ticks are success-green, the dashes fg-3 */
+  .v2sh-mx tbody th {
+    text-align: left;
+    font-size: var(--type-sm);
+    font-weight: var(--w-regular);
+    color: var(--fg-0);
+  }
+  .v2sh-mx td > svg {
+    display: inline-block;
+    vertical-align: middle;
+  }
+  .v2sh-mx-yes {
+    color: var(--status-success-text);
+  }
+  .v2sh-mx-no {
+    font-weight: var(--w-regular);
+    color: var(--fg-3);
+  }
+  .v2sh-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .v2sh-rm {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    margin: 0;
+    font-size: var(--type-sm);
+  }
+  .v2sh-rm-ic {
+    width: var(--space-4);
+    flex: none;
+    color: var(--status-success);
+  }
+  .v2sh-rm-t {
+    display: flex;
+    flex-direction: column;
+  }
+  .v2sh-rm-t span {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .v2sh-rm--off {
+    color: var(--fg-2);
+  }
+  .v2sh-move {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .v2sh-move-t {
+    margin: 0;
+    font-size: var(--type-md);
+    line-height: var(--lh-md);
+    font-weight: var(--w-semibold);
+  }
+  /* `.co-card-b` — the offer's body is type-sm fg-1, not the hint's xs / fg-2 */
+  .v2sh-move-b {
+    margin: 0;
+    font-size: var(--type-sm);
+    line-height: var(--lh-sm);
+    color: var(--fg-1);
+  }
+  .v2sh-move-foot {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin: 0;
+    padding-top: var(--space-2);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    box-shadow: inset 0 0.5px 0 var(--border-subtle);
+  }
+
+  /* ─── A person's face (kit `.k-av`, _kit.css:103-121; person.jsx) ───────────────────────────────
+     A tone FILL with the object ink and one letter — people wear sky · green · yellow · lilac · grey,
+     "You" is yellow, coral is the AI's. Shared by the Share sheet, the comment rows and the conflict
+     card, so a person is the same colour wherever they are drawn. */
+  :where(.maude) .k-av {
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    border-radius: var(--radius-pill);
+    font-family: var(--font-rounded);
+    font-weight: var(--w-semibold);
+    line-height: 1;
+    color: var(--object-ink);
+  }
+  :where(.maude) .k-av--sm {
+    width: 16px;
+    height: 16px;
+    font-size: var(--type-xs);
+  }
+  :where(.maude) .k-av--md {
+    width: 24px;
+    height: 24px;
+    font-size: var(--type-xs);
+  }
+  :where(.maude) .k-av--lg {
+    width: 32px;
+    height: 32px;
+    font-size: var(--type-sm);
+  }
+  :where(.maude) .k-av--sky {
+    background: var(--object-sky);
+  }
+  :where(.maude) .k-av--green {
+    background: var(--object-green);
+  }
+  :where(.maude) .k-av--lilac {
+    background: var(--object-lilac);
+  }
+  :where(.maude) .k-av--yellow {
+    background: var(--object-yellow);
+  }
+  :where(.maude) .k-av--coral {
+    background: var(--object-coral);
+  }
+  :where(.maude) .k-av--grey {
+    background: var(--object-grey);
+  }
+}
+
+/* A button in a Share row keeps its own colour: `.maude .btn--ghost` lives in @layer components (a later
+   layer than shell), so a shell rule on it lost — Resend came out fg-0 instead of the accent text. */
+@layer components {
+  .maude .btn.v2sh-pp-act {
+    color: var(--accent-text);
+  }
+}

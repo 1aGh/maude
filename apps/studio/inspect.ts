@@ -1,10 +1,14 @@
 // Active-canvas state, selected-element tracking, and HTML injection
 // (inspector overlay + canvas runtime). See plan Task 7 + DDR-007.
 
+import { lstatSync } from 'node:fs';
 import path from 'node:path';
 
+import { CHORD_OF_EVENT_JS, canvasForwards } from './actions/forward.ts';
 import type { Context } from './context.ts';
+import { isCanvasKey, stampRecent } from './home/user-state.ts';
 import { normalizeSessionKey, sessionFile } from './session-scope.ts';
+import { isWorkspaceMode } from './workspace-mode.ts';
 
 export interface SelectedElement {
   file: string;
@@ -221,6 +225,28 @@ export function createInspect(
     return Array.isArray(parked) ? parked.map(gate) : gate(parked);
   }
 
+  /**
+   * V2-1.1 §5.5 — "last opened" for Home's Recent canvases, stamped at the same moment
+   * `_active.json` changes. `file` reached us from the canvas through the inspector relay, so it
+   * becomes a key only as a real canvas file under the design root. A desktop's own person only: a
+   * cell's `_canvas-state/` is shared by every member.
+   */
+  function stampOpened(file: string) {
+    if (!file || isWorkspaceMode()) return;
+    const prefix = `${ctx.paths.designRel}/`;
+    if (!file.startsWith(prefix)) return;
+    const rel = file.slice(prefix.length);
+    if (!isCanvasKey(rel)) return;
+    // a real file, not a symlink: the key names what the file tree and the index list
+    const st = lstatSync(path.join(ctx.paths.designRoot, rel), { throwIfNoEntry: false });
+    if (!st?.isFile()) return;
+    try {
+      stampRecent(ctx.paths.designRoot, rel);
+    } catch (e) {
+      console.error('  warn: failed to save _recent.json:', e instanceof Error ? e.message : e);
+    }
+  }
+
   function setActive(file: string) {
     if (typeof file !== 'string') return;
     if (state.active === file) return;
@@ -234,6 +260,7 @@ export function createInspect(
     state.selected = file ? restoreFor(file) : null;
     state.last_change = new Date().toISOString();
     scheduleSave();
+    stampOpened(file);
     ctx.bus.emit('active', state.active, { session: sessionKey });
     // Clients (StatusBar, shell halo, chat context chip) must see the restored
     // selection, not assume the pre-switch null.
@@ -291,7 +318,28 @@ export function createInspect(
     };
   }
 
-  function setSelected(sel: SetSelectedInput) {
+  /** gate-b-c4e — `file` names the active canvas (exactly — a slug folds distinct paths). */
+  function namesActive(file: unknown): boolean {
+    if (typeof file !== 'string' || !state.active) return true;
+    const prefix = `${ctx.paths.designRel.replace(/^\/+|\/+$/g, '')}/`;
+    const strip = (p: string) => {
+      const q = p.replace(/^\/+/, '');
+      return q.startsWith(prefix) ? q.slice(prefix.length) : q;
+    };
+    return strip(file) === strip(state.active);
+  }
+
+  function setSelected(input: SetSelectedInput) {
+    // gate-b-c4e — a selection belongs to the canvas the person is looking at. The shell relays
+    // a frame's `select`, and canvas code in A could name `file: B` — `state.selected` then
+    // carried B into `_active.json`, where an export's Selection scope (exporters/scope.ts) and
+    // the agent read it. An entry naming another canvas is dropped; nothing left = no change.
+    let sel = input;
+    if (Array.isArray(sel)) {
+      const kept = sel.filter((s) => !s || typeof s !== 'object' || namesActive(s.file));
+      if (sel.length > 0 && kept.length === 0) return;
+      sel = kept;
+    } else if (sel && typeof sel === 'object' && !namesActive(sel.file)) return;
     if (sel == null) {
       state.selected = null;
       // Explicit deselect clears the active canvas's parked memory too — a
@@ -471,6 +519,11 @@ export function createInspectRegistry(
 
 // ---------- Inspector script injection ----------
 
+// V2-2.4 — the chords the canvas forwards to the shell (actions/forward.ts, generated from the
+// registry). The canvas sends the CHORD (`{dgn:'key', v:1, chord}`); the shell re-resolves it and
+// runs only a `fromCanvas` action from the active frame (V2-1.3 §5.7).
+const FORWARDED_CHORDS = Object.keys(canvasForwards());
+
 function injectInspector(html: string): string {
   const idx = html.lastIndexOf('</body>');
   if (idx === -1) return html + INSPECTOR_SCRIPT;
@@ -491,7 +544,7 @@ const INSPECTOR_SCRIPT = `
 
   var styleEl = document.createElement('style');
   styleEl.textContent = [
-    '.dgn-pin { position: absolute; top: 0; left: 0; z-index: 2147483646; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 999px 999px 999px 4px; background: #facc15; color: #1c1917; font: 600 11px/22px var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); text-align: center; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,0,0,0.4); transition: filter 120ms; transform-origin: bottom left; will-change: transform; }',
+    '.dgn-pin { position: absolute; top: 0; left: 0; z-index: 2147483646; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 999px 999px 999px 4px; background: #facc15; color: #1c1917; font: 600 11px/22px var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif); text-align: center; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,0,0,0.4); transition: filter 120ms; transform-origin: bottom left; will-change: transform; }',
     '.dgn-pin:hover { filter: brightness(1.1); outline: 2px solid rgba(0,0,0,0.3); }',
     '.dgn-pin.resolved { background: #22c55e; color: #052e16; }',
     '.dgn-pin.focused { box-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 0 2px #fff; outline: 2px solid #fff; }',
@@ -502,10 +555,14 @@ const INSPECTOR_SCRIPT = `
        (compositor), unmounts when the file goes idle (infinite-with-control,
        flow:motion-rules §5); reduced-motion drops the beam to a static rim. The
        rim border + glow are static boundary chrome. */
-    'html .dc-activity-rim { position: absolute; pointer-events: none; box-sizing: border-box; border: 2.5px solid var(--mdcc-activity, hsl(210 90% 58%)); border-radius: 5px; z-index: 6; opacity: 1; transition: opacity 200ms ease-out; }',
+    'html .dc-activity-rim { position: absolute; pointer-events: none; box-sizing: border-box; border: 1.5px dashed var(--mdcc-activity, var(--maude-hud-spark, hsl(14 86% 58%))); border-radius: var(--maude-hud-radius-sm, 5px); z-index: 6; opacity: 1; transition: opacity 200ms ease-out; }',
     'html .dc-activity-rim[data-fading="true"] { opacity: 0; }',
-    'html .dc-activity-rim::after { content: ""; position: absolute; inset: -1px; border-radius: 6px; box-shadow: 0 0 0 1px var(--mdcc-activity, hsl(210 90% 58%)), 0 0 16px 2px var(--mdcc-activity, hsl(210 90% 58%)); opacity: 0.55; pointer-events: none; will-change: opacity; animation: dc-activity-glow var(--mdcc-activity-scan-ms, 2200ms) ease-in-out infinite; }',
-    'html .dc-activity-badge { position: absolute; top: 4px; right: 4px; z-index: 2; padding: 2px 8px; border-radius: 4px; background: var(--mdcc-activity, hsl(210 90% 58%)); color: #fff; font: 600 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; white-space: nowrap; box-shadow: 0 1px 4px rgba(0,0,0,0.45); }',
+    'html .dc-activity-rim::after { content: ""; position: absolute; inset: -1px; border-radius: 6px; box-shadow: 0 0 0 1px var(--mdcc-activity, var(--maude-hud-spark, hsl(14 86% 58%))), 0 0 16px 2px var(--mdcc-activity, var(--maude-hud-spark, hsl(14 86% 58%))); opacity: 0.55; pointer-events: none; will-change: opacity; animation: dc-activity-glow var(--mdcc-activity-scan-ms, 2200ms) ease-in-out infinite; }',
+    'html .dc-activity-badge { position: absolute; bottom: calc(100% + 2px); right: -2px; z-index: 2; padding: 2px 8px; border-radius: 999px; background: var(--mdcc-activity, var(--maude-hud-spark, hsl(14 86% 58%))); color: var(--maude-hud-spark-fg, #1a1d24); font: 600 var(--maude-hud-type-xs, 11px)/1.5 var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif); font-variant-numeric: tabular-nums; white-space: nowrap; box-shadow: var(--maude-hud-shadow-md, 0 1px 4px rgba(0,0,0,0.45)); }',
+    /* 04 md-edge-ai: the AI's pointer — a spark arrow and a "+ AI" pill, where the change is landing */
+    'html .dc-activity-ptr { position: absolute; left: 24%; top: 38%; z-index: 2; display: flex; align-items: flex-start; gap: 0; color: var(--mdcc-activity, var(--maude-hud-spark, hsl(14 86% 58%))); pointer-events: none; }',
+    'html .dc-activity-ptr-l { margin: 8px 0 0 -2px; padding: 1px 8px; border-radius: 999px; background: var(--mdcc-activity, var(--maude-hud-spark, hsl(14 86% 58%))); color: var(--maude-hud-spark-fg, #1a1d24); font: 600 var(--maude-hud-type-xs, 11px)/1.5 var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif); white-space: nowrap; box-shadow: var(--maude-hud-shadow-md, 0 1px 4px rgba(0,0,0,0.45)); }',
+    'html .dc-activity-rim[data-fading="true"] .dc-activity-ptr { display: none; }',
     /* Phase 13.3 — the AGENT BORDER is the primary "editing" indicator: a clear
        2.5px border in the agent color with a softly pulsing glow (::after,
        opacity-only, compositor). Clipping lives on the wash (not the rim) so the
@@ -516,7 +573,12 @@ const INSPECTOR_SCRIPT = `
        edge (translateY -100% → 100%), then the next wave enters from the top in a
        loop. transform-only; linear so it flows at a steady pace. */
     'html .dc-activity-scan { position: absolute; inset: 0; overflow: hidden; border-radius: 4px; pointer-events: none; z-index: 1; }',
-    'html .dc-activity-scan::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 135%; will-change: transform; background: linear-gradient(to top, color-mix(in oklab, var(--mdcc-activity, hsl(210 90% 58%)) 20%, transparent) 0%, transparent 100%); animation: dc-activity-wave var(--mdcc-activity-scan-ms, 3800ms) linear infinite; }',
+    'html .dc-activity-scan::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 135%; will-change: transform; background: linear-gradient(to top, color-mix(in oklab, var(--mdcc-activity, var(--maude-hud-spark, hsl(14 86% 58%))) 20%, transparent) 0%, transparent 100%); animation: dc-activity-wave var(--mdcc-activity-scan-ms, 3800ms) linear infinite; }',
+    /* P8 c6 — while an AI run of yours is live (the ring layer sets data-maude-ai-live on <html>, with a short tail),
+       the S5.11 spark outline + tag is the ONE indicator (03 ai-hero / ai-done, 01 cf-ai-drafting): the file-write rim
+       and wash would draw a second dashed outline on every artboard the run touched. A terminal agent's edit has no
+       ring, so it keeps both. */
+    'html[data-maude-ai-live] .dc-activity-rim, html[data-maude-ai-live] .dc-activity-scan { display: none; }',
     '@keyframes dc-activity-glow { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.85; } }',
     '@keyframes dc-activity-wave { from { transform: translateY(-100%); } to { transform: translateY(100%); } }',
     '@media (prefers-reduced-motion: reduce) { html .dc-activity-rim { transition: none; } html .dc-activity-rim::after { animation: none; opacity: 0.55; } html .dc-activity-scan { display: none; } }',
@@ -537,14 +599,14 @@ const INSPECTOR_SCRIPT = `
        whole window. opacity is one of the few properties browsers composite
        off the main thread unconditionally, so the pulse keeps animating
        exactly when the page is busiest — the one moment it needs to. */
-    'html [data-photo-busy] { outline: 2px solid var(--mdcc-activity, hsl(210 90% 58%)); outline-offset: 2px; animation: dc-photo-busy-pulse 1100ms ease-in-out infinite; will-change: opacity; }',
+    'html [data-photo-busy] { outline: 2px solid var(--mdcc-activity, var(--maude-hud-spark, hsl(14 86% 58%))); outline-offset: 2px; animation: dc-photo-busy-pulse 1100ms ease-in-out infinite; will-change: opacity; }',
     '@keyframes dc-photo-busy-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }',
     '@media (prefers-reduced-motion: reduce) { html [data-photo-busy] { animation: none; opacity: 0.75; } }',
     /* Phase 13.1 / DDR-077 — "holding last good render" toast, shown when an
        agent edit produced a broken intermediate (build/render error) and the
        canvas is held instead of flashing white. Amber = warn, distinct from the
        blue activity rim. pointer-events:none so it never blocks the canvas. */
-    'html .dc-hmr-holding { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 2147483646; pointer-events: none; max-width: 90vw; padding: 6px 12px; border-radius: 6px; background: hsl(38 92% 50% / 0.96); color: #1c1207; font: 600 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 2px 10px rgba(0,0,0,0.45); }'
+    'html .dc-hmr-holding { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 2147483646; pointer-events: none; max-width: 90vw; padding: 6px 12px; border-radius: 6px; background: hsl(38 92% 50% / 0.96); color: #1c1207; font: 600 12px/1.4 system-ui, -apple-system, sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 2px 10px rgba(0,0,0,0.45); }'
   ].join('\\n');
   document.documentElement.appendChild(styleEl);
 
@@ -554,6 +616,7 @@ const INSPECTOR_SCRIPT = `
   document.documentElement.appendChild(pinLayer);
 
   var commentsCache = [];
+  var commentsOff = /[?&]comments=0(?:&|$)/.test(location.search || '');
   var focusedPinId = null;
 
   var pinNodes = [];
@@ -640,41 +703,41 @@ const INSPECTOR_SCRIPT = `
   // shell's window-scoped listener (iframe keyboard isolation), so each shell
   // chord must be forwarded to the parent. preventDefault is load-bearing for
   // ⌘R: without it the BROWSER reloads the whole shell while focus is in the
-  // canvas (the advertised behavior is "reload the active canvas"). Capture
-  // phase so canvas-lib's pan/zoom keydown handler can't swallow them first.
+  // canvas (the advertised behavior is "reload the active canvas"), and ⌘⇧T is
+  // the browser's "reopen closed tab". Capture phase so canvas-lib's pan/zoom
+  // keydown handler can't swallow them first. The chord table is generated from
+  // the action registry (V2-2.4 — actions/forward.ts: every \`fromCanvas\` action's
+  // canvas binding), so it can no longer miss a chord the shell answers.
+  var FORWARD = ${JSON.stringify(FORWARDED_CHORDS)};
+  var chordOf = ${CHORD_OF_EVENT_JS};
   document.addEventListener('keydown', function(e) {
-    if (!(e.metaKey || e.ctrlKey)) return;
-    var k = (e.key || '').toLowerCase();
-    if (k === 'k' && !e.shiftKey) {
-      e.preventDefault();
-      try { window.parent.postMessage({ dgn: 'toggle-palette' }, '*'); } catch (err) {}
+    // S2.21: a bare F-key (F6, the way out of the canvas to the panels) is forwarded too; the table decides
+    // P8-B2: a bare "?" is forwarded too (the cheat sheet is a global key) — never from a text field
+    if (!(e.metaKey || e.ctrlKey) && !/^F[0-9]{1,2}$/.test(e.key || '')) {
+      if (e.key !== '?') return;
+      var tg = e.target;
+      if (tg && (tg.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(tg.tagName || ''))) return;
+    }
+    var chord = chordOf(e);
+    // V2-8.9 attacker L2: a ⌘V pressed in the canvas is told to the shell (never prevented — the
+    // paste event still fires here), so the shell's "Paste … copied in X?" ask follows a real key
+    if (chord === '⌘V') {
+      try { window.parent.postMessage({ dgn: 'key', v: 1, chord: chord }, '*'); } catch (err) {}
       return;
     }
-    if (k === 'r' && !e.shiftKey) {
-      e.preventDefault();
-      try { window.parent.postMessage({ dgn: 'shell-shortcut', id: 'reload' }, '*'); } catch (err) {}
-      return;
-    }
-    if (e.shiftKey) {
-      // ⌘⇧T (timeline) + ⌘⇧G (changes) were missing here, so with focus inside
-      // the canvas iframe they never reached the shell — opening the Timeline
-      // (and its Space/arrow transport, which needs the dock focused) silently
-      // stopped working after a canvas interaction moved focus into the iframe.
-      // ⌘⇧T is also the browser "reopen closed tab" chord, so the preventDefault
-      // below is doubly load-bearing.
-      var id = k === 'i' ? 'inspector' : k === 'm' ? 'comments' : k === 'e' ? 'export' : k === 'h' ? 'handoff' : k === 't' ? 'timeline' : k === 'g' ? 'changes' : null;
-      if (id) {
-        e.preventDefault();
-        try { window.parent.postMessage({ dgn: 'shell-shortcut', id: id }, '*'); } catch (err) {}
-      }
-    }
+    if (FORWARD.indexOf(chord) < 0) return;
+    e.preventDefault();
+    try { window.parent.postMessage({ dgn: 'key', v: 1, chord: chord }, '*'); } catch (err) {}
   }, true);
 
   window.addEventListener('message', function(e) {
     var m = e.data;
     if (!m || typeof m !== 'object' || !m.dgn) return;
     if (m.dgn === 'comments-set' && Array.isArray(m.comments)) {
-      commentsCache = m.comments;
+      // p8-sweep-errors — a frame opened with comments=0 (a past version, Compare, a follower, an embed, a gallery
+      // tile) draws no pin: the shell sends the open canvas's comments to whichever frame shows it, and a pin there
+      // would ask for a thread that frame never shows (the crawl's one DEAD control)
+      commentsCache = commentsOff ? [] : m.comments;
       schedulePins();
     } else if (m.dgn === 'comment-focus') {
       focusedPinId = m.id || null;
