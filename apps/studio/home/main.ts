@@ -25,6 +25,7 @@ import path from 'node:path';
 
 import { cloudUrl } from '../cloud/endpoints.ts';
 import { SUPPORTED_FORMAT } from '../format.ts';
+import { exitWithParent } from '../shell/parent-watch.ts';
 import { resolveMaudeVersion } from '../whats-new.ts';
 import { createHomeCloud } from './cloud.ts';
 import { projectsBaseDir } from './create-local.ts';
@@ -139,7 +140,8 @@ export function startHomeServer(opts: { argv?: string[]; env?: NodeJS.ProcessEnv
   return { server, info, stop };
 }
 
-/** server.ts's `--home` branch: start, and stop cleanly on SIGTERM/SIGINT. */
+/** server.ts's `--home` branch: start, and stop cleanly on SIGTERM/SIGINT — or once the app that
+ *  spawned it is gone (p8-orphan-sidecars, shell/parent-watch.ts). */
 export function runHome() {
   const { stop } = startHomeServer();
   const exit = () => {
@@ -148,6 +150,7 @@ export function runHome() {
   };
   process.on('SIGTERM', exit);
   process.on('SIGINT', exit);
+  exitWithParent(exit, 'home');
 }
 
 if (import.meta.main) runHome();
