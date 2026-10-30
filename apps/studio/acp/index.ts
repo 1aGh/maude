@@ -364,6 +364,11 @@ export function createAgentActivityTracker(
   const claimedCalls = new Set<string>();
   /** A1 — the repo-relative canvases each windowed call names (its window takes only those). */
   const shellFiles = new Map<string, string[]>();
+  /**
+   * p8-sec2-attrib A1 — windowed calls that name NO canvas (`sed -i … *.tsx`, `find -exec`, a computed
+   * name): the stage window covers every canvas. No hold: a person's save lands as theirs at once.
+   */
+  const shellAll = new Set<string>();
   /** A1 — interpreter calls whose window is open, waiting on a card, or finished. */
   const shellOpen = new Set<string>();
   const shellCard = new Set<string>();
@@ -445,7 +450,12 @@ export function createAgentActivityTracker(
    * Open the turn's project action (its run stage, always claim-only); `shell` = the window of one
    * call that cannot claim, for the canvases its command names (A1, S7).
    */
-  function openAction(shell?: { call: string; open: boolean; files: string[] }): void {
+  function openAction(shell?: {
+    call: string;
+    open: boolean;
+    files: string[];
+    all?: boolean;
+  }): void {
     actionOpen = true;
     ctx.syncControl?.current?.()?.beginAiAction?.(actionKey, turnLabel, {
       ...(turnRun ? { runId: turnRun } : {}),
@@ -466,7 +476,7 @@ export function createAgentActivityTracker(
       files.map((f) => resolve(ctx.paths.repoRoot, f)),
       actionKey
     );
-    openAction({ call, open, files });
+    openAction({ call, open, files, ...(shellAll.has(call) ? { all: true } : {}) });
   }
 
   function onPermission(toolCallId: string | undefined, decided?: { granted: boolean }): void {
@@ -509,17 +519,21 @@ export function createAgentActivityTracker(
       if (!id) return;
       const command = (u.rawInput as { command?: unknown } | null | undefined)?.command;
       // p8-a1-claims — and only for the canvases the command NAMES (cli/lib/bash-guard.mjs
-      // `namedDesignFiles`): a person's save to any other canvas during the call stays theirs. A call
-      // that names none takes nothing, so it opens no window at all.
-      const named =
-        !shellSeen.has(id) && shellOpensWindow(command)
-          ? namedDesignFiles(ctx.paths.designRoot, command).map(
-              (rel: string) => `${ctx.paths.designRel}/${rel}`
-            )
-          : [];
-      if (named.length) {
+      // `namedDesignFiles`): a person's save to any other canvas during the call stays theirs.
+      // p8-sec2-attrib A1 — a call that may write but names none (a glob, `find -exec`, a computed
+      // name) used to open nothing, so its writes landed as the person's: it now opens a window over
+      // every canvas for the run stage (outside writes only; no hold), and the design hook's post-bash
+      // binds exactly the bytes it changed.
+      const opens = !shellSeen.has(id) && shellOpensWindow(command);
+      const named = opens
+        ? namedDesignFiles(ctx.paths.designRoot, command).map(
+            (rel: string) => `${ctx.paths.designRel}/${rel}`
+          )
+        : [];
+      if (opens) {
         shellSeen.add(id);
         shellFiles.set(id, named);
+        if (!named.length) shellAll.add(id);
         // p8-secfix-hook F2 — `nohup python3 w.py &` / `run_in_background` returns at once and
         // writes later: its window stays open until the turn ends (endTurn), not return + settle
         if (shellOutlivesCall(u.rawInput)) shellOutlives.add(id);
@@ -575,6 +589,7 @@ export function createAgentActivityTracker(
     shellCard.clear();
     shellSeen.clear();
     shellFiles.clear();
+    shellAll.clear();
     claimedCalls.clear();
     shellOutlives.clear();
     if (actionOpen) {

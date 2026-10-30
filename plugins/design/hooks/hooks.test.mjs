@@ -2447,3 +2447,76 @@ describe('p8-secfix-hook D1 — nobody but the hooks writes the run state', () =
       ).toBe(`${cmd} true`);
   });
 });
+
+// p8-sec2-attrib A1 / B2-1 — a call that may write but NAMES no canvas (`sed -i … *.tsx`, `find -exec`,
+// a computed python name) sent the studio `files: []`: nothing was bound, so its writes landed as the
+// person's. Pre-bash now hashes every canvas lane and opens an all-canvas window; post-bash binds exactly
+// the files whose bytes changed (sed -i rewrites every file it globs — mtime alone would bind them all).
+describe('p8-sec2-attrib A1 — a write the command does not name is bound by its bytes', () => {
+  let project;
+  let server;
+  const bodies = [];
+  const OTHER_CANVAS = CANVAS.replace('id="hero"', 'id="lead"');
+  beforeAll(() => {
+    project = makeProject('maude-hook-a1-');
+    writeFileSync(join(project, '.design', 'ui', 'D.tsx'), OTHER_CANVAS);
+    server = Bun.serve({
+      port: 0,
+      async fetch(req) {
+        const url = new URL(req.url);
+        if (url.pathname === '/_health')
+          return Response.json({
+            app: 'design',
+            rootId: rootIdentity(project),
+            manifestVersion: 'bbbbbbbbbbbb',
+            version: '2.4.0',
+          });
+        if (url.pathname.startsWith('/_api/agent/')) {
+          bodies.push([url.pathname, await req.json()]);
+          return Response.json({ artboards: [], window: true });
+        }
+        return new Response('not found', { status: 404 });
+      },
+    });
+    writeFileSync(
+      join(project, '.design', '_server.json'),
+      JSON.stringify({
+        pid: process.pid,
+        port: server.port,
+        url: `http://127.0.0.1:${server.port}`,
+      })
+    );
+  });
+  afterAll(() => {
+    server?.stop(true);
+    rmSync(project, { recursive: true, force: true });
+  });
+
+  // (a literal `sed -i … .design/ui/*.tsx` never gets here: pre-bash denies it `not-a-writer`; these
+  // are the shapes the guard cannot read)
+  for (const [id, cmd] of [
+    ['find', "find .design -name '*.tsx' -exec sed -i '' 's/Hi/Yo/' {} +"],
+    [
+      'computed',
+      `python3 -c "p='.de'+'sign/ui/'+'C'+'.tsx'; s=open(p).read(); open(p,'w').write(s.replace('Hi','Yo'))"`,
+    ],
+    ['script', 'python3 tools/normalise.py'],
+  ])
+    test(`${id}: an all-canvas window opens, and only the canvas whose bytes changed is bound`, async () => {
+      writeFileSync(canvasPath(project), CANVAS);
+      bodies.length = 0;
+      const input = bash(project, `a1${id}`, `t${id}`, cmd);
+      await hook('pre-bash', input);
+      const open = bodies.find(([p]) => p === '/_api/agent/bash/window');
+      expect(open?.[1]).toMatchObject({ open: true, files: [], all: true });
+      await Bun.sleep(15);
+      // the AI's write changes C; D is rewritten byte-for-byte (sed -i rewrites every file it globs)
+      writeFileSync(canvasPath(project), CANVAS.replace('Hi', 'Yo'));
+      writeFileSync(join(project, '.design', 'ui', 'D.tsx'), OTHER_CANVAS);
+      await hook('post-bash', input);
+      const shut = bodies.filter(([p]) => p === '/_api/agent/bash/window').at(-1);
+      expect(shut?.[1]).toMatchObject({ open: false, all: true });
+      const touched = bodies.find(([p]) => p === '/_api/agent/edit/touched');
+      expect(touched?.[1].files).toEqual(['ui/C.tsx']);
+    });
+});

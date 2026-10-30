@@ -623,6 +623,10 @@ export function claimingTableRoute(
   runs: Parameters<typeof routeWriteClaim>[1]
 ): RouteSpec {
   if (spec.origin === 'canvas' || spec.method === 'GET') return spec;
+  // p8-sec2-attrib A2 — the run's own bookkeeping (the hook routes) and the closing page's flush of a
+  // person's held saves are never a run's writes: answering them inside its claim made the landing the AI's
+  if (spec.path.startsWith('/_api/agent/') || spec.path === '/_api/diagnostics/save-hold-flush')
+    return spec;
   return {
     ...spec,
     handle: (req, params) =>

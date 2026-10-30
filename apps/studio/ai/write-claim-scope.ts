@@ -13,14 +13,27 @@ export interface WriteClaimRun {
   label: string;
 }
 
-const scope = new AsyncLocalStorage<WriteClaimRun>();
+/**
+ * p8-sec2-attrib A2 — "no claimant here", stored explicitly. AsyncLocalStorage carries a store into every
+ * continuation of the code that ran under it (setTimeout included), so a scope that merely did not SET a
+ * claim inherited the outer one: a held person's save landed from a timer a claimed request had set, or
+ * inside a flush POST that carried `X-Maude-Chat`, was claimed for the AI run. A sentinel store leaves it.
+ */
+const NONE = Symbol('no write claim');
+const scope = new AsyncLocalStorage<WriteClaimRun | typeof NONE>();
 
-/** Run `fn` with `run` as the claimant of every studio source write it makes (null: no claimant). */
+/** Run `fn` with `run` as the claimant of every studio source write it makes (null: no claimant at all). */
 export function withWriteClaim<T>(run: WriteClaimRun | null, fn: () => T): T {
-  return run ? scope.run(run, fn) : fn();
+  return scope.run(run ?? NONE, fn);
+}
+
+/** Run `fn` — and everything it schedules — with no claimant, whatever claim the caller is inside. */
+export function noWriteClaim<T>(fn: () => T): T {
+  return scope.run(NONE, fn);
 }
 
 /** The run the current request writes for, or null (a person's request, or none at all). */
 export function currentWriteClaim(): WriteClaimRun | null {
-  return scope.getStore() ?? null;
+  const s = scope.getStore();
+  return s === undefined || s === NONE ? null : s;
 }

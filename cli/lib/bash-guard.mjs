@@ -34,7 +34,8 @@
 //
 // Leaf module: node built-ins only (plus the sibling leaf confine-out.mjs for `realpathDeep`).
 
-import { readdirSync, statSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { basename, isAbsolute, join, relative, resolve, sep } from 'node:path';
 
@@ -1578,7 +1579,10 @@ export function designWritesSince(designRoot, since, { max = 64, maxEntries = 20
  * command text (heredoc bodies included) at a name boundary. A call that cannot claim its writes (the S7
  * interpreter fallback: `python3 - <<EOF … open(p,'w')`, `sed -i`, `bash -c`, a terminal-lane verb) gets a
  * time window for THESE files only, so a person's save to any other file during it stays theirs. A path
- * the command only computes (a glob loop) is not named: that write lands as the person's (the safe side).
+ * the command only computes (a glob, `find -exec`, a computed name) is not named: p8-sec2-attrib A1 — such
+ * a call no longer lands as the person's. The run stage takes its outside writes for the call's length
+ * (an all-canvas window, no hold), and its end binds exactly the files whose bytes changed
+ * (`designLaneHashes` / `changedDesignFiles`) that no person's save landed.
  */
 export function namedDesignFiles(designRoot, command, { max = 32, maxEntries = 20000 } = {}) {
   if (typeof command !== 'string' || !command) return [];
@@ -1612,6 +1616,76 @@ export function namedDesignFiles(designRoot, command, { max = 32, maxEntries = 2
   };
   walk(designRoot, '');
   return out.sort();
+}
+
+const LANE_FILE_RE = /\.(?:tsx|jsx|meta\.json|annotations\.json)$/i;
+const laneHash = (bytes) => createHash('sha256').update(bytes).digest('hex').slice(0, 32);
+
+/**
+ * p8-sec2-attrib A1 — a hash of every canvas-lane file of `designRoot` (canvas, `.meta.json`,
+ * `.annotations.json`), taken when a call that may write without naming its files begins. The call's
+ * end then binds exactly the files whose bytes changed (`changedDesignFiles`): `sed -i … *.tsx`
+ * rewrites every canvas it globs, so mtime alone would bind the ones it left as they were.
+ * Bounded (files, total bytes, entries walked); past a bound the rest is not hashed and a change to
+ * it is judged by mtime alone.
+ */
+export function designLaneHashes(
+  designRoot,
+  { maxFiles = 4000, maxBytes = 64 * 1024 * 1024, maxEntries = 20000 } = {}
+) {
+  const out = {};
+  let files = 0;
+  let bytes = 0;
+  let seen = 0;
+  const walk = (dir, relDir) => {
+    let names;
+    try {
+      names = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const d of names) {
+      if (files >= maxFiles || ++seen > maxEntries) return;
+      if (d.name.startsWith('_') || d.name.startsWith('.') || d.name === 'node_modules') continue;
+      const abs = join(dir, d.name);
+      const rel = relDir ? `${relDir}/${d.name}` : d.name;
+      if (d.isDirectory()) walk(abs, rel);
+      else if (d.isFile() && LANE_FILE_RE.test(d.name)) {
+        try {
+          const size = statSync(abs).size;
+          if (bytes + size > maxBytes) continue;
+          bytes += size;
+          out[rel] = laneHash(readFileSync(abs));
+          files++;
+        } catch {
+          /* gone */
+        }
+      }
+    }
+  };
+  walk(designRoot, '');
+  return out;
+}
+
+/**
+ * p8-sec2-attrib A1 — the canvas-lane files written since `since` whose bytes differ from `hashes`
+ * (`designLaneHashes` at the call's start; a file with no hash — new, or past the bound — counts as
+ * changed). POSIX, designRoot-relative, sorted.
+ */
+export function changedDesignFiles(designRoot, hashes, since, opts = {}) {
+  const before = hashes && typeof hashes === 'object' ? hashes : {};
+  const out = [];
+  for (const rel of designWritesSince(designRoot, since, opts)) {
+    if (!LANE_FILE_RE.test(rel)) continue;
+    let now;
+    try {
+      now = laneHash(readFileSync(join(designRoot, rel)));
+    } catch {
+      continue; // gone again
+    }
+    if (!Object.hasOwn(before, rel) || before[rel] !== now) out.push(rel);
+  }
+  return out;
 }
 
 export { CANVAS_RE };

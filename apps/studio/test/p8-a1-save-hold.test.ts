@@ -27,7 +27,8 @@ import {
   type SaveHoldNotice,
   setSaveHoldForTest,
 } from '../ai/save-hold.ts';
-import { hookClaims } from '../ai/write-claim.ts';
+import { currentWriteClaim, hookClaims, withWriteClaim } from '../ai/write-claim.ts';
+import { noWriteClaim } from '../ai/write-claim-scope.ts';
 import { serializeBoard } from '../annotations/schema.ts';
 import { createApi } from '../api.ts';
 import { applyEdit } from '../canvas-edit.ts';
@@ -123,7 +124,7 @@ async function rig(holdOpts: Parameters<typeof createSaveHold>[0] = {}) {
   const hold: SaveHold = createSaveHold(holdOpts);
   setSaveHoldForTest(hold);
   // what api.ts createApi does at boot
-  hold.attach({ emit: (ev, p) => bus.emit(ev, p), designRoot });
+  hold.attach({ emit: (ev, p) => bus.emit(ev, p), on: (ev, fn) => bus.on(ev, fn), designRoot });
   const att = attachLocalHome(
     { cfg: { canvasGroups: [{ path: 'ui' }] }, paths: { designRoot, designRel: '.design' }, bus },
     { current: () => null },
@@ -682,5 +683,200 @@ describe('A1 hold — the layout and board lanes, and the notice', () => {
     noteSaveHold({ file: HOME, state: 'landed', text: '' }, deps);
     expect(flushHeldSaves(nav as never)).toBe(false);
     expect(await Promise.all(sent)).toEqual([[FLUSH_ROUTE, JSON.stringify({ files: [HOME] })]]);
+  });
+});
+
+// p8-sec2-attrib A2 / B2-2 — a held save lands as the PERSON's whatever request sets the landing off.
+// AsyncLocalStorage carries into setTimeout, and `withWriteClaim(null, fn)` could not leave an outer
+// claim: a flush POST carrying `X-Maude-Chat` (curl-local adds it to every `/_api/` write), or a window
+// closed inside a claimed request, claimed the person's held bytes for the AI run (its Discard / Undo
+// would then drop their edit).
+describe('A2 — a held save never lands under the AI’s write claim', () => {
+  const homeKinds = async (r: Rig) =>
+    (await r.rows()).filter((x) => x.canvases.includes(HOME)).map((x) => x.kind);
+
+  test('the closing page’s flush, sent with the chat’s header while its run is live, lands as the person’s', async () => {
+    const r = await rig({ capMs: 5_000 });
+    const { runId, end } = await pythonTurn(r);
+    await r.save(HOME, 'footer', 'style.color=red');
+    expect(r.read(HOME)).not.toContain(RED);
+    const spec = createDiagnosticsRoutes({ control: () => null }).find(
+      (x) => x.path === '/_api/diagnostics/save-hold-flush'
+    ) as RouteSpec;
+    const flush = claimingTableRoute(guardTableRoute(spec), r.reg);
+    const res = await flush.handle(
+      new Request(`${ORIGIN}/_api/diagnostics/save-hold-flush`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          host: '127.0.0.1:4399',
+          'X-Maude-Chat': 'c1',
+        },
+        body: JSON.stringify({ files: [HOME] }),
+      }),
+      {}
+    );
+    expect(await res.json()).toEqual({ landed: 1 });
+    expect(r.read(HOME)).toContain(RED);
+    await r.deliver(HOME);
+    end('completed');
+    await r.publish(runId);
+    await r.home.flush();
+    expect(await homeKinds(r)).toEqual(['edit']);
+  });
+
+  test('a window closed inside a claimed request: the landing timer runs with no claim', async () => {
+    const r = await rig({ capMs: 5_000 });
+    const { runId, end } = await pythonTurn(r);
+    await r.save(HOME, 'footer', 'style.color=red');
+    expect(r.read(HOME)).not.toContain(RED);
+    withWriteClaim({ runId, chatId: 'c1', label: 'Retitle' }, () => end('completed'));
+    await sleep(SHELL_SETTLE_MS + 300);
+    expect(r.read(HOME)).toContain(RED);
+    await r.deliver(HOME);
+    await r.publish(runId);
+    await r.home.flush();
+    expect(await homeKinds(r)).toEqual(['edit']);
+  });
+
+  test('`withWriteClaim(null)` and `noWriteClaim` leave an outer claim', () => {
+    const run = { runId: 'R', chatId: 'c1', label: 'x' };
+    withWriteClaim(run, () => {
+      expect(currentWriteClaim()).toEqual(run);
+      expect(withWriteClaim(null, () => currentWriteClaim())).toBeNull();
+      expect(noWriteClaim(() => currentWriteClaim())).toBeNull();
+    });
+  });
+
+  test('the hook routes and the flush never answer inside a chat’s claim', () => {
+    const reg = { resolve: () => null } as never;
+    for (const p of ['/_api/agent/bash/window', '/_api/diagnostics/save-hold-flush']) {
+      const spec = { path: p, method: 'POST', origin: 'main', handle: () => new Response('') };
+      expect(claimingTableRoute(spec as unknown as RouteSpec, reg)).toBe(spec as never);
+    }
+  });
+});
+
+// p8-sec2-attrib A1 / B2-1 — an AI shell write to a canvas its command does not NAME (a glob, `find -exec`,
+// a computed name) used to open no window: the bytes landed as the person's edit — published as theirs, no
+// Made by AI, outside the run's Undo / Discard. Such a call now opens an all-canvas stage window (no hold:
+// a person's save lands at once and stays theirs), and its end binds exactly the bytes it changed.
+describe('A1 — an AI write to a canvas the command does not name is the AI’s', () => {
+  /** A Maude chat turn running `command` (the ACP tracker), as `pythonTurn` above. */
+  async function shellTurn(r: Rig, command: string) {
+    const runId = await r.ask('c1', 'Normalise');
+    const t = createAgentActivityTracker(r.ctx, ai, 'c1');
+    t.beginTurn?.('Normalise', runId);
+    t.onUpdate({
+      sessionUpdate: 'tool_call',
+      toolCallId: 's1',
+      kind: 'execute',
+      status: 'in_progress',
+      rawInput: { command },
+    } as unknown as SessionUpdate);
+    const end = () =>
+      t.onUpdate({
+        sessionUpdate: 'tool_call_update',
+        toolCallId: 's1',
+        status: 'completed',
+      } as unknown as SessionUpdate);
+    return { runId, end };
+  }
+  const kinds = async (r: Rig, rel: string) =>
+    (await r.rows()).filter((x) => x.canvases.includes(rel)).map((x) => x.kind);
+
+  for (const [what, command] of [
+    ['a glob `sed -i`', `sed -i '' 's/>Home</>AI title</' .design/ui/*.tsx`],
+    [
+      '`find -exec sed -i`',
+      `find .design -name '*.tsx' -exec sed -i '' 's/>Home</>AI title</' {} +`,
+    ],
+    [
+      'a computed-name python write',
+      `python3 -c "p='.design/ui/'+'Ho'+'me.tsx'; s=open(p).read(); open(p,'w').write(s.replace('>Home<','>AI title<'))"`,
+    ],
+  ] as const) {
+    test(`${what}: the bytes it changed are the run’s (one AI row, its Undo takes them back)`, async () => {
+      const r = await rig();
+      const before = r.read(HOME);
+      const { runId, end } = await shellTurn(r, command);
+      writeFileSync(r.abs(HOME), before.replace('>Home<', '>AI title<'));
+      await r.deliver(HOME);
+      end();
+      expect(await r.publish(runId)).toMatchObject({ status: 'accepted' });
+      await r.home.flush();
+      expect(await kinds(r, HOME)).toEqual(['ai']);
+    });
+  }
+
+  test('a person’s save during such a call is not held and stays the person’s', async () => {
+    const r = await rig();
+    const { runId, end } = await shellTurn(r, `sed -i '' 's/a/b/' .design/ui/*.tsx`);
+    await r.save(OTHER, 'footer', 'style.color=red');
+    expect(r.read(OTHER)).toContain(RED); // no hold: nothing names it
+    expect(r.notices()).toEqual([]);
+    await r.deliver(OTHER);
+    end();
+    await r.publish(runId);
+    await r.home.flush();
+    expect(await kinds(r, OTHER)).toEqual(['edit']);
+  });
+
+  test('terminal lane: the post-bash binding skips the bytes a person’s save landed, binds the AI’s', async () => {
+    const r = await rig();
+    // Other has its own artboard id, so what was bound is visible in the answer
+    writeFileSync(r.abs(OTHER), canvas('Other').replace('id="desktop"', 'id="other"'));
+    const post = hooks(r);
+    await post('/_api/agent/run/begin', { session: 't1', actor: 'claude-code' });
+    const since = Date.now() - 5;
+    const w = await post('/_api/agent/bash/window', {
+      session: 't1',
+      toolUseId: 'b1',
+      open: true,
+      files: [],
+      all: true,
+    });
+    expect(w).toEqual({ window: true });
+    // the person saves Other (it went straight through: no window holds it) …
+    const [editSpec] = createEditRoutes({
+      designRoot: r.designRoot,
+      designRel: '.design',
+      repoRoot: r.root,
+      emit: (e, p) => r.bus.emit(e, p),
+      ops: [setOp],
+    });
+    const res = await (editSpec as RouteSpec).handle(
+      new Request(`${ORIGIN}/_api/edit-op`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', host: '127.0.0.1:4399', origin: ORIGIN },
+        body: JSON.stringify({
+          file: repo(OTHER),
+          op: 'test.set',
+          params: { value: 'style.color=red' },
+          targets: [{ artboard: 'other', element: 'footer' }],
+        }),
+      }),
+      {}
+    );
+    expect(res.status).toBe(200);
+    expect(r.read(OTHER)).toContain(RED);
+    // … and the AI's glob rewrites Home
+    writeFileSync(r.abs(HOME), r.read(HOME).replace('>Home<', '>AI title<'));
+    await post('/_api/agent/bash/window', {
+      session: 't1',
+      toolUseId: 'b1',
+      open: false,
+      files: [],
+      all: true,
+    });
+    // the hook sends what changed by its hashes: both files
+    const bound = await post('/_api/agent/edit/touched', {
+      session: 't1',
+      toolUseId: 'b1',
+      via: 'bash',
+      since,
+      files: [HOME, OTHER],
+    });
+    expect(bound.artboards).toEqual(['desktop']);
   });
 });

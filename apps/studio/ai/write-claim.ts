@@ -25,9 +25,14 @@ import { laneValueFromFile } from '../sync/codec.ts';
 import { hashBytes } from '../sync/echo-guard.ts';
 import { CHAT_HEADER, type CreateClaimRuns, runForCreate } from './create-claim.ts';
 
-import { currentWriteClaim, type WriteClaimRun, withWriteClaim } from './write-claim-scope.ts';
+import {
+  currentWriteClaim,
+  noWriteClaim,
+  type WriteClaimRun,
+  withWriteClaim,
+} from './write-claim-scope.ts';
 
-export { currentWriteClaim, type WriteClaimRun, withWriteClaim };
+export { currentWriteClaim, noWriteClaim, type WriteClaimRun, withWriteClaim };
 
 /** The LIVE run of chat `chat` on this Mac (not ended, not queued behind another run of it), or null. */
 export function runForChat(
@@ -134,12 +139,19 @@ export function hookClaims(
       r: { run: string; label: string | null },
       call: string,
       open: boolean,
-      files: readonly string[]
+      files: readonly string[],
+      /** p8-sec2-attrib A1 — the call names no canvas: its window covers every one */
+      all = false
     ): void {
       control()?.beginAiAction?.(`run:${r.run}`, r.label || 'Claude Code', {
         runId: r.run,
         claimOnly: true,
-        shell: { call, open, files: files.map((f) => `${designRel}/${f}`) },
+        shell: {
+          call,
+          open,
+          files: files.map((f) => `${designRel}/${f}`),
+          ...(all ? { all: true } : {}),
+        },
       });
     },
   };
@@ -152,7 +164,7 @@ type ShellBegin = (
     runId?: string;
     chatId?: string;
     claimOnly?: boolean;
-    shell?: { call: string; open: boolean; files?: string[] };
+    shell?: { call: string; open: boolean; files?: string[]; all?: boolean };
   }
 ) => void;
 

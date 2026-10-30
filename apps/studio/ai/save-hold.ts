@@ -37,7 +37,7 @@ import { SHELL_SETTLE_MS } from '../sync/action-stage.ts';
 import { hashBytes } from '../sync/echo-guard.ts';
 import { mergeSource } from '../sync/source-merge.ts';
 import { sourceHold } from '../sync/write-hold.ts';
-import { currentWriteClaim } from './write-claim-scope.ts';
+import { currentWriteClaim, noWriteClaim } from './write-claim-scope.ts';
 
 /** A hold lasts at most this long (or until the call ends, whichever comes first). */
 export const SAVE_HOLD_CAP_MS = 10_000;
@@ -125,13 +125,20 @@ export function createSaveHold(opts: SaveHoldOptions = {}) {
   const settleMs = opts.settleMs ?? SHELL_SETTLE_MS;
   const capMs = opts.capMs ?? SAVE_HOLD_CAP_MS;
   const staleMs = opts.staleMs ?? WINDOW_STALE_MS;
-  const timers = opts.timers ?? {
+  const baseTimers = opts.timers ?? {
     set: (fn: () => void, ms: number) => {
       const t = setTimeout(fn, ms);
       (t as { unref?: () => void }).unref?.();
       return t;
     },
     clear: (h: unknown) => clearTimeout(h as ReturnType<typeof setTimeout>),
+  };
+  // p8-sec2-attrib A2 — a landing is the PERSON's, whatever request set its timer: AsyncLocalStorage
+  // carries the setter's store into the callback (an AI chat's write claim, `withWriteClaim`), so every
+  // callback leaves it.
+  const timers = {
+    set: (fn: () => void, ms: number) => baseTimers.set(() => noWriteClaim(fn), ms),
+    clear: (h: unknown) => baseTimers.clear(h),
   };
   const write = opts.write ?? ((abs: string, bytes: string) => sourceHold().put(abs, bytes));
   const readDisk =
@@ -208,7 +215,15 @@ export function createSaveHold(opts: SaveHoldOptions = {}) {
     }, wait);
   }
 
-  async function land(p: Pending, why: 'free' | 'cap' | 'flush'): Promise<void> {
+  /**
+   * p8-sec2-attrib A2 — the person's held bytes land as theirs whoever sets the landing off (a flush POST
+   * with `X-Maude-Chat`, a window closed inside a claimed request): no claim, saver person.
+   */
+  function land(p: Pending, why: 'free' | 'cap' | 'flush'): Promise<void> {
+    return noWriteClaim(() => saver.run('person', () => landNow(p, why)));
+  }
+
+  async function landNow(p: Pending, why: 'free' | 'cap' | 'flush'): Promise<void> {
     if (pending.get(p.abs) !== p) return;
     if (p.landing) return p.landing;
     if (p.timer !== undefined) timers.clear(p.timer);
@@ -298,13 +313,19 @@ export function createSaveHold(opts: SaveHoldOptions = {}) {
     );
   }
 
+  /** p8-sec2-attrib A2 — like `land`: the person's action runs with no claim, whoever releases it. */
   function release(d: Deferred, why: 'free' | 'cap' | 'flush'): Promise<void> {
+    return noWriteClaim(() => releaseNow(d, why));
+  }
+
+  function releaseNow(d: Deferred, why: 'free' | 'cap' | 'flush'): Promise<void> {
     if (d.go) return d.go;
     if (d.timer !== undefined) timers.clear(d.timer);
     d.timer = undefined;
     if (why === 'cap') for (const f of d.files) spend(f);
     d.go = (async () => {
-      // never held again: what runs now is the release (the action's own writes go straight through)
+      // never held again: what runs now is the release (the action's own writes go straight through;
+      // 'tool' only skips the hold — with no claim the home still records them as the person's)
       await saver.run('tool', d.run);
       for (const f of d.files) {
         const text = readDisk(f);
@@ -324,6 +345,20 @@ export function createSaveHold(opts: SaveHoldOptions = {}) {
     return d.go;
   }
 
+  /**
+   * p8-sec2-attrib A1 — the person's save of `bytes` to `abs` went straight through (no hold): noted like
+   * a held landing, so the end of a call that wrote without naming its files (it binds every file whose
+   * bytes changed) does not take the person's bytes for the AI. Only a person's save is noted.
+   */
+  function notePersonWrite(abs: string, bytes: string): void {
+    if (!isPersonSave()) return;
+    landed.set(abs, { hash: hashBytes(bytes), at: now() });
+    if (landed.size > 4096) {
+      const cut = now() - staleMs;
+      for (const [k, v] of landed) if (v.at < cut) landed.delete(k);
+    }
+  }
+
   const releaseWhere = (match: (abs: string) => boolean, why: 'flush') =>
     Promise.all([
       ...[...pending.values()].filter((p) => match(p.abs)).map((p) => land(p, why)),
@@ -332,9 +367,23 @@ export function createSaveHold(opts: SaveHoldOptions = {}) {
 
   return {
     /** Wire the bus the landing announces on (api.ts `createApi`). */
-    attach(b: { emit: (ev: string, p: unknown) => void; designRoot: string }): void {
+    attach(b: {
+      emit: (ev: string, p: unknown) => void;
+      designRoot: string;
+      /** p8-sec2-attrib A1 — the studio's own source writes, so a person's save is noted as theirs */
+      on?: (ev: string, fn: (p: unknown) => void) => unknown;
+    }): void {
       bus = b;
+      const said = (p: unknown) => {
+        const x = p as { rel?: unknown; content?: unknown } | null;
+        if (typeof x?.rel === 'string' && typeof x.content === 'string')
+          notePersonWrite(path.join(b.designRoot, x.rel), x.content);
+      };
+      b.on?.('source-writing', said);
+      b.on?.('source-written', said);
     },
+
+    notePersonWrite,
 
     /**
      * Call `call` (a tool call id) opened / closed its window over `files` (absolute paths). `owner` names the
@@ -366,7 +415,16 @@ export function createSaveHold(opts: SaveHoldOptions = {}) {
      * them, once it is free (+ settle), at the cap, or on a flush. Resolves with what `fn` resolves.
      */
     defer<T>(files: readonly string[], fn: () => Promise<T>): Promise<T> {
-      if (!isPersonSave() || !files.some((f) => blockedFor(f) > 0)) return fn();
+      if (!isPersonSave()) return fn();
+      if (!files.some((f) => blockedFor(f) > 0))
+        // p8-sec2-attrib A1 — not held: still the person's bytes (the post-bash binding skips them)
+        return fn().then((v) => {
+          for (const f of files) {
+            const text = readDisk(f);
+            if (text !== null) landed.set(f, { hash: hashBytes(text), at: now() });
+          }
+          return v;
+        });
       return new Promise<T>((resolve, reject) => {
         const d: Deferred = {
           files: [...files],

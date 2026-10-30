@@ -67,7 +67,9 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import {
   bashBackgrounds,
   bashMayWrite,
+  changedDesignFiles,
   classifyBash,
+  designLaneHashes,
   designVerbOf,
   designWritesSince,
   maudeWords,
@@ -1392,27 +1394,34 @@ async function preBash(ctx, input) {
   // Such a call gets a time window for the canvases its command NAMES only (bash-guard
   // `namedDesignFiles`): a person's save to any other canvas during it stays theirs.
   const files = interp ? namedDesignFiles(ctx.designRoot, command) : [];
+  // p8-sec2-attrib A1 — a path it only computes (`sed -i … *.tsx`, `find -exec`, `'Ho'+'me.tsx'`) is
+  // not named, yet the call may write it: hash every canvas lane now, so its end binds exactly the
+  // files whose bytes changed (the studio drops what a person's save landed). A call that names
+  // nothing opens an all-canvas window for the run stage instead (it takes outside writes; no hold).
+  const at = Date.now();
+  const hashes = interp ? designLaneHashes(ctx.designRoot) : null;
+  const all = interp && !files.length;
   writeAt(
     join(ctx.run, 'bash', `${toolUseId}.json`),
     JSON.stringify({
-      at: Date.now(),
+      at,
       snaps,
       ...bg,
-      ...(interp ? { interp: true, files } : {}),
+      ...(interp ? { interp: true, files, hashes, ...(all ? { all: true } : {}) } : {}),
     })
   );
-  if (files.length) await bashWindow(ctx, toolUseId, true, files);
+  if (files.length || all) await bashWindow(ctx, toolUseId, true, files, all);
   return null;
 }
 
 /** p8-a1-claims — open / close a no-claim call's window in the studio (fail-open). */
-async function bashWindow(ctx, toolUseId, open, files) {
+async function bashWindow(ctx, toolUseId, open, files, all = false) {
   const studio = await locateStudio(ctx.root, { timeoutMs: LOCATE_MS });
   if (!studio) return;
   await postStudio(
     studio,
     '/_api/agent/bash/window',
-    { ...runKey(ctx), toolUseId, open, files },
+    { ...runKey(ctx), toolUseId, open, files, ...(all ? { all: true } : {}) },
     { timeoutMs: 600 }
   );
 }
@@ -1480,7 +1489,8 @@ async function postBash(ctx, input) {
   if (!mark || typeof mark.at !== 'number') return null; // not a write verb
   // p8-a1-claims — the call returned: its window shuts (the studio keeps it SHELL_SETTLE_MS more)
   const files = Array.isArray(mark.files) ? mark.files.filter((f) => typeof f === 'string') : [];
-  if (files.length && !mark.bg) await bashWindow(ctx, toolUseId, false, files);
+  if ((files.length || mark.all) && !mark.bg)
+    await bashWindow(ctx, toolUseId, false, files, mark.all === true);
   await bindBashWrites(ctx, toolUseId, mark, input.agent_type ?? 'main', mark.at);
   if (mark.bg) writeAt(markP, JSON.stringify({ ...mark, seen: Date.now() }));
   else rmSync(markP, { force: true });
@@ -1515,13 +1525,22 @@ async function bindBashWrites(ctx, toolUseId, mark, by, since) {
         via: 'bash',
         since: mark.at,
         // p8-a1-claims — only claiming verbs wrote: the studio binds what they claimed, nothing else;
-        // a call that cannot claim binds only the canvases its command named
-        ...(mark.interp
-          ? { files: Array.isArray(mark.files) ? mark.files : [] }
-          : { claimedOnly: true }),
+        // a call that cannot claim binds the canvases its command named and (p8-sec2-attrib A1) every
+        // file whose bytes it changed — the studio skips what a person's save landed
+        ...(mark.interp ? { files: interpFiles(ctx, mark) } : { claimedOnly: true }),
       },
       { timeoutMs: 900 }
     );
+}
+
+/**
+ * p8-sec2-attrib A1 — what a call that cannot claim may have written: the canvases it named, plus every
+ * canvas lane whose bytes changed against the hashes pre-bash took (none taken: by mtime alone).
+ */
+function interpFiles(ctx, mark) {
+  const named = Array.isArray(mark.files) ? mark.files.filter((f) => typeof f === 'string') : [];
+  const hashes = mark.hashes && typeof mark.hashes === 'object' ? mark.hashes : {};
+  return [...new Set([...named, ...changedDesignFiles(ctx.designRoot, hashes, mark.at)])].sort();
 }
 
 /**
