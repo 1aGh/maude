@@ -25,6 +25,8 @@
 //                ones (--merge drops a not-reached row once any shard entered that state).
 //   --redo       with --resume: also judge again the states the shards judged on an older build (a disabled row with no
 //                reason, a DEAD row, a row that drew a 4xx/5xx); --merge then replaces those states' rows and errors
+//   --seed-from <json>[,…]  with --resume: seed only the states THOSE shards left unreached (the rest of --resume still
+//                counts as judged/entered)
 //   --seed-shard <i>/<n>  with --resume: take every n-th seed (shallowest first) — n shards run side by side
 //   --plant-dead the crawler's own red test: plants a no-op button in the shell, which must be DEAD (exit 1)
 //   --plant-noise (with --plant-dead) also fires an unrelated status message every 200 ms in a far corner: the
@@ -61,6 +63,7 @@ const MERGE = arg('--merge', null)?.split(',');
 const NOTE = arg('--note', null);
 const RESUME = arg('--resume', null)?.split(',');
 const REDO = argv.includes('--redo');
+const SEED_FROM = arg('--seed-from', null)?.split(',');
 const SEED_SHARD = arg('--seed-shard', null)?.split('/').map(Number) ?? null;
 if (SEED_SHARD && !(SEED_SHARD[0] >= 1 && SEED_SHARD[0] <= SEED_SHARD[1])) {
   console.error('dead-controls: --seed-shard wants <i>/<n> with 1 <= i <= n');
@@ -277,6 +280,7 @@ async function crawlMode(mode, i) {
           shell: run.label,
           shard: SEED_SHARD,
           redo: REDO,
+          seedFrom: SEED_FROM ? PRIOR.filter((_, i) => SEED_FROM.includes(RESUME[i])) : null,
           accept: (surface) =>
             run.roots.some((r) => surface === r.name || surface.startsWith(`${r.name} › `)),
         });

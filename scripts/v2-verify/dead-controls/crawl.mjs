@@ -497,7 +497,16 @@ export class Crawler {
     const queue = [];
     for (const path of seeds) {
       try {
-        queue.push(await this.walkPath(roots, path, true));
+        let st;
+        try {
+          st = await this.walkPath(roots, path, true);
+        } catch {
+          // a slow machine: the canvas list or a menu row lands late. A fresh project and one more try before giving up
+          await this.replay([], true).catch(() => {});
+          await sleep(3000);
+          st = await this.walkPath(roots, path, true);
+        }
+        queue.push(st);
       } catch (e) {
         this.results.push({
           mode: this.mode,

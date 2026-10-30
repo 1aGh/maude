@@ -57,10 +57,12 @@ export function staleStates(parts) {
 
 /**
  * @param parts   earlier shards (their parsed `--json` files)
- * @param opts    { mode, shell, accept(surface) → bool, shard: [i, n] | null }
+ * @param opts    { mode, shell, accept(surface) → bool, shard: [i, n] | null, redo, seedFrom: parts | null }
+ *                seedFrom (members of `parts`) limits the unreached-state seeds to what those shards left behind
  * @returns { judged: Map<judgeKey, where>, queued: Set<sig>, seeds: string[] }  seeds = state paths, shallowest first
  */
-export function planResume(parts, { mode, shell, accept = () => true, shard = null, redo = false }) {
+export function planResume(allParts, { mode, shell, accept = () => true, shard = null, redo = false, seedFrom = null }) {
+  const parts = supersede(allParts);
   const judged = new Map();
   const queued = new Set();
   const stale = redo ? staleStates(parts) : new Set();
@@ -83,7 +85,8 @@ export function planResume(parts, { mode, shell, accept = () => true, shard = nu
       seeds.push(surface);
     }
   }
-  for (const p of parts)
+  for (const p of parts) {
+    if (seedFrom && !seedFrom.includes(p)) continue; // only the states THESE shards left unreached
     for (const r of p.results ?? []) {
       if (!isSurfaceRow(r) || r.mode !== mode || r.shell !== shell) continue;
       if ((reached.has(stateKey(r)) && !stale.has(stateKey(r))) || seen.has(r.surface) || !accept(r.surface))
@@ -91,6 +94,7 @@ export function planResume(parts, { mode, shell, accept = () => true, shard = nu
       seen.add(r.surface);
       seeds.push(r.surface);
     }
+  }
   // BFS order, like the crawl: a parent state is judged before its children
   seeds = seeds
     .map((s, i) => ({ s, i, d: s.split(' › ').length }))
@@ -104,12 +108,8 @@ export function planResume(parts, { mode, shell, accept = () => true, shard = nu
   return { judged, queued, seeds, redone };
 }
 
-/**
- * Concatenate shards. An unreachable `(surface)` row goes when any shard entered that state; the same state listed
- * unreachable by two shards stays once (the later note wins).
- */
-export function mergeShards(parts) {
-  // a state a LATER shard judged again (`redone`) replaces the earlier shards' rows of it, and the errors they drew
+/** The shards with every state a LATER shard judged again (`redone`) dropped from the earlier ones, errors included. */
+export function supersede(parts) {
   const redoneAfter = parts.map((_, j) => {
     const set = new Set();
     for (const q of parts.slice(j + 1)) for (const s of q.redone ?? []) set.add(stateKey(s));
@@ -131,6 +131,15 @@ export function mergeShards(parts) {
       (e) => isRigError(e) || !names[j].has(`${e.mode}|${e.shell}|${errorName(e.control)}`)
     ),
   }));
+  return kept;
+}
+
+/**
+ * Concatenate shards. An unreachable `(surface)` row goes when any shard entered that state; the same state listed
+ * unreachable by two shards stays once (the later note wins). A redone state replaces the earlier rows of it.
+ */
+export function mergeShards(parts) {
+  const kept = supersede(parts);
   const merged = { results: [], errors: [], external: [], popups: [], unreachable: [], statesDone: [] };
   for (const p of kept) for (const k of Object.keys(merged)) merged[k].push(...(p[k] ?? []));
   const reached = reachedStates(kept);
