@@ -374,3 +374,38 @@ describe('a Maude Cloud project during the rc', () => {
     expect(kind()).toBe('cloud');
   });
 });
+
+// p8-sec2-lows B2-3 — the timer that re-asks the team server backs off, so a project blocked for good (browser
+// not paired, server not set up) is not a dry run against the owner's hub every minute.
+describe('the re-check backs off', () => {
+  test('each timed re-check waits longer than the last, up to ten minutes', async () => {
+    const calls = mockMigrate([dryLinked({ modeBlocker: 'browser-not-paired', mode: 'legacy' })]);
+    const realSet = globalThis.setTimeout;
+    const timers: Array<{ ms: number; fn: () => void }> = [];
+    globalThis.setTimeout = ((fn: () => void, ms?: number, ...rest: unknown[]) => {
+      if ((ms ?? 0) >= 60_000) {
+        timers.push({ ms: ms as number, fn });
+        return 0 as never;
+      }
+      return realSet(fn, ms, ...rest);
+    }) as typeof setTimeout;
+    try {
+      await mount();
+      expect(kind()).toBe('server-setup');
+      const dryAtStart = calls.dry;
+      const seen: number[] = [];
+      for (let i = 0; i < 6; i++) {
+        const t = timers.at(-1);
+        if (!t) break;
+        seen.push(t.ms);
+        timers.length = 0;
+        await act(async () => t.fn());
+        await wait(20);
+      }
+      expect(seen).toEqual([60_000, 120_000, 240_000, 480_000, 600_000, 600_000]);
+      expect(calls.dry).toBe(dryAtStart + 6); // each fire is one dry run, no more
+    } finally {
+      globalThis.setTimeout = realSet;
+    }
+  });
+});

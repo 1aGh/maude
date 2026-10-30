@@ -28,12 +28,11 @@ import {
   OLDER_COPY,
   olderGateState,
   RECHECK_KINDS,
+  recheckDelay,
   SAVE_COPY,
   saveModeState,
   teamServerCommand,
 } from './format-update.js';
-
-const RECHECK_MS = 60_000;
 
 /** A failure's action as this window can run it: the team-server sign-in is the desktop app's own
  *  (Tauri — the Sync details card offers it only there too); in a browser the words stay, no button. */
@@ -205,12 +204,22 @@ export function OlderFormatCallout() {
   const recheck = !!state && (RECHECK_KINDS.has(state.kind) || !!failure);
   useEffect(() => {
     if (!recheck) return;
+    // a person coming back to the window (focus / online) re-asks at once; the TIMER backs off
     const again = () => void probe();
-    const t = setInterval(again, RECHECK_MS);
+    let misses = 0;
+    let t;
+    const tick = () => {
+      t = setTimeout(() => {
+        misses += 1;
+        again();
+        tick();
+      }, recheckDelay(misses));
+    };
+    tick();
     window.addEventListener('online', again);
     window.addEventListener('focus', again);
     return () => {
-      clearInterval(t);
+      clearTimeout(t);
       window.removeEventListener('online', again);
       window.removeEventListener('focus', again);
     };
