@@ -25,3 +25,14 @@ Michal: screen window needs no announcement; caffeinate -dimsu around 8.3; stop 
 - Still running: p8-sweep-advanced (a96ea76e…) — every one of the 1107 controls in one class, 3 destructive unit
   tests, the 14 Advanced rows. On hand-back: merge, then send Michal the completed sweep summary via the keeper.
 - Then freeze → chain4 (no announcement, caffeinate around 8.3) → re-attests → .app → PR.md.
+
+## Update ~08:05
+- CI Quality on feat 10545350a: 12 → 6 studio fails on Linux. Left: U7 ×4 (`/_api/assets` order on ext4), U21 ×2
+  (restore on Linux), and hub `acl-u6-proxied-sockets` ×2 (a socket close never fires). → builder **p8-ci-linux-2**
+  (Opus). p8-ab-park-race now skips on CI with its reason (Chrome needs --no-sandbox in the runner) — accepted.
+- Orphaned `_thumbs-playwright` processes (keeper): the shim is fine (it exits with its server's stdin). The leak is
+  that a project/Home server never notices its parent died (Maude.app crash/SIGKILL → sidecars live forever).
+  → builder **p8-orphan-sidecars** (Opus): parent-death watch for shell-spawned servers + `MAUDE_EXIT_WITH_PARENT=1`
+  for rigs. Killed the orphan 7406 (+ shim 7894) from the removed worktree a416.
+- p8-sweep-advanced is alive (crawls on mini); asked it to kill stale shards + its 02:13 local rig, hand back by ~10:00.
+- Running (3): p8-sweep-advanced, p8-orphan-sidecars, p8-ci-linux-2. Freeze after all three merge.
