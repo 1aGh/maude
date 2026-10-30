@@ -53,7 +53,9 @@ export const FIXED_ERRORS = [
     test: 'apps/studio/test/p8-sweep-close-canvas-probe.test.ts › a live cross-origin canvas listener is "compile", not "server"',
   },
   {
-    text: /POST \/_api\/edit-op[\s\S]*One of the objects is not on this canvas|status of 400 \(Bad Request\)\n\s+at http:\/\/localhost:\d+\/_api\/edit-op:0/,
+    // the http row with no `answer:` is the same 400 read while the crawler reloaded the page (n1: `<load>`, right
+    // after the Hide Frame / re-toggle AA pair; its console twin names /_api/edit-op the same way)
+    text: /POST \/_api\/edit-op[\s\S]*One of the objects is not on this canvas|^POST \/_api\/edit-op$|status of 400 \(Bad Request\)\n\s+at http:\/\/localhost:\d+\/_api\/edit-op:0/,
     commit: '07d7af9d5',
     what: 'an edit-op built from the tree of before a stamp follows the stamped id (client/stamp-follow.js), so a second Layers click on a just-stamped object is not refused',
     test: 'apps/studio/test/p8-sweep-close-stamp-follow.test.tsx › Hide, then Show again before the canvas re-posts its tree: the second op names the stamped id',

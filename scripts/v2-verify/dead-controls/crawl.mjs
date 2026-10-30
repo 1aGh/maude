@@ -516,6 +516,8 @@ export class Crawler {
         }
         queue.push(st);
       } catch (e) {
+        // not judged again after all: --merge keeps the earlier shards' rows of it (else they vanish uncounted)
+        this.redone = this.redone.filter((r) => r.surface !== path);
         this.results.push({
           mode: this.mode,
           surface: path,

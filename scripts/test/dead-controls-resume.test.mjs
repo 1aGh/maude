@@ -125,3 +125,32 @@ test('walkPath waits for a frame control that lands after a writing step reloads
   assert.equal(st.name, 'canvas Smoke › size-picker-tile-web-laptop › Fit to screen');
   assert.equal(st.steps.at(-1).key, 'name:fit');
 });
+
+test('a stale state the redo could not walk to is not claimed as redone (merge keeps its earlier rows)', async () => {
+  const c = new Crawler({ browser: null, mode: 'tauri', url: 'x', label: 'project' });
+  c.resume({ judged: new Map(), queued: new Set(), seeds: [], redone: ['s › gone', 's › ok'] });
+  c.walkPath = async (_roots, path) => {
+    if (path === 's › gone') throw new Error('not in the state');
+    return { steps: [], name: path, parentIds: null, depth: 1, popup: false, quiet: false };
+  };
+  c.replay = async () => true;
+  c.drain = async () => {};
+  await c.runSeeds([], ['s › gone', 's › ok']);
+  assert.deepEqual(
+    c.redone.map((r) => r.surface),
+    ['s › ok']
+  );
+  const old = {
+    results: [
+      { mode: 'tauri', shell: 'project', surface: 's › gone', control: 'x', effect: 'DEAD' },
+    ],
+  };
+  const merged = mergeShards([
+    old,
+    { results: [], redone: c.redone.map((r) => ({ ...r, shell: 'project' })) },
+  ]);
+  assert.equal(
+    merged.results.filter((r) => r.surface === 's › gone' && r.effect === 'DEAD').length,
+    1
+  );
+});
