@@ -450,6 +450,19 @@ pub fn index_gc_body(st: &AppState) -> Value {
     json!({ "pids": pids, "roots": roots })
 }
 
+/// p8-sec2-lows I2 — the GC deletes every index folder the registry does not name, so it must never run
+/// on a registry it could not read: an unparseable state file, or one that names no project at all.
+pub fn index_gc_request(st: &AppState, state_unreadable: bool) -> Option<Value> {
+    if state_unreadable {
+        return None;
+    }
+    let body = index_gc_body(st);
+    if body["pids"].as_array().is_none_or(|p| p.is_empty()) {
+        return None;
+    }
+    Some(body)
+}
+
 /// At every Home boot (`on_bound`), and once a day for the life of the app.
 fn start_index_gc(app: &AppHandle) {
     let now = app.clone();
@@ -469,7 +482,13 @@ async fn run_index_gc(app: &AppHandle) {
     let Some((base, token)) = endpoint(app) else {
         return; // Home is (re)starting — its next boot runs the GC
     };
-    let body = index_gc_body(&crate::app_state::load(app));
+    let Some(body) = index_gc_request(
+        &crate::app_state::load(app),
+        crate::app_state::state_unreadable(app),
+    ) else {
+        log_line("[maude] index GC skipped: no readable project registry");
+        return;
+    };
     let Ok(client) = internal_client() else { return };
     let sent = client
         .post(format!("{base}{INDEX_GC_ROUTE}"))
@@ -1493,7 +1512,15 @@ mod tests {
         let roots = body["roots"].as_array().unwrap();
         assert!(roots.iter().any(|r| r == "/x/gc-a") && roots.iter().any(|r| r == "/x/gc-b"));
 
+        // I2 — an unreadable or empty registry never reaches the GC
+        assert!(super::index_gc_request(&st, false).is_some());
+        assert!(super::index_gc_request(&st, true).is_none(), "unparseable state file: skip");
+        assert!(super::index_gc_request(&AppState::default(), false).is_none(), "empty pid list: skip");
+
         let src = include_str!("home.rs");
+        let gc = &src[src.find("async fn run_index_gc(").unwrap()..];
+        let gc = &gc[..gc.find("\n}\n").unwrap()];
+        assert!(gc.contains("index_gc_request(") && gc.contains("state_unreadable(app)"), "the GC asks before it sends");
         let bound = &src[src.find("fn on_bound(").unwrap()..];
         let bound = &bound[..bound.find("\n}\n").unwrap()];
         assert!(bound.contains("start_index_gc(app)"), "Home boot runs the GC");
