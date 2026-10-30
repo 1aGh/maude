@@ -304,6 +304,7 @@ export function LayerRow({
           <LayerRowTools
             node={node}
             isLocked={isLocked}
+            hideRefused={!!node.locked}
             isHidden={isHidden}
             tabbable={isSel}
             onToggleLock={onToggleLock}
