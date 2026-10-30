@@ -39,6 +39,7 @@
 // Exit 0 = no dead control and no error; 1 = dead controls or errors (the report lists them);
 // 2 = the rig could not run.
 
+import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, relative } from 'node:path';
@@ -77,9 +78,19 @@ const OUT = arg(
     : join(REPO, '.ai/plans/notes/v2-evidence/V2-8-dead-controls-dynamic.md')
 );
 const JSON_OUT = arg('--json', null);
+function headCommit() {
+  try {
+    return execFileSync('git', ['rev-parse', 'HEAD'], { cwd: REPO, encoding: 'utf8' }).trim();
+  } catch {
+    return null;
+  }
+}
 
 if (MERGE) {
   const parts = MERGE.map((f) => JSON.parse(readFileSync(f, 'utf8')));
+  // each error keeps the commit its shard crawled (none in shards from before the stamp) — fixed-since.mjs
+  for (const p of parts)
+    p.errors = (p.errors ?? []).map((e) => ({ ...e, build: e.build ?? p.build ?? null }));
   const merged = mergeShards(parts);
   merged.results = collapseTwins(merged.results);
   // shards that ran under older rules: the rig-only tags are applied again (a tagged error keeps its tag)
@@ -324,12 +335,16 @@ if (all.rigFailed && !all.results.length) {
 }
 
 all.results = collapseTwins(all.results);
+// every error of THIS crawl is from this build: never excused as from before a fix (an unknown build excuses none)
+const BUILD = headCommit() ?? 'unknown';
+all.errors = all.errors.map((e) => ({ ...e, build: BUILD }));
 all.registry = ONLY.includes('project') ? registryMenu() : [];
 all.minutes = ((Date.now() - t0) / 60000).toFixed(1);
 const md = renderReport(all, { modes: MODES, minutes: all.minutes });
 mkdirSync(dirname(OUT), { recursive: true });
 writeFileSync(OUT, md);
-if (JSON_OUT) writeFileSync(JSON_OUT, JSON.stringify(all, null, 2));
+// the commit this shard crawled: --merge excuses an error a later fix covers only in shards from before it (fixed-since.mjs)
+if (JSON_OUT) writeFileSync(JSON_OUT, JSON.stringify({ build: BUILD, ...all }, null, 2));
 const s = summarize(all.results, all.errors);
 console.log(
   `\n${s.found} found · ${s.clicked} clicked · ${s.effect} effect · ${s.dead} DEAD · ${s.skipped} skipped-destructive · ${s.notReached} not reached · ${s.errors} errors`

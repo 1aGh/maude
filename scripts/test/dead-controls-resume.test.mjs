@@ -109,3 +109,48 @@ test('a Crawler seeded from earlier shards reports a control they judged as alre
   );
   assert.equal(c.clicked.has(c.judgeKeyOf({ frame: 'shell', key: 'tid:new' }, 's')), false);
 });
+
+test('walkPath waits for a frame control that lands after a writing step reloads the canvas', async () => {
+  const c = new Crawler({ browser: null, mode: 'tauri', url: 'x', label: 'project' });
+  let calls = 0;
+  c.replay = async () => true;
+  // the tile's click reloads the canvas: its frame's controls are there only from the fourth read on
+  const tile = { id: 's1', tid: 'size-picker-tile-web-laptop', frame: 'shell', key: 'tid:tile' };
+  const fit = { id: 'f1', name: 'Fit to screen', frame: 'canvas', key: 'name:fit', role: 'button' };
+  c.controls = async () => (++calls < 4 ? [tile] : [tile, fit]);
+  const st = await c.walkPath(
+    [{ name: 'canvas Smoke', steps: [] }],
+    'canvas Smoke › size-picker-tile-web-laptop › Fit to screen'
+  );
+  assert.equal(st.name, 'canvas Smoke › size-picker-tile-web-laptop › Fit to screen');
+  assert.equal(st.steps.at(-1).key, 'name:fit');
+});
+
+test('a stale state the redo could not walk to is not claimed as redone (merge keeps its earlier rows)', async () => {
+  const c = new Crawler({ browser: null, mode: 'tauri', url: 'x', label: 'project' });
+  c.resume({ judged: new Map(), queued: new Set(), seeds: [], redone: ['s › gone', 's › ok'] });
+  c.walkPath = async (_roots, path) => {
+    if (path === 's › gone') throw new Error('not in the state');
+    return { steps: [], name: path, parentIds: null, depth: 1, popup: false, quiet: false };
+  };
+  c.replay = async () => true;
+  c.drain = async () => {};
+  await c.runSeeds([], ['s › gone', 's › ok']);
+  assert.deepEqual(
+    c.redone.map((r) => r.surface),
+    ['s › ok']
+  );
+  const old = {
+    results: [
+      { mode: 'tauri', shell: 'project', surface: 's › gone', control: 'x', effect: 'DEAD' },
+    ],
+  };
+  const merged = mergeShards([
+    old,
+    { results: [], redone: c.redone.map((r) => ({ ...r, shell: 'project' })) },
+  ]);
+  assert.equal(
+    merged.results.filter((r) => r.surface === 's › gone' && r.effect === 'DEAD').length,
+    1
+  );
+});

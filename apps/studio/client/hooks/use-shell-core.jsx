@@ -1,6 +1,7 @@
 // hooks/use-shell-core.jsx — moved verbatim out of client/app.jsx (Maude v2 plan V2-0.2, move-only split).
 
 import { editScopeQuery } from './edit-scope-query.js';
+import { probeCanvasOrigin } from './canvas-origin-probe.js';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   layersTreeOf,
@@ -440,15 +441,7 @@ export function useShellCore({}) {
     const path = loadingPath;
     const cap = setTimeout(
       async () => {
-        let kind = 'compile';
-        try {
-          const r = await fetch(`${cfg?.canvasOrigin || ''}/_health`, {
-            cache: 'no-store',
-          });
-          if (!r.ok) kind = 'server';
-        } catch {
-          kind = 'server';
-        }
+        const kind = await probeCanvasOrigin(cfg?.canvasOrigin);
         setCanvasError({ path, kind });
         setLoadingPath((p) => (p === path ? null : p));
       },

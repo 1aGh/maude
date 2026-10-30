@@ -1,7 +1,7 @@
 // The dead-control crawler's report: totals, the control → effect table, the dead list, the errors.
 import { pinFor } from './destructive-pins.mjs';
 import { explain } from './explained.mjs';
-import { fixedSince } from './fixed-since.mjs';
+import { fixedError, fixedSince } from './fixed-since.mjs';
 
 /**
  * The same control seen again in other states is one twin row, not hundreds: one row per (mode, shell, control,
@@ -94,10 +94,12 @@ export const isRigError = (e) =>
     e.kind
   );
 
-export function groupErrors(errors) {
+export function groupErrors(errors, { fixed = false } = {}) {
   const map = new Map();
   for (const e of errors) {
     if (isRigError(e)) continue;
+    // an error a later fix removed, drawn by a shard crawled before it: listed apart, not counted (fixed-since.mjs)
+    if (!!fixedError(e) !== fixed) continue;
     const head = e.text
       .split('\n')[0]
       .replace(/\d{4,}/g, 'N')
@@ -256,6 +258,20 @@ export function renderReport(all, { modes, minutes, note = null }) {
         .map((w) => `\`${cell(w)}\``)
         .join(', ')}${e.where.size > 6 ? ` (+${e.where.size - 6})` : ''}`
     );
+    lines.push('');
+  }
+  const fixedErrs = groupErrors(all.errors, { fixed: true });
+  if (fixedErrs.length) {
+    lines.push(
+      `Fixed since (not counted): ${fixedErrs.length} error groups drawn only by shards crawled before the fix — a shard on the fix that drew one again would count it above.`
+    );
+    lines.push('');
+    for (const e of fixedErrs) {
+      const f = fixedError(e);
+      lines.push(
+        `- ${cell(e.kind)} ×${e.n} \`${cell(e.head.slice(0, 120))}\` — fixed in ${f?.commit}: ${f?.what}. Test: ${f?.test}`
+      );
+    }
     lines.push('');
   }
   const rig = all.errors.filter(isRigError);
