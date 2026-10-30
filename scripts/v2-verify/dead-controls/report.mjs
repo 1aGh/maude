@@ -1,6 +1,7 @@
 // The dead-control crawler's report: totals, the control → effect table, the dead list, the errors.
 import { pinFor } from './destructive-pins.mjs';
 import { explain } from './explained.mjs';
+import { fixedSince } from './fixed-since.mjs';
 
 /**
  * The same control seen again in other states is one twin row, not hundreds: one row per (mode, shell, control,
@@ -35,7 +36,7 @@ export function classOf(r, results = null) {
     case 'skipped-destructive':
       return 'destructive';
     case 'DEAD':
-      return 'DEAD';
+      return fixedSince(r) ? 'fixed since' : 'DEAD';
     case 'current':
     case 'covered':
     case 'single-option':
@@ -67,7 +68,11 @@ const CLASS_ORDER = [
     'gone',
     'present when its state was entered, absent on a fresh project + replay; the reason is in the row',
   ],
-  ['DEAD', 'DEAD: clicked, nothing happened'],
+  [
+    'fixed since',
+    'found DEAD by this sweep and fixed fail-first afterwards (commit + test in the row)',
+  ],
+  ['DEAD', 'DEAD: clicked, nothing happened (open)'],
   ['not reached', 'not reached (must be 0)'],
 ];
 
@@ -85,7 +90,7 @@ const NOT_CLICKED = new Set([
 
 /** An error that is an artefact of the rig, not of the product: the Tauri stub refusing a native call. */
 export const isRigError = (e) =>
-  /\((native stub|blocked external|cloud offline|no hub|fixture media|server restarting|not signed in|canvas removed)\)/.test(
+  /\((native stub|blocked external|cloud offline|no hub|fixture media|server restarting|not signed in|canvas removed|fixed: Design system tab)\)/.test(
     e.kind
   );
 
@@ -112,7 +117,7 @@ export function summarize(results, errors) {
     found: results.length,
     clicked: clicked.length,
     effect: clicked.filter((r) => r.effect !== 'DEAD').length,
-    dead: clicked.filter((r) => r.effect === 'DEAD').length,
+    dead: clicked.filter((r) => r.effect === 'DEAD' && !fixedSince(r)).length,
     skipped: results.filter((r) => r.effect === 'skipped-destructive').length,
     disabled: results.filter((r) => r.effect === 'disabled').length,
     vanished: results.filter((r) => r.effect === 'vanished' || r.effect === 'unreachable').length,
@@ -189,7 +194,7 @@ export function renderReport(all, { modes, minutes }) {
     `| ${s.found} | ${s.clicked} | ${s.effect} | ${s.dead} | ${s.skipped} | ${s.disabled} | ${s.vanished} | ${s.errors} |`
   );
   lines.push('');
-  const dead = all.results.filter((r) => r.effect === 'DEAD');
+  const dead = all.results.filter((r) => r.effect === 'DEAD' && !fixedSince(r));
   lines.push(`## Dead controls (${dead.length})`);
   lines.push('');
   if (!dead.length) lines.push('None.');
@@ -288,6 +293,9 @@ export function renderReport(all, { modes, minutes }) {
     } else if (cls === 'destructive') {
       const p = pinFor(r.control);
       ev = p ? `unit test ${p.file} › "${p.test}"` : 'NO UNIT PIN';
+    } else if (cls === 'fixed since') {
+      const f = fixedSince(r);
+      ev = `fixed in ${f.commit}: ${f.what}. Test: ${f.test}`;
     } else if (cls === 'clicked, effect') ev = `${r.effect}${r.note ? ` (${r.note})` : ''}`;
     else if (cls === 'gone') {
       const ex = explain(r, all.results);

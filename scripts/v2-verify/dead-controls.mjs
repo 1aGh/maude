@@ -33,7 +33,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, relative } from 'node:path';
-import { Crawler } from './dead-controls/crawl.mjs';
+import { Crawler, tagErrorKind } from './dead-controls/crawl.mjs';
 import { registryMenu } from './dead-controls/registry.mjs';
 import { collapseTwins, renderReport, summarize } from './dead-controls/report.mjs';
 import { bootRig, REPO, STUDIO } from './dead-controls/rig.mjs';
@@ -65,6 +65,8 @@ if (MERGE) {
   const merged = { results: [], errors: [], external: [], popups: [], unreachable: [] };
   for (const p of parts) for (const k of Object.keys(merged)) merged[k].push(...(p[k] ?? []));
   merged.results = collapseTwins(merged.results);
+  // shards that ran under older rules: the rig-only tags are applied again (a tagged error keeps its tag)
+  merged.errors = merged.errors.map((e) => ({ ...e, kind: tagErrorKind(e.kind, e.text) }));
   merged.registry = parts.some((p) => p.registry?.length) ? registryMenu() : [];
   const modes = [...new Set(merged.results.map((r) => r.mode))];
   const minutes = parts.map((p) => p.minutes ?? '?').join(' + ');

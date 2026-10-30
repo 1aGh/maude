@@ -8,9 +8,9 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-
+import { tagErrorKind } from '../v2-verify/dead-controls/crawl.mjs';
 import { DESTRUCTIVE_PINS } from '../v2-verify/dead-controls/destructive-pins.mjs';
-import { classOf, summarize } from '../v2-verify/dead-controls/report.mjs';
+import { classOf, isRigError, summarize } from '../v2-verify/dead-controls/report.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -78,4 +78,35 @@ test('an unreachable row is accepted only with a named reason and a clicked twin
   assert.equal(summarize([row], []).notReached, 1);
   const other = { ...row, surface: 'shell › something-else', control: '(surface)' };
   assert.equal(classOf(other, [other, twin]), 'not reached');
+});
+
+test('a DEAD row fixed after the shard ran is its own class, and the same name elsewhere is still DEAD', () => {
+  const fixed = { effect: 'DEAD', control: 'edit-align-top', surface: 'canvas Landing › x' };
+  assert.equal(classOf(fixed), 'fixed since');
+  assert.equal(summarize([fixed], []).dead, 0);
+  const other = { effect: 'DEAD', control: 'insp-brand-new-button', surface: 'canvas Landing' };
+  assert.equal(classOf(other), 'DEAD');
+  assert.equal(summarize([other], []).dead, 1);
+  // Zoom out only counts as fixed on the timeline's own surface
+  assert.equal(
+    classOf({ effect: 'DEAD', control: 'Zoom out', surface: 'canvas Video › timeline-size' }),
+    'fixed since'
+  );
+  assert.equal(
+    classOf({ effect: 'DEAD', control: 'Zoom out', surface: 'canvas Video › somewhere' }),
+    'DEAD'
+  );
+});
+
+test('rig-only error kinds are tagged, a real server error is not', () => {
+  const rig = tagErrorKind('http 404', 'GET /.design/system/acme/components.json');
+  assert.ok(isRigError({ kind: rig }), rig);
+  const sys = tagErrorKind('http 500', 'GET /_api/edit-scope?canvas=__system__&id=x');
+  assert.ok(isRigError({ kind: sys }), sys);
+  const real = tagErrorKind(
+    'http 500',
+    'GET /_api/edit-scope?canvas=.design%2Fui%2FLanding.tsx&id=x'
+  );
+  assert.ok(!isRigError({ kind: real }), real);
+  assert.equal(tagErrorKind(rig, 'again'), rig);
 });

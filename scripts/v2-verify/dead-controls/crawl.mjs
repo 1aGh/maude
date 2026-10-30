@@ -85,6 +85,63 @@ export const plantDeadScript = (noisy = false) => `(() => {
 })();`;
 export const PLANT_DEAD = plantDeadScript(false);
 
+/**
+ * Which errors are the rig's, not a control's: the kind gets a parenthesised tag, and report.mjs's isRigError drops those.
+ * Exported so a merge can re-tag shards that ran under older rules.
+ */
+export function tagErrorKind(kind, text) {
+  if (
+    /\)$/.test(kind) &&
+    /\((native stub|blocked external|cloud offline|no hub|fixture media|server restarting|not signed in|canvas removed|fixed)/.test(
+      kind
+    )
+  )
+    return kind;
+  if (/crawl-tauri-stub/.test(text)) kind = `${kind} (native stub)`;
+  // the rig blocks every non-loopback request (web fonts …): its console line is the rig's, not the product's
+  else if (/ERR_BLOCKED_BY_CLIENT/.test(text)) kind = `${kind} (blocked external)`;
+  // the rig's cloud is a dead loopback port and nobody is signed in: a cloud route answering 401/502 is the rig
+  else if (/ERR_CONNECTION_REFUSED/.test(text)) kind = `${kind} (server restarting)`;
+  // the rig is signed in nowhere: GitHub's repo list answers 401
+  else if (/\/_api\/github\//.test(text) && /401/.test(`${kind} ${text}`))
+    kind = `${kind} (not signed in)`;
+  // a click moved the OPEN canvas to the trash / renamed / moved it (the walk clicks every first-level destructive
+  // control once): the frame's own late requests for that file answer 404
+  else if (
+    /404/.test(`${kind} ${text}`) &&
+    /(\.design\/ui\/[^\s]+\.tsx|\/_api\/(asset-state|canvas-errors)\?canvas=|\[canvas-shell\] HTTP 404)/.test(
+      text
+    )
+  )
+    kind = `${kind} (canvas removed)`;
+  // the fixture design system ships no components.json and its timeline clips name media it does not ship
+  else if (
+    /404/.test(`${kind} ${text}`) &&
+    /(\/\.design\/system\/[^/\s]+\/components\.json|\/_api\/timeline-media\?key=)/.test(text)
+  )
+    kind = `${kind} (fixture media)`;
+  // the tree is read while the server restarts under a reset
+  else if (/failed to load tree/i.test(text) && /Failed to fetch/.test(text))
+    kind = `${kind} (server restarting)`;
+  // the fixture's video canvases name media files the fixture does not ship (assets/aaaa1111.mp4, song.mp3):
+  // the server refuses them and the player throws — the rig's gap, not a control's
+  else if (
+    /\/assets\/[\w.-]+\.(mp4|mp3|webm|wav|m4a)/.test(text) ||
+    /MediaPlaybackError|MediaError/.test(text)
+  )
+    kind = `${kind} (fixture media)`;
+  // the hub-link state hands the shell a status message, but the rig's server has no hub: Resync / Download all
+  // reach their real routes and the server answers 409 "not linked"
+  else if (/\/_api\/sync\/(offline|resync)/.test(text) && /409/.test(`${kind} ${text}`))
+    kind = `${kind} (no hub)`;
+  // the Design system tab (SYSTEM_TAB) was asked about as if it were a canvas file: fixed in p8-sweep-advanced
+  else if (/__system__/.test(text) && /(edit-instance|edit-scope)/.test(text))
+    kind = `${kind} (fixed: Design system tab)`;
+  else if (/\/_api\/cloud\//.test(text) && /(401|502|503|504)/.test(`${kind} ${text}`))
+    kind = `${kind} (cloud offline)`;
+  return kind;
+}
+
 export class Crawler {
   constructor({
     browser,
@@ -195,47 +252,7 @@ export class Crawler {
   }
 
   err(kind, text) {
-    if (/crawl-tauri-stub/.test(text)) kind = `${kind} (native stub)`;
-    // the rig blocks every non-loopback request (web fonts …): its console line is the rig's, not the product's
-    else if (/ERR_BLOCKED_BY_CLIENT/.test(text)) kind = `${kind} (blocked external)`;
-    // the rig's cloud is a dead loopback port and nobody is signed in: a cloud route answering 401/502 is the rig
-    // a reset kills the project server under the open page: its pollers hear a refused connection until the
-    // next load
-    else if (/ERR_CONNECTION_REFUSED/.test(text)) kind = `${kind} (server restarting)`;
-    // the rig is signed in nowhere: GitHub's repo list answers 401
-    else if (/\/_api\/github\//.test(text) && /401/.test(`${kind} ${text}`))
-      kind = `${kind} (not signed in)`;
-    // a click moved the OPEN canvas to the trash / renamed / moved it (the walk clicks every first-level destructive
-    // control once): the frame's own late requests for that file answer 404
-    else if (
-      /404/.test(`${kind} ${text}`) &&
-      /(\.design\/ui\/[^\s]+\.tsx|\/_api\/(asset-state|canvas-errors)\?canvas=|\[canvas-shell\] HTTP 404)/.test(
-        text
-      )
-    )
-      kind = `${kind} (canvas removed)`;
-    // the fixture design system ships no components.json and its timeline clips name media it does not ship
-    else if (
-      /404/.test(`${kind} ${text}`) &&
-      /(\/\.design\/system\/[^/\s]+\/components\.json|\/_api\/timeline-media\?key=)/.test(text)
-    )
-      kind = `${kind} (fixture media)`;
-    // the tree is read while the server restarts under a reset
-    else if (/failed to load tree/i.test(text) && /Failed to fetch/.test(text))
-      kind = `${kind} (server restarting)`;
-    // the fixture's video canvases name media files the fixture does not ship (assets/aaaa1111.mp4, song.mp3):
-    // the server refuses them and the player throws — the rig's gap, not a control's
-    else if (
-      /\/assets\/[\w.-]+\.(mp4|mp3|webm|wav|m4a)/.test(text) ||
-      /MediaPlaybackError|MediaError/.test(text)
-    )
-      kind = `${kind} (fixture media)`;
-    // the hub-link state hands the shell a status message, but the rig's server has no hub: Resync / Download all
-    // reach their real routes and the server answers 409 "not linked"
-    else if (/\/_api\/sync\/(offline|resync)/.test(text) && /409/.test(`${kind} ${text}`))
-      kind = `${kind} (no hub)`;
-    else if (/\/_api\/cloud\//.test(text) && /(401|502|503|504)/.test(`${kind} ${text}`))
-      kind = `${kind} (cloud offline)`;
+    kind = tagErrorKind(kind, text);
     this.errors.push({ surface: this.label, mode: this.mode, control: this.current, kind, text });
   }
 
