@@ -60,7 +60,8 @@ test('planResume seeds the unreached states of ONE mode, shallowest first, and s
   assert.deepEqual([...a, ...b].sort(), [...p.seeds].sort());
   assert.equal(a.length + b.length, 2);
   assert.deepEqual(
-    planResume([early], { mode: 'browser', shell: 'project', accept: (s) => s.endsWith('tab') }).seeds,
+    planResume([early], { mode: 'browser', shell: 'project', accept: (s) => s.endsWith('tab') })
+      .seeds,
     ['canvas Landing › tab']
   );
 });
@@ -70,7 +71,10 @@ test('a state another shard entered is not a seed, and a sub-menu row is judged 
   assert.deepEqual(planResume([early, later], { mode: 'browser', shell: 'project' }).seeds, [
     'canvas Landing › menu › deep',
   ]);
-  const quiet = { results: [], statesDone: [{ mode: 'browser', shell: 'project', surface: 'canvas Landing › tab' }] };
+  const quiet = {
+    results: [],
+    statesDone: [{ mode: 'browser', shell: 'project', surface: 'canvas Landing › tab' }],
+  };
   assert.deepEqual(planResume([early, quiet], { mode: 'browser', shell: 'project' }).seeds, [
     'canvas Landing › menu › deep',
   ]);
@@ -99,6 +103,25 @@ test('mergeShards drops an unreachable row once a later shard entered that state
 test('a Crawler seeded from earlier shards reports a control they judged as already clicked', () => {
   const c = new Crawler({ browser: null, mode: 'browser', url: 'x', label: 'project' });
   c.resume(planResume([early], { mode: 'browser', shell: 'project' }));
-  assert.equal(c.clicked.get(c.judgeKeyOf({ frame: 'shell', key: 'tid:a' }, 'canvas Landing › other')), 'canvas Landing · a');
+  assert.equal(
+    c.clicked.get(c.judgeKeyOf({ frame: 'shell', key: 'tid:a' }, 'canvas Landing › other')),
+    'canvas Landing · a'
+  );
   assert.equal(c.clicked.has(c.judgeKeyOf({ frame: 'shell', key: 'tid:new' }, 's')), false);
+});
+
+test('walkPath waits for a frame control that lands after a writing step reloads the canvas', async () => {
+  const c = new Crawler({ browser: null, mode: 'tauri', url: 'x', label: 'project' });
+  let calls = 0;
+  c.replay = async () => true;
+  // the tile's click reloads the canvas: its frame's controls are there only from the fourth read on
+  const tile = { id: 's1', tid: 'size-picker-tile-web-laptop', frame: 'shell', key: 'tid:tile' };
+  const fit = { id: 'f1', name: 'Fit to screen', frame: 'canvas', key: 'name:fit', role: 'button' };
+  c.controls = async () => (++calls < 4 ? [tile] : [tile, fit]);
+  const st = await c.walkPath(
+    [{ name: 'canvas Smoke', steps: [] }],
+    'canvas Smoke › size-picker-tile-web-laptop › Fit to screen'
+  );
+  assert.equal(st.name, 'canvas Smoke › size-picker-tile-web-laptop › Fit to screen');
+  assert.equal(st.steps.at(-1).key, 'name:fit');
 });

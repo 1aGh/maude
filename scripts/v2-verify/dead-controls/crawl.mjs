@@ -558,8 +558,15 @@ export class Crawler {
     let popup = false;
     for (const [i, seg] of segs.entries()) {
       if (!(await this.replay(steps))) throw new Error(`--replay: could not reach "${name}"`);
-      const here = await this.controls();
-      const c = here.find((x) => (x.tid || x.name) === seg);
+      let here = await this.controls();
+      let c = here.find((x) => (x.tid || x.name) === seg);
+      // a step that writes (a size-picker tile adds an artboard) reloads the canvas: its frame's controls land
+      // seconds after the click, so a frame control of the next segment is looked for again before giving up
+      for (let t = 0; !c && t < 8; t++) {
+        await sleep(1000);
+        here = await this.controls();
+        c = here.find((x) => (x.tid || x.name) === seg);
+      }
       if (!c)
         throw new Error(
           `--replay: "${seg}" is not in the state "${name}" (there: ${here
