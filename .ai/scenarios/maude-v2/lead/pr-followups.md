@@ -244,6 +244,12 @@ Any commit outside `.ai/` makes V2-8.1/8.2/8.3/8.18 stale. Fold these into the n
   `v2-michal-hide-on-locked-stays-refused`).
 - **Resolved (Michal 2026-10-30): import from a link in a cloud cell = A, refuse.** The answer stays "works on the Mac".
   Leave it as built (kg `v2-michal-link-import-cell-refuse`, `v2-p8-import-link-shell-only-no-decompress`).
+- **`/_api/ai/start` (the v1 AI bracket) can no longer attribute anything to the AI.** Since p8-a1-claims every run is
+  claim-only, and this bracket has no way to claim, so a write made under it lands as the person's. No v2 agent path
+  uses it: S12.9 bans plugins from curling it, and the bundled plugin always wins in the ACP panel (DDR-168). An old
+  1.x plugin in a plain terminal against a v2 studio would therefore get its writes attributed to the person. Decide
+  whether to retire the route, or keep it for leases only and say so in its comment (kg
+  `v2-p8-ai-runs-spec-plays-hook-claim`).
 - **Legacy artboard/clip routes ignore an artboard lock.** These are `resize-artboard`, `set-artboard-*`,
   `delete-artboard`, the `/_api/*-sequence` routes and `toggle-hide`. The dispatcher refuses artboard-wide ops on a
   locked artboard, but the UI offers no artboard lock, so nobody reaches this today. If an artboard lock ever ships, wire
