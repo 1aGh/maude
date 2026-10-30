@@ -1,6 +1,7 @@
 // hooks/use-palette-and-panels.jsx — moved verbatim out of client/app.jsx (Maude v2 plan V2-0.2, move-only split).
 
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { onUpgradeOffers, upgradeOffers } from '../v2/ds/upgrade-offers.js';
+import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import { ACTIONS_BY_ID } from '../../actions/index.ts';
 import { V1_PALETTE } from '../../actions/legacy.ts';
 import { copyShareLink } from '../v2/share/link-dialog.js';
@@ -56,6 +57,9 @@ import { useBoardLabels } from '../v2/ai/RunList.jsx';
 import { artboardLabel as artboardLabelOf } from '../v2/ai/runs-model.js';
 import { addGuides } from '../v2/help/add-guides.js';
 import { LayersKindFilter } from '../v2/kinds/LayersKindFilter.jsx';
+
+/** The offers as one string (a stable snapshot for useSyncExternalStore). */
+const upgradeOffersKey = () => upgradeOffers().join('\n');
 
 export function usePaletteAndPanels({
   activeArtboards,
@@ -327,6 +331,8 @@ export function usePaletteAndPanels({
 
   const dsSystems = useDsSearchSystems(cfg);
   const clipRowsVersion = useClipRowsVersion(); // S7.16 — the clips of the video on the timeline, by name
+  // p8-v1-drop — the systems offered "Bring it up to the schema" (the Canvases panel publishes them)
+  const dsUpgradeOffers = useSyncExternalStore(onUpgradeOffers, upgradeOffersKey, upgradeOffersKey);
   const paletteActions = useMemo(() => {
     const run = {
       'canvas.new': () => {
@@ -382,6 +388,8 @@ export function usePaletteAndPanels({
       readOnly: viewerMode,
       canvasOpen: !!activePath && activePath !== SYSTEM_TAB,
       linkedHub: !!cloudLinkedHub?.url,
+      // p8-v1-drop — "Bring it up to the schema" is a ⌘K row while a system is below Conformant
+      dsUpgradeOffered: dsUpgradeOffers !== '',
     });
     // V2-4 gate (design blocker 6): a row's key is the registry's live chord in this shell, written by
     // `formatChord` (⌥⇧⌘), or none — never v1's display string (New canvas "N" was Sticky's key, the
@@ -458,6 +466,7 @@ export function usePaletteAndPanels({
     ];
     return [...v1, ...menuRows, ...leftRows, ...searchRows];
   }, [
+    dsUpgradeOffers,
     cfg.cloud,
     viewerMode,
     activePath,
@@ -821,14 +830,8 @@ export function usePaletteAndPanels({
           onUndoRedo={(dir) =>
             // V2-2.4 retired the canvas's `undo`/`redo` lanes for run-action; the inspector
             // knobs' ⌘Z rides the same lane (it reached no handler after step 6 — V2-2.10).
-            // S2.20 — the ⌘Z projection first; the canvas stack only off the op log.
-            void runUndoKey(activePath, dir === 'redo', () =>
-              postToActiveCanvas({
-                dgn: 'run-action',
-                v: 1,
-                id: dir === 'redo' ? 'edit.redo' : 'edit.undo',
-              })
-            )
+            // S2.20 — the ⌘Z projection over the op log (no canvas stack since p8-v1-drop).
+            void runUndoKey(activePath, dir === 'redo')
           }
           photoSel={photoSel}
           photoRev={photoRev}

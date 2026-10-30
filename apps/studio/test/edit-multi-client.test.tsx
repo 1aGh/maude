@@ -175,7 +175,7 @@ describe('runArrange', () => {
     refs: REFS,
   });
 
-  test('asks for the action with the measured items; a legacy link records one revert', async () => {
+  test('asks for the action with the measured items, once; no canvas record', async () => {
     const asked: unknown[] = [];
     const records: unknown[] = [];
     const r = await runArrange('align.left', REFS, ITEMS, {
@@ -187,8 +187,8 @@ describe('runArrange', () => {
     });
     expect(r?.ok).toBe(true);
     expect(asked).toEqual([{ op: 'align.left', targets: REFS, params: { items: ITEMS } }]);
-    expect(records).toHaveLength(1);
-    expect((records[0] as { label: string }).label).toBe('Align left');
+    // p8-v1-drop: no canvas undo record — the write is a kernel action and ⌘Z is the shell history
+    expect(records).toHaveLength(0);
   });
 
   test('with a kernel action id nothing is recorded here (S5 owns the undo)', async () => {

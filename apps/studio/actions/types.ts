@@ -67,7 +67,9 @@ export type Fact =
   // S8.12 — a tile is picked in the Assets tab and keyboard focus is inside it: ↵ places it, ⌘I opens its details
   | 'assetTileSelected'
   // S8.16 — the one selected picture is a generated take with siblings: ← → step between the takes, not nudge
-  | 'selectionHasTakes';
+  | 'selectionHasTakes'
+  // p8-v1-drop — a design system in this project is below Conformant: ⌘K offers "Bring it up to the schema"
+  | 'dsUpgradeOffered';
 
 /** Declarative predicate — serialisable into the manifest, evaluable in the shell, the iframe and
  *  (role half) the server. Every present field must hold (AND); `any` is an OR of sub-predicates. */

@@ -11,6 +11,11 @@
 //
 // Shape: the `accepted revisions — switching a live project` suite in sync-accepted-runtime.test.ts,
 // with the owner's Update in place of a raw POST.
+//
+// p8-v1-drop: the update now runs BY ITSELF when the owner opens the project — the shell's automatic
+// apply is the same route (`POST /_api/project/migrate {apply:true}` from the Maude window), so the
+// apply here goes through that route, and the converted project is proven in BOTH directions: the
+// teammate's desktop picks the accepted revisions up, and edits flow Bob → Alice and Alice → Bob.
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { type ChildProcess, spawn } from 'node:child_process';
@@ -22,7 +27,9 @@ import { createRegistry } from '../collab/registry.ts';
 import type { RoomCallbacks } from '../collab/room.ts';
 import type { Context } from '../context.ts';
 import { createBus } from '../context.ts';
-import { applyMigration, EXIT, planMigration } from '../migrate/engine.ts';
+import { EXIT, planMigration } from '../migrate/engine.ts';
+import { createProjectFormatRoutes } from '../routes/project-format.ts';
+import { matchRoute } from '../routes/table.ts';
 import { createSyncRuntime, type SyncRuntime } from '../sync/index.ts';
 
 const HUB_DIR = join(import.meta.dir, '..', '..', 'hub');
@@ -259,7 +266,32 @@ describe.skipIf(!HUB_READY)('Update project on a legacy hub — to accepted revi
     expect(dry.exitCode).toBe(EXIT.done);
     expect(dry.project.linked).toMatchObject({ mode: 'legacy', modeDue: true });
     expect((await api(hub, 'mode')).body.mode).toBe('legacy'); // the dry run switched nothing
-    const report = await applyMigration(opts, dry);
+    // the shell's automatic apply: the route, from the Maude window (Sec-Fetch-Site), no confirmCloud
+    const specs = createProjectFormatRoutes({
+      repoRoot: alice.repoRoot,
+      designRel: 'design',
+      hub: () => opts.hub,
+      formatView: () => ({}),
+      engine: { liveStudio: () => false, dsEmitter: null },
+    });
+    const m = matchRoute(specs, 'POST', '/_api/project/migrate');
+    if (!m) throw new Error('no migrate route');
+    const res = await m.spec.handle(
+      new Request('http://localhost/_api/project/migrate', {
+        method: 'POST',
+        headers: { 'sec-fetch-site': 'same-origin' },
+        body: JSON.stringify({ direction: 'forward', apply: true }),
+      }),
+      m.params
+    );
+    const report = (await res.json()) as {
+      exitCode: number;
+      autoConvert: unknown;
+      notes?: string[];
+      project: { linked: unknown };
+    };
+    expect(res.status).toBe(200);
+    expect(report.autoConvert).toEqual({ allowed: true }); // a team server, not Maude Cloud
     expect(report.exitCode).toBe(EXIT.done);
     expect(report.project.linked).toMatchObject({ modeSwitched: true });
     expect(report.notes ?? []).not.toContainEqual(expect.stringContaining('old way'));
@@ -292,6 +324,16 @@ describe.skipIf(!HUB_READY)('Update project on a legacy hub — to accepted revi
       'bob → alice after the update'
     );
     await waitFor(async () => (await head()) === src('bob after the update'), 'the hub head');
+    // …and the other way round: the owner's own edit after the update reaches the teammate
+    alice.write('ui/board.tsx', src('alice after the update'));
+    await waitFor(
+      () => bob.read('ui/board.tsx') === src('alice after the update'),
+      'alice → bob after the update'
+    );
+    await waitFor(
+      async () => (await head()) === src('alice after the update'),
+      'the hub head (alice)'
+    );
     expect(alice.runtime.acceptedWriteViolations?.()).toBe(0);
     expect(bob.runtime.acceptedWriteViolations?.()).toBe(0);
 

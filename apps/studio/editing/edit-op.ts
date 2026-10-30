@@ -4,15 +4,12 @@
 // by requestId; the shell pins the file and calls `POST /_api/edit-op`. Every S2/S3 canvas gesture
 // that writes structure goes through `runEditOp`, so menus, keys and ⌘K share one path.
 //
-// Undo on a legacy link (contract §5): `recordEditOp` pushes ONE DDR-050 record per write whose
-// undo is `revert {writeId}` and whose redo reverts that revert. Op-log projects undo through S5
-// instead: there `editOpRecord` answers null (S2.20b — the iframe keeps no stack in op-log mode,
-// editing/undo-mode.ts); no positional id is ever stored.
+// Undo: every write is a kernel action, and ⌘Z is the shell's projection over the op log (S5). The
+// canvas keeps no stack: p8-v1-drop deleted the legacy-link record (`revert {writeId}` on a DDR-050
+// stack) with editing/undo-mode.ts, so `editOpRecord` answers null; no positional id is ever stored.
 
 import { acceptFromShell } from '../bridge/dgn-protocol.ts';
 import type { EditOpRequest, EditOpResult } from '../edit-ops/types.ts';
-import { type CommandRecord, type EditCommand, registerCommand } from '../undo-stack.ts';
-import { isOpLogUndo } from './undo-mode.ts';
 
 export const EDIT_OP_TIMEOUT_MS = 15_000;
 export type EditOpAsk = Omit<EditOpRequest, 'file'>;
@@ -80,74 +77,14 @@ export function runEditOp(ask: EditOpAsk, win: Window = window): Promise<EditOpR
   });
 }
 
-// ── the legacy-link undo record ───────────────────────────────────────────────────────────
-
-export const EDIT_OP_KIND = 'edit-op';
-export interface EditOpPayload {
-  writeId: string;
-}
-
-/** writeId of a write → writeId of the revert that undid it (iframe memory: a reload forgets). */
-const revertedBy = new Map<string, string>();
-
-async function revert(writeId: string, win: Window): Promise<string> {
-  const r = await runEditOp({ op: 'revert', targets: [], params: { writeId } }, win);
-  if (!r.ok) throw new Error(r.message); // the stack does not advance on a refused undo
-  return r.writeId;
-}
-
-export function createEditOpCommand(
-  payload: EditOpPayload,
-  label: string,
-  win: Window = window
-): EditCommand {
-  return {
-    kind: EDIT_OP_KIND,
-    label,
-    async undo() {
-      revertedBy.set(payload.writeId, await revert(payload.writeId, win));
-    },
-    async do() {
-      const undoneBy = revertedBy.get(payload.writeId);
-      if (!undoneBy) throw new Error('Redo is not available after a reload.');
-      await revert(undoneBy, win);
-      revertedBy.delete(payload.writeId);
-    },
-  };
-}
-
 /**
- * The record an applied edit-op pushes with `record()` (it already landed; never re-run). Null on the
- * op log: the write is a kernel action there, and ⌘Z is the shell's projection.
+ * The record an applied edit-op would push on the canvas stack — always null since p8-v1-drop: the
+ * write is a kernel action, and ⌘Z is the shell's projection over the op log. Kept so the gesture
+ * call sites (`if (rec) record(rec)`) need no change.
  */
-export function editOpRecord(
-  writeId: string,
-  label: string,
-  win: Window | undefined = globalThis.window
-): CommandRecord<EditOpPayload> | null {
-  if (isOpLogUndo(win)) return null;
-  return { kind: EDIT_OP_KIND, label, payload: { writeId } };
+export function editOpRecord(_writeId: string, _label: string): null {
+  return null;
 }
 
 /** `edit-ops/revert.ts` WRITE_ID_RE (kept local: that module pulls the merge engine into the canvas). */
 export const SHELL_WRITE_ID_RE = /^w_[0-9a-f]{16}$/;
-
-/**
- * S7.6 — a shell-side edit-op (a Timeline clip verb: the shell calls `/_api/edit-op` itself) posts
- * `record-edit { op: 'edit-op', writeId, label }` so the write lands on THIS stack, the one ⌘Z log
- * (decision `maude/v2-S7-timeline-undo-is-project-undo`). Null for anything else.
- */
-export function editOpRecordFromShell(payload: unknown): CommandRecord<EditOpPayload> | null {
-  if (!payload || typeof payload !== 'object') return null;
-  const p = payload as { op?: unknown; writeId?: unknown; label?: unknown };
-  if (p.op !== EDIT_OP_KIND || typeof p.writeId !== 'string') return null;
-  if (!SHELL_WRITE_ID_RE.test(p.writeId)) return null;
-  const label = typeof p.label === 'string' && p.label ? p.label.slice(0, 80) : 'edit';
-  return editOpRecord(p.writeId, label);
-}
-
-registerCommand<EditOpPayload>(EDIT_OP_KIND, (record) =>
-  typeof record.payload?.writeId === 'string'
-    ? createEditOpCommand(record.payload, record.label)
-    : null
-);

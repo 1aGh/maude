@@ -450,15 +450,11 @@ export function useUndoProjection(store = undoProjection) {
 }
 
 /**
- * The shell's ⌘Z / ⇧⌘Z: the projection first; a project not on the op log falls back to the canvas
- * stack (`fallback()` — the dgn `run-action` lane). Returns the store's answer.
+ * The shell's ⌘Z / ⇧⌘Z: the projection over the op log — the ONE undo. Since p8-v1-drop there is no
+ * canvas stack to fall back to (an editable project is always on the op log; a legacy one is view
+ * only), so an answer the projection does not handle does nothing. Returns the store's answer.
  */
-export async function runUndoKey(repoRel, redo, fallback, store = undoProjection) {
-  if (!repoRel) {
-    fallback?.();
-    return { handled: false };
-  }
-  const r = await (redo ? store.redo(repoRel) : store.undo(repoRel));
-  if (!r.handled) fallback?.();
-  return r;
+export async function runUndoKey(repoRel, redo, store = undoProjection) {
+  if (!repoRel) return { handled: false };
+  return redo ? store.redo(repoRel) : store.undo(repoRel);
 }

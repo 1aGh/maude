@@ -15,8 +15,8 @@ The in-app version of the "where did it go" table is [Coming from Maude 1](../si
 
 | Question | Answer |
 | --- | --- |
-| Do I have to do anything to my files? | A project opens in Maude 2 for **viewing** straight away. To **edit** it, update it once (**Update project** in the app, or `maude migrate v2`). Nothing in the project is lost. |
-| Can I go back? | Yes. `maude migrate v2 --reverse` returns the project to Maude 1's format. Every changed file is copied to `_history/_migrate/v2-<stamp>/` first. |
+| Do I have to do anything to my files? | No. Maude 2 updates a Maude 1 project by itself the first time it opens it, and says so. Nothing in the project is lost. A shared project waits until its owner opens it (section 2). |
+| Can I go back? | Yes. `maude migrate v2 --reverse` returns the project to Maude 1's format. Every changed file is copied to `_history/_migrate/v2-<stamp>/` first, on the Mac that ran the update only. |
 | What happens to people still on Maude 1? | They can look at the updated project but not change it, until they update. See section 3. |
 | Are canvases rewritten? | No. Canvas `.tsx` files, design-system CSS, `assets/`, comments and the trash are never touched by the update. |
 | What about my window layout, theme and "seen" flags? | Maude 2 carries them over on first launch. The Maude 1 keys stay where they are, so Maude 1 on the same Mac still works. |
@@ -30,40 +30,47 @@ A Maude 2 project carries `"formatVersion": 2` in `.design/config.json`. A proje
 | Build | Project is format 1 | Project is format 2 |
 | --- | --- | --- |
 | Maude 1.9.0 or later (the compatibility gate) | edits | opens read-only: *This project now uses Maude 2. Update Maude to edit it.* |
-| Maude 2 | opens view-only: *View only — this project still uses Maude 1.* with the action **Update project** | edits |
+| Maude 2 | updates it by itself on open (below); view only until then | edits |
 
-### Updating in the app
+### What happens when Maude 2 opens a Maude 1 project
 
-Open the project, then choose **Update project** in the view-only line. The dialog asks *Update "<project>" for Maude 2?* and says what it means: *People still on Maude 1 can look at it but can't change it until they update. Nothing in the project is lost.* For a project that is local, or shared but already saving with accepted revisions, the toast when it finishes says *Updated for Maude 2. People on Maude 1 can look but not edit.* A shared project that still saves the old way also switches how it saves in the same step; see the next section for its words.
+There is no dialog. When this Mac may update the project, Maude 2 does it as soon as the project opens: the line says *Updating this project for Maude 2…*, and when it finishes the notice says *Updated for Maude 2. It now saves with accepted revisions. A copy of the old files is in Version history, on this Mac only.* The copy is the snapshot in `_history/_migrate/v2-<stamp>/`; `_history/` is per-Mac, so it is on the Mac that ran the update and nowhere else.
 
-### How a shared project saves
-
-A project linked to a team server either saves the old way or with **accepted revisions**: each change counts as saved once the team server confirms it, and Undo takes back only your own. **Update project** moves a shared project to accepted revisions too. Only the owner can, and nothing in the project is lost.
-
-- **A Maude 1 project that still saves the old way.** The same Update does both steps. The dialog has a second paragraph: *It also starts saving with accepted revisions: each change counts as saved once the team server confirms it. Anyone with the project open switches over by themselves.* The toast says *Updated for Maude 2 and saving with accepted revisions. People on Maude 1 can look but not edit.*
-- **A Maude 2 project that still saves the old way.** It is not view only, so the line is quieter and never asks by itself: *This project still saves the old way.* with **Update project**. The dialog asks *Update how "<project>" saves?* and says: *Each change counts as saved once the team server confirms it, and Undo takes back only your own. Anyone with the project open switches over by themselves, and nothing in it is lost. People on Maude 1 older than 1.3 can look at it but can't save changes.* The toast says *Updated. The project now saves with accepted revisions.*
-
-Other toasts and lines:
-
-| When | What Maude says |
+| Project | Updated by itself? |
 | --- | --- |
-| The team server is still bringing changes in after the switch | *Updated. The team server is still bringing changes in — nothing is lost.* |
-| The format moved but the switch did not happen | *Updated for Maude 2, but it still saves the old way. Nothing is lost — Update project again to finish.* |
-| The switch did not happen on a Maude 2 project | The dialog says *The project still saves the old way. Nothing in it changed — Update project again to switch.* |
-| You own the project and opened it in a cloud tab | *This project still saves the old way. Switch it in the dashboard, under Saving.* with **Open dashboard**. A cloud tab cannot run the switch itself. |
+| Local, git or Syncthing | Always. |
+| Linked to a team server | When you are its owner, this Mac is signed in and online, and the team server is Maude 1.9.0 or later. The same step switches it to accepted revisions (next section). |
+| A Maude Cloud project | **Not during the Maude 2 release candidates.** Maude Cloud keeps running Maude 1 until the stable 2.0.0, and a cloud project moved to Maude 2 before that would be view only in its cloud tab for everyone. The owner sees *View only — this Maude Cloud project still uses Maude 1. It moves to Maude 2 by itself once Maude Cloud runs Maude 2.* with **Update project**, which first warns: *Maude Cloud doesn't run Maude 2 yet. Until it does, the project's cloud tab is view only for everyone. Nothing in the project is lost.* |
 
-Anyone who is not the owner sees no line about saving.
-
-Maude 2 never updates a project by itself: opening a Maude 1 project only asks, once. A project Maude 2 creates is a Maude 2 project from the start, and so is a brand-new team project that a Maude 2 app starts on a Maude 2 team server.
-
-Who can update:
+When this Mac cannot update the project yet, the line says why, with at most one action, and the update runs by itself once the reason clears (Maude checks again when the window gets focus, when the Mac comes back online, and every minute):
 
 | Situation | What the view-only line says |
 | --- | --- |
-| You own the project, or it is not shared | **Update project** |
-| Somebody else owns the shared project | *View only — the owner hasn't updated this project for Maude 2 yet.* |
-| The team server is too old to move projects | *View only — the team server needs an update before this project can move to Maude 2.* The owner also gets **How to update**: on the server, run `maude hub workspace-up --image-tag <release>` again (it keeps the settings, secrets and data). Once the server is updated, the line turns into **Update project**. |
-| You own a team project and this Mac is offline | *View only — updating the project needs the team server, and this Mac is offline.* |
+| Somebody else owns the shared project | *View only — this project moves to Maude 2 once its owner opens it. Ask the owner.* |
+| This Mac is not signed in to the team server | *View only — this Mac isn't signed in to the team server for this project.* with **Sign in** |
+| The team server turned this Mac's sign-in down | *View only — the team server turned down this Mac's sign-in, so the project can't be updated yet.* with **Sign in again** |
+| You own a team project and this Mac is offline | *View only — waiting for the connection to the team server. The project moves to Maude 2 by itself once it is back.* |
+| The team server is too old to move projects | *View only — the team server needs an update before this project can move to Maude 2.* The owner also gets **How to update**: on the server, run `maude hub workspace-up --image-tag <release>` again (it keeps the settings, secrets and data). |
+| The team server is not set up for accepted revisions (`store-not-durable`, `browser-not-paired`) | *View only — the team server isn't set up to save accepted revisions yet. Once it is, the project moves to Maude 2 by itself.* |
+
+An update that fails is not tried again on the same answer: the line says what stopped it (*Something stopped the update. Nothing in the project changed.*, or the team server's reason) with **Retry update**. Maude tries by itself again only once something changes (the Mac comes back online, a sign-in, an updated team server), and at most three times per app session.
+
+### How a shared project saves
+
+A project linked to a team server either saves the old way or with **accepted revisions**: each change counts as saved once the team server confirms it, and Undo takes back only your own. Maude 2 moves a shared project to accepted revisions by itself, in the same step as the format, when its owner opens it. Anyone with the project open switches over by themselves, and nothing in the project is lost.
+
+- **A Maude 2 project that still saves the old way** is view only in Maude 2 (editing the old way is gone): *View only — this project still saves the old way.* It switches by itself the same way when its owner opens it: *Switching this project to accepted revisions…*, then *Updated. The project now saves with accepted revisions. A copy of the old files is in Version history, on this Mac only.* Anyone else sees *View only — this project still saves the old way. It switches once its owner opens it. Ask the owner.*
+
+Other notices and lines:
+
+| When | What Maude says |
+| --- | --- |
+| The team server is still bringing changes in after the switch | *Updated for Maude 2. It now saves with accepted revisions — the team server is still bringing changes in, and nothing is lost. A copy of the old files is in Version history, on this Mac only.* |
+| The format moved but the switch did not happen | *Updated for Maude 2, but it still saves the old way. Nothing is lost. A copy of the old files is in Version history, on this Mac only.* The switch then runs by itself as above. |
+| The switch did not happen on a Maude 2 project | *The project still saves the old way. Nothing in it changed.* with **Retry update** |
+| You own the project and opened it in a cloud tab | *View only — this project still saves the old way. Switch it in the dashboard, under Saving.* with **Open dashboard**. A cloud tab cannot run the switch itself. |
+
+A project Maude 2 creates is a Maude 2 project from the start, and so is a brand-new team project that a Maude 2 app starts on a Maude 2 team server.
 
 ### Updating from a terminal: `maude migrate v2`
 
@@ -72,11 +79,11 @@ maude migrate v2                      # dry run: prints what would change, write
 maude migrate v2 --apply              # write it
 maude migrate v2 --reverse            # return the project to format 1
 maude migrate v2 --reverse --strip    # ... and remove Maude 2-only fields (for peers that cannot keep them)
-maude migrate v2 --json               # the report as JSON (also what the app's dialog shows)
+maude migrate v2 --json               # the report as JSON (also what the app reads)
 maude migrate v2 --root <repo>        # another project than the current directory
 ```
 
-The default is a dry run, and it writes nothing. In Claude Code every form of `maude migrate`, the dry run included, shows a permission card (the verb's tier is *destructive*). Two applies refuse to run without a terminal (exit 2): one on a project linked to a team server, which changes the format for every teammate, and any `--strip`. Run those in your own terminal, or use **Update project** in the app.
+The default is a dry run, and it writes nothing. In Claude Code every form of `maude migrate`, the dry run included, shows a permission card (the verb's tier is *destructive*). Two applies refuse to run without a terminal (exit 2): one on a project linked to a team server, which changes the format for every teammate, and any `--strip`. Run those in your own terminal, or open the project in the app, which updates it by itself.
 
 What the update does, in order:
 
@@ -197,7 +204,7 @@ For existing projects: `maude design ds-check` reports a level (`Conformant`, `M
 
 | Symptom | What to do |
 | --- | --- |
-| A project is view-only in Maude 2 | Choose **Update project** (owners), or ask the owner. `maude migrate v2` shows the reason as a refusal when it cannot proceed. |
+| A project is view-only in Maude 2 | The line says why. It updates by itself once the reason clears; if someone else owns it, ask the owner to open it. `maude migrate v2` shows the reason as a refusal when it cannot proceed. |
 | A teammate cannot edit after you updated | They need Maude 2, or Maude 1.9.0 or later to see the banner. Until then they can look. |
 | You want Maude 1's format back | `maude migrate v2 --reverse`. Add `--strip` only when a peer cannot keep Maude 2 fields. The pre-update copy is in `_history/_migrate/`. |
 | A control from Maude 1 is missing | Search for it with ⌘K, then check `nothing-deleted.json`. A feature without a home is a bug: report it from **Menu › Help › Report a bug…**. |

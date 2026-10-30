@@ -20,11 +20,7 @@ import {
 import { applySplitClip } from '../clip-ops.ts';
 import { EDIT_OPS } from '../edit-ops/dispatch.ts';
 import { WRITE_ID_RE } from '../edit-ops/revert.ts';
-import {
-  createEditOpCommand,
-  editOpRecordFromShell,
-  SHELL_WRITE_ID_RE,
-} from '../editing/edit-op.ts';
+import { editOpRecord, SHELL_WRITE_ID_RE } from '../editing/edit-op.ts';
 import { createEditRoutes } from '../routes/edit.ts';
 
 const SRC = [
@@ -150,13 +146,11 @@ describe('a Timeline clip verb is an edit op', () => {
       label: 'split clip',
     });
     expect(SHELL_WRITE_ID_RE.source).toBe(WRITE_ID_RE.source);
-    expect(editOpRecordFromShell({ op: 'edit-op', writeId: 'nope', label: 'x' })).toBeNull();
-    expect(editOpRecordFromShell({ op: 'reorder', canvas: FILE, seq: 1 })).toBeNull();
   });
 });
 
 describe('⌘Z after a timeline split undoes exactly that split; ⇧⌘Z re-applies it', () => {
-  test('split → record → undo restores the bytes → redo writes the split again', async () => {
+  test('split → the shell posts ONE record-edit; the canvas keeps no stack (p8-v1-drop: ⌘Z is the op log)', async () => {
     const s = studio();
     const recorded: unknown[] = [];
     const j = await runClipVerb({
@@ -175,20 +169,11 @@ describe('⌘Z after a timeline split undoes exactly that split; ⇧⌘Z re-appl
     const split = applySplitClip(FILE, SRC, 'reel', 'name:two', undefined, 150).source;
     expect(s.read()).toBe(split);
 
-    // the shell posts this to the canvas; the canvas turns it into ONE stack record
+    // the shell posts this to the canvas; the write is a kernel action, so the canvas records nothing
+    // (the legacy `revert {writeId}` stack record went with p8-v1-drop)
     expect(recorded).toHaveLength(1);
-    const record = editOpRecordFromShell(recorded[0]);
-    expect(record).not.toBeNull();
-    expect(record?.label).toBe('split clip');
-    const cmd = createEditOpCommand(
-      record?.payload as { writeId: string },
-      record?.label as string,
-      s.win
-    );
-    await cmd.undo();
-    expect(s.read()).toBe(SRC); // one step: exactly the split, nothing below it
-    await cmd.do();
-    expect(s.read()).toBe(split);
+    expect(recorded[0]).toMatchObject({ op: 'edit-op', label: 'split clip' });
+    expect(editOpRecord((recorded[0] as { writeId: string }).writeId, 'split clip')).toBeNull();
   });
 
   test('a refused verb records nothing', async () => {

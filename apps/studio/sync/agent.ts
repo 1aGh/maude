@@ -74,9 +74,7 @@ import { commentKey, dedupeCommentsById, hasDuplicateComments } from './comment-
 import { type CommentLedger, withoutRemotelyDeleted } from './comment-ledger.ts';
 import { type EchoGuard, hashBytes } from './echo-guard.ts';
 import type { SyncJournal } from './journal.ts';
-import { createOverlapWatch } from './offline-overlap.ts';
 import { rememberSeed, repairSeedDuplication } from './seed-repair.ts';
-import { saveRecoveryBody } from './source-recovery.ts';
 
 export const DOC_FLUSH_MS = 800;
 
@@ -156,41 +154,16 @@ export interface CanvasSyncAgentOptions {
    * the pre-resolution versions (when the snapshot writer is wired). The
    * legacy `cold-start-hub-wins` kind stays in the union for old readers.
    */
-  onConflict?: (info: AgentConflict) => void;
-  /**
-   * p8-fix-e (F8b) — did this transaction origin come off the wire from the
-   * hub? Turns on the legacy offline-overlap check (sync/offline-overlap.ts)
-   * on this lane too (the `MAUDE_SHARED_DOC=0` two-doc agent), fed by
-   * `noteRemoteUpdate` / `noteConfirmed` / `noteConnection`. Unset: no check.
-   */
-  isRemoteOrigin?: (origin: unknown) => boolean;
-  /** `_history/<slug>/` — where an overlap saves both versions (sync-recovery/). */
-  historyDir?: string;
-  /** A held overlap was resolved by the next local save. */
-  onRecovered?: () => void;
+  onConflict?: (info: {
+    slug: string;
+    kind: 'cold-start-hub-wins' | 'cold-start-diverged' | 'format-flip-local-kept';
+    winner?: 'local' | 'hub';
+    snapshots?: { local?: string; hub?: string };
+    /** DDR-102 fail-closed (F1): the local snapshot didn't land, so the
+     *  hub-wins overwrite was refused and local kept instead. */
+    snapshotFailed?: boolean;
+  }) => void;
 }
-
-/** What the agent reports — the DDR-102 cold-start kinds, plus (F8b) a held offline overlap. */
-export type AgentConflict =
-  | {
-      slug: string;
-      kind: 'cold-start-hub-wins' | 'cold-start-diverged' | 'format-flip-local-kept';
-      winner?: 'local' | 'hub';
-      snapshots?: { local?: string; hub?: string };
-      /** DDR-102 fail-closed (F1): the local snapshot didn't land, so the
-       *  hub-wins overwrite was refused and local kept instead. */
-      snapshotFailed?: boolean;
-      reason?: undefined;
-      file?: undefined;
-    }
-  | {
-      slug: string;
-      kind: 'body-rejected';
-      reason: 'offline-overlap';
-      snapshotFailed: boolean;
-      /** The held text is the sibling stylesheet. Absent: the body. */
-      file?: 'css';
-    };
 
 export interface CanvasSyncAgent {
   readonly slug: string;
@@ -207,12 +180,6 @@ export interface CanvasSyncAgent {
   flush(): Promise<void>;
   /** Stop all timers + listeners. */
   stop(): void;
-  /** F8b — a raw document update as the hub sent it, BEFORE the provider applies it. */
-  noteRemoteUpdate(update: Uint8Array): void;
-  /** F8b — the hub acknowledged every change this connection sent. */
-  noteConfirmed(): void;
-  /** F8b — the provider's socket went up or down (V2-8.9 M1). */
-  noteConnection(connected: boolean): void;
   /** Test/inspection: the origin tag used on agent-applied transactions. */
   readonly origin: object;
 }
@@ -238,76 +205,10 @@ export function createCanvasSyncAgent(opts: CanvasSyncAgentOptions): CanvasSyncA
   let lastMeta: string | null = null;
   let lastCss: string | null = null;
 
-  // p8-fix-e (F8b) — the legacy offline-overlap check on this lane, body and
-  // stylesheet: the same episodes the shared-doc projection keeps (V2-8.17).
-  const watching = !!opts.isRemoteOrigin;
-  const bodyOverlap = watching ? createOverlapWatch(htmlFromDoc) : null;
-  const cssOverlap = watching && paths.css ? createOverlapWatch(cssText) : null;
-  /** A held overlap keeps OUR text on disk until the next local save resolves it. */
-  let bodyHeld = false;
-  let cssHeld = false;
-
-  function surfaceOverlap(file: 'html' | 'css', base: string, theirs: string): void {
-    const target = file === 'css' ? paths.css : paths.html;
-    if (!target) return;
-    const disk = readLocal(target);
-    // The project keeps THEIRS: write it back over the character-level merge,
-    // so no peer is left holding the interleaving.
-    try {
-      doc.transact(() => {
-        if (file === 'css') applyCssToDoc(doc, theirs, origin);
-        else if (applyHtmlToDoc(doc, theirs, origin)) stampBodyEdit(doc, origin);
-      }, origin);
-    } catch {
-      /* the hold below still stops this disk from taking the merge */
-    }
-    if (file === 'css') {
-      cssHeld = true;
-      lastCss = theirs;
-      opts.journal?.record(slug, { cssHash: hashBytes(base) });
-    } else {
-      bodyHeld = true;
-      lastHtml = theirs;
-      opts.journal?.record(slug, { bodyHash: hashBytes(base) });
-    }
-    let snapshotFailed = false;
-    try {
-      if (opts.historyDir) {
-        if (disk !== null) saveRecoveryBody(opts.historyDir, target, 'local', disk);
-        saveRecoveryBody(opts.historyDir, target, 'incoming', theirs);
-      }
-    } catch {
-      snapshotFailed = true;
-    }
-    console.warn(
-      `[sync/${slug}] a teammate changed the same part of this canvas${file === 'css' ? "'s stylesheet" : ''} while apart; the project kept theirs, this disk keeps yours.`
-    );
-    opts.onConflict?.({
-      slug,
-      kind: 'body-rejected',
-      reason: 'offline-overlap',
-      snapshotFailed,
-      ...(file === 'css' ? { file: 'css' as const } : {}),
-    });
-  }
-
-  function checkOverlaps(updateOrigin: unknown): void {
-    if (!opts.isRemoteOrigin?.(updateOrigin)) return;
-    if (bodyOverlap?.open) {
-      const hit = bodyOverlap.check();
-      if (hit) surfaceOverlap('html', hit.base, hit.theirs);
-    }
-    if (cssOverlap?.open) {
-      const hit = cssOverlap.check();
-      if (hit) surfaceOverlap('css', hit.base, hit.theirs);
-    }
-  }
-
   function onDocUpdate(_update: Uint8Array, updateOrigin: unknown): void {
     if (stopped) return;
     // Self-applied (we just synced from disk) — disk is already current.
     if (updateOrigin === origin) return;
-    checkOverlaps(updateOrigin);
     // F1 — a remote update during the seed window may have concatenated a
     // concurrent peer's identical seed onto ours. Collapse it (single elected
     // writer) BEFORE the flush below can mirror a doubled body to disk.
@@ -428,7 +329,6 @@ export function createCanvasSyncAgent(opts: CanvasSyncAgentOptions): CanvasSyncA
   }
 
   function writeHtmlIfChanged(): void {
-    if (bodyHeld) return; // F8b — our body stays on disk until a save resolves the overlap
     const next = htmlFromDoc(doc);
     if (next === lastHtml) return;
     const hash = hashBytes(next);
@@ -494,7 +394,6 @@ export function createCanvasSyncAgent(opts: CanvasSyncAgentOptions): CanvasSyncA
 
   function writeCssIfChanged(): void {
     if (!paths.css) return;
-    if (cssHeld) return; // F8b — as the body
     const next = cssFromDoc(doc);
     if (next === lastCss) return;
     lastCss = next;
@@ -503,13 +402,6 @@ export function createCanvasSyncAgent(opts: CanvasSyncAgentOptions): CanvasSyncA
     echoGuard.record(paths.css, hash);
     writer(paths.css, next);
     opts.journal?.record(slug, { cssHash: hash }); // DDR-102 checkpoint
-  }
-
-  /** The save after the notice is authored on top of the project's version: it resolves the hold. */
-  function resolveHeld(file: 'html' | 'css'): void {
-    if (file === 'css') cssHeld = false;
-    else bodyHeld = false;
-    opts.onRecovered?.();
   }
 
   function applyFromFs(evt: { path: string; bytes: Uint8Array; hash: string }): boolean {
@@ -522,10 +414,6 @@ export function createCanvasSyncAgent(opts: CanvasSyncAgentOptions): CanvasSyncA
 
     const str = bytesToString(evt.bytes);
     if (evt.path === paths.html) {
-      // F8b — until the hub acknowledges this edit, a remote change to the same
-      // part of the body is a teammate's offline edit (offline-overlap.ts).
-      if (str !== htmlFromDoc(doc)) bodyOverlap?.beforeLocal(doc);
-      if (bodyHeld) resolveHeld('html');
       // Body apply + syncMeta stamp in ONE transaction (same origin) so peers
       // receive a single update and the newest-wins stamp rides the body edit.
       let changed = false;
@@ -535,7 +423,6 @@ export function createCanvasSyncAgent(opts: CanvasSyncAgentOptions): CanvasSyncA
       }, origin);
       if (changed) {
         lastHtml = htmlFromDoc(doc);
-        bodyOverlap?.afterLocal(lastHtml);
         // DDR-102 — a successful disk→doc body apply is a journal checkpoint.
         opts.journal?.record(slug, { bodyHash: evt.hash });
       }
@@ -571,12 +458,9 @@ export function createCanvasSyncAgent(opts: CanvasSyncAgentOptions): CanvasSyncA
       return changed;
     }
     if (paths.css && evt.path === paths.css) {
-      if (str !== cssText(doc)) cssOverlap?.beforeLocal(doc);
-      if (cssHeld) resolveHeld('css');
       const changed = applyCssToDoc(doc, str, origin);
       if (changed) {
         lastCss = str;
-        cssOverlap?.afterLocal(cssText(doc));
         opts.journal?.record(slug, { cssHash: evt.hash }); // DDR-102 checkpoint
       }
       return changed;
@@ -888,19 +772,6 @@ export function createCanvasSyncAgent(opts: CanvasSyncAgentOptions): CanvasSyncA
         flushTimer = null;
       }
     },
-    noteRemoteUpdate(update) {
-      if (stopped) return;
-      bodyOverlap?.remote(update);
-      cssOverlap?.remote(update);
-    },
-    noteConfirmed() {
-      bodyOverlap?.confirmed();
-      cssOverlap?.confirmed();
-    },
-    noteConnection(connected) {
-      bodyOverlap?.connection(connected);
-      cssOverlap?.connection(connected);
-    },
   };
 }
 
@@ -912,11 +783,6 @@ function localMtimeMs(p: string): number | null {
   } catch {
     return null;
   }
-}
-
-/** The stylesheet text the overlap check guards ('' when the doc carries none). */
-function cssText(doc: Y.Doc): string {
-  return cssFromDoc(doc) ?? '';
 }
 
 function readLocal(p: string): string | null {

@@ -153,7 +153,7 @@ describe('canvas-shell honours shell→canvas lanes only from window.parent (V2-
     });
   });
 
-  test('undo / redo: no sibling path reaches the active canvas undo stack', async () => {
+  test('undo / redo: no sibling path reaches ⌘Z; the parent’s run-action hands it to the shell (p8-v1-drop)', async () => {
     // A counting stand-in for the in-canvas stack (a real undo re-renders through a portal that
     // happy-dom rejects once an earlier test file in the same process has left its window behind).
     const calls: string[] = [];
@@ -172,7 +172,12 @@ describe('canvas-shell honours shell→canvas lanes only from window.parent (V2-
       lastLabel: null,
       lastTick: 0,
     };
-    await withShell(async () => {
+    // p8-v1-drop: the canvas keeps no stack of its own — ⌘Z is the shell's projection, so the parent's
+    // run-action becomes `undo-key {redo}` to the shell (was: the canvas stack undid / redid). It goes once
+    // the shell's pending records settle (`afterShellRecords`, which times out here: nobody answers).
+    const undoKeys = (messages: Array<Record<string, unknown>>) =>
+      messages.filter((m) => m?.dgn === 'undo-key').map((m) => ({ dgn: m.dgn, redo: m.redo }));
+    await withShell(async (messages) => {
       // A sibling: the retired v1 lanes and the run-action lane reach nothing.
       await send(sibling, { dgn: 'undo' });
       await send(sibling, { dgn: 'redo' });
@@ -181,13 +186,20 @@ describe('canvas-shell honours shell→canvas lanes only from window.parent (V2-
       await send(null, { dgn: 'run-action', v: 1, id: 'edit.undo' });
       // The retired lane from the parent: no handler is left for it either.
       await send(window.parent, { dgn: 'undo' });
+      await new Promise((r) => setTimeout(r, 3300));
       expect(calls).toEqual([]);
-      // The shell itself, on the run-action lane: the stack undoes, then redoes.
+      expect(undoKeys(messages)).toEqual([]);
+      // The shell itself, on the run-action lane: handed back as undo-key, never the in-canvas stack.
       await send(window.parent, { dgn: 'run-action', v: 1, id: 'edit.undo' });
       await send(window.parent, { dgn: 'run-action', v: 1, id: 'edit.redo' });
-      expect(calls).toEqual(['undo', 'redo']);
+      await new Promise((r) => setTimeout(r, 3300));
+      expect(calls).toEqual([]);
+      expect(undoKeys(messages)).toEqual([
+        { dgn: 'undo-key', redo: false },
+        { dgn: 'undo-key', redo: true },
+      ]);
     }, stack);
-  });
+  }, 15_000);
 });
 
 describe('comment-mount honours tool-set only from window.parent (V2-2.8 S1)', () => {

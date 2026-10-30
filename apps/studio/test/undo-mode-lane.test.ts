@@ -1,8 +1,7 @@
-// S2.20b — the shell half of the ⌘Z lane (client/v2/undo/use-undo-mode-lane.js): each canvas frame is
-// told `undo-mode {opLog}` when its projection's mode is known (and again after it reloads), and a
-// `undo-key {redo}` from the ACTIVE canvas runs the projection (`runUndoKey`); a sibling's is ignored.
-// When the projection answers legacy, the frame hears `opLog: false` BEFORE the fallback
-// `run-action edit.undo`, so a canvas never bounces the key back.
+// S2.20b — the shell half of the ⌘Z lane (client/v2/undo/use-undo-mode-lane.js): a `undo-key {redo}`
+// from the ACTIVE canvas runs the projection (`runUndoKey`); a sibling's is ignored. Since p8-v1-drop
+// the canvas keeps no stack: no frame is told `undo-mode {opLog}`, and an unhandled answer falls back to
+// nothing (was: told the mode, then `run-action edit.undo` to the canvas stack).
 
 import { expect, test } from 'bun:test';
 
@@ -43,12 +42,11 @@ function fakeStore() {
   };
 }
 
-test('frames hear their mode; the active canvas’s undo-key runs the projection', async () => {
+test('the active canvas’s undo-key runs the projection; no frame is told a mode, nothing falls back', async () => {
   const a = frame('a');
   const b = frame('b');
   const store = fakeStore();
   const ran: Array<[string, boolean]> = [];
-  let fallbackOf: (() => void) | null = null;
   const lane = createUndoModeLane({
     frames: () =>
       new Map([
@@ -59,24 +57,17 @@ test('frames hear their mode; the active canvas’s undo-key runs the projection
     canvasOrigin: () => ORIGIN,
     store: store as never,
     focused: () => true, // sec-a: the canvas holds focus (the gate is pinned in sec-a-undo-key)
-    runKey: ((path: string, redo: boolean, fallback: () => void) => {
+    runKey: ((path: string, redo: boolean) => {
       ran.push([path, redo]);
-      fallbackOf = fallback;
-      return Promise.resolve({ handled: true });
+      return Promise.resolve({ handled: false });
     }) as never,
   });
-  const modeOf = (f: ReturnType<typeof frame>) =>
-    f.got.filter((m) => m.dgn === 'undo-mode').map((m) => m.opLog);
 
+  // p8-v1-drop: the canvas keeps no stack, so the shell never sends `undo-mode {opLog}` any more
   store.set('.design/ui/a.tsx', 'op-log');
-  expect(modeOf(a)).toEqual([true]);
-  expect(modeOf(b)).toEqual([]); // unknown → never told: the canvas stays on its own stack
-  store.set('.design/ui/a.tsx', 'op-log'); // no change, no repeat
-  expect(modeOf(a)).toEqual([true]);
-
-  // a reloaded document starts legacy again: it is told again and its projection opened
+  store.set('.design/ui/b.tsx', 'legacy');
+  // a reloaded document has its projection opened, and is told nothing
   lane.onMessage({ origin: ORIGIN, source: a, data: { dgn: 'loaded', file: 'ui/a.tsx' } });
-  expect(modeOf(a)).toEqual([true, true]);
   expect(store.opened).toEqual(['.design/ui/a.tsx']);
 
   // the active canvas's keys run the projection; a sibling's and a foreign origin's never do
@@ -92,13 +83,7 @@ test('frames hear their mode; the active canvas’s undo-key runs the projection
     ['.design/ui/a.tsx', false],
     ['.design/ui/a.tsx', true],
   ]);
-
-  // legacy after all: the store flips the mode (the frame hears false) before the fallback runs
-  store.set('.design/ui/a.tsx', 'legacy');
-  (fallbackOf as unknown as () => void)();
-  const tail = a.got.slice(-2).map((m) => m.dgn);
-  expect(tail).toEqual(['undo-mode', 'run-action']);
-  expect(a.got.at(-2)?.opLog).toBe(false);
-  expect(a.got.at(-1)?.id).toBe('edit.redo');
+  // the projection answered unhandled (legacy): no `run-action edit.undo` bounces back to the canvas
+  expect([...a.got, ...b.got]).toEqual([]);
   lane.dispose();
 });

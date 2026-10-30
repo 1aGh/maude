@@ -33,6 +33,7 @@ export const CONVERT_WORDS = Object.freeze({
   failed: 'The folders could not be converted. Nothing was changed.',
   unreachable: 'Maude can’t reach this project right now. Nothing was changed.',
   forbidden: 'You can’t change this design system.',
+  autoDone: 'Design systems moved onto canvases.',
 });
 
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;

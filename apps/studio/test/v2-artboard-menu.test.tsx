@@ -187,8 +187,8 @@ describe('one request writes the copy', () => {
       },
     ]);
     expect(selected).toEqual([['a-2']]);
-    // no kernel action id (a legacy link / unlinked project) → ONE revert record
-    expect(recorded.length).toBe(1);
+    // p8-v1-drop: no canvas undo record — the write is a kernel action and ⌘Z is the shell history
+    expect(recorded.length).toBe(0);
   });
 
   test('with a kernel action id S5 owns the undo: nothing is recorded here', async () => {

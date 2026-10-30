@@ -204,7 +204,7 @@ describe('place — ONE pick is ONE ask', () => {
     return { asks, log, deps };
   }
 
-  test('the ask, the undo record, the selection, the tool, and size-place — in that order of consequence', async () => {
+  test('the ask (no canvas record: p8-v1-drop), the selection, the tool, and size-place — in that order of consequence', async () => {
     const h = harness(OK);
     const ok = await place('social-fb-event', undefined, { x: 1000, y: 150 }, h.deps);
     expect(ok).toBe(true);
@@ -215,8 +215,8 @@ describe('place — ONE pick is ONE ask', () => {
         params: { presetId: 'social-fb-event', at: { x: 1000, y: 150 } },
       },
     ]);
-    expect(h.log.records).toHaveLength(1);
-    expect(h.log.records[0]).toMatchObject({ label: 'Added FB event cover' });
+    // p8-v1-drop: no canvas undo record — the write is a kernel action and ⌘Z is the shell history
+    expect(h.log.records).toHaveLength(0);
     expect(h.log.selected).toEqual([['fb-event-cover']]);
     expect(h.log.done).toBe(1);
     expect(h.log.posts).toEqual([

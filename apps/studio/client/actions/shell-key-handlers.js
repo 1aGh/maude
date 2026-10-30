@@ -90,11 +90,9 @@ function undoRedo(d, e, redo) {
     return;
   }
   e.preventDefault();
-  // S2.20 — the ⌘Z projection over the op log first; the canvas stack only off it (V2-1.2 feed).
+  // S2.20 — the ⌘Z projection over the op log (the canvas keeps no stack since p8-v1-drop).
   const canvas = d.activePath && d.activePath !== SYSTEM_TAB ? d.activePath : null;
-  void runUndoKey(canvas, redo, () =>
-    d.postToActiveCanvas(runActionMessage(redo ? 'edit.redo' : 'edit.undo'))
-  );
+  void runUndoKey(canvas, redo);
 }
 
 const focusSearch = () => {

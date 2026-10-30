@@ -226,6 +226,8 @@ describe('the callout says it before anyone clicks', () => {
       action: 'sign-in-again',
       hub: HUB,
     });
-    expect(saveModeState({ cfg: fmt2Legacy, plan: dry('token-rejected', 'member') })).toBe(null);
+    expect(saveModeState({ cfg: fmt2Legacy, plan: dry('token-rejected', 'member') })?.kind).toBe(
+      'non-owner'
+    );
   });
 });

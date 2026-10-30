@@ -203,7 +203,7 @@ describe('finishPen — one write, one undo step', () => {
     return d;
   })();
 
-  test('runs exactly one op, records one undo step and selects what it made', async () => {
+  test('runs exactly one op, records no canvas undo, selects what it made', async () => {
     const asks: unknown[] = [];
     const records: unknown[] = [];
     const picked: unknown[] = [];
@@ -217,7 +217,8 @@ describe('finishPen — one write, one undo step', () => {
     });
     expect(made).toBe(true);
     expect(asks).toHaveLength(1);
-    expect(records).toEqual([{ kind: 'edit-op', label: 'Draw path', payload: { writeId: 'w1' } }]);
+    // p8-v1-drop: no canvas undo record — the write is a kernel action and ⌘Z is the shell history
+    expect(records).toEqual([]);
     expect(picked).toEqual([[{ artboard: 'desktop', element: 'path' }]]);
   });
 
@@ -422,7 +423,7 @@ describe('Combine — measured by the canvas, written by one op', () => {
     });
   });
 
-  test('runCombine: ONE op, one undo step, selects the result; a refusal toasts and records nothing', async () => {
+  test('runCombine: ONE op, no canvas record, selects the result; a refusal toasts and records nothing', async () => {
     const parent = frame();
     document.body.append(parent);
     const board = document.createElement('div');
@@ -456,9 +457,8 @@ describe('Combine — measured by the canvas, written by one op', () => {
     });
     expect(made).toBe(true);
     expect(asks).toHaveLength(1);
-    expect(records).toEqual([
-      { kind: 'edit-op', label: 'Combine · union', payload: { writeId: 'w2' } },
-    ]);
+    // p8-v1-drop: no canvas undo record — the write is a kernel action and ⌘Z is the shell history
+    expect(records).toEqual([]);
     expect(picked).toEqual([[{ artboard: 'desktop', element: 'union' }]]);
 
     const toasts: string[] = [];

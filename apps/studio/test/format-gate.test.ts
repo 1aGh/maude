@@ -106,18 +106,9 @@ describe('the gate', () => {
     });
   });
 
-  test('newerOnly (the 1.x-direction option): only a NEWER project is gated', () => {
-    expect(formatGate(ctx({}), { newerOnly: true })).toBe(null);
-    expect(formatGate(ctx({ formatVersion: 3 }), { newerOnly: true })).toEqual({
-      projectFormat: 3,
-      supported: 2,
-      source: 'config',
-    });
-    expect(formatConfigFields(ctx({}), false, { newerOnly: true })).toMatchObject({
-      readOnly: false,
-      formatGate: null,
-      formatVersion: 1,
-    });
+  test('p8-v1-drop: the unused newerOnly option is gone', () => {
+    // an older project is always gated here; it leaves the gate by converting (by itself on open)
+    expect(formatGate(ctx({}), { newerOnly: true } as never)).toMatchObject({ projectFormat: 1 });
   });
 
   test('the refusal: 403, read-only + detail format, the copy by direction', async () => {

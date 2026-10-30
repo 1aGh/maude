@@ -107,7 +107,6 @@ import { isLoopbackHost } from './loopback.ts';
 import { createMediaGate, MEDIA_STAYS_LINE, readServerSignature } from './media-gate.ts';
 import { migrateFlatFallback } from './migrate-flat-fallback.ts';
 import { migrateSeed } from './migrate-seed.ts';
-import { offlineOverlapNotice, syncUpdateFromMessage } from './offline-overlap.ts';
 import { ORIGINS } from './origins.ts';
 import {
   fileLaneBusy,
@@ -169,18 +168,6 @@ export interface SyncProvider {
    * Optional: a test stub without it is simply not checked.
    */
   isRemoteOrigin?(origin: unknown): boolean;
-  /**
-   * V2-8.17 (#121) — every document update the hub sends, raw, BEFORE it is
-   * applied (the document's own update event carries only what was new here,
-   * which hides a span both sides deleted). Feeds the legacy offline-overlap
-   * check. Optional: without it the check never opens.
-   */
-  onRemoteUpdate?(cb: (update: Uint8Array) => void): () => void;
-  /**
-   * V2-8.17 — the hub acknowledged every change this connection sent
-   * (Hocuspocus `SyncStatus`; the provider's unsynced count reached 0).
-   */
-  onConfirmed?(cb: () => void): () => void;
   /**
    * May a local write to this document reach the hub right now? False before
    * the handshake authenticates and whenever the hub admitted this connection
@@ -4295,11 +4282,6 @@ export function createSyncRuntime(
         format: declared(),
       });
       providers.set(canvas.slug, provider);
-      // V2-8.9 M1 — a new provider is a new connection (a DDR-102 re-probe
-      // swaps it under a live projection): nothing an earlier one sent will be
-      // acknowledged on it, so the offline-overlap check treats it as a drop.
-      projections.get(canvas.slug)?.noteConnection(false);
-      agents.get(canvas.slug)?.noteConnection(false); // F8b — the two-doc lane too
       // ANY change to a synced document is activity — a local edit unparks a
       // parked desktop, and a peer's edit arriving keeps a live collaboration
       // connected rather than parking under it.
@@ -4329,28 +4311,6 @@ export function createSyncRuntime(
       const deferSetup = !!setup && pulledSlugs.has(canvas.slug);
       if (!deferSetup) setup?.(provider);
       else if (setup) owedSetups.set(canvas.slug, setup);
-      // V2-8.17 (#121) — feed the legacy offline-overlap check (projection.ts):
-      // the hub's raw updates before they apply, and its acknowledgements.
-      if (provider.onRemoteUpdate) {
-        noteDetach(
-          statusDetaches,
-          canvas.slug,
-          provider.onRemoteUpdate((u) => {
-            projections.get(canvas.slug)?.noteRemoteUpdate(u);
-            agents.get(canvas.slug)?.noteRemoteUpdate(u); // F8b — MAUDE_SHARED_DOC=0
-          })
-        );
-      }
-      if (provider.onConfirmed) {
-        noteDetach(
-          statusDetaches,
-          canvas.slug,
-          provider.onConfirmed(() => {
-            projections.get(canvas.slug)?.noteConfirmed();
-            agents.get(canvas.slug)?.noteConfirmed();
-          })
-        );
-      }
 
       // Task 8 — feed this provider's WS status into the offline monitor.
       // Per-provider, so a socket that never dropped never triggers a poll.
@@ -4361,10 +4321,6 @@ export function createSyncRuntime(
           canvas.slug,
           provider.onStatus((s) => {
             mon.noteProviderStatus(canvas.slug, s);
-            // V2-8.9 M1 — a drop with an edit in flight ends the legacy
-            // offline-overlap check (sync/offline-overlap.ts).
-            projections.get(canvas.slug)?.noteConnection(s === 'connected');
-            agents.get(canvas.slug)?.noteConnection(s === 'connected');
             // COMING BACK IS THE MOMENT MOST LIKELY TO HAVE MISSED SOMETHING.
             //
             // A peer that was away for an hour has an hour of other people's
@@ -4544,29 +4500,21 @@ export function createSyncRuntime(
                       onWriteBlocked: () => void refreshAcceptedMode(),
                     }
                   : { canWriteDoc: () => !outboundPaused() }),
-                // V2-8.17 (#121) — the legacy offline-overlap check. Asks the
-                // CURRENT provider: a DDR-102 re-probe swaps it under this
-                // projection.
-                isRemoteOrigin: (origin: unknown) =>
-                  providers.get(canvas.slug)?.isRemoteOrigin?.(origin) === true,
                 onRecovered: () => store.clearSourceConflict(canvas.slug),
                 onConflict: (info) => {
                   store.addConflict(info);
                   store.notice({
                     id: `source-conflict-${canvas.slug}`,
                     severity: 'warn',
-                    text:
-                      info.reason === 'offline-overlap'
-                        ? offlineOverlapNotice(canvas.slug, info)
-                        : `Source sync blocked for ${canvas.slug}. The local file was kept because ${
-                            info.reason === 'invalid-source'
-                              ? 'the source has syntax errors or duplicate declarations'
-                              : info.reason === 'local-edit'
-                                ? 'a local edit overlaps an incoming change'
-                                : info.reason === 'merge-budget'
-                                  ? 'the edit is too large to merge safely'
-                                  : 'a recovery copy could not be saved'
-                          }. ${info.snapshotFailed ? 'Recovery could not be saved; check disk space and history write access.' : `Recovery copies are in _history/${canvas.slug}/sync-recovery/.`}`,
+                    text: `Source sync blocked for ${canvas.slug}. The local file was kept because ${
+                      info.reason === 'invalid-source'
+                        ? 'the source has syntax errors or duplicate declarations'
+                        : info.reason === 'local-edit'
+                          ? 'a local edit overlaps an incoming change'
+                          : info.reason === 'merge-budget'
+                            ? 'the edit is too large to merge safely'
+                            : 'a recovery copy could not be saved'
+                    }. ${info.snapshotFailed ? 'Recovery could not be saved; check disk space and history write access.' : `Recovery copies are in _history/${canvas.slug}/sync-recovery/.`}`,
                   });
                 },
                 // Cell pairing only — see the DocProjectionOptions.onWrote doc.
@@ -4612,23 +4560,8 @@ export function createSyncRuntime(
                     return null; // best-effort — resolution proceeds without refs
                   }
                 },
-                onConflict: (info) => {
-                  store.addConflict(info);
-                  // F8b — the legacy offline-overlap notice, as the projection lane shows it.
-                  if (info.reason === 'offline-overlap') {
-                    store.notice({
-                      id: `source-conflict-${canvas.slug}`,
-                      severity: 'warn',
-                      text: offlineOverlapNotice(canvas.slug, info),
-                    });
-                  }
-                },
+                onConflict: (info) => store.addConflict(info),
                 formatFirstSight: firstSightFor(canvas.slug),
-                // F8b (p8-fix-e) — the legacy offline-overlap check on this lane too.
-                isRemoteOrigin: (origin: unknown) =>
-                  providers.get(canvas.slug)?.isRemoteOrigin?.(origin) === true,
-                historyDir: path.join(ctx.paths.historyDir, canvas.slug),
-                onRecovered: () => store.clearSourceConflict(canvas.slug),
               });
               agent.start();
               agents.set(canvas.slug, agent);
@@ -7518,28 +7451,6 @@ export function createDefaultProviderFactory(
       // so the runtime can bridge it to the collab Room (Task 5).
       awareness: provider.awareness as Awareness | undefined,
       isRemoteOrigin: (origin: unknown) => origin === provider,
-      onRemoteUpdate(cb: (update: Uint8Array) => void): () => void {
-        // The provider emits 'message' with the raw frame before it applies it.
-        const handler = (evt: { event?: { data?: unknown } }) => {
-          const data = evt?.event?.data;
-          if (!(data instanceof ArrayBuffer) && !ArrayBuffer.isView(data)) return;
-          const bytes =
-            data instanceof ArrayBuffer
-              ? new Uint8Array(data)
-              : new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
-          const update = syncUpdateFromMessage(bytes);
-          if (update) cb(update);
-        };
-        provider.on('message', handler);
-        return () => provider.off('message', handler);
-      },
-      onConfirmed(cb: () => void): () => void {
-        const handler = (evt: { number?: number }) => {
-          if (evt?.number === 0) cb();
-        };
-        provider.on('unsyncedChanges', handler);
-        return () => provider.off('unsyncedChanges', handler);
-      },
       // Writable = authenticated read-write ON THIS CONNECTION. A scope left
       // over from before a drop says nothing about the hub now: a project
       // switched to accepted revisions while this peer was away re-admits it

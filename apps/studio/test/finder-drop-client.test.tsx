@@ -211,7 +211,7 @@ describe('importAll', () => {
   });
 });
 
-describe('runFinderDrop — six photos are six imports, ONE place, ONE undo record, all selected', () => {
+describe('runFinderDrop — six photos are six imports, ONE place, no canvas record, all selected', () => {
   const target = {
     kind: 'artboard',
     el: undefined as unknown as HTMLElement,
@@ -247,7 +247,8 @@ describe('runFinderDrop — six photos are six imports, ONE place, ONE undo reco
     const placed = (asks[0]?.params?.assets ?? []) as string[];
     expect(placed.length).toBe(6);
     expect(placed[0]).toBe('assets/e0000000.jpg');
-    expect(records.length).toBe(1);
+    // p8-v1-drop: no canvas undo record — the write is a kernel action and ⌘Z is the shell history
+    expect(records.length).toBe(0);
     expect(selected).toEqual([created]);
     expect(toasts).toEqual(["Placed 6 photos in Fotky ze zápasu. They're in Assets too."]);
   });

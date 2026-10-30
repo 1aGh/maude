@@ -57,7 +57,7 @@ describe('maude migrate v2 — hub order', () => {
     expect(hub.state.formatVersion).toBe(1);
   });
 
-  test('M13: a crash after the hub flip, before the local marker → the next run completes', async () => {
+  test('p8-v1-drop: a local failure after the hub flip unflips the hub; the next run completes', async () => {
     p = fixtureProject();
     link(p);
     const hub = fakeHub({ formatVersion: 1 });
@@ -66,16 +66,34 @@ describe('maude migrate v2 — hub order', () => {
     // After the flip, one local write is made impossible: a directory where a
     // chat's new meta file has to go. The run fails mid-way and rolls back.
     const blocker = path.join(p.design, '_chat', 'chat-01.meta.json');
-    hub.state.onSet = () => mkdirSync(blocker);
+    hub.state.onSet = (v) => {
+      if (v === 2) mkdirSync(blocker);
+    };
     await expect(applyMigration(o, dry)).rejects.toThrow();
     rmSync(blocker, { recursive: true });
-    expect(hub.state.formatVersion).toBe(2); // flipped
     expect(localFormat(p)).toBe(1); // rolled back locally — all or nothing
+    // …and the team server is put back: no teammate sees a format-2 project whose files are format 1
+    expect(hub.state.formatVersion).toBe(1);
+    expect(hub.calls.filter((c) => c.op === 'setFormat').map((c) => c.formatVersion)).toEqual([
+      2, 1,
+    ]);
     hub.state.onSet = null;
     const again = await run(o);
     expect(again.exitCode).toBe(EXIT.done);
     expect(localFormat(p)).toBe(2);
-    expect(hub.calls.filter((c) => c.op === 'setFormat')).toHaveLength(1); // not flipped twice
+    expect(hub.state.formatVersion).toBe(2);
+  });
+
+  test('M13: a crash after the hub flip, before the local marker → the next run completes', async () => {
+    p = fixtureProject();
+    link(p);
+    // the process died between the flip and the local writes: nothing could unflip
+    const hub = fakeHub({ formatVersion: 2 });
+    expect(localFormat(p)).toBe(1);
+    const again = await run(opts(p, { hub: owner, hubClient: hub.client }));
+    expect(again.exitCode).toBe(EXIT.done);
+    expect(localFormat(p)).toBe(2);
+    expect(hub.calls.filter((c) => c.op === 'setFormat')).toHaveLength(0); // not flipped twice
   });
 
   test('M12: a local format-2 project linked to a format-1 hub raises the hub', async () => {

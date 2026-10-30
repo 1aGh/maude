@@ -264,7 +264,7 @@ describe('finishDraw — one write, one undo step', () => {
     target,
   };
 
-  test('runs exactly one op, records one undo step and selects what it made', async () => {
+  test('runs exactly one op, records no canvas undo, selects what it made', async () => {
     const asks: unknown[] = [];
     const records: unknown[] = [];
     const picked: unknown[] = [];
@@ -279,9 +279,8 @@ describe('finishDraw — one write, one undo step', () => {
     });
     expect(made).toBe(true);
     expect(asks).toHaveLength(1);
-    expect(records).toEqual([
-      { kind: 'edit-op', label: 'Draw rectangle', payload: { writeId: 'w1' } },
-    ]);
+    // p8-v1-drop: no canvas undo record — the write is a kernel action and ⌘Z is the shell history
+    expect(records).toEqual([]);
     expect(picked).toEqual([['element', [{ artboard: 'desktop', element: 'rectangle' }]]]);
   });
 

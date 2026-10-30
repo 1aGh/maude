@@ -712,9 +712,6 @@ export interface ShellToCanvas {
   'ai-seen': { targets: Array<{ ref: string; tag: string }> };
   // S2.20 — pointing at an Undo history row lights the artboards it would undo; `[]` clears.
   'undo-preview': { artboards: string[]; tag: string | null };
-  // S2.20b — state, not an event: `opLog: true` → the shell owns ⌘Z (the op log) and the canvas
-  // keeps no durable stack; sent on every change and to a frame on `loaded` / `canvas-rendered`.
-  'undo-mode': { opLog: boolean };
   // S8.19 — "Waiting for Jonas's Mac" vs Missing for the open canvas's media. State, not an event: the
   // shell sends the whole list on open, every 60 s while something waits, at reconnect and after a
   // sweep ends. ≤ 256 items; a name with an `@` is refused whole (the canvas never sees an e-mail).
@@ -2456,12 +2453,6 @@ const s2c: S2C = {
     status: 'live',
     owner: 'editing/undo-preview (S2.20)',
     parse: p({ artboards: arrOf(str), tag: nul(str) }),
-  },
-  'undo-mode': {
-    gate: 'parent',
-    status: 'live',
-    owner: 'editing/undo-mode (S2.20b)',
-    parse: p({ opLog: bool }),
   },
   'asset-state': {
     gate: 'parent',

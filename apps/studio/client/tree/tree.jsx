@@ -1,5 +1,6 @@
 // tree/tree.jsx — moved verbatim out of client/app.jsx (Maude v2 plan V2-0.2, move-only split).
 
+import { setUpgradeOffers } from '../v2/ds/upgrade-offers.js';
 import {
   displayName,
   filterTree,
@@ -903,6 +904,12 @@ export function Sidebar({
     [groups, dsCfg, dsDesignRel, dsState, onDsAction, readOnly]
   );
   const pinnedDs = dsModel.rows;
+  // p8-v1-drop — the systems below Conformant are offered "Bring it up" in ⌘K too (client/v2/ds/upgrade-offers.js)
+  useEffect(() => {
+    if (!onDsAction || readOnly) return undefined;
+    setUpgradeOffers(pinnedDs.filter((r) => r.amber).map((r) => r.dsName));
+    return () => setUpgradeOffers([]);
+  }, [pinnedDs, onDsAction, readOnly]);
   // a converted system opens its Design system canvas (ds.go-to); an older one its v1 view (Q6)
   const openDs = useCallback(
     (name) => {

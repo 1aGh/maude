@@ -68,7 +68,6 @@ import { runStageHooks } from './routes/index.ts';
 import { normalizeSessionKey, runInSession, SESSION_HEADER } from './session-scope.ts';
 import { writeShellInfoFile } from './shell/info-file.ts';
 import { createActionFeed } from './sync/action-feed.ts';
-import { sharedDocEnabled } from './sync/cell-pairing.ts';
 import { accessFor, getHubRecord, watchHubsConfig } from './sync/hubs-config.ts';
 import { hubHealth } from './sync/journal-client.ts';
 import { attachLocalHome } from './sync/local-kernel.ts';
@@ -107,15 +106,10 @@ const ctx = createContext();
 // ~/.maude/logs (or $MAUDE_LOG_DIR), scrubbed, 7 days. Local only: nothing is sent anywhere.
 await initDiagnostics({ repoRoot: ctx.paths.repoRoot });
 
-// DDR-064 cutover (Sync v2 Increment 7) — `MAUDE_SHARED_DOC` now defaults ON:
-// the collab room's Y.Doc is THE doc per canvas, everywhere. The two-doc +
-// disk-reconcile path still exists in full and `MAUDE_SHARED_DOC=0` flips a
-// machine back onto it — that config flip is this release's rollback, which is
-// why NOTHING is deleted here (the relay's deletion is the next increment,
-// one soak later). The flag is threaded onto ctx here (before createCollab /
-// createSyncRuntime read it) so every downstream consumer sees one source of
-// truth, parsed by the same function the cell-pairing interlock uses.
-ctx.sharedDoc = sharedDocEnabled(process.env);
+// DDR-064 — the collab room's Y.Doc is THE doc per canvas, everywhere. Since p8-v1-drop there is no
+// opt-out: `MAUDE_SHARED_DOC=0` (the rollback onto the two-doc + disk-reconcile path) is gone. Set on
+// ctx here, before createCollab / createSyncRuntime read it.
+ctx.sharedDoc = true;
 
 // Forward-declared so the api.commentsAdd/patch/delete/addReply callback can
 // reach into the collab registry (Phase 8 Task 3 bridge). collab is initialized

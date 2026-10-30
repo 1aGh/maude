@@ -1,7 +1,8 @@
-// Michal 2A (2026-10-28) — the v2 side of the format gate, as the app draws it: a format-1 project is
-// view only and offers ONE button, Update project, to whoever may press it. Who sees what (lead decision):
-// local / unlinked / the owner (or hub admin) on a v2 hub → Update project · anyone else → the owner line ·
-// the owner on a 1.x hub → the team-server line + how to update it · the owner offline → the offline line.
+// The v2 side of the format gate, as the app draws it. Since p8-v1-drop (decision
+// maude/v2-michal-drop-v1-auto-convert) a format-1 project converts BY ITSELF when this Mac may: local /
+// unlinked / the owner (or hub admin) on a v2 hub → 'ready' (the shell applies, unasked) · anyone else →
+// the owner line · the owner on a 1.x hub → the team-server line + how to update it · the owner offline →
+// the waiting line. (Pinned the opt-in "Update project" button + dialog before p8-v1-drop.)
 // The words are FORMAT_COPY's (CONTRACT §4) — one set, pinned here.
 
 import { describe, expect, test } from 'bun:test';
@@ -38,8 +39,8 @@ describe('the older-project callout', () => {
         expect({ k, v }).toEqual({ k, v: want });
       }
     }
-    expect(OLDER_COPY.dialogTitle('Alligators brand')).toBe(
-      'Update "Alligators brand" for Maude 2?'
+    expect(OLDER_COPY.cloudDialogTitle('Alligators brand')).toBe(
+      'Update "Alligators brand" for Maude 2 now?'
     );
   });
 
@@ -54,26 +55,26 @@ describe('the older-project callout', () => {
     expect(isOlderGate(older)).toBe(true);
   });
 
-  test('a local project: view only + Update project', () => {
+  test('a local project: it converts now, unasked (no button)', () => {
     expect(olderGateState({ cfg: older, plan: { exitCode: 0, refusals: [], steps: [] } })).toEqual({
-      kind: 'owner',
-      line: 'View only — this project still uses Maude 1.',
-      action: 'update',
+      kind: 'ready',
+      line: 'Updating this project for Maude 2…',
+      action: null,
     });
     // while the dry run is in flight: the line, no button yet
     expect(olderGateState({ cfg: older, plan: undefined })).toMatchObject({ action: null });
   });
 
-  test('a linked project on a v2 hub: the owner and the hub admin get the button', () => {
-    expect(olderGateState({ cfg: older, plan: linked('owner') })?.action).toBe('update');
-    expect(olderGateState({ cfg: older, plan: linked('admin') })?.action).toBe('update');
+  test('a linked project on a v2 hub: the owner and the hub admin convert it', () => {
+    expect(olderGateState({ cfg: older, plan: linked('owner') })?.kind).toBe('ready');
+    expect(olderGateState({ cfg: older, plan: linked('admin') })?.kind).toBe('ready');
   });
 
   test('someone else: the owner line, no button', () => {
     for (const plan of [linked('member', ['not-owner']), linked('member', ['no-sign-in'])]) {
       expect(olderGateState({ cfg: older, plan })).toEqual({
         kind: 'non-owner',
-        line: "View only — the owner hasn't updated this project for Maude 2 yet.",
+        line: 'View only — this project moves to Maude 2 once its owner opens it. Ask the owner.',
         action: null,
       });
     }
@@ -91,7 +92,7 @@ describe('the older-project callout', () => {
     };
     expect(olderGateState({ cfg: older, plan: refused })).toEqual({
       kind: 'non-owner',
-      line: "View only — the owner hasn't updated this project for Maude 2 yet.",
+      line: 'View only — this project moves to Maude 2 once its owner opens it. Ask the owner.',
       action: null,
     });
   });
@@ -110,7 +111,7 @@ describe('the older-project callout', () => {
   test('the owner offline: the offline line, no button', () => {
     expect(olderGateState({ cfg: older, plan: linked('owner', ['offline']) })).toEqual({
       kind: 'offline',
-      line: 'View only — updating the project needs the team server, and this Mac is offline.',
+      line: 'View only — waiting for the connection to the team server. The project moves to Maude 2 by itself once it is back.',
       action: null,
     });
   });

@@ -1,7 +1,8 @@
-// p8-update-fails-loud — the dialog, rendered (happy-dom). "Update project did nothing: repeated clicks,
+// p8-update-fails-loud — the callout, rendered (happy-dom). "Update project did nothing: repeated clicks,
 // no change, no message" (the alligators report, 2026-10-29). Each answer the migrate route can give ends
-// in a worded line in the dialog and ONE primary action that helps; while the request runs the button
-// says so, is disabled, and a second click sends nothing.
+// in a worded line and ONE action that helps. Since p8-v1-drop the update runs BY ITSELF on open (the
+// opt-in dialog is gone), so the words land in the callout itself; while it runs the callout says so and
+// a second trigger sends nothing.
 
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
@@ -107,14 +108,11 @@ async function mount(cfg: Record<string, unknown> = older) {
   await wait(10);
 }
 
-async function clickConfirm() {
-  await act(async () => {
-    $('format-update-confirm')?.click();
-  });
-  await wait(10);
-}
+const callout = () => $('format-older-callout');
+/** the callout's one action button, if any */
+const actionButton = () => callout()?.querySelector('button') as HTMLButtonElement | null;
 
-describe('Update project — each failure is worded in the dialog', () => {
+describe('Update — each failure is worded in the callout', () => {
   const cases: Array<{ name: string; answer: Answer; line: RegExp; action: string | null }> = [
     {
       name: 'offline',
@@ -163,40 +161,37 @@ describe('Update project — each failure is worded in the dialog', () => {
     test(c.name, async () => {
       const calls = mockMigrate(dryOk, [c.answer]);
       await mount();
-      expect($('format-update-dialog')).not.toBe(null); // asked once on opening
-      await clickConfirm();
+      expect($('format-update-dialog')).toBe(null); // nothing to confirm: it ran by itself
       expect(calls.apply).toBe(1);
-      expect($('format-update-error')?.textContent ?? '').toMatch(c.line);
-      const confirm = $('format-update-confirm');
-      if (c.action === null) {
-        expect(confirm).toBe(null);
-        expect($('format-update-cancel')?.textContent).toBe('Close');
-      } else {
-        expect(confirm?.textContent).toBe(c.action);
-        expect((confirm as HTMLButtonElement).disabled).toBe(false);
+      expect(callout()?.textContent ?? '').toMatch(c.line);
+      if (c.action === null) expect(actionButton()).toBe(null);
+      else {
+        expect(actionButton()?.textContent).toBe(c.action);
+        expect(actionButton()?.disabled).toBe(false);
       }
     });
   }
 
-  test('Retry update runs the update again, and a success closes the dialog', async () => {
+  test('Retry update runs the update again, and a success clears the line', async () => {
     const calls = mockMigrate(dryOk, [
       { status: 500, body: { error: 'x' } },
       { status: 200, body: { ...dryOk, dryRun: false } },
     ]);
     await mount();
-    await clickConfirm();
-    expect($('format-update-confirm')?.textContent).toBe('Retry update');
-    await clickConfirm();
+    expect($('format-older-retry')?.textContent).toBe('Retry update');
+    await act(async () => {
+      $('format-older-retry')?.click();
+    });
+    await wait(10);
     expect(calls.apply).toBe(2);
-    expect($('format-update-dialog')).toBe(null);
+    expect(callout()?.textContent ?? '').not.toMatch(/Something stopped/);
   });
 
   test('Sign in again opens the sign-in for the project’s team server', async () => {
     mockMigrate(dryOk, [{ status: 409, body: refusedWith('token-rejected') }]);
     await mount();
-    await clickConfirm();
     await act(async () => {
-      $('format-update-confirm')?.click();
+      $('format-older-sign-in')?.click();
     });
     await wait(10);
     expect($('team-projects-dialog')).not.toBe(null);
@@ -207,44 +202,36 @@ describe('Update project — each failure is worded in the dialog', () => {
     try {
       mockMigrate(dryOk, [{ status: 409, body: refusedWith('token-rejected') }]);
       await mount();
-      await clickConfirm();
-      expect($('format-update-error')?.textContent ?? '').toMatch(/turned down this Mac's sign-in/);
-      expect($('format-update-confirm')).toBe(null);
-      expect($('format-update-cancel')?.textContent).toBe('Close');
+      expect(callout()?.textContent ?? '').toMatch(/turned down this Mac's sign-in/);
+      expect($('format-older-sign-in')).toBe(null);
     } finally {
       native(true);
     }
   });
 });
 
-describe('Update project — while the request runs', () => {
-  test('the button shows it, is disabled, and a second click sends nothing', async () => {
+describe('Update — while it runs', () => {
+  test('the callout says so, and a second trigger sends nothing', async () => {
     let release: (r: Response) => void = () => {};
     const pending = new Promise<Response>((r) => {
       release = r;
     });
     const calls = mockMigrate(dryOk, [pending]);
     await mount();
-    const confirm = $('format-update-confirm') as HTMLButtonElement;
+    expect(calls.apply).toBe(1);
+    expect(callout()?.getAttribute('data-kind')).toBe('updating');
+    expect(callout()?.textContent ?? '').toMatch(/Updating this project for Maude 2/);
+    expect(actionButton()).toBe(null);
     await act(async () => {
-      confirm.click();
-      confirm.click(); // same tick: before React re-renders the disabled state
+      window.dispatchEvent(new Event('focus'));
     });
     await wait(10);
-    await act(async () => {
-      $('format-update-confirm')?.click();
-    });
     expect(calls.apply).toBe(1);
-    const busy = $('format-update-confirm') as HTMLButtonElement;
-    expect(busy.disabled).toBe(true);
-    expect(busy.getAttribute('aria-busy')).toBe('true');
-    expect(busy.textContent).toBe('Updating…');
-    expect(($('format-update-cancel') as HTMLButtonElement).disabled).toBe(true);
     await act(async () => {
       release(new Response(JSON.stringify({ ...dryOk, dryRun: false }), { status: 200 }));
     });
     await wait(10);
-    expect($('format-update-dialog')).toBe(null);
+    expect(calls.apply).toBe(1);
   });
 });
 
@@ -252,7 +239,7 @@ describe('the callout before anyone clicks', () => {
   test('format 1, the token is rejected: view only, Sign in again (no silent Update)', async () => {
     mockMigrate({ ...refusedWith('token-rejected'), dryRun: true }, []);
     await mount();
-    expect($('format-update-dialog')).toBe(null); // nothing to confirm while it cannot run
+    expect($('format-update-dialog')).toBe(null); // the opt-in dialog is gone
     expect($('format-older-callout')?.textContent ?? '').toMatch(/turned down this Mac's sign-in/);
     expect($('format-older-sign-in')?.textContent).toBe('Sign in again');
   });
