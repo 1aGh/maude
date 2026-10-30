@@ -23,6 +23,12 @@ export const FIXED_SINCE = [
     test: 'apps/studio/test/p8-timeline-v2-body.test.tsx › at Fit, Zoom out and Fit are greyed with the reason',
   },
   {
+    control: 'adv-copy-style',
+    commit: '19190861d',
+    what: 'Inspector › Advanced › Copy style says what happened: “Style copied — N properties…”, or “Nothing copied…” when the look comes only from classes; Paste style before a copy says “Nothing to paste yet…”',
+    test: 'apps/studio/test/p8-sweep-close-copy-style.test.tsx › a copy with a style of its own says how much it copied',
+  },
+  {
     control: 'settings-reset-folds-btn',
     commit: 'd6211455a',
     what: 'Settings › Advanced › Close all Advanced sections answers its click (the button says Closed)',

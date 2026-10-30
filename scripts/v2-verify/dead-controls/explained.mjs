@@ -27,6 +27,13 @@ const FAMILIES = [
     why: 'a row of the exports list: its id carries that export job’s per-run id, and the job exists only while the exports list holds the export the crawl itself ran; a fresh project has none',
   },
   {
+    // p8-sweep-close: z2 (--resume, both modes) and rp7 (--replay, browser) walked these on a fresh load and the
+    // control was not there; it is judged (clicked, effect) in the state that turns its switch on
+    match: /^(Fit to screen|adv-add-property)$/,
+    family: /^(Fit to screen|adv-add-property)$/,
+    why: 'the state behind a control that shows only while a per-Mac view switch is on (the canvas zoom pill: View › Advanced › Zoom controls; the Inspector’s Advanced fold): the walk met it in a soft replay after an earlier click had turned the switch on, and a fresh load clears that storage',
+  },
+  {
     match: /^(M|I) .* N ago$/,
     family: /^(M|I) .* N ago$/,
     why: 'a comment row named by its relative time',
