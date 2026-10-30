@@ -203,6 +203,15 @@ export class Crawler {
     // the rig is signed in nowhere: GitHub's repo list answers 401
     else if (/\/_api\/github\//.test(text) && /401/.test(`${kind} ${text}`))
       kind = `${kind} (not signed in)`;
+    // a click moved the OPEN canvas to the trash / renamed / moved it (the walk clicks every first-level destructive
+    // control once): the frame's own late requests for that file answer 404
+    else if (
+      /404/.test(`${kind} ${text}`) &&
+      /(\.design\/ui\/[^\s]+\.tsx|\/_api\/(asset-state|canvas-errors)\?canvas=|\[canvas-shell\] HTTP 404)/.test(
+        text
+      )
+    )
+      kind = `${kind} (canvas removed)`;
     // the fixture's video canvases name media files the fixture does not ship (assets/aaaa1111.mp4, song.mp3):
     // the server refuses them and the player throws — the rig's gap, not a control's
     else if (
@@ -310,9 +319,14 @@ export class Crawler {
     } else if (s.kind === 'click') {
       const f = this.frameOf(s.frame);
       if (!f) return false;
-      const ok = await f
-        .evaluate(([k, o]) => window.__crawl?.mark(k, o) ?? false, [s.key, s.occ])
-        .catch(() => false);
+      // a list that fills in late (recent canvases, thumbnails) can lack the row for a moment: look a few times
+      let ok = false;
+      for (let attempt = 0; attempt < 4 && !ok; attempt++) {
+        if (attempt) await sleep(1000);
+        ok = await f
+          .evaluate(([k, o]) => window.__crawl?.mark(k, o) ?? false, [s.key, s.occ])
+          .catch(() => false);
+      }
       if (!ok) return false;
       await f
         .locator('[data-crawl-target]')
@@ -618,6 +632,11 @@ export class Crawler {
           // second chance: a fresh load and the whole walk from the root, not the soft restore
           await this.replay(st.steps, true);
           again = await this.controls();
+          // rows that land a moment after the page (runtime files, the recents list): give them a few looks
+          for (let look = 0; look < 3 && !again.some((x) => x.id === c.id); look++) {
+            await sleep(1200);
+            again = await this.controls();
+          }
         }
         fp = this.fingerprint(again);
         if (!again.some((x) => x.id === c.id)) {

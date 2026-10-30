@@ -83,7 +83,7 @@ const NOT_CLICKED = new Set([
 
 /** An error that is an artefact of the rig, not of the product: the Tauri stub refusing a native call. */
 export const isRigError = (e) =>
-  /\((native stub|blocked external|cloud offline|no hub|fixture media|server restarting|not signed in)\)/.test(
+  /\((native stub|blocked external|cloud offline|no hub|fixture media|server restarting|not signed in|canvas removed)\)/.test(
     e.kind
   );
 

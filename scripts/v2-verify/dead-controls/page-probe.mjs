@@ -64,7 +64,15 @@ export const PAGE_PROBE = String.raw`(() => {
     if (r.bottom < 0 || r.right < 0 || r.top > innerHeight || r.left > innerWidth) return false;
     return true;
   };
-  const clean = (s) => (s || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+  // a relative time ('17 min ago', 'just now') is in a row's name: it must not make the control a different one a
+  // minute later, or a replay can never find the row it clicked
+  const clean = (s) =>
+    (s || '')
+      .replace(/\s+/g, ' ')
+      .replace(/\b\d+\s*(?:s|sec|secs|seconds?|m|min|mins|minutes?|h|hr|hrs|hours?|d|days?)\s+ago\b/gi, 'N ago')
+      .replace(/\bjust now\b/gi, 'N ago')
+      .trim()
+      .slice(0, 60);
   const nameOf = (el) =>
     clean(el.getAttribute('aria-label')) || clean(el.getAttribute('title')) ||
     clean(el.innerText || el.textContent) || clean(el.getAttribute('placeholder')) || clean(el.value);
