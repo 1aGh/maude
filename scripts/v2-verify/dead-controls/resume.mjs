@@ -85,8 +85,9 @@ export function planResume(allParts, { mode, shell, accept = () => true, shard =
       seeds.push(surface);
     }
   }
-  for (const p of parts) {
-    if (seedFrom && !seedFrom.includes(p)) continue; // only the states THESE shards left unreached
+  for (const [pi, p] of parts.entries()) {
+    // only the states THESE shards left unreached (`parts` are copies: match by position)
+    if (seedFrom && !seedFrom.includes(allParts[pi])) continue;
     for (const r of p.results ?? []) {
       if (!isSurfaceRow(r) || r.mode !== mode || r.shell !== shell) continue;
       if ((reached.has(stateKey(r)) && !stale.has(stateKey(r))) || seen.has(r.surface) || !accept(r.surface))
