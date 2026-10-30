@@ -28,7 +28,20 @@ const post = (url, body, headers = {}) =>
     body: JSON.stringify(body),
   });
 
-test('findNode24 answers a Node whose ABI is 137 and ignores a pin that is not one', () => {
+// The hub's better-sqlite3 is built for Node 24 on a Mac that runs the lanes. A CI runner on another Node has none,
+// so there the two hub tests skip with the reason printed; anywhere else a missing Node 24 stays a red test.
+const NO_NODE24 = (() => {
+  try {
+    hub.findNode24();
+    return false;
+  } catch (e) {
+    return process.env.CI ? String(e.message) : false;
+  }
+})();
+
+test('findNode24 answers a Node whose ABI is 137 and ignores a pin that is not one', {
+  skip: NO_NODE24,
+}, () => {
   const bin = hub.findNode24();
   assert.ok(bin);
   // a pin that does not exist (or is the wrong Node) is skipped, not trusted
@@ -39,7 +52,9 @@ test('findNode24 answers a Node whose ABI is 137 and ignores a pin that is not o
   );
 });
 
-test('a local cloud-mode hub signs in a control-plane project token, and refuses another key’s', async () => {
+test('a local cloud-mode hub signs in a control-plane project token, and refuses another key’s', {
+  skip: NO_NODE24,
+}, async () => {
   const dir = mkdtempSync(join(tmpdir(), 'maude-e2e-live-hub-'));
   const key = 'e2e-project-token-key';
   const h = await hub.startLocalHub({ dir, cloudKey: key });
