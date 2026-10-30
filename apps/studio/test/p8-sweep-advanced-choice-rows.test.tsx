@@ -76,7 +76,7 @@ describe('LengthControl rows that name the current choice', () => {
     expect(changes).toEqual([null]);
   });
 
-  test('"A number, no token…" is the checked row while the number field is showing', async () => {
+  test('"A number, no token…" is not offered while the number field is already showing', async () => {
     const { LengthControl } = await import('../client/v2/inspector/token-chip.jsx');
     const host = await mount(
       <LengthControl
@@ -88,9 +88,25 @@ describe('LengthControl rows that name the current choice', () => {
       />
     );
     await click(host.querySelector('button.insp-chip-more'));
-    const num = q(host, 'insp-number-pad-all');
-    expect(num?.getAttribute('role')).toBe('menuitemradio');
-    expect(num?.getAttribute('aria-checked')).toBe('true');
+    expect(q(host, 'insp-menu-pad-all')).not.toBeNull();
+    expect(q(host, 'insp-number-pad-all')).toBeNull();
+  });
+
+  test('a written 0 is the None choice: the row is checked, there is no separate number row', async () => {
+    const { LengthControl } = await import('../client/v2/inspector/token-chip.jsx');
+    const host = await mount(
+      <LengthControl
+        name="corners"
+        label="Corners"
+        value={{ px: 0 }}
+        tokens={TOKENS}
+        allowNone
+        onChange={() => {}}
+      />
+    );
+    await click(host.querySelector('button.insp-chip-more'));
+    expect(q(host, 'insp-none-corners')?.getAttribute('aria-checked')).toBe('true');
+    expect(q(host, 'insp-number-corners')).toBeNull();
   });
 
   test('"A number, no token…" still switches a token to a number', async () => {
@@ -107,7 +123,7 @@ describe('LengthControl rows that name the current choice', () => {
     );
     await click(host.querySelector('button.insp-chip'));
     const num = q(host, 'insp-number-pad-all');
-    expect(num?.getAttribute('aria-checked')).toBe('false');
+    expect(num?.getAttribute('role')).toBe('menuitem');
     await click(num);
     expect(changes).toEqual([{ px: 8 }]);
   });

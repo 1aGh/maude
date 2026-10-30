@@ -906,6 +906,9 @@ export class Crawler {
     if (raw.external.length) kinds.push(`external(${raw.external[0].slice(0, 60)})`);
     if (raw.windows.length) kinds.push(`window(${raw.windows[0].slice(0, 60)})`);
     if (raw.invokes.length) kinds.push(`native(${raw.invokes.slice(0, 2).join(',')})`);
+    // a link to another program (maude://…, mailto:): the browser hands it to the OS, which nothing on the page shows
+    if (c?.href && /^(?!https?:|#|\/)[a-z][a-z0-9+.-]*:/i.test(c.href))
+      kinds.push(`opens another app(${c.href.slice(0, 40)})`);
     const popup =
       raw.popupsDelta > 0 ||
       aria.some((a) => a.startsWith('aria-expanded') || a.startsWith('aria-selected'));

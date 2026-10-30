@@ -408,6 +408,17 @@ describe('the row menu', () => {
     expect(calls.some((c) => c.url === '/_api/pins' && c.method === 'POST')).toBe(true);
   });
 
+  // p8-sweep-advanced — the dead-control crawl clicked Open on the canvas that was already open and nothing happened
+  test('the open canvas’s menu has no Open row; any other canvas keeps it', async () => {
+    const { canvasMenuItems } = await import('../client/v2/canvases/row-menu.jsx');
+    const row = { path: 'a.tsx', pinnable: true, pinned: false };
+    const ids = (o: object) => canvasMenuItems(row, o).map((i: { id: string }) => i.id);
+    expect(ids({})[0]).toBe('open');
+    expect(ids({ isOpen: false })[0]).toBe('open');
+    expect(ids({ isOpen: true })).not.toContain('open');
+    expect(ids({ isOpen: true })[0]).toBe('pin');
+  });
+
   test('Rename in the menu opens the field', async () => {
     const { host } = await mount();
     await click(q(host, 'tree-row-menu-ui-ahoj'));

@@ -167,6 +167,7 @@ export function OrderNotesSheet({
                     className="pon-pick"
                     onClick={() => setSelected(r.id)}
                     onKeyDown={(e) => onRowKey(e, r.id)}
+                    aria-current={r.id === selected ? 'true' : undefined}
                     aria-label={`${r.label}${r.skipped ? ', skipped' : `, ${n} of ${runTotal}`}${r.notes ? ', has notes' : ''}`}
                   >
                     <span className="pon-n" aria-hidden="true">

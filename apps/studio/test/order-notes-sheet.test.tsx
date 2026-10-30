@@ -170,6 +170,22 @@ describe('the sheet', () => {
     expect(s.events).toEqual(['saved', 'close']);
   });
 
+  // p8-sweep-advanced — the first row is selected at open: its pick button says so (aria-current) instead of being a
+  // button that looks pressable and changes nothing
+  test('the selected row’s pick button carries aria-current; picking another moves it', async () => {
+    const s = await mount(() => ({ status: 200, data: STATE }));
+    const pick = (id: string) =>
+      s.$(`present-order-row-${id}`)?.querySelector('button.pon-pick') as HTMLElement;
+    expect(pick('a').getAttribute('aria-current')).toBe('true');
+    expect(pick('b').getAttribute('aria-current')).toBeNull();
+    await act(async () => {
+      pick('b').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      await tick();
+    });
+    expect(pick('b').getAttribute('aria-current')).toBe('true');
+    expect(pick('a').getAttribute('aria-current')).toBeNull();
+  });
+
   test('a stale save keeps the sheet open and says why', async () => {
     let n = 0;
     const s = await mount(() =>

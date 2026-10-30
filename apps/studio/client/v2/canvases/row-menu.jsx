@@ -12,12 +12,16 @@ import { MoveSheet } from './move-sheet.jsx';
 
 /**
  * The rows of the menu for `row`. `edit` false (a viewer) leaves Open · Pin · Copy link.
+ * `isOpen` (p8-sweep-advanced) drops Open: the canvas is already open, so the row would do nothing.
  * `dsUpdate` (S10.21b) adds Update for a canvas left out of its design system's update.
  * `extra` (S11.9) is the Advanced group — Reveal in Finder … Rename file… — drawn after Copy link, before
  * Move to trash; left-panel/canvas-file-menu.js builds it, and only while Canvases › Advanced is open.
  */
-export function canvasMenuItems(row, { edit = true, extra = [], dsUpdate = false } = {}) {
-  const items = [{ id: 'open', label: 'Open' }];
+export function canvasMenuItems(
+  row,
+  { edit = true, extra = [], dsUpdate = false, isOpen = false } = {}
+) {
+  const items = isOpen ? [] : [{ id: 'open', label: 'Open' }];
   if (row.pinnable) items.push({ id: 'pin', label: row.pinned ? 'Unpin' : 'Pin' });
   if (edit) {
     items.push({ id: 'rename', label: 'Rename' });

@@ -238,26 +238,27 @@ export function LengthControl({
               <i>{s.px}</i>
             </button>
           ))}
-          {/* the current choice is a checked radio (like the stops): a plain number is already showing as a field */}
-          <button
-            type="button"
-            role="menuitemradio"
-            aria-checked={isPx || numeric}
-            className="insp-menu-i insp-menu-i--sep"
-            data-testid={`insp-number-${name}`}
-            onClick={() => {
-              setOpen(false);
-              if (isToken) onChange({ px: value.px ?? 0 });
-              else setNumeric(true);
-            }}
-          >
-            A number, no token…
-          </button>
+          {/* a plain number is already showing as a field: offering "A number" there would do nothing */}
+          {isPx || numeric ? null : (
+            <button
+              type="button"
+              role="menuitem"
+              className="insp-menu-i insp-menu-i--sep"
+              data-testid={`insp-number-${name}`}
+              onClick={() => {
+                setOpen(false);
+                if (isToken) onChange({ px: value.px ?? 0 });
+                else setNumeric(true);
+              }}
+            >
+              A number, no token…
+            </button>
+          )}
           {allowNone ? (
             <button
               type="button"
               role="menuitemradio"
-              aria-checked={value == null && !numeric}
+              aria-checked={(value == null || (isPx && value.px === 0)) && !numeric}
               className="insp-menu-i"
               data-testid={`insp-none-${name}`}
               onClick={() => {
