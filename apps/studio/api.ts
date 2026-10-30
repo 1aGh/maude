@@ -128,8 +128,6 @@ import {
   setArtboardStyle,
   toggleClipHidden,
 } from './canvas-edit.ts';
-import { lockedRefusal } from './edit-ops/dispatch.ts';
-import { walkIdElements } from './element-ids.ts';
 import {
   applyFitTotalToContent,
   applyOnDisk,
@@ -138,6 +136,8 @@ import {
   seriesMove,
 } from './clip-ops.ts';
 import type { Context } from './context.ts';
+import { lockedRefusal } from './edit-ops/dispatch.ts';
+import { walkIdElements } from './element-ids.ts';
 import {
   type AudioMatch,
   type Candidate,

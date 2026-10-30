@@ -101,6 +101,6 @@ describe('p8-lock-reasons — /_api/edit-css refuses a locked object', () => {
     const http = readFileSync(join(import.meta.dir, '..', 'http.ts'), 'utf8');
     const start = http.indexOf("'/_api/edit-css': async");
     const body = http.slice(start, http.indexOf("\n    '/_", start + 20));
-    expect(body).toContain("...(result.code ? { code: result.code, message: result.error } : {})");
+    expect(body).toContain('...(result.code ? { code: result.code, message: result.error } : {})');
   });
 });
