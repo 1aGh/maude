@@ -677,7 +677,14 @@ export function dragPansCanvas(tool: Tool, onDesign: boolean): boolean {
  * canvas? A free canvas (no shell, `mode` null) and Edit/Viewing/Present are not this: they have their own paths.
  */
 export function isPreviewLabelPress(t: EventTarget | null, mode: CanvasModeV2 | null): boolean {
-  if (mode !== 'preview' || !t || typeof (t as Element).closest !== 'function') return false;
+  // Preview is the mode whose design clicks are live (the mode table's `clicks` row), so ask the table
+  if (
+    !mode ||
+    !modeShows(mode, 'live-design') ||
+    !t ||
+    typeof (t as Element).closest !== 'function'
+  )
+    return false;
   return !!(t as Element).closest('button.dc-artboard-label');
 }
 
