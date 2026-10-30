@@ -15,6 +15,12 @@ const FAMILIES = [
     why: 'a runtime-folder row of the hidden-files list: the server creates that folder (_cache, _state, …) only after the work that fills it; a freshly started server has not made it yet',
   },
   {
+    match: /^export-toast-action-[0-9a-f-]{20,}$/,
+    family: /^export-toast-action-/,
+    twinOptional: true,
+    why: 'the action button of an export-finished toast: its id carries that export job’s per-run id, and the toast is up only while the job’s notice is; a fresh project has no export job',
+  },
+  {
     match: /^(M|I) .* N ago$/,
     family: /^(M|I) .* N ago$/,
     why: 'a comment row named by its relative time',
@@ -38,6 +44,7 @@ export function explain(row, results) {
         !['vanished', 'unreachable', 'twin', 'disabled', 'skipped-destructive'].includes(r.effect)
     );
     if (twin) return { why: f.why, twin: `${twin.surface} · ${twin.control}` };
+    if (f.twinOptional) return { why: f.why, twin: '(none: the id is per run)' };
   }
   return null;
 }

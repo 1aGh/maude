@@ -1,5 +1,5 @@
 // The dead-control crawler's report: totals, the control → effect table, the dead list, the errors.
-import { DESTRUCTIVE_PINS } from './destructive-pins.mjs';
+import { pinFor } from './destructive-pins.mjs';
 import { explain } from './explained.mjs';
 
 /**
@@ -117,9 +117,8 @@ export function summarize(results, errors) {
     disabled: results.filter((r) => r.effect === 'disabled').length,
     vanished: results.filter((r) => r.effect === 'vanished' || r.effect === 'unreachable').length,
     errors: groupErrors(errors).length,
-    unpinned: results.filter(
-      (r) => r.effect === 'skipped-destructive' && !DESTRUCTIVE_PINS[r.control]
-    ).length,
+    unpinned: results.filter((r) => r.effect === 'skipped-destructive' && !pinFor(r.control))
+      .length,
     notReached: results.filter((r) => r.effect === 'unreachable' && !explain(r, results)).length,
   };
 }
@@ -162,7 +161,7 @@ export function renderReport(all, { modes, minutes }) {
   lines.push(`| **found** | every control the crawl saw | **${all.results.length}** |`);
   lines.push('');
   const unpinned = all.results.filter(
-    (r) => r.effect === 'skipped-destructive' && !DESTRUCTIVE_PINS[r.control]
+    (r) => r.effect === 'skipped-destructive' && !pinFor(r.control)
   );
   const pinned = [
     ...new Set(all.results.filter((r) => r.effect === 'skipped-destructive').map((r) => r.control)),
@@ -171,7 +170,7 @@ export function renderReport(all, { modes, minutes }) {
     lines.push('Destructive controls (never clicked) and the unit test that runs the action:');
     lines.push('');
     for (const c of pinned) {
-      const p = DESTRUCTIVE_PINS[c];
+      const p = pinFor(c);
       lines.push(
         p
           ? `- \`${c}\` — ${p.action}: \`${p.file}\` › "${p.test}"${p.also ? ` and "${p.also}"` : ''}`
@@ -282,7 +281,7 @@ export function renderReport(all, { modes, minutes }) {
       ev = `twin of \`${cell(r.twin)}\` — ${r.note}${r.states > 1 ? ` (seen in ${r.states} states)` : ''}`;
     else if (cls === 'disabled') ev = r.note ? `shows: ${r.note}` : 'no reason text shown';
     else if (cls === 'destructive') {
-      const p = DESTRUCTIVE_PINS[r.control];
+      const p = pinFor(r.control);
       ev = p ? `unit test ${p.file} › "${p.test}"` : 'NO UNIT PIN';
     } else if (cls === 'clicked, effect') ev = `${r.effect}${r.note ? ` (${r.note})` : ''}`;
     else if (cls === 'gone') {

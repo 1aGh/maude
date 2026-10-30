@@ -203,9 +203,14 @@ async function crawlMode(mode, i) {
       label: 'project',
       url: rig.projectUrl,
       ready: '[data-testid="project-pill"]',
+      // a name ending in $ is that root only; otherwise it also takes the roots named '<name> › …'
       roots: ROOTS
         ? PROJECT_ROOTS.filter((r) =>
-            ROOTS.some((x) => r.name === x || r.name.startsWith(`${x} ›`))
+            ROOTS.some((x) =>
+              x.endsWith('$')
+                ? r.name === x.slice(0, -1)
+                : r.name === x || r.name.startsWith(`${x} ›`)
+            )
           )
         : PROJECT_ROOTS,
       secret: null,

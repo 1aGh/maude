@@ -19,6 +19,8 @@ const DESTRUCTIVE =
 // Controls that would end the crawl or reach real services; the first click is still judged when
 // it only opens a confirm (the matcher above), these are never clicked at all.
 const NEVER = /(quit maude|send report|delete forever|delete permanently|empty trash)/i;
+// "Move “Hero” down" / "Move … up" reorder a list inside a sheet (nothing is saved until Save): not destructive
+const isDestructive = (name) => DESTRUCTIVE.test(name) && !/^move\b.*\b(up|down)\b/i.test(name);
 const SETTLE_MS = Number(process.env.CRAWL_SETTLE_MS || 750);
 const FAMILY_CAP = 2;
 const OPTION_CAP = 12;
@@ -212,6 +214,15 @@ export class Crawler {
       )
     )
       kind = `${kind} (canvas removed)`;
+    // the fixture design system ships no components.json and its timeline clips name media it does not ship
+    else if (
+      /404/.test(`${kind} ${text}`) &&
+      /(\/\.design\/system\/[^/\s]+\/components\.json|\/_api\/timeline-media\?key=)/.test(text)
+    )
+      kind = `${kind} (fixture media)`;
+    // the tree is read while the server restarts under a reset
+    else if (/failed to load tree/i.test(text) && /Failed to fetch/.test(text))
+      kind = `${kind} (server restarting)`;
     // the fixture's video canvases name media files the fixture does not ship (assets/aaaa1111.mp4, song.mp3):
     // the server refuses them and the player throws — the rig's gap, not a control's
     else if (
@@ -554,7 +565,7 @@ export class Crawler {
     const famCount = new Map();
     const famLast = new Map(); // family → the control of it that was clicked last
     // destructive first-level controls last, so a deletion cannot hide later controls
-    fresh.sort((a, b) => Number(DESTRUCTIVE.test(a.name)) - Number(DESTRUCTIVE.test(b.name)));
+    fresh.sort((a, b) => Number(isDestructive(a.name)) - Number(isDestructive(b.name)));
     for (const c of fresh) {
       const judgeKey = this.judgeKeyOf(c, surface);
       const row = {
@@ -601,9 +612,7 @@ export class Crawler {
       }
       if (
         NEVER.test(c.name) ||
-        (c.inDialog &&
-          DESTRUCTIVE.test(c.name) &&
-          !/^(cancel|close|keep|back|not now)/i.test(c.name))
+        (c.inDialog && isDestructive(c.name) && !/^(cancel|close|keep|back|not now)/i.test(c.name))
       ) {
         this.results.push({
           ...row,
@@ -707,7 +716,7 @@ export class Crawler {
         raw.note = 'the control that opened this state — clicking it again is a no-op';
       }
       this.current = '<idle>';
-      const destructive = DESTRUCTIVE.test(c.name);
+      const destructive = isDestructive(c.name);
       const out = { ...row, effect: res.effect, note: raw.note };
       if (res.effect === 'DEAD' && c.current) {
         out.effect = 'current';
