@@ -18,8 +18,7 @@ const DESTRUCTIVE =
   /(delete|remove|trash|\bmove\b|discard|sign out|log ?out|revoke|reset|erase|wipe|forget|leave|uninstall|disconnect|unlink|restore|revert|roll ?back|empty|clear|overwrite|replace|buy|purchase|upgrade|subscribe|billing|checkout|pay\b|quit|close project)/i;
 // Controls that would end the crawl or reach real services; the first click is still judged when
 // it only opens a confirm (the matcher above), these are never clicked at all.
-const NEVER =
-  /(quit maude|report a bug|send report|delete forever|delete permanently|empty trash)/i;
+const NEVER = /(quit maude|send report|delete forever|delete permanently|empty trash)/i;
 const SETTLE_MS = Number(process.env.CRAWL_SETTLE_MS || 750);
 const FAMILY_CAP = 2;
 const OPTION_CAP = 12;
@@ -93,7 +92,7 @@ export class Crawler {
     readySel,
     label,
     maxDepth = 4,
-    maxStates = 90,
+    maxStates = 600,
     budgetMs = 25 * 60_000,
     log = (m) => console.error(m),
     onResult = null,
@@ -125,7 +124,7 @@ export class Crawler {
     this.reqPaths = [];
     this.external = [];
     this.popups = [];
-    this.clicked = new Set(); // keys already judged (in any state) — each control judged once
+    this.clicked = new Map(); // keys already judged (in any state) → where — each control judged once
     this.queued = new Set();
     this.prefixFp = new Map(); // steps signature → the control set that state showed
   }
@@ -196,6 +195,10 @@ export class Crawler {
     // the rig blocks every non-loopback request (web fonts …): its console line is the rig's, not the product's
     else if (/ERR_BLOCKED_BY_CLIENT/.test(text)) kind = `${kind} (blocked external)`;
     // the rig's cloud is a dead loopback port and nobody is signed in: a cloud route answering 401/502 is the rig
+    // the hub-link state hands the shell a status message, but the rig's server has no hub: Resync / Download all
+    // reach their real routes and the server answers 409 "not linked"
+    else if (/\/_api\/sync\/(offline|resync)/.test(text) && /409/.test(`${kind} ${text}`))
+      kind = `${kind} (no hub)`;
     else if (/\/_api\/cloud\//.test(text) && /(401|502|503|504)/.test(`${kind} ${text}`))
       kind = `${kind} (cloud offline)`;
     this.errors.push({ surface: this.label, mode: this.mode, control: this.current, kind, text });
@@ -243,6 +246,19 @@ export class Crawler {
 
   async load() {
     this.current = '<load>';
+    // A fresh load must be the page as a NEW context shows it: a click earlier in the walk may have folded a
+    // panel or flipped a view switch, and the studio keeps those per Mac in localStorage — a reload would then
+    // open a different shell and every control of the state would read 'vanished'. Clear the origin's storage
+    // (the Home secret lives in sessionStorage and is re-set by the init script).
+    await this.page
+      .evaluate(() => {
+        try {
+          localStorage.clear();
+        } catch {
+          /* about:blank, no storage */
+        }
+      })
+      .catch(() => {});
     await this.page.goto(this.url, { waitUntil: 'load', timeout: 60_000 });
     if (this.readySel)
       await this.page.waitForSelector(this.readySel, { timeout: 30_000 }).catch(() => {});
@@ -259,6 +275,11 @@ export class Crawler {
   async step(s) {
     if (s.kind === 'key') {
       await this.page.keyboard.press(s.key);
+    } else if (s.kind === 'eval') {
+      // fixture state that needs no click: run a script in the frame (e.g. hand the shell a hub-link status)
+      const f = this.frameOf(s.frame ?? 'shell');
+      if (!f) return false;
+      await f.evaluate(s.script).catch(() => {});
     } else if (s.kind === 'select') {
       const f = this.frameOf(s.frame);
       if (!f) return false;
@@ -292,9 +313,9 @@ export class Crawler {
    * Bring the page into the state `steps` describes. Soft first: Escape twice, then continue from
    * the longest step prefix whose control set matches what is on screen; a fresh load otherwise.
    */
-  async replay(steps) {
+  async replay(steps, hard = false) {
     let from = -1;
-    if (this.prefixFp.size) {
+    if (this.prefixFp.size && !hard) {
       await this.page.keyboard.press('Escape').catch(() => {});
       await this.page.keyboard.press('Escape').catch(() => {});
       await sleep(300);
@@ -314,7 +335,10 @@ export class Crawler {
     for (let i = from; i < steps.length; i++) {
       const s = steps[i];
       this.current = `<open ${s.label ?? s.key}>`;
-      if (!(await this.step(s))) return false;
+      if (!(await this.step(s))) {
+        this.lastMissing = `step ${i + 1}/${steps.length} (${s.label ?? s.key}) is not on screen`;
+        return false;
+      }
       this.prefixFp.set(
         this.stepsSig(steps.slice(0, i + 1)),
         this.fingerprint(await this.controls())
@@ -324,9 +348,19 @@ export class Crawler {
     return true;
   }
 
+  /**
+   * The key a control is judged once under. A submenu row's testid is its LABEL ('Advanced' in Edit, View and
+   * Diagnostics is one testid), so it is scoped to the menu it sits in — otherwise the first Advanced fold
+   * judged hides the other two, and every row inside them is never reached.
+   */
+  judgeKeyOf(c, surface) {
+    const scoped = /^tid:project-menu-row-sub-/.test(c.key) ? `|${surface}` : '';
+    return `${c.frame}|${c.key}${scoped}`;
+  }
+
   stepsSig(steps) {
     return steps
-      .map((s) => `${s.kind}:${s.frame ?? ''}:${s.key ?? s.selector}:${s.occ ?? ''}`)
+      .map((s) => `${s.kind}:${s.frame ?? ''}:${s.key ?? s.selector ?? s.name}:${s.occ ?? ''}`)
       .join('>');
   }
 
@@ -338,6 +372,7 @@ export class Crawler {
       parentIds: null,
       depth: 0,
       popup: false,
+      quiet: !!r.quiet,
     }));
     const deadline = Date.now() + this.budgetMs;
     let states = 0;
@@ -375,6 +410,11 @@ export class Crawler {
       let steps = [...root.steps];
       let name = rootName;
       let parentIds = null;
+      // a root that only adds a fixture condition: what the plain page already shows is not judged again
+      if (root.quiet && !segs.length) {
+        await this.replay([]);
+        parentIds = new Set((await this.controls()).map((x) => x.id));
+      }
       let popup = false;
       for (const seg of segs) {
         if (!(await this.replay(steps))) throw new Error(`--replay: could not reach "${name}"`);
@@ -434,13 +474,13 @@ export class Crawler {
 
   async crawlState(st, queue) {
     const surface = st.name;
-    if (!(await this.replay(st.steps))) {
+    if (!(await this.replay(st.steps)) && !(await this.replay(st.steps, true))) {
       this.results.push({
         mode: this.mode,
         surface,
         control: '(surface)',
         effect: 'unreachable',
-        note: 'a replay step was not found',
+        note: `a replay step was not found, also after a fresh load${this.lastMissing ? `: ${this.lastMissing}` : ''}`,
       });
       return;
     }
@@ -448,7 +488,7 @@ export class Crawler {
     let fp = this.fingerprint(ctrls);
     const parent = st.parentIds;
     const fresh = ctrls.filter((c) => !parent?.has(c.id));
-    if (!fresh.some((c) => !this.clicked.has(`${c.frame}|${c.key}`))) return; // nothing new to judge here
+    if (!fresh.some((c) => !this.clicked.has(this.judgeKeyOf(c, surface)))) return; // nothing new to judge here
     // the noise floor of this state, per frame
     const bgStart = this.reqPaths.length;
     const idle = await this.evalAll(() => window.__crawl?.idle(700) ?? 0);
@@ -463,19 +503,11 @@ export class Crawler {
       fp = this.fingerprint(await this.controls());
     }
     const famCount = new Map();
+    const famLast = new Map(); // family → the control of it that was clicked last
     // destructive first-level controls last, so a deletion cannot hide later controls
     fresh.sort((a, b) => Number(DESTRUCTIVE.test(a.name)) - Number(DESTRUCTIVE.test(b.name)));
     for (const c of fresh) {
-      const judgeKey = `${c.frame}|${c.key}`;
-      if (this.clicked.has(judgeKey)) continue;
-      const fam = c.family ? `${c.frame}|${c.family}` : null;
-      if (fam) {
-        const n = famCount.get(fam) ?? 0;
-        const cap = c.role === 'option' || c.role === 'treeitem' ? OPTION_CAP : FAMILY_CAP;
-        if (n >= cap) continue;
-        famCount.set(fam, n + 1);
-      }
-      this.clicked.add(judgeKey);
+      const judgeKey = this.judgeKeyOf(c, surface);
       const row = {
         mode: this.mode,
         surface,
@@ -484,8 +516,38 @@ export class Crawler {
         frame: c.frame,
         role: c.role || c.tag,
       };
+      // judged once: the same control seen again (in another menu, a second state) is listed as the twin of
+      // the one that was clicked, so every control found ends in a class
+      if (this.clicked.has(judgeKey)) {
+        // a state that only adds a fixture condition (a hub link) repeats every shell control: not listed again
+        if (st.quiet) continue;
+        this.results.push({
+          ...row,
+          effect: 'twin',
+          twin: this.clicked.get(judgeKey),
+          note: 'the same control, already clicked',
+        });
+        continue;
+      }
+      const fam = c.family ? `${c.frame}|${c.family}` : null;
+      if (fam) {
+        const n = famCount.get(fam) ?? 0;
+        const cap = c.role === 'option' || c.role === 'treeitem' ? OPTION_CAP : FAMILY_CAP;
+        if (n >= cap) {
+          this.results.push({
+            ...row,
+            effect: 'twin',
+            twin: famLast.get(fam) ?? fam,
+            note: `one of a repeated family (${c.family}), sampled ${cap}`,
+          });
+          continue;
+        }
+        famCount.set(fam, n + 1);
+      }
+      this.clicked.set(judgeKey, `${surface} · ${row.control}`);
+      if (fam) famLast.set(fam, `${surface} · ${row.control}`);
       if (c.disabled) {
-        this.results.push({ ...row, effect: 'disabled', note: '' });
+        this.results.push({ ...row, effect: 'disabled', note: c.reason || '' });
         continue;
       }
       if (
@@ -513,13 +575,22 @@ export class Crawler {
       const now = await this.controls();
       if (this.fingerprint(now) !== fp || !now.some((x) => x.id === c.id)) {
         await this.replay(st.steps);
-        const again = await this.controls();
+        let again = await this.controls();
+        if (!again.some((x) => x.id === c.id)) {
+          // second chance: a fresh load and the whole walk from the root, not the soft restore
+          await this.replay(st.steps, true);
+          again = await this.controls();
+        }
         fp = this.fingerprint(again);
         if (!again.some((x) => x.id === c.id)) {
           this.results.push({
             ...row,
             effect: 'vanished',
-            note: 'not present after a replay of the state',
+            note: `not present after a fresh load and a replay of the state${
+              this.lastMutator
+                ? `; the last click that changed the fixture: ${this.lastMutator}`
+                : ''
+            }`,
           });
           continue;
         }
@@ -531,6 +602,19 @@ export class Crawler {
         /^(menuitem|menuitemcheckbox|menuitemradio|option)$/.test(c.role) ? closeSig : null,
         c
       );
+      // A checkbox row closes its menu on a click, so the flip itself is not on screen after it: open the menu
+      // again and read the row (the proof a toggle row worked, not that the menu closed).
+      if (c.role === 'menuitemcheckbox' && !c.disabled) {
+        this.current = `<read ${c.tid || c.name} again>`;
+        if (await this.replay(st.steps)) {
+          const was = c.current;
+          const nowC = (await this.controls()).find((x) => x.id === c.id);
+          if (nowC && nowC.current !== was) {
+            const flip = `toggled ${was ? 'on' : 'off'}→${nowC.current ? 'on' : 'off'}`;
+            res.effect = res.effect === 'DEAD' ? flip : `${res.effect} ${flip}`;
+          }
+        }
+      }
       this.current = '<idle>';
       const destructive = DESTRUCTIVE.test(c.name);
       const out = { ...row, effect: res.effect, note: raw.note };
@@ -565,6 +649,7 @@ export class Crawler {
         out.destructive = true;
       }
       this.results.push(out);
+      if (/net\(/.test(out.effect)) this.lastMutator = `${surface} · ${row.control}`;
       this.onResult?.(out);
       // a click that revealed a place of its own → a child state
       if (res.opens && st.depth < this.maxDepth && !destructive) {
@@ -581,6 +666,7 @@ export class Crawler {
             parentIds: new Set(ctrls.map((x) => x.id)),
             depth: st.depth + 1,
             popup: res.popup,
+            quiet: st.quiet,
           });
         }
       }

@@ -46,6 +46,10 @@ const arg = (n, d) => {
 const MODES = arg('--mode', 'tauri,browser').split(',');
 const ONLY = arg('--only', 'project,home').split(',');
 const REPLAY = arg('--replay', null)?.split('|');
+// --roots <name>[|<name>…]  crawl only the roots whose name starts with one of these (a shard); --merge <json>[,…]
+// renders the report from shards' --json files instead of crawling
+const ROOTS = arg('--roots', null)?.split('|');
+const MERGE = arg('--merge', null)?.split(',');
 const OUT = arg(
   '--out',
   // a replay judges a handful of states: never let it overwrite the full report
@@ -54,6 +58,23 @@ const OUT = arg(
     : join(REPO, '.ai/plans/notes/v2-evidence/V2-8-dead-controls-dynamic.md')
 );
 const JSON_OUT = arg('--json', null);
+
+if (MERGE) {
+  const { readFileSync } = await import('node:fs');
+  const parts = MERGE.map((f) => JSON.parse(readFileSync(f, 'utf8')));
+  const merged = { results: [], errors: [], external: [], popups: [], unreachable: [] };
+  for (const p of parts) for (const k of Object.keys(merged)) merged[k].push(...(p[k] ?? []));
+  merged.registry = parts.some((p) => p.registry?.length) ? registryMenu() : [];
+  const modes = [...new Set(merged.results.map((r) => r.mode))];
+  const minutes = parts.map((p) => p.minutes ?? '?').join(' + ');
+  mkdirSync(dirname(OUT), { recursive: true });
+  writeFileSync(OUT, renderReport(merged, { modes, minutes }));
+  const ms = summarize(merged.results, merged.errors);
+  console.log(
+    `merged ${parts.length} shards: ${ms.found} found · ${ms.clicked} clicked · ${ms.dead} DEAD · ${ms.errors} errors`
+  );
+  process.exit(ms.dead || ms.errors || ms.unpinned || ms.notReached ? 1 : 0);
+}
 
 const require = createRequire(join(STUDIO, 'package.json'));
 let chromium;
@@ -93,6 +114,39 @@ const PROJECT_ROOTS = [
   { name: 'canvas Smoke', steps: [canvas('ui-smoke')] },
   { name: 'canvas Video', steps: [canvas('ui-video')] },
 ];
+// The rig has no hub, so the sync rows of Menu › Diagnostics › Advanced (Resync now, Download all) are hidden by
+// `when` (`hiddenMenuIds`: no sync status → no Resync; no file plane → no Download all). This state hands the
+// shell the status message a linked project's server broadcasts, then opens the menu to that fold. The clicks
+// are real: they POST to the fixture server's own /_api/sync routes, which answer for an unlinked project.
+const HUB_LINKED = `(() => {
+  const msg = JSON.stringify({ type: 'sync:status', payload: { linked: true, state: 'online', docs: { synced: 3, total: 3 }, files: { state: 'idle' }, canvases: 3 } });
+  for (const ws of window.__crawlSockets || []) ws.dispatchEvent(new MessageEvent('message', { data: msg }));
+})()`;
+const tid = (id, label) => ({
+  kind: 'click',
+  frame: 'shell',
+  key: `tid:${id}`,
+  occ: 0,
+  label: label ?? id,
+  wait: 900,
+});
+PROJECT_ROOTS.push({
+  name: 'shell with a hub link',
+  quiet: true,
+  steps: [
+    {
+      kind: 'eval',
+      frame: 'shell',
+      name: 'hub-linked',
+      script: HUB_LINKED,
+      label: 'hub link status',
+      wait: 1200,
+    },
+    tid('project-pill'),
+    tid('project-menu-row-sub-diagnostics'),
+    tid('project-menu-row-sub-advanced'),
+  ],
+});
 const HOME_ROOTS = [{ name: 'home', steps: [] }];
 
 async function seed(browser, url) {
@@ -147,10 +201,14 @@ async function crawlMode(mode, i) {
       label: 'project',
       url: rig.projectUrl,
       ready: '[data-testid="project-pill"]',
-      roots: PROJECT_ROOTS,
+      roots: ROOTS
+        ? PROJECT_ROOTS.filter((r) =>
+            ROOTS.some((x) => r.name === x || r.name.startsWith(`${x} ›`))
+          )
+        : PROJECT_ROOTS,
       secret: null,
     });
-  if (ONLY.includes('home') && rig.homeUrl && !REPLAY)
+  if (ONLY.includes('home') && rig.homeUrl && !REPLAY && (!ROOTS || ROOTS.includes('home')))
     runs.push({
       label: 'home',
       url: rig.homeUrl,
@@ -158,7 +216,7 @@ async function crawlMode(mode, i) {
       roots: HOME_ROOTS,
       secret: rig.homeSecret,
     });
-  if (ONLY.includes('home') && !rig.homeUrl && !REPLAY)
+  if (ONLY.includes('home') && !rig.homeUrl && !REPLAY && (!ROOTS || ROOTS.includes('home')))
     all.unreachable.push({ mode, surface: 'home', why: 'Home server never wrote its info file' });
   for (const run of runs) {
     const c = new Crawler({
@@ -170,7 +228,7 @@ async function crawlMode(mode, i) {
       label: run.label,
       plantDead: argv.includes('--plant-dead'),
       plantNoise: argv.includes('--plant-noise'),
-      budgetMs: Number(process.env.CRAWL_BUDGET_MIN || 40) * 60_000,
+      budgetMs: Number(process.env.CRAWL_BUDGET_MIN || 120) * 60_000,
       onResult: (r) => r.effect === 'DEAD' && console.error(`  DEAD  ${r.surface} · ${r.control}`),
     });
     await c.open();
@@ -209,13 +267,14 @@ if (all.rigFailed && !all.results.length) {
 }
 
 all.registry = ONLY.includes('project') ? registryMenu() : [];
-const md = renderReport(all, { modes: MODES, minutes: ((Date.now() - t0) / 60000).toFixed(1) });
+all.minutes = ((Date.now() - t0) / 60000).toFixed(1);
+const md = renderReport(all, { modes: MODES, minutes: all.minutes });
 mkdirSync(dirname(OUT), { recursive: true });
 writeFileSync(OUT, md);
 if (JSON_OUT) writeFileSync(JSON_OUT, JSON.stringify(all, null, 2));
 const s = summarize(all.results, all.errors);
 console.log(
-  `\n${s.found} found · ${s.clicked} clicked · ${s.effect} effect · ${s.dead} DEAD · ${s.skipped} skipped-destructive · ${s.errors} errors`
+  `\n${s.found} found · ${s.clicked} clicked · ${s.effect} effect · ${s.dead} DEAD · ${s.skipped} skipped-destructive · ${s.notReached} not reached · ${s.errors} errors`
 );
 console.log(`report: ${relative(process.cwd(), OUT)}`);
-process.exit(s.dead || s.errors ? 1 : 0);
+process.exit(s.dead || s.errors || s.unpinned || s.notReached ? 1 : 0);

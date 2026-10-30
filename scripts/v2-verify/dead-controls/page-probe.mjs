@@ -16,6 +16,18 @@ export const PAGE_PROBE = String.raw`(() => {
     window.open = function (url) { opens.push(String(url)); return null; };
   } catch { /* frozen */ }
   void realOpen;
+  // the page's sockets, so a fixture state can hand the shell a server message (a hub link's sync status) the
+  // rig has no hub to send
+  const sockets = (window.__crawlSockets = []);
+  try {
+    window.WebSocket = new Proxy(window.WebSocket, {
+      construct(Target, args) {
+        const ws = new Target(...args);
+        sockets.push(ws);
+        return ws;
+      },
+    });
+  } catch { /* frozen */ }
   // a clipboard write is an effect the DOM never shows: record it (and let it through)
   const clips = [];
   try {
@@ -105,6 +117,30 @@ export const PAGE_PROBE = String.raw`(() => {
     return areas;
   };
 
+  // Why a disabled control is disabled, in the words the person is shown: its title / description attribute,
+  // the text it points at (aria-describedby), a hint or status word inside the row, the row's own caption.
+  const reasonOf = (el) => {
+    const out = [];
+    const add = (t, src) => { t = clean(t); if (t && !out.some((o) => o.text === t)) out.push({ text: t, src }); };
+    add(el.getAttribute('title'), 'title');
+    add(el.getAttribute('aria-description'), 'aria-description');
+    add(el.getAttribute('data-reason'), 'data-reason');
+    for (const id of (el.getAttribute('aria-describedby') || '').split(/\s+/)) if (id) add(document.getElementById(id)?.textContent, 'describedby');
+    const own = clean(el.innerText || el.textContent);
+    const status = el.querySelector('[data-testid^="project-menu-status-"],[class*="status"],[class*="hint"],small');
+    if (status) add(status.textContent, 'status');
+    if (!out.length || (out.length === 1 && out[0].text === own)) {
+      const row = el.closest('li,[role=row],[role=group],[role=radiogroup],fieldset,label') || el.parentElement;
+      if (row && row !== document.body) {
+        const t = clean((row.innerText || '').replace(own, ''));
+        if (t) add(t, 'row');
+      }
+      const tip = row?.querySelector?.('[role=tooltip],[class*="hint"],[class*="note"],[class*="why"],small');
+      if (tip) add(tip.textContent, 'hint');
+    }
+    return out.filter((o) => o.text !== own || o.src === 'title').map((o) => o.text + ' [' + o.src + ']').join(' | ');
+  };
+
   function enumerate() {
     const seen = new Map();
     const out = [];
@@ -130,6 +166,7 @@ export const PAGE_PROBE = String.raw`(() => {
         inDialog: !!el.closest('[role=dialog],[role=alertdialog]'),
         inAlert: !!el.closest('[role=alertdialog]'),
         region: regionOf(el.parentElement),
+        reason: disabled ? reasonOf(el) : '',
       });
     }
     return out;

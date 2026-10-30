@@ -1,4 +1,45 @@
 // The dead-control crawler's report: totals, the control → effect table, the dead list, the errors.
+import { DESTRUCTIVE_PINS } from './destructive-pins.mjs';
+
+/** Every control found ends in exactly one class. */
+export function classOf(r) {
+  switch (r.effect) {
+    case 'twin':
+      return 'twin';
+    case 'disabled':
+      return 'disabled';
+    case 'skipped-destructive':
+      return 'destructive';
+    case 'DEAD':
+      return 'DEAD';
+    case 'current':
+    case 'covered':
+    case 'single-option':
+      return r.effect;
+    case 'skipped-file-picker':
+      return 'file-picker';
+    case 'vanished':
+    case 'unreachable':
+      return 'not reached';
+    default:
+      return 'clicked, effect';
+  }
+}
+const CLASS_ORDER = [
+  ['clicked, effect', 'clicked, and it had a visible effect'],
+  ['disabled', 'disabled, with the reason it shows'],
+  ['twin', 'a duplicate of a control that WAS clicked (the twin is named)'],
+  ['destructive', 'destructive: not clicked, its action has a unit test'],
+  [
+    'current',
+    'the selected choice of a group (clicking it again is a no-op by design; its siblings were clicked)',
+  ],
+  ['single-option', 'a select with one option (nothing to pick)'],
+  ['covered', 'under an overlay a person cannot reach either'],
+  ['file-picker', 'a file input (its visible trigger was clicked and raised the chooser)'],
+  ['DEAD', 'DEAD: clicked, nothing happened'],
+  ['not reached', 'not reached (must be 0)'],
+];
 
 const NOT_CLICKED = new Set([
   'current',
@@ -7,12 +48,14 @@ const NOT_CLICKED = new Set([
   'disabled',
   'skipped-destructive',
   'skipped-file-picker',
+  'twin',
   'vanished',
   'unreachable',
 ]);
 
 /** An error that is an artefact of the rig, not of the product: the Tauri stub refusing a native call. */
-export const isRigError = (e) => /\((native stub|blocked external|cloud offline)\)/.test(e.kind);
+export const isRigError = (e) =>
+  /\((native stub|blocked external|cloud offline|no hub)\)/.test(e.kind);
 
 export function groupErrors(errors) {
   const map = new Map();
@@ -32,7 +75,7 @@ export function groupErrors(errors) {
 }
 
 export function summarize(results, errors) {
-  const clicked = results.filter((r) => !NOT_CLICKED.has(r.effect));
+  const clicked = results.filter((r) => !NOT_CLICKED.has(r.effect) && r.effect !== 'twin');
   return {
     found: results.length,
     clicked: clicked.length,
@@ -42,6 +85,10 @@ export function summarize(results, errors) {
     disabled: results.filter((r) => r.effect === 'disabled').length,
     vanished: results.filter((r) => r.effect === 'vanished' || r.effect === 'unreachable').length,
     errors: groupErrors(errors).length,
+    unpinned: results.filter(
+      (r) => r.effect === 'skipped-destructive' && !DESTRUCTIVE_PINS[r.control]
+    ).length,
+    notReached: results.filter((r) => r.effect === 'vanished' || r.effect === 'unreachable').length,
   };
 }
 
@@ -70,6 +117,34 @@ export function renderReport(all, { modes, minutes }) {
     'Home in the browser mode is a developer surface only (the app always opens Home in its own webview, with a native bridge); its rows are kept for completeness.'
   );
   lines.push('');
+  const byClass = new Map();
+  for (const r of all.results) byClass.set(classOf(r), (byClass.get(classOf(r)) ?? 0) + 1);
+  lines.push('## Totals by class');
+  lines.push('');
+  lines.push('| class | what it means | count |');
+  lines.push('|---|---|---|');
+  for (const [k, what] of CLASS_ORDER) lines.push(`| ${k} | ${what} | ${byClass.get(k) ?? 0} |`);
+  lines.push(`| **found** | every control the crawl saw | **${all.results.length}** |`);
+  lines.push('');
+  const unpinned = all.results.filter(
+    (r) => r.effect === 'skipped-destructive' && !DESTRUCTIVE_PINS[r.control]
+  );
+  const pinned = [
+    ...new Set(all.results.filter((r) => r.effect === 'skipped-destructive').map((r) => r.control)),
+  ];
+  if (pinned.length) {
+    lines.push('Destructive controls (never clicked) and the unit test that runs the action:');
+    lines.push('');
+    for (const c of pinned) {
+      const p = DESTRUCTIVE_PINS[c];
+      lines.push(
+        p
+          ? `- \`${c}\` — ${p.action}: \`${p.file}\` › "${p.test}"${p.also ? ` and "${p.also}"` : ''}`
+          : `- \`${c}\` — **NO UNIT PIN**`
+      );
+    }
+    lines.push('');
+  }
   lines.push('## Totals');
   lines.push('');
   lines.push(
@@ -161,14 +236,24 @@ export function renderReport(all, { modes, minutes }) {
     );
     lines.push('');
   }
-  lines.push('## Control → effect');
+  lines.push('## Appendix — every control → class → evidence');
   lines.push('');
-  lines.push('| mode | shell | surface | control | role | effect | notes |');
+  lines.push('| mode | shell | surface | control | role | class | evidence |');
   lines.push('|---|---|---|---|---|---|---|');
-  for (const r of all.results)
+  for (const r of all.results) {
+    const cls = classOf(r);
+    let ev = '';
+    if (cls === 'twin') ev = `twin of \`${cell(r.twin)}\` — ${r.note}`;
+    else if (cls === 'disabled') ev = r.note ? `shows: ${r.note}` : 'no reason text shown';
+    else if (cls === 'destructive') {
+      const p = DESTRUCTIVE_PINS[r.control];
+      ev = p ? `unit test ${p.file} › "${p.test}"` : 'NO UNIT PIN';
+    } else if (cls === 'clicked, effect') ev = `${r.effect}${r.note ? ` (${r.note})` : ''}`;
+    else ev = `${r.effect}${r.note ? ` — ${r.note}` : ''}`;
     lines.push(
-      `| ${r.mode} | ${r.shell} | ${cell(r.surface)} | \`${cell(r.control)}\` | ${r.role ?? ''} | ${cell(r.effect)} | ${cell(r.note)} |`
+      `| ${r.mode} | ${r.shell} | ${cell(r.surface)} | \`${cell(r.control)}\` | ${r.role ?? ''} | ${cls} | ${cell(ev)} |`
     );
+  }
   lines.push('');
   return lines.join('\n');
 }
