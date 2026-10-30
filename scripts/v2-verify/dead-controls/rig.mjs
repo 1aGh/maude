@@ -120,9 +120,41 @@ function isolatedEnv(work, portBase) {
   };
 }
 
+// Every server the rig starts, so none outlives the run: a normal end, ^C, a kill (SIGTERM / SIGHUP) or a crash all
+// stop them. (SIGKILL cannot be caught — the lane's own timeout sends SIGTERM first.)
+const liveChildren = new Set();
+export function killRigChildren() {
+  for (const c of liveChildren) {
+    try {
+      c.kill('SIGTERM');
+    } catch {
+      /* gone */
+    }
+  }
+  liveChildren.clear();
+}
+process.on('exit', killRigChildren);
+for (const [sig, code] of [
+  ['SIGINT', 130],
+  ['SIGTERM', 143],
+  ['SIGHUP', 129],
+]) {
+  process.on(sig, () => {
+    killRigChildren();
+    process.exit(code);
+  });
+}
+process.on('uncaughtException', (e) => {
+  killRigChildren();
+  console.error(e);
+  process.exit(1);
+});
+
 function spawnLogged(args, env) {
   const log = [];
   const child = spawn('bun', args, { env, stdio: ['ignore', 'pipe', 'pipe'] });
+  liveChildren.add(child);
+  child.once('exit', () => liveChildren.delete(child));
   child.stdout.on('data', (d) => log.push(String(d)));
   child.stderr.on('data', (d) => log.push(String(d)));
   return { child, log };
