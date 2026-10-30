@@ -73,6 +73,7 @@ import {
 } from '../v2/comments/comment-bridge.js';
 import { createCommentToolWatch } from '../v2/comments/comment-tool.js';
 import { selectNewArtboard } from '../v2/empty/select-new-artboard.js';
+import { createStampFollow } from '../stamp-follow.js';
 
 // one shell, one watch: the Comment tool's arming edge (P8 C5)
 const commentToolWatch = createCommentToolWatch();
@@ -139,6 +140,9 @@ export function useCanvasBridge({
   // S9.22b — the viewer's display name (left out of the mention people); optional
   gitUser = null,
 }) {
+  // p8-sweep-close — an edit-op built from a tree of before a stamp follows it (client/stamp-follow.js).
+  const stampFollowRef = useRef(null);
+  if (!stampFollowRef.current) stampFollowRef.current = createStampFollow();
   // V2-8.9 defender L2 (checklist C6) — every shell → canvas post names the canvas origin, never '*':
   // a frame that navigated elsewhere hears nothing. The same origin onMessage accepts from.
   const canvasOriginRef = useRef('');
@@ -537,9 +541,16 @@ export function useCanvasBridge({
           });
           return;
         }
-        const body = shaped.body;
+        // p8-sweep-close — built from the tree of now; sent once the writes before it answered, by which time
+        // one of them may have stamped an object this request still names by its computed id.
+        const follow = stampFollowRef.current;
+        const builtAt = follow.generation();
+        let body = shaped.body;
         editApplyChainRef.current = editApplyChainRef.current
           .catch(() => {})
+          .then(() => {
+            body = follow.rewrite(body, builtAt);
+          })
           .then(() =>
             fetch('/_api/edit-op', {
               method: 'POST',
@@ -548,6 +559,7 @@ export function useCanvasBridge({
             })
               .then(readEditOpAnswer)
               .then((result) => {
+                if (result?.ok) follow.record(body.file, body.targets, result.refs);
                 noteClipResult(body, result);
                 // V2-8.9 attacker L3 — the canvas hears kind + count, never the handle
                 reply(frameClipResult(body, result));
@@ -588,6 +600,7 @@ export function useCanvasBridge({
         layersSlot.set(slot);
       } else if (m.dgn === 'layers-tree') {
         // Phase 12 Task 4 — browsable layers tree for the active artboard.
+        stampFollowRef.current.bump(); // requests from now on carry this tree's ids
         setLayersTree({
           artboardId: m.artboardId,
           nodes: Array.isArray(m.tree) ? m.tree : [],
@@ -1305,6 +1318,7 @@ export function useCanvasBridge({
             setCanvasError({ path: activePath, kind: 'compile' });
         }
       } else if (m.dgn === 'loaded' && m.file) {
+        stampFollowRef.current.bump(); // a reloaded canvas carries the file's ids (stamp-follow.js)
         // The shell document ran — push current comments + carry over the
         // focused pin. For a TSX/JSX canvas this is NOT "drawn": the module
         // still has to build and render, which on a cold cloud canvas takes
