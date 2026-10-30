@@ -42,6 +42,7 @@ export function classOf(r) {
     case 'skipped-file-picker':
       return 'file-picker';
     case 'vanished':
+      return 'gone';
     case 'unreachable':
       return 'not reached';
     default:
@@ -60,6 +61,10 @@ const CLASS_ORDER = [
   ['single-option', 'a select with one option (nothing to pick)'],
   ['covered', 'under an overlay a person cannot reach either'],
   ['file-picker', 'a file input (its visible trigger was clicked and raised the chooser)'],
+  [
+    'gone',
+    'present when its state was entered, absent on a fresh project + replay; the reason is in the row',
+  ],
   ['DEAD', 'DEAD: clicked, nothing happened'],
   ['not reached', 'not reached (must be 0)'],
 ];
@@ -78,7 +83,9 @@ const NOT_CLICKED = new Set([
 
 /** An error that is an artefact of the rig, not of the product: the Tauri stub refusing a native call. */
 export const isRigError = (e) =>
-  /\((native stub|blocked external|cloud offline|no hub|fixture media)\)/.test(e.kind);
+  /\((native stub|blocked external|cloud offline|no hub|fixture media|server restarting|not signed in)\)/.test(
+    e.kind
+  );
 
 export function groupErrors(errors) {
   const map = new Map();
@@ -111,7 +118,7 @@ export function summarize(results, errors) {
     unpinned: results.filter(
       (r) => r.effect === 'skipped-destructive' && !DESTRUCTIVE_PINS[r.control]
     ).length,
-    notReached: results.filter((r) => r.effect === 'vanished' || r.effect === 'unreachable').length,
+    notReached: results.filter((r) => r.effect === 'unreachable').length,
   };
 }
 

@@ -153,7 +153,8 @@ export function ColorControl({
           {allowNone ? (
             <button
               type="button"
-              role="menuitem"
+              role="menuitemradio"
+              aria-checked={value == null}
               className="insp-menu-i"
               data-testid={`insp-none-${name}`}
               onClick={() => {

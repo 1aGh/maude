@@ -286,14 +286,17 @@ export function ExportSheet({
     if (hasComps) k.add('video');
     return k;
   }, [est, hasComps]);
+  // no canvas open: nothing to hand off (a design-system handoff arrives with its own request)
+  const hasSubject = canvasRel(ctx) !== null || typeof request?.ds === 'string';
   const groups = useMemo(
     () =>
       otherFormats({
         kinds,
         laneBlocked: (f) => laneBlocked(f, exportLane),
         canHandoff: acc.canHandoff,
+        hasSubject,
       }),
-    [kinds, exportLane, acc.canHandoff]
+    [kinds, exportLane, acc.canHandoff, hasSubject]
   );
 
   const count = counts?.[state.scope] ?? null;

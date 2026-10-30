@@ -238,9 +238,11 @@ export function LengthControl({
               <i>{s.px}</i>
             </button>
           ))}
+          {/* the current choice is a checked radio (like the stops): a plain number is already showing as a field */}
           <button
             type="button"
-            role="menuitem"
+            role="menuitemradio"
+            aria-checked={isPx || numeric}
             className="insp-menu-i insp-menu-i--sep"
             data-testid={`insp-number-${name}`}
             onClick={() => {
@@ -254,7 +256,8 @@ export function LengthControl({
           {allowNone ? (
             <button
               type="button"
-              role="menuitem"
+              role="menuitemradio"
+              aria-checked={value == null && !numeric}
               className="insp-menu-i"
               data-testid={`insp-none-${name}`}
               onClick={() => {

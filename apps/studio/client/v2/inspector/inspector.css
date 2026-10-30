@@ -748,6 +748,19 @@
     background: var(--fg-1);
   }
 
+  /* a cell Space between has taken over: greyed, no hover, the title says why */
+  .insp-cp-alignpad button.is-locked {
+    cursor: not-allowed;
+  }
+
+  .insp-cp-alignpad button.is-locked::before {
+    opacity: 0.35;
+  }
+
+  .insp-cp-alignpad button.is-locked:hover::before {
+    background: var(--fg-2);
+  }
+
   .insp-cp-alignpad button.is-active::before {
     background: var(--accent);
     box-shadow: 0 0 0 3px var(--accent-tint);

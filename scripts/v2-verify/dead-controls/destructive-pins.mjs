@@ -9,4 +9,11 @@ export const DESTRUCTIVE_PINS = {
     test: 'a local project offers Move to cloud, moves, then opens on Invite once linked',
     also: 'a refusal keeps the project local and says why',
   },
+  'settings-reset-all-confirm': {
+    action:
+      'put the look, layout, folds and switches back to a fresh Mac’s (Settings › Advanced › Reset all settings)',
+    file: 'apps/studio/test/v2-s11-13-advanced.test.tsx',
+    test: 'Reset all settings puts the look, layout, folds and switches back — and nothing else',
+    also: 'Reset all settings… asks first: a dialog titled with its verb, Cancel writes nothing',
+  },
 };

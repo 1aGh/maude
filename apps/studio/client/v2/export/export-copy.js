@@ -278,7 +278,9 @@ export const NEEDS_DESKTOP = 'Needs the desktop app';
 
 /**
  * The rows under Other…, with `disabled` and the `reason` that explains it. Pure.
- * ctx: { kinds: Set<string>, exportLane, laneBlocked(format), canHandoff }
+ * ctx: { kinds: Set<string>, exportLane, laneBlocked(format), canHandoff, hasSubject }
+ * `hasSubject` false = no canvas is open: Handoff has nothing to hand off (it asks the server about a canvas or a
+ * design system, and a request naming neither is a 400). Omitted = not said, the row stays as it was.
  */
 export function otherFormats(ctx) {
   const kinds = ctx.kinds ?? new Set();
@@ -289,6 +291,7 @@ export function otherFormats(ctx) {
       if (it.needs === 'print' && !kinds.has('print')) reason = it.note;
       else if (it.needs === 'video' && !kinds.has('video')) reason = it.note;
       else if (it.handoff && ctx.canHandoff === false) reason = 'Needs Can edit';
+      else if (it.handoff && ctx.hasSubject === false) reason = 'Open a canvas to hand it off';
       else if (it.format && ctx.laneBlocked?.(it.format))
         reason = it.format === 'canva' ? NEEDS_DESKTOP : NEEDS_RENDER_SERVICE;
       return { ...it, disabled: reason !== null, reason, note: reason ?? it.note };

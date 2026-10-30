@@ -273,15 +273,23 @@ export function CommentsPanel({
               className="cmp-group"
               data-testid={`comment-group-${groupSlug(g.file)}`}
             >
-              <button
-                type="button"
-                className="cmp-group-hd"
-                onClick={() => onJump?.(g.file, null)}
-                title={g.file}
-              >
-                <span>{canvasLabel(g.file)}</span>
-                <span className="cmp-n">{g.threads.length}</span>
-              </button>
+              {g.file === activePath ? (
+                // the canvas that is open has nothing to open: a title, not a button that does nothing
+                <div className="cmp-group-hd" title={g.file}>
+                  <span>{canvasLabel(g.file)}</span>
+                  <span className="cmp-n">{g.threads.length}</span>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="cmp-group-hd"
+                  onClick={() => onJump?.(g.file, null)}
+                  title={g.file}
+                >
+                  <span>{canvasLabel(g.file)}</span>
+                  <span className="cmp-n">{g.threads.length}</span>
+                </button>
+              )}
               {g.threads.map((t) => {
                 const on = onLabel(t, { artboardLabel, canvasLabel: canvasLabel(g.file) });
                 const ai = t.authorKind === 'ai';

@@ -201,6 +201,7 @@ export async function bootRig({ portBase = Number(process.env.MAUDE_PORT_BASE ||
       const again = await waitJson(join(fx.designRoot, '_server.json'), 60_000, proj.child);
       if (!again?.url) throw new Error('project server did not come back after a reset');
       rig.projectUrl = again.url; // a restart may take the next free port
+      await sleep(1500); // the runtime files (_state, _exports …) land a moment after _server.json
       return again.url;
     },
     projectUrl: sj.url,

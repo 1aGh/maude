@@ -197,6 +197,12 @@ export class Crawler {
     // the rig blocks every non-loopback request (web fonts …): its console line is the rig's, not the product's
     else if (/ERR_BLOCKED_BY_CLIENT/.test(text)) kind = `${kind} (blocked external)`;
     // the rig's cloud is a dead loopback port and nobody is signed in: a cloud route answering 401/502 is the rig
+    // a reset kills the project server under the open page: its pollers hear a refused connection until the
+    // next load
+    else if (/ERR_CONNECTION_REFUSED/.test(text)) kind = `${kind} (server restarting)`;
+    // the rig is signed in nowhere: GitHub's repo list answers 401
+    else if (/\/_api\/github\//.test(text) && /401/.test(`${kind} ${text}`))
+      kind = `${kind} (not signed in)`;
     // the fixture's video canvases name media files the fixture does not ship (assets/aaaa1111.mp4, song.mp3):
     // the server refuses them and the player throws — the rig's gap, not a control's
     else if (
@@ -370,6 +376,11 @@ export class Crawler {
     return `${c.frame}|${c.key}${scoped}`;
   }
 
+  /** The click step of `st` that is this control, if any. */
+  stepOf(st, c) {
+    return st.steps.find((s) => s.kind === 'click' && s.frame === c.frame && s.key === c.key);
+  }
+
   stepsSig(steps) {
     return steps
       .map((s) => `${s.kind}:${s.frame ?? ''}:${s.key ?? s.selector ?? s.name}:${s.occ ?? ''}`)
@@ -416,9 +427,18 @@ export class Crawler {
    */
   async runPaths(roots, paths) {
     const walk = async (path) => {
-      const [rootName, ...segs] = path.split(' › ').map((x) => x.trim());
-      const root = roots.find((r) => r.name === rootName);
-      if (!root) throw new Error(`--replay: no root named "${rootName}"`);
+      // a root's own name may hold ' › ' ('canvas Landing › element selected'): the longest root name that
+      // opens the path is the root, the rest are control names
+      const root = roots
+        .filter((r) => path === r.name || path.startsWith(`${r.name} › `))
+        .sort((a, b) => b.name.length - a.name.length)[0];
+      if (!root) throw new Error(`--replay: no root named by "${path}"`);
+      const rootName = root.name;
+      const segs = path
+        .slice(rootName.length)
+        .split(' › ')
+        .map((x) => x.trim())
+        .filter(Boolean);
       let steps = [...root.steps];
       let name = rootName;
       let parentIds = null;
@@ -632,6 +652,40 @@ export class Crawler {
             res.effect = res.effect === 'DEAD' ? flip : `${res.effect} ${flip}`;
           }
         }
+      }
+      // A no-op after sibling clicks proves nothing: a segmented choice already set by the sibling, an option the
+      // sibling made moot. Judge it again first-in-state on a fresh project; only a click that does nothing there
+      // is DEAD.
+      if (
+        res.effect === 'DEAD' &&
+        !c.current &&
+        !raw.note.startsWith('pointer blocked') &&
+        !raw.note.startsWith('a select with one option') &&
+        !this.stepOf(st, c)
+      ) {
+        this.current = `<again, clean: ${c.tid || c.name}>`;
+        if (await this.replay(st.steps, true)) {
+          const fresh2 = (await this.controls()).find((x) => x.id === c.id);
+          if (fresh2) {
+            const raw2 = await this.measure(fresh2, null);
+            const res2 = this.classify(
+              raw2,
+              /^(menuitem|menuitemcheckbox|menuitemradio|option)$/.test(c.role) ? closeSig : null,
+              fresh2
+            );
+            if (res2.effect !== 'DEAD') {
+              res.effect = res2.effect;
+              res.opens = res2.opens;
+              res.popup = res2.popup;
+              raw.note = `no effect after earlier clicks in the state; first in a clean state it has one`;
+            }
+          }
+        }
+      }
+      // the control that OPENED this state (the canvas row of a canvas root): clicking it again is a no-op
+      if (res.effect === 'DEAD' && this.stepOf(st, c)) {
+        res.effect = 'current';
+        raw.note = 'the control that opened this state — clicking it again is a no-op';
       }
       this.current = '<idle>';
       const destructive = DESTRUCTIVE.test(c.name);
