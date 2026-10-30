@@ -162,6 +162,14 @@
                 schedule(2000);
                 return;
               }
+              // The shell is navigating this tab itself (a new, restored or woken tab): a second
+              // navigate from here would replace the page it loads. Ask again shortly — this page
+              // is gone once that navigate lands, and takes over if it never does.
+              if (answer && typeof answer === 'object' && answer.pending) {
+                inFlight = false;
+                schedule(250);
+                return;
+              }
               showStarting();
               // replace(), not href: leave no splash entry in session history
               // for a future back-navigation to land on.
