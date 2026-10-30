@@ -43,4 +43,37 @@ describe('the 1.x prefs migration at boot', () => {
     await migrateAtBoot({ win: win('p-1'), fetchImpl, storage: memStorage() });
     expect(calls[0]).toBe('/_api/ui-prefs');
   });
+
+  // p8-sweep-leftovers — Home opened in a browser on loopback has no window label: the page asks its
+  // server's mode first (as bootShellMode does) and still asks no project preferences.
+  test('Home in a browser tab (no label, loopback) asks no project preferences either', async () => {
+    const calls: string[] = [];
+    const fetchImpl = (async (u: string) => {
+      calls.push(String(u));
+      return new Response('not found', { status: 404 });
+    }) as unknown as typeof fetch;
+    const r = await migrateAtBoot({
+      win: { location: { hostname: '127.0.0.1' } },
+      getConfig: async () => ({ ok: true, json: { mode: 'home' } }),
+      fetchImpl,
+      storage: memStorage(),
+    });
+    expect(calls).toEqual([]);
+    expect(r.status).toBe('skipped');
+  });
+
+  test('a project in a browser tab on loopback still migrates', async () => {
+    const calls: string[] = [];
+    const fetchImpl = (async (u: string) => {
+      calls.push(String(u));
+      return new Response('{}', { headers: { 'content-type': 'application/json' } });
+    }) as unknown as typeof fetch;
+    await migrateAtBoot({
+      win: { location: { hostname: 'localhost' } },
+      getConfig: async () => ({ ok: true, json: { mode: 'project' } }),
+      fetchImpl,
+      storage: memStorage(),
+    });
+    expect(calls[0]).toBe('/_api/ui-prefs');
+  });
 });

@@ -321,14 +321,16 @@ const HERE = DEV_SERVER_ROOT;
  * is not the F1 RCE vector (script + connect are). No `'unsafe-eval'` — the
  * POC verifies the runtime (motion/pixi/Bun.build output) doesn't need it.
  *
- * `webrtc 'block'` (A6, DDR-060 F1 re-audit) — `connect-src` governs only
+ * WebRTC (A6, DDR-060 F1 re-audit) — `connect-src` governs only
  * fetch/XHR/WebSocket/sendBeacon; WebRTC does NOT flow through Fetch, so an
  * `RTCPeerConnection` with an attacker STUN/TURN hostname smuggles bytes out via
- * ICE DNS/STUN even under `connect-src 'self'`. ⚠️ This directive is specified
- * (CSP3) but UNIMPLEMENTED in shipping Chrome/Firefox as of 2026 (Chromium
- * #40188662, Firefox bug 1783489) — currently a NO-OP. The enforceable control
- * today is the RTC-constructor lockout in `templates/_shell.html`; this directive
- * is kept for when browsers honor it. WebRTC + self-navigation exfil remain
+ * ICE DNS/STUN even under `connect-src 'self'`. The CSP3 `webrtc 'block'`
+ * directive was REMOVED (p8-sweep-leftovers): it is enforced nowhere we ship —
+ * Chromium (capture/export workers) logs "Unrecognized … 'webrtc'" and ignores
+ * it (#40188662), and WKWebView (the desktop app) parses it but still gathers
+ * ICE candidates (measured, macOS 26.5). The enforceable controls are the
+ * RTC-constructor lockout in `templates/_shell.html` and the capture browser's
+ * `--force-webrtc-ip-handling-policy` (p8-secfix-m1). WebRTC + self-navigation exfil remain
  * DOCUMENTED residuals of opt-in linked mode (the reachable data is collab
  * metadata, not repo files — traversal is closed). Do NOT treat this as a closed
  * exfil lane. The canvas runtime itself uses zero WebRTC.
@@ -419,15 +421,17 @@ export function cspForCanvasShell(
     // DDR-148 — a video-comp's <Video>/<Audio> loads media from the canvas
     // origin's own designRoot (assets/). Same inert-bytes trust as img-src
     // 'self'; without it default-src 'none' blocks all media (black video, no
-    // sound). `blob:` covers Remotion's processed-media URLs.
-    "media-src 'self' blob:",
+    // sound). `blob:` covers Remotion's processed-media URLs; `data:` its silent
+    // `data:audio/mp3` unlock clip (p8-sweep-leftovers — refused, it logged on every
+    // video canvas). A media `data:` URL is decoded bytes: no script, no host.
+    // `data:` is for media-src ONLY — script-src never takes it.
+    "media-src 'self' blob: data:",
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self' data:",
     "frame-src 'self'",
     "base-uri 'none'",
     "object-src 'none'",
     "form-action 'none'",
-    "webrtc 'block'",
   ];
   // DDR-247 — an embedder of the studio page is an ANCESTOR of this frame too,
   // and frame-ancestors checks every ancestor, so it is listed here as well.
@@ -472,7 +476,6 @@ export function cspForCapture(): string {
     "object-src 'none'",
     "base-uri 'none'",
     "form-action 'none'",
-    "webrtc 'block'",
   ].join('; ');
 }
 

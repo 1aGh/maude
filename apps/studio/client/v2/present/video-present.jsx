@@ -13,6 +13,7 @@
 // SHELL DOM (DDR-117): it sits over the canvas iframe. Words per 07 ve-fullscreen; tokens only (video-present.css).
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { SYSTEM_TAB } from '../../shell/constants.js';
 import { mediaTimeText, mediaToggleOp, soundOp } from './present-controls-model.js';
 import {
   carryOver,
@@ -315,7 +316,7 @@ function useTicks(activePath, artboardId, durationSec) {
   const [cut, setCut] = useState(null);
   useEffect(() => {
     setCut(null);
-    if (!activePath || !artboardId) return undefined;
+    if (!activePath || activePath === SYSTEM_TAB || !artboardId) return undefined;
     const ac = new AbortController();
     const url = `/_api/comp-media?canvas=${encodeURIComponent(activePath)}&artboard=${encodeURIComponent(artboardId)}`;
     fetch(url, { signal: ac.signal })

@@ -63,10 +63,46 @@ export const PAGE_PROBE = String.raw`(() => {
     return null;
   };
   const isCanvasContent = (el) => !!el.closest('[data-dc-screen]') && !/^Artboard /.test(el.getAttribute('aria-label') || '');
+  const REGION_SEL = '[role=dialog],[role=menu],[role=listbox],[role=tooltip],aside,nav,header,main,section,[data-testid]';
+  const regionEl = (el) => (!el || el === document.body ? document.body : el.closest(REGION_SEL) || document.body);
   const regionOf = (el) => {
-    if (!el || el === document.body) return 'body';
-    const r = el.closest('[role=dialog],[role=menu],[role=listbox],[role=tooltip],aside,nav,header,main,section,[data-testid]');
-    return r ? (r.getAttribute('data-testid') || r.getAttribute('aria-label') || r.getAttribute('role') || r.tagName) : 'body';
+    const r = regionEl(el);
+    return r === document.body ? 'body' : (r.getAttribute('data-testid') || r.getAttribute('aria-label') || r.getAttribute('role') || r.tagName);
+  };
+  // A live region: an element a screen reader reads out when it changes.
+  const LIVE_SEL = '[role=status],[role=alert],[aria-live]:not([aria-live=off])';
+  const asEl = (n) => (n && n.nodeType === 1 ? n : n && n.parentElement) || null;
+  // The live region a mutation touched, if any: the region itself added, one added inside the node, or text
+  // changed inside one.
+  const liveOfMutation = (m) => {
+    const hits = [];
+    for (const n of m.addedNodes || []) {
+      if (n.nodeType !== 1) continue;
+      if (n.matches?.(LIVE_SEL)) hits.push(n);
+      else hits.push(...(n.querySelectorAll?.(LIVE_SEL) || []));
+    }
+    const host = asEl(m.target);
+    const up = host && host.closest ? host.closest(LIVE_SEL) : null;
+    if (up) hits.push(up);
+    return hits;
+  };
+  // "Own area" of the clicked control: the region (dialog, menu, panel, test-id'd block …) it sits in — or, for a
+  // control with none, its own container. An announcement counts for a control only inside that area: a "Saved"
+  // status ticking in the corner while a dead button is clicked is not that button's doing.
+  const areaOf = (el) => {
+    const r = regionEl(el.parentElement);
+    if (r !== document.body) return r;
+    return el.parentElement && el.parentElement !== document.body ? el.parentElement : el;
+  };
+  // A control inside a popup (a menu row, a listbox option) acts on the surface its popup came from: the
+  // trigger's area is the row's too (Attach › Paste a screenshot answers in the composer's notice line, not in the menu).
+  const ownAreasOf = (el) => {
+    if (!el) return [];
+    const areas = [areaOf(el)];
+    const popup = el.closest('[role=menu],[role=listbox],[role=dialog]');
+    const trigger = popup && popup.id ? document.querySelector('[aria-controls~="' + CSS.escape(popup.id) + '"]') : null;
+    if (trigger) areas.push(areaOf(trigger));
+    return areas;
   };
 
   function enumerate() {
@@ -126,10 +162,13 @@ export const PAGE_PROBE = String.raw`(() => {
   const fieldValues = () => [...document.querySelectorAll('input,textarea,select')].map((e) => (e.type === 'checkbox' || e.type === 'radio' ? String(e.checked) : String(e.value ?? ''))).join('\u0001');
   const popups = () => document.querySelectorAll('[role=dialog],[role=alertdialog],[role=menu],[role=listbox],[role=status],[role=alert]').length;
   const inTooltip = (n) => { const e = n && (n.nodeType === 1 ? n : n.parentElement); return !!(e && e.closest && e.closest('[role=tooltip],[data-tooltip],.tooltip')); };
+  // a menu pick that relabels the menu's own trigger ("All kinds" → "Photos") is a visible effect a few
+  // characters long — under the noise floor; snapshot every popup trigger's text instead
+  const triggerText = () => [...document.querySelectorAll('[aria-haspopup]')].map((e) => (e.getAttribute('data-testid') || e.getAttribute('aria-label') || '') + '=' + (e.textContent || '').trim()).join('\u0001');
   let st = null;
   let mo = null;
   function start() {
-    st = { fields: fieldValues(), clips: clips.length, muts: 0, self: 0, aria: [], url: location.href, popups: popups(), region: regionOf(document.activeElement), opens: opens.length, checked: target && 'checked' in target ? target.checked : null, value: target && 'value' in target ? target.value : null };
+    st = { areas: ownAreasOf(target), announced: 0, triggers: triggerText(), fields: fieldValues(), clips: clips.length, muts: 0, self: 0, aria: [], url: location.href, popups: popups(), region: regionOf(document.activeElement), opens: opens.length, checked: target && 'checked' in target ? target.checked : null, value: target && 'value' in target ? target.value : null };
     mo = new MutationObserver((list) => {
       for (const m of list) {
         if (m.type === 'attributes' && m.attributeName === 'data-crawl-target') continue;
@@ -138,6 +177,11 @@ export const PAGE_PROBE = String.raw`(() => {
           continue;
         }
         if (inTooltip(m.target) || [...(m.addedNodes || [])].some(inTooltip) || [...(m.removedNodes || [])].some((x) => x.nodeType === 1 && x.matches?.('[role=tooltip],[data-tooltip],.tooltip'))) continue;
+        // a live region (re)inserted or changed INSIDE the clicked control's own area is an announcement, even when
+        // it says the same line as before; one anywhere else is somebody else's
+        for (const live of liveOfMutation(m)) {
+          if ((target && target.contains(live)) || st.areas.some((a) => a.contains(live) || live.contains(a))) { st.announced++; break; }
+        }
         const onSelf = target && (m.target === target || target.contains(m.target));
         if (onSelf && m.type === 'attributes' && /^(class|style|data-focus|data-hover|data-state)/.test(m.attributeName || '')) { st.self++; continue; }
         st.muts++;
@@ -150,6 +194,8 @@ export const PAGE_PROBE = String.raw`(() => {
     if (!st) return null;
     mo.disconnect();
     const out = {
+      triggerChanged: triggerText() !== st.triggers,
+      announced: st.announced,
       muts: st.muts,
       self: st.self,
       aria: st.aria.slice(0, 6),

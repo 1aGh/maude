@@ -605,3 +605,44 @@ describe('Every version, with its id', () => {
     );
   });
 });
+
+// p8-sweep-leftovers item 6 — Compare pictures with no version picked reads the git HEAD copy; a project that is
+// not in git has none (the crawler saw `?sha=HEAD` 404 + "No saved version of this canvas"). The button rests with
+// DiffView's own line; a picked version (the op log's `r<n>`) still compares.
+describe('Compare pictures without git', () => {
+  test('not in git, no version picked: the button rests and says why', async () => {
+    const asked: unknown[] = [];
+    await mount(
+      { status: { repo: false, files: [] } },
+      { onComparePictures: (a: unknown) => asked.push(a) }
+    );
+    const btn = q('[data-testid="vh-compare-pictures"]') as HTMLButtonElement;
+    expect(btn.disabled).toBe(true);
+    expect(btn.getAttribute('aria-description')).toBe(
+      'No saved version of this canvas to compare yet.'
+    );
+    await act(async () => btn.click());
+    expect(asked).toEqual([]);
+  });
+
+  test('not in git, a version picked: it compares with that version', async () => {
+    const asked: unknown[] = [];
+    await mount(
+      { status: { repo: false, files: [] } },
+      { version: 'r12', onComparePictures: (a: unknown) => asked.push(a) }
+    );
+    const btn = q('[data-testid="vh-compare-pictures"]') as HTMLButtonElement;
+    expect(btn.disabled).toBe(false);
+    await act(async () => btn.click());
+    expect(asked).toEqual([{ file: CANVAS, beforeSha: 'r12' }]);
+  });
+
+  test('in git: the saved copy is HEAD, as before', async () => {
+    const asked: unknown[] = [];
+    await mount({}, { onComparePictures: (a: unknown) => asked.push(a) });
+    const btn = q('[data-testid="vh-compare-pictures"]') as HTMLButtonElement;
+    expect(btn.disabled).toBe(false);
+    await act(async () => btn.click());
+    expect(asked).toEqual([{ file: CANVAS, beforeSha: 'HEAD' }]);
+  });
+});

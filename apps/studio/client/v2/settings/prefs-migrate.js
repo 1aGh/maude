@@ -16,6 +16,7 @@
 // Call site: `migrateAtBoot()` before the first read of a v2 home. app.jsx is the lead's — patch request.
 
 import { KEY_CLASS, LEGACY_VERSION_KEY } from '../../../ui-prefs-migrate.ts';
+import { getConfig } from '../../home/home-api.js';
 import { shellModeHint } from '../../home/shell-mode.js';
 import { migrateLocalPrefs } from '../../prefs-migrate.js';
 
@@ -82,8 +83,16 @@ export function legacyHomes() {
 export function migrateAtBoot(opts = {}) {
   // The Home window has no project preferences (its server serves no /_api/ui-prefs): it runs before
   // the shell mode is known, so the window label decides (P8 sweep — every Home boot logged a 404).
-  if (shellModeHint(opts.win) === 'home') return Promise.resolve({ status: 'skipped' });
-  return migrateLocalPrefs(opts);
+  const hint = shellModeHint(opts.win);
+  if (hint === 'home') return Promise.resolve({ status: 'skipped' });
+  if (hint === 'project') return migrateLocalPrefs(opts);
+  // A browser on loopback cannot tell from the page (Home in a browser tab, p8-sweep-leftovers — its boot
+  // still logged the 404): ask the server the way bootShellMode does, and leave Home alone.
+  return Promise.resolve((opts.getConfig ?? getConfig)())
+    .catch(() => null)
+    .then((r) =>
+      r?.ok && r.json?.mode === 'home' ? { status: 'skipped' } : migrateLocalPrefs(opts)
+    );
 }
 
 /** prefs.json `seen` (a map `{ id: true }`; the server merges by key). Pure: persistence is injected. */

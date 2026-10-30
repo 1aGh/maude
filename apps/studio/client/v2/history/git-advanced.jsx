@@ -60,6 +60,9 @@ import {
 } from './git-parts.jsx';
 import { reasonProps } from '../access/disabled-reason.js';
 
+/** DiffView's line when there is no saved copy to compare with (panels/DiffView.jsx). */
+const NO_SAVED_COPY = 'No saved version of this canvas to compare yet.';
+
 /** The git id and the lines of the version being looked at. */
 function useChangedInVersion({ canvas, versionRow, enabled, fetchImpl }) {
   const [state, setState] = useState({ status: 'idle', line: null });
@@ -539,6 +542,10 @@ export function HistoryAdvanced({
   fetchImpl,
   children,
 }) {
+  // p8-sweep-leftovers — with no version picked, Compare reads the last saved (git HEAD) copy. A project that
+  // is not in git has none: the button rests with DiffView's own line instead of opening a 404.
+  const noSaved = !version && git?.status?.repo === false;
+  const off = !canvas || !canView || noSaved;
   return (
     <div className="vh-adv" data-testid="vh-advanced">
       {onComparePictures ? (
@@ -547,8 +554,8 @@ export function HistoryAdvanced({
             type="button"
             className="btn btn--ghost btn--sm"
             data-testid="vh-compare-pictures"
-            disabled={!canvas || !canView}
-            {...reasonProps(!canvas || !canView, 'noCanvas')}
+            disabled={off}
+            {...reasonProps(off, !canvas || !canView ? 'noCanvas' : NO_SAVED_COPY)}
             onClick={() => onComparePictures({ file: canvas, beforeSha: version || 'HEAD' })}
           >
             {CW.button}

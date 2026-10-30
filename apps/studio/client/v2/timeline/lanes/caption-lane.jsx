@@ -11,8 +11,10 @@
 
 import { useEffect } from 'react';
 import { TGlyph } from '../glyphs.jsx';
+import { reasonProps } from '../../access/disabled-reason.js';
 import {
   addCaptionsFromSpeech,
+  NO_SPEECH_TEXT,
   transcriptUi,
   useTranscriptUi,
 } from '../../transcript/captions-api.js';
@@ -123,8 +125,11 @@ export function CaptionLane({ canvas, artboardId, fps, frame, x, axisPx, onSeek 
   );
 }
 
-/** The island's "Captions from speech" button (video.captions.add). */
-export function CaptionsTool() {
+/**
+ * The island's "Captions from speech" button (video.captions.add). `off` — the video has no clip yet, so there
+ * is no speech to read: the button rests with the line the flow itself ends on (`NO_SPEECH_TEXT`).
+ */
+export function CaptionsTool({ off = false } = {}) {
   const ui = useTranscriptUi();
   return (
     <button
@@ -134,6 +139,8 @@ export function CaptionsTool() {
       title="Captions from speech"
       data-testid="timeline-captions-tool"
       data-busy={ui.working ? 'true' : undefined}
+      disabled={off}
+      {...reasonProps(off, NO_SPEECH_TEXT)}
       onClick={() => void addCaptionsFromSpeech()}
     >
       <TGlyph name="captions" />

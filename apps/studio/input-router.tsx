@@ -226,6 +226,13 @@ export interface ClassifyInput {
   markerTip?: ToolId;
   /** V2-4 gate — the shell's "Single-key shortcuts" switch (bridge `key-prefs`); absent = on. */
   singleKeys?: boolean;
+  /**
+   * p8-sweep-final — the press is on an artboard's NAME while the shell's Preview governs the canvas. Browse
+   * passes every other bare press through to the design, but the name is Maude's own, not the design's: it
+   * selects the artboard (decision maude/v2-p8-leftovers-preview-label-selects). The caller computes it from
+   * the event target and the mode store — `classify` stays DOM-free.
+   */
+  previewLabel?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -479,7 +486,19 @@ export function classify(input: ClassifyInput): RouterAction {
     // 2026-07-19): it selects the deepest element AND the consumer flips the
     // tool to Move — "I clicked to edit" shouldn't require pressing V first.
     if (input.activeTool === 'browse') {
-      if (!metaOrCtrl(input)) return { kind: 'no-op' };
+      if (!metaOrCtrl(input)) {
+        // Selecting is not editing: the name selects its artboard (Preview offers "Present from the selected
+        // artboard"); the design under it stays untouched, and the tool does not change.
+        if (input.previewLabel)
+          return {
+            kind: 'select',
+            mode: input.shiftKey ? 'add' : 'replace',
+            deep: false,
+            clientX: input.clientX ?? 0,
+            clientY: input.clientY ?? 0,
+          };
+        return { kind: 'no-op' };
+      }
       return {
         kind: 'select',
         mode: input.shiftKey ? 'add' : 'replace',
@@ -651,6 +670,15 @@ export function isDesignSurface(t: EventTarget | null): boolean {
  */
 export function dragPansCanvas(tool: Tool, onDesign: boolean): boolean {
   return tool === 'hand' || tool === 'inspect' || (tool === 'browse' && !onDesign);
+}
+
+/**
+ * p8-sweep-final — is this press on an artboard's name (its label button) while the shell's Preview governs the
+ * canvas? A free canvas (no shell, `mode` null) and Edit/Viewing/Present are not this: they have their own paths.
+ */
+export function isPreviewLabelPress(t: EventTarget | null, mode: CanvasModeV2 | null): boolean {
+  if (mode !== 'preview' || !t || typeof (t as Element).closest !== 'function') return false;
+  return !!(t as Element).closest('button.dc-artboard-label');
 }
 
 /** Is the target inside an open annotation text editor (a sticky, shape label or text being typed in)? */
@@ -889,6 +917,10 @@ export function useInputRouter(opts: UseInputRouterOptions): void {
       }
     };
 
+    // the shell's mode, read at event time (the shell may have switched since mount)
+    const shellMode = (): CanvasModeV2 | null =>
+      typeof window !== 'undefined' ? canvasModeStore(window).get().mode : null;
+
     const onPointerMove = (e: PointerEvent): void => {
       const action = claim(
         classify({
@@ -929,6 +961,7 @@ export function useInputRouter(opts: UseInputRouterOptions): void {
           clientY: e.clientY,
           spaceHeld: isSpaceHeld?.() ?? false,
           activeTool: getActiveTool(),
+          previewLabel: isPreviewLabelPress(e.target, shellMode()),
         })
       );
       // issue-71 — a bare press on an artboard's own drag chrome must still
@@ -977,6 +1010,7 @@ export function useInputRouter(opts: UseInputRouterOptions): void {
           clientY: e.clientY,
           spaceHeld: isSpaceHeld?.() ?? false,
           activeTool: getActiveTool(),
+          previewLabel: isPreviewLabelPress(e.target, shellMode()),
         })
       );
       // issue-71 — same exemption as onPointerDown above: preventDefault still

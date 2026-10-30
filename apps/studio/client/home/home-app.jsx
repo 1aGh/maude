@@ -1219,6 +1219,7 @@ export function HomeApp() {
           onChange={setCreating}
           onSubmit={createProject}
           onCancel={() => setCreating(null)}
+          native={data.native}
         />
       ) : null}
 

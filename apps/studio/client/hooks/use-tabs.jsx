@@ -5,6 +5,7 @@ import { CANVAS_EXT_RE, SYSTEM_TAB } from '../shell/constants.js';
 import { remapDirPrefix, revealPath } from '../tree-expansion.js';
 import { buildShareLinks, normalizeOpenPath, readOpenParam, withOpenParam } from '../share-link.js';
 import { basename, displayName, previewKind, shellToast } from '../shell/util.js';
+import { assembleVideoFlow } from '../v2/timeline/assemble-video.js';
 import { notify } from '../../notifications.tsx';
 import { lastOpenedPath } from '../v2/canvases/last-canvas.js';
 import { trashCanvas } from '../v2/canvases/trash-canvas.js';
@@ -476,44 +477,8 @@ export function useTabs({
   // the Timeline); client-side <video>.duration probing is a documented tightening.
   const assembleVideo = useCallback(async () => {
     if (!activePath || activePath === SYSTEM_TAB) return;
-    try {
-      const ar = await fetch(`/_api/annotations?file=${encodeURIComponent(activePath)}`);
-      const svg = ar.ok ? await ar.text() : '';
-      const clips = [];
-      if (svg) {
-        const doc = new DOMParser().parseFromString(svg, 'image/svg+xml');
-        for (const g of doc.querySelectorAll('[data-tool="mediaref"]')) {
-          const src = g.getAttribute('data-src');
-          if (!src) continue;
-          clips.push({
-            src,
-            mediaKind: g.getAttribute('data-media-kind') === 'audio' ? 'audio' : 'video',
-          });
-        }
-      }
-      if (clips.length === 0) {
-        window.alert(
-          'Drop video/audio clips on the canvas first, then assemble them into a video.'
-        );
-        return;
-      }
-      const baseName = displayName(basename(activePath)).replace(/\.tsx$/i, '');
-      const name = `${baseName} Video`;
-      const r = await fetch('/_api/canvas', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, kind: 'video-comp', clips }),
-      });
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok || !j.ok) {
-        window.alert(`Assemble failed: ${j.error || `error ${r.status}`}`);
-        return;
-      }
-      await loadTree();
-      openTab(j.file);
-    } catch (e) {
-      window.alert(`Assemble failed: ${e instanceof Error ? e.message : 'network error'}`);
-    }
+    const name = `${displayName(basename(activePath)).replace(/\.tsx$/i, '')} Video`;
+    await assembleVideoFlow({ activePath, name, toast: shellToast, loadTree, openTab });
   }, [activePath, loadTree, openTab]);
 
   // DDR-150 dogfood #5 — shared replace-media flow, PICKER-FIRST. The <input

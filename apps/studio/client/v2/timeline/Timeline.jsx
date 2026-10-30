@@ -46,6 +46,7 @@ import { trackToggle } from './track-toggle.js';
 import { MusicHint, MusicTool } from './music-hint.jsx';
 import { TGlyph } from './glyphs.jsx';
 import { CaptionLane, CaptionsTool } from './lanes/caption-lane.jsx';
+import { reasonProps } from '../access/disabled-reason.js';
 import { Person } from '../share/person.jsx';
 import { RulerMarks } from './marks.jsx';
 import { PeerHeads } from './peers.jsx';
@@ -174,6 +175,8 @@ const COMPACT_GUTTER = 30;
 const FULL_GUTTER = 140;
 // Padding the .tl-scroll container puts around the tracks (timeline.css: 3 px a side, room for the selection ring).
 const SCROLL_PAD_X = 6;
+/** Split's own line when nothing is under the playhead (the shell's toast, app.jsx `onSplitAtPlayhead`). */
+const SPLIT_NOTHING = 'Nothing under the playhead to split.';
 
 export default function TimelinePanel({
   comps = [],
@@ -269,6 +272,8 @@ export default function TimelinePanel({
   const rootRef = useRef(null);
   // S7.7 — the island around this body (null when it stands alone): the empty-comp block lives there.
   const island = useTimelineIsland();
+  // p8-sweep-leftovers — a video with no clip has nothing to split or caption: those tools rest and say why.
+  const noClips = sequences.length === 0 && audio.length === 0;
   // P8 C3 — the board's two sizes: compact (the narrow icon gutter, no zoom, no Advanced) and full. A body with
   // no island around it is the full one.
   const full = !island || island.size === 'full';
@@ -2112,6 +2117,8 @@ export default function TimelinePanel({
                   aria-label="Split at the playhead"
                   title="Split at the playhead · S"
                   data-testid="timeline-split"
+                  disabled={noClips}
+                  {...reasonProps(noClips, SPLIT_NOTHING)}
                   onClick={() => onSplitAtPlayhead()}
                 >
                   <TGlyph name="scissors" />
@@ -2129,7 +2136,7 @@ export default function TimelinePanel({
                   <TGlyph name="type" />
                 </button>
               ) : null}
-              {island ? <CaptionsTool /> : null}
+              {island ? <CaptionsTool off={noClips} /> : null}
               {onDropMedia && canEditHere ? (
                 <MusicTool onAddFiles={(files) => onDropMedia(files, null)} />
               ) : null}

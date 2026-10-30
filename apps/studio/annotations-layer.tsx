@@ -119,6 +119,7 @@ import { TIME_PIN_CSS } from './annotations/ui/time-pins.tsx';
 import { VoteDots } from './annotations/ui/vote-dots.tsx';
 import { projectStrokes, type StrokeCache } from './annotations/ui/world.ts';
 import { elementsToStrokes, strokesToElementMap } from './annotations/v1-adapter.ts';
+import { reasonProps } from './client/v2/access/disabled-reason.js';
 import { setStickerSelected } from './toolbars/shell-panels.ts';
 /**
  * @file       annotations-layer.tsx — FigJam-style annotation overlay
@@ -4365,24 +4366,12 @@ export function AnnotationsLayer() {
       if (!m || m.dgn !== 'run-action' || m.v !== 1) return;
       if (m.id === 'edit.copy') copySelection(false);
       else if (m.id === 'edit.cut') copySelection(true);
-      else if (m.id === 'edit.paste') {
-        try {
-          void navigator.clipboard
-            ?.readText()
-            .then((t) => {
-              pasteStrokesText(t);
-            })
-            .catch(() => {
-              /* clipboard read blocked — paste is best-effort from the menu */
-            });
-        } catch {
-          /* clipboard API absent */
-        }
-      }
+      // Paste is not read here: the frame may not read the clipboard (DDR-054). The shell's Edit › Paste
+      // forwards what it read as `paste-data`, replayed as a paste event (canvas-shell.tsx).
     };
     window.addEventListener('message', onRunAction);
     return () => window.removeEventListener('message', onRunAction);
-  }, [copySelection, pasteStrokesText]);
+  }, [copySelection]);
 
   // FigJam v3 — paste strokes. ⌘C serialized the selection as a JSON text
   // payload; this CAPTURE-phase listener claims it before the media-intake
@@ -4684,20 +4673,8 @@ export function AnnotationsLayer() {
       const sel = annotSel.selectedIds;
       if (action === 'copy') copySelection(false);
       else if (action === 'cut') copySelection(true);
-      else if (action === 'paste') {
-        try {
-          void navigator.clipboard
-            ?.readText()
-            .then((t) => {
-              pasteStrokesText(t);
-            })
-            .catch(() => {
-              /* clipboard read blocked — paste is best-effort from the menu */
-            });
-        } catch {
-          /* clipboard API absent */
-        }
-      } else if (action === 'duplicate') {
+      // 'paste' rests in the menu (no in-frame clipboard read — PASTE_KEY_REASON); ⌘V is the paste event
+      else if (action === 'duplicate') {
         const ids = store.duplicateSelection(sel, 16, 16);
         if (ids.length) annotSel.replace(ids);
       } else if (action === 'delete') {
@@ -4765,7 +4742,7 @@ export function AnnotationsLayer() {
         }
       }
     },
-    [annotSel, copySelection, pasteStrokesText, strokesById]
+    [annotSel, copySelection, strokesById]
   );
 
   // S4.12 - stickies and sections up close. One entry point for the menu rows, the small toolbar and the
@@ -5783,7 +5760,10 @@ function ConnectorDots({ stroke }: { stroke: Stroke }) {
  * `.dc-context-menu` visual language (stylesheet injected by context-menu.tsx)
  * so the annotation menu and the canvas menu read as one product surface.
  */
-function AnnotationContextMenu({
+/** The annotation menu's Paste reason — CONTRACT.md's Edit-menu words (no in-frame clipboard read). */
+export const PASTE_KEY_REASON = 'Paste ⌘V';
+
+export function AnnotationContextMenu({
   pos,
   selCount,
   canUngroup,
@@ -5845,7 +5825,7 @@ function AnnotationContextMenu({
     id: string,
     label: string,
     shortcut?: string,
-    opts?: { destructive?: boolean; disabled?: boolean }
+    opts?: { destructive?: boolean; disabled?: boolean; reason?: string }
   ) => (
     <button
       type="button"
@@ -5853,6 +5833,7 @@ function AnnotationContextMenu({
       data-action={id}
       data-testid={`annot-menu-${id}`}
       disabled={opts?.disabled}
+      {...reasonProps(!!opts?.disabled && !!opts?.reason, opts?.reason)}
       className={`dc-menu-item${opts?.destructive ? ' is-destructive' : ''}`}
       onClick={() => {
         if (opts?.disabled) return;
@@ -5890,7 +5871,11 @@ function AnnotationContextMenu({
       ) : null}
       {item('copy', 'Copy', '⌘C')}
       {item('cut', 'Cut', '⌘X', { disabled: allLocked })}
-      {item('paste', 'Paste', '⌘V')}
+      {/* p8-sweep-leftovers — this menu lives in the untrusted canvas frame, which may not read the clipboard
+          (iframe `allow="clipboard-write"` only, DDR-054) and must not get the shell to read it on its own say
+          (planted code could spam it). The row rests and points at the key: ⌘V raises a real paste event the
+          frame does receive. Words: CONTRACT.md's Edit-menu entry "Paste ⌘V". */}
+      {item('paste', 'Paste', '⌘V', { disabled: true, reason: PASTE_KEY_REASON })}
       {item('duplicate', 'Duplicate', '⌘D')}
       {canReplace ? item('replace', 'Replace…') : null}
       {canEditPhoto ? item('edit-photo', 'Edit Photo…') : null}
