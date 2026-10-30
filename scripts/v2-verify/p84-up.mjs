@@ -49,6 +49,8 @@ const baseEnv = {
   XDG_CONFIG_HOME: join(HOME, '.config'),
   MAUDE_INDEX_DIR: join(HOME, 'index'), // P8: never the person's ~/.maude/index (Home lists every project indexed there)
   NO_OPEN: '1',
+  // p8-orphan-sidecars — the server ends by itself if this script is SIGKILLed
+  MAUDE_EXIT_WITH_PARENT: '1',
   MAUDE_NO_AUTOBUILD: '1',
   ...stubClaudeEnv(HOME),
 };

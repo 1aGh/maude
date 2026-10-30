@@ -489,6 +489,8 @@ async function bootServer() {
       // never the machine's real `claude` (keychain dialog in a throwaway HOME): scripts/lib/stub-claude.mjs
       ...stubClaudeEnv(home),
       NO_OPEN: '1',
+      // p8-orphan-sidecars — the server ends by itself if this script is SIGKILLed
+      MAUDE_EXIT_WITH_PARENT: '1',
       MAUDE_NO_AUTOBUILD: '1',
       MAUDE_SYNC_IN_CI: '1',
       TZ: 'UTC',

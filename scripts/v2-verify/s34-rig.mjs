@@ -87,6 +87,8 @@ if (cmd === 'setup') {
       env: {
         ...process.env,
         NO_OPEN: '1',
+        // p8-orphan-sidecars — the server ends by itself if this script is SIGKILLed
+        MAUDE_EXIT_WITH_PARENT: '1',
         MAUDE_NO_AUTOBUILD: '1',
         MAUDE_CANVAS_ORIGIN_SPLIT: '0',
         MAUDE_MACHINE_FILE: join(a, 'machine.json'),

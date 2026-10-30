@@ -107,6 +107,8 @@ function isolatedEnv(work, portBase) {
     HOME: home,
     NO_OPEN: '1',
     MAUDE_NO_AUTOBUILD: '1',
+    // p8-orphan-sidecars — the servers end by themselves if this rig is SIGKILLed
+    MAUDE_EXIT_WITH_PARENT: '1',
     MAUDE_SYNC_IN_CI: '1',
     MAUDE_PORT_BASE: String(portBase),
     XDG_CONFIG_HOME: join(work, 'config'),

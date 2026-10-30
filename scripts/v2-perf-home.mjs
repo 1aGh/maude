@@ -43,6 +43,8 @@ const env = {
   XDG_CONFIG_HOME: join(work, '.config'),
   ...stubClaudeEnv(work),
   NO_OPEN: '1',
+  // p8-orphan-sidecars — the server ends by itself if this script is SIGKILLed
+  MAUDE_EXIT_WITH_PARENT: '1',
   MAUDE_NO_AUTOBUILD: '1',
   CLAUDE_PROJECT_DIR: work,
   MAUDE_HOME_STATE_DIR: work,

@@ -149,10 +149,15 @@ function cleanup() {
   hub?.stop();
   if (!KEEP) rmSync(scratch, { recursive: true, force: true, maxRetries: 8, retryDelay: 250 });
 }
-process.on('SIGINT', () => {
-  cleanup();
-  process.exit(130);
-});
+for (const [sig, code] of [
+  ['SIGINT', 130],
+  ['SIGTERM', 143],
+]) {
+  process.on(sig, () => {
+    cleanup();
+    process.exit(code);
+  });
+}
 // A boot step that times out rejects the top-level await: the children (two studios, the hub)
 // must not outlive the rig as orphans on a machine-wide test lane.
 process.on('exit', cleanup);
@@ -206,6 +211,8 @@ const baseEnv = {
   MAUDE_NO_AUTOBUILD: '1',
   MAUDE_CANVAS_ORIGIN_SPLIT: '1',
   NO_OPEN: '1',
+  // p8-orphan-sidecars — a studio ends by itself when this rig is SIGKILLed (no exit handler runs then)
+  MAUDE_EXIT_WITH_PARENT: '1',
 };
 for (const k of Object.keys(baseEnv)) {
   if (
