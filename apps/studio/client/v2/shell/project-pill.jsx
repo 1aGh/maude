@@ -15,6 +15,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Kbd, StIcon } from '../../shell/icons.jsx';
 import { SWITCHER_TRIGGER_TESTID } from '../../panels/RepoBranchSwitcher.jsx';
+import { reasonProps } from '../access/disabled-reason.js';
 import { buildProjectMenu } from './project-menu-model.js';
 
 const slug = (s) =>
@@ -141,6 +142,8 @@ function Level({ nodes, depth, trail, openPath, cur, setCur, onRow, onHover, lab
               role={check ? 'menuitemcheckbox' : 'menuitem'}
               aria-checked={check ? n.checked : undefined}
               aria-disabled={n.disabled ? 'true' : undefined}
+              // p8-sweep-errors — a greyed row says why ("Open a canvas first."), from the registry's predicate
+              {...reasonProps(n.disabled, n.reason)}
               className="sh-pm-row"
               tabIndex={cur === key ? 0 : -1}
               data-testid={n.testid ?? `project-menu-row-${n.id}`}
