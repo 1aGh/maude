@@ -122,9 +122,41 @@ function isolatedEnv(work, portBase) {
   };
 }
 
+// Every server the rig starts, so none outlives the run: a normal end, ^C, a kill (SIGTERM / SIGHUP) or a crash all
+// stop them. (SIGKILL cannot be caught — the lane's own timeout sends SIGTERM first.)
+const liveChildren = new Set();
+export function killRigChildren() {
+  for (const c of liveChildren) {
+    try {
+      c.kill('SIGTERM');
+    } catch {
+      /* gone */
+    }
+  }
+  liveChildren.clear();
+}
+process.on('exit', killRigChildren);
+for (const [sig, code] of [
+  ['SIGINT', 130],
+  ['SIGTERM', 143],
+  ['SIGHUP', 129],
+]) {
+  process.on(sig, () => {
+    killRigChildren();
+    process.exit(code);
+  });
+}
+process.on('uncaughtException', (e) => {
+  killRigChildren();
+  console.error(e);
+  process.exit(1);
+});
+
 function spawnLogged(args, env) {
   const log = [];
   const child = spawn('bun', args, { env, stdio: ['ignore', 'pipe', 'pipe'] });
+  liveChildren.add(child);
+  child.once('exit', () => liveChildren.delete(child));
   child.stdout.on('data', (d) => log.push(String(d)));
   child.stderr.on('data', (d) => log.push(String(d)));
   return { child, log };
@@ -148,7 +180,7 @@ async function waitJson(file, ms, child) {
 export async function bootRig({ portBase = Number(process.env.MAUDE_PORT_BASE || 48499) } = {}) {
   const fx = makeFixture();
   const env = isolatedEnv(fx.work, portBase);
-  const proj = spawnLogged([join(STUDIO, 'server.ts'), '--root', fx.root], env);
+  let proj = spawnLogged([join(STUDIO, 'server.ts'), '--root', fx.root], env);
   const sj = await waitJson(join(fx.designRoot, '_server.json'), 60_000, proj.child);
   if (!sj?.url) throw new Error(`project server never came up:\n${proj.log.join('').slice(-1500)}`);
   // let the index snapshot land before Home reads it
@@ -163,8 +195,49 @@ export async function bootRig({ portBase = Number(process.env.MAUDE_PORT_BASE ||
     MAUDE_SHELL_INFO_FILE: infoFile,
   });
   const hi = await waitJson(infoFile, 30_000, home.child);
+  const pristine = join(fx.work, 'pristine');
+  const pristineConfig = join(fx.work, 'pristine-config');
+  const exited = (child) =>
+    new Promise((r) => {
+      if (child.exitCode !== null) return r();
+      child.once('exit', () => r());
+      setTimeout(r, 8000);
+    });
   const rig = {
     ...fx,
+    /** Freeze the fixture as it is now (call after seeding): `reset()` returns to exactly this. */
+    snapshot() {
+      cpSync(fx.root, pristine, { recursive: true });
+      if (existsSync(join(fx.work, 'config')))
+        cpSync(join(fx.work, 'config'), pristineConfig, { recursive: true });
+    },
+    /**
+     * The project server back on the frozen fixture: a state the crawl reaches by replaying its steps must start
+     * from the same project every time, or a click that pinned / created / deleted something earlier changes what
+     * the next state shows (a control 'vanishes' only because a sibling click already used it up).
+     */
+    async reset() {
+      try {
+        proj.child.kill('SIGTERM');
+      } catch {
+        /* gone */
+      }
+      await exited(proj.child);
+      rmSync(fx.root, { recursive: true, force: true });
+      cpSync(pristine, fx.root, { recursive: true });
+      rmSync(join(fx.work, 'config'), { recursive: true, force: true });
+      if (existsSync(pristineConfig))
+        cpSync(pristineConfig, join(fx.work, 'config'), { recursive: true });
+      for (const f of ['_server.json', '_active.json'])
+        rmSync(join(fx.designRoot, f), { force: true });
+      proj = spawnLogged([join(STUDIO, 'server.ts'), '--root', fx.root], env);
+      rig.logs.project = proj.log;
+      const again = await waitJson(join(fx.designRoot, '_server.json'), 60_000, proj.child);
+      if (!again?.url) throw new Error('project server did not come back after a reset');
+      rig.projectUrl = again.url; // a restart may take the next free port
+      await sleep(1500); // the runtime files (_state, _exports …) land a moment after _server.json
+      return again.url;
+    },
     projectUrl: sj.url,
     homeUrl: hi?.url ?? null,
     homeSecret: pageSecret,

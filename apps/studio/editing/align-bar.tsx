@@ -30,7 +30,7 @@ import {
   ARRANGE,
   type ArrangeAction,
   alignGuide,
-  arrangeArtboards,
+  arrangeBoardsOrSay,
   type BarModel,
   type BoardRect,
   barModel,
@@ -341,7 +341,7 @@ export function AlignBar({ readOnly = false }: { readOnly?: boolean }) {
     if (m.kind === 'artboards') {
       const ids = new Set(sel.filter((s) => !s.id && s.artboardId).map((s) => s.artboardId));
       const rects: BoardRect[] = (w?.artboards ?? []).filter((r) => ids.has(r.id));
-      if (b) arrangeArtboards(action, rects, b);
+      if (b) arrangeBoardsOrSay(action, rects, b, (line) => showCanvasToast(line, 'info'));
       return;
     }
     const targets = objectTargets(sel, document);

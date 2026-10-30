@@ -339,6 +339,21 @@ describe('the words', () => {
     expect(byId.canva.reason).toBe('Needs the desktop app');
   });
 
+  // p8-sweep-advanced — the dead-control crawl opened Other › shadcn with no canvas open: the handoff sheet asked
+  // GET /_api/handoff/targets?ds= (no subject at all) and got a 400. The row says why instead.
+  test('Handoff (shadcn) needs a canvas to hand off: with none open the row is greyed with the reason', () => {
+    const none = otherFormats({ kinds: new Set(), laneBlocked: () => false, hasSubject: false });
+    const row = (g: ReturnType<typeof otherFormats>) =>
+      g.flatMap((x) => x.items).find((r) => r.id === 'shadcn');
+    expect(row(none)?.disabled).toBe(true);
+    expect(row(none)?.reason).toBe('Open a canvas to hand it off');
+    const open = otherFormats({ kinds: new Set(), laneBlocked: () => false, hasSubject: true });
+    expect(row(open)?.disabled).toBe(false);
+    // callers that say nothing keep today's behaviour
+    const quiet = otherFormats({ kinds: new Set(), laneBlocked: () => false });
+    expect(row(quiet)?.disabled).toBe(false);
+  });
+
   test('people read as a sentence', () => {
     expect(peopleWords(['Tereza'])).toBe('Tereza');
     expect(peopleWords(['Tereza', 'Jonas'])).toBe('Tereza and Jonas');

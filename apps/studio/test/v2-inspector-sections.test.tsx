@@ -342,6 +342,25 @@ describe('Layout', () => {
     expect(written()['justify-content']).toBeUndefined(); // still space-between
     expect(written()['align-items']).toBe('flex-start');
   });
+  // p8-sweep-advanced — under Space between the pad's other columns write nothing (the dead-control crawl clicked six
+  // of them): they are greyed with the reason instead of looking like buttons.
+  test('Align: with Space between the cells that cannot move anything are greyed and say why', async () => {
+    const host = await frame();
+    const cell = (c: string) =>
+      q(host, 'insp-ctl-align')?.querySelector(`[aria-label="align ${c}"]`) as HTMLElement | null;
+    expect(cell('tr')?.getAttribute('aria-disabled')).toBeNull();
+    await click(q(host, 'insp-ctl-spacing')?.querySelector('[role="radio"]:last-child') ?? null);
+    for (const c of ['tc', 'tr', 'cc', 'cr', 'bc', 'br']) {
+      expect(cell(c)?.getAttribute('aria-disabled')).toBe('true');
+      expect(cell(c)?.getAttribute('title')).toBe('Space between sets this one');
+    }
+    for (const c of ['tl', 'cl', 'bl']) expect(cell(c)?.getAttribute('aria-disabled')).toBeNull();
+    posts.length = 0;
+    await click(cell('br'));
+    expect(posts.length).toBe(0);
+    await click(cell('bl'));
+    expect(written()['align-items']).toBe('flex-end');
+  });
   test('only Tier-1 names are ever written', async () => {
     const host = await frame();
     await click(q(host, 'insp-ctl-gap')?.querySelector('button.insp-chip') ?? null);

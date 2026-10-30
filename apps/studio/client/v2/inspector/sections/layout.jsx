@@ -252,6 +252,13 @@ export function LayoutBody({ el, ctx }) {
             <AlignPad
               value={cellOf(words.align)}
               ariaLabel="Align"
+              // with Space between the main axis is the spacing's: the cells off its first track move nothing
+              lockReason={(cell) =>
+                words.spacing === 'between' &&
+                (words.direction === 'row' ? cell[1] !== 'l' : cell[0] !== 't')
+                  ? 'Space between sets this one'
+                  : null
+              }
               onChange={(cell) => {
                 const h = POS[COLS.indexOf(cell[1])];
                 const v = POS[ROWS.indexOf(cell[0])];

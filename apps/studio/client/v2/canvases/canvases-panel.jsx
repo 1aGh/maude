@@ -475,7 +475,14 @@ export function CanvasesPanel({
     return items.map((it, i) => (i === 0 ? { ...it, sepBefore: true } : it));
   }, [advancedOpen, menuRow, role, edit, doors]);
   const dsUpdate = !!(edit && onDsAction && menuRow && leftOutOf(menuRow.path, dsCfg));
-  const menuItems = menuRow ? canvasMenuItems(menuRow, { edit, extra: fileMenu, dsUpdate }) : [];
+  const menuItems = menuRow
+    ? canvasMenuItems(menuRow, {
+        edit,
+        extra: fileMenu,
+        dsUpdate,
+        isOpen: !!activePath && menuRow.path === activePath,
+      })
+    : [];
   const targets = useMemo(
     () => (menuRow ? moveTargets(tree, { fromDir: menuRow.dir, projectLabel }) : []),
     [tree, menuRow, projectLabel]

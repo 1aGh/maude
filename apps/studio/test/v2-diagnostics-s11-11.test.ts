@@ -332,6 +332,23 @@ describe('the rows that run it', () => {
     expect('diag.logs-show-in-finder' in h).toBe(false);
   });
 
+  // p8-sweep-advanced — the dead-control crawl reaches Menu › Diagnostics › Advanced › Download all only through an
+  // injected hub-link status (the rig has no hub); this pins the row's action itself.
+  test('Download all asks the server for everything offline and says the answer', async () => {
+    const toasts: string[] = [];
+    const calls: string[] = [];
+    const fetchFn = (async (url: string, init?: { method?: string }) => {
+      calls.push(`${init?.method ?? 'GET'} ${url}`);
+      return new Response(JSON.stringify({ ok: true, complete: true, pulled: 4 }));
+    }) as unknown as typeof fetch;
+    const h = createDiagnosticsHandlers({ toast: (m: string) => toasts.push(m) }, { fetchFn });
+    await h['sync.download-all']();
+    expect(calls).toEqual(['POST /_api/sync/offline']);
+    expect(toasts[0]).toBe('Downloading everything for offline…');
+    expect(toasts).toHaveLength(2);
+    expect(toasts[1]).toMatch(/\S/);
+  });
+
   test('Copy logs with nothing to copy, or an unreadable studio, says so and copies nothing', async () => {
     const copied: string[] = [];
     const toasts: string[] = [];

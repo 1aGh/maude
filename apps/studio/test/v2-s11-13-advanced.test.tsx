@@ -476,6 +476,15 @@ describe('Reset', () => {
     expect(foldStore.openIds()).toEqual([]);
   });
 
+  // p8-sweep-advanced — with nothing visibly open the click changed nothing on screen (the dead-control crawl): it now says it
+  // closed them, the way Reset panel layout says 'Reset'
+  test('Close all Advanced sections answers its click: the button says Closed', async () => {
+    await mount();
+    expect(q('settings-reset-folds-btn')?.textContent).toBe('Close all Advanced sections');
+    await click(q('settings-reset-folds-btn'));
+    expect(q('settings-reset-folds-btn')?.textContent).toBe('Closed');
+  });
+
   test('06 ad-settings › Reset is ONE row of three buttons — no per-fold switch list, the third is the warning', async () => {
     await mount();
     const group = q('settings-reset') as HTMLElement;

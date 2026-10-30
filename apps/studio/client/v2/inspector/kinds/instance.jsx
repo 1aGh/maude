@@ -16,6 +16,7 @@
 // Every change is asked of the canvas through `run-action` (`ctx.onRunAction`), like the Type section; the
 // canvas measures what only it can (what the instance renders to, for Detach) and the studio writes the TSX.
 
+import { SYSTEM_TAB } from '../../../shell/constants.js';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ACTIONS_BY_ID } from '../../../../actions/index.ts';
 import { fillFromCss, fillToCss } from '../../../../edit-ops/words-paint.ts';
@@ -56,7 +57,9 @@ const sigOf = (el) => `${el.text ?? ''}|${JSON.stringify(el.authored ?? el.attrs
  */
 export function useInstanceSelection(selected, canvasFile) {
   const el1 = Array.isArray(selected) ? (selected.length === 1 ? selected[0] : null) : selected;
-  const askable = !!el1 && !!el1.id && !!canvasFile && !isArtboardSelection(el1);
+  // the Design system tab is not a canvas file: the server has no such canvas to ask about
+  const askable =
+    !!el1 && !!el1.id && !!canvasFile && canvasFile !== SYSTEM_TAB && !isArtboardSelection(el1);
   const key = askable ? selKey(canvasFile, el1) : '';
   const sig = askable ? sigOf(el1) : '';
   const [state, setState] = useState({ key: '', info: null });

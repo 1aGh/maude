@@ -1,5 +1,6 @@
 // hooks/use-shell-core.jsx — moved verbatim out of client/app.jsx (Maude v2 plan V2-0.2, move-only split).
 
+import { editScopeQuery } from './edit-scope-query.js';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   layersTreeOf,
@@ -92,14 +93,12 @@ export function useShellCore({}) {
   // rendered=1 (source-usage-driven; the .map() refinement is a follow-up).
   const [editScope, setEditScope] = useState(null);
   useEffect(() => {
-    const one = Array.isArray(selected) ? (selected.length === 1 ? selected[0] : null) : selected;
-    const id = one && typeof one.id === 'string' ? one.id : null;
-    if (!id || !activePath) {
+    const q = editScopeQuery(activePath, selected);
+    if (!q) {
       setEditScope(null);
       return;
     }
     const ac = new AbortController();
-    const q = new URLSearchParams({ canvas: activePath, id });
     fetch(`/_api/edit-scope?${q}`, { signal: ac.signal })
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => {

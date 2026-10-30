@@ -165,6 +165,13 @@
   .cmp-group-hd:hover {
     color: var(--fg-0);
   }
+  /* the open canvas's title: nothing to open, so it does not look pressable */
+  div.cmp-group-hd {
+    cursor: default;
+  }
+  div.cmp-group-hd:hover {
+    color: var(--fg-2);
+  }
 
   .cmp-row {
     display: flex;

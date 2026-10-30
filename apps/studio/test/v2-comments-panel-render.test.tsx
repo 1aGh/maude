@@ -160,13 +160,19 @@ describe('the Comments panel', () => {
     expect(q('[data-testid="comment-where-c4"]')?.textContent).toBe('Reels · nábor · at 0:12');
   });
 
-  test('a row opens its thread; the canvas header opens the canvas', () => {
+  test('a row opens its thread; another canvas’s header opens that canvas; the open canvas’s header is a title, not a button', () => {
     const calls = mount();
     act(() => q('[data-testid="comment-item-c1"]')?.click());
-    act(() => q('.cmp-group-hd')?.click());
+    // p8-sweep-advanced — the open canvas has nothing to open (the dead-control crawl clicked it and nothing happened)
+    expect(q('[data-testid="comment-group-combine-kampan"] .cmp-group-hd')?.tagName).not.toBe(
+      'BUTTON'
+    );
+    const other = q('[data-testid="comment-group-video-hype"] button.cmp-group-hd');
+    expect(other).not.toBeNull();
+    act(() => other?.click());
     expect(calls.jump).toEqual([
       [A, 'c1'],
-      [A, null],
+      [B, null],
     ]);
   });
 

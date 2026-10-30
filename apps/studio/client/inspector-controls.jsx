@@ -642,20 +642,31 @@ export function Checkbox({ checked, label, ariaLabel, onChange }) {
 
 // ── AlignPad (9-point auto-layout alignment) ─────────────────────────────────
 const ALIGN_CELLS = ['tl', 'tc', 'tr', 'cl', 'cc', 'cr', 'bl', 'bc', 'br'];
-export function AlignPad({ value, onChange, ariaLabel = 'alignment' }) {
+/**
+ * `lockReason(cell)` → a sentence, or null: a cell that cannot change anything right now (Space between owns the
+ * main axis) is greyed and says why on hover, instead of looking like a button that does nothing.
+ */
+export function AlignPad({ value, onChange, ariaLabel = 'alignment', lockReason = null }) {
   return (
     <div className="insp-cp-alignpad" role="radiogroup" aria-label={ariaLabel}>
-      {ALIGN_CELLS.map((c) => (
-        <button
-          key={c}
-          type="button"
-          role="radio"
-          aria-checked={value === c}
-          aria-label={`align ${c}`}
-          className={value === c ? 'is-active' : ''}
-          onClick={() => onChange(c)}
-        />
-      ))}
+      {ALIGN_CELLS.map((c) => {
+        const why = lockReason?.(c) ?? null;
+        return (
+          <button
+            key={c}
+            type="button"
+            role="radio"
+            aria-checked={value === c}
+            aria-label={`align ${c}`}
+            aria-disabled={why ? 'true' : undefined}
+            title={why ?? undefined}
+            className={`${value === c ? 'is-active' : ''}${why ? ' is-locked' : ''}`.trim()}
+            onClick={() => {
+              if (!why) onChange(c);
+            }}
+          />
+        );
+      })}
     </div>
   );
 }
