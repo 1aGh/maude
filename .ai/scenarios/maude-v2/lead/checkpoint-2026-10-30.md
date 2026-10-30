@@ -78,3 +78,41 @@ Michal: screen window needs no announcement; caffeinate -dimsu around 8.3; stop 
 - Its shard sources: `.ai/scenarios/maude-v2/lead/dc-shards/` + worktree agent-ad8c3a6547dc5be3e `dc-out/` (remove that
   worktree only after p8-sweep-close hands back).
 - Next: merge sweep-close → final breakdown to keeper → freeze → chain4.
+
+## HANDOFF ~19:40 — lead stopped on Michal's word (move to another account)
+**feat/maude-v2 tip: 5e836e3af** (on top of Michal's own 5b2c24de1 ux-patterns commit). No freeze is in progress and nothing
+is running: no wdio, caffeinate, lane or mini process. Weekly usage 59 % at the stop.
+
+**Done today since the sweep:**
+- Sweep closed: 5857 found, 0 DEAD, 0 not reached. The final breakdown went to Michal via the keeper.
+- Security pair batch-2: 0 blockers. Every low/info fixed (`V2-8.9-batch2-{defender,attacker,fixes}.md`).
+- Five desktop-e2e reds fixed:
+  - video-ai-cut-stop (spec);
+  - cloud-attach (hub file-limits own bucket);
+  - ai-runs (spec);
+  - edit-multi (canvas boot refit);
+  - relaunch (one navigation per tab).
+- Also fixed: the dist-freshness whitespace rule.
+- Last freeze 41be8375e: 8.1 PASS; 8.3 run 1 green over all 42 lanes, run 2 red only on relaunch, now fixed in 5c2f0b567.
+
+**Exact next step:**
+1. Push feat (if Michal OK'd publishing 5b2c24de1 — see below).
+2. Move the freeze worktree to the tip:
+   `git -C .claude/worktrees/freeze checkout --detach <tip>`.
+   Its pnpm/bun installs and the shared cargo target are already there; re-run `CI=true pnpm install --frozen-lockfile
+   --prefer-offline` only if a lockfile changed.
+3. Pre-checks: parity, tarball, containment, coherence, biome, site gens with no diff.
+4. chain4 FROM THE FREEZE WORKTREE: `bash $S/rec/chain4-f.sh` (8.1 → 8.3 ×3 under `caffeinate -dimsu` → 8.18 → 8.2).
+   Never from the main checkout. Michal works there.
+5. Re-attests: 8.4, 8.5, 8.8?, 8.9 (batch-2 is done; re-check only the relaunch/edit-multi/cloud-attach delta),
+   8.15, 8.16, plus the solo `format-update.e2e.ts`.
+6. A new .app with `MAUDE_NO_AUTO_UPDATE=1`, then `check-bundle-completeness --smoke` and `check-client-boots`.
+7. PR.md / READY TO TRY / pr-followups.
+8. Keeper. The PR stays a draft.
+
+**Syncthing hazard (new):** `.git` is synced between Michal's machines. At 19:29 it overwrote `refs/heads/lead-merge-2`
+with an older value; the right value was in `refs/heads/*.sync-conflict-*` and was restored from the reflog. Before
+trusting a branch, compare `git reflog -1 <branch>` with `git rev-parse <branch>`.
+
+**Michal's work:** `plugins/design/skills/ux-patterns/` + critic agents + references + `.gitignore` are now HIS commit
+5b2c24de1 on feat. `.ai/research/` stays local. Don't edit, revert or rebase his commit.

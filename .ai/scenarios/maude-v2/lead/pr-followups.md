@@ -255,6 +255,12 @@ Any commit outside `.ai/` makes V2-8.1/8.2/8.3/8.18 stale. Fold these into the n
   instrumented relaunches. The canvas now refits its own first view when the frame changes size, until the camera has
   moved (kg `v2-p8-edit-multi-boot-fit-follows-host`), so a person no longer sees a thumbnail-sized canvas. The cause
   of the first small layout is still unknown.
+- **The Home tab probably has the same double navigation the relaunch fix closed for project tabs.**
+  `home::navigate_home` and the Home splash's `resolve_dev_server_url` both navigate it, so Home's one-time values
+  (`take_pending_intent`, `take_pending_invite`) are at the same risk. Small follow-up using the same `SHELL_NAVS` guard
+  (kg `v2-p8-relaunch-one-navigate-per-tab`).
+- **Move to cloud signs in to the cell twice within 5 ms** (seen in cloud-attach step 2b). This looks like a duplicate
+  attach call. Not chased.
 - **Legacy artboard/clip routes ignore an artboard lock.** These are `resize-artboard`, `set-artboard-*`,
   `delete-artboard`, the `/_api/*-sequence` routes and `toggle-hide`. The dispatcher refuses artboard-wide ops on a
   locked artboard, but the UI offers no artboard lock, so nobody reaches this today. If an artboard lock ever ships, wire
