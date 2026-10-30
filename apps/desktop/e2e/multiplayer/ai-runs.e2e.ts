@@ -5,7 +5,10 @@
 // (Tereza) — both linked to ONE local hub (apps/hub/test/fixtures/serve-hub.mjs under Node 24; the Homebrew
 // default kills it). The agent is fake on both: the v1 `/design:edit` lane (`POST /_api/ai/start` → a fixed
 // edit written to the canvas → `POST /_api/ai/end`), so every run goes through the real registry, leases,
-// stage and publish. Mac 2 runs as its own process so R4 can SIGSTOP it for real. Tereza signs in with her own
+// stage and publish. That lane claims nothing, and since p8-a1-claims every run is claim-only: its raw write is
+// the PERSON's (decision maude/v2-p8-a1-claims-bytes-not-time). It still drives the lease steps (R1, R4); a step
+// that reads the run's attribution (ed-edge-undo, Version history › Made by AI) plays the v2 design hook instead
+// (`hookRun`: run/begin → edit/check claims the Write's bytes → the write → run/end), as a real agent does. Mac 2 runs as its own process so R4 can SIGSTOP it for real. Tereza signs in with her own
 // hub token (the hub names her "tereza"). Mac 1's CHATS run on the scripted fake ACP agent (decision
 // maude/v2-8.5-g2-fake-acp-hook-agent); Tereza's and Jonas's windows are headless Chromium pages on Mac 2's studio
 // (03 `ai-tereza`, 01 `cf-busy`), and 14 `ed-edge-undo` reads Mac 1's Undo history after its AI run and own edit.
@@ -21,7 +24,7 @@
 // Run: pnpm --filter @maude/desktop-e2e e2e:ai-runs (wdio.ai-runs.conf.ts: the hub, Mac 2 and Mac 1's throwaway
 // project are set up in the launcher; never the committed fixture, which the fake run would write into).
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium, type Browser as PwBrowser } from '@playwright/test';
 import { $, $$, browser } from '@wdio/globals';
@@ -215,6 +218,78 @@ async function fakeRun(origin: string, designRoot: string, body: string, settleM
     );
   }
   return { runId: run.runId, state: run.state };
+}
+
+/**
+ * A hook route the design plugin's hook sends (`maude design hook`, cli/lib/design-hook.mjs): a CLI
+ * request, so no `origin` header — the agent routes refuse a browser (routes/agent.ts `localClientRefusal`).
+ */
+const hook = async (origin: string, path: string, body: unknown) => {
+  const r = await fetch(`${origin}${path}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return { status: r.status, body: (await r.json().catch(() => null)) as Record<string, unknown> };
+};
+
+let hookRuns = 0;
+/**
+ * A terminal Claude Code turn on Mac 1 as the v2 design hook plays it (S12.9: the hooks open and close
+ * the run; nothing curls the v1 bracket): UserPromptSubmit `run/begin` → PreToolUse snapshot +
+ * `edit/check` of a Write, which CLAIMS the exact bytes for the run before the tool writes them → the
+ * write → PostToolUse `edit/touched` → Stop `run/end`. Since p8-a1-claims every run is claim-only and an
+ * unclaimed write is the person's (decision `maude/v2-p8-a1-claims-bytes-not-time`), so a run whose
+ * Undo history / Version history row must read AI writes through this claim, not a raw disk write.
+ */
+async function hookRun(origin: string, designRoot: string, body: string) {
+  const n = ++hookRuns;
+  const session = `e2e-ai-runs-${process.pid}-${n}`;
+  const toolUseId = `toolu_e2e_ai_runs_${n}`;
+  const begun = await hook(origin, '/_api/agent/run/begin', { session, actor: 'claude-code' });
+  expect(begun.status).toBe(200);
+  const file = join(designRoot, REL);
+  const before = readFileSync(file, 'utf8');
+  // the pre-edit hook's snapshot (`_runs/<session>/snap/<tool_use_id>`), which edit/touched diffs against
+  const snap = join(designRoot, '_runs', session, 'snap');
+  mkdirSync(snap, { recursive: true });
+  writeFileSync(join(snap, toolUseId), before);
+  // a busy artboard (another run's lease still settling on the hub) is denied; the agent tries again
+  await waitFor(
+    async () => {
+      const c = await hook(origin, '/_api/agent/edit/check', {
+        session,
+        toolUseId,
+        tool: 'Write',
+        path: REL,
+        edit: { content: body },
+      });
+      expect(c.status).toBe(200);
+      if (c.body?.decision !== 'deny') return true;
+      console.log(`[ai-runs] edit/check denied: ${JSON.stringify(c.body)}`);
+      await sleep(1_000);
+      return false;
+    },
+    'edit/check to allow the AI write',
+    90_000
+  );
+  writeFileSync(file, body);
+  await sleep(300);
+  const touched = await hook(origin, '/_api/agent/edit/touched', {
+    session,
+    toolUseId,
+    path: REL,
+    via: 'tool',
+  });
+  expect(touched.status).toBe(200);
+  const ended = await hook(origin, '/_api/agent/run/end', { session, outcome: 'done' });
+  expect(ended.status).toBe(200);
+  const runId = String(ended.body?.run ?? begun.body?.run ?? '');
+  await waitFor(async () => {
+    const r = await runById(origin, runId);
+    return !r || r.state === 'ended';
+  }, 'the hook run to end');
+  return { runId };
 }
 
 describe('S5.15 — AI runs across two Macs', () => {
@@ -484,8 +559,10 @@ describe('S5.15 — AI runs across two Macs', () => {
   // 14 `ed-edge-undo` (CONTRACT: "One AI run is one undo step; Edit › Undo history… lists You and AI steps"): your
   // AI's run and your own edit, newest first, ⌘Z on the top row; the foot says Tereza's changes are hers to undo.
   it('Undo history lists your AI run as one step and your own edit; Tereza’s changes are theirs (ed-edge-undo)', async () => {
-    // your AI run lands on Post (a v1 run of Mac 1), then you resize Story yourself (the inspector's edit-op)
-    await fakeRun(mac1Origin, join(mac1Root, '.design'), canvas('Your AI title', 'Story title'));
+    // your AI run lands on Post (a terminal Claude Code turn on Mac 1, as its design hook plays it: the
+    // write is claimed before it lands, so it is the run's — a v1 run's raw write is yours since
+    // p8-a1-claims), then you resize Story yourself (the inspector's edit-op)
+    await hookRun(mac1Origin, join(mac1Root, '.design'), canvas('Your AI title', 'Story title'));
     await sleep(1_500);
     const r = await post(mac1Origin, '/_api/edit-op', {
       file: `.design/${REL}`,
@@ -584,9 +661,9 @@ describe('S5.15 — AI runs across two Macs', () => {
     expect(readFileSync(join(mac1Root, '.design', REL), 'utf8')).not.toContain('Mac 2 frozen');
   });
 
-  it('Version history › Made by AI lists the AI runs; a v1 run names no chat, so it offers no "Undo this chat"', async () => {
-    // Undo this chat needs the row's chat (ChatUndoButton: kind ai + chatId + yours); a v1 `/design:edit` run has
-    // none. The chat-run half (one version for the whole chat) is in apps/studio/test/v2-chat-undo.test.tsx and
+  it('Version history › Made by AI lists the AI runs; a terminal run names no chat, so it offers no "Undo this chat"', async () => {
+    // Undo this chat needs the row's chat (ChatUndoButton: kind ai + chatId + yours); a terminal Claude Code run
+    // (ed-edge-undo's `hookRun`) has none. The chat-run half (one version for the whole chat) is in apps/studio/test/v2-chat-undo.test.tsx and
     // goes to the fake-ACP lane next (hand-back § Continue).
     type H = { history?: { kind?: string; who?: { kind?: string } }[] };
     await waitFor(
