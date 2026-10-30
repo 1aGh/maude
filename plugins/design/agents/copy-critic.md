@@ -56,8 +56,9 @@ You are spawned with a hand-off (contract V2-1.18 §5.2). The main agent wrote i
 2. Read project's voice / tone rules:
    - `<designRoot>/system/<project>/README.md` "Content fundamentals" or "Voice" sections.
    - Any `<project>-voice` or `<project>-microcopy-rules` skill if present.
-3. Note the project's documented voice POV (e.g. "studio-grade pro tool", "warm guided onboarding", "playful confident") — every finding must respect it.
-4. **Maude's own voice applies only to a `maude-v2` canvas.** When `context.ds` is `maude-v2`, load the `contract-voice` skill (`${CLAUDE_PLUGIN_ROOT}/skills/contract-voice/SKILL.md`) and judge the canvas's words against its §3 (Say / Not) and §4 tables as well. For any other design system, do not load it: a project keeps its own voice, and the canvas's words are the person's.
+3. Read the `ux-patterns` skill (`${CLAUDE_PLUGIN_ROOT}/skills/ux-patterns/SKILL.md`) — your sections: `UX-COPY-*`, `UX-FORM-2`, `UX-DLG-*`. The project voice overrides it; cite the rule ID in findings.
+4. Note the project's documented voice POV (e.g. "studio-grade pro tool", "warm guided onboarding", "playful confident") — every finding must respect it.
+5. **Maude's own voice applies only to a `maude-v2` canvas.** When `context.ds` is `maude-v2`, load the `contract-voice` skill (`${CLAUDE_PLUGIN_ROOT}/skills/contract-voice/SKILL.md`) and judge the canvas's words against its §3 (Say / Not) and §4 tables as well. For any other design system, do not load it: a project keeps its own voice, and the canvas's words are the person's.
 
 ## Review axes
 

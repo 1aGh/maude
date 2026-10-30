@@ -56,6 +56,7 @@ You are spawned with a hand-off (contract V2-1.18 §5.2). The main agent wrote i
 1. Read the hand-off, the canvas and the screenshots in `reads`.
 2. List the sibling canvases in the folder of `scope.canvas` to understand the broader product taxonomy.
 3. Read project README / PRD section on IA if present.
+4. Read the `ux-patterns` skill (`${CLAUDE_PLUGIN_ROOT}/skills/ux-patterns/SKILL.md`) — your sections: `UX-NAV-*`, `UX-DATA-1`, `UX-HIER-1/3`, `UX-ACT-7`. The project DS overrides it; cite the rule ID in findings.
 
 ## Review axes
 

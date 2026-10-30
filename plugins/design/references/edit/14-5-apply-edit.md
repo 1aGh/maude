@@ -8,6 +8,8 @@ Read the canvas file. **If the selection is valid**, build a scoped prompt (the 
 - the canvas wrapper (`DesignCanvas` / `DCSection` / `DCArtboard` from `@maude/canvas-lib`), the root class, the tokens import and the `data-theme` handling;
 - all existing tokens (`var(--*)` references). New values use tokens, not hex colors or raw font families.
 
+**Compose by the `ux-patterns` rules.** When the edit adds or rearranges UI (not a pure copy or token tweak), read `${CLAUDE_PLUGIN_ROOT}/skills/ux-patterns/SKILL.md` and apply the rules for what you are touching (one primary action, labels on inputs, white space over borders, one alignment anchor, …). The DS overrides them; the critics in step 8 check the same rule IDs.
+
 Each Edit is checked by the hooks as it lands: a write that breaks the canvas is put back, and a write the artboard's current holder refuses comes back with a named reason (step 4.5). Fix the cause; do not retry the same edit.
 
 **Touch the paired `.tsx` after editing a sibling `.css` (D-2).** For `css_mode` canvases that carry a sibling `<slug>.css` (not Tailwind or inline modes), the canvas build inlines the CSS at module init and its cache keys on the `.tsx` mtime. A CSS-only edit stays invisible until something bumps the `.tsx` mtime. After editing any `<slug>.css`, `touch <slug>.tsx`, otherwise the confirmation screenshot in step 7 shows the pre-edit CSS (studyfi burned 5 identical "nothing changed" screenshots on this). Tailwind and inline-mode canvases have no sibling `.css`, so it does not apply to them.
