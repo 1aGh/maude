@@ -1406,6 +1406,22 @@ function resolveUsageId(
 }
 
 /**
+ * p8-lock-reasons — the `<Component>` usage an instance write lands on (resolveUsageId), for the lock lookup: a
+ * whole-instance move / detach writes THAT usage, so its `data-cd-locked` is the one that refuses. `domId` itself
+ * when there is no splittable usage, or the source does not parse.
+ */
+export function usageIdOf(
+  canvasAbsPath: string,
+  source: string,
+  domId: string,
+  occurrenceIndex: number | undefined
+): string {
+  const parsed = parseSync(canvasAbsPath, source, { sourceType: 'module' });
+  if (parsed.errors?.length) return domId;
+  return resolveUsageId(parsed.program, domId, occurrenceIndex);
+}
+
+/**
  * Edit-scope verdict for the INV-3 predictability badge (feature-element-editing-
  * robustness Stage H). Tells the Inspector whether a style/attr edit to `domId`
  * stays LOCAL (this one rendered place) or is SHARED (changes N places).

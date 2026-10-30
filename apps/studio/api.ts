@@ -127,6 +127,7 @@ import {
   setArtboardPrint,
   setArtboardStyle,
   toggleClipHidden,
+  usageIdOf,
 } from './canvas-edit.ts';
 import {
   applyFitTotalToContent,
@@ -492,7 +493,7 @@ function expectedValueOf(input: {
  */
 export type ReorderOpResult =
   | { ok: true; delta: number; movedId: string | null; semanticId: string | null; seq: number }
-  | { ok: false; status: number; error: string };
+  | { ok: false; status: number; error: string; code?: 'locked' };
 
 export type ReorderRevertResult =
   | { ok: true; dir: 'undo' | 'redo' }
@@ -885,7 +886,8 @@ export interface Api {
     id?: unknown;
     idIndex?: unknown;
   }): Promise<
-    { ok: true; deletedId: string; seq?: number } | { ok: false; status: number; error: string }
+    | { ok: true; deletedId: string; seq?: number }
+    | { ok: false; status: number; error: string; code?: 'locked' }
   >;
   /**
    * feature-4 T8 (convert-to-absolute, DDR-188) — rewrite a container's stamped
@@ -901,7 +903,9 @@ export interface Api {
     children?: unknown;
     containers?: unknown;
     dissolve?: unknown;
-  }): Promise<{ ok: true; seq?: number } | { ok: false; status: number; error: string }>;
+  }): Promise<
+    { ok: true; seq?: number } | { ok: false; status: number; error: string; code?: 'locked' }
+  >;
   /**
    * Insert a synthesized div/text/image relative to a reference element, OR —
    * when the artboard has no element to anchor on yet — as a direct child of
@@ -917,7 +921,8 @@ export interface Api {
     src?: unknown;
     refIndex?: unknown;
   }): Promise<
-    { ok: true; newId: string | null; seq?: number } | { ok: false; status: number; error: string }
+    | { ok: true; newId: string | null; seq?: number }
+    | { ok: false; status: number; error: string; code?: 'locked' }
   >;
   /** Insert a new empty artboard from a screen-size preset. */
   insertArtboardOp(input: {
@@ -1016,7 +1021,8 @@ export interface Api {
     id?: unknown;
     idIndex?: unknown;
   }): Promise<
-    { ok: true; detachedName: string; seq?: number } | { ok: false; status: number; error: string }
+    | { ok: true; detachedName: string; seq?: number }
+    | { ok: false; status: number; error: string; code?: 'locked' }
   >;
   // Undo/redo a prior reorder by seq (Cmd+Z from the canvas undo stack). Whole-
   // file content swap from the in-memory revert log — immune to the positional
@@ -5770,10 +5776,14 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     }
   }
 
-  /** p8-lock-reasons — the edit-op's 409 `locked` for a shared-locked `id` in the canvas at `abs`, else null. */
-  async function lockedCssTarget(
+  /**
+   * p8-lock-reasons — the edit-op's 409 `locked` for the first shared-locked object of `targets` in the canvas at
+   * `abs`, else null. Every direct object write asks it before it writes (S2-edit-ops §3 rule 6). A target with an
+   * `occurrence` is a component instance: the write lands on its `<Component>` usage, so that usage is asked too.
+   */
+  async function lockedTarget(
     abs: string,
-    id: string
+    targets: ReadonlyArray<string | { id: string; occurrence?: number }>
   ): Promise<{ ok: false; status: 409; error: string; code: 'locked' } | null> {
     let source: string;
     try {
@@ -5782,7 +5792,17 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       return null; // a missing canvas is the writer's own 404
     }
     const walk = walkIdElements(source, abs);
-    const lock = walk.ok ? lockedRefusal(walk.elements, [id]) : null;
+    if (!walk.ok) return null; // an unparsable canvas is the writer's own refusal
+    const ids: string[] = [];
+    for (const t of targets) {
+      const { id, occurrence } = typeof t === 'string' ? { id: t, occurrence: undefined } : t;
+      ids.push(id);
+      if (typeof occurrence === 'number') {
+        const usage = usageIdOf(abs, source, id, occurrence);
+        if (usage !== id) ids.push(usage);
+      }
+    }
+    const lock = lockedRefusal(walk.elements, ids);
     return lock && lock.code === 'locked'
       ? { ok: false, status: 409, error: lock.message, code: 'locked' }
       : null;
@@ -5807,10 +5827,6 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     if (!pre.ok) return { ok: false, status: 400, error: 'invalid expected value' };
     const id = typeof input.id === 'string' ? input.id.trim() : '';
     if (!CD_ID_RE.test(id)) return { ok: false, status: 400, error: 'invalid data-cd-id' };
-    // p8-lock-reasons — only the lock op may touch a locked object (S2-edit-ops §3 rule 6): the dispatcher's
-    // own lookup, so a style control on a locked object hears the edit-op's 409 `locked`, not a write
-    const locked = await lockedCssTarget(r.abs, id);
-    if (locked) return locked;
     const said = typeof input.label === 'string' ? input.label.trim().slice(0, 120) : '';
     // Stage H3 — optional DOM-occurrence index. Present only for a whole-instance
     // move/resize (reposition/resize-request); routes the write to the dragged
@@ -5820,6 +5836,10 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       typeof input.idIndex === 'number' && Number.isInteger(input.idIndex) && input.idIndex >= 0
         ? input.idIndex
         : undefined;
+    // p8-lock-reasons — only the lock op may touch a locked object (S2-edit-ops §3 rule 6): the dispatcher's
+    // own lookup, so a style control on a locked object hears the edit-op's 409 `locked`, not a write
+    const locked = await lockedTarget(r.abs, [{ id, occurrence: idIndex }]);
+    if (locked) return locked;
     const property = typeof input.property === 'string' ? input.property.trim() : '';
     // CSS property names are ASCII letters + hyphens only (optionally a leading
     // `-` for vendor prefixes) — reject anything that could smuggle a second key
@@ -5942,6 +5962,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     if (!CD_ID_RE.test(id)) return { ok: false, status: 400, error: 'invalid data-cd-id' };
     if (typeof input.text !== 'string') return { ok: false, status: 400, error: 'text required' };
     if (input.text.length > 5000) return { ok: false, status: 413, error: 'text too long' };
+    const lockedText = await lockedTarget(r.abs, [id]);
+    if (lockedText) return lockedText;
     const text = input.text;
     // Optional context for editing `{variable}` text (unified-text-editing
     // follow-up): which rendered instance, and its pre-edit text — both used
@@ -5990,6 +6012,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     ) {
       return { ok: false, status: 400, error: 'invalid attribute' };
     }
+    const lockedAttr = await lockedTarget(r.abs, [id]);
+    if (lockedAttr) return lockedAttr;
     // Phase 12.3 — `reset: true` REMOVES the custom attribute. No-op if absent.
     if (input.reset === true) {
       return suppressedEdit(
@@ -6077,6 +6101,17 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     if (id === refId && (idIndex ?? 0) === (refIndex ?? 0)) {
       return { ok: false, status: 422, error: 'cannot move an element relative to itself' };
     }
+    // p8-lock-reasons — the moved object, and the one it moves into (an inside-* ref changes its children)
+    const lockedMove = await lockedTarget(
+      r.abs,
+      position === 'inside-start' || position === 'inside-end'
+        ? [
+            { id, occurrence: idIndex },
+            { id: refId, occurrence: refIndex },
+          ]
+        : [{ id, occurrence: idIndex }]
+    );
+    if (lockedMove) return lockedMove;
     const rel = path.relative(paths.designRoot, r.abs);
     // Arm the "user did this — don't light the agent-editing rim" suppression
     // BEFORE the write so it catches the debounced fs:any. It's disarmed below if
@@ -6330,7 +6365,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     id?: unknown;
     idIndex?: unknown;
   }): Promise<
-    { ok: true; deletedId: string; seq?: number } | { ok: false; status: number; error: string }
+    | { ok: true; deletedId: string; seq?: number }
+    | { ok: false; status: number; error: string; code?: 'locked' }
   > {
     const r = resolveCanvasAbs(input.canvas);
     if (!r.ok) return r;
@@ -6338,6 +6374,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     const id = typeof input.id === 'string' ? input.id.trim() : '';
     if (!CD_ID_RE.test(id)) return { ok: false, status: 400, error: 'invalid data-cd-id' };
     const idIndex = Number.isInteger(input.idIndex) ? (input.idIndex as number) : undefined;
+    const lockedDel = await lockedTarget(r.abs, [{ id, occurrence: idIndex }]);
+    if (lockedDel) return lockedDel;
     const rel = path.relative(paths.designRoot, r.abs);
     ctx.bus.emit('activity:suppress', rel);
     try {
@@ -6384,7 +6422,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     src?: unknown;
     refIndex?: unknown;
   }): Promise<
-    { ok: true; newId: string | null; seq?: number } | { ok: false; status: number; error: string }
+    | { ok: true; newId: string | null; seq?: number }
+    | { ok: false; status: number; error: string; code?: 'locked' }
   > {
     const r = resolveCanvasAbs(input.canvas);
     if (!r.ok) return r;
@@ -6419,6 +6458,11 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     }
     const src = typeof input.src === 'string' ? input.src : undefined;
     const refIndex = Number.isInteger(input.refIndex) ? (input.refIndex as number) : undefined;
+    // p8-lock-reasons — a new object INSIDE a locked one changes it; beside it does not
+    if (hasRefId && (position === 'inside-start' || position === 'inside-end')) {
+      const lockedIn = await lockedTarget(r.abs, [{ id: refId, occurrence: refIndex }]);
+      if (lockedIn) return lockedIn;
+    }
     const rel = path.relative(paths.designRoot, r.abs);
     ctx.bus.emit('activity:suppress', rel);
     try {
@@ -6489,7 +6533,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     children?: unknown;
     containers?: unknown;
     dissolve?: unknown;
-  }): Promise<{ ok: true; seq?: number } | { ok: false; status: number; error: string }> {
+  }): Promise<
+    { ok: true; seq?: number } | { ok: false; status: number; error: string; code?: 'locked' }
+  > {
     const r = resolveCanvasAbs(input.canvas);
     if (!r.ok) return r;
     if (!takeStructuralToken()) return RATE_LIMITED;
@@ -6613,6 +6659,23 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
           dissolve.push(id);
         }
       }
+      // p8-lock-reasons — every container, child and dissolved wrapper this write rewrites
+      const lockedConv = await lockedTarget(r.abs, [
+        ...(containersSpec
+          ? containersSpec.flatMap((c) => [
+              ...(c.containerId ? [{ id: c.containerId, occurrence: c.containerIdIndex }] : []),
+              ...c.children.map((k) => ({ id: k.id, occurrence: k.idIndex })),
+            ])
+          : [
+              { id: containerId, occurrence: containerIdIndex },
+              ...children.map((k) => ({ id: k.id, occurrence: k.idIndex })),
+            ]),
+        ...(dissolve ?? []),
+      ]);
+      if (lockedConv) {
+        ctx.bus.emit('activity:unsuppress', rel);
+        return lockedConv;
+      }
       const res = await convertToAbsolute(
         r.abs,
         containersSpec
@@ -6656,7 +6719,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     id?: unknown;
     idIndex?: unknown;
   }): Promise<
-    { ok: true; detachedName: string; seq?: number } | { ok: false; status: number; error: string }
+    | { ok: true; detachedName: string; seq?: number }
+    | { ok: false; status: number; error: string; code?: 'locked' }
   > {
     const r = resolveCanvasAbs(input.canvas);
     if (!r.ok) return r;
@@ -6664,6 +6728,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     const id = typeof input.id === 'string' ? input.id.trim() : '';
     if (!CD_ID_RE.test(id)) return { ok: false, status: 400, error: 'invalid data-cd-id' };
     const idIndex = Number.isInteger(input.idIndex) ? (input.idIndex as number) : undefined;
+    const lockedDetach = await lockedTarget(r.abs, [{ id, occurrence: idIndex ?? 0 }]);
+    if (lockedDetach) return lockedDetach;
     const rel = path.relative(paths.designRoot, r.abs);
     ctx.bus.emit('activity:suppress', rel);
     try {
