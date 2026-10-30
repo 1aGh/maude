@@ -48,14 +48,19 @@ export function staleClientDist(studioDir: string): string | null {
   }
   // CSS is not an input of client.bundle.js: it is the separate styles.css bundle (build.ts, client/styles/_index.css).
   // A CSS-only commit after the build (1b798abf4's token re-format, 2026-10-28) must not refuse a byte-identical bundle.
-  let newest = committedAt(join(studioDir, 'client'), ':(exclude,glob)**/*.css');
+  // Markdown under client/ (the v2 contracts) is not an input either (5e836e3af, a contract edit, 2026-10-30).
+  let newest = committedAt(
+    join(studioDir, 'client'),
+    ':(exclude,glob)**/*.css',
+    ':(exclude,glob)**/*.md'
+  );
   let newestWhat = `the last client commit (${new Date(newest).toISOString()})`;
   const walk = (dir: string) => {
     for (const e of readdirSync(dir, { withFileTypes: true })) {
       const p = join(dir, e.name);
       if (e.isDirectory()) {
         if (e.name !== 'node_modules') walk(p);
-      } else if (dirty.has(rel(p)) && !e.name.endsWith('.css')) {
+      } else if (dirty.has(rel(p)) && !e.name.endsWith('.css') && !e.name.endsWith('.md')) {
         const m = statSync(p).mtimeMs;
         if (m > newest) {
           newest = m;
@@ -80,7 +85,8 @@ export function staleClientDist(studioDir: string): string | null {
         'HEAD',
         '--',
         join(studioDir, 'client'),
-        ':(exclude,glob)**/*.css'
+        ':(exclude,glob)**/*.css',
+        ':(exclude,glob)**/*.md'
       )
         .split('\n')
         .filter(Boolean);

@@ -116,3 +116,9 @@ trusting a branch, compare `git reflog -1 <branch>` with `git rev-parse <branch>
 
 **Michal's work:** `plugins/design/skills/ux-patterns/` + critic agents + references + `.gitignore` are now HIS commit
 5b2c24de1 on feat. `.ai/research/` stays local. Don't edit, revert or rebase his commit.
+
+## Resumed ~19:56 on a NEW account (Michal: "at pokracuje")
+The weekly usage restarted from a new base: 3 % at the resume (the old account stopped at 59 %). The freeze tip was the
+d74f6f47a handoff + a gen:stats commit (70d121f00) (the ux-patterns skill moved design skills 42 → 43). Michal OK'd publishing 5b2c24de1 (the skill is on main as d3a5029b0, feat holds its v2 shape); feat pushed at
+70d121f00. chain4 on 70d121f00: 8.1 PASS, 8.3 run 1 stopped on share-roles: dist freshness counted a markdown contract
+edit under client/ (5e836e3af) as client source. Fixed (markdown excluded like CSS); new freeze follows.

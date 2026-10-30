@@ -261,6 +261,10 @@ Any commit outside `.ai/` makes V2-8.1/8.2/8.3/8.18 stale. Fold these into the n
   (kg `v2-p8-relaunch-one-navigate-per-tab`).
 - **Move to cloud signs in to the cell twice within 5 ms** (seen in cloud-attach step 2b). This looks like a duplicate
   attach call. Not chased.
+- **Merging feat into main will conflict in the ux-patterns wiring (expected, small).** Michal's ux-patterns skill is on
+  main as d3a5029b0 (v1 shape) and on feat as 5b2c24de1 (v2 shape). `SKILL.md` and `reference.md` are byte-identical.
+  Both sides change the same lines in `plugins/design/agents/{copy,design,graphic-design,info-architecture,motion}-critic.md`
+  and `plugins/design/references/{edit/14-5-apply-edit,new/15-5-build-envelope}.md`. Take feat's (v2) side.
 - **Legacy artboard/clip routes ignore an artboard lock.** These are `resize-artboard`, `set-artboard-*`,
   `delete-artboard`, the `/_api/*-sequence` routes and `toggle-hide`. The dispatcher refuses artboard-wide ops on a
   locked artboard, but the UI offers no artboard lock, so nobody reaches this today. If an artboard lock ever ships, wire
