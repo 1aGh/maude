@@ -229,7 +229,11 @@ async function crawlMode(mode, i) {
       plantDead: argv.includes('--plant-dead'),
       plantNoise: argv.includes('--plant-noise'),
       budgetMs: Number(process.env.CRAWL_BUDGET_MIN || 120) * 60_000,
-      onResult: (r) => r.effect === 'DEAD' && console.error(`  DEAD  ${r.surface} · ${r.control}`),
+      onResult: (r) =>
+        (r.effect === 'DEAD' || process.env.CRAWL_VERBOSE) &&
+        console.error(
+          `  ${r.effect === 'DEAD' ? 'DEAD' : 'ok  '}  ${r.surface} · ${r.control} → ${r.effect.slice(0, 90)}`
+        ),
     });
     await c.open();
     try {
