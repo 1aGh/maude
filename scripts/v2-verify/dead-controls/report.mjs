@@ -279,8 +279,13 @@ export function renderReport(all, { modes, minutes }) {
     let ev = '';
     if (cls === 'twin')
       ev = `twin of \`${cell(r.twin)}\` — ${r.note}${r.states > 1 ? ` (seen in ${r.states} states)` : ''}`;
-    else if (cls === 'disabled') ev = r.note ? `shows: ${r.note}` : 'no reason text shown';
-    else if (cls === 'destructive') {
+    else if (cls === 'disabled') {
+      // text taken from a neighbouring row is only believed when it is short and is not another button's label
+      const reasons = String(r.note ?? '')
+        .split(' | ')
+        .filter((x) => !(/\[row\]$/.test(x) && (x.length > 70 || /^Cancel\b/.test(x))));
+      ev = reasons.length ? `shows: ${reasons.join(' | ')}` : 'shows no reason text';
+    } else if (cls === 'destructive') {
       const p = pinFor(r.control);
       ev = p ? `unit test ${p.file} › "${p.test}"` : 'NO UNIT PIN';
     } else if (cls === 'clicked, effect') ev = `${r.effect}${r.note ? ` (${r.note})` : ''}`;

@@ -139,7 +139,8 @@ export const PAGE_PROBE = String.raw`(() => {
     if (status) add(status.textContent, 'status');
     if (!out.length || (out.length === 1 && out[0].text === own)) {
       const row = el.closest('li,[role=row],[role=group],[role=radiogroup],fieldset,label') || el.parentElement;
-      if (row && row !== document.body) {
+      // a row that holds other controls (a dialog footer, a list) says nothing about THIS control
+      if (row && row !== document.body && row.querySelectorAll(SEL).length <= 1) {
         const t = clean((row.innerText || '').replace(own, ''));
         if (t) add(t, 'row');
       }
