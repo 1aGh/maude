@@ -33,7 +33,12 @@ export interface RoleRefusal {
 
 export const ROLE_REFUSALS: readonly RoleRefusal[] = [
   // p8-import-link — Add from a link… (assets.add-link, Can edit): a viewer or commenter never makes the studio fetch
-  { method: 'POST', route: '/_api/import-link', refused: ['view', 'comment'], body: { url: 'https://example.com/a.png' } },
+  {
+    method: 'POST',
+    route: '/_api/import-link',
+    refused: ['view', 'comment'],
+    body: { url: 'https://example.com/a.png' },
+  },
   // comment — Can comment and up (D5: Can view may not comment)
   { method: 'POST', route: '/_comments', refused: ['view'] },
   { method: 'POST', route: '/_api/comments/c1/reply', refused: ['view'] },
