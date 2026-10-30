@@ -64,6 +64,11 @@ export async function waitForCanvasRects(timeout = 30_000): Promise<void> {
  * elements exist (measured: the heading's box jumps ~100 px some 50 ms after `__maudeCanvasRects()` first lists it,
  * on a freshly launched app). A spec that reads a box and clicks it in that gap presses where the element WAS —
  * the frame's padding, so the wrapper is selected instead. Three equal readings 150 ms apart = settled.
+ *
+ * The frame must also FILL its stage (`main.viewport`): the V2-8.3 lane (cd452f4f3) caught the frame at an
+ * iframe's 300 x 150 default (304 x 154 with the default border) three readings in a row while the stage was
+ * full-size, so a "settled" canvas was a thumbnail and `edit-multi`'s ⇧-clicks selected nothing. A reading
+ * taken before the frame has its real size is not a reading.
  */
 export async function waitForCanvasSettled(timeout = 10_000): Promise<void> {
   let last = '';
@@ -75,6 +80,14 @@ export async function waitForCanvasSettled(timeout = 10_000): Promise<void> {
         const doc = frame?.contentDocument;
         if (!frame || !doc) return '';
         const f = frame.getBoundingClientRect();
+        const stage = frame.parentElement?.getBoundingClientRect();
+        if (
+          !stage ||
+          f.width < 1 ||
+          Math.round(f.width) !== Math.round(stage.width) ||
+          Math.round(f.height) !== Math.round(stage.height)
+        )
+          return '';
         const boxes = Array.from(doc.querySelectorAll('[data-dc-screen], [data-cd-id]'))
           .slice(0, 6)
           .map((el) => {
@@ -87,7 +100,11 @@ export async function waitForCanvasSettled(timeout = 10_000): Promise<void> {
       last = now;
       return same >= 2;
     },
-    { timeout, interval: 150, timeoutMsg: 'the canvas never stopped moving after it rendered' }
+    {
+      timeout,
+      interval: 150,
+      timeoutMsg: 'the canvas never filled its stage and stopped moving after it rendered',
+    }
   );
 }
 
