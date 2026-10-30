@@ -1291,9 +1291,12 @@ impl WindowHost for TauriHost<'_> {
                     ok
                 })
                 .on_page_load(move |_w, payload| {
-                    if payload.event() == tauri::webview::PageLoadEvent::Started
-                        && !nav_check(&load_app, &load_label, payload.url(), true)
-                    {
+                    let started = payload.event() == tauri::webview::PageLoadEvent::Started;
+                    if started && !is_app_local(payload.url()) {
+                        // the shell's navigate has landed: its splash recovers on its own again
+                        SHELL_NAVS.page_started(&load_label);
+                    }
+                    if started && !nav_check(&load_app, &load_label, payload.url(), true) {
                         crate::sidecar::log_line(&format!(
                             "[maude] {load_label}: the page left its origin — back to the splash"
                         ));
@@ -1323,10 +1326,17 @@ impl WindowHost for TauriHost<'_> {
 
 /// Validate a server URL (DDR-109 §1, loopback only) and navigate `label` to
 /// it — but only while that window still shows `root`: an in-tab switch or a
-/// close since the wait began makes this navigate stale.
-pub fn navigate_to_server(app: &AppHandle, label: &str, root: &str, url: &str, open: Option<&str>) {
+/// close since the wait began makes this navigate stale. True when the
+/// navigate was issued.
+pub fn navigate_to_server(
+    app: &AppHandle,
+    label: &str,
+    root: &str,
+    url: &str,
+    open: Option<&str>,
+) -> bool {
     let Some(window) = app.get_webview(label) else {
-        return;
+        return false;
     };
     match url.parse::<tauri::Url>() {
         Ok(mut parsed) if crate::server_json::is_loopback_url(&parsed) => {
@@ -1338,19 +1348,29 @@ pub fn navigate_to_server(app: &AppHandle, label: &str, root: &str, url: &str, o
                 crate::sidecar::log_line(&format!(
                     "[maude] {label} no longer shows {root}, or is resting — not navigating"
                 ));
-                return;
+                return false;
             }
             if let Some(rel) = open {
                 parsed.query_pairs_mut().append_pair("open", rel);
             }
-            if let Err(e) = window.navigate(parsed) {
-                crate::sidecar::log_line(&format!("[maude] navigate failed: {e}"));
+            match window.navigate(parsed) {
+                Ok(()) => true,
+                Err(e) => {
+                    crate::sidecar::log_line(&format!("[maude] navigate failed: {e}"));
+                    false
+                }
             }
         }
-        Ok(parsed) => crate::sidecar::log_line(&format!(
-            "[maude] refusing non-loopback navigate (DDR-109): {parsed}"
-        )),
-        Err(e) => crate::sidecar::log_line(&format!("[maude] invalid server url {url}: {e}")),
+        Ok(parsed) => {
+            crate::sidecar::log_line(&format!(
+                "[maude] refusing non-loopback navigate (DDR-109): {parsed}"
+            ));
+            false
+        }
+        Err(e) => {
+            crate::sidecar::log_line(&format!("[maude] invalid server url {url}: {e}"));
+            false
+        }
     }
 }
 
@@ -1362,15 +1382,24 @@ pub fn navigate_to_server(app: &AppHandle, label: &str, root: &str, url: &str, o
 /// splash).
 pub fn navigate_when_up(app: &AppHandle, label: String, root: String, open: Option<String>) {
     let app = app.clone();
+    // Before the wait starts: the tab's splash, asking at once, already sees it (`SHELL_NAVS`).
+    SHELL_NAVS.begin(&label);
     tauri::async_runtime::spawn(async move {
         match crate::sidecar::wait_for_shell_url(&app, &root, SERVER_WAIT_MS).await {
             Ok(url) => {
                 crate::sidecar::log_line(&format!("[maude] {label}: dev-server up at {url}"));
-                navigate_to_server(&app, &label, &root, &url, open.as_deref());
+                if navigate_to_server(&app, &label, &root, &url, open.as_deref()) {
+                    SHELL_NAVS.issued(&label, std::time::Instant::now());
+                } else {
+                    SHELL_NAVS.abandoned(&label);
+                }
             }
-            Err(e) => crate::sidecar::log_line(&format!(
-                "[maude] {label}: dev-server did not come up: {e}"
-            )),
+            Err(e) => {
+                SHELL_NAVS.abandoned(&label);
+                crate::sidecar::log_line(&format!(
+                    "[maude] {label}: dev-server did not come up: {e}"
+                ))
+            }
         }
     });
 }
@@ -2281,6 +2310,87 @@ pub struct TabsRestored {
 
 static TABS_RESTORED: Parked<TabsRestored> = Parked::new();
 static PENDING_NAVIGATE: Parked<OpenTarget> = Parked::new();
+
+// ── The shell's own navigate of a tab, while it is in flight ─────────────────
+//
+// A tab has two ways onto its server. The shell navigates a new, restored or
+// woken tab itself (`navigate_when_up`), and the splash (`index.html`) asks
+// `resolve_dev_server_url` and replaces itself — the recovery path for a tab
+// that came back to its entry document. Both waited on the same info file, so
+// a fresh tab was navigated TWICE, and whichever landed second replaced the
+// document the first had loaded. When that first page had already taken its
+// one-shot parked values (`take_tabs_restored`, `take_crash_notice`), they were
+// gone and showed nowhere (p8-relaunch-flake: "2 tabs reopened" and "Maude quit
+// unexpectedly." never appeared). So while the shell's navigate is in flight —
+// waiting for the server, or issued and its document not started yet — the
+// splash waits instead of navigating.
+
+/// How long an issued navigate holds the splash back when no server document
+/// ever starts for it (a navigate WebKit dropped): past this the splash recovers.
+pub const ISSUED_GRACE: Duration = Duration::from_secs(5);
+
+#[derive(Default)]
+struct InFlight {
+    /// `navigate_when_up` waits still running for this tab.
+    waiting: usize,
+    /// When the last one sent the tab to its server, until that document starts.
+    issued: Option<std::time::Instant>,
+}
+
+/// Per tab label: is the shell itself sending this tab to its server right now?
+pub struct ShellNavs(Mutex<Option<HashMap<String, InFlight>>>);
+
+impl ShellNavs {
+    pub const fn new() -> Self {
+        ShellNavs(Mutex::new(None))
+    }
+
+    fn with<T>(&self, label: &str, f: impl FnOnce(&mut InFlight) -> T) -> T {
+        let mut map = self.0.lock().unwrap_or_else(|e| e.into_inner());
+        let map = map.get_or_insert_with(HashMap::new);
+        let entry = map.entry(label.to_string()).or_default();
+        let out = f(entry);
+        if entry.waiting == 0 && entry.issued.is_none() {
+            map.remove(label);
+        }
+        out
+    }
+
+    /// A `navigate_when_up` wait for `label` began.
+    pub fn begin(&self, label: &str) {
+        self.with(label, |e| e.waiting += 1);
+    }
+
+    /// That wait sent the tab to its server at `now`.
+    pub fn issued(&self, label: &str, now: std::time::Instant) {
+        self.with(label, |e| {
+            e.waiting = e.waiting.saturating_sub(1);
+            e.issued = Some(now);
+        });
+    }
+
+    /// That wait ended without a navigate (timed out, stale, refused).
+    pub fn abandoned(&self, label: &str) {
+        self.with(label, |e| e.waiting = e.waiting.saturating_sub(1));
+    }
+
+    /// A server (not app-local) document started loading in `label`: the
+    /// issued navigate has landed.
+    pub fn page_started(&self, label: &str) {
+        self.with(label, |e| e.issued = None);
+    }
+
+    /// Should `label`'s splash leave the navigate to the shell?
+    pub fn pending(&self, label: &str, now: std::time::Instant) -> bool {
+        let map = self.0.lock().unwrap_or_else(|e| e.into_inner());
+        let held = |t: std::time::Instant| now.saturating_duration_since(t) < ISSUED_GRACE;
+        map.as_ref()
+            .and_then(|m| m.get(label))
+            .is_some_and(|e| e.waiting > 0 || e.issued.is_some_and(held))
+    }
+}
+
+pub static SHELL_NAVS: ShellNavs = ShellNavs::new();
 
 /// Park `target` for a NEW window when it names an artboard or a thread — the
 /// canvas alone already rides in the first navigate's `?open=`; the artboard
@@ -3949,6 +4059,41 @@ mod tests {
     // ── V2-3 patches: one-shot values parked per window label ──────────────
     // The statics are process-wide and tests run in parallel: each test uses
     // its own labels.
+
+    // p8-relaunch-flake: the restored front tab was navigated twice — by the shell and by its own
+    // splash — and the second document replaced the one that had taken the restore count.
+    #[test]
+    fn the_splash_waits_while_the_shell_navigates_its_tab() {
+        let navs = ShellNavs::new();
+        let t0 = std::time::Instant::now();
+        let a = "p-sn-a";
+        assert!(!navs.pending(a, t0), "nothing in flight: the splash recovers on its own");
+        navs.begin(a);
+        assert!(navs.pending(a, t0), "the shell is waiting for the server");
+        assert!(!navs.pending("p-sn-b", t0), "only that tab waits");
+        navs.issued(a, t0);
+        assert!(
+            navs.pending(a, t0 + Duration::from_millis(50)),
+            "the navigate is issued but its document has not started: the splash must not race it"
+        );
+        navs.page_started(a);
+        assert!(!navs.pending(a, t0), "the server document started: a later return to the splash recovers");
+
+        // Two waits at once (a restore and a wake): one ending leaves the other in flight.
+        navs.begin(a);
+        navs.begin(a);
+        navs.abandoned(a);
+        assert!(navs.pending(a, t0));
+        navs.abandoned(a);
+        assert!(!navs.pending(a, t0), "both gave up: the splash takes over");
+        navs.abandoned(a);
+        assert!(!navs.pending(a, t0), "an extra end never underflows into 'in flight'");
+
+        // An issued navigate whose document never starts stops holding the splash back.
+        navs.begin(a);
+        navs.issued(a, t0);
+        assert!(!navs.pending(a, t0 + ISSUED_GRACE), "a lost navigate does not park the tab on its splash");
+    }
 
     #[test]
     fn tabs_restored_is_one_shot_and_answers_only_its_own_window() {

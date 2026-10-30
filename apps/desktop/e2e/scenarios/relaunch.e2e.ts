@@ -93,26 +93,36 @@ describe('relaunch (native-desktop)', () => {
     // shown +676 ms, gone +5842 ms; `take_tabs_restored` afterwards null — the page had taken it).
     const reopened = '2 tabs reopened. Each one starts when you open it.';
     let sawReopened = false;
+    const docs = new DocTrail();
     for (const end = Date.now() + 30_000; !sawReopened && Date.now() < end; ) {
       try {
         await browser.switchToWindow(tabB);
         // the pill itself (5 s on screen), or the mark shell-events.js leaves when it shows it (stays): a
         // relaunch after a full lane can spend the pill's 5 s on switching windows
-        sawReopened = await browser.execute(
-          (want: string) =>
-            document.documentElement.getAttribute('data-tabs-restored') === '2' ||
-            Array.from(document.querySelectorAll('[data-testid^="notice-"]')).some((el) =>
-              (el.textContent ?? '').includes(want)
-            ),
+        const seen = await browser.execute(
+          (want: string) => ({
+            url: location.href,
+            at: performance.timeOrigin,
+            ok:
+              document.documentElement.getAttribute('data-tabs-restored') === '2' ||
+              Array.from(document.querySelectorAll('[data-testid^="notice-"]')).some((el) =>
+                (el.textContent ?? '').includes(want)
+              ),
+          }),
           reopened
         );
+        docs.see(seen);
+        sawReopened = seen.ok;
       } catch {
         // still on its splash / between documents
       }
       if (!sawReopened) await browser.pause(100);
     }
+    console.log(`[relaunch] tab B documents after the relaunch: ${docs}`);
     if (!sawReopened)
-      throw new Error(`no on-screen toast said "${reopened}" in the restored front tab`);
+      throw new Error(
+        `no on-screen toast said "${reopened}" in the restored front tab — ${await pageState('take_tabs_restored')}`
+      );
     // Home is activated first at boot, the restored active tab last.
     await browser.waitUntil(async () => (await activeTab()) === tabB, {
       timeout: 30_000,
@@ -132,6 +142,11 @@ describe('relaunch (native-desktop)', () => {
       interval: 500,
       timeoutMsg: 'the restored active tab never reached its server',
     });
+    docs.see(await browser.execute(() => ({ url: location.href, at: performance.timeOrigin })));
+    // p8-relaunch-flake: the shell AND the tab's own splash both navigated it to its server; the second
+    // document replaced the first after that page had taken the one-shot restore count (and, after a
+    // kill -9, the crash notice), so neither showed. One navigate, one served document.
+    expect({ served: docs.served(), trail: `${docs}` }).toEqual({ served: 1, trail: `${docs}` });
     // S1.22a (GAP-RELAUNCH-3): the front tab says what just happened, in the words of
     // `tabsRestoredWords` (client/shell-events.js; pinned at model level by shell-events.test.ts).
     // The shell sends `shell://tabs-restored {count}` to the active tab only, once, for two or more
@@ -176,13 +191,24 @@ describe('relaunch (native-desktop)', () => {
   const crashed = 'Maude quit unexpectedly.';
 
   /** Open B (it rests after a relaunch) and wait until its page is on its own server. */
-  async function openB(): Promise<void> {
+  async function openB(): Promise<DocTrail> {
+    const docs = new DocTrail();
     await focusTab(tabB);
-    await browser.waitUntil(async () => (await browser.getUrl()).startsWith('http://localhost:'), {
-      timeout: 120_000,
-      interval: 500,
-      timeoutMsg: 'tab B never reached its server after the relaunch',
-    });
+    await browser.waitUntil(
+      async () => {
+        const d = await browser
+          .execute(() => ({ url: location.href, at: performance.timeOrigin }))
+          .catch(() => null);
+        if (d) docs.see(d);
+        return !!d?.url.startsWith('http://localhost:');
+      },
+      {
+        timeout: 120_000,
+        interval: 100,
+        timeoutMsg: 'tab B never reached its server after the relaunch',
+      }
+    );
+    return docs;
   }
 
   const calloutSays = (want: string) =>
@@ -205,19 +231,26 @@ describe('relaunch (native-desktop)', () => {
       timeout: 30_000,
       timeoutMsg: 'the relaunch never marked its own run',
     });
-    await openB();
+    const docs = await openB();
     const notice = await invokeTauri<{ kind: string; startedAt: number | null } | null>(
       'take_crash_notice'
     );
+    console.log(`[relaunch] kill-9 tab B documents: ${docs}`);
     if (notice) {
       expect(notice.kind).toBe('app://crashed');
       expect(notice.startedAt).toBe(started?.startedAt ?? null);
     } else {
       // Taken by the page itself on mount (S11.17): its callout is on screen.
-      await browser.waitUntil(() => calloutSays(crashed), {
-        timeout: 15_000,
-        timeoutMsg: `the reopened tab neither had a crash notice nor said "${crashed}"`,
-      });
+      const said = await browser
+        .waitUntil(() => calloutSays(crashed), { timeout: 15_000 })
+        .then(
+          () => true,
+          () => false
+        );
+      if (!said)
+        throw new Error(
+          `the reopened tab neither had a crash notice nor said "${crashed}" — ${await pageState('take_crash_notice')}`
+        );
       // S11.17 (C37) — the one line, with the time of the last work when the project home knows it,
       // and Report a bug… opens the dialog (crash logs ticked when there are any; the consent step
       // itself is report-bug-dialog.e2e.ts).
@@ -252,6 +285,53 @@ describe('relaunch (native-desktop)', () => {
     await capture('relaunch-5-after-clean-quit');
   });
 });
+
+/** Every distinct document a tab showed (url + when it was created), in order. */
+class DocTrail {
+  private list: { url: string; at: number }[] = [];
+  see(d: { url: string; at: number }): void {
+    const last = this.list[this.list.length - 1];
+    if (!last || last.at !== d.at || last.url !== d.url) this.list.push({ url: d.url, at: d.at });
+  }
+  /** Documents on a server origin (not the app-local splash). */
+  served(): number {
+    return new Set(this.list.filter((d) => d.url.startsWith('http')).map((d) => d.at)).size;
+  }
+  toString(): string {
+    return this.list.map((d) => `${new Date(d.at).toISOString()} ${d.url}`).join(' → ');
+  }
+}
+
+/** What the current tab's document was doing, for a red's message: its URL, when it loaded and how,
+ *  whether the shell bridge is there, and whether the one-shot `take` is still parked (the page never
+ *  took it) or gone (the page took it and did not show it). */
+async function pageState(take: string): Promise<string> {
+  let parked: unknown;
+  try {
+    parked = await invokeTauri(take);
+  } catch (e) {
+    parked = `refused: ${(e as Error).message}`;
+  }
+  const doc = await browser
+    .execute(() => {
+      const nav = performance.getEntriesByType('navigation')[0] as
+        | PerformanceNavigationTiming
+        | undefined;
+      return {
+        url: location.href,
+        loadedAt: new Date(performance.timeOrigin).toISOString(),
+        nav: nav?.type ?? null,
+        // biome-ignore lint/suspicious/noExplicitAny: __TAURI__ is an injected global
+        tauri: Boolean((window as any).__TAURI__?.core?.invoke),
+        restoredMark: document.documentElement.getAttribute('data-tabs-restored'),
+        notices: Array.from(document.querySelectorAll('[data-testid^="notice-"]')).map(
+          (el) => el.textContent
+        ),
+      };
+    })
+    .catch((e: Error) => ({ error: e.message }));
+  return JSON.stringify({ now: new Date().toISOString(), [take]: parked, doc });
+}
 
 /** `<app data>/running.json` of the e2e app (lifecycle.rs), or null when there is none. */
 function runningMarker(): { pid: number; startedAt: number } | null {

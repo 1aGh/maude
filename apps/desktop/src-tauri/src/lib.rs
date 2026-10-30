@@ -174,7 +174,18 @@ async fn resolve_dev_server_url(webview: tauri::Webview) -> Result<serde_json::V
     if let Some(name) = windows::resting_name(webview.app_handle(), &caller.label) {
         return Ok(serde_json::json!({ "resting": true, "name": name }));
     }
+    // p8-relaunch-flake: the shell is sending this tab to its server itself (a new, restored or
+    // woken tab). A second navigate from the splash would replace the page that one loads — and
+    // the one-shot values it took on mount with it. `{pending}`: ask again shortly.
+    let shell_navigating =
+        || windows::SHELL_NAVS.pending(&caller.label, std::time::Instant::now());
+    if shell_navigating() {
+        return Ok(serde_json::json!({ "pending": true }));
+    }
     let url = sidecar::wait_for_shell_url(webview.app_handle(), &caller.root, RECOVERY_WAIT_MS).await?;
+    if shell_navigating() {
+        return Ok(serde_json::json!({ "pending": true }));
+    }
     // The splash navigates itself there: record that origin (from the live
     // child's app-owned info file) as this window's, or the guard refuses it (N-M2/N-M3).
     if !windows::stamp_server_origin(webview.app_handle(), &caller.label, &caller.root, &url) {
