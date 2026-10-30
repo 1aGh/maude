@@ -69,3 +69,12 @@ Michal: screen window needs no announcement; caffeinate -dimsu around 8.3; stop 
   - **p8-sweep-finish** (Sonnet): the 230 states, merged report, crawler exit 0. Shard JSONs are in `lead/dc-shards/` (untracked — never commit them).
 - CI Quality is running on 40c01a63f (monitor). The superseded runs were cancelled.
 - Then: the full quality.yml list locally → freeze → chain4.
+
+## Update ~13:00
+- p8-sweep-finish merged + pushed (feat 42a2b28e5, + biome format). kg: v2-p8-sweep-finish-{resume-seeds,redo-supersede,rig-restart-tags}.
+- Sweep: 5858 found; 1 DEAD (adv-copy-style, tauri), 3 not reached (post size-picker-tile states), 2 error findings
+  (/_health CORS probe in use-shell-core.jsx = real client bug; one-off edit-op 400 "not on this canvas").
+- Interim breakdown sent to the keeper. Running: **p8-sweep-close** (Opus) on all four → crawler exit 0.
+- Its shard sources: `.ai/scenarios/maude-v2/lead/dc-shards/` + worktree agent-ad8c3a6547dc5be3e `dc-out/` (remove that
+  worktree only after p8-sweep-close hands back).
+- Next: merge sweep-close → final breakdown to keeper → freeze → chain4.
