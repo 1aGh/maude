@@ -480,7 +480,8 @@ export function UnitSelect({ value, units, onChange, ariaLabel }) {
 }
 
 // ── Segmented (≤5 options, all visible) ──────────────────────────────────────
-export function Segmented({ value, options, onChange, ariaLabel }) {
+export function Segmented({ value, options, onChange, ariaLabel, disabled = false, reason }) {
+  // p8-sweep-errors — `reason`: the `{ title, aria-description }` a disabled control says why with (reasonProps)
   return (
     <div className="insp-cp-seg" role="radiogroup" aria-label={ariaLabel}>
       {options.map((o) => {
@@ -493,6 +494,8 @@ export function Segmented({ value, options, onChange, ariaLabel }) {
             role="radio"
             aria-checked={value === val}
             className={`insp-cp-segbtn${value === val ? ' is-active' : ''}`}
+            disabled={disabled || undefined}
+            {...(disabled ? reason : {})}
             onClick={() => onChange(val)}
           >
             {label}
@@ -504,12 +507,23 @@ export function Segmented({ value, options, onChange, ariaLabel }) {
 }
 
 // ── Select (styled native <select>, 6+ options) ──────────────────────────────
-export function Select({ value, options, onChange, ariaLabel, mini = false, testId }) {
+export function Select({
+  value,
+  options,
+  onChange,
+  ariaLabel,
+  mini = false,
+  testId,
+  disabled = false,
+  reason,
+}) {
   return (
     <select
       className={`insp-cp-nsel${mini ? ' insp-cp-nsel--mini' : ''}`}
       aria-label={ariaLabel}
       data-testid={testId}
+      disabled={disabled || undefined}
+      {...(disabled ? reason : {})}
       value={value}
       onChange={(e) => onChange(e.target.value)}
     >

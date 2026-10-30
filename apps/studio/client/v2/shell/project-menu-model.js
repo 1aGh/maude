@@ -7,7 +7,7 @@
 // test/project-menu-model.test.ts so a missing id cannot be forgotten and a newly registered one
 // must leave the list.
 //
-//   { type: 'item', id, label, keys, icon, disabled, toggle?, checked? }
+//   { type: 'item', id, label, keys, icon, disabled, reason?, toggle?, checked? }
 //   { type: 'sub',  label, advanced, children }
 //   { type: 'sep' }
 
@@ -15,6 +15,7 @@ import { ACTIONS_BY_ID } from '../../../actions/index.ts';
 import { formatChord } from '../../../actions/keys.ts';
 import { PROJECT_MENU } from '../../../actions/menu.ts';
 import { holds, isEnabled, isVisible } from '../../../actions/resolve.ts';
+import { disabledReason } from '../access/disabled-reason.js';
 
 /** Menu ids the registry does not hold yet → the task that registers them. The menu renders only
  *  what the registry has, so these rows appear the day their action lands (and the test goes red
@@ -36,6 +37,22 @@ export function keyHint(def, ctx) {
   return live[0] ? formatChord(live[0].chord) : '';
 }
 
+// p8-sweep-errors — why a greyed row is greyed, read off the registry's own `enabled` predicate: the role it
+// needs, else the first fact the shell does not have. Only facts with a line the studio already says are named
+// (disabled-reason.js); a row whose predicate fails on anything else keeps no reason rather than a guessed one.
+const FACT_REASON = Object.freeze({ canvasOpen: 'noCanvas' });
+
+/** The line a disabled row shows (`title` + `aria-description`), or null. */
+export function whyDisabled(def, ctx) {
+  const p = def?.enabled;
+  if (!p || !isVisible(def, ctx) || holds(p, ctx)) return null;
+  if (p.minRole && !holds({ minRole: p.minRole }, ctx)) return disabledReason('viewer');
+  for (const f of p.facts ?? []) {
+    if (!ctx.facts.has(f) && FACT_REASON[f]) return disabledReason(FACT_REASON[f]);
+  }
+  return null;
+}
+
 function itemOf(id, ctx, state, byId) {
   const def = byId.get(id);
   if (!def || !isVisible(def, ctx)) return null;
@@ -49,6 +66,10 @@ function itemOf(id, ctx, state, byId) {
     icon: def.icon ?? null,
     disabled: !isEnabled(def, ctx),
   };
+  if (item.disabled) {
+    const why = whyDisabled(def, ctx);
+    if (why) item.reason = why;
+  }
   // V2-4.7b: Diagnostics rows carry a status word / value ({ word, tone, mono? }) the shell computed.
   const status = state?.status?.[id];
   if (status?.word) item.status = status;

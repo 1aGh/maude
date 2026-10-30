@@ -287,6 +287,23 @@ describe('Case and Language', () => {
     expect(lastRun()).toMatchObject({ id: 'text.set-case', params: { case: 'typed' } });
   });
 
+  // p8-sweep-errors (1) — the crawl's 409: Case / Language on a locked text asked an op the server refuses
+  test('a locked text: Case, Language and Style are off with the lock line, and ask nothing', async () => {
+    const { REASONS } = await import('../client/v2/access/disabled-reason.js');
+    const host = await frame({ attrs: { 'data-cd-locked': '' } });
+    const aa = radio(host, 'insp-ctl-case', 'AA') as HTMLButtonElement;
+    expect(aa.disabled).toBe(true);
+    expect(aa.getAttribute('title')).toBe(REASONS.locked);
+    await click(aa);
+    const lang = q(host, 'insp-language') as HTMLSelectElement;
+    expect(lang.disabled).toBe(true);
+    expect(lang.getAttribute('aria-description')).toBe(REASONS.locked);
+    await pick(lang, 'cs');
+    expect((q(host, 'insp-style') as HTMLButtonElement).disabled).toBe(true);
+    expect(q(host, 'insp-style')?.getAttribute('title')).toBe(REASONS.locked);
+    expect(runs).toHaveLength(0);
+  });
+
   test('Čeština asks text.set-language cs, and says what it does for the copy', async () => {
     const host = await frame();
     expect(q(host, 'insp-language-note')).toBeNull();

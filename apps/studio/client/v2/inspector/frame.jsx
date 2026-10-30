@@ -28,7 +28,14 @@ import '../ds/kinds/token.jsx';
 import '../ds/kinds/master.jsx';
 // S10.16b — and so is a direction the AI drafted for a system being made (client/v2/ds/direction-bar.jsx)
 import '../ds/direction-bar.jsx';
-import { crumbsOf, cssTextOf, hasUsableId, placementOf, titleOf } from './model.js';
+import {
+  crumbsOf,
+  cssTextOf,
+  hasUsableId,
+  isLockedSelection,
+  placementOf,
+  titleOf,
+} from './model.js';
 import { effectiveCss } from './sections/row.jsx';
 import { sectionsFor } from './sections.js';
 import { useFormatsVersion } from './formats-ui.js';
@@ -201,6 +208,8 @@ export function InspectorFrame({
     editable: !!el.id && !readOnly,
     // the access alone, for a kind whose writes are not element edits (a ds direction's pick, direction-bar.jsx)
     readOnly: !!readOnly,
+    // p8-sweep-errors — a locked object refuses every edit-op but the lock (409): an ask is off and says why
+    locked: isLockedSelection(selected, layersTree),
     // V2-8.5 c6 (14 ed-obj-enter): "In Services · Set by Services · 2 of 3"
     placement: placementOf(layersTree, Array.isArray(selected) ? null : el),
     // 14 ed-lay-free: the object's own name, for the sentence "Post places things freely … keep Datum 64 from …"

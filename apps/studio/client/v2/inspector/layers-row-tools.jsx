@@ -5,8 +5,12 @@
 // `object.lock` / `object.hide` edit-ops the object menu and ⇧⌘L run (the canvas posts them, S2.6).
 // A hidden object stays in the file and in Layers, greyed; a locked one shows its padlock. The
 // buttons appear when the row is pointed at (and stay on while the state is on).
+//
+// p8-sweep-errors — a locked object refuses `object.hide` (409 `locked`, S2-edit-ops.md §3 rule 6; only the lock
+// itself may touch it), so a locked row's eye is off and says why; the padlock beside it unlocks.
 
 import { StIcon } from '../../shell/icons.jsx';
+import { disabledReason } from '../access/disabled-reason.js';
 
 /**
  * The shell → canvas message that locks / hides (or undoes it) on one Layers node. The canvas runs it
@@ -40,6 +44,8 @@ export function LayerRowTools({
   node,
   isLocked,
   isHidden,
+  // the shared lock the server refuses Hide on (`node.locked`); an old per-user padlock (view.json) does not
+  hideRefused = isLocked,
   tabbable = true,
   onToggleLock,
   onToggleVisibility,
@@ -71,7 +77,9 @@ export function LayerRowTools({
           data-on={isHidden ? 'true' : undefined}
           aria-label={isHidden ? `Show ${node.label}` : `Hide ${node.label}`}
           aria-pressed={isHidden}
-          title={isHidden ? 'Show' : 'Hide'}
+          disabled={hideRefused || undefined}
+          title={hideRefused ? disabledReason('locked') : isHidden ? 'Show' : 'Hide'}
+          aria-description={hideRefused ? disabledReason('locked') : undefined}
           onClick={(e) => {
             e.stopPropagation();
             onToggleVisibility(node);

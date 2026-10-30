@@ -353,6 +353,17 @@ export function createThumbService(o: ThumbServiceOptions): ThumbService {
     }
   };
 
+  /**
+   * p8-sweep-errors — name a canvas's new cover. The key it replaces stays servable (R6: this project's own picture
+   * of a moment ago) while its file is on disk: a row that read the index before the swap mounts its <img> with the
+   * old key, and would otherwise get a 404 for a picture that is still here.
+   */
+  const setCover = (rel: string, cover: Parameters<typeof o.index.setCover>[1]) => {
+    const was = o.index.canvas(rel)?.cover?.key;
+    if (was && was !== cover.key) reference(was);
+    o.index.setCover(rel, cover);
+  };
+
   function readyDims(key: string) {
     // the file is the truth (retention prunes it): the memo only saves re-reading its header
     if (!hasThumb(o.pid, key)) {
@@ -515,7 +526,7 @@ export function createThumbService(o: ThumbServiceOptions): ThumbService {
     dims.set(t.key, { w: check.w, h: check.h });
     reference(t.key);
     if (job.kind === 'canvas' && t.artboard === null && t.size === 'card' && job.atParam === null)
-      o.index.setCover(job.rel, { key: t.key, w: check.w, h: check.h, ofSrc: job.srcHash });
+      setCover(job.rel, { key: t.key, w: check.w, h: check.h, ofSrc: job.srcHash });
     if (++writes % 50 === 0) {
       const keep = new Set<string>();
       for (const c of o.index.snapshot().canvases) if (c.cover) keep.add(c.cover.key);
@@ -836,7 +847,7 @@ export function createThumbService(o: ThumbServiceOptions): ThumbService {
         if (r.status === 'pending') queued++;
         // the picture for today's inputs is already on disk (a snapshot that lost its cover): name it
         else if (r.status === 'ready')
-          o.index.setCover(row.rel, { key: r.key, w: r.w, h: r.h, ofSrc: row.srcHash });
+          setCover(row.rel, { key: r.key, w: r.w, h: r.h, ofSrc: row.srcHash });
       }
       return queued;
     },
