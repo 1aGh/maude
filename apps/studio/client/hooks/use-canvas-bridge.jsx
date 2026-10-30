@@ -77,6 +77,10 @@ import { selectNewArtboard } from '../v2/empty/select-new-artboard.js';
 // one shell, one watch: the Comment tool's arming edge (P8 C5)
 const commentToolWatch = createCommentToolWatch();
 
+// p8-sweep-close — Copy style / Paste style say what happened (the sweep found Copy style DEAD: it filled a
+// ref and drew nothing, so a copy and a miss looked the same). One notice id: a second press replaces it.
+const styleNotice = (title, kind) => notify({ id: 'copy-style', title, kind });
+
 export function useCanvasBridge({
   activePath,
   selected,
@@ -2107,10 +2111,14 @@ export function useCanvasBridge({
       ]),
     []
   );
+  // p8-sweep-close — both say what happened (`styleNotice`, top of file).
   const copyStyle = useCallback(() => {
     const sel = selectedRef.current;
     const one = Array.isArray(sel) ? (sel.length === 1 ? sel[0] : null) : sel;
-    if (!one) return;
+    if (!one) {
+      styleNotice('Nothing copied. Select one object, then choose Copy style.', 'info');
+      return;
+    }
     const map = {};
     for (const [k, v] of Object.entries(one.authored || {})) {
       if (!PASTE_STYLE_EXCLUDE.has(k)) map[k] = v;
@@ -2118,12 +2126,29 @@ export function useCanvasBridge({
     for (const [k, v] of Object.entries(one.customStyles || {})) {
       if (!PASTE_STYLE_EXCLUDE.has(k)) map[k] = v;
     }
-    copiedStyleRef.current = Object.keys(map).length ? map : null;
+    const n = Object.keys(map).length;
+    if (!n) {
+      // The earlier copy (if any) is kept — a miss does not empty the clipboard.
+      styleNotice(
+        'Nothing copied. This object has no style of its own — its look comes from its classes.',
+        'info'
+      );
+      return;
+    }
+    copiedStyleRef.current = map;
+    styleNotice(
+      `Style copied — ${n} ${n === 1 ? 'property' : 'properties'}. Select another object and choose Paste style.`,
+      'success'
+    );
   }, [PASTE_STYLE_EXCLUDE]);
   const pasteStyle = useCallback(
     (id) => {
       const canvas = activePath;
       const map = copiedStyleRef.current;
+      if (canvas && id && !map) {
+        styleNotice('Nothing to paste yet. Choose Copy style on an object first.', 'info');
+        return;
+      }
       if (!canvas || !id || !map) return;
       const entries = Object.entries(map);
       let chain = editApplyChainRef.current.catch(() => {});
