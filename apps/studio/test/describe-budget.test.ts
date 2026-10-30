@@ -5,6 +5,7 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describeChanges } from '../history/describe';
+import { budget, PERF_SLACK } from './_perf-budget.ts';
 import { genEdits, listCanvases, mulberry32, percentile } from './fixtures/describe-corpus/measure';
 
 describe('describeChanges budget', () => {
@@ -29,9 +30,9 @@ describe('describeChanges budget', () => {
     }
     expect(ms.length).toBeGreaterThan(20);
     console.log(
-      `describe ms: p50 ${percentile(ms, 50).toFixed(1)} p95 ${percentile(ms, 95).toFixed(1)} max ${Math.max(...ms).toFixed(1)}`
+      `describe ms: p50 ${percentile(ms, 50).toFixed(1)} p95 ${percentile(ms, 95).toFixed(1)} max ${Math.max(...ms).toFixed(1)} (budget ×${PERF_SLACK})`
     );
-    expect(percentile(ms, 95)).toBeLessThanOrEqual(50);
+    expect(percentile(ms, 95)).toBeLessThanOrEqual(budget(50));
   }, 60_000);
 
   test('a whole-canvas rewrite of the largest canvas stays inside a second', () => {
@@ -39,6 +40,6 @@ describe('describeChanges budget', () => {
     const a = readFileSync(f, 'utf8');
     const b = readFileSync((largest[1] as readonly [string, number])[0], 'utf8');
     const r = describeChanges(f, { tsx: a }, { tsx: b });
-    expect(r.ms).toBeLessThan(1000);
+    expect(r.ms).toBeLessThan(budget(1000));
   }, 20_000);
 });

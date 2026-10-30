@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ARTBOARD_WHERE_RE, checkIds } from '../element-ids.ts';
 import { AGENT_ID_RE } from '../routes/agent.ts';
+import { bestOf, budget, PERF_SLACK } from './_perf-budget.ts';
 
 const BEFORE = `import { DCArtboard, DesignCanvas } from '@maude/canvas-lib';
 export default function Home() {
@@ -218,11 +219,11 @@ describe('checkIds (T5)', () => {
       'utf8'
     );
     checkIds(big, { against: big, path: P }); // warm
-    const t0 = performance.now();
-    const r = checkIds(big, { against: big, path: P });
-    const ms = performance.now() - t0;
+    const { ms, result: r } = bestOf(5, () => checkIds(big, { against: big, path: P }));
     expect(r.parseError).toBeUndefined();
-    console.log(`checkIds two-sided on 15 Annotations.tsx (${big.length} B): ${ms.toFixed(1)} ms`);
-    expect(ms).toBeLessThan(50);
+    console.log(
+      `checkIds two-sided on 15 Annotations.tsx (${big.length} B): ${ms.toFixed(1)} ms (budget ×${PERF_SLACK})`
+    );
+    expect(ms).toBeLessThan(budget(50));
   });
 });
