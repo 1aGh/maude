@@ -35,7 +35,7 @@ import { createRequire } from 'node:module';
 import { dirname, join, relative } from 'node:path';
 import { Crawler } from './dead-controls/crawl.mjs';
 import { registryMenu } from './dead-controls/registry.mjs';
-import { renderReport, summarize } from './dead-controls/report.mjs';
+import { collapseTwins, renderReport, summarize } from './dead-controls/report.mjs';
 import { bootRig, REPO, STUDIO } from './dead-controls/rig.mjs';
 
 const argv = process.argv.slice(2);
@@ -64,6 +64,7 @@ if (MERGE) {
   const parts = MERGE.map((f) => JSON.parse(readFileSync(f, 'utf8')));
   const merged = { results: [], errors: [], external: [], popups: [], unreachable: [] };
   for (const p of parts) for (const k of Object.keys(merged)) merged[k].push(...(p[k] ?? []));
+  merged.results = collapseTwins(merged.results);
   merged.registry = parts.some((p) => p.registry?.length) ? registryMenu() : [];
   const modes = [...new Set(merged.results.map((r) => r.mode))];
   const minutes = parts.map((p) => p.minutes ?? '?').join(' + ');
@@ -195,6 +196,7 @@ async function crawlMode(mode, i) {
   console.log(`[${mode}] project ${rig.projectUrl}  home ${rig.homeUrl}`);
   const seeded = await seed(browser, rig.projectUrl).catch((e) => [String(e)]);
   console.log(`[${mode}] seeded comments: ${seeded.join(',')}`);
+  rig.snapshot();
   const runs = [];
   if (ONLY.includes('project'))
     runs.push({
@@ -226,6 +228,7 @@ async function crawlMode(mode, i) {
       homeSecret: run.secret,
       readySel: run.ready,
       label: run.label,
+      reset: run.label === 'project' && !argv.includes('--no-reset') ? () => rig.reset() : null,
       plantDead: argv.includes('--plant-dead'),
       plantNoise: argv.includes('--plant-noise'),
       budgetMs: Number(process.env.CRAWL_BUDGET_MIN || 120) * 60_000,
@@ -270,6 +273,7 @@ if (all.rigFailed && !all.results.length) {
   process.exit(2);
 }
 
+all.results = collapseTwins(all.results);
 all.registry = ONLY.includes('project') ? registryMenu() : [];
 all.minutes = ((Date.now() - t0) / 60000).toFixed(1);
 const md = renderReport(all, { modes: MODES, minutes: all.minutes });

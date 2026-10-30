@@ -146,7 +146,7 @@ async function waitJson(file, ms, child) {
 export async function bootRig({ portBase = Number(process.env.MAUDE_PORT_BASE || 48499) } = {}) {
   const fx = makeFixture();
   const env = isolatedEnv(fx.work, portBase);
-  const proj = spawnLogged([join(STUDIO, 'server.ts'), '--root', fx.root], env);
+  let proj = spawnLogged([join(STUDIO, 'server.ts'), '--root', fx.root], env);
   const sj = await waitJson(join(fx.designRoot, '_server.json'), 60_000, proj.child);
   if (!sj?.url) throw new Error(`project server never came up:\n${proj.log.join('').slice(-1500)}`);
   // let the index snapshot land before Home reads it
@@ -161,8 +161,47 @@ export async function bootRig({ portBase = Number(process.env.MAUDE_PORT_BASE ||
     MAUDE_SHELL_INFO_FILE: infoFile,
   });
   const hi = await waitJson(infoFile, 30_000, home.child);
+  const pristine = join(fx.work, 'pristine');
+  const pristineConfig = join(fx.work, 'pristine-config');
+  const exited = (child) =>
+    new Promise((r) => {
+      if (child.exitCode !== null) return r();
+      child.once('exit', () => r());
+      setTimeout(r, 8000);
+    });
   const rig = {
     ...fx,
+    /** Freeze the fixture as it is now (call after seeding): `reset()` returns to exactly this. */
+    snapshot() {
+      cpSync(fx.root, pristine, { recursive: true });
+      if (existsSync(join(fx.work, 'config')))
+        cpSync(join(fx.work, 'config'), pristineConfig, { recursive: true });
+    },
+    /**
+     * The project server back on the frozen fixture: a state the crawl reaches by replaying its steps must start
+     * from the same project every time, or a click that pinned / created / deleted something earlier changes what
+     * the next state shows (a control 'vanishes' only because a sibling click already used it up).
+     */
+    async reset() {
+      try {
+        proj.child.kill('SIGTERM');
+      } catch {
+        /* gone */
+      }
+      await exited(proj.child);
+      rmSync(fx.root, { recursive: true, force: true });
+      cpSync(pristine, fx.root, { recursive: true });
+      rmSync(join(fx.work, 'config'), { recursive: true, force: true });
+      if (existsSync(pristineConfig))
+        cpSync(pristineConfig, join(fx.work, 'config'), { recursive: true });
+      for (const f of ['_server.json', '_active.json'])
+        rmSync(join(fx.designRoot, f), { force: true });
+      proj = spawnLogged([join(STUDIO, 'server.ts'), '--root', fx.root], env);
+      rig.logs.project = proj.log;
+      const again = await waitJson(join(fx.designRoot, '_server.json'), 60_000, proj.child);
+      if (!again?.url) throw new Error('project server did not come back after a reset');
+      if (again.url !== sj.url) throw new Error(`project server moved: ${sj.url} → ${again.url}`);
+    },
     projectUrl: sj.url,
     homeUrl: hi?.url ?? null,
     homeSecret: pageSecret,

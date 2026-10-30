@@ -1,6 +1,29 @@
 // The dead-control crawler's report: totals, the control → effect table, the dead list, the errors.
 import { DESTRUCTIVE_PINS } from './destructive-pins.mjs';
 
+/**
+ * The same control seen again in other states is one twin row, not hundreds: one row per (mode, shell, control,
+ * twin) with the number of states it showed up in.
+ */
+export function collapseTwins(results) {
+  const seen = new Map();
+  const out = [];
+  for (const r of results) {
+    if (r.effect !== 'twin') {
+      out.push(r);
+      continue;
+    }
+    const k = `${r.mode}|${r.shell}|${r.control}|${r.twin}`;
+    const prev = seen.get(k);
+    if (prev) prev.states = (prev.states ?? 1) + 1;
+    else {
+      seen.set(k, r);
+      out.push(r);
+    }
+  }
+  return out;
+}
+
 /** Every control found ends in exactly one class. */
 export function classOf(r) {
   switch (r.effect) {
@@ -243,7 +266,8 @@ export function renderReport(all, { modes, minutes }) {
   for (const r of all.results) {
     const cls = classOf(r);
     let ev = '';
-    if (cls === 'twin') ev = `twin of \`${cell(r.twin)}\` — ${r.note}`;
+    if (cls === 'twin')
+      ev = `twin of \`${cell(r.twin)}\` — ${r.note}${r.states > 1 ? ` (seen in ${r.states} states)` : ''}`;
     else if (cls === 'disabled') ev = r.note ? `shows: ${r.note}` : 'no reason text shown';
     else if (cls === 'destructive') {
       const p = DESTRUCTIVE_PINS[r.control];

@@ -98,6 +98,7 @@ export class Crawler {
     onResult = null,
     plantDead = false,
     plantNoise = false,
+    reset = null,
   }) {
     Object.assign(this, {
       browser,
@@ -113,6 +114,7 @@ export class Crawler {
       onResult,
       plantDead,
       plantNoise,
+      reset,
     });
     this.results = [];
     this.errors = [];
@@ -328,6 +330,8 @@ export class Crawler {
       }
     }
     if (from < 0) {
+      // a hard replay starts from the frozen project, not from whatever the clicks so far left behind
+      if (hard && this.reset && this.resetEnabled !== false) await this.reset();
       await this.load();
       from = 0;
       this.prefixFp.set(this.stepsSig([]), this.fingerprint(await this.controls()));
@@ -439,6 +443,8 @@ export class Crawler {
     };
     // the judged state's parent is read FIRST, before any setup path changes the fixture: a control a setup
     // path creates (the Desktop artboard) is then new in the judged state, as it is in a full crawl
+    // setup paths change the fixture on purpose; a reset would undo them
+    if (paths.length > 1) this.resetEnabled = false;
     const last = await walk(paths[paths.length - 1]);
     for (const p of paths.slice(0, -1)) {
       // reaching a state executes its clicks, so a setup path (create an artboard) takes effect right here
@@ -474,7 +480,7 @@ export class Crawler {
 
   async crawlState(st, queue) {
     const surface = st.name;
-    if (!(await this.replay(st.steps)) && !(await this.replay(st.steps, true))) {
+    if (!(await this.replay(st.steps, !!this.reset)) && !(await this.replay(st.steps, true))) {
       this.results.push({
         mode: this.mode,
         surface,
@@ -502,6 +508,7 @@ export class Crawler {
       await this.replay(st.steps);
       fp = this.fingerprint(await this.controls());
     }
+    let forceHard = false;
     const famCount = new Map();
     const famLast = new Map(); // family → the control of it that was clicked last
     // destructive first-level controls last, so a deletion cannot hide later controls
@@ -573,8 +580,11 @@ export class Crawler {
       }
       // restore the state when it drifted
       const now = await this.controls();
-      if (this.fingerprint(now) !== fp || !now.some((x) => x.id === c.id)) {
-        await this.replay(st.steps);
+      if (forceHard || this.fingerprint(now) !== fp || !now.some((x) => x.id === c.id)) {
+        // the click before opened something (the URL moved): the control set can look the same while the
+        // thing it acts on is already open — go back to a fresh project and the state
+        await this.replay(st.steps, forceHard);
+        forceHard = false;
         let again = await this.controls();
         if (!again.some((x) => x.id === c.id)) {
           // second chance: a fresh load and the whole walk from the root, not the soft restore
@@ -649,6 +659,7 @@ export class Crawler {
         out.destructive = true;
       }
       this.results.push(out);
+      if (/\burl\b/.test(out.effect)) forceHard = true;
       if (/net\(/.test(out.effect)) this.lastMutator = `${surface} · ${row.control}`;
       this.onResult?.(out);
       // a click that revealed a place of its own → a child state
