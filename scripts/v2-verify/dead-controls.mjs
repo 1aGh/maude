@@ -23,6 +23,8 @@
 //                the states they listed 'not reached' are walked to and crawled (and the child states those open),
 //                until CRAWL_BUDGET_MIN. Run it on a clean tree of the same commit; the new --json merges with the old
 //                ones (--merge drops a not-reached row once any shard entered that state).
+//   --redo       with --resume: also judge again the states the shards judged on an older build (a disabled row with no
+//                reason, a DEAD row, a row that drew a 4xx/5xx); --merge then replaces those states' rows and errors
 //   --seed-shard <i>/<n>  with --resume: take every n-th seed (shallowest first) — n shards run side by side
 //   --plant-dead the crawler's own red test: plants a no-op button in the shell, which must be DEAD (exit 1)
 //   --plant-noise (with --plant-dead) also fires an unrelated status message every 200 ms in a far corner: the
@@ -58,6 +60,7 @@ const ROOTS = arg('--roots', null)?.split('|');
 const MERGE = arg('--merge', null)?.split(',');
 const NOTE = arg('--note', null);
 const RESUME = arg('--resume', null)?.split(',');
+const REDO = argv.includes('--redo');
 const SEED_SHARD = arg('--seed-shard', null)?.split('/').map(Number) ?? null;
 if (SEED_SHARD && !(SEED_SHARD[0] >= 1 && SEED_SHARD[0] <= SEED_SHARD[1])) {
   console.error('dead-controls: --seed-shard wants <i>/<n> with 1 <= i <= n');
@@ -194,6 +197,7 @@ const all = {
   popups: [],
   unreachable: [],
   statesDone: [],
+  redone: [],
 };
 const PRIOR = RESUME?.map((f) => JSON.parse(readFileSync(f, 'utf8'))) ?? [];
 const t0 = Date.now();
@@ -272,6 +276,7 @@ async function crawlMode(mode, i) {
           mode,
           shell: run.label,
           shard: SEED_SHARD,
+          redo: REDO,
           accept: (surface) =>
             run.roots.some((r) => surface === r.name || surface.startsWith(`${r.name} › `)),
         });
@@ -291,6 +296,7 @@ async function crawlMode(mode, i) {
     await c.close();
     for (const r of c.results) all.results.push({ shell: run.label, ...r });
     all.statesDone.push(...c.statesDone.map((d) => ({ shell: run.label, ...d })));
+    all.redone.push(...c.redone.map((d) => ({ shell: run.label, ...d })));
     all.errors.push(...c.errors.map((e) => ({ shell: run.label, ...e })));
     all.external.push(...c.external.map((e) => ({ shell: run.label, mode, ...e })));
     all.popups.push(...c.popups.map((e) => ({ shell: run.label, mode, ...e })));

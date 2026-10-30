@@ -189,11 +189,15 @@ export class Crawler {
     this.clicked = new Map(); // keys already judged (in any state) → where — each control judged once
     this.queued = new Set();
     this.prefixFp = new Map(); // steps signature → the control set that state showed
+    this.redone = []; // the stale states this run judged again
     this.statesDone = []; // the states this run entered (a state with nothing new to judge writes no row)
   }
 
   /** Continue from earlier shards (`planResume`): what they judged is a twin here, their child states are known. */
-  resume({ judged, queued }) {
+  resume({ judged, queued, seeds = [], redone = [] }) {
+    this.seedNames = new Set(seeds); // a seed that is also a child of another seed is crawled once
+    this.enteredSeeds = new Set();
+    this.redone = redone.map((surface) => ({ mode: this.mode, surface }));
     for (const [k, where] of judged) if (!this.clicked.has(k)) this.clicked.set(k, where);
     for (const q of queued) this.queued.add(q);
   }
@@ -606,6 +610,10 @@ export class Crawler {
 
   async crawlState(st, queue) {
     const surface = st.name;
+    if (this.seedNames?.has(surface)) {
+      if (this.enteredSeeds.has(surface)) return;
+      this.enteredSeeds.add(surface);
+    }
     if (!(await this.replay(st.steps, !!this.reset)) && !(await this.replay(st.steps, true))) {
       this.results.push({
         mode: this.mode,

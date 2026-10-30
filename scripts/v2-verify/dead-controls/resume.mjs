@@ -6,6 +6,8 @@
 // each unreachable state into a seed the crawler walks to and crawls, then keeps crawling the children it finds.
 // The merge (`mergeShards`) drops an unreachable row once some shard crawled that state.
 
+import { isRigError } from './report.mjs';
+
 /** The key a control is judged once under — see `Crawler.judgeKeyOf`. */
 export function judgeKey(frame, key, surface) {
   const scoped = /^tid:project-menu-row-sub-/.test(key) ? `|${surface}` : '';
@@ -27,17 +29,45 @@ export function reachedStates(parts) {
 }
 const stateKey = (r) => `${r.mode}|${r.shell}|${r.surface}`;
 
+// an error's `control` is `frame:name` for a click, `<open name>` / `<re-toggle name>` for a replay step
+const errorName = (c) =>
+  String(c ?? '')
+    .replace(/^\w+:/, '')
+    .replace(/^<(?:open|re-toggle|again, clean:|read) (.*?)(?: again)?>$/, '$1');
+const realError = (e) => !isRigError(e) && /http (409|422|404|5\d\d)/.test(e.kind);
+
+/**
+ * States judged on an older build whose rows may no longer hold: a disabled row that showed no reason, a DEAD row,
+ * and any row (or the path to it) that drew a real server error. `mode|shell|surface`.
+ */
+export function staleStates(parts) {
+  const stale = new Set();
+  for (const p of parts) {
+    const names = new Set((p.errors ?? []).filter(realError).map((e) => `${e.mode}|${e.shell}|${errorName(e.control)}`));
+    for (const r of p.results ?? []) {
+      if (r.effect === 'unreachable') continue;
+      const named =
+        names.has(`${r.mode}|${r.shell}|${r.control}`) ||
+        r.surface.split(' › ').some((seg) => names.has(`${r.mode}|${r.shell}|${seg}`) && seg === r.control);
+      if ((r.effect === 'disabled' && !r.note) || r.effect === 'DEAD' || named) stale.add(stateKey(r));
+    }
+  }
+  return stale;
+}
+
 /**
  * @param parts   earlier shards (their parsed `--json` files)
  * @param opts    { mode, shell, accept(surface) → bool, shard: [i, n] | null }
  * @returns { judged: Map<judgeKey, where>, queued: Set<sig>, seeds: string[] }  seeds = state paths, shallowest first
  */
-export function planResume(parts, { mode, shell, accept = () => true, shard = null }) {
+export function planResume(parts, { mode, shell, accept = () => true, shard = null, redo = false }) {
   const judged = new Map();
   const queued = new Set();
+  const stale = redo ? staleStates(parts) : new Set();
   for (const p of parts)
     for (const r of p.results ?? []) {
       if (r.mode !== mode || r.shell !== shell || notJudged(r) || !r.key) continue;
+      if (stale.has(stateKey(r))) continue; // judged on an older build: judged again
       const k = judgeKey(r.frame, r.key, r.surface);
       if (!judged.has(k)) judged.set(k, `${r.surface} · ${r.control}`);
       queued.add(`${r.surface}>${r.key}`);
@@ -45,10 +75,19 @@ export function planResume(parts, { mode, shell, accept = () => true, shard = nu
   const reached = reachedStates(parts);
   const seen = new Set();
   let seeds = [];
+  for (const k of stale) {
+    const [m, sh, ...rest] = k.split('|');
+    const surface = rest.join('|');
+    if (m === mode && sh === shell && accept(surface) && !seen.has(surface)) {
+      seen.add(surface);
+      seeds.push(surface);
+    }
+  }
   for (const p of parts)
     for (const r of p.results ?? []) {
       if (!isSurfaceRow(r) || r.mode !== mode || r.shell !== shell) continue;
-      if (reached.has(stateKey(r)) || seen.has(r.surface) || !accept(r.surface)) continue;
+      if ((reached.has(stateKey(r)) && !stale.has(stateKey(r))) || seen.has(r.surface) || !accept(r.surface))
+        continue;
       seen.add(r.surface);
       seeds.push(r.surface);
     }
@@ -61,7 +100,8 @@ export function planResume(parts, { mode, shell, accept = () => true, shard = nu
     const [i, n] = shard;
     seeds = seeds.filter((_, idx) => idx % n === i - 1);
   }
-  return { judged, queued, seeds };
+  const redone = seeds.filter((x) => stale.has(`${mode}|${shell}|${x}`));
+  return { judged, queued, seeds, redone };
 }
 
 /**
@@ -69,10 +109,31 @@ export function planResume(parts, { mode, shell, accept = () => true, shard = nu
  * unreachable by two shards stays once (the later note wins).
  */
 export function mergeShards(parts) {
+  // a state a LATER shard judged again (`redone`) replaces the earlier shards' rows of it, and the errors they drew
+  const redoneAfter = parts.map((_, j) => {
+    const set = new Set();
+    for (const q of parts.slice(j + 1)) for (const s of q.redone ?? []) set.add(stateKey(s));
+    return set;
+  });
+  const names = redoneAfter.map((set, j) => {
+    const n = new Set();
+    for (const r of parts[j].results ?? [])
+      if (set.has(stateKey(r))) {
+        n.add(`${r.mode}|${r.shell}|${r.control}`);
+        n.add(`${r.mode}|${r.shell}|${r.surface.split(' › ').pop()}`);
+      }
+    return n;
+  });
+  const kept = parts.map((p, j) => ({
+    ...p,
+    results: (p.results ?? []).filter((r) => !redoneAfter[j].has(stateKey(r))),
+    errors: (p.errors ?? []).filter(
+      (e) => isRigError(e) || !names[j].has(`${e.mode}|${e.shell}|${errorName(e.control)}`)
+    ),
+  }));
   const merged = { results: [], errors: [], external: [], popups: [], unreachable: [], statesDone: [] };
-  for (const p of parts)
-    for (const k of Object.keys(merged)) merged[k].push(...(p[k] ?? []));
-  const reached = reachedStates(parts);
+  for (const p of kept) for (const k of Object.keys(merged)) merged[k].push(...(p[k] ?? []));
+  const reached = reachedStates(kept);
   const last = new Map();
   merged.results.forEach((r, i) => {
     if (isSurfaceRow(r)) last.set(stateKey(r), i);
