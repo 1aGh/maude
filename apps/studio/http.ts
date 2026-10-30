@@ -2068,14 +2068,19 @@ export function createHttp(
     // S8.7 — the Print preflight: fonts are read under the design root; the safe margin is measured from the
     // canvas-rects manifest (a headless render of the canvas, through the capture origin's 307 like every
     // capture). One render at a time (the browser session is single), a short memory per file version, and a
-    // failure is "unmeasured" — never an error the sheet shows.
+    // failure is "unmeasured" — never an error the sheet shows. A cell gets no rects runner at all: it
+    // renders tenant TSX, and a cell must not evaluate it (DDR-193) — the margin is then "unmeasured".
     preflight: {
       designRoot: ctx.paths.designRoot,
-      rects: createRectsRunner({
-        repoRoot: ctx.paths.repoRoot,
-        designRoot: ctx.paths.designRoot,
-        script: join(BIN_DIR, 'canvas-rects.sh'),
-      }),
+      ...(isWorkspaceMode()
+        ? {}
+        : {
+            rects: createRectsRunner({
+              repoRoot: ctx.paths.repoRoot,
+              designRoot: ctx.paths.designRoot,
+              script: join(BIN_DIR, 'canvas-rects.sh'),
+            }),
+          }),
     },
   };
   // S10.3 — the design-system engine (S10.2) over THE kernel port, its one ⌘Z hook, and the
