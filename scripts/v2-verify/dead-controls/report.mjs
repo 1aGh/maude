@@ -133,7 +133,7 @@ const cell = (s) =>
     .replace(/\|/g, '\\|')
     .replace(/\n/g, ' ');
 
-export function renderReport(all, { modes, minutes }) {
+export function renderReport(all, { modes, minutes, note = null }) {
   const s = summarize(all.results, all.errors);
   const lines = [];
   lines.push('# V2-8 — dead controls, dynamic sweep');
@@ -145,6 +145,10 @@ export function renderReport(all, { modes, minutes }) {
     `Modes: ${modes.join(', ')} · ${minutes} min · ${new Date().toISOString().slice(0, 16)}Z.`
   );
   lines.push('');
+  if (note) {
+    lines.push(note);
+    lines.push('');
+  }
   lines.push(
     'A control is judged once per mode, in the first state that shows it. Effect = any of: DOM change above the idle noise floor (`dom(n)`), aria state, URL, a new popup/menu/sheet/toast, new or removed controls, a studio request (`net`), a focus move to another region, `window.open`, a blocked external navigation, a native `invoke` (Tauri mode). None = **DEAD**. Repeated per-row controls are sampled (2 per family, 12 options per list).'
   );
@@ -181,6 +185,25 @@ export function renderReport(all, { modes, minutes }) {
           ? `- \`${c}\` — ${p.action}: \`${p.file}\` › "${p.test}"${p.also ? ` and "${p.also}"` : ''}`
           : `- \`${c}\` — **NO UNIT PIN**`
       );
+    }
+    lines.push('');
+  }
+  const notReached = all.results.filter((r) => classOf(r, all.results) === 'not reached');
+  if (notReached.length) {
+    lines.push(`## States not reached — named list (${notReached.length})`);
+    lines.push('');
+    lines.push(
+      'Each is a STATE (a sheet, a menu, a panel reached by a click path) whose own controls were never listed, so they are not in the totals above. Reason per row; re-run with a longer `CRAWL_BUDGET_MIN` or `--replay "<state>"` to judge one.'
+    );
+    lines.push('');
+    const byReason = new Map();
+    for (const r of notReached) {
+      const k = `${r.mode}: ${r.note}`;
+      byReason.set(k, [...(byReason.get(k) ?? []), r.surface]);
+    }
+    for (const [k, surfaces] of byReason) {
+      lines.push(`- **${cell(k)}** — ${surfaces.length} states`);
+      for (const sf of surfaces) lines.push(`  - ${cell(sf)}`);
     }
     lines.push('');
   }

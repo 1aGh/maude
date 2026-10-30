@@ -50,6 +50,7 @@ const REPLAY = arg('--replay', null)?.split('|');
 // renders the report from shards' --json files instead of crawling
 const ROOTS = arg('--roots', null)?.split('|');
 const MERGE = arg('--merge', null)?.split(',');
+const NOTE = arg('--note', null);
 const OUT = arg(
   '--out',
   // a replay judges a handful of states: never let it overwrite the full report
@@ -71,7 +72,7 @@ if (MERGE) {
   const modes = [...new Set(merged.results.map((r) => r.mode))];
   const minutes = parts.map((p) => p.minutes ?? '?').join(' + ');
   mkdirSync(dirname(OUT), { recursive: true });
-  writeFileSync(OUT, renderReport(merged, { modes, minutes }));
+  writeFileSync(OUT, renderReport(merged, { modes, minutes, note: NOTE }));
   const ms = summarize(merged.results, merged.errors);
   console.log(
     `merged ${parts.length} shards: ${ms.found} found · ${ms.clicked} clicked · ${ms.dead} DEAD · ${ms.errors} errors`
