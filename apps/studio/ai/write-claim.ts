@@ -21,30 +21,13 @@
 // A canvas-origin request never reaches either door — the table routes wrapped here are main-only (an
 // `origin: 'canvas'` spec is never wrapped), and the agent routes refuse any browser request.
 
-import { AsyncLocalStorage } from 'node:async_hooks';
-
 import { laneValueFromFile } from '../sync/codec.ts';
 import { hashBytes } from '../sync/echo-guard.ts';
 import { CHAT_HEADER, type CreateClaimRuns, runForCreate } from './create-claim.ts';
 
-/** The live run a request's writes belong to. */
-export interface WriteClaimRun {
-  runId: string;
-  chatId: string;
-  label: string;
-}
+import { currentWriteClaim, type WriteClaimRun, withWriteClaim } from './write-claim-scope.ts';
 
-const scope = new AsyncLocalStorage<WriteClaimRun>();
-
-/** Run `fn` with `run` as the claimant of every studio source write it makes (null: no claimant). */
-export function withWriteClaim<T>(run: WriteClaimRun | null, fn: () => T): T {
-  return run ? scope.run(run, fn) : fn();
-}
-
-/** The run the current request writes for, or null (a person's request, or none at all). */
-export function currentWriteClaim(): WriteClaimRun | null {
-  return scope.getStore() ?? null;
-}
+export { currentWriteClaim, type WriteClaimRun, withWriteClaim };
 
 /** The LIVE run of chat `chat` on this Mac (not ended, not queued behind another run of it), or null. */
 export function runForChat(

@@ -37,7 +37,7 @@ import { SHELL_SETTLE_MS } from '../sync/action-stage.ts';
 import { hashBytes } from '../sync/echo-guard.ts';
 import { mergeSource } from '../sync/source-merge.ts';
 import { sourceHold } from '../sync/write-hold.ts';
-import { currentWriteClaim } from './write-claim.ts';
+import { currentWriteClaim } from './write-claim-scope.ts';
 
 /** A hold lasts at most this long (or until the call ends, whichever comes first). */
 export const SAVE_HOLD_CAP_MS = 10_000;
