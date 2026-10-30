@@ -23,7 +23,15 @@
  * Run: `pnpm test:e2e:desktop:team-project` (after `pnpm test:e2e:desktop:build`).
  */
 import { type ChildProcess, spawn } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  openSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { createServer } from 'node:net';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -108,7 +116,19 @@ process.env.MAUDE_CANVAS_ORIGIN_SPLIT = '1';
 delete process.env.MAUDE_PROJECT_ROOT;
 let scratch = '';
 if (!process.env.MAUDE_E2E_TEAM) {
-  scratch = await setUp();
+  try {
+    scratch = await setUp();
+  } catch (err) {
+    // a failed set-up never reaches onComplete: the teammate studio must not outlive the launcher
+    for (const c of children) c.kill('SIGTERM');
+    throw err;
+  }
+}
+
+/** The last lines of a log, for an error message that carries its own cause. */
+export function logTail(file: string, lines = 30): string {
+  if (!existsSync(file)) return '(no log)';
+  return readFileSync(file, 'utf8').trimEnd().split('\n').slice(-lines).join('\n');
 }
 
 async function setUp(): Promise<string> {
@@ -131,6 +151,11 @@ async function setUp(): Promise<string> {
   useFakeAi();
 
   const scratch = mkdtempSync(join(tmpdir(), 'maude-e2e-team-'));
+  // The run's evidence dir, made first: the teammate studio logs into it from its first line.
+  const stamp = new Date().toISOString().slice(0, 16).replace('T', '-').replace(':', '');
+  const runDir = resolve(HERE, '../../../.ai/device/scenario-runs/team-project', stamp);
+  mkdirSync(runDir, { recursive: true });
+  process.env.MAUDE_E2E_RUN_DIR = runDir;
   // V2-8.18 — MAUDE_E2E_HUB_TARGET (a 0600 JSON file the Docker gate writes): the same lane against a
   // self-hosted hub CONTAINER instead of the in-process hub. Its people already exist (designer@x.test with
   // TEAM_PASSWORD, invited through /join; a teammate session); the server-away steps become `docker kill` +
@@ -193,6 +218,9 @@ async function setUp(): Promise<string> {
   // p8-e2e-fix-r12: the teammate serves this tree's client bundle — never a stale one
   assertFreshClientDist(join(ROOT, 'apps/studio'));
   const teammatePort = await freePort();
+  // Its stdout + stderr go to a file in the run dir: a set-up that times out names the cause, never eats it.
+  const teammateLog = join(runDir, 'teammate-studio.log');
+  const teammateOut = openSync(teammateLog, 'a');
   const studio = spawn(
     'bun',
     [
@@ -212,20 +240,37 @@ async function setUp(): Promise<string> {
         MAUDE_NO_AUTOBUILD: '1',
         NO_OPEN: '1',
       },
-      stdio: ['ignore', 'ignore', 'pipe'],
+      stdio: ['ignore', teammateOut, teammateOut],
     }
   );
   children.push(studio);
 
   // The project is seeded when the hub's own manifest lists both canvases.
-  await until('the teammate’s canvases on the hub', async () => {
-    const r = await fetch(`${hub.http}/api/projects/current/v1/bootstrap`, {
-      headers: { authorization: `Bearer ${hub.tokens.owner}` },
+  let lastBoot = '';
+  try {
+    await until('the teammate’s canvases on the hub', async () => {
+      const r = await fetch(`${hub.http}/api/projects/current/v1/bootstrap`, {
+        headers: { authorization: `Bearer ${hub.tokens.owner}` },
+      });
+      const boot = (await r.json()) as {
+        docs?: { path: string; retired?: boolean }[];
+        formatVersion?: unknown;
+        mode?: unknown;
+      };
+      const paths = (boot.docs ?? []).filter((d) => !d.retired).map((d) => d.path);
+      lastBoot = JSON.stringify({
+        status: r.status,
+        formatVersion: boot.formatVersion,
+        mode: boot.mode,
+        paths,
+      });
+      return paths.includes('ui/welcome.tsx') && paths.includes('screens/home.tsx');
     });
-    const boot = (await r.json()) as { docs?: { path: string; retired?: boolean }[] };
-    const paths = (boot.docs ?? []).filter((d) => !d.retired).map((d) => d.path);
-    return paths.includes('ui/welcome.tsx') && paths.includes('screens/home.tsx');
-  });
+  } catch (err) {
+    throw new Error(
+      `${(err as Error).message} — the hub's last bootstrap ${lastBoot}; teammate studio (${teammateLog}):\n${logTail(teammateLog)}`
+    );
+  }
 
   // ── The designer's machine ────────────────────────────────────────────────
   // Nothing of the developer's own: no hub credentials, no Maude Cloud session.
@@ -249,12 +294,6 @@ async function setUp(): Promise<string> {
           hubPort: Number(new URL(hub.http).port),
         }),
   });
-  const stamp = new Date().toISOString().slice(0, 16).replace('T', '-').replace(':', '');
-  process.env.MAUDE_E2E_RUN_DIR = resolve(
-    HERE,
-    '../../../.ai/device/scenario-runs/team-project',
-    stamp
-  );
   return scratch;
 }
 

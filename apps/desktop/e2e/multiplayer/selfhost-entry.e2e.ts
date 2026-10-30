@@ -6,6 +6,7 @@ import { capture, startReport } from '../helpers/evidence';
 import { connectHubFromHome } from '../helpers/home-entry';
 import { isNativeShell } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
+import { ensureFilesTab, expandTree } from '../helpers/tree';
 import { pinCurrentWindow } from '../helpers/windows';
 
 const run = JSON.parse(process.env.MAUDE_SELFHOST_ENTRY_RUN ?? 'null') as {
@@ -60,12 +61,16 @@ describe('S01 self-host entry on a clean native profile (Linux, or macOS on a lo
     });
     await capture('team-server-form');
     // The project is open once its canvases arrive. A consent step, when this
-    // server asks for one, is the same choice a person makes.
+    // server asks for one, is the same choice a person makes. The Canvases panel
+    // starts collapsed (issue #124): a project with more than one group draws each
+    // as a closed folder, so the rows exist only once a person opens them.
     try {
       await browser.waitUntil(
         async () => {
           const consent = await $(tid('sync-consent-accept'));
           if (await consent.isDisplayed().catch(() => false)) await consent.click();
+          await ensureFilesTab();
+          await expandTree();
           return (await browser.$$('[data-testid^="canvas-row-ui-"]').length) > 0;
         },
         { timeout: 180_000, interval: 1000, timeoutMsg: 'The invited project never opened' }
@@ -102,7 +107,15 @@ describe('S01 self-host entry on a clean native profile (Linux, or macOS on a lo
     await (await $('input[aria-label="New brief board name"]')).setValue(canvasName);
     await (await $('button[aria-label="Create brief board"]')).click();
     const row = `canvas-row-ui-${canvasName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
-    await (await $(tid(row))).waitForDisplayed({ timeout: 60_000 });
+    // (its folder may still be closed: a person opens it to see the new row)
+    await browser.waitUntil(
+      async () => {
+        await ensureFilesTab();
+        await expandTree();
+        return $(tid(row)).isDisplayed();
+      },
+      { timeout: 60_000, interval: 500, timeoutMsg: `${row} never appeared in the Canvases panel` }
+    );
     const heading = 'div[style*="font-size: 22px"]';
     await browser.waitUntil(async () => (await probe(heading)).observation?.visible === true, {
       timeout: 60_000,
