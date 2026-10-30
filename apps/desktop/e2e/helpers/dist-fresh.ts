@@ -66,6 +66,42 @@ export function staleClientDist(studioDir: string): string | null {
   };
   walk(join(studioDir, 'client'));
   if (bundleAt >= newest) return null;
+  // A whitespace-only client commit after the bundle's (a biome re-format that re-wraps lines, 5f88d88e5 2026-10-30)
+  // rebuilds to the same bytes, so the bundle can never be re-committed after it. Committed client files changed
+  // since the bundle's commit whose text is equal with all whitespace removed do not count; an uncommitted newer
+  // client file still does (walk above).
+  if (!dirty.has(rel(bundle)) && !newestWhat.includes('uncommitted')) {
+    try {
+      const since = git('log', '-1', '--format=%H', '--', bundle).trim();
+      const changed = git(
+        'diff',
+        '--name-only',
+        since,
+        'HEAD',
+        '--',
+        join(studioDir, 'client'),
+        ':(exclude,glob)**/*.css'
+      )
+        .split('\n')
+        .filter(Boolean);
+      const squash = (rev: string, file: string) => {
+        try {
+          return git('show', `${rev}:${file}`).replace(/\s+/g, '');
+        } catch {
+          return null; // added or deleted on one side
+        }
+      };
+      if (
+        changed.every((f) => {
+          const a = squash(since, f);
+          return a !== null && a === squash('HEAD', f);
+        })
+      )
+        return null;
+    } catch {
+      // no history to compare against: keep the time rule
+    }
+  }
   return `dist/client.bundle.js (${new Date(bundleAt).toISOString()}) is older than ${newestWhat}`;
 }
 

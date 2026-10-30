@@ -60,6 +60,20 @@ test('a bundle committed before a later client commit is stale', () => {
   }
 });
 
+test('a whitespace-only client commit after the bundle (a re-format) does not make it stale', () => {
+  const r = repo();
+  try {
+    r.commit('client/v2/share.jsx', 'const a = 1;\n', '2026-10-30T14:00:00+01:00');
+    r.commit('dist/client.bundle.js', 'built', '2026-10-30T15:00:58+01:00');
+    r.commit('client/v2/share.jsx', 'const a =\n  1;\n', '2026-10-30T15:06:11+01:00');
+    assert.equal(staleClientDist(r.studio), null);
+    r.commit('client/v2/share.jsx', 'const a = 2;\n', '2026-10-30T15:10:00+01:00');
+    assert.match(staleClientDist(r.studio), /older than/);
+  } finally {
+    r.done();
+  }
+});
+
 test('a bundle committed after the last client commit is fresh', () => {
   const r = repo();
   try {
