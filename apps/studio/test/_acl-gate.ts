@@ -28,7 +28,7 @@
 // segment is a red test (the hub sweep once swept every pattern row at `/v1/undefined`).
 
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { type Subprocess, spawn } from 'bun';
 
@@ -229,6 +229,12 @@ export async function bootGateCell(
   put('ui/canary-c.meta.json', JSON.stringify({ designSystem: 'canary-ds' }));
   put(A_ASSET, 'A-ASSET-BYTES');
   put(B_ASSET, 'CANARY-B-ASSET');
+  // p8-ci-linux-2 — one fixture, one mtime: two boots must be the SAME project. Written back to
+  // back, the two pictures got one stamp in one boot and two in the other on ext4's coarse clock,
+  // and `/_api/assets` (newest first) listed them in a different order (U7 red on CI). Equal on
+  // purpose: the listing's own tie-break (by name) then decides, the same on every filesystem.
+  const ASSET_T = new Date('2026-10-30T02:22:29.000Z');
+  for (const a of [A_ASSET, B_ASSET]) utimesSync(join(designRoot, a), ASSET_T, ASSET_T);
   mkdirSync(join(designRoot, '_comments'), { recursive: true });
   put('_comments/a.json', JSON.stringify([comment(A_COMMENT, `${D}/${A_REL}`, 'hello A')]));
   put(

@@ -62,7 +62,8 @@ export function lastReview(designRoot: string, canvasRepoRel: string): LastRevie
   const runsDir = path.join(designRoot, '_runs');
   let runs: string[];
   try {
-    runs = readdirSync(runsDir).slice(0, MAX_RUNS);
+    // by name, not readdir order: which runs the cap keeps, and which wins an mtime tie
+    runs = readdirSync(runsDir).sort().slice(0, MAX_RUNS);
   } catch {
     return NONE;
   }
@@ -73,7 +74,7 @@ export function lastReview(designRoot: string, canvasRepoRel: string): LastRevie
     const dir = path.join(runsDir, run, 'handoff');
     let names: string[];
     try {
-      names = readdirSync(dir);
+      names = readdirSync(dir).sort();
     } catch {
       continue;
     }

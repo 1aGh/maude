@@ -380,7 +380,8 @@ function scanChats(designRoot: string): ChatSummary[] {
   const dir = chatDir(designRoot);
   if (!existsSync(dir)) return [];
   const out: ChatSummary[] = [];
-  for (const name of readdirSync(dir)) {
+  // by name: equal mtimes keep it through the stable newest-first sort, and search reads it as is
+  for (const name of readdirSync(dir).sort()) {
     if (!name.endsWith('.jsonl')) continue;
     const id = name.replace(/\.jsonl$/, '');
     const meta = readListMeta(designRoot, id);

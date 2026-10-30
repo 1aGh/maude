@@ -3770,7 +3770,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       }
       out.push({ path: `assets/${name}`, name, ext: ext.slice(1), kind, size, mtimeMs });
     }
-    out.sort((a, b) => b.mtimeMs - a.mtimeMs);
+    // Newest first; equal mtimes (a coarse filesystem clock stamps files written back to back alike) by
+    // name — never readdir order, which differs per filesystem and so per machine (p8-ci-linux-2).
+    out.sort((a, b) => b.mtimeMs - a.mtimeMs || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
     return { ok: true, assets: out.slice(0, 500) };
   }
 
@@ -3926,7 +3928,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     const assetsDir = path.join(paths.designRoot, 'assets');
     let entries: string[];
     try {
-      entries = await readdir(assetsDir);
+      entries = (await readdir(assetsDir)).sort(); // a defined order for the cap and for ties
     } catch {
       return [];
     }
@@ -4630,7 +4632,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       if (depth > 12) return null;
       let entries: import('node:fs').Dirent[];
       try {
-        entries = await readdir(dirAbs, { withFileTypes: true });
+        entries = (await readdir(dirAbs, { withFileTypes: true })).sort((a, b) =>
+          a.name < b.name ? -1 : a.name > b.name ? 1 : 0
+        );
       } catch {
         return null;
       }
@@ -7977,7 +7981,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       path.join(sysAbs, 'README.md'),
     ];
     try {
-      const subs = await readdir(sysAbs, { withFileTypes: true });
+      const subs = (await readdir(sysAbs, { withFileTypes: true })).sort((a, b) =>
+        a.name < b.name ? -1 : a.name > b.name ? 1 : 0
+      );
       for (const s of subs)
         if (s.isDirectory()) readmeCandidates.push(path.join(sysAbs, s.name, 'README.md'));
     } catch {
@@ -8021,7 +8027,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         // the DS-relative `<folderName>` subdir — scanning sub-dirs here
         // would treat the DS's own `preview/` as a sibling DS root.
         if (!dsEntry) {
-          const subs = await readdir(sysAbs, { withFileTypes: true });
+          const subs = (await readdir(sysAbs, { withFileTypes: true })).sort((a, b) =>
+            a.name < b.name ? -1 : a.name > b.name ? 1 : 0
+          );
           for (const s of subs) {
             if (!s.isDirectory()) continue;
             const candidate = path.join(sysAbs, s.name, folderName);

@@ -187,7 +187,7 @@ export function createRunRegistry(opts: RegistryOptions) {
     if (!dir) return [];
     let names: string[] = [];
     try {
-      names = readdirSync(dir);
+      names = readdirSync(dir).sort(); // a createdAt tie and the routes' `.find` fall back to this order
     } catch {
       return [];
     }

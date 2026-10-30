@@ -735,7 +735,8 @@ export function createCloudExports(opts: CloudExportsOptions) {
       const row = rowOfIntent(r);
       if (row) out.push(row);
     }
-    return out.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+    // a consistent comparator (0 on a tie), so an equal createdAt keeps the order above
+    return out.sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0));
   }
 
   const announce = (row: CloudRow | null) => {
@@ -930,7 +931,9 @@ export function createCloudExports(opts: CloudExportsOptions) {
     resume(): number {
       let names: string[] = [];
       try {
-        names = readdirSync(dir).filter((f) => f.endsWith('.json'));
+        names = readdirSync(dir)
+          .filter((f) => f.endsWith('.json'))
+          .sort(); // an equal createdAt keeps this order
       } catch {
         return 0;
       }

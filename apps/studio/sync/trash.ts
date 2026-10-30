@@ -53,7 +53,8 @@ function walkFiles(
 ): void {
   let names: string[];
   try {
-    names = readdirSync(absDir);
+    // by name: one bundle's files share their `at`, and the stable newest-first sort keeps this order
+    names = readdirSync(absDir).sort();
   } catch {
     return;
   }
