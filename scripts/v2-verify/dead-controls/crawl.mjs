@@ -124,6 +124,14 @@ export function tagErrorKind(kind, text) {
   // the tree is read while the server restarts under a reset
   else if (/failed to load tree/i.test(text) && /Failed to fetch/.test(text))
     kind = `${kind} (server restarting)`;
+  // what a reset or a replay's page reload cuts off: an aborted fetch, a reset / empty / half-sent response, a
+  // module or a list the restarting server could not serve (p8-sweep-finish)
+  else if (
+    /failed to load tree.*Abort|failed to load (comments|tree).*Failed to fetch/is.test(text) ||
+    /net::ERR_(EMPTY_RESPONSE|CONNECTION_RESET|CONTENT_LENGTH_MISMATCH)/.test(text) ||
+    /Failed to fetch dynamically imported module/.test(text)
+  )
+    kind = `${kind} (server restarting)`;
   // the fixture's video canvases name media files the fixture does not ship (assets/aaaa1111.mp4, song.mp3):
   // the server refuses them and the player throws — the rig's gap, not a control's
   else if (
