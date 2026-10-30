@@ -2,6 +2,7 @@
 // project index persist to machine caches under ~/.maude; a test — or any server it spawns, which
 // inherits process.env — must never write the person's real ones. One throwaway dir per test
 // process unless the environment already names its own.
+import { beforeEach } from 'bun:test';
 import { mkdtempSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { delimiter, join, sep } from 'node:path';
@@ -48,3 +49,20 @@ if (process.env.MAUDE_TEST_REAL_CLAUDE !== '1') {
   process.env.PATH = `${stubBin}${delimiter}${process.env.PATH ?? ''}`;
   process.env.MAUDE_CLAUDE_BIN = '';
 }
+
+// The suite runs as `bun test --isolate` (package.json `test`, CI, the mini lane): every file gets a fresh
+// global and this preload again. Without it each file inherits the earlier files' globals (happy-dom's
+// window, a stubbed fetch, `__TAURI__`), deleted env pins and module state, and a full run reads as ~500
+// failures in files that pass alone (p8-suite-green 2026-10-30: 497 fails plain, the same tree isolated far
+// fewer). `Bun.main` names the file a test runs in, and this preload captured it for the file it ran for:
+// when they differ the preload did not run for this file, so the run is not isolated — say so once and stop
+// rather than fabricate failures. One file, or `--isolate`, never trips it.
+const preloadedFor = Bun.main;
+beforeEach(() => {
+  if (Bun.main === preloadedFor) return;
+  console.error(
+    '\napps/studio tests run as `bun test --isolate` (the package.json `test` script): this run shares one ' +
+      'global across files, so later files would fail for reasons not their own. Re-run with --isolate.\n'
+  );
+  process.exit(2);
+});

@@ -18,7 +18,7 @@ for sha in $(git rev-list --reverse "$BASE..$TIP"); do
   r1="$(bun scripts/v2-split/verify-verbatim.mjs --base "$BASE" 2>&1 | tail -1)"
   bash scripts/check-import-coherence.sh >/tmp/v2c-coh.log 2>&1 && r2=ok || r2=FAIL
   LANE="bash scripts/v2-test-lane.sh --wait 7200 --"
-  $LANE bash -c "cd apps/studio && NO_OPEN=1 MAUDE_NO_AUTOBUILD=1 bun test $TESTS" >/tmp/v2c-tests.log 2>&1 && r3=ok || r3=FAIL
+  $LANE bash -c "cd apps/studio && NO_OPEN=1 MAUDE_NO_AUTOBUILD=1 bun test --isolate $TESTS" >/tmp/v2c-tests.log 2>&1 && r3=ok || r3=FAIL
   $LANE node scripts/check-v1-characterization.mjs --build --jobs 4 --boot-gate >/tmp/v2c-char.log 2>&1 && r4=ok || r4=FAIL
   size="$(grep -o 'client.bundle.js [0-9]* B' /tmp/v2c-char.log | head -1)"
   case "$r1" in move-only:*) r1=ok ;; *) r1="FAIL ($r1)" ;; esac
