@@ -8,7 +8,7 @@
 //       content-addressed dedupe, method gate.
 
 import { describe, expect, test } from 'bun:test';
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { ASSET_MAX_BYTES, sniffImageType } from '../api.ts';
@@ -123,6 +123,24 @@ describe('asset-api / POST /_api/asset (endpoint round-trip)', () => {
       expect(a.path).toBe(b.path);
       const files = readdirSync(join(designRoot, 'assets'));
       expect(files.length).toBe(1);
+    });
+  });
+
+  test('a planted file under the content name is never returned as the dedupe hit (A4)', async () => {
+    await withServer(async (port, designRoot) => {
+      const a = await (await postAsset(port, PNG)).json();
+      // Someone landed different bytes under the name the real bytes hash to.
+      const planted = join(designRoot, a.path);
+      const evil = pad([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0xde, 0xad]);
+      writeFileSync(planted, evil);
+      const res = await postAsset(port, PNG);
+      expect(res.status).toBe(201);
+      const b = await res.json();
+      expect(b.path).not.toBe(a.path);
+      expect(Buffer.from(readFileSync(join(designRoot, b.path)))).toEqual(Buffer.from(PNG));
+      // The real bytes now dedupe against their own (verified) copy, not the planted one.
+      const c = await (await postAsset(port, PNG)).json();
+      expect(c.path).toBe(b.path);
     });
   });
 

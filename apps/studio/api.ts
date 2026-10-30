@@ -3272,6 +3272,18 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     allowImages: boolean;
   }
 
+  /** Streamed sha-256 of a file on disk (a dedupe hit must prove its bytes, not just its name). */
+  async function sha256File(abs: string): Promise<string> {
+    const h = crypto.createHash('sha256');
+    const reader = Bun.file(abs).stream().getReader();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      h.update(value);
+    }
+    return h.digest('hex');
+  }
+
   async function consumeAssetStream(
     stream: ReadableStream<Uint8Array>,
     opts: ConsumeAssetOpts
@@ -3364,17 +3376,40 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       if (sink) await sink.end();
 
       const digest = hash.digest('hex');
-      const sha8 = digest.slice(0, 8);
-      const name = `${sha8}.${typeInfo.ext}`;
-      const fileAbs = path.join(assetsDir, name);
-      // Containment backstop — the name is content-addressed (sha8 hex + sniffed
-      // ext), no user-controlled segment, but assert anyway (poisoned designRoot).
-      if (path.resolve(fileAbs) !== path.join(path.resolve(assetsDir), name)) {
-        await rm(tmpAbs, { force: true });
-        return { ok: false, status: 400, error: 'resolved asset path escapes assets dir' };
+      // The short name is the usual one; a file already sitting under it that does NOT hash to
+      // this digest (planted, or a sha8 collision) is never returned as the dedupe hit (security
+      // batch 2, A4) — the bytes go under a longer name instead. It keeps the sha8 as its prefix
+      // (`<sha8>-<more digest>.<ext>`) so the S3 mirror's path check still verifies the bytes.
+      let name = `${digest.slice(0, 8)}.${typeInfo.ext}`;
+      let fileAbs = path.join(assetsDir, name);
+      let deduped = false;
+      const longStem = `${digest.slice(0, 8)}-${digest.slice(8, 32)}`;
+      for (const stem of [digest.slice(0, 8), longStem]) {
+        name = `${stem}.${typeInfo.ext}`;
+        fileAbs = path.join(assetsDir, name);
+        // Containment backstop — the name is content-addressed (hex digest + sniffed
+        // ext), no user-controlled segment, but assert anyway (poisoned designRoot).
+        if (path.resolve(fileAbs) !== path.join(path.resolve(assetsDir), name)) {
+          await rm(tmpAbs, { force: true });
+          return { ok: false, status: 400, error: 'resolved asset path escapes assets dir' };
+        }
+        if (!(await Bun.file(fileAbs).exists())) break;
+        if ((await sha256File(fileAbs)) === digest) {
+          deduped = true;
+          break;
+        }
+        if (stem === longStem) {
+          // Even the long name holds other bytes: refuse, never serve them.
+          await rm(tmpAbs, { force: true });
+          return {
+            ok: false,
+            status: 409,
+            error: 'an asset with this name already holds other bytes',
+          };
+        }
       }
-      // Dedupe — identical bytes hash to the same name; drop the temp copy.
-      if (await Bun.file(fileAbs).exists()) {
+      // Dedupe — identical bytes (verified above), drop the temp copy.
+      if (deduped) {
         await rm(tmpAbs, { force: true });
         return { ok: true, path: `assets/${name}` };
       }
