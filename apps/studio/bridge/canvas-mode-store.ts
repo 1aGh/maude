@@ -268,6 +268,32 @@ export function shouldBootRefit(
   return bootFit.x === current.x && bootFit.y === current.y && bootFit.zoom === current.zoom;
 }
 
+/** A camera the runtime placed by itself (boot fit, §5.6 I2 boot re-fit, a resize re-fit) and the host size it fits. */
+export interface AutoFit {
+  camera: { x: number; y: number; zoom: number };
+  w: number;
+  h: number;
+}
+
+/**
+ * p8-edit-multi-flake — the boot fit follows the host: a frame that first lays out at a placeholder size (an
+ * iframe's 300 x 150 default) and only then gets its real one re-fits, while the camera is still exactly the
+ * runtime's own fit and nobody is gesturing. Once the camera has moved it never re-fits again (the caller
+ * drops `auto`). A host that had no size at the fit is the controller's zero-size path, not this one.
+ */
+export function shouldResizeRefit(
+  auto: AutoFit | null,
+  current: { x: number; y: number; zoom: number } | null,
+  interacting: boolean,
+  w: number,
+  h: number
+): boolean {
+  if (!auto || !current || interacting) return false;
+  if (!w || !h || !auto.w || !auto.h || (w === auto.w && h === auto.h)) return false;
+  const c = auto.camera;
+  return c.x === current.x && c.y === current.y && c.zoom === current.zoom;
+}
+
 // Installed when the canvas runtime loads, so an `occluded-insets` the shell seeds on `loaded`
 // isn't missed by a listener a later first fit would have installed.
 if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {

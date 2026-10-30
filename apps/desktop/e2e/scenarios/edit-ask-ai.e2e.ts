@@ -105,6 +105,19 @@ describe('⌘/ on a selection, in place (S2.19)', () => {
       expect(p).not.toBeNull();
       await click(p!.x, p!.y, i > 0);
     }
+    // ⌘/ reads the canvas's selection: press it only once the canvas holds all three (its align bar counts
+    // them). p8-edit-multi-flake's full lane pressed it 18 ms after the third ⇧-click and asked about "2 elements".
+    await browser.waitUntil(
+      async () =>
+        (await browser.execute(() => {
+          const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
+          return (
+            frame.contentDocument?.querySelector('[data-testid="edit-align-count"]')?.textContent ??
+            null
+          );
+        })) === '3 objects',
+      { timeout: 6000, timeoutMsg: 'the canvas never held the three cards' }
+    );
   }
 
   it('three cards selected: ⌘/ opens the bubble under them, chip "3 elements", the field has focus', async () => {

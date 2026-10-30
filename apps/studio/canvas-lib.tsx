@@ -147,11 +147,13 @@ import './print-overlay-content.tsx';
 // registration above, for the 'web' kind's breakpoint-band chip.
 import './web-overlay-content.tsx';
 import {
+  type AutoFit,
   canvasInsets,
   canvasModeStore,
   canvasSingleKeys,
   onFirstInsets,
   shouldBootRefit,
+  shouldResizeRefit,
 } from './bridge/canvas-mode-store.ts';
 import { type Insets, visibleRect, ZERO_INSETS } from './bridge/occlusion.ts';
 import { buildMoveArtboardsRecord, type LayoutRider } from './commands/move-artboards-command.ts';
@@ -2335,6 +2337,9 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
 
   // V2-1.2 §5.6 I2 — the camera getInitial() fitted at boot (null: persisted / resumed / already inset).
   const bootFitRef = useRef<ViewportState | null>(null);
+  // p8-edit-multi-flake — the camera the runtime placed by itself and the host size it fits (null: persisted /
+  // resumed, or the camera has moved since). A host that grows from a placeholder size re-fits (below).
+  const autoFitRef = useRef<AutoFit | null>(null);
 
   const computeFitForArtboards = useCallback((): ViewportState => {
     const host = hostRef.current;
@@ -2358,6 +2363,7 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
     // §5.6 I2 — remember the boot fit only if no insets had arrived yet (else it already honours them).
     bootFitRef.current =
       typeof window !== 'undefined' && canvasModeStore(window).get().insetsSeq < 0 ? fit : null;
+    autoFitRef.current = { camera: { ...fit }, w: host.clientWidth, h: host.clientHeight };
     return fit;
   }, []);
 
@@ -2414,8 +2420,43 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
       const c = controllerRef.current;
       const boot = bootFitRef.current;
       bootFitRef.current = null;
-      if (shouldBootRefit(boot, c.viewport, c.isInteracting, s.insets)) c.refitBoot();
+      if (shouldBootRefit(boot, c.viewport, c.isInteracting, s.insets)) {
+        c.refitBoot();
+        const host = hostRef.current;
+        const now = getLiveViewport();
+        if (host && now)
+          autoFitRef.current = { camera: now, w: host.clientWidth, h: host.clientHeight };
+      }
     });
+  }, []);
+
+  // p8-edit-multi-flake — the boot fit follows the host until the camera moves. A frame can lay out at an
+  // iframe's 300 x 150 default before the shell sizes it; a camera fitted then stayed thumbnail-small on the
+  // full-size frame. Re-fit in place (crisp, nothing persisted — still a boot camera) while the camera is
+  // exactly the runtime's own fit; drop the record the first time it is not.
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => {
+      const auto = autoFitRef.current;
+      if (!auto) return;
+      const c = controllerRef.current;
+      const now = getLiveViewport();
+      const w = host.clientWidth;
+      const h = host.clientHeight;
+      if (shouldResizeRefit(auto, now, c.isInteracting, w, h)) {
+        c.refitBoot();
+        const after = getLiveViewport();
+        autoFitRef.current = after ? { camera: after, w, h } : null;
+      } else if (
+        now &&
+        (now.x !== auto.camera.x || now.y !== auto.camera.y || now.zoom !== auto.camera.zoom)
+      ) {
+        autoFitRef.current = null;
+      }
+    });
+    ro.observe(host);
+    return () => ro.disconnect();
   }, []);
 
   // S3.2a — Present · Artboards: inert until the shell's `set-mode` says so (present/present-stage.tsx).
