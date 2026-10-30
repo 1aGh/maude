@@ -96,7 +96,7 @@ import { type ObjectMenuDeps, objectMenuSections } from './editing/object-menu.t
 // S2.11 — the reorder slot's state + the ⌥-copy / drag-out drops (editing/reorder-slot.tsx)
 import { liftCard, panelMotion, reorderSlot, takeOver } from './editing/reorder-slot.tsx';
 import { isLockedDom, lockedClickSelection, stepOut } from './editing/selection.tsx';
-import { commitTextInPlace, textOpDeps } from './editing/text-actions.ts';
+import { commitTextInPlace, lockedTextLine, textOpDeps } from './editing/text-actions.ts';
 import { EqualSpacingHandles } from './equal-spacing-handles.tsx';
 import {
   crossedDragThreshold,
@@ -3491,6 +3491,13 @@ function CanvasRouter({
       // canvas never enters edit mode (one gate for BOTH entry points: the
       // dblclick drill and the annotation Text-tool click-through).
       if (isReadOnlyCanvas()) return;
+      // p8-lock-reasons — a shared-locked text refuses the save (409 locked): the caret never opens on it, and
+      // the lock line says why (one gate for the dblclick and the ↵ / Text-tool entry)
+      const lockedLine = lockedTextLine(stamped);
+      if (lockedLine) {
+        textOpDeps.current.toast?.(lockedLine, 'info');
+        return;
+      }
       editing = stamped;
       original = stamped.textContent ?? '';
       stamped.setAttribute('contenteditable', 'plaintext-only');
