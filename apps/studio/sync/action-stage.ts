@@ -95,10 +95,12 @@ export interface RunStage {
    * claimed exactly those bytes for it (`claim`), never because it is the one run open. The one named
    * exception is a call that cannot claim (S7 interpreter, terminal-lane verb): while it is open
    * (`shellCalls`, call → the canvases its command names) or within SHELL_SETTLE_MS of it closing
-   * (`shellClosed`), an unclaimed write to ONE OF THOSE canvases joins the run.
+   * (`shellClosed`), an unclaimed write to ONE OF THOSE canvases joins the run. p8-sec2-attrib A1 — a
+   * call that names none (a glob, `find -exec`, a computed name) covers EVERY canvas (`ALL_CANVASES`):
+   * only outside writes reach the stage at all (a person's studio save is never stageable).
    */
-  shellCalls?: Map<string, Set<string>>;
-  shellClosed?: Array<{ slugs: Set<string>; at: number }>;
+  shellCalls?: Map<string, ShellSlugs>;
+  shellClosed?: Array<{ slugs: ShellSlugs; at: number }>;
   /**
    * p8-a1-claims (F17) — canvases this run DELETED (a claimed `maude design trash move`): doc id → the
    * canvas path. Published as `doc.delete` in the run's one action, so its undo brings the canvas back.
@@ -195,6 +197,11 @@ export interface ActionStageOptions {
 const STOPPED = ' — stopped';
 /** A1 — the watcher delivers a verb's last write a beat after the call returns (cf. AI settle 250 ms). */
 export const SHELL_SETTLE_MS = 1_000;
+
+/** p8-sec2-attrib A1 — the window of a call that names no canvas: it covers every one. */
+const ALL_CANVASES = '*' as const;
+type ShellSlugs = Set<string> | typeof ALL_CANVASES;
+const coversShellSlug = (s: ShellSlugs, slug: string) => s === ALL_CANVASES || s.has(slug);
 const RUN_ID = /^[A-Za-z0-9_-]{1,64}$/;
 const originId = (v: unknown): string | undefined =>
   typeof v === 'string' && RUN_ID.test(v) ? v : undefined;
@@ -419,7 +426,7 @@ export function createActionStage(opts: ActionStageOptions) {
        * A1 — a call that cannot claim opening (`open`) or closing its window, for the canvases its
        * command names (`slugs`, in this stage's slug form; none = it takes nothing).
        */
-      shell?: { call: string; open: boolean; slugs?: string[] };
+      shell?: { call: string; open: boolean; slugs?: string[]; all?: boolean };
       /** p8-a1-claims — every run is claim-only now; kept for callers that still say so. */
       claimOnly?: boolean;
     } = {}
@@ -455,11 +462,15 @@ export function createActionStage(opts: ActionStageOptions) {
   /** A1 — open/close the window of one call that cannot claim (no `shell`: nothing changes). */
   function shellWindow(
     r: RunStage,
-    shell: { call: string; open: boolean; slugs?: string[] } | undefined
+    shell: { call: string; open: boolean; slugs?: string[]; all?: boolean } | undefined
   ): void {
     if (!shell) return;
     r.shellCalls ??= new Map();
     if (shell.open) {
+      if (shell.all) {
+        r.shellCalls.set(shell.call, ALL_CANVASES);
+        return;
+      }
       const slugs = new Set(shell.slugs ?? []);
       if (slugs.size) r.shellCalls.set(shell.call, slugs);
       return;
@@ -476,8 +487,10 @@ export function createActionStage(opts: ActionStageOptions) {
 
   /** May `r` take a write to `slug` nobody claimed? Only inside a named-file window (S7 fallback). */
   const takesUnclaimed = (r: RunStage, slug: string) =>
-    [...(r.shellCalls?.values() ?? [])].some((s) => s.has(slug)) ||
-    (r.shellClosed ?? []).some((c) => now() - c.at <= SHELL_SETTLE_MS && c.slugs.has(slug));
+    [...(r.shellCalls?.values() ?? [])].some((s) => coversShellSlug(s, slug)) ||
+    (r.shellClosed ?? []).some(
+      (c) => now() - c.at <= SHELL_SETTLE_MS && coversShellSlug(c.slugs, slug)
+    );
 
   /** A tool reported writing `hash` (sha256 of the content) to canvas `slug`. */
   function claim(keyOrRun: string, slug: string, hash?: string | null): void {

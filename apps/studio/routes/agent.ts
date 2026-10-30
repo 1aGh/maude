@@ -935,6 +935,11 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
           );
         files.push(rel);
       }
+      if (b.all !== undefined && typeof b.all !== 'boolean') return bad('all is a boolean');
+      // p8-sec2-attrib A1 — a call that may write but names no canvas (a glob, `find -exec`, a computed
+      // name): the run stage takes its outside writes on EVERY canvas while it runs. No hold — a person's
+      // save lands at once as theirs, and the call's end binds only the bytes it changed.
+      const all = b.all === true;
       const self = runs.get(session, chat);
       if (!self) return json(200, { window: false });
       // p8-a1-save-hold — while it is open a person's save to these files waits (ai/save-hold.ts);
@@ -945,7 +950,7 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
         files.map((f) => path.join(deps.repoRoot, deps.designRel, f)),
         `run:${self.run}`
       );
-      deps.bracket?.window?.(self, toolUseId, b.open, files);
+      deps.bracket?.window?.(self, toolUseId, b.open, files, all);
       return json(200, { window: true });
     }),
     // p8-a1-claims — a disk-writing verb (reel-place, canvas-edit, ds-check --fix, import-figma) claims

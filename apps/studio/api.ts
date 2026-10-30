@@ -1442,8 +1442,13 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   const onCommentsChanged = hooks.onCommentsChanged;
   const onAnnotationsChanged = hooks.onAnnotationsChanged;
   const { paths, cfg } = ctx;
-  // p8-a1-save-hold — a person's save held behind an AI interpreter call says its bytes when it lands
-  saveHold().attach({ emit: (ev, p) => ctx.bus.emit(ev, p), designRoot: paths.designRoot });
+  // p8-a1-save-hold — a person's save held behind an AI interpreter call says its bytes when it lands;
+  // p8-sec2-attrib A1 — and every person's source save it hears is noted as theirs (`notePersonWrite`)
+  saveHold().attach({
+    emit: (ev, p) => ctx.bus.emit(ev, p),
+    on: (ev, fn) => ctx.bus.on(ev, fn),
+    designRoot: paths.designRoot,
+  });
 
   // Phase 12.1 — in-memory reorder revert log (Cmd+Z for drag/keyboard moves).
   // Whole-file {before, after} per reorder, keyed by a monotonic seq the client
@@ -2647,6 +2652,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         return { ...((await loadCanvasMeta(file)) ?? {}), layout: next.layout };
       }
       await Bun.write(metaAbs, nextText);
+      // p8-sec2-attrib A1 — the person's bytes: a call that wrote without naming files leaves them
+      saveHold().notePersonWrite(metaAbs, nextText);
       hooks.onMetaChanged?.(file, nextText, baseText);
       // Same reason as the annotations sidecar below, and the same bug: this
       // lane writes the FILE and nothing else, so in a cell — where there is no

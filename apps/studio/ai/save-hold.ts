@@ -345,6 +345,20 @@ export function createSaveHold(opts: SaveHoldOptions = {}) {
     return d.go;
   }
 
+  /**
+   * p8-sec2-attrib A1 — the person's save of `bytes` to `abs` went straight through (no hold): noted like
+   * a held landing, so the end of a call that wrote without naming its files (it binds every file whose
+   * bytes changed) does not take the person's bytes for the AI. Only a person's save is noted.
+   */
+  function notePersonWrite(abs: string, bytes: string): void {
+    if (!isPersonSave()) return;
+    landed.set(abs, { hash: hashBytes(bytes), at: now() });
+    if (landed.size > 4096) {
+      const cut = now() - staleMs;
+      for (const [k, v] of landed) if (v.at < cut) landed.delete(k);
+    }
+  }
+
   const releaseWhere = (match: (abs: string) => boolean, why: 'flush') =>
     Promise.all([
       ...[...pending.values()].filter((p) => match(p.abs)).map((p) => land(p, why)),
@@ -353,9 +367,23 @@ export function createSaveHold(opts: SaveHoldOptions = {}) {
 
   return {
     /** Wire the bus the landing announces on (api.ts `createApi`). */
-    attach(b: { emit: (ev: string, p: unknown) => void; designRoot: string }): void {
+    attach(b: {
+      emit: (ev: string, p: unknown) => void;
+      designRoot: string;
+      /** p8-sec2-attrib A1 — the studio's own source writes, so a person's save is noted as theirs */
+      on?: (ev: string, fn: (p: unknown) => void) => unknown;
+    }): void {
       bus = b;
+      const said = (p: unknown) => {
+        const x = p as { rel?: unknown; content?: unknown } | null;
+        if (typeof x?.rel === 'string' && typeof x.content === 'string')
+          notePersonWrite(path.join(b.designRoot, x.rel), x.content);
+      };
+      b.on?.('source-writing', said);
+      b.on?.('source-written', said);
     },
+
+    notePersonWrite,
 
     /**
      * Call `call` (a tool call id) opened / closed its window over `files` (absolute paths). `owner` names the
@@ -387,7 +415,16 @@ export function createSaveHold(opts: SaveHoldOptions = {}) {
      * them, once it is free (+ settle), at the cap, or on a flush. Resolves with what `fn` resolves.
      */
     defer<T>(files: readonly string[], fn: () => Promise<T>): Promise<T> {
-      if (!isPersonSave() || !files.some((f) => blockedFor(f) > 0)) return fn();
+      if (!isPersonSave()) return fn();
+      if (!files.some((f) => blockedFor(f) > 0))
+        // p8-sec2-attrib A1 — not held: still the person's bytes (the post-bash binding skips them)
+        return fn().then((v) => {
+          for (const f of files) {
+            const text = readDisk(f);
+            if (text !== null) landed.set(f, { hash: hashBytes(text), at: now() });
+          }
+          return v;
+        });
       return new Promise<T>((resolve, reject) => {
         const d: Deferred = {
           files: [...files],

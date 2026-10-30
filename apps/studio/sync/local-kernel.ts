@@ -559,7 +559,7 @@ export interface LocalRuntime {
       chatId?: string;
       actor?: string;
       /** V2-8.9 round B A1 — a shell verb call's window (sync/action-stage.ts `claimOnly`). */
-      shell?: { call: string; open: boolean; files?: string[] };
+      shell?: { call: string; open: boolean; files?: string[]; all?: boolean };
       /** p8-a1-claims — begun by a claim: takes only claimed writes (sync/action-stage.ts). */
       claimOnly?: boolean;
     }
@@ -2363,7 +2363,16 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
         .filter((c): c is string => !!c);
       stage.begin(key, label, {
         ...rest,
-        ...(shell ? { shell: { call: shell.call, open: shell.open, slugs } } : {}),
+        ...(shell
+          ? {
+              shell: {
+                call: shell.call,
+                open: shell.open,
+                slugs,
+                ...(shell.all ? { all: true } : {}),
+              },
+            }
+          : {}),
       });
     },
     proposeLane(slug, lane, text, o) {

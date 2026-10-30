@@ -141,11 +141,18 @@ describe('acp / a shell write verb opens no window — it claims its own writes'
     t.beginTurn?.('x', 'r_x');
     shell(t, 'echo maude design export', 'e1');
     shell(t, 'grep "maude design annotate" docs', 'e2');
-    // p8-a1-claims — the fallback window covers only the canvases the command names: none, nothing
+    // p8-a1-claims — the fallback window covers only the canvases the command names; p8-sec2-attrib A1 —
+    // one that names none covers every canvas (it may write any), never nothing
     shell(t, 'bash -c "maude design reel-place recap --next"', 's0');
     shell(t, 'bash -c "maude design reel-place recap --next --canvas ui/V.tsx"', 's1');
-    expect(calls.length).toBe(1);
-    expect((calls[0][3] as { shell: { files: string[] } }).shell.files).toEqual([
+    expect(calls.length).toBe(2);
+    expect((calls[0][3] as { shell: unknown }).shell).toEqual({
+      call: 's0',
+      open: true,
+      files: [],
+      all: true,
+    });
+    expect((calls[1][3] as { shell: { files: string[] } }).shell.files).toEqual([
       '.design/ui/V.tsx',
     ]);
   });
@@ -189,8 +196,13 @@ describe('acp / any Bash call that may write opens a claim-only window', () => {
       { call: 'p1', open: true },
       { call: 'p1', open: false },
     ]);
-    // p8-a1-claims — `node -e "x"` names no canvas: no window (perl and the redirect name ui/C.tsx)
-    expect(windows.filter((w) => w.open).length).toBe(3);
+    // p8-sec2-attrib A1 — `node -e "x"` names no canvas, yet may write any: an all-canvas window
+    // (perl and the redirect name ui/C.tsx)
+    expect(windows.filter((w) => w.open).length).toBe(4);
+    const nodeCall = calls.find(
+      (c) => (c[3] as { shell: { call: string } }).shell.call === 'node -e "x"'
+    );
+    expect((nodeCall?.[3] as { shell?: { all?: boolean } } | undefined)?.shell?.all).toBe(true);
   });
   test('a read-only call still opens nothing (a person’s save is never folded in by `ls`)', () => {
     const calls: Call[] = [];
