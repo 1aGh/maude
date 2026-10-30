@@ -33,13 +33,14 @@ import {
 } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
-import { delimiter, dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { startLocalHub } from '../../apps/desktop/e2e/fixtures/local-hub.mjs';
 import { heldConflicts } from '../../apps/studio/client/v2/diagnostics/sync-details/sync-details-model.js';
 import { saveStatus } from '../../apps/studio/client/v2/shell/save-status.js';
 import { syncPresentation } from '../../apps/studio/sync/presentation.ts';
+import { stubClaudeEnv } from '../lib/stub-claude.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const argv = process.argv.slice(2);
@@ -192,15 +193,13 @@ function credentials(dir, hubUrl, token, folder) {
   return hubsPath;
 }
 
-// a stub claude (no keychain dialog), throwaway HOME/XDG/index for every child
-const stubBin = join(scratch, 'bin');
-mkdirSync(stubBin, { recursive: true });
-writeFileSync(join(stubBin, 'claude'), `#!/bin/sh\necho '{"loggedIn":false}'\n`, { mode: 0o755 });
+// a stub claude (no keychain dialog) — the shared one, which also empties MAUDE_CLAUDE_BIN so an
+// inherited pin cannot reach the real binary — and a throwaway HOME/XDG/index for every child
 const fakeHome = join(scratch, 'home');
 mkdirSync(fakeHome, { recursive: true });
 const baseEnv = {
   ...process.env,
-  PATH: `${stubBin}${delimiter}${process.env.PATH ?? ''}`,
+  ...stubClaudeEnv(scratch),
   HOME: fakeHome,
   XDG_CONFIG_HOME: join(fakeHome, '.config'),
   MAUDE_INDEX_DIR: join(scratch, 'index'),

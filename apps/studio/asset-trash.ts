@@ -78,7 +78,8 @@ export function sidecarsOf(designRoot: string, rel: string): string[] {
   const base = name.slice(0, name.lastIndexOf('.'));
   let names: string[];
   try {
-    names = readdirSync(path.join(designRoot, 'assets'));
+    // sorted: readdir order is the filesystem's (APFS sorts, ext4 hashes) — the list is shown and compared
+    names = readdirSync(path.join(designRoot, 'assets')).sort();
   } catch {
     return [];
   }

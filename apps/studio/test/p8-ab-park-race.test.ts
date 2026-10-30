@@ -43,7 +43,39 @@ function findBrowser(): string | null {
 
 const abOnPath = Bun.spawnSync(['bash', '-c', 'command -v agent-browser']).exitCode === 0;
 const browser = findBrowser();
-const live = abOnPath && browser !== null;
+
+/**
+ * The precondition, made explicit: agent-browser itself (not screenshot.sh) can start that browser under the
+ * test's throwaway HOME and open a page. Where it cannot (a CI image whose Chromium has no usable sandbox for a
+ * fresh profile, say), the race this file reproduces cannot happen and the test says why instead of failing
+ * five captures for a reason that is not the race. A screenshot.sh that breaks with a working browser is red.
+ */
+function browserStarts(): string | null {
+  if (!abOnPath || browser === null) return 'agent-browser or its Chromium is not installed';
+  const dir = mkdtempSync(join(tmpdir(), 'abq-'));
+  dirs.push(dir);
+  mkdirSync(join(dir, 's'));
+  mkdirSync(join(dir, 'home'));
+  const env = {
+    PATH: process.env.PATH ?? '/usr/bin:/bin',
+    HOME: join(dir, 'home'),
+    AGENT_BROWSER_SOCKET_DIR: join(dir, 's'),
+    AGENT_BROWSER_SESSION: 'abp-probe',
+    AGENT_BROWSER_EXECUTABLE_PATH: browser,
+    NO_OPEN: '1',
+  };
+  const open = Bun.spawnSync(['agent-browser', 'open', 'data:text/html,<h1>probe</h1>'], {
+    env,
+    timeout: 60_000,
+  });
+  Bun.spawnSync(['agent-browser', 'close'], { env, timeout: 20_000 });
+  if (open.exitCode === 0) return null;
+  const why = `${open.stderr.toString()}${open.stdout.toString()}`.trim().split('\n').slice(-3);
+  return `agent-browser cannot start ${browser} under a throwaway HOME here: ${why.join(' | ')}`;
+}
+const cannot = browserStarts();
+if (cannot && abOnPath && browser !== null) console.warn(`p8-ab-park-race skipped — ${cannot}`);
+const live = cannot === null;
 
 describe('screenshot.sh on one shared session', () => {
   test.skipIf(!live)(

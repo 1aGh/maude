@@ -280,6 +280,10 @@ describe('POST /_api/agent/* (routes/agent.ts)', () => {
       join(bashDir, 'v1.json'),
       JSON.stringify({ at: since, snaps: { 'ui/C.tsx': 'v1.abc' } })
     );
+    // the command runs after pre-bash recorded `since` (a hook round trip later). Linux stamps mtimes from
+    // its coarse clock (one kernel tick, up to 10 ms behind Date.now()), so a write in the same tick reads
+    // as BEFORE `since` there — the verb's write lands at least a tick later, as it does in a real call
+    await Bun.sleep(25);
     writeFileSync(join(project, '.design', 'ui', 'C.tsx'), before.replace('<p>x</p>', '<p>v</p>'));
     bracket.length = 0;
     const r = await post('/_api/agent/edit/touched', {

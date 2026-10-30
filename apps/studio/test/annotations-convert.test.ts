@@ -22,6 +22,7 @@ import type { AnnotationElement } from '../annotations/types.ts';
 import { createApi } from '../api.ts';
 import { createRegistry } from '../collab/registry.ts';
 import type { RoomCallbacks } from '../collab/room.ts';
+import { localAuthor } from '../comments/local-author.ts';
 import { type Context, createBus } from '../context.ts';
 import { createAnnotationRoutes, toCommentLabel } from '../routes/annotations.ts';
 import { readLaneFromDoc } from '../sync/codec.ts';
@@ -100,7 +101,10 @@ describe('the local home — one action, both lanes', () => {
       XDG_CONFIG_HOME: join(root, '.config'),
     });
     base = `http://localhost:${port}`;
-    me = ((await (await fetch(`${base}/_api/git-user`)).json()) as { name: string }).name || 'You';
+    // the name the studio stamps on your comments: the git user, else this Mac's account (localAuthor)
+    me = localAuthor(
+      ((await (await fetch(`${base}/_api/git-user`)).json()) as { name: string }).name
+    );
     // The baseline import has run once history answers.
     for (let i = 0; i < 80; i++) {
       const h = (await (await fetch(`${base}/_api/project/history`)).json()) as {

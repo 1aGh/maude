@@ -31,7 +31,7 @@
 # runs one command at a time.
 #
 # Examples
-#   scripts/remote-lane.sh --slot 1 -- bash -c 'cd apps/studio && bun test'
+#   scripts/remote-lane.sh --slot 1 -- bash -c 'cd apps/studio && bun test --isolate --timeout 20000'
 #   scripts/remote-lane.sh -- bash -c 'cd apps/hub && pnpm test'
 #   scripts/remote-lane.sh --fetch .ai/plans/notes/v2-evidence/phase8-fidelity/14 -- node .scr/shoot-14.mjs
 set -uo pipefail

@@ -2264,9 +2264,11 @@ export function createHttp(
       control: () => ctx.syncControl?.current?.() ?? null,
       // S4.16 - POST /_api/annotations/figjam plans the import under the project (the S4.5 engine)
       figjam: { root: ctx.paths.repoRoot, designRel: ctx.paths.designRel },
+      // the same name a reply of yours is stamped with (`commentsAddReply` → localAuthor: git user, else
+      // this Mac's account) — else, on a machine with no git user.name, your own reply reads as foreign
       person: async (req) => {
         const vouched = isWorkspaceMode() ? req.headers.get('x-maude-user') : null;
-        return { name: vouched || (await api.gitCurrentUser()) || 'You' };
+        return { name: vouched || localAuthor(await api.gitCurrentUser()) };
       },
       // S9.9 — a canvas-only session converts only on a canvas it sees (`not-in-scope`, like missing).
       scope: (req, file) => {
