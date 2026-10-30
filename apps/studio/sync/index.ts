@@ -2934,7 +2934,9 @@ export function createSyncRuntime(
           ownsSeededConfig,
           // The hub's format as this link knows it (the mirror its /health,
           // bootstrap or notice wrote) — the pulled project keeps it.
-          projectFormat(formatCtx).value
+          projectFormat(formatCtx).value,
+          // a hub's own studio never authors its checkout's config (see seedProjectConfig)
+          { cellPairing: cellPairing !== null }
         )
       )
         ownsSeededConfig = true;
@@ -7116,13 +7118,25 @@ function designConfigPath(ctx: Context): string {
  * `freshLink` gate means this cannot run on a project that had canvases.
  * Best-effort: a read-only design root costs the project its tidiness, never
  * its sync.
+ *
+ * NEVER IN A HUB'S OWN STUDIO (`cellPairing`, p8-docker-desktop-legs). A
+ * paired studio's design root IS the hub's checkout, and the hub reads that
+ * file's `canvasGroups` as the project's classification boundary (what a
+ * writer may put where — the kernel's path check, the bootstrap every copy is
+ * declared from). Seeded there, the studio's DEFAULT groups (`system`, `ui`)
+ * fenced every other group out: a teammate's `screens/home.tsx` was refused
+ * and every desktop copy drew an empty `system` folder. That boundary is the
+ * project owner's to set (the owner-only project-config door), so a paired
+ * studio pulls under the fresh-link relaxation and writes nothing.
  */
 export function seedProjectConfig(
   ctx: Context,
   learnedGroups: ReadonlySet<string>,
   owned: boolean,
-  hubFormat = 1
+  hubFormat = 1,
+  { cellPairing = false }: { cellPairing?: boolean } = {}
 ): boolean {
+  if (cellPairing) return false;
   // The hub's format reached us over an unauthenticated /health; the versioned
   // config never records more than this build edits (p8-secfix-studio F5/D4).
   const keep = persistableFormat(hubFormat);
