@@ -7,7 +7,7 @@
 //
 //   reasonProps(off, kind)   → `{ title, 'aria-description' }` while `off`, else `{}` — spread it on the control
 //   disabledReason(kind)     → the line (a kind below, or any existing line passed through as is)
-//   editReason(ctx)          → the inspector's kind for a read-only object (the role, or no source id)
+//   editReason(ctx)          → the inspector's kind for a read-only object (the role, a lock, or no source id)
 
 export const REASONS = Object.freeze({
   // the viewer role (Can view) — the same line Preview's door says (ds/preview-mode.js `doorViewOnly`)
@@ -24,6 +24,9 @@ export const REASONS = Object.freeze({
   undone: 'Undone.',
   // a row whose undo was refused because someone changed it since (history `undoFailed`)
   stale: 'Someone changed this since — nothing was undone.',
+  // a locked object (`data-cd-locked`): every edit but the lock is refused (409 `locked`) — the inspector's
+  // own refusal line (inspector/link-write.js, element-id.js) without its "Not changed." prefix
+  locked: 'This object is locked; unlock it first.',
 });
 
 /** The line for a kind, or the string itself when it is already a line (an existing surface's own words). */
@@ -32,9 +35,11 @@ export function disabledReason(kind) {
   return Object.hasOwn(REASONS, kind) ? REASONS[kind] : kind;
 }
 
-/** The inspector's reason for a read-only object: the role (`ctx.readOnly`), else an element it cannot write. */
+/** The inspector's reason for a read-only object: the role (`ctx.readOnly`), a locked object (`ctx.locked`),
+ *  else an element it cannot write. */
 export function editReason(ctx) {
-  return ctx?.readOnly ? 'viewer' : 'cantEditHere';
+  if (ctx?.readOnly) return 'viewer';
+  return ctx?.locked ? 'locked' : 'cantEditHere';
 }
 
 /** Props that say why a control is off: spread on the control next to its `disabled` / `aria-disabled`. */

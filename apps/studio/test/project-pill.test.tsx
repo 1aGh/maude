@@ -230,6 +230,56 @@ describe('the rows', () => {
     expect(document.querySelector('[data-testid="project-menu"]')).not.toBeNull();
   });
 
+  // p8-sweep-errors (4) — the dead-control crawl found 7 rows greyed with no reason when no canvas is open
+  test('a row greyed for want of a canvas says why: "Open a canvas first."', async () => {
+    await mount(() => {}, menuCtx({ native: true, canvasOpen: false }));
+    await act(async () => pill().click());
+    const says = (id: string) => {
+      const row = document.querySelector(`[data-testid="project-menu-row-${id}"]`) as HTMLElement;
+      expect(row ? row.getAttribute('aria-disabled') : `missing ${id}`).toBe('true');
+      expect(row.getAttribute('title')).toBe('Open a canvas first.');
+      expect(row.getAttribute('aria-description')).toBe('Open a canvas first.');
+    };
+    says('share.open');
+    const groups: Record<string, string[]> = {
+      file: ['canvas.duplicate', 'canvas.rename', 'canvas.move', 'handoff.open', 'canvas.close'],
+      edit: ['edit.undo-history'],
+    };
+    for (const [sub, ids] of Object.entries(groups)) {
+      await act(async () =>
+        (
+          document.querySelector(`[data-testid="project-menu-row-sub-${sub}"]`) as HTMLElement
+        ).click()
+      );
+      for (const id of ids) says(id);
+    }
+    // an enabled row says nothing extra
+    const close = document.querySelector('[data-testid="project-menu-row-settings.open"]');
+    expect(close?.getAttribute('title') ?? null).toBeNull();
+  });
+});
+
+describe('every disabled menu row has a reason (the model)', () => {
+  const walk = (nodes: ReturnType<typeof buildProjectMenu>): Array<Record<string, unknown>> =>
+    nodes.flatMap((n) =>
+      n.type === 'sub' ? walk(n.children) : n.type === 'item' ? [n as Record<string, unknown>] : []
+    );
+  test('no canvas, an owner on the desktop: every greyed row carries its line', () => {
+    const off = walk(buildProjectMenu(menuCtx({ native: true, canvasOpen: false }))).filter(
+      (n) => n.disabled
+    );
+    expect(off.length).toBeGreaterThanOrEqual(7);
+    expect(off.filter((n) => !n.reason).map((n) => n.id)).toEqual([]);
+  });
+  test('a Can comment session: an edit row says the role, not the canvas', () => {
+    const rows = walk(
+      buildProjectMenu(menuCtx({ native: true, canvasOpen: true, readOnly: true }))
+    );
+    const undo = rows.find((n) => n.id === 'edit.undo-history');
+    expect(undo?.disabled).toBe(true);
+    expect(undo?.reason).toBe('You can view this project. Ask a project owner for edit access.');
+  });
+
   test('Advanced is one quiet submenu row under Edit and View', async () => {
     await mount();
     await act(async () => pill().click());

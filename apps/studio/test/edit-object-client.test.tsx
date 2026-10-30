@@ -469,6 +469,9 @@ describe('Layers row tools', () => {
         <LayerRowTools
           node={node}
           isLocked
+          // an old per-user padlock: the server does not refuse Hide on it (the shared lock does,
+          // test/p8-sweep-errors-locked.test.tsx)
+          hideRefused={false}
           isHidden={false}
           onToggleLock={(k: string, n: unknown) => seen.push(['lock', k, n])}
           onToggleVisibility={(n: unknown) => seen.push(['hide', n])}

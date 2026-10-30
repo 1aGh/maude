@@ -36,3 +36,36 @@ Michal: screen window needs no announcement; caffeinate -dimsu around 8.3; stop 
   for rigs. Killed the orphan 7406 (+ shim 7894) from the removed worktree a416.
 - p8-sweep-advanced is alive (crawls on mini); asked it to kill stale shards + its 02:13 local rig, hand back by ~10:00.
 - Running (3): p8-sweep-advanced, p8-orphan-sidecars, p8-ci-linux-2. Freeze after all three merge.
+
+## Update ~09:50
+- Pushed to feat `40c01a63f`:
+  - p8-orphan-sidecars (ppid watch; `MAUDE_EXIT_WITH_PARENT=1` for rigs).
+  - p8-ci-linux-2 (listing name tie-break; watcher trailing delivery; U6 hub test).
+  - p8-sweep-advanced (14 Advanced rows reached; frozen fixture per state; 10 no-op controls fixed).
+  - Lead fixes:
+    - surface catalogue regenerated;
+    - containment, where a cell gets no rects runner for export-preflight and the pin now lists the 4 v2 export routes (kg `v2-p8-containment-v2-export-routes`);
+    - site stats/whats-new regenerated;
+    - the e2e-live-lanes hub tests skip with a reason on a CI runner without Node 24.
+- **Why CI kept finding "new" failures:** each Quality step stops the job, so the steps after a red one never ran. Before the freeze, run the WHOLE quality.yml step list locally:
+  - `pnpm test` (node + hub + test:harness)
+  - `scripts/test`
+  - `apps/cells`
+  - `check-containment`
+  - `check-cloud-binary`
+  - `tsc` + `check-tsc-coverage`
+  - the sync lane
+  - `hub-restore-drill`
+  - `tarball`
+  - `parity`
+  - `coherence`
+  - the token checks
+  - `ds-check`
+  - the site gens (call the `node site/scripts/*` scripts directly in a worktree, because pnpm is broken in a symlinked worktree)
+  - the site build (run it in the main checkout)
+- Sweep totals so far: 5853 found, all classed. Open: DEAD 1, not reached 230. An interim breakdown went to the keeper for Michal.
+- Running:
+  - **p8-sweep-errors** (Opus): edit-op 409 ×22, insert-sequence 422, thumb 404, 13 reasonless disabled menu rows, the vh-row-r4 DEAD.
+  - **p8-sweep-finish** (Sonnet): the 230 states, merged report, crawler exit 0. Shard JSONs are in `lead/dc-shards/` (untracked — never commit them).
+- CI Quality is running on 40c01a63f (monitor). The superseded runs were cancelled.
+- Then: the full quality.yml list locally → freeze → chain4.

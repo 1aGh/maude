@@ -107,7 +107,9 @@ function StyleBody({ el, selection, kind, ctx }) {
   const roles = useTypeRoles(ctx);
   const info = el?.textInfo ?? null;
   const targets = targetsOf({ el, selection, kind });
-  const editable = targets.length > 0 && ctx?.editable !== false && !!ctx?.onRunAction;
+  // p8-sweep-errors — a locked object refuses these asks (409 locked): off, with the lock line
+  const editable =
+    targets.length > 0 && ctx?.editable !== false && !ctx?.locked && !!ctx?.onRunAction;
   const [open, setOpen] = useState(false);
   const [from, setFrom] = useState(null); // the style this text was just detached from
   const ref = useRef(null);
@@ -263,7 +265,9 @@ function TextBody({ el, selection, kind, ctx }) {
   const { cssAll, editable: cssEditable, write } = useCssWrite(el, ctx);
   const list = kind === 'multi' ? listOf(selection) : [el];
   const targets = targetsOf({ el, selection, kind });
-  const editable = targets.length > 0 && ctx?.editable !== false && !!ctx?.onRunAction;
+  // p8-sweep-errors — a locked object refuses these asks (409 locked): off, with the lock line
+  const editable =
+    targets.length > 0 && ctx?.editable !== false && !ctx?.locked && !!ctx?.onRunAction;
 
   const resizing = resizingFromCss(cssAll[0] ?? {});
   const cases = reduceMixed(
@@ -306,6 +310,8 @@ function TextBody({ el, selection, kind, ctx }) {
             value={cases.mixed ? '' : cases.value}
             ariaLabel="Text case"
             options={CASES}
+            disabled={!editable}
+            reason={reasonProps(!editable, editReason(ctx))}
             onChange={(c) =>
               editable &&
               (cases.mixed || c !== cases.value) &&
@@ -320,6 +326,8 @@ function TextBody({ el, selection, kind, ctx }) {
           options={options}
           ariaLabel="Language"
           testId="insp-language"
+          disabled={!editable}
+          reason={reasonProps(!editable, editReason(ctx))}
           onChange={(tag) =>
             editable &&
             tag &&

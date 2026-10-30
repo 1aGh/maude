@@ -616,6 +616,7 @@ const INSPECTOR_SCRIPT = `
   document.documentElement.appendChild(pinLayer);
 
   var commentsCache = [];
+  var commentsOff = /[?&]comments=0(?:&|$)/.test(location.search || '');
   var focusedPinId = null;
 
   var pinNodes = [];
@@ -733,7 +734,10 @@ const INSPECTOR_SCRIPT = `
     var m = e.data;
     if (!m || typeof m !== 'object' || !m.dgn) return;
     if (m.dgn === 'comments-set' && Array.isArray(m.comments)) {
-      commentsCache = m.comments;
+      // p8-sweep-errors — a frame opened with comments=0 (a past version, Compare, a follower, an embed, a gallery
+      // tile) draws no pin: the shell sends the open canvas's comments to whichever frame shows it, and a pin there
+      // would ask for a thread that frame never shows (the crawl's one DEAD control)
+      commentsCache = commentsOff ? [] : m.comments;
       schedulePins();
     } else if (m.dgn === 'comment-focus') {
       focusedPinId = m.id || null;

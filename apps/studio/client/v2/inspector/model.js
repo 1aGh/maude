@@ -35,6 +35,21 @@ function findNode(nodes, id, index, trail = []) {
   return null;
 }
 
+/**
+ * p8-sweep-errors — is any object of the selection locked (`data-cd-locked`, V2-2.19)? A locked object refuses every
+ * edit-op but the lock itself (409 `locked`), so the inspector's asks are off for it and say why. Read from the
+ * element the canvas reported and from its Layers node (the source tree), whichever is newer. An artboard is never
+ * counted: its own writes (size, kind, theme) are not element edit-ops.
+ */
+export function isLockedSelection(selection, layersTree) {
+  const list = Array.isArray(selection) ? selection : selection ? [selection] : [];
+  return list.some((el) => {
+    if (!el || isArtboardSelection(el)) return false;
+    if (el.attrs && Object.hasOwn(el.attrs, 'data-cd-locked')) return true;
+    return !!(el.id && findNode(layersTree?.nodes, el.id, el.index ?? null)?.node?.locked);
+  });
+}
+
 /** The name above the rows: the layer's name, else the element's own text, else its tag. */
 export function titleOf(selection, layersTree) {
   if (Array.isArray(selection) && selection.length > 1) {
