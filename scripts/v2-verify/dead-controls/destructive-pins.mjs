@@ -21,6 +21,12 @@ export const DESTRUCTIVE_PINS = {
     file: 'apps/studio/test/p8-c10-ann-convert-thread.test.tsx',
     test: 'the ⋯ keeps every dropped function: Reply…, Edit, Turn back into a sticky, Delete comment',
   },
+  // older runs skipped these as 'Move … up/down' (the word "move"); the crawler now clicks them, the pin keeps old data honest
+  '/^present-order-(up|down)-/': {
+    action: 'move one artboard up / down in the present order (Order and notes)',
+    file: 'apps/studio/test/order-notes-sheet.test.tsx',
+    test: 'reads once, reorders, skips, annotates and saves only the change with the ETag',
+  },
 };
 
 /** The pin for a control name, or undefined. */
