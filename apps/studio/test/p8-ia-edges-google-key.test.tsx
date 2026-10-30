@@ -43,9 +43,10 @@ type Studio = {
   keyConnected: boolean;
   generates: Array<Record<string, unknown>>;
   keyReads: number;
+  provider?: string;
 };
 function studio(): Studio {
-  return { keyConnected: false, generates: [], keyReads: 0 };
+  return { keyConnected: false, generates: [], keyReads: 0, provider: 'google' };
 }
 function fakeStudio(s: Studio) {
   return (async (url: string, init?: RequestInit) => {
@@ -56,7 +57,7 @@ function fakeStudio(s: Studio) {
       return json({
         ok: true,
         quote: 'q-1',
-        provider: 'google',
+        provider: s.provider ?? 'google',
         model: 'nano-banana-pro',
         n: 4,
         aspect: '4:5',
@@ -147,7 +148,7 @@ describe('Generate with no Google key (ia-edges H)', () => {
     expect(s.generates).toHaveLength(0);
   });
 
-  test('Connect opens the key flow, and when the key lands the waiting prompt runs once with the original words', async () => {
+  test('Connect opens the key flow, and when the key lands the fresh quote is shown and ONE more press runs the original words (A5/B2-4)', async () => {
     const s = studio();
     const connects = await mount(s);
     await until(() => !(tid('generate-ask-go') as HTMLButtonElement).disabled);
@@ -159,10 +160,30 @@ describe('Generate with no Google key (ia-edges H)', () => {
     await tick(80);
     expect(s.generates).toHaveLength(0); // still no key — nothing runs
     s.keyConnected = true;
+    // the price/time line comes up for the person to read — and nothing is spent yet
+    await until(() => tid('generate-ask-time') !== null);
+    await tick(150);
+    expect(s.generates).toHaveLength(0);
+    expect(tid('generate-ask-waiting')).toBeNull();
+    expect(tid('generate-ask-time')?.textContent).toContain('billed to your Google key');
+    await click('generate-ask-go'); // the one press
     await until(() => s.generates.length > 0);
     await tick(120); // and it does not run twice
     expect(s.generates).toHaveLength(1);
     expect(s.generates[0]).toMatchObject({ prompt: 'a goalkeeper at dusk', quote: 'q-1', n: 4 });
+  });
+
+  test('a key for another provider than the sheet named never starts a generation (A5)', async () => {
+    const s = studio();
+    s.provider = 'other-co';
+    await mount(s);
+    await until(() => !(tid('generate-ask-go') as HTMLButtonElement).disabled);
+    await click('generate-ask-go');
+    await click('generate-key-connect');
+    s.keyConnected = true;
+    await tick(200);
+    expect(s.generates).toHaveLength(0);
+    expect(tid('generate-ask-time')).toBeNull(); // no price line for a provider nobody agreed to
   });
 
   test('Cancel drops it: no side effects, and a key connected later runs nothing', async () => {

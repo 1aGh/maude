@@ -166,6 +166,14 @@ export function olderGateState({ cfg, plan }) {
   return { kind: 'ready', line: OLDER_COPY.olderUpdating, action: null };
 }
 
+/** The timed re-check of a blocked project waits 1 min, then 2, 4, 8, and never more than 10 (p8-sec2-lows
+ *  B2-3): every re-check is a dry run on the owner's own team server, so a reason that does not clear
+ *  (browser not paired, server not set up) must not cost one a minute for as long as the tab is open. */
+export const RECHECK_FIRST_MS = 60_000;
+export const RECHECK_MAX_MS = 10 * 60_000;
+export const recheckDelay = (misses) =>
+  Math.min(RECHECK_FIRST_MS * 2 ** Math.max(0, Math.min(misses | 0, 10)), RECHECK_MAX_MS);
+
 /** States the callout re-checks on its own (online / focus / a timer): the reason may clear. */
 export const RECHECK_KINDS = new Set([
   'hub-too-old',

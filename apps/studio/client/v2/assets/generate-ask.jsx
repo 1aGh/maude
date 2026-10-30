@@ -24,6 +24,8 @@ const POLL_LIMIT_MS = 10 * 60 * 1000;
 // p8-ia-edges — while a prompt waits for the key the ask looks at which keys are connected this often, for this long
 const KEY_POLL_MS = 2000;
 const KEY_WAIT_LIMIT_MS = 10 * 60 * 1000;
+// The provider the key sheet names ("Connect a Google key?"). A key that lands is only ever quoted on this one.
+const SHEET_PROVIDER = 'google';
 
 export const ASK_WORDS = {
   title: 'Generate an image',
@@ -312,14 +314,23 @@ export function GenerateAsk({
         const now = await connected();
         if (stop || now === null || now === seen) continue;
         seen = now;
-        const q = await askQuote(target, { n, model: model ?? undefined }, { fetch: fetchImpl });
+        // the sheet named Google: quote on that provider only
+        const q = await askQuote(
+          target,
+          { n, model: model ?? undefined, provider: SHEET_PROVIDER },
+          { fetch: fetchImpl }
+        );
         if (stop || !alive.current) return;
-        if (q.ok) {
+        if (q.ok && q.quote?.provider === SHEET_PROVIDER) {
+          // The key is in. Show the fresh quote (time, billing line) and stop: spending is one more press of
+          // Generate, never a run the person has not seen the price of (security batch 2, A5 / B2-4).
           setKeyStep('idle');
           setNeedsKey(false);
-          await run(q.quote, waitingPrompt.current);
+          setErr('');
+          setQuote(q.quote);
           return;
         }
+        if (q.ok) continue; // a key for a provider the sheet did not name — keep waiting, spend nothing
         if (!q.noProvider) {
           // a different refusal: say it, and stop waiting
           setKeyStep('idle');

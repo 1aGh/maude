@@ -144,3 +144,27 @@ test('no URL is a usage error', async () => {
   const r = await run([]);
   assert.equal(r.code, 2);
 });
+
+test('B2-5: nothing a cell sends can start a workflow command in the log', async () => {
+  const evil = '\n::add-mask::secret\n::stop-commands::x';
+  await withCells(
+    [
+      [done({ converted: `1${evil}`, skipped: 0, failed: 0 })],
+      [{ ok: true, v2Convert: { state: 'gated', reason: `a${evil}` } }],
+      [{ ok: true, v2Convert: { state: 'disabled', by: `b${evil}` } }],
+      [{ ok: true, v2Convert: { state: `running${evil}` } }],
+    ],
+    async (urls) => {
+      const r = await run(urls);
+      assert.equal(r.code, 0);
+      for (const text of [r.stdout, r.summary]) {
+        const lines = text.split('\n');
+        assert.ok(
+          !lines.some((l) => l.startsWith('::') && !l.startsWith('::warning::')),
+          'no line the runner would read as a command'
+        );
+        assert.ok(!text.includes('\n::add-mask'), 'the injected line break is gone');
+      }
+    }
+  );
+});

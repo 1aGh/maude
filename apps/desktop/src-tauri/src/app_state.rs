@@ -558,6 +558,21 @@ fn legacy_marker(app: &tauri::AppHandle) -> Option<PathBuf> {
         .map(|d| d.join("last-project.txt"))
 }
 
+/// True when the state file is THERE but cannot be read or parsed. `load` answers a default (empty)
+/// registry then, which is right for a UI that starts fresh — and wrong for anything that deletes data
+/// "not in the registry" (the index GC, p8-sec2-lows I2).
+pub fn state_unreadable_in(file: &Path) -> bool {
+    match std::fs::read(file) {
+        Ok(b) => serde_json::from_slice::<AppState>(&b).is_err(),
+        Err(e) => e.kind() != std::io::ErrorKind::NotFound,
+    }
+}
+
+/// [`state_unreadable_in`] for the app's own state file.
+pub fn state_unreadable(app: &tauri::AppHandle) -> bool {
+    state_path(app).is_some_and(|p| state_unreadable_in(&p))
+}
+
 /// Read persisted state (v2; v1 and the legacy marker migrate transparently).
 pub fn load(app: &tauri::AppHandle) -> AppState {
     let st = load_from(
@@ -902,6 +917,18 @@ mod tests {
         let _ = std::fs::remove_dir_all(&d);
         std::fs::create_dir_all(&d).unwrap();
         d
+    }
+
+    // p8-sec2-lows I2 — a state file that exists but does not parse is "unreadable", a missing one is not.
+    #[test]
+    fn state_unreadable_tells_a_corrupt_file_from_a_missing_one() {
+        let d = tmp("unreadable");
+        let f = d.join("app-state.json");
+        assert!(!state_unreadable_in(&f), "missing: a fresh install, nothing to protect");
+        std::fs::write(&f, b"{ not json").unwrap();
+        assert!(state_unreadable_in(&f), "present but corrupt");
+        std::fs::write(&f, serde_json::to_vec(&AppState::default()).unwrap()).unwrap();
+        assert!(!state_unreadable_in(&f), "present and parses");
     }
 
     fn read_json(p: &Path) -> serde_json::Value {

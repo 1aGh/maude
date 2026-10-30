@@ -567,6 +567,8 @@ export interface LocalRuntime {
   claimAiWrite(key: string, repoRel: string, hash?: string | null): void;
   /** p8-a1-claims (F17) — run `key` is about to delete canvas `repoRel`: the delete joins the run. */
   claimAiDelete(key: string, repoRel: string): void;
+  /** p8-sec2-lows I1 — the delete claimed by `claimAiDelete` failed; drop the claim. */
+  unclaimAiDelete(key: string, repoRel: string): void;
   /**
    * S2.20b (U20) — server.ts calls this right after the studio wrote a canvas's layout
    * (`onMetaChanged`) or its board (`onAnnotationsChanged`). A layout the local home only NOTES —
@@ -2386,6 +2388,11 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
       const rel = designRelOf(repoRel, designRel) ?? String(repoRel).replace(/^\/+/, '');
       const canvas = rel ? canvasOfRel(rel) : null;
       if (canvas) stage.claimDelete(key, canvas);
+    },
+    unclaimAiDelete(key, repoRel) {
+      const rel = designRelOf(repoRel, designRel) ?? String(repoRel).replace(/^\/+/, '');
+      const canvas = rel ? canvasOfRel(rel) : null;
+      if (canvas) stage.unclaimDelete(key, canvas);
     },
     async endAiAction(key, outcome) {
       if (!kernel) return null;

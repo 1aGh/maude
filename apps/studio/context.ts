@@ -414,6 +414,8 @@ export interface Context {
       claimAiWrite?(key: string, repoRel: string, hash?: string | null): void;
       /** p8-a1-claims (F17) — run `key` is about to delete canvas `repoRel`: the delete joins the run. */
       claimAiDelete?(key: string, repoRel: string): void;
+      /** p8-sec2-lows I1 — the claimed delete failed: the claim is dropped. */
+      unclaimAiDelete?(key: string, repoRel: string): void;
       /** S5.11b — a canvas's accepted source under the staged runs; null = the disk is accepted. */
       acceptedCanvas?(repoRel: string): string | null;
       resolveAiAction?(

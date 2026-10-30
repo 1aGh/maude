@@ -815,6 +815,7 @@ export interface SyncRuntime {
   claimAiWrite?(key: string, repoRel: string, hash?: string | null): void;
   /** p8-a1-claims (F17) — run `key` is about to delete canvas `repoRel`: the delete joins the run. */
   claimAiDelete?(key: string, repoRel: string): void;
+  unclaimAiDelete?(key: string, repoRel: string): void;
   /** S5.11b — a canvas's accepted source under the staged runs; null = the disk is accepted. */
   acceptedCanvas?(repoRel: string): string | null;
   /**
@@ -6530,6 +6531,10 @@ export function createSyncRuntime(
     claimAiDelete: (key, repoRel) => {
       const slug = slugForRepoRel(repoRel);
       if (slug && acceptedLink) acceptedLink.stage.claimDelete(key, slug);
+    },
+    unclaimAiDelete: (key, repoRel) => {
+      const slug = slugForRepoRel(repoRel);
+      if (slug && acceptedLink) acceptedLink.stage.unclaimDelete(key, slug);
     },
     // S5.11b — Run on a copy builds the copy from this, never from a busy run's staged bytes
     acceptedCanvas: (repoRel) => {

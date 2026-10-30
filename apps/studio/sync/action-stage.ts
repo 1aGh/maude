@@ -516,6 +516,13 @@ export function createActionStage(opts: ActionStageOptions) {
     c.deletes.add(slug);
   }
 
+  /** I1 — the delete claimed above did not happen (the studio's delete failed): the claim goes with it. */
+  function unclaimDelete(keyOrRun: string, slug: string): void {
+    const r = runOf(keyOrRun);
+    if (!r) return;
+    claims.get(r.runId)?.deletes?.delete(slug);
+  }
+
   /**
    * The canvas `slug` (doc `doc`) left the disk: when an OPEN run claimed that delete, it is staged in
    * that run (published as `doc.delete` with the run's other changes) and true is returned — the caller
@@ -928,6 +935,7 @@ export function createActionStage(opts: ActionStageOptions) {
     begin,
     claim,
     claimDelete,
+    unclaimDelete,
     stagesDelete,
     touch,
     end,

@@ -15,7 +15,7 @@ export const KEY_WORDS = Object.freeze({
   cancel: 'Cancel',
   connect: 'Connect',
   // the ask's own line while the prompt waits for the key (so Connect is never followed by silence)
-  waiting: 'Waiting for your Google key. The picture starts by itself once it is connected.',
+  waiting: 'Waiting for your Google key. Once it is connected you will see the time, then press Generate.',
 });
 
 /** @param {{ onConnect: () => void, onCancel: () => void }} p */
