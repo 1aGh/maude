@@ -354,3 +354,14 @@ rights or is an availability nuisance). Candidates for the first rc patch:
   helper.
 - **Open (`maude design comments --help`):** the auto rule is `comments list:*`, so the help form is still denied.
   This is minor, because the new hint lists the sub-verbs.
+
+## From p8-perf-814 (merged 8ee0d385f, V2-8.14)
+
+- **Version pictures: share canvas-lib between canvas modules (post-rc).** Michal accepted a warm p50 of ~400 ms for
+  v2.0 (budget 300; p95 456–516 is within 800), kg `maude/v2-michal-accept-version-picture-p50-for-v2-0`. The floor
+  is the per-render round trip. Each canvas module is ~2.1 MB because canvas-lib is inlined, and the server's first
+  wave adds ~50 ms. The lever is one shared canvas-lib module, plus a quicker first-wave answer.
+- **Bench comparisons:** the version pass now includes `Combine-admin.tsx` (12 jobs, was 11). Compare with
+  `--versions-of "^(?!.*Combine-admin)"` against runs older than 8ee0d385f.
+- **The LOD lane's zoom p95** is one frame worse than pre-v2 in both orders (50 vs 33 ms). Gesture p95 and long
+  frames pass pooled. Worth a look with the canvas-lib work.
