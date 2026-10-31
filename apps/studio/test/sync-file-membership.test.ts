@@ -146,6 +146,58 @@ describe('file-membership — canvas-owned is Plane A, never Plane B', () => {
   });
 });
 
+// p8-hub-folder-boundary (decision maude/v2-michal-hub-is-the-folder-boundary-before-config, option A):
+// until the owner declares canvas folders, a hub is the folder boundary — `canvasGroups: null` says
+// "this checkout declared none", and every top folder the kernel's canvas-path rule accepts is a
+// group. A teammate's `components/x.tsx` was `code-module` (owner-only) while the kernel took it as
+// a canvas.
+describe('file-membership — an undeclared hub checkout (canvasGroups: null)', () => {
+  const undeclared: ClassifyOptions = { canvasGroups: null };
+
+  test("a teammate's folder is a canvas group, never owner-only code", () => {
+    expect(classifyProjectFile('components/x.tsx', undeclared)).toBe('canvas-owned');
+    expect(classifyProjectFile('screens/home.tsx', undeclared)).toBe('canvas-owned');
+    expect(classifyProjectFile('screens/home.meta.json', undeclared)).toBe('canvas-owned');
+    const tree = { ...undeclared, hasFile: (r: string) => r === 'screens/home.tsx' };
+    expect(classifyProjectFile('screens/home.css', tree)).toBe('canvas-owned');
+  });
+
+  test('what is code by the path rules stays code', () => {
+    // the kernel refuses a canvas at the design root (it must sit inside a group): still a module
+    expect(classifyProjectFile('x.tsx', undeclared)).toBe('code-module');
+    expect(classifyProjectFile('components/util.ts', undeclared)).toBe('code-module');
+    expect(classifyProjectFile('system/ds/preview/_brand-css.ts', undeclared)).toBe('code-module');
+    // a dotted top folder is outside the kernel's group charset
+    expect(classifyProjectFile('lib.v2/x.tsx', undeclared)).toBe('code-module');
+  });
+
+  test('the default groups answer exactly as before', () => {
+    for (const rel of [
+      'system/ds/preview/specimen.tsx',
+      'system/ds/components/button.tsx',
+      'system/ds/preview/_layout.css',
+      'system/ds/tokens.json',
+      'ui/card.tsx',
+      'ui/card.meta.json',
+      'assets/x.png',
+      'config.json',
+      '_history/x.css',
+    ]) {
+      expect(`${rel} → ${classifyProjectFile(rel, undeclared)}`).toBe(
+        `${rel} → ${classifyProjectFile(rel)}`
+      );
+    }
+  });
+
+  test('declared groups still rule; absent groups (a desktop copy) are not undeclared', () => {
+    const declared: ClassifyOptions = { canvasGroups: [{ path: 'screens' }] };
+    expect(classifyProjectFile('screens/home.tsx', declared)).toBe('canvas-owned');
+    expect(classifyProjectFile('components/x.tsx', declared)).toBe('code-module');
+    expect(classifyProjectFile('components/x.tsx')).toBe('code-module');
+    expect(classifyProjectFile('components/x.tsx', { canvasGroups: [] })).toBe('code-module');
+  });
+});
+
 describe('file-membership — never means never', () => {
   const nevers = [
     'config.json', // the design root's trust anchors
@@ -351,12 +403,26 @@ describe('file-membership — studio ↔ hub parity (the doc-name precedent)', (
     'dir/file.png ',
     'system/_private/x.css',
     '.kgai/store/log/a.ndjson',
+    // p8-hub-folder-boundary — a teammate's folders in an undeclared checkout
+    'components/x.tsx',
+    'screens/home.tsx',
+    'screens/home.meta.json',
+    'screens/home.css',
+    'screens/home.annotations.json',
+    'brand/acme/tokens.json',
+    'lib.v2/x.tsx',
+    'x.tsx',
   ];
 
   const optVariants: Array<[string, ClassifyOptions]> = [
     ['no opts', {}],
     ['declared groups', { canvasGroups: [{ path: 'ui' }, { path: 'system' }] }],
     ['custom group', { canvasGroups: [{ path: 'mocks' }] }],
+    ['undeclared hub checkout', { canvasGroups: null }],
+    [
+      'undeclared hub checkout with tree knowledge',
+      { canvasGroups: null, hasFile: (rel: string) => rel === 'screens/home.tsx' },
+    ],
     [
       'with tree knowledge',
       {

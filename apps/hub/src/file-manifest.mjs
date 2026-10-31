@@ -117,15 +117,26 @@ const warnedTruncated = new Set();
 
 /**
  * The checkout's declared canvas groups, read from `<designRoot>/config.json`.
- * Unreadable/absent config → undefined, and the classifier falls back to the
- * same `['system', 'ui']` default the canvas-path receiver uses.
+ *
+ * `null` when the owner has declared none — absent/unreadable config, no
+ * `canvasGroups` array, or no entry naming a path: the kernel's own rule
+ * (server.mjs `acceptedCanvasGroups` → `allowUndeclaredGroup`). The
+ * classifier reads `null` as "the hub is the folder boundary" (p8-hub-folder-
+ * boundary, decision maude/v2-michal-hub-is-the-folder-boundary-before-config),
+ * so a path the kernel takes as a canvas is never classed owner-only code.
  */
 export function readCanvasGroups(designRoot) {
   try {
     const parsed = JSON.parse(readFileSync(join(designRoot, 'config.json'), 'utf8'));
-    return Array.isArray(parsed?.canvasGroups) ? parsed.canvasGroups : undefined;
+    const groups = parsed?.canvasGroups;
+    if (!Array.isArray(groups)) return null;
+    const declares = groups.some((g) => {
+      const p = typeof g === 'string' ? g : g?.path;
+      return typeof p === 'string' && p.length > 0;
+    });
+    return declares ? groups : null;
   } catch {
-    return undefined;
+    return null;
   }
 }
 

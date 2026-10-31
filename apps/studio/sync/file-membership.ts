@@ -234,7 +234,15 @@ export interface ClassifyOptions {
   /** Declared canvas groups. Absent ⇒ the same `['system', 'ui']` default the
    *  canvas-path receiver uses — the two halves of sync must agree on what a
    *  group is, or a body one lane owns leaks into the other. */
-  canvasGroups?: readonly CanvasGroupLike[];
+  canvasGroups?: readonly CanvasGroupLike[] | null;
+  // `null` (not absent) = a HUB checkout whose owner has declared no folders
+  // yet (p8-hub-folder-boundary, decision
+  // maude/v2-michal-hub-is-the-folder-boundary-before-config). Until then the
+  // hub is the folder boundary: its kernel takes any folder
+  // (`allowUndeclaredGroup`), so a path's own top folder counts as a group
+  // here too — a teammate's `components/x.tsx` is a canvas, never owner-only
+  // code. Only the hub (and its paired studio) passes it; a desktop copy
+  // passes its config's groups, absent meaning the default set as before.
   /**
    * Presence probe over the SAME tree `rel` came from. Powers the ONE
    * sibling-dependent split: a `.css` inside a canvas group is canvas-owned
@@ -284,7 +292,7 @@ export function classifyProjectFile(rel: string, opts: ClassifyOptions = {}): Fi
   const last = parts[parts.length - 1] ?? '';
   const lowerLast = last.toLowerCase();
   const lowerRel = rel.toLowerCase();
-  const groups = normalizedGroups(opts.canvasGroups);
+  const groups = effectiveGroups(opts.canvasGroups, parts);
   const inGroup = groups.some((g) => lowerRel.startsWith(`${g.toLowerCase()}/`));
 
   if (inGroup) {
@@ -386,6 +394,20 @@ function normalizedGroups(canvasGroups?: readonly CanvasGroupLike[]): string[] {
     if (p && !out.includes(p)) out.push(p);
   }
   return out.length > 0 ? out : ['system', 'ui'];
+}
+
+/** The groups one path is judged against. `null` = an undeclared hub checkout
+ *  (see `ClassifyOptions.canvasGroups`): the default set plus the path's top
+ *  folder — the hub mirror (`file-membership.mjs`) carries the same lines. */
+function effectiveGroups(
+  canvasGroups: readonly CanvasGroupLike[] | null | undefined,
+  parts: readonly string[]
+): string[] {
+  const groups = normalizedGroups(canvasGroups ?? undefined);
+  if (canvasGroups !== null || parts.length < 2) return groups;
+  const top = normalizeGroup(parts[0]);
+  if (!top || groups.some((g) => g.toLowerCase() === top.toLowerCase())) return groups;
+  return [...groups, top];
 }
 
 /** One group path, or null when unusable as a containment prefix (stricter is
