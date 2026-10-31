@@ -406,3 +406,8 @@ rights or is an availability nuisance). Candidates for the first rc patch:
 - **rc patch, security F3 (low, V2-8.9 r2 attacker):** a focused canvas can open the native image picker
   (`tool-panel-open {panel:'image'}`), and the picked file goes to Assets, which syncs. Show a shell-drawn chip
   ("Choose a picture for <canvas>…") before the native dialog when the canvas asked, and back off after two cancels.
+- **rc patch, security lows left after the r2 closure (V2-8.9-r2-closure.md):** two canvas-triggered notices still
+  use fresh ids (the Preview dangling-link line, the duplicate-at-width success toast); New project's location check
+  does not look for parent `CLAUDE.local.md` / `.claude/CLAUDE.md` / `AGENTS.md`, and a synced parent can gain a `.git`
+  after the check; the canvas reply stamp `localAuthor` still falls back to the account name; Recent colours keyed by
+  name; a runtime-declared role skips ds-check F5.
