@@ -48,6 +48,7 @@ import { canvasSlugFromRel } from '../../studio/canvas-slug.ts';
 import { fileAccessFor, visibleJournalPage } from './access-files.mjs';
 import { MAX_PROJECT_FILE_BYTES, sha256File } from './file-limits.mjs';
 import {
+  heldCodeEntries,
   hubCheckoutClass,
   listProjectFiles,
   readCanvasGroups,
@@ -859,6 +860,30 @@ export const JOURNAL_REPORT_PATH = '/api/journal/report';
 /** How many paths one nudge may name. A nudge is a hint, not a work queue. */
 const MAX_NUDGE_PATHS = 64;
 
+/** How many held paths one journal answer names (the count is always whole). */
+const MAX_HELD_LISTED = 200;
+
+/**
+ * The checkout's held code paths, for the OWNER only (p8-held-surface).
+ *
+ * A path held back from the code lane (`hubCheckoutClass`) is not synced and
+ * not committed — and a hold nobody is told about is a silent failure. Only the
+ * owner can resolve one (only the owner sets the canvas folders), and the list
+ * names teammate work, so it goes to exactly the bar the project-config door
+ * sets: a project-wide, writable, owner token. An editor, a viewer, a
+ * canvas-scoped token and a canvas-only session get no field at all. The list
+ * is this checkout's alone: the holds are keyed by its design root.
+ *
+ * An owner always gets the field (an empty list clears a panel row).
+ */
+function ownerHeld(match, designRoot) {
+  if (!match || match.readOnly || match.role !== 'owner') return {};
+  if (match.scope && match.scope !== '*') return {};
+  if (!designRoot) return {};
+  const held = heldCodeEntries(designRoot);
+  return { held: held.slice(0, MAX_HELD_LISTED), heldCount: held.length };
+}
+
 /**
  * Handle the journal's two routes. Same dependency-injected contract as
  * `handleFilesRoute` — returns true when it answered.
@@ -955,7 +980,13 @@ export function handleJournalRoutes({
 
     const page = journal.entriesSince(since);
     const entries = page.entries.filter((e) => matchesScope(match.scope, e.path));
-    respondJson(200, { epoch, head, entries, truncated: page.truncated });
+    respondJson(200, {
+      epoch,
+      head,
+      entries,
+      truncated: page.truncated,
+      ...ownerHeld(match, designRoot),
+    });
     return true;
   }
 

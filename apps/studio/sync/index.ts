@@ -144,7 +144,7 @@ import { createRevisionBarrier } from './revision-barrier.ts';
 import { computeSeedProgress } from './seed-progress.ts';
 import { mergeSource } from './source-merge.ts';
 import { replaySourceOp, type SourceOp } from './source-ops.ts';
-import { createSyncStatusStore, type SyncStatusStore } from './status.ts';
+import { createSyncStatusStore, type FilePlaneStatus, type SyncStatusStore } from './status.ts';
 import { quarantineCanvas } from './tombstone-apply.ts';
 import { createTrashWatch } from './trash-watch.ts';
 import {
@@ -5267,35 +5267,7 @@ export function createSyncRuntime(
       // `console.warn` in a process log, and DDR-177's premise is that the
       // target user never opens a terminal — so a control whose only output
       // is a log line is a control nobody can act on.
-      const held: NonNullable<import('./status.ts').FilePlaneStatus['held']> = [];
-      if (result.deleteHeld) {
-        held.push({
-          kind: result.deleteHeld.direction === 'out' ? 'delete-out' : 'delete-in',
-          count: result.deleteHeld.count,
-          paths: result.deleteHeld.paths,
-          detail:
-            result.deleteHeld.direction === 'out'
-              ? `${result.deleteHeld.count} files are gone from this machine — more than sync will remove from the project without you saying so. Nothing was deleted anywhere else. Set linkedHub.propagateDeletes: false to stop asking, or delete them again once you have confirmed this was deliberate.`
-              : `The project wants to remove ${result.deleteHeld.count} files here — more than sync will delete without you saying so. Nothing was removed. They stay until you accept or the project puts them back.`,
-        });
-      }
-      if (result.firstAnchorHeld) {
-        held.push({
-          kind: 'first-anchor',
-          count: result.firstAnchorHeld.count,
-          paths: result.firstAnchorHeld.paths,
-          detail: `${result.firstAnchorHeld.count} files differ between this machine and the project, and neither copy has been reconciled here yet. Set linkedHub.resolveFirstAnchor to "keep-local" or "keep-cloud" to settle the whole set at once.`,
-        });
-      }
-      if (result.reanchorHeld) {
-        held.push({
-          kind: 'reanchor',
-          count: 0,
-          paths: [],
-          detail:
-            'The project has asked to start over repeatedly, which is what a broken or hostile hub looks like. Nothing was overwritten. Sync retries by itself; if this persists, the hub needs looking at.',
-        });
-      }
+      const held = filePlaneHeld(result);
       // THE DENOMINATOR, from the LEDGER — not from this pass.
       //
       // `fileTotals` below is derived from per-pass results, and a pass that
@@ -6720,6 +6692,66 @@ export interface AdmitCanvasesOptions {
   docNameOf?: (slug: string) => string;
   /** Called once per call with every collision found (never with an empty list). */
   onCollisions?: (collisions: DocCollision[]) => void;
+}
+
+/**
+ * Every hold a file-plane pass reports, as Sync details rows (`FilePlaneStatus.held`). A pure
+ * function of the pass result so the panel's words are pinned by a test (p8-held-surface).
+ */
+export function filePlaneHeld(
+  result: import('./file-plane.ts').FilePlaneResult
+): NonNullable<FilePlaneStatus['held']> {
+  const held: NonNullable<FilePlaneStatus['held']> = [];
+  if (result.deleteHeld) {
+    held.push({
+      kind: result.deleteHeld.direction === 'out' ? 'delete-out' : 'delete-in',
+      count: result.deleteHeld.count,
+      paths: result.deleteHeld.paths,
+      detail:
+        result.deleteHeld.direction === 'out'
+          ? `${result.deleteHeld.count} files are gone from this machine — more than sync will remove from the project without you saying so. Nothing was deleted anywhere else. Set linkedHub.propagateDeletes: false to stop asking, or delete them again once you have confirmed this was deliberate.`
+          : `The project wants to remove ${result.deleteHeld.count} files here — more than sync will delete without you saying so. Nothing was removed. They stay until you accept or the project puts them back.`,
+    });
+  }
+  if (result.firstAnchorHeld) {
+    held.push({
+      kind: 'first-anchor',
+      count: result.firstAnchorHeld.count,
+      paths: result.firstAnchorHeld.paths,
+      detail: `${result.firstAnchorHeld.count} files differ between this machine and the project, and neither copy has been reconciled here yet. Set linkedHub.resolveFirstAnchor to "keep-local" or "keep-cloud" to settle the whole set at once.`,
+    });
+  }
+  // p8-held-surface — what the HUB holds back from the code lane (owner reads only). Without
+  // this row a held file was not synced, not committed, and nobody was told.
+  if (result.codeHeld && result.codeHeld.count > 0) {
+    held.push({
+      kind: 'code-held',
+      count: result.codeHeld.count,
+      paths: result.codeHeld.paths.map((h) => h.path),
+      detail: codeHeldDetail(result.codeHeld.count),
+    });
+  }
+  if (result.reanchorHeld) {
+    held.push({
+      kind: 'reanchor',
+      count: 0,
+      paths: [],
+      detail:
+        'The project has asked to start over repeatedly, which is what a broken or hostile hub looks like. Nothing was overwritten. Sync retries by itself; if this persists, the hub needs looking at.',
+    });
+  }
+  return held;
+}
+
+/**
+ * p8-held-surface — the Sync details sentence for files the hub holds back from the code lane
+ * (CONTRACT §4: what happened · what is safe · one verb). Only the owner reads it, and only the
+ * owner sets the canvas folders, so the verb is theirs to take.
+ */
+export function codeHeldDetail(count: number): string {
+  return count === 1
+    ? '1 file was made or changed as a canvas before the canvas folders were set, and is outside them now, so it doesn’t sync. Nothing was removed. Add its folder to the canvas folders to keep it as a canvas.'
+    : `${count} files were made or changed as canvases before the canvas folders were set, and are outside them now, so they don’t sync. Nothing was removed. Add their folders to the canvas folders to keep them as canvases.`;
 }
 
 /** The Sync-panel notice for one collision (CONTRACT §4: what happened · what is safe · one verb). */

@@ -156,7 +156,8 @@ export interface FilePlaneStatus {
    * safety control, it is a stall.
    */
   held?: {
-    kind: 'delete-out' | 'delete-in' | 'first-anchor' | 'reanchor';
+    /** `code-held` (p8-held-surface): files the hub holds back from the code lane — the owner only. */
+    kind: 'delete-out' | 'delete-in' | 'first-anchor' | 'reanchor' | 'code-held';
     count: number;
     paths: string[];
     /** One sentence, in the user's terms, about what is waiting and why. */

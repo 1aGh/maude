@@ -12,15 +12,19 @@
 
 const isCount = (n) => typeof n === 'number' && Number.isInteger(n) && n >= 0;
 const CONFLICT_PREFIX = 'source-conflict-';
+/** A held row's sentence (the runtime's `FilePlaneStatus.held[].detail`): whole, but still bounded. */
+export const HELD_DETAIL_MAX = 400;
 
-/** Printable, bounded, no control characters — names come off a hub-written payload. */
-export function cleanName(raw, fallback = '') {
+/** Printable, bounded, no control characters — names come off a hub-written payload. `max` is
+ *  120 for a name; a held row's sentence takes `HELD_DETAIL_MAX`, because a cut sentence loses the
+ *  one thing it exists to say — what to do (p8-held-surface). */
+export function cleanName(raw, fallback = '', max = 120) {
   const s = String(raw ?? '')
     .replace(/[\p{Cc}\p{Cf}]/gu, '')
     .replace(/\s+/g, ' ')
     .trim();
   if (!s) return fallback;
-  return s.length > 120 ? `${s.slice(0, 120)}…` : s;
+  return s.length > max ? `${s.slice(0, max)}…` : s;
 }
 
 /**
@@ -201,7 +205,7 @@ export function syncDetailsModel(
     lists: {
       held: held.map((h) => ({
         kind: h.kind,
-        detail: cleanName(h.detail, 'Sync paused — nothing was removed.'),
+        detail: cleanName(h.detail, 'Sync paused — nothing was removed.', HELD_DETAIL_MAX),
         paths: Array.isArray(h.paths)
           ? h.paths.filter((p) => typeof p === 'string').slice(0, 50)
           : [],
