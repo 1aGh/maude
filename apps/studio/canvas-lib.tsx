@@ -1111,6 +1111,12 @@ export interface ViewportControllerOptions {
    * artboard scrolling inside itself). Read per event; omit to keep today's wheel (always the canvas').
    */
   wheelPassthrough?: (e: WheelEvent) => boolean;
+  /**
+   * Called on every camera move the controller applies for someone — a gesture, Fit, Actual size, zoom,
+   * a jump, a set — and never for the runtime's own placements (the initial camera, `refitBoot`, the
+   * zero-size re-fit), which write the camera directly.
+   */
+  onMove?: () => void;
 }
 
 export interface ViewportControllerHandle {
@@ -1292,7 +1298,10 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
     jumpTargets,
     isPanDragActive,
     wheelPassthrough,
+    onMove,
   } = opts;
+  const onMoveRef = useRef(onMove);
+  onMoveRef.current = onMove;
   const isPanDragActiveRef = useRef<((e: PointerEvent) => boolean) | undefined>(isPanDragActive);
   isPanDragActiveRef.current = isPanDragActive;
   const wheelPassthroughRef = useRef<((e: WheelEvent) => boolean) | undefined>(wheelPassthrough);
@@ -1454,6 +1463,7 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
       if (!opts?.defer) schedulePublish();
       scheduleSettle();
       markInteracting();
+      onMoveRef.current?.();
     },
     [writeTransform, schedulePublish, scheduleSettle, markInteracting]
   );
@@ -2340,6 +2350,9 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
   // p8-edit-multi-flake — the camera the runtime placed by itself and the host size it fits (null: persisted /
   // resumed, or the camera has moved since). A host that grows from a placeholder size re-fits (below).
   const autoFitRef = useRef<AutoFit | null>(null);
+  const dropAutoFit = useCallback(() => {
+    autoFitRef.current = null;
+  }, []);
 
   const computeFitForArtboards = useCallback((): ViewportState => {
     const host = hostRef.current;
@@ -2394,6 +2407,9 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
     jumpTargets: artboards,
     isPanDragActive,
     wheelPassthrough,
+    // V2-8.9 attacker I3 — a camera someone placed is theirs at once: no later host resize re-fits it,
+    // even when it lands back on the boot fit's exact camera (a pan, then ⌘0).
+    onMove: dropAutoFit,
   });
 
   // S3.9 — Edit ⇄ Preview: the camera eases onto the artboard in view, once (preview/preview-camera.tsx).
