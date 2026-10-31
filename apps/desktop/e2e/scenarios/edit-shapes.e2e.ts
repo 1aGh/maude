@@ -143,7 +143,7 @@ describe('edit-shapes — draw a rectangle, round a corner, Export area writes n
     });
     const src = readFileSync(SMOKE, 'utf8');
     expect(src).toMatch(/data-cd-id="rectangle"/);
-    expect(src).toMatch(/background: "var\(--accent\)"/);
+    expect(src).toMatch(/background: "var\(--accent, currentColor\)"/);
   });
 
   it('shows a dot in each corner of the new shape; dragging one rounds it and the chip says the radius', async () => {
