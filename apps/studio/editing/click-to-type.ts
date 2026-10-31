@@ -196,7 +196,7 @@ export async function insertTextAt(
     hold.release();
     doc.dispatchEvent(
       new CustomEvent(ENTER_TEXT_EDIT_EVENT, {
-        detail: { el, clientX: at.x, clientY: at.y, selectAll: true },
+        detail: { el, clientX: at.x, clientY: at.y, selectAll: true, escKeeps: true },
       })
     );
     typeHeld(doc, el, typed);

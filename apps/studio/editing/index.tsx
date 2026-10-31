@@ -65,7 +65,6 @@ import {
 import { LockBadge } from './lock-badge.tsx';
 import { MinimapContext } from './minimap-context.tsx';
 import { NudgeReadout } from './nudge.tsx';
-import { SelectionFollowsDom } from './selection-follow.tsx';
 import { useObjectOps } from './object-actions.ts';
 import { resolveClipKey, resolveObjectKey } from './object-keys.ts';
 import { isObjectOpAction, layerParams, OBJECT_OP_ACTIONS, refsOf } from './object-ops.ts';
@@ -407,8 +406,6 @@ export function EditingLayer() {
           VoiceOver hears */}
       <KeyboardLayer readOnly={ro} />
       <AriaLive />
-      {/* r2-text-tool (D3 / U11) — a moved, nudged or remounted selection is measured again for the Inspector */}
-      <SelectionFollowsDom />
     </>
   );
 }
