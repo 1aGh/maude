@@ -1348,6 +1348,8 @@ async function preBash(ctx, input) {
   };
   const verbs = verbFence(ctx, input, command, fenceOf);
   if (verbs) return deny(verbs);
+  const subVerb = commentsSubVerbHint(command);
+  if (subVerb) return deny(subVerb);
   const verdict = classifyBash(command, {
     cwd: ctx.cwd,
     designRoot: ctx.designRoot,
@@ -1424,6 +1426,28 @@ async function bashWindow(ctx, toolUseId, open, files, all = false) {
     { ...runKey(ctx), toolUseId, open, files, ...(all ? { all: true } : {}) },
     { timeoutMs: 600 }
   );
+}
+
+/**
+ * p8-journey-grader (S11): `maude design comments <path>` with no sub-verb. The CLI rejects it (exit 2, unknown
+ * sub-verb) and the auto tier allows only `comments list:*`, so an agent that wrote the bare form got a permission
+ * denial with no hint and gave up. Say what to type. Deny-only and narrow: it refuses just the form the CLI would
+ * refuse itself (a literal first word that is neither a sub-verb nor a flag), never widens a tier, and a command the
+ * reader can't follow is left alone (fail-open).
+ */
+const COMMENTS_SUBS = new Set(['list', 'reply', 'resolve', 'reopen', 'add']);
+function commentsSubVerbHint(command) {
+  if (typeof command !== 'string' || !command.includes('comments')) return null;
+  const cmds = parseBash(command);
+  if (!cmds) return null;
+  for (const c of cmds) {
+    const w = maudeWords(c);
+    if (w?.[0]?.text !== 'design' || w[1]?.text !== 'comments') continue;
+    const first = w[2];
+    if (!first?.literal || first.text.startsWith('-') || COMMENTS_SUBS.has(first.text)) continue;
+    return `use-sub-verb: \`maude design comments\` takes a sub-verb (list | reply | resolve | reopen | add). To read a canvas's comments run \`maude design comments list ${first.text}\` (add --open for the unresolved ones, --json for data).`;
+  }
+  return null;
 }
 
 /** Does `words` (after `maude`) run one of `allowed` (`check`, or `ds convert`)? */

@@ -457,6 +457,36 @@ describe('no studio — fail-open, snapshot + check + rollback still run', () =>
     ).toMatchObject({ status: 0, stdout: '' });
   });
 
+  // p8-journey-grader (S11): `maude design comments ui/GitPanel.tsx` — no sub-verb — is outside the one auto rule
+  // (`comments list:*`), so the agent got a bare permission denial and gave up. The hook says what to type instead.
+  // It only ever refuses what the CLI itself rejects (unknown sub-verb, exit 2): no tier is widened.
+  test('pre-bash: `maude design comments <path>` without a sub-verb → use-sub-verb names `comments list`', async () => {
+    for (const cmd of [
+      'maude design comments ui/C.tsx',
+      'maude design comments ".design/ui/C.tsx" --json',
+      'cd /tmp && maude design comments ui/C.tsx | head',
+    ]) {
+      const r = await hook('pre-bash', bash(project, 's3', 'cm1', cmd));
+      expect(isDeny(r, 'use-sub-verb')).toBe(true);
+      expect(r.json.hookSpecificOutput.permissionDecisionReason).toContain(
+        `maude design comments list ${cmd.includes('.design/') ? '.design/ui/C.tsx' : 'ui/C.tsx'}`
+      );
+    }
+    for (const ok of [
+      'maude design comments list ui/C.tsx',
+      'maude design comments list',
+      'maude design comments reply ui/C.tsx c1 "ok"',
+      'maude design comments --help',
+      'maude design comments',
+      'maude design history list ui/C.tsx',
+      'echo maude design comments ui/C.tsx',
+    ])
+      expect(await hook('pre-bash', bash(project, 's3', 'cm2', ok))).toMatchObject({
+        status: 0,
+        stdout: '',
+      });
+  });
+
   test('pre-bash: a maude command redirected outside the project → out-of-project (§9 Q3)', async () => {
     // only classified, never run: the probe path must not appear
     const probe = join(homedir(), `.maude-poc-${process.pid}`);
