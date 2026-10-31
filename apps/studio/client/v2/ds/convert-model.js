@@ -70,13 +70,20 @@ export function mapRows(row) {
         : words.join(' · ');
     out.push({ key: kind, label, from, count: pages.length });
   }
+  // rc.1 finding 9 option A (decision `v2-michal-ds-specimens-own-artboards`): every page also stays
+  // on the canvas as its own artboard, so the row counts them all and names the showcases no section shows
   const own = row?.own ?? [];
-  if (own.length)
+  const pages = Math.max(row?.specimens ?? 0, own.length);
+  const names = [
+    ...(pages > own.length ? ['every page'] : []),
+    ...own.map((o) => o.label.toLowerCase()),
+  ];
+  if (pages)
     out.push({
       key: 'own',
       label: CONVERT_WORDS.ownRow,
-      from: `${own.map((o) => o.label.toLowerCase()).join(' · ')} — kept as they are`,
-      count: own.length,
+      from: `${names.join(' · ')} — kept as they are`,
+      count: pages,
     });
   return out;
 }
@@ -101,7 +108,7 @@ export function dialogModel(plan) {
       kind: 'one',
       title: `Convert ${r.path} into its Design system canvas?`,
       lead: n
-        ? `${plural(n, 'specimen page')} fold${n === 1 ? 's' : ''} into 7 sections. ${CONVERT_WORDS.files}`
+        ? `${plural(n, 'specimen page')} fill${n === 1 ? 's' : ''} 7 sections and stay${n === 1 ? 's' : ''} as ${n === 1 ? 'its own artboard' : 'their own artboards'}. ${CONVERT_WORDS.files}`
         : `Its tokens fill 7 sections. ${CONVERT_WORDS.files}`,
       map: mapRows(r),
       fine: 'Version history keeps the folder view — Restore undoes the conversion.',

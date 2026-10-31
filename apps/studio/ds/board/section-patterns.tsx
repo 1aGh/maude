@@ -6,7 +6,7 @@
 
 import { DSRoot } from '@maude/canvas-lib';
 import { Component, type ComponentType, type ReactNode } from 'react';
-import { ownLabel } from '../convert-map.ts';
+import { ownLabel, sectionOf } from '../convert-map.ts';
 import { Frame, type SectionProps } from './parts.tsx';
 import { getSpecimen, getSpecimenSrcs } from './state.ts';
 import { themeFor } from './types.ts';
@@ -23,13 +23,22 @@ class Guard extends Component<{ children: ReactNode }, { failed: boolean }> {
   }
 }
 
+const stemOf = (src: string): string => (src.split('/').pop() ?? src).replace(/\.tsx$/, '');
+
 /** `preview/ui_kits-desktop-showcase.tsx` → "Desktop showcase" */
-const nameOf = (src: string): string =>
-  ownLabel((src.split('/').pop() ?? src).replace(/\.tsx$/, ''));
+const nameOf = (src: string): string => ownLabel(stemOf(src));
+
+/**
+ * The screens Patterns shows: the kept pages no other section claims (showcases, kits). Since every
+ * specimen page is its own artboard (decision `v2-michal-ds-specimens-own-artboards`), the board also
+ * registers `colors-accent`, `logo`… — those belong to their own sections, never here.
+ */
+export const patternSrcs = (srcs: readonly string[]): string[] =>
+  srcs.filter((s) => sectionOf(stemOf(s)) === null).slice(0, TILES_MAX);
 
 export function PatternsSection({ model, mode }: SectionProps) {
   const n = model.canvases;
-  const srcs = getSpecimenSrcs().slice(0, TILES_MAX);
+  const srcs = patternSrcs(getSpecimenSrcs());
   const theme = themeFor(model, mode);
   return (
     <Frame kind="patterns" model={model} mode={mode}>
