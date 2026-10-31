@@ -19,13 +19,21 @@ import { afterEach, beforeEach, describe, test } from 'node:test';
 
 import {
   checkoutFileClass,
+  heldCodeEntries,
   heldCodePaths,
   listProjectFiles,
   registerClassHolds,
 } from '../src/file-manifest.mjs';
-import { closeJournal, openJournal, walkImport } from '../src/journal.mjs';
+import {
+  closeJournal,
+  handleJournalRoutes,
+  JOURNAL_PATH,
+  JOURNAL_REPORT_PATH,
+  openJournal,
+  walkImport,
+} from '../src/journal.mjs';
 import { handleProjectConfigDoor, PROJECT_CONFIG_PATH } from '../src/project-config-door.mjs';
-import { addToken } from '../src/tokens.mjs';
+import { addToken, matchesScope, verifyToken } from '../src/tokens.mjs';
 
 let dataDir;
 let root;
@@ -173,5 +181,173 @@ describe('the hub wires it', () => {
       src,
       /beforeChange: \(\) => \{\s*if \(journal && journalDesignRoot\) listProjectFiles\(journalDesignRoot\);/
     );
+  });
+});
+
+/** One `GET /api/journal` (or report POST) through the real route with a real token check. */
+function journalRead(token, { designRoot = root, j = journal, path = JOURNAL_PATH, body } = {}) {
+  let out = null;
+  handleJournalRoutes({
+    path,
+    method: path === JOURNAL_PATH ? 'GET' : 'POST',
+    query: {},
+    bearer: token,
+    verify: (t) => verifyToken(dataDir, t, ''),
+    matchesScope,
+    designRoot,
+    journal: j,
+    body: body ?? null,
+    isLoopback: true,
+    respondJson: (status, payload) => {
+      out = { status, payload };
+    },
+  });
+  return out;
+}
+
+describe('p8-held-surface — the owner is told what is held, and only the owner', () => {
+  async function holdOne() {
+    put('brand/x.tsx', 'export default () => <i>teammate</i>;\n');
+    walk();
+    await ownerDeclares(['ui']);
+    walk();
+  }
+
+  test('the owner journal read names each held path with its reason', async () => {
+    await holdOne();
+    const got = journalRead(owner);
+    assert.equal(got.status, 200);
+    assert.deepEqual(got.payload.held, [{ path: 'brand/x.tsx', reason: 'canvas-before-folders' }]);
+    assert.equal(got.payload.heldCount, 1);
+  });
+
+  test('an editor, a viewer and a canvas-scoped token never see the held list', async () => {
+    await holdOne();
+    const editor = addToken(dataDir, { label: 'tereza', scope: '*', role: 'editor' }).value;
+    const viewer = addToken(dataDir, {
+      label: 'jonas',
+      scope: '*',
+      role: 'viewer',
+      readOnly: true,
+    }).value;
+    const readOnlyOwner = addToken(dataDir, {
+      label: 'owner-ro',
+      scope: '*',
+      role: 'owner',
+      readOnly: true,
+    }).value;
+    const scopedOwner = addToken(dataDir, { label: 'owner-ui', scope: 'ui', role: 'owner' }).value;
+    for (const t of [editor, viewer, readOnlyOwner, scopedOwner]) {
+      const got = journalRead(t);
+      assert.equal(got.status, 200);
+      assert.ok(!('held' in got.payload), 'no held field for a non-owner');
+      assert.ok(!('heldCount' in got.payload));
+    }
+  });
+
+  test("another tenant's holds never reach this owner", async () => {
+    await holdOne();
+    // A second checkout with its own journal and its own hold.
+    const otherData = mkdtempSync(join(tmpdir(), 'holds-data-b-'));
+    const otherRoot = mkdtempSync(join(tmpdir(), 'holds-root-b-'));
+    const otherJournal = openJournal(otherData);
+    registerClassHolds(otherRoot, otherJournal);
+    try {
+      mkdirSync(join(otherRoot, 'secret'), { recursive: true });
+      writeFileSync(join(otherRoot, 'secret/plan.tsx'), 'export default () => null;\n');
+      walkImport({ journal: otherJournal, designRoot: otherRoot, log: quiet });
+      writeFileSync(
+        join(otherRoot, 'config.json'),
+        JSON.stringify({ canvasGroups: [{ label: 'ui', path: 'ui' }] })
+      );
+      assert.deepEqual(heldCodePaths(otherRoot), ['secret/plan.tsx']);
+      const got = journalRead(owner);
+      assert.deepEqual(
+        got.payload.held.map((h) => h.path),
+        ['brand/x.tsx'],
+        'only this checkout'
+      );
+    } finally {
+      registerClassHolds(otherRoot, null);
+      closeJournal(otherData);
+      rmSync(otherData, { recursive: true, force: true });
+      rmSync(otherRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('owner code edited on the canvas lane is held with its own reason', async () => {
+    declare(['ui']);
+    put('components/Button.tsx', 'export const Button = () => null;\n');
+    walk();
+    undeclare();
+    walk();
+    put('components/Button.tsx', 'export const Button = () => <b>teammate</b>;\n');
+    walk();
+    await ownerDeclares(['ui']);
+    walk();
+    assert.deepEqual(heldCodeEntries(root), [
+      { path: 'components/Button.tsx', reason: 'changed-as-canvas' },
+    ]);
+  });
+
+  test('an owner with nothing held gets an empty list (a panel row clears)', () => {
+    declare(['ui']);
+    const got = journalRead(owner);
+    assert.deepEqual(got.payload.held, []);
+    assert.equal(got.payload.heldCount, 0);
+  });
+});
+
+describe('p8-held-surface — a config that arrives by git never promotes a teammate canvas', () => {
+  // The project-config door walks before it writes (beforeChange). A config.json that a
+  // pull or checkout writes straight to disk has no door and no pre-walk: the next
+  // walk-import is the first classification under the new groups. The hold must already
+  // exist by then — every door a teammate canvas enters through notes it at the write.
+  const gitWritesConfig = (paths) => declare(paths); // a plain disk write, no door, no walk
+
+  test('a canvas written through the studio nudge (no walk since) is held after a git config', () => {
+    put('brand/x.tsx', 'export default () => <i>teammate via the cell</i>;\n');
+    const child = addToken(dataDir, { label: 'cell-child', scope: '*', role: 'editor' }).value;
+    const nudge = journalRead(child, {
+      path: JOURNAL_REPORT_PATH,
+      body: { paths: ['brand/x.tsx'] },
+    });
+    assert.equal(nudge.status, 200);
+    gitWritesConfig(['ui']);
+    walk();
+    assert.equal(journal.latestFor('brand/x.tsx'), null, 'never journalled as code');
+    assert.ok(!listed().includes('brand/x.tsx'), 'never offered on the code lane');
+    assert.equal(checkoutFileClass('brand/x.tsx', root), 'never');
+    assert.deepEqual(heldCodePaths(root), ['brand/x.tsx']);
+  });
+
+  test('a canvas a peer PUT recorded (recordWrite) is held after a git config', () => {
+    put('brand/z.tsx', 'export default () => <i>teammate via a peer</i>;\n');
+    const row = journal.recordWrite({ designRoot: root, path: 'brand/z.tsx', source: 'peer-put' });
+    assert.equal(row, null, 'a canvas has no file-plane row');
+    gitWritesConfig(['ui']);
+    walk();
+    assert.equal(journal.latestFor('brand/z.tsx'), null);
+    assert.deepEqual(heldCodePaths(root), ['brand/z.tsx']);
+  });
+
+  test('a canvas seen by a manifest read is held after a git config', () => {
+    put('brand/w.tsx', 'export default () => null;\n');
+    listProjectFiles(root); // a peer's manifest read while undeclared
+    gitWritesConfig(['ui']);
+    walk();
+    assert.equal(journal.latestFor('brand/w.tsx'), null);
+    assert.deepEqual(heldCodePaths(root), ['brand/w.tsx']);
+  });
+
+  test('owner code that arrives WITH the git config is code, not held', () => {
+    put('brand/x.tsx', 'export default () => null;\n');
+    walk();
+    // The pull brings the declaration AND new owner code in one go.
+    put('components/Button.tsx', 'export const Button = () => null;\n');
+    gitWritesConfig(['ui']);
+    walk();
+    assert.equal(journal.latestFor('components/Button.tsx')?.class, 'code-module');
+    assert.deepEqual(heldCodePaths(root), ['brand/x.tsx'], 'only the teammate canvas');
   });
 });

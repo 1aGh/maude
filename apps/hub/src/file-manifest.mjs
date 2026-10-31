@@ -179,18 +179,48 @@ export function hubCheckoutClass(
 
 /** Paths a checkout holds back from the code lane (see `hubCheckoutClass`). */
 export function heldCodePaths(designRoot) {
+  return heldCodeEntries(designRoot).map((h) => h.path);
+}
+
+/**
+ * What a checkout holds back from the code lane, with WHY (p8-held-surface): the
+ * owner is told, so a held file is never a silent failure. `reason` is
+ * `canvas-before-folders` (the path was a canvas only because no folders were
+ * declared, and the owner had no code version of it) or `changed-as-canvas` (the
+ * owner had a code version, and the bytes changed on the canvas lane while no
+ * folders were declared). A path whose bytes are again exactly the owner's last
+ * code version is not held — the same lift `listProjectFiles` applies.
+ *
+ * @returns {{ path: string, reason: 'canvas-before-folders' | 'changed-as-canvas' }[]}
+ */
+export function heldCodeEntries(designRoot) {
   const holds = classHolds.get(designRoot);
+  if (!holds || !designRoot) return [];
   const canvasGroups = readCanvasGroups(designRoot);
-  if (!holds || canvasGroups === null) return [];
+  if (canvasGroups === null) return [];
   const hasFile = (r) => existsSync(join(designRoot, r));
-  return holds
-    .heldPaths()
-    .filter(
-      (rel) =>
-        hasFile(rel) &&
-        classifyProjectFile(rel, { canvasGroups, hasFile }) === 'code-module' &&
-        hubCheckoutClass(rel, designRoot, { canvasGroups, hasFile }) === 'never'
-    );
+  const out = [];
+  for (const rel of holds.heldPaths()) {
+    const abs = join(designRoot, rel);
+    let st;
+    try {
+      st = lstatSync(abs);
+    } catch {
+      continue;
+    }
+    // Tenant content: a link or a FIFO is not a file the owner can be told about.
+    if (!st.isFile()) continue;
+    if (classifyProjectFile(rel, { canvasGroups, hasFile }) !== 'code-module') continue;
+    const ownerSha = holds.heldCodeSha(rel);
+    const cls = hubCheckoutClass(rel, designRoot, {
+      canvasGroups,
+      hasFile,
+      sha256: () => shaOf(abs, st.size, st.mtimeMs),
+    });
+    if (cls !== 'never') continue;
+    out.push({ path: rel, reason: ownerSha ? 'changed-as-canvas' : 'canvas-before-folders' });
+  }
+  return out;
 }
 
 /**
