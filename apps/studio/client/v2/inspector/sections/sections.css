@@ -971,3 +971,138 @@
     display: none;
   }
 }
+
+/* P6 T2 (inspector-ux-rules IR-8, O2a) — the colour picker: one popover from the chip, beside the card, on the top layer
+   (`popover="manual"`; placed by colour-popover.jsx `placePopover`, so the UA's centring is undone here). Equal cells,
+   the selected token ringed, a two-theme swatch split diagonally Light | Dark. Tokens only. */
+@layer shell {
+  .insp-pop {
+    inset: auto;
+    margin: 0;
+    box-sizing: border-box;
+    width: 264px;
+    max-width: calc(100vw - 16px);
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-2);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    background: var(--island-bg-strong, var(--bg-1));
+    color: var(--fg-0);
+    box-shadow: var(--shadow-lg);
+    font-size: var(--type-xs);
+  }
+  .insp-pop-search {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 28px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+    color: var(--fg-0);
+    font: inherit;
+  }
+  .insp-pop-search:focus-visible,
+  .insp-pop-cell:focus-visible {
+    outline: 2px solid var(--focus-ring, var(--accent));
+    outline-offset: 1px;
+  }
+  .insp-pop-g {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .insp-pop-gt {
+    margin: 0;
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    color: var(--fg-2);
+  }
+  .insp-pop-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: var(--space-1);
+  }
+  .insp-pop-cell {
+    appearance: none;
+    aspect-ratio: 1;
+    min-width: 24px;
+    padding: 2px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    cursor: pointer;
+  }
+  .insp-pop-cell:hover {
+    background: var(--bg-3);
+  }
+  .insp-pop-cell[aria-pressed="true"] {
+    box-shadow: 0 0 0 2px var(--accent);
+  }
+  .insp-pop-sw {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: var(--radius-xs);
+    background: var(--sw-l);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+  }
+  .insp-pop-sw--two {
+    background: linear-gradient(135deg, var(--sw-l) 50%, var(--sw-d) 50%);
+  }
+  .insp-pop-nods {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .insp-pop-nods p,
+  .insp-pop-empty {
+    margin: 0;
+    color: var(--fg-2);
+  }
+  .insp-pop-bad {
+    margin: 0;
+    color: var(--status-error-text, var(--fg-1));
+  }
+  .insp-pop-link {
+    appearance: none;
+    align-self: flex-start;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--accent-text, var(--accent));
+    font: inherit;
+    cursor: pointer;
+  }
+  .insp-pop-foot {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding-top: var(--space-1);
+    box-shadow: inset 0 0.5px 0 var(--border-default);
+  }
+  .insp-pop-custom {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .insp-pop-custom .insp-color-in {
+    width: 100%;
+  }
+  .insp-pop-use {
+    align-self: flex-start;
+  }
+  .insp-chip-also {
+    color: var(--fg-2);
+  }
+  .insp-chip-off {
+    flex: none;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 1.5px var(--fg-2);
+  }
+}

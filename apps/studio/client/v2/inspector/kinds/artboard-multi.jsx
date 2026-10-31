@@ -58,6 +58,8 @@ function MixedFillRow({ selection, ctx }) {
           mixed={mixed ? shown.map((c) => (c ? c : null)) : null}
           colors={fam.color}
           vals={fam.vals}
+          themes={fam.themes}
+          ctx={ctx}
           allowNone
           noneLabel="Default"
           disabled={!facts.every((f) => f.id)}

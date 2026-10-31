@@ -16790,7 +16790,7 @@
   {
     "hook": "insp-fill-add-colour",
     "kind": "testid",
-    "meaning": "Fill › add row: a colour fill (the system's first colour). Disabled while the object has one — change it above.",
+    "meaning": "Fill › add row: a colour fill — the slot's role token with a literal fallback (`var(--bg-3, #d4d4d8)` on a shape, `var(--bg-1, #f4f4f5)` on a box; P6 T3 IR-11), never currentColor. Disabled while the object has one — change it above.",
     "producer": {
       "file": "apps/studio/client/v2/inspector/sections/fill.jsx",
       "symbol": "FillBody"
@@ -16898,10 +16898,10 @@
     "hook": "insp-color-<name>-<token>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "One colour token in a colour menu, by the system's own name without `--` (`insp-color-fill-ink`). Picking it writes `var(--<token>)`.",
+    "meaning": "One colour token in the colour picker's swatch grid (P6 T2), by the system's own name without `--` (`insp-color-fill-ink`); `aria-pressed` on the current one. Picking it writes `var(--<token>)`.",
     "producer": {
-      "file": "apps/studio/client/v2/inspector/sections/color-control.jsx",
-      "symbol": "ColorControl"
+      "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
+      "symbol": "ColourPopover"
     },
     "region": "inspector",
     "consumers": [],
@@ -16914,10 +16914,10 @@
     "hook": "insp-colorcss-<name>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "The colour menu's \"A colour, no token…\" row: opens a field for one CSS colour.",
+    "meaning": "The colour picker's \"Other colour…\" toggle: opens the drawn OKLCH picker and a field for one CSS colour.",
     "producer": {
-      "file": "apps/studio/client/v2/inspector/sections/color-control.jsx",
-      "symbol": "ColorControl"
+      "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
+      "symbol": "ColourPopover"
     },
     "region": "inspector",
     "consumers": [],
@@ -16930,7 +16930,199 @@
     "hook": "insp-colorin-<name>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "The field behind \"A colour, no token…\": Enter writes the colour if it is one colour (anything else is refused, `aria-invalid`).",
+    "meaning": "The field behind \"Other colour…\": Enter writes the colour if it is one colour (anything else is refused, `aria-invalid`).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
+      "symbol": "ColourPopover"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-pop-search-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The colour picker's Search field (P6 T2, IR-8): filters the swatches by token name and role word; focus starts here, ↓ enters the grid.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
+      "symbol": "ColourPopover"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-pop-recent-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The colour picker's Recent row: the last 8 colours used in this project (tokens and raw colours), newest first, per Mac in prefs.json `recentColours`.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
+      "symbol": "ColourPopover"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-recent-<name>-<n>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One Recent colour (0 = newest); picking it writes that colour again.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
+      "symbol": "ColourPopover"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-pop-group-<name>-<group>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One role group of the swatch grid, in DS schema order: surfaces · text · borders · accent · status · more · slots · own · other (colour-groups.js).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
+      "symbol": "ColourPopover"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-pop-nods-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The picker's line for a project with no design system: \"This project has no design system yet.\" in place of the grid.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
+      "symbol": "ColourPopover"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-pop-make-ds-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "\"Make a design system\": closes the picker and opens the make sheet (`ds.make`, maude:ds-make).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
+      "symbol": "ColourPopover"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-pop-empty-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The line shown when Search matches no colour.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
+      "symbol": "ColourPopover"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-pop-custom-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "\"Other colour…\" opened: the drawn OKLCH picker (`ds-picker`), the hex / oklch field and \"Use this colour\".",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
+      "symbol": "ColourPopover"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-pop-use-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "\"Use this colour\": writes the colour in the field; in a system the off-system question (`ds-off-system`) then asks once — Use <nearest> or Add it to the system.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
+      "symbol": "ColourPopover"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-pop-bad-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The one-line reason a typed colour was refused (not one colour). Nothing was written.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
+      "symbol": "ColourPopover"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-chip-also-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "An inherited colour's chip (IR-12): the system's name for the resolved colour, in grey after \"Text colour\" / \"Inherited\".",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/color-control.jsx",
+      "symbol": "ColorControl"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-chip-off-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The \"not in the system\" mark on a chip whose colour is raw while the canvas follows a design system (IR-9).",
     "producer": {
       "file": "apps/studio/client/v2/inspector/sections/color-control.jsx",
       "symbol": "ColorControl"

@@ -18,6 +18,7 @@ import { useCssWrite } from '../css-write.js';
 import { registerSlot } from '../slots.js';
 import { useDsFamilies } from '../token-chip.jsx';
 import { requestAdd, useAddRequest } from './add-requests.js';
+import { slotPaint } from '../../../../edit-ops/slot-defaults.ts';
 import { ColorControl } from './color-control.jsx';
 import { Quiet, Row } from './row.jsx';
 import { BOXY_KINDS } from './size.jsx';
@@ -32,11 +33,12 @@ const POSITIONS = [
 export const isStroke = ({ el, kind }) =>
   kind === 'path' || kind === 'line' || isStrokeTag(el?.tag);
 
-/** The colour a new border starts as: the system's ink-like token, else its first colour. */
-export function defaultLineColour(colors) {
-  const pick =
-    colors.find((c) => /^--(?:ink|border|line|stroke|fg(?:-0|-1)?)$/.test(c)) ?? colors[0];
-  return pick ? { token: pick } : { css: 'currentColor' };
+/**
+ * The colour a new border or stroke starts as (P6 T3, IR-11 / TD3): the slot's role token with a literal fallback — a
+ * border `--border-default`, a line's stroke `--fg-1` — never `currentColor`.
+ */
+export function defaultLineColour(stroke = false) {
+  return slotPaint(stroke ? 'stroke' : 'border');
 }
 
 export function BorderBody({ el, kind, ctx }) {
@@ -51,7 +53,7 @@ export function BorderBody({ el, kind, ctx }) {
   useAddRequest('border', el, () => {
     if (!line)
       put({
-        color: defaultLineColour(fam.color),
+        color: defaultLineColour(stroke),
         width: 1,
         ...(stroke ? {} : { position: 'inside' }),
       });
@@ -72,9 +74,14 @@ export function BorderBody({ el, kind, ctx }) {
         <ColorControl
           name="border"
           label={stroke ? 'Stroke colour' : 'Border colour'}
+          ctx={ctx}
+          resolved={el?.computed?.color}
+          inheritedWord="Text colour"
           value={{ paint: line.color, opacity: 100 }}
           colors={fam.color}
           vals={fam.vals}
+          themes={fam.themes}
+          slotGroup="borders"
           allowNone
           noneLabel="None"
           disabled={!editable}
