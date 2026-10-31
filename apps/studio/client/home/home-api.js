@@ -98,7 +98,11 @@ export const getFirstRunSeen = () => homeFetch('/_home/first-run');
 export const markFirstRunSeen = () => post('/_home/first-run', {});
 export const setPin = (pid, canvas, pinned) => post('/_home/pins', { pid, canvas, pinned });
 /** "Just a local project" (V2-1.1 §5.3): `~/Maude/<name>` scaffolded → `{ok, root, pid, name}`. */
-export const createLocal = (name) => post('/_home/projects/create-local', { name });
+export const createLocal = (name, location = null) =>
+  post('/_home/projects/create-local', location ? { name, location } : { name });
+/** r1 (img 6): New project › Advanced › "Choose another folder…" — the native folder picker (Home only) →
+ *  the folder, or null when cancelled. `create-local` re-checks whatever it is given. */
+export const pickProjectLocation = () => shellInvoke('pick_project_location');
 /** S6.4: "a new project" from Home's question — named from the sentence on the server (C4). */
 export const createLocalFromPrompt = (fromPrompt) =>
   post('/_home/projects/create-local', { fromPrompt });

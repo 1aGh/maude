@@ -4,9 +4,10 @@
 // project" on the sign-in card and File ▸ New Project… ⇧⌘N on Home (V2-3.9), so the V2-3.9 hooks
 // (`home-create-*`) keep their names.
 //
-// "Choose another folder…" needs a native folder picker that only Rust can open (and `create-local` taking
-// the chosen base). Until that command exists the button is not drawn (p8-dead-reasons: a button that never
-// works is a dead control); `onChooseFolder` draws it.
+// "Choose another folder…" is the native folder picker (Rust `pick_project_location`, Home only); the folder
+// it answers is `value.location`, which `create-local` re-checks before it makes anything there (r1, img 6).
+// In a browser there is no picker and nothing can be created, so the button is not drawn (p8-dead-reasons:
+// a button that never works is a dead control); `onChooseFolder` draws it.
 
 import { useState } from 'react';
 
@@ -26,6 +27,14 @@ export function folderNameFor(name) {
     .slice(0, 80)
     .trim();
   return cleaned || 'Untitled project';
+}
+
+/** The folder a project goes in, in words: `~/Maude` by default, a picked folder with the home folder as `~`
+ *  (display only — `create-local` gets the folder as picked). */
+export function locationWords(location) {
+  if (typeof location !== 'string' || !location) return '~/Maude';
+  const trimmed = location.replace(/\/+$/, '') || '/';
+  return trimmed.replace(/^\/(?:Users|home)\/[^/]+(?=\/|$)/, '~');
 }
 
 /**
@@ -78,7 +87,9 @@ export function CreateLocalSheet({
             Kept on this Mac, in your Maude folder. Move it to the cloud any time.
           </span>
         </label>
-        <div className="si-adv" data-open={adv ? 'true' : undefined}>
+        {/* `si-fold`, never `si-adv`: that is the sign-in card's inline-flex flyout button, and on this block it
+            put the path beside "Advanced" instead of under it (r1, img 6) */}
+        <div className="si-fold" data-open={adv ? 'true' : undefined}>
           <button
             type="button"
             className="si-adv-btn"
@@ -91,14 +102,15 @@ export function CreateLocalSheet({
               <HIcon name="submenu" size={12} />
             </span>
             Advanced
-            <span className="si-adv-count">Location</span>
+            {/* closed, the fold names what is inside; open, the row below says it (02 ob-local-name) */}
+            {adv ? null : <span className="si-adv-count">Location</span>}
           </button>
           {adv ? (
             <div className="si-adv-body" id="home-create-adv-body">
               <span className="si-loc">
                 <span>Location</span>
                 <span className="si-mono" data-testid="home-create-location">
-                  ~/Maude/{folderNameFor(value.name)}
+                  {locationWords(value.location)}/{folderNameFor(value.name)}
                 </span>
               </span>
               {onChooseFolder ? (

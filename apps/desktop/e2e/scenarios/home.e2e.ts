@@ -543,4 +543,79 @@ export default function C() {
     }
     await capture('11-home-sentence-sent');
   });
+
+  it('12 · r1: the Home pill has room around its mark; the target menu is on top of the cards under it', async () => {
+    await newHomeTab();
+    await onHome();
+    // img 8: the pill is 40 px tall (it was only as tall as its 22 px mark — `--pill-h` lives on `.sh-body`)
+    const pill = await browser.execute(() => {
+      const el = document.querySelector('.home-top .sh-pill.island') as HTMLElement | null;
+      const mark = el?.querySelector('.sh-pill-mark') as HTMLElement | null;
+      if (!el || !mark) return null;
+      const a = el.getBoundingClientRect();
+      const m = mark.getBoundingClientRect();
+      return { h: a.height, above: m.top - a.top, left: m.left - a.left };
+    });
+    expect(pill).not.toBeNull();
+    expect(pill?.h).toBeGreaterThanOrEqual(36);
+    expect(pill?.above).toBeGreaterThanOrEqual(6);
+    expect(pill?.left).toBeGreaterThanOrEqual(6);
+    // img 7: every row of the open menu is what a press there lands on — no card or icon paints over it
+    await (await $(tid('home-target-chip'))).click();
+    await (await $(tid('home-target-menu'))).waitForDisplayed({ timeout: 5_000 });
+    const covered = await browser.execute(() => {
+      const menu = document.querySelector('[data-testid="home-target-menu"]') as HTMLElement;
+      const out: string[] = [];
+      for (const row of Array.from(menu.querySelectorAll('[role="menuitemradio"]'))) {
+        const r = row.getBoundingClientRect();
+        if (r.bottom > menu.getBoundingClientRect().bottom) continue; // scrolled out of the list
+        for (const x of [r.left + 12, (r.left + r.right) / 2, r.right - 12]) {
+          const hit = document.elementFromPoint(x, (r.top + r.bottom) / 2);
+          if (!hit || !menu.contains(hit))
+            out.push(`${row.getAttribute('data-testid')} @${Math.round(x)} → ${hit?.className}`);
+        }
+      }
+      return out;
+    });
+    expect(covered).toEqual([]);
+    await capture('12-home-pill-and-target-menu');
+    await browser.keys('Escape');
+  });
+
+  it('13 · r1: New project › Advanced says Location once; Choose another folder… makes the project there', async () => {
+    await onHome();
+    const before = await labels();
+    await menuState('new_project');
+    await browser.switchToWindow(HOME);
+    await (await $(tid('home-create-dialog'))).waitForDisplayed({ timeout: 10_000 });
+    await (await $(tid('home-create-name'))).setValue('Tralala');
+    await (await $(tid('home-create-advanced'))).click();
+    const dialogText = await (await $(tid('home-create-dialog'))).getText();
+    expect(dialogText.match(/Location/g)?.length).toBe(1); // img 6: it said "Location Location"
+    // the path sits under the Advanced row, not beside it
+    const layout = await browser.execute(() => {
+      const btn = document.querySelector('[data-testid="home-create-advanced"]') as HTMLElement;
+      const loc = document.querySelector('[data-testid="home-create-location"]') as HTMLElement;
+      return {
+        btnBottom: btn.getBoundingClientRect().bottom,
+        locTop: loc.getBoundingClientRect().top,
+      };
+    });
+    expect(layout.locTop).toBeGreaterThanOrEqual(layout.btnBottom - 1);
+    await (await $(tid('home-create-choose-folder'))).click();
+    const picked = process.env.MAUDE_E2E_PICK_LOCATION as string;
+    await browser.waitUntil(
+      async () => (await $(tid('home-create-location')).getText()).endsWith('/Clients/Tralala'),
+      { timeout: 5_000, timeoutMsg: 'the picked folder did not reach Location' }
+    );
+    await capture('13-new-project-location');
+    await (await $(tid('home-create-submit'))).click();
+    await browser.waitUntil(async () => (await labels()).length === before.length + 1, {
+      timeout: 30_000,
+      interval: 250,
+      timeoutMsg: 'no new project tab after Create project in a picked folder',
+    });
+    expect(readdirSync(picked)).toContain('Tralala');
+    expect(readdirSync(join(picked, 'Tralala'))).toContain('.design');
+  });
 });

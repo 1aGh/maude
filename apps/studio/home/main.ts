@@ -80,6 +80,9 @@ export function startHomeServer(opts: { argv?: string[]; env?: NodeJS.ProcessEnv
     cloudOrigin: originOf(cloudUrl()),
     formatSupported: SUPPORTED_FORMAT,
     projectsDir: projectsBaseDir(),
+    // r1 (img 6): the folder a picked New project location must sit in — the home folder; the e2e lane
+    // names a throwaway one, like MAUDE_HOME_PROJECTS_DIR (an env only the shell that spawns Home sets)
+    homeDir: env.MAUDE_HOME_LOCATION_ROOT || homedir(),
     cloud: createHomeCloud(),
   });
 

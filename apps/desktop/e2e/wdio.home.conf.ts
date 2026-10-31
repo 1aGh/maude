@@ -12,7 +12,7 @@
  * Run: `pnpm test:e2e:desktop:home`.
  */
 import { execFileSync } from 'node:child_process';
-import { appendFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -36,6 +36,13 @@ if (!process.env.MAUDE_E2E_HOME_FIXTURES) {
   process.env.MAUDE_INDEX_DIR = mkdtempSync(join(tmpdir(), 'maude-e2e-home-index-'));
   // V2-3.9: New Project… on Home creates `<this>/<name>` (home/create-local.ts), never ~/Maude.
   process.env.MAUDE_HOME_PROJECTS_DIR = mkdtempSync(join(tmpdir(), 'maude-e2e-home-projects-'));
+  // r1 (img 6): "Choose another folder…" — the debug build answers this folder instead of the native
+  // sheet (home.rs `pick_project_location`), and create-local accepts folders inside the throwaway root
+  // (home/main.ts `homeDir`), never the real home folder.
+  const locRoot = mkdtempSync(join(tmpdir(), 'maude-e2e-home-loc-'));
+  mkdirSync(join(locRoot, 'Clients'));
+  process.env.MAUDE_HOME_LOCATION_ROOT = locRoot;
+  process.env.MAUDE_E2E_PICK_LOCATION = join(locRoot, 'Clients');
   process.env.MAUDE_E2E_HOME_FIXTURES = execFileSync(
     'bun',
     [resolve(HERE, 'fixtures', 'seed-home-index.ts')],

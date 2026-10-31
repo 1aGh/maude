@@ -62,7 +62,7 @@ export function FigmaSheet({ target = null, busy = false, error = null, onImport
         <p className="ob-fine" data-testid="onb-figma-line">
           {W.fine(figmaProjectName(target))}
         </p>
-        <div className="si-adv" data-open={adv ? 'true' : undefined}>
+        <div className="si-fold" data-open={adv ? 'true' : undefined}>
           <button
             type="button"
             className="si-adv-btn"
