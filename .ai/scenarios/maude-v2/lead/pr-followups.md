@@ -298,3 +298,9 @@ Any commit outside `.ai/` makes V2-8.1/8.2/8.3/8.18 stale. Fold these into the n
   outside system/ui and no config listing them still uploads `screens/x.tsx` through the file plane as code, and the hub
   now refuses it (it belongs to the canvas lane) — unlikely setup, but it would show as a refused upload; (2) under the
   boundary `<folder>/<ds>/tokens.json` in any folder syncs as design-system data, as if declared.
+- From p8-held-surface (2026-10-31): accepted residual (lead, option B) — a file written straight to a cell's disk with no
+  hook, followed by a git-arrived config.json inside one 60 s walk interval, is not noted as held and would classify as
+  code (only the cell's own processes write unhooked). A held Sync-details row has no button (the action is the sentence;
+  an "Open canvas folders" button needs a registry entry). Narrowing already-declared folders holds nothing (the
+  mechanism covers undeclared → declared only). Final-3 defender L2 is an accepted consequence of Michal's A: on an
+  undeclared hub, editors may edit shared `.tsx` modules in undeclared folders.
