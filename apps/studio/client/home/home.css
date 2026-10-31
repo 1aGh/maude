@@ -1058,7 +1058,12 @@
     font-size: var(--type-base);
     color: var(--fg-1);
   }
+  /* r1 (img 7): the island's backdrop-filter makes the card the stacking context its target menu lives in,
+     so the menu's own z-index cannot lift it over the starters and cards painted after it. Raise the card
+     itself — above the content under it, below the sticky header (10) and the docked ask bar (11). */
   .island.home-ask-card {
+    position: relative;
+    z-index: 2;
     width: min(600px, 100%);
     padding: var(--space-2);
     text-align: left;
@@ -1194,6 +1199,11 @@
     gap: 1px;
     padding: var(--space-1);
     text-align: left;
+  }
+  /* no room below the chip (TargetChip `menuPlace`): the menu opens above it */
+  .island.home-target-menu[data-up] {
+    top: auto;
+    bottom: calc(100% + var(--space-1));
   }
   .home-target-sep {
     display: block;
