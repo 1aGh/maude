@@ -27,7 +27,8 @@
     top: var(--float-gap, 16px);
     z-index: 30;
     display: inline-flex;
-    height: var(--pill-h);
+    /* the fallback is load-bearing: Home draws this pill with no `.sh-body` around it (r1, img 8) */
+    height: var(--pill-h, 40px);
     max-width: min(440px, calc(100% - 2 * var(--float-gap, 16px)));
   }
   /* Pinned: the island chrome that `.sh-body--float .island` gives is not applied, so give it here. */
@@ -199,7 +200,7 @@
 
   /* Pinned: the left column leaves room for the pill above its first panel. */
   .sh-body:not(.sh-body--float) > .sh-dockslot--left {
-    padding-top: calc(var(--pill-h) + var(--space-2, 8px) * 2);
+    padding-top: calc(var(--pill-h, 40px) + var(--space-2, 8px) * 2);
     box-sizing: border-box;
     background: var(--bg-1);
   }

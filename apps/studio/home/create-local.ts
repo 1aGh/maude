@@ -5,7 +5,7 @@
 // `scaffold-design.ts` every new project uses. The folder is CLAIMED with a non-recursive mkdir, so
 // two creates racing for one name get two folders, never one shared one.
 
-import { mkdirSync, realpathSync, rmSync } from 'node:fs';
+import { mkdirSync, realpathSync, rmSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
 
@@ -32,6 +32,53 @@ export function projectFolderName(raw: unknown): string {
     .slice(0, MAX_NAME)
     .trim();
   return s || UNTITLED_PROJECT;
+}
+
+/** What `create-local` says when a picked folder is not one it will make a project in. */
+export const LOCATION_REFUSED =
+  'Choose a folder inside your home folder, or on a drive attached to this Mac.';
+const MAX_LOCATION = 1024;
+
+/**
+ * r1 (img 6) — New project › Advanced › "Choose another folder…": the folder the person picked in the
+ * native picker, re-checked here because the page hands it over. It must be an existing folder (the
+ * picker only answers those), given as an absolute path; after every symlink is resolved it sits inside
+ * the home folder or on an attached drive (`/Volumes/<drive>/…`), and none of its parts inside the home
+ * folder is hidden (`~/.config`, `~/.ssh`) or `~/Library` (the app's own data). Answers the resolved
+ * folder, or null.
+ */
+export function checkLocation(raw: unknown, home = homedir()): string | null {
+  if (typeof raw !== 'string' || !raw || raw.length > MAX_LOCATION || raw.includes('\u0000'))
+    return null;
+  if (!path.isAbsolute(raw)) return null;
+  let real: string;
+  let realHome: string;
+  try {
+    real = realpathSync(raw);
+    realHome = realpathSync(home);
+  } catch {
+    return null;
+  }
+  try {
+    if (!statSync(real).isDirectory()) return null;
+  } catch {
+    return null;
+  }
+  const rel = path.relative(realHome, real);
+  const inHome = rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
+  if (inHome) {
+    const parts = rel ? rel.split(path.sep) : [];
+    if (parts.some((p) => p.startsWith('.'))) return null;
+    if (parts[0] === 'Library') return null;
+    return real;
+  }
+  const vol = real.split(path.sep);
+  // ['', 'Volumes', '<drive>', …] — a drive's own folders, never /Volumes itself
+  if (process.platform === 'darwin' && vol[1] === 'Volumes' && vol.length >= 3 && vol[2]) {
+    if (vol.slice(2).some((p) => p.startsWith('.'))) return null;
+    return real;
+  }
+  return null;
 }
 
 export type CreateLocalResult =

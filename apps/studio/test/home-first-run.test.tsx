@@ -485,9 +485,60 @@ describe('Just a local project', () => {
     expect($('home-create-location')).toBeNull();
     click('home-create-advanced');
     expect($('home-create-location')?.textContent).toBe('~/Maude/Untitled project');
-    // p8-dead-reasons: "Choose another folder…" needs a native picker Home does not have yet — it is not drawn
-    // until `onChooseFolder` exists (a resting button that never works is a dead control)
-    expect($('home-create-choose-folder')).toBeNull();
+    // r1 (img 6): in the app, "Choose another folder…" opens the native folder picker (pick_project_location)
+    expect($('home-create-choose-folder')?.textContent).toBe('Choose another folder…');
+  });
+
+  test('r1 img 6: Advanced says "Location" once — the closed fold names what is inside, the open one shows it', async () => {
+    mount();
+    await flush();
+    click('signin-local');
+    const dialog = $('home-create-dialog') as HTMLElement;
+    const times = () => (dialog.textContent?.match(/Location/g) ?? []).length;
+    expect(times()).toBe(1);
+    click('home-create-advanced');
+    expect(times()).toBe(1);
+    // the sheet's fold is a block (the path under the button), never the sign-in card's inline-flex `.si-adv`
+    const fold = ($('home-create-advanced') as HTMLElement).parentElement as HTMLElement;
+    expect(fold.classList.contains('si-adv')).toBe(false);
+    expect(fold.classList.contains('si-fold')).toBe(true);
+  });
+
+  test('r1 img 6: Choose another folder… → the picked folder holds the project, and create-local is told so', async () => {
+    invokeAnswers.pick_project_location = () => '/Users/x/Clients';
+    mount();
+    await flush();
+    click('signin-local');
+    const input = $('home-create-name') as HTMLInputElement;
+    const key = Object.keys(input).find((k) => k.startsWith('__reactProps')) as string;
+    act(() =>
+      (input as unknown as Record<string, any>)[key].onChange({ target: { value: 'Tralala' } })
+    );
+    click('home-create-advanced');
+    click('home-create-choose-folder');
+    await flush();
+    expect(cmds('pick_project_location')).toHaveLength(1);
+    expect($('home-create-location')?.textContent).toBe('~/Clients/Tralala');
+    click('home-create-submit');
+    await flush();
+    expect(hit('/_home/projects/create-local')[0].body).toEqual({
+      name: 'Tralala',
+      location: '/Users/x/Clients',
+    });
+  });
+
+  test('r1 img 6: a cancelled pick keeps ~/Maude, and create-local is not given a location', async () => {
+    invokeAnswers.pick_project_location = () => null;
+    mount();
+    await flush();
+    click('signin-local');
+    click('home-create-advanced');
+    click('home-create-choose-folder');
+    await flush();
+    expect($('home-create-location')?.textContent).toBe('~/Maude/Untitled project');
+    click('home-create-submit');
+    await flush();
+    expect(hit('/_home/projects/create-local')[0].body).toEqual({ name: '' });
   });
 
   test('a name → create-local → the project opens in its own tab', async () => {

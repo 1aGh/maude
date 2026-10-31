@@ -28,6 +28,7 @@ import {
   openProjectFolder,
   pendingInviteAccept,
   pendingInviteLeave,
+  pickProjectLocation,
   prepareCloud,
   prepareCloudLink,
   relinkProject,
@@ -774,7 +775,7 @@ export function HomeApp() {
     if (!creating || creating.busy || !data.native) return;
     setCreating({ ...creating, busy: true });
     try {
-      const r = await createLocal(creating.name.trim());
+      const r = await createLocal(creating.name.trim(), creating.location ?? null);
       if (!r.ok || !r.json?.ok || typeof r.json.root !== 'string') {
         setNotice(r.json?.error || 'The project could not be created. Nothing changed.');
         setCreating((c) => (c ? { ...c, busy: false } : c));
@@ -787,6 +788,16 @@ export function HomeApp() {
       fail(e);
     }
   }, [creating, data.native, fail]);
+  // r1 (img 6): "Choose another folder…" — the native picker; a cancel keeps what was there
+  const chooseLocation = useCallback(async () => {
+    try {
+      const picked = await pickProjectLocation();
+      if (typeof picked === 'string' && picked)
+        setCreating((c) => (c ? { ...c, location: picked } : c));
+    } catch (e) {
+      fail(e);
+    }
+  }, [fail]);
   useEffect(() => {
     if (!creating) return undefined;
     const onKey = (e) => {
@@ -1219,6 +1230,7 @@ export function HomeApp() {
           onChange={setCreating}
           onSubmit={createProject}
           onCancel={() => setCreating(null)}
+          onChooseFolder={data.native ? chooseLocation : null}
           native={data.native}
         />
       ) : null}

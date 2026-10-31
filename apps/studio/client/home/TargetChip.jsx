@@ -6,7 +6,7 @@
 // same chip in the condensed ask bar that stays on top once the question has scrolled away
 // ("in <project>", 11 pn-home).
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { HIcon } from './home-icons.jsx';
 
@@ -39,6 +39,19 @@ export function TargetChip({ choices, value, onChange, variant = 'full', disable
       document.removeEventListener('pointerdown', onDown);
       document.removeEventListener('keydown', onKey);
     };
+  }, [open]);
+
+  // r1 (img 7): the menu stays inside the window — it opens below the chip and is no taller than the room
+  // there; when below has less than a short list's room and above has more, it opens above instead.
+  const [place, setPlace] = useState(null);
+  useLayoutEffect(() => {
+    if (!open) {
+      setPlace(null);
+      return;
+    }
+    const chip = wrap.current?.getBoundingClientRect?.();
+    if (!chip || typeof window === 'undefined') return;
+    setPlace(menuPlace(chip, window.innerHeight));
   }, [open]);
 
   // opening puts the focus on the chosen item, so the arrows work at once
@@ -87,6 +100,8 @@ export function TargetChip({ choices, value, onChange, variant = 'full', disable
           role="menu"
           aria-label="Start the canvas in"
           data-testid="home-target-menu"
+          data-up={place?.up ? 'true' : undefined}
+          style={place ? { maxHeight: place.maxHeight } : undefined}
           onKeyDown={walk}
         >
           {choices.map((c, i) => (
@@ -121,4 +136,17 @@ export function TargetChip({ choices, value, onChange, variant = 'full', disable
       ) : null}
     </span>
   );
+}
+
+/** Room the menu keeps from the window's edge, and the least it may shrink to before it flips. */
+const EDGE = 8;
+const MIN_ROOM = 160;
+const MAX_H = 320;
+
+/** Where the target menu opens for a chip at `chip` in a window `vh` tall: `{up, maxHeight}`. */
+export function menuPlace(chip, vh) {
+  const below = vh - chip.bottom - EDGE - 4;
+  const above = chip.top - EDGE - 4;
+  const up = below < MIN_ROOM && above > below;
+  return { up, maxHeight: Math.max(0, Math.min(MAX_H, up ? above : below)) };
 }

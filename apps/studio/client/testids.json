@@ -30547,7 +30547,7 @@
     "hook": "home-create-location",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The folder the project will be kept in, `~/Maude/<name>`.",
+    "meaning": "The folder the project will be kept in: `~/Maude/<name>`, or `<picked folder>/<name>` after Choose another folder….",
     "producer": {
       "file": "apps/studio/client/v2/signin/CreateLocalSheet.jsx",
       "symbol": "CreateLocalSheet"
@@ -30562,7 +30562,7 @@
     "hook": "home-create-choose-folder",
     "kind": "testid",
     "pattern": false,
-    "meaning": "\"Choose another folder…\" under Advanced › Location. Drawn only once the native folder picker is wired (`onChooseFolder`); absent until then.",
+    "meaning": "\"Choose another folder…\" under Advanced › Location: the native folder picker (`pick_project_location`, Home only). Drawn in the app only; a browser Home has no picker and cannot create.",
     "producer": {
       "file": "apps/studio/client/v2/signin/CreateLocalSheet.jsx",
       "symbol": "CreateLocalSheet"

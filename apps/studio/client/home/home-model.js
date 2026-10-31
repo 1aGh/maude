@@ -255,6 +255,16 @@ export function buildHomeModel({ shell = null, index = null, clouds = null, filt
 
 // ── where the sentence lands (S6.4 — the chip under the question) ─────────────────────────────
 
+/** `https://alligators.cloud.maude.sh` → `alligators.cloud.maude.sh` (a hint's words; '' when none). */
+function hubHost(url) {
+  if (typeof url !== 'string' || !url) return '';
+  try {
+    return new URL(url).host;
+  } catch {
+    return '';
+  }
+}
+
 /** The chip's last choice: a project that does not exist yet. Signed in AND online it is a cloud
  *  project in the making ("a new project"); otherwise it stays on this Mac, and says so. */
 export const newProjectWord = ({ signedIn, online }) =>
@@ -269,6 +279,7 @@ export const newProjectWord = ({ signedIn, online }) =>
 export function targetChoices({ model, signedIn, online }) {
   const local = [];
   const cloud = [];
+  const where = new Map();
   for (const g of model?.groups ?? []) {
     for (const r of g.rows) {
       if (r.kind === 'local') {
@@ -284,6 +295,8 @@ export function targetChoices({ model, signedIn, online }) {
           hint: null,
           disabled: false,
         });
+        // r1 (img 7): what tells two same-named folders apart — the synced copy's cloud, else the folder
+        where.set(r.pid, hubHost(r.boundHub) || r.folder || null);
       } else if (r.kind === 'cloud') {
         if (r.role === 'observer' || r.role === 'viewer') continue;
         cloud.push({
@@ -299,6 +312,17 @@ export function targetChoices({ model, signedIn, online }) {
         });
       }
     }
+  }
+  // Two registered folders may carry one project name (a ~/Maude folder and the app's synced copy of the
+  // same cloud project; two repos whose config says the same name). Both are real targets, so neither is
+  // dropped: a name on more than one local row gets its `where` as the hint.
+  const seen = new Map();
+  for (const c of local) {
+    const n = c.name.trim().toLowerCase();
+    seen.set(n, (seen.get(n) ?? 0) + 1);
+  }
+  for (const c of local) {
+    if ((seen.get(c.name.trim().toLowerCase()) ?? 0) > 1) c.hint = where.get(c.pid) ?? null;
   }
   return [
     ...local,

@@ -41,7 +41,7 @@ import { isLoopbackHost } from '../ws.ts';
 import { createHomeAi, type HomeAi } from './ai.ts';
 import { createHomeCli, type HomeCli } from './cli.ts';
 import type { HomeCloud } from './cloud.ts';
-import { createLocalProject } from './create-local.ts';
+import { checkLocation, createLocalProject, LOCATION_REFUSED } from './create-local.ts';
 import { createHomeGithub, type HomeGithub } from './github.ts';
 import { createHomeHub, type HomeHub } from './hub.ts';
 import { indexGcRequest } from './index-gc.ts';
@@ -71,6 +71,8 @@ export interface HomeDeps {
   formatSupported: number;
   /** base dir for create-local (default ~/Maude) */
   projectsDir: string;
+  /** the home folder a picked create-local location must sit in (default os.homedir(); tests pass a temp dir) */
+  homeDir?: string;
   cloud: HomeCloud;
   /** S6.5 — the device-flow sign-in (one per Home process; default: a fresh one per table) */
   signin?: HomeSignIn;
@@ -413,11 +415,22 @@ export function homeRouteTable(deps: HomeDeps): HomeRoute[] {
         if (!b.ok) return b.res;
         // S6.4 (Q4/Q6): "a new project" from the sentence is named by the same non-AI C4 rule as the
         // first canvas; an explicit `name` still wins.
-        const body = (b.value ?? {}) as { name?: unknown; fromPrompt?: unknown };
+        const body = (b.value ?? {}) as {
+          name?: unknown;
+          fromPrompt?: unknown;
+          location?: unknown;
+        };
+        // r1 (img 6): a folder picked under Advanced › Location — re-checked, never trusted as sent
+        let base = deps.projectsDir;
+        if (body.location !== undefined && body.location !== null) {
+          const picked = checkLocation(body.location, deps.homeDir);
+          if (!picked) return json(400, { ok: false, error: LOCATION_REFUSED });
+          base = picked;
+        }
         const r = createLocalProject(
           body.name ??
             (body.fromPrompt === undefined ? undefined : nameFromPrompt(body.fromPrompt).project),
-          deps.projectsDir
+          base
         );
         return r.ok ? json(200, r) : json(r.status, r);
       },

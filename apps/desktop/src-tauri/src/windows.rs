@@ -2920,6 +2920,40 @@ mod tests {
         );
     }
 
+    /// r1 (img 18): one folder is one tab, whatever path names it — a symlink to the
+    /// folder and the folder with a trailing `/` focus the tab the folder already has,
+    /// never a second tab for the same project.
+    #[cfg(unix)]
+    #[test]
+    fn open_once_holds_for_the_same_folder_under_another_path() {
+        let dir = std::env::temp_dir().join(format!("maude-r1-once-{}", std::process::id()));
+        let real = dir.join("maude");
+        std::fs::create_dir_all(&real).unwrap();
+        let alias = dir.join("alias");
+        let _ = std::fs::remove_file(&alias);
+        std::os::unix::fs::symlink(&real, &alias).unwrap();
+        let (real_s, alias_s) = (
+            real.to_string_lossy().to_string(),
+            alias.to_string_lossy().to_string(),
+        );
+        let host = MockHost::default();
+        let book = Mutex::new(WindowBook::default());
+        let first = open_in(&host, &book, &real_s, "maude", None, 1).unwrap();
+        for (i, other) in [alias_s.clone(), format!("{real_s}/")].iter().enumerate() {
+            let again = open_in(&host, &book, other, "maude", None, 2 + i as u64).unwrap();
+            assert_eq!(
+                again,
+                Opened::Existing(match &first {
+                    Opened::New(l) => l.clone(),
+                    Opened::Existing(l) => l.clone(),
+                }),
+                "{other} opened a second tab"
+            );
+        }
+        assert_eq!(host.created.borrow().len(), 1, "one folder, one tab");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     #[test]
     fn open_once_from_home_and_from_a_project() {
         let host = MockHost::default();

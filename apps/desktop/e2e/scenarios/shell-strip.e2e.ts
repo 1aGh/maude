@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { $, $$, browser, expect } from '@wdio/globals';
@@ -117,6 +117,37 @@ describe('shell-strip (11 pn-tab-a, pn-tab-menu, pn-windows, pn-tab-a20)', () =>
     expect(d.home.selected).toBe(false);
     expect(d.more.hidden).toBe(true); // two tabs fit: no "N more"
     await capture('pn-tab-a strip');
+  });
+
+  it('r1 img 18: one folder is one tab under any path, and every tab holds its own ×', async () => {
+    // the same folder through a symlink and with a trailing "/" focuses the tab it has (windows.rs
+    // `open_once_holds_for_the_same_folder_under_another_path` pins the pid half in cargo)
+    const alias = join(mkdtempSync(join(tmpdir(), 'maude-e2e-alias-')), 'same');
+    symlinkSync(SECONDARY, alias);
+    for (const other of [alias, `${SECONDARY}/`]) {
+      expect(await openTab(other)).toEqual({ label: tabB, opened: 'existing' });
+    }
+    const d = await drawn();
+    expect(d.tabs.map((t) => t.label)).toEqual([tabA, tabB]);
+    // each tab carries exactly one × of its own (shown on hover and on the active tab, P8-C8)
+    const closes = await (async () => {
+      await browser.switchToWindow('strip');
+      const out = await browser.execute(() =>
+        Array.from(document.querySelectorAll('#tabs [role="tab"][data-label]')).map((el) => ({
+          label: el.getAttribute('data-label'),
+          own: el.querySelectorAll(`[data-testid="tab-close-${el.getAttribute('data-label')}"]`)
+            .length,
+          all: el.querySelectorAll('.close').length,
+        }))
+      );
+      await browser.switchToWindow(tabB);
+      return out;
+    })();
+    expect(closes).toEqual([
+      { label: tabA, own: 1, all: 1 },
+      { label: tabB, own: 1, all: 1 },
+    ]);
+    await focusTab(tabB);
   });
 
   it('pn-windows: opening an open project again brings its tab forward and says so — one window, nothing to merge', async () => {

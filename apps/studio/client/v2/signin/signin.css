@@ -405,6 +405,22 @@
     line-height: var(--lh-xs);
     color: var(--fg-2);
   }
+  /* a sheet's Advanced fold (_kit.css .k-adv): a block — the button, then its body under it. Not `.si-adv`,
+     the sign-in card's inline-flex flyout button (r1, img 6: the path landed beside "Advanced"). */
+  .si-fold {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    margin-top: var(--space-1);
+    padding-top: var(--space-1);
+    box-shadow: inset 0 0.5px 0 var(--border-default);
+  }
+  .si-fold .si-adv-btn {
+    width: 100%;
+  }
+  .si-fold .si-adv-count {
+    margin-left: auto;
+  }
   .si-adv-btn {
     display: inline-flex;
     align-items: center;
