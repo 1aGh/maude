@@ -100,6 +100,20 @@ describe('modes-present (S3.13)', () => {
     await landsOn('edit');
   });
 
+  // Michal rc.1 #18: V in Preview only arms Preview's pointer (the Hand) — it no longer switches to Edit. F still
+  // crosses, so the key reached the canvas and a dead key cannot pass this step.
+  it('Preview: V keeps Preview (the pointer), F still crosses to Edit', async () => {
+    await chord('p', 'KeyP', { altKey: true, metaKey: true });
+    await $(tid('preview-bar')).waitForExist({ timeout: 6000 });
+    await landsOn('preview');
+    await chord('c', 'KeyC'); // Comment in hand
+    await chord('v', 'KeyV');
+    await browser.pause(600); // a crossing would land within this beat
+    await landsOn('preview');
+    await chord('f', 'KeyF');
+    await landsOn('edit');
+  });
+
   // 04 md-motion (6 · Edit → Preview, in motion): "220 ms on --dur-panel, shaped by --ease-out … Reduce motion: a 1 ms
   // cut". The camera's own ease is pinned on a manual clock (preview-motion.test.tsx); this is the CHROME half, read
   // off the real elements while the real app does it: the Preview bar's entrance, and the picture of a panel that
