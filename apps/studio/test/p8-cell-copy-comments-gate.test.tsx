@@ -76,6 +76,23 @@ describe('the frame is told comments are paused (client)', () => {
     expect(param({ designRel: '.design', readOnly: false }, 'cg')).toBeNull();
   });
 
+  // p8-comment-gate (final-3 defender I2) — a session that comments by its OWN canvas grant (no project
+  // role, so `canComment` is false) is told the same: the tool and the card stay, paused, with the reason.
+  test('a canvas grant that may comment, under the gate: cm=1 AND cg=1 on that canvas only', () => {
+    const grant = (r: string) =>
+      gated({ canComment: false, access: { role: null, grants: [{ c: 'ui/a.tsx', r }] } });
+    expect(frameAccessOn(grant('viewer'), 'ui/a.tsx')).toEqual({ ro: true, cm: true, cg: true });
+    expect(param(grant('viewer'), 'cg')).toBe('1');
+    expect(frameAccessOn(grant('member'), 'ui/a.tsx')).toEqual({ ro: true, cm: true, cg: true });
+    expect(frameAccessOn(grant('viewer'), 'ui/b.tsx')).toEqual({ ro: true, cm: false });
+    expect(frameAccessOn(grant('observer'), 'ui/a.tsx')).toEqual({ ro: true, cm: false });
+    // ungated, the same grant comments (no cg): unchanged
+    const open = grant('viewer');
+    expect(
+      frameAccessOn({ ...open, formatGate: null, readOnlyReason: 'role' }, 'ui/a.tsx')
+    ).toEqual({ ro: true, cm: true });
+  });
+
   test('the Comments panel offers resolve / reopen / delete only where the write goes through', () => {
     expect(canCommentNow(gated())).toBe(false);
     expect(canCommentNow(gated({ formatGate: null, readOnlyReason: 'role' }))).toBe(true);

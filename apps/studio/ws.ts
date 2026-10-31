@@ -12,6 +12,7 @@ import type { Api } from './api.ts';
 import { canvasSlugFromRel } from './canvas-slug.ts';
 import type { Collab, RoomConn } from './collab/index.ts';
 import type { Context } from './context.ts';
+import { FORMAT_GATE_OPTS, formatGate, gateMessage } from './format.ts';
 import { createRenderOkSignal } from './history/render-ok-signal.ts';
 import { createContainerWriteBridge, createHmrBroadcaster } from './hmr-broadcast.ts';
 import type { InspectRegistry } from './inspect.ts';
@@ -697,6 +698,24 @@ export function createWs(
               type: 'refused',
               reason: 'read-only',
               message: 'Your access here is view-only — that comment was not added.',
+            });
+            return;
+          }
+        }
+        // p8-comment-gate (decision `v2-p8-comment-gate-socket-lanes`) — the format gate (format.ts,
+        // the one http.ts's `gateNow` reads) refuses every comment write over HTTP; the socket's
+        // three comment frames get the same refusal and words. Read per frame, not stamped at the
+        // upgrade: "Update project" lifts the gate while this socket stays open. After the scope
+        // checks, so a canvas the socket does not see is still answered with nothing.
+        if (ws.data.kind === 'inspector' && COMMENT_FRAMES.has(msg.type)) {
+          const gate = formatGate(ctx, FORMAT_GATE_OPTS);
+          if (gate) {
+            send(ws, {
+              type: 'refused',
+              reason: 'read-only',
+              detail: 'format',
+              formatVersion: gate.projectFormat,
+              message: gateMessage(gate),
             });
             return;
           }

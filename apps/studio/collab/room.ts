@@ -140,6 +140,17 @@ export interface RoomCallbacks {
   acceptedMode?: () => boolean;
 
   /**
+   * p8-comment-gate (decision `v2-p8-comment-gate-socket-lanes`) — while true,
+   * this build does not edit the project's FORMAT (format.ts `formatGate`: a
+   * format-1 project until it converts, a newer one, a linked one that still
+   * saves the old way). The HTTP gate refuses every write then, comments
+   * included; this is the same gate on the socket: no conn writes any lane.
+   * Asked per frame — "Update project" lifts it while sockets stay open.
+   * Awareness is unaffected. Optional; absent means false.
+   */
+  formatGated?: () => boolean;
+
+  /**
    * p8-collab-epoch (decision `v2-p8-collab-epoch`) — this server instance's
    * epoch. When set, a peer's sync writes are taken only once it has claimed
    * this epoch (or '' — a doc that never synced): a doc synced under an earlier
@@ -327,6 +338,8 @@ export function createRoom(slug: string, callbacks: RoomCallbacks): Room {
     // Accepted revisions: every persistent lane is the hub's to change.
     if (callbacks.acceptedMode?.()) return [...roots];
     if (conn.lanesClosed === true) return [...roots];
+    // p8-comment-gate — the format gate refuses every lane, the comments one too.
+    if (callbacks.formatGated?.()) return [...roots];
     for (const r of roots) {
       if (conn.realm === 'canvas' && (isBodyLane(r) || r === '<unresolved>')) {
         refused.push(r);
@@ -373,14 +386,17 @@ export function createRoom(slug: string, callbacks: RoomCallbacks): Room {
     if (probeThrew || refused.length > 0) {
       gateRefusalCount += 1;
       discardMirror();
+      const formatGated = callbacks.formatGated?.() === true;
       console.warn(
-        `[collab/${slug}] origin gate REFUSED a ${callbacks.acceptedMode?.() ? 'accepted-replica' : conn.lanesClosed ? 'lanes-closed' : conn.readOnly ? 'read-only' : 'canvas-realm'} ` +
+        `[collab/${slug}] origin gate REFUSED a ${callbacks.acceptedMode?.() ? 'accepted-replica' : conn.lanesClosed ? 'lanes-closed' : formatGated ? 'format-gated' : conn.readOnly ? 'read-only' : 'canvas-realm'} ` +
           `sync frame (lanes: ${refused.join(', ') || 'unclassifiable'}). ` +
           (conn.lanesClosed
             ? 'Editing is paused for this project — no lane is writable (S9.15c).'
-            : conn.readOnly
-              ? 'A viewer-role socket may only write comments — role matrix, cloud collab lane.'
-              : 'Untrusted canvas script may not write canvas source — see DDR-122 follow-up / collab/origins.ts.')
+            : formatGated
+              ? "This build does not edit this project's format — view only, no lane is writable."
+              : conn.readOnly
+                ? 'A viewer-role socket may only write comments — role matrix, cloud collab lane.'
+                : 'Untrusted canvas script may not write canvas source — see DDR-122 follow-up / collab/origins.ts.')
       );
       // Re-assert server truth to that peer so it converges on the authoritative
       // state instead of silently diverging. Their locally-authored body items
@@ -688,7 +704,8 @@ export function createRoom(slug: string, callbacks: RoomCallbacks): Room {
       conn.realm === 'canvas' ||
       conn.readOnly === true ||
       conn.lanesClosed === true ||
-      callbacks.acceptedMode?.()
+      callbacks.acceptedMode?.() ||
+      callbacks.formatGated?.()
     ) {
       receiveGated(conn, payload);
       return;
