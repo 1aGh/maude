@@ -150,7 +150,9 @@ for (const [name, role] of [
 // local-cell seeds one before the hub boots. So the rig does what the dashboard's Saving page does: the
 // owner's switch (`POST /api/projects/current/v1/mode`), once the hub holds both seeded canvases, then
 // waits until the cell's studio reports `saveMode: accepted`.
-{
+// P84_KEEP_LEGACY=1 skips the switch: the cell stays in the old save mode, so the view-only banner an owner
+// and a viewer read (p8-cell-copy) can be driven. The scenarios are not meant to pass in that state.
+if (!process.env.P84_KEEP_LEGACY) {
   const admin = addToken(join(cellDir, 'data'), {
     label: 'p84-owner-switch',
     scope: '*',

@@ -213,6 +213,11 @@ export const SAVE_COPY = {
   switchFailed: 'The project still saves the old way. Nothing in it changed.',
   cloudStatus:
     'View only — this project still saves the old way. Switch it in the dashboard, under Saving.',
+  // p8-cell-copy: the OWNER of a project in a cloud tab whose server has no dashboard address (a
+  // self-hosted workspace). Never "Ask the owner" — they are the owner; the switch runs when the owner
+  // opens the project in the Maude app on a Mac (saveModeState, desktop branch).
+  ownerElsewhere:
+    'View only — this project still saves the old way. Open it in the Maude app on your Mac, and it switches by itself.',
   cloudAction: 'Open dashboard',
 };
 
@@ -240,7 +245,8 @@ export function saveModeState({ cfg, plan }) {
     const href = cfg.cloud.projectUrl
       ? `${String(cfg.cloud.projectUrl).replace(/\/+$/, '')}/saving`
       : cfg.cloud.dashboardUrl;
-    if (!href || !ownsProject(cfg.cloud.role)) return nonOwner;
+    if (!ownsProject(cfg.cloud.role)) return nonOwner;
+    if (!href) return { kind: 'save-mode-owner', line: SAVE_COPY.ownerElsewhere, action: null };
     return { kind: 'save-mode-cloud', line: SAVE_COPY.cloudStatus, action: 'dashboard', href };
   }
   if (plan === undefined) return { kind: 'checking', line: SAVE_COPY.status, action: null };

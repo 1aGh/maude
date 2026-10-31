@@ -17,6 +17,7 @@ import {
 import { useDsSearchSystems } from '../v2/ds/use-ds-search.js';
 import { dsSearchRows } from '../v2/search/search-ds.js';
 import { clipSearchRows, useClipRowsVersion } from '../v2/timeline/clip-search.js';
+import { canCommentNow } from '../v2/access/access-client.js';
 import { menuRunner } from '../v2/shell/menu-runner.js';
 import { panelAvailable as panelAvailableIn } from '../v2/shell/panel-availability.js';
 import { keyHint, menuCtx, menuPaletteRows } from '../v2/shell/project-menu-model.js';
@@ -191,7 +192,7 @@ export function usePaletteAndPanels({
   // S9.22b — the Comments panel's actions for whoever holds `comment` (comment-client.js).
   const commentActions = commentPanelActions({
     viewerMode,
-    canComment: cfg?.canComment === true,
+    canComment: canCommentNow(cfg), // p8-cell-copy: not under a format gate (it refuses the write)
     ws: { resolve: resolveComment, reopen: reopenComment, remove: deleteComment },
     notify: (msg) => shellToast(msg),
   });

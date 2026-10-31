@@ -14694,7 +14694,7 @@
     "hook": "format-older-callout",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The v2 side of the format gate: a format-1 project is view only until it converts — BY ITSELF on open since p8-v1-drop (no dialog). `data-kind` = `checking` / `ready` (this Mac may convert it now: Updating this project for Maude 2… — the shell applies unasked) / `updating` (the run in progress) / `held` (tried already on this answer: Retry update) / `non-owner` (Ask the owner) / `no-sign-in` + `token-rejected` (Sign in / Sign in again) / `hub-too-old` (How to update) / `offline` (waiting for the connection) / `server-setup` (the team server isn't set up for accepted revisions: store-not-durable, browser-not-paired) / `refused` (another refusal, worded) / `failed` + the apply failure kinds (unexpected, old-server, …) / `cloud` (a Maude Cloud project during the rc — never converted unasked; the owner's Update project) / `save-mode-cloud` (a cloud tab of a project that still saves the old way: Open dashboard). One action at most.",
+    "meaning": "The v2 side of the format gate: a format-1 project is view only until it converts — BY ITSELF on open since p8-v1-drop (no dialog). `data-kind` = `checking` / `ready` (this Mac may convert it now: Updating this project for Maude 2… — the shell applies unasked) / `updating` (the run in progress) / `held` (tried already on this answer: Retry update) / `non-owner` (Ask the owner) / `no-sign-in` + `token-rejected` (Sign in / Sign in again) / `hub-too-old` (How to update) / `offline` (waiting for the connection) / `server-setup` (the team server isn't set up for accepted revisions: store-not-durable, browser-not-paired) / `refused` (another refusal, worded) / `failed` + the apply failure kinds (unexpected, old-server, …) / `cloud` (a Maude Cloud project during the rc — never converted unasked; the owner's Update project) / `save-mode-cloud` (a cloud tab of a project that still saves the old way: Open dashboard) / `save-mode-owner` (the same cloud tab for its owner when the server has no dashboard address: open it in the Maude app on a Mac, no button). One action at most.",
     "producer": {
       "file": "apps/studio/client/v2/shell/format-update.jsx",
       "symbol": "OlderFormatCallout"
@@ -40999,6 +40999,32 @@
     "consumers": [
       "apps/studio/test/gate-b-polish3.test.tsx"
     ],
+    "v2": "new"
+  },
+  {
+    "hook": "comment-composer-paused",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The line on the new-comment card while the project's format gate refuses comment writes (`cg=1`): \"Comments are paused while this project is view only.\" The field and the send are off with the same words as their title.",
+    "producer": {
+      "file": "apps/studio/comments-overlay.tsx",
+      "symbol": "CommentComposer"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "comment-paused-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The same line on an open thread, where the reply would be (reply / resolve / delete are absent then).",
+    "producer": {
+      "file": "apps/studio/comments-overlay.tsx",
+      "symbol": "CommentThread"
+    },
+    "region": "canvas",
+    "consumers": [],
     "v2": "new"
   },
   {
