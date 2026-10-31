@@ -4438,7 +4438,7 @@
     },
     {
       "id": "ai.generate",
-      "label": "Generate with AI…",
+      "label": "Ask AI to generate…",
       "kind": "command",
       "exec": "shell",
       "effect": "external",

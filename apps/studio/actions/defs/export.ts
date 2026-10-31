@@ -114,7 +114,7 @@ export const EXPORT_ACTIONS: ActionDef[] = [
     icon: 'link',
     exec: 'shell',
     search: { where: 'Share' },
-    legacy: { palette: 'Copy share link' },
+    legacy: { palette: 'Copy link' },
   },
   {
     // S6.0c — CONTRACT §6: a local project's "Move to Maude Cloud…" lives inside the Share sheet (S9.20

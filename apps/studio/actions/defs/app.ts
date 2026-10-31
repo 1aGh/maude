@@ -198,11 +198,11 @@ export const APP_ACTIONS: ActionDef[] = [
   // ── no key in v1: ⌘K / menu entries ──
   {
     id: 'ai.generate',
-    label: 'Generate with AI…',
+    label: 'Ask AI to generate…',
     kind: 'command',
     icon: 'sparkle',
     exec: 'shell',
-    legacy: { palette: 'Generate with AI…', menu: 'Generate with AI…' },
+    legacy: { palette: 'Ask AI to generate…', menu: 'Ask AI to generate…' },
   },
   {
     id: 'ai.draw-mark',

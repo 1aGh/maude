@@ -245,6 +245,7 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 | AI setup | `diag.ai` | `maude doctor` | auto |
 | Ask AI about this | `annotation.ask-ai` | `maude design read-annotations` | auto |
 | Ask AI to fix it | `canvas.ask-ai-fix` | `maude design canvas-errors` | auto |
+| Ask AI to generate… | `ai.generate` | `maude design generate` | prompt |
 | Assets | `view.assets` | `maude design asset-sweep` | auto |
 | Back | `preview.back` | `maude design open <canvas> --mode preview` | auto |
 | Blank section template | `annotation.template-blank` | `maude design annotate <canvas> --board blank` | auto |
@@ -294,7 +295,6 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 | Flowchart template | `annotation.template-flow` | `maude design annotate <canvas> --board flow` | auto |
 | Generate an image… | `assets.generate` | `maude design generate` | prompt |
 | Generate this clip | `timeline.clip-menu.generate` | `maude design generate` | prompt |
-| Generate with AI… | `ai.generate` | `maude design generate` | prompt |
 | Go back to the last good version | `history.go-back` | `maude design history restore <canvas> @last-good` | prompt |
 | Go inside | `object.enter` | `maude design open <canvas>@<element>` | auto |
 | Go to | `presence.go-to` | `maude design open <canvas>#<artboard>` | auto |

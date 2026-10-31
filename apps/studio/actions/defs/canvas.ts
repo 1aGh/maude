@@ -10,6 +10,7 @@ export const CANVAS_ACTIONS: ActionDef[] = [
     kind: 'command',
     icon: 'plus',
     exec: 'shell',
+    search: { hint: 'An empty canvas, ready to draw on' }, // P5 F09: what the row makes, one line
     // V2-4 gate (roles): a canvas is created IN this project — Can comment / Can view have no New
     // canvas (V2-1.7 §5.9: `can('edit', null)` is false). Absent, not greyed; the native ⌘N still
     // reaches the shell as `menu://action`, which says the one denial line (role-gate.js).
@@ -28,6 +29,7 @@ export const CANVAS_ACTIONS: ActionDef[] = [
     kind: 'command',
     icon: 'plus',
     exec: 'shell',
+    search: { hint: 'A board to write a brief on, for AI to draft from' },
     visible: { minRole: 'edit' },
   },
   // S6.3 — Home's "Ask AI for a new canvas…" (↵ on Home): a canvas from one sentence, opened and drafted by AI
@@ -61,6 +63,7 @@ export const CANVAS_ACTIONS: ActionDef[] = [
     kind: 'command',
     icon: 'plus',
     exec: 'shell',
+    search: { hint: 'A canvas for a video, with its timeline' },
     visible: { minRole: 'edit' }, // V2-4 gate (roles): creates a canvas, like New canvas
     legacy: { palette: 'New video…' },
   },

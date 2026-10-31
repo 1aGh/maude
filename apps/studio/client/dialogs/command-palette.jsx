@@ -59,7 +59,12 @@ function Marked({ text, marks }) {
 }
 
 /** What ↵ / a click does for an item the list holds. */
-function runItem(item, { env, query, close }) {
+function runItem(item, { env, query, close, drill }) {
+  // P5 (F09): a door row ("New artboard ›") opens its own list in the same box instead of running
+  if (item.drill && drill) {
+    drill(item.drill);
+    return;
+  }
   close();
   if (item.group === 'ask-ai') env.askAI(query.trim());
   // another project's row (S1.5): the shell switches to its tab, or opens one, then goes there
@@ -201,7 +206,11 @@ export function CommandPalette({ open, onClose, actions }) {
 
   if (!open) return null;
   const close = () => onClose();
-  const go = (item) => runItem(item, { env, query: q, close });
+  const drill = (text) => {
+    setQ(text);
+    setActive(0);
+  };
+  const go = (item) => runItem(item, { env, query: q, close, drill });
   let at = -1;
   // V2-4 gate (a11y B1): the WAI-ARIA combobox pattern — rows are `option`s of the `listbox`, focus stays
   // in the input and `aria-activedescendant` names the active row (so a screen reader hears it).
@@ -248,6 +257,10 @@ export function CommandPalette({ open, onClose, actions }) {
               {item.project.square.initial}
             </span>
             {item.project.name} · {item.project.aside}
+          </span>
+        ) : item.hint ? (
+          <span className="sh-pal-where sh-pal-hint" data-testid="palette-hint">
+            {item.hint}
           </span>
         ) : item.where ? (
           <span className="sh-pal-where">{item.where}</span>
@@ -444,7 +457,7 @@ export function CommandPalette({ open, onClose, actions }) {
                 const stale = sanitizeQuery(live) !== clean;
                 const now = stale ? viewFor(live, []) : view;
                 const pick = stale ? now.items[0] : items[active];
-                if (pick) runItem(pick, { env, query: live, close });
+                if (pick) runItem(pick, { env, query: live, close, drill });
               }
             }}
           />
