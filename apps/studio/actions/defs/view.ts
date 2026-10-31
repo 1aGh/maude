@@ -102,7 +102,7 @@ export const VIEW_ACTIONS: ActionDef[] = [
     icon: 'sliders',
     exec: 'shell',
     // v1's bare S died with V2-4.5b (S is Section, rule 13): the pinned Design system row and ⌘K.
-    legacy: { palette: 'Open design system view', sheet: 'Design system view' },
+    legacy: { palette: 'Design system', sheet: 'Design system view' },
   },
   {
     id: 'view.assets',
@@ -473,7 +473,7 @@ export const VIEW_ACTIONS: ActionDef[] = [
     enabled: { facts: ['online'], any: [{ facts: ['linkedHub'] }, { shell: ['cloud'] }] },
     search: {
       keywords: ['presentation', 'slideshow', 'audience', 'follow', 'share', 'link', 'url'],
-      note: 'in a cloud project',
+      note: 'in a Maude Cloud project',
     },
   },
   {

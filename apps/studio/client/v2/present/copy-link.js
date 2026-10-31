@@ -14,7 +14,7 @@
 // drawn canvas, which outranks it.
 
 /** Shown greyed in ⌘K outside a cloud-linked project (V2-4.9 decision 2 pattern). */
-export const COPY_PRESENTATION_LINK_NOTE = 'in a cloud project';
+export const COPY_PRESENTATION_LINK_NOTE = 'in a Maude Cloud project';
 
 /** …and while the network is off (S3.8). */
 export const COPY_PRESENTATION_LINK_WAITS = 'waits for a connection';

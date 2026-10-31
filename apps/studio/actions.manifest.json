@@ -4081,7 +4081,7 @@
     },
     {
       "id": "share.move-to-cloud",
-      "label": "Move to cloud…",
+      "label": "Move to Maude Cloud…",
       "kind": "command",
       "exec": "shell",
       "effect": "external",
@@ -4438,7 +4438,7 @@
     },
     {
       "id": "ai.generate",
-      "label": "Generate with AI…",
+      "label": "Ask AI to generate…",
       "kind": "command",
       "exec": "shell",
       "effect": "external",
@@ -5242,7 +5242,7 @@
     },
     {
       "id": "home.signin",
-      "label": "Sign in to cloud.maude.sh",
+      "label": "Sign in to Maude Cloud",
       "kind": "command",
       "exec": "shell",
       "effect": "external",

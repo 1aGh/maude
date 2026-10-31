@@ -99,9 +99,9 @@ export function cardMode(s, online) {
 }
 
 export const SIGNIN_WORDS = {
-  title: 'Keep your work on cloud.maude.sh',
+  title: 'Keep your work in Maude Cloud',
   sub: 'Every Mac you use, and everyone you invite, sees the same canvases.',
-  cloud: 'Sign in to cloud.maude.sh',
+  cloud: 'Sign in to Maude Cloud',
   local: 'Just a local project',
   waiting: 'Waiting for your browser…',
   again: 'Open the page again',
@@ -112,11 +112,11 @@ export const SIGNIN_WORDS = {
   timeoutBody: 'Nothing changed on this Mac. Try again whenever you like.',
   offlineTitle: 'Offline',
   offlineBody: 'Sign-in waits until this Mac is online — the button wakes up by itself.',
-  offlineFoot: 'A local project works right now, and moves to the cloud any time.',
+  offlineFoot: 'A local project works right now, and moves to Maude Cloud any time.',
   hint: 'Opens your browser, then brings you back. 14 days free, no card.',
   advanced: 'Advanced options',
-  unreachable: 'cloud.maude.sh could not be reached. Try again in a moment.',
-  toastFirst: 'Signed in. What you make now lives on cloud.maude.sh.',
+  unreachable: 'Maude Cloud could not be reached. Try again in a moment.',
+  toastFirst: 'Signed in. What you make now lives in Maude Cloud.',
 };
 
 /** The toast after a sign-in: how many cloud projects arrived with the account. */
@@ -124,13 +124,13 @@ export function signedInToast(projectCount) {
   const n = Number.isFinite(projectCount) ? projectCount : 0;
   if (n <= 0) return SIGNIN_WORDS.toastFirst;
   return n === 1
-    ? 'Signed in — your cloud project is here.'
-    : `Signed in — your ${n} cloud projects are here.`;
+    ? 'Signed in — your Maude Cloud project is here.'
+    : `Signed in — your ${n} Maude Cloud projects are here.`;
 }
 
 /**
  * Is this Home a first run? No project on this Mac, no cloud account, and the lists have loaded.
- * (The card shows only then; afterwards a quiet "Sign in to cloud.maude.sh" sits in the top bar.)
+ * (The card shows only then; afterwards a quiet "Sign in to Maude Cloud" sits in the top bar.)
  */
 export function isFirstRun({ status, projectCount, signedIn }) {
   return status !== 'loading' && !signedIn && (projectCount ?? 0) === 0;

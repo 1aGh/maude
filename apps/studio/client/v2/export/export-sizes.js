@@ -23,7 +23,7 @@ export const SIZES_WORDS = Object.freeze({
   format: 'Format',
   copyPng: 'Copy as PNG',
   copyKeys: '⇧⌘C',
-  more: 'Export… — every option',
+  more: 'Export…',
   moreKeys: '⇧⌘E',
   saveFailed: 'Not saved — the sizes stay as they were.',
   readOnly: 'Your role can’t change the sizes.',

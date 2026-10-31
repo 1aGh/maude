@@ -29,6 +29,8 @@ The two tables below are the contract, verbatim. Say the left column; the middle
 | Version history | Changes, commits, history log | saved versions with Restore |
 | Hide panels / Show panels | fold, tuck, collapse (in UI copy) | ⌘\. "Fold into its icon" is how the DS describes the motion |
 | Share | publish, invite (as the button) | the one Share button; "Invite people" lives inside the sheet |
+| Maude Cloud | cloud.maude.sh (as the name), the cloud, a cloud project, cloud (as a noun) | the hosted service, in every sentence ("Move to Maude Cloud…", "Sign in to Maude Cloud", "your Maude Cloud project"). The address `cloud.maude.sh` appears only where a person reads or types an address. A self-hosted hub shows its own name (its host), never "Maude Cloud" [TD8, P5] |
+| Zoom to fit ⌘0 · Actual size ⇧0 | Fit to view, Reset view, Fit (alone) | the same two words and keys in View, ⌘K, the zoom pill and the empty-canvas menu [TD6, P5] |
 | Advanced | Pro, Expert, More settings | the disclosure at the foot of a panel |
 | Diagnostics | Debug, Status, Developer | the Menu submenu |
 | Stickers | Stamps (as the tool) | the E tool and its gallery [C12]. "Stamp" in copy means only a **vote stamp**; the internal id may stay `stamp` |

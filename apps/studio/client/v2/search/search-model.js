@@ -43,6 +43,16 @@ export const GROUPS = Object.freeze([
   { id: 'settings', title: 'Settings' },
 ]);
 
+/** The six size presets (+ Video) that ⌘K folds into one "New artboard ›" row. */
+const PRESET_ROW = /^artboard\.new-/;
+export const NEW_ARTBOARD_ROW = Object.freeze({
+  name: 'New artboard ›',
+  hint: 'Desktop · Laptop · Tablet · Mobile · A4 · Letter · Video',
+  drill: 'New artboard: ',
+});
+/** Rows that lead their group whatever the typed word ("new" → New canvas first). */
+const PRIORITY_FIRST = new Set(['canvas.new']);
+
 /** A `search.where` that names a fold or Diagnostics: the thing is hidden until you open it. */
 const ADVANCED_HOME = /^(?!Settings\b).*(?:^|\s›\s)(?:Advanced|Diagnostics)(?:\s›|$)/;
 
@@ -171,6 +181,8 @@ export function actionSearchRows(
         def.search?.note && disabledIn(def, ctx) ? `${def.label} — ${def.search.note}` : def.label,
       keys: keyHint(def, ctx),
       where,
+      // one line of what the row makes (F09): drawn in the `where` slot, beats the path chip
+      ...(def.search?.hint ? { hint: def.search.hint } : {}),
       advanced,
       icon: def.icon ?? null,
       disabled: disabledIn(def, ctx),
@@ -393,6 +405,46 @@ export function assemble({ query, local = [], remote = [], canAskAI = false, cap
       (a, b) =>
         (b.score || 0) - (a.score || 0) ||
         (a.group === 'artboards' ? 1 : 0) - (b.group === 'artboards' ? 1 : 0)
+    );
+  // P5 (F09) — the six size presets are ONE row, "New artboard ›": ↵ drills into "New artboard: " (the presets), so
+  // typing "new" shows a door, not seven rows each chipped "Menu › Edit › Advanced". Typing the drill (or arrowing
+  // into it) lists the presets themselves.
+  const drilled = /^\s*new artboard\s*[:›]/i.test(String(query ?? ''));
+  const actsAll = byGroup.get('actions');
+  const presets = actsAll.filter((r) => PRESET_ROW.test(r.actionId ?? ''));
+  // a query that already narrows to one or two presets (A4, new artboard mobile) keeps those rows
+  if (!drilled && presets.length >= 3) {
+    byGroup.set(
+      'actions',
+      actsAll.filter((r) => !PRESET_ROW.test(r.actionId ?? ''))
+    );
+    // a plain door (not a hidden tool): it sits with the plain actions
+    byGroup.get('actions').push({
+      group: 'actions',
+      id: 'action:artboard.new-menu',
+      actionId: 'artboard.new-menu',
+      name: NEW_ARTBOARD_ROW.name,
+      hint: NEW_ARTBOARD_ROW.hint,
+      keys: null,
+      where: '',
+      advanced: false,
+      icon: 'plus',
+      disabled: presets.every((r) => r.disabled),
+      drill: NEW_ARTBOARD_ROW.drill,
+      searchRow: true,
+      runnable: () => true,
+      run: () => {},
+      score: Math.max(...presets.map((r) => r.score ?? 0)),
+      marks: presets[0].marks ?? [],
+      close: presets.every((r) => r.close),
+      weak: presets.every((r) => r.weak),
+    });
+  }
+  // New canvas leads the plain actions: the thing most people typing "new" want (stable sort keeps the rest in rank order)
+  byGroup
+    .get('actions')
+    .sort(
+      (x, y) => Number(PRIORITY_FIRST.has(y.actionId)) - Number(PRIORITY_FIRST.has(x.actionId))
     );
   // Hidden tools lead under "Actions" with their count; the plain actions that matched too go under "Also".
   // With no hidden tool among the matches there is nothing to set apart, and they stay under "Actions".

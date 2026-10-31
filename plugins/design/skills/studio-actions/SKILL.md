@@ -245,6 +245,7 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 | AI setup | `diag.ai` | `maude doctor` | auto |
 | Ask AI about this | `annotation.ask-ai` | `maude design read-annotations` | auto |
 | Ask AI to fix it | `canvas.ask-ai-fix` | `maude design canvas-errors` | auto |
+| Ask AI to generate… | `ai.generate` | `maude design generate` | prompt |
 | Assets | `view.assets` | `maude design asset-sweep` | auto |
 | Back | `preview.back` | `maude design open <canvas> --mode preview` | auto |
 | Blank section template | `annotation.template-blank` | `maude design annotate <canvas> --board blank` | auto |
@@ -294,7 +295,6 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 | Flowchart template | `annotation.template-flow` | `maude design annotate <canvas> --board flow` | auto |
 | Generate an image… | `assets.generate` | `maude design generate` | prompt |
 | Generate this clip | `timeline.clip-menu.generate` | `maude design generate` | prompt |
-| Generate with AI… | `ai.generate` | `maude design generate` | prompt |
 | Go back to the last good version | `history.go-back` | `maude design history restore <canvas> @last-good` | prompt |
 | Go inside | `object.enter` | `maude design open <canvas>@<element>` | auto |
 | Go to | `presence.go-to` | `maude design open <canvas>#<artboard>` | auto |
@@ -482,7 +482,7 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 | Minimap | `view.minimap` | view-pref |
 | Model | `chat.advanced.model` | ai-chat |
 | Move between the panels and the canvas | `ui.cycle-region` | view-pref — where the keyboard is in the window |
-| Move to cloud… | `share.move-to-cloud` | billing — moves the project to the person’s billed Maude Cloud account |
+| Move to Maude Cloud… | `share.move-to-cloud` | billing — moves the project to the person’s billed Maude Cloud account |
 | Move to trash | `chat.trash` | ai-chat |
 | New branch… | `history.new-branch` | git — an agent runs git itself in the project folder: git switch -c <branch> |
 | New chat | `chat.new` | ai-chat |
@@ -551,7 +551,7 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 | Show tags and ids | `layers.show-tags` | view-pref — tag and id after each layer’s name, in the person’s own view |
 | Sign in again | `sync.sign-in-again` | hub-link — signing in to the cloud is the person’s own credential |
 | Sign in as another account… | `account.switch` | native-window — the desktop app’s profiles; an agent never picks an account |
-| Sign in to cloud.maude.sh | `home.signin` | accounts — opens the person’s browser on cloud.maude.sh; the credential reaches the Home server, never a page or an agent |
+| Sign in to Maude Cloud | `home.signin` | accounts — opens the person’s browser on cloud.maude.sh; the credential reaches the Home server, never a page or an agent |
 | Sort canvases | `canvases.sort` | view-pref — the order the Canvases panel lists in; `maude design index` lists them all |
 | Start a vote… | `annotations.start-vote` | vote — the result section is in the annotations when it ends: `maude design read-annotations` |
 | Step a frame | `timeline.step` | view-pref — playback |

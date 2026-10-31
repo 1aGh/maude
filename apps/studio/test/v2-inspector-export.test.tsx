@@ -345,10 +345,9 @@ describe('Can view sees none of it', () => {
 });
 
 describe('the pointer at the sheet', () => {
-  test('Export… — every option opens the sheet for the selection; several objects get only it', async () => {
+  test('Export… ⇧⌘E opens the sheet for the selection; several objects get only it', async () => {
     const host = await frame(BTN);
-    expect(q(host, 'insp-export-more')?.textContent).toContain('Export… — every option');
-    expect(q(host, 'insp-export-more')?.textContent).toContain('⇧⌘E');
+    expect(q(host, 'insp-export-more')?.textContent?.replace(/\s+/g, '')).toBe('Export…⇧⌘E');
     await click(q(host, 'insp-export-more'));
     expect(opened.at(-1)).toMatchObject({ mode: 'export', scope: 'selection' });
     const many = await frame([BTN, { ...BTN, id: 'b2' }]);

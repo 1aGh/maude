@@ -454,7 +454,7 @@ export function HomeApp() {
   // S6.8 — the card shows only on a first run (no project, no account, the lists have answered)
   // P8 C8 (05 es-home-local, kg v2-p8-c8-first-run-card-once): the card is for the very first launch of this
   // Mac. Once it has been shown (Home's own per-Mac flag, `/_home/first-run`), a signed-out Mac with no project
-  // shows 05's shelf — "No projects on this Mac yet." — and the quiet "Sign in to cloud.maude.sh" pill. The flag
+  // shows 05's shelf — "No projects on this Mac yet." — and the quiet "Sign in to Maude Cloud" pill. The flag
   // is read once; it is written the moment the card is up and the card stays for this visit (`cardLatched`).
   const [firstRunSeen, setFirstRunSeen] = useState(null); // null = not answered yet
   const [cardLatched, setCardLatched] = useState(false);
@@ -1410,7 +1410,7 @@ function ProfileGroup({ group, showHeader, canOpen, onOpen, onRelink, onOpenClou
       ) : null}
       {cloud?.offline ? (
         <p className="home-acct-note" role="note">
-          cloud.maude.sh can't be reached. Showing the last list; projects on this Mac still open.
+          Maude Cloud can't be reached. Showing the last list; projects on this Mac still open.
         </p>
       ) : null}
       <ul className="home-prows">
