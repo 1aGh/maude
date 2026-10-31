@@ -759,6 +759,14 @@ export const SECTION_META = {
  * when it has a hit — Project files and Runtime files are developer chrome (05 es-search-panel) and stay in
  * the file view (Canvases › Advanced › Show hidden files), where every group is listed as before.
  */
+/** The groups under "Other project files": the Design system's hits while searching, the project's own files
+ * with hidden files on. Empty means no tree at all — V2-8.7: an empty `role=tree` has no treeitem (axe
+ * aria-required-children). */
+export function otherFilesGroups(search, showHidden, groups) {
+  if (search) return searchOtherGroups(groups);
+  return showHidden ? (groups || []).filter((g) => g.kind === 'project') : [];
+}
+
 export function searchOtherGroups(groups) {
   return (groups || []).filter(
     (g) =>
@@ -881,6 +889,7 @@ export function Sidebar({
     if (!search) return groups;
     return groups.map((g) => ({ ...g, tree: filterTree(g.tree, search), filtered: !!search }));
   }, [groups, search]);
+  const otherFiles = otherFilesGroups(search, showHidden, filteredGroups);
 
   // feature-file-tree-drag-drop-folders (Task 8) — one drag-bookkeeping
   // instance shared by every group's Tree; `onMoveCanvas` does the actual
@@ -1496,12 +1505,9 @@ export function Sidebar({
           </CanvasesPanel>
           {/* While searching, the Design system's hits follow (never Project or Runtime files). With hidden
               files on, the project's own files (README, tokens…) follow the tree as the file view had them. */}
-          {search || (showHidden && filteredGroups.some((g) => g.kind === 'project')) ? (
+          {otherFiles.length > 0 ? (
             <FileTree aria-label="Other project files" data-testid="canvases-other-files">
-              {(search
-                ? searchOtherGroups(filteredGroups)
-                : filteredGroups.filter((g) => g.kind === 'project')
-              ).map((g) => renderSection(g))}
+              {otherFiles.map((g) => renderSection(g))}
             </FileTree>
           ) : null}
           <CanvasesAdvanced

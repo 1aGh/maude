@@ -176,6 +176,28 @@ describe('aria-required-children', () => {
   });
 });
 
+describe('aria-required-children (empty tree)', () => {
+  // full-matrix scan at 3fba09b78, state left-search: a search with no Design-system hit drew
+  // `div[role=tree][aria-label="Other project files"]` with no treeitem (axe aria-required-children, critical).
+  test('a search with no Design-system hit draws no "Other project files" tree', async () => {
+    const { otherFilesGroups } = await import('../client/tree/tree.jsx');
+    const groups = [
+      { kind: 'canvas', label: 'Canvases', tree: { a: {} } },
+      { kind: 'canvas', label: 'Design system', tree: {} },
+      { kind: 'project', label: 'Project', tree: { 'README.md': {} } },
+    ];
+    expect(otherFilesGroups('zzz', false, groups)).toEqual([]);
+    expect(otherFilesGroups('zzz', true, groups)).toEqual([]);
+    expect(otherFilesGroups('', false, groups)).toEqual([]);
+    expect(otherFilesGroups('', true, groups).map((g) => g.label)).toEqual(['Project']);
+    const ds = [{ kind: 'canvas', label: 'Design system', tree: { 'tokens.css': {} } }];
+    expect(otherFilesGroups('tok', false, ds)).toHaveLength(1);
+    // and the tree renders only for a non-empty list
+    const src = read('../client/tree/tree.jsx');
+    expect(src).toContain('otherFiles.length > 0 ?');
+  });
+});
+
 describe('label', () => {
   // The file picker the browser lane appends to <body> while its dialog is open (off-screen, so WKWebView
   // presents the panel): axe `label` (critical) — an unnamed form control. It is not a control anyone reaches
