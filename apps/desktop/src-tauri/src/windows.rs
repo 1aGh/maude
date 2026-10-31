@@ -1383,19 +1383,21 @@ pub fn navigate_to_server(
 pub fn navigate_when_up(app: &AppHandle, label: String, root: String, open: Option<String>) {
     let app = app.clone();
     // Before the wait starts: the tab's splash, asking at once, already sees it (`SHELL_NAVS`).
-    SHELL_NAVS.begin(&label);
+    // The guard ends the wait on EVERY exit: a task dropped before it resolves (shutdown, a panic) would
+    // otherwise leave the tab's `waiting` count up and its splash answering `{pending}` forever.
+    let wait = SHELL_NAVS.wait(&label);
     tauri::async_runtime::spawn(async move {
         match crate::sidecar::wait_for_shell_url(&app, &root, SERVER_WAIT_MS).await {
             Ok(url) => {
                 crate::sidecar::log_line(&format!("[maude] {label}: dev-server up at {url}"));
                 if navigate_to_server(&app, &label, &root, &url, open.as_deref()) {
-                    SHELL_NAVS.issued(&label, std::time::Instant::now());
+                    wait.issued(std::time::Instant::now());
                 } else {
-                    SHELL_NAVS.abandoned(&label);
+                    wait.abandoned();
                 }
             }
             Err(e) => {
-                SHELL_NAVS.abandoned(&label);
+                wait.abandoned();
                 crate::sidecar::log_line(&format!(
                     "[maude] {label}: dev-server did not come up: {e}"
                 ))
@@ -2374,6 +2376,12 @@ impl ShellNavs {
         self.with(label, |e| e.waiting = e.waiting.saturating_sub(1));
     }
 
+    /// `begin` plus a guard that ends the wait exactly once, however the task holding it ends.
+    pub fn wait(&self, label: &str) -> NavWait<'_> {
+        self.begin(label);
+        NavWait { navs: self, label: label.to_string(), resolved: false }
+    }
+
     /// A server (not app-local) document started loading in `label`: the
     /// issued navigate has landed.
     pub fn page_started(&self, label: &str) {
@@ -2391,6 +2399,34 @@ impl ShellNavs {
 }
 
 pub static SHELL_NAVS: ShellNavs = ShellNavs::new();
+
+/// One running `navigate_when_up` wait. `issued` / `abandoned` resolve it; dropping it unresolved
+/// (the task was cancelled or panicked) abandons it, so the count never stays up and never goes below zero.
+pub struct NavWait<'a> {
+    navs: &'a ShellNavs,
+    label: String,
+    resolved: bool,
+}
+
+impl NavWait<'_> {
+    /// The wait sent the tab to its server at `now`.
+    pub fn issued(mut self, now: std::time::Instant) {
+        self.resolved = true;
+        self.navs.issued(&self.label, now);
+    }
+
+    /// The wait ended without a navigate.
+    pub fn abandoned(self) {}
+}
+
+impl Drop for NavWait<'_> {
+    fn drop(&mut self) {
+        if !self.resolved {
+            self.resolved = true;
+            self.navs.abandoned(&self.label);
+        }
+    }
+}
 
 /// Park `target` for a NEW window when it names an artboard or a thread — the
 /// canvas alone already rides in the first navigate's `?open=`; the artboard
@@ -4093,6 +4129,46 @@ mod tests {
         navs.begin(a);
         navs.issued(a, t0);
         assert!(!navs.pending(a, t0 + ISSUED_GRACE), "a lost navigate does not park the tab on its splash");
+    }
+
+    // p8-sec3-lows (attacker I2): a navigate_when_up task dropped before it resolved (shutdown, a panic)
+    // left `waiting` up, and that tab's splash answered `{pending}` forever.
+    #[test]
+    fn a_wait_dropped_without_resolving_ends_exactly_once() {
+        let navs = ShellNavs::new();
+        let t0 = std::time::Instant::now();
+        let a = "p-sn-drop";
+        let w = navs.wait(a);
+        assert!(navs.pending(a, t0));
+        drop(w);
+        assert!(!navs.pending(a, t0), "a cancelled wait must not park the splash");
+
+        // Two waits, one dropped: the other stays in flight; resolving never double-decrements.
+        let w1 = navs.wait(a);
+        let w2 = navs.wait(a);
+        drop(w1);
+        assert!(navs.pending(a, t0), "the live wait still holds the splash back");
+        w2.issued(t0);
+        assert!(navs.pending(a, t0 + Duration::from_millis(50)), "an issued wait holds until its page starts");
+        navs.page_started(a);
+        assert!(!navs.pending(a, t0));
+
+        // A panic in the task drops the guard during unwinding.
+        let b = "p-sn-panic";
+        let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _w = navs.wait(b);
+            panic!("task died");
+        }));
+        assert!(r.is_err());
+        assert!(!navs.pending(b, t0));
+
+        // Resolving then dropping decrements once: another tab's concurrent wait is not stolen.
+        let w3 = navs.wait(a);
+        let w4 = navs.wait(a);
+        w3.abandoned();
+        assert!(navs.pending(a, t0), "abandoned() ended one wait, not both");
+        drop(w4);
+        assert!(!navs.pending(a, t0));
     }
 
     #[test]
