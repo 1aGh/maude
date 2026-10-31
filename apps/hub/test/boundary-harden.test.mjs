@@ -36,7 +36,11 @@ try {
   gitOk = false;
 }
 
-const slugOf = (rel) => rel.replace(/\.tsx$/, '').replace(/\//g, '-').toLowerCase();
+const slugOf = (rel) =>
+  rel
+    .replace(/\.tsx$/, '')
+    .replace(/\//g, '-')
+    .toLowerCase();
 
 describe('M1 — an undeclared kernel refuses runtime and node_modules folders', () => {
   for (const rel of [
@@ -73,7 +77,18 @@ describe('M1 — an undeclared kernel refuses runtime and node_modules folders',
 // paired studio wrote `components/new.tsx`: one slug, two files.
 describe('L1 / I2 — one "declared" predicate, re-read, and the agent takes what its kernel takes', () => {
   test('declaredCanvasGroups: the kernel rule, for every config shape', () => {
-    for (const raw of [undefined, null, {}, 'ui', [], [{}], [{ path: '' }], [{ label: 'x' }], [''], [3]]) {
+    for (const raw of [
+      undefined,
+      null,
+      {},
+      'ui',
+      [],
+      [{}],
+      [{ path: '' }],
+      [{ label: 'x' }],
+      [''],
+      [3],
+    ]) {
       assert.equal(declaredCanvasGroups(raw), null, JSON.stringify(raw ?? 'absent'));
     }
     assert.deepEqual(declaredCanvasGroups([{ label: 'S', path: 'screens' }, {}]), [
@@ -88,7 +103,11 @@ describe('L1 / I2 — one "declared" predicate, re-read, and the agent takes wha
     assert.equal(readCanvasGroups(root), null, '[{}] / [{path:""}] declare nothing');
     // server.mjs acceptedCanvasGroups hands the kernel bare strings; they must count as groups,
     // or a declared hub refuses its own declared folder.
-    const v = validateCanvasPath({ path: 'screens/x.tsx', slug: 'screens-x', canvasGroups: ['screens'] });
+    const v = validateCanvasPath({
+      path: 'screens/x.tsx',
+      slug: 'screens-x',
+      canvasGroups: ['screens'],
+    });
     assert.equal(v.ok, true, JSON.stringify(v));
   });
 

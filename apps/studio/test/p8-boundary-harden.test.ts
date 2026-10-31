@@ -24,7 +24,11 @@ beforeEach(() => {
 });
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-const slugOf = (rel: string) => rel.replace(/\.tsx$/, '').replace(/\//g, '-').toLowerCase();
+const slugOf = (rel: string) =>
+  rel
+    .replace(/\.tsx$/, '')
+    .replace(/\//g, '-')
+    .toLowerCase();
 
 /** A pull under the undeclared-group relaxation (the hub boundary / a fresh link). */
 function pull(rel: string) {
@@ -66,7 +70,12 @@ describe('M1 — an undeclared group must be a folder the classifier calls a fol
   }
 
   test('ordinary undeclared folders are still taken (the boundary itself is unchanged)', () => {
-    for (const rel of ['screens/home.tsx', 'components/card.tsx', '2026/launch.tsx', 'Brand/x.tsx']) {
+    for (const rel of [
+      'screens/home.tsx',
+      'components/card.tsx',
+      '2026/launch.tsx',
+      'Brand/x.tsx',
+    ]) {
       const { target, refused } = pull(rel);
       expect(refused).toEqual([]);
       expect(target?.bodyAbs).toBe(path.join(root, rel));

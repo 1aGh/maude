@@ -43,9 +43,9 @@ import {
   statSync,
 } from 'node:fs';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
+import { declaredCanvasGroups } from '../../studio/sync/canvas-path.ts';
 import { fileAccessFor } from './access-files.mjs';
 import { MAX_PROJECT_FILE_BYTES, parseRange } from './file-limits.mjs';
-import { declaredCanvasGroups } from '../../studio/sync/canvas-path.ts';
 import { classifyProjectFile, isFilePlaneClass, isProjectFileShape } from './file-membership.mjs';
 import { isContainedReal, realpathOfDeepestExisting } from './path-contain.mjs';
 import { verifyToken } from './tokens.mjs';
