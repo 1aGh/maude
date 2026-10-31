@@ -1,0 +1,54 @@
+{
+  "journey": "S8",
+  "pass": true,
+  "results": [
+    {
+      "id": "asset-imported",
+      "grader": "files",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "asset-clean",
+      "grader": "files",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "import-by-verb",
+      "grader": "tool-used",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "export-written",
+      "grader": "files",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "export-by-verb",
+      "grader": "tool-used",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "exports-listed",
+      "grader": "tool-used",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "no-route-by-hand",
+      "grader": "no-tool",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "canvas-untouched",
+      "grader": "untouched",
+      "pass": true,
+      "why": ""
+    }
+  ]
+}

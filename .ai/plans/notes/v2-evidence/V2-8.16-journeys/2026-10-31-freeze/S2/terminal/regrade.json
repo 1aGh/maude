@@ -1,0 +1,30 @@
+{
+  "journey": "S2",
+  "pass": true,
+  "results": [
+    {
+      "id": "edited",
+      "grader": "text",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "ids-kept",
+      "grader": "ids-kept",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "linked",
+      "grader": "link",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "ai-version",
+      "grader": "history",
+      "pass": true,
+      "why": ""
+    }
+  ]
+}

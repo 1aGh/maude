@@ -1,0 +1,30 @@
+{
+  "journey": "S3",
+  "pass": true,
+  "results": [
+    {
+      "id": "order",
+      "grader": "present",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "notes",
+      "grader": "present",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "presenting",
+      "grader": "ui-open",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "canvas-untouched",
+      "grader": "untouched",
+      "pass": true,
+      "why": ""
+    }
+  ]
+}

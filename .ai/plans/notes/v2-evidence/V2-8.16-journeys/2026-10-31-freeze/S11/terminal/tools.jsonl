@@ -1,0 +1,6 @@
+{"lane":"terminal","name":"Bash","input":{"command":"cd /Users/iagh/git/personal/maude/.claude/worktrees/freeze/.ai/plans/notes/v2-evidence/V2-8.16-journeys/2026-10-31-freeze/S11/terminal/project; maude design logs 2>&1 | tail -60; echo ---SYNC; maude design sync status 2>&1 | head -60","description":"Read Maude logs and sync status"}}
+{"lane":"terminal","name":"Bash","input":{"command":"cd /Users/iagh/git/personal/maude/.claude/worktrees/freeze/.ai/plans/notes/v2-evidence/V2-8.16-journeys/2026-10-31-freeze/S11/terminal/project; maude design logs --help 2>&1 | head -20; maude design logs --level warn 2>&1 | tail -20; echo ---C; maude design comments ui/GitPanel.tsx 2>&1 | head -80","description":"Check warnings and read canvas comments"}}
+{"lane":"terminal","name":"Bash","input":{"command":"maude design comments ui/GitPanel.tsx","description":"Read comments on GitPanel canvas"}}
+{"lane":"terminal","name":"Bash","input":{"command":"maude design logs --help","description":"Show logs verb options"}}
+{"lane":"terminal","name":"Bash","input":{"command":"maude design logs --source all --tail 200 --grep err","description":"Search all log sources for errors"}}
+{"lane":"terminal","name":"Bash","input":{"command":"maude design logs --source all --tail 200 --grep warn","description":"Search all log sources for warnings"}}

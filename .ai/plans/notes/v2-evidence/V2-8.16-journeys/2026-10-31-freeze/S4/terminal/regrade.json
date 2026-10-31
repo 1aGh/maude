@@ -1,0 +1,30 @@
+{
+  "journey": "S4",
+  "pass": true,
+  "results": [
+    {
+      "id": "sticky-resolved",
+      "grader": "sticky",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "sticker",
+      "grader": "sticker",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "through-the-verb",
+      "grader": "no-tool",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "canvas-untouched",
+      "grader": "untouched",
+      "pass": true,
+      "why": ""
+    }
+  ]
+}
