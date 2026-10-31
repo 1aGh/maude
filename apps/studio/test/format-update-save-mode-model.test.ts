@@ -96,10 +96,30 @@ describe('the save-mode trigger (format 2 + legacy)', () => {
         plan: undefined,
       })?.kind
     ).toBe('non-owner');
-    // a self-hosted workspace has no dashboard to send anyone to
+    // a self-hosted workspace has no dashboard to send anyone to: its OWNER is never told to "ask the
+    // owner" (p8-cell-copy) — the line says what the owner can do, with no button to press
+    const selfHostedOwner = saveModeState({
+      cfg: { ...cloud, cloud: { role: 'owner' } },
+      plan: undefined,
+    });
+    expect(selfHostedOwner).toEqual({
+      kind: 'save-mode-owner',
+      line: SAVE_COPY.ownerElsewhere,
+      action: null,
+    });
+    expect(selfHostedOwner?.line).not.toMatch(/ask the owner/i);
+    // an admin owns it too; a viewer or editor in the same cell still hears "Ask the owner"
     expect(
-      saveModeState({ cfg: { ...cloud, cloud: { role: 'owner' } }, plan: undefined })?.kind
-    ).toBe('non-owner');
+      saveModeState({ cfg: { ...cloud, cloud: { role: 'admin' } }, plan: undefined })?.kind
+    ).toBe('save-mode-owner');
+    for (const role of ['editor', 'viewer', undefined]) {
+      expect(saveModeState({ cfg: { ...cloud, cloud: { role } }, plan: undefined })).toEqual({
+        kind: 'non-owner',
+        line: SAVE_COPY.nonOwner,
+        action: null,
+      });
+    }
+    expect(SAVE_COPY.nonOwner).toMatch(/Ask the owner/);
   });
 
   test('the older-project callout is unchanged by the second trigger', () => {
