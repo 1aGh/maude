@@ -69,7 +69,7 @@ async function reset() {
 }
 
 describe('#18 — V in Preview arms the pointer and keeps Preview', () => {
-  test('C then V: the tool is the Hand (browse), the mode is still Preview', async () => {
+  test('C then V: the tool is Select (browse), the mode is still Preview', async () => {
     await reset();
     await c.page.keyboard.press('c');
     await sleep(300);
