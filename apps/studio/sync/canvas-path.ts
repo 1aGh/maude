@@ -83,6 +83,28 @@ const FINAL_COMPONENT = /^[A-Za-z0-9_-][A-Za-z0-9 _-]*\.tsx(?![\s\S])/;
  *  every platform and a rename hazard on Windows. */
 const TRAILING_SPACE = / $/;
 
+/**
+ * May `name` be the first folder of a canvas path OUTSIDE every declared group?
+ *
+ * The undeclared-group relaxation (a hub's own studio while its owner has declared
+ * nothing, a desktop's one fresh-link boot, and the hub kernel's
+ * `allowUndeclaredGroup`) believes the path's own top folder is a group. That
+ * folder must then be one the file classifier calls a folder (`DIR_SEGMENT`,
+ * `relShape` in file-membership): it starts with a letter or digit — never `_`,
+ * which is every DDR-115 runtime directory (`_state/`, `_history/<slug>/`,
+ * `_comments/`, `_trash/`, …), and never `-` — and it is not `node_modules` in
+ * any case. Without this a teammate's document could land a body inside runtime
+ * state and wedge its pull pin forever, because no scan lists those folders
+ * (p8-boundary-harden, final-3 defender M1 / attacker L3). Also the guard on a
+ * desktop's learned group: a fresh link never declares a runtime folder.
+ */
+export function isUndeclaredGroupName(name: unknown): boolean {
+  if (typeof name !== 'string' || name.length === 0) return false;
+  if (!/^[A-Za-z0-9]/.test(name)) return false;
+  if (name.toLowerCase() === 'node_modules') return false;
+  return COMPONENT.test(name) && !TRAILING_SPACE.test(name);
+}
+
 export interface ValidateCanvasPathArgs {
   /** The wire value. Anything at all — this is untrusted input. */
   path: unknown;
@@ -186,10 +208,14 @@ export function validateCanvasPath(args: ValidateCanvasPathArgs): CanvasPathVerd
   const groups = normalizedGroups(canvasGroups);
   const lower = path.toLowerCase();
   if (!groups.some((g) => lower.startsWith(`${g.toLowerCase()}/`))) {
-    // Rules 4-5 already proved every component is group-shaped, so under the
-    // fresh-link relaxation there is nothing further to check — the path is
-    // inside SOME group, just not one this project has heard of yet.
+    // Rules 4-5 already proved every component is in the charset. Under the
+    // relaxation the path's own top folder is believed to be a group — so it
+    // must be a folder the classifier would call one (`isUndeclaredGroupName`):
+    // never a `_` runtime directory, a leading `-`, or `node_modules`.
     if (!allowUndeclaredGroup) return no('outside every declared canvas group');
+    if (!isUndeclaredGroupName(parts[0])) {
+      return no('outside every declared canvas group, in a folder no group may be');
+    }
   }
 
   return { ok: true, rel: path };
@@ -262,11 +288,44 @@ function sanitizeSlug(slug: unknown): string {
   return s.length > 0 ? s : 'canvas';
 }
 
+/**
+ * What a project's config DECLARES as canvas groups — the one answer to "has the
+ * owner declared folders yet" (p8-boundary-harden, final-3 attacker I2).
+ *
+ * `raw` is the parsed `config.json`'s `canvasGroups`, whatever it holds. The
+ * project has declared groups when it is an array with at least one entry that
+ * names a path — an object `{ path }` or the bare-string form some callers pass —
+ * as a non-empty string. Returns those entries as `{ path }`-shaped objects, or
+ * `null` when nothing is declared: then a hub is the folder boundary (decision
+ * maude/v2-michal-hub-is-the-folder-boundary-before-config). `[]`, `[{}]`,
+ * `[{ path: '' }]`, a non-array and no config all read as undeclared.
+ *
+ * The hub kernel, the hub's file classifier, its workspace agent and the paired
+ * studio all decide through THIS function and all re-read the config when it
+ * changes, so no writer can call a project declared while another calls it
+ * undeclared. Dependency-free: each runtime reads the file itself.
+ */
+export function declaredCanvasGroups(raw: unknown): CanvasGroupLike[] | null {
+  if (!Array.isArray(raw)) return null;
+  const out: CanvasGroupLike[] = [];
+  for (const g of raw) {
+    const p = groupPathOf(g);
+    if (typeof p === 'string' && p.length > 0) out.push(typeof g === 'string' ? { path: g } : g);
+  }
+  return out.length > 0 ? out : null;
+}
+
+/** A group entry's path: `{ path }`, or the bare-string form the kernel passes. */
+function groupPathOf(g: unknown): unknown {
+  if (typeof g === 'string') return g;
+  return g && typeof g === 'object' ? (g as { path?: unknown }).path : undefined;
+}
+
 /** Declared group paths, normalised and stripped of anything that escapes. */
-function normalizedGroups(canvasGroups?: readonly CanvasGroupLike[]): string[] {
+function normalizedGroups(canvasGroups?: readonly (CanvasGroupLike | string)[]): string[] {
   const out: string[] = [];
   for (const g of canvasGroups ?? []) {
-    const p = normalizeGroup(g?.path);
+    const p = normalizeGroup(groupPathOf(g));
     if (p && !out.includes(p)) out.push(p);
   }
   return out.length > 0 ? out : ['system', 'ui'];
