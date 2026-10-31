@@ -376,11 +376,16 @@ export function advancedView({ view, shell, hubUrl } = {}) {
 }
 
 // One-shot focus for the sheet that is about to open: ⌘K "Link settings…" opens it on This link,
-// File › Share on GitHub… on the GitHub row (it takes over project.share-github). Read once.
+// File › Share on GitHub… on the GitHub row (it takes over project.share-github), the format callout's
+// Connect… on the committed-link Connect row (V2-8.9 r2 M1 — the callout never confirms by itself). Read once.
 let pendingFocus = null;
 export function requestShareFocus(what) {
-  pendingFocus = what === 'link' || what === 'github' ? what : null;
+  pendingFocus = what === 'link' || what === 'github' || what === 'connect' ? what : null;
 }
+
+/** V2-8.9 r2 M1 — the Share sheet's Connect row recorded the committed link on this Mac (the one
+ *  consent door, gate-b-sec4): the format callout hears it and asks the dry run again. */
+export const LINK_CONFIRMED_EVENT = 'maude:sync-link-confirmed';
 export function takeShareFocus() {
   const f = pendingFocus;
   pendingFocus = null;

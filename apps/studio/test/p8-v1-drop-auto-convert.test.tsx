@@ -114,13 +114,16 @@ const wait = (ms = 0) =>
   });
 const $ = (id: string) => document.querySelector(`[data-testid="${id}"]`) as HTMLElement | null;
 
-async function mount(cfg: Record<string, unknown> = older) {
+async function mount(
+  cfg: Record<string, unknown> = older,
+  tabs: Record<string, unknown> | null = null
+) {
   const { ShellStoreContext } = await import('../client/stores/shell-store.jsx');
   const { OlderFormatCallout } = await import('../client/v2/shell/format-update.jsx');
   host = document.createElement('div');
   document.body.append(host);
   root = createRoot(host);
-  const store = { shellCore: { cfg, project: 'alligators' } };
+  const store = { shellCore: { cfg, project: 'alligators' }, ...(tabs ? { tabs } : {}) };
   await act(async () =>
     root?.render(
       <ShellStoreContext.Provider value={store as never}>
@@ -410,10 +413,12 @@ describe('the re-check backs off', () => {
   });
 });
 
-// r1-format-ds (Michal rc.1, item 1) — a parked committed link (gate-b-sec4): the line names it and the
-// one action is Connect, which records the link on this Mac and asks again; the owner then converts.
-describe('a parked link: Connect, then it converts by itself', () => {
-  test('Connect posts the link confirm, the re-probe converts unasked', async () => {
+// r1-format-ds (Michal rc.1, item 1) + V2-8.9 r2 M1 — a parked committed link (gate-b-sec4): the line
+// names the host, and the one action opens the Share sheet's own Connect row — the one deliberate consent
+// door. The callout itself never POSTs the link confirm: a committed file can name this Mac's own team
+// server, and approving it hands that server this Mac's credential.
+describe('a parked link: Connect opens Share, never confirms by itself', () => {
+  test('Connect opens the Share sheet on its Connect row; a confirm there re-probes and converts', async () => {
     const seen: string[] = [];
     let confirmed = false;
     let applies = 0;
@@ -438,17 +443,55 @@ describe('a parked link: Connect, then it converts by itself', () => {
       return new Response('{}', { status: 200 });
     }) as typeof fetch;
     const { OLDER_COPY } = await import('../client/v2/shell/format-update.js');
-    await mount();
-    expect(kind()).toBe('link-unconfirmed');
-    expect(line()).toContain(OLDER_COPY.olderLinkUnconfirmed('hub.example'));
-    expect(line()).not.toContain('signed in');
-    expect($('format-older-sign-in')).toBe(null);
-    expect(applies).toBe(0);
-    const btn = $('format-older-connect');
-    expect(btn?.textContent).toBe(OLDER_COPY.connectAction);
-    await act(async () => btn?.click());
-    await wait(40);
-    expect(seen).toContain('POST /_api/sync/link/confirm');
-    expect(applies).toBe(1);
+    const { menuRunner } = await import('../client/v2/shell/menu-runner.js');
+    const { takeShareFocus, LINK_CONFIRMED_EVENT } = await import(
+      '../client/v2/share/share-model.js'
+    );
+    const ran: string[] = [];
+    const handlers = { 'share.open': () => ran.push('share.open') };
+    menuRunner.bind(handlers);
+    try {
+      await mount(older, { sharePath: '.design/ui/Home.tsx' });
+      expect(kind()).toBe('link-unconfirmed');
+      expect(line()).toContain(OLDER_COPY.olderLinkUnconfirmed('hub.example'));
+      expect(line()).toContain('hub.example');
+      expect(line()).not.toContain('by itself');
+      expect(line()).not.toContain('signed in');
+      expect($('format-older-sign-in')).toBe(null);
+      expect(applies).toBe(0);
+      const btn = $('format-older-connect');
+      expect(btn?.textContent).toBe(OLDER_COPY.connectAction);
+      await act(async () => btn?.click());
+      await wait(40);
+      expect(ran).toEqual(['share.open']);
+      expect(takeShareFocus()).toBe('connect');
+      expect(seen).not.toContain('POST /_api/sync/link/confirm');
+      expect(applies).toBe(0);
+      // the person's own Connect in the Share sheet: the callout asks again, and the owner converts
+      confirmed = true;
+      await act(async () => {
+        window.dispatchEvent(new CustomEvent(LINK_CONFIRMED_EVENT));
+      });
+      await wait(40);
+      expect(applies).toBe(1);
+    } finally {
+      menuRunner.unbind(handlers);
+    }
+  });
+
+  test('no canvas to share from: the line stays, and no dead Connect button', async () => {
+    mockMigrate([
+      dryLinked({ role: 'unknown', hubFormat: null, capabilities: [] }, ['link-unconfirmed']),
+    ]);
+    const { menuRunner } = await import('../client/v2/shell/menu-runner.js');
+    const handlers = { 'share.open': () => {} };
+    menuRunner.bind(handlers);
+    try {
+      await mount(older, { sharePath: null });
+      expect(kind()).toBe('link-unconfirmed');
+      expect($('format-older-connect')).toBe(null);
+    } finally {
+      menuRunner.unbind(handlers);
+    }
   });
 });

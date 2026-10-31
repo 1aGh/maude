@@ -34,6 +34,7 @@ import {
   errorWords,
   expiresAtFor,
   joinAsKey,
+  LINK_CONFIRMED_EVENT,
   lastSyncedAt,
   peopleRows,
   readJoinAs,
@@ -126,6 +127,7 @@ export function ShareSheet({
   // gate-b-sec4 — `{ host }` while the folder's committed link waits for this Mac's Connect
   const [pendingLink, setPendingLink] = useState(null);
   const emailRef = useRef(null);
+  const connectRef = useRef(null);
   const sheetRef = useModalFocus({ onClose });
 
   const view = sheetView({ posture, me, target, project, scope });
@@ -180,7 +182,15 @@ export function ShareSheet({
       }
       setPendingLink(null);
       setPostureAsk((n) => n + 1);
+      // V2-8.9 r2 M1 — the format callout waits for this (it never confirms by itself) and asks again
+      window.dispatchEvent(new CustomEvent(LINK_CONFIRMED_EVENT));
     });
+
+  // Opened from the format callout's Connect… — the question row takes focus once it is drawn.
+  const connectShown = !!posture && !view.linked && !!pendingLink;
+  useEffect(() => {
+    if (connectShown && focus === 'connect') connectRef.current?.focus({ preventScroll: true });
+  }, [connectShown, focus]);
 
   // "Last synced" — read once the project is known to sync somewhere; no answer, no line.
   const linkedHere = view.linked;
@@ -423,6 +433,7 @@ export function ShareSheet({
               This project says it syncs with {pendingLink.host}. Connect?
             </p>
             <button
+              ref={connectRef}
               type="button"
               className="btn btn--primary"
               data-testid="share-link-connect"

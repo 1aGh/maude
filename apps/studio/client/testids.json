@@ -5338,7 +5338,7 @@
     "hook": "share-link-connect",
     "kind": "testid",
     "pattern": false,
-    "meaning": "gate-b-sec4: Connect — records the link on this Mac (POST /_api/sync/link/confirm) and starts syncing.",
+    "meaning": "gate-b-sec4: Connect — records the link on this Mac (POST /_api/sync/link/confirm) and starts syncing. The one consent door for a committed link: the format callout's Connect… opens the sheet focused here; a confirm announces maude:sync-link-confirmed.",
     "producer": {
       "file": "apps/studio/client/v2/share/share-sheet.jsx",
       "symbol": "ShareSheet"
@@ -14907,7 +14907,7 @@
     "hook": "format-older-connect",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The callout's Connect button — a format-1 project whose committed linkedHub was never linked on this Mac (gate-b-sec4, parked). POSTs /_api/sync/link/confirm, then the dry run asks again.",
+    "meaning": "The callout's Connect… button — a format-1 project whose committed linkedHub was never linked on this Mac (gate-b-sec4, parked). Only opens the Share sheet focused on its Connect row (share-link-connect, the one consent door — V2-8.9 r2 M1); never POSTs the confirm itself. Not drawn without a canvas to share from. After a confirm there, the dry run asks again.",
     "producer": {
       "file": "apps/studio/client/v2/shell/format-update.jsx",
       "symbol": "OlderFormatCallout"
