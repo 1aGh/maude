@@ -339,3 +339,18 @@ rights or is an availability nuisance). Candidates for the first rc patch:
 - Lead fix on the same freeze: V2-8.0/8.6 went red at f849d866b because the two comments-paused testids from
   p8-cell-copy were scanned as late v1 entry points; they are v2 code (`V2_CODE_IDS`, 8a23313e1). Lesson: the lead
   gate script does not run `check-v2-nothing-deleted.mjs`; run it before a freeze.
+
+## From the live journeys at the freeze (2026-10-31) and p8-journey-grader / p8-fence-restart-flake
+- **Done in this round** (merge 6fff07350): the S6 token check reads the CSS a canvas imports (`withImportedCss`). The
+  S11 bare `maude design comments <path>` now gets a pre-bash hint naming `comments list` instead of a bare deny.
+  `--help` needed no change, because `maude --help` and `maude design --help` are already auto tier.
+- **Open (product):** a loopback write made through `curl-local` during an open AI run (S1 terminal:
+  `POST /_api/canvas` over the agent's own Write) is attributed `outside`, not to the run. Two fixes, cheapest first:
+  - the design skill never sends canvas creates through `/_api/canvas` with curl;
+  - or a loopback write during an open run binds to that run.
+- **Open (test):** `hub-format-fence.test.mjs` failed once at 6fff07350 (V2-8.1). The cause was not reproduced; the
+  likely cause is a process freeze longer than the 8 s wall-clock deadline. That file's `until()` now counts only run
+  time (e308179d0). Seven other hub test files still have their own wall-clock `until()`. Move them onto the same
+  helper.
+- **Open (`maude design comments --help`):** the auto rule is `comments list:*`, so the help form is still denied.
+  This is minor, because the new hint lists the sub-verbs.
