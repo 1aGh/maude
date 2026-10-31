@@ -482,7 +482,7 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 | Minimap | `view.minimap` | view-pref |
 | Model | `chat.advanced.model` | ai-chat |
 | Move between the panels and the canvas | `ui.cycle-region` | view-pref — where the keyboard is in the window |
-| Move to cloud… | `share.move-to-cloud` | billing — moves the project to the person’s billed Maude Cloud account |
+| Move to Maude Cloud… | `share.move-to-cloud` | billing — moves the project to the person’s billed Maude Cloud account |
 | Move to trash | `chat.trash` | ai-chat |
 | New branch… | `history.new-branch` | git — an agent runs git itself in the project folder: git switch -c <branch> |
 | New chat | `chat.new` | ai-chat |
@@ -551,7 +551,7 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 | Show tags and ids | `layers.show-tags` | view-pref — tag and id after each layer’s name, in the person’s own view |
 | Sign in again | `sync.sign-in-again` | hub-link — signing in to the cloud is the person’s own credential |
 | Sign in as another account… | `account.switch` | native-window — the desktop app’s profiles; an agent never picks an account |
-| Sign in to cloud.maude.sh | `home.signin` | accounts — opens the person’s browser on cloud.maude.sh; the credential reaches the Home server, never a page or an agent |
+| Sign in to Maude Cloud | `home.signin` | accounts — opens the person’s browser on cloud.maude.sh; the credential reaches the Home server, never a page or an agent |
 | Sort canvases | `canvases.sort` | view-pref — the order the Canvases panel lists in; `maude design index` lists them all |
 | Start a vote… | `annotations.start-vote` | vote — the result section is in the annotations when it ends: `maude design read-annotations` |
 | Step a frame | `timeline.step` | view-pref — playback |

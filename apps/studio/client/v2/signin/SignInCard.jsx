@@ -262,7 +262,7 @@ export function SignInCard({
   );
 }
 
-/** The quiet "Sign in to cloud.maude.sh" in Home's top bar once the person has projects but no account. */
+/** The quiet "Sign in to Maude Cloud" in Home's top bar once the person has projects but no account. */
 export function SignInQuiet({ onClick, disabled }) {
   return (
     <button

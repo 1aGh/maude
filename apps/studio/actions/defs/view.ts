@@ -473,7 +473,7 @@ export const VIEW_ACTIONS: ActionDef[] = [
     enabled: { facts: ['online'], any: [{ facts: ['linkedHub'] }, { shell: ['cloud'] }] },
     search: {
       keywords: ['presentation', 'slideshow', 'audience', 'follow', 'share', 'link', 'url'],
-      note: 'in a cloud project',
+      note: 'in a Maude Cloud project',
     },
   },
   {

@@ -15,6 +15,7 @@
 import { useEffect, useState } from 'react';
 
 import { CLOUD_CHANGED_EVENT, openExternal } from '../../panels/CloudBar.jsx';
+import { hubName } from '../cloud/cloud-name.js';
 import { Group, Row } from './parts.jsx';
 
 /** The five account pages (apps/cloud/account-pages.mjs `ACCOUNT_NAV`), in the canvas order. */
@@ -96,7 +97,8 @@ export function AccountBlock({
     cloud === null ? (ownAccount ? acct?.url : null) : (cloud?.dashboardUrl ?? null);
   const origin = accountOrigin(dashboardUrl);
   if (!dashboardUrl || !origin) return null;
-  const host = new URL(origin).host;
+  // TD8: our own service is "Maude Cloud"; any other account server shows its own host
+  const host = hubName(origin) || new URL(origin).host;
   const signedIn = ownAccount ? !!acct?.connected : true;
   const plan = signedIn ? planWords(ownAccount ? acct?.plan : cloud?.plan) : null;
   const who = ownAccount ? acct?.email : null;

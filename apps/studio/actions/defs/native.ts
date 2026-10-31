@@ -89,7 +89,7 @@ export const NATIVE_ACTIONS: ActionDef[] = [
     // but no account. Opens the system browser on the device page (Rust `home_cloud_sign_in_open`); the
     // credential reaches the Home server and Rust, never the page (contract S6-S9 §5.1).
     id: 'home.signin',
-    label: 'Sign in to cloud.maude.sh',
+    label: 'Sign in to Maude Cloud',
     kind: 'command',
     icon: 'cloud',
     exec: 'shell',

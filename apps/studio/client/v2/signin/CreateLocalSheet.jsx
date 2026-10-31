@@ -84,7 +84,7 @@ export function CreateLocalSheet({
             onChange={(e) => onChange({ ...value, name: e.target.value })}
           />
           <span className="si-field-hint">
-            Kept on this Mac, in your Maude folder. Move it to the cloud any time.
+            Kept on this Mac, in your Maude folder. Move it to Maude Cloud any time.
           </span>
         </label>
         {/* `si-fold`, never `si-adv`: that is the sign-in card's inline-flex flyout button, and on this block it

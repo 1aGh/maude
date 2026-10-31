@@ -312,7 +312,7 @@ export default function ConnectionsSection({ onLinkedHub, onLocalProject, syncSt
         row="cloud"
         testid="settings-cloud"
         icon="cloud"
-        title="cloud.maude.sh"
+        title="Maude Cloud"
         desc="Where your projects live."
         rowTestid={cloud.state === 'in' ? 'cloud-account' : undefined}
         status={cr.status}
@@ -393,7 +393,7 @@ export default function ConnectionsSection({ onLinkedHub, onLocalProject, syncSt
         row="hub"
         icon="box"
         title={team.title}
-        desc="A self-hosted server, beside the cloud."
+        desc="A self-hosted server, beside Maude Cloud."
         status={team.status}
         tone={team.tone}
         action={

@@ -3365,6 +3365,11 @@ function ShellTree() {
           shell={shareShell}
           project={cfg?.cloud?.projectName || project}
           onClose={() => setShareDialog(null)}
+          // P5/TD8 — a local project's "Only need a file?" opens the one Export sheet
+          onExport={() => {
+            setShareDialog(null);
+            setExportDialog({ mode: 'export' });
+          }}
         />
       )}
       {exportDialog && (

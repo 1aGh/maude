@@ -303,7 +303,7 @@ describe('NotLocalCanvas', () => {
     const card = q(host, 'canvas-not-local');
     expect(card?.textContent).toContain("Combine-video-AI isn't on this Mac yet.");
     expect(card?.textContent).toContain(
-      'It opens by itself when this Mac is back online. Nothing in it is lost — the cloud copy is safe.'
+      'It opens by itself when this Mac is back online. Nothing in it is lost — the Maude Cloud copy is safe.'
     );
     expect(card?.querySelectorAll('button')).toHaveLength(1);
     const btn = q(host, 'canvas-not-local-show-local');
