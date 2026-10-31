@@ -370,3 +370,14 @@ rights or is an availability nuisance). Candidates for the first rc patch:
   one fails closed, so a canvas importing its own stylesheet in another letter case (the Combine-admin shape) may not
   open on a cell. The fix is a depth cap that marks only the skipped subtree, and leaving tombstoned rows out of
   `files`. Neither is pinned (the hub test uses `journal: null`).
+
+## From p8-caret-flake (merged 20b4215eb, V2-8.3)
+
+- **`no_raw_webview_url_calls` test is line-based** (V2-8.9 rust defender, low). It misses `.url()` split across
+  lines, `if let Ok(u) = w.url()`, `match w.url()`, `.url().is_ok()`, `.url().and_then`, `Webview::url(&w)`, and
+  anything after a `//` inside a string. Match `\.url\(\)` across whitespace and newlines, and scan `vendor/` as well.
+- **The vendored WebDriver plugin still calls `self.window().url()`** (`vendor/tauri-plugin-wdio-webdriver/src/platform/
+  executor.rs:1654`, add-cookie). It is debug only and never in the release app, but it can quit an e2e run on a
+  tab that has no URL yet. Route it through `url_of`.
+- **Other wry 0.57 URL unwraps** stay in the webview layer. A Tauri bump, or new code calling `Webview::url()`
+  directly, would bring the quit back. The source test catches that only inside `src/`.
