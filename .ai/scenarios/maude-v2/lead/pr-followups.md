@@ -403,3 +403,6 @@ rights or is an availability nuisance). Candidates for the first rc patch:
 - **P3 rc-patch residue:** F34 submenu diagonal, F35 panel padding, R25 View menu rows, R29 motion. A toolbar popover
   inside the canvas still sits under a shell toast, because the canvas is a separate frame.
 - **The S3.9 camera ease** is off (`PREVIEW_EASES = false`, TD1d). The engine is kept behind that one switch.
+- **rc patch, security F3 (low, V2-8.9 r2 attacker):** a focused canvas can open the native image picker
+  (`tool-panel-open {panel:'image'}`), and the picked file goes to Assets, which syncs. Show a shell-drawn chip
+  ("Choose a picture for <canvas>…") before the native dialog when the canvas asked, and back off after two cancels.
