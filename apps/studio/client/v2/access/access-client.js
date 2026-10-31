@@ -131,15 +131,17 @@ export function frameAccessOn(cfg, path) {
   const rel = underDesignRoot(cfg, path);
   const ro = !canEditOn(cfg, rel);
   if (!ro) return { ro: false, cm: false };
-  if (cfg.access && typeof cfg.access === 'object' && !cfg.formatGate) {
-    const own = (Array.isArray(cfg.access.grants) ? cfg.access.grants : []).some(
+  // The role comments (`canComment`), or this canvas's own grant is Can comment or up.
+  const own =
+    !!cfg.access &&
+    typeof cfg.access === 'object' &&
+    (Array.isArray(cfg.access.grants) ? cfg.access.grants : []).some(
       (g) => g?.c === rel && RANK[g?.r] >= RANK.viewer
     );
-    return { ro, cm: !!cfg.canComment || own };
-  }
-  // p8-cell-copy — the format gate refuses every comment write, whatever the role. A session whose role
+  // p8-cell-copy — the format gate refuses every comment write, whatever the role or grant. A session that
   // would comment keeps the tool and the card, and is told why on them (`cg`): the canvas pauses both.
-  const cm = !!cfg.canComment;
+  // p8-comment-gate (final-3 I2) — a commenting grant is told too, not only a commenting role.
+  const cm = !!cfg.canComment || own;
   return { ro, cm, ...(cm && cfg.formatGate ? { cg: true } : {}) };
 }
 
