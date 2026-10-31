@@ -381,3 +381,14 @@ rights or is an availability nuisance). Candidates for the first rc patch:
   tab that has no URL yet. Route it through `url_of`.
 - **Other wry 0.57 URL unwraps** stay in the webview layer. A Tauri bump, or new code calling `Webview::url()`
   directly, would bring the quit back. The source test catches that only inside `src/`.
+
+## From the UX audit round (2026-10-31)
+
+- **The comment thread card's first frame** draws once at the window's top-left corner before it is measured, then
+  anchors at the pin (r2-verify-app `step-03`). Render it hidden until it has been placed.
+- **Esc on an existing inline text** still restores the old text (Phase 12); a text the tool just made keeps what was
+  typed. Recommendation (a): keep the words everywhere, as Figma does. Waiting on Michal.
+- **"Add comment"** sits under the object menu's Advanced rows. It may belong in the main group; that is a menu-order
+  decision.
+- **Desktop debug build in a symlinked worktree:** `pnpm test:e2e:desktop:build` fails there, so run `tauri build`
+  directly. `bun run build.ts --release` must run first so `dist/maude-darwin-arm64` exists for `sync-sidecar`.
