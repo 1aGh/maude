@@ -25923,6 +25923,54 @@
     "v2": "new"
   },
   {
+    "hook": "edit-place-image-hint",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the line while a picture Image (I) picked waits to be placed — \"Click to place <name> · ↵ in the middle · esc to cancel\" (TD10).",
+    "producer": {
+      "file": "apps/studio/editing/place-image.tsx",
+      "symbol": "PlaceImage"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r2-p1-image-tool.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "image-tool-input",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Shell: the one off-screen HTML file input Image (I) opens at once (TD10); a DOM e2e or an agent hands it a file without a dialog and the picture is placed on the active canvas at the next click.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/image-pick.js",
+      "symbol": "createImagePick"
+    },
+    "region": "shell",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r2-p1-image-tool.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "toolbar-slot-image-generate",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Edit toolbar: the small Generate… spark beside Image (TD10) — runs `assets.generate`, one click away.",
+    "producer": {
+      "file": "apps/studio/tool-palette.tsx",
+      "symbol": "ToolPalette"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/tool-palette.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "edit-pen-input",
     "kind": "testid",
     "pattern": false,

@@ -6328,10 +6328,9 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
         await check('L08.artboard.add', `${from.name}-to-peers`, async () => {
           await seedCanvas(from, rel, boardsCanvas(`Boards ${from.name}`));
           await openSeeded(rel, `Boards ${from.name}`, `L08-${from.name}`);
-          // V2-4.8a: Edit › Advanced › New artboard — the project pill's menu (no in-app menubar).
+          // V2-4.8a + TD10: File › New artboard — the project pill's menu (no in-app menubar).
           await from.click(selector('project-pill'));
-          await from.menu('Edit');
-          await from.menu('Advanced');
+          await from.menu('File');
           await from.menu('New artboard');
           const start = performance.now();
           await from.menu('New artboard: Mobile');

@@ -265,7 +265,7 @@ export const CANVAS_ACTIONS: ActionDef[] = [
       legacy: { menu: `New artboard: ${name}` },
     })
   ),
-  // S7.20 (D17) — Edit › Advanced ▸ New artboard › Video: a Landscape 16:9 video artboard in the open canvas, with its
+  // S7.20 (D17) — File › New artboard › Video (TD10; was Edit › Advanced): a Landscape 16:9 video artboard in the open canvas, with its
   // comp. (⌘K's "New video" stays `canvas.new-video`, which makes a whole video canvas.) It posts
   // `artboard.insert-preset` to the canvas, which picks the spot and writes the one op.
   {

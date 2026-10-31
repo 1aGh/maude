@@ -2578,7 +2578,7 @@
     },
     {
       "id": "tool.frame",
-      "label": "Frame",
+      "label": "Artboard / Frame",
       "kind": "tool",
       "exec": "canvas",
       "effect": "project",

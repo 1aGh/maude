@@ -72,6 +72,7 @@ import { PasteBar } from './paste-bar.tsx';
 import { PEN_ACTIONS, PenLayer } from './pen/index.tsx';
 import { PinGuides } from './place-freely.tsx';
 import { PlaceGhost } from './place-ghost.tsx';
+import { PlaceImage } from './place-image.tsx';
 import { layoutOpsDeps, ReorderSlot } from './reorder-slot.tsx';
 import { RotateHandle } from './rotate-handle.tsx';
 import { EditingSelection, stampedParent, stepOut } from './selection.tsx';
@@ -378,6 +379,8 @@ export function EditingLayer() {
       <PenLayer readOnly={ro} />
       {/* S2.16 — a component picked in the shell (⇧I) follows the pointer until a click places it */}
       <PlaceGhost readOnly={ro} />
+      {/* r2-p1 TD10 — the picture Image (I) picked in the shell: the next click places it, ↵ in the middle */}
+      <PlaceImage readOnly={ro} />
       {/* S2.15 — a tile dropped on a frame, crop mode (double-click a picture), and the bar under a Figma paste */}
       <ImageDrop readOnly={ro} />
       {/* S8.14 — photos dragged from Finder onto an artboard: the hint, the import, ONE image.place, selected at once */}

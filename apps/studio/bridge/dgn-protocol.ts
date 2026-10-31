@@ -371,7 +371,8 @@ export interface CanvasToShell {
   };
   'toolbar-rect': { mode: CanvasModeV2; rect: Rect | null };
   'tool-panel-open': {
-    panel: 'stickers' | 'components' | 'templates' | 'assets' | 'sizes';
+    // r2-p1 TD10: 'image' = Image (I), the shell's picture picker; 'generate' = the Generate… slot next to it
+    panel: 'stickers' | 'components' | 'templates' | 'assets' | 'sizes' | 'image' | 'generate';
     anchor: Rect | null;
     /** S4.3: the id of the sticker being replaced (Replace… on a selected sticker opens the gallery in replace mode) */
     replace?: Id;
@@ -554,6 +555,10 @@ export interface ShellToCanvas {
     // line; 'cancel' = the picker closed without a pick
     mode: 'ghost' | 'selection' | 'preview' | 'cancel';
   };
+  // r2-p1 TD10 (UX audit F10): the picture Image (I) picked in the shell, already in Assets (`asset` = its
+  // `assets/…` path). The canvas arms it: the next click on an artboard places it there, ↵ in the middle of the
+  // view, esc lets go — one `image.place` write. Accepted only from the shell (`gate: 'parent'`).
+  'place-image': { asset: string; natural?: { w: number; h: number } | null; label?: string };
   // S7.9 (07 ve-drop): footage is being dragged over the window while a video artboard is followed — that artboard
   // shows the chip "Or drop here — adds at the end" (`on: false` = the drag ended or left). The shell owns the drop
   // (a catcher over the artboard's rect), so the canvas only draws.
@@ -1778,7 +1783,7 @@ const c2s: C2S = {
     status: 'live',
     owner: 'tool-palette (V2-4.5c); shell tool panels (V2-4.5c)',
     parse: p({
-      panel: lit('stickers', 'components', 'templates', 'assets', 'sizes'),
+      panel: lit('stickers', 'components', 'templates', 'assets', 'sizes', 'image', 'generate'),
       anchor: nul(rect),
       replace: opt(str),
     }),
@@ -2163,6 +2168,16 @@ const s2c: S2C = {
       variant: opt(dsSlug),
       glyph: opt(dsSlug),
       mode: lit('ghost', 'selection', 'preview', 'cancel'),
+    }),
+  },
+  'place-image': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'editing/place-image (r2-p1 TD10); client/v2/shell/image-pick.js',
+    parse: p({
+      asset: shortStr(512),
+      natural: opt(nul(shape({ w: num, h: num }))),
+      label: opt(shortStr(200)),
     }),
   },
   // S7.9 — the drop chip on the followed video artboard while footage is in flight (editing/drop-chip.tsx).

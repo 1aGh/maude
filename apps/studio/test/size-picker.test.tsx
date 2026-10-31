@@ -562,7 +562,7 @@ describe('the tool-panel lane opens it', () => {
 
   test('F stays the Frame tool: the slot is unchanged (the canvas, not the table, decides to open the picker)', () => {
     const slot = MODE_TOOLS.edit.slots.find((s) => s.key === 'F');
-    expect(slot).toMatchObject({ tool: 'frame', label: 'Frame' });
+    expect(slot).toMatchObject({ tool: 'frame', label: 'Artboard / Frame' }); // TD10 tooltip
     expect(slot?.panel).toBeUndefined();
   });
 });

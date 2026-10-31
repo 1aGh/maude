@@ -78,7 +78,7 @@ describe('MODE_TOOLS / the slots per mode (V2-1.2 §5.5)', () => {
     expect(MODE_TOOLS.edit.slots.map((s) => `${s.label} ${s.key}`.trim())).toEqual([
       'Select V',
       'Hand H',
-      'Frame F',
+      'Artboard / Frame F', // TD10: the tooltip reads "Artboard / Frame (F)"
       'Shape R',
       'Pen P',
       'Text T',
@@ -156,7 +156,7 @@ describe('visibleSlots / role, pending and read-only', () => {
       'el-shape', // S2.13
       'el-pen', // S2.14: click for a point, drag for a smooth one
       'el-text', // S2.12b: click to type
-      'image', // S2.15: I opens the Assets tab (a panel-first slot)
+      'image', // TD10: I opens the picture picker (a panel-first slot)
       'components', // S2.16: the shell's Component picker (a panel-only slot)
       'more', // S2.13/S2.15: Line · Ellipse · Polygon · Crop · Export area
     ]);
@@ -466,6 +466,7 @@ describe('the Edit toolbar (ungoverned, an editor)', () => {
       'el-pen',
       'el-text',
       'image',
+      'image-generate', // TD10: Generate… beside Image, one click away
       'components',
       'more',
     ]);
@@ -487,14 +488,14 @@ describe('the Edit toolbar (ungoverned, an editor)', () => {
     expect(q('toolbar-slot-hand')?.getAttribute('aria-pressed')).toBe('true');
   });
 
-  test('Image asks the shell for the Assets tab and arms nothing; Frame and Shape are tools (S2.13, S2.15)', () => {
+  test('Image asks the shell for the picture picker and arms nothing; Frame and Shape are tools (S2.13, TD10)', () => {
     const art = document.createElement('div');
     art.innerHTML =
       '<article data-dc-screen="a1" aria-current="true"><div class="dc-artboard-body"><p data-cd-id="p1">x</p></div></article>';
     document.body.appendChild(art);
     mountBar();
     click(q('toolbar-slot-image'));
-    expect(verbs()).toEqual([{ dgn: 'tool-panel-open', panel: 'assets', anchor: null }]);
+    expect(verbs()).toEqual([{ dgn: 'tool-panel-open', panel: 'image', anchor: null }]);
     expect(ctx?.tool).toBe('move');
     expect(q('toolbar-slot-image')?.hasAttribute('aria-pressed')).toBe(false); // a panel, not a tool
     click(q('toolbar-slot-frame'));
