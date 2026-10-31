@@ -72,7 +72,12 @@ import {
   type FileClass,
   isFilePlaneClass,
 } from './file-membership.ts';
-import { fetchJournal, type JournalEntry, type JournalPage } from './journal-client.ts';
+import {
+  fetchJournal,
+  type HeldReason,
+  type JournalEntry,
+  type JournalPage,
+} from './journal-client.ts';
 import { createPullBudget } from './pull-budget.ts';
 import { failureReason, isBackpressure, retryAfterMs } from './retry-after.ts';
 import { classifyTransportError } from './transport-error.ts';
@@ -415,6 +420,12 @@ export interface FilePlaneResult {
    * listed so the panel can offer one keep-local / keep-cloud for all of them.
    */
   firstAnchorHeld?: { count: number; paths: string[] };
+  /**
+   * p8-held-surface — files the HUB holds back from the code lane (made as
+   * canvases before the owner set the canvas folders). Only an owner's journal
+   * read carries it; absent otherwise. A count of 0 means nothing is held.
+   */
+  codeHeld?: { count: number; paths: { path: string; reason: HeldReason }[] };
 }
 
 export interface FilePlaneOptions {
@@ -1750,6 +1761,9 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
       reanchorHeldSince = 0;
     }
     page = await readRemainingPages(page);
+    // The hub's held list (owner reads only): reported as it stands, never acted on here —
+    // the hub alone decides what it holds, and only the owner's canvas folders release it.
+    if (page.held) out.codeHeld = page.held;
 
     // THE HUB'S SIDE IS THE LEDGER'S REPLICA, UPDATED BY THIS PAGE — not the
     // page itself. A delta says "these changed"; it says nothing at all about
