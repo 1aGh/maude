@@ -197,7 +197,7 @@ export interface Room {
 
 const DEBOUNCE_MS = 800;
 
-/** What a read-only conn's awareness loses before the room applies it (S3.7b + S7.17). */
+/** What a read-only conn's awareness loses before the room applies it (S3.7b + S7.17; `holding` since p8-holding-strip). */
 const READ_ONLY_STRIP: readonly string[] = Object.freeze([
   ...PRESENTER_ONLY_FIELDS,
   ...EDITOR_ONLY_FIELDS,
@@ -368,7 +368,8 @@ export function createRoom(slug: string, callbacks: RoomCallbacks): Room {
       // presentation: `present` + `pointer` are stripped before the apply.
       // S7.17 — nor claim a caption word: `editing` needs `edit` too.
       // p8-holds-fix (recheck info A) — a format-gated session is view-only
-      // too: no caption word. Presence and pointer stay, as over HTTP.
+      // too: no caption word, no hold (p8-holding-strip, I1 — holding is in EDITOR_ONLY_FIELDS).
+      // Presence and pointer stay, as over HTTP.
       const frame =
         conn.readOnly === true || conn.lanesClosed === true
           ? stripAwarenessFields(payload, READ_ONLY_STRIP)
