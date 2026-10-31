@@ -182,9 +182,10 @@ describe('the panel', () => {
     );
   });
 
-  test('P8 c7: Advanced is open (the board draws it open); the check card closes the column after the history', () => {
+  test('rc.1 finding 5: Advanced starts closed (every Advanced fold does); the check card closes the column after the history', () => {
     const m = html({ ...VALUE, project: 'Studio site' });
-    expect(m).toMatch(/<details[^>]*data-testid="ds-advanced-fold"[^>]*open/);
+    expect(m).toMatch(/<details[^>]*data-testid="ds-advanced-fold"/);
+    expect(m).not.toMatch(/<details[^>]*data-testid="ds-advanced-fold"[^>]*open/);
     expect(m).toContain('Studio site · 5 canvases');
     expect(m.indexOf('data-testid="ds-history"')).toBeLessThan(m.indexOf('critic panel'));
     expect(m.indexOf('data-testid="ds-flow"')).toBeLessThan(m.indexOf('data-testid="ds-history"'));

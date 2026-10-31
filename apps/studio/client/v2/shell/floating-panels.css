@@ -49,6 +49,14 @@
     -webkit-font-smoothing: antialiased;
   }
 
+  /* rc.1 finding 20: `hidden` still lets a focus()/scrollIntoView() scroll the shell up under the tab bar; `clip` is not
+     a scroll container at all (a browser without it keeps `hidden` above; v2/shell/scroll-lock.js backs both) */
+  @supports (overflow: clip) {
+    .sh-shell {
+      overflow: clip;
+    }
+  }
+
   /* The legacy grid body (sidebar | main | rsidebar) now flexes between the
  * full-width menubar + status bar instead of owning the whole viewport. */
   .sh-shell > .app {
@@ -2728,24 +2736,21 @@
     /* V2-4.3a: below the Share cluster (kit: 68px). */
     top: calc(var(--float-gap, 16px) + var(--pill-h, 40px) + var(--pill-gap, 12px));
   }
-  /* P8 r11 (03 `ai-long`): a full-height AI chat (`data-full`, AiChatIsland) reaches the top of its slot, so a folded
-     panel's icon at that corner stood on the chat's header and hid its Hide chevron. It stands beside the chat, on
-     the canvas side: the chat is 420 wide (or the slot, when wider — --rp-w / --sb-w) plus the slot's own gap. */
+  /* P8 r11 (03 `ai-long`) + rc.1 finding 6: a SHOWN AI chat reaches the top of its slot - full height, or just a long
+     chat growing to the window - and a folded panel's icon at that corner stood on the chat's header and hid its Hide
+     chevron. The icon stands beside the chat, on the canvas side, whatever the chat's height: --rp-w / --sb-w are the
+     slot's width, which now includes the chat's own (panel-sizes.js), plus a gap. */
   .sh-body--float:has(
-    > .sh-dockslot--right:not(.is-hidden):not(.is-collapsed)
-      .sh-dockslot-ai:not([hidden])
-      > .ai-island[data-full="true"]
+    > .sh-dockslot--right:not(.is-hidden):not(.is-collapsed) .sh-dockslot-ai:not([hidden])
   )
   > .sh-corner--right {
-    right: calc(max(var(--rp-w, 0px), 420px + var(--float-gap, 16px)) + var(--space-2, 8px));
+    right: calc(var(--rp-w, 0px) + var(--space-2, 8px));
   }
   .sh-body--float:has(
-      > .sh-dockslot--left:not(.is-hidden):not(.is-collapsed)
-        .sh-dockslot-ai:not([hidden])
-        > .ai-island[data-full="true"]
+      > .sh-dockslot--left:not(.is-hidden):not(.is-collapsed) .sh-dockslot-ai:not([hidden])
     )
     > .sh-corner--left {
-    left: calc(max(var(--sb-w, 0px), 420px + var(--float-gap, 16px)) + var(--space-2, 8px));
+    left: calc(var(--sb-w, 0px) + var(--space-2, 8px));
   }
   .sh-corner--ai {
     right: var(--float-gap, 16px);

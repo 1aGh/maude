@@ -9,6 +9,10 @@
     margin: 0;
     padding: 0;
     height: 100%;
+    /* rc.1 finding 20: the window is one fixed stage; panels scroll inside themselves (v2/shell/scroll-lock.js backs
+       this for what a program can still scroll) */
+    overflow: hidden;
+    overscroll-behavior: none;
     background: var(--bg-0);
     color: var(--fg-0);
     font-family: var(--font-body);

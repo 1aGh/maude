@@ -72,10 +72,11 @@ describe('the fold store persists per panel per Mac', () => {
     }
   });
 
-  test('a fresh Mac: everything folded except the "?" sheet’s, which has always shown what moved', () => {
+  test('a fresh Mac: EVERY Advanced fold is closed (rc.1 finding 5), the "?" sheet’s too', () => {
     const s = createFoldStore();
-    expect(s.openIds()).toEqual(['help']);
-    expect(FOLD_DEFAULTS).toEqual({ help: true });
+    expect(s.openIds()).toEqual([]);
+    expect(FOLD_PANELS.some((id) => s.get(id))).toBe(false);
+    expect(FOLD_DEFAULTS).toEqual({});
   });
 });
 
@@ -98,11 +99,11 @@ describe('open all / close all / reset', () => {
     s.closeAll();
     s.openAll();
     s.reset();
-    expect(s.openIds()).toEqual(['help']);
+    expect(s.openIds()).toEqual([]);
     expect(s.get('future.panel')).toBe(false);
     const b = createFoldStore();
     b.hydrate(readUiPrefs());
-    expect(b.openIds()).toEqual(['help']);
+    expect(b.openIds()).toEqual([]);
   });
 
   test('only what changed is written, and nothing at all when nothing did', () => {
@@ -395,19 +396,19 @@ describe('the folds that existed keep their hooks', () => {
     expect(q('canvases-hidden-files')).toBeNull();
   });
 
-  test('"?" sheet: shortcuts-advanced / -toggle, open on a fresh Mac, and it remembers a fold', async () => {
+  test('"?" sheet: shortcuts-advanced / -toggle, closed on a fresh Mac, and it remembers a fold', async () => {
     const { ShortcutsOverlay } = await import('../client/dialogs/shortcuts-overlay.jsx');
     await mount(<ShortcutsOverlay open onClose={() => {}} />);
     expect(q('shortcuts-advanced')?.className).toBe('k-adv so-adv');
-    expect(q('shortcuts-advanced-toggle')?.getAttribute('aria-expanded')).toBe('true');
-    expect(q('shortcuts-moved')).not.toBeNull();
-    await click(q('shortcuts-advanced-toggle'));
+    expect(q('shortcuts-advanced-toggle')?.getAttribute('aria-expanded')).toBe('false');
     expect(q('shortcuts-moved')).toBeNull();
-    expect(foldStore.get('help')).toBe(false);
+    await click(q('shortcuts-advanced-toggle'));
+    expect(q('shortcuts-moved')).not.toBeNull();
+    expect(foldStore.get('help')).toBe(true);
     await act(async () => {
       foldStore.reset();
     });
-    expect(q('shortcuts-moved')).not.toBeNull();
+    expect(q('shortcuts-moved')).toBeNull();
   });
 
   test('menu-runner: the two ⌘K handlers open and close every fold, and say so', async () => {

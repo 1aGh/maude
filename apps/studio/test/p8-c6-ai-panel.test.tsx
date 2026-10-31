@@ -123,12 +123,13 @@ describe('the rest of the panel (03 `.k-dialog`, `.k-iconbtn--ai`, `ai-attach`)'
     expect(material).toContain('var(--radius-xl)');
     expect(material).toContain('background: var(--bg-2)');
   });
-  test('the folded AI corner is vermilion with a presence dot, and the island is 340 wide', () => {
+  test('the folded AI corner is vermilion with a presence dot, and the island is its slot wide (340 + gap by default)', () => {
     const css = read('client/v2/ai/panel.css');
     expect(css).toContain('color: var(--spark)');
     expect(css).toContain('background: var(--presence-agent)');
+    // rc.1 finding 16/6: the chat's width is the slot's (panel-sizes.js: 356 = 340 + the gap), not a fixed 340
     expect(block('client/v2/ai/panel.css', '.sh-body--float .sh-dockslot-ai')).toContain(
-      'width: 340px'
+      'align-self: stretch'
     );
   });
   test('an attached picture keeps its 40 px (the chip row no longer collapses in the field)', () => {

@@ -3,15 +3,23 @@
    rows — no rule between them. It is 340 wide (420 when the chat is long or pinned) and HUGS its content: a short
    chat is a short island, a long one grows up to the window and then scrolls its feed. Tokens only. */
 @layer components {
-  /* the slot's own width belongs to the panel above (Inspector, Version history); the AI island is its own width and
-     grows leftwards out of the slot's right edge */
+  /* rc.1 finding 16 / 6: the chat's width IS the slot's (the shell sizes the slot to the wider of the chat and the panel
+     above it, panel-sizes.js), so the grip on the slot's edge is on the chat's edge and the chat shrinks as well as
+     grows. It used to be a fixed 340 that overhung a narrower slot - the grip then sat beside the panel, not the chat. */
   .sh-body--float .sh-dockslot-ai {
     flex: 0 1 auto;
-    align-self: flex-end;
-    width: 340px;
-    min-width: 100%;
+    align-self: stretch;
     min-height: 0;
     max-height: 100%;
+  }
+  /* the panel above keeps ITS OWN width when the chat makes the slot wider (`--dock-main-w`, set by the dock slot) */
+  .sh-body--float > .sh-dockslot--right.has-ai > .sh-dockslot-inner:not(.sh-dockslot-ai) {
+    width: calc(var(--dock-main-w) - var(--float-gap, 16px));
+    align-self: flex-end;
+  }
+  .sh-body--float > .sh-dockslot--left.has-ai > .sh-dockslot-inner:not(.sh-dockslot-ai) {
+    width: calc(var(--dock-main-w) - var(--float-gap, 16px));
+    align-self: flex-start;
   }
   /* P8 c5 (03 ai-long-pinned): docked (pinned layout) the slot is the 420 column when the chat shares it; the other
      panel (the Inspector opens by itself on a selection) keeps ITS width, flush to the window edge, instead of
@@ -30,7 +38,6 @@
   }
   .sh-body--float .sh-dockslot-ai:has(> .ai-island[data-full="true"]) {
     flex: 1 1 100%;
-    width: 420px;
   }
   .sh-body--float .sh-dockslot-ai > .ai-island {
     flex: 0 1 auto;

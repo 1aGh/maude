@@ -142,8 +142,8 @@ export function DsAdvanced({ value, actions, now }) {
           {note}
         </p>
       ) : null}
-      {/* the board draws Advanced open: the tokens, the folder and Hand off are what today's folder had */}
-      <details className="dsa-adv" data-testid="ds-advanced-fold" open>
+      {/* closed like every Advanced fold (rc.1 finding 5): the tokens, the folder and Hand off are one click down */}
+      <details className="dsa-adv" data-testid="ds-advanced-fold">
         <summary>
           {ADVANCED_WORDS.advanced}
           <span>{ADVANCED_WORDS.advancedHint}</span>

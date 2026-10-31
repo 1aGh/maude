@@ -14,6 +14,7 @@
     "e2e:tabs": "wdio run ./wdio.tabs.conf.ts",
     "e2e:shell-strip": "wdio run ./wdio.shell-strip.conf.ts",
     "e2e:remember": "wdio run ./wdio.remember.conf.ts",
+    "e2e:shell-panels": "wdio run ./wdio.shell-panels.conf.ts",
     "e2e:tabs-identity": "wdio run ./wdio.tabs-identity.conf.ts",
     "e2e:cell-tab": "wdio run ./wdio.cell-tab.conf.ts",
     "e2e:ai-quit": "wdio run ./wdio.ai-quit.conf.ts",

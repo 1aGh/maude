@@ -547,7 +547,7 @@ describe('Reset', () => {
     await click(q('settings-reset-all-confirm'));
     expect(q('settings-reset-all-dialog')).toBeNull();
     expect(seen).toEqual(['theme:dark', 'minimap']);
-    expect(foldStore.openIds()).toEqual(['help']); // a fresh Mac's
+    expect(foldStore.openIds()).toEqual([]); // a fresh Mac's
     expect(advancedPrefs.get()).toEqual({
       ownPluginCopy: false,
       experimentalTeams: false,

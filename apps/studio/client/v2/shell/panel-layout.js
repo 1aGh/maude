@@ -17,18 +17,23 @@ export const AI_PINNED_W = 420;
 
 /**
  * The right dock slot's width. The Inspector is a 264 card (14 `.k-insp`), Version history the 372 island of 11
- * `.pn-vh`; the AI chat docked here (pinned layout) is the 420 column of 03 `ai-long-pinned` unless the person
- * dragged it wider; anything else is the user's panel width.
+ * `.pn-vh` — each now the person's own width once they drag its grip (`own`, panel-sizes.js; rc.1 finding 16); the AI
+ * chat (`aiW`, its slot width: floating or docked) widens the slot to itself when it is the wider island, which is
+ * what the grip then sits on; anything else is the user's panel width. `aiPinned` without `aiW` is the 420 column of
+ * 03 `ai-long-pinned`.
  */
-export function rightPanelWidth({ active, base, aiPinned = false }) {
-  const own = rightMainWidth({ active, base });
+export function rightPanelWidth({ active, base, own = null, aiW = 0, aiPinned = false }) {
+  // the chat alone in the slot is as wide as ITS width, never the side's generic width (that was its floor)
+  const main = active ? rightMainWidth({ active, base, own }) : aiW ? 0 : base;
   // P8 c5 (03 ai-long-pinned): the pinned chat shares the slot with whatever panel is open (the Inspector opens by
   // itself on a selection) — the slot takes the wider of the two, else the 420 column overran the window edge.
-  return aiPinned ? Math.max(own, AI_PINNED_W) : own;
+  const ai = aiW || (aiPinned ? AI_PINNED_W : 0);
+  return ai ? Math.max(main, ai) : main;
 }
 
-/** The open panel's OWN width (the slot is wider when the pinned chat shares it). */
-export function rightMainWidth({ active, base }) {
+/** The open panel's OWN width (the slot is wider when the chat shares it). */
+export function rightMainWidth({ active, base, own = null }) {
+  if (own != null && (active === 'inspector' || active === 'changes')) return own;
   if (active === 'inspector') return 264;
   if (active === 'changes') return 372;
   return base;
