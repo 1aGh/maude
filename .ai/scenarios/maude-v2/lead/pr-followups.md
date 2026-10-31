@@ -304,3 +304,8 @@ Any commit outside `.ai/` makes V2-8.1/8.2/8.3/8.18 stale. Fold these into the n
   an "Open canvas folders" button needs a registry entry). Narrowing already-declared folders holds nothing (the
   mechanism covers undeclared → declared only). Final-3 defender L2 is an accepted consequence of Michal's A: on an
   undeclared hub, editors may edit shared `.tsx` modules in undeclared folders.
+- From p8-holds-fix (2026-10-31), open: replay adds holds and never removes them (a hold released after the last
+  generation can return after a wake — fails closed); once a hold is pruned because its file is gone, an unhooked writer
+  restoring the same teammate bytes after a declaration (e.g. a git restore) would journal them as code; an older hub
+  reading a newer tail counts the holds line as one malformed line (downgrade only); files past the 20 000-file walk cap
+  are never noted (info C).
