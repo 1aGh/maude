@@ -424,6 +424,34 @@ function Insp({ title, kind, crumbs, uses, children, advCount, advOpen = false, 
     </div>
   );
 }
+/** P6 T0 (inspector-ux-rules IR-8, Michal TD7 O2a) — the colour picker: one popover from the chip, beside the Inspector,
+ *  on the top layer. Search · Recent · the system's colours by role (schema order; Light | Dark split per swatch) ·
+ *  Other colour… · None. */
+const PICK_GROUPS: [string, string[]][] = [
+  ["Surfaces", ["--bg-0", "--bg-1", "--bg-2", "--bg-3", "--bg-4"]],
+  ["Text", ["--fg-0", "--fg-1", "--fg-2", "--fg-3"]],
+  ["Borders", ["--border-subtle", "--border-default", "--border-strong"]],
+  ["Accent", ["--accent", "--accent-hover", "--accent-active", "--accent-soft", "--accent-text"]],
+  ["Status", ["--status-success", "--status-warn", "--status-error", "--status-info", "--status-success-soft", "--status-warn-soft", "--status-error-soft", "--status-info-soft"]],
+  ["More", ["--presence-online", "--presence-away", "--focus-ring", "--selection", "--scrim"]],
+];
+function ColourPick({ on, recent }: { on: string; recent: string[] }) {
+  return (
+    <div className="island ed-pick" role="dialog" aria-label="Fill">
+      <span className="ed-pick-search">Search colours</span>
+      <p className="ed-pick-gt">Recent</p>
+      <div className="ed-pick-grid">{recent.map((t) => <i key={t} className="ed-pick-sw" style={{ background: `var(${t})` }} />)}</div>
+      {PICK_GROUPS.map(([g, ts]) => (
+        <Fragment key={g}>
+          <p className="ed-pick-gt">{g}</p>
+          <div className="ed-pick-grid">{ts.map((t) => <i key={t} className="ed-pick-sw" data-on={t === on ? "true" : undefined} title={t} style={{ background: `var(${t})` }} />)}</div>
+        </Fragment>
+      ))}
+      <div className="ed-pick-foot"><span>Other colour…</span><span>None</span></div>
+    </div>
+  );
+}
+
 function Sec({ t, aside, n, children }: { t: string; aside?: ReactNode; n?: number; children?: ReactNode }) {
   return (
     <div className="ed-sec">
@@ -898,7 +926,7 @@ export default function Editing() {
                   <Row k="Gap"><Tok n="Space" v="8" /></Row>
                   <Row k="Padding"><Tok n="Space" v="24" /></Row>
                 </Sec>
-                <Sec t="Fill"><Row k="Fill"><Tok n="Leaf" v="30 %" sw="green" /></Row></Sec>
+                <Sec t="Fill"><Row k="Background"><Tok n="Leaf" v="30 %" sw="green" /></Row></Sec>
                 <Sec t="Corners"><Row k="All"><Tok n="L" v="14" /></Row></Sec>
               </Insp>
               <ZoomUndo zoom={60} />
@@ -1154,7 +1182,7 @@ export default function Editing() {
                 </Sec>
                 <Line icon="dir-free">Post places things freely — no auto layout. Constraints keep Datum 64 from the top-right corner; its yellow is Podklad, the shape inside.</Line>
                 <Sec t="Size"><Row k="W · H"><N l="W" v="216" /><N l="H" v="216" /></Row></Sec>
-                <Sec t="Fill" aside={<G n="plus" size={12} />}><Row k="Fill" dim><span className="ed-none">None</span></Row></Sec>
+                <Sec t="Fill" aside={<G n="plus" size={12} />}><Row k="Background" dim><span className="ed-none">None</span></Row></Sec>
               </Insp>
               <ZoomUndo zoom={36} />
               <Toolbar tool="select" />
@@ -1258,6 +1286,32 @@ export default function Editing() {
               </Insp>
               <ZoomUndo zoom={62} />
               <Toolbar tool="shape" more />
+              <PanelIcon icon="spark" at="ai" />
+            </Window>
+          </Stage>
+        </DCArtboard>
+
+        <DCArtboard id="ed-shape-pick" label="14b · Pick a colour — the picker beside the Inspector" width={W} height={H} fixed>
+          <Stage note={<Note n={14} title="The Fill chip opens the system's colours, by role.">Surfaces, Text, Borders, Accent and Status come first, as the system names them; Recent keeps the last eight. Other colour… takes any colour and asks once whether to use the closest one or add it to the system. A new shape starts on Surface 3, never on the text colour.</Note>}>
+            <Window tabs={TABS2} activeTab={1}>
+              <Canvas>
+                <Artboard label="Post 1:1 · Combine 2026" kind="digital" x={AT.x} y={AT.y} w={1080 * AT.k} h={1080 * AT.k}><Scaled k={AT.k} w={1080} h={1080}><Post v="combine" /></Scaled></Artboard>
+                <Sel s={box(AT, PR.date)} tone="you" handles={8} tag="Podklad · 216 × 216" />
+              </Canvas>
+              <ProjectPill project="Alligators brand" canvas="Combine-kampan" />
+              <PanelIcon icon="panel-left" at="left" />
+              <ShareCluster people={["tereza", "jonas"]} mode="edit" />
+              <Insp title="Podklad" kind="Shape" crumbs={["Post 1:1 · Combine 2026", "Datum", "Podklad"]} advCount="6 properties">
+                <Sec t="Shape">
+                  <Row k="Kind"><InSelect value="Rectangle" /></Row>
+                  <Row k="W · H"><N l="W" v="216" /><N l="H" v="216" /></Row>
+                </Sec>
+                <Sec t="Fill" aside={<G n="plus" size={12} />}><Row k="Fill"><Tok n="Surface 3" v="100 %" focus /></Row></Sec>
+                <Sec t="Border" aside={<G n="plus" size={12} />}><Row k="Border" dim><span className="ed-none">None</span></Row></Sec>
+              </Insp>
+              <ColourPick on="--bg-3" recent={["--accent", "--bg-1", "--fg-0"]} />
+              <ZoomUndo zoom={62} />
+              <Toolbar tool="select" />
               <PanelIcon icon="spark" at="ai" />
             </Window>
           </Stage>

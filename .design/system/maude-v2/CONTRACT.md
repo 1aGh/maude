@@ -101,6 +101,7 @@ Menu
 | Untitled canvas | New canvas 1, Canvas | a new canvas's name (+ " 2", " 3") [C4]; Home names it from the prompt with a non-AI heuristic, offline create too |
 | Your Figma account can't open this file. Ask its owner to share it with you, then paste the link again. | Figma doesn't have that file, or this token can't read it. | the Figma import's `not_found` (ia-edges G, Michal 2026-10-29); nothing imports until it opens, and the link stays in the sheet |
 | View only | Read only, Locked, Read-only mode | a project this build does not edit — its file format is older or newer [A17]. Distinct from *Can view* (a people permission) |
+| Inspector paint: section **Fill**, row **Background** (artboard, frame, button, instance) · **Fill** (shape, path) · **Colour** (text) | "Fill" as the row on a box or a text; "Background" for a shape | the one paint section keeps the title *Fill* on every kind; the row says what the colour is *of* (decision `v2-michal-ux-audit-td-decisions` TD7 O3a). Size "Fill" and image Fit "Fill" are other controls and keep their word |
 
 ## 4 · Voice rules
 
@@ -135,6 +136,7 @@ Menu
 - **Search results count:** "N results". Key names lower-case in running copy: esc, ↵, tab.
 - **Comments** [C7, C8, D8]: a floating panel on the RIGHT, like the AI chat panel (the left slot stays Canvases · Layers · Assets); filters **Open · Mine · Resolved · All**, default Open; grouped by canvas; Reopen in a resolved thread; "Delete comment" on your own comments.
 - **Stickers** [C13]: pack order FigJam Doodle · Life Style · Opposing Thoughts · Project status (display names trimmed); authors as in the manifests. **Marker** [C14]: tips Marker · Highlighter · Eraser; inks Ink (default) · red · amber · green · blue + more. **Resolved stickies** [C29]: struck through in place; ⌘K "Hide resolved stickies" toggles it per person.
+- **Number fields scrub** [TD7 O4a]: drag the letter or icon inside the field (W, H, X, Y, the rotate glyph) — `ew-resize` cursor, 1 per px, Shift ×10, Alt ×0.1, a 3 px dead zone so a click only focuses, ↑ ↓ ±1 (Shift ±10), one drag = one undo step. Opacity / % fields and a token-bound value don't scrub. The colour picker opens from the chip as one popover beside the Inspector [TD7 O2a]; a section shows at most one quiet (fg-3) line of help [TD7 O5b].
 - **Spacing** [C15]: one control — a Spacing segment *Packed · Space between*; the Gap menu lists tokens + "A number, no token…".
 - **Inspector kind chip** [C16]: always the artboard kind (Web page · Fixed size · Print · Video); height mode is a row, not a chip.
 - **Removing** [C17]: ⌫ on an object inside an artboard *removes* it (⌘Z and Version history bring it back). Artboards, canvases, assets, chats and tokens are *moved to the trash*.

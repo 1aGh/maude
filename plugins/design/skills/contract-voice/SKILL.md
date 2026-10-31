@@ -37,6 +37,7 @@ The two tables below are the contract, verbatim. Say the left column; the middle
 | Untitled canvas | New canvas 1, Canvas | a new canvas's name (+ " 2", " 3") [C4]; Home names it from the prompt with a non-AI heuristic, offline create too |
 | Your Figma account can't open this file. Ask its owner to share it with you, then paste the link again. | Figma doesn't have that file, or this token can't read it. | the Figma import's `not_found` (ia-edges G, Michal 2026-10-29); nothing imports until it opens, and the link stays in the sheet |
 | View only | Read only, Locked, Read-only mode | a project this build does not edit — its file format is older or newer [A17]. Distinct from *Can view* (a people permission) |
+| Inspector paint: section **Fill**, row **Background** (artboard, frame, button, instance) · **Fill** (shape, path) · **Colour** (text) | "Fill" as the row on a box or a text; "Background" for a shape | the one paint section keeps the title *Fill* on every kind; the row says what the colour is *of* (decision `v2-michal-ux-audit-td-decisions` TD7 O3a). Size "Fill" and image Fit "Fill" are other controls and keep their word |
 
 ## 4 · Voice rules
 
