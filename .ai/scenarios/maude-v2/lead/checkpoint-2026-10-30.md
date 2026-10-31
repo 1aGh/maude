@@ -122,3 +122,16 @@ The weekly usage restarted from a new base: 3 % at the resume (the old account s
 d74f6f47a handoff + a gen:stats commit (70d121f00) (the ux-patterns skill moved design skills 42 → 43). Michal OK'd publishing 5b2c24de1 (the skill is on main as d3a5029b0, feat holds its v2 shape); feat pushed at
 70d121f00. chain4 on 70d121f00: 8.1 PASS, 8.3 run 1 stopped on share-roles: dist freshness counted a markdown contract
 edit under client/ (5e836e3af) as client source. Fixed (markdown excluded like CSS); new freeze follows.
+
+## Update 2026-10-31 ~01:30 — freeze e04d5926c
+- 8.18 red at 4b373909f fixed by p8-docker-desktop-legs (a hub's paired studio never writes its checkout's config.json;
+  team-project owns its teammate child + log; selfhost-entry opens closed folders). Merged + pushed e04d5926c. kg:
+  `v2-p8-docker-desktop-legs-paired-studio-no-config-seed`, `v2-p8-docker-desktop-legs-team-conf-owns-its-child`.
+- chain4 on e04d5926c: ALL GREEN — 8.1, 8.3 ×3 (locked=0, display_off=0, prefs/appsup unmoved), 8.18, 8.2.
+- Re-attests: 8.15 PASS (re-check section in `V2-8.15-docs.md`).
+- **8.4 RED** (rig, local, `$S/att/p84.sh`): 5/18, deterministic ×2 — owner of a local cell with a format-2 checkout
+  sees "View only — still saves the old way"; browser Edit click selects nothing in the Inspector; owner + viewer
+  comment never listed. Evidence `freeze/.ai/scenarios/maude-v2/V2-8.4-freeze/` + `$S/att/p84-out2/`.
+  Builder **p8-p84-reds** (Opus, worktree) diagnosing + fixing.
+- Security pair (defender + attacker) running on `3a4e42e23..e04d5926c` (8 product files + the ux-patterns skill).
+- Next: merge p8-p84-reds → new freeze → pre-checks → chain4 again → 8.4/8.8/8.5/8.16 + 8.9 recheck of the fix → .app.
