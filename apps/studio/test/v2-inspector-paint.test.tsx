@@ -734,6 +734,41 @@ describe('IR-8 — the colour picker popover', () => {
   });
 });
 
+describe('the picker goes away', () => {
+  test('a press outside it, or the window losing focus to the canvas frame, closes it', async () => {
+    const host = await one();
+    await openChip(host, 'insp-ctl-fill');
+    expect(q(host, 'insp-menu-fill')).not.toBeNull();
+    await act(async () => {
+      document.body.dispatchEvent(new window.Event('pointerdown', { bubbles: true }));
+    });
+    await settle();
+    expect(q(host, 'insp-menu-fill')).toBeNull();
+    await openChip(host, 'insp-ctl-fill');
+    await act(async () => {
+      window.dispatchEvent(new window.Event('blur'));
+    });
+    await settle();
+    expect(q(host, 'insp-menu-fill')).toBeNull();
+  });
+
+  test('a disabled chip (read-only, IR-17) never opens it', async () => {
+    const { ColorControl } = await import('../client/v2/inspector/sections/color-control.jsx');
+    const host = await mount(
+      <ColorControl
+        name="ro"
+        label="Fill"
+        value={null}
+        colors={['--ink']}
+        disabled
+        onChange={() => {}}
+      />
+    );
+    await click(host.querySelector('button.insp-chip'));
+    expect(q(host, 'insp-menu-ro')).toBeNull();
+  });
+});
+
 describe('placePopover — it never runs off the window (F31)', () => {
   const vp = { w: 1280, h: 800 };
   const size = { w: 264, h: 420 };

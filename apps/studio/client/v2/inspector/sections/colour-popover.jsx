@@ -13,7 +13,7 @@
 // Keys (F30): focus starts in Search; ↓ enters the grid; ← → move within a group, ↑ ↓ between groups; ↵ picks; esc
 // closes and gives focus back to the chip; Tab out closes.
 
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { tokenLabel } from '../../../../edit-ops/words-css.ts';
 import { isCssColor, paintFromCss } from '../../../../edit-ops/words-paint.ts';
 import { deltaE } from '../../../../ds/nearest.ts';
@@ -184,6 +184,24 @@ export function ColourPopover({
       } catch {}
     };
   }, [anchorRef, custom, asked]);
+
+  // a press anywhere else — the panel, the shell, or the canvas frame (the window loses focus) — puts it away
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useEffect(() => {
+    const down = (e) => {
+      const t = e.target;
+      if (ref.current?.contains(t) || anchorRef.current?.contains(t)) return;
+      closeRef.current();
+    };
+    const away = () => closeRef.current();
+    document.addEventListener('pointerdown', down, true);
+    window.addEventListener('blur', away);
+    return () => {
+      document.removeEventListener('pointerdown', down, true);
+      window.removeEventListener('blur', away);
+    };
+  }, [anchorRef]);
 
   const commitRaw = (raw) => {
     const t = String(raw ?? '').trim();
