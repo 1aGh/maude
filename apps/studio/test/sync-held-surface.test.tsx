@@ -94,6 +94,27 @@ describe('the journal read parses the owner-only held list', () => {
       paths: [{ path: 'brand/ok.tsx', reason: 'canvas-before-folders' }],
     });
   });
+
+  // p8-holds-fix (recheck info D): a path named twice would be two rows with one React key.
+  test('a path named twice is listed once (the first entry wins)', async () => {
+    const page = await fetchJournal({
+      hubUrl: HUB,
+      token: 't',
+      fetchImpl: hubWith({
+        held: [
+          { path: 'brand/x.tsx', reason: 'canvas-before-folders' },
+          { path: 'brand/x.tsx', reason: 'changed-as-canvas' },
+          { path: 'brand/y.tsx', reason: 'changed-as-canvas' },
+          { path: 'brand/y.tsx', reason: 'changed-as-canvas' },
+        ],
+        heldCount: 4,
+      }),
+    });
+    expect(page?.held?.paths).toEqual([
+      { path: 'brand/x.tsx', reason: 'canvas-before-folders' },
+      { path: 'brand/y.tsx', reason: 'changed-as-canvas' },
+    ]);
+  });
 });
 
 describe('a file-plane pass reports it, and Sync details shows it with its reason', () => {

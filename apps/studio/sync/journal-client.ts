@@ -79,10 +79,14 @@ const MAX_HELD = 200;
 function parseHeld(body: Record<string, unknown>): JournalPage['held'] | undefined {
   if (!Array.isArray(body?.held)) return undefined;
   const paths: { path: string; reason: HeldReason }[] = [];
+  // p8-holds-fix (recheck info D): one row per path — the panel keys rows by it.
+  const seen = new Set<string>();
   for (const raw of (body.held as unknown[]).slice(0, MAX_HELD)) {
     if (!raw || typeof raw !== 'object') continue;
     const h = raw as Record<string, unknown>;
     if (typeof h.path !== 'string' || !isProjectFileShape(h.path)) continue;
+    if (seen.has(h.path)) continue;
+    seen.add(h.path);
     const reason: HeldReason =
       h.reason === 'changed-as-canvas' ? 'changed-as-canvas' : 'canvas-before-folders';
     paths.push({ path: h.path, reason });

@@ -230,7 +230,19 @@ writeFileSync(
 );
 console.log(`[p84-up] ready: ${join(RUN, 'rig.json')}`);
 
+// p8-holds-fix (recheck info E) — the scenario sessions live 6 h; a torn-down rig revokes them.
+function revokeSessions() {
+  for (const name of Object.keys(sessions)) {
+    try {
+      removeToken(join(cellDir, 'data'), `studio-p84-${name}`);
+    } catch (err) {
+      console.error(`[p84-up] could not revoke the ${name} session: ${err.message}`);
+    }
+  }
+}
+
 const bye = () => {
+  revokeSessions();
   for (const k of kids) k.kill('SIGTERM');
   setTimeout(() => process.exit(0), 2500);
 };

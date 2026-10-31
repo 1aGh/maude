@@ -404,7 +404,9 @@ async function main() {
     return readFileSync(tailPath, 'utf8')
       .split('\n')
       .filter(Boolean)
-      .map((l) => JSON.parse(l));
+      .map((l) => JSON.parse(l))
+      // p8-holds-fix: the tail also carries one `{ holds: [...] }` line (the class-hold set).
+      .filter((r) => !('holds' in r && !('seq' in r)));
   };
   // Wait for the ROW, not for the FILE. The tail is written behind on a 2 s
   // debounce and the file already exists from the boot walk-import, so a probe

@@ -321,9 +321,12 @@ describe('p8-held-surface — a config that arrives by git never promotes a team
     assert.deepEqual(heldCodePaths(root), ['brand/x.tsx']);
   });
 
-  test('a canvas a peer PUT recorded (recordWrite) is held after a git config', () => {
+  // p8-holds-fix: a `peer-put` row is never a note site — the write door admits a would-be-code
+  // `.tsx` only from an owner token and never a canvas (boundary-holds-bounded.test.mjs). A lane
+  // that lands a body it cannot attribute to the owner (here the boot hydrate) still notes.
+  test('a canvas a hydrate recorded (recordWrite) is held after a git config', () => {
     put('brand/z.tsx', 'export default () => <i>teammate via a peer</i>;\n');
-    const row = journal.recordWrite({ designRoot: root, path: 'brand/z.tsx', source: 'peer-put' });
+    const row = journal.recordWrite({ designRoot: root, path: 'brand/z.tsx', source: 'hydrate' });
     assert.equal(row, null, 'a canvas has no file-plane row');
     gitWritesConfig(['ui']);
     walk();
