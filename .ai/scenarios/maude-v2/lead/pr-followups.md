@@ -309,3 +309,23 @@ Any commit outside `.ai/` makes V2-8.1/8.2/8.3/8.18 stale. Fold these into the n
   restoring the same teammate bytes after a declaration (e.g. a git restore) would journal them as code; an older hub
   reading a newer tail counts the holds line as one malformed line (downgrade only); files past the 20 000-file walk cap
   are never noted (info C).
+
+## From the final-4 recheck (2026-10-31, d966f3af2..f849d866b — 0 blockers / 0 highs / 0 mediums)
+Evidence `.ai/plans/notes/v2-evidence/V2-8.9-final4-recheck.md`. Not fixed before the PR (no medium+; each needs editor
+rights or is an availability nuisance). Candidates for the first rc patch:
+- **L1 holds fail open at the 20 000 cap:** an editor with ~20 000 live canvases on an undeclared hub gets the next one
+  un-held, and after a declaration it journals as owner code; the owner is not told (server log only). Fix: persist an
+  "overflowed" flag and classify every boundary canvas without an owner code row as `never` while it is set, and show
+  the overflow in the owner's held list.
+- **L2 a hold with no owner sha never lifts while its file exists:** the owner cannot push code to, or delete through the
+  file plane, a teammate's canvas at a path they later want for code. The held row tells them the way out (add the
+  folder to the canvas folders); removing it through the canvas UI once outside the declared groups is unverified.
+  Implicit adoption by an owner write was rejected on purpose (`v2-p8-holds-fix-no-implicit-owner-adoption`); an
+  explicit owner-only "adopt as code" action is the right fix.
+- **I1 `holding` awareness is not stripped** for read-only or format-gated sockets, so a viewer can keep a soft-lock on
+  one element and refuse AI writes to it (`soft-locked`). Pre-existing for read-only sockets. Fix: add `holding` to
+  `EDITOR_ONLY_FIELDS` in both copies.
+- **I2** wake → teammate edits the doc → assert no `code-module` row (test to add; paired-studio path memory untraced).
+- **I4** every tail flush rewrites the whole hold set (up to 20 000 paths); an older hub logs "may be short of rows" on
+  every wake after reading a newer tail.
+- **E** the V2-8.4 rig's scenario tokens are revoked only on SIGINT/SIGTERM (a crash leaves 6 h local tokens).
