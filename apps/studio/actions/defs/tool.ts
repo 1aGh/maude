@@ -32,7 +32,7 @@ export function slotActionId(s: ToolSlot): ActionId {
 
 /** The label each slot action keeps on every surface (CONTRACT §3; v1's where an id existed). */
 const LABEL: Readonly<Record<ActionId, string>> = {
-  'tool.browse': 'Browse',
+  'tool.browse': 'Select',
   'tool.inspect': 'Inspect',
   'tool.pen': 'Marker',
 };

@@ -97,8 +97,9 @@ describe('MODE_TOOLS / the slots per mode (V2-1.2 §5.5)', () => {
     ]);
   });
 
-  test('Preview: Hand · Sticky N · Comment C · Marker M · Arrow A · Shape R · Text T · Stickers E · Section S', () => {
+  test('Preview: Select V · Hand H · Sticky N · Comment C · Marker M · Arrow A · Shape R · Text T · Stickers E · Section S', () => {
     expect(MODE_TOOLS.preview.slots.map((s) => `${s.label} ${s.key}`)).toEqual([
+      'Select V',
       'Hand H',
       'Sticky N',
       'Comment C',
@@ -179,6 +180,7 @@ describe('visibleSlots / role, pending and read-only', () => {
   test('an editor sees the whole Preview toolbar', () => {
     expect(ids(visibleSlots('preview', 'edit', armableDefault))).toEqual([
       'browse',
+      'hand',
       'sticky',
       'comment',
       'pen',
@@ -191,7 +193,11 @@ describe('visibleSlots / role, pending and read-only', () => {
   });
 
   test('Can comment sees Hand + Comment in Preview and in Viewing; Can view sees no toolbar', () => {
-    expect(ids(visibleSlots('preview', 'comment', armableDefault))).toEqual(['browse', 'comment']);
+    expect(ids(visibleSlots('preview', 'comment', armableDefault))).toEqual([
+      'browse',
+      'hand',
+      'comment',
+    ]);
     expect(ids(visibleSlots('viewing', 'comment', armableDefault))).toEqual(['inspect', 'comment']);
     for (const m of CANVAS_MODES) expect(visibleSlots(m, 'view', armableDefault)).toEqual([]);
   });
@@ -210,7 +216,7 @@ describe('visibleSlots / role, pending and read-only', () => {
     const readOnly = (t: ToolId) =>
       t === 'browse' || t === 'move' || t === 'hand' || t === 'inspect';
     expect(ids(visibleSlots('viewing', 'comment', readOnly))).toEqual(['inspect']);
-    expect(ids(visibleSlots('preview', 'comment', readOnly))).toEqual(['browse']);
+    expect(ids(visibleSlots('preview', 'comment', readOnly))).toEqual(['browse', 'hand']);
   });
 
   test('`inspect` is a tool of its own (S3.11 retired the move bridge)', () => {
@@ -552,6 +558,7 @@ describe('the Preview toolbar (ungoverned, an editor)', () => {
     expect(q('toolbar-preview')).not.toBeNull();
     expect(slotIds()).toEqual([
       'browse',
+      'hand',
       'sticky',
       'comment',
       'pen',
@@ -562,7 +569,8 @@ describe('the Preview toolbar (ungoverned, an editor)', () => {
       'section',
     ]);
     expect(q('toolbar-slot-browse')?.getAttribute('aria-pressed')).toBe('true');
-    expect(q('toolbar-slot-browse')?.getAttribute('aria-label')).toBe('Hand (H)');
+    expect(q('toolbar-slot-browse')?.getAttribute('aria-label')).toBe('Select (V)');
+    expect(q('toolbar-slot-hand')?.getAttribute('aria-label')).toBe('Hand (H)');
     expect(document.querySelector('[aria-label^="Marker (M)"]')).not.toBeNull();
   });
 
@@ -959,7 +967,7 @@ describe('P8 C5 — the toolbars are the kit dock', () => {
     mountBar();
     act(() => ctx?.setMode('preview'));
     const kids = [...(document.querySelector('.dc-tb-body') as HTMLElement).children];
-    expect(kids[1]?.classList.contains('dc-tp-sep')).toBe(true);
+    expect(kids[2]?.classList.contains('dc-tp-sep')).toBe(true); // after Select + Hand (rc.1 #17)
     expect(kids.filter((k) => k.classList.contains('dc-tp-sep')).length).toBe(1);
     const note = q('toolbar-slot-sticky')?.querySelector<HTMLElement>('.dc-tp-note');
     expect(note).not.toBeNull();
@@ -1023,7 +1031,7 @@ describe('the toolbars follow the shell’s mode and role', () => {
   test('Can comment in Preview: Hand + Comment only', () => {
     mountBar(null, { governed: true });
     setMode('preview', CAN_COMMENT);
-    expect(slotIds()).toEqual(['browse', 'comment']);
+    expect(slotIds()).toEqual(['browse', 'hand', 'comment']);
   });
 
   test('Can view sees no toolbar in any mode, and the island reports rect null', async () => {

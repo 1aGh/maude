@@ -417,7 +417,6 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 | Attach files… | `ai.attach-files` | ai-chat |
 | Back to Home | `nav.home` | native-window |
 | Bring everyone here | `presence.bring-everyone` | summon — moves other people’s cameras; the hub strips `summon` without the capability |
-| Browse | `tool.browse` | view-pref — a pointer mode |
 | Cancel the waiting prompt | `ai.cancel-waiting` | ai-chat |
 | Change what someone can do… | `share.set-role` | roles |
 | Check AI setup again | `help.ai-readiness` | onboarding |
@@ -526,6 +525,7 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 | Reveal in Finder | `ds.reveal-files` | native-window — opens Finder on the person’s Mac; an agent already holds system/<ds>/ and reads it in place |
 | Save a version with a note… | `history.save-with-note` | git — an agent runs git itself in the project folder: git commit -m "<note>" |
 | Search in pictures | `assets.describe` | consent — the person's yes to AI describing their pictures; once on, re-describing is S12.13's `maude design describe` |
+| Select | `tool.browse` | view-pref — a pointer mode |
 | Select | `tool.select` | view-pref — a pointer mode |
 | Select by selector | `layers.select-by-selector` | view-pref — a selection in the person’s window; an agent finds elements with `maude design canvas-rects` |
 | Select matching | `object.select-matching` | view-pref — a selection in the person’s window; an agent greps the canvas for the same className and style |

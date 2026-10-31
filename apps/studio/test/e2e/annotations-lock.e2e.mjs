@@ -175,11 +175,8 @@ describe('L2 — nothing moves, deletes or edits a locked element', () => {
 });
 
 describe('L3 — marquee and duplicate', () => {
-  // v2 has no marquee in Preview (maude/v2-S4.18b-hand-picks-one-predicate: only the Move tool rubber-bands and it
-  // is Edit's, where the layer is quiet): a Hand drag pans. A locked sticky still joins a click selection (L1), so
-  // the "locked parts stay out" rule is exercised by the Delete test above; here the v2 promise is that the drag
-  // pans and neither sticky is picked.
-  test('a Hand drag over both stickies pans; neither is selected', async () => {
+  // Michal rc.1 #17: Preview's Select (V, the resting pointer) rubber-bands again, and a locked sticky stays out.
+  test('a marquee over both stickies selects only the unlocked one', async () => {
     await reset();
     const a = await c.pageBox('lk');
     const b = await c.pageBox('fr');
@@ -188,7 +185,7 @@ describe('L3 — marquee and duplicate', () => {
       [Math.max(a.x + a.width, b.x + b.width) + 30, Math.max(a.y + a.height, b.y + b.height) + 30]
     );
     await sleep(300);
-    assert.deepEqual(await c.selection(), []);
+    assert.deepEqual(await c.selection(), ['fr']);
   });
 
   test('Duplicate of a locked element yields an unlocked copy', async () => {

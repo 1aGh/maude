@@ -11,6 +11,7 @@ import type { ContextTarget } from '../context-menu.tsx';
 import { ContextMenuView } from '../context-menu.tsx';
 import { artboardMenuSections } from '../editing/artboard-menu.tsx';
 import { objectMenuSections } from '../editing/object-menu.tsx';
+import { annotatingMark } from '../inspect-overlay.tsx';
 import { WebOverlayContent } from '../web-overlay-content.tsx';
 
 const src = (f: string) => readFileSync(join(import.meta.dir, '..', f), 'utf8');
@@ -45,10 +46,21 @@ describe('04 X1 - Preview draws no Edit chrome', () => {
       'panelsHidden={panelsUserHidden}'
     );
   });
-  test('Comment / annotation tools in Preview: no hover rim, no selection rim, no size tag', () => {
+  test('annotation tools in Preview: no hover rim, no selection rim, no size tag', () => {
     const ov = src('inspect-overlay.tsx');
     expect(ov).toContain('data-maude-annotating');
-    expect(ov).toContain('body[data-maude-annotating="true"] .dc-cv-halo');
+    expect(ov).toContain('body[data-maude-annotating="true"] .dc-cv-halo,');
+    expect(ov).toContain('body[data-maude-annotating] .dc-cv-inspect-tag');
+  });
+  test('rc.1 #19 — Comment in Preview keeps only the light hover outline (no selection rim, no tag)', () => {
+    const ov = src('inspect-overlay.tsx');
+    expect(ov).toContain(
+      'body[data-maude-annotating="comment"] .dc-cv-halo:not(.dc-cv-halo--hover)'
+    );
+    expect(annotatingMark(true, 'comment')).toBe('comment');
+    expect(annotatingMark(true, 'pen')).toBe('true');
+    expect(annotatingMark(true, 'sticky')).toBe('true');
+    expect(annotatingMark(false, 'comment')).toBeNull();
   });
 });
 

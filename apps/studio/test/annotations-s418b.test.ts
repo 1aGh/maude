@@ -31,9 +31,14 @@ describe('the Hand picks annotations in Preview', () => {
       expect(annotationPicks(t, 'drawn')).toBe(false);
   });
 
-  test('only Move rubber-bands empty canvas; the Hand keeps its pan', () => {
-    expect(annotationMarquees('move')).toBe(true);
-    expect(annotationMarquees('browse')).toBe(false);
+  test("rc.1 #17 — Move and Preview's Select (browse) rubber-band empty canvas; the Hand keeps its pan", () => {
+    expect(annotationMarquees('move', 'quiet', 'edit')).toBe(true);
+    expect(annotationMarquees('browse', 'drawn', 'preview')).toBe(true);
+    // a standalone canvas keeps v1's Browse drag = pan (DDR-187); Viewing / hidden layers never marquee
+    expect(annotationMarquees('browse', 'drawn', null)).toBe(false);
+    expect(annotationMarquees('browse', 'read-only', 'viewing')).toBe(false);
+    expect(annotationMarquees('browse', 'hidden', 'preview')).toBe(false);
+    expect(annotationMarquees('hand', 'drawn', 'preview')).toBe(false);
   });
 
   test('the layer asks the one predicate at every picking site (no bare tool test is left)', () => {
@@ -42,7 +47,7 @@ describe('the Hand picks annotations in Preview', () => {
       7
     );
     // empty-canvas drags are the pan's under the Hand
-    expect(LAYER).toMatch(/annotationMarquees\(tool\)/);
+    expect(LAYER).toMatch(/annotationMarquees\(tool, posture, mode\)/);
   });
 });
 

@@ -37,7 +37,7 @@ export const MOVED_KEYS: readonly MovedKey[] = [
   {
     was: 'Browse tool',
     now: 'Preview',
-    note: 'Hand, and a click uses the design',
+    note: 'Select (V), and a click uses the design',
     to: 'tool.browse',
   },
   // D2 — V2-4.5b (the two toolbars)

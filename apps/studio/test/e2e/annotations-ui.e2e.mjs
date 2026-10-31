@@ -141,12 +141,37 @@ describe('R2b — double-click INSIDE an open editor selects a word; the view ne
 });
 
 describe('R3 — marquee and sections', () => {
-  // decision maude/v2-S4.18b-hand-picks-one-predicate (annotations/ui/posture.ts `annotationMarquees`): only the Move
-  // tool rubber-bands, and Move is Edit's, where the layer is quiet and holds no selection. In Preview the Hand is
-  // the resting tool and a drag on empty canvas pans. So the v1 marquee scenarios (content inside a section, a
-  // section enclosed whole) have no v2 gesture; what v2 promises is that the drag pans and selects nothing.
-  test('a Hand drag over a section and its content pans the canvas; it selects nothing', async () => {
+  // Michal rc.1 #17: Preview's resting pointer (Select, V) rubber-bands empty canvas again and ⇧-click toggles;
+  // the Hand (H) pans. Supersedes maude/v2-S4.18b-hand-picks-one-predicate's marquee half.
+  test('a marquee over content inside a section selects the content, not the section', async () => {
     await reset();
+    const cb = await c.pageBox('circle');
+    const rb = await c.pageBox('box');
+    await c.drag(
+      [Math.min(cb.x, rb.x) - 20, Math.min(cb.y, rb.y) - 20],
+      [
+        Math.max(cb.x + cb.width, rb.x + rb.width) + 20,
+        Math.max(cb.y + cb.height, rb.y + rb.height) + 20,
+      ]
+    );
+    await sleep(300);
+    assert.deepEqual(await c.selection(), ['box', 'circle', 'link']);
+  });
+
+  test('a marquee that encloses the whole section selects the section too', async () => {
+    await reset();
+    const sb = await c.pageBox('sec');
+    // Start just above the title chip — still inside the canvas iframe.
+    await c.drag([sb.x - 20, sb.y - 12], [sb.x + sb.width + 30, sb.y + sb.height + 30]);
+    await sleep(300);
+    const sel = await c.selection();
+    assert.ok(sel.includes('sec'), `section selected (${sel})`);
+  });
+
+  test('a Hand (H) drag over a section and its content pans the canvas; it selects nothing', async () => {
+    await reset();
+    await c.page.keyboard.press('h');
+    await sleep(200);
     const sb = await c.pageBox('sec');
     const before = await c.pageBox('circle');
     // Start just above the title chip — still inside the canvas iframe, on empty canvas.

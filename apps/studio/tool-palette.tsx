@@ -102,7 +102,7 @@ const NAV_SLOT_TOOLS: ReadonlySet<ToolId> = new Set<ToolId>(['move', 'hand', 'br
 
 /** Which glyph a tool/slot wears (the v1 icons keep their meaning). */
 const SLOT_GLYPH: Readonly<Record<string, string>> = {
-  browse: 'hand',
+  browse: 'move', // rc.1 #17: Preview's Select
   inspect: 'hand',
   'el-text': 'text',
   'el-shape': 'rect',
@@ -112,7 +112,7 @@ const SLOT_GLYPH: Readonly<Record<string, string>> = {
 const DS_SLOT_GLYPH: Readonly<Record<string, string>> = {
   move: 'select',
   hand: 'hand',
-  browse: 'hand',
+  browse: 'select', // rc.1 #17: Preview's Select wears the Select arrow
   inspect: 'hand',
   frame: 'frame',
   'el-shape': 'shape',

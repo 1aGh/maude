@@ -235,8 +235,11 @@ export const MODE_TOOLS: Readonly<Record<CanvasModeV2, ModeToolbar>> = Object.fr
   preview: Object.freeze({
     rest: 'browse' as const,
     slots: Object.freeze([
-      // A click uses the design, a drag pans (Q3). v1's `hand` tool lights it too.
-      slot({ key: 'H', label: 'Hand', tool: 'browse', minRole: 'view', lights: ['hand'] }),
+      // Michal rc.1 #17/#18 — Select (V) is Preview's resting pointer: a click uses the design, ⇧-click adds or
+      // removes an annotation, a drag on empty canvas rubber-bands annotations (annotations/ui/posture.ts). The
+      // Hand (H, v1's mode-neutral `hand`) pans on any drag. Space-drag and the wheel pan under both.
+      slot({ key: 'V', label: 'Select', tool: 'browse', minRole: 'view' }),
+      slot({ key: 'H', label: 'Hand', tool: 'hand', minRole: 'view' }),
       slot({
         key: 'N',
         label: 'Sticky',
@@ -340,8 +343,9 @@ export function visibleSlots(
 // ─── keys, the tool's home mode and the esc ladder (§5.4; landed with V2-4.5b) ────────────────────
 //
 // A key means what its slot does in the mode you are in. A key that is not in this mode's toolbar
-// but is in the other one crosses (Edit → Preview: N C M A E S; Preview → Edit: V F P I ⇧I; H R T
-// stay where they are): the canvas asks the shell (`mode-request`), never moves the mode itself (M3).
+// but is in the other one crosses (Edit → Preview: N C M A E S; Preview → Edit: F P I ⇧I; V H R T
+// stay where they are — rc.1 #17/#18 gave Preview its own Select V): the canvas asks the shell
+// (`mode-request`), never moves the mode itself (M3).
 // A role that may not use the slot gets the shell's denial line (Q2): the canvas asks anyway and the
 // shell, which owns the role, refuses. A pending slot has no key (rule 13: no key before its tool).
 
