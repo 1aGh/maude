@@ -20,6 +20,7 @@ import { useEffect, useRef } from 'react';
 import { useArtboardsContext } from './canvas-lib.tsx';
 import { hoverTargetToSelection } from './dom-selection.ts';
 import { DRAG_THRESHOLD_PX } from './input-router.tsx';
+import { clippedGrab } from './editing/clipped-grab.ts';
 import { type Selection, useSelectionSet } from './use-selection-set.tsx';
 import { useToolMode } from './use-tool-mode.tsx';
 
@@ -97,6 +98,9 @@ export function ArtboardMarqueeOverlay() {
       // (Cmd-select, Alt-copy-drag) and shouldn't start a marquee.
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (shouldIgnoreTarget(e.target)) return;
+      // r1 #12 — a press inside the selected object's box (off its artboard, clipped) grabs the object
+      if (!e.shiftKey && clippedGrab(document, e.clientX, e.clientY, e.target, selSet.selected))
+        return;
       stateRef.current = {
         pointerId: e.pointerId,
         startX: e.clientX,

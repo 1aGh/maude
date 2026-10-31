@@ -88,13 +88,20 @@ import {
 import { setElementDragActive } from './drag-state.ts';
 import { useArtboardActions } from './editing/artboard-actions.ts';
 import { type ArtboardMenuDeps, artboardMenuSections } from './editing/artboard-menu.tsx';
+import { clippedGrab } from './editing/clipped-grab.ts';
 import { useClipboard } from './editing/clipboard-actions.ts';
 import { drawToolOfAction } from './editing/draw-geometry.ts';
 import { EditingLayer } from './editing/index.tsx';
 import { useObjectOps } from './editing/object-actions.ts';
 import { type ObjectMenuDeps, objectMenuSections } from './editing/object-menu.tsx';
 // S2.11 — the reorder slot's state + the ⌥-copy / drag-out drops (editing/reorder-slot.tsx)
-import { liftCard, panelMotion, reorderSlot, takeOver } from './editing/reorder-slot.tsx';
+import {
+  copyPlacedTo,
+  liftCard,
+  panelMotion,
+  reorderSlot,
+  takeOver,
+} from './editing/reorder-slot.tsx';
 import { isLockedDom, lockedClickSelection, stepOut } from './editing/selection.tsx';
 import { commitTextInPlace, lockedTextLine, textOpDeps } from './editing/text-actions.ts';
 import { EqualSpacingHandles } from './equal-spacing-handles.tsx';
@@ -4365,7 +4372,8 @@ function ReorderDrag() {
     };
 
     const onDown = (e: PointerEvent) => {
-      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      // r1 #15 — ⌥ is allowed: an ⌥-drag of the selected object drops a copy (decided at the drop, as before)
+      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return;
       if (toolRef.current !== 'move') return;
       const sel = selRef.current;
       const one = sel && sel.length === 1 ? sel[0] : null;
@@ -4377,7 +4385,15 @@ function ReorderDrag() {
       // the Layers panel, but the canvas won't move it).
       if (isLockedElement(el, cdId)) return;
       const t = e.target;
-      if (!(t instanceof Node) || !el.contains(t)) return;
+      // r1 #12 — or a press inside its box where its artboard clips it (it was dragged off the artboard)
+      const grabbed =
+        t instanceof Node && !el.contains(t) && clippedGrab(document, e.clientX, e.clientY, t, sel);
+      if (!(t instanceof Node) || (!el.contains(t) && !grabbed)) return;
+      // the marquee on empty canvas must not also take this press (it would clear the selection)
+      if (grabbed) e.stopImmediatePropagation();
+      // r1 #15 — ⌥ on the selected object is this drag's: the artboard's own ⌥-drag (copy the ARTBOARD) must not
+      // also take the press, or ⌥-dragging a shape duplicated the whole artboard
+      else if (e.altKey) e.stopPropagation();
       // Candidate — do NOT claim yet (a plain click must still work). We only
       // become a drag once the pointer crosses the threshold in onMove.
       const outOfFlowPos = getComputedStyle(el).position;
@@ -4530,6 +4546,12 @@ function ReorderDrag() {
         if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return; // negligible — nothing to persist
         const left = Math.round(d.originLeft + dx);
         const top = Math.round(d.originTop + dy);
+        if (e.altKey) {
+          // r1 #15 — ⌥-drop: the original stays put, a copy lands here (one edit-op, one ⌘Z)
+          suppressNextCanvasClick();
+          void copyPlacedTo(d.el, { left, top });
+          return;
+        }
         d.el.style.left = `${left}px`;
         d.el.style.top = `${top}px`;
         lastPosition = { el: d.el, prevStyle: d.prevStyle };

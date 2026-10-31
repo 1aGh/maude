@@ -293,6 +293,35 @@ export function takeOver(t: TakeOver, deps: LayoutOpsDeps = layoutOpsDeps.curren
   return false;
 }
 
+/**
+ * r1 #15 — an ⌥-drop of a PLACED object (`position: absolute`): the original stays, a copy lands where the drop put
+ * it (`left` / `top` in the frame's px). ONE `object.reorder-to` (copy, the object as its own neighbour, `at`) — one
+ * write, one ⌘Z. Resolves true when the copy was made.
+ */
+export async function copyPlacedTo(
+  el: Element,
+  at: { left: number; top: number },
+  deps: LayoutOpsDeps = layoutOpsDeps.current
+): Promise<boolean> {
+  const self = refOfElement(el);
+  if (!self) return false;
+  const run = deps.run ?? ((ask: EditOpAsk) => runEditOp(ask));
+  const result = await run({
+    op: 'object.reorder-to',
+    targets: [self, self] as ElementRef[],
+    params: { position: 'after', copy: true, at },
+  });
+  if (!result.ok) {
+    deps.toast?.(result.message || 'That did not go through.', 'error');
+    return false;
+  }
+  if (result.actionId === null && result.writeId) {
+    const rec = editOpRecord(result.writeId, 'Copy');
+    if (rec) deps.record?.(rec);
+  }
+  return true;
+}
+
 // ── the skin ──────────────────────────────────────────────────────────────────────────────────
 
 const CSS_TEXT = `

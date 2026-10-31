@@ -12,6 +12,9 @@
 // One request = one write = one action, whatever the move was.
 //
 // params (reorder-to): `position` — before · after · inside-start · inside-end; `copy` — boolean.
+//   r1 #15 — an ⌥-drag of a PLACED object (`position: absolute`) has no slot to land in: it names the object itself as
+//   the neighbour (`after`), `copy: true` and `at: {left, top}` (the drop, in the frame's px); the copy goes right
+//   after the original in the code and takes those two numbers. Still one write, one action, one ⌘Z.
 
 import {
   applyDuplicateElement,
@@ -19,10 +22,22 @@ import {
   CanvasEditError,
   type MovePosition,
 } from '../canvas-edit.ts';
+import { writeStyle } from './constraints.ts';
 import type { EditOp } from './types.ts';
 import { objectBringForward, objectSendBackward } from './z-order.ts';
 
 const POSITIONS: readonly string[] = ['before', 'after', 'inside-start', 'inside-end'];
+
+const px = (n: number) => `${Math.round(n)}px`;
+
+/** `at: {left, top}` — finite numbers inside the canvas's range, or null. */
+function placedAt(v: unknown): { left: number; top: number } | null {
+  if (!v || typeof v !== 'object') return null;
+  const { left, top } = v as Record<string, unknown>;
+  const ok = (n: unknown): n is number =>
+    typeof n === 'number' && Number.isFinite(n) && Math.abs(n) <= 100_000;
+  return ok(left) && ok(top) ? { left, top } : null;
+}
 
 export const objectReorderEarlier: EditOp = {
   id: 'object.reorder-earlier',
@@ -46,7 +61,9 @@ export const objectReorderTo: EditOp = {
     const position = params.position;
     if (typeof position !== 'string' || !POSITIONS.includes(position))
       return fail('Say where it goes: before, after or inside.');
-    if (moved.element === ref.element && (moved.occurrence ?? 0) === (ref.occurrence ?? 0))
+    const self = moved.element === ref.element && (moved.occurrence ?? 0) === (ref.occurrence ?? 0);
+    const at = placedAt(params.at);
+    if (self && !(params.copy === true && position === 'after' && at))
       return fail('It cannot go next to itself.');
     let from = moved.element;
     let fromIndex = moved.occurrence;
@@ -58,6 +75,14 @@ export const objectReorderTo: EditOp = {
       if (!dup.newId) return { source: out };
       from = dup.newId;
       fromIndex = undefined;
+      // a placed object's copy: it already sits right after the original; it takes the drop's left / top
+      if (self && at) {
+        const copy = { ...moved, element: dup.newId, occurrence: undefined };
+        out = writeStyle(out, req, copy, { left: px(at.left), top: px(at.top) });
+        return { source: out };
+      }
+    } else if (params.at !== undefined) {
+      return fail('Only a copy takes a place of its own.');
     }
     out = applyMove(
       req.file,
