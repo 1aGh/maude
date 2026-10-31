@@ -2,11 +2,11 @@
 // real token chips and segmented controls; only fetch is faked. Every control writes through /_api/edit-css with the
 // words → CSS writer, only with the names the system declares, and several objects get one write each.
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { SLOT_DEFAULTS } from '../edit-ops/slot-defaults.ts';
 
 const realFetch = globalThis.fetch;
