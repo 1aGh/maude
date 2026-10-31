@@ -15,6 +15,7 @@ import {
   type ClipDeps,
   runClipAction,
   writeClipMarker,
+  writeClipMarkerNow,
 } from './clipboard.ts';
 import { selectWhenRendered as selectObjectsWhenRendered } from './object-actions.ts';
 import { refsOf } from './object-ops.ts';
@@ -69,6 +70,7 @@ export function useClipboard(): Clipboard {
         else selectObjectsWhenRendered(created, replace);
       },
       mark: writeClipMarker,
+      markNow: (text) => writeClipMarkerNow(text),
     };
     return {
       async run(action, over) {

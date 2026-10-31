@@ -38,8 +38,11 @@ export interface ClipDeps {
   record?: (rec: CommandRecord) => void;
   /** select what a paste created, once the canvas shows it */
   select?: (created: ElementRef[], kind: 'objects' | 'artboards') => void;
-  /** the system-clipboard marker (best effort) */
+  /** the system-clipboard marker (best effort), after the server answered */
   mark?: (text: string) => void;
+  /** r1 item 13 — the marker written NOW, inside the key's / click's own handling; true when it landed
+   *  (then `mark` is skipped). A clipboard write past an await is refused in the canvas frame. */
+  markNow?: (text: string) => boolean;
 }
 
 /** The marker a copy leaves on the system clipboard; a paste whose text carries it is ours. */
@@ -106,6 +109,16 @@ export async function runClipAction(
     if (ctx.objects.length === 0) return null;
     ask = { op, targets: [...ctx.objects] };
   }
+  // r1 item 13 — the marker goes on the clipboard BEFORE the server round trip: the person's key or click is
+  // still being handled here, and a clipboard write after the await is refused (WebKit, and Chromium in the
+  // cross-origin canvas frame). Without it ⌘V never knew the paste was ours.
+  const early =
+    op === 'artboard.copy'
+      ? clipMarker(ctx.artboards.length, 'artboards')
+      : op === 'object.copy' || op === 'object.cut'
+        ? clipMarker(ctx.objects.length, 'objects')
+        : null;
+  const markedNow = early !== null && deps.markNow?.(early) === true;
   const run = deps.run ?? ((a: EditOpAsk) => runEditOp(a));
   const result = await run(ask);
   if (!result.ok) {
@@ -114,6 +127,7 @@ export async function runClipAction(
   }
   const clip = (result.detail as { clip?: { count?: unknown; kind?: unknown } } | undefined)?.clip;
   if (
+    !markedNow &&
     clip &&
     typeof clip.count === 'number' &&
     (clip.kind === 'objects' || clip.kind === 'artboards')
@@ -133,6 +147,41 @@ export async function runClipAction(
     deps.select?.(result.created, boards ? 'artboards' : 'objects');
   }
   return result;
+}
+
+/**
+ * r1 item 13 — the marker written synchronously through the frame's OWN copy event: `execCommand('copy')`
+ * inside a user gesture fires `copy`, whose `clipboardData.setData` needs no clipboard permission (the async
+ * `navigator.clipboard` does, and is refused in the canvas frame). WebKit enables Copy with no text selected
+ * only when `beforecopy` is cancelled, so that is cancelled too. Both listeners are one-shot. True when the
+ * copy event carried the marker.
+ */
+export function writeClipMarkerNow(
+  text: string,
+  doc: Document | undefined = globalThis.document
+): boolean {
+  if (!doc || typeof doc.execCommand !== 'function') return false;
+  let wrote = false;
+  const before = (e: Event) => e.preventDefault();
+  const copy = (e: Event) => {
+    const data = (e as ClipboardEvent).clipboardData;
+    if (!data) return;
+    data.setData('text/plain', text);
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    wrote = true;
+  };
+  doc.addEventListener('beforecopy', before, true);
+  doc.addEventListener('copy', copy, true);
+  try {
+    doc.execCommand('copy');
+  } catch {
+    /* refused */
+  } finally {
+    doc.removeEventListener('beforecopy', before, true);
+    doc.removeEventListener('copy', copy, true);
+  }
+  return wrote;
 }
 
 /** Best-effort system-clipboard write (a blocked clipboard leaves ⌘V to the menus). */

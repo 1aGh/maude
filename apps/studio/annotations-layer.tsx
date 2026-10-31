@@ -54,7 +54,8 @@ import {
   rectsReady,
   viewStrokes,
 } from './annotations/ui/host-view.ts';
-import { LockedDragTip } from './annotations/ui/locked.tsx';
+import { LockedDragTip, QUIET_MOVE_TIP } from './annotations/ui/locked.tsx';
+import { quietStrokeAt } from './annotations/ui/quiet-tip.ts';
 import { AnnotationPipelineContext } from './annotations/ui/pipeline-context.ts';
 import { PlacementGhost, postStampDisarmed, StickerSizeChip } from './annotations/ui/placement.tsx';
 import { type Claim, PointerPipeline } from './annotations/ui/pointer-pipeline.ts';
@@ -1211,6 +1212,9 @@ export function AnnotationsLayer() {
   // S4.19 G5 (canvas 15 `an-layers`) - a drag begun on a locked annotation says why nothing moves.
   const [lockedTip, setLockedTip] = useState<{ x: number; y: number } | null>(null);
   const clearLockedTip = useCallback(() => setLockedTip(null), []);
+  // r1 item 14 - a press in Edit on a quiet annotation says where it moves (Preview), at the pointer.
+  const [quietTip, setQuietTip] = useState<{ x: number; y: number } | null>(null);
+  const clearQuietTip = useCallback(() => setQuietTip(null), []);
   // FigJam v3 — smart-guide lines painted while a drag is snapping, and the
   // id of the host a dragged arrow endpoint would bind to (accent halo).
   const [snapGuides, setSnapGuides] = useState<SnapGuide[] | null>(null);
@@ -2161,6 +2165,23 @@ export function AnnotationsLayer() {
     },
     [vp]
   );
+
+  // r1 item 14 - Edit keeps the layer quiet (S4.9: clicks reach the design), so a picture dropped on bare canvas
+  // could be neither clicked nor dragged, with no word why. A press there, over a quiet annotation, shows the tip.
+  // Passive: the press still goes where it went.
+  useEffect(() => {
+    if (!quiet || !visible || typeof document === 'undefined') return undefined;
+    const down = (e: PointerEvent) => {
+      if (e.button !== 0) return;
+      const [wx, wy] = screenToWorld(e.clientX, e.clientY);
+      const tol = 4 / (vpRef.current?.zoom || 1);
+      const target = e.target instanceof Element ? e.target : null;
+      if (quietStrokeAt(strokesRef.current, wx, wy, tol, target))
+        setQuietTip({ x: e.clientX, y: e.clientY });
+    };
+    document.addEventListener('pointerdown', down, true);
+    return () => document.removeEventListener('pointerdown', down, true);
+  }, [quiet, visible, screenToWorld]);
 
   // S4.13 - what a click (or a mid-view drop) makes of a pick. Kept in a ref so the message effect above, which
   // is declared first, calls the latest closure. Returns true when the pick is spent (a stamp stays armed).
@@ -4947,6 +4968,13 @@ export function AnnotationsLayer() {
     <AnnotationPipelineContext.Provider value={pipeline}>
       <StrokesStoreContext.Provider value={strokesStore}>
         <LockedDragTip at={lockedTip} onDone={clearLockedTip} />
+        <LockedDragTip
+          at={quiet ? quietTip : null}
+          onDone={clearQuietTip}
+          text={QUIET_MOVE_TIP}
+          testId="annotation-quiet-tip"
+          holdMs={2400}
+        />
         <PlacementGhost
           pending={pendingFor(placing, visible)}
           zoom={vp?.zoom || 1}

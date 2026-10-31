@@ -12,6 +12,8 @@ import { useEffect, useState } from 'react';
 
 export const LOCKED_LINE = Object.freeze({ label: 'Locked', action: 'Unlock', kbd: '⇧⌘L' });
 export const LOCKED_DRAG_TIP = 'Locked — unlock to move it';
+/** r1 item 14 — a press in Edit on a quiet annotation (S4.9): it moves in Preview (CONTRACT ⌥⌘P). */
+export const QUIET_MOVE_TIP = 'Switch to Preview to move it · ⌥⌘P';
 
 const TIP_Z = 2147483000;
 
@@ -19,16 +21,29 @@ const TIP_Z = 2147483000;
 export function LockedDragTip({
   at,
   onDone,
+  text = LOCKED_DRAG_TIP,
+  testId = 'annotation-locked-tip',
+  holdMs = 0,
 }: {
   at: { x: number; y: number } | null;
   onDone: () => void;
+  /** r1 item 14 — the same tip in other words (the quiet layer's `QUIET_MOVE_TIP`) */
+  text?: string;
+  testId?: string;
+  /** how long the tip stays after the press ends (0: it goes with the press) */
+  holdMs?: number;
 }) {
   const [pos, setPos] = useState(at);
   useEffect(() => {
     setPos(at);
     if (!at) return;
     const move = (e: PointerEvent) => setPos({ x: e.clientX, y: e.clientY });
-    const up = () => onDone();
+    let after: ReturnType<typeof setTimeout> | undefined;
+    // a click's tip would only flash: `holdMs` keeps it readable after the press ends
+    const up = () => {
+      if (holdMs > 0) after = setTimeout(onDone, holdMs);
+      else onDone();
+    };
     // a tip that outlives a gesture the browser cancelled would stick: the timer is the backstop
     const timer = setTimeout(onDone, 4000);
     document.addEventListener('pointermove', move, true);
@@ -36,16 +51,17 @@ export function LockedDragTip({
     document.addEventListener('pointercancel', up, true);
     return () => {
       clearTimeout(timer);
+      if (after) clearTimeout(after);
       document.removeEventListener('pointermove', move, true);
       document.removeEventListener('pointerup', up, true);
       document.removeEventListener('pointercancel', up, true);
     };
-  }, [at, onDone]);
+  }, [at, onDone, holdMs]);
   if (!at || !pos) return null;
   return (
     <span
       role="tooltip"
-      data-testid="annotation-locked-tip"
+      data-testid={testId}
       style={{
         position: 'fixed',
         left: pos.x + 14,
@@ -61,7 +77,7 @@ export function LockedDragTip({
         boxShadow: '0 4px 14px rgba(0,0,0,0.3)',
       }}
     >
-      {LOCKED_DRAG_TIP}
+      {text}
     </span>
   );
 }

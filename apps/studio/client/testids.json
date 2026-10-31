@@ -19602,6 +19602,24 @@
     "v2": "new"
   },
   {
+    "hook": "annotation-quiet-tip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "In Edit, a press on bare canvas over a quiet annotation (a board picture, a sticky): \"Switch to Preview to move it · ⌥⌘P\" at the pointer.",
+    "producer": {
+      "file": "apps/studio/annotations-layer.tsx",
+      "symbol": "LockedDragTip"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/e2e/clipboard-drop.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/r1-quiet-move-tip.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "preview-bar",
     "kind": "testid",
     "pattern": false,
