@@ -2,7 +2,12 @@
 // place, a click on text filled in from code says so, a click on nothing adds a text element
 // through the toolbar's insert verb (the one the momentary Insert Text slot used).
 import { describe, expect, test } from 'bun:test';
-import { clickToType, ENTER_TEXT_EDIT_EVENT, typeIntoSelected } from '../editing/click-to-type.ts';
+import {
+  clickToType,
+  ENTER_TEXT_EDIT_EVENT,
+  TEXT_NOT_ON_ARTBOARD,
+  typeIntoSelected,
+} from '../editing/click-to-type.ts';
 import { TOOLBAR_INSERT_EVENT } from '../input-router.tsx';
 
 function fakeDoc() {
@@ -36,10 +41,18 @@ describe('clickToType', () => {
     expect(events).toEqual([]);
   });
 
-  test('nothing under the click: the toolbar insert verb adds a text element', () => {
+  // r2-text-tool — no longer the toolbar insert verb (that put the text at the artboard's 0,0): a text at the
+  // pointer (test/r2-text-tool.test.ts); off every artboard it says so and writes nothing.
+  test('nothing under the click, off every artboard: no insert verb, one line saying where to click', async () => {
     const { doc, events } = fakeDoc();
-    expect(clickToType(doc, null, { clientX: 1, clientY: 2 })).toBe('insert');
-    expect(events).toEqual([{ type: TOOLBAR_INSERT_EVENT, detail: { kind: 'text' } }]);
+    (doc as unknown as { elementsFromPoint: () => Element[] }).elementsFromPoint = () => [];
+    const toasts: string[] = [];
+    expect(
+      clickToType(doc, null, { clientX: 1, clientY: 2 }, { toast: (m) => toasts.push(m) })
+    ).toBe('insert');
+    await Promise.resolve();
+    expect(events.some((e) => e.type === TOOLBAR_INSERT_EVENT)).toBe(false);
+    expect(toasts).toEqual([TEXT_NOT_ON_ARTBOARD]);
   });
 });
 

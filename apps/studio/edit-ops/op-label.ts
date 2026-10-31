@@ -91,6 +91,7 @@ const ROWS: Readonly<Record<string, Say>> = {
   'text.detach-style': (n) => `Detached the text style of ${n}`,
   'object.insert-shape': (_n, p) => {
     const kind = str(p.kind);
+    if (kind === 'text') return 'Added a text';
     return kind === 'frame' ? 'Drew a frame' : kind ? `Drew a ${kind}` : 'Drew a shape';
   },
   'artboard.draw': () => 'Drew an artboard',

@@ -231,6 +231,47 @@ describe('object.insert-shape', () => {
   });
 });
 
+// r2-text-tool (UX audit U01/D1/A1/GD-10) — T + a click adds a text where the pointer acted, in the system's body
+// style (or the system UI sans when there is none), never the browser's default serif at the artboard's 0,0.
+describe('object.insert-shape kind text', () => {
+  const at = { artboard: 'desktop', kind: 'text', at: { x: 120, y: 64 } };
+  test('at the click, in the container’s own px, one write, a readable id', async () => {
+    const h = harness();
+    const r = good(await h.run('object.insert-shape', [], at));
+    expect(h.snapshots).toHaveLength(1);
+    expect(r.created).toEqual([{ artboard: 'desktop', element: 'text' }]);
+    expect(h.src()).toMatch(/<p data-cd-id="text" style=\{\{[^}]*\}\}>Text<\/p>/);
+    expect(style(h.src(), 'text', 'position')).toBe('absolute');
+    expect(style(h.src(), 'text', 'left')).toBe('120px');
+    expect(style(h.src(), 'text', 'top')).toBe('64px');
+    expect(style(h.src(), 'text', 'margin')).toBe('0');
+  });
+  test('no design-system body style: the system UI sans, never the browser default', async () => {
+    const h = harness();
+    good(await h.run('object.insert-shape', [], at));
+    expect(style(h.src(), 'text', 'fontFamily')).toBe(
+      'var(--font-body, system-ui, -apple-system, sans-serif)'
+    );
+  });
+  test('the canvas saw a body style: the text wears it and sets no font of its own', async () => {
+    const h = harness();
+    good(await h.run('object.insert-shape', [], { ...at, role: 't-body' }));
+    expect(h.src()).toContain('<p data-cd-id="text" className="t-body" style=');
+    expect(style(h.src(), 'text', 'fontFamily')).toBe('absent');
+  });
+  test('into a frame: inside it, its own px; a role that is not a style class is refused', async () => {
+    const h = harness();
+    good(await h.run('object.insert-shape', ['empty'], { ...at, at: { x: 8, y: 9 } }, 'desktop'));
+    const walk = walkIdElements(h.src(), FILE);
+    if (!walk.ok) throw new Error('parse');
+    const empty = walk.elements.find((e) => e.id === 'empty');
+    const text = walk.elements.find((e) => e.id === 'text');
+    expect(text && empty && text.start > empty.start && text.end < empty.end).toBe(true);
+    bad(await harness().run('object.insert-shape', [], { ...at, role: 'x" onClick="' }));
+    bad(await harness().run('object.insert-shape', [], { ...at, at: { x: 'a', y: 1 } }));
+  });
+});
+
 describe('artboard.draw', () => {
   test('a Fixed size artboard of the drawn size, its place in the layout lane, one write', async () => {
     const h = harness();

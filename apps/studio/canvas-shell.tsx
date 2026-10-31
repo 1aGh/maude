@@ -3383,6 +3383,9 @@ function CanvasRouter({
     if (!host) return;
     let editing: HTMLElement | null = null;
     let original = '';
+    // r2-text-tool — a text the Text tool has just made: esc keeps what was typed (there is nothing of yours to
+    // restore; restoring would put back the placeholder "Text"). Any other text: esc restores, as before.
+    let escKeeps = false;
     // Unified custom blinking caret (text-caret.ts) — mounted for the whole
     // edit session, disposed in teardown. Hides the native caret while up.
     let caretDispose: (() => void) | null = null;
@@ -3395,7 +3398,7 @@ function CanvasRouter({
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') {
         e.preventDefault();
-        commitEdit(false);
+        commitEdit(escKeeps);
       } else if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         (e.currentTarget as HTMLElement | null)?.blur?.();
@@ -3500,7 +3503,7 @@ function CanvasRouter({
       stamped: HTMLElement,
       clientX: number,
       clientY: number,
-      opts?: { selectAll?: boolean }
+      opts?: { selectAll?: boolean; escKeeps?: boolean }
     ): void {
       if (editing) return;
       // Cloud Phase 25 C2 — inline text edit is a source write; a read-only
@@ -3516,6 +3519,7 @@ function CanvasRouter({
       }
       editing = stamped;
       original = stamped.textContent ?? '';
+      escKeeps = opts?.escKeeps === true;
       stamped.setAttribute('contenteditable', 'plaintext-only');
       stamped.classList.add('dc-text-editing');
       stamped.addEventListener('blur', onBlur, true);
@@ -3620,12 +3624,14 @@ function CanvasRouter({
           clientX?: number;
           clientY?: number;
           selectAll?: boolean;
+          escKeeps?: boolean;
         }>
       ).detail;
       if (!detail?.el || !host.contains(detail.el)) return;
       // V2-8.7 — ↵ on a selected text arrives with selectAll (the keyboard door has no caret point)
       enterEditModeAt(detail.el, detail.clientX ?? 0, detail.clientY ?? 0, {
         selectAll: detail.selectAll === true,
+        escKeeps: detail.escKeeps === true,
       });
     };
     // The shell rejected the last inline text edit — revert the optimistic
