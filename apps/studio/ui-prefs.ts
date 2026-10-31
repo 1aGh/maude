@@ -30,6 +30,7 @@ import {
   type ShellAnnotationPrefs,
 } from './annotations/ui/tool-prefs.ts';
 import { verGt } from './client/whats-new-seen.js';
+import { isRecentColour } from './edit-ops/words-paint.ts';
 import { PRESET_ID_RE } from './kinds/presets.ts';
 import { PREFS_VERSION } from './ui-prefs-migrate.ts';
 
@@ -203,8 +204,6 @@ export const SEEN_VERSION_RE = /^\d{1,6}\.\d{1,6}\.\d{1,6}(?:[-+][0-9A-Za-z.+-]{
 const MAP_MAX = 256;
 const RECENT_SIZES_MAX = 8;
 const RECENT_COLOURS_MAX = 8;
-/** One Recent colour: a token reference or one CSS colour — short, no declaration or markup syntax. */
-const RECENT_COLOUR_RE = /^[A-Za-z0-9#(),.%\s/+-]{1,160}$/;
 const WIDTH_MAX = 4000;
 
 /** A fold / seen map: {id: boolean} (or {id: true}); ids are plain, short, and never prototype keys. */
@@ -360,7 +359,8 @@ export function validateUiPrefsPatch(body: Record<string, unknown>): UiPrefsPatc
       const v = (rc as Record<string, unknown>)[k];
       if (UNSAFE_KEYS.has(k) || !MAP_KEY.test(k)) return fail('recentColours has an invalid id');
       if (!Array.isArray(v) || v.length > RECENT_COLOURS_MAX) return fail(msg);
-      if (!v.every((c) => typeof c === 'string' && RECENT_COLOUR_RE.test(c))) return fail(msg);
+      // V2-8.9 r2 F4 — a colour or a token reference, never an image (`url(`, `image-set(`)
+      if (!v.every((c) => isRecentColour(c))) return fail(msg);
       out[k] = v as string[];
     }
     patch.recentColours = out;

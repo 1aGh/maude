@@ -6669,7 +6669,10 @@ export function createHttp(
       if (!isTrustedRequestHost(req))
         return new Response('local request required (DNS-rebinding guard)', { status: 403 });
       if (req.method === 'GET') {
-        return Response.json(readUiPrefs(), { headers: { 'Cache-Control': 'no-store' } });
+        const prefs = readUiPrefs() as Record<string, unknown>;
+        // V2-8.9 r2 F4 — a cell's one prefs.json is every member's: no shared Recent colours
+        if (isWorkspaceMode()) delete prefs.recentColours;
+        return Response.json(prefs, { headers: { 'Cache-Control': 'no-store' } });
       }
       if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
       if (!sameOriginWrite(req))
@@ -6695,6 +6698,13 @@ export function createHttp(
           status: 403,
           headers: { 'Cache-Control': 'no-store' },
         });
+      // V2-8.9 r2 F4 — in a cell any member (a viewer too) could plant swatches every editor then sees and
+      // clicks: Recent colours stay in the page there (the Inspector's store keeps them for the page).
+      if ('recentColours' in patch && isWorkspaceMode())
+        return Response.json(
+          { error: 'recent-colours-cell', message: 'Recent colours are not saved in Maude Cloud.' },
+          { status: 403, headers: { 'Cache-Control': 'no-store' } }
+        );
       try {
         return Response.json(writeUiPrefs(patch), { headers: { 'Cache-Control': 'no-store' } });
       } catch (err) {

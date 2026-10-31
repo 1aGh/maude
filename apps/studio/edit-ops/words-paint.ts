@@ -68,6 +68,26 @@ export function isCssColor(s: string): boolean {
   return !!t && !/[;{}]/.test(t) && isColourToken(t) && !VAR_RE.test(t);
 }
 
+/** An image (or paint worklet) inside a value: never a colour, wherever it sits. */
+const IMAGE_FN_RE = /(?:url|image-set|image|cross-fade|element|paint|expression)\s*\(/i;
+
+/**
+ * V2-8.9 r2 F4 — one colour the Recent row may keep and draw (shared by the server's `ui-prefs.ts` and the
+ * Inspector's hydrate): a CSS colour (`isCssColor`), or a token reference `var(--name)` /
+ * `var(--name, <colour>)`. Never an image reference (`url(`, `image-set(`, …), a second layer or
+ * declaration / markup syntax — a hydrated value becomes a swatch `background` in the trusted shell and,
+ * clicked, a colour in the source.
+ */
+export function isRecentColour(s: unknown): boolean {
+  if (typeof s !== 'string') return false;
+  const t = s.trim();
+  if (!t || t.length > 160 || /[;{}<>"'\\]/.test(t) || IMAGE_FN_RE.test(t)) return false;
+  if (commas(t).length !== 1) return false;
+  const v = VAR_RE.exec(t);
+  if (v) return !v[2]?.trim() || isCssColor(v[2]);
+  return isCssColor(t);
+}
+
 /* ── colours ───────────────────────────────────────────────────────────────────────────────────────────────────── */
 
 /**
