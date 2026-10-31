@@ -30,7 +30,7 @@
 
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
 
 import {
   closureFor,
@@ -54,6 +54,8 @@ export { NOT_IN_SCOPE_REFUSAL };
 /** Walk ceilings — the manifest's (`file-manifest.mjs`): files, depth. */
 const MAX_WALK_FILES = 20_000;
 const MAX_WALK_DEPTH = 8;
+/** A file name that could be a canvas (closure.ts `grantedBySlug`'s twin scan). */
+const CANVAS_SHAPED_RE = /\.(tsx|html)$/i;
 /** A text larger than this is not scanned for references (a canvas is KBs). */
 const MAX_SCAN_BYTES = 2 * 1024 * 1024;
 
@@ -104,11 +106,21 @@ function knownCanvasesOf(designRoot, explicit) {
  * are runtime state or tooling, never part of a canvas; symlinks are never
  * followed (`isFile()` / `isDirectory()` on the dirent), so every path read
  * below is inside the root by construction.
+ *
+ * p8-closure-lows-2 — and it says what it left out, for the closure's same-name
+ * owner rule (the studio's `diskProjectReader` does the same): `truncated` when
+ * a ceiling stopped it, `skipped` the canvas-shaped entries it saw but did not
+ * yield (a symlink, a dot name), by name only — never followed or read.
  */
 function walkDesignRoot(designRoot) {
   const found = new Map();
+  const skipped = [];
+  let truncated = false;
   const walk = (dir, rel, depth) => {
-    if (depth > MAX_WALK_DEPTH || found.size >= MAX_WALK_FILES) return;
+    if (depth > MAX_WALK_DEPTH || found.size >= MAX_WALK_FILES) {
+      truncated = true;
+      return;
+    }
     let entries;
     try {
       entries = readdirSync(dir, { withFileTypes: true });
@@ -117,8 +129,11 @@ function walkDesignRoot(designRoot) {
     }
     for (const entry of entries) {
       const name = entry.name;
-      if (name.startsWith('.') || name === 'node_modules') continue;
       const childRel = rel ? `${rel}/${name}` : name;
+      if (name.startsWith('.') || name === 'node_modules') {
+        if (!entry.isDirectory() && CANVAS_SHAPED_RE.test(name)) skipped.push(childRel);
+        continue;
+      }
       const childAbs = join(dir, name);
       if (entry.isDirectory()) {
         // Runtime state is FIRST-segment `_*` only (DDR-115, the studio's diskProjectReader and
@@ -127,8 +142,14 @@ function walkDesignRoot(designRoot) {
         if (!name.startsWith('_') || rel) walk(childAbs, childRel, depth + 1);
         continue;
       }
-      if (!entry.isFile()) continue;
-      if (found.size >= MAX_WALK_FILES) return;
+      if (!entry.isFile()) {
+        if (CANVAS_SHAPED_RE.test(name)) skipped.push(childRel);
+        continue;
+      }
+      if (found.size >= MAX_WALK_FILES) {
+        truncated = true;
+        return;
+      }
       let st;
       try {
         st = statSync(childAbs);
@@ -139,7 +160,32 @@ function walkDesignRoot(designRoot) {
     }
   };
   if (designRoot) walk(designRoot, '', 1);
-  return found;
+  return { found, skipped, truncated };
+}
+
+/**
+ * p8-closure-lows-2 — whether the design root holds an entry at exactly `rel`
+ * (a symlink, a dangling one): the parent's NAMES only, compared in NFC on both
+ * sides (APFS holds an NFD and an NFC `café` as one file), never case-folded,
+ * never followed or read. `names` caches one name set per folder.
+ */
+function presentIn(designRoot, rel, names) {
+  if (!designRoot || typeof rel !== 'string') return false;
+  const segs = rel.split('/');
+  if (isAbsolute(rel) || segs.some((s) => s === '' || s === '.' || s === '..')) return false;
+  const abs = join(designRoot, rel);
+  if (!resolve(abs).startsWith(resolve(designRoot) + sep)) return false;
+  const dir = dirname(abs);
+  let set = names.get(dir);
+  if (set === undefined) {
+    try {
+      set = new Set(readdirSync(dir).map((n) => n.normalize('NFC')));
+    } catch {
+      set = null;
+    }
+    names.set(dir, set);
+  }
+  return set?.has(segs[segs.length - 1].normalize('NFC')) === true;
 }
 
 /**
@@ -151,7 +197,7 @@ function walkDesignRoot(designRoot) {
  * change what it references without the journal moving.
  */
 export function projectReader({ designRoot, journal }) {
-  const disk = walkDesignRoot(designRoot);
+  const { found: disk, skipped, truncated } = walkDesignRoot(designRoot);
   const journalPaths = [];
   try {
     for (const row of journal?.compaction?.() ?? []) journalPaths.push(row.path);
@@ -165,8 +211,17 @@ export function projectReader({ designRoot, journal }) {
   }
   const head = sig.digest('hex');
   const all = new Set([...disk.keys(), ...journalPaths]);
+  let names = new Map();
   return {
-    list: () => all,
+    list: () => {
+      names = new Map();
+      return all;
+    },
+    // p8-closure-lows-2 — what the walk left out (closure.ts `ProjectReader`): without all three
+    // the closure's same-name owner rule fails closed.
+    listTruncated: () => truncated,
+    unlisted: () => skipped,
+    present: (rel) => presentIn(designRoot, rel, names),
     text(rel) {
       const f = disk.get(rel);
       if (!f || f.size > MAX_SCAN_BYTES) return null;

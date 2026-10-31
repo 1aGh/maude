@@ -210,8 +210,9 @@ export interface ProjectReader {
   text(rel: string): string | null;
   /** Journal head / tree hash — the cache key. */
   head(): string;
-  /** p8-closure-lows — true when the last `list()` stopped at a cap, so files may be missing. A
-   *  reader without it lists everything it holds. */
+  /** p8-closure-lows — true when the last `list()` stopped at a cap, so files may be missing.
+   *  p8-closure-lows-2 — a reader without all three of these cannot prove what its listing left
+   *  out, so the same-name owner rule (`walkImports` `grantedBySlug`) never applies to it. */
   listTruncated?(): boolean;
   /** p8-closure-lows — whether the design root holds an entry at exactly `rel` that `list()` may
    *  leave out (a symlink, a dangling one): looked at, never followed or read. */
@@ -586,7 +587,8 @@ interface WalkEnv {
   project: ProjectReader;
   /** p8-c4b's stored grants (`cfg.knownCanvases`): each is a canvas whatever its file says. */
   known: ReadonlySet<string>;
-  /** p8-closure-lows — `files` may be missing some (the reader's listing was cut at its cap). */
+  /** p8-closure-lows — `files` may be missing some (the reader's listing was cut at its cap, or
+   *  p8-closure-lows-2, the reader cannot say what it left out). */
   listTruncated: boolean;
   /** p8-closure-lows — canvas-shaped entries the listing saw but did not yield (`unlisted`). */
   unlisted: readonly string[];
@@ -698,8 +700,9 @@ function walkEnv(project: ProjectReader, files: ReadonlySet<string>, cfg: Closur
   const isCanvas = (rel: string): boolean => {
     // gate-b-c4m — an `.html` canvas carries no marker: the index's own path predicate decides, and
     // every DS surface errs to canvas (an `.html` specimen is one). Only a file that exists.
+    // p8-closure-lows-2 — a stored grant counts for a missing `.html` too, as for a `.tsx` (p8-c4b).
     if (/\.html$/i.test(rel))
-      return files.has(rel) && (known.has(rel) || isCanvasFile(rel) || isDsSurfaceRel(rel));
+      return known.has(rel) || (files.has(rel) && (isCanvasFile(rel) || isDsSurfaceRel(rel)));
     if (!/\.tsx$/i.test(rel)) return false;
     if (known.has(rel)) return true;
     // p8 lead (maude/v2-p8-lead-underscore-file-is-a-module) — a `_` file is a module whatever it
@@ -716,8 +719,14 @@ function walkEnv(project: ProjectReader, files: ReadonlySet<string>, cfg: Closur
     );
   };
   // Read after the caller drained `list()` into `files` (compute, canvasImportsReport).
-  const listTruncated = project.listTruncated?.() === true;
-  const unlisted = [...(project.unlisted?.() ?? [])];
+  // p8-closure-lows-2 — a reader that cannot report what its listing left out (the three
+  // optional methods) proves nothing: fail closed, as for a listing cut at its cap.
+  const reports =
+    typeof project.listTruncated === 'function' &&
+    typeof project.unlisted === 'function' &&
+    typeof project.present === 'function';
+  const listTruncated = !reports || project.listTruncated?.() === true;
+  const unlisted = reports ? [...(project.unlisted?.() ?? [])] : [];
   return { files, textOf, isCanvas, cfg, project, known, listTruncated, unlisted };
 }
 
@@ -755,6 +764,9 @@ function isUiKitRel(rel: string): boolean {
   return segs[2] === 'ui_kits' || (segs[2] === 'preview' && /^ui_kits-/i.test(segs[3] ?? ''));
 }
 
+/** A canvas slug in Unicode NFC — how the same-name owner rule compares names (p8-closure-lows-2). */
+const slugNfc = (rel: string): string => canvasSlugFromRel(rel, '').normalize('NFC');
+
 /** The Design system canvas's file name inside `system/<ds>/` (ds/engine.ts `DS_CANVAS`). */
 const DS_BOARD_FILE = 'design-system.tsx';
 
@@ -787,20 +799,23 @@ function walkImports(
     if (env.listTruncated || env.known.has(owner)) return false;
     const meta = owner.replace(/\.(tsx|html)$/i, '.meta.json');
     if (env.files.has(owner) || env.files.has(meta)) return false;
-    if (env.project.present?.(owner) || env.project.present?.(meta)) return false;
-    const slug = canvasSlugFromRel(owner, '');
+    // p8-closure-lows-2 — slugs compare NFC on both sides (APFS holds `café` in NFC and NFD as one
+    // name); never case-folded beyond the slug's own lower-casing. A slug already found foreign
+    // answers before any disk look-up (`present` could only make it foreign too).
+    const slug = slugNfc(owner);
     const hit = slugOwned.get(slug);
+    if (hit === false) return false;
+    if (env.project.present?.(owner) || env.project.present?.(meta)) return false;
     if (hit !== undefined) return hit;
     let any = false;
     let foreign = false;
     for (const f of env.files) {
-      if (!/\.(tsx|html)$/i.test(f) || f.startsWith('_') || canvasSlugFromRel(f, '') !== slug)
-        continue;
+      if (!/\.(tsx|html)$/i.test(f) || f.startsWith('_') || slugNfc(f) !== slug) continue;
       if (granted.has(f)) any = true;
       else foreign = true;
     }
     // An entry the listing saw but left out is foreign, granted or not: it cannot be read.
-    for (const f of env.unlisted) if (canvasSlugFromRel(f, '') === slug) foreign = true;
+    for (const f of env.unlisted) if (slugNfc(f) === slug) foreign = true;
     slugOwned.set(slug, any && !foreign);
     return any && !foreign;
   };
