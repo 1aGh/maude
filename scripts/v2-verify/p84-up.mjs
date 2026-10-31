@@ -142,6 +142,54 @@ for (const [name, role] of [
   }).value;
 }
 
+// 4. the cell's project saves with accepted revisions — what a Maude 2 cloud project is. Since p8-v1-drop a
+// project that still saves the old way is VIEW ONLY for everyone (formatGate source 'save-mode', decision
+// maude/v2-p8-v1-drop-save-mode-is-a-format-gate), and a cloud tab never switches it itself (the owner's
+// dashboard does: maude/v2-p8-update-to-accepted-cell-points-to-dashboard). A fresh production cell starts
+// in accepted revisions (cell-config MAUDE_NEW_PROJECT_MODE), but only while it has no canvas — and
+// local-cell seeds one before the hub boots. So the rig does what the dashboard's Saving page does: the
+// owner's switch (`POST /api/projects/current/v1/mode`), once the hub holds both seeded canvases, then
+// waits until the cell's studio reports `saveMode: accepted`.
+{
+  const admin = addToken(join(cellDir, 'data'), {
+    label: 'p84-owner-switch',
+    scope: '*',
+    expiresAt: Date.now() + 3600_000,
+  }).value;
+  const hub = `http://127.0.0.1:${CELL_PORT}`;
+  const auth = { authorization: `Bearer ${admin}` };
+  const stored = async () => {
+    const r = await fetch(`${hub}/api/documents`, { headers: auth }).catch(() => null);
+    const docs = (await r?.json().catch(() => null))?.documents ?? [];
+    const has = (n) => docs.some((d) => new RegExp(`(^|/)${n}$`).test(d.name) && d.bytes > 0);
+    return has('ui-home') && has('ui-board');
+  };
+  for (let t = Date.now(); !(await stored()); ) {
+    if (Date.now() - t > 60_000) throw new Error('the cell hub never stored ui-home + ui-board');
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  const res = await fetch(`${hub}/api/projects/current/v1/mode`, {
+    method: 'POST',
+    headers: { ...auth, 'content-type': 'application/json' },
+    body: JSON.stringify({ mode: 'transactions' }),
+  });
+  const body = await res.json().catch(() => null);
+  if (res.status !== 200)
+    throw new Error(`switching the cell to accepted revisions failed: ${res.status} ${JSON.stringify(body)}`);
+  console.log(`[p84-up] the cell saves with accepted revisions (epoch ${body?.epoch})`);
+  const cookie = { cookie: `maude_studio=${sessions.viewer}` };
+  let mode = null;
+  for (let t = Date.now(); mode !== 'accepted'; ) {
+    if (Date.now() - t > 60_000)
+      throw new Error(`the cell's studio still reports saveMode ${mode} after the switch`);
+    await new Promise((r) => setTimeout(r, 300));
+    const r = await fetch(`http://studio.cell.localhost:${CELL_PORT}/_config`, {
+      headers: cookie,
+    }).catch(() => null);
+    mode = (await r?.json().catch(() => null))?.saveMode ?? null;
+  }
+}
+
 writeFileSync(
   join(RUN, 'rig.json'),
   `${JSON.stringify(

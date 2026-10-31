@@ -471,6 +471,10 @@ for (const shell of SHELLS) {
     console.log(`${shell} ${step.id}: ${rec.status}${rec.error ? ` — ${rec.error}` : ''}`);
     // a dialog left open must not eat the next step's keys
     await page.keyboard.press('Escape').catch(() => {});
+    // … and the press must LAND before the next step clicks: with the shell focused, esc is forwarded to the
+    // canvas frame by postMessage (`run-action ui.step-back`), and Chromium runs an input event ahead of a
+    // queued message — the next step's click selected, then the late esc cleared it (select-inspect red).
+    await sleep(400);
   }
   results[shell].errors = page._errors.slice(0, 20);
   await ctx.close();
