@@ -32,6 +32,7 @@
 import { createInterface } from 'node:readline';
 
 import { launchChromium } from './_pw-launch.mjs';
+import { drawTile } from './_tile-draw.mjs';
 
 const MAX_PAGES = 4;
 const IDLE_MS = Number(process.env.MAUDE_THUMBS_IDLE_MS) || 60_000;
@@ -408,7 +409,8 @@ async function render(msg) {
   lastLaunchMs = null;
   job.page = page;
   jobsByPage.set(page, job);
-  const phases = {};
+  // `take`: waiting for a page (and the browser / context on a first job) before any work
+  const phases = { take: Date.now() - t0 };
   let mark = Date.now();
   const lap = (name) => {
     const n = Date.now();
@@ -613,72 +615,7 @@ async function tileOnce(lane, msg) {
       hold.vp = px;
     }
     const box = await bounded(
-      page.evaluate(
-        async ([src, size, video]) => {
-          document.getElementById('__maude_tile')?.remove();
-          const host = document.createElement('div');
-          host.id = '__maude_tile';
-          host.style.cssText =
-            'position:fixed;left:0;top:0;right:0;bottom:0;z-index:2147483647;margin:0;background:#fff';
-          document.body.appendChild(host);
-          let el;
-          let w;
-          let h;
-          if (video) {
-            el = document.createElement('video');
-            el.muted = true;
-            el.preload = 'auto';
-            el.src = src;
-            await new Promise((res, rej) => {
-              el.addEventListener('loadeddata', res, { once: true });
-              el.addEventListener('error', rej, { once: true });
-            });
-            el.currentTime = Math.min(0.5, el.duration || 0.5);
-            await new Promise((res) => {
-              el.addEventListener('seeked', res, { once: true });
-              setTimeout(res, 2000);
-            });
-            if (el.readyState < 2) return null;
-            w = el.videoWidth;
-            h = el.videoHeight;
-          } else {
-            el = new Image();
-            el.src = src;
-            await el.decode();
-            w = el.naturalWidth;
-            h = el.naturalHeight;
-          }
-          if (!w || !h) return null;
-          const s = Math.min(1, size / Math.max(w, h));
-          const cw = Math.max(1, Math.round(w * s));
-          const ch = Math.max(1, Math.round(h * s));
-          if (!video) {
-            // a picture is scaled and encoded in the page: no screenshot, no layout, no paint wait
-            // (the screenshot path cost ~130 ms a tile). White under transparency, as the host had.
-            const cv = document.createElement('canvas');
-            cv.width = cw;
-            cv.height = ch;
-            const g = cv.getContext('2d');
-            if (!g) return null;
-            g.fillStyle = '#fff';
-            g.fillRect(0, 0, cw, ch);
-            g.imageSmoothingQuality = 'high';
-            g.drawImage(el, 0, 0, cw, ch);
-            const blob = await new Promise((res) => cv.toBlob(res, 'image/jpeg', 0.8));
-            if (!blob) return null;
-            const bytes = new Uint8Array(await blob.arrayBuffer());
-            let bin = '';
-            for (let i = 0; i < bytes.length; i += 0x8000)
-              bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
-            return { w: cw, h: ch, jpeg: btoa(bin) };
-          }
-          el.style.cssText = `display:block;width:${cw}px;height:${ch}px`;
-          host.appendChild(el);
-          await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-          return { w: cw, h: ch };
-        },
-        [String(msg.src), px, msg.video === true]
-      ),
+      page.evaluate(drawTile, [String(msg.src), px, msg.video === true]),
       3000
     ).catch(() => null);
     phases.draw = Date.now() - t0 - phases.nav;

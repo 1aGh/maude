@@ -6,6 +6,7 @@
 //
 //   bun scripts/v2-index-bench.ts --root <copy> [--port 4797] [--skip-artboards] [--skip-assets]
 //                                 [--skip-versions] [--skip-covers] [--whole-canvas] [--versions-of <regex>] [--runs 5] [--only <regex>]
+//                                 [--dump-replies <file>]
 //
 // --only <regex>: the cover pass asks for just the canvases whose rel matches (instead of the
 // background sweep) and prints the renderer's reply for every one that fails — the way to chase
@@ -488,6 +489,14 @@ try {
       index.update(rels);
     }
   }
+  // --dump-replies <file>: every renderer reply's timings (no picture bytes), for a phase breakdown
+  if (opt('--dump-replies', ''))
+    writeFileSync(
+      opt('--dump-replies', ''),
+      JSON.stringify(
+        replies.map((m) => ({ id: m.id, ok: m.ok, ms: m.ms, phases: m.phases, error: m.error }))
+      )
+    );
   svc.stop();
 } finally {
   server.kill();
