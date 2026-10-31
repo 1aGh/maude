@@ -73,11 +73,11 @@
     "design/print.mdx": "2026-10-22",
     "design/video.mdx": "2026-10-22",
     "design-system-schema.mdx": "2026-10-28",
-    "desktop/index.mdx": "2026-10-22",
-    "desktop/window.mdx": "2026-10-22",
+    "desktop/index.mdx": "2026-10-31",
+    "desktop/window.mdx": "2026-10-31",
     "flow-migration.mdx": "2026-10-25",
     "flow.mdx": "2026-10-25",
-    "getting-started.mdx": "2026-10-22",
+    "getting-started.mdx": "2026-10-31",
     "hub/aws.mdx": "2026-08-21",
     "hub/deploy.mdx": "2026-08-18",
     "hub/durability.mdx": "2026-08-18",
@@ -94,12 +94,12 @@
     "legal/dpa.mdx": "2026-08-04",
     "legal/privacy.mdx": "2026-10-09",
     "legal/terms.mdx": "2026-08-01",
-    "moving-from-1.mdx": "2026-10-29",
+    "moving-from-1.mdx": "2026-10-31",
     "orchestration.mdx": "2026-10-25",
     "recipes/expo.mdx": "2026-10-25",
     "recipes/monorepo.mdx": "2026-10-25",
     "recipes/nextjs.mdx": "2026-10-25",
     "security.mdx": "2026-08-16",
-    "share-links.mdx": "2026-10-22"
+    "share-links.mdx": "2026-10-31"
   }
 }
