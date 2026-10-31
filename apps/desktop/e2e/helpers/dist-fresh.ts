@@ -19,58 +19,121 @@ function jsxText(raw: string): string {
   return out.join(' ');
 }
 
+/** Keywords after which a line break inserts a semicolon (ECMA-262 restricted productions): `return\nx` ≠ `return x`. */
+const ASI_BEFORE_NEWLINE = /^(return|throw|break|continue|yield|async)$/;
+const isLineBreak = (c: string | undefined) =>
+  c === '\n' || c === '\r' || c === '\u2028' || c === '\u2029';
+
 /**
  * A client source as a token stream, for "did this commit change anything but formatting?". Whitespace between code
  * tokens is dropped (kept as one space only between two word tokens, or `+ +` / `- -`); whitespace a reader can see is
  * kept: string, template and regex literals verbatim, comments collapsed to single spaces, JSX text as React renders it.
+ * A line break the parser reads is kept too (p8-comment-gate): after `return` / `throw` / `break` / `continue` /
+ * `yield` / `async` and before a `++` / `--`, where automatic semicolon insertion changes what runs.
  * Fail-closed: a region the scan takes for a literal that is not one only makes two equal files compare unequal
  * (the time rule then decides); a literal taken for code is the one thing to avoid, so a quote ends at its line, a
- * template runs to its closing backtick, and a `>` that is not `=>`/`>=`/`>>` opens a JSX text candidate.
+ * template runs to its closing backtick (past every `${ … }`, nested templates included), and a `>` that is not
+ * `=>`/`>=`/`>>` opens a JSX text candidate — kept verbatim whenever it holds a quote or a backtick, since a
+ * comparison or a generic there is followed by code whose literals must not be re-spaced.
  */
 export function normalizeClientSource(src: string): string {
   const out: string[] = [];
   const n = src.length;
   let i = 0;
   let ws = false;
+  let nl = false; // a line break since the last code token
   let prev = ''; // last emitted token
-  const emit = (tok: string) => {
+  let prevCode = ''; // last emitted token that is not a comment
+  const emit = (tok: string, o: { comment?: boolean; next?: string } = {}) => {
     const a = prev[prev.length - 1];
     const b = tok[0];
-    if (ws && ((isWord(a) && isWord(b)) || ((a === '+' || a === '-') && a === b))) out.push(' ');
+    const asi =
+      !o.comment &&
+      nl &&
+      (ASI_BEFORE_NEWLINE.test(prevCode) || ((b === '+' || b === '-') && o.next === b));
+    if (asi) {
+      if (out[out.length - 1] !== '\n') out.push('\n');
+    } else if (ws && ((isWord(a) && isWord(b)) || ((a === '+' || a === '-') && a === b)))
+      out.push(' ');
     out.push(tok);
     prev = tok;
     ws = false;
+    if (!o.comment) {
+      prevCode = tok;
+      nl = false;
+    }
   };
   const eol = (from: number) => {
     const k = src.indexOf('\n', from);
     return k < 0 ? n : k;
   };
+  /** The end of a quoted string opened at `at`: its closing quote, else its line (a JSX apostrophe, say). */
+  const stringEnd = (at: number) => {
+    const q = src[at];
+    let j = at + 1;
+    while (j < n && src[j] !== q && src[j] !== '\n') j += src[j] === '\\' ? 2 : 1;
+    return Math.min(j + 1, n);
+  };
+  /** The end of a `${ … }` whose body starts at `at` (strings, templates and comments inside skipped). */
+  const substitutionEnd = (at: number): number => {
+    let depth = 1;
+    let j = at;
+    while (j < n) {
+      const c = src[j];
+      if (c === "'" || c === '"') j = stringEnd(j);
+      else if (c === '`') j = templateEnd(j);
+      else if (c === '/' && src[j + 1] === '/') j = eol(j);
+      else if (c === '/' && src[j + 1] === '*') {
+        const k = src.indexOf('*/', j + 2);
+        j = k < 0 ? n : k + 2;
+      } else if (c === '{') {
+        depth++;
+        j++;
+      } else if (c === '}') {
+        j++;
+        if (--depth === 0) return j;
+      } else j++;
+    }
+    return n;
+  };
+  /** The end of a template opened at `at`, past every `${ … }` (and any template nested in one). */
+  const templateEnd = (at: number): number => {
+    let j = at + 1;
+    while (j < n) {
+      const c = src[j];
+      if (c === '\\') j += 2;
+      else if (c === '`') return j + 1;
+      else if (c === '$' && src[j + 1] === '{') j = substitutionEnd(j + 2);
+      else j++;
+    }
+    return n;
+  };
   while (i < n) {
     const c = src[i];
     if (/\s/.test(c)) {
       ws = true;
+      if (isLineBreak(c)) nl = true;
       i++;
     } else if (c === '/' && src[i + 1] === '/') {
       const j = eol(i);
-      emit(src.slice(i, j).replace(/\s+/g, ' ').trimEnd());
+      emit(src.slice(i, j).replace(/\s+/g, ' ').trimEnd(), { comment: true });
       out.push('\n');
       prev = '\n';
+      nl = true;
       i = j;
     } else if (c === '/' && src[i + 1] === '*') {
       const k = src.indexOf('*/', i + 2);
       const j = k < 0 ? n : k + 2;
-      emit(src.slice(i, j).replace(/\s+/g, ' '));
+      const body = src.slice(i, j);
+      emit(body.replace(/\s+/g, ' '), { comment: true });
+      if (/[\n\r\u2028\u2029]/.test(body)) nl = true; // a multi-line comment is a line break to ASI
       i = j;
     } else if (c === "'" || c === '"') {
-      let j = i + 1;
-      while (j < n && src[j] !== c && src[j] !== '\n') j += src[j] === '\\' ? 2 : 1;
-      j = Math.min(j + 1, n);
+      const j = stringEnd(i);
       emit(src.slice(i, j));
       i = j;
     } else if (c === '`') {
-      let j = i + 1;
-      while (j < n && src[j] !== '`') j += src[j] === '\\' ? 2 : 1;
-      j = Math.min(j + 1, n);
+      const j = templateEnd(i);
       emit(src.slice(i, j));
       i = j;
     } else if (
@@ -99,22 +162,36 @@ export function normalizeClientSource(src: string): string {
     ) {
       emit('>');
       i++;
+      // The JSX text candidate runs to the next `<` / `{` — past a literal, never into one. A candidate holding a
+      // quote or a backtick is ambiguous (JSX text with an apostrophe, or code after a comparison / generic), so
+      // it is kept exactly as written.
       let j = i;
-      while (j < n && src[j] !== '<' && src[j] !== '{') j++;
+      let literal = false;
+      while (j < n && src[j] !== '<' && src[j] !== '{') {
+        if (src[j] === "'" || src[j] === '"') {
+          literal = true;
+          j = stringEnd(j);
+        } else if (src[j] === '`') {
+          literal = true;
+          j = templateEnd(j);
+        } else j++;
+      }
       const region = src.slice(i, j);
-      if (/\S/.test(region) || (region !== '' && !region.includes('\n'))) {
+      if (literal) emit(region);
+      else if (/\S/.test(region) || (region !== '' && !region.includes('\n'))) {
         const t = jsxText(region);
         if (t) emit(t);
       }
       i = j;
       ws = false;
+      nl = false;
     } else if (isWord(c)) {
       let j = i + 1;
       while (j < n && isWord(src[j])) j++;
       emit(src.slice(i, j));
       i = j;
     } else {
-      emit(c);
+      emit(c, { next: src[i + 1] });
       i++;
     }
   }

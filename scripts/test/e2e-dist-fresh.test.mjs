@@ -16,7 +16,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 
 const E2E = new URL('../../apps/desktop/e2e/', import.meta.url);
-const { staleClientDist, assertFreshClientDist } = await import(
+const { staleClientDist, assertFreshClientDist, normalizeClientSource } = await import(
   new URL('helpers/dist-fresh.ts', E2E).href
 );
 const read = (rel) => readFileSync(new URL(rel, E2E), 'utf8');
@@ -111,6 +111,74 @@ wsEdit(
   'f(\n  <b>\n    Sign in, now\n  </b>\n);\n'
 );
 wsEdit('a gap between two words in code', 'const a = x in y;\n', 'const a = xin y;\n');
+
+// p8-comment-gate (final-3 defender I4 + attacker I1): whitespace the scan still dropped although it changes what runs
+// or what a reader sees — ASI after `return`/`throw`/`break`/`continue`/`yield` and before `++`/`--`, a template nested
+// in a template, and literals inside the JSX-text candidate after a `>` that is a comparison or a generic.
+wsEdit(
+  'code: a newline after return (ASI returns undefined)',
+  'function f() { return x }\n',
+  'function f() { return\n  x }\n',
+  'function f() {\n  return x\n}\n'
+);
+wsEdit(
+  'code: a newline after throw / break / continue / yield',
+  'function* f() { yield x; for (;;) { break l; } }\n',
+  'function* f() { yield\n x; for (;;) { break\n l; } }\n'
+);
+wsEdit(
+  'code: a newline after return behind a block comment',
+  'function f() { return /* c */ x }\n',
+  'function f() { return /*\n c */ x }\n'
+);
+wsEdit('code: a newline before ++ (ASI ends the line)', 'x = a\n++b\n', 'x = a++\nb\n');
+wsEdit(
+  'a template nested in a template',
+  'const a = `x ${`Sign in`}`;\n',
+  'const a = `x ${`Sign  in`}`;\n',
+  'const a =\n  `x ${`Sign in`}`;\n'
+);
+wsEdit(
+  'a template after a comparison (the JSX-text candidate)',
+  'const a = n > 1 ? `x\ny` : z;\n',
+  'const a = n > 1 ? `x\n  y` : z;\n'
+);
+wsEdit(
+  'a tab inside a string after a comparison',
+  "const a = n > 1 ? 'x\ty' : z;\n",
+  "const a = n > 1 ? 'x y' : z;\n"
+);
+wsEdit(
+  'an indent inside a template after a generic',
+  'const a = f<T>(`x\ny`);\n',
+  'const a = f<T>(`x\n  y`);\n'
+);
+
+test('the real re-format commit 5f88d88e5 (a re-wrapped string) stays exempt', (t) => {
+  const repoRoot = new URL('../../', import.meta.url).pathname;
+  const g = (...args) =>
+    execFileSync('git', args, {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+  try {
+    g('cat-file', '-e', '5f88d88e5^{commit}');
+  } catch {
+    t.skip('5f88d88e5 is not in this clone');
+    return;
+  }
+  const files = g('diff', '--name-only', '5f88d88e5^', '5f88d88e5', '--', 'apps/studio/client')
+    .split('\n')
+    .filter((f) => f && !f.endsWith('.css') && !f.endsWith('.md'));
+  assert.ok(files.length > 0);
+  for (const f of files)
+    assert.equal(
+      normalizeClientSource(g('show', `5f88d88e5^:${f}`)),
+      normalizeClientSource(g('show', `5f88d88e5:${f}`)),
+      f
+    );
+});
 
 test('re-indenting and re-wrapping code with literals around stays exempt', () => {
   const r = repo();
