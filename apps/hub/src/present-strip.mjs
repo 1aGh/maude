@@ -10,6 +10,9 @@
 //   - `editing` — S7.17: the caption word a person is fixing (a soft lock others'
 //     UI honours) and the Phase 30 heads-up; someone who cannot edit is fixing
 //     nothing, so their claim would only lock other people out of a word.
+//   - `holding` — the element a person holds (V2-1.15 §5.12). The studio refuses an AI write to a
+//     held element, so a viewer's hold would block AI edits (p8-holding-strip, final-4 recheck I1).
+//     `sanitizeHoldingAwareness` (runs-routes.mjs) drops it too; this keeps the twin lists equal.
 // `watching` is NEVER stripped: any role may watch, and the presenter's
 // "N watching" count is made of exactly those states.
 //
@@ -20,7 +23,7 @@
 /** The awareness keys only an editor of the document may publish. */
 export const PRESENTER_ONLY_FIELDS = Object.freeze(['present', 'pointer']);
 /** S7.17 — the awareness keys only someone who may edit the document publishes (studio twin: EDITOR_ONLY_FIELDS). */
-export const EDITOR_ONLY_FIELDS = Object.freeze(['editing']);
+export const EDITOR_ONLY_FIELDS = Object.freeze(['editing', 'holding']);
 const READ_ONLY_STRIP = Object.freeze([...PRESENTER_ONLY_FIELDS, ...EDITOR_ONLY_FIELDS]);
 
 /**

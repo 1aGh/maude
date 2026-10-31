@@ -89,8 +89,8 @@ describe('the caption word lock needs edit; the playhead does not', () => {
 });
 
 describe('stripPresent covers editing (unit)', () => {
-  test('editing is an editor-only field', () => {
-    assert.deepEqual([...EDITOR_ONLY_FIELDS], ['editing']);
+  test('editing and holding are editor-only fields', () => {
+    assert.deepEqual([...EDITOR_ONLY_FIELDS], ['editing', 'holding']);
   });
   test('kept for an editor, dropped for a read-only connection with the playhead left alone', () => {
     const states = () => new Map([[1, { user: { name: 'x' }, timeline: TIMELINE, editing: WORD }]]);
@@ -100,5 +100,24 @@ describe('stripPresent covers editing (unit)', () => {
     const ro = states();
     assert.equal(stripPresent({ states: ro, context: { user: { readOnly: true } } }), 1);
     assert.deepEqual(ro.get(1), { user: { name: 'x' }, timeline: TIMELINE });
+  });
+});
+
+// p8-holding-strip (final-4 recheck I1) — a read-only connection cannot hold an element either: the
+// studio's agent route denies an AI write to a held element (`soft-locked`), so a viewer's hold would
+// block AI edits. `sanitizeHoldingAwareness` already drops it on the hub; this strip is the twin of
+// the studio room's and covers it on its own.
+describe('stripPresent covers holding (unit)', () => {
+  const HOLD = { artboard: 'post', element: 'hero-title', at: 1 };
+  const states = () => new Map([[1, { user: { name: 'x' }, holding: HOLD, watching: 's1' }]]);
+  test('kept for an editor', () => {
+    const kept = states();
+    assert.equal(stripPresent({ states: kept, context: { user: { readOnly: false } } }), 0);
+    assert.deepEqual(kept.get(1).holding, HOLD);
+  });
+  test('dropped for a read-only connection, watching left alone', () => {
+    const ro = states();
+    assert.equal(stripPresent({ states: ro, context: { user: { readOnly: true } } }), 1);
+    assert.deepEqual(ro.get(1), { user: { name: 'x' }, watching: 's1' });
   });
 });
