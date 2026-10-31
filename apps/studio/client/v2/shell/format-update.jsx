@@ -136,7 +136,10 @@ export function OlderFormatCallout() {
   }, []);
 
   // Probe (a dry run — reads only) whenever the project is older or still saves the old way; forget it
-  // once neither holds.
+  // once neither holds. rc.1 finding 1 — a sign-in that stores the role changes only `readOnlyReason` /
+  // `roleSource`: ask the dry run again then, so an owner converts on a fresh answer, never a
+  // pre-sign-in one.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the cfg fields are the re-probe triggers
   useEffect(() => {
     if (!probes) {
       setPlan(undefined);
@@ -145,7 +148,15 @@ export function OlderFormatCallout() {
       return;
     }
     void probe();
-  }, [probes, cfg?.formatVersion, cfg?.formatGate?.source, cfg?.saveMode, probe]);
+  }, [
+    probes,
+    cfg?.formatVersion,
+    cfg?.formatGate?.source,
+    cfg?.saveMode,
+    cfg?.readOnlyReason,
+    cfg?.roleSource,
+    probe,
+  ]);
 
   const state = older ? olderGateState({ cfg, plan }) : saveModeState({ cfg, plan });
 

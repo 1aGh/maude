@@ -255,6 +255,10 @@ export const FORMAT_COPY = {
   olderUpdating: 'Updating this project for Maude 2…',
   olderNonOwner:
     'View only — this project moves to Maude 2 once its owner opens it. Ask the owner.',
+  /** rc.1 finding 1 (Michal A) — the role floor came from a hub record with no role (a 1.x `link --token`):
+   *  the record does not say who this Mac is, so Sign in — never Ask the owner (r1-roleless-signin). */
+  olderRoleless: (hub: string) =>
+    `View only — this Mac's link to ${hub || 'the team server'} doesn't say who you are. Sign in, and if you own the project, it moves to Maude 2 by itself.`,
   /** gate-b-sec4 — the committed link was never made on this Mac (parked): Connect (r1-format-ds). */
   olderLinkUnconfirmed:
     "View only — this project says it syncs with a team server that isn't connected on this Mac. Connect it, and the project moves to Maude 2 by itself.",

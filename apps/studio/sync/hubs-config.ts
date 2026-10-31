@@ -207,6 +207,29 @@ export function accessFor(url: string, path?: string): AccessClaim {
   return legacyClaim(FLOOR_ROLE);
 }
 
+/**
+ * WHERE `accessFor(url)` got its claim (rc.1 finding 1, Michal option A — decision
+ * maude/v2-michal-roleless-record-offers-sign-in), read the same way:
+ *   - `'stored'`  — an `access` or a `role` the hub vouched at a sign-in;
+ *   - `'missing'` — a record with no role (a 1.x `maude design link --token`): the observer
+ *     floor, which stays — but the record does not say who this Mac is, so the step offered is
+ *     Sign in (the workspace sign-in stores the role), never "Ask the owner";
+ *   - `'none'`    — no record for `url` (or no readable file).
+ * This Mac's own record only: it names no role and no other account.
+ */
+export function linkRoleSource(url: string, path?: string): 'stored' | 'missing' | 'none' {
+  let record: HubRecord | undefined;
+  try {
+    record = loadHubsConfig(path).hubs[normalizeUrl(url)];
+  } catch {
+    record = undefined;
+  }
+  if (!record || typeof record !== 'object') return 'none';
+  if (record.access && typeof record.access === 'object') return 'stored';
+  if (typeof record.role === 'string' && record.role) return 'stored';
+  return 'missing';
+}
+
 /** The 1-bit projection of `accessFor`: may NOT edit anything at project level. */
 export function isHubReadOnly(url: string): boolean {
   return !resolveAccess(accessFor(url)).can('edit', null);

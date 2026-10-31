@@ -17,6 +17,10 @@ export const OLDER_COPY = {
   olderUpdating: 'Updating this project for Maude 2…',
   olderNonOwner:
     'View only — this project moves to Maude 2 once its owner opens it. Ask the owner.',
+  /** rc.1 finding 1 (Michal A) — the role floor came from a hub record with no role (a 1.x `link --token`):
+   *  the record does not say who this Mac is, so Sign in — never Ask the owner (r1-roleless-signin). */
+  olderRoleless: (hub) =>
+    `View only — this Mac's link to ${hub || 'the team server'} doesn't say who you are. Sign in, and if you own the project, it moves to Maude 2 by itself.`,
   /** gate-b-sec4 — the committed link was never made on this Mac (parked): Connect (r1-format-ds). */
   olderLinkUnconfirmed:
     "View only — this project says it syncs with a team server that isn't connected on this Mac. Connect it, and the project moves to Maude 2 by itself.",
@@ -51,6 +55,15 @@ export function teamServerCommand(version) {
       : 'latest';
   return `maude hub workspace-up --image-tag ${v}`;
 }
+
+/** A hub address as the callout names it: its host (`design.example`); '' when it does not parse. */
+const hostOf = (url) => {
+  try {
+    return url ? new URL(url).host : '';
+  } catch {
+    return '';
+  }
+};
 
 /** A hub role that may update (the hub's own bar: an owner of the whole project; `admin` is owner). */
 const ownsProject = (role) => role === 'owner' || role === 'admin';
@@ -155,6 +168,18 @@ export function olderGateState({ cfg, plan }) {
   if (!isOlderGate(cfg)) return null;
   // A viewer stays a viewer after an update: the role names the reason, and the owner is who updates.
   if (cfg?.readOnlyReason === 'role') {
+    // rc.1 finding 1 (Michal A): a hub record with no role keeps the floor, but it does not say who
+    // this Mac is — the step is the team server's sign-in, which stores the role; an owner then
+    // converts by itself (`/_config` stops saying 'role'). A role the hub vouched: Ask the owner.
+    if (cfg.roleSource === 'missing') {
+      const hub = cfg.linkedHub?.url ?? '';
+      return {
+        kind: 'roleless',
+        line: OLDER_COPY.olderRoleless(hostOf(hub)),
+        action: 'sign-in',
+        hub,
+      };
+    }
     return { kind: 'non-owner', line: OLDER_COPY.olderNonOwner, action: null };
   }
   if (plan === undefined) return { kind: 'checking', line: OLDER_COPY.olderStatus, action: null };
