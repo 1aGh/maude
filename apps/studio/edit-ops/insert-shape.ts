@@ -31,6 +31,7 @@ import { generateElementId, type IdElement, usedIds, walkIdElements } from '../e
 import { ARTBOARD_ID_RE } from './artboard-resize.ts';
 import { inlinePosition, refuse, writeStyle } from './constraints.ts';
 import { lineIndent } from './siblings.ts';
+import { slotCss } from './slot-defaults.ts';
 import { ROLE_CLASS_RE } from './text-style.ts';
 import type { EditOp, EditOpOutput, ElementRef, ResolvedEditOp } from './types.ts';
 
@@ -44,13 +45,14 @@ export type DrawnKind = (typeof SHAPE_KINDS)[number];
  * with no design system sees: its artboard is `var(--bg-0, #ffffff)`, so every fallback differs from white, and a
  * frame (a container whose surface may be close to the artboard's) also gets a hairline border, so no fresh object
  * disappears after deselect, in either theme, with or without a system. ds-check exempts a literal that sits in a
- * role token's fallback (`ds/canvas-check.ts` `roleFallbackSpans`). Supersedes r1 #8's `currentColor` fallback.
+ * role token's fallback (`ds/canvas-check.ts` `roleFallbackSpans`). The literals are the Inspector's slot defaults
+ * (`slot-defaults.ts`), so a drawn shape and an Inspector "+" paint are one colour. Supersedes r1 #8's `currentColor` fallback.
  */
-export const SHAPE_FILL = 'var(--bg-3, #d4d4d8)';
-export const FRAME_FILL = 'var(--bg-1, #f4f4f5)';
-export const FRAME_BORDER = 'var(--border-default, #a1a1aa)';
-export const LINE_STROKE = 'var(--fg-1, #52525b)';
-export const TEXT_COLOR = 'var(--fg-0, #18181b)';
+export const SHAPE_FILL = slotCss('fill');
+export const FRAME_FILL = slotCss('background');
+export const FRAME_BORDER = slotCss('border');
+export const LINE_STROKE = slotCss('stroke');
+export const TEXT_COLOR = slotCss('text');
 
 const MAX_PX = 10_000;
 const DEFAULT_SIDES = 6;
