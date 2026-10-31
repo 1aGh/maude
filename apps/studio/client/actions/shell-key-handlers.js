@@ -272,7 +272,7 @@ export const SHELL_KEY_HANDLERS = {
   // `canvas.new-brief`, from the menu and ⌘K.)
   'canvas.new': (d, { event: e }) => {
     e.preventDefault();
-    createBlankCanvas({ toast: shellToast });
+    createBlankCanvas({ toast: shellToast, sizes: true });
   },
   // ? — keyboard-shortcuts cheat sheet (DS shortcuts overlay)
   'help.shortcuts': (d, { event: e }) => {

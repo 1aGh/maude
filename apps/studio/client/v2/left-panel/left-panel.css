@@ -503,6 +503,23 @@
   .lp-newrow-folder[aria-expanded="true"] {
     color: var(--fg-1);
   }
+  /* R2-P2: the row asked for a name is the field, in the row's own place */
+  .lp-newname {
+    flex: 1 1 auto;
+    min-width: 0;
+    appearance: none;
+    background: var(--bg-3);
+    border: 1px solid var(--accent-muted);
+    border-radius: var(--radius-sm);
+    color: var(--fg-0);
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+    padding: var(--space-1) var(--space-2);
+  }
+  .lp-newname:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
   .lp-trash-ic {
     display: grid;
     place-items: center;

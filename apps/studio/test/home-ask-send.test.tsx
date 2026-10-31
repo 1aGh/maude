@@ -295,6 +295,30 @@ describe('the question', () => {
     });
   });
 
+  test('R2-P2 (F11): an empty canvas in "a project on this Mac" asks for the name, in the one New project sheet', async () => {
+    shellOverride = EMPTY_SHELL;
+    mount();
+    await flush();
+    expect($('home-target-chip')?.textContent).toContain('a project on this Mac');
+    act(() => $('home-empty-canvas')?.click());
+    await flush();
+    // nothing was made behind the person's back…
+    expect(calls.find((c) => c.url === '/_home/projects/create-local')).toBeUndefined();
+    expect(opens()).toHaveLength(0);
+    // …the sheet asks, with a real name already in it
+    expect($('home-create-dialog')).not.toBeNull();
+    expect(($('home-create-name') as HTMLInputElement).value).toBe('Untitled project');
+    act(() => $('home-create-submit')?.click());
+    await flush();
+    const create = calls.find((c) => c.url === '/_home/projects/create-local');
+    expect(create?.body).toEqual({ name: 'Untitled project' });
+    // what they asked for rides to the project's own tab
+    expect(opens()[0].args).toMatchObject({
+      root: '/Users/x/Maude/Plakat',
+      intent: { kind: 'create-empty', prompt: '' },
+    });
+  });
+
   test('signed in, "a new project" also asks the new tab to move to the cloud', async () => {
     shellOverride = EMPTY_SHELL;
     fetchAnswers['/_home/cloud'] = [200, CLOUD_IN];

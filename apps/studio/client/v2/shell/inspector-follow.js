@@ -47,25 +47,59 @@ export function shouldCloseOnDeselect({ pref, autoOpened, hasSelection }) {
   return !!pref && !!autoOpened && !hasSelection;
 }
 
-// S6.16b (01 cf-select-tweak, "the view makes room"): when the Inspector arrives WITH a selection, the Canvases
-// panel folds to its corner icon; when the selection clears it comes back. The panel only — an inset change
-// never moves the view (I1, bridge/canvas-mode-store.ts), so "the canvas slides left" is NOT built.
+// S6.16b (01 cf-select-tweak, "the view makes room") + TD4 (Michal, 2026-10-31): when the Inspector arrives WITH a
+// selection in a NARROW window, the Canvases panel folds to its corner icon; when the selection clears it comes
+// back. A wide window never folds it — the tree is exactly what you need while you pick (audit F12). The panel
+// only — an inset change never moves the view (I1, bridge/canvas-mode-store.ts), so "the canvas slides left" is
+// NOT built.
+//
+// Two widths, no timer: it folds only BELOW `CANVASES_FOLD_BELOW` and a fold the window made is undone only
+// ABOVE `CANVASES_RESTORE_ABOVE`; the 80 px between is a dead band, so a window sitting at the edge cannot make
+// the panel flicker.
 //
 // A claim, like the Inspector's own: only a fold THIS rule made is undone by it. Not folded when there was
 // nothing to fold (already shut — the person's choice), nor under "Pin panels to the side" (docked columns
-// already give the canvas its own room). Opened by hand while the Inspector is up, or pinned meanwhile: the
-// claim ends and the panel is left where the person put it.
+// already give the canvas its own room). Opened by hand while folded: the claim ends and the unfold is
+// REMEMBERED — no later selection or narrower window folds it again until the window has been wide once.
+export const CANVASES_FOLD_BELOW = 1240;
+export const CANVASES_RESTORE_ABOVE = 1320;
+
 export function createCanvasesFold() {
   let folded = false;
+  let manual = false; // the person unfolded it by hand
   return {
     /** The Inspector just arrived with a selection → `true` = fold Canvases now. */
-    arrive({ canvasesOpen, pinned }) {
-      if (folded || !canvasesOpen || pinned) return false;
+    arrive({ canvasesOpen, pinned, width }) {
+      if (folded || manual || !canvasesOpen || pinned) return false;
+      if (!(width < CANVASES_FOLD_BELOW)) return false;
       folded = true;
       return true;
     },
-    /** The person opened Canvases themselves: the claim ends. */
+    /** The window changed width while a selection stands → 'fold' · 'restore' · `null` (nothing to do). */
+    resize({ width, hasSelection, inspectorOpen, canvasesOpen, pinned }) {
+      if (width > CANVASES_RESTORE_ABOVE) {
+        manual = false; // a wide window ends the memory
+        if (!folded) return null;
+        folded = false;
+        return !canvasesOpen && !pinned ? 'restore' : null;
+      }
+      if (
+        width < CANVASES_FOLD_BELOW &&
+        hasSelection &&
+        inspectorOpen &&
+        !folded &&
+        !manual &&
+        canvasesOpen &&
+        !pinned
+      ) {
+        folded = true;
+        return 'fold';
+      }
+      return null;
+    },
+    /** The panel just came open. If this rule had folded it, the person opened it by hand: remember that. */
     release() {
+      if (folded) manual = true;
       folded = false;
     },
     /** The selection state changed → `true` = bring Canvases back now. */

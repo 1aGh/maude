@@ -538,7 +538,7 @@ describe('Just a local project', () => {
     expect($('home-create-location')?.textContent).toBe('~/Maude/Untitled project');
     click('home-create-submit');
     await flush();
-    expect(hit('/_home/projects/create-local')[0].body).toEqual({ name: '' });
+    expect(hit('/_home/projects/create-local')[0].body).toEqual({ name: 'Untitled project' });
   });
 
   test('a name → create-local → the project opens in its own tab', async () => {
@@ -559,6 +559,21 @@ describe('Just a local project', () => {
     expect(hit('/_home/projects/create-local')[0].body).toEqual({ name: 'Portfolio 2026' });
     expect(cmds('open_project')[0].args).toEqual({ root: '/Users/x/Maude/Portfolio' });
     expect($('home-create-dialog')).toBeNull();
+  });
+
+  test('R2-P2 (R31): the name opens as a real value, and with it cleared Create rests and creates nothing', async () => {
+    mount();
+    await flush();
+    click('signin-local');
+    const input = $('home-create-name') as HTMLInputElement;
+    expect(input.value).toBe('Untitled project');
+    expect(($('home-create-submit') as HTMLButtonElement).disabled).toBe(false);
+    const key = Object.keys(input).find((k) => k.startsWith('__reactProps')) as string;
+    act(() => (input as unknown as Record<string, any>)[key].onChange({ target: { value: '  ' } }));
+    expect(($('home-create-submit') as HTMLButtonElement).disabled).toBe(true);
+    expect($('home-create-submit')?.getAttribute('title')).toBe('Type a name first.');
+    await flush();
+    expect(hit('/_home/projects/create-local')).toHaveLength(0);
   });
 
   test('Cancel closes the sheet and creates nothing', async () => {

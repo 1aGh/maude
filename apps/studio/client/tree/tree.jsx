@@ -24,6 +24,7 @@ import { CanvasesAdvanced, useAdvancedOpen } from '../v2/left-panel/canvases-adv
 import { DsPinnedRows, NewCanvasRow, TrashRow } from '../v2/left-panel/canvases-pinned.jsx';
 import { OPEN_TRASH_EVENT, takeTrashRequest } from '../v2/left-panel/left-panel-bus.js';
 import { dsPinnedModel, trashRowCount } from '../v2/left-panel/left-panel-model.js';
+import { createBlankCanvas } from '../v2/create/new-canvas.js';
 import { newCanvasDesignSystem } from '../v2/ds/new-canvas-default.js';
 import { systemMenuItems } from '../v2/ds/system-menu.jsx';
 import { trashedTokenItems } from '../v2/ds/door-write.js';
@@ -1093,21 +1094,18 @@ export function Sidebar({
       ? destinations.filter((d) => d.path !== menuExtra.dir)
       : [];
 
-  // Phase 22 — inline "new brief board" composer in the tree header. Click +,
-  // type a name, Enter to create (Esc cancels). The board opens active so it's
-  // ready to annotate; generation (ingest) still goes through /design:new.
-  // feature-file-tree-drag-drop-folders (Task 12) — the SAME composer, in
-  // 'folder' mode, backs the header "New folder" button — the plan's
-  // InlineComposer intent (one composer, two submit paths) without a full
-  // component extraction: `composerMode` picks the placeholder + handler.
+  // Phase 22 — the brief composer in the tree header: `canvas.new-brief` (⌘K "New brief canvas") opens it, type a
+  // name, Enter to create (Esc cancels). The brief opens active so it is ready to annotate. "+ New canvas" and
+  // "New folder" are no longer this composer: their row turns into the name field (below).
   const [creating, setCreating] = useState(false);
-  const [composerMode, setComposerMode] = useState('board');
   const [newName, setNewName] = useState('');
   const [newErr, setNewErr] = useState('');
   const [newBusy, setNewBusy] = useState(false);
-  // S1.1 — "New canvas in 2027" on an empty folder opens this same composer aimed at that folder: the
-  // board is created where the server puts new boards, then moved into the folder.
-  const [composerTarget, setComposerTarget] = useState(null); // { path, name } | null
+  // R2-P2 (TD2, F06): "+ New canvas" and "New folder" ask for the name IN PLACE — the row turns into the field —
+  // and the file is written only once the name is committed (a rename afterwards re-keys slug sidecars, DDR-198).
+  // { kind: 'canvas' | 'folder', value, busy, target: { path, name } | null } | null
+  const [naming, setNaming] = useState(null);
+  const [namingErr, setNamingErr] = useState('');
 
   // Default folder-creation target: the first non-DS canvas group's root
   // (mirrors the server's own `newCanvasDir` default for board creation).
@@ -1116,59 +1114,71 @@ export function Sidebar({
     [groups]
   );
 
+  // The brief composer (`canvas.new-brief`, ⌘K "New brief canvas"): a named brief, annotated by hand.
   const submitComposer = useCallback(async () => {
     const name = newName.trim();
     if (!name || newBusy) return;
     setNewBusy(true);
     setNewErr('');
-    if (composerMode === 'folder') {
+    const res = await onNewBoard(name, {});
+    setNewBusy(false);
+    if (res?.ok) {
+      setCreating(false);
+      setNewName('');
+    } else {
+      setNewErr(res?.error || 'could not create the brief canvas');
+    }
+  }, [newName, newBusy, onNewBoard]);
+
+  const cancelNaming = useCallback(() => {
+    setNaming(null);
+    setNamingErr('');
+  }, []);
+  const commitNaming = useCallback(async () => {
+    if (!naming || naming.busy) return;
+    const name = naming.value.trim();
+    if (!name) return;
+    setNaming({ ...naming, busy: true });
+    setNamingErr('');
+    if (naming.kind === 'folder') {
       if (!defaultFolderParent) {
-        setNewBusy(false);
-        setNewErr('no canvas group to create a folder in');
+        setNaming({ ...naming, busy: false });
+        setNamingErr('no canvas group to create a folder in');
         return;
       }
       const res = await onNewFolder(defaultFolderParent, name);
-      setNewBusy(false);
-      if (res?.ok) {
-        setCreating(false);
-        setNewName('');
-      } else {
-        setNewErr(res?.error || 'could not create folder');
+      if (res?.ok) cancelNaming();
+      else {
+        setNaming({ ...naming, busy: false });
+        setNamingErr(res?.error || 'Could not make the folder. Nothing was changed.');
       }
       return;
     }
-    // S10.13 — a board made in a folder starts on the system that folder's canvases share
+    // S10.13 — a canvas made in a folder starts on the system that folder's canvases share
+    const target = naming.target;
     const designSystem =
-      composerTarget && (dsCfg?.designSystems?.length ?? 0) > 1
+      target && (dsCfg?.designSystems?.length ?? 0) > 1
         ? newCanvasDesignSystem({
-            folder: composerTarget.path,
+            folder: target.path,
             canvasDesignSystems: dsCfg.canvasDesignSystems,
             designSystems: dsCfg.designSystems,
             defaultDs: dsCfg.defaultDesignSystem,
             designRel: dsCfg.designRel || '.design',
           })
         : undefined;
-    const res = await onNewBoard(name, { designSystem });
-    if (res?.ok && composerTarget && res.file) await onMoveCanvas?.(res.file, composerTarget.path);
-    setNewBusy(false);
-    if (res?.ok) {
-      setCreating(false);
-      setNewName('');
-      setComposerTarget(null);
+    const res = await createBlankCanvas({ name, sizes: true, designSystem });
+    if (res.ok) {
+      if (target) await onMoveCanvas?.(res.file, target.path);
+      cancelNaming();
     } else {
-      setNewErr(res?.error || 'could not create board');
+      setNaming({ ...naming, busy: false });
+      setNamingErr(
+        res.error && !/^create failed|network/.test(res.error)
+          ? res.error
+          : 'Could not make the canvas. Nothing was changed.'
+      );
     }
-  }, [
-    newName,
-    newBusy,
-    onNewBoard,
-    onNewFolder,
-    onMoveCanvas,
-    composerMode,
-    composerTarget,
-    defaultFolderParent,
-    dsCfg,
-  ]);
+  }, [naming, defaultFolderParent, dsCfg, onNewFolder, onMoveCanvas, cancelNaming]);
 
   // Mock uses `42 / 42` — total openable canvases, not every listed file.
   // We count canvas files (TSX Phase 3.6+ default, HTML legacy) so the counter
@@ -1302,21 +1312,30 @@ export function Sidebar({
   // P8 C4: the board's "+ New canvas" row ends the list and carries the old header pair's hooks.
   const newCanvasRow = readOnly ? null : (
     <NewCanvasRow
-      boardOpen={creating && composerMode === 'board'}
-      folderOpen={creating && composerMode === 'folder'}
+      boardOpen={false}
+      folderOpen={false}
+      naming={
+        naming
+          ? {
+              kind: naming.kind,
+              value: naming.value,
+              busy: naming.busy,
+              error: namingErr,
+              onChange: (value) => setNaming((n) => (n ? { ...n, value } : n)),
+              onCommit: commitNaming,
+              onCancel: cancelNaming,
+            }
+          : null
+      }
       onNew={() => {
-        setNewErr('');
-        setComposerMode('board');
-        setComposerTarget(null);
-        setCreating((v) => (composerMode === 'board' ? !v : true));
+        setNamingErr('');
+        setNaming({ kind: 'canvas', value: 'Untitled canvas', busy: false, target: null });
       }}
       onNewFolder={
         defaultFolderParent
           ? () => {
-              setNewErr('');
-              setComposerMode('folder');
-              setComposerTarget(null);
-              setCreating((v) => (composerMode === 'folder' ? !v : true));
+              setNamingErr('');
+              setNaming({ kind: 'folder', value: 'Untitled folder', busy: false, target: null });
             }
           : undefined
       }
@@ -1344,17 +1363,11 @@ export function Sidebar({
             type="text"
             // biome-ignore lint/a11y/noAutofocus: deliberate — the composer opens on an explicit click.
             autoFocus
-            placeholder={
-              composerMode === 'folder'
-                ? 'folder name…'
-                : composerTarget
-                  ? `brief board name in ${composerTarget.name}…`
-                  : 'brief board name…'
-            }
+            placeholder="Brief canvas name…"
             value={newName}
             maxLength={60}
             disabled={newBusy}
-            aria-label={composerMode === 'folder' ? 'New folder name' : 'New brief board name'}
+            aria-label="New brief canvas name"
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
@@ -1365,7 +1378,6 @@ export function Sidebar({
                 setCreating(false);
                 setNewName('');
                 setNewErr('');
-                setComposerTarget(null);
               }
             }}
           />
@@ -1374,16 +1386,16 @@ export function Sidebar({
             className="cv-newboard-go"
             disabled={newBusy || !newName.trim()}
             data-tip="Create · Enter"
-            aria-label={composerMode === 'folder' ? 'Create folder' : 'Create brief board'}
+            aria-label="Create brief canvas"
             onClick={submitComposer}
           >
             {newBusy ? '…' : '↵'}
           </button>
         </div>
       ) : null}
-      {newErr ? (
+      {newErr || namingErr ? (
         <div className="cv-newboard-err" role="alert">
-          {newErr}
+          {newErr || namingErr}
         </div>
       ) : null}
 
@@ -1488,9 +1500,16 @@ export function Sidebar({
             dirtyByPath={dirtyByPath}
             canvasKinds={canvasKinds}
             onNewCanvasIn={(path, name) => {
+              setNamingErr('');
+              setNaming({
+                kind: 'canvas',
+                value: 'Untitled canvas',
+                busy: false,
+                target: { path, name },
+              });
+            }}
+            onNewBrief={() => {
               setNewErr('');
-              setComposerMode('board');
-              setComposerTarget({ path, name });
               setCreating(true);
             }}
           >

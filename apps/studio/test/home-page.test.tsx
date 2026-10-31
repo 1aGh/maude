@@ -406,9 +406,14 @@ describe('Home page in the desktop app', () => {
       root: '/Users/x/Maude/Plakaty',
     });
     expect($('home-create-dialog')).toBeNull();
-    // 11 pn-home: the Projects foot is "N more" + Open project… — New project… lives in the menu (⇧⌘N), not a row
-    expect($('home-new-project')).toBeNull();
+    // R2-P2 (F11, overrides the 11 pn-home foot): the Projects foot carries a visible New project next to
+    // Open project…, and it opens the same sheet as the menu row
     expect($('home-open-folder')).not.toBeNull();
+    expect($('home-new-project')).not.toBeNull();
+    expect($('home-new-project')?.parentElement).toBe($('home-open-folder')?.parentElement);
+    act(() => $('home-new-project')?.click());
+    expect($('home-create-dialog')).not.toBeNull();
+    expect(($('home-create-name') as HTMLInputElement).value).toBe('Untitled project');
   });
 
   test('a long Projects list shows its first rows and "N more"; the foot opens the rest', async () => {
@@ -855,7 +860,7 @@ describe('home-api', () => {
           'shellInvoke',
           'shellListen',
         ].includes(name) &&
-        !/^(shellState|openProject|openProjectFolder|relinkProject|managedProjectOpen|openCloudUrl|openCellDoor|takePendingDeepLink|takePendingInvite|signInPrepare|signInOpenBrowser|signInDone)$/.test(
+        !/^(shellState|openProject|openProjectFolder|relinkProject|managedProjectOpen|openCloudUrl|openCellDoor|takePendingDeepLink|takePendingInvite|pickProjectLocation|signInPrepare|signInOpenBrowser|signInDone)$/.test(
           name
         )
     );

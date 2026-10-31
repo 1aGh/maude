@@ -1,17 +1,19 @@
 /**
- * @canvas      {{NAME}} — brief board
+ * @canvas      {{NAME}} — brief canvas
  * @ds          {{DS_NAME}}
  * @platform    {{PLATFORM}}
  * @kind        brief-board
  * @stack       React 19 · TSX · Bun.build
  * @history     {{HISTORY_DIR}}
  *
- * Annotation-only brief board (Phase 22). This canvas is born EMPTY on purpose:
- * one framed reference artboard you fill with sticky notes (N), text (T), and
- * arrows (A) describing what each screen should do. When you run `/design:new`
- * again while this board is the active canvas, Claude reads those annotations as
- * a VERBATIM brief and inserts the matching generated artboards right here, below
- * this frame — the board becomes a living brief you sketch and Claude fills in.
+ * Annotation-only brief canvas (Phase 22). This canvas is born EMPTY on purpose:
+ * one framed reference artboard you fill with sticky notes, text and arrows
+ * describing what each artboard should do. When `/design:new` runs again while
+ * this canvas is the active one, the agent reads those annotations as a VERBATIM
+ * brief and inserts the matching generated artboards right here, below this
+ * frame — the canvas becomes a living brief you sketch and AI fills in. The words
+ * on the artboard below are the person's, in the app's voice (no commands, no
+ * product names, no key letters): keep them that way.
  *
  * The annotation layer lives in a sibling `<slug>.annotations.json` (NEVER in this
  * file), so your notes stay floating on top across every regeneration. No design
@@ -25,7 +27,7 @@ export default function {{COMPONENT_NAME}}() {
   return (
     <DesignCanvas>
       <DCSection id="brief-board" title="Brief">
-        <DCArtboard id="brief" label="Brief — annotate me" width={1280} height={800}>
+        <DCArtboard id="brief" label="Brief" width={1280} height={800}>
           <div
             style={{
               boxSizing: "border-box",
@@ -49,9 +51,8 @@ export default function {{COMPONENT_NAME}}() {
             </div>
             <div style={{ fontSize: "14px", color: "#8a9099" }}>{{SEED_HINT}}</div>
             <div style={{ fontSize: "13px", maxWidth: "460px", lineHeight: 1.55 }}>
-              Drop sticky notes (N), text (T) &amp; arrows (A) here describing what
-              each screen should do — then run <code>/design:new</code> again to have
-              Claude read your notes and lay the matching artboards out right here.
+              Add sticky notes, text and arrows here to describe what each
+              artboard should do. Then ask AI for a first draft from your notes.
             </div>
           </div>
         </DCArtboard>

@@ -337,7 +337,7 @@ export function usePaletteAndPanels({
   const paletteActions = useMemo(() => {
     const run = {
       'canvas.new': () => {
-        createBlankCanvas({ toast: shellToast });
+        createBlankCanvas({ toast: shellToast, sizes: true });
       },
       'canvas.new-brief': () => openBriefBoardComposer({ openPanelExclusive }),
       'canvas.new-video': () => createVideo(),

@@ -41,7 +41,8 @@ import {
  * DOM rects (frame-local px), assertions are on the files on disk or on a `data-testid` the layers draw.
  *
  * KNOWN GAPS NOT ASSERTED (named in .ai/scenarios/maude-v2/s6-first-canvas.md and the S6.16 evidence):
- *   · cf-select-tweak: the Canvases panel does not fold and the canvas does not slide on select.
+ *   · cf-select-tweak: the canvas does not slide on select (the panel rule is asserted in step 2: it folds only in
+ *     a narrow window, TD4).
  *   · cf-duplicate-done: the copy lands RIGHT of the row at its gap (14 ed-ab-menu), not under the source, and no
  *     "Duplicated at Laptop — 1280 wide." toast with Undo is shown.
  *
@@ -254,6 +255,18 @@ describe('first canvas (S6.16) — a sentence on Home to a saved, shared canvas'
   });
 
   it('2 · select Desktop: the artboard is chosen and the inspector arrives, naming it (cf-select-tweak)', async () => {
+    // TD4: the window size is part of the rule (fold below 1240, restore above 1320), so the step pins it: a wide
+    // window first (the app's default 1280 sits in the dead band, which proves nothing), then narrow and wide again.
+    type Bounds = { inner: [number, number] };
+    const resizeTo = (size: [number, number]) => invokeTauri<Bounds>('e2e_shell_bounds', { size });
+    const original = (await invokeTauri<Bounds>('e2e_shell_bounds', {})).inner;
+    await resizeTo([1500, 900]);
+    await browser.waitUntil(async () => (await browser.execute(() => window.innerWidth)) >= 1400, {
+      timeout: 10_000,
+      timeoutMsg: 'the window never reached the pinned 1500 px',
+    });
+    const leftShown = () => $(tid('panel-head-left')).isExisting();
+    expect(await leftShown()).toBe(true);
     await selectArtboard('desktop');
     await browser.waitUntil(async () => (await selected()) === 'desktop', {
       timeout: 15_000,
@@ -288,6 +301,29 @@ describe('first canvas (S6.16) — a sentence on Home to a saved, shared canvas'
         throw new Error(`the inspector does not name Desktop: ${JSON.stringify(await read())}`);
       });
     await capture('02-select-inspector');
+    // TD4 — wide window: the Inspector arrived and Canvases is still there (it used to fold on every selection)
+    expect(await leftShown()).toBe(true);
+    // F27 — the active tab is not a toggle: a click on it keeps the panel
+    await $(tid('panel-tab-tree')).click();
+    await browser.pause(500);
+    expect(await leftShown()).toBe(true);
+    // narrow window under the standing selection: it folds to its corner icon…
+    await resizeTo([1100, 800]);
+    await browser.waitUntil(async () => !(await leftShown()), {
+      timeout: 10_000,
+      timeoutMsg: 'a 1100 px window kept Canvases open under a selection',
+    });
+    // …the dead band between the two widths changes nothing…
+    await resizeTo([1280, 800]);
+    await browser.pause(600);
+    expect(await leftShown()).toBe(false);
+    // …and a window past 1320 brings it back
+    await resizeTo([1400, 800]);
+    await browser.waitUntil(leftShown, {
+      timeout: 10_000,
+      timeoutMsg: 'a 1400 px window did not bring Canvases back',
+    });
+    await resizeTo(original);
   });
 
   it('3 · F with nothing selected: the size picker; Laptop adds a 1280 × 800 artboard (cf-add-artboard)', async () => {

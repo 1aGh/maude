@@ -76,7 +76,7 @@ import {
   thumbUrl,
 } from './home-model.js';
 import { pickStarters } from './home-starters.js';
-import { ProjectsEmpty, SharedWithYou } from './Shelves.jsx';
+import { NewProjectButton, ProjectsEmpty, SharedWithYou } from './Shelves.jsx';
 import { reasonProps } from '../v2/access/disabled-reason.js';
 
 // ── theme: the Home window follows the Mac's appearance (light is the v2 default) ──────────────
@@ -356,7 +356,16 @@ export function HomeApp() {
   const [searchOpen, setSearchOpen] = useState(false);
   // null | { name, busy } — the New project… sheet.
   const [creating, setCreating] = useState(null);
-  const askNewProject = useCallback(() => setCreating((c) => c ?? { name: '', busy: false }), []);
+  // every door to a new project opens this one sheet, with a real name in it ("Untitled project", selected);
+  // `intent` is what the person asked for before the project existed, carried to the project's own tab
+  const askNameFor = useCallback(
+    (intent) =>
+      setCreating(
+        (c) => c ?? { name: 'Untitled project', busy: false, ...(intent ? { intent } : {}) }
+      ),
+    []
+  );
+  const askNewProject = useCallback(() => askNameFor(null), [askNameFor]);
   const online = useOnline();
   // S6.8 — the sign-in card, its toast, the Advanced flyout (closed on every launch) and the What's New line
   const [toast, setToast] = useState(null);
@@ -690,10 +699,13 @@ export function HomeApp() {
         } else if (target.kind === 'cloud') {
           const prep = await prepareCloud(target.profile, null, target.projectId);
           await openPrepared(prep, target.name, target.profile, null, intent);
+        } else if (!intent.prompt) {
+          // R2-P2 (F11): a new project from "a project on this Mac" with no sentence to name it asks for the name,
+          // in the same sheet as File ▸ New project…; the intent waits and goes with the project to its tab
+          askNameFor(intent);
+          return false;
         } else {
-          const r = intent.prompt
-            ? await createLocalFromPrompt(intent.prompt)
-            : await createLocal('');
+          const r = await createLocalFromPrompt(intent.prompt);
           if (!r.ok || !r.json?.ok || typeof r.json.root !== 'string') {
             setNotice(r.json?.error || 'The project could not be created. Nothing changed.');
             return false;
@@ -713,7 +725,7 @@ export function HomeApp() {
         setAsking(false);
       }
     },
-    [data.native, target, signedIn, cloudOnline, openPrepared, fail]
+    [data.native, target, signedIn, cloudOnline, openPrepared, fail, askNameFor]
   );
   const sendSentence = useCallback(
     (prompt) => startIn({ kind: 'create-canvas', prompt }),
@@ -781,13 +793,24 @@ export function HomeApp() {
         setCreating((c) => (c ? { ...c, busy: false } : c));
         return;
       }
+      const intent = creating.intent;
       setCreating(null);
-      await openProject({ root: r.json.root });
+      await openProject(
+        { root: r.json.root },
+        null,
+        intent
+          ? {
+              ...intent,
+              projectHint: r.json.name,
+              ...(signedIn && cloudOnline ? { moveToCloud: true } : {}),
+            }
+          : undefined
+      );
     } catch (e) {
       setCreating(null);
       fail(e);
     }
-  }, [creating, data.native, fail]);
+  }, [creating, data.native, fail, signedIn, cloudOnline]);
   // r1 (img 6): "Choose another folder…" — the native picker; a cancel keeps what was there
   const chooseLocation = useCallback(async () => {
     try {
@@ -1167,22 +1190,30 @@ export function HomeApp() {
                   ) : (
                     <span />
                   )}
-                  <button
-                    type="button"
-                    className="btn btn--ghost btn--sm home-projopen"
-                    data-testid="home-open-folder"
-                    onClick={openFolder}
-                    disabled={!data.native}
-                  >
-                    <HIcon name="folder" size={14} />
-                    Open project…
-                    <kbd className="kbd">⌘O</kbd>
-                  </button>
+                  <span className="home-projacts">
+                    <NewProjectButton native={data.native} onNewProject={askNewProject} />
+                    <button
+                      type="button"
+                      className="btn btn--ghost btn--sm home-projopen"
+                      data-testid="home-open-folder"
+                      onClick={openFolder}
+                      disabled={!data.native}
+                    >
+                      <HIcon name="folder" size={14} />
+                      Open project…
+                      <kbd className="kbd">⌘O</kbd>
+                    </button>
+                  </span>
                 </div>
               </div>
             </section>
           ) : data.status !== 'loading' && !cardOn && (firstRunSeen !== null || !data.native) ? (
-            <ProjectsEmpty signedIn={signedIn} native={data.native} onOpenFolder={openFolder} />
+            <ProjectsEmpty
+              signedIn={signedIn}
+              native={data.native}
+              onOpenFolder={openFolder}
+              onNewProject={askNewProject}
+            />
           ) : null}
         </div>
       </main>

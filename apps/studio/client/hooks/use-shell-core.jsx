@@ -999,7 +999,13 @@ export function useShellCore({}) {
       // The panel only; the view never moves (I1). Same side as the Inspector? The exclusive rule above shut it.
       const canvasesOpen =
         !!panelStateRef.current.open?.tree && sideOf('tree') !== sideOf('inspector');
-      if (canvasesFold.current.arrive({ canvasesOpen, pinned: panelLayout.get().pinned })) {
+      if (
+        canvasesFold.current.arrive({
+          canvasesOpen,
+          pinned: panelLayout.get().pinned,
+          width: window.innerWidth,
+        })
+      ) {
         setSidebarOpen(false);
       }
     },
@@ -1040,6 +1046,23 @@ export function useShellCore({}) {
     ) {
       setSidebarOpen(true);
     }
+  }, [hasSelection]);
+  // TD4 — a window that narrows under a standing selection folds Canvases; one that widens again past the second
+  // width brings it back. No timer: the rule's two widths are the whole debounce.
+  useEffect(() => {
+    const onResize = () => {
+      const verdict = canvasesFold.current.resize({
+        width: window.innerWidth,
+        hasSelection,
+        inspectorOpen: !!panelStateRef.current.open?.inspector,
+        canvasesOpen: !!panelStateRef.current.open?.tree,
+        pinned: panelLayout.get().pinned,
+      });
+      if (verdict === 'fold') setSidebarOpen(false);
+      else if (verdict === 'restore') setSidebarOpen(true);
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
   }, [hasSelection]);
   // DDR-148 — the Timeline is a BOTTOM dock, independent of the right rail: it
   // toggles on its own and coexists with Inspector/Changes/Comments/Chat.
