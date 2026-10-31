@@ -61,10 +61,6 @@
       "platform": "web"
     }
   ],
-  "linkedHub": {
-    "url": "http://localhost:1234",
-    "linkedAt": 1779971101933
-  },
   "generation": {
     "transcription": {
       "provider": "elevenlabs"
