@@ -22,7 +22,7 @@
 // Pure apart from the AsyncLocalStorage and the disk reader at the bottom.
 
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import type { Closure, ProjectReader } from './closure.ts';
 // S9.12 — the revert-guard seam (a call-time read, so the import cycle with filters.ts is inert).
@@ -506,6 +506,33 @@ const LIST_CAP = 20000;
 /** A file name that could be a canvas (closure.ts `grantedBySlug`'s twin scan). */
 const CANVAS_SHAPED_RE = /\.(tsx|html)$/i;
 
+/** `present()`'s marker for a parent folder whose real path leaves the design root. */
+const ESCAPES: unique symbol = Symbol('escapes');
+
+/**
+ * Whether `dir` (or its deepest existing ancestor — a missing folder holds nothing) really resolves
+ * to `root` or inside it, both sides through `realpathSync` (a `/var` root is `/private/var`). Any
+ * resolution failure is an escape (fail closed). The hub's `parentInsideReal` twin.
+ */
+function parentInsideReal(dir: string, root: string): boolean {
+  const realDeepest = (p: string): string => {
+    let probe = p;
+    for (let i = 0; i < 64 && !existsSync(probe); i++) {
+      const parent = dirname(probe);
+      if (parent === probe) break;
+      probe = parent;
+    }
+    return resolve(realpathSync(probe) + p.slice(probe.length));
+  };
+  try {
+    const realRoot = realDeepest(root);
+    const realDir = realDeepest(dir);
+    return realDir === realRoot || realDir.startsWith(realRoot + sep);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * The design root on disk as a `ProjectReader`. `head` is a generation the caller bumps on
  * every file change (the closure cache key), so a closure is recomputed after the tree moves.
@@ -519,14 +546,21 @@ export function diskProjectReader(
   let skipped: string[] = [];
   // p8-closure-lows-2 — each folder's names, read once per walk (every walk drains `list()` first,
   // which clears it): a missing owner costs one directory read, not one per name looked up.
-  let names = new Map<string, ReadonlySet<string> | null>();
-  const namesOf = (dir: string): ReadonlySet<string> | null => {
+  // p8-closure-lows-3 — `ESCAPES` marks a folder whose real path leaves the design root (a
+  // symlinked folder): every name in it answers "present", so the owner rule fails closed and the
+  // host folder is never listed (the hub's `presentIn` twin, `apps/hub/src/access-files.mjs`).
+  let names = new Map<string, ReadonlySet<string> | null | typeof ESCAPES>();
+  const namesOf = (dir: string): ReadonlySet<string> | null | typeof ESCAPES => {
     let set = names.get(dir);
     if (set === undefined) {
-      try {
-        set = new Set(readdirSync(dir).map((n) => n.normalize('NFC')));
-      } catch {
-        set = null;
+      if (!parentInsideReal(dir, designRoot)) {
+        set = ESCAPES;
+      } else {
+        try {
+          set = new Set(readdirSync(dir).map((n) => n.normalize('NFC')));
+        } catch {
+          set = null;
+        }
       }
       names.set(dir, set);
     }
@@ -552,9 +586,9 @@ export function diskProjectReader(
       if (isAbsolute(rel) || segs.some((s) => s === '' || s === '.' || s === '..')) return false;
       const abs = join(designRoot, rel);
       if (!resolve(abs).startsWith(resolve(designRoot) + sep)) return false;
-      return (
-        namesOf(dirname(abs))?.has((segs[segs.length - 1] as string).normalize('NFC')) === true
-      );
+      const set = namesOf(dirname(abs));
+      if (set === ESCAPES) return true;
+      return set?.has((segs[segs.length - 1] as string).normalize('NFC')) === true;
     },
     unlisted: () => skipped,
     *list() {

@@ -229,6 +229,20 @@ describe('the same-name owner rule fails closed (p8-closure-lows)', () => {
       expect(reader.present?.(`../${basename(outside)}/x.tsx`)).toBe(false);
       expect(reader.present?.(join(outside, 'x.tsx'))).toBe(false);
     });
+
+    // p8-closure-lows-3 (V2-8.9 recheck #2) — the hub's `presentIn` twin: a parent FOLDER that
+    // symlinks outside the root is never listed (so the closure never asks today), but `present()`
+    // must not list the host folder either — it answers "present", fail closed, whatever is there.
+    test('present() under a parent folder symlinked outside the root answers true', () => {
+      lay(BASE);
+      symlinkSync(outside, join(root, 'link'));
+      const reader = diskProjectReader(root, () => 'h');
+      expect(reader.present?.('link/foo.tsx')).toBe(true);
+      expect(reader.present?.('link/sub/foo.tsx')).toBe(true);
+      // an in-root missing folder still holds nothing
+      expect(reader.present?.('ui/nope/x.tsx')).toBe(false);
+      expect(reader.present?.(GRANT)).toBe(true);
+    });
   });
 });
 

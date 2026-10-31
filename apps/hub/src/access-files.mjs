@@ -29,7 +29,7 @@
 // (documents, history, the accepted lane) still refuses the session.
 
 import { createHash } from 'node:crypto';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
 
 import {
@@ -163,6 +163,9 @@ function walkDesignRoot(designRoot) {
   return { found, skipped, truncated };
 }
 
+/** `presentIn`'s marker for a parent folder whose real path leaves the design root. */
+const ESCAPES = Symbol('escapes');
+
 /**
  * p8-closure-lows-2 — whether the design root holds an entry at exactly `rel`
  * (a symlink, a dangling one): the parent's NAMES only, compared in NFC on both
@@ -178,14 +181,49 @@ function presentIn(designRoot, rel, names) {
   const dir = dirname(abs);
   let set = names.get(dir);
   if (set === undefined) {
-    try {
-      set = new Set(readdirSync(dir).map((n) => n.normalize('NFC')));
-    } catch {
-      set = null;
+    // p8-closure-lows-3 — the text check above cannot see a symlinked FOLDER inside the root
+    // (`link/` → a host folder, its stale journal row still listing `link/foo.css`): `readdirSync`
+    // would list the host folder and answer one bit about it. A parent whose real path leaves the
+    // root, or that cannot be resolved, answers "present" for every name — the owner rule then
+    // keeps the stylesheet refused, whatever the host folder holds.
+    if (!parentInsideReal(dir, designRoot)) {
+      set = ESCAPES;
+    } else {
+      try {
+        set = new Set(readdirSync(dir).map((n) => n.normalize('NFC')));
+      } catch {
+        set = null;
+      }
     }
     names.set(dir, set);
   }
+  if (set === ESCAPES) return true;
   return set?.has(segs[segs.length - 1].normalize('NFC')) === true;
+}
+
+/**
+ * Whether `dir` (or its deepest existing ancestor — a folder that does not exist holds nothing)
+ * really resolves to the design root or inside it. Mirrors `containedReal` (`asset-lane.mjs`):
+ * both sides through `realpathSync`, so a root under `/var` (→ `/private/var`) still compares.
+ * Any resolution failure is an escape (fail closed).
+ */
+function parentInsideReal(dir, root) {
+  const realDeepest = (p) => {
+    let probe = p;
+    for (let i = 0; i < 64 && !existsSync(probe); i++) {
+      const parent = dirname(probe);
+      if (parent === probe) break;
+      probe = parent;
+    }
+    return resolve(realpathSync(probe) + p.slice(probe.length));
+  };
+  try {
+    const realRoot = realDeepest(root);
+    const realDir = realDeepest(dir);
+    return realDir === realRoot || realDir.startsWith(realRoot + sep);
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -209,6 +247,11 @@ export function projectReader({ designRoot, journal }) {
   for (const [rel, f] of [...disk.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1))) {
     sig.update(`${rel}\u0000${f.size}\u0000${f.mtimeMs}\u0001`);
   }
+  // p8-closure-lows-3 — and what the walk left out: a commit that only adds a symlinked twin or an
+  // empty folder past the depth cap moves neither the journal nor a walked file, yet it turns a
+  // granted same-name stylesheet into a refused one; the cached closure must not outlive it.
+  sig.update(`\u0002${truncated ? 1 : 0}\u0002`);
+  for (const rel of [...skipped].sort()) sig.update(`${rel}\u0003`);
   const head = sig.digest('hex');
   const all = new Set([...disk.keys(), ...journalPaths]);
   let names = new Map();

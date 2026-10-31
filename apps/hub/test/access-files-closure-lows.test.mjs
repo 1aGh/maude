@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { afterEach, beforeEach, test } from 'node:test';
 
-import { closureFor } from '../../studio/access/closure.ts';
+import { closureFor, createClosureCache } from '../../studio/access/closure.ts';
 import { narrowToFrame } from '../../studio/access/frame.ts';
 import { resolveAccess } from '../../studio/access/scope.ts';
 import { projectReader } from '../src/access-files.mjs';
@@ -120,4 +120,71 @@ test('a symlinked victim at the owner path: refused', () => {
   const c = closureFor(narrowToFrame(OWNER, [attacker]), reader());
   assert.equal(c.blocked.has(attacker), true);
   assert.equal(c.read.has(CSS), false);
+});
+
+// p8-closure-lows-3 (V2-8.9 recheck #2, Low) — `present()` must not follow a symlinked parent
+// folder. A tenant commits `link/foo.css`, then swaps `link/` for a symlink to a host folder; the
+// stale journal row keeps `link/foo.css` listed. A granted `link-foo.tsx` with a board importing
+// `./link/foo.css` would ask `present('link/foo.tsx')`, and the answer would be the host folder's
+// listing — one bit about the host. A parent whose real path leaves the root answers "present", so
+// the stylesheet stays the (unknowable) owner's: refused, whatever the host folder holds.
+const LINK_GRANT = 'link-foo.tsx';
+const LINK_CSS = 'link/foo.css';
+const linkCanvas = CANVAS.replace('./combine-admin.css', `./${LINK_CSS}`);
+const journalOf = (paths) => ({
+  epoch: () => 'e1',
+  head: () => 1,
+  compaction: () => paths.map((path) => ({ path })),
+});
+
+test('present() answers true under a parent folder that symlinks outside the root', () => {
+  lay({ 'config.json': '{}', [LINK_GRANT]: linkCanvas, 'link-foo.annotations.json': '{"v":1}' });
+  symlinkSync(outside, join(root, 'link'));
+  const r = projectReader({ designRoot: root, journal: journalOf([LINK_CSS]) });
+  assert.equal(r.list().has(LINK_CSS), true);
+  // the host folder holds no foo.tsx — the answer must not depend on that
+  assert.equal(r.present('link/foo.tsx'), true);
+  assert.equal(r.present('link/foo.meta.json'), true);
+  // a nested missing folder under the escaping link: still fail closed
+  assert.equal(r.present('link/sub/foo.tsx'), true);
+  // the observable bit: the grant is blocked (the import refused) whether or not the host folder
+  // holds foo.tsx — pre-fix it opened when the host folder lacked one
+  const c = closureFor(narrowToFrame(OWNER, [LINK_GRANT]), r);
+  assert.equal(c.blocked.has(LINK_GRANT), true);
+  assert.equal(c.read.has(LINK_CSS), false);
+});
+
+test('present() still answers false for a missing name in a missing in-root folder', () => {
+  lay(BASE);
+  const r = reader();
+  assert.equal(r.present('ui/nope/x.tsx'), false);
+  assert.equal(r.present('config.tsx'), false);
+});
+
+// p8-closure-lows-3 (Info) — the reader's cache key covers what the walk left out: a commit that only
+// adds a symlinked twin (or an empty deep folder past the cap) leaves every walked file and the
+// journal head unchanged, so a cached "granted" closure would otherwise survive it.
+test('adding only a symlinked slug twin changes head(): the closure is recomputed and refused', () => {
+  lay(BASE);
+  const cache = createClosureCache(8);
+  const first = reader();
+  const before = closureFor(narrowToFrame(OWNER, [GRANT]), first, cache);
+  assert.equal(before.read.has(CSS), true);
+  writeFileSync(join(outside, 'twin.tsx'), CANVAS.replace('function A', 'function T'));
+  mkdirSync(join(root, 'ui/2026-combine'), { recursive: true });
+  symlinkSync(join(outside, 'twin.tsx'), join(root, 'ui/2026-combine/combine-admin.tsx'));
+  const second = reader();
+  assert.notEqual(second.head(), first.head());
+  const after = closureFor(narrowToFrame(OWNER, [GRANT]), second, cache);
+  assert.equal(after.blocked.has(GRANT), true);
+  assert.equal(after.read.has(CSS), false);
+});
+
+test('a walk that only becomes truncated changes head()', () => {
+  lay(BASE);
+  const first = reader();
+  mkdirSync(join(root, 'a/b/c/d/e/f/g/h/i'), { recursive: true });
+  const second = reader();
+  assert.equal(second.listTruncated(), true);
+  assert.notEqual(second.head(), first.head());
 });
