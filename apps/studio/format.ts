@@ -255,6 +255,10 @@ export const FORMAT_COPY = {
   olderUpdating: 'Updating this project for Maude 2…',
   olderNonOwner:
     'View only — this project moves to Maude 2 once its owner opens it. Ask the owner.',
+  /** gate-b-sec4 — the committed link was never made on this Mac (parked): Connect (r1-format-ds). */
+  olderLinkUnconfirmed:
+    "View only — this project says it syncs with a team server that isn't connected on this Mac. Connect it, and the project moves to Maude 2 by itself.",
+  connectAction: 'Connect',
   olderHubTooOld:
     'View only — the team server needs an update before this project can move to Maude 2.',
   olderOwnerOffline:

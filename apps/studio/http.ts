@@ -2346,6 +2346,8 @@ export function createHttp(
         const rec = url ? getHubRecord(url) : null;
         return url && rec ? { url, token: rec.token, role: rec.role ?? 'member' } : null;
       },
+      // gate-b-sec4 — the committed link boot parked (never made on this Mac): Connect, not Sign in
+      parkedHub: () => ctx.unconfirmedHub?.url ?? null,
       formatView: (req) => formatConfigFields(ctx, roleReadOnly(req), FORMAT_GATE_OPTS),
       onMigrated: () => {
         if (reloadConfig(ctx)) ctx.bus.emit('config-updated');

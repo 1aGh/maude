@@ -409,3 +409,46 @@ describe('the re-check backs off', () => {
     }
   });
 });
+
+// r1-format-ds (Michal rc.1, item 1) — a parked committed link (gate-b-sec4): the line names it and the
+// one action is Connect, which records the link on this Mac and asks again; the owner then converts.
+describe('a parked link: Connect, then it converts by itself', () => {
+  test('Connect posts the link confirm, the re-probe converts unasked', async () => {
+    const seen: string[] = [];
+    let confirmed = false;
+    let applies = 0;
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      seen.push(`${init?.method ?? 'GET'} ${url}`);
+      if (url === '/_api/sync/link/confirm') {
+        confirmed = true;
+        return new Response('{"ok":true}', { status: 200 });
+      }
+      if (url === '/_api/project/migrate') {
+        const body = JSON.parse(String(init?.body ?? '{}'));
+        if (body.apply) {
+          applies++;
+          return new Response(JSON.stringify(appliedOk(1, { role: 'owner' })), { status: 200 });
+        }
+        const d = confirmed
+          ? dryLinked({ modeDue: false })
+          : dryLinked({ role: 'unknown', hubFormat: null, capabilities: [] }, ['link-unconfirmed']);
+        return new Response(JSON.stringify(d), { status: 200 });
+      }
+      return new Response('{}', { status: 200 });
+    }) as typeof fetch;
+    const { OLDER_COPY } = await import('../client/v2/shell/format-update.js');
+    await mount();
+    expect(kind()).toBe('link-unconfirmed');
+    expect(line()).toContain(OLDER_COPY.olderLinkUnconfirmed);
+    expect(line()).not.toContain('signed in');
+    expect($('format-older-sign-in')).toBe(null);
+    expect(applies).toBe(0);
+    const btn = $('format-older-connect');
+    expect(btn?.textContent).toBe(OLDER_COPY.connectAction);
+    await act(async () => btn?.click());
+    await wait(40);
+    expect(seen).toContain('POST /_api/sync/link/confirm');
+    expect(applies).toBe(1);
+  });
+});

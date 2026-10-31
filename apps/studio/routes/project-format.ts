@@ -28,6 +28,8 @@ export interface ProjectFormatDeps {
   designRel: string;
   /** the linked hub's credential + role (hubs-config), null when unlinked */
   hub: () => MigrateOptions['hub'];
+  /** gate-b-sec4 — the committed link this Mac parked at boot (`ctx.unconfirmedHub?.url`), else null */
+  parkedHub?: () => string | null;
   /** the format view `/_config` also serves (format.ts formatConfigFields) */
   formatView: (req: Request) => unknown;
   /** after an apply: reload config + emit `config-updated` so shells refetch */
@@ -111,6 +113,7 @@ export function createProjectFormatRoutes(deps: ProjectFormatDeps): RouteSpec[] 
           direction,
           strip: body.strip === true,
           hub: deps.hub(),
+          parkedHub: deps.parkedHub?.() ?? null,
           viaStudio: true,
           ...deps.engine,
         };

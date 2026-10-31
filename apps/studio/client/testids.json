@@ -14814,6 +14814,21 @@
     "v2": "new"
   },
   {
+    "hook": "format-older-connect",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The callout's Connect button — a format-1 project whose committed linkedHub was never linked on this Mac (gate-b-sec4, parked). POSTs /_api/sync/link/confirm, then the dry run asks again.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/format-update.jsx",
+      "symbol": "OlderFormatCallout"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/p8-v1-drop-auto-convert.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "format-older-team-server",
     "kind": "testid",
     "pattern": false,

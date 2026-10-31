@@ -243,6 +243,22 @@ export function OlderFormatCallout() {
     setDialog(which);
   };
 
+  // gate-b-sec4 — the parked claim's Connect (the Share sheet's own door): record the link on this Mac,
+  // then ask again; once linked, the project updates by itself when this Mac may (r1-format-ds).
+  const connect = async () => {
+    try {
+      await fetch('/_api/sync/link/confirm', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'content-type': 'application/json' },
+        body: '{}',
+      });
+    } catch {
+      /* the next probe says what is still true */
+    }
+    void probe();
+  };
+
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(teamServerCommand(cfg?.version));
@@ -320,6 +336,16 @@ export function OlderFormatCallout() {
             onClick={() => window.open(shown.href, '_blank', 'noopener,noreferrer')}
           >
             {SAVE_COPY.cloudAction}
+          </button>
+        )}
+        {action === 'connect' && (
+          <button
+            type="button"
+            className="btn btn--sm"
+            data-testid="format-older-connect"
+            onClick={() => void connect()}
+          >
+            {OLDER_COPY.connectAction}
           </button>
         )}
         {action === 'team-server' && (
