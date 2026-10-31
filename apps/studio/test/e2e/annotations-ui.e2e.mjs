@@ -25,6 +25,9 @@ import {
 
 let server;
 let c;
+// End of the line in a textarea: macOS Chromium's End only scrolls (the caret stays), ⌘→ is the Mac's line end.
+// The R1 scenarios were written against End and went red on every Mac run (the 3 base failures, r2-p3).
+const LINE_END = process.platform === 'darwin' ? 'Meta+ArrowRight' : 'End';
 
 before(async () => {
   server = await startServer(await makeProjectFor(REPORT_BOARD));
@@ -51,7 +54,7 @@ describe('R1 — Shift+Enter moves the caret to the new line', () => {
       await c.page.mouse.dblclick(x, y);
       await sleep(300);
       assert.ok(await caretState(), `double-click opens the ${id} editor`);
-      await c.page.keyboard.press('End');
+      await c.page.keyboard.press(LINE_END);
       await c.page.keyboard.press('Shift+Enter');
       await sleep(200);
       const s = await caretState();
@@ -461,7 +464,7 @@ describe('R7 — Task 19: drafts and a collaborator while editing', () => {
     const [x, y] = await c.center('duo');
     await c.page.mouse.dblclick(x, y);
     await sleep(300);
-    await c.page.keyboard.press('End');
+    await c.page.keyboard.press(LINE_END);
     await c.page.keyboard.type(' A');
     const board = await waitForBoard(server.root, (b) => b.get('duo')?.text === 'shared A');
     assert.equal(board.get('duo').text, 'shared A');
@@ -508,7 +511,7 @@ describe('R7 — Task 19: drafts and a collaborator while editing', () => {
     const [x, y] = await c.center('gone');
     await c.page.mouse.dblclick(x, y);
     await sleep(300);
-    await c.page.keyboard.press('End');
+    await c.page.keyboard.press(LINE_END);
     await c.page.keyboard.type(' kept');
     await peerOps(server, [{ op: 'delete', id: 'gone' }]);
     await waitForBoard(server.root, (b) => !b.has('gone'));
