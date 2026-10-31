@@ -18,7 +18,8 @@
 //
 // Who may see / publish them (the relay strip, `collab/room.ts` + `apps/hub/src/present-strip.mjs`):
 //   - a presentation FOLLOWER (receive-only `follow` capability — a person outside the project) never
-//     receives `timeline` or `editing` (MEMBER_ONLY_FIELDS);
+//     receives `timeline`, `editing` or `holding` (MEMBER_ONLY_FIELDS) — `holding` carries the actor
+//     the hub stamps on it (p8-holding-strip), and nobody outside the project sees who holds what;
 //   - a read-only connection (no `edit` on the canvas) never publishes `editing` (EDITOR_ONLY_FIELDS) —
 //     a viewer cannot fix a caption, so its claim to be fixing one would only lock other people out.
 //     Nor `holding` (V2-1.15 §5.12, p8-holding-strip / final-4 recheck I1): `collab/holds.ts`
@@ -51,7 +52,11 @@ export interface CaptionWordEditing {
 export type EditingAwareness = { since: number } | CaptionWordEditing;
 
 /** Awareness fields a person outside the project (a presentation follower) never receives. */
-export const MEMBER_ONLY_FIELDS: readonly string[] = Object.freeze(['timeline', 'editing']);
+export const MEMBER_ONLY_FIELDS: readonly string[] = Object.freeze([
+  'timeline',
+  'editing',
+  'holding',
+]);
 /** Awareness fields a connection without `edit` on the canvas never publishes. */
 export const EDITOR_ONLY_FIELDS: readonly string[] = Object.freeze(['editing', 'holding']);
 

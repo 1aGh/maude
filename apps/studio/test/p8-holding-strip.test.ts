@@ -6,15 +6,18 @@
 // could keep refreshing a hold and block AI edits on one element at a time. `holding` is now in
 // EDITOR_ONLY_FIELDS, so it falls into the read-only strip AND the format-gated strip. An editor's
 // own hold still reaches the room.
+// A presentation follower (outside the project) never receives anyone's hold either — nor the name
+// the hub stamps onto it: `holding` is in MEMBER_ONLY_FIELDS too (`toFollower`).
 
 import { describe, expect, test } from 'bun:test';
+import * as decoding from 'lib0/decoding';
 import * as encoding from 'lib0/encoding';
-import { Awareness, encodeAwarenessUpdate } from 'y-protocols/awareness';
+import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate } from 'y-protocols/awareness';
 import * as Y from 'yjs';
 
 import { personHoldsOf } from '../collab/holds.ts';
-import { createRoom, type Room, type RoomConn } from '../collab/room.ts';
-import { EDITOR_ONLY_FIELDS } from '../collab/timeline-awareness.ts';
+import { createRoom, type Room, type RoomConn, toFollower } from '../collab/room.ts';
+import { EDITOR_ONLY_FIELDS, MEMBER_ONLY_FIELDS } from '../collab/timeline-awareness.ts';
 
 const NOW = 1_800_000_000_000;
 const HOLD = { artboard: 'post', element: 'hero-title', at: NOW - 1000 };
@@ -102,5 +105,27 @@ describe('studio and hub EDITOR_ONLY_FIELDS agree', () => {
       EDITOR_ONLY_FIELDS: readonly string[];
     };
     expect([...hub.EDITOR_ONLY_FIELDS]).toEqual([...EDITOR_ONLY_FIELDS]);
+  });
+});
+
+describe('a presentation follower never receives a hold', () => {
+  test('MEMBER_ONLY_FIELDS names holding', () => {
+    expect(MEMBER_ONLY_FIELDS).toContain('holding');
+  });
+
+  test('toFollower drops holding (and its stamped actor), keeps the rest', () => {
+    const held = { ...HOLD, actor: 'eda@example.com' };
+    const { frame, clientID } = awarenessFrame({ name: 'Eda', holding: held, watching: 's1' });
+    const out = toFollower(frame);
+    expect(out).not.toBeNull();
+    const dec = decoding.createDecoder(out as Uint8Array);
+    expect(decoding.readVarUint(dec)).toBe(1 /* MESSAGE_AWARENESS */);
+    const seen = new Awareness(new Y.Doc());
+    applyAwarenessUpdate(seen, decoding.readVarUint8Array(dec), 'test');
+    const state = seen.getStates().get(clientID) as Record<string, unknown>;
+    expect(state).toBeDefined();
+    expect('holding' in state).toBe(false);
+    expect(state.name).toBe('Eda');
+    expect(state.watching).toBe('s1');
   });
 });
