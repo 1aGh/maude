@@ -58,6 +58,8 @@ export type LinkRefusalCode =
   | 'token-rejected'
   | 'hub-too-old'
   | 'not-owner'
+  /** gate-b-sec4: the committed link was never made on this Mac (parked) — Connect first (r1-format-ds) */
+  | 'link-unconfirmed'
   | SaveModeBlocker;
 
 /** Why the hub cannot switch the save mode now (`hub-integration.mjs` setMode / its dry run). */
@@ -85,6 +87,12 @@ export interface MigrateOptions {
   strip?: boolean;
   /** from hubs-config; null = unlinked (or no credential for the link) */
   hub?: { url: string; token: string; role: string } | null;
+  /**
+   * gate-b-sec4 — the committed `linkedHub` this Mac PARKED at boot (`ctx.unconfirmedHub`): the
+   * studio runs solo and hands no credential for it. The dry run names that state (`link-unconfirmed`,
+   * the app's Connect) instead of reading the raw claim as a link with no sign-in.
+   */
+  parkedHub?: string | null;
   now?: () => Date;
   /** the studio route runs the engine in-process — the one caller allowed
    *  while a studio has the project open */
@@ -404,6 +412,12 @@ async function plan(opts: MigrateOptions, dryRun: boolean): Promise<Plan> {
           : null;
     const role = opts.hub?.role ?? 'unknown';
     report.project.linked = { hub: linkUrl, role, hubFormat: null, capabilities: [] };
+    if (opts.parkedHub && normLinkUrl(opts.parkedHub) === normLinkUrl(linkUrl))
+      return refuse(
+        'this project says it syncs with a team server, but that link was not made on this Mac — connect it first',
+        '',
+        'link-unconfirmed'
+      );
     if (!client)
       return refuse(
         'this project is linked, and this Mac has no sign-in for its team server',
@@ -606,6 +620,9 @@ async function plan(opts: MigrateOptions, dryRun: boolean): Promise<Plan> {
   }
   return finish();
 }
+
+/** A hub address as a link compares it: trailing slashes are the same hub. */
+const normLinkUrl = (u: string) => u.trim().replace(/\/+$/, '');
 
 type LinkedReport = NonNullable<MigrateReport['project']['linked']>;
 

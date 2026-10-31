@@ -17,6 +17,10 @@ export const OLDER_COPY = {
   olderUpdating: 'Updating this project for Maude 2…',
   olderNonOwner:
     'View only — this project moves to Maude 2 once its owner opens it. Ask the owner.',
+  /** gate-b-sec4 — the committed link was never made on this Mac (parked): Connect (r1-format-ds). */
+  olderLinkUnconfirmed:
+    "View only — this project says it syncs with a team server that isn't connected on this Mac. Connect it, and the project moves to Maude 2 by itself.",
+  connectAction: 'Connect',
   olderHubTooOld:
     'View only — the team server needs an update before this project can move to Maude 2.',
   olderOwnerOffline:
@@ -100,6 +104,15 @@ function refusalState(plan, { save = false } = {}) {
           hub,
         };
   }
+  // gate-b-sec4: this Mac never made the committed link (parked) — the studio runs solo; the way out is
+  // Connect, whatever this Mac holds for that hub (r1-format-ds).
+  if (codes.includes('link-unconfirmed'))
+    return {
+      kind: 'link-unconfirmed',
+      line: OLDER_COPY.olderLinkUnconfirmed,
+      action: 'connect',
+      hub,
+    };
   if (codes.includes('no-sign-in') && (plan.project?.linked?.role ?? 'unknown') === 'unknown') {
     return { kind: 'no-sign-in', line: FAIL_COPY.olderNotSignedIn, action: 'sign-in', hub };
   }
@@ -176,6 +189,7 @@ export const recheckDelay = (misses) =>
 
 /** States the callout re-checks on its own (online / focus / a timer): the reason may clear. */
 export const RECHECK_KINDS = new Set([
+  'link-unconfirmed',
   'hub-too-old',
   'offline',
   'server-setup',
