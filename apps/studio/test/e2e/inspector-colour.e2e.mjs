@@ -191,6 +191,10 @@ describe('r2-p6b — the Inspector colour picker, in a real browser', () => {
       await c.pop.waitFor({ state: 'visible' });
       const recent = c.page.locator('[data-testid="insp-recent-fill-0"]');
       await recent.waitFor({ state: 'visible' });
+      if (process.env.E2E_SHOTS)
+        await c.page.screenshot({
+          path: join(process.env.E2E_SHOTS, 'inspector-colour-popover.png'),
+        });
       assert.match(
         (await recent.getAttribute('aria-label')) ?? '',
         /Fg 1/,

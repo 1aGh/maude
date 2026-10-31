@@ -189,6 +189,62 @@ describe('edit-shapes — draw a rectangle, round a corner, Export area writes n
     });
   });
 
+  it('the Fill chip opens the colour picker in Search; a picked colour is written and Recent shows it on reopen (P6)', async () => {
+    // r2-p6b: the Inspector (top frame, not the canvas) is where the shape's Fill lives. The fixture has no design system,
+    // so the picker offers "Other colour…" — a raw colour — and Recent, which keeps it per Mac in prefs.json.
+    const chip = await $('[data-testid="insp-ctl-fill"] button.insp-chip');
+    await chip.waitForExist({ timeout: 15_000 });
+    const focusedId = () =>
+      browser.execute(() => document.activeElement?.getAttribute('data-testid') ?? null);
+    const openPicker = async () => {
+      await (await $('[data-testid="insp-ctl-fill"] button.insp-chip')).click();
+      await (await $('[data-testid="insp-menu-fill"]')).waitForExist({ timeout: 5_000 });
+    };
+    await openPicker();
+    // WebKit ignores focus() on a popover that is not rendered yet: Search holds focus only if the picker focuses it once shown
+    await browser.waitUntil(async () => (await focusedId()) === 'insp-pop-search-fill', {
+      timeout: 5_000,
+      timeoutMsg: `focus did not start in Search (it is on ${await focusedId()})`,
+    });
+    await capture('colour-picker-search-focused');
+    // esc closes it and gives focus back to the chip
+    await browser.keys('Escape');
+    await browser.waitUntil(
+      async () => !(await (await $('[data-testid="insp-menu-fill"]')).isExisting()),
+      {
+        timeout: 5_000,
+        timeoutMsg: 'esc did not close the picker',
+      }
+    );
+    expect(await browser.execute(() => document.activeElement?.getAttribute('aria-label'))).toBe(
+      'Fill'
+    );
+    // pick a raw colour
+    await openPicker();
+    await (await $('[data-testid="insp-colorcss-fill"]')).click();
+    const field = await $('[data-testid="insp-colorin-fill"]');
+    await field.waitForExist({ timeout: 5_000 });
+    await field.setValue('#1E6BFF');
+    await (await $('[data-testid="insp-pop-use-fill"]')).click();
+    await browser.waitUntil(() => /background: "#1e6bff"/i.test(readFileSync(SMOKE, 'utf8')), {
+      timeout: 15_000,
+      timeoutMsg: 'the picked colour never reached the file',
+    });
+    // reopen: the colour is the newest Recent
+    await browser.waitUntil(
+      async () => !(await (await $('[data-testid="insp-menu-fill"]')).isExisting()),
+      {
+        timeout: 5_000,
+      }
+    );
+    await openPicker();
+    const recent = await $('[data-testid="insp-recent-fill-0"]');
+    await recent.waitForExist({ timeout: 5_000 });
+    expect(((await recent.getAttribute('aria-label')) ?? '').toLowerCase()).toBe('#1e6bff');
+    await capture('colour-picker-recent');
+    await browser.keys('Escape');
+  });
+
   it('More › Export area opens the sheet with the rectangle and the file does not change', async () => {
     const before = readFileSync(SMOKE, 'utf8');
     // p8-e2e-fix-r11: the corner radius reached the file a moment ago, and the canvas re-renders on its own source
