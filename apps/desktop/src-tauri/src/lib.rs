@@ -50,6 +50,7 @@ mod windows;
 // WKWebView-only: recover from a crashed web content process instead of a white window.
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 mod web_process;
+mod webview_url;
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64};

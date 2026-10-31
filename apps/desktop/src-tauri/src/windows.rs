@@ -2047,7 +2047,7 @@ pub fn caller_project<R: Runtime>(
         .app_handle()
         .try_state::<SidecarState>()
         .ok_or_else(|| "Maude is still starting.".to_string())?;
-    let url = webview.url().ok();
+    let url = crate::webview_url::url_of(webview);
     let book = state.windows.lock().unwrap_or_else(|e| e.into_inner());
     check_caller(&book, webview.label(), url.as_ref(), allow_app_local)
 }

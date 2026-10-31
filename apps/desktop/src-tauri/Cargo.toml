@@ -97,7 +97,10 @@ notify-rust = { version = "4.18", default-features = false }
 # writes `public.png` to the general pasteboard (export_save.rs `put_png`).
 objc2 = "0.6"
 objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSApplication", "NSMenu", "NSMenuItem", "NSPasteboard", "NSResponder"] }
-objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSData", "NSString"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSData", "NSString", "NSURL"] }
+# V2-8.3: read WKWebView.URL ourselves (webview_url.rs) — wry 0.57 unwraps a nil URL on the main thread and
+# the app quits. Already in the lock via wry, so no new crate is downloaded.
+objc2-web-kit = { version = "0.3", default-features = false, features = ["std", "WKWebView"] }
 
 # V2-3.7: the embedded WebDriver plugin, retargeted from `WebviewWindow` to
 # `Webview` so every child webview of a multi-webview window is its own W3C

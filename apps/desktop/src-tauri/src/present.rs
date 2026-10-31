@@ -585,7 +585,7 @@ pub async fn present_audience_open(
         (OpenPlan::Reuse(_), Some(w)) => {
             let _ = w.set_focusable(true);
             place(&w, &monitor).and_then(|()| {
-                if w.url().ok().as_ref() == Some(&url) {
+                if crate::webview_url::url_of(w.as_ref()).as_ref() == Some(&url) {
                     Ok(())
                 } else {
                     w.navigate(url.clone()).map_err(|e| e.to_string())
