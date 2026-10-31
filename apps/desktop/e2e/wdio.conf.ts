@@ -95,6 +95,8 @@ const DEDICATED: Record<string, string> = {
   // r1-panels: its own dedicated conf (wdio.shell-panels.conf.ts) was added without this listing, which made EVERY lane's
   // drift tripwire throw at load.
   'shell-panels.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:shell-panels',
+  // r2-p3 (TD1d): Edit -> Preview -> Edit keeps the frame (wdio.modes-frame.conf.ts).
+  'modes-frame.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:modes-frame',
   'ds-edges.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:ds-edges',
   // S10.12: the advanced DS surfaces, seeded.
   'ds-advanced.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:ds-advanced',
