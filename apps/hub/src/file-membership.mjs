@@ -169,8 +169,12 @@ function isDsManifest(rel, groups) {
  * the same answer, so this can never become an oracle.
  *
  * @param {string} rel
- * @param {{ canvasGroups?: ReadonlyArray<{ path?: string }>,
+ * @param {{ canvasGroups?: ReadonlyArray<{ path?: string }>|null,
  *           hasFile?: (rel: string) => boolean }} [opts]
+ *        `canvasGroups: null` (not absent) = a hub checkout whose owner has
+ *        declared no folders yet: the hub is the folder boundary, so the
+ *        path's own top folder counts as a group, as the kernel takes it
+ *        (decision maude/v2-michal-hub-is-the-folder-boundary-before-config).
  *        `hasFile` probes the SAME tree `rel` came from — it powers the one
  *        sibling-dependent split (a group `.css` beside a same-named `.tsx`
  *        is that canvas's Yjs css lane, not plane-B content). Absent ⇒ the
@@ -197,7 +201,7 @@ export function classifyProjectFile(rel, opts = {}) {
   const last = parts[parts.length - 1] ?? '';
   const lowerLast = last.toLowerCase();
   const lowerRel = rel.toLowerCase();
-  const groups = normalizedGroups(opts.canvasGroups);
+  const groups = effectiveGroups(opts.canvasGroups, parts);
   const inGroup = groups.some((g) => lowerRel.startsWith(`${g.toLowerCase()}/`));
 
   if (inGroup) {
@@ -288,6 +292,18 @@ function normalizedGroups(canvasGroups) {
     if (p && !out.includes(p)) out.push(p);
   }
   return out.length > 0 ? out : ['system', 'ui'];
+}
+
+/** The groups one path is judged against. `null` = an undeclared hub checkout
+ *  (see `classifyProjectFile`): the default set plus the path's top folder.
+ *  @param {ReadonlyArray<{ path?: string }>|null|undefined} canvasGroups
+ *  @param {string[]} parts */
+function effectiveGroups(canvasGroups, parts) {
+  const groups = normalizedGroups(canvasGroups);
+  if (canvasGroups !== null || parts.length < 2) return groups;
+  const top = normalizeGroup(parts[0]);
+  if (!top || groups.some((g) => g.toLowerCase() === top.toLowerCase())) return groups;
+  return [...groups, top];
 }
 
 /** One group path, or null when unusable as a containment prefix.
