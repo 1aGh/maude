@@ -365,3 +365,8 @@ rights or is an availability nuisance). Candidates for the first rc patch:
   `--versions-of "^(?!.*Combine-admin)"` against runs older than 8ee0d385f.
 - **The LOD lane's zoom p95** is one frame worse than pre-v2 in both orders (50 vs 33 ms). Gesture p95 and long
   frames pass pooled. Worth a look with the canvas-lib work.
+- **Hub reader refuses the same-name stylesheet rule more often than the studio** (V2-8.9 recheck #2, I1). Any folder
+  deeper than 8 sets `truncated` for the whole project, and journal tombstones keep a vanished path in `files`. Either
+  one fails closed, so a canvas importing its own stylesheet in another letter case (the Combine-admin shape) may not
+  open on a cell. The fix is a depth cap that marks only the skipped subtree, and leaving tombstoned rows out of
+  `files`. Neither is pinned (the hub test uses `journal: null`).
