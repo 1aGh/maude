@@ -99,3 +99,13 @@ describe('14 ed-pen: the point editor owns ⌫ / ↵ while it is open', () => {
     expect(q('edit-pen-points')).toBeNull();
   });
 });
+
+describe('14 ed-pen: the drawing Pen owns ⌫ / ↵ / esc while a draft is open', () => {
+  // the same race as the point editor: draw.tsx took ⌫ (undo a point) on document capture, behind the
+  // canvas-wide owner, so a selection left from before P could be deleted by the ⌫ that meant "undo a point"
+  test('draw.tsx takes its keydown on window capture, not document', async () => {
+    const src = await Bun.file(`${import.meta.dir}/../editing/pen/draw.tsx`).text();
+    expect(src).toContain("window.addEventListener('keydown', down, true)");
+    expect(src).not.toContain("document.addEventListener('keydown', down, true)");
+  });
+});

@@ -212,10 +212,12 @@ export function PenTool({ readOnly = false }: { readOnly?: boolean }) {
       if (e.code === 'Space') spaceRef.current = false;
       if (e.key === 'Shift') setShift(false);
     };
-    document.addEventListener('keydown', down, true);
+    // WINDOW capture, ahead of the canvas's own ⌫ / ↵ owner on document capture (use-keyboard-discipline.tsx),
+    // as the point editor does (r2-e2e-fix): ⌫ that undoes a point must not also delete a still-selected object
+    window.addEventListener('keydown', down, true);
     document.addEventListener('keyup', up, true);
     return () => {
-      document.removeEventListener('keydown', down, true);
+      window.removeEventListener('keydown', down, true);
       document.removeEventListener('keyup', up, true);
     };
   }, [armed, finish, reset]);
