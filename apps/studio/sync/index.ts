@@ -60,7 +60,7 @@ import {
   uploadingFromRows,
 } from './asset-state.ts';
 import { atomicWrite } from './atomic-write.ts';
-import { resolveCanvasBodyRel } from './canvas-path.ts';
+import { COMPONENT as CANVAS_PATH_COMPONENT, resolveCanvasBodyRel } from './canvas-path.ts';
 import { type CellPairing, resolveCellPairing, sanitizeForLog } from './cell-pairing.ts';
 import {
   canvasPathFromDoc,
@@ -1074,6 +1074,13 @@ export function createSyncRuntime(
     : ctx.cfg.linkedHub;
   if (!linked) return null;
   const linkedHub = linked;
+  // p8-hub-folder-boundary — a hub's own studio, while the owner has declared no
+  // canvas folders, takes and scans every folder the hub's kernel takes. Read per
+  // call: the owner may declare groups mid-session (the project-config door), and
+  // from then on the declared groups rule here exactly as on the hub.
+  const hubBoundary = (): boolean =>
+    hubFolderBoundary(ctx.paths.designRoot, { cellPairing: cellPairing !== null });
+  const scanOpts = (): ScanOptions => ({ undeclaredFolders: hubBoundary() });
   if (cellPairing) {
     console.log(
       `[sync] cell pairing ON — loopback shared-doc provider to ${sanitizeForLog(linkedHub.url)}; autocommit disabled (the hub is the sole committer). DDR-209 threaded, not reversed.`
@@ -2809,7 +2816,9 @@ export function createSyncRuntime(
       migrateAnnotationsV2({ designRoot: ctx.paths.designRoot });
     }
 
-    const scan = opts.canvases ? { canvases: opts.canvases, tsxCount: 0 } : await scanCanvases(ctx);
+    const scan = opts.canvases
+      ? { canvases: opts.canvases, tsxCount: 0 }
+      : await scanCanvases(ctx, scanOpts());
     // DDR-064 pre-cutover A4 + A6 — two files must never share a document, and
     // the pinned set must be bounded. See `admitCanvases`.
     const localCanvases = admitCanvases(scan.canvases, useSharedDoc, {
@@ -2916,15 +2925,23 @@ export function createSyncRuntime(
     // sandbox is off, or its canvases sit in a group it never declared — and
     // treating that as "a bare folder somebody just pointed at a project" would
     // let a hub author a `config.json` into a project that had work in it.
-    let freshLink =
-      localCanvases.length === 0 && !existsSync(designConfigPath(ctx)) && designRootIsBare(ctx);
+    //
+    // A HUB'S OWN STUDIO IS DIFFERENT (p8-hub-folder-boundary, decision
+    // maude/v2-michal-hub-is-the-folder-boundary-before-config). Until the owner
+    // declares canvas folders, the hub's kernel takes ANY folder, so its paired
+    // studio does too — on every boot and for every later pull, not one extra
+    // folder once. `undeclaredGate` holds both answers.
+    const undeclaredGate = createUndeclaredGroupGate(
+      localCanvases.length === 0 && !existsSync(designConfigPath(ctx)) && designRootIsBare(ctx),
+      hubBoundary
+    );
     const learnedGroups = new Set<string>();
     // True once THIS boot wrote the config. Until then an existing file is
     // somebody's own declaration and is never touched; afterwards it is ours to
     // extend as further groups arrive.
     let ownsSeededConfig = false;
     const noteLearnedGroup = (group: string): void => {
-      if (!freshLink || learnedGroups.has(group)) return;
+      if (!undeclaredGate.freshLink || learnedGroups.has(group)) return;
       learnedGroups.add(group);
       if (existsSync(designConfigPath(ctx)) && !ownsSeededConfig) return;
       if (
@@ -2945,19 +2962,22 @@ export function createSyncRuntime(
       // the relaxation perpetuating itself instead of closing, and a hub free to
       // plant an unbounded set of directories in a single session. The project
       // has now declared itself; everything after this is checked against that
-      // declaration like any other boot.
-      freshLink = false;
-      pathOpts.allowUndeclaredGroup = false;
+      // declaration like any other boot. (A hub's own studio keeps taking
+      // every folder through `undeclaredGate` — it seeds nothing to close on.)
+      undeclaredGate.closeFreshLink();
     };
     const pathOpts: {
       designRel: string;
       canvasGroups: Context['cfg']['canvasGroups'];
-      allowUndeclaredGroup: boolean;
+      readonly allowUndeclaredGroup: boolean;
       onRefused: (slug: string, reason: string) => void;
     } = {
       designRel: ctx.paths.designRel,
       canvasGroups: ctx.cfg.canvasGroups,
-      allowUndeclaredGroup: freshLink,
+      // Read at call time — `relocatePulled` reads `pathOpts` when a document arrives.
+      get allowUndeclaredGroup() {
+        return undeclaredGate.accepts();
+      },
       onRefused: (slug: string, reason: string) =>
         console.warn(`[sync/${slug}] ignoring the path this document carries — ${reason}`),
     };
@@ -3126,7 +3146,7 @@ export function createSyncRuntime(
         onError: (err) => console.error('[sync] first-canvas watch failed:', err),
         run: async () => {
           if (stopped || opts.canvases) return;
-          const again = await scanCanvases(ctx);
+          const again = await scanCanvases(ctx, scanOpts());
           if (admitCanvases(again.canvases, useSharedDoc, { docNameOf: docNameFor }).length === 0)
             return;
           askForCycle('the project has its first syncable canvas');
@@ -4199,7 +4219,7 @@ export function createSyncRuntime(
         realpath: realpathOfDeepestExisting,
         // The fresh-link relaxation is boot-only, per canvas — see
         // `strictPullSlugs` for why reading `pathOpts` alone is not enough.
-        allowUndeclaredGroup: pathOpts.allowUndeclaredGroup && !strictPullSlugs.has(canvas.slug),
+        allowUndeclaredGroup: undeclaredGate.accepts({ strict: strictPullSlugs.has(canvas.slug) }),
         onRefused: (reason) => pathOpts.onRefused(canvas.slug, reason),
       });
       // A DOCUMENT WHOSE PATH WAS REFUSED IS NOT A DOCUMENT TO WRITE SOMEWHERE
@@ -4806,7 +4826,7 @@ export function createSyncRuntime(
         // An explicit canvas list (test injection) means the caller owns
         // membership; rescanning would silently overrule them.
         if (opts.canvases) return;
-        const fresh = await scanCanvases(ctx);
+        const fresh = await scanCanvases(ctx, scanOpts());
         const admitted = admitCanvases(fresh.canvases, useSharedDoc, {
           docNameOf: docNameFor,
           onCollisions: reportCollisions,
@@ -5062,7 +5082,8 @@ export function createSyncRuntime(
         {
           ...pathOpts,
           // NEVER the fresh-link relaxation after boot. See `strictPullSlugs`.
-          allowUndeclaredGroup: false,
+          // (A hub's own studio still takes every folder its kernel takes.)
+          allowUndeclaredGroup: undeclaredGate.accepts({ strict: true }),
           realpath: realpathOfDeepestExisting,
           pathFor: manifestPathFor,
         }
@@ -6822,7 +6843,41 @@ export interface CanvasScan {
   tsxCount: number;
 }
 
-export async function scanCanvases(ctx: Context): Promise<CanvasScan> {
+export interface ScanOptions {
+  /**
+   * p8-hub-folder-boundary — walk every top folder the hub's kernel would take
+   * as a canvas group, not only the declared ones. Only a hub's own studio
+   * passes it, and only while the checkout declares no groups (`hubBoundary`).
+   */
+  undeclaredFolders?: boolean;
+}
+
+/** The group folders one scan walks: the declared set, plus — under the hub
+ *  boundary — every top folder in the kernel's group charset (no `_` runtime
+ *  dir, no dotted or hidden name, no `node_modules`). A folder already inside
+ *  another listed folder is dropped so no canvas is walked twice. */
+function scanGroupPaths(ctx: Context, opts: ScanOptions): string[] {
+  // Everyone else walks exactly the declared groups, as before.
+  if (!opts.undeclaredFolders) return ctx.cfg.canvasGroups.map((g) => g.path);
+  const paths = ctx.cfg.canvasGroups.map((g) => String(g.path).replace(/^\/+|\/+$/g, ''));
+  let entries: import('node:fs').Dirent[] = [];
+  try {
+    entries = readdirSync(ctx.paths.designRoot, { withFileTypes: true });
+  } catch {
+    entries = [];
+  }
+  for (const e of entries) {
+    if (!e.isDirectory() || e.name === 'node_modules' || !/^[A-Za-z0-9]/.test(e.name)) continue;
+    if (!CANVAS_PATH_COMPONENT.test(e.name)) continue;
+    if (!paths.some((p) => p.toLowerCase() === e.name.toLowerCase())) paths.push(e.name);
+  }
+  const lower = paths.map((p) => p.toLowerCase());
+  return paths.filter(
+    (p, i) => p && !lower.some((q, j) => j !== i && p.toLowerCase().startsWith(`${q}/`))
+  );
+}
+
+export async function scanCanvases(ctx: Context, opts: ScanOptions = {}): Promise<CanvasScan> {
   const out: CanvasDescriptor[] = [];
   const counter = { tsx: 0 };
   // T3 (9.1-B) — LOAD-BEARING coupling (the plan's "two locks flip together"
@@ -6842,8 +6897,8 @@ export async function scanCanvases(ctx: Context): Promise<CanvasScan> {
   // (`splitActive`) is UNTOUCHED — a `.tsx` still syncs ONLY when the cross-origin
   // containment is active; decoupling them would re-open the F1 RCE (DDR-060).
   const projectSyncTsx = ctx.cfg.linkedHub?.syncTsx !== false;
-  for (const group of ctx.cfg.canvasGroups) {
-    const groupAbs = path.join(ctx.paths.designRoot, group.path);
+  for (const groupPath of scanGroupPaths(ctx, opts)) {
+    const groupAbs = path.join(ctx.paths.designRoot, groupPath);
     if (!existsSync(groupAbs)) continue;
     await walk(
       groupAbs,
@@ -7096,6 +7151,66 @@ function realpathOfDeepestExisting(p: string): string {
 /** `<designRoot>/config.json` — the project's own declaration of itself. */
 function designConfigPath(ctx: Context): string {
   return path.join(ctx.paths.designRoot, 'config.json');
+}
+
+/**
+ * Is this copy a hub's own studio whose hub is still the folder boundary?
+ * (p8-hub-folder-boundary, decision maude/v2-michal-hub-is-the-folder-boundary-before-config.)
+ *
+ * True only under cell pairing — the design root IS the hub's checkout — and only
+ * while that checkout's `config.json` names no canvas group: absent or
+ * unreadable, no `canvasGroups` array, or no entry with a path. That is the
+ * kernel's own rule (hub `acceptedCanvasGroups` → `allowUndeclaredGroup`), so the
+ * studio and its hub agree on which folders a canvas may live in. A desktop copy
+ * is never the boundary: its one-shot fresh-link relaxation is unchanged.
+ */
+export function hubFolderBoundary(
+  designRoot: string,
+  { cellPairing }: { cellPairing: boolean }
+): boolean {
+  if (!cellPairing) return false;
+  try {
+    const groups = (JSON.parse(readFileSync(path.join(designRoot, 'config.json'), 'utf8')) ?? {})
+      .canvasGroups;
+    if (!Array.isArray(groups)) return true;
+    return !groups.some((g: unknown) => {
+      const p = typeof g === 'string' ? g : (g as { path?: unknown } | null)?.path;
+      return typeof p === 'string' && p.length > 0;
+    });
+  } catch {
+    return true;
+  }
+}
+
+export interface UndeclaredGroupGate {
+  /** The fresh-link moment: a bare folder's first boot, until one group is learned. */
+  readonly freshLink: boolean;
+  closeFreshLink(): void;
+  /**
+   * May a canvas path sit outside every declared group? `strict` = a pull after
+   * boot, which never gets the fresh-link relaxation — but does get the hub
+   * boundary, because the kernel takes that path whenever it arrives.
+   */
+  accepts(opts?: { strict?: boolean }): boolean;
+}
+
+/** The two answers to "outside every declared group" a sync runtime gives. */
+export function createUndeclaredGroupGate(
+  freshLink: boolean,
+  hubBoundary: () => boolean
+): UndeclaredGroupGate {
+  let fresh = freshLink;
+  return {
+    get freshLink() {
+      return fresh;
+    },
+    closeFreshLink() {
+      fresh = false;
+    },
+    accepts({ strict = false } = {}) {
+      return hubBoundary() || (fresh && !strict);
+    },
+  };
 }
 
 /**
