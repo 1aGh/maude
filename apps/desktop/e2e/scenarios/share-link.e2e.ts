@@ -49,9 +49,13 @@ describe('share-link — addresses, row sharing, same-project open and foreign-p
     // S9.20: sharing needs the cloud, so a LOCAL project's Share (desktop) is the Move to Maude Cloud door — the raw
     // links (Advanced · Other ways in) belong to a linked project's sheet (share-sheet.jsx `offerMove`).
     await (await $(tid('share-move'))).waitForDisplayed();
-    expect(await (await $('#share-move-title')).getText()).toBe('Move “e2e-fixture” to Maude Cloud?');
+    expect(await (await $('#share-move-title')).getText()).toBe(
+      'Move “e2e-fixture” to Maude Cloud?'
+    );
     // P5/TD8: a person who only needs a file gets the Export door, and the one Export sheet opens from it
-    expect(await (await $(tid('share-export-instead'))).getText()).toBe('Export a PNG or PDF to send');
+    expect(await (await $(tid('share-export-instead'))).getText()).toBe(
+      'Export a PNG or PDF to send'
+    );
     expect(await $(tid('share-app-url')).isExisting()).toBe(false);
     await capture('topbar share');
     // Cancel leaves the project where it is

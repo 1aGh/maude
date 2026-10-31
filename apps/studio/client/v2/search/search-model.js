@@ -443,7 +443,9 @@ export function assemble({ query, local = [], remote = [], canAskAI = false, cap
   // New canvas leads the plain actions: the thing most people typing "new" want (stable sort keeps the rest in rank order)
   byGroup
     .get('actions')
-    .sort((x, y) => Number(PRIORITY_FIRST.has(y.actionId)) - Number(PRIORITY_FIRST.has(x.actionId)));
+    .sort(
+      (x, y) => Number(PRIORITY_FIRST.has(y.actionId)) - Number(PRIORITY_FIRST.has(x.actionId))
+    );
   // Hidden tools lead under "Actions" with their count; the plain actions that matched too go under "Also".
   // With no hidden tool among the matches there is nothing to set apart, and they stay under "Actions".
   const acts = byGroup.get('actions');

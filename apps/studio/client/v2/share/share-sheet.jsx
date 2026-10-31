@@ -436,8 +436,8 @@ export function ShareSheet({
         {posture && !view.linked && !offerMove && !moving && !pendingLink && (
           <div className="v2sh-arow v2sh-arow--stack">
             <p className="v2sh-hint" data-testid="share-local-note">
-              Local project — kept on this Mac. To invite people, move it to Maude Cloud in the Maude
-              app.
+              Local project — kept on this Mac. To invite people, move it to Maude Cloud in the
+              Maude app.
             </p>
             <ExportInstead onExport={onExport && (() => onExport())} />
           </div>

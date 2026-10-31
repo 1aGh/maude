@@ -59,8 +59,16 @@ describe('Share › Advanced', () => {
   });
 
   test('a linked hub shows its own name', () => {
-    const v = { linked: true, reachable: true, access: { authority: 'hub', roles: ['owner', 'member'] } };
-    expect(advancedView({ view: v, hubUrl: 'https://hub.example.org' }).syncsName).toBe('hub.example.org');
-    expect(advancedView({ view: v, hubUrl: 'https://a.cloud.maude.sh' }).syncsName).toBe('Maude Cloud');
+    const v = {
+      linked: true,
+      reachable: true,
+      access: { authority: 'hub', roles: ['owner', 'member'] },
+    };
+    expect(advancedView({ view: v, hubUrl: 'https://hub.example.org' }).syncsName).toBe(
+      'hub.example.org'
+    );
+    expect(advancedView({ view: v, hubUrl: 'https://a.cloud.maude.sh' }).syncsName).toBe(
+      'Maude Cloud'
+    );
   });
 });

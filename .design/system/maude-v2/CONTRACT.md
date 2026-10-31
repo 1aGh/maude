@@ -93,6 +93,8 @@ Menu
 | Version history | Changes, commits, history log | saved versions with Restore |
 | Hide panels / Show panels | fold, tuck, collapse (in UI copy) | ⌘\. "Fold into its icon" is how the DS describes the motion |
 | Share | publish, invite (as the button) | the one Share button; "Invite people" lives inside the sheet |
+| Maude Cloud | cloud.maude.sh (as the name), the cloud, a cloud project, cloud (as a noun) | the hosted service, in every sentence ("Move to Maude Cloud…", "Sign in to Maude Cloud", "your Maude Cloud project"). The address `cloud.maude.sh` appears only where a person reads or types an address. A self-hosted hub shows its own name (its host), never "Maude Cloud" [TD8, P5] |
+| Zoom to fit ⌘0 · Actual size ⇧0 | Fit to view, Reset view, Fit (alone) | the same two words and keys in View, ⌘K, the zoom pill and the empty-canvas menu [TD6, P5] |
 | Advanced | Pro, Expert, More settings | the disclosure at the foot of a panel |
 | Diagnostics | Debug, Status, Developer | the Menu submenu |
 | Stickers | Stamps (as the tool) | the E tool and its gallery [C12]. "Stamp" in copy means only a **vote stamp**; the internal id may stay `stamp` |
@@ -126,7 +128,7 @@ Menu
 ## 6 · Settled details (copy round 2, 2026-10-06 · Gate 0, 2026-10-08)
 
 - **Empty canvas line:** "Your canvas is ready. Ask AI for a first draft, or start drawing." (never "screen").
-- **Share sheet:** primary button **Invite**; "Copy link" is a secondary button in the link row. It is the ONE Share surface everywhere [C11]; a local project's state ("Move to cloud…") lives inside it.
+- **Share sheet:** primary button **Invite**; "Copy link" is a secondary button in the link row. It is the ONE Share surface everywhere [C11]; a local project's state ("Move to Maude Cloud…") lives inside it.
 - **Project tabs** [A1, amended 2026-10-14]: Maude's own tab strip — Home pinned first, the project square + name + one state mark per tab, the tab menu on right-click (no drag-out / merge in v2.0); "Sign in as another account…" in the project pill menu.
 - **Accounts** [C6]: Settings › General lists every account on this Mac; each project tab is bound to one.
 - **Save status:** one word next to the faces in the Share cluster — *Saved* · *Syncing…* · *Offline — kept on this Mac* · *Local project*. No dot on the project pill. A failed, un-queued write shows a fifth word, **Not saved**, only while it is true, with one action (**Retry**) [C2]. A held source conflict (this Mac kept its copy, the project has another) is also **Not saved**, with the action **Compare** — both versions side by side in Diagnostics › Sync details — and one toast per conflict: "<canvas> differs from the project" + Compare.

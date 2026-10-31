@@ -158,6 +158,16 @@ export function rowKindOf(kind: string): VersionRowKind | null {
   return Object.hasOwn(KIND, kind) ? (KIND[kind] as VersionRowKind | null) : 'edit';
 }
 
+/**
+ * R14 (P5): a version made by Maude's own process ("maude-migration", the format converter) is credited to
+ * "Maude", not to a person-looking "MM · maude-migration". Anything else keeps the name it came with.
+ */
+export function actorWords(name: string | undefined | null): string {
+  const n = (name ?? '').trim();
+  if (!n) return 'Someone';
+  return /^maude[-_ ](migration|migrate|convert|format|sync|bot)\b/i.test(n) ? 'Maude' : n;
+}
+
 function whoKind(v: RowVersion): RowWho['kind'] {
   const k = rowKindOf(v.kind);
   if (k === 'ai') return 'ai';
@@ -305,7 +315,7 @@ function assemble(g: OpenRow, named: Map<number, RowName>, opts: ReduceOptions):
   const who: RowWho = {
     kind: wk,
     actor: first.actor,
-    name: first.mine ? 'You' : (first.actorName ?? 'Someone'),
+    name: first.mine ? 'You' : actorWords(first.actorName),
     you: first.mine,
   };
   const titleKind: RowKind = name ? 'named' : g.kind === 'moved' ? 'edit' : g.kind;

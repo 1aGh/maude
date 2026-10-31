@@ -51,8 +51,8 @@ export function MoveToCloud({ project, api, onCancel, onMoving, onExport }) {
     <div className="v2sh-move" data-testid="share-move">
       <h2 id="share-move-title" className="v2sh-move-t">{`Move “${name}” to Maude Cloud?`}</h2>
       <p className="v2sh-move-b" data-testid="share-local-note">
-        Sharing needs Maude Cloud. People you invite can open it there, and so can your other Macs. It
-        stays on this Mac too.
+        Sharing needs Maude Cloud. People you invite can open it there, and so can your other Macs.
+        It stays on this Mac too.
       </p>
       {error && (
         <p className="v2sh-err" role="alert" data-testid="share-move-error">
