@@ -286,7 +286,7 @@ import {
 } from './static-lane.ts';
 import { sanitizeForLog } from './sync/cell-pairing.ts';
 import { linkHub } from './sync/hub-link.ts';
-import { accessFor, getHubRecord } from './sync/hubs-config.ts';
+import { accessFor, getHubRecord, linkRoleSource } from './sync/hubs-config.ts';
 import { hubHealth } from './sync/journal-client.ts';
 import { createKeepBothResolver } from './sync/keep-both.ts';
 import { createLinkGate } from './sync/link-consent.ts';
@@ -2744,6 +2744,12 @@ export function createHttp(
       formatVersion: projectFormat(ctx).value,
       formatGate: gateNow(),
       readOnlyReason: roleReadOnly(req) ? 'role' : gateNow() ? 'format' : null,
+      // rc.1 finding 1 (Michal A) — 'missing': the role floor came from a hub record without a role (a 1.x
+      // `link --token`), so the format callout offers Sign in, not Ask the owner. This Mac's own record only.
+      roleSource:
+        roleReadOnly(req) && !isWorkspaceMode() && ctx.cfg.linkedHub?.url
+          ? linkRoleSource(ctx.cfg.linkedHub.url)
+          : null,
       // p8-update-to-accepted — how this project saves (DDR-241) as its sync last heard from the
       // hub: 'accepted' | 'legacy'; null when nothing syncs (solo). A hint for the Update project
       // offer only — the migrator's dry run asks the hub itself before anything is offered.
