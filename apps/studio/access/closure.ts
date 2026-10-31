@@ -755,6 +755,29 @@ function walkImports(
   const refused = new Set<string>();
   // gate-b-c4l — anything the walk does not follow, or cannot resolve, blocks the canvas.
   let blocked = false;
+  // p8-perf-814 (V2-8.14) — a same-name stylesheet's owner that is NO file and has no meta of its
+  // own, and that folds to the slug of granted canvases only, IS the granted canvas: its only
+  // canvas-ness is the granted canvas's own slug-keyed board. (`Combine-admin.tsx` importing
+  // `./combine-admin.css` was blocked for every opener, so it never opened and had no cover.) Any
+  // file folding to that slug outside the grant — a twin, even a non-canvas — keeps it refused.
+  const slugOwned = new Map<string, boolean>();
+  const grantedBySlug = (owner: string): boolean => {
+    if (env.files.has(owner) || env.files.has(owner.replace(/\.(tsx|html)$/i, '.meta.json')))
+      return false;
+    const slug = canvasSlugFromRel(owner, '');
+    const hit = slugOwned.get(slug);
+    if (hit !== undefined) return hit;
+    let any = false;
+    let foreign = false;
+    for (const f of env.files) {
+      if (!/\.(tsx|html)$/i.test(f) || f.startsWith('_') || canvasSlugFromRel(f, '') !== slug)
+        continue;
+      if (granted.has(f)) any = true;
+      else foreign = true;
+    }
+    slugOwned.set(slug, any && !foreign);
+    return any && !foreign;
+  };
   const importable = (dep: string): boolean => {
     if (dep.startsWith('_') || CANVAS_SIDECAR_RE.test(dep)) return false;
     // p8-c4 (attacker round 8, L) — a per-use photo edit is read ONLY through a granted canvas's
@@ -763,7 +786,7 @@ function walkImports(
     if (PER_USE_PHOTO_RE.test(dep)) return false;
     const owners = isDsSurfaceStyle(dep) ? [] : /\.css$/i.test(dep) ? canvasesOfFile(dep) : [dep];
     for (const owner of owners)
-      if (!granted.has(owner) && env.isCanvas(owner)) {
+      if (!granted.has(owner) && !grantedBySlug(owner) && env.isCanvas(owner)) {
         refused.add(owner);
         return false;
       }
