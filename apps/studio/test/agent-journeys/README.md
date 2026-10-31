@@ -53,7 +53,7 @@ with a reason code: `artboard-busy`, `soft-locked`, `out-of-scope`, …) and `ui
 }
 ```
 
-Graders: `canvas-exists` · `text` · `history` (kind / by ai|person / effect op / `first`) ·
+Graders: `canvas-exists` · `text` (`withImportedCss: true` also reads the CSS a canvas imports by a relative specifier) · `history` (kind / by ai|person / effect op / `first`) ·
 `moved` · `trash` · `ids-kept` · `link` · `present` (what Present plays, through Present's own
 `initialModel`; notes) · `ui-open` · `sticky` · `sticker` · `comments` · `one-undo-step` ·
 `denied` · `untouched` (a whole file, or one artboard via V2-1.5 attribution) · `no-tool` ·

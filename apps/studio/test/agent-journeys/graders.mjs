@@ -15,7 +15,7 @@
 import { Database } from 'bun:sqlite';
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, posix } from 'node:path';
 
 import { createStoreCore } from '../../../hub/src/project-transactions/store-core.mjs';
 import { parseBoard } from '../../annotations/schema.ts';
@@ -178,6 +178,27 @@ function artboardSlice(rel, src, artboard) {
   return ab ? src.slice(ab.start, ab.end) : null;
 }
 
+/**
+ * The texts of the CSS files a canvas imports by a relative specifier (`import "./x.css"`, `import s from "../d/y.css"`),
+ * resolved against the canvas and kept inside the design root. Bare/package specifiers, other file types, anything that
+ * resolves outside the root and files that are not there are skipped. Only a .tsx/.jsx canvas imports anything here.
+ */
+function importedCss(rel, src, o) {
+  if (!/\.[jt]sx$/.test(rel)) return [];
+  const seen = new Set();
+  const out = [];
+  for (const m of String(src).matchAll(
+    /\bimport\s+(?:[^'"\n;]*?\sfrom\s+)?(["'])(\.{1,2}\/[^"'\n]+?\.css)\1/g
+  )) {
+    const to = posix.normalize(posix.join(posix.dirname(rel), m[2]));
+    if (to === '..' || to.startsWith('../') || posix.isAbsolute(to) || seen.has(to)) continue;
+    seen.add(to);
+    const css = o.text(to);
+    if (css !== null) out.push(css);
+  }
+  return out;
+}
+
 // ───────────────────────────── the graders ─────────────────────────────
 // Each: (params, observation) → { pass, why }. Params come from the journey JSON.
 
@@ -279,12 +300,19 @@ export const GRADERS = {
    * The file's text matches every `has` and none of `lacks` (regexes). Whitespace next to a tag's `>` / `<` is
    * layout, not content: a needle matches the text as written OR both with that whitespace dropped, so
    * `>All saved<` finds `<h3>\n    All saved\n  </h3>` (V2-8.16). A missing or changed word still fails.
+   * `withImportedCss: true` (S6) also reads the CSS the canvas imports by a relative specifier: `has` may be met by
+   * any of those texts, `lacks` must hold across all of them. Off by default, so other journeys grade as before.
    */
-  text({ path, has = [], lacks = [] }, o) {
+  text({ path, has = [], lacks = [], withImportedCss = false }, o) {
     const t = o.text(path);
     if (t === null) return ok(false, `${path} is missing`);
-    const tight = tagTight(t);
-    const hit = (h) => re(h).test(t) || re(typeof h === 'string' ? tagTight(h) : h).test(tight);
+    // `withImportedCss`: the canvas plus the CSS it imports (a prior canvas keeps its styles in a sibling .css).
+    const texts = [t, ...(withImportedCss ? importedCss(path, t, o) : [])];
+    const tights = texts.map(tagTight);
+    const hit = (h) =>
+      texts.some(
+        (x, i) => re(h).test(x) || re(typeof h === 'string' ? tagTight(h) : h).test(tights[i])
+      );
     const miss = has.filter((h) => !hit(h));
     const extra = lacks.filter(hit);
     return ok(
