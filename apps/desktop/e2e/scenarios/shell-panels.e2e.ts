@@ -3,7 +3,13 @@ import { openAssistant } from '../helpers/assistant';
 import { waitForCanvasRects } from '../helpers/canvas-frame';
 import { openInspector } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
-import { pointerDown, pointerMove, pointerUp } from '../helpers/pointer';
+import {
+  artboardLabelPoint,
+  pointerClick,
+  pointerDown,
+  pointerMove,
+  pointerUp,
+} from '../helpers/pointer';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
 import { pinCurrentWindow } from '../helpers/windows';
@@ -50,8 +56,28 @@ async function dragGrip(gripId: string, dx: number) {
   await browser.pause(400);
 }
 
-const near = (got: number, want: number, what: string, tol = 4) =>
-  expect(Math.abs(got - want) <= tol, `${what}: ${got}px, wanted ${want}px (±${tol})`).toBe(true);
+/** This runner's `expect` takes ONE argument (no message), so a measured check throws with its own words. */
+function check(ok: boolean, what: string): void {
+  if (!ok) throw new Error(what);
+}
+// A grip sets its panel's width from the pointer's ABSOLUTE position (window edge - pointer x), not from the drag's
+// distance, so where the press lands inside the grip's 8 px hit area (and the 16 px slot gap) shows up as a constant
+// offset in a measured delta. 12 px keeps that out while a grip that did nothing (or moved the wrong panel) still fails.
+const near = (got: number, want: number, what: string, tol = 12) =>
+  check(Math.abs(got - want) <= tol, `${what}: ${got}px, wanted ${want}px (±${tol})`);
+
+/** Hide the AI chat island if it is showing (its Hide chevron): the right grip then belongs to the right panel. */
+async function hideAssistant(): Promise<void> {
+  const hide = await $(tid('ai-chat-hide'));
+  if (await hide.isDisplayed().catch(() => false)) await hide.click();
+  await browser.waitUntil(
+    async () =>
+      !(await $(tid('ai-chat-header'))
+        .isDisplayed()
+        .catch(() => false)),
+    { timeout: 10_000, timeoutMsg: 'the AI chat never hid' }
+  );
+}
 
 describe('shell-panels (rc.1 5 / 6 / 16 / 20)', () => {
   before(async () => {
@@ -60,7 +86,9 @@ describe('shell-panels (rc.1 5 / 6 / 16 / 20)', () => {
     await waitForSidecar();
     const row = await canvasRow('canvas-row-ui-smoke');
     await row.waitForExist({ timeout: 60_000 });
-    await waitForCanvasRects().catch(() => undefined);
+    // open the Smoke canvas: the Inspector step needs an artboard to pick (a fresh window opens none)
+    await row.click();
+    await waitForCanvasRects();
   });
 
   it('20: a focus + scrollIntoView past the shell, and an explicit scroll, leave scrollTop at 0', async () => {
@@ -106,16 +134,25 @@ describe('shell-panels (rc.1 5 / 6 / 16 / 20)', () => {
     const canvases = await $(tid('canvases-advanced'));
     await canvases.waitForExist({ timeout: 30_000 });
     expect(await canvases.getAttribute('aria-expanded')).toBe('false');
+    // the Inspector's: it draws for a selection, so pick the artboard by its name (with the AI chat out of the way -
+    // a whole-artboard pick while the chat is open is the ASK's scope and opens no Inspector)
+    await hideAssistant();
+    const name = await artboardLabelPoint('smoke');
+    check(name !== null, 'no uncovered point on the Smoke artboard name');
+    const at = name as { x: number; y: number };
+    await pointerClick(at.x, at.y);
+    await $(tid('inspector-frame')).waitForExist({
+      timeout: 20_000,
+      timeoutMsg: `selecting the artboard (name at ${at.x},${at.y}) drew no Inspector`,
+    });
+    const insp = await $(tid('fold-inspector-toggle'));
+    await insp.waitForExist({ timeout: 15_000 });
+    expect(await insp.getAttribute('aria-expanded')).toBe('false');
     // the AI chat's
     await openAssistant();
     const ai = await $(tid('ai-advanced'));
     await ai.waitForDisplayed({ timeout: 30_000 });
     expect(await ai.getAttribute('aria-expanded')).toBe('false');
-    // the Inspector's
-    await openInspector();
-    const insp = await $(tid('fold-inspector-toggle'));
-    await insp.waitForExist({ timeout: 15_000 });
-    expect(await insp.getAttribute('aria-expanded')).toBe('false');
     await capture('shell-panels-folds-closed');
   });
 
@@ -128,6 +165,8 @@ describe('shell-panels (rc.1 5 / 6 / 16 / 20)', () => {
   });
 
   it('16: the Inspector follows its grip', async () => {
+    // the right grip resizes the WIDEST island in its slot: with the AI chat showing that is the chat, so put it away
+    await hideAssistant();
     await openInspector();
     const w0 = await widthOf('dock-slot-right');
     await dragGrip('panel-grip-right', -80);
@@ -148,7 +187,7 @@ describe('shell-panels (rc.1 5 / 6 / 16 / 20)', () => {
     near(await widthOf('ai-chat-island'), w0 + 100, 'the chat grows with its grip');
     await dragGrip('panel-grip-right', 400);
     const small = await widthOf('ai-chat-island');
-    expect(small <= 285, `the chat shrinks under its old 340 floor (${small}px)`).toBe(true);
+    check(small <= 285, `the chat shrinks under its old 340 floor (${small}px)`);
     // full height: the chat reaches the corner the Inspector icon is in
     const grip = await boxOf('panel-grip-right');
     if (!grip) throw new Error('no right grip');
@@ -173,10 +212,7 @@ describe('shell-panels (rc.1 5 / 6 / 16 / 20)', () => {
         hide.x + hide.w <= icon.x ||
         icon.y + icon.h <= hide.y ||
         hide.y + hide.h <= icon.y;
-      expect(
-        apart,
-        `Hide chevron ${JSON.stringify(hide)} under the icon ${JSON.stringify(icon)}`
-      ).toBe(true);
+      check(apart, `Hide chevron ${JSON.stringify(hide)} under the icon ${JSON.stringify(icon)}`);
     }
     await capture('shell-panels-chat-full');
   });
