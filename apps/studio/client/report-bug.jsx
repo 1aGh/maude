@@ -237,6 +237,9 @@ export function ReportBugDialog({ open, onClose, activeCanvas = null }) {
     input.type = 'file';
     input.accept = 'image/*';
     input.style.cssText = 'position:fixed;left:-9999px;top:0';
+    // V2-8.7 (axe `label`): the dialog is the control; the off-screen input is not for the tree or the tab order
+    input.setAttribute('aria-hidden', 'true');
+    input.tabIndex = -1;
     document.body.appendChild(input);
     input.addEventListener('change', () => {
       const file = input.files?.[0];

@@ -493,7 +493,8 @@
     padding: 1px var(--space-2) 1px var(--space-1);
     border-radius: var(--radius-pill);
     background: var(--accent-muted);
-    color: var(--accent-text);
+    /* V2-8.7: --accent-text on the stacked accent wash read 4.43:1 in dark */
+    color: var(--fg-1);
     font-size: var(--type-xs);
     font-weight: var(--w-medium);
     white-space: nowrap;

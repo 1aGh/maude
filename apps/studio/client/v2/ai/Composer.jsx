@@ -255,6 +255,7 @@ export function CommandPopover({ items, activeIndex, onPick, onHover }) {
       ref={ref}
       className="chat-cmd-menu"
       role="listbox"
+      aria-label="Slash commands"
       data-testid="chat-cmd-menu"
       style={place ?? undefined}
     >
