@@ -159,8 +159,8 @@ describe('04 / 10 · link chip and comment pins', () => {
     expect(pin).toContain('999px 999px 999px 2px');
     expect(pinInitial('Tereza')).toBe('T');
     expect(pinInitial('  jan')).toBe('J');
-    expect(pinInitial('unknown')).toBe('?');
-    expect(pinInitial('')).toBe('?');
+    expect(pinInitial('unknown')).toBe('S'); // never a "?" (rc.1 F08)
+    expect(pinInitial('')).toBe('S');
   });
 });
 

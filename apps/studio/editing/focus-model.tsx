@@ -21,7 +21,13 @@ import { resolveChord } from '../actions/resolve.ts';
 import { canvasModeStore, canvasSingleKeys } from '../bridge/canvas-mode-store.ts';
 import { getLiveViewport } from '../canvas-lib.tsx';
 import { showCanvasToast } from '../canvas-notifications.tsx';
-import { resolveSelectionEl } from '../dom-selection.ts';
+import { clientToWorld } from '../comment-anchor.ts';
+import {
+  buildComposeSelection,
+  hoverTargetToSelection,
+  openCommentComposer,
+  resolveSelectionEl,
+} from '../dom-selection.ts';
 import { isEditableTarget, TOOLBAR_INSERT_EVENT, type Tool } from '../input-router.tsx';
 import { isReadOnlyCanvas } from '../read-only-mode.ts';
 import { type Selection, useSelectionSet } from '../use-selection-set.tsx';
@@ -230,6 +236,46 @@ export function centredClick(
   return { ...live, from, to: from };
 }
 
+/** The Comment tool (C) is armed — in Edit or Preview, whoever may comment. ↵ then comments on what is selected. */
+export const isCommentTool = (t: string | null | undefined): boolean => t === 'comment';
+
+/**
+ * C, then ↵: open the comment composer on the selected element (the last of the selection, an artboard if
+ * that is what is selected), with no pointer — the same anchor a click on that element makes. `false` when
+ * nothing selected resolves on the page.
+ */
+export function commentOnSelection(doc: Document, selected: readonly Selection[]): boolean {
+  const last = [...selected].reverse().find((s) => s.id || s.artboardId);
+  const el = last
+    ? last.id
+      ? resolveSelectionEl(doc, last)
+      : doc.querySelector(`[data-dc-screen="${CSS.escape(last.artboardId ?? '')}"]`)
+    : null;
+  if (!el?.isConnected) return false;
+  const r = el.getBoundingClientRect();
+  if (r.width === 0 && r.height === 0) return false;
+  const board = el.closest('[data-dc-screen]');
+  const sel = hoverTargetToSelection(
+    {
+      el,
+      cdId: el.getAttribute('data-cd-id'),
+      artboardId: board?.getAttribute('data-dc-screen') ?? last?.artboardId ?? null,
+    },
+    last?.file
+  );
+  openCommentComposer(sel, r.left + Math.min(16, r.width / 2), r.bottom);
+  return true;
+}
+
+/** ↵ with the Comment tool armed and nothing to anchor to: a floating note at the middle of what is in view. */
+export function commentAtViewCentre(): void {
+  const x = window.innerWidth / 2;
+  const y = window.innerHeight / 2;
+  const world = clientToWorld(x, y) ?? undefined;
+  const sel = buildComposeSelection({ el: null }, x, y);
+  openCommentComposer(world ? { ...sel, world } : sel, x, y);
+}
+
 export interface CreateDeps {
   doc: Document;
   selected: readonly Selection[];
@@ -287,13 +333,18 @@ export function KeyboardLayer({ readOnly = false }: { readOnly?: boolean }) {
   const undo = useUndoStackOptional();
   const undoRef = useRef(undo);
   undoRef.current = undo;
+  const commentTarget = useRef<Selection[] | null>(null);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
     const onKey = (e: KeyboardEvent) => {
       if (e.defaultPrevented) return;
       const tool = tmRef.current?.tool;
-      const armed = !readOnly && !isReadOnlyCanvas() && isCreateTool(tool);
+      const mode = canvasModeStore(window).get().mode ?? 'edit';
+      const commenting = isCommentTool(tool);
+      // a create tool is Edit's (a Preview tool never makes an object); the Comment tool is armed in either mode
+      const armed =
+        commenting || (!readOnly && !isReadOnlyCanvas() && mode === 'edit' && isCreateTool(tool));
       const typing = isEditableTarget(e.target);
       if (isNavigationKey(e.key, e) && !typing) modality.key();
       const hit = resolveChord(
@@ -302,7 +353,7 @@ export function KeyboardLayer({ readOnly = false }: { readOnly?: boolean }) {
         canvasKeyCtx({
           typing,
           readOnly: false,
-          mode: canvasModeStore(window).get().mode ?? 'edit',
+          mode,
           // V2-8.7 — an object the shell just inserted (T then ↵) is selected by id with NO artboard yet, which
           // `refsOf` does not count; ↵ must still find it, so count a stamped id, not a resolved ref
           selection: selRef.current.selected.some((s) => !!s.id) ? 'object' : 'none',
@@ -311,6 +362,19 @@ export function KeyboardLayer({ readOnly = false }: { readOnly?: boolean }) {
         })
       );
       const id = hit?.action.id;
+      // C pressed in Edit crosses to Preview, which drops Edit's selection (`useDropSelectionOnLeaveEdit`): keep what
+      // was selected as the target of the ↵ that follows. Any other key while the Comment tool is not armed forgets it.
+      if (
+        e.key.toLowerCase() === 'c' &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        !typing &&
+        mode === 'edit' &&
+        selRef.current.selected.length
+      )
+        commentTarget.current = [...selRef.current.selected];
+      else if (!commenting) commentTarget.current = null;
       if (!id) return;
       if (typing || tool === 'browse') return;
       if (id === NEXT_ACTION || id === PREV_ACTION) {
@@ -329,6 +393,15 @@ export function KeyboardLayer({ readOnly = false }: { readOnly?: boolean }) {
           showCanvasToast(
             'This text is filled in from code (a variable) — edit it via chat or /design:edit.'
           );
+      } else if (id === CREATE_DEFAULT_ACTION && commenting) {
+        e.preventDefault();
+        e.stopPropagation();
+        const target = selRef.current.selected.length
+          ? selRef.current.selected
+          : (commentTarget.current ?? []);
+        commentTarget.current = null;
+        // nothing selected (a Can-comment viewer has no Edit selection): a floating note at the middle of the view
+        if (!commentOnSelection(document, target)) commentAtViewCentre();
       } else if (id === CREATE_DEFAULT_ACTION && armed && isCreateTool(tool)) {
         e.preventDefault();
         e.stopPropagation();

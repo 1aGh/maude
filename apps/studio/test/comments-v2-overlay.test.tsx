@@ -330,7 +330,7 @@ describe('the mention popover', () => {
     const rows = [...document.querySelectorAll('.cm-mention-popup__item')].map(
       (r) => r.textContent
     );
-    expect(rows).toEqual(['TN@terezaCan edit', 'JB@jonasCan comment']); // a face, the handle, the role
+    expect(rows).toEqual(['T@terezaCan edit', 'J@jonasCan comment']); // a face (one letter, as everywhere), the handle, the role
     expect(document.querySelector('.cm-mention-popup__email')).toBeNull();
   });
 });

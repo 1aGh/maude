@@ -3713,7 +3713,9 @@ export function createHttp(
       if (isWorkspaceMode() && vouched) {
         return Response.json({ name: vouched }, { headers: { 'Cache-Control': 'no-store' } });
       }
-      const name = await api.gitCurrentUser();
+      // The name a new comment is stamped with (git user, else this Mac's account): the Comments panel's
+      // Mine filter, the pin initials and presence all compare against it, so it must be ONE identity.
+      const name = localAuthor(await api.gitCurrentUser());
       return Response.json({ name }, { headers: { 'Cache-Control': 'no-store' } });
     },
 

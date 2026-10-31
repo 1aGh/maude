@@ -13,6 +13,7 @@ import { useEffect, useState } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
 import { Spark } from '../ai/icons.jsx';
 import { Person } from '../share/person.jsx';
+import { authorFace } from '../../../comments/author-face.ts';
 import { basename, displayName } from '../../shell/util.js';
 import { rovingTabKey } from '../shell/modal-focus.js';
 import { Confetti, copy, Empty } from '../empty/index.js';
@@ -293,6 +294,8 @@ export function CommentsPanel({
               {g.threads.map((t) => {
                 const on = onLabel(t, { artboardLabel, canvasLabel: canvasLabel(g.file) });
                 const ai = t.authorKind === 'ai';
+                // one face per author — the letter and tone the pin on the canvas wears too (rc.1 F08)
+                const face = authorFace(t.author, t.mine ? t.author : me);
                 return (
                   // gate-b-a11y (axe nested-interactive): the row is NOT itself a button — a `role=button` row
                   // that holds the Resolve / menu buttons has focusable descendants. The row is a plain
@@ -323,7 +326,13 @@ export function CommentsPanel({
                       ) : (
                         // 10 co-comment-thread: a tone-filled face with one letter, the colour a person
                         // wears everywhere (Share sheet, presence, conflict card)
-                        <Person name={t.author} you={!!me && t.author === me} size="md" />
+                        <Person
+                          name={t.author}
+                          initial={face.letter}
+                          tone={face.tone}
+                          you={face.you}
+                          size="md"
+                        />
                       )}
                       <span className="cmp-txt">
                         {on ? (
@@ -333,7 +342,12 @@ export function CommentsPanel({
                         ) : null}
                         <span className="cmp-body-t">{t.text}</span>
                         <span className="cmp-meta">
-                          {[t.importedLabel, t.time, t.replies ? repliesWord(t.replies) : null]
+                          {[
+                            ai || t.importedLabel ? null : face.name,
+                            t.importedLabel,
+                            t.time,
+                            t.replies ? repliesWord(t.replies) : null,
+                          ]
                             .filter(Boolean)
                             .join(' · ')}
                         </span>

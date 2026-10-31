@@ -122,12 +122,18 @@ export const TOOL_ACTIONS: ActionDef[] = [
     // S2.21 (14 `ed-edge-keys`) — R / T / F then ↵ adds one at its default size, with no pointer. The armed tool
     // decides what: a frame or a rectangle (100 × 100, like a click), or a text. Only while a create tool is
     // armed (`toolArmed`), so it never meets `object.enter`'s ↵.
+    // rc.1 F33 — C then ↵ comments on the selected element (Edit or Preview): the Comment tool is armed too,
+    // so a comment needs no pointer (WCAG 2.1.1). Edit-only create tools still make nothing in Preview.
     id: 'tool.create-default',
     label: 'Add one at its default size',
     kind: 'command',
     exec: 'canvas',
     enabled: { minRole: 'edit' },
-    keys: [kb('↵', 'tools', { when: { focus: ['canvas'], mode: ['edit'], facts: ['toolArmed'] } })],
+    keys: [
+      kb('↵', 'tools', {
+        when: { focus: ['canvas'], mode: ['edit', 'preview'], facts: ['toolArmed'] },
+      }),
+    ],
     search: { hidden: true },
   },
   keyless('tool.highlighter', 'Highlighter'),

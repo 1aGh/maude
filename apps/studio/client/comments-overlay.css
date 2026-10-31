@@ -54,6 +54,22 @@
   will-change: transform;
 }
 
+/* a thread: how many messages it holds, small at the pin's top-right so the initial stays the face */
+.cm-pin__n {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  background: var(--maude-chrome-fg-0, #1a1d24);
+  color: var(--maude-chrome-bg-2, #fff);
+  font: 600 9px / 14px var(--maude-hud-font-rounded, ui-rounded, system-ui, sans-serif);
+  text-align: center;
+}
+
 .cm-pin:hover,
 .cm-pin[aria-expanded="true"] {
   filter: brightness(1.06) saturate(1.1);
