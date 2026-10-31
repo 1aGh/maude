@@ -136,13 +136,18 @@ export function TreeRowMenu({ state, onClose, rootItems, destinations, onPickDes
 
   if (state.view === 'move-to') {
     return (
-      <div ref={ref} className="sh-dropdown" role="menu" aria-label="Move to…" style={style}>
+      <div
+        ref={ref}
+        className="sh-dropdown"
+        // V2-8.7: with nowhere to go there is no menu (axe aria-required-children) and no fake item
+        // (dead-controls): the popover only says so
+        role={destinations.length ? 'menu' : 'dialog'}
+        aria-label="Move to…"
+        style={style}
+      >
         <div className="sh-dd-hd">Move to…</div>
         {destinations.length === 0 ? (
-          // V2-8.7 (axe aria-required-children): a menu holds menu items — this one is just disabled
-          <div className="sh-dd-item" role="menuitem" aria-disabled="true" tabIndex={-1}>
-            No other folders
-          </div>
+          <p className="sh-dd-item sh-dd-empty">No other folders</p>
         ) : (
           destinations.map((d) => (
             <button

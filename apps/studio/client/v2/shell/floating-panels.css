@@ -168,6 +168,15 @@
     color: var(--fg-2);
   }
 
+  /* an empty popover's one line ("No other folders"): text, not a control */
+  .sh-dd-item.sh-dd-empty,
+  .sh-dd-item.sh-dd-empty:hover {
+    margin: 0;
+    background: transparent;
+    color: var(--fg-2);
+    cursor: default;
+  }
+
   .sh-dd-item .sh-dd-lead {
     display: inline-flex;
     align-items: center;

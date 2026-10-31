@@ -149,7 +149,7 @@ describe('aria-input-field-name', () => {
 
 describe('aria-required-children', () => {
   // File › Move to… with nowhere to go: the menu's one child was a bare div[aria-disabled] — not a menu item.
-  test('"No other folders" is a (disabled) menu item, so the menu has only items', async () => {
+  test('"No other folders": no menu without items and no fake item — the popover only says so', async () => {
     const { TreeRowMenu } = await import('../client/tree-row-menu.jsx');
     const host = document.createElement('div');
     document.body.append(host);
@@ -166,13 +166,12 @@ describe('aria-required-children', () => {
         />
       )
     );
-    const menu = document.querySelector('[role="menu"]') as HTMLElement;
-    expect(menu).not.toBeNull();
-    const none = [...menu.querySelectorAll('.sh-dd-item')].find((e) =>
-      /No other folders/.test(e.textContent ?? '')
-    );
-    expect(none?.getAttribute('role')).toBe('menuitem');
-    expect(none?.getAttribute('aria-disabled')).toBe('true');
+    expect(document.querySelector('[role="menu"]')).toBeNull();
+    const pop = document.querySelector('[aria-label="Move to…"]') as HTMLElement;
+    expect(pop).not.toBeNull();
+    expect(pop.textContent).toContain('No other folders');
+    expect(pop.querySelector('[role="menuitem"]')).toBeNull();
+    expect(pop.querySelector('[tabindex], button')).toBeNull();
   });
 });
 
