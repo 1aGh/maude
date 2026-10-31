@@ -139,7 +139,8 @@ export function TreeRowMenu({ state, onClose, rootItems, destinations, onPickDes
       <div ref={ref} className="sh-dropdown" role="menu" aria-label="Move to…" style={style}>
         <div className="sh-dd-hd">Move to…</div>
         {destinations.length === 0 ? (
-          <div className="sh-dd-item" aria-disabled="true">
+          // V2-8.7 (axe aria-required-children): a menu holds menu items — this one is just disabled
+          <div className="sh-dd-item" role="menuitem" aria-disabled="true">
             No other folders
           </div>
         ) : (

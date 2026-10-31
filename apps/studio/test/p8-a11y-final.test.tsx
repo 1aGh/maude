@@ -26,10 +26,10 @@ function token(theme: 'light' | 'dark', name: string) {
 
 /** The `var(--x)` a rule's `color` names. */
 function colorVar(css: string, selector: string) {
-  const at = css.indexOf(`${selector} {`);
+  const at = css.lastIndexOf(`${selector} {`); // the cascade's last rule wins
   if (at < 0) throw new Error(`no rule ${selector}`);
   const body = css.slice(at, css.indexOf('}', at));
-  const m = /(?:^|[\s;{])color:\s*var\((--[\w-]+)\)/.exec(body);
+  const m = /(?:^|[\s;{])color:\s*var\(\s*(--[\w-]+)/.exec(body);
   if (!m) throw new Error(`no colour var in ${selector}`);
   return m[1];
 }
@@ -70,6 +70,15 @@ describe('color-contrast', () => {
     expect(contrastRatio(token('dark', name), '#15445d')).toBeGreaterThanOrEqual(4.5);
   });
 
+  // What's new (Help › What's new): the kind badge (feature / fix / improvement) in --accent-text on the unseen
+  // item's wash: axe 3.97:1 (#39b0f1 on #1a4963), 10 px bold, seven badges.
+  test("the What's new kind badges hold 4.5:1 on the item wash (dark)", () => {
+    const css = read('../client/v2/help/help.css');
+    const name = colorVar(css, '.mdcc-wn-kind');
+    expect(name).not.toBe('--accent');
+    expect(contrastRatio(token('dark', name), '#1a4963')).toBeGreaterThanOrEqual(4.5);
+  });
+
   // The native tab list: the selected row's second line in --strip-fg-dim (= --fg-2) on --panel-row-on: axe 4.34:1.
   test("the tab list: the selected row's second line holds 4.5:1 (dark)", () => {
     const html = read('../../desktop/src/strip.html');
@@ -106,6 +115,35 @@ describe('aria-input-field-name', () => {
     expect(menu.getAttribute('role')).toBe('listbox');
     expect(menu.getAttribute('aria-label')).toBe('Slash commands');
     expect(menu.querySelector('.chat-cmd-group')?.textContent).toBe('Slash commands');
+  });
+});
+
+describe('aria-required-children', () => {
+  // File › Move to… with nowhere to go: the menu's one child was a bare div[aria-disabled] — not a menu item.
+  test('"No other folders" is a (disabled) menu item, so the menu has only items', async () => {
+    const { TreeRowMenu } = await import('../client/tree-row-menu.jsx');
+    const host = document.createElement('div');
+    document.body.append(host);
+    const root = createRoot(host);
+    roots.push(root);
+    await act(async () =>
+      root.render(
+        <TreeRowMenu
+          state={{ x: 10, y: 10, view: 'move-to' }}
+          onClose={() => {}}
+          rootItems={[]}
+          destinations={[]}
+          onPickDestination={() => {}}
+        />
+      )
+    );
+    const menu = document.querySelector('[role="menu"]') as HTMLElement;
+    expect(menu).not.toBeNull();
+    const none = [...menu.querySelectorAll('.sh-dd-item')].find((e) =>
+      /No other folders/.test(e.textContent ?? '')
+    );
+    expect(none?.getAttribute('role')).toBe('menuitem');
+    expect(none?.getAttribute('aria-disabled')).toBe('true');
   });
 });
 
