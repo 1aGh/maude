@@ -7,12 +7,17 @@
 //   spacing · radii · borders · elevation · grid        → Space & shape
 //   motion                                              → Motion
 //   components-* · empty-state · skeletons              → Components
-//   anything else                                       → its own `ds-own-<slug>` artboard
+//   anything else                                       → no section (a showcase; Patterns draws it)
 //
 // A name matches a word when it IS the word or starts with `<word>-` (`spacing-scale`, `type-mono`).
-// Patterns start empty. Measured on this repo's two systems: everything maps except
-// `ui_kits-desktop-{index,showcase}`, which stay as their own artboards (29 "showcases stay as their
-// own artboards"). PURE — no fs; the caller lists `preview/`.
+// Measured on this repo's two systems: everything maps except `ui_kits-desktop-{index,showcase}`.
+//
+// AND every page stays on the canvas as itself (Michal, rc.1 finding 9, option A — decision
+// `v2-michal-ds-specimens-own-artboards`, superseding the fold-only shape of S10 Q5): each page is its
+// own `ds-own-<slug>` artboard, in one row under the section it belongs to (a page no section claims
+// sits in the Patterns row). The generated sections stay; the pages are what the folder drew.
+// `pages` is every page in canvas order (section order, then file name); `own` is the subset no
+// section claims (the dialog's showcases, Patterns' tiles). PURE — no fs; the caller lists `preview/`.
 
 import type { SectionKind } from './board/types.ts';
 
@@ -47,9 +52,19 @@ export interface OwnArtboard {
   src: string;
 }
 
+/** Every page on the canvas: an own artboard plus the section whose row it sits in. */
+export interface PageArtboard extends OwnArtboard {
+  /** `patterns` for a page no section claims */
+  section: SectionKind;
+}
+
 export interface SpecimenMap {
   sections: Record<SectionKind, string[]>;
+  /** the pages no section claims (showcases, kits) — the dry run's `own[]`, unchanged in shape */
   own: OwnArtboard[];
+  /** every specimen page as its own artboard, in canvas order — none is ever dropped. Not on the
+   *  wire: `maude.ds-convert/1` stays frozen (its `specimens` already counts them). */
+  pages: PageArtboard[];
 }
 
 /** The section a specimen stem folds into, or null (its own artboard). */
@@ -85,25 +100,27 @@ export function ownLabel(slug: string): string {
 export const isSpecimenFile = (name: string): boolean =>
   /^[A-Za-z0-9][A-Za-z0-9._-]*\.tsx$/.test(name) && !name.startsWith('_');
 
-/** Fold the specimen files of one `preview/` folder (names only, any order) into sections. */
+/** Map the specimen files of one `preview/` folder (names only, any order): sections + every page. */
 export function mapSpecimens(files: readonly string[]): SpecimenMap {
   const sections = Object.fromEntries(SECTION_ORDER.map((k) => [k, [] as string[]])) as Record<
     SectionKind,
     string[]
   >;
-  const own: OwnArtboard[] = [];
+  const all: PageArtboard[] = [];
   const seen = new Set<string>();
-  for (const f of [...files].filter(isSpecimenFile).sort()) {
+  // ids are given in file-name order, so a page's id never depends on the section it lands in
+  for (const f of [...new Set(files)].filter(isSpecimenFile).sort()) {
     const slug = f.replace(/\.tsx$/, '');
     const kind = sectionOf(slug);
-    if (kind) {
-      sections[kind].push(slug);
-      continue;
-    }
+    if (kind) sections[kind].push(slug);
     let id = ownArtboardId(slug);
     for (let n = 2; seen.has(id); n++) id = `${ownArtboardId(slug)}-${n}`;
     seen.add(id);
-    own.push({ slug, id, label: ownLabel(slug), src: `preview/${f}` });
+    all.push({ slug, id, label: ownLabel(slug), src: `preview/${f}`, section: kind ?? 'patterns' });
   }
-  return { sections, own };
+  const pages = SECTION_ORDER.flatMap((k) => all.filter((p) => p.section === k));
+  const own: OwnArtboard[] = all
+    .filter((p) => sectionOf(p.slug) === null)
+    .map(({ slug, id, label, src }) => ({ slug, id, label, src }));
+  return { sections, own, pages };
 }

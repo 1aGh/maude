@@ -163,7 +163,9 @@ const level = (designRoot: string, name: string) => {
 };
 
 describe('ds convert — the specimen map (Q5)', () => {
-  test('golden: this repo’s maude and maude-v2 specimens fold into 7 sections; only the desktop kits stay own', () => {
+  // rc.1 finding 9 option A (decision `v2-michal-ds-specimens-own-artboards`): the section map is unchanged,
+  // but `own` is now only the pages no section claims — every page is ALSO an artboard (`pages`).
+  test('golden: this repo’s maude and maude-v2 specimens map to 7 sections; the desktop kits are the only showcases; every page is an artboard', () => {
     const repo = path.resolve(import.meta.dir, '../../../.design/system');
     const golden: Record<string, unknown> = {};
     for (const ds of ['maude', 'maude-v2']) {
@@ -172,6 +174,7 @@ describe('ds convert — the specimen map (Q5)', () => {
         counts: Object.fromEntries(Object.entries(m.sections).map(([k, v]) => [k, v.length])),
         own: m.own.map((o) => `${o.id} · ${o.label} · ${o.src}`),
       };
+      expect(m.pages.length).toBe(Object.values(m.sections).flat().length + m.own.length);
     }
     expect(golden.maude).toEqual({
       counts: { brand: 2, colour: 9, type: 2, space: 5, motion: 1, components: 18, patterns: 0 },

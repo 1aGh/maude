@@ -53,16 +53,275 @@
         "h": 440
       },
       {
-        "id": "ds-own-ui-kits-desktop-index",
+        "id": "ds-own-iconography",
         "x": 0,
         "y": 1860,
         "w": 1440,
         "h": 900
       },
       {
-        "id": "ds-own-ui-kits-desktop-showcase",
+        "id": "ds-own-logo",
         "x": 1488,
         "y": 1860,
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "ds-own-colors-accent",
+        "x": 0,
+        "y": 7060,
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "ds-own-colors-presence",
+        "x": 1488,
+        "y": 7060,
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "ds-own-colors-status",
+        "x": 2976,
+        "y": 7060,
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "ds-own-colors-surfaces",
+        "x": 4464,
+        "y": 7060,
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "ds-own-colors-text",
+        "x": 5952,
+        "y": 7060,
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "ds-own-colors-themes-side-by-side",
+        "x": 7440,
+        "y": 7060,
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "ds-own-focus",
+        "x": 8928,
+        "y": 7060,
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "ds-own-opacity",
+        "x": 10416,
+        "y": 7060,
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "ds-own-selection",
+        "x": 11904,
+        "y": 7060,
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "ds-own-type-mono",
+        "x": 0,
+        "y": 12260,
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "ds-own-type-scale",
+        "x": 1488,
+        "y": 12260,
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "ds-own-borders",
+        "x": 0,
+        "y": 17460,
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "ds-own-elevation",
+        "x": 1488,
+        "y": 17460,
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "ds-own-grid",
+        "x": 2976,
+        "y": 17460,
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "ds-own-radii",
+        "x": 4464,
+        "y": 17460,
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "ds-own-spacing-scale",
+        "x": 5952,
+        "y": 17460,
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "ds-own-motion",
+        "x": 0,
+        "y": 22660,
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "ds-own-components-buttons",
+        "x": 0,
+        "y": 27860,
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "ds-own-components-callout",
+        "x": 1488,
+        "y": 27860,
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "ds-own-components-cards",
+        "x": 2976,
+        "y": 27860,
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "ds-own-components-command-palette",
+        "x": 4464,
+        "y": 27860,
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "ds-own-components-dialogs",
+        "x": 5952,
+        "y": 27860,
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "ds-own-components-inputs",
+        "x": 7440,
+        "y": 27860,
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "ds-own-components-inspector-controls",
+        "x": 8928,
+        "y": 27860,
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "ds-own-components-keyboard",
+        "x": 10416,
+        "y": 27860,
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "ds-own-components-list",
+        "x": 11904,
+        "y": 27860,
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "ds-own-components-resize-panels",
+        "x": 13392,
+        "y": 27860,
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "ds-own-components-shortcuts-overlay",
+        "x": 14880,
+        "y": 27860,
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "ds-own-components-status",
+        "x": 16368,
+        "y": 27860,
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "ds-own-components-tables",
+        "x": 17856,
+        "y": 27860,
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "ds-own-components-toast-menu",
+        "x": 19344,
+        "y": 27860,
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "ds-own-components-toggles",
+        "x": 20832,
+        "y": 27860,
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "ds-own-components-tooltips",
+        "x": 22320,
+        "y": 27860,
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "ds-own-empty-state",
+        "x": 23808,
+        "y": 27860,
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "ds-own-skeletons",
+        "x": 25296,
+        "y": 27860,
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "ds-own-ui-kits-desktop-index",
+        "x": 0,
+        "y": 33060,
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "ds-own-ui-kits-desktop-showcase",
+        "x": 1488,
+        "y": 33060,
         "w": 1440,
         "h": 900
       }

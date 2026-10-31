@@ -122,21 +122,29 @@ describe('convert words (CONTRACT §3, 25 / 29)', () => {
     expect(useWords({ canvases: 1 })).toBe('1 canvas');
   });
 
-  test('29: pages fold into sections; showcases stay their own artboards', () => {
+  // Was "pages fold into sections; showcases stay their own artboards" (S10 Q5). Option A (decision
+  // `v2-michal-ds-specimens-own-artboards`): the pages fill the sections AND every page stays as its own
+  // artboard, so the lead says so and the Own artboards row counts all 9 pages, naming the showcases.
+  test('29: pages fill the sections and every page stays its own artboard', () => {
     const m = dialogModel(PLAN_29);
     expect(m.kind).toBe('one');
     expect(m.title).toBe('Convert system/alligators into its Design system canvas?');
     expect(m.lead).toBe(
-      '9 specimen pages fold into 7 sections. The files stay exactly where they are.'
+      '9 specimen pages fill 7 sections and stay as their own artboards. The files stay exactly where they are.'
     );
     expect(mapRows(PLAN_29.systems[0]).map((r) => [r.label, r.from, r.count])).toEqual([
       ['Brand', 'logo · iconography', 2],
       ['Colour', 'accent · status · opacity', 3],
       ['Type', 'type scale', 1],
       ['Components', 'buttons', 1],
-      ['Own artboards', 'desktop showcase · desktop index — kept as they are', 2],
+      ['Own artboards', 'every page · desktop showcase · desktop index — kept as they are', 9],
     ]);
     expect(m.fine).toBe('Version history keeps the folder view — Restore undoes the conversion.');
+    // a folder of showcases only: no "every page"
+    expect(mapRows({ ...PLAN_29.systems[0], specimens: 2 }).at(-1)).toMatchObject({
+      from: 'desktop showcase · desktop index — kept as they are',
+      count: 2,
+    });
   });
 
   test('a refused folder says why, and Convert is off (one run converts all of them or none)', () => {

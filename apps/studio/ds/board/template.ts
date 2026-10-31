@@ -5,18 +5,49 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { DEV_SERVER_ROOT } from '../../paths.ts';
-import { SECTIONS } from './types.ts';
+import { SECTIONS, type SectionKind } from './types.ts';
 
-/** A specimen page kept as its own artboard (S10.12 conversion, 29: showcases stay as they are). */
+/**
+ * A specimen page kept as its own artboard (S10.12 conversion; rc.1 finding 9 option A — decision
+ * `v2-michal-ds-specimens-own-artboards`: every page, not only the showcases).
+ */
 export interface OwnSpecimenArtboard {
   id: string;
   label: string;
   /** `preview/<file>.tsx`, relative to the system folder */
   src: string;
+  /** the section whose row it sits in; artboards without one share a single row */
+  section?: SectionKind;
 }
 
-/** Own artboards sit in one row under Patterns, at a showcase's size (V2-1.6 §5.2's example). */
-export const OWN_ARTBOARD = { w: 1440, h: 900, y: 1860, gap: 48 } as const;
+/**
+ * Own artboards sit below the seven sections at a showcase's size (V2-1.6 §5.2's example): one row
+ * per section, in the order the artboards come (convert-map.ts gives them in section order), each
+ * row `rowGap` below the last. A specimen page grows past `h` (the artboard hugs its content), so the
+ * row pitch (5 200 px) leaves room for the tall pages: measured live on this repo's two systems
+ * (2026-10-31, maude + maude-v2) the pages run 1 500–4 750 px; the only taller ones are
+ * `components-inspector-controls` (~6 200, column 7 of maude's Components row — the Patterns row
+ * below it holds two showcases, so nothing sits under it) and a showcase in the last row.
+ */
+export const OWN_ARTBOARD = { w: 1440, h: 900, y: 1860, gap: 48, rowGap: 4300 } as const;
+
+/** The design-px box of each own artboard: one row per section, in first-seen order. */
+function ownLayout(own: readonly OwnSpecimenArtboard[]) {
+  const rows: Array<string | undefined> = [];
+  const col = new Map<string | undefined, number>();
+  return own.map((o) => {
+    if (!rows.includes(o.section)) rows.push(o.section);
+    const i = col.get(o.section) ?? 0;
+    col.set(o.section, i + 1);
+    return {
+      id: o.id,
+      x: i * (OWN_ARTBOARD.w + OWN_ARTBOARD.gap),
+      y: OWN_ARTBOARD.y + rows.indexOf(o.section) * (OWN_ARTBOARD.h + OWN_ARTBOARD.rowGap),
+      w: OWN_ARTBOARD.w,
+      h: OWN_ARTBOARD.h,
+    };
+  });
+}
 
 /**
  * S10.16b — the three AI directions of a system being made, `ds-dir-a|b|c`, in a row ABOVE the seven sections
@@ -60,13 +91,7 @@ export function designSystemCanvasMeta(
             }))
           : []),
         ...SECTIONS.map((s) => ({ id: s.id, x: s.x, y: s.y, w: s.w, h: s.h })),
-        ...own.map((o, i) => ({
-          id: o.id,
-          x: i * (OWN_ARTBOARD.w + OWN_ARTBOARD.gap),
-          y: OWN_ARTBOARD.y,
-          w: OWN_ARTBOARD.w,
-          h: OWN_ARTBOARD.h,
-        })),
+        ...ownLayout(own),
       ],
     },
   };

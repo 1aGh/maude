@@ -4,7 +4,8 @@
 // For every system named (default: every system not yet on a canvas), in ONE all-or-nothing run:
 //
 //   1. the Design system canvas: `design-system.tsx` + `.meta.json` — the seven sections, plus one
-//      `ds-own-<slug>` artboard per specimen page the prefix rule (convert-map.ts, Q5) keeps as it is;
+//      `ds-own-<slug>` artboard per specimen page, in a row under its section (convert-map.ts; rc.1
+//      finding 9 option A, decision `v2-michal-ds-specimens-own-artboards` — no page is dropped);
 //   2. R0 = the working files, frozen: the tokens CSS and `preview/_components.css` byte for byte
 //      (so every follower renders `revisions/<R0>.tokens.css`, identical to what it rendered before),
 //      `components.json` as it is, and `tokens.json` re-emitted as the canvas's own (`source:
@@ -126,9 +127,10 @@ export interface ConvertRow {
   default: boolean;
   /** derived (V2-1.6 §5.2): a system no canvas uses is a draft — converted the same way */
   to: 'design-system' | 'draft';
-  /** specimen stems per section (Q5), and the pages kept as their own artboards */
+  /** specimen stems per section (Q5), and the pages no section claims (showcases) */
   sections: Record<SectionKind, string[]>;
   own: OwnArtboard[];
+  /** every specimen page — each is its own artboard on the canvas (`mapSpecimens().pages`) */
   specimens: number;
   refused: { code: RefusalCode; message: string } | null;
 }
@@ -282,8 +284,7 @@ export function createDsConvert(engine: DsEngine) {
       ...new Set(canvases.map((c) => (c.includes('/') ? c.slice(0, c.lastIndexOf('/')) : ''))),
     ];
     const map = mapSpecimens(previewFiles(s));
-    const specimens =
-      Object.values(map.sections).reduce((n, l) => n + l.length, 0) + map.own.length;
+    const specimens = map.pages.length;
     return {
       name: s.name,
       path: s.path,
@@ -353,11 +354,14 @@ export function createDsConvert(engine: DsEngine) {
       text: w.text,
       existed: read(w.path) !== null,
     }));
-    const meta = { title: row.label, ...designSystemCanvasMeta(s.name, row.own) };
+    // every page is its own artboard (decision `v2-michal-ds-specimens-own-artboards`); the same
+    // listing the row was planned from (applyLocked re-plans under the locks)
+    const pages = mapSpecimens(previewFiles(s)).pages;
+    const meta = { title: row.label, ...designSystemCanvasMeta(s.name, pages) };
     ops.push(
       {
         rel: `${s.path}/${DS_CANVAS}`,
-        text: designSystemCanvasSource(s.name, row.label, row.own),
+        text: designSystemCanvasSource(s.name, row.label, pages),
         existed: false,
       },
       { rel: `${s.path}/${DS_META}`, text: `${JSON.stringify(meta, null, 2)}\n`, existed: false }
