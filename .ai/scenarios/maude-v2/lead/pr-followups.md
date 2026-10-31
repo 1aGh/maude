@@ -294,3 +294,7 @@ Any commit outside `.ai/` makes V2-8.1/8.2/8.3/8.18 stale. Fold these into the n
   under the view-only gate (a press lands on the paused card with its reason, so not a dead end). Other "this Mac"
   strings were not made shell-aware: the video export render lane "On this Mac" (`export-lane.js` THIS_MAC_TITLE) and
   the Share sheet's "Local project — kept on this Mac". Verify in the rc soak that a cloud tab never shows them.
+- From p8-hub-folder-boundary (2026-10-31, Michal's option A), left open: (1) an owner's DESKTOP copy with canvases
+  outside system/ui and no config listing them still uploads `screens/x.tsx` through the file plane as code, and the hub
+  now refuses it (it belongs to the canvas lane) — unlikely setup, but it would show as a refused upload; (2) under the
+  boundary `<folder>/<ds>/tokens.json` in any folder syncs as design-system data, as if declared.
