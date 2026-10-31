@@ -1,6 +1,6 @@
 import { $, browser, expect } from '@wdio/globals';
-import { waitForCanvasRects } from '../helpers/canvas-frame';
 import { openAssistant } from '../helpers/assistant';
+import { waitForCanvasRects } from '../helpers/canvas-frame';
 import { openInspector } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
 import { pointerDown, pointerMove, pointerUp } from '../helpers/pointer';
