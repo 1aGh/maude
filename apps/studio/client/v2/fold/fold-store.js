@@ -40,10 +40,12 @@ export const FOLD_PANELS = Object.freeze([
 ]);
 
 /**
- * A fold with no remembered choice. Everything starts folded (the one quiet row) except the "?" sheet's:
- * its Advanced fold holds the keys that moved, which the sheet has always shown at first look.
+ * A fold with no remembered choice. EVERY Advanced fold starts folded — the one quiet row (Michal, rc.1
+ * finding 5: "advanced vsude defaultne zavrene"). Supersedes V2-4.10's "the '?' sheet's fold defaults open";
+ * the map stays so a future exception is one reviewed line, not a new mechanism. A fold the person opens is
+ * still remembered per Mac ("kept open").
  */
-export const FOLD_DEFAULTS = Object.freeze({ help: true });
+export const FOLD_DEFAULTS = Object.freeze({});
 
 const VALID_ID = /^[A-Za-z0-9._:/-]{1,128}$/;
 const UNSAFE = new Set(['__proto__', 'constructor', 'prototype']);

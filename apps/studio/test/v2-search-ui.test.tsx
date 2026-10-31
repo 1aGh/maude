@@ -425,6 +425,11 @@ describe('"?", the real sheet', () => {
     expect(el.querySelector('[data-testid="shortcuts-row-export.open"]')?.textContent).toContain(
       '⇧⌘E'
     );
+    // rc.1 finding 5: the Advanced fold starts closed; one click opens it
+    expect(el.querySelector('[data-testid="shortcuts-moved"]')).toBeNull();
+    await act(async () => {
+      (el.querySelector('[data-testid="shortcuts-advanced-toggle"]') as HTMLElement).click();
+    });
     expect(el.querySelector('[data-testid="shortcuts-moved-hd"]')?.textContent).toBe(
       'Keys and tools that moved'
     );

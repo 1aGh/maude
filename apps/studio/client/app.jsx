@@ -253,6 +253,7 @@ import { ViewBarHost } from './v2/history/history-host.jsx';
 import { SyncStatesHost } from './v2/sync-states/conflict-card.jsx';
 import { useQueuedMarkedByFile } from './v2/sync-states/row-words.js';
 import { panelOpenDecision, rightMainWidth, rightPanelWidth } from './v2/shell/panel-layout.js';
+import { aiSlotWidth, gripTarget, usePanelSizes } from './v2/shell/panel-sizes.js';
 import { panelLayout, useHydratePanelLayout, usePanelLayout } from './v2/shell/use-panel-layout.js';
 import { useFitOnAiPin } from './v2/shell/use-fit-on-ai-pin.js';
 import { useFitWhileAiDrafts } from './v2/shell/use-fit-while-ai-drafts.js';
@@ -2963,19 +2964,45 @@ function ShellTree() {
   // P8-C8 — Version history is the 372 px island of 11 `.pn-vh` (pictures 72×54 need the room)
   // P8 C3 (03 ai-long-pinned): the AI chat pinned to the side is the board's 420 column, not the 304 default of the
   // other right panels (the canvas then re-fits to the room left of it - `layoutKey` carries the width)
+  // (declared here, above the widths that read `aiInFold` — a const below would be in its temporal dead zone)
+  const [rightInFold, setRightInFold] = useState(false);
+  // P8 C8 (04 md-draw): the AI chat opened during Preview's fold shows by itself (Canvases stay folded)
+  const [aiInFold, setAiInFold] = useState(false);
+  // rc.1 finding 16: the Inspector, Version history and the AI chat each own a width (panel-sizes.js) and the grip
+  // resizes the widest island in its slot. The AI chat (floating or docked) counts toward the slot it is hosted in.
+  const sizes = usePanelSizes();
+  const aiSlotW = aiSlotWidth({ w: sizes.get('ai'), full: sizes.aiFull(), pinned });
+  const rightAiShown = rightHostsAssistant && assistantOpen && (!panelsFolded || aiInFold);
+  const leftAiShown = leftHostsAssistant && assistantOpen;
+  const rightOwn =
+    rightActive === 'inspector' || rightActive === 'changes' ? sizes.get(rightActive) : null;
+  const rpMainW = rightActive
+    ? rightMainWidth({ active: rightActive, base: rpSize.w, own: rightOwn })
+    : 0;
   const rpW = rightPanelWidth({
     active: rightActive,
     base: rpSize.w,
-    aiPinned: pinned && rightHostsAssistant && assistantOpen,
+    own: rightOwn,
+    aiW: rightAiShown ? aiSlotW : 0,
+  });
+  const leftW = leftAiShown ? (leftActive ? Math.max(sbSize.w, aiSlotW) : aiSlotW) : sbSize.w;
+  const rightGrip = gripTarget({
+    active: rightActive,
+    mainW: rpMainW,
+    aiW: rightAiShown ? aiSlotW : 0,
+    generic: 'rp',
+  });
+  const leftGrip = gripTarget({
+    active: leftActive,
+    mainW: leftActive ? sbSize.w : 0,
+    aiW: leftAiShown ? aiSlotW : 0,
+    generic: 'sb',
   });
   // Opening a panel while ⌘\ hides them brings them all back (the open panel must be seen). V2-4.4b — the AI
   // chat is its own island: its opening un-hides the panels like any other panel's does. P8 C5 — Preview's fold
   // is the mode's: an opening does not end it (`panelOpenDecision`); a right panel opened in it (Inspect on a
   // ⌘-click, Comments) shows by itself, the Canvases and AI chat panels stay folded.
   const shownRef = useRef({ l: leftActive, r: rightActive, ai: assistantOpen });
-  const [rightInFold, setRightInFold] = useState(false);
-  // P8 C8 (04 md-draw): the AI chat opened during Preview's fold shows by itself (Canvases stay folded)
-  const [aiInFold, setAiInFold] = useState(false);
   useEffect(() => {
     const prev = shownRef.current;
     const next = { l: leftActive, r: rightActive, ai: assistantOpen };
@@ -3032,7 +3059,7 @@ function ShellTree() {
     bodyRef,
     iframesRef,
     presenting: presentMode,
-    layoutKey: `${pinned}|${panelsHidden}|${rightHidden}|${leftActive}|${rightActive}|${assistantOpen}|${sbSize.w}|${rpW}`,
+    layoutKey: `${pinned}|${panelsHidden}|${rightHidden}|${leftActive}|${rightActive}|${assistantOpen}|${leftW}|${rpW}`,
   });
   // V2-4.5c — the canvas toolbar's panels (Stickers, Assets) are the shell's: `toolbar-rect` +
   // `tool-panel-open`, active canvas only.
@@ -3128,7 +3155,7 @@ function ShellTree() {
             'sh-body' + (floating ? ' sh-body--float' : '') + (dragSide ? ' is-resizing' : '')
           }
           ref={bodyRef}
-          style={{ '--sb-w': `${sbSize.w}px`, '--rp-w': `${rpW}px` }}
+          style={{ '--sb-w': `${leftW}px`, '--rp-w': `${rpW}px` }}
         >
           <ShellProjectPill />
           {/* V2-4.7b — Menu › Diagnostics: Logs · Server · AI setup · Sync (today's Sync panel, whole). */}
@@ -3177,7 +3204,8 @@ function ShellTree() {
           {(leftActive || leftHostsAssistant) && (
             <DockSlot
               side="left"
-              width={sbSize.w}
+              width={leftW}
+              mainWidth={leftW > sbSize.w ? sbSize.w : 0}
               open={!!leftActive}
               ids={leftIds}
               activeId={leftActive}
@@ -3195,11 +3223,12 @@ function ShellTree() {
           {(leftActive || (leftHostsAssistant && assistantOpen)) && !panelsHidden && (
             <PanelGrip
               label="Resize left panel"
-              size={sbSize}
+              size={leftGrip === 'ai' ? sizes.handle('ai') : sbSize}
               active={dragSide === 'sb'}
               onPointerDown={(e) => {
                 e.preventDefault();
                 e.currentTarget.setPointerCapture?.(e.pointerId);
+                sizes.setTarget(leftGrip);
                 setDragSide('sb');
               }}
             />
@@ -3211,11 +3240,12 @@ function ShellTree() {
             <PanelGrip
               label="Resize right panel"
               dir="rtl"
-              size={rpSize}
+              size={rightGrip === 'rp' ? rpSize : sizes.handle(rightGrip)}
               active={dragSide === 'rp'}
               onPointerDown={(e) => {
                 e.preventDefault();
                 e.currentTarget.setPointerCapture?.(e.pointerId);
+                sizes.setTarget(rightGrip);
                 setDragSide('rp');
               }}
             />
@@ -3227,7 +3257,7 @@ function ShellTree() {
             <DockSlot
               side="right"
               width={rpW}
-              mainWidth={rightMainWidth({ active: rightActive, base: rpSize.w })}
+              mainWidth={rightMainWidth({ active: rightActive, base: rpSize.w, own: rightOwn })}
               open={!!rightActive && !rightMainHidden}
               ids={rightIds}
               activeId={rightActive}
@@ -3236,7 +3266,7 @@ function ShellTree() {
               labels={dockLabels}
               floating={floating}
               hidden={rightHidden}
-              aiShown={rightHostsAssistant && assistantOpen && (!panelsFolded || aiInFold)}
+              aiShown={rightAiShown}
               ai={rightHostsAssistant ? renderAssistant() : null}
             >
               {rightActive && renderPanelBody(rightActive)}

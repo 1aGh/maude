@@ -42,6 +42,8 @@ import {
   shouldCloseOnDeselect,
   shouldOpenOnSelect,
 } from '../v2/shell/inspector-follow.js';
+import { hasOwnWidth, panelSizes } from '../v2/shell/panel-sizes.js';
+import { installShellScrollLock } from '../v2/shell/scroll-lock.js';
 import { panelLayout } from '../v2/shell/use-panel-layout.js';
 import { modeShows } from '../../bridge/mode-shows.ts';
 import { useExportCenter } from '../export-center.jsx';
@@ -362,6 +364,9 @@ export function useShellCore({}) {
   const [dragSide, setDragSide] = useState(null); // 'sb' | 'rp' | null
   const bodyRef = useRef(null);
 
+  // rc.1 finding 20: the window is one fixed stage — nothing may scroll the shell itself (scroll-lock.js)
+  useEffect(() => installShellScrollLock(document), []);
+
   // Pointer drag for the panel grips — window listeners while dragging (the
   // grip also pointer-captures, and `.sh-body.is-resizing iframe` drops pointer
   // events so the canvas iframe can't swallow the move stream mid-drag).
@@ -370,7 +375,13 @@ export function useShellCore({}) {
     const onMove = (e) => {
       const rect = bodyRef.current?.getBoundingClientRect();
       if (!rect) return;
-      if (dragSide === 'sb') sbSize.setW(e.clientX - rect.left);
+      // rc.1 finding 16: the grip resizes the panel it is beside — the Inspector, Version history and the AI chat each
+      // own a width (panel-sizes.js); everything else follows the side's generic width
+      const target = panelSizes.target();
+      if (dragSide === 'sb') {
+        if (target === 'ai') panelSizes.set('ai', e.clientX - rect.left);
+        else sbSize.setW(e.clientX - rect.left);
+      } else if (target && hasOwnWidth(target)) panelSizes.set(target, rect.right - e.clientX);
       else rpSize.setW(rect.right - e.clientX);
     };
     const onUp = () => setDragSide(null);

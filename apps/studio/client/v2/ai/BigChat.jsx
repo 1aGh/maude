@@ -14,6 +14,7 @@
 import { useThread } from '@assistant-ui/react';
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
+import { panelSizes } from '../shell/panel-sizes.js';
 import { panelLayout, usePanelLayout } from '../shell/use-panel-layout.js';
 import {
   createJumpTracker,
@@ -73,6 +74,11 @@ export function useBigPanel(ref, hidden) {
   const full = !pinned && isFullHeight({ override, total });
   const fullRef = useRef(full);
   fullRef.current = full;
+  // rc.1 finding 16: the shell sizes the slot from the chat's width, and a long chat's default is the wider 420
+  useEffect(() => {
+    panelSizes.setAiFull(full && !hidden);
+    return () => panelSizes.setAiFull(false);
+  }, [full, hidden]);
 
   useEffect(() => {
     if (hidden || pinned) return undefined;

@@ -15,7 +15,7 @@ import { buildHelpSheet, filterHelpSheet } from '../v2/search/help-model.js';
 import { useModalFocus } from '../v2/shell/modal-focus.js';
 import { menuCtx } from '../v2/shell/project-menu-model.js';
 
-/** The "?" sheet's Advanced fold in prefs.json `fold` (open at first look: it lists the keys that moved). */
+/** The "?" sheet's Advanced fold in prefs.json `fold` (closed at first look, like every Advanced fold). */
 export const HELP_FOLD = 'help';
 
 /** The sheet's classes (search.css): the fold's markup, the sheet's look. */
