@@ -4,6 +4,123 @@ import { join, relative } from 'node:path';
 
 // No relative imports: scripts/test/e2e-dist-fresh.test.mjs and share-roles/stand-up.mjs load this under plain node.
 
+const isWord = (c: string | undefined) => !!c && /[A-Za-z0-9_$]/.test(c);
+
+/** React's JSX text rule (cleanJSXElementLiteralChild): the string a run of JSX text renders as. */
+function jsxText(raw: string): string {
+  const lines = raw.split(/\r\n|\n|\r/);
+  const out: string[] = [];
+  lines.forEach((line, k) => {
+    let t = line.replace(/\t/g, ' ');
+    if (k > 0) t = t.replace(/^ +/, '');
+    if (k < lines.length - 1) t = t.replace(/ +$/, '');
+    if (t) out.push(t);
+  });
+  return out.join(' ');
+}
+
+/**
+ * A client source as a token stream, for "did this commit change anything but formatting?". Whitespace between code
+ * tokens is dropped (kept as one space only between two word tokens, or `+ +` / `- -`); whitespace a reader can see is
+ * kept: string, template and regex literals verbatim, comments collapsed to single spaces, JSX text as React renders it.
+ * Fail-closed: a region the scan takes for a literal that is not one only makes two equal files compare unequal
+ * (the time rule then decides); a literal taken for code is the one thing to avoid, so a quote ends at its line, a
+ * template runs to its closing backtick, and a `>` that is not `=>`/`>=`/`>>` opens a JSX text candidate.
+ */
+export function normalizeClientSource(src: string): string {
+  const out: string[] = [];
+  const n = src.length;
+  let i = 0;
+  let ws = false;
+  let prev = ''; // last emitted token
+  const emit = (tok: string) => {
+    const a = prev[prev.length - 1];
+    const b = tok[0];
+    if (ws && ((isWord(a) && isWord(b)) || ((a === '+' || a === '-') && a === b))) out.push(' ');
+    out.push(tok);
+    prev = tok;
+    ws = false;
+  };
+  const eol = (from: number) => {
+    const k = src.indexOf('\n', from);
+    return k < 0 ? n : k;
+  };
+  while (i < n) {
+    const c = src[i];
+    if (/\s/.test(c)) {
+      ws = true;
+      i++;
+    } else if (c === '/' && src[i + 1] === '/') {
+      const j = eol(i);
+      emit(src.slice(i, j).replace(/\s+/g, ' ').trimEnd());
+      out.push('\n');
+      prev = '\n';
+      i = j;
+    } else if (c === '/' && src[i + 1] === '*') {
+      const k = src.indexOf('*/', i + 2);
+      const j = k < 0 ? n : k + 2;
+      emit(src.slice(i, j).replace(/\s+/g, ' '));
+      i = j;
+    } else if (c === "'" || c === '"') {
+      let j = i + 1;
+      while (j < n && src[j] !== c && src[j] !== '\n') j += src[j] === '\\' ? 2 : 1;
+      j = Math.min(j + 1, n);
+      emit(src.slice(i, j));
+      i = j;
+    } else if (c === '`') {
+      let j = i + 1;
+      while (j < n && src[j] !== '`') j += src[j] === '\\' ? 2 : 1;
+      j = Math.min(j + 1, n);
+      emit(src.slice(i, j));
+      i = j;
+    } else if (
+      c === '/' &&
+      (prev === '' || '(,=:[!&|?{};\n'.includes(prev) || /^(return|typeof|case|in|of)$/.test(prev))
+    ) {
+      let j = i + 1;
+      let cls = false;
+      while (j < n && src[j] !== '\n' && (cls || src[j] !== '/')) {
+        if (src[j] === '\\') j++;
+        else if (src[j] === '[') cls = true;
+        else if (src[j] === ']') cls = false;
+        j++;
+      }
+      if (j < n && src[j] === '/') {
+        emit(src.slice(i, j + 1));
+        i = j + 1;
+      } else {
+        emit('/');
+        i++;
+      }
+    } else if (
+      c === '>' &&
+      !'=->'.includes(src[i - 1] ?? '=') &&
+      !'=>'.includes(src[i + 1] ?? '')
+    ) {
+      emit('>');
+      i++;
+      let j = i;
+      while (j < n && src[j] !== '<' && src[j] !== '{') j++;
+      const region = src.slice(i, j);
+      if (/\S/.test(region) || (region !== '' && !region.includes('\n'))) {
+        const t = jsxText(region);
+        if (t) emit(t);
+      }
+      i = j;
+      ws = false;
+    } else if (isWord(c)) {
+      let j = i + 1;
+      while (j < n && isWord(src[j])) j++;
+      emit(src.slice(i, j));
+      i = j;
+    } else {
+      emit(c);
+      i++;
+    }
+  }
+  return out.join('');
+}
+
 /**
  * p8-e2e-fix-r12 — a studio the lane starts from the worktree serves `apps/studio/dist/client.bundle.js`. The
  * committed copy can be older than the client source (the test-lane wrapper puts dist back to it after every run),
@@ -73,7 +190,8 @@ export function staleClientDist(studioDir: string): string | null {
   if (bundleAt >= newest) return null;
   // A whitespace-only client commit after the bundle's (a biome re-format that re-wraps lines, 5f88d88e5 2026-10-30)
   // rebuilds to the same bytes, so the bundle can never be re-committed after it. Committed client files changed
-  // since the bundle's commit whose text is equal with all whitespace removed do not count; an uncommitted newer
+  // since the bundle's commit whose token streams are equal (normalizeClientSource: whitespace a reader can see —
+  // inside string/template/regex literals, comments and JSX text — still counts) do not count; an uncommitted newer
   // client file still does (walk above).
   if (!dirty.has(rel(bundle)) && !newestWhat.includes('uncommitted')) {
     try {
@@ -92,7 +210,7 @@ export function staleClientDist(studioDir: string): string | null {
         .filter(Boolean);
       const squash = (rev: string, file: string) => {
         try {
-          return git('show', `${rev}:${file}`).replace(/\s+/g, '');
+          return normalizeClientSource(git('show', `${rev}:${file}`));
         } catch {
           return null; // added or deleted on one side
         }

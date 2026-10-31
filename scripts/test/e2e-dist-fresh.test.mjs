@@ -74,6 +74,60 @@ test('a whitespace-only client commit after the bundle (a re-format) does not ma
   }
 });
 
+// p8-sec3-lows (defender L1): the exemption used to strip ALL whitespace, so a commit that changed text a user reads
+// ('Sign in' -> 'Signin') after the bundle was built counted the stale bundle as fresh.
+const wsEdit = (name, before, after, reformat) =>
+  test(`a whitespace edit inside ${name} after the bundle makes it stale`, () => {
+    const r = repo();
+    try {
+      r.commit('client/v2/share.jsx', before, '2026-10-30T14:00:00+01:00');
+      r.commit('dist/client.bundle.js', 'built', '2026-10-30T15:00:58+01:00');
+      r.commit('client/v2/share.jsx', after, '2026-10-30T15:06:11+01:00');
+      assert.match(staleClientDist(r.studio), /older than/);
+      if (reformat) {
+        // …while a pure re-wrap of the same literal-bearing file stays exempt
+        r.commit('client/v2/share.jsx', before, '2026-10-30T15:30:00+01:00');
+        r.commit('dist/client.bundle.js', 'built2', '2026-10-30T15:40:00+01:00');
+        r.commit('client/v2/share.jsx', reformat, '2026-10-30T15:50:00+01:00');
+        assert.equal(staleClientDist(r.studio), null);
+      }
+    } finally {
+      r.done();
+    }
+  });
+wsEdit(
+  'a string literal',
+  "const a = 'Sign in';\n",
+  "const a = 'Signin';\n",
+  "const a =\n  'Sign in';\n"
+);
+wsEdit('a double-quoted string', 'const a = "Sign in";\n', 'const a = "Sign  in";\n');
+wsEdit('a template literal', 'const a = `Sign in ${x}`;\n', 'const a = `Signin ${x}`;\n');
+wsEdit('a regex source', 'const a = /a, b/;\n', 'const a = /a,b/;\n');
+wsEdit(
+  'JSX text',
+  'f(<b>Sign in, now</b>);\n',
+  'f(<b>Sign in,now</b>);\n',
+  'f(\n  <b>\n    Sign in, now\n  </b>\n);\n'
+);
+wsEdit('a gap between two words in code', 'const a = x in y;\n', 'const a = xin y;\n');
+
+test('re-indenting and re-wrapping code with literals around stays exempt', () => {
+  const r = repo();
+  try {
+    const before =
+      "export function f(a, b) { return a ? 'Sign in' : /x y/.test(b) ? `n ${a}` : <i>Hi there</i>; } // note\n";
+    const after =
+      "export function f(a, b) {\n  return a\n    ? 'Sign in'\n    : /x y/.test(b)\n      ? `n ${a}`\n      : <i>\n          Hi there\n        </i>;\n} // note\n";
+    r.commit('client/v2/share.jsx', before, '2026-10-30T14:00:00+01:00');
+    r.commit('dist/client.bundle.js', 'built', '2026-10-30T15:00:58+01:00');
+    r.commit('client/v2/share.jsx', after, '2026-10-30T15:06:11+01:00');
+    assert.equal(staleClientDist(r.studio), null);
+  } finally {
+    r.done();
+  }
+});
+
 test('a markdown commit under client/ (a v2 contract) after the bundle does not make it stale', () => {
   const r = repo();
   try {
