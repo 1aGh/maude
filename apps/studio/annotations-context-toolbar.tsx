@@ -97,6 +97,7 @@ import {
   IconUngroup,
   SHAPE_KIND_ICONS,
 } from './canvas-icons.tsx';
+import { holdHoverFocus } from './toolbars/tool-panel.ts';
 import { IconMore } from './toolbars/toolbar-icons.tsx';
 import { useAnnotationSelectionOptional } from './use-annotation-selection.tsx';
 import { isHttpUrl, linkDomain } from './use-canvas-media-drop.tsx';
@@ -1037,14 +1038,15 @@ export function AnnotationContextToolbar({
           className="dc-annot-ctx-ibtn dc-annot-ctx-tbtn"
           data-testid="annot-ctx-replace"
           title="Swap this sticker for another, in the same place and size"
-          onClick={() =>
+          onClick={() => {
+            holdHoverFocus(); // r1 #11: the gallery is drawn over the canvas; hover must not blur it shut
             postToShell({
               dgn: 'tool-panel-open',
               panel: 'stickers',
               anchor: null,
               replace: stk.id,
-            })
-          }
+            });
+          }}
         >
           <IconStampDisc size={14} />
           Replace…

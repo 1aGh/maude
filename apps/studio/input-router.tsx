@@ -52,7 +52,7 @@ import { escOwnerOpen } from './bridge/esc-ladder.ts';
 import { modeShows } from './bridge/mode-shows.ts';
 import { isEmbedCanvas, isHistoricalCanvas } from './read-only-mode.ts';
 import { lastMarkerTip } from './toolbars/marker-tip.ts';
-import { toolPanelOpenMessage } from './toolbars/tool-panel.ts';
+import { holdHoverFocus, toolPanelOpenMessage } from './toolbars/tool-panel.ts';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Drag-vs-click threshold (T25)
@@ -854,6 +854,7 @@ export function postPanelOpen(panel: SlotPanel): void {
     // 15 an-stamps: a key opens the panel the way a click on its slot would - anchored to that slot's box, so the Stamps
     // row folds over the Stickers button, not over the middle of the dock (no slot drawn = no anchor, as before)
     const slot = document.querySelector<HTMLElement>(`[data-testid="toolbar-slot-${panel}"]`);
+    holdHoverFocus(); // r1 #11: the panel is drawn over the canvas; hover must not blur it shut
     window.parent.postMessage(toolPanelOpenMessage(panel, slot), '*');
   } catch {
     /* detached */
