@@ -372,16 +372,33 @@ describe('first canvas (S6.16) — a sentence on Home to a saved, shared canvas'
       timeoutMsg: 'one ⌘Z did not take the copy back',
     });
     expect(artboardIds().length).toBe(before);
+    // …and the board shows it: the canvas re-renders from the reverted file and the copy leaves it
+    await browser.waitUntil(
+      async () => inFrame((d) => !d.querySelector('[data-dc-screen="desktop-1280"]')),
+      { timeout: 20_000, interval: 50, timeoutMsg: 'the copy stayed on the board after ⌘Z' }
+    );
   });
 
   it('5 · double-click the headline, type, click away: the words land in the file, in place (cf-frames-text)', async () => {
     const sel = '[data-cd-id="desktop-headline"]';
-    const p = await centreOf(sel);
-    expect(p).not.toBeNull();
-    await mouseAt(p as Pt, ['pointerdown', 'pointerup', 'click', 'dblclick'], { detail: 2 }); // selects
+    // The ⌘Z of step 4 re-renders the board, and a re-rendered artboard body is a fresh `content-visibility: auto`
+    // box (canvas-lib's off-screen culling): until WebKit's next rendering update marks it on screen — a frame or
+    // two — its content is skipped, so the headline is in the DOM and measurable while the pointer lands on the body
+    // around it. A double-click in that window selects nothing and the next one only selects. So the first
+    // double-click waits for the headline to answer the pointer, the way a person's would.
+    await browser.waitUntil(async () => (await clearPointOn(sel)) !== null, {
+      timeout: 10_000,
+      interval: 50,
+      timeoutMsg: 'the headline never answered the pointer',
+    });
+    const p = (await clearPointOn(sel)) as Pt;
+    const first = await mouseAt(p, ['pointerdown', 'pointerup', 'click', 'dblclick'], {
+      detail: 2,
+    }); // selects
+    expect(first).toContain('[data-cd-id=desktop-headline]');
     // the selection now draws its grips: the second double-click goes where the headline itself is under the pointer
     await browser.pause(150);
-    const q = (await clearPointOn(sel)) ?? (p as Pt);
+    const q = (await clearPointOn(sel)) ?? p;
     const hit = await mouseAt(q, ['pointerdown', 'pointerup', 'click', 'dblclick'], {
       detail: 2,
     }); // the caret
