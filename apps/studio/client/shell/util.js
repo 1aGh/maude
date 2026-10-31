@@ -1,8 +1,8 @@
 // shell/util.js — moved verbatim out of client/app.jsx (Maude v2 plan V2-0.2, move-only split).
 
-import { CANVAS_EXT_RE, MODE_HINT_SEEN, THEME_STORE } from './constants.js';
+import { CANVAS_EXT_RE, THEME_STORE } from './constants.js';
 import { invoke, isNativeApp } from '../github.js';
-import { dismissNotice, notify } from '../../notifications.tsx';
+import { notify } from '../../notifications.tsx';
 
 // feature-unified-settings-modal — the Settings modal's view prefs are ALSO
 // persisted to disk (~/.config/maude/prefs.json via /_api/ui-prefs), so they
@@ -156,39 +156,6 @@ export function basename(p) {
 // (06 ad-open-all, 10 co-sync-back: the one-line pill at the top).
 export function shellToast(message, ok = false, action, extra) {
   notify({ title: message, kind: ok ? 'success' : 'error', action, ...extra });
-}
-
-export function browseFirstRunHint(readOnly = false) {
-  if (typeof document === 'undefined' || typeof localStorage === 'undefined') return;
-  try {
-    if (localStorage.getItem(MODE_HINT_SEEN) === '1') return;
-  } catch {
-    return;
-  }
-  if (browseFirstRunHint.active) return;
-  browseFirstRunHint.active = true;
-  const dismiss = () => {
-    browseFirstRunHint.active = false;
-    try {
-      localStorage.setItem(MODE_HINT_SEEN, '1');
-    } catch {}
-    document.removeEventListener('keydown', onV, true);
-  };
-  const onV = (e) => {
-    if ((e.key === 'v' || e.key === 'V') && !e.metaKey && !e.ctrlKey && !e.altKey) {
-      dismissNotice('mode-hint');
-      dismiss();
-    }
-  };
-  if (readOnly) document.addEventListener('keydown', onV, true);
-  notify({
-    id: 'mode-hint',
-    title: readOnly ? 'Your mock is live' : 'You’re in Edit',
-    description: readOnly
-      ? 'Click things to try it. Press V to select & inspect.'
-      : 'Click selects. Switch to Preview (top right) to use the design live.',
-    onDismiss: dismiss,
-  });
 }
 
 // Strip canvas extensions for display. `Canvas Viewport.tsx` → `Canvas Viewport`.

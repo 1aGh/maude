@@ -576,6 +576,12 @@
 
 /* P8 C0: was unlayered. In @layer components: above the v1 shell layer and after the v1 component files, the place an unlayered v2 rule held over v1 — without beating every layer. */
 @layer components {
+  /* r2-p3 (UX-TOAST-1: menu > popover > toast) — a shell menu lives in its island's stacking context (z 30), and the
+     toaster sits at 8000: a toast covered the open menu. The island with an open menu rises over the toaster and
+     stays under the modal scrims (9000), where a toast must still confirm a sheet's action. */
+  .island:has([role="menu"]) {
+    z-index: 8100;
+  }
   /* The Share / Ask to edit button and the icon buttons never shrink — the status word gives way first
      (it ellipsises), so the primary action is always whole (seen squeezed to 28 px, V2-4.3 lead). */
   .sh-share .sh-share-btn,

@@ -298,7 +298,13 @@ export async function openCanvas(server, { clearTop = 0 } = {}) {
       b.click();
       return true;
     }, want.mode);
-    if (left) await page.waitForTimeout(150);
+    if (!left) return;
+    await page.waitForTimeout(150);
+    // r2-p3 (Michal TD1d): entering Preview no longer eases the camera back onto the board, so a scenario that
+    // panned (a Hand drag) would leave the next one looking at the wrong place. Re-fit, as openCanvas did — ⌘0 is
+    // Zoom to fit, and it keeps the keyboard focus on the canvas.
+    await pressKey('Meta+0');
+    await page.waitForTimeout(400);
   };
   const c = {
     browser,

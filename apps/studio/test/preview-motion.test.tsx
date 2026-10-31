@@ -37,6 +37,7 @@ import {
   cubicBezier,
   EASE_MS,
   easeKind,
+  PREVIEW_EASES,
   inViewArtboard,
   type PreviewEaseDeps,
   usePreviewCamera,
@@ -64,12 +65,15 @@ function fitInto(r: BoardRect, ins: Readonly<Insets>): Camera {
 
 // ── the pieces ───────────────────────────────────────────────────────────────────────────────────
 
+// r2-p3 (Michal TD1d) supersedes the S3.9 ease: a mode switch changes only the toolbar and the camera does not
+// move (PREVIEW_EASES = false). The engine below is still driven directly; the hook no longer starts it.
 describe('easeKind: which transitions move the camera', () => {
-  test('Edit / Viewing ⇄ Preview do; everything else does not', () => {
-    expect(easeKind('edit', 'preview')).toBe('enter');
-    expect(easeKind('viewing', 'preview')).toBe('enter');
-    expect(easeKind('preview', 'edit')).toBe('leave');
-    expect(easeKind('preview', 'viewing')).toBe('leave');
+  test('none any more (TD1d): Edit / Viewing ⇄ Preview keep the camera, as does everything else', () => {
+    expect(PREVIEW_EASES).toBe(false);
+    expect(easeKind('edit', 'preview')).toBeNull();
+    expect(easeKind('viewing', 'preview')).toBeNull();
+    expect(easeKind('preview', 'edit')).toBeNull();
+    expect(easeKind('preview', 'viewing')).toBeNull();
     // Present is S3.2a's lift; the ease never touches it
     expect(easeKind('edit', 'present')).toBeNull();
     expect(easeKind('present', 'edit')).toBeNull();
@@ -426,19 +430,18 @@ describe('usePreviewCamera: one camera move per Edit ⇄ Preview', () => {
     expect(document.documentElement.hasAttribute('data-maude-preview')).toBe(false);
   });
 
-  test('Preview: the insets arrive first, then set-mode; the camera eases once and lands', () => {
+  test('Preview: the insets arrive first, then set-mode; the camera stays where Edit left it (TD1d)', () => {
     // the shell sends the TARGET layout's insets before set-mode (panels folded: nothing on the left)
     setInsets({ top: 64, right: 0, bottom: 64, left: 0 });
     advance(300);
     expect(sets).toHaveLength(0); // an inset change alone never moves the camera (I1)
 
+    const edit = { ...camera.current };
     setMode('preview');
     expect(document.documentElement.hasAttribute('data-maude-preview')).toBe(true);
-    advance(60);
-    expect(sets.length).toBeGreaterThan(0);
-    advance(400);
-    const want = fitInto(board('home'), { top: 64, right: 0, bottom: 64, left: 0 });
-    expect(camera.current).toEqual(want);
+    advance(460);
+    expect(sets).toHaveLength(0);
+    expect(camera.current).toEqual(edit);
     const settled = sets.length;
 
     // the pill folds and the toolbar settles a moment later: more insets, still no move
@@ -462,7 +465,7 @@ describe('usePreviewCamera: one camera move per Edit ⇄ Preview', () => {
     expect(document.documentElement.hasAttribute('data-maude-preview')).toBe(true);
   });
 
-  test('back to Edit eases the camera home, then the attribute is gone', () => {
+  test('back to Edit moves nothing either (TD1d), then the attribute is gone', () => {
     // Present stood between: the way back was forgotten, so Preview → Edit has nowhere to return to
     setMode('edit');
     advance(400);
@@ -473,11 +476,11 @@ describe('usePreviewCamera: one camera move per Edit ⇄ Preview', () => {
     const n = sets.length;
     setMode('preview');
     advance(400);
-    expect(camera.current).not.toEqual(edit);
+    expect(camera.current).toEqual(edit);
     setMode('edit');
     advance(400);
     expect(camera.current).toEqual(edit);
-    expect(sets.length).toBeGreaterThan(n);
+    expect(sets.length).toBe(n);
   });
 });
 

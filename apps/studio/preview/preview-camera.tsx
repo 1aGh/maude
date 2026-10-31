@@ -50,11 +50,18 @@ const sameCam = (a: Camera, b: Camera) =>
 const isBase = (m: CanvasModeV2 | null) => m === 'edit' || m === 'viewing';
 
 /** Which mode transitions move the camera. Present (either side), boot, a re-sent mode and a role clamp
- *  between Edit and Viewing do not. */
+ *  between Edit and Viewing do not.
+ *
+ *  r2-p3 (Michal TD1d, decision maude/v2-michal-ux-audit-td-decisions — supersedes the S3.9 ease of
+ *  `v2-S3.9-camera-ease-engine`): a mode switch changes only the toolbar, so NO transition moves the camera
+ *  any more — Preview keeps the Edit camera and the panels keep their place. The engine stays (tests drive it
+ *  directly) behind this one switch; `PREVIEW_EASES` is the way back if the frame ever moves again. */
+export const PREVIEW_EASES = false;
 export function easeKind(
   prev: CanvasModeV2 | null,
   next: CanvasModeV2 | null
 ): 'enter' | 'leave' | null {
+  if (!PREVIEW_EASES) return null;
   if (isBase(prev) && next === 'preview') return 'enter';
   if (prev === 'preview' && isBase(next)) return 'leave';
   return null;

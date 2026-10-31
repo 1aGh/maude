@@ -14,7 +14,8 @@ export interface HelpGroupDef {
 /** Main-grid groups, in order. Each lists the visible actions whose `help.group` matches. */
 export const HELP_GROUPS: readonly HelpGroupDef[] = [
   { id: 'edit-tools', label: 'Edit tools' },
-  { id: 'preview-tools', label: 'Preview tools', note: 'The key switches to Preview' },
+  // r2-p3 (TD1c): V H R T act in the mode you are in; only from Edit does a Preview key switch.
+  { id: 'preview-tools', label: 'Preview tools', note: 'From Edit, the key switches to Preview' },
   { id: 'file', label: 'File' },
   // S1.21 (11 Projects and Navigation, pn-switch-ai): the tab keys and the three ways to find a canvas.
   { id: 'tabs-windows', label: 'Tabs and windows' },

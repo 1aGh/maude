@@ -1,9 +1,8 @@
 // client/v2/preview/preview-chrome-host.jsx — S3.9: Preview's chrome, wired to the shell (04 md-motion).
 //
-// In Preview the shell shows two small islands and nothing else of its own: the PreviewBar (top centre —
-// which canvas, what esc does) and the ZoomOnly readout (bottom left). The folded pill, the folded panels
-// and the compact Share cluster are the mode's other half; they follow the same store. Edit, Viewing and
-// Present show neither.
+// In Preview the shell adds one small island of its own: the PreviewBar (top centre — which canvas, what esc
+// does). r2-p3 (Michal TD1d): a mode switch changes only the toolbar — the pill, the Share cluster and the
+// Undo · Redo · zoom island keep Edit's form (the ZoomOnly readout and the folded pill are retired here).
 //
 // `PreviewChrome` is the pure render (mode + caps + names in, islands out); `ShellPreviewChrome` collects
 // the inputs from the shell and holds the islands on screen for the exit fade (the same frames in reverse).
@@ -30,7 +29,7 @@ import { clearPreviewBack, runPreviewBack, setPreviewBack } from './preview-back
 import { previewHistory } from './preview-history.js';
 import { menuRunner } from '../shell/menu-runner.js';
 import { ZoomUndo, zoomUndoForm } from '../undo/zoom-undo.jsx';
-import { useViewportCamera, ZoomOnly } from './zoom-only.jsx';
+import { useViewportCamera } from './zoom-only.jsx';
 
 /** The islands, in Preview only. `state` is `in` while entering/showing, `out` for the exit fade.
  *  `openApp` — the browser's "Open in the Mac app" link (`openInAppLink`), absent everywhere else. */
@@ -39,13 +38,13 @@ export function PreviewChrome({ mode, caps, name, zoom, back, onBack, openApp, s
   return (
     <>
       <PreviewBar name={name} hint={previewHint(caps)} back={back} onBack={onBack} state={state} />
-      <ZoomOnly zoom={zoom} state={state} />
       <OpenInApp href={openApp} state={state} />
     </>
   );
 }
 
-/** The project pill folded to its mark? From the one store, through the what-shows table (`project-menu` row). */
+/** The project pill folded to its mark? From the one store, through the what-shows table (`project-menu` row).
+ *  r2-p3 (TD1d): no mode folds it any more — the pill keeps its form in Preview; the row stays the one switch. */
 export function usePreviewMode() {
   const snap = useSyncExternalStore(shellMode.subscribe, shellMode.get, shellMode.get);
   return modeCell('project-menu', snap.mode, snap.present) === 'folded-pill';
@@ -179,7 +178,8 @@ export function ShellPreviewChrome() {
     shellCore: { activePath, cfg, iframesRef, viewerMode },
     tabs: { openTab, shareLinksFor },
   } = useShellStore();
-  const previewing = usePreviewMode();
+  const snap = useSyncExternalStore(shellMode.subscribe, shellMode.get, shellMode.get);
+  const previewing = modeCell('toolbar', snap.mode, snap.present) === 'preview';
   const leaving = useExitHold(previewing, panelMs());
   const canvasOpen = !!activePath && activePath !== SYSTEM_TAB;
   const live = useRef({});
@@ -194,9 +194,10 @@ export function ShellPreviewChrome() {
         : null;
     },
   });
-  // P8 C3 — Edit's bottom-left island (Undo · Redo · zoom %), Viewing's zoom alone; Preview has the readout below
-  const snap = useSyncExternalStore(shellMode.subscribe, shellMode.get, shellMode.get);
-  const zoomForm = zoomUndoForm(snap.mode, snap.present);
+  // P8 C3 — Edit's bottom-left island (Undo · Redo · zoom %), Viewing's zoom alone. r2-p3 (TD1d, F26): Preview keeps
+  // the island Edit had — an annotation made there is undoable — so it no longer swaps in a readout of its own.
+  const caps = capsFor({ canEdit: !viewerMode, role: cfg?.cloud?.role });
+  const zoomForm = zoomUndoForm(snap.mode, snap.present, caps);
   const zoomUndo = zoomForm ? (
     <ZoomUndo
       zoom={zoom}
@@ -209,7 +210,6 @@ export function ShellPreviewChrome() {
   ) : null;
   if (!canvasOpen) return null;
   if (!previewing && !leaving) return zoomUndo;
-  const caps = capsFor({ canEdit: !viewerMode, role: cfg?.cloud?.role });
   const openApp = openInAppLink({
     native: isNativeApp(),
     cloud: !!cfg?.cloud,
@@ -227,6 +227,7 @@ export function ShellPreviewChrome() {
         openApp={openApp}
         state={previewing ? 'in' : 'out'}
       />
+      {previewing ? zoomUndo : null}
       <ExternalLinkConfirmHost active={previewing} />
     </>
   );

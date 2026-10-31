@@ -284,11 +284,12 @@ describe('the chat prompt normalises its scope and refuses one outside the desig
       })
     );
     // (a whole-canvas ask in this rig leases nothing: no artboard list is wired)
-    expect((await until(() => runs.view().mine[0], 4000)).scope?.canvas).toBe('ui/Site.tsx');
+    // r2-p3: the default budget, as every other wait in this file — a 4 s cap on spawning the fixture adapter was
+    // the one red in the loaded full-suite run (the suite's --timeout is 20 s).
+    expect((await until(() => runs.view().mine[0])).scope?.canvas).toBe('ui/Site.tsx');
     const designRoot = join(project, '.design');
-    await until(
-      () => (listChats(designRoot).find((c) => c.id === 'cw3' && c.canvas) ? true : undefined),
-      4000
+    await until(() =>
+      listChats(designRoot).find((c) => c.id === 'cw3' && c.canvas) ? true : undefined
     );
     const groups = groupChatsByCanvas(listChats(designRoot));
     expect(groups.map((g) => g.canvas)).toEqual(['ui/Site.tsx']);

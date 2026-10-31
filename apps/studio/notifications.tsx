@@ -309,6 +309,12 @@ const NOTICE_CSS = `
 }`;
 
 const NO_GROUPS: string[] = [];
+/**
+ * r2-p3 (UX audit F03, UX-TOAST-1): ONE toast on screen. Sonner's collapsed stack drew the next notice over the
+ * front one (`width: fit-content` clipped both texts) and two live notices were read at once. The rest wait,
+ * clocks paused, and come forward in turn.
+ */
+const MAX_VISIBLE_TOASTS = 1;
 export function NotificationHost({
   paused = false,
   hiddenGroups = NO_GROUPS,
@@ -335,9 +341,13 @@ export function NotificationHost({
     if (focused && !hostRef.current?.contains(document.activeElement)) setFocused(false);
   }, [notices, focused]);
   const visible = notices.filter((entry) => !hiddenGroups.includes(entry.group ?? ''));
-  // Publish only the latest three; older entries keep their clocks while waiting.
+  // Publish only the newest; older entries keep their clocks while waiting.
   // This also keeps visibility and clocks aligned when a hidden group returns.
-  const timedIds = new Set(visible.slice(-3).map((entry) => entry.id));
+  // The one slot belongs to the shell's own notices first: canvas text (untrusted) never pushes a trusted notice
+  // (an export that failed) off the screen — it waits until no shell notice does.
+  const trusted = visible.filter((entry) => entry.group !== 'canvas');
+  const pool = trusted.length ? trusted : visible;
+  const timedIds = new Set(pool.slice(-MAX_VISIBLE_TOASTS).map((entry) => entry.id));
   return (
     <div
       ref={hostRef}
@@ -357,7 +367,7 @@ export function NotificationHost({
         position="bottom-center"
         offset={{ bottom: 84, top: 16 }}
         mobileOffset={{ left: 16, right: 16, bottom: 84, top: 16 }}
-        visibleToasts={3}
+        visibleToasts={MAX_VISIBLE_TOASTS}
         expand={focused}
         style={{ '--width': 'min(640px, calc(100vw - 32px))' } as CSSProperties}
         containerAriaLabel="Notifications"

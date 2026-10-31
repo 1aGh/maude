@@ -1,8 +1,8 @@
 // client/v2/undo/zoom-undo.jsx — P8 C3: the Undo · Redo · zoom % island, bottom left (the kit's `ZoomUndo`,
 // 01 cf-blank, 10 co-browser-view `k-uz`, 14 edit frames).
 //
-// Edit draws all three; Viewing draws the zoom alone (`co-zoom-only`: a viewer changes nothing); Preview
-// has its own readout (ZoomOnly), Present none. The shell draws it — the canvas' own pill (the View ›
+// Edit draws all three; Viewing draws the zoom alone (`co-zoom-only`: a viewer changes nothing); Preview draws
+// the person's base form (r2-p3, TD1d), Present none. The shell draws it — the canvas' own pill (the View ›
 // Zoom controls toggle) stays what it was, a bigger tool for people who want fit / 1:1 on the canvas.
 //
 // Undo and Redo run the same verbs as ⌘Z / ⇧⌘Z (`edit.undo` / `edit.redo` through the menu runner), so
@@ -13,11 +13,14 @@ import { modeCell } from '../../../bridge/mode-shows.ts';
 import { StIcon } from '../../shell/icons.jsx';
 import { zoomLabel } from '../preview/zoom-only.jsx';
 
-/** Which form the island takes in a mode: `full` (Edit), `zoom-only` (Viewing), or none. */
-export function zoomUndoForm(mode, present) {
+/** Which form the island takes in a mode: `full` (Edit), `zoom-only` (Viewing), or none. r2-p3 (Michal TD1d, F26):
+ *  Preview keeps the form of the person's base mode — Undo · Redo for an editor (an annotation is undoable),
+ *  the zoom alone for a viewer — so switching mode moves nothing but the toolbar. */
+export function zoomUndoForm(mode, present, caps = null) {
   const bar = modeCell('toolbar', mode, present);
   if (bar === 'edit') return 'full';
   if (bar === 'viewing') return 'zoom-only';
+  if (bar === 'preview') return caps?.edit ? 'full' : 'zoom-only';
   return null;
 }
 

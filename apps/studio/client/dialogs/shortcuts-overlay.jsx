@@ -66,7 +66,8 @@ export function ShortcutsOverlay({ open, onClose, readOnly = false }) {
   const searching = find.trim().length > 0;
   const foldOpen = fold || searching;
   const nothing =
-    searching && shown.groups.length + shown.advanced.length + shown.moved.length === 0;
+    searching &&
+    shown.groups.length + shown.advanced.length + shown.moved.length + shown.modes.length === 0;
   // The keys a row does NOT show — a second binding of the same action — kept once each, in the fold.
   const others = shown.groups.flatMap((g) => g.rows).filter((r) => r.alt.length > 0);
   return (
@@ -132,7 +133,10 @@ export function ShortcutsOverlay({ open, onClose, readOnly = false }) {
             </section>
           ))}
         </div>
-        {shown.advanced.length > 0 || shown.moved.length > 0 || others.length > 0 ? (
+        {shown.advanced.length > 0 ||
+        shown.moved.length > 0 ||
+        shown.modes.length > 0 ||
+        others.length > 0 ? (
           <AdvancedFold
             panel={HELP_FOLD}
             classes={SO_CLASSES}
@@ -175,6 +179,34 @@ export function ShortcutsOverlay({ open, onClose, readOnly = false }) {
                     <ShortcutCombo keys={r.alt} />
                   </div>
                 ))}
+              </>
+            ) : null}
+            {shown.modes.length > 0 ? (
+              <>
+                {/* r2-p3 (TD1c): a key acts in the mode you are in when that mode has it, else it crosses */}
+                <h4 className="so-sub" data-testid="shortcuts-modes-hd">
+                  Tool keys in each mode
+                </h4>
+                <table className="so-modes" data-testid="shortcuts-modes">
+                  <thead>
+                    <tr>
+                      <th scope="col">Key</th>
+                      <th scope="col">In Edit</th>
+                      <th scope="col">In Preview</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {shown.modes.map((r) => (
+                      <tr key={r.key} data-testid={`shortcuts-modes-${r.key}`}>
+                        <th scope="row">
+                          <Kbd>{r.key}</Kbd>
+                        </th>
+                        <td>{r.edit}</td>
+                        <td>{r.preview}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </>
             ) : null}
             {shown.moved.length > 0 ? (

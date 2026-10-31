@@ -8,32 +8,16 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FOLD_PANELS } from '../client/v2/fold/fold-store.js';
 import { foldStore } from '../client/v2/fold/use-fold.js';
-import { toastLine } from '../client/whats-new.jsx';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel: string) => readFileSync(join(root, rel), 'utf8');
 
+// r2-p3 (Michal TD5): What's new is never a canvas toast (Home's line and Help › What's new say it) and the
+// first-run "You're in Edit" hint is dropped — test/r2-p3-modes.test.tsx pins both; the copy rules below stay.
 describe('toast copy', () => {
-  test('the What’s new toast is the first sentence, 90 characters at most', () => {
-    expect(toastLine('Share a canvas in one click. Invite people by email. Pick a role.')).toBe(
-      'Share a canvas in one click.'
-    );
-    const long = `${'A very long sentence about many things '.repeat(5)}ends here.`;
-    const out = toastLine(long);
-    expect(out.length).toBeLessThanOrEqual(90);
-    expect(out.endsWith('…')).toBe(true);
-    expect(toastLine('')).toBe('');
-    expect(toastLine(undefined)).toBe('');
-  });
-
-  test('the Edit hint says what happens, not what it resembles', () => {
-    const src = read('client/shell/util.js');
-    expect(src).not.toMatch(/like Figma/);
-    expect(src).toContain('Click selects. Switch to Preview (top right) to use the design live.');
-  });
-
-  test('the What’s new toast title uses a curly apostrophe', () => {
-    expect(read('client/whats-new.jsx')).toContain('`What’s new${');
+  test('no canvas toast for What’s new and no mode hint any more', () => {
+    expect(read('client/shell/util.js')).not.toContain('Switch to Preview (top right)');
+    expect(read('client/whats-new.jsx')).not.toContain('toastLine');
   });
 });
 

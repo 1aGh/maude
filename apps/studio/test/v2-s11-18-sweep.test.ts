@@ -181,8 +181,8 @@ describe('the "?" sheet', () => {
 });
 
 describe('the registry still says canvas, not board', () => {
-  test('the brief door is "New brief"', () => {
-    expect(ACTIONS_BY_ID.get('canvas.new-brief')?.label).toBe('New brief');
+  test('the brief door is "New brief canvas" (TD2)', () => {
+    expect(ACTIONS_BY_ID.get('canvas.new-brief')?.label).toBe('New brief canvas');
     expect(ACTIONS.filter((a) => /\bboard\b/i.test(a.label)).map((a) => a.id)).toEqual([]);
   });
 });

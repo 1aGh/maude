@@ -139,11 +139,11 @@ describe('md-edge-viewer · a view-only link, in a browser', () => {
     expect(q('palette-mode-viewing')?.getAttribute('aria-pressed')).toBe('true');
   });
 
-  test('the cluster says "Can view" and offers Ask to edit — in Preview too, where it goes compact', () => {
+  test('the cluster says "Can view" and offers Ask to edit — in Preview too, in its full form (r2-p3 TD1d)', () => {
     act(() => shellMode.select('preview'));
     mount(CAN_VIEW);
     const c = q('share-cluster');
-    expect(c?.getAttribute('data-cluster')).toBe('compact');
+    expect(c?.getAttribute('data-cluster')).toBe('full');
     expect(q('share-cluster-status')?.getAttribute('data-status')).toBe('access'); // the word the CSS keeps
     expect(q('share-cluster-status')?.textContent).toBe('Can view');
     expect(q('share-cluster-ask')?.textContent).toBe('Ask to edit');

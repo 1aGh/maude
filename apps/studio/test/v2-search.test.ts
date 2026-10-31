@@ -379,7 +379,7 @@ describe('"?" — the shortcuts sheet', () => {
     ];
     expect(ids).toEqual(order.filter((g) => ids.includes(g)));
     const preview = sheet.groups.find((g) => g.id === 'preview-tools');
-    expect(preview?.note).toBe('The key switches to Preview');
+    expect(preview?.note).toBe('From Edit, the key switches to Preview');
     expect(preview?.rows.map((r) => r.id)).toContain('tool.sticky');
     expect(sheet.groups.find((g) => g.id === 'edit-tools')?.rows.map((r) => r.id)).toContain(
       'tool.select'

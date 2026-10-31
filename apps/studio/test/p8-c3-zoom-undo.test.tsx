@@ -35,10 +35,11 @@ async function mount(el: unknown) {
 const q = (sel: string) => host?.querySelector(sel) ?? null;
 
 describe('zoomUndoForm: which form each mode draws', () => {
-  test('Edit is the full island, Viewing the zoom alone, Preview and Present none', () => {
+  test('Edit is the full island, Viewing the zoom alone, Preview the base mode’s form (r2-p3 TD1d), Present none', () => {
     expect(zoomUndoForm('edit', null)).toBe('full');
     expect(zoomUndoForm('viewing', null)).toBe('zoom-only');
-    expect(zoomUndoForm('preview', null)).toBeNull();
+    expect(zoomUndoForm('preview', null, { edit: true })).toBe('full');
+    expect(zoomUndoForm('preview', null)).toBe('zoom-only');
     expect(zoomUndoForm('present', { kind: 'artboards' })).toBeNull();
     expect(zoomUndoForm('present', { kind: 'canvas' })).toBeNull();
   });

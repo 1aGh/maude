@@ -88,7 +88,8 @@ describe('G1 · Preview’s compact cluster hides the faces', () => {
   ] as const) {
     test(`the direct child of the cluster that holds ${name} is a hidden one`, () => {
       clusterWith(presence);
-      expect(q('share-cluster')?.getAttribute('data-cluster')).toBe('compact');
+      // r2-p3 (TD1d): Preview keeps the full cluster, faces and all; the compact rule stays for any later cell
+      expect(q('share-cluster')?.getAttribute('data-cluster')).toBe('full');
       const strip = q('share-cluster-faces') as HTMLElement;
       let child: HTMLElement = strip;
       while (child.parentElement && child.parentElement !== q('share-cluster'))

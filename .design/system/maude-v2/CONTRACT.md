@@ -61,7 +61,7 @@ Menu
 | P | Pen | esc | Step back (deselect, close, leave tool) |
 | T | Text | ⌘Z / ⇧⌘Z | Undo / Redo (includes changes made by AI) |
 | I / ⇧I | Image (a picture picker at once; the next click places it, ↵ the middle) / Component [TD10] | ⌘0 / ⇧0 | Zoom to fit / Actual size |
-| N C M A E S | Sticky · Comment · Marker · Arrow · Stickers · Section — switch to Preview with that tool | ⌥⌘H | Version history |
+| N C M A E S | Sticky · Comment · Marker · Arrow · Stickers · Section (in Edit: switch to Preview with that tool) | ⌥⌘H | Version history |
 | ⌥⌘P | Preview [A7] | ⌥⌘↵ / ⇧⌥⌘↵ | Present from the selected artboard / from the start [A7] |
 | L | Pointer (in Present) [A7] | ⇧⌘C | Copy as PNG (inspector Export section) [C21] |
 | ⌘N / ⇧⌘N / ⌘O / ⌘T | New canvas / New project… / Open project… / New Home tab [C3] | ⇧⌘E / ⇧⌘H | Export… / Handoff to production |
@@ -69,7 +69,27 @@ Menu
 - **Two toolbars, one per mode (Michal 2026-10-08):**
   - **Edit** — tools that make things *inside artboards*: **Select · Hand · Artboard / Frame · Shape · Pen · Text · Image (Generate… beside it) · Component · More (…)**. "More" holds Line, Ellipse, Polygon, Crop, Export area.
   - **Preview** — annotation tools only, FigJam-style: **Select · Hand · Sticky · Comment · Marker · Arrow · Shape · Text · Stickers · Section**. The design is live, not editable. **Select (V)** is the resting pointer: a click uses the design, ⇧-click adds or removes an annotation, a drag on empty canvas selects the annotations it touches; **Hand (H)** pans (space-drag and the wheel pan too) [Michal rc.1 #17/#18]. **Stickers (E)** opens the sticker gallery: quick stamps for voting on top, then the bundled sticker packs (FigJam Doodle · Life Style · Opposing Thoughts · Project status) with keyword search and Recent; a picked sticker lands at 160 px.
-  - Annotation keys (N C M A E S) pressed in Edit switch to Preview with that tool; esc steps back to Edit. The AI is NOT a toolbar tool — it is the AI chat panel (its folded icon is the spark).
+  - **A key does what it means in the mode you are in** [Michal TD1c, 2026-10-31]: when the current toolbar has a slot for it, it arms that tool there and the mode stays (V H R T exist in both). A key only the other toolbar has switches to that mode with its tool (Edit's N C M A E S → Preview; Preview's F P I ⇧I → Edit); esc steps back. No single-key shortcut fires while text or a field is being edited. The AI is NOT a toolbar tool — it is the AI chat panel (its folded icon is the spark).
+  - **Tool keys in each mode** (the "?" sheet's fold shows the same table, derived from `toolKeyAction`):
+
+| Key | In Edit | In Preview |
+| --- | --- | --- |
+| V | Select | Select |
+| H | Hand | Hand |
+| F | Artboard / Frame | Artboard / Frame — switches to Edit |
+| R | Shape | Shape |
+| P | Pen | Pen — switches to Edit |
+| T | Text | Text |
+| I | Image | Image — switches to Edit |
+| ⇧I | Component | Component — switches to Edit |
+| N | Sticky — switches to Preview | Sticky |
+| C | Comment — switches to Preview | Comment |
+| M | Marker — switches to Preview | Marker |
+| A | Arrow — switches to Preview | Arrow |
+| E | Stickers — switches to Preview | Stickers |
+| S | Section — switches to Preview | Section |
+
+  - **A mode switch changes only the toolbar** [Michal TD1d]: the project pill, the Share cluster (faces, status word, avatar) and Undo · Redo keep their place and form in every mode but Present; the camera does not move. The mode switch is three icons (Edit · Preview · Present; Viewing in the first slot for a read-only role or a held past version): the pressed one is raised with the accent ring, its tooltip names the mode and its key (⌥⌘P · ⌥⌘↵), and a change is announced politely.
 - **Object keys in Edit** [A11]: ⌥⌘G frame selection (⌘G works too) · ⇧⌘G remove frame · ] / [ forward / backward · ⌘] / ⌘[ to front / back · arrows nudge 1 px (⇧ 10 px), inside auto layout arrows reorder · double-click enters a frame, esc steps out · ⌘D duplicate · ⌫ removes (⌘Z and Version history bring it back). Hide has no key (⇧⌘H is Handoff). **In Preview** ⌘G / ⇧⌘G group / ungroup annotations.
 - **⇧⌘L** locks / unlocks the selection — objects in Edit, annotations in Preview (shipped behaviour). A locked item rides along with its artboard but can't be dragged by itself.
 - **Focus decides** [C26]: a key goes to the first owner that wants it — focused text field › timeline focus (S split, I / O loop, ← / → frames, ⌘+ / ⌘− timeline zoom) › selection (a generated image's ← / → other takes) › mode tools › global. **⌘B always splits.**
