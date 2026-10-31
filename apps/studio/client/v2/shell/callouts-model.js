@@ -55,6 +55,13 @@ function untilWords(ms) {
   return secs < 90 ? `${secs} s` : `${Math.ceil(secs / 60)} min`;
 }
 
+/**
+ * p8-cell-copy — where an edit is kept is a claim about THIS shell. The desktop app keeps it on the Mac; a
+ * cloud tab (a browser on a cell or a team server) holds nothing on a Mac, so it says nothing about where
+ * (the shell-parity table's rule: same words, minus the part that is false there).
+ */
+const onThisMac = (native) => (native === false ? '' : ' on this Mac');
+
 /** The doručenka's states that mean "still on this Mac, not yet acknowledged by the cloud". */
 const WAITING_STATES = new Set(['local-only', 'pushing', 'stuck']);
 const FOLD_FILES = 5;
@@ -72,7 +79,7 @@ const hostOf = (url) => {
  * nothing is wrong and nothing is lost. The words come first; the developer's facts are a fold.
  * `fold.waiting.files` are the paths the doručenka still has as local-only / pushing / stuck.
  */
-function stuckCallout(status, now) {
+function stuckCallout(status, now, native = true) {
   const limited = status.files?.rateLimited;
   const waiting = Number.isFinite(limited?.waiting) ? limited.waiting : 0;
   if (!limited || waiting <= 0) return null;
@@ -95,7 +102,7 @@ function stuckCallout(status, now) {
     tone: 'info',
     icon: 'clock',
     title: `${plural(waiting, 'change is', 'changes are')} waiting to reach the cloud.`,
-    detail: `They're safe on this Mac. The cloud is busy and asked to wait — the next try is in ${untilWords(until - now)}, by itself.`,
+    detail: `They're safe${onThisMac(native)}. The cloud is busy and asked to wait — the next try is in ${untilWords(until - now)}, by itself.`,
     action: { id: 'try-now', label: 'Try now', busyLabel: 'Trying…' },
     fold: {
       rows,
@@ -115,7 +122,7 @@ function stuckCallout(status, now) {
  * asking to wait. A short offline spell is the status word's job.
  * `now` is only read for the countdown in the "wait" callout.
  */
-export function syncCallout(status, now = Date.now()) {
+export function syncCallout(status, now = Date.now(), { native = true } = {}) {
   if (!status || status.linked === false || status.notSyncable) return null;
   const { state, queuedOps, conflicts } = status;
   // P8 C7: the reconnect flash ("Back online. Everything is synced.") is NOT a callout any more — a
@@ -130,8 +137,8 @@ export function syncCallout(status, now = Date.now()) {
       icon: 'offline',
       title: 'Offline for a long while',
       detail: n
-        ? `${plural(n, 'edit', 'edits')} kept on this Mac, waiting to sync.`
-        : 'Your edits are kept on this Mac and sync when the connection returns.',
+        ? `${plural(n, 'edit', 'edits')} kept${onThisMac(native)}, waiting to sync.`
+        : `Your edits are kept${onThisMac(native)} and sync when the connection returns.`,
       action: DETAILS,
     };
   }
@@ -174,11 +181,11 @@ export function syncCallout(status, now = Date.now()) {
       tone: 'warn',
       icon: 'problem',
       title: `${plural(rejected, 'canvas', 'canvases')} not syncing`,
-      detail: 'The cloud refused them. Your edits are kept on this Mac.',
+      detail: `The cloud refused them. Your edits are kept${onThisMac(native)}.`,
       action: DETAILS,
     };
   }
-  return stuckCallout(status, now);
+  return stuckCallout(status, now, native);
 }
 
 /**
@@ -340,7 +347,7 @@ export function calloutStack({
   return [
     diskFullCallout(disk, { native }),
     crashed ? crashedCallout(crashed.notice, crashed.lastWorkAt, crashed.now) : null,
-    syncCallout(syncStatus, now),
+    syncCallout(syncStatus, now, { native }),
     renamedCallout(syncStatus),
     repoCallout(gitLifecycle),
     updateCallout(updateReady),

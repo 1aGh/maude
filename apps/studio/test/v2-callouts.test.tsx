@@ -96,6 +96,39 @@ describe('the model: every banner message has an item', () => {
     );
   });
 
+  test('p8-cell-copy: a cloud tab holds nothing on a Mac, so no sync callout says "this Mac" there', () => {
+    const cloudTab = { native: false };
+    const lines = [
+      syncCallout(linked({ state: 'offline-long', queuedOps: 14 }), 0, cloudTab),
+      syncCallout(linked({ state: 'offline-long', queuedOps: 0 }), 0, cloudTab),
+      syncCallout(linked({ docs: { rejected: 2 } }), 0, cloudTab),
+      syncCallout(
+        linked({ files: { rateLimited: { until: 5000, waiting: 3 }, delivery: {} } }),
+        0,
+        cloudTab
+      ),
+    ].map((c) => `${c?.title} | ${c?.detail}`);
+    for (const l of lines) expect(l).not.toMatch(/this Mac/i);
+    expect(lines[0]).toContain('14 edits kept, waiting to sync.');
+    expect(lines[1]).toContain('Your edits are kept and sync when the connection returns.');
+    expect(lines[2]).toContain('The cloud refused them. Your edits are kept.');
+    // the desktop app keeps its words — an edit really is on the Mac there (also the default)
+    for (const opts of [undefined, { native: true }]) {
+      expect(syncCallout(linked({ state: 'offline-long', queuedOps: 14 }), 0, opts)?.detail).toContain(
+        'kept on this Mac, waiting to sync.'
+      );
+      expect(syncCallout(linked({ docs: { rejected: 2 } }), 0, opts)?.detail).toContain(
+        'Your edits are kept on this Mac.'
+      );
+    }
+    // the stack hands the shell's `native` through (a browser tab: callouts-host passes doors.available)
+    const stack = calloutStack({
+      syncStatus: linked({ state: 'offline-long', queuedOps: 3 }),
+      native: false,
+    });
+    expect(stack.find((c) => c.kind === 'sync-offline-long')?.detail).not.toMatch(/this Mac/i);
+  });
+
   test('the reconnect flash is no callout (said once, by the back-online toast); solo, unlinked and not-syncable say nothing', () => {
     // P8 C7: a second "Back online" line landed beside sync-states/back-online.jsx's own toast, so the flash left the banner
     expect(syncCallout(linked({ flash: 'synced' }))).toBeNull();
