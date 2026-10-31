@@ -18,9 +18,11 @@
 
 import { spawn } from 'node:child_process';
 import { cpSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { seedScenarioCanvas } from './p84-fixture.mjs';
+import { runDirRefusal } from './p84-run-dir.mjs';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const { stubClaudeEnv } = await import(
@@ -39,6 +41,12 @@ if (!process.argv[2]) {
 const CELL_PORT = Number(arg('cell-port', '4799'));
 const BROWSER_PORT = Number(arg('browser-port', '4398'));
 
+// final-3 I6 — the run dir is wiped below: only a throwaway one (p84-run-dir.mjs), never `~` or the repo.
+const refusal = runDirRefusal(RUN, { home: process.env.HOME || homedir(), repo: REPO });
+if (refusal) {
+  console.error(`[p84-up] refusing run dir: ${refusal}`);
+  process.exit(2);
+}
 rmSync(RUN, { recursive: true, force: true });
 mkdirSync(RUN, { recursive: true });
 const HOME = join(RUN, 'home');
@@ -127,7 +135,9 @@ spawnLogged(
 await waitUp(`http://localhost:${BROWSER_PORT}/`);
 
 // 3. the viewer session, minted into the cell's own token store
-const { addToken } = await import(pathToFileURL(join(REPO, 'apps/hub/src/tokens.mjs')).href);
+const { addToken, removeToken } = await import(
+  pathToFileURL(join(REPO, 'apps/hub/src/tokens.mjs')).href
+);
 const sessions = {};
 for (const [name, role] of [
   ['viewer', 'viewer'],
@@ -153,34 +163,40 @@ for (const [name, role] of [
 // P84_KEEP_LEGACY=1 skips the switch: the cell stays in the old save mode, so the view-only banner an owner
 // and a viewer read (p8-cell-copy) can be driven. The scenarios are not meant to pass in that state.
 if (!process.env.P84_KEEP_LEGACY) {
+  // final-3 I4 — the owner's switch is an admin call (wildcard scope); the token lives only for it: ten
+  // minutes at most, and revoked in the `finally` below once the switch is done (or failed).
   const admin = addToken(join(cellDir, 'data'), {
     label: 'p84-owner-switch',
     scope: '*',
-    expiresAt: Date.now() + 3600_000,
+    expiresAt: Date.now() + 600_000,
   }).value;
-  const hub = `http://127.0.0.1:${CELL_PORT}`;
-  const auth = { authorization: `Bearer ${admin}` };
-  const stored = async () => {
-    const r = await fetch(`${hub}/api/documents`, { headers: auth }).catch(() => null);
-    const docs = (await r?.json().catch(() => null))?.documents ?? [];
-    const has = (n) => docs.some((d) => new RegExp(`(^|/)${n}$`).test(d.name) && d.bytes > 0);
-    return has('ui-home') && has('ui-board');
-  };
-  for (let t = Date.now(); !(await stored()); ) {
-    if (Date.now() - t > 60_000) throw new Error('the cell hub never stored ui-home + ui-board');
-    await new Promise((r) => setTimeout(r, 300));
+  try {
+    const hub = `http://127.0.0.1:${CELL_PORT}`;
+    const auth = { authorization: `Bearer ${admin}` };
+    const stored = async () => {
+      const r = await fetch(`${hub}/api/documents`, { headers: auth }).catch(() => null);
+      const docs = (await r?.json().catch(() => null))?.documents ?? [];
+      const has = (n) => docs.some((d) => new RegExp(`(^|/)${n}$`).test(d.name) && d.bytes > 0);
+      return has('ui-home') && has('ui-board');
+    };
+    for (let t = Date.now(); !(await stored()); ) {
+      if (Date.now() - t > 60_000) throw new Error('the cell hub never stored ui-home + ui-board');
+      await new Promise((r) => setTimeout(r, 300));
+    }
+    const res = await fetch(`${hub}/api/projects/current/v1/mode`, {
+      method: 'POST',
+      headers: { ...auth, 'content-type': 'application/json' },
+      body: JSON.stringify({ mode: 'transactions' }),
+    });
+    const body = await res.json().catch(() => null);
+    if (res.status !== 200)
+      throw new Error(
+        `switching the cell to accepted revisions failed: ${res.status} ${JSON.stringify(body)}`
+      );
+    console.log(`[p84-up] the cell saves with accepted revisions (epoch ${body?.epoch})`);
+  } finally {
+    removeToken(join(cellDir, 'data'), 'p84-owner-switch');
   }
-  const res = await fetch(`${hub}/api/projects/current/v1/mode`, {
-    method: 'POST',
-    headers: { ...auth, 'content-type': 'application/json' },
-    body: JSON.stringify({ mode: 'transactions' }),
-  });
-  const body = await res.json().catch(() => null);
-  if (res.status !== 200)
-    throw new Error(
-      `switching the cell to accepted revisions failed: ${res.status} ${JSON.stringify(body)}`
-    );
-  console.log(`[p84-up] the cell saves with accepted revisions (epoch ${body?.epoch})`);
   const cookie = { cookie: `maude_studio=${sessions.viewer}` };
   let mode = null;
   for (let t = Date.now(); mode !== 'accepted'; ) {
