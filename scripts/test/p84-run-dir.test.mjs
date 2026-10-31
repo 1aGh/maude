@@ -74,3 +74,16 @@ test('p84-up.mjs checks the run dir before it wipes it, and revokes its admin to
   const mint = src.indexOf("label: 'p84-owner-switch'");
   assert.ok(src.indexOf('finally', mint) > mint, 'the revoke runs in a finally after the mint');
 });
+
+// p8-holds-fix (recheck info E) — the 6 h scenario session tokens are revoked at teardown too.
+test('p84-up.mjs revokes the scenario session tokens when the rig is torn down', () => {
+  const src = readFileSync(new URL('../v2-verify/p84-up.mjs', import.meta.url), 'utf8');
+  const bye = src.indexOf('const bye = ');
+  assert.ok(bye > 0, 'the rig has a teardown');
+  const teardown = src.slice(bye, src.indexOf('process.on(', bye));
+  assert.match(teardown, /revokeSessions\(\)/, 'the teardown revokes the sessions');
+  assert.match(
+    src,
+    /function revokeSessions\(\)[\s\S]*?removeToken\(join\(cellDir, 'data'\), `studio-p84-\$\{name\}`\)/
+  );
+});
