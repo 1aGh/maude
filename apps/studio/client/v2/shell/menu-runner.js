@@ -137,7 +137,7 @@ export function createMenuHandlers(d) {
     // ── File ──
     // S6.1: a blank canvas, named by the server (C4), opened at once. The tree composer is the brief board's.
     'canvas.new': () => {
-      createBlankCanvas({ toast: d.toast });
+      createBlankCanvas({ toast: d.toast, sizes: true });
     },
     'canvas.new-brief': () => openBriefBoardComposer(d),
     // S6.3: Home's "Ask AI for a new canvas…" — a canvas from one sentence, drafted by AI in a new chat.

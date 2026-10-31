@@ -176,7 +176,52 @@ export function DsPinnedRows({
  * words, "New canvas" — WCAG 2.5.3, decision v2-p8-c5-new-row-name-is-its-words) and
  * the quiet folder button at its end is `tree-new-folder` (shown on hover / focus, always present for keys).
  */
-export function NewCanvasRow({ onNew, onNewFolder, boardOpen = false, folderOpen = false }) {
+export function NewCanvasRow({
+  onNew,
+  onNewFolder,
+  boardOpen = false,
+  folderOpen = false,
+  naming = null,
+}) {
+  // R2-P2 (F06): asked for, the row IS the name field, in place — not a field 450 px away. `naming` =
+  // { kind: 'canvas' | 'folder', value, busy, error, onChange, onCommit, onCancel }.
+  if (naming) {
+    const folder = naming.kind === 'folder';
+    return (
+      <div className="lp-newrow lp-newrow--naming" data-testid="canvases-new-row">
+        <span className="lp-new-ic" aria-hidden="true">
+          <StIcon name={folder ? 'folder-plus' : 'plus'} size={14} />
+        </span>
+        <input
+          type="text"
+          className="lp-newname"
+          data-testid="canvases-new-name"
+          aria-label={folder ? 'Folder name' : 'Canvas name'}
+          aria-invalid={naming.error ? 'true' : undefined}
+          maxLength={60}
+          value={naming.value}
+          disabled={naming.busy}
+          // biome-ignore lint/a11y/noAutofocus: the row turned into this field because the person asked for it
+          autoFocus
+          onFocus={(e) => e.target.select()}
+          onChange={(e) => naming.onChange(e.target.value)}
+          onBlur={() => {
+            if (!naming.busy) naming.onCancel();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              naming.onCommit();
+            } else if (e.key === 'Escape') {
+              e.preventDefault();
+              e.stopPropagation();
+              naming.onCancel();
+            }
+          }}
+        />
+      </div>
+    );
+  }
   return (
     <div className="lp-newrow" data-testid="canvases-new-row">
       <button

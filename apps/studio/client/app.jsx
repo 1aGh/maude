@@ -3450,7 +3450,7 @@ function ShellTree() {
           onClose={() => setComponentsReq(null)}
         />
       )}
-      <SizePickerHost req={sizesReq} onClose={() => setSizesReq(null)} />
+      <SizePickerHost req={sizesReq} onOpen={setSizesReq} onClose={() => setSizesReq(null)} />
       {diffTarget && (
         <DiffView
           target={diffTarget}

@@ -112,7 +112,7 @@
     },
     {
       "id": "canvas.new-brief",
-      "label": "New brief",
+      "label": "New brief canvas",
       "kind": "command",
       "exec": "shell",
       "effect": "project",

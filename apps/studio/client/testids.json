@@ -41132,6 +41132,19 @@
     "v2": "stable"
   },
   {
+    "hook": "canvases-new-name",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The name field the \"+ New canvas\" / \"New folder\" row turns into when asked for (aria-label \"Canvas name\" / \"Folder name\"): \"Untitled canvas\" selected; Enter commits and only then is the file written; Esc or leaving cancels.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/canvases-pinned.jsx",
+      "symbol": "NewCanvasRow"
+    },
+    "region": "canvases",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
     "hook": "switcher-open-folder",
     "kind": "testid",
     "pattern": false,
