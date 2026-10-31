@@ -117,7 +117,7 @@ describe('canvas-edit / applyInsertElement', () => {
   test('inserts a div AFTER the anchor and returns its new id', () => {
     const id = idsOf(base).button as string;
     const out = applyInsertElement(CANVAS, base, id, 'after', 'div');
-    expect(out.source).toContain("background: 'var(--bg-2)'");
+    expect(out.source).toContain("background: 'var(--bg-3, #d4d4d8)'");
     expect(parses(out.source)).toBe(true);
     // V2-2.19: a writer that creates an element stamps it with a readable id (contract V2-1.4 §5.2).
     expect(out.newId).toBe('div');
@@ -128,7 +128,7 @@ describe('canvas-edit / applyInsertElement', () => {
     const id = idsOf(base).button as string;
     const out = applyInsertElement(CANVAS, base, id, 'before', 'text');
     expect(out.source).toContain(
-      `<p data-cd-id="text" style={{ margin: 0, fontFamily: 'var(--font-body, system-ui, -apple-system, sans-serif)' }}>Text</p>`
+      `<p data-cd-id="text" style={{ margin: 0, color: 'var(--fg-0, #18181b)', fontFamily: 'var(--font-body, system-ui, -apple-system, sans-serif)' }}>Text</p>`
     );
     // Order: the <p> precedes the <button> in source.
     expect(out.source.indexOf('<p ')).toBeLessThan(out.source.indexOf('<button'));
@@ -139,7 +139,7 @@ describe('canvas-edit / applyInsertElement', () => {
     const id = idsOf(base).section as string;
     const out = applyInsertElement(CANVAS, base, id, 'inside-end', 'div');
     // The new div is nested within <section>…</section>.
-    expect(out.source).toMatch(/<section>[\s\S]*var\(--bg-2\)[\s\S]*<\/section>/);
+    expect(out.source).toMatch(/<section>[\s\S]*var\(--bg-3, #d4d4d8\)[\s\S]*<\/section>/);
     expect(parses(out.source)).toBe(true);
   });
 
@@ -179,7 +179,7 @@ describe('canvas-edit / applyInsertElementIntoArtboard (empty-artboard fallback)
   test("inserts a div as the artboard's only child (inside-end)", () => {
     const out = applyInsertElementIntoArtboard(CANVAS, emptyCanvas, 'home', 'inside-end', 'div');
     expect(out.source).toMatch(
-      /<DCArtboard id="home"[^>]*>[\s\S]*var\(--bg-2\)[\s\S]*<\/DCArtboard>/
+      /<DCArtboard id="home"[^>]*>[\s\S]*var\(--bg-3, #d4d4d8\)[\s\S]*<\/DCArtboard>/
     );
     expect(parses(out.source)).toBe(true);
     expect(out.newId).toBe('div');
@@ -188,7 +188,7 @@ describe('canvas-edit / applyInsertElementIntoArtboard (empty-artboard fallback)
   test('inside-start lands the new element right after the opening tag', () => {
     const out = applyInsertElementIntoArtboard(CANVAS, emptyCanvas, 'home', 'inside-start', 'text');
     expect(out.source).toContain(
-      `<p data-cd-id="text" style={{ margin: 0, fontFamily: 'var(--font-body, system-ui, -apple-system, sans-serif)' }}>Text</p>`
+      `<p data-cd-id="text" style={{ margin: 0, color: 'var(--fg-0, #18181b)', fontFamily: 'var(--font-body, system-ui, -apple-system, sans-serif)' }}>Text</p>`
     );
     expect(parses(out.source)).toBe(true);
   });

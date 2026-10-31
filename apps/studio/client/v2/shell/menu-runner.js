@@ -77,7 +77,7 @@ import { otherTakesUi } from '../timeline/other-takes.jsx';
 import { reframeUi } from '../timeline/reframe-island.jsx';
 import { openHistory } from '../history/object-filter.js';
 
-/** Edit ▸ Advanced ▸ New artboard → the preset `onInsertArtboard` takes. */
+/** File ▸ New artboard (TD10; was Edit ▸ Advanced) → the preset `onInsertArtboard` takes. */
 export const ARTBOARD_PRESET = {
   'artboard.new-desktop': 'desktop',
   'artboard.new-laptop': 'laptop',
@@ -87,7 +87,7 @@ export const ARTBOARD_PRESET = {
   'artboard.new-letter': 'print-letter',
 };
 
-/** S7.20 — Edit ▸ Advanced ▸ New artboard › Video: a catalogue preset (kinds/presets.ts) the open canvas places with
+/** S7.20 — File ▸ New artboard › Video (TD10): a catalogue preset (kinds/presets.ts) the open canvas places with
  *  `artboard.insert-preset` (it picks the spot and writes the one op), not a v1 `onInsertArtboard` key. */
 export const ARTBOARD_PRESET_ID = { 'artboard.new-video': 'video-landscape' };
 

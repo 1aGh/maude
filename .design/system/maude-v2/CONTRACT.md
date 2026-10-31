@@ -20,14 +20,14 @@ written into the sections below (row ids in brackets, e.g. [A7], [C26]). Nothing
 ```
 Menu
 ├─ Back to Home
-├─ File ›        New canvas ⌘N · New project… ⇧⌘N · Open project… ⌘O
+├─ File ›        New canvas ⌘N · New artboard ▸ (Desktop · Laptop · Tablet · Mobile · A4 · Letter · Video)   [TD10]
+│                New project… ⇧⌘N · Open project… ⌘O
 │                Duplicate canvas · Rename canvas · Move to…
 │                Import from Figma… · Import a brand… · Assemble clips into a video
 │                Export… ⇧⌘E · Handoff to production ⇧⌘H · Close canvas
 │                Sign in as another account…   [A1, C6]
 ├─ Edit ›        Undo ⌘Z · Redo ⇧⌘Z · Undo history… · Cut ⌘X · Copy ⌘C · Paste ⌘V · Copy / Paste properties ⌥⌘C / ⌥⌘V
 │                Select all ⌘A · Deselect all esc · Select all annotations ⇧⌘A
-│                Advanced ▸ New artboard (Desktop · Laptop · Tablet · Mobile · A4 · Letter)
 ├─ View ›        Hide panels / Show panels ⌘\ · Comments ⇧⌘M · Assets · Exports · Annotations ⇧P
 │                Present ⌥⌘↵ · Present from the start ⇧⌥⌘↵ · Present the canvas   [A7, S3.1 — canvas 04 "Menu › View, amended"]
 │                Zoom in ⌘+ · Zoom out ⌘− · Zoom to fit ⌘0 · Actual size ⇧0
@@ -56,18 +56,18 @@ Menu
 | --- | --- | --- | --- |
 | V | Select | ⌘K | Search (canvases, actions, AI, every hidden tool) |
 | H | Hand (or hold Space) | ⌘\ | Hide / show panels |
-| F | Frame (draws an artboard, or a frame inside one) | ⌘/ | Ask AI (selection attached) |
+| F | Artboard / Frame (draws an artboard on empty canvas, or a frame inside one) [TD10] | ⌘/ | Ask AI (selection attached) |
 | R | Shape | ? | All shortcuts |
 | P | Pen | esc | Step back (deselect, close, leave tool) |
 | T | Text | ⌘Z / ⇧⌘Z | Undo / Redo (includes changes made by AI) |
-| I / ⇧I | Image / Component | ⌘0 / ⇧0 | Zoom to fit / Actual size |
+| I / ⇧I | Image (a picture picker at once; the next click places it, ↵ the middle) / Component [TD10] | ⌘0 / ⇧0 | Zoom to fit / Actual size |
 | N C M A E S | Sticky · Comment · Marker · Arrow · Stickers · Section — switch to Preview with that tool | ⌥⌘H | Version history |
 | ⌥⌘P | Preview [A7] | ⌥⌘↵ / ⇧⌥⌘↵ | Present from the selected artboard / from the start [A7] |
 | L | Pointer (in Present) [A7] | ⇧⌘C | Copy as PNG (inspector Export section) [C21] |
 | ⌘N / ⇧⌘N / ⌘O / ⌘T | New canvas / New project… / Open project… / New Home tab [C3] | ⇧⌘E / ⇧⌘H | Export… / Handoff to production |
 
 - **Two toolbars, one per mode (Michal 2026-10-08):**
-  - **Edit** — tools that make things *inside artboards*: **Select · Hand · Frame · Shape · Pen · Text · Image · Component · More (…)**. "More" holds Line, Ellipse, Polygon, Crop, Export area.
+  - **Edit** — tools that make things *inside artboards*: **Select · Hand · Artboard / Frame · Shape · Pen · Text · Image (Generate… beside it) · Component · More (…)**. "More" holds Line, Ellipse, Polygon, Crop, Export area.
   - **Preview** — annotation tools only, FigJam-style: **Select · Hand · Sticky · Comment · Marker · Arrow · Shape · Text · Stickers · Section**. The design is live, not editable. **Select (V)** is the resting pointer: a click uses the design, ⇧-click adds or removes an annotation, a drag on empty canvas selects the annotations it touches; **Hand (H)** pans (space-drag and the wheel pan too) [Michal rc.1 #17/#18]. **Stickers (E)** opens the sticker gallery: quick stamps for voting on top, then the bundled sticker packs (FigJam Doodle · Life Style · Opposing Thoughts · Project status) with keyword search and Recent; a picked sticker lands at 160 px.
   - Annotation keys (N C M A E S) pressed in Edit switch to Preview with that tool; esc steps back to Edit. The AI is NOT a toolbar tool — it is the AI chat panel (its folded icon is the spark).
 - **Object keys in Edit** [A11]: ⌥⌘G frame selection (⌘G works too) · ⇧⌘G remove frame · ] / [ forward / backward · ⌘] / ⌘[ to front / back · arrows nudge 1 px (⇧ 10 px), inside auto layout arrows reorder · double-click enters a frame, esc steps out · ⌘D duplicate · ⌫ removes (⌘Z and Version history bring it back). Hide has no key (⇧⌘H is Handoff). **In Preview** ⌘G / ⇧⌘G group / ungroup annotations.

@@ -104,12 +104,13 @@ describe('object.insert-shape', () => {
     expect(style(h.src(), 'rectangle', 'top')).toBe('24px');
     expect(style(h.src(), 'rectangle', 'width')).toBe('216px');
     expect(style(h.src(), 'rectangle', 'height')).toBe('216px');
-    expect(style(h.src(), 'rectangle', 'background')).toBe('var(--accent, currentColor)');
+    expect(style(h.src(), 'rectangle', 'background')).toBe('var(--bg-3, #d4d4d8)');
     // it landed inside the desktop artboard, not the mobile one
     const walk = walkIdElements(h.src(), FILE);
     if (!walk.ok) throw new Error('parse');
     expect(walk.elements.find((e) => e.id === 'rectangle')?.artboard).toBe('desktop');
-    expect(h.src()).not.toMatch(/#[0-9a-f]{3,8}\b/i);
+    // TD3: the only literal is the fallback behind the neutral role token
+    expect(h.src().match(/#[0-9a-f]{3,8}\b/gi)).toEqual(['#d4d4d8']);
   });
 
   test('a second one gets the next id; undo (one writeId) restores the file', async () => {
@@ -133,7 +134,7 @@ describe('object.insert-shape', () => {
     good(await h.run('object.insert-shape', [], { ...draw, kind: 'frame' }));
     expect(h.src()).toContain('data-cd-id="frame"');
     expect(h.src()).not.toContain('data-shape="frame"');
-    expect(style(h.src(), 'frame', 'background')).toBe('var(--bg-1)');
+    expect(style(h.src(), 'frame', 'background')).toBe('var(--bg-1, #f4f4f5)');
   });
 
   test('into a frame (target): last child, the frame untouched unless it is static', async () => {
@@ -186,7 +187,7 @@ describe('object.insert-shape', () => {
     expect(style(h.src(), 'line', 'top')).toBe('20px');
     expect(style(h.src(), 'line', 'width')).toBe('100px');
     expect(style(h.src(), 'line', 'height')).toBe('0');
-    expect(style(h.src(), 'line', 'borderTop')).toBe('2px solid var(--fg-0, currentColor)');
+    expect(style(h.src(), 'line', 'borderTop')).toBe('2px solid var(--fg-1, #52525b)');
     expect(style(h.src(), 'line', 'transform')).toBe('rotate(90deg)');
     expect(h.src()).toContain('data-shape="line"');
   });

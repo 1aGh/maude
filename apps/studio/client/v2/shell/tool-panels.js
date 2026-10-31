@@ -13,6 +13,8 @@ export const PANEL_HOSTS = Object.freeze({
   assets: 'left-panel', // the Canvases panel's Assets tab (V2-4.4a)
   components: 'popover', // the Component picker (S2.16, inspector/component-picker.jsx), anchored
   sizes: 'popover', // the F size picker (S7.20, kinds/SizePicker.jsx), anchored
+  image: 'picker', // r2-p1 TD10: Image (I) — the shell's picture picker at once (image-pick.js), no panel
+  generate: 'command', // r2-p1 TD10: Generate… beside Image — the `assets.generate` action
   // The Templates panel is S4's (canvas 15 owns it; S4.4, annotations/templates-panel.jsx). Placed like
   // Stickers; it opens only once the shell wires `openTemplates` (app.jsx).
   templates: 'popover',

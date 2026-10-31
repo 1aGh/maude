@@ -146,7 +146,15 @@ export function roleOfCaps(caps: Readonly<ModeCaps>): Role {
  *  hold the person's draw-time choices (annotations/ui/tool-state.ts; the swatch tray is retired, S4.8). */
 export type SlotPopover = 'shape-kinds' | 'sticky-colours' | 'marker-tips' | 'more';
 /** Shell-rendered panels a slot opens (V2-4.5b: `tool-panel-open`). */
-export type SlotPanel = 'stickers' | 'components' | 'templates' | 'assets' | 'sizes';
+/** r2-p1 TD10: 'image' = the shell's picture picker (Image, I); 'generate' = Generate… beside it. */
+export type SlotPanel =
+  | 'stickers'
+  | 'components'
+  | 'templates'
+  | 'assets'
+  | 'sizes'
+  | 'image'
+  | 'generate';
 /** The work package that builds a tool this task does not: its slot is in the data but not rendered. */
 export type PendingPackage = 'S2' | 'S3';
 /** Today's "+ Insert" kinds a momentary slot adds at the default size (`insert-request`). */
@@ -196,9 +204,11 @@ export const MODE_TOOLS: Readonly<Record<CanvasModeV2, ModeToolbar>> = Object.fr
       slot({ key: 'V', label: 'Select', tool: 'move', minRole: 'edit' }),
       slot({ key: 'H', label: 'Hand', tool: 'hand', minRole: 'edit' }),
       // Frame and Shape are drawn by dragging (S2.13): a frame inside an artboard, an artboard on empty canvas.
-      // Image (S2.15): I opens the Assets tab; a tile dropped on a frame, or ↵ on a selected artboard, places it
-      // (`image.place`). It arms nothing, and no longer adds one at a default size.
-      slot({ key: 'F', label: 'Frame', tool: 'frame', minRole: 'edit' }),
+      // Image (TD10, UX audit F10; was S2.15's Assets tab): I opens the shell's picture picker at once; the picked
+      // picture is placed at the next click, or ↵ in the middle of the view (`place-image` → `image.place`). It arms
+      // nothing and leaves the left panel alone. Generate… sits beside it (the toolbar draws it, panel 'generate').
+      // F reads "Artboard / Frame" (TD10): on empty canvas it draws an artboard, inside one a frame.
+      slot({ key: 'F', label: 'Artboard / Frame', tool: 'frame', minRole: 'edit' }),
       slot({ key: 'R', label: 'Shape', tool: 'el-shape', minRole: 'edit' }),
       // Pen (S2.14): click for a sharp point, drag for a smooth one; double-click a path to edit its points.
       slot({ key: 'P', label: 'Pen', tool: 'el-pen', minRole: 'edit' }),
@@ -209,7 +219,7 @@ export const MODE_TOOLS: Readonly<Record<CanvasModeV2, ModeToolbar>> = Object.fr
         label: 'Image',
         tool: 'image',
         minRole: 'edit',
-        panel: 'assets',
+        panel: 'image',
         panelFirst: true,
       }),
       // Component arms no tool: the shell's picker (⇧I, S2.16) hands a pick back as `place-component`

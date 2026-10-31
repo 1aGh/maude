@@ -113,7 +113,7 @@ describe('POST /_api/insert-element', () => {
       expect(json.ok).toBe(true);
       // V2-2.19: the new element is stamped with a readable id (contract V2-1.4 §5.2).
       expect(json.newId).toBe('div');
-      expect(readFileSync(canvasPath, 'utf8')).toContain("background: 'var(--bg-2)'");
+      expect(readFileSync(canvasPath, 'utf8')).toContain("background: 'var(--bg-3, #d4d4d8)'");
 
       // Undo removes the inserted element.
       await fetch(`${main}/_api/reorder-revert`, {
@@ -121,7 +121,7 @@ describe('POST /_api/insert-element', () => {
         body: JSON.stringify({ canvas: 'ui/List', seq: json.seq, dir: 'undo' }),
         signal: AbortSignal.timeout(2000),
       });
-      expect(readFileSync(canvasPath, 'utf8')).not.toContain("background: 'var(--bg-2)'");
+      expect(readFileSync(canvasPath, 'utf8')).not.toContain("background: 'var(--bg-3, #d4d4d8)'");
 
       // An image insert with no src is a 422 refusal (needs a contained asset).
       const noSrc = await fetch(`${main}/_api/insert-element`, {

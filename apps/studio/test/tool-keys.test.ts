@@ -36,13 +36,13 @@ describe('toolKeyAction (T8)', () => {
   const act = (mode: CanvasModeV2, key: string, caps: ModeCaps = EDITOR, tip?: 'highlighter') =>
     toolKeyAction(mode, k(key), caps, tip);
 
-  test("Edit's own keys: V H arm, F R arm their drag tools (S2.13), I opens the Assets tab (S2.15), T arms click-to-type (S2.12), ⇧I opens the Component picker (S2.16), P arms the Pen (S2.14)", () => {
+  test("Edit's own keys: V H arm, F R arm their drag tools (S2.13), I opens the picture picker (TD10), T arms click-to-type (S2.12), ⇧I opens the Component picker (S2.16), P arms the Pen (S2.14)", () => {
     expect(act('edit', 'V')).toEqual({ kind: 'arm', tool: 'move' });
     expect(act('edit', 'H')).toEqual({ kind: 'arm', tool: 'hand' });
     expect(act('edit', 'F')).toEqual({ kind: 'arm', tool: 'frame' });
     expect(act('edit', 'R')).toEqual({ kind: 'arm', tool: 'el-shape' });
     expect(act('edit', 'T')).toEqual({ kind: 'arm', tool: 'el-text' });
-    expect(act('edit', 'I')).toEqual({ kind: 'panel', panel: 'assets' });
+    expect(act('edit', 'I')).toEqual({ kind: 'panel', panel: 'image' });
     expect(act('edit', '⇧I')).toEqual({ kind: 'panel', panel: 'components' });
     expect(act('edit', 'P')).toEqual({ kind: 'arm', tool: 'el-pen' });
     expect(act('edit', 'O')).toBeNull();
@@ -93,7 +93,7 @@ describe('toolKeyAction (T8)', () => {
 
   test('Q2 — Preview: F P I ⇧I switch to Edit (P is the Pen since S2.14); a momentary slot arms nothing', () => {
     expect(act('preview', 'F')).toEqual({ kind: 'request', mode: 'edit', tool: 'frame' });
-    expect(act('preview', 'I')).toEqual({ kind: 'request', mode: 'edit', panel: 'assets' });
+    expect(act('preview', 'I')).toEqual({ kind: 'request', mode: 'edit', panel: 'image' });
     expect(act('preview', 'P')).toEqual({ kind: 'request', mode: 'edit', tool: 'el-pen' });
     // ⇧I crosses to Edit and carries the picker with it (S2.16), like E and S carry theirs
     expect(act('preview', '⇧I')).toEqual({ kind: 'request', mode: 'edit', panel: 'components' });

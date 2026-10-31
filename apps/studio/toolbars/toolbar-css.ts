@@ -150,6 +150,10 @@ export const TOOLBAR_CSS = `
 .dc-tool-palette button[data-sticky="true"] .dc-tp-sticky-badge { opacity: 1; }
 /* A slot that opens a popover (Shape kinds, Marker tips, Sticky papers) — no caret: the board draws none. */
 .dc-tool-palette .dc-tp-slot { position: relative; display: inline-flex; }
+/* r2-p1 TD10 — Generate… beside Image: a narrow spark button, one click away, quieter than a tool. */
+.dc-tool-palette .dc-tp-image-pair { align-items: center; }
+.dc-tool-palette .dc-tp-b.dc-tp-b-mini { width: 20px; min-width: 20px; padding: 0; margin-left: -2px; opacity: 0.8; }
+.dc-tool-palette .dc-tp-b.dc-tp-b-mini:hover { opacity: 1; }
 .dc-tp-shape-popover,
 .dc-tp-list-popover,
 .dc-tp-opts-popover {

@@ -53,7 +53,7 @@ import {
   type ToolSlot,
   visibleSlots,
 } from './bridge/canvas-modes.ts';
-import { DsIcon } from './canvas-ds-icons.tsx';
+import { DsIcon, DsSpark } from './canvas-ds-icons.tsx';
 import { IconLineThick, IconLineThin, SHAPE_KIND_ICONS, TOOL_ICONS } from './canvas-icons.tsx';
 import { TOOLBAR_INSERT_EVENT, type Tool } from './input-router.tsx';
 import { isReadOnlyCanvas } from './read-only-mode.ts';
@@ -236,6 +236,14 @@ const glyphFor = (id: string | null, fallback?: string) => {
   if (ds) return dsGlyph(ds);
   const key = id ? (SLOT_GLYPH[id] ?? id) : '';
   return TOOL_ICONS[key] ?? SLOT_ICONS[key] ?? (fallback ? TOOL_ICONS[fallback] : undefined);
+};
+
+/** What a panel slot's tooltip says after its name and key (r2-p1 TD10: Image picks from this Mac at once). */
+const PANEL_TIP: Readonly<Record<string, string>> = {
+  components: 'place from the design system',
+  assets: 'the pictures in this project',
+  image: 'pick a picture, then click where it goes',
+  stickers: 'searchable sticker picker',
 };
 
 type Popover = 'shape-kinds' | 'marker-tips' | 'sticky-colours' | 'more' | null;
@@ -649,20 +657,37 @@ export function ToolPalette() {
     // button and the reported `toolbar-rect`. No tool is armed.
     if (s.tool === null || s.panelFirst) {
       const Icon = glyphFor(id);
-      return (
+      const button = (
         <button
           key={id}
           type="button"
           className="dc-tp-b"
           data-testid={`toolbar-slot-${id}`}
           aria-label={`${s.label}${keyHint}`}
-          title={`${s.label}${keyHint} — ${s.panel === 'components' ? 'place from the design system' : s.panel === 'assets' ? 'the pictures in this project' : 'searchable sticker picker'}`}
+          title={`${s.label}${keyHint} — ${PANEL_TIP[s.panel ?? 'stickers'] ?? PANEL_TIP.stickers}`}
           // pressed while the shell's panel for this slot is up (shell-panels dgn); a closed panel carries no attribute
           aria-pressed={isShellPanelOpen(s.panel, shellPanel, stickerSel) ? true : undefined}
           onClick={(e) => openToolPanel(s.panel ?? 'stickers', e.currentTarget)}
         >
           {Icon ? <Icon /> : null}
         </button>
+      );
+      if (s.panel !== 'image') return button;
+      // r2-p1 TD10 — Generate stays one click away: a small spark beside Image (the shell runs `assets.generate`)
+      return (
+        <span key={id} className="dc-tp-slot dc-tp-image-pair">
+          {button}
+          <button
+            type="button"
+            className="dc-tp-b dc-tp-b-mini"
+            data-testid="toolbar-slot-image-generate"
+            aria-label="Generate…"
+            title="Generate… — make a picture with AI"
+            onClick={(e) => openToolPanel('generate', e.currentTarget)}
+          >
+            <DsSpark size={12} />
+          </button>
+        </span>
       );
     }
 

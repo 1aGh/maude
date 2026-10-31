@@ -9,6 +9,8 @@
 //                                  assets:     the left panel's Assets tab (V2-4.4a)
 //                                  components: the Component picker (S2.16), anchored the same way
 //                                  sizes:      the F size picker (S7.20), anchored the same way
+//                                  image:      Image (I) — the picture picker at once (image-pick.js, TD10)
+//                                  generate:   Generate… beside Image — the `assets.generate` action (TD10)
 //
 // EH-P4-2 gate (S4.3): a panel opens only (a) while the canvas iframe has focus, (b) at most once per
 // PANEL_MIN_GAP_MS, (c) anchored on the reported `toolbar-rect` (the message's own anchor is believed
@@ -30,6 +32,8 @@ import {
   placePanel,
   toShellRect,
 } from './tool-panels.js';
+import { createImagePick } from './image-pick.js';
+import { menuRunner } from './menu-runner.js';
 import { appOnlyFor, showRoleDenial } from './role-denial.js';
 
 /**
@@ -44,6 +48,8 @@ import { appOnlyFor, showRoleDenial } from './role-denial.js';
  * @param deps.openComponents ({canvas, anchor}) => void — the Component picker (S2.16); optional like Templates
  * @param deps.openSizes ({canvas, anchor}) => void — the F size picker (S7.20); optional like Templates
  * @param deps.openAssets () => void
+ * @param deps.pickImage (canvas) => void — Image (I): the shell's picture picker for that canvas (r2-p1 TD10)
+ * @param deps.openGenerate () => void — Generate… beside Image (TD10)
  * @param deps.hasFocus (canvas) => boolean — the canvas iframe is the shell's `document.activeElement`
  * @param deps.now () => number — ms clock (the 500 ms quiet period)
  * @param deps.canEdit () => boolean — the panels add to the design; a non-editor gets `deps.deny()`
@@ -102,6 +108,10 @@ export function createToolPanelLane(deps) {
       else deps.openStickers({ canvas, anchor: placement, replace: m.replace });
     } else if (host === 'left-panel') {
       deps.openAssets();
+    } else if (host === 'picker') {
+      deps.pickImage?.(canvas);
+    } else if (host === 'command') {
+      deps.openGenerate?.();
     }
   }
 
@@ -138,6 +148,26 @@ export function useToolPanels({
     openSizes,
     openAssets,
   };
+  const pickRef = useRef(null);
+  const imagePick = () => {
+    if (!pickRef.current)
+      pickRef.current = createImagePick({
+        activePath: () => live.current.activePath,
+        post: (canvas, msg) => {
+          const win = live.current.iframesRef.current?.get(canvas)?.contentWindow;
+          if (!win) return false;
+          win.postMessage(msg, live.current.cfg?.canvasOrigin || window.location.origin);
+          return true;
+        },
+      });
+    return pickRef.current;
+  };
+  // the HTML input is in the shell's DOM from the first render, so a DOM e2e (and an agent driving the page) can
+  // hand it a file without a dialog
+  // biome-ignore lint/correctness/useExhaustiveDependencies: imagePick reads refs; mount once
+  useEffect(() => {
+    imagePick().mount(document);
+  }, []);
   const laneRef = useRef(null);
   if (!laneRef.current)
     laneRef.current = createToolPanelLane({
@@ -163,6 +193,9 @@ export function useToolPanels({
       },
       now: () => Date.now(),
       openAssets: () => live.current.openAssets(),
+      // TD10 — the picture picker posts its pick to the canvas that asked, on the canvas origin only
+      pickImage: (canvas) => void imagePick().open(canvas),
+      openGenerate: () => menuRunner.run('assets.generate'),
     });
   const lane = laneRef.current;
   useEffect(() => {
