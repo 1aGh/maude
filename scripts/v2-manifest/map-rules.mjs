@@ -44,6 +44,9 @@ export const V2_CODE_IDS = new Set([
   'testid:studio/client/app.jsx#sidebar/tree/aria-label-create-brief-canvas', // r2 P2 renamed brief / folder name hooks
   'testid:studio/client/app.jsx#sidebar/tree/aria-label-folder-name', // r2 P2 renamed brief / folder name hooks
   'testid:studio/client/app.jsx#sidebar/tree/aria-label-new-brief-canvas-name', // r2 P2 renamed brief / folder name hooks
+  'button:studio/tool-palette.tsx#renderSlot.button/toolbar-slot-id', // r2 P1 Image (I) picker + Generate… beside it
+  'button:studio/tool-palette.tsx#renderSlot/toolbar-slot-image-generate', // r2 P1 Image (I) picker + Generate… beside it
+  'testid:studio/tool-palette.tsx#canvas/toolbar-slot-image-generate', // r2 P1 Image (I) picker + Generate… beside it
 ]);
 
 /** Entries that are infrastructure, not features (lead decision, V2-4.gate-b): id → reason. Excluded
