@@ -63,6 +63,8 @@ pub const HOME_PERMISSIONS: &[&str] = &[
     "allow-open-project-folder",
     "allow-new-home-tab",
     "allow-relink-project",
+    // r1 (img 6): New project › Advanced › "Choose another folder…".
+    "allow-pick-project-location",
     "allow-managed-project-open",
     "allow-managed-projects-list",
     "allow-open-cloud-url",
@@ -1495,8 +1497,65 @@ pub async fn relink_project(
     Ok(Some(new_pid))
 }
 
+/// `pick_project_location()` — r1 (img 6): New project › Advanced › "Choose another
+/// folder…". Home only, in front (no native sheet from a hidden tab; one picker at a
+/// time). Answers the picked folder, or `None` on cancel. It grants nothing new — Home
+/// already opens any folder by root (`resolve_open_root`) — and the Home server's
+/// `create-local` re-checks the folder before it makes a project inside it
+/// (`checkLocation`: inside the home folder or an attached drive, never hidden or
+/// `~/Library`).
+#[tauri::command]
+pub async fn pick_project_location(
+    app: AppHandle,
+    webview: tauri::Webview,
+) -> Result<Option<String>, String> {
+    caller_home(&webview, false)?;
+    let _front = windows::claim_front(&webview)?;
+    // E2E (debug builds only): a native sheet can't be DOM-driven, so the harness names
+    // the folder. Never compiled into the release `.app`.
+    #[cfg(debug_assertions)]
+    if let Ok(p) = std::env::var("MAUDE_E2E_PICK_LOCATION") {
+        if !p.is_empty() {
+            return Ok(Some(p));
+        }
+    }
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    app.dialog()
+        .file()
+        .set_parent(&webview.window())
+        .set_title("Choose where to keep the project")
+        .pick_folder(move |f| {
+            let _ = tx.send(
+                f.and_then(|f| f.into_path().ok())
+                    .map(|p| p.to_string_lossy().into_owned()),
+            );
+        });
+    rx.await
+        .map_err(|_| "The folder picker closed unexpectedly.".to_string())
+}
+
 #[cfg(test)]
 mod tests {
+    // r1 (img 6): "Choose another folder…" is a Home-only command, granted by Home's runtime
+    // capability, gated like relink_project (Home caller, in front, one picker at a time).
+    #[test]
+    fn pick_project_location_is_home_only_in_front_and_granted() {
+        assert!(super::HOME_PERMISSIONS.contains(&"allow-pick-project-location"));
+        let src = include_str!("home.rs");
+        let at = src.find("pub async fn pick_project_location(").unwrap();
+        let body = &src[at..at + src[at..].find("\n}\n").unwrap()];
+        for needle in ["caller_home(&webview, false)?", "claim_front(&webview)?", "pick_folder("] {
+            assert!(body.contains(needle), "pick_project_location lost {needle}");
+        }
+        let lib = include_str!("lib.rs");
+        assert!(lib.contains("home::pick_project_location,"), "not registered");
+        let caps = include_str!("../capabilities/default.json");
+        assert!(
+            !caps.contains("allow-pick-project-location"),
+            "a project tab must not reach the Home picker"
+        );
+    }
+
     // p8-port-gc — the GC gets the WHOLE registry (every pid, every root) from Rust, at Home boot.
     #[test]
     fn index_gc_sends_every_registered_pid_and_root_at_home_boot() {

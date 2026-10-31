@@ -106,6 +106,8 @@ fn main() {
                 // S1.5: ⌘K across projects — open another project's result.
                 "open_search_result",
                 "relink_project",
+                // r1 (img 6): New project › Advanced › "Choose another folder…" (Home only).
+                "pick_project_location",
                 "open_project_folder",
                 // V2-3 patches (windows.rs): one-shot values parked per label.
                 "take_tabs_restored",
