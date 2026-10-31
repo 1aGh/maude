@@ -17,9 +17,17 @@ export const OLDER_COPY = {
   olderUpdating: 'Updating this project for Maude 2…',
   olderNonOwner:
     'View only — this project moves to Maude 2 once its owner opens it. Ask the owner.',
-  /** gate-b-sec4 — the committed link was never made on this Mac (parked): Connect (r1-format-ds). */
-  olderLinkUnconfirmed:
-    "View only — this project says it syncs with a team server that isn't connected on this Mac. Connect it, and the project moves to Maude 2 by itself.",
+  /** No sign-in for this project's team server — none at all (`no-sign-in`), or a hub record with no
+   *  role (rc.1 finding 1, Michal A: a 1.x `link --token`; `/_config` roleSource 'missing'). ONE line for
+   *  both: Sign in — never Ask the owner; an owner then converts by itself (r1-roleless-signin). */
+  olderNotSignedIn: (hub) =>
+    `View only — this Mac isn't signed in to ${hub || 'the team server'}. Sign in, and if you own this project it moves to Maude 2 by itself.`,
+  /** gate-b-sec4 — the committed link was never made on this Mac (parked): Connect (r1-format-ds). The
+   *  host is named — the link comes from a committed file. */
+  olderLinkUnconfirmed: (hub) =>
+    hub
+      ? `View only — this project points to a team server this Mac isn't connected to: ${hub}. Connect to it, and the project moves to Maude 2 by itself.`
+      : "View only — this project points to a team server this Mac isn't connected to. Connect to it, and the project moves to Maude 2 by itself.",
   connectAction: 'Connect',
   olderHubTooOld:
     'View only — the team server needs an update before this project can move to Maude 2.',
@@ -51,6 +59,15 @@ export function teamServerCommand(version) {
       : 'latest';
   return `maude hub workspace-up --image-tag ${v}`;
 }
+
+/** A hub address as the callout names it: its host (`design.example`); '' when it does not parse. */
+const hostOf = (url) => {
+  try {
+    return url ? new URL(url).host : '';
+  } catch {
+    return '';
+  }
+};
 
 /** A hub role that may update (the hub's own bar: an owner of the whole project; `admin` is owner). */
 const ownsProject = (role) => role === 'owner' || role === 'admin';
@@ -109,12 +126,17 @@ function refusalState(plan, { save = false } = {}) {
   if (codes.includes('link-unconfirmed'))
     return {
       kind: 'link-unconfirmed',
-      line: OLDER_COPY.olderLinkUnconfirmed,
+      line: OLDER_COPY.olderLinkUnconfirmed(hostOf(hub)),
       action: 'connect',
       hub,
     };
   if (codes.includes('no-sign-in') && (plan.project?.linked?.role ?? 'unknown') === 'unknown') {
-    return { kind: 'no-sign-in', line: FAIL_COPY.olderNotSignedIn, action: 'sign-in', hub };
+    return {
+      kind: 'no-sign-in',
+      line: OLDER_COPY.olderNotSignedIn(hostOf(hub)),
+      action: 'sign-in',
+      hub,
+    };
   }
   if (codes.includes('not-owner') || codes.includes('no-sign-in')) return nonOwner;
   if (codes.includes('hub-too-old'))
@@ -155,6 +177,18 @@ export function olderGateState({ cfg, plan }) {
   if (!isOlderGate(cfg)) return null;
   // A viewer stays a viewer after an update: the role names the reason, and the owner is who updates.
   if (cfg?.readOnlyReason === 'role') {
+    // rc.1 finding 1 (Michal A): a hub record with no role keeps the floor, but it does not say who
+    // this Mac is — the step is the team server's sign-in, which stores the role; an owner then
+    // converts by itself (`/_config` stops saying 'role'). A role the hub vouched: Ask the owner.
+    if (cfg.roleSource === 'missing') {
+      const hub = cfg.linkedHub?.url ?? '';
+      return {
+        kind: 'roleless',
+        line: OLDER_COPY.olderNotSignedIn(hostOf(hub)),
+        action: 'sign-in',
+        hub,
+      };
+    }
     return { kind: 'non-owner', line: OLDER_COPY.olderNonOwner, action: null };
   }
   if (plan === undefined) return { kind: 'checking', line: OLDER_COPY.olderStatus, action: null };
@@ -350,7 +384,6 @@ export const FAIL_COPY = {
     "Updated for Maude 2, but it still saves the old way — the team server turned down this Mac's sign-in. Nothing is lost.",
   olderTokenRejected:
     "View only — the team server turned down this Mac's sign-in, so the project can't be updated yet.",
-  olderNotSignedIn: "View only — this Mac isn't signed in to the team server for this project.",
   saveModeTokenRejected:
     "This project still saves the old way. The team server turned down this Mac's sign-in.",
   retry: 'Retry update',

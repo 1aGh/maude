@@ -538,6 +538,9 @@ export function useShellCore({}) {
           formatVersion: data.formatVersion ?? 1,
           formatGate: data.formatGate ?? null,
           readOnlyReason: data.readOnlyReason ?? null,
+          // rc.1 finding 1 — 'missing': the role floor is a hub record without a role; the format
+          // callout offers Sign in instead of Ask the owner (format-update.js olderGateState).
+          roleSource: data.roleSource ?? null,
           // p8-update-to-accepted — 'accepted' | 'legacy' | null (solo): a linked project that
           // still saves the old way offers Update project to its owner (format-update.js).
           saveMode: data.saveMode ?? null,

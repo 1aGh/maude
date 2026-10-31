@@ -255,9 +255,17 @@ export const FORMAT_COPY = {
   olderUpdating: 'Updating this project for Maude 2…',
   olderNonOwner:
     'View only — this project moves to Maude 2 once its owner opens it. Ask the owner.',
-  /** gate-b-sec4 — the committed link was never made on this Mac (parked): Connect (r1-format-ds). */
-  olderLinkUnconfirmed:
-    "View only — this project says it syncs with a team server that isn't connected on this Mac. Connect it, and the project moves to Maude 2 by itself.",
+  /** No sign-in for this project's team server — none at all (`no-sign-in`), or a hub record with no
+   *  role (rc.1 finding 1, Michal A: a 1.x `link --token`; `/_config` roleSource 'missing'). ONE line for
+   *  both: Sign in — never Ask the owner; an owner then converts by itself (r1-roleless-signin). */
+  olderNotSignedIn: (hub: string) =>
+    `View only — this Mac isn't signed in to ${hub || 'the team server'}. Sign in, and if you own this project it moves to Maude 2 by itself.`,
+  /** gate-b-sec4 — the committed link was never made on this Mac (parked): Connect (r1-format-ds). The
+   *  host is named — the link comes from a committed file. */
+  olderLinkUnconfirmed: (hub: string) =>
+    hub
+      ? `View only — this project points to a team server this Mac isn't connected to: ${hub}. Connect to it, and the project moves to Maude 2 by itself.`
+      : "View only — this project points to a team server this Mac isn't connected to. Connect to it, and the project moves to Maude 2 by itself.",
   connectAction: 'Connect',
   olderHubTooOld:
     'View only — the team server needs an update before this project can move to Maude 2.',
