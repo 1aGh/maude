@@ -213,7 +213,8 @@ describe('the callout says it before anyone clicks', () => {
   test('format 1, no sign-in at all for the team server (role unknown): Sign in', () => {
     expect(olderGateState({ cfg: older, plan: dry('no-sign-in', 'unknown') })).toEqual({
       kind: 'no-sign-in',
-      line: FAIL_COPY.olderNotSignedIn,
+      // r1-roleless-signin: one line with the roleless record, naming the hub by its host
+      line: OLDER_COPY.olderNotSignedIn('alligators.cloud.maude.sh'),
       action: 'sign-in',
       hub: HUB,
     });

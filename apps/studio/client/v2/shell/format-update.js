@@ -17,13 +17,17 @@ export const OLDER_COPY = {
   olderUpdating: 'Updating this project for Maude 2…',
   olderNonOwner:
     'View only — this project moves to Maude 2 once its owner opens it. Ask the owner.',
-  /** rc.1 finding 1 (Michal A) — the role floor came from a hub record with no role (a 1.x `link --token`):
-   *  the record does not say who this Mac is, so Sign in — never Ask the owner (r1-roleless-signin). */
-  olderRoleless: (hub) =>
-    `View only — this Mac's link to ${hub || 'the team server'} doesn't say who you are. Sign in, and if you own the project, it moves to Maude 2 by itself.`,
-  /** gate-b-sec4 — the committed link was never made on this Mac (parked): Connect (r1-format-ds). */
-  olderLinkUnconfirmed:
-    "View only — this project says it syncs with a team server that isn't connected on this Mac. Connect it, and the project moves to Maude 2 by itself.",
+  /** No sign-in for this project's team server — none at all (`no-sign-in`), or a hub record with no
+   *  role (rc.1 finding 1, Michal A: a 1.x `link --token`; `/_config` roleSource 'missing'). ONE line for
+   *  both: Sign in — never Ask the owner; an owner then converts by itself (r1-roleless-signin). */
+  olderNotSignedIn: (hub) =>
+    `View only — this Mac isn't signed in to ${hub || 'the team server'}. Sign in, and if you own this project it moves to Maude 2 by itself.`,
+  /** gate-b-sec4 — the committed link was never made on this Mac (parked): Connect (r1-format-ds). The
+   *  host is named — the link comes from a committed file. */
+  olderLinkUnconfirmed: (hub) =>
+    hub
+      ? `View only — this project points to a team server this Mac isn't connected to: ${hub}. Connect to it, and the project moves to Maude 2 by itself.`
+      : "View only — this project points to a team server this Mac isn't connected to. Connect to it, and the project moves to Maude 2 by itself.",
   connectAction: 'Connect',
   olderHubTooOld:
     'View only — the team server needs an update before this project can move to Maude 2.',
@@ -122,12 +126,17 @@ function refusalState(plan, { save = false } = {}) {
   if (codes.includes('link-unconfirmed'))
     return {
       kind: 'link-unconfirmed',
-      line: OLDER_COPY.olderLinkUnconfirmed,
+      line: OLDER_COPY.olderLinkUnconfirmed(hostOf(hub)),
       action: 'connect',
       hub,
     };
   if (codes.includes('no-sign-in') && (plan.project?.linked?.role ?? 'unknown') === 'unknown') {
-    return { kind: 'no-sign-in', line: FAIL_COPY.olderNotSignedIn, action: 'sign-in', hub };
+    return {
+      kind: 'no-sign-in',
+      line: OLDER_COPY.olderNotSignedIn(hostOf(hub)),
+      action: 'sign-in',
+      hub,
+    };
   }
   if (codes.includes('not-owner') || codes.includes('no-sign-in')) return nonOwner;
   if (codes.includes('hub-too-old'))
@@ -175,7 +184,7 @@ export function olderGateState({ cfg, plan }) {
       const hub = cfg.linkedHub?.url ?? '';
       return {
         kind: 'roleless',
-        line: OLDER_COPY.olderRoleless(hostOf(hub)),
+        line: OLDER_COPY.olderNotSignedIn(hostOf(hub)),
         action: 'sign-in',
         hub,
       };
@@ -375,7 +384,6 @@ export const FAIL_COPY = {
     "Updated for Maude 2, but it still saves the old way — the team server turned down this Mac's sign-in. Nothing is lost.",
   olderTokenRejected:
     "View only — the team server turned down this Mac's sign-in, so the project can't be updated yet.",
-  olderNotSignedIn: "View only — this Mac isn't signed in to the team server for this project.",
   saveModeTokenRejected:
     "This project still saves the old way. The team server turned down this Mac's sign-in.",
   retry: 'Retry update',

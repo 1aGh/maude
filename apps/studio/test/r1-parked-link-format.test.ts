@@ -96,7 +96,7 @@ describe('the callout for a parked claim offers Connect', () => {
   test('line + action', () => {
     expect(olderGateState({ cfg: older, plan })).toEqual({
       kind: 'link-unconfirmed',
-      line: OLDER_COPY.olderLinkUnconfirmed,
+      line: OLDER_COPY.olderLinkUnconfirmed('hub.example'),
       action: 'connect',
       hub: HUB,
     });
@@ -105,9 +105,15 @@ describe('the callout for a parked claim offers Connect', () => {
   });
 
   test('the words are FORMAT_COPY’s, CONTRACT §4 voice', () => {
-    expect(OLDER_COPY.olderLinkUnconfirmed).toBe(FORMAT_COPY.olderLinkUnconfirmed);
+    for (const host of ['hub.example', '']) {
+      expect(OLDER_COPY.olderLinkUnconfirmed(host)).toBe(FORMAT_COPY.olderLinkUnconfirmed(host));
+      expect(OLDER_COPY.olderLinkUnconfirmed(host)).toMatch(/^View only — /);
+      expect(OLDER_COPY.olderLinkUnconfirmed(host)).not.toMatch(/signed in|\bwe\b|\bI\b/);
+    }
     expect(OLDER_COPY.connectAction).toBe(FORMAT_COPY.connectAction);
-    expect(OLDER_COPY.olderLinkUnconfirmed).toMatch(/^View only — /);
-    expect(OLDER_COPY.olderLinkUnconfirmed).not.toMatch(/signed in|\bwe\b|\bI\b/);
+    // the copy critic's line: the host is named (the link comes from a committed file), one clear verb
+    expect(OLDER_COPY.olderLinkUnconfirmed('hub.example')).toBe(
+      "View only — this project points to a team server this Mac isn't connected to: hub.example. Connect to it, and the project moves to Maude 2 by itself."
+    );
   });
 });

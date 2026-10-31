@@ -81,9 +81,22 @@ describe('the callout for a record without a role', () => {
     for (const plan of [undefined, { error: true }, { refusals: [{ code: 'not-owner' }] }]) {
       const s = olderGateState({ cfg, plan });
       expect(s).toMatchObject({ kind: 'roleless', action: 'sign-in', hub: HUB });
-      expect(s?.line).toBe(OLDER_COPY.olderRoleless('design.example'));
+      expect(s?.line).toBe(OLDER_COPY.olderNotSignedIn('design.example'));
       expect(s?.line).not.toContain('Ask the owner');
     }
+  });
+
+  test('one line with the no-sign-in case (the copy critic: it IS the not-signed-in state)', () => {
+    const roleless = olderGateState({ cfg: { ...older, roleSource: 'missing' } });
+    const noSignIn = olderGateState({
+      cfg: { ...older, readOnlyReason: 'format' },
+      plan: {
+        refusals: [{ code: 'no-sign-in' }],
+        project: { linked: { hub: HUB, role: 'unknown' } },
+      },
+    });
+    expect(noSignIn).toMatchObject({ kind: 'no-sign-in', action: 'sign-in', hub: HUB });
+    expect(noSignIn?.line).toBe(roleless?.line);
   });
 
   test('a role the hub vouched (observer) still says Ask the owner', () => {
@@ -94,16 +107,16 @@ describe('the callout for a record without a role', () => {
   });
 
   test('the words are FORMAT_COPY’s, and name the hub by its host', () => {
-    expect(OLDER_COPY.olderRoleless('design.example')).toBe(
-      FORMAT_COPY.olderRoleless('design.example')
+    expect(OLDER_COPY.olderNotSignedIn('design.example')).toBe(
+      FORMAT_COPY.olderNotSignedIn('design.example')
     );
-    expect(OLDER_COPY.olderRoleless('design.example')).toBe(
-      "View only — this Mac's link to design.example doesn't say who you are. Sign in, and if you own the project, it moves to Maude 2 by itself."
+    expect(OLDER_COPY.olderNotSignedIn('design.example')).toBe(
+      "View only — this Mac isn't signed in to design.example. Sign in, and if you own this project it moves to Maude 2 by itself."
     );
     // no hub to name: the team server
     expect(
       olderGateState({ cfg: { ...older, linkedHub: null, roleSource: 'missing' } })?.line
-    ).toBe(OLDER_COPY.olderRoleless(''));
-    expect(OLDER_COPY.olderRoleless('')).toContain("this Mac's link to the team server");
+    ).toBe(OLDER_COPY.olderNotSignedIn(''));
+    expect(OLDER_COPY.olderNotSignedIn('')).toContain("isn't signed in to the team server.");
   });
 });

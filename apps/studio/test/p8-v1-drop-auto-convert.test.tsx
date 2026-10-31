@@ -440,7 +440,7 @@ describe('a parked link: Connect, then it converts by itself', () => {
     const { OLDER_COPY } = await import('../client/v2/shell/format-update.js');
     await mount();
     expect(kind()).toBe('link-unconfirmed');
-    expect(line()).toContain(OLDER_COPY.olderLinkUnconfirmed);
+    expect(line()).toContain(OLDER_COPY.olderLinkUnconfirmed('hub.example'));
     expect(line()).not.toContain('signed in');
     expect($('format-older-sign-in')).toBe(null);
     expect(applies).toBe(0);

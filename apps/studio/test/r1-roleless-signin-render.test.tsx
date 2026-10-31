@@ -123,7 +123,7 @@ describe('a record without a role: Sign in, not Ask the owner', () => {
     const calls = mockMigrate(() => dryMember);
     await mount(roleless);
     expect(kind()).toBe('roleless');
-    expect(line()).toContain(OLDER_COPY.olderRoleless('design.example'));
+    expect(line()).toContain(OLDER_COPY.olderNotSignedIn('design.example'));
     expect(line()).toContain('Sign in');
     expect(line()).not.toContain('Ask the owner');
     expect(calls.apply).toBe(0);
