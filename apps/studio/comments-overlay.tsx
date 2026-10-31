@@ -61,13 +61,13 @@ import {
   type WorldPoint,
   worldToClient,
 } from './comment-anchor.ts';
+import { authorFace } from './comments/author-face.ts';
 import { fromHeadline, fromWho } from './comments/from-line.ts';
 import {
   type ImportedFrom,
   importedLabel,
   sanitizeImportedFrom,
 } from './comments/imported-from.ts';
-import { authorFace } from './comments/author-face.ts';
 import { handleOfName } from './comments/mentions.ts';
 import { committerRows, type MentionRow } from './comments/people.ts';
 import { mmAtArtboardPx, trimOfPrint, videoPinVisible, whereOf } from './comments/where.ts';

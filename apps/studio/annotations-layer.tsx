@@ -305,8 +305,8 @@ import {
 import { buildAnnotationOpsRecord } from './commands/annotation-ops-command.ts';
 import { ensureMenuStyles as ensureCtxMenuStyles } from './context-menu.tsx';
 import { clickToType } from './editing/click-to-type.ts';
-import { selectWhenRendered as selectElementsWhenRendered } from './editing/object-actions.ts';
 import { runEditOp } from './editing/edit-op.ts';
+import { selectWhenRendered as selectElementsWhenRendered } from './editing/object-actions.ts';
 import { crossedDragThreshold, postModeRequest, type Tool } from './input-router.tsx';
 import { createMediaCommitChain, type MediaCommitResult } from './media-commit-chain.ts';
 import { currentCanvasFile } from './shell-canvas-file.ts';
