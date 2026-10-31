@@ -76,7 +76,10 @@ export function PanelTabs({ side, ids, activeId, onPick, onFold, labels = null }
             aria-selected={activeId === id}
             tabIndex={activeId === id || (!ids.includes(activeId) && id === ids[0]) ? 0 : -1}
             className={'lp-tab' + (activeId === id ? ' is-active' : '')}
-            onClick={() => onPick(id)}
+            onClick={() => {
+              // R2-P2 / F27: the active tab is not a toggle — the header's Hide icon is the one way to close
+              if (activeId !== id) onPick(id);
+            }}
           >
             {label(id)}
           </button>

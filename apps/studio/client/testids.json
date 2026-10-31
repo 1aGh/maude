@@ -10741,6 +10741,19 @@
   {
     "hook": "home-new-project",
     "kind": "testid",
+    "pattern": false,
+    "meaning": "\"New project ⇧⌘N\" next to Open project… at the foot of Projects (and in the empty shelf): opens the New project sheet, the same one File ▸ New project… opens.",
+    "producer": {
+      "file": "apps/studio/client/home/Shelves.jsx",
+      "symbol": "NewProjectButton"
+    },
+    "region": "home",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "home-new-project",
+    "kind": "testid",
     "meaning": "\"New project… ⇧⌘N\" at the foot of Projects: opens the create sheet (the same sheet File ▸ New Project… opens on Home — `menu://action {id:'project.new'}`).",
     "producer": {
       "file": "apps/studio/client/home/home-app.jsx",

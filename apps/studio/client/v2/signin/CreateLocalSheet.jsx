@@ -51,6 +51,7 @@ export function CreateLocalSheet({
   native = true,
 }) {
   const [adv, setAdv] = useState(false);
+  const nameOk = value.name.trim().length > 0;
   const trap = useModalFocus({ onClose: onCancel });
   return (
     <div
@@ -67,7 +68,7 @@ export function CreateLocalSheet({
         data-testid="home-create-dialog"
         onSubmit={(e) => {
           e.preventDefault();
-          if (native) onSubmit();
+          if (native && nameOk) onSubmit();
         }}
       >
         <h2>Create a local project</h2>
@@ -76,9 +77,12 @@ export function CreateLocalSheet({
           <input
             className="home-create-name"
             data-testid="home-create-name"
-            placeholder="Untitled project"
+            placeholder="Project name"
             // biome-ignore lint/a11y/noAutofocus: the sheet opens for this one field
             autoFocus
+            // R2-P2 (R31): the name is a value, not a placeholder standing in for one — it opens as
+            // "Untitled project", selected, so a typed name replaces it and ↵ keeps it
+            onFocus={(e) => e.target.select()}
             maxLength={80}
             value={value.name}
             onChange={(e) => onChange({ ...value, name: e.target.value })}
@@ -136,8 +140,11 @@ export function CreateLocalSheet({
             type="submit"
             className="btn btn--primary"
             data-testid="home-create-submit"
-            disabled={value.busy || !native}
+            disabled={value.busy || !native || !nameOk}
             {...reasonProps(!native, 'homeBrowser')}
+            {...(native && !nameOk
+              ? { title: 'Type a name first.', 'aria-description': 'Type a name first.' }
+              : {})}
           >
             {value.busy ? 'Creating…' : 'Create project'}
           </button>
