@@ -43,8 +43,13 @@ export function useDsFamilies(ctx) {
       color: ds?.color || [],
       shadow: ds?.shadow || [],
       vals: ds?.vals || {},
+      // P6 T1 — both themes' resolved values, so a swatch can show Light | Dark (IR-8)
+      themes: ds?.themes || {},
+      defaultTheme: ds?.defaultTheme || 'light',
+      // is there a design system at all? (the picker says "This project has no design system yet" when not)
+      hasSystem: (ctx?.cfg?.designSystems || []).length > 0,
     };
-  }, [all, active]);
+  }, [all, active, ctx?.cfg?.designSystems]);
 }
 
 /** The active design system's space stops, smallest first: `{ space: [{ name: '--space-5', px: 24 }] }`. */

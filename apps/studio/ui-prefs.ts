@@ -71,6 +71,11 @@ export interface UiPrefs {
    * bug). Absent = Recently opened, folders on top.
    */
   canvasesSort?: Record<string, { by: 'recent' | 'name' | 'kind'; foldersOnTop: boolean }>;
+  /**
+   * P6 T2 (inspector-ux-rules IR-8): the Inspector colour picker's Recent row, one list per PROJECT — the last 8
+   * colours used there (a `var(--token)` or one CSS colour), newest first.
+   */
+  recentColours?: Record<string, string[]>;
   panelsHidden?: boolean;
   /** V2-4 gate (WCAG 2.1.4): Settings › General › Keyboard › Single-key shortcuts. Absent = on. */
   singleKeyShortcuts?: boolean;
@@ -197,6 +202,9 @@ const MAP_KEY = /^[A-Za-z0-9._:/-]{1,128}$/;
 export const SEEN_VERSION_RE = /^\d{1,6}\.\d{1,6}\.\d{1,6}(?:[-+][0-9A-Za-z.+-]{1,40})?$/;
 const MAP_MAX = 256;
 const RECENT_SIZES_MAX = 8;
+const RECENT_COLOURS_MAX = 8;
+/** One Recent colour: a token reference or one CSS colour — short, no declaration or markup syntax. */
+const RECENT_COLOUR_RE = /^[A-Za-z0-9#(),.%\s/+-]{1,160}$/;
 const WIDTH_MAX = 4000;
 
 /** A fold / seen map: {id: boolean} (or {id: true}); ids are plain, short, and never prototype keys. */
@@ -341,6 +349,22 @@ export function validateUiPrefsPatch(body: Record<string, unknown>): UiPrefsPatc
     }
     patch.canvasesSort = out;
   }
+  if ('recentColours' in body) {
+    const rc = body.recentColours;
+    const msg = 'recentColours must map a project id to at most 8 colours';
+    if (!rc || typeof rc !== 'object' || Array.isArray(rc)) return fail(msg);
+    const keys = Object.keys(rc);
+    if (keys.length > MAP_MAX) return fail(`recentColours has more than ${MAP_MAX} entries`);
+    const out: Record<string, string[]> = {};
+    for (const k of keys) {
+      const v = (rc as Record<string, unknown>)[k];
+      if (UNSAFE_KEYS.has(k) || !MAP_KEY.test(k)) return fail('recentColours has an invalid id');
+      if (!Array.isArray(v) || v.length > RECENT_COLOURS_MAX) return fail(msg);
+      if (!v.every((c) => typeof c === 'string' && RECENT_COLOUR_RE.test(c))) return fail(msg);
+      out[k] = v as string[];
+    }
+    patch.recentColours = out;
+  }
   if ('pin' in body) {
     const pin = body.pin;
     if (!pin || typeof pin !== 'object' || Array.isArray(pin)) return fail('pin must be an object');
@@ -448,7 +472,14 @@ export function writeUiPrefs(patch: Partial<UiPrefs>): UiPrefs {
   };
   // v2 homes are maps: a patch adds or changes keys, it never replaces the whole map (so a closed
   // fold or a second tour id cannot wipe its siblings). `version` only moves forward.
-  for (const k of ['fold', 'seen', 'canvases', 'canvasesSort', 'annotationPrefs'] as const) {
+  for (const k of [
+    'fold',
+    'seen',
+    'canvases',
+    'canvasesSort',
+    'recentColours',
+    'annotationPrefs',
+  ] as const) {
     if (patch[k] !== undefined) merged[k] = { ...plain(cur[k]), ...plain(patch[k]) } as never;
   }
   if (patch.pin !== undefined) {

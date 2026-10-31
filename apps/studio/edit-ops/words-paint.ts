@@ -55,7 +55,7 @@ const words = (s: string) => splitAt(s, ' ');
 const fmtNum = (n: number) => `${Math.round(n * 100) / 100}`;
 const fmtPx = (n: number) => (Math.round(n * 100) / 100 === 0 ? '0' : `${fmtNum(n)}px`);
 
-const VAR_RE = /^var\(\s*(--[a-z0-9-]+)\s*(?:,[^)]*)?\)$/i;
+const VAR_RE = /^var\(\s*(--[a-z0-9-]+)\s*(?:,\s*([^)]*?))?\s*\)$/i;
 const COLOR_FN_RE =
   /^(?:#[0-9a-f]{3,8}|(?:rgb|rgba|hsl|hsla|hwb|lab|lch|oklab|oklch|color|color-mix)\(.*\))$/i;
 const COLOR_WORDS = new Set(['transparent', 'currentcolor', 'white', 'black']);
@@ -70,8 +70,12 @@ export function isCssColor(s: string): boolean {
 
 /* ── colours ───────────────────────────────────────────────────────────────────────────────────────────────────── */
 
-/** A colour as the inspector shows it: a token chip, or CSS a token does not name. */
-export type Paint = { token: string } | { css: string };
+/**
+ * A colour as the inspector shows it: a token chip, or CSS a token does not name. A token may carry a literal fallback
+ * (`var(--bg-3, #d4d4d8)`, P6 T3 slot defaults) — kept through a round trip, so a new paint stays visible on a canvas
+ * with no design system.
+ */
+export type Paint = { token: string; fallback?: string } | { css: string };
 export interface Colour {
   paint: Paint;
   /** 0–100. Below 100 it is written as `color-mix(in srgb, <paint> N%, transparent)`. */
@@ -81,12 +85,14 @@ export interface Colour {
 const MIX_RE = /^color-mix\(\s*in\s+srgb\s*,\s*(.+?)\s+(\d+(?:\.\d+)?)%\s*,\s*transparent\s*\)$/i;
 
 export function paintToCss(p: Paint): string {
-  return 'token' in p ? `var(${p.token})` : p.css;
+  if (!('token' in p)) return p.css;
+  return p.fallback ? `var(${p.token}, ${p.fallback})` : `var(${p.token})`;
 }
 export function paintFromCss(raw: string): Paint {
   const s = raw.trim();
   const v = VAR_RE.exec(s);
-  return v ? { token: v[1] } : { css: s };
+  if (!v) return { css: s };
+  return v[2]?.trim() ? { token: v[1], fallback: v[2].trim() } : { token: v[1] };
 }
 export function colourToCss(c: Colour): string {
   const o = Math.max(0, Math.min(100, c.opacity));

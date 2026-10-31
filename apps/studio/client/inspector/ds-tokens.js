@@ -17,31 +17,143 @@ export function activeDsNameFor(file, cfg) {
   return byCanvas || cfg?.defaultDesignSystem || cfg?.designSystems?.[0]?.name || null;
 }
 
-// Parse a DS tokens CSS body → token names grouped by family + a name→value map
-// (resolving one level of var() aliasing so the popover renders real swatches +
-// values). Phase 12.3 (W2.1/W3 multi-DS).
+/** Split at top-level commas (never inside `(…)`). */
+function topCommas(s) {
+  const out = [];
+  let depth = 0;
+  let cur = '';
+  for (const ch of s) {
+    if (ch === '(') depth += 1;
+    else if (ch === ')') depth -= 1;
+    if (ch === ',' && depth === 0) {
+      out.push(cur.trim());
+      cur = '';
+    } else cur += ch;
+  }
+  if (cur.trim()) out.push(cur.trim());
+  return out;
+}
+
+/** Which themes a rule's selector writes: `dark`, `light`, or `default` (`:root`, `.ds`, … with no theme named). */
+function themesOfSelector(sel) {
+  const out = new Set();
+  for (const part of topCommas(sel)) {
+    if (/data-theme\s*=\s*["']?dark|\.dark\b|\.theme-dark\b/i.test(part)) out.add('dark');
+    else if (/data-theme\s*=\s*["']?light|\.light\b|\.theme-light\b/i.test(part)) out.add('light');
+    else out.add('default');
+  }
+  return out;
+}
+
+/** Every rule that declares custom properties: `{ selector, media, body }`, comments stripped, @media kept as context. */
+function rulesOf(css) {
+  const text = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  const rules = [];
+  const stack = []; // the open blocks' preludes
+  let start = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+    if (ch === '{') {
+      stack.push(text.slice(start, i).trim());
+      start = i + 1;
+    } else if (ch === '}') {
+      const prelude = stack.pop() ?? '';
+      const body = text.slice(start, i);
+      if (!prelude.startsWith('@') && /--[a-z0-9-]+\s*:/i.test(body)) {
+        rules.push({ selector: prelude, media: stack.filter((p) => p.startsWith('@')), body });
+      }
+      start = i + 1;
+    } else if (ch === ';' && stack.length === 0) start = i + 1;
+  }
+  return rules;
+}
+
+// Parse a DS tokens CSS body → token names grouped by family + a name→value map, per theme. Phase 12.3 (W2.1/W3
+// multi-DS); P6 T1 (inspector-ux-rules M2): both themes are read (a `[data-theme="dark"]` block, a
+// `prefers-color-scheme: dark` media block, `light-dark(a, b)`), every `var()` inside a value is resolved in its own
+// theme (so a `color-mix(…var(--fg-0)…)` paints in the shell), and a `color-mix()` / `light-dark()` token is a colour —
+// the old parser dropped `--scrim`, `--selection` and the `--status-*-soft` tints. `vals` is the default theme (the one
+// `:root` wears), as before.
 export function parseTokensCss(css) {
-  const raw = {};
-  for (const m of css.matchAll(/(--[a-z0-9-]+)\s*:\s*([^;}]+)/gi)) {
-    if (!(m[1] in raw)) raw[m[1]] = m[2].trim();
+  const raw = { light: {}, dark: {} };
+  const dflt = { light: {}, dark: {} };
+  const named = { light: {}, dark: {} };
+  const seen = []; // names in declaration order
+  const explicit = new Set(); // themes the file names on its own
+  let defaultTheme = null;
+  for (const rule of rulesOf(css)) {
+    const media = rule.media.join(' ');
+    if (/@media/i.test(media) && !/prefers-color-scheme/i.test(media)) continue; // reduced motion, print, widths
+    let themes = themesOfSelector(rule.selector);
+    if (/prefers-color-scheme\s*:\s*dark/i.test(media)) themes = new Set(['dark']);
+    else if (/prefers-color-scheme\s*:\s*light/i.test(media)) themes = new Set(['light']);
+    for (const t of themes) if (t !== 'default') explicit.add(t);
+    // `:root, .ds[data-theme="dark"]` says the default theme is dark
+    if (!defaultTheme && themes.has('default')) {
+      const named = [...themes].filter((t) => t !== 'default');
+      if (named.length === 1) defaultTheme = named[0];
+    }
+    for (const m of rule.body.matchAll(/(--[a-z0-9-]+)\s*:\s*([^;]+)/gi)) {
+      const name = m[1];
+      const value = m[2].trim();
+      if (!seen.includes(name)) seen.push(name);
+      const ld = /^light-dark\(([\s\S]*)\)$/i.exec(value);
+      const pair = ld ? topCommas(ld[1]) : null;
+      if (pair?.length === 2) {
+        explicit.add('light');
+        explicit.add('dark');
+      }
+      for (const t of themes) {
+        // a theme-named declaration wins over a default one, whichever comes first; last wins within each
+        const into = t === 'default' ? dflt : named;
+        for (const tt of t === 'default' ? ['light', 'dark'] : [t]) {
+          into[tt][name] = pair?.length === 2 ? (tt === 'dark' ? pair[1] : pair[0]) : value;
+        }
+      }
+    }
   }
-  const vals = {};
-  for (const name of Object.keys(raw)) {
-    const v = raw[name];
-    const ref = /^var\(\s*(--[a-z0-9-]+)\s*\)$/i.exec(v);
-    vals[name] = ref && raw[ref[1]] ? raw[ref[1]] : v;
-  }
-  const names = Object.keys(raw);
+  for (const tt of ['light', 'dark']) raw[tt] = { ...dflt[tt], ...named[tt] };
+  defaultTheme = defaultTheme || 'light';
+  const resolveIn = (theme) => {
+    const out = {};
+    const other = theme === 'dark' ? 'light' : 'dark';
+    const res = (name, depth) => {
+      const v = raw[theme][name] ?? raw[other][name];
+      if (v == null) return null;
+      if (depth > 8) return v;
+      return v.replace(
+        /var\(\s*(--[a-z0-9-]+)\s*(?:,\s*([^()]*(?:\([^()]*\))?[^()]*))?\)/gi,
+        (all, ref, fb) => {
+          const r = res(ref, depth + 1);
+          return r ?? (fb ? fb.trim() : all);
+        }
+      );
+    };
+    for (const name of seen) out[name] = res(name, 0);
+    return out;
+  };
+  const themes = {};
+  const both = explicit.has('light') || explicit.has('dark');
+  if (both) {
+    themes.light = resolveIn('light');
+    themes.dark = resolveIn('dark');
+  } else themes[defaultTheme] = resolveIn(defaultTheme);
+  const vals = themes[defaultTheme] || resolveIn(defaultTheme);
+  const names = seen;
   const g = (re) => names.filter((n) => re.test(n));
   // Colours detected by VALUE, not name — so EVERY colour token a DS defines is
   // offered (the name-prefix list dropped many). A token is a colour if its
   // resolved value reads as one. (#3 — "see all tokens the DS has".)
   const isColor = (v) =>
-    /^(#[0-9a-f]{3,8}|rgba?\(|hsla?\(|oklch\(|oklab\(|lab\(|lch\(|hwb\(|color\()/i.test(v) ||
+    /^(#[0-9a-f]{3,8}|rgba?\(|hsla?\(|oklch\(|oklab\(|lab\(|lch\(|hwb\(|color\(|color-mix\(|light-dark\()/i.test(
+      v ?? ''
+    ) ||
     /^(transparent|currentcolor|white|black|red|green|blue|gray|grey|orange|yellow|purple|pink|cyan|magenta|teal|navy|maroon|olive|lime|aqua|silver|gold)$/i.test(
-      v
+      v ?? ''
     );
   return {
+    themes,
+    defaultTheme,
     color: names.filter((n) => isColor(vals[n])),
     space: g(/^--space-/),
     radius: g(/^--radius-/),

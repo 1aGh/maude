@@ -5,6 +5,9 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } fr
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { SLOT_DEFAULTS } from '../edit-ops/slot-defaults.ts';
 
 const realFetch = globalThis.fetch;
 type Post = { url: string; body: Record<string, unknown> };
@@ -192,7 +195,7 @@ async function ensureSections() {
   }
 }
 
-async function frame(selected: unknown) {
+async function frame(selected: unknown, cfg: Record<string, unknown> = CFG) {
   await ensureSections();
   const { InspectorFrame } = await import('../client/v2/inspector/frame.jsx');
   recorded.length = 0;
@@ -201,7 +204,7 @@ async function frame(selected: unknown) {
       {...({
         selected,
         layersTree: { artboardId: 'desktop', nodes: [] },
-        cfg: CFG,
+        cfg,
         canvasFile: FILE,
         onOptimistic: () => {},
         onRecordEdit: (m: Record<string, unknown>) => recorded.push(m),
@@ -211,7 +214,8 @@ async function frame(selected: unknown) {
     />
   );
 }
-const one = (over: Record<string, unknown> = {}) => frame({ ...BOX, ...over });
+const one = (over: Record<string, unknown> = {}, cfg?: Record<string, unknown>) =>
+  frame({ ...BOX, ...over }, cfg);
 const edits = () => posts.filter((p) => p.url === '/_api/edit-css');
 const written = () =>
   Object.fromEntries(edits().map((p) => [p.body.property, p.body.value ?? null]));
@@ -256,9 +260,8 @@ describe('Fill', () => {
     expect(q(host, 'insp-fill-add')).not.toBeNull();
     await click(q(host, 'insp-fill-add-gradient'));
     const w = written();
-    expect(w['background-image']).toMatch(
-      /^linear-gradient\(180deg, var\(--[a-z-]+\), var\(--[a-z-]+\)\)$/
-    );
+    // P6 T3: from the fill it has to the slot's end stop, a role token with its literal fallback
+    expect(w['background-image']).toBe('linear-gradient(180deg, var(--ink), var(--bg-0, #ffffff))');
     expect(w['background-color']).toBe('var(--ink)');
     expect(w.background).toBeNull();
   });
@@ -335,11 +338,11 @@ describe('Corners', () => {
 });
 
 describe('Border', () => {
-  test('empty until you add one with +: None, then the system’s ink-like token, 1, Inside', async () => {
+  test('empty until you add one with +: None, then the border role with its fallback (IR-11), 1, Inside', async () => {
     const host = await one({ authored: {} });
     expect(q(host, 'insp-border-none')).not.toBeNull();
     await click(q(host, 'insp-add-border'));
-    expect(written()['box-shadow']).toBe('inset 0 0 0 1px var(--ink)');
+    expect(written()['box-shadow']).toBe('inset 0 0 0 1px var(--border-default, #a1a1aa)');
   });
 
   test('Position: Centre and Outside are an outline; the shadow beside it survives', async () => {
@@ -528,9 +531,300 @@ describe('nothing written is an alias or a canvas-only name', () => {
     await click(q(host, 'insp-color-fill-accent'));
     await click(q(host, 'insp-add-border'));
     await click(q(host, 'insp-add-effects'));
-    const values = edits().flatMap((p) => String(p.body.value ?? '').match(/--[a-z0-9-]+/g) ?? []);
-    expect(values.length).toBeGreaterThan(2);
+    // a slot default (P6 T3) is a DS schema ROLE with a literal fallback — `var(--border-default, #a1a1aa)` — never
+    // an invented name; every other var() is one the system declares
+    const ROLE_WITH_FALLBACK = /var\((--[a-z0-9-]+), #[0-9a-f]{6}\)/g;
+    const raw = edits().map((p) => String(p.body.value ?? ''));
+    const roles = raw.flatMap((v) => [...v.matchAll(ROLE_WITH_FALLBACK)].map((m) => m[1]));
+    for (const r of roles) expect(Object.values(SLOT_DEFAULTS).map((d) => d.token)).toContain(r);
+    const values = raw.flatMap(
+      (v) => v.replace(ROLE_WITH_FALLBACK, '').match(/--[a-z0-9-]+/g) ?? []
+    );
+    expect(values.length).toBeGreaterThan(1);
     for (const v of values) expect(DECLARED.has(v)).toBe(true);
     expect(edits().some((p) => String(p.body.property).startsWith('data-cd-'))).toBe(false);
+  });
+});
+
+// ── P6 (inspector-ux-rules T2 · T3) ─────────────────────────────────────────────────────────────────────────────────
+const NO_DS = { designRel: '.design', designSystems: [], name: 'Scratch' };
+const MAUDE_V2_CSS = readFileSync(
+  join(import.meta.dir, '..', '..', '..', '.design', 'system', 'maude-v2', 'colors_and_type.css'),
+  'utf8'
+);
+const SHAPE = { attrs: { 'data-shape': 'rectangle' }, authored: {} };
+const ids = (host: HTMLElement, prefix: string) =>
+  [...host.querySelectorAll(`[data-testid^="${prefix}"]`)].map((e) =>
+    String(e.getAttribute('data-testid')).slice(prefix.length)
+  );
+const key = async (el: Element | null, k: string) => {
+  const e = must(el, 'key target');
+  await act(async () => {
+    e.dispatchEvent(new window.KeyboardEvent('keydown', { key: k, bubbles: true }));
+  });
+  await settle();
+};
+const activeId = () => document.activeElement?.getAttribute('data-testid') ?? null;
+
+describe('IR-11 — a new paint starts from the slot’s role token, never currentColor', () => {
+  test('no design system: Fill › + Colour writes the background role with its literal fallback', async () => {
+    const host = await one({ authored: {} }, NO_DS);
+    await click(q(host, 'insp-add-fill'));
+    await click(q(host, 'insp-fill-add-colour'));
+    const v = String(written().background);
+    expect(v).not.toMatch(/currentcolor/i);
+    expect(v).toBe('var(--bg-1, #f4f4f5)');
+  });
+
+  test('no design system: + Gradient never writes currentColor either', async () => {
+    const host = await one({ authored: {} }, NO_DS);
+    await click(q(host, 'insp-add-fill'));
+    await click(q(host, 'insp-fill-add-gradient'));
+    expect(JSON.stringify(written())).not.toMatch(/currentcolor/i);
+  });
+
+  test('a shape is filled with --bg-3 (the same colour the Shape tool draws, TD3)', async () => {
+    tokensCss = MAUDE_V2_CSS;
+    const host = await one(SHAPE, {
+      ...CFG,
+      designSystems: [{ name: 'maude-v2', tokensCssRel: 'x.css' }],
+    });
+    await click(q(host, 'insp-add-fill'));
+    await click(q(host, 'insp-fill-add-colour'));
+    expect(written().background).toBe('var(--bg-3, #d4d4d8)');
+  });
+});
+
+describe('IR-12 — an inherited colour is said in words, with the object’s real swatch', () => {
+  test('a box painted currentColor reads “Text colour”, its swatch is the resolved colour', async () => {
+    const host = await one({
+      authored: { background: 'currentColor' },
+      computed: { color: 'rgb(20, 24, 31)', 'background-color': 'rgb(20, 24, 31)' },
+    });
+    const chip = must(q(host, 'insp-chip-fill'), 'chip');
+    expect(chip.textContent).toStartWith('Text colour');
+    expect(chip.textContent).not.toMatch(/currentcolor/i);
+    const sw = must(chip.querySelector('.insp-sw'), 'swatch') as HTMLElement;
+    expect(sw.style.background).toBe('rgb(20, 24, 31)');
+  });
+
+  test('a text with no colour set reads “Inherited” over the colour it really has', async () => {
+    const host = await one({
+      tag: 'p',
+      text: 'Hello',
+      authored: {},
+      computed: { color: 'rgb(200, 30, 30)' },
+    });
+    const chip = must(q(host, 'insp-chip-type-colour'), 'chip');
+    expect(chip.textContent).toStartWith('Inherited');
+    expect((chip.querySelector('.insp-sw') as HTMLElement).style.background).toBe(
+      'rgb(200, 30, 30)'
+    );
+  });
+});
+
+describe('IR-8 — the colour picker popover', () => {
+  const V2 = {
+    ...CFG,
+    name: 'Picker',
+    designSystems: [{ name: 'maude-v2', tokensCssRel: 'x.css' }],
+    defaultDesignSystem: 'maude-v2',
+  };
+  beforeEach(async () => {
+    tokensCss = MAUDE_V2_CSS;
+    (await import('../client/v2/inspector/sections/recent-colours.js')).recentStore.reset();
+  });
+
+  test('groups render in schema order and every role is there, color-mix ones included', async () => {
+    const host = await one({}, V2);
+    await openChip(host, 'insp-ctl-fill');
+    const pop = must(q(host, 'insp-menu-fill'), 'popover');
+    expect(pop.getAttribute('role')).toBe('dialog');
+    expect(pop.getAttribute('popover')).toBe('manual');
+    expect(ids(host, 'insp-pop-group-fill-').slice(0, 6)).toEqual([
+      'surfaces',
+      'text',
+      'borders',
+      'accent',
+      'status',
+      'more',
+    ]);
+    const swatches = ids(host, 'insp-color-fill-');
+    for (const t of ['scrim', 'selection', 'status-info-soft', 'bg-3', 'fg-0', 'border-default'])
+      expect(swatches).toContain(t);
+  });
+
+  test('keyboard: focus starts in Search, ↓ enters the grid, → moves, ↓ jumps a group, esc closes', async () => {
+    const host = await one({}, V2);
+    await openChip(host, 'insp-ctl-fill');
+    expect(activeId()).toBe('insp-pop-search-fill');
+    await key(document.activeElement, 'ArrowDown');
+    expect(activeId()).toBe('insp-color-fill-bg-0');
+    await key(document.activeElement, 'ArrowRight');
+    expect(activeId()).toBe('insp-color-fill-bg-1');
+    await key(document.activeElement, 'ArrowDown');
+    expect(activeId()).toBe('insp-color-fill-fg-1');
+    await click(document.activeElement);
+    expect(written()).toEqual({ background: 'var(--fg-1)' });
+    await openChip(host, 'insp-ctl-fill');
+    await key(q(host, 'insp-pop-search-fill'), 'Escape');
+    expect(q(host, 'insp-menu-fill')).toBeNull();
+  });
+
+  test('Search filters by name and role word', async () => {
+    const host = await one({}, V2);
+    await openChip(host, 'insp-ctl-fill');
+    await typeIn(q(host, 'insp-pop-search-fill'), 'status');
+    await settle();
+    expect(ids(host, 'insp-pop-group-fill-')).toEqual(['status']);
+  });
+
+  test('Recent keeps the last 8 colours of this project, newest first, and remembers them in prefs', async () => {
+    const host = await one({}, V2);
+    const picks = ['bg-0', 'bg-1', 'bg-2', 'bg-3', 'bg-4', 'fg-0', 'fg-1', 'fg-2', 'fg-3'];
+    for (const t of picks) {
+      await openChip(host, 'insp-ctl-fill');
+      await click(q(host, `insp-color-fill-${t}`));
+    }
+    await openChip(host, 'insp-ctl-fill');
+    const recent = must(q(host, 'insp-pop-recent-fill'), 'recent');
+    expect(recent.querySelectorAll('button').length).toBe(8);
+    expect(q(host, 'insp-recent-fill-0')?.getAttribute('aria-label')).toBe('Fg 3');
+    const saved = posts.filter((p) => p.url === '/_api/ui-prefs').at(-1)?.body as {
+      recentColours: Record<string, string[]>;
+    };
+    expect(saved.recentColours.Picker[0]).toBe('var(--fg-3)');
+    expect(saved.recentColours.Picker.length).toBe(8);
+  });
+
+  test('Other colour…: the raw colour is written first, then asked once — Use <nearest> or Add it to the system', async () => {
+    const host = await one({}, V2);
+    await openChip(host, 'insp-ctl-fill');
+    await click(q(host, 'insp-colorcss-fill'));
+    expect(q(host, 'ds-picker')).not.toBeNull(); // the drawn OKLCH picker
+    const input = must(q(host, 'insp-colorin-fill'), 'field') as HTMLInputElement;
+    expect(input.placeholder).not.toMatch(/…\)|e\.g\./);
+    await typeIn(input, '#1e6bff');
+    await press(q(host, 'insp-colorin-fill'), 'Enter');
+    expect(written()).toEqual({ background: '#1e6bff' });
+    expect(q(host, 'ds-off-system')).not.toBeNull();
+    expect(q(host, 'ds-off-system-add')?.textContent).toBe('Add it to the system');
+    expect(q(host, 'ds-off-system-use')?.textContent).toMatch(/^Use /);
+  });
+
+  test('with no design system: one line and one action, and no question after a raw colour', async () => {
+    const host = await one({}, NO_DS);
+    await openChip(host, 'insp-ctl-fill');
+    expect(q(host, 'insp-pop-nods-fill')?.textContent).toContain(
+      'This project has no design system yet.'
+    );
+    expect(q(host, 'insp-pop-make-ds-fill')?.textContent).toBe('Make a design system');
+    await click(q(host, 'insp-colorcss-fill'));
+    await typeIn(q(host, 'insp-colorin-fill'), '#1e6bff');
+    await press(q(host, 'insp-colorin-fill'), 'Enter');
+    expect(written()).toEqual({ background: '#1e6bff' });
+    expect(q(host, 'ds-off-system')).toBeNull();
+  });
+
+  test('a raw colour on the chip is said in words, with a “not in the system” mark', async () => {
+    const host = await one({ authored: { background: '#1e6bff' } }, V2);
+    const chip = must(q(host, 'insp-chip-fill'), 'chip');
+    expect(chip.textContent).not.toMatch(/^(#|rgb|oklch|currentcolor)/i);
+    expect(q(host, 'insp-chip-off-fill')).not.toBeNull();
+  });
+});
+
+describe('the picker goes away', () => {
+  test('a press outside it, or the window losing focus to the canvas frame, closes it', async () => {
+    const host = await one();
+    await openChip(host, 'insp-ctl-fill');
+    expect(q(host, 'insp-menu-fill')).not.toBeNull();
+    await act(async () => {
+      document.body.dispatchEvent(new window.Event('pointerdown', { bubbles: true }));
+    });
+    await settle();
+    expect(q(host, 'insp-menu-fill')).toBeNull();
+    await openChip(host, 'insp-ctl-fill');
+    await act(async () => {
+      window.dispatchEvent(new window.Event('blur'));
+    });
+    await settle();
+    expect(q(host, 'insp-menu-fill')).toBeNull();
+  });
+
+  test('a disabled chip (read-only, IR-17) never opens it', async () => {
+    const { ColorControl } = await import('../client/v2/inspector/sections/color-control.jsx');
+    const host = await mount(
+      <ColorControl
+        name="ro"
+        label="Fill"
+        value={null}
+        colors={['--ink']}
+        disabled
+        onChange={() => {}}
+      />
+    );
+    await click(host.querySelector('button.insp-chip'));
+    expect(q(host, 'insp-menu-ro')).toBeNull();
+  });
+});
+
+describe('placePopover — it never runs off the window (F31)', () => {
+  const vp = { w: 1280, h: 800 };
+  const size = { w: 264, h: 420 };
+  test('beside the card, on its left, when there is room', async () => {
+    const { placePopover } = await import('../client/v2/inspector/sections/colour-popover.jsx');
+    const p = placePopover(
+      { chip: { left: 1100, right: 1200, top: 300, bottom: 328 }, card: { left: 1000 } },
+      size,
+      vp
+    );
+    expect(p.side).toBe('left');
+    expect(p.left + size.w).toBeLessThanOrEqual(1000);
+    expect(p.top + size.h).toBeLessThanOrEqual(vp.h - 8);
+  });
+  test('no room on the left: below the chip, or above it near the bottom, clamped to the window', async () => {
+    const { placePopover } = await import('../client/v2/inspector/sections/colour-popover.jsx');
+    const below = placePopover(
+      { chip: { left: 100, right: 160, top: 100, bottom: 128 } },
+      size,
+      vp
+    );
+    expect(below.side).toBe('below');
+    expect(below.top).toBe(136);
+    const narrow = placePopover({ chip: { left: 200, right: 260, top: 100, bottom: 128 } }, size, {
+      w: 300,
+      h: 800,
+    });
+    expect(narrow.left + size.w).toBeLessThanOrEqual(300 - 8);
+    const above = placePopover({ chip: { left: 10, right: 60, top: 700, bottom: 728 } }, size, vp);
+    expect(above.side).toBe('above');
+    expect(above.top).toBeGreaterThanOrEqual(8);
+  });
+});
+
+describe('the picker’s hooks are in testids.json and TESTIDS.md (testids are an API)', () => {
+  test('every P6 hook is listed in both', () => {
+    const dir = join(import.meta.dir, '..', 'client');
+    const json = JSON.parse(readFileSync(join(dir, 'testids.json'), 'utf8')) as { hook: string }[];
+    const md = readFileSync(join(dir, 'TESTIDS.md'), 'utf8');
+    const hooks = new Set(json.map((e) => e.hook));
+    for (const h of [
+      'insp-pop-search-<name>',
+      'insp-pop-recent-<name>',
+      'insp-recent-<name>-<n>',
+      'insp-pop-group-<name>-<group>',
+      'insp-pop-nods-<name>',
+      'insp-pop-make-ds-<name>',
+      'insp-pop-empty-<name>',
+      'insp-pop-custom-<name>',
+      'insp-pop-use-<name>',
+      'insp-pop-bad-<name>',
+      'insp-chip-also-<name>',
+      'insp-chip-off-<name>',
+    ]) {
+      expect(hooks.has(h)).toBe(true);
+      expect(md).toContain(`\`${h}\``);
+    }
   });
 });
