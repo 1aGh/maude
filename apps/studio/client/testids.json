@@ -1076,6 +1076,21 @@
     ]
   },
   {
+    "hook": "comment-pin-count-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The message count on a comment pin whose thread has replies (the pin itself wears the author's initial; a lone comment shows no count). In the canvas iframe.",
+    "producer": {
+      "file": "apps/studio/comments-overlay.tsx",
+      "symbol": "CommentPin"
+    },
+    "region": "canvas",
+    "consumers": [
+      "apps/studio/test/e2e/comments-identity-pins.e2e.mjs"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "comment-where-<id>",
     "kind": "testid",
     "pattern": true,

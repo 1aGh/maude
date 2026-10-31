@@ -36,8 +36,10 @@ export const DS_GLYPHS: Readonly<Record<string, ReactNode>> = {
       <path d="M13.5 9h-3A1.5 1.5 0 0 0 9 10.5v3" />
     </>
   ),
+  // rc.1 F16 — one comment glyph everywhere: the speech bubble the Comments panel and the share cluster wear.
+  // (It was the DS tile cut square on one corner, which read as Shape beside the other tools.)
   comment: (
-    <path d="M5 2.5h6A2.5 2.5 0 0 1 13.5 5v8.5H5A2.5 2.5 0 0 1 2.5 11V5A2.5 2.5 0 0 1 5 2.5z" />
+    <path d="M5 2.5h6A2.5 2.5 0 0 1 13.5 5v3.5A2.5 2.5 0 0 1 11 11H8l-3 2.5V11A2.5 2.5 0 0 1 2.5 8.5V5A2.5 2.5 0 0 1 5 2.5z" />
   ),
   more: (
     <g fill="currentColor" stroke="none">

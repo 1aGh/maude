@@ -421,13 +421,11 @@ export const STICONS = {
       <path d="M10 3v10" />
     </>
   ),
+  // rc.1 F16 — ONE comment glyph everywhere (the tool on the canvas, the panel, the share cluster, rows): a speech
+  // bubble with a tail. 'comment-bubble' stays a name for the same drawing.
   comment: (
-    <path d="M5 2.5h6A2.5 2.5 0 0 1 13.5 5v8.5H5A2.5 2.5 0 0 1 2.5 11V5A2.5 2.5 0 0 1 5 2.5z" />
+    <path d="M5 2.5h6A2.5 2.5 0 0 1 13.5 5v3.5A2.5 2.5 0 0 1 11 11H8l-3 2.5V11A2.5 2.5 0 0 1 2.5 8.5V5A2.5 2.5 0 0 1 5 2.5z" />
   ),
-  // The Share cluster's Comments button: a speech bubble with a tail. The DS `comment` glyph above (round on
-  // three corners, square on the fourth — "cut from the logo tile") is the on-canvas tool's; at 16 px beside
-  // other controls it read as an empty box (design-critic blocker 8), so the panel button gets a bubble
-  // that reads as one. Same 16-unit grid, 1.5 stroke, 2.5 container radius.
   'comment-bubble': (
     <path d="M5 2.5h6A2.5 2.5 0 0 1 13.5 5v3.5A2.5 2.5 0 0 1 11 11H8l-3 2.5V11A2.5 2.5 0 0 1 2.5 8.5V5A2.5 2.5 0 0 1 5 2.5z" />
   ),

@@ -750,7 +750,7 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
       {
         chord: '↵',
         layer: 'tools',
-        when: { focus: ['canvas'], mode: ['edit'], facts: ['toolArmed'] },
+        when: { focus: ['canvas'], mode: ['edit', 'preview'], facts: ['toolArmed'] },
       },
     ],
   },

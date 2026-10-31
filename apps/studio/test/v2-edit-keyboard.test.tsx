@@ -380,7 +380,11 @@ describe('the registry rows', () => {
       'tool.create-default'
     );
     expect(run('Enter', false, { ...base, toolArmed: true })).toBe('tool.create-default');
-    expect(run('Enter', false, { ...base, toolArmed: true, mode: 'preview' })).toBeNull();
+    // rc.1 F33: Preview’s Comment tool is armed too — C then ↵ comments on the selection
+    expect(run('Enter', false, { ...base, toolArmed: true, mode: 'preview' })).toBe(
+      'tool.create-default'
+    );
+    expect(run('Enter', false, { ...base, mode: 'preview' })).toBeNull();
   });
 
   test('F6 is the shell’s, forwarded from the canvas', () => {

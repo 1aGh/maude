@@ -67,11 +67,12 @@ import {
   importedLabel,
   sanitizeImportedFrom,
 } from './comments/imported-from.ts';
+import { authorFace } from './comments/author-face.ts';
 import { handleOfName } from './comments/mentions.ts';
 import { committerRows, type MentionRow } from './comments/people.ts';
 import { mmAtArtboardPx, trimOfPrint, videoPinVisible, whereOf } from './comments/where.ts';
 import { resolveByDomPath } from './dom-selection.ts';
-import { toneColor, toneFor } from './presence/tones.ts';
+import { toneColor } from './presence/tones.ts';
 import {
   COMMENTS_PAUSED_REASON,
   canCommentCanvas,
@@ -959,6 +960,7 @@ export function CommentsOverlay(): React.ReactNode {
             comment={c}
             sequence={n}
             focused={focusedId === c.id}
+            viewer={me ?? collab?.myName}
             onClick={handlePinClick}
           />
         );
@@ -1326,21 +1328,23 @@ export function locateComment(comment: OverlayComment): {
   return { pos, missing: anchored };
 }
 
-/** The one letter a pin wears: the author's initial ('?' when nobody signed it). */
+/** The one letter a pin wears: the author's initial — the letter the Comments list's avatar wears too. */
 export function pinInitial(author: string): string {
-  const c = author.trim().charAt(0);
-  return c && author !== 'unknown' ? c.toUpperCase() : '?';
+  return authorFace(author).letter;
 }
 
 function CommentPin({
   comment,
   sequence,
   focused,
+  viewer,
   onClick,
 }: {
   comment: OverlayComment;
   sequence: number;
   focused: boolean;
+  /** this Mac's own name: your pins wear "You"'s tone, the colour the list's row wears */
+  viewer?: string | null;
   onClick: (id: string) => void;
 }) {
   const ref = useRef<HTMLButtonElement | null>(null);
@@ -1388,8 +1392,10 @@ function CommentPin({
     };
   }, [comment]);
 
-  const author = comment.author?.trim() || 'unknown';
-  const label = `Comment ${sequence} by ${author}${detached ? ' (detached: its target is gone)' : ''}`;
+  const face = authorFace(comment.author, viewer);
+  // a thread (replies on it) shows how many messages it holds, so it reads as a conversation, not one note
+  const messages = 1 + (comment.thread?.length ?? 0);
+  const label = `Comment ${sequence} by ${face.name}${messages > 1 ? `, ${messages} messages` : ''}${detached ? ' (detached: its target is gone)' : ''}`;
 
   return (
     <button
@@ -1405,14 +1411,23 @@ function CommentPin({
       title={comment.text.slice(0, 200)}
       data-seq={sequence}
       // P8 C5 (10 co-comment-thread): the author's person tone fills the pin, and it wears their initial
-      style={{ ['--cm-pin-tone' as string]: toneColor(toneFor(author)) }}
+      style={{ ['--cm-pin-tone' as string]: toneColor(face.tone) }}
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
         onClick(comment.id);
       }}
     >
-      {pinInitial(author)}
+      {face.letter}
+      {messages > 1 ? (
+        <span
+          className="cm-pin__n"
+          data-testid={`comment-pin-count-${comment.id}`}
+          aria-hidden="true"
+        >
+          {messages}
+        </span>
+      ) : null}
     </button>
   );
 }
@@ -1980,6 +1995,7 @@ export function CommentThread({
             <Avatar
               name={comment.from ? fromWho(comment.from).name : comment.author}
               ai={comment.from ? fromWho(comment.from).ai : comment.authorKind === 'ai'}
+              viewer={me}
             />
           )}
           <div className="cm-msg__main">
@@ -1990,8 +2006,9 @@ export function CommentThread({
               >
                 {imported
                   ? importedLabel(imported)
-                  : (comment.from ? fromWho(comment.from).name : comment.author?.trim()) ||
-                    'unknown'}
+                  : comment.from
+                    ? fromWho(comment.from).name
+                    : authorFace(comment.author, me).name}
               </span>
               <span className="cm-thread__time">
                 {formatRelativeTime(imported?.at ?? comment.created)}
@@ -2040,11 +2057,15 @@ export function CommentThread({
         const ri = sanitizeImportedFrom(r.importedFrom);
         return (
           <div className="cm-msg cm-thread__reply" key={r.id}>
-            {ri ? <ImportedMark /> : <Avatar name={r.author} ai={r.authorKind === 'ai'} />}
+            {ri ? (
+              <ImportedMark />
+            ) : (
+              <Avatar name={r.author} ai={r.authorKind === 'ai'} viewer={me} />
+            )}
             <div className="cm-msg__main">
               <div className="cm-thread__reply-head">
                 <span className="cm-thread__reply-author">
-                  {ri ? importedLabel(ri) : r.author?.trim() || 'unknown'}
+                  {ri ? importedLabel(ri) : authorFace(r.author, me).name}
                 </span>
                 <span className="cm-thread__reply-time">
                   {formatRelativeTime(ri?.at ?? r.created)}
@@ -2249,32 +2270,29 @@ function Glyph({ d }: { d: string }): React.ReactElement {
 }
 
 /** Initials in a circle — a person's mark in a thread; `AI` for an AI-written message. */
-function Avatar({ name, ai = false }: { name?: string; ai?: boolean }): React.ReactElement {
-  const parts = (name ?? '')
-    .trim()
-    .split(/[\s._-]+/)
-    .filter(Boolean);
-  const initials = ai
-    ? 'AI'
-    : parts.length === 0
-      ? '?'
-      : parts.length === 1
-        ? (parts[0] ?? '').slice(0, 2).toUpperCase()
-        : `${parts[0]?.[0] ?? ''}${parts[parts.length - 1]?.[0] ?? ''}`.toUpperCase();
+function Avatar({
+  name,
+  ai = false,
+  viewer,
+}: {
+  name?: string;
+  ai?: boolean;
+  viewer?: string | null;
+}): React.ReactElement {
+  // one letter and one tone per person, the same pair the pin and the Comments list's row wear
+  const face = authorFace(name, viewer);
   return (
     // 10 co-comment-thread: a face wears the colour its person wears everywhere (pin, panel, Share sheet)
     <span
       className={`cm-av${ai ? ' cm-av--ai' : ''}`}
       style={
-        !ai && parts.length > 0
-          ? ({
-              ['--cm-av-tone' as string]: toneColor(toneFor((name ?? '').trim())),
-            } as React.CSSProperties)
-          : undefined
+        ai
+          ? undefined
+          : ({ ['--cm-av-tone' as string]: toneColor(face.tone) } as React.CSSProperties)
       }
       aria-hidden="true"
     >
-      {initials}
+      {ai ? 'AI' : face.letter}
     </span>
   );
 }
@@ -2338,7 +2356,11 @@ function computeAnchor(state: ComposerState): { x: number; y: number } {
   // composer from a contextual toolbar button — those should set clientX/Y
   // to a sensible anchor before dispatching).
   if (state.clientX || state.clientY) {
-    return { x: state.clientX, y: state.clientY + 8 };
+    // rc.1 F19 — on a small element the card hangs UNDER it (x where the click was), so it never covers the
+    // thing the comment is about; a tall one (an artboard, a section) keeps the card at the click point.
+    const rect = state.selection.selector ? screenRectFor(state.selection) : null;
+    const under = rect && rect.h <= 200 ? Math.max(state.clientY, rect.y + rect.h) : state.clientY;
+    return { x: state.clientX, y: under + 8 };
   }
   if (state.selection.selector) {
     const rect = screenRectFor(state.selection);

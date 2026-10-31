@@ -14,7 +14,7 @@ import { Suggestions } from './suggestions.jsx';
 /* The family's 16-unit glyphs, 1.5 rounded stroke — the few an empty state uses (lifted from the specimen). */
 const GLYPHS = {
   comment: (
-    <path d="M5 2.5h6A2.5 2.5 0 0 1 13.5 5v8.5H5A2.5 2.5 0 0 1 2.5 11V5A2.5 2.5 0 0 1 5 2.5z" />
+    <path d="M5 2.5h6A2.5 2.5 0 0 1 13.5 5v3.5A2.5 2.5 0 0 1 11 11H8l-3 2.5V11A2.5 2.5 0 0 1 2.5 8.5V5A2.5 2.5 0 0 1 5 2.5z" />
   ),
   history: <path d="M2.75 8A5.25 5.25 0 1 0 4.3 4.3M4.3 1.8v2.5h2.5M8 5.25V8l2 1.5" />,
   file: <path d="M4.5 2.5h5l3 3v8h-8zM9.5 2.5v3h3" />,
