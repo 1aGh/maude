@@ -392,3 +392,14 @@ rights or is an availability nuisance). Candidates for the first rc patch:
   decision.
 - **Desktop debug build in a symlinked worktree:** `pnpm test:e2e:desktop:build` fails there, so run `tauri build`
   directly. `bun run build.ts --release` must run first so `dist/maude-darwin-arm64` exists for `sync-sidecar`.
+- **Recent colours are keyed by the project name** (`cfg.name`), because no project id reaches the Inspector. Two
+  projects with the same name share one Recent list (P6).
+- **Inspector "+" with no Recent and no design system** writes the slot default (TD3) instead of IR-11's "neutral mid
+  grey + open the picker" (P6).
+- **Board 14's text artboard** still draws Fill › Colour, matching the build until T4 (rc patch).
+- **Taste, waiting on Michal (P3):** in Preview, the Canvases and AI panels still fold. Options: (a) keep the fold, the
+  current behaviour; (b) never fold on a mode switch, the literal reading of "only the toolbar changes". Likewise the
+  "Previewing X · esc to edit" bar: (a) keep it; (b) show it only when there is a Back. Both stay (a) until he answers.
+- **P3 rc-patch residue:** F34 submenu diagonal, F35 panel padding, R25 View menu rows, R29 motion. A toolbar popover
+  inside the canvas still sits under a shell toast, because the canvas is a separate frame.
+- **The S3.9 camera ease** is off (`PREVIEW_EASES = false`, TD1d). The engine is kept behind that one switch.
