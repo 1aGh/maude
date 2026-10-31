@@ -503,6 +503,8 @@ export function acpRefusal(access: Access): Response | null {
 // The studio child's ProjectReader (V2-1.7 §5.3 G4: closure computed on the server).
 
 const LIST_CAP = 20000;
+/** A file name that could be a canvas (closure.ts `grantedBySlug`'s twin scan). */
+const CANVAS_SHAPED_RE = /\.(tsx|html)$/i;
 
 /**
  * The design root on disk as a `ProjectReader`. `head` is a generation the caller bumps on
@@ -514,6 +516,7 @@ export function diskProjectReader(
   listCap = LIST_CAP
 ): ProjectReader {
   let truncated = false;
+  let skipped: string[] = [];
   return {
     head,
     text(rel) {
@@ -538,8 +541,10 @@ export function diskProjectReader(
         return false;
       }
     },
+    unlisted: () => skipped,
     *list() {
       truncated = false;
+      skipped = [];
       let n = 0;
       const walk = function* (dir: string, prefix: string): Generator<string> {
         let entries: import('node:fs').Dirent[];
@@ -558,14 +563,22 @@ export function diskProjectReader(
           // or `preview/_ds.tsx` override (closure.ts `isSystemFileInClosure` expects to see it).
           // gate-b-c4: every canvas frame now reads through this closure, so skipping them at
           // depth rendered every canvas without its component styles.
-          if ((e.name.startsWith('_') && !prefix) || e.name.startsWith('.')) continue;
-          if (e.name === 'node_modules') continue;
+          if (e.name.startsWith('_') && !prefix) continue;
           const rel = prefix ? `${prefix}/${e.name}` : e.name;
-          if (e.isDirectory()) yield* walk(join(dir, e.name), rel);
-          else if (e.isFile()) {
+          if (e.isDirectory()) {
+            if (!e.name.startsWith('.') && e.name !== 'node_modules')
+              yield* walk(join(dir, e.name), rel);
+            continue;
+          }
+          if (e.isFile() && !e.name.startsWith('.')) {
             n++;
             yield rel;
+            continue;
           }
+          // p8-closure-lows — a canvas-shaped entry this walk does not yield (a symlink, a dot
+          // name) is recorded by name only, never followed or read: a slug twin the closure must
+          // count. (First-segment `_` is runtime state, never a twin; skipped dirs are not walked.)
+          if (CANVAS_SHAPED_RE.test(e.name)) skipped.push(rel);
         }
       };
       yield* walk(designRoot, '');

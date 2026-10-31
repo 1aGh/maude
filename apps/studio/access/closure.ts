@@ -216,6 +216,9 @@ export interface ProjectReader {
   /** p8-closure-lows — whether the design root holds an entry at exactly `rel` that `list()` may
    *  leave out (a symlink, a dangling one): looked at, never followed or read. */
   present?(rel: string): boolean;
+  /** p8-closure-lows — the canvas-shaped (`.tsx`/`.html`) entries the last `list()` saw but did
+   *  not yield (a symlink, a dot name), by name only: each counts as another canvas's slug. */
+  unlisted?(): Iterable<string>;
 }
 
 export interface Closure {
@@ -585,6 +588,8 @@ interface WalkEnv {
   known: ReadonlySet<string>;
   /** p8-closure-lows — `files` may be missing some (the reader's listing was cut at its cap). */
   listTruncated: boolean;
+  /** p8-closure-lows — canvas-shaped entries the listing saw but did not yield (`unlisted`). */
+  unlisted: readonly string[];
 }
 
 function walkEnv(project: ProjectReader, files: ReadonlySet<string>, cfg: ClosureConfig): WalkEnv {
@@ -712,7 +717,8 @@ function walkEnv(project: ProjectReader, files: ReadonlySet<string>, cfg: Closur
   };
   // Read after the caller drained `list()` into `files` (compute, canvasImportsReport).
   const listTruncated = project.listTruncated?.() === true;
-  return { files, textOf, isCanvas, cfg, project, known, listTruncated };
+  const unlisted = [...(project.unlisted?.() ?? [])];
+  return { files, textOf, isCanvas, cfg, project, known, listTruncated, unlisted };
 }
 
 const SAME_NAME_RE =
@@ -793,6 +799,8 @@ function walkImports(
       if (granted.has(f)) any = true;
       else foreign = true;
     }
+    // An entry the listing saw but left out is foreign, granted or not: it cannot be read.
+    for (const f of env.unlisted) if (canvasSlugFromRel(f, '') === slug) foreign = true;
     slugOwned.set(slug, any && !foreign);
     return any && !foreign;
   };

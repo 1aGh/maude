@@ -92,6 +92,22 @@ describe('the same-name owner rule fails closed (p8-closure-lows)', () => {
     expect(c.read.has(CSS)).toBe(false);
   });
 
+  test('a twin the listing leaves out (reader-reported) is foreign: refused', () => {
+    const reader: ProjectReader = {
+      ...project(BASE),
+      unlisted: () => ['ui/2026-combine/combine-admin.tsx'],
+    };
+    const c = closureFor(narrowToFrame(OWNER, [GRANT]), reader);
+    expect(c.blocked.has(GRANT)).toBe(true);
+    expect(c.read.has(CSS)).toBe(false);
+  });
+
+  test('an unlisted entry under another slug does not refuse', () => {
+    const reader: ProjectReader = { ...project(BASE), unlisted: () => ['ui/other.tsx'] };
+    const c = closureFor(narrowToFrame(OWNER, [GRANT]), reader);
+    expect(c.blocked.has(GRANT)).toBe(false);
+  });
+
   test('an owner the listing leaves out but the design root holds: refused', () => {
     const reader: ProjectReader = { ...project(BASE), present: (r) => r === OWNER_REL };
     const c = closureFor(narrowToFrame(OWNER, [GRANT]), reader);
@@ -156,6 +172,29 @@ describe('the same-name owner rule fails closed (p8-closure-lows)', () => {
         diskProjectReader(root, () => 'h')
       );
       expect(c.blocked.has(ATTACKER)).toBe(true);
+    });
+
+    test('a symlinked slug twin at another path (never listed) keeps ./x.css refused', () => {
+      lay(BASE);
+      const twin = join(outside, 'twin.tsx');
+      writeFileSync(twin, CANVAS.replace('function A', 'function T'));
+      mkdirSync(join(root, 'ui/2026-combine'), { recursive: true });
+      symlinkSync(twin, join(root, 'ui/2026-combine/combine-admin.tsx'));
+      const reader = diskProjectReader(root, () => 'h');
+      expect([...reader.list()]).not.toContain('ui/2026-combine/combine-admin.tsx');
+      expect([...(reader.unlisted?.() ?? [])]).toContain('ui/2026-combine/combine-admin.tsx');
+      const c = closureFor(narrowToFrame(OWNER, [GRANT]), reader);
+      expect(c.blocked.has(GRANT)).toBe(true);
+      expect(c.read.has(CSS)).toBe(false);
+    });
+
+    test('a dot-named canvas file is recorded as unlisted, a plain one is not', () => {
+      lay({ ...BASE, 'ui/.hidden.tsx': CANVAS, 'ui/.hidden.css': '' });
+      const reader = diskProjectReader(root, () => 'h');
+      const listed = [...reader.list()];
+      const skipped = [...(reader.unlisted?.() ?? [])];
+      expect(listed).not.toContain('ui/.hidden.tsx');
+      expect(skipped).toEqual(['ui/.hidden.tsx']);
     });
 
     test('the disk reader reports a listing cut at its cap', () => {
