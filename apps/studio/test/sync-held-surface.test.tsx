@@ -191,9 +191,16 @@ describe('a file-plane pass reports it, and Sync details shows it with its reaso
       reanchorHeld: true,
       codeHeld: { count: 123_456, paths: [] },
     } as never);
-    expect(held.map((h) => h.kind)).toEqual(['delete-out', 'first-anchor', 'code-held', 'reanchor']);
+    expect(held.map((h) => h.kind)).toEqual([
+      'delete-out',
+      'first-anchor',
+      'code-held',
+      'reanchor',
+    ]);
     const m = syncDetailsModel({ files: { synced: 0, pulled: 0, pushed: 0, conflicts: 0, held } });
-    expect(m.lists.held.map((h: { detail: string }) => h.detail)).toEqual(held.map((h) => h.detail));
+    expect(m.lists.held.map((h: { detail: string }) => h.detail)).toEqual(
+      held.map((h) => h.detail)
+    );
   });
 
   test('not the owner (no field) or nothing held: no row', async () => {

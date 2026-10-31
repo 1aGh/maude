@@ -144,11 +144,7 @@ import { createRevisionBarrier } from './revision-barrier.ts';
 import { computeSeedProgress } from './seed-progress.ts';
 import { mergeSource } from './source-merge.ts';
 import { replaySourceOp, type SourceOp } from './source-ops.ts';
-import {
-  createSyncStatusStore,
-  type FilePlaneStatus,
-  type SyncStatusStore,
-} from './status.ts';
+import { createSyncStatusStore, type FilePlaneStatus, type SyncStatusStore } from './status.ts';
 import { quarantineCanvas } from './tombstone-apply.ts';
 import { createTrashWatch } from './trash-watch.ts';
 import {
