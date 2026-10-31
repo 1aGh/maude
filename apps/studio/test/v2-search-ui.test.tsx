@@ -421,7 +421,7 @@ describe('"?", the real sheet', () => {
     expect(el.querySelector('[data-testid="shortcuts-group-edit-tools"]')).not.toBeNull();
     expect(
       el.querySelector('[data-testid="shortcuts-group-preview-tools"] .so-note')?.textContent
-    ).toBe('The key switches to Preview');
+    ).toBe('From Edit, the key switches to Preview'); // r2 P3 per-mode key table
     expect(el.querySelector('[data-testid="shortcuts-row-export.open"]')?.textContent).toContain(
       '⇧⌘E'
     );

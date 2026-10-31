@@ -117,7 +117,8 @@ describe('OpenInApp: the island', () => {
 
 describe('PreviewChrome in the browser (co-browser-view)', () => {
   const link = appLinkOf('ui/2026/combine/Combine-kampan.tsx');
-  test('Preview: the bar says esc for Viewing, the zoom readout, and Open in the Mac app', async () => {
+  // r2 P3 (TD1d): the zoom readout is the host's Undo · zoom island now, not PreviewChrome's
+  test('Preview: the bar says esc for Viewing and Open in the Mac app', async () => {
     await mount(
       <PreviewChrome
         mode="preview"
@@ -128,7 +129,7 @@ describe('PreviewChrome in the browser (co-browser-view)', () => {
       />
     );
     expect(text('[data-testid="preview-bar-esc"]')).toBe('esc for Viewing');
-    expect(text('[data-testid="zoom-only"]')).toBe('27%');
+    expect(q('[data-testid="zoom-only"]')).toBeNull();
     expect(q('[data-testid="preview-open-app"]')?.getAttribute('href')).toBe(link);
   });
   test('the desktop app (no link): the same chrome without the island', async () => {

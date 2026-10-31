@@ -113,10 +113,11 @@ describe('PreviewChrome: Preview only', () => {
     <PreviewChrome mode={mode} caps={caps} name="Combine-kampan" zoom={0.14} />
   );
 
-  test('Preview shows the bar and the zoom readout', async () => {
+  // r2 P3 (TD1d): Preview keeps Edit's Undo · Redo · zoom island (the host draws it), so no ZoomOnly here
+  test('Preview shows the bar and no zoom readout of its own', async () => {
     await mount(chrome('preview'));
     expect(q('[data-testid="preview-bar"]')).not.toBeNull();
-    expect(text('[data-testid="zoom-only"]')).toBe('14%');
+    expect(q('[data-testid="zoom-only"]')).toBeNull();
     expect(text('[data-testid="preview-bar-title"]')).toBe('Previewing Combine-kampan');
   });
 
@@ -131,7 +132,6 @@ describe('PreviewChrome: Preview only', () => {
   test('the islands declare the edges they cover', async () => {
     await mount(chrome('preview'));
     expect(q('[data-testid="preview-bar"]')?.getAttribute('data-occludes')).toBe('top');
-    expect(q('[data-testid="zoom-only"]')?.getAttribute('data-occludes')).toBe('bottom');
   });
 
   test('a viewing role in Preview reads "esc for Viewing"', async () => {
