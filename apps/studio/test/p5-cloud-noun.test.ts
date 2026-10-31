@@ -5,8 +5,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ACTIONS_BY_ID } from '../actions/index.ts';
 import { CLOUD_NAME, hubName, isMaudeCloud } from '../client/v2/cloud/cloud-name.js';
-import { moveWords, advancedView } from '../client/v2/share/share-model.js';
 import { movingWords } from '../client/v2/share/move-to-cloud.jsx';
+import { advancedView, moveWords } from '../client/v2/share/share-model.js';
 
 const read = (rel: string) => readFileSync(join(import.meta.dir, '..', rel), 'utf8');
 

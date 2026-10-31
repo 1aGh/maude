@@ -399,6 +399,7 @@
               "More"
             ],
             "preview": [
+              "Select",
               "Hand",
               "Sticky",
               "Comment",
@@ -783,6 +784,7 @@
               "More"
             ],
             "preview": [
+              "Select",
               "Hand",
               "Sticky",
               "Comment",
@@ -1170,6 +1172,7 @@
               "More"
             ],
             "preview": [
+              "Select",
               "Hand",
               "Sticky",
               "Comment",
@@ -1437,6 +1440,7 @@
               "More"
             ],
             "preview": [
+              "Select",
               "Hand",
               "Sticky",
               "Comment",
@@ -1708,7 +1712,7 @@
           "role": "comment",
           "modes": {
             "viewing": ["Hand", "Comment"],
-            "preview": ["Hand", "Comment"]
+            "preview": ["Select", "Hand", "Comment"]
           },
           "presenting": "no toolbar (Present hides every control)",
           "why": "editing tools are hidden, never greyed: Viewing keeps Hand and Comment, Preview the same (V2-1.2)"
@@ -1964,7 +1968,7 @@
           "role": "comment",
           "modes": {
             "viewing": ["Hand", "Comment"],
-            "preview": ["Hand", "Comment"]
+            "preview": ["Select", "Hand", "Comment"]
           },
           "presenting": "no toolbar (Present hides every control)",
           "why": "editing tools are hidden, never greyed: Viewing keeps Hand and Comment, Preview the same (V2-1.2)"

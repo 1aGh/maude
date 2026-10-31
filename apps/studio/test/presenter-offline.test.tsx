@@ -302,7 +302,9 @@ describe('Copy presentation link waits for a connection', () => {
       reason: 'in a Maude Cloud project',
     });
     // no cloud link outranks offline: it is the more basic answer
-    expect(copyAvailability({ webLink: null, online: false }).reason).toBe('in a Maude Cloud project');
+    expect(copyAvailability({ webLink: null, online: false }).reason).toBe(
+      'in a Maude Cloud project'
+    );
   });
 
   test('the menu context carries the network as the `online` fact (the row’s enabled rule reads it)', () => {

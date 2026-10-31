@@ -8042,7 +8042,7 @@
     "v2": "stable"
   },
   {
-    "hook": "[aria-label=\"New folder name\"]",
+    "hook": "[aria-label=\"Folder name\"]",
     "kind": "selector",
     "pattern": false,
     "meaning": "Name input of the new-folder row.",
@@ -8077,7 +8077,7 @@
     "notes": "`App()` also clicks it by this selector from three places (⌘K action, menu action, empty state)."
   },
   {
-    "hook": "[aria-label=\"New brief board name\"]",
+    "hook": "[aria-label=\"New brief canvas name\"]",
     "kind": "selector",
     "pattern": false,
     "meaning": "Name input for the new brief board.",
@@ -8094,7 +8094,7 @@
     "v2": "stable"
   },
   {
-    "hook": "[aria-label=\"Create brief board\"]",
+    "hook": "[aria-label=\"Create brief canvas\"]",
     "kind": "selector",
     "pattern": false,
     "meaning": "Confirm button for the new brief board.",

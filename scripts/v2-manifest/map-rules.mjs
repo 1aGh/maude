@@ -36,6 +36,14 @@ export const V2_CODE_IDS = new Set([
   'testid:studio/comments-overlay.tsx#canvas/comment-paused-id', // p8-cell-copy comments paused (format gate)
   'testid:studio/annotations-layer.tsx#other/annotation-quiet-tip', // r1 D2 #14 the Edit-mode "switch to Preview to move it" tip
   'testid:studio/comments-overlay.tsx#canvas/comment-pin-count-id', // r2 P4 the thread count badge on a comment pin
+  'testid:studio/client/app.jsx#sidebar/tree/aria-label-create-brief-board', // r2 P2 New canvas / folder named in place; the brief composer moved to ⌘K
+  'testid:studio/client/app.jsx#sidebar/tree/aria-label-create-folder', // r2 P2 New canvas / folder named in place; the brief composer moved to ⌘K
+  'testid:studio/client/app.jsx#sidebar/tree/aria-label-new-brief-board-name', // r2 P2 New canvas / folder named in place; the brief composer moved to ⌘K
+  'testid:studio/client/app.jsx#sidebar/tree/aria-label-new-folder-name', // r2 P2 New canvas / folder named in place; the brief composer moved to ⌘K
+  'button:studio/client/tree/tree.jsx#Sidebar/create-brief-canvas', // r2 P2 New canvas / folder named in place; the brief composer moved to ⌘K
+  'testid:studio/client/app.jsx#sidebar/tree/aria-label-create-brief-canvas', // r2 P2 renamed brief / folder name hooks
+  'testid:studio/client/app.jsx#sidebar/tree/aria-label-folder-name', // r2 P2 renamed brief / folder name hooks
+  'testid:studio/client/app.jsx#sidebar/tree/aria-label-new-brief-canvas-name', // r2 P2 renamed brief / folder name hooks
 ]);
 
 /** Entries that are infrastructure, not features (lead decision, V2-4.gate-b): id → reason. Excluded

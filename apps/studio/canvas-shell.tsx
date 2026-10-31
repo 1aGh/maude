@@ -94,7 +94,6 @@ import { drawToolOfAction } from './editing/draw-geometry.ts';
 import { EditingLayer } from './editing/index.tsx';
 import { selectWhenRendered, useObjectOps } from './editing/object-actions.ts';
 import { type ObjectMenuDeps, objectMenuSections } from './editing/object-menu.tsx';
-import { worldMenuSections } from './editing/world-menu.ts';
 // S2.11 — the reorder slot's state + the ⌥-copy / drag-out drops (editing/reorder-slot.tsx)
 import {
   copyPlacedTo,
@@ -106,6 +105,7 @@ import {
 } from './editing/reorder-slot.tsx';
 import { isLockedDom, lockedClickSelection, stepOut } from './editing/selection.tsx';
 import { commitTextInPlace, lockedTextLine, textOpDeps } from './editing/text-actions.ts';
+import { worldMenuSections } from './editing/world-menu.ts';
 import { EqualSpacingHandles } from './equal-spacing-handles.tsx';
 import {
   crossedDragThreshold,
