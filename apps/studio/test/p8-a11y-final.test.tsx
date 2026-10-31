@@ -4,8 +4,8 @@
 // named in each comment.
 
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
-import { GlobalRegistrator } from '@happy-dom/global-registrator';
 import { readFileSync } from 'node:fs';
+import { GlobalRegistrator } from '@happy-dom/global-registrator';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { contrastRatio, oklchToRgb, parseOklch } from '../draw/palette';
