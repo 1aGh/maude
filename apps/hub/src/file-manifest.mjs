@@ -152,17 +152,24 @@ export function registerClassHolds(designRoot, holds) {
  *
  * `sha256` is a thunk (only a held path pays for the hash). Without it a held
  * path stays held.
+ *
+ * `note` (p8-holds-fix, recheck N1): only a caller that has a REAL canvas body
+ * in hand passes it — the walk (`listProjectFiles`) and `recordWrite` for a
+ * regular file a non-owner lane wrote. A read or a door only CLASSIFIES: it
+ * used to note too, so any token probing `GET /_project-file/lib/Foo.tsx` on an
+ * undeclared hub planted a hold for a path that does not exist, and after the
+ * declaration the owner's real code there was `never` for good.
  */
 export function hubCheckoutClass(
   rel,
   designRoot,
-  { hasFile, sha256 = null, canvasGroups = readCanvasGroups(designRoot) } = {}
+  { hasFile, sha256 = null, canvasGroups = readCanvasGroups(designRoot), note = false } = {}
 ) {
   const cls = classifyProjectFile(rel, { canvasGroups, hasFile });
   const holds = classHolds.get(designRoot);
   if (!holds) return cls;
   if (canvasGroups === null) {
-    if (cls === 'canvas-owned' && classifyProjectFile(rel, { hasFile }) === 'code-module') {
+    if (note && cls === 'canvas-owned' && classifyProjectFile(rel, { hasFile }) === 'code-module') {
       holds.noteBoundaryCanvas(rel);
     }
     return cls;
@@ -184,7 +191,9 @@ export function heldCodePaths(designRoot) {
 
 /**
  * What a checkout holds back from the code lane, with WHY (p8-held-surface): the
- * owner is told, so a held file is never a silent failure. `reason` is
+ * owner is told, so a held file is never a silent failure. A hold whose file is
+ * MISSING is listed too (p8-holds-fix): it still blocks the path until the walk
+ * prunes it, and a block the owner cannot see is the silent failure again. `reason` is
  * `canvas-before-folders` (the path was a canvas only because no folders were
  * declared, and the owner had no code version of it) or `changed-as-canvas` (the
  * owner had a code version, and the bytes changed on the canvas lane while no
@@ -202,20 +211,20 @@ export function heldCodeEntries(designRoot) {
   const out = [];
   for (const rel of holds.heldPaths()) {
     const abs = join(designRoot, rel);
-    let st;
+    let st = null;
     try {
       st = lstatSync(abs);
     } catch {
-      continue;
+      /* missing — still held until the walk prunes it */
     }
     // Tenant content: a link or a FIFO is not a file the owner can be told about.
-    if (!st.isFile()) continue;
+    if (st && !st.isFile()) continue;
     if (classifyProjectFile(rel, { canvasGroups, hasFile }) !== 'code-module') continue;
     const ownerSha = holds.heldCodeSha(rel);
     const cls = hubCheckoutClass(rel, designRoot, {
       canvasGroups,
       hasFile,
-      sha256: () => shaOf(abs, st.size, st.mtimeMs),
+      sha256: st ? () => shaOf(abs, st.size, st.mtimeMs) : null,
     });
     if (cls !== 'never') continue;
     out.push({ path: rel, reason: ownerSha ? 'changed-as-canvas' : 'canvas-before-folders' });
@@ -306,6 +315,8 @@ export function listProjectFiles(designRoot) {
     const cls = hubCheckoutClass(f.rel, designRoot, {
       ...opts,
       sha256: () => shaOf(f.abs, f.size, f.mtimeMs),
+      // The walk holds a real regular file in hand — a note site (N1).
+      note: true,
     });
     if (!isFilePlaneClass(cls)) continue;
     const sha256 = shaOf(f.abs, f.size, f.mtimeMs);
