@@ -106,6 +106,12 @@ app is verified in the shells it ships in (desktop, browser, cloud tab, viewer).
 - The desktop app's project servers use their own port range, 46399–46408.
 - V2-8.17 (#121): offline edits that overlap in a shared doc now show a notice with both versions. The losing side is kept in `_history/<slug>/sync-recovery`. Merged.
 - The e2e harness got many rounds of work: one app per spec, throwaway config home, window kept on top, no GitHub in the lifecycle lane.
+- **Final freeze (2026-10-31, `20b4215eb`)**: the last round found and fixed, each red-first:
+  - **the desktop app could quit when a project tab opened.** wry 0.57 unwraps a missing WKWebView URL on the main thread, and the 2 s root watch read every tab's URL. Every shell URL read now goes through `webview_url::url_of`, which answers `None` instead, and the gates still refuse. Before the fix, about 1 in 30 opens from Home quit the app; after it, 0 in 100.
+  - asset tiles took 52 s for 194 pictures (`toBlob`'s idle-task 1 s fallback); now ~9 s.
+  - a canvas importing its own stylesheet in another letter case (`Combine-admin.tsx` + `./combine-admin.css`) was blocked by the C4 closure walk for everyone. It opens now, and the rule fails closed wherever a reader cannot prove the owner is absent: stored grant, truncated listing, symlinks, NFC, the hub reader.
+  - 10 a11y serious/critical groups (contrast on information text, unnamed pickers and listbox, a bare div in a menu, an empty tree). The full axe matrix, 318 states in both themes, is clean.
+  - a first-canvas e2e race (a click inside the 30 ms re-render after ⌘Z).
 
 ## Decisions you made along the way
 
@@ -141,30 +147,31 @@ app is verified in the shells it ships in (desktop, browser, cloud tab, viewer).
 ## Verification
 
 Phase 8 gates, from `node scripts/v2-gates.mjs`. The script reads recorded evidence, and a record goes stale as soon as
-any file outside `.ai/` changes. **Every record is at the freeze: product tree `a686e71c7`.** Only `.ai/` changed after
-it: evidence, ledger and these notes. 12 of 15 gates are green. The 3 red ones wait for you.
+any file outside `.ai/` changes. **Every record is at the final freeze, product tree `20b4215eb`.** Only `.ai/` changed
+after it: evidence, ledger and these notes. **All 15 gates are green.** The two things only you can do are listed under
+"Before you merge".
 
 | Gate | What | Status | Evidence |
 | --- | --- | --- | --- |
 | V2-8.0 | Cleanup (old layers, dead code, CSS bar) | PASS (live check) | 638 KB vs 742 KB at the start of the phase |
 | V2-8.1 | Quality gates (format, lint, typecheck, tests, build, parity, tarball, tokens, site, import coherence) | PASS | recorded on this Mac |
 | V2-8.2 | Rust (`cargo test`, clippy `-D warnings`) | PASS | recorded |
-| V2-8.3 | Desktop e2e, every lane, 3 consecutive runs (debug build) | PASS | 12:45–14:18; prefs file untouched, screen never locked |
-| V2-8.4 | Cross-shell scenarios (browser, cloud owner, cloud viewer) | PASS | 18/18, 0 blockers; the rig's project stamped to formatVersion 2 for the run (harness fix in follow-ups) |
-| V2-8.5 | Design fidelity | PASS | artboard rows: 342 verified, 14 soak, 4 not-a-state, 0 open |
+| V2-8.3 | Desktop e2e, every lane (41), 3 consecutive runs (debug build) | PASS | 0 failing in 123 lane logs; prefs file untouched, screen never locked |
+| V2-8.4 | Cross-shell scenarios (browser, cloud owner, cloud viewer) | PASS | 18/18 at the same sha on the Mac mini; format-1 run 14/18 = the view-only gate |
+| V2-8.5 | Design fidelity | PASS | artboard rows: 342 verified, 14 soak, 4 not-a-state, 0 open; browser e2e 14× green |
 | V2-8.6 | Nothing-deleted audit | PASS (live check) | 100 % |
-| V2-8.7 | A11y (axe, keyboard-only, VoiceOver) | **needs you** | axe 0 serious/critical, keyboard-only flow; VoiceOver pass open |
-| V2-8.8 | Pan/zoom perf (Chromium + WebKit) | PASS | Chromium re-measured at the freeze; WebKit both orders (render path unchanged since) |
-| V2-8.9 | Security | PASS | final pair, delta pair and recheck, 0 blockers |
-| V2-8.10 | Packaged app | **needs you** | `.app` 1.9.1 built at the freeze: `check-bundle-completeness --smoke` ✓, `check-client-boots` ✓, no WebDriver code; clean-user smoke open |
-| V2-8.14 | Perf beyond pan/zoom | **needs you** | five budgets over, see below: accept or hold |
-| V2-8.15 | Docs for people and agents | PASS | gens in sync, drift tests 12/12; 3 small gaps in follow-ups |
-| V2-8.16 | AI parity | PASS | 509/509; eval 24/30 pass^3; live journeys 19/22 |
-| V2-8.17 | Offline overlap on reconnect (#121) | verified | merged with tests, reviewed in the final security pair |
+| V2-8.7 | A11y (axe, keyboard-only, VoiceOver strings) | PASS | 318 states × both themes, 0 serious/critical; keyboard-only create flow; VoiceOver strings checked in the DOM (the listen is yours) |
+| V2-8.8 | Pan/zoom perf (Chromium + WebKit) | PASS | Chromium studio 17.4 vs 17.3 ms; WebKit both orders on the mini (p95 27/24 vs 33/30 ms) |
+| V2-8.9 | Security | PASS | final … final5 pairs + two rechecks + the Rust delta, 0 blockers; residual lows in follow-ups |
+| V2-8.10 | Packaged app | PASS (scripted) | `.app` 2.0.0-rc.1: `check-bundle-completeness --smoke` ✓, `check-client-boots` ✓, no WebDriver, opening card clears; the clean-user smoke is yours |
+| V2-8.14 | Perf beyond pan/zoom | PASS | every budget met; version-picture warm p50 ~400 ms accepted by you for v2.0 (p95 within budget) |
+| V2-8.15 | Docs for people and agents | PASS | gens in sync, drift tests 12/12 |
+| V2-8.16 | AI parity | PASS | 512/512; eval 24/30 pass^3; live journeys 19/22 (the 3 fails agent-caused) |
+| V2-8.17 | Offline overlap on reconnect (#121) | verified | merged with tests |
 | V2-8.18 | Self-hosted hub + cell images (Docker) | PASS | recorded |
 | V2-8.11 | Branch build and PR | this PR | |
 | V2-8.12 | After the merge: rc | after merge | see below |
-| V2-8.13 | Close-out | after merge | `v2-done.sh` turns green once 8.7, 8.10, 8.14 and this PR are closed |
+| V2-8.13 | Close-out | after merge | `v2-done.sh` turns green once this PR is merged and closed out |
 
 ## Before you merge: what needs you
 
@@ -172,8 +179,8 @@ it: evidence, ledger and these notes. 12 of 15 gates are green. The 3 red ones w
    listen once to the strings from board 14 (for example "Services, frame, 3 items, in a row, 4 of 6. Press Return
    to go inside") and to the live region on the status words.
 2. **Clean-macOS-user smoke of the packaged app (V2-8.10).** Install the `.app` on a fresh macOS user with no node,
-   bun or claude: `apps/desktop/src-tauri/target/release/bundle/macos/Maude.app` or the `.dmg` next to it, both built at
-   the freeze. Open a project, open Home, make a canvas. The scripted gates (`check-bundle-completeness --smoke`,
+   bun or claude: `.claude/worktrees/freeze/apps/desktop/src-tauri/target/release/bundle/macos/Maude.app` (2.0.0-rc.1,
+   built at the final freeze with auto-update off). Open a project, open Home, make a canvas. The scripted gates (`check-bundle-completeness --smoke`,
    `check-client-boots`) are green and cover everything except a real clean user.
 3. **The desktop port question (asked 2026-10-27):**
    > The desktop app starts a project's server without a port, so it takes 4399, the default of
@@ -186,14 +193,9 @@ it: evidence, ledger and these notes. 12 of 15 gates are green. The 3 red ones w
    **Resolved 2026-10-29: Michal chose A.** App project servers use their own range, 46399–46408. It stays clear of
    the CLI's 4399+, e2e's 47399+ and the harness's 48399+. A restart keeps the port, and a one-time reset of web
    storage is accepted. This is built in p8-app-port-range; kg `maude/v2-michal-desktop-own-port-range`.
-4. **V2-8.14 open budgets** (numbers from the 2026-10-25 record; they may move before the final one):
-   - Covers, 95 canvases, cold pass: 206–245 s against a 45 s budget.
-   - First 12 covers cold: 3.5–4.2 s against 3 s.
-   - Version picture (warm): p50 754 ms, p95 1.5 s against 300 / 800 ms.
-   - Asset tiles: fast (0.8 s) but 189 of 194 came back as glyphs. Suspect.
-   - Annotation LOD with 64 boards and a 1,500-element board: p95 83–100 ms against about 67 ms on v1. Not React renders.
-
-   Decide: accept for v2.0 and list as follow-ups, or hold the merge for a perf round.
+4. **V2-8.14 budgets: resolved.** Covers, first-12, asset tiles and every other budget now pass (covers 95/95 in
+   16.6 s, tiles 9.3 s). You accepted the version-picture warm p50 of ~400 ms for v2.0 ("a", 2026-10-31). Sharing
+   canvas-lib across canvases is a post-rc follow-up.
 5. **Real push to `iagh66/maude-git-smoke`:** done, green twice. The signed-in PR path through the app (Add to main →
    a real PR, DDR-162) needs a GitHub sign-in in the app and was not run. Say if you want it on the rc soak.
 6. **The homepage showreel `site/public/demo.mp4`** still likely shows v1 chrome. Re-record, drop or keep?
@@ -244,6 +246,15 @@ it: evidence, ledger and these notes. 12 of 15 gates are green. The 3 red ones w
   - The hub multi-target undo.
   - Conflict visibility in the trash race.
 - The full list, with file and line references, is in `.ai/scenarios/maude-v2/lead/pr-followups.md` on this branch.
+
+- **From the final freeze round** (details in `.ai/scenarios/maude-v2/lead/pr-followups.md`):
+  - share canvas-lib between canvas modules, so version pictures reach p50 300 ms;
+  - the LOD lane's zoom p95 is one frame worse than pre-v2;
+  - the hub reader refuses the same-name stylesheet rule more often than the studio does (depth > 8, journal tombstones). That fails closed;
+  - the `no_raw_webview_url_calls` test is line-based, and the vendored WebDriver plugin's debug-only `url()`;
+  - a loopback `/_api/canvas` write during an AI run is attributed as "outside";
+  - the wall-clock `until()` in 7 hub tests;
+  - `maude design comments --help` is still denied.
 
 ## The rc-soak checklist
 
