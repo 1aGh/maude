@@ -50,6 +50,31 @@ export function canCommentCanvas(): boolean {
   return commentCached;
 }
 
+let pausedCached: boolean | null = null;
+
+/**
+ * p8-cell-copy — are COMMENTS paused on this canvas? The project is view only because of its FORMAT gate
+ * (a format-1 project not yet updated, one that still saves the old way): the studio refuses every comment
+ * write then, whoever the person is — an owner included. The shell says so with `cg=1` (client/canvas-url.js,
+ * from `/_config.formatGate` + `canComment`). Unlike dropping `cm`, this keeps the Comment tool and the card
+ * in reach, so the person is TOLD why before typing instead of learning it from a refused send. Boot-static
+ * like `ro` / `cm`; the studio's 403 holds the line either way.
+ */
+export function commentsPausedCanvas(): boolean {
+  if (typeof window === 'undefined') return false;
+  if (pausedCached === null) {
+    try {
+      pausedCached = new URLSearchParams(window.location.search).get('cg') === '1';
+    } catch {
+      pausedCached = false;
+    }
+  }
+  return pausedCached;
+}
+
+/** Why a paused comment control is off (CONTRACT §3/§4: what is so, no blame). */
+export const COMMENTS_PAUSED_REASON = 'Comments are paused while this project is view only.';
+
 let embedCached: boolean | null = null;
 
 /**

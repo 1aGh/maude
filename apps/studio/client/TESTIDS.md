@@ -656,6 +656,8 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `comment-composer-place` | testid | The composer header's place in words when the chip carries `comment-composer-where`. | `comments-overlay.tsx` · `CommentComposer` | — | new in v2 (gate-b-polish3) |
 | `comment-composer-cancel` | testid | The composer's × (esc does the same). | `comments-overlay.tsx` · `CommentComposer` | test:gate-b-polish3 | new in v2 (gate-b-polish3) |
 | `comment-composer-send` | testid | The composer's round send (⌘↵ does the same); also `.cm-composer .cm-btn--primary`. | `comments-overlay.tsx` · `CommentComposer` | — | new in v2 (gate-b-polish3) |
+| `comment-composer-paused` | testid | The line on the new-comment card while the project's format gate refuses comment writes (`cg=1`): "Comments are paused while this project is view only." The field and the send are off with the same words as their title. | `comments-overlay.tsx` · `CommentComposer` | test:p8-cell-copy-comments-gate | new in v2 (p8-cell-copy) |
+| `comment-paused-<id>` | testid | The same line on an open thread, where the reply would be (reply / resolve / delete are absent then). | `comments-overlay.tsx` · `CommentThread` | test:p8-cell-copy-comments-gate | new in v2 (p8-cell-copy) |
 | `comment-notice` | testid | A refused comment write said in one sentence ("That did not go through."); the typed text stays in the composer. | `comments-overlay.tsx` · `CommentsOverlay` | test:v2-comments-panel-render | new in v2 (S9.22) |
 
 ### banners

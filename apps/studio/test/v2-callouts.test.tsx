@@ -114,9 +114,9 @@ describe('the model: every banner message has an item', () => {
     expect(lines[2]).toContain('The cloud refused them. Your edits are kept.');
     // the desktop app keeps its words — an edit really is on the Mac there (also the default)
     for (const opts of [undefined, { native: true }]) {
-      expect(syncCallout(linked({ state: 'offline-long', queuedOps: 14 }), 0, opts)?.detail).toContain(
-        'kept on this Mac, waiting to sync.'
-      );
+      expect(
+        syncCallout(linked({ state: 'offline-long', queuedOps: 14 }), 0, opts)?.detail
+      ).toContain('kept on this Mac, waiting to sync.');
       expect(syncCallout(linked({ docs: { rejected: 2 } }), 0, opts)?.detail).toContain(
         'Your edits are kept on this Mac.'
       );

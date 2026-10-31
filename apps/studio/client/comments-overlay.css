@@ -141,6 +141,20 @@
   align-self: flex-start;
 }
 
+/* p8-cell-copy — comments paused by the format gate: the reason sits on the card, in the thread's quiet voice */
+.cm-composer__paused,
+.cm-thread__paused {
+  margin: 0;
+  font-size: var(--maude-hud-type-xs);
+  line-height: 1.4;
+  color: var(--maude-chrome-fg-2);
+}
+
+.cm-composer__textarea:disabled,
+.cm-composer__send:disabled {
+  cursor: not-allowed;
+}
+
 /* the board's `.md-th-comp`: bg-3, the field's own radius, the accent ring while it holds the focus */
 .cm-composer__field {
   display: flex;

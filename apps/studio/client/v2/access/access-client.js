@@ -137,8 +137,17 @@ export function frameAccessOn(cfg, path) {
     );
     return { ro, cm: !!cfg.canComment || own };
   }
-  return { ro, cm: !!cfg.canComment };
+  // p8-cell-copy — the format gate refuses every comment write, whatever the role. A session whose role
+  // would comment keeps the tool and the card, and is told why on them (`cg`): the canvas pauses both.
+  const cm = !!cfg.canComment;
+  return { ro, cm, ...(cm && cfg.formatGate ? { cg: true } : {}) };
 }
+
+/**
+ * p8-cell-copy — may this session resolve / reopen / delete comments from the shell's Comments panel? The
+ * role says so (`/_config.canComment`) and the project's format gate does not refuse the write.
+ */
+export const canCommentNow = (cfg) => cfg?.canComment === true && !cfg.formatGate;
 
 export const WORDS = Object.freeze({
   asked: 'Asked. The owner will see your request.',

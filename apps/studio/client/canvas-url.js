@@ -298,6 +298,8 @@ export function canvasUrl(p, cfg, opts) {
   // S9.22 — a Can comment session is read-only for the design but may still reply, resolve and reopen:
   // `/_config.canComment` (a role that holds `comment`) — or a Can comment grant on THIS canvas — says so.
   if (frameAccess.cm) params.set('cm', '1');
+  // p8-cell-copy — the format gate refuses comment writes: the canvas pauses the card and says why.
+  if (frameAccess.cg) params.set('cg', '1');
   // S9.23 (S9-slices Q9) — presence `surface`: a canvas open in a browser tab says so in the room
   // ("in a browser"). Only a studio window outside the Mac app; previews / embeds / follows publish nothing.
   if (

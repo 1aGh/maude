@@ -72,7 +72,12 @@ import { committerRows, type MentionRow } from './comments/people.ts';
 import { mmAtArtboardPx, trimOfPrint, videoPinVisible, whereOf } from './comments/where.ts';
 import { resolveByDomPath } from './dom-selection.ts';
 import { toneColor, toneFor } from './presence/tones.ts';
-import { canCommentCanvas, isReadOnlyCanvas } from './read-only-mode.ts';
+import {
+  COMMENTS_PAUSED_REASON,
+  canCommentCanvas,
+  commentsPausedCanvas,
+  isReadOnlyCanvas,
+} from './read-only-mode.ts';
 import { currentCanvasFile } from './shell-canvas-file.ts';
 import { useCollab } from './use-collab.tsx';
 import { useSelectionSetOptional } from './use-selection-set.tsx';
@@ -1421,11 +1426,15 @@ function CommentPin({
 export function CommentComposer({
   state,
   busy = false,
+  paused = commentsPausedCanvas(),
   onSubmit,
   onCancel,
 }: {
   state: ComposerState;
   busy?: boolean;
+  /** p8-cell-copy — the project's format gate refuses comment writes: the field and the send are off, with the
+   *  reason on them, before anyone types (default: the frame's `cg=1`). */
+  paused?: boolean;
   onSubmit: (text: string) => void;
   onCancel: () => void;
 }) {
@@ -1462,9 +1471,9 @@ export function CommentComposer({
 
   const trySubmit = useCallback(() => {
     const v = text.trim();
-    if (!v || busy) return;
+    if (!v || busy || paused) return;
     onSubmit(v);
-  }, [text, busy, onSubmit]);
+  }, [text, busy, paused, onSubmit]);
 
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -1527,6 +1536,11 @@ export function CommentComposer({
           {placedChip}
         </span>
       ) : null}
+      {paused ? (
+        <p className="cm-composer__paused" role="status" data-testid="comment-composer-paused">
+          {COMMENTS_PAUSED_REASON}
+        </p>
+      ) : null}
       <div className="cm-composer__field">
         <MentionAwareTextarea
           textareaRef={textareaRef}
@@ -1537,14 +1551,16 @@ export function CommentComposer({
           onKeyDown={onKeyDown}
           rows={1}
           ariaLabel="Comment body"
+          disabled={paused}
+          title={paused ? COMMENTS_PAUSED_REASON : undefined}
         />
         <button
           type="button"
           className="cm-btn cm-btn--primary cm-composer__send"
           data-testid="comment-composer-send"
           aria-label="Send"
-          title="Send · ⌘↵"
-          disabled={!text.trim() || busy}
+          title={paused ? COMMENTS_PAUSED_REASON : 'Send · ⌘↵'}
+          disabled={!text.trim() || busy || paused}
           onClick={trySubmit}
         >
           <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
@@ -1752,7 +1768,10 @@ export function CommentThread({
 
   const headId = `cm-thread-head-${comment.id}`;
   // Can comment sessions boot `ro=1` (no edit) but may still reply and resolve: `cm=1` says so.
-  const canAct = !isReadOnlyCanvas() || canCommentCanvas();
+  // p8-cell-copy — and not while the project's format gate refuses every comment write: reply / resolve /
+  // delete are absent and the thread says why (below), instead of failing after the press.
+  const paused = commentsPausedCanvas();
+  const canAct = (!isReadOnlyCanvas() || canCommentCanvas()) && !paused;
   const where = whereOf(
     comment,
     comment.artboard ? trimOfPrint(printPropOf(comment.artboard)) : null
@@ -2140,6 +2159,12 @@ export function CommentThread({
             ) : null}
           </span>
         </div>
+      ) : null}
+
+      {paused && canCommentCanvas() ? (
+        <p className="cm-thread__paused" role="status" data-testid={`comment-paused-${comment.id}`}>
+          {COMMENTS_PAUSED_REASON}
+        </p>
       ) : null}
 
       {canAct && (!converted || replyOpen || focusReply > 0) && (

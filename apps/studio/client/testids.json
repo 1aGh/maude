@@ -41002,6 +41002,32 @@
     "v2": "new"
   },
   {
+    "hook": "comment-composer-paused",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The line on the new-comment card while the project's format gate refuses comment writes (`cg=1`): \"Comments are paused while this project is view only.\" The field and the send are off with the same words as their title.",
+    "producer": {
+      "file": "apps/studio/comments-overlay.tsx",
+      "symbol": "CommentComposer"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "comment-paused-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The same line on an open thread, where the reply would be (reply / resolve / delete are absent then).",
+    "producer": {
+      "file": "apps/studio/comments-overlay.tsx",
+      "symbol": "CommentThread"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
     "hook": "comment-composer-send",
     "kind": "testid",
     "pattern": false,
