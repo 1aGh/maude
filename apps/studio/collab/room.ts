@@ -333,13 +333,17 @@ export function createRoom(slug: string, callbacks: RoomCallbacks): Room {
    *     WS mirror of the role matrix's viewer capability.
    *   - lanesClosed (S9.15c, a paused project): no lane is writable.
    */
-  function refusedLanes(conn: RoomConn, roots: ReadonlySet<string>): string[] {
+  function refusedLanes(
+    conn: RoomConn,
+    roots: ReadonlySet<string>,
+    formatGated: boolean
+  ): string[] {
     const refused: string[] = [];
     // Accepted revisions: every persistent lane is the hub's to change.
     if (callbacks.acceptedMode?.()) return [...roots];
     if (conn.lanesClosed === true) return [...roots];
     // p8-comment-gate — the format gate refuses every lane, the comments one too.
-    if (callbacks.formatGated?.()) return [...roots];
+    if (formatGated) return [...roots];
     for (const r of roots) {
       if (conn.realm === 'canvas' && (isBodyLane(r) || r === '<unresolved>')) {
         refused.push(r);
@@ -354,16 +358,23 @@ export function createRoom(slug: string, callbacks: RoomCallbacks): Room {
    * Gated frame path — canvas-realm and/or read-only conns. Awareness frames
    * are unchanged (cursors/presence are ephemeral and already
    * server-attributed). Sync frames are gated.
+   *
+   * `formatGated` is the caller's ONE read of the format gate for this frame
+   * (p8-holds-fix, recheck info B — `formatGate` reads a file).
    */
-  function receiveGated(conn: RoomConn, payload: Uint8Array): void {
+  function receiveGated(conn: RoomConn, payload: Uint8Array, formatGated: boolean): void {
     if (readMessageType(payload) !== MESSAGE_SYNC) {
       // S3.7b (D11) — a read-only conn may watch, never broadcast a
       // presentation: `present` + `pointer` are stripped before the apply.
       // S7.17 — nor claim a caption word: `editing` needs `edit` too.
+      // p8-holds-fix (recheck info A) — a format-gated session is view-only
+      // too: no caption word. Presence and pointer stay, as over HTTP.
       const frame =
         conn.readOnly === true || conn.lanesClosed === true
           ? stripAwarenessFields(payload, READ_ONLY_STRIP)
-          : payload;
+          : formatGated
+            ? stripAwarenessFields(payload, EDITOR_ONLY_FIELDS)
+            : payload;
       if (!frame) return;
       const reply = handleMessage(frame, doc, awareness, conn);
       if (reply) conn.send(reply);
@@ -382,11 +393,10 @@ export function createRoom(slug: string, callbacks: RoomCallbacks): Room {
     // Fail closed on anything we could not positively classify — a probe that
     // threw, or a root type we could not resolve to a name.
     const roots = probeRoots ?? new Set<string>();
-    const refused = refusedLanes(conn, roots);
+    const refused = refusedLanes(conn, roots, formatGated);
     if (probeThrew || refused.length > 0) {
       gateRefusalCount += 1;
       discardMirror();
-      const formatGated = callbacks.formatGated?.() === true;
       console.warn(
         `[collab/${slug}] origin gate REFUSED a ${callbacks.acceptedMode?.() ? 'accepted-replica' : conn.lanesClosed ? 'lanes-closed' : formatGated ? 'format-gated' : conn.readOnly ? 'read-only' : 'canvas-realm'} ` +
           `sync frame (lanes: ${refused.join(', ') || 'unclassifiable'}). ` +
@@ -700,14 +710,16 @@ export function createRoom(slug: string, callbacks: RoomCallbacks): Room {
       receiveFollow(conn, payload);
       return;
     }
+    // Asked ONCE per frame and handed down (recheck info B).
+    const formatGated = callbacks.formatGated?.() === true;
     if (
       conn.realm === 'canvas' ||
       conn.readOnly === true ||
       conn.lanesClosed === true ||
       callbacks.acceptedMode?.() ||
-      callbacks.formatGated?.()
+      formatGated
     ) {
-      receiveGated(conn, payload);
+      receiveGated(conn, payload, formatGated);
       return;
     }
     const reply = handleMessage(payload, doc, awareness, conn);
