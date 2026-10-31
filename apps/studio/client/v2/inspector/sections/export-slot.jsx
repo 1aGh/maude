@@ -31,7 +31,7 @@ export function ExportSlotBody({ el, selection, kind }) {
           ))}
         </span>
       </Row>
-      <Quiet testid="insp-export-more">Export… — every option ⇧⌘E</Quiet>
+      <Quiet testid="insp-export-more">Export… ⇧⌘E</Quiet>
     </>
   );
 }

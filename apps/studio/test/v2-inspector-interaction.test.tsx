@@ -386,8 +386,7 @@ describe('the Export slot (S8 fills it; C21: the default presets per kind)', () 
   test('an object offers PNG 2× and SVG, and points at the sheet', async () => {
     const host = await one();
     expect(presets(host)).toEqual(['PNG · 2×', 'SVG']);
-    expect(q(host, 'insp-export-more')?.textContent).toContain('Export… — every option');
-    expect(q(host, 'insp-export-more')?.textContent).toContain('⇧⌘E');
+    expect(q(host, 'insp-export-more')?.textContent?.replace(/\s+/g, '')).toBe('Export…⇧⌘E');
   });
 
   test('an artboard offers its kind’s own preset (08): Fixed size PNG 1× (S8.8: as a size row), Print PDF, Video MP4', async () => {
