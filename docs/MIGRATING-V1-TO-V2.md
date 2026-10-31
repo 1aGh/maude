@@ -68,7 +68,7 @@ Other notices and lines:
 | The team server is still bringing changes in after the switch | *Updated for Maude 2. It now saves with accepted revisions — the team server is still bringing changes in, and nothing is lost. A copy of the old files is in Version history, on this Mac only.* |
 | The format moved but the switch did not happen | *Updated for Maude 2, but it still saves the old way. Nothing is lost. A copy of the old files is in Version history, on this Mac only.* The switch then runs by itself as above. |
 | The switch did not happen on a Maude 2 project | *The project still saves the old way. Nothing in it changed.* with **Retry update** |
-| You own the project and opened it in a cloud tab | *View only — this project still saves the old way. Switch it in the dashboard, under Saving.* with **Open dashboard**. A cloud tab cannot run the switch itself. |
+| You own the project and opened it in a Maude Cloud tab | *View only — this project still saves the old way. Switch it in the dashboard, under Saving.* with **Open dashboard**. A Maude Cloud tab cannot run the switch itself. |
 
 A project Maude 2 creates is a Maude 2 project from the start, and so is a brand-new team project that a Maude 2 app starts on a Maude 2 team server.
 
@@ -125,7 +125,7 @@ The compatibility gate ships in Maude 1.9.0 and later, so keep Maude 1 up to dat
 | Maude 1.x with the gate, any transport | The project opens for looking. A banner says *This project now uses Maude 2. It's open here to look at — nothing in it is lost.* with **Update Maude to edit**. Edits and annotation changes are refused with the same reason. Pan and zoom still work, because they are per person. |
 | Maude 1.x with the gate, on a team hub | Read-only from the first paint, and live when an owner flips the project while it is open (about one second). Its last write before the notice still lands. |
 | Maude 1.x without the gate, on a team hub | The hub refuses its writes with HTTP `426` (not `403`, so old clients do not renew credentials). Proposals are rejected as final. Content stays intact. |
-| A cloud tab on a build that predates Maude 2 | *This project now uses Maude 2. It's open here to look at.* |
+| A Maude Cloud tab on a build that predates Maude 2 | *This project now uses Maude 2. It's open here to look at.* |
 | A canvas that needs a Maude 2 feature | *This canvas uses Maude 2. Update Maude to see it.* |
 | Maude 1.x without the gate, with git or Syncthing only | There is no server to refuse it, so it can still write. Canvas `.meta.json` fields from Maude 2 survive its writes. Annotation extension fields (for example a resolved sticky's extra keys) can be dropped when it moves an annotation. Update everyone on a git or Syncthing project together, or use `--reverse --strip` to take the project back to format 1. |
 
@@ -160,7 +160,7 @@ Three modes sit in the Share cluster: **Edit**, **Preview** and **Present**.
 
 | Mode | What it is | Toolbar |
 | --- | --- | --- |
-| Edit | The design is editable | Select · Hand · Frame · Shape · Pen · Text · Image · Component · More |
+| Edit | The design is editable | Select · Hand · Artboard / Frame · Shape · Pen · Text · Image · Component · More |
 | Preview (⌥⌘P) | The design is live (click to use it); annotations are drawn on top. This replaces the Browse tool. | Hand · Sticky · Comment · Marker · Arrow · Shape · Text · Stickers · Section |
 | Present (⌥⌘↵) | Full-screen walk through the artboards for an audience | Pointer (L) |
 
@@ -168,7 +168,7 @@ Keys that moved: Pen B is **Marker M** (P is Edit's Pen), Rect R is **Shape R**,
 
 ### Accounts and profiles
 
-A **profile** is a named sign-in slot (GitHub and cloud). The `default` profile is the one Maude 1 already used: the same `~/.config/maude/cloud.json` and `hubs.json`, the same keychain entry. Nothing moves on upgrade.
+A **profile** is a named sign-in slot (GitHub and Maude Cloud). The `default` profile is the one Maude 1 already used: the same `~/.config/maude/cloud.json` and `hubs.json`, the same keychain entry. Nothing moves on upgrade.
 
 Each project tab is bound to one profile. Signing in to a different account from a project that shares its profile creates a new profile for that project and restarts its server; it never silently replaces the account other projects use. **Settings › General** lists every account on this Mac. **Menu › File › Sign in as another account…** starts the flow. The AI never sees profile credentials.
 
@@ -182,7 +182,7 @@ Each project tab is bound to one profile. Signing in to a different account from
 | Server log tail | Diagnostics › Logs (or `maude design logs`) |
 | Save version, Publish, Get latest, branch switcher | Maude saves for you. The Canvases panel foot keeps the draft switcher; Version history › Advanced shows authors and short SHAs. |
 | Light / dark toggle | Settings › General › Look › Theme (Light · Dark · Auto) |
-| Cloud account, Sign in with GitHub, AI provider keys, Figma token, team hub address | Settings › Connections |
+| Maude Cloud account, Sign in with GitHub, AI provider keys, Figma token, team hub address | Settings › Connections |
 | Update banner, app version, engines, panel positions | Settings › Advanced, and Settings › General › Layout |
 
 ## 5. The design-system schema
