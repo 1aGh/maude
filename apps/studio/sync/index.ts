@@ -60,7 +60,11 @@ import {
   uploadingFromRows,
 } from './asset-state.ts';
 import { atomicWrite } from './atomic-write.ts';
-import { isUndeclaredGroupName, resolveCanvasBodyRel } from './canvas-path.ts';
+import {
+  declaredCanvasGroups,
+  isUndeclaredGroupName,
+  resolveCanvasBodyRel,
+} from './canvas-path.ts';
 import { type CellPairing, resolveCellPairing, sanitizeForLog } from './cell-pairing.ts';
 import {
   canvasPathFromDoc,
@@ -7172,13 +7176,10 @@ export function hubFolderBoundary(
 ): boolean {
   if (!cellPairing) return false;
   try {
-    const groups = (JSON.parse(readFileSync(path.join(designRoot, 'config.json'), 'utf8')) ?? {})
-      .canvasGroups;
-    if (!Array.isArray(groups)) return true;
-    return !groups.some((g: unknown) => {
-      const p = typeof g === 'string' ? g : (g as { path?: unknown } | null)?.path;
-      return typeof p === 'string' && p.length > 0;
-    });
+    const cfg = JSON.parse(readFileSync(path.join(designRoot, 'config.json'), 'utf8'));
+    // The one "declared" predicate the hub kernel, classifier and workspace
+    // agent use too (canvas-path `declaredCanvasGroups`, final-3 attacker I2).
+    return declaredCanvasGroups(cfg?.canvasGroups) === null;
   } catch {
     return true;
   }

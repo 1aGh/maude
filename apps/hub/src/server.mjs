@@ -161,6 +161,7 @@ import {
   handleFilesRoute,
   handleProjectFileRoute,
   PROJECT_FILE_PREFIX,
+  readCanvasGroups,
 } from './file-manifest.mjs';
 import {
   createFilesPoke,
@@ -1872,7 +1873,6 @@ export function createHub(config = {}) {
           designRoot: journalDesignRoot,
           onChanged: () => {
             projectConfigCache = { at: 0, value: null };
-            canvasGroupsCache = { at: 0, groups: null };
           },
           checkRateLimit: rateLimit
             ? (req) => checkRateLimit(rateBuckets, req, { store: rateStore, ip: clientIp(req) })
@@ -2429,23 +2429,16 @@ export function createHub(config = {}) {
   // acknowledgement — the mode switch refuses rather than promise saves it
   // could lose on the next rollout (T11: no weakened "saved" semantics).
   const storeDurable = projectStore.kind === 'remote' || process.env.MAUDE_DATA_EPHEMERAL !== '1';
-  let canvasGroupsCache = { at: 0, groups: null };
+  // The checkout's declared group PATHS, or null when the owner has declared
+  // none (the kernel's `allowUndeclaredGroup`). Re-read on every call through
+  // the one shared predicate (`readCanvasGroups` → `declaredCanvasGroups`) —
+  // the 5 s cache let the kernel call a project undeclared for seconds after
+  // the owner declared it while its paired studio already refused (final-3
+  // attacker I2). One small file read per proposal path check.
   const acceptedCanvasGroups = () => {
-    if (Date.now() - canvasGroupsCache.at < 5000) return canvasGroupsCache.groups;
-    let groups = null;
-    try {
-      const root = designRootFor();
-      const cfg = root ? JSON.parse(readFileSync(join(root, 'config.json'), 'utf8')) : null;
-      if (Array.isArray(cfg?.canvasGroups)) {
-        groups = cfg.canvasGroups
-          .map((g) => (typeof g === 'string' ? g : g?.path))
-          .filter((g) => typeof g === 'string' && g.length > 0);
-      }
-    } catch {
-      groups = null;
-    }
-    canvasGroupsCache = { at: Date.now(), groups };
-    return groups;
+    const root = designRootFor();
+    const groups = root ? readCanvasGroups(root) : null;
+    return groups ? groups.map((g) => (typeof g === 'string' ? g : g.path)) : null;
   };
   // The project's labels and design systems, read from the checkout's config
   // — only names and contained relative paths travel (a copy re-checks them).

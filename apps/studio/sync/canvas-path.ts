@@ -288,11 +288,44 @@ function sanitizeSlug(slug: unknown): string {
   return s.length > 0 ? s : 'canvas';
 }
 
+/**
+ * What a project's config DECLARES as canvas groups — the one answer to "has the
+ * owner declared folders yet" (p8-boundary-harden, final-3 attacker I2).
+ *
+ * `raw` is the parsed `config.json`'s `canvasGroups`, whatever it holds. The
+ * project has declared groups when it is an array with at least one entry that
+ * names a path — an object `{ path }` or the bare-string form some callers pass —
+ * as a non-empty string. Returns those entries as `{ path }`-shaped objects, or
+ * `null` when nothing is declared: then a hub is the folder boundary (decision
+ * maude/v2-michal-hub-is-the-folder-boundary-before-config). `[]`, `[{}]`,
+ * `[{ path: '' }]`, a non-array and no config all read as undeclared.
+ *
+ * The hub kernel, the hub's file classifier, its workspace agent and the paired
+ * studio all decide through THIS function and all re-read the config when it
+ * changes, so no writer can call a project declared while another calls it
+ * undeclared. Dependency-free: each runtime reads the file itself.
+ */
+export function declaredCanvasGroups(raw: unknown): CanvasGroupLike[] | null {
+  if (!Array.isArray(raw)) return null;
+  const out: CanvasGroupLike[] = [];
+  for (const g of raw) {
+    const p = groupPathOf(g);
+    if (typeof p === 'string' && p.length > 0) out.push(typeof g === 'string' ? { path: g } : g);
+  }
+  return out.length > 0 ? out : null;
+}
+
+/** A group entry's path: `{ path }`, or the bare-string form the kernel passes. */
+function groupPathOf(g: unknown): unknown {
+  if (typeof g === 'string') return g;
+  return g && typeof g === 'object' ? (g as { path?: unknown }).path : undefined;
+}
+
 /** Declared group paths, normalised and stripped of anything that escapes. */
-function normalizedGroups(canvasGroups?: readonly CanvasGroupLike[]): string[] {
+function normalizedGroups(canvasGroups?: readonly (CanvasGroupLike | string)[]): string[] {
   const out: string[] = [];
   for (const g of canvasGroups ?? []) {
-    const p = normalizeGroup(g?.path);
+    const p = normalizeGroup(groupPathOf(g));
     if (p && !out.includes(p)) out.push(p);
   }
   return out.length > 0 ? out : ['system', 'ui'];

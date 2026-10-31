@@ -45,6 +45,7 @@ import {
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { fileAccessFor } from './access-files.mjs';
 import { MAX_PROJECT_FILE_BYTES, parseRange } from './file-limits.mjs';
+import { declaredCanvasGroups } from '../../studio/sync/canvas-path.ts';
 import { classifyProjectFile, isFilePlaneClass, isProjectFileShape } from './file-membership.mjs';
 import { isContainedReal, realpathOfDeepestExisting } from './path-contain.mjs';
 import { verifyToken } from './tokens.mjs';
@@ -128,13 +129,9 @@ const warnedTruncated = new Set();
 export function readCanvasGroups(designRoot) {
   try {
     const parsed = JSON.parse(readFileSync(join(designRoot, 'config.json'), 'utf8'));
-    const groups = parsed?.canvasGroups;
-    if (!Array.isArray(groups)) return null;
-    const declares = groups.some((g) => {
-      const p = typeof g === 'string' ? g : g?.path;
-      return typeof p === 'string' && p.length > 0;
-    });
-    return declares ? groups : null;
+    // The one "declared" predicate (canvas-path.ts) — the kernel, the workspace
+    // agent and the paired studio decide through it too (final-3 attacker I2).
+    return declaredCanvasGroups(parsed?.canvasGroups);
   } catch {
     return null;
   }
