@@ -88,8 +88,8 @@ import {
 import { setElementDragActive } from './drag-state.ts';
 import { useArtboardActions } from './editing/artboard-actions.ts';
 import { type ArtboardMenuDeps, artboardMenuSections } from './editing/artboard-menu.tsx';
-import { clippedGrab } from './editing/clipped-grab.ts';
 import { useClipboard } from './editing/clipboard-actions.ts';
+import { clippedGrab } from './editing/clipped-grab.ts';
 import { drawToolOfAction } from './editing/draw-geometry.ts';
 import { EditingLayer } from './editing/index.tsx';
 import { selectWhenRendered, useObjectOps } from './editing/object-actions.ts';

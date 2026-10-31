@@ -23,12 +23,12 @@ import path from 'node:path';
 
 import { closureFor, type ProjectReader } from '../access/closure.ts';
 import { resolveAccess } from '../access/scope.ts';
+import { patternSrcs } from '../ds/board/section-patterns.tsx';
 import {
   designSystemCanvasMeta,
   designSystemCanvasSource,
   OWN_ARTBOARD,
 } from '../ds/board/template.ts';
-import { patternSrcs } from '../ds/board/section-patterns.tsx';
 import { SECTIONS } from '../ds/board/types.ts';
 import { createDsConvert } from '../ds/convert.ts';
 import { isSpecimenFile, mapSpecimens, SECTION_ORDER, sectionOf } from '../ds/convert-map.ts';

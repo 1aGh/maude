@@ -34,6 +34,8 @@ import {
   selectorIndex,
   shortText,
 } from './dom-selection.ts';
+import { selectWhenRendered } from './editing/object-actions.ts';
+import { duplicateObject } from './editing/reorder-slot.tsx';
 import {
   installTakeAssetsLane,
   pictureAssetOf,
@@ -41,8 +43,6 @@ import {
   takeStepOf,
 } from './editing/take-keys.ts';
 import { type HoverTarget, isEditableTarget } from './input-router.tsx';
-import { selectWhenRendered } from './editing/object-actions.ts';
-import { duplicateObject } from './editing/reorder-slot.tsx';
 import { isReadOnlyCanvas } from './read-only-mode.ts';
 import { type Selection, useSelectionSet } from './use-selection-set.tsx';
 import { useToolModeOptional } from './use-tool-mode.tsx';

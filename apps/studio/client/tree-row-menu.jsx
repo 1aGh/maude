@@ -134,36 +134,35 @@ export function TreeRowMenu({ state, onClose, rootItems, destinations, onPickDes
       }
     : { position: 'fixed', left: state.x, top: state.y };
 
+  if (state.view === 'move-to' && destinations.length === 0) {
+    // V2-8.7: with nowhere to go there is no menu (axe aria-required-children) and no fake item
+    // (dead-controls): the popover only says so
+    return (
+      <div ref={ref} className="sh-dropdown" role="dialog" aria-label="Move to…" style={style}>
+        <div className="sh-dd-hd">Move to…</div>
+        <p className="sh-dd-item sh-dd-empty">No other folders</p>
+      </div>
+    );
+  }
+
   if (state.view === 'move-to') {
     return (
-      <div
-        ref={ref}
-        className="sh-dropdown"
-        // V2-8.7: with nowhere to go there is no menu (axe aria-required-children) and no fake item
-        // (dead-controls): the popover only says so
-        role={destinations.length ? 'menu' : 'dialog'}
-        aria-label="Move to…"
-        style={style}
-      >
+      <div ref={ref} className="sh-dropdown" role="menu" aria-label="Move to…" style={style}>
         <div className="sh-dd-hd">Move to…</div>
-        {destinations.length === 0 ? (
-          <p className="sh-dd-item sh-dd-empty">No other folders</p>
-        ) : (
-          destinations.map((d) => (
-            <button
-              key={d.path}
-              type="button"
-              role="menuitem"
-              className="sh-dd-item"
-              onClick={() => {
-                onPickDestination(d.path);
-                onClose();
-              }}
-            >
-              <span className="sh-dd-lead">{d.label}</span>
-            </button>
-          ))
-        )}
+        {destinations.map((d) => (
+          <button
+            key={d.path}
+            type="button"
+            role="menuitem"
+            className="sh-dd-item"
+            onClick={() => {
+              onPickDestination(d.path);
+              onClose();
+            }}
+          >
+            <span className="sh-dd-lead">{d.label}</span>
+          </button>
+        ))}
       </div>
     );
   }

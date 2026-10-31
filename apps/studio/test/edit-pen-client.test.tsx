@@ -4,7 +4,8 @@
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
-
+import { act } from 'react';
+import { createRoot } from 'react-dom/client';
 import { ACTIONS_BY_ID } from '../actions/index.ts';
 import {
   ALL_CAPS,
@@ -13,8 +14,6 @@ import {
   toolKeyAction,
   visibleSlots,
 } from '../bridge/canvas-modes.ts';
-import { act } from 'react';
-import { createRoot } from 'react-dom/client';
 import { LINE_STROKE, SHAPE_FILL } from '../edit-ops/insert-shape.ts';
 import { PATH_STROKE } from '../edit-ops/path.ts';
 import { parsePathD, pointType, serializePath } from '../edit-ops/path-model.ts';

@@ -19,8 +19,8 @@ import { useEffect, useRef } from 'react';
 
 import { useArtboardsContext } from './canvas-lib.tsx';
 import { hoverTargetToSelection } from './dom-selection.ts';
-import { DRAG_THRESHOLD_PX } from './input-router.tsx';
 import { clippedGrab } from './editing/clipped-grab.ts';
+import { DRAG_THRESHOLD_PX } from './input-router.tsx';
 import { type Selection, useSelectionSet } from './use-selection-set.tsx';
 import { useToolMode } from './use-tool-mode.tsx';
 
