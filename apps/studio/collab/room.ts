@@ -395,8 +395,8 @@ export function createRoom(slug: string, callbacks: RoomCallbacks): Room {
             : formatGated
               ? "This build does not edit this project's format — view only, no lane is writable."
               : conn.readOnly
-              ? 'A viewer-role socket may only write comments — role matrix, cloud collab lane.'
-              : 'Untrusted canvas script may not write canvas source — see DDR-122 follow-up / collab/origins.ts.')
+                ? 'A viewer-role socket may only write comments — role matrix, cloud collab lane.'
+                : 'Untrusted canvas script may not write canvas source — see DDR-122 follow-up / collab/origins.ts.')
       );
       // Re-assert server truth to that peer so it converges on the authoritative
       // state instead of silently diverging. Their locally-authored body items

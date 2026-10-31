@@ -226,9 +226,7 @@ describe('a format-1 project: no comment write over a socket until "Update proje
     sock.ws.send(JSON.stringify({ type: 'comments-delete', id: 'c-seed' }));
     expect(await until(() => refusedFormat(sock))).toBe(true);
     await Bun.sleep(300);
-    expect(notes().map((c) => [c.id, c.text, c.status])).toEqual([
-      ['c-seed', 'seed note', 'open'],
-    ]);
+    expect(notes().map((c) => [c.id, c.text, c.status])).toEqual([['c-seed', 'seed note', 'open']]);
 
     await migrate(base);
     sock.ws.send(
