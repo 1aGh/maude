@@ -17,6 +17,9 @@ export const PEN_CSS = `
 .ed-pen-pt { fill: var(--maude-hud-accent-fg); stroke: var(--maude-hud-accent); stroke-width: 1.5; pointer-events: all; cursor: pointer; }
 .ed-pen-pt[data-on="true"] { fill: var(--maude-hud-accent); }
 .ed-pen-close { fill: none; stroke: var(--maude-hud-accent); stroke-width: 1.5; }
+/* r1 #8 — while DRAWING, nothing the Pen draws takes the pointer: the anchor squares (pointer-events: all, for point
+   editing) sat over the input layer, so a press on the first point never reached it and the path never closed */
+.ed-pen-svg[data-drawing="true"], .ed-pen-svg[data-drawing="true"] * { pointer-events: none; }
 .ed-pen-hit { fill: none; stroke: transparent; stroke-width: 14; stroke-linecap: round; pointer-events: stroke; cursor: copy; }
 .ed-pen-chip {
   position: fixed; pointer-events: none; z-index: 6; padding: 1px 6px; border-radius: 3px; white-space: nowrap;
@@ -24,6 +27,8 @@ export const PEN_CSS = `
   font: 500 11px/16px var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
 }
 .ed-pen-chip[data-tone="quiet"] { background: var(--maude-hud-bg, #222); color: var(--maude-hud-fg, #eee); }
+/* a chip that does what it says ("Click here to close") takes the press */
+.ed-pen-chip[data-action="true"] { pointer-events: auto; cursor: pointer; }
 .ed-pen-hints {
   /* 14 ed-pen: the keys of drawing are LIGHT PILLS (the board's .ed-hint), one per key, not a dark bar */
   position: fixed; left: 50%; bottom: 72px; transform: translateX(-50%); z-index: 6; pointer-events: none;
@@ -79,20 +84,39 @@ export function PenChip({
   tone,
   testid,
   children,
+  onPress,
+  onHover,
 }: {
   x: number;
   y: number;
   tone?: 'quiet';
   testid: string;
   children: string;
+  /** the chip does what it says: a press on it runs this (and goes no further) */
+  onPress?: () => void;
+  /** the pointer came onto (true) or left (false) a pressable chip */
+  onHover?: (over: boolean) => void;
 }) {
   return (
     <div
       className="ed-pen-chip"
       data-testid={testid}
       data-tone={tone}
+      data-action={onPress ? 'true' : undefined}
       style={{ left: x, top: y }}
       aria-hidden="true"
+      onPointerDown={
+        onPress
+          ? (e) => {
+              if (e.button !== 0) return;
+              e.preventDefault();
+              e.stopPropagation();
+              onPress();
+            }
+          : undefined
+      }
+      onPointerEnter={onHover ? () => onHover(true) : undefined}
+      onPointerLeave={onHover ? () => onHover(false) : undefined}
     >
       {children}
     </div>

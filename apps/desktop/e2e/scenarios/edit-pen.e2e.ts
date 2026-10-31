@@ -132,7 +132,7 @@ describe('edit-pen — draw a path, edit its points', () => {
     });
     const src = readFileSync(SMOKE, 'utf8');
     expect(src).toMatch(/data-cd-id="path"/);
-    expect(src).toMatch(/stroke: "var\(--accent\)"/);
+    expect(src).toMatch(/stroke: "var\(--accent, currentColor\)"/);
     // no colour literal came with the path: the file holds exactly the hex colours it started with
     // (the fixture's own `color: "#111"`)
     const hex = (t: string) => (t.match(/#[0-9a-f]{3,8}\b/gi) ?? []).length;
@@ -182,5 +182,43 @@ describe('edit-pen — draw a path, edit its points', () => {
     expect(
       await inFrame<boolean>(`return !doc.querySelector('[data-testid="edit-pen-points"]');`)
     ).toBe(true);
+  });
+  it('r1 #8 — a press ON the first point closes the path, and the path is drawn with a visible stroke', async () => {
+    // the drawn path from step 1 renders with a colour, even on a fixture without --accent
+    const stroke = await inFrame<string | null>(
+      `const s = doc.querySelector('svg[data-shape="path"]'); return s ? win.getComputedStyle(s).stroke : null;`
+    );
+    expect(stroke).not.toBe('none');
+    expect(stroke).not.toBeNull();
+    const before = (readFileSync(SMOKE, 'utf8').match(/data-shape="path"/g) ?? []).length;
+    await inFrame(`doc.querySelector('[data-testid="toolbar-slot-el-pen"]').click(); return true;`);
+    await browser.waitUntil(
+      async () => await inFrame<boolean>(`return !!doc.querySelector('${OVERLAY}');`),
+      { timeout: 15_000, timeoutMsg: 'the pen overlay never appeared' }
+    );
+    const b = await body();
+    const at = (x: number, y: number) => ({ x: b.x + x * b.zoom, y: b.y + y * b.zoom });
+    const pts = [at(80, 380), at(200, 380), at(200, 480)];
+    for (const p of pts) {
+      await fire('pointerdown', p.x, p.y, OVERLAY);
+      await fire('pointerup', p.x, p.y, OVERLAY);
+    }
+    // what a PERSON's press on the first point reaches: the browser's own hit-test there (the anchor square
+    // used to take it, so the path never closed)
+    const first = pts[0] as { x: number; y: number };
+    const hit = await inFrame<string | null>(
+      `return doc.elementFromPoint(args[0], args[1])?.getAttribute('data-testid') ?? null;`,
+      first.x,
+      first.y
+    );
+    expect(hit).toBe('edit-pen-input');
+    await fire('pointerdown', first.x, first.y, OVERLAY);
+    await fire('pointerup', first.x, first.y, OVERLAY);
+    await browser.waitUntil(
+      () => (readFileSync(SMOKE, 'utf8').match(/data-shape="path"/g) ?? []).length === before + 1,
+      { timeout: 15_000, timeoutMsg: 'the closed path never reached the file' }
+    );
+    expect(readFileSync(SMOKE, 'utf8')).toMatch(/<path d="M[^"]*Z"/);
+    await capture('pen-closed');
   });
 });

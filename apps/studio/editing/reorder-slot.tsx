@@ -293,6 +293,71 @@ export function takeOver(t: TakeOver, deps: LayoutOpsDeps = layoutOpsDeps.curren
   return false;
 }
 
+/**
+ * r1 #15 — an ⌥-drop of a PLACED object (`position: absolute`): the original stays, a copy lands where the drop put
+ * it (`left` / `top` in the frame's px). ONE `object.reorder-to` (copy, the object as its own neighbour, `at`) — one
+ * write, one ⌘Z. Resolves the copy (`created`), or null when nothing was made; `select` gets it once rendered.
+ */
+export async function copyPlacedTo(
+  el: Element,
+  at: { left: number; top: number },
+  deps: LayoutOpsDeps & { select?: (created: ElementRef[]) => void } = layoutOpsDeps.current
+): Promise<ElementRef[] | null> {
+  const self = refOfElement(el);
+  if (!self) return null;
+  const run = deps.run ?? ((ask: EditOpAsk) => runEditOp(ask));
+  const result = await run({
+    op: 'object.reorder-to',
+    targets: [self, self] as ElementRef[],
+    params: { position: 'after', copy: true, at },
+  });
+  if (!result.ok) {
+    deps.toast?.(result.message || 'That did not go through.', 'error');
+    return null;
+  }
+  if (result.actionId === null && result.writeId) {
+    const rec = editOpRecord(result.writeId, 'Duplicate');
+    if (rec) deps.record?.(rec);
+  }
+  const created = result.created ?? [];
+  if (created.length) deps.select?.(created);
+  return created;
+}
+
+/** Michal (r1 #15): ⌘D puts a placed object's copy this far right and down of the original (px), selected. */
+export const DUPLICATE_OFFSET = 10;
+
+/** Where ⌘D puts a copy of `el`: its own left / top plus the offset — or null when it is not placed (in a flow). */
+export function duplicateAt(
+  el: Element,
+  win: Pick<Window, 'getComputedStyle'> = window
+): { left: number; top: number } | null {
+  const cs = win.getComputedStyle(el);
+  if (cs.position !== 'absolute' && cs.position !== 'fixed') return null;
+  const left = Number.parseFloat(cs.left);
+  const top = Number.parseFloat(cs.top);
+  if (!Number.isFinite(left) || !Number.isFinite(top)) return null;
+  return { left: left + DUPLICATE_OFFSET, top: top + DUPLICATE_OFFSET };
+}
+
+/**
+ * ⌘D / the menu's Duplicate on one object: a PLACED object is copied +10 / +10 and the copy selected (one edit-op,
+ * one ⌘Z); an object in a flow keeps the v1 duplicate (`duplicate-request`, the copy right after it in the flow).
+ */
+export function duplicateObject(
+  el: Element | null,
+  fallback: () => void,
+  select?: (created: ElementRef[]) => void,
+  deps: LayoutOpsDeps = layoutOpsDeps.current
+): void {
+  const at = el ? duplicateAt(el) : null;
+  if (!el || !at) {
+    fallback();
+    return;
+  }
+  void copyPlacedTo(el, at, { ...deps, select });
+}
+
 // ── the skin ──────────────────────────────────────────────────────────────────────────────────
 
 const CSS_TEXT = `

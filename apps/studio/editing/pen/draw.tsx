@@ -32,6 +32,7 @@ import { type EditOpAsk, editOpRecord, runEditOp } from '../edit-op.ts';
 import { refOfElement, selectWhenRendered } from '../object-actions.ts';
 import { DRAW_HINTS, PEN_CSS, PenChip, PenHints, useFrameTick } from './overlay.tsx';
 import {
+  CLOSE_CHIP_OFFSET,
   type Draft,
   draftModel,
   emptyDraft,
@@ -141,6 +142,8 @@ export function PenTool({ readOnly = false }: { readOnly?: boolean }) {
   const container = useRef<Container | null>(null);
   const [pointer, setPointer] = useState<{ x: number; y: number } | null>(null);
   const [shift, setShift] = useState(false);
+  // the pointer is on "Click here to close" (the chip takes the pointer, so the input layer hears no move there)
+  const [onChip, setOnChip] = useState(false);
   const spaceRef = useRef(false);
   const ctx = useRef({ selSet, undo, tm });
   ctx.current = { selSet, undo, tm };
@@ -149,6 +152,7 @@ export function PenTool({ readOnly = false }: { readOnly?: boolean }) {
     container.current = null;
     setDraft(emptyDraft());
     setPointer(null);
+    setOnChip(false);
   }, []);
 
   const frame = (): Frame | null => (container.current ? localFrame(container.current) : null);
@@ -265,7 +269,8 @@ export function PenTool({ readOnly = false }: { readOnly?: boolean }) {
       : null;
   const first =
     f && draft.points.length ? toScreen(f, draft.points[0] as { x: number; y: number }) : null;
-  const closing = !!(f && pointer && overFirst(draft, f, pointer));
+  const closing =
+    !!(f && pointer && overFirst(draft, f, pointer)) || (onChip && draft.points.length >= 2);
 
   return (
     <>
@@ -287,7 +292,12 @@ export function PenTool({ readOnly = false }: { readOnly?: boolean }) {
       <PenHints hints={DRAW_HINTS} testid="edit-pen-hints" />
       {f && draft.points.length ? (
         <>
-          <svg className="ed-pen-svg" aria-hidden="true" data-testid="edit-pen-svg">
+          <svg
+            className="ed-pen-svg"
+            aria-hidden="true"
+            data-testid="edit-pen-svg"
+            data-drawing="true"
+          >
             <path className="ed-pen-path" data-testid="edit-pen-path" d={d} />
             {rubberTo && last ? (
               <path
@@ -328,7 +338,14 @@ export function PenTool({ readOnly = false }: { readOnly?: boolean }) {
             ))}
           </svg>
           {closing && first ? (
-            <PenChip x={first.x + 16} y={first.y + 8} tone="quiet" testid="edit-pen-chip-close">
+            <PenChip
+              x={first.x + CLOSE_CHIP_OFFSET.x}
+              y={first.y + CLOSE_CHIP_OFFSET.y}
+              tone="quiet"
+              testid="edit-pen-chip-close"
+              onPress={() => finish(true)}
+              onHover={setOnChip}
+            >
               Click here to close
             </PenChip>
           ) : null}

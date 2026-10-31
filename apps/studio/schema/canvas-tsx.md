@@ -166,10 +166,10 @@ F, R and More (Line · Ellipse · Polygon) draw by dragging; one drag is one wri
 | Gesture | What the file looks like afterwards |
 | --- | --- |
 | F, drag inside an artboard or a frame | A new last child `<div data-cd-id="frame" style={{ position: "absolute", left: "40px", top: "24px", width: "216px", height: "216px", background: "var(--bg-1)" }} />` (`left` / `top` are px from the container's padding edge; a click draws 100 × 100). The id is readable and unused: `frame`, `frame-2` … |
-| R, drag | The same `<div>` with `data-shape="rectangle"` and `background: "var(--accent)"`. `data-shape` is an inert data attribute: the inspector's "Shape" chip and the selection read it, nothing else does. |
+| R, drag | The same `<div>` with `data-shape="rectangle"` and `background: "var(--accent, currentColor)"` (the fallback keeps it visible on a canvas with no `--accent`). `data-shape` is an inert data attribute: the inspector's "Shape" chip and the selection read it, nothing else does. |
 | More › Ellipse | `data-shape="ellipse"` and `borderRadius: "50%"` on the same box. |
 | More › Polygon | `data-shape="polygon"` and `clipPath: "polygon(50% 0%, 93.3% 75%, 6.7% 75%)"` — N points of a regular polygon on the box's inscribed ellipse, the first at the top (6 sides by default, 3–12). |
-| More › Line | `data-shape="line"`: `left` / `top` at the first point, `width` = the length, `height: "0"`, `borderTop: "2px solid var(--fg-0)"`, and — unless it is horizontal — `transform: "rotate(<deg>deg)"` with `transformOrigin: "0 0"`. |
+| More › Line | `data-shape="line"`: `left` / `top` at the first point, `width` = the length, `height: "0"`, `borderTop: "2px solid var(--fg-0, currentColor)"`, and — unless it is horizontal — `transform: "rotate(<deg>deg)"` with `transformOrigin: "0 0"`. |
 | F on empty canvas | A new `<DCArtboard id="artboard-N" label="Artboard N" kind="digital" width={w} height={h} fixed>` after the last artboard (at least 64 px, at most 8192), and its place — world px of the drag's top-left — in `layout.artboards[]` of the `.meta.json`, never a prop. |
 | More › Export area | **Nothing is written.** The Export sheet opens with the world rectangle. |
 
@@ -322,7 +322,7 @@ point or handle drag is one write (`path.edit`). Everything is plain TSX; a v1 p
 ```tsx
 <svg data-cd-id="path" data-shape="path" width="280" height="110.77" viewBox="0 0 280 110.77"
      style={{ position: "absolute", left: "100px", top: "89.23px", overflow: "visible", fill: "none",
-              stroke: "var(--accent)", strokeWidth: "4px", strokeLinecap: "round", strokeLinejoin: "round" }}>
+              stroke: "var(--accent, currentColor)", strokeWidth: "4px", strokeLinecap: "round", strokeLinejoin: "round" }}>
   <path d="M0 110.77L100 10.77C160 -29.23 220 50.77 280 110.77" />
 </svg>
 ```
@@ -333,7 +333,7 @@ point or handle drag is one write (`path.edit`). Everything is plain TSX; a v1 p
 - `d` is absolute `M L C Z`, two decimals. A **sharp** point has no handles (or two that do not mirror each other);
   a **smooth** point has `C` handles on one line through the anchor, on opposite sides. The type is derived from
   the numbers, never stored. A closed path ends in `Z`.
-- Stroke colour is a token (`var(--accent)`), width and Ends (`strokeLinecap: "round"` or `"butt"`) are on the `<svg>`
+- Stroke colour is a token (`var(--accent, currentColor)` — the fallback keeps it visible on a canvas with no `--accent`), width and Ends (`strokeLinecap: "round"` or `"butt"`) are on the `<svg>`
   and inherited by the `<path>`; the inspector's Stroke section writes them there.
 - Arcs (`A`) are not point-editable: a path that uses them is edited in the code.
 

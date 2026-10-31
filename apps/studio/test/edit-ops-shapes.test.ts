@@ -104,7 +104,7 @@ describe('object.insert-shape', () => {
     expect(style(h.src(), 'rectangle', 'top')).toBe('24px');
     expect(style(h.src(), 'rectangle', 'width')).toBe('216px');
     expect(style(h.src(), 'rectangle', 'height')).toBe('216px');
-    expect(style(h.src(), 'rectangle', 'background')).toBe('var(--accent)');
+    expect(style(h.src(), 'rectangle', 'background')).toBe('var(--accent, currentColor)');
     // it landed inside the desktop artboard, not the mobile one
     const walk = walkIdElements(h.src(), FILE);
     if (!walk.ok) throw new Error('parse');
@@ -186,7 +186,7 @@ describe('object.insert-shape', () => {
     expect(style(h.src(), 'line', 'top')).toBe('20px');
     expect(style(h.src(), 'line', 'width')).toBe('100px');
     expect(style(h.src(), 'line', 'height')).toBe('0');
-    expect(style(h.src(), 'line', 'borderTop')).toBe('2px solid var(--fg-0)');
+    expect(style(h.src(), 'line', 'borderTop')).toBe('2px solid var(--fg-0, currentColor)');
     expect(style(h.src(), 'line', 'transform')).toBe('rotate(90deg)');
     expect(h.src()).toContain('data-shape="line"');
   });

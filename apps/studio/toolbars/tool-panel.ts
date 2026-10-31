@@ -30,6 +30,41 @@ export function toolPanelOpenMessage(
   return { dgn: 'tool-panel-open', panel, anchor };
 }
 
+// ── the hover-focus hold (r1 #11) ──────────────────────────────────────────────────────────────
+// The canvas takes the keyboard when the pointer ENTERS it (canvas-lib "auto-focus on pointer enter"). The shell's tool
+// panels (the F size picker, Stickers, Assets, the Component picker) are drawn OVER the canvas and close when the shell
+// window blurs — their only way to hear a click in the iframe. So the pointer travelling from the toolbar up into the
+// panel crossed the canvas, the canvas took focus, the shell blurred and the panel closed under the pointer ("closes as
+// soon as I move the mouse into it"). Once the canvas asks for a panel it stops taking focus by hover until the next
+// press inside the canvas — a press is still a click in the iframe and still closes the panel the way it always did.
+
+let held = false;
+let listening = false;
+
+/** The canvas asked the shell for a panel: hover alone no longer pulls the keyboard into the canvas. */
+export function holdHoverFocus(doc: Document | undefined = globalThis.document): void {
+  held = true;
+  if (listening || !doc) return;
+  listening = true;
+  doc.addEventListener(
+    'pointerdown',
+    () => {
+      held = false;
+    },
+    true
+  );
+}
+
+/** Is hover-focus on hold (a shell panel was asked for and no press in the canvas has happened since)? */
+export function hoverFocusHeld(): boolean {
+  return held;
+}
+
+/** Tests: forget the hold. */
+export function resetHoverFocusHold(): void {
+  held = false;
+}
+
 /** Post it to the shell (a no-op outside an iframe; the shell gates it to the active canvas). */
 export function openToolPanel(
   panel: SlotPanel,
@@ -37,6 +72,7 @@ export function openToolPanel(
 ): void {
   try {
     if (typeof window === 'undefined' || window.parent === window) return;
+    holdHoverFocus();
     window.parent.postMessage(toolPanelOpenMessage(panel, el), '*');
   } catch {
     /* detached / cross-origin teardown */

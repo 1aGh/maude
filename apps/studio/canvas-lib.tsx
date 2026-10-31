@@ -191,6 +191,7 @@ import {
   isReadOnlyCanvas,
   persistsCanvasMeta,
 } from './read-only-mode.ts';
+import { hoverFocusHeld } from './toolbars/tool-panel.ts';
 import { AgentPresenceProvider } from './use-agent-presence.tsx';
 import { type DragState, useArtboardDrag } from './use-artboard-drag.tsx';
 import {
@@ -1657,6 +1658,9 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
       // passing over it inside another app's dialog would pull keyboard focus
       // out of that app and strand its Escape. A click still focuses it.
       if (isEmbedCanvas()) return;
+      // r1 #11 — a shell panel the canvas asked for sits over it and closes on the shell's blur: hover keeps out
+      // until the next press in the canvas (toolbars/tool-panel.ts)
+      if (hoverFocusHeld()) return;
       try {
         const active = document.activeElement as HTMLElement | null;
         // Never steal focus from something being TYPED into. An editor that

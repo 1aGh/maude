@@ -5,7 +5,7 @@
 //
 //   <svg data-cd-id="path" data-shape="path" width="W" height="H" viewBox="0 0 W H"
 //        style={{ position: "absolute", left: "Xpx", top: "Ypx", overflow: "visible", fill: "none",
-//                 stroke: "var(--accent)", strokeWidth: "4px", strokeLinecap: "round", strokeLinejoin: "round" }}>
+//                 stroke: "var(--accent, currentColor)", strokeWidth: "4px", strokeLinecap: "round", strokeLinejoin: "round" }}>
 //     <path d="M0 0C…" />
 //   </svg>
 //
@@ -40,7 +40,7 @@ import {
 import type { EditOp, ElementRef, ResolvedEditOp } from './types.ts';
 
 /** What a new path is drawn with — names of the system's contract, never a colour. */
-export const PATH_STROKE = 'var(--accent)';
+export const PATH_STROKE = 'var(--accent, currentColor)';
 export const PATH_WIDTH = '4px';
 
 const r2 = (n: number): number => {

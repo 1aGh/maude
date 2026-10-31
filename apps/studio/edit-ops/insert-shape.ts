@@ -35,10 +35,15 @@ import type { EditOp, ElementRef, ResolvedEditOp } from './types.ts';
 export const SHAPE_KINDS = ['frame', 'rectangle', 'ellipse', 'line', 'polygon'] as const;
 export type DrawnKind = (typeof SHAPE_KINDS)[number];
 
-/** The tokens a new drawing is made of — names of the system's contract, never a colour. */
+/**
+ * The tokens a new drawing is made of — names of the system's contract, never a colour. A shape, a line and a path
+ * fall back to `currentColor` (r1 #8): a canvas with no design system (or one that names its accent differently)
+ * has no `--accent`, and an undefined token made the drawing invisible — "it has no colour". A frame stays
+ * see-through without its token: it is a container, not a mark.
+ */
 export const FRAME_FILL = 'var(--bg-1)';
-export const SHAPE_FILL = 'var(--accent)';
-export const LINE_STROKE = '2px solid var(--fg-0)';
+export const SHAPE_FILL = 'var(--accent, currentColor)';
+export const LINE_STROKE = '2px solid var(--fg-0, currentColor)';
 
 const MAX_PX = 10_000;
 const DEFAULT_SIDES = 6;

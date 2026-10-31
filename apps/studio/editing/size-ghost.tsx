@@ -25,6 +25,7 @@ import { customSpec, presetById } from '../kinds/presets.ts';
 import { isReadOnlyCanvas } from '../read-only-mode.ts';
 import { useSelectionSet } from '../use-selection-set.tsx';
 import { useToolModeOptional } from '../use-tool-mode.tsx';
+import { holdHoverFocus } from '../toolbars/tool-panel.ts';
 import { useUndoStackOptional } from '../use-undo-stack.tsx';
 import { selectWhenRendered as selectArtboardsWhenRendered } from './artboard-actions.ts';
 import { onFrameToolArmed } from './draw-tools.tsx';
@@ -202,6 +203,7 @@ export function SizeGhost({ readOnly = false }: { readOnly?: boolean }) {
         });
         if (!ask) return;
         try {
+          holdHoverFocus(); // r1 #11: the picker is drawn over the canvas; hover must not blur it shut
           window.parent.postMessage(ask, '*');
         } catch {
           /* detached */
