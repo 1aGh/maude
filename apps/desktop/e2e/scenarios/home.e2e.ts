@@ -545,6 +545,8 @@ export default function C() {
   });
 
   it('12 · r1: the Home pill has room around its mark; the target menu is on top of the cards under it', async () => {
+    // step 11 ends on whichever window its URL sweep saw last (the strip may not call new_home_tab)
+    await browser.switchToWindow(HOME);
     await newHomeTab();
     await onHome();
     // img 8: the pill is 40 px tall (it was only as tall as its 22 px mark — `--pill-h` lives on `.sh-body`)
