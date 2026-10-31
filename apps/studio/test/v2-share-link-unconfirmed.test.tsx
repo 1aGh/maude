@@ -103,6 +103,47 @@ describe('a committed link this Mac never made', () => {
     expect(q('share-link-unconfirmed')).not.toBeNull();
   });
 
+  // V2-8.9 r2 M1 — the format callout's Connect only opens this sheet on this row (one-shot focus);
+  // the confirm stays this row's, and the sheet tells the callout it happened so it asks again.
+  test('opened from the format callout: Connect takes focus; a confirm here is announced', async () => {
+    const { requestShareFocus, LINK_CONFIRMED_EVENT } = await import(
+      '../client/v2/share/share-model.js'
+    );
+    requestShareFocus('connect');
+    let heard = 0;
+    const on = () => heard++;
+    window.addEventListener(LINK_CONFIRMED_EVENT, on);
+    try {
+      const { q, calls } = await mount({ host: 'team.example.com' });
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 0));
+      });
+      expect(document.activeElement).toBe(q('share-link-connect'));
+      expect(calls.filter((c) => c === 'confirmLink')).toHaveLength(0);
+      await click(q('share-link-connect'));
+      expect(calls.filter((c) => c === 'confirmLink')).toHaveLength(1);
+      expect(heard).toBe(1);
+    } finally {
+      window.removeEventListener(LINK_CONFIRMED_EVENT, on);
+    }
+  });
+
+  test('a refused confirm is not announced', async () => {
+    const { LINK_CONFIRMED_EVENT } = await import('../client/v2/share/share-model.js');
+    let heard = 0;
+    const on = () => heard++;
+    window.addEventListener(LINK_CONFIRMED_EVENT, on);
+    try {
+      const { q } = await mount({ host: 'team.example.com' }, () =>
+        ok({ error: 'read-only', message: 'Ask the owner to change this.' }, 403)
+      );
+      await click(q('share-link-connect'));
+      expect(heard).toBe(0);
+    } finally {
+      window.removeEventListener(LINK_CONFIRMED_EVENT, on);
+    }
+  });
+
   test('a plain local project is unchanged', async () => {
     const { q } = await mount(null);
     expect(q('share-link-unconfirmed')).toBeNull();

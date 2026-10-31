@@ -17,6 +17,8 @@ import { TeamProjectsDialog } from '../../panels/TeamProjects.jsx';
 import { StIcon } from '../../shell/icons.jsx';
 import { shellToast } from '../../shell/util.js';
 import { useShellStore } from '../../stores/shell-store.jsx';
+import { LINK_CONFIRMED_EVENT, requestShareFocus } from '../share/share-model.js';
+import { menuRunner } from './menu-runner.js';
 import {
   AUTO_FRESH,
   applyResult,
@@ -106,6 +108,7 @@ function Dialog({ testid, titleId, bodyId, title, children, onEscape }) {
 export function OlderFormatCallout() {
   const {
     shellCore: { cfg, project },
+    tabs,
   } = useShellStore();
   const older = isOlderGate(cfg);
   // the second trigger: a format-2 linked project that still saves the old way (a cloud tab needs no probe)
@@ -254,21 +257,22 @@ export function OlderFormatCallout() {
     setDialog(which);
   };
 
-  // gate-b-sec4 — the parked claim's Connect (the Share sheet's own door): record the link on this Mac,
-  // then ask again; once linked, the project updates by itself when this Mac may (r1-format-ds).
-  const connect = async () => {
-    try {
-      await fetch('/_api/sync/link/confirm', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'content-type': 'application/json' },
-        body: '{}',
-      });
-    } catch {
-      /* the next probe says what is still true */
-    }
-    void probe();
+  // gate-b-sec4 + V2-8.9 r2 M1 — the parked claim's Connect… only OPENS the Share sheet on its own
+  // Connect row ("This project says it syncs with <host>. Connect?"), the one deliberate consent door:
+  // approving a committed link hands that server this Mac's credential, so this callout, which shows up
+  // unasked, never records it. The sheet announces a confirm; then the dry run is asked again and the
+  // project updates by itself when this Mac may (r1-format-ds). No canvas to share from: no button.
+  const canOpenShare = !!tabs?.sharePath && menuRunner.canRun('share.open');
+  const connect = () => {
+    requestShareFocus('connect');
+    menuRunner.run('share.open');
   };
+  useEffect(() => {
+    if (state?.kind !== 'link-unconfirmed') return undefined;
+    const again = () => void probe();
+    window.addEventListener(LINK_CONFIRMED_EVENT, again);
+    return () => window.removeEventListener(LINK_CONFIRMED_EVENT, again);
+  }, [state?.kind, probe]);
 
   const copy = async () => {
     try {
@@ -349,12 +353,12 @@ export function OlderFormatCallout() {
             {SAVE_COPY.cloudAction}
           </button>
         )}
-        {action === 'connect' && (
+        {action === 'connect' && canOpenShare && (
           <button
             type="button"
             className="btn btn--sm"
             data-testid="format-older-connect"
-            onClick={() => void connect()}
+            onClick={connect}
           >
             {OLDER_COPY.connectAction}
           </button>

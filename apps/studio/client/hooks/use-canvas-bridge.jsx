@@ -5,7 +5,7 @@ import { SYSTEM_TAB, isModuleCanvasPath } from '../shell/constants.js';
 import { acceptCanvasNotice } from '../../canvas-notice-message.ts';
 import { acceptFromCanvas, C2S_ACTIVE, DGN_TABLE } from '../../bridge/dgn-protocol.ts';
 import { layersSlot } from '../v2/inspector/layers-slot.jsx';
-import { notify, notifyCanvasText } from '../../notifications.tsx';
+import { notify, notifyCanvasText, notifyCanvasTriggered } from '../../notifications.tsx';
 import { isNativeApp } from '../github.js';
 import {
   annotationScopeOf,
@@ -507,34 +507,40 @@ export function useCanvasBridge({
         if (shaped.kind === 'confirm') {
           reply(shaped.reply);
           const askedFile = asked.file;
-          shellToast(shaped.line, true, {
-            label: 'Paste',
-            onClick: () => {
-              // the canvas that asked is still open (the toast may be clicked later)
-              if (iframesRef.current.get(askedFile)?.contentWindow !== replyTo) return;
-              editApplyChainRef.current = editApplyChainRef.current
-                .catch(() => {})
-                .then(() =>
-                  fetch('/_api/edit-op', {
-                    method: 'POST',
-                    headers: { 'content-type': 'application/json' },
-                    body: JSON.stringify(shaped.body),
-                  })
-                    .then(readEditOpAnswer)
-                    .then((r) => {
-                      if (!r.ok) {
-                        replyTo?.postMessage(
-                          { dgn: 'op-toast', message: r.message },
-                          expectedOrigin
-                        );
-                        return;
-                      }
-                      const payload = legacyRecordPayload(r, 'Paste');
-                      if (payload)
-                        replyTo?.postMessage({ dgn: 'record-edit', payload }, expectedOrigin);
+          // V2-8.9 r2 C1 — asked by the canvas: one reused, rate-limited notice, below the shell's own
+          notifyCanvasTriggered({
+            id: 'canvas-clip-confirm',
+            title: shaped.line,
+            kind: 'success',
+            action: {
+              label: 'Paste',
+              onClick: () => {
+                // the canvas that asked is still open (the toast may be clicked later)
+                if (iframesRef.current.get(askedFile)?.contentWindow !== replyTo) return;
+                editApplyChainRef.current = editApplyChainRef.current
+                  .catch(() => {})
+                  .then(() =>
+                    fetch('/_api/edit-op', {
+                      method: 'POST',
+                      headers: { 'content-type': 'application/json' },
+                      body: JSON.stringify(shaped.body),
                     })
-                    .catch(() => {})
-                );
+                      .then(readEditOpAnswer)
+                      .then((r) => {
+                        if (!r.ok) {
+                          replyTo?.postMessage(
+                            { dgn: 'op-toast', message: r.message },
+                            expectedOrigin
+                          );
+                          return;
+                        }
+                        const payload = legacyRecordPayload(r, 'Paste');
+                        if (payload)
+                          replyTo?.postMessage({ dgn: 'record-edit', payload }, expectedOrigin);
+                      })
+                      .catch(() => {})
+                  );
+              },
             },
           });
           return;
@@ -928,13 +934,20 @@ export function useCanvasBridge({
         if (!msg) return;
         const file = activePath;
         if (msg.dgn === 'annotation-to-comment') {
-          // the shell owns this Undo: `r.undo` is the server's own conversion token (S4.7)
+          // the shell owns this Undo: `r.undo` is the server's own conversion token (S4.7).
+          // V2-8.9 r2 C1 — the canvas picks when (and how often) this answer is said: one reused,
+          // rate-limited notice that never outranks the shell's own (a flood hid "Export failed").
           void turnIntoComment({ file, id: msg.id }).then((r) => {
             if (!r.ok || !r.undo) {
-              notify({ title: r.line, kind: r.ok ? 'success' : 'error' });
+              notifyCanvasTriggered({
+                id: 'canvas-annotation-to-comment',
+                title: r.line,
+                kind: r.ok ? 'success' : 'error',
+              });
               return;
             }
-            notify({
+            notifyCanvasTriggered({
+              id: 'canvas-annotation-to-comment',
               title: r.line,
               kind: 'success',
               action: {
@@ -960,7 +973,11 @@ export function useCanvasBridge({
         } else if (msg.dgn === 'annotation-ask-ai') {
           // The chat opens; the scope chip that reads `noteAnnotationSelection` is S4.15's.
           if (isNativeApp()) openRightPanel('assistant');
-          else notify({ title: 'AI chat is in the Maude desktop app.' });
+          else
+            notifyCanvasTriggered({
+              id: 'canvas-ask-ai',
+              title: 'AI chat is in the Maude desktop app.',
+            });
         } else if (msg.dgn === 'object-history') {
           // p8-dead-reasons — the object / sticky menu's "Version history of this object". No path from the frame:
           // the object must be one this frame showed (its selection, layers tree, annotation selection), then the

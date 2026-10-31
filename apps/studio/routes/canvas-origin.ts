@@ -55,7 +55,8 @@ export function canvasOriginRoutes(
   // /_api/comments/<id>/reply POST is fetch-handled + gated there.
   const routes: Record<string, Handler> = {
     '/_health': http.routes['/_health'],
-    '/_api/git-user': http.routes['/_api/git-user'],
+    // V2-8.9 r2 L1 — NOT the main-origin handler: no OS-account fallback for the canvas (canvasUserName).
+    '/_api/git-user': http.canvasRoutes['/_api/git-user'],
     '/_api/canvas-meta': canvasOriginMeta(http.routes['/_api/canvas-meta'] as Handler),
     '/_api/annotations': http.routes['/_api/annotations'],
     // T-S4.5b — NOT the main-origin handler: the canvas variant refuses a `run:<id>` tag (400

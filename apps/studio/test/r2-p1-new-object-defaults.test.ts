@@ -196,4 +196,20 @@ describe('ds-check does not flag the fallback behind a role token', () => {
         .sort()
     ).toEqual(['#123456', '#abcdef']);
   });
+
+  // V2-8.9 r2 F5 (attacker) — the exemption could be forced: declare the role yourself (`'--bg-3':
+  // 'initial'`) and the fallback ALWAYS applies, so the literal decides the colour and a system switch
+  // changes nothing, with no finding. A file that declares a registry role loses the exemption for that
+  // role, and the local declaration is itself a finding.
+  test('a file that declares a role itself: its fallback is a literal again, and the declaration is flagged', () => {
+    const r = check(
+      'forced',
+      "export default () => (<div style={{ '--bg-3': 'initial' }}>\n  <p style={{ background: 'var(--bg-3, #ff00ff)' }} />\n  <p style={{ color: 'var(--fg-1, #111111)' }} />\n</div>);\n"
+    );
+    const s1 = r.findings.filter((f) => f.rule === 'S1');
+    expect(s1.map((f) => f.name).sort()).toEqual(['#ff00ff', '--bg-3']);
+    expect(s1.find((f) => f.name === '--bg-3')?.kind).toBe('role-declared');
+    expect(s1.every((f) => f.severity === 'blocker')).toBe(true);
+    expect(r.state).not.toBe('switchable');
+  });
 });

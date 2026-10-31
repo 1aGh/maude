@@ -6,18 +6,16 @@
 // first use; a page that cannot reach the server keeps Recent for the page only.
 
 import { useEffect, useSyncExternalStore } from 'react';
+import { isRecentColour } from '../../../../edit-ops/words-paint.ts';
 import { persistUiPrefs } from '../../../shell/util.js';
 
 export const RECENT_MAX = 8;
 export const RECENT_PREF_KEY = 'recentColours';
 
-/** A colour Recent can keep: one CSS colour or token reference, short, no declaration syntax. */
+/** A colour Recent can keep: one CSS colour or token reference, short, no declaration syntax — never an
+ *  image reference (V2-8.9 r2 F4: `isRecentColour`, the server's own check, applied on hydrate too). */
 export const recentOk = (css) =>
-  typeof css === 'string' &&
-  css.length > 0 &&
-  css.length <= 160 &&
-  !/[;{}<>"'\\]/.test(css) &&
-  !/^\s*(?:currentcolor|inherit|initial|unset|transparent)\s*$/i.test(css);
+  isRecentColour(css) && !/^\s*(?:currentcolor|inherit|initial|unset|transparent)\s*$/i.test(css);
 
 /** `list` with `css` put first: deduplicated (case-insensitive), at most 8. Pure. */
 export function pushRecent(list, css) {

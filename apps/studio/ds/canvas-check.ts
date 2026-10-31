@@ -141,10 +141,16 @@ export function colourLiterals(value: string): { text: string; index: number }[]
  * cannot keep a canvas from switching; it is only what a canvas with no system sees. A literal behind a name that is
  * not a role (`var(--my-thing, #abc)`) or bare stays an S1 literal.
  */
-export function roleFallbackSpans(value: string, idx: RegistryIndex): [number, number][] {
+export function roleFallbackSpans(
+  value: string,
+  idx: RegistryIndex,
+  declaredHere: ReadonlySet<string> = new Set()
+): [number, number][] {
   const out: [number, number][] = [];
   for (const r of varRefs(value)) {
-    if (!r.hasFallback || !idx.roles.has(r.name)) continue;
+    // V2-8.9 r2 F5 — a role the same file declares itself (`'--bg-3': 'initial'`) can force its fallback,
+    // so that fallback decides the colour: no exemption for it
+    if (!r.hasFallback || !idx.roles.has(r.name) || declaredHere.has(r.name)) continue;
     const comma = value.indexOf(',', r.index);
     let depth = 0;
     let end = r.index;
@@ -153,6 +159,22 @@ export function roleFallbackSpans(value: string, idx: RegistryIndex): [number, n
       else if (value[end] === ')' && --depth === 0) break;
     }
     if (comma > 0 && comma < end) out.push([comma + 1, end]);
+  }
+  return out;
+}
+
+/**
+ * V2-8.9 r2 F5 — the registry roles a source declares as custom properties itself: a TSX style key
+ * (`'--bg-3': …`, `['--bg-3']: …`) or a CSS declaration (`--bg-3: …`). Every system defines its roles, so a
+ * canvas that sets one overrides the system — and with `initial` / `unset` / `revert*` forces every
+ * `var(--role, <literal>)` fallback.
+ */
+export function declaredRoles(text: string, idx: RegistryIndex): Set<string> {
+  const out = new Set<string>();
+  const re = /(?:(["'`])(--[A-Za-z0-9_-]+)\1\s*\]?|(?<![\w-])(--[A-Za-z0-9_-]+))\s*:/g;
+  for (const m of text.matchAll(re)) {
+    const name = m[2] ?? m[3];
+    if (name && idx.roles.has(name)) out.add(name);
   }
   return out;
 }
@@ -549,6 +571,16 @@ export function checkCanvas(
     add({ rule: 'S2', kind: 'undefined', name, file, offset, text });
   };
 
+  // V2-8.9 r2 F5 — the roles each source declares itself (read once per file)
+  const declaredByFile = new Map<string, Set<string>>();
+  const rolesDeclaredIn = (file: string): Set<string> => {
+    let s = declaredByFile.get(file);
+    if (!s) {
+      s = declaredRoles(sources.find((x) => x.rel === file)?.text ?? '', idx);
+      declaredByFile.set(file, s);
+    }
+    return s;
+  };
   const checkValue = (
     prop: string,
     value: string,
@@ -564,9 +596,15 @@ export function checkCanvas(
     const p = kebab(prop);
     if (p.startsWith('--')) {
       if (idx.localPalette.test(p)) return; // --c-* local palette: S1-exempt
+      // V2-8.9 r2 F5 — a canvas setting a registry role overrides the system (and `initial`/`unset`/
+      // `revert*` force every fallback of it): an S1 finding, whatever the value
+      if (ctxFlags.s1 && !pinned && idx.roles.has(p)) {
+        add({ rule: 'S1', kind: 'role-declared', name: p, file, offset: valueAt, text });
+        pin('literal-colour');
+      }
     }
     if (ctxFlags.s1 && !pinned) {
-      const exempt = roleFallbackSpans(value, idx);
+      const exempt = roleFallbackSpans(value, idx, rolesDeclaredIn(file));
       for (const lit of colourLiterals(value)) {
         if (exempt.some(([a, b]) => lit.index >= a && lit.index < b)) continue;
         add({

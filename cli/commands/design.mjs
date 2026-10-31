@@ -15,7 +15,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { parseArgs } from '../lib/argv.mjs';
 import { outputViolation, violationMessage } from '../lib/confine-out.mjs';
 import { readViolation, readViolationMessage } from '../lib/confine-read.mjs';
-import { rootViolation, rootViolationMessage } from '../lib/confine-root.mjs';
+import { helperProjectDir, rootViolation, rootViolationMessage } from '../lib/confine-root.mjs';
 import { DESIGN_VERB_TIERS_HELP } from '../lib/design-help.gen.mjs';
 import {
   runAdopt,
@@ -439,6 +439,10 @@ function runBinDispatch(verb, { args, pkgRoot }) {
     process.exit(2);
   }
   const childEnv = { ...process.env, CLAUDE_PLUGIN_ROOT: pluginRoot };
+  // V2-8.9 r2 C2 — in an AI session the helper works on the session's project, never on whatever
+  // repository `rev-parse --show-toplevel` finds above a project that has no repository of its own.
+  const pinned = helperProjectDir();
+  if (pinned) childEnv.CLAUDE_PROJECT_DIR = pinned;
   // p8-t-video-2 — a `/$bunfs/…` (or Windows `B:/~BUN/…`) NAPI_RS_NATIVE_LIBRARY_PATH names the oxc
   // binding INSIDE a compiled maude-server (DDR-042) and exists nowhere else; a sidecar child inherits it.
   // With it set, oxc-parser's loader tries only that path, so every parse-reaching helper (reel-place, …)

@@ -111,9 +111,12 @@ describe('the callout for a parked claim offers Connect', () => {
       expect(OLDER_COPY.olderLinkUnconfirmed(host)).not.toMatch(/signed in|\bwe\b|\bI\b/);
     }
     expect(OLDER_COPY.connectAction).toBe(FORMAT_COPY.connectAction);
-    // the copy critic's line: the host is named (the link comes from a committed file), one clear verb
+    // the copy critic's line: the host is named (the link comes from a committed file), one clear verb.
+    // V2-8.9 r2 M1 — no "moves to Maude 2 by itself" sell on the link approval; Connect… opens Share.
     expect(OLDER_COPY.olderLinkUnconfirmed('hub.example')).toBe(
-      "View only — this project points to a team server this Mac isn't connected to: hub.example. Connect to it, and the project moves to Maude 2 by itself."
+      "View only — this project points to a team server this Mac isn't connected to: hub.example. Connect only if this folder came from your team."
     );
+    expect(OLDER_COPY.olderLinkUnconfirmed('hub.example')).not.toContain('by itself');
+    expect(OLDER_COPY.connectAction).toBe('Connect…');
   });
 });

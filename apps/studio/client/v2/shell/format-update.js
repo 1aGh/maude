@@ -22,13 +22,15 @@ export const OLDER_COPY = {
    *  both: Sign in — never Ask the owner; an owner then converts by itself (r1-roleless-signin). */
   olderNotSignedIn: (hub) =>
     `View only — this Mac isn't signed in to ${hub || 'the team server'}. Sign in, and if you own this project it moves to Maude 2 by itself.`,
-  /** gate-b-sec4 — the committed link was never made on this Mac (parked): Connect (r1-format-ds). The
-   *  host is named — the link comes from a committed file. */
+  /** gate-b-sec4 — the committed link was never made on this Mac (parked): Connect… (r1-format-ds). The
+   *  host is named — the link comes from a committed file. The action only opens the Share sheet's own
+   *  Connect row (V2-8.9 r2 M1): approving the link hands that server this Mac's credential, so the line
+   *  does not sell it as the way out of View only. */
   olderLinkUnconfirmed: (hub) =>
     hub
-      ? `View only — this project points to a team server this Mac isn't connected to: ${hub}. Connect to it, and the project moves to Maude 2 by itself.`
-      : "View only — this project points to a team server this Mac isn't connected to. Connect to it, and the project moves to Maude 2 by itself.",
-  connectAction: 'Connect',
+      ? `View only — this project points to a team server this Mac isn't connected to: ${hub}. Connect only if this folder came from your team.`
+      : "View only — this project points to a team server this Mac isn't connected to. Connect only if this folder came from your team.",
+  connectAction: 'Connect…',
   olderHubTooOld:
     'View only — the team server needs an update before this project can move to Maude 2.',
   olderOwnerOffline:

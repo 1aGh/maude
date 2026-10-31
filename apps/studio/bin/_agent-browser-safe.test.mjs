@@ -57,6 +57,18 @@ describe('validateArgv — subcommand allow-list', () => {
     });
   }
 
+  test('"upload" stays OFF the allow-list — the image-tool-input leak path (V2-8.9 r2 attacker pin)', () => {
+    // The Image tool's file input (`data-testid="image-tool-input"`, client/v2/shell/image-pick.js) is
+    // documented as "an agent driving the page hands it a file", and a file handed to it lands in the
+    // project's Assets, which SYNC to every collaborator. `upload` would let the AI chat hand it any file
+    // on this Mac — around the read boundary (MAUDE_READ_ROOTS) — and so send it to the team. Adding
+    // `upload` needs that path closed first.
+    expect(ALLOWED_SUBCOMMANDS).not.toContain('upload');
+    expect(validateArgv(['upload', '[data-testid="image-tool-input"]', '/etc/hosts'])).toContain(
+      'upload'
+    );
+  });
+
   test('rejects when no subcommand is given', () => {
     expect(validateArgv([])).not.toBeNull();
   });

@@ -31,7 +31,9 @@ export interface Notice {
   action?: { label: string; onClick: () => void };
   onDismiss?: () => void;
 }
-type Entry = Notice & { id: string };
+/** `canvasTriggered` — shell words raised in direct response to a canvas message (V2-8.9 r2 C1): they rank
+ *  below the shell's own notices, never above them. Set only by `notifyCanvasTriggered`. */
+type Entry = Notice & { id: string; canvasTriggered?: boolean };
 let entries: Entry[] = [];
 let sequence = 0;
 const listeners = new Set<() => void>();
@@ -45,39 +47,78 @@ const subscribe = (listener: () => void) => {
   };
 };
 const snapshot = () => entries;
+/** The live entries (read-only use: tests and diagnostics). */
+export const noticeEntries = (): readonly Entry[] => entries;
+
+/** V2-8.9 r2 C1 — the list is bounded: a long session (or a flood) cannot grow it without limit. */
+export const MAX_NOTICE_ENTRIES = 40;
+const untrusted = (e: Entry) => e.group === 'canvas' || !!e.canvasTriggered;
+function bound(): void {
+  while (entries.length > MAX_NOTICE_ENTRIES) {
+    // the oldest canvas notice goes first, then the oldest timed non-error, then the oldest of all
+    let i = entries.findIndex(untrusted);
+    if (i < 0)
+      i = entries.findIndex(
+        (e) => e.kind !== 'error' && !e.paused && noticeDuration(e) !== Infinity
+      );
+    if (i < 0) i = 0;
+    entries = [...entries.slice(0, i), ...entries.slice(i + 1)];
+  }
+}
 
 /** sec-a M3 — a title is always text: a number / object from an untrusted caller must not reach
  *  `.trim()` in a render and unmount the shell. */
 const asText = (v: unknown): string =>
   typeof v === 'string' ? v : v === null || v === undefined ? '' : String(v);
 
-export function notify(input: Notice): string {
+function upsert(input: Notice, canvasTriggered: boolean): string {
   const notice: Notice = {
     ...input,
     title: asText(input.title),
     ...(input.description !== undefined ? { description: asText(input.description) } : {}),
   };
   const id = notice.id ?? `notice-${++sequence}`;
+  const next: Entry = canvasTriggered ? { ...notice, id, canvasTriggered } : { ...notice, id };
   const existing = entries.findIndex((entry) => entry.id === id);
-  if (existing < 0) entries = [...entries, { ...notice, id }];
-  else entries = entries.map((entry) => (entry.id === id ? { ...notice, id } : entry));
+  if (existing < 0) entries = [...entries, next];
+  else entries = entries.map((entry) => (entry.id === id ? next : entry));
+  bound();
   publish();
   return id;
+}
+
+export function notify(input: Notice): string {
+  return upsert(input, false);
 }
 
 let canvasSlot = 0;
 let canvasWindowStart = -Infinity;
 let canvasWindowCount = 0;
-/** Untrusted canvas traffic gets two reusable slots, leaving room for shell notices.
- * Limit publications as well as retention; editing can emit dozens per second. */
-export function notifyCanvasText(title: unknown, kind: NoticeKind = 'info'): string | null {
+/** The canvas rate limit (publications per second), shared by canvas text and canvas-triggered notices. */
+function canvasRateOk(): boolean {
   const now = Date.now();
   if (now < canvasWindowStart || now - canvasWindowStart >= 1000) {
     canvasWindowStart = now;
     canvasWindowCount = 0;
   }
-  if (canvasWindowCount >= 5) return null;
+  if (canvasWindowCount >= 5) return false;
   canvasWindowCount++;
+  return true;
+}
+
+/** V2-8.9 r2 C1 — a shell notice raised in DIRECT response to a canvas message (a refused "turn into
+ *  comment", the browser's AI-chat line, a cross-canvas paste ask): shell words, but the canvas chooses
+ *  when and how often. One fixed id per kind (reused — a flood is one entry), the canvas rate limit, and
+ *  it ranks below every shell-originated notice. Returns null when rate-limited. */
+export function notifyCanvasTriggered(input: Notice & { id: string }): string | null {
+  if (!canvasRateOk()) return null;
+  return upsert(input, true);
+}
+
+/** Untrusted canvas traffic gets two reusable slots, leaving room for shell notices.
+ * Limit publications as well as retention; editing can emit dozens per second. */
+export function notifyCanvasText(title: unknown, kind: NoticeKind = 'info'): string | null {
+  if (!canvasRateOk()) return null;
   const previousUndo =
     kind === 'undo'
       ? entries.find((entry) => entry.group === 'canvas' && entry.kind === 'undo')
@@ -309,6 +350,21 @@ const NOTICE_CSS = `
 }`;
 
 const NO_GROUPS: string[] = [];
+
+/**
+ * Which entries hold the one slot (V2-8.9 r2 C1). The shell's own notices first; then shell words a canvas
+ * triggered; then canvas text — so nothing a canvas does pushes a trusted notice (an export that failed) off
+ * the screen. Within that pool, waiting errors come forward first-in, first-out (a flood of later errors
+ * never buries the first); with no error waiting, the newest.
+ */
+export function shownNoticeIds(visible: readonly Entry[]): string[] {
+  const shell = visible.filter((e) => !untrusted(e));
+  const triggered = visible.filter((e) => e.group !== 'canvas' && e.canvasTriggered);
+  const pool = shell.length ? shell : triggered.length ? triggered : visible;
+  const errors = pool.filter((e) => e.kind === 'error');
+  const rest = pool.filter((e) => e.kind !== 'error').reverse();
+  return [...errors, ...rest].slice(0, MAX_VISIBLE_TOASTS).map((e) => e.id);
+}
 /**
  * r2-p3 (UX audit F03, UX-TOAST-1): ONE toast on screen. Sonner's collapsed stack drew the next notice over the
  * front one (`width: fit-content` clipped both texts) and two live notices were read at once. The rest wait,
@@ -341,13 +397,9 @@ export function NotificationHost({
     if (focused && !hostRef.current?.contains(document.activeElement)) setFocused(false);
   }, [notices, focused]);
   const visible = notices.filter((entry) => !hiddenGroups.includes(entry.group ?? ''));
-  // Publish only the newest; older entries keep their clocks while waiting.
+  // Publish only the one `shownNoticeIds` picks; the others keep their clocks while waiting.
   // This also keeps visibility and clocks aligned when a hidden group returns.
-  // The one slot belongs to the shell's own notices first: canvas text (untrusted) never pushes a trusted notice
-  // (an export that failed) off the screen — it waits until no shell notice does.
-  const trusted = visible.filter((entry) => entry.group !== 'canvas');
-  const pool = trusted.length ? trusted : visible;
-  const timedIds = new Set(pool.slice(-MAX_VISIBLE_TOASTS).map((entry) => entry.id));
+  const timedIds = new Set(shownNoticeIds(visible));
   return (
     <div
       ref={hostRef}
