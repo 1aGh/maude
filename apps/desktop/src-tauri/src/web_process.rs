@@ -129,7 +129,7 @@ fn recover<R: Runtime>(webview: &Webview<R>) {
         );
         return;
     };
-    let target = recovery_target(webview.url().ok().as_ref(), &live);
+    let target = recovery_target(crate::webview_url::url_of(webview).as_ref(), &live);
     // The shell is navigating this window: record the origin its commands are
     // answered for (V2-3.2 `windows::check_caller`) — a respawn may have moved
     // the server to another port since the last navigate.

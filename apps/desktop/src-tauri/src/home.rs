@@ -620,7 +620,7 @@ pub fn caller_home<R: Runtime>(
     let port = home_port(webview.app_handle());
     check_home(
         webview.label(),
-        webview.url().ok().as_ref(),
+        crate::webview_url::url_of(webview).as_ref(),
         port,
         allow_app_local,
     )
@@ -1245,7 +1245,7 @@ pub fn home_session(app: AppHandle, webview: tauri::Webview) -> Result<HomeSessi
     let secret = page_secret(&app);
     session_for(
         webview.label(),
-        webview.url().ok().as_ref(),
+        crate::webview_url::url_of(&webview).as_ref(),
         home_port(&app),
         secret.as_deref(),
     )

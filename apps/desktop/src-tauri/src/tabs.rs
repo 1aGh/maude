@@ -308,7 +308,10 @@ pub fn check_strip(label: &str, url: Option<&tauri::Url>) -> Result<(), String> 
 }
 
 pub fn caller_strip<R: Runtime>(webview: &tauri::Webview<R>) -> Result<(), String> {
-    check_strip(webview.label(), webview.url().ok().as_ref())
+    check_strip(
+        webview.label(),
+        crate::webview_url::url_of(webview).as_ref(),
+    )
 }
 
 /// E2E (debug builds only): does `MAUDE_E2E_ON_TOP` ask the test window to float above the person's apps? Exactly
@@ -1368,7 +1371,7 @@ pub fn spawn_root_watch(app: &AppHandle) {
             let tabs: Vec<WatchedTab> = listed
                 .into_iter()
                 .filter_map(|(label, root)| {
-                    let url = app.get_webview(&label)?.url().ok()?;
+                    let url = crate::webview_url::url_of(&app.get_webview(&label)?)?;
                     Some(WatchedTab {
                         on_card: on_card(&url),
                         label,
