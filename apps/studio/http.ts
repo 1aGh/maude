@@ -1407,6 +1407,17 @@ export function canvasCommitters(
     .sort((a, b) => b.commits - a.commits);
 }
 
+/**
+ * V2-8.9 r2 L1 — `/_api/git-user` as the UNTRUSTED canvas origins may see it: the git `user.name`, else
+ * "You". Never `localAuthor`'s OS-account fallback (`os.userInfo().username`) — canvas code could write
+ * this Mac's account name into a canvas that syncs. The shell (main origin) keeps `localAuthor`, the
+ * one identity a comment is stamped with. Same pattern as `canvasCommitters`.
+ */
+export function canvasUserName(configured: unknown): string {
+  const name = typeof configured === 'string' ? configured.trim().slice(0, 120) : '';
+  return name || 'You';
+}
+
 export interface Http {
   routes: Record<string, (req: Request) => Response | Promise<Response>>;
   /**
@@ -1415,7 +1426,7 @@ export interface Http {
    * (routes/canvas-origin.ts, the canvas server's routes map). Same path, same allowlists.
    */
   canvasRoutes: Record<
-    '/_api/git-committers' | '/_api/annotations/ops',
+    '/_api/git-committers' | '/_api/annotations/ops' | '/_api/git-user',
     (req: Request) => Response | Promise<Response>
   >;
   /**
@@ -8126,6 +8137,15 @@ export function createHttp(
       if (req.method !== 'GET') return new Response('Method not allowed', { status: 405 });
       const committers = canvasCommitters(await api.gitCommitters());
       return Response.json({ committers }, { headers: { 'Cache-Control': 'no-store' } });
+    },
+    // V2-8.9 r2 L1 — the presence name without the OS-account fallback (see canvasUserName). In a cell
+    // the proxy's vouched member name, as on the main origin.
+    '/_api/git-user': async (req: Request) => {
+      if (req.method !== 'GET') return new Response('Method not allowed', { status: 405 });
+      const vouched = req.headers.get('x-maude-user');
+      const name =
+        isWorkspaceMode() && vouched ? vouched : canvasUserName(await api.gitCurrentUser());
+      return Response.json({ name }, { headers: { 'Cache-Control': 'no-store' } });
     },
   };
 
