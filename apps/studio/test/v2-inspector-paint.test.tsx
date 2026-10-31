@@ -671,6 +671,38 @@ describe('IR-8 — the colour picker popover', () => {
     expect(q(host, 'insp-menu-fill')).toBeNull();
   });
 
+  test('focus reaches Search in a browser order: the popover is hidden until showPopover, which runs after mount', async () => {
+    // r2-p6b: a real browser ignores focus() on an element that is not rendered yet, and a `popover` is not rendered until
+    // showPopover(). `autoFocus` runs at mount — before it — so focus stayed on the chip (the e2e inspector-colour IC1).
+    const proto = window.HTMLElement.prototype as unknown as {
+      showPopover?: () => void;
+      focus: (...a: unknown[]) => void;
+      matches: (sel: string) => boolean;
+    };
+    const saved = { show: proto.showPopover, focus: proto.focus, matches: proto.matches };
+    const shown = new WeakSet<object>();
+    proto.showPopover = function (this: HTMLElement) {
+      shown.add(this);
+    };
+    proto.matches = function (this: HTMLElement, sel: string) {
+      return sel === ':popover-open' ? shown.has(this) : saved.matches.call(this, sel);
+    };
+    proto.focus = function (this: HTMLElement, ...a: unknown[]) {
+      const pop = this.closest?.('[popover]') as HTMLElement | null;
+      if (pop && (!shown.has(pop) || pop.style.visibility === 'hidden')) return; // not rendered: focus() is a no-op
+      return saved.focus.apply(this, a);
+    };
+    try {
+      const host = await one({}, V2);
+      await openChip(host, 'insp-ctl-fill');
+      expect(activeId()).toBe('insp-pop-search-fill');
+    } finally {
+      proto.showPopover = saved.show;
+      proto.focus = saved.focus;
+      proto.matches = saved.matches;
+    }
+  });
+
   test('Search filters by name and role word', async () => {
     const host = await one({}, V2);
     await openChip(host, 'insp-ctl-fill');
