@@ -10,6 +10,7 @@ import { diffToOps } from '../annotations/ops.ts';
 import { parseBoard } from '../annotations/schema.ts';
 import type { Api } from '../api.ts';
 import type { Context } from '../context.ts';
+import { FORMAT_GATE_OPTS, formatGate } from '../format.ts';
 
 import { applyCommentsToDoc } from '../sync/codec.ts';
 import { createPersistence, Y_TYPES } from './persistence.ts';
@@ -136,6 +137,10 @@ export function createCollab(ctx: Context, api: Api): Collab {
   // (the room doc is the hub's accepted replica). Asked per frame — the save
   // mode can change while the studio runs.
   persistence.acceptedMode = () => ctx.syncControl?.current?.()?.acceptedMode?.() === true;
+  // p8-comment-gate (decision `v2-p8-comment-gate-socket-lanes`) — the format gate (format.ts, the
+  // one http.ts's `gateNow` reads) closes every lane of every room, comments included: the HTTP
+  // comment door refuses under it, so the socket must too. Per frame: "Update project" lifts it.
+  persistence.formatGated = () => formatGate(ctx, FORMAT_GATE_OPTS) !== null;
   // p8-collab-epoch (decision `v2-p8-collab-epoch`) — this instance's epoch.
   // A peer that synced with an earlier instance (a tab, the canvas frame, a
   // browser through a cell's proxy that stayed open across the restart) is
