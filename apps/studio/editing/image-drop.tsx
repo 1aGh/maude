@@ -15,7 +15,7 @@ import type { EditOpResult, ElementRef } from '../edit-ops/types.ts';
 import { isReadOnlyCanvas } from '../read-only-mode.ts';
 import { type Selection, useSelectionSet } from '../use-selection-set.tsx';
 import { useUndoStackOptional } from '../use-undo-stack.tsx';
-import { ASSET_DRAG_MIME, type AssetDrag, dragHasAsset, parseAssetDrag } from './asset-drag.ts';
+import { type AssetDrag, assetFromDrop, dragHasAsset } from './asset-drag.ts';
 import { containerAt } from './draw-tools.tsx';
 import { type EditOpAsk, editOpRecord, runEditOp } from './edit-op.ts';
 import { refOfElement, selectWhenRendered } from './object-actions.ts';
@@ -136,10 +136,11 @@ export function ImageDrop({ readOnly }: { readOnly?: boolean }) {
     const drop = (e: DragEvent) => {
       clear();
       if (isReadOnlyCanvas() || !dragHasAsset(e.dataTransfer?.types)) return;
+      // r1 item 10 — a plain-text drag is ours only when its text is an asset path; anything else is left alone
+      const drag = assetFromDrop(e.dataTransfer);
+      if (!drag) return;
       e.preventDefault();
       e.stopPropagation();
-      const drag = parseAssetDrag(e.dataTransfer?.getData(ASSET_DRAG_MIME));
-      if (!drag) return;
       const t = dropTargetAt(document, e.clientX, e.clientY);
       if (!t) return;
       if (isLockedDom(t.el)) return void showCanvasToast(LOCKED_LINE, 'info');

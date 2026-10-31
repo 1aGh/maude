@@ -67,7 +67,36 @@ export function parseAssetDrag(raw: string | null | undefined): AssetDrag | null
   return out;
 }
 
-/** Does a drag in flight carry an asset? (Readable during dragover: only the type list is.) */
+/**
+ * Does a drag in flight carry an asset? (Readable during dragover: only the type list is.)
+ *
+ * r1 item 10 — the tile is on the shell's origin and the canvas on its own (DDR-054); WebKit lists a custom
+ * MIME type only to the origin that wrote it, so in the app the canvas sees just the tile's `text/plain` twin.
+ * A plain-text drag with no files may therefore be an asset; `assetFromDrop` decides at drop.
+ */
 export const dragHasAsset = (
   types: readonly string[] | DOMStringList | null | undefined
-): boolean => !!types && Array.from(types as ArrayLike<string>).includes(ASSET_DRAG_MIME);
+): boolean => {
+  if (!types) return false;
+  const list = Array.from(types as ArrayLike<string>);
+  if (list.includes(ASSET_DRAG_MIME)) return true;
+  return list.includes('text/plain') && !list.includes('Files');
+};
+
+/** The asset a drop carried: the tile's own payload, else (WebKit, cross-origin) its plain-text twin. */
+export function assetFromDrop(
+  dt: { getData(type: string): string } | null | undefined
+): AssetDrag | null {
+  if (!dt) return null;
+  const read = (t: string) => {
+    try {
+      return dt.getData(t);
+    } catch {
+      return '';
+    }
+  };
+  const own = parseAssetDrag(read(ASSET_DRAG_MIME));
+  if (own) return own;
+  const text = read('text/plain').trim();
+  return isAssetPath(text) ? { asset: text } : null;
+}
