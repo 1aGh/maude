@@ -5,7 +5,7 @@
 //
 //   <svg data-cd-id="path" data-shape="path" width="W" height="H" viewBox="0 0 W H"
 //        style={{ position: "absolute", left: "Xpx", top: "Ypx", overflow: "visible", fill: "none",
-//                 stroke: "var(--accent, currentColor)", strokeWidth: "4px", strokeLinecap: "round", strokeLinejoin: "round" }}>
+//                 stroke: "var(--fg-1, #52525b)", strokeWidth: "4px", strokeLinecap: "round", strokeLinejoin: "round" }}>
 //     <path d="M0 0C…" />
 //   </svg>
 //
@@ -27,7 +27,7 @@ import { applyEdit, readAttributeState } from '../canvas-edit.ts';
 import { generateElementId, usedIds, walkIdElements } from '../element-ids.ts';
 import { ARTBOARD_ID_RE } from './artboard-resize.ts';
 import { inlinePosition, refuse, writeStyle } from './constraints.ts';
-import { appendChild, SHARED_FRAME_LINE } from './insert-shape.ts';
+import { appendChild, LINE_STROKE, SHARED_FRAME_LINE } from './insert-shape.ts';
 import {
   type Box,
   cleanPath,
@@ -39,8 +39,8 @@ import {
 } from './path-model.ts';
 import type { EditOp, ElementRef, ResolvedEditOp } from './types.ts';
 
-/** What a new path is drawn with — names of the system's contract, never a colour. */
-export const PATH_STROKE = 'var(--accent, currentColor)';
+/** What a new path is drawn with: the neutral stroke role, its literal behind it (TD3). */
+export const PATH_STROKE = LINE_STROKE; // TD3: the neutral stroke role with a literal fallback
 export const PATH_WIDTH = '4px';
 
 const r2 = (n: number): number => {

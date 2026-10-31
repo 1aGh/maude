@@ -3456,13 +3456,14 @@ export type InsertKind = 'div' | 'text' | 'image';
  *  stable id (V2-2.19). */
 function synthInsertElement(kind: InsertKind, src?: string): string {
   if (kind === 'text')
-    return `<p style={{ margin: 0, fontFamily: '${TEXT_FONT_FALLBACK}' }}>Text</p>`;
+    return `<p style={{ margin: 0, color: 'var(--fg-0, #18181b)', fontFamily: '${TEXT_FONT_FALLBACK}' }}>Text</p>`;
   if (kind === 'image') {
     const s = (src ?? '').trim();
     return `<img src="${escapeAttr(s)}" alt="" style={{ width: 160, height: 120, objectFit: 'cover', borderRadius: 8 }} />`;
   }
-  // div — a visible neutral placeholder box the user can immediately restyle.
-  return `<div style={{ width: 120, height: 80, background: 'var(--bg-2)', borderRadius: 8 }} />`;
+  // div — a visible neutral placeholder box the user can immediately restyle. TD3: the same neutral role + literal
+  // as a drawn shape (`edit-ops/insert-shape.ts` SHAPE_FILL / TEXT_COLOR — not imported: that module imports this one).
+  return `<div style={{ width: 120, height: 80, background: 'var(--bg-3, #d4d4d8)', borderRadius: 8 }} />`;
 }
 
 /**
