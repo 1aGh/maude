@@ -678,9 +678,9 @@ export function dragPansCanvas(
   onDesign: boolean,
   mode: CanvasModeV2 | null = null
 ): boolean {
-  return (
-    tool === 'hand' || tool === 'inspect' || (tool === 'browse' && !onDesign && mode !== 'preview')
-  );
+  // The table asks (mode-shows pin): where annotations take new marks (Preview) the empty-canvas drag is the marquee.
+  const marquees = !!mode && modeShows(mode, 'annotations-editable');
+  return tool === 'hand' || tool === 'inspect' || (tool === 'browse' && !onDesign && !marquees);
 }
 
 /**

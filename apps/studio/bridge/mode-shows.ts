@@ -67,13 +67,16 @@ export const MODE_SHOWS = Object.freeze({
   'left-panels': row('shown', 'folded', 'hidden', 'hidden', 'shown'),
   /** Shell: the AI chat panel (C30: a viewing role has none). */
   'ai-panel': row('shown', 'folded', 'hidden', 'hidden', 'none'),
-  /** Shell: the Share cluster. `compact` = faces + status step aside; `full-access` = full, with the access word. */
-  'share-cluster': row('full', 'compact', 'hidden', 'hidden', 'full-access'),
+  /** Shell: the Share cluster. `full-access` = full, with the access word. r2-p3 (Michal TD1d): a mode switch
+   *  changes only the toolbar, so Preview keeps Edit's full cluster (faces, status word, avatar); `compact`
+   *  (faces + status step aside) is no mode's cell any more. */
+  'share-cluster': row('full', 'full', 'hidden', 'hidden', 'full-access'),
   /** The specs surface: the docked Inspector on a selection (Edit), the read-only Inspect panel on a ⌘-click /
    *  click, none in Present. */
   inspect: row('inspector', 'panel-on-cmd-click', 'hidden', 'hidden', 'panel-on-click'),
-  /** The project menu's form. Present reaches it with esc first. */
-  'project-menu': row('pill', 'folded-pill', 'esc-first', 'esc-first', 'pill'),
+  /** The project menu's form. Present reaches it with esc first. r2-p3 (TD1d): Preview keeps the whole pill
+   *  (project + canvas name) — it no longer folds to its mark. */
+  'project-menu': row('pill', 'pill', 'esc-first', 'esc-first', 'pill'),
   /** What esc does (the ladder itself is `esc-ladder.ts`; this is the table's last line). */
   esc: row('steps-back', 'back-to-edit', 'settles-back', 'same-view', 'deselect'),
 } as const);

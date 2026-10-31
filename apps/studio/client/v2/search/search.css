@@ -465,6 +465,25 @@
     font-weight: var(--w-semibold, 600);
     color: var(--fg-2);
   }
+  /* r2-p3 (TD1c) — "Tool keys in each mode": key · what it does in Edit · in Preview. */
+  .so-modes {
+    width: 100%;
+    margin: 0 0 var(--space-3);
+    border-collapse: collapse;
+    font-size: var(--type-sm, 13px);
+    color: var(--fg-1);
+  }
+  .so-modes th,
+  .so-modes td {
+    padding: 3px var(--space-2) 3px 0;
+    text-align: left;
+    font-weight: 400;
+    vertical-align: baseline;
+  }
+  .so-modes thead th {
+    color: var(--fg-2);
+    font-size: var(--type-xs, 12px);
+  }
   .so-moved {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));

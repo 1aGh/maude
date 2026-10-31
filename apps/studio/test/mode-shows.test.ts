@@ -38,9 +38,10 @@ const CONTRACT: Record<string, [string, string, string, string, string]> = {
   'ai-changes': ['live', 'live', 'held', 'live-unmarked', 'live'],
   'left-panels': ['shown', 'folded', 'hidden', 'hidden', 'shown'],
   'ai-panel': ['shown', 'folded', 'hidden', 'hidden', 'none'],
-  'share-cluster': ['full', 'compact', 'hidden', 'hidden', 'full-access'],
+  // r2-p3 (Michal TD1d): a mode switch changes only the toolbar — Preview keeps Edit's cluster and pill
+  'share-cluster': ['full', 'full', 'hidden', 'hidden', 'full-access'],
   inspect: ['inspector', 'panel-on-cmd-click', 'hidden', 'hidden', 'panel-on-click'],
-  'project-menu': ['pill', 'folded-pill', 'esc-first', 'esc-first', 'pill'],
+  'project-menu': ['pill', 'pill', 'esc-first', 'esc-first', 'pill'],
   esc: ['steps-back', 'back-to-edit', 'settles-back', 'same-view', 'deselect'],
 };
 const COLUMNS: ModeKey[] = ['edit', 'preview', 'present-artboards', 'present-canvas', 'viewing'];

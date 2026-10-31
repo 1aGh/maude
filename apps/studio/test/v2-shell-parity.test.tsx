@@ -411,7 +411,8 @@ describe('the toolbars, per mode and role', () => {
       };
       expect(Object.keys(t.modes), id).toEqual(['viewing', 'preview']);
       expect(t.modes.viewing, id).toEqual(['Hand', 'Comment']);
-      expect(t.modes.preview, id).toEqual(['Hand', 'Comment']);
+      // rc.1 #17/#18 — Preview's Select (V) is any role's resting pointer
+      expect(t.modes.preview, id).toEqual(['Select', 'Hand', 'Comment']);
     }
   });
 

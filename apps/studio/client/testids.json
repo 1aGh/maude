@@ -14324,6 +14324,66 @@
     "v2": "new"
   },
   {
+    "hook": "shortcuts-modes-hd",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The “Tool keys in each mode” heading in the Advanced fold (r2-p3, TD1c).",
+    "producer": {
+      "file": "apps/studio/client/dialogs/shortcuts-overlay.jsx",
+      "symbol": "ShortcutsOverlay"
+    },
+    "region": "help/shortcuts",
+    "consumers": [
+      "apps/studio/test/r2-p3-modes.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "shortcuts-modes",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The table of tool keys: what each does in Edit and in Preview (CONTRACT §2).",
+    "producer": {
+      "file": "apps/studio/client/dialogs/shortcuts-overlay.jsx",
+      "symbol": "ShortcutsOverlay"
+    },
+    "region": "help/shortcuts",
+    "consumers": [
+      "apps/studio/test/r2-p3-modes.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "shortcuts-modes-<key>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One row of that table; <key> is the toolbar key (V, ⇧I, N …).",
+    "producer": {
+      "file": "apps/studio/client/dialogs/shortcuts-overlay.jsx",
+      "symbol": "ShortcutsOverlay"
+    },
+    "region": "help/shortcuts",
+    "consumers": [
+      "apps/studio/test/r2-p3-modes.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "mode-switch-live",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The mode switch’s polite live region: says the new mode once it changes (F05).",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/mode-switch.jsx",
+      "symbol": "ModeSwitch"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/r2-p3-modes.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "shortcuts-none",
     "kind": "testid",
     "pattern": false,

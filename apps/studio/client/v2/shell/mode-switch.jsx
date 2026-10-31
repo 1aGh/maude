@@ -18,6 +18,8 @@
 // reads `palette-mode-edit`), plus `palette-mode-viewing`.
 
 import { useEffect, useRef, useState } from 'react';
+import { ACTIONS_BY_ID } from '../../../actions/index.ts';
+import { formatChord } from '../../../actions/keys.ts';
 import { StIcon } from '../../shell/icons.jsx';
 import { MODE_WORD, modeSegments } from './canvas-mode.js';
 import { reasonProps } from '../access/disabled-reason.js';
@@ -77,11 +79,38 @@ function ModeGlyph({ m }) {
   );
 }
 
-/** ⌥⌘↵ → Alt+Meta+Enter (aria-keyshortcuts). */
-const ariaKeys = (k) =>
-  [k.includes('⇧') && 'Shift', k.includes('⌥') && 'Alt', k.includes('⌘') && 'Meta', 'Enter']
+/** ⌥⌘↵ → Alt+Meta+Enter, ⌥⌘P → Alt+Meta+P (aria-keyshortcuts). */
+const ariaKeys = (k) => {
+  const key = k.replace(/[⌃⌥⇧⌘]/g, '');
+  return [
+    k.includes('⌃') && 'Control',
+    k.includes('⇧') && 'Shift',
+    k.includes('⌥') && 'Alt',
+    k.includes('⌘') && 'Meta',
+    key === '↵' ? 'Enter' : key,
+  ]
     .filter(Boolean)
     .join('+');
+};
+
+/** r2-p3 (Michal TD1b): each segment's key, read from the registry — ⌥⌘P toggles Edit ⇄ Preview (so it is
+ *  Edit's way back too, with esc), ⌥⌘↵ presents. Viewing (a role's, or a held past version) has no key. */
+const MODE_ACTION = {
+  edit: 'mode.preview',
+  preview: 'mode.preview',
+  present: 'present.from-selection',
+};
+function modeKey(id) {
+  const chord = ACTIONS_BY_ID.get(MODE_ACTION[id])?.keys?.[0]?.chord;
+  return chord ? formatChord(chord) : '';
+}
+/** The tooltip: the mode's name and its key (two spaces, as every chrome tooltip writes it). */
+function modeTitle(id) {
+  if (id === 'viewing') return 'Viewing — read-only';
+  const k = modeKey(id);
+  return k ? `${MODE_WORD[id]}  ${k}` : MODE_WORD[id];
+}
+const ariaModeKeys = (id) => (modeKey(id) ? ariaKeys(modeKey(id)) : undefined);
 
 const LABEL = {
   edit: 'Edit — click selects and edits',
@@ -183,6 +212,18 @@ export function ModeSwitch({
     else if (kind === 'canvas') onPresentCanvas?.();
   };
   const [menu, setMenu] = useState(false);
+  // F05 (WCAG 4.1.3) — a mode change is said once, politely; the first render says nothing.
+  const [said, setSaid] = useState('');
+  const seenMode = useRef(mode);
+  useEffect(() => {
+    if (seenMode.current === mode) return;
+    seenMode.current = mode;
+    setSaid(MODE_WORD[mode] ?? '');
+  }, [mode]);
+  // A held past version (S1.14) is Viewing for everyone: the first slot shows it, pressed, for an editor too.
+  const segments = modeSegments(caps).map((id) =>
+    id === 'edit' && mode === 'viewing' ? 'viewing' : id
+  );
   const rootRef = useRef(null);
   const firstRowRef = useRef(null);
   // 04 md-esc: one segment is on. A segment that was clicked keeps DOM focus, so after esc stepped the mode back
@@ -227,7 +268,7 @@ export function ModeSwitch({
       aria-label="Mode"
       data-testid="share-cluster-mode"
     >
-      {modeSegments(caps).map((id) =>
+      {segments.map((id) =>
         id === 'present' ? (
           <span key={id} className={`sh-mode-b sh-mode-b--menu${menu ? ' is-open' : ''}`}>
             <button
@@ -236,7 +277,8 @@ export function ModeSwitch({
               data-testid="palette-mode-present"
               aria-label={LABEL.present}
               aria-pressed={mode === 'present'}
-              title={MODE_WORD.present}
+              aria-keyshortcuts={ariaModeKeys('present')}
+              title={modeTitle('present')}
               disabled={!canPresent}
               onClick={() => onSelect?.('present')}
             >
@@ -272,13 +314,17 @@ export function ModeSwitch({
             data-testid={`palette-mode-${id}`}
             aria-label={LABEL[id]}
             aria-pressed={mode === id}
-            title={MODE_WORD[id]}
+            aria-keyshortcuts={ariaModeKeys(id)}
+            title={modeTitle(id)}
             onClick={() => onSelect?.(id)}
           >
             <ModeGlyph m={id} />
           </button>
         )
       )}
+      <span className="sr-only" aria-live="polite" data-testid="mode-switch-live">
+        {said}
+      </span>
       {menu ? (
         <div
           className="sh-pm sh-mode-menu"

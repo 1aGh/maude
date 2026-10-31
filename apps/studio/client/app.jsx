@@ -165,7 +165,7 @@ import { acceptCanvasNotice } from '../canvas-notice-message.ts';
 import { ExportPanel, ExportToast, useExportCenter } from './export-center.jsx';
 import { ReportBugDialog } from './report-bug.jsx';
 import { QuitDialog } from './v2/ai/QuitDialog.jsx';
-import { useWhatsNew, WhatsNewPanel, WhatsNewToast } from './whats-new.jsx';
+import { useWhatsNew, WhatsNewPanel } from './whats-new.jsx';
 import {
   collectDirPaths,
   isDirOpen,
@@ -198,7 +198,6 @@ import {
 } from './shell/constants.js';
 import {
   basename,
-  browseFirstRunHint,
   buildTree,
   displayName,
   filterTree,
@@ -3143,7 +3142,6 @@ function ShellTree() {
         paused={!!tourSteps}
         hiddenGroups={exportCenter.panelOpen ? ['exports'] : []}
       />
-      <WhatsNewToast wn={whatsNew} />
       <ExportToast center={exportCenter} />
       <div className="sh-shell">
         {/* V2-4.1 — the canvas is the whole window body. Floating (default): the dock slots are
@@ -3209,7 +3207,8 @@ function ShellTree() {
               open={!!leftActive}
               ids={leftIds}
               activeId={leftActive}
-              onPick={togglePanel}
+              // r2-p3 F27: a tab selects; only Hide (the fold) closes — the active tab no longer hides the panel
+              onPick={(id) => id !== leftActive && togglePanel(id)}
               onFold={() => leftActive && togglePanel(leftActive)}
               labels={dockLabels}
               floating={floating}
@@ -3261,7 +3260,7 @@ function ShellTree() {
               open={!!rightActive && !rightMainHidden}
               ids={rightIds}
               activeId={rightActive}
-              onPick={togglePanel}
+              onPick={(id) => id !== rightActive && togglePanel(id)}
               onFold={() => rightActive && togglePanel(rightActive)}
               labels={dockLabels}
               floating={floating}

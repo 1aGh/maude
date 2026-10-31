@@ -14,7 +14,7 @@ import {
   undoConversion,
 } from '../v2/annotations/annotation-asks.js';
 import { objectHistoryTarget } from '../v2/history/object-history-ask.js';
-import { browseFirstRunHint, layersTreeSig, shellToast } from '../shell/util.js';
+import { layersTreeSig, shellToast } from '../shell/util.js';
 // S7.21 — the toast after the inspector's "Add a width" (08 ak-web-widths) and the video artboard's length
 import { settleDuplicateAtWidth } from '../v2/create/duplicate-done.js';
 import { menuRunner } from '../v2/shell/menu-runner.js';
@@ -271,15 +271,13 @@ export function useCanvasBridge({
         // shell (phase-24 ethical-hacker Finding 2; DDR-067).
         // feature-4 — the browse tool is a pure pass-through: don't force a
         // global shell cursor, so the shell chrome keeps its own affordance
-        // cursors (pointer over buttons). Also fire the one-time "press V" hint
-        // — a live canvas booting in browse is exactly when it's teachable.
+        // cursors (pointer over buttons). r2-p3 (TD5): no first-run mode toast any more.
         // P8 C5 (04 md-comment): the Comment tool in hand docks the Comments panel (on the arming edge only).
         if (commentToolWatch.armed(m.tool)) openRightPanel('comments');
         if (m.tool === 'browse') {
           document.body.style.cursor = '';
           const el = document.getElementById('dc-app-cursor');
           if (el) el.textContent = '';
-          browseFirstRunHint(viewerMode);
           return;
         }
         const cursor = resolveToolCursor(m.tool);

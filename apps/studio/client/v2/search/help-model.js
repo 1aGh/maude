@@ -10,6 +10,7 @@
 
 import { ACTIONS, ACTIONS_BY_ID } from '../../../actions/index.ts';
 import { HELP_GROUPS } from '../../../actions/help.ts';
+import { ALL_CAPS, keySlot, MODE_TOOLS, toolKeyAction } from '../../../bridge/canvas-modes.ts';
 import { BROWSER_RESERVED, formatChord } from '../../../actions/keys.ts';
 import { menuPaths } from '../../../actions/menu.ts';
 import { holds, isVisible } from '../../../actions/resolve.ts';
@@ -219,7 +220,29 @@ export function buildHelpSheet(ctx, { actions = ACTIONS, byId = ACTIONS_BY_ID, m
   };
   const movedRows = moved ?? movedKeys(keyOf);
   const count = groups.reduce((n, g) => n + g.rows.length, 0) + advanced.length;
-  return { groups, advanced, moved: movedRows, count };
+  return { groups, advanced, moved: movedRows, modes: modeKeyTable(), count };
+}
+
+const MODE_NAME = Object.freeze({ edit: 'Edit', preview: 'Preview' });
+
+/**
+ * r2-p3 (Michal TD1c) — "Tool keys in each mode", the table CONTRACT §2 prints and the "?" sheet's fold shows:
+ * one row per toolbar key, what it does in Edit and in Preview. A key a mode has a slot for acts THERE (V H R T
+ * in both); a key only the other mode has crosses to it with that tool ("— switches to Preview"); `—` = nothing.
+ * Derived from `toolKeyAction` (bridge/canvas-modes.ts), the function the canvas router runs, so the sheet and
+ * the router cannot disagree. Rows: Edit's keys in toolbar order, then Preview's new ones.
+ */
+export function modeKeyTable() {
+  const keys = [];
+  for (const mode of ['edit', 'preview'])
+    for (const s of MODE_TOOLS[mode].slots) if (s.key && !keys.includes(s.key)) keys.push(s.key);
+  const cell = (mode, key) => {
+    const hit = toolKeyAction(mode, key, ALL_CAPS, 'pen');
+    if (!hit) return '—';
+    const label = keySlot(mode, key)?.slot.label ?? key;
+    return hit.kind === 'request' ? `${label} — switches to ${MODE_NAME[hit.mode]}` : label;
+  };
+  return keys.map((key) => ({ key, edit: cell('edit', key), preview: cell('preview', key) }));
 }
 
 /** "Find a shortcut": the ⌘K matcher's fold + every word (sanitised, any order) over label + keys. */
@@ -239,10 +262,14 @@ export function filterHelpSheet(sheet, query) {
   const moved = sheet.moved.filter((m) =>
     words.every((w) => fold(`${m.was} ${m.now}`).includes(w))
   );
+  const modes = (sheet.modes ?? []).filter((r) =>
+    words.every((w) => fold(`${r.key} ${r.edit} ${r.preview}`).includes(w))
+  );
   return {
     groups,
     advanced,
     moved,
+    modes,
     count: groups.reduce((n, g) => n + g.rows.length, 0) + advanced.length,
   };
 }
