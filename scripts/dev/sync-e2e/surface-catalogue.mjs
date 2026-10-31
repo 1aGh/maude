@@ -55,7 +55,10 @@ function boardTools(palette) {
   const tips = ['highlighter', 'eraser'].filter((t) =>
     new RegExp(`current [!=]== '${t}'`).test(palette)
   );
-  const found = new Set([...slots.filter((t) => t !== 'browse' && t !== 'hand' && t !== 'comment'), ...tips]);
+  const found = new Set([
+    ...slots.filter((t) => t !== 'browse' && t !== 'hand' && t !== 'comment'),
+    ...tips,
+  ]);
   const unknown = [...found].filter((t) => !BOARD_TOOL_ORDER.includes(t));
   if (unknown.length)
     throw new Error(`New board tool(s) ${unknown.join(', ')}: add them to BOARD_TOOL_ORDER`);
