@@ -13,6 +13,10 @@ import {
   toolKeyAction,
   visibleSlots,
 } from '../bridge/canvas-modes.ts';
+import { act } from 'react';
+import { createRoot } from 'react-dom/client';
+import { LINE_STROKE, SHAPE_FILL } from '../edit-ops/insert-shape.ts';
+import { PATH_STROKE } from '../edit-ops/path.ts';
 import { parsePathD, pointType, serializePath } from '../edit-ops/path-model.ts';
 import type { EditOpResult } from '../edit-ops/types.ts';
 import { selectionKind } from '../editing/crumbs.ts';
@@ -20,9 +24,10 @@ import { drawToolOfAction } from '../editing/draw-geometry.ts';
 import { EDITING_ACTIONS } from '../editing/index.tsx';
 import { COMBINE_ACTIONS, planCombine, radiusPx, runCombine } from '../editing/pen/combine-run.ts';
 import { finishPen, NEEDS_TWO, planPen, targetOf } from '../editing/pen/draw.tsx';
-import { PEN_CSS } from '../editing/pen/overlay.tsx';
+import { PEN_CSS, PenChip } from '../editing/pen/overlay.tsx';
 import {
   addedAt,
+  CLOSE_CHIP_OFFSET,
   CLOSE_RADIUS,
   dragged,
   emptyDraft,
@@ -523,5 +528,60 @@ describe('the Pen input layer (G3)', () => {
     // `pen/draw.tsx` renders `<div className="ed-draw-input">`; without its own rule the overlay measured 1600 × 0
     // and the clicks never reached it (S2.V2 G3).
     expect(PEN_CSS).toMatch(/\.ed-draw-input\s*\{[^}]*position:\s*absolute;[^}]*inset:\s*0/);
+  });
+});
+
+describe('r1 #8 — the path closes, and a finished drawing has a colour', () => {
+  test('while drawing, nothing the Pen draws takes the pointer (the first point’s square swallowed the closing press)', () => {
+    expect(PEN_CSS).toMatch(
+      /\.ed-pen-svg\[data-drawing="true"\],\s*\.ed-pen-svg\[data-drawing="true"\] \*\s*\{\s*pointer-events:\s*none;/
+    );
+    // point editing keeps its pressable squares
+    expect(PEN_CSS).toMatch(/\.ed-pen-pt \{[^}]*pointer-events: all/);
+  });
+
+  test('"Click here to close" sits where the pointer reaches it from the first point without it vanishing', () => {
+    expect(Math.hypot(CLOSE_CHIP_OFFSET.x, CLOSE_CHIP_OFFSET.y)).toBeLessThan(CLOSE_RADIUS);
+    expect(PEN_CSS).toMatch(/\.ed-pen-chip\[data-action="true"\]\s*\{\s*pointer-events:\s*auto;/);
+  });
+
+  test('a press on the close chip runs its action', async () => {
+    (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT =
+      true;
+    const host = document.createElement('div');
+    document.body.append(host);
+    const root = createRoot(host);
+    let pressed = 0;
+    await act(async () =>
+      root.render(
+        <PenChip x={10} y={10} testid="edit-pen-chip-close" onPress={() => pressed++}>
+          Click here to close
+        </PenChip>
+      )
+    );
+    const chip = document.querySelector('[data-testid="edit-pen-chip-close"]') as HTMLElement;
+    expect(chip.getAttribute('data-action')).toBe('true');
+    const down = new window.PointerEvent('pointerdown', {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+    });
+    await act(async () => {
+      chip.dispatchEvent(down);
+    });
+    expect(pressed).toBe(1);
+    expect(down.defaultPrevented).toBe(true);
+    await act(async () => root.unmount());
+    host.remove();
+  });
+
+  test('a new path, shape and line fall back to currentColor when the canvas has no such token', () => {
+    const fallback = /^(?:\dpx solid )?var\(--[a-z0-9-]+, currentColor\)$/;
+    expect(PATH_STROKE).toMatch(fallback);
+    expect(SHAPE_FILL).toMatch(fallback);
+    expect(LINE_STROKE).toMatch(fallback);
+    // never a hex: the colour is still the system's
+    for (const v of [PATH_STROKE, SHAPE_FILL, LINE_STROKE])
+      expect(v).not.toMatch(/#[0-9a-f]{3,8}\b/i);
   });
 });

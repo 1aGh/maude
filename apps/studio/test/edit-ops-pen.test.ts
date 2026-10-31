@@ -249,7 +249,7 @@ describe('object.insert-path', () => {
     expect(svg).toBe(
       '<svg data-cd-id="path" data-shape="path" width="280" height="110.77" viewBox="0 0 280 110.77" ' +
         'style={{ position: "absolute", left: "100px", top: "89.23px", overflow: "visible", fill: "none", ' +
-        'stroke: "var(--accent)", strokeWidth: "4px", strokeLinecap: "round", strokeLinejoin: "round" }}>' +
+        'stroke: "var(--accent, currentColor)", strokeWidth: "4px", strokeLinecap: "round", strokeLinejoin: "round" }}>' +
         '<path d="M0 110.77L100 10.77C160 -29.23 220 50.77 280 110.77" /></svg>'
     );
     expect(svg).not.toMatch(/#[0-9a-f]{3,8}\b/i);

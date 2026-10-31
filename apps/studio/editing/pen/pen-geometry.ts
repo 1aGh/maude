@@ -34,6 +34,12 @@ export const isPenTool = (t: string | null | undefined): boolean => t === PEN_TO
 export const PEN_DRAG = 4;
 /** Screen px from the first point at which a press closes the path. */
 export const CLOSE_RADIUS = 10;
+/**
+ * Where "Click here to close" sits, from the first point (screen px). Its corner lies INSIDE the close radius, so the
+ * pointer travels from the point onto the chip without ever leaving the zone that shows it (r1 #8: at +16 / +8 the
+ * chip vanished in the gap before the pointer reached it).
+ */
+export const CLOSE_CHIP_OFFSET: Pt = { x: 6, y: 4 };
 /** Hit radii on screen (px). */
 export const HIT_ANCHOR = 8;
 export const HIT_HANDLE = 7;
