@@ -85,7 +85,12 @@ const count = (s, re) => (s.match(re) || []).length;
 async function until(pred, ms = 6000) {
   const t0 = Date.now();
   while (Date.now() - t0 < ms) {
-    if (await Promise.resolve().then(pred).catch(() => false)) return true;
+    if (
+      await Promise.resolve()
+        .then(pred)
+        .catch(() => false)
+    )
+      return true;
     await new Promise((r) => setTimeout(r, 100));
   }
   return false;

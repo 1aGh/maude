@@ -55,10 +55,10 @@ import {
   viewStrokes,
 } from './annotations/ui/host-view.ts';
 import { LockedDragTip, QUIET_MOVE_TIP } from './annotations/ui/locked.tsx';
-import { quietStrokeAt } from './annotations/ui/quiet-tip.ts';
 import { AnnotationPipelineContext } from './annotations/ui/pipeline-context.ts';
 import { PlacementGhost, postStampDisarmed, StickerSizeChip } from './annotations/ui/placement.tsx';
 import { type Claim, PointerPipeline } from './annotations/ui/pointer-pipeline.ts';
+import { quietStrokeAt } from './annotations/ui/quiet-tip.ts';
 import {
   type RenderItem,
   type ResolvedEnds,

@@ -34,6 +34,7 @@ export const V2_CODE_IDS = new Set([
   'testid:studio/client/inspector/inspector-panel.jsx#inspector/inspector-view-id', // P8-C2 picture view switch (css / photo)
   'testid:studio/comments-overlay.tsx#canvas/comment-composer-paused', // p8-cell-copy comments paused (format gate)
   'testid:studio/comments-overlay.tsx#canvas/comment-paused-id', // p8-cell-copy comments paused (format gate)
+  'testid:studio/annotations-layer.tsx#other/annotation-quiet-tip', // r1 D2 #14 the Edit-mode "switch to Preview to move it" tip
 ]);
 
 /** Entries that are infrastructure, not features (lead decision, V2-4.gate-b): id → reason. Excluded

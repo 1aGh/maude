@@ -6,10 +6,9 @@
 
 import { describe, expect, test } from 'bun:test';
 import { Window } from 'happy-dom';
-
-import type { Stroke } from '../annotations-model.ts';
 import { LOCKED_DRAG_TIP, QUIET_MOVE_TIP } from '../annotations/ui/locked.tsx';
 import { quietStrokeAt } from '../annotations/ui/quiet-tip.ts';
+import type { Stroke } from '../annotations-model.ts';
 
 const picture = {
   id: 'img1',
