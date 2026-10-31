@@ -70,6 +70,18 @@ describe('color-contrast', () => {
     expect(contrastRatio(token('dark', name), '#15445d')).toBeGreaterThanOrEqual(4.5);
   });
 
+  // Diagnostics › AI setup: "Sign in to Claude" wore --bg-0 (near-black in dark) on the accent fill: axe 3.77:1
+  // (#15171a on #0077c2). Text on the accent fill is --accent-fg (white).
+  test('the AI-setup "Sign in to Claude" button holds 4.5:1 on the accent fill', () => {
+    const css = read('../client/v2/ai/chat.css');
+    const name = colorVar(css, '.rdy-signin');
+    expect(name).toBe('--accent-fg');
+    for (const theme of ['dark', 'light'] as const)
+      expect(contrastRatio(token(theme, name), token(theme, '--accent'))).toBeGreaterThanOrEqual(
+        4.5
+      );
+  });
+
   // What's new (Help › What's new): the kind badge (feature / fix / improvement) in --accent-text on the unseen
   // item's wash: axe 3.97:1 (#39b0f1 on #1a4963), 10 px bold, seven badges.
   test("the What's new kind badges hold 4.5:1 on the item wash (dark)", () => {

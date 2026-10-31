@@ -2259,7 +2259,8 @@
     cursor: pointer;
     font-size: var(--type-xs);
     font-weight: 600;
-    color: var(--bg-0);
+    /* V2-8.7: --bg-0 is near-black in dark — 3.77:1 on the accent fill; text on the fill is --accent-fg */
+    color: var(--accent-fg);
     background: var(--accent);
     border: 1px solid var(--accent);
     border-radius: var(--radius-xs);
