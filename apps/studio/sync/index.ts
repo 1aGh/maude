@@ -60,7 +60,7 @@ import {
   uploadingFromRows,
 } from './asset-state.ts';
 import { atomicWrite } from './atomic-write.ts';
-import { COMPONENT as CANVAS_PATH_COMPONENT, resolveCanvasBodyRel } from './canvas-path.ts';
+import { isUndeclaredGroupName, resolveCanvasBodyRel } from './canvas-path.ts';
 import { type CellPairing, resolveCellPairing, sanitizeForLog } from './cell-pairing.ts';
 import {
   canvasPathFromDoc,
@@ -2941,6 +2941,9 @@ export function createSyncRuntime(
     // extend as further groups arrive.
     let ownsSeededConfig = false;
     const noteLearnedGroup = (group: string): void => {
+      // Never a runtime folder (`_trash`, `_state`, …) or `node_modules` — the
+      // classifier's folder rule (p8-boundary-harden, attacker L3).
+      if (!isUndeclaredGroupName(group)) return;
       if (!undeclaredGate.freshLink || learnedGroups.has(group)) return;
       learnedGroups.add(group);
       if (existsSync(designConfigPath(ctx)) && !ownsSeededConfig) return;
@@ -6867,8 +6870,7 @@ function scanGroupPaths(ctx: Context, opts: ScanOptions): string[] {
     entries = [];
   }
   for (const e of entries) {
-    if (!e.isDirectory() || e.name === 'node_modules' || !/^[A-Za-z0-9]/.test(e.name)) continue;
-    if (!CANVAS_PATH_COMPONENT.test(e.name)) continue;
+    if (!e.isDirectory() || !isUndeclaredGroupName(e.name)) continue;
     if (!paths.some((p) => p.toLowerCase() === e.name.toLowerCase())) paths.push(e.name);
   }
   const lower = paths.map((p) => p.toLowerCase());
