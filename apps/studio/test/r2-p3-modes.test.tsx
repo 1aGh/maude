@@ -190,7 +190,8 @@ describe('TD5 — What’s new is never a canvas toast; one toast at a time', ()
     const src = read('notifications.tsx');
     expect(src).toContain('visibleToasts={MAX_VISIBLE_TOASTS}');
     expect(src).toMatch(/const MAX_VISIBLE_TOASTS = 1\b/);
-    expect(src).toContain('pool.slice(-MAX_VISIBLE_TOASTS)');
+    // V2-8.9 r2 C1: the one slot is picked by shownNoticeIds (shell first, waiting errors FIFO, then the newest)
+    expect(src).toContain('.slice(0, MAX_VISIBLE_TOASTS)');
   });
 
   test('menus sit above toasts (UX-TOAST-1: menu > popover > toast)', () => {
