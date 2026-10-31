@@ -89,12 +89,18 @@ describe('modes-present (S3.13)', () => {
   });
 
   it('Preview ⇄ Edit: ⌥⌘P and esc', async () => {
+    // Michal TD1d (UX audit r2, P3): a mode switch changes ONLY the toolbar — Preview keeps Edit's full Share
+    // cluster (faces, status word, avatar); `compact` is no mode's cell any more (bridge/mode-shows.ts)
+    const cluster = async () => ({
+      form: await $(tid('share-cluster')).getAttribute('data-cluster'),
+      faces: await $(tid('share-cluster-faces')).isDisplayed(),
+    });
+    const inEdit = await cluster();
+    expect(inEdit.form).toBe('full');
     await chord('p', 'KeyP', { altKey: true, metaKey: true });
     await $(tid('preview-bar')).waitForExist({ timeout: 6000 });
     await landsOn('preview');
-    // 04 md-preview: the faces and the status word step aside (CONTRACT §5.4)
-    expect(await $(tid('share-cluster')).getAttribute('data-cluster')).toBe('compact');
-    expect(await $(tid('share-cluster-faces')).isDisplayed()).toBe(false);
+    expect(await cluster()).toEqual(inEdit);
     await capture('preview');
     await chord('Escape', 'Escape');
     await landsOn('edit');
@@ -172,6 +178,21 @@ describe('modes-present (S3.13)', () => {
     await landsOn('preview');
     expect(await slotPressed('hand')).toBe('true');
     await chord('f', 'KeyF');
+    await landsOn('edit');
+    // F is Artboard / Frame: Edit with its size picker up. Back to Preview, the picker goes with its tool
+    // (TD1d — the toolbar is what a mode switch changes); it used to stay over Preview and take Preview's one
+    // esc, so "esc to edit" closed the picker and the person stayed in Preview.
+    await $(tid('size-picker-search')).waitForExist({ timeout: 4000 });
+    await chord('p', 'KeyP', { altKey: true, metaKey: true });
+    await landsOn('preview');
+    await browser
+      .waitUntil(async () => !(await exists('size-picker-search')), {
+        timeout: 4000,
+        interval: 100,
+      })
+      .catch(() => undefined);
+    expect(await exists('size-picker-search')).toBe(false);
+    await chord('Escape', 'Escape');
     await landsOn('edit');
   });
 
