@@ -3,12 +3,12 @@
   "pass": true,
   "qualityHash": "ca053cd5bbc8fa64231dfde679d7b0108280b8f384c154322c75c50c872e7071",
   "reportHashes": {
-    ".ai/plans/notes/v2-evidence/V2-8.15-docs.md": "1e00e0d887eb5fa8db838254ea2a5d996ef5668d00555fdf05217720ff510caa"
+    ".ai/plans/notes/v2-evidence/V2-8.15-docs.md": "bebe5dec2423a928dc7b09e13b131a0c1d28bf39979e905ad350bbca0e506e35"
   },
-  "head": "5acbe9e86a28f32778f4350a333d6c0f65bc7a08",
-  "ts": "2026-10-29T14:24:39.755Z",
+  "head": "20b4215eb5178c009bf57f03607e43160ccc83b9",
+  "ts": "2026-10-31T17:40:43.370Z",
   "reports": [
     ".ai/plans/notes/v2-evidence/V2-8.15-docs.md"
   ],
-  "note": "4 deliverables present, gens --check 0, drift tests 12/12 at the freeze; 3 small docs gaps held in pr-followups (freeze)"
+  "note": "4 deliverables present, gens --check 0, site gens no diff, drift tests 12/12 at 20b4215eb"
 }

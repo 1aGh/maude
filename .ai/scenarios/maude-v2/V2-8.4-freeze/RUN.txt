@@ -1,0 +1,1 @@
+head 20b4215eb, rig scripts/v2-verify/p84-*.mjs, project formatVersion 2, Mac mini remote lane, 2026-10-31

@@ -3,14 +3,14 @@
   "pass": true,
   "qualityHash": "ca053cd5bbc8fa64231dfde679d7b0108280b8f384c154322c75c50c872e7071",
   "reportHashes": {
-    ".ai/plans/notes/v2-evidence/V2-8.5-closure.md": "7814c8b507d58d9562eb7e7c9a0bd85ed4ac2a0bc283e2b99698c0418f4af8f2",
+    ".ai/plans/notes/v2-evidence/V2-8.5-closure.md": "cac4f9663b1419ffe19394e01ab5d8aee0badd8fdc214b2181b2585753b8fcbf",
     ".ai/plans/notes/v2-evidence/V2-8.5-84-test-map.md": "5b37669d9a91f3dcbb187e814e2518e036b74f5c0acc48c6acf66e877f363145"
   },
-  "head": "5acbe9e86a28f32778f4350a333d6c0f65bc7a08",
-  "ts": "2026-10-29T14:24:39.597Z",
+  "head": "20b4215eb5178c009bf57f03607e43160ccc83b9",
+  "ts": "2026-10-31T17:40:43.138Z",
   "reports": [
     ".ai/plans/notes/v2-evidence/V2-8.5-closure.md",
     ".ai/plans/notes/v2-evidence/V2-8.5-84-test-map.md"
   ],
-  "note": "ledger artboard rows 342 verified / 14 soak / 4 not-a-state / 0 open: reachable ids verified from merged-tip shots + critics (phase8-fidelity), the 84 e2e-covered rows closed on V2-8.3 (3x) + browser e2e 2x at the freeze; 73 rows re-pinned (pre-edit hash, see ledger notes)"
+  "note": "ledger artboard rows 342 verified / 14 soak / 4 not-a-state / 0 open; the 84 e2e rows re-checked at 20b4215eb on V2-8.3 (3x, chain4, 41 lanes, 0 failing) + browser e2e 2x on the mini (14 rc=0)"
 }

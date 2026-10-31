@@ -1,0 +1,14 @@
+{
+  "gate": "V2-8.14",
+  "pass": true,
+  "qualityHash": "ca053cd5bbc8fa64231dfde679d7b0108280b8f384c154322c75c50c872e7071",
+  "reportHashes": {
+    ".ai/plans/notes/v2-evidence/V2-8.14-perf.md": "d394b9a23b15ada426f639bb9eb0b8870bbfa652afb53d0f7206b1f1b866bdde"
+  },
+  "head": "20b4215eb5178c009bf57f03607e43160ccc83b9",
+  "ts": "2026-10-31T17:40:43.318Z",
+  "reports": [
+    ".ai/plans/notes/v2-evidence/V2-8.14-perf.md"
+  ],
+  "note": "index/covers/artboards/tiles/launch within budget at 20b4215eb (Alligators clone, 2 runs); panel, 12 people, LOD both orders PASS; version-picture warm p50 394-429 ms accepted for v2.0 by Michal (p95 within budget)"
+}

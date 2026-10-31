@@ -1,0 +1,14 @@
+{
+  "gate": "V2-8.10",
+  "pass": true,
+  "qualityHash": "ca053cd5bbc8fa64231dfde679d7b0108280b8f384c154322c75c50c872e7071",
+  "reportHashes": {
+    ".ai/plans/notes/v2-evidence/V2-8.10-app-final/README.md": "afa0bbb553747080ee9039b72a1ebc4bf6a6bc03e1f921c8e5f30630f1b18fa4"
+  },
+  "head": "20b4215eb5178c009bf57f03607e43160ccc83b9",
+  "ts": "2026-10-31T17:43:31.246Z",
+  "reports": [
+    ".ai/plans/notes/v2-evidence/V2-8.10-app-final/README.md"
+  ],
+  "note": "Maude.app 2.0.0-rc.1 built at 20b4215eb (MAUDE_NO_AUTO_UPDATE=1): bundle completeness --smoke 0, client boots 0, no WebDriver in release, opening card clears (Chromium); clean-user smoke is Michal's"
+}

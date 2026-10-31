@@ -1,0 +1,8 @@
+
+======================================================================
+Maude client-boot check — apps/desktop/src-tauri/target/release/bundle/macos/Maude.app
+======================================================================
+  sidecar up at http://localhost:4399
+
+======================================================================
+The packaged client mounts and responds with a Tauri global present. (#root children: 1, 644 chars of text; menu, ⌘K palette, tree all answer)

@@ -1,0 +1,14 @@
+{
+  "gate": "V2-8.7",
+  "pass": true,
+  "qualityHash": "ca053cd5bbc8fa64231dfde679d7b0108280b8f384c154322c75c50c872e7071",
+  "reportHashes": {
+    ".ai/plans/notes/v2-evidence/V2-8.7-a11y-final.md": "a415ce19f23105daafc96571a0cbb48e7a281b3e1133fe114b88629632338e50"
+  },
+  "head": "20b4215eb5178c009bf57f03607e43160ccc83b9",
+  "ts": "2026-10-31T17:40:43.189Z",
+  "reports": [
+    ".ai/plans/notes/v2-evidence/V2-8.7-a11y-final.md"
+  ],
+  "note": "final re-audit: 10 serious/critical groups fixed red-first; full matrix 318 states both themes 0 serious/critical at 3fba09b78; left-search re-scanned clean at cbd0fd69d; client unchanged since but the empty-tree fix"
+}

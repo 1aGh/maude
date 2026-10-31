@@ -1,0 +1,1 @@
+head 20b4215eb, rig scripts/v2-verify/p84-*.mjs, P84_KEEP_LEGACY=1 (project left at formatVersion 1): the 4 fails are the 2A view-only gate (Comments paused, no Edit mode, read-only Inspector). Mac mini remote lane, 2026-10-31

@@ -3,12 +3,12 @@
   "pass": true,
   "qualityHash": "ca053cd5bbc8fa64231dfde679d7b0108280b8f384c154322c75c50c872e7071",
   "reportHashes": {
-    ".ai/plans/notes/v2-evidence/V2-8.8-perf.md": "e452b057ba3920ba5b7acf1d75f75891a3e0f9fd95cd6507bf2c02c53a1e2fe9"
+    ".ai/plans/notes/v2-evidence/V2-8.8-perf.md": "70b58f8f23575c77c12c1fe85887c9ce9fdb0362f13e27a9663f53102d2c5965"
   },
-  "head": "5acbe9e86a28f32778f4350a333d6c0f65bc7a08",
-  "ts": "2026-10-29T14:24:39.649Z",
+  "head": "20b4215eb5178c009bf57f03607e43160ccc83b9",
+  "ts": "2026-10-31T17:40:43.241Z",
   "reports": [
     ".ai/plans/notes/v2-evidence/V2-8.8-perf.md"
   ],
-  "note": "Chromium re-measured at the freeze (studio + bare PASS, p8-perf/tip); WebKit carried from 85db1ff86 (both orders PASS) — per-frame render path unchanged since but one closest() per pointerdown"
+  "note": "Chromium studio + bare PASS at 20b4215eb (this Mac); WebKit both orders PASS at 20b4215eb (Mac mini, same sha, safaridriver in Michal's GUI session)"
 }

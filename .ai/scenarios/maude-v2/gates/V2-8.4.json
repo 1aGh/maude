@@ -3,14 +3,14 @@
   "pass": true,
   "qualityHash": "ca053cd5bbc8fa64231dfde679d7b0108280b8f384c154322c75c50c872e7071",
   "reportHashes": {
-    ".ai/scenarios/maude-v2/V2-8.4-tip-v2fmt/report.md": "871781c70935c82a79c5b9e08d76e09965970d37923b06f4084428ccbf79a6b5",
-    ".ai/scenarios/maude-v2/V2-8.4-tip/report.md": "e151852860893b145edaaef860346bc973b69b20d5ca1b25cb864db35d6e6625"
+    ".ai/scenarios/maude-v2/V2-8.4-freeze/report.md": "fbd292549599687e253a60faf9bda5e00cab300b9d137bb65355cdb24e30a5ad",
+    ".ai/scenarios/maude-v2/V2-8.4-freeze-v1fmt/report.md": "ececb20d0636bd31b4a998c013aa738a65e69e18e836e9822e78ac8aabedbf0e"
   },
-  "head": "5acbe9e86a28f32778f4350a333d6c0f65bc7a08",
-  "ts": "2026-10-29T14:24:39.540Z",
+  "head": "20b4215eb5178c009bf57f03607e43160ccc83b9",
+  "ts": "2026-10-31T17:40:43.085Z",
   "reports": [
-    ".ai/scenarios/maude-v2/V2-8.4-tip-v2fmt/report.md",
-    ".ai/scenarios/maude-v2/V2-8.4-tip/report.md"
+    ".ai/scenarios/maude-v2/V2-8.4-freeze/report.md",
+    ".ai/scenarios/maude-v2/V2-8.4-freeze-v1fmt/report.md"
   ],
-  "note": "18/18 across browser, cloud owner, cloud viewer at the freeze (product a686e71c7, mini lane) with the rig's project at formatVersion 2 (slot-only patch; harness fix in pr-followups); the format-1 run shows the 2A view-only gate"
+  "note": "18/18 across browser, cloud owner, cloud viewer at the freeze 20b4215eb (Mac mini remote lane, same sha), project at formatVersion 2; the format-1 run (14/18) shows the 2A view-only gate"
 }

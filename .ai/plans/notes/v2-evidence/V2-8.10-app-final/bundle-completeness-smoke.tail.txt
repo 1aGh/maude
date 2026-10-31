@@ -1,0 +1,40 @@
+  ✓ trash → _trash.mjs  no npm deps
+  ✓ all 37 standalone helpers have complete dep closures
+
+[3b] server render shims (exports, thumbnail renderer)
+  ✓ all 7 server render shims staged with their deps  _ds-prove-playwright.mjs, _html-playwright.mjs, _pdf-playwright.mjs, _png-playwright.mjs, _svg-playwright.mjs, _thumbs-playwright.mjs, _video-playwright.mjs
+
+[4] stripped-PATH smoke (no node/bun/claude on PATH — fresh-machine sim)
+  ✓ smoke agent-browser-safe  reached helper (no missing runtime/dep/helper)
+  ✓ smoke assets  reached helper (no missing runtime/dep/helper)
+  ✓ smoke audio-search  reached helper (no missing runtime/dep/helper)
+  ✓ smoke canvas-errors  reached helper (no missing runtime/dep/helper)
+  ✓ smoke canvas-source  reached helper (no missing runtime/dep/helper)
+  ✓ smoke captions  reached helper (no missing runtime/dep/helper)
+  ✓ smoke chat-open  reached helper (no missing runtime/dep/helper)
+  ✓ smoke check  reached helper (no missing runtime/dep/helper)
+  ✓ smoke comments  reached helper (no missing runtime/dep/helper)
+  ✓ smoke curl-local  reached helper (no missing runtime/dep/helper)
+  ✓ smoke cut-to-beat  reached helper (no missing runtime/dep/helper)
+  ✓ smoke cut-words  reached helper (no missing runtime/dep/helper)
+  ✓ smoke describe  reached helper (no missing runtime/dep/helper)
+  ✓ smoke reel-place (parses a canvas)  placed shot 1 — native parser binding loads
+  ✓ smoke render export (png, no node/bun)  2526 B png
+
+[5] kgai engine + plugin (autonomous capture in the shipped app)
+  ✓ libkuzu staged  libkuzu.dylib
+  ✓ kgai engine staged  /Users/iagh/git/personal/maude/.claude/worktrees/freeze/apps/desktop/src-tauri/target/release/bundle/macos/Maude.app/Contents/Resources/kgai/kg
+  ⚠ kg is thin
+    arm64 — fine for a single-arch build, WRONG for a universal .app
+  ✓ kgai pin stamped  v1.4.0
+  ✓ kgai Stop hook present  autonomous capture will load in the ACP session
+  ✓ kgai SessionStart neutralized  engine is pre-staged; no install hook
+  ✓ smoke kg resolve  staged engine resolved (pin v1.5.1)
+
+[6] out-of-process asset sweep — retired (no runtime-spawned sync surface)
+
+======================================================================
+Notes:
+  • server-routed helpers (deps ride the compiled server): chat-open, generate, photo-adjust, photo-bg-remove
+  • kg is thin: arm64 — fine for a single-arch build, WRONG for a universal .app
+Bundle is self-contained — all checks passed.

@@ -1,0 +1,8 @@
+
+## webkit lane — WebKit (Safari), studio shell, fit-all
+| batch | arm | p50 | p95 | p95 spread | zoom p95 | long frames (range) | jank ≥25 | artboard renders | boards | kept |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| webkit-20b4-ab | base | 14 | 33 | 4 | 36 | 0 (1) | 9 | 168 | 21 | 6 |
+| webkit-20b4-ab | v2 | 13 | 27 | 6 | 29 | 1 (1) | 8 | 147 | 21 | 6 |
+
+pooled (1 batch): p95 v2 27 vs pre-v2 33 + spread 4 → PASS; long frames v2 1 vs 0 + range 1 → PASS
