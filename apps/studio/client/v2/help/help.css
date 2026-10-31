@@ -972,10 +972,8 @@
     letter-spacing: var(--tracking-wide);
     text-transform: uppercase;
     font-size: 10px;
-    color: var(
-      --accent-text,
-      var(--accent)
-    ); /* gate-b a11y: --accent on its own tint was 4.36:1 dark */
+    /* gate-b a11y: --accent on its own tint was 4.36:1 dark; V2-8.7: --accent-text on the unseen item's wash 3.97:1 */
+    color: var(--fg-1);
     background: var(--accent-tint);
     border-radius: var(--radius-pill);
     padding: 1px 7px;

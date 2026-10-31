@@ -227,7 +227,8 @@
   .cv-git-badge[data-kind="U"] {
     background: transparent;
     border: 1px dashed var(--border-strong);
-    color: var(--fg-2);
+    /* V2-8.7: --fg-2 on a selected row's wash read 3.36:1 (9 px bold) */
+    color: var(--fg-0);
   }
 }
 
@@ -383,6 +384,11 @@
     white-space: nowrap;
     font-size: var(--type-xs);
     color: var(--fg-2);
+  }
+  /* V2-8.7: the sub lines in --fg-2 read 4.19:1 on a selected row's selection wash */
+  .lp-row.is-sel .lp-ds-sub,
+  .lp-row[aria-current="true"] .lp-ds-sub {
+    color: var(--fg-1);
   }
   /* 11 pn-ds: the one system's card stacks its two lines (the board's .pn-ds-l) */
   .lp-ds-line {

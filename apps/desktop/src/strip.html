@@ -554,6 +554,10 @@
         font-size: 11px;
         color: var(--strip-fg-dim);
       }
+      /* V2-8.7: the dim ink read 4.34:1 on the selected row's accent wash */
+      .row.selected .words span {
+        color: var(--fg-1);
+      }
       .row[data-current="true"] .words strong::after {
         content: " · this tab";
         font-weight: 400;
