@@ -1834,26 +1834,29 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   // repo root. Cached for the lifetime of the process — the local git
   // identity doesn't shift mid-session and `Bun.spawn` is cheap-but-not-free.
 
-  let cachedGitUser: string | null = null;
-  let cachedGitUserAttempted = false;
-  async function gitCurrentUser(): Promise<string> {
-    if (cachedGitUserAttempted) return cachedGitUser ?? '';
-    cachedGitUserAttempted = true;
-    try {
-      const proc = Bun.spawn(['git', 'config', 'user.name'], {
-        cwd: paths.repoRoot,
-        windowsHide: true,
-        stdout: 'pipe',
-        stderr: 'pipe',
-      });
-      const out = await new Response(proc.stdout).text();
-      await proc.exited;
-      const name = out.trim();
-      cachedGitUser = name || null;
-    } catch {
-      cachedGitUser = null;
-    }
-    return cachedGitUser ?? '';
+  //
+  // The cache is the in-flight ANSWER, not a flag: a flag set before the spawn finished handed every caller
+  // during that spawn '' — and `localAuthor('')` is the OS account, so at boot the shell's `/_api/git-user`
+  // read the account name while each later comment was signed with the git name (r2-e2e-fix: the
+  // Comments panel's Mine read 0 and the row never said "You").
+  let cachedGitUser: Promise<string> | null = null;
+  function gitCurrentUser(): Promise<string> {
+    cachedGitUser ??= (async () => {
+      try {
+        const proc = Bun.spawn(['git', 'config', 'user.name'], {
+          cwd: paths.repoRoot,
+          windowsHide: true,
+          stdout: 'pipe',
+          stderr: 'pipe',
+        });
+        const out = await new Response(proc.stdout).text();
+        await proc.exited;
+        return out.trim();
+      } catch {
+        return '';
+      }
+    })();
+    return cachedGitUser;
   }
 
   // `git shortlog -sne` against the repo head — cached for 60 s so the
