@@ -18,11 +18,11 @@
   "sources": [
     {
       "path": "apps/studio/tool-palette.tsx",
-      "sha256": "0f9427e049fc3b4cc93c36dfcf917f480cf2cc33bd61c66dbd4b15e559c9a025"
+      "sha256": "0039db506c2e9eba1f2df307828d9a4c35e496794550346465af7f483924a5ae"
     },
     {
       "path": "apps/studio/annotations-context-toolbar.tsx",
-      "sha256": "bf3afd61f3adfe4a144ac1746a73826c43f3cccec688e4826ed1c2230a4bfbc0"
+      "sha256": "8793cd2ce5afc26273eaf50e7eed3aa4bfac0e6b62decdbe6683fd253061e68d"
     },
     {
       "path": "apps/studio/client/photo-knobs.jsx",

@@ -34,7 +34,7 @@ function values(source, name, key) {
   return result;
 }
 /** The board's drawing tools (V2-4.5a retired the palette's `DRAW_TOOLS`): the Preview toolbar's slots in
- *  bridge/canvas-modes.ts (`MODE_TOOLS.preview`), minus Browse and Comment, plus the two marker-tips choices
+ *  bridge/canvas-modes.ts (`MODE_TOOLS.preview`), minus Browse, Hand and Comment (they write nothing), plus the two marker-tips choices
  *  under Pen (highlighter, eraser — still the palette's own tools). Kept in the v1 order so the inventory reads
  *  the same: pen, highlighter, shape, sticky, section, arrow, text, eraser. */
 const BOARD_TOOL_ORDER = [
@@ -55,7 +55,7 @@ function boardTools(palette) {
   const tips = ['highlighter', 'eraser'].filter((t) =>
     new RegExp(`current [!=]== '${t}'`).test(palette)
   );
-  const found = new Set([...slots.filter((t) => t !== 'browse' && t !== 'comment'), ...tips]);
+  const found = new Set([...slots.filter((t) => t !== 'browse' && t !== 'hand' && t !== 'comment'), ...tips]);
   const unknown = [...found].filter((t) => !BOARD_TOOL_ORDER.includes(t));
   if (unknown.length)
     throw new Error(`New board tool(s) ${unknown.join(', ')}: add them to BOARD_TOOL_ORDER`);
