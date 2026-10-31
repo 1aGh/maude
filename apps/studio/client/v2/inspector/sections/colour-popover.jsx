@@ -185,6 +185,16 @@ export function ColourPopover({
     };
   }, [anchorRef, custom, asked]);
 
+  // F30: focus starts in Search. Not `autoFocus` — that runs at mount, before showPopover(), and a browser ignores focus()
+  // on a popover that is not rendered yet (the chip kept focus; r2-p6b IC1). Nor on the mount commit either: the popover
+  // is `visibility: hidden` until it is placed. So: once, in the commit that first has a place.
+  const focused = useRef(false);
+  useLayoutEffect(() => {
+    if (!place || focused.current) return;
+    focused.current = true;
+    ref.current?.querySelector('[data-search="true"]')?.focus?.({ preventScroll: true });
+  }, [place]);
+
   // a press anywhere else — the panel, the shell, or the canvas frame (the window loses focus) — puts it away
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
@@ -285,7 +295,6 @@ export function ColourPopover({
         data-search="true"
         data-testid={`insp-pop-search-${name}`}
         value={query}
-        autoFocus
         onChange={(e) => setQuery(e.currentTarget.value)}
       />
       {recent.length ? (
