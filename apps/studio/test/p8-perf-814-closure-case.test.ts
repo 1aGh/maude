@@ -8,7 +8,8 @@
 // A same-name owner that is no file, has no meta of its own and folds to the slug of exactly the
 // granted canvas IS the granted canvas (the board is its own). Another canvas stays refused.
 
-import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
+import * as fs from 'node:fs';
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
@@ -18,7 +19,18 @@ import { narrowToFrame } from '../access/frame.ts';
 import { diskProjectReader } from '../access/request.ts';
 import { resolveAccess } from '../access/scope.ts';
 
+/** A reader that holds nothing beyond its listing — and says so (p8-closure-lows-2). */
 function project(files: Record<string, string>): ProjectReader {
+  return {
+    ...bare(files),
+    listTruncated: () => false,
+    present: () => false,
+    unlisted: () => [],
+  };
+}
+
+/** A reader that cannot say what its listing left out. */
+function bare(files: Record<string, string>): ProjectReader {
   return { list: () => Object.keys(files), text: (r) => files[r] ?? null, head: () => 'h1' };
 }
 
@@ -216,6 +228,134 @@ describe('the same-name owner rule fails closed (p8-closure-lows)', () => {
       writeFileSync(join(outside, 'x.tsx'), '');
       expect(reader.present?.(`../${basename(outside)}/x.tsx`)).toBe(false);
       expect(reader.present?.(join(outside, 'x.tsx'))).toBe(false);
+    });
+  });
+});
+
+// p8-closure-lows-2 (V2-8.9 recheck at 7584c35f3, three Lows + one Info).
+describe('the same-name owner rule, recheck (p8-closure-lows-2)', () => {
+  const CSS = 'ui/2026/combine/combine-admin.css';
+
+  test('a reader that cannot report what its listing left out: refused (fail closed)', () => {
+    const c = closureFor(narrowToFrame(OWNER, [GRANT]), bare(BASE));
+    expect(c.blocked.has(GRANT)).toBe(true);
+    expect(c.read.has(CSS)).toBe(false);
+  });
+
+  test('a reader reporting only part of it (no present): refused', () => {
+    const reader: ProjectReader = { ...bare(BASE), listTruncated: () => false, unlisted: () => [] };
+    const c = closureFor(narrowToFrame(OWNER, [GRANT]), reader);
+    expect(c.blocked.has(GRANT)).toBe(true);
+  });
+
+  // APFS treats NFC and NFD names as one file: a twin spelled in the other form is still a twin.
+  const NFC = 'café';
+  const NFD = 'café';
+  const CAFE_GRANT = 'ui/Café.tsx';
+  const CAFE: Record<string, string> = {
+    'config.json': '{}',
+    [CAFE_GRANT]: CANVAS.replace('./combine-admin.css', `./${NFC}.css`),
+    [`ui/${NFC}.css`]: '.x{color:red}',
+    [`ui-${NFC}.annotations.json`]: '{"v":1}',
+  };
+
+  test('baseline: a canvas importing its own NFC stylesheet reads it', () => {
+    const c = closureFor(narrowToFrame(OWNER, [CAFE_GRANT]), project(CAFE));
+    expect(c.blocked.has(CAFE_GRANT)).toBe(false);
+    expect(c.read.has(`ui/${NFC}.css`)).toBe(true);
+  });
+
+  test('an unlisted NFD twin of the NFC owner is foreign: refused', () => {
+    const reader: ProjectReader = { ...project(CAFE), unlisted: () => [`ui/${NFD}.tsx`] };
+    const c = closureFor(narrowToFrame(OWNER, [CAFE_GRANT]), reader);
+    expect(c.blocked.has(CAFE_GRANT)).toBe(true);
+    expect(c.read.has(`ui/${NFC}.css`)).toBe(false);
+  });
+
+  test('a listed NFD twin of the NFC owner is foreign: refused', () => {
+    const c = closureFor(
+      narrowToFrame(OWNER, [CAFE_GRANT]),
+      project({ ...CAFE, [`ui/${NFD}.tsx`]: CANVAS.replace('function A', 'function T') })
+    );
+    expect(c.blocked.has(CAFE_GRANT)).toBe(true);
+  });
+
+  test('a stored-grant .html canvas missing from disk keeps its stylesheet its own: refused', () => {
+    const files: Record<string, string> = {
+      'config.json': '{}',
+      'ui/a.tsx': CANVAS.replace('./combine-admin.css', './b.css'),
+      'ui/b.css': '.x{color:red}',
+    };
+    const open = closureFor(narrowToFrame(OWNER, ['ui/a.tsx']), project(files));
+    expect(open.blocked.has('ui/a.tsx')).toBe(false);
+    const cfg = closureConfigOf({}, ['ui/b.html']);
+    const c = closureFor(narrowToFrame(OWNER, ['ui/a.tsx']), project(files), undefined, cfg);
+    expect(c.blocked.has('ui/a.tsx')).toBe(true);
+    expect(c.read.has('ui/b.css')).toBe(false);
+  });
+
+  describe('on disk', () => {
+    let root = '';
+    let outside = '';
+    const lay = (files: Record<string, string>) => {
+      for (const [rel, body] of Object.entries(files)) {
+        mkdirSync(dirname(join(root, rel)), { recursive: true });
+        writeFileSync(join(root, rel), body);
+      }
+    };
+    beforeEach(() => {
+      root = mkdtempSync(join(tmpdir(), 'p8-closure-lows-2-'));
+      outside = mkdtempSync(join(tmpdir(), 'p8-closure-lows-2-out-'));
+    });
+    afterEach(() => {
+      rmSync(root, { recursive: true, force: true });
+      rmSync(outside, { recursive: true, force: true });
+    });
+
+    test('present() matches an NFD entry for an NFC name (and never case-folds)', () => {
+      lay({ 'config.json': '{}', 'ui/Keep.tsx': '' });
+      writeFileSync(join(outside, 'v.tsx'), '');
+      symlinkSync(join(outside, 'v.tsx'), join(root, `ui/${NFD}.tsx`));
+      const reader = diskProjectReader(root, () => 'h');
+      expect([...reader.list()]).toContain('ui/Keep.tsx');
+      expect(reader.present?.(`ui/${NFC}.tsx`)).toBe(true);
+      expect(reader.present?.(`ui/${NFD}.tsx`)).toBe(true);
+      expect(reader.present?.('ui/keep.tsx')).toBe(false);
+    });
+
+    test('an NFD symlinked victim at the NFC owner path: refused', () => {
+      // A slug twin (`ui-café.tsx` folds to `ui/café`'s slug) imports the victim's stylesheet.
+      const attacker = `ui-${NFC}.tsx`;
+      lay({
+        'config.json': '{}',
+        [attacker]: CANVAS.replace('./combine-admin.css', `./ui/${NFC}.css`),
+        [`ui/${NFC}.css`]: '.x{color:red}',
+        [`ui-${NFC}.annotations.json`]: '{"v":1}',
+      });
+      writeFileSync(join(outside, 'victim.tsx'), CANVAS.replace('function A', 'function V'));
+      symlinkSync(join(outside, 'victim.tsx'), join(root, `ui/${NFD}.tsx`));
+      const c = closureFor(
+        narrowToFrame(OWNER, [attacker]),
+        diskProjectReader(root, () => 'h')
+      );
+      expect(c.blocked.has(attacker)).toBe(true);
+      expect(c.read.has(`ui/${NFC}.css`)).toBe(false);
+    });
+
+    test('present() reads each folder once per walk', () => {
+      lay(BASE);
+      const reader = diskProjectReader(root, () => 'h');
+      const folder = join(root, 'ui/2026/combine');
+      const spy = spyOn(fs, 'readdirSync');
+      try {
+        const c = closureFor(narrowToFrame(OWNER, [GRANT]), reader);
+        expect(c.blocked.has(GRANT)).toBe(false);
+        // The listing reads it once (withFileTypes); every present() lookup there shares one more.
+        const named = spy.mock.calls.filter((a) => String(a[0]) === folder && a[1] === undefined);
+        expect(named.length).toBe(1);
+      } finally {
+        spy.mockRestore();
+      }
     });
   });
 });

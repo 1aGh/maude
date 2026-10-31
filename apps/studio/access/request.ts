@@ -517,6 +517,21 @@ export function diskProjectReader(
 ): ProjectReader {
   let truncated = false;
   let skipped: string[] = [];
+  // p8-closure-lows-2 — each folder's names, read once per walk (every walk drains `list()` first,
+  // which clears it): a missing owner costs one directory read, not one per name looked up.
+  let names = new Map<string, ReadonlySet<string> | null>();
+  const namesOf = (dir: string): ReadonlySet<string> | null => {
+    let set = names.get(dir);
+    if (set === undefined) {
+      try {
+        set = new Set(readdirSync(dir).map((n) => n.normalize('NFC')));
+      } catch {
+        set = null;
+      }
+      names.set(dir, set);
+    }
+    return set;
+  };
   return {
     head,
     text(rel) {
@@ -530,21 +545,22 @@ export function diskProjectReader(
     // p8-closure-lows — an entry at exactly `rel`, whatever it is (the listing skips symlinks):
     // the parent's NAMES only, so the entry is never followed or read, and the exact name (a
     // case-insensitive disk would answer `stat` for `combine-admin.tsx` with `Combine-admin.tsx`).
+    // p8-closure-lows-2 — compared in NFC on both sides (APFS holds an NFD `café` and an NFC one as
+    // the same file); never case-folded.
     present(rel) {
       const segs = rel.split('/');
       if (isAbsolute(rel) || segs.some((s) => s === '' || s === '.' || s === '..')) return false;
       const abs = join(designRoot, rel);
       if (!resolve(abs).startsWith(resolve(designRoot) + sep)) return false;
-      try {
-        return readdirSync(dirname(abs)).includes(segs[segs.length - 1] as string);
-      } catch {
-        return false;
-      }
+      return (
+        namesOf(dirname(abs))?.has((segs[segs.length - 1] as string).normalize('NFC')) === true
+      );
     },
     unlisted: () => skipped,
     *list() {
       truncated = false;
       skipped = [];
+      names = new Map();
       let n = 0;
       const walk = function* (dir: string, prefix: string): Generator<string> {
         let entries: import('node:fs').Dirent[];
