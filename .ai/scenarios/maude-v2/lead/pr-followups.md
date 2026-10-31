@@ -329,3 +329,13 @@ rights or is an availability nuisance). Candidates for the first rc patch:
 - **I4** every tail flush rewrites the whole hold set (up to 20 000 paths); an older hub logs "may be short of rows" on
   every wake after reading a newer tail.
 - **E** the V2-8.4 rig's scenario tokens are revoked only on SIGINT/SIGTERM (a crash leaves 6 h local tokens).
+
+## From p8-holding-strip (merged c3e4e6c4c)
+- Final-4 recheck **I1 is closed**: `holding` is in `EDITOR_ONLY_FIELDS` (studio + hub twin, parity pinned) and in
+  `MEMBER_ONLY_FIELDS`, so viewers, lanes-closed and format-gated sockets cannot hold, and presentation followers never
+  receive a hold or its hub-stamped name (`apps/studio/test/p8-holding-strip.test.ts`).
+- **Accepted-replica mode** (`acceptedMode()` on): an editor socket's `holding` and `editing` pass to the room
+  unstripped. Editors may hold, so this looks intended, but nobody has confirmed it.
+- Lead fix on the same freeze: V2-8.0/8.6 went red at f849d866b because the two comments-paused testids from
+  p8-cell-copy were scanned as late v1 entry points; they are v2 code (`V2_CODE_IDS`, 8a23313e1). Lesson: the lead
+  gate script does not run `check-v2-nothing-deleted.mjs`; run it before a freeze.
