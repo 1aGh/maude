@@ -11,6 +11,7 @@ import { pushRecent } from '../../../kinds/presets.ts';
 import { OPEN_SIZES_EVENT, takeSizePicker } from '../create/open-sizes.js';
 import { SYSTEM_TAB } from '../../shell/constants.js';
 import { persistUiPrefs } from '../../shell/util.js';
+import { shellMode } from '../shell/use-canvas-mode-lane.js';
 import { useShellStore } from '../../stores/shell-store.jsx';
 import KindDimHost from './KindDimHost.jsx';
 import SizePicker from './SizePicker.jsx';
@@ -30,12 +31,25 @@ export async function rememberSize(presetId, { fetchImpl = fetch, persist = pers
   return next;
 }
 
+/**
+ * The picker is the F tool's panel, and F is an Edit tool: when the mode leaves Edit (Preview, Present, a held
+ * past version) the toolbar changes, and Michal's TD1d says the toolbar is what a mode switch changes — so the
+ * panel goes with its tool. Without this the picker stayed up over Preview (a preset click there still drew an
+ * artboard, and Preview's "esc to edit" only closed the picker). Returns the unsubscribe.
+ */
+export function watchSizePickerMode(store, onClose) {
+  const leftEdit = (s) => s.mode !== 'edit' || !!s.present || !!s.viewing;
+  return store.subscribe(() => {
+    if (leftEdit(store.get())) onClose?.();
+  });
+}
+
 export default function SizePickerHost({ req, onOpen, onClose }) {
   const {
     shellCore: { activePath, cfg, iframesRef, viewerMode, postToActiveCanvas },
   } = useShellStore();
   const live = useRef({});
-  live.current = { activePath, cfg, iframesRef };
+  live.current = { activePath, cfg, iframesRef, onClose };
 
   // R2-P2 (TD2): a canvas the person has just made opens with this picker up (open-sizes.js). The request waits
   // for its canvas to be the open one; the picker is then drawn centred (no toolbar anchor yet).
@@ -48,6 +62,13 @@ export default function SizePickerHost({ req, onOpen, onClose }) {
     window.addEventListener(OPEN_SIZES_EVENT, take);
     return () => window.removeEventListener(OPEN_SIZES_EVENT, take);
   }, [onOpen, activePath]);
+
+  // the picker goes when the mode leaves Edit (watchSizePickerMode)
+  const open = !!req;
+  useEffect(() => {
+    if (!open) return undefined;
+    return watchSizePickerMode(shellMode, () => live.current.onClose?.());
+  }, [open]);
 
   useEffect(() => {
     const onMessage = (e) => {

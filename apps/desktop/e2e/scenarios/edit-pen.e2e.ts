@@ -132,11 +132,13 @@ describe('edit-pen — draw a path, edit its points', () => {
     });
     const src = readFileSync(SMOKE, 'utf8');
     expect(src).toMatch(/data-cd-id="path"/);
-    expect(src).toMatch(/stroke: "var\(--accent, currentColor\)"/);
-    // no colour literal came with the path: the file holds exactly the hex colours it started with
-    // (the fixture's own `color: "#111"`)
+    // TD3 (Michal, UX audit r2): a new path is stroked with the neutral stroke role and ITS fixed literal
+    // fallback (edit-ops/slot-defaults.ts `stroke`, path.ts PATH_STROKE) — never currentColor or --accent
+    expect(src).toMatch(/stroke: "var\(--fg-1, #52525b\)"/);
+    // that fallback is the only colour literal the path brought: the file holds the hex colours it started
+    // with (the fixture's own `color: "#111"`) plus the one inside var(--fg-1, …)
     const hex = (t: string) => (t.match(/#[0-9a-f]{3,8}\b/gi) ?? []).length;
-    expect(hex(src)).toBe(hex(fixtures.baselineOf(SMOKE)));
+    expect(hex(src)).toBe(hex(fixtures.baselineOf(SMOKE)) + 1);
     expect(pathD()).toMatch(/^M[\d. -]+C[\d. -]+/);
   });
 
@@ -173,20 +175,51 @@ describe('edit-pen — draw a path, edit its points', () => {
     );
     expect(chip).toMatch(/^(Smooth|Sharp)$/);
     const flipped = pathD();
+    // ⌫ removes the SELECTED point; with none selected it removes the whole path ("⌫ with the path selected
+    // removes it", points.tsx). A person's double-click starts with a press, which selects the point; the
+    // synthetic `dblclick` above has none, so press the point first. (Without this the old step deleted the
+    // path, `pathD() !== flipped` read null as a change, and step 3 found no path to stroke.)
+    const sel = await inFrame<{ x: number; y: number }>(
+      `const r = doc.querySelector('[data-testid="edit-pen-point-0-1"]').getBoundingClientRect();
+       return { x: r.left + r.width / 2, y: r.top + r.height / 2 };`
+    );
+    await fire('pointerdown', sel.x, sel.y, '[data-testid="edit-pen-point-0-1"]');
+    await fire('pointerup', sel.x, sel.y, 'body');
     await key('Backspace');
     await browser.waitUntil(() => pathD() !== flipped, {
       timeout: 15_000,
       timeoutMsg: 'removing the point never reached the file',
     });
+    // one point fewer, the path itself kept
+    expect(pathD()).not.toBeNull();
+    const anchors = (d: string | null) => (d?.match(/[MLC]/g) ?? []).length;
+    expect(anchors(pathD())).toBe(anchors(flipped) - 1);
     await key('Enter');
     expect(
       await inFrame<boolean>(`return !doc.querySelector('[data-testid="edit-pen-points"]');`)
     ).toBe(true);
   });
   it('r1 #8 — a press ON the first point closes the path, and the path is drawn with a visible stroke', async () => {
-    // the drawn path from step 1 renders with a colour, even on a fixture without --accent
-    const stroke = await inFrame<string | null>(
-      `const s = doc.querySelector('svg[data-shape="path"]'); return s ? win.getComputedStyle(s).stroke : null;`
+    // the drawn path from step 1 renders with a colour (its role's literal fallback on a fixture without the
+    // role). Step 2's last write (⌫ removed a point) re-renders the frame a beat later, and the path is not in
+    // it until then — the gate run read `null` here, and so did a read right after the OLD path was still in
+    // the DOM — so read until the path is there twice, a beat apart (the re-render has landed).
+    const strokeNow = () =>
+      inFrame<string | null>(
+        `const s = doc.querySelector('svg[data-shape="path"]'); return s ? win.getComputedStyle(s).stroke : null;`
+      );
+    let stroke: string | null = null;
+    await browser.waitUntil(
+      async () => {
+        const first = await strokeNow();
+        await browser.pause(400);
+        stroke = await strokeNow();
+        return first !== null && stroke !== null;
+      },
+      {
+        timeout: 15_000,
+        timeoutMsg: 'the drawn path never rendered again after the point was removed',
+      }
     );
     expect(stroke).not.toBe('none');
     expect(stroke).not.toBeNull();
@@ -198,7 +231,10 @@ describe('edit-pen — draw a path, edit its points', () => {
     );
     const b = await body();
     const at = (x: number, y: number) => ({ x: b.x + x * b.zoom, y: b.y + y * b.zoom });
-    const pts = [at(80, 380), at(200, 380), at(200, 480)];
+    // inside the 480 × 320 artboard, clear of step 1's path (x 60–340, y 100–200): the first press must land in
+    // a container (containerAt), else the Pen says "not on an artboard" and draws nothing — the old points
+    // (y 380 and 480) were below the artboard's bottom edge
+    const pts = [at(340, 240), at(440, 240), at(440, 300)];
     for (const p of pts) {
       await fire('pointerdown', p.x, p.y, OVERLAY);
       await fire('pointerup', p.x, p.y, OVERLAY);

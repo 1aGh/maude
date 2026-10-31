@@ -257,8 +257,12 @@ export function PointEdit({ readOnly = false }: { readOnly?: boolean }) {
         void commit(e, next);
       }
     };
-    document.addEventListener('keydown', onKey, true);
-    return () => document.removeEventListener('keydown', onKey, true);
+    // WINDOW capture, ahead of every document listener: the canvas's own ⌫ / ↵ owner
+    // (use-keyboard-discipline.tsx) sits on document capture and is registered first, so on the same node it
+    // ran before this one and a stopPropagation here could not stop it — one ⌫ removed the point AND posted
+    // `delete-request` for the whole path (r2-e2e-fix, desktop edit-pen).
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
   }, [on, leave, commit]);
 
   const press = (ev: React.PointerEvent, hit: Hit) => {

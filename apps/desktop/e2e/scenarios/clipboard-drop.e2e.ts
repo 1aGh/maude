@@ -159,13 +159,29 @@ describe('copy / paste, Assets drop and the quiet tip (r1-clipboard-drop)', () =
   after(() => fixtures.restore());
 
   it('⌘C on Alpha in A, then ⌘V on Beta in B, puts the copy in B', async () => {
-    await untilOn(
-      'Alpha heading',
-      () => key('c'),
-      () => true,
-      'copy'
+    // The copy writes nothing to the file, so "done" is the shell's answer reaching the frame: an ok
+    // `edit-op-result` carrying the clip's kind + count (a ⌘C pressed before the selection landed answers
+    // nothing). The old `() => true` returned before the first press, so no copy was ever made and every ⌘V
+    // answered "Nothing to paste".
+    await inFrame(
+      `const w = doc.defaultView; w.__clipCopied = false;
+       w.addEventListener('message', (e) => {
+         const d = e.data;
+         if (d && d.dgn === 'edit-op-result' && d.ok && d.detail && d.detail.clip) w.__clipCopied = true;
+       });`
     );
-    await browser.pause(800);
+    await browser.waitUntil(
+      async () => {
+        const at = await rectOf('Alpha heading');
+        if (at) {
+          await click(at.x, at.y);
+          await key('c');
+        }
+        await browser.pause(500);
+        return (await inFrame('return doc.defaultView.__clipCopied === true;')) === true;
+      },
+      { timeout: 15000, timeoutMsg: '⌘C never copied Alpha' }
+    );
     await untilOn(
       'Beta heading',
       () =>
@@ -188,30 +204,25 @@ describe('copy / paste, Assets drop and the quiet tip (r1-clipboard-drop)', () =
       () => count(/Beta heading/g) === before - 1,
       'cut'
     );
-    await key('z');
-    await browser.waitUntil(() => count(/Beta heading/g) === before, {
-      timeout: 10000,
-      timeoutMsg: '⌘Z did not bring the cut object back',
-    });
-  });
-
-  it('an Assets drop seen only as text/plain places the picture', async () => {
-    const at = await rectOf('Alpha heading');
-    expect(at).not.toBeNull();
-    await inFrame(
-      `const dt = new DataTransfer(); dt.setData('text/plain', 'assets/clip-pic.png');
-       const el = doc.elementFromPoint(args[0], args[1]) || doc.body;
-       for (const type of ['dragenter', 'dragover', 'drop'])
-         el.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, clientX: args[0], clientY: args[1], dataTransfer: dt }));`,
-      at!.x,
-      at!.y
+    // A real ⌘Z (WebDriver keys), as drop-photos' undoTo: the shell honours a ⌘Z the frame RELAYS only while
+    // the frame holds the focus of a focused window (sec-a undo-key gate, use-undo-mode-lane.js), which a
+    // synthetic keydown on the frame's body never has. The press right after a write can race the op log's
+    // barrier, so press until the file is back.
+    await browser.waitUntil(
+      async () => {
+        if (count(/Beta heading/g) === before) return true;
+        await browser.keys(['Meta', 'z']);
+        await browser.pause(700);
+        return count(/Beta heading/g) === before;
+      },
+      { timeout: 15000, timeoutMsg: '⌘Z did not bring the cut object back' }
     );
-    await browser.waitUntil(() => /clip-pic\.png/.test(source()), {
-      timeout: 10000,
-      timeoutMsg: 'the dropped asset never reached the canvas source',
-    });
   });
 
+  // Before the Assets drop: the picture that step places fills artboard A's width (cover, 100% × 100%) and so
+  // reaches down over the board picture at (120, 420) — a press there lands on the DESIGN, which Edit selects
+  // (quietStrokeAt refuses anything inside a [data-dc-screen]), and no tip is due. Measured in WKWebView: the
+  // press point's hit chain was IMG(clip-pic) › artboard "a".
   it('a press on a board picture in Edit says to switch to Preview', async () => {
     await browser.waitUntil(
       async () => {
@@ -227,9 +238,32 @@ describe('copy / paste, Assets drop and the quiet tip (r1-clipboard-drop)', () =
         const tip = await inFrame(
           `const t = doc.querySelector('[data-testid="annotation-quiet-tip"]'); return t ? t.textContent : null;`
         );
+        // let go, as a person does (the browser twin's mouse.up): no press is left down for the next step
+        await inFrame(
+          `const n = doc.querySelector('[data-id="pic"]'); const r = n && n.getBoundingClientRect();
+           if (!r || !r.width) return;
+           const x = r.left + r.width / 2, y = r.top + r.height / 2;
+           (doc.elementFromPoint(x, y) || doc.body).dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: x, clientY: y, button: 0 }));`
+        );
         return tip === 'Switch to Preview to move it · ⌥⌘P';
       },
       { timeout: 10000, timeoutMsg: 'no quiet tip at the press' }
     );
+  });
+  it('an Assets drop seen only as text/plain places the picture', async () => {
+    const at = await rectOf('Alpha heading');
+    expect(at).not.toBeNull();
+    await inFrame(
+      `const dt = new DataTransfer(); dt.setData('text/plain', 'assets/clip-pic.png');
+       const el = doc.elementFromPoint(args[0], args[1]) || doc.body;
+       for (const type of ['dragenter', 'dragover', 'drop'])
+         el.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, clientX: args[0], clientY: args[1], dataTransfer: dt }));`,
+      at!.x,
+      at!.y
+    );
+    await browser.waitUntil(() => /clip-pic\.png/.test(source()), {
+      timeout: 10000,
+      timeoutMsg: 'the dropped asset never reached the canvas source',
+    });
   });
 });
