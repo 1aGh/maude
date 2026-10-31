@@ -223,7 +223,7 @@ describe('canvas document', () => {
       ['B', inCanvas, null],
       ['O', inCanvas, null],
       ['⇧S', inCanvas, null],
-      ['H', inPreview, 'tool.browse'],
+      ['H', inPreview, 'tool.hand'], // rc.1 #17: Preview's Hand pans
       ['R', inPreview, 'tool.shape'],
       ['T', inPreview, 'tool.text'],
       ['V', inPreview, 'tool.browse'], // rc.1 #18: Preview's pointer, no crossing

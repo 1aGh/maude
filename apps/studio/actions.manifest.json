@@ -2656,7 +2656,7 @@
     },
     {
       "id": "tool.browse",
-      "label": "Browse",
+      "label": "Select",
       "kind": "tool",
       "exec": "canvas",
       "effect": "none",

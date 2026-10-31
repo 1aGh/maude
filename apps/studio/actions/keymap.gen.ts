@@ -548,18 +548,18 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
   {
     id: 'tool.select',
     exec: 'canvas',
-    keys: [
-      {
-        chord: 'V',
-        layer: 'tools',
-        when: { focus: ['canvas', 'chrome'], mode: ['edit', 'viewing'] },
-      },
-    ],
+    keys: [{ chord: 'V', layer: 'tools', when: { focus: ['canvas', 'chrome'], mode: ['edit'] } }],
   },
   {
     id: 'tool.hand',
     exec: 'canvas',
-    keys: [{ chord: 'H', layer: 'tools', when: { focus: ['canvas', 'chrome'], mode: ['edit'] } }],
+    keys: [
+      {
+        chord: 'H',
+        layer: 'tools',
+        when: { focus: ['canvas', 'chrome'], mode: ['edit', 'preview'] },
+      },
+    ],
   },
   {
     id: 'tool.frame',
@@ -619,8 +619,11 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     id: 'tool.browse',
     exec: 'canvas',
     keys: [
-      { chord: 'H', layer: 'tools', when: { focus: ['canvas', 'chrome'], mode: ['preview'] } },
-      { chord: 'V', layer: 'tools', when: { focus: ['canvas', 'chrome'], mode: ['preview'] } },
+      {
+        chord: 'V',
+        layer: 'tools',
+        when: { focus: ['canvas', 'chrome'], mode: ['preview', 'viewing'] },
+      },
     ],
   },
   {

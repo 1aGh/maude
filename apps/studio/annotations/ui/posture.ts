@@ -46,8 +46,16 @@ export const postureTakesInput = (p: AnnotationPosture): boolean => p === 'drawn
 export const annotationPicks = (tool: string, p: AnnotationPosture): boolean =>
   tool === 'move' || (tool === 'browse' && postureTakesInput(p));
 
-/** Only the Move tool rubber-bands empty canvas; the Hand's drag on empty canvas stays the canvas's pan. */
-export const annotationMarquees = (tool: string): boolean => tool === 'move';
+/**
+ * Who rubber-bands empty canvas: Move, and (Michal rc.1 #17, superseding S4.18b's marquee half) Preview's Select
+ * (`browse`) while the layer is Preview's to edit. The Hand (`hand`) pans. A canvas no shell governs keeps v1's
+ * Browse, where a drag on empty canvas is the canvas's pan (DDR-187).
+ */
+export const annotationMarquees = (
+  tool: string,
+  p: AnnotationPosture,
+  mode: CanvasModeV2 | null | undefined
+): boolean => tool === 'move' || (tool === 'browse' && mode === 'preview' && postureTakesInput(p));
 
 /** Ink (pen, arrows, shapes) fades to this in Edit. Sticky paper does not fade; it mixes (below). */
 export const QUIET_INK_OPACITY = 0.45;

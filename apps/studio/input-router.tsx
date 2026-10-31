@@ -282,14 +282,9 @@ const v1Tool = (t: ToolId): Tool | null => armTarget(t, (x) => V1_TOOLS.has(x)) 
 
 function classifyToolKey(chord: string, mode: CanvasModeV2, input: ClassifyInput): RouterAction {
   const governed = !!input.mode;
-  // rc.1 #18 — Preview's V alias is governed-only: a standalone canvas keeps v1's V = Move from Browse.
-  const hit = toolKeyAction(
-    mode,
-    chord,
-    input.caps ?? ALL_CAPS,
-    input.markerTip ?? 'pen',
-    governed
-  );
+  // rc.1 #17/#18 — Preview's V is its Select; a standalone canvas keeps v1's V = Move from Browse (DDR-187).
+  if (!governed && chord === 'V') return { kind: 'tool', tool: 'move' };
+  const hit = toolKeyAction(mode, chord, input.caps ?? ALL_CAPS, input.markerTip ?? 'pen');
   if (!hit) return { kind: 'no-op' };
   if (hit.kind === 'insert') return { kind: 'insert', insert: hit.insert };
   if (hit.kind === 'panel') return { kind: 'panel', panel: hit.panel };
@@ -674,9 +669,18 @@ export function isDesignSurface(t: EventTarget | null): boolean {
  * `browse`, where a click uses the design, so a drag pans only when it starts OFF the design (empty canvas,
  * an artboard's label) — a drag on the design goes to the design (sliders, scroll areas, text selection).
  * Space-drag and middle-button pan everywhere, ahead of this.
+ * Michal rc.1 #17: in the shell's Preview `browse` is the Select pointer, and its drag on empty canvas rubber-bands
+ * annotations (annotations/ui/posture.ts `annotationMarquees`) — the Hand (H) is the pan there. A canvas no shell
+ * governs (`mode` null) and Present keep the Browse pan.
  */
-export function dragPansCanvas(tool: Tool, onDesign: boolean): boolean {
-  return tool === 'hand' || tool === 'inspect' || (tool === 'browse' && !onDesign);
+export function dragPansCanvas(
+  tool: Tool,
+  onDesign: boolean,
+  mode: CanvasModeV2 | null = null
+): boolean {
+  return (
+    tool === 'hand' || tool === 'inspect' || (tool === 'browse' && !onDesign && mode !== 'preview')
+  );
 }
 
 /**
@@ -706,8 +710,14 @@ export function isOpenTextEditor(t: EventTarget | null): boolean {
  * an open text editor is the editor's: the pan captures the pointer, and the editor would never see the click or the
  * double-click that selects a word (the dblclick then fired on the canvas and fit() threw the view away).
  */
-export function pressStartsPan(tool: Tool, t: EventTarget | null): boolean {
-  return dragPansCanvas(tool, isDesignSurface(t) || isOpenTextEditor(t));
+export function pressStartsPan(
+  tool: Tool,
+  t: EventTarget | null,
+  mode: CanvasModeV2 | null = typeof window !== 'undefined'
+    ? canvasModeStore(window).get().mode
+    : null
+): boolean {
+  return dragPansCanvas(tool, isDesignSurface(t) || isOpenTextEditor(t), mode);
 }
 
 /**

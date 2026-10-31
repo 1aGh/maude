@@ -235,8 +235,11 @@ export const MODE_TOOLS: Readonly<Record<CanvasModeV2, ModeToolbar>> = Object.fr
   preview: Object.freeze({
     rest: 'browse' as const,
     slots: Object.freeze([
-      // A click uses the design, a drag pans (Q3). v1's `hand` tool lights it too.
-      slot({ key: 'H', label: 'Hand', tool: 'browse', minRole: 'view', lights: ['hand'] }),
+      // Michal rc.1 #17/#18 — Select (V) is Preview's resting pointer: a click uses the design, ⇧-click adds or
+      // removes an annotation, a drag on empty canvas rubber-bands annotations (annotations/ui/posture.ts). The
+      // Hand (H, v1's mode-neutral `hand`) pans on any drag. Space-drag and the wheel pan under both.
+      slot({ key: 'V', label: 'Select', tool: 'browse', minRole: 'view' }),
+      slot({ key: 'H', label: 'Hand', tool: 'hand', minRole: 'view' }),
       slot({
         key: 'N',
         label: 'Sticky',
@@ -340,8 +343,9 @@ export function visibleSlots(
 // ─── keys, the tool's home mode and the esc ladder (§5.4; landed with V2-4.5b) ────────────────────
 //
 // A key means what its slot does in the mode you are in. A key that is not in this mode's toolbar
-// but is in the other one crosses (Edit → Preview: N C M A E S; Preview → Edit: F P I ⇧I; H R T
-// stay where they are, and V is Preview's pointer — rc.1 #18, KEY_ALIAS): the canvas asks the shell (`mode-request`), never moves the mode itself (M3).
+// but is in the other one crosses (Edit → Preview: N C M A E S; Preview → Edit: F P I ⇧I; V H R T
+// stay where they are — rc.1 #17/#18 gave Preview its own Select V): the canvas asks the shell
+// (`mode-request`), never moves the mode itself (M3).
 // A role that may not use the slot gets the shell's denial line (Q2): the canvas asks anyway and the
 // shell, which owns the role, refuses. A pending slot has no key (rule 13: no key before its tool).
 
@@ -359,25 +363,10 @@ const KEY_FALLBACK: Readonly<Record<CanvasModeV2, readonly CanvasModeV2[]>> = Ob
  * for it; null = not a tool key there. A pending slot still OWNS its key (Edit's R is the design
  * Shape before S2 builds it — R never falls through to Preview's Shape); `toolKeyAction` answers null.
  */
-/**
- * A key a mode answers with one of its OWN slots although the slot wears another letter (Michal, rc.1 #18:
- * "V should only change the current tool to the cursor"). V is the pointer everywhere: in Preview it arms
- * Preview's resting pointer (the Hand, `browse`) and keeps the mode, where Q2 had it cross to Edit's Select.
- * Governed canvases only — a standalone canvas keeps v1's V = Move from Browse (`toolKeyAction`'s `aliases`).
- */
-const KEY_ALIAS: Readonly<Partial<Record<CanvasModeV2, Readonly<Record<string, string>>>>> =
-  Object.freeze({ preview: Object.freeze({ V: 'H' }) });
-
 export function keySlot(
   mode: CanvasModeV2,
-  key: string,
-  aliases = true
+  key: string
 ): { mode: CanvasModeV2; slot: ToolSlot } | null {
-  const alias = aliases ? KEY_ALIAS[mode]?.[key] : undefined;
-  if (alias) {
-    const s = MODE_TOOLS[mode].slots.find((x) => x.key === alias);
-    if (s) return { mode, slot: s };
-  }
   for (const m of [mode, ...KEY_FALLBACK[mode]]) {
     const s = MODE_TOOLS[m].slots.find((x) => x.key === key);
     if (s) return { mode: m, slot: s };
@@ -407,10 +396,9 @@ export function toolKeyAction(
   mode: CanvasModeV2,
   key: string,
   caps: Readonly<ModeCaps>,
-  markerTip?: ToolId,
-  aliases = true
+  markerTip?: ToolId
 ): ToolKeyAction | null {
-  const hit = keySlot(mode, key, aliases);
+  const hit = keySlot(mode, key);
   if (!hit || hit.slot.pending) return null;
   const { slot } = hit;
   // A momentary slot arms nothing (S2 makes Frame / Text / Image tools); the Marker arms its tip.
@@ -450,9 +438,7 @@ export function modeKeys(mode: CanvasModeV2): string[] {
     for (const s of MODE_TOOLS[m].slots) {
       if (!s.key || keys.includes(s.key)) continue;
       const hit = keySlot(mode, s.key);
-      // rc.1 #18 — an alias (Preview's V) answers with this mode's own slot, in the letter's usual place
-      const own = hit?.slot === s || (!!hit && !!KEY_ALIAS[mode]?.[s.key]);
-      if (own && hit && !hit.slot.pending) keys.push(s.key);
+      if (hit?.slot === s && !s.pending) keys.push(s.key);
     }
   return keys;
 }

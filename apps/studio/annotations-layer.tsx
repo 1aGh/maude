@@ -3539,7 +3539,7 @@ export function AnnotationsLayer() {
 
       // S4.18b - the Hand (Preview's resting tool) picks stickies but never rubber-bands: a drag on empty
       // canvas is the canvas's pan, so this stage claims nothing. A bare click still lets go of the selection.
-      if (!annotationMarquees(tool)) {
+      if (!annotationMarquees(tool, posture, mode)) {
         if (!e.shiftKey && annotSel.selectedIds.length > 0) {
           const letGo = (up: PointerEvent) => {
             document.removeEventListener('pointerup', letGo, true);
@@ -3607,7 +3607,17 @@ export function AnnotationsLayer() {
     // commitStrokes is included defensively (it is a stable useCallback([]) ref,
     // so this never re-registers the stage) to remove the latent stale-closure
     // trap flagged in the Phase 24 frontend review.
-  }, [pipeline, tool, posture, annotSel, elementSel, screenToWorld, strokesStore, commitStrokes]);
+  }, [
+    pipeline,
+    tool,
+    posture,
+    mode,
+    annotSel,
+    elementSel,
+    screenToWorld,
+    strokesStore,
+    commitStrokes,
+  ]);
 
   // Latest marquee + strokes refs for the doc-level pointerup callback
   // (avoids re-binding the listener on every state tick).

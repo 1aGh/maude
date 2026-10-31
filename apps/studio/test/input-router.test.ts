@@ -755,6 +755,14 @@ describe('input-router / dragPansCanvas — Preview Hand (Q3)', () => {
     expect(dragPansCanvas('browse', false)).toBe(true);
     expect(dragPansCanvas('browse', true)).toBe(false);
   });
+  test("rc.1 #17 — Preview's Select (browse, governed) rubber-bands instead of panning; Hand still pans", () => {
+    expect(dragPansCanvas('browse', false, 'preview')).toBe(false);
+    expect(dragPansCanvas('browse', true, 'preview')).toBe(false);
+    expect(dragPansCanvas('hand', false, 'preview')).toBe(true);
+    // a standalone canvas (no shell) and Present keep the Browse pan
+    expect(dragPansCanvas('browse', false, null)).toBe(true);
+    expect(dragPansCanvas('browse', false, 'present')).toBe(true);
+  });
   test('every other tool leaves the drag to its own handler', () => {
     for (const t of ['move', 'comment', 'pen', 'shape', 'sticky', 'text', 'eraser'] as Tool[]) {
       expect(dragPansCanvas(t, false)).toBe(false);

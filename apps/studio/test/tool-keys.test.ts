@@ -18,6 +18,7 @@ import {
   type CanvasModeV2,
   escStep,
   homeModeOfTool,
+  MODE_TOOLS,
   type ModeCaps,
   modeKeys,
   NO_CAPS,
@@ -62,7 +63,7 @@ describe('toolKeyAction (T8)', () => {
   });
 
   test("Preview's own keys: H R T stay (annotation Hand / Shape / Text), E opens the panel", () => {
-    expect(act('preview', 'H')).toEqual({ kind: 'arm', tool: 'browse' });
+    expect(act('preview', 'H')).toEqual({ kind: 'arm', tool: 'hand' });
     expect(act('preview', 'R')).toEqual({ kind: 'arm', tool: 'shape' });
     expect(act('preview', 'T')).toEqual({ kind: 'arm', tool: 'text' });
     expect(act('preview', 'N')).toEqual({ kind: 'arm', tool: 'sticky' });
@@ -73,13 +74,21 @@ describe('toolKeyAction (T8)', () => {
     expect(act('preview', 'E')).toEqual({ kind: 'panel', panel: 'stickers' });
   });
 
-  test("rc.1 #18 — V in Preview arms Preview's pointer (the Hand, `browse`) and keeps the mode", () => {
+  test("rc.1 #18/#17 — V in Preview arms Preview's Select (`browse`) and keeps the mode; H is the Hand", () => {
+    expect(MODE_TOOLS.preview.slots.slice(0, 2).map((s) => [s.key, s.label, s.tool])).toEqual([
+      ['V', 'Select', 'browse'],
+      ['H', 'Hand', 'hand'],
+    ]);
     expect(act('preview', 'V')).toEqual({ kind: 'arm', tool: 'browse' });
     expect(act('preview', 'V', COMMENTER)).toEqual({ kind: 'arm', tool: 'browse' });
     expect(modeKeys('preview')).toContain('V');
-    // Edit's V is still Select; Viewing's V still reaches the denial line
+    // Edit's V is still Select; Viewing's V asks for Preview's Select (Viewing borrows Preview's keys)
     expect(act('edit', 'V')).toEqual({ kind: 'arm', tool: 'move' });
-    expect(act('viewing', 'V', COMMENTER)).toEqual({ kind: 'deny', mode: 'edit', tool: 'move' });
+    expect(act('viewing', 'V', COMMENTER)).toEqual({
+      kind: 'request',
+      mode: 'preview',
+      tool: 'browse',
+    });
   });
 
   test('Q2 — Preview: F P I ⇧I switch to Edit (P is the Pen since S2.14); a momentary slot arms nothing', () => {
@@ -98,7 +107,11 @@ describe('toolKeyAction (T8)', () => {
       mode: 'preview',
       tool: 'sticky',
     });
-    expect(act('viewing', 'V', COMMENTER)).toEqual({ kind: 'deny', mode: 'edit', tool: 'move' });
+    expect(act('viewing', 'V', COMMENTER)).toEqual({
+      kind: 'request',
+      mode: 'preview',
+      tool: 'browse',
+    });
     expect(act('viewing', 'F', COMMENTER)).toEqual({ kind: 'deny', mode: 'edit', tool: 'frame' });
     expect(act('viewing', 'E', COMMENTER)).toEqual({
       kind: 'deny',
@@ -110,7 +123,7 @@ describe('toolKeyAction (T8)', () => {
   });
 
   test('a viewing role in Preview: Hand and Comment work, the rest is the denial line (Q2)', () => {
-    expect(act('preview', 'H', COMMENTER)).toEqual({ kind: 'arm', tool: 'browse' });
+    expect(act('preview', 'H', COMMENTER)).toEqual({ kind: 'arm', tool: 'hand' });
     expect(act('preview', 'C', COMMENTER)).toEqual({ kind: 'arm', tool: 'comment' });
     expect(act('preview', 'N', COMMENTER)).toEqual({
       kind: 'deny',
@@ -144,6 +157,7 @@ describe('toolKeyAction (T8)', () => {
       'S',
     ]);
     expect(modeKeys('preview')).toEqual([
+      'V',
       'H',
       'N',
       'C',
@@ -153,7 +167,6 @@ describe('toolKeyAction (T8)', () => {
       'T',
       'E',
       'S',
-      'V',
       'F',
       'P',
       'I',
@@ -162,6 +175,7 @@ describe('toolKeyAction (T8)', () => {
     expect(modeKeys('viewing')).toEqual([
       'H',
       'C',
+      'V',
       'N',
       'M',
       'A',
@@ -169,7 +183,6 @@ describe('toolKeyAction (T8)', () => {
       'T',
       'E',
       'S',
-      'V',
       'F',
       'P',
       'I',
@@ -209,6 +222,7 @@ describe('escStep (04 md-esc)', () => {
     ['edit', 'move', 'stay'],
     ['preview', 'pen', 'rest'],
     ['preview', 'sticky', 'rest'],
+    ['preview', 'hand', 'rest'], // rc.1 #17: Preview's Hand steps back to Select first
     ['preview', 'browse', 'back'], // two steps when N C M A E S brought you here
     ['viewing', 'comment', 'rest'],
     ['viewing', 'inspect', 'stay'], // "there's no Edit to return to" (S3.11: Viewing rests on inspect)
@@ -316,7 +330,7 @@ describe('input-router: governed keys (M3)', () => {
   test('Preview: own keys arm locally, V arms the pointer (rc.1 #18), F asks for Edit', () => {
     const p = { ...gov('preview'), activeTool: 'browse' as const };
     expect(key('n', p)).toEqual({ kind: 'tool', tool: 'sticky' });
-    expect(key('h', p)).toEqual({ kind: 'tool', tool: 'browse' });
+    expect(key('h', p)).toEqual({ kind: 'tool', tool: 'hand' });
     expect(key('v', p)).toEqual({ kind: 'tool', tool: 'browse' });
     expect(key('v', { ...p, activeTool: 'comment' })).toEqual({ kind: 'tool', tool: 'browse' });
     expect(key('f', p)).toEqual({

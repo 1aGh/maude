@@ -1,7 +1,7 @@
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { $, browser, expect } from '@wdio/globals';
-import { waitForCanvasRects } from '../helpers/canvas-frame';
+import { enterCanvasFrame, exitToTop, waitForCanvasRects } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
 import { videoPlays } from '../helpers/modes-present-video';
@@ -100,9 +100,18 @@ describe('modes-present (S3.13)', () => {
     await landsOn('edit');
   });
 
-  // Michal rc.1 #18: V in Preview only arms Preview's pointer (the Hand) — it no longer switches to Edit. F still
-  // crosses, so the key reached the canvas and a dead key cannot pass this step.
-  it('Preview: V keeps Preview (the pointer), F still crosses to Edit', async () => {
+  // Michal rc.1 #17/#18: Preview has its own Select (V, the resting pointer: marquee + ⇧-click on annotations) and a
+  // Hand (H, pans). V no longer switches to Edit; F still crosses, so the key reached the canvas and a dead key cannot
+  // pass this step. The marquee itself is pinned by the browser e2e (annotations-ui R3, annotations-lock L3).
+  it('Preview: V arms Select and keeps Preview, H arms the Hand, F still crosses to Edit', async () => {
+    const slotPressed = async (id: string) => {
+      await enterCanvasFrame();
+      try {
+        return await $(tid(`toolbar-slot-${id}`)).getAttribute('aria-pressed');
+      } finally {
+        await exitToTop();
+      }
+    };
     await chord('p', 'KeyP', { altKey: true, metaKey: true });
     await $(tid('preview-bar')).waitForExist({ timeout: 6000 });
     await landsOn('preview');
@@ -110,6 +119,11 @@ describe('modes-present (S3.13)', () => {
     await chord('v', 'KeyV');
     await browser.pause(600); // a crossing would land within this beat
     await landsOn('preview');
+    expect(await slotPressed('browse')).toBe('true');
+    await chord('h', 'KeyH');
+    await browser.pause(300);
+    await landsOn('preview');
+    expect(await slotPressed('hand')).toBe('true');
     await chord('f', 'KeyF');
     await landsOn('edit');
   });
