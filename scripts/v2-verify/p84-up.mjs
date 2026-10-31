@@ -175,7 +175,9 @@ for (const [name, role] of [
   });
   const body = await res.json().catch(() => null);
   if (res.status !== 200)
-    throw new Error(`switching the cell to accepted revisions failed: ${res.status} ${JSON.stringify(body)}`);
+    throw new Error(
+      `switching the cell to accepted revisions failed: ${res.status} ${JSON.stringify(body)}`
+    );
   console.log(`[p84-up] the cell saves with accepted revisions (epoch ${body?.epoch})`);
   const cookie = { cookie: `maude_studio=${sessions.viewer}` };
   let mode = null;
