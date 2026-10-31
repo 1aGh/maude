@@ -41,6 +41,8 @@ import {
   takeStepOf,
 } from './editing/take-keys.ts';
 import { type HoverTarget, isEditableTarget } from './input-router.tsx';
+import { selectWhenRendered } from './editing/object-actions.ts';
+import { duplicateObject } from './editing/reorder-slot.tsx';
 import { isReadOnlyCanvas } from './read-only-mode.ts';
 import { type Selection, useSelectionSet } from './use-selection-set.tsx';
 import { useToolModeOptional } from './use-tool-mode.tsx';
@@ -196,14 +198,22 @@ export function useKeyboardDiscipline(): void {
         const one = selSet.selected.length === 1 ? selSet.selected[0] : null;
         if (one?.id) {
           e.preventDefault();
-          try {
-            window.parent.postMessage(
-              { dgn: 'duplicate-request', id: one.id, idIndex: one.index },
-              '*'
-            );
-          } catch {
-            /* detached / cross-origin */
-          }
+          const id = one.id;
+          // r1 #15 (Michal) — a placed object's copy lands +10 / +10 and is selected; one in a flow keeps v1's
+          duplicateObject(
+            resolveSelectionEl(document, one),
+            () => {
+              try {
+                window.parent.postMessage(
+                  { dgn: 'duplicate-request', id, idIndex: one.index },
+                  '*'
+                );
+              } catch {
+                /* detached / cross-origin */
+              }
+            },
+            (created) => selectWhenRendered(created, (sel) => selSet.replace(sel))
+          );
         }
         return;
       }

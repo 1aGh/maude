@@ -79,7 +79,7 @@ export const objectReorderTo: EditOp = {
       if (self && at) {
         const copy = { ...moved, element: dup.newId, occurrence: undefined };
         out = writeStyle(out, req, copy, { left: px(at.left), top: px(at.top) });
-        return { source: out };
+        return { source: out, created: [{ artboard: moved.artboard, element: dup.newId }] };
       }
     } else if (params.at !== undefined) {
       return fail('Only a copy takes a place of its own.');

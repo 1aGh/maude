@@ -258,7 +258,7 @@ describe('r1 D1 — canvas tools in a real browser', () => {
     }
   });
 
-  test('T15 — ⌥-drag drops a copy, ⌘D copies, each is one ⌘Z', async () => {
+  test('T15 — ⌥-drag drops a copy; ⌘D copies +10 / +10 and selects the copy; each is one ⌘Z', async () => {
     const c = await open();
     try {
       const r = await c.box('[data-cd-id="rect"]');
@@ -278,6 +278,28 @@ describe('r1 D1 — canvas tools in a real browser', () => {
       await sleep(400);
       await c.page.keyboard.press('Meta+d');
       await waitFor(() => rects(c.src()).length === 2, '⌘D made a copy');
+      // Michal (r1): the copy lands +10 / +10 from the original, and it is the selection
+      const dup = c.src();
+      assert.equal(leftOf(dup, 'rect'), '100', 'the original stayed put');
+      assert.match(rects(dup)[1], /left: "110px", top: "110px"/, 'the ⌘D copy is offset +10 / +10');
+      const copyId = /data-cd-id="([^"]+)"[^>]*left: "110px"/.exec(dup)?.[1];
+      assert.ok(copyId && copyId !== 'rect', 'the copy has its own id');
+      // a second ⌘D copies the COPY (it is selected): +10 / +10 again
+      await waitFor(
+        () =>
+          c.frame().evaluate((id) => !!document.querySelector('[data-cd-id="' + id + '"]'), copyId),
+        'the copy rendered'
+      );
+      await sleep(800);
+      await c.page.keyboard.press('Meta+d');
+      await waitFor(() => rects(c.src()).length === 3, 'a second ⌘D copied the selected copy');
+      assert.match(
+        rects(c.src())[2],
+        /left: "120px", top: "120px"/,
+        'the selection moved to the copy'
+      );
+      await c.page.keyboard.press('Meta+z');
+      await waitFor(() => rects(c.src()).length === 2, '⌘Z took the second copy back in one step');
       await c.page.keyboard.press('Meta+z');
       await waitFor(() => rects(c.src()).length === 1, '⌘Z took the ⌘D copy back in one step');
     } finally {

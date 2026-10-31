@@ -65,7 +65,7 @@ describe('r1 #12 — a press on a selected object clipped by its artboard grabs 
     const marquee = await Bun.file(new URL('../artboard-marquee.tsx', import.meta.url)).text();
     expect(shell).toMatch(/clippedGrab\(document, e\.clientX, e\.clientY, t, sel\)/);
     expect(marquee).toMatch(
-      /clippedGrab\(document, e\.clientX, e\.clientY, e\.target, selSet\.selected\)\) return;/
+      /clippedGrab\(document, e\.clientX, e\.clientY, e\.target, selSet\.selected\)\)\s*return;/
     );
   });
 });

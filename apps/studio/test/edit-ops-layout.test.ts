@@ -295,16 +295,32 @@ describe('reorder (one request = one write = one action)', () => {
       })
     );
     expect(h.writes()).toBe(1);
-    const cards = [
-      ...h.src().matchAll(/<div[^>]*>(Small apps|Product design|Brand systems)</g),
-    ].map((m) => m[0]);
-    const brands = cards.filter((c) => c.endsWith('Brand systems'));
+    // the two cards, by the line each sits on
+    const brands = h
+      .src()
+      .split('\n')
+      .filter((l) => l.includes('Brand systems'));
     expect(brands).toHaveLength(2);
     expect(brands[0]).toMatch(/data-cd-id="brand"/);
     expect(brands[0]).not.toMatch(/left: "250px"/); // the original stays put
     expect(brands[1]).toMatch(/left: "250px"/);
     expect(brands[1]).toMatch(/top: "220px"/);
     expect(brands[1]).not.toMatch(/data-cd-id="brand"/);
+  });
+
+  test('r1 #15 — the placed copy is reported as created, so the canvas selects it', async () => {
+    const h = home();
+    const r = good(
+      await h.run('object.reorder-to', ['brand', 'brand'], {
+        position: 'after',
+        copy: true,
+        at: { left: 10, top: 10 },
+      })
+    );
+    expect(r.created).toHaveLength(1);
+    const id = r.created?.[0]?.element as string;
+    expect(id).not.toBe('brand');
+    expect(h.src()).toContain(`data-cd-id="${id}"`);
   });
 
   test('r1 #15 — next to itself is still refused without a copy and a place; a place without a copy too', async () => {

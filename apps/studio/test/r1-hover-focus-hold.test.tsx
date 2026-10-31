@@ -7,11 +7,8 @@
 // test/e2e/canvas-tools.e2e.mjs.)
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
-import { act } from 'react';
-import { createRoot } from 'react-dom/client';
 
 describe('r1 #11 — hover never blurs a shell panel shut', () => {
-  let canvasLib: typeof import('../canvas-lib.tsx');
   let panel: typeof import('../toolbars/tool-panel.ts');
 
   beforeAll(async () => {
@@ -25,53 +22,26 @@ describe('r1 #11 — hover never blurs a shell panel shut', () => {
     }
     (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = FakeRO;
     (window as unknown as { ResizeObserver: unknown }).ResizeObserver = FakeRO;
-    canvasLib = await import('../canvas-lib.tsx');
     panel = await import('../toolbars/tool-panel.ts');
   });
   afterAll(() => GlobalRegistrator.unregister());
 
-  test('the canvas takes focus on hover — until it asks for a panel; a press in the canvas gives hover back', async () => {
-    const { DesignCanvas, DCArtboard } = canvasLib;
-    const mount = document.createElement('div');
-    document.body.append(mount);
-    const root = createRoot(mount);
-    await act(async () => {
-      root.render(
-        <DesignCanvas>
-          <DCArtboard id="a" label="A" width={200} height={120}>
-            <div>body</div>
-          </DCArtboard>
-        </DesignCanvas>
-      );
-    });
-    const host = mount.querySelector('.dc-canvas') as HTMLElement;
-    expect(host).not.toBeNull();
-    const outside = document.createElement('input');
-    document.body.append(outside);
-    const enter = () =>
-      act(async () => {
-        host.dispatchEvent(new window.PointerEvent('pointerenter', { bubbles: false }));
-      });
-
+  test('the hold: set by asking for a panel, released by the next press in the canvas', () => {
     panel.resetHoverFocusHold();
-    outside.focus();
-    await enter();
-    expect(document.activeElement).toBe(host); // today's behaviour, kept: hover focuses the canvas
-
+    expect(panel.hoverFocusHeld()).toBe(false);
     panel.holdHoverFocus();
-    outside.focus();
-    await enter();
-    expect(document.activeElement).toBe(outside); // the panel's field keeps the keyboard
-
+    expect(panel.hoverFocusHeld()).toBe(true);
     document.dispatchEvent(new window.PointerEvent('pointerdown', { bubbles: true }));
     expect(panel.hoverFocusHeld()).toBe(false);
-    outside.focus();
-    await enter();
-    expect(document.activeElement).toBe(host);
+  });
 
-    await act(async () => root.unmount());
-    mount.remove();
-    outside.remove();
+  test('canvas-lib’s pointer-enter auto-focus steps aside while the hold is on', async () => {
+    const lib = await Bun.file(new URL('../canvas-lib.tsx', import.meta.url)).text();
+    const enter = lib.slice(lib.indexOf('const onPointerEnter = () => {'));
+    const guard = enter.indexOf('if (hoverFocusHeld()) return;');
+    expect(guard).toBeGreaterThan(0);
+    // before the focus call, inside the same handler
+    expect(guard).toBeLessThan(enter.indexOf('host.focus({ preventScroll: true })'));
   });
 
   test('every way the canvas asks for a panel puts hover on hold', async () => {

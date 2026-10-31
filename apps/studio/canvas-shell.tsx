@@ -92,11 +92,12 @@ import { clippedGrab } from './editing/clipped-grab.ts';
 import { useClipboard } from './editing/clipboard-actions.ts';
 import { drawToolOfAction } from './editing/draw-geometry.ts';
 import { EditingLayer } from './editing/index.tsx';
-import { useObjectOps } from './editing/object-actions.ts';
+import { selectWhenRendered, useObjectOps } from './editing/object-actions.ts';
 import { type ObjectMenuDeps, objectMenuSections } from './editing/object-menu.tsx';
 // S2.11 — the reorder slot's state + the ⌥-copy / drag-out drops (editing/reorder-slot.tsx)
 import {
   copyPlacedTo,
+  duplicateObject,
   liftCard,
   panelMotion,
   reorderSlot,
@@ -2219,11 +2220,19 @@ function buildRegistry(deps: {
           // Task L3 — main-origin source duplicate; post to the parent shell.
           onSelect: (target) => {
             if (!target.cdId) return;
-            try {
-              window.parent.postMessage({ dgn: 'duplicate-request', id: target.cdId }, '*');
-            } catch {
-              /* detached / cross-origin */
-            }
+            const id = target.cdId;
+            // r1 #15 (Michal) — the same as ⌘D: a placed object's copy lands +10 / +10, selected
+            duplicateObject(
+              target.el ?? null,
+              () => {
+                try {
+                  window.parent.postMessage({ dgn: 'duplicate-request', id }, '*');
+                } catch {
+                  /* detached / cross-origin */
+                }
+              },
+              (created) => selectWhenRendered(created, (s) => selSet.replace(s))
+            );
           },
         },
         {
