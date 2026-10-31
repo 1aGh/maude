@@ -100,13 +100,14 @@ describe('the dock follows the shell panel', () => {
     expect(q('toolbar-slot-browse')?.getAttribute('aria-pressed')).toBe('true');
   });
 
-  test('Edit: Image (I) is pressed while the Assets panel is open; the Stickers panel does not press it', () => {
+  // TD10 (r2 P1): Image (I) opens a file picker, no longer the Assets panel, so no panel presses it
+  test('Edit: neither the Assets nor the Stickers panel presses Image (I)', () => {
     mountBar();
     act(() => ctx?.setMode('edit'));
     act(() => setShellPanelOpen('stickers'));
-    expect(q('toolbar-slot-image')?.hasAttribute('aria-pressed')).toBe(false);
+    expect(q('toolbar-slot-image')?.getAttribute('aria-pressed')).not.toBe('true');
     act(() => setShellPanelOpen('assets'));
-    expect(q('toolbar-slot-image')?.getAttribute('aria-pressed')).toBe('true');
+    expect(q('toolbar-slot-image')?.getAttribute('aria-pressed')).not.toBe('true');
   });
 
   test('the canvas-shell handler is parent-gated and writes the store', async () => {

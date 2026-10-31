@@ -589,12 +589,14 @@ describe('canvas: the toolbar keys, governed (V2-4.5b)', () => {
     expect(ctxB?.mode).toBe('preview'); // the shell moves it, not the canvas
   });
 
-  test('Preview · V: one request for Edit; the comment-mount sibling never drives the mode', () => {
+  // TD1c + Michal's #17: Preview has its own Select (V), so V acts in Preview and never crosses to Edit
+  test('Preview · V: Select in Preview, no request; the comment-mount sibling never drives the mode', () => {
     mountBoth();
     setMode(canvasModeStore(window).get().modeSeq + 1, 'preview', { tool: 'browse' });
     shellPosts.length = 0;
     press('v');
-    expect(requests()).toEqual([{ dgn: 'mode-request', mode: 'edit', tool: 'move', cause: 'key' }]);
+    expect(requests()).toEqual([]);
+    expect(ctxB?.tool).toBe('browse');
     // the sibling's own v1 esc arms `move` in Preview: not a request, and it converges back
     shellPosts.length = 0;
     act(() => ctxA?.setTool('move'));

@@ -683,7 +683,7 @@ export default function EmptyStates() {
                   { t: "A matchday poster", l: "A4, ready to print", art: "gator-poster" },
                 ]} />
                 <div className="es-shelf">
-                  <Shelf title="Your projects" where={<><Icon name="cloud" size={13} />cloud.maude.sh</>}>
+                  <Shelf title="Your projects" where={<><Icon name="cloud" size={13} />Maude Cloud</>}>
                     <div className="es-shelf-row">
                       <GhostCards n={3} />
                       <Empty align="left" title="No projects yet.">
@@ -706,7 +706,7 @@ export default function EmptyStates() {
                   { t: "Three logo ideas", l: "for a new brand", art: "brand" },
                   { t: "A moodboard", l: "photos and swatches", art: "moodboard" },
                 ]} />
-                <span className="island es-signin"><span className="btn btn--ghost btn--sm"><Icon name="cloud" size={14} />Sign in to cloud.maude.sh</span></span>
+                <span className="island es-signin"><span className="btn btn--ghost btn--sm"><Icon name="cloud" size={14} />Sign in to Maude Cloud</span></span>
                 <div className="es-shelf">
                   <Shelf title="Your projects" where={<><Icon name="laptop" size={13} />On this Mac</>}>
                     <div className="es-shelf-row">
@@ -732,7 +732,7 @@ export default function EmptyStates() {
                   { t: "A mobile detail", l: "for the Homepage", art: "mobile" },
                 ]} />
                 <div className="es-shelf es-shelves">
-                  <Shelf title="Your projects" where={<><Icon name="cloud" size={13} />cloud.maude.sh</>}>
+                  <Shelf title="Your projects" where={<><Icon name="cloud" size={13} />Maude Cloud</>}>
                     <div className="es-projrow">
                       <span className="k-project es-proj">
                         <span className="k-stack"><Thumb art="home" /><Thumb art="price" /><Thumb art="onb" /></span>
@@ -1162,7 +1162,7 @@ export default function EmptyStates() {
               <Canvas>
                 <Empty size="canvas" glyph="offline" className="es-center es-center--panel es-e--plain" title="Combine-video-AI isn't on this Mac yet."
                   action={<span className="btn btn--sm">Show canvases on this Mac</span>}>
-                  It opens by itself when this Mac is back online. Nothing in it is lost — the cloud copy is safe.
+                  It opens by itself when this Mac is back online. Nothing in it is lost — the Maude Cloud copy is safe.
                 </Empty>
               </Canvas>
               <ProjectPill project="Alligators brand" canvas="Combine-video-AI" />

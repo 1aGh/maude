@@ -280,10 +280,11 @@ describe('every disabled menu row has a reason (the model)', () => {
     expect(undo?.reason).toBe('You can view this project. Ask a project owner for edit access.');
   });
 
-  test('Advanced is one quiet submenu row under Edit and View', async () => {
+  // TD10: New artboard (Edit › Advanced's only row) moved to File, so Edit has no Advanced any more
+  test('Advanced is one quiet submenu row under View', async () => {
     await mount();
     await act(async () => pill().click());
-    for (const sub of ['edit', 'view']) {
+    for (const sub of ['view']) {
       await act(async () =>
         (
           document.querySelector(`[data-testid="project-menu-row-sub-${sub}"]`) as HTMLElement

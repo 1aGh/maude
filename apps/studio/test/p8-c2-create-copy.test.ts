@@ -19,10 +19,11 @@ describe('02: words', () => {
   test('the code door says "Enter a code instead" (ob-signin-browser)', () => {
     expect(SIGNIN_WORDS.useCode).toBe('Enter a code instead');
   });
-  test('the app does not name itself when the cloud is out of reach', () => {
-    expect(SIGNIN_WORDS.unreachable).toContain('cloud.maude.sh');
-    expect(SIGNIN_WORDS.unreachable).not.toContain('Maude Cloud');
-    expect(INVITE_WORDS.unreachable).not.toContain('Maude Cloud');
+  test('the cloud out of reach is named Maude Cloud (TD8), never bare "Maude"', () => {
+    // TD8 (Michal, UX audit) replaces the earlier "never name the product" rule: Maude Cloud everywhere
+    expect(SIGNIN_WORDS.unreachable).toContain('Maude Cloud');
+    expect(INVITE_WORDS.unreachable).toContain('Maude Cloud');
+    expect(SIGNIN_WORDS.unreachable).not.toMatch(/^Maude (could|is)/);
   });
   test('your own project is "Yours · Owner", never "You\'s · Can edit"', () => {
     expect(ownerWord('You', 'owner')).toBe('Yours');

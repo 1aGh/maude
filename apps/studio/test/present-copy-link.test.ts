@@ -120,7 +120,7 @@ describe('copyPresentationLink', () => {
       notify: (t: { title: string; kind: string }) => toasts.push(t),
     });
     expect(none).toBe(false);
-    expect(toasts[0].title).toBe('Copy presentation link — in a cloud project');
+    expect(toasts[0].title).toBe('Copy presentation link — in a Maude Cloud project');
     const failed = await run(true, async () => {
       throw new Error('denied');
     });
