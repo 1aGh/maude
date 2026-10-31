@@ -26,6 +26,7 @@ import {
   renameSync,
   rmdirSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import { readdir } from 'node:fs/promises';
@@ -6866,16 +6867,58 @@ export interface ScanOptions {
 function scanGroupPaths(ctx: Context, opts: ScanOptions): string[] {
   // Everyone else walks exactly the declared groups, as before.
   if (!opts.undeclaredFolders) return ctx.cfg.canvasGroups.map((g) => g.path);
-  const paths = ctx.cfg.canvasGroups.map((g) => String(g.path).replace(/^\/+|\/+$/g, ''));
   let entries: import('node:fs').Dirent[] = [];
   try {
     entries = readdirSync(ctx.paths.designRoot, { withFileTypes: true });
   } catch {
     entries = [];
   }
+  return scanFolderPaths(
+    ctx.cfg.canvasGroups.map((g) => String(g.path)),
+    entries,
+    (rel) => {
+      try {
+        const st = statSync(path.join(ctx.paths.designRoot, rel));
+        return st.isDirectory() ? `${st.dev}:${st.ino}` : null;
+      } catch {
+        return null;
+      }
+    }
+  );
+}
+
+/**
+ * The folder half of {@link scanGroupPaths}, pure (exported for
+ * test/p8-boundary-harden.test.ts): the declared groups, then every listed top
+ * folder the kernel would take as a group.
+ *
+ * TWO NAMES ARE ONE FOLDER ONLY WHEN THEY ARE ONE DIRECTORY (`idOf` = device +
+ * inode, null when absent). Cells run on Linux, where `Brand/` and `BRAND/` are
+ * different folders; de-duplicating names ignoring case dropped whichever listed
+ * second, so an editor's `BRAND/zz.tsx` could knock the owner's `Brand/` out of
+ * the scan and stop its canvases syncing on the cell (final-3 attacker L2). On a
+ * case-insensitive Mac a declared `ui` and the listed `UI` share an inode and are
+ * walked once, as before.
+ */
+export function scanFolderPaths(
+  declared: readonly string[],
+  entries: readonly { name: string; isDirectory(): boolean }[],
+  idOf: (rel: string) => string | null
+): string[] {
+  const paths: string[] = [];
+  const seen = new Set<string>();
+  const add = (rel: string, mustExist: boolean): void => {
+    if (!rel || paths.includes(rel)) return;
+    const id = idOf(rel);
+    if (id !== null) {
+      if (seen.has(id)) return;
+      seen.add(id);
+    } else if (mustExist) return;
+    paths.push(rel);
+  };
+  for (const g of declared) add(g.replace(/^\/+|\/+$/g, ''), false);
   for (const e of entries) {
-    if (!e.isDirectory() || !isUndeclaredGroupName(e.name)) continue;
-    if (!paths.some((p) => p.toLowerCase() === e.name.toLowerCase())) paths.push(e.name);
+    if (e.isDirectory() && isUndeclaredGroupName(e.name)) add(e.name, true);
   }
   const lower = paths.map((p) => p.toLowerCase());
   return paths.filter(

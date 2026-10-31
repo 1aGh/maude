@@ -15,6 +15,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { isUndeclaredGroupName, validateCanvasPath } from '../sync/canvas-path.ts';
+import { scanFolderPaths } from '../sync/index.ts';
 import { resolvePulledTarget } from '../sync/remote-docs.ts';
 
 let root = '';
@@ -89,6 +90,45 @@ describe('M1 — an undeclared group must be a folder the classifier calls a fol
     for (const bad of ['_state', '-x', 'node_modules', 'NODE_MODULES', '', 'a.b', '.git', 'x ']) {
       expect(isUndeclaredGroupName(bad)).toBe(false);
     }
+  });
+});
+
+// Attacker L2: cells run on Linux, where `Brand/` and `BRAND/` are two folders. The boundary scan
+// de-duplicated top folders ignoring case, in directory-listing order, so an editor's `BRAND/zz.tsx`
+// could knock the owner's `Brand/` out of the scan — its canvases then read "on the hub only" and
+// stopped syncing on the cell. The scan now walks every REAL folder: two names are one folder only
+// when they are the same directory on disk (same device + inode), which is also what keeps a
+// case-insensitive Mac from walking `ui` and `UI` twice. A fixture listing stands in for the
+// case-sensitive filesystem (macOS APFS is case-insensitive by default).
+describe('L2 — the boundary scan walks every real folder', () => {
+  const dir = (name: string) => ({ name, isDirectory: () => true });
+
+  test('Linux: Brand/ and BRAND/ are both walked, whichever lists first', () => {
+    const ids: Record<string, string> = { ui: '1', system: '2', Brand: '3', BRAND: '4' };
+    for (const order of [
+      ['BRAND', 'Brand'],
+      ['Brand', 'BRAND'],
+    ]) {
+      const got = scanFolderPaths(['system', 'ui'], order.map(dir), (rel) => ids[rel] ?? null);
+      expect([...got].sort()).toEqual(['BRAND', 'Brand', 'system', 'ui']);
+    }
+  });
+
+  test('a case-insensitive disk: a declared ui and the listed UI are one folder, walked once', () => {
+    const ids: Record<string, string> = { ui: '1', UI: '1', system: '2' };
+    expect(scanFolderPaths(['system', 'ui'], [dir('UI')], (rel) => ids[rel] ?? null)).toEqual([
+      'system',
+      'ui',
+    ]);
+  });
+
+  test('runtime, dotted and node_modules folders stay out; nested declared groups are not doubled', () => {
+    const got = scanFolderPaths(
+      ['ui', 'ui/social'],
+      ['_state', '.git', 'node_modules', 'lib.v2', 'screens'].map(dir),
+      (rel) => rel
+    );
+    expect(got).toEqual(['ui', 'screens']);
   });
 });
 
