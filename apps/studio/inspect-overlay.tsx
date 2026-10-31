@@ -44,9 +44,11 @@ body[data-maude-inspect="true"] .dc-cv-halo--selected .tick { display: none; }
 }
 .dc-cv-inspect-tag[data-on="true"] { opacity: 1; }
 /* P8 C3 (04 X2): a Comment / annotation tool in Preview draws no Edit-style rim or size tag on the design -
-   the pin, the thread and the layer are the marks (04 md-comment, md-draw). */
+   the pin, the thread and the layer are the marks (04 md-comment, md-draw). rc.1 #19 (Michal): Comment keeps
+   the light hover outline, as v1 did - it shows which element the comment will sit on. */
 body[data-maude-annotating="true"] .dc-cv-halo,
-body[data-maude-annotating="true"] .dc-cv-inspect-tag { display: none !important; }
+body[data-maude-annotating="comment"] .dc-cv-halo:not(.dc-cv-halo--hover),
+body[data-maude-annotating] .dc-cv-inspect-tag { display: none !important; }
 @media (prefers-reduced-motion: reduce) {
   .dc-cv-inspect-tag { transition-duration: 1ms; }
 }
@@ -72,6 +74,15 @@ export function askEditFromInspect(win: Window = window): boolean {
     /* detached */
   }
   return true;
+}
+
+/**
+ * The body's `data-maude-annotating` value: null when not annotating, 'comment' for the Comment tool (which keeps
+ * the hover outline that shows the element a comment will sit on — rc.1 #19), 'true' for the drawing tools.
+ */
+export function annotatingMark(annotating: boolean, tool: string): 'comment' | 'true' | null {
+  if (!annotating) return null;
+  return tool === 'comment' ? 'comment' : 'true';
 }
 
 const NAME_MAX = 24;
@@ -122,12 +133,14 @@ export function InspectOverlay() {
     return () => document.body.removeAttribute('data-maude-inspect');
   }, [inspecting]);
 
+  // rc.1 #19 — 'comment' keeps the hover outline (CSS above); every other annotation tool is 'true'
+  const annotatingAs = annotatingMark(annotating, tool);
   useEffect(() => {
     if (typeof document === 'undefined') return undefined;
-    if (annotating) document.body.setAttribute('data-maude-annotating', 'true');
+    if (annotatingAs) document.body.setAttribute('data-maude-annotating', annotatingAs);
     else document.body.removeAttribute('data-maude-annotating');
     return () => document.body.removeAttribute('data-maude-annotating');
-  }, [annotating]);
+  }, [annotatingAs]);
 
   // the size tag follows the selected element
   useEffect(() => {
