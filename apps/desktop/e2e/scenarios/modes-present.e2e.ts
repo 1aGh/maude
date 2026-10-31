@@ -100,6 +100,53 @@ describe('modes-present (S3.13)', () => {
     await landsOn('edit');
   });
 
+  // Michal rc.1 F08 (UX audit P4): a comment this Mac writes is signed with the one local identity, so the Comments
+  // panel counts it as Mine and the row says "You" beside the avatar letter the canvas pin wears. The comment is made
+  // through the studio's own door (the canvas iframe is not reachable by DOM); the panel is read from the SHELL DOM.
+  it('Comments: a comment signed by this Mac is Mine, "You", with one avatar letter (rc.1 F08)', async () => {
+    const made = (await browser.executeAsync((done: (r: unknown) => void) => {
+      fetch('/_api/comments/op', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          op: 'add',
+          file: '.design/ui/Smoke.tsx',
+          text: 'e2e identity probe',
+        }),
+      })
+        .then((r) =>
+          r.json().then((j) => done({ status: r.status, id: j.id, author: j.comment?.author }))
+        )
+        .catch((e) => done({ status: 0, error: String(e) }));
+    })) as { status: number; id?: string; author?: string };
+    expect(made.status).toBe(200);
+    expect(made.author).toBeTruthy();
+    try {
+      await $(tid('share-cluster-comments')).click();
+      await $(tid(`comment-item-${made.id}`)).waitForExist({ timeout: 8000 });
+      const mine = await text('comment-filter-mine');
+      expect(Number(mine.replace(/\D+/g, ''))).toBeGreaterThanOrEqual(1);
+      const row = await $(tid(`comment-item-${made.id}`));
+      expect(await row.getText()).toContain('You');
+      expect(await (await row.$('.k-av')).getText()).toBe(
+        (made.author ?? '?').charAt(0).toUpperCase()
+      );
+      await capture('comment row — You');
+    } finally {
+      await browser.executeAsync((id: string, done: (r: unknown) => void) => {
+        fetch('/_api/comments/op', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ op: 'delete', id }),
+        }).then(
+          () => done(true),
+          () => done(false)
+        );
+      }, made.id ?? '');
+      await $(tid('share-cluster-comments')).click(); // close the panel again
+    }
+  });
+
   // Michal rc.1 #17/#18: Preview has its own Select (V, the resting pointer: marquee + ⇧-click on annotations) and a
   // Hand (H, pans). V no longer switches to Edit; F still crosses, so the key reached the canvas and a dead key cannot
   // pass this step. The marquee itself is pinned by the browser e2e (annotations-ui R3, annotations-lock L3).
