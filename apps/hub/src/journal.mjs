@@ -47,7 +47,12 @@ import { dirname, join } from 'node:path';
 import { canvasSlugFromRel } from '../../studio/canvas-slug.ts';
 import { fileAccessFor, visibleJournalPage } from './access-files.mjs';
 import { MAX_PROJECT_FILE_BYTES, sha256File } from './file-limits.mjs';
-import { listProjectFiles, readCanvasGroups, resolveProjectFileTarget } from './file-manifest.mjs';
+import {
+  hubCheckoutClass,
+  listProjectFiles,
+  readCanvasGroups,
+  resolveProjectFileTarget,
+} from './file-manifest.mjs';
 import {
   classifyProjectFile,
   isFilePlaneClass,
@@ -173,6 +178,14 @@ export function openJournal(dataDir, { now = Date.now } = {}) {
       mtime_ms INTEGER NOT NULL,
       sha256   TEXT    NOT NULL
     );
+    -- p8-boundary-harden: paths the hub held as canvases only because the owner
+    -- had declared no folders (file-manifest.mjs hubCheckoutClass). code_sha is
+    -- the owner's last code row for the path when it was noted, or NULL.
+    CREATE TABLE IF NOT EXISTS class_holds (
+      path     TEXT PRIMARY KEY,
+      code_sha TEXT,
+      at_ms    INTEGER NOT NULL
+    );
   `);
 
   const getMeta = db.prepare('SELECT v FROM journal_meta WHERE k = ?');
@@ -250,6 +263,12 @@ function makeHandle({ db, getMeta, setMeta, now }) {
          last_seen = excluded.last_seen`
     ),
     allCursors: db.prepare('SELECT * FROM peer_cursors ORDER BY label ASC'),
+    holdGet: db.prepare('SELECT code_sha FROM class_holds WHERE path = ?'),
+    holdInsert: db.prepare(
+      'INSERT OR IGNORE INTO class_holds (path, code_sha, at_ms) VALUES (?, ?, ?)'
+    ),
+    holdDelete: db.prepare('DELETE FROM class_holds WHERE path = ?'),
+    holdAll: db.prepare('SELECT path FROM class_holds ORDER BY path ASC'),
     getSha: db.prepare('SELECT * FROM sha_cache WHERE path = ?'),
     setSha: db.prepare(
       `INSERT INTO sha_cache (path, size, mtime_ms, sha256) VALUES (?, ?, ?, ?)
@@ -275,8 +294,39 @@ function makeHandle({ db, getMeta, setMeta, now }) {
    *  checkout's copy (or its absence) says nothing about it. */
   let inertCached = false;
 
+  /** Paths already in `class_holds` — the walk notes on every pass, the db once. */
+  const noted = new Set();
+
   const handle = {
     db,
+
+    /**
+     * Class holds (p8-boundary-harden, final-3 attacker L1) — the store behind
+     * file-manifest.mjs `hubCheckoutClass`: "a config change never promotes a
+     * path into code-module". `noteBoundaryCanvas` records a path that is a
+     * canvas only because the owner has declared no folders, with the sha of
+     * the owner's last live code row for it (so unchanged owner code is never
+     * held); the first note wins.
+     */
+    noteBoundaryCanvas(rel) {
+      if (noted.has(rel)) return;
+      const row = stmts.latestForPath.get(rel);
+      const codeSha = row && row.deleted === 0 && row.class === 'code-module' ? row.sha256 : null;
+      stmts.holdInsert.run(rel, codeSha, now());
+      noted.add(rel);
+    },
+    /** `undefined` = not held; otherwise the owner's code sha (or null). */
+    heldCodeSha(rel) {
+      const r = stmts.holdGet.get(rel);
+      return r ? (r.code_sha ?? null) : undefined;
+    },
+    releaseHold(rel) {
+      stmts.holdDelete.run(rel);
+      noted.delete(rel);
+    },
+    heldPaths() {
+      return stmts.holdAll.all().map((r) => r.path);
+    },
 
     /**
      * Cell mode (cell materializer Task 13). Once on, absence of an inert-media
@@ -426,9 +476,11 @@ function makeHandle({ db, getMeta, setMeta, now }) {
       // Membership is the classifier's call and nobody else's (DDR-226 §1).
       // A path outside the file plane simply has no journal, which is what
       // makes "no row" a meaningful statement about the plane.
-      const cls = classifyProjectFile(rel, {
-        canvasGroups: readCanvasGroups(designRoot),
+      // Provenance-aware (`hubCheckoutClass`): a path held back from the code
+      // lane gets no row — the reconciler cannot promote it either.
+      const cls = hubCheckoutClass(rel, designRoot, {
         hasFile: (r) => existsSync(join(designRoot, r)),
+        sha256: () => handle.shaOf(designRoot, rel)?.sha256 ?? null,
       });
       if (!isFilePlaneClass(cls)) return null;
 
@@ -729,8 +781,7 @@ function makeHandle({ db, getMeta, setMeta, now }) {
             continue;
           }
           if (designRoot) {
-            const cls = classifyProjectFile(row.path, {
-              canvasGroups: readCanvasGroups(designRoot),
+            const cls = hubCheckoutClass(row.path, designRoot, {
               hasFile: (r) => existsSync(join(designRoot, r)),
             });
             if (!isFilePlaneClass(cls)) {

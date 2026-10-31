@@ -160,8 +160,10 @@ import {
   FILES_PATH,
   handleFilesRoute,
   handleProjectFileRoute,
+  listProjectFiles,
   PROJECT_FILE_PREFIX,
   readCanvasGroups,
+  registerClassHolds,
 } from './file-manifest.mjs';
 import {
   createFilesPoke,
@@ -627,6 +629,9 @@ export function createHub(config = {}) {
   // durability half has to have soaked before anything depends on the seqs.
   const journalDesignRoot = workspaceMode && repoDir ? designRootFor() : null;
   const journal = journalDesignRoot ? openJournal(dataDir) : null;
+  // "A config change never promotes a path into code-module" (p8-boundary-
+  // harden): the checkout's classifier reads its holds from this journal.
+  if (journal) registerClassHolds(journalDesignRoot, journal);
   // p8-c4b — a canvas any stored grant names is a canvas for the file plane's closure.
   if (journalDesignRoot)
     registerKnownCanvases(journalDesignRoot, () => storedGrantCanvases(dataDir));
@@ -1871,6 +1876,13 @@ export function createHub(config = {}) {
           dataDir,
           secret,
           designRoot: journalDesignRoot,
+          // THE FLIP MOMENT. Before the owner's declaration lands, walk the
+          // checkout under the config it replaces, so every path that is a
+          // canvas only by the folder boundary is noted (and so held) before
+          // anything can read it as code (p8-boundary-harden, attacker L1).
+          beforeChange: () => {
+            if (journal && journalDesignRoot) listProjectFiles(journalDesignRoot);
+          },
           onChanged: () => {
             projectConfigCache = { at: 0, value: null };
           },

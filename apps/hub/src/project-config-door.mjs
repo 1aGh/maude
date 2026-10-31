@@ -237,6 +237,7 @@ async function readBody(request, max) {
  * @param {string|null} ctx.designRoot
  * @param {(req: unknown) => boolean} [ctx.checkRateLimit]
  * @param {(label: string) => boolean} [ctx.checkWriteRateLimit]
+ * @param {() => void} [ctx.beforeChange]  told just before config.json is rewritten
  * @param {() => void} [ctx.onChanged]  told after config.json was rewritten
  */
 export async function handleProjectConfigDoor(ctx) {
@@ -338,6 +339,13 @@ export async function handleProjectConfigDoor(ctx) {
   if (JSON.stringify(next) === before) {
     respond(response, 200, { ok: true, changed: false, config: subset });
     return true;
+  }
+  // Told BEFORE the rewrite: the hub notes what the current config makes a
+  // canvas, so the new one cannot promote it to code (p8-boundary-harden).
+  try {
+    ctx.beforeChange?.();
+  } catch {
+    /* best-effort — the hold is a backstop, never a reason to refuse the owner */
   }
   const tmp = join(root, `.config.json.${randomBytes(12).toString('hex')}.tmp`);
   try {
