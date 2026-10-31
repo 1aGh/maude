@@ -23,7 +23,7 @@
 
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import type { Closure, ProjectReader } from './closure.ts';
 // S9.12 — the revert-guard seam (a call-time read, so the import cycle with filters.ts is inert).
 import { aclCheckOn } from './filters.ts';
@@ -503,12 +503,20 @@ export function acpRefusal(access: Access): Response | null {
 // The studio child's ProjectReader (V2-1.7 §5.3 G4: closure computed on the server).
 
 const LIST_CAP = 20000;
+/** A file name that could be a canvas (closure.ts `grantedBySlug`'s twin scan). */
+const CANVAS_SHAPED_RE = /\.(tsx|html)$/i;
 
 /**
  * The design root on disk as a `ProjectReader`. `head` is a generation the caller bumps on
  * every file change (the closure cache key), so a closure is recomputed after the tree moves.
  */
-export function diskProjectReader(designRoot: string, head: () => string): ProjectReader {
+export function diskProjectReader(
+  designRoot: string,
+  head: () => string,
+  listCap = LIST_CAP
+): ProjectReader {
+  let truncated = false;
+  let skipped: string[] = [];
   return {
     head,
     text(rel) {
@@ -518,7 +526,25 @@ export function diskProjectReader(designRoot: string, head: () => string): Proje
         return null;
       }
     },
+    listTruncated: () => truncated,
+    // p8-closure-lows — an entry at exactly `rel`, whatever it is (the listing skips symlinks):
+    // the parent's NAMES only, so the entry is never followed or read, and the exact name (a
+    // case-insensitive disk would answer `stat` for `combine-admin.tsx` with `Combine-admin.tsx`).
+    present(rel) {
+      const segs = rel.split('/');
+      if (isAbsolute(rel) || segs.some((s) => s === '' || s === '.' || s === '..')) return false;
+      const abs = join(designRoot, rel);
+      if (!resolve(abs).startsWith(resolve(designRoot) + sep)) return false;
+      try {
+        return readdirSync(dirname(abs)).includes(segs[segs.length - 1] as string);
+      } catch {
+        return false;
+      }
+    },
+    unlisted: () => skipped,
     *list() {
+      truncated = false;
+      skipped = [];
       let n = 0;
       const walk = function* (dir: string, prefix: string): Generator<string> {
         let entries: import('node:fs').Dirent[];
@@ -528,20 +554,31 @@ export function diskProjectReader(designRoot: string, head: () => string): Proje
           return;
         }
         for (const e of entries) {
-          if (n >= LIST_CAP) return;
+          if (n >= listCap) {
+            truncated = true;
+            return;
+          }
           // Runtime state is FIRST-segment `_*` only (DDR-115; the static lane's DDR-210 rule):
           // a nested `_` file is versioned content — a design system's `preview/_components.css`
           // or `preview/_ds.tsx` override (closure.ts `isSystemFileInClosure` expects to see it).
           // gate-b-c4: every canvas frame now reads through this closure, so skipping them at
           // depth rendered every canvas without its component styles.
-          if ((e.name.startsWith('_') && !prefix) || e.name.startsWith('.')) continue;
-          if (e.name === 'node_modules') continue;
+          if (e.name.startsWith('_') && !prefix) continue;
           const rel = prefix ? `${prefix}/${e.name}` : e.name;
-          if (e.isDirectory()) yield* walk(join(dir, e.name), rel);
-          else if (e.isFile()) {
+          if (e.isDirectory()) {
+            if (!e.name.startsWith('.') && e.name !== 'node_modules')
+              yield* walk(join(dir, e.name), rel);
+            continue;
+          }
+          if (e.isFile() && !e.name.startsWith('.')) {
             n++;
             yield rel;
+            continue;
           }
+          // p8-closure-lows — a canvas-shaped entry this walk does not yield (a symlink, a dot
+          // name) is recorded by name only, never followed or read: a slug twin the closure must
+          // count. (First-segment `_` is runtime state, never a twin; skipped dirs are not walked.)
+          if (CANVAS_SHAPED_RE.test(e.name)) skipped.push(rel);
         }
       };
       yield* walk(designRoot, '');
