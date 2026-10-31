@@ -127,8 +127,15 @@ export function AriaLive() {
   const [message, setMessage] = useState('');
   const spoken = useRef('');
   const one = selected.length === 1 && selected[0]?.id ? (selected[0] as Selection) : null;
+  // r2-text-tool — the same object re-measured after a move (selection-follow.tsx) is not a new pick: speak on
+  // a new object, not on a fresh payload for the one already spoken.
+  const oneRef = useRef(one);
+  oneRef.current = one;
+  const oneKey = one ? `${one.selector}#${one.index ?? 0}` : null;
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on the object, read through the ref
   useEffect(() => {
+    const one = oneRef.current;
     if (!kb || !one || typeof document === 'undefined') {
       spoken.current = '';
       return;
@@ -143,7 +150,7 @@ export function AriaLive() {
       spoken.current = next;
     }, 0);
     return () => clearTimeout(id);
-  }, [kb, one]);
+  }, [kb, oneKey]);
 
   return (
     <>

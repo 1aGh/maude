@@ -3442,6 +3442,12 @@ export async function editArrayElementString(
 // and Cmd+Z reverts by whole-file swap through /_api/reorder-revert). Each runs
 // the same reparse gate as `applyMove`: never write source that doesn't parse.
 
+/**
+ * r2-text-tool (UX audit GD-10) — a new text's font when nothing names one: the system's body font token, the
+ * system UI sans behind it. Never the browser's default serif (a canvas with no design system inherits Times).
+ */
+export const TEXT_FONT_FALLBACK = 'var(--font-body, system-ui, -apple-system, sans-serif)';
+
 /** Kind of element the insert palette can synthesize. */
 export type InsertKind = 'div' | 'text' | 'image';
 
@@ -3449,7 +3455,8 @@ export type InsertKind = 'div' | 'text' | 'image';
  *  lands selectable + immediately styleable; `stampSynthElement` gives it its
  *  stable id (V2-2.19). */
 function synthInsertElement(kind: InsertKind, src?: string): string {
-  if (kind === 'text') return `<p style={{ margin: 0 }}>Text</p>`;
+  if (kind === 'text')
+    return `<p style={{ margin: 0, fontFamily: '${TEXT_FONT_FALLBACK}' }}>Text</p>`;
   if (kind === 'image') {
     const s = (src ?? '').trim();
     return `<img src="${escapeAttr(s)}" alt="" style={{ width: 160, height: 120, objectFit: 'cover', borderRadius: 8 }} />`;

@@ -25,12 +25,13 @@
 import MagicString from 'magic-string';
 import { parseSync } from 'oxc-parser';
 
-import { applyInsertArtboard, applySetArtboardKind } from '../canvas-edit.ts';
+import { applyInsertArtboard, applySetArtboardKind, TEXT_FONT_FALLBACK } from '../canvas-edit.ts';
 import { generateElementId, type IdElement, usedIds, walkIdElements } from '../element-ids.ts';
 import { ARTBOARD_ID_RE } from './artboard-resize.ts';
 import { inlinePosition, refuse, writeStyle } from './constraints.ts';
 import { lineIndent } from './siblings.ts';
-import type { EditOp, ElementRef, ResolvedEditOp } from './types.ts';
+import { ROLE_CLASS_RE } from './text-style.ts';
+import type { EditOp, EditOpOutput, ElementRef, ResolvedEditOp } from './types.ts';
 
 export const SHAPE_KINDS = ['frame', 'rectangle', 'ellipse', 'line', 'polygon'] as const;
 export type DrawnKind = (typeof SHAPE_KINDS)[number];
@@ -173,10 +174,37 @@ export function appendChild(
 export const SHARED_FRAME_LINE =
   'That frame is shared by several artboards, so a drawing would appear in all of them. Nothing was drawn. Detach it to draw on this artboard only.';
 
+/**
+ * r2-text-tool (UX audit U01 · D1 · A1 · GD-10) — Edit's Text (T) clicked on an artboard: a text where the pointer
+ * acted. `at` is the click in the container's own px; the text is the system's body style (`role: 't-body'`, sent
+ * only when the canvas saw that rule) or, without one, the body font token with the system UI sans behind it —
+ * never the browser's default serif.
+ */
+function textChild(req: ResolvedEditOp, id: string): string {
+  const at = req.params.at;
+  if (!isRec(at) || !num(at.x) || !num(at.y))
+    return refuse(req, 'The canvas did not say where you clicked; try again.');
+  if (Math.abs(at.x) > MAX_PX || Math.abs(at.y) > MAX_PX)
+    return refuse(req, 'That is too far from the artboard.');
+  const role = req.params.role;
+  if (role !== undefined && (typeof role !== 'string' || !ROLE_CLASS_RE.test(role)))
+    return refuse(req, 'That text style is not one of this system’s styles.');
+  const style: Style = [
+    ['position', 'absolute'],
+    ['left', px(at.x)],
+    ['top', px(at.y)],
+    ['margin', '0'],
+  ];
+  if (!role) style.push(['fontFamily', TEXT_FONT_FALLBACK]);
+  const cls = role ? ` className="${role}"` : '';
+  return `<p data-cd-id="${id}"${cls} style=${styleText(style)}>Text</p>`;
+}
+
 export const objectInsertShape: EditOp = {
   id: 'object.insert-shape',
   apply(source, req) {
     const kind = req.params.kind;
+    if (kind === 'text') return insertText(source, req);
     if (typeof kind !== 'string' || !(SHAPE_KINDS as readonly string[]).includes(kind))
       return refuse(req, 'Pick Frame, Rectangle, Ellipse, Line or Polygon.');
     const artboard = req.params.artboard;
@@ -211,6 +239,38 @@ export const objectInsertShape: EditOp = {
     return { source: out, created: [{ artboard, element: id }] };
   },
 };
+
+/** The container half of `object.insert-shape` shared by a drawing and a text: the artboard, or the frame in it. */
+function parentFor(source: string, req: ResolvedEditOp): { parent: IdElement; used: Set<string> } {
+  const artboard = req.params.artboard;
+  if (typeof artboard !== 'string' || !ARTBOARD_ID_RE.test(artboard))
+    return refuse(req, 'That artboard is not on this canvas.');
+  const walk = walkIdElements(source, req.file);
+  if (!walk.ok) return refuse(req, 'This canvas does not parse; fix it before editing.');
+  const parentRef: ElementRef | undefined = req.targets[0];
+  const parent = parentRef
+    ? walk.elements.find((e) => e.id === parentRef.element)
+    : walk.elements.find((e) => e.tag === 'DCArtboard' && e.artboard === artboard);
+  if (!parent) return refuse(req, 'That frame is not on this canvas.');
+  if (parent.artboard !== artboard) return refuse(req, SHARED_FRAME_LINE);
+  return { parent, used: usedIds(walk.elements) };
+}
+
+function insertText(source: string, req: ResolvedEditOp): EditOpOutput {
+  const artboard = req.params.artboard as string;
+  const { parent, used } = parentFor(source, req);
+  const id = generateElementId({ tag: 'p', dcElement: 'text' }, used);
+  let out = appendChild(source, parent, textChild(req, id), req);
+  const check = parseSync('text.tsx', out, { sourceType: 'module' });
+  if (check.errors?.length)
+    return refuse(req, 'That text would break the canvas; nothing was written.');
+  const parentRef: ElementRef | undefined = req.targets[0];
+  if (parentRef && req.params.relativeParent === true) {
+    const pos = inlinePosition(out, req, parentRef);
+    if (!pos || pos === 'static') out = writeStyle(out, req, parentRef, { position: 'relative' });
+  }
+  return { source: out, created: [{ artboard, element: id }] };
+}
 
 // ── a Fixed size artboard on empty canvas ─────────────────────────────────────────────────────
 

@@ -127,7 +127,9 @@ describe('canvas-edit / applyInsertElement', () => {
   test('inserts a text node BEFORE the anchor', () => {
     const id = idsOf(base).button as string;
     const out = applyInsertElement(CANVAS, base, id, 'before', 'text');
-    expect(out.source).toContain('<p data-cd-id="text" style={{ margin: 0 }}>Text</p>');
+    expect(out.source).toContain(
+      `<p data-cd-id="text" style={{ margin: 0, fontFamily: 'var(--font-body, system-ui, -apple-system, sans-serif)' }}>Text</p>`
+    );
     // Order: the <p> precedes the <button> in source.
     expect(out.source.indexOf('<p ')).toBeLessThan(out.source.indexOf('<button'));
     expect(parses(out.source)).toBe(true);
@@ -185,7 +187,9 @@ describe('canvas-edit / applyInsertElementIntoArtboard (empty-artboard fallback)
 
   test('inside-start lands the new element right after the opening tag', () => {
     const out = applyInsertElementIntoArtboard(CANVAS, emptyCanvas, 'home', 'inside-start', 'text');
-    expect(out.source).toContain('<p data-cd-id="text" style={{ margin: 0 }}>Text</p>');
+    expect(out.source).toContain(
+      `<p data-cd-id="text" style={{ margin: 0, fontFamily: 'var(--font-body, system-ui, -apple-system, sans-serif)' }}>Text</p>`
+    );
     expect(parses(out.source)).toBe(true);
   });
 

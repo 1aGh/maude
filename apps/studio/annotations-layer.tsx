@@ -305,6 +305,7 @@ import {
 import { buildAnnotationOpsRecord } from './commands/annotation-ops-command.ts';
 import { ensureMenuStyles as ensureCtxMenuStyles } from './context-menu.tsx';
 import { clickToType } from './editing/click-to-type.ts';
+import { selectWhenRendered as selectElementsWhenRendered } from './editing/object-actions.ts';
 import { runEditOp } from './editing/edit-op.ts';
 import { crossedDragThreshold, postModeRequest, type Tool } from './input-router.tsx';
 import { createMediaCommitChain, type MediaCommitResult } from './media-commit-chain.ts';
@@ -2535,7 +2536,13 @@ export function AnnotationsLayer() {
       } else if (tool === 'el-text') {
         // S2.12b — Edit's Text is click to type: editable text under the click types in place, a
         // click on nothing adds a text element (the toolbar insert verb), never an annotation.
-        const how = clickToType(document, findEditableElementAt(e.clientX, e.clientY), e);
+        // r2-text-tool — nothing under it: a text at the pointer, selected and open for typing.
+        const how = clickToType(document, findEditableElementAt(e.clientX, e.clientY), e, {
+          toast: (m) => showCanvasToast(m),
+          record: (rec) => undoStackRef.current?.record(rec),
+          select: (refs) =>
+            elementSel && selectElementsWhenRendered(refs, (s) => elementSel.replace(s)),
+        });
         if (how === 'code')
           showCanvasToast(
             'This text is filled in from code (a variable) — edit it via chat or /design:edit.'
