@@ -21,7 +21,10 @@ import { createHomeFetch } from '../home/routes.ts';
 import { freshIndexDir, homeDeps, homeReq } from './_home-fixtures.ts';
 
 const HOME = realpathSync(mkdtempSync(join(tmpdir(), 'maude-r1-home-')));
-const OUTSIDE = realpathSync(mkdtempSync(join(tmpdir(), 'maude-r1-outside-')));
+// Never under /Volumes: an attached drive is an allowed location, and the Mac mini lane's TMPDIR lives on one
+const OUTSIDE = realpathSync(
+  mkdtempSync(join(process.platform === 'darwin' ? '/private/tmp' : tmpdir(), 'maude-r1-outside-'))
+);
 mkdirSync(join(HOME, 'Clients'));
 mkdirSync(join(HOME, '.config'));
 mkdirSync(join(HOME, 'Library', 'Application Support'), { recursive: true });
