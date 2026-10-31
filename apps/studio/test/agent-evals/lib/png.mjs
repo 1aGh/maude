@@ -78,3 +78,11 @@ export function pngStats(path) {
     colours: counts.size,
   };
 }
+
+/** → [r, g, b] of the pixel at (x, y) — for "is the right thing at this spot" checks on a capture. */
+export function pngPixel(path, x, y) {
+  const { w, h, bpp, px } = decode(readFileSync(path));
+  if (x < 0 || y < 0 || x >= w || y >= h) throw new Error(`pixel ${x},${y} outside ${w}×${h}`);
+  const o = (y * w + x) * bpp;
+  return [px[o], px[o + 1], px[o + 2]];
+}

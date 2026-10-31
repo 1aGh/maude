@@ -18,6 +18,8 @@ import { join } from 'node:path';
 import type { Subprocess } from 'bun';
 
 import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
+// @ts-expect-error — a dependency-free .mjs helper without a declaration file
+import { pngPixel } from './agent-evals/lib/png.mjs';
 
 const W = 400;
 const H = 300;
@@ -221,6 +223,18 @@ describe('a fixed artboard is its declared size', () => {
     expect(new TextDecoder().decode(r.stderr)).not.toContain('Error');
     expect(r.exitCode).toBe(0);
     expect(pngSize(file)).toEqual({ w: W + 2, h: H + 2 });
+    // r2-export-size-race — the PNG shows the artboard at 1:1, not the whole canvas re-fitted into the
+    // artboard-sized viewport. The shim zeroes the world's zoom and then shrinks the viewport to the
+    // artboard; the runtime's boot-fit-follows-the-host re-fit (p8-edit-multi-flake) used to answer that
+    // resize by re-fitting the camera behind the capture's back — every time into the pixels (the frame the
+    // screenshot forces runs the ResizeObserver), and on a loaded machine before the clip was measured, so
+    // the file itself came out a fraction of the size (107×81 on the mini).
+    const near = (got: number[], want: number[]) =>
+      got.every((v, i) => Math.abs(v - (want[i] ?? 0)) <= 4);
+    const centre = pngPixel(file, Math.floor((W + 2) / 2), Math.floor((H + 2) / 2));
+    const foot = pngPixel(file, Math.floor((W + 2) / 2), H - 9);
+    expect({ centre, ok: near(centre, [0x13, 0x20, 0x38]) }).toEqual({ centre, ok: true });
+    expect({ foot, ok: near(foot, [0xff, 0x00, 0xff]) }).toEqual({ foot, ok: true });
   }, 120_000);
 
   test('the geometry manifest (canvas-rects, annotation toolkit) reports the design surface', async () => {
