@@ -8,6 +8,7 @@
 import { useEffect, useRef } from 'react';
 import { acceptFromCanvas } from '../../../bridge/dgn-protocol.ts';
 import { pushRecent } from '../../../kinds/presets.ts';
+import { OPEN_SIZES_EVENT, takeSizePicker } from '../create/open-sizes.js';
 import { SYSTEM_TAB } from '../../shell/constants.js';
 import { persistUiPrefs } from '../../shell/util.js';
 import { useShellStore } from '../../stores/shell-store.jsx';
@@ -29,12 +30,24 @@ export async function rememberSize(presetId, { fetchImpl = fetch, persist = pers
   return next;
 }
 
-export default function SizePickerHost({ req, onClose }) {
+export default function SizePickerHost({ req, onOpen, onClose }) {
   const {
     shellCore: { activePath, cfg, iframesRef, viewerMode, postToActiveCanvas },
   } = useShellStore();
   const live = useRef({});
   live.current = { activePath, cfg, iframesRef };
+
+  // R2-P2 (TD2): a canvas the person has just made opens with this picker up (open-sizes.js). The request waits
+  // for its canvas to be the open one; the picker is then drawn centred (no toolbar anchor yet).
+  useEffect(() => {
+    const take = () => {
+      const canvas = takeSizePicker(live.current.activePath);
+      if (canvas) onOpen?.({ canvas, anchor: null });
+    };
+    take();
+    window.addEventListener(OPEN_SIZES_EVENT, take);
+    return () => window.removeEventListener(OPEN_SIZES_EVENT, take);
+  }, [onOpen, activePath]);
 
   useEffect(() => {
     const onMessage = (e) => {

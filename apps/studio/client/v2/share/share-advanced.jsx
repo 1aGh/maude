@@ -3,10 +3,12 @@
 //
 //   This link          Who can open · Role · Expires        ← the owner, where the hub has links
 //                      New people join as                   ← the Invite row's default (S9.20b)
-//   Other ways in      App link · This Mac only (· Web link)
+//   Other ways in      Web link · App link (a linked project)
 //                      Invite by GitHub username            ← the desktop (takes over project.share-github)
-//   Where it syncs     Hub <address> · Last synced <when> · "Sync details live in Menu › Diagnostics › Sync."
+//   Where it syncs     Hub <name> · Address · Last synced <when> · "Sync details live in Menu › Diagnostics › Sync."
 //   The roles          side by side (cloud) — or the roles THIS hub holds (self-hosted)
+//   On this Mac only   This Mac only (127.0.0.1) — and, for a project that is not linked, the App link too.
+//                      LAST (P5/F07): addresses that work only here never lead the fold.
 //
 // What is drawn comes from `advancedView` (share-model.js), i.e. from what the server reports.
 // Every change is the server's to allow: a rule change is `PATCH /_api/share/links/:id`, which
@@ -234,6 +236,11 @@ export function ShareAdvanced({
     if (focus && !open) setOpen(true);
   }, [focus, open, setOpen]);
   const kinds = LINK_KINDS.filter(([kind]) => links?.[kind]);
+  // F07 — an address that works only on this Mac never leads: a linked project's web + app links are "Other ways
+  // in"; the loopback address (and, unlinked, the app link) go last under their own heading.
+  const onlyHere = ([kind]) => kind === 'local' || (adv.thisMacLast && kind === 'app');
+  const shareable = kinds.filter((k) => !onlyHere(k));
+  const hereOnly = kinds.filter(onlyHere);
   return (
     <AdvancedFold
       panel="share"
@@ -294,8 +301,8 @@ export function ShareAdvanced({
         </section>
       )}
 
-      {(kinds.length > 0 || adv.github) && <p className="v2sh-sub">Other ways in</p>}
-      {kinds.map(([kind, label]) => (
+      {(shareable.length > 0 || adv.github) && <p className="v2sh-sub">Other ways in</p>}
+      {shareable.map(([kind, label]) => (
         <CopyRow
           key={kind}
           id={`share-${kind}-url`}
@@ -316,9 +323,17 @@ export function ShareAdvanced({
       {adv.syncs && (
         <section className="v2sh-adv" data-testid="share-syncs">
           <p className="v2sh-sub">Where it syncs</p>
+          {adv.syncsName && (
+            <div className="v2sh-arow v2sh-arow--row">
+              <span className="v2sh-arow-k">Hub</span>
+              <span className="v2sh-arow-v v2sh-val-text" data-testid="share-syncs-name">
+                {adv.syncsName}
+              </span>
+            </div>
+          )}
           <CopyRow
             id="share-syncs-hub"
-            label="Hub"
+            label="Address"
             value={adv.syncs}
             testid="share-syncs-hub"
             copyTestid="share-copy-hub"
@@ -367,6 +382,28 @@ export function ShareAdvanced({
           <p className="v2sh-hint">
             People you invite get an account on this hub — the e-mail tells them where to sign in.
           </p>
+        </section>
+      )}
+      {hereOnly.length > 0 && (
+        <section className="v2sh-adv" data-testid="share-this-mac-only">
+          <p className="v2sh-sub">On this Mac only</p>
+          {hereOnly.map(([kind, label]) => (
+            <CopyRow
+              key={kind}
+              id={`share-${kind}-url`}
+              label={label}
+              value={links[kind]}
+              testid={`share-${kind}-url`}
+              copyTestid={`share-copy-${kind}`}
+            >
+              {kind === 'app' && shell !== 'native' && (
+                <a className="v2sh-hint" href={links.app} data-testid="share-open-app">
+                  Open in the Mac app
+                </a>
+              )}
+            </CopyRow>
+          ))}
+          <p className="v2sh-hint">These addresses open only on this Mac.</p>
         </section>
       )}
     </AdvancedFold>

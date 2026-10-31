@@ -37,7 +37,25 @@ export function Shelf({ title, where, aside, testid, children }) {
 }
 
 /** "Your projects" with nothing on it: cloud (signed in) or this Mac (not). */
-export function ProjectsEmpty({ signedIn, native, onOpenFolder }) {
+/** R2-P2 (F11): the visible door to a new project — the same sheet as File ▸ New project… (⇧⌘N). */
+export function NewProjectButton({ native, onNewProject }) {
+  return (
+    <button
+      type="button"
+      className="btn btn--ghost btn--sm home-projopen"
+      data-testid="home-new-project"
+      onClick={onNewProject}
+      disabled={!native}
+      {...reasonProps(!native, 'homeBrowser')}
+    >
+      <HIcon name="plus" size={14} />
+      New project
+      <kbd className="kbd">⇧⌘N</kbd>
+    </button>
+  );
+}
+
+export function ProjectsEmpty({ signedIn, native, onOpenFolder, onNewProject }) {
   const id = signedIn ? 'es-home-cloud' : 'es-home-local';
   return (
     <Shelf
@@ -56,20 +74,23 @@ export function ProjectsEmpty({ signedIn, native, onOpenFolder }) {
           align="left"
           copyId={`${id}.projects-none`}
           actions={
-            signedIn ? null : (
-              <button
-                type="button"
-                className="btn btn--ghost btn--sm"
-                data-testid="home-open-folder"
-                onClick={onOpenFolder}
-                disabled={!native}
-                {...reasonProps(!native, 'homeBrowser')}
-              >
-                <HIcon name="folder" size={14} />
-                Open project…
-                <kbd className="kbd">⌘O</kbd>
-              </button>
-            )
+            <>
+              <NewProjectButton native={native} onNewProject={onNewProject} />
+              {signedIn ? null : (
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm"
+                  data-testid="home-open-folder"
+                  onClick={onOpenFolder}
+                  disabled={!native}
+                  {...reasonProps(!native, 'homeBrowser')}
+                >
+                  <HIcon name="folder" size={14} />
+                  Open project…
+                  <kbd className="kbd">⌘O</kbd>
+                </button>
+              )}
+            </>
           }
         />
       </div>

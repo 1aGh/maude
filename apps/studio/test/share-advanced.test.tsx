@@ -294,6 +294,25 @@ describe('the link and its rules (co-share-advanced)', () => {
     expect(q('share-other-ways')?.textContent).not.toContain('Opens the folder on this Mac only.');
   });
 
+  test('P5 F07: addresses that work only on this Mac come last, under their own heading', async () => {
+    const { q } = await mount({ posture: ROLES_V2 });
+    await openAdvanced(q);
+    const here = q('share-this-mac-only');
+    expect(here).not.toBeNull();
+    expect(here?.textContent).toContain('On this Mac only');
+    expect(here?.querySelector('[data-testid="share-local-url"]')).not.toBeNull();
+    // the web link stays under Other ways in, and the loopback section follows everything else
+    expect(here?.querySelector('[data-testid="share-web-url"]')).toBeNull();
+    const fold = q('share-other-ways');
+    const order = [...(fold?.querySelectorAll('[data-testid]') ?? [])].map((e) =>
+      e.getAttribute('data-testid')
+    );
+    expect(order.indexOf('share-web-url')).toBeGreaterThan(-1);
+    expect(order.indexOf('share-web-url')).toBeLessThan(order.indexOf('share-local-url'));
+    expect(order.indexOf('share-syncs-hub')).toBeLessThan(order.indexOf('share-local-url'));
+    expect(q('share-syncs-name')?.textContent).not.toBe('');
+  });
+
   test('someone who may not invite: no rules, and Copy link copies the location only', async () => {
     const { q, calls } = await mount({ posture: ROLES_V2, me: MEMBER_ME });
     await openAdvanced(q);
@@ -368,18 +387,18 @@ describe('local → cloud (ob-local-share · ob-local-moved · co-local-cloud)',
       postures: [{ linked: false }, ROLES_V2],
       moves: [{ state: 'ready', project: 'p' }],
     });
-    expect(q('share-move')?.textContent).toContain('Move “Alligators brand” to the cloud?');
-    expect(q('share-move')?.textContent).toContain('Only need a file? Menu › Export…');
+    expect(q('share-move')?.textContent).toContain('Move “Alligators brand” to Maude Cloud?');
+    expect(q('share-move')?.textContent).toContain('Only need a file? Export a PNG or PDF to send');
     expect(q('share-invite-email')).toBeNull();
     await click(q('share-move-confirm'));
     expect(calls.filter((c) => c[0] === 'moveToCloud')).toHaveLength(1);
     expect(q('share-move')).toBeNull();
-    expect(q('share-moved')?.textContent).toContain('Setting up the cloud project');
+    expect(q('share-moved')?.textContent).toContain('Setting up your Maude Cloud project');
     await tick(1600);
     await tick();
     expect(calls.filter((c) => c[0] === 'moveState')).toHaveLength(1);
     expect(q('share-moved')?.textContent).toBe(
-      'Moved to the cloud — your canvases are going up now.'
+      'Moved to Maude Cloud — your canvases are going up now.'
     );
     expect(q('share-invite-email')).not.toBeNull();
   });
@@ -411,6 +430,8 @@ describe('local → cloud (ob-local-share · ob-local-moved · co-local-cloud)',
     const b = await mount({ posture: { linked: false } }, { shell: 'local' });
     expect(b.q('share-move')).toBeNull();
     expect(b.q('share-local-note')?.textContent).toContain('Local project — kept on this Mac.');
+    expect(b.q('share-export-instead')).not.toBeNull();
+    expect(b.q('share-local-note')?.textContent).toContain('Maude Cloud');
   });
 });
 
@@ -436,9 +457,9 @@ describe('Settings › General › Account (ob-settings)', () => {
         plan: { state: 'trialing', daysLeft: 12 },
       },
     });
-    expect(q('settings-account-state')?.textContent).toBe('Signed in to cloud.maude.sh');
+    expect(q('settings-account-state')?.textContent).toBe('Signed in to Maude Cloud');
     expect(q('settings-account-plan')?.textContent).toBe('Free trial · 12 days left');
-    expect(q('settings-open-dashboard')?.textContent).toBe('Manage on cloud.maude.sh');
+    expect(q('settings-open-dashboard')?.textContent).toBe('Manage on Maude Cloud');
     const links = [...(q('settings-account-links')?.querySelectorAll('button') ?? [])];
     expect(links.map((b) => b.textContent?.replace('↗', ''))).toEqual([
       'People and invites',

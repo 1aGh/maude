@@ -70,6 +70,7 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 | Allow longer videos | `video.allow-longer` | `canvas-meta` | artboardMeta.<id>.maxFrames: an integer up to 18000 in the canvas .meta.json (3600 without it) | `design:video-comp` |
 | Apply to every use… | `photo.apply-every-use` | `canvas-tsx` | Write the edit as assets/<img8>.photo.json (every use, a v1 PhotoEdit), then remove data-photo-edit from every <img> / <image> / tiled picture whose src is assets/<img8>.<ext> in every canvas (`maude design assets --usage assets/<img8>.<ext>` lists them), only when you may change every one of those canvases. Over HTTP: GET /_api/photo-every-use?asset=assets/<img8>.<ext> names the canvases ({uses, canApply, reason?}); POST /_api/photo-every-use {asset, edit} answers {path, canvases: [{canvas, ok}]} | `design:design` |
 | Arrow | `tool.arrow` | `annotations` | Add an arrow element (with binds) to the .annotations.json | `design:whiteboard` |
+| Artboard / Frame | `tool.frame` | `canvas-tsx` | Add a frame (a <div> with position: "absolute", left / top / width / height in px, background: "var(--bg-1)") to the artboard or the frame in the canvas .tsx; on empty canvas add a <DCArtboard kind="digital" fixed> with its place in layout.artboards[] — see canvas-tsx.md § Draw a frame or a shape | `design:design` |
 | Ask AI for a new canvas… | `home.ask` | `canvas-tsx` | The canvas exists when Home asks (the server made it from the sentence); otherwise create it with `maude design curl-local http://127.0.0.1:<port>/_api/canvas --method POST --header "Content-Type: application/json" --data '{"kind":"blank"}'` (the answer's rel is the file). Then Edit it: add every artboard empty with kind and size first, then fill big before small, words last (SKILL.md § A first draft from Home) | `design:design` |
 | Assemble clips into a video | `video.assemble` | `edl` | Write the <slug>.edl.json cut, then the comp | `design:footage-director` |
 | Bring forward | `annotation.forward` | `annotations` | Move the elements one step later in the element order | `design:whiteboard` |
@@ -117,7 +118,6 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 | Fix a caption word | `video.captions.fix-word` | `canvas-tsx` | Add { src, at, text } to <Captions fixes> as a JSON literal (text null hides the word) | `design:video-comp` |
 | Fix what to check | `warning.fix` | `canvas-tsx` | Make the edit the warning’s verb names: Move inside (translate the layer inside the safe margin), Allow longer (artboardMeta.<id>.maxFrames up to 18000 in the .meta.json), Fix size (width/height = paper + 2 × bleed in px), Fit to width (max-width: 100% on the layer), Replace… (a larger picture), Show (nothing to write) — see canvas-tsx.md § Change an artboard’s kind, and the warnings; GET /_api/kinds/warnings?canvas= lists them | `design:design` |
 | Fold section | `annotation.fold` | `annotations` | Set the section’s folded to true; remove it to unfold | `design:whiteboard` |
-| Frame | `tool.frame` | `canvas-tsx` | Add a frame (a <div> with position: "absolute", left / top / width / height in px, background: "var(--bg-1)") to the artboard or the frame in the canvas .tsx; on empty canvas add a <DCArtboard kind="digital" fixed> with its place in layout.artboards[] — see canvas-tsx.md § Draw a frame or a shape | `design:design` |
 | Frame selection | `object.frame` | `canvas-tsx` | Wrap the elements in a <div data-cd-id="frame" style={{display:"flex",flexDirection:"column"}}> at the first one; every element keeps its data-cd-id | `design:design` |
 | Group | `annotation.group` | `annotations` | Set a shared group id on the elements | `design:whiteboard` |
 | Hand off tokens | `ds.handoff-tokens` | `tokens` | the handoff of tokens IS system/<ds>/tokens.json (design tokens, both modes) and colors_and_type.css: read them, or run maude design ds-check <ds> --emit to regenerate tokens.json first | `design:design-system` |
@@ -158,7 +158,7 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 | New artboard: Mobile | `artboard.new-mobile` | `canvas-tsx` | Add a DCArtboard sized 390×844 | `design:design` |
 | New artboard: Tablet | `artboard.new-tablet` | `canvas-tsx` | Add a DCArtboard sized 834×1194 | `design:design` |
 | New artboard: Video | `artboard.new-video` | `canvas-tsx` | Add <DCArtboard kind="video" width={1920} height={1080}> with a <VideoComp component={…} durationInFrames={150} fps={30} width={1920} height={1080} /> inside and the comp function — see canvas-tsx.md § Add an artboard of a kind | `design:design` |
-| New brief | `canvas.new-brief` | `canvas-tsx` | Create it with `maude design curl-local http://127.0.0.1:<port>/_api/canvas --method POST --header "Content-Type: application/json" --data '{"kind":"brief-board","name":"<name>"}'` (port: .design/_server.json; the answer's rel is the file), then Edit that brief .tsx | `design:design` |
+| New brief canvas | `canvas.new-brief` | `canvas-tsx` | Create it with `maude design curl-local http://127.0.0.1:<port>/_api/canvas --method POST --header "Content-Type: application/json" --data '{"kind":"brief-board","name":"<name>"}'` (port: .design/_server.json; the answer's rel is the file), then Edit that brief .tsx | `design:design` |
 | New canvas | `canvas.new` | `canvas-tsx` | Create it with `maude design curl-local http://127.0.0.1:<port>/_api/canvas --method POST --header "Content-Type: application/json" --data '{"kind":"blank","name":"<name>"}'` (port: .design/_server.json; the answer's rel is the file), then Edit that .tsx: a DCArtboard per screen | `design:design` |
 | New video | `canvas.new-video` | `canvas-tsx` | Create it with `maude design curl-local http://127.0.0.1:<port>/_api/canvas --method POST --header "Content-Type: application/json" --data '{"kind":"video-comp","name":"<name>","clips":[]}'` (port: .design/_server.json; the answer's rel is the file), then Edit that video-comp .tsx | `design:video-comp` |
 | Nudge | `annotation.nudge` | `annotations` | Change the elements’ x / y | `design:whiteboard` |
@@ -245,6 +245,7 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 | AI setup | `diag.ai` | `maude doctor` | auto |
 | Ask AI about this | `annotation.ask-ai` | `maude design read-annotations` | auto |
 | Ask AI to fix it | `canvas.ask-ai-fix` | `maude design canvas-errors` | auto |
+| Ask AI to generate… | `ai.generate` | `maude design generate` | prompt |
 | Assets | `view.assets` | `maude design asset-sweep` | auto |
 | Back | `preview.back` | `maude design open <canvas> --mode preview` | auto |
 | Blank section template | `annotation.template-blank` | `maude design annotate <canvas> --board blank` | auto |
@@ -294,7 +295,6 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 | Flowchart template | `annotation.template-flow` | `maude design annotate <canvas> --board flow` | auto |
 | Generate an image… | `assets.generate` | `maude design generate` | prompt |
 | Generate this clip | `timeline.clip-menu.generate` | `maude design generate` | prompt |
-| Generate with AI… | `ai.generate` | `maude design generate` | prompt |
 | Go back to the last good version | `history.go-back` | `maude design history restore <canvas> @last-good` | prompt |
 | Go inside | `object.enter` | `maude design open <canvas>@<element>` | auto |
 | Go to | `presence.go-to` | `maude design open <canvas>#<artboard>` | auto |
@@ -482,7 +482,7 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 | Minimap | `view.minimap` | view-pref |
 | Model | `chat.advanced.model` | ai-chat |
 | Move between the panels and the canvas | `ui.cycle-region` | view-pref — where the keyboard is in the window |
-| Move to cloud… | `share.move-to-cloud` | billing — moves the project to the person’s billed Maude Cloud account |
+| Move to Maude Cloud… | `share.move-to-cloud` | billing — moves the project to the person’s billed Maude Cloud account |
 | Move to trash | `chat.trash` | ai-chat |
 | New branch… | `history.new-branch` | git — an agent runs git itself in the project folder: git switch -c <branch> |
 | New chat | `chat.new` | ai-chat |
@@ -551,7 +551,7 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 | Show tags and ids | `layers.show-tags` | view-pref — tag and id after each layer’s name, in the person’s own view |
 | Sign in again | `sync.sign-in-again` | hub-link — signing in to the cloud is the person’s own credential |
 | Sign in as another account… | `account.switch` | native-window — the desktop app’s profiles; an agent never picks an account |
-| Sign in to cloud.maude.sh | `home.signin` | accounts — opens the person’s browser on cloud.maude.sh; the credential reaches the Home server, never a page or an agent |
+| Sign in to Maude Cloud | `home.signin` | accounts — opens the person’s browser on cloud.maude.sh; the credential reaches the Home server, never a page or an agent |
 | Sort canvases | `canvases.sort` | view-pref — the order the Canvases panel lists in; `maude design index` lists them all |
 | Start a vote… | `annotations.start-vote` | vote — the result section is in the annotations when it ends: `maude design read-annotations` |
 | Step a frame | `timeline.step` | view-pref — playback |

@@ -105,6 +105,7 @@ import {
 } from './editing/reorder-slot.tsx';
 import { isLockedDom, lockedClickSelection, stepOut } from './editing/selection.tsx';
 import { commitTextInPlace, lockedTextLine, textOpDeps } from './editing/text-actions.ts';
+import { worldMenuSections } from './editing/world-menu.ts';
 import { EqualSpacingHandles } from './equal-spacing-handles.tsx';
 import {
   crossedDragThreshold,
@@ -1545,16 +1546,17 @@ function buildRegistry(deps: {
     openCommentComposer(sel, target.clientX, target.clientY);
   };
 
+  // P5 (F17) — the View menu's words and keys: view.zoom-fit "Zoom to fit ⌘0", view.zoom-actual "Actual size ⇧0".
   const fitItem: MenuItem = {
     id: 'fit-view',
-    label: 'Fit to view',
-    shortcut: '1',
+    label: 'Zoom to fit',
+    shortcut: '⌘0',
     onSelect: () => controller?.fit(),
   };
   const resetItem: MenuItem = {
     id: 'reset-view',
-    label: 'Reset view',
-    shortcut: '⌘0',
+    label: 'Actual size',
+    shortcut: '⇧0',
     onSelect: () => controller?.reset(),
   };
 
@@ -1562,19 +1564,21 @@ function buildRegistry(deps: {
   // event the dialog provider listens for; this avoids prop-drilling the
   // dialog handle through every menu callback. The scope arg prefills the
   // dialog's scope dropdown so the user lands on the right resolution.
+  const openExportSheet = (scope?: string): void => {
+    try {
+      // S8.2 — the iframe's own export dialog is gone: the entry names a scope (none: the shell picks it from
+      // the selection, the current canvas when nothing is selected) and the shell's one Export sheet opens
+      // (the shell re-checks the frame before it acts, use-canvas-bridge).
+      window.parent.postMessage({ dgn: 'open-export', detail: scope ? { scope } : {} }, '*');
+    } catch {
+      /* non-window environments */
+    }
+  };
   const exportItem = (id: string, label: string, scope: string, shortcut?: string): MenuItem => ({
     id,
     label,
     shortcut,
-    onSelect: () => {
-      try {
-        // S8.2 — the iframe's own export dialog is gone: the entry names a scope and the shell's one
-        // Export sheet opens (the shell re-checks the frame before it acts, use-canvas-bridge).
-        window.parent.postMessage({ dgn: 'open-export', detail: { scope } }, '*');
-      } catch {
-        /* non-window environments */
-      }
-    },
+    onSelect: () => openExportSheet(scope),
   });
 
   // Per-artboard theme PIN, keyed by the stable `data-dc-screen` id
@@ -2438,24 +2442,14 @@ function buildRegistry(deps: {
       ],
       [exportItem('export-artboard', 'Export this artboard…', 'artboard')],
     ],
-    world: [
-      // issue-90 — right-click on empty canvas background (no artboard, no
-      // element) had no "Add comment" entry at all. Anchors at the click
-      // point, same as the comment tool's own floating-pin fallback.
-      [
-        {
-          id: 'add-comment',
-          label: 'Add comment',
-          shortcut: 'C',
-          onSelect: postComposeForTarget,
-        },
-      ],
-      [fitItem, resetItem],
-      [
-        exportItem('export-canvas', 'Export canvas as separate…', 'canvas-as-separate'),
-        exportItem('export-project', 'Export project (ZIP)…', 'project-raw'),
-      ],
-    ],
+    // P5 (F17) — Add comment · Paste · Zoom to fit · Actual size · Export… (editing/world-menu.ts)
+    world: worldMenuSections({
+      addComment: postComposeForTarget,
+      fit: () => controller?.fit(),
+      actualSize: () => controller?.reset(),
+      paste: deps.artboardMenu.paste,
+      openExport: () => openExportSheet(),
+    }),
     overlay: [],
   };
   // S2.6 — the v1 element rows above, laid out as the v2 object menu (editing/object-menu.tsx)

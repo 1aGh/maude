@@ -29,6 +29,8 @@ The two tables below are the contract, verbatim. Say the left column; the middle
 | Version history | Changes, commits, history log | saved versions with Restore |
 | Hide panels / Show panels | fold, tuck, collapse (in UI copy) | ⌘\. "Fold into its icon" is how the DS describes the motion |
 | Share | publish, invite (as the button) | the one Share button; "Invite people" lives inside the sheet |
+| Maude Cloud | cloud.maude.sh (as the name), the cloud, a cloud project, cloud (as a noun) | the hosted service, in every sentence ("Move to Maude Cloud…", "Sign in to Maude Cloud", "your Maude Cloud project"). The address `cloud.maude.sh` appears only where a person reads or types an address. A self-hosted hub shows its own name (its host), never "Maude Cloud" [TD8, P5] |
+| Zoom to fit ⌘0 · Actual size ⇧0 | Fit to view, Reset view, Fit (alone) | the same two words and keys in View, ⌘K, the zoom pill and the empty-canvas menu [TD6, P5] |
 | Advanced | Pro, Expert, More settings | the disclosure at the foot of a panel |
 | Diagnostics | Debug, Status, Developer | the Menu submenu |
 | Stickers | Stamps (as the tool) | the E tool and its gallery [C12]. "Stamp" in copy means only a **vote stamp**; the internal id may stay `stamp` |
@@ -37,6 +39,7 @@ The two tables below are the contract, verbatim. Say the left column; the middle
 | Untitled canvas | New canvas 1, Canvas | a new canvas's name (+ " 2", " 3") [C4]; Home names it from the prompt with a non-AI heuristic, offline create too |
 | Your Figma account can't open this file. Ask its owner to share it with you, then paste the link again. | Figma doesn't have that file, or this token can't read it. | the Figma import's `not_found` (ia-edges G, Michal 2026-10-29); nothing imports until it opens, and the link stays in the sheet |
 | View only | Read only, Locked, Read-only mode | a project this build does not edit — its file format is older or newer [A17]. Distinct from *Can view* (a people permission) |
+| Inspector paint: section **Fill**, row **Background** (artboard, frame, button, instance) · **Fill** (shape, path) · **Colour** (text) | "Fill" as the row on a box or a text; "Background" for a shape | the one paint section keeps the title *Fill* on every kind; the row says what the colour is *of* (decision `v2-michal-ux-audit-td-decisions` TD7 O3a). Size "Fill" and image Fit "Fill" are other controls and keep their word |
 
 ## 4 · Voice rules
 

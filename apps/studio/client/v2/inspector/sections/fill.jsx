@@ -10,14 +10,18 @@ import {
   fillFromCss,
   fillToCss,
   imageUrlOk,
+  paintFromCss,
+  paintToCss,
   reduceMixed,
 } from '../../../../edit-ops/words-paint.ts';
+import { fillSlotFor, slotCss, slotPaint } from '../../../../edit-ops/slot-defaults.ts';
 import { useCssWrite } from '../css-write.js';
 import { BOXY_KINDS } from './size.jsx';
 import { targetOf } from '../kinds/multi.jsx';
 import { registerSlot } from '../slots.js';
 import { useDsFamilies } from '../token-chip.jsx';
 import { ColorControl } from './color-control.jsx';
+import { useRecentColours } from './recent-colours.js';
 import { Quiet, Row } from './row.jsx';
 
 /* The "+" in the header opens the add row for the selected element; one at a time, forgotten on a new selection. */
@@ -72,20 +76,23 @@ export function FillBody({ el, selection, kind, ctx }) {
   const fill = red.mixed ? null : red.value;
   const set = (next) => editable && write(fillToCss(next));
 
-  const colour = (i) => ({
-    paint: fam.color[i] ? { token: fam.color[i] } : { css: 'currentColor' },
-    opacity: 100,
-  });
+  // P6 T3 (IR-11, TD3): "+" starts from the slot's role token with a literal fallback — a shape's Fill is `--bg-3`,
+  // a box's Background `--bg-1`, a gradient runs to `--bg-0` — never `currentColor` (which painted in the panel's own
+  // grey and read as code). With no system, the last colour used in this project comes first.
+  const slot = fillSlotFor(kind);
+  const recent = useRecentColours(ctx);
+  const startPaint = () =>
+    !fam.hasSystem && recent[0] ? paintFromCss(recent[0]) : slotPaint(slot);
   const base = fill ?? { color: null, layers: [] };
 
   const addColour = () => {
     setAdding(null);
-    set({ ...base, color: base.color ?? colour(0) });
+    set({ ...base, color: base.color ?? { paint: startPaint(), opacity: 100 } });
   };
   const addGradient = () => {
     setAdding(null);
-    const a = fam.color[0] ? `var(${fam.color[0]})` : 'currentColor';
-    const b = fam.color[1] ? `var(${fam.color[1]})` : fam.color[0] ? a : 'transparent';
+    const a = base.color ? paintToCss(base.color.paint) : slotCss(slot);
+    const b = slotCss('gradientEnd');
     set({
       ...base,
       layers: [{ kind: 'gradient', css: `linear-gradient(180deg, ${a}, ${b})` }, ...base.layers],
@@ -106,10 +113,15 @@ export function FillBody({ el, selection, kind, ctx }) {
         <ColorControl
           name="fill"
           label="Fill"
+          ctx={ctx}
+          resolved={el?.computed?.color}
+          inheritedWord="Text colour"
           value={fill?.color ?? null}
           mixed={red.mixed ? red.values.map((f) => f.color) : null}
           colors={fam.color}
           vals={fam.vals}
+          themes={fam.themes}
+          slotGroup="surfaces"
           allowNone
           showOpacity
           disabled={!editable}

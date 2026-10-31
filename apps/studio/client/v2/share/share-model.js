@@ -13,6 +13,7 @@
 //     non-owner gets no e-mail and no pending invitation, so there is nothing to hide here.
 
 import { toneFor, YOU_TONE } from '../../../presence/tones.ts';
+import { hubName } from '../cloud/cloud-name.js';
 
 /** V2-1.7 §5.1 — the UI words for the wire ids (ids are never shown), strongest first. */
 export const ROLE_WORDS = Object.freeze({
@@ -355,6 +356,10 @@ export function advancedView({ view, shell, hubUrl } = {}) {
     rules: linked && view.reachable && !!view.showLinkRow && !!view.canInvite,
     github: shell === 'native',
     syncs: linked && typeof hubUrl === 'string' && hubUrl ? hubUrl : null,
+    // TD8: the hub in words — "Maude Cloud" for ours, its own host for a self-hosted one
+    syncsName: linked && typeof hubUrl === 'string' && hubUrl ? hubName(hubUrl) : null,
+    // F07: an unlinked project's addresses open only on this Mac — they go last, under their own heading
+    thisMacLast: !linked,
     matrix: linked && !selfHosted ? ROLE_ORDER.filter((r) => roles.includes(r)) : null,
     hubRoles: selfHosted
       ? {
@@ -362,7 +367,11 @@ export function advancedView({ view, shell, hubUrl } = {}) {
           missing: ['viewer', 'observer'].filter((r) => !roles.includes(r)).map(roleWord),
         }
       : null,
-    hint: selfHosted ? 'Other ways in, sync, roles' : 'Links, link rules, sync',
+    hint: !linked
+      ? 'Addresses that open on this Mac'
+      : selfHosted
+        ? 'Other ways in, sync, roles'
+        : 'Links, link rules, sync',
   };
 }
 
@@ -378,17 +387,17 @@ export function takeShareFocus() {
   return f;
 }
 
-/** The words a Move to cloud answer is shown with (S6-S9 §5.5), or null for "it is moving". */
+/** The words a Move to Maude Cloud answer is shown with (S6-S9 §5.5), or null for "it is moving". */
 export function moveWords(status, body) {
   if (status === 200 && body?.ok) return null;
   if (status === 401)
-    return 'Sign in to Maude Cloud first (Settings › Connections), then Move to cloud again.';
+    return 'Sign in to Maude Cloud first (Settings › Connections), then Move to Maude Cloud again.';
   if (status === 409) return 'This project already syncs to another hub.';
   if (status === 404)
-    return 'Moving to the cloud is not available on this Mac. It stays on this Mac.';
+    return 'Moving to Maude Cloud is not available on this Mac. It stays on this Mac.';
   if (status === 0 || status === 503)
     return 'Maude Cloud could not be reached. Your work is still on this Mac.';
-  return errorWords(body, 'Moving to the cloud did not start. Your work is still on this Mac.');
+  return errorWords(body, 'Moving to Maude Cloud did not start. Your work is still on this Mac.');
 }
 
 /** A plausible e-mail — the hub decides; this only keeps Invite off for an empty or half-typed one. */

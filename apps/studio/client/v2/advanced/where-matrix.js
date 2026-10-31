@@ -155,7 +155,7 @@ export const WHERE_ROWS = Object.freeze([
       app: SAME,
       browser: SAME,
       comment: H,
-      local: swap('Move to the cloud to share'),
+      local: swap('Move to Maude Cloud to share'),
       offline: greyed('needs the internet'),
     },
     serverRoutes: ['/_api/share/invites', '/_api/share/people/p1'],

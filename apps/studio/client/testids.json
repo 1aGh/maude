@@ -5306,7 +5306,7 @@
     "hook": "share-local-note",
     "kind": "testid",
     "pattern": false,
-    "meaning": "A local (unlinked) project: one line about the cloud — on the desktop, the Move to cloud offer’s body (S9.20).",
+    "meaning": "A local (unlinked) project: one line about Maude Cloud and the Export door — on the desktop, the Move to cloud offer’s body (S9.20).",
     "producer": {
       "file": "apps/studio/client/v2/share/share-sheet.jsx",
       "symbol": "ShareSheet"
@@ -8042,7 +8042,7 @@
     "v2": "stable"
   },
   {
-    "hook": "[aria-label=\"New folder name\"]",
+    "hook": "[aria-label=\"Folder name\"]",
     "kind": "selector",
     "pattern": false,
     "meaning": "Name input of the new-folder row.",
@@ -8077,7 +8077,7 @@
     "notes": "`App()` also clicks it by this selector from three places (⌘K action, menu action, empty state)."
   },
   {
-    "hook": "[aria-label=\"New brief board name\"]",
+    "hook": "[aria-label=\"New brief canvas name\"]",
     "kind": "selector",
     "pattern": false,
     "meaning": "Name input for the new brief board.",
@@ -8094,7 +8094,7 @@
     "v2": "stable"
   },
   {
-    "hook": "[aria-label=\"Create brief board\"]",
+    "hook": "[aria-label=\"Create brief canvas\"]",
     "kind": "selector",
     "pattern": false,
     "meaning": "Confirm button for the new brief board.",
@@ -10734,6 +10734,19 @@
         "symbol": "ProjectsEmpty"
       }
     ],
+    "region": "home",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "home-new-project",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"New project ⇧⌘N\" next to Open project… at the foot of Projects (and in the empty shelf): opens the New project sheet, the same one File ▸ New project… opens.",
+    "producer": {
+      "file": "apps/studio/client/home/Shelves.jsx",
+      "symbol": "NewProjectButton"
+    },
     "region": "home",
     "consumers": [],
     "v2": "new"
@@ -16850,7 +16863,7 @@
   {
     "hook": "insp-fill-add-colour",
     "kind": "testid",
-    "meaning": "Fill › add row: a colour fill (the system's first colour). Disabled while the object has one — change it above.",
+    "meaning": "Fill › add row: a colour fill — the slot's role token with a literal fallback (`var(--bg-3, #d4d4d8)` on a shape, `var(--bg-1, #f4f4f5)` on a box; P6 T3 IR-11), never currentColor. Disabled while the object has one — change it above.",
     "producer": {
       "file": "apps/studio/client/v2/inspector/sections/fill.jsx",
       "symbol": "FillBody"
@@ -16958,10 +16971,10 @@
     "hook": "insp-color-<name>-<token>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "One colour token in a colour menu, by the system's own name without `--` (`insp-color-fill-ink`). Picking it writes `var(--<token>)`.",
+    "meaning": "One colour token in the colour picker's swatch grid (P6 T2), by the system's own name without `--` (`insp-color-fill-ink`); `aria-pressed` on the current one. Picking it writes `var(--<token>)`.",
     "producer": {
-      "file": "apps/studio/client/v2/inspector/sections/color-control.jsx",
-      "symbol": "ColorControl"
+      "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
+      "symbol": "ColourPopover"
     },
     "region": "inspector",
     "consumers": [],
@@ -16974,10 +16987,10 @@
     "hook": "insp-colorcss-<name>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "The colour menu's \"A colour, no token…\" row: opens a field for one CSS colour.",
+    "meaning": "The colour picker's \"Other colour…\" toggle: opens the drawn OKLCH picker and a field for one CSS colour.",
     "producer": {
-      "file": "apps/studio/client/v2/inspector/sections/color-control.jsx",
-      "symbol": "ColorControl"
+      "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
+      "symbol": "ColourPopover"
     },
     "region": "inspector",
     "consumers": [],
@@ -16990,7 +17003,199 @@
     "hook": "insp-colorin-<name>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "The field behind \"A colour, no token…\": Enter writes the colour if it is one colour (anything else is refused, `aria-invalid`).",
+    "meaning": "The field behind \"Other colour…\": Enter writes the colour if it is one colour (anything else is refused, `aria-invalid`).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
+      "symbol": "ColourPopover"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-pop-search-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The colour picker's Search field (P6 T2, IR-8): filters the swatches by token name and role word; focus starts here, ↓ enters the grid.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
+      "symbol": "ColourPopover"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-pop-recent-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The colour picker's Recent row: the last 8 colours used in this project (tokens and raw colours), newest first, per Mac in prefs.json `recentColours`.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
+      "symbol": "ColourPopover"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-recent-<name>-<n>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One Recent colour (0 = newest); picking it writes that colour again.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
+      "symbol": "ColourPopover"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-pop-group-<name>-<group>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One role group of the swatch grid, in DS schema order: surfaces · text · borders · accent · status · more · slots · own · other (colour-groups.js).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
+      "symbol": "ColourPopover"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-pop-nods-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The picker's line for a project with no design system: \"This project has no design system yet.\" in place of the grid.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
+      "symbol": "ColourPopover"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-pop-make-ds-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "\"Make a design system\": closes the picker and opens the make sheet (`ds.make`, maude:ds-make).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
+      "symbol": "ColourPopover"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-pop-empty-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The line shown when Search matches no colour.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
+      "symbol": "ColourPopover"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-pop-custom-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "\"Other colour…\" opened: the drawn OKLCH picker (`ds-picker`), the hex / oklch field and \"Use this colour\".",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
+      "symbol": "ColourPopover"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-pop-use-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "\"Use this colour\": writes the colour in the field; in a system the off-system question (`ds-off-system`) then asks once — Use <nearest> or Add it to the system.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
+      "symbol": "ColourPopover"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-pop-bad-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The one-line reason a typed colour was refused (not one colour). Nothing was written.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
+      "symbol": "ColourPopover"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-chip-also-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "An inherited colour's chip (IR-12): the system's name for the resolved colour, in grey after \"Text colour\" / \"Inherited\".",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/color-control.jsx",
+      "symbol": "ColorControl"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-chip-off-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The \"not in the system\" mark on a chip whose colour is raw while the canvas follows a design system (IR-9).",
     "producer": {
       "file": "apps/studio/client/v2/inspector/sections/color-control.jsx",
       "symbol": "ColorControl"
@@ -17398,7 +17603,7 @@
   {
     "hook": "insp-export-more",
     "kind": "testid",
-    "meaning": "Export › \"Export… — every option ⇧⌘E\": opens the export sheet for the selection (print and video artboards with their own format).",
+    "meaning": "Export › \"Export… ⇧⌘E\": opens the export sheet for the selection (print and video artboards with their own format).",
     "producer": {
       "file": "apps/studio/client/v2/export/inspector-export.jsx",
       "symbol": "ExportSectionBody"
@@ -25983,6 +26188,54 @@
     "v2": "new"
   },
   {
+    "hook": "edit-place-image-hint",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the line while a picture Image (I) picked waits to be placed — \"Click to place <name> · ↵ in the middle · esc to cancel\" (TD10).",
+    "producer": {
+      "file": "apps/studio/editing/place-image.tsx",
+      "symbol": "PlaceImage"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r2-p1-image-tool.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "image-tool-input",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Shell: the one off-screen HTML file input Image (I) opens at once (TD10); a DOM e2e or an agent hands it a file without a dialog and the picture is placed on the active canvas at the next click.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/image-pick.js",
+      "symbol": "createImagePick"
+    },
+    "region": "shell",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r2-p1-image-tool.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "toolbar-slot-image-generate",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Edit toolbar: the small Generate… spark beside Image (TD10) — runs `assets.generate`, one click away.",
+    "producer": {
+      "file": "apps/studio/tool-palette.tsx",
+      "symbol": "ToolPalette"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/tool-palette.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "edit-pen-input",
     "kind": "testid",
     "pattern": false,
@@ -28579,6 +28832,67 @@
     "v2": "new"
   },
   {
+    "hook": "share-export-instead",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "A local project’s Share: \"Export a PNG or PDF to send\" — opens the one Export sheet for a person who only needs a file.",
+    "producer": {
+      "file": "apps/studio/client/v2/share/move-to-cloud.jsx",
+      "symbol": "ExportInstead"
+    },
+    "region": "share",
+    "consumers": [
+      "apps/studio/test/share-advanced.test.tsx",
+      "apps/studio/test/p5-cloud-noun.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "share-export-hint",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Only need a file?\" line that carries `share-export-instead` (local project, both the Move to Maude Cloud offer and the browser note).",
+    "producer": {
+      "file": "apps/studio/client/v2/share/move-to-cloud.jsx",
+      "symbol": "ExportInstead"
+    },
+    "region": "share",
+    "consumers": [
+      "apps/studio/test/share-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "share-this-mac-only",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Share › Advanced › \"On this Mac only\": the addresses that open only here (127.0.0.1; the app link of an unlinked project). Always last in the fold.",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-advanced.jsx",
+      "symbol": "ShareAdvanced"
+    },
+    "region": "share",
+    "consumers": [
+      "apps/studio/test/share-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "share-syncs-name",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Share › Advanced › Where it syncs › Hub: the hub in words — \"Maude Cloud\" for ours, the host for a self-hosted hub.",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-advanced.jsx",
+      "symbol": "ShareAdvanced"
+    },
+    "region": "share",
+    "consumers": [
+      "apps/studio/test/share-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "share-syncs-last",
     "kind": "testid",
     "pattern": false,
@@ -28657,7 +28971,7 @@
     "hook": "share-move",
     "kind": "testid",
     "pattern": false,
-    "meaning": "A local project’s Share (desktop): \"Move “P” to the cloud?\" with Cancel / Move to cloud.",
+    "meaning": "A local project’s Share (desktop): \"Move “P” to Maude Cloud?\" with Cancel / Move to Maude Cloud.",
     "producer": {
       "file": "apps/studio/client/v2/share/move-to-cloud.jsx",
       "symbol": "MoveToCloud"
@@ -28672,7 +28986,7 @@
     "hook": "share-move-confirm",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Move to cloud (the window’s own `POST /_api/cloud/move`).",
+    "meaning": "Move to Maude Cloud (the window’s own `POST /_api/cloud/move`).",
     "producer": {
       "file": "apps/studio/client/v2/share/move-to-cloud.jsx",
       "symbol": "MoveToCloud"
@@ -28702,7 +29016,7 @@
     "hook": "share-moved",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The move’s progress words (\"Moved to the cloud — your canvases are going up now.\").",
+    "meaning": "The move’s progress words (\"Moved to Maude Cloud — your canvases are going up now.\").",
     "producer": {
       "file": "apps/studio/client/v2/share/share-sheet.jsx",
       "symbol": "ShareSheet"
@@ -30280,7 +30594,7 @@
     "hook": "signin-card",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The sign-in card on Home (S6.8, 02 ob-first-launch): \"Keep your work on cloud.maude.sh\" with two doors. `data-state` is idle | waiting | timeout | failed | offline. Shown only on a first run (no project, no account) or while a sign-in runs.",
+    "meaning": "The sign-in card on Home (S6.8, 02 ob-first-launch): \"Keep your work in Maude Cloud\" with two doors. `data-state` is idle | waiting | timeout | failed | offline. Shown only on a first run (no project, no account) or while a sign-in runs.",
     "producer": {
       "file": "apps/studio/client/v2/signin/SignInCard.jsx",
       "symbol": "SignInCard"
@@ -30295,7 +30609,7 @@
     "hook": "signin-cloud",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The card's \"Sign in to cloud.maude.sh\" door: opens the browser sign-in (registry `home.signin`). Rests while this Mac is offline.",
+    "meaning": "The card's \"Sign in to Maude Cloud\" door: opens the browser sign-in (registry `home.signin`). Rests while this Mac is offline.",
     "producer": {
       "file": "apps/studio/client/v2/signin/SignInCard.jsx",
       "symbol": "SignInCard"
@@ -30520,7 +30834,7 @@
     "hook": "home-signin-quiet",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The quiet \"Sign in to cloud.maude.sh\" in Home's top bar once there is a project but no account.",
+    "meaning": "The quiet \"Sign in to Maude Cloud\" in Home's top bar once there is a project but no account.",
     "producer": {
       "file": "apps/studio/client/v2/signin/SignInCard.jsx",
       "symbol": "SignInQuiet"
@@ -30535,7 +30849,7 @@
     "hook": "home-signin-toast",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The toast after a sign-in: \"Signed in. What you make now lives on cloud.maude.sh.\" or \"Signed in — your 2 cloud projects are here.\"",
+    "meaning": "The toast after a sign-in: \"Signed in. What you make now lives in Maude Cloud.\" or \"Signed in — your 2 Maude Cloud projects are here.\"",
     "producer": {
       "file": "apps/studio/client/v2/signin/SignInToast.jsx",
       "symbol": "SignInToast"
@@ -41177,6 +41491,19 @@
     "region": "sidebar/tree",
     "consumers": [],
     "v2": "stable"
+  },
+  {
+    "hook": "canvases-new-name",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The name field the \"+ New canvas\" / \"New folder\" row turns into when asked for (aria-label \"Canvas name\" / \"Folder name\"): \"Untitled canvas\" selected; Enter commits and only then is the file written; Esc or leaving cancels.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/canvases-pinned.jsx",
+      "symbol": "NewCanvasRow"
+    },
+    "region": "canvases",
+    "consumers": [],
+    "v2": "new"
   },
   {
     "hook": "switcher-open-folder",

@@ -23,7 +23,7 @@ export const COPY = Object.freeze({
   'es-home-cloud.starter-1': { title: 'A pricing page', next: 'with a yearly toggle' },
   'es-home-cloud.starter-2': { title: 'Three logo ideas', next: 'for a new brand' },
   'es-home-cloud.starter-3': { title: 'A matchday poster', next: 'A4, ready to print' },
-  'es-home-cloud.shelf': { title: 'Your projects', foot: 'cloud.maude.sh' },
+  'es-home-cloud.shelf': { title: 'Your projects', foot: 'Maude Cloud' },
   'es-home-cloud.projects-none': {
     title: 'No projects yet.',
     next: 'Your first canvas starts one — and everyone you invite sees it here.',
@@ -33,7 +33,7 @@ export const COPY = Object.freeze({
   'es-home-local.starter-1': { title: 'A portfolio page', next: 'six projects, calm' },
   'es-home-local.starter-2': { title: 'Three logo ideas', next: 'for a new brand' },
   'es-home-local.starter-3': { title: 'A moodboard', next: 'photos and swatches' },
-  'es-home-local.sign-in': { text: 'Sign in to cloud.maude.sh' },
+  'es-home-local.sign-in': { text: 'Sign in to Maude Cloud' },
   'es-home-local.shelf': { title: 'Your projects', foot: 'On this Mac' },
   'es-home-local.projects-none': {
     title: 'No projects on this Mac yet.',
@@ -199,7 +199,7 @@ export const COPY = Object.freeze({
   'es-arriving.canvas-arriving': { title: '{canvas} is on its way.' },
   'es-offline-uncached.not-local': {
     title: "{canvas} isn't on this Mac yet.",
-    next: 'It opens by itself when this Mac is back online. Nothing in it is lost — the cloud copy is safe.',
+    next: 'It opens by itself when this Mac is back online. Nothing in it is lost — the Maude Cloud copy is safe.',
     action: 'Show canvases on this Mac',
   },
   'es-all-trashed.all-trashed': {

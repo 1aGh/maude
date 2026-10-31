@@ -240,7 +240,7 @@ describe('S6.3 runIntent', () => {
     expect(f.calls[1].init?.method).toBe('POST');
     expect(toasts).toHaveLength(1);
     expect(toasts[0].m).toBe(firstProjectWords('Open studio'));
-    expect(toasts[0].m).toBe('Open studio is your first project, on cloud.maude.sh.');
+    expect(toasts[0].m).toBe('Open studio is your first project, in Maude Cloud.');
     expect(toasts[0].action?.label).toBe('Rename');
   });
 

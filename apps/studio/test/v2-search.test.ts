@@ -77,7 +77,7 @@ describe('the probes: Advanced things found by name, each with where it lives', 
     const res = find('New artboard — A4');
     const rows = rowsOf(res);
     expect(rows[0].actionId).toBe('artboard.new-a4');
-    expect(rows[0].where).toBe('Menu › Edit › Advanced › New artboard');
+    expect(rows[0].where).toBe('Menu › File › New artboard'); // TD10
     expect(rows.filter((r) => r.actionId?.startsWith('artboard.new-')).length).toBe(1);
   });
 

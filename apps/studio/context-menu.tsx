@@ -171,13 +171,10 @@ const DEFAULT_REGISTRY: ContextRegistry = {
         shortcut: '⌘V',
         onSelect: noop('paste-artboard'),
       },
-      { id: 'fit-view', label: 'Fit to view', shortcut: '1', onSelect: noop('fit-view') },
-      { id: 'reset-view', label: 'Reset view', shortcut: '⌘0', onSelect: noop('reset-view') },
+      { id: 'fit-view', label: 'Zoom to fit', shortcut: '⌘0', onSelect: noop('fit-view') },
+      { id: 'reset-view', label: 'Actual size', shortcut: '⇧0', onSelect: noop('reset-view') },
     ],
-    [
-      defaultExportItem('Export project (ZIP)…', 'project-raw'),
-      defaultExportItem('Export canvas as separate…', 'canvas-as-separate'),
-    ],
+    [{ ...defaultExportItem('Export…', 'canvas'), id: 'export-canvas', shortcut: '⇧⌘E' }],
   ],
   overlay: [],
 };

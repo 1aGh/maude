@@ -16,7 +16,8 @@
 //   artboard.draw        params { rect: { x, y, w, h } }  (world px, an empty stretch of the canvas)
 //     A new Fixed size artboard (`kind="digital"` `fixed`) of that size, its place in the layout lane.
 //
-// Colours are tokens, never hex: a frame is `var(--bg-1)`, a shape `var(--accent)`, a line's stroke `var(--fg-0)`.
+// Colours are neutral role tokens with a literal fallback (TD3): a frame `var(--bg-1, …)` with a hairline border, a
+// shape `var(--bg-3, …)`, a line's stroke `var(--fg-1, …)`, a text `var(--fg-0, …)` — see SHAPE_FILL below.
 // Refused (nothing written): a rect under 1 px or past 10 000, a parent the file computes, a self-closing
 // component parent that is not a plain element.
 //
@@ -30,6 +31,7 @@ import { generateElementId, type IdElement, usedIds, walkIdElements } from '../e
 import { ARTBOARD_ID_RE } from './artboard-resize.ts';
 import { inlinePosition, refuse, writeStyle } from './constraints.ts';
 import { lineIndent } from './siblings.ts';
+import { slotCss } from './slot-defaults.ts';
 import { ROLE_CLASS_RE } from './text-style.ts';
 import type { EditOp, EditOpOutput, ElementRef, ResolvedEditOp } from './types.ts';
 
@@ -37,14 +39,20 @@ export const SHAPE_KINDS = ['frame', 'rectangle', 'ellipse', 'line', 'polygon'] 
 export type DrawnKind = (typeof SHAPE_KINDS)[number];
 
 /**
- * The tokens a new drawing is made of — names of the system's contract, never a colour. A shape, a line and a path
- * fall back to `currentColor` (r1 #8): a canvas with no design system (or one that names its accent differently)
- * has no `--accent`, and an undefined token made the drawing invisible — "it has no colour". A frame stays
- * see-through without its token: it is a container, not a mark.
+ * What a new object is made of (TD3, Michal's UX-audit decision `v2-michal-ux-audit-td-decisions`, F02): a NEUTRAL
+ * role token with a fixed literal fallback behind it — never `--accent` (the accent is a signal, not a default) and
+ * never `currentColor` (it inherits whatever the parent says, white text included). The literal is what a canvas
+ * with no design system sees: its artboard is `var(--bg-0, #ffffff)`, so every fallback differs from white, and a
+ * frame (a container whose surface may be close to the artboard's) also gets a hairline border, so no fresh object
+ * disappears after deselect, in either theme, with or without a system. ds-check exempts a literal that sits in a
+ * role token's fallback (`ds/canvas-check.ts` `roleFallbackSpans`). The literals are the Inspector's slot defaults
+ * (`slot-defaults.ts`), so a drawn shape and an Inspector "+" paint are one colour. Supersedes r1 #8's `currentColor` fallback.
  */
-export const FRAME_FILL = 'var(--bg-1)';
-export const SHAPE_FILL = 'var(--accent, currentColor)';
-export const LINE_STROKE = '2px solid var(--fg-0, currentColor)';
+export const SHAPE_FILL = slotCss('fill');
+export const FRAME_FILL = slotCss('background');
+export const FRAME_BORDER = slotCss('border');
+export const LINE_STROKE = slotCss('stroke');
+export const TEXT_COLOR = slotCss('text');
 
 const MAX_PX = 10_000;
 const DEFAULT_SIDES = 6;
@@ -108,7 +116,7 @@ function styleFor(req: ResolvedEditOp, kind: DrawnKind): { style: Style; shape: 
       ['top', px(l.y1)],
       ['width', px(len)],
       ['height', '0'],
-      ['borderTop', LINE_STROKE],
+      ['borderTop', `2px solid ${LINE_STROKE}`],
     ];
     if (deg !== 0) {
       style.push(['transform', `rotate(${deg}deg)`], ['transformOrigin', '0 0']);
@@ -124,6 +132,8 @@ function styleFor(req: ResolvedEditOp, kind: DrawnKind): { style: Style; shape: 
     ['height', px(b.h)],
     ['background', kind === 'frame' ? FRAME_FILL : SHAPE_FILL],
   ];
+  if (kind === 'frame')
+    style.push(['border', `1px solid ${FRAME_BORDER}`], ['boxSizing', 'border-box']);
   if (kind === 'ellipse') style.push(['borderRadius', '50%']);
   if (kind === 'polygon') {
     const sides = p.sides === undefined ? DEFAULT_SIDES : p.sides;
@@ -195,7 +205,8 @@ function textChild(req: ResolvedEditOp, id: string): string {
     ['top', px(at.y)],
     ['margin', '0'],
   ];
-  if (!role) style.push(['fontFamily', TEXT_FONT_FALLBACK]);
+  // a system body style carries its own font and colour; without one, the neutral text role + the body font
+  if (!role) style.push(['color', TEXT_COLOR], ['fontFamily', TEXT_FONT_FALLBACK]);
   const cls = role ? ` className="${role}"` : '';
   return `<p data-cd-id="${id}"${cls} style=${styleText(style)}>Text</p>`;
 }

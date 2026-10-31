@@ -4331,7 +4331,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         componentName: v.componentName,
         dsName,
         platform,
-        seedHint: 'Empty brief board — annotate me',
+        seedHint: 'Empty brief canvas',
         historyDir: path.posix.join(paths.designRel, '_history', slug),
       });
     }
@@ -4364,7 +4364,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
           : {
               kind: 'brief-board',
               title: v.name,
-              subtitle: 'brief board',
+              subtitle: 'brief canvas',
               brief: v.name,
               designSystem: dsName,
               platform,

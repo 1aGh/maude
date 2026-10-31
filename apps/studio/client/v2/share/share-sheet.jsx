@@ -25,7 +25,7 @@ import { Glyph } from './glyphs.jsx';
 import { InviteRow } from './invite-row.jsx';
 import { copyShareLink } from './link-dialog.js';
 import { LinkRow } from './link-row.jsx';
-import { MoveToCloud, movingWords } from './move-to-cloud.jsx';
+import { ExportInstead, MoveToCloud, movingWords } from './move-to-cloud.jsx';
 import { PeopleList } from './people-list.jsx';
 import { ShareAdvanced } from './share-advanced.jsx';
 import {
@@ -98,6 +98,8 @@ export function ShareSheet({
   /** The signed-in person's e-mail, to mark "You" (optional). */
   youEmail,
   onClose,
+  /** P5/TD8 — opens the one Export sheet (a local project's "Only need a file?") */
+  onExport,
   api: apiProp,
   now,
 }) {
@@ -203,7 +205,7 @@ export function ShareSheet({
       if (!next) return;
       setMoving(next);
       if (next.state === 'ready' || next.state === 'uploading') setPostureAsk((n) => n + 1);
-      if (next.state === 'failed') setError(next.error || 'Moving to the cloud stopped.');
+      if (next.state === 'failed') setError(next.error || 'Moving to Maude Cloud stopped.');
     }, 1500);
     return () => clearTimeout(t);
   }, [api, moveState]);
@@ -362,7 +364,7 @@ export function ShareSheet({
 
   const rows = peopleRows(people, { youEmail, now });
   const team = canvas ? teamRow(people, projectPeople, project) : null;
-  // 10 co-local-cloud: the offer IS the title ("Move “Portfolio 2026” to the cloud?"), so no "Share …"
+  // 10 co-local-cloud: the offer IS the title ("Move “Portfolio 2026” to Maude Cloud?"), so no "Share …"
   // heading above it, and no link rules / sync rows under it — there is no hub to hold them yet.
   const offering = !!offerMove;
   return (
@@ -402,7 +404,13 @@ export function ShareSheet({
         {!offering && view.sub && <p className="v2sh-sub-t">{view.sub}</p>}
 
         {offerMove && (
-          <MoveToCloud project={project} api={api} onCancel={onClose} onMoving={setMoving} />
+          <MoveToCloud
+            project={project}
+            api={api}
+            onCancel={onClose}
+            onMoving={setMoving}
+            onExport={onExport && (() => onExport())}
+          />
         )}
         {moving && movingWords(moving.state) && (
           <p className="v2sh-hint" role="status" data-testid="share-moved">
@@ -426,9 +434,13 @@ export function ShareSheet({
           </div>
         )}
         {posture && !view.linked && !offerMove && !moving && !pendingLink && (
-          <p className="v2sh-hint" data-testid="share-local-note">
-            Local project — kept on this Mac. Invite people once it is in the cloud.
-          </p>
+          <div className="v2sh-arow v2sh-arow--stack">
+            <p className="v2sh-hint" data-testid="share-local-note">
+              Local project — kept on this Mac. To invite people, move it to Maude Cloud in the
+              Maude app.
+            </p>
+            <ExportInstead onExport={onExport && (() => onExport())} />
+          </div>
         )}
         {posture && view.linked && !view.reachable && (
           <p className="v2sh-hint" data-testid="share-unreachable">

@@ -135,6 +135,28 @@ export function colourLiterals(value: string): { text: string; index: number }[]
   return out;
 }
 
+/**
+ * TD3 (r2-p1-create): the spans of `value` that are the FALLBACK of a registry role token — `var(--bg-3, #d4d4d8)`
+ * → the `#d4d4d8`. A literal there never decides the colour under a system (every system defines its roles), so it
+ * cannot keep a canvas from switching; it is only what a canvas with no system sees. A literal behind a name that is
+ * not a role (`var(--my-thing, #abc)`) or bare stays an S1 literal.
+ */
+export function roleFallbackSpans(value: string, idx: RegistryIndex): [number, number][] {
+  const out: [number, number][] = [];
+  for (const r of varRefs(value)) {
+    if (!r.hasFallback || !idx.roles.has(r.name)) continue;
+    const comma = value.indexOf(',', r.index);
+    let depth = 0;
+    let end = r.index;
+    for (; end < value.length; end++) {
+      if (value[end] === '(') depth++;
+      else if (value[end] === ')' && --depth === 0) break;
+    }
+    if (comma > 0 && comma < end) out.push([comma + 1, end]);
+  }
+  return out;
+}
+
 function boxLiteral(value: string): boolean {
   const v = value.replace(/var\([^)]*\)/g, ' ').replace(/\b(calc|min|max|clamp)\(/g, ' ');
   for (const m of v.matchAll(/(?<![\w-])(-?\d*\.?\d+)(px|rem|em|%|vh|vw|ch|pt)\b/g))
@@ -544,7 +566,9 @@ export function checkCanvas(
       if (idx.localPalette.test(p)) return; // --c-* local palette: S1-exempt
     }
     if (ctxFlags.s1 && !pinned) {
+      const exempt = roleFallbackSpans(value, idx);
       for (const lit of colourLiterals(value)) {
+        if (exempt.some(([a, b]) => lit.index >= a && lit.index < b)) continue;
         add({
           rule: 'S1',
           kind: 'literal',

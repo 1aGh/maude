@@ -151,10 +151,10 @@ describe('G3 · Present ⌄ › Copy presentation link', () => {
   });
 
   test('not enabled: the row is there, greyed, says why, and does nothing', () => {
-    const asked = mountSwitch({ copyLink: { enabled: false, note: 'in a cloud project' } });
+    const asked = mountSwitch({ copyLink: { enabled: false, note: 'in a Maude Cloud project' } });
     const row = q('mode-present-copy-link') as HTMLButtonElement;
     expect(row.getAttribute('aria-disabled')).toBe('true');
-    expect(row.textContent).toContain('in a cloud project');
+    expect(row.textContent).toContain('in a Maude Cloud project');
     act(() => row.click());
     expect(asked).toEqual([]);
     expect(q('mode-present-list')).not.toBeNull();

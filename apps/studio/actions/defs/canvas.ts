@@ -10,6 +10,7 @@ export const CANVAS_ACTIONS: ActionDef[] = [
     kind: 'command',
     icon: 'plus',
     exec: 'shell',
+    search: { hint: 'An empty canvas, ready to draw on' }, // P5 F09: what the row makes, one line
     // V2-4 gate (roles): a canvas is created IN this project — Can comment / Can view have no New
     // canvas (V2-1.7 §5.9: `can('edit', null)` is false). Absent, not greyed; the native ⌘N still
     // reaches the shell as `menu://action`, which says the one denial line (role-gate.js).
@@ -20,14 +21,15 @@ export const CANVAS_ACTIONS: ActionDef[] = [
     keys: [kb('⌘N', 'global', { inText: true, when: { shell: ['desktop'] } })],
     legacy: { palette: 'New canvas', menu: 'New canvas…', sheet: 'New brief board' },
   },
-  // S6.1 — the brief board keeps a door of its own (⌘K and the Canvases panel's New menu); ⌘N makes a blank
-  // canvas. It runs what `canvas.new` ran in v1: the tree's composer asks for a name, then stamps the board.
+  // S6.1 — the brief canvas keeps a door of its own (⌘K "New brief canvas"); ⌘N and the panel's New canvas make a
+  // blank canvas. It runs what `canvas.new` ran in v1: the tree's composer asks for a name, then stamps the brief.
   {
     id: 'canvas.new-brief',
-    label: 'New brief',
+    label: 'New brief canvas',
     kind: 'command',
     icon: 'plus',
     exec: 'shell',
+    search: { hint: 'A board to write a brief on, for AI to draft from' },
     visible: { minRole: 'edit' },
   },
   // S6.3 — Home's "Ask AI for a new canvas…" (↵ on Home): a canvas from one sentence, opened and drafted by AI
@@ -61,6 +63,7 @@ export const CANVAS_ACTIONS: ActionDef[] = [
     kind: 'command',
     icon: 'plus',
     exec: 'shell',
+    search: { hint: 'A canvas for a video, with its timeline' },
     visible: { minRole: 'edit' }, // V2-4 gate (roles): creates a canvas, like New canvas
     legacy: { palette: 'New video…' },
   },
@@ -265,7 +268,7 @@ export const CANVAS_ACTIONS: ActionDef[] = [
       legacy: { menu: `New artboard: ${name}` },
     })
   ),
-  // S7.20 (D17) — Edit › Advanced ▸ New artboard › Video: a Landscape 16:9 video artboard in the open canvas, with its
+  // S7.20 (D17) — File › New artboard › Video (TD10; was Edit › Advanced): a Landscape 16:9 video artboard in the open canvas, with its
   // comp. (⌘K's "New video" stays `canvas.new-video`, which makes a whole video canvas.) It posts
   // `artboard.insert-preset` to the canvas, which picks the spot and writes the one op.
   {

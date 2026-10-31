@@ -90,6 +90,11 @@ const DEDICATED: Record<string, string> = {
   'ds-review.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:ds-review',
   // S10.9: the reach view ("Used in 5 canvases · Show"), against a project whose canvases use the Accent.
   'ds-reach.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:ds-reach',
+  // R2 UX audit: six owner-reported controls, on the reach project (a DS + two canvases with objects).
+  'ux-audit-verify.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:ux-audit',
+  // r1-panels: its own dedicated conf (wdio.shell-panels.conf.ts) was added without this listing, which made EVERY lane's
+  // drift tripwire throw at load.
+  'shell-panels.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:shell-panels',
   'ds-edges.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:ds-edges',
   // S10.12: the advanced DS surfaces, seeded.
   'ds-advanced.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:ds-advanced',

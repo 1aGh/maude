@@ -4,25 +4,41 @@
 //   other CSS      a colour the system has no token for: said as written, quietly; the menu still offers the tokens
 //   Mixed          several objects that differ: their swatches side by side and the word (`MixedSwatches`)
 //
-// The menu lists the system's own colour tokens (the list the panel read from its tokens CSS — never a built-in one),
-// then "A colour, no token…" and, where a value may be absent, "None". A token is only ever written as `var(--<name>)`.
+// The chip opens the colour picker (colour-popover.jsx, P6 T2): the system's colours grouped by role, Recent, "Other
+// colour…" and, where a value may be absent, "None". A token is only ever written as `var(--<name>)`.
+//
+// P6 T3 (IR-12): an inherited colour — `currentColor`, `inherit`, or a text colour that is not set — is said in words,
+// "Text colour" on a box and "Inherited" on a text, with the object's REAL colour as its swatch (`resolved`, what the
+// canvas reports in `el.computed`), never the panel's own `currentColor`; the system's name for it follows in grey.
 
 import { useRef, useState } from 'react';
+import { activeDsNameFor } from '../../../inspector/ds-tokens.js';
 import { tokenLabel } from '../../../../edit-ops/words-css.ts';
-import { isCssColor, swatchCss } from '../../../../edit-ops/words-paint.ts';
+import { paintToCss, swatchCss } from '../../../../edit-ops/words-paint.ts';
 import { NumberField } from '../../../inspector-controls.jsx';
 import { StIcon } from '../../../shell/icons.jsx';
-import { useDismiss } from '../token-chip.jsx';
+import { ColourPopover } from './colour-popover.jsx';
 import { colourWords } from './colour-words.js';
+import { projectKeyOf, recentStore, useRecentColours } from './recent-colours.js';
 
-const SW = ({ colour }) => (
-  <i className="insp-sw" aria-hidden="true" style={{ background: swatchCss(colour) }} />
-);
+const SW = ({ css }) => <i className="insp-sw" aria-hidden="true" style={{ background: css }} />;
+
+/** `currentColor` / `inherit`: a colour that comes from somewhere else (IR-12). */
+export const isInheritedCss = (css) =>
+  /^\s*(?:currentcolor|inherit|unset|initial)\s*$/i.test(String(css ?? ''));
+
+/** The words + swatch for an inherited colour: "Text colour · Ink" over the object's resolved colour. */
+export function inheritedFace(word, resolved, colors, vals) {
+  const named = resolved ? colourWords(resolved, colors, vals) : null;
+  const isToken = !!named && colors.some((c) => tokenLabel(c) === named);
+  return { word, also: isToken ? named : null, swatch: resolved || 'transparent' };
+}
 
 /**
  * @param {{ name: string, label: string, value: { paint: any, opacity: number } | null, colors: string[],
  *   onChange: (c: { paint: any, opacity: number } | null) => void, allowNone?: boolean, noneLabel?: string,
- *   disabled?: boolean, showOpacity?: boolean }} props
+ *   disabled?: boolean, showOpacity?: boolean, ctx?: object, themes?: object, resolved?: string,
+ *   inheritedWord?: string, noneInherits?: boolean, slotGroup?: string }} props
  */
 export function ColorControl({
   name,
@@ -36,59 +52,88 @@ export function ColorControl({
   showOpacity = false,
   mixed = null, // several objects that differ: their distinct colours (null / a missing one = none) — drawn as swatches + "Mixed"
   vals = {}, // every token's resolved value (`useDsFamilies().vals`): names a resolved colour by the token that has it
+  themes = undefined, // both themes' resolved values (`useDsFamilies().themes`): the picker's Light | Dark swatches
+  ctx = undefined, // the Inspector context: the project (Recent), the active system (Add it to the system)
+  resolved = undefined, // the object's resolved colour for this paint (`el.computed`), for an inherited value's swatch
+  inheritedWord = 'Text colour', // what `currentColor` reads as here: "Text colour" on a box, "Inherited" on a text
+  noneInherits = false, // no value set = inherited (a text's colour), not "no paint"
+  slotGroup = null, // the role group "Use <nearest>" looks in first (`surfaces` for a fill)
 }) {
   const [open, setOpen] = useState(false);
-  const [typing, setTyping] = useState(false);
-  const [bad, setBad] = useState(false);
   const ref = useRef(null);
-  const close = () => {
+  const chipRef = useRef(null);
+  const recent = useRecentColours(ctx);
+  const hasSystem = ctx?.cfg ? (ctx.cfg.designSystems || []).length > 0 : colors.length > 0;
+  const close = (opts) => {
     setOpen(false);
-    setTyping(false);
+    if (opts?.refocus) chipRef.current?.focus?.();
   };
-  useDismiss(open || typing, close, ref);
   const isToken = !!value && 'token' in value.paint;
   const opacity = value?.opacity ?? 100;
   const paintOf = (paint) => ({ paint, opacity });
+  const tokenCss = (p) => vals[p.token] ?? p.fallback ?? `var(${p.token})`;
+  const swatchFor = (c) =>
+    c && 'token' in c.paint
+      ? swatchCss({ paint: { css: tokenCss(c.paint) }, opacity: c.opacity })
+      : swatchCss(c);
+  const inherited =
+    (value && !isToken && isInheritedCss(value.paint.css)) || (!value && noneInherits && resolved)
+      ? inheritedFace(value ? inheritedWord : noneLabel, resolved, colors, vals)
+      : null;
+  const offSystem = !!value && !isToken && !inherited && hasSystem;
 
-  const commitCss = (raw) => {
-    const t = String(raw).trim();
-    if (!t) return close();
-    if (!isCssColor(t)) return setBad(true);
-    setBad(false);
-    close();
-    onChange(paintOf({ css: t }));
+  const pick = (paint, opts) => {
+    if (!opts?.keepOpen) setOpen(false);
+    recentStore.push(projectKeyOf(ctx), paintToCss(paint));
+    onChange(paintOf(paint));
   };
+  const tokenWord = (p) =>
+    colors.includes(p.token) || !p.fallback
+      ? tokenLabel(p.token)
+      : (colourWords(p.fallback, colors, vals) ?? tokenLabel(p.token));
 
   return (
     <span className="insp-len insp-color" ref={ref} data-testid={`insp-ctl-${name}`}>
       <button
+        ref={chipRef}
         type="button"
         className="insp-chip"
         aria-label={label}
-        aria-haspopup="menu"
+        aria-haspopup="dialog"
         aria-expanded={open}
         disabled={disabled}
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => !disabled && setOpen((o) => !o)}
       >
         <span
-          className={`insp-chip-face${value ? '' : ' insp-chip-face--none'}${value && !isToken ? ' insp-chip-face--css' : ''}`}
+          className={`insp-chip-face${value || inherited ? '' : ' insp-chip-face--none'}${offSystem ? ' insp-chip-face--css' : ''}`}
           data-testid={`insp-chip-${name}`}
           data-mixed={mixed ? 'true' : undefined}
+          data-inherited={inherited ? 'true' : undefined}
         >
           {mixed ? (
             <>
               {mixed.slice(0, 4).map((c, i) => (
                 // biome-ignore lint/suspicious/noArrayIndexKey: distinct values, positional
-                <SW key={i} colour={c} />
+                <SW key={i} css={swatchFor(c)} />
               ))}
               Mixed
             </>
+          ) : inherited ? (
+            <>
+              <SW css={inherited.swatch} />
+              {inherited.word}
+              {inherited.also ? (
+                <span className="insp-chip-also" data-testid={`insp-chip-also-${name}`}>
+                  {` · ${inherited.also}`}
+                </span>
+              ) : null}
+            </>
           ) : (
             <>
-              {value ? <SW colour={value} /> : null}
+              {value ? <SW css={swatchFor(value)} /> : null}
               {value ? (
                 isToken ? (
-                  <b>{tokenLabel(value.paint.token)}</b>
+                  <b>{tokenWord(value.paint)}</b>
                 ) : (
                   // V2-8.5 C2 — a resolved colour is said in words ("Ink", "White"), not `rgb(20, 24, 31)`
                   (colourWords(value.paint.css, colors, vals) ?? value.paint.css)
@@ -96,6 +141,15 @@ export function ColorControl({
               ) : (
                 noneLabel
               )}
+              {offSystem ? (
+                <i
+                  className="insp-chip-off"
+                  role="img"
+                  title="Not in the system"
+                  aria-label="not in the system"
+                  data-testid={`insp-chip-off-${name}`}
+                />
+              ) : null}
             </>
           )}
         </span>
@@ -117,76 +171,31 @@ export function ColorControl({
           />
         </span>
       ) : null}
-      {open ? (
-        <div className="insp-menu" role="menu" aria-label={label} data-testid={`insp-menu-${name}`}>
-          {colors.map((t) => (
-            <button
-              key={t}
-              type="button"
-              role="menuitemradio"
-              aria-checked={isToken && value.paint.token === t}
-              className="insp-menu-i"
-              data-testid={`insp-color-${name}-${t.replace(/^--/, '')}`}
-              onClick={() => {
-                close();
-                onChange(paintOf({ token: t }));
-              }}
-            >
-              <span className="insp-menu-sw">
-                <SW colour={paintOf({ token: t })} />
-                {tokenLabel(t)}
-              </span>
-            </button>
-          ))}
-          <button
-            type="button"
-            role="menuitem"
-            className="insp-menu-i insp-menu-i--sep"
-            data-testid={`insp-colorcss-${name}`}
-            onClick={() => {
-              setOpen(false);
-              setTyping(true);
-            }}
-          >
-            A colour, no token…
-          </button>
-          {allowNone ? (
-            <button
-              type="button"
-              role="menuitemradio"
-              aria-checked={value == null}
-              className="insp-menu-i"
-              data-testid={`insp-none-${name}`}
-              onClick={() => {
-                close();
-                onChange(null);
-              }}
-            >
-              {noneLabel}
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-      {typing ? (
-        <span className="insp-num">
-          <input
-            className="insp-num-in insp-color-in"
-            type="text"
-            aria-label={`${label} — a colour`}
-            aria-invalid={bad || undefined}
-            data-testid={`insp-colorin-${name}`}
-            placeholder="oklch(…) or #…"
-            // biome-ignore lint/a11y/noAutofocus: the person just chose "A colour, no token…"
-            autoFocus
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') commitCss(e.currentTarget.value);
-              else if (e.key === 'Escape') close();
-            }}
-            onBlur={(e) =>
-              e.currentTarget.value.trim() ? commitCss(e.currentTarget.value) : close()
-            }
-          />
-        </span>
+      {open && !disabled ? (
+        <ColourPopover
+          name={name}
+          label={label}
+          current={isToken ? value.paint.token : null}
+          colors={colors}
+          vals={vals}
+          themes={themes}
+          hasSystem={hasSystem}
+          systemLabel={activeDsNameFor(ctx?.canvasFile, ctx?.cfg) || undefined}
+          dsName={activeDsNameFor(ctx?.canvasFile, ctx?.cfg)}
+          slotGroup={slotGroup}
+          recent={recent}
+          allowNone={allowNone}
+          noneLabel={noneLabel}
+          isNone={value == null}
+          rawValue={value && !isToken && !inherited ? value.paint.css : null}
+          anchorRef={chipRef}
+          onPick={pick}
+          onNone={() => {
+            setOpen(false);
+            onChange(null);
+          }}
+          onClose={close}
+        />
       ) : null}
     </span>
   );

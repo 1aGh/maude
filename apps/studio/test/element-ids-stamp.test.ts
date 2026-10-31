@@ -185,7 +185,7 @@ describe('writers that create elements stamp them; a copy never inherits an id o
     const b = applyInsertElement(CANVAS, a.source, btn, 'before', 'text');
     expect(b.newId).toBe('text');
     expect(b.source).toContain(
-      `<p data-cd-id="text" style={{ margin: 0, fontFamily: 'var(--font-body, system-ui, -apple-system, sans-serif)' }}>Text</p>`
+      `<p data-cd-id="text" style={{ margin: 0, color: 'var(--fg-0, #18181b)', fontFamily: 'var(--font-body, system-ui, -apple-system, sans-serif)' }}>Text</p>`
     );
     const c = applyInsertElementIntoArtboard(CANVAS, b.source, 'home', 'inside-end', 'div');
     expect(c.newId).toBe('div-2');

@@ -44,6 +44,7 @@ Bind numbers to the project's tokens: a rule's px value is the intent; use the n
 - `UX-HIER-7` Equal items (tabs, segments) get equal cells.
 - `UX-HIER-8` Put the action where reading ends (visual → message → action).
 - `UX-HIER-9` On layered surfaces, interactive items are lighter than their container; inputs read recessed.
+- `UX-HIER-10` A popover flips or shifts to stay inside the window, on the top layer — never clipped by its panel.
 
 **Actions & buttons**
 - `UX-ACT-1` Exactly one primary action per view/section; verb label.
@@ -54,6 +55,7 @@ Bind numbers to the project's tokens: a rule's px value is the intent; use the n
 - `UX-ACT-6` Option lists use consistent visual anchors (an icon on every row or none).
 - `UX-ACT-7` Tier actions primary/secondary/tertiary; more than ~4 → overflow behind "More".
 - `UX-ACT-8` Decoration never looks like a button.
+- `UX-ACT-9` A control hidden behind Advanced/More that holds a non-default value surfaces on the face.
 
 **Navigation & wayfinding**
 - `UX-NAV-1` Tab bar: no overlapping FAB, aligned icon + label, one active state, title case, content scrolls under.
@@ -66,6 +68,8 @@ Bind numbers to the project's tokens: a rule's px value is the intent; use the n
 - `UX-FORM-2` Placeholder = actionable example ("Example: …") or instruction ("Enter your full name"); no "e.g.", no "Type here".
 - `UX-FORM-3` Spacing: helper 4 · label→input, header→caption, button→button 8 · input→input 20 · group→group, last input→button 24. Don't cramp to edges.
 - `UX-FORM-4` Pickers carry decision data (e.g. price per day) and stay legible (no thin weights).
+- `UX-FORM-5` Number fields scrub from their letter or icon: 1/px, Shift ×10, Alt ×0.1, a dead zone, ↑↓ ±1; % and token-bound fields don't.
+- `UX-FORM-6` A value not set here names its source in words ("Inherited", "Text colour", "Mixed") over its resolved swatch.
 
 **Dialogs**
 - `UX-DLG-1` Confirm dialog: title names the action ("Delete folder"), body states the consequence, verb CTA + "Cancel", close ×, left aligned, no "Are you sure?", no decorative icon.
@@ -88,6 +92,7 @@ Bind numbers to the project's tokens: a rule's px value is the intent; use the n
 - `UX-TOK-2` Semantic names: `color-<element>-<priority>-<state>` (element = background, surface, border, text, icon).
 - `UX-TOK-3` Tone saturated accents down in dark mode (warm ≈ 70 %, cool ≈ 60 %).
 - `UX-TOK-4` Gradients: one hue, HSL, four steps (light source → hold → fall-off → anchor).
+- `UX-TOK-5` Pickers are token-first with one honest escape; a new value starts at the slot's role token, never `currentColor` or a bare hex.
 - `UX-SHAPE-1` Nested radius: outer = inner + padding.
 - `UX-ICON-1` One established icon family; no custom one-offs.
 

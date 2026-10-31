@@ -1,5 +1,5 @@
 // home-first-run — S6.8: Home's first run (02 Onboarding ob-first-launch … ob-edge-whats-new). The card shows
-// only when there is no project and no account; "Sign in to cloud.maude.sh" runs the device flow through
+// only when there is no project and no account; "Sign in to Maude Cloud" runs the device flow through
 // Rust (prepare → start → open) and polls; `maude://auth/{done,cancelled}` are nudges, never credentials;
 // "Just a local project" is the Create a local project sheet; the What's New line shows once, never on a
 // first run. Tauri is stubbed as in home-ask-send.test.tsx; no keychain, no real cloud.
@@ -212,8 +212,8 @@ describe('who sees the card', () => {
     await flush();
     const card = $('signin-card');
     expect(card?.getAttribute('data-state')).toBe('idle');
-    expect(card?.textContent).toContain('Keep your work on cloud.maude.sh');
-    expect($('signin-cloud')?.textContent).toContain('Sign in to cloud.maude.sh');
+    expect(card?.textContent).toContain('Keep your work in Maude Cloud');
+    expect($('signin-cloud')?.textContent).toContain('Sign in to Maude Cloud');
     expect($('signin-local')?.textContent).toContain('Just a local project');
     expect(card?.textContent).toContain(
       'Opens your browser, then brings you back. 14 days free, no card.'
@@ -226,7 +226,7 @@ describe('who sees the card', () => {
     mount();
     await flush();
     expect($('signin-card')).toBeNull();
-    expect($('home-signin-quiet')?.textContent).toContain('Sign in to cloud.maude.sh');
+    expect($('home-signin-quiet')?.textContent).toContain('Sign in to Maude Cloud');
   });
 
   test('the first launch writes the per-Mac flag once the card is up, and keeps the card for this visit', async () => {
@@ -244,7 +244,7 @@ describe('who sees the card', () => {
     await flush();
     expect($('signin-card')).toBeNull();
     expect($('home-projects-empty')?.textContent).toContain('No projects on this Mac yet.');
-    expect($('home-signin-quiet')?.textContent).toContain('Sign in to cloud.maude.sh');
+    expect($('home-signin-quiet')?.textContent).toContain('Sign in to Maude Cloud');
     // nothing is written again
     expect(
       calls.filter((c) => c.url.includes('/_home/first-run') && c.method === 'POST')
@@ -288,7 +288,7 @@ describe('who sees the card', () => {
   });
 });
 
-describe('Sign in to cloud.maude.sh', () => {
+describe('Sign in to Maude Cloud', () => {
   test('prepare → start → open; the page holds a state and a code to type, never a credential', async () => {
     fakeCloud();
     mount();
@@ -374,7 +374,7 @@ describe('Sign in to cloud.maude.sh', () => {
     expect(hit('/_home/cloud/signin/poll')[0].body).toEqual({ state: STATE });
     expect(cmds('home_cloud_signed_in')[0].args).toEqual({ profile: 'default' });
     expect($('home-signin-toast')?.textContent).toContain(
-      'Signed in. What you make now lives on cloud.maude.sh.'
+      'Signed in. What you make now lives in Maude Cloud.'
     );
     expect($('signin-card')).toBeNull();
   });
@@ -388,7 +388,7 @@ describe('Sign in to cloud.maude.sh', () => {
     act(() => deliver('auth://return', { kind: 'done', state: STATE }));
     await flush(12);
     expect($('home-signin-toast')?.textContent).toContain(
-      'Signed in — your 2 cloud projects are here.'
+      'Signed in — your 2 Maude Cloud projects are here.'
     );
   });
 
@@ -480,7 +480,7 @@ describe('Just a local project', () => {
     click('signin-local');
     expect($('home-create-dialog')?.textContent).toContain('Create a local project');
     expect($('home-create-dialog')?.textContent).toContain(
-      'Kept on this Mac, in your Maude folder. Move it to the cloud any time.'
+      'Kept on this Mac, in your Maude folder. Move it to Maude Cloud any time.'
     );
     expect($('home-create-location')).toBeNull();
     click('home-create-advanced');
@@ -538,7 +538,7 @@ describe('Just a local project', () => {
     expect($('home-create-location')?.textContent).toBe('~/Maude/Untitled project');
     click('home-create-submit');
     await flush();
-    expect(hit('/_home/projects/create-local')[0].body).toEqual({ name: '' });
+    expect(hit('/_home/projects/create-local')[0].body).toEqual({ name: 'Untitled project' });
   });
 
   test('a name → create-local → the project opens in its own tab', async () => {
@@ -559,6 +559,21 @@ describe('Just a local project', () => {
     expect(hit('/_home/projects/create-local')[0].body).toEqual({ name: 'Portfolio 2026' });
     expect(cmds('open_project')[0].args).toEqual({ root: '/Users/x/Maude/Portfolio' });
     expect($('home-create-dialog')).toBeNull();
+  });
+
+  test('R2-P2 (R31): the name opens as a real value, and with it cleared Create rests and creates nothing', async () => {
+    mount();
+    await flush();
+    click('signin-local');
+    const input = $('home-create-name') as HTMLInputElement;
+    expect(input.value).toBe('Untitled project');
+    expect(($('home-create-submit') as HTMLButtonElement).disabled).toBe(false);
+    const key = Object.keys(input).find((k) => k.startsWith('__reactProps')) as string;
+    act(() => (input as unknown as Record<string, any>)[key].onChange({ target: { value: '  ' } }));
+    expect(($('home-create-submit') as HTMLButtonElement).disabled).toBe(true);
+    expect($('home-create-submit')?.getAttribute('title')).toBe('Type a name first.');
+    await flush();
+    expect(hit('/_home/projects/create-local')).toHaveLength(0);
   });
 
   test('Cancel closes the sheet and creates nothing', async () => {

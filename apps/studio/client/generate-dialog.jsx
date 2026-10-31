@@ -208,7 +208,7 @@ export default function GenerateDialog({ onClose, onInsert }) {
     >
       <div className="sh-dialog" role="dialog" aria-modal="true" aria-label="Generate media">
         <div className="sh-dialog-hd">
-          <span className="sh-dialog-title">Generate with AI</span>
+          <span className="sh-dialog-title">Ask AI to generate</span>
           <button type="button" className="sh-iconbtn" aria-label="Close" onClick={onClose}>
             <Icon name="x" size={15} />
           </button>

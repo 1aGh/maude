@@ -235,7 +235,7 @@ const element = (src: string, id: string): string => {
 };
 
 describe('object.insert-path', () => {
-  test('writes one plain <svg> in the artboard: tokens, no hex, a readable id', async () => {
+  test('writes one plain <svg> in the artboard: a role token (literal fallback only), a readable id', async () => {
     const h = harness();
     const r = good(
       await h.run('object.insert-path', [], {
@@ -249,10 +249,11 @@ describe('object.insert-path', () => {
     expect(svg).toBe(
       '<svg data-cd-id="path" data-shape="path" width="280" height="110.77" viewBox="0 0 280 110.77" ' +
         'style={{ position: "absolute", left: "100px", top: "89.23px", overflow: "visible", fill: "none", ' +
-        'stroke: "var(--accent, currentColor)", strokeWidth: "4px", strokeLinecap: "round", strokeLinejoin: "round" }}>' +
+        'stroke: "var(--fg-1, #52525b)", strokeWidth: "4px", strokeLinecap: "round", strokeLinejoin: "round" }}>' +
         '<path d="M0 110.77L100 10.77C160 -29.23 220 50.77 280 110.77" /></svg>'
     );
-    expect(svg).not.toMatch(/#[0-9a-f]{3,8}\b/i);
+    // TD3: the only literal is the fallback behind the neutral stroke role
+    expect(svg.match(/#[0-9a-f]{3,8}\b/gi)).toEqual(['#52525b']);
   });
 
   test('into a frame: that frame is the parent; a static one is pinned relative; a second path gets a new id', async () => {

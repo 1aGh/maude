@@ -29,7 +29,7 @@ const WEIGHTS = [
 ];
 const typeLabel = (token) => systemName(token, 'type');
 
-function ColourRow({ colour, colors, vals, editable, set }) {
+function ColourRow({ colour, colors, vals, themes, ctx, resolved, editable, set }) {
   return (
     <Row k="Colour" name="type-colour">
       <ColorControl
@@ -39,6 +39,12 @@ function ColourRow({ colour, colors, vals, editable, set }) {
         mixed={colour.mixed ? colour.values : null}
         colors={colors}
         vals={vals}
+        themes={themes}
+        ctx={ctx}
+        resolved={resolved}
+        inheritedWord="Inherited"
+        noneInherits
+        slotGroup="text"
         allowNone
         noneLabel="Inherited"
         disabled={!editable}
@@ -59,6 +65,9 @@ function TextColourBody({ el, ctx }) {
       colour={colour}
       colors={fam.color}
       vals={fam.vals}
+      themes={fam.themes}
+      ctx={ctx}
+      resolved={el?.computed?.color}
       editable={editable}
       set={(patch) => editable && write(typeToCss(patch))}
     />
@@ -125,6 +134,9 @@ export function TypeBody({ el, selection, kind, ctx }) {
           colour={colour}
           colors={fam.color}
           vals={fam.vals}
+          themes={fam.themes}
+          ctx={ctx}
+          resolved={kind === 'multi' ? undefined : el?.computed?.color}
           editable={editable}
           set={set}
         />

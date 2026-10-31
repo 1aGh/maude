@@ -43,8 +43,7 @@ export const IMPORT_ACTION = Object.freeze({
 export const INTENT_ACTION = Object.freeze({ ...IMPORT_ACTION, 'make-ds': 'ds.make' });
 
 /** The toast after a project Home just made has moved to the cloud (02 ob-first-draw). */
-export const firstProjectWords = (project) =>
-  `${project} is your first project, on cloud.maude.sh.`;
+export const firstProjectWords = (project) => `${project} is your first project, in Maude Cloud.`;
 
 /**
  * `validate_intent`, on the page. Returns the clean intent or null (= dropped).

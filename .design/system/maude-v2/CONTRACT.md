@@ -20,14 +20,14 @@ written into the sections below (row ids in brackets, e.g. [A7], [C26]). Nothing
 ```
 Menu
 ├─ Back to Home
-├─ File ›        New canvas ⌘N · New project… ⇧⌘N · Open project… ⌘O
+├─ File ›        New canvas ⌘N · New artboard ▸ (Desktop · Laptop · Tablet · Mobile · A4 · Letter · Video)   [TD10]
+│                New project… ⇧⌘N · Open project… ⌘O
 │                Duplicate canvas · Rename canvas · Move to…
 │                Import from Figma… · Import a brand… · Assemble clips into a video
 │                Export… ⇧⌘E · Handoff to production ⇧⌘H · Close canvas
 │                Sign in as another account…   [A1, C6]
 ├─ Edit ›        Undo ⌘Z · Redo ⇧⌘Z · Undo history… · Cut ⌘X · Copy ⌘C · Paste ⌘V · Copy / Paste properties ⌥⌘C / ⌥⌘V
 │                Select all ⌘A · Deselect all esc · Select all annotations ⇧⌘A
-│                Advanced ▸ New artboard (Desktop · Laptop · Tablet · Mobile · A4 · Letter)
 ├─ View ›        Hide panels / Show panels ⌘\ · Comments ⇧⌘M · Assets · Exports · Annotations ⇧P
 │                Present ⌥⌘↵ · Present from the start ⇧⌥⌘↵ · Present the canvas   [A7, S3.1 — canvas 04 "Menu › View, amended"]
 │                Zoom in ⌘+ · Zoom out ⌘− · Zoom to fit ⌘0 · Actual size ⇧0
@@ -56,18 +56,18 @@ Menu
 | --- | --- | --- | --- |
 | V | Select | ⌘K | Search (canvases, actions, AI, every hidden tool) |
 | H | Hand (or hold Space) | ⌘\ | Hide / show panels |
-| F | Frame (draws an artboard, or a frame inside one) | ⌘/ | Ask AI (selection attached) |
+| F | Artboard / Frame (draws an artboard on empty canvas, or a frame inside one) [TD10] | ⌘/ | Ask AI (selection attached) |
 | R | Shape | ? | All shortcuts |
 | P | Pen | esc | Step back (deselect, close, leave tool) |
 | T | Text | ⌘Z / ⇧⌘Z | Undo / Redo (includes changes made by AI) |
-| I / ⇧I | Image / Component | ⌘0 / ⇧0 | Zoom to fit / Actual size |
+| I / ⇧I | Image (a picture picker at once; the next click places it, ↵ the middle) / Component [TD10] | ⌘0 / ⇧0 | Zoom to fit / Actual size |
 | N C M A E S | Sticky · Comment · Marker · Arrow · Stickers · Section (in Edit: switch to Preview with that tool) | ⌥⌘H | Version history |
 | ⌥⌘P | Preview [A7] | ⌥⌘↵ / ⇧⌥⌘↵ | Present from the selected artboard / from the start [A7] |
 | L | Pointer (in Present) [A7] | ⇧⌘C | Copy as PNG (inspector Export section) [C21] |
 | ⌘N / ⇧⌘N / ⌘O / ⌘T | New canvas / New project… / Open project… / New Home tab [C3] | ⇧⌘E / ⇧⌘H | Export… / Handoff to production |
 
 - **Two toolbars, one per mode (Michal 2026-10-08):**
-  - **Edit** — tools that make things *inside artboards*: **Select · Hand · Frame · Shape · Pen · Text · Image · Component · More (…)**. "More" holds Line, Ellipse, Polygon, Crop, Export area.
+  - **Edit** — tools that make things *inside artboards*: **Select · Hand · Artboard / Frame · Shape · Pen · Text · Image (Generate… beside it) · Component · More (…)**. "More" holds Line, Ellipse, Polygon, Crop, Export area.
   - **Preview** — annotation tools only, FigJam-style: **Select · Hand · Sticky · Comment · Marker · Arrow · Shape · Text · Stickers · Section**. The design is live, not editable. **Select (V)** is the resting pointer: a click uses the design, ⇧-click adds or removes an annotation, a drag on empty canvas selects the annotations it touches; **Hand (H)** pans (space-drag and the wheel pan too) [Michal rc.1 #17/#18]. **Stickers (E)** opens the sticker gallery: quick stamps for voting on top, then the bundled sticker packs (FigJam Doodle · Life Style · Opposing Thoughts · Project status) with keyword search and Recent; a picked sticker lands at 160 px.
   - **A key does what it means in the mode you are in** [Michal TD1c, 2026-10-31]: when the current toolbar has a slot for it, it arms that tool there and the mode stays (V H R T exist in both). A key only the other toolbar has switches to that mode with its tool (Edit's N C M A E S → Preview; Preview's F P I ⇧I → Edit); esc steps back. No single-key shortcut fires while text or a field is being edited. The AI is NOT a toolbar tool — it is the AI chat panel (its folded icon is the spark).
   - **Tool keys in each mode** (the "?" sheet's fold shows the same table, derived from `toolKeyAction`):
@@ -76,7 +76,7 @@ Menu
 | --- | --- | --- |
 | V | Select | Select |
 | H | Hand | Hand |
-| F | Frame | Frame — switches to Edit |
+| F | Artboard / Frame | Artboard / Frame — switches to Edit |
 | R | Shape | Shape |
 | P | Pen | Pen — switches to Edit |
 | T | Text | Text |
@@ -113,6 +113,8 @@ Menu
 | Version history | Changes, commits, history log | saved versions with Restore |
 | Hide panels / Show panels | fold, tuck, collapse (in UI copy) | ⌘\. "Fold into its icon" is how the DS describes the motion |
 | Share | publish, invite (as the button) | the one Share button; "Invite people" lives inside the sheet |
+| Maude Cloud | cloud.maude.sh (as the name), the cloud, a cloud project, cloud (as a noun) | the hosted service, in every sentence ("Move to Maude Cloud…", "Sign in to Maude Cloud", "your Maude Cloud project"). The address `cloud.maude.sh` appears only where a person reads or types an address. A self-hosted hub shows its own name (its host), never "Maude Cloud" [TD8, P5] |
+| Zoom to fit ⌘0 · Actual size ⇧0 | Fit to view, Reset view, Fit (alone) | the same two words and keys in View, ⌘K, the zoom pill and the empty-canvas menu [TD6, P5] |
 | Advanced | Pro, Expert, More settings | the disclosure at the foot of a panel |
 | Diagnostics | Debug, Status, Developer | the Menu submenu |
 | Stickers | Stamps (as the tool) | the E tool and its gallery [C12]. "Stamp" in copy means only a **vote stamp**; the internal id may stay `stamp` |
@@ -121,6 +123,7 @@ Menu
 | Untitled canvas | New canvas 1, Canvas | a new canvas's name (+ " 2", " 3") [C4]; Home names it from the prompt with a non-AI heuristic, offline create too |
 | Your Figma account can't open this file. Ask its owner to share it with you, then paste the link again. | Figma doesn't have that file, or this token can't read it. | the Figma import's `not_found` (ia-edges G, Michal 2026-10-29); nothing imports until it opens, and the link stays in the sheet |
 | View only | Read only, Locked, Read-only mode | a project this build does not edit — its file format is older or newer [A17]. Distinct from *Can view* (a people permission) |
+| Inspector paint: section **Fill**, row **Background** (artboard, frame, button, instance) · **Fill** (shape, path) · **Colour** (text) | "Fill" as the row on a box or a text; "Background" for a shape | the one paint section keeps the title *Fill* on every kind; the row says what the colour is *of* (decision `v2-michal-ux-audit-td-decisions` TD7 O3a). Size "Fill" and image Fit "Fill" are other controls and keep their word |
 
 ## 4 · Voice rules
 
@@ -146,7 +149,7 @@ Menu
 ## 6 · Settled details (copy round 2, 2026-10-06 · Gate 0, 2026-10-08)
 
 - **Empty canvas line:** "Your canvas is ready. Ask AI for a first draft, or start drawing." (never "screen").
-- **Share sheet:** primary button **Invite**; "Copy link" is a secondary button in the link row. It is the ONE Share surface everywhere [C11]; a local project's state ("Move to cloud…") lives inside it.
+- **Share sheet:** primary button **Invite**; "Copy link" is a secondary button in the link row. It is the ONE Share surface everywhere [C11]; a local project's state ("Move to Maude Cloud…") lives inside it.
 - **Project tabs** [A1, amended 2026-10-14]: Maude's own tab strip — Home pinned first, the project square + name + one state mark per tab, the tab menu on right-click (no drag-out / merge in v2.0); "Sign in as another account…" in the project pill menu.
 - **Accounts** [C6]: Settings › General lists every account on this Mac; each project tab is bound to one.
 - **Save status:** one word next to the faces in the Share cluster — *Saved* · *Syncing…* · *Offline — kept on this Mac* · *Local project*. No dot on the project pill. A failed, un-queued write shows a fifth word, **Not saved**, only while it is true, with one action (**Retry**) [C2]. A held source conflict (this Mac kept its copy, the project has another) is also **Not saved**, with the action **Compare** — both versions side by side in Diagnostics › Sync details — and one toast per conflict: "<canvas> differs from the project" + Compare.
@@ -155,6 +158,7 @@ Menu
 - **Search results count:** "N results". Key names lower-case in running copy: esc, ↵, tab.
 - **Comments** [C7, C8, D8]: a floating panel on the RIGHT, like the AI chat panel (the left slot stays Canvases · Layers · Assets); filters **Open · Mine · Resolved · All**, default Open; grouped by canvas; Reopen in a resolved thread; "Delete comment" on your own comments.
 - **Stickers** [C13]: pack order FigJam Doodle · Life Style · Opposing Thoughts · Project status (display names trimmed); authors as in the manifests. **Marker** [C14]: tips Marker · Highlighter · Eraser; inks Ink (default) · red · amber · green · blue + more. **Resolved stickies** [C29]: struck through in place; ⌘K "Hide resolved stickies" toggles it per person.
+- **Number fields scrub** [TD7 O4a]: drag the letter or icon inside the field (W, H, X, Y, the rotate glyph) — `ew-resize` cursor, 1 per px, Shift ×10, Alt ×0.1, a 3 px dead zone so a click only focuses, ↑ ↓ ±1 (Shift ±10), one drag = one undo step. Opacity / % fields and a token-bound value don't scrub. The colour picker opens from the chip as one popover beside the Inspector [TD7 O2a]; a section shows at most one quiet (fg-3) line of help [TD7 O5b].
 - **Spacing** [C15]: one control — a Spacing segment *Packed · Space between*; the Gap menu lists tokens + "A number, no token…".
 - **Inspector kind chip** [C16]: always the artboard kind (Web page · Fixed size · Print · Video); height mode is a row, not a chip.
 - **Removing** [C17]: ⌫ on an object inside an artboard *removes* it (⌘Z and Version history bring it back). Artboards, canvases, assets, chats and tokens are *moved to the trash*.

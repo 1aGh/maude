@@ -23,6 +23,19 @@ export const PROJECT_MENU: readonly MenuNode[] = [
     submenu: 'File',
     items: [
       { id: 'canvas.new' },
+      // TD10 (Michal, UX audit): New artboard with its presets sits in File, next to New canvas (was Edit › Advanced)
+      {
+        submenu: 'New artboard',
+        items: [
+          { id: 'artboard.new-desktop' },
+          { id: 'artboard.new-laptop' },
+          { id: 'artboard.new-tablet' },
+          { id: 'artboard.new-mobile' },
+          { id: 'artboard.new-a4' },
+          { id: 'artboard.new-letter' },
+          { id: 'artboard.new-video' },
+        ],
+      },
       { id: 'project.new' },
       { id: 'project.open' },
       { id: 'project.pull-copy' },
@@ -59,25 +72,6 @@ export const PROJECT_MENU: readonly MenuNode[] = [
       { id: 'select.all' },
       { id: 'select.none' },
       { id: 'select.all-annotations' },
-      SEP,
-      {
-        submenu: 'Advanced',
-        advanced: true,
-        items: [
-          {
-            submenu: 'New artboard',
-            items: [
-              { id: 'artboard.new-desktop' },
-              { id: 'artboard.new-laptop' },
-              { id: 'artboard.new-tablet' },
-              { id: 'artboard.new-mobile' },
-              { id: 'artboard.new-a4' },
-              { id: 'artboard.new-letter' },
-              { id: 'artboard.new-video' },
-            ],
-          },
-        ],
-      },
     ],
   },
   {

@@ -124,6 +124,11 @@
       "note": "Podklad with three round corners and one tighter one; corner dots on the canvas; Border and Flat elevation from the Alligators system; More open with Line, Ellipse, Polygon."
     },
     {
+      "id": "ed-shape-pick",
+      "label": "14b · Pick a colour — the picker beside the Inspector",
+      "note": "P6 T0 (IR-8, TD7 O2a): the Fill chip opens one popover beside the Inspector — Search, Recent, the system colours by role (Surfaces · Text · Borders · Accent · Status · More), Other colour…, None. A new shape starts on --bg-3 (IR-11)."
+    },
+    {
       "id": "ed-pen",
       "label": "15 · Pen — draw, then points, handles, bend",
       "note": "Pen draws a new path (sharp click, smooth drag, ⇧ 45°, click the first point to close), then edits points and handles; the old curve dashed."

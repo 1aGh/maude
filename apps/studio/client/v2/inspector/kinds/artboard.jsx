@@ -42,6 +42,11 @@ function ArtboardFillRow({ el, ctx }) {
         value={value}
         colors={fam.color}
         vals={fam.vals}
+        themes={fam.themes}
+        ctx={ctx}
+        resolved={el?.computed?.color}
+        inheritedWord="Text colour"
+        slotGroup="surfaces"
         allowNone
         noneLabel="None"
         showOpacity

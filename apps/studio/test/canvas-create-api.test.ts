@@ -144,7 +144,7 @@ describe('/_api/canvas — POST round-trip', () => {
       expect(existsSync(tsx)).toBe(true);
       expect(existsSync(meta)).toBe(true);
       expect(readFileSync(tsx, 'utf8')).toContain('export default function OnboardingBrief()');
-      expect(readFileSync(tsx, 'utf8')).toContain('Drop sticky notes');
+      expect(readFileSync(tsx, 'utf8')).toContain('Add sticky notes');
       const m = JSON.parse(readFileSync(meta, 'utf8'));
       expect(m.kind).toBe('brief-board');
       expect(m.title).toBe('Onboarding Brief');

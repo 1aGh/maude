@@ -144,8 +144,9 @@ describe('ColorControl "None"', () => {
     );
     await click(host.querySelector('button.insp-chip'));
     const none = q(host, 'insp-none-fill');
-    expect(none?.getAttribute('role')).toBe('menuitemradio');
-    expect(none?.getAttribute('aria-checked')).toBe('true');
+    // P6 T2: the colour picker is a popover dialog (not a menu), so None is a pressed toggle button
+    expect(none?.tagName).toBe('BUTTON');
+    expect(none?.getAttribute('aria-pressed')).toBe('true');
   });
 
   test('removes a written fill', async () => {
@@ -163,7 +164,7 @@ describe('ColorControl "None"', () => {
     );
     await click(host.querySelector('button.insp-chip'));
     const none = q(host, 'insp-none-fill');
-    expect(none?.getAttribute('aria-checked')).toBe('false');
+    expect(none?.getAttribute('aria-pressed')).toBe('false');
     await click(none);
     expect(changes).toEqual([null]);
   });

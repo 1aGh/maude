@@ -574,13 +574,14 @@ describe('r1 #8 — the path closes, and a finished drawing has a colour', () =>
     host.remove();
   });
 
-  test('a new path, shape and line fall back to currentColor when the canvas has no such token', () => {
-    const fallback = /^(?:\dpx solid )?var\(--[a-z0-9-]+, currentColor\)$/;
+  test('a new path, shape and line are a neutral role with a literal fallback (TD3), never currentColor', () => {
+    const fallback = /^var\(--(?:bg|fg)-[0-9], #[0-9a-f]{6}\)$/;
     expect(PATH_STROKE).toMatch(fallback);
     expect(SHAPE_FILL).toMatch(fallback);
     expect(LINE_STROKE).toMatch(fallback);
-    // never a hex: the colour is still the system's
-    for (const v of [PATH_STROKE, SHAPE_FILL, LINE_STROKE])
-      expect(v).not.toMatch(/#[0-9a-f]{3,8}\b/i);
+    for (const v of [PATH_STROKE, SHAPE_FILL, LINE_STROKE]) {
+      expect(v).not.toContain('currentColor');
+      expect(v).not.toContain('--accent');
+    }
   });
 });
