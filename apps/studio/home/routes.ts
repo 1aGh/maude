@@ -41,7 +41,7 @@ import { isLoopbackHost } from '../ws.ts';
 import { createHomeAi, type HomeAi } from './ai.ts';
 import { createHomeCli, type HomeCli } from './cli.ts';
 import type { HomeCloud } from './cloud.ts';
-import { checkLocation, createLocalProject, LOCATION_REFUSED } from './create-local.ts';
+import { checkLocationReason, createLocalProject } from './create-local.ts';
 import { createHomeGithub, type HomeGithub } from './github.ts';
 import { createHomeHub, type HomeHub } from './hub.ts';
 import { indexGcRequest } from './index-gc.ts';
@@ -423,9 +423,9 @@ export function homeRouteTable(deps: HomeDeps): HomeRoute[] {
         // r1 (img 6): a folder picked under Advanced › Location — re-checked, never trusted as sent
         let base = deps.projectsDir;
         if (body.location !== undefined && body.location !== null) {
-          const picked = checkLocation(body.location, deps.homeDir);
-          if (!picked) return json(400, { ok: false, error: LOCATION_REFUSED });
-          base = picked;
+          const picked = checkLocationReason(body.location, deps.homeDir);
+          if (!picked.ok) return json(400, { ok: false, error: picked.error });
+          base = picked.path;
         }
         const r = createLocalProject(
           body.name ??

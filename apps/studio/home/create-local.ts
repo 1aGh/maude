@@ -5,7 +5,7 @@
 // `scaffold-design.ts` every new project uses. The folder is CLAIMED with a non-recursive mkdir, so
 // two creates racing for one name get two folders, never one shared one.
 
-import { mkdirSync, realpathSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, realpathSync, rmSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
 
@@ -37,7 +37,26 @@ export function projectFolderName(raw: unknown): string {
 /** What `create-local` says when a picked folder is not one it will make a project in. */
 export const LOCATION_REFUSED =
   'Choose a folder inside your home folder, or on a drive attached to this Mac.';
+/** V2-8.9 r2 C2 — a picked folder inside another project or repository: it would inherit that tree's
+ *  `.git/config` (a `core.fsmonitor` command), `CLAUDE.md` (instructions to the AI) and `.design/`. */
+export const LOCATION_IN_PROJECT =
+  'This folder is inside another project or a git repository. Choose a folder outside it.';
 const MAX_LOCATION = 1024;
+/** What makes a folder part of somebody's tree: a repository, a Maude project, AI instructions. */
+const TREE_MARKERS = ['.git', '.design', 'CLAUDE.md'] as const;
+
+/** `dir` and each parent up to `stop` (exclusive) — or up to and including `stop` when `inclusive`. */
+function holdsTreeMarker(dir: string, stop: string, inclusive: boolean): boolean {
+  let at = dir;
+  for (;;) {
+    if (at === stop && !inclusive) return false;
+    if (TREE_MARKERS.some((m) => existsSync(path.join(at, m)))) return true;
+    if (at === stop) return false;
+    const up = path.dirname(at);
+    if (up === at) return false;
+    at = up;
+  }
+}
 
 /**
  * r1 (img 6) — New project › Advanced › "Choose another folder…": the folder the person picked in the
@@ -48,6 +67,38 @@ const MAX_LOCATION = 1024;
  * folder, or null.
  */
 export function checkLocation(raw: unknown, home = homedir()): string | null {
+  const r = checkLocationReason(raw, home);
+  return r.ok ? r.path : null;
+}
+
+/**
+ * `checkLocation` with the reason. V2-8.9 r2 C2: the folder, and every parent of it up to the home folder
+ * (the home folder itself is not asked — a dotfiles `~/.git` would refuse every place) or up to the drive
+ * root (asked), must hold no `.git`, `.design` or `CLAUDE.md`: LOCATION_IN_PROJECT. `Library` is compared
+ * case-folded (APFS is case-insensitive; a runtime whose realpath keeps the typed case must not pass).
+ */
+export function checkLocationReason(
+  raw: unknown,
+  home = homedir()
+): { ok: true; path: string } | { ok: false; error: string } {
+  const refused = { ok: false as const, error: LOCATION_REFUSED };
+  const real = resolveLocation(raw, home);
+  if (!real) return refused;
+  const rel = path.relative(real.home, real.path);
+  const inHome = rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
+  if (inHome) {
+    if (holdsTreeMarker(real.path, real.home, false))
+      return { ok: false, error: LOCATION_IN_PROJECT };
+    return { ok: true, path: real.path };
+  }
+  const vol = real.path.split(path.sep);
+  const drive = path.sep + path.join(vol[1] ?? '', vol[2] ?? '');
+  if (holdsTreeMarker(real.path, drive, true)) return { ok: false, error: LOCATION_IN_PROJECT };
+  return { ok: true, path: real.path };
+}
+
+/** The location policy without the tree check: the resolved folder and home, or null. */
+function resolveLocation(raw: unknown, home: string): { path: string; home: string } | null {
   if (typeof raw !== 'string' || !raw || raw.length > MAX_LOCATION || raw.includes('\u0000'))
     return null;
   if (!path.isAbsolute(raw)) return null;
@@ -69,14 +120,14 @@ export function checkLocation(raw: unknown, home = homedir()): string | null {
   if (inHome) {
     const parts = rel ? rel.split(path.sep) : [];
     if (parts.some((p) => p.startsWith('.'))) return null;
-    if (parts[0] === 'Library') return null;
-    return real;
+    if (parts[0]?.toLowerCase() === 'library') return null;
+    return { path: real, home: realHome };
   }
   const vol = real.split(path.sep);
   // ['', 'Volumes', '<drive>', …] — a drive's own folders, never /Volumes itself
   if (process.platform === 'darwin' && vol[1] === 'Volumes' && vol.length >= 3 && vol[2]) {
     if (vol.slice(2).some((p) => p.startsWith('.'))) return null;
-    return real;
+    return { path: real, home: realHome };
   }
   return null;
 }

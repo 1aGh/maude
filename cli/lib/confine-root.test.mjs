@@ -146,3 +146,21 @@ test('rootViolation: the other ways to name another project', () => {
   assert.equal(rootViolation(['assets'], { env: loose, cwd: A }), null);
   assert.equal(rootViolation(['assets', '--root', B], { env: loose, cwd: A })?.value, B);
 });
+
+// V2-8.9 r2 C2 (attacker) — the bash helpers fall back to `git rev-parse --show-toplevel` when
+// CLAUDE_PROJECT_DIR is unset. A project with no `.git` of its own inside a tree someone else controls
+// then resolves to THAT tree (its `.design/`). In an AI session the dispatcher pins the helper's
+// CLAUDE_PROJECT_DIR to the session's project, and bootstrap-check honours CLAUDE_PROJECT_DIR first.
+test('AI session: a helper resolves the session project, never a parent repository', () => {
+  const parent = realpathSync(mkdtempSync(join(tmpdir(), 'confine-root-parent-')));
+  made.push(parent);
+  spawnSync('git', ['init', '-q'], { cwd: parent });
+  mkdirSync(join(parent, '.design', 'system', 'planted'), { recursive: true });
+  writeFileSync(join(parent, '.design', 'config.json'), '{}');
+  const child = join(parent, 'child');
+  mkdirSync(join(child, '.design'), { recursive: true });
+  writeFileSync(join(child, '.design', 'config.json'), '{}');
+  // the child has a config and no design system: 11. The parent's tree would answer 0.
+  const r = maude(['bootstrap-check', '--json'], chat({ MAUDE_SESSION_ROOT: child }), child);
+  assert.equal(r.status, 11, `${r.stdout}\n${r.stderr}`);
+});

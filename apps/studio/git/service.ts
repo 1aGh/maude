@@ -26,7 +26,7 @@
 
 import { spawn } from 'node:child_process';
 import fs, { existsSync } from 'node:fs';
-import { isAbsolute, join, relative, sep } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { StringDecoder } from 'node:string_decoder';
 
 import git from 'isomorphic-git';
@@ -397,10 +397,19 @@ function runGit(
   timeoutMs?: number
 ): Promise<RunResult> {
   return new Promise((resolveRun) => {
-    const child = spawn('git', args, {
+    // V2-8.9 r2 C2 — a `.git/config` that came with a shared folder can name `core.fsmonitor = <cmd>`,
+    // which git runs on every status; and a `.git` git does not accept lets discovery walk UP into a
+    // parent someone else controls. Never run the hook; never look above the project's own folder
+    // (`dir` IS the repo root, see the header) — as acp/repo-private.ts does.
+    const child = spawn('git', ['-c', 'core.fsmonitor=false', ...args], {
       cwd: dir,
       windowsHide: true, // #141 — no console window per git call on Windows
-      env: { ...process.env, GIT_TERMINAL_PROMPT: '0', ...env },
+      env: {
+        ...process.env,
+        GIT_TERMINAL_PROMPT: '0',
+        GIT_CEILING_DIRECTORIES: dirname(resolve(dir)),
+        ...env,
+      },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     let stdout = '';

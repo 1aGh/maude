@@ -67,6 +67,18 @@ export function sessionRoot(env = process.env, cwd = process.cwd()) {
   return findProjectRoot(cwd);
 }
 
+/**
+ * V2-8.9 r2 C2 — the CLAUDE_PROJECT_DIR a bash helper gets in an AI session that names none: the session's
+ * project. The helpers otherwise fall back to `git rev-parse --show-toplevel`, which for a project with no
+ * `.git` of its own answers a PARENT repository (someone else's tree and its `.design/`). Null outside an
+ * AI session, when CLAUDE_PROJECT_DIR is already set (rootViolation held it to the session), or when no
+ * session project can be named.
+ */
+export function helperProjectDir(env = process.env, cwd = process.cwd()) {
+  if (!isAiSession(env) || env.CLAUDE_PROJECT_DIR) return null;
+  return sessionRoot(env, cwd);
+}
+
 function inside(child, root) {
   const rel = relative(root, child);
   return rel === '' || (rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
