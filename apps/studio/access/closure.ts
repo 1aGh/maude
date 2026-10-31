@@ -210,6 +210,12 @@ export interface ProjectReader {
   text(rel: string): string | null;
   /** Journal head / tree hash — the cache key. */
   head(): string;
+  /** p8-closure-lows — true when the last `list()` stopped at a cap, so files may be missing. A
+   *  reader without it lists everything it holds. */
+  listTruncated?(): boolean;
+  /** p8-closure-lows — whether the design root holds an entry at exactly `rel` that `list()` may
+   *  leave out (a symlink, a dangling one): looked at, never followed or read. */
+  present?(rel: string): boolean;
 }
 
 export interface Closure {
@@ -575,6 +581,10 @@ interface WalkEnv {
   isCanvas: (rel: string) => boolean;
   cfg: ClosureConfig;
   project: ProjectReader;
+  /** p8-c4b's stored grants (`cfg.knownCanvases`): each is a canvas whatever its file says. */
+  known: ReadonlySet<string>;
+  /** p8-closure-lows — `files` may be missing some (the reader's listing was cut at its cap). */
+  listTruncated: boolean;
 }
 
 function walkEnv(project: ProjectReader, files: ReadonlySet<string>, cfg: ClosureConfig): WalkEnv {
@@ -700,7 +710,9 @@ function walkEnv(project: ProjectReader, files: ReadonlySet<string>, cfg: Closur
       files.has(`${canvasSlugFromRel(rel, '')}.annotations.svg`)
     );
   };
-  return { files, textOf, isCanvas, cfg, project };
+  // Read after the caller drained `list()` into `files` (compute, canvasImportsReport).
+  const listTruncated = project.listTruncated?.() === true;
+  return { files, textOf, isCanvas, cfg, project, known, listTruncated };
 }
 
 const SAME_NAME_RE =
@@ -761,9 +773,15 @@ function walkImports(
   // `./combine-admin.css` was blocked for every opener, so it never opened and had no cover.) Any
   // file folding to that slug outside the grant — a twin, even a non-canvas — keeps it refused.
   const slugOwned = new Map<string, boolean>();
+  // p8-closure-lows (V2-8.9 delta pair, two Lows) — and only while the walk can SEE that: a stored
+  // grant at the owner path is a canvas whatever its file says (p8-c4b, `isCanvas`), a listing cut
+  // at its cap may hide the twin, and an entry the listing leaves out (a symlink, a dangling one)
+  // is still a name some canvas owns. Each keeps the stylesheet the owner's: refused.
   const grantedBySlug = (owner: string): boolean => {
-    if (env.files.has(owner) || env.files.has(owner.replace(/\.(tsx|html)$/i, '.meta.json')))
-      return false;
+    if (env.listTruncated || env.known.has(owner)) return false;
+    const meta = owner.replace(/\.(tsx|html)$/i, '.meta.json');
+    if (env.files.has(owner) || env.files.has(meta)) return false;
+    if (env.project.present?.(owner) || env.project.present?.(meta)) return false;
     const slug = canvasSlugFromRel(owner, '');
     const hit = slugOwned.get(slug);
     if (hit !== undefined) return hit;

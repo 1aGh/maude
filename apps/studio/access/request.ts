@@ -23,7 +23,7 @@
 
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import type { Closure, ProjectReader } from './closure.ts';
 // S9.12 — the revert-guard seam (a call-time read, so the import cycle with filters.ts is inert).
 import { aclCheckOn } from './filters.ts';
@@ -508,7 +508,12 @@ const LIST_CAP = 20000;
  * The design root on disk as a `ProjectReader`. `head` is a generation the caller bumps on
  * every file change (the closure cache key), so a closure is recomputed after the tree moves.
  */
-export function diskProjectReader(designRoot: string, head: () => string): ProjectReader {
+export function diskProjectReader(
+  designRoot: string,
+  head: () => string,
+  listCap = LIST_CAP
+): ProjectReader {
+  let truncated = false;
   return {
     head,
     text(rel) {
@@ -518,7 +523,23 @@ export function diskProjectReader(designRoot: string, head: () => string): Proje
         return null;
       }
     },
+    listTruncated: () => truncated,
+    // p8-closure-lows — an entry at exactly `rel`, whatever it is (the listing skips symlinks):
+    // the parent's NAMES only, so the entry is never followed or read, and the exact name (a
+    // case-insensitive disk would answer `stat` for `combine-admin.tsx` with `Combine-admin.tsx`).
+    present(rel) {
+      const segs = rel.split('/');
+      if (isAbsolute(rel) || segs.some((s) => s === '' || s === '.' || s === '..')) return false;
+      const abs = join(designRoot, rel);
+      if (!resolve(abs).startsWith(resolve(designRoot) + sep)) return false;
+      try {
+        return readdirSync(dirname(abs)).includes(segs[segs.length - 1] as string);
+      } catch {
+        return false;
+      }
+    },
     *list() {
+      truncated = false;
       let n = 0;
       const walk = function* (dir: string, prefix: string): Generator<string> {
         let entries: import('node:fs').Dirent[];
@@ -528,7 +549,10 @@ export function diskProjectReader(designRoot: string, head: () => string): Proje
           return;
         }
         for (const e of entries) {
-          if (n >= LIST_CAP) return;
+          if (n >= listCap) {
+            truncated = true;
+            return;
+          }
           // Runtime state is FIRST-segment `_*` only (DDR-115; the static lane's DDR-210 rule):
           // a nested `_` file is versioned content — a design system's `preview/_components.css`
           // or `preview/_ds.tsx` override (closure.ts `isSystemFileInClosure` expects to see it).
