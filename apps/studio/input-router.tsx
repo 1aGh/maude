@@ -282,7 +282,14 @@ const v1Tool = (t: ToolId): Tool | null => armTarget(t, (x) => V1_TOOLS.has(x)) 
 
 function classifyToolKey(chord: string, mode: CanvasModeV2, input: ClassifyInput): RouterAction {
   const governed = !!input.mode;
-  const hit = toolKeyAction(mode, chord, input.caps ?? ALL_CAPS, input.markerTip ?? 'pen');
+  // rc.1 #18 — Preview's V alias is governed-only: a standalone canvas keeps v1's V = Move from Browse.
+  const hit = toolKeyAction(
+    mode,
+    chord,
+    input.caps ?? ALL_CAPS,
+    input.markerTip ?? 'pen',
+    governed
+  );
   if (!hit) return { kind: 'no-op' };
   if (hit.kind === 'insert') return { kind: 'insert', insert: hit.insert };
   if (hit.kind === 'panel') return { kind: 'panel', panel: hit.panel };

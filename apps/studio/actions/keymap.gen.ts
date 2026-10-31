@@ -552,7 +552,7 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
       {
         chord: 'V',
         layer: 'tools',
-        when: { focus: ['canvas', 'chrome'], mode: ['edit', 'preview', 'viewing'] },
+        when: { focus: ['canvas', 'chrome'], mode: ['edit', 'viewing'] },
       },
     ],
   },
@@ -620,6 +620,7 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     exec: 'canvas',
     keys: [
       { chord: 'H', layer: 'tools', when: { focus: ['canvas', 'chrome'], mode: ['preview'] } },
+      { chord: 'V', layer: 'tools', when: { focus: ['canvas', 'chrome'], mode: ['preview'] } },
     ],
   },
   {

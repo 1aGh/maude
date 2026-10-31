@@ -226,7 +226,7 @@ describe('canvas document', () => {
       ['H', inPreview, 'tool.browse'],
       ['R', inPreview, 'tool.shape'],
       ['T', inPreview, 'tool.text'],
-      ['V', inPreview, 'tool.select'],
+      ['V', inPreview, 'tool.browse'], // rc.1 #18: Preview's pointer, no crossing
       ['F', inPreview, 'tool.frame'],
       ['I', inPreview, 'tool.image'],
       ['P', inPreview, 'tool.el-pen'], // crosses to Edit's Pen (S2.14)

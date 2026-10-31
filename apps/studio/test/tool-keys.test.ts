@@ -73,8 +73,16 @@ describe('toolKeyAction (T8)', () => {
     expect(act('preview', 'E')).toEqual({ kind: 'panel', panel: 'stickers' });
   });
 
-  test('Q2 — Preview: V F P I ⇧I switch to Edit (P is the Pen since S2.14); a momentary slot arms nothing', () => {
-    expect(act('preview', 'V')).toEqual({ kind: 'request', mode: 'edit', tool: 'move' });
+  test("rc.1 #18 — V in Preview arms Preview's pointer (the Hand, `browse`) and keeps the mode", () => {
+    expect(act('preview', 'V')).toEqual({ kind: 'arm', tool: 'browse' });
+    expect(act('preview', 'V', COMMENTER)).toEqual({ kind: 'arm', tool: 'browse' });
+    expect(modeKeys('preview')).toContain('V');
+    // Edit's V is still Select; Viewing's V still reaches the denial line
+    expect(act('edit', 'V')).toEqual({ kind: 'arm', tool: 'move' });
+    expect(act('viewing', 'V', COMMENTER)).toEqual({ kind: 'deny', mode: 'edit', tool: 'move' });
+  });
+
+  test('Q2 — Preview: F P I ⇧I switch to Edit (P is the Pen since S2.14); a momentary slot arms nothing', () => {
     expect(act('preview', 'F')).toEqual({ kind: 'request', mode: 'edit', tool: 'frame' });
     expect(act('preview', 'I')).toEqual({ kind: 'request', mode: 'edit', panel: 'assets' });
     expect(act('preview', 'P')).toEqual({ kind: 'request', mode: 'edit', tool: 'el-pen' });
@@ -109,7 +117,9 @@ describe('toolKeyAction (T8)', () => {
       mode: 'preview',
       tool: 'sticky',
     });
-    expect(act('preview', 'V', COMMENTER)).toEqual({ kind: 'deny', mode: 'edit', tool: 'move' });
+    // rc.1 #18 — V is the pointer, not a crossing: it arms the Hand for a viewing role too
+    expect(act('preview', 'V', COMMENTER)).toEqual({ kind: 'arm', tool: 'browse' });
+    expect(act('preview', 'F', COMMENTER)).toEqual({ kind: 'deny', mode: 'edit', tool: 'frame' });
   });
 
   test('Present answers no tool key (L is S3’s pointer)', () => {
@@ -303,11 +313,22 @@ describe('input-router: governed keys (M3)', () => {
     expect(key('v', gov('edit'))).toEqual({ kind: 'tool', tool: 'move' });
   });
 
-  test('Preview: own keys arm locally, V asks for Edit', () => {
+  test('Preview: own keys arm locally, V arms the pointer (rc.1 #18), F asks for Edit', () => {
     const p = { ...gov('preview'), activeTool: 'browse' as const };
     expect(key('n', p)).toEqual({ kind: 'tool', tool: 'sticky' });
     expect(key('h', p)).toEqual({ kind: 'tool', tool: 'browse' });
-    expect(key('v', p)).toEqual({ kind: 'mode-request', mode: 'edit', tool: 'move', cause: 'key' });
+    expect(key('v', p)).toEqual({ kind: 'tool', tool: 'browse' });
+    expect(key('v', { ...p, activeTool: 'comment' })).toEqual({ kind: 'tool', tool: 'browse' });
+    expect(key('f', p)).toEqual({
+      kind: 'mode-request',
+      mode: 'edit',
+      tool: 'frame',
+      cause: 'key',
+    });
+  });
+
+  test('ungoverned (a standalone canvas): V from Browse is still v1 Move (DDR-187)', () => {
+    expect(key('v', { activeTool: 'browse' })).toEqual({ kind: 'tool', tool: 'move' });
   });
 
   test('Viewing: H arms `inspect` (S3.11: a tool of its own); N asks — the shell denies', () => {
