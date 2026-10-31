@@ -47,6 +47,9 @@ export const V2_CODE_IDS = new Set([
   'button:studio/tool-palette.tsx#renderSlot.button/toolbar-slot-id', // r2 P1 Image (I) picker + Generate… beside it
   'button:studio/tool-palette.tsx#renderSlot/toolbar-slot-image-generate', // r2 P1 Image (I) picker + Generate… beside it
   'testid:studio/tool-palette.tsx#canvas/toolbar-slot-image-generate', // r2 P1 Image (I) picker + Generate… beside it
+  'testid:studio/client/dialogs/shortcuts-overlay.jsx#help/shortcuts/shortcuts-modes', // r2 P3 per-mode key table in the ? sheet
+  'testid:studio/client/dialogs/shortcuts-overlay.jsx#help/shortcuts/shortcuts-modes-hd', // r2 P3 per-mode key table in the ? sheet
+  'testid:studio/client/dialogs/shortcuts-overlay.jsx#help/shortcuts/shortcuts-modes-key', // r2 P3 per-mode key table in the ? sheet
 ]);
 
 /** Entries that are infrastructure, not features (lead decision, V2-4.gate-b): id → reason. Excluded

@@ -37,8 +37,8 @@ import {
   cubicBezier,
   EASE_MS,
   easeKind,
-  PREVIEW_EASES,
   inViewArtboard,
+  PREVIEW_EASES,
   type PreviewEaseDeps,
   usePreviewCamera,
 } from '../preview/preview-camera.tsx';
