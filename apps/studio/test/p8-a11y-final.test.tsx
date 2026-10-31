@@ -70,6 +70,23 @@ describe('color-contrast', () => {
     expect(contrastRatio(token('dark', name), '#15445d')).toBeGreaterThanOrEqual(4.5);
   });
 
+  // The manual contrast sweep (screenshot with the text hidden, then the real ink against the real pixels):
+  // a kind chip with nothing in it ("Fixed size 0") is still a button, but wore --fg-3, the DISABLED ink: 2.29:1
+  // (#606468 on #2b2e32). Information, not a disabled control.
+  test('a kind chip with a zero count holds 4.5:1 (it is a live filter, not a disabled control)', () => {
+    const css = read('../client/v2/kinds/kind-filter.css');
+    const name = colorVar(css, '.kf-chip[data-zero]');
+    expect(name).not.toBe('--fg-3');
+    expect(contrastRatio(token('dark', name), '#2b2e32')).toBeGreaterThanOrEqual(4.5);
+  });
+
+  // The "U" (unsaved) badge on a selected canvas row: --fg-2 on the selection wash, 9 px bold: 3.36:1 (#a1a5a9 on #125375).
+  test('the unsaved badge on a selected row holds 4.5:1', () => {
+    const css = read('../client/v2/left-panel/left-panel.css');
+    const name = colorVar(css, '.cv-git-badge[data-kind="U"]');
+    expect(contrastRatio(token('dark', name), '#125375')).toBeGreaterThanOrEqual(4.5);
+  });
+
   // Diagnostics › AI setup: "Sign in to Claude" wore --bg-0 (near-black in dark) on the accent fill: axe 3.77:1
   // (#15171a on #0077c2). Text on the accent fill is --accent-fg (white).
   test('the AI-setup "Sign in to Claude" button holds 4.5:1 on the accent fill', () => {

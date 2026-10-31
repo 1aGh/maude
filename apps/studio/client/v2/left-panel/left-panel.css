@@ -227,7 +227,8 @@
   .cv-git-badge[data-kind="U"] {
     background: transparent;
     border: 1px dashed var(--border-strong);
-    color: var(--fg-2);
+    /* V2-8.7: --fg-2 on a selected row's wash read 3.36:1 (9 px bold) */
+    color: var(--fg-0);
   }
 }
 
