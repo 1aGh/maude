@@ -3,14 +3,14 @@
   "pass": true,
   "qualityHash": "ca053cd5bbc8fa64231dfde679d7b0108280b8f384c154322c75c50c872e7071",
   "reportHashes": {
-    ".ai/plans/notes/v2-evidence/V2-8.5-closure.md": "cac4f9663b1419ffe19394e01ab5d8aee0badd8fdc214b2181b2585753b8fcbf",
-    ".ai/plans/notes/v2-evidence/V2-8.5-84-test-map.md": "5b37669d9a91f3dcbb187e814e2518e036b74f5c0acc48c6acf66e877f363145"
+    ".ai/plans/notes/v2-evidence/V2-8.5-browser-runs/all-fa52b24c6/env.txt": "e8b04ad5892295d482ab0c670cc3a6964298c8c3a2ff28ae0d1431e4acc8cae2",
+    ".ai/plans/notes/v2-evidence/V2-8.5-browser-runs/two-140ce9edd/env.txt": "78ff4c047bcb1c5cec8b9da1506eea93187fa4714668e5ebbf9883baa72aee52"
   },
-  "head": "fab4e6c4a1437950b73fe2d5db2df8a1d9c00cc2",
-  "ts": "2026-11-01T13:42:08.822Z",
+  "head": "140ce9edd92231fe62ba5e6f18082ca308834e06",
+  "ts": "2026-11-01T20:12:48.666Z",
   "reports": [
-    ".ai/plans/notes/v2-evidence/V2-8.5-closure.md",
-    ".ai/plans/notes/v2-evidence/V2-8.5-84-test-map.md"
+    ".ai/plans/notes/v2-evidence/V2-8.5-browser-runs/all-fa52b24c6/env.txt",
+    ".ai/plans/notes/v2-evidence/V2-8.5-browser-runs/two-140ce9edd/env.txt"
   ],
-  "note": "ledger artboard rows 342 verified / 14 soak / 4 not-a-state / 0 open; the 84 e2e rows re-checked at 08b35c8db on V2-8.3 (3x, chain4, 0 failing) + ALL 24 browser e2e files x2 on the mini on a fresh release build (48/48 rc=0, all-08b35c8db)"
+  "note": "r3: ledger artboard rows unchanged (342 verified / 14 soak / 4 not-a-state / 0 open); the 84 e2e rows re-checked at fa52b24c6 on V2-8.3 (3x, chain4, 0 failing); all 24 browser e2e x2 at fa52b24c6 on the mini: 45/48, the 2 clipboard-drop reds were the retired r1 text/plain expectation (updated in 140ce9edd, 2/2 green), canvas-tools T15 the pre-existing ⌘D-order flake (passes on rerun; follow-up)"
 }

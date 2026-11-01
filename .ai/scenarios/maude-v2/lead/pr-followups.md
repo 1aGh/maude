@@ -426,3 +426,4 @@ rights or is an availability nuisance). Candidates for the first rc patch:
 - The real-WebKit drag guard (`test/e2e/webkit-asset-drop.mjs`) stalls at its setup click about 1 run in 3 (reports HARNESS, not FAIL): make the canvas-row click wait on the tree, not a retry.
 - A video dropped on bare canvas (outside every artboard) still goes through the old media hook (upload + toasted `<Video>` snippet); a video placed in Edit has `controls` — check select vs play feel in the live app.
 - The design-system preview frame (`dsPreview`) also blocks the Assets drop catcher — confirm that is wanted.
+- canvas-tools.e2e.mjs T15 (⌘D copies +10 / +10) fails about 1 run in 2 on the mini, pre-existing (all-e5edca1cc 2/2, before r3): the copy is read as rects()[1], likely the source order of the copy, not its offset — make the assertion find the copy by id.

@@ -26,10 +26,10 @@
         "title": "Open a canvas",
         "status": "pass",
         "notes": [
-          "rendered in localhost:51343"
+          "rendered in localhost:54333"
         ],
         "data": {
-          "frameHost": "localhost:51343"
+          "frameHost": "localhost:54333"
         },
         "shot": "shots/browser-02-open-canvas.png",
         "extra": [],
@@ -103,7 +103,7 @@
         "title": "Share sheet",
         "status": "pass",
         "notes": [
-          "share sheet (local project: no invite): \"Share board Local project — kept on this Mac. Invite people once it is in the cloud. Advanced Links, link rules, sync\""
+          "share sheet (local project: no invite): \"Share board Local project — kept on this Mac. To invite people, move it to Maude Cloud in the Maude app. Only need a file? Export a PNG or PDF to send ⇧⌘E Advanced Addres\""
         ],
         "data": {
           "local": true,
@@ -149,10 +149,10 @@
         "title": "Open a canvas",
         "status": "pass",
         "notes": [
-          "rendered in canvas.cell.localhost:4793"
+          "rendered in canvas.cell.localhost:4788"
         ],
         "data": {
-          "frameHost": "canvas.cell.localhost:4793"
+          "frameHost": "canvas.cell.localhost:4788"
         },
         "shot": "shots/owner-02-open-canvas.png",
         "extra": [],
@@ -231,9 +231,9 @@
       }
     ],
     "errors": [
+      "console: failed to load comments TypeError: Failed to fetch\n    at o (http://studio.cell.localhost:4788/_client/client.bundle.js?v=40189c-1a19857545b:1:24987)\n    at http://studio.cell.localhost:4788/_client/client.bundle.js?v=40189c-1a19857545b:5789:13038\n    at http://studio.cell.localhost:4788/_client/cli",
+      "console: failed to load tree TypeError: Failed to fetch\n    at o (http://studio.cell.localhost:4788/_client/client.bundle.js?v=40189c-1a19857545b:1:24987)\n    at read (http://studio.cell.localhost:4788/_client/client.bundle.js?v=40189c-1a19857545b:5787:4703)\n    at h (http://studio.cell.localhost:4788/_clien",
       "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
-      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
-      "console: Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
       "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
       "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
@@ -280,10 +280,10 @@
         "title": "Open a canvas",
         "status": "pass",
         "notes": [
-          "rendered in canvas.cell.localhost:4793"
+          "rendered in canvas.cell.localhost:4788"
         ],
         "data": {
-          "frameHost": "canvas.cell.localhost:4793"
+          "frameHost": "canvas.cell.localhost:4788"
         },
         "shot": "shots/viewer-02-open-canvas.png",
         "extra": [],

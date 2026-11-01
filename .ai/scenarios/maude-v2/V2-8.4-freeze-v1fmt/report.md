@@ -32,11 +32,11 @@ What each shell showed at each step (from the live page; the open-project row is
 | Step | Plain browser (local studio) | Cloud tab (local cell, owner) | Cloud tab (viewer — Can comment) |
 | --- | --- | --- | --- |
 | Open the project | table shell browser: 14 chrome testids present, 0 stray · status word: "Local project" | chrome the parity table lists is missing: mode-switch:palette-mode-edit · table shell cloud-owner: 13 chrome testids present, 0 stray | table shell cloud-viewer: 14 chrome testids present, 0 stray · status word: "Can comment" |
-| Open a canvas | rendered in localhost:51343 | rendered in canvas.cell.localhost:4793 | rendered in canvas.cell.localhost:4793 |
+| Open a canvas | rendered in localhost:54333 | rendered in canvas.cell.localhost:4788 | rendered in canvas.cell.localhost:4788 |
 | Select an element and inspect it | inspector: "Card Frame esc Frame Frame Uses smoke Position X · Y X Y Rotation It sits where its frame’s layout puts it. Pl" · 14 editable input(s) in the Inspector (table readOnly=false) | an editor sees no editable input in the Inspector · inspector: "Card Frame Cross-shell card esc Cross-shell card Text Uses smoke Type Style Aa No style Font Inherited Size · " · 0 editable input(s) in the Inspector (table readOnly=false) | inspector: "Card Frame Cross-shell card esc Cross-shell card Text Uses smoke Type Style Aa No style Font Inherited Size · " · 0 editable input(s) in the Inspector (table readOnly=true) |
 | Leave a comment | the Comments panel holds the comment: true (1 comment(s) listed — a cell shows every shell's) · share-cluster-comments button drawn: true | locator.click: Timeout 30000ms exceeded. Call log:   - waiting for locator('.cm-composer textarea, .cm-composer [contenteditable="true"], .cm-composer input').first()     - locator resolved to <textarea rows="1" disabled aria-label="Comment body" class="cm-com | locator.click: Timeout 30000ms exceeded. Call log:   - waiting for locator('.cm-composer textarea, .cm-composer [contenteditable="true"], .cm-composer input').first()     - locator resolved to <textarea rows="1" disabled aria-label="Comment body" class="cm-com |
 | Export a PNG | sheet: "Export “Cross-shell card One canvas, three shel…”" · scope selection · server job done: "board — 75b252fd@1x.png PNG · On this Mac · just now Ready" · downloaded board 75b252fd@1x.png — PNG signature ok | sheet: "Export “Cross-shell card One canvas, three shel…”" · scope selection · browser lane: "Capturing…" · downloaded card.png — PNG signature ok | sheet: "Export “Cross-shell card One canvas, three shel…”" · scope selection · browser lane: "Capturing…" · downloaded card.png — PNG signature ok |
-| Share sheet | share sheet (local project: no invite): "Share board Local project — kept on this Mac. Invite people once it is in the cloud. Advanced Links, link rules, sync" | share sheet (invite + people): "Share board local-cell-smoke · syncs to the studio’s own hub Can edit Invite 1 person Y you you@local.test Owner Advanced Other ways in, sync, roles" · invited from the tab — people list: "1 person · 1 invited Y you you@local.te | Ask to edit answered: ["Asked. The owner will see your request."] |
+| Share sheet | share sheet (local project: no invite): "Share board Local project — kept on this Mac. To invite people, move it to Maude Cloud in the Maude app. Only need a file? Export a PNG or PDF to send ⇧⌘E Advanced Addres" | share sheet (invite + people): "Share board local-cell-smoke · syncs to the studio’s own hub Can edit Invite 1 person Y you you@local.test Owner Advanced Other ways in, sync, roles" · invited from the tab — people list: "1 person · 1 invited Y you you@local.te | Ask to edit answered: ["Asked. The owner will see your request."] |
 
 ## Per-step screenshots
 
@@ -69,19 +69,19 @@ What each shell showed at each step (from the live page; the open-project row is
 
 **Plain browser (local studio)** — PASS
 
-- rendered in localhost:51343
+- rendered in localhost:54333
 
 ![browser open-canvas](shots/browser-02-open-canvas.png)
 
 **Cloud tab (local cell, owner)** — PASS
 
-- rendered in canvas.cell.localhost:4793
+- rendered in canvas.cell.localhost:4788
 
 ![owner open-canvas](shots/owner-02-open-canvas.png)
 
 **Cloud tab (viewer — Can comment)** — PASS
 
-- rendered in canvas.cell.localhost:4793
+- rendered in canvas.cell.localhost:4788
 
 ![viewer open-canvas](shots/viewer-02-open-canvas.png)
 
@@ -172,7 +172,7 @@ Call log:
 
 **Plain browser (local studio)** — PASS
 
-- share sheet (local project: no invite): "Share board Local project — kept on this Mac. Invite people once it is in the cloud. Advanced Links, link rules, sync"
+- share sheet (local project: no invite): "Share board Local project — kept on this Mac. To invite people, move it to Maude Cloud in the Maude app. Only need a file? Export a PNG or PDF to send ⇧⌘E Advanced Addres"
 
 ![browser share](shots/browser-06-share.png)
 
@@ -204,9 +204,15 @@ Call log:
 - `console: Failed to load resource: the server responded with a status of 404 (Not Found)`
 - `console: Failed to load resource: the server responded with a status of 409 (Conflict)`
 **owner**
+- `console: failed to load comments TypeError: Failed to fetch
+    at o (http://studio.cell.localhost:4788/_client/client.bundle.js?v=40189c-1a19857545b:1:24987)
+    at http://studio.cell.localhost:4788/_client/client.bundle.js?v=40189c-1a19857545b:5789:13038
+    at http://studio.cell.localhost:4788/_client/cli`
+- `console: failed to load tree TypeError: Failed to fetch
+    at o (http://studio.cell.localhost:4788/_client/client.bundle.js?v=40189c-1a19857545b:1:24987)
+    at read (http://studio.cell.localhost:4788/_client/client.bundle.js?v=40189c-1a19857545b:5787:4703)
+    at h (http://studio.cell.localhost:4788/_clien`
 - `console: Failed to load resource: the server responded with a status of 404 (Not Found)`
-- `console: Failed to load resource: the server responded with a status of 404 (Not Found)`
-- `console: Failed to load resource: the server responded with a status of 403 (Forbidden)`
 - `console: Failed to load resource: the server responded with a status of 404 (Not Found)`
 - `console: Failed to load resource: the server responded with a status of 404 (Not Found)`
 - `console: Failed to load resource: the server responded with a status of 404 (Not Found)`
