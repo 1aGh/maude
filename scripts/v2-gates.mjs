@@ -7,6 +7,9 @@
 //   node scripts/v2-gates.mjs --attest <id> --report <path>[,<path>…] [--note "<text>"]
 //                                              record an agent/human gate (critic, auditor, manual smoke)
 //                                              after its reports exist and say pass
+//   node scripts/v2-gates.mjs --carry <id> --from <sha> --checks "<what ran>" [--allow <path>,…] [--note "…"]
+//                                              carry a command gate's green full run to HEAD after a scoped,
+//                                              logic-free change (Michal 2026-11-01); the diff is written into it
 //
 // Three kinds of gate:
 //   live     cheap — run on every check (greps, sizes, file presence)
@@ -351,6 +354,70 @@ if (opt('--attest')) {
     note: opt('--note') ?? '',
   });
   console.log(`PASS  ${g.id} attested → ${evidencePath(g.id)}`);
+  process.exit(0);
+}
+
+// --carry (Michal 2026-11-01, kg v2-michal-gates-scoped-recheck): after a green full run, a trivial change (CSS, copy,
+// a11y ink, tests, harness scripts — no product logic) does not re-run a command gate. The lead names the scoped checks
+// that did run (8.1 quality, the gate that found it, the e2e specs on that surface, client-boots), and the old green
+// evidence is carried to HEAD with the exact diff written into it. Product code outside the allowlist must be named in
+// --allow, or the carry is refused — a logic change takes the full run.
+if (opt('--carry')) {
+  const g = GATES.find((x) => x.id === opt('--carry'));
+  const from = opt('--from') ?? '';
+  const checks = opt('--checks') ?? '';
+  const allow = (opt('--allow') ?? '').split(',').filter(Boolean);
+  if (!g || g.kind !== 'command' || !/^[0-9a-f]{7,40}$/.test(from) || !checks.trim()) {
+    console.error(
+      '--carry <command gate> --from <sha of its green run> --checks "<scoped checks that ran>" [--allow <path>[,…]] [--note "…"]'
+    );
+    process.exit(2);
+  }
+  if (productDirty()) {
+    console.error('uncommitted product changes — commit first, evidence is tied to a commit');
+    process.exit(2);
+  }
+  const ev = readEvidence(g.id);
+  const full = gitArgs('rev-parse', '--verify', `${from}^{commit}`).stdout.trim();
+  if (!ev || ev.pass !== true || ev.head !== full || ev.cmd !== g.cmd || ev.carriedFrom) {
+    console.error(
+      `${g.id} has no green full run recorded at ${from} (carry only from a real --record)`
+    );
+    process.exit(1);
+  }
+  if (gitArgs('merge-base', '--is-ancestor', full, 'HEAD').status !== 0) {
+    console.error(`${from} is not an ancestor of HEAD`);
+    process.exit(1);
+  }
+  const changed = gitArgs('diff', '--name-only', full, 'HEAD', '--', '.', ':!.ai')
+    .stdout.split('\n')
+    .filter(Boolean);
+  const trivial = (p) =>
+    /\.(css|md|mdx|txt|png|svg)$/.test(p) ||
+    /(^|\/)test\/|\.test\.[cm]?[jt]sx?$|^scripts\/test\/|^apps\/desktop\/e2e\//.test(p) ||
+    p === 'site/lib/stats.json';
+  const logic = changed.filter((p) => !trivial(p) && !allow.includes(p));
+  if (logic.length) {
+    console.error(
+      `not a scoped change — these need --allow (after you judged them logic-free) or a full run:\n  ${logic.join('\n  ')}`
+    );
+    process.exit(1);
+  }
+  writeEvidence(g.id, {
+    gate: g.id,
+    pass: true,
+    head: git('rev-parse HEAD'),
+    ts: new Date().toISOString(),
+    cmd: g.cmd,
+    qualityHash: QUALITY_HASH,
+    carriedFrom: { head: ev.head, ts: ev.ts, seconds: ev.seconds },
+    scoped: { diff: changed, allowed: allow, checks },
+    note: opt('--note') ?? '',
+    log: ev.log,
+  });
+  console.log(
+    `PASS  ${g.id} carried ${from.slice(0, 9)} → HEAD (scoped: ${checks}) → ${evidencePath(g.id)}`
+  );
   process.exit(0);
 }
 
