@@ -171,6 +171,7 @@ import {
 import { resolveInk } from './annotations/ui/tool-prefs.ts';
 import {
   eraseTargetIndex,
+  isSelectableStrokeTool,
   readChromeTheme,
   useCanvasChromeTheme,
   useToolState,
@@ -3264,21 +3265,7 @@ export function AnnotationsLayer() {
       const node = el?.closest?.('[data-id][data-tool]') ?? null;
       const id = node?.getAttribute('data-id') ?? null;
       const t = node?.getAttribute('data-tool') ?? null;
-      if (
-        id &&
-        t &&
-        (t === 'pen' ||
-          t === 'rect' ||
-          t === 'ellipse' ||
-          t === 'polygon' ||
-          t === 'arrow' ||
-          t === 'text' ||
-          t === 'sticky' ||
-          t === 'image' ||
-          t === 'link' ||
-          t === 'mediaref' ||
-          t === 'section')
-      ) {
+      if (id && t && isSelectableStrokeTool(t)) {
         return id;
       }
       return null;
