@@ -78,7 +78,7 @@ export const MODE_SHOWS = Object.freeze({
    *  (project + canvas name) — it no longer folds to its mark. */
   'project-menu': row('pill', 'pill', 'esc-first', 'esc-first', 'pill'),
   /** What esc does (the ladder itself is `esc-ladder.ts`; this is the table's last line). */
-  esc: row('steps-back', 'back-to-edit', 'settles-back', 'same-view', 'deselect'),
+  esc: row('steps-back', 'steps-back', 'settles-back', 'same-view', 'deselect'),
 } as const);
 
 export type ShowRow = keyof typeof MODE_SHOWS;

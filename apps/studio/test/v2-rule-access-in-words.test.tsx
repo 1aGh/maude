@@ -5,7 +5,7 @@
 // cards and row lines, Home's cloud rows, the where-matrix); a word that drifts in one of them is the rule broken,
 // so every producer is held to the same two words here. Then the surface itself: a person who cannot edit sees
 // their access word where the save status sits and exactly one action, Ask to edit — never Share — and a link
-// opened in a browser says "esc for Viewing", not a role id.
+// opened in a browser says "⌥⌘P for Viewing", not a role id.
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 

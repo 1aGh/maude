@@ -1,6 +1,6 @@
 // S9.21c (10 co-browser-view; 04 md-edge-viewer) — a link opened in a plain browser.
 //   · Can view boots in Preview (no toolbar: the toolbar is Edit / Viewing only) — canvas-modes `initialMode`
-//   · Preview's chrome in that browser: the PreviewBar ("esc for Viewing"), the zoom readout, and the
+//   · Preview's chrome in that browser: the PreviewBar ("⌥⌘P for Viewing"), the zoom readout, and the
 //     "Open in the Mac app" island, bottom right — a plain link to the canvas' own maude://open link
 //   · the island shows on a cloud cell in a browser only: never in the desktop app, never on a local studio,
 //     never for a link that is not a maude://open canvas link (it is built by the shell, not by a canvas)
@@ -128,7 +128,7 @@ describe('PreviewChrome in the browser (co-browser-view)', () => {
         openApp={link}
       />
     );
-    expect(text('[data-testid="preview-bar-esc"]')).toBe('esc for Viewing');
+    expect(text('[data-testid="preview-bar-esc"]')).toBe('⌥⌘P for Viewing');
     expect(q('[data-testid="zoom-only"]')).toBeNull();
     expect(q('[data-testid="preview-open-app"]')?.getAttribute('href')).toBe(link);
   });

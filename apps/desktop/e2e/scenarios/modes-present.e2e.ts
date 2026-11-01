@@ -88,7 +88,7 @@ describe('modes-present (S3.13)', () => {
     await landsOn('edit');
   });
 
-  it('Preview ⇄ Edit: ⌥⌘P and esc', async () => {
+  it('Preview ⇄ Edit: ⌥⌘P, and esc stays in Preview', async () => {
     // Michal TD1d (UX audit r2, P3): a mode switch changes ONLY the toolbar — Preview keeps Edit's full Share
     // cluster (faces, status word, avatar); `compact` is no mode's cell any more (bridge/mode-shows.ts)
     const cluster = async () => ({
@@ -102,7 +102,11 @@ describe('modes-present (S3.13)', () => {
     await landsOn('preview');
     expect(await cluster()).toEqual(inEdit);
     await capture('preview');
+    // r4 #14 (Michal): in view mode, esc with nothing selected must not switch to Edit
     await chord('Escape', 'Escape');
+    await browser.pause(500);
+    expect(await pressed()).toEqual(['preview']);
+    await chord('p', 'KeyP', { altKey: true, metaKey: true });
     await landsOn('edit');
   });
 
@@ -192,7 +196,8 @@ describe('modes-present (S3.13)', () => {
       })
       .catch(() => undefined);
     expect(await exists('size-picker-search')).toBe(false);
-    await chord('Escape', 'Escape');
+    // Esc stays in Preview (r4 #14); ⌥⌘P is the way back to Edit
+    await chord('p', 'KeyP', { altKey: true, metaKey: true });
     await landsOn('edit');
   });
 
@@ -342,7 +347,8 @@ describe('modes-present (S3.13)', () => {
       expect(squash(g.easing)).toBe(EASE_TOKEN);
     }
     await capture('md-motion preview');
-    await chord('Escape', 'Escape');
+    // Esc stays in Preview (r4 #14); ⌥⌘P is the way back to Edit
+    await chord('p', 'KeyP', { altKey: true, metaKey: true });
     await landsOn('edit');
   });
 
@@ -419,7 +425,8 @@ describe('modes-present (S3.13)', () => {
         props,
         selector
       );
-      await chord('Escape', 'Escape');
+      // Esc stays in Preview (r4 #14); ⌥⌘P is the way back to Edit
+      await chord('p', 'KeyP', { altKey: true, metaKey: true });
       await landsOn('edit');
     }
   });
@@ -491,7 +498,10 @@ describe('modes-present (S3.13)', () => {
     await chord('Escape', 'Escape');
     // returnTo: Present entered from Preview goes back to Preview, not to Edit
     await landsOn('preview');
-    await chord('Escape', 'Escape');
+    await chord('Escape', 'Escape'); // Preview at rest: r4 #14 — esc no longer leaves Preview for Edit
+    await browser.pause(400);
+    expect(await pressed()).toEqual(['preview']);
+    await chord('p', 'KeyP', { altKey: true, metaKey: true }); // ⌥⌘P is the way back
     await landsOn('edit');
     await chord('Escape', 'Escape'); // Edit with nothing selected: nothing happens
     await browser.pause(400);

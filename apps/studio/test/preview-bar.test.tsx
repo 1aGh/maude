@@ -1,5 +1,5 @@
 // S3.9 (md-preview, md-preview-combine) — Preview's own chrome, against the real components.
-//   · PreviewBar: "Previewing <canvas>" · "esc to edit" for editors / "esc for Viewing" for a viewing role,
+//   · PreviewBar: "Previewing <canvas>" · "⌥⌘P to edit" for editors / "⌥⌘P for Viewing" for a viewing role,
 //     and a back slot (S3.10a fills it: "‹ Homepage") that is absent until a link was followed
 //   · ZoomOnly: the zoom percentage and nothing else
 //   · PreviewChrome: both show in Preview only — Edit, Viewing and Present render neither
@@ -56,14 +56,14 @@ describe('PreviewBar', () => {
   test('says which canvas, and what esc does', async () => {
     await mount(<PreviewBar name="Homepage" hint="to edit" />);
     expect(text('[data-testid="preview-bar-title"]')).toBe('Previewing Homepage');
-    expect(text('[data-testid="preview-bar-esc"]')).toBe('esc to edit');
+    expect(text('[data-testid="preview-bar-esc"]')).toBe('⌥⌘P to edit');
     expect(q('[data-testid="preview-bar"] strong')?.textContent).toBe('Homepage');
-    expect(q('[data-testid="preview-bar-esc"] .kbd')?.textContent).toBe('esc');
+    expect(q('[data-testid="preview-bar-esc"] .kbd')?.textContent).toBe('⌥⌘P');
   });
 
-  test('a viewing role reads "esc for Viewing"', async () => {
+  test('a viewing role reads "⌥⌘P for Viewing"', async () => {
     await mount(<PreviewBar name="matchday" hint={previewHint(NO_CAPS)} />);
-    expect(text('[data-testid="preview-bar-esc"]')).toBe('esc for Viewing');
+    expect(text('[data-testid="preview-bar-esc"]')).toBe('⌥⌘P for Viewing');
   });
 
   test('no back button until a link was followed; then "‹ Homepage" runs onBack', async () => {
@@ -134,9 +134,9 @@ describe('PreviewChrome: Preview only', () => {
     expect(q('[data-testid="preview-bar"]')?.getAttribute('data-occludes')).toBe('top');
   });
 
-  test('a viewing role in Preview reads "esc for Viewing"', async () => {
+  test('a viewing role in Preview reads "⌥⌘P for Viewing"', async () => {
     await mount(chrome('preview', NO_CAPS));
-    expect(text('[data-testid="preview-bar-esc"]')).toBe('esc for Viewing');
+    expect(text('[data-testid="preview-bar-esc"]')).toBe('⌥⌘P for Viewing');
   });
 
   test('the bar fades in on mount and out on leave (a state, so CSS owns the motion)', async () => {

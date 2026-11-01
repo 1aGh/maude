@@ -275,9 +275,7 @@ describe('md-model · what each mode shows, per column of the table', () => {
               : { edit: false, annotate: false, comment: true }),
         });
         const e = cell('esc');
-        if (e === 'back-to-edit') expect(d).toEqual({ kind: 'set', mode: 'edit' });
-        else if (e === 'settles-back' || e === 'same-view')
-          expect(d).toEqual({ kind: 'exit-present' });
+        if (e === 'settles-back' || e === 'same-view') expect(d).toEqual({ kind: 'exit-present' });
         else expect(d).toBeNull(); // Edit steps back inside the canvas; Viewing has nowhere to go
       });
     });

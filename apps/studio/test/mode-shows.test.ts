@@ -42,7 +42,7 @@ const CONTRACT: Record<string, [string, string, string, string, string]> = {
   'share-cluster': ['full', 'full', 'hidden', 'hidden', 'full-access'],
   inspect: ['inspector', 'panel-on-cmd-click', 'hidden', 'hidden', 'panel-on-click'],
   'project-menu': ['pill', 'pill', 'esc-first', 'esc-first', 'pill'],
-  esc: ['steps-back', 'back-to-edit', 'settles-back', 'same-view', 'deselect'],
+  esc: ['steps-back', 'steps-back', 'settles-back', 'same-view', 'deselect'],
 };
 const COLUMNS: ModeKey[] = ['edit', 'preview', 'present-artboards', 'present-canvas', 'viewing'];
 

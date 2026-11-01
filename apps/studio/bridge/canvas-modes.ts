@@ -535,13 +535,14 @@ export type EscStep =
   | 'rest'
   /** At rest in Edit or Viewing: nothing more ("there's no Edit to return to"). */
   | 'stay'
-  /** `mode-request {mode:'back', cause:'esc'}`: Preview at rest → `baseMode`; Present → `returnTo`. */
+  /** `mode-request {mode:'back', cause:'esc'}`: Present → `returnTo`. Preview at rest does NOT leave (r4 #14,
+   *  Michal: esc with nothing selected in view mode must not switch to Edit; ⌥⌘P and the mode switch do). */
   | 'back';
 
-/** 04 md-esc, one step per press: tool → resting tool → the previous mode. */
+/** 04 md-esc, one step per press: tool → resting tool; only Present steps back to the mode it came from. */
 export function escStep(mode: CanvasModeV2, tool: string): EscStep {
   if (mode === 'present') return 'back';
   const rest = MODE_TOOLS[mode].rest;
   if (tool !== rest && V1_TOOL_BRIDGE[rest] !== tool) return 'rest';
-  return mode === 'preview' ? 'back' : 'stay';
+  return 'stay';
 }

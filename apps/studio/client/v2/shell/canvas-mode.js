@@ -309,7 +309,7 @@ export function decideModeRequest(req, { caps, presenting, mode, modalOpen, view
  * step left is the mode's terminal:
  *   a past version held   → back to now
  *   Present               → back to `returnTo`
- *   Preview               → `baseMode` (Edit, or Viewing for a viewing role)
+ *   Preview               → nothing (r4 #14: esc never leaves Preview; ⌥⌘P / the mode switch do)
  *   Edit / Viewing        → nothing ("there's no Edit to return to")
  * @returns {{ kind: 'exit-viewing' } | { kind: 'exit-present' } | { kind: 'set', mode } | null}
  */
@@ -324,7 +324,6 @@ export function shellEscDecision({
   if (typing || overlayOpen) return null;
   if (viewing) return { kind: 'exit-viewing' };
   if (presenting) return { kind: 'exit-present' };
-  if (mode === 'preview') return { kind: 'set', mode: baseMode(caps) };
   return null;
 }
 
