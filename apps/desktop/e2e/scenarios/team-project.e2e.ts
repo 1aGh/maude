@@ -891,12 +891,13 @@ describe('team-project (native-desktop)', () => {
     });
     await capture('21-status-offline');
 
-    // ⌘N still makes a canvas, kept on this Mac — R3 (6): ⌘N asks the name first, Enter takes "Untitled canvas"
+    // ⌘N still makes a canvas, kept on this Mac — R3 (6): ⌘N asks the name first; Create takes the default (the
+    // driver's synthetic Enter does not reach a form's implicit submit, a person's Enter does)
     const before = canvasesIn(t.managedDir);
     await settleMotion();
     await browser.keys(['Meta', 'n']);
     await (await $(tid('name-dialog-input'))).waitForDisplayed({ timeout: 10_000 });
-    await browser.keys(['Enter']);
+    await (await $(tid('name-dialog-create'))).click();
     let made = '';
     await eventually('a new canvas on this Mac', () => {
       made = canvasesIn(t.managedDir).find((c) => !before.includes(c)) ?? '';
