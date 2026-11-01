@@ -122,7 +122,6 @@ export function CanvasesPanel({
   onJumpArtboard, // (path, artboardId) — default: the shell's tab hook, over the left-panel bus
   activeArtboard = null, // the artboard in view on the open canvas
   onNewCanvasIn,
-  onNewBrief,
   showHidden = false, // 06 ad-left — Show hidden files: sidecars, loose notes and runtime entries, dimmed in place
   onPreview, // (path) — a supporting file opens its preview in the canvas area
   previewPath = null,
@@ -455,7 +454,6 @@ export function CanvasesPanel({
     if (o.op === 'pin' && o.path) pins.toggle(relOf(o.path, designRel), !!o.pinned);
     else if (o.op === 'sort') openSortMenuFrom(sortButton());
     else if (o.op === 'filter') focusKindChips();
-    else if (o.op === 'new-brief') onNewBrief?.();
     else if (o.op === 'rename' && o.path && edit) beginRename(o.path);
   };
   useEffect(() => {

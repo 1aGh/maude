@@ -25,7 +25,7 @@ import { runAssetsAction } from '../v2/assets/assets-bus.js';
 import { runTakeStep } from '../v2/assets/use-takes-lane.js';
 import { playToggle, stepPlayhead, TIMELINE_KEY_HANDLERS } from '../v2/timeline/keys.js';
 import { runCopyPng } from '../v2/export/copy-png.js';
-import { createBlankCanvas } from '../v2/create/new-canvas.js';
+import { openNewCanvasDialog } from '../v2/create/new-canvas.js';
 import { runUndoKey } from '../v2/undo/use-undo-projection.jsx';
 import { cycleRegion, landOn } from '../v2/shell/f6-cycle.js';
 import { presentFrom, presentStep, shellStepBack } from '../v2/shell/use-canvas-mode-lane.js';
@@ -268,11 +268,11 @@ export const SHELL_KEY_HANDLERS = {
     if (d.activePath === SYSTEM_TAB) d.closeTab(SYSTEM_TAB);
     else d.openSystem();
   },
-  // ⌘N — a blank canvas, named by the server (S6.1, C4), opened at once. (The brief board is
+  // ⌘N — a blank canvas: the dialog asks for its name first (S6.1, R3 (6)). (The brief board is
   // `canvas.new-brief`, from the menu and ⌘K.)
   'canvas.new': (d, { event: e }) => {
     e.preventDefault();
-    createBlankCanvas({ toast: shellToast, sizes: true });
+    openNewCanvasDialog();
   },
   // ? — keyboard-shortcuts cheat sheet (DS shortcuts overlay)
   'help.shortcuts': (d, { event: e }) => {

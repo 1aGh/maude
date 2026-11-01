@@ -3,7 +3,7 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-
+import { takeNameDialogRequest } from '../client/v2/create/name-dialog-bus.js';
 import { createBlankCanvas, openBriefBoardComposer } from '../client/v2/create/new-canvas.js';
 import {
   clearSizePickerRequest,
@@ -20,6 +20,7 @@ const none = null as unknown as Window;
 afterEach(() => {
   clearSizePickerRequest();
   takeCanvasesOps();
+  takeNameDialogRequest();
 });
 
 describe('the size-picker request (open-sizes.js)', () => {
@@ -84,18 +85,20 @@ describe('createBlankCanvas — name and size picker', () => {
     });
     expect(takeSizePicker('ui/Untitled canvas.tsx')).toBeNull();
   });
-  test('the menu row (and so ⌘N and ⌘K, same function) opens the picker too', async () => {
+  // R3 (6): the person's own doors (menu, ⌘N, ⌘K) ask for the name first; the dialog's Create is what calls
+  // createBlankCanvas({ sizes: true }), so the picker still comes up on the new canvas (NameDialogHost).
+  test('the menu row (and so ⌘N and ⌘K, same function) asks for the name in a dialog, writing nothing yet', () => {
     const real = globalThis.fetch;
-    globalThis.fetch = (async () => ({
-      ok: true,
-      status: 201,
-      json: async () => ({ ok: true, file: 'ui/Untitled canvas.tsx' }),
-    })) as never;
+    let posts = 0;
+    globalThis.fetch = (async () => {
+      posts++;
+      return { ok: true, status: 201, json: async () => ({ ok: true, file: 'x.tsx' }) };
+    }) as never;
     try {
       const h = createMenuHandlers({ openPanelExclusive: () => {}, toast: () => {} } as never);
       h['canvas.new']();
-      await new Promise((r) => setTimeout(r, 10));
-      expect(takeSizePicker('ui/Untitled canvas.tsx')).toBe('ui/Untitled canvas.tsx');
+      expect(takeNameDialogRequest()).toEqual({ kind: 'canvas' });
+      expect(posts).toBe(0);
     } finally {
       globalThis.fetch = real;
     }
@@ -103,11 +106,12 @@ describe('createBlankCanvas — name and size picker', () => {
 });
 
 describe('the brief canvas keeps a door of its own', () => {
-  test('⌘K "New brief canvas" brings up the panel and asks its composer; no DOM click on a label', () => {
+  test('⌘K "New brief canvas" opens the name dialog at once; it does not open the left panel or queue a panel op', () => {
     const panels: string[] = [];
     openBriefBoardComposer({ openPanelExclusive: (id: string) => panels.push(id) });
-    expect(panels).toEqual(['tree']);
-    expect(takeCanvasesOps()).toEqual([{ op: 'new-brief' }]);
+    expect(panels).toEqual([]);
+    expect(takeCanvasesOps()).toEqual([]);
+    expect(takeNameDialogRequest()).toEqual({ kind: 'brief' });
   });
   test('the action is labelled "New brief canvas"', () => {
     const defs = readFileSync(join(ROOT, 'apps/studio/actions/defs/canvas.ts'), 'utf8');

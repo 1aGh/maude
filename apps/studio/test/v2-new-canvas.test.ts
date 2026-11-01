@@ -1,4 +1,5 @@
-// S6.1 — ⌘N makes a blank canvas and opens it: one POST, no tree composer. The key, the menu row and the
+// S6.1 — ⌘N makes a blank canvas and opens it: one POST. (R3 (6): the person's doors ask for the name in a dialog
+// first; `createBlankCanvas` is what its Create calls.) The key, the menu row and the
 // ⌘K row all land on the same function; the brief board keeps `canvas.new-brief`.
 
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
@@ -6,8 +7,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { SHELL_KEY_HANDLERS } from '../client/actions/shell-key-handlers.js';
+import { takeNameDialogRequest } from '../client/v2/create/name-dialog-bus.js';
 import { createBlankCanvas, NEW_CANVAS_FAILED } from '../client/v2/create/new-canvas.js';
-import { CANVAS_OP_EVENT } from '../client/v2/left-panel/left-panel-bus.js';
 import { createMenuHandlers } from '../client/v2/shell/menu-runner.js';
 
 type Call = { url: string; init: RequestInit };
@@ -108,26 +109,15 @@ describe('the three doors onto canvas.new', () => {
     (globalThis as { window?: unknown }).window = realWindow;
   });
 
-  function opens(): Promise<string> {
-    return new Promise((resolve) => {
-      target.addEventListener(CANVAS_OP_EVENT, (e) => {
-        const d = (e as CustomEvent).detail;
-        resolve(`${d.op}:${d.path}`);
-      });
-    });
-  }
-
-  test('the menu row creates a blank canvas and the shell is told to open it', async () => {
+  test('the menu row asks for the name in a dialog; nothing is written until Create', () => {
     const h = createMenuHandlers({ openPanelExclusive: () => {}, toast: () => {} } as never);
-    const got = opens();
     h['canvas.new']();
-    expect(await got).toBe('open:.design/ui/Untitled canvas.tsx');
-    expect(JSON.parse(String(calls[0].init.body))).toEqual({ kind: 'blank' });
+    expect(takeNameDialogRequest()).toEqual({ kind: 'canvas' });
+    expect(calls).toHaveLength(0);
   });
 
-  test('the ⌘N key does the same, and does not open the tree composer', async () => {
+  test('the ⌘N key does the same, and does not open the left panel', () => {
     const panels: string[] = [];
-    const got = opens();
     let prevented = false;
     SHELL_KEY_HANDLERS['canvas.new'](
       { openPanelExclusive: (id: string) => panels.push(id) },
@@ -139,19 +129,21 @@ describe('the three doors onto canvas.new', () => {
         },
       }
     );
-    expect(await got).toBe('open:.design/ui/Untitled canvas.tsx');
+    expect(takeNameDialogRequest()).toEqual({ kind: 'canvas' });
+    expect(calls).toHaveLength(0);
     expect(prevented).toBe(true);
     expect(panels).toEqual([]);
   });
 
-  test('canvas.new-brief is the brief board: it brings up the tree composer and makes nothing', () => {
+  test('canvas.new-brief is the brief board: it opens the name dialog and makes nothing', () => {
     const panels: string[] = [];
     const h = createMenuHandlers({
       openPanelExclusive: (id: string) => panels.push(id),
       toast: () => {},
     } as never);
     h['canvas.new-brief']();
-    expect(panels).toEqual(['tree']);
+    expect(panels).toEqual([]);
+    expect(takeNameDialogRequest()).toEqual({ kind: 'brief' });
     expect(calls).toHaveLength(0);
   });
 
@@ -160,8 +152,8 @@ describe('the three doors onto canvas.new', () => {
       join(import.meta.dir, '..', 'client', 'hooks', 'use-palette-and-panels.jsx'),
       'utf8'
     );
-    const row = /'canvas\.new': \(\) => \{[\s\S]*?\n {6}\},/.exec(src)?.[0] ?? '';
-    expect(row).toContain('createBlankCanvas');
+    const row = /'canvas\.new': \(\) => [^\n]*/.exec(src)?.[0] ?? '';
+    expect(row).toContain('openNewCanvasDialog');
     expect(row).not.toContain('New blank brief board');
   });
 });

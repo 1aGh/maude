@@ -241,6 +241,7 @@ import { ProjectPill } from './v2/shell/project-pill.jsx';
 import { AskSelectionHost } from './v2/ai/AskSelectionHost.jsx';
 import { EmptyHost } from './v2/empty/empty-host.jsx';
 import { IntentHost } from './v2/create/intent-host.jsx';
+import NameDialogHost from './v2/create/NameDialogHost.jsx';
 import { useOnline } from './v2/empty/use-empty-canvas.js';
 import { ShellShareCluster } from './v2/shell/share-cluster-host.jsx';
 import { ShellUndoHistory } from './v2/undo/undo-history.jsx';
@@ -1585,6 +1586,7 @@ function ShellState({ children }) {
       assembleVideo,
       clearSelected,
       closeTab,
+      createBoard,
       duplicateCanvasReq,
       moveCanvasReq,
       openSystem,
@@ -3194,6 +3196,8 @@ function ShellTree() {
           <TranscriptHost />
           {/* S6.3 — the intent Home parked for this window (a canvas from one sentence, an import): taken once. */}
           <IntentHost />
+          {/* R3 (6) — "New canvas" / "New brief canvas" ask for the name in a centered dialog, from any door. */}
+          <NameDialogHost />
           {/* S2.19 — ⌘/ on a selection: the bubble under it, and the asked line while AI works. */}
           <AskSelectionHost />
           {/* S9.24 — offline foot, the back-online toast, the "2 versions" mark and the conflict card. */}

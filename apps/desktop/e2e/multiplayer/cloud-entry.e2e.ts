@@ -35,7 +35,7 @@ async function probe(query: string, operation = 'read', value: unknown = null) {
 }
 
 /**
- * ⌘K "New brief canvas" (`canvas.new-brief`): the Canvases panel's brief composer, a name, Create. The panel's
+ * ⌘K "New brief canvas" (`canvas.new-brief`): the centered name dialog (R3 (6)), a name, Create. The panel's
  * "New canvas" makes a blank canvas since R2-P2 (TD2) — no artboard, no heading — and this lane's next step
  * edits the brief's heading, so it takes the brief door (surface.e2e.ts covers New canvas).
  */
@@ -48,10 +48,10 @@ async function createBriefCanvas(name: string) {
   const action = await $(tid('palette-row-action:canvas.new-brief'));
   await action.waitForExist({ timeout: 4000 });
   await action.click();
-  const field = await $('input[aria-label="New brief canvas name"]');
+  const field = await $(tid('name-dialog-input'));
   await field.waitForDisplayed({ timeout: 10_000 });
   await field.setValue(name);
-  await (await $('button[aria-label="Create brief canvas"]')).click();
+  await (await $(tid('name-dialog-create'))).click();
 }
 
 describe('S01 cloud entry on a clean Linux native profile', () => {

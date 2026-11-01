@@ -1607,15 +1607,15 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
       }
       for (const from of all) {
         await check('L04.canvas.create.tree', `${from.name}-to-peers`, async () => {
-          // R2-P2 (TD2): the panel's "+ New canvas" row turns into the name field in place; Enter makes a blank
+          // R2-P2 (TD2) / R3 (6): the panel's "+ New canvas" opens the centered name dialog; Enter makes a blank
           // canvas (no artboard) and opens it with the size picker up. The brief canvas (⌘K "New brief canvas")
           // is the entry lanes' door (selfhost-entry / cloud-entry), where a heading is edited next.
           const name = `SurfaceBoard-${from.name}`;
           await from.click('[aria-label="New canvas"]');
-          const field = selector('canvases-new-name');
+          const field = selector('name-dialog-input');
           await until(async () => (await from.count(field)) === 1);
-          // Typed, not `fill`: the field gives up its name on blur (Esc semantics), and the native driver's
-          // setValue clears through an unfocus. It opens focused with "Untitled canvas" selected, so the
+          // Typed, not `fill`: the native driver's setValue clears through an unfocus.
+          // The dialog opens with the field focused with "Untitled canvas" selected, so the
           // first key replaces it.
           for (const key of name) await from.press(key);
           const typed = await from.shell(
