@@ -147,12 +147,17 @@ export function SignInCard({
               {note}
             </p>
           ) : null}
-          {showCode && userCode ? (
+          {/* r4 #9 (decision v2-michal-r4-cloud-signin-show-code): the page the browser opens asks the person
+              to confirm a code; the app shows the SAME code while it waits so the two can be compared (the
+              anti-phishing check). It is never hidden behind a link. "Enter a code instead" adds the other-
+              device line. */}
+          {userCode ? (
             <div className="si-code" data-testid="signin-code-box">
-              <span>{W.codeLine}</span>
+              <span data-testid="signin-code-check">{W.codeCheck}</span>
               <strong className="si-code-v" data-testid="signin-code">
                 {userCode}
               </strong>
+              {showCode ? <span data-testid="signin-code-other">{W.codeLine}</span> : null}
             </div>
           ) : null}
         </>

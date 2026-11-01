@@ -29,6 +29,7 @@ import {
   openTeamProject,
 } from '../github.js';
 import { reasonProps } from '../v2/access/disabled-reason.js';
+import { SIGNIN_WORDS } from '../v2/signin/signin-model.js';
 
 const api = async (path, init) => {
   try {
@@ -368,9 +369,7 @@ export default function TeamProjects({ variant = 'door', initialServer = '', ser
           )}
           {device && (
             <div className="tp-device" data-testid="team-cloud-device">
-              <span className="ob-field-label">
-                Confirm this code on your Maude Cloud dashboard
-              </span>
+              <span className="ob-field-label">{SIGNIN_WORDS.codeCheck}</span>
               <div className="gi-code">
                 <span className="gi-code-val" data-testid="team-cloud-code">
                   {device.userCode}

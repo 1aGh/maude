@@ -303,19 +303,24 @@ describe('Sign in to Maude Cloud', () => {
     expect($('signin-cancel')).not.toBeNull();
     expect($('signin-reopen')?.textContent).toContain('Open the page again');
     expect($('signin-card')?.textContent).toContain('Signed in on another device?');
-    // the code is not on the card until asked for; no URL, token or device code is anywhere
-    expect($('signin-code')).toBeNull();
+    // r4 #9: the verification code is on the card while it waits, so the person can compare it with the
+    // one the browser page shows (anti-phishing); no URL, token or device code is anywhere
+    expect($('signin-code')?.textContent).toBe(USER_CODE);
+    expect($('signin-code-check')?.textContent).toBe('Check that the browser shows this code:');
+    expect($('signin-code-other')).toBeNull();
     expect(host.innerHTML).not.toContain('mpt_');
     expect(host.innerHTML).not.toContain('device_code');
   });
 
-  test('"Use a code instead" shows the code to type on the activate page', async () => {
+  test('"Use a code instead" adds the activate-page line; the code was already showing', async () => {
     fakeCloud();
     mount();
     await flush();
     await startSignIn();
+    expect($('signin-code')?.textContent).toBe(USER_CODE);
     click('signin-use-code');
     expect($('signin-code')?.textContent).toBe(USER_CODE);
+    expect($('signin-code-other')?.textContent).toContain('cloud.maude.sh/activate');
   });
 
   test('"Open the page again" opens the same attempt again', async () => {
