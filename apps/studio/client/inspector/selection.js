@@ -57,6 +57,7 @@ export function mergeSelClientFields(incoming, prev) {
         authored: incoming.authored ?? prev.authored,
         computed: incoming.computed ?? prev.computed,
         customStyles: incoming.customStyles ?? prev.customStyles,
+        declared: incoming.declared ?? prev.declared,
         attrs: incoming.attrs ?? prev.attrs,
         // enrich() drops artboardId/worldW/worldH from the echo entirely —
         // restore them from the local snapshot so ArtboardKnobs keeps its
@@ -75,6 +76,7 @@ export function mergeSelClientFields(incoming, prev) {
     authored: incoming.authored ?? prev.authored,
     computed: incoming.computed ?? prev.computed,
     customStyles: incoming.customStyles ?? prev.customStyles,
+    declared: incoming.declared ?? prev.declared,
     attrs: incoming.attrs ?? prev.attrs,
     photoKind: incoming.photoKind ?? prev.photoKind,
     photoAsset: incoming.photoAsset ?? prev.photoAsset,

@@ -87,6 +87,8 @@ export interface Selection {
   /** Phase 12.3 — authored inline-style props OUTSIDE the curated knob set, so the
    *  panel can surface a custom CSS property the user added (e.g. `letter-spacing`). */
   customStyles?: Record<string, string>;
+  /** r3 — the inline `background` shorthand as written (a `var()` one has no longhands in `authored`). */
+  declared?: Record<string, string>;
   /** Phase 12.3 — custom HTML attributes on the element (data-, aria-, role, title…),
    *  so the panel reflects a custom attribute the user added via the escape hatch. */
   attrs?: Record<string, string>;

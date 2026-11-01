@@ -44,10 +44,20 @@ function applyStyle(el: HTMLElement, m: Optimistic) {
 }
 
 /** One selection → one write through the Inspector's real lane, applied to the live element. */
-async function writeLive(el: HTMLElement, patch: Record<string, string | null>) {
+async function writeLive(
+  el: HTMLElement,
+  patch: Record<string, string | null>,
+  declared?: Record<string, string>
+) {
   const { useCssWrite } = await import('../client/v2/inspector/css-write.js');
   const maps = styleMapsFor(el);
-  const target = { id: 'shape', index: 0, file: '.design/ui/ahoj.tsx', authored: maps.authored };
+  const target = {
+    id: 'shape',
+    index: 0,
+    file: '.design/ui/ahoj.tsx',
+    authored: maps.authored,
+    declared: declared ?? maps.declared,
+  };
   let write: Write = () => {};
   function Probe() {
     const w = useCssWrite(target, {
@@ -151,6 +161,39 @@ describe('Fill is live on every shape the tools draw', () => {
     );
     expect(bg(el)).toBe(BLUE);
     expect(el.style.getPropertyValue('background-image')).toContain('linear-gradient');
+  });
+
+  // Chrome keeps `background: var(--bg-3, #d4d4d8)` whole and answers getPropertyValue('background') with it but
+  // 'background-color' with '' (measured in Chrome; happy-dom drops a var() shorthand, so the report is stubbed here).
+  const FRESH = { background: 'var(--bg-3, #d4d4d8)' };
+
+  test('the canvas reports the inline background shorthand as declared', () => {
+    const el = document.createElement('div');
+    el.style.setProperty('background', '#d4d4d8');
+    document.body.append(el);
+    expect(styleMapsFor(el).declared?.background).toBeTruthy();
+  });
+
+  test('a fresh shape: a gradient keeps the colour live, None clears it', async () => {
+    const el = document.createElement('div');
+    document.body.append(el);
+    posts.length = 0;
+    await writeLive(
+      el,
+      fillToCss({
+        color: { paint: { token: '--bg-3', fallback: '#d4d4d8' }, opacity: 100 },
+        layers: [{ kind: 'gradient', css: 'linear-gradient(180deg, #fff, #000)' }],
+      } as never),
+      FRESH
+    );
+    expect(el.style.getPropertyValue('background-image')).toContain('linear-gradient');
+    const sent = Object.fromEntries(posts.map((p) => [p.property, p.reset ? null : p.value]));
+    expect(sent['background-color']).toBe('var(--bg-3, #d4d4d8)'); // the colour the row shows is kept…
+    expect(sent.background).toBeNull(); // …as a longhand, the shorthand it came from is gone
+    const none = document.createElement('div');
+    document.body.append(none);
+    await writeLive(none, fillToCss({ color: null, layers: [] }), FRESH);
+    expect(posts.map((p) => [p.property, p.reset])).toContainEqual(['background', true]);
   });
 
   test('None clears it and nothing else', async () => {

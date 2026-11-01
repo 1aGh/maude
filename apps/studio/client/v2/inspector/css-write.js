@@ -34,6 +34,23 @@ async function post(payload) {
   }
 }
 
+const BG_PARTS = ['background', 'background-color', 'background-image'];
+
+/**
+ * What the object declares now: its `authored` map, plus — only when that has no background at all — the inline
+ * `background` shorthand the canvas reports beside it (`declared`). A `var()` shorthand has no longhands, so a freshly
+ * drawn shape's fill (`var(--bg-3, #d4d4d8)`) is invisible to `authored`: the Fill row read "None" over a grey shape,
+ * and a None click wrote nothing. The fallback is not used when a longhand exists — a plain colour expands into
+ * `background-color` in the browser, and adding the shorthand there would make a gradient patch's `background: null`
+ * wipe the colour whose own write is then skipped as already present.
+ */
+export function declaredOf(t) {
+  const out = { ...(t?.authored || {}) };
+  const sh = t?.declared?.background;
+  if (sh && !BG_PARTS.some((k) => k in out)) out.background = sh;
+  return out;
+}
+
 const keyOf = (t) => `${t?.id ?? ''}#${t?.index ?? 0}`;
 
 /**
@@ -53,14 +70,14 @@ export function useCssWrite(target, ctx) {
   // every object, so one overlay serves them all. A fresh payload (a reselect, a teammate's change) drops it: the
   // canvas re-posts the source as it is now.
   const [overlay, setOverlay] = useState({});
-  const fresh = `${targets.map(keyOf).join('|')}~${JSON.stringify(targets.map((t) => t?.authored ?? null))}`;
+  const fresh = `${targets.map(keyOf).join('|')}~${JSON.stringify(targets.map((t) => [t?.authored ?? null, t?.declared ?? null]))}`;
   // biome-ignore lint/correctness/useExhaustiveDependencies: clear on a fresh selection payload only
   useEffect(() => setOverlay({}), [fresh]);
 
   const cssAll = useMemo(
     () =>
       targets.map((t) => {
-        const out = { ...(t?.authored || {}) };
+        const out = declaredOf(t);
         for (const [k, v] of Object.entries(overlay)) {
           if (v === null) delete out[k];
           else out[k] = v;
