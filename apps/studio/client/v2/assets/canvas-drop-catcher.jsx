@@ -6,6 +6,7 @@
 
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { acceptFromCanvas } from '../../../bridge/dgn-protocol.ts';
+import { shellMode } from '../shell/use-canvas-mode-lane.js';
 import { assetDragSession, createCatcherLane, isAssetDrag } from './asset-drop-session.js';
 import { placeAsset } from './place-asset.js';
 
@@ -52,6 +53,8 @@ export function CanvasDropCatcher({ frame, canvas, canvasOrigin, readOnly }) {
       canvas: () => live.current.canvas || null,
       post,
       accept: (e) => acceptFromCanvas(e, { canvasOrigin: origin(), active: win() }),
+      // r4 #2 — in Preview the drop adds an annotation picture on the board, never a design edit
+      preview: () => shellMode.get().mode === 'preview',
       // a legacy-link write hands the canvas its undo step (⌘Z); on the op log the write is a kernel action and this is not called
       place: (req) =>
         placeAsset(req, { record: (payload) => post({ dgn: 'record-edit', payload }) }),

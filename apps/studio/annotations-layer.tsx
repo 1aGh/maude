@@ -386,6 +386,29 @@ type EditingTarget =
 // Re-exported so the existing test import (`from './annotations/annotations-layer.tsx'`)
 // and the byte-identical canary keep working.
 
+/** How long the last Assets-tile drag point stays good for the drop that follows it (ms). */
+const DROP_POINT_MS = 2000;
+
+/**
+ * r4 #2 — the last point (frame coordinates) an Assets tile was dragged over, from the shell's `asset-drag-over`.
+ * A tile dropped in Preview arrives as `insert-annotation-media` right after it, and lands there; a drag that left
+ * the canvas (`x: null`) or a point older than DROP_POINT_MS is not reused, and one drop uses it once.
+ */
+export function annotationDropPoint() {
+  let last: { x: number; y: number; t: number } | null = null;
+  return {
+    see(p: { x: number; y: number } | null, now: number) {
+      last = p ? { x: p.x, y: p.y, t: now } : null;
+    },
+    take(now: number): { x: number; y: number } | null {
+      const p = last;
+      last = null;
+      return p && now - p.t <= DROP_POINT_MS ? { x: p.x, y: p.y } : null;
+    },
+  };
+}
+const ASSET_DROP_POINT = annotationDropPoint();
+
 /** A whiteboard clipboard payload (v2 elements, or a pre-v2 strokes list). */
 function isBoardClipboard(txt: string): boolean {
   // The clipboard is foreign input (any page the user copied from can set it):
@@ -1991,6 +2014,18 @@ export function AnnotationsLayer() {
       if (e.source !== window.parent) return;
       const m = e.data as { dgn?: string; visible?: boolean } | null;
       if (!m || typeof m !== 'object' || !m.dgn) return;
+      // r4 #2 — an Assets tile over the canvas: where it is (the shell sends the drop point before an
+      // `insert-annotation-media` in Preview), so the picture lands where it was dropped
+      if (m.dgn === 'asset-drag-over') {
+        const { x, y } = m as { x?: unknown; y?: unknown };
+        ASSET_DROP_POINT.see(
+          typeof x === 'number' && typeof y === 'number' && Number.isFinite(x) && Number.isFinite(y)
+            ? { x, y }
+            : null,
+          Date.now()
+        );
+        return;
+      }
       if (m.dgn === 'view-annotations') {
         if (typeof m.visible === 'boolean') setVisible(m.visible);
         return;
@@ -2122,8 +2157,10 @@ export function AnnotationsLayer() {
         if (paths.length) {
           const v = vpRef.current ?? { x: 0, y: 0, zoom: 1 };
           const z = v.zoom || 1;
-          const cx = typeof window !== 'undefined' ? window.innerWidth / 2 : 0;
-          const cy = typeof window !== 'undefined' ? window.innerHeight / 2 : 0;
+          // r4 #2 — a tile dropped in Preview: at the drop point the shell just sent, else mid-view
+          const at = ASSET_DROP_POINT.take(Date.now());
+          const cx = at ? at.x : typeof window !== 'undefined' ? window.innerWidth / 2 : 0;
+          const cy = at ? at.y : typeof window !== 'undefined' ? window.innerHeight / 2 : 0;
           const wx = (cx - v.x) / z;
           const wy = (cy - v.y) / z;
           createMediaFromAssetPaths(paths, [wx, wy]);
