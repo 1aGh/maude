@@ -209,7 +209,7 @@ can do are listed under "Before you merge".
 | V2-8.7 | A11y (axe, keyboard-only, VoiceOver strings) | PASS | the whole matrix in one pass at `08b35c8db` — 317 states × both themes; one serious contrast (dark slash menu) fixed red-first and re-scanned clean; VoiceOver listen is yours |
 | V2-8.8 | Pan/zoom perf (Chromium + WebKit) | PASS | WebKit both orders p95 22 / 20 ms vs pre-v2 48 / 45; Chromium studio 18.1 vs 18.2, bare 16.7 vs 16.8 |
 | V2-8.9 | Security | PASS | final … final5 pairs + rechecks; the r2 delta pair (1 medium blocker + 2 medium fixed, closure 0 blockers) and the browser-reds delta; lows in follow-ups |
-| V2-8.10 | Packaged app | PASS (scripted) | `.app` 2.0.0-rc.1: `check-bundle-completeness --smoke` ✓, `check-client-boots` ✓, no WebDriver, opening card clears; the clean-user smoke is yours |
+| V2-8.10 | Packaged app | PASS (scripted) | `.app` 2.0.0-rc.1 built at `fab4e6c4a`: `check-bundle-completeness --smoke` ✓, `check-client-boots` ✓, no WebDriver in release, opening card clears; the clean-user smoke is yours |
 | V2-8.14 | Perf beyond pan/zoom | PASS | index/covers/artboards/tiles in budget (Alligators clone, 2 runs); panel + 12 people PASS; LOD base-first +1 ms accepted by you |
 | V2-8.15 | Docs for people and agents | PASS | gens in sync, drift tests 12/12; 15 stale lines fixed after the r2 renames |
 | V2-8.16 | AI parity | PASS | 512/512 at the freeze; eval 24/30 pass^3; live journeys 19/22 (the 3 fails agent-caused) |
@@ -226,7 +226,7 @@ can do are listed under "Before you merge".
    to go inside") and to the live region on the status words.
 2. **Clean-macOS-user smoke of the packaged app (V2-8.10).** Install the `.app` on a fresh macOS user with no node,
    bun or claude: `.claude/worktrees/freeze/apps/desktop/src-tauri/target/release/bundle/macos/Maude.app` (2.0.0-rc.1,
-   built at the final freeze with auto-update off). Open a project, open Home, make a canvas. The scripted gates (`check-bundle-completeness --smoke`,
+   built at the final freeze `fab4e6c4a` on 2026-11-01 with auto-update off). Open a project, open Home, make a canvas. The scripted gates (`check-bundle-completeness --smoke`,
    `check-client-boots`) are green and cover everything except a real clean user.
 3. **The desktop port question (asked 2026-10-27):**
    > The desktop app starts a project's server without a port, so it takes 4399, the default of
