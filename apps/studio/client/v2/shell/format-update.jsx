@@ -12,6 +12,7 @@
 // warning that the cloud tab stays view only until Maude Cloud runs Maude 2 (`confirmCloud`).
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { isNativeApp } from '../../github.js';
 import { TeamProjectsDialog } from '../../panels/TeamProjects.jsx';
 import { StIcon } from '../../shell/icons.jsx';
@@ -374,96 +375,103 @@ export function OlderFormatCallout() {
           </button>
         )}
       </div>
-      {dialog === 'cloud' && (
-        <Dialog
-          testid="format-cloud-dialog"
-          titleId="fu-cloud-title"
-          bodyId="fu-cloud-body"
-          title={OLDER_COPY.cloudDialogTitle(name)}
-          onEscape={close}
-        >
-          <p id="fu-cloud-body" className="fu-body">
-            {OLDER_COPY.cloudDialogBody}
-          </p>
-          {failure && (
-            <p
-              className="fu-error"
-              role="alert"
-              data-testid="format-cloud-error"
-              data-kind={failure.kind}
+      {/* r4 #8: the dialogs live at the body, NOT inside the callout stack — the stack is `inert` while any
+          aria-modal is open, and a dialog inside it switched itself off (every field "disabled"). */}
+      {createPortal(
+        <>
+          {dialog === 'cloud' && (
+            <Dialog
+              testid="format-cloud-dialog"
+              titleId="fu-cloud-title"
+              bodyId="fu-cloud-body"
+              title={OLDER_COPY.cloudDialogTitle(name)}
+              onEscape={close}
             >
-              {failure.line}
-            </p>
+              <p id="fu-cloud-body" className="fu-body">
+                {OLDER_COPY.cloudDialogBody}
+              </p>
+              {failure && (
+                <p
+                  className="fu-error"
+                  role="alert"
+                  data-testid="format-cloud-error"
+                  data-kind={failure.kind}
+                >
+                  {failure.line}
+                </p>
+              )}
+              <div className="fu-actions">
+                <button
+                  type="button"
+                  className="btn"
+                  data-testid="format-cloud-cancel"
+                  disabled={busy}
+                  onClick={close}
+                >
+                  Cancel
+                </button>
+                <button
+                  ref={confirmRef}
+                  type="button"
+                  className="btn btn--primary"
+                  data-testid="format-cloud-confirm"
+                  disabled={busy}
+                  aria-busy={busy ? 'true' : undefined}
+                  onClick={() => void apply({ confirmCloud: true })}
+                >
+                  {busy ? 'Updating…' : OLDER_COPY.olderStatusAction}
+                </button>
+              </div>
+            </Dialog>
           )}
-          <div className="fu-actions">
-            <button
-              type="button"
-              className="btn"
-              data-testid="format-cloud-cancel"
-              disabled={busy}
-              onClick={close}
+          {signInAt !== null && (
+            <TeamProjectsDialog
+              title={FAIL_COPY.signInAgain}
+              initialServer={signInAt}
+              onClose={() => {
+                setSignInAt(null);
+                // signed in again (or not): ask the team server afresh — a new answer re-arms the guard
+                void probe();
+              }}
+            />
+          )}
+          {dialog === 'team-server' && (
+            <Dialog
+              testid="format-team-server-dialog"
+              titleId="fu-ts-title"
+              bodyId="fu-ts-body"
+              title={OLDER_COPY.teamServerTitle}
+              onEscape={close}
             >
-              Cancel
-            </button>
-            <button
-              ref={confirmRef}
-              type="button"
-              className="btn btn--primary"
-              data-testid="format-cloud-confirm"
-              disabled={busy}
-              aria-busy={busy ? 'true' : undefined}
-              onClick={() => void apply({ confirmCloud: true })}
-            >
-              {busy ? 'Updating…' : OLDER_COPY.olderStatusAction}
-            </button>
-          </div>
-        </Dialog>
-      )}
-      {signInAt !== null && (
-        <TeamProjectsDialog
-          title={FAIL_COPY.signInAgain}
-          initialServer={signInAt}
-          onClose={() => {
-            setSignInAt(null);
-            // signed in again (or not): ask the team server afresh — a new answer re-arms the guard
-            void probe();
-          }}
-        />
-      )}
-      {dialog === 'team-server' && (
-        <Dialog
-          testid="format-team-server-dialog"
-          titleId="fu-ts-title"
-          bodyId="fu-ts-body"
-          title={OLDER_COPY.teamServerTitle}
-          onEscape={close}
-        >
-          <p id="fu-ts-body" className="fu-body">
-            {OLDER_COPY.teamServerBody}
-          </p>
-          <code className="fu-command" data-testid="format-team-server-command">
-            {teamServerCommand(cfg?.version)}
-          </code>
-          <div className="fu-actions">
-            <button
-              type="button"
-              className="btn"
-              data-testid="format-team-server-close"
-              onClick={close}
-            >
-              {OLDER_COPY.teamServerClose}
-            </button>
-            <button
-              ref={confirmRef}
-              type="button"
-              className="btn btn--primary"
-              data-testid="format-team-server-copy"
-              onClick={copy}
-            >
-              {copied ? 'Copied' : OLDER_COPY.teamServerCopy}
-            </button>
-          </div>
-        </Dialog>
+              <p id="fu-ts-body" className="fu-body">
+                {OLDER_COPY.teamServerBody}
+              </p>
+              <code className="fu-command" data-testid="format-team-server-command">
+                {teamServerCommand(cfg?.version)}
+              </code>
+              <div className="fu-actions">
+                <button
+                  type="button"
+                  className="btn"
+                  data-testid="format-team-server-close"
+                  onClick={close}
+                >
+                  {OLDER_COPY.teamServerClose}
+                </button>
+                <button
+                  ref={confirmRef}
+                  type="button"
+                  className="btn btn--primary"
+                  data-testid="format-team-server-copy"
+                  onClick={copy}
+                >
+                  {copied ? 'Copied' : OLDER_COPY.teamServerCopy}
+                </button>
+              </div>
+            </Dialog>
+          )}
+        </>,
+        document.body
       )}
     </>
   );

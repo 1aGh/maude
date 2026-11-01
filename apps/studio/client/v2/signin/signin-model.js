@@ -107,6 +107,7 @@ export const SIGNIN_WORDS = {
   again: 'Open the page again',
   otherDevice: 'Signed in on another device?',
   useCode: 'Enter a code instead',
+  codeCheck: 'Check that the browser shows this code:',
   codeLine: 'Open cloud.maude.sh/activate on any device and enter this code.',
   timeoutTitle: "Sign-in didn't finish",
   timeoutBody: 'Nothing changed on this Mac. Try again whenever you like.',

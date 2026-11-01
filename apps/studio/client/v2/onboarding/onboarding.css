@@ -150,11 +150,6 @@
     width: 100%;
   }
 
-  .ob-field-wrap .ob-input {
-    padding-left: calc(var(--space-2) * 2 + 16px);
-    font-family: var(--font-mono);
-  }
-
   .ob-form-actions {
     display: flex;
     gap: var(--space-2);
@@ -285,6 +280,13 @@
   }
   .ob-input:disabled {
     color: var(--fg-2);
+  }
+  /* r4 #8: an input with a leading icon clears the icon. This rule lives in the SAME layer as the base
+     `.ob-input` padding above and after it: in the shell layer it lost to that base (a later layer wins
+     whatever the specificity), and the placeholder sat under the icon. */
+  .ob-field-wrap .ob-input {
+    padding-left: calc(var(--space-2) * 2 + 16px);
+    font-family: var(--font-mono);
   }
   .ob-mono,
   .ob-mono-txt {

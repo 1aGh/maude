@@ -16,6 +16,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { localIdentityMatches, parseMaudeLink } from '../share-link.js';
 import { requestOpenLink } from '../v2/canvases/open-link.js';
+import { SIGNIN_WORDS } from '../v2/signin/signin-model.js';
 import FileDeepLinkDialog from './file-deep-link-dialog.jsx';
 import { safeName, syncPresentation } from '../../sync/presentation.ts';
 import {
@@ -444,7 +445,7 @@ export function CloudDeviceDialog({ device, cloudUrl, openFailed, onOpenResult, 
                 copy claimed the browser had opened — a claim this surface
                 cannot make, since the shell's open is best-effort and the
                 person is the one who finds out it didn't. */}
-          <p>Confirm this code on your Maude Cloud dashboard to connect.</p>
+          <p>{SIGNIN_WORDS.codeCheck}</p>
         </div>
         <div className="gi-code">
           <span className="gi-code-val" data-testid="cloud-user-code">
