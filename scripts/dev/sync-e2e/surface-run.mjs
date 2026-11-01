@@ -10,6 +10,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { addToken, tokensDbPath } from '../../../apps/hub/src/tokens.mjs';
 import { closeUsers, createUser } from '../../../apps/hub/src/users.mjs';
+import { stubClaudeEnv } from '../../lib/stub-claude.mjs';
 import { compareToBaseline, readRows, summarise } from './surface-baseline.mjs';
 import { buildSurfaceCatalogue, cataloguePath } from './surface-catalogue.mjs';
 import { seedMediaFixture } from './surface-fixture.mjs';
@@ -99,6 +100,9 @@ const env = {
   // POST (2026-11-01 a surface run rewrote the real one). Each studio below gets its own file on top of this.
   XDG_CONFIG_HOME: join(work, 'xdg'),
   MAUDE_UI_PREFS_PATH: join(work, 'prefs.json'),
+  // the machine-wide index of recents/pins/covers, and the person's real claude (keychain), are never these studios'
+  MAUDE_INDEX_DIR: join(work, 'index'),
+  ...stubClaudeEnv(work),
 };
 writeFileSync(env.MAUDE_CLOUD_CONFIG, '{}', { mode: 0o600 });
 function start(name, cmd, args, extraEnv = {}) {
