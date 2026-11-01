@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { browser, expect } from '@wdio/globals';
@@ -21,13 +21,17 @@ import { canvasRow } from '../helpers/tree';
  *
  * Driving model (memory: the canvas iframe is unreachable by DOM selectors once the origin split is on): events are
  * dispatched on the frame's document, the inspector is the shell's own DOM, and every assertion is on the file on disk
- * or on a `data-testid` the editing layer draws.
+ * or on a `data-testid` the editing layer draws. A tile drop is the shell's (r3): dragstart on the tile, drop on the
+ * shell's catcher over the frame. This lane runs with the origin split OFF, which is why a frame-document drop stayed
+ * green here while the app (split on) refused every tile.
  *
  * Written, not run, by the slice (the lane has no desktop build); run with the `desktop-e2e` skill.
  */
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const CANVAS = join(HERE, '../fixtures/project/.design/ui/Smoke.tsx');
+const PIC = join(HERE, '../fixtures/project/.design/assets/pic.png');
+const OTHER = join(HERE, '../fixtures/project/.design/assets/other.png');
 const META = join(HERE, '../fixtures/project/.design/ui/Smoke.meta.json');
 const fixtures = createFixtureGuard('edit-images', [CANVAS, META]);
 const source = () => readFileSync(CANVAS, 'utf8');
@@ -83,28 +87,53 @@ const present = (testid: string) =>
     testid
   );
 
-/** Drop an Assets tile on the element with this id: the tile's own MIME payload on a synthetic drag. */
-const dropTile = (id: string, asset: string) =>
-  inFrame(
-    (doc, win, elId: string, path: string) => {
-      const el = doc.querySelector(`[data-cd-id="${elId}"]`) as HTMLElement;
-      const r = el.getBoundingClientRect();
-      const dt = new DataTransfer();
-      dt.setData('application/x-maude-asset', JSON.stringify({ asset: path, w: 64, h: 64 }));
-      const at = {
+/**
+ * Drop an Assets tile on the element with this id. r3: the SHELL owns the drag — WebKit gives the canvas origin no event
+ * of a drag the shell started, so the tile's dragstart raises the shell's catcher over the frame, the drop lands on the
+ * catcher at the element's place, and the shell asks `image.place` with the dragged path. (The real WebKit drag of the
+ * same thing is apps/studio/test/e2e/webkit-asset-drop.mjs; WebDriver cannot drive a native drag.)
+ */
+const dropTile = async (id: string, asset: string) => {
+  const at = await inFrame((doc, _w, elId: string) => {
+    const r = (doc.querySelector(`[data-cd-id="${elId}"]`) as HTMLElement).getBoundingClientRect();
+    return [r.left + 10, r.top + 10];
+  }, id);
+  await browser.execute((path: string) => {
+    const tile = document.querySelector(`[data-testid="assets-tile"][data-asset="${path}"]`);
+    if (!tile) throw new Error(`no Assets tile for ${path}`);
+    tile.dispatchEvent(
+      new DragEvent('dragstart', {
         bubbles: true,
         cancelable: true,
-        clientX: r.left + 10,
-        clientY: r.top + 10,
-        dataTransfer: dt,
+        dataTransfer: new DataTransfer(),
+      })
+    );
+  }, asset);
+  await (await $('[data-testid="canvas-asset-drop-catcher"]')).waitForExist({ timeout: 5000 });
+  await browser.execute(
+    (path: string, x: number, y: number) => {
+      const f = (
+        document.querySelector('[data-testid="canvas-frame"]') as HTMLElement
+      ).getBoundingClientRect();
+      const c = document.querySelector('[data-testid="canvas-asset-drop-catcher"]') as HTMLElement;
+      const ev = {
+        bubbles: true,
+        cancelable: true,
+        clientX: f.left + x,
+        clientY: f.top + y,
+        dataTransfer: new DataTransfer(),
       };
-      el.dispatchEvent(new DragEvent('dragover', at));
-      el.dispatchEvent(new DragEvent('drop', at));
-      void win;
+      c.dispatchEvent(new DragEvent('dragover', ev));
+      c.dispatchEvent(new DragEvent('drop', ev));
+      document
+        .querySelector(`[data-testid="assets-tile"][data-asset="${path}"]`)
+        ?.dispatchEvent(new DragEvent('dragend', { bubbles: true }));
     },
-    id,
-    asset
+    asset,
+    at[0],
+    at[1]
   );
+};
 
 /**
  * A person's click on the element with this id: the pointer goes down, up and clicks AT ITS CENTRE (the router
@@ -180,6 +209,7 @@ describe('images, crop and the Figma paste bar (S2.15)', () => {
     await waitForSidecar();
     writeFileSync(CANVAS, HOME);
     writeFileSync(META, '{}\n');
+    if (!existsSync(OTHER)) copyFileSync(PIC, OTHER);
     await (await canvasRow('canvas-row-ui-smoke')).click();
     await waitForCanvasRects();
     await browser.waitUntil(async () => (await $('[data-testid="canvas-frame"]')).isExisting(), {
@@ -202,8 +232,16 @@ describe('images, crop and the Figma paste bar (S2.15)', () => {
         }),
       { timeout: 10_000, timeoutMsg: '⌘0 never brought the picture into view' }
     );
+    // the tiles a drop is dragged from (r3: the shell starts and owns the drag)
+    await (await $('[data-testid="panel-tab-assets"]')).click();
+    await (await $('[data-testid="assets-tile"][data-asset="assets/other.png"]')).waitForExist({
+      timeout: 10_000,
+    });
   });
-  after(() => fixtures.restore());
+  after(() => {
+    fixtures.restore();
+    rmSync(OTHER, { force: true });
+  });
 
   it('a tile dropped on an empty frame fills it, cropped to fit, in one write ⌘Z takes back', async () => {
     const report = startReport('edit-images-drop');
