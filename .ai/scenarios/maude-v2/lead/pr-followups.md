@@ -415,3 +415,6 @@ rights or is an availability nuisance). Candidates for the first rc patch:
   author string is the viewer's account name (it could already read it on local comments) — project `author` to "You"
   for stamped records on the way to the canvas; the canvas `comments-set` handler does not check
   `e.source === window.parent` (display only, older than this round).
+- **rc patch, perf (Michal accepted for v2.0):** the Chromium LOD lane, base-first order, is ~1 ms over the M7 p95
+  bound with 2 long frames — the ~50 ms frame when the LOD mosaic takes over during a zoom at < 25 %. Smooth that
+  hand-over frame (V2-8.14-perf.md, final freeze).
