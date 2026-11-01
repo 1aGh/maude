@@ -5,10 +5,11 @@
 // it is one local POST; the panel row asks for the name in place FIRST and passes it, so the file is written
 // once, under its final name (a rename afterwards re-keys the slug sidecars, DDR-198). `sizes: true` is the
 // R2-P2 rule (TD2): a new canvas opens with the size picker up. The brief canvas keeps its own door,
-// `canvas.new-brief`.
+// `canvas.new-brief`. R3 (6): the person's own doors ask for the name first, in a dialog (`openNewCanvasDialog`).
 
 import { currentNewCanvasDs } from '../ds/new-canvas-default.js';
-import { dispatchCanvasOp, requestCanvasesOp } from '../left-panel/left-panel-bus.js';
+import { dispatchCanvasOp } from '../left-panel/left-panel-bus.js';
+import { requestNameDialog } from './name-dialog-bus.js';
 import { requestSizePicker } from './open-sizes.js';
 
 /** The line when the POST fails: what happened · what is safe · one verb (CONTRACT §4). */
@@ -48,8 +49,16 @@ export async function createBlankCanvas(deps = {}) {
   }
 }
 
-/** The Canvases panel's brief composer — `canvas.new-brief` ("New brief canvas"), what `canvas.new` did in v1. */
-export function openBriefBoardComposer(d) {
-  d.openPanelExclusive('tree');
-  requestCanvasesOp({ op: 'new-brief' });
+/**
+ * R3 (6): every door onto `canvas.new` that is a person's own pick (⌘K, ⌘N, the menu, the panel's "+") asks for the
+ * name in a small centered dialog straight away — it used to make "Untitled canvas" at once, or (the brief) open an
+ * input in the left panel that nobody saw. The dialog's Create is what calls `createBlankCanvas`.
+ */
+export function openNewCanvasDialog(target) {
+  requestNameDialog({ kind: 'canvas', ...(target ? { target } : {}) });
+}
+
+/** `canvas.new-brief` ("New brief canvas"), what `canvas.new` did in v1: the same dialog, then the brief is stamped. */
+export function openBriefBoardComposer(_d) {
+  requestNameDialog({ kind: 'brief' });
 }

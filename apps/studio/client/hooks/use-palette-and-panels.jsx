@@ -31,7 +31,7 @@ import { DOCK_PANELS, PANEL_SIDES_DEFAULTS } from '../shell/dock.jsx';
 import { EMPTY_GROUPS, SYSTEM_TAB } from '../shell/constants.js';
 import { basename, displayName, openCount, shellToast } from '../shell/util.js';
 import { planJump, JUMP_LADDER_MS, JUMP_NOW_MS } from '../v2/canvases/jump-model.js';
-import { createBlankCanvas, openBriefBoardComposer } from '../v2/create/new-canvas.js';
+import { openBriefBoardComposer, openNewCanvasDialog } from '../v2/create/new-canvas.js';
 import { CANVAS_OP_EVENT } from '../v2/left-panel/left-panel-bus.js';
 import {
   goneWords,
@@ -161,7 +161,6 @@ export function usePaletteAndPanels({
   reloadActive,
   treeRefreshing,
   refreshTree,
-  createBoard,
   createVideo,
   deleteBoard,
   moveCanvasReq,
@@ -336,9 +335,7 @@ export function usePaletteAndPanels({
   const dsUpgradeOffers = useSyncExternalStore(onUpgradeOffers, upgradeOffersKey, upgradeOffersKey);
   const paletteActions = useMemo(() => {
     const run = {
-      'canvas.new': () => {
-        createBlankCanvas({ toast: shellToast, sizes: true });
-      },
+      'canvas.new': () => openNewCanvasDialog(),
       'canvas.new-brief': () => openBriefBoardComposer({ openPanelExclusive }),
       'canvas.new-video': () => createVideo(),
       'export.open': () => setExportDialog({ mode: 'export' }),
@@ -632,7 +629,6 @@ export function usePaletteAndPanels({
           sectionsExpanded={sectionsExpanded}
           onToggleSection={toggleSection}
           treeExpansion={treeExpansion}
-          onNewBoard={createBoard}
           onDeleteBoard={deleteBoard}
           onMoveCanvas={moveCanvasReq}
           onNewFolder={newFolderReq}

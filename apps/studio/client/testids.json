@@ -41791,5 +41791,117 @@
       "apps/studio/test/v2-settings.test.tsx"
     ],
     "v2": "new"
+  },
+  {
+    "hook": "name-dialog",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "R3 (6): the centered dialog that asks for a name before a New canvas / New brief canvas is made (role dialog, aria-modal). Enter creates, Esc cancels.",
+    "producer": {
+      "file": "apps/studio/client/v2/create/NameDialog.jsx",
+      "symbol": "NameDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r3-name-dialog.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "name-dialog-scrim",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "R3 (6): the scrim behind the name dialog.",
+    "producer": {
+      "file": "apps/studio/client/v2/create/NameDialog.jsx",
+      "symbol": "NameDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r3-name-dialog.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "name-dialog-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "R3 (6): the dialog's title: \"New canvas\" or \"New brief canvas\".",
+    "producer": {
+      "file": "apps/studio/client/v2/create/NameDialog.jsx",
+      "symbol": "NameDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r3-name-dialog.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "name-dialog-input",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "R3 (6): the name field, prefilled (\"Untitled canvas\" / \"Untitled brief\") and selected.",
+    "producer": {
+      "file": "apps/studio/client/v2/create/NameDialog.jsx",
+      "symbol": "NameDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r3-name-dialog.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "name-dialog-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "R3 (6): why the name was refused, under the field; the dialog stays open.",
+    "producer": {
+      "file": "apps/studio/client/v2/create/NameDialog.jsx",
+      "symbol": "NameDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r3-name-dialog.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "name-dialog-create",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "R3 (6): Create (Enter): makes the canvas under the typed name.",
+    "producer": {
+      "file": "apps/studio/client/v2/create/NameDialog.jsx",
+      "symbol": "NameDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r3-name-dialog.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "name-dialog-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "R3 (6): Cancel (Esc): closes and makes nothing.",
+    "producer": {
+      "file": "apps/studio/client/v2/create/NameDialog.jsx",
+      "symbol": "NameDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r3-name-dialog.test.tsx"
+    ],
+    "v2": "new"
   }
 ]

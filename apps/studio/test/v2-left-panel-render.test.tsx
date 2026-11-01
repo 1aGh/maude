@@ -242,79 +242,19 @@ describe('Canvases tab', () => {
       el.dispatchEvent(new window.KeyboardEvent('keydown', { key: k, bubbles: true }));
     });
 
-  test('New canvas turns its own row into the name field: "Untitled canvas", selected, nothing written yet', async () => {
+  // R3 (6): "+ New canvas" no longer turns its row into a field (nobody noticed it): it asks the centered dialog.
+  test('New canvas asks the name dialog at once: no inline field, nothing written', async () => {
     installFetch({ '/_api/sync/trash': TRASH });
+    const { takeNameDialogRequest } = await import('../client/v2/create/name-dialog-bus.js');
+    takeNameDialogRequest();
     const { host } = await sidebar();
     await click(host.querySelector('[aria-label="New canvas"]'));
-    const input = q(host, 'canvases-new-name') as HTMLInputElement;
-    expect(input.getAttribute('aria-label')).toBe('Canvas name');
-    expect(input.value).toBe('Untitled canvas');
-    // in place: the field sits in the "+ New canvas" row, not in a composer at the top of the panel
-    expect(q(host, 'canvases-new-row')?.contains(input)).toBe(true);
+    expect(takeNameDialogRequest()).toEqual({ kind: 'canvas' });
+    expect(q(host, 'canvases-new-name')).toBeNull();
     expect(host.querySelector('.cv-newboard')).toBeNull();
-    expect(host.querySelector('[aria-label="New canvas"]')).toBeNull();
-    // no file yet: a rename after the fact would re-key the slug sidecars (DDR-198)
-    expect(calls.some((c) => c.url.startsWith('/_api/canvas') && c.method === 'POST')).toBe(false);
-  });
-
-  test('Enter commits the name: ONE blank-canvas POST carries it, and the canvas opens', async () => {
-    installFetch({
-      '/_api/sync/trash': TRASH,
-      '/_api/canvas': { ok: true, file: 'ui/Pricing v2.tsx' },
-    });
-    const { host } = await sidebar();
-    await click(host.querySelector('[aria-label="New canvas"]'));
-    const input = q(host, 'canvases-new-name') as HTMLInputElement;
-    await typeInto(input, 'Pricing v2');
-    await key(input, 'Enter');
-    await act(async () => new Promise((r) => setTimeout(r, 20)));
-    const posts = calls.filter((c) => c.url === '/_api/canvas' && c.method === 'POST');
-    expect(posts).toHaveLength(1);
-    expect(JSON.parse(posts[0].body ?? '{}')).toEqual({ kind: 'blank', name: 'Pricing v2' });
-    // committed: the row is a button again
-    expect(q(host, 'canvases-new-name')).toBeNull();
+    // the row stays a button, and no file is written before the dialog's Create
     expect(host.querySelector('[aria-label="New canvas"]')).toBeTruthy();
-  });
-
-  test('Esc, or leaving the field, writes nothing and gives the row back', async () => {
-    installFetch({ '/_api/sync/trash': TRASH });
-    const { host } = await sidebar();
-    await click(host.querySelector('[aria-label="New canvas"]'));
-    await key(q(host, 'canvases-new-name') as HTMLElement, 'Escape');
-    expect(q(host, 'canvases-new-name')).toBeNull();
-    await click(host.querySelector('[aria-label="New canvas"]'));
-    await act(async () => {
-      (q(host, 'canvases-new-name') as HTMLElement).dispatchEvent(
-        new window.FocusEvent('focusout', { bubbles: true })
-      );
-    });
-    expect(q(host, 'canvases-new-name')).toBeNull();
-    expect(calls.some((c) => c.url === '/_api/canvas' && c.method === 'POST')).toBe(false);
-  });
-
-  test('a name the server refuses stays in the field with the reason beside it', async () => {
-    installFetch({ '/_api/sync/trash': TRASH });
-    globalThis.fetch = (async (url: string, init?: { method?: string; body?: string }) => {
-      calls.push({ url, method: init?.method ?? 'GET', body: init?.body });
-      if (url === '/_api/canvas')
-        return new Response(
-          JSON.stringify({ ok: false, error: 'a canvas called "Pricing" is already here' }),
-          {
-            status: 409,
-          }
-        );
-      return new Response(
-        JSON.stringify(url.startsWith('/_api/sync/trash') ? TRASH : { ok: true })
-      );
-    }) as unknown as typeof fetch;
-    const { host } = await sidebar();
-    await click(host.querySelector('[aria-label="New canvas"]'));
-    const input = q(host, 'canvases-new-name') as HTMLInputElement;
-    await typeInto(input, 'Pricing');
-    await key(input, 'Enter');
-    await act(async () => new Promise((r) => setTimeout(r, 20)));
-    expect(q(host, 'canvases-new-name')).not.toBeNull();
-    expect(host.querySelector('.cv-newboard-err')?.textContent).toContain('already here');
+    expect(calls.some((c) => c.url.startsWith('/_api/canvas') && c.method === 'POST')).toBe(false);
   });
 
   test('New folder asks the same way, in the same place', async () => {
@@ -326,18 +266,13 @@ describe('Canvases tab', () => {
     expect(q(host, 'canvases-new-row')?.contains(input)).toBe(true);
   });
 
-  test('the brief composer is a door of its own (the new-brief op), and its words are canvas, not board', async () => {
+  test('the brief has no composer in the panel any more: the new-brief op is the centered dialog (R3 (6))', async () => {
     installFetch({ '/_api/sync/trash': TRASH });
     const { host } = await sidebar();
     const { requestCanvasesOp } = await import('../client/v2/left-panel/left-panel-bus.js');
     await act(async () => requestCanvasesOp({ op: 'new-brief' }));
-    const input = host.querySelector(
-      'input[aria-label="New brief canvas name"]'
-    ) as HTMLInputElement;
-    expect(input).toBeTruthy();
-    expect(input.placeholder).toBe('Brief canvas name…');
-    expect(host.querySelector('[aria-label="Create brief canvas"]')).toBeTruthy();
-    expect(host.textContent).not.toMatch(/board/i);
+    expect(host.querySelector('input[aria-label="New brief canvas name"]')).toBeNull();
+    expect(host.querySelector('.cv-newboard')).toBeNull();
   });
 
   test('a viewer gets no new-canvas row', async () => {

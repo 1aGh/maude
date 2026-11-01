@@ -19,7 +19,7 @@ import { startFirstDraft } from '../create/first-draft.js';
 import { voteStore } from '../annotations/vote-store.js';
 import { notePasteIntent } from '../../clipboard-relay.ts';
 import { readPasteData } from './paste-forward.js';
-import { createBlankCanvas, openBriefBoardComposer } from '../create/new-canvas.js';
+import { openBriefBoardComposer, openNewCanvasDialog } from '../create/new-canvas.js';
 import { createAdvancedHandlers } from '../ai/advanced-handlers.js';
 import { aiPanelWantsFocus, requestFocusAI } from '../ai/panel-focus.js';
 import { requestViewCode, runErrorOp } from '../code/code-bus.js';
@@ -135,10 +135,8 @@ async function runDoor(d, id) {
 export function createMenuHandlers(d) {
   const h = {
     // ── File ──
-    // S6.1: a blank canvas, named by the server (C4), opened at once. The tree composer is the brief board's.
-    'canvas.new': () => {
-      createBlankCanvas({ toast: d.toast, sizes: true });
-    },
+    // S6.1 / R3 (6): a blank canvas — the dialog asks for its name first, then it opens with the size picker up.
+    'canvas.new': () => openNewCanvasDialog(),
     'canvas.new-brief': () => openBriefBoardComposer(d),
     // S6.3: Home's "Ask AI for a new canvas…" — a canvas from one sentence, drafted by AI in a new chat.
     'home.ask': (params) => {
