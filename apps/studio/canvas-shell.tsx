@@ -3095,8 +3095,13 @@ function CanvasRouter({
             artboardId: mm.artboardId ?? null,
           } as HoverTarget);
           // P8 round 7 (12 · ia-placed) — `add` grows the selection (the photos a place made, as one group)
-          if (mm.add && mm.id && !sameSelection) selSet.add(picked);
-          else selSet.replace(picked);
+          // r2-first-canvas-inspector — the shell sends back what IT holds; a pick made here that it has not heard
+          // yet (inside the post's debounce) wins, or a restore rung undid a ⌘-click (use-selection-set.tsx).
+          const applied =
+            mm.add && mm.id && !sameSelection
+              ? selSet.addFromShell(picked)
+              : selSet.replaceFromShell(picked);
+          if (!applied) return;
           // Task A1 — reveal THROUGH the camera, not host scroll. The old
           // `scrollIntoView` scrolled the overflow:hidden `.dc-canvas` /
           // `.dc-artboard-body` clip layers, desyncing the `.dc-world`

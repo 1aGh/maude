@@ -128,6 +128,13 @@ interface SelectionSetValue {
   remove: (s: Selection) => void;
   toggle: (s: Selection) => void;
   clear: () => void;
+  /**
+   * The shell putting ITS selection back (`select-by-id`: the post-reload restore ladder, the halo / artboard
+   * resync, a place that selects what it made). Yields — returns false, changes nothing — when it would undo a
+   * local pick the shell has not heard yet (see RESTORE_YIELD_MS). True when applied.
+   */
+  replaceFromShell: (s: Selection | Selection[]) => boolean;
+  addFromShell: (s: Selection | Selection[]) => boolean;
 }
 
 const SelectionSetContext = createContext<SelectionSetValue | null>(null);
@@ -157,6 +164,29 @@ function dedupe(list: Selection[]): Selection[] {
 const POST_DEBOUNCE_MS = 50; // mirrors canvas-lib's SETTLE/PUBLISH cadence
 
 /**
+ * r2-first-canvas-inspector — how long a local pick outranks a selection the shell sends back. A pick reaches the
+ * shell only after the 50 ms debounce, a postMessage and the shell's render; until then every restore rung
+ * (selection-scope.js, rungs 250…5000 ms after a reload) still carries the OLD selection, and applying it replaced
+ * the fresh pick and cancelled its post — the shell never heard it (a ⌘-click on an element right after picking its
+ * artboard left the artboard selected and no Inspector). Far below any deliberate follow-up: a later rung, or a
+ * Layers click, still lands.
+ */
+export const RESTORE_YIELD_MS = 500;
+
+const sameKeys = (a: Selection[], b: Selection[]): boolean =>
+  a.length === b.length && a.every((x, i) => selectionKey(x) === selectionKey(b[i] as Selection));
+
+/** A selection the shell sends would change a local pick made `RESTORE_YIELD_MS` ago or less → the pick wins. */
+export function yieldsToLocalPick(
+  localAt: number,
+  current: Selection[],
+  next: Selection[],
+  now = Date.now()
+): boolean {
+  return now - localAt < RESTORE_YIELD_MS && !sameKeys(next, current);
+}
+
+/**
  * S2.1 (S2-edit-ops.md §7) — `editing/selection.tsx` adds `refs` / `crumbs` / `kind` to every
  * `select-set` post. A registry (not an import) so this leaf provider never imports the editing
  * layer; absent = the v1 payload.
@@ -184,6 +214,9 @@ export function SelectionSetProvider({
   postTarget?: { postMessage: (msg: unknown, targetOrigin: string) => void } | null;
 }) {
   const [selected, setSelected] = useState<Selection[]>([]);
+  // the selection as of the last change (state lags a render) and when the canvas itself last changed it
+  const currentRef = useRef<Selection[]>([]);
+  const localAtRef = useRef(Number.NEGATIVE_INFINITY);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingPostRef = useRef<(() => void) | null>(null);
 
@@ -223,20 +256,50 @@ export function SelectionSetProvider({
     []
   );
 
-  const replace = useCallback(
-    (s: Selection | Selection[]) => {
-      const next = dedupe(Array.isArray(s) ? s : [s]);
+  const apply = useCallback(
+    (next: Selection[]) => {
+      currentRef.current = next;
       setSelected(next);
       post(next);
     },
     [post]
   );
 
+  const replace = useCallback(
+    (s: Selection | Selection[]) => {
+      localAtRef.current = Date.now();
+      apply(dedupe(Array.isArray(s) ? s : [s]));
+    },
+    [apply]
+  );
+
+  const replaceFromShell = useCallback(
+    (s: Selection | Selection[]) => {
+      const next = dedupe(Array.isArray(s) ? s : [s]);
+      if (yieldsToLocalPick(localAtRef.current, currentRef.current, next)) return false;
+      apply(next);
+      return true;
+    },
+    [apply]
+  );
+
+  const addFromShell = useCallback(
+    (s: Selection | Selection[]) => {
+      const next = dedupe([...currentRef.current, ...(Array.isArray(s) ? s : [s])]);
+      if (yieldsToLocalPick(localAtRef.current, currentRef.current, next)) return false;
+      apply(next);
+      return true;
+    },
+    [apply]
+  );
+
   const add = useCallback(
     (s: Selection | Selection[]) => {
       const incoming = Array.isArray(s) ? s : [s];
+      localAtRef.current = Date.now();
       setSelected((prev) => {
         const next = dedupe([...prev, ...incoming]);
+        currentRef.current = next;
         post(next);
         return next;
       });
@@ -247,8 +310,10 @@ export function SelectionSetProvider({
   const remove = useCallback(
     (s: Selection) => {
       const k = selectionKey(s);
+      localAtRef.current = Date.now();
       setSelected((prev) => {
         const next = prev.filter((x) => selectionKey(x) !== k);
+        currentRef.current = next;
         post(next);
         return next;
       });
@@ -259,10 +324,12 @@ export function SelectionSetProvider({
   const toggle = useCallback(
     (s: Selection) => {
       const k = selectionKey(s);
+      localAtRef.current = Date.now();
       setSelected((prev) => {
         const next = prev.some((x) => selectionKey(x) === k)
           ? prev.filter((x) => selectionKey(x) !== k)
           : [...prev, s];
+        currentRef.current = next;
         post(next);
         return next;
       });
@@ -271,13 +338,13 @@ export function SelectionSetProvider({
   );
 
   const clear = useCallback(() => {
-    setSelected([]);
-    post([]);
-  }, [post]);
+    localAtRef.current = Date.now();
+    apply([]);
+  }, [apply]);
 
   const value = useMemo<SelectionSetValue>(
-    () => ({ selected, replace, add, remove, toggle, clear }),
-    [selected, replace, add, remove, toggle, clear]
+    () => ({ selected, replace, add, remove, toggle, clear, replaceFromShell, addFromShell }),
+    [selected, replace, add, remove, toggle, clear, replaceFromShell, addFromShell]
   );
 
   return <SelectionSetContext.Provider value={value}>{children}</SelectionSetContext.Provider>;
