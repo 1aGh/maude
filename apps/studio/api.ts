@@ -2329,6 +2329,13 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     return [...new Set(out)];
   }
 
+  // r4 #6 — the person's Light | Dark pick for this canvas (the pill at the top of every canvas). Per user, per Mac:
+  // view.json, never the versioned `.meta.json` (DDR-115). Reachable from the untrusted canvas origin, so the value
+  // is a closed set; anything else is a silent no-op.
+  function normalizeCanvasTheme(v: unknown): 'light' | 'dark' | null {
+    return v === 'light' || v === 'dark' ? v : null;
+  }
+
   // Issue #91 security follow-up — `layout.artboards[]` (DDR-027 position-only
   // entries) is reachable from the untrusted canvas origin (DDR-054) via the
   // same PATCH lane as overlays/locked above, but previously had no count or
@@ -2384,6 +2391,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     viewport?: { x: number; y: number; zoom: number };
     overlays?: Record<string, boolean>;
     locked?: string[];
+    canvasTheme?: 'light' | 'dark';
   } | null> {
     const viewAbs = canvasViewPath(file);
     if (!viewAbs) return null;
@@ -2393,14 +2401,17 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         const vp = normalizeViewport((obj as { viewport?: unknown }).viewport);
         const ov = normalizeOverlays((obj as { overlays?: unknown }).overlays);
         const lk = normalizeLocked((obj as { locked?: unknown }).locked);
+        const ct = normalizeCanvasTheme((obj as { canvasTheme?: unknown }).canvasTheme);
         const result: {
           viewport?: { x: number; y: number; zoom: number };
           overlays?: Record<string, boolean>;
           locked?: string[];
+          canvasTheme?: 'light' | 'dark';
         } = {};
         if (vp) result.viewport = vp;
         if (ov && Object.keys(ov).length > 0) result.overlays = ov;
         if (lk && lk.length > 0) result.locked = lk;
+        if (ct) result.canvasTheme = ct;
         return result;
       }
       return null;
@@ -2490,14 +2501,18 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     obj.overlays = undefined;
     // feature-4 T7b — `locked` (per-user locked layer keys) is the same class.
     obj.locked = undefined;
+    // r4 #6 — `canvasTheme` (the Light | Dark pick) is the same class.
+    obj.canvasTheme = undefined;
     const view = await loadCanvasView(file);
     if (view?.viewport) obj.viewport = view.viewport;
     if (view?.overlays) obj.overlays = view.overlays;
     if (view?.locked) obj.locked = view.locked;
+    if (view?.canvasTheme) obj.canvasTheme = view.canvasTheme;
     // Preserve the historic contract: no meta AND no camera/overlays → null
     // (GET → {}, PATCH-on-rejected-path → 404). A view-only canvas still
     // returns its camera/overlays.
-    if (!hadMeta && !view?.viewport && !view?.overlays && !view?.locked) return null;
+    if (!hadMeta && !view?.viewport && !view?.overlays && !view?.locked && !view?.canvasTheme)
+      return null;
     return obj;
   }
 
@@ -2589,6 +2604,34 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
             if (lk !== null) {
               await mkdir(sessionDir(paths.canvasStateDir), { recursive: true });
               await Bun.write(viewAbs, `${JSON.stringify({ ...current, locked: lk }, null, 2)}\n`);
+            }
+          }
+        } catch {
+          /* best-effort */
+        }
+      }
+    }
+
+    // --- Per-user Light | Dark lane (r4 #6): canvasTheme → view file, never the versioned meta. REPLACE
+    // semantics; `null` forgets the pick (the canvas goes back to its design system's default); a value
+    // that is not 'light' | 'dark' is a silent no-op.
+    if (patch.canvasTheme !== undefined) {
+      const viewAbs = canvasViewPath(file);
+      if (viewAbs) {
+        try {
+          const current = await readCanvasViewRaw(file);
+          if (patch.canvasTheme === null) {
+            const { canvasTheme: _drop, ...rest } = current;
+            await mkdir(sessionDir(paths.canvasStateDir), { recursive: true });
+            await Bun.write(viewAbs, `${JSON.stringify(rest, null, 2)}\n`);
+          } else {
+            const ct = normalizeCanvasTheme(patch.canvasTheme);
+            if (ct !== null) {
+              await mkdir(sessionDir(paths.canvasStateDir), { recursive: true });
+              await Bun.write(
+                viewAbs,
+                `${JSON.stringify({ ...current, canvasTheme: ct }, null, 2)}\n`
+              );
             }
           }
         } catch {

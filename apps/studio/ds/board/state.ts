@@ -3,17 +3,25 @@
 // canvas-lib's `__registerDesignSystem`.
 //
 // Light | Dark is the SYSTEM's own mode (a class + `data-theme` on each section, V2-1.6 §5.2). It is
-// a viewing preference of this one canvas; it never writes `<html>`, never the app's theme, and is
-// not persisted. A parent (the app's `ds.set-theme-preview` action) reaches it by the dgn message
-// `{ dgn: 'ds-theme-preview', mode }` (bridge/dgn-protocol.ts); `?dsMode=dark` starts it Dark.
+// a viewing preference of this one canvas; it never writes `<html>`, never the app's theme. r4 #6: it IS the
+// canvas's one Light | Dark (canvas-theme.ts) — the same mode every ordinary canvas's pill switches — so the
+// specimen pages and every other artboard follow it, not only the seven sections. A parent (the app's
+// `ds.set-theme-preview` action) reaches it by the dgn message `{ dgn: 'ds-theme-preview', mode }`
+// (bridge/dgn-protocol.ts) and `?dsMode=dark` starts it Dark; both are PREVIEWS — nothing is remembered.
+// The bar's own Light | Dark buttons remember the pick (per canvas, per Mac), like the pill on any canvas.
 
 import { useSyncExternalStore } from 'react';
 import { acceptFromShell } from '../../bridge/dgn-protocol.ts';
+import {
+  __resetCanvasTheme,
+  getCanvasTheme,
+  setCanvasTheme,
+  useCanvasTheme,
+} from '../../canvas-theme.ts';
 import { type BoardMarks, type BoardMode, type BoardModel, cleanMarks, NO_MARKS } from './types.ts';
 
 let model: BoardModel | null = null;
 let specimens: Record<string, unknown> = {};
-let mode: BoardMode = 'light';
 // S10.11 — the tokens the studio flags ("Changed outside", "2 versions"); a view of studio state, never persisted
 let marks: BoardMarks = NO_MARKS;
 const subs = new Set<() => void>();
@@ -38,13 +46,12 @@ export const getBoardModel = (): BoardModel | null => model;
 export const getSpecimen = (src: string): unknown => specimens[src];
 /** The `preview/…tsx` pages this canvas kept as showcases, in the order the module registered them. */
 export const getSpecimenSrcs = (): string[] => Object.keys(specimens);
-export const getBoardMode = (): BoardMode => mode;
+export const getBoardMode = (): BoardMode => getCanvasTheme();
 
+/** Show the system in `next` — a preview; nothing is remembered (the bar's buttons use `setCanvasTheme`). */
 export function setBoardMode(next: BoardMode): void {
   if (next !== 'light' && next !== 'dark') return;
-  if (next === mode) return;
-  mode = next;
-  emit();
+  setCanvasTheme(next, { persist: false });
 }
 
 export const getBoardMarks = (): BoardMarks => marks;
@@ -64,8 +71,7 @@ export const useBoardMarks = (): BoardMarks =>
   useSyncExternalStore(subscribe, getBoardMarks, getBoardMarks);
 export const useBoardModel = (): BoardModel | null =>
   useSyncExternalStore(subscribe, getBoardModel, getBoardModel);
-export const useBoardMode = (): BoardMode =>
-  useSyncExternalStore(subscribe, getBoardMode, getBoardMode);
+export const useBoardMode = (): BoardMode => useCanvasTheme();
 
 let listening = false;
 /** Wire the parent's `ds.set-theme-preview` message and `?dsMode=` once. Safe without a window. */
@@ -73,7 +79,7 @@ export function listenForThemePreview(): void {
   if (listening || typeof window === 'undefined') return;
   listening = true;
   try {
-    if (new URLSearchParams(window.location.search).get('dsMode') === 'dark') mode = 'dark';
+    if (new URLSearchParams(window.location.search).get('dsMode') === 'dark') setBoardMode('dark');
   } catch {
     /* no location */
   }
@@ -93,7 +99,7 @@ export function listenForThemePreview(): void {
 export function __resetBoardState(): void {
   model = null;
   specimens = {};
-  mode = 'light';
+  __resetCanvasTheme();
   marks = NO_MARKS;
   emit();
 }

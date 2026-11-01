@@ -130,7 +130,6 @@ export function InspectorPanel({
   onSetArtboardStyle,
   onSetArtboardKind,
   onSetArtboardPrint,
-  onSetArtboardTheme,
   onDuplicateArtboard,
   onUndoRedo,
   editScope,
@@ -850,7 +849,6 @@ export function InspectorPanel({
             onSetArtboardStyle={onSetArtboardStyle}
             onSetArtboardKind={onSetArtboardKind}
             onSetArtboardPrint={onSetArtboardPrint}
-            onSetArtboardTheme={onSetArtboardTheme}
             onDuplicateArtboard={onDuplicateArtboard}
             // S11.8 — › Advanced › Used in: "Shared · 4 places" + Detach
             editScope={editScope}

@@ -128,6 +128,7 @@ import { modeShows } from './bridge/mode-shows.ts';
 import { DsIcon } from './canvas-ds-icons.tsx';
 import { flowRows, isDsCanvasIds } from './canvas-rows.ts';
 import { CanvasShell } from './canvas-shell.tsx';
+import { registerCanvasThemeSystem } from './canvas-theme.ts';
 import { pressStartsPan } from './input-router.tsx';
 import { summaryWords } from './kinds/warnings.ts';
 import { presentHidesCss, usePresentStage } from './present/present-stage.tsx';
@@ -4805,6 +4806,8 @@ export function __registerDesignSystem(ds: { name: string; themeDefault?: string
     );
   }
   registeredDesignSystem = next;
+  // r4 #6 — the canvas's Light | Dark starts at this system's own default theme
+  registerCanvasThemeSystem(next);
 }
 
 /**

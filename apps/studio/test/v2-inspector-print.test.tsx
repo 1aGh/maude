@@ -285,7 +285,7 @@ describe('Advanced — every number, and the code', () => {
     expect(text(host, 'insp-pr-code-text')).toContain('print={{ paper: "a6"');
     expect(text(host, 'insp-pr-code-text')).toContain('width={419} height={581}');
   });
-  test('the fold leads with the 08 groups, Theme is a row of Look and layout, Kind and Clip content come last', async () => {
+  test('the fold leads with the 08 groups, Look and layout opens with Body layout, Kind and Clip content come last', async () => {
     const host = await frame(SHEET());
     await openAdvanced(host);
     const after = (a: string, b: string) =>
@@ -293,10 +293,10 @@ describe('Advanced — every number, and the code', () => {
     expect(after('insp-pr-exact', 'insp-pr-resolution')).toBe(true);
     expect(after('insp-pr-code', 'insp-ab-kind')).toBe(true);
     expect(after('insp-pr-exact', 'insp-ctl-ab-clip')).toBe(true);
-    // Theme is inside the "Look and layout" block, above Body layout
+    // no Theme row (r4 #6): the canvas's Light | Dark pill governs every artboard
     const look = must(q(host, 'insp-pr-look'), 'look');
-    expect(look.contains(q(host, 'insp-ab-theme'))).toBe(true);
-    expect(after('insp-ab-theme', 'insp-pr-body-layout')).toBe(true);
+    expect(look.contains(q(host, 'insp-ab-theme'))).toBe(false);
+    expect(look.contains(q(host, 'insp-pr-body-layout'))).toBe(true);
   });
   test("Look and layout ends with the board's two layout rows: Grid tracks · Edit tracks…, Layout · Convert to absolute…", async () => {
     const host = await frame(SHEET());

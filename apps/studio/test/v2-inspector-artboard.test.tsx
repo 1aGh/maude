@@ -106,6 +106,7 @@ const handlers = () => ({
   onSetArtboardStyle: (...a: unknown[]) => calls.push(['style', ...a]),
   onSetArtboardKind: (...a: unknown[]) => calls.push(['kind', ...a]),
   onSetArtboardPrint: (...a: unknown[]) => calls.push(['print', ...a]),
+  // r4 #6: no row asks for this any more; it stays here so a Theme row that came back would draw (and fail the test)
   onSetArtboardTheme: (...a: unknown[]) => calls.push(['theme', ...a]),
   onDuplicateArtboard: (...a: unknown[]) => calls.push(['duplicate', ...a]),
 });
@@ -389,26 +390,13 @@ describe('what an edit sends', () => {
   // single write) — what each row sends is pinned in v2-inspector-print.test.tsx.
 });
 
-describe('Theme under Advanced (A-artboard-theme)', () => {
-  test('is in Advanced, shows the pin the canvas reports, and posts the chosen one', async () => {
+describe('Theme is not an Advanced row any more (r4 #6)', () => {
+  test("Advanced has no Theme, Follow chrome or DS default: the canvas's one Light | Dark pill governs every artboard", async () => {
     const host = await frame({ attrs: { ...DESKTOP.attrs, 'data-dc-theme-pin': 'dark' } });
     await click(q(host, 'fold-inspector-toggle'), 'Advanced');
-    const sel = q(host, 'insp-ab-theme') as HTMLSelectElement;
-    expect(sel.value).toBe('dark');
-    expect([...sel.options].map((o) => o.textContent)).toEqual([
-      'Follow chrome',
-      'DS default',
-      'Light',
-      'Dark',
-    ]);
-    await pick(sel, 'ds');
-    expect(calls).toEqual([['theme', 'desktop', 'ds']]);
-  });
-
-  test('an unpinned artboard follows the chrome', async () => {
-    const host = await frame();
-    await click(q(host, 'fold-inspector-toggle'), 'Advanced');
-    expect((q(host, 'insp-ab-theme') as HTMLSelectElement).value).toBe('follow');
+    expect(q(host, 'insp-ab-theme')).toBeNull();
+    expect(host.textContent).not.toContain('Follow chrome');
+    expect(host.textContent).not.toContain('DS default');
   });
 });
 

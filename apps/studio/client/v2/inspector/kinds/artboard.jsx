@@ -7,7 +7,7 @@
 //   Fill       Background (a token, from the system)
 //   Layout     Content (Top to bottom · Stacked · Left to right · Grid) · Padding · Gap
 //   Export     the default presets (S2.5's slot; S8 fills it)
-//   Advanced   Theme (DS default · Follow chrome · Light · Dark) — see `artboard-advanced.jsx`
+//   Advanced   Clip content · Kind · the kind's facts — see `artboard-advanced.jsx` (no Theme row: the canvas's Light | Dark pill)
 //
 // Writes go through the handlers the panel already owns (`ctx.artboard`): the numeric JSX props (DDR-027) via the
 // resize lane, Hug/Fixed, style, kind and print props — nothing here talks to a file itself. Hug vs Fixed is
