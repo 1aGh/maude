@@ -1,0 +1,6 @@
+
+## lod lane — Chromium, studio shell, dpr 2, mixed annotation board (1,500 elements, 64 boards) at a fit-all zoom below 25 %, fit-all
+| batch | arm | p50 | p95 | p95 spread | zoom p95 | long frames (range) | jank ≥25 | artboard renders | boards | kept |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| r4-mini-a | base | missing | | | | | | | | |
+| r4-mini-a | v2 | 20.8 | 53.9 | 60 | 97.8 | 9 (28) | 43 | 448 | 64 | 5, scale 0.113 |
