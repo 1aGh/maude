@@ -106,6 +106,8 @@ const handlers = () => ({
   onSetArtboardStyle: (...a: unknown[]) => calls.push(['style', ...a]),
   onSetArtboardKind: (...a: unknown[]) => calls.push(['kind', ...a]),
   onSetArtboardPrint: (...a: unknown[]) => calls.push(['print', ...a]),
+  // r4 #6: no row asks for this any more; it stays here so a Theme row that came back would draw (and fail the test)
+  onSetArtboardTheme: (...a: unknown[]) => calls.push(['theme', ...a]),
   onDuplicateArtboard: (...a: unknown[]) => calls.push(['duplicate', ...a]),
 });
 
