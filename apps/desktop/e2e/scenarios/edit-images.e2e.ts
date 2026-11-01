@@ -98,15 +98,15 @@ const dropTile = async (id: string, asset: string) => {
     const r = (doc.querySelector(`[data-cd-id="${elId}"]`) as HTMLElement).getBoundingClientRect();
     return [r.left + 10, r.top + 10];
   }, id);
+  // ONE DataTransfer for the whole drag, as a real drag has: the tile writes the Assets type at dragstart, and the
+  // catcher acts only on a drag that carries it (a Finder drag passes through)
   await browser.execute((path: string) => {
     const tile = document.querySelector(`[data-testid="assets-tile"][data-asset="${path}"]`);
     if (!tile) throw new Error(`no Assets tile for ${path}`);
+    const dt = new DataTransfer();
+    (window as unknown as { __e2eDrag?: DataTransfer }).__e2eDrag = dt;
     tile.dispatchEvent(
-      new DragEvent('dragstart', {
-        bubbles: true,
-        cancelable: true,
-        dataTransfer: new DataTransfer(),
-      })
+      new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer: dt })
     );
   }, asset);
   await (await $('[data-testid="canvas-asset-drop-catcher"]')).waitForExist({ timeout: 5000 });
@@ -121,7 +121,7 @@ const dropTile = async (id: string, asset: string) => {
         cancelable: true,
         clientX: f.left + x,
         clientY: f.top + y,
-        dataTransfer: new DataTransfer(),
+        dataTransfer: (window as unknown as { __e2eDrag?: DataTransfer }).__e2eDrag ?? null,
       };
       c.dispatchEvent(new DragEvent('dragover', ev));
       c.dispatchEvent(new DragEvent('drop', ev));

@@ -250,7 +250,10 @@ describe('copy / paste, Assets drop and the quiet tip (r1-clipboard-drop)', () =
       { timeout: 10000, timeoutMsg: 'no quiet tip at the press' }
     );
   });
-  it('an Assets drop seen only as text/plain places the picture', async () => {
+  it('a text/plain path dropped inside the canvas places nothing — an Assets drop is the shell’s (r3)', async () => {
+    // r3: WebKit gives the canvas origin no event of a drag the shell started, so the shell owns an Assets drag
+    // (edit-images.e2e.ts drops through its catcher; test/e2e/webkit-asset-drop.mjs drives a real WebKit drag).
+    // The canvas no longer turns a dropped text/plain path into a picture: planted text can't place an asset.
     const at = await rectOf('Alpha heading');
     expect(at).not.toBeNull();
     await inFrame(
@@ -261,9 +264,8 @@ describe('copy / paste, Assets drop and the quiet tip (r1-clipboard-drop)', () =
       at!.x,
       at!.y
     );
-    await browser.waitUntil(() => /clip-pic\.png/.test(source()), {
-      timeout: 10000,
-      timeoutMsg: 'the dropped asset never reached the canvas source',
-    });
+    await browser.pause(1500);
+    expect(source()).not.toMatch(/clip-pic\.png/);
   });
 });
+})
