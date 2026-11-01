@@ -74,6 +74,7 @@ import {
 import { createCommentToolWatch } from '../v2/comments/comment-tool.js';
 import { selectNewArtboard } from '../v2/empty/select-new-artboard.js';
 import { createStampFollow } from '../stamp-follow.js';
+import { markMine } from '../../comments/mine-stamp.ts';
 
 // one shell, one watch: the Comment tool's arming edge (P8 C5)
 const commentToolWatch = createCommentToolWatch();
@@ -1347,7 +1348,7 @@ export function useCanvasBridge({
         setCanvasError((e) => (e && e.path === m.file ? null : e));
         // Presentation Mode suppresses comment pins (same gate as the push
         // effect above), so a canvas opened while presenting starts pin-free.
-        const list = presentMode ? [] : commentsByFile[m.file] || [];
+        const list = presentMode ? [] : markMine(commentsByFile[m.file] || [], gitUser);
         const el = [...iframesRef.current.entries()].find(([k]) => k === m.file)?.[1];
         if (el && el.contentWindow) {
           try {

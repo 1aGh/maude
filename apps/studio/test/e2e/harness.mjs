@@ -111,6 +111,11 @@ export async function startServer(root) {
         // S5.1b — the unlinked fixture stamps a machine id; keep it in the fixture, never ~/.config.
         MAUDE_MACHINE_FILE:
           process.env.MAUDE_MACHINE_FILE ?? join(root, '.design', '_state', 'machine.json'),
+        // The person's prefs (prefs.json: the remembered Marker tip, sticky colour, theme …) belong to the
+        // fixture too: never this Mac's ~/.config/maude, and never shared between e2e files (a file that sets MAUDE_UI_PREFS_PATH itself keeps it) — a tip an
+        // earlier file armed (annotations-parity ends on the Eraser) made M arm the Eraser in the next one.
+        MAUDE_UI_PREFS_PATH:
+          process.env.MAUDE_UI_PREFS_PATH ?? join(root, '.design', '_state', 'prefs.json'),
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     }

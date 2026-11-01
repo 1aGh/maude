@@ -250,6 +250,7 @@ import { ShellPreviewChrome, usePreviewMode } from './v2/preview/preview-chrome-
 import { ShellTakes } from './v2/assets/takes-overlay.jsx';
 import { ViewBarHost } from './v2/history/history-host.jsx';
 import { SyncStatesHost } from './v2/sync-states/conflict-card.jsx';
+import { markMine } from '../comments/mine-stamp.ts';
 import { useQueuedMarkedByFile } from './v2/sync-states/row-words.js';
 import { panelOpenDecision, rightMainWidth, rightPanelWidth } from './v2/shell/panel-layout.js';
 import { aiSlotWidth, gripTarget, usePanelSizes } from './v2/shell/panel-sizes.js';
@@ -1084,11 +1085,12 @@ function ShellState({ children }) {
     if (!activePath || activePath === SYSTEM_TAB) return;
     const el = iframesRef.current.get(activePath);
     if (!el || !el.contentWindow) return;
-    const list = presentMode ? [] : commentsOnCanvas[activePath] || [];
+    // which are yours, said here: the canvas origin is never told this Mac's account name (rc.1 F08)
+    const list = presentMode ? [] : markMine(commentsOnCanvas[activePath] || [], gitUser);
     try {
       el.contentWindow.postMessage({ dgn: 'comments-set', comments: list }, '*');
     } catch {}
-  }, [activePath, commentsOnCanvas, presentMode]);
+  }, [activePath, commentsOnCanvas, presentMode, gitUser]);
   const {
     applyOptimisticStyle,
     assetPickerReq,
