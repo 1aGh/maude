@@ -46,6 +46,15 @@ const PICK_OF_DGN: ReadonlyMap<unknown, 'sticker' | 'template'> = new Map([
   ['insert-template', 'template'],
 ]);
 
+/**
+ * r4 #17 - the Templates panel's "Blank section" is "draw it, name it": it arms the Section tool (a drag
+ * sizes it like Frame, a tap drops the default) rather than placing a default-sized ghost. Every other
+ * template is placed. Returns the tool to arm, or null.
+ */
+export function toolForTemplate(id: unknown): 'section' | null {
+  return id === 'blank' ? 'section' : null;
+}
+
 /** What the shell's pick asks for (the layer has already checked who sent it), or null for anything else. */
 export function placementOf(m: unknown): Pending | null {
   const o = m as Record<string, unknown> | null;

@@ -93,6 +93,7 @@ import {
   placementOf,
   replacePatch,
   stickerRefOf,
+  toolForTemplate,
 } from './annotations/ui/sticker-drop.ts';
 import {
   NO_RESOLVED_LINE,
@@ -1056,6 +1057,8 @@ export function AnnotationsLayer() {
   countRender('annotationRenders');
   ensureAnnotStyles();
   const { tool, setTool, resetTool, sticky, tools, shapeKind } = useToolMode();
+  const setToolRef = useRef(setTool);
+  setToolRef.current = setTool;
   const theme = useCanvasChromeTheme();
   const controller = useViewportControllerContext();
   const vp = controller?.viewport ?? null;
@@ -2098,6 +2101,15 @@ export function AnnotationsLayer() {
       // is.
       // S4.13 - a gallery pick / stamp / template trails the pointer until a click (`follow`), and a stamp stays
       // armed; without `follow` a sticker or template lands mid-view at once, as before. One Pending, three kinds.
+      // r4 #17 - the Blank section tile is "draw it, name it": it arms the Section tool (a drag sizes it, a tap
+      // is the default) instead of dropping a default-sized ghost.
+      if (m.dgn === 'insert-template') {
+        const armTool = toolForTemplate((m as { id?: unknown }).id);
+        if (armTool) {
+          setToolRef.current(armTool);
+          return;
+        }
+      }
       const placement =
         m.dgn === 'insert-sticker' || m.dgn === 'insert-template' ? placementOf(m) : null;
       if (placement) {
