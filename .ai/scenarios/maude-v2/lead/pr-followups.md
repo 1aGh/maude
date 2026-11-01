@@ -418,3 +418,11 @@ rights or is an availability nuisance). Candidates for the first rc patch:
 - **rc patch, perf (Michal accepted for v2.0):** the Chromium LOD lane, base-first order, is ~1 ms over the M7 p95
   bound with 2 long frames — the ~50 ms frame when the LOD mosaic takes over during a zoom at < 25 %. Smooth that
   hand-over frame (V2-8.14-perf.md, final freeze).
+
+## From round r3 (2026-11-01)
+
+- `declared.background` (fill label, `dom-selection.ts` → `css-write.js`) is canvas-reported: cap its length and require a `var()`/colour shape before merging it (r3 security delta, low; a lying canvas can only make its own write a no-op).
+- `p8-hub-undo-collision.test.ts` setup can exceed 60 s under full-suite load on the mini (passes 18/0 ×3 alone): give its beforeAll a longer timeout or a lighter hub boot.
+- The real-WebKit drag guard (`test/e2e/webkit-asset-drop.mjs`) stalls at its setup click about 1 run in 3 (reports HARNESS, not FAIL): make the canvas-row click wait on the tree, not a retry.
+- A video dropped on bare canvas (outside every artboard) still goes through the old media hook (upload + toasted `<Video>` snippet); a video placed in Edit has `controls` — check select vs play feel in the live app.
+- The design-system preview frame (`dsPreview`) also blocks the Assets drop catcher — confirm that is wanted.
