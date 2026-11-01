@@ -1,5 +1,5 @@
 COMMON RULES (Maude v2, round r4: Michal's findings on READY TO TRY 12). Michal's binding rule: "every button must do something, nothing may fail."
-- You work in your own git worktree based on feat/maude-v2 @ dd12b236d (if your worktree starts elsewhere, `git reset --hard dd12b236d` first and confirm `git log --oneline -1`). Commit small commits on your branch; do NOT push, do NOT merge, do NOT touch the main checkout /Users/iagh/git/personal/maude.
+- You work in your own git worktree based on feat/maude-v2 @ 6763174c2 (if your worktree starts elsewhere, `git reset --hard 6763174c2` first and confirm `git log --oneline -1`). Commit small commits on your branch; do NOT push, do NOT merge, do NOT touch the main checkout /Users/iagh/git/personal/maude.
 - Fail-first: every fix gets a test you have SEEN red against the unfixed code (revert the fix, run, red; restore, green). Say in the hand-back which command showed red.
 - Run tests only through `scripts/v2-test-lane.sh -- <cmd>` (machine-wide lock; others queue). apps/studio tests: `bun test ./test/<file>` (prefix ./). Prefix commands with FARM_LOCAL=1. Never `farm run`.
 - Do NOT commit apps/studio/dist/* (the lead rebuilds the release bundle at merge). `git status apps/studio/dist` before and after any test; `git checkout -- apps/studio/dist` if it moved.

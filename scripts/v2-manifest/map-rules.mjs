@@ -50,6 +50,12 @@ export const V2_CODE_IDS = new Set([
   'testid:studio/client/dialogs/shortcuts-overlay.jsx#help/shortcuts/shortcuts-modes', // r2 P3 per-mode key table in the ? sheet
   'testid:studio/client/dialogs/shortcuts-overlay.jsx#help/shortcuts/shortcuts-modes-hd', // r2 P3 per-mode key table in the ? sheet
   'testid:studio/client/dialogs/shortcuts-overlay.jsx#help/shortcuts/shortcuts-modes-key', // r2 P3 per-mode key table in the ? sheet
+  'button:studio/client/system/system-view.jsx#SystemView/sv-create-design-system', // r4 #7 the empty design system view's Create a design system
+  'testid:client/system/system-view.jsx#stage/system-view/sv-create-design-system', // r4 #7 the empty design system view's Create a design system
+  'testid:client/system/system-view.jsx#stage/system-view/sv-no-system', // r4 #7 the empty design system view's Create a design system
+  'testid:client/v2/ds/upgrade-sheet.jsx#stage/dialog/ds-upgrade-gain', // r4 #11 Bring it up says why and works in a corner card
+  'testid:client/v2/ds/upgrade-sheet.jsx#stage/dialog/ds-upgrade-gains', // r4 #11 Bring it up says why and works in a corner card
+  'testid:client/v2/ds/upgrade-sheet.jsx#stage/dialog/ds-upgrade-hide', // r4 #11 Bring it up says why and works in a corner card
 ]);
 
 /** Entries that are infrastructure, not features (lead decision, V2-4.gate-b): id → reason. Excluded
