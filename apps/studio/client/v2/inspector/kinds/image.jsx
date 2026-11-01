@@ -189,7 +189,7 @@ function ImageBody({ el, ctx }) {
                 max={800}
                 step={1}
                 steppers={false}
-                scrub={false}
+                scrub={editable}
                 ariaLabel="Zoom"
                 unitSlot={<span className="insp-unit">%</span>}
                 onCommit={(n) => {

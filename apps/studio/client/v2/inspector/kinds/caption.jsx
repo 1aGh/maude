@@ -173,7 +173,7 @@ function CaptionsAdvanced({ el, open, onToggle }) {
               min={8}
               max={200}
               step={1}
-              scrub={false}
+              scrub
               ariaLabel="Characters per caption line"
               onCommit={(n) => styleCaptions({ maxChars: Math.round(n) })}
             />

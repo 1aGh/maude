@@ -65,7 +65,7 @@ function Layer({ layer, index, onRemove, disabled }) {
 }
 
 export function FillBody({ el, selection, kind, ctx }) {
-  const { cssAll, editable, write } = useCssWrite(targetOf({ el, selection, kind }), ctx);
+  const { cssAll, editable, write, live } = useCssWrite(targetOf({ el, selection, kind }), ctx);
   const fam = useDsFamilies(ctx);
   const open = useSyncExternalStore(subscribe, () => adding) === keyOf(el);
   const [url, setUrl] = useState('');
@@ -124,6 +124,11 @@ export function FillBody({ el, selection, kind, ctx }) {
           slotGroup="surfaces"
           allowNone
           showOpacity
+          opacityLive={
+            fill?.color
+              ? live((n) => fillToCss({ ...base, color: { ...fill.color, opacity: n } }))
+              : undefined
+          }
           disabled={!editable}
           onChange={(color) => set({ ...base, color })}
         />

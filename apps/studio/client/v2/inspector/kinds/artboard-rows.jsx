@@ -77,7 +77,7 @@ export function SizePairRow({ f, can, resize, commitHeight }) {
             lead="W"
             ariaLabel="Artboard width"
             steppers={false}
-            scrub={false}
+            scrub={!!can}
             className="insp-nf"
             onCommit={(n) => can && resize(n, null)}
           />
@@ -89,7 +89,7 @@ export function SizePairRow({ f, can, resize, commitHeight }) {
             lead="H"
             ariaLabel="Artboard height"
             steppers={false}
-            scrub={false}
+            scrub={!!can}
             className="insp-nf"
             onCommit={(n) => can && commitHeight(n)}
           />

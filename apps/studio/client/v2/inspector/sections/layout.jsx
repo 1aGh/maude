@@ -98,7 +98,7 @@ const SIDES = [
 ];
 
 export function LayoutBody({ el, ctx }) {
-  const { css, editable, write } = useCssWrite(el, ctx);
+  const { css, editable, write, live } = useCssWrite(el, ctx);
   const tokens = useSpaceTokens(ctx);
   useSyncExternalStore(subscribe, () => version);
   const sides = sidesOpen.get(keyOf(el)) ?? false;
@@ -113,14 +113,17 @@ export function LayoutBody({ el, ctx }) {
   ).layout;
   const inline = /^inline-/.test(read.display || '');
   const flexy = words.direction === 'row' || words.direction === 'column';
-  const set = (key, next) => {
-    if (!editable) return;
+  const patchFor = (key, next) => {
     // a flex direction only changes display and flex-direction; leaving flex also clears the flex-only declarations
     const keys =
       key === 'direction' && (next.direction === 'row' || next.direction === 'column')
         ? ['display', 'flex-direction']
         : OWNS[key];
-    write(only(layoutToCss(next, { inline, tokens }), keys));
+    return only(layoutToCss(next, { inline, tokens }), keys);
+  };
+  const set = (key, next) => {
+    if (!editable) return;
+    write(patchFor(key, next));
   };
   const pad = words.padding;
   const hMixed = !sameLength(pad.left, pad.right);
@@ -149,6 +152,7 @@ export function LayoutBody({ el, ctx }) {
             tokens={tokens}
             allowNone
             noneLabel={words.spacing === 'between' && flexy ? 'Auto' : 'None'}
+            live={live((px) => patchFor('gap', { ...words, gap: { px } }))}
             onChange={(gap) => {
               if (words.spacing === 'between') set('spacing', { ...words, spacing: 'packed' });
               set('gap', { ...words, gap });
@@ -194,6 +198,12 @@ export function LayoutBody({ el, ctx }) {
               value={pad.left}
               tokens={tokens}
               disabled={!editable}
+              live={live((px) =>
+                patchFor('padding', {
+                  ...words,
+                  padding: { ...pad, left: { px }, right: { px }, top: { px }, bottom: { px } },
+                })
+              )}
               onChange={(l) => setPad({ left: l, right: l, top: l, bottom: l })}
             />
           ) : (
@@ -241,6 +251,9 @@ export function LayoutBody({ el, ctx }) {
                 value={pad[side]}
                 tokens={tokens}
                 disabled={!editable}
+                live={live((px) =>
+                  patchFor('padding', { ...words, padding: { ...pad, [side]: { px } } })
+                )}
                 onChange={(l) => setPad({ [side]: l })}
               />
             </Row>

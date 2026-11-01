@@ -86,7 +86,7 @@ export function LengthRow({ t }) {
           value={Math.round(secs * 10) / 10}
           min={1 / f}
           step={0.1}
-          scrub={false}
+          scrub
           format={(n) => lengthWords(Math.round(n * f), f)}
           parse={(raw) => {
             const frames = parseLengthFrames(raw, f);
@@ -279,7 +279,7 @@ function CropAdvanced({ t }) {
         min={min}
         max={max}
         step={step}
-        scrub={false}
+        scrub
         ariaLabel={`Crop ${key}`}
         onCommit={(v) => set({ ...frame, [key]: v })}
       />
@@ -383,7 +383,7 @@ function TransitionAdvanced({ t }) {
           min={1}
           max={120}
           step={1}
-          scrub={false}
+          scrub
           ariaLabel="Transition duration"
           onCommit={(v) => t.onJoin(j, { durationInFrames: v })}
         />

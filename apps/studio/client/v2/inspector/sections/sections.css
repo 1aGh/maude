@@ -28,6 +28,13 @@
     font-size: var(--type-sm);
     color: var(--fg-1);
   }
+  /* Figma: the label of a row with ONE number field is a scrub handle (Row sets data-scrub only then) */
+  .insp-row-k[data-scrub="true"],
+  .insp-ax[data-scrub="true"] {
+    cursor: ew-resize;
+    user-select: none;
+    touch-action: none;
+  }
   .insp-row-v {
     display: flex;
     align-items: center;

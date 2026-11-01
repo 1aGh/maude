@@ -29,7 +29,7 @@
 // numeric-first; NumberField accepts optional parse/format hooks so CssKnobs can
 // adapt its CSS-unit strings without the library learning about units.
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import {
   Check,
   ChevronDown,
@@ -101,6 +101,8 @@ export function makeScrubHandler({
   step = 1,
   onInput,
   onCommit,
+  onCancel, // () => void — Esc / pointercancel mid-drag: put the start value back (also enables the Esc listener)
+  onTap, // () => void — released without crossing the 3px dead-zone (a click, not a drag)
   sensitivity = 1,
   sides,
 }) {
@@ -110,11 +112,31 @@ export function makeScrubHandler({
     const base = Number.parseFloat(getBase()) || 0;
     let scrubbing = false;
     let last = base;
+    // The handle keeps the pointer for the whole drag, so it continues outside the field and the panel.
+    const grab = e.currentTarget;
+    const pointerId = e.pointerId;
+    try {
+      grab?.setPointerCapture?.(pointerId);
+    } catch {
+      /* a synthetic or already-released pointer: the document listeners still carry the drag */
+    }
     const activeSidesFor = (ev) => {
       if (!sides) return undefined;
       if (ev.altKey && ev.shiftKey) return sides.all;
       if (ev.altKey) return sides.pair;
       return undefined;
+    };
+    const end = () => {
+      document.removeEventListener('pointermove', move);
+      document.removeEventListener('pointerup', up);
+      document.removeEventListener('pointercancel', cancel);
+      document.removeEventListener('keydown', key, true);
+      try {
+        grab?.releasePointerCapture?.(pointerId);
+      } catch {
+        /* already released */
+      }
+      if (scrubbing) document.body.classList.remove('insp-scrubbing');
     };
     const move = (ev) => {
       const dx = ev.clientX - startX;
@@ -129,14 +151,29 @@ export function makeScrubHandler({
       onInput?.(last, activeSidesFor(ev));
     };
     const up = (ev) => {
-      document.removeEventListener('pointermove', move);
-      document.removeEventListener('pointerup', up);
-      if (!scrubbing) return;
-      document.body.classList.remove('insp-scrubbing');
+      const was = scrubbing;
+      end();
+      if (!was) {
+        onTap?.();
+        return;
+      }
       onCommit?.(last, activeSidesFor(ev));
     };
+    function cancel() {
+      const was = scrubbing;
+      end();
+      if (was) onCancel?.();
+    }
+    function key(ev) {
+      if (ev.key !== 'Escape') return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      cancel();
+    }
     document.addEventListener('pointermove', move);
     document.addEventListener('pointerup', up);
+    document.addEventListener('pointercancel', cancel);
+    if (onCancel) document.addEventListener('keydown', key, true);
   };
 }
 
@@ -147,14 +184,35 @@ export function useScrub({
   step = 1,
   onInput,
   onCommit,
+  onCancel,
+  onTap,
   sensitivity = 1,
   sides,
 }) {
   return useCallback(
-    makeScrubHandler({ getBase, min, max, step, onInput, onCommit, sensitivity, sides }),
-    [getBase, min, max, step, onInput, onCommit, sensitivity, sides]
+    makeScrubHandler({
+      getBase,
+      min,
+      max,
+      step,
+      onInput,
+      onCommit,
+      onCancel,
+      onTap,
+      sensitivity,
+      sides,
+    }),
+    [getBase, min, max, step, onInput, onCommit, onCancel, onTap, sensitivity, sides]
   );
 }
+
+// ── the row label as a second scrub handle ───────────────────────────────────
+//
+// An Inspector row draws its label ("Width") outside the field. Figma lets you grab that label too, so the row
+// provides this context and a scrubbing NumberField inside it registers its handler. A row with exactly ONE
+// scrubbing field hands the label to it (the label turns ew-resize); a row with two ("X · Y") leaves the label
+// alone because "which one?" has no answer. `register(fn)` returns the unregister function.
+export const ScrubLabelContext = createContext(null);
 
 // ── NumberField ──────────────────────────────────────────────────────────────
 //
@@ -176,6 +234,7 @@ export function NumberField({
   parse, // (raw: string) => number|null  typed-value parser (default: parseFloat)
   onInput, // (n, activeSides?) => void   live preview during scrub/step (optional)
   onCommit, // (n, activeSides?) => void  final commit (blur / scrub-end / step / arrow)
+  onCancel, // () => void  a scrub was cancelled with Esc: undo whatever onInput previewed
   ariaLabel,
   className = '',
 }) {
@@ -203,6 +262,12 @@ export function NumberField({
     onInput?.(v, activeSides);
   };
 
+  // Esc mid-drag: the input goes back to what it said when the drag began, and the caller drops its preview.
+  const startText = useRef('');
+  const onCancelScrub = () => {
+    if (ref.current) ref.current.value = startText.current;
+    onCancel?.();
+  };
   const onScrub = useScrub({
     getBase: () => (ref.current ? ref.current.value : numOf(value)),
     min,
@@ -212,7 +277,22 @@ export function NumberField({
     sides,
     onInput: preview,
     onCommit: commit,
+    onCancel: onCancelScrub,
+    // a click that never became a drag: what clicking the field does — focus it (select-all comes with focus)
+    onTap: () => ref.current?.focus(),
   });
+  const startScrub = (e) => {
+    startText.current = ref.current ? ref.current.value : fmt(value);
+    onScrub(e);
+  };
+  // hand the row's label this field's scrub (see ScrubLabelContext)
+  const labelCtx = useContext(ScrubLabelContext);
+  const scrubRef = useRef(startScrub);
+  scrubRef.current = startScrub;
+  useEffect(() => {
+    if (!scrub || !labelCtx) return undefined;
+    return labelCtx.register((e) => scrubRef.current(e));
+  }, [scrub, labelCtx]);
 
   const bump = (dir, mult) => commit(numOf(ref.current?.value ?? value) + dir * step * mult);
 
@@ -265,17 +345,18 @@ export function NumberField({
 
   return (
     <div className={`insp-cp-num ${className}`.trim()}>
-      {scrub ? (
+      {scrub && (lead || !labelCtx) ? (
         <span
           className="insp-cp-numlead insp-cp-handle"
           role="presentation"
           aria-hidden="true"
           title="Drag to change · Shift ×10 · Alt fine"
-          onPointerDown={onScrub}
+          data-testid="insp-scrub-handle"
+          onPointerDown={startScrub}
         >
           {lead ?? <span className="insp-cp-grip" />}
         </span>
-      ) : lead ? (
+      ) : !scrub && lead ? (
         <span className="insp-cp-numlead" aria-hidden="true">
           {lead}
         </span>

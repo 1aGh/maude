@@ -11,7 +11,14 @@
 // measures what only it can (the style's own values for Detach) and the studio writes plain TSX — a
 // `t-<role>` class, a `lang` attribute, inline declarations — that a v1 peer reads as it is.
 
-import { AlignCenter, AlignJustify, AlignLeft, AlignRight } from 'lucide-react';
+import {
+  AlignCenter,
+  AlignJustify,
+  AlignLeft,
+  AlignRight,
+  ArrowUpDown,
+  MoveHorizontal,
+} from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ACTIONS_BY_ID } from '../../../../actions/index.ts';
 import {
@@ -423,7 +430,7 @@ function FontBody({ el, ctx }) {
 }
 
 function ParagraphBody({ el, ctx }) {
-  const { css, editable, write } = useCssWrite(el, ctx);
+  const { css, editable, write, live } = useCssWrite(el, ctx);
   const sizePx = Number.parseFloat(el?.computed?.['font-size'] ?? '') || 16;
   const line = lineHeightPercent(css['line-height'] ?? el?.computed?.['line-height'], sizePx);
   const letter = letterSpacingPx(css['letter-spacing'] ?? el?.computed?.['letter-spacing'], sizePx);
@@ -438,8 +445,10 @@ function ParagraphBody({ el, ctx }) {
               value={line ?? 100}
               min={0}
               ariaLabel="Line height"
+              lead={<ArrowUpDown size={12} />}
               steppers={false}
-              scrub={false}
+              scrub={editable}
+              {...live((n) => ({ 'line-height': `${Math.round(n * 100) / 10000}` }))}
               className="insp-nf"
               format={(n) => `${Math.round(n * 100) / 100} %`}
               parse={(raw) => Number.parseFloat(String(raw).replace('%', ''))}
@@ -452,8 +461,10 @@ function ParagraphBody({ el, ctx }) {
             <NumberField
               value={letter}
               ariaLabel="Letter spacing"
+              lead={<MoveHorizontal size={12} />}
               steppers={false}
-              scrub={false}
+              scrub={editable}
+              {...live((n) => ({ 'letter-spacing': `${n}px` }))}
               className="insp-nf"
               onCommit={(n) => editable && n !== letter && write({ 'letter-spacing': `${n}px` })}
             />

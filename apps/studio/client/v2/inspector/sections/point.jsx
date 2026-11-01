@@ -77,7 +77,7 @@ export function PointBody({ el, ctx }) {
               value={info.x}
               ariaLabel="X"
               lead="X"
-              scrub={false}
+              scrub={live}
               steppers={false}
               className="insp-nf"
               onCommit={(n) => send(withPosition(el, { x: n }), 'Move point')}
@@ -88,7 +88,7 @@ export function PointBody({ el, ctx }) {
               value={info.y}
               ariaLabel="Y"
               lead="Y"
-              scrub={false}
+              scrub={live}
               steppers={false}
               className="insp-nf"
               onCommit={(n) => send(withPosition(el, { y: n }), 'Move point')}

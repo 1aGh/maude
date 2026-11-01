@@ -101,7 +101,7 @@ export function constrainMessage(ref, pins, geometry) {
 }
 
 export function PositionBody({ el, ctx }) {
-  const { css, editable, write } = useCssWrite(el, ctx);
+  const { css, editable, write, live } = useCssWrite(el, ctx);
   const read = effectiveCss(el, css);
   const placed = PLACED.has((read.position || '').trim());
   const geometry = el?.geometry ?? null;
@@ -115,15 +115,11 @@ export function PositionBody({ el, ctx }) {
   const free = placed && ['absolute', 'fixed'].includes((read.position || '').trim());
   const ctxw = { geometry, transform: css.transform };
   // each field writes only the declarations it owns: X the left/right edges, Y the top/bottom, Rotation the transform
-  const setPos = (patch, keys) =>
-    editable &&
-    write(
-      Object.fromEntries(
-        Object.entries(positionToCss({ ...words, ...patch }, ctxw)).filter(([k]) =>
-          keys.includes(k)
-        )
-      )
+  const posPatch = (patch, keys) =>
+    Object.fromEntries(
+      Object.entries(positionToCss({ ...words, ...patch }, ctxw)).filter(([k]) => keys.includes(k))
     );
+  const setPos = (patch, keys) => editable && write(posPatch(patch, keys));
   const setPin = (next) => {
     if (!editable || !geometry) return;
     const ref = Array.isArray(el?.refs) ? el.refs[0] : null;
@@ -169,8 +165,9 @@ export function PositionBody({ el, ctx }) {
               value={words.x ?? 0}
               ariaLabel="X"
               lead="X"
-              scrub={false}
+              scrub={placed && editable}
               steppers={false}
+              {...live((n) => posPatch({ x: n }, ['left', 'right']))}
               className="insp-nf"
               onCommit={(n) => placed && n !== words.x && setPos({ x: n }, ['left', 'right'])}
             />
@@ -183,8 +180,9 @@ export function PositionBody({ el, ctx }) {
               value={words.y ?? 0}
               ariaLabel="Y"
               lead="Y"
-              scrub={false}
+              scrub={placed && editable}
               steppers={false}
+              {...live((n) => posPatch({ y: n }, ['top', 'bottom']))}
               className="insp-nf"
               onCommit={(n) => placed && n !== words.y && setPos({ y: n }, ['top', 'bottom'])}
             />
@@ -198,8 +196,9 @@ export function PositionBody({ el, ctx }) {
             ariaLabel="Rotation"
             lead={<RotateCw size={12} />}
             step={1}
-            scrub={false}
+            scrub={editable}
             steppers={false}
+            {...live((n) => posPatch({ rotation: n }, ['transform']))}
             className="insp-nf"
             format={(n) => `${Math.round(n * 100) / 100}°`}
             parse={(raw) => Number.parseFloat(String(raw).replace('°', ''))}

@@ -30,10 +30,13 @@ export function isAllText(selection) {
 }
 
 function MultiOpacity({ el, selection, kind, ctx }) {
-  const { cssAll, editable, write, count } = useCssWrite(targetOf({ el, selection, kind }), ctx);
+  const { cssAll, editable, write, live, count } = useCssWrite(
+    targetOf({ el, selection, kind }),
+    ctx
+  );
   return (
     <>
-      <OpacityRow cssAll={cssAll} editable={editable} write={write} />
+      <OpacityRow cssAll={cssAll} editable={editable} write={write} live={live} />
       <Quiet testid="insp-multi-note">
         {`Changes go to all ${count}. Text settings show when only text is selected.`}
       </Quiet>
@@ -57,7 +60,7 @@ const Mixed = ({ testid }) => (
 
 function MultiPosition({ el, selection, kind, ctx }) {
   const targets = targetOf({ el, selection, kind });
-  const { cssAll, editable, write } = useCssWrite(targets, ctx);
+  const { cssAll, editable, write, live } = useCssWrite(targets, ctx);
   const list = Array.isArray(targets) ? targets : [];
   const words = list.map(
     (t, i) => toWords(cssAll[i] ?? {}, { geometry: t?.geometry ?? null }).position
@@ -70,15 +73,13 @@ function MultiPosition({ el, selection, kind, ctx }) {
   const rot = reduceMixed(words.map((w) => w.rotation ?? 0));
   const ctxw = { geometry: list[0]?.geometry ?? null, transform: cssAll[0]?.transform };
   // one value for every object: each field writes only the declarations it owns, like the single-object Position
-  const set = (patch, keys) =>
-    editable &&
-    write(
-      Object.fromEntries(
-        Object.entries(positionToCss({ ...words[0], ...patch }, ctxw)).filter(([k]) =>
-          keys.includes(k)
-        )
+  const posPatch = (patch, keys) =>
+    Object.fromEntries(
+      Object.entries(positionToCss({ ...words[0], ...patch }, ctxw)).filter(([k]) =>
+        keys.includes(k)
       )
     );
+  const set = (patch, keys) => editable && write(posPatch(patch, keys));
   const quiet = (r) => (r.mixed ? 'true' : undefined);
   return (
     <>
@@ -90,8 +91,9 @@ function MultiPosition({ el, selection, kind, ctx }) {
               value={x.mixed ? 0 : (x.value ?? 0)}
               ariaLabel="X"
               lead="X"
-              scrub={false}
+              scrub={placed && editable}
               steppers={false}
+              {...live((n) => posPatch({ x: n }, ['left', 'right']))}
               className="insp-nf"
               onCommit={(n) =>
                 placed && (x.mixed || n !== x.value) && set({ x: n }, ['left', 'right'])
@@ -104,8 +106,9 @@ function MultiPosition({ el, selection, kind, ctx }) {
               value={y.mixed ? 0 : (y.value ?? 0)}
               ariaLabel="Y"
               lead="Y"
-              scrub={false}
+              scrub={placed && editable}
               steppers={false}
+              {...live((n) => posPatch({ y: n }, ['top', 'bottom']))}
               className="insp-nf"
               onCommit={(n) =>
                 placed && (y.mixed || n !== y.value) && set({ y: n }, ['top', 'bottom'])
@@ -123,8 +126,9 @@ function MultiPosition({ el, selection, kind, ctx }) {
               ariaLabel="Rotation"
               lead={<RotateCw size={12} />}
               step={1}
-              scrub={false}
+              scrub={editable}
               steppers={false}
+              {...live((n) => posPatch({ rotation: n }, ['transform']))}
               className="insp-nf"
               format={(n) => `${Math.round(n * 100) / 100}°`}
               parse={(raw) => Number.parseFloat(String(raw).replace('°', ''))}
@@ -141,7 +145,7 @@ function MultiPosition({ el, selection, kind, ctx }) {
 
 function MultiSize({ el, selection, kind, ctx }) {
   const targets = targetOf({ el, selection, kind });
-  const { cssAll, editable, parent, write } = useCssWrite(targets, ctx);
+  const { cssAll, editable, parent, write, live } = useCssWrite(targets, ctx);
   const list = Array.isArray(targets) ? targets : [];
   const widths = reduceMixed(list.map((t) => worldSize(t).width));
   const modes = reduceMixed(
@@ -167,7 +171,8 @@ function MultiSize({ el, selection, kind, ctx }) {
             min={0}
             ariaLabel="Width"
             steppers={false}
-            scrub={false}
+            scrub={editable}
+            {...live((n) => axisToCss('width', { mode: 'fixed', px: n }, parent))}
             className="insp-nf"
             onCommit={(n) =>
               editable &&
