@@ -21,6 +21,7 @@ import { targetOf } from '../kinds/multi.jsx';
 import { registerSlot } from '../slots.js';
 import { useDsFamilies } from '../token-chip.jsx';
 import { ColorControl } from './color-control.jsx';
+import { GRADIENT_WORDS, parseGradient } from './colour-model.js';
 import { useRecentColours } from './recent-colours.js';
 import { Quiet, Row } from './row.jsx';
 
@@ -85,6 +86,29 @@ export function FillBody({ el, selection, kind, ctx }) {
     !fam.hasSystem && recent[0] ? paintFromCss(recent[0]) : slotPaint(slot);
   const base = fill ?? { color: null, layers: [] };
 
+  // r4 #4: the colour popover's Solid · Gradient · Image tabs say what the fill IS and write the whole fill. A drag is
+  // previewed on the canvas through the same lane the opacity scrub uses (`live`); the release commits once.
+  const preview = live((patch) => patch);
+  const fillApi = editable
+    ? {
+        fill: base,
+        set,
+        live: (next) => preview.onInput(fillToCss(next)),
+        start: slotCss(slot),
+        end: slotCss('gradientEnd'),
+      }
+    : null;
+  // a gradient or a picture with no colour under it: the chip says so, not "None"
+  const top = !red.mixed && fill && !fill.color ? fill.layers[0] : null;
+  const face = top
+    ? top.kind === 'gradient'
+      ? {
+          swatch: top.css,
+          word: `${GRADIENT_WORDS[parseGradient(top.css)?.type] ?? 'Linear'} gradient`,
+        }
+      : { swatch: 'var(--bg-4)', word: top.url.split('/').pop() }
+    : null;
+
   const addColour = () => {
     setAdding(null);
     set({ ...base, color: base.color ?? { paint: startPaint(), opacity: 100 } });
@@ -130,7 +154,17 @@ export function FillBody({ el, selection, kind, ctx }) {
               : undefined
           }
           disabled={!editable}
-          onChange={(color) => set({ ...base, color })}
+          fillApi={fillApi}
+          face={face}
+          onChange={(color, o) =>
+            set(
+              color === null
+                ? { color: null, layers: [] } // None: no fill at all
+                : o?.replaceLayers
+                  ? { color, layers: [] } // a colour picked while the Image tab was open
+                  : { ...base, color }
+            )
+          }
         />
       </Row>
       {fill

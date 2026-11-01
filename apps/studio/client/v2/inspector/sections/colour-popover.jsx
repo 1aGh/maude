@@ -1,30 +1,42 @@
-// client/v2/inspector/sections/colour-popover.jsx — P6 T2 (inspector-ux-rules IR-8, IR-10; Michal O2a): the colour picker.
+// client/v2/inspector/sections/colour-popover.jsx — P6 T2 (inspector-ux-rules IR-8, IR-10; Michal O2a) + r4 #4 (Michal: "color
+// picker bych udelal jak ma Figma, at tam jsou tabs jednotlivych backgrounds"): the colour picker.
 //
 // One popover, opened from the chip, beside the Inspector card, on the TOP LAYER (the Popover API — it escapes the card's
-// clipping and stacking; `placePopover` keeps it inside the window, F31). Top to bottom:
-//   Search            filters by the token's name and its role word
-//   Recent            the last 8 colours used in this project (recent-colours.js)
-//   the system        a swatch grid grouped by role, schema order (colour-groups.js); a two-theme system shows Light | Dark
-//                     split diagonally on each swatch; the selected token is ringed
-//   Other colour…     the drawn OKLCH picker (ds/colour-picker.jsx) + a field for hex or oklch(); committing a raw colour
-//                     in a system asks once (ds/off-system.jsx): "Use <nearest>" or "Add it to the system"
-//   None              where a value may be absent
-// With no design system the grid is replaced by one line, "This project has no design system yet", and one action.
-// Keys (F30): focus starts in Search; ↓ enters the grid; ← → move within a group, ↑ ↓ between groups; ↵ picks; esc
-// closes and gives focus back to the chip; Tab out closes.
+// clipping and stacking; `placePopover` keeps it inside the window, F31). Top to bottom, as Figma has it:
+//   Custom | Libraries                the two sources of a colour                                              [✕]
+//   Solid · Gradient · Image          what the fill IS (only on a Fill; every other colour is a solid)
+//   Custom                            Solid: the saturation × brightness area, hue, opacity, eyedropper, Hex/RGB/HSL;
+//                                     Gradient: type, stops bar, stops + the picker for the selected stop;
+//                                     Image: upload or a path; then Recent and "On this page"
+//   Libraries                         Search, Recent, the design system's colours grouped by role (colour-groups.js); a
+//                                     two-theme system shows Light | Dark split diagonally; the selected token is ringed;
+//                                     with no system, one line and one action; None where a value may be absent
+// The popover opens on Libraries when the project has a design system and the colour is a token, else on Custom.
+// A raw colour committed in a system asks once (ds/off-system.jsx): "Use <nearest>" or "Add it to the system" (IR-10).
+// Keys (F30): focus starts in Search (or the open tab); ↓ enters the swatches; ← → move within a row, ↑ ↓ between rows;
+// ↵ picks; esc closes and gives focus back to the chip; Tab out closes.
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { X } from 'lucide-react';
 import { tokenLabel } from '../../../../edit-ops/words-css.ts';
-import { isCssColor, paintFromCss } from '../../../../edit-ops/words-paint.ts';
+import { isCssColor, paintFromCss, paintToCss } from '../../../../edit-ops/words-paint.ts';
 import { deltaE } from '../../../../ds/nearest.ts';
-import { ColourPicker } from '../../ds/colour-picker.jsx';
 import { requestDsMake } from '../../ds/default-write.js';
 import { addColourNow } from '../../ds/edge-write.js';
 import { OffSystemQuestion } from '../../ds/off-system.jsx';
 import { colourGroups, groupOf, swatchOf } from '../colour-groups.js';
+import {
+  GradientEditor,
+  ImageEditor,
+  PageColours,
+  SolidEditor,
+  useGradientFill,
+  usePageColours,
+} from './colour-custom.jsx';
+import { kindOfFill, parseRgba, rgbToHex, rgbaCss, switchKind } from './colour-model.js';
 import { rgbOf } from './colour-words.js';
 
-export const POPOVER_W = 264;
+export const POPOVER_W = 280;
 const MARGIN = 8;
 const GAP = 8;
 const clamp = (n, lo, hi) => Math.min(Math.max(n, lo), Math.max(lo, hi));
@@ -97,12 +109,57 @@ function Swatch({ sw }) {
   );
 }
 
+const KINDS = [
+  ['solid', 'Solid'],
+  ['gradient', 'Gradient'],
+  ['image', 'Image'],
+];
+const round2 = (n) => Math.round(n * 100) / 100;
+
+/** A Recent swatch row (the store's last colours, tokens and raw alike). Shared by Custom and Libraries. */
+function RecentRow({ name, recent, tokens, onPick }) {
+  if (!recent.length) return null;
+  return (
+    <div className="insp-pop-g" data-testid={`insp-pop-recent-${name}`}>
+      <p className="insp-pop-gt">Recent</p>
+      <div className="insp-pop-grid">
+        {recent.map((css, i) => {
+          const p = paintFromCss(css);
+          const sw = 'token' in p ? swatchOf(p.token, tokens) : { light: css, dark: null };
+          const word = 'token' in p ? tokenLabel(p.token) : css;
+          return (
+            <button
+              key={css}
+              type="button"
+              className="insp-pop-cell"
+              data-cell="true"
+              data-g={-1}
+              data-i={i}
+              aria-label={word}
+              title={word}
+              data-testid={`insp-recent-${name}-${i}`}
+              onClick={() => onPick(p)}
+            >
+              <Swatch sw={{ light: sw.light || p.fallback || css, dark: sw.dark }} />
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /**
  * @param {{ name: string, label: string, current: string|null, colors: string[], vals: Record<string,string>,
  *   themes?: object, hasSystem: boolean, systemLabel?: string, dsName?: string|null, slotGroup?: string|null,
- *   recent: string[], allowNone?: boolean, noneLabel?: string, isNone?: boolean, rawValue?: string|null,
- *   anchorRef: { current: HTMLElement|null }, onPick: (paint: object) => void, onNone: () => void,
+ *   recent: string[], allowNone?: boolean, noneLabel?: string, isNone?: boolean,
+ *   value?: { paint: object, opacity: number }|null, showOpacity?: boolean, canvasFile?: string|null,
+ *   fillApi?: { fill: object, set: Function, live: Function, upload?: Function, start: string, end: string }|null,
+ *   anchorRef: { current: HTMLElement|null }, onPick: (paint: object, opts?: object) => void,
+ *   onCustom: (paint: object, opacity: number) => void, onNone: () => void,
  *   onClose: (opts?: { refocus?: boolean }) => void }} props
+ *   `fillApi` is only given by a Fill: it is what makes the Solid · Gradient · Image tabs (a text or border colour is
+ *   always a solid). `onCustom` is a committed colour from the Custom tab; `onPick` a swatch (a token, Recent, the page).
  */
 export function ColourPopover({
   name,
@@ -119,20 +176,41 @@ export function ColourPopover({
   allowNone,
   noneLabel = 'None',
   isNone = false,
-  rawValue = null,
+  value = null,
+  showOpacity = false,
+  canvasFile = null,
+  fillApi = null,
   anchorRef,
   onPick,
+  onCustom,
   onNone,
   onClose,
 }) {
   const ref = useRef(null);
   const [query, setQuery] = useState('');
-  const [custom, setCustom] = useState(false);
-  const [draft, setDraft] = useState(rawValue || '');
-  const [bad, setBad] = useState(false);
+  const fillKind = fillApi ? kindOfFill(fillApi.fill) : 'solid';
+  const [kind, setKind] = useState(fillKind);
+  const [tab, setTab] = useState(() => {
+    const rawColour =
+      !!value &&
+      !('token' in value.paint) &&
+      !/^\s*(?:currentcolor|inherit)/i.test(value.paint.css ?? '');
+    return hasSystem && fillKind === 'solid' && !rawColour ? 'libraries' : 'custom';
+  });
   const [asked, setAsked] = useState(null); // the off-system question for the colour just written
   const [place, setPlace] = useState(null);
   const tokens = useMemo(() => ({ themes, vals }), [themes, vals]);
+  const pageColours = usePageColours(canvasFile);
+  const gf = useGradientFill(fillApi, vals);
+
+  // the kind follows the file when it changes under the popover (an undo, a teammate); an Image tab with nothing chosen yet
+  // is only on screen, so a solid fill does not pull it back
+  const seen = useRef(fillKind);
+  useEffect(() => {
+    if (seen.current === fillKind) return;
+    seen.current = fillKind;
+    setKind(fillKind);
+  }, [fillKind]);
 
   const groups = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -152,7 +230,7 @@ export function ColourPopover({
   }, [colors, query]);
 
   // top layer + collision-aware placement, measured once the popover has its size (and again when it grows)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `custom` / `asked` change the popover's height
+  // biome-ignore lint/correctness/useExhaustiveDependencies: tab / kind / asked change the popover's height
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return undefined;
@@ -183,16 +261,20 @@ export function ColourPopover({
         el.hidePopover?.();
       } catch {}
     };
-  }, [anchorRef, custom, asked]);
+  }, [anchorRef, tab, kind, asked, pageColours.length]);
 
-  // F30: focus starts in Search. Not `autoFocus` — that runs at mount, before showPopover(), and a browser ignores focus()
-  // on a popover that is not rendered yet (the chip kept focus; r2-p6b IC1). Nor on the mount commit either: the popover
-  // is `visibility: hidden` until it is placed. So: once, in the commit that first has a place.
+  // F30: focus starts in Search (Libraries) or on the open tab (Custom). Not `autoFocus` — that runs at mount, before
+  // showPopover(), and a browser ignores focus() on a popover that is not rendered yet (the chip kept focus; r2-p6b IC1).
+  // Nor on the mount commit either: the popover is `visibility: hidden` until it is placed. So: once, in the commit that
+  // first has a place.
   const focused = useRef(false);
   useLayoutEffect(() => {
     if (!place || focused.current) return;
     focused.current = true;
-    ref.current?.querySelector('[data-search="true"]')?.focus?.({ preventScroll: true });
+    (
+      ref.current?.querySelector('[data-search="true"]') ??
+      ref.current?.querySelector('[role="tab"][aria-selected="true"]')
+    )?.focus?.({ preventScroll: true });
   }, [place]);
 
   // a press anywhere else — the panel, the shell, or the canvas frame (the window loses focus) — puts it away
@@ -213,25 +295,64 @@ export function ColourPopover({
     };
   }, [anchorRef]);
 
-  const commitRaw = (raw) => {
-    const t = String(raw ?? '').trim();
-    if (!t) return;
-    if (!isCssColor(t)) return setBad(true);
-    setBad(false);
-    onPick({ css: t }, { keepOpen: hasSystem });
-    if (!hasSystem) return onClose();
-    // IR-10: the write happens first; the question is asked once, under the field, and never blocks
-    const near = nearestToken(t, colors, vals, slotGroup);
-    setAsked({ literal: t, nearest: near, target: near ? near.token : null });
+  // ── what the person did ──────────────────────────────────────────────────────────────────────────────────────
+  // IR-10: the write happens first; the question is asked once, under the editor, and never blocks
+  const askOffSystem = (css) => {
+    if (!hasSystem) return;
+    const near = nearestToken(css, colors, vals, slotGroup);
+    setAsked({ literal: css, nearest: near, target: near ? near.token : null });
+  };
+  const solidParts = (c) =>
+    showOpacity
+      ? { css: rgbToHex(c), opacity: Math.round(c.a * 100) }
+      : { css: rgbaCss(c), opacity: value?.opacity ?? 100 };
+  const onSolidLive = fillApi
+    ? (c) => {
+        const { css, opacity } = solidParts(c);
+        fillApi.live({ ...fillApi.fill, color: { paint: { css }, opacity }, layers: [] });
+      }
+    : undefined;
+  const onSolidCommit = (c) => {
+    const { css, opacity } = solidParts(c);
+    onCustom({ css }, opacity);
+    askOffSystem(css);
+  };
+  const onRaw = (t) => {
+    if (!isCssColor(t)) return false;
+    onCustom({ css: t }, value?.opacity ?? 100);
+    askOffSystem(t);
+    return true;
+  };
+  const chooseKind = (k) => {
+    if (k === kind) return;
+    setKind(k);
+    if (!fillApi || k === 'image') return; // an image is a fill once one is chosen
+    const next = switchKind(fillApi.fill, k, { vals, start: fillApi.start, end: fillApi.end });
+    if (next !== fillApi.fill) fillApi.set(next);
+  };
+  // a swatch (a token, Recent, a colour on the page): on a gradient it is the selected stop's colour; on an image it
+  // replaces the picture with that colour; otherwise it is the fill's colour, as it always was
+  const pickPaint = (paint) => {
+    if (fillApi && kind === 'gradient' && gf.g) {
+      gf.setColour(gf.sel, paintToCss(paint));
+      return;
+    }
+    if (fillApi && kind === 'image') {
+      setKind('solid');
+      onPick(paint, { replaceLayers: true, keepOpen: tab === 'custom' });
+      return;
+    }
+    onPick(paint, { keepOpen: tab === 'custom' });
   };
 
-  // ← → within a group, ↑ ↓ between groups; ↓ from Search enters the grid
+  // ← → within a row, ↑ ↓ between rows; ↓ from Search enters the grid
   const onKeyDown = (e) => {
     if (e.key === 'Escape') {
       e.stopPropagation();
       e.preventDefault();
       return onClose({ refocus: true });
     }
+    if (e.target?.getAttribute?.('role') === 'slider' || e.target?.tagName === 'SELECT') return;
     const cells = [...(ref.current?.querySelectorAll('[data-cell]') ?? [])];
     const at = cells.indexOf(document.activeElement);
     const inSearch = document.activeElement?.dataset?.search === 'true';
@@ -274,6 +395,27 @@ export function ColourPopover({
     ? { position: 'fixed', left: place.left, top: place.top, maxHeight: place.maxHeight }
     : { position: 'fixed', visibility: 'hidden' };
 
+  // the colour the Solid editor starts from: the fill's own, with its opacity
+  const valueRgba = useMemo(() => {
+    if (!value) return null;
+    const c = parseRgba(paintToCss(value.paint), vals);
+    return c ? { ...c, a: round2(c.a * (value.opacity / 100)) } : null;
+  }, [value, vals]);
+
+  const tabBtn = (id, text) => (
+    <button
+      type="button"
+      role="tab"
+      id={`insp-tab-${id}-${name}`}
+      aria-selected={tab === id}
+      className="insp-cp-tab"
+      data-testid={`insp-tab-${id}-${name}`}
+      onClick={() => setTab(id)}
+    >
+      {text}
+    </button>
+  );
+
   return (
     <div
       ref={ref}
@@ -283,169 +425,172 @@ export function ColourPopover({
       popover="manual"
       data-testid={`insp-menu-${name}`}
       data-side={place?.side}
+      data-tab={tab}
       style={style}
       onKeyDown={onKeyDown}
       onBlur={onBlur}
     >
-      <input
-        className="insp-pop-search"
-        type="search"
-        aria-label={`Search ${label.toLowerCase()}`}
-        placeholder="Search colours"
-        data-search="true"
-        data-testid={`insp-pop-search-${name}`}
-        value={query}
-        onChange={(e) => setQuery(e.currentTarget.value)}
-      />
-      {recent.length ? (
-        <div className="insp-pop-g" data-testid={`insp-pop-recent-${name}`}>
-          <p className="insp-pop-gt">Recent</p>
-          <div className="insp-pop-grid">
-            {recent.map((css, i) => {
-              const p = paintFromCss(css);
-              const sw = 'token' in p ? swatchOf(p.token, tokens) : { light: css, dark: null };
-              const word = 'token' in p ? tokenLabel(p.token) : css;
-              return (
-                <button
-                  key={css}
-                  type="button"
-                  className="insp-pop-cell"
-                  data-cell="true"
-                  data-g={-1}
-                  data-i={i}
-                  aria-label={word}
-                  title={word}
-                  data-testid={`insp-recent-${name}-${i}`}
-                  onClick={() => onPick(p)}
-                >
-                  <Swatch sw={{ light: sw.light || p.fallback || css, dark: sw.dark }} />
-                </button>
-              );
-            })}
-          </div>
+      <div className="insp-cp-top">
+        <div role="tablist" aria-label="Where the colour comes from" className="insp-cp-tabs">
+          {tabBtn('custom', 'Custom')}
+          {tabBtn('libraries', 'Libraries')}
         </div>
-      ) : null}
-      {hasSystem ? (
-        groups.map((g, gi) => (
-          <div key={g.id} className="insp-pop-g" data-testid={`insp-pop-group-${name}-${g.id}`}>
-            <p className="insp-pop-gt">{g.label}</p>
-            <div className="insp-pop-grid">
-              {g.tokens.map((t, i) => {
-                const word = tokenLabel(t);
-                const on = current === t;
-                return (
-                  <button
-                    key={t}
-                    type="button"
-                    aria-pressed={on}
-                    className="insp-pop-cell"
-                    data-cell="true"
-                    data-g={gi}
-                    data-i={i}
-                    aria-label={`${word}, ${g.label}`}
-                    title={`${word} · ${g.label}`}
-                    data-testid={`insp-color-${name}-${t.replace(/^--/, '')}`}
-                    onClick={() => onPick({ token: t })}
-                  >
-                    <Swatch sw={swatchOf(t, tokens)} />
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ))
-      ) : (
-        <div className="insp-pop-nods" data-testid={`insp-pop-nods-${name}`}>
-          <p>This project has no design system yet.</p>
-          <button
-            type="button"
-            className="insp-pop-link"
-            data-testid={`insp-pop-make-ds-${name}`}
-            onClick={() => {
-              onClose();
-              requestDsMake({});
-            }}
-          >
-            Make a design system
-          </button>
-        </div>
-      )}
-      {hasSystem && !groups.length ? (
-        <p className="insp-pop-empty" data-testid={`insp-pop-empty-${name}`}>
-          No colour is called “{query.trim()}”.
-        </p>
-      ) : null}
-      <div className="insp-pop-foot">
         <button
           type="button"
-          className="insp-menu-i"
-          aria-expanded={custom}
-          data-testid={`insp-colorcss-${name}`}
-          onClick={() => setCustom((c) => !c)}
+          className="insp-cp-icon"
+          aria-label="Close"
+          title="Close"
+          data-testid={`insp-pop-close-${name}`}
+          onClick={() => onClose({ refocus: true })}
         >
-          Other colour…
+          <X size={14} />
         </button>
-        {custom ? (
-          <div className="insp-pop-custom" data-testid={`insp-pop-custom-${name}`}>
-            <ColourPicker
-              label={label}
-              value={isCssColor(draft) ? draft : '#808080'}
-              onChange={(hex) => {
-                setDraft(hex);
-                setBad(false);
-              }}
-              onEnd={() => {}}
-            />
-            <span className="insp-num">
-              <input
-                className="insp-num-in insp-color-in"
-                type="text"
-                aria-label={`${label} — a colour`}
-                aria-invalid={bad || undefined}
-                data-testid={`insp-colorin-${name}`}
-                placeholder="Example: #1E6BFF"
-                value={draft}
-                onChange={(e) => setDraft(e.currentTarget.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') commitRaw(e.currentTarget.value);
-                }}
-              />
-            </span>
+      </div>
+      {fillApi ? (
+        <div
+          role="tablist"
+          aria-label="Kind of fill"
+          className="insp-cp-kinds"
+          data-testid={`insp-kinds-${name}`}
+        >
+          {KINDS.map(([id, text]) => (
             <button
+              key={id}
               type="button"
-              className="btn btn--primary insp-pop-use"
-              data-testid={`insp-pop-use-${name}`}
-              disabled={!draft.trim()}
-              onClick={() => commitRaw(draft)}
+              role="tab"
+              aria-selected={kind === id}
+              className="insp-cp-kind"
+              data-testid={`insp-kind-${id}-${name}`}
+              onClick={() => chooseKind(id)}
             >
-              Use this colour
+              {text}
             </button>
-            {bad ? (
-              <p className="insp-pop-bad" role="alert" data-testid={`insp-pop-bad-${name}`}>
-                That isn’t one colour. Try a hex like #1E6BFF.
-              </p>
-            ) : null}
-          </div>
-        ) : null}
-        {asked ? (
-          <OffSystemQuestion
-            finding={asked}
-            systemLabel={systemLabel}
-            canvasName={label}
-            onUse={async () => {
-              if (asked.target) onPick({ token: asked.target });
-              onClose();
-              return { ok: true };
-            }}
-            onAdd={async () => {
-              const r = await addColourNow({ ds: dsName, value: asked.literal });
-              if (r.ok) onClose();
-              return r;
-            }}
-            onDismiss={() => setAsked(null)}
+          ))}
+        </div>
+      ) : null}
+
+      {tab === 'custom' ? (
+        <div
+          className="insp-cp-body"
+          role="tabpanel"
+          aria-labelledby={`insp-tab-custom-${name}`}
+          data-testid={`insp-pop-custom-${name}`}
+        >
+          {kind === 'solid' ? (
+            <SolidEditor
+              name={name}
+              rgba={valueRgba}
+              onLive={onSolidLive}
+              onCommit={onSolidCommit}
+              onRaw={onRaw}
+            />
+          ) : kind === 'gradient' && fillApi ? (
+            <GradientEditor name={name} gf={gf} vals={vals} />
+          ) : fillApi ? (
+            <ImageEditor name={name} fillApi={fillApi} />
+          ) : null}
+          {kind !== 'image' ? (
+            <>
+              <RecentRow name={name} recent={recent} tokens={tokens} onPick={pickPaint} />
+              <PageColours name={name} colours={pageColours} onPick={(css) => pickPaint({ css })} />
+            </>
+          ) : null}
+        </div>
+      ) : (
+        <div
+          className="insp-cp-body"
+          role="tabpanel"
+          aria-labelledby={`insp-tab-libraries-${name}`}
+        >
+          <input
+            className="insp-pop-search"
+            type="search"
+            aria-label={`Search ${label.toLowerCase()}`}
+            placeholder="Search colours"
+            data-search="true"
+            data-testid={`insp-pop-search-${name}`}
+            value={query}
+            onChange={(e) => setQuery(e.currentTarget.value)}
           />
-        ) : null}
-        {allowNone ? (
+          {kind === 'gradient' ? (
+            <p className="insp-pop-empty" data-testid={`insp-pop-stophint-${name}`}>
+              A colour you pick here goes to the stop you have selected.
+            </p>
+          ) : null}
+          <RecentRow name={name} recent={recent} tokens={tokens} onPick={pickPaint} />
+          {hasSystem ? (
+            groups.map((g, gi) => (
+              <div key={g.id} className="insp-pop-g" data-testid={`insp-pop-group-${name}-${g.id}`}>
+                <p className="insp-pop-gt">{g.label}</p>
+                <div className="insp-pop-grid">
+                  {g.tokens.map((t, i) => {
+                    const word = tokenLabel(t);
+                    const on = current === t;
+                    return (
+                      <button
+                        key={t}
+                        type="button"
+                        aria-pressed={on}
+                        className="insp-pop-cell"
+                        data-cell="true"
+                        data-g={gi}
+                        data-i={i}
+                        aria-label={`${word}, ${g.label}`}
+                        title={`${word} · ${g.label}`}
+                        data-testid={`insp-color-${name}-${t.replace(/^--/, '')}`}
+                        onClick={() => pickPaint({ token: t })}
+                      >
+                        <Swatch sw={swatchOf(t, tokens)} />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="insp-pop-nods" data-testid={`insp-pop-nods-${name}`}>
+              <p>This project has no design system yet.</p>
+              <button
+                type="button"
+                className="insp-pop-link"
+                data-testid={`insp-pop-make-ds-${name}`}
+                onClick={() => {
+                  onClose();
+                  requestDsMake({});
+                }}
+              >
+                Make a design system
+              </button>
+            </div>
+          )}
+          {hasSystem && !groups.length ? (
+            <p className="insp-pop-empty" data-testid={`insp-pop-empty-${name}`}>
+              No colour is called “{query.trim()}”.
+            </p>
+          ) : null}
+        </div>
+      )}
+
+      {asked && tab === 'custom' ? (
+        <OffSystemQuestion
+          finding={asked}
+          systemLabel={systemLabel}
+          canvasName={label}
+          onUse={async () => {
+            if (asked.target) onPick({ token: asked.target });
+            onClose();
+            return { ok: true };
+          }}
+          onAdd={async () => {
+            const r = await addColourNow({ ds: dsName, value: asked.literal });
+            if (r.ok) onClose();
+            return r;
+          }}
+          onDismiss={() => setAsked(null)}
+        />
+      ) : null}
+      {allowNone ? (
+        <div className="insp-pop-foot">
           <button
             type="button"
             aria-pressed={isNone}
@@ -455,8 +600,8 @@ export function ColourPopover({
           >
             {noneLabel}
           </button>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 }

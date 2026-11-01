@@ -272,7 +272,7 @@ describe('a freshly drawn shape: the Fill row shows its fill', () => {
   test('a pick shows the pick (not the old fill, not None) and writes the same source as before', async () => {
     const host = await fresh();
     await openChip(host, 'insp-ctl-fill');
-    await click(q(host, 'insp-colorcss-fill'));
+    await click(q(host, 'insp-tab-custom-fill'));
     (must(q(host, 'insp-colorin-fill'), 'input') as HTMLInputElement).value = '#008aff';
     await press(q(host, 'insp-colorin-fill'), 'Enter');
     expect(written()).toEqual({ background: '#008aff' });
