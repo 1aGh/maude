@@ -387,7 +387,7 @@ const KNOB_PROPS = [
 // data-cd-id pipeline anchor, the data-dc-* canvas chrome markers).
 const ATTR_SKIP = /^(style|class|data-cd-id|data-dc-|data-dcid$)/;
 
-function styleMapsFor(el: Element | null): {
+export function styleMapsFor(el: Element | null): {
   authored: Record<string, string>;
   computed: Record<string, string>;
   customStyles: Record<string, string>;
