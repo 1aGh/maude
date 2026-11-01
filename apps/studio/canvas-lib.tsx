@@ -568,6 +568,13 @@ ${presentHidesCss()}
      frontend-design guidance steers mocks off them. (NB: no backticks in this
      comment — it lives inside the ENGINE_CSS template literal.) */
   container-type: inline-size;
+  /* r4 #5 - the live zoom stops here. writeTransform sets --dc-zoom on the world every zoom frame for the chrome
+     that holds a screen size (the name and badge are children of the frame, the guides and marks siblings of it -
+     none of them is inside this body). A custom property inherits, so without this reset every zoom frame changed
+     the computed style of every element of every design and WebKit re-resolved all of it: 90-240 ms a frame on the
+     Design system canvas, where a pan (no --dc-zoom change) took 18 ms. Reset to the guaranteed-invalid value, a
+     zoom frame recomputes one element per artboard; a design never sees the camera (var fallbacks apply). */
+  --dc-zoom: initial;
 }
 button.dc-artboard-label {
   appearance: none;
