@@ -1,0 +1,5 @@
+rescan at fa52b24c6 (run-one.sh): the two light states the full pass marked BLOCK on document-title/html-has-lang (the harness had landed on a non-app document)
+ok    dark menu-edit-open: -  | incomplete: color-contrast(serious)x3
+ok    dark help-whats-new: -  | incomplete: color-contrast(serious)x3
+ok    light menu-edit-open: -  | incomplete: color-contrast(serious)x1
+ok    light help-whats-new: -  | incomplete: color-contrast(serious)x1

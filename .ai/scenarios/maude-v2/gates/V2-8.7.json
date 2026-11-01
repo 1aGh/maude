@@ -3,12 +3,12 @@
   "pass": true,
   "qualityHash": "ca053cd5bbc8fa64231dfde679d7b0108280b8f384c154322c75c50c872e7071",
   "reportHashes": {
-    ".ai/plans/notes/v2-evidence/V2-8.7-a11y-final.md": "72a769059a84185d2fe2d7291a1a1ae936f340391b681823309066db641f61d3"
+    ".ai/plans/notes/v2-evidence/V2-8.7-a11y-final.md": "afd33ea40532baa0a308e55377c6086a2982d9396e7bde0f031214640a757ce4"
   },
-  "head": "fab4e6c4a1437950b73fe2d5db2df8a1d9c00cc2",
-  "ts": "2026-11-01T13:42:08.905Z",
+  "head": "efac01243bad61aae277dabf82d524f78a877382",
+  "ts": "2026-11-01T20:25:19.253Z",
   "reports": [
     ".ai/plans/notes/v2-evidence/V2-8.7-a11y-final.md"
   ],
-  "note": "whole matrix in one pass at 08b35c8db: 317 states both themes, one serious (dark native-ai-slash contrast) fixed red-first in 48acdac0e and re-scanned clean; 4 known moderates; incomplete criticals are axe's aria-controls heuristic"
+  "note": "r3: whole matrix at fa52b24c6, 318 states both themes, 0 serious/critical in the app (two harness BLOCKs on a non-app document re-scanned clean); keyboard-only covered by the desktop e2e; the VoiceOver listen is Michal's"
 }
