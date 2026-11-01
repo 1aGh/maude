@@ -62,6 +62,9 @@ describe('space-tap into the shell', () => {
     expect(row.parse({})).toBeTruthy();
     const src = await Bun.file(new URL('../canvas-lib.tsx', import.meta.url)).text();
     expect(src).toContain("createSpaceTap, sendSpaceTap } from './editing/space-tap.ts'");
-    expect(src).toContain('if (spaceTap.up(e.timeStamp)) sendSpaceTap(window);');
+    // r4 #1: the canvas first plays a selected <video> itself (onSpaceTap); only a tap it did not take reaches the shell
+    expect(src).toContain(
+      'if (spaceTap.up(e.timeStamp) && onSpaceTapRef.current?.() !== true) sendSpaceTap(window);'
+    );
   });
 });

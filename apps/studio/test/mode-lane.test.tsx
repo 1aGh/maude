@@ -576,7 +576,7 @@ describe('canvas: the toolbar keys, governed (V2-4.5b)', () => {
     expect(ctxB?.tool).toBe('move');
   });
 
-  test('Preview · esc: the tool first, then one mode-request back (two steps, 04 md-esc)', () => {
+  test('Preview · esc: the tool first, then it stays in Preview (r4 #14, 04 md-esc)', () => {
     mountBoth();
     setMode(canvasModeStore(window).get().modeSeq + 1, 'preview', { tool: 'pen' });
     expect(ctxB?.tool).toBe('pen');
@@ -585,8 +585,9 @@ describe('canvas: the toolbar keys, governed (V2-4.5b)', () => {
     expect(ctxB?.tool).toBe('browse');
     expect(requests()).toEqual([]);
     press('Escape');
-    expect(requests()).toEqual([{ dgn: 'mode-request', mode: 'back', cause: 'esc' }]);
-    expect(ctxB?.mode).toBe('preview'); // the shell moves it, not the canvas
+    // Michal r4 #14: esc never leaves Preview for Edit (⌥⌘P does) — no request at all
+    expect(requests()).toEqual([]);
+    expect(ctxB?.mode).toBe('preview');
   });
 
   // TD1c + Michal's #17: Preview has its own Select (V), so V acts in Preview and never crosses to Edit

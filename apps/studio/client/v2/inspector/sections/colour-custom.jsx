@@ -250,8 +250,8 @@ export function SolidEditor({
           <button
             type="button"
             className="insp-pk-icon"
-            aria-label="Pick a colour from the screen"
-            title="Pick a colour from the screen"
+            aria-label="Pick a colour from anywhere you can see"
+            title="Pick a colour from anywhere you can see"
             data-testid={`insp-solid-eyedropper-${name}`}
             onClick={pick}
           >
@@ -716,6 +716,7 @@ export function ImageEditor({ name, fillApi }) {
         className="btn btn--primary"
         data-testid={`insp-image-upload-${name}`}
         disabled={state === 'adding'}
+        title={state === 'adding' ? 'Adding the picture — one moment' : undefined}
         onClick={() => fileRef.current?.click()}
       >
         {current ? 'Choose another picture' : 'Upload from computer'}
