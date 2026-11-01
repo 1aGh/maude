@@ -79,10 +79,15 @@ export function useCssWrite(target, ctx) {
   const write = useCallback(
     (patch) => {
       if (!editable) return;
-      // the properties that change for at least one object, in patch order
-      const props = Object.keys(patch).filter((prop) =>
-        cssAll.some((c) => prop in diffPatch(c, { [prop]: patch[prop] }))
-      );
+      // the properties that change for at least one object — removals FIRST, then the sets, each in patch order.
+      // The live preview is plain CSSOM, where removing a longhand clears that part of a shorthand that was set
+      // before it: `background: blue` then `remove background-color` leaves the object white (and a corner radius
+      // then loses a corner), with the reload that would repair it suppressed. Removed-then-set is right for every
+      // pair: a shorthand set after its longhands' removal keeps all of itself, and a longhand set after its
+      // shorthand's removal survives. The source is a plain object, so it ends the same either way.
+      const props = Object.keys(patch)
+        .filter((prop) => cssAll.some((c) => prop in diffPatch(c, { [prop]: patch[prop] })))
+        .sort((a, b) => Number((patch[a] ?? null) !== null) - Number((patch[b] ?? null) !== null));
       for (const prop of props) {
         const value = patch[prop] ?? null;
         setOverlay((o) => ({ ...o, [prop]: value }));
