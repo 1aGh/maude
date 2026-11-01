@@ -49,6 +49,7 @@ function parseArgs(argv) {
     variant: '',
     injectCss: '',
     setFlags: [],
+    open: '',
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -67,6 +68,7 @@ function parseArgs(argv) {
     else if (a === '--dpr') o.dpr = Number(v());
     else if (a === '--variant') o.variant = v();
     else if (a === '--inject-css') o.injectCss = v();
+    else if (a === '--open') o.open = v();
     else if (a === '--json') o.json = true;
     else {
       console.error(`_perf-probe-studio.mjs: unknown arg '${a}'`);
@@ -100,6 +102,15 @@ async function main() {
     const page = await ctx.newPage();
     await page.goto(opts.url, { waitUntil: 'domcontentloaded' });
     const rowSel = `[data-testid="canvas-row-${opts.studio}"]`;
+    // A canvas the Canvases panel does not list (the Design system canvas under system/) is opened by its path.
+    const viaPath = async () => {
+      await page.goto(
+        `${opts.url.replace(/\/$/, '')}/?open=${opts.open.split('/').map(encodeURIComponent).join('/')}`,
+        {
+          waitUntil: 'domcontentloaded',
+        }
+      );
+    };
     try {
       // v2's Canvases panel is virtualised (93 canvases): a row below the fold is not in the DOM,
       // so a search narrows it first. The pre-v2 tree has no such field and lists every row.
@@ -110,12 +121,19 @@ async function main() {
           .fill(`${searchSel} input, input${searchSel}`, opts.studio.replace(/^ui-/, ''))
           .catch(async () => page.fill(searchSel, opts.studio.replace(/^ui-/, '')));
       }
-      await page.waitForSelector(rowSel, { timeout: opts.timeout * 1000 });
+      await page
+        .waitForSelector(rowSel, {
+          timeout: opts.open ? Math.min(opts.timeout * 1000, 10000) : opts.timeout * 1000,
+        })
+        .catch(async (e) => {
+          if (!opts.open) throw e;
+          await viaPath();
+        });
     } catch {
       console.error(`_perf-probe-studio.mjs: no ${rowSel} in the studio — check the slug`);
       process.exit(1);
     }
-    await page.click(rowSel);
+    if (await page.$(rowSel)) await page.click(rowSel);
     const isCanvasFrame = (f) => /_canvas-shell/.test(f.url());
     let frame = null;
     for (let i = 0; i < opts.timeout * 2 && !frame; i++) {

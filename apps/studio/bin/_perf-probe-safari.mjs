@@ -77,6 +77,7 @@ function parseArgs(argv) {
     fitAll: false,
     setFlags: [],
     studio: '',
+    open: '',
     parentCss: '',
     window: '1600x1000',
     frame: 'today',
@@ -98,6 +99,7 @@ function parseArgs(argv) {
     else if (a === '--fit-all') out.fitAll = true;
     else if (a === '--set-flag') out.setFlags.push(argv[++i]);
     else if (a === '--studio') out.studio = argv[++i];
+    else if (a === '--open') out.open = argv[++i];
     else if (a === '--parent-css') out.parentCss = argv[++i];
     else if (a === '--window') out.window = argv[++i];
     else if (a === '--frame') out.frame = argv[++i];
@@ -350,7 +352,7 @@ async function main() {
         // The v2 Canvases panel (P8 c4-navpanels) folds a folder's rows away, so a row two levels down is not
         // in the DOM until its folder is open. The shell opens a canvas from its address too (`?open=<path>`,
         // the same entry the desktop shell uses): the slug `ui-c12` is `ui/c12.tsx` in the generated fixture.
-        const guess = opts.studio.replace('-', '/') + '.tsx';
+        const guess = opts.open || `${opts.studio.replace('-', '/')}.tsx`;
         const u = new URL(opts.url);
         u.searchParams.set('open', guess);
         await wd(opts.driverPort, 'POST', `${base}/url`, { url: u.toString() });

@@ -288,6 +288,7 @@ if [ "$PROBE_ENGINE" = "safari" ]; then
   [ -n "$COMPARE_FRAME" ] && ARGS+=(--compare-frame "$COMPARE_FRAME")
   [ -n "$VARIANT" ] && ARGS+=(--variant "$VARIANT")
   [ -n "$INJECT_CSS" ] && ARGS+=(--inject-css "$INJECT_CSS")
+  [ "$STUDIO" = "1" ] && ARGS+=(--open "${REL_FULL#"$DESIGN_REL"/}")
   exec "$JS_RUNTIME" "$SCRIPT_DIR/_perf-probe-safari.mjs" "${ARGS[@]}"
 fi
 
@@ -306,6 +307,8 @@ if [ "$PROBE_ENGINE" = "chromium" ] && [ "$STUDIO" = "1" ]; then
   [ -n "$WINDOW" ] && ARGS+=(--window "$WINDOW")
   [ -n "$VARIANT" ] && ARGS+=(--variant "$VARIANT")
   [ -n "$INJECT_CSS" ] && ARGS+=(--inject-css "$INJECT_CSS")
+  # a canvas the Canvases panel does not list (the Design system canvas under system/) opens by its path
+  ARGS+=(--open "${REL_FULL#"$DESIGN_REL"/}")
   exec node "$SCRIPT_DIR/_perf-probe-studio.mjs" "${ARGS[@]}"
 fi
 
