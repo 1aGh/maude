@@ -390,7 +390,12 @@ export function strokesToElements(
     let best: { id: string; a: number } | null = null;
     for (const s of sections) {
       if (s.id === el.id || (self !== null && area(s.box) <= self)) continue;
-      if ((zOf.get(s.id) ?? 0) >= (zOf.get(el.id) ?? Number.POSITIVE_INFINITY)) continue;
+      // r4 #18: an element the person MOVED lands in the section under it whatever the array order says (a
+      // template's section sits above everything made before it). The paint order of a parented element is
+      // the tree's, so it still draws on top. What nobody touched keeps the legacy "what paints above it".
+      const draggedIn = prev !== undefined && !sameBox(curScene.worldBox(prev), b);
+      if (!draggedIn && (zOf.get(s.id) ?? 0) >= (zOf.get(el.id) ?? Number.POSITIVE_INFINITY))
+        continue;
       if (!inside(s.box, cx, cy)) continue;
       // Equal size (a copy lying exactly on its original): the one painted
       // later — nearest below the element — is its container.
