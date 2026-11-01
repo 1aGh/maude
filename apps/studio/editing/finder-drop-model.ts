@@ -6,6 +6,7 @@
 // (`assets/<sha8>.<ext>`); a drop never names a path itself.
 
 import { type PlaceTargetKind, planPlacement } from '../edit-ops/place-plan.ts';
+import { isVideoFile } from '../video-natural.ts';
 import { ASSET_DRAG_MIME } from './asset-drag.ts';
 import type { EditOpAsk } from './edit-op.ts';
 import { isLockedDom } from './selection.tsx';
@@ -56,6 +57,32 @@ export function dragPhotoCount(items: ArrayLike<ItemLike> | null | undefined): n
   return Math.min(n, MAX_PHOTOS);
 }
 
+/**
+ * r3 (Michal: "nemůžu vkládat videa"): the video of a drop that holds no photo. The FIRST one is placed, the rest are
+ * counted (`image.place` takes a video one at a time). A drop that holds photos stays the photos' — a video beside them is
+ * the media hook's, as before.
+ */
+export function videosOf<T extends Typed>(files: readonly T[]): { video: T | null; over: number } {
+  const all = files.filter((f) => isVideoFile(f));
+  return { video: all[0] ?? null, over: Math.max(0, all.length - 1) };
+}
+
+/** How many placeable videos a drag in flight carries (the type list is all a browser shows during dragover). */
+export function dragVideoCount(items: ArrayLike<ItemLike> | null | undefined): number {
+  if (!items) return 0;
+  let n = 0;
+  for (const it of Array.from(items)) {
+    if (it.kind === 'file' && isVideoFile({ type: it.type })) n += 1;
+  }
+  return n;
+}
+
+/** The pill over the artboard while a video is dragged over it: a frame is filled, an artboard takes it loose. */
+export function videoDropHint(kind: PlaceTargetKind, label?: string | null): string {
+  if (kind === 'frame') return 'Drop to fill the frame with the video';
+  return label ? `Drop to place the video in ${label}` : 'Drop to place the video here';
+}
+
 /** Empty picture frames inside `el`: an `<img>` with no `src` that is not locked — what the server's `auto` fills. */
 export function emptyFramesIn(el: Element): number {
   let n = 0;
@@ -91,8 +118,12 @@ export function selectionRefs<T>(landing: Landing, count: number, created: reado
 }
 
 /** "Placed 6 photos in Fotky ze zápasu. They're in Assets too." — what is said after the write. */
-export function placedLine(count: number, artboardLabel: string): string {
-  const what = count === 1 ? 'the photo' : `${count} photos`;
+export function placedLine(
+  count: number,
+  artboardLabel: string,
+  kind: 'photo' | 'video' = 'photo'
+): string {
+  const what = count === 1 ? `the ${kind}` : `${count} photos`;
   return artboardLabel
     ? `Placed ${what} in ${artboardLabel}. ${count === 1 ? "It's" : "They're"} in Assets too.`
     : `Placed ${what}. ${count === 1 ? "It's" : "They're"} in Assets too.`;

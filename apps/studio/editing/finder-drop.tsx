@@ -5,8 +5,9 @@
 // the studio sniffs the bytes and names the file) and the lot is placed with ONE `image.place` (mode "auto") — one write, one
 // undo step — and selected at once. They are in Assets too (the Assets tab lists the newest first under Just added).
 //
-// Bare canvas is not handled here: a drop there stays loose, as before (use-canvas-media-drop.tsx). A video, a sound or a link
-// stays that hook's too. Dropped files are untrusted: only the type list is read here to draw the hint, the studio decides what a
+// Bare canvas is not handled here: a drop there stays loose, as before (use-canvas-media-drop.tsx). A sound or a link stays
+// that hook's too, and so does a video dropped with photos. A video dropped alone (r3: MP4 · MOV · M4V · WebM) is placed like a
+// photo — the same `image.place`, which writes it as a `<video>` — one at a time. Dropped files are untrusted: only the type list is read here to draw the hint, the studio decides what a
 // file is, and the path that is written never comes from the drop — it comes from the import's answer and is re-checked by
 // `image.place` (`assets/<flat name>`).
 
@@ -20,11 +21,13 @@ import { isReadOnlyCanvas } from '../read-only-mode.ts';
 import { uploadAndAnnounceMedia } from '../use-canvas-media-drop.tsx';
 import { type Selection, useSelectionSet } from '../use-selection-set.tsx';
 import { useUndoStackOptional } from '../use-undo-stack.tsx';
+import { isVideoFile, videoNaturalOf } from '../video-natural.ts';
 import { containerAt } from './draw-tools.tsx';
 import { type EditOpAsk, editOpRecord, runEditOp } from './edit-op.ts';
 import {
   askForFinderDrop,
   dragPhotoCount,
+  dragVideoCount,
   emptyFramesIn,
   isFinderDrag,
   isPhoto,
@@ -33,6 +36,8 @@ import {
   photosOf,
   placedLine,
   selectionRefs,
+  videoDropHint,
+  videosOf,
 } from './finder-drop-model.ts';
 import { type DropTarget, dropTargetAt, LOCKED_LINE } from './image-drop.tsx';
 import { refOfElement, selectWhenRendered } from './object-actions.ts';
@@ -123,6 +128,8 @@ export function naturalOf(file: Blob): Promise<{ w: number; h: number } | null> 
 export interface FinderDropDeps {
   upload?: (f: File) => Promise<Imported>;
   natural?: (f: File) => Promise<{ w: number; h: number } | null>;
+  /** a video's size, fitted (default: read from its metadata) */
+  videoNatural?: (f: File) => Promise<{ w: number; h: number } | null>;
   run?: (ask: EditOpAsk) => Promise<EditOpResult>;
   toast?: (message: string, kind?: 'info' | 'error' | 'warning') => void;
   record?: (rec: NonNullable<ReturnType<typeof editOpRecord>>) => void;
@@ -140,6 +147,7 @@ export async function runFinderDrop(
   label: string,
   deps: FinderDropDeps = {}
 ): Promise<EditOpResult | null> {
+  const isVideo = photos.length === 1 && isVideoFile(photos[0]);
   const imported = await importAll(photos, deps.upload);
   const ok: string[] = [];
   let firstError = '';
@@ -152,13 +160,16 @@ export async function runFinderDrop(
     const what =
       failed === imported.length
         ? failed === 1
-          ? 'the photo'
+          ? isVideo
+            ? 'the video'
+            : 'the photo'
           : `${failed} photos`
         : `${failed} of ${imported.length} photos`;
     deps.toast?.(`Couldn’t add ${what}. ${firstError}`.trim(), 'error');
   }
   if (ok.length === 0) return null;
-  const natural = ok.length === 1 ? await (deps.natural ?? naturalOf)(photos[0] as File) : null;
+  const measure = isVideo ? (deps.videoNatural ?? videoNaturalOf) : (deps.natural ?? naturalOf);
+  const natural = ok.length === 1 ? await measure(photos[0] as File) : null;
   const ask = askForFinderDrop(ok, target, natural);
   const result = await (deps.run ?? ((a: EditOpAsk) => runEditOp(a)))(ask);
   if (!result.ok) {
@@ -166,11 +177,14 @@ export async function runFinderDrop(
     return result;
   }
   if (result.actionId === null && result.writeId) {
-    const rec = editOpRecord(result.writeId, ok.length === 1 ? 'Place picture' : 'Place photos');
+    const rec = editOpRecord(
+      result.writeId,
+      isVideo ? 'Place video' : ok.length === 1 ? 'Place picture' : 'Place photos'
+    );
     if (rec) deps.record?.(rec);
   }
   if (result.created?.length) deps.select?.(selectionRefs(landing, ok.length, result.created));
-  deps.toast?.(placedLine(ok.length, label), 'info');
+  deps.toast?.(placedLine(ok.length, label, isVideo ? 'video' : 'photo'), 'info');
   return result;
 }
 
@@ -267,9 +281,12 @@ export function FinderDrop({ readOnly }: { readOnly?: boolean }) {
       if (isReadOnlyCanvas() || !isFinderDrag(e.dataTransfer?.types)) return;
       const items = e.dataTransfer?.items;
       const n = dragPhotoCount(items);
-      // the list is readable and holds no photo (a video, a sound): not ours
-      if (n === 0 && items && items.length > 0) return clear();
-      const t = finderTargetAt(document, e.clientX, e.clientY, n);
+      // r3: a lone video is ours too (placed like a photo); a sound or anything else the list shows is not
+      const lone = n === 0 && dragVideoCount(items) > 0;
+      // the list is readable and holds no photo (a sound): not ours
+      if (n === 0 && !lone && items && items.length > 0) return clear();
+      // a video never replaces a picture: it goes to what holds it (a frame fills, an artboard takes it loose)
+      const t = finderTargetAt(document, e.clientX, e.clientY, lone ? 2 : n);
       // bare canvas: a drop there stays loose (the media hook draws its own frame)
       if (!t) return clear();
       e.preventDefault();
@@ -285,7 +302,9 @@ export function FinderDrop({ readOnly }: { readOnly?: boolean }) {
         top: r.top,
         w: r.width,
         h: r.height,
-        text: dropHint(landing.kind, n, landing.empty, artboardLabelOf(t.el)),
+        text: lone
+          ? videoDropHint(landing.kind, artboardLabelOf(t.el))
+          : dropHint(landing.kind, n, landing.empty, artboardLabelOf(t.el)),
         busy: false,
         ...pillAt(r),
       });
@@ -296,9 +315,13 @@ export function FinderDrop({ readOnly }: { readOnly?: boolean }) {
     const drop = (e: DragEvent) => {
       if (isReadOnlyCanvas() || !isFinderDrag(e.dataTransfer?.types)) return;
       const files = Array.from(e.dataTransfer?.files ?? []);
-      const { photos, over: extra } = photosOf(files);
+      const { photos: pics, over: extra } = photosOf(files);
+      // r3: no photo but a video → the first video is placed like a photo; the rest are left out, in one line
+      const { video, over: extraVideos } =
+        pics.length === 0 ? videosOf(files) : { video: null, over: 0 };
+      const photos = video ? [video] : pics;
       if (photos.length === 0) return clear();
-      const t = finderTargetAt(document, e.clientX, e.clientY, photos.length);
+      const t = finderTargetAt(document, e.clientX, e.clientY, video ? 2 : photos.length);
       if (!t) return clear();
       e.preventDefault();
       e.stopPropagation();
@@ -310,11 +333,14 @@ export function FinderDrop({ readOnly }: { readOnly?: boolean }) {
       // a video or a sound dropped together with the photos is the media hook's job; do it here, since this drop was taken
       for (const f of files) {
         if (isPhoto(f)) continue;
+        if (video && isVideoFile(f)) continue; // placed (or counted below), not announced as a snippet
         if (f.type.startsWith('video/')) void uploadAndAnnounceMedia(f, 'video');
         else if (f.type.startsWith('audio/')) void uploadAndAnnounceMedia(f, 'audio');
       }
       if (extra > 0)
         showCanvasToast(`Placed the first ${MAX_PHOTOS}. The rest were left out.`, 'info');
+      if (extraVideos > 0)
+        showCanvasToast('Placed the first video. The rest were left out.', 'info');
       const landing = landingOf(t);
       const r = t.el.getBoundingClientRect();
       show({
@@ -323,7 +349,11 @@ export function FinderDrop({ readOnly }: { readOnly?: boolean }) {
         top: r.top,
         w: r.width,
         h: r.height,
-        text: photos.length === 1 ? 'Adding the photo…' : `Adding ${photos.length} photos…`,
+        text: video
+          ? 'Adding the video…'
+          : photos.length === 1
+            ? 'Adding the photo…'
+            : `Adding ${photos.length} photos…`,
         busy: true,
         ...pillAt(r),
       });
