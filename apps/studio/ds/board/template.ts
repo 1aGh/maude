@@ -4,6 +4,7 @@
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { ROW_GAP } from '../../canvas-rows.ts';
 import { DEV_SERVER_ROOT } from '../../paths.ts';
 import { SECTIONS, type SectionKind } from './types.ts';
 
@@ -23,13 +24,14 @@ export interface OwnSpecimenArtboard {
 /**
  * Own artboards sit below the seven sections at a showcase's size (V2-1.6 §5.2's example): one row
  * per section, in the order the artboards come (convert-map.ts gives them in section order), each
- * row `rowGap` below the last. A specimen page grows past `h` (the artboard hugs its content), so the
- * row pitch (5 200 px) leaves room for the tall pages: measured live on this repo's two systems
- * (2026-10-31, maude + maude-v2) the pages run 1 500–4 750 px; the only taller ones are
- * `components-inspector-controls` (~6 200, column 7 of maude's Components row — the Patterns row
- * below it holds two showcases, so nothing sits under it) and a showcase in the last row.
+ * row `rowGap` below the last. A specimen page grows past `h` (the artboard hugs its content, 1 500–4 750
+ * px measured live on this repo's two systems, 2026-10-31), and the height is only known once the page
+ * is on screen — so the generator writes the COMPACT pitch (`h + ROW_GAP`) and the open canvas re-pitches
+ * the rows from the measured heights (`canvas-rows.ts` `flowRows`, r3-ds-rows): a row is as tall as its
+ * tallest page, never taller. It used to write a fixed 4 300 px gap for the tall pages, which left the
+ * canvas two to six times taller than its content (Michal, rc.1: "hrozne rozlezly").
  */
-export const OWN_ARTBOARD = { w: 1440, h: 900, y: 1860, gap: 48, rowGap: 4300 } as const;
+export const OWN_ARTBOARD = { w: 1440, h: 900, y: 1860, gap: 48, rowGap: ROW_GAP } as const;
 
 /** The design-px box of each own artboard: one row per section, in first-seen order. */
 function ownLayout(own: readonly OwnSpecimenArtboard[]) {

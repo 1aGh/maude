@@ -1,0 +1,29 @@
+# Row structure of system/maude/design-system, live (canvas-rects.sh on a scratch copy of this repo's maude system)
+# gap-above = distance from the tallest artboard of the row above to this row's top (px, +-1 from fractional offsets)
+## before: fixed 5200 px pitch (note gaps of 1700-2500 px, and -3328: the 8528 px page runs into the last row)
+y=51	n=3	tallest=620	gap-above=-
+y=750	n=3	tallest=560	gap-above=79
+y=1391	n=1	tallest=440	gap-above=81
+y=1910	n=2	tallest=3315	gap-above=79
+y=7111	n=9	tallest=3169	gap-above=1886
+y=12310	n=2	tallest=3462	gap-above=2030
+y=17510	n=5	tallest=3299	gap-above=1738
+y=22710	n=1	tallest=2720	gap-above=1901
+y=27910	n=18	tallest=8528	gap-above=2480
+y=33110	n=2	tallest=3999	gap-above=-3328
+total height 37058
+overlapping pairs 0
+
+## after: flowRows (every gap 80)
+y=51	n=3	tallest=620	gap-above=-
+y=750	n=3	tallest=560	gap-above=79
+y=1391	n=1	tallest=440	gap-above=81
+y=1910	n=2	tallest=3315	gap-above=79
+y=5305	n=9	tallest=3169	gap-above=80
+y=8554	n=2	tallest=3462	gap-above=80
+y=12096	n=5	tallest=3299	gap-above=80
+y=15475	n=1	tallest=2720	gap-above=80
+y=18275	n=18	tallest=8528	gap-above=80
+y=26883	n=2	tallest=3999	gap-above=80
+total height 30831
+overlapping pairs 0
