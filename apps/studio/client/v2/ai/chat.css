@@ -1871,7 +1871,8 @@
     flex-shrink: 0;
     font-family: var(--font-mono);
     font-size: var(--type-xs);
-    color: var(--accent);
+    /* accent used as text is --accent-text (V2-8.7: bare --accent failed AA in the dark theme) */
+    color: var(--accent-text);
   }
   .chat-cmd-name--flow {
     color: var(--presence-agent);
