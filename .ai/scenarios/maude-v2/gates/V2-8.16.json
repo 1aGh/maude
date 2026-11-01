@@ -7,12 +7,12 @@
     ".ai/plans/notes/v2-evidence/V2-8.16-eval/VERDICT.md": "25133277e12164baefc57105fd18d4817d8e6f9cccc2f5aa5f3b8c243d2c14d5",
     ".ai/plans/notes/v2-evidence/V2-8.16-journeys/2026-10-31-freeze/VERDICT.md": "434871f33ec719c8146f10be261fc270915f4a8c6fd498e1ec0ddfb24cd5afa7"
   },
-  "head": "fab4e6c4a1437950b73fe2d5db2df8a1d9c00cc2",
-  "ts": "2026-11-01T13:42:09.328Z",
+  "head": "3929294c9965342d8777af045aec843ae051fa94",
+  "ts": "2026-11-01T20:13:18.671Z",
   "reports": [
     ".ai/plans/notes/v2-evidence/V2-8.16-ai-parity.md",
     ".ai/plans/notes/v2-evidence/V2-8.16-eval/VERDICT.md",
     ".ai/plans/notes/v2-evidence/V2-8.16-journeys/2026-10-31-freeze/VERDICT.md"
   ],
-  "note": "coverage pre-check green at 08b35c8db (check-v2-ai-parity); 30-task eval 24/30 pass^3, no product-caused FAIL; live journeys S1-S11 x2 lanes at 7f16e0b1b re-graded at 6fff07350: 19/22, every journey green in >=1 lane, the 3 fails agent-caused"
+  "note": "r3: coverage 512/512 actions with an agent path at the r3 tip (check-v2-ai-parity); r3 changed no verb, registry, plugin or ACP file (git diff fab4e6c4a..HEAD -- actions plugins acp: empty), so the 30-task eval 24/30 pass^3 and journeys S1-S11 stand"
 }
