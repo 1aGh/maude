@@ -58,7 +58,8 @@ if (
   throw new Error('startup-index-failures must be an integer from 0 to 5');
 const nativeArtifact = resolveSurfaceNative({ root, app: arg('app', process.env.MAUDE_E2E_APP) });
 const { app } = nativeArtifact;
-const work = mkdtempSync(join(tmpdir(), 'maude-surface-e2e-'));
+// `maude-e2e-*`: the prefs guard (apps/desktop/e2e/helpers/prefs-guard.ts) accepts only such homes
+const work = mkdtempSync(join(tmpdir(), 'maude-e2e-surface-'));
 const stamp = new Date().toISOString().replaceAll(':', '-');
 const out = join(root, '.ai/device/scenario-runs/reliable-project-multiplayer', stamp);
 mkdirSync(out, { recursive: true });
@@ -94,6 +95,10 @@ const env = {
   MAUDE_NO_AUTOBUILD: '1',
   NO_OPEN: '1',
   MAUDE_CLOUD_CONFIG: join(work, 'cloud.json'),
+  // never the person's ~/.config/maude: a studio this runner starts writes prefs.json on the first /_api/ui-prefs
+  // POST (2026-11-01 a surface run rewrote the real one). Each studio below gets its own file on top of this.
+  XDG_CONFIG_HOME: join(work, 'xdg'),
+  MAUDE_UI_PREFS_PATH: join(work, 'prefs.json'),
 };
 writeFileSync(env.MAUDE_CLOUD_CONFIG, '{}', { mode: 0o600 });
 function start(name, cmd, args, extraEnv = {}) {
@@ -290,7 +295,12 @@ try {
         String(studioPort),
       ],
       // gate-b-sec4: the harness is the app that made this link (sync/link-consent.ts)
-      { HUBS_CONFIG_PATH: identity, MAUDE_APP_BOUND_HUB: peerConfig.linkedHub?.url ?? '' }
+      {
+        HUBS_CONFIG_PATH: identity,
+        MAUDE_APP_BOUND_HUB: peerConfig.linkedHub?.url ?? '',
+        XDG_CONFIG_HOME: join(work, name, 'xdg'),
+        MAUDE_UI_PREFS_PATH: join(work, name, 'prefs.json'),
+      }
     );
   let peerChild = studio('desktop-b', peerB, peerPort, identities['designer-b']);
   await ready(`http://127.0.0.1:${peerPort}/_health`);

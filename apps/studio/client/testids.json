@@ -8088,8 +8088,7 @@
     "region": "sidebar/tree",
     "consumers": [
       "apps/desktop/e2e/multiplayer/cloud-entry.e2e.ts",
-      "apps/desktop/e2e/multiplayer/selfhost-entry.e2e.ts",
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+      "apps/desktop/e2e/multiplayer/selfhost-entry.e2e.ts"
     ],
     "v2": "stable"
   },
@@ -8105,8 +8104,7 @@
     "region": "sidebar/tree",
     "consumers": [
       "apps/desktop/e2e/multiplayer/cloud-entry.e2e.ts",
-      "apps/desktop/e2e/multiplayer/selfhost-entry.e2e.ts",
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+      "apps/desktop/e2e/multiplayer/selfhost-entry.e2e.ts"
     ],
     "v2": "stable"
   },
@@ -14062,7 +14060,9 @@
     },
     "region": "palette",
     "consumers": [
-      "apps/studio/test/v2-search-ui.test.tsx"
+      "apps/studio/test/v2-search-ui.test.tsx",
+      "apps/desktop/e2e/multiplayer/cloud-entry.e2e.ts",
+      "apps/desktop/e2e/multiplayer/selfhost-entry.e2e.ts"
     ],
     "v2": "new"
   },
@@ -14092,7 +14092,9 @@
     },
     "region": "palette",
     "consumers": [
-      "apps/studio/test/v2-search-ui.test.tsx"
+      "apps/studio/test/v2-search-ui.test.tsx",
+      "apps/desktop/e2e/multiplayer/cloud-entry.e2e.ts",
+      "apps/desktop/e2e/multiplayer/selfhost-entry.e2e.ts"
     ],
     "v2": "new"
   },
@@ -41502,7 +41504,9 @@
       "symbol": "NewCanvasRow"
     },
     "region": "canvases",
-    "consumers": [],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "new"
   },
   {
