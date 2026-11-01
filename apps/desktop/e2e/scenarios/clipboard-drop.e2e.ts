@@ -268,4 +268,3 @@ describe('copy / paste, Assets drop and the quiet tip (r1-clipboard-drop)', () =
     expect(source()).not.toMatch(/clip-pic\.png/);
   });
 });
-})
