@@ -16,6 +16,8 @@ import { NAME_DIALOG_EVENT, NAME_DIALOG_KINDS, takeNameDialogRequest } from './n
 import { createBlankCanvas } from './new-canvas.js';
 
 const GENERIC = /^create failed|network/;
+// the server's words for a name in use (api.ts createCanvasNow; S1.23b's near-duplicate says the same)
+const TAKEN = /already exists/;
 
 /** The line under the field when the write is refused: the server's reason, else one plain sentence. */
 export function nameDialogError(kind, error) {
@@ -69,9 +71,15 @@ export function NameDialogHost({
       setBusy(true);
       setError('');
       const target = req.target ?? null;
+      // the untouched default is never a name the person chose: a canvas lets the server pick the free
+      // "Untitled canvas N" (C4), a brief (which must be sent a name) takes the next free "Untitled brief N"
+      const fallback = NAME_DIALOG_KINDS[req.kind].defaultName;
+      const isDefault = name.trim() === fallback;
       let res;
       if (req.kind === 'brief') {
         res = await createBoard(name, {});
+        for (let n = 2; isDefault && !res?.ok && TAKEN.test(res?.error ?? '') && n <= 50; n++)
+          res = await createBoard(`${fallback} ${n}`, {});
       } else {
         // S10.13 — a canvas made in a folder starts on the system that folder's canvases share
         const designSystem =
@@ -84,7 +92,7 @@ export function NameDialogHost({
                 designRel: dsCfg.designRel || '.design',
               })
             : undefined;
-        res = await create({ name, sizes: true, designSystem });
+        res = await create({ name: isDefault ? undefined : name, sizes: true, designSystem });
         if (res?.ok && target) await moveCanvas?.(res.file, target.path);
       }
       if (res?.ok) {

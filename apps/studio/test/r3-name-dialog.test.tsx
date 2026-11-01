@@ -178,6 +178,17 @@ describe('the New canvas dialog', () => {
     expect(q('name-dialog-error')?.textContent).toContain('already here');
   });
 
+  test('Enter on the untouched default lets the server pick a free "Untitled canvas N" (no name sent)', async () => {
+    // r3 chain4: the default was sent as a name, so a second ⌘N ↵ hit "already exists" and made nothing
+    const s = setup();
+    await mountHost(s);
+    await act(async () => openNewCanvasDialog());
+    await submit();
+    await settle();
+    expect(s.created).toEqual([{ name: undefined, sizes: true, designSystem: undefined }]);
+    expect(q('name-dialog')).toBeNull();
+  });
+
   test('a folder’s "+" makes the canvas, then moves it in', async () => {
     const s = setup();
     await mountHost(s);
@@ -231,5 +242,42 @@ describe('roles', () => {
     await act(async () => openNewCanvasDialog());
     expect(q('name-dialog')).toBeNull();
     expect(toasts).toEqual(['Only editors can add a canvas.']);
+  });
+});
+
+describe('the brief default name', () => {
+  test('an untouched "Untitled brief" that is taken becomes "Untitled brief 2"', async () => {
+    const tried: string[] = [];
+    const s = setup({
+      createBoard: async (name: string) => {
+        tried.push(name);
+        return name === 'Untitled brief'
+          ? { ok: false, error: 'a canvas named "Untitled brief" already exists in ui' }
+          : { ok: true, file: 'ui/b.tsx' };
+      },
+    });
+    await mountHost(s);
+    await act(async () => openBriefBoardComposer({}));
+    await submit();
+    await settle();
+    expect(tried).toEqual(['Untitled brief', 'Untitled brief 2']);
+    expect(q('name-dialog')).toBeNull();
+  });
+
+  test('a typed brief name that is taken stays in the dialog with the reason (no silent rename)', async () => {
+    const tried: string[] = [];
+    const s = setup({
+      createBoard: async (name: string) => {
+        tried.push(name);
+        return { ok: false, error: `a canvas named "${name}" already exists in ui` };
+      },
+    });
+    await mountHost(s);
+    await act(async () => openBriefBoardComposer({}));
+    await typeInto(q('name-dialog-input') as HTMLInputElement, 'Pricing');
+    await submit();
+    await settle();
+    expect(tried).toEqual(['Pricing']);
+    expect(q('name-dialog-error')?.textContent).toContain('already exists');
   });
 });
