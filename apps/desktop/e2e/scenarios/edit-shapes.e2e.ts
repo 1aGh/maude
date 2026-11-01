@@ -222,16 +222,19 @@ describe('edit-shapes — draw a rectangle, round a corner, Export area writes n
     );
     // pick a raw colour
     await openPicker();
-    await (await $('[data-testid="insp-colorcss-fill"]')).click();
+    // r4 #4: Figma's picker — the Custom tab holds the hex field, which commits on Enter / blur
+    await (await $('[data-testid="insp-tab-custom-fill"]')).click();
     const field = await $('[data-testid="insp-colorin-fill"]');
     await field.waitForExist({ timeout: 5_000 });
     await field.setValue('#1E6BFF');
-    await (await $('[data-testid="insp-pop-use-fill"]')).click();
+    await browser.keys('Enter');
+    await browser.execute(() => (document.activeElement as HTMLElement | null)?.blur());
     await browser.waitUntil(() => /background: "#1e6bff"/i.test(readFileSync(SMOKE, 'utf8')), {
       timeout: 15_000,
       timeoutMsg: 'the picked colour never reached the file',
     });
-    // reopen: the colour is the newest Recent
+    // reopen: the colour is the newest Recent (the Custom tab stays open while you work: esc puts it away)
+    await browser.keys('Escape');
     await browser.waitUntil(
       async () => !(await (await $('[data-testid="insp-menu-fill"]')).isExisting()),
       {
