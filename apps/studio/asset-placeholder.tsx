@@ -92,6 +92,35 @@ function failed(el: Media): boolean {
 /** A frame smaller than this in either direction has no room for the card (12 · ia-missing-gone: a collapsed broken `<img>`). */
 export const FRAME_MIN = 96;
 
+/** The line a picture that cannot be loaded wears (a src no shell state explained: the file is gone, or never served). */
+export const LOST_LINE = 'Picture not found';
+
+/** A failed `<img>` asks again after each delay (a picture refused on first load because its canvas write had not landed). */
+export const LOST_RETRY_DELAYS_MS: readonly number[] = [400, 1200, 3000, 6000];
+
+/**
+ * The project path a failed element asked for, for the frame's name: `assets/x.png`, `ui/assets/x.png`. Null for a
+ * blob: / data: source or anything with no readable path (nothing useful to name, so no frame).
+ */
+export function lostPathOf(raw: string | null, resolved: string): string | null {
+  const src = (raw ?? '').trim();
+  if (!src || /^(?:blob|data):/i.test(src)) return null;
+  let p = '';
+  try {
+    p = decodeURIComponent(new URL(resolved || src, 'http://x.invalid/').pathname);
+  } catch {
+    return null;
+  }
+  p = p.replace(/^\/+/, '');
+  return p ? p : null;
+}
+
+/** `assets/x.png?v=2` becomes `assets/x.png?v=2&r=1`: the same file asked for again (the first answer is not kept). */
+export function retryHref(href: string, attempt: number): string {
+  const base = href.replace(/([?&])r=\d+(&|$)/, '$1').replace(/[?&]$/, '');
+  return `${base}${base.includes('?') ? '&' : '?'}r=${attempt}`;
+}
+
 interface Box {
   left: number;
   top: number;
@@ -182,12 +211,21 @@ interface Frame {
   rel: string;
   el: Media;
   words: FrameWords;
+  /** r4 img 44: no shell state explained this failure, so the frame names the path it asked for. */
+  lost?: boolean;
 }
 
 const baseName = (rel: string) => rel.slice(rel.lastIndexOf('/') + 1);
 
 /** The layer. Mounted once by DesignCanvas (canvas-lib's named S8.19 block). */
-export function AssetPlaceholderLayer() {
+export function AssetPlaceholderLayer({
+  inShell,
+  retryDelays = LOST_RETRY_DELAYS_MS,
+}: {
+  /** Test seam: the layer only judges pictures inside the shell's frame (an export capture carries no frames). */
+  inShell?: boolean;
+  retryDelays?: readonly number[];
+} = {}) {
   const [items, setItems] = useState<ReadonlyMap<string, AssetStateItem>>(new Map());
   const [frames, setFrames] = useState<Frame[]>([]);
   const nodes = useRef(new Map<string, HTMLDivElement>());
@@ -215,24 +253,45 @@ export function AssetPlaceholderLayer() {
     for (const [rel, it] of items) if (frameWords(it)) s.add(rel);
     return s;
   }, [items]);
+  // r4 img 44: a picture that FIRED an error and that no shell state explains (the state said "here", or named
+  // nothing) is never left as the browser's bare "?" icon. An `<img>` asks again on a short ladder (a first answer
+  // refused before the canvas write landed), then the layer says "Picture not found" with the path it asked for.
+  const lostRef = useRef({
+    errored: new WeakSet<Media>(),
+    attempts: new WeakMap<Media, number>(),
+    timers: new Set<ReturnType<typeof setTimeout>>(),
+  });
   useEffect(() => {
     if (typeof document === 'undefined') return;
+    const lost = lostRef.current;
+    const inside = inShell ?? (typeof window !== 'undefined' && window.parent !== window);
     const scan = () => {
-      if (known.size === 0) {
-        setFrames((f) => (f.length ? [] : f));
-        return;
-      }
       const next: Frame[] = [];
       const els = document.querySelectorAll<Media>('img, video');
       els.forEach((el, i) => {
         if (el.closest('.dc-absent-layer') || !failed(el)) return;
-        const rel = relOfSrc(
-          el.getAttribute('src'),
-          el.currentSrc || (el as HTMLImageElement).src || '',
-          known
-        );
+        const raw = el.getAttribute('src');
+        const resolved = el.currentSrc || (el as HTMLImageElement).src || '';
+        const rel = known.size ? relOfSrc(raw, resolved, known) : null;
         const words = rel ? frameWords(items.get(rel)) : null;
-        if (rel && words) next.push({ key: `${rel}#${i}`, rel, el, words });
+        if (rel && words) {
+          next.push({ key: `${rel}#${i}`, rel, el, words });
+          return;
+        }
+        if (!inside || !lost.errored.has(el)) return;
+        // still asking again (see onMedia)
+        if (el instanceof HTMLImageElement && (lost.attempts.get(el) ?? 0) < retryDelays.length)
+          return;
+        const path = lostPathOf(raw, resolved);
+        if (path) ensureStyles();
+        if (path)
+          next.push({
+            key: `${path}#${i}`,
+            rel: path,
+            el,
+            words: { state: 'missing', line: LOST_LINE, relink: false },
+            lost: true,
+          });
       });
       setFrames((prev) =>
         prev.length === next.length &&
@@ -244,11 +303,45 @@ export function AssetPlaceholderLayer() {
           : next
       );
     };
+    // One failure: remember it, and (an `<img>` inside the shell) ask again after the next delay on the ladder.
+    const pending = new Map<Media, ReturnType<typeof setTimeout>>();
+    const fail = (el: Media) => {
+      lost.errored.add(el);
+      const n = lost.attempts.get(el) ?? 0;
+      const src = el.getAttribute('src') ?? '';
+      if (!inside || !(el instanceof HTMLImageElement) || !src || /^(?:blob|data):/i.test(src))
+        return;
+      if (n >= retryDelays.length || pending.has(el)) return;
+      const t = setTimeout(() => {
+        lost.timers.delete(t);
+        pending.delete(el);
+        lost.attempts.set(el, n + 1);
+        if (el.isConnected) el.setAttribute('src', retryHref(src, n + 1));
+      }, retryDelays[n] ?? 0);
+      pending.set(el, t);
+      lost.timers.add(t);
+    };
+    // A first scan also takes a picture that failed before this layer listened (no `error` seen for it).
+    document.querySelectorAll<Media>('img, video').forEach((el) => {
+      const src = el.getAttribute('src') ?? '';
+      if (failed(el) && src && !/\.svg(?:[?#]|$)/i.test(src)) fail(el);
+    });
     scan();
-    const onMedia = () => scan();
+    const onMedia = (ev?: Event) => {
+      const el = ev?.target as Media | undefined;
+      const isMedia = el instanceof HTMLImageElement || el instanceof HTMLVideoElement;
+      if (isMedia && ev?.type === 'load') {
+        lost.errored.delete(el);
+        lost.attempts.delete(el);
+        const t = pending.get(el);
+        if (t) clearTimeout(t);
+        pending.delete(el);
+      } else if (isMedia && ev?.type === 'error') fail(el);
+      scan();
+    };
     document.addEventListener('error', onMedia, true);
     document.addEventListener('load', onMedia, true);
-    const mo = new MutationObserver(onMedia);
+    const mo = new MutationObserver(() => onMedia());
     mo.observe(document.body, {
       subtree: true,
       childList: true,
@@ -259,8 +352,10 @@ export function AssetPlaceholderLayer() {
       document.removeEventListener('error', onMedia, true);
       document.removeEventListener('load', onMedia, true);
       mo.disconnect();
+      for (const t of lost.timers) clearTimeout(t);
+      lost.timers.clear();
     };
-  }, [items, known]);
+  }, [items, known, inShell, retryDelays]);
 
   // One animation-frame loop while any frame exists: follow each element's on-screen rectangle.
   useEffect(() => {
@@ -311,9 +406,10 @@ export function AssetPlaceholderLayer() {
               data-testid="asset-frame"
               data-rel={f.rel}
               data-state={f.words.state}
+              data-lost={f.lost ? '1' : undefined}
               // gate-b-a11y: `img` cannot hold the Relink… button (axe nested-interactive) — a labelled group can
               role={f.words.relink ? 'group' : 'img'}
-              aria-label={`${baseName(f.rel)} · ${f.words.line}`}
+              aria-label={`${f.lost ? f.rel : baseName(f.rel)} · ${f.words.line}`}
             >
               <span className="dc-absent-in">
                 <svg
@@ -332,7 +428,7 @@ export function AssetPlaceholderLayer() {
                   <path d="M8 6.4v3.2" />
                   <circle cx="8" cy="11.3" r="0.4" fill="currentColor" />
                 </svg>
-                <span className="dc-absent-n">{baseName(f.rel)}</span>
+                <span className="dc-absent-n">{f.lost ? f.rel : baseName(f.rel)}</span>
                 <span className="dc-absent-d">{f.words.line}</span>
                 {f.words.relink ? (
                   <button
