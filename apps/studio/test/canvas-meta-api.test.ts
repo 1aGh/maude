@@ -705,3 +705,52 @@ describe('/_api/canvas-meta — locked lane (feature-4 T7b)', () => {
     }
   });
 });
+
+// r4 #6 — `canvasTheme` (the person's Light | Dark pick for this canvas) is the fourth view-file lane: per user, per
+// Mac, never the versioned meta (DDR-115). REPLACE semantics; only 'light' | 'dark' are values; `null` forgets it.
+describe('/_api/canvas-meta — canvasTheme lane (r4 #6)', () => {
+  test('PATCH canvasTheme leaves meta byte-unchanged + writes the view file; GET merges it back; null forgets', async () => {
+    const { root, designRoot } = makeSandbox();
+    const port = nextPort();
+    const proc = await bootServer(root, port);
+    try {
+      mkdirSync(join(designRoot, 'ui'), { recursive: true });
+      const tsxAbs = join(designRoot, 'ui', 'Themed.tsx');
+      writeFileSync(tsxAbs, 'export default function T(){return <main/>}\n');
+      const metaAbs = tsxAbs.replace(/\.tsx$/, '.meta.json');
+      writeFileSync(metaAbs, JSON.stringify({ title: 'Themed', sections: [] }));
+      const before = readFileSync(metaAbs, 'utf8');
+      const file = repoRel(designRoot, tsxAbs);
+      const patch = (p: unknown) =>
+        fetch(`http://localhost:${port}/_api/canvas-meta`, {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ file, patch: p }),
+        });
+      const get = async () =>
+        (await (
+          await fetch(`http://localhost:${port}/_api/canvas-meta?file=${encodeURIComponent(file)}`)
+        ).json()) as MetaShape;
+
+      const r = await patch({ canvasTheme: 'dark' });
+      expect(r.status).toBe(200);
+      expect(((await r.json()) as MetaShape).canvasTheme).toBe('dark');
+      expect(readFileSync(metaAbs, 'utf8')).toBe(before);
+      expect(JSON.parse(readFileSync(viewPath(designRoot, 'ui-themed'), 'utf8')).canvasTheme).toBe(
+        'dark'
+      );
+      expect((await get()).canvasTheme).toBe('dark');
+
+      // anything but light | dark is a silent no-op — the pick stays
+      await patch({ canvasTheme: 'sepia' });
+      expect((await get()).canvasTheme).toBe('dark');
+      await patch({ canvasTheme: 'light' });
+      expect((await get()).canvasTheme).toBe('light');
+      await patch({ canvasTheme: null });
+      expect((await get()).canvasTheme).toBeUndefined();
+      expect(readFileSync(metaAbs, 'utf8')).toBe(before);
+    } finally {
+      await killProc(proc);
+    }
+  });
+});
