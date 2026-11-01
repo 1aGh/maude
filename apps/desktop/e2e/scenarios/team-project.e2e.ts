@@ -891,10 +891,12 @@ describe('team-project (native-desktop)', () => {
     });
     await capture('21-status-offline');
 
-    // ⌘N still makes a canvas, kept on this Mac
+    // ⌘N still makes a canvas, kept on this Mac — R3 (6): ⌘N asks the name first, Enter takes "Untitled canvas"
     const before = canvasesIn(t.managedDir);
     await settleMotion();
     await browser.keys(['Meta', 'n']);
+    await (await $(tid('name-dialog-input'))).waitForDisplayed({ timeout: 10_000 });
+    await browser.keys(['Enter']);
     let made = '';
     await eventually('a new canvas on this Mac', () => {
       made = canvasesIn(t.managedDir).find((c) => !before.includes(c)) ?? '';
