@@ -20,7 +20,7 @@ import { activeTab, HOME, labels, waitWindow } from '../helpers/windows';
  *   5. Help and guides adds the two guide canvases on request (S6.15: a new project starts empty)
  *
  * NOT covered here (needs a debug-only switch in the Rust shell, not part of this slice): the CLOUD
- * leg — Sign in to cloud.maude.sh against a fake control plane. `home_cloud_sign_in_open` opens the
+ * leg — Sign in to Maude Cloud against a fake control plane. `home_cloud_sign_in_open` opens the
  * system browser, and the default profile's credential is `$HOME/.config/maude/cloud.json`, the
  * developer's own. It needs (a) a `MAUDE_E2E_NO_BROWSER` gate like `MAUDE_E2E_NO_REVEAL` and (b) an
  * isolated HOME for the run, then a stub `/auth/device/{code,token}` + `/api/home` in the lane's
@@ -58,7 +58,7 @@ describe('native-first-run (native-desktop)', () => {
       await capture('01-no-first-run-card');
       this.skip(); // this Mac already has a project or a cloud account — not a first run
     }
-    expect(await (await $(tid('signin-cloud'))).getText()).toContain('Sign in to cloud.maude.sh');
+    expect(await (await $(tid('signin-cloud'))).getText()).toContain('Sign in to Maude Cloud');
     expect(await (await $(tid('signin-local'))).getText()).toContain('Just a local project');
     expect(await card.getAttribute('data-state')).toBe('idle');
     expect(await (await $(tid('onboarding-wizard'))).isExisting()).toBe(false);
