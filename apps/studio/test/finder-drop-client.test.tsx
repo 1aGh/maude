@@ -371,7 +371,27 @@ describe('the hint, live', () => {
     );
   });
 
-  test('bare canvas, a video, or an Assets tile: no hint, and the event is left for the others', async () => {
+  test('r3: a lone video over an artboard gets a hint and is taken (placed like a photo); a sound is left alone', async () => {
+    const { art, body } = board(6);
+    await mount();
+    over([body, art]);
+    const video = drag('dragover', ['Files'], [{ kind: 'file', type: 'video/mp4' }]);
+    await act(async () => {
+      document.body.dispatchEvent(video);
+    });
+    expect(video.defaultPrevented).toBe(true);
+    expect(document.querySelector('[data-testid="edit-drop-hint"]')?.textContent).toBe(
+      'Drop to place the video in Fotky ze zápasu'
+    );
+    const sound = drag('dragover', ['Files'], [{ kind: 'file', type: 'audio/mpeg' }]);
+    await act(async () => {
+      document.body.dispatchEvent(sound);
+    });
+    expect(sound.defaultPrevented).toBe(false);
+    expect(document.querySelector('[data-testid="edit-drop-hint"]')).toBeNull();
+  });
+
+  test('bare canvas, a sound, or an Assets tile: no hint, and the event is left for the others', async () => {
     const { art, body } = board(6);
     await mount();
     over([document.body]);
@@ -381,7 +401,7 @@ describe('the hint, live', () => {
     });
     expect(bare.defaultPrevented).toBe(false);
     over([body, art]);
-    const video = drag('dragover', ['Files'], [{ kind: 'file', type: 'video/mp4' }]);
+    const video = drag('dragover', ['Files'], [{ kind: 'file', type: 'audio/mpeg' }]);
     await act(async () => {
       document.body.dispatchEvent(video);
     });

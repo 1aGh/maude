@@ -55,6 +55,10 @@ export const isAssetSrc = (v: unknown): v is string =>
 
 const NOT_AN_ASSET = 'That picture is not in this project’s assets.';
 
+/** A video in Assets: the extensions the asset route stores for video (`sniffAssetType`: mp4 · mov · m4v · webm). */
+export const VIDEO_ASSET_RE = /\.(mp4|mov|m4v|webm)$/i;
+export const isVideoAsset = (v: string): boolean => VIDEO_ASSET_RE.test(v);
+
 const isRec = (v: unknown): v is Record<string, unknown> =>
   v !== null && typeof v === 'object' && !Array.isArray(v);
 
@@ -263,6 +267,67 @@ function atStyle(at: { x: number; y: number }, natural: PlaceParams['natural']):
   return s;
 }
 
+/**
+ * A video placed on the canvas (r3, Michal: "nemůžu vkládat videa"): the plain `<video src="assets/…">` reference the studio
+ * already names for a video asset (asset-details `referenceOf`), with controls so it plays where it sits and
+ * `preload="metadata"` so a canvas of videos stays light. It keeps its own aspect: `aspectRatio` from the natural size, else
+ * the browser's intrinsic one once the metadata is in.
+ */
+function videoText(id: string, src: string, style: Style): string {
+  return `<video data-cd-id="${id}" src="${src}" controls playsInline preload="metadata" style=${styleText(style)} />`;
+}
+
+/** A picture's style for a video: `aspectRatio` from the natural size so it holds its shape before the file loads. */
+function withAspect(style: Style, natural: PlaceParams['natural']): Style {
+  if (!natural) return style;
+  return [...style, ['aspectRatio', `${natural.w} / ${natural.h}`]];
+}
+
+/** `image.place` for a video asset: one video, loose or filling — never replacing a picture, never a grid. */
+function placeVideo(
+  source: string,
+  req: ResolvedEditOp,
+  p: PlaceParams,
+  walk: Walked,
+  target: IdElement,
+  artboard: string
+): { source: string; created: ElementRef[] } {
+  if (p.assets.length !== 1 || !p.assets.every(isVideoAsset))
+    return refuse(req, 'Place one video at a time; pictures go in a separate drop.');
+  const asset = p.assets[0] as string;
+  if (isPicture(target))
+    return refuse(req, 'A video cannot replace a picture. Drop it on a frame or an artboard.');
+  const mode = p.mode === 'auto' ? (target.tag === 'DCArtboard' ? 'loose' : 'fill') : p.mode;
+  if (mode !== 'fill' && mode !== 'loose')
+    return refuse(req, 'Place one video at a time, loose or filling a frame.');
+  const used = usedIds(walk.elements);
+  const id = generateElementId({ tag: 'video' }, used);
+  let out: string;
+  if (mode === 'fill') {
+    const behind = target.tag === 'DCArtboard';
+    out = insertChild(
+      source,
+      req,
+      target,
+      videoText(id, asset, behind ? BEHIND_STYLE : FILL_STYLE),
+      behind ? 'start' : 'end'
+    );
+  } else {
+    const page = kidsOf(walk, target);
+    const onBoard = !!p.at && target.tag === 'DCArtboard';
+    const host =
+      onBoard && page.length === 1 && page[0] && /^[a-z]/.test(page[0].tag) ? page[0] : target;
+    const style = withAspect(
+      onBoard && p.at ? atStyle(p.at, p.natural) : looseStyle(p.natural),
+      p.natural
+    );
+    out = insertChild(source, req, host, videoText(id, asset, style), 'end');
+  }
+  if (!parses(out, req.file))
+    return refuse(req, 'That video would break the canvas; nothing was written.');
+  return { source: out, created: [{ artboard, element: id }] };
+}
+
 function imgText(id: string, src: string, alt: string, style: Style, from: string | null): string {
   const origin =
     from === null
@@ -356,6 +421,7 @@ export const imagePlace: EditOp = {
   apply(source, req) {
     const p = placeParams(req);
     const { walk, target, artboard } = containerOf(source, req);
+    if (p.assets.some(isVideoAsset)) return placeVideo(source, req, p, walk, target, artboard);
     if (p.mode === 'auto') {
       const kind: PlaceTargetKind = isPicture(target)
         ? 'picture'
