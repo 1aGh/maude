@@ -30718,7 +30718,7 @@
     "hook": "signin-code-box",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The line and code shown after \"Use a code instead\".",
+    "meaning": "The box that holds the verification code while the app waits for the browser.",
     "producer": {
       "file": "apps/studio/client/v2/signin/SignInCard.jsx",
       "symbol": "SignInCard"
@@ -30734,6 +30734,36 @@
     "kind": "testid",
     "pattern": false,
     "meaning": "The user code itself (not a credential: it only lets the person approve THIS attempt on the cloud page).",
+    "producer": {
+      "file": "apps/studio/client/v2/signin/SignInCard.jsx",
+      "symbol": "SignInCard"
+    },
+    "region": "home",
+    "consumers": [
+      "test:home-first-run"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "signin-code-check",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The plain line above the code while the app waits: check the browser shows this code (r4 #9, anti-phishing).",
+    "producer": {
+      "file": "apps/studio/client/v2/signin/SignInCard.jsx",
+      "symbol": "SignInCard"
+    },
+    "region": "home",
+    "consumers": [
+      "test:home-first-run"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "signin-code-other",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The other-device line, added by \"Enter a code instead\".",
     "producer": {
       "file": "apps/studio/client/v2/signin/SignInCard.jsx",
       "symbol": "SignInCard"
