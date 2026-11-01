@@ -408,7 +408,7 @@ export function ColourPopover({
       role="tab"
       id={`insp-tab-${id}-${name}`}
       aria-selected={tab === id}
-      className="insp-cp-tab"
+      className="insp-pk-tab"
       data-testid={`insp-tab-${id}-${name}`}
       onClick={() => setTab(id)}
     >
@@ -430,14 +430,14 @@ export function ColourPopover({
       onKeyDown={onKeyDown}
       onBlur={onBlur}
     >
-      <div className="insp-cp-top">
-        <div role="tablist" aria-label="Where the colour comes from" className="insp-cp-tabs">
+      <div className="insp-pk-top">
+        <div role="tablist" aria-label="Where the colour comes from" className="insp-pk-tabs">
           {tabBtn('custom', 'Custom')}
           {tabBtn('libraries', 'Libraries')}
         </div>
         <button
           type="button"
-          className="insp-cp-icon"
+          className="insp-pk-icon"
           aria-label="Close"
           title="Close"
           data-testid={`insp-pop-close-${name}`}
@@ -450,7 +450,7 @@ export function ColourPopover({
         <div
           role="tablist"
           aria-label="Kind of fill"
-          className="insp-cp-kinds"
+          className="insp-pk-kinds"
           data-testid={`insp-kinds-${name}`}
         >
           {KINDS.map(([id, text]) => (
@@ -459,7 +459,7 @@ export function ColourPopover({
               type="button"
               role="tab"
               aria-selected={kind === id}
-              className="insp-cp-kind"
+              className="insp-pk-kind"
               data-testid={`insp-kind-${id}-${name}`}
               onClick={() => chooseKind(id)}
             >
@@ -471,7 +471,7 @@ export function ColourPopover({
 
       {tab === 'custom' ? (
         <div
-          className="insp-cp-body"
+          className="insp-pk-body"
           role="tabpanel"
           aria-labelledby={`insp-tab-custom-${name}`}
           data-testid={`insp-pop-custom-${name}`}
@@ -498,7 +498,7 @@ export function ColourPopover({
         </div>
       ) : (
         <div
-          className="insp-cp-body"
+          className="insp-pk-body"
           role="tabpanel"
           aria-labelledby={`insp-tab-libraries-${name}`}
         >

@@ -73,7 +73,7 @@ function NumberBox({ value, onCommit, label, min = 0, max = 255, testid, suffix 
     if (v !== value) onCommit(v);
   };
   return (
-    <span className="insp-cp-num">
+    <span className="insp-pk-num">
       <input
         className="insp-num-in"
         type="text"
@@ -215,7 +215,7 @@ export function SolidEditor({
   const hsl = rgbToHsl(rgb);
 
   return (
-    <div className="insp-cp-solid" data-testid={`insp-solid-${name}`}>
+    <div className="insp-pk-solid" data-testid={`insp-solid-${name}`}>
       <div
         ref={areaRef}
         className="insp-sv"
@@ -245,11 +245,11 @@ export function SolidEditor({
           }}
         />
       </div>
-      <div className="insp-cp-rails">
+      <div className="insp-pk-rails">
         {hasEyedropper() ? (
           <button
             type="button"
-            className="insp-cp-icon"
+            className="insp-pk-icon"
             aria-label="Pick a colour from the screen"
             title="Pick a colour from the screen"
             data-testid={`insp-solid-eyedropper-${name}`}
@@ -258,7 +258,7 @@ export function SolidEditor({
             <Pipette size={14} />
           </button>
         ) : null}
-        <div className="insp-cp-rail-col">
+        <div className="insp-pk-rail-col">
           <input
             className="insp-rail insp-rail--hue"
             type="range"
@@ -293,9 +293,9 @@ export function SolidEditor({
         </div>
       </div>
       {compact ? null : (
-        <div className="insp-cp-fields">
+        <div className="insp-pk-fields">
           <select
-            className="insp-cp-select"
+            className="insp-pk-select"
             aria-label="Colour model"
             data-testid={`insp-solid-model-${name}`}
             value={model}
@@ -306,7 +306,7 @@ export function SolidEditor({
             <option value="hsl">HSL</option>
           </select>
           {model === 'hex' ? (
-            <span className="insp-num insp-cp-hex">
+            <span className="insp-num insp-pk-hex">
               <input
                 className="insp-num-in insp-color-in"
                 type="text"
@@ -529,7 +529,7 @@ function StopRow({ name, gf, i, vals }) {
         style={{ '--stop': swatchOf(s.color, vals) }}
         onClick={() => gf.setSel(i)}
       />
-      <span className="insp-num insp-cp-hex">
+      <span className="insp-num insp-pk-hex">
         <input
           className="insp-num-in"
           type="text"
@@ -552,7 +552,7 @@ function StopRow({ name, gf, i, vals }) {
       />
       <button
         type="button"
-        className="insp-cp-icon"
+        className="insp-pk-icon"
         aria-label={`Remove stop ${i + 1}`}
         title={g.stops.length <= 2 ? 'A gradient needs two stops' : `Remove stop ${i + 1}`}
         disabled={g.stops.length <= 2}
@@ -581,10 +581,10 @@ export function GradientEditor({ name, gf, vals }) {
   const setType = (type) =>
     gf.change({ ...g, type, angle: type === 'linear' ? 180 : 0, shape: 'circle' }, stop, true);
   return (
-    <div className="insp-cp-grad" data-testid={`insp-gradient-${name}`}>
-      <div className="insp-cp-fields">
+    <div className="insp-pk-grad" data-testid={`insp-gradient-${name}`}>
+      <div className="insp-pk-fields">
         <select
-          className="insp-cp-select insp-cp-grow1"
+          className="insp-pk-select insp-pk-grow1"
           aria-label="Gradient type"
           data-testid={`insp-gtype-${name}`}
           value={g.type}
@@ -609,7 +609,7 @@ export function GradientEditor({ name, gf, vals }) {
         ) : null}
         <button
           type="button"
-          className="insp-cp-icon"
+          className="insp-pk-icon"
           aria-label="Reverse the stops"
           title="Reverse the stops"
           data-testid={`insp-greverse-${name}`}
@@ -619,11 +619,11 @@ export function GradientEditor({ name, gf, vals }) {
         </button>
       </div>
       <StopsBar name={name} gf={gf} vals={vals} />
-      <div className="insp-cp-head">
+      <div className="insp-pk-head">
         <span className="insp-pop-gt">Stops</span>
         <button
           type="button"
-          className="insp-cp-icon"
+          className="insp-pk-icon"
           aria-label="Add a stop"
           title="Add a stop"
           data-testid={`insp-gadd-${name}`}
@@ -693,13 +693,13 @@ export function ImageEditor({ name, fillApi }) {
     use(u);
   };
   return (
-    <div className="insp-cp-image" data-testid={`insp-image-${name}`}>
-      <p className="insp-cp-file" data-testid={`insp-image-name-${name}`}>
+    <div className="insp-pk-image" data-testid={`insp-image-${name}`}>
+      <p className="insp-pk-file" data-testid={`insp-image-name-${name}`}>
         {current ? current.split('/').pop() : SAYS.none}
       </p>
       <input
         ref={fileRef}
-        className="insp-cp-file-in"
+        className="insp-pk-file-in"
         type="file"
         accept="image/*"
         tabIndex={-1}
