@@ -19,6 +19,18 @@ Paused on the keeper's signal ("dokonči rozdělané, checkpoint, při 85 % pauz
   quality (figga lint/tsc, mini full suite) → **the .app to Michal before chain4** (his explicit order) → his findings →
   chain4 → re-attests. Do not carry the r3 records over r4 product changes.
 
+## PERF REGRESSION found at the pause (read first at resume)
+
+The perf chain at `fa52b24c6` finished after this checkpoint was written (`.ai/plans/notes/v2-evidence/p8-perf/
+freeze-fa52b24c6*`, `webkit-fa52b24c6-*`): studio, bare, peers, panel, index and **WebKit both orders PASS** (p95 23 / 22
+vs pre-v2 48), but the **Chromium LOD lane FAILS in both orders** — mixed board, 1,500 elements / 64 artboards, fit-all
+below 25 %: p95 **83 ms vs pre-v2 34 ms**, long frames **30 vs 2** (it was PASS / +1 ms accepted at `08b35c8db`). So r3
+regressed the far-zoomed many-artboard case; it is very likely the same thing Michal felt as **r4 #5** ("zoom … extreme
+sekany" on the DS canvas). Prime suspect: r3's DS-rows change in `canvas-lib.tsx` (4ab29ab09) — the artboard-name
+collapse rule (`min()` against the zoom on every artboard label) or the `flowRows` effect re-running per render/zoom
+step. **First thing at resume:** bisect 4ab29ab09 with `scripts/v2-perf-bench.sh --lanes lod` (revert the label rule
+alone, then the effect), fix, re-run lod + `perf.sh` on `.design/system/maude-v2`. 8.8 / 8.14 stay red until then.
+
 ## r4 — Michal's 18 findings on READY TO TRY (12)
 
 Item-by-item state is in **`lead/r4-michal-findings.md`** (every item `open`; nothing was started before the pause).

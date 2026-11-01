@@ -1,0 +1,38 @@
+
+## studio lane — Chromium, studio shell, dpr 2, fit-all
+| batch | arm | p50 | p95 | p95 spread | zoom p95 | long frames (range) | jank ≥25 | artboard renders | boards | kept |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| freeze-fa52b24c6 | base | 16.7 | 17 | 0.8 | 17.1 | 0 (0) | 0 | 966 | 21 | 6, scale 0.12 |
+| freeze-fa52b24c6 | v2 | 16.7 | 17.5 | 0.2 | 17.7 | 0 (0) | 1 | 168 | 21 | 6, scale 0.113 |
+
+pooled (1 batch): p95 v2 17.5 vs pre-v2 17 + spread 0.8 → PASS; long frames v2 0 vs 0 + range 0 → PASS
+
+## bare lane — Chromium, bare canvas page, fit-all
+| batch | arm | p50 | p95 | p95 spread | zoom p95 | long frames (range) | jank ≥25 | artboard renders | boards | kept |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| freeze-fa52b24c6 | base | 16.7 | 16.8 | 0.1 | 16.8 | 0 (0) | 0 | 1008 | 21 | 6 |
+| freeze-fa52b24c6 | v2 | 16.7 | 16.8 | 0.1 | 16.8 | 0 (0) | 0 | 168 | 21 | 6 |
+
+pooled (1 batch): p95 v2 16.8 vs pre-v2 16.8 + spread 0.1 → PASS; long frames v2 0 vs 0 + range 0 → PASS
+
+## lod lane — Chromium, studio shell, dpr 2, mixed annotation board (1,500 elements, 64 boards) at a fit-all zoom below 25 %, fit-all
+| batch | arm | p50 | p95 | p95 spread | zoom p95 | long frames (range) | jank ≥25 | artboard renders | boards | kept |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| freeze-fa52b24c6 | base | 16.7 | 33.7 | 16.7 | 50.3 | 2 (10) | 31 | 2944 | 64 | 6, scale 0.12 |
+| freeze-fa52b24c6 | v2 | 33.3 | 83.4 | 66.8 | 115.7 | 30 (28) | 56 | 512 | 64 | 6, scale 0.113 |
+
+pooled (1 batch): p95 v2 83.4 vs pre-v2 33.7 + spread 16.7 → FAIL; long frames v2 30 vs 2 + range 10 → FAIL
+
+## peers lane — v2 studio shell, 12 people (11 simulated at 15 Hz) against none, fit-all
+| batch | peers | p50 | p95 | p95 spread | zoom p95 | long frames (range) | jank ≥25 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| freeze-fa52b24c6 | 0 | 16.7 | 17.5 | 0.2 | 17.7 | 0 (0) | 1 |
+| freeze-fa52b24c6 | 12 | 16.7 | 17.4 | 0.4 | 17.2 | 0 (0) | 0 |
+
+pooled: p95 with people 17.4 vs alone 17.5 + spread 0.2 → PASS; long frames 0 vs 0 + range 0 → PASS
+
+## panel — the 93-canvas Canvases panel in the studio shell (median of kept runs)
+| batch | arm | first row ms | rows mounted | scroll p95 / max / long | flat list rows (of 93) | flat scroll p95 / max / long | search p95 / max ms | open canvas ms |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| freeze-fa52b24c6 | base | 179 (max 267) | 31 | 17.5 / 33.4 / 0 | 94 | 17.5 / 34.3 / 0 | 34 / 41 | 170 |
+| freeze-fa52b24c6 | v2 | 388 (max 436) | 18 | 17.3 / 17.7 / 0 | 28 | 17.4 / 17.7 / 0 | 48 / 56 | 38 |
