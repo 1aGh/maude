@@ -39,7 +39,7 @@ import {
   openedFromWords,
   planOpenLink,
   resolveLink,
-  stableLinkFor,
+  copyLinkFor,
   takeOpenLinks,
 } from '../v2/canvases/open-link.js';
 import { Sidebar } from '../tree/tree.jsx';
@@ -211,12 +211,7 @@ export function usePaletteAndPanels({
   // these). S1.18: the stable link (`maude://open/<project>?c=<entry>`, survives a move or rename) when this
   // project has an op log; otherwise — a legacy project, the cloud shell — the one Share offers today.
   const copyCanvasLink = async (path) => {
-    const links = shareLinksFor(path);
-    const stable =
-      shareShell === 'cloud'
-        ? null
-        : await stableLinkFor({ path, appLink: links.app }).catch(() => null);
-    const link = stable ?? links.web ?? links.app ?? links.local;
+    const link = await copyLinkFor({ path, links: shareLinksFor(path), shell: shareShell });
     if (link) copyShareLink(link);
   };
   // S1.18 — a canvas link the shell delivered to this window (CloudBar → open-link.js): resolve its entry
