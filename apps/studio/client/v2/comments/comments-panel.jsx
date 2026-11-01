@@ -136,6 +136,44 @@ function useMe(given) {
   return given ?? name;
 }
 
+/** R3 (7): "Delete comment" is a trash icon in the action row (never a text button on a line of its own). One press
+ *  arms it (the icon becomes a check, the tooltip says "Press again to delete"); a second deletes. It disarms after a
+ *  few seconds, on blur, and on Esc. The testid is the same in both states. */
+export const DELETE_ARM_MS = 4000;
+function DeleteAct({ id, onDelete }) {
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return undefined;
+    const timer = setTimeout(() => setArmed(false), DELETE_ARM_MS);
+    return () => clearTimeout(timer);
+  }, [armed]);
+  return (
+    <button
+      type="button"
+      className={`cmp-act cmp-act--delete${armed ? ' is-armed' : ''}`}
+      aria-label={armed ? 'Confirm delete comment' : 'Delete comment'}
+      title={armed ? 'Press again to delete' : 'Delete comment'}
+      data-testid={`comment-delete-${id}`}
+      data-armed={armed ? 'true' : undefined}
+      onBlur={() => setArmed(false)}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape' && armed) {
+          e.stopPropagation();
+          setArmed(false);
+        }
+      }}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (!armed) return setArmed(true);
+        setArmed(false);
+        onDelete(id);
+      }}
+    >
+      <StIcon name={armed ? 'resolve' : 'trash'} size={14} />
+    </button>
+  );
+}
+
 function RowActions({ t, onResolve, onReopen, onDelete }) {
   const stop = (fn) => (e) => {
     e.stopPropagation();
@@ -171,18 +209,7 @@ function RowActions({ t, onResolve, onReopen, onDelete }) {
           </button>
         )
       ) : null}
-      {canDelete ? (
-        <button
-          type="button"
-          className="cmp-act"
-          aria-label="Delete comment"
-          title="Delete comment"
-          data-testid={`comment-delete-${t.id}`}
-          onClick={stop(onDelete)}
-        >
-          <StIcon name="x" size={14} />
-        </button>
-      ) : null}
+      {canDelete ? <DeleteAct id={t.id} onDelete={onDelete} /> : null}
     </span>
   );
 }

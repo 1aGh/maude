@@ -478,6 +478,21 @@
   background: color-mix(in oklab, var(--maude-chrome-error) 12%, transparent);
 }
 
+/* R3 (7): Delete comment is a trash icon level with Edit / Resolve / ×, the same 27px height as the text buttons. */
+.cm-thread__actions .cm-btn--trash {
+  width: 27px;
+  height: 27px;
+  padding: 0;
+  justify-content: center;
+}
+.cm-thread__actions .cm-btn--trash.is-armed {
+  background: var(--maude-chrome-error);
+  color: var(--maude-chrome-bg-1, #fff);
+}
+.cm-thread__actions .cm-btn--trash.is-armed:hover {
+  background: var(--maude-chrome-error);
+}
+
 /* ─── @mention autocomplete ──────────────────────────────────────────────── */
 .cm-mention-popup {
   position: absolute;
@@ -545,20 +560,21 @@
   flex: 0 1 auto;
   min-width: 0;
   display: inline-flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 4px;
   margin-left: auto;
 }
 
 .cm-thread__head-end .cm-thread__close {
   margin-left: 0;
-  align-self: flex-start;
+  align-self: center;
   flex: none;
 }
 
 .cm-thread__actions {
   display: inline-flex;
   flex-wrap: wrap;
+  align-items: center;
   justify-content: flex-end;
   gap: 4px;
 }

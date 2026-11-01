@@ -1911,17 +1911,13 @@ export function CommentThread({
                     </button>
                   )}
                   {mine ? (
-                    <button
-                      type="button"
-                      className="cm-btn cm-btn--danger"
-                      data-testid={`comment-delete-${comment.id}`}
-                      onClick={() => {
+                    <DeleteCommentButton
+                      id={comment.id}
+                      onConfirm={() => {
                         onDelete();
                         onClose();
                       }}
-                    >
-                      Delete comment
-                    </button>
+                    />
                   ) : null}
                 </span>
               ) : null}
@@ -2251,6 +2247,56 @@ function firstName(name: string): string {
 /** S8.17b — where a person's avatar would be, for words written in another tool: a ring, no initials. */
 function ImportedMark(): React.ReactElement {
   return <span className="cm-av cm-av--imported" aria-hidden="true" />;
+}
+
+/** The shell's `trash` icon, same 16 grid. */
+const TRASH_GLYPH =
+  'M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.1a1 1 0 0 0 1 .9h3.8a1 1 0 0 0 1-.9l.6-8.1';
+const CHECK_GLYPH = 'M3 8.4 6.4 11.8 13 4.6';
+export const DELETE_ARM_MS = 4000;
+
+/**
+ * R3 (7): "Delete comment" is a trash icon in the action row, level with Edit / Resolve / ×. One press arms it
+ * (the icon becomes a check, the tooltip says "Press again to delete"); a second press deletes. It disarms after a
+ * few seconds, on blur and on Esc. The testid is the same in both states.
+ */
+function DeleteCommentButton({
+  id,
+  onConfirm,
+}: {
+  id: string;
+  onConfirm: () => void;
+}): React.ReactElement {
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return undefined;
+    const timer = setTimeout(() => setArmed(false), DELETE_ARM_MS);
+    return () => clearTimeout(timer);
+  }, [armed]);
+  return (
+    <button
+      type="button"
+      className={`cm-btn cm-btn--ghost cm-btn--danger cm-btn--trash${armed ? ' is-armed' : ''}`}
+      aria-label={armed ? 'Confirm delete comment' : 'Delete comment'}
+      title={armed ? 'Press again to delete' : 'Delete comment'}
+      data-testid={`comment-delete-${id}`}
+      data-armed={armed ? 'true' : undefined}
+      onBlur={() => setArmed(false)}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape' && armed) {
+          e.stopPropagation();
+          setArmed(false);
+        }
+      }}
+      onClick={() => {
+        if (!armed) return setArmed(true);
+        setArmed(false);
+        onConfirm();
+      }}
+    >
+      <Glyph d={armed ? CHECK_GLYPH : TRASH_GLYPH} />
+    </button>
+  );
 }
 
 /** One 16-grid stroke glyph (the board's Resolve check, Reopen arrow) — decorative, the button has words. */

@@ -113,7 +113,10 @@ describe('the thread popover (co-comment-thread)', () => {
     act(() => root?.unmount());
     host?.remove();
     mountThread(comment(), true);
-    expect(text('[data-testid="comment-delete-c1"]')).toBe('Delete comment');
+    // R3 (7): an icon in the action row, not a text button on a line of its own
+    expect(q('[data-testid="comment-delete-c1"]')?.getAttribute('aria-label')).toBe(
+      'Delete comment'
+    );
     expect(text('[data-testid="comment-edit"]')).toBe('Edit');
   });
 

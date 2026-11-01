@@ -281,6 +281,14 @@
     background: var(--bg-3);
     color: var(--fg-0);
   }
+  /* R3 (7): the trash icon sits in the same row as Resolve; armed (one press in) it reads as the danger it is. */
+  .cmp-act--delete:hover {
+    color: var(--status-error-text, var(--fg-0));
+  }
+  .cmp-act--delete.is-armed {
+    background: var(--status-error);
+    color: var(--status-error-fg, var(--accent-fg));
+  }
   /* S11.3 — "All done." sits on the confetti tile; the block stays above it. The kit places the tile. */
   .cmp-party {
     position: relative;

@@ -193,6 +193,10 @@ describe('the Comments panel', () => {
     const calls = mount();
     expect(q('[data-testid="comment-delete-c1"]')).toBeNull(); // Jonas's
     expect(q('[data-testid="comment-delete-c4"]')).toBeNull(); // Petra's
+    // R3 (7): the first press arms it (a trash icon in the action row); the second deletes
+    act(() => q('[data-testid="comment-delete-c2"]')?.click());
+    expect(calls.del).toEqual([]);
+    expect(q('[data-testid="comment-delete-c2"]')?.getAttribute('data-armed')).toBe('true');
     act(() => q('[data-testid="comment-delete-c2"]')?.click());
     expect(calls.del).toEqual(['c2']);
     expect(q('[data-testid="comment-delete-c2"]')?.getAttribute('aria-label')).toBe(
