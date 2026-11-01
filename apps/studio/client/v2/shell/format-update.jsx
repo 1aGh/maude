@@ -12,7 +12,7 @@
 // warning that the cloud tab stays view only until Maude Cloud runs Maude 2 (`confirmCloud`).
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { portalToBody } from '../portal-scope.jsx';
 import { isNativeApp } from '../../github.js';
 import { TeamProjectsDialog } from '../../panels/TeamProjects.jsx';
 import { StIcon } from '../../shell/icons.jsx';
@@ -377,7 +377,7 @@ export function OlderFormatCallout() {
       </div>
       {/* r4 #8: the dialogs live at the body, NOT inside the callout stack — the stack is `inert` while any
           aria-modal is open, and a dialog inside it switched itself off (every field "disabled"). */}
-      {createPortal(
+      {portalToBody(
         <>
           {dialog === 'cloud' && (
             <Dialog
@@ -470,8 +470,7 @@ export function OlderFormatCallout() {
               </div>
             </Dialog>
           )}
-        </>,
-        document.body
+        </>
       )}
     </>
   );

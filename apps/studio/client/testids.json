@@ -42180,7 +42180,7 @@
     "hook": "insp-solid-eyedropper-<name>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "Pick a colour from the screen. Drawn only where the browser has an EyeDropper (not in the macOS app's WebKit).",
+    "meaning": "Pick a colour from anywhere you can see. Drawn only where the browser has an EyeDropper (not in the macOS app's WebKit).",
     "producer": {
       "file": "apps/studio/client/v2/inspector/sections/colour-custom.jsx",
       "symbol": "SolidEditor"

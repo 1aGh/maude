@@ -195,10 +195,11 @@ describe('G6 · esc with the shell focused hands the press to the canvas (md-esc
     expect(shellMode.get().mode).toBe('preview');
   });
 
-  test('no canvas to take it: the shell takes the terminal step itself (Preview → Edit)', () => {
+  test('no canvas to take it: the shell takes the terminal step itself (Preview stays, r4 #14)', () => {
     act(() => shellMode.select('preview'));
-    expect(shellStepBack({ canEdit: true, forward: forward(false) })).toBe('set');
-    expect(shellMode.get().mode).toBe('edit');
+    // Michal r4 #14: esc never leaves Preview for Edit (⌥⌘P does) — the shell has no step to take
+    expect(shellStepBack({ canEdit: true, forward: forward(false) })).toBeNull();
+    expect(shellMode.get().mode).toBe('preview');
   });
 
   test('Present leaves to where it came from — the canvas is not asked', () => {
