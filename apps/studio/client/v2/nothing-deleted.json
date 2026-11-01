@@ -3471,7 +3471,10 @@
     "testid:studio/video-play-chrome.tsx#canvas/video-play-button": "testid:video-play-button",
     "testid:studio/video-play-chrome.tsx#canvas/video-scrub-bar": "testid:video-scrub-bar",
     "testid:studio/video-play-chrome.tsx#canvas/video-scrub-fill": "testid:video-scrub-fill",
-    "testid:studio/video-play-chrome.tsx#canvas/video-scrub-time": "testid:video-scrub-time"
+    "testid:studio/video-play-chrome.tsx#canvas/video-scrub-time": "testid:video-scrub-time",
+    "button:studio/comments-overlay.tsx#DeleteCommentButton/comment-delete-id": "testid:.cm-layer / .cm-pin / [data-comment-pin]",
+    "keydown:studio/comments-overlay.tsx#DeleteCommentButton/comment-delete-id": "testid:.cm-layer / .cm-pin / [data-comment-pin]",
+    "keydown:studio/client/inspector-controls.jsx#makeScrubHandler/listener": "action:view.inspector"
   },
   "excluded": {
     "button:studio/client/home/home-app.jsx#HomeApp/dismiss": "v2 code (added after the freeze)",
