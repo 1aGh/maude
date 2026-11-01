@@ -134,6 +134,13 @@ pub struct WindowEntry {
     /// `navigation_allowed_for` keeps every frame of the tab on loopback.
     /// Live only, never on disk.
     pub web: bool,
+    /// Which tab this is, under its label: a fresh value each time a webview
+    /// gets this label (`insert_after`) and each time it switches project
+    /// (`set_project`). Labels are reused — a project closed and reopened is
+    /// `p-<pid>` both times — so a `navigate_when_up` wait that began for the
+    /// tab before must not land on the tab after (`may_navigate_as`): its
+    /// second navigate replaced the page that had just taken the Home intent.
+    pub instance: u64,
 }
 
 /// Every live window the shell created, keyed by label, plus which one has
@@ -156,6 +163,8 @@ pub struct WindowBook {
     /// (`claim_front`). Cleared when that command returns or another tab
     /// becomes active.
     front_claim: Option<String>,
+    /// The last `WindowEntry::instance` handed out.
+    last_instance: u64,
 }
 
 impl WindowBook {
@@ -177,6 +186,8 @@ impl WindowBook {
                 .unwrap_or(self.tabs.len());
             self.tabs.insert(at, label.to_string());
         }
+        self.last_instance += 1;
+        let instance = self.last_instance;
         self.entries.insert(
             label.to_string(),
             WindowEntry {
@@ -188,8 +199,14 @@ impl WindowBook {
                 closing: false,
                 dot: None,
                 web: true,
+                instance,
             },
         );
+    }
+
+    /// `label`'s tab instance now (`WindowEntry::instance`).
+    pub fn instance(&self, label: &str) -> Option<u64> {
+        self.entries.get(label).map(|e| e.instance)
     }
 
     /// One tab's entry.
@@ -349,6 +366,9 @@ impl WindowBook {
                     pid: pid_for_root(root),
                     root: root.to_string(),
                 };
+                // What was on its way to the old project's page is not this one's.
+                self.last_instance += 1;
+                e.instance = self.last_instance;
                 // The old project's origin no longer vouches for this window.
                 e.origin = None;
                 e.canvas_origin = None;
@@ -477,6 +497,13 @@ impl WindowBook {
         self.project_of(label)
             .is_some_and(|(pid, _)| pid == pid_for_root(root))
             && !self.is_resting(label)
+    }
+
+    /// `may_navigate`, and — when `instance` is given — only while `label` is
+    /// still the tab instance the navigate was meant for. `None` = the caller
+    /// resolved the label just now (the splash asking for itself, a respawn).
+    pub fn may_navigate_as(&self, label: &str, root: &str, instance: Option<u64>) -> bool {
+        self.may_navigate(label, root) && instance.is_none_or(|i| self.instance(label) == Some(i))
     }
 
     /// The session to save (§5.5 `session`): every tab in tab order, a project
@@ -1223,11 +1250,22 @@ pub fn on_server_died(app: &AppHandle, root: &str, gave_up: bool) {
 /// but only while the window still shows `root` and is awake. The one place
 /// an origin becomes trusted (navigate, and the splash's own recovery).
 pub fn stamp_server_origin(app: &AppHandle, label: &str, root: &str, origin: &str) -> bool {
+    stamp_server_origin_as(app, label, root, origin, None)
+}
+
+/// `stamp_server_origin` for one tab instance (`WindowBook::may_navigate_as`).
+fn stamp_server_origin_as(
+    app: &AppHandle,
+    label: &str,
+    root: &str,
+    origin: &str,
+    instance: Option<u64>,
+) -> bool {
     let canvas = crate::sidecar::shell_info_file(app, root)
         .and_then(|f| crate::sidecar::read_shell_canvas_origin(&f));
     let state = app.state::<SidecarState>();
     let mut book = state.windows.lock().unwrap_or_else(|e| e.into_inner());
-    if !book.may_navigate(label, root) {
+    if !book.may_navigate_as(label, root, instance) {
         return false;
     }
     book.set_origin(label, origin);
@@ -1335,6 +1373,19 @@ pub fn navigate_to_server(
     url: &str,
     open: Option<&str>,
 ) -> bool {
+    navigate_to_server_as(app, label, root, url, open, None)
+}
+
+/// `navigate_to_server` for the tab instance a wait began for: a tab closed and
+/// reopened under the same label meanwhile is another tab, and is not sent.
+fn navigate_to_server_as(
+    app: &AppHandle,
+    label: &str,
+    root: &str,
+    url: &str,
+    open: Option<&str>,
+    instance: Option<u64>,
+) -> bool {
     let Some(window) = app.get_webview(label) else {
         return false;
     };
@@ -1344,7 +1395,8 @@ pub fn navigate_to_server(
             // `root`, and the origin it is sent to becomes the one its
             // commands are answered for (`check_caller`) and its navigations
             // may reach (N-M2).
-            if !stamp_server_origin(app, label, root, &parsed.origin().ascii_serialization()) {
+            let origin = parsed.origin().ascii_serialization();
+            if !stamp_server_origin_as(app, label, root, &origin, instance) {
                 crate::sidecar::log_line(&format!(
                     "[maude] {label} no longer shows {root}, or is resting — not navigating"
                 ));
@@ -1386,11 +1438,20 @@ pub fn navigate_when_up(app: &AppHandle, label: String, root: String, open: Opti
     // The guard ends the wait on EVERY exit: a task dropped before it resolves (shutdown, a panic) would
     // otherwise leave the tab's `waiting` count up and its splash answering `{pending}` forever.
     let wait = SHELL_NAVS.wait(&label);
+    // The tab this wait is for: if it closes and the project reopens before the
+    // server is up, the new tab (same label) has its own wait — this one must
+    // not send it a second time (first-canvas: the reload lost the Home intent).
+    let instance = app.try_state::<SidecarState>().and_then(|s| {
+        s.windows
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .instance(&label)
+    });
     tauri::async_runtime::spawn(async move {
         match crate::sidecar::wait_for_shell_url(&app, &root, SERVER_WAIT_MS).await {
             Ok(url) => {
                 crate::sidecar::log_line(&format!("[maude] {label}: dev-server up at {url}"));
-                if navigate_to_server(&app, &label, &root, &url, open.as_deref()) {
+                if navigate_to_server_as(&app, &label, &root, &url, open.as_deref(), instance) {
                     wait.issued(std::time::Instant::now());
                 } else {
                     wait.abandoned();
@@ -3922,6 +3983,30 @@ mod tests {
     }
 
     // ── V2-3.2 part b: resting, close confirm, session ─────────────────────
+
+    #[test]
+    fn a_wait_for_a_closed_tab_never_navigates_the_tab_reopened_under_its_label() {
+        // first-canvas step 1 (r2): Beta opened, closed before its server was up, and reopened from Home with a
+        // sentence. Both `navigate_when_up` waits — the closed tab's and the new tab's — answered for `p-<pid>`
+        // and BOTH navigated the new tab: the first page took the parked intent, the second load replaced it.
+        let label = label_of(A);
+        let project = || Role::Project { pid: pid_for_root(A), root: A.into() };
+        let mut b = WindowBook::default();
+        b.insert(&label, project(), 1);
+        let first = b.instance(&label); // what the first open's wait captured
+        assert_eq!(forget_window(&mut b, &label).as_deref(), Some(A)); // the tab closes, grace starts
+        b.insert(&label, project(), 2); // reopened within the grace, same label
+        let second = b.instance(&label);
+        assert_ne!(first, second);
+        assert!(!b.may_navigate_as(&label, A, first), "the closed tab's wait lands on the new tab");
+        assert!(b.may_navigate_as(&label, A, second), "the new tab's own wait");
+        assert!(b.may_navigate_as(&label, A, None), "the splash asking for itself");
+        // An in-tab switch away and back is another page too.
+        b.set_project(&label, B);
+        b.set_project(&label, A);
+        assert!(!b.may_navigate_as(&label, A, second));
+        assert!(b.may_navigate_as(&label, A, b.instance(&label)));
+    }
 
     #[test]
     fn rest_policy_a_resting_tab_is_never_navigated_until_it_wakes() {
