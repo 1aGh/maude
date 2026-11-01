@@ -545,14 +545,14 @@
     {
       "id": "A-artboard-theme-ds-default-follow-chrome",
       "source": "§A 06 Advanced ITEMS",
-      "what": "Artboard theme — DS default · Follow chrome",
+      "what": "Artboard theme — DS default · Follow chrome (r4 #6: one Light | Dark pill per canvas)",
       "today": "canvas",
       "home": "insp",
       "drawnAt": "ad-inspector",
       "v2": {
         "action": null,
-        "testid": "insp-ab-<name>",
-        "where": "Click an artboard’s label › Inspector › Advanced › Theme: DS default · Follow chrome · Light · Dark (P8 round 7 moved it out of the artboard’s right-click menu)"
+        "testid": "canvas-theme-pill",
+        "where": "The Light | Dark pill at the top of every canvas, in the same place as on the Design system canvas: it switches every artboard, starts at the canvas’s design system’s default, and your pick is remembered for this canvas on this Mac (r4 #6 — the per-artboard Theme row, Follow chrome and DS default are gone)"
       }
     },
     {
@@ -3595,6 +3595,8 @@
     "testid:studio/ds/board/ds-bar.tsx#canvas/ds-bar": "v2 code (added after the freeze)",
     "testid:studio/ds/board/ds-bar.tsx#canvas/ds-bar-library": "v2 code (added after the freeze)",
     "testid:studio/ds/board/ds-bar.tsx#canvas/ds-bar-mode-mode": "v2 code (added after the freeze)",
+    "testid:studio/canvas-theme-pill.tsx#canvas/canvas-theme-mode-mode": "v2 code (added after the freeze)",
+    "testid:studio/canvas-theme-pill.tsx#canvas/canvas-theme-pill": "v2 code (added after the freeze)",
     "testid:studio/ds/board/ds-bar.tsx#canvas/ds-bar-pending": "v2 code (added after the freeze)",
     "testid:studio/ds/board/ds-bar.tsx#canvas/ds-bar-review": "v2 code (added after the freeze)",
     "testid:studio/ds/board/outline.tsx#other/ds-outline-kind": "v2 code (added after the freeze)",

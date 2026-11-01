@@ -117,7 +117,6 @@ export function InspectorFrame({
   onSetArtboardStyle,
   onSetArtboardKind,
   onSetArtboardPrint,
-  onSetArtboardTheme,
   onDuplicateArtboard,
   onSelectCrumb,
   editScope,
@@ -200,7 +199,6 @@ export function InspectorFrame({
     onSetArtboardStyle,
     onSetArtboardKind,
     onSetArtboardPrint,
-    onSetArtboardTheme,
     onDuplicateArtboard,
   };
   // p8-lock-reasons — a locked object (the SHARED lock, `data-cd-locked`; never the per-user padlock) refuses

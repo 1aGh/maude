@@ -35,6 +35,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { AnnotationsLayer } from './annotations-layer.tsx';
 import { ArtboardRingsLayer } from './artboard-activity-overlay.tsx';
 import { AiCopyLinks } from './artboard-ai-copies.tsx';
@@ -58,6 +59,8 @@ import {
   type ViewportControllerHandle,
 } from './canvas-lib.tsx';
 import { replayActionKey, replayToolKey } from './canvas-replay-keys.ts';
+import { getCanvasTheme, subscribeCanvasTheme } from './canvas-theme.ts';
+import { CanvasThemePill } from './canvas-theme-pill.tsx';
 import { scopedMatches } from './client/v2/left-panel/selector-scope.js';
 import {
   buildEditSourceRecord,
@@ -86,6 +89,7 @@ import {
   resolveSelectionEl,
 } from './dom-selection.ts';
 import { setElementDragActive } from './drag-state.ts';
+import { useBoardModel } from './ds/board/state.ts';
 import { useArtboardActions } from './editing/artboard-actions.ts';
 import { type ArtboardMenuDeps, artboardMenuSections } from './editing/artboard-menu.tsx';
 import { useClipboard } from './editing/clipboard-actions.ts';
@@ -123,8 +127,14 @@ import { ElementMarqueeOverlay } from './marquee-overlay.tsx';
 import { MeasureOverlay } from './measure-overlay.tsx';
 import { ParticipantsChrome } from './participants-chrome.tsx';
 import { usePresentSelection } from './present/present-stage.tsx';
+import { usePreviewing } from './preview/preview-camera.tsx';
 import { clampsEngineScroll } from './preview/wheel-scroll.ts';
-import { installEmbedEscapeRelay, isEmbedCanvas, isReadOnlyCanvas } from './read-only-mode.ts';
+import {
+  installEmbedEscapeRelay,
+  isEmbedCanvas,
+  isFollowCanvas,
+  isReadOnlyCanvas,
+} from './read-only-mode.ts';
 import { mountCaret, placeCaretAt } from './text-caret.ts';
 import { ToolPalette } from './tool-palette.tsx';
 import { setShellPanelOpen } from './toolbars/shell-panels.ts';
@@ -766,25 +776,13 @@ export function CanvasShell({
 }) {
   ensureHaloStyles();
 
-  // theme-default-follow — every un-pinned artboard tracks the chrome theme.
-  // When it flips (the theme postMessage handler in CanvasRouter updates
-  // `data-maude-theme` on <html>), re-theme them. A single observer per canvas
-  // (cleaned up on unmount) — no per-artboard listeners to leak. The rule is a
-  // CSS block keyed by data-dc-screen (see rebuildArtboardThemeStyle), so it
-  // survives React re-renders without flicker.
+  // r4 #6 — every artboard shows the canvas's Light | Dark. When the mode flips (the pill; canvas-theme.ts), re-theme
+  // them. The rule is a CSS block keyed by data-dc-screen (see rebuildArtboardThemeStyle), so it survives React
+  // re-renders without flicker.
   useEffect(() => {
-    if (typeof MutationObserver === 'undefined' || typeof document === 'undefined') return;
-    const obs = new MutationObserver(() => applyArtboardFollowers());
-    obs.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['data-maude-theme'],
-    });
-    // Initial follow — theme every un-pinned artboard once the DS stylesheet has
-    // parsed. The observer only fires on a `data-maude-theme` CHANGE, which may
-    // not happen on first paint (the chrome theme can already equal the canvas
-    // default), so first paint needs its own trigger. `window 'load'` guarantees
-    // every <link>/<style> sheet is parsed → collectThemeDeclarations sees the
-    // DS tokens. Runs immediately if the document is already complete.
+    const off = subscribeCanvasTheme(applyArtboardFollowers);
+    // First paint needs its own trigger: `window 'load'` guarantees every <link>/<style> sheet is parsed →
+    // collectThemeDeclarations sees the DS tokens. Runs immediately if the document is already complete.
     let onLoad: (() => void) | null = null;
     if (document.readyState === 'complete') {
       applyArtboardFollowers();
@@ -793,7 +791,7 @@ export function CanvasShell({
       window.addEventListener('load', onLoad, { once: true });
     }
     return () => {
-      obs.disconnect();
+      off();
       if (onLoad) window.removeEventListener('load', onLoad);
     };
   }, []);
@@ -813,6 +811,24 @@ export function CanvasShell({
         </AnnotationsVisibilityProvider>
       </AnnotationSelectionProvider>
     </MaybeSelectionSetProvider>
+  );
+}
+
+/**
+ * r4 #6 — the Light | Dark pill every ordinary canvas carries. It steps aside where the canvas is not the person's own
+ * to edit or is shown to others: Preview, Present, an embed, a Present follower — and on the Design system canvas,
+ * which draws its own bar (ds/board/ds-bar.tsx) over the same mode. Lifted out of the transformed world (a portal to
+ * `<body>`) so it stays put while the canvas pans and zooms, as the DS bar does.
+ */
+function CanvasThemePillMount() {
+  const chrome = useChromeVisibility();
+  const previewing = usePreviewing();
+  const board = useBoardModel();
+  if (typeof document === 'undefined' || !document.body) return null;
+  if (previewing || chrome?.present || board || isEmbedCanvas() || isFollowCanvas()) return null;
+  return createPortal(
+    <CanvasThemePill bothThemes={() => detectDsThemeSupport().supported} />,
+    document.body
   );
 }
 
@@ -1165,14 +1181,13 @@ function CanvasCore({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Artboard theme (D9 + theme-default-follow, 2026-05-31). The status-bar theme
-// toggle (vpravo dole) is the SINGLE SOURCE OF TRUTH: the canvas-shell chrome
-// AND every artboard follow it by default via `data-maude-theme`. The right-
-// click `Theme ▸ DS default / Light / Dark / Follow chrome` submenu PINS one
-// artboard to override that default — re-themed by stamping its content wrapper
-// with the DS's theme-wrapper convention. (Before this date the default was the
-// inverse — artboards kept their own DS theme and following was opt-in — which
-// produced the recurring "canvas dark / chrome light" mismatch.)
+// Canvas theme (D9 → r4 #6, decision `v2-michal-r4-global-light-dark`). ONE Light | Dark per canvas, switched by the
+// pill at the top (canvas-theme-pill.tsx; the mode and where it is remembered: canvas-theme.ts). EVERY artboard shows
+// that mode — a person no longer pins artboards one by one, and "Follow chrome" (the app's own theme) is gone: the
+// canvas starts in its design system's own default and the person moves it from there. (Before r4 the artboards
+// followed the app's theme, which is why a design system canvas switched only its seven sections and left the
+// specimen pages in Light.) The mode is applied by re-declaring that theme's tokens on every artboard's content
+// wrapper with an injected stylesheet (see rebuildArtboardThemeStyle).
 //
 // DS theme-wrapper conventions vary (`.maude[data-theme]`, `.mdcc[data-theme]`,
 // `.app[data-theme]`, bare `[data-theme]`, …) and there's no reliable config
@@ -1247,6 +1262,8 @@ export function __resetDsThemeProbeForTests(): void {
   _dsThemeSupport = null;
   _dsThemeUnsupported = false;
   _dsThemeWatch = false; // its observer watched the previous file's document
+  _themeDecls.light = undefined; // the token scan read the previous file's stylesheets
+  _themeDecls.dark = undefined;
 }
 
 export function detectDsThemeSupport(): DsThemeSupport {
@@ -1373,38 +1390,16 @@ function collectThemeDeclarations(theme: 'light' | 'dark'): string {
   return decls;
 }
 
-// Every artboard FOLLOWS the chrome theme by default (the status-bar toggle is
-// the source of truth). A per-artboard pin OVERRIDES that: 'ds' = the design
-// system's native theme (opt out of following entirely), 'light' / 'dark' = a
-// fixed theme. Absence from this map = follow chrome.
-type ArtboardPin = 'ds' | 'light' | 'dark';
-const _artboardPins = new Map<string, ArtboardPin>();
-
 function cssEsc(v: string): string {
   return typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(v) : v;
 }
 
-// Selector targeting the artboard's content wrapper (where the DS theme block
-// is re-established). Beats `.<wrapper>[data-theme="…"]` because the injected
-// <style> is appended after the DS stylesheet (later-wins on equal specificity).
-function artboardScopeSelector(screenId: string): string {
+// Selector matching the content wrapper of EVERY artboard — where the DS theme block is re-established. Beats
+// `.<wrapper>[data-theme="…"]` because the injected <style> is appended after the DS stylesheet (later-wins on equal
+// specificity).
+function globalArtboardScopeSelector(): string {
   const { wrapperClass } = detectDsThemeSupport();
-  const base = `[data-dc-screen="${cssEsc(screenId)}"]`;
-  if (wrapperClass) {
-    const c = cssEsc(wrapperClass);
-    return `${base} .${c},${base}.${c}`;
-  }
-  return `${base} [data-theme],${base}[data-theme]`;
-}
-
-// Like artboardScopeSelector but matches EVERY artboard except the pinned ones —
-// backs the default-follow rule, which themes all un-pinned artboards in one
-// declaration. Pinned ids are :not()-excluded so the per-screen pin rule never
-// has to out-specify this global one (they target disjoint elements).
-function globalArtboardScopeSelector(excludeIds: string[]): string {
-  const { wrapperClass } = detectDsThemeSupport();
-  const not = excludeIds.map((id) => `:not([data-dc-screen="${cssEsc(id)}"])`).join('');
-  const base = `[data-dc-screen]${not}`;
+  const base = '[data-dc-screen]';
   if (wrapperClass) {
     const c = cssEsc(wrapperClass);
     return `${base} .${c},${base}.${c}`;
@@ -1420,81 +1415,16 @@ function rebuildArtboardThemeStyle(): void {
     el.id = 'dc-artboard-theme-css';
     document.head.appendChild(el);
   }
-  let css = '';
-  // (1) Default — every un-pinned artboard follows the chrome theme. Pinned
-  // artboards are :not()-excluded so this rule never competes with their
-  // per-screen rule below. When the DS doesn't define the chrome theme's tokens
-  // (collectThemeDeclarations → ''), nothing is emitted and the artboard keeps
-  // its native DS theme — there's no alternate palette to follow to.
-  const pinnedIds = [..._artboardPins.keys()];
-  const followDecls = collectThemeDeclarations(currentChromeTheme());
-  if (followDecls) css += `${globalArtboardScopeSelector(pinnedIds)}{${followDecls}}\n`;
-  // (2) Explicit per-artboard pins. 'ds' emits nothing (the :not() above already
-  // released that artboard back to its native DS theme); 'light' / 'dark'
-  // re-declare the chosen theme's tokens scoped to that one artboard.
-  for (const [screenId, pin] of _artboardPins) {
-    if (pin === 'ds') continue;
-    const decls = collectThemeDeclarations(pin);
-    if (decls) css += `${artboardScopeSelector(screenId)}{${decls}}\n`;
-  }
-  el.textContent = css;
-}
-
-/** Current canvas-shell chrome theme (mirrors `data-maude-theme` on <html>). */
-function currentChromeTheme(): 'light' | 'dark' {
-  if (typeof document === 'undefined') return 'dark';
-  return document.documentElement.dataset.maudeTheme === 'light' ? 'light' : 'dark';
+  // Every artboard shows the canvas's mode. When the DS doesn't define that mode's tokens
+  // (collectThemeDeclarations → ''), nothing is emitted and the artboards keep their native DS theme — there's no
+  // alternate palette to switch to (the pill greys the mode out in that case).
+  const decls = collectThemeDeclarations(getCanvasTheme());
+  el.textContent = decls ? `${globalArtboardScopeSelector()}{${decls}}\n` : '';
 }
 
 /**
- * Pin a single artboard's theme (keyed by its stable `data-dc-screen` id), or
- * clear the pin so it returns to the default — following the chrome theme.
- *   'follow' → remove the pin (default: track the chrome theme toggle)
- *   'ds'     → pin to the design system's native theme (stop following)
- *   'light' / 'dark' → pin to a fixed theme
- */
-function setArtboardTheme(screenId: string, mode: 'follow' | ArtboardPin): void {
-  if (mode === 'follow') _artboardPins.delete(screenId);
-  else _artboardPins.set(screenId, mode);
-  rebuildArtboardThemeStyle();
-  stampArtboardPins();
-}
-
-/** S2.8 — mirror the pins onto the frames as `data-dc-theme-pin`, so the artboard inspector (Advanced › Theme) reads
- *  the pin back through the same `data-dc-*` read-back every artboard prop uses. `follow` carries no attribute. */
-function stampArtboardPins(): void {
-  if (typeof document === 'undefined') return;
-  for (const el of Array.from(document.querySelectorAll('[data-dc-theme-pin]'))) {
-    const id = el.getAttribute('data-dc-screen');
-    if (!id || !_artboardPins.has(id)) el.removeAttribute('data-dc-theme-pin');
-  }
-  for (const [id, pin] of _artboardPins) {
-    document
-      .querySelector(`[data-dc-screen="${CSS.escape(id)}"]`)
-      ?.setAttribute('data-dc-theme-pin', pin);
-  }
-}
-
-// S2.8 — the artboard inspector's Theme row asks through editing/ (the shell's run-action); same pin as the
-// artboard menu's Theme submenu, same single-theme gate on Light / Dark.
-if (typeof window !== 'undefined') {
-  window.addEventListener('maude:set-artboard-theme', (e) => {
-    const d = (e as CustomEvent<{ artboard?: unknown; mode?: unknown }>).detail;
-    const mode = d?.mode;
-    if (typeof d?.artboard !== 'string') return;
-    if (mode !== 'follow' && mode !== 'ds' && mode !== 'light' && mode !== 'dark') return;
-    // Light / Dark are no-ops on a one-theme DS (the menu greys them); freeing a pin never is
-    if ((mode === 'light' || mode === 'dark') && !detectDsThemeSupport().supported) return;
-    setArtboardTheme(d.artboard, mode);
-  });
-}
-
-/**
- * Re-theme every following artboard when the chrome theme flips. The
- * default-follow rule in rebuildArtboardThemeStyle reads currentChromeTheme()
- * live, so a plain rebuild re-points every un-pinned artboard at the new theme
- * in one shot. Kept under the original name so the MutationObserver call site
- * and the initial 'load' trigger stay untouched.
+ * Re-theme every artboard when the canvas's mode flips (the pill, the app's ds-theme preview) or when the DS
+ * stylesheet has finished loading. A plain rebuild re-points every artboard in one shot.
  */
 function applyArtboardFollowers(): void {
   rebuildArtboardThemeStyle();
@@ -1581,59 +1511,8 @@ function buildRegistry(deps: {
     onSelect: () => openExportSheet(scope),
   });
 
-  // Per-artboard theme PIN, keyed by the stable `data-dc-screen` id
-  // (target.artboardId) via an injected stylesheet (see setArtboardTheme).
-  // Following the chrome theme is the default; this submenu overrides it for one
-  // artboard. The DS-supports-both probe gates Light / Dark / "Follow chrome"
-  // (all no-ops on a single-theme DS); only "DS default" is always meaningful.
-  const themeSupport = detectDsThemeSupport();
-  const themeHint = 'This design system defines only one theme';
-  const themeItem: MenuItem = {
-    id: 'theme',
-    label: 'Theme',
-    onSelect: () => {
-      /* parent of a submenu — never invoked directly */
-    },
-    submenu: [
-      {
-        id: 'theme-ds-default',
-        label: 'DS default',
-        onSelect: (target) => {
-          if (target.artboardId) setArtboardTheme(target.artboardId, 'ds');
-        },
-      },
-      {
-        id: 'theme-light',
-        label: 'Light',
-        disabled: !themeSupport.supported,
-        disabledHint: themeHint,
-        onSelect: (target) => {
-          if (target.artboardId) setArtboardTheme(target.artboardId, 'light');
-        },
-      },
-      {
-        id: 'theme-dark',
-        label: 'Dark',
-        disabled: !themeSupport.supported,
-        disabledHint: themeHint,
-        onSelect: (target) => {
-          if (target.artboardId) setArtboardTheme(target.artboardId, 'dark');
-        },
-      },
-      {
-        id: 'theme-follow',
-        label: 'Follow chrome (default)',
-        disabled: !themeSupport.supported,
-        disabledHint: themeHint,
-        onSelect: (target) => {
-          if (target.artboardId) setArtboardTheme(target.artboardId, 'follow');
-        },
-      },
-    ],
-  };
-
   // feature-1-artboard-kinds-foundation, T8 — kind-switch submenu, same
-  // shape as themeItem above (a parent-only MenuItem whose onSelect never
+  // shape as kindItem below (a parent-only MenuItem whose onSelect never
   // fires). The write is main-origin-only (DDR-054): post to the parent
   // shell (dgn:'set-artboard-kind-request'), which calls
   // api.setArtboardKindOp and records undo — mirrors delete-artboard-request.
@@ -2417,7 +2296,7 @@ function buildRegistry(deps: {
           onSelect: () => distributeArtboards('y'),
         },
       ],
-      [themeItem, kindItem, duplicateAtBreakpointItem],
+      [kindItem, duplicateAtBreakpointItem],
       [
         {
           id: 'delete-artboard',
@@ -3846,6 +3725,7 @@ function CanvasRouter({
           (canvas-comment-mount.tsx), not here — single instance per surface. */}
       <AnnotationsLayer />
       <ToolPalette />
+      <CanvasThemePillMount />
       <ArtboardMarqueeOverlay />
       <ArtboardRingsLayer />
       {/* V2-8.5 c7 (03 ai-copy) - "Copied from <name>" + the dashed link beside a copy "Run on a copy" made */}

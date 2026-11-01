@@ -183,8 +183,9 @@ export function InspectorAdvanced({
   // S2.22 (14 Editing, ed-ab-select): "Advanced  6 properties" — the rows the fold holds for this artboard
   if (isArtboard) {
     const q = { el, kind: 'artboard', ctx };
+    // Clip content + Kind are the two rows every artboard's fold always holds (kinds/artboard-advanced-rows.jsx)
     const n =
-      (artboard?.onSetArtboardTheme ? 1 : 0) +
+      (artboard?.onSetArtboardKind ? 2 : 0) +
       advancedRowsFor('artboard', q).length +
       advancedRowsFor('in-code', q).length;
     hint = propertiesWords(n);

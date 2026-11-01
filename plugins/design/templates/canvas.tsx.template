@@ -38,9 +38,9 @@
  *   • ARTBOARDS keep THEIR design system's theme. The `data-theme` on the
  *     `{{ROOT_CLASS}}` wrapper pins this artboard to a specific DS theme block;
  *     leave it at the DS default ({{THEME_DEFAULT}}). Do NOT hardcode a theme
- *     the DS doesn't intend — a reviewer flips an individual artboard at will
- *     via right-click → Theme ▸ Light / Dark / Follow chrome (enabled when the
- *     DS ships both light + dark token blocks). Only pin a non-default theme
+ *     the DS doesn't intend — a reviewer switches EVERY artboard at will with
+ *     the Light | Dark pill at the top of the canvas (enabled when the DS
+ *     ships both light + dark token blocks). Only pin a non-default theme
  *     when the canvas is intentionally single-theme.
  */
 

@@ -41387,6 +41387,38 @@
     "v2": "new"
   },
   {
+    "hook": "canvas-theme-pill",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "r4 #6: the Light | Dark pill at the top of every ordinary canvas (the same one the Design system canvas has): it switches every artboard, starts at the canvas's design system's default, and the pick is remembered per canvas per Mac. Tagged `data-dc-overlay`, so an export never carries it.",
+    "producer": {
+      "file": "apps/studio/canvas-theme-pill.tsx",
+      "symbol": "CanvasThemePill"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-global-light-dark.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-theme-mode-<mode>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The pill's Light / Dark button (`<mode>` = light | dark); `aria-pressed` is the mode every artboard shows. Disabled for the mode a one-theme design system does not define.",
+    "producer": {
+      "file": "apps/studio/canvas-theme-pill.tsx",
+      "symbol": "CanvasThemePill"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-global-light-dark.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "layers-by-artboard",
     "kind": "testid",
     "pattern": false,

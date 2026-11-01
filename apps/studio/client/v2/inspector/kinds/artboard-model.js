@@ -31,14 +31,6 @@ export const LAYOUT_OPTIONS = Object.freeze([
   { value: 'grid', label: 'Grid' },
 ]);
 
-/** The theme pins, in the words of the artboard menu's Theme submenu. */
-export const THEME_OPTIONS = Object.freeze([
-  { value: 'follow', label: 'Follow chrome' },
-  { value: 'ds', label: 'DS default' },
-  { value: 'light', label: 'Light' },
-  { value: 'dark', label: 'Dark' },
-]);
-
 const num = (v) => (Number.isFinite(v) ? v : null);
 
 /** @returns {{ id: string | null, w: number | null, h: number | null, kind: string, fixed: boolean, bg: string,
@@ -64,7 +56,6 @@ export function artboardFacts(el) {
     gap: attrs['data-dc-gap'] ?? '',
     layout: attrs['data-dc-layout'] ?? '',
     print,
-    theme: attrs['data-dc-theme-pin'] || 'follow',
     // V2-8.5 C8 (08 ak-web-widths): how many pages this one is the tallest of ("the longest of the three")
     longestOf:
       Number(attrs['data-dc-web-longest']) > 1 ? Number(attrs['data-dc-web-longest']) : null,

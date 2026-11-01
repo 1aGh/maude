@@ -810,16 +810,6 @@ export function usePaletteAndPanels({
           onSetArtboardStyle={setArtboardStyleShell}
           onSetArtboardKind={setArtboardKindShell}
           onSetArtboardPrint={setArtboardPrintShell}
-          // S2.8 — Inspector › Advanced › Theme: the canvas pins (or frees) that artboard's theme; the pin is
-          // session state in the canvas, the same one the artboard menu's Theme submenu sets
-          onSetArtboardTheme={(artboardId, mode) =>
-            postToActiveCanvas({
-              dgn: 'run-action',
-              v: 1,
-              id: 'artboard.set-theme',
-              params: { artboard: artboardId, mode },
-            })
-          }
           onDuplicateArtboard={duplicateArtboardShell}
           editScope={editScope}
           // S10.8 — `ds.review-update` / `ds.go-to`: the Inspector's links run through the one runner

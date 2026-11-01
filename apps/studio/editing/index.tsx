@@ -91,9 +91,6 @@ import { TidyPreview } from './tidy-preview.tsx';
 import { TokenRuler } from './token-ruler.tsx';
 import { UndoPreview } from './undo-preview.tsx';
 
-/** S2.8 — the shell asks the canvas to pin an artboard's theme; canvas-shell listens (it owns the pins). */
-export const SET_ARTBOARD_THEME_EVENT = 'maude:set-artboard-theme';
-
 /** Registry ids this layer runs when the shell asks (`dgn:'run-action'`). */
 export const EDITING_ACTIONS = [
   'object.enter',
@@ -215,15 +212,6 @@ export function EditingLayer() {
         if (!isReadOnlyCanvas()) void runConstrainAction(m.params, selRef.current);
       } else if (m.id === 'object.step-out') {
         if (!stepOut(selSet)) selSet.clear();
-      } else if (m.id === 'artboard.set-theme') {
-        // S2.8 — Inspector › Advanced › Theme; canvas-shell owns the pin (the artboard menu's Theme submenu)
-        const p = m.params as { artboard?: unknown; mode?: unknown } | undefined;
-        if (typeof p?.artboard === 'string' && typeof p.mode === 'string')
-          window.dispatchEvent(
-            new CustomEvent(SET_ARTBOARD_THEME_EVENT, {
-              detail: { artboard: p.artboard, mode: p.mode },
-            })
-          );
       } else if (m.id === 'object.select-matching') {
         // p8-sweep-static — ⌘K "Select matching": the object menu's own function, on the one selected object
         const one = selRef.current.length === 1 ? selRef.current[0] : null;
