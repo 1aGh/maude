@@ -14,7 +14,7 @@ const MODES = [
   { value: 'fixed', label: 'Fixed' },
 ];
 
-function Axis({ axis, words, world, parent, write, editable }) {
+function Axis({ axis, words, world, parent, write, live, editable }) {
   const label = axis === 'width' ? 'Width' : 'Height';
   const w = words[axis];
   const shown = w.mode === 'fixed' ? (w.px ?? world[axis]) : world[axis];
@@ -27,7 +27,8 @@ function Axis({ axis, words, world, parent, write, editable }) {
             min={0}
             ariaLabel={label}
             steppers={false}
-            scrub={false}
+            scrub={editable}
+            {...live((n) => axisToCss(axis, { mode: 'fixed', px: n }, parent))}
             className="insp-nf"
             onCommit={(n) =>
               editable && n !== shown && write(axisToCss(axis, { mode: 'fixed', px: n }, parent))
@@ -51,7 +52,7 @@ function Axis({ axis, words, world, parent, write, editable }) {
 }
 
 export function SizeBody({ el, ctx }) {
-  const { css, editable, parent, write } = useCssWrite(el, ctx);
+  const { css, editable, parent, write, live } = useCssWrite(el, ctx);
   const words = toWords(css, { parent }).size;
   const world = worldSize(el);
   return (
@@ -62,6 +63,7 @@ export function SizeBody({ el, ctx }) {
         world={world}
         parent={parent}
         write={write}
+        live={live}
         editable={editable}
       />
       <Axis
@@ -70,6 +72,7 @@ export function SizeBody({ el, ctx }) {
         world={world}
         parent={parent}
         write={write}
+        live={live}
         editable={editable}
       />
       <Row k="Clip content" name="clip">

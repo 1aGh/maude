@@ -14,7 +14,7 @@
 // (S2.1's /_api/edit-op will replace the N-posts-for-N-properties with one write per words edit; sections call
 // `write(patch)` either way, so nothing here is a section's business.)
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { diffPatch } from '../../../edit-ops/words-css.ts';
 import { trackRecordableWrite } from '../../inspector/css-knobs.jsx';
 
@@ -39,8 +39,10 @@ const keyOf = (t) => `${t?.id ?? ''}#${t?.index ?? 0}`;
 /**
  * @param {any} target  the selected element, or several (the panel's selection payloads)
  * @param {{ onOptimistic?: Function, onRecordEdit?: Function, editable?: boolean }} ctx
- * @returns {{ css: Record<string,string>, cssAll: Array<Record<string,string>>, count: number, editable: boolean, parent: { display?: string, flexDirection?: string }, write: (patch: Record<string, string|null>) => void }}
+ * @returns {{ css: Record<string,string>, cssAll: Array<Record<string,string>>, count: number, editable: boolean, parent: { display?: string, flexDirection?: string }, write: (patch: Record<string, string|null>) => void, live: (toPatch: (n: number) => Record<string, string|null> | null) => { onInput: (n: number) => void, onCancel: () => void } }}
  *   `css` is the first object's declarations (what a single selection reads).
+ *   `live(toPatch)` is the scrub-to-change preview for a NumberField: while the person drags, the live element on the
+ *   canvas follows (no POST, no undo record); Esc puts it back; the release commits through `write` once.
  */
 export function useCssWrite(target, ctx) {
   const targets = useMemo(
@@ -76,9 +78,50 @@ export function useCssWrite(target, ctx) {
     [el?.parentDisplay, el?.parentFlexDirection]
   );
 
+  // the scrub preview: the live element only — nothing is written until the drag is released (then `write` runs once)
+  const previewed = useRef(new Set());
+  const preview = useCallback(
+    (patch) => {
+      if (!editable || !patch) return;
+      for (const prop of Object.keys(patch)) {
+        const value = patch[prop] ?? null;
+        previewed.current.add(prop);
+        for (const t of targets) {
+          ctx?.onOptimistic?.({
+            id: t.id,
+            artboardId: t.artboardId ?? null,
+            index: t.index ?? 0,
+            prop,
+            value,
+          });
+        }
+      }
+    },
+    [editable, targets, ctx]
+  );
+  const revert = useCallback(() => {
+    targets.forEach((t, i) => {
+      for (const prop of previewed.current) {
+        ctx?.onOptimistic?.({
+          id: t.id,
+          artboardId: t.artboardId ?? null,
+          index: t.index ?? 0,
+          prop,
+          value: cssAll[i]?.[prop] ?? null,
+        });
+      }
+    });
+    previewed.current.clear();
+  }, [targets, cssAll, ctx]);
+  const live = useCallback(
+    (toPatch) => ({ onInput: (n) => preview(toPatch(n)), onCancel: revert }),
+    [preview, revert]
+  );
+
   const write = useCallback(
     (patch) => {
       if (!editable) return;
+      previewed.current.clear();
       // the properties that change for at least one object, in patch order
       const props = Object.keys(patch).filter((prop) =>
         cssAll.some((c) => prop in diffPatch(c, { [prop]: patch[prop] }))
@@ -131,5 +174,5 @@ export function useCssWrite(target, ctx) {
     [cssAll, editable, targets, ctx]
   );
 
-  return { css, cssAll, count: targets.length, editable, parent, write };
+  return { css, cssAll, count: targets.length, editable, parent, write, live };
 }

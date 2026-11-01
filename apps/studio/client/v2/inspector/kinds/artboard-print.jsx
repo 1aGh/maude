@@ -147,7 +147,7 @@ export function PrintRows({ el, ctx }) {
               lead="W"
               ariaLabel="Width, millimeters"
               steppers={false}
-              scrub={false}
+              scrub
               className="insp-nf"
               onCommit={(n) => mm && send({ sizeMm: [n, mm.hMm] })}
             />
@@ -160,7 +160,7 @@ export function PrintRows({ el, ctx }) {
               lead="H"
               ariaLabel="Height, millimeters"
               steppers={false}
-              scrub={false}
+              scrub
               className="insp-nf"
               onCommit={(n) => mm && send({ sizeMm: [mm.wMm, n] })}
             />
@@ -187,7 +187,7 @@ export function PrintRows({ el, ctx }) {
           format={mmWord}
           parse={mmParse}
           steppers={false}
-          scrub={false}
+          scrub
           className="insp-nf insp-nf--one"
           onCommit={(n) => send({ bleedMm: n })}
         />
@@ -201,7 +201,7 @@ export function PrintRows({ el, ctx }) {
           format={mmWord}
           parse={mmParse}
           steppers={false}
-          scrub={false}
+          scrub
           className="insp-nf insp-nf--one"
           onCommit={(n) => send({ marginMm: n })}
         />

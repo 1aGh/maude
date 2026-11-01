@@ -22,7 +22,7 @@ import { BOXY_KINDS } from './size.jsx';
 const levelOf = (e) => (e === 'flat' ? 'flat' : 'token' in e ? e.token : 'custom');
 
 export function EffectsBody({ el, ctx }) {
-  const { css, cssAll, editable, write } = useCssWrite(el, ctx);
+  const { css, cssAll, editable, write, live } = useCssWrite(el, ctx);
   const fam = useDsFamilies(ctx);
   const elevation = elevationFromCss(css);
   const options = elevationOptions(fam.shadow);
@@ -53,7 +53,7 @@ export function EffectsBody({ el, ctx }) {
       {fam.shadow.length === 0 ? (
         <Quiet testid="insp-shadow-none">This system has no shadow steps.</Quiet>
       ) : null}
-      <OpacityRow cssAll={cssAll} editable={editable} write={write} />
+      <OpacityRow cssAll={cssAll} editable={editable} write={write} live={live} />
     </>
   );
 }

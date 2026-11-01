@@ -5,8 +5,8 @@ import { opacityFromCss, opacityToCss, reduceMixed } from '../../../../edit-ops/
 import { NumberField } from '../../../inspector-controls.jsx';
 import { Row } from './row.jsx';
 
-/** @param {{ cssAll: Array<Record<string,string>>, editable: boolean, write: (patch: Record<string, string|null>) => void }} props */
-export function OpacityRow({ cssAll, editable, write }) {
+/** @param {{ cssAll: Array<Record<string,string>>, editable: boolean, write: (patch: Record<string, string|null>) => void, live?: Function }} props */
+export function OpacityRow({ cssAll, editable, write, live }) {
   const r = reduceMixed(cssAll.map(opacityFromCss));
   const value = r.mixed ? 100 : r.value;
   return (
@@ -23,7 +23,8 @@ export function OpacityRow({ cssAll, editable, write }) {
             min={0}
             max={100}
             steppers={false}
-            scrub={false}
+            scrub={editable}
+            {...(live ? live((n) => opacityToCss(n)) : {})}
             className="insp-nf"
             ariaLabel="Opacity"
             format={(n) => `${n} %`}

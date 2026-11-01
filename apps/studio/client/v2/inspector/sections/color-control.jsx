@@ -11,11 +11,12 @@
 // "Text colour" on a box and "Inherited" on a text, with the object's REAL colour as its swatch (`resolved`, what the
 // canvas reports in `el.computed`), never the panel's own `currentColor`; the system's name for it follows in grey.
 
+import { Droplet } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { activeDsNameFor } from '../../../inspector/ds-tokens.js';
 import { tokenLabel } from '../../../../edit-ops/words-css.ts';
 import { paintToCss, swatchCss } from '../../../../edit-ops/words-paint.ts';
-import { NumberField } from '../../../inspector-controls.jsx';
+import { NumberField, ScrubLabelContext } from '../../../inspector-controls.jsx';
 import { StIcon } from '../../../shell/icons.jsx';
 import { ColourPopover } from './colour-popover.jsx';
 import { colourWords } from './colour-words.js';
@@ -50,6 +51,7 @@ export function ColorControl({
   noneLabel = 'None',
   disabled = false,
   showOpacity = false,
+  opacityLive, // { onInput, onCancel } — the live preview of an opacity scrub (css-write `live`)
   mixed = null, // several objects that differ: their distinct colours (null / a missing one = none) — drawn as swatches + "Mixed"
   vals = {}, // every token's resolved value (`useDsFamilies().vals`): names a resolved colour by the token that has it
   themes = undefined, // both themes' resolved values (`useDsFamilies().themes`): the picker's Light | Dark swatches
@@ -157,18 +159,23 @@ export function ColorControl({
       </button>
       {showOpacity && value ? (
         <span className="insp-opacity" data-testid={`insp-opacity-${name}`}>
-          <NumberField
-            value={opacity}
-            min={0}
-            max={100}
-            steppers={false}
-            scrub={false}
-            className="insp-nf"
-            ariaLabel={`${label} opacity`}
-            format={(n) => `${n} %`}
-            parse={(raw) => Number.parseFloat(String(raw).replace('%', ''))}
-            onCommit={(n) => n !== opacity && onChange({ paint: value.paint, opacity: n })}
-          />
+          {/* the row's label ("Fill") names the colour, not its opacity: this field is grabbed by its own icon */}
+          <ScrubLabelContext.Provider value={null}>
+            <NumberField
+              value={opacity}
+              min={0}
+              max={100}
+              steppers={false}
+              scrub={!disabled}
+              lead={<Droplet size={12} />}
+              {...(opacityLive || {})}
+              className="insp-nf"
+              ariaLabel={`${label} opacity`}
+              format={(n) => `${n} %`}
+              parse={(raw) => Number.parseFloat(String(raw).replace('%', ''))}
+              onCommit={(n) => n !== opacity && onChange({ paint: value.paint, opacity: n })}
+            />
+          </ScrubLabelContext.Provider>
         </span>
       ) : null}
       {open && !disabled ? (

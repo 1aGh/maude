@@ -42,14 +42,15 @@ export function defaultLineColour(stroke = false) {
 }
 
 export function BorderBody({ el, kind, ctx }) {
-  const { css, editable, write } = useCssWrite(el, ctx);
+  const { css, editable, write, live } = useCssWrite(el, ctx);
   const fam = useDsFamilies(ctx);
   const stroke = isStroke({ el, kind });
   const border = useMemo(() => (stroke ? null : borderFromCss(css)), [stroke, css]);
   const line = stroke ? strokeFromCss(css) : border;
   const shadow = css['box-shadow'];
 
-  const put = (next) => editable && write(stroke ? strokeToCss(next) : borderToCss(next, shadow));
+  const patchFor = (next) => (stroke ? strokeToCss(next) : borderToCss(next, shadow));
+  const put = (next) => editable && write(patchFor(next));
   useAddRequest('border', el, () => {
     if (!line)
       put({
@@ -93,7 +94,8 @@ export function BorderBody({ el, kind, ctx }) {
             min={0}
             step={0.5}
             steppers={false}
-            scrub={false}
+            scrub={editable}
+            {...live((n) => patchFor(n <= 0 ? null : { ...line, width: n }))}
             className="insp-nf"
             ariaLabel={stroke ? 'Stroke width' : 'Border width'}
             onCommit={(n) =>

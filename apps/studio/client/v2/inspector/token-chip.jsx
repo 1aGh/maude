@@ -7,8 +7,9 @@
 // The menu lists the system's space tokens, then "A number, no token…" (and "None" where a value may be absent).
 // Chips only ever write `var(--<name>)` for a name the system declares.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { lengthPx, nearestSpace, tokenLabel } from '../../../edit-ops/words-css.ts';
+import { ScrubLabelContext, makeScrubHandler } from '../../inspector-controls.jsx';
 import { StIcon } from '../../shell/icons.jsx';
 import { activeDsNameFor, useAllDsTokens } from '../../inspector/ds-tokens.js';
 
@@ -96,6 +97,7 @@ export function LengthControl({
   labelOf = tokenLabel, // (token, px) => the system's own name for the stop: "Space 24" · "MD" (S2.4: Corners, Type)
   min = 0,
   step = 1,
+  live, // { onInput(px), onCancel() } — the canvas follows a scrub of the px field (css-write `live`)
 }) {
   const [open, setOpen] = useState(false);
   const [numeric, setNumeric] = useState(false);
@@ -106,6 +108,36 @@ export function LengthControl({
   const isToken = value && 'token' in value;
   const isPx = !!value && !('token' in value) && 'px' in value;
   const px = lengthPx(value);
+
+  // Scrub: a px length is a number, so its row label (or the corner's arrow) drags it like a NumberField.
+  const inputRef = useRef(null);
+  const startText = useRef('');
+  const labelCtx = useContext(ScrubLabelContext);
+  const startScrub = (e) => {
+    startText.current = inputRef.current ? inputRef.current.value : String(px ?? 0);
+    makeScrubHandler({
+      getBase: () => (inputRef.current ? inputRef.current.value : (px ?? 0)),
+      min,
+      step,
+      onInput: (n) => {
+        if (inputRef.current) inputRef.current.value = String(n);
+        live?.onInput?.(n);
+      },
+      onCommit: (n) => onChange({ px: Math.max(min, n) }),
+      onCancel: () => {
+        if (inputRef.current) inputRef.current.value = startText.current;
+        live?.onCancel?.();
+      },
+      onTap: () => inputRef.current?.focus(),
+    })(e);
+  };
+  const scrubRef = useRef(startScrub);
+  scrubRef.current = startScrub;
+  const scrubs = isPx && !disabled;
+  useEffect(() => {
+    if (!scrubs || !labelCtx) return undefined;
+    return labelCtx.register((e) => scrubRef.current(e));
+  }, [scrubs, labelCtx]);
 
   const pick = (stop) => {
     setNumeric(false);
@@ -148,6 +180,7 @@ export function LengthControl({
       {isPx || numeric ? (
         <span className="insp-num">
           <input
+            ref={inputRef}
             className="insp-num-in"
             type="text"
             inputMode="decimal"

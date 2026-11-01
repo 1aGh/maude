@@ -19,7 +19,8 @@ import { useCssWrite } from '../css-write.js';
 import { targetOf } from '../kinds/multi.jsx';
 import { registerSlot } from '../slots.js';
 import { LengthControl, useDsFamilies } from '../token-chip.jsx';
-import { Quiet, Row } from './row.jsx';
+import { ScrubLabelContext } from '../../../inspector-controls.jsx';
+import { Quiet, Row, useScrubLabel } from './row.jsx';
 import { BOXY_KINDS } from './size.jsx';
 
 /* The person's choice per element: 'linked' | 'unlinked'. Absent = what the corners say (equal → linked). */
@@ -72,8 +73,24 @@ function UnlinkToggle({ el }) {
   );
 }
 
+/** One corner of the unlinked editor: its arrow is the scrub handle of its radius, like a row's label. */
+function Corner({ k, arrow, children }) {
+  const { ctx, labelProps } = useScrubLabel();
+  return (
+    <span className="insp-corner" data-testid={`insp-row-corner-${k}`}>
+      <span className="insp-ax" aria-hidden="true" {...labelProps}>
+        {arrow}
+      </span>
+      <ScrubLabelContext.Provider value={ctx}>{children}</ScrubLabelContext.Provider>
+    </span>
+  );
+}
+
 export function CornersBody({ el, selection, kind, ctx }) {
-  const { cssAll, count, editable, write } = useCssWrite(targetOf({ el, selection, kind }), ctx);
+  const { cssAll, count, editable, write, live } = useCssWrite(
+    targetOf({ el, selection, kind }),
+    ctx
+  );
   const fam = useDsFamilies(ctx);
   useSyncExternalStore(subscribe, () => version);
   const tokens = useMemo(() => ({ space: fam.radius }), [fam.radius]);
@@ -102,6 +119,7 @@ export function CornersBody({ el, selection, kind, ctx }) {
             allowNone
             noneLabel={unevenAcross ? 'Mixed' : 'None'}
             disabled={!editable}
+            live={live((px) => cornersToCss({ tl: { px }, tr: { px }, br: { px }, bl: { px } }))}
             onChange={setAll}
           />
         </Row>
@@ -117,10 +135,7 @@ export function CornersBody({ el, selection, kind, ctx }) {
         const values = all.map((w) => w[k]);
         const r = reduceMixed(values);
         return (
-          <span className="insp-corner" key={k} data-testid={`insp-row-corner-${k}`}>
-            <span className="insp-ax" aria-hidden="true">
-              {arrow}
-            </span>
+          <Corner key={k} k={k} arrow={arrow}>
             <LengthControl
               name={`corner-${k}`}
               label={`${name} corner`}
@@ -130,6 +145,11 @@ export function CornersBody({ el, selection, kind, ctx }) {
               allowNone
               noneLabel={r.mixed ? 'Mixed' : 'None'}
               disabled={!editable}
+              live={live((px) =>
+                count > 1 && red.mixed
+                  ? cornerToCss(k, { px })
+                  : cornersToCss({ ...words, [k]: { px } })
+              )}
               onChange={(len) =>
                 editable &&
                 // several objects whose corners differ: this corner only, the others stay as they are
@@ -138,7 +158,7 @@ export function CornersBody({ el, selection, kind, ctx }) {
                   : set({ ...words, [k]: len ?? { px: 0 } }))
               }
             />
-          </span>
+          </Corner>
         );
       })}
     </div>
