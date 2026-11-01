@@ -1,4 +1,8 @@
-# Lead checkpoint — 2026-11-01 (b), weekly budget at 82 %
+# Lead checkpoint — 2026-11-01 (b)
+
+> **Update 22:00 — the budget stop is lifted** (Michal: "zadny limit nedavej, pokracuj az 100% pak kdyztak prehodime ucet"). r4 is running: builders A r4-dnd (Opus, #2), B r4-ds-create (#10 #11 #7), C r4-signin (#8 #9a), D r4-small (#3 #12 #14 #1), E r4-lod-perf (#5 / the LOD regression), F r4-color-picker (#4), all in their own worktrees from 6763174c2. Next: #6 (global Light/Dark), then #13 #15–#18 img 44. Status per item: `r4-michal-findings.md`. If the session moves accounts: the builders' branches are `worktree-agent-*` in `.claude/worktrees/agent-*`; merge each in lead-merge-2 with gates-sg, then `.app` to Michal before chain4.
+
+(Original, weekly budget at 82 %:)
 
 Paused on the keeper's signal ("dokonči rozdělané, checkpoint, při 85 % pauza"). Resume after the reset
 **2026-11-06 09:00**. PR 1aGh/maude#160 stays a draft; the merge is Michal's.
