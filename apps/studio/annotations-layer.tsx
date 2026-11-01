@@ -95,6 +95,7 @@ import {
   stickerRefOf,
   toolForTemplate,
 } from './annotations/ui/sticker-drop.ts';
+import { rememberStickerPreview, resolveStickerHref } from './annotations/ui/sticker-preview.ts';
 import {
   NO_RESOLVED_LINE,
   resolveVerb,
@@ -497,6 +498,9 @@ function canvasDesignRel(): string {
  * optimistic `blob:`/`data:` preview href (pre-upload) is used verbatim.
  */
 function resolveAssetHref(href: string): string {
+  // r4 #16 - a gallery sticker just picked draws from the picture the shell sent along, not from a second load
+  const preview = resolveStickerHref(href);
+  if (preview) return preview;
   return /^assets\//.test(href) ? `/${canvasDesignRel()}/${href}` : href;
 }
 
@@ -2113,6 +2117,8 @@ export function AnnotationsLayer() {
       const placement =
         m.dgn === 'insert-sticker' || m.dgn === 'insert-template' ? placementOf(m) : null;
       if (placement) {
+        if (placement.kind === 'sticker' && placement.preview)
+          rememberStickerPreview(placement.path, placement.preview);
         const armed =
           placement.kind === 'stamp' || ('follow' in placement && placement.follow === true);
         if (armed) {

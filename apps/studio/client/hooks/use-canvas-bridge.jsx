@@ -74,6 +74,7 @@ import {
 import { createCommentToolWatch } from '../v2/comments/comment-tool.js';
 import { selectNewArtboard } from '../v2/empty/select-new-artboard.js';
 import { createStampFollow } from '../stamp-follow.js';
+import { blobToDataUrl } from '../v2/annotations/sticker-preload.js';
 import { markMine } from '../../comments/mine-stamp.ts';
 
 // one shell, one watch: the Comment tool's arming edge (P8 C5)
@@ -2680,6 +2681,9 @@ export function useCanvasBridge({
         const blob = await fetch(sticker.url).then((r) =>
           r.ok ? r.blob() : Promise.reject(new Error(`HTTP ${r.status}`))
         );
+        // r4 #16: the picture itself travels with the pick, so the ghost under the pointer and the placed
+        // sticker draw at once instead of waiting for the canvas to load the uploaded copy.
+        const preview = blobToDataUrl(blob);
         const res = await fetch('/_api/asset', {
           method: 'POST',
           headers: { 'content-type': blob.type || 'image/png' },
@@ -2703,7 +2707,14 @@ export function useCanvasBridge({
           });
         } else {
           // S4.13: the pick follows the pointer until a click, then lands at 160 px
-          postToActiveCanvas({ dgn: 'insert-sticker', path: j.path, follow: true, ...ref });
+          const dataUrl = await preview;
+          postToActiveCanvas({
+            dgn: 'insert-sticker',
+            path: j.path,
+            follow: true,
+            ...(dataUrl ? { preview: dataUrl } : {}),
+            ...ref,
+          });
         }
       } catch {
         console.warn('[sticker-picker] could not load or upload that sticker');

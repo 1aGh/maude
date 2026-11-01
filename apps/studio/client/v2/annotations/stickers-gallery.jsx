@@ -15,6 +15,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { orderPacks, resolveRecent, searchStickers } from './sticker-search.js';
+import { preloadOne, preloadStickers } from './sticker-preload.js';
 
 /** S4.18 (an-stk-gallery) — the Stamps row's line, as canvas 15 draws it. */
 export const STAMPS_SUBTITLE = 'vote · one each · they count';
@@ -73,9 +74,10 @@ function Cell({ sticker, label, onPick, on = false }) {
       title={word}
       data-testid={`sticker-${sticker.pack}-${sticker.file}`}
       data-on={on ? 'true' : undefined}
+      onPointerEnter={() => preloadOne(sticker.url)}
       onClick={() => onPick(sticker)}
     >
-      <img className="sh-sp-thumb" src={sticker.url} alt={word} loading="lazy" />
+      <img className="sh-sp-thumb" src={sticker.url} alt={word} decoding="async" />
       {label ? <em>{label}</em> : null}
     </button>
   );
@@ -129,7 +131,17 @@ export default function StickersGallery({
     let alive = true;
     fetch('/_api/stickers')
       .then((r) => r.json())
-      .then((j) => alive && setPacks(j.ok ? orderPacks(j.packs) : []))
+      .then((j) => {
+        if (!alive) return;
+        setPacks(j.ok ? orderPacks(j.packs) : []);
+        // r4 #16: load + decode every picture now, so a thumbnail is never an empty box and the pick's own
+        // fetch of the bytes is already in the cache
+        if (j.ok)
+          void preloadStickers(
+            j.packs.flatMap((p) => p.stickers ?? []),
+            { alive: () => alive }
+          );
+      })
       .catch(() => alive && setPacks([]));
     return () => {
       alive = false;

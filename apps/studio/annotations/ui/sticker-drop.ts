@@ -14,13 +14,14 @@
  */
 
 import { type ImageStroke, STICKER_DROP_SIZE } from '../../annotations-model.ts';
+import { isImageDataUrl } from './sticker-preview.ts';
 
 export const STAMPS_PACK = 'stamps';
 
 export type StickerRef = { pack: string; id: string; flip?: boolean };
 
 export type Pending =
-  | { kind: 'sticker'; path: string; sticker?: StickerRef; follow: boolean }
+  | { kind: 'sticker'; path: string; sticker?: StickerRef; follow: boolean; preview?: string }
   | { kind: 'stamp'; stampKind: string }
   | { kind: 'template'; id: string; follow: boolean };
 
@@ -72,6 +73,7 @@ export function placementOf(m: unknown): Pending | null {
     kind: 'sticker',
     path: o.path,
     ...(sticker ? { sticker } : {}),
+    ...(isImageDataUrl(o.preview) ? { preview: o.preview } : {}),
     follow: o.follow === true,
   };
 }
