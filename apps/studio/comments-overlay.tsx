@@ -69,6 +69,7 @@ import {
   sanitizeImportedFrom,
 } from './comments/imported-from.ts';
 import { handleOfName } from './comments/mentions.ts';
+import { mineIdsOf, restampMine, viewerFor } from './comments/mine-stamp.ts';
 import { committerRows, type MentionRow } from './comments/people.ts';
 import { mmAtArtboardPx, trimOfPrint, videoPinVisible, whereOf } from './comments/where.ts';
 import { resolveByDomPath } from './dom-selection.ts';
@@ -134,6 +135,8 @@ interface OverlayReply {
   created: string;
   /** `ai` for an AI-written reply (S9.7b) — shown with an AI mark, never as a person. */
   authorKind?: 'ai';
+  /** the shell says this reply is the viewer's (comments/mine-stamp.ts) — display only */
+  mine?: boolean;
   /** S8.17b — written in another tool (Figma): a label, never a member. `author` is the importer. */
   importedFrom?: ImportedFrom;
   /** Round 11 (10 co-sync-offline) — this reply waits on this Mac (the shell reads the outbox and stamps it). */
@@ -153,6 +156,8 @@ export interface OverlayComment {
   created: string;
   resolved_at: string | null;
   author?: string;
+  /** the shell says this comment is the viewer's (comments/mine-stamp.ts) — display only */
+  mine?: boolean;
   thread?: OverlayReply[];
   mentions?: string[];
   /** Target's tag/classes/ancestor-path at creation time — unused for
@@ -626,6 +631,8 @@ export function CommentsOverlay(): React.ReactNode {
   // Keep the latest comments list reachable from the message handler without
   // re-attaching the listener on every comments mutation.
   const commentsRef = useRef<OverlayComment[]>(comments);
+  /** the comment / reply ids the shell's last `comments-set` marked as the viewer's */
+  const mineIdsRef = useRef<ReadonlySet<string>>(new Set());
   commentsRef.current = comments;
 
   // Phase 8 Task 3 — when a collab room is connected, the Y.Array of comments
@@ -646,7 +653,8 @@ export function CommentsOverlay(): React.ReactNode {
     const arr = collab.doc.getArray<OverlayComment>('comments');
     const sync = () => {
       // toArray() snapshot the current Y.Array into a plain JS list.
-      setComments(arr.toArray() as OverlayComment[]);
+      // the live array carries no stamp: wear the ones the shell's last list named (rc.1 F08)
+      setComments(restampMine(arr.toArray(), mineIdsRef.current) as OverlayComment[]);
     };
     // Initial fill — covers the case where Y.Doc was already seeded by the
     // time this overlay mounted.
@@ -675,6 +683,7 @@ export function CommentsOverlay(): React.ReactNode {
       } | null;
       if (!m || typeof m !== 'object' || !m.dgn) return;
       if (m.dgn === 'comments-set' && Array.isArray(m.comments)) {
+        mineIdsRef.current = mineIdsOf(m.comments as OverlayComment[]);
         setComments(m.comments as OverlayComment[]);
       } else if (m.dgn === 'comment-focus') {
         const id = typeof m.id === 'string' ? m.id : null;
@@ -1006,8 +1015,9 @@ export function CommentsOverlay(): React.ReactNode {
             focusReply={replyFocus}
             mine={
               (!isReadOnlyCanvas() || canCommentCanvas()) &&
-              !!(me ?? collab?.myName) &&
-              (focused.author ?? '').trim() === (me ?? collab?.myName ?? '').trim()
+              (focused.mine === true ||
+                (!!(me ?? collab?.myName) &&
+                  (focused.author ?? '').trim() === (me ?? collab?.myName ?? '').trim()))
             }
             me={(me ?? collab?.myName) || undefined}
           />
@@ -1392,7 +1402,7 @@ function CommentPin({
     };
   }, [comment]);
 
-  const face = authorFace(comment.author, viewer);
+  const face = authorFace(comment.author, viewerFor(comment, viewer));
   // a thread (replies on it) shows how many messages it holds, so it reads as a conversation, not one note
   const messages = 1 + (comment.thread?.length ?? 0);
   const label = `Comment ${sequence} by ${face.name}${messages > 1 ? `, ${messages} messages` : ''}${detached ? ' (detached: its target is gone)' : ''}`;
@@ -1995,7 +2005,7 @@ export function CommentThread({
             <Avatar
               name={comment.from ? fromWho(comment.from).name : comment.author}
               ai={comment.from ? fromWho(comment.from).ai : comment.authorKind === 'ai'}
-              viewer={me}
+              viewer={comment.from ? me : viewerFor(comment, me)}
             />
           )}
           <div className="cm-msg__main">
@@ -2008,7 +2018,7 @@ export function CommentThread({
                   ? importedLabel(imported)
                   : comment.from
                     ? fromWho(comment.from).name
-                    : authorFace(comment.author, me).name}
+                    : authorFace(comment.author, viewerFor(comment, me)).name}
               </span>
               <span className="cm-thread__time">
                 {formatRelativeTime(imported?.at ?? comment.created)}
@@ -2060,12 +2070,12 @@ export function CommentThread({
             {ri ? (
               <ImportedMark />
             ) : (
-              <Avatar name={r.author} ai={r.authorKind === 'ai'} viewer={me} />
+              <Avatar name={r.author} ai={r.authorKind === 'ai'} viewer={viewerFor(r, me)} />
             )}
             <div className="cm-msg__main">
               <div className="cm-thread__reply-head">
                 <span className="cm-thread__reply-author">
-                  {ri ? importedLabel(ri) : authorFace(r.author, me).name}
+                  {ri ? importedLabel(ri) : authorFace(r.author, viewerFor(r, me)).name}
                 </span>
                 <span className="cm-thread__reply-time">
                   {formatRelativeTime(ri?.at ?? r.created)}
