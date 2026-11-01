@@ -26,10 +26,10 @@
         "title": "Open a canvas",
         "status": "pass",
         "notes": [
-          "rendered in localhost:54850"
+          "rendered in localhost:50997"
         ],
         "data": {
-          "frameHost": "localhost:54850"
+          "frameHost": "localhost:50997"
         },
         "shot": "shots/browser-02-open-canvas.png",
         "extra": [],
@@ -77,13 +77,13 @@
         "title": "Export a PNG",
         "status": "pass",
         "notes": [
-          "sheet: \"Export “Card”\" · scope selection",
-          "server job done: \"board — Card@1x.png PNG · On this Mac · just now Ready\"",
-          "downloaded board Card@1x.png — PNG signature ok"
+          "sheet: \"Export “Cross-shell card One canvas, three shel…”\" · scope selection",
+          "server job done: \"board — 75b252fd@1x.png PNG · On this Mac · just now Ready\"",
+          "downloaded board 75b252fd@1x.png — PNG signature ok"
         ],
         "data": {
           "lane": "server-job",
-          "title": "Export “Card”",
+          "title": "Export “Cross-shell card One canvas, three shel…”",
           "png": {
             "file": "shots/browser-export.png",
             "signature": "89504e470d0a1a0a",
@@ -153,10 +153,10 @@
         "title": "Open a canvas",
         "status": "pass",
         "notes": [
-          "rendered in canvas.cell.localhost:4887"
+          "rendered in canvas.cell.localhost:4791"
         ],
         "data": {
-          "frameHost": "canvas.cell.localhost:4887"
+          "frameHost": "canvas.cell.localhost:4791"
         },
         "shot": "shots/owner-02-open-canvas.png",
         "extra": [],
@@ -204,13 +204,13 @@
         "title": "Export a PNG",
         "status": "pass",
         "notes": [
-          "sheet: \"Export “Card”\" · scope selection",
+          "sheet: \"Export “Cross-shell card One canvas, three shel…”\" · scope selection",
           "browser lane: \"Capturing…\"",
           "downloaded card.png — PNG signature ok"
         ],
         "data": {
           "lane": "browser",
-          "title": "Export “Card”",
+          "title": "Export “Cross-shell card One canvas, three shel…”",
           "png": {
             "file": "shots/owner-export.png",
             "signature": "89504e470d0a1a0a",
@@ -246,9 +246,8 @@
       }
     ],
     "errors": [
-      "console: failed to load comments TypeError: Failed to fetch\n    at o (http://studio.cell.localhost:4887/_client/client.bundle.js?v=3f677b-1a192b5c2b7:1:24987)\n    at http://studio.cell.localhost:4887/_client/client.bundle.js?v=3f677b-1a192b5c2b7:5789:13038\n    at http://studio.cell.localhost:4887/_client/cli",
-      "console: failed to load tree TypeError: Failed to fetch\n    at o (http://studio.cell.localhost:4887/_client/client.bundle.js?v=3f677b-1a192b5c2b7:1:24987)\n    at read (http://studio.cell.localhost:4887/_client/client.bundle.js?v=3f677b-1a192b5c2b7:5787:4703)\n    at h (http://studio.cell.localhost:4887/_clien",
-      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: failed to load comments TypeError: Failed to fetch\n    at o (http://studio.cell.localhost:4791/_client/client.bundle.js?v=3f677b-1a196f01ed2:1:24987)\n    at http://studio.cell.localhost:4791/_client/client.bundle.js?v=3f677b-1a196f01ed2:5789:13038\n    at http://studio.cell.localhost:4791/_client/cli",
+      "console: failed to load tree TypeError: Failed to fetch\n    at o (http://studio.cell.localhost:4791/_client/client.bundle.js?v=3f677b-1a196f01ed2:1:24987)\n    at read (http://studio.cell.localhost:4791/_client/client.bundle.js?v=3f677b-1a196f01ed2:5787:4703)\n    at h (http://studio.cell.localhost:4791/_clien",
       "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
       "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
       "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
@@ -260,6 +259,7 @@
       "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
       "console: Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "console: Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
       "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
       "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
       "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
@@ -295,10 +295,10 @@
         "title": "Open a canvas",
         "status": "pass",
         "notes": [
-          "rendered in canvas.cell.localhost:4887"
+          "rendered in canvas.cell.localhost:4791"
         ],
         "data": {
-          "frameHost": "canvas.cell.localhost:4887"
+          "frameHost": "canvas.cell.localhost:4791"
         },
         "shot": "shots/viewer-02-open-canvas.png",
         "extra": [],

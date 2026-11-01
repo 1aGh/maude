@@ -1,40 +1,88 @@
-  ✓ trash → _trash.mjs  no npm deps
-  ✓ all 37 standalone helpers have complete dep closures
+
+======================================================================
+Maude bundle self-containment check — app: apps/desktop/src-tauri/target/release/bundle/macos/Maude.app
+======================================================================
+
+[1] pkgRoot resolvability (G2)
+  [32m✓[0m resources root is a valid pkgRoot  [2m/Users/iagh/git/personal/maude/.claude/worktrees/freeze/apps/desktop/src-tauri/target/release/bundle/macos/Maude.app/Contents/Resources[0m
+
+[2] bundled JS runtime (G1 adapter, G3 bun helpers)
+  [32m✓[0m bundled JS runtime present  [2m/Users/iagh/git/personal/maude/.claude/worktrees/freeze/apps/desktop/src-tauri/target/release/bundle/macos/Maude.app/Contents/MacOS/maude-server (compiled Bun; used via BUN_BE_BUN=1)[0m
+
+[3] standalone-helper dependency closures (G4)
+  [32m✓[0m agent-browser-safe → _agent-browser-safe.mjs  [2mno npm deps[0m
+  [32m✓[0m assets → _assets.mjs  [2mdeps ok: ajv, diff, magic-string, oxc-parser[0m
+  [32m✓[0m audio-search → _audio-search.mjs  [2mno npm deps[0m
+  [32m✓[0m canvas-errors → _canvas-errors.mjs  [2mno npm deps[0m
+  [32m✓[0m canvas-source → _canvas-errors.mjs  [2mno npm deps[0m
+  [32m✓[0m captions → _video-verbs.mjs  [2mno npm deps[0m
+  [32m✓[0m check → _check.mjs  [2mdeps ok: magic-string, oxc-parser[0m
+  [32m✓[0m comments → _comments.mjs  [2mno npm deps[0m
+  [32m✓[0m curl-local → _curl-local.mjs  [2mno npm deps[0m
+  [32m✓[0m cut-to-beat → _video-verbs.mjs  [2mno npm deps[0m
+  [32m✓[0m cut-words → _video-verbs.mjs  [2mno npm deps[0m
+  [32m✓[0m describe → _describe.mjs  [2mno npm deps[0m
+  [32m✓[0m ds-check → _ds-check.mjs  [2mdeps ok: ajv, magic-string, oxc-parser[0m
+  [32m✓[0m ds-upgrade → _ds-upgrade.mjs  [2mdeps ok: ajv, magic-string, oxc-parser[0m
+  [32m✓[0m ds → _ds.mjs  [2mdeps ok: ajv, diff, magic-string, oxc-parser[0m
+  [32m✓[0m ensure-browser → _ensure-browser.mjs  [2mno npm deps[0m
+  [32m✓[0m exports → _exports.mjs  [2mno npm deps[0m
+  [32m✓[0m fetch-asset → _fetch-asset.mjs  [2mno npm deps[0m
+  [32m✓[0m history → _history.mjs  [2mno npm deps[0m
+  [32m✓[0m import-asset → _import-asset.mjs  [2mdeps ok: happy-dom, svgo[0m
+  [32m✓[0m import-brand → _import-brand.mjs  [2mdeps ok: happy-dom, svgo[0m
+  [32m✓[0m import-figma → _import-figma.mjs  [2mdeps ok: happy-dom, oxc-parser, svgo[0m
+  [32m✓[0m import-tokens → _import-tokens.mjs  [2mno npm deps[0m
+  [32m✓[0m index → _index-cli.mjs  [2mdeps ok: ajv, diff, magic-string, oxc-parser[0m
+  [32m✓[0m ingest-footage → _ingest-footage.mjs  [2mno npm deps[0m
+  [32m✓[0m layout-check → _layout-check.mjs  [2mno npm deps[0m
+  [32m✓[0m logs → _logs.mjs  [2mno npm deps[0m
+  [32m✓[0m place → _place.mjs  [2mno npm deps[0m
+  [32m✓[0m probe-footage → _probe-footage-playwright.mjs  [2mno npm deps[0m
+  [32m✓[0m reel-place → _reel-place.mjs  [2mdeps ok: diff, magic-string, oxc-parser[0m
+  [32m✓[0m runs → _runs.mjs  [2mno npm deps[0m
+  [32m✓[0m smart-frames → _smart-frames.mjs  [2mno npm deps[0m
+  [32m✓[0m svg-optimize → _svg-optimize.mjs  [2mdeps ok: svgo[0m
+  [32m✓[0m sync → _sync.mjs  [2mno npm deps[0m
+  [32m✓[0m transcribe-local → _transcribe-local.mjs  [2mno npm deps[0m
+  [32m✓[0m transcribe → _transcribe.mjs  [2mno npm deps[0m
+  [32m✓[0m trash → _trash.mjs  [2mno npm deps[0m
+  [32m✓[0m all 37 standalone helpers have complete dep closures
 
 [3b] server render shims (exports, thumbnail renderer)
-  ✓ all 7 server render shims staged with their deps  _ds-prove-playwright.mjs, _html-playwright.mjs, _pdf-playwright.mjs, _png-playwright.mjs, _svg-playwright.mjs, _thumbs-playwright.mjs, _video-playwright.mjs
+  [32m✓[0m all 7 server render shims staged with their deps  [2m_ds-prove-playwright.mjs, _html-playwright.mjs, _pdf-playwright.mjs, _png-playwright.mjs, _svg-playwright.mjs, _thumbs-playwright.mjs, _video-playwright.mjs[0m
 
 [4] stripped-PATH smoke (no node/bun/claude on PATH — fresh-machine sim)
-  ✓ smoke agent-browser-safe  reached helper (no missing runtime/dep/helper)
-  ✓ smoke assets  reached helper (no missing runtime/dep/helper)
-  ✓ smoke audio-search  reached helper (no missing runtime/dep/helper)
-  ✓ smoke canvas-errors  reached helper (no missing runtime/dep/helper)
-  ✓ smoke canvas-source  reached helper (no missing runtime/dep/helper)
-  ✓ smoke captions  reached helper (no missing runtime/dep/helper)
-  ✓ smoke chat-open  reached helper (no missing runtime/dep/helper)
-  ✓ smoke check  reached helper (no missing runtime/dep/helper)
-  ✓ smoke comments  reached helper (no missing runtime/dep/helper)
-  ✓ smoke curl-local  reached helper (no missing runtime/dep/helper)
-  ✓ smoke cut-to-beat  reached helper (no missing runtime/dep/helper)
-  ✓ smoke cut-words  reached helper (no missing runtime/dep/helper)
-  ✓ smoke describe  reached helper (no missing runtime/dep/helper)
-  ✓ smoke reel-place (parses a canvas)  placed shot 1 — native parser binding loads
-  ✓ smoke render export (png, no node/bun)  2526 B png
+  [32m✓[0m smoke agent-browser-safe  [2mreached helper (no missing runtime/dep/helper)[0m
+  [32m✓[0m smoke assets  [2mreached helper (no missing runtime/dep/helper)[0m
+  [32m✓[0m smoke audio-search  [2mreached helper (no missing runtime/dep/helper)[0m
+  [32m✓[0m smoke canvas-errors  [2mreached helper (no missing runtime/dep/helper)[0m
+  [32m✓[0m smoke canvas-source  [2mreached helper (no missing runtime/dep/helper)[0m
+  [32m✓[0m smoke captions  [2mreached helper (no missing runtime/dep/helper)[0m
+  [32m✓[0m smoke chat-open  [2mreached helper (no missing runtime/dep/helper)[0m
+  [32m✓[0m smoke check  [2mreached helper (no missing runtime/dep/helper)[0m
+  [32m✓[0m smoke comments  [2mreached helper (no missing runtime/dep/helper)[0m
+  [32m✓[0m smoke curl-local  [2mreached helper (no missing runtime/dep/helper)[0m
+  [32m✓[0m smoke cut-to-beat  [2mreached helper (no missing runtime/dep/helper)[0m
+  [32m✓[0m smoke cut-words  [2mreached helper (no missing runtime/dep/helper)[0m
+  [32m✓[0m smoke describe  [2mreached helper (no missing runtime/dep/helper)[0m
+  [32m✓[0m smoke reel-place (parses a canvas)  [2mplaced shot 1 — native parser binding loads[0m
+  [32m✓[0m smoke render export (png, no node/bun)  [2m1874 B png[0m
 
 [5] kgai engine + plugin (autonomous capture in the shipped app)
-  ✓ libkuzu staged  libkuzu.dylib
-  ✓ kgai engine staged  /Users/iagh/git/personal/maude/.claude/worktrees/freeze/apps/desktop/src-tauri/target/release/bundle/macos/Maude.app/Contents/Resources/kgai/kg
-  ⚠ kg is thin
-    arm64 — fine for a single-arch build, WRONG for a universal .app
-  ✓ kgai pin stamped  v1.4.0
-  ✓ kgai Stop hook present  autonomous capture will load in the ACP session
-  ✓ kgai SessionStart neutralized  engine is pre-staged; no install hook
-  ✓ smoke kg resolve  staged engine resolved (pin v1.5.1)
+  [32m✓[0m libkuzu staged  [2mlibkuzu.dylib[0m
+  [32m✓[0m kgai engine staged  [2m/Users/iagh/git/personal/maude/.claude/worktrees/freeze/apps/desktop/src-tauri/target/release/bundle/macos/Maude.app/Contents/Resources/kgai/kg[0m
+  [33m⚠[0m kg is thin
+    [2marm64 — fine for a single-arch build, WRONG for a universal .app[0m
+  [32m✓[0m kgai pin stamped  [2mv1.4.0[0m
+  [32m✓[0m kgai Stop hook present  [2mautonomous capture will load in the ACP session[0m
+  [32m✓[0m kgai SessionStart neutralized  [2mengine is pre-staged; no install hook[0m
+  [32m✓[0m smoke kg resolve  [2mstaged engine resolved (pin v1.5.1)[0m
 
 [6] out-of-process asset sweep — retired (no runtime-spawned sync surface)
 
 ======================================================================
-Notes:
-  • server-routed helpers (deps ride the compiled server): chat-open, generate, photo-adjust, photo-bg-remove
-  • kg is thin: arm64 — fine for a single-arch build, WRONG for a universal .app
-Bundle is self-contained — all checks passed.
+[33mNotes:[0m
+  • server-routed helpers (deps ride the compiled server): [2mchat-open, generate, photo-adjust, photo-bg-remove[0m
+  • kg is thin: [2marm64 — fine for a single-arch build, WRONG for a universal .app[0m
+[32mBundle is self-contained — all checks passed.[0m

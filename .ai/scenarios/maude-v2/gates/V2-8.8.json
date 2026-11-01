@@ -3,12 +3,12 @@
   "pass": true,
   "qualityHash": "ca053cd5bbc8fa64231dfde679d7b0108280b8f384c154322c75c50c872e7071",
   "reportHashes": {
-    ".ai/plans/notes/v2-evidence/V2-8.8-perf.md": "70b58f8f23575c77c12c1fe85887c9ce9fdb0362f13e27a9663f53102d2c5965"
+    ".ai/plans/notes/v2-evidence/V2-8.8-perf.md": "a51cd666d8a0d523dd8352e667f670c579eb78848efcd361fc043a6b208c60d5"
   },
-  "head": "20b4215eb5178c009bf57f03607e43160ccc83b9",
-  "ts": "2026-10-31T17:40:43.241Z",
+  "head": "fab4e6c4a1437950b73fe2d5db2df8a1d9c00cc2",
+  "ts": "2026-11-01T13:42:08.987Z",
   "reports": [
     ".ai/plans/notes/v2-evidence/V2-8.8-perf.md"
   ],
-  "note": "Chromium studio + bare PASS at 20b4215eb (this Mac); WebKit both orders PASS at 20b4215eb (Mac mini, same sha, safaridriver in Michal's GUI session)"
+  "note": "Chromium studio + bare PASS, WebKit both orders PASS (v2 p95 22/20 vs pre-v2 48/45) at 08b35c8db on this Mac; since then only chat.css (slash-name ink) + a test changed"
 }

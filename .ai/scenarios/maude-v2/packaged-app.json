@@ -1,12 +1,17 @@
 {
   "branch": "feat/maude-v2",
-  "head": "20b4215eb5178c009bf57f03607e43160ccc83b9",
+  "head": "fab4e6c4a1437950b73fe2d5db2df8a1d9c00cc2",
   "version": "2.0.0-rc.1",
   "app": ".claude/worktrees/freeze/apps/desktop/src-tauri/target/release/bundle/macos/Maude.app",
-  "built": "2026-10-31T18:41",
+  "built": "2026-11-01T14:43",
   "env": "MAUDE_NO_AUTO_UPDATE=1",
-  "scripted": { "bundleCompletenessSmoke": true, "clientBoots": true, "noWebDriverInRelease": true, "openingCardClears": "chromium" },
-  "cleanUserSmoke": "pending — Michal (a fresh macOS user with no node/bun/brew/claude)",
+  "scripted": {
+    "bundleCompletenessSmoke": true,
+    "clientBoots": true,
+    "noWebDriverInRelease": true,
+    "openingCardClears": "chromium"
+  },
+  "cleanUserSmoke": "pending \u2014 Michal (a fresh macOS user with no node/bun/brew/claude)",
   "evidence": ".ai/plans/notes/v2-evidence/V2-8.10-app-final/README.md",
   "pass": false,
   "note": "set pass to true once Michal's clean-user smoke is done; the scripted half is green"

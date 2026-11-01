@@ -6,11 +6,11 @@
     ".ai/plans/notes/v2-evidence/V2-8.5-closure.md": "cac4f9663b1419ffe19394e01ab5d8aee0badd8fdc214b2181b2585753b8fcbf",
     ".ai/plans/notes/v2-evidence/V2-8.5-84-test-map.md": "5b37669d9a91f3dcbb187e814e2518e036b74f5c0acc48c6acf66e877f363145"
   },
-  "head": "20b4215eb5178c009bf57f03607e43160ccc83b9",
-  "ts": "2026-10-31T17:40:43.138Z",
+  "head": "fab4e6c4a1437950b73fe2d5db2df8a1d9c00cc2",
+  "ts": "2026-11-01T13:42:08.822Z",
   "reports": [
     ".ai/plans/notes/v2-evidence/V2-8.5-closure.md",
     ".ai/plans/notes/v2-evidence/V2-8.5-84-test-map.md"
   ],
-  "note": "ledger artboard rows 342 verified / 14 soak / 4 not-a-state / 0 open; the 84 e2e rows re-checked at 20b4215eb on V2-8.3 (3x, chain4, 41 lanes, 0 failing) + browser e2e 2x on the mini (14 rc=0)"
+  "note": "ledger artboard rows 342 verified / 14 soak / 4 not-a-state / 0 open; the 84 e2e rows re-checked at 08b35c8db on V2-8.3 (3x, chain4, 0 failing) + ALL 24 browser e2e files x2 on the mini on a fresh release build (48/48 rc=0, all-08b35c8db)"
 }

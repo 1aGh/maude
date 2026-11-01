@@ -1,0 +1,14 @@
+run1 apps/studio/test/e2e/ai-states.e2e.mjs rc=0
+run1 apps/studio/test/e2e/ai-handoff.e2e.mjs rc=0
+run1 apps/studio/test/e2e/ai-annotations.e2e.mjs rc=0
+run1 apps/studio/test/e2e/annotations-viewer.e2e.mjs rc=0
+run1 apps/studio/test/e2e/presence-together.e2e.mjs rc=0
+run1 apps/studio/test/e2e/edit-together.e2e.mjs rc=0
+run1 apps/studio/test/e2e/video-together.e2e.mjs rc=0
+run2 apps/studio/test/e2e/ai-states.e2e.mjs rc=0
+run2 apps/studio/test/e2e/ai-handoff.e2e.mjs rc=0
+run2 apps/studio/test/e2e/ai-annotations.e2e.mjs rc=0
+run2 apps/studio/test/e2e/annotations-viewer.e2e.mjs rc=0
+run2 apps/studio/test/e2e/presence-together.e2e.mjs rc=0
+run2 apps/studio/test/e2e/edit-together.e2e.mjs rc=0
+run2 apps/studio/test/e2e/video-together.e2e.mjs rc=0

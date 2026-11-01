@@ -1,0 +1,1 @@
+PASS (chromium): the Opening card cleared

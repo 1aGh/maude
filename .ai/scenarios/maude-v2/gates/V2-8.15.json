@@ -3,12 +3,12 @@
   "pass": true,
   "qualityHash": "ca053cd5bbc8fa64231dfde679d7b0108280b8f384c154322c75c50c872e7071",
   "reportHashes": {
-    ".ai/plans/notes/v2-evidence/V2-8.15-docs.md": "bebe5dec2423a928dc7b09e13b131a0c1d28bf39979e905ad350bbca0e506e35"
+    ".ai/plans/notes/v2-evidence/V2-8.15-docs.md": "fe98ea8864bbeac7228f6e1d406d71fc9892c646e1b8c9cb4d49552c700ee364"
   },
-  "head": "20b4215eb5178c009bf57f03607e43160ccc83b9",
-  "ts": "2026-10-31T17:40:43.370Z",
+  "head": "fab4e6c4a1437950b73fe2d5db2df8a1d9c00cc2",
+  "ts": "2026-11-01T13:42:09.243Z",
   "reports": [
     ".ai/plans/notes/v2-evidence/V2-8.15-docs.md"
   ],
-  "note": "4 deliverables present, gens --check 0, site gens no diff, drift tests 12/12 at 20b4215eb"
+  "note": "4 deliverables present, gens --check 0, site gens no diff, drift tests 12/12; r2 re-check: 15 stale lines (Maude Cloud, Artboard / Frame) fixed in 7514d210e"
 }
