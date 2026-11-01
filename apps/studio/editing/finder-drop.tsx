@@ -14,6 +14,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { uploadAsset } from '../asset-upload.ts';
+import { canvasModeStore } from '../bridge/canvas-mode-store.ts';
 import { showCanvasToast } from '../canvas-notifications.tsx';
 import { dropHint, type PlaceTargetKind } from '../edit-ops/place-plan.ts';
 import type { EditOpResult, ElementRef } from '../edit-ops/types.ts';
@@ -277,8 +278,11 @@ export function FinderDrop({ readOnly }: { readOnly?: boolean }) {
     if (typeof document === 'undefined' || readOnly) return undefined;
     const show = (next: Hint | null) => setHint((prev) => (sameHint(prev, next) ? prev : next));
     const clear = () => show(null);
+    // r4 #2 — Preview never edits the design: a Finder drop there is the annotation layer's (an annotation picture)
+    const preview = () => canvasModeStore(window).get().mode === 'preview';
     const over = (e: DragEvent) => {
       if (isReadOnlyCanvas() || !isFinderDrag(e.dataTransfer?.types)) return;
+      if (preview()) return clear();
       const items = e.dataTransfer?.items;
       const n = dragPhotoCount(items);
       // r3: a lone video is ours too (placed like a photo); a sound or anything else the list shows is not
@@ -313,7 +317,7 @@ export function FinderDrop({ readOnly }: { readOnly?: boolean }) {
       if (e.relatedTarget == null) clear();
     };
     const drop = (e: DragEvent) => {
-      if (isReadOnlyCanvas() || !isFinderDrag(e.dataTransfer?.types)) return;
+      if (isReadOnlyCanvas() || !isFinderDrag(e.dataTransfer?.types) || preview()) return;
       const files = Array.from(e.dataTransfer?.files ?? []);
       const { photos: pics, over: extra } = photosOf(files);
       // r3: no photo but a video → the first video is placed like a photo; the rest are left out, in one line

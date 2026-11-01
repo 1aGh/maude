@@ -153,6 +153,7 @@ export function placeRequestFor(drag, target, canvas) {
  * @param deps.accept   (e) => message | null — `acceptFromCanvas` with the active frame as the gate
  * @param deps.canvas   () => string | null — the open canvas (the file `image.place` writes)
  * @param deps.place    (req) => Promise<{ok, created?, message?}> — `placeAsset`
+ * @param deps.preview  () => boolean — the canvas is in Preview: a drop adds an annotation, never a design edit
  */
 export function createCatcherLane(deps) {
   let seq = 0;
@@ -177,6 +178,13 @@ export function createCatcherLane(deps) {
       const canvas = deps.canvas();
       if (!drag || !canvas) return null;
       clearPending();
+      // r4 #2 — Preview never edits the design: the picture goes on the board as an annotation, where it was
+      // dropped (the point first, then the ask; the canvas's annotation layer places it there)
+      if (deps.preview?.()) {
+        deps.post({ dgn: 'asset-drag-over', x: Math.round(x), y: Math.round(y) });
+        deps.post({ dgn: 'insert-annotation-media', paths: [drag.asset] });
+        return null;
+      }
       const requestId = `ad_${Date.now().toString(36)}_${++seq}`;
       pending = {
         requestId,

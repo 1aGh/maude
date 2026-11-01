@@ -373,7 +373,7 @@ pub fn set_overview(app: &AppHandle, open: bool) {
         .and_then(|s| s.windows.lock().unwrap_or_else(|e| e.into_inner()).focused().map(str::to_string))
         .unwrap_or_else(|| HOME_LABEL.to_string());
     if let Some(wv) = app.get_webview(&active) {
-        let _ = if open { wv.hide() } else { wv.show() };
+        set_tab_shown(&wv, !open);
         if !open && was {
             let _ = wv.set_focus();
         }
@@ -396,6 +396,58 @@ fn shell_logical_size<R: Runtime>(shell: &tauri::Window<R>) -> (f64, f64) {
         }
         Err(_) => (SHELL_W, SHELL_H),
     }
+}
+
+// ── Showing and hiding a tab (r4 #2: drag and drop) ─────────────────────────
+//
+// Every tab webview lies on the same rect, and a tab added later sits ABOVE
+// the ones before it. AppKit picks a drag's destination among the views
+// registered for dragged types WITHOUT skipping hidden ones, so a hidden tab
+// above the active one took every drag: an Assets tile's drag started in the
+// active page and never came back to it, and a Finder drop landed in the
+// hidden project's page (seen with a real OS drag, apps/desktop/scripts/
+// check-real-drop.mjs). So the tab that is shown is also raised to the top of
+// its siblings: the topmost view under a drag is always the visible tab.
+// (Taking a hidden tab's dragged types away instead did not work: a sibling's
+// `unregisterDraggedTypes` also cost the shown tab its Finder drops.)
+
+/// Show or hide a tab webview. The ONE way a tab's visibility changes
+/// (`tab_visibility_goes_through_set_tab_shown` holds every call to it).
+pub fn set_tab_shown<R: Runtime>(wv: &tauri::Webview<R>, shown: bool) {
+    let _ = if shown { wv.show() } else { wv.hide() };
+    #[cfg(target_os = "macos")]
+    if shown {
+        let _ = wv.with_webview(|platform| {
+            // SAFETY: on macOS `inner()` is the live WKWebView and this closure runs on the main thread (Tauri's
+            // `with_webview` contract); `superview` / `sortSubviewsUsingFunction:context:` are plain NSView calls.
+            unsafe { raise_to_top(platform.inner().cast::<objc2::runtime::AnyObject>()) }
+        });
+    }
+}
+
+/// Re-order `view`'s siblings so it is the last (topmost) subview. `sortSubviewsUsingFunction` re-orders in
+/// place — the view is never removed from its window, so the page keeps its state, focus and layers.
+#[cfg(target_os = "macos")]
+unsafe fn raise_to_top(view: *mut objc2::runtime::AnyObject) {
+    use objc2::msg_send;
+    use objc2::runtime::AnyObject;
+    use std::ffi::c_void;
+    /// NSComparisonResult: the raised view sorts after every other; the rest keep their order (a stable sort).
+    extern "C" fn last(a: *mut AnyObject, b: *mut AnyObject, ctx: *mut c_void) -> isize {
+        let top = ctx as *mut AnyObject;
+        if a == top && b != top {
+            1
+        } else if b == top && a != top {
+            -1
+        } else {
+            0
+        }
+    }
+    let Some(view) = view.as_ref() else { return };
+    let parent: *mut AnyObject = msg_send![view, superview];
+    let Some(parent) = parent.as_ref() else { return };
+    let f: extern "C" fn(*mut AnyObject, *mut AnyObject, *mut c_void) -> isize = last;
+    let _: () = msg_send![parent, sortSubviewsUsingFunction: f, context: view as *const AnyObject as *mut c_void];
 }
 
 /// Re-lay-out every child after a resize, a fullscreen change or a scale
@@ -488,7 +540,7 @@ pub fn add_tab(
         .map_err(|e| format!("Couldn't open a tab for this project: {e}"))?;
     // Built visible: hide it until `activate` picks it, so a tab opened in the
     // background (a restore) never flashes over the active one.
-    let _ = wv.hide();
+    set_tab_shown(&wv, false);
     Ok(wv)
 }
 
@@ -536,11 +588,11 @@ pub fn activate(app: &AppHandle, label: &str) -> Result<(), String> {
     // main thread, which takes the book lock in the navigation guard).
     windows::on_focused(app, label);
     // Show before hide: no frame without a tab (contract §10 q1).
-    let _ = target.show();
+    set_tab_shown(&target, true);
     if let Some(shell) = app.get_window(SHELL_LABEL) {
         for wv in shell.webviews() {
             if wv.label() != label && wv.label() != STRIP_LABEL {
-                let _ = wv.hide();
+                set_tab_shown(&wv, false);
             }
         }
         let _ = shell.set_title(&title_of(app, label));
@@ -1631,6 +1683,40 @@ mod tests {
         assert!(strip_navigation_allowed(&url("tauri://localhost/strip.html")));
         assert!(!strip_navigation_allowed(&url("tauri://localhost/index.html")));
         assert!(!strip_navigation_allowed(&url("http://localhost:4400/strip.html")));
+    }
+
+    /// r4 #2: a hidden tab above the active one took every OS drag (an Assets tile, a Finder file), because
+    /// AppKit does not skip a hidden view when it picks a drag destination. `set_tab_shown` drops a hidden tab's
+    /// dragged types and gives them back on show, so every tab visibility change must go through it: a raw
+    /// `Webview::show()` / `hide()` on a tab brings the bug back. Only the shell WINDOW (`shell.show()`) and the
+    /// two calls inside `set_tab_shown` itself may call them.
+    #[test]
+    fn tab_visibility_goes_through_set_tab_shown() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+        let mut offenders = Vec::new();
+        for entry in std::fs::read_dir(&dir).unwrap() {
+            let path = entry.unwrap().path();
+            let name = path.file_name().unwrap().to_string_lossy().to_string();
+            // present.rs hides its own Present WINDOW, not a tab webview
+            if !name.ends_with(".rs") || name == "present.rs" || name == "notify.rs" {
+                continue;
+            }
+            let src = std::fs::read_to_string(&path).unwrap();
+            let src = src.split("#[cfg(test)]\nmod tests").next().unwrap();
+            for (i, line) in src.lines().enumerate() {
+                let code = line.split("//").next().unwrap();
+                if !(code.contains(".show()") || code.contains(".hide()")) || code.contains("shell.show()")
+                    || code.contains("window.hide()") // the shell WINDOW on ⌘W (lib.rs)
+                {
+                    continue;
+                }
+                if name == "tabs.rs" && code.contains("if shown { wv.show() } else { wv.hide() }") {
+                    continue;
+                }
+                offenders.push(format!("{name}:{}: {}", i + 1, line.trim()));
+            }
+        }
+        assert!(offenders.is_empty(), "tab visibility outside set_tab_shown:\n{}", offenders.join("\n"));
     }
 
     #[test]

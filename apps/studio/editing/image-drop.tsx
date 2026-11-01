@@ -11,7 +11,7 @@
 // A Finder file is not handled here: that is the asset import's (S8.14), which ends in the same op.
 
 import { useEffect, useRef, useState } from 'react';
-
+import { canvasModeStore } from '../bridge/canvas-mode-store.ts';
 import {
   type AssetDropTarget,
   acceptFromShell,
@@ -154,7 +154,13 @@ export function ImageDrop({ readOnly }: { readOnly?: boolean }) {
       const m: ShellToCanvasMessage | null = acceptFromShell(e, window);
       if (!m) return;
       if (m.dgn === 'asset-drag-over') {
-        if (m.x === null || typeof m.y !== 'number') clear();
+        // r4 #2 — in Preview the drop becomes an annotation picture (annotations-layer): no frame ring
+        if (
+          m.x === null ||
+          typeof m.y !== 'number' ||
+          canvasModeStore(window).get().mode === 'preview'
+        )
+          clear();
         else ringAt(m.x, m.y);
       } else if (m.dgn === 'asset-drop-at') {
         clear();
