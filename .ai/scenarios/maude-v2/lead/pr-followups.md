@@ -427,3 +427,4 @@ rights or is an availability nuisance). Candidates for the first rc patch:
 - A video dropped on bare canvas (outside every artboard) still goes through the old media hook (upload + toasted `<Video>` snippet); a video placed in Edit has `controls` — check select vs play feel in the live app.
 - The design-system preview frame (`dsPreview`) also blocks the Assets drop catcher — confirm that is wanted.
 - canvas-tools.e2e.mjs T15 (⌘D copies +10 / +10) fails about 1 run in 2 on the mini, pre-existing (all-e5edca1cc 2/2, before r3): the copy is read as rects()[1], likely the source order of the copy, not its offset — make the assertion find the copy by id.
+- Zoom in Chromium (Maude in a browser) on a large real DS canvas re-lays-out every artboard per frame (200–350 ms, unchanged by the r4 #5 fix, which is WebKit's style-recalc cause) — own task (r4-cold-zoom, 2026-11-02). Benchmarks of the DS canvas must copy .design/config.json, or specimens render as placeholders.
