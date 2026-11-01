@@ -92,6 +92,23 @@ describe('the comment card: Delete comment is an icon in the action row', () => 
     expect(calls).toEqual(['delete', 'close']);
   });
 
+  test('a double-click only asks — its second click never deletes, and the armed icon is still the trash', async () => {
+    // r3 security delta (low): the second click of one double-click landed on the armed button and deleted
+    const { host, calls } = await render();
+    const del = () => host.querySelector<HTMLElement>('[data-testid="comment-delete-c_2"]');
+    const glyph = () => del()?.querySelector('path')?.getAttribute('d');
+    const trash = glyph();
+    await act(async () => {
+      del()?.dispatchEvent(new window.MouseEvent('click', { bubbles: true, detail: 1 }));
+      del()?.dispatchEvent(new window.MouseEvent('click', { bubbles: true, detail: 2 }));
+    });
+    expect(calls).toEqual([]);
+    expect(del()?.getAttribute('data-armed')).toBe('true');
+    expect(glyph()).toBe(trash); // never the Resolve check beside it
+    await click(del());
+    expect(calls).toEqual(['delete', 'close']);
+  });
+
   test('blur, or Esc, puts it back: nothing is deleted', async () => {
     const { host, calls } = await render();
     const del = () => host.querySelector<HTMLElement>('[data-testid="comment-delete-c_2"]');

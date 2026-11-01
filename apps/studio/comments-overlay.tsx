@@ -2252,12 +2252,12 @@ function ImportedMark(): React.ReactElement {
 /** The shell's `trash` icon, same 16 grid. */
 const TRASH_GLYPH =
   'M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.1a1 1 0 0 0 1 .9h3.8a1 1 0 0 0 1-.9l.6-8.1';
-const CHECK_GLYPH = 'M3 8.4 6.4 11.8 13 4.6';
 export const DELETE_ARM_MS = 4000;
 
 /**
  * R3 (7): "Delete comment" is a trash icon in the action row, level with Edit / Resolve / ×. One press arms it
- * (the icon becomes a check, the tooltip says "Press again to delete"); a second press deletes. It disarms after a
+ * (the trash turns red, the tooltip says "Press again to delete"); a second, separate press deletes (the second click of a
+ * double-click does not). It disarms after a
  * few seconds, on blur and on Esc. The testid is the same in both states.
  */
 function DeleteCommentButton({
@@ -2288,13 +2288,15 @@ function DeleteCommentButton({
           setArmed(false);
         }
       }}
-      onClick={() => {
+      onClick={(e) => {
         if (!armed) return setArmed(true);
+        // the second click of one double-click only arms: a delete needs its own press
+        if (e.detail > 1) return;
         setArmed(false);
         onConfirm();
       }}
     >
-      <Glyph d={armed ? CHECK_GLYPH : TRASH_GLYPH} />
+      <Glyph d={TRASH_GLYPH} />
     </button>
   );
 }

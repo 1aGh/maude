@@ -137,7 +137,7 @@ function useMe(given) {
 }
 
 /** R3 (7): "Delete comment" is a trash icon in the action row (never a text button on a line of its own). One press
- *  arms it (the icon becomes a check, the tooltip says "Press again to delete"); a second deletes. It disarms after a
+ *  arms it (the trash turns red, the tooltip says "Press again to delete"); a second, separate press deletes. It disarms after a
  *  few seconds, on blur, and on Esc. The testid is the same in both states. */
 export const DELETE_ARM_MS = 4000;
 function DeleteAct({ id, onDelete }) {
@@ -165,11 +165,13 @@ function DeleteAct({ id, onDelete }) {
       onClick={(e) => {
         e.stopPropagation();
         if (!armed) return setArmed(true);
+        // the second click of one double-click only arms: a delete needs its own press
+        if (e.detail > 1) return;
         setArmed(false);
         onDelete(id);
       }}
     >
-      <StIcon name={armed ? 'resolve' : 'trash'} size={14} />
+      <StIcon name="trash" size={14} />
     </button>
   );
 }
