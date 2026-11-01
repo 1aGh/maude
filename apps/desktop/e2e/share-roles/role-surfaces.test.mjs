@@ -384,7 +384,8 @@ describe('Can comment — 04 md-comment-only · 05 es-viewer · 09 ex-edges', ()
       assert.equal(await petra.locator(tid('palette-mode-edit')).count(), 0);
       await petra.locator(tid('palette-mode-viewing')).waitFor({ timeout: STEP });
       const inPreview = await until('the Preview toolbar', () => toolbarSlots(petra));
-      assert.deepEqual(inPreview, ['browse', 'comment']);
+      // Michal's #17: Preview has Select (V) and Hand (H) for everyone who can look, so a comment-only person gets both
+      assert.deepEqual(inPreview, ['browse', 'hand', 'comment']);
       await selectMode(petra, 'viewing');
       // the canvas toolbar: Hand and Comment, nothing else — hidden, not greyed
       await frameOf(petra).locator(tid('toolbar-viewing')).waitFor({ timeout: STEP });
