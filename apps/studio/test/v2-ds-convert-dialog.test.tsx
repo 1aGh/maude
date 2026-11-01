@@ -269,6 +269,41 @@ describe('the dialog and its host', () => {
     expect(toasts).toEqual(['3 Design system canvases now.']);
   });
 
+  // r4 #10 — "nothing happens after Convert; I have to open another canvas and come back"
+  test('after Convert the studio reads the project again and the open view goes to the new canvas at once', async () => {
+    const { useState } = await import('react');
+    const f = fakeFetch((b) =>
+      b.dryRun
+        ? { status: 200, body: { ...PLAN_29, result: null } }
+        : {
+            status: 200,
+            body: { ...PLAN_29, result: { snapshot: '_history/_ds-convert/x', systems: [{ name: 'gator' }] } },
+          }
+    );
+    const order: string[] = [];
+    function Wrapper() {
+      const [cfg, setCfg] = useState<Record<string, unknown>>({ dsConverted: { gator: false } });
+      return (
+        <Host
+          toast={() => {}}
+          fetchImpl={f.impl}
+          cfg={cfg}
+          reloadTree={async () => {
+            order.push('reload');
+            setCfg({ dsConverted: { gator: true } }); // what the tree reload folds into cfg
+          }}
+          goTo={(p: { ds: string }) => order.push(`go:${p.ds}`)}
+        />
+      );
+    }
+    await render(<Wrapper />);
+    await act(async () => void requestDsConvert({ ds: 'gator' }));
+    await settle();
+    await act(async () => q('ds-convert-go')?.click());
+    await settle();
+    expect(order).toEqual(['reload', 'go:gator']);
+  });
+
   test('a refusal stays in the dialog in words; Cancel writes nothing', async () => {
     const f = fakeFetch((b) =>
       b.dryRun

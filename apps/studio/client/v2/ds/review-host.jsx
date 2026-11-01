@@ -311,6 +311,8 @@ export function DsReviewHost({
       <DsConvertHost
         toast={toast}
         fetchImpl={fetchImpl}
+        cfg={cfg}
+        reloadTree={reloadTree}
         auto={
           cfg && !cfg.readOnly && !cfg.formatGate
             ? { project: `${cfg.designRel ?? ''}:${cfg.name ?? ''}` }
