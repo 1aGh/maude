@@ -9,7 +9,11 @@ argument-hint: "<name> [\"<brief>\"] [--force | --upgrade-schema | --app] [--all
 
 Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
-Dedicated entry point for **creating a design system** in this project. Three modes the underlying skill auto-detects:
+Dedicated entry point for **creating a design system** in this project.
+
+**In a Maude project a new design system starts on its Design system canvas — never as a static folder page.** For `first-bootstrap` and `additional-ds` (below), run `maude design ds make <name> --label "<Label>"` first (Step 1.9). It writes the system's config entry, `system/<name>/` and the Design system canvas (every section an outline), so the system opens as the canvas the moment it exists and the app has nothing to offer to convert. From there you work exactly as in **App mode**: the person's brief verbatim, three directions with `maude design ds draft`, the in-app pick, the sections filled through the working files, and no staged interview or scaffold roster. The staged discovery + scaffold below is the fallback only for a project where `ds make` is refused because it cannot edit that way (an older project format or an older `maude` without the verb).
+
+Modes the underlying skill auto-detects:
 
 - **first-bootstrap** — `.design/config.json` does not exist (or `designSystems[]` is empty). The skill runs **staged discovery** (DDR-033 + DDR-147: Stage 0 scope picker → Stage 1 vision prompts → Stage 2 research → **Stage 3 direction gate** (moodboard pick of ~`moodboard.variants` directions) → **Stage 4 refinement residue** → **LOCK gate**), scaffolds `system/<name>/`, writes `config.json` with `designSystems: [{ name, path, description }]`.
 - **additional-ds** — `config.json` exists and `<name>` is **not** in `designSystems[]`. The skill runs the same stages plus a Q_purpose prompt at the start and an inheritance picker between Stage 2 and the Stage-3 direction gate (inherited fields are frozen across all direction tiles).
@@ -65,6 +69,20 @@ If `CONFIG_PRESENT=false`:
 Then auto-invoke `/design:init --skip-prompts` so the user isn't double-prompted. After it returns, continue.
 
 If config exists (`CONFIG_PRESENT=true`), skip onboard. `KNOWN_DS` already tells you whether `<name>` collides with an existing DS (drives the first-bootstrap / additional-ds / re-bootstrap sub-mode decision in Step 2).
+
+### Step 1.9 — Start the system on its canvas (first-bootstrap and additional-ds)
+
+Skip this step for `--app` (the app already ran it), `--upgrade-schema` and `--force` on an existing system. Otherwise, when `<name>` is not in `KNOWN_DS`:
+
+```bash
+maude design ds make <name> --label "<Label>"      # <Label>: the person's name for it, else <name> title-cased
+```
+
+- **Success** → the Design system canvas exists as outlines. Tell the person in one line that it is open as a Design system canvas, then continue as **App mode** (below) with `<brief>` verbatim. **Skip Steps 1.5 and 3**: no moodboard canvas, no scaffold roster, no `ui/<ds>-moodboard.tsx`.
+- **`ds-exists`** → a system of that name is already there: follow the `--force` / `<new-name>` guidance in Arguments.
+- **Refused for any other reason** (a project that cannot be edited in this format, or an unknown verb) → say why in one line and continue with Steps 1.5 to 4 as the fallback. The folder it scaffolds shows "Turn this folder into a Design system canvas", which is the person's one click, not yours.
+
+Never scaffold `system/<name>/` by hand next to a made system, and never write `design-system.tsx` yourself — `ds make` and the canvas verbs own it.
 
 ### Step 1.5 — Cache inspiration library inventory
 
@@ -133,7 +151,7 @@ Load **`flow:kgai-backend`** and check `maude kg resolve --json`.
 
 The skill prints its "Bootstrap complete" block. This command body has no Post-flight of its own.
 
-## App mode (`--app`, from the Maude app)
+## App mode (`--app`, from the Maude app — and every new system you start with `ds make`)
 
 The app's "Make a design system" sheet asks three things — a sentence (required), anything to learn from (a logo, a website, a Figma library, the project's canvases; optional) and what it is mostly for — and starts the system as an outline before it sends you the brief. Everything you do now goes through `maude design ds …`; nothing in `config.json` or `revisions/` is edited by hand.
 
