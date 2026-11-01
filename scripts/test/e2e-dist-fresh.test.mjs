@@ -208,6 +208,34 @@ test('a markdown commit under client/ (a v2 contract) after the bundle does not 
   }
 });
 
+test('a gate-manifest commit under client/v2 (nothing-deleted / reachability / v1-manifest) does not make it stale', () => {
+  // r3 (2026-11-01): mapping two new entry points in nothing-deleted.json refused a byte-identical bundle; the gate
+  // manifests are read by the checker scripts and tests, never bundled
+  for (const f of ['nothing-deleted.json', 'reachability.json', 'v1-manifest.json']) {
+    const r = repo();
+    try {
+      r.commit('client/v2/share.jsx', 'word', '2026-11-01T16:00:00+01:00');
+      r.commit('dist/client.bundle.js', 'built', '2026-11-01T16:44:47+01:00');
+      r.commit(`client/v2/${f}`, '{"map":{}}', '2026-11-01T16:47:59+01:00');
+      assert.equal(staleClientDist(r.studio), null, f);
+    } finally {
+      r.done();
+    }
+  }
+});
+
+test('any other JSON under client/ after the bundle still makes it stale', () => {
+  const r = repo();
+  try {
+    r.commit('client/v2/share.jsx', 'word', '2026-11-01T16:00:00+01:00');
+    r.commit('dist/client.bundle.js', 'built', '2026-11-01T16:44:47+01:00');
+    r.commit('client/v2/strings.json', '{"a":1}', '2026-11-01T16:47:59+01:00');
+    assert.notEqual(staleClientDist(r.studio), null);
+  } finally {
+    r.done();
+  }
+});
+
 test('a bundle committed after the last client commit is fresh', () => {
   const r = repo();
   try {

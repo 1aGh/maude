@@ -198,6 +198,15 @@ export function normalizeClientSource(src: string): string {
   return out.join('');
 }
 
+/** The v2 gate manifests under client/v2: read by scripts/check-v2-nothing-deleted.mjs and the tests, never bundled. */
+const GATE_MANIFESTS = ['nothing-deleted.json', 'reachability.json', 'v1-manifest.json'];
+/** Pathspecs for what under client/ is not an input of client.bundle.js. */
+const NOT_BUNDLE_INPUTS = [
+  ':(exclude,glob)**/*.css',
+  ':(exclude,glob)**/*.md',
+  ...GATE_MANIFESTS.map((f) => `:(exclude)client/v2/${f}`),
+];
+
 /**
  * p8-e2e-fix-r12 — a studio the lane starts from the worktree serves `apps/studio/dist/client.bundle.js`. The
  * committed copy can be older than the client source (the test-lane wrapper puts dist back to it after every run),
@@ -242,19 +251,21 @@ export function staleClientDist(studioDir: string): string | null {
   }
   // CSS is not an input of client.bundle.js: it is the separate styles.css bundle (build.ts, client/styles/_index.css).
   // A CSS-only commit after the build (1b798abf4's token re-format, 2026-10-28) must not refuse a byte-identical bundle.
-  // Markdown under client/ (the v2 contracts) is not an input either (5e836e3af, a contract edit, 2026-10-30).
-  let newest = committedAt(
-    join(studioDir, 'client'),
-    ':(exclude,glob)**/*.css',
-    ':(exclude,glob)**/*.md'
-  );
+  // Markdown under client/ (the v2 contracts) is not an input either (5e836e3af, a contract edit, 2026-10-30), nor
+  // are the v2 gate manifests the checker scripts read (r3: a nothing-deleted.json mapping, 2026-11-01).
+  let newest = committedAt(join(studioDir, 'client'), ...NOT_BUNDLE_INPUTS);
   let newestWhat = `the last client commit (${new Date(newest).toISOString()})`;
   const walk = (dir: string) => {
     for (const e of readdirSync(dir, { withFileTypes: true })) {
       const p = join(dir, e.name);
       if (e.isDirectory()) {
         if (e.name !== 'node_modules') walk(p);
-      } else if (dirty.has(rel(p)) && !e.name.endsWith('.css') && !e.name.endsWith('.md')) {
+      } else if (
+        dirty.has(rel(p)) &&
+        !e.name.endsWith('.css') &&
+        !e.name.endsWith('.md') &&
+        !GATE_MANIFESTS.includes(e.name)
+      ) {
         const m = statSync(p).mtimeMs;
         if (m > newest) {
           newest = m;
@@ -280,8 +291,7 @@ export function staleClientDist(studioDir: string): string | null {
         'HEAD',
         '--',
         join(studioDir, 'client'),
-        ':(exclude,glob)**/*.css',
-        ':(exclude,glob)**/*.md'
+        ...NOT_BUNDLE_INPUTS
       )
         .split('\n')
         .filter(Boolean);
