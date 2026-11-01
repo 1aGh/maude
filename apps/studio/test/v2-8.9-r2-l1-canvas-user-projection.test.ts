@@ -6,9 +6,9 @@
 
 import { describe, expect, test } from 'bun:test';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { userInfo } from 'node:os';
 import { join } from 'node:path';
 
+import { localAuthor } from '../comments/local-author.ts';
 import { canvasUserName } from '../http.ts';
 import { frameCap, withFc } from './_acl-cell.ts';
 import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
@@ -36,7 +36,9 @@ describe('canvasUserName (pure)', () => {
 
 describe('/_api/git-user — canvas-origin projection', () => {
   test('no git user.name: the canvas origin says "You", the shell keeps the account name', async () => {
-    const account = userInfo().username;
+    // the account name the shell signs with (Bun's userInfo() says "unknown" with no $USER — localAuthor asks the OS)
+    const signed = localAuthor('');
+    const account = signed === 'You' ? '' : signed;
     const { root, designRoot } = makeSandbox();
     mkdirSync(join(designRoot, 'ui'), { recursive: true });
     writeFileSync(join(designRoot, 'ui', 'c.tsx'), 'export default function C(){return <main/>}\n');
