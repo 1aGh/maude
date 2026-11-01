@@ -140,7 +140,13 @@ function Cluster({
         }}
       >
         {cluster.faces.map((f, i) => (
-          <span key={f.id} style={{ marginLeft: i === 0 ? 0 : -8 }}>
+          // data-id / data-tool: the layer's pointer path selects (and so moves, nudges, deletes) by them
+          <span
+            key={f.id}
+            data-id={f.id}
+            data-tool="stamp"
+            style={{ marginLeft: i === 0 ? 0 : -8 }}
+          >
             <StampFaceView face={f} size={size} />
           </span>
         ))}

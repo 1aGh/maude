@@ -545,6 +545,8 @@ export interface ShellToCanvas {
   'insert-sticker': {
     path: string;
     follow?: boolean;
+    /** r4 #16: the picture as a small image data URL, so the ghost + the placed sticker draw at once. */
+    preview?: string;
     sticker?: { pack: string; id: string; flip?: boolean };
   };
   // S4.4: a Templates-panel pick (`id` is an annotations/templates.ts id); the canvas expands the same
@@ -777,6 +779,9 @@ export interface DgnSpec<P, G> {
 
 const BAD: unique symbol = Symbol('dgn.bad');
 type V = (v: unknown) => unknown;
+
+import { isImageDataUrl } from '../annotations/ui/sticker-preview.ts';
+
 export const MAX_STR = 4000;
 export const MAX_ARR = 10000;
 const MAX_DEPTH = 16;
@@ -787,6 +792,8 @@ const str: V = (v) => (typeof v === 'string' && v.length <= MAX_STR ? v : BAD);
 const num: V = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : BAD);
 const unit: V = (v) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 1 ? v : BAD);
 const bool: V = (v) => (typeof v === 'boolean' ? v : BAD);
+/** r4 #16 — a small raster image as a data URL (the one string allowed past MAX_STR; never svg or html). */
+const imageDataUrl: V = (v) => (isImageDataUrl(v) ? v : BAD);
 /** S3.3 — a time in seconds: finite, 0..86400 (a day), else the whole message is junk. */
 const seconds: V = (v) =>
   typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 86400 ? v : BAD;
@@ -2128,6 +2135,7 @@ const s2c: S2C = {
     parse: p({
       path: str,
       follow: opt(bool),
+      preview: opt(imageDataUrl),
       sticker: opt(shape({ pack: str, id: str, flip: opt(bool) })),
     }),
   },

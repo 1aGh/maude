@@ -30,6 +30,27 @@ import {
   sanitizeAnnotationPrefs,
 } from './tool-prefs.ts';
 
+/** The stroke tools a click on the layer selects, moves and deletes (the `data-tool` a node carries). */
+const SELECTABLE_STROKE_TOOLS: ReadonlySet<string> = new Set([
+  'pen',
+  'rect',
+  'ellipse',
+  'polygon',
+  'arrow',
+  'text',
+  'sticky',
+  'image',
+  'link',
+  'mediaref',
+  'section',
+  // r4 #15: a stamp is selectable, movable and deletable like a sticky
+  'stamp',
+]);
+
+export function isSelectableStrokeTool(tool: string): boolean {
+  return SELECTABLE_STROKE_TOOLS.has(tool);
+}
+
 export type ToolSnapshot = Readonly<Required<AnnotationPrefs>>;
 
 export interface ToolStateStore {

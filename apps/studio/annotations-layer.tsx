@@ -93,7 +93,9 @@ import {
   placementOf,
   replacePatch,
   stickerRefOf,
+  toolForTemplate,
 } from './annotations/ui/sticker-drop.ts';
+import { rememberStickerPreview, resolveStickerHref } from './annotations/ui/sticker-preview.ts';
 import {
   NO_RESOLVED_LINE,
   resolveVerb,
@@ -171,6 +173,7 @@ import {
 import { resolveInk } from './annotations/ui/tool-prefs.ts';
 import {
   eraseTargetIndex,
+  isSelectableStrokeTool,
   readChromeTheme,
   useCanvasChromeTheme,
   useToolState,
@@ -518,6 +521,9 @@ function canvasDesignRel(): string {
  * optimistic `blob:`/`data:` preview href (pre-upload) is used verbatim.
  */
 function resolveAssetHref(href: string): string {
+  // r4 #16 - a gallery sticker just picked draws from the picture the shell sent along, not from a second load
+  const preview = resolveStickerHref(href);
+  if (preview) return preview;
   return /^assets\//.test(href) ? `/${canvasDesignRel()}/${href}` : href;
 }
 
@@ -1078,6 +1084,8 @@ export function AnnotationsLayer() {
   countRender('annotationRenders');
   ensureAnnotStyles();
   const { tool, setTool, resetTool, sticky, tools, shapeKind } = useToolMode();
+  const setToolRef = useRef(setTool);
+  setToolRef.current = setTool;
   const theme = useCanvasChromeTheme();
   const controller = useViewportControllerContext();
   const vp = controller?.viewport ?? null;
@@ -2132,9 +2140,20 @@ export function AnnotationsLayer() {
       // is.
       // S4.13 - a gallery pick / stamp / template trails the pointer until a click (`follow`), and a stamp stays
       // armed; without `follow` a sticker or template lands mid-view at once, as before. One Pending, three kinds.
+      // r4 #17 - the Blank section tile is "draw it, name it": it arms the Section tool (a drag sizes it, a tap
+      // is the default) instead of dropping a default-sized ghost.
+      if (m.dgn === 'insert-template') {
+        const armTool = toolForTemplate((m as { id?: unknown }).id);
+        if (armTool) {
+          setToolRef.current(armTool);
+          return;
+        }
+      }
       const placement =
         m.dgn === 'insert-sticker' || m.dgn === 'insert-template' ? placementOf(m) : null;
       if (placement) {
+        if (placement.kind === 'sticker' && placement.preview)
+          rememberStickerPreview(placement.path, placement.preview);
         const armed =
           placement.kind === 'stamp' || ('follow' in placement && placement.follow === true);
         if (armed) {
@@ -3301,21 +3320,7 @@ export function AnnotationsLayer() {
       const node = el?.closest?.('[data-id][data-tool]') ?? null;
       const id = node?.getAttribute('data-id') ?? null;
       const t = node?.getAttribute('data-tool') ?? null;
-      if (
-        id &&
-        t &&
-        (t === 'pen' ||
-          t === 'rect' ||
-          t === 'ellipse' ||
-          t === 'polygon' ||
-          t === 'arrow' ||
-          t === 'text' ||
-          t === 'sticky' ||
-          t === 'image' ||
-          t === 'link' ||
-          t === 'mediaref' ||
-          t === 'section')
-      ) {
+      if (id && t && isSelectableStrokeTool(t)) {
         return id;
       }
       return null;
