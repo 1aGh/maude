@@ -392,6 +392,7 @@ export function styleMapsFor(el: Element | null): {
   computed: Record<string, string>;
   customStyles: Record<string, string>;
   attrs: Record<string, string>;
+  declared?: Record<string, string>;
   parentDisplay?: string;
   parentFlexDirection?: string;
 } {
@@ -477,7 +478,22 @@ export function styleMapsFor(el: Element | null): {
       parent && (parentDisplay === 'flex' || parentDisplay === 'inline-flex')
         ? window.getComputedStyle(parent).flexDirection
         : '';
-    return { authored, computed, customStyles, attrs, parentDisplay, parentFlexDirection };
+    // r3 — the inline `background` shorthand as written. A browser cannot expand a `var()` shorthand into longhands
+    // (a freshly drawn shape is `background: var(--bg-3, #d4d4d8)`), so `authored` has no colour for it; the Fill row
+    // reads this when `authored` has none. Never a knob prop: listing it there would make the gradient patch's
+    // `background: null` wipe a colour the longhand write then skips as "already present".
+    const declared: Record<string, string> = {};
+    const bgShorthand = inline.getPropertyValue('background').trim();
+    if (bgShorthand) declared.background = bgShorthand;
+    return {
+      authored,
+      computed,
+      customStyles,
+      attrs,
+      declared,
+      parentDisplay,
+      parentFlexDirection,
+    };
   } catch {
     return { authored: {}, computed: {}, customStyles: {}, attrs: {} };
   }
