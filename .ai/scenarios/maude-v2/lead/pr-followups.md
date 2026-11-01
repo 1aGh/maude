@@ -411,3 +411,7 @@ rights or is an availability nuisance). Candidates for the first rc patch:
   does not look for parent `CLAUDE.local.md` / `.claude/CLAUDE.md` / `AGENTS.md`, and a synced parent can gain a `.git`
   after the check; the canvas reply stamp `localAuthor` still falls back to the account name; Recent colours keyed by
   name; a runtime-declared role skips ds-check F5.
+- **rc patch, security lows (V2-8.9-r2-browser-reds-delta.md):** with no git user.name, `mine: true` tells a canvas which
+  author string is the viewer's account name (it could already read it on local comments) — project `author` to "You"
+  for stamped records on the way to the canvas; the canvas `comments-set` handler does not check
+  `e.source === window.parent` (display only, older than this round).
