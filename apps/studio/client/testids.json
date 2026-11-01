@@ -26206,6 +26206,23 @@
     "v2": "new"
   },
   {
+    "hook": "canvas-asset-drop-catcher",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Shell: the transparent catcher over the canvas frame while an Assets tile is dragged (r3) — it takes the drop, because WebKit gives the canvas origin no event of a drag the shell started; gone on dragend.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/canvas-drop-catcher.jsx",
+      "symbol": "CanvasDropCatcher"
+    },
+    "region": "shell",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r3-asset-drop-handoff.test.tsx",
+      "apps/studio/test/e2e/webkit-asset-drop.mjs"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "image-tool-input",
     "kind": "testid",
     "pattern": false,

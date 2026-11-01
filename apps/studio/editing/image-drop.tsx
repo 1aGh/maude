@@ -1,21 +1,27 @@
 // editing/image-drop.tsx — a tile from the Assets tab dropped on the canvas (S2.15; artboard ed-img: "drop a photo on a frame").
 //
-// The tile (shell, client/v2/assets/tile-drag.js) carries `{asset, w?, h?}` under its own MIME type (editing/asset-drag.ts).
-// While it is over the canvas the thing it would land on wears a ring: a picture (its source is swapped, its box kept), a
-// frame (the picture fills it, cropped to fit — `object-fit: cover`), or the artboard (placed loose, at its size, in the
-// flow). A drop is ONE `image.place` edit-op: one write, one undo step; the new picture is selected.
+// r3 — the SHELL owns the drag. WebKit (the app, Safari) gives the canvas origin no event of a drag the shell started, so
+// the shell lays a catcher over this frame (client/v2/assets/canvas-drop-catcher.jsx) and tells the canvas where the
+// pointer is: `asset-drag-over {x, y}` → the thing it would land on wears a ring — a picture (its source is swapped, its
+// box kept), a frame (the picture fills it, cropped to fit — `object-fit: cover`), or the artboard (placed loose, at its
+// size, in the flow). On drop the shell asks `asset-drop-at {x, y}`; the canvas answers WHAT lies there
+// (`asset-drop-target`, never an asset) and the shell runs ONE `image.place` with the path it started dragging;
+// `asset-drop-done` comes back so the new picture is selected (or the refusal said in one line).
 //
 // A Finder file is not handled here: that is the asset import's (S8.14), which ends in the same op.
-// The payload is never trusted: it is a path, and the server checks it against `assets/<flat name>`.
 
 import { useEffect, useRef, useState } from 'react';
 
+import {
+  type AssetDropTarget,
+  acceptFromShell,
+  type ShellToCanvasMessage,
+} from '../bridge/dgn-protocol.ts';
 import { showCanvasToast } from '../canvas-notifications.tsx';
 import type { EditOpResult, ElementRef } from '../edit-ops/types.ts';
 import { isReadOnlyCanvas } from '../read-only-mode.ts';
 import { type Selection, useSelectionSet } from '../use-selection-set.tsx';
-import { useUndoStackOptional } from '../use-undo-stack.tsx';
-import { type AssetDrag, assetFromDrop, dragHasAsset } from './asset-drag.ts';
+import type { AssetDrag } from './asset-drag.ts';
 import { containerAt } from './draw-tools.tsx';
 import { type EditOpAsk, editOpRecord, runEditOp } from './edit-op.ts';
 import { refOfElement, selectWhenRendered } from './object-actions.ts';
@@ -56,6 +62,19 @@ export function askForDrop(drag: AssetDrag, target: DropTarget): EditOpAsk {
   if (target.kind === 'artboard') params.artboard = target.artboard;
   if (target.kind === 'artboard' && drag.w && drag.h) params.natural = { w: drag.w, h: drag.h };
   return { op: PLACE_ACTION, targets: target.ref ? [target.ref] : [], params };
+}
+
+/** What the canvas tells the shell a drop at (x, y) lands on — kind and ref only; null when nothing may take it. */
+export function dropTargetMessage(t: DropTarget | null): AssetDropTarget | null {
+  if (!t || isLockedDom(t.el)) return null;
+  if (t.kind === 'artboard') return { kind: 'artboard', artboard: t.artboard };
+  if (!t.ref) return null;
+  return {
+    kind: t.kind,
+    artboard: t.ref.artboard,
+    element: t.ref.element,
+    ...(t.ref.occurrence && t.ref.occurrence > 0 ? { occurrence: t.ref.occurrence } : {}),
+  };
 }
 
 export interface DropDeps {
@@ -113,52 +132,46 @@ interface Ring {
 export function ImageDrop({ readOnly }: { readOnly?: boolean }) {
   ensureStyles();
   const selSet = useSelectionSet();
-  const undo = useUndoStackOptional();
-  const live = useRef({ selSet, undo });
-  live.current = { selSet, undo };
+  const live = useRef({ selSet });
+  live.current = { selSet };
   const [ring, setRing] = useState<Ring | null>(null);
 
   useEffect(() => {
-    if (typeof document === 'undefined' || readOnly) return undefined;
+    if (typeof window === 'undefined' || readOnly) return undefined;
     const clear = () => setRing(null);
-    const over = (e: DragEvent) => {
-      if (isReadOnlyCanvas() || !dragHasAsset(e.dataTransfer?.types)) return;
-      e.preventDefault();
-      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
-      const t = dropTargetAt(document, e.clientX, e.clientY);
+    const ringAt = (x: number, y: number) => {
+      const t = isReadOnlyCanvas() ? null : dropTargetAt(document, x, y);
       if (!t || isLockedDom(t.el)) return clear();
       const r = t.el.getBoundingClientRect();
       setRing({ kind: t.kind, left: r.left, top: r.top, w: r.width, h: r.height });
     };
-    const leave = (e: DragEvent) => {
-      if (e.relatedTarget == null) clear();
+    const onMessage = (e: MessageEvent) => {
+      // only the shell says these (a sibling canvas frame shares this origin, DDR-054)
+      if (e.source !== window.parent) return;
+      const type = (e.data as { dgn?: unknown } | null)?.dgn;
+      if (type !== 'asset-drag-over' && type !== 'asset-drop-at' && type !== 'asset-drop-done')
+        return;
+      const m: ShellToCanvasMessage | null = acceptFromShell(e, window);
+      if (!m) return;
+      if (m.dgn === 'asset-drag-over') {
+        if (m.x === null || typeof m.y !== 'number') clear();
+        else ringAt(m.x, m.y);
+      } else if (m.dgn === 'asset-drop-at') {
+        clear();
+        const t = isReadOnlyCanvas() ? null : dropTargetAt(document, m.x, m.y);
+        if (t && isLockedDom(t.el)) showCanvasToast(LOCKED_LINE, 'info');
+        window.parent.postMessage(
+          { dgn: 'asset-drop-target', requestId: m.requestId, target: dropTargetMessage(t) },
+          '*'
+        );
+      } else if (m.dgn === 'asset-drop-done') {
+        if (!m.ok) showCanvasToast(m.message ?? 'Not placed; try again.', 'error');
+        else if (m.created?.length)
+          selectWhenRendered(m.created, (sel: Selection[]) => live.current.selSet.replace(sel));
+      }
     };
-    const drop = (e: DragEvent) => {
-      clear();
-      if (isReadOnlyCanvas() || !dragHasAsset(e.dataTransfer?.types)) return;
-      // r1 item 10 — a plain-text drag is ours only when its text is an asset path; anything else is left alone
-      const drag = assetFromDrop(e.dataTransfer);
-      if (!drag) return;
-      e.preventDefault();
-      e.stopPropagation();
-      const t = dropTargetAt(document, e.clientX, e.clientY);
-      if (!t) return;
-      if (isLockedDom(t.el)) return void showCanvasToast(LOCKED_LINE, 'info');
-      void runDrop(askForDrop(drag, t), {
-        toast: (m, kind) => showCanvasToast(m, kind === 'error' ? 'error' : 'info'),
-        record: (rec) => live.current.undo?.record(rec),
-        select: (refs) =>
-          selectWhenRendered(refs, (s: Selection[]) => live.current.selSet.replace(s)),
-      });
-    };
-    document.addEventListener('dragover', over, true);
-    document.addEventListener('dragleave', leave, true);
-    document.addEventListener('drop', drop, true);
-    return () => {
-      document.removeEventListener('dragover', over, true);
-      document.removeEventListener('dragleave', leave, true);
-      document.removeEventListener('drop', drop, true);
-    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
   }, [readOnly]);
 
   if (!ring) return null;

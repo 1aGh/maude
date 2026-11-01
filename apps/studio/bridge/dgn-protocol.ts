@@ -198,6 +198,13 @@ export interface CanvasToShell {
     params?: Record<string, unknown>;
     expectRev?: string;
   };
+  /**
+   * r3 — an Assets tile dropped on the canvas: what lies under the point the shell asked about (`asset-drop-at`).
+   * WebKit hands no drag event of a shell-started drag to the canvas origin, so the SHELL catches the drop and
+   * asks; the canvas names only the target (never the asset — the shell holds the path it started dragging).
+   * `target: null` = nothing to place on (off every artboard, locked, read-only).
+   */
+  'asset-drop-target': { requestId: string; target: AssetDropTarget | null };
   'active-artboard': { id: Id | null };
   /**
    * S2.11b — the slot a lifted card would land in, for Layers to draw the same numbered place
@@ -559,6 +566,14 @@ export interface ShellToCanvas {
   // `assets/…` path). The canvas arms it: the next click on an artboard places it there, ↵ in the middle of the
   // view, esc lets go — one `image.place` write. Accepted only from the shell (`gate: 'parent'`).
   'place-image': { asset: string; natural?: { w: number; h: number } | null; label?: string };
+  // r3: an Assets tile is being dragged over the canvas. The shell catches the drag (a catcher over the frame —
+  // WebKit gives a shell-started drag no event in the canvas origin) and says where the pointer is, in the frame's
+  // own coordinates, so the canvas rings what it would land on (`x: null` = the drag left or ended).
+  'asset-drag-over': { x: number | null; y?: number };
+  // r3: the tile was dropped at (x, y): the canvas answers `asset-drop-target` with what lies there.
+  'asset-drop-at': { requestId: string; x: number; y: number };
+  // r3: how the shell's `image.place` went — the canvas selects what it made, or says the refusal in one line.
+  'asset-drop-done': { requestId: string; ok: boolean; created?: ElementRef[]; message?: string };
   // S7.9 (07 ve-drop): footage is being dragged over the window while a video artboard is followed — that artboard
   // shows the chip "Or drop here — adds at the end" (`on: false` = the drag ended or left). The shell owns the drop
   // (a catcher over the artboard's rect), so the canvas only draws.
@@ -731,6 +746,13 @@ export interface ShellToCanvas {
   'gen-takes': { assets: string[] };
 }
 
+/** r3 — what an Assets drop lands on: a picture or frame (by ref) or the artboard itself (placed loose). */
+export type AssetDropTarget = {
+  kind: 'picture' | 'frame' | 'artboard';
+  artboard: string;
+  element?: string;
+  occurrence?: number;
+};
 export type DgnMessage<M> = { [K in keyof M]: { dgn: K } & M[K] }[keyof M];
 export type CanvasToShellMessage = DgnMessage<CanvasToShell>;
 export type ShellToCanvasMessage = DgnMessage<ShellToCanvas>;
@@ -1191,6 +1213,12 @@ const anchor = {
 };
 const tlId = { id: opt(str) };
 const elementRef = shape({ artboard: str, element: str, occurrence: opt(num) });
+const assetDropTarget = shape({
+  kind: lit('picture', 'frame', 'artboard'),
+  artboard: str,
+  element: opt(str),
+  occurrence: opt(intIn(1, MAX_ARR)),
+});
 /** An array no longer than `max` (refused whole past it, never trimmed). */
 const capped =
   (max: number, f: V): V =>
@@ -1405,6 +1433,12 @@ const c2s: C2S = {
       params: opt(jsonObj),
       expectRev: opt(str),
     }),
+  },
+  'asset-drop-target': {
+    gate: 'active',
+    status: 'live',
+    owner: 'client/v2/assets/canvas-drop-catcher (r3)',
+    parse: p({ requestId: shortStr(64), target: nul(assetDropTarget) }),
   },
   'active-artboard': { gate: 'active', status: 'live', owner: BR, parse: p({ id: nul(str) }) },
   'reorder-slot': {
@@ -2178,6 +2212,30 @@ const s2c: S2C = {
       asset: shortStr(512),
       natural: opt(nul(shape({ w: num, h: num }))),
       label: opt(shortStr(200)),
+    }),
+  },
+  // r3 — an Assets tile over / dropped on the canvas: the shell's catcher says where; editing/image-drop.tsx rings and answers.
+  'asset-drag-over': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'editing/image-drop (r3)',
+    parse: p({ x: nul(num), y: opt(num) }),
+  },
+  'asset-drop-at': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'editing/image-drop (r3)',
+    parse: p({ requestId: shortStr(64), x: num, y: num }),
+  },
+  'asset-drop-done': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'editing/image-drop (r3)',
+    parse: p({
+      requestId: shortStr(64),
+      ok: bool,
+      created: opt(arrOf(elementRef)),
+      message: opt(shortStr(400)),
     }),
   },
   // S7.9 — the drop chip on the followed video artboard while footage is in flight (editing/drop-chip.tsx).
