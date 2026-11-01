@@ -105,6 +105,27 @@ export async function stableLinkFor({ path, appLink, fetchImpl = globalThis.fetc
   return a?.ok === true && a.status === 'live' ? canvasLink({ project, entry: a.entry }) : null;
 }
 
+/**
+ * What a canvas's "Copy link" puts on the clipboard (row menu, File menu, ⌘K — r4 #13). A project connected to Maude
+ * Cloud or a team hub has an https home, and that address is the one a person can send anyone: it opens in the
+ * browser, and the page offers "Open in the Mac app" (`maude://open/…`) when Maude is installed. So `links.web`
+ * always wins when there is one — a `maude://` deep link works only on a Mac that has the app. Only a local-only
+ * project (no https home) keeps the app link: the stable entry link when it has an op log, else the path link,
+ * else this Mac's own address. The web link carries `?open=<path>` and nothing else: no token.
+ *
+ * @param {{ path: string, links: { web?: string|null, app?: string|null, local?: string|null }, shell?: string,
+ *           fetchImpl?: typeof fetch }} a
+ * @returns {Promise<string|null>}
+ */
+export async function copyLinkFor({ path, links, shell, fetchImpl = globalThis.fetch }) {
+  if (links?.web) return links.web;
+  const stable =
+    shell === 'cloud'
+      ? null
+      : await stableLinkFor({ path, appLink: links?.app, fetchImpl }).catch(() => null);
+  return stable ?? links?.app ?? links?.local ?? null;
+}
+
 // ── the line from the link's consumer (CloudBar) to the shell's tab hook ──────────────────────────────────
 // The tab hook may mount after the link arrives (a NEW tab takes its parked link on boot), so a request is
 // remembered until the hook takes it — the left-panel-bus pattern.

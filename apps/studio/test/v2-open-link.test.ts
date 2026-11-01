@@ -7,6 +7,7 @@ import { describe, expect, test } from 'bun:test';
 import { parseFileDeepLink, parseMaudeLink } from '../client/share-link.js';
 import {
   canvasLink,
+  copyLinkFor,
   goneWords,
   openedFromWords,
   parseCanvasLink,
@@ -107,6 +108,43 @@ describe('minting (Copy link)', () => {
     );
     expect(await stableLinkFor({ path: 'ui/Old.tsx', appLink, fetchImpl })).toBeNull();
     expect(await stableLinkFor({ path: 'ui/A.tsx', appLink: null, fetchImpl })).toBeNull();
+  });
+});
+
+describe('Copy link on a canvas copies the address that can be shared (r4 #13)', () => {
+  const stableFetch = (async () =>
+    Response.json({ ok: true, status: 'live', entry: 'n_abc12345', path: 'ui/A.tsx' })) as never;
+  const app = 'maude://open/alligators?open=ui/A.tsx';
+  const web = 'https://alligators.cloud.maude.sh/?open=ui/A.tsx';
+
+  test('a project connected to Maude Cloud or a hub copies the https address, never the deep link', async () => {
+    let asked = 0;
+    const fetchImpl = (async (...a: unknown[]) => {
+      asked++;
+      return (stableFetch as never as (...x: unknown[]) => Promise<Response>)(...a);
+    }) as never;
+    const links = { web, app, local: 'http://localhost:4399/?open=ui/A.tsx' };
+    expect(await copyLinkFor({ path: 'ui/A.tsx', links, shell: 'desktop', fetchImpl })).toBe(web);
+    expect(asked).toBe(0);
+  });
+
+  test('a local-only project keeps the deep link (stable when it has an entry)', async () => {
+    const links = { web: null, app, local: 'http://localhost:4399/?open=ui/A.tsx' };
+    expect(
+      await copyLinkFor({ path: 'ui/A.tsx', links, shell: 'desktop', fetchImpl: stableFetch })
+    ).toBe('maude://open/alligators?c=n_abc12345');
+    const legacy = (async () => Response.json({ ok: false, reason: 'legacy' })) as never;
+    expect(
+      await copyLinkFor({ path: 'ui/A.tsx', links, shell: 'desktop', fetchImpl: legacy })
+    ).toBe(app);
+    expect(
+      await copyLinkFor({
+        path: 'ui/A.tsx',
+        links: { web: null, app: null, local: links.local },
+        shell: 'desktop',
+        fetchImpl: legacy,
+      })
+    ).toBe(links.local);
   });
 });
 
