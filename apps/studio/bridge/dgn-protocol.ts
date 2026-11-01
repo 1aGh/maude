@@ -1215,8 +1215,8 @@ const tlId = { id: opt(str) };
 const elementRef = shape({ artboard: str, element: str, occurrence: opt(num) });
 const assetDropTarget = shape({
   kind: lit('picture', 'frame', 'artboard'),
-  artboard: str,
-  element: opt(str),
+  artboard: shortStr(200),
+  element: opt(shortStr(200)),
   occurrence: opt(intIn(1, MAX_ARR)),
 });
 /** An array no longer than `max` (refused whole past it, never trimmed). */

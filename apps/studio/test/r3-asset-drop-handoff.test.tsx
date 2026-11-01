@@ -16,9 +16,14 @@ import {
   createCatcherLane,
   placeRequestFor,
 } from '../client/v2/assets/asset-drop-session.js';
-import { CATCHER_TESTID, CanvasDropCatcher } from '../client/v2/assets/canvas-drop-catcher.jsx';
+import {
+  CATCHER_TESTID,
+  CanvasDropCatcher,
+  catcherReadOnly,
+} from '../client/v2/assets/canvas-drop-catcher.jsx';
 import { placeAsset } from '../client/v2/assets/place-asset.js';
 import { tileDragProps } from '../client/v2/assets/tile-drag.js';
+import { ASSET_DRAG_MIME } from '../editing/asset-drag.ts';
 import { askForDrop, type DropTarget, dropTargetMessage } from '../editing/image-drop.tsx';
 
 beforeAll(() => {
@@ -29,6 +34,11 @@ afterAll(async () => {
   if (GlobalRegistrator.isRegistered) await GlobalRegistrator.unregister();
 });
 
+const tileEvent = (type: string, init: Record<string, unknown> = {}, types = [ASSET_DRAG_MIME]) => {
+  const ev = new MouseEvent(type, { bubbles: true, cancelable: true, ...init });
+  Object.defineProperty(ev, 'dataTransfer', { value: { types, dropEffect: 'none' } });
+  return ev;
+};
 const tick = (ms = 5) => new Promise((r) => setTimeout(r, ms));
 const CANVAS_ORIGIN = 'http://127.0.0.1:9999';
 
@@ -358,13 +368,7 @@ describe('the catcher (Viewport): there only while a tile is dragged, and the dr
     const catcher = document.querySelector(`[data-testid="${CATCHER_TESTID}"]`) as HTMLElement;
     expect(catcher).not.toBeNull();
     await act(async () => {
-      const ev = new MouseEvent('drop', {
-        bubbles: true,
-        cancelable: true,
-        clientX: 300,
-        clientY: 250,
-      });
-      catcher.dispatchEvent(ev);
+      catcher.dispatchEvent(tileEvent('drop', { clientX: 300, clientY: 250 }));
     });
     expect(posted.at(-1)).toMatchObject({ dgn: 'asset-drop-at', x: 200, y: 200 });
     await act(async () => assetDragSession.end());
@@ -372,5 +376,234 @@ describe('the catcher (Viewport): there only while a tile is dragged, and the dr
     expect(posted.at(-1)).toEqual({ dgn: 'asset-drag-over', x: null });
     await act(async () => root.unmount());
     host.remove();
+  });
+});
+
+describe('a drag the tile cannot end must not leave the catcher behind (security review r3)', () => {
+  const win = () => globalThis.window as unknown as EventTarget;
+
+  test('the session ends on a window dragend, a pointerdown, and after the idle timeout', async () => {
+    const s = _createSessionForTest({ idleMs: 30 });
+    s.begin({ asset: 'assets/a.png' });
+    win().dispatchEvent(new Event('dragend'));
+    expect(s.current()).toBeNull();
+    s.begin({ asset: 'assets/a.png' });
+    win().dispatchEvent(new Event('pointerdown'));
+    expect(s.current()).toBeNull();
+    s.begin({ asset: 'assets/a.png' });
+    await tick(60);
+    expect(s.current()).toBeNull();
+    // a dragover keeps it alive
+    s.begin({ asset: 'assets/a.png' });
+    for (let i = 0; i < 4; i++) {
+      await tick(15);
+      s.touch();
+    }
+    expect(s.current()).not.toBeNull();
+    s.end();
+  });
+
+  test('a drop ends it one tick later (the catcher still reads it); a stale begin timer cannot resurrect it', async () => {
+    const s = _createSessionForTest();
+    let n = 0;
+    s.subscribe(() => n++);
+    s.begin({ asset: 'assets/a.png' });
+    win().dispatchEvent(new Event('drop'));
+    expect(s.current()).not.toBeNull();
+    await tick(5);
+    expect(s.current()).toBeNull();
+    // begin → end before the deferred emit: nothing is emitted for the dead drag, and no drag comes back
+    const before = n;
+    s.begin({ asset: 'assets/a.png' });
+    s.end();
+    const afterEnd = n;
+    await tick(5);
+    expect(n).toBe(afterEnd);
+    expect(afterEnd).toBe(before + 1);
+    expect(s.current()).toBeNull();
+  });
+
+  test('the catcher: a stale tile after an unmount, then a Finder drop → nothing placed, the event passes, the catcher is gone', async () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    const posted: unknown[] = [];
+    const frameEl = {
+      contentWindow: { postMessage: (m: unknown) => posted.push(m) },
+      getBoundingClientRect: () => ({ left: 0, top: 0, width: 800, height: 600 }),
+    };
+    await act(async () =>
+      root.render(
+        <CanvasDropCatcher
+          frame={() => frameEl as never}
+          canvas="ui/feed.tsx"
+          canvasOrigin={CANVAS_ORIGIN}
+        />
+      )
+    );
+    await act(async () => {
+      assetDragSession.begin({ asset: 'assets/stale.png' });
+      await tick(10);
+    });
+    const catcher = () =>
+      document.querySelector(`[data-testid="${CATCHER_TESTID}"]`) as HTMLElement;
+    expect(catcher()).not.toBeNull();
+    // the tile unmounted: no dragend ever arrives. A Finder file is dropped on the catcher.
+    const reached: Event[] = [];
+    const spy = (e: Event) => reached.push(e);
+    document.body.addEventListener('drop', spy);
+    const finder = tileEvent('drop', { clientX: 10, clientY: 10 }, ['Files']);
+    await act(async () => {
+      catcher().dispatchEvent(finder);
+      await tick(10);
+    });
+    document.body.removeEventListener('drop', spy);
+    expect(posted.filter((m) => (m as { dgn?: string }).dgn === 'asset-drop-at')).toEqual([]);
+    expect(finder.defaultPrevented).toBe(false);
+    expect(reached.length).toBe(1); // it was not swallowed
+    expect(assetDragSession.current()).toBeNull();
+    expect(catcher()).toBeNull();
+    await act(async () => root.unmount());
+    host.remove();
+  });
+});
+
+describe('a drop on the catcher keeps the undo step (security review r3)', () => {
+  const run = async (answerBody: Record<string, unknown>) => {
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify(answerBody))) as unknown as typeof fetch;
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    const posted: Array<Record<string, unknown>> = [];
+    const contentWindow = { postMessage: (m: Record<string, unknown>) => posted.push(m) };
+    const frameEl = {
+      contentWindow,
+      getBoundingClientRect: () => ({ left: 0, top: 0, width: 800, height: 600 }),
+    };
+    try {
+      await act(async () =>
+        root.render(
+          <CanvasDropCatcher
+            frame={() => frameEl as never}
+            canvas="ui/feed.tsx"
+            canvasOrigin={CANVAS_ORIGIN}
+          />
+        )
+      );
+      await act(async () => {
+        assetDragSession.begin({ asset: 'assets/a.png' });
+        await tick(10);
+      });
+      const catcher = document.querySelector(`[data-testid="${CATCHER_TESTID}"]`) as HTMLElement;
+      await act(async () => {
+        catcher.dispatchEvent(tileEvent('drop', { clientX: 5, clientY: 5 }));
+      });
+      const ask = posted.find((m) => m.dgn === 'asset-drop-at') as { requestId: string };
+      await act(async () => {
+        window.dispatchEvent(
+          new MessageEvent('message', {
+            origin: CANVAS_ORIGIN,
+            source: contentWindow as never,
+            data: {
+              dgn: 'asset-drop-target',
+              requestId: ask.requestId,
+              target: { kind: 'artboard', artboard: 'post' },
+            },
+          })
+        );
+        await tick(20);
+      });
+      return posted;
+    } finally {
+      globalThis.fetch = realFetch;
+      assetDragSession.end();
+      await act(async () => root.unmount());
+      host.remove();
+    }
+  };
+
+  test('a legacy-link drop records the edit-op for ⌘Z', async () => {
+    const posted = await run({ ok: true, writeId: 'w_9' });
+    expect(posted.filter((m) => m.dgn === 'record-edit')).toEqual([
+      { dgn: 'record-edit', payload: { op: 'edit-op', writeId: 'w_9', label: 'Place picture' } },
+    ]);
+  });
+
+  test('on the op log the write is a kernel action: nothing recorded', async () => {
+    const posted = await run({ ok: true, writeId: 'w_9', actionId: 'a_1' });
+    expect(posted.filter((m) => m.dgn === 'record-edit')).toEqual([]);
+    expect(posted.find((m) => m.dgn === 'asset-drop-done')).toMatchObject({ ok: true });
+  });
+});
+
+describe('a past version or a design-system preview takes no drop', () => {
+  test('catcherReadOnly', () => {
+    const base = {
+      readOnly: false,
+      role: 'editor',
+      viewing: null as { path: string } | null,
+      canvasTab: 'a.tsx',
+      dsPreview: null as string | null,
+    };
+    expect(catcherReadOnly(base)).toBe(false);
+    expect(catcherReadOnly({ ...base, viewing: { path: 'a.tsx' } })).toBe(true);
+    expect(catcherReadOnly({ ...base, viewing: { path: 'b.tsx' } })).toBe(false);
+    expect(catcherReadOnly({ ...base, dsPreview: 'Studyfi' })).toBe(true);
+    expect(catcherReadOnly({ ...base, role: 'viewer' })).toBe(true);
+    expect(catcherReadOnly({ ...base, readOnly: true })).toBe(true);
+  });
+});
+
+describe('the Viewport raises no catcher over a canvas held at a past version', () => {
+  test('a tile drag shows the catcher; the same drag while Viewing shows none', async () => {
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async () =>
+      ({
+        ok: true,
+        status: 200,
+        json: async () => ({ canvas: { path: 'ui/Smoke.tsx', state: 'present' } }),
+      }) as Response) as unknown as typeof fetch;
+    const { Viewport } = await import('../client/shell/viewport.jsx');
+    const { shellMode } = await import('../client/v2/shell/use-canvas-mode-lane.js');
+    const PATH = '.design/ui/Smoke.tsx';
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    const catcher = () => document.querySelector(`[data-testid="${CATCHER_TESTID}"]`);
+    try {
+      await act(async () =>
+        root.render(
+          <Viewport
+            tabs={[{ path: PATH }]}
+            activePath={PATH}
+            registerIframe={() => {}}
+            cfg={{ designRel: '.design' }}
+            canvasReloadNonce={0}
+            renderSignal={{}}
+          />
+        )
+      );
+      await act(async () => tick(20));
+      await act(async () => {
+        assetDragSession.begin({ asset: 'assets/a.png' });
+        await tick(10);
+      });
+      expect(catcher()).not.toBeNull();
+      await act(async () => assetDragSession.end());
+      await act(async () => {
+        shellMode.view({ at: 'r41', path: PATH, when: 'x', who: 'J' } as never);
+        assetDragSession.begin({ asset: 'assets/a.png' });
+        await tick(10);
+      });
+      expect(catcher()).toBeNull();
+    } finally {
+      shellMode.leaveViewing();
+      assetDragSession.end();
+      globalThis.fetch = realFetch;
+      await act(async () => root.unmount());
+      host.remove();
+    }
   });
 });

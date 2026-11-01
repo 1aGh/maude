@@ -26,7 +26,7 @@ import { ArrivingCanvas, NotLocalCanvas, useCanvasAvailability } from '../v2/emp
 import { insetsNow } from '../v2/shell/insets-now.js';
 import { normalizeOpenPath } from '../share-link.js';
 import { framesIsolated, sessionRole } from '../v2/access/access-client.js';
-import { CanvasDropCatcher } from '../v2/assets/canvas-drop-catcher.jsx';
+import { CanvasDropCatcher, catcherReadOnly } from '../v2/assets/canvas-drop-catcher.jsx';
 
 export function Viewport({
   tabs,
@@ -265,7 +265,13 @@ export function Viewport({
           frame={() => framesRef.current.get(canvasTab) ?? null}
           canvas={canvasTab}
           canvasOrigin={cfg?.canvasOrigin}
-          readOnly={!!cfg?.readOnly || role === 'observer' || role === 'viewer'}
+          readOnly={catcherReadOnly({
+            readOnly: cfg?.readOnly,
+            role,
+            viewing,
+            canvasTab,
+            dsPreview,
+          })}
         />
       )}
       {codeShown && (

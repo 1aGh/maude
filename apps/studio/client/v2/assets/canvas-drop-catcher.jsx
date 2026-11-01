@@ -6,10 +6,25 @@
 
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { acceptFromCanvas } from '../../../bridge/dgn-protocol.ts';
-import { assetDragSession, createCatcherLane } from './asset-drop-session.js';
+import { assetDragSession, createCatcherLane, isAssetDrag } from './asset-drop-session.js';
 import { placeAsset } from './place-asset.js';
 
 export const CATCHER_TESTID = 'canvas-asset-drop-catcher';
+
+/**
+ * Nothing is placed by a person who may only look, nor while the canvas is shown at a past version (Version history's
+ * Viewing) or through a design-system preview: the frame is not the live file, so a drop would write to a canvas the
+ * person is not looking at.
+ */
+export function catcherReadOnly({ readOnly, role, viewing, canvasTab, dsPreview }) {
+  return (
+    !!readOnly ||
+    role === 'observer' ||
+    role === 'viewer' ||
+    (!!viewing && viewing.path === canvasTab) ||
+    !!dsPreview
+  );
+}
 
 /**
  * @param props.frame        () => HTMLIFrameElement | null — the active canvas frame
@@ -25,18 +40,21 @@ export function CanvasDropCatcher({ frame, canvas, canvasOrigin, readOnly }) {
   if (!laneRef.current) {
     const origin = () => live.current.canvasOrigin || window.location.origin;
     const win = () => live.current.frame?.()?.contentWindow ?? null;
+    const post = (msg) => {
+      try {
+        win()?.postMessage(msg, origin());
+      } catch {
+        /* the frame went away */
+      }
+    };
     laneRef.current = createCatcherLane({
       session: assetDragSession,
       canvas: () => live.current.canvas || null,
-      post: (msg) => {
-        try {
-          win()?.postMessage(msg, origin());
-        } catch {
-          /* the frame went away */
-        }
-      },
+      post,
       accept: (e) => acceptFromCanvas(e, { canvasOrigin: origin(), active: win() }),
-      place: (req) => placeAsset(req),
+      // a legacy-link write hands the canvas its undo step (⌘Z); on the op log the write is a kernel action and this is not called
+      place: (req) =>
+        placeAsset(req, { record: (payload) => post({ dgn: 'record-edit', payload }) }),
     });
   }
   const lane = laneRef.current;
@@ -65,8 +83,13 @@ export function CanvasDropCatcher({ frame, canvas, canvasOrigin, readOnly }) {
       data-testid={CATCHER_TESTID}
       aria-hidden="true"
       style={{ position: 'absolute', inset: 0, zIndex: 1, background: 'transparent' }}
-      onDragEnter={(e) => e.preventDefault()}
+      onDragEnter={(e) => {
+        // not a tile (a Finder drag, text): the session is stale; let the event through to whatever lies below
+        if (!isAssetDrag(e)) return assetDragSession.end();
+        e.preventDefault();
+      }}
       onDragOver={(e) => {
+        if (!isAssetDrag(e)) return assetDragSession.end();
         e.preventDefault();
         if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
         const p = local(e);
@@ -77,6 +100,7 @@ export function CanvasDropCatcher({ frame, canvas, canvasOrigin, readOnly }) {
         lane.leave();
       }}
       onDrop={(e) => {
+        if (!isAssetDrag(e)) return assetDragSession.end();
         e.preventDefault();
         e.stopPropagation();
         const p = local(e);

@@ -13,17 +13,67 @@
 // The canvas can only name a target for a drop the shell asked about (one pending requestId, short-lived); it can
 // never make the shell place a path the person did not drag. The server still re-checks the path (image-fit.ts).
 
-import { isAssetPath } from '../../../editing/asset-drag.ts';
+import { ASSET_DRAG_MIME, isAssetPath } from '../../../editing/asset-drag.ts';
 
 const MAX_PX = 100_000;
 export const DROP_ANSWER_MS = 3000;
+/** A drag that has said nothing (no dragover) for this long is over, whatever the tile did: the catcher must never stay. */
+export const DRAG_IDLE_MS = 60_000;
 
-/** The one drag in flight (module state: the tile and the catcher are in different trees). */
-function createSession() {
+/** Is this DOM drag event carrying an Assets tile (its own MIME type)? A Finder drag, text or a link is not. */
+export function isAssetDrag(e) {
+  const types = e?.dataTransfer?.types;
+  if (!types) return false;
+  try {
+    return Array.from(types).includes(ASSET_DRAG_MIME);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The one drag in flight (module state: the tile and the catcher are in different trees).
+ *
+ * The session ends by itself when the tile cannot say so (its element unmounted mid-drag, so React never sees
+ * `dragend`): a window capture-phase `dragend` / `drop`, a `pointerdown` (no pointer events fire during a native
+ * drag, so one means it is over), or DRAG_IDLE_MS without a dragover. A drop ends it one tick later, so the
+ * catcher's own drop handler still reads it.
+ */
+function createSession(opts = {}) {
   let drag = null;
+  let idle = null;
+  let detach = null;
   const subs = new Set();
   const emit = () => {
     for (const fn of subs) fn();
+  };
+  const end = () => {
+    if (idle) clearTimeout(idle);
+    idle = null;
+    if (detach) detach();
+    detach = null;
+    if (!drag) return;
+    drag = null;
+    emit();
+  };
+  const touch = () => {
+    if (!drag) return;
+    if (idle) clearTimeout(idle);
+    idle = setTimeout(end, opts.idleMs ?? DRAG_IDLE_MS);
+  };
+  const attach = () => {
+    const win = opts.target ?? (typeof window !== 'undefined' ? window : null);
+    if (!win?.addEventListener) return null;
+    const onEnd = () => end();
+    const onDrop = () => setTimeout(end, 0);
+    win.addEventListener('dragend', onEnd, true);
+    win.addEventListener('pointerdown', onEnd, true);
+    win.addEventListener('drop', onDrop, true);
+    return () => {
+      win.removeEventListener('dragend', onEnd, true);
+      win.removeEventListener('pointerdown', onEnd, true);
+      win.removeEventListener('drop', onDrop, true);
+    };
   };
   return {
     /** A tile's drag started; null when `asset` is not an `assets/<name>` path. */
@@ -41,16 +91,20 @@ function createSession() {
         d.w = Math.round(a.w);
         d.h = Math.round(a.h);
       }
+      if (detach) detach();
       drag = d;
-      // after the dragstart handler returns: a DOM change inside dragstart can cancel the drag in some engines
-      setTimeout(emit, 0);
+      detach = attach();
+      touch();
+      // after the dragstart handler returns: a DOM change inside dragstart can cancel the drag in some engines.
+      // Only if this drag is still the one in flight (an end() in between must not bring a catcher back).
+      setTimeout(() => {
+        if (drag === d) emit();
+      }, 0);
       return d;
     },
-    end() {
-      if (!drag) return;
-      drag = null;
-      emit();
-    },
+    end,
+    /** The drag is still alive (a dragover): push the idle timeout out. */
+    touch,
     current: () => drag,
     subscribe(fn) {
       subs.add(fn);
@@ -110,6 +164,7 @@ export function createCatcherLane(deps) {
   return {
     over(x, y) {
       if (!deps.session.current()) return false;
+      deps.session.touch?.();
       deps.post({ dgn: 'asset-drag-over', x: Math.round(x), y: Math.round(y) });
       return true;
     },
