@@ -26,6 +26,7 @@ import { ArrivingCanvas, NotLocalCanvas, useCanvasAvailability } from '../v2/emp
 import { insetsNow } from '../v2/shell/insets-now.js';
 import { normalizeOpenPath } from '../share-link.js';
 import { framesIsolated, sessionRole } from '../v2/access/access-client.js';
+import { CanvasDropCatcher } from '../v2/assets/canvas-drop-catcher.jsx';
 
 export function Viewport({
   tabs,
@@ -55,6 +56,8 @@ export function Viewport({
   // `overflow: auto` is keyboard-scrollable (arrow/Page keys) without a
   // separate tabIndex fix.
   const previewRef = useRef(null);
+  // r3 — the canvas frames by path, for the Assets drop catcher (registerIframe keeps the app's own map)
+  const framesRef = useRef(new Map());
   useEffect(() => {
     if (previewPath) previewRef.current?.focus();
   }, [previewPath]);
@@ -233,7 +236,11 @@ export function Viewport({
             // remount; it is otherwise constant, so normal switching keys on the
             // path exactly as before.
             key={`${t.path}#${canvasReloadNonce}${viewing?.path === t.path ? `@${viewing.at}` : ''}`}
-            ref={(el) => registerIframe(t.path, el)}
+            ref={(el) => {
+              registerIframe(t.path, el);
+              if (el) framesRef.current.set(t.path, el);
+              else framesRef.current.delete(t.path);
+            }}
             src={stableSrc(t.path)}
             title={`Canvas: ${t.path}`}
             className={t.path === activePath ? 'active' : ''}
@@ -251,6 +258,16 @@ export function Viewport({
           />
         );
       })}
+      {canvasTab && !notLocal && !arriving && (
+        // r3 — an Assets tile dragged over the canvas: the shell takes the drop (WebKit gives the canvas origin no
+        // event of a drag the shell started) and places the picture on what the canvas says lies under it
+        <CanvasDropCatcher
+          frame={() => framesRef.current.get(canvasTab) ?? null}
+          canvas={canvasTab}
+          canvasOrigin={cfg?.canvasOrigin}
+          readOnly={!!cfg?.readOnly || role === 'observer' || role === 'viewer'}
+        />
+      )}
       {codeShown && (
         <CodeView
           key={`${codeCanvas}#code`}

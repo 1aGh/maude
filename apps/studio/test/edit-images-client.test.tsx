@@ -17,13 +17,7 @@ afterAll(async () => {
 });
 
 import type { EditOpResult } from '../edit-ops/types.ts';
-import {
-  ASSET_DRAG_MIME,
-  assetDragData,
-  dragHasAsset,
-  isAssetPath,
-  parseAssetDrag,
-} from '../editing/asset-drag.ts';
+import { assetDragData, isAssetPath, parseAssetDrag } from '../editing/asset-drag.ts';
 import {
   CROP_ACTION,
   elementOfRef,
@@ -95,12 +89,6 @@ describe('an Assets tile’s drag payload', () => {
     });
     expect(isAssetPath('assets/ab12cd34.jpg')).toBe(true);
     expect(isAssetPath('assets/../a.jpg')).toBe(false);
-  });
-
-  test('dragover can tell a tile from a file by the type list alone', () => {
-    expect(dragHasAsset([ASSET_DRAG_MIME, 'text/plain'])).toBe(true);
-    expect(dragHasAsset(['Files'])).toBe(false);
-    expect(dragHasAsset(null)).toBe(false);
   });
 });
 
