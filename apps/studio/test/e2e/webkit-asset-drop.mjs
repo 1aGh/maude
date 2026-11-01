@@ -98,7 +98,11 @@ const SETUP = `
     const last = window.__probeLog.at(-1);
     if ((on ? 'catcher-on' : 'catcher-off') !== last && (on || last === 'catcher-on')) window.__probeLog.push(on ? 'catcher-on' : 'catcher-off');
   }).observe(document.body, { subtree: true, childList: true });
-  (await wait(() => q('[data-testid="canvas-row-ui-smoke"]')))?.click();
+  // a row drawn before the tree is live can swallow the first click: click until the canvas starts opening
+  for (let i = 0; i < 20 && (q('main.viewport')?.dataset.canvasState ?? 'idle') === 'idle'; i++) {
+    (await wait(() => q('[data-testid="canvas-row-ui-smoke"]')))?.click();
+    await wait(() => q('main.viewport')?.dataset.canvasState !== 'idle', 1500);
+  }
   await wait(() => q('main.viewport')?.dataset.canvasState === 'ready' && !q('[data-testid="canvas-loading"]'));
   (await wait(() => q('[data-testid="panel-tab-assets"]')))?.click();
 `;
@@ -109,7 +113,7 @@ const READY = `(() => {
     && !document.querySelector('[data-testid="canvas-loading"]')
     && new URL(f.src, location.href).origin !== location.origin;
 })()`;
-const LOG = `JSON.stringify({ log: window.__probeLog || [], state: document.querySelector('main.viewport')?.dataset.canvasState, loading: !!document.querySelector('[data-testid="canvas-loading"]'), error: document.querySelector('[data-testid="canvas-load-error"]')?.innerText?.slice(0, 200), tile: !!document.querySelector('[data-testid="assets-tile"]') })`;
+const LOG = `JSON.stringify({ log: window.__probeLog || [], state: document.querySelector('main.viewport')?.dataset.canvasState, loading: !!document.querySelector('[data-testid="canvas-loading"]'), error: document.querySelector('[data-testid="canvas-load-error"]')?.innerText?.slice(0, 200), tile: !!document.querySelector('[data-testid="assets-tile"]'), row: !!document.querySelector('[data-testid="canvas-row-ui-smoke"]'), text: (document.body?.innerText || '').replace(/\\s+/g, ' ').slice(0, 300) })`;
 const TILE = `const r = document.querySelector('[data-testid="assets-tile"][data-asset="assets/pic.png"]').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2];`;
 const FRAME_CENTRE = `const r = document.querySelector('[data-testid="canvas-frame"]').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2];`;
 const LEFT_PANEL = `const r = document.querySelector('[data-testid="assets-panel"]').getBoundingClientRect(); return [r.left + r.width / 2, r.bottom - 40];`;
