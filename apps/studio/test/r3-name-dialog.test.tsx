@@ -108,7 +108,7 @@ describe('the New canvas dialog', () => {
     expect(dlg.getAttribute('role')).toBe('dialog');
     expect(dlg.getAttribute('aria-modal')).toBe('true');
     const labelId = dlg.getAttribute('aria-labelledby') as string;
-    expect(document.getElementById(labelId)?.textContent).toBe('New canvas');
+    expect(document.getElementById(labelId)?.textContent).toBe('Create canvas');
     const input = q('name-dialog-input') as HTMLInputElement;
     expect(input.value).toBe('Untitled canvas');
     expect(input.selectionStart).toBe(0);
@@ -198,7 +198,7 @@ describe('the New brief canvas dialog', () => {
     const dlg = q('name-dialog') as HTMLElement;
     expect(
       document.getElementById(dlg.getAttribute('aria-labelledby') as string)?.textContent
-    ).toBe('New brief canvas');
+    ).toBe('Create brief canvas');
     expect((q('name-dialog-input') as HTMLInputElement).value).toBe('Untitled brief');
     expect(document.body.textContent).not.toMatch(/board/i);
     await typeInto(q('name-dialog-input') as HTMLInputElement, 'Launch brief');

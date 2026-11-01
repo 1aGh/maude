@@ -11,13 +11,13 @@ export const NAME_DIALOG_EVENT = 'maude:name-dialog';
 
 export const NAME_DIALOG_KINDS = Object.freeze({
   canvas: Object.freeze({
-    title: 'New canvas',
+    title: 'Create canvas',
     label: 'Canvas name',
     defaultName: 'Untitled canvas',
     confirm: 'Create',
   }),
   brief: Object.freeze({
-    title: 'New brief canvas',
+    title: 'Create brief canvas',
     label: 'Brief canvas name',
     defaultName: 'Untitled brief',
     confirm: 'Create',
