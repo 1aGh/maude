@@ -181,33 +181,35 @@ try {
     assert.ok(await until(() => count(source(root), /Beta heading/g) === before), 'undone');
   });
 
-  await step('10 an Assets drop seen only as text/plain places the picture', async () => {
-    const at = await centre('h2.alpha');
-    const fb = await page.locator('[data-testid="canvas-frame"]').boundingBox();
-    await frame.evaluate(
-      ({ x, y }) => {
-        const dt = new DataTransfer();
-        // what WebKit shows the canvas origin of the tile's drag: the plain-text twin only
-        dt.setData('text/plain', 'assets/stadium.png');
-        const el = document.elementFromPoint(x, y) ?? document.body;
-        for (const type of ['dragenter', 'dragover', 'drop'])
-          el.dispatchEvent(
-            new DragEvent(type, {
-              bubbles: true,
-              cancelable: true,
-              clientX: x,
-              clientY: y,
-              dataTransfer: dt,
-            })
-          );
-      },
-      { x: at.x - fb.x, y: at.y - fb.y }
-    );
-    assert.ok(
-      await until(() => /stadium\.png/.test(source(root))),
-      'the picture is in the canvas source'
-    );
-  });
+  await step(
+    '10 a text/plain path dropped inside the canvas places nothing — an Assets drop is the shell’s (r3)',
+    async () => {
+      const at = await centre('h2.alpha');
+      const fb = await page.locator('[data-testid="canvas-frame"]').boundingBox();
+      await frame.evaluate(
+        ({ x, y }) => {
+          const dt = new DataTransfer();
+          // r3: WebKit gives the canvas origin no event of a drag the shell started, so the shell owns an Assets drag
+          // (test/e2e/webkit-asset-drop.mjs drives a real one); the canvas no longer turns dropped text into a picture
+          dt.setData('text/plain', 'assets/stadium.png');
+          const el = document.elementFromPoint(x, y) ?? document.body;
+          for (const type of ['dragenter', 'dragover', 'drop'])
+            el.dispatchEvent(
+              new DragEvent(type, {
+                bubbles: true,
+                cancelable: true,
+                clientX: x,
+                clientY: y,
+                dataTransfer: dt,
+              })
+            );
+        },
+        { x: at.x - fb.x, y: at.y - fb.y }
+      );
+      await new Promise((r) => setTimeout(r, 1500));
+      assert.ok(!/stadium\.png/.test(source(root)), 'nothing was placed from planted text');
+    }
+  );
 
   await step('14 a press on a board picture in Edit says to switch to Preview', async () => {
     const tip = await until(async () => {
