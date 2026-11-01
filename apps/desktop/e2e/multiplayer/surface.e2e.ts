@@ -1607,14 +1607,30 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
       }
       for (const from of all) {
         await check('L04.canvas.create.tree', `${from.name}-to-peers`, async () => {
+          // R2-P2 (TD2): the panel's "+ New canvas" row turns into the name field in place; Enter makes a blank
+          // canvas (no artboard) and opens it with the size picker up. The brief canvas (⌘K "New brief canvas")
+          // is the entry lanes' door (selfhost-entry / cloud-entry), where a heading is edited next.
           const name = `SurfaceBoard-${from.name}`;
           await from.click('[aria-label="New canvas"]');
-          await from.fill('[aria-label="New brief board name"]', name);
+          const field = selector('canvases-new-name');
+          await until(async () => (await from.count(field)) === 1);
+          // Typed, not `fill`: the field gives up its name on blur (Esc semantics), and the native driver's
+          // setValue clears through an unfocus. It opens focused with "Untitled canvas" selected, so the
+          // first key replaces it.
+          for (const key of name) await from.press(key);
+          const typed = await from.shell(
+            `document.querySelector(${JSON.stringify(field)})?.value ?? null`
+          );
+          if (typed !== name) throw new Error(`Canvas name field holds ${JSON.stringify(typed)}`);
           const start = performance.now();
-          await from.click('[aria-label="Create brief board"]');
+          await from.press('Enter');
           const q = selector(`canvas-row-ui-${slug(name)}`);
           await until(async () => (await from.read(q)) !== null);
           const observations = await receivers('L04-create', from, all, q, start, `ui/${name}.tsx`);
+          // (after the peers are timed) the size picker is up for the canvas just made; Esc puts it away (no artboard is drawn)
+          await until(async () => (await from.read(selector('tool-panel-sizes'))) !== null);
+          await from.press('Escape');
+          await until(async () => (await from.read(selector('tool-panel-sizes'))) === null);
           return {
             status: observations.every((o) => o.status === 'pass') ? 'pass' : 'fail',
             observations,
@@ -1633,8 +1649,15 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               async () => (await to.read(selector(`canvas-row-ui-${slug(name)}`))) !== null
             );
             await openCanvas(to, oldRel);
+            // A blank canvas draws the canvas surface and no artboard: the frame is THIS canvas (data-path),
+            // its module built and mounted (.dc-canvas), and nothing from another canvas is in it.
             await until(
-              async () => (await to.read('[data-dc-screen="brief"]', true))?.includes(name) === true
+              async () =>
+                (await to.read(`[data-testid="canvas-frame"][data-path=".design/${oldRel}"]`)) !==
+                  null &&
+                (await to.probe('.dc-canvas'))?.visible === true &&
+                (await to.probe('[data-dc-screen]'))?.visible !== true &&
+                (await to.read(selector('canvas-load-error'))) === null
             );
             observations.push({ receiver: to.name, status: 'pass' });
           }

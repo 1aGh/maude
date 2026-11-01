@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { $, browser, expect } from '@wdio/globals';
+import { focusShell } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { connectHubFromHome } from '../helpers/home-entry';
 import { isNativeShell } from '../helpers/native';
@@ -42,6 +43,26 @@ async function probe(query: string, operation = 'read', value: unknown = null) {
     operation,
     value
   );
+}
+
+/**
+ * ⌘K "New brief canvas" (`canvas.new-brief`): the Canvases panel's brief composer, a name, Create. The panel's
+ * "New canvas" makes a blank canvas since R2-P2 (TD2) — no artboard, no heading — and this lane's next step
+ * edits the brief's heading, so it takes the brief door (surface.e2e.ts covers New canvas).
+ */
+async function createBriefCanvas(name: string) {
+  await focusShell();
+  await browser.keys(['Meta', 'k']);
+  const input = await $(tid('palette-input'));
+  await input.waitForExist({ timeout: 10_000 });
+  await input.setValue('New brief canvas');
+  const action = await $(tid('palette-row-action:canvas.new-brief'));
+  await action.waitForExist({ timeout: 4000 });
+  await action.click();
+  const field = await $('input[aria-label="New brief canvas name"]');
+  await field.waitForDisplayed({ timeout: 10_000 });
+  await field.setValue(name);
+  await (await $('button[aria-label="Create brief canvas"]')).click();
 }
 
 describe('S01 self-host entry on a clean native profile (Linux, or macOS on a local container)', () => {
@@ -103,9 +124,7 @@ describe('S01 self-host entry on a clean native profile (Linux, or macOS on a lo
     const hubs = readFileSync(process.env.HUBS_CONFIG_PATH as string, 'utf8');
     expect(hubs.includes(target.password)).toBe(false);
 
-    await (await $('button[aria-label="New canvas"]')).click();
-    await (await $('input[aria-label="New brief board name"]')).setValue(canvasName);
-    await (await $('button[aria-label="Create brief board"]')).click();
+    await createBriefCanvas(canvasName);
     const row = `canvas-row-ui-${canvasName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
     // (its folder may still be closed: a person opens it to see the new row)
     await browser.waitUntil(
