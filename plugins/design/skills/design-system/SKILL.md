@@ -40,6 +40,8 @@ When in BOOTSTRAP mode, classify into sub-modes:
 - `re-bootstrap` — config exists, `target_ds` IS in `designSystems[]`, `--force` passed (else refuse)
 - `app` — `--app`: the Maude app already made the system as an outline (`revisions/head.json` has no head). The flow is `_bootstrap.md` § "`app` adaptation": three directions written with `maude design ds draft`, the in-app pick as the gate, the sections filled through the working files, and no `ds done` (the person's button does it)
 
+**A new system in a Maude project starts on its canvas.** For `first-bootstrap` and `additional-ds`, run `maude design ds make <target_ds> --label "<Label>"` BEFORE any scaffold. It writes the config entry, `system/<target_ds>/` and the Design system canvas (outlines), so the person gets the canvas straight away and the app has no static folder to offer to convert. On success the flow is the `app` sub-mode (the brief verbatim, no Stage 0/1 interview, no roster); only when `ds make` is refused because the project cannot be edited that way (older format, unknown verb) does the staged discovery + scaffold below run, and then the folder it makes is offered "Turn this folder into a Design system canvas". Never write `design-system.tsx` or `revisions/` by hand.
+
 If both modes seem plausible, **prefer READ** — bootstrap should be the explicit choice.
 
 **Changing a token of an existing system** is not a bootstrap. A system on its Design system canvas (it has

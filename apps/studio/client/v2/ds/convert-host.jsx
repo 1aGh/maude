@@ -9,7 +9,8 @@
 // loop — the dialog stays the way to try again by hand), only when every folder can convert (one run converts all
 // or none), and says so: "Design systems moved onto canvases."
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { menuRunner } from '../shell/menu-runner.js';
 import { DsConvertDialog } from './convert-dialog.jsx';
 import {
   CONVERT_WORDS,
@@ -50,8 +51,28 @@ export async function autoConvertSystems({ fetchImpl = globalThis.fetch } = {}) 
   return r.ok ? { ran: true, ok: true, message: CONVERT_WORDS.autoDone } : { ran: true, ok: false };
 }
 
-export function DsConvertHost({ toast, fetchImpl, target = globalThis.window, auto = null }) {
+/**
+ * `cfg` + `reloadTree` + `goTo`: once a convert finishes the studio reads the project again, and as soon as it
+ * knows the system is a Design system canvas the open view switches to that canvas — the person never has to
+ * open another canvas and come back (r4 #10). `goTo({ ds })` defaults to the `ds.go-to` action.
+ */
+export function DsConvertHost({
+  toast,
+  fetchImpl,
+  target = globalThis.window,
+  auto = null,
+  cfg = null,
+  reloadTree = null,
+  goTo = null,
+}) {
   const [model, setModel] = useState(null);
+  // the system to open once the studio knows it is converted: { ds }
+  const [pendingOpen, setPendingOpen] = useState(null);
+  const askedFor = useRef(null); // the folder the banner sat on
+  const reloadRef = useRef(reloadTree);
+  reloadRef.current = reloadTree;
+  const goRef = useRef(goTo);
+  goRef.current = goTo;
   const f = useCallback(() => ({ fetchImpl: fetchImpl ?? globalThis.fetch }), [fetchImpl]);
   const say = useCallback((m, ok = true) => toast?.(m, ok), [toast]);
 
@@ -59,6 +80,7 @@ export function DsConvertHost({ toast, fetchImpl, target = globalThis.window, au
     if (!target?.addEventListener) return undefined;
     const on = async (ev) => {
       ev.preventDefault();
+      askedFor.current = typeof ev.detail?.ds === 'string' ? ev.detail.ds : null;
       const r = await fetchConvertPlan(null, f());
       if (!r.ok) return say(r.message, false);
       const m = dialogModel(r.body);
@@ -76,9 +98,21 @@ export function DsConvertHost({ toast, fetchImpl, target = globalThis.window, au
     ranThisPage.add(autoProject);
     if (!claimAutoRun(autoProject)) return;
     void autoConvertSystems(f()).then((r) => {
-      if (r.ran && r.ok) say(r.message);
+      if (r.ran && r.ok) {
+        say(r.message);
+        void reloadRef.current?.();
+      }
     });
   }, [autoProject, f, say]);
+
+  // r4 #10 — the convert finished and the studio has read the project again: open the Design system canvas now
+  const converted = cfg?.dsConverted;
+  useEffect(() => {
+    if (!pendingOpen || converted?.[pendingOpen.ds] !== true) return;
+    setPendingOpen(null);
+    const go = goRef.current ?? ((p) => menuRunner.run('ds.go-to', p));
+    go({ ds: pendingOpen.ds });
+  }, [pendingOpen, converted]);
 
   if (!model) return null;
   return (
@@ -92,7 +126,11 @@ export function DsConvertHost({ toast, fetchImpl, target = globalThis.window, au
         );
         if (!r.ok) return r;
         say(r.message);
+        const done = (r.result?.systems ?? []).map((x) => x.name);
+        const want = done.includes(askedFor.current) ? askedFor.current : (done[0] ?? null);
         setModel(null);
+        if (want) setPendingOpen({ ds: want });
+        void reloadRef.current?.();
         return { ok: true };
       }}
     />

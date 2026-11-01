@@ -269,6 +269,44 @@ describe('the dialog and its host', () => {
     expect(toasts).toEqual(['3 Design system canvases now.']);
   });
 
+  // r4 #10 — "nothing happens after Convert; I have to open another canvas and come back"
+  test('after Convert the studio reads the project again and the open view goes to the new canvas at once', async () => {
+    const { useState } = await import('react');
+    const f = fakeFetch((b) =>
+      b.dryRun
+        ? { status: 200, body: { ...PLAN_29, result: null } }
+        : {
+            status: 200,
+            body: {
+              ...PLAN_29,
+              result: { snapshot: '_history/_ds-convert/x', systems: [{ name: 'gator' }] },
+            },
+          }
+    );
+    const order: string[] = [];
+    function Wrapper() {
+      const [cfg, setCfg] = useState<Record<string, unknown>>({ dsConverted: { gator: false } });
+      return (
+        <Host
+          toast={() => {}}
+          fetchImpl={f.impl}
+          cfg={cfg}
+          reloadTree={async () => {
+            order.push('reload');
+            setCfg({ dsConverted: { gator: true } }); // what the tree reload folds into cfg
+          }}
+          goTo={(p: { ds: string }) => order.push(`go:${p.ds}`)}
+        />
+      );
+    }
+    await render(<Wrapper />);
+    await act(async () => void requestDsConvert({ ds: 'gator' }));
+    await settle();
+    await act(async () => q('ds-convert-go')?.click());
+    await settle();
+    expect(order).toEqual(['reload', 'go:gator']);
+  });
+
   test('a refusal stays in the dialog in words; Cancel writes nothing', async () => {
     const f = fakeFetch((b) =>
       b.dryRun
@@ -295,6 +333,37 @@ describe('the dialog and its host', () => {
     await act(async () => q('ds-convert-cancel')?.click());
     expect(q('ds-convert')).toBeNull();
     expect(f.calls).toHaveLength(2);
+  });
+
+  // r4 #7 — "the design system view's empty state could at least have a Create a design system button"
+  test('a project with no design system: the view says so and its button asks for the make sheet', async () => {
+    const data = {
+      ds: null,
+      availableDesignSystems: [],
+      previewGallery: [],
+      uiKitsGallery: [],
+      systemDir: 'system',
+      tokens: [],
+      tokenGroups: {},
+    };
+    const asked: unknown[] = [];
+    const on = (e: Event) => {
+      e.preventDefault();
+      asked.push((e as CustomEvent).detail);
+    };
+    window.addEventListener('maude:ds-make', on);
+    try {
+      await render(<SystemView data={data} cfg={{ dsConverted: {} }} onOpen={() => {}} />);
+      expect(q('sv-no-system')?.textContent).toContain('No design system yet');
+      expect(q('sv-create-design-system')?.textContent).toBe('Create a design system');
+      await act(async () => q('sv-create-design-system')?.click());
+      expect(asked).toHaveLength(1);
+      // someone who can only look gets the words but no button
+      await render(<SystemView data={data} cfg={{ readOnly: true }} onOpen={() => {}} />);
+      expect(document.querySelectorAll('[data-testid="sv-create-design-system"]')).toHaveLength(1);
+    } finally {
+      window.removeEventListener('maude:ds-make', on);
+    }
   });
 
   test('no banner on a converted system, nor for someone who can only look', async () => {

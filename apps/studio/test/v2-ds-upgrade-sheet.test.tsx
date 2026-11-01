@@ -412,8 +412,14 @@ describe('the dialog (canvas 22)', () => {
     expect(q('ds-upgrade')?.getAttribute('data-view')).toBe('ask');
     expect(q('ds-upgrade-title')?.textContent).toBe('Bring Combine 2026 up to the schema?');
     expect(q('ds-upgrade-lead')?.textContent).toBe(
-      'Combine 2026 was made before the schema. Until it does, canvases can’t switch to or from it cleanly.'
+      'Combine 2026 was made before the schema, so its colours, type and spacing don’t have the standard names Maude works with. Bringing it up gives them those names. Nothing looks different.'
     );
+    // r4 #11 — why it matters, in plain words: what the person gains
+    expect(qa('ds-upgrade-gain').map((g) => g.querySelector('b')?.textContent)).toEqual([
+      'AI and the Inspector can use it',
+      'The checks keep it consistent',
+      'It updates across canvases',
+    ]);
     expect(qa('ds-upgrade-line').map((l) => l.querySelector('b')?.textContent)).toEqual([
       'Adds 2 roles',
       'Renames its components',
@@ -465,6 +471,35 @@ describe('the dialog (canvas 22)', () => {
     expect(q('ds-upgrade-refused')?.textContent).toBe('1 canvas can’t be updated yet');
     expect(q('ds-upgrade-go')?.textContent).toBe('Bring it up');
     expect((q('ds-upgrade-go') as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  // r4 #11 — "the whole page locks; AI is working, but I can't do anything, only Cancel"
+  test('while AI works or the check runs the page is not locked: a corner card, no scrim, Cancel still there', async () => {
+    const b = backend();
+    await mountHost(b.fetchImpl);
+    await open();
+    await waitFor(() => q('ds-upgrade') !== null);
+    expect(q('ds-upgrade-scrim')).not.toBeNull(); // the question itself is a dialog
+    await click(q('ds-upgrade-go'));
+    await waitFor(() => q('ds-upgrade')?.getAttribute('data-view') === 'working');
+    expect(q('ds-upgrade-scrim')).toBeNull();
+    expect(q('ds-upgrade')?.getAttribute('aria-modal')).toBeNull();
+    expect(q('ds-upgrade')?.getAttribute('data-modal')).toBe('false');
+    expect(q('ds-upgrade-cancel')?.textContent).toBe('Cancel');
+    b.s.stages = [
+      stage({
+        phase: 'proving',
+        review: null,
+        progress: { phase: 'rendering', current: 2, total: 6 },
+      }),
+    ];
+    await waitFor(() => q('ds-upgrade')?.getAttribute('data-view') === 'proving');
+    expect(q('ds-upgrade-scrim')).toBeNull();
+    expect(q('ds-upgrade-progress')?.getAttribute('data-current')).toBe('2');
+    // the proved review is a decision, so it is a dialog again
+    b.s.stages = [stage()];
+    await waitFor(() => q('ds-upgrade')?.getAttribute('data-view') === 'review');
+    expect(q('ds-upgrade-scrim')).not.toBeNull();
   });
 
   test('closing and reopening while the AI works does not ask twice (it finds the job again)', async () => {

@@ -4,6 +4,7 @@ import { canvasUrl } from '../canvas-url.js';
 import { framesIsolated } from '../v2/access/access-client.js';
 import { DsConvertBanner } from '../v2/ds/convert-dialog.jsx';
 import { requestDsConvert } from '../v2/ds/convert-model.js';
+import { requestDsMake } from '../v2/ds/default-write.js';
 
 // ---------- SystemView ----------
 //
@@ -175,6 +176,39 @@ export function SystemView({ data, onOpen, cfg, onSelectDs }) {
   } = data;
   const empty =
     (!previewGallery || !previewGallery.length) && (!uiKitsGallery || !uiKitsGallery.length);
+  // r4 #7 — a project with no design system at all: say so, and give the one button that makes one (the same
+  // `ds.make` door as the empty row in Canvases: it opens the short sheet, then AI draws the system on its canvas)
+  const noSystem =
+    Array.isArray(availableDesignSystems) && availableDesignSystems.length === 0 && !ds;
+  if (noSystem) {
+    return (
+      <div className="sv">
+        <header className="sv-header">
+          <span className="sv-sku">MAUDE-DSN/01</span>
+          <span className="sv-title">design system view</span>
+        </header>
+        <div className="sv-empty sv-no-system" data-testid="sv-no-system">
+          <div>
+            <p className="sv-no-system-title">No design system yet</p>
+            <p className="sv-no-system-body">
+              A design system holds your colours, type and components, so every canvas stays
+              consistent.
+            </p>
+            {cfg?.readOnly ? null : (
+              <button
+                type="button"
+                className="btn btn--primary"
+                data-testid="sv-create-design-system"
+                onClick={() => requestDsMake({})}
+              >
+                Create a design system
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
   const hasPicker = Array.isArray(availableDesignSystems) && availableDesignSystems.length > 1;
   const selectedName = ds?.name ?? availableDesignSystems?.[0]?.name ?? '';
 

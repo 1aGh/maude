@@ -42,6 +42,22 @@
     color: var(--fg-2);
   }
 
+  .sv-no-system {
+    text-align: center;
+  }
+  .sv-no-system-title {
+    margin: 0 0 var(--space-2);
+    font-size: var(--type-md);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+  .sv-no-system-body {
+    margin: 0 0 var(--space-4);
+    max-width: 44ch;
+    font-size: var(--type-sm);
+    line-height: var(--lh-sm);
+  }
+
   /* CV-09 header — SKU framing, hairline divider underneath. */
   .sv-header {
     display: flex;
