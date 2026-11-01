@@ -4,6 +4,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
+import { useDismissOutside } from '../shell/use-dismiss-outside.js';
 import { KINDS, kindLabel } from './library-foot.js';
 
 export function KindsChip({ value, onChange }) {
@@ -14,9 +15,6 @@ export function KindsChip({ value, onChange }) {
     if (!open) return undefined;
     const el = root.current;
     el?.querySelector('[role="menuitemradio"][aria-checked="true"]')?.focus();
-    const onPointer = (e) => {
-      if (el && !el.contains(e.target)) setOpen(false);
-    };
     const onKey = (e) => {
       if (e.key === 'Escape') {
         e.preventDefault();
@@ -33,13 +31,11 @@ export function KindsChip({ value, onChange }) {
         e.key === 'ArrowDown' ? (i + 1) % items.length : (i - 1 + items.length) % items.length;
       items[n]?.focus();
     };
-    document.addEventListener('pointerdown', onPointer, true);
     document.addEventListener('keydown', onKey, true);
-    return () => {
-      document.removeEventListener('pointerdown', onPointer, true);
-      document.removeEventListener('keydown', onKey, true);
-    };
+    return () => document.removeEventListener('keydown', onKey, true);
   }, [open]);
+  // a click anywhere else closes it — also a click into the canvas (another origin), which only blurs this window
+  useDismissOutside(open, root, () => setOpen(false));
   return (
     <span className="lp-kinds" ref={root}>
       <button
