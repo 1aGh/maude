@@ -3,12 +3,12 @@
   "pass": true,
   "qualityHash": "ca053cd5bbc8fa64231dfde679d7b0108280b8f384c154322c75c50c872e7071",
   "reportHashes": {
-    ".ai/plans/notes/v2-evidence/V2-8.10-app-final/README.md": "6a1e14461a01bf0d7d2029e512ca9cc502ddd2504fd3e5dfcef1af3e48ff92c7"
+    ".ai/plans/notes/v2-evidence/V2-8.10-app-final/README.md": "d798a6b89d8b79ed35fba4ddb56312cde79c78203e7bac22a93d94d6b27f1adc"
   },
-  "head": "fab4e6c4a1437950b73fe2d5db2df8a1d9c00cc2",
-  "ts": "2026-11-01T13:45:27.703Z",
+  "head": "eb9c281c41947d5a7487cdacfdd91aa5879dd47f",
+  "ts": "2026-11-01T19:48:04.150Z",
   "reports": [
     ".ai/plans/notes/v2-evidence/V2-8.10-app-final/README.md"
   ],
-  "note": "Maude.app 2.0.0-rc.1 built at fab4e6c4a (MAUDE_NO_AUTO_UPDATE=1): bundle completeness --smoke 0, client boots 0, no WebDriver in release, opening card clears (Chromium); clean-user smoke is Michal's"
+  "note": "Maude.app 2.0.0-rc.1 rebuilt for r3 at fa52b24c6 (MAUDE_NO_AUTO_UPDATE=1): bundle completeness --smoke 0, client boots 0, no WebDriver in release (nm 0), opening card clears (Chromium); clean-user smoke is Michal's"
 }

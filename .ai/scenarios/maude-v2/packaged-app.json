@@ -1,9 +1,9 @@
 {
   "branch": "feat/maude-v2",
-  "head": "fab4e6c4a1437950b73fe2d5db2df8a1d9c00cc2",
+  "head": "fa52b24c6f3dff01c1b2c9473a1ea48d1daba4d1",
   "version": "2.0.0-rc.1",
   "app": ".claude/worktrees/freeze/apps/desktop/src-tauri/target/release/bundle/macos/Maude.app",
-  "built": "2026-11-01T14:43",
+  "built": "2026-11-01T20:46",
   "env": "MAUDE_NO_AUTO_UPDATE=1",
   "scripted": {
     "bundleCompletenessSmoke": true,

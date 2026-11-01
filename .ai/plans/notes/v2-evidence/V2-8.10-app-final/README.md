@@ -1,8 +1,11 @@
-# V2-8.10 packaged app at the final freeze (2026-11-01, head fab4e6c4a)
+# V2-8.10 packaged app at the r3 freeze (2026-11-01, head fa52b24c6)
+
+Rebuilt for round r3 (Michal's 7 findings on READY TO TRY 11) at fa52b24c6 on 2026-11-01 20:46; every check below re-run on that build. The fab4e6c4a build it replaces is described below with the same checks.
+
 
 Built in the freeze with `MAUDE_NO_AUTO_UPDATE=1 pnpm build:desktop`, through the test lane (`dist/` snapshotted and
 clean afterwards). Output: `apps/desktop/src-tauri/target/release/bundle/macos/Maude.app`, version 2.0.0-rc.1, 391 MiB,
-built 2026-11-01 14:43 (plus `Maude_2.0.0-rc.1_aarch64.dmg`). The build "fails" only at the updater-archive signing step
+built 2026-11-01 20:46 (r3; was 14:43 at fab4e6c4a) (plus `Maude_2.0.0-rc.1_aarch64.dmg`). The build "fails" only at the updater-archive signing step
 — there is no `TAURI_SIGNING_PRIVATE_KEY` locally — after both bundles are written.
 
 | check | result |
