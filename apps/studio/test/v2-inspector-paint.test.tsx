@@ -292,7 +292,7 @@ describe('Fill', () => {
   test('a custom colour is accepted only if it is one colour', async () => {
     const host = await one();
     await openChip(host, 'insp-ctl-fill');
-    await click(q(host, 'insp-colorcss-fill'));
+    await click(q(host, 'insp-tab-custom-fill'));
     const input = q(host, 'insp-colorin-fill');
     (must(input, 'input') as HTMLInputElement).value = 'red; position: fixed';
     await press(input, 'Enter');
@@ -729,11 +729,11 @@ describe('IR-8 — the colour picker popover', () => {
     expect(saved.recentColours.Picker.length).toBe(8);
   });
 
-  test('Other colour…: the raw colour is written first, then asked once — Use <nearest> or Add it to the system', async () => {
+  test('Custom: the raw colour is written first, then asked once — Use <nearest> or Add it to the system', async () => {
     const host = await one({}, V2);
     await openChip(host, 'insp-ctl-fill');
-    await click(q(host, 'insp-colorcss-fill'));
-    expect(q(host, 'ds-picker')).not.toBeNull(); // the drawn OKLCH picker
+    await click(q(host, 'insp-tab-custom-fill'));
+    expect(q(host, 'insp-solid-area-fill')).not.toBeNull(); // the drawn saturation × brightness area (r4 #4)
     const input = must(q(host, 'insp-colorin-fill'), 'field') as HTMLInputElement;
     expect(input.placeholder).not.toMatch(/…\)|e\.g\./);
     await typeIn(input, '#1e6bff');
@@ -747,11 +747,14 @@ describe('IR-8 — the colour picker popover', () => {
   test('with no design system: one line and one action, and no question after a raw colour', async () => {
     const host = await one({}, NO_DS);
     await openChip(host, 'insp-ctl-fill');
+    // no system: the popover opens on Custom; Libraries says there is none and offers to make one
+    expect(q(host, 'insp-tab-custom-fill')?.getAttribute('aria-selected')).toBe('true');
+    await click(q(host, 'insp-tab-libraries-fill'));
     expect(q(host, 'insp-pop-nods-fill')?.textContent).toContain(
       'This project has no design system yet.'
     );
     expect(q(host, 'insp-pop-make-ds-fill')?.textContent).toBe('Make a design system');
-    await click(q(host, 'insp-colorcss-fill'));
+    await click(q(host, 'insp-tab-custom-fill'));
     await typeIn(q(host, 'insp-colorin-fill'), '#1e6bff');
     await press(q(host, 'insp-colorin-fill'), 'Enter');
     expect(written()).toEqual({ background: '#1e6bff' });
@@ -850,7 +853,6 @@ describe('the picker’s hooks are in testids.json and TESTIDS.md (testids are a
       'insp-pop-make-ds-<name>',
       'insp-pop-empty-<name>',
       'insp-pop-custom-<name>',
-      'insp-pop-use-<name>',
       'insp-pop-bad-<name>',
       'insp-chip-also-<name>',
       'insp-chip-off-<name>',

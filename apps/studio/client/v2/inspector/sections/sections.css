@@ -987,7 +987,7 @@
     inset: auto;
     margin: 0;
     box-sizing: border-box;
-    width: 264px;
+    width: 280px;
     max-width: calc(100vw - 16px);
     overflow: auto;
     display: flex;
@@ -1111,5 +1111,295 @@
     height: 6px;
     border-radius: 50%;
     box-shadow: inset 0 0 0 1.5px var(--fg-2);
+  }
+}
+
+/* r4 #4 (Michal: "color picker bych udelal jak ma Figma") — the colour popover's Figma-shaped body: Custom | Libraries on
+   top, the paint-kind tabs under them, then the editor of the open kind. Tokens only. */
+@layer shell {
+  .insp-pk-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+  .insp-pk-tabs,
+  .insp-pk-kinds {
+    display: flex;
+    gap: var(--space-1);
+  }
+  .insp-pk-kinds {
+    padding: 2px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+  }
+  .insp-pk-tab,
+  .insp-pk-kind {
+    appearance: none;
+    min-height: 24px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-2);
+    font: inherit;
+    font-weight: var(--w-medium);
+    cursor: pointer;
+  }
+  .insp-pk-kind {
+    flex: 1;
+  }
+  .insp-pk-tab[aria-selected="true"] {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+  .insp-pk-kind[aria-selected="true"] {
+    background: var(--bg-1);
+    color: var(--fg-0);
+    box-shadow: var(--shadow-sm);
+  }
+  .insp-pk-tab:hover,
+  .insp-pk-kind:hover {
+    color: var(--fg-0);
+  }
+  .insp-pk-tab:focus-visible,
+  .insp-pk-kind:focus-visible,
+  .insp-pk-icon:focus-visible,
+  .insp-sv:focus-visible,
+  .insp-gstop:focus-visible,
+  .insp-gsw:focus-visible,
+  .insp-rail:focus-visible,
+  .insp-pk-select:focus-visible {
+    outline: 2px solid var(--focus-ring, var(--accent));
+    outline-offset: 1px;
+  }
+  .insp-pk-icon {
+    appearance: none;
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-1);
+    cursor: pointer;
+  }
+  .insp-pk-icon:hover:not(:disabled) {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+  .insp-pk-icon:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+  .insp-pk-body,
+  .insp-pk-solid,
+  .insp-pk-grad,
+  .insp-pk-image {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  /* the saturation × brightness area */
+  .insp-sv {
+    position: relative;
+    height: 140px;
+    border-radius: var(--radius-sm);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+    cursor: crosshair;
+    touch-action: none;
+  }
+  .insp-sv-dot {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    margin: -6px 0 0 -6px;
+    border-radius: 50%;
+    box-shadow:
+      0 0 0 2px var(--bg-0),
+      0 0 0 3px var(--fg-0);
+    pointer-events: none;
+  }
+  .insp-pk-rails {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .insp-pk-rail-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    min-width: 0;
+  }
+  .insp-rail {
+    appearance: none;
+    box-sizing: border-box;
+    width: 100%;
+    height: 12px;
+    margin: 0;
+    border-radius: var(--radius-pill);
+    background: var(--bg-3);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+    cursor: pointer;
+  }
+  .insp-rail--hue {
+    background: linear-gradient(
+      to right,
+      hsl(0 100% 50%),
+      hsl(60 100% 50%),
+      hsl(120 100% 50%),
+      hsl(180 100% 50%),
+      hsl(240 100% 50%),
+      hsl(300 100% 50%),
+      hsl(360 100% 50%)
+    );
+  }
+  .insp-rail--alpha {
+    background:
+      linear-gradient(to right, transparent, var(--rail-to, var(--fg-0))),
+      repeating-conic-gradient(var(--bg-3) 0% 25%, var(--bg-4) 0% 50%) 0 0 / 8px 8px;
+  }
+  .insp-rail::-webkit-slider-thumb {
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--bg-0);
+    border-radius: 50%;
+    background: var(--fg-0);
+    box-shadow: 0 0 0 1px var(--border-default);
+  }
+  .insp-rail::-moz-range-thumb {
+    width: 10px;
+    height: 10px;
+    border: 2px solid var(--bg-0);
+    border-radius: 50%;
+    background: var(--fg-0);
+  }
+  .insp-pk-fields {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  .insp-pk-select {
+    box-sizing: border-box;
+    min-height: 24px;
+    padding: 0 var(--space-1);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--bg-1);
+    color: var(--fg-0);
+    font: inherit;
+    font-size: var(--type-xs);
+  }
+  .insp-pk-grow1 {
+    flex: 1;
+  }
+  .insp-pk-hex {
+    flex: 1;
+    min-width: 0;
+  }
+  .insp-pk-hex .insp-num-in {
+    width: 100%;
+    text-transform: uppercase;
+  }
+  .insp-pk-num {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    color: var(--fg-2);
+  }
+  .insp-pk-num .insp-num-in {
+    width: 40px;
+    padding: 0 var(--space-1);
+  }
+  .insp-pk-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  /* the gradient: its bar, the stops on it, one row per stop */
+  .insp-gbar {
+    position: relative;
+    height: 24px;
+    margin: 10px 6px 14px;
+    border-radius: var(--radius-sm);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+    cursor: copy;
+  }
+  .insp-gstop {
+    appearance: none;
+    position: absolute;
+    top: -6px;
+    width: 14px;
+    height: 36px;
+    margin-left: -7px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: grab;
+    touch-action: none;
+  }
+  .insp-gstop::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    box-sizing: border-box;
+    height: 14px;
+    border: 2px solid var(--bg-0);
+    border-radius: 50%;
+    background: var(--stop);
+    box-shadow: 0 0 0 1px var(--border-default);
+  }
+  .insp-gstop[aria-current="true"]::before {
+    box-shadow: 0 0 0 2px var(--accent);
+  }
+  .insp-grow {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: 2px;
+    border-radius: var(--radius-sm);
+  }
+  .insp-grow--on {
+    background: var(--bg-3);
+  }
+  .insp-grow .insp-pk-num .insp-num-in {
+    width: 34px;
+  }
+  .insp-gsw {
+    appearance: none;
+    flex: none;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: var(--stop);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+    cursor: pointer;
+  }
+  .insp-gsw[aria-pressed="true"] {
+    box-shadow: 0 0 0 2px var(--accent);
+  }
+  .insp-pk-file {
+    margin: 0;
+    color: var(--fg-2);
+    overflow-wrap: anywhere;
+  }
+  .insp-pk-file-in {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .insp-pk-image .insp-url-in {
+    width: 100%;
   }
 }

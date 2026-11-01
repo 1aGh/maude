@@ -60,6 +60,8 @@ export function ColorControl({
   inheritedWord = 'Text colour', // what `currentColor` reads as here: "Text colour" on a box, "Inherited" on a text
   noneInherits = false, // no value set = inherited (a text's colour), not "no paint"
   slotGroup = null, // the role group "Use <nearest>" looks in first (`surfaces` for a fill)
+  fillApi = null, // a Fill only: { fill, set, live, upload?, start, end } — what makes the Solid · Gradient · Image tabs
+  face = null, // a Fill that is a gradient or a picture: { swatch: CSS background, word } — the chip says what it is, not "None"
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -87,7 +89,12 @@ export function ColorControl({
   const pick = (paint, opts) => {
     if (!opts?.keepOpen) setOpen(false);
     recentStore.push(projectKeyOf(ctx), paintToCss(paint));
-    onChange(paintOf(paint));
+    onChange(paintOf(paint), opts?.replaceLayers ? { replaceLayers: true } : undefined);
+  };
+  // a colour committed from the Custom tab (release, Enter, blur): the popover stays open, Recent keeps it
+  const custom = (paint, opacityNow) => {
+    recentStore.push(projectKeyOf(ctx), paintToCss(paint));
+    onChange({ paint, opacity: opacityNow });
   };
   const tokenWord = (p) =>
     colors.includes(p.token) || !p.fallback
@@ -107,12 +114,22 @@ export function ColorControl({
         onClick={() => !disabled && setOpen((o) => !o)}
       >
         <span
-          className={`insp-chip-face${value || inherited ? '' : ' insp-chip-face--none'}${offSystem ? ' insp-chip-face--css' : ''}`}
+          className={`insp-chip-face${value || inherited || face ? '' : ' insp-chip-face--none'}${offSystem ? ' insp-chip-face--css' : ''}`}
           data-testid={`insp-chip-${name}`}
           data-mixed={mixed ? 'true' : undefined}
           data-inherited={inherited ? 'true' : undefined}
+          data-paint={face ? 'layer' : undefined}
         >
-          {mixed ? (
+          {face && !mixed ? (
+            <>
+              <i
+                className="insp-sw insp-sw--wide"
+                aria-hidden="true"
+                style={{ background: face.swatch }}
+              />
+              {face.word}
+            </>
+          ) : mixed ? (
             <>
               {mixed.slice(0, 4).map((c, i) => (
                 // biome-ignore lint/suspicious/noArrayIndexKey: distinct values, positional
@@ -194,9 +211,13 @@ export function ColorControl({
           allowNone={allowNone}
           noneLabel={noneLabel}
           isNone={value == null}
-          rawValue={value && !isToken && !inherited ? value.paint.css : null}
+          value={value && !inherited ? value : null}
+          showOpacity={showOpacity}
+          canvasFile={ctx?.canvasFile ?? null}
+          fillApi={fillApi}
           anchorRef={chipRef}
           onPick={pick}
+          onCustom={custom}
           onNone={() => {
             setOpen(false);
             onChange(null);

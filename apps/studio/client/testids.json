@@ -16986,38 +16986,6 @@
     "v2": "new"
   },
   {
-    "hook": "insp-colorcss-<name>",
-    "kind": "testid",
-    "pattern": true,
-    "meaning": "The colour picker's \"Other colour…\" toggle: opens the drawn OKLCH picker and a field for one CSS colour.",
-    "producer": {
-      "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
-      "symbol": "ColourPopover"
-    },
-    "region": "inspector",
-    "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-paint.test.tsx"
-    ],
-    "v2": "new"
-  },
-  {
-    "hook": "insp-colorin-<name>",
-    "kind": "testid",
-    "pattern": true,
-    "meaning": "The field behind \"Other colour…\": Enter writes the colour if it is one colour (anything else is refused, `aria-invalid`).",
-    "producer": {
-      "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
-      "symbol": "ColourPopover"
-    },
-    "region": "inspector",
-    "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-paint.test.tsx"
-    ],
-    "v2": "new"
-  },
-  {
     "hook": "insp-pop-search-<name>",
     "kind": "testid",
     "pattern": true,
@@ -17118,38 +17086,6 @@
     "kind": "testid",
     "pattern": true,
     "meaning": "The line shown when Search matches no colour.",
-    "producer": {
-      "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
-      "symbol": "ColourPopover"
-    },
-    "region": "inspector",
-    "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-paint.test.tsx"
-    ],
-    "v2": "new"
-  },
-  {
-    "hook": "insp-pop-custom-<name>",
-    "kind": "testid",
-    "pattern": true,
-    "meaning": "\"Other colour…\" opened: the drawn OKLCH picker (`ds-picker`), the hex / oklch field and \"Use this colour\".",
-    "producer": {
-      "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
-      "symbol": "ColourPopover"
-    },
-    "region": "inspector",
-    "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-paint.test.tsx"
-    ],
-    "v2": "new"
-  },
-  {
-    "hook": "insp-pop-use-<name>",
-    "kind": "testid",
-    "pattern": true,
-    "meaning": "\"Use this colour\": writes the colour in the field; in a system the off-system question (`ds-off-system`) then asks once — Use <nearest> or Add it to the system.",
     "producer": {
       "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
       "symbol": "ColourPopover"
@@ -42014,6 +41950,614 @@
     },
     "region": "stage/dialog",
     "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-colorin-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The Hex field of the colour picker's Solid editor: Enter or leaving it writes the colour if it is one colour (anything else is refused, `aria-invalid`).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
+      "symbol": "ColourPopover"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-pop-custom-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The colour picker's Custom tab body (the editor of the open paint kind, Recent, \"On this page\").",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
+      "symbol": "ColourPopover"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-tab-custom-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The colour picker's Custom tab (r4 #4, Figma-shaped): the editor of the open paint kind, then Recent and \"On this page\".",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
+      "symbol": "ColourPopover"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-tab-libraries-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The colour picker's Libraries tab: the design system's colours (and Search, Recent) — the same colours the chip names.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
+      "symbol": "ColourPopover"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-pop-close-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The colour picker's ✕: puts the popover away and gives focus back to the chip.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
+      "symbol": "ColourPopover"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-kinds-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The paint-kind tabs of a Fill's colour picker: Solid · Gradient · Image — what the fill IS. Not drawn for a text or border colour.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
+      "symbol": "ColourPopover"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-kind-<kind>-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One paint kind (solid · gradient · image). Solid and Gradient rewrite the fill at once; Image writes it when a picture is chosen.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
+      "symbol": "ColourPopover"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-pop-stophint-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "On Libraries with a gradient open: the line saying a picked colour goes to the selected stop.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
+      "symbol": "ColourPopover"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-solid-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The Solid editor: area, hue, opacity, eyedropper, Hex · RGB · HSL.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-custom.jsx",
+      "symbol": "SolidEditor"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-solid-area-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The saturation × brightness area: drag, or arrows (Shift = larger steps); a drag previews on the canvas, the release writes once.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-custom.jsx",
+      "symbol": "SolidEditor"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-solid-hue-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The hue rail (a range input).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-custom.jsx",
+      "symbol": "SolidEditor"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-solid-alpharail-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The opacity rail (a range input); on a Fill it is the same opacity as the row's \"100 %\".",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-custom.jsx",
+      "symbol": "SolidEditor"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-solid-eyedropper-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Pick a colour from the screen. Drawn only where the browser has an EyeDropper (not in the macOS app's WebKit).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-custom.jsx",
+      "symbol": "SolidEditor"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-solid-model-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The colour model: Hex · RGB · HSL.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-custom.jsx",
+      "symbol": "SolidEditor"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-solid-<channel>-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One RGB (r g b) or HSL (h s l) field; Enter or leaving it writes.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-custom.jsx",
+      "symbol": "SolidEditor"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-solid-alpha-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The opacity as a percent.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-custom.jsx",
+      "symbol": "SolidEditor"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-gradient-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The Gradient editor: type, angle, the stops bar and one row per stop.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-custom.jsx",
+      "symbol": "GradientEditor"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-gunreadable-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A gradient the picker does not edit (repeating, in px…): one line, and the type menu replaces it.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-custom.jsx",
+      "symbol": "GradientEditor"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-gtype-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Linear · Radial · Angular.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-custom.jsx",
+      "symbol": "GradientEditor"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-gangle-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The angle of a linear or angular gradient, in degrees.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-custom.jsx",
+      "symbol": "GradientEditor"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-greverse-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Reverse the stops.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-custom.jsx",
+      "symbol": "GradientEditor"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-gbar-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The stops bar: click an empty place to add a stop.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-custom.jsx",
+      "symbol": "StopsBar"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-gstop-<name>-<n>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One stop on the bar (a slider): drag it, arrows move it (Shift = 10), Delete removes it.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-custom.jsx",
+      "symbol": "StopsBar"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-gadd-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Add a stop in the widest gap.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-custom.jsx",
+      "symbol": "GradientEditor"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-grow-<name>-<n>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One stop's row: position, swatch, hex, opacity, remove.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-custom.jsx",
+      "symbol": "StopRow"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-gpos-<name>-<n>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A stop's position, in percent.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-custom.jsx",
+      "symbol": "StopRow"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-gsw-<name>-<n>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A stop's swatch: selects it (the picker under the rows edits the selected stop).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-custom.jsx",
+      "symbol": "StopRow"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-ghex-<name>-<n>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A stop's hex colour; Enter or leaving the field writes.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-custom.jsx",
+      "symbol": "StopRow"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-galpha-<name>-<n>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A stop's opacity, in percent.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-custom.jsx",
+      "symbol": "StopRow"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-gremove-<name>-<n>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Remove a stop; off while the gradient has two (its floor).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-custom.jsx",
+      "symbol": "StopRow"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The Image editor: a file picker and a path field.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-custom.jsx",
+      "symbol": "ImageEditor"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-name-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The picture the fill uses now (its file name), or \"No picture yet.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-custom.jsx",
+      "symbol": "ImageEditor"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-input-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The hidden file input behind \"Upload from computer\" (a DOM test hands it a file).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-custom.jsx",
+      "symbol": "ImageEditor"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-upload-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Upload from computer: adds the file to Assets and fills with it.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-custom.jsx",
+      "symbol": "ImageEditor"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-url-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A file in the project or an https:// address; Enter uses it.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-custom.jsx",
+      "symbol": "ImageEditor"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-say-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The one line about the picture: adding, could not be added, or not an address the fill accepts.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-custom.jsx",
+      "symbol": "ImageEditor"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-pop-page-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "\"On this page\": the colours this canvas's own code uses, most used first.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-custom.jsx",
+      "symbol": "PageColours"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-page-<name>-<n>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One colour used on this canvas; picking it writes that colour.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-custom.jsx",
+      "symbol": "PageColours"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
     "v2": "new"
   }
 ]
