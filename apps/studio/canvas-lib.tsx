@@ -1202,6 +1202,20 @@ let liveViewport: ViewportState | null = null;
 // V2-8.5 c7 — where the last Zoom to fit put the camera (viewport-fit.ts); the reporter tells the shell while it still sits there.
 let fitMark: ViewportState | null = null;
 
+// r2-export-size-race — the `.dc-world` style the runtime itself last wrote, per world element. A capture
+// shim (`bin/_png-playwright.mjs` and its siblings) zeroes the world's zoom/transform straight in the DOM
+// and then shrinks the viewport to the artboard; the runtime's own state still says "boot fit", so a
+// re-fit on that resize used to re-place the camera behind the capture's back (a PNG of the whole canvas
+// shrunk into the artboard's box, or — on a loaded machine — a file a fraction of the artboard's size).
+// A world style the runtime did not write is a camera someone else placed: the runtime never re-fits it.
+const runtimeWorldStyle = new WeakMap<HTMLElement, string>();
+const worldStyleKey = (el: HTMLElement) =>
+  `${el.style.zoom}|${el.style.transform}|${el.style.transformOrigin}`;
+/** True while `.dc-world` still carries exactly the camera the runtime wrote (false: nothing written yet, or someone else wrote it). */
+export function worldPlacedByRuntime(el: HTMLElement | null): boolean {
+  return !!el && runtimeWorldStyle.get(el) === worldStyleKey(el);
+}
+
 /**
  * The current pan/zoom, read from OUTSIDE the React tree — the
  * `window.__maudeCanvasRects()` hook (below) has no component instance to
@@ -1386,6 +1400,7 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
     // (RCA addendum: the LOD toggle was reverted for visible flicker).
     el.style.setProperty('--dc-zoom', String(z));
     el.style.visibility = 'visible';
+    runtimeWorldStyle.set(el, worldStyleKey(el));
   }, []);
 
   const schedulePublish = useCallback(() => {
@@ -1519,8 +1534,11 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
     else applyViewport(next);
   }, [applyViewport]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: refs only — stable identity by design.
   const refitBoot = useCallback(() => {
     if (interactingRef.current) return;
+    // r2-export-size-race — a camera someone else wrote into the DOM (a capture at zoom 1) is theirs.
+    if (!worldPlacedByRuntime(worldRef.current)) return;
     const next = computeFitRef.current();
     vpRef.current = { ...next };
     liveViewport = { ...next };
@@ -2460,6 +2478,12 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
     const ro = new ResizeObserver(() => {
       const auto = autoFitRef.current;
       if (!auto) return;
+      // r2-export-size-race — the capture shim reset the world to zoom 1 and is now sizing the
+      // viewport to the artboard: that camera is the capture's, never re-fit it.
+      if (!worldPlacedByRuntime(worldRef.current)) {
+        autoFitRef.current = null;
+        return;
+      }
       const c = controllerRef.current;
       const now = getLiveViewport();
       const w = host.clientWidth;
