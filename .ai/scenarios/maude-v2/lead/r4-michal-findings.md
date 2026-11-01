@@ -1,0 +1,32 @@
+# r4 — Michal's findings on READY TO TRY (12) (2026-11-01)
+
+Source: Michal via the keeper, screenshots `76c768b0…/images/25.png … 44.png`. Every item is closed only when it is
+seen working in the **release `.app`** (not only a unit test); the "verified" column says how.
+
+Order (keeper, Michal): builders in parallel → quality (figga / mini) → `.app` to Michal **before** chain4 → his
+findings → chain4 + re-attests. Budget: the week is at 79 % (cap 85 %, checkpoint at 82 %); what does not fit continues
+after the reset on 2026-11-06 09:00.
+
+Status: `open` · `building` · `merged` · `verified-app` · `needs-decision` · `after-reset`.
+
+| # | Michal (verbatim) | triage | status | commit | verified in the release .app |
+| --- | --- | --- | --- | --- | --- |
+| 1 | "video v canvasu neni jak prehrat" | bug: the r3 `<video controls>` placed on an artboard has no way to play it in Edit (the canvas takes the click); give it a play affordance (Space plays the selected video as on a video artboard; Preview / Present play it) | open | | |
+| 2 | "drag and drop z finder ani z assets porad nefunguje. Nefunguje ani ve view mode abych mohl neco pridat do canvasu jako annotation" | bug, **third time**. r3's WKWebView probe was green, the release app is not: reproduce in the release `.app` first (Finder → canvas, Assets → artboard, Edit and Preview), find what the probe does not reproduce (tab webviews already `disable_drag_drop_handler()`), then a guard that drives a real OS drag into the packaged app | open | | |
+| 3 | "v inspectoru tahnuti uz funguje ale oznacuju zaroven i texty" | bug: scrub drag selects text → `user-select: none` + `preventDefault` on pointerdown for the drag | open | | |
+| 4 | "color picker bych udelal jak ma Figma, at tam jsou tabs jednotlivych backgrounds" | design: tabs per paint kind (Solid · Gradient · Image · Video, + Custom / Libraries = Variables) — Michal decided "Figma-like tabs"; layout variant goes via the keeper before build | needs-decision | | |
+| 5 | "zoomovani na canvasu treba v desitgn system maude-v2 je extreme sekany, panning ujde ale ten zoom je fakt hroznej" | perf bug on a real large canvas (the DS canvas): measure zoom on THAT canvas (perf.sh on `.design/system/maude-v2`), find the cost (likely the r3 DS row re-flow or label rules re-running per zoom step) | open | | |
+| 6 | "light/dark na design systemu prepne jen ty uvodni artboardy zbytek necha v light. … tlacitko dark/light … i na normalnich canvases … vyhodili pryc uplne to follow chrome a DS default z advanced" | bug + design (decided): the DS toggle must switch every artboard; a global Light/Dark switch on every canvas; drop "Follow chrome" / "DS default" from Advanced; the DS sets the default | needs-decision (shape only) | | |
+| 7 | "design system view skrz cmd+k … empty state … tlacitko create design system a to otevre ai chat" | gap: empty state gets "Create a design system" → opens the AI chat with the setup-ds prompt | open | | |
+| 8 | "v alligators jsem se chtel prihlasit ale vsechny pole jsou disabled a i ty placeholders se prekryvaji s ikonami v inputech" | bug: hub sign-in form fields disabled + placeholder under the leading icon | open | | |
+| 9 | "sign in with maude cloud … vyskocil kod ale maude desktop zadny code neukazuje … at se udela automaticky redirect a nebo at se teda ten kod pro overeni nekam zada" | design + security: the device-flow code is the anti-phishing check — options (show the code in the app to match, or a loopback redirect that needs no code) go to Michal via the keeper | needs-decision | | |
+| 10 | "nechal jsem si vytvorit design system Ale vytvoril se staticky page … Proc se to neudelalo rovnou? … kdyz ho teda pervedu na canvas, tak se nic nestane, musim kliknout na jiny canvas a zpatky" | bug: the AI chat's setup-ds made a v1 static DS page → check which plugin copy the ACP session loads (DDR-168 bundled) and that setup-ds writes the v2 DS canvas directly; Convert must refresh the open view | open | | |
+| 11 | "u convert to scheme, by mohlo byt lepe vysvetlene proc … cela stranka se lockne, ai sice pracuje, ale ja nic nemuzu, jen cancel" | copy + bug: say why the schema matters; the AI conversion must not lock the whole page (lock only the DS being converted) | open | | |
+| 12 | "more menu v levem menu se otevre ale cekal bych ze se zavre kdyz kliknu mimo, muzu ho zavrit jen pomoci esc" | bug: outside click closes it | open | | |
+| 13 | "copy link canvasu zkopiruje jen deeplink … pokud je canvas pripojeny na cloud mel by se vzdy zkopirovat spit https odkaz" | design-light: a cloud-linked canvas copies its https share link (the page offers "Open in Maude" / browser); a local one keeps the deep link | open | | |
+| 14 | "ve view mode esc switchne na edit mode kdyz nemam nic vybraneho" | bug: Esc with nothing selected must not leave Preview (the esc ladder's last step) | open | | |
+| 15 | "stamp v annotations se neda nijak smazat ani presunout" | bug: a stamp can be selected, moved and deleted like a sticker | open | | |
+| 16 | "kdyz chci pridat sticker tak taham pod mysi jen prazdny thumbnail … az po … par vterinach objevy realny obrazek" | bug: preload the sticker image when picked; the drag image is the real sticker | open | | |
+| 17 | "kdyz pridavam blank section cekal bych ze muzu udelat drag … a hned po vlozeni sekce bych prepl automaticky zpatky na cursor/select" | gap: Section tool draws by drag (click = default size) and returns to Select | open | | |
+| 18 | "kdyz vytvorim novy objekt v section tak se potom hybe spolu se seciton ale kdyz tam pretahnu nejaky uz vytvoreny objekt, tak se nehybe" | bug: dropping an existing object into a section re-parents it into the section | open | | |
+| 44 | (screenshot 44) a broken image "?" in the Ahoj2 canvas | bug, to look at: which element, why the picture does not load | open | | |
