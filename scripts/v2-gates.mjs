@@ -379,7 +379,9 @@ if (opt('--carry')) {
   }
   const ev = readEvidence(g.id);
   const full = gitArgs('rev-parse', '--verify', `${from}^{commit}`).stdout.trim();
-  if (!ev || ev.pass !== true || ev.head !== full || ev.cmd !== g.cmd || ev.carriedFrom) {
+  // a carried record can be carried again, but always from its ORIGINAL full run: the diff is measured from there
+  const run = ev?.carriedFrom ? { ...ev, ...ev.carriedFrom } : ev;
+  if (!run || run.pass !== true || run.head !== full || run.cmd !== g.cmd) {
     console.error(
       `${g.id} has no green full run recorded at ${from} (carry only from a real --record)`
     );
@@ -410,7 +412,7 @@ if (opt('--carry')) {
     ts: new Date().toISOString(),
     cmd: g.cmd,
     qualityHash: QUALITY_HASH,
-    carriedFrom: { head: ev.head, ts: ev.ts, seconds: ev.seconds },
+    carriedFrom: { head: run.head, ts: run.ts, seconds: run.seconds },
     scoped: { diff: changed, allowed: allow, checks },
     note: opt('--note') ?? '',
     log: ev.log,
