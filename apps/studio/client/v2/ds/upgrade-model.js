@@ -16,6 +16,7 @@ export const UPGRADE_WORDS = Object.freeze({
   go: 'Bring it up',
   working: 'AI is bringing it up',
   waiting: 'Reading the system and the canvases that use it. This takes a few minutes.',
+  keepWorking: 'You can keep working. Cancel stops it and puts everything back.',
   staged: 'Plan made. Checking next that nothing changes.',
   fine: 'Uses your Claude account.',
   noAI: 'Bring it up uses your Claude account through the AI chat in the Mac app. In Claude Code: /design:setup-ds <system> --upgrade-schema.',
@@ -35,7 +36,27 @@ export const canvasCount = (n) => plural(n, 'canvas', 'canvases');
 
 export const upgradeTitle = (label) => `Bring ${label} up to the schema?`;
 export const upgradeLead = (label) =>
-  `${label} was made before the schema. Until it does, canvases can’t switch to or from it cleanly.`;
+  `${label} was made before the schema, so its colours, type and spacing don’t have the standard names Maude works with. Bringing it up gives them those names. Nothing looks different.`;
+
+/** r4 #11 — what the person gains, in plain words (shown before the plan's four lines). */
+export const UPGRADE_GAINS = Object.freeze([
+  {
+    kind: 'ai',
+    title: 'AI and the Inspector can use it',
+    detail: 'Every colour and size has a name they can read, so AI picks the right one for you.',
+  },
+  {
+    kind: 'checks',
+    title: 'The checks keep it consistent',
+    detail: 'Maude can tell you when a canvas drifts off the system, or a colour fails contrast.',
+  },
+  {
+    kind: 'across',
+    title: 'It updates across canvases',
+    detail:
+      'Change a token once and every canvas that uses it follows. Canvases can switch to or from it.',
+  },
+]);
 
 /** A converted system is refused by the engine; say so (and that it stays as it is). */
 export const convertedWords = (label) =>

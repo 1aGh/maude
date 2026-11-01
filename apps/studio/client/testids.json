@@ -41920,5 +41920,70 @@
       "apps/studio/test/r3-name-dialog.test.tsx"
     ],
     "v2": "new"
+  },
+  {
+    "hook": "ds-upgrade-gains",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "r4 #11: The three plain-words gains of bringing a system up to the schema (AI and the Inspector can use it · the checks keep it consistent · it updates across canvases), above the four lines.",
+    "producer": {
+      "file": "client/v2/ds/upgrade-sheet.jsx",
+      "symbol": "DsUpgradeSheet"
+    },
+    "region": "stage/dialog",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-upgrade-gain",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "r4 #11: One gain row of ds-upgrade-gains; `data-kind` is ai · checks · across.",
+    "producer": {
+      "file": "client/v2/ds/upgrade-sheet.jsx",
+      "symbol": "DsUpgradeSheet"
+    },
+    "region": "stage/dialog",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "sv-no-system",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "r4 #7: The empty state of the design system view in a project with no design system at all.",
+    "producer": {
+      "file": "client/system/system-view.jsx",
+      "symbol": "SystemView"
+    },
+    "region": "stage/system-view",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "sv-create-design-system",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "r4 #7: \"Create a design system\" in the empty design system view (runs ds.make: the short sheet, then AI draws the system on its own canvas). Hidden for Can view.",
+    "producer": {
+      "file": "client/system/system-view.jsx",
+      "symbol": "SystemView"
+    },
+    "region": "stage/system-view",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-upgrade-hide",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "r4 #11: \"Hide\" on the corner card shown while AI brings a system up to the schema or the check runs: hides the card, the work goes on (Cancel stops it).",
+    "producer": {
+      "file": "client/v2/ds/upgrade-sheet.jsx",
+      "symbol": "DsUpgradeSheet"
+    },
+    "region": "stage/dialog",
+    "consumers": [],
+    "v2": "new"
   }
 ]

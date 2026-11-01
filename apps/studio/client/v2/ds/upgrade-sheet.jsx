@@ -18,6 +18,7 @@ import {
   canvasCount,
   convertedWords,
   progressFraction,
+  UPGRADE_GAINS,
   UPGRADE_WORDS,
   upgradeLead,
   upgradeTitle,
@@ -38,6 +39,89 @@ function Lines({ lines }) {
   );
 }
 
+function Gains() {
+  return (
+    <ul className="dsu-gains" data-testid="ds-upgrade-gains">
+      {UPGRADE_GAINS.map((g) => (
+        <li key={g.kind} data-kind={g.kind} data-testid="ds-upgrade-gain">
+          <b>{g.title}</b>
+          <span>{g.detail}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** r4 #11 — while AI works or the check runs: a small card in the corner, NOT a dialog. Nothing is covered, nothing is
+ *  trapped: the person keeps working in the project and can Cancel here at any time. */
+function DsUpgradeProgress({ label, view, onCancel, onClose }) {
+  const fraction = view.kind === 'proving' ? progressFraction(view.current, view.total) : 0;
+  return (
+    <div
+      className="island dsu-card"
+      role="status"
+      data-testid="ds-upgrade"
+      data-view={view.kind}
+      data-modal="false"
+      onKeyDown={(e) => {
+        // esc on the card hides it (the work goes on); anywhere else esc is the person's own business
+        if (e.key === 'Escape') onClose?.();
+      }}
+    >
+      <h2 className="dsu-card-title" data-testid="ds-upgrade-title">
+        {upgradeTitle(label)}
+      </h2>
+      {view.kind === 'working' ? (
+        <p className="dsu-working" data-testid="ds-upgrade-working">
+          <Spark size={14} />
+          <span>
+            <b>{UPGRADE_WORDS.working}</b>
+            <em>{view.step === 'staged' ? UPGRADE_WORDS.staged : UPGRADE_WORDS.waiting}</em>
+          </span>
+        </p>
+      ) : (
+        <div className="dsu-proving" data-testid="ds-upgrade-proving">
+          <p className="dsu-working">
+            <Spark size={14} />
+            <span>
+              <b>Checking that nothing changes</b>
+              <em data-testid="ds-upgrade-progress-words">
+                {view.total > 0
+                  ? `${view.current} of ${canvasCount(view.total)} checked, in every theme`
+                  : 'Starting two quiet copies of the project'}
+              </em>
+            </span>
+          </p>
+          <div
+            className="dsu-bar"
+            role="progressbar"
+            aria-label="Checking the canvases"
+            aria-valuemin={0}
+            aria-valuemax={view.total}
+            aria-valuenow={view.current}
+            data-testid="ds-upgrade-progress"
+            data-current={view.current}
+            data-total={view.total}
+          >
+            <span className="dsu-bar-fill" style={{ width: `${Math.round(fraction * 100)}%` }} />
+          </div>
+        </div>
+      )}
+      <p className="dsr-fine" data-testid="ds-upgrade-fine">
+        {UPGRADE_WORDS.keepWorking}
+      </p>
+      <div className="dsr-acts">
+        <button type="button" className="btn" data-testid="ds-upgrade-hide" onClick={onClose}>
+          Hide
+        </button>
+        <button type="button" className="btn" data-testid="ds-upgrade-cancel" onClick={onCancel}>
+          {UPGRADE_WORDS.cancel}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /**
  * @param {{
  *   label: string,
@@ -49,7 +133,15 @@ function Lines({ lines }) {
  *   onClose: () => void,
  * }} props
  */
-export function DsUpgradeSheet({ label, view, canvases, onAsk, onApply, onCancel, onClose }) {
+export function DsUpgradeSheet(props) {
+  const { view, label, onCancel, onClose } = props;
+  // the dialog's focus lifetime (modal-focus) starts and ends with the dialog, not with the card
+  if (view.kind === 'working' || view.kind === 'proving')
+    return <DsUpgradeProgress label={label} view={view} onCancel={onCancel} onClose={onClose} />;
+  return <DsUpgradeDialog {...props} />;
+}
+
+function DsUpgradeDialog({ label, view, canvases, onAsk, onApply, onCancel, onClose }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const primaryRef = useRef(null);
@@ -71,7 +163,6 @@ export function DsUpgradeSheet({ label, view, canvases, onAsk, onApply, onCancel
 
   const kind = view.kind;
   const canApply = kind === 'review' && !view.blocker && !busy;
-  const fraction = kind === 'proving' ? progressFraction(view.current, view.total) : 0;
 
   return (
     <div className="dsr-scrim" data-testid="ds-upgrade-scrim">
@@ -99,6 +190,7 @@ export function DsUpgradeSheet({ label, view, canvases, onAsk, onApply, onCancel
             </p>
           )}
 
+          {kind === 'ask' ? <Gains /> : null}
           {kind === 'ask' || kind === 'review' ? <Lines lines={view.lines} /> : null}
 
           {kind === 'review' && view.refused ? (
@@ -111,48 +203,6 @@ export function DsUpgradeSheet({ label, view, canvases, onAsk, onApply, onCancel
               <StIcon name="problem" size={14} />
               {view.refused.text}
             </p>
-          ) : null}
-
-          {kind === 'working' ? (
-            <p className="dsu-working" role="status" data-testid="ds-upgrade-working">
-              <Spark size={14} />
-              <span>
-                <b>{UPGRADE_WORDS.working}</b>
-                <em>{view.step === 'staged' ? UPGRADE_WORDS.staged : UPGRADE_WORDS.waiting}</em>
-              </span>
-            </p>
-          ) : null}
-
-          {kind === 'proving' ? (
-            <div className="dsu-proving" data-testid="ds-upgrade-proving">
-              <p className="dsu-working" role="status">
-                <Spark size={14} />
-                <span>
-                  <b>Checking that nothing changes</b>
-                  <em data-testid="ds-upgrade-progress-words">
-                    {view.total > 0
-                      ? `${view.current} of ${canvasCount(view.total)} checked, in every theme`
-                      : 'Starting two quiet copies of the project'}
-                  </em>
-                </span>
-              </p>
-              <div
-                className="dsu-bar"
-                role="progressbar"
-                aria-label="Checking the canvases"
-                aria-valuemin={0}
-                aria-valuemax={view.total}
-                aria-valuenow={view.current}
-                data-testid="ds-upgrade-progress"
-                data-current={view.current}
-                data-total={view.total}
-              >
-                <span
-                  className="dsu-bar-fill"
-                  style={{ width: `${Math.round(fraction * 100)}%` }}
-                />
-              </div>
-            </div>
           ) : null}
 
           {kind === 'review' && view.blocker ? (
@@ -190,7 +240,7 @@ export function DsUpgradeSheet({ label, view, canvases, onAsk, onApply, onCancel
           <button
             type="button"
             className="btn"
-            disabled={busy && kind !== 'proving'}
+            disabled={busy}
             data-testid="ds-upgrade-cancel"
             onClick={kind === 'converted' ? onClose : onCancel}
           >
