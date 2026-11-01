@@ -22,6 +22,7 @@
 import { type RefObject, useEffect, useLayoutEffect, useRef, useSyncExternalStore } from 'react';
 import { canvasModeStore, reportPresentPosition } from '../bridge/canvas-mode-store.ts';
 import type { ArtboardRect } from '../canvas-lib.tsx';
+import { togglePlayback } from '../editing/video-play.ts';
 import { resolveBleedMm, resolveMmPx } from '../print/units.ts';
 import {
   type AwarenessChanges,
@@ -482,8 +483,18 @@ export function createPresentStage(deps: StageDeps): PresentStage {
       consume(e);
       if (locked) return;
       if (m.button === 0 && !m.metaKey && !m.ctrlKey && !m.altKey && !m.shiftKey) {
-        // A click on a playing clip pauses it; on anything else it moves on.
-        if (!deps.media?.click()) go('next', true);
+        // A click on a playing clip pauses it.
+        if (deps.media?.click()) return;
+        // r4 #1 — a click on a `<video controls>` placed on the artboard plays / pauses it (the stage eats the
+        // press, so its native controls cannot); the arrows and space move on. A comp's own video has no controls.
+        const vid =
+          e.target instanceof NodeCtor ? (e.target as Element).closest?.('video[controls]') : null;
+        if (vid) {
+          togglePlayback([vid as HTMLVideoElement]);
+          return;
+        }
+        // anything else moves on
+        go('next', true);
       }
     };
     // S3.3 — the trackpad scrolls a web artboard inside the stage (never the canvas camera). A pinch

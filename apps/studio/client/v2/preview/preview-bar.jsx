@@ -1,10 +1,11 @@
 // client/v2/preview/preview-bar.jsx — S3.9: Preview's own line, top centre (04 md-preview, md-preview-combine).
 //
-//   [ eye ]  Previewing **Homepage**  |  esc to edit
-//   [ ‹ Homepage ]  Previewing **Pricing**  |  esc to edit        ← after a link was followed (S3.10a)
+//   [ eye ]  Previewing **Homepage**  |  ⌥⌘P to edit
+//   [ ‹ Homepage ]  Previewing **Pricing**  |  ⌥⌘P to edit        ← after a link was followed (S3.10a)
 //
-// It says which canvas you are previewing and what esc does. The word after esc is the role's: editors go
-// back to Edit ("esc to edit"), a viewing role goes back to Viewing ("esc for Viewing", 04 md-edge-viewer).
+// It says which canvas you are previewing and how to leave. r4 #14 (Michal): esc no longer leaves Preview, so
+// the hint names the key that does — ⌥⌘P toggles. The word after it is the role's: editors go back to Edit
+// ("⌥⌘P to edit"), a viewing role goes back to Viewing ("⌥⌘P for Viewing", 04 md-edge-viewer).
 // The back slot is S3.10a's: it renders only when the shell passes a `back` canvas name (the per-window
 // back stack), and runs `onBack`. Pure presentational; the host wires it (preview-chrome-host.jsx).
 //
@@ -14,7 +15,7 @@
 
 import { Kbd, StIcon } from '../../shell/icons.jsx';
 
-/** The word after esc, per role: editors return to Edit, a viewing role to Viewing. */
+/** The word after the key, per role: editors return to Edit, a viewing role to Viewing. */
 export function previewHint(caps) {
   return caps?.edit ? 'to edit' : 'for Viewing';
 }
@@ -42,7 +43,7 @@ function PreviewGlyph() {
 
 /**
  * @param name the canvas being previewed
- * @param hint the word after esc (`previewHint(caps)`)
+ * @param hint the word after the key (`previewHint(caps)`)
  * @param back the canvas a followed link came from — shows the way back (S3.10a); absent = no button
  * @param onBack runs the back (S3.10a's `preview.back`)
  * @param state `in` | `out` — the host drives the fade
@@ -78,7 +79,7 @@ export function PreviewBar({ name, hint = 'to edit', back, onBack, state = 'in' 
       </span>
       <span className="sh-pbar-div" aria-hidden="true" />
       <span className="sh-pbar-esc" data-testid="preview-bar-esc">
-        <Kbd>esc</Kbd> {hint}
+        <Kbd>⌥⌘P</Kbd> {hint}
       </span>
     </div>
   );

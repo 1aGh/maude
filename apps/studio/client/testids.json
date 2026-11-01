@@ -19931,7 +19931,7 @@
     "hook": "preview-bar-esc",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The esc hint: \"esc to edit\" for editors, \"esc for Viewing\" for a viewing role.",
+    "meaning": "The way-out hint: \"⌥⌘P to edit\" for editors, \"⌥⌘P for Viewing\" for a viewing role (esc no longer leaves Preview, r4 #14).",
     "producer": {
       "file": "apps/studio/client/v2/preview/preview-bar.jsx",
       "symbol": "PreviewBar"

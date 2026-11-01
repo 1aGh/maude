@@ -32,10 +32,10 @@ export const ESC_LADDER: Readonly<Record<CanvasModeV2, readonly Exclude<EscRung,
     present: [],
   });
 
-/** What the terminal is when no rung applies: only Preview and Present have somewhere to go back to. */
+/** What the terminal is when no rung applies: only Present has somewhere to go back to. Preview stays (r4 #14). */
 export const ESC_TERMINAL: Readonly<Record<CanvasModeV2, 'back' | 'stay'>> = Object.freeze({
   edit: 'stay',
-  preview: 'back',
+  preview: 'stay',
   viewing: 'stay',
   present: 'back',
 });

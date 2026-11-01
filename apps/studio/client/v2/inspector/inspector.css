@@ -546,6 +546,14 @@
     cursor: text;
   }
 
+  body.insp-scrub-armed,
+  body.insp-scrub-armed *,
+  body.insp-scrubbing,
+  body.insp-scrubbing * {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+  }
+
   body.insp-scrubbing,
   body.insp-scrubbing * {
     cursor: ew-resize !important;

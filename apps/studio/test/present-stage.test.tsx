@@ -324,6 +324,37 @@ describe('stepping', () => {
     expect(at()).toBe('story');
   });
 
+  test('r4 #1 — a click on a placed <video controls> plays / pauses it and does not move on; a plain click still does', () => {
+    rg = rig();
+    rg.stage.start('start');
+    rg.advance(300);
+    const board = rg.world.querySelector('article') as Element;
+    const v = document.createElement('video');
+    v.setAttribute('controls', '');
+    const calls: string[] = [];
+    let paused = true;
+    Object.defineProperty(v, 'paused', { get: () => paused });
+    (v as unknown as { play: () => Promise<void> }).play = () => {
+      paused = false;
+      calls.push('play');
+      return Promise.resolve();
+    };
+    (v as unknown as { pause: () => void }).pause = () => {
+      paused = true;
+      calls.push('pause');
+    };
+    board.appendChild(v);
+    const here = at();
+    rg.click(v);
+    expect(calls).toEqual(['play']);
+    expect(at()).toBe(here);
+    rg.click(v);
+    expect(calls).toEqual(['play', 'pause']);
+    expect(at()).toBe(here);
+    rg.click(board); // anything else moves on
+    expect(at()).not.toBe(here);
+  });
+
   test('skipped artboards are not visited and not counted', () => {
     rg = rig();
     rg.meta = { skip: ['story'] };

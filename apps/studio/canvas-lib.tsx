@@ -171,6 +171,7 @@ import {
 import { routeDrop } from './editing/duplicate-rhythm.ts';
 import { growCh, nextRenameId, RENAME_EVENT, requestRename } from './editing/rename-order.ts';
 import { createSpaceTap, sendSpaceTap } from './editing/space-tap.ts';
+import { playSelectedVideos } from './editing/video-play.ts';
 import { applyCaptureChrome } from './exporters/capture-chrome.ts';
 import {
   type DomToSvgApi,
@@ -1086,6 +1087,8 @@ function patchCanvasMeta(
 // T5 can persist the viewport without flooding writes during a drag.
 
 export interface ViewportControllerOptions {
+  /** r4 #1 — a quick Space tap: return true when the canvas took it itself (a selected `<video>` plays / pauses). */
+  onSpaceTap?: () => boolean;
   hostRef: RefObject<HTMLDivElement | null>;
   worldRef: RefObject<HTMLDivElement | null>;
   /** Computes a fit-to-screen viewport for the current artboard set. */
@@ -1319,9 +1322,12 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
     isPanDragActive,
     wheelPassthrough,
     onMove,
+    onSpaceTap,
   } = opts;
   const onMoveRef = useRef(onMove);
   onMoveRef.current = onMove;
+  const onSpaceTapRef = useRef(onSpaceTap);
+  onSpaceTapRef.current = onSpaceTap;
   const isPanDragActiveRef = useRef<((e: PointerEvent) => boolean) | undefined>(isPanDragActive);
   isPanDragActiveRef.current = isPanDragActive;
   const wheelPassthroughRef = useRef<((e: WheelEvent) => boolean) | undefined>(wheelPassthrough);
@@ -1882,7 +1888,8 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
     const onKeyUp = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
         spaceHeld.current = false;
-        if (spaceTap.up(e.timeStamp)) sendSpaceTap(window);
+        // r4 #1 — a selected <video> element plays / pauses right here; otherwise the shell plays a video artboard
+        if (spaceTap.up(e.timeStamp) && onSpaceTapRef.current?.() !== true) sendSpaceTap(window);
         host.style.cursor = panState.active ? 'grabbing' : '';
       }
     };
@@ -2427,6 +2434,10 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
     []
   );
 
+  // r4 #1 — what Space plays: the selected <video> element(s), read at the tap (a ref, so the camera hook never re-binds)
+  const tapSel = useSelectionSetOptional();
+  const tapSelRef = useRef(tapSel);
+  tapSelRef.current = tapSel;
   const controller = useViewportController({
     hostRef,
     worldRef,
@@ -2439,6 +2450,7 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
     // V2-8.9 attacker I3 — a camera someone placed is theirs at once: no later host resize re-fits it,
     // even when it lands back on the boot fit's exact camera (a pan, then ⌘0).
     onMove: dropAutoFit,
+    onSpaceTap: () => playSelectedVideos(document, tapSelRef.current?.selected),
   });
 
   // S3.9 — Edit ⇄ Preview: the camera eases onto the artboard in view, once (preview/preview-camera.tsx).

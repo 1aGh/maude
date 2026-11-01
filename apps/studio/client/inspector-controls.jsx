@@ -108,6 +108,7 @@ export function makeScrubHandler({
 }) {
   return (e) => {
     if (e.button !== 0) return;
+    e.preventDefault?.();
     const startX = e.clientX;
     const base = Number.parseFloat(getBase()) || 0;
     let scrubbing = false;
@@ -126,7 +127,15 @@ export function makeScrubHandler({
       if (ev.altKey) return sides.pair;
       return undefined;
     };
+    // A press on a scrub handle must never start a text selection in the page (r4 #3). The browser begins one at
+    // the pointerdown, long before the 3px dead-zone, so: no selection from the first instant (class + a refused
+    // selectstart), and whatever was selected before is dropped once the drag is real.
+    const noSelect = (ev) => ev.preventDefault();
+    document.body.classList.add('insp-scrub-armed');
+    document.addEventListener('selectstart', noSelect, true);
     const end = () => {
+      document.removeEventListener('selectstart', noSelect, true);
+      document.body.classList.remove('insp-scrub-armed');
       document.removeEventListener('pointermove', move);
       document.removeEventListener('pointerup', up);
       document.removeEventListener('pointercancel', cancel);
@@ -144,6 +153,11 @@ export function makeScrubHandler({
       if (!scrubbing) {
         scrubbing = true;
         document.body.classList.add('insp-scrubbing');
+        try {
+          window.getSelection?.()?.removeAllRanges();
+        } catch {
+          /* no selection API: nothing to drop */
+        }
       }
       ev.preventDefault();
       const modifier = sides ? 1 : ev.shiftKey ? 10 : ev.altKey ? 0.1 : 1;

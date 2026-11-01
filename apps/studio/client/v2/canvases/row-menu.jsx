@@ -8,6 +8,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
 import { placeMenu } from '../../tree-row-menu.jsx';
+import { useDismissOutside } from '../shell/use-dismiss-outside.js';
 import { MoveSheet } from './move-sheet.jsx';
 
 /**
@@ -60,9 +61,6 @@ export function CanvasRowMenu({ state, items, targets, onSelect, onPick, onClose
     if (!state) return undefined;
     const el = ref.current;
     if (view === 'root') el?.querySelector('button:not([disabled])')?.focus();
-    const onPointer = (e) => {
-      if (el && !el.contains(e.target)) onClose();
-    };
     const onKey = (e) => {
       if (e.key === 'Escape') {
         e.preventDefault();
@@ -78,13 +76,11 @@ export function CanvasRowMenu({ state, items, targets, onSelect, onPick, onClose
       const n = e.key === 'ArrowDown' ? (i + 1) % btns.length : (i - 1 + btns.length) % btns.length;
       btns[n]?.focus();
     };
-    document.addEventListener('pointerdown', onPointer, true);
     document.addEventListener('keydown', onKey, true);
-    return () => {
-      document.removeEventListener('pointerdown', onPointer, true);
-      document.removeEventListener('keydown', onKey, true);
-    };
+    return () => document.removeEventListener('keydown', onKey, true);
   }, [state, view, onClose]);
+  // a click anywhere else closes it — also a click into the canvas (another origin), which only blurs this window
+  useDismissOutside(!!state, ref, () => onClose());
 
   if (!state) return null;
   const style = placed

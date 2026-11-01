@@ -126,13 +126,18 @@ const ROWS: Array<{ row: string; from: Canvas; presses: EscOutcome[] }> = [
     from: { mode: 'edit', tool: 'move' },
     presses: ['stay', 'stay'],
   },
-  // Preview — "Closes a menu or overlay inside the design first. Then back to Edit."
+  // Preview — "Closes a menu or overlay inside the design first." r4 #14 (Michal): then NOTHING — esc never leaves
+  // Preview for Edit ("in view mode, esc switches to edit mode when I have nothing selected"); ⌥⌘P does.
   {
     row: 'Preview · a menu / overlay',
     from: { mode: 'preview', tool: 'browse', owner: true },
-    presses: ['owner', 'back'],
+    presses: ['owner', 'stay'],
   },
-  { row: 'Preview · at rest', from: { mode: 'preview', tool: 'browse' }, presses: ['back'] },
+  {
+    row: 'Preview · at rest',
+    from: { mode: 'preview', tool: 'browse' },
+    presses: ['stay', 'stay'],
+  },
   // Present — "Back to the canvas" (Artboards: the artboard settles, presenter view closes; Canvas: same view)
   { row: 'Present · Artboards', from: { mode: 'present', tool: 'browse' }, presses: ['back'] },
   { row: 'Present · Canvas', from: { mode: 'present', tool: 'browse' }, presses: ['back'] },
@@ -151,7 +156,7 @@ const ROWS: Array<{ row: string; from: Canvas; presses: EscOutcome[] }> = [
   {
     row: 'Comment · thread open',
     from: { mode: 'preview', tool: 'comment', owner: true },
-    presses: ['owner', 'tool', 'back'],
+    presses: ['owner', 'tool', 'stay'],
   },
   {
     row: 'Comment · Viewing',
@@ -162,13 +167,13 @@ const ROWS: Array<{ row: string; from: Canvas; presses: EscOutcome[] }> = [
   {
     row: 'Annotation tool (N C M A E S got you here)',
     from: { mode: 'preview', tool: 'sticky' },
-    presses: ['tool', 'back'],
+    presses: ['tool', 'stay'],
   },
   // Inspect · ⌘-click — "Clears the selection. Second esc: back to Edit."
   {
     row: 'Inspect · ⌘-click',
     from: { mode: 'preview', tool: 'browse', selection: true },
-    presses: ['selection', 'back'],
+    presses: ['selection', 'stay'],
   },
   {
     row: 'Inspect · Viewing click',
@@ -185,7 +190,7 @@ const ROWS: Array<{ row: string; from: Canvas; presses: EscOutcome[] }> = [
   {
     row: 'Mid-drag arrow in Preview',
     from: { mode: 'preview', tool: 'arrow', stroke: true },
-    presses: ['stroke', 'tool', 'back'],
+    presses: ['stroke', 'tool', 'stay'],
   },
 ];
 
@@ -206,10 +211,10 @@ describe('A · every md-esc row takes exactly one step per press', () => {
       expect(seen).toEqual(presses);
     });
 
-  test('a ladder always ends at its mode’s terminal, and only Preview and Present have somewhere to go', () => {
+  test('a ladder always ends at its mode’s terminal, and only Present has somewhere to go (r4 #14: not Preview)', () => {
     expect(ESC_TERMINAL).toEqual({
       edit: 'stay',
-      preview: 'back',
+      preview: 'stay',
       viewing: 'stay',
       present: 'back',
     });
@@ -244,7 +249,7 @@ describe('A · every md-esc row takes exactly one step per press', () => {
 
   test('the tool rung is only asked when a tool is armed — at rest it never reports a step it did not take', () => {
     let asked = 0;
-    expect(runEscRung('preview', 'browse', { tool: () => (asked++, true) })).toBe('back');
+    expect(runEscRung('preview', 'browse', { tool: () => (asked++, true) })).toBe('stay');
     expect(runEscRung('edit', 'move', { tool: () => (asked++, true) })).toBe('stay');
     expect(runEscRung('viewing', 'inspect', { tool: () => (asked++, true) })).toBe('stay');
     expect(asked).toBe(0);
@@ -386,7 +391,7 @@ describe('B · the canvas router posts back only when the press ran no rung', ()
     expect(shellPosts.filter((m) => m.dgn === 'mode-request')).toEqual([]);
   });
 
-  test('Inspect: Preview + a selection — the first esc clears it and the mode stays; the second goes back (04 md-esc)', () => {
+  test('Inspect: Preview + a selection — the first esc clears it, the second changes nothing: esc never leaves Preview (r4 #14)', () => {
     mount();
     setMode('preview', { tool: 'browse' });
     canvas.selection = true;
@@ -396,8 +401,8 @@ describe('B · the canvas router posts back only when the press ran no rung', ()
     expect(canvas.selection).toBe(false);
     expect(back()).toEqual([]); // not two at once
     esc();
-    expect(log).toEqual(['selection', 'back']);
-    expect(back()).toEqual([{ dgn: 'mode-request', mode: 'back', cause: 'esc' }]);
+    expect(log).toEqual(['selection', 'stay']);
+    expect(back()).toEqual([]); // Michal: esc with nothing selected in view mode must not switch to Edit
   });
 
   test('S3.15 · with the comment mount beside the shell, a cleared inspection is still ONE step (md-esc)', () => {
@@ -409,18 +414,18 @@ describe('B · the canvas router posts back only when the press ran no rung', ()
     expect(log).toEqual(['selection']);
     expect(back()).toEqual([]); // the mount layer must not ask for the mode back on the same press
     esc();
-    expect(log).toEqual(['selection', 'back']);
-    expect(back()).toEqual([{ dgn: 'mode-request', mode: 'back', cause: 'esc' }]); // exactly one
+    expect(log).toEqual(['selection', 'stay']);
+    expect(back()).toEqual([]); // and the mount layer asks for nothing either
   });
 
-  test('an annotation tool: the first esc leaves it for Hand, the second goes back', () => {
+  test('an annotation tool: the first esc leaves it for Hand, the second stays in Preview', () => {
     mount();
     setMode('preview', { tool: 'sticky' });
     shellPosts.length = 0;
     esc();
     expect([ctx?.tool, back().length]).toEqual(['browse', 0]);
     esc();
-    expect(back().length).toBe(1);
+    expect(back().length).toBe(0);
   });
 
   test('Edit never asks the shell for a mode: deselect, then the tool, then nothing', () => {
@@ -452,7 +457,7 @@ describe('B · the canvas router posts back only when the press ran no rung', ()
     esc();
     expect([log[1], ctx?.tool, back().length]).toEqual(['tool', 'browse', 0]);
     esc();
-    expect(back().length).toBe(1);
+    expect(back().length).toBe(0);
   });
 
   test('an open menu / thread (an esc owner) takes the press: no rung, no back, the key is left unconsumed', () => {
@@ -502,12 +507,9 @@ describe('C · the shell’s end of esc', () => {
   const VIEW = capsFor({ canEdit: false, role: 'observer' });
   const base = { mode: 'edit', presenting: false, viewing: null, caps: EDIT };
 
-  test('with the shell focused: Preview → baseMode, Present → returnTo, a held version → now; Edit and Viewing nothing', () => {
-    expect(shellEscDecision({ ...base, mode: 'preview' })).toEqual({ kind: 'set', mode: 'edit' });
-    expect(shellEscDecision({ ...base, mode: 'preview', caps: VIEW })).toEqual({
-      kind: 'set',
-      mode: 'viewing',
-    });
+  test('with the shell focused: Present → returnTo, a held version → now; Preview, Edit and Viewing nothing (r4 #14)', () => {
+    expect(shellEscDecision({ ...base, mode: 'preview' })).toBeNull();
+    expect(shellEscDecision({ ...base, mode: 'preview', caps: VIEW })).toBeNull();
     expect(shellEscDecision({ ...base, mode: 'present', presenting: true })).toEqual({
       kind: 'exit-present',
     });
@@ -573,7 +575,7 @@ describe('C · the shell’s end of esc', () => {
     });
   });
 
-  test('the registry’s shell `ui.step-back` handler: the focused comment pin first, THEN Preview → Edit (never both)', () => {
+  test('the registry’s shell `ui.step-back` handler: the focused comment pin first, THEN nothing — esc never leaves Preview (r4 #14)', () => {
     act(() => {
       shellMode.back();
       shellMode.select('preview');
@@ -595,9 +597,9 @@ describe('C · the shell’s end of esc', () => {
     SHELL_KEY_HANDLERS['ui.step-back'](d, { event: ev(), ctx });
     expect([pin, shellMode.get().mode]).toEqual([null, 'preview']);
     SHELL_KEY_HANDLERS['ui.step-back'](d, { event: ev(), ctx });
-    expect(shellMode.get().mode).toBe('edit');
+    expect(shellMode.get().mode).toBe('preview'); // Michal: esc does not switch view mode to Edit
     SHELL_KEY_HANDLERS['ui.step-back'](d, { event: ev(), ctx });
-    expect(shellMode.get().mode).toBe('edit'); // nowhere further back
+    expect(shellMode.get().mode).toBe('preview');
     // typing in a text field: the field keeps the key
     act(() => shellMode.select('preview'));
     SHELL_KEY_HANDLERS['ui.step-back'](d, {

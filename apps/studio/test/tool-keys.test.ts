@@ -223,7 +223,7 @@ describe('escStep (04 md-esc)', () => {
     ['preview', 'pen', 'rest'],
     ['preview', 'sticky', 'rest'],
     ['preview', 'hand', 'rest'], // rc.1 #17: Preview's Hand steps back to Select first
-    ['preview', 'browse', 'back'], // two steps when N C M A E S brought you here
+    ['preview', 'browse', 'stay'], // r4 #14: esc never leaves Preview for Edit
     ['viewing', 'comment', 'rest'],
     ['viewing', 'inspect', 'stay'], // "there's no Edit to return to" (S3.11: Viewing rests on inspect)
     ['present', 'browse', 'back'],
@@ -358,11 +358,8 @@ describe('input-router: governed keys (M3)', () => {
     expect(key('e', v)).toEqual({ kind: 'panel', panel: 'stickers' }); // the shell refuses it
   });
 
-  test('esc: Preview at rest and Present step back; anything else is the local ladder', () => {
-    expect(key('Escape', { ...gov('preview'), activeTool: 'browse' })).toEqual({
-      kind: 'escape',
-      back: true,
-    });
+  test('esc: only Present steps back (r4 #14: Preview at rest stays in Preview); anything else is the local ladder', () => {
+    expect(key('Escape', { ...gov('preview'), activeTool: 'browse' })).toEqual({ kind: 'escape' });
     expect(key('Escape', { ...gov('preview'), activeTool: 'pen' })).toEqual({ kind: 'escape' });
     expect(key('Escape', { ...gov('present'), activeTool: 'browse' })).toEqual({
       kind: 'escape',

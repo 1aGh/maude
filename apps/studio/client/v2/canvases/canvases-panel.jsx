@@ -389,11 +389,15 @@ export function CanvasesPanel({
       setSortMenu(null);
       if (e.type === 'keydown') sortButton()?.focus();
     };
+    // a click into the canvas (another origin) never reaches this document; it only blurs the window
+    const away = () => setSortMenu(null);
     document.addEventListener('pointerdown', close);
     document.addEventListener('keydown', close);
+    window.addEventListener('blur', away);
     return () => {
       document.removeEventListener('pointerdown', close);
       document.removeEventListener('keydown', close);
+      window.removeEventListener('blur', away);
     };
   }, [sortMenu]);
   // opening it takes the focus into the menu (the checked choice), so the keys have somewhere to land
