@@ -126,6 +126,7 @@ import {
 import { AssetPlaceholderLayer } from './asset-placeholder.tsx';
 import { modeShows } from './bridge/mode-shows.ts';
 import { DsIcon } from './canvas-ds-icons.tsx';
+import { flowRows, isDsCanvasIds } from './canvas-rows.ts';
 import { CanvasShell } from './canvas-shell.tsx';
 import { pressStartsPan } from './input-router.tsx';
 import { summaryWords } from './kinds/warnings.ts';
@@ -600,7 +601,11 @@ input.dc-artboard-rename {
   display: block;
   width: auto;
   min-width: 0;
-  max-width: calc(100% * var(--dc-zoom, 1));
+  /* r3-ds-rows: capped to the frame's on-screen width, and collapsed to nothing when that is under 24 screen px — a
+     name that narrow is only a glyph, and the Design system canvas's seven sections (80 px apart) stacked theirs into
+     one clump at 2 % zoom. The second term is huge while the frame is wide enough (so min() keeps the first) and
+     negative (clamped to 0) once it is not. */
+  max-width: min(calc(100% * var(--dc-zoom, 1)), calc((100% * var(--dc-zoom, 1) - 24px) * 1000));
   box-sizing: border-box;
   padding: 2px 4px;
   border: 0;
@@ -2339,6 +2344,8 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
   // server but the local React state stayed frozen at mount-time. Users had
   // to switch canvases (forcing a reload) to see the new position.
   const [artboards, setArtboards] = useState<ArtboardRect[]>(initialArtboards);
+  // true once a layout was committed or undone in this session (applyArtboardLayout) — see the row flow below
+  const arrangedRef = useRef(false);
 
   // Re-seed when JSX children change (HMR after canvas TSX edit). The seed
   // signature is identity-stable across renders that don't change the JSX,
@@ -2574,6 +2581,24 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
     });
   }, []);
 
+  // r3-ds-rows — the Design system canvas is a generated grid of rows whose pages hug their content. Written
+  // at a fixed pitch it left thousands of px of air under a short row and let a tall page run into the next one
+  // (Michal: "radek artboards by mel mit vzdy jen takovou vysku jako je jeho nejdelsi artboard"). Once the pages
+  // report their height, re-pitch the rows: each is as tall as its tallest artboard, one gap between them. Runtime
+  // only (never written to the meta: heights change with content, and a flow saved there would churn it on every
+  // open); a person's arrangement is left alone — `flowRows` refuses any layout that is no longer the generated
+  // grid, and `arrangedRef` stops it for the rest of the session once a layout was committed or undone.
+  const rowFlowOn = useMemo(() => isDsCanvasIds(seeds.map((s) => s.id)), [seeds]);
+  const declaredSizes = useMemo(
+    () => new Map(seeds.map((s) => [s.id, { w: s.w, h: s.h }] as const)),
+    [seeds]
+  );
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `artboards` is the trigger (a measured height arrived); the setter reads the latest through `prev`.
+  useEffect(() => {
+    if (!rowFlowOn || arrangedRef.current) return;
+    setArtboards((prev) => flowRows(prev, { declared: declaredSizes }));
+  }, [artboards, rowFlowOn, declaredSizes]);
+
   const ctxValue = useMemo<WorldContextValue>(
     () => ({
       rectFor,
@@ -2610,6 +2635,7 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
    */
   const applyArtboardLayout = useCallback((layout: unknown, rider?: LayoutRider) => {
     const was = artboardsRef.current;
+    arrangedRef.current = true; // a person's layout (drag, align, undo): the row flow stays out of it
     setArtboards(layout as ArtboardRect[]);
     patchCanvasMeta(
       { layout: { artboards: layout as ArtboardRect[] } },
