@@ -112,6 +112,34 @@ app is verified in the shells it ships in (desktop, browser, cloud tab, viewer).
   - a canvas importing its own stylesheet in another letter case (`Combine-admin.tsx` + `./combine-admin.css`) was blocked by the C4 closure walk for everyone. It opens now, and the rule fails closed wherever a reader cannot prove the owner is absent: stored grant, truncated listing, symlinks, NFC, the hub reader.
   - 10 a11y serious/critical groups (contrast on information text, unnamed pickers and listbox, a bare div in a menu, an empty tree). The full axe matrix, 318 states in both themes, is clean.
   - a first-canvas e2e race (a click inside the 30 ms re-render after ⌘Z).
+- **rc.1 findings and the UX audit (2026-10-31 → 11-01).** You tried `2.0.0-rc.1` and sent 20 findings; all are fixed.
+  Then a real UX analysis: seven critics graded the app by task flow against your `ux-patterns` skill (114 shots,
+  69 findings, 10 taste decisions), a debate turned each taste decision into one recommendation, and you decided them
+  (`ux-audit-rc1/MICHAL-DECISIONS.md`). Built in six packages:
+  - **P1 creation:** new objects use neutral role tokens with a literal fallback (never invisible, never accent);
+    Image (I) opens a file picker at once and places at the next click; Generate… beside it; F is "Artboard / Frame";
+    New artboard with presets moved to File.
+  - **P2 first canvas:** New canvas opens an empty "Untitled canvas" with the size picker; the brief is ⌘K "New brief
+    canvas"; Canvases folds below ~1240 px and comes back above ~1320 px.
+  - **P3 modes:** the mode switch is icons that say their mode and key; a mode switch changes only the toolbar (no camera
+    move); a key acts in the current mode when it means something there; one toast at a time, the shell's own first;
+    no What's new / "You're in Edit" toasts; a 2 px focus ring everywhere and a 1 px menu edge.
+  - **P4 comments:** one local identity ("You", Mine counts), one author face, a thread count badge.
+  - **P5 menus:** Export in the root menu and File (⇧⌘E); "Maude Cloud" everywhere and "Move to Maude Cloud…".
+  - **P6 Inspector:** every role token in schema groups for both themes; a colour popover (Search, Recent, Light | Dark,
+    Other colour…, None); slot defaults are role token + literal; no `currentColor` writes.
+- **Real bugs the gates found in this round, each fixed red-first:** an un-panned canvas exported the whole canvas
+  shrunk into the artboard (and under load the wrong size); a selection restore after a reload undid a fresh ⌘-click;
+  a closed tab's wait loaded the reopened tab twice and dropped Home's sentence; one ⌫ on a Pen point deleted the whole
+  path; the F size picker stayed over Preview and ate esc; your name could come back as the Mac account during boot, and
+  a comment could be signed "unknown"; the AI chat's slash names failed contrast in dark; a closed AI-run store threw
+  after shutdown.
+- **Security delta over the round:** one medium blocker (the "View only" callout approved a committed team-server link
+  in one click — now it opens Share's Connect row) and two mediums (a canvas could flood shell notices to hide "Export
+  failed"; New project inside someone else's git/project tree) — all fixed and verified closed; lows to the rc patch.
+- **Test harness:** browser e2e files shared your real `prefs.json` (the Marker tip leaked between files — this was the
+  source of the prefs rewrites you saw); the surface runner and every browser e2e studio now keep their own config,
+  index and a stub `claude`.
 
 ## Decisions you made along the way
 
@@ -143,32 +171,50 @@ app is verified in the shells it ships in (desktop, browser, cloud tab, viewer).
   the mode. A browser on a cell switches through the cloud dashboard.
 - **Desktop ports (2026-10-29, A):** the app has its own range, 46399–46408. A port is kept across a restart, and a
   one-time reset of web storage is accepted.
+- **rc.1 findings round (2026-10-31):** 1C drop the stale localhost link; 9A every DS specimen page is its own
+  artboard; A a link record with no role offers Sign in; 17 Preview gets Select (V) + marquee and Hand (H); ⌘D copies
+  land +10/+10.
+- **UX audit taste decisions (2026-10-31, TD1–TD10):** keep "Preview"; an icon switch with a readable state; a key acts
+  in the current mode when it means something there; a mode switch changes only the toolbar; New canvas = an empty
+  Untitled canvas, the brief in ⌘K; neutral role tokens for new objects; the two-width Canvases fold; What's new never as
+  a toast; Export in root + File; Inspector T0–T3 before merge; "Maude Cloud"; a focus ring + menu edge now, the wider
+  chrome-language pass in the rc patch; Image opens a picker (`MICHAL-DECISIONS.md`).
+- **The Chromium LOD lane, ~1 ms over its bound in one order (2026-11-01):** accepted for v2.0; smoothing the LOD
+  hand-over frame during zoom is an rc-patch item.
+- **The Mac mini and figga (2026-11-01):** the mini for the full studio suite, browser e2e and the 8.4 rig; figga (the
+  StudyFi farm) for lint / tsc / node + hub tests — only from a clean freeze tree, no env.
+- **Gate policy (2026-11-01):** frequent-finder gates before the freeze; after a green chain4 a logic-free change takes a
+  scoped re-check and the command gates are carried (`v2-gates.mjs --carry`, the diff written into the evidence); the
+  full chain4 once per closed round (`lead/gate-policy.md`).
+- **Your `prefs.json`:** rewritten by a test run — "doesn't bother me"; the harness gaps that did it are fixed.
 
 ## Verification
 
 Phase 8 gates, from `node scripts/v2-gates.mjs`. The script reads recorded evidence, and a record goes stale as soon as
-any file outside `.ai/` changes. **Every record is at the final freeze, product tree `20b4215eb`.** Only `.ai/` changed
-after it: evidence, ledger and these notes. **All 15 gates are green.** The two things only you can do are listed under
-"Before you merge".
+any file outside `.ai/` changes. **Every record is at the final freeze, product tree `fab4e6c4a`** (2026-11-01). The full
+chain4 (8.1, 8.3 ×3, 8.18, 8.2) ran green at `08b35c8db`; the changes after it are logic-free (the slash-menu ink, the
+surface runner's isolation, `--carry`, the rebuilt release bundles), so per your gate policy 8.1 was recorded again and
+8.3 / 8.18 / 8.2 were carried with the diff and the scoped checks written into their evidence. The two things only you
+can do are listed under "Before you merge".
 
 | Gate | What | Status | Evidence |
 | --- | --- | --- | --- |
 | V2-8.0 | Cleanup (old layers, dead code, CSS bar) | PASS (live check) | 638 KB vs 742 KB at the start of the phase |
-| V2-8.1 | Quality gates (format, lint, typecheck, tests, build, parity, tarball, tokens, site, import coherence) | PASS | recorded on this Mac |
-| V2-8.2 | Rust (`cargo test`, clippy `-D warnings`) | PASS | recorded |
-| V2-8.3 | Desktop e2e, every lane (41), 3 consecutive runs (debug build) | PASS | 0 failing in 123 lane logs; prefs file untouched, screen never locked |
-| V2-8.4 | Cross-shell scenarios (browser, cloud owner, cloud viewer) | PASS | 18/18 at the same sha on the Mac mini; format-1 run 14/18 = the view-only gate |
-| V2-8.5 | Design fidelity | PASS | artboard rows: 342 verified, 14 soak, 4 not-a-state, 0 open; browser e2e 14× green |
+| V2-8.1 | Quality gates (format, lint, typecheck, tests, build, parity, tarball, tokens, site, import coherence) | PASS | recorded at `78aba4749`, carried to `fab4e6c4a`; also green on Linux (figga): biome, lint, tsc, node + hub tests |
+| V2-8.2 | Rust (`cargo test`, clippy `-D warnings`) | PASS | recorded at `08b35c8db`, carried (no Rust change since) |
+| V2-8.3 | Desktop e2e, every lane, 3 consecutive runs (debug build) | PASS | `08b35c8db`: 0 failing over 3 runs, prefs untouched, screen never locked; carried |
+| V2-8.4 | Cross-shell scenarios (browser, cloud owner, cloud viewer) | PASS | 18/18 on the Mac mini at `92c8adc2e`; format-1 run 14/18 = the view-only gate |
+| V2-8.5 | Design fidelity | PASS | artboard rows: 342 verified, 14 soak, 4 not-a-state, 0 open; all 24 browser e2e files ×2 green on the mini (48/48) |
 | V2-8.6 | Nothing-deleted audit | PASS (live check) | 100 % |
-| V2-8.7 | A11y (axe, keyboard-only, VoiceOver strings) | PASS | 318 states × both themes, 0 serious/critical; keyboard-only create flow; VoiceOver strings checked in the DOM (the listen is yours) |
-| V2-8.8 | Pan/zoom perf (Chromium + WebKit) | PASS | Chromium studio 17.4 vs 17.3 ms; WebKit both orders on the mini (p95 27/24 vs 33/30 ms) |
-| V2-8.9 | Security | PASS | final … final5 pairs + two rechecks + the Rust delta, 0 blockers; residual lows in follow-ups |
+| V2-8.7 | A11y (axe, keyboard-only, VoiceOver strings) | PASS | the whole matrix in one pass at `08b35c8db` — 317 states × both themes; one serious contrast (dark slash menu) fixed red-first and re-scanned clean; VoiceOver listen is yours |
+| V2-8.8 | Pan/zoom perf (Chromium + WebKit) | PASS | WebKit both orders p95 22 / 20 ms vs pre-v2 48 / 45; Chromium studio 18.1 vs 18.2, bare 16.7 vs 16.8 |
+| V2-8.9 | Security | PASS | final … final5 pairs + rechecks; the r2 delta pair (1 medium blocker + 2 medium fixed, closure 0 blockers) and the browser-reds delta; lows in follow-ups |
 | V2-8.10 | Packaged app | PASS (scripted) | `.app` 2.0.0-rc.1: `check-bundle-completeness --smoke` ✓, `check-client-boots` ✓, no WebDriver, opening card clears; the clean-user smoke is yours |
-| V2-8.14 | Perf beyond pan/zoom | PASS | every budget met; version-picture warm p50 ~400 ms accepted by you for v2.0 (p95 within budget) |
-| V2-8.15 | Docs for people and agents | PASS | gens in sync, drift tests 12/12 |
-| V2-8.16 | AI parity | PASS | 512/512; eval 24/30 pass^3; live journeys 19/22 (the 3 fails agent-caused) |
+| V2-8.14 | Perf beyond pan/zoom | PASS | index/covers/artboards/tiles in budget (Alligators clone, 2 runs); panel + 12 people PASS; LOD base-first +1 ms accepted by you |
+| V2-8.15 | Docs for people and agents | PASS | gens in sync, drift tests 12/12; 15 stale lines fixed after the r2 renames |
+| V2-8.16 | AI parity | PASS | 512/512 at the freeze; eval 24/30 pass^3; live journeys 19/22 (the 3 fails agent-caused) |
 | V2-8.17 | Offline overlap on reconnect (#121) | verified | merged with tests |
-| V2-8.18 | Self-hosted hub + cell images (Docker) | PASS | recorded |
+| V2-8.18 | Self-hosted hub + cell images (Docker) | PASS | 16/16 at `08b35c8db`, carried |
 | V2-8.11 | Branch build and PR | this PR | |
 | V2-8.12 | After the merge: rc | after merge | see below |
 | V2-8.13 | Close-out | after merge | `v2-done.sh` turns green once this PR is merged and closed out |
@@ -200,11 +246,17 @@ after it: evidence, ledger and these notes. **All 15 gates are green.** The two 
    a real PR, DDR-162) needs a GitHub sign-in in the app and was not run. Say if you want it on the rc soak.
 6. **The homepage showreel `site/public/demo.mp4`** still likely shows v1 chrome. Re-record, drop or keep?
 7. **The site copy describes v2.** It goes to `main` with this PR. Is that OK, or should it wait for the v2.0 release?
-8. **`~/.config/maude/prefs.json`** was rewritten by a test run several times. You said you don't mind. The
-   source is still being hunted. Please check that your folds and theme look right.
+8. **`~/.config/maude/prefs.json`:** the source is found and fixed — the browser e2e harness shared your real file
+   between test files, and the multiplayer surface runner's studios inherited your HOME. Both now keep their own config,
+   index and a stub `claude`. You said the rewrites don't bother you.
 9. **`maude design ds convert`** on the in-repo design systems (your yes from 2026-10-22): done in p8-ds (`479207219`).
    Both `maude` and `maude-v2` are Design system canvases, and the dry run was clean.
-10. **The merge.** It's yours.
+10. **Open taste questions from the UX round (all defaulted, nothing blocked):**
+    - Esc on an existing inline text: (a, recommended) keep the words everywhere, as Figma does; (b) today's split.
+    - In Preview the Canvases and AI panels still fold: (a) keep, today; (b) never fold on a mode switch.
+    - The "Previewing X · esc to edit" bar: (a) keep; (b) show it only when there is a Back.
+    - Where Generate… lives: a spark beside Image (today), a row in More, or a split button.
+11. **The merge.** It's yours.
 
 ## Known follow-ups after the merge
 
