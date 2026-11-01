@@ -98,16 +98,24 @@ export function createLocalLeaseHome(opts: { actor: string; now?: () => number }
     setMeta,
   }) as unknown as RunsCore;
   const actor = opts.actor;
+  // A late call after close (an adapter's exit landing after shutdown closed the registry) answers like an
+  // unreachable home instead of throwing "Cannot use a closed database" into whatever runs next.
+  let closed = false;
   // biome-ignore lint/suspicious/noExplicitAny: the core answers plain objects of the declared shapes
-  const as = <T>(r: unknown) => Promise.resolve(r as any as T);
+  const as = <T>(r: () => unknown) =>
+    Promise.resolve((closed ? { refused: 'unreachable' } : r()) as any as T);
   return {
     kind: 'local',
-    begin: (b) => as(core.runsBegin({ ...b, actor })),
-    claim: (runId, b) => as(core.runsClaim({ runId, actor, ...b })),
-    renew: (b) => as(core.runsRenew({ actor, ...b })),
-    end: (runId, outcome) => as(core.runsEnd({ runId, actor, outcome })),
-    list: (after) => as(core.runsList(after === undefined ? {} : { after })),
-    close: () => db.close(),
+    begin: (b) => as(() => core.runsBegin({ ...b, actor })),
+    claim: (runId, b) => as(() => core.runsClaim({ runId, actor, ...b })),
+    renew: (b) => as(() => core.runsRenew({ actor, ...b })),
+    end: (runId, outcome) => as(() => core.runsEnd({ runId, actor, outcome })),
+    list: (after) => as(() => core.runsList(after === undefined ? {} : { after })),
+    close: () => {
+      if (closed) return;
+      closed = true;
+      db.close();
+    },
   };
 }
 
