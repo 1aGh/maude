@@ -440,7 +440,11 @@ describe('S5.15 — AI runs across two Macs', () => {
         r.fulfill({ contentType: 'application/json', body: JSON.stringify({ name, email: null }) })
       );
       const page = await ctx.newPage();
-      await page.goto(`${mac2Origin}/?open=${REL}`, { waitUntil: 'domcontentloaded' });
+      // 60 s, not Playwright's 30: Mac 2's studio answers slowly while Mac 1, the hub and the AI runs share one Mac
+      await page.goto(`${mac2Origin}/?open=${REL}`, {
+        waitUntil: 'domcontentloaded',
+        timeout: 60_000,
+      });
     }
     // their faces on Mac 1
     const faces = await waitFor(

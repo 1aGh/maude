@@ -25,10 +25,13 @@ const tid = (s: string) => `[data-testid="${s}"]`;
 export async function openAssistant(): Promise<void> {
   const header = await $(tid('ai-chat-header'));
   const shown = async () => header.isDisplayed().catch(() => false);
-  if (!(await shown())) {
+  // a click that lands while the shell is busy (two studios and a hub on one loaded Mac) can be lost: click the
+  // icon again while it is still there, up to three times, instead of failing on the first miss
+  for (let attempt = 0; attempt < 3 && !(await shown()); attempt++) {
     const icon = await $(tid('panel-icon-assistant'));
-    await icon.waitForDisplayed({ timeout: 30_000 });
-    await icon.click();
+    if (attempt === 0) await icon.waitForDisplayed({ timeout: 30_000 });
+    if (await icon.isDisplayed().catch(() => false)) await icon.click();
+    await browser.waitUntil(shown, { timeout: 5_000 }).catch(() => {});
   }
   await browser.waitUntil(shown, {
     timeout: 10_000,
