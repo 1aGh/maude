@@ -5,10 +5,10 @@
   "reportHashes": {
     ".ai/plans/notes/v2-evidence/V2-8.8-perf.md": "7027b70d4875599c8f29b319d556e4ecf759cef3d0693078da0af0295556936a"
   },
-  "head": "de57b527db35b9669dcc19f80d442342ba095357",
-  "ts": "2026-11-02T15:08:53.456Z",
+  "head": "00aebbb0c63241715a8998404e34e75812cdbda0",
+  "ts": "2026-11-02T16:20:57.787Z",
   "reports": [
     ".ai/plans/notes/v2-evidence/V2-8.8-perf.md"
   ],
-  "note": "final at 71ec8ec75: WebKit both orders PASS (p95 21/21 vs pre-v2 47/45), Chromium studio 18.4 vs 17.5 + spread 1.3 PASS, bare 16.8 vs 16.8 PASS"
+  "note": "final: WebKit 21/21 vs 47/45 at 71ec8ec75; r6 touches no canvas runtime, pan or zoom path. r6 (Michal 2026-11-02, scoped re-check per kg v2-michal-gates-scoped-recheck): the product diff 71ec8ec75..18e10e9e3 is the Inspector Fill + (now opens the picker on Custom; the Colour/Gradient/Image add row and its 5 testids removed) and the DS bar's dark-values caption removed — re-checked by V2-8.1 at 18e10e9e3, the inspector/ds-board tests, inspector-colour browser e2e and edit-shapes desktop e2e 2/2"
 }

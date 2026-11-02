@@ -163,6 +163,10 @@ app is verified in the shells it ships in (desktop, browser, cloud tab, viewer).
   three e2e harness races that showed only under load (an Esc that the page never heard, a double-click lost in the ⌘Z
   remount, an Assistant click lost while two studios and a hub share one Mac). Those three were spec fixes, not app
   fixes.
+- **Your last two (r6, 2026-11-02, after testing the final `.app`):** Fill's "+" now opens the picker on Custom, whose
+  Solid · Gradient · Image tabs are the choice; the row of Colour · Gradient · Image… buttons under it is gone. An
+  empty fill still gets the slot's role colour first (IR-11). The Design system bar no longer says "N colours in their
+  dark values". Re-checked by scope, per your gate policy (kg `v2-michal-gates-scoped-recheck`); see Verification.
 - **Security delta r4 + r5:** one medium — Copy link handed out an https address the committed config names even when
   this Mac never confirmed that hub (a lookalike URL in a PR → a fake sign-in with a real device code) — fixed: only a
   cell or a signed-in hub lends its address; two lows fixed (the overview strip, setup-ds quoting); three lows in the
@@ -225,7 +229,15 @@ Phase 8 gates, from `node scripts/v2-gates.mjs`. The script reads recorded evide
 any file outside `.ai/` changes. **Every record is at the final product tree `71ec8ec75`** (2026-11-02), after your
 rounds r3–r5. The full chain4 (8.1, 8.3 ×3, 8.18, 8.2) ran green at that exact tree — no carry. The attested gates
 (8.4, 8.5, 8.9, 8.15, 8.16) were run at `62146d9d4`; the only change since is three desktop e2e harness files, written
-into each note. The two things only you can do are listed under "Before you merge".
+into each note. **r6 (your last two, 2026-11-02):** the final product tree is **`18e10e9e3`**. Per your gate policy (kg
+`v2-michal-gates-scoped-recheck`, "nemusi uz jet full test suite"), the re-check was scoped:
+- V2-8.1 was recorded again at `18e10e9e3`;
+- the Inspector / DS-board tests, the `inspector-colour` browser e2e, and `edit-shapes` 2/2 on a debug app rebuilt at
+  that tree all passed;
+- 8.3 / 8.18 / 8.2 were carried from `71ec8ec75` with that diff and those checks written into their evidence.
+
+**Not run, by your choice:** the clean-user smoke (V2-8.10) and the VoiceOver listen (V2-8.7). You chose to merge
+without them; both are on the rc soak list, and `packaged-app.json` stays `pass: false`.
 
 | Gate | What | Status | Evidence |
 | --- | --- | --- | --- |
@@ -236,10 +248,10 @@ into each note. The two things only you can do are listed under "Before you merg
 | V2-8.4 | Cross-shell scenarios (browser, cloud owner, cloud viewer) | PASS | 18/18 on the Mac mini at `62146d9d4`; format-1 run 14/18 = the view-only gate |
 | V2-8.5 | Design fidelity | PASS | artboard rows: 342 verified, 14 soak, 4 not-a-state, 0 open; all 24 browser e2e files ×2 on the mini at `62146d9d4` (47/48 + one port-bind harness red, rerun ×2 green) |
 | V2-8.6 | Nothing-deleted audit | PASS (live check) | 100 % |
-| V2-8.7 | A11y (axe, keyboard-only, VoiceOver strings) | PASS | the whole matrix in one pass at `71ec8ec75`: 318 states × both themes ok, 0 serious/critical (the r4/r5 picker, theme pill, name dialog and Libraries included); keyboard-only via the desktop e2e; VoiceOver listen is yours |
+| V2-8.7 | A11y (axe, keyboard-only, VoiceOver strings) | PASS | the whole matrix in one pass at `71ec8ec75`: 318 states × both themes ok, 0 serious/critical (the r4/r5 picker, theme pill, name dialog and Libraries included); keyboard-only via the desktop e2e; VoiceOver listen **not run** (you merged without it; rc soak) |
 | V2-8.8 | Pan/zoom perf (Chromium + WebKit) | PASS | at `71ec8ec75`: WebKit both orders p95 21 / 21 ms vs pre-v2 47 / 45; Chromium studio 18.4 vs 17.5 (+ spread 1.3), bare 16.8 vs 16.8 |
 | V2-8.9 | Security | PASS | final … final5 pairs + rechecks; the r2, r3 and r4+r5 delta pairs (r4+r5: one medium + two lows fixed red-first); lows in follow-ups |
-| V2-8.10 | Packaged app | PASS (scripted) | `.app` 2.0.0-rc.1 built at `71ec8ec75`: `check-bundle-completeness --smoke` ✓, `check-client-boots` ✓, no WebDriver in release, opening card clears; the clean-user smoke is yours |
+| V2-8.10 | Packaged app | PASS (scripted) | `.app` 2.0.0-rc.1 built at `71ec8ec75`: `check-bundle-completeness --smoke` ✓, `check-client-boots` ✓, no WebDriver in release, opening card clears; the clean-user smoke **not run** (you merged without it; rc soak) |
 | V2-8.14 | Perf beyond pan/zoom | PASS | at `71ec8ec75`: index/covers/artboards/tiles in budget (Alligators clone, 2 runs); panel + 12 people PASS; LOD base-first +1 ms (34.6 vs 33.4, the same as at `08b35c8db`) accepted by you |
 | V2-8.15 | Docs for people and agents | PASS | gens in sync; r3–r5 people and agent docs updated (getting-started, desktop/window, design, DS schema, setup-ds canvas-first) |
 | V2-8.16 | AI parity | PASS | 512/512 at `71ec8ec75`; eval 24/30 pass^3; live journeys 19/22 (the 3 fails agent-caused) |
@@ -251,10 +263,10 @@ into each note. The two things only you can do are listed under "Before you merg
 
 ## Before you merge: what needs you
 
-1. **VoiceOver pass (V2-8.7).** Everything else in a11y is checked in the DOM. I could not hear VoiceOver. Please
+1. **VoiceOver pass (V2-8.7) — NOT RUN: you chose to merge without it (2026-11-02); it is on the rc soak list.** Everything else in a11y is checked in the DOM. I could not hear VoiceOver. Please
    listen once to the strings from board 14 (for example "Services, frame, 3 items, in a row, 4 of 6. Press Return
    to go inside") and to the live region on the status words.
-2. **Clean-macOS-user smoke of the packaged app (V2-8.10).** Install the `.app` on a fresh macOS user with no node,
+2. **Clean-macOS-user smoke of the packaged app (V2-8.10) — NOT RUN: you chose to merge without it (2026-11-02); `packaged-app.json` stays `pass: false` and it is on the rc soak list.** Install the `.app` on a fresh macOS user with no node,
    bun or claude: `.claude/worktrees/freeze/apps/desktop/src-tauri/target/release/bundle/macos/Maude.app` (2.0.0-rc.1,
    built at the final product tree `71ec8ec75` on 2026-11-02 with auto-update off). Open a project, open Home, make a canvas.
    While you are in it, the r4/r5 rows in `lead/r4-michal-findings.md` are yours to confirm in this same build. The scripted gates (`check-bundle-completeness --smoke`,

@@ -431,3 +431,14 @@ rights or is an availability nuisance). Candidates for the first rc patch:
 - r4+r5 security delta lows left for after the merge: the Light|Dark pill copies `window.__canvas_meta_file__`, which canvas code can overwrite — have the pill ask the shell to copy its own path; a tab switch mid-drag (deep link / notification) lets the visible tab's untrusted canvas read the dragged asset's NAME; the `tab_visibility_goes_through_set_tab_shown` test pins call sites, not stacking order — assert the shown tab is the last subview after activate and set_overview.
 - Fan out (annotation tidy) can drop a sticky into a section it lands on, because the r4 adopt rule applies to any move; decide whether only a drag should adopt (r5 e2e, 2026-11-02).
 - hub test acl-l17-people (L17 /api/access/people) failed once inside 8.1 under load, passes 6/6 alone (2026-11-02).
+
+## For the rc soak (Michal merged without these, 2026-11-02)
+
+- **Clean-macOS-user smoke of the packaged app (V2-8.10): NOT RUN.** Michal chose to merge without it. The scripted
+  half (bundle completeness --smoke, client boots, no WebDriver, opening card) is green on the final build. Run it on
+  the rc.1 `.dmg` on a fresh macOS user with no node, bun, brew or claude: open a project, open Home, make a canvas.
+  `packaged-app.json` keeps `pass: false` until then.
+- **VoiceOver listen (V2-8.7): NOT RUN.** Michal chose to merge without it. The DOM side is green (318/318 states).
+  Listen once to the board-14 strings and the status-word live region on rc.1.
+- **r6 (Michal's last two):** the DS canvas spec `.design/ui/v2/13 Design System.tsx` still draws "22 colours in their
+  dark values" in its DsBar. The product dropped it at Michal's word, so the spec canvas should drop it too.

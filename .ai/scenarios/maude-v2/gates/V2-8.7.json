@@ -5,10 +5,10 @@
   "reportHashes": {
     ".ai/plans/notes/v2-evidence/V2-8.7-a11y-final.md": "6a26d325ba8a1f7f6182bee6b9b5b0688cdbf8c0d9c8528b3db00a857146bf15"
   },
-  "head": "6c504709cbcfae6009f23a882f915bb0b2ae4f07",
-  "ts": "2026-11-02T15:43:51.642Z",
+  "head": "00aebbb0c63241715a8998404e34e75812cdbda0",
+  "ts": "2026-11-02T16:20:57.735Z",
   "reports": [
     ".ai/plans/notes/v2-evidence/V2-8.7-a11y-final.md"
   ],
-  "note": "final at 71ec8ec75: the whole matrix, 318/318 states ok in both themes, 0 serious/critical, no BLOCK (r4/r5 surfaces included); keyboard-only via V2-8.3 x3; VoiceOver listen is Michal's"
+  "note": "final: 318/318 at 71ec8ec75; r6 removes UI (the add row) and a caption, adds none. VoiceOver listen NOT RUN — Michal chose to merge without it (rc soak). r6 (Michal 2026-11-02, scoped re-check per kg v2-michal-gates-scoped-recheck): the product diff 71ec8ec75..18e10e9e3 is the Inspector Fill + (now opens the picker on Custom; the Colour/Gradient/Image add row and its 5 testids removed) and the DS bar's dark-values caption removed — re-checked by V2-8.1 at 18e10e9e3, the inspector/ds-board tests, inspector-colour browser e2e and edit-shapes desktop e2e 2/2"
 }

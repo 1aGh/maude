@@ -5,10 +5,10 @@
   "reportHashes": {
     ".ai/plans/notes/v2-evidence/V2-8.5-browser-runs/all-62146d9d4/env.txt": "690f00f52ce1ee75dcc7e27d959ba3e02c7e5bb2c3f7c0f94df1ccf5c08ed6b8"
   },
-  "head": "64632ff097688143257975ac2cc5c7ae112447f4",
-  "ts": "2026-11-02T14:52:38.873Z",
+  "head": "00aebbb0c63241715a8998404e34e75812cdbda0",
+  "ts": "2026-11-02T16:20:57.683Z",
   "reports": [
     ".ai/plans/notes/v2-evidence/V2-8.5-browser-runs/all-62146d9d4/env.txt"
   ],
-  "note": "final: 24 browser e2e x2 at 62146d9d4 on the mini 47/48 + the port-bind red rerun x2 green; e2e rows re-checked on V2-8.3 (3 runs green at 71ec8ec75); product diff 62146d9d4..71ec8ec75 = desktop e2e harness only (edit-artboards double-click retry, helpers/assistant.ts icon re-click, ai-runs Mac 2 page 60 s); no app, studio, hub, plugin or doc file"
+  "note": "final: browser e2e 47/48 + rerun at 62146d9d4; inspector-colour re-run green at 18e10e9e3. r6 (Michal 2026-11-02, scoped re-check per kg v2-michal-gates-scoped-recheck): the product diff 71ec8ec75..18e10e9e3 is the Inspector Fill + (now opens the picker on Custom; the Colour/Gradient/Image add row and its 5 testids removed) and the DS bar's dark-values caption removed — re-checked by V2-8.1 at 18e10e9e3, the inspector/ds-board tests, inspector-colour browser e2e and edit-shapes desktop e2e 2/2"
 }

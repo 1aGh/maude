@@ -5,10 +5,10 @@
   "reportHashes": {
     ".ai/plans/notes/v2-evidence/V2-8.14-perf.md": "a94ce1ce0ab77e9d1ead163618fd0fb90347faf7862dc50a760913bd25edb600"
   },
-  "head": "de57b527db35b9669dcc19f80d442342ba095357",
-  "ts": "2026-11-02T15:08:53.509Z",
+  "head": "00aebbb0c63241715a8998404e34e75812cdbda0",
+  "ts": "2026-11-02T16:20:57.838Z",
   "reports": [
     ".ai/plans/notes/v2-evidence/V2-8.14-perf.md"
   ],
-  "note": "final at 71ec8ec75: index/covers/artboards/tiles in budget (2 runs), panel + 12 people PASS, LOD v2-base PASS; LOD base-v2 34.6 vs 33.4, 2 vs 0 long frames = the 08b35c8db numbers Michal accepted for v2.0 (kg v2-michal-accept-lod-1ms-for-v2)"
+  "note": "final: budgets at 71ec8ec75 (LOD +1 ms accepted); r6 touches no index, cover, panel or LOD path. r6 (Michal 2026-11-02, scoped re-check per kg v2-michal-gates-scoped-recheck): the product diff 71ec8ec75..18e10e9e3 is the Inspector Fill + (now opens the picker on Custom; the Colour/Gradient/Image add row and its 5 testids removed) and the DS bar's dark-values caption removed — re-checked by V2-8.1 at 18e10e9e3, the inspector/ds-board tests, inspector-colour browser e2e and edit-shapes desktop e2e 2/2"
 }

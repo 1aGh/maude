@@ -5,10 +5,10 @@
   "reportHashes": {
     ".ai/scenarios/maude-v2/V2-8.4-freeze/report.md": "c869905595e2e4aa4515e66ec9a52ae9d09bf9c4255d4b3bfbf0586485c67013"
   },
-  "head": "64632ff097688143257975ac2cc5c7ae112447f4",
-  "ts": "2026-11-02T14:52:38.821Z",
+  "head": "00aebbb0c63241715a8998404e34e75812cdbda0",
+  "ts": "2026-11-02T16:20:57.632Z",
   "reports": [
     ".ai/scenarios/maude-v2/V2-8.4-freeze/report.md"
   ],
-  "note": "final: 18/18 across browser, cloud owner, cloud viewer at 62146d9d4 (Mac mini), format-1 14/18 = the view-only cloud steps; product diff 62146d9d4..71ec8ec75 = desktop e2e harness only (edit-artboards double-click retry, helpers/assistant.ts icon re-click, ai-runs Mac 2 page 60 s); no app, studio, hub, plugin or doc file — the scenario rig drives no desktop e2e file"
+  "note": "final: 18/18 at 62146d9d4 (mini), format-1 14/18 view-only; the rig drives no inspector add-row step. r6 (Michal 2026-11-02, scoped re-check per kg v2-michal-gates-scoped-recheck): the product diff 71ec8ec75..18e10e9e3 is the Inspector Fill + (now opens the picker on Custom; the Colour/Gradient/Image add row and its 5 testids removed) and the DS bar's dark-values caption removed — re-checked by V2-8.1 at 18e10e9e3, the inspector/ds-board tests, inspector-colour browser e2e and edit-shapes desktop e2e 2/2"
 }
