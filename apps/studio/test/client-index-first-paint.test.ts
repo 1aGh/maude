@@ -21,7 +21,9 @@ describe('client/index.html — the first paint waits on nothing cross-origin', 
   test('no stylesheet <link> from another origin', () => {
     const bad = [...HTML.matchAll(/<link\b[^>]*>/gi)]
       .map((m) => m[0])
-      .filter((tag) => /\bstylesheet\b/i.test(attr(tag, 'rel') ?? '') && crossOrigin(attr(tag, 'href')));
+      .filter(
+        (tag) => /\bstylesheet\b/i.test(attr(tag, 'rel') ?? '') && crossOrigin(attr(tag, 'href'))
+      );
     expect(bad).toEqual([]);
   });
 
