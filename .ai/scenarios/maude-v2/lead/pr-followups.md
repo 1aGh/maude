@@ -442,3 +442,20 @@ rights or is an availability nuisance). Candidates for the first rc patch:
   Listen once to the board-14 strings and the status-word live region on rc.1.
 - **r6 (Michal's last two):** the DS canvas spec `.design/ui/v2/13 Design System.tsx` still draws "22 colours in their
   dark values" in its DsBar. The product dropped it at Michal's word, so the spec canvas should drop it too.
+
+## rc.1 field findings (2026-11-02, Michal's real projects)
+
+- **The first-launch white Home** was caused by a render-blocking Google Fonts stylesheet in `client/index.html`
+  (measured: 8 s font delay = first paint at 8316 ms). Fixed on branch `fix-home-white`: the fonts are script-inserted
+  from `app.jsx`, and `test/client-index-first-paint.test.ts` pins that. **Follow-up:** self-host Inter, Inter Tight
+  and JetBrains Mono in `dist/` so the app makes no Google request at all (offline, privacy).
+- **File plane retries a permanent 400 forever** (studyfi-design, linked to design.studyfi.com, hub 1.10.0,
+  formatVersion 2):
+  - 19 files are retried with backoff and never settle: 16× `assets/<id>.transcript.json`,
+    `system/studyfi-web/tokens.json`, `system/studyfi-v3/tokens.json`. Hub 1.10.0 answers `HTTP 400 {"error":"invalid path"}`.
+  - A 400 should end the retry and surface as a held file in Sync details, with the reason.
+  - Also check why a 2.0 studio offers `*.transcript.json` and DS `tokens.json` to a 1.x hub at all. This is a
+    membership mismatch between `apps/studio/sync/file-membership.ts` and the hub's path rules at 1.10.0.
+- **`[sync/ctl] refused a malformed control frame`** appears right after attaching to that hub (2.0 studio ↔ 1.10.0 hub).
+- **Sidecar RSS about 1.8 GB** during the first full sync of a 309-canvas project ("[mem] rss 1821MB > warn threshold").
+- **The cold-start measurement** of the release app is still to do once Michal frees the Mac.

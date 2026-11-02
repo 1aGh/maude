@@ -429,6 +429,36 @@ pub fn set_tab_shown<R: Runtime>(wv: &tauri::Webview<R>, shown: bool) {
     }
 }
 
+/// The shell window's own colour: the splash's ink, so a tab that has not painted yet reads as the app loading.
+const SHELL_BG: tauri::window::Color = tauri::window::Color(11, 11, 12, 255);
+
+/// rc.2 (v2.0.0-rc.1's white first launch): a WKWebView paints WHITE until its page draws its first frame — a
+/// cross-origin navigation (the splash → the Home or project origin) swaps the web process and shows that white
+/// again until the new page paints. Not drawing a background lets the dark shell window show through instead.
+/// (`WebviewBuilder::background_color` is not implemented on macOS.) Pages set their own background, so nothing
+/// that has painted looks different.
+pub fn clear_background<R: Runtime>(wv: &tauri::Webview<R>) {
+    #[cfg(target_os = "macos")]
+    let _ = wv.with_webview(|platform| {
+        // SAFETY: on macOS `inner()` is the live WKWebView and this runs on the main thread (Tauri's
+        // `with_webview` contract); `setValue:forKey:` with `drawsBackground` is the KVC wry uses for a
+        // transparent webview.
+        unsafe { draws_no_background(platform.inner().cast::<objc2::runtime::AnyObject>()) }
+    });
+    #[cfg(not(target_os = "macos"))]
+    let _ = wv;
+}
+
+#[cfg(target_os = "macos")]
+unsafe fn draws_no_background(view: *mut objc2::runtime::AnyObject) {
+    use objc2::runtime::AnyObject;
+    use objc2::{class, msg_send};
+    let Some(view) = view.as_ref() else { return };
+    let no: *mut AnyObject = msg_send![class!(NSNumber), numberWithBool: false];
+    let key = objc2_foundation::NSString::from_str("drawsBackground");
+    let _: () = msg_send![view, setValue: no, forKey: &*key];
+}
+
 /// Re-order `view`'s siblings so it is the last (topmost) subview. `sortSubviewsUsingFunction` re-orders in
 /// place — the view is never removed from its window, so the page keeps its state, focus and layers.
 #[cfg(target_os = "macos")]
@@ -482,6 +512,8 @@ pub fn ensure_shell(app: &AppHandle) -> Result<tauri::Window, String> {
     #[allow(unused_mut)]
     let mut builder = tauri::window::WindowBuilder::new(app, SHELL_LABEL)
         .title("Maude")
+        // rc.2: the colour every child shows through before its page paints (see `clear_background`)
+        .background_color(SHELL_BG)
         .inner_size(SHELL_W, SHELL_H)
         .min_inner_size(SHELL_MIN_W, SHELL_MIN_H);
     #[cfg(target_os = "macos")]
@@ -520,9 +552,10 @@ pub fn ensure_shell(app: &AppHandle) -> Result<tauri::Window, String> {
     if windows::supports_data_store() {
         strip = strip.data_store_identifier(windows::data_store_id_for_label(STRIP_LABEL));
     }
-    shell
+    let strip = shell
         .add_child(strip, strip_rect.position, strip_rect.size)
         .map_err(|e| format!("Couldn't open the tab bar: {e}"))?;
+    clear_background(&strip);
     Ok(shell)
 }
 
@@ -542,6 +575,7 @@ pub fn add_tab(
     let wv = shell
         .add_child(builder, rect.position, rect.size)
         .map_err(|e| format!("Couldn't open a tab for this project: {e}"))?;
+    clear_background(&wv);
     // Built visible: hide it until `activate` picks it, so a tab opened in the
     // background (a restore) never flashes over the active one.
     set_tab_shown(&wv, false);

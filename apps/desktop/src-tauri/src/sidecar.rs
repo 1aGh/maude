@@ -1569,6 +1569,20 @@ pub fn log_shutdown(line: &str) {
 pub(crate) fn log_line(line: &str) {
     use std::io::Write;
     let _ = writeln!(std::io::stderr(), "{line}");
+    // Release builds too: nobody keeps the shell's stderr, so rc.1's white first launch left no timeline at all.
+    // `<app log dir>/shell.log`, each line stamped with epoch ms; one rotation at SHELL_LOG_MAX_BYTES.
+    if let Some(path) = SHELL_LOG.get() {
+        if std::fs::metadata(path).map(|m| m.len()).unwrap_or(0) > SHELL_LOG_MAX_BYTES {
+            let _ = std::fs::rename(path, path.with_extension("log.1"));
+        }
+        if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
+            let ms = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_millis())
+                .unwrap_or(0);
+            let _ = writeln!(f, "{ms} {line}");
+        }
+    }
     // Debug builds only: a desktop e2e launches the app through WebDriver, which
     // drops its stderr — `MAUDE_E2E_SHELL_LOG=<file>` keeps the shell's own
     // decisions (rest, wake, overflow) readable after a run.
@@ -1576,6 +1590,18 @@ pub(crate) fn log_line(line: &str) {
     if let Some(p) = std::env::var_os("MAUDE_E2E_SHELL_LOG") {
         if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(p) {
             let _ = writeln!(f, "{line}");
+        }
+    }
+}
+
+static SHELL_LOG: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+const SHELL_LOG_MAX_BYTES: u64 = 1_000_000;
+
+/// Point `log_line` at `<app log dir>/shell.log` (called once from `setup`). A missing log dir only loses the file.
+pub(crate) fn init_shell_log(app: &AppHandle) {
+    if let Ok(dir) = app.path().app_log_dir() {
+        if std::fs::create_dir_all(&dir).is_ok() {
+            let _ = SHELL_LOG.set(dir.join("shell.log"));
         }
     }
 }

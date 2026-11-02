@@ -650,6 +650,8 @@ pub fn run() {
             // Crash reporting (Phase 32 / Task 4) — prime the opt-in toggle from
             // prefs.json and install the panic hook FIRST, so a panic anywhere in
             // setup is caught (and, only if opted in, written to a local file).
+            sidecar::init_shell_log(&handle);
+            sidecar::log_line(&format!("[maude] shell start v{}", env!("CARGO_PKG_VERSION")));
             prefs::init(&handle);
             crash_reporter::install(&handle);
             // V2-3.8: debug builds only — the e2e lane's in-memory keychain.
