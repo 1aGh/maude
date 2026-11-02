@@ -11,7 +11,7 @@ Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 Dedicated entry point for **creating a design system** in this project.
 
-**In a Maude project a new design system starts on its Design system canvas — never as a static folder page.** For `first-bootstrap` and `additional-ds` (below), run `maude design ds make <name> --label "<Label>"` first (Step 1.9). It writes the system's config entry, `system/<name>/` and the Design system canvas (every section an outline), so the system opens as the canvas the moment it exists and the app has nothing to offer to convert. From there you work exactly as in **App mode**: the person's brief verbatim, three directions with `maude design ds draft`, the in-app pick, the sections filled through the working files, and no staged interview or scaffold roster. The staged discovery + scaffold below is the fallback only for a project where `ds make` is refused because it cannot edit that way (an older project format or an older `maude` without the verb).
+**In a Maude project a new design system starts on its Design system canvas — never as a static folder page.** For `first-bootstrap` and `additional-ds` (below), run `maude design ds make <name> --label '<Label>'` first (Step 1.9). It writes the system's config entry, `system/<name>/` and the Design system canvas (every section an outline), so the system opens as the canvas the moment it exists and the app has nothing to offer to convert. From there you work exactly as in **App mode**: the person's brief verbatim, three directions with `maude design ds draft`, the in-app pick, the sections filled through the working files, and no staged interview or scaffold roster. The staged discovery + scaffold below is the fallback only for a project where `ds make` is refused because it cannot edit that way (an older project format or an older `maude` without the verb).
 
 Modes the underlying skill auto-detects:
 
@@ -75,7 +75,7 @@ If config exists (`CONFIG_PRESENT=true`), skip onboard. `KNOWN_DS` already tells
 Skip this step for `--app` (the app already ran it), `--upgrade-schema` and `--force` on an existing system. Otherwise, when `<name>` is not in `KNOWN_DS`:
 
 ```bash
-maude design ds make <name> --label "<Label>"      # <Label>: the person's name for it, else <name> title-cased
+maude design ds make <name> --label '<Label>'      # <Label>: the person's name for it, else <name> title-cased; single quotes (a $(…) in a label must never run), a ' in the label written as '\''
 ```
 
 - **Success** → the Design system canvas exists as outlines. Tell the person in one line that it is open as a Design system canvas, then continue as **App mode** (below) with `<brief>` verbatim. **Skip Steps 1.5 and 3**: no moodboard canvas, no scaffold roster, no `ui/<ds>-moodboard.tsx`.

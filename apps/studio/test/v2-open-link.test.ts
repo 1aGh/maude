@@ -124,8 +124,27 @@ describe('Copy link on a canvas copies the address that can be shared (r4 #13)',
       return (stableFetch as never as (...x: unknown[]) => Promise<Response>)(...a);
     }) as never;
     const links = { web, app, local: 'http://localhost:4399/?open=ui/A.tsx' };
-    expect(await copyLinkFor({ path: 'ui/A.tsx', links, shell: 'desktop', fetchImpl })).toBe(web);
+    expect(
+      await copyLinkFor({ path: 'ui/A.tsx', links, shell: 'desktop', webTrusted: true, fetchImpl })
+    ).toBe(web);
     expect(asked).toBe(0);
+  });
+
+  test('a web address this Mac never confirmed is not handed out: the app link is copied instead (r4+r5 security)', async () => {
+    // a committed config can name any hub URL (a lookalike); only a credentialed link or a cell may lend its address
+    const links = { web: 'https://maude-cloud.app/?open=ui/A.tsx', app, local: null };
+    expect(
+      await copyLinkFor({ path: 'ui/A.tsx', links, shell: 'desktop', fetchImpl: stableFetch })
+    ).toBe('maude://open/alligators?c=n_abc12345');
+    expect(
+      await copyLinkFor({
+        path: 'ui/A.tsx',
+        links,
+        shell: 'desktop',
+        webTrusted: false,
+        fetchImpl: stableFetch,
+      })
+    ).toBe('maude://open/alligators?c=n_abc12345');
   });
 
   test('a local-only project keeps the deep link (stable when it has an entry)', async () => {

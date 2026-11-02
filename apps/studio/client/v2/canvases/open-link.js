@@ -112,13 +112,21 @@ export async function stableLinkFor({ path, appLink, fetchImpl = globalThis.fetc
  * always wins when there is one — a `maude://` deep link works only on a Mac that has the app. Only a local-only
  * project (no https home) keeps the app link: the stable entry link when it has an op log, else the path link,
  * else this Mac's own address. The web link carries `?open=<path>` and nothing else: no token.
+ * r4+r5 security: the web address comes from the project's committed config, which anyone with a PR can point at a
+ * lookalike — so it is handed out only when `webTrusted` (a cloud cell, or a hub link this Mac has signed in to).
  *
  * @param {{ path: string, links: { web?: string|null, app?: string|null, local?: string|null }, shell?: string,
- *           fetchImpl?: typeof fetch }} a
+ *           webTrusted?: boolean, fetchImpl?: typeof fetch }} a
  * @returns {Promise<string|null>}
  */
-export async function copyLinkFor({ path, links, shell, fetchImpl = globalThis.fetch }) {
-  if (links?.web) return links.web;
+export async function copyLinkFor({
+  path,
+  links,
+  shell,
+  webTrusted = false,
+  fetchImpl = globalThis.fetch,
+}) {
+  if (links?.web && webTrusted) return links.web;
   const stable =
     shell === 'cloud'
       ? null

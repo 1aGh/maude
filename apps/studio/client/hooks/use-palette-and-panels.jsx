@@ -211,7 +211,13 @@ export function usePaletteAndPanels({
   // these). S1.18: the stable link (`maude://open/<project>?c=<entry>`, survives a move or rename) when this
   // project has an op log; otherwise — a legacy project, the cloud shell — the one Share offers today.
   const copyCanvasLink = async (path) => {
-    const link = await copyLinkFor({ path, links: shareLinksFor(path), shell: shareShell });
+    const link = await copyLinkFor({
+      path,
+      links: shareLinksFor(path),
+      shell: shareShell,
+      // a cell's own address, or a hub link this Mac signed in to — never a URL only the committed config names
+      webTrusted: !!cfg?.cloud || !!cloudLinkedHub?.credentialed,
+    });
     if (link) copyShareLink(link);
   };
   // S1.18 — a canvas link the shell delivered to this window (CloudBar → open-link.js): resolve its entry

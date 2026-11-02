@@ -380,6 +380,10 @@ pub fn set_overview(app: &AppHandle, open: bool) {
     }
     if open {
         if let Some(strip) = app.get_webview(STRIP_LABEL) {
+            // r4+r5 security (low): the hidden active tab still sat above the full-window strip, so a Finder drop on
+            // the overview grid went to the hidden project's page. Raise the strip while the overview is open
+            // (closing it re-shows — and so raises — the active tab).
+            set_tab_shown(&strip, true);
             let _ = strip.set_focus();
         }
     }
