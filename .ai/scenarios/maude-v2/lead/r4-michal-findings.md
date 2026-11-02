@@ -30,3 +30,18 @@ Status: `open` · `building` · `merged` · `verified-app` · `needs-decision` �
 | 17 | "kdyz pridavam blank section cekal bych ze muzu udelat drag … a hned po vlozeni sekce bych prepl automaticky zpatky na cursor/select" | gap: Section tool draws by drag (click = default size) and returns to Select | in the .app d93355276 — for Michal (H) | 2f4ca5a81
 | 18 | "kdyz vytvorim novy objekt v section tak se potom hybe spolu se seciton ale kdyz tam pretahnu nejaky uz vytvoreny objekt, tak se nehybe" | bug: dropping an existing object into a section re-parents it into the section | in the .app d93355276 — for Michal (H) | 085be89ba
 | 44 | (screenshot 44) a broken image "?" in the Ahoj2 canvas | bug, to look at: which element, why the picture does not load | in the .app d93355276 — for Michal (I) — not reproduced; guard: retry then "Picture not found" + path | see r4/link-image merge
+
+## r5 — Michal's findings on READY TO TRY (13) (2026-11-02)
+
+Screenshots `32b76e01…/images/45.png … 48.png`. After r5: quality → a short check of each item in the release .app → the FINAL chain4 + all re-attests + the final .app + PR.md (Michal: "Pak at uz lead udela finalni e2e testy"). #5 (zoom) is already in feat (317cc80ef) and ships with r5.
+
+| # | Michal (verbatim) | triage | status | commit | verified in the release .app |
+| --- | --- | --- | --- | --- | --- |
+| r5-1 | "video nejde pretahnout z finder ani z assets drag and drop. A neni jak vlozit video do preview mode (annotations). Respektive ono se tam pretahne ale potom je to takhle rozbite a kdyz chci odzoomovat tak se video zobrazi pres celou obrazovku" | bug: a video (Finder or Assets tile) must drop like a picture in Edit (r3 video place) and in Preview as an annotation VIDEO (not an `<img>` → "Picture not found"); the zoom-out blow-up of the box | building (L r5-video) | | |
+| r5-2 | "video lze prehrat jen v presentation mode" | bug: a placed video plays on the canvas in Edit (Space / a play control) and in Preview (its controls) | building (L r5-video) | | |
+| r5-3 | "v color picker libraries bych nedaval ty taby (color, gradient, image) a udelal bych to jako list radky z nazvy … ne takhle jako galerie" | design: Libraries = a list of rows (swatch + token name), grouped, no paint-kind tabs inside it | building (M r5-picker) | | |
+| r5-4 | "prepninani mezi taby v color picker nekdy samo zavre popoup kartu" | bug: switching tabs sometimes closes the popover | building (M r5-picker) | | |
+| r5-5 | "v gradient picker nejde tahat s temi kulickami ve vyberu pomeru gradientu" | bug: gradient stops cannot be dragged | building (M r5-picker) | | |
+| r5-6 | "v color picker image, mam moznost jen vybrat z pocitace nebo pridat link, ale nemam vubec moznost vybrat z mych assets" | gap: the Image tab picks from the project's Assets too | building (M r5-picker) | | |
+| r5-7 | "dark/light mode mi nejak v canvases nefunguje treba tenhle maude '02 onboarding'" | bug: the global Light/Dark pill does not switch `.design/ui/v2/02 Onboarding.tsx` (find why: hardcoded colours, its own theme attr, no DS link) | building (N r5-theme-path) | | |
+| r5-8 | "chybi mi tam file path nekde, klidne bych ho dal na ten pill kde je light/dark prepinac a taky do more menu v listu canvases jako 'copy relative path'" | gap: the canvas path on the Light|Dark pill (click copies it) + "Copy relative path" in a Canvases row's ⋯ menu | building (N r5-theme-path) | | |
