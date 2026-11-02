@@ -13,6 +13,7 @@
 
 import { ArrowLeftRight, Minus, Pipette, Plus } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useAssets } from '../../assets/use-assets.js';
 import { uploadAsset } from '../../../../asset-upload.ts';
 import { imageUrlOk } from '../../../../edit-ops/words-paint.ts';
 import { fetchCanvasSource } from '../../code/use-canvas-source.js';
@@ -417,7 +418,8 @@ const swatchOf = (css, vals) => {
 function StopsBar({ name, gf, vals }) {
   const { g, sel } = gf;
   const bar = useRef(null);
-  const [dragging, setDragging] = useState(null);
+  // the stop in the hand: its index in the sorted stops (it changes when it passes another one)
+  const held = useRef(null);
   const posFrom = (e) => {
     const r = bar.current?.getBoundingClientRect?.();
     if (!r?.width) return null;
@@ -425,7 +427,10 @@ function StopsBar({ name, gf, vals }) {
   };
   const move = (i, pos, commit) => {
     const stop = { ...g.stops[i], pos: Math.round(pos * 10) / 10 };
-    gf.change({ ...g, stops: g.stops.map((s, k) => (k === i ? stop : s)) }, stop, commit);
+    const stops = g.stops.map((s, k) => (k === i ? stop : s));
+    gf.change({ ...g, stops }, stop, commit);
+    // the same order `gf.change` sorts into, so a held ball keeps following its stop after passing another
+    return [...stops].sort((a, b) => a.pos - b.pos).indexOf(stop);
   };
   const barDown = (e) => {
     if (e.target !== bar.current) return;
@@ -434,6 +439,24 @@ function StopsBar({ name, gf, vals }) {
     const { g: next, index } = addStop(g, p, vals);
     gf.change(next, next.stops[index], true);
   };
+  // r5-5: the ball is grabbed on the BAR (pointer capture), so every move and the release arrive at the bar — not at the
+  // ball, which never heard them (Michal: "nejde tahat s temi kulickami")
+  const barMove = (e) => {
+    if (held.current == null) return;
+    const p = posFrom(e);
+    if (p != null) held.current = move(held.current, p, false);
+  };
+  const barUp = (e) => {
+    const i = held.current;
+    if (i == null) return;
+    held.current = null;
+    try {
+      bar.current?.releasePointerCapture?.(e.pointerId);
+    } catch {}
+    if (e.type === 'pointercancel') return;
+    const p = posFrom(e);
+    if (p != null) move(i, p, true);
+  };
   return (
     <div
       ref={bar}
@@ -441,6 +464,9 @@ function StopsBar({ name, gf, vals }) {
       data-testid={`insp-gbar-${name}`}
       style={{ background: gradientCss({ ...g, type: 'linear', angle: 90 }) }}
       onPointerDown={barDown}
+      onPointerMove={barMove}
+      onPointerUp={barUp}
+      onPointerCancel={barUp}
     >
       {g.stops.map((s, i) => (
         <button
@@ -459,20 +485,10 @@ function StopsBar({ name, gf, vals }) {
           style={{ left: `${s.pos}%`, '--stop': swatchOf(s.color, vals) }}
           onPointerDown={(e) => {
             e.stopPropagation();
+            e.preventDefault(); // no text selection / native drag while the ball moves
             gf.setSel(i);
+            held.current = i;
             bar.current?.setPointerCapture?.(e.pointerId);
-            setDragging(i);
-          }}
-          onPointerMove={(e) => {
-            if (dragging !== i) return;
-            const p = posFrom(e);
-            if (p != null) move(i, p, false);
-          }}
-          onPointerUp={(e) => {
-            if (dragging !== i) return;
-            setDragging(null);
-            const p = posFrom(e);
-            if (p != null) move(i, p, true);
           }}
           onKeyDown={(e) => {
             const d = e.shiftKey ? 10 : 1;
@@ -662,7 +678,9 @@ const SAYS = {
 };
 
 /** @param {{ name: string, fillApi: object }} props */
-export function ImageEditor({ name, fillApi }) {
+export function ImageEditor({ name, fillApi, designRel = '.design' }) {
+  const { assets } = useAssets();
+  const pictures = (assets ?? []).filter((a) => a.kind === 'image');
   const layer = fillApi.fill.layers[0];
   const current = layer?.kind === 'image' ? layer.url : null;
   const [url, setUrl] = useState('');
@@ -734,6 +752,38 @@ export function ImageEditor({ name, fillApi }) {
           onKeyDown={(e) => e.key === 'Enter' && addUrl(e.currentTarget.value)}
         />
       </span>
+      <div className="insp-pop-g" data-testid={`insp-image-assets-${name}`}>
+        <p className="insp-pop-gt">From your assets</p>
+        {assets && !pictures.length ? (
+          <p className="insp-pop-empty" data-testid={`insp-image-assets-empty-${name}`}>
+            No pictures in Assets yet. Upload one, or add pictures in the Assets tab.
+          </p>
+        ) : (
+          <div className="insp-pk-assets">
+            {pictures.map((a, i) => (
+              <button
+                key={a.path}
+                type="button"
+                className="insp-pk-asset"
+                data-cell="true"
+                data-g={-3}
+                data-i={i}
+                data-asset={a.path}
+                aria-pressed={current === a.path}
+                aria-label={a.name}
+                title={a.name}
+                data-testid={`insp-image-asset-${name}-${i}`}
+                onClick={() => {
+                  setState(null);
+                  use(a.path);
+                }}
+              >
+                <img src={`/${designRel}/${a.path}`} alt="" loading="lazy" draggable={false} />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
       {state ? (
         <p
           className="insp-pop-bad"

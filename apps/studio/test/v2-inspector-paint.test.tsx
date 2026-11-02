@@ -654,18 +654,19 @@ describe('IR-8 — the colour picker popover', () => {
       expect(swatches).toContain(t);
   });
 
-  test('keyboard: focus starts in Search, ↓ enters the grid, → moves, ↓ jumps a group, esc closes', async () => {
+  test('keyboard: focus starts in Search, ↓ enters the list and walks it row by row, ↑ goes back, esc closes', async () => {
     const host = await one({}, V2);
     await openChip(host, 'insp-ctl-fill');
     expect(activeId()).toBe('insp-pop-search-fill');
     await key(document.activeElement, 'ArrowDown');
     expect(activeId()).toBe('insp-color-fill-bg-0');
-    await key(document.activeElement, 'ArrowRight');
-    expect(activeId()).toBe('insp-color-fill-bg-1');
     await key(document.activeElement, 'ArrowDown');
-    expect(activeId()).toBe('insp-color-fill-fg-1');
+    expect(activeId()).toBe('insp-color-fill-bg-1');
+    await key(document.activeElement, 'ArrowUp');
+    expect(activeId()).toBe('insp-color-fill-bg-0');
+    await key(document.activeElement, 'ArrowDown');
     await click(document.activeElement);
-    expect(written()).toEqual({ background: 'var(--fg-1)' });
+    expect(written()).toEqual({ background: 'var(--bg-1)' });
     await openChip(host, 'insp-ctl-fill');
     await key(q(host, 'insp-pop-search-fill'), 'Escape');
     expect(q(host, 'insp-menu-fill')).toBeNull();

@@ -16973,7 +16973,7 @@
     "hook": "insp-color-<name>-<token>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "One colour token in the colour picker's swatch grid (P6 T2), by the system's own name without `--` (`insp-color-fill-ink`); `aria-pressed` on the current one. Picking it writes `var(--<token>)`.",
+    "meaning": "One colour token in the colour picker's list of named rows (P6 T2, r5-3), by the system's own name without `--` (`insp-color-fill-ink`); `aria-pressed` on the current one. Picking it writes `var(--<token>)`.",
     "producer": {
       "file": "apps/studio/client/v2/inspector/sections/colour-popover.jsx",
       "symbol": "ColourPopover"
@@ -42517,6 +42517,54 @@
     "kind": "testid",
     "pattern": true,
     "meaning": "Upload from computer: adds the file to Assets and fills with it.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-custom.jsx",
+      "symbol": "ImageEditor"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-assets-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The Image tab’s \"From your assets\" block: the project’s pictures (Assets) to pick from instead of uploading.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-custom.jsx",
+      "symbol": "ImageEditor"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-asset-<name>-<n>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One picture from Assets (newest first; `data-asset` is its path, `aria-pressed` on the current one). Picking it fills with it.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/colour-custom.jsx",
+      "symbol": "ImageEditor"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r4-colour-popover.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-assets-empty-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The line shown when Assets has no pictures yet.",
     "producer": {
       "file": "apps/studio/client/v2/inspector/sections/colour-custom.jsx",
       "symbol": "ImageEditor"
