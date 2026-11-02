@@ -15755,7 +15755,7 @@
     "hook": "canvas-menu-<id>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "One row of the canvas row menu (`role=menuitem`); `<id>` is open, pin, rename, duplicate, move, copy-link or trash; with Canvases > Advanced open also reveal, open-editor, open-mac-app, view-code, copy-path or rename-file (S11.9); ds-update (Update, `ds.canvas-update`) on a canvas left out of its design system’s update (S10.21b). `move` drills into the folder list.",
+    "meaning": "One row of the canvas row menu (`role=menuitem`); `<id>` is open, pin, rename, duplicate, move, copy-link, copy-path (Copy relative path, r5-8) or trash; with Canvases > Advanced open also reveal, open-editor, open-mac-app, view-code or rename-file (S11.9); ds-update (Update, `ds.canvas-update`) on a canvas left out of its design system’s update (S10.21b). `move` drills into the folder list.",
     "producer": {
       "file": "apps/studio/client/v2/canvases/row-menu.jsx",
       "symbol": "CanvasRowMenu"
@@ -41407,6 +41407,38 @@
     "consumers": [],
     "sourceConsumers": [
       "apps/studio/test/r4-global-light-dark.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-theme-path",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "r5-8: the canvas's project-relative path on the Light | Dark pill (`.design/ui/v2/02 Onboarding.tsx`, shortened from the front when long). A click copies the whole path and the button reads \"Copied\" for a moment.",
+    "producer": {
+      "file": "apps/studio/canvas-theme-pill.tsx",
+      "symbol": "CanvasThemePill"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r5-canvas-theme-multiclass.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-theme-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "r5-7: shown on the pill when the canvas cannot switch (\"This canvas has no Dark\") — the greyed button never sits there unexplained.",
+    "producer": {
+      "file": "apps/studio/canvas-theme-pill.tsx",
+      "symbol": "CanvasThemePill"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/r5-canvas-theme-multiclass.test.tsx"
     ],
     "v2": "new"
   },

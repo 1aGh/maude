@@ -170,13 +170,12 @@ describe('selector scope — the canvas half', () => {
 describe('the row menu’s Advanced group', () => {
   const ids = (o: Parameters<typeof fileMenuItems>[0]) => fileMenuItems(o).map((i) => i.id);
 
-  test('Mac app, Can edit: Reveal · Open in editor · View code · Copy file path · Rename file…', () => {
+  test('Mac app, Can edit: Reveal · Open in editor · View code · Rename file… (the path copy is in the calm menu)', () => {
     const items = fileMenuItems({ role: 'edit', native: true });
     expect(items.map((i) => i.label)).toEqual([
       'Reveal in Finder',
       'Open in editor',
       'View code',
-      'Copy file path',
       'Rename file…',
     ]);
     expect(items.at(-1)?.sepBefore).toBe(true);
@@ -186,14 +185,13 @@ describe('the row menu’s Advanced group', () => {
     expect(ids({ role: 'edit', native: false })).toEqual([
       'open-mac-app',
       'view-code',
-      'copy-path',
       'rename-file',
     ]);
     expect(fileMenuItems({ role: 'edit', native: false })[0].label).toBe('Open in the Mac app');
   });
 
-  test('Can comment: no Reveal / Open / Rename — View code and Copy file path stay', () => {
-    expect(ids({ role: 'comment', native: true })).toEqual(['view-code', 'copy-path']);
+  test('Can comment: no Reveal / Open / Rename — View code stays', () => {
+    expect(ids({ role: 'comment', native: true })).toEqual(['view-code']);
   });
 
   test('Can view: none of the group', () => {
@@ -588,11 +586,12 @@ describe('rendered', () => {
       'duplicate',
       'move',
       'copy-link',
+      'copy-path',
       'trash',
     ]);
   });
 
-  test('fold open, in the browser: Open in the Mac app · View code · Copy file path · Rename file…', async () => {
+  test('fold open, in the browser: Open in the Mac app · View code · Rename file…', async () => {
     const { foldStore } = await import('../client/v2/fold/use-fold.js');
     const { takeViewCodeRequest, resetCodeBusForTest } = await import(
       '../client/v2/code/code-bus.js'
@@ -608,9 +607,9 @@ describe('rendered', () => {
         'duplicate',
         'move',
         'copy-link',
+        'copy-path',
         'open-mac-app',
         'view-code',
-        'copy-path',
         'rename-file',
         'trash',
       ]);
@@ -621,6 +620,26 @@ describe('rendered', () => {
     } finally {
       foldStore.set('left.canvases', false);
     }
+  });
+
+  // r5-8 — "Copy relative path" in every canvas row's ⋯ menu, fold open or not, for anyone who can see the canvas
+  test('Copy relative path copies the project-relative path and says so', async () => {
+    const { foldStore } = await import('../client/v2/fold/use-fold.js');
+    foldStore.set('left.canvases', false);
+    const clip: string[] = [];
+    Object.defineProperty(globalThis.navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: async (t: string) => void clip.push(t) },
+    });
+    const host = await mountPanel();
+    expect(await openMenu(host)).toContain('copy-path');
+    expect(document.querySelector('[data-testid="canvas-menu-copy-path"]')?.textContent).toContain(
+      'Copy relative path'
+    );
+    await click(document.querySelector('[data-testid="canvas-menu-copy-path"]'));
+    await act(async () => new Promise((r) => setTimeout(r, 20)));
+    expect(clip.length).toBe(1);
+    expect(clip[0]).toMatch(/^\.design\/ui\/.+\.tsx$/);
   });
 
   test('fold open, in the Mac app: Reveal in Finder takes the PROJECT-relative path', async () => {
@@ -651,18 +670,18 @@ describe('rendered', () => {
     foldStore.set('left.canvases', true);
     try {
       const host = await mountPanel({ readOnly: true });
-      expect(await openMenu(host)).toEqual(['open', 'pin', 'copy-link']);
+      expect(await openMenu(host)).toEqual(['open', 'pin', 'copy-link', 'copy-path']);
     } finally {
       foldStore.set('left.canvases', false);
     }
   });
 
-  test('a Can comment panel keeps View code and Copy file path only', async () => {
+  test('a Can comment panel keeps Copy relative path and View code only', async () => {
     const { foldStore } = await import('../client/v2/fold/use-fold.js');
     foldStore.set('left.canvases', true);
     try {
       const host = await mountPanel({ readOnly: true, role: 'comment' });
-      expect(await openMenu(host)).toEqual(['open', 'pin', 'copy-link', 'view-code', 'copy-path']);
+      expect(await openMenu(host)).toEqual(['open', 'pin', 'copy-link', 'copy-path', 'view-code']);
     } finally {
       foldStore.set('left.canvases', false);
     }

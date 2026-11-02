@@ -1,8 +1,8 @@
 // client/v2/canvases/row-menu.jsx — S1.2: a canvas row's menu (11 · pn-trash inset, "Right-click “ahoj”").
 //
-// Open · Pin · Rename · Duplicate · Move to… › · Copy link, a rule, then Move to trash. Reached by the row's
+// Open · Pin · Rename · Duplicate · Move to… › · Copy link · Copy relative path, a rule, then Move to trash. Reached by the row's
 // ⋯ (`tree-row-menu-<slug>`), a right-click and the keyboard (⋯ is a tab stop, ↑ ↓ walk, esc closes and gives
-// the focus back). A viewer sees what they can do — Open, Pin (pins are per person), Copy link. "Move to…"
+// the focus back). A viewer sees what they can do — Open, Pin (pins are per person), Copy link, Copy relative path. "Move to…"
 // drills into the folder list (`MoveSheet`).
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -12,7 +12,7 @@ import { useDismissOutside } from '../shell/use-dismiss-outside.js';
 import { MoveSheet } from './move-sheet.jsx';
 
 /**
- * The rows of the menu for `row`. `edit` false (a viewer) leaves Open · Pin · Copy link.
+ * The rows of the menu for `row`. `edit` false (a viewer) leaves Open · Pin · Copy link · Copy relative path.
  * `isOpen` (p8-sweep-advanced) drops Open: the canvas is already open, so the row would do nothing.
  * `dsUpdate` (S10.21b) adds Update for a canvas left out of its design system's update.
  * `extra` (S11.9) is the Advanced group — Reveal in Finder … Rename file… — drawn after Copy link, before
@@ -33,6 +33,9 @@ export function canvasMenuItems(
     if (dsUpdate) items.push({ id: 'ds-update', label: 'Update' });
   }
   items.push({ id: 'copy-link', label: 'Copy link' });
+  // r5-8 — the project-relative path (`.design/ui/Pricing.tsx`), for anyone who can see the canvas; it is what the
+  // Light | Dark pill on the canvas copies too
+  items.push({ id: 'copy-path', label: 'Copy relative path' });
   items.push(...extra);
   if (edit) items.push({ id: 'trash', label: 'Move to trash', danger: true, sepBefore: true });
   return items;

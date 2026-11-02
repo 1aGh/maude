@@ -322,7 +322,7 @@ describe('rename in place', () => {
 });
 
 describe('the row menu', () => {
-  test('⋯ opens Open · Pin · Rename · Duplicate · Move to… · Copy link · Move to trash — and no red ×', async () => {
+  test('⋯ opens Open · Pin · Rename · Duplicate · Move to… · Copy link · Copy relative path · Move to trash — and no red ×', async () => {
     const { host } = await mount();
     expect(host.querySelector('.cv-act--del')).toBeNull();
     await click(q(host, 'tree-row-menu-ui-ahoj'));
@@ -336,16 +336,17 @@ describe('the row menu', () => {
       'Duplicate',
       'Move to…',
       'Copy link',
+      'Copy relative path',
       'Move to trash',
     ]);
   });
 
-  test('a viewer is offered Open · Pin · Copy link only', async () => {
+  test('a viewer is offered Open · Pin · Copy link · Copy relative path only', async () => {
     const { host } = await mount({ readOnly: true });
     await click(q(host, 'tree-row-menu-ui-ahoj'));
     expect(
       Array.from(document.querySelectorAll('[role="menuitem"]')).map((b) => b.textContent)
-    ).toEqual(['Open', 'Pin', 'Copy link']);
+    ).toEqual(['Open', 'Pin', 'Copy link', 'Copy relative path']);
   });
 
   // S10.21b — a canvas left out of its design system's update gets Update in its menu (ds.canvas-update)
@@ -375,6 +376,7 @@ describe('the row menu', () => {
       'Move to…',
       'Update',
       'Copy link',
+      'Copy relative path',
       'Move to trash',
     ]);
     await click(byId('canvas-menu-ds-update'));
