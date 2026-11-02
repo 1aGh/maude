@@ -545,8 +545,15 @@ describe('edit-artboards (part 3) — the artboard menu, ⌘D, rename in place',
   });
 
   it('double-click the name, Tab: the next artboard’s name opens', async () => {
-    await onLabel('a', ['dblclick']);
-    expect(await inFrame((d) => !!d.querySelector('[data-testid="artboard-rename-a"]'))).toBe(true);
+    // the ⌘Z above remounts every artboard once its module reloads; a double-click that lands in that remount is lost
+    // with the old label, so wait for the field and double-click again on the new label
+    await browser.waitUntil(
+      async () => {
+        await onLabel('a', ['dblclick']);
+        return inFrame((d) => !!d.querySelector('[data-testid="artboard-rename-a"]'));
+      },
+      { timeout: 10_000, interval: 1_000, timeoutMsg: 'double-click never opened the name field' }
+    );
     await inFrame((d) => {
       const win = d.defaultView as Window & typeof globalThis;
       const input = d.querySelector('[data-testid="artboard-rename-a"]') as HTMLInputElement;
