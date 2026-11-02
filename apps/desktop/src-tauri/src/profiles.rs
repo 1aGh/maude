@@ -120,11 +120,29 @@ fn config_root() -> PathBuf {
 /// - `cloud.json` under `$HOME/.config/maude` — `cloud/endpoints.ts` and
 ///   `cloud/renew.ts` do NOT honour XDG_CONFIG_HOME, and `default` must keep
 ///   pointing at the file the server already reads.
+#[cfg(test)]
 fn paths_in(id: &str, config_root: &Path, home: &Path) -> Result<ProfilePaths, String> {
+    paths_with_cloud_override(id, config_root, home, None)
+}
+
+/// `paths_in`, plus the one place the DEFAULT profile's `cloud.json` may differ from `$HOME/.config/maude`: the
+/// path the server itself reads when `MAUDE_CLOUD_CONFIG` is set (`cloud/config-path.ts`). A debug build (the e2e
+/// app, never a release) follows it, so a lane that points the server at a throwaway `cloud.json` makes the shell
+/// look at the SAME file — not at the person's real sign-in (decision `v2-r5-e2e-cloud-shell-follows-server-path`).
+fn paths_with_cloud_override(
+    id: &str,
+    config_root: &Path,
+    home: &Path,
+    cloud_override: Option<&str>,
+) -> Result<ProfilePaths, String> {
     validate_id(id)?;
     if id == DEFAULT_ID {
+        let legacy = home.join(".config").join("maude").join("cloud.json");
         return Ok(ProfilePaths {
-            cloud_config: home.join(".config").join("maude").join("cloud.json"),
+            cloud_config: match cloud_override {
+                Some(p) if !p.is_empty() => PathBuf::from(p),
+                _ => legacy,
+            },
             hubs_config: config_root.join("hubs.json"),
         });
     }
@@ -136,7 +154,13 @@ fn paths_in(id: &str, config_root: &Path, home: &Path) -> Result<ProfilePaths, S
 }
 
 pub fn paths(id: &str) -> Result<ProfilePaths, String> {
-    paths_in(id, &config_root(), &home_dir())
+    // Debug builds only (the e2e app): follow the server's `MAUDE_CLOUD_CONFIG`. A release app keeps the legacy path.
+    let over = if cfg!(debug_assertions) {
+        std::env::var("MAUDE_CLOUD_CONFIG").ok()
+    } else {
+        None
+    };
+    paths_with_cloud_override(id, &config_root(), &home_dir(), over.as_deref())
 }
 
 /// `default` → `maude-github-token` (legacy, unchanged); other → `maude-github-token:<id>`.
@@ -1435,6 +1459,25 @@ mod tests {
         for good in ["default", "work", "a", "client-2", &"a".repeat(32)] {
             assert!(validate_id(good).is_ok(), "{good:?} must be accepted");
         }
+    }
+
+    /// e2e:cloud — the shell's `cloud_sign_in_prepare` looked at the PERSON's real `~/.config/maude/cloud.json`
+    /// while the lane pointed the server at a throwaway one, so a real sign-in on the Mac made the lane's sign-in
+    /// "replace another account": a new profile, a restarted server, a reloaded page (Settings closed, no account).
+    #[test]
+    fn default_cloud_path_follows_the_server_override() {
+        let home = PathBuf::from("/home/u");
+        let root = config_root_from(None, &home);
+        let legacy = PathBuf::from("/home/u/.config/maude/cloud.json");
+        let none = paths_with_cloud_override("default", &root, &home, None).unwrap();
+        assert_eq!(none.cloud_config, legacy);
+        let empty = paths_with_cloud_override("default", &root, &home, Some("")).unwrap();
+        assert_eq!(empty.cloud_config, legacy);
+        let set = paths_with_cloud_override("default", &root, &home, Some("/tmp/lane/cloud.json")).unwrap();
+        assert_eq!(set.cloud_config, PathBuf::from("/tmp/lane/cloud.json"));
+        // a non-default profile never follows it: it has its own folder
+        let w = paths_with_cloud_override("work", &root, &home, Some("/tmp/lane/cloud.json")).unwrap();
+        assert_eq!(w.cloud_config, PathBuf::from("/home/u/.config/maude/profiles/work/cloud.json"));
     }
 
     #[test]
