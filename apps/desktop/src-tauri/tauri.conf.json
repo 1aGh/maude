@@ -6,6 +6,7 @@
   "build": {
     "frontendDist": "../src",
     "beforeBuildCommand": "node scripts/sync-sidecar.mjs && bun scripts/build-cli-binary.mjs && node scripts/sync-agent-browser.mjs && node scripts/sync-kg.mjs && node scripts/stage-resources.mjs",
+    "beforeBundleCommand": "node scripts/sign-staged-macho.mjs",
     "beforeDevCommand": {
       "script": "node scripts/sync-sidecar.mjs && bun scripts/build-cli-binary.mjs && node scripts/sync-agent-browser.mjs && node scripts/sync-kg.mjs && node scripts/stage-resources.mjs",
       "wait": true
