@@ -29,7 +29,12 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const PLAN = join(ROOT, '.ai/plans/feature-maude-v2-redesign.md');
+// the plan moves to plans/archive/ at close-out (V2-8.13); the ledger keeps reading it there
+const PLAN =
+  [
+    join(ROOT, '.ai/plans/feature-maude-v2-redesign.md'),
+    join(ROOT, '.ai/plans/archive/feature-maude-v2-redesign.md'),
+  ].find((p) => existsSync(p)) ?? join(ROOT, '.ai/plans/feature-maude-v2-redesign.md');
 const CANVAS_DIR = join(ROOT, '.design/ui/v2');
 export const LEDGER = join(ROOT, '.ai/scenarios/maude-v2/ledger.json');
 

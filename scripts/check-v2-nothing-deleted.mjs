@@ -37,7 +37,12 @@ const MANIFEST = join(ROOT, 'apps/studio/client/v2/v1-manifest.json');
 const ND = join(ROOT, 'apps/studio/client/v2/nothing-deleted.json');
 const REACH = join(ROOT, 'apps/studio/client/v2/reachability.json');
 const ADVANCED = join(ROOT, '.design/ui/v2/06 Advanced.tsx');
-const PLAN = join(ROOT, '.ai/plans/feature-maude-v2-redesign.md');
+// the plan moves to plans/archive/ at close-out (V2-8.13); the checks keep reading it there
+const PLAN =
+  [
+    join(ROOT, '.ai/plans/feature-maude-v2-redesign.md'),
+    join(ROOT, '.ai/plans/archive/feature-maude-v2-redesign.md'),
+  ].find((p) => existsSync(p)) ?? join(ROOT, '.ai/plans/feature-maude-v2-redesign.md');
 const args = process.argv.slice(2);
 
 function constIn(src, name) {

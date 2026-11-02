@@ -28,7 +28,13 @@ const REQUIRE_TASKLIST = args.includes('--require-tasklist');
 const DOCTOR = args.includes('--doctor');
 const TASKLIST = join(ROOT, '.ai/scenarios/maude-v2/tasklist.json');
 
-const plan = readFileSync(join(ROOT, '.ai/plans/feature-maude-v2-redesign.md'), 'utf8');
+// the plan moves to plans/archive/ at close-out (V2-8.13)
+const planPath =
+  [
+    join(ROOT, '.ai/plans/feature-maude-v2-redesign.md'),
+    join(ROOT, '.ai/plans/archive/feature-maude-v2-redesign.md'),
+  ].find((p) => existsSync(p)) ?? join(ROOT, '.ai/plans/feature-maude-v2-redesign.md');
+const plan = readFileSync(planPath, 'utf8');
 const log = plan.slice(plan.indexOf('## Progress log'));
 const ledger = JSON.parse(readFileSync(join(ROOT, '.ai/scenarios/maude-v2/ledger.json'), 'utf8'));
 const problems = [];

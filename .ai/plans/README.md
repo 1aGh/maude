@@ -10,7 +10,6 @@ historical context and is not an active task list.
 | ---- | ----------- |
 | [`cloud-live-payments-rollout.md`](./cloud-live-payments-rollout.md) | Open; L1–L8 remain gated on legal/accounting, Stripe live-mode setup, and live proofs. |
 | [`feature-cells-idle-desktop-lets-cell-sleep.md`](./feature-cells-idle-desktop-lets-cell-sleep.md) | Released in v1.6.13; one measured night with an open desktop and the kg decisions remain. |
-| [`feature-maude-v2-redesign.md`](./feature-maude-v2-redesign.md) | Planned 2026-10-08; blocked on Gate 0 (Michal signs the decisions register). One plan for every feature in `.design/ui/v2/`; absorbs the project-tabs plan (archived as Phase 3 spec) and the client items of the hardening backlog. Inventories in [`notes/v2-inventory/`](./notes/v2-inventory/). |
 | [`feature-local-media-generation.md`](./feature-local-media-generation.md) | Planned; native keychain, local adapters, and desktop E2E not started. |
 | [`feature-post-1.0-hardening-backlog.md`](./feature-post-1.0-hardening-backlog.md) | Open backlog; resolved entries stay as evidence; client items marked ABSORBED into the v2 plan (2026-10-08); the remaining program is not empty. |
 | [`feature-video-tracking-and-stabilization.md`](./feature-video-tracking-and-stabilization.md) | Planned; even the `s3Assets` JSON-sidecar prerequisite remains open. |
@@ -19,6 +18,15 @@ Rejected or completed plans live under [`archive/`](./archive/), including the
 unimplemented, stale `/goal` integration proposal rejected on 2026-09-22, and
 `followup-annotations-v2.md`, closed by decision on 2026-10-05 (DDR-244), and
 `feature-harness-environment-projection.md`, cutover abandoned on 2026-10-05 (DDR-245).
+
+## Maude v2.0 redesign — closed 2026-11-02
+
+[`archive/feature-maude-v2-redesign.md`](./archive/feature-maude-v2-redesign.md) (planned 2026-10-08, closed 2026-11-02)
+built every canvas in `.design/ui/v2/` into the app: native project tabs + Home, the v2 shell, work packages S1–S12,
+docs and the site. All 15 Phase 8 gates are green. PR 1aGh/maude#160 is merged into main (3a095da29) and
+**v2.0.0-rc.1** is out on npm `next` and as a prerelease (eca51fce5); the fleet stays on 1.10.0 until the stable promote.
+On the rc soak list: the clean-user smoke and the VoiceOver listen (not run, Michal's choice) and
+`../scenarios/maude-v2/lead/pr-followups.md`.
 
 ## Reliable project multiplayer — planned 2026-09-13
 
