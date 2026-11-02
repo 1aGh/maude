@@ -55,7 +55,7 @@ Every r4 row (1–18, img 44) and every r5 row (r5-1 … r5-8) is merged and is 
 - **The desktop e2e lanes, green 3× at 71ec8ec75 (V2-8.3).** They drive the real debug app: the drop guard, scrub,
   menus closing on an outside click, Esc in Preview, the picker (edit-shapes), the theme pill, the name dialog,
   stamps and stickers, section adopt.
-- **`check-real-drop`**, the OS drag into the packaged app. It moves the mouse, so it ran under Michal's "muzes".
+- **`check-real-drop`**, the OS drag into the packaged app. It moves the mouse, so it ran during r4 under Michal's "muzes"; it was **not re-run at 71ec8ec75**.
 - **The a11y matrix (V2-8.7, 318/318 states) and perf (V2-8.8 / 8.14; #5 zoom: WebKit p95 21 ms).**
 - **Not yet:** Michal's own look in the final `.app`. The "for Michal" rows above are his to confirm; anything he
   finds becomes an rc follow-up.
