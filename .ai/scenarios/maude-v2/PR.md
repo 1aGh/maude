@@ -256,7 +256,8 @@ into each note. The two things only you can do are listed under "Before you merg
    to go inside") and to the live region on the status words.
 2. **Clean-macOS-user smoke of the packaged app (V2-8.10).** Install the `.app` on a fresh macOS user with no node,
    bun or claude: `.claude/worktrees/freeze/apps/desktop/src-tauri/target/release/bundle/macos/Maude.app` (2.0.0-rc.1,
-   built at the final freeze `fab4e6c4a` on 2026-11-01 with auto-update off). Open a project, open Home, make a canvas. The scripted gates (`check-bundle-completeness --smoke`,
+   built at the final product tree `71ec8ec75` on 2026-11-02 with auto-update off). Open a project, open Home, make a canvas.
+   While you are in it, the r4/r5 rows in `lead/r4-michal-findings.md` are yours to confirm in this same build. The scripted gates (`check-bundle-completeness --smoke`,
    `check-client-boots`) are green and cover everything except a real clean user.
 3. **The desktop port question (asked 2026-10-27):**
    > The desktop app starts a project's server without a port, so it takes 4399, the default of
