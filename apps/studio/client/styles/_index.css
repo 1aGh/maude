@@ -16,6 +16,8 @@
 
 @layer reset, tokens, layout, shell, components, utilities;
 
+/* #175 item 4 — Inter / Inter Tight / JetBrains Mono, self-hosted (no request to Google Fonts). */
+@import url("./fonts.css");
 @import url("./0-reset.css");
 /* P8 C0 — THE shell token ladder, GENERATED (scripts/gen-tokens.mjs) from maude-v2: on <html data-theme> (so a
    popover portalled to <body> resolves it) and on the shell root `.maude[data-theme]`. It replaced the v1 amber
