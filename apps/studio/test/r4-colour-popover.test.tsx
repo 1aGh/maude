@@ -232,6 +232,21 @@ describe('the tabs say what the fill is', () => {
     expect(pops[pops.length - 1].getAttribute('data-tab')).toBe('custom');
   });
 
+  test('focus starts in Search when the card opens on Libraries (token fill), on the open tab when it opens on Custom (no system, raw colour)', async () => {
+    const focusedId = () => document.activeElement?.getAttribute('data-testid') ?? null;
+    const tok = await one();
+    await openChip(tok, 'insp-ctl-fill');
+    expect(focusedId()).toBe('insp-pop-search-fill');
+    const raw = await one({ authored: { background: '#1e6bff' } });
+    const ctl = raw.querySelectorAll('[data-testid="insp-ctl-fill"]');
+    await click(ctl[ctl.length - 1].querySelector('button.insp-chip'));
+    expect(focusedId()).toBe('insp-tab-custom-fill');
+    const bare = await one({}, NO_DS);
+    const bareCtl = bare.querySelectorAll('[data-testid="insp-ctl-fill"]');
+    await click(bareCtl[bareCtl.length - 1].querySelector('button.insp-chip'));
+    expect(focusedId()).toBe('insp-tab-custom-fill');
+  });
+
   test('Gradient switches the fill to a gradient from the colour it had; Solid takes the first stop back', async () => {
     const host = await one();
     await openChip(host, 'insp-ctl-fill');

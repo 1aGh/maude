@@ -190,7 +190,7 @@ describe('edit-shapes — draw a rectangle, round a corner, Export area writes n
     });
   });
 
-  it('the Fill chip opens the colour picker in Search; a picked colour is written and Recent shows it on reopen (P6)', async () => {
+  it('the Fill chip opens the colour picker with focus on its open tab; a picked colour is written and Recent shows it on reopen (P6)', async () => {
     // r2-p6b: the Inspector (top frame, not the canvas) is where the shape's Fill lives. The fixture has no design system,
     // so the picker offers "Other colour…" — a raw colour — and Recent, which keeps it per Mac in prefs.json.
     const chip = await $('[data-testid="insp-ctl-fill"] button.insp-chip');
@@ -202,10 +202,13 @@ describe('edit-shapes — draw a rectangle, round a corner, Export area writes n
       await (await $('[data-testid="insp-menu-fill"]')).waitForExist({ timeout: 5_000 });
     };
     await openPicker();
-    // WebKit ignores focus() on a popover that is not rendered yet: Search holds focus only if the picker focuses it once shown
-    await browser.waitUntil(async () => (await focusedId()) === 'insp-pop-search-fill', {
+    // WebKit ignores focus() on a popover that is not rendered yet: the picker holds focus only if it focuses once shown.
+    // This fixture has no design system, so there is no Libraries and no Search: the card opens on Custom (r4 #4, decision
+    // v2-r4-4-open-tab-libraries-when-token) and focus starts on that open tab (F30). With a system and a token fill it starts
+    // in Search — pinned in test/r4-colour-popover.test.tsx.
+    await browser.waitUntil(async () => (await focusedId()) === 'insp-tab-custom-fill', {
       timeout: 5_000,
-      timeoutMsg: `focus did not start in Search (it is on ${await focusedId()})`,
+      timeoutMsg: `focus did not start on the open Custom tab (it is on ${await focusedId()})`,
     });
     await capture('colour-picker-search-focused');
     // esc closes it and gives focus back to the chip
