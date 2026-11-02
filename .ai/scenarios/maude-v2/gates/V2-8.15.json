@@ -3,12 +3,12 @@
   "pass": true,
   "qualityHash": "ca053cd5bbc8fa64231dfde679d7b0108280b8f384c154322c75c50c872e7071",
   "reportHashes": {
-    ".ai/plans/notes/v2-evidence/V2-8.15-docs.md": "535eaf3c939c23505d022fabf9c6aeeb1377c9d798d725b91be7e9447e83ef6b"
+    ".ai/plans/notes/v2-evidence/V2-8.15-docs.md": "9fe88e4be553bd4a8732cd167ed2c62e891e0a839962b511ca16b57ea5865a39"
   },
-  "head": "3929294c9965342d8777af045aec843ae051fa94",
-  "ts": "2026-11-01T20:13:18.586Z",
+  "head": "aeb2ba166612744f416adb9052d524381b8a72d3",
+  "ts": "2026-11-02T08:49:21.234Z",
   "reports": [
     ".ai/plans/notes/v2-evidence/V2-8.15-docs.md"
   ],
-  "note": "4 deliverables present, gens --check 0, site gens no diff, drift tests green; r3 re-check: New canvas name dialog, Image takes video, Assets drag, scrub, comment trash written into getting-started + window (d8ad9bf4c), gen:stats with it"
+  "note": "final: r3 + r4 + r5 people and agent docs (getting-started, desktop/window, design/index, design-system-schema; ux-patterns UX-TOK-5; setup-ds canvas-first); gen-plugin-surfaces --check 0, plugin-v2-words 0, docs drift tests green, gen:stats committed"
 }

@@ -3,14 +3,14 @@
   "pass": true,
   "qualityHash": "ca053cd5bbc8fa64231dfde679d7b0108280b8f384c154322c75c50c872e7071",
   "reportHashes": {
-    ".ai/plans/notes/v2-evidence/V2-8.9-r3-delta.md": "04113caea1239281b8742aab5cd77d56b028a192eaa71d4f237f0ecf2e94a65d",
-    ".ai/plans/notes/v2-evidence/V2-8.9-r2-closure.md": "d460fae26a5153c78c09c3a7dbad3bbba2a352ec95d0429239c9868148bf6e95"
+    ".ai/plans/notes/v2-evidence/V2-8.9-r45-delta.md": "c76ccf6d3e9e7b7171b11062b7ce92d3d4323338e322b1e9f24492e981b13c4d",
+    ".ai/plans/notes/v2-evidence/V2-8.9-r3-delta.md": "04113caea1239281b8742aab5cd77d56b028a192eaa71d4f237f0ecf2e94a65d"
   },
-  "head": "3929294c9965342d8777af045aec843ae051fa94",
-  "ts": "2026-11-01T20:13:18.768Z",
+  "head": "aeb2ba166612744f416adb9052d524381b8a72d3",
+  "ts": "2026-11-02T08:49:21.180Z",
   "reports": [
-    ".ai/plans/notes/v2-evidence/V2-8.9-r3-delta.md",
-    ".ai/plans/notes/v2-evidence/V2-8.9-r2-closure.md"
+    ".ai/plans/notes/v2-evidence/V2-8.9-r45-delta.md",
+    ".ai/plans/notes/v2-evidence/V2-8.9-r3-delta.md"
   ],
-  "note": "final..final5 pairs + r2 delta pair as before; r3 delta: two adversarial passes over fab4e6c4a..fa52b24c6, 0 above low; the Assets-drag robustness fixes (9f87da27b) and the comment-trash double-click (1e8ebbe92) fixed red-first; one low (canvas-reported declared.background shape cap) in pr-followups"
+  "note": "final: r3 delta (0 above low) + r4+r5 delta over fa52b24c6..e8bbcc07d: one medium (Copy link handed out an unconfirmed config URL — device-code phishing chain) and two lows fixed red-first in e56f9b6a5; three lows in pr-followups; no route-table or MCP change"
 }

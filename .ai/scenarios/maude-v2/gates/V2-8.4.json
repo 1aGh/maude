@@ -3,14 +3,14 @@
   "pass": true,
   "qualityHash": "ca053cd5bbc8fa64231dfde679d7b0108280b8f384c154322c75c50c872e7071",
   "reportHashes": {
-    ".ai/scenarios/maude-v2/V2-8.4-freeze/report.md": "ef72f252c0bd2359a5a47251282760e51e05fe6982c0cb98dab77b7a70439652",
-    ".ai/scenarios/maude-v2/V2-8.4-freeze-v1fmt/report.md": "14a421ea5468a125ac5d6eeded963b91b745dc3886684fbcd590bb79cf430054"
+    ".ai/scenarios/maude-v2/V2-8.4-freeze/report.md": "d31e4e34e238f19dbf7cd51b242bfc3546cf25eda5f8d41936f0974367eaf319",
+    ".ai/scenarios/maude-v2/V2-8.4-freeze-v1fmt/report.md": "20d7c24ea2e41b650d819d3a268640c8aace99c6b612afce6a2ecfaa5ea4ecdd"
   },
-  "head": "140ce9edd92231fe62ba5e6f18082ca308834e06",
-  "ts": "2026-11-01T20:12:48.603Z",
+  "head": "aeb2ba166612744f416adb9052d524381b8a72d3",
+  "ts": "2026-11-02T08:49:09.418Z",
   "reports": [
     ".ai/scenarios/maude-v2/V2-8.4-freeze/report.md",
     ".ai/scenarios/maude-v2/V2-8.4-freeze-v1fmt/report.md"
   ],
-  "note": "r3: 18/18 across browser, cloud owner, cloud viewer at fa52b24c6 (Mac mini remote lane, same sha), project at formatVersion 2; the format-1 run: the same 4 cloud steps as at fab4e6c4a (a format-1 project stays view-only in a cell during the rc, by design), browser 6/6"
+  "note": "final (r4+r5): 18/18 across browser, cloud owner, cloud viewer at be9824591 (Mac mini remote lane), formatVersion 2; the format-1 run: the same 4 cloud steps as before (a format-1 project stays view-only in a cell during the rc, by design), browser 6/6"
 }

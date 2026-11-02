@@ -3,14 +3,12 @@
   "pass": true,
   "qualityHash": "ca053cd5bbc8fa64231dfde679d7b0108280b8f384c154322c75c50c872e7071",
   "reportHashes": {
-    ".ai/plans/notes/v2-evidence/V2-8.5-browser-runs/all-fa52b24c6/env.txt": "e8b04ad5892295d482ab0c670cc3a6964298c8c3a2ff28ae0d1431e4acc8cae2",
-    ".ai/plans/notes/v2-evidence/V2-8.5-browser-runs/two-140ce9edd/env.txt": "78ff4c047bcb1c5cec8b9da1506eea93187fa4714668e5ebbf9883baa72aee52"
+    ".ai/plans/notes/v2-evidence/V2-8.5-browser-runs/all-be9824591/env.txt": "160a022bf20dd5e1acffd6e6113053816282d18bbbd46898e077acca33986498"
   },
-  "head": "140ce9edd92231fe62ba5e6f18082ca308834e06",
-  "ts": "2026-11-01T20:12:48.666Z",
+  "head": "aeb2ba166612744f416adb9052d524381b8a72d3",
+  "ts": "2026-11-02T08:49:09.471Z",
   "reports": [
-    ".ai/plans/notes/v2-evidence/V2-8.5-browser-runs/all-fa52b24c6/env.txt",
-    ".ai/plans/notes/v2-evidence/V2-8.5-browser-runs/two-140ce9edd/env.txt"
+    ".ai/plans/notes/v2-evidence/V2-8.5-browser-runs/all-be9824591/env.txt"
   ],
-  "note": "r3: ledger artboard rows unchanged (342 verified / 14 soak / 4 not-a-state / 0 open); the 84 e2e rows re-checked at fa52b24c6 on V2-8.3 (3x, chain4, 0 failing); all 24 browser e2e x2 at fa52b24c6 on the mini: 45/48, the 2 clipboard-drop reds were the retired r1 text/plain expectation (updated in 140ce9edd, 2/2 green), canvas-tools T15 the pre-existing ⌘D-order flake (passes on rerun; follow-up)"
+  "note": "final (r4+r5): all 24 browser e2e x2 at be9824591 on the mini: 48/48 green (the r5 annotation / presence reds fixed in ea233a0be); ledger artboard rows unchanged; the e2e rows re-checked on V2-8.3"
 }

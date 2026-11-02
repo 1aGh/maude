@@ -26,10 +26,10 @@
         "title": "Open a canvas",
         "status": "pass",
         "notes": [
-          "rendered in localhost:54333"
+          "rendered in localhost:64975"
         ],
         "data": {
-          "frameHost": "localhost:54333"
+          "frameHost": "localhost:64975"
         },
         "shot": "shots/browser-02-open-canvas.png",
         "extra": [],
@@ -164,13 +164,12 @@
         "title": "Select an element and inspect it",
         "status": "fail",
         "notes": [
-          "inspector: \"Card Frame Cross-shell card esc Cross-shell card Text Uses smoke Type Style Aa No style Font Inherited Size · \"",
-          "0 editable input(s) in the Inspector (table readOnly=false)"
+          "inspector: \"Click an object on the canvas to see its properties here.\""
         ],
         "data": null,
         "shot": "shots/owner-03-select-inspect.png",
         "extra": [],
-        "error": "an editor sees no editable input in the Inspector"
+        "error": "the Inspector shows no selection"
       },
       {
         "gaps": [],
@@ -231,8 +230,8 @@
       }
     ],
     "errors": [
-      "console: failed to load comments TypeError: Failed to fetch\n    at o (http://studio.cell.localhost:4788/_client/client.bundle.js?v=40189c-1a19857545b:1:24987)\n    at http://studio.cell.localhost:4788/_client/client.bundle.js?v=40189c-1a19857545b:5789:13038\n    at http://studio.cell.localhost:4788/_client/cli",
-      "console: failed to load tree TypeError: Failed to fetch\n    at o (http://studio.cell.localhost:4788/_client/client.bundle.js?v=40189c-1a19857545b:1:24987)\n    at read (http://studio.cell.localhost:4788/_client/client.bundle.js?v=40189c-1a19857545b:5787:4703)\n    at h (http://studio.cell.localhost:4788/_clien",
+      "console: failed to load comments TypeError: Failed to fetch\n    at o (http://studio.cell.localhost:4788/_client/client.bundle.js?v=408895-1a19b5fd18f:1:24987)\n    at http://studio.cell.localhost:4788/_client/client.bundle.js?v=408895-1a19b5fd18f:5789:13038\n    at http://studio.cell.localhost:4788/_client/cli",
+      "console: failed to load tree TypeError: Failed to fetch\n    at o (http://studio.cell.localhost:4788/_client/client.bundle.js?v=408895-1a19b5fd18f:1:24987)\n    at read (http://studio.cell.localhost:4788/_client/client.bundle.js?v=408895-1a19b5fd18f:5787:4703)\n    at h (http://studio.cell.localhost:4788/_clien",
       "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
       "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
       "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
