@@ -204,7 +204,7 @@ cool colors at ~60% opacity/strength.
 varies only hue. Avoid two-step dark→light ("grey limbo").
 
 **UX-TOK-5 · Pickers are token-first, with one honest escape.** The system's tokens grouped by role (in the
-system's own order, both themes on each swatch) → Recent → "Other colour…". A raw value is allowed, said in words
+system's own order, both themes on each swatch) → Recent; the Custom tab is the escape. A raw value is allowed, said in words
 and flagged once with the nearest token or "Add it to the system" — never blocked. A new value defaults to the
 slot's role token (a fallback literal keeps it visible without a system), never `currentColor` or a bare hex.
 *Check:* adding a fill in a system writes `var(--…)`.
