@@ -237,10 +237,10 @@ into each note. The two things only you can do are listed under "Before you merg
 | V2-8.5 | Design fidelity | PASS | artboard rows: 342 verified, 14 soak, 4 not-a-state, 0 open; all 24 browser e2e files ×2 on the mini at `62146d9d4` (47/48 + one port-bind harness red, rerun ×2 green) |
 | V2-8.6 | Nothing-deleted audit | PASS (live check) | 100 % |
 | V2-8.7 | A11y (axe, keyboard-only, VoiceOver strings) | PASS | the whole matrix in one pass at `08b35c8db` — 317 states × both themes; one serious contrast (dark slash menu) fixed red-first and re-scanned clean; VoiceOver listen is yours |
-| V2-8.8 | Pan/zoom perf (Chromium + WebKit) | PASS | WebKit both orders p95 22 / 20 ms vs pre-v2 48 / 45; Chromium studio 18.1 vs 18.2, bare 16.7 vs 16.8 |
+| V2-8.8 | Pan/zoom perf (Chromium + WebKit) | PASS | at `71ec8ec75`: WebKit both orders p95 21 / 21 ms vs pre-v2 47 / 45; Chromium studio 18.4 vs 17.5 (+ spread 1.3), bare 16.8 vs 16.8 |
 | V2-8.9 | Security | PASS | final … final5 pairs + rechecks; the r2, r3 and r4+r5 delta pairs (r4+r5: one medium + two lows fixed red-first); lows in follow-ups |
 | V2-8.10 | Packaged app | PASS (scripted) | `.app` 2.0.0-rc.1 built at `fab4e6c4a`: `check-bundle-completeness --smoke` ✓, `check-client-boots` ✓, no WebDriver in release, opening card clears; the clean-user smoke is yours |
-| V2-8.14 | Perf beyond pan/zoom | PASS | index/covers/artboards/tiles in budget (Alligators clone, 2 runs); panel + 12 people PASS; LOD base-first +1 ms accepted by you |
+| V2-8.14 | Perf beyond pan/zoom | PASS | at `71ec8ec75`: index/covers/artboards/tiles in budget (Alligators clone, 2 runs); panel + 12 people PASS; LOD base-first +1 ms (34.6 vs 33.4, the same as at `08b35c8db`) accepted by you |
 | V2-8.15 | Docs for people and agents | PASS | gens in sync; r3–r5 people and agent docs updated (getting-started, desktop/window, design, DS schema, setup-ds canvas-first) |
 | V2-8.16 | AI parity | PASS | 512/512 at `71ec8ec75`; eval 24/30 pass^3; live journeys 19/22 (the 3 fails agent-caused) |
 | V2-8.17 | Offline overlap on reconnect (#121) | verified | merged with tests |
