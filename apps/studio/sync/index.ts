@@ -106,7 +106,7 @@ import { type HubDocRow, hubHolds, indexHubDocs } from './hub-listing.ts';
 import { hubTextUndoConflict } from './hub-text-undo.ts';
 import { accessFor, getHubRecord } from './hubs-config.ts';
 import { loadJournal, type SyncJournal } from './journal.ts';
-import { hasAnnotationsV2, hasLedger, hubHealth } from './journal-client.ts';
+import { hasAnnotationsV2, hasFileClassesV2, hasLedger, hubHealth } from './journal-client.ts';
 import type { RestoreOptions } from './local-kernel.ts';
 import { isLoopbackHost } from './loopback.ts';
 import { createMediaGate, MEDIA_STAYS_LINE, readServerSignature } from './media-gate.ts';
@@ -5778,6 +5778,9 @@ export function createSyncRuntime(
               canvasGroups: ctx.cfg.canvasGroups,
               allowCodeModules,
               canUploadCodeModules: cellPairing !== null || isProjectOwner,
+              // Issue #175 — a 1.x hub's door refuses the 2.0-only files with a 400; it is not
+              // offered them (they are held, with a reason, in Sync details).
+              hubTakesV2Files: hasFileClassesV2(caps),
               unlimitedOutboundDeletes: unlimitedDeletes,
               // Increment 6, DEFAULT ON: a hub-owned mirror that ignores
               // deletes contradicts the model it is selling — you delete a
@@ -6731,6 +6734,27 @@ export function filePlaneHeld(
       detail: codeHeldDetail(result.codeHeld.count),
     });
   }
+  // Issue #175 — files the project's server will not take. Counted already under
+  // `progress.blocked` (class `refused`), so these rows are the per-file WHY, not a second count.
+  const refused = result.hubRefused ?? [];
+  const older = refused.filter((r) => r.older).map((r) => r.rel);
+  if (older.length > 0) {
+    held.push({
+      kind: 'hub-older',
+      count: older.length,
+      paths: older,
+      detail: hubOlderDetail(older.length),
+    });
+  }
+  const final = refused.filter((r) => !r.older);
+  if (final.length > 0) {
+    held.push({
+      kind: 'hub-refused',
+      count: final.length,
+      paths: final.map((r) => r.rel),
+      detail: hubRefusedDetail(final.map((r) => r.reason)),
+    });
+  }
   if (result.reanchorHeld) {
     held.push({
       kind: 'reanchor',
@@ -6741,6 +6765,36 @@ export function filePlaneHeld(
     });
   }
   return held;
+}
+
+/**
+ * Issue #175 — the Sync details sentence for files held back from a server too old to take them
+ * (CONTRACT §4: what happened · what is safe · one verb).
+ */
+export function hubOlderDetail(count: number): string {
+  return count === 1
+    ? '1 file is a kind the project’s server is too old to take, so it doesn’t sync. It stays on this Mac. Update the server to Maude 2 to sync it.'
+    : `${count} files are a kind the project’s server is too old to take, so they don’t sync. They stay on this Mac. Update the server to Maude 2 to sync them.`;
+}
+
+/**
+ * Issue #175 — the Sync details sentence for files the server refused for good. Each reason is one
+ * sentence carrying the server's own words in quotes (`refusalWords`); the row quotes the first
+ * answer and says how many other answers there were.
+ */
+export function hubRefusedDetail(reasons: readonly string[]): string {
+  const count = reasons.length;
+  const answers = [
+    ...new Set(reasons.map((r) => /“([^”]*)”/.exec(r)?.[1] ?? '').filter((a) => a !== '')),
+  ];
+  const others = answers.length - 1;
+  const answered =
+    answers.length === 0
+      ? ''
+      : ` — it answered “${answers[0]}”${others > 0 ? ` (and ${others} other answer${others === 1 ? '' : 's'})` : ''}`;
+  return count === 1
+    ? `1 file wasn’t taken by the project’s server${answered}. It stays on this Mac, and sync tries again when it changes.`
+    : `${count} files weren’t taken by the project’s server${answered}. They stay on this Mac, and sync tries again when one changes.`;
 }
 
 /**

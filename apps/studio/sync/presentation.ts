@@ -224,7 +224,12 @@ function readLanes(status: SyncStatusLike): LaneFacts {
       }
       if (isCount(files.failed)) facts.failedFiles = files.failed;
       if (Array.isArray(files.held)) {
-        for (const h of files.held) facts.held += isRecord(h) && isCount(h.count) ? h.count : 1;
+        for (const h of files.held) {
+          // Issue #175 — files the server will not take are counted under `progress.blocked`
+          // ("N files are blocked"); their held row is the per-file why, not a decision to make.
+          if (isRecord(h) && (h.kind === 'hub-older' || h.kind === 'hub-refused')) continue;
+          facts.held += isRecord(h) && isCount(h.count) ? h.count : 1;
+        }
       }
       // The hub asked the lane to wait with changes still on this Mac: that is syncing (paused), never
       // "synced" — the Share cluster must not say Saved over a callout that says changes are waiting.

@@ -71,6 +71,7 @@ import {
   classifyProjectFile,
   type FileClass,
   isFilePlaneClass,
+  olderDoorRefuses,
 } from './file-membership.ts';
 import {
   fetchJournal,
@@ -79,7 +80,7 @@ import {
   type JournalPage,
 } from './journal-client.ts';
 import { createPullBudget } from './pull-budget.ts';
-import { failureReason, isBackpressure, retryAfterMs } from './retry-after.ts';
+import { failureReason, isBackpressure, refusalWords, retryAfterMs } from './retry-after.ts';
 import { classifyTransportError } from './transport-error.ts';
 
 /** How long to wait for one file's bytes. Generous — these run to videos. */
@@ -426,7 +427,24 @@ export interface FilePlaneResult {
    * read carries it; absent otherwise. A count of 0 means nothing is held.
    */
   codeHeld?: { count: number; paths: { path: string; reason: HeldReason }[] };
+  /**
+   * Issue #175 — files the hub's door will not take, from the LEDGER (so a pass
+   * that skipped them still reports them). `older` = held before asking, because
+   * the hub lacks `file-classes-v2`; otherwise the door answered a permanent 4xx
+   * and `reason` carries its words. Bounded; absent when there are none.
+   */
+  hubRefused?: { rel: string; reason: string; older?: true }[];
 }
+
+/** Statuses that are a door's FINAL word on a file push (issue #175). 408/429 are not: they retry. */
+const PERMANENT_PUSH_REFUSALS = new Set([400, 404, 413, 422]);
+
+/** How many `hubRefused` rows one result carries. */
+export const MAX_HUB_REFUSED_ROWS = 200;
+
+/** The ledger reason for a file held back from a hub without `file-classes-v2`. */
+export const OLDER_HUB_REASON =
+  'The project’s server runs an older Maude that is too old to take this kind of file';
 
 export interface FilePlaneOptions {
   designRoot: string;
@@ -517,6 +535,12 @@ export interface FilePlaneOptions {
    * throw is swallowed.
    */
   onDelivered?: (rel: string) => void;
+  /**
+   * Issue #175 — the hub advertises `file-classes-v2` (`hasFileClassesV2`). False ⇒ the paths a
+   * 1.x door refuses (`olderDoorRefuses`) are held here with a reason and never offered. Absent ⇒
+   * true (every caller before this option, and every test hub, takes them).
+   */
+  hubTakesV2Files?: boolean;
 }
 
 interface SyncableLocalFile {
@@ -885,12 +909,17 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
    * Every non-ok response on this lane comes through here, so there is one
    * answer to "was that a fault or a wall" rather than one per call site.
    */
-  async function refusal(res: Response): Promise<{
+  async function refusal(
+    res: Response,
+    /** The request NAMES THE FILE (a push or a session create): a 4xx about it is final (#175). */
+    { final = false }: { final?: boolean } = {}
+  ): Promise<{
     ok: false;
     reason: string;
     rateLimited?: true;
     quotaExhausted?: true;
     quotaResetsAt?: number;
+    permanent?: true;
   }> {
     // 507 — the per-token hourly WRITE QUOTA is spent (file-door.mjs
     // `QUOTA_BYTES_PER_WINDOW`, 2 GiB). Not a fault and not a rate limit: the
@@ -930,6 +959,12 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
       }
       formatRefused = { formatVersion: fv };
       return { ok: false, reason: 'This project now uses Maude 2. Update Maude to edit it.' };
+    }
+    // A FINAL ANSWER ABOUT THESE BYTES (issue #175). The 1.10.0 hub answered
+    // `400 {"error":"invalid path"}` to 2.0-only files and the plane retried
+    // each one with backoff forever. The caller holds the file instead.
+    if (final && PERMANENT_PUSH_REFUSALS.has(res.status)) {
+      return { ok: false, reason: await refusalWords(res), permanent: true };
     }
     const reason = await failureReason(res);
     // BACKPRESSURE, not just 429 — a cell that is starting answers 503 with a
@@ -1274,6 +1309,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         tooLarge?: true;
         quotaExhausted?: true;
         quotaResetsAt?: number;
+        permanent?: true;
       }
   > {
     // PRE-FLIGHT AGAINST THE DOOR'S OWN CEILING, before a byte is read.
@@ -1348,7 +1384,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
           current: typeof body?.current === 'string' ? body.current : null,
         };
       }
-      if (!res.ok) return await refusal(res);
+      if (!res.ok) return await refusal(res, { final: true });
       const body = (await res.json().catch(() => ({}))) as { seq?: unknown };
       return { ok: true, seq: typeof body?.seq === 'number' ? body.seq : null };
     } catch (err) {
@@ -1384,7 +1420,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         }),
         signal: AbortSignal.timeout(GET_TIMEOUT_MS),
       });
-      if (!created.ok) return await refusal(created);
+      if (!created.ok) return await refusal(created, { final: true });
       const s = await json(created);
       const id = typeof s.id === 'string' ? s.id : '';
       const partBytes = Number(s.partBytes);
@@ -1610,7 +1646,29 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     return out;
   }
 
+  /** Issue #175 — every file a door will not take, from the ledger, bounded. */
+  function hubRefusedRows(): NonNullable<FilePlaneResult['hubRefused']> {
+    const rows: NonNullable<FilePlaneResult['hubRefused']> = [];
+    for (const [rel, r] of Object.entries(ledger.rows())) {
+      if (r.state !== 'refused' || r.blockedClass !== 'refused') continue;
+      rows.push({
+        rel,
+        reason: r.reason ?? 'The project’s server did not take this file',
+        ...(r.refusedHash === undefined ? { older: true as const } : {}),
+      });
+    }
+    rows.sort((a, b) => a.rel.localeCompare(b.rel));
+    return rows.slice(0, MAX_HUB_REFUSED_ROWS);
+  }
+
   async function reconcile(): Promise<FilePlaneResult> {
+    const out = await reconcilePass();
+    const refused = hubRefusedRows();
+    if (refused.length > 0) out.hubRefused = refused;
+    return out;
+  }
+
+  async function reconcilePass(): Promise<FilePlaneResult> {
     const out: FilePlaneResult = {
       pulled: [],
       pushed: [],
@@ -1832,7 +1890,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
       if (
         !here &&
         kept?.state === 'refused' &&
-        kept.blockedClass === 'too-large' &&
+        (kept.blockedClass === 'too-large' || kept.blockedClass === 'refused') &&
         !kept.syncedHash &&
         !(row && !row.deleted) &&
         !ledger.remoteOf(rel)
@@ -1968,6 +2026,40 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         }
       }
 
+      // A HUB THAT CANNOT TAKE IT IS NOT OFFERED IT (issue #175). A 1.x door
+      // answers `400 invalid path` to every 2.0-only file; asking costs a
+      // request and tells nobody anything. Held with a reason instead — and
+      // offered again the pass this hub advertises `file-classes-v2`.
+      if (
+        here &&
+        remoteHash === null &&
+        opts.hubTakesV2Files === false &&
+        olderDoorRefuses(rel) &&
+        isFilePlaneClass(
+          classifyProjectFile(rel, {
+            canvasGroups: opts.canvasGroups,
+            hasFile: (r) => local.has(r) || existsSync(path.join(designRoot, r)),
+          })
+        )
+      ) {
+        if (
+          !(
+            kept?.state === 'refused' &&
+            kept.blockedClass === 'refused' &&
+            kept.reason === OLDER_HUB_REASON &&
+            kept.refusedHash === undefined
+          )
+        ) {
+          ledger.setState(rel, 'refused', {
+            reason: OLDER_HUB_REASON,
+            blockedClass: 'refused',
+            refusedHash: undefined,
+          });
+        }
+        out.dropped.push({ rel, reason: OLDER_HUB_REASON });
+        continue;
+      }
+
       const state: FileState = {
         path: rel,
         local: here?.hash ?? null,
@@ -1979,6 +2071,17 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         ...(opts.propagateDeletes ? { propagateDeletes: true } : {}),
       };
       const decision = decideFile(state);
+      // REFUSED FOR GOOD, AND UNCHANGED (issue #175): the door already said no
+      // to exactly these bytes. Not work, not a failure, not a backoff — held.
+      if (
+        (decision.action === 'push' || decision.action === 'revive') &&
+        here &&
+        kept?.state === 'refused' &&
+        kept.blockedClass === 'refused' &&
+        kept.refusedHash === here.hash
+      ) {
+        continue;
+      }
       if (decision.action === 'noop' && !decision.parkRemote) {
         if (decision.adoptAncestor && here) {
           // Record agreement so the next pass is a stat and nothing more.
@@ -2429,6 +2532,17 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
             // rather than discovering it once per remaining file.
             holdForQuota(res.quotaResetsAt ?? null);
           }
+          return true;
+        }
+        if (res.permanent) {
+          // THE DOOR'S FINAL WORD on these bytes (issue #175): held, with its
+          // words, and not asked again until the file changes (`refusedHash`).
+          ledger.setState(rel, 'refused', {
+            reason: res.reason,
+            blockedClass: 'refused',
+            refusedHash: here.hash,
+          });
+          out.dropped.push({ rel, reason: res.reason });
           return true;
         }
         out.failed.push({ rel, reason: res.reason });

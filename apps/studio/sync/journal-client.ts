@@ -285,3 +285,15 @@ export function hasAnnotationsV2(capabilities: string[] | null): boolean {
 export function hasLedger(capabilities: string[] | null): boolean {
   return Array.isArray(capabilities) && capabilities.includes('ledger');
 }
+
+/** The capability a hub advertises when its file door takes the 2.0 file classes (issue #175). */
+export const FILE_CLASSES_V2_CAPABILITY = 'file-classes-v2';
+
+/**
+ * Does this hub's file door take the 2.0 file classes (`.transcript.json`, `.beats.json`,
+ * `.gen.json`, the design-system manifests)? Every 1.x hub answers those with `400 invalid path`,
+ * and it is deployed, so the desktop must not offer them (`olderDoorRefuses`, file-membership.ts).
+ */
+export function hasFileClassesV2(capabilities: string[] | null): boolean {
+  return Array.isArray(capabilities) && capabilities.includes(FILE_CLASSES_V2_CAPABILITY);
+}

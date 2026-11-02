@@ -74,6 +74,13 @@ import { matchesScope, verifyToken } from './tokens.mjs';
 /** `PUT /api/file/<rel>` — the single door. */
 export const FILE_DOOR_PREFIX = '/api/file/';
 
+/**
+ * Advertised on `/health` (issue #175): this door's classifier is the 2.0 one, so it takes
+ * `.transcript.json`, `.beats.json`, `.gen.json` and the design-system manifests. A 1.x door
+ * answers each `400 invalid path`; a 2.0 desktop offers them only to a hub that says this word.
+ */
+export const FILE_CLASSES_V2_CAPABILITY = 'file-classes-v2';
+
 /** One PUT body. Kept BELOW the platform's own body limit on purpose; a larger
  *  file goes up as an upload session (upload-sessions.mjs, plan T18). */
 const MAX_FILE_BYTES = SINGLE_PUT_BYTES;

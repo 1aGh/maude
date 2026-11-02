@@ -2199,3 +2199,187 @@ describe('a 426 is the format door, never a credential failure', () => {
     expect(read('system/ds/theirs.css')).toBe('hub');
   });
 });
+
+// Issue #175 item 1 (rc.1 field report): a 2.0 desktop linked to a 1.10.0 hub
+// offered 19 files the 1.x door does not take (`assets/<id>.transcript.json`,
+// `system/<ds>/tokens.json`) and retried each one with backoff forever — the
+// hub answered `400 {"error":"invalid path"}` every time. A permanent 4xx is
+// the door's final word on THESE bytes: one attempt, then held with the reason.
+describe('a permanent refusal ends the retry for that file', () => {
+  /** The real fake hub, except one path's PUT answers `status` with `body`. */
+  const refusingWire = (
+    hub: ReturnType<typeof fakeHub>,
+    refused: string,
+    status: number,
+    body = JSON.stringify({ error: 'invalid path' })
+  ) => {
+    const attempts: string[] = [];
+    const fetchImpl = (async (url: string, init?: RequestInit) => {
+      const u = new URL(String(url));
+      if (init?.method === 'PUT' && u.pathname.startsWith('/api/file/')) {
+        const rel = u.pathname
+          .slice('/api/file/'.length)
+          .split('/')
+          .map(decodeURIComponent)
+          .join('/');
+        attempts.push(rel);
+        if (rel === refused) return new Response(body, { status });
+      }
+      return hub.fetchImpl(url as never, init as never);
+    }) as unknown as typeof fetch;
+    return { fetchImpl, attempts: (rel: string) => attempts.filter((a) => a === rel).length };
+  };
+
+  const REFUSED = 'assets/a1b2c3d4.transcript.json';
+  const fresh = () => {
+    rmSync(root, { recursive: true, force: true });
+    mkdirSync(root, { recursive: true });
+    ledger = createFileLedger({ designRoot: root, hubUrl: HUB, flushMs: 0 });
+  };
+
+  test('a 400 is tried once, then held with the hub’s words — the other files go up', async () => {
+    const hub = fakeHub();
+    write(REFUSED, '{"words":[]}');
+    write('assets/b.png', 'png');
+    write('system/ds/x.css', 'css');
+    const wire = refusingWire(hub, REFUSED, 400);
+    let clock = 1_700_000_000_000;
+    const p = plane(hub, { fetchImpl: wire.fetchImpl, now: () => clock });
+
+    const first = await p.reconcile();
+    expect(first.pushed.sort()).toEqual(['assets/b.png', 'system/ds/x.css']);
+    expect(first.failed).toEqual([]);
+    expect(first.dropped.map((d) => d.rel)).toContain(REFUSED);
+    const row = ledger.row(REFUSED);
+    expect(row?.state).toBe('refused');
+    expect(row?.blockedClass).toBe('refused');
+    expect(row?.reason).toContain('“invalid path”');
+    // No backoff window: nothing is waiting to be retried.
+    expect(row?.nextAttemptAt).toBeUndefined();
+    expect(first.hubRefused).toEqual([{ rel: REFUSED, reason: row?.reason as string }]);
+
+    // Many passes later — far past any backoff ceiling — the door is not asked again.
+    for (let i = 0; i < 4; i += 1) {
+      clock += 24 * 60 * 60 * 1000;
+      const again = await p.reconcile();
+      expect(again.failed).toEqual([]);
+      expect(again.hubRefused?.map((h) => h.rel)).toEqual([REFUSED]);
+    }
+    expect(wire.attempts(REFUSED)).toBe(1);
+    expect(p.doruceka()[REFUSED]).toBe('refused');
+  });
+
+  test('a real change to the file tries it once more', async () => {
+    const hub = fakeHub();
+    write(REFUSED, '{"words":[]}');
+    const wire = refusingWire(hub, REFUSED, 400);
+    const p = plane(hub, { fetchImpl: wire.fetchImpl });
+    await p.reconcile();
+    await p.reconcile();
+    expect(wire.attempts(REFUSED)).toBe(1);
+
+    write(REFUSED, '{"words":[{"w":"hi"}]}');
+    await p.reconcile();
+    await p.reconcile();
+    expect(wire.attempts(REFUSED)).toBe(2);
+    expect(ledger.row(REFUSED)?.state).toBe('refused');
+  });
+
+  test('404, 413 and 422 are final too; 408 is not', async () => {
+    for (const status of [404, 413, 422]) {
+      fresh();
+      const hub = fakeHub();
+      write(REFUSED, '{}');
+      const wire = refusingWire(hub, REFUSED, status, 'nope');
+      let clock = 1_700_000_000_000;
+      const p = plane(hub, { fetchImpl: wire.fetchImpl, now: () => clock });
+      await p.reconcile();
+      clock += 24 * 60 * 60 * 1000;
+      await p.reconcile();
+      expect({ status, attempts: wire.attempts(REFUSED) }).toEqual({ status, attempts: 1 });
+      expect(ledger.row(REFUSED)?.state).toBe('refused');
+    }
+    fresh();
+    const hub = fakeHub();
+    write(REFUSED, '{}');
+    const wire = refusingWire(hub, REFUSED, 408, 'slow');
+    const res = await plane(hub, { fetchImpl: wire.fetchImpl }).reconcile();
+    expect(res.failed.map((f) => f.rel)).toEqual([REFUSED]);
+    expect(ledger.row(REFUSED)?.state).toBe('stuck');
+    expect(ledger.row(REFUSED)?.nextAttemptAt).toBeDefined();
+  });
+
+  test('a 5xx keeps backing off as before', async () => {
+    const hub = fakeHub();
+    write(REFUSED, '{}');
+    const wire = refusingWire(hub, REFUSED, 500, 'boom');
+    const res = await plane(hub, { fetchImpl: wire.fetchImpl }).reconcile();
+    expect(res.failed.map((f) => f.rel)).toEqual([REFUSED]);
+    expect(ledger.row(REFUSED)?.state).toBe('stuck');
+    expect(ledger.row(REFUSED)?.nextAttemptAt).toBeDefined();
+    expect(res.hubRefused).toBeUndefined();
+  });
+
+  test('a held file that is deleted here stops being reported', async () => {
+    const hub = fakeHub();
+    write(REFUSED, '{}');
+    const wire = refusingWire(hub, REFUSED, 400);
+    const p = plane(hub, { fetchImpl: wire.fetchImpl });
+    await p.reconcile();
+    rmSync(join(root, REFUSED));
+    const res = await p.reconcile();
+    expect(res.hubRefused).toBeUndefined();
+    expect(p.doruceka()[REFUSED]).toBeUndefined();
+  });
+});
+
+// Issue #175 item 1, the root cause: 2.0's membership added `.transcript.json`,
+// `.beats.json`, `.gen.json` and the design-system manifests to the file plane;
+// a hub without `file-classes-v2` (every 1.x hub) refuses each with a 400. The
+// desktop does not offer it what it cannot take — and says so, per file.
+describe('a hub without file-classes-v2 is not offered the 2.0-only files', () => {
+  test('held up front with the reason; everything a 1.x door takes still goes up', async () => {
+    const hub = fakeHub();
+    write('assets/a1b2c3d4.transcript.json', '{}');
+    write('assets/a1b2c3d4.beats.json', '{}');
+    write('assets/a1b2c3d4.gen.json', '{}');
+    write('system/ds/tokens.json', '{}');
+    write('system/ds/components.json', '{}');
+    write('assets/a1b2c3d4.photo.json', '{}');
+    write('assets/b.png', 'png');
+    const res = await plane(hub, { hubTakesV2Files: false }).reconcile();
+    expect(hub.puts.map((x) => x.rel).sort()).toEqual([
+      'assets/a1b2c3d4.photo.json',
+      'assets/b.png',
+    ]);
+    expect((res.hubRefused ?? []).map((h) => h.rel).sort()).toEqual([
+      'assets/a1b2c3d4.beats.json',
+      'assets/a1b2c3d4.gen.json',
+      'assets/a1b2c3d4.transcript.json',
+      'system/ds/components.json',
+      'system/ds/tokens.json',
+    ]);
+    expect(ledger.row('system/ds/tokens.json')?.state).toBe('refused');
+    expect(ledger.row('system/ds/tokens.json')?.reason).toMatch(/too old/);
+    expect(res.failed).toEqual([]);
+  });
+
+  test('a hub that takes them gets them', async () => {
+    const hub = fakeHub();
+    write('assets/a1b2c3d4.transcript.json', '{}');
+    write('system/ds/tokens.json', '{}');
+    const res = await plane(hub, { hubTakesV2Files: true }).reconcile();
+    expect(res.pushed.sort()).toEqual(['assets/a1b2c3d4.transcript.json', 'system/ds/tokens.json']);
+    expect(res.hubRefused).toBeUndefined();
+  });
+
+  test('a file held for an older hub goes up once the hub takes it', async () => {
+    const hub = fakeHub();
+    write('system/ds/tokens.json', '{}');
+    await plane(hub, { hubTakesV2Files: false }).reconcile();
+    expect(hub.puts).toEqual([]);
+    const res = await plane(hub, { hubTakesV2Files: true }).reconcile();
+    expect(res.pushed).toEqual(['system/ds/tokens.json']);
+    expect(ledger.row('system/ds/tokens.json')?.state).toBe('on-hub');
+  });
+});

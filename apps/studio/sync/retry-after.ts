@@ -122,6 +122,33 @@ export async function failureReason(res: Response): Promise<string> {
   return snippet ? `HTTP ${res.status} — ${snippet}` : `HTTP ${res.status}`;
 }
 
+/**
+ * A door's own words for a FINAL refusal, as one sentence for a person (issue #175): the hub's
+ * JSON `error` when it sent one (`{"error":"invalid path"}` → “invalid path”), else the bounded
+ * body. Hub-supplied ⇒ untrusted (DDR-054): the same stripping and cap as `failureReason`, and it
+ * only ever renders as text.
+ */
+export async function refusalWords(res: Response): Promise<string> {
+  const raw = await readBounded(res);
+  let said = raw;
+  try {
+    const body = JSON.parse(raw) as { error?: unknown } | null;
+    if (typeof body?.error === 'string') said = body.error;
+  } catch {
+    /* not JSON — the body itself is what it said */
+  }
+  const clean = said
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: stripping them is the point.
+    .replace(/[\u0000-\u001f\u007f]/g, ' ')
+    .replace(/[“”"]/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, ERROR_SNIPPET_CHARS);
+  return clean
+    ? `The project’s server didn’t take this file — it answered “${clean}”.`
+    : 'The project’s server didn’t take this file.';
+}
+
 /** A refusal that names a WALL rather than a fault: the hub is willing, just
  *  not now. Every lane that can hit one reports it in this shape. */
 export interface RateLimited {

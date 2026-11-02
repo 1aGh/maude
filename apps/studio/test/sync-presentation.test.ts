@@ -378,6 +378,35 @@ describe('one truthful summary across every lane', () => {
     expect(p?.title).toContain(text as string);
   });
 
+  // Issue #175 — a file the server will not take is counted ONCE, as blocked (its
+  // `progress.blocked` class); its held row is the per-file why, never a decision to make.
+  test('files the server will not take are blocked, not "held for your decision"', () => {
+    const p = at({
+      ...synced91,
+      files: {
+        synced: 3,
+        pulled: 0,
+        conflicts: 0,
+        held: [
+          { kind: 'hub-refused', count: 2, paths: ['a', 'b'], detail: 'x' },
+          { kind: 'hub-older', count: 16, paths: [], detail: 'y' },
+        ],
+        progress: {
+          phase: 'blocked',
+          tracked: 21,
+          delivered: 3,
+          remaining: 0,
+          bytesRemaining: 0,
+          blocked: [{ class: 'refused', count: 18 }],
+          etaMs: null,
+        },
+      },
+    } as SyncStatusLike);
+    expect(p?.phase).toBe('attention');
+    expect(p?.title).toContain('18 files are blocked');
+    expect(p?.title).not.toContain('held for your decision');
+  });
+
   test('files still moving read as syncing, with the denominator', () => {
     const p = at({
       ...synced91,
