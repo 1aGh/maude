@@ -141,6 +141,30 @@ app is verified in the shells it ships in (desktop, browser, cloud tab, viewer).
   source of the prefs rewrites you saw); the surface runner and every browser e2e studio now keep their own config,
   index and a stub `claude`.
 
+- **Your rounds after rc.1 (READY TO TRY 11 → 13, `lead/r4-michal-findings.md` item by item):**
+  - *r3 (7 findings):* videos into the canvas; Assets drag (the shell owns the drag over the cross-origin canvas); Inspector
+    scrub; design-system rows as tall as their tallest artboard; a fill blanked by the live preview (removals before
+    sets); New canvas / New brief canvas ask the name; Delete comment as a two-step trash icon.
+  - *r4 (18 findings + img 44):* **drag and drop for real** — a hidden later tab above the active one took every OS drag
+    (and a Finder drop landed in the invisible project); the shown tab is raised, a Preview drop is an annotation, and a
+    real-OS-drag guard (`apps/desktop/scripts/check-real-drop.mjs`) was red on the old build; the design system is made
+    as a canvas (no Convert), Bring it up works in a corner card; the hub sign-in dialog no longer switches itself off;
+    the cloud code shows in the app; Esc stays in Preview; Space / a button plays a placed video; Figma's colour picker;
+    one Light | Dark pill on every canvas (Follow chrome gone); stamps, stickers, sections; https Copy link; "Picture not
+    found" instead of the browser's "?"; **zoom on big canvases** — a per-frame CSS variable restyled every design
+    (WebKit 90–240 ms → 18 ms per zoom frame).
+  - *r5 (8 findings):* video drag from Assets and as an annotation, a play button; Libraries as a list, tabs that stay
+    open, draggable gradient stops, Image from Assets; the pill switches every kit canvas and shows the canvas path;
+    Copy relative path.
+- **Bugs the final checks found after your rounds, each fixed:** the theme probe re-ran forever on a canvas with no Dark
+  (~20 canvas suites timed out on the mini); the default canvas name failed the second time; the Light | Dark pill
+  covered the co-spotlight Stop; the desktop e2e read your real Maude Cloud sign-in (the shell's `cloud.json` now follows
+  the server's override in debug builds).
+- **Security delta r4 + r5:** one medium — Copy link handed out an https address the committed config names even when
+  this Mac never confirmed that hub (a lookalike URL in a PR → a fake sign-in with a real device code) — fixed: only a
+  cell or a signed-in hub lends its address; two lows fixed (the overview strip, setup-ds quoting); three lows in the
+  follow-ups.
+
 ## Decisions you made along the way
 
 - **Gate 0 signed (2026-10-08):** 95 rows, then folded into `CONTRACT.md`. No "proposed" rule survives.
@@ -187,6 +211,10 @@ app is verified in the shells it ships in (desktop, browser, cloud tab, viewer).
   scoped re-check and the command gates are carried (`v2-gates.mjs --carry`, the diff written into the evidence); the
   full chain4 once per closed round (`lead/gate-policy.md`).
 - **Your `prefs.json`:** rewritten by a test run — "doesn't bother me"; the harness gaps that did it are fixed.
+- **r4 picks (2026-11-01):** the colour picker exactly like Figma's; one Light | Dark pill at the top of every canvas in
+  the design system's place, Follow chrome / DS default removed; the Maude Cloud sign-in shows the same code in the app
+  (the device flow stays); the budget stop lifted ("pokracuj az 100%").
+- **r5 (2026-11-02):** no further round before the final e2e ("Pak at uz lead udela finalni e2e testy").
 
 ## Verification
 
