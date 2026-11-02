@@ -212,6 +212,7 @@ import { UndoStackProvider, useUndoSinks, useUndoStackOptional } from './use-und
 // `remotion`/`@remotion/player` imports resolve through the canvas importmap
 // (RUNTIME_PACKAGES), same as react/motion.
 import { VideoComp } from './video-comp.tsx';
+import { VideoPlayLayer } from './video-play-overlay.tsx';
 
 export type { CompSnapshot, VideoCompMeta, VideoCompProps } from './video-comp.tsx';
 // S7.5 — the comp vocabulary (V2-1.10 §5.3): literal-prop components; the build injects their
@@ -2723,6 +2724,8 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
       {/* ── S8.19 (L1) placeholder frames ── "Waiting for Jonas's Mac" / Missing over a picture
           that failed to load; driven only by the shell's dgn `asset-state` (asset-placeholder.tsx). */}
       <AssetPlaceholderLayer />
+      {/* r5-2 — a play / pause button over a placed or annotation clip (hover / selected), in Edit and Preview. */}
+      <VideoPlayLayer />
     </div>
   );
 
@@ -3407,7 +3410,7 @@ export interface CanvasRectsManifest {
 // mirrors the pickSpecimenEl chrome denylist (canvas-comment-mount.tsx) plus
 // the annotation layer's own root.
 const RECTS_CHROME_SELECTOR =
-  '.cm-composer, .cm-thread, .cm-mention-popup, .cm-pin, [data-mc-hover-halo], [data-mdcc-annotations], .dc-minimap, .dc-zoom-toolbar, .dc-absent-layer';
+  '.cm-composer, .cm-thread, .cm-mention-popup, .cm-pin, [data-mc-hover-halo], [data-mdcc-annotations], .dc-minimap, .dc-zoom-toolbar, .dc-absent-layer, .dc-vplay-layer';
 
 const RECTS_INTERACTIVE_TAGS = new Set([
   'button',

@@ -634,7 +634,7 @@ export function isOverlayTarget(t: EventTarget | null): boolean {
   // same selectors as `'overlay'`, non-canvas chrome; this router's claim
   // gate was the one place that didn't.
   return !!el.closest(
-    '.cm-composer, .cm-thread, .cm-mention-popup, .cm-pin, [data-mediaref-player], .dc-tool-palette, .dc-zoom-tb, .dc-mm, .dc-context-menu'
+    '.cm-composer, .cm-thread, .cm-mention-popup, .cm-pin, [data-mediaref-player], [data-vplay], .dc-tool-palette, .dc-zoom-tb, .dc-mm, .dc-context-menu'
   );
 }
 

@@ -594,7 +594,11 @@ function classifyAssetPathKind(path: string): 'image' | 'video' | 'audio' | null
  */
 function isMediaPlayerTarget(e: Event): boolean {
   const t = e.target as Element | null;
-  return !!(t && typeof t.closest === 'function' && t.closest('[data-mediaref-player]'));
+  return !!(
+    t &&
+    typeof t.closest === 'function' &&
+    t.closest('[data-mediaref-player], [data-vplay]')
+  );
 }
 
 /**

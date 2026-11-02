@@ -23992,6 +23992,32 @@
     "v2": "new"
   },
   {
+    "hook": "video-play-layer",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Inside the canvas iframe: the layer that holds the play / pause buttons over clips (r5-2). Absent while the pointer is off every clip and none is selected.",
+    "producer": {
+      "file": "apps/studio/video-play-overlay.tsx",
+      "symbol": "VideoPlayLayer"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "video-play-button",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Inside the canvas iframe: the play / pause button over a `<video controls>` (a placed clip or an annotation video), shown on hover or selection in Edit and Preview. `data-playing` = true | false. Its own hit target: the selection handlers skip it.",
+    "producer": {
+      "file": "apps/studio/video-play-overlay.tsx",
+      "symbol": "VideoPlayLayer"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
     "hook": "asset-absent-box",
     "kind": "testid",
     "pattern": false,
