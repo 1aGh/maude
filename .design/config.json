@@ -1,4 +1,5 @@
 {
+  "formatVersion": 2,
   "$schema": "https://raw.githubusercontent.com/1aGh/maude/main/apps/studio/config.schema.json",
   "name": "maude",
   "designRoot": ".design",
