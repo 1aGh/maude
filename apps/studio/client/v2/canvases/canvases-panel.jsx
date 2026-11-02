@@ -504,6 +504,12 @@ export function CanvasesPanel({
     else if (id === 'rename') rowOps.startRename(row.key);
     else if (id === 'duplicate') onDuplicate?.(row.path);
     else if (id === 'copy-link') onCopyLink?.(row.path);
+    else if (id === 'copy-path')
+      runFileMenuItem('copy-path', row, {
+        designRel,
+        write: copyText,
+        toast: (m) => shellToast(m, false),
+      });
     else if (id === 'trash') onTrash?.(row.path, row.name);
     else if (id === 'ds-update')
       onDsAction?.('ds.canvas-update', { canvas: relOf(row.path, designRel) });

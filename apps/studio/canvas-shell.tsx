@@ -780,7 +780,12 @@ export function CanvasShell({
   // them. The rule is a CSS block keyed by data-dc-screen (see rebuildArtboardThemeStyle), so it survives React
   // re-renders without flicker.
   useEffect(() => {
-    const off = subscribeCanvasTheme(applyArtboardFollowers);
+    const offTheme = subscribeCanvasTheme(applyArtboardFollowers);
+    const offProbe = subscribeDsThemeProbe(applyArtboardFollowers);
+    const off = () => {
+      offTheme();
+      offProbe();
+    };
     // First paint needs its own trigger: `window 'load'` guarantees every <link>/<style> sheet is parsed →
     // collectThemeDeclarations sees the DS tokens. Runs immediately if the document is already complete.
     let onLoad: (() => void) | null = null;
@@ -827,7 +832,10 @@ function CanvasThemePillMount() {
   if (typeof document === 'undefined' || !document.body) return null;
   if (previewing || chrome?.present || board || isEmbedCanvas() || isFollowCanvas()) return null;
   return createPortal(
-    <CanvasThemePill bothThemes={() => detectDsThemeSupport().supported} />,
+    <CanvasThemePill
+      bothThemes={() => detectDsThemeSupport().supported}
+      onProbeStale={subscribeDsThemeProbe}
+    />,
     document.body
   );
 }
@@ -1225,7 +1233,19 @@ let _dsThemeSupport: DsThemeSupport | null = null;
 // precisely instead: the negative answer holds until a stylesheet is added to
 // or finishes loading in the document, then the next call probes again.
 let _dsThemeUnsupported = false;
+// Did the negative probe see a DS wrapper (an element carrying `data-theme`) in the document? If not, the answer is
+// "I could not tell yet" (the artboards had not mounted), not "this system has one theme" — a wrapper appearing
+// later must re-ask (r5-7: the pill asked before the artboard content mounted and stayed greyed for good).
+let _dsThemeSawWrapper = false;
 let _dsThemeWatch = false;
+const _probeSubs = new Set<() => void>();
+/** Called when a cached "this design system has one theme" may be stale (a stylesheet or the first wrapper arrived). */
+export function subscribeDsThemeProbe(f: () => void): () => void {
+  _probeSubs.add(f);
+  return () => {
+    _probeSubs.delete(f);
+  };
+}
 const _unsupported: DsThemeSupport = { supported: false, wrapperClass: '' };
 
 function watchStylesheetsOnce(): void {
@@ -1233,16 +1253,26 @@ function watchStylesheetsOnce(): void {
   _dsThemeWatch = true;
   const invalidate = (): void => {
     _dsThemeUnsupported = false;
+    for (const f of [..._probeSubs]) f(); // whoever drew a greyed answer asks again
   };
   try {
     new MutationObserver((records) => {
+      if (!_dsThemeUnsupported) return; // nothing cached that could be stale
       for (const r of records) {
         for (const n of Array.from(r.addedNodes)) {
-          const tag = (n as Element).tagName;
+          const el = n as Element;
+          const tag = el.tagName;
           if (tag === 'STYLE' || tag === 'LINK') return invalidate();
+          // the first DS wrapper arriving after a probe that had none to look at
+          if (
+            !_dsThemeSawWrapper &&
+            el.nodeType === 1 &&
+            (el.hasAttribute?.('data-theme') || el.querySelector?.('[data-theme]'))
+          )
+            return invalidate();
         }
       }
-    }).observe(document.head ?? document.documentElement, { childList: true, subtree: true });
+    }).observe(document.documentElement, { childList: true, subtree: true });
     // A <link> that was already in the DOM finishing its load (capture: load
     // does not bubble).
     document.addEventListener(
@@ -1261,6 +1291,7 @@ function watchStylesheetsOnce(): void {
 export function __resetDsThemeProbeForTests(): void {
   _dsThemeSupport = null;
   _dsThemeUnsupported = false;
+  _dsThemeSawWrapper = false;
   _dsThemeWatch = false; // its observer watched the previous file's document
   _themeDecls.light = undefined; // the token scan read the previous file's stylesheets
   _themeDecls.dark = undefined;
@@ -1291,14 +1322,21 @@ export function detectDsThemeSupport(): DsThemeSupport {
     // the full className ("maude di-root") and each individual token ("maude",
     // "di-root"). Bare `''` first (cleanest), historical guesses last as a
     // pre-mount fallback. A Set de-dupes; insertion order keeps DOM-derived first.
+    // A wrapper's className is often several classes (`maude-v2 k-v2 k-stage`, the kit's artboards): the DS scopes
+    // its theme blocks to ONE of them, and the others differ from board to board. So each single token is tried
+    // first (the selector that then matches EVERY wrapper), the whole string only as a fallback for a DS whose
+    // blocks are scoped to a compound (`.a.b[data-theme]`) — the selector is built per class, never one escaped string.
     const candidates = new Set<string>(['']);
-    for (const el of Array.from(document.querySelectorAll('[data-theme]'))) {
+    const wrappers = Array.from(document.querySelectorAll('[data-theme]'));
+    const compounds: string[] = [];
+    for (const el of wrappers) {
       const cn = (el as HTMLElement).className;
       if (typeof cn === 'string' && cn.trim()) {
-        candidates.add(cn.trim());
         for (const tok of cn.trim().split(/\s+/)) candidates.add(tok);
+        compounds.push(cn.trim());
       }
     }
+    for (const c of compounds) candidates.add(c);
     candidates.add('mdcc');
     candidates.add('app');
     let found = fallback;
@@ -1319,6 +1357,7 @@ export function detectDsThemeSupport(): DsThemeSupport {
     if (found.supported) _dsThemeSupport = found;
     else {
       _dsThemeUnsupported = true;
+      _dsThemeSawWrapper = wrappers.length > 0;
       watchStylesheetsOnce();
     }
     return found;
@@ -1401,8 +1440,13 @@ function globalArtboardScopeSelector(): string {
   const { wrapperClass } = detectDsThemeSupport();
   const base = '[data-dc-screen]';
   if (wrapperClass) {
-    const c = cssEsc(wrapperClass);
-    return `${base} .${c},${base}.${c}`;
+    // `wrapperClass` can be a compound ("a b" = both classes on one element): one `.x` per class, never one escaped string
+    const c = wrapperClass
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((t) => `.${cssEsc(t)}`)
+      .join('');
+    return `${base} ${c},${base}${c}`;
   }
   return `${base} [data-theme],${base}[data-theme]`;
 }

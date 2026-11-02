@@ -1,14 +1,14 @@
 // client/v2/left-panel/canvas-file-menu.js — S11.9: the Advanced group of a canvas row's menu (06 · ad-left,
 // `ad-edge-where`), as data and as the functions that run it.
 //
-//   Reveal in Finder · Open in editor · View code · Copy file path · ──── · Rename file…
+//   Reveal in Finder · Open in editor · View code · ──── · Rename file…
 //
 // The group is added only while Canvases › Advanced is open (the row menu stays seven calm words
 // otherwise). Who sees what, per the 06 "where" table:
 //
 //   Mac app            Reveal in Finder, Open in editor (Can edit and up)
 //   In the browser     those two swap for ONE row, "Open in the Mac app" — the file lives on a Mac, not here
-//   Can comment        no Reveal / Open (the project folder is not theirs), View code and Copy file path stay
+//   Can comment        no Reveal / Open (the project folder is not theirs), View code stays
 //   Can view           none of the group (source is a download, which View is not offered — V2-1.7)
 //
 // Hidden is not refused: the server still enforces `export` on the source (`GET /_api/canvas-source`) and
@@ -59,7 +59,7 @@ export function fileMenuItems({ role = 'edit', native = false } = {}) {
   }
   if (atLeast(role, 'comment')) {
     items.push({ id: 'view-code', label: 'View code' });
-    items.push({ id: 'copy-path', label: 'Copy file path' });
+    // (Copy relative path moved to the calm menu — r5-8; `runFileMenuItem('copy-path')` still runs it)
   }
   if (atLeast(role, 'edit'))
     items.push({ id: 'rename-file', label: 'Rename file…', sepBefore: true });
