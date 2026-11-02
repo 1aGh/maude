@@ -3,12 +3,12 @@
   "pass": true,
   "qualityHash": "ca053cd5bbc8fa64231dfde679d7b0108280b8f384c154322c75c50c872e7071",
   "reportHashes": {
-    ".ai/plans/notes/v2-evidence/V2-8.7-a11y-final.md": "afd33ea40532baa0a308e55377c6086a2982d9396e7bde0f031214640a757ce4"
+    ".ai/plans/notes/v2-evidence/V2-8.7-a11y-final.md": "6a26d325ba8a1f7f6182bee6b9b5b0688cdbf8c0d9c8528b3db00a857146bf15"
   },
-  "head": "efac01243bad61aae277dabf82d524f78a877382",
-  "ts": "2026-11-01T20:25:19.253Z",
+  "head": "6c504709cbcfae6009f23a882f915bb0b2ae4f07",
+  "ts": "2026-11-02T15:43:51.642Z",
   "reports": [
     ".ai/plans/notes/v2-evidence/V2-8.7-a11y-final.md"
   ],
-  "note": "r3: whole matrix at fa52b24c6, 318 states both themes, 0 serious/critical in the app (two harness BLOCKs on a non-app document re-scanned clean); keyboard-only covered by the desktop e2e; the VoiceOver listen is Michal's"
+  "note": "final at 71ec8ec75: the whole matrix, 318/318 states ok in both themes, 0 serious/critical, no BLOCK (r4/r5 surfaces included); keyboard-only via V2-8.3 x3; VoiceOver listen is Michal's"
 }
