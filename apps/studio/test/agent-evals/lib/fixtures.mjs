@@ -198,6 +198,9 @@ function repoSystems(names) {
   return cfg.designSystems.filter((s) => names.includes(s.name));
 }
 
+// The source canvases live in the repo's `ui/v1/`; a fixture puts them one level up.
+const up = (src) => src.replaceAll('"../../system/', '"../system/');
+
 /** Copy a canvas (+ its sibling .css / .meta.json / .registry.json) and optionally rewrite its relative imports. */
 function copyCanvas(srcDir, rel, destDesign, destRel = rel, { rewrite = null, stamp = null } = {}) {
   const stem = rel.replace(/\.tsx$/, '');
@@ -228,7 +231,8 @@ function buildApp5(dest) {
     `${JSON.stringify(baseConfig('eval-app5', repoSystems(['maude']), 'maude'), null, 2)}\n`
   );
   copySystem(join(REPO_DESIGN, 'system', 'maude'), join(d, 'system', 'maude'));
-  const st = copyCanvas(join(REPO_DESIGN, 'ui'), 'GitPanel.tsx', d, 'ui/GitPanel.tsx', {
+  const st = copyCanvas(join(REPO_DESIGN, 'ui', 'v1'), 'GitPanel.tsx', d, 'ui/GitPanel.tsx', {
+    rewrite: up,
     stamp: { max: 36, lock: APP_LOCK },
   });
   write(
@@ -247,10 +251,8 @@ function buildMulti(dest) {
   copySystem(join(REPO_DESIGN, 'system', 'maude'), join(d, 'system', 'maude'));
   copySystem(join(REPO_DESIGN, 'system', 'maude-v2'), join(d, 'system', 'maude-v2'));
   const ids = {};
-  const rewrite = (src) => src.replaceAll('"../system/', '"../../system/');
   for (const c of ['GitPanel', 'RepoBranchSwitcher', 'GitHubIdentity', 'DiffView']) {
-    const r = copyCanvas(join(REPO_DESIGN, 'ui'), `${c}.tsx`, d, `ui/panels/${c}.tsx`, {
-      rewrite,
+    const r = copyCanvas(join(REPO_DESIGN, 'ui', 'v1'), `${c}.tsx`, d, `ui/panels/${c}.tsx`, {
       stamp: { max: 24, lock: c === 'GitPanel' ? APP_LOCK : [] },
     });
     ids[`ui/panels/${c}.tsx`] = r.ids;
@@ -276,10 +278,11 @@ function buildVideo(dest) {
   );
   copySystem(join(REPO_DESIGN, 'system', 'maude'), join(d, 'system', 'maude'));
   copyCanvas(
-    join(REPO_DESIGN, 'ui'),
+    join(REPO_DESIGN, 'ui', 'v1'),
     'Alligators Cinematic Cut.tsx',
     d,
-    'ui/Alligators Cinematic Cut.tsx'
+    'ui/Alligators Cinematic Cut.tsx',
+    { rewrite: up }
   );
   copy(
     join(REPO_DESIGN, 'alligators-reel.edl.json'),
@@ -306,7 +309,8 @@ function buildBusy(dest) {
   // The "held" object is a person's lock (`data-cd-locked`): the one soft lock the shipped build
   // enforces on an AI write (edit/check → `soft-locked`). A person's live hold (awareness
   // `holding`) is advisory between people and never reaches the hook route (DDR-120, V2-1.15).
-  const st = copyCanvas(join(REPO_DESIGN, 'ui'), 'Onboarding.tsx', d, 'ui/Onboarding.tsx', {
+  const st = copyCanvas(join(REPO_DESIGN, 'ui', 'v1'), 'Onboarding.tsx', d, 'ui/Onboarding.tsx', {
+    rewrite: up,
     stamp: { max: 40, lock: ['Choose a folder…'] },
   });
   const held = st.ids.find((x) => x.text === 'Choose a folder…');

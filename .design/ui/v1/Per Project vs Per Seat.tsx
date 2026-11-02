@@ -24,7 +24,7 @@
  * currency instead. All numbers are the owner-verified figures — nothing
  * invented, nothing extrapolated beyond team size 10.
  */
-import "../system/maude/colors_and_type.css";
+import "../../system/maude/colors_and_type.css";
 import "./Per Project vs Per Seat.css";
 import { DesignCanvas, DCArtboard } from "@maude/canvas-lib";
 

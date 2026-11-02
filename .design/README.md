@@ -25,7 +25,9 @@
 │   └── maude-v2/               ← the Maude v2.0.0 redesign DS — "Light glass with a spark" (designer-first, light default,
 │                                  floating islands over a full-window canvas; azure acts, spark = AI). Use --ds=maude-v2.
 │
-└── ui/                          ← 19 product canvases that consume the maude DS (ChatPanel, CreateProject, DiffView, GitHubIdentity, GitPanel, LiveCollab, Onboarding, OnboardingTour, RepoBranchSwitcher, Studio, Studio Docs, Studio Hub, Studio Intro Video, Docs Infographics, Commands Overview, Agency Hero, Horizon Landing, Maude Video Intro, Smoke TSX)
+└── ui/
+    ├── v2/                      ← the v2 redesign canvases (00 Index … 15 Annotations, _kit, moodboard)
+    └── v1/                      ← older canvases from before v2, kept for reference; product canvases that consume the maude DS (ChatPanel, CreateProject, DiffView, GitHubIdentity, GitPanel, LiveCollab, Onboarding, OnboardingTour, RepoBranchSwitcher, Studio, Studio Docs, Studio Hub, Studio Intro Video, Docs Infographics, Commands Overview, Agency Hero, Horizon Landing, Maude Video Intro, Smoke TSX)
 ```
 
 `_server.json`, `_active.json`, `_history/`, `_canvas-state/`, `_chat/`, `_comments/`, `_untrusted/`, `_trash/`, `_draw/`, `_sync.json`, `_locator.json`, `_export-history.json` are gitignored dev-server runtime state — they are not part of the versioned design source (see DDR-115 in the parent repo for the full taxonomy).

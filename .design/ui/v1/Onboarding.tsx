@@ -15,8 +15,8 @@
  * in the studio shell — that is the one deliberate divergence from GitHubIdentity.tsx.
  */
 
-import "../system/maude/colors_and_type.css";
-import "../system/maude/preview/_components.css";
+import "../../system/maude/colors_and_type.css";
+import "../../system/maude/preview/_components.css";
 import "./Onboarding.css";
 import { DesignCanvas, DCSection, DCArtboard } from "@maude/canvas-lib";
 

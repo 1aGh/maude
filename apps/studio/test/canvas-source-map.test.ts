@@ -78,8 +78,8 @@ const REAL = [
   '.design/ui/v2/05 Empty States.tsx',
   '.design/ui/v2/06 Advanced.tsx',
   '.design/ui/v2/10 Share and Collaboration.tsx',
-  '.design/ui/Studio.tsx',
-  '.design/ui/DiffView.tsx',
+  '.design/ui/v1/Studio.tsx',
+  '.design/ui/v1/DiffView.tsx',
 ];
 
 /** Literal artboard ids by a plain scan of the comment-free text (the oracle the parser must meet). */

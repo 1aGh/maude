@@ -13,8 +13,8 @@
  * ring on the anchored control — exactly how overlay.jsx renders at runtime.
  */
 
-import "../system/maude/colors_and_type.css";
-import "../system/maude/preview/_components.css";
+import "../../system/maude/colors_and_type.css";
+import "../../system/maude/preview/_components.css";
 import "./OnboardingTour.css";
 import { DesignCanvas, DCSection, DCArtboard } from "@maude/canvas-lib";
 

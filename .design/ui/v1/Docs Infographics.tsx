@@ -19,8 +19,8 @@
  * preview `_components.css`.
  */
 
-import "../system/maude/colors_and_type.css";
-import "../system/maude/preview/_components.css";
+import "../../system/maude/colors_and_type.css";
+import "../../system/maude/preview/_components.css";
 import "./Docs Infographics.css";
 import { DesignCanvas, DCSection, DCArtboard } from "@maude/canvas-lib";
 import type { ReactNode } from "react";

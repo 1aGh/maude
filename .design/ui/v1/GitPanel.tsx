@@ -19,8 +19,8 @@
  */
 
 import { useEffect, useRef } from "react";
-import "../system/maude/colors_and_type.css";
-import "../system/maude/preview/_components.css";
+import "../../system/maude/colors_and_type.css";
+import "../../system/maude/preview/_components.css";
 import "./GitPanel.css";
 import { DesignCanvas, DCSection, DCArtboard } from "@maude/canvas-lib";
 

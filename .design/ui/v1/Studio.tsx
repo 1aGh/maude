@@ -22,8 +22,8 @@ import { useState } from "react";
 // (app.jsx canvasUrl, ~L113). Importing the maude tokens here makes the canvas
 // self-contained so it renders in maude no matter what the host injects; the
 // `.maude[data-theme]` scope (specificity 0,2,0) wins over any `:root` pollution.
-import "../system/maude/colors_and_type.css";
-import "../system/maude/preview/_components.css";
+import "../../system/maude/colors_and_type.css";
+import "../../system/maude/preview/_components.css";
 import "./Studio.css";
 import { DesignCanvas, DCSection, DCArtboard } from "@maude/canvas-lib";
 

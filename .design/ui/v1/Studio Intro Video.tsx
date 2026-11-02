@@ -11,8 +11,8 @@
  * Authored under the `maude` DS. Self-imports the maude tokens + shared component classes.
  */
 
-import "../system/maude/colors_and_type.css";
-import "../system/maude/preview/_components.css";
+import "../../system/maude/colors_and_type.css";
+import "../../system/maude/preview/_components.css";
 import "./Studio Intro Video.css";
 import { DesignCanvas, DCSection, DCArtboard } from "@maude/canvas-lib";
 

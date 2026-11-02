@@ -15,8 +15,8 @@
  * "draft" / "Shared version" / "Get latest", never branch/merge/commit/pull.
  */
 
-import "../system/maude/colors_and_type.css";
-import "../system/maude/preview/_components.css";
+import "../../system/maude/colors_and_type.css";
+import "../../system/maude/preview/_components.css";
 import "./LiveCollab.css";
 import { DesignCanvas, DCSection, DCArtboard } from "@maude/canvas-lib";
 

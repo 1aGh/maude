@@ -24,7 +24,7 @@
  * @history     .design/_history/cloud-collab-teaser/
  */
 
-import "../system/maude/colors_and_type.css";
+import "../../system/maude/colors_and_type.css";
 import { DesignCanvas, DCSection, DCArtboard, VideoComp } from "@maude/canvas-lib";
 import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 

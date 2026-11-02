@@ -19,8 +19,8 @@
  */
 
 // Self-contained: pin the maude tokens + shared component classes to this canvas.
-import "../system/maude/colors_and_type.css";
-import "../system/maude/preview/_components.css";
+import "../../system/maude/colors_and_type.css";
+import "../../system/maude/preview/_components.css";
 import "./Studio Docs.css";
 import { DesignCanvas, DCSection, DCArtboard } from "@maude/canvas-lib";
 

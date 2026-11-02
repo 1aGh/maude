@@ -20,8 +20,8 @@
  * content (feed / tool-call card / composer / states) is canvas-local (`chat-*`).
  */
 
-import "../system/maude/colors_and_type.css";
-import "../system/maude/preview/_components.css";
+import "../../system/maude/colors_and_type.css";
+import "../../system/maude/preview/_components.css";
 import "./Studio.css";
 import "./ChatPanel.css";
 import { DesignCanvas, DCSection, DCArtboard } from "@maude/canvas-lib";

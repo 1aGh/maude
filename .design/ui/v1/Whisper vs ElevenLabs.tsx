@@ -14,7 +14,7 @@
  * artboards show exactly what each engine produced.
  */
 
-import "../system/maude/colors_and_type.css";
+import "../../system/maude/colors_and_type.css";
 import { DesignCanvas, DCSection, DCArtboard } from "@maude/canvas-lib";
 import { useMemo, useRef, useState } from "react";
 

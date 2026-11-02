@@ -31,8 +31,8 @@
  * so the canvas is self-contained (Studio / Studio Hub precedent + DDR-093).
  */
 
-import "../system/maude/colors_and_type.css";
-import "../system/maude/preview/_components.css";
+import "../../system/maude/colors_and_type.css";
+import "../../system/maude/preview/_components.css";
 import "./Cloud Self Service.css";
 import { DesignCanvas, DCSection, DCArtboard } from "@maude/canvas-lib";
 

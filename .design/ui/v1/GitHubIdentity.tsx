@@ -16,8 +16,8 @@
  * — so the surface always reads in context. Mirrors GitPanel.tsx.
  */
 
-import "../system/maude/colors_and_type.css";
-import "../system/maude/preview/_components.css";
+import "../../system/maude/colors_and_type.css";
+import "../../system/maude/preview/_components.css";
 import "./GitHubIdentity.css";
 import { DesignCanvas, DCSection, DCArtboard } from "@maude/canvas-lib";
 

@@ -1,6 +1,6 @@
 // S12.16 fix — an edit inside a helper component reaches the artboards that render it (S5 journey).
 //
-// The S5 journey fixture (`app5`: this repo's `.design/ui/GitPanel.tsx`) wraps every artboard's
+// The S5 journey fixture (`app5`: this repo's `.design/ui/v1/GitPanel.tsx`) wraps every artboard's
 // content in helper components defined in the same file. Before, any change outside a `DCArtboard`
 // span reached the whole file, so another AI's hold on one artboard blocked an edit to a helper
 // only other artboards use. Soundness (S5.4, one AI per artboard): a helper shared by two
@@ -13,7 +13,7 @@ import { join } from 'node:path';
 import { changedArtboards } from '../agent-runs.ts';
 
 const FIXTURE = readFileSync(
-  join(import.meta.dir, '..', '..', '..', '.design', 'ui', 'GitPanel.tsx'),
+  join(import.meta.dir, '..', '..', '..', '.design', 'ui', 'v1', 'GitPanel.tsx'),
   'utf8'
 );
 const ALL = ['changes', 'save-version', 'publish', 'empty', 'conflict'];

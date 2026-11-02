@@ -13,8 +13,8 @@
  * BOTTOM of the sidebar, mirroring IdentityBar.jsx (`gi-rail`).
  */
 
-import "../system/maude/colors_and_type.css";
-import "../system/maude/preview/_components.css";
+import "../../system/maude/colors_and_type.css";
+import "../../system/maude/preview/_components.css";
 import "./RepoBranchSwitcher.css";
 import { DesignCanvas, DCSection, DCArtboard } from "@maude/canvas-lib";
 
