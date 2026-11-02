@@ -58,6 +58,8 @@ export const V2_CODE_IDS = new Set([
   'testid:client/v2/ds/upgrade-sheet.jsx#stage/dialog/ds-upgrade-gain', // r4 #11 Bring it up says why and works in a corner card
   'testid:client/v2/ds/upgrade-sheet.jsx#stage/dialog/ds-upgrade-gains', // r4 #11 Bring it up says why and works in a corner card
   'testid:client/v2/ds/upgrade-sheet.jsx#stage/dialog/ds-upgrade-hide', // r4 #11 Bring it up says why and works in a corner card
+  'testid:studio/video-play-overlay.tsx#other/video-play-button', // r5-2 the play button on a placed video
+  'testid:studio/video-play-overlay.tsx#other/video-play-layer', // r5-2 the play button on a placed video
 ]);
 
 /** Entries that are infrastructure, not features (lead decision, V2-4.gate-b): id → reason. Excluded
