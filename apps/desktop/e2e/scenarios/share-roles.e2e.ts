@@ -237,7 +237,9 @@ describe('Share roles: Can view asks, Can edit is removed, a link is turned off 
     await petra.locator(tid('share-cluster-ask')).waitFor({ timeout: STEP_MS });
     expect(await petra.locator(tid('share-cluster-share')).count()).toBe(0);
     await selectMode(petra, 'viewing');
-    expect(await frameOf(petra).locator('[role="toolbar"][aria-label="Canvas tools"]').count()).toBe(0);
+    expect(
+      await frameOf(petra).locator('[role="toolbar"][aria-label="Canvas tools"]').count()
+    ).toBe(0);
 
     // She tries to drag the headline: nothing moves, one tip says why.
     const box = await frameOf(petra).locator('h1').first().boundingBox();
