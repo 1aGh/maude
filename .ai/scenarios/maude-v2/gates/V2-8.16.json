@@ -3,16 +3,12 @@
   "pass": true,
   "qualityHash": "ca053cd5bbc8fa64231dfde679d7b0108280b8f384c154322c75c50c872e7071",
   "reportHashes": {
-    ".ai/plans/notes/v2-evidence/V2-8.16-ai-parity.md": "64cab38feb81bec24406c06978950b233d7f38c28826e9acde4b0f502e35ef87",
-    ".ai/plans/notes/v2-evidence/V2-8.16-eval/VERDICT.md": "25133277e12164baefc57105fd18d4817d8e6f9cccc2f5aa5f3b8c243d2c14d5",
-    ".ai/plans/notes/v2-evidence/V2-8.16-journeys/2026-10-31-freeze/VERDICT.md": "434871f33ec719c8146f10be261fc270915f4a8c6fd498e1ec0ddfb24cd5afa7"
+    ".ai/plans/notes/v2-evidence/V2-8.16-ai-parity.md": "64cab38feb81bec24406c06978950b233d7f38c28826e9acde4b0f502e35ef87"
   },
-  "head": "aeb2ba166612744f416adb9052d524381b8a72d3",
-  "ts": "2026-11-02T08:49:21.289Z",
+  "head": "62146d9d4f5073997e6916137ebfd085ea9b7adb",
+  "ts": "2026-11-02T10:18:39.607Z",
   "reports": [
-    ".ai/plans/notes/v2-evidence/V2-8.16-ai-parity.md",
-    ".ai/plans/notes/v2-evidence/V2-8.16-eval/VERDICT.md",
-    ".ai/plans/notes/v2-evidence/V2-8.16-journeys/2026-10-31-freeze/VERDICT.md"
+    ".ai/plans/notes/v2-evidence/V2-8.16-ai-parity.md"
   ],
-  "note": "final: coverage 512/512 actions with an agent path at the tip; r4/r5 changed no verb, registry or ACP file — only plugin text (setup-ds starts with ds make, canvas-first; UX-TOK-5 picker line; label single-quoted), so the 30-task eval 24/30 pass^3 and journeys S1-S11 stand"
+  "note": "final at 62146d9d4: coverage 512/512 actions with an agent path (check-v2-ai-parity re-run at the tip), eval 24/30 pass^3 and journeys 19/22 as before; product diff aeb2ba166..62146d9d4 = 3 files: edit-shapes e2e spec (click the field before esc), two dead .insp-pop-custom CSS rules removed (V2-8.0 inventory) + the rebuilt styles.css — no verb, registry or ACP file"
 }

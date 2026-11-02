@@ -3,14 +3,12 @@
   "pass": true,
   "qualityHash": "ca053cd5bbc8fa64231dfde679d7b0108280b8f384c154322c75c50c872e7071",
   "reportHashes": {
-    ".ai/plans/notes/v2-evidence/V2-8.9-r45-delta.md": "c76ccf6d3e9e7b7171b11062b7ce92d3d4323338e322b1e9f24492e981b13c4d",
-    ".ai/plans/notes/v2-evidence/V2-8.9-r3-delta.md": "04113caea1239281b8742aab5cd77d56b028a192eaa71d4f237f0ecf2e94a65d"
+    ".ai/plans/notes/v2-evidence/V2-8.9-r45-delta.md": "c76ccf6d3e9e7b7171b11062b7ce92d3d4323338e322b1e9f24492e981b13c4d"
   },
-  "head": "aeb2ba166612744f416adb9052d524381b8a72d3",
-  "ts": "2026-11-02T08:49:21.180Z",
+  "head": "62146d9d4f5073997e6916137ebfd085ea9b7adb",
+  "ts": "2026-11-02T10:18:39.386Z",
   "reports": [
-    ".ai/plans/notes/v2-evidence/V2-8.9-r45-delta.md",
-    ".ai/plans/notes/v2-evidence/V2-8.9-r3-delta.md"
+    ".ai/plans/notes/v2-evidence/V2-8.9-r45-delta.md"
   ],
-  "note": "final: r3 delta (0 above low) + r4+r5 delta over fa52b24c6..e8bbcc07d: one medium (Copy link handed out an unconfirmed config URL — device-code phishing chain) and two lows fixed red-first in e56f9b6a5; three lows in pr-followups; no route-table or MCP change"
+  "note": "final at 62146d9d4: r3 delta (0 above low) + r4+r5 delta (one medium + two lows fixed red-first in e56f9b6a5) unchanged; product diff aeb2ba166..62146d9d4 = 3 files: edit-shapes e2e spec (click the field before esc), two dead .insp-pop-custom CSS rules removed (V2-8.0 inventory) + the rebuilt styles.css — no auth, input, network, IPC or storage surface, nothing to re-review"
 }

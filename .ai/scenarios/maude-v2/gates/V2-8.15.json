@@ -5,10 +5,10 @@
   "reportHashes": {
     ".ai/plans/notes/v2-evidence/V2-8.15-docs.md": "9fe88e4be553bd4a8732cd167ed2c62e891e0a839962b511ca16b57ea5865a39"
   },
-  "head": "aeb2ba166612744f416adb9052d524381b8a72d3",
-  "ts": "2026-11-02T08:49:21.234Z",
+  "head": "62146d9d4f5073997e6916137ebfd085ea9b7adb",
+  "ts": "2026-11-02T10:18:39.496Z",
   "reports": [
     ".ai/plans/notes/v2-evidence/V2-8.15-docs.md"
   ],
-  "note": "final: r3 + r4 + r5 people and agent docs (getting-started, desktop/window, design/index, design-system-schema; ux-patterns UX-TOK-5; setup-ds canvas-first); gen-plugin-surfaces --check 0, plugin-v2-words 0, docs drift tests green, gen:stats committed"
+  "note": "final at 62146d9d4: r3+r4+r5 people and agent docs as attested at aeb2ba166; gen-plugin-surfaces --check 0 (84 files), gen-actions --check 0; product diff aeb2ba166..62146d9d4 = 3 files: edit-shapes e2e spec (click the field before esc), two dead .insp-pop-custom CSS rules removed (V2-8.0 inventory) + the rebuilt styles.css — no copy or doc surface"
 }
