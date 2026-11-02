@@ -8,8 +8,10 @@
 //   Custom                            Solid: the saturation × brightness area, hue, opacity, eyedropper, Hex/RGB/HSL;
 //                                     Gradient: type, stops bar, stops + the picker for the selected stop;
 //                                     Image: upload or a path; then Recent and "On this page"
-//   Libraries                         Search, Recent, the design system's colours grouped by role (colour-groups.js); a
-//                                     two-theme system shows Light | Dark split diagonally; the selected token is ringed;
+//   Libraries                         Search, Recent, then the design system's colours as a LIST — one row per token, its
+//                                     swatch and its name, under a heading per role (colour-groups.js; r5-3, as Figma lists
+//                                     them); a two-theme system's swatch is split Light | Dark; the selected row is marked;
+//                                     no Solid · Gradient · Image here — those say what a fill IS and belong to Custom;
 //                                     with no system, one line and one action; None where a value may be absent
 // The popover opens on Libraries when the project has a design system and the colour is a token, else on Custom.
 // A raw colour committed in a system asks once (ds/off-system.jsx): "Use <nearest>" or "Add it to the system" (IR-10).
@@ -179,6 +181,7 @@ export function ColourPopover({
   value = null,
   showOpacity = false,
   canvasFile = null,
+  designRel = '.design',
   fillApi = null,
   anchorRef,
   onPick,
@@ -229,8 +232,9 @@ export function ColourPopover({
       .filter((g) => g.tokens.length);
   }, [colors, query]);
 
-  // top layer + collision-aware placement, measured once the popover has its size (and again when it grows)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: tab / kind / asked change the popover's height
+  // top layer: shown once, hidden once when the card goes. NOT on every tab / kind change (r5-4, Michal: "prepinani mezi
+  // taby sama zavre popoup"): hidePopover() hands focus back to whatever had it before the card opened — in the app the
+  // canvas frame — and the card's own focus-out handler then saw focus leave and closed it.
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return undefined;
@@ -239,6 +243,18 @@ export function ColourPopover({
     } catch {
       /* a host without the Popover API keeps it in flow, still placed */
     }
+    return () => {
+      try {
+        el.hidePopover?.();
+      } catch {}
+    };
+  }, []);
+
+  // collision-aware placement, measured once the popover has its size (and again when it grows)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: tab / kind / asked change the popover's height
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
     const measure = () => {
       const chip = anchorRef.current?.getBoundingClientRect?.();
       if (!chip) return;
@@ -255,12 +271,7 @@ export function ColourPopover({
     };
     measure();
     window.addEventListener('resize', measure);
-    return () => {
-      window.removeEventListener('resize', measure);
-      try {
-        el.hidePopover?.();
-      } catch {}
-    };
+    return () => window.removeEventListener('resize', measure);
   }, [anchorRef, tab, kind, asked, pageColours.length]);
 
   // F30: focus starts in Search (Libraries) or on the open tab (Custom). Not `autoFocus` — that runs at mount, before
@@ -362,6 +373,15 @@ export function ColourPopover({
     }
     if (at < 0) return;
     const cell = cells[at];
+    // a list row (Libraries): ↑ ↓ walk the rows one by one, the first row's ↑ goes back to Search
+    if (cell.dataset.list === 'true' && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      const to = cells[at + (e.key === 'ArrowDown' ? 1 : -1)];
+      e.preventDefault();
+      (
+        to ?? (e.key === 'ArrowUp' ? ref.current?.querySelector('[data-search="true"]') : null)
+      )?.focus?.();
+      return;
+    }
     const g = Number(cell.dataset.g);
     const i = Number(cell.dataset.i);
     const inGroup = (gi) => cells.filter((c) => Number(c.dataset.g) === gi);
@@ -446,7 +466,7 @@ export function ColourPopover({
           <X size={14} />
         </button>
       </div>
-      {fillApi ? (
+      {fillApi && tab === 'custom' ? (
         <div
           role="tablist"
           aria-label="Kind of fill"
@@ -487,7 +507,7 @@ export function ColourPopover({
           ) : kind === 'gradient' && fillApi ? (
             <GradientEditor name={name} gf={gf} vals={vals} />
           ) : fillApi ? (
-            <ImageEditor name={name} fillApi={fillApi} />
+            <ImageEditor name={name} fillApi={fillApi} designRel={designRel} />
           ) : null}
           {kind !== 'image' ? (
             <>
@@ -522,7 +542,7 @@ export function ColourPopover({
             groups.map((g, gi) => (
               <div key={g.id} className="insp-pop-g" data-testid={`insp-pop-group-${name}-${g.id}`}>
                 <p className="insp-pop-gt">{g.label}</p>
-                <div className="insp-pop-grid">
+                <div className="insp-pop-list">
                   {g.tokens.map((t, i) => {
                     const word = tokenLabel(t);
                     const on = current === t;
@@ -531,8 +551,9 @@ export function ColourPopover({
                         key={t}
                         type="button"
                         aria-pressed={on}
-                        className="insp-pop-cell"
+                        className="insp-pop-row"
                         data-cell="true"
+                        data-list="true"
                         data-g={gi}
                         data-i={i}
                         aria-label={`${word}, ${g.label}`}
@@ -541,6 +562,7 @@ export function ColourPopover({
                         onClick={() => pickPaint({ token: t })}
                       >
                         <Swatch sw={swatchOf(t, tokens)} />
+                        <span className="insp-pop-rn">{word}</span>
                       </button>
                     );
                   })}

@@ -1049,6 +1049,48 @@
   .insp-pop-cell[aria-pressed="true"] {
     box-shadow: 0 0 0 2px var(--accent);
   }
+  /* Libraries: one row per token — swatch, name — under its role heading (r5-3) */
+  .insp-pop-list {
+    display: flex;
+    flex-direction: column;
+  }
+  .insp-pop-row {
+    appearance: none;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 28px;
+    padding: 2px var(--space-1);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-0);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .insp-pop-row:hover {
+    background: var(--bg-3);
+  }
+  .insp-pop-row:focus-visible {
+    outline: 2px solid var(--focus-ring, var(--accent));
+    outline-offset: 1px;
+  }
+  .insp-pop-row[aria-pressed="true"] {
+    background: var(--bg-3);
+    box-shadow: inset 0 0 0 1.5px var(--accent);
+  }
+  .insp-pop-row .insp-pop-sw {
+    flex: none;
+    width: 20px;
+    height: 20px;
+  }
+  .insp-pop-rn {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .insp-pop-sw {
     display: block;
     width: 100%;
@@ -1401,5 +1443,40 @@
   }
   .insp-pk-image .insp-url-in {
     width: 100%;
+  }
+  /* the project's own pictures (Assets) — pick one instead of uploading (r5-6) */
+  .insp-pk-assets {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-1);
+    max-height: 176px;
+    overflow-y: auto;
+  }
+  .insp-pk-asset {
+    appearance: none;
+    position: relative;
+    aspect-ratio: 1;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+    overflow: hidden;
+    cursor: pointer;
+  }
+  .insp-pk-asset img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .insp-pk-asset:hover {
+    box-shadow: 0 0 0 1.5px var(--border-default);
+  }
+  .insp-pk-asset:focus-visible {
+    outline: 2px solid var(--focus-ring, var(--accent));
+    outline-offset: 1px;
+  }
+  .insp-pk-asset[aria-pressed="true"] {
+    box-shadow: 0 0 0 2px var(--accent);
   }
 }

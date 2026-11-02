@@ -214,6 +214,10 @@ export function ColorControl({
           value={value && !inherited ? value : null}
           showOpacity={showOpacity}
           canvasFile={ctx?.canvasFile ?? null}
+          designRel={(ctx?.cfg?.designRel || ctx?.cfg?.designRoot || '.design').replace(
+            /^\/+|\/+$/g,
+            ''
+          )}
           fillApi={fillApi}
           anchorRef={chipRef}
           onPick={pick}

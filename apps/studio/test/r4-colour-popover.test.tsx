@@ -20,6 +20,7 @@ const TOKENS = `:root{${[
   '--paper: oklch(0.98 0.01 90);',
   '--accent: oklch(0.6 0.15 250);',
 ].join('\n')}}`;
+let assetRows: Array<Record<string, unknown>> = [];
 let pageSource =
   '<div style={{ background: "#ff8800" }} /><i style={{ color: "#ff8800", border: "1px solid #00aa55" }} />';
 
@@ -29,6 +30,8 @@ beforeAll(() => {
   globalThis.fetch = (async (url: string, init?: { body?: unknown }) => {
     const u = String(url);
     if (u.endsWith('.css')) return new Response(TOKENS, { status: 200 });
+    if (u.startsWith('/_api/index?part=assets'))
+      return new Response(JSON.stringify({ ok: true, assets: assetRows }), { status: 200 });
     if (u.startsWith('/_api/canvas-source'))
       return new Response(
         JSON.stringify({
@@ -63,6 +66,7 @@ beforeEach(() => {
   posts.length = 0;
   optimistic.length = 0;
   recorded.length = 0;
+  assetRows = [];
   pageSource =
     '<div style={{ background: "#ff8800" }} /><i style={{ color: "#ff8800", border: "1px solid #00aa55" }} />';
   delete (window as unknown as { EyeDropper?: unknown }).EyeDropper;
@@ -208,6 +212,7 @@ describe('the tabs say what the fill is', () => {
     await openChip(host, 'insp-ctl-fill');
     expect(q(host, 'insp-tab-custom-fill')?.textContent).toBe('Custom');
     expect(q(host, 'insp-tab-libraries-fill')?.textContent).toBe('Libraries');
+    await click(q(host, 'insp-tab-custom-fill')); // the kinds say what the fill IS: Custom only (r5-3)
     const kinds = [...must(q(host, 'insp-kinds-fill'), 'kinds').querySelectorAll('button')].map(
       (b) => b.textContent
     );
@@ -542,5 +547,232 @@ describe('no dead controls', () => {
     await typeIn(q(host, 'insp-colorin-fill'), '#1e6bff');
     expect(written()).toEqual({ background: '#1e6bff' });
     expect(q(host, 'ds-off-system')).toBeNull(); // no system, no question
+  });
+});
+
+// ── r5 (Michal, READY TO TRY 13) ────────────────────────────────────────────────────────────────────────────────────
+const ptr = (el: Element, type: string, x: number, id = 1) => {
+  const e = new window.Event(type, { bubbles: true, cancelable: true });
+  Object.defineProperty(e, 'clientX', { value: x });
+  Object.defineProperty(e, 'clientY', { value: 0 });
+  Object.defineProperty(e, 'pointerId', { value: id });
+  return act(async () => {
+    el.dispatchEvent(e);
+  });
+};
+
+describe('r5-3 Libraries is a list of named rows', () => {
+  test('no Solid · Gradient · Image tabs on Libraries; they stay on Custom', async () => {
+    const host = await one();
+    await openChip(host, 'insp-ctl-fill'); // a token colour opens on Libraries
+    expect(q(host, 'insp-tab-libraries-fill')?.getAttribute('aria-selected')).toBe('true');
+    expect(q(host, 'insp-kinds-fill')).toBeNull();
+    await click(q(host, 'insp-tab-custom-fill'));
+    expect(q(host, 'insp-kinds-fill')).not.toBeNull();
+    await click(q(host, 'insp-tab-libraries-fill'));
+    expect(q(host, 'insp-kinds-fill')).toBeNull();
+  });
+
+  test('every token is a row with its swatch and its name, grouped under a heading; search filters; a click writes it', async () => {
+    const host = await one();
+    await openChip(host, 'insp-ctl-fill');
+    const ink = must(q(host, 'insp-color-fill-ink'), 'ink row');
+    expect(ink.classList.contains('insp-pop-row')).toBe(true);
+    expect(ink.querySelector('.insp-pop-sw')).not.toBeNull();
+    expect(ink.textContent).toContain('Ink');
+    expect(
+      ink.closest('[data-testid^="insp-pop-group-fill-"]')?.querySelector('.insp-pop-gt')
+    ).not.toBeNull();
+    expect(host.querySelectorAll('.insp-pop-row').length).toBeGreaterThanOrEqual(5);
+    await typeIn(q(host, 'insp-pop-search-fill'), 'paper', false);
+    const left = [...host.querySelectorAll('.insp-pop-row')].map((r) => r.textContent);
+    expect(left).toEqual(['Paper']);
+    await click(q(host, 'insp-color-fill-paper'));
+    expect(written()).toEqual({ background: 'var(--paper)' });
+  });
+
+  test('↓ walks the rows one by one, ↑ goes back to Search', async () => {
+    const host = await one();
+    await openChip(host, 'insp-ctl-fill');
+    const pop = must(q(host, 'insp-menu-fill'), 'popover');
+    const rows = [...host.querySelectorAll<HTMLElement>('.insp-pop-row')];
+    rows[0].focus();
+    await call(pop, 'onKeyDown', { key: 'ArrowDown', target: rows[0] });
+    expect(document.activeElement).toBe(rows[1]);
+    await call(pop, 'onKeyDown', { key: 'ArrowUp', target: rows[1] });
+    expect(document.activeElement).toBe(rows[0]);
+    // above the first row: the Recent swatches when there are some (an earlier test picked a colour), else Search
+    const cells = [...pop.querySelectorAll('[data-cell]')];
+    const above = cells[cells.indexOf(rows[0]) - 1] ?? q(host, 'insp-pop-search-fill');
+    await call(pop, 'onKeyDown', { key: 'ArrowUp', target: rows[0] });
+    expect(document.activeElement).toBe(above);
+  });
+});
+
+describe('r5-4 switching tabs never closes the card', () => {
+  // The Popover API returns focus to whatever had it before the card opened (in the app: the canvas frame) when the
+  // popover is hidden. The old effect hid and re-showed the popover on every tab / kind change, so the card's own focus
+  // handler saw focus leave and closed it. Emulate that return.
+  let hides = 0;
+  let outside: HTMLElement | null = null;
+  const proto = () => window.HTMLElement.prototype as unknown as Record<string, unknown>;
+  const saved: Record<string, unknown> = {};
+  beforeEach(() => {
+    hides = 0;
+    for (const k of ['showPopover', 'hidePopover']) saved[k] = proto()[k];
+    proto().showPopover = () => {};
+    proto().hidePopover = function (this: HTMLElement) {
+      hides += 1;
+      const active = document.activeElement;
+      if (outside && active && this.contains(active)) {
+        outside.focus();
+        const ev = new window.Event('focusout', { bubbles: true });
+        Object.defineProperty(ev, 'relatedTarget', { value: outside });
+        active.dispatchEvent(ev);
+      }
+    };
+    outside = document.createElement('iframe');
+    document.body.append(outside);
+  });
+  afterEach(() => {
+    for (const k of ['showPopover', 'hidePopover']) proto()[k] = saved[k];
+    outside?.remove();
+  });
+
+  test('Custom ↔ Libraries and Solid · Gradient · Image leave the card open, focused tab or not', async () => {
+    const host = await one({ authored: { background: '#336699' } });
+    await openChip(host, 'insp-ctl-fill');
+    const steps = [
+      'insp-tab-libraries-fill',
+      'insp-tab-custom-fill',
+      'insp-kind-gradient-fill',
+      'insp-kind-image-fill',
+      'insp-kind-solid-fill',
+      'insp-kind-gradient-fill',
+    ];
+    const before = hides;
+    for (const id of steps) {
+      const b = must(q(host, id), id);
+      b.focus();
+      await ptr(b, 'pointerdown', 5);
+      await click(b, id);
+      expect(q(host, 'insp-menu-fill')).not.toBeNull();
+    }
+    expect(hides).toBe(before); // the popover is hidden once, when the card goes away — never to switch a tab
+  });
+});
+
+describe('r5-5 the gradient stops drag', () => {
+  const open = async () => {
+    const host = await one({ authored: { ...GRADIENT } });
+    await openChip(host, 'insp-ctl-fill');
+    const bar = must(q(host, 'insp-gbar-fill'), 'bar');
+    // a real-sized bar: 200 px wide, 10 px from the left edge
+    bar.getBoundingClientRect = () =>
+      ({
+        left: 10,
+        right: 210,
+        top: 0,
+        bottom: 24,
+        width: 200,
+        height: 24,
+        x: 10,
+        y: 0,
+      }) as DOMRect;
+    return { host, bar };
+  };
+  // the browser sends a captured pointer's moves to the element that captured it
+  let captured: Element | null = null;
+  const hp = () => window.HTMLElement.prototype as unknown as Record<string, unknown>;
+  let savedCapture: unknown;
+  beforeEach(() => {
+    captured = null;
+    savedCapture = hp().setPointerCapture;
+    hp().setPointerCapture = function (this: Element) {
+      captured = this;
+    };
+  });
+  afterEach(() => {
+    hp().setPointerCapture = savedCapture;
+  });
+  const grab = async (host: HTMLElement, i: number, x: number) => {
+    const stop = must(q(host, `insp-gstop-fill-${i}`), 'stop');
+    await ptr(stop, 'pointerdown', x);
+    return stop;
+  };
+
+  test('grab the last ball, drag it to the middle: the bar follows live, the release writes once', async () => {
+    const { host } = await open();
+    const stop = await grab(host, 1, 210);
+    const target = captured ?? stop;
+    await ptr(target, 'pointermove', 110);
+    expect(optimistic.length).toBeGreaterThan(0); // the canvas followed
+    expect(edits()).toEqual([]); // nothing written mid-drag
+    await ptr(target, 'pointermove', 60);
+    await ptr(target, 'pointerup', 60);
+    expect(parseGradient(lastImage())?.stops.map((s) => s.pos)).toEqual([0, 25]);
+    expect(edits().filter((p) => p.body.property === 'background-image').length).toBe(1);
+  });
+
+  test('a ball dragged past another one is still the ball in the hand', async () => {
+    const { host } = await open();
+    await click(q(host, 'insp-gadd-fill')); // stops at 0, 50, 100
+    const stop = await grab(host, 0, 10);
+    const target = captured ?? stop;
+    await ptr(target, 'pointermove', 160); // 75 %: past the middle ball
+    await ptr(target, 'pointermove', 190); // 90 %
+    await ptr(target, 'pointerup', 190);
+    const g = parseGradient(lastImage());
+    expect(g?.stops.map((s) => s.pos)).toEqual([50, 90, 100]);
+    expect(g?.stops[1].color).toBe('#ff0000'); // the red ball, moved
+  });
+
+  test('a press on the bar still adds a stop; moves without a grab change nothing', async () => {
+    const { bar } = await open();
+    await ptr(bar, 'pointermove', 100);
+    expect(edits()).toEqual([]);
+    await ptr(bar, 'pointerdown', 110);
+    expect(parseGradient(lastImage())?.stops.length).toBe(3);
+  });
+});
+
+describe('r5-6 the Image tab picks from Assets', () => {
+  const rows = () => [
+    { rel: 'assets/a1b2c3d4.png', kind: 'image', size: 10, mtimeMs: 3 },
+    { rel: 'assets/clip0001.mp4', kind: 'video', size: 10, mtimeMs: 2 },
+    { rel: 'assets/hero.jpg', kind: 'image', size: 10, mtimeMs: 1 },
+  ];
+  const openImage = async () => {
+    const host = await one();
+    await openChip(host, 'insp-ctl-fill');
+    await click(q(host, 'insp-tab-custom-fill'));
+    await click(q(host, 'insp-kind-image-fill'));
+    await settle();
+    return host;
+  };
+
+  test('the project’s pictures are listed (no video), each with its name; choosing one fills with it', async () => {
+    assetRows = rows();
+    const host = await openImage();
+    const items = [...host.querySelectorAll('[data-testid^="insp-image-asset-fill-"]')];
+    expect(items.map((i) => i.getAttribute('data-asset'))).toEqual([
+      'assets/a1b2c3d4.png',
+      'assets/hero.jpg',
+    ]);
+    expect(items[0].querySelector('img')?.getAttribute('src')).toBe('/.design/assets/a1b2c3d4.png');
+    expect(items[1].getAttribute('aria-label')).toContain('hero.jpg');
+    await click(items[1]);
+    const w = written();
+    expect(w.background).toBeNull();
+    expect(w['background-image']).toBe('url("assets/hero.jpg")');
+    expect(q(host, 'insp-image-name-fill')?.textContent).toBe('hero.jpg');
+  });
+
+  test('Upload and the path field are still there; an empty Assets says so', async () => {
+    const host = await openImage();
+    expect(q(host, 'insp-image-upload-fill')).not.toBeNull();
+    expect(q(host, 'insp-image-url-fill')).not.toBeNull();
+    expect(q(host, 'insp-image-assets-empty-fill')?.textContent).toContain('Assets');
+    expect(host.querySelectorAll('[data-testid^="insp-image-asset-fill-"]').length).toBe(0);
   });
 });
