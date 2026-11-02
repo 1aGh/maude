@@ -1259,8 +1259,13 @@ function watchStylesheetsOnce(): void {
     new MutationObserver((records) => {
       if (!_dsThemeUnsupported) return; // nothing cached that could be stale
       for (const r of records) {
+        // the probe's own scratch nodes and the follow rule's own <style> are not news: re-asking on them
+        // re-ran the probe forever on a canvas with no Dark (r5 full-suite hang)
+        if ((r.target as Element | null)?.hasAttribute?.('data-dc-probe')) continue;
         for (const n of Array.from(r.addedNodes)) {
           const el = n as Element;
+          if (el.nodeType !== 1) continue;
+          if (el.hasAttribute?.('data-dc-probe') || el.id === 'dc-artboard-theme-css') continue;
           const tag = el.tagName;
           if (tag === 'STYLE' || tag === 'LINK') return invalidate();
           // the first DS wrapper arriving after a probe that had none to look at
@@ -1305,6 +1310,7 @@ export function detectDsThemeSupport(): DsThemeSupport {
   try {
     const host = document.createElement('div');
     host.setAttribute('aria-hidden', 'true');
+    host.setAttribute('data-dc-probe', '');
     host.style.cssText =
       'position:absolute;left:-9999px;top:0;width:0;height:0;overflow:hidden;pointer-events:none;';
     document.body.appendChild(host);
