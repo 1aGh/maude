@@ -5,10 +5,10 @@
   "reportHashes": {
     ".ai/plans/notes/v2-evidence/V2-8.15-docs.md": "9fe88e4be553bd4a8732cd167ed2c62e891e0a839962b511ca16b57ea5865a39"
   },
-  "head": "00aebbb0c63241715a8998404e34e75812cdbda0",
-  "ts": "2026-11-02T16:20:57.942Z",
+  "head": "4597c1b56449078c2e7c40c15ac1b727a69b36ec",
+  "ts": "2026-11-02T17:03:04.221Z",
   "reports": [
     ".ai/plans/notes/v2-evidence/V2-8.15-docs.md"
   ],
-  "note": "final; gen-plugin-surfaces/gen-actions --check 0; TESTIDS.md + testids.json updated with the 5 removed hooks. r6 (Michal 2026-11-02, scoped re-check per kg v2-michal-gates-scoped-recheck): the product diff 71ec8ec75..18e10e9e3 is the Inspector Fill + (now opens the picker on Custom; the Colour/Gradient/Image add row and its 5 testids removed) and the DS bar's dark-values caption removed — re-checked by V2-8.1 at 18e10e9e3, the inspector/ds-board tests, inspector-colour browser e2e and edit-shapes desktop e2e 2/2"
+  "note": "final; gen-plugin-surfaces/gen-actions --check 0; TESTIDS.md + testids.json updated with the 5 removed hooks. r6 (Michal 2026-11-02, scoped re-check per kg v2-michal-gates-scoped-recheck): the product diff 71ec8ec75..18e10e9e3 is the Inspector Fill + (now opens the picker on Custom; the Colour/Gradient/Image add row and its 5 testids removed) and the DS bar's dark-values caption removed — re-checked by V2-8.1 at 18e10e9e3, the inspector/ds-board tests, inspector-colour browser e2e and edit-shapes desktop e2e 2/2 + 4597c1b56: CI-only test guards in scripts/test (macOS-only reap test, the CI better-sqlite3 ABI skip) — no product file"
 }
