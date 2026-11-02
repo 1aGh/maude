@@ -4995,8 +4995,13 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
    * half-moved tree — strictly worse than the un-rewritten imports that were
    * the status quo. A no-op rewrite writes nothing.
    */
-  async function rewriteCanvasImports(abs: string, fromDir: string, toDir: string): Promise<void> {
-    if (fromDir === toDir) return;
+  async function rewriteCanvasImports(
+    abs: string,
+    fromDir: string,
+    toDir: string,
+    relocate?: (target: string) => string | null
+  ): Promise<void> {
+    if (fromDir === toDir && !relocate) return;
     try {
       // NEVER DEREFERENCE A SYMLINK HERE. The move's containment checks cover
       // the source *directory* (`assertRealpathContained(path.dirname(...))`)
@@ -5011,7 +5016,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       const st = await lstat(abs);
       if (!st.isFile()) return;
       const source = await readFile(abs, 'utf8');
-      const next = rewriteRelativeImports(source, fromDir, toDir);
+      const next = rewriteRelativeImports(source, fromDir, toDir, relocate);
       // atomicWrite, not `writeFile` — this lands on a `.tsx` the fs-mirror is
       // watching, so a truncate-then-write can surface a partial-content watch
       // event (the exact hazard atomic-write.ts was built for), and a crash
@@ -5242,7 +5247,22 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     // itself already succeeded, and a rewrite failure must not leave the tree
     // half-moved — it leaves a build error the user can fix by hand, which is
     // exactly where they were before this existed.
-    await rewriteCanvasImports(toAbs, path.posix.dirname(rel), path.posix.dirname(toRel));
+    // issue #153 — the canvas's own files travel with it (`<name>.css` → `<new>.css`), so a specifier that named
+    // one must name where it went, in a same-folder rename too; the rest re-root for the new depth.
+    const travelling = new Map<string, string>();
+    for (const artifact of canvasArtifacts({ rel, paths })) {
+      if (artifact.kind === 'primary' || artifact.carryOnMove === false) continue;
+      const dest = relocatedName(artifact, rel, toRel, paths);
+      if (path.resolve(dest) === path.resolve(artifact.abs)) continue;
+      const posix = (abs: string) => path.relative(paths.designRoot, abs).split(path.sep).join('/');
+      travelling.set(posix(artifact.abs), posix(dest));
+    }
+    await rewriteCanvasImports(
+      toAbs,
+      path.posix.dirname(rel),
+      path.posix.dirname(toRel),
+      (target) => travelling.get(target) ?? null
+    );
 
     const moved: string[] = [path.relative(paths.repoRoot, toAbs)];
     for (const artifact of canvasArtifacts({ rel, paths })) {
@@ -5554,10 +5574,16 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       // Same depth change as moveCanvas, once per nested canvas (issue #114).
       // A folder move relocates every canvas inside it by the same delta, but
       // each one's own dir differs, so the rewrite is per file, not per folder.
+      // a sibling inside the moved folder moved with it (issue #153): point at its new place, don't re-root back
       await rewriteCanvasImports(
         path.join(paths.designRoot, toRel),
         path.posix.dirname(fromRel),
-        path.posix.dirname(toRel)
+        path.posix.dirname(toRel),
+        (target) =>
+          target === relDir.replace(/\/+$/, '') ||
+          target.startsWith(`${relDir.replace(/\/+$/, '')}/`)
+            ? path.posix.join(toRelDir, target.slice(relDir.replace(/\/+$/, '').length))
+            : null
       );
       for (const artifact of canvasArtifacts({ rel: fromRel, paths })) {
         if (artifact.kind !== 'slug-keyed') continue; // primary/siblings already moved with the dir

@@ -71,19 +71,38 @@ export function rerootSpecifier(spec: string, fromDir: string, toDir: string): s
  * Rewrite every relative import in `source` for a file that moved from
  * `fromDir` to `toDir` (both POSIX, design-root-relative).
  *
- * Returns the source unchanged when the two dirs are the same or nothing
- * relative was found, so a caller can cheaply skip the write.
+ * `relocate` answers for the files that moved WITH the canvas (issue #153): a target it maps — the canvas's own
+ * `<name>.css` renamed to `<new>.css`, a sibling inside a moved folder — is pointed at where that file went,
+ * not re-rooted back to where it was. Every other relative specifier re-roots for the new folder depth.
+ *
+ * Returns the source unchanged when nothing relative needed a change, so a caller can cheaply skip the write.
  */
-export function rewriteRelativeImports(source: string, fromDir: string, toDir: string): string {
+export function rewriteRelativeImports(
+  source: string,
+  fromDir: string,
+  toDir: string,
+  relocate?: (target: string) => string | null
+): string {
   const from = path.posix.normalize(fromDir === '' ? '.' : fromDir);
   const to = path.posix.normalize(toDir === '' ? '.' : toDir);
-  if (from === to) return source;
+  if (from === to && !relocate) return source;
   let out = source;
   for (const pattern of SPECIFIER_PATTERNS) {
     out = out.replace(pattern, (whole, lead: string, quote: string, spec: string) => {
       if (!isRelativeSpecifier(spec)) return whole;
+      const moved = relocate?.(path.posix.normalize(path.posix.join(from, spec)));
+      if (moved) return `${lead}${quote}${specifierTo(moved, to, spec.endsWith('/'))}${quote}`;
+      if (from === to) return whole;
       return `${lead}${quote}${rerootSpecifier(spec, from, to)}${quote}`;
     });
   }
   return out;
+}
+
+/** The relative specifier from `dir` to the design-root-relative `target` (`./` kept, a trailing `/` kept). */
+function specifierTo(target: string, dir: string, trailingSlash: boolean): string {
+  let next = path.posix.relative(dir, target);
+  if (!next.startsWith('.')) next = `./${next}`;
+  if (trailingSlash && !next.endsWith('/')) next = `${next}/`;
+  return next;
 }
