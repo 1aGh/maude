@@ -531,6 +531,37 @@ describe('/_api/fs-move — folder move (Task 11)', () => {
     }
   });
 
+  // issue #153's sibling case: a folder move carries `Card.css` with `Card.tsx`, so `./Card.css` stays as written;
+  // only a file OUTSIDE the moved folder re-roots for the new depth.
+  test('a folder move keeps imports of files inside the folder and re-roots the rest', async () => {
+    const { root, designRoot } = makeSandbox();
+    const port = nextPort();
+    const proc = await bootServer(root, port);
+    try {
+      await createBoard(port, 'Card', 'ui');
+      expect((await move(port, 'ui/Card.tsx', 'ui/Kit')).status).toBe(200);
+      writeFileSync(
+        join(designRoot, 'ui', 'Kit', 'Card.tsx'),
+        [
+          'import { DCArtboard } from "@maude/canvas-lib";',
+          'import "./Card.css";',
+          'import "../shared.css";',
+          'export default function Card() { return <DCArtboard />; }',
+          '',
+        ].join('\n'),
+        'utf8'
+      );
+      writeFileSync(join(designRoot, 'ui', 'Kit', 'Card.css'), '.x { color: red; }\n');
+      writeFileSync(join(designRoot, 'ui', 'shared.css'), '.y { color: blue; }\n');
+      expect((await move(port, 'ui/Kit', 'ui/Dest')).status).toBe(200);
+      const src = readFileSync(join(designRoot, 'ui', 'Dest', 'Kit', 'Card.tsx'), 'utf8');
+      expect(src).toContain('import "./Card.css"');
+      expect(src).toContain('import "../../shared.css"');
+    } finally {
+      await killProc(proc);
+    }
+  });
+
   // The same cache rule as a single-canvas move, for every canvas inside a
   // moved folder. Carried, the canvas's new document opened "moved away" on
   // the machine that renamed the folder, which released it and then missed
@@ -644,6 +675,75 @@ describe('canvas rename and duplicate', () => {
       expect(readFileSync(join(designRoot, `${j.toSlug}.annotations.json`), 'utf8')).toBe(BOARD_A);
       expect(existsSync(join(designRoot, 'ui-before.annotations.svg'))).toBe(false);
       expect(existsSync(join(designRoot, `${j.toSlug}.annotations.svg`))).toBe(true);
+    } finally {
+      await killProc(proc);
+    }
+  });
+
+  // issue #153: a rename in the same folder carried `dnes.css` along to the new name but left
+  // `import "./dnes.css"` pointing at the old one — the next build 500ed with `Could not resolve`.
+  test('a rename carries the canvas’s own .css and rewrites its import to the new name', async () => {
+    const { root, designRoot } = makeSandbox();
+    const port = nextPort();
+    const proc = await bootServer(root, port);
+    try {
+      const created = await createBoard(port, 'Dnes');
+      writeFileSync(
+        join(designRoot, 'ui', 'Dnes.tsx'),
+        [
+          'import { DCArtboard } from "@maude/canvas-lib";',
+          'import "./Dnes.css";',
+          'import "./shared.css";',
+          'export default function Dnes() { return <DCArtboard />; }',
+          '',
+        ].join('\n'),
+        'utf8'
+      );
+      writeFileSync(join(designRoot, 'ui', 'Dnes.css'), '.x { color: red; }\n');
+      writeFileSync(join(designRoot, 'ui', 'shared.css'), '.y { color: blue; }\n');
+      const r = await fetch(`http://localhost:${port}/_api/fs-move`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ file: created.rel, toName: 'Zitra' }),
+      });
+      expect(r.status).toBe(200);
+      expect(existsSync(join(designRoot, 'ui', 'Zitra.css'))).toBe(true);
+      expect(existsSync(join(designRoot, 'ui', 'Dnes.css'))).toBe(false);
+      const src = readFileSync(join(designRoot, 'ui', 'Zitra.tsx'), 'utf8');
+      expect(src).toContain('import "./Zitra.css"');
+      expect(src).not.toContain('Dnes.css');
+      // a sibling that did not move keeps its specifier
+      expect(src).toContain('import "./shared.css"');
+    } finally {
+      await killProc(proc);
+    }
+  });
+
+  test('a move to another folder points the canvas’s own .css import at where the .css went', async () => {
+    const { root, designRoot } = makeSandbox();
+    const port = nextPort();
+    const proc = await bootServer(root, port);
+    try {
+      const created = await createBoard(port, 'Poster');
+      writeFileSync(
+        join(designRoot, 'ui', 'Poster.tsx'),
+        [
+          'import { DCArtboard } from "@maude/canvas-lib";',
+          'import "./Poster.css";',
+          'import "./shared.css";',
+          'export default function Poster() { return <DCArtboard />; }',
+          '',
+        ].join('\n'),
+        'utf8'
+      );
+      writeFileSync(join(designRoot, 'ui', 'Poster.css'), '.x { color: red; }\n');
+      writeFileSync(join(designRoot, 'ui', 'shared.css'), '.y { color: blue; }\n');
+      const r = await move(port, created.rel, 'ui/print');
+      expect(r.status).toBe(200);
+      expect(existsSync(join(designRoot, 'ui', 'print', 'Poster.css'))).toBe(true);
+      const src = readFileSync(join(designRoot, 'ui', 'print', 'Poster.tsx'), 'utf8');
+      expect(src).toContain('import "./Poster.css"'); // it travelled with the canvas
+      expect(src).toContain('import "../shared.css"'); // it stayed where it was
     } finally {
       await killProc(proc);
     }
