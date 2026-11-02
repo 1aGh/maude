@@ -45,3 +45,17 @@ Screenshots `32b76e01…/images/45.png … 48.png`. After r5: quality → a shor
 | r5-6 | "v color picker image, mam moznost jen vybrat z pocitace nebo pridat link, ale nemam vubec moznost vybrat z mych assets" | gap: the Image tab picks from the project's Assets too | merged (M) | 528c28b0a
 | r5-7 | "dark/light mode mi nejak v canvases nefunguje treba tenhle maude '02 onboarding'" | bug: the global Light/Dark pill does not switch `.design/ui/v2/02 Onboarding.tsx` (find why: hardcoded colours, its own theme attr, no DS link) | merged (N) — engine selector bug, every kit canvas should switch; boards authored theme="dark" now follow the pill (r4-G) | a04f8e0b1
 | r5-8 | "chybi mi tam file path nekde, klidne bych ho dal na ten pill kde je light/dark prepinac a taky do more menu v listu canvases jako 'copy relative path'" | gap: the canvas path on the Light|Dark pill (click copies it) + "Copy relative path" in a Canvases row's ⋯ menu | merged (N) | a04f8e0b1
+
+## Final state (2026-11-02, product 71ec8ec75)
+
+Every r4 row (1–18, img 44) and every r5 row (r5-1 … r5-8) is merged and is in the **final release `.app` built at
+71ec8ec75** (`.claude/worktrees/freeze/apps/desktop/src-tauri/target/release/bundle/macos/Maude.app`, 2.0.0-rc.1,
+`MAUDE_NO_AUTO_UPDATE=1`). What has checked them since:
+
+- **The desktop e2e lanes, green 3× at 71ec8ec75 (V2-8.3).** They drive the real debug app: the drop guard, scrub,
+  menus closing on an outside click, Esc in Preview, the picker (edit-shapes), the theme pill, the name dialog,
+  stamps and stickers, section adopt.
+- **`check-real-drop`**, the OS drag into the packaged app. It moves the mouse, so it ran under Michal's "muzes".
+- **The a11y matrix (V2-8.7, 318/318 states) and perf (V2-8.8 / 8.14; #5 zoom: WebKit p95 21 ms).**
+- **Not yet:** Michal's own look in the final `.app`. The "for Michal" rows above are his to confirm; anything he
+  finds becomes an rc follow-up.
