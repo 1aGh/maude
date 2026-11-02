@@ -134,7 +134,7 @@ export default function Home() {
   });
 
   test('fixture 3 — a real canvas of this repo: multi-line attributes, a style object, nested tags', () => {
-    const file = join(import.meta.dir, '../../../.design/ui/Web Artboards Lab.tsx');
+    const file = join(import.meta.dir, '../../../.design/ui/v1/Web Artboards Lab.tsx');
     const src = readFileSync(file, 'utf8');
     const nav = elementJsx(src, 'wal-hero-nav') ?? '';
     expect(nav.startsWith('<header\n  data-cd-id="wal-hero-nav"\n  style={{')).toBe(true);
