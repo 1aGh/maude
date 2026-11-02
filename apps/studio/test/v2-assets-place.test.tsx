@@ -71,11 +71,11 @@ async function pressEnterOnFirstTile(host: HTMLElement) {
 }
 
 describe('Assets tab — drag and ↵ (S2.15)', () => {
-  test('a picture tile is draggable and carries its path; a video tile is not', async () => {
+  test('a picture tile is draggable and carries its path; a video tile drags too (r5-1)', async () => {
     const host = await mount();
     const [pic, vid] = tiles(host);
     expect(pic?.getAttribute('draggable')).toBe('true');
-    expect(vid?.getAttribute('draggable')).not.toBe('true');
+    expect(vid?.getAttribute('draggable')).toBe('true');
     const data = new Map<string, string>();
     const dt = { effectAllowed: '', setData: (k: string, v: string) => data.set(k, v) };
     const ev = new window.Event('dragstart', { bubbles: true }) as Event & {

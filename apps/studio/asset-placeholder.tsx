@@ -94,6 +94,8 @@ export const FRAME_MIN = 96;
 
 /** The line a picture that cannot be loaded wears (a src no shell state explained: the file is gone, or never served). */
 export const LOST_LINE = 'Picture not found';
+/** r5-1: the same, for a `<video>` that cannot be loaded ("Video not found · <path>" — never "Picture not found" for a clip). */
+export const LOST_VIDEO_LINE = 'Video not found';
 
 /** A failed `<img>` asks again after each delay (a picture refused on first load because its canvas write had not landed). */
 export const LOST_RETRY_DELAYS_MS: readonly number[] = [400, 1200, 3000, 6000];
@@ -133,12 +135,23 @@ interface Box {
  * following ITS rectangle draws a hatched strip and clips the card away. The board hatches the whole picture frame, so a
  * collapsed element takes the nearest ancestor that is big enough to hold the card (never past the body).
  */
-export function frameBox(el: { getBoundingClientRect(): Box; parentElement: unknown }): Box | null {
+export function frameBox(el: {
+  getBoundingClientRect(): Box;
+  parentElement: unknown;
+  tagName?: string;
+}): Box | null {
   const own = el.getBoundingClientRect();
   if (own.width >= FRAME_MIN && own.height >= FRAME_MIN) return own;
+  // r5-1: a `<video>` never collapses (it has its own size), so a clip that is merely SMALL (zoomed out) keeps its own
+  // rectangle. Walking up to "an ancestor big enough for the card" took the whole world there and hatched the screen.
+  if (el.tagName === 'VIDEO' && own.width >= 2 && own.height >= 2) return own;
+  const vw = typeof window !== 'undefined' ? window.innerWidth : Number.POSITIVE_INFINITY;
+  const vh = typeof window !== 'undefined' ? window.innerHeight : Number.POSITIVE_INFINITY;
   let up = el.parentElement as (typeof el & { tagName?: string }) | null;
   for (let i = 0; up && up.tagName !== 'BODY' && up.tagName !== 'HTML' && i < 6; i++) {
     const r = up.getBoundingClientRect();
+    // an ancestor that fills the viewport is the page / the world, never "the picture's frame"
+    if (r.width >= vw && r.height >= vh) break;
     if (r.width >= FRAME_MIN && r.height >= FRAME_MIN) return r;
     up = up.parentElement as typeof up;
   }
@@ -215,6 +228,10 @@ interface Frame {
   lost?: boolean;
 }
 
+/** A failed picture or clip is asked for again (its first answer may have been refused before the canvas write landed). */
+const retriable = (el: Media): boolean =>
+  el instanceof HTMLImageElement || el instanceof HTMLVideoElement;
+
 const baseName = (rel: string) => rel.slice(rel.lastIndexOf('/') + 1);
 
 /** The layer. Mounted once by DesignCanvas (canvas-lib's named S8.19 block). */
@@ -280,8 +297,7 @@ export function AssetPlaceholderLayer({
         }
         if (!inside || !lost.errored.has(el)) return;
         // still asking again (see onMedia)
-        if (el instanceof HTMLImageElement && (lost.attempts.get(el) ?? 0) < retryDelays.length)
-          return;
+        if (retriable(el) && (lost.attempts.get(el) ?? 0) < retryDelays.length) return;
         const path = lostPathOf(raw, resolved);
         if (path) ensureStyles();
         if (path)
@@ -289,7 +305,11 @@ export function AssetPlaceholderLayer({
             key: `${path}#${i}`,
             rel: path,
             el,
-            words: { state: 'missing', line: LOST_LINE, relink: false },
+            words: {
+              state: 'missing',
+              line: el instanceof HTMLVideoElement ? LOST_VIDEO_LINE : LOST_LINE,
+              relink: false,
+            },
             lost: true,
           });
       });
@@ -309,8 +329,7 @@ export function AssetPlaceholderLayer({
       lost.errored.add(el);
       const n = lost.attempts.get(el) ?? 0;
       const src = el.getAttribute('src') ?? '';
-      if (!inside || !(el instanceof HTMLImageElement) || !src || /^(?:blob|data):/i.test(src))
-        return;
+      if (!inside || !retriable(el) || !src || /^(?:blob|data):/i.test(src)) return;
       if (n >= retryDelays.length || pending.has(el)) return;
       const t = setTimeout(() => {
         lost.timers.delete(t);
@@ -409,7 +428,11 @@ export function AssetPlaceholderLayer({
               data-lost={f.lost ? '1' : undefined}
               // gate-b-a11y: `img` cannot hold the Relink… button (axe nested-interactive) — a labelled group can
               role={f.words.relink ? 'group' : 'img'}
-              aria-label={`${f.lost ? f.rel : baseName(f.rel)} · ${f.words.line}`}
+              aria-label={
+                f.lost && f.words.line === LOST_VIDEO_LINE
+                  ? `${f.words.line} · ${f.rel}`
+                  : `${f.lost ? f.rel : baseName(f.rel)} · ${f.words.line}`
+              }
             >
               <span className="dc-absent-in">
                 <svg

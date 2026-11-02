@@ -1,7 +1,7 @@
 // client/v2/assets/tile.jsx — one tile of the Assets tab (S8.12; 12 · ia-assets-panel, ia-assets-keys).
 //
 // The picture comes first and nothing else is drawn on it. The name and where it is used show on hover AND on keyboard
-// focus (a tip BELOW the tile, never truncated — 12 `.ia-tile-tip`), and a screen reader hears the same two lines as the tile's name. A picture drags
+// focus (a tip BELOW the tile, never truncated — 12 `.ia-tile-tip`), and a screen reader hears the same two lines as the tile's name. A picture or a clip drags
 // onto a frame (tile-drag.js); a right-click opens the tile menu. Video shows its first frame, sound a glyph.
 
 import { StIcon } from '../../shell/icons.jsx';
@@ -48,7 +48,8 @@ export function AssetTile({
   pickCircle = false,
 }) {
   const used = usageWords(asset);
-  const isImage = asset.kind === 'image';
+  // r5-1: a clip drags like a picture (Edit places the <video>, Preview adds an annotation video); sound does not
+  const isDraggable = asset.kind === 'image' || asset.kind === 'video';
   return (
     <button
       type="button"
@@ -72,7 +73,7 @@ export function AssetTile({
           onMenu(e, asset);
         }
       }}
-      {...(isImage && canDrag ? tileDragProps(asset.path) : {})}
+      {...(isDraggable && canDrag ? tileDragProps(asset.path) : {})}
     >
       {asset.kind === 'video' ? (
         <video className="lp-thumb" src={url} muted playsInline preload="metadata" />
