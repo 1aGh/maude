@@ -1,0 +1,13 @@
+[webkit 605.1.15 macos #0-0]    ✓ opens the canvas and selects the artboard: name goes azure with its size, eight handles show
+[webkit 605.1.15 macos #0-0]    ✓ drags the east edge: the ruler lights the nearest preset, the bubble names it, release writes the JSX width
+[webkit 605.1.15 macos #0-0]    ✓ ⌘ ignores presets (the width stays where the pointer put it)
+[webkit 605.1.15 macos #0-0]    ✓ ⇧-click four boards: the align bar says "4 artboards" and offers Tidy up
+[webkit 605.1.15 macos #0-0]    ✓ the pointer on Tidy up shows four dashed outlines in one row and writes nothing
+[webkit 605.1.15 macos #0-0]    ✓ Tidy up: one row on the lowest board’s line, even gaps — positions in the layout lane, one ⌘Z back
+[webkit 605.1.15 macos #0-0]    ✓ dragging one board shows its place beside the pointer: "X … · Y …"
+[webkit 605.1.15 macos #0-0]    ✓ right-click the name: the menu rows in the design’s order
+[webkit 605.1.15 macos #0-0]    ✓ ⌘D: “Příběh 2” lands to the right at the row’s gap; positions in the layout lane; ⌘Z takes it back
+[webkit 605.1.15 macos #0-0]    ✓ double-click the name, Tab: the next artboard’s name opens
+[webkit 605.1.15 macos #0-0]    ✓ right-click the name › Move to trash: the artboard leaves the file and the canvas
+[webkit 605.1.15 macos #0-0] 11 passing (6s)
+Spec Files:	 1 passed, 1 total (100% completed) in 00:00:07  
