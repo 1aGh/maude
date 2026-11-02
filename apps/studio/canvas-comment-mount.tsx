@@ -39,6 +39,7 @@ import {
 } from 'react';
 import { createRoot } from 'react-dom/client';
 
+import { acceptFromShell } from './bridge/dgn-protocol.ts';
 import { annotationElement, annotationIdAt, clientToWorld } from './comment-anchor.ts';
 import { CommentsOverlay } from './comments-overlay.tsx';
 import { deriveFile, hoverTargetToSelection } from './dom-selection.ts';
@@ -86,6 +87,19 @@ const COMMENT_CLAIMS: ReadonlySet<RouterAction['kind']> = new Set<RouterAction['
   'hover',
 ]);
 
+/**
+ * esc for this mount layer's router. A bare specimen has no shell ladder: clear everything (v1). On a UI canvas
+ * the esc belongs to the canvas shell's ladder (S3.12, one rung per press) — and this router must say so with
+ * `true`: the input router reads a void return as "no rung ran" and asks the shell to step the MODE back as
+ * well, so the first esc after a ⌘-click cleared the inspection and left Preview in the same press (S3.15, 04
+ * md-esc). The shell's own router still asks for `back` when ITS ladder had nothing to do.
+ */
+export function commentMountEscape(bare: boolean, clearBare: () => void): boolean | undefined {
+  if (!bare) return true;
+  clearBare();
+  return undefined;
+}
+
 // True when no DesignCanvas/CanvasShell is mounted on this surface — i.e. a
 // bare DS specimen. On a UI canvas (`.dc-canvas` present) the inner shell owns
 // hover-halo painting + `resolveHoverTarget` element anchoring, so the lite
@@ -129,16 +143,19 @@ export function pickSpecimenSelectEl(clientX: number, clientY: number): HTMLElem
 }
 
 function CommentHost({ children, file }: { children: ReactNode; file: string | undefined }) {
-  const { tool, setTool } = useToolMode();
+  const { tool, setTool, getTool } = useToolMode();
   const selSet = useSelectionSet();
   const hostRef = useRef<HTMLDivElement | null>(null);
   // Hover-preview halo target (bare specimens only — see isBareSpecimen).
   const [hoverEl, setHoverEl] = useState<HTMLElement | null>(null);
 
-  // Latest tool for the router (read at event time, not captured).
+  // Latest tool for the router (read at event time, not captured). P8 G1a — the provider's synchronous
+  // `getTool`: the Comment slot arms canvas-lib's provider, which tells this one over `maude:tool-sync`
+  // outside a React event, so this layer's re-render lands a task later — a click on the artboard in between
+  // read Browse / Inspect and opened no composer.
   const toolRef = useRef(tool);
   toolRef.current = tool;
-  const getActiveTool = useMemo(() => () => toolRef.current, []);
+  const getActiveTool = useMemo(() => () => getTool?.() ?? toolRef.current, [getTool]);
 
   // Drop the preview halo whenever we leave comment mode.
   useEffect(() => {
@@ -218,6 +235,9 @@ function CommentHost({ children, file }: { children: ReactNode; file: string | u
     const onMessage = (e: MessageEvent) => {
       const m = e.data as { dgn?: string; tool?: string } | null;
       if (!m || typeof m !== 'object' || m.dgn !== 'tool-set') return;
+      // V2-2.8 S1 — only the shell may arm a tool: a sibling canvas frame shares
+      // the canvasOrigin and reaches this window via `parent.frames` (DDR-054).
+      if (e.source !== window.parent) return;
       if (typeof m.tool === 'string') setTool(m.tool as never);
     };
     window.addEventListener('message', onMessage);
@@ -240,18 +260,19 @@ function CommentHost({ children, file }: { children: ReactNode; file: string | u
         setHoverEl((prev) => (prev === el ? prev : el));
       },
       onTool: ({ tool: t }) => setTool(t),
-      onEscape: () => {
-        if (toolRef.current !== 'move') setTool('move');
-        setHoverEl(null);
-        selSet.clear();
-        if (typeof window !== 'undefined') {
-          try {
-            window.parent.postMessage({ dgn: 'force-clear' }, '*');
-          } catch {
-            /* parent detached */
+      onEscape: () =>
+        commentMountEscape(isBareSpecimen(), () => {
+          if (toolRef.current !== 'move') setTool('move');
+          setHoverEl(null);
+          selSet.clear();
+          if (typeof window !== 'undefined') {
+            try {
+              window.parent.postMessage({ dgn: 'force-clear' }, '*');
+            } catch {
+              /* parent detached */
+            }
           }
-        }
-      },
+        }),
       onDropComment: ({ clientX, clientY }) => dropComment(clientX, clientY, selSet, file),
     },
   });
@@ -602,7 +623,7 @@ function OkSignal({
 export class CanvasErrorBoundary extends Component<
   {
     attempt: number;
-    onError: () => void;
+    onError: (error: unknown) => void;
     fallback: () => ReactNode;
     children: ReactNode;
   },
@@ -612,8 +633,8 @@ export class CanvasErrorBoundary extends Component<
   static getDerivedStateFromError(): { hasError: boolean } {
     return { hasError: true };
   }
-  override componentDidCatch(): void {
-    this.props.onError();
+  override componentDidCatch(error: unknown): void {
+    this.props.onError(error);
   }
   override componentDidUpdate(prev: { attempt: number }): void {
     // A new canvas (new attempt) arrived → clear the error and try rendering it.
@@ -627,6 +648,19 @@ export class CanvasErrorBoundary extends Component<
   }
 }
 
+/** S6.12 — what a failed draw says to the shell: plain text, one line, clipped (it is read from a throw). */
+const RENDER_MESSAGE_MAX = 300;
+export function describeRenderFailure(error: unknown): string {
+  let raw = '';
+  try {
+    raw = error instanceof Error ? error.message : String(error ?? '');
+  } catch {
+    // a hostile `toString` must not take the boundary down with it
+  }
+  const text = raw.replace(/\s+/g, ' ').trim();
+  return (text || 'The canvas stopped while drawing.').slice(0, RENDER_MESSAGE_MAX);
+}
+
 function HmrHoldingToast({ message }: { message?: string }): ReactNode {
   return createElement(
     'div',
@@ -634,9 +668,11 @@ function HmrHoldingToast({ message }: { message?: string }): ReactNode {
       className: 'dc-hmr-holding',
       role: 'status',
       'aria-live': 'polite',
-      title: message ? `Holding last working render — ${message}` : 'Holding last working render',
+      title: message
+        ? `Showing the last version that worked — ${message}`
+        : 'Showing the last version that worked',
     },
-    '⏸ build error — držím poslední funkční verzi'
+    'This canvas has an error. Showing the last version that worked.'
   );
 }
 
@@ -648,8 +684,32 @@ function CanvasHmrRuntime({
   file: string | undefined;
 }): ReactNode {
   const [{ canvas, attempt }, setCanvasState] = useState({ canvas: initialCanvas, attempt: 0 });
-  const [holding, setHoldingState] = useState<{ on: boolean; message?: string }>({ on: false });
+  // `source` says who is holding: the shell's build-error path (a compile error, which never reaches the
+  // boundary — the toast is its only signal), or a render error (the shell card says that one, S6.12).
+  const [holding, setHoldingState] = useState<{
+    on: boolean;
+    message?: string;
+    source?: 'build' | 'render';
+  }>({ on: false });
+  // S6.12 — a live AI run of this Mac draws on this canvas (the shell's `ai-runs` rings). Broken
+  // intermediates during a run are normal (DDR-077), so the toast stays while it is live.
+  const [runLive, setRunLive] = useState(false);
+  useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      if (e.source !== window.parent) return;
+      if ((e.data as { dgn?: string } | null)?.dgn !== 'ai-runs') return;
+      const m = acceptFromShell(e, window);
+      if (m && m.dgn === 'ai-runs') {
+        setRunLive(Object.values(m.artboards).some((a) => a.state !== 'done'));
+      }
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, []);
   const lastGood = useRef<ComponentType | null>(null);
+  // S6.12 — the module whose failure the shell was last told about. The boundary catches a new module twice
+  // (it retries once after resetting on the new `attempt`), and one failure is one message.
+  const reportedFor = useRef<ComponentType | null>(null);
   const canvasRef = useRef(canvas);
   canvasRef.current = canvas;
 
@@ -657,7 +717,8 @@ function CanvasHmrRuntime({
   useEffect(() => {
     const api: CanvasRuntimeApi = {
       remount: (next) => setCanvasState((s) => ({ canvas: next, attempt: s.attempt + 1 })),
-      setHolding: (on, message) => setHoldingState(on ? { on: true, message } : { on: false }),
+      setHolding: (on, message) =>
+        setHoldingState(on ? { on: true, message, source: 'build' } : { on: false }),
     };
     (window as unknown as Record<string, unknown>)[RUNTIME_KEY] = api;
     return () => {
@@ -667,6 +728,16 @@ function CanvasHmrRuntime({
 
   const handleOk = useCallback(() => {
     lastGood.current = canvasRef.current;
+    reportedFor.current = null;
+    // S6.12 — "this drew without an error": the shell clears its card and the server notes the source as the
+    // last good one (it reads and hashes the file itself — this is a claim, not a write).
+    if (file) {
+      try {
+        window.parent.postMessage({ dgn: 'render-ok', file }, '*');
+      } catch {
+        // detached
+      }
+    }
     // The new canvas rendered clean → drop any holding state.
     setHoldingState((h) => (h.on ? { on: false } : h));
     // A soft replacement keeps the iframe document, so inspect.ts does not
@@ -683,9 +754,24 @@ function CanvasHmrRuntime({
     }
   }, [attempt, file]);
 
-  const handleError = useCallback(() => {
-    setHoldingState({ on: true, message: 'render error' });
-  }, []);
+  const handleError = useCallback(
+    (error: unknown) => {
+      const message = describeRenderFailure(error);
+      setHoldingState({ on: true, message: 'render error', source: 'render' });
+      // S6.12 — once per failure; the canvas keeps holding the last good render underneath and the shell
+      // draws the card.
+      if (reportedFor.current === canvasRef.current) return;
+      reportedFor.current = canvasRef.current;
+      if (file) {
+        try {
+          window.parent.postMessage({ dgn: 'render-error', file, message }, '*');
+        } catch {
+          // detached
+        }
+      }
+    },
+    [file]
+  );
 
   const fallback = useCallback((): ReactNode => {
     const LG = lastGood.current;
@@ -699,7 +785,9 @@ function CanvasHmrRuntime({
             boundary's child), matching the clean-slate semantics of a full reload. */}
         <OkSignal key={attempt} Canvas={canvas} file={file} onOk={handleOk} />
       </CanvasErrorBoundary>
-      {holding.on ? <HmrHoldingToast message={holding.message} /> : null}
+      {holding.on && (holding.source !== 'render' || runLive) ? (
+        <HmrHoldingToast message={holding.message} />
+      ) : null}
     </>
   );
 }

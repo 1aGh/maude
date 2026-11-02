@@ -4,6 +4,7 @@ import {
   localIdentityMatches,
   normalizeOpenParam,
   parseFileDeepLink,
+  parseMaudeLink,
   projectIdFromHubUrl,
   readOpenParam,
   withOpenParam,
@@ -94,6 +95,21 @@ describe('shell file addresses', () => {
       'maude://open/a?open=x#fragment',
     ])
       expect(parseFileDeepLink(url)).toBeNull();
+  });
+  test('parseMaudeLink reads both link kinds one way (CloudBar and Home share it)', () => {
+    const code = `mhc_${'ab'.repeat(16)}`;
+    expect(parseMaudeLink(`maude://open/a?code=${code}`)).toEqual({
+      project: 'a',
+      code,
+      kind: 'connect',
+    });
+    expect(parseMaudeLink('maude://open/a?open=ui/A.tsx')).toEqual({
+      project: 'a',
+      rel: 'ui/A.tsx',
+      kind: 'file',
+    });
+    for (const url of [`maude://open/a?open=x&code=${code}`, 'maude://open/a?x=1', '', null])
+      expect(parseMaudeLink(url)).toBeNull();
   });
   test('similar names never silently become the same project', () => {
     expect(localIdentityMatches({ project: 'my-project' }, 'my-project')).toBe(true);

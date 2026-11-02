@@ -1,0 +1,20 @@
+{
+ "01-create-flow": {
+  "nn": "01",
+  "dir": "01",
+  "ids": {
+   "cf-ai-drafting": {
+    "impl": "cf-ai-drafting"
+   },
+   "cf-ai-done": {
+    "impl": "cf-ai-done"
+   },
+   "cf-undo-before": {
+    "impl": "cf-undo-before"
+   },
+   "cf-undo-ai": {
+    "impl": "cf-undo-ai"
+   }
+  }
+ }
+}

@@ -1,0 +1,27 @@
+{
+  "canvas": "ui/panels/GitHubIdentity.tsx",
+  "from": "maude",
+  "to": "maude-v2",
+  "meta": { "designSystem": "maude-v2" },
+  "edits": [
+    { "old": " * @ds          maude\n * @platform    desktop", "new": " * @ds          maude-v2\n * @platform    desktop", "why": "Header names the canvas's design system." },
+    { "old": "import \"../../system/maude/colors_and_type.css\";", "new": "import \"../../system/maude-v2/colors_and_type.css\";", "why": "Load the maude-v2 tokens. Every token the canvas and GitHubIdentity.css use exists in maude-v2." },
+    { "old": "import \"../../system/maude/preview/_components.css\";", "new": "import \"../../system/maude-v2/preview/_components.css\";", "why": "Load the maude-v2 shared component classes." },
+    { "old": "return <div className=\"maude\" data-theme=\"dark\" style={{ position: \"absolute\", inset: 0 }}>{children}</div>;", "new": "return <div className=\"maude-v2 ds\" data-theme=\"dark\" style={{ position: \"absolute\", inset: 0 }}>{children}</div>;", "why": "maude-v2 scopes its tokens to .maude-v2/.ds[data-theme]; its .callout rule needs a .ds ancestor. Theme stays dark (see notes)." },
+    { "old": "<div className=\"panel gi-mini\">", "new": "<div className=\"island gi-mini\">", "why": "maude-v2 has no .panel; floating chrome is .island." },
+    { "old": "<div className=\"tree-row gi-row\" data-depth=\"0\" role=\"treeitem\" aria-expanded=\"true\">", "new": "<div className=\"row-item gi-row\" data-depth=\"0\" role=\"treeitem\" aria-expanded=\"true\">", "why": "maude-v2 has no .tree-row; its list row is .row-item. Depth indent stays in GitHubIdentity.css." },
+    { "old": "<div className=\"tree-row gi-row\" data-depth=\"1\" role=\"treeitem\" aria-selected=\"true\">", "new": "<div className=\"row-item gi-row\" data-depth=\"1\" role=\"treeitem\" aria-selected=\"true\" aria-current=\"true\">", "why": ".row-item marks the current row with aria-current; aria-selected stays for the treeitem role." },
+    { "old": "<div className=\"tree-row gi-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"gi-row-icon\" /><span data-cd-id=\"onboarding-flow\"", "new": "<div className=\"row-item gi-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"gi-row-icon\" /><span data-cd-id=\"onboarding-flow\"", "why": ".tree-row → .row-item" },
+    { "old": "<div className=\"tree-row gi-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"gi-row-icon\" /><span data-cd-id=\"checkout-sheet\"", "new": "<div className=\"row-item gi-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"gi-row-icon\" /><span data-cd-id=\"checkout-sheet\"", "why": ".tree-row → .row-item" },
+    { "old": "<div className=\"tree-row gi-row\" data-depth=\"0\" role=\"treeitem\" aria-expanded=\"false\">", "new": "<div className=\"row-item gi-row\" data-depth=\"0\" role=\"treeitem\" aria-expanded=\"false\">", "why": ".tree-row → .row-item" },
+    { "old": "<button type=\"button\" className=\"btn btn--danger\"><Icon name=\"signout\" size={15} /> Sign out</button>", "new": "<button type=\"button\" className=\"btn btn--ghost\"><Icon name=\"signout\" size={15} /> Sign out</button>", "why": "maude-v2 has no danger button; components.json falls back danger → ghost. Needs a decision (see notes)." }
+  ],
+  "notes": [
+    "Sign out: with the documented fallback, 'Stay signed in' and 'Sign out' become two identical ghost buttons, which leaves the dialog with no clear primary. Options: make 'Sign out' btn--primary (CONTRACT §4: the primary repeats the title's verb), or keep ghost and add a local error-text tone. Proposal uses the fallback as written; pick one before applying.",
+    "Edge-state callouts (callout--warn / --error / --success / --info, artboard 'states') keep their classes. maude-v2's .callout has no tone variants, so the four render alike except for their inline status-colour icons. That's most of the point of this artboard, so a decision is needed: accept, or add local tones in GitHubIdentity.css.",
+    "Theme: kept data-theme=\"dark\". maude-v2 is light-first; switching is one word in the wrapper.",
+    "Token-level look shifts: accent indigo → azure, larger radii, system UI / SF Mono fonts instead of Inter / JetBrains Mono.",
+    "The inline Maude mark is the v1 spark-on-bubble; maude-v2's mark lives in system/maude-v2/preview/logo. Not redrawn here.",
+    "Copy already uses plain 'Sign in / Connected / Sign out' — no conflict with the maude-v2 CONTRACT words."
+  ]
+}

@@ -1,0 +1,12 @@
+Maude v2 — Phase 7 (docs, site, tours, What's New) — Ready to try (8) — 2026-10-22
+
+Build: apps/desktop/src-tauri/target/release/bundle/macos/Maude.app — 1.9.1, release, from bbc48ff30 (updater signing skipped locally)
+  check-bundle-completeness --smoke PASS · check-client-boots PASS · maude-desktop WebDriver 0
+  release client: check-client-boots-source OK · opening-card-clears PASS
+
+V2-7.1 docs IA — merged (v2-7-1): Getting started = download the app → open/make a project from Home → first canvas; CLI/design/flow/orchestration/codex/hub/config/security under "Advanced / Explore Maude" (meta.json separators, URLs unchanged); new pages desktop/window.mdx ("Around the window") and moving-from-1.mdx ("Coming from Maude 1"); old-chrome words rewritten; scripts/test/docs-no-old-chrome.test.mjs (22 rules, self-test, per-file allowlist) prepended to the site-content gate. Gate: site-content green.
+V2-7.2 maude.sh — merged (v2-7-2): "Download for Mac" primary (stable-only pickInstaller, rc never offered), CLI + plugins under #advanced, v2 copy on home / desktop / about / metadata; next build green; download-redirect tests 7/7. Screenshots .ai/plans/notes/v2-evidence/V2-7.2/.
+V2-7.3 tours + What's New — merged (v2-7-3): usage / collab / quick-setup tours on v2 testids with optional steps; 7 v1-chrome entries replayable:false; v2.0 entry maude-v2-canvas-window pending (version null, stamped by bump-version.sh); test/tour-targets pins targets to testids.json + client literals. Tour tests 53/53.
+V2-7.4 CLAUDE.md + plugin docs — merged after lead review (v2-7-4): runtime files, C4 paragraph, desktop shell runtime contract (tabs = sidecar pool, shell trust, profiles, Home mode), registry-driven verbs, generated plugin copy; browse port fixed. Plugin guards + scripts/test 204/204.
+
+Notes for Michal: public/demo.mp4 showreel likely shows v1 chrome; the site copy describes v2 — merge site to main only with the v2.0 release; the hero visual is a sketch until a real v2 screenshot exists.

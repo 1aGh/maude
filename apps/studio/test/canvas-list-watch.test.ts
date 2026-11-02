@@ -5,7 +5,7 @@
 // RCA: .ai/logs/rca/issue-acp-new-canvas-not-in-filetree.md
 
 import { describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -333,6 +333,124 @@ describe('canvas-list-watch / serialization + multi-remove', () => {
       await w.refresh();
       const removed = got.filter((m) => m.action === 'removed').map((m) => m.slug);
       expect(removed.sort()).toEqual(['ui-project-a', 'ui-project-b']);
+    } finally {
+      w.stop();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
+// V2-3.6 e2e isolation — the desktop default lane's share-link red. The API
+// (`/_api/fs-move`, create, delete, a sync peer's move) tells the clients about a
+// structural change itself; the watcher's baseline must follow that, or an
+// outside revert that lands before the watcher's own debounced snapshot nets to
+// zero against the PRE-change baseline and nothing is emitted: every open view
+// keeps the moved row, and the restored canvas never reappears (the harness put
+// `ui/Smoke.tsx` back ~120 ms after the move).
+describe('canvas-list-watch / API-announced changes move the baseline', () => {
+  const MOVED = {
+    action: 'moved',
+    rel: 'ui/Archive/Smoke.tsx',
+    slug: 'ui-archive-smoke',
+    fromRel: 'ui/Smoke.tsx',
+    fromSlug: 'ui-smoke',
+  };
+
+  test('a move announced by the API, reverted on disk before the watcher looks, emits the revert', async () => {
+    const { root, designRoot } = sandbox();
+    writeFileSync(join(designRoot, 'ui', 'Smoke.tsx'), TSX);
+    const ctx = mkCtx(designRoot);
+    const w = createCanvasListWatch(ctx, { debounceMs: 10 });
+    await w.ready;
+    const got = collect(ctx);
+    try {
+      // The API's move: the file moves, then the API emits `moved` itself.
+      mkdirSync(join(designRoot, 'ui', 'Archive'));
+      renameSync(
+        join(designRoot, 'ui', 'Smoke.tsx'),
+        join(designRoot, 'ui', 'Archive', 'Smoke.tsx')
+      );
+      ctx.bus.emit('canvas-list-update', MOVED);
+      // Undone from outside (git checkout, the e2e harness) before any snapshot.
+      rmSync(join(designRoot, 'ui', 'Archive'), { recursive: true, force: true });
+      writeFileSync(join(designRoot, 'ui', 'Smoke.tsx'), TSX);
+      await w.refresh();
+      const own = got.filter((m) => m !== MOVED).map((m) => `${m.action} ${m.rel}`);
+      expect(own.sort()).toEqual(['added ui/Smoke.tsx', 'removed ui/Archive/Smoke.tsx']);
+    } finally {
+      w.stop();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  // S1.23c (verifier pass 2, G1): the API renames the file, then moves the sidecars, and only then says
+  // `moved`. A snapshot in between used to announce `removed` for the old path (the client closed the open
+  // tab — a blank page) and `added` for the new one. The API now says `canvas-move-begin` first.
+  test('a snapshot between the rename and `moved` announces neither removed nor added', async () => {
+    const { root, designRoot } = sandbox();
+    writeFileSync(join(designRoot, 'ui', 'Smoke.tsx'), TSX);
+    const ctx = mkCtx(designRoot);
+    const w = createCanvasListWatch(ctx, { debounceMs: 10 });
+    await w.ready;
+    const got = collect(ctx);
+    try {
+      ctx.bus.emit('canvas-move-begin', { rel: 'ui/Renamed.tsx', fromRel: 'ui/Smoke.tsx' });
+      renameSync(join(designRoot, 'ui', 'Smoke.tsx'), join(designRoot, 'ui', 'Renamed.tsx'));
+      await w.refresh(); // the debounce ran out while the sidecars were still moving
+      expect(got).toEqual([]);
+      const moved = {
+        action: 'moved',
+        rel: 'ui/Renamed.tsx',
+        slug: 'ui-renamed',
+        fromRel: 'ui/Smoke.tsx',
+        fromSlug: 'ui-smoke',
+      };
+      ctx.bus.emit('canvas-list-update', moved);
+      await w.refresh();
+      expect(got).toEqual([moved]);
+    } finally {
+      w.stop();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('a canvas the API announced as added, deleted outside before the watcher looks, emits removed', async () => {
+    const { root, designRoot } = sandbox();
+    const ctx = mkCtx(designRoot);
+    const w = createCanvasListWatch(ctx, { debounceMs: 10 });
+    await w.ready;
+    const got = collect(ctx);
+    try {
+      writeFileSync(join(designRoot, 'ui', 'New.tsx'), TSX);
+      const added = { action: 'added', rel: 'ui/New.tsx', slug: 'ui-new' };
+      ctx.bus.emit('canvas-list-update', added);
+      rmSync(join(designRoot, 'ui', 'New.tsx'));
+      await w.refresh();
+      expect(got.filter((m) => m !== added).map((m) => `${m.action} ${m.rel}`)).toEqual([
+        'removed ui/New.tsx',
+      ]);
+    } finally {
+      w.stop();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('a move the API announced is not announced a second time by the watcher', async () => {
+    const { root, designRoot } = sandbox();
+    writeFileSync(join(designRoot, 'ui', 'Smoke.tsx'), TSX);
+    const ctx = mkCtx(designRoot);
+    const w = createCanvasListWatch(ctx, { debounceMs: 10 });
+    await w.ready;
+    const got = collect(ctx);
+    try {
+      mkdirSync(join(designRoot, 'ui', 'Archive'));
+      renameSync(
+        join(designRoot, 'ui', 'Smoke.tsx'),
+        join(designRoot, 'ui', 'Archive', 'Smoke.tsx')
+      );
+      ctx.bus.emit('canvas-list-update', MOVED);
+      await w.refresh();
+      expect(got).toEqual([MOVED]);
     } finally {
       w.stop();
       rmSync(root, { recursive: true, force: true });

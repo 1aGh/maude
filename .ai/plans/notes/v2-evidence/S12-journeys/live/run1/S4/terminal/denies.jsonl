@@ -1,0 +1,1 @@
+{"lane":"terminal","tool":"Bash","code":"out-of-project","reason":"PreToolUse:Bash hook error: out-of-project: --root . names a different project. In this session maude verbs work only on this project; to work on another one, the person opens it in Maude or runs the command in their own terminal."}

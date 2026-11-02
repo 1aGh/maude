@@ -1,0 +1,26 @@
+{
+  "canvas": "ui/panels/DiffView.tsx",
+  "from": "maude",
+  "to": "maude-v2",
+  "meta": { "designSystem": "maude-v2" },
+  "edits": [
+    { "old": " * @ds          maude\n * @platform    desktop", "new": " * @ds          maude-v2\n * @platform    desktop", "why": "Header names the canvas's design system." },
+    { "old": "import \"../../system/maude/colors_and_type.css\";", "new": "import \"../../system/maude-v2/colors_and_type.css\";", "why": "Load the maude-v2 tokens. Every token the canvas and DiffView.css use exists in maude-v2 (--dv-split is local)." },
+    { "old": "import \"../../system/maude/preview/_components.css\";", "new": "import \"../../system/maude-v2/preview/_components.css\";", "why": "Load the maude-v2 shared component classes." },
+    { "old": "return <div className=\"maude\" data-theme=\"dark\" style={{ position: \"absolute\", inset: 0 }}>{children}</div>;", "new": "return <div className=\"maude-v2 ds\" data-theme=\"dark\" style={{ position: \"absolute\", inset: 0 }}>{children}</div>;", "why": "maude-v2 scopes its tokens to .maude-v2/.ds[data-theme]; its .callout rule needs a .ds ancestor. Theme stays dark (see notes)." },
+    { "old": "function Compare() {\n  return (\n    <div className=\"dv-shell\">\n      <div className=\"panel dv-sheet\">", "new": "function Compare() {\n  return (\n    <div className=\"dv-shell\">\n      <div className=\"island dv-sheet\">", "why": "Artboard 'compare': maude-v2 has no .panel; floating chrome is .island." },
+    { "old": "function Overlay() {\n  return (\n    <div className=\"dv-shell\">\n      <div className=\"panel dv-sheet\">", "new": "function Overlay() {\n  return (\n    <div className=\"dv-shell\">\n      <div className=\"island dv-sheet\">", "why": "Artboard 'overlay': .panel → .island." },
+    { "old": "function Conflict() {\n  return (\n    <div className=\"dv-shell\">\n      <div className=\"panel dv-sheet\">", "new": "function Conflict() {\n  return (\n    <div className=\"dv-shell\">\n      <div className=\"island dv-sheet\">", "why": "Artboard 'conflict': .panel → .island." },
+    { "old": "aria-pressed=\"false\">Overlay</button>\n          </div>\n          <button type=\"button\" className=\"btn btn--icon dv-close\"", "new": "aria-pressed=\"false\">Overlay</button>\n          </div>\n          <button type=\"button\" className=\"icon-btn dv-close\"", "why": "Artboard 'compare' close button: maude-v2's icon button is .icon-btn; .btn--icon doesn't exist." },
+    { "old": "aria-pressed=\"true\">Overlay</button>\n          </div>\n          <button type=\"button\" className=\"btn btn--icon dv-close\"", "new": "aria-pressed=\"true\">Overlay</button>\n          </div>\n          <button type=\"button\" className=\"icon-btn dv-close\"", "why": "Artboard 'overlay' close button: .btn--icon → .icon-btn." },
+    { "old": "<span className=\"dv-spacer\" />\n          <button type=\"button\" className=\"btn btn--icon dv-close\"", "new": "<span className=\"dv-spacer\" />\n          <button type=\"button\" className=\"icon-btn dv-close\"", "why": "Artboard 'conflict' close button: .btn--icon → .icon-btn." }
+  ],
+  "notes": [
+    ".island is frosted (backdrop blur over --island-bg) where .panel was a solid surface. The diff sheets sit over a dimmed shell, so check the result reads as one solid sheet; if not, give .dv-sheet a solid background in DiffView.css.",
+    "The conflict intro callout (.callout--info) keeps its class. maude-v2's .callout has no tone variants, so it renders as a quiet neutral callout. Accept, or add a local tone.",
+    "The before/after rings use --status-warn / --status-success. Both exist in maude-v2 with new values, so the rings re-tint but keep their meaning.",
+    "Theme: kept data-theme=\"dark\". maude-v2 is light-first; switching is one word in the wrapper.",
+    "Words: the canvas says 'Last published / Your version'. maude-v2 says 'Share' instead of publish (CONTRACT §3), and the collaborator 'Anna' would be Tereza or Jonas (§4). The brief calls the vocabulary load-bearing, so copy is not changed here.",
+    "The inline Maude mark is the v1 shape; maude-v2's mark lives in system/maude-v2/preview/logo. Not redrawn here."
+  ]
+}

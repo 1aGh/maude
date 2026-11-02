@@ -1,0 +1,29 @@
+/* client/v2/create/render-error.css — S6.12 (C5, 01 `cf-render-error`): the card sits OVER the canvas's last
+   good render, which shows through dimmed. The card itself is S11.7's (`.v2-err`, code/code.css). Tokens only. */
+@layer shell {
+  .rr-host {
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+    display: grid;
+    place-items: center;
+    overflow: auto;
+    padding: var(--space-4);
+    /* the render underneath stays visible, one step back */
+    background: color-mix(in srgb, var(--canvas-bg) 72%, transparent);
+  }
+  /* a cold open that never drew: the index cover stands where the render would have been */
+  .rr-thumb {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    opacity: 0.35;
+    pointer-events: none;
+    user-select: none;
+  }
+  .rr-host > .v2-err {
+    position: relative;
+  }
+}

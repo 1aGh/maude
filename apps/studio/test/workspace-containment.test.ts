@@ -234,6 +234,8 @@ describe('the vocabulary itself', () => {
       '/_api/cloud',
       '/_api/debug-bundle',
       '/_api/design',
+      // the same process logs as the debug bundle (V2-2.9 diagnostics)
+      '/_api/diagnostics',
       '/_api/export',
       '/_api/figma',
       '/_api/generate',

@@ -6,8 +6,8 @@
 // is left here is reading rows, writing rows, and turning a verdict into a
 // response — which is the whole point of the split (DDR-196 §1).
 
+import { createProjectInvite } from './access-forward.mjs';
 import { track } from './analytics.mjs';
-import { emailConfigured, inviteEmail, sendEmail } from './email.mjs';
 import { decideMembershipChange } from './membership.mjs';
 import { peoplePage, removeConfirmPage } from './people-page.mjs';
 import { ACCESS_MESSAGES, can, decideAccess } from './project-access.mjs';
@@ -44,7 +44,7 @@ async function load(env, projectId, accountId) {
     .bind(projectId)
     .first();
   const rows = await env.DB.prepare(
-    `SELECT m.account_id, m.role, a.email
+    `SELECT m.account_id, m.role, a.email, a.name
        FROM project_members m
        JOIN accounts a ON a.id = m.account_id
       WHERE m.project_id = ?
@@ -54,7 +54,32 @@ async function load(env, projectId, accountId) {
     .all();
   const members = rows?.results ?? [];
   const verdict = decideAccess({ accountId, project, members });
-  return { project, members, verdict };
+  // The Can-view people and the pending invitations (V2-1.7 canvas grants, v18
+  // invites): the page lists them for the owner. A project from before those
+  // tables existed answers an empty list rather than a failed page.
+  const grants =
+    (
+      await env.DB.prepare(
+        `SELECT g.account_id, g.role, g.canvas_path, a.email, a.name
+           FROM canvas_grants g JOIN accounts a ON a.id = g.account_id
+          WHERE g.project_id = ? ORDER BY a.email, g.canvas_path`
+      )
+        .bind(projectId)
+        .all()
+        .catch(() => null)
+    )?.results ?? [];
+  const invites =
+    (
+      await env.DB.prepare(
+        `SELECT email, role, canvas_path, expires_at FROM project_invites
+          WHERE project_id = ? AND redeemed_at IS NULL AND revoked_at IS NULL AND expires_at > ?
+          ORDER BY created_at DESC`
+      )
+        .bind(projectId, Date.now())
+        .all()
+        .catch(() => null)
+    )?.results ?? [];
+  return { project, members, verdict, grants, invites };
 }
 
 /**
@@ -66,11 +91,13 @@ async function load(env, projectId, accountId) {
  * column.
  */
 async function peopleList(env, project, members) {
-  const owner = await env.DB.prepare('SELECT id, email FROM accounts WHERE id = ?')
+  const owner = await env.DB.prepare('SELECT id, email, name FROM accounts WHERE id = ?')
     .bind(project.account_id)
     .first();
   return [
-    ...(owner ? [{ account_id: owner.id, email: owner.email, role: 'owner' }] : []),
+    ...(owner
+      ? [{ account_id: owner.id, email: owner.email, name: owner.name, role: 'owner' }]
+      : []),
     ...members.filter((m) => m.account_id !== project.account_id),
   ];
 }
@@ -89,7 +116,7 @@ export async function handleProjectRoutes(request, env, { account, ctx = null } 
   if (!PROJECT_ID.test(projectId)) return html(`<p>${ACCESS_MESSAGES['no-access']}</p>`, 404);
   if (!account) return redirect('/login');
 
-  const { project, members, verdict } = await load(env, projectId, account.id);
+  const { project, members, verdict, grants, invites } = await load(env, projectId, account.id);
   if (!verdict.ok) {
     const status = verdict.reason === 'not-signed-in' ? 401 : 404;
     return html(`<p>${ACCESS_MESSAGES[verdict.reason]}</p>`, status);
@@ -106,7 +133,7 @@ export async function handleProjectRoutes(request, env, { account, ctx = null } 
   }
 
   if (request.method === 'GET') {
-    return html(peoplePage({ account, project, people, isOwner }));
+    return html(peoplePage({ account, project, people, grants, invites, isOwner }));
   }
 
   if (request.method !== 'POST') return html('<p>Not allowed.</p>', 405);
@@ -119,7 +146,15 @@ export async function handleProjectRoutes(request, env, { account, ctx = null } 
   if (action === 'invite') {
     if (!isOwner)
       return html(
-        peoplePage({ account, project, people, isOwner, error: ACCESS_MESSAGES['no-access'] }),
+        peoplePage({
+          account,
+          project,
+          people,
+          grants,
+          invites,
+          isOwner,
+          error: ACCESS_MESSAGES['no-access'],
+        }),
         403
       );
     const email = String(form.get('email') ?? '')
@@ -134,6 +169,8 @@ export async function handleProjectRoutes(request, env, { account, ctx = null } 
           account,
           project,
           people,
+          grants,
+          invites,
           isOwner,
           error: 'That does not look like an email address.',
         }),
@@ -150,47 +187,27 @@ export async function handleProjectRoutes(request, env, { account, ctx = null } 
       ownerId: project.account_id,
     });
     if (!decision.ok)
-      return html(peoplePage({ account, project, people, isOwner, error: decision.message }), 400);
+      return html(
+        peoplePage({ account, project, people, grants, invites, isOwner, error: decision.message }),
+        400
+      );
 
-    const existing = await env.DB.prepare('SELECT id FROM accounts WHERE email = ?')
-      .bind(email)
-      .first();
-    if (existing) {
-      await env.DB.prepare(
-        `INSERT INTO project_members (project_id, account_id, role, added_at) VALUES (?, ?, ?, ?)
-           ON CONFLICT (project_id, account_id) DO UPDATE SET role = excluded.role`
-      )
-        .bind(projectId, existing.id, role, Date.now())
-        .run();
-      return redirect(`/projects/${projectId}/people`);
-    }
-    // No account yet. The invite is the account: they follow one link and land
-    // in the project, rather than signing up and then having to find it.
-    const inviteId = crypto.randomUUID();
-    await env.DB.prepare(
-      `INSERT INTO project_invites (id, project_id, email, role, created_at, expires_at)
-       VALUES (?, ?, ?, ?, ?, ?)`
-    )
-      .bind(inviteId, projectId, email, role, Date.now(), Date.now() + 14 * 86_400_000)
-      .run();
-
-    const inviteUrl = `${url.origin}/invite/${inviteId}`;
+    // One invitation whoever the address belongs to (gate-b-sec3 finding 1): an account holder is not added
+    // behind their back — they accept from the e-mail or in the app — and the page answers the same either way.
+    const { inviteUrl, sent: mailed } = await createProjectInvite(env, {
+      project,
+      invitedBy: account.id,
+      invitedByEmail: account.email,
+      email,
+      role,
+      origin: url.origin,
+    });
     // The counterpart to `invite_redeemed`: how many invitations go out
     // against how many are followed. The invitee's ADDRESS is not recorded —
     // it is somebody else's personal data and the operational fact is the
     // count.
     track(env, ctx, { name: 'invite_created', accountId: account.id, projectId });
-    const sent = emailConfigured(env)
-      ? await sendEmail(env, {
-          to: email,
-          ...inviteEmail({
-            projectName: project.name || project.id,
-            role,
-            inviteUrl,
-            invitedBy: account.email,
-          }),
-        })
-      : { ok: false };
+    const sent = { ok: mailed };
     // A failed (or unconfigured) send still created a real invitation — the
     // owner gets the link to pass along themselves, which also happens to be
     // exactly what "invite them over chat instead" needs. The link goes to the
@@ -198,7 +215,7 @@ export async function handleProjectRoutes(request, env, { account, ctx = null } 
     const notice = sent.ok
       ? `Invitation sent to ${email}.`
       : `The invitation is ready, but the email could not be sent. Share this link with them yourself: ${inviteUrl}`;
-    return html(peoplePage({ account, project, people, isOwner, notice }));
+    return html(peoplePage({ account, project, people, grants, invites, isOwner, notice }));
   }
 
   const decision = decideMembershipChange({
@@ -210,7 +227,10 @@ export async function handleProjectRoutes(request, env, { account, ctx = null } 
     ownerId: project.account_id,
   });
   if (!decision.ok) {
-    return html(peoplePage({ account, project, people, isOwner, error: decision.message }), 400);
+    return html(
+      peoplePage({ account, project, people, grants, invites, isOwner, error: decision.message }),
+      400
+    );
   }
 
   if (decision.action === 'remove') {

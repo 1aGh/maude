@@ -23,7 +23,7 @@ a bad call:
 ```sh
 maude design screenshot --url \
   "http://localhost:<canvasPort>/_canvas-shell.html?canvas=ui/…/Foo.tsx&hide-chrome=1" \
-  --full --out /tmp/x.png
+  --full --out "$TMPDIR/x.png"
 ```
 
 If a canvas screenshot comes back empty, check both of the above before

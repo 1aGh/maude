@@ -42,4 +42,17 @@ Default loop **multi-axis** stop condition: `correctness == 0 AND aspiration ≥
 2. **else** → the routed panel from the table above (default 4-critic set; add `signature-moment-critic` when feedback carries polish/nicer/elegant cues; `--perfect --all` → every critic).
 3. **`design-system-keeper`** (step 7.5) joins the same batch when `RUN_KEEPER=1`.
 
-Then: **spawn the selected set in a single assistant message using parallel Agent tool calls** → parse JSON verdicts → write NNN-PANEL.md → check exit conditions → auto-fix top 3 blockers → repeat. Even when the selected set is a single critic, keep the explicit "spawn in parallel" framing so the habit holds. Track best snapshot, restore on divergence.
+Then run the round exactly as `/design:critic` does (its steps 0–8; the loop itself is in `skills/design/_guide-10` and `_guide-13`):
+
+1. **Round number.** `<n>` is one more than the highest `<n>` among `$RUN/handoff/*-<n>.in.json`, or `0`. `mkdir -p "$RUN/handoff" "$RUN/critique"`.
+2. **Deterministic checks first.** `maude design check "$ACTIVE" --tier stop --json > "$RUN/critique/check-<n>.json"`. Its errors count as correctness blockers.
+3. **Render.** The step-7 screenshots, or `maude design screenshot --canvas "$ACTIVE" --all-screens --out-dir "$RUN/critique/shots-<n>/"`.
+4. **Keeper** (step 7.5, when `RUN_KEEPER=1`): its verdict saved to `$RUN/critique/keeper-<n>.json`.
+5. **One hand-off per critic**, written to `$RUN/handoff/<critic>-<n>.in.json` (the sample is in `commands/critic.md` step 6). A critic owns only its result and its report; `context.brief` is the person's feedback verbatim; `context.styleContract.optOutScope` is the resolved scope; `context.fidelity` follows `ds_fidelity`.
+6. **Spawn the selected set in a single message with parallel Agent calls**, the hand-off JSON at the top of each prompt. Even a panel of one is spawned this way.
+7. **Read the results.** `maude design check "$RUN/handoff/<critic>-<n>.out.json"` for each; a missing or invalid result means that critic is unavailable this round, and the rest go on. Map each valid result to the verdict the loop reads (`handoffToCriticVerdict`, the table in `commands/critic.md` step 7).
+8. **Consolidate.** When more than one source reported, write `$RUN/critique/panel-<n>.md` (schema: `_guide-09` § Panel consolidation report) **last**: the loop reads that file, not the partial results. Then check the exit conditions and fix the top 3 blockers yourself, with Edit (critics never edit). Repeat.
+
+The loop never posts comments; only an explicit `/design:critic` does. Questions in a critic's `open_questions` are for the person: ask them once, after the loop.
+
+**Track the best round.** Keep your own record of each round's score and of the edit you made. When a round scores worse and the loop says to restore the best, undo your last round's edits by editing the file back (keep every id and lock). The run still lands as one version, and the version before the run is in Version history if everything should go. Never copy an old file over the canvas.

@@ -36,11 +36,28 @@ export const STORE_METHODS = Object.freeze([
   'revisions',
   'history',
   'action',
+  'actions',
   'manifest',
   'docByPath',
   'laneAt',
   'effectsAfter',
   'liveDocByEntry',
+  // S1.6 — named versions and the shared Trash (S1-trash.md §4).
+  'names',
+  'trash',
+  'trashCleared',
+  // V2-1.15 §5.2 — AI runs and leases (each one transaction = one RPC).
+  'runsBegin',
+  'runsClaim',
+  'runsRenew',
+  'runsEnd',
+  'runsList',
+  // Gate 0 A18 (S4.6) — votes and hub-held ballots (each one transaction = one RPC).
+  'votesStart',
+  'votesCast',
+  'votesEnd',
+  'votesGet',
+  'votesList',
 ]);
 const ALLOWED = new Set(STORE_METHODS);
 
@@ -65,6 +82,14 @@ export function createProjectStoreHost(storage, { now } = {}) {
   let core = null;
   const ready = () => {
     if (!core) {
+      // Ballot secrecy residual (S4-S9-votes-comments.md §2.6, V2-5 sweep-fix):
+      // the self-hosted hub runs `secure_delete = ON` and truncates its WAL when
+      // a vote ends (store-sqlite.mjs). The Durable Object's SQLite offers
+      // neither: `ctx.storage.sql` accepts no `secure_delete` / `wal_checkpoint`
+      // pragma, and Point-in-Time Recovery keeps every state of the last 30
+      // days. So a vote's deleted ballots stay recoverable — by the Cloudflare
+      // account operator through a PITR bookmark, never by any Maude route —
+      // for up to 30 days after its end. No hook is wired here on purpose.
       core = createStoreCore(durableObjectSqlAdapter(storage), { now });
       core.migrate();
     }
@@ -84,7 +109,13 @@ export function createProjectStoreHost(storage, { now } = {}) {
       if (err instanceof StoreConflict) {
         return {
           ok: false,
-          error: { name: 'StoreConflict', code: err.code, message: err.message },
+          error: {
+            name: 'StoreConflict',
+            code: err.code,
+            message: err.message,
+            // `lease-fenced` names the artboards a newer grant took (V2-1.15 §5.3).
+            ...(Array.isArray(err.keys) ? { keys: err.keys } : {}),
+          },
         };
       }
       return {

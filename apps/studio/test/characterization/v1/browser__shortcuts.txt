@@ -1,349 +1,761 @@
 # browser/shortcuts
 div
   div .maude
+    div .sh-callouts [data-testid="callouts"]
     div .maude-notifications
       section [aria-label="Notifications alt+T"] [tabindex="-1"]
-    div .st-shell
-      header .st-menubar [data-testid="menubar"] [aria-label="Application menubar"]
-        span .st-brand [data-tour="brand"]
-          span .st-brand-mark
-            svg [aria-hidden="true"]
-          span .st-brand-name "maude"
-        nav .st-menus [role="menubar"] [aria-label="Application menus"] [data-tour="menus"]
-          button .st-menu [data-testid="menu-file"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "File"
-          button .st-menu [data-testid="menu-edit"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "Edit"
-          button .st-menu [data-testid="menu-view"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "View"
-          button .st-menu [data-testid="menu-selection"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "Selection"
-          button .st-menu [data-testid="menu-tools"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "Tools"
-          button .st-menu [data-testid="menu-help"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [data-tour="help"] [type="button"] "Help"
-        div .st-mb-right [data-tour="status"]
-          div .st-presence
-            span .st-avatar [aria-label="You"] "YO"
-          button .st-mb-icon.st-share-btn [data-testid="share-btn"] [aria-label="Share link"] [type="button"] [disabled]
-            svg [aria-hidden="true"]
-          button .st-exports [aria-label="Exports"] [data-tour="exports"] [type="button"]
-            span [aria-hidden="true"] "⬇"
-          button .st-reportbug [data-testid="report-bug-toggle"] [aria-label="Report a bug"] [type="button"]
-            svg [aria-hidden="true"]
-          button .st-whatsnew [aria-label="What's new"] [data-tour="whatsnew"] [type="button"]
-            svg [aria-hidden="true"]
-          span .st-stamp "IDLE"
-          span .st-mb-file [title]
-            span "no canvas open"
-          span .st-mb-sep
-          span .st-mb-count "0 ARTBOARDS"
-            span .st-dot
-          span .st-mb-sep
-          span .st-mb-proj "characterization"
-      div .st-body
-        div .st-rail
-          div .st-rail-inner
-            button .st-iconbtn [aria-label="Expand sidebar"] [title="Expand sidebar (T)"] [type="button"]
+    div .sh-shell
+      div .sh-body.sh-body--float
+        span .island.sh-pill
+          button .sh-pill-btn [data-testid="project-pill"] [aria-label="characterization, project menu"] [aria-expanded="false"] [aria-haspopup="menu"] [data-tour="menus"] [title="Project menu"] [type="button"]
+            span .sh-pill-mark [data-tour="brand"]
               svg [aria-hidden="true"]
-            button .st-iconbtn [aria-label="Search"] [title="Search (/)"] [type="button"]
+            span .sh-pill-name "characterization"
+            span .sh-pill-caret [aria-hidden="true"]
               svg [aria-hidden="true"]
-            button .st-iconbtn [aria-label="Files"] [title="Files"] [type="button"]
-              svg [aria-hidden="true"]
-        div .st-dockslot.st-dockslot--left
-          div .st-docktabs [role="tablist"] [aria-label="left panels"]
-            button .is-active.st-docktab [data-testid="dock-tab-tree"] [role="tab"] [aria-selected="true"] [type="button"] "Files"
-            button .st-docktab [data-testid="dock-tab-layers"] [role="tab"] [aria-selected="false"] [type="button"] "Layers"
-          nav .st-sidebar [aria-label="Files"] [data-tour="sidebar"]
-            div .st-sb-hd
-              span .st-sb-title "Files"
-              div .st-sb-hd-actions
-                button .st-iconbtn [aria-label="New blank brief board"] [aria-expanded="false"] [type="button"]
-                  svg [aria-hidden="true"]
-                button .st-iconbtn [data-testid="tree-new-folder"] [aria-label="New folder"] [aria-expanded="false"] [type="button"]
-                  svg [aria-hidden="true"]
-                button .st-iconbtn.st-refresh [aria-label="Refresh files"] [type="button"]
-                  svg [aria-hidden="true"]
-                span .st-live "4 / 4"
-                  span .is-connected.st-live-dot [aria-hidden="true"]
-                button .st-iconbtn [aria-label="Collapse sidebar"] [type="button"]
-                  svg [aria-hidden="true"]
-            div .st-search
-              div .st-search-box
+        div .island.sh-share [data-testid="share-cluster"] [data-tour="status"]
+          span .sh-faces-host
+            ul .sh-faces [data-testid="share-cluster-faces"] [aria-label="People here"]
+              li .is-you.sh-face [aria-label="You"] [title="You"] "Y"
+          span .sh-saved [data-testid="share-cluster-status"] [role="status"]
+            svg [aria-hidden="true"]
+            span .sh-saved-w "Local project"
+          div .sh-modes [data-testid="share-cluster-mode"] [role="group"] [aria-label="Mode"]
+            button .sh-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="true"] [title="Edit"] [type="button"]
+              svg .sh-mode-g [aria-hidden="true"]
+            button .sh-mode-b [data-testid="palette-mode-preview"] [aria-label="Preview — the design is live"] [aria-pressed="false"] [title="Preview"] [type="button"]
+              svg .sh-mode-g [aria-hidden="true"]
+            span .sh-mode-b.sh-mode-b--menu
+              button .sh-mode-hit [data-testid="palette-mode-present"] [aria-label="Present"] [aria-pressed="false"] [title="Present"] [type="button"] [disabled]
+                svg .sh-mode-g [aria-hidden="true"]
+              button .sh-mode-ch [data-testid="mode-present-menu"] [aria-label="Present options"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] [disabled]
                 svg [aria-hidden="true"]
-                input [data-testid="canvas-search"] [aria-label="Filter files"] [type="search"] [placeholder="Search canvases…"] [value]
-                span .kbd "/"
-            div .st-tree [data-testid="canvas-list"] [role="tree"] [aria-label="Project file tree"] [tabindex="-1"]
-              div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="DESIGN SYSTEM"] [aria-expanded="false"] [tabindex="0"]
-                div .st-row-wrap
-                  button .st-tree-sec-hd [data-testid="tree-section-design-system"] [aria-expanded="false"] [title="Expand section"] [type="button"] [tabindex="-1"]
-                    svg .st-chev [aria-hidden="true"]
-                    span .st-sec-name "DESIGN SYSTEM"
-                    span .st-pill "1"
-              div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="UI CANVASES"] [aria-expanded="false"] [tabindex="-1"]
-                div .st-row-wrap
-                  button .st-tree-sec-hd [data-testid="tree-section-ui-kit"] [aria-expanded="false"] [title="Expand section"] [type="button"] [tabindex="-1"]
-                    svg .st-chev [aria-hidden="true"]
-                    span .st-sec-name "UI CANVASES"
-                    span .st-pill "3"
-            div .cb-rail.gi-rail [data-testid="cloud-bar"]
-              button .btn.btn--ghost.btn--sm.gi-rail-signin [data-testid="cloud-signin"] [type="button"] "Sign in to Maude Cloud"
+          button .sh-share-ic [data-testid="share-cluster-panels"] [aria-label="Hide panels"] [title="Hide panels ⌘\\"] [type="button"]
+            svg [aria-hidden="true"]
+          button .btn.btn--primary.btn--sm.sh-share-btn [data-testid="share-cluster-share"] [aria-disabled="true"] [title="Open a canvas to share it"] [type="button"] "Share"
+            svg [aria-hidden="true"]
+        div .sh-dockslot.sh-dockslot--left
+          div .island.sh-dockslot-inner [data-testid="dock-slot-left"]
+            div .lp-head [data-testid="panel-head-left"]
+              div .lp-tabs [role="tablist"] [aria-label="left panels"] [tabindex="-1"]
+                button .is-active.lp-tab [data-testid="panel-tab-tree"] [role="tab"] [aria-selected="true"] [type="button"] [tabindex="0"] "Canvases"
+                button .lp-tab [data-testid="panel-tab-layers"] [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Layers"
+                button .lp-tab [data-testid="panel-tab-assets"] [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Assets"
+              button .lp-fold.sh-iconbtn [data-testid="panel-fold-left"] [aria-label="Hide Canvases"] [title="Hide Canvases"] [type="button"]
                 svg [aria-hidden="true"]
-        div .st-grip [role="separator"] [aria-label="Resize left panel"] [tabindex="0"]
-          svg .st-grip-dots [aria-hidden="true"]
+            nav .sh-sidebar [aria-label="Canvases"] [data-tour="sidebar"]
+              div .cv-sb-hd
+                span .cv-sb-title "Canvases"
+              div .cv-search
+                div .cv-search-box
+                  svg [aria-hidden="true"]
+                  input [data-testid="canvas-search"] [aria-label="Search canvases"] [type="search"] [placeholder="Search"] [value]
+                  span .kbd "⌘K"
+              div .lp-pinned [data-testid="canvases-pinned"]
+                div .lp-ds-wrap
+                  button .lp-ds.lp-ds--two.lp-row [data-testid="canvases-ds-row"] [title="Design system — demo · 3 canvases"] [type="button"]
+                    span .lp-ds-ic
+                      svg [aria-hidden="true"]
+                    span .lp-ds-two
+                      span .lp-name "Design system"
+                      span .lp-ds-sub [data-testid="canvases-ds-row-sub"]
+                        span .lp-ds-line "demo"
+                        span .lp-ds-line "3 canvases"
+                    span .lp-ds-warn [data-testid="canvases-ds-row-warn"] [role="img"] [aria-label="Made before the schema"] [title="Made before the schema — click to bring it up"]
+                  button .lp-ds-more [data-testid="canvases-ds-row-menu"] [aria-label="Design system menu"] [aria-haspopup="menu"] [type="button"]
+                    span [aria-hidden="true"] "⋯"
+              div .cv-panel
+                div .cv-listwrap
+                  div .cv-sort-lane
+                    button .cv-sort.cv-sort--quiet [data-testid="canvases-sort"] [aria-label="3 canvases — sort canvases (Recently opened)"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "3 canvases"
+                      svg [aria-hidden="true"]
+                  div .cv-tree.sh-tree [data-testid="canvas-list"] [role="tree"] [aria-label="Project file tree"] [tabindex="-1"]
+                    div .cv-spacer
+                      div .cv-head [data-testid="canvases-head-project"]
+                        span .cv-head-name "characterization"
+                      div .cv-item [role="treeitem"] [aria-label="marketing"] [aria-expanded="false"] [tabindex="0"]
+                        div .cv-row.cv-row--folder
+                          button .cv-main [data-testid="tree-folder-ui-marketing"] [aria-expanded="false"] [type="button"] [tabindex="-1"]
+                            span .cv-twisty
+                              svg .cv-chev [aria-hidden="true"]
+                            span .cv-fic
+                              svg [aria-hidden="true"]
+                            span .cv-name "marketing"
+                            span .cv-count [role="img"] [aria-label="1 canvases"] "1"
+                          span .cv-actions
+                            button .cv-act [data-testid="tree-row-menu-ui-marketing"] [aria-label="Folder actions for marketing"] [aria-haspopup="menu"] [title="Folder actions — marketing"] [type="button"]
+                              svg [aria-hidden="true"]
+                      div .cv-item [role="treeitem"] [aria-label="Broken"] [aria-selected="false"] [tabindex="-1"]
+                        div .cv-row.cv-row--canvas
+                          button .cv-main [data-testid="canvas-row-ui-broken"] [title=".design/ui/Broken.tsx"] [type="button"] [tabindex="-1"]
+                            span .cv-thumb [aria-hidden="true"]
+                            span .cv-name "Broken"
+                            span .cv-badges
+                          span .cv-actions
+                            button .cv-act.cv-act--pin [data-testid="canvas-pin-ui-broken"] [aria-label="Pin Broken"] [aria-pressed="false"] [title="Pin"] [type="button"]
+                              svg [aria-hidden="true"]
+                            button .cv-act [data-testid="tree-row-menu-ui-broken"] [aria-label="Actions for Broken"] [aria-haspopup="menu"] [title="Actions for Broken"] [type="button"]
+                              svg [aria-hidden="true"]
+                      div .cv-item [role="treeitem"] [aria-label="Home"] [aria-expanded="false"] [aria-selected="false"] [tabindex="-1"]
+                        div .cv-row.cv-row--canvas
+                          button .cv-jt [data-testid="canvas-jump-toggle-ui-home"] [aria-label="Show the artboards in Home"] [aria-expanded="false"] [title="Show artboards"] [type="button"] [tabindex="-1"]
+                            svg .cv-chev [aria-hidden="true"]
+                          button .cv-main [data-testid="canvas-row-ui-home"] [title=".design/ui/Home.tsx"] [type="button"] [tabindex="-1"]
+                            span .cv-thumb [aria-hidden="true"]
+                              img
+                            span .cv-name "Home"
+                            span .cv-badges
+                          span .cv-actions
+                            button .cv-act.cv-act--pin [data-testid="canvas-pin-ui-home"] [aria-label="Pin Home"] [aria-pressed="false"] [title="Pin"] [type="button"]
+                              svg [aria-hidden="true"]
+                            button .cv-act [data-testid="tree-row-menu-ui-home"] [aria-label="Actions for Home"] [aria-haspopup="menu"] [title="Actions for Home"] [type="button"]
+                              svg [aria-hidden="true"]
+                div .lp-newrow [data-testid="canvases-new-row"]
+                  button .lp-newrow-main.lp-row [aria-label="New canvas"] [aria-expanded="false"] [type="button"]
+                    span .lp-new-ic [aria-hidden="true"]
+                      svg [aria-hidden="true"]
+                    span .lp-name "New canvas"
+                  button .lp-newrow-folder.sh-iconbtn [data-testid="tree-new-folder"] [aria-label="New folder"] [aria-expanded="false"] [type="button"]
+                    svg [aria-hidden="true"]
+              div .k-adv.lp-adv [data-testid="canvases-advanced-fold"]
+                button .k-adv-btn.lp-adv-btn [data-testid="canvases-advanced"] [aria-expanded="false"] [type="button"] "Advanced"
+                  span .k-adv-ch.lp-adv-ch
+                    svg [aria-hidden="true"]
+              div .cb-host [data-testid="cloud-host"]
+        div .sh-grip.sh-grip--l [data-testid="panel-grip-left"] [role="separator"] [aria-label="Resize left panel"] [tabindex="0"]
+          svg .sh-grip-dots [aria-hidden="true"]
+          span .sh-grip-tip [aria-hidden="true"] "Drag · double-click resets · ← → move 8"
         div .main
-          div .st-stage.viewport [data-tour="viewport"]
-            div .st-empty
-              div .st-empty-brand
-                span .st-brand-mark
-                  svg [aria-hidden="true"]
-                span .st-empty-wm "maude"
-                span .st-empty-sub.st-mono "CANVAS · CHARACTERIZATION / <ver> / localhost:<port>"
-              div .st-empty-title "Nothing open yet"
-              div .st-empty-body "← Pick a screen from the list on the left, or open above it to see your colors, type, and components. hold and hover to preview an element, "
-                strong "Design system"
-                br
-                br
-                strong "To select something on the canvas:"
-                span .kbd "⌘"
-                span .kbd "⌘⇧"
-      footer .st-statusbar [data-testid="statusbar"] [role="contentinfo"]
-        span .st-sb-active.st-sb-slot [role="group"] [aria-label="Active file"]
-          span .lead [aria-hidden="true"]
-          span .lbl "active"
-          span .val [title] "—"
-        span .st-sb-slot [role="group"] [aria-label="Open comments"]
-          span .lbl "comments"
-          span .val "0 open"
-        span .st-sb-spacer
-        span .st-sb-slot [role="group"] [aria-label="Connection"]
-          span .is-connected.st-live-dot [aria-hidden="true"]
-          span .lbl "live"
-        span .st-sb-slot.st-sb-version [role="group"] [aria-label="Maude version"]
-          span .val [data-testid="statusbar-version"] "<ver>"
-        button .st-sb-theme [aria-label="Switch to light theme"] [type="button"] "light"
-          svg [aria-hidden="true"]
-    div .st-scrim [role="presentation"]
-      div .so-overlay [role="dialog"] [aria-label="Keyboard shortcuts"] [aria-modal="true"]
+          main .sh-stage.viewport [data-tour="viewport"]
+            div .sh-empty
+              div .sh-empty-title "No canvas open"
+              div .sh-empty-body "Open a canvas from the Canvases panel, or start a new one."
+        span .island.sh-corner.sh-corner--right
+          button .sh-iconbtn [data-testid="panel-icon-right"] [aria-label="Open Inspector"] [title="Inspector"] [type="button"]
+            svg [aria-hidden="true"]
+    div .sh-scrim [role="presentation"]
+      div .so-overlay.so-overlay--v2 [data-testid="shortcuts-sheet"] [role="dialog"] [aria-label="Keyboard shortcuts"] [aria-modal="true"] [tabindex="-1"]
         div .so-overlay-hd
-          span .so-title "Keyboard shortcuts"
-          span .so-trigger "press to open"
-            span .kbd "?"
-        div .so-columns
-          section .so-section.so-section--canvas
-            h3 .so-section-hd "Canvas"
+          h2 .so-title "Keyboard shortcuts"
+          label .so-find
+            svg [aria-hidden="true"]
+            input [data-testid="shortcuts-find"] [aria-label="Find a shortcut"] [placeholder="Find a shortcut"] [value]
+          button .so-close [aria-label="Close"] [type="button"]
+            svg [aria-hidden="true"]
+        div .so-columns.so-columns--3
+          section .so-section.so-section--edit-tools [data-testid="shortcuts-group-edit-tools"]
+            h3 .so-section-hd "Edit tools"
             dl .so-list
-              div .so-pair
-                dt "Command palette"
+              div .so-pair [data-testid="shortcuts-row-tool.select"]
+                dt "Select"
                 dd
                   span .so-combos
-                    span .so-combo
-                      span .kbd "⌘"
-                      span .kbd "K"
-              div .so-pair
-                dt "New brief board"
+                    span .kbd "V"
+              div .so-pair [data-testid="shortcuts-row-tool.hand"]
+                dt "Hand"
                 dd
                   span .so-combos
-                    span .so-combo
-                      span .kbd "N"
-              div .so-pair
+                    span .kbd "H"
+              div .so-pair [data-testid="shortcuts-row-tool.frame"]
+                dt "Frame"
+                dd
+                  span .so-combos
+                    span .kbd "F"
+              div .so-pair [data-testid="shortcuts-row-tool.el-shape"]
+                dt "Shape"
+                dd
+                  span .so-combos
+                    span .kbd "R"
+              div .so-pair [data-testid="shortcuts-row-tool.el-pen"]
+                dt "Pen"
+                dd
+                  span .so-combos
+                    span .kbd "P"
+              div .so-pair [data-testid="shortcuts-row-tool.el-text"]
+                dt "Text"
+                dd
+                  span .so-combos
+                    span .kbd "T"
+              div .so-pair [data-testid="shortcuts-row-tool.image"]
+                dt "Image"
+                dd
+                  span .so-combos
+                    span .kbd "I"
+              div .so-pair [data-testid="shortcuts-row-tool.components"]
+                dt "Component"
+                dd
+                  span .so-combos
+                    span .kbd "⇧I"
+          section .so-section.so-section--preview-tools [data-testid="shortcuts-group-preview-tools"]
+            h3 .so-section-hd "Preview tools"
+            p .so-note "The key switches to Preview"
+            dl .so-list
+              div .so-pair [data-testid="shortcuts-row-tool.sticky"]
+                dt "Sticky"
+                dd
+                  span .so-combos
+                    span .kbd "N"
+              div .so-pair [data-testid="shortcuts-row-tool.comment"]
+                dt "Comment"
+                dd
+                  span .so-combos
+                    span .kbd "C"
+              div .so-pair [data-testid="shortcuts-row-tool.pen"]
+                dt "Marker"
+                dd
+                  span .so-combos
+                    span .kbd "M"
+              div .so-pair [data-testid="shortcuts-row-tool.arrow"]
+                dt "Arrow"
+                dd
+                  span .so-combos
+                    span .kbd "A"
+              div .so-pair [data-testid="shortcuts-row-tool.stickers"]
+                dt "Stickers"
+                dd
+                  span .so-combos
+                    span .kbd "E"
+              div .so-pair [data-testid="shortcuts-row-tool.section"]
+                dt "Section"
+                dd
+                  span .so-combos
+                    span .kbd "S"
+          section .so-section.so-section--file [data-testid="shortcuts-group-file"]
+            h3 .so-section-hd "File"
+            dl .so-list
+              div .so-pair [data-testid="shortcuts-row-export.open"]
                 dt "Export…"
                 dd
                   span .so-combos
-                    span .so-combo
-                      span .kbd "⇧"
-                      span .kbd "⌘"
-                      span .kbd "E"
-              div .so-pair
+                    span .kbd "⇧⌘E"
+              div .so-pair [data-testid="shortcuts-row-handoff.open"]
                 dt "Handoff to production"
                 dd
                   span .so-combos
-                    span .so-combo
-                      span .kbd "⇧"
-                      span .kbd "⌘"
-                      span .kbd "H"
-              div .so-pair
-                dt "Reload canvas"
+                    span .kbd "⇧⌘H"
+              div .so-pair [data-testid="shortcuts-row-settings.open"]
+                dt "Settings…"
                 dd
                   span .so-combos
-                    span .so-combo
-                      span .kbd "⌘"
-                      span .kbd "R"
-              div .so-pair
-                dt "Search files"
-                dd
-                  span .so-combos
-                    span .so-combo
-                      span .kbd "/"
-                    span .so-or "/"
-                    span .so-combo
-                      span .kbd "⌘"
-                      span .kbd "F"
-          section .so-section.so-section--tools
-            h3 .so-section-hd "Tools · canvas focus"
+                    span .kbd "⌘,"
+          section .so-section.so-section--finding [data-testid="shortcuts-group-finding"]
+            h3 .so-section-hd "Finding a canvas"
             dl .so-list
-              div .so-pair
-                dt "Move · Hand · Comment"
+              div .so-pair [data-testid="shortcuts-row-search.open"]
+                dt "Search every project"
                 dd
                   span .so-combos
-                    span .so-combo
-                      span .kbd "V"
-                    span .so-or "/"
-                    span .so-combo
-                      span .kbd "H"
-                    span .so-or "/"
-                    span .so-combo
-                      span .kbd "C"
-              div .so-pair
-                dt "Pen · Highlighter · Eraser"
+                    span .kbd "⌘K"
+              div .so-pair [data-testid="shortcuts-row-history.open"]
+                dt "Version history"
                 dd
                   span .so-combos
-                    span .so-combo
-                      span .kbd "B"
-                    span .so-or "/"
-                    span .so-combo
-                      span .kbd "I"
-                    span .so-or "/"
-                    span .so-combo
-                      span .kbd "E"
-              div .so-pair
-                dt "Shape · Arrow"
-                dd
-                  span .so-combos
-                    span .so-combo
-                      span .kbd "R"
-                    span .so-or "/"
-                    span .so-combo
-                      span .kbd "A"
-              div .so-pair
-                dt "Sticky · Text · Section"
-                dd
-                  span .so-combos
-                    span .so-combo
-                      span .kbd "N"
-                    span .so-or "/"
-                    span .so-combo
-                      span .kbd "T"
-                    span .so-or "/"
-                    span .so-combo
-                      span .kbd "⇧S"
-              div .so-pair
-                dt "Undo / redo"
-                dd
-                  span .so-combos
-                    span .so-combo
-                      span .kbd "⌘"
-                      span .kbd "Z"
-                    span .so-or "/"
-                    span .so-combo
-                      span .kbd "⇧"
-                      span .kbd "⌘"
-                      span .kbd "Z"
-          section .so-section.so-section--selection
-            h3 .so-section-hd "Selection & zoom"
+                    span .kbd "⌥⌘H"
+          section .so-section.so-section--canvas [data-testid="shortcuts-group-canvas"]
+            h3 .so-section-hd "Canvas"
             dl .so-list
-              div .so-pair
-                dt "Select element"
+              div .so-pair [data-testid="shortcuts-row-edit.undo"]
+                dt "Undo"
                 dd
                   span .so-combos
-                    span .so-combo
-                      span .kbd "⌘"
-                      span .kbd "click"
-              div .so-pair
-                dt "Add to selection"
+                    span .kbd "⌘Z"
+              div .so-pair [data-testid="shortcuts-row-edit.redo"]
+                dt "Redo"
                 dd
                   span .so-combos
-                    span .so-combo
-                      span .kbd "⌘"
-                      span .kbd "⇧"
-                      span .kbd "click"
-              div .so-pair
-                dt "Preview deepest"
+                    span .kbd "⇧⌘Z"
+              div .so-pair [data-testid="shortcuts-row-artboard.duplicate"]
+                dt "Duplicate artboard"
                 dd
                   span .so-combos
-                    span .so-combo
-                      span .kbd "⌘"
-                      span .kbd "hover"
-              div .so-pair
-                dt "Deselect · close menu"
+                    span .kbd "⌘D"
+              div .so-pair [data-testid="shortcuts-row-artboard.trash"]
+                dt "Move artboard to the trash"
                 dd
                   span .so-combos
-                    span .so-combo
-                      span .kbd "Esc"
-              div .so-pair
-                dt "Zoom in / out"
+                    span .kbd "⌫"
+                    span .kbd "⌦"
+              div .so-pair [data-testid="shortcuts-row-ai.ask-selection"]
+                dt "Ask AI about the selection"
                 dd
                   span .so-combos
-                    span .so-combo
-                      span .kbd "⌘"
-                      span .kbd "+"
-                    span .so-or "/"
-                    span .so-combo
-                      span .kbd "⌘"
-                      span .kbd "−"
-              div .so-pair
-                dt "Fit · actual size"
+                    span .kbd "⌘/"
+              div .so-pair [data-testid="shortcuts-row-mode.preview"]
+                dt "Preview"
                 dd
                   span .so-combos
-                    span .so-combo
-                      span .kbd "⌘"
-                      span .kbd "0"
-                    span .so-or "/"
-                    span .so-combo
-                      span .kbd "⌘"
-                      span .kbd "1"
-          section .so-section.so-section--view
-            h3 .so-section-hd "View"
-            dl .so-list
-              div .so-pair
-                dt "Project tree"
-                dd
-                  span .so-combos
-                    span .so-combo
-                      span .kbd "T"
-              div .so-pair
-                dt "Design system view"
-                dd
-                  span .so-combos
-                    span .so-combo
-                      span .kbd "S"
-              div .so-pair
-                dt "Inspector"
-                dd
-                  span .so-combos
-                    span .so-combo
-                      span .kbd "⌘"
-                      span .kbd "⇧"
-                      span .kbd "I"
-              div .so-pair
-                dt "Comments sidebar"
-                dd
-                  span .so-combos
-                    span .so-combo
-                      span .kbd "⌘"
-                      span .kbd "⇧"
-                      span .kbd "M"
-              div .so-pair
+                    span .kbd "⌥⌘P"
+              div .so-pair [data-testid="shortcuts-row-view.annotations"]
                 dt "Annotations"
                 dd
                   span .so-combos
-                    span .so-combo
-                      span .kbd "⇧"
-                      span .kbd "P"
-              div .so-pair
-                dt "Hidden files"
+                    span .kbd "⇧P"
+              div .so-pair [data-testid="shortcuts-row-present.from-selection"]
+                dt "Present"
                 dd
                   span .so-combos
-                    span .so-combo
-                      span .kbd "H"
-              div .so-pair
-                dt "This cheat sheet · help"
+                    span .kbd "⌥⌘↵"
+              div .so-pair [data-testid="shortcuts-row-present.from-start"]
+                dt "Present from the start"
                 dd
                   span .so-combos
-                    span .so-combo
-                      span .kbd "?"
-                    span .so-or "/"
-                    span .so-combo
-                      span .kbd "F1"
+                    span .kbd "⌥⇧⌘↵"
+              div .so-pair [data-testid="shortcuts-row-view.zoom-in"]
+                dt "Zoom in"
+                dd
+                  span .so-combos
+                    span .kbd "⌘+"
+              div .so-pair [data-testid="shortcuts-row-view.zoom-out"]
+                dt "Zoom out"
+                dd
+                  span .so-combos
+                    span .kbd "⌘−"
+              div .so-pair [data-testid="shortcuts-row-view.zoom-fit"]
+                dt "Zoom to fit"
+                dd
+                  span .so-combos
+                    span .kbd "⌘0"
+              div .so-pair [data-testid="shortcuts-row-view.zoom-actual"]
+                dt "Actual size"
+                dd
+                  span .so-combos
+                    span .kbd "⇧0"
+              div .so-pair [data-testid="shortcuts-row-view.jump-artboard"]
+                dt "Go to artboard"
+                dd
+                  span .so-combos
+                    span .kbd "⌥⌘1–9"
+              div .so-pair [data-testid="shortcuts-row-ui.step-back"]
+                dt "Step back"
+                dd
+                  span .so-combos
+                    span .kbd "esc"
+              div .so-pair [data-testid="shortcuts-row-ui.cycle-region"]
+                dt "Move between the panels and the canvas"
+                dd
+                  span .so-combos
+                    span .kbd "F6"
+              div .so-pair [data-testid="shortcuts-row-export.copy-png"]
+                dt "Copy as PNG"
+                dd
+                  span .so-combos
+                    span .kbd "⇧⌘C"
+          section .so-section.so-section--panels-ai [data-testid="shortcuts-group-panels-ai"]
+            h3 .so-section-hd "Panels"
+            dl .so-list
+              div .so-pair [data-testid="shortcuts-row-canvases.search"]
+                dt "Search canvases"
+                dd
+                  span .so-combos
+                    span .kbd "/"
+              div .so-pair [data-testid="shortcuts-row-canvases.find"]
+                dt "Find a canvas"
+                dd
+                  span .so-combos
+                    span .kbd "⌘F"
+              div .so-pair [data-testid="shortcuts-row-canvases.refresh"]
+                dt "Refresh canvases"
+                dd
+                  span .so-combos
+                    span .kbd "⇧⌘R"
+              div .so-pair [data-testid="shortcuts-row-view.panels"]
+                dt "Hide panels"
+                dd
+                  span .so-combos
+                    span .kbd "⌘\\"
+              div .so-pair [data-testid="shortcuts-row-view.comments"]
+                dt "Comments"
+                dd
+                  span .so-combos
+                    span .kbd "⇧⌘M"
+              div .so-pair [data-testid="shortcuts-row-help.shortcuts"]
+                dt "Keyboard shortcuts"
+                dd
+                  span .so-combos
+                    span .kbd "?"
+              div .so-pair [data-testid="shortcuts-row-help.guides"]
+                dt "Help and guides"
+                dd
+                  span .so-combos
+                    span .kbd "F1"
+          section .so-section.so-section--objects [data-testid="shortcuts-group-objects"]
+            h3 .so-section-hd "Objects"
+            dl .so-list
+              div .so-pair [data-testid="shortcuts-row-object.copy"]
+                dt "Copy"
+                dd
+                  span .so-combos
+                    span .kbd "⌘C"
+              div .so-pair [data-testid="shortcuts-row-object.cut"]
+                dt "Cut"
+                dd
+                  span .so-combos
+                    span .kbd "⌘X"
+              div .so-pair [data-testid="shortcuts-row-artboard.copy"]
+                dt "Copy artboard"
+                dd
+                  span .so-combos
+                    span .kbd "⌘C"
+              div .so-pair [data-testid="shortcuts-row-edit.paste"]
+                dt "Paste"
+                dd
+                  span .so-combos
+                    span .kbd "⌘V"
+              div .so-pair [data-testid="shortcuts-row-select.all"]
+                dt "Select all"
+                dd
+                  span .so-combos
+                    span .kbd "⌘A"
+              div .so-pair [data-testid="shortcuts-row-select.all-annotations"]
+                dt "Select all annotations"
+                dd
+                  span .so-combos
+                    span .kbd "⇧⌘A"
+              div .so-pair [data-testid="shortcuts-row-object.duplicate"]
+                dt "Duplicate"
+                dd
+                  span .so-combos
+                    span .kbd "⌘D"
+              div .so-pair [data-testid="shortcuts-row-edit.copy-properties"]
+                dt "Copy properties"
+                dd
+                  span .so-combos
+                    span .kbd "⌥⌘C"
+              div .so-pair [data-testid="shortcuts-row-edit.paste-properties"]
+                dt "Paste properties"
+                dd
+                  span .so-combos
+                    span .kbd "⌥⌘V"
+              div .so-pair [data-testid="shortcuts-row-object.enter"]
+                dt "Go inside"
+                dd
+                  span .so-combos
+                    span .kbd "↵"
+              div .so-pair [data-testid="shortcuts-row-object.select-parent"]
+                dt "Select parent"
+                dd
+                  span .so-combos
+                    span .kbd "⇧↵"
+              div .so-pair [data-testid="shortcuts-row-object.select-next"]
+                dt "Select next object"
+                dd
+                  span .so-combos
+                    span .kbd "tab"
+              div .so-pair [data-testid="shortcuts-row-object.select-prev"]
+                dt "Select previous object"
+                dd
+                  span .so-combos
+                    span .kbd "⇧tab"
+              div .so-pair [data-testid="shortcuts-row-object.remove"]
+                dt "Remove"
+                dd
+                  span .so-combos
+                    span .kbd "⌫"
+                    span .kbd "⌦"
+              div .so-pair [data-testid="shortcuts-row-object.nudge"]
+                dt "Nudge"
+                dd
+                  span .so-combos
+                    span .kbd "←"
+                    span .kbd "→"
+                    span .kbd "↑"
+                    span .kbd "↓"
+              div .so-pair [data-testid="shortcuts-row-object.frame"]
+                dt "Frame selection"
+                dd
+                  span .so-combos
+                    span .kbd "⌥⌘G"
+              div .so-pair [data-testid="shortcuts-row-object.unframe"]
+                dt "Remove frame"
+                dd
+                  span .so-combos
+                    span .kbd "⇧⌘G"
+              div .so-pair [data-testid="shortcuts-row-object.bring-front"]
+                dt "Bring to front"
+                dd
+                  span .so-combos
+                    span .kbd "⌘]"
+              div .so-pair [data-testid="shortcuts-row-object.bring-forward"]
+                dt "Bring forward"
+                dd
+                  span .so-combos
+                    span .kbd "]"
+              div .so-pair [data-testid="shortcuts-row-object.send-backward"]
+                dt "Send backward"
+                dd
+                  span .so-combos
+                    span .kbd "["
+              div .so-pair [data-testid="shortcuts-row-object.send-back"]
+                dt "Send to back"
+                dd
+                  span .so-combos
+                    span .kbd "⌘["
+              div .so-pair [data-testid="shortcuts-row-object.lock"]
+                dt "Lock"
+                dd
+                  span .so-combos
+                    span .kbd "⇧⌘L"
+              div .so-pair [data-testid="shortcuts-row-annotation.chain"]
+                dt "Add the next one"
+                dd
+                  span .so-combos
+                    span .kbd "⌘↵"
+              div .so-pair [data-testid="shortcuts-row-annotation.edit-text"]
+                dt "Edit text"
+                dd
+                  span .so-combos
+                    span .kbd "↵"
+          section .so-section.so-section--timeline [data-testid="shortcuts-group-timeline"]
+            h3 .so-section-hd "Timeline"
+            dl .so-list
+              div .so-pair [data-testid="shortcuts-row-timeline.play"]
+                dt "Play / pause"
+                dd
+                  span .so-combos
+                    span .kbd "Space"
+              div .so-pair [data-testid="shortcuts-row-timeline.step"]
+                dt "Step a frame"
+                dd
+                  span .so-combos
+                    span .kbd "←"
+                    span .kbd "→"
+              div .so-pair [data-testid="shortcuts-row-timeline.to-start"]
+                dt "Go to start"
+                dd
+                  span .so-combos
+                    span .kbd "Home"
+              div .so-pair [data-testid="shortcuts-row-timeline.to-end"]
+                dt "Go to end"
+                dd
+                  span .so-combos
+                    span .kbd "End"
+              div .so-pair [data-testid="shortcuts-row-timeline.prev-keyframe"]
+                dt "Previous keyframe"
+                dd
+                  span .so-combos
+                    span .kbd ","
+              div .so-pair [data-testid="shortcuts-row-timeline.next-keyframe"]
+                dt "Next keyframe"
+                dd
+                  span .so-combos
+                    span .kbd "."
+              div .so-pair [data-testid="shortcuts-row-timeline.split"]
+                dt "Split at playhead"
+                dd
+                  span .so-combos
+                    span .kbd "S"
+                    span .kbd "⌘B"
+              div .so-pair [data-testid="shortcuts-row-timeline.loop-in"]
+                dt "Loop starts here"
+                dd
+                  span .so-combos
+                    span .kbd "I"
+              div .so-pair [data-testid="shortcuts-row-timeline.loop-out"]
+                dt "Loop ends here"
+                dd
+                  span .so-combos
+                    span .kbd "O"
+              div .so-pair [data-testid="shortcuts-row-timeline.zoom-in"]
+                dt "Zoom timeline in"
+                dd
+                  span .so-combos
+                    span .kbd "⌘+"
+              div .so-pair [data-testid="shortcuts-row-timeline.zoom-out"]
+                dt "Zoom timeline out"
+                dd
+                  span .so-combos
+                    span .kbd "⌘−"
+              div .so-pair [data-testid="shortcuts-row-timeline.zoom-fit"]
+                dt "Fit the timeline"
+                dd
+                  span .so-combos
+                    span .kbd "0"
+              div .so-pair [data-testid="shortcuts-row-timeline.comment-mode"]
+                dt "Comment on the timeline"
+                dd
+                  span .so-combos
+                    span .kbd "C"
+        div .k-adv.so-adv [data-testid="shortcuts-advanced"]
+          button .k-adv-btn.so-adv-btn [data-testid="shortcuts-advanced-toggle"] [aria-expanded="true"] [type="button"] "Advanced"
+            span .k-adv-ch.so-adv-ch
+              svg [aria-hidden="true"]
+          div .k-adv-body.so-adv-body [data-testid="fold-help-body"]
+            div .so-pair.so-pair--adv [data-testid="shortcuts-row-canvas.reload"]
+              span .so-adv-label "Reload canvas"
+              span .so-adv-path "Menu › Diagnostics › Reload canvas"
+              span .so-combos
+                span .kbd "⌘R"
+            div .so-pair.so-pair--adv [data-testid="shortcuts-row-view.inspector"]
+              span .so-adv-label "Inspector"
+              span .so-adv-path "Menu › View › Advanced › Inspector"
+              span .so-combos
+                span .kbd "⇧⌘I"
+            div .so-pair.so-pair--adv [data-testid="shortcuts-row-view.timeline-keep-open"]
+              span .so-adv-label "Keep timeline open"
+              span .so-adv-path "Menu › View › Advanced › Keep timeline open"
+              span .so-combos
+                span .kbd "⇧⌘T"
+            h4 .so-sub [data-testid="shortcuts-others-hd"] "Other keys that do the same"
+            div .so-pair.so-pair--adv [data-testid="shortcuts-alt-edit.redo"]
+              span .so-adv-label "Redo"
+              span .so-adv-path
+              span .so-combos
+                span .kbd "⌘Y"
+                span .kbd "⇧⌘Y"
+            div .so-pair.so-pair--adv [data-testid="shortcuts-alt-artboard.trash"]
+              span .so-adv-label "Move artboard to the trash"
+              span .so-adv-path
+              span .so-combos
+                span .kbd "⇧⌫"
+                span .kbd "⇧⌦"
+            div .so-pair.so-pair--adv [data-testid="shortcuts-alt-ui.cycle-region"]
+              span .so-adv-label "Move between the panels and the canvas"
+              span .so-adv-path
+              span .so-combos
+                span .kbd "⇧F6"
+            div .so-pair.so-pair--adv [data-testid="shortcuts-alt-canvases.find"]
+              span .so-adv-label "Find a canvas"
+              span .so-adv-path
+              span .so-combos
+                span .kbd "⇧⌘F"
+            div .so-pair.so-pair--adv [data-testid="shortcuts-alt-help.shortcuts"]
+              span .so-adv-label "Keyboard shortcuts"
+              span .so-adv-path
+              span .so-combos
+                span .kbd "⌘?"
+            div .so-pair.so-pair--adv [data-testid="shortcuts-alt-edit.copy-properties"]
+              span .so-adv-label "Copy properties"
+              span .so-adv-path
+              span .so-combos
+                span .kbd "⌥⇧⌘C"
+            div .so-pair.so-pair--adv [data-testid="shortcuts-alt-edit.paste-properties"]
+              span .so-adv-label "Paste properties"
+              span .so-adv-path
+              span .so-combos
+                span .kbd "⌥⇧⌘V"
+            div .so-pair.so-pair--adv [data-testid="shortcuts-alt-object.nudge"]
+              span .so-adv-label "Nudge"
+              span .so-adv-path
+              span .so-combos
+                span .kbd "⇧←"
+                span .kbd "⇧→"
+                span .kbd "⇧↑"
+                span .kbd "⇧↓"
+            div .so-pair.so-pair--adv [data-testid="shortcuts-alt-object.frame"]
+              span .so-adv-label "Frame selection"
+              span .so-adv-path
+              span .so-combos
+                span .kbd "⌘G"
+            div .so-pair.so-pair--adv [data-testid="shortcuts-alt-timeline.next-keyframe"]
+              span .so-adv-label "Next keyframe"
+              span .so-adv-path
+              span .so-combos
+                span .kbd "⌘."
+            div .so-pair.so-pair--adv [data-testid="shortcuts-alt-timeline.split"]
+              span .so-adv-label "Split at playhead"
+              span .so-adv-path
+              span .so-combos
+                span .kbd "⇧⌘B"
+            div .so-pair.so-pair--adv [data-testid="shortcuts-alt-timeline.comment-mode"]
+              span .so-adv-label "Comment on the timeline"
+              span .so-adv-path
+              span .so-combos
+                span .kbd "⇧C"
+            h4 .so-sub [data-testid="shortcuts-moved-hd"] "Keys and tools that moved"
+            ul .so-moved [data-testid="shortcuts-moved"]
+              li .so-mv
+                span .so-mv-was "Browse tool"
+                svg [aria-hidden="true"]
+                span .so-mv-now "Preview — Hand, and a click uses the design"
+              li .so-mv
+                span .so-mv-was "Pen B"
+                svg [aria-hidden="true"]
+                span .so-mv-now "Marker M — P is the design Pen in Edit"
+              li .so-mv
+                span .so-mv-was "Rect R"
+                svg [aria-hidden="true"]
+                span .so-mv-now "Shape R — Preview draws annotation shapes, Edit design ones"
+              li .so-mv
+                span .so-mv-was "Ellipse O"
+                svg [aria-hidden="true"]
+                span .so-mv-now "Edit › More › Ellipse"
+              li .so-mv
+                span .so-mv-was "Section ⇧S"
+                svg [aria-hidden="true"]
+                span .so-mv-now "S"
+              li .so-mv
+                span .so-mv-was "Actual size ⌘1"
+                svg [aria-hidden="true"]
+                span .so-mv-now "⇧0 — ⌘1–9 pick a tab"
+              li .so-mv
+                span .so-mv-was "Assistant ⇧⌘A"
+                svg [aria-hidden="true"]
+                span .so-mv-now "⌘/ — Ask AI, the AI chat panel"
+              li .so-mv
+                span .so-mv-was "Search canvases ⌘/"
+                svg [aria-hidden="true"]
+                span .so-mv-now "/ — ⌘/ asks AI"
+              li .so-mv
+                span .so-mv-was "Changes ⇧⌘G"
+                svg [aria-hidden="true"]
+                span .so-mv-now "Version history ⌥⌘H — ⇧⌘G is Remove frame in Edit"
+              li .so-mv
+                span .so-mv-was "Timeline undo ⌘Z"
+                svg [aria-hidden="true"]
+                span .so-mv-now "⌘Z — one undo for the canvas and its timeline"
+              li .so-mv
+                span .so-mv-was "Timeline redo ⇧⌘Z"
+                svg [aria-hidden="true"]
+                span .so-mv-now "⇧⌘Z"
+              li .so-mv
+                span .so-mv-was "Toggle theme"
+                svg [aria-hidden="true"]
+                span .so-mv-now "⌘K “Theme” — and Settings › General"
+              li .so-mv
+                span .so-mv-was "New video…"
+                svg [aria-hidden="true"]
+                span .so-mv-now "⌘K “New video” — and New artboard › Video"
+              li .so-mv
+                span .so-mv-was "Files tree T"
+                svg [aria-hidden="true"]
+                span .so-mv-now "Hide panels ⌘\\ — T is Text"
+              li .so-mv
+                span .so-mv-was "Hidden files H"
+                svg [aria-hidden="true"]
+                span .so-mv-now "Canvases › Advanced — H is Hand"
+              li .so-mv
+                span .so-mv-was "Design system S"
+                svg [aria-hidden="true"]
+                span .so-mv-now "⌘K “design system” — S is Section"
+              li .so-mv
+                span .so-mv-was "New board N"
+                svg [aria-hidden="true"]
+                span .so-mv-now "New canvas — N is Sticky, in Preview"
+              li .so-mv
+                span .so-mv-was "Search / and ⌘F"
+                svg [aria-hidden="true"]
+                span .so-mv-now "⌘K"
+              li .so-mv
+                span .so-mv-was "Arrow, Highlighter"
+                svg [aria-hidden="true"]
+                span .so-mv-now "Preview’s toolbar — Arrow A; Highlighter is Marker’s second tip"
+              li .so-mv
+                span .so-mv-was "Section, Eraser"
+                svg [aria-hidden="true"]
+                span .so-mv-now "Preview’s toolbar — Section S; Eraser is a Marker option"
+              li .so-mv
+                span .so-mv-was "Insert"
+                svg [aria-hidden="true"]
+                span .so-mv-now "Edit’s toolbar — Image I · Component ⇧I"
+              li .so-mv
+                span .so-mv-was "Export ⌘E"
+                svg [aria-hidden="true"]
+                span .so-mv-now "Export… ⇧⌘E — ⌘E is unbound"
+              li .so-mv
+                span .so-mv-was "Refresh tree ⇧⌘R"
+                svg [aria-hidden="true"]
+                span .so-mv-now "Canvases › Advanced and ⌘K — the key stays"
         div .so-overlay-ft
           span "close with"
-            span .kbd "Esc"
-          span .so-count "24 bindings · 4 groups"
-    div .mdcc-tour-nudge [role="status"]
-      div .mdcc-tour-nudge__body "New here? Take a 60-second tour of the canvas browser."
-      button .mdcc-tour-nudge__cta [type="button"] "Start"
-      button .mdcc-tour-nudge__skip [aria-label="Dismiss"] [type="button"] "×"
+            span .kbd "esc"
+          span .so-count "83 keys"

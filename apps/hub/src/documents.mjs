@@ -35,6 +35,7 @@
 // The field is ADDITIVE: a peer older than this change ignores it and behaves
 // as it does today.
 
+import { docDoor, peerAccess } from './access-docs.mjs';
 import { isFilesCtlDoc } from './files-ctl.mjs';
 
 /** `GET /api/documents` — the documents this token may open, with sizes. */
@@ -102,6 +103,11 @@ export function handleDocumentsRoute({
     return true;
   }
 
+  // V2-1.16 L2 (S9.5): exactly the documents the WS door would OPEN for this
+  // claim — a canvas-only session lists its granted canvases' documents only
+  // (U1), Can view none (a document is the canvas's source, A19).
+  const peer = peerAccess(match);
+  const opens = (name) => matchesScope(match.scope, name) && docDoor(peer, name).ok;
   const documents = listDocuments()
     // THE CONTROL CHANNEL IS NOT A CANVAS. `maude.files` is the file-plane poke
     // channel (files-ctl.mjs) — no Y content, never persisted, and files-ctl's
@@ -115,10 +121,10 @@ export function handleDocumentsRoute({
     // reporting fix, not a containment one. Names only: filtering it out here
     // costs a peer nothing it can use.
     .filter((d) => !isFilesCtlDoc(d.name))
-    .filter((d) => matchesScope(match.scope, d.name))
+    .filter((d) => opens(d.name))
     .map((d) => ({ name: d.name, bytes: d.bytes }));
   const tombstones = (listTombstones ? listTombstones() : [])
-    .filter((t) => matchesScope(match.scope, t.name))
+    .filter((t) => opens(t.name))
     .map((t) => ({ name: t.name, deletedAt: t.deletedAt }));
 
   respondJson(200, { documents, count: documents.length, tombstones });

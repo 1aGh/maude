@@ -62,11 +62,11 @@ beforeEach(() => {
   hubsConfigPath = join(workspace, 'hubs.json');
 });
 
-function runCli(args) {
+function runCli(args, extraEnv = {}) {
   return new Promise((resolveResult) => {
     const child = spawn(process.execPath, [BIN, ...args], {
       cwd: workspace,
-      env: { ...process.env, HUBS_CONFIG_PATH: hubsConfigPath },
+      env: { ...process.env, HUBS_CONFIG_PATH: hubsConfigPath, ...extraEnv },
     });
     let stdout = '';
     let stderr = '';
@@ -89,6 +89,24 @@ function runCli(args) {
 function cleanup() {
   if (workspace) rmSync(workspace, { recursive: true, force: true });
 }
+
+// V2-8.9 defender M1: linking hands this Mac's hub credential to a hub — the person's act at a
+// terminal, never an AI session's (the permission card would show a shell line, not the hub).
+test('link refuses inside an AI session and writes nothing', async () => {
+  for (const env of [
+    { MAUDE_AGENT_ACTOR: 'maude-chat' },
+    { MAUDE_CHAT_ID: 'chat_1' },
+    { MAUDE_HOOK_SESSION: 'sess-1' },
+  ]) {
+    const res = await runCli(['design', 'link', URL, '--token', 'mau_test', '--yes'], env);
+    assert.equal(res.status, 1, JSON.stringify(env));
+    assert.match(res.stderr, /in a terminal yourself/);
+    const cfg = JSON.parse(readFileSync(join(workspace, '.design/config.json'), 'utf8'));
+    assert.equal(cfg.linkedHub, undefined);
+    assert.equal(existsSync(hubsConfigPath), false);
+  }
+  cleanup();
+});
 
 test('link without --token exits 2', async () => {
   const res = await runCli(['design', 'link', URL]);
@@ -210,6 +228,69 @@ test('unlink drops linkedHub + token; idempotent on solo repo', async () => {
   const second = await runCli(['design', 'unlink']);
   assert.equal(second.status, 0);
   assert.match(second.stdout, /already in solo mode/);
+  cleanup();
+});
+
+// p8-detach-format: decision 2A keeps a hub-linked project's format in a
+// per-hub mirror; dropping the link must carry it into the config (raise only).
+function writeMirror(formatVersion, hub = URL) {
+  mkdirSync(join(workspace, '.design/_state'), { recursive: true });
+  writeFileSync(
+    join(workspace, '.design/_state/hub-format.json'),
+    JSON.stringify({ hub, formatVersion, epoch: 1, seenAt: '2026-10-28T00:00:00.000Z' })
+  );
+}
+const readCfg = () => JSON.parse(readFileSync(join(workspace, '.design/config.json'), 'utf8'));
+
+for (const verb of ['unlink', 'detach']) {
+  test(`${verb} carries a hub mirror at 2 into the config, so the solo project still edits`, async () => {
+    await runCli(['design', 'link', URL, '--token', 'mau_test']);
+    writeMirror(2);
+    const res = await runCli(['design', verb, ...(verb === 'detach' ? ['--yes'] : [])]);
+    assert.equal(res.status, 0, res.stderr);
+    const cfg = readCfg();
+    assert.equal(cfg.linkedHub, undefined);
+    assert.equal(cfg.formatVersion, 2);
+    cleanup();
+  });
+}
+
+for (const [what, arrange] of [
+  ['a mirror at 1', () => writeMirror(1)],
+  ['another hub’s mirror at 2', () => writeMirror(2, 'http://127.0.0.1:1')],
+  ['no mirror', () => {}],
+]) {
+  test(`unlink writes no formatVersion for ${what}`, async () => {
+    await runCli(['design', 'link', URL, '--token', 'mau_test']);
+    arrange();
+    await runCli(['design', 'unlink']);
+    assert.equal('formatVersion' in readCfg(), false);
+    cleanup();
+  });
+}
+
+// p8-secfix-studio (V2-8.9 F5/D4): /health is unauthenticated, so a hostile hub
+// can put any number in the mirror. What reaches the versioned config is clamped
+// to the format this build edits, or the project stays view only for good.
+for (const verb of ['unlink', 'detach']) {
+  test(`${verb} from a hub reporting 9007199254740991 writes at most format 2`, async () => {
+    await runCli(['design', 'link', URL, '--token', 'mau_test']);
+    writeMirror(Number.MAX_SAFE_INTEGER);
+    const res = await runCli(['design', verb, ...(verb === 'detach' ? ['--yes'] : [])]);
+    assert.equal(res.status, 0, res.stderr);
+    assert.equal(readCfg().formatVersion, 2);
+    cleanup();
+  });
+}
+
+test('unlink never lowers a config already at 2', async () => {
+  await runCli(['design', 'link', URL, '--token', 'mau_test']);
+  const cfg = readCfg();
+  cfg.formatVersion = 2;
+  writeFileSync(join(workspace, '.design/config.json'), JSON.stringify(cfg));
+  writeMirror(1);
+  await runCli(['design', 'unlink']);
+  assert.equal(readCfg().formatVersion, 2);
   cleanup();
 });
 

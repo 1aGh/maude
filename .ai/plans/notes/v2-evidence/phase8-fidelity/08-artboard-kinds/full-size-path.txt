@@ -1,0 +1,33 @@
+stage D (feat/maude-v2 6d19daa9a, branch p8-d-g3): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a575d2bdac42de9c8/.scr/pairs/08
+(spec full size: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a575d2bdac42de9c8/.scr/spec/08/<id>-<theme>.png; impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a575d2bdac42de9c8/.scr/impl/08/)
+stage A: /Users/iagh/git/personal/maude/.claude/worktrees/agent-af625ef88bd36c798/.scr/pairs/08
+(stage A spec full size: /Users/iagh/git/personal/maude/.claude/worktrees/agent-af625ef88bd36c798/.scr/spec/08/<id>-<theme>.png; impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-af625ef88bd36c798/.scr/impl/08/)
+round 4 (feat/maude-v2 b21411687 + p8-c4-kindsexport): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a9561cc95ade538a8/.scr/pairs/08
+(round 4 spec full size: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a9561cc95ade538a8/.scr/spec/08/<id>-<theme>.png; impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a9561cc95ade538a8/.scr/impl/08/)
+
+final (D2, d3881fe41): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a595be579d5cc0243/.scr/pairs/08
+(final spec full size: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a595be579d5cc0243/.scr/spec/08/<id>-<theme>.png; impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a595be579d5cc0243/.scr/impl/08/)
+bugs3: (View › Advanced submenu on the window; mixed-boards inspector; the A6 copy beside the post and selected — pairs re-shot: ak-print-view, ak-mixed-select, ak-convert-after): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ad1e7b1fa8d504037/.scr/pairs/08
+
+final (D3, 63592219a): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ae9248c4b37445c3a/.scr/pairs/08
+(final spec full size: /Users/iagh/git/personal/maude/.claude/worktrees/agent-ae9248c4b37445c3a/.scr/spec/08/<id>-<theme>.png; impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-ae9248c4b37445c3a/.scr/impl/08/)
+round 6: /Users/iagh/git/personal/maude/.claude/worktrees/agent-aa6b69031abb5eb4d/.scr/pairs/08 (p8-c6-bugs4: ak-convert-after only; raw impl /Users/iagh/git/personal/maude/.claude/worktrees/agent-aa6b69031abb5eb4d/.scr/impl/08)
+
+final (D4, 21c9714cf): /Users/iagh/git/personal/maude/.claude/worktrees/wf_74ac1088-f6f-11/.scr/pairs/08
+(final spec full size: /Users/iagh/git/personal/maude/.claude/worktrees/wf_74ac1088-f6f-11/.scr/spec/08/<id>-<theme>.png; impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/wf_74ac1088-f6f-11/.scr/impl/08/)
+
+round 7 (p8-c7-cf08, feat/maude-v2 + this branch): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a83dd4e69dad79c1e/.scr/pairs/08
+(round 7 spec full size: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a83dd4e69dad79c1e/.scr/spec/08/<id>-<theme>.png; impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a83dd4e69dad79c1e/.scr/h3/impl/08/)
+round 7b (p8-c7-cf08b): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ae7f6a5e804968df1/.scr/pairs/08 (impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-ae7f6a5e804968df1/.scr/h3/impl/08/; harness _c7b-harness-g3/ on top of _c7-harness-g3/)
+
+final (D5, tip e37e7d82a; shot at 0ef942d45 = tip + the D5 harness only, Mac mini): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a66e2f2427be6618d/.scr/pairs/08
+(final spec full size: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a66e2f2427be6618d/.scr/spec/08/<id>-<theme>.png, reused unchanged from the D4 spec; impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a66e2f2427be6618d/.scr/d5-g3/impl/08/)
+
+round 8 (p8-c8-misc2, tip ce5531151 + this round's commits): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a4b2de463af638d6e/.scr/pairs/08
+(full-size PNG pairs <id>-<theme>.png, spec | impl; spec reused from stage A / D5: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a4b2de463af638d6e/.scr/spec/08/; impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a4b2de463af638d6e/.scr/c8m2-g3/impl/08/; ids ak-web-widths ak-safe-zones ak-mixed-fit ak-mixed-filter; harness _c8m2-harness-g3, local Google Chrome)
+
+final (D6, 3d58f57df; shot at 873574992 = tip + the D6 harness only, Mac mini): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ad2725e89fee10d58/.scr/pairs/08
+(final spec full size: /Users/iagh/git/personal/maude/.claude/worktrees/agent-ad2725e89fee10d58/.scr/spec/08/<id>-<theme>.png, reused unchanged from the D5/D4 spec; impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-ad2725e89fee10d58/.scr/d6-g3/impl/08/)
+
+round 10: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a911414b78223a6e5/.scr/pairs/08 (p8-c10-print: ak-print-view + ak-advanced re-shot on the p8-c10-print tip, both themes, Mac mini + Google Chrome; harness _c10-harness-g3 scenario t08p; raw impl frames /Users/iagh/git/personal/maude/.claude/worktrees/agent-a911414b78223a6e5/.scr/d6-g3/impl/08/)
+final (D7, 6d062a4d3): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a749e0875aad39b11/.scr/pairs/08/

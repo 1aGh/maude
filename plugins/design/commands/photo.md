@@ -9,11 +9,13 @@ argument-hint: "--asset <assets/<sha8>.<ext> | <sha8>> [--remove-bg] [--brightne
 
 Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
-Applies a **non-destructive** edit to a photo already in the active canvas — an `<img>` authored in an artboard, or an `ImageStroke` dropped/pasted into the annotation layer. Every edit is stored as a `PhotoEdit` sidecar (`<designRoot>/assets/<sha8>.photo.json`) that the canvas-lib `<PhotoLayer>` WebGL compositor renders live. **The whole point is drivability:** an agent tunes a photo without opening a browser or clicking a slider.
+Applies a **non-destructive** edit to a photo already in the active canvas — an `<img>` authored in an artboard, or an `ImageStroke` dropped/pasted into the annotation layer. Every edit is stored as a `PhotoEdit` sidecar (`<designRoot>/assets/<sha8>.photo.json`) that the canvas-lib `<PhotoLayer>` WebGL compositor renders live. **The whole point is drivability:** an agent tunes a photo without clicking a slider.
+
+**This command changes every use of the photo.** The sidecar `assets/<sha8>.photo.json` is the photo's every-use look, so each canvas that shows the photo changes with it. An edit to one use only is a different file: see "One use only" below.
 
 Two paths, by cost:
-- **Parametric** (adjustments / duotone / grain / pattern / mask) — pure JSON, sent directly to the `/_api/photo-edit` route via `maude design photo-adjust`. No browser.
-- **Background removal** (`--remove-bg`) — runs `@imgly/background-removal` **client-side** (WASM/WebGPU, zero native deps) through a headless harness via `maude design photo-bg-remove`, uploads the cutout matte, and points `PhotoEdit.backgroundRemoved.maskAsset` at it. Non-destructive + toggle-able.
+- **Parametric** (adjustments / duotone / grain / pattern / mask) — pure JSON, written by `maude design photo-adjust`. No browser.
+- **Background removal** (`--remove-bg`) — runs on this Mac (`@imgly/background-removal`, WASM/WebGPU, zero native deps) through a headless harness via `maude design photo-bg-remove`, stores the cutout as a mask on top of the photo and points `PhotoEdit.backgroundRemoved.maskAsset` at it. Non-destructive + toggle-able; the original is kept.
 
 Project-specific values (designRoot) come from `<repo>/.design/config.json`.
 
@@ -43,7 +45,7 @@ Parametric flags **merge** by default (successive `/design:photo` calls accumula
 REPO="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 maude design bootstrap-check --root "$REPO"    # 0 = DS present; 10/11 = needs /design:setup-ds
 eval "$(maude design prep --shell-export --shape edit --root "$REPO")"   # config + active-canvas + server probe
-PORT=$(maude design server-up --root "$REPO")  # ensure the dev server (the route + harness need it)
+PORT=$(maude design server-up --root "$REPO")  # Maude must be running (the edit and the harness need it)
 ```
 
 If `bootstrap-check` returns 10/11 → **stop**, print `Run /design:setup-ds <name> first`.
@@ -53,6 +55,14 @@ If `bootstrap-check` returns 10/11 → **stop**, print `Run /design:setup-ds <na
 - If `--asset` is given, use it verbatim.
 - Otherwise, resolve from the active selection (`_active.json` → `selected`): an artboard `<img>`'s `src` or an annotation `ImageStroke`'s `href` — both are `assets/<sha8>.<ext>`. If no photo is selected, **stop** and ask which asset.
 
+### 1.5. Check where the photo is used
+
+```bash
+maude design assets --usage "$ASSET"
+```
+
+It lists the canvases that show the photo. When more than one does, say which canvases will change and ask before going on. When any of them is a canvas the person cannot edit (Can view or Can comment), stop: the edit is refused for them on the server, and it must not be done by writing the file. A photo used once changes only where it is used.
+
 ### 2. Dispatch
 
 **Background removal** (only when `--remove-bg` is present):
@@ -61,7 +71,7 @@ If `bootstrap-check` returns 10/11 → **stop**, print `Run /design:setup-ds <na
 MATTE=$(maude design photo-bg-remove --asset "$ASSET" --root "$REPO")   # prints assets/<sha8>.png
 ```
 
-This drives the headless harness (client-side `@imgly` inference), uploads the matte via the existing `/_api/asset` route, and writes `backgroundRemoved` into the sidecar. It is the ONE path that needs a browser round-trip — parametric edits never do.
+This drives the headless harness (`@imgly` inference on this Mac), stores the matte as an asset, and writes `backgroundRemoved` into the sidecar. It is the ONE path that needs a browser round-trip — parametric edits never do.
 
 **Parametric edits** (any of the adjustment/duotone/grain/pattern/mask flags):
 
@@ -71,14 +81,18 @@ SIDECAR=$(maude design photo-adjust --asset "$ASSET" --root "$REPO" \
 # prints assets/<sha8>.photo.json
 ```
 
-Pass through only the flags the user supplied. `photo-adjust` merges onto the current sidecar (or `--replace`/`--reset`). The server's cap stack (validatePhotoEdit + sha8 + containment + size cap) validates every field — a rejected edit exits non-zero with the reason.
+Pass through only the flags the user supplied. `photo-adjust` merges onto the current sidecar (or `--replace`/`--reset`). Maude validates every field (ranges, the asset name, the size) — a rejected edit exits non-zero with the reason.
 
 ### 3. Report
 
 Print what changed: the sidecar path, the fields set, and (if `--remove-bg`) the matte asset. The live `<PhotoLayer>` re-composites automatically on the next canvas render — no manual refresh. Suggest `/design:screenshot --element <id>` to capture the result, or `/design:photo --asset <same> --reset` to revert.
 
+## One use only
+
+To change one use of a photo and leave the others as they are, write the edit as a file, as the Photo section does: a per-use `PhotoEdit` at `assets/<img8>.<edit8>.photo.json` and `data-photo-edit="<edit8>"` on that `<img>` (the `design` skill, "Edit this use of the photo"; its row in the `studio-actions` skill has the exact steps). Removing the attribute shows the every-use look again. "Apply to every use…" is the same edit written as `assets/<sha8>.photo.json`, which is what this command does.
+
 ## Notes
 
 - **Non-destructive:** the source pixels are never modified. Everything lives in the sidecar; `--reset` restores the untouched photo, and `--remove-bg` is a toggle (the matte is retained when disabled).
 - **Never** the Node/native `@imgly/background-removal-node` variant — background removal is browser/WASM only (the `sharp`/native-addon exclusion, DDR-070).
-- Human-clickable equivalent: the Inspector's **Photo** tab + the right-click **Edit Photo…** entry drive the same sidecar + route.
+- Human-clickable equivalent: the **Photo** section of the inspector (Adjust…) edits this one use. **Apply to every use…** opens a sheet naming each canvas it would change, and then does what this command does.

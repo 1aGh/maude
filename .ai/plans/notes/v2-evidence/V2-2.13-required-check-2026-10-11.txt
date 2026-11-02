@@ -1,0 +1,30 @@
+V2-2.13 — "Studio suite (full)" required on main · 2026-10-11
+
+Done when (plan row V2-2.13): job required on PRs.
+
+1. The job is blocking (652b1c26 on feat; carried to main by the v1.9.0 release commit 4c8aa55a):
+   quality.yml studio-suite has no continue-on-error; scripts/test/quality-gates.test.mjs keeps it out.
+   Quarantine list: empty (named in the job comment).
+
+2. CI on main for the release commit (the first main run with the new job name):
+   run 38074312128  4c8aa55a  quality.yml success
+     Studio suite (full)               success
+     Quality (lint+test+links)         success
+     Version parity check              success
+     Export lanes E2E (browser + worker) success
+   Earlier main runs carry no "Studio suite (full)" context (the job had another name and was
+   non-blocking), which is why the plan put the flip after the release (V2-2.18 row).
+
+3. Branch protection, changed with Michal's explicit go in chat (2026-10-11:
+   "Ano, required check: přidej „Studio suite (full)" do povinných checků na main."),
+   via the 1aGh admin token:
+   GH_TOKEN=$(gh auth token --user 1aGh) gh api -X POST \
+     repos/1aGh/maude/branches/main/protection/required_status_checks/contexts \
+     -f 'contexts[]=Studio suite (full)'
+
+   before: {"strict":true,"contexts":["Version parity check","Quality (lint+test+links)"]}
+   after:  {"strict":true,"contexts":["Version parity check","Quality (lint+test+links)","Studio suite (full)"]}
+
+Not changed: "Export lanes E2E (browser + worker)" — the V2-2.18 row mentions it as well, but
+Michal's go named only "Studio suite (full)". It stays a non-required check until Michal says so
+(listed in the end-of-phase summary).

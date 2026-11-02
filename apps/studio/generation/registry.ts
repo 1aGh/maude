@@ -16,6 +16,7 @@ import {
 } from './adapters/elevenlabs.ts';
 import { createGeminiAdapter, GEMINI_DESCRIPTOR, GEMINI_MODELS } from './adapters/gemini.ts';
 import { createGroqAdapter, GROQ_DESCRIPTOR, GROQ_MODELS } from './adapters/groq.ts';
+import { createStubAdapter, STUB_DESCRIPTOR, STUB_MODELS } from './adapters/stub.ts';
 import type {
   AdapterContext,
   AdapterFactory,
@@ -52,19 +53,29 @@ const PROVIDERS: Record<string, ProviderEntry> = {
   },
 };
 
+// S8.16 — the test provider (adapters/stub.ts: solid PNGs, no network) exists only while
+// `MAUDE_GENERATE_STUB=1`, read per call so a test can switch it without re-importing.
+const STUB: ProviderEntry = {
+  descriptor: STUB_DESCRIPTOR,
+  factory: createStubAdapter,
+  models: STUB_MODELS,
+};
+const providers = (): Record<string, ProviderEntry> =>
+  process.env.MAUDE_GENERATE_STUB === '1' ? { ...PROVIDERS, stub: STUB } : PROVIDERS;
+
 /** Every registered provider descriptor (inert — safe to serialize to the UI). */
 export function listProviders(): ProviderDescriptor[] {
-  return Object.values(PROVIDERS).map((p) => p.descriptor);
+  return Object.values(providers()).map((p) => p.descriptor);
 }
 
 /** The descriptor for one provider, or null when unknown. */
 export function getProviderDescriptor(id: string): ProviderDescriptor | null {
-  return PROVIDERS[id]?.descriptor ?? null;
+  return providers()[id]?.descriptor ?? null;
 }
 
 /** The static model list for one provider. */
 export function getProviderModels(id: string): ModelDescriptor[] {
-  return PROVIDERS[id]?.models ?? [];
+  return providers()[id]?.models ?? [];
 }
 
 /** All providers that can produce a given modality (routing + capability UI). */
@@ -74,7 +85,7 @@ export function providersForModality(modality: Modality): ProviderDescriptor[] {
 
 /** Whether a provider id is registered. */
 export function hasProvider(id: string): boolean {
-  return id in PROVIDERS;
+  return Object.hasOwn(providers(), id);
 }
 
 /**
@@ -82,7 +93,7 @@ export function hasProvider(id: string): boolean {
  * an unknown provider (the route validates first, so this is a defensive guard).
  */
 export function createAdapter(providerId: string, ctx: AdapterContext): ProviderAdapter {
-  const entry = PROVIDERS[providerId];
+  const entry = providers()[providerId];
   if (!entry) throw new Error(`unknown provider: ${providerId}`);
   return entry.factory(ctx);
 }

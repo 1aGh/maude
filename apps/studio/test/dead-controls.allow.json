@@ -1,0 +1,184 @@
+{
+  "$comment": "p8-sweep-static — the reviewed exceptions of test/dead-controls.test.ts. registrySurfaces: a registry action with no registry handler whose control lives on its own surface (the test asserts `hook` is a literal in `file`, so a deleted control turns it red). registryAllow / client: not dead, each with its one-line reason; keep both as small as possible. needs-design: a control or row that needs a flow that does not exist yet — the lead takes these to Michal.",
+  "registrySurfaces": {
+    "figma.make-editable": {
+      "file": "client/v2/import/figma-artboard.jsx",
+      "hook": "figma-make-editable"
+    },
+    "artboard.add-width": {
+      "file": "client/v2/inspector/kinds/artboard-web.jsx",
+      "hook": "insp-ab-add-width"
+    },
+    "artboard.ask-ai": {
+      "file": "editing/artboard-menu.tsx",
+      "hook": "ask-ai"
+    },
+    "assets.add": {
+      "file": "client/v2/left-panel/assets-panel.jsx",
+      "hook": "assets-add"
+    },
+    "timeline.zoom-in": {
+      "file": "client/v2/timeline/Timeline.jsx",
+      "hook": "Zoom in"
+    },
+    "timeline.zoom-out": {
+      "file": "client/v2/timeline/Timeline.jsx",
+      "hook": "Zoom out"
+    },
+    "timeline.zoom-fit": {
+      "file": "client/v2/timeline/Timeline.jsx",
+      "hook": "timeline-zoom-fit"
+    },
+    "timeline.comment-mode": {
+      "file": "client/v2/timeline/Timeline.jsx",
+      "hook": "timeline-comment-tool"
+    },
+    "timeline.trim": {
+      "file": "client/v2/timeline/Timeline.jsx",
+      "hook": "startTrimIn"
+    },
+    "timeline.move-clip": {
+      "file": "client/v2/timeline/Timeline.jsx",
+      "hook": "startMove"
+    },
+    "timeline.add-clips": {
+      "file": "client/v2/timeline/Timeline.jsx",
+      "hook": "timeline-add-image"
+    },
+    "ai.runs.list": {
+      "file": "client/v2/ai/RunList.jsx",
+      "hook": "ai-runs-list"
+    },
+    "ai.stop": {
+      "file": "client/v2/ai/Working.jsx",
+      "hook": "ai-stop"
+    },
+    "ai.cancel-waiting": {
+      "file": "client/v2/ai/WaitingCard.jsx",
+      "hook": "ai-waiting-cancel"
+    },
+    "ai.run-on-copy": {
+      "file": "client/v2/ai/WaitingCard.jsx",
+      "hook": "ai-waiting-copy"
+    },
+    "home.search": {
+      "file": "client/home/home-app.jsx",
+      "hook": "home-search"
+    },
+    "cloud.open-remote": {
+      "file": "client/home/home-app.jsx",
+      "hook": "home-cloud-open-"
+    },
+    "home.signin": {
+      "file": "client/v2/signin/SignInCard.jsx",
+      "hook": "signin-cloud"
+    },
+    "invite.join": {
+      "file": "client/home/Shelves.jsx",
+      "hook": "home-invite-join-"
+    },
+    "invite.leave": {
+      "file": "client/home/Shelves.jsx",
+      "hook": "home-invite-leave-"
+    },
+    "hub.connect": {
+      "file": "client/v2/onboarding/HubSheet.jsx",
+      "hook": "AdvSheet"
+    },
+    "project.open-github": {
+      "file": "client/v2/onboarding/FolderGithubSheet.jsx",
+      "hook": "AdvSheet"
+    },
+    "cli.install": {
+      "file": "client/v2/onboarding/CliSheet.jsx",
+      "hook": "AdvSheet"
+    },
+    "tab.rename": {
+      "file": "../desktop/src/strip.js",
+      "hook": "tab-rename-input"
+    },
+    "chat.new": {
+      "file": "client/panels/chat-header.jsx",
+      "hook": "ai-chat-new"
+    },
+    "history.filter": {
+      "file": "client/v2/history/history-panel.jsx",
+      "hook": "vh-filter-"
+    },
+    "history.view-version": {
+      "file": "client/v2/history/history-panel.jsx",
+      "hook": "vh-row-"
+    },
+    "history.compare": {
+      "file": "client/v2/history/history-panel.jsx",
+      "hook": "vh-compare"
+    },
+    "history.compare-pictures": {
+      "file": "client/v2/history/git-advanced.jsx",
+      "hook": "vh-compare-pictures"
+    },
+    "history.restore-artboard": {
+      "file": "client/v2/history/history-panel.jsx",
+      "hook": "vh-restore-only"
+    },
+    "history.restore-object": {
+      "file": "client/v2/history/object-view.jsx",
+      "hook": "vh-obj-restore-"
+    },
+    "history.go-back": {
+      "file": "client/v2/code/canvas-error-card.jsx",
+      "hook": "canvas-error-go-back"
+    },
+    "sync.get-latest": {
+      "file": "client/v2/history/git-advanced.jsx",
+      "hook": "git-get-latest"
+    },
+    "ds.keep-outside": {
+      "file": "client/v2/ds/outside-banner.jsx",
+      "hook": "ds-outside-keep"
+    },
+    "ds.undo-outside": {
+      "file": "client/v2/ds/outside-banner.jsx",
+      "hook": "ds-outside-undo"
+    },
+    "ds.pick": {
+      "file": "client/v2/ds/conflict-pick.jsx",
+      "hook": "ds-twice-use"
+    },
+    "ds.trash-token": {
+      "file": "client/v2/ds/trash-token-sheet.jsx",
+      "hook": "ds-trash-go"
+    },
+    "ds.use-direction": {
+      "file": "client/v2/ds/direction-bar.jsx",
+      "hook": "ds-dir-use"
+    },
+    "ds.mix": {
+      "file": "client/v2/ds/direction-bar.jsx",
+      "hook": "ds-dir-mix"
+    },
+    "ds.make-done": {
+      "file": "client/v2/ds/make-host.jsx",
+      "hook": "ds-make-use"
+    },
+    "ds.fix-contrast": {
+      "file": "client/v2/ds/contrast-warning.jsx",
+      "hook": "ds-contrast-fix"
+    },
+    "ds.add-colour": {
+      "file": "client/v2/ds/off-system.jsx",
+      "hook": "ds-off-system-add"
+    },
+    "warning.fix": {
+      "file": "client/v2/inspector/sections/warnings.jsx",
+      "hook": "insp-warning-fix-"
+    }
+  },
+  "registryAllow": {
+    "ds.draft": "agent-only: the AI writes a direction (`maude design ds draft`); ⌘K hides it (search.hidden) and no person control is drawn for it"
+  },
+  "client": {
+    "client/v2/import/brand-sheet.jsx · disabled-for-good · “Import”": "in-flight stand-in: drawn only on the Reading step, where each row says “Reading…”; replaced by Continue / the result when reading ends",
+    "client/v2/inspector/kinds/artboard-print-advanced.jsx · disabled-for-good · “Edit tracks…” #insp-pr-grid-tracks-edit": "a signpost with its reason in `title`: tracks are edited on the page frame (“Select the page frame to edit its tracks” / “Set the body layout to Grid first”)"
+  }
+}

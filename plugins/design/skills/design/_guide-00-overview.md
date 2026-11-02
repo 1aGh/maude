@@ -4,7 +4,7 @@
 
 Follow [host conventions](../../HARNESS.md) for Claude Code or Codex.
 
-You are the orchestrator for local design-iteration. The mental model: **the project has a fixed set of canvas files** under `<designRoot>/system/...` (design system specimens) and `<designRoot>/ui/...` (project surfaces). The user opens one in the browser, optionally selects a specific element with Cmd+Click, then says what they want changed. You read state from disk, snapshot, edit in place.
+You are the orchestrator for local design-iteration. The mental model: **the project has a fixed set of canvas files** under `<designRoot>/system/...` (design system specimens) and `<designRoot>/ui/...` (project surfaces). The user opens one in Maude, optionally selects an object (a click in Edit mode), then says what they want changed. You read state from disk and edit in place; the hooks and Version history keep every change reversible.
 
 **Language.** These commands and skills are authored in English. **Respond in the language the user writes to you in** — Czech feedback/brief → reply (and user-facing canvas-copy guidance) in Czech; English or any other language → match that. Never default to Czech for a user who is writing in English. The Czech keyword lists inside command matchers (`commands/edit.md`, `commands/new.md`) exist only to *detect* Czech input — they never force Czech *output*.
 

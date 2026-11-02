@@ -1,0 +1,6 @@
+{"lane":"acp","name":"Grep","input":{"pattern":"Save all|Get the latest before you publish yours","path":".design/ui/GitPanel.tsx","output_mode":"content","-n":true}}
+{"lane":"acp","name":"Read","input":{"file_path":".design/ui/GitPanel.tsx","offset":230,"limit":15}}
+{"lane":"acp","name":"Read","input":{"file_path":".design/ui/GitPanel.tsx","offset":318,"limit":12}}
+{"lane":"acp","name":"Edit","input":{"file_path":".design/ui/GitPanel.tsx"}}
+{"lane":"acp","name":"Edit","input":{"file_path":".design/ui/GitPanel.tsx"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design runs list","description":"List active design runs"}}

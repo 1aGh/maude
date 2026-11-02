@@ -292,3 +292,43 @@ describe('/_api/figma/import — same gate, and a validated body', () => {
     expect(raw).not.toContain('ROUTECANARY');
   });
 });
+
+// S8.17 — the Import from Figma sheet's two routes ride the route table, so `guardTableRoute` gives them
+// the same two gates the hand-gated routes above carry: both spend the PAT and reach the network, and
+// import-frames writes a canvas. (No case here reaches the verb: a token may be stored by now, and the
+// real Figma API is never called from a test.)
+describe('/_api/figma/frames + /_api/figma/import-frames — the table gates (S8.17)', () => {
+  const BODY = { url: 'https://www.figma.com/design/k8Fq2abcdEFGH12345678/x', frames: ['1:2'] };
+  for (const path of ['/_api/figma/frames', '/_api/figma/import-frames']) {
+    test(`${path}: cross-origin is 403`, async () => {
+      const res = await fetch(`${base}${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Origin: 'https://evil.example' },
+        body: JSON.stringify(BODY),
+      });
+      expect(res.status).toBe(403);
+    });
+    test(`${path}: a foreign Host is 403`, async () => {
+      const res = await fetch(`${base}${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Host: 'figma.127.0.0.1.nip.io' },
+        body: JSON.stringify(BODY),
+      });
+      expect(res.status).toBe(403);
+    });
+    test(`${path}: GET is not a route`, async () => {
+      expect([404, 405]).toContain((await fetch(`${base}${path}`)).status);
+    });
+    test(`${path}: a malformed body is a fixed 400, never the key`, async () => {
+      const res = await fetch(`${base}${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Sec-Fetch-Site': 'same-origin' },
+        body: JSON.stringify({ url: '', frames: ['../../etc/passwd'] }),
+      });
+      const raw = await res.text();
+      expect(res.status).toBe(400);
+      expect(JSON.parse(raw)).toEqual({ ok: false, reason: 'bad-request' });
+      expect(raw).not.toContain('figd_');
+    });
+  }
+});

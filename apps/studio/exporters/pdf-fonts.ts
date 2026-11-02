@@ -21,6 +21,8 @@
 // clock — so it is unit-testable against hand-built fixtures the same way
 // `print/marks.ts` is.
 
+import { inflateSync } from 'node:zlib';
+
 import {
   PDFArray,
   PDFDict,
@@ -258,4 +260,104 @@ export function describeFontProblem(bad: PdfFontInfo[]): { reason: string; remed
     reason,
     remedy: `Re-export with text=outline to convert all text to curves.${italicNote}`,
   };
+}
+
+// ── S8.7 — the font FILE report (Export sheet › Print preflight) ─────────────────────────────────────
+//
+// `analyzePdfFonts` above reads the PDF AFTER it exists. The sheet has to say BEFORE the export that a
+// headline's font file will not embed ("Avenir Next Condensed Heavy can't be embedded — the headline
+// prints as shapes"), so this reads the font file itself, the way Chromium's PDF backend (Skia) decides:
+//   - an OS/2 `fsType` that forbids embedding (restricted licence 0x0002, bitmap-only 0x0200) → not embedded;
+//   - a variable font (`fvar`) or a colour font (`COLR`/`SVG `/`CBDT`/`sbix`) → exported as Type 3 shapes.
+// A plain CFF `.otf` is NOT flagged: Skia embeds it as a CID font, and the post-export check
+// (`analyzePdfFonts`, surfaced as `degraded.fontsNotEmbedded`) is the ground truth if that ever differs.
+// Pure bytes in, a small record out; a file it cannot read is `unreadable` and never warns.
+
+export type FontFileReason = 'restricted' | 'variable' | 'colour' | 'unreadable';
+
+export interface FontFileReport {
+  /** the container, by its magic */
+  container: 'ttf' | 'otf' | 'ttc' | 'woff' | 'woff2' | 'unknown';
+  /** false only when the file is known not to embed; an unreadable file is "embeddable" (no false alarm) */
+  embeddable: boolean;
+  reason: FontFileReason | null;
+}
+
+const COLOUR_TABLES = new Set(['COLR', 'SVG ', 'CBDT', 'sbix']);
+const FS_RESTRICTED = 0x0002;
+const FS_BITMAP_ONLY = 0x0200;
+
+/** The sfnt tables of the font starting at `base`: tag → the table's bytes (lazy). */
+function sfntTables(
+  dv: DataView,
+  bytes: Uint8Array,
+  base: number
+): Map<string, () => Uint8Array | null> {
+  const out = new Map<string, () => Uint8Array | null>();
+  const n = dv.getUint16(base + 4);
+  for (let i = 0; i < n && i < 128; i += 1) {
+    const rec = base + 12 + i * 16;
+    if (rec + 16 > bytes.length) break;
+    const tag = String.fromCharCode(...bytes.subarray(rec, rec + 4));
+    const off = dv.getUint32(rec + 8);
+    const len = dv.getUint32(rec + 12);
+    out.set(tag, () => (off + len <= bytes.length ? bytes.subarray(off, off + len) : null));
+  }
+  return out;
+}
+
+export function fontFileReport(bytes: Uint8Array): FontFileReport {
+  const unreadable = (container: FontFileReport['container']): FontFileReport => ({
+    container,
+    embeddable: true,
+    reason: 'unreadable',
+  });
+  if (bytes.length < 16) return unreadable('unknown');
+  const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const magic = String.fromCharCode(...bytes.subarray(0, 4));
+  try {
+    if (magic === 'wOF2') return unreadable('woff2'); // Brotli-wrapped, transformed tables: not inspected
+    let tables: Map<string, () => Uint8Array | null>;
+    let container: FontFileReport['container'];
+    if (magic === 'wOFF') {
+      container = 'woff';
+      tables = new Map();
+      const n = dv.getUint16(12);
+      for (let i = 0; i < n && i < 128; i += 1) {
+        const rec = 44 + i * 20;
+        if (rec + 20 > bytes.length) break;
+        const tag = String.fromCharCode(...bytes.subarray(rec, rec + 4));
+        const off = dv.getUint32(rec + 4);
+        const comp = dv.getUint32(rec + 8);
+        const orig = dv.getUint32(rec + 12);
+        tables.set(tag, () => {
+          if (off + comp > bytes.length || orig > 1 << 20) return null;
+          const raw = bytes.subarray(off, off + comp);
+          return comp === orig ? raw : new Uint8Array(inflateSync(raw));
+        });
+      }
+    } else if (magic === 'ttcf') {
+      container = 'ttc';
+      tables = sfntTables(dv, bytes, dv.getUint32(12));
+    } else if (magic === 'OTTO') {
+      container = 'otf';
+      tables = sfntTables(dv, bytes, 0);
+    } else if (dv.getUint32(0) === 0x00010000 || magic === 'true') {
+      container = 'ttf';
+      tables = sfntTables(dv, bytes, 0);
+    } else return unreadable('unknown');
+    if (tables.size === 0) return unreadable(container);
+    const os2 = tables.get('OS/2')?.();
+    if (os2 && os2.length >= 10) {
+      const fsType = new DataView(os2.buffer, os2.byteOffset, os2.byteLength).getUint16(8);
+      if (fsType & (FS_RESTRICTED | FS_BITMAP_ONLY))
+        return { container, embeddable: false, reason: 'restricted' };
+    }
+    if (tables.has('fvar')) return { container, embeddable: false, reason: 'variable' };
+    for (const t of tables.keys())
+      if (COLOUR_TABLES.has(t)) return { container, embeddable: false, reason: 'colour' };
+    return { container, embeddable: true, reason: null };
+  } catch {
+    return unreadable('unknown');
+  }
 }

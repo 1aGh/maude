@@ -1,0 +1,177 @@
+/* client/v2/assets/takes.css — S8.16: "Take 3 of 4" + "Picture made by AI" over the canvas (takes-overlay.jsx) and the
+ * Generate ask in the Assets tab (generate-ask.jsx). 12 Import and Assets, ia-gen-ask / ia-gen-placed. Tokens only. */
+
+@layer shell {
+  .v2-takes {
+    position: fixed;
+    left: 50%;
+    bottom: var(--space-6, 24px);
+    translate: -50% 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    pointer-events: none;
+    animation: v2-takes-in var(--dur-soft, 120ms) var(--ease-out, cubic-bezier(0.2, 0, 0, 1));
+  }
+  @keyframes v2-takes-in {
+    from {
+      opacity: 0;
+      translate: -50% 4px;
+    }
+  }
+  .v2-takes-made,
+  .v2-takes-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1, 4px);
+    height: 28px;
+    padding: 0 var(--space-2, 8px);
+    border-radius: var(--radius-pill);
+    background: var(--bg-1);
+    color: var(--fg-1);
+    box-shadow: var(--shadow-md);
+    font-size: var(--type-xs, 12px);
+    pointer-events: auto;
+  }
+  .v2-takes-pill {
+    padding: 0 var(--space-1, 4px);
+  }
+  .v2-takes-t {
+    min-width: 7ch;
+    text-align: center;
+    color: var(--fg-0);
+    font-variant-numeric: tabular-nums;
+  }
+  .v2-takes-b--prev svg {
+    rotate: 180deg;
+  }
+  .v2-takes-k {
+    display: inline-flex;
+    gap: 2px;
+    padding-inline-end: var(--space-1, 4px);
+    color: var(--fg-2);
+  }
+
+  /* the ask (Assets › Generate) */
+  .v2-gen {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2, 8px);
+    margin: 0 var(--space-2, 8px) var(--space-2, 8px);
+    padding: var(--space-3, 12px);
+    border: 0;
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+    font-size: var(--type-sm, 13px);
+    color: var(--fg-1);
+  }
+  /* 12 · ia-gen-ask: the title wears the spark (AI's mark), the prompt is the composer well, the chips are kit chips */
+  .v2-gen-t {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1, 4px);
+    margin: 0;
+    color: var(--fg-0);
+    font-weight: var(--w-semibold, 600);
+  }
+  .v2-gen-t::before {
+    content: "";
+    flex: none;
+    width: 12px;
+    height: 12px;
+    background: var(--spark-text);
+    -webkit-mask:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 1.8l1.4 4.8L14 8l-4.6 1.4L8 14.2l-1.4-4.8L2 8l4.6-1.4z'/%3E%3C/svg%3E")
+      center / contain no-repeat;
+    mask:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 1.8l1.4 4.8L14 8l-4.6 1.4L8 14.2l-1.4-4.8L2 8l4.6-1.4z'/%3E%3C/svg%3E")
+      center / contain no-repeat;
+  }
+  .v2-gen-sugg {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1, 4px);
+  }
+  .v2-gen-sugg-b {
+    border: 0;
+    background: var(--bg-2);
+    cursor: pointer;
+  }
+  .v2-gen-need {
+    color: var(--fg-2);
+    font-size: var(--type-xs, 12px);
+  }
+  .v2-gen-hint,
+  .v2-gen-fine {
+    margin: 0;
+    color: var(--fg-2);
+    font-size: var(--type-xs, 12px);
+  }
+  .v2-gen textarea {
+    min-height: 72px;
+    resize: vertical;
+    padding: var(--space-2, 8px);
+    border: 0;
+    border-radius: var(--radius-md);
+    background: var(--bg-2);
+    color: var(--fg-0);
+    font: inherit;
+  }
+  .v2-gen textarea:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .v2-gen-opts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1, 4px);
+  }
+  .v2-gen-chip {
+    display: inline-flex;
+    align-items: center;
+    height: 24px;
+    padding: 0 var(--space-2, 8px);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-xs, 12px);
+  }
+  .v2-gen-time {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1, 4px);
+    margin: 0;
+    color: var(--fg-1);
+    font-size: var(--type-xs, 12px);
+  }
+  .v2-gen-adv summary {
+    cursor: pointer;
+    color: var(--fg-2);
+    font-size: var(--type-xs, 12px);
+  }
+  .v2-gen-adv label {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1, 4px);
+    margin-top: var(--space-1, 4px);
+  }
+  .v2-gen-row {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2, 8px);
+  }
+  .v2-gen-err {
+    margin: 0;
+    color: var(--status-error-text);
+    font-size: var(--type-xs, 12px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v2-takes {
+    animation-duration: 1ms;
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "journey": "S1",
+  "pass": true,
+  "results": [
+    {
+      "id": "created-by-ai",
+      "grader": "history",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "renamed",
+      "grader": "moved",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "version-restored",
+      "grader": "history",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "restored-content",
+      "grader": "text",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "restore-by-verb",
+      "grader": "tool-used",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "back-from-trash",
+      "grader": "trash",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "no-hard-delete",
+      "grader": "no-tool",
+      "pass": true,
+      "why": ""
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+{"lane":"acp","name":"Skill","input":{"skill":"design:contract-voice"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design logs 2>&1 | tail -n 80","description":"Read the Maude studio log"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design sync status 2>&1","description":"Show sync status"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design comments list ui/GitPanel.tsx 2>&1","description":"List comments on GitPanel canvas"}}

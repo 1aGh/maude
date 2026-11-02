@@ -212,14 +212,17 @@ describe('TextEditor', () => {
     expect(commits[0]?.chain).toBe(false);
   });
 
-  test('Esc cancels; unmounting afterwards commits nothing', () => {
+  // S4.V4 G5 - Esc inside the 600 ms draft window used to throw the typed words away (a NEW sticky
+  // saved empty). Esc now flushes what is typed, once, then leaves editing.
+  test('Esc flushes the typed text once and leaves editing; unmount adds nothing', () => {
     const { ta, commits, cancels } = mount();
     type(ta, 'changed');
     keydown(ta, { key: 'Escape' });
     act(() => root?.unmount());
     root = null;
-    expect(cancels).toEqual([1]);
-    expect(commits).toEqual([]);
+    expect(commits.map((c) => c.text)).toEqual(['changed']);
+    expect(commits[0]?.chain).toBe(false);
+    expect(cancels).toEqual([]);
   });
 
   test('an IME Enter in WebKit order does not commit; the next real Enter does', async () => {

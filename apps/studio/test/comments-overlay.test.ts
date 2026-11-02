@@ -107,6 +107,29 @@ describe('placeNearPoint', () => {
     expect(placed.y).toBe(550);
   });
 
+  // P8 C5 (04 md-comment, 10 co-comment-thread): the Comments panel is docked on the RIGHT (CONTRACT §6), so a
+  // card that opens toward it sat under the island with its Resolve out of reach. The card keeps to the
+  // canvas the shell leaves free (the occluded insets), not the whole iframe.
+  test('keeps clear of an occluded right edge: flips left rather than sit under the panel', () => {
+    const ins = { top: 0, right: 320, bottom: 0, left: 0 };
+    // free width is 680: 500 + 300 > 680 → flip to 200
+    expect(placeNearPoint({ x: 500, y: 100 }, { w: 300, h: 200 }, ins).x).toBe(200);
+  });
+
+  test('keeps clear of an occluded left edge and top: never starts under the island', () => {
+    const ins = { top: 80, right: 0, bottom: 0, left: 300 };
+    const placed = placeNearPoint({ x: 10, y: 10 }, { w: 300, h: 200 }, ins);
+    expect(placed.x).toBe(300 + 8);
+    expect(placed.y).toBe(80 + 8);
+  });
+
+  test('no insets = the whole window, as before', () => {
+    const zero = { top: 0, right: 0, bottom: 0, left: 0 };
+    expect(placeNearPoint({ x: 900, y: 100 }, { w: 300, h: 200 }, zero)).toEqual(
+      placeNearPoint({ x: 900, y: 100 }, { w: 300, h: 200 })
+    );
+  });
+
   test('clamps inward when even the flipped position would go negative', () => {
     const placed = placeNearPoint({ x: 50, y: 50 }, { w: 2000, h: 2000 });
     // Card wider/taller than the viewport in both directions — neither the

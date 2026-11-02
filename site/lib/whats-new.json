@@ -1,7 +1,34 @@
 {
   "generated": "2026-10-10T00:00:00.000Z",
-  "version": "1.10.0",
+  "version": "2.0.0-rc.1",
   "entries": [
+    {
+      "id": "maude-v2-canvas-window",
+      "version": null,
+      "date": null,
+      "kind": "feature",
+      "title": "A new look: the canvas fills the window",
+      "summary": "The canvas now fills the window, and everything else floats around it: one project menu, Home to start from, a tab per project, Share, and an AI chat panel that works on what you select. Preview adds whiteboard tools, Present shows a canvas to an audience, video artboards get a timeline, and a design system is a canvas of its own. Menu › Help › Take the tour walks through it.",
+      "surface": "design-ui"
+    },
+    {
+      "id": "fixed-artboard-full-height",
+      "version": null,
+      "date": null,
+      "kind": "fix",
+      "title": "Fixed-size artboards keep their full height",
+      "summary": "A fixed-size artboard no longer loses its bottom 24 px to the label: its page is exactly the size you set, so what you see on the canvas is what you export.",
+      "surface": "design-ui"
+    },
+    {
+      "id": "export-cli-and-print-pdf-dpi",
+      "version": null,
+      "date": null,
+      "kind": "fix",
+      "title": "Export commands and print PDFs do what they say",
+      "summary": "The export commands shown in the Export dialog work as printed: crop marks and bleed apply, numeric options like scale=2 are honoured, a bare zip export just works, and --out can be a folder. PDFs of print artboards now default to 300 dpi image quality.",
+      "surface": "design-ui"
+    },
     {
       "id": "format-gate-update-maude-to-edit",
       "version": "1.9.0",
@@ -301,7 +328,7 @@
       "surface": "design-ui",
       "tour": [
         {
-          "target": "[data-testid=\"share-btn\"]",
+          "target": "[data-testid=\"share-cluster-share\"]",
           "title": "Share this file",
           "body": "Copy a web link, an app link, or a link for this Mac. You can also share another file from its row menu.",
           "placement": "bottom",
@@ -706,9 +733,9 @@
       "surface": "design-ui",
       "tour": [
         {
-          "target": "[data-testid=\"open-sync\"]",
+          "target": "[data-testid=\"share-cluster-status\"]",
           "title": "Per-file sync progress",
-          "body": "The hub sync chip is now a button — click it to see every canvas and asset move to the cloud, and which ones need attention.",
+          "body": "The word at the top right says how your project is syncing. Menu › Diagnostics › Sync shows every canvas and asset as it moves to the cloud, and which ones need attention.",
           "placement": "top"
         }
       ]
@@ -930,9 +957,9 @@
       "surface": "design-ui",
       "tour": [
         {
-          "target": "[data-tour=\"help\"]",
+          "target": "[data-tour=\"menus\"]",
           "title": "Report a bug",
-          "body": "Open Help › Report a bug… whenever something breaks — a screenshot and the details maintainers need are gathered for you, and nothing is sent until you approve it.",
+          "body": "Open the menu at the top left › Help › Report a bug… whenever something breaks — a screenshot and the details maintainers need are gathered for you.",
           "placement": "bottom"
         }
       ]
@@ -1077,6 +1104,7 @@
       "title": "A Figma-friendly view of the CSS panel",
       "summary": "The Inspector now speaks two languages. Advanced keeps the real CSS property names; Designer regroups the exact same controls into Figma-familiar sections — Fill, Stroke, Corner radius, Auto layout, Effects, Opacity, Text — and relabels the rows, so you can style without thinking in CSS. Flip between them from the small toggle in the panel's top-right corner, or set a default in Settings → Appearance. Same live edits underneath, and a value set in one view reads back correctly in the other. New in both views: Blur and Blend controls, plus a single 9-point pad for auto-layout alignment.",
       "surface": "design-ui",
+      "replayable": false,
       "tour": [
         {
           "target": "[data-tour=\"cp-mode\"]",
@@ -1099,9 +1127,9 @@
       "surface": "design-ui",
       "tour": [
         {
-          "target": "[data-tour=\"help\"]",
+          "target": "[data-tour=\"menus\"]",
           "title": "Watch the intro",
-          "body": "Help → Watch the intro plays the full showreel without leaving Maude."
+          "body": "Menu › Help › Watch the intro plays the full showreel without leaving Maude."
         }
       ]
     },
@@ -1142,9 +1170,9 @@
       "surface": "design-ui",
       "tour": [
         {
-          "target": "[data-tour=\"menubar-file\"]",
+          "target": "[data-tour=\"menus\"]",
           "title": "AI generation settings",
-          "body": "Open File → Settings — AI generation (⌘,) to add your provider key, then Generate with AI from the ⌘K palette.",
+          "body": "Open Settings (⌘,) › Connections to add your provider key, then Generate with AI from the ⌘K palette.",
           "placement": "bottom"
         }
       ]
@@ -1162,7 +1190,8 @@
           "target": "[data-tour=\"inspector-tabs\"]",
           "title": "Photo tab",
           "body": "Select any photo on the canvas and a Photo tab appears here — adjustments, duotone, grain, pattern, masks, and one-click background removal.",
-          "placement": "bottom"
+          "placement": "bottom",
+          "inspector": true
         }
       ]
     },
@@ -1463,6 +1492,7 @@
       "title": "A real token editor, right in the canvas",
       "summary": "The Inspector's CSS tab grew into a Figma-style design-token editor. Numeric fields carry a property glyph and scrub left/right to change; spacing fields take Webflow-style modifiers. Any value can bind to a design-system Variable through a searchable popover that shows where the token is defined — and it resolves the right system in multi-DS projects. One unified colour picker now drives every colour field, fill and border alike, with Custom and Variables tabs. Values you've set stand out while untouched rows recede, so the diff is scannable at a glance.",
       "surface": "design-ui",
+      "replayable": false,
       "tour": [
         {
           "target": "[data-tour='inspector-tabs']",
@@ -1482,7 +1512,7 @@
           "placement": "left"
         },
         {
-          "target": ".st-cp-row",
+          "target": ".insp-cp-row",
           "inspector": true,
           "tab": "css",
           "requireSelection": true,
@@ -1491,7 +1521,7 @@
           "placement": "left"
         },
         {
-          "target": ".st-cp-tokbtn",
+          "target": ".insp-cp-tokbtn",
           "inspector": true,
           "tab": "css",
           "requireSelection": true,
@@ -1500,7 +1530,7 @@
           "placement": "left"
         },
         {
-          "target": ".st-cp-sechd-row",
+          "target": ".insp-cp-sechd-row",
           "inspector": true,
           "tab": "css",
           "requireSelection": true,
@@ -1518,6 +1548,7 @@
       "title": "Edit the canvas directly — text & layers",
       "summary": "Double-click any text to retype it in place — the new copy is written straight back to the source, no AI round-trip. The Layers tab is a browsable tree with type icons: click a layer to select it in the canvas, hover to highlight, and toggle any layer's visibility from its row. Together with the CSS token editor, small tweaks no longer need a command.",
       "surface": "design-ui",
+      "replayable": false,
       "tour": [
         {
           "target": "[data-tour='inspector-tabs']",
@@ -1529,7 +1560,7 @@
           "placement": "left"
         },
         {
-          "target": ".st-layer-eye",
+          "target": ".sh-layer-eye",
           "inspector": true,
           "tab": "layers",
           "requireSelection": true,
@@ -1565,6 +1596,7 @@
       "title": "Annotations grew up: diagram on the canvas",
       "summary": "Marquee-select strokes and just drag them, group with ⌘G, copy/paste, align and reorder. Shapes rotate (hover near a corner), resize from edges with size-matching guides, hold text (double-click any shape), and switch kind — square, circle, diamond, triangle — right from the toolbar. Arrows snap to shapes and re-route as you move things, and the new Section tool (⇧S) frames a region that moves with its content. AI tools can read the board and draw on it too.",
       "surface": "design-ui",
+      "replayable": false,
       "tour": [
         {
           "target": ".dc-tool-palette",
@@ -1581,6 +1613,7 @@
       "title": "The studio is fully wired now",
       "summary": "Everything in the chrome is live: the top bar shows the real zoom + artboard count, the status bar always shows hub-sync, and your avatar (plus Claude when it's editing) appears in the menubar. The ⌘K palette grew real Canvas/Tools commands (New canvas, Export, Handoff, Draw), there's a proper Export & handoff dialog (PNG/PDF/SVG/HTML/shadcn/ZIP) right in the shell, and a new display-only Inspector panel (Inspect · Layers · CSS) reads any element you ⌘-click.",
       "surface": "design-ui",
+      "replayable": false,
       "tour": [
         {
           "target": "[data-tour='status']",
@@ -1614,6 +1647,7 @@
       "title": "The studio, redesigned in maude",
       "summary": "The canvas browser chrome is now built in the maude design system itself — a dark-first studio shell with a branded menubar + real dropdowns, a collapsible file-tree sidebar with a rail, a cohesive bottom context bar, a maude-styled comments panel, and a clean light handoff. New: a ⌘K command palette for jumping to the design-system view, comments, theme, reload, and help. The in-canvas chrome (tools, minimap, selection halos) was re-skinned to the same indigo accent so the whole surface reads as one product.",
       "surface": "design-ui",
+      "replayable": false,
       "tour": [
         {
           "target": "[data-tour='brand']",
@@ -1637,6 +1671,7 @@
       "title": "Richer annotations — highlighter, lists & text shortcuts",
       "summary": "Annotations got a full polish pass: a new highlighter tool (translucent marker with multiply blend), dashed strokes on shapes, FigJam-style sticky corner, multi-line text with Enter, italic/underline/lists, and Cmd+B/I/U formatting shortcuts that work the same way in sticky notes, shapes, and the text tool.",
       "surface": "design-ui",
+      "replayable": false,
       "tour": [
         {
           "target": "[data-tour='viewport']",
@@ -1662,18 +1697,18 @@
       "date": "2026-06-08",
       "kind": "feature",
       "title": "What's New, right in the canvas browser",
-      "summary": "The Maude UI now tells you what shipped — a dismissible notice plus a panel you can reopen from the menubar. Each closed-out feature adds an entry automatically.",
+      "summary": "The Maude UI now tells you what shipped — a dismissible notice plus a panel you can reopen from Menu › Help. Each closed-out feature adds an entry automatically.",
       "surface": "design-ui",
       "tour": [
         {
-          "target": "[data-tour='whatsnew']",
-          "title": "Your What's New badge",
-          "body": "This ✦ badge lights up when a new maude version ships features. Click it any time to reopen this panel."
+          "target": "[data-tour=\"menus\"]",
+          "title": "What’s new lives in the menu",
+          "body": "Menu › Help › What's new says how many new things shipped since you last looked. Open it any time to reopen this panel."
         },
         {
-          "target": "[data-tour='help']",
+          "target": "[data-tour=\"menus\"]",
           "title": "Tours live in Help too",
-          "body": "Open Help to replay the full \"how Maude works\" walkthrough whenever you want."
+          "body": "Menu › Help replays the full \"how Maude works\" walkthrough whenever you want."
         }
       ]
     },

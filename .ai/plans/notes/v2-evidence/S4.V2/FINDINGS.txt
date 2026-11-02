@@ -1,0 +1,21 @@
+S4.V2 verifier findings (canvas 15), build = feat/maude-v2 60f49a322 (v-s4-final). Rig: scripts/v2-verify/s34-rig.mjs (split off) + annotate verb seeding.
+VERIFIED  an-visibility (shift-P toast "Annotations hidden. Press shift-P to bring them back." + Show; shift-cmd-A from Edit switches to Preview, "6 annotations" toolbar)
+VERIFIED  an-stk-gallery (pack order FigJam Doodle / Life Style / Opposing Thoughts / Project status, "Stamps - vote . one each . they count", credits line)
+VERIFIED  an-rebind (same element rewritten: arrow follows the new, bigger button; element removed/replaced: arrow keeps its end, dashed, open circle)
+VERIFIED  an-dangling (card "Pointed at "Book a call" - moved to the trash" + Point to... ; "by <name>" known gap)
+VERIFIED  an-arrow-kinds (ink Ink/red/green/blue +5, Straight/Curved/Elbow, head, two-way, dash, lock)
+VERIFIED  an-crowd (mosaic of colour blocks at 12-20 %, "Napady 100" count, hover card "Napady . 100 stickies ... Click to zoom to it")
+VERIFIED  an-section (Fold, Ask AI about it, colours, lock; fold writes folded:true; Layers groups the section with its count)
+VERIFIED  an-marker (Marker / Highlighter / Eraser, inks +4, two widths)
+Hand click selects a sticky; right-click opens the annotation menu (Turn into a comment, Resolve, Copy ... Ask AI about this sticky, Move to trash) - OK.
+GAPS
+G1 an-follow  one cmd-Z restores the saved position + members (undo toast "Undo: move 1 artboard"), but the LIVE artboard stays at the drop spot until reload (DOM rect unchanged 3 s after undo; meta.json back at the old x/y). S-M. gap-an-follow-undo-live.png
+G2 an-stk-drop / an-stamps / an-templates entry  with the Hand tool (Preview default) a gallery pick or a stamp arms NOTHING: no ghost (annot-placing), nothing lands. Works once Sticky (or any tool) is armed first. Suspect annotations-layer.tsx:4943 `pending={isActive && visible ? placing : null}` - isActive is false in Hand. S. gap-an-stk-drop-hand-tool.png (armed result: an-stk-drop-armed.png, 160 x 160 chip, Replace... Flip Lock Duplicate)
+G3 an-templates  Section tool armed: no Templates panel above the toolbar (templates-grid absent), canvas draws it opening there. S-M (not probed: cmd-K route). gap-an-templates-no-panel.png
+G4 an-sticky  selected-sticky toolbar draws all 10 papers inline + numeric size "14" + B/I/S/U/align; canvas: five papers + "+5", size select Small..Huge, list, Lock, Turn into a comment. S-M (lead decides). gap-an-sticky-toolbar.png
+G5 an-layers  locked sticky: lock badge + icon-only unlock chip, but no "Locked - Unlock shift-cmd-L" line (annotation-locked-toolbar absent) and no "Locked - unlock to move it" tip while dragging. S. gap-an-layers-lock.png
+G6 sticker dropped from the gallery opens the Photo inspector (Adjustments, Remove Background) in Preview. S, lead decides.
+OTHER  Homepage web artboard renders blank (white) in Preview at 45-53 % after a fit; renders fine at 49 % right after load - flaky lazy paint, not an S4 row; unreproduced reliably.
+PARTIAL (not set)  an-place (belongs tag + loose note between boards seen; stack offset and 5-line growth not probed), an-arrow-bind (artboard edge light + "Artboard . Homepage" tag seen; element ring over a button not reached - probe coords), an-today (toolbar slots Text/Shape/Sticky/Comment/Pen/Arrow/Stickers/Section present; pictures/links/chips/group/align not probed).
+NOT REACHED  an-vs an-convert an-stamps an-vote an-plan an-ai-read an-ai-apply an-ai-stickers an-ai-write an-video an-print an-viewer an-figjam
+PARTIAL an-convert: Turn into a comment writes a comment (from.kind sticky, convertedBy, spot) at the arrow end, pin 1 on Homepage, toast 'Turned into a comment. Undo', sticky removed; thread card text (From Jonas's sticky - turned into a comment by You) not reached; the sticky's arrow is left with a loose start. cmd-K offers 'Start a vote...' / 'End vote' (vote sheet not opened). an-convert-partial.png

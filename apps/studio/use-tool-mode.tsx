@@ -22,9 +22,42 @@ import {
   useState,
 } from 'react';
 
+import { canvasModeStore } from './bridge/canvas-mode-store.ts';
+import {
+  baseMode,
+  type CanvasModeV2,
+  homeModeOfTool,
+  type ModeCaps,
+  REST_TOOL,
+  V1_POSTURE,
+} from './bridge/canvas-modes.ts';
 import { TOOL_CURSORS } from './canvas-cursors.ts';
 import type { Tool } from './input-router.tsx';
-import { isReadOnlyCanvas } from './read-only-mode.ts';
+import { canCommentCanvas, isReadOnlyCanvas } from './read-only-mode.ts';
+import { openToolPanel, panelOnArm } from './toolbars/tool-panel.ts';
+
+/** V2-4.3b — the governed path (V2-1.2 §5.4): once the shell has sent its first `set-mode`, the mode
+ *  is the shell's. A gesture that would cross modes asks the shell (`mode-request`) instead of moving
+ *  the mode here (M1, M3). Literal posts, so the dgn inventory sees the send sites. */
+function requestMode(mode: CanvasModeV2, tool?: Tool): void {
+  if (typeof window === 'undefined' || window.parent === window) return;
+  if (!canvasModeStore(window).claimRequest(`${mode}|${tool ?? ''}`)) return;
+  try {
+    window.parent.postMessage(
+      tool
+        ? { dgn: 'mode-request', mode, tool, cause: 'toolbar' }
+        : { dgn: 'mode-request', mode, cause: 'toolbar' },
+      '*'
+    );
+  } catch {
+    /* detached */
+  }
+}
+
+interface Governed {
+  mode: CanvasModeV2;
+  caps: ModeCaps;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -86,6 +119,9 @@ export const DEFAULT_TOOLS: readonly ToolDescriptor[] = Object.freeze([
   // the Preview toggle / Esc-in-preview.
   { id: 'browse', label: 'Browse', shortcut: '', cursor: TOOL_CURSORS.browse },
   { id: 'move', label: 'Select', shortcut: 'V', cursor: TOOL_CURSORS.move },
+  // S3.11 — Viewing's resting tool (04 md-inspect): a click inspects, a drag pans. No letter of its own:
+  // Viewing's toolbar key (H) arms it.
+  { id: 'inspect', label: 'Inspect', shortcut: '', cursor: TOOL_CURSORS.inspect },
   { id: 'hand', label: 'Hand', shortcut: 'H', cursor: TOOL_CURSORS.hand },
   { id: 'comment', label: 'Comment', shortcut: 'C', cursor: TOOL_CURSORS.comment },
   { id: 'pen', label: 'Pen', shortcut: 'B', cursor: TOOL_CURSORS.pen },
@@ -99,6 +135,19 @@ export const DEFAULT_TOOLS: readonly ToolDescriptor[] = Object.freeze([
   { id: 'section', label: 'Section', shortcut: '⇧S', cursor: TOOL_CURSORS.shape },
   { id: 'arrow', label: 'Arrow', shortcut: 'A', cursor: TOOL_CURSORS.arrow },
   { id: 'text', label: 'Text', shortcut: 'T', cursor: TOOL_CURSORS.text },
+  // S2.12b — Edit's Text: click to type (a click on text types in place, else adds a text element).
+  { id: 'el-text', label: 'Text', shortcut: 'T', cursor: TOOL_CURSORS['el-text'] },
+  // S2.13 — Edit's drag tools (editing/draw-tools.tsx): Frame, Shape, and More's Line · Ellipse · Polygon · Export area.
+  { id: 'frame', label: 'Frame', shortcut: 'F', cursor: TOOL_CURSORS.frame },
+  { id: 'el-shape', label: 'Shape', shortcut: 'R', cursor: TOOL_CURSORS['el-shape'] },
+  { id: 'ellipse', label: 'Ellipse', shortcut: '', cursor: TOOL_CURSORS.ellipse },
+  { id: 'line', label: 'Line', shortcut: '', cursor: TOOL_CURSORS.line },
+  { id: 'polygon', label: 'Polygon', shortcut: '', cursor: TOOL_CURSORS.polygon },
+  { id: 'slice', label: 'Export area', shortcut: '', cursor: TOOL_CURSORS.slice },
+  // S2.14 — Edit's Pen (editing/pen/draw.tsx)
+  { id: 'el-pen', label: 'Pen', shortcut: 'P', cursor: TOOL_CURSORS['el-pen'] },
+  // S2.15 — More › Crop: click a picture to crop it (editing/crop-mode.tsx); selects like Select
+  { id: 'crop', label: 'Crop', shortcut: '', cursor: TOOL_CURSORS.crop },
   { id: 'eraser', label: 'Eraser', shortcut: 'E', cursor: TOOL_CURSORS.eraser },
 ]);
 
@@ -109,18 +158,24 @@ export const DEFAULT_TOOLS: readonly ToolDescriptor[] = Object.freeze([
  * ABSENT from the palette, its letter shortcut dead, and `setTool` refuses it
  * (which also covers the shell's `tool-set` postMessage lane).
  */
-const READ_ONLY_TOOL_IDS: ReadonlySet<Tool> = new Set<Tool>(['browse', 'move', 'hand']);
+const READ_ONLY_TOOL_IDS: ReadonlySet<Tool> = new Set<Tool>(['browse', 'move', 'hand', 'inspect']);
 
-/** Pure filter — exported for unit tests. */
+/** Pure filter — exported for unit tests. `canComment` (S9.22 `cm=1`): a read-only Can comment
+ *  session keeps the Comment tool — its Preview toolbar is Hand and Comment (15 an-viewer). */
 export function filterToolsForReadOnly(
   tools: readonly ToolDescriptor[],
-  readOnly: boolean
+  readOnly: boolean,
+  canComment = false
 ): readonly ToolDescriptor[] {
-  return readOnly ? tools.filter((t) => READ_ONLY_TOOL_IDS.has(t.id)) : tools;
+  return readOnly
+    ? tools.filter((t) => READ_ONLY_TOOL_IDS.has(t.id) || (canComment && t.id === 'comment'))
+    : tools;
 }
 
 interface ToolContextValue {
   tool: Tool;
+  /** The tool as of the last arm, read synchronously (an input router reads this, never the render value). */
+  getTool?: () => Tool;
   setTool: (t: Tool) => void;
   tools: readonly ToolDescriptor[];
   /** DDR-223 — the binary canvas mode. Kept coherent with `tool` (arming
@@ -160,11 +215,17 @@ export function ToolProvider({
   // specimens stay alive too.
   initial,
   initialMode,
+  governed = false,
 }: {
   children: ReactNode;
   tools?: readonly ToolDescriptor[];
   initial?: Tool;
   initialMode?: CanvasMode;
+  /** V2-4.3b — this instance is the one the shell's `set-mode` governs: canvas-lib's, under
+   *  `DesignCanvas` (it owns the toolbar, V2-1.2 §5.4). It arms, echoes and asks; the comment-mount
+   *  ancestor stays v1 and converges through `maude:tool-sync` as it always has — so a bare DS
+   *  specimen (no DesignCanvas) stays alive whatever the shell's mode. */
+  governed?: boolean;
 }) {
   // Cloud Phase 25 C2 — a read-only canvas keeps only navigate/inspect tools.
   // Filtering HERE covers every consumer at once: the palette renders from
@@ -172,21 +233,54 @@ export function ToolProvider({
   // `setTool` below refuses anything outside the list (the shell `tool-set`
   // postMessage lane included).
   const readOnly = isReadOnlyCanvas();
-  const tools = useMemo(() => filterToolsForReadOnly(toolsProp, readOnly), [toolsProp, readOnly]);
+  const canComment = readOnly && canCommentCanvas();
+  const tools = useMemo(
+    () => filterToolsForReadOnly(toolsProp, readOnly, canComment),
+    [toolsProp, readOnly, canComment]
+  );
   const bootTool: Tool = initial ?? (readOnly ? 'browse' : 'move');
   const bootMode: CanvasMode =
     initialMode ?? modeForTool(bootTool) ?? (readOnly ? 'preview' : 'edit');
-  const [tool, setToolState] = useState<Tool>(bootTool);
+  const [tool, setToolStateRaw] = useState<Tool>(bootTool);
+  // P8 G1a — the tool as of the LAST arm, synchronously. A sibling provider's `maude:tool-sync` lands outside a
+  // React event, so its re-render (and every `tool`-derived ref) comes a task later; a pointerdown in between
+  // read the old tool and the comment layer dropped the click (Comment pressed, no composer). Routers read
+  // `getTool()` instead of the rendered value.
+  const liveTool = useRef<Tool>(bootTool);
+  const setToolState = useCallback((t: Tool) => {
+    liveTool.current = t;
+    setToolStateRaw(t);
+  }, []);
+  const getTool = useCallback(() => liveTool.current, []);
   const [mode, setModeState] = useState<CanvasMode>(bootMode);
   const [sticky, setSticky] = useState<{ tool: Tool | null; locked: boolean }>(() => ({
     tool: null,
     locked: false,
   }));
+  // V2-4.3b — governed once the shell's first `set-mode` is applied (null = v1, DDR-223 byte for byte).
+  const govRef = useRef<Governed | null>(null);
   const setTool = useCallback(
     (t: Tool) => {
       // Refuse tools that aren't offered (read-only filtering above) — a
       // shortcut or postMessage can't arm a tool the palette doesn't show.
       if (!tools.some((d) => d.id === t)) return;
+      const gov = govRef.current;
+      if (gov) {
+        // Governed: a tool another mode's toolbar owns (V2-4.5b: an editor's annotation tools are
+        // Preview's, Select is Edit's) is a request to the shell, never a local mode change (M3).
+        // Present keeps its posture: a stray resting-tool arm there (an Esc ladder, a letter key)
+        // neither leaves Present nor asks to — esc out of Present is the shell's.
+        const m = homeModeOfTool(t, gov.caps, gov.mode);
+        if (m && m !== gov.mode) {
+          if (gov.mode !== 'present') requestMode(m, t);
+          return;
+        }
+        setToolState(t);
+        setSticky((prev) =>
+          prev.locked && prev.tool === t ? prev : { tool: null, locked: false }
+        );
+        return;
+      }
       setToolState(t);
       // DDR-223 — mode⇄tool invariant: arming a resting tool moves the mode
       // with it, so V, the menubar `tool-set` lane, and the Cmd+click-in-
@@ -208,6 +302,11 @@ export function ToolProvider({
       // Switching mode arms its resting tool (Figma-style: the toggle IS the
       // posture). Read-only keeps both browse+move on its allowlist, so the
       // guard below never fires there; it exists for exotic custom `tools`.
+      const gov = govRef.current;
+      if (gov) {
+        requestMode(m === 'edit' ? baseMode(gov.caps) : 'preview');
+        return;
+      }
       const rest = MODE_DEFAULT_TOOL[m];
       if (!tools.some((d) => d.id === rest)) return;
       setModeState(m);
@@ -219,8 +318,72 @@ export function ToolProvider({
     [tools]
   );
   const resetTool = useCallback(() => {
-    setTool(MODE_DEFAULT_TOOL[mode]);
+    const gov = govRef.current;
+    setTool(gov ? (REST_TOOL[gov.mode] as Tool) : MODE_DEFAULT_TOOL[mode]);
   }, [mode, setTool]);
+
+  // V2-4.3b — adopt the shell's `set-mode` from the document's one mode store (both provider
+  // instances read the same snapshot, so they cannot disagree). The mode's resting tool is armed when
+  // the mode changes or the shell names a tool; a seed that repeats the current mode keeps the tool.
+  // Exactly one provider per document echoes each applied seq (M2).
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
+  const toolNowRef = useRef(tool);
+  toolNowRef.current = tool;
+  // S4.19 (canvas 15 `an-templates`) - arming Section, by any road, opens the Templates panel above the toolbar.
+  const armedWasRef = useRef<Tool>(tool);
+  useEffect(() => {
+    const panel = panelOnArm(armedWasRef.current, tool);
+    armedWasRef.current = tool;
+    if (panel) openToolPanel(panel);
+  }, [tool]);
+  useEffect(() => {
+    if (!governed || typeof window === 'undefined') return;
+    const store = canvasModeStore(window);
+    let lastSeq = -1;
+    // This provider's own last governed mode: one that mounts after the shell's seeds (the
+    // comment-mount and canvas-lib bundles mount at different times) compares against ITS state.
+    let lastMode: CanvasModeV2 | null = null;
+    const apply = () => {
+      const s = store.get();
+      if (s.mode === null || !s.caps || s.modeSeq <= lastSeq) return;
+      lastSeq = s.modeSeq;
+      govRef.current = { mode: s.mode, caps: s.caps };
+      const posture = V1_POSTURE[s.mode];
+      const changed = lastMode === null ? modeRef.current !== posture : lastMode !== s.mode;
+      lastMode = s.mode;
+      const rest = REST_TOOL[s.mode] as Tool;
+      const offered = (t: Tool | null): t is Tool => !!t && tools.some((d) => d.id === t);
+      const want: Tool | null = (s.tool as Tool | null) ?? (changed ? rest : null);
+      // A tool this canvas cannot arm (S2's Frame before it is a tool) lands on the mode's rest.
+      const arm = offered(want) ? want : changed && offered(rest) ? rest : null;
+      setModeState(posture);
+      if (arm) {
+        setToolState(arm);
+        toolNowRef.current = arm;
+      }
+      if (changed) setSticky({ tool: null, locked: false }); // Q7 — a lock never survives a mode change
+      if (store.claimEcho(s.modeSeq) && window.parent !== window) {
+        try {
+          window.parent.postMessage(
+            {
+              dgn: 'mode-changed',
+              seq: s.modeSeq,
+              mode: s.mode,
+              tool: arm ?? toolNowRef.current,
+              present: s.present,
+              cause: s.clamped ? 'clamp' : 'set-mode',
+            },
+            '*'
+          );
+        } catch {
+          /* detached */
+        }
+      }
+    };
+    apply(); // the shell may have spoken before this provider mounted
+    return store.subscribe(apply);
+  }, [tools, governed]);
   const toggleSticky = useCallback((t: Tool) => {
     setSticky((prev) => {
       if (prev.locked && prev.tool === t) return { tool: null, locked: false };
@@ -269,6 +432,21 @@ export function ToolProvider({
       // Already there: nothing to do, and — for a sticky-locked tool — not
       // touching it keeps the lock.
       if (d.tool === toolRef.current) return;
+      // V2-4.5b — the ungoverned sibling (comment-mount) never drives the mode: a tool it armed that
+      // another mode owns (its v1 esc arms `move` in Preview) is not a request. Say our tool back
+      // so it converges on it.
+      const gov = govRef.current;
+      if (gov) {
+        const m = homeModeOfTool(d.tool, gov.caps, gov.mode);
+        if (m && m !== gov.mode) {
+          document.dispatchEvent(
+            new CustomEvent(TOOL_SYNC_EVENT, {
+              detail: { tool: toolRef.current, from: syncId.current },
+            })
+          );
+          return;
+        }
+      }
       setTool(d.tool as Tool);
     };
     document.addEventListener(TOOL_SYNC_EVENT, onSync);
@@ -346,6 +524,7 @@ export function ToolProvider({
   const value = useMemo<ToolContextValue>(
     () => ({
       tool,
+      getTool,
       setTool,
       tools,
       mode,
@@ -357,7 +536,19 @@ export function ToolProvider({
       shapeKind,
       setShapeKind,
     }),
-    [tool, setTool, tools, mode, setMode, resetTool, sticky, toggleSticky, clearSticky, shapeKind]
+    [
+      tool,
+      getTool,
+      setTool,
+      tools,
+      mode,
+      setMode,
+      resetTool,
+      sticky,
+      toggleSticky,
+      clearSticky,
+      shapeKind,
+    ]
   );
 
   return <ToolContext.Provider value={value}>{children}</ToolContext.Provider>;
@@ -373,17 +564,20 @@ export function MaybeToolProvider({
   children,
   initial,
   initialMode,
+  governed,
 }: {
   children: ReactNode;
   /** DDR-223 — forwarded so the comment-mount layer can pin bare DS
    *  specimens to the preview/`browse` posture (see canvas-comment-mount). */
   initial?: Tool;
   initialMode?: CanvasMode;
+  /** V2-4.3b — canvas-lib's `DesignCanvas` instance (see ToolProvider). */
+  governed?: boolean;
 }) {
   const outer = useContext(ToolContext);
   if (outer) return <>{children}</>;
   return (
-    <ToolProvider initial={initial} initialMode={initialMode}>
+    <ToolProvider initial={initial} initialMode={initialMode} governed={governed}>
       {children}
     </ToolProvider>
   );

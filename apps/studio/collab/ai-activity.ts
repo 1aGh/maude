@@ -29,6 +29,25 @@ export interface AiActivityEntry {
   lastHeartbeat: number;
 }
 
+/**
+ * S9.11 (V2-1.16 L13) — the banner entries a session may see: every entry for a project
+ * session (`see === null`, U7), only visible canvases' for a canvas-only one. `file` is the
+ * v1 repo-relative form (`.design/x.tsx`); the seer takes designRoot-relative paths.
+ */
+export function filterAiEntries<E extends { file: string }>(
+  entries: E[],
+  see: ((rel: string) => boolean) | null,
+  designRel: string
+): E[] {
+  if (see === null) return entries;
+  const prefix = `${designRel.replace(/^\/+|\/+$/g, '')}/`;
+  return entries.filter((e) => {
+    const f = String(e.file).replace(/\\/g, '/').replace(/^\/+/, '');
+    const rel = f.startsWith(prefix) ? f.slice(prefix.length) : f;
+    return rel !== '' && !rel.split('/').includes('..') && see(rel);
+  });
+}
+
 export interface AiActivity {
   /** Begin tracking AI work on a canvas. Idempotent — replaces any prior. */
   start(file: string, author: string): AiActivityEntry;

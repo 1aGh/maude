@@ -1,7 +1,7 @@
 // feature-acp-write-path-scope Addendum, Task 9 — the branch-switch warning.
 //
-// `RepoBranchSwitcher.jsx` has THREE `window.location.reload()` call sites
-// (`switchDraft`, `createDraft`, and the local-merge fold in `foldDraft`). All
+// Version history › Advanced (`branch-actions.js`, S11.10 — moved from the project dock) has THREE
+// `reload()` call sites (`switchDraft`, `createDraft`, and the local-merge fold in `foldDraft`). All
 // three move the worktree, so all three need the gate; covering one and missing
 // two is the easy mistake, which is why the source-shape assertion below exists
 // alongside the copy tests.
@@ -16,7 +16,7 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { chatGuardCopy } from '../client/panels/RepoBranchSwitcher.jsx';
+import { chatGuardCopy } from '../client/v2/history/git-model.js';
 
 describe('chatGuardCopy', () => {
   const one = chatGuardCopy({ count: 1, branch: 'draft-a', verb: 'switch to “main”' });
@@ -59,7 +59,7 @@ describe('chatGuardCopy', () => {
 
 describe('all THREE reload call sites are gated', () => {
   const src = readFileSync(
-    join(import.meta.dir, '..', 'client', 'panels', 'RepoBranchSwitcher.jsx'),
+    join(import.meta.dir, '..', 'client', 'v2', 'history', 'branch-actions.js'),
     'utf8'
   );
 

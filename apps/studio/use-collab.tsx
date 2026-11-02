@@ -35,6 +35,28 @@ import { readSyncMessage, writeSyncStep1, writeUpdate } from 'y-protocols/sync';
 import * as Y from 'yjs';
 
 import { isTrustedOrigin, touchesBodyLane } from './collab/origins.ts';
+import { encodeEpochClaim, MESSAGE_EPOCH, readEpochVerdict } from './collab/protocol.ts';
+import {
+  type EditingAwareness,
+  sanitizeEditing,
+  sanitizeTimeline,
+  type TimelineAwareness,
+} from './collab/timeline-awareness.ts';
+import {
+  type PresenceRole,
+  presenceName,
+  type Summon,
+  type Surface,
+  sanitizeArtboard,
+  sanitizeFollowTarget,
+  sanitizeIdleSince,
+  sanitizeInComments,
+  sanitizeRole,
+  sanitizeSummon,
+  sanitizeSurface,
+} from './presence/fields.ts';
+import { PERSON_TONES, TONE_COLOR } from './presence/tones.ts';
+import { sanitizePointer } from './present/pointer-point.ts';
 
 const MESSAGE_SYNC = 0;
 const MESSAGE_AWARENESS = 1;
@@ -43,27 +65,12 @@ const MESSAGE_AWARENESS = 1;
 // Color hash — stable per peer identity.
 
 /**
- * djb2 string hash → OKLCH color in a curated palette. Determinism per
- * input name is the load-bearing property: every peer hashing "Alice" must
- * land on the SAME color.
- *
- * DS contract (colors-presence specimen): the AI agent rides
- * `--presence-agent` (violet-magenta, hue 322) — "a hue no human state uses,
- * so attribution on a shared canvas is unambiguous". Human hues therefore
- * EXCLUDE the agent band (~292–352) AND the accent indigo band (~245–290,
- * reserved for selection/active). L/C match the DS presence tokens
- * (oklch ≈0.74 0.16) so every cursor reads at the same weight on both themes.
+ * djb2 string hash → one of the five person tones (S9.23 / CONTRACT §6 C32: sky · green · yellow ·
+ * lilac · grey — never coral, which belongs to the AI). Determinism per input name is the load-bearing
+ * property: every peer hashing "Alice" must land on the SAME color. The tones live in
+ * `presence/tones.ts` (the shell reads the same function for its rings).
  */
-const COLOR_PALETTE = [
-  'oklch(0.70 0.17 12)', // rose
-  'oklch(0.72 0.16 40)', // coral
-  'oklch(0.78 0.15 78)', // amber  (presence-away hue)
-  'oklch(0.76 0.16 108)', // lime
-  'oklch(0.74 0.16 145)', // green  (presence-online hue)
-  'oklch(0.75 0.14 172)', // teal
-  'oklch(0.73 0.13 200)', // cyan
-  'oklch(0.72 0.13 238)', // blue   (status-info hue)
-] as const;
+const COLOR_PALETTE = PERSON_TONES.map((t) => TONE_COLOR[t]);
 
 /** The AI agent's exclusive cursor/avatar hue — `--presence-agent`. */
 export const AGENT_COLOR = 'oklch(0.700 0.190 322)';
@@ -123,7 +130,52 @@ export interface CollabAwarenessState {
    * disconnect (awareness GC). The visual conflict picker (DDR-116) remains the
    * safety net for divergent saves.
    */
-  editing?: { since: number } | null;
+  editing?: EditingAwareness | null;
+  /**
+   * S7.17 (07 · ve-together) — where this person's playhead is, on the video artboard their timeline
+   * follows: `{ artboardId, frame }`; null / absent = no timeline open. Untrusted on the way in
+   * (`sanitizeTimeline`); never relayed to a presentation follower (collab/room.ts).
+   */
+  timeline?: TimelineAwareness | null;
+  /**
+   * S3.7a (S3-present-session §2) — this peer is presenting artboards: where it is in its run, so
+   * followers (the audience window, presentation-link viewers) show the same artboard. Published by the
+   * canvas only while the shell's `set-mode` grants `caps.present`; null / absent = not presenting.
+   * Untrusted on the way in: `sanitizePresent` drops a bad one WHOLE.
+   */
+  present?: PresentAwareness | null;
+  /** S3.7a — the `sid` of the presentation this peer follows (null / absent = not following). */
+  watching?: string | null;
+  /**
+   * S3.2b — the presenter's Pointer (L) in WORLD coords, as `cursor` is; null / absent = no dot.
+   * Untrusted on the way in: `sanitizePointer` (present/pointer-point.ts) keeps a finite point or null.
+   */
+  pointer?: { x: number; y: number } | null;
+  /**
+   * S2.18 (V2-1.15 §5.12, Gate 0 A10) — the object this person is editing: a SOFT lock others see as a
+   * ring + read-only inspector fields. Advisory between people; no server refuses on it. Published by
+   * `createHoldPublisher`; null / absent = holding nothing. The hub stamps `actor` (V2-1.15 §5.3);
+   * a receiver ignores it. Untrusted on the way in: `sanitizeHoldingState` drops a bad one WHOLE.
+   */
+  holding?: HoldingAwareness | null;
+  /**
+   * S9.23 (S9-slices Q9) — presence, additive (a v1 peer renders only the fields it knows). `artboard`:
+   * the artboard this person is on; `idleSince`: epoch-ms of their last input, published only once idle
+   * (3 min) and null while active; `surface`: the Mac app or a browser; `inComments`: the Comments
+   * panel has their attention; `summon`: Bring everyone here (stripped by the hub / room without the
+   * `summon` capability); `followTarget`: the clientID their camera follows. Never an e-mail address.
+   */
+  artboard?: string | null;
+  idleSince?: number | null;
+  surface?: Surface;
+  inComments?: boolean;
+  summon?: Summon | null;
+  followTarget?: number | null;
+  /**
+   * P8 G2 (b) — the person's project role, STAMPED BY THE ROOM from their socket's access
+   * (collab/room.ts `stampRole`); whatever a client sends is overwritten. Read-only here.
+   */
+  role?: PresenceRole | null;
   /**
    * Server-side `disconnect` matches awareness states to outgoing peers by
    * this token (must equal the ws.data.id the server assigns at upgrade).
@@ -138,7 +190,8 @@ export type ForeignAwareness = Omit<CollabAwarenessState, '__connId'> & { client
 
 /** A live annotation gesture, in WORLD coordinates. */
 export interface AnnotationGesture {
-  kind: 'move' | 'resize' | 'draw';
+  /** `type` (S4.12): typing in a sticky — the ids are the sticky; peers edge it in this person's colour. */
+  kind: 'move' | 'resize' | 'draw' | 'type';
   /** Elements the gesture moves / resizes (empty while drawing a new one). */
   ids: string[];
   /** move: the drag offset. */
@@ -234,7 +287,7 @@ function sanitizeCursor(raw: unknown): { x: number; y: number } | null {
   return isFiniteNum(c.x) && isFiniteNum(c.y) ? { x: c.x, y: c.y } : null;
 }
 
-const GESTURE_KINDS = new Set(['move', 'resize', 'draw']);
+const GESTURE_KINDS = new Set(['move', 'resize', 'draw', 'type']);
 const MAX_GESTURE_POINTS = 512; // numbers, i.e. 256 points
 const GESTURE_COORD_LIMIT = 1e6;
 
@@ -330,11 +383,279 @@ function sanitizeAnnotationSelection(raw: unknown): string[] {
 // non-positive value is rejected → `null` (treated as not-editing), so a hostile
 // hub peer can't pin a permanent "editing" badge with a far-future timestamp or
 // poison a `Date.now() - since` age computation with a NaN.
-function sanitizeEditingState(raw: unknown): { since: number } | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const e = raw as { since?: unknown };
-  if (!isFiniteNum(e.since) || e.since <= 0 || e.since > Date.now() + 5000) return null;
-  return { since: e.since };
+// S7.17 — the same rule, plus the caption-word form (collab/timeline-awareness.ts `sanitizeEditing`).
+function sanitizeEditingState(raw: unknown): EditingAwareness | null {
+  return sanitizeEditing(raw);
+}
+
+// ── S3.7a — the presenter's position (S3-present-session §2) ──────────────────────────────────────
+// A planted canvas can only lie about its OWN artboards (S3-slices §5 risk 2); what it must not do is
+// hand a follower a malformed state that half-applies. So every member is checked for value, the
+// object is rebuilt from the known keys only, and ANY bad member drops the whole `present` (null) —
+// never a partial object a follower would act on.
+
+export interface PresentMediaAwareness {
+  playing: boolean;
+  t: number;
+  duration: number;
+  muted: boolean;
+}
+
+export interface PresentAwareness {
+  v: 1;
+  /** One presentation session (new per Present start). */
+  sid: string;
+  index: number;
+  /** Presented artboards only (skip excluded). */
+  total: number;
+  artboardId: string;
+  /** +1 per step; a follower ignores a lower one for the same sid. */
+  seq: number;
+  media: PresentMediaAwareness | null;
+}
+
+export const PRESENT_SID_RE = /^[a-z0-9]{8,32}$/;
+const PRESENT_ARTBOARD_RE = /^[A-Za-z0-9_-]{1,64}$/;
+export const PRESENT_TOTAL_MAX = 2000;
+const PRESENT_SEQ_MAX = 2 ** 31 - 1;
+const PRESENT_MEDIA_T_MAX = 86400;
+const PRESENT_KEYS = ['v', 'sid', 'index', 'total', 'artboardId', 'seq', 'media'];
+const MEDIA_KEYS = ['playing', 't', 'duration', 'muted'];
+
+const isIntIn = (v: unknown, lo: number, hi: number): v is number =>
+  typeof v === 'number' && Number.isInteger(v) && v >= lo && v <= hi;
+const isPlainObj = (v: unknown): v is Record<string, unknown> =>
+  !!v &&
+  typeof v === 'object' &&
+  !Array.isArray(v) &&
+  Object.getPrototypeOf(v) === Object.prototype;
+
+function sanitizePresentMedia(raw: unknown): PresentMediaAwareness | null | undefined {
+  if (raw === null) return null;
+  if (!isPlainObj(raw)) return undefined; // bad
+  if (Object.keys(raw).some((k) => !MEDIA_KEYS.includes(k))) return undefined;
+  const { playing, t, duration, muted } = raw;
+  if (typeof playing !== 'boolean' || typeof muted !== 'boolean') return undefined;
+  const inRange = (n: unknown): n is number => isFiniteNum(n) && n >= 0 && n <= PRESENT_MEDIA_T_MAX;
+  if (!inRange(t) || !inRange(duration)) return undefined;
+  return { playing, t, duration, muted };
+}
+
+/**
+ * The awareness `present` field, validated whole. Unknown keys, a non-integer or out-of-range number,
+ * an id outside its grammar, `index ≥ total`, a bad `media` — each one returns null, so a follower
+ * acts on a complete state or on nothing.
+ */
+export function sanitizePresent(raw: unknown): PresentAwareness | null {
+  if (!isPlainObj(raw)) return null;
+  const keys = Object.keys(raw);
+  if (keys.length > PRESENT_KEYS.length || keys.some((k) => !PRESENT_KEYS.includes(k))) return null;
+  const { v, sid, index, total, artboardId, seq, media } = raw;
+  if (v !== 1) return null;
+  if (typeof sid !== 'string' || !PRESENT_SID_RE.test(sid)) return null;
+  if (!isIntIn(total, 1, PRESENT_TOTAL_MAX)) return null;
+  if (!isIntIn(index, 0, total - 1)) return null;
+  if (typeof artboardId !== 'string' || !PRESENT_ARTBOARD_RE.test(artboardId)) return null;
+  if (!isIntIn(seq, 0, PRESENT_SEQ_MAX)) return null;
+  const m = media === undefined ? null : sanitizePresentMedia(media);
+  if (m === undefined) return null;
+  return { v: 1, sid, index, total, artboardId, seq, media: m };
+}
+
+// ── S2.18 — a person's hold (V2-1.15 §5.12) ─────────────────────────────────────────────────────
+// A hold is advisory, but it is drawn on every peer's canvas and it closes their inspector fields, so
+// the boundary is strict: known keys only, V2-1.4 id grammars, a bounded print, and an `at` that is
+// finite and not in the future (+5 s skew). Any bad member drops the whole hold. `actor` is the hub's
+// stamp (§5.3) — nothing here reads it, so a peer's own claim buys nothing.
+
+export interface HoldingAwareness {
+  /** DCArtboard id */
+  artboard: string;
+  /** ElementId (V2-1.4) or a computed 8-hex id */
+  element: string;
+  /** the element print, for a computed id */
+  print?: string;
+  /** epoch-ms of the last refresh (each edit gesture, ≤ every 5 s; a heartbeat while a field is focused) */
+  at: number;
+}
+
+/** A hold nobody refreshed for this long is free — measured by the RECEIVER's clock. */
+export const HOLD_FREE_MS = 30_000;
+/** A gesture refreshes `at` at most this often. */
+export const HOLD_REFRESH_MS = 5000;
+/** While a field stays focused (no gestures), `at` is refreshed this often so receivers keep it. */
+export const HOLD_HEARTBEAT_MS = 10_000;
+const HOLD_SKEW_MS = 5000;
+const HOLD_PRINT_MAX = 512;
+const HOLD_KEYS = ['artboard', 'element', 'print', 'at', 'actor'];
+// mirrors annotations/elements/_shared.ts ARTBOARD_ID_RE / ELEMENT_ID_RE (V2-1.4) — kept local so the
+// canvas bundle does not pull the annotations module in
+const HOLD_ARTBOARD_RE = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/;
+const HOLD_ELEMENT_RE = /^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*|[0-9a-f]{8})$/;
+const HOLD_ELEMENT_MAX = 48;
+
+/** The awareness `holding` field, validated whole (null = holding nothing, or a bad hold). */
+export function sanitizeHoldingState(
+  raw: unknown,
+  now: number = Date.now()
+): HoldingAwareness | null {
+  if (!isPlainObj(raw)) return null;
+  const keys = Object.keys(raw);
+  if (keys.length > HOLD_KEYS.length || keys.some((k) => !HOLD_KEYS.includes(k))) return null;
+  const { artboard, element, print, at } = raw;
+  if (typeof artboard !== 'string' || !HOLD_ARTBOARD_RE.test(artboard)) return null;
+  if (typeof element !== 'string' || element.length > HOLD_ELEMENT_MAX) return null;
+  if (!HOLD_ELEMENT_RE.test(element)) return null;
+  if (print !== undefined && (typeof print !== 'string' || print.length > HOLD_PRINT_MAX))
+    return null;
+  if (!isFiniteNum(at) || at <= 0 || at > now + HOLD_SKEW_MS) return null;
+  return print === undefined ? { artboard, element, at } : { artboard, element, print, at };
+}
+
+/**
+ * The optional fields every local `setLocalState` carries over, so a cursor publish never drops a
+ * presenter's position, a follower's watch, a Pointer dot or a hold. Seed and publish both use it.
+ */
+export function carryLocal(cur: Partial<CollabAwarenessState>): {
+  editing: CollabAwarenessState['editing'];
+  timeline: TimelineAwareness | null;
+  present: PresentAwareness | null;
+  watching: string | null;
+  pointer: { x: number; y: number } | null;
+  holding: HoldingAwareness | null;
+  // S9.23 — the presence fields: a cursor publish must not un-idle, un-summon or un-follow.
+  artboard: string | null;
+  idleSince: number | null;
+  surface: Surface;
+  inComments: boolean;
+  summon: Summon | null;
+  followTarget: number | null;
+} {
+  return {
+    editing: cur.editing ?? null,
+    timeline: cur.timeline ?? null,
+    present: cur.present ?? null,
+    watching: cur.watching ?? null,
+    pointer: cur.pointer ?? null,
+    holding: cur.holding ?? null,
+    artboard: cur.artboard ?? null,
+    idleSince: cur.idleSince ?? null,
+    surface: cur.surface ?? 'app',
+    inComments: cur.inComments ?? false,
+    summon: cur.summon ?? null,
+    followTarget: cur.followTarget ?? null,
+  };
+}
+
+export interface HoldTarget {
+  artboard: string;
+  element: string;
+  print?: string;
+}
+
+export interface HoldPublisher {
+  /** the single selected object (null = deselect, or several, or an artboard) */
+  select(target: HoldTarget | null): void;
+  /** an inspector field for the selection has focus */
+  field(focused: boolean): void;
+  /** the window / the app has focus */
+  app(focused: boolean): void;
+  /** an edit gesture on the selection (drag, nudge, a typed value, a text edit) */
+  gesture(): void;
+  /** unmount: frees the hold, clears the timer */
+  dispose(): void;
+}
+
+/**
+ * The local `holding` matrix (V2-1.15 §5.12). Held = an object is selected AND the app has focus AND
+ * (a field for it has focus OR a gesture happened within 30 s). Anything else is null. `publish` gets
+ * every change; one timer covers both the 30 s idle and the focused-field heartbeat.
+ */
+export function createHoldPublisher(deps: {
+  publish: (holding: HoldingAwareness | null) => void;
+  now?: () => number;
+  setTimer?: (fn: () => void, ms: number) => unknown;
+  clearTimer?: (id: unknown) => void;
+}): HoldPublisher {
+  const now = deps.now ?? Date.now;
+  const setTimer = deps.setTimer ?? ((fn, ms) => setTimeout(fn, ms));
+  const clearTimer = deps.clearTimer ?? ((id) => clearTimeout(id as ReturnType<typeof setTimeout>));
+  let target: HoldTarget | null = null;
+  let focused = false;
+  let appOn = true;
+  let lastGesture: number | null = null;
+  let sent: HoldingAwareness | null = null;
+  let timer: unknown = null;
+  let disposed = false;
+
+  const same = (a: HoldTarget | null, b: HoldTarget | null) =>
+    !!a && !!b && a.artboard === b.artboard && a.element === b.element;
+  const stopTimer = () => {
+    if (timer !== null) clearTimer(timer);
+    timer = null;
+  };
+  const send = (h: HoldingAwareness | null) => {
+    sent = h;
+    deps.publish(h);
+  };
+
+  function evaluate(refresh: boolean): void {
+    stopTimer();
+    const t = now();
+    const recent = lastGesture !== null && t - lastGesture < HOLD_FREE_MS;
+    const held = !disposed && !!target && appOn && (focused || recent);
+    if (!held || !target) {
+      if (sent !== null) send(null);
+      return;
+    }
+    if (!sent || !same(sent, target) || refresh) {
+      const h: HoldingAwareness = { artboard: target.artboard, element: target.element, at: t };
+      if (target.print) h.print = target.print;
+      send(h);
+    }
+    // the next moment something changes: the focused-field heartbeat, or the gesture going stale
+    const beat = (sent as HoldingAwareness).at + HOLD_HEARTBEAT_MS - t;
+    const idle = !focused && lastGesture !== null ? lastGesture + HOLD_FREE_MS - t : Infinity;
+    const wait = Math.max(0, Math.min(focused ? beat : Infinity, idle));
+    if (Number.isFinite(wait)) {
+      timer = setTimer(() => {
+        timer = null;
+        const due = !!sent && now() - sent.at >= HOLD_HEARTBEAT_MS;
+        evaluate(due);
+      }, wait);
+    }
+  }
+
+  return {
+    select(next) {
+      const moved = !same(target, next);
+      target = next ? { ...next } : null;
+      if (moved) lastGesture = null;
+      evaluate(false);
+    },
+    field(v) {
+      focused = v;
+      evaluate(false);
+    },
+    app(v) {
+      appOn = v;
+      evaluate(false);
+    },
+    gesture() {
+      if (!target) return;
+      lastGesture = now();
+      evaluate(!!sent && same(sent, target) && now() - sent.at >= HOLD_REFRESH_MS);
+    },
+    dispose() {
+      disposed = true;
+      evaluate(false);
+    },
+  };
+}
+
+/** The awareness `watching` field: a presenter's sid, or null. */
+export function sanitizeWatching(raw: unknown): string | null {
+  return typeof raw === 'string' && PRESENT_SID_RE.test(raw) ? raw : null;
 }
 
 /**
@@ -348,7 +669,8 @@ export function sanitizeForeignState(clientID: number, state: unknown): ForeignA
   if (!state || typeof state !== 'object') return null;
   const s = state as Partial<CollabAwarenessState>;
   if (typeof s.name !== 'string') return null;
-  const name = sanitizeName(s.name);
+  // Names + colour only (S9 Q9): a v1 peer whose git name IS an address is shown by its local part.
+  const name = presenceName(sanitizeName(s.name));
   return {
     clientID,
     name,
@@ -359,7 +681,36 @@ export function sanitizeForeignState(clientID: number, state: unknown): ForeignA
     annotationGesture: sanitizeAnnotationGesture(s.annotationGesture),
     viewport: sanitizeViewport(s.viewport),
     editing: sanitizeEditingState(s.editing),
+    timeline: sanitizeTimeline(s.timeline),
+    present: sanitizePresent(s.present),
+    watching: sanitizeWatching(s.watching),
+    pointer: sanitizePointer(s.pointer),
+    holding: sanitizeHoldingState(s.holding),
+    artboard: sanitizeArtboard(s.artboard),
+    idleSince: sanitizeIdleSince(s.idleSince),
+    surface: sanitizeSurface(s.surface),
+    inComments: sanitizeInComments(s.inComments),
+    summon: sanitizeSummon(s.summon),
+    followTarget: sanitizeFollowTarget(s.followTarget),
+    role: sanitizeRole(s.role),
   };
+}
+
+/**
+ * Every foreign peer of `awareness` through the trust boundary (`sanitizeForeignState`), capped at
+ * MAX_FOREIGN_PEERS. The one loop `useForeignAwareness` and the Present follower (S3.7a) both read,
+ * so no consumer reads `getStates()` raw.
+ */
+export function readForeignPeers(awareness: Awareness): ForeignAwareness[] {
+  const out: ForeignAwareness[] = [];
+  const myId = awareness.clientID;
+  for (const [clientID, state] of awareness.getStates() as Map<number, unknown>) {
+    if (clientID === myId) continue;
+    if (out.length >= MAX_FOREIGN_PEERS) break; // bound DoS via unbounded peers
+    const peer = sanitizeForeignState(clientID, state);
+    if (peer) out.push(peer);
+  }
+  return out;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -432,18 +783,8 @@ export function useForeignAwareness(): ForeignAwareness[] {
       return;
     }
     const { awareness } = collab;
-    function compute(): ForeignAwareness[] {
-      const out: ForeignAwareness[] = [];
-      const myId = awareness.clientID;
-      for (const [clientID, state] of awareness.getStates() as Map<number, unknown>) {
-        if (clientID === myId) continue;
-        if (out.length >= MAX_FOREIGN_PEERS) break; // bound DoS via unbounded peers
-        // Sanitize every now-remote field at this trust boundary (Task 5).
-        const peer = sanitizeForeignState(clientID, state);
-        if (peer) out.push(peer);
-      }
-      return out;
-    }
+    // Sanitize every now-remote field at this trust boundary (Task 5).
+    const compute = () => readForeignPeers(awareness);
     setPeers(compute());
     // Issue #131 — `change` fires for OUR OWN publishes too (the 30 Hz cursor),
     // and each one rebuilt every peer object and re-rendered every consumer.
@@ -572,6 +913,15 @@ interface CollabSession {
   listeners: Set<() => void>;
   /** Tear down the socket + listeners + destroy doc/awareness. */
   stop: () => void;
+  /**
+   * p8-collab-epoch — the server epoch this session's doc was last synced under
+   * (null: never). Claimed on every connect; a mismatch starts a fresh doc.
+   */
+  epoch: string | null;
+  /** How many times the studio restarted under this session and the doc was rebuilt. */
+  resyncs: number;
+  /** Changes made here that could not be placed in the restarted studio's copy (kept, pending). */
+  unplaced: number;
 }
 
 // The session registry MUST live on `window`, not in module scope, and be
@@ -630,9 +980,15 @@ function notifySession(s: CollabSession): void {
   for (const l of s.listeners) l();
 }
 
+/** Origin of the unsent local changes re-applied after a fresh join (never a server socket). */
+const RESYNC_ORIGIN = Object.freeze({ maudeOrigin: 'collab-epoch-resync' });
+/** Bound on the local changes kept while they wait for a server that accepted our epoch. */
+const MAX_UNSENT_BYTES = 4 * 1024 * 1024;
+
 function createSession(slug: string): CollabSession {
-  const doc = new Y.Doc();
-  const awareness = new Awareness(doc);
+  // `let`: a fresh join after a studio restart replaces both (p8-collab-epoch).
+  let doc = new Y.Doc();
+  let awareness = new Awareness(doc);
   const connId = crypto.randomUUID();
 
   const session: CollabSession = {
@@ -647,6 +1003,9 @@ function createSession(slug: string): CollabSession {
     destroyTimer: null,
     listeners: new Set(),
     stop: () => {},
+    epoch: null,
+    resyncs: 0,
+    unplaced: 0,
   };
 
   // Seed local awareness immediately so foreign peers see our name even before
@@ -661,7 +1020,8 @@ function createSession(slug: string): CollabSession {
       annotationSelection: cur.annotationSelection ?? [],
       annotationGesture: null,
       viewport: cur.viewport ?? { x: 0, y: 0, zoom: 1 },
-      editing: cur.editing ?? null,
+      // editing / present / watching / pointer / holding (S2.18) — one list, carryLocal
+      ...carryLocal(cur),
       __connId: connId,
     } satisfies CollabAwarenessState);
   };
@@ -674,7 +1034,7 @@ function createSession(slug: string): CollabSession {
     .then((r) => r.json())
     .then((j) => {
       if (identityCancelled) return;
-      const n = typeof j?.name === 'string' && j.name.trim() ? j.name.trim() : null;
+      const n = typeof j?.name === 'string' && j.name.trim() ? presenceName(j.name) : null;
       const finalName = n ?? `anonymous-${connId.slice(0, 6)}`;
       session.name = finalName;
       session.color = colorForName(finalName);
@@ -701,6 +1061,109 @@ function createSession(slug: string): CollabSession {
   // way). Back off exponentially and say so once.
   let failedConnects = 0;
   let failureWarned = false;
+
+  // ── Handshake epoch (p8-collab-epoch, decision v2-p8-collab-epoch) ─────────
+  // `standing` is this socket's verdict: 'ok' once the server accepted our
+  // claim. Only then do local changes go out live; before it (and while the
+  // socket is down) they are kept in `unsent`, which the next accepted sync
+  // carries (our sync step 2), or which a fresh join re-applies. A change sent
+  // under an accepted epoch reached that server's room — it is not kept.
+  let standing: 'unknown' | 'ok' = 'unknown';
+  let unsent: Uint8Array[] = [];
+  let unsentBytes = 0;
+  let unsentWarned = false;
+  /** Unsent changes waiting for the fresh doc's first full sync. */
+  let reproposal: Uint8Array | null = null;
+  /** Sockets this session opened — an update from one of them is the server's, not ours. */
+  const sockets = new WeakSet<object>();
+
+  const onOwnUpdate = (update: Uint8Array, origin: unknown) => {
+    if (origin && typeof origin === 'object' && sockets.has(origin)) return;
+    const ws = wsRef;
+    if (ws && ws.readyState === WebSocket.OPEN && standing === 'ok') return;
+    unsent.push(update);
+    unsentBytes += update.byteLength;
+    while (unsentBytes > MAX_UNSENT_BYTES && unsent.length > 1) {
+      unsentBytes -= unsent.shift()?.byteLength ?? 0;
+      if (!unsentWarned) {
+        unsentWarned = true;
+        console.warn(
+          '[collab] too many changes waiting for the studio — the oldest are no longer kept'
+        );
+      }
+    }
+  };
+  doc.on('update', onOwnUpdate);
+
+  function sendClaimAndSync(ws: WebSocket) {
+    sendFrame(ws, encodeEpochClaim(session.epoch ?? ''));
+    // Sync step 1 — announce our state vector so the server can send the
+    // missing pieces (matches the encodeHandshake server path).
+    const encoder = encoding.createEncoder();
+    encoding.writeVarUint(encoder, MESSAGE_SYNC);
+    writeSyncStep1(encoder, doc);
+    sendFrame(ws, encoding.toUint8Array(encoder));
+    // Awareness initial state — fire our local state to the room.
+    broadcastAwareness(ws, [awareness.clientID]);
+  }
+
+  /**
+   * The server is a later instance than the one this doc synced with. Its room
+   * was rebuilt, so the doc we hold is not one it may merge (it would come back
+   * as duplicates and resurrected deletes). Start a fresh doc + presence,
+   * claim the server's epoch, and re-apply only what this page changed and no
+   * accepted server ever received. Consumers re-read `doc` from the context.
+   */
+  function freshJoin(ws: WebSocket, serverEpoch: string) {
+    const oldDoc = doc;
+    const oldAwareness = awareness;
+    const local = (oldAwareness.getLocalState() ?? null) as CollabAwarenessState | null;
+    oldDoc.off('update', onDocUpdate);
+    oldDoc.off('update', onOwnUpdate);
+    oldAwareness.off('update', onAwarenessUpdate);
+    doc = new Y.Doc();
+    awareness = new Awareness(doc);
+    session.doc = doc;
+    session.awareness = awareness;
+    doc.on('update', onDocUpdate);
+    doc.on('update', onOwnUpdate);
+    awareness.on('update', onAwarenessUpdate);
+    if (local) awareness.setLocalState({ ...local, __connId: connId });
+    reproposal = unsent.length ? Y.mergeUpdates(unsent) : null;
+    unsent = [];
+    unsentBytes = 0;
+    session.epoch = serverEpoch;
+    session.resyncs += 1;
+    try {
+      oldAwareness.destroy();
+    } catch {
+      /* ignore */
+    }
+    notifySession(session);
+    try {
+      oldDoc.destroy();
+    } catch {
+      /* ignore */
+    }
+    sendClaimAndSync(ws);
+  }
+
+  /** The fresh doc holds the server's state: put back what only this page had. */
+  function applyReproposal() {
+    const update = reproposal;
+    reproposal = null;
+    if (!update) return;
+    Y.applyUpdate(doc, update, RESYNC_ORIGIN);
+    const pending = doc.store.pendingStructs !== null || doc.store.pendingDs !== null;
+    if (pending) {
+      session.unplaced += 1;
+      notifySession(session);
+      console.info(
+        '[collab] the studio restarted; some changes made on this page refer to content the ' +
+          'restarted studio no longer has. They stay on this page and are not sent.'
+      );
+    }
+  }
 
   function sendFrame(ws: WebSocket, payload: Uint8Array) {
     try {
@@ -732,25 +1195,24 @@ function createSession(slug: string): CollabSession {
     const ws = new WebSocket(`${proto}//${location.host}/_ws/collab/${slug}`);
     ws.binaryType = 'arraybuffer';
     wsRef = ws;
+    sockets.add(ws);
+    standing = 'unknown';
+    let resetsOnThisSocket = 0;
 
     ws.addEventListener('open', () => {
       failedConnects = 0;
       failureWarned = false;
       session.connected = true;
       notifySession(session);
-      // Sync step 1 — announce our state vector so the server can send the
-      // missing pieces (matches the encodeHandshake server path).
-      const encoder = encoding.createEncoder();
-      encoding.writeVarUint(encoder, MESSAGE_SYNC);
-      writeSyncStep1(encoder, doc);
-      sendFrame(ws, encoding.toUint8Array(encoder));
-      // Awareness initial state — fire our local state to the room.
-      broadcastAwareness(ws, [awareness.clientID]);
+      // p8-collab-epoch — the claim goes first, so the server knows which
+      // instance this doc belongs to before it asks for any of it.
+      sendClaimAndSync(ws);
     });
 
     ws.addEventListener('close', () => {
       const hadConnected = session.connected;
       session.connected = false;
+      standing = 'unknown';
       notifySession(session);
       wsRef = null;
       if (cancelled) return;
@@ -786,8 +1248,38 @@ function createSession(slug: string): CollabSession {
         case MESSAGE_SYNC: {
           const encoder = encoding.createEncoder();
           encoding.writeVarUint(encoder, MESSAGE_SYNC);
-          readSyncMessage(decoder, encoder, doc, ws);
+          const type = readSyncMessage(decoder, encoder, doc, ws);
           if (encoding.length(encoder) > 1) sendFrame(ws, encoding.toUint8Array(encoder));
+          // Our sync step 2 answered an accepted server's step 1: it carried
+          // every change kept while unsent.
+          if (type === 0 && standing === 'ok') {
+            unsent = [];
+            unsentBytes = 0;
+          }
+          // The server's step 2 after a fresh join: the doc now holds its state.
+          if (type === 1 && standing === 'ok') applyReproposal();
+          break;
+        }
+        case MESSAGE_EPOCH: {
+          const verdict = readEpochVerdict(payload);
+          if (!verdict) break;
+          if (verdict.accepted) {
+            standing = 'ok';
+            session.epoch = verdict.epoch;
+            break;
+          }
+          // A server that refuses even a fresh doc's claim is not one we can
+          // sync with: stop rather than loop.
+          resetsOnThisSocket += 1;
+          if (resetsOnThisSocket > 1) {
+            try {
+              ws.close();
+            } catch {
+              /* ignore */
+            }
+            break;
+          }
+          freshJoin(ws, verdict.epoch);
           break;
         }
         case MESSAGE_AWARENESS: {
@@ -820,6 +1312,8 @@ function createSession(slug: string): CollabSession {
     const ws = wsRef;
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     if (origin === ws) return; // came from server, don't echo
+    // p8-collab-epoch — not before the server accepted our epoch (kept in `unsent`).
+    if (standing !== 'ok') return;
     if (touchesBodyLane(transaction) && !isTrustedOrigin(origin)) {
       if (!bodyLaneWarned) {
         bodyLaneWarned = true;
@@ -843,7 +1337,10 @@ function createSession(slug: string): CollabSession {
     const ws = wsRef;
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     if (origin === ws) return;
-    const changed = added.concat(updated, removed);
+    // P8 G2 co-twelve — only OUR presence goes to the room. Our awareness also times other peers out locally
+    // (after a sleep, in a throttled tab); telling the room so removed them for everybody. The room drops a
+    // foreign entry too (collab/room.ts `ownAwareness`); this keeps an honest client from sending one.
+    const changed = added.concat(updated, removed).filter((id) => id === awareness.clientID);
     broadcastAwareness(ws, changed);
   };
   awareness.on('update', onAwarenessUpdate);
@@ -853,6 +1350,7 @@ function createSession(slug: string): CollabSession {
     cancelled = true;
     if (reconnectTimer) clearTimeout(reconnectTimer);
     doc.off('update', onDocUpdate);
+    doc.off('update', onOwnUpdate);
     awareness.off('update', onAwarenessUpdate);
     const ws = wsRef;
     if (ws && ws.readyState === WebSocket.OPEN) {
@@ -971,7 +1469,9 @@ export function CollabProvider({ slug, children }: CollabProviderProps): JSX.Ele
           // Kept across other fields' publishes (a cursor move mid-drag).
           annotationGesture: current.annotationGesture ?? null,
           viewport: current.viewport ?? { x: 0, y: 0, zoom: 1 },
-          editing: current.editing ?? null,
+          // S3.7a — a cursor publish must not drop the presenter's position (or a follower's watch);
+          // S3.2b nor the Pointer dot; S2.18 nor a hold. One list: carryLocal.
+          ...carryLocal(current),
           __connId: myConnId,
           ...next,
         } satisfies CollabAwarenessState);

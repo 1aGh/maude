@@ -75,13 +75,13 @@ function Icon({ name, size = 16 }) {
 /** The real app brand mark (same as the menubar — bordered message-bubble spark). */
 function Brand() {
   return (
-    <span className="st-brand">
-      <span className="st-brand-mark">
+    <span className="sh-brand">
+      <span className="sh-brand-mark">
         <svg viewBox="0 0 32 32" width="100%" height="100%" fill="none" aria-hidden="true">
           <path d="M16 5l2.8 8.2L27 16l-8.2 2.8L16 27l-2.8-8.2L5 16l8.2-2.8z" fill="currentColor" />
         </svg>
       </span>
-      <span className="st-brand-name">Maude</span>
+      <span className="sh-brand-name">Maude</span>
     </span>
   );
 }
@@ -208,7 +208,12 @@ function ZoomBar({ view, setView }) {
 }
 
 const CHOICES = [
-  { id: 'mine', icon: 'user', title: 'Keep mine', desc: 'Use your version. Their edits are set aside.' },
+  {
+    id: 'mine',
+    icon: 'user',
+    title: 'Keep mine',
+    desc: 'Use your version. Their edits are set aside.',
+  },
   {
     id: 'theirs',
     icon: 'users',
@@ -285,7 +290,12 @@ export default function DiffView({ target, cfg, loadLog, onResolve, onRestore, o
         const inside = sheetRef.current?.contains(document.activeElement);
         const first = items[0];
         const last = items[items.length - 1];
-        if (e.shiftKey && (!inside || document.activeElement === first || document.activeElement === sheetRef.current)) {
+        if (
+          e.shiftKey &&
+          (!inside ||
+            document.activeElement === first ||
+            document.activeElement === sheetRef.current)
+        ) {
           e.preventDefault();
           last.focus();
         } else if (!e.shiftKey && (!inside || document.activeElement === last)) {
@@ -333,7 +343,7 @@ export default function DiffView({ target, cfg, loadLog, onResolve, onRestore, o
 
   return (
     <div
-      className="st-scrim dv-scrim"
+      className="sh-scrim dv-scrim"
       role="presentation"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
@@ -407,8 +417,8 @@ export default function DiffView({ target, cfg, loadLog, onResolve, onRestore, o
                 <span>
                   While you were working, someone published their own changes to{' '}
                   <strong style={{ color: 'var(--fg-0)' }}>{baseName(file)}</strong>. Pick which to
-                  keep — <strong style={{ color: 'var(--fg-0)' }}>Keep both</strong> saves yours as a
-                  copy so nothing is lost.
+                  keep — <strong style={{ color: 'var(--fg-0)' }}>Keep both</strong> saves yours as
+                  a copy so nothing is lost.
                 </span>
               </div>
             </div>
@@ -532,7 +542,9 @@ export default function DiffView({ target, cfg, loadLog, onResolve, onRestore, o
                   <div className="dv-col">
                     <div className="dv-col-hd">
                       <span className="dv-col-tag is-after">Your version</span>
-                      <span className="dv-col-who">{acceptedPreview ? 'now · working copy' : 'now · unsaved'}</span>
+                      <span className="dv-col-who">
+                        {acceptedPreview ? 'now · working copy' : 'now · unsaved'}
+                      </span>
                     </div>
                     <div className="dv-thumb is-after">
                       <CanvasView
@@ -547,7 +559,12 @@ export default function DiffView({ target, cfg, loadLog, onResolve, onRestore, o
               ) : (
                 <div className="dv-overlay" ref={overlayRef} style={{ '--dv-split': `${split}%` }}>
                   <div className="dv-overlay-layer">
-                    <CanvasView src={beforeSrc} view={view} setView={setView} label="Saved version" />
+                    <CanvasView
+                      src={beforeSrc}
+                      view={view}
+                      setView={setView}
+                      label="Saved version"
+                    />
                   </div>
                   <div className="dv-overlay-after">
                     <CanvasView src={afterSrc} view={view} setView={setView} label="Your version" />

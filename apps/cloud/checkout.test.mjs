@@ -7,6 +7,8 @@ import {
   checkoutSessionParams,
   deriveProjectId,
   validateNewProject,
+  validatePlanChoice,
+  validateTrialProject,
   validProjectId,
 } from './checkout.mjs';
 import { loadPricing } from './pricing.mjs';
@@ -128,5 +130,48 @@ describe('Cloud Phase 25 A4 — the canvas origin is not a project', () => {
     assert.equal(validProjectId('canvas'), false);
     // The reservation is exact — a club actually called this is still fine.
     assert.equal(validProjectId('canvas-club'), true);
+  });
+});
+
+describe('Maude v2 S9.15 — the trial project and Choose a plan', () => {
+  it('a trial project needs only a name that can be an address', () => {
+    assert.deepEqual(validateTrialProject({ name: '  Zkušební tým ' }), {
+      ok: true,
+      id: 'zkusebni-tym',
+      name: 'Zkušební tým',
+    });
+    assert.equal(validateTrialProject({ name: 'ab' }).ok, false);
+    assert.equal(validateTrialProject({ name: 'admin' }).ok, false);
+    assert.equal(validateTrialProject({}).ok, false);
+  });
+
+  it('Choose a plan validates the plan and interval the wizard does', () => {
+    assert.deepEqual(validatePlanChoice({ plan: 'project', interval: 'monthly', pricing }), {
+      ok: true,
+      plan: 'project',
+      interval: 'monthly',
+    });
+    assert.equal(validatePlanChoice({ plan: 'nope', interval: 'monthly', pricing }).ok, false);
+    assert.equal(validatePlanChoice({ plan: 'project', interval: 'weekly', pricing }).ok, false);
+  });
+
+  it('the convert session omits the trial and names the existing project', () => {
+    const base = {
+      projectId: 'zkusebni-tym',
+      projectName: 'Zkušební tým',
+      plan: 'project',
+      priceId: 'price_x',
+      customerId: 'cus_1',
+      origin: 'https://cloud.test',
+    };
+    const convert = checkoutSessionParams({ ...base, trialDays: null, convert: true });
+    const wizard = checkoutSessionParams({ ...base, trialDays: 14 });
+    assert.equal(convert['subscription_data[trial_period_days]'], undefined);
+    assert.equal(convert['metadata[convert]'], '1');
+    assert.equal(convert.cancel_url, 'https://cloud.test/projects/zkusebni-tym/billing');
+    // Everything else is the wizard's session, key for key.
+    const { 'subscription_data[trial_period_days]': _t, cancel_url: _c, ...w } = wizard;
+    const { 'metadata[convert]': _m, cancel_url: _c2, ...c } = convert;
+    assert.deepEqual(c, w);
   });
 });

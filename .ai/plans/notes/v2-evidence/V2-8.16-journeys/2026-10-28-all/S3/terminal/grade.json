@@ -1,0 +1,42 @@
+{
+  "journey": "S3",
+  "lane": "terminal",
+  "pass": true,
+  "harnessFailure": false,
+  "infra": null,
+  "turns": [
+    {
+      "turn": 1,
+      "code": 0,
+      "ok": true,
+      "costUsd": 0.2808292,
+      "numTurns": 12
+    }
+  ],
+  "results": [
+    {
+      "id": "order",
+      "grader": "present",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "notes",
+      "grader": "present",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "presenting",
+      "grader": "ui-open",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "canvas-untouched",
+      "grader": "untouched",
+      "pass": true,
+      "why": ""
+    }
+  ]
+}

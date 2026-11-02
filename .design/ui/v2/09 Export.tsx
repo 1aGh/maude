@@ -928,7 +928,7 @@ export default function Export() {
                 <Toast icon="done" action="Show in Finder" at="free" style={{ position: "relative", left: "auto", translate: "none", whiteSpace: "normal", maxWidth: 420 }}>Exported 21 artboards to Downloads › Combine-kampan.</Toast>
                 <Toast icon="clock" action="Retry Recap" at="free" style={{ position: "relative", left: "auto", translate: "none", whiteSpace: "normal", maxWidth: 420 }}>Exported 114 of 115. Recap is waiting for its music from Jonas's Mac.</Toast>
                 <Toast icon="done" action="Show in Finder" at="free" style={{ position: "relative", left: "auto", translate: "none", whiteSpace: "normal", maxWidth: 420 }}>Exported “Nábor trailer” — without sound.</Toast>
-                <p className="ex-cap"><strong>Retry Recap</strong> waits for the music to sync from Jonas's Mac, then renders by itself. The other 114 are already in Downloads › social.</p>
+                <p className="ex-cap"><strong>Retry Recap</strong> is yours to press once the music has synced from Jonas's Mac — it never starts by itself. The other 114 are already in Downloads › social.</p>
               </Col>
             </div>
           </Closeup>
@@ -1205,21 +1205,21 @@ export default function Export() {
         <DCArtboard id="ex-edges" label="20 · A viewer exports; AI is still changing it" width={W} height={680} fixed>
           <Closeup
             title="Two quiet cases: someone who can only view, and an artboard AI hasn't finished"
-            sub="Decided: viewing includes exporting — an export is a copy and changes nothing (today's app allows it too)."
-            note={<Note n={20} title="Say what's true, keep the one verb.">A viewer sees the same sheet with one line on top. While AI is mid-change, the sheet asks which version — the one from 14:05 or the one AI is finishing — and Export still means export.</Note>}
+            sub="Per CONTRACT §7: Can comment may download a copy; Can view is refused every export on the server, so that role sees no Export at all."
+            note={<Note n={20} title="Say what's true, keep the one verb.">Someone who can comment sees the same sheet with one line on top; someone who can only view has no Export entry. While AI is mid-change, the sheet asks which version — the one from 14:05 or the one AI is finishing — and Export still means export.</Note>}
           >
             <div className="ex-cols">
-              <Col label="You can view Alligators brand">
+              <Col label="You can comment on Alligators brand">
                 <ExSheet rel width={460} adv={null}
                   title="Export “score-mvp — MVP zápasu”"
                   scope={{ on: "sel", compact: "Selection · 1 artboard" }}
                   summary="1 file · about 1.1 MB"
-                  lead={<Hint icon="view">You can view this project. Exporting is fine — it makes a copy and changes nothing.</Hint>}
+                  lead={<Hint icon="view">You can comment on this project. Exporting is fine — it makes a copy and changes nothing.</Hint>}
                 >
                   <Row k="Format"><Seg options={["PNG", "JPG"]} value="PNG" /></Row>
                   <Row k="Size"><Seg options={[["1×", "1080 × 1350"], ["2×", "2160 × 2700"]]} value="1×" /></Row>
                 </ExSheet>
-                <p className="ex-cap"><strong>Also open to viewers:</strong> Copy link. Handoff to production writes code into the project, so it needs Can edit.</p>
+                <p className="ex-cap"><strong>Also open to Can comment:</strong> Copy link. Handoff to production writes code into the project, so it needs Can edit.</p>
               </Col>
               <Col label="AI is changing the artboard">
                 <ExSheet rel width={560} adv={null}
@@ -1280,7 +1280,7 @@ export default function Export() {
                   <Row k="Codec"><InSelect value="H.264 (MP4)" /></Row>
                   <Row k="Bitrate"><InSelect value="High" /></Row>
                   <Row k="GIF colours"><Field>256</Field></Row>
-                  <Row k="Long videos"><span className="ex-val">Up to 3 600 frames</span></Row>
+                  <Row k="Long videos"><span className="ex-val">Up to 3,600 frames</span></Row>
                   <p className="ex-advp-n">Size is the sheet's Quality (1080p · 4K). WebM uses VP9. Frames past the limit need a higher cap, set per export.</p>
                 </div>
               </Col>

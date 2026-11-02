@@ -72,6 +72,10 @@ const OTHER_FILES = [
   'apps/cells/wrangler.toml',
   'apps/render/wrangler.toml',
   '.bun-version',
+  // check-version-parity.sh asserts the design plugin ships a byte copy of the action manifest
+  // (V2-2.4b §5.6), so the throwaway repo carries both.
+  'apps/studio/actions.manifest.json',
+  'plugins/design/actions.manifest.json',
 ];
 const SCRIPT_FILES = [
   'bump-version.sh',

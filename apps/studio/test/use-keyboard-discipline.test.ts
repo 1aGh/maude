@@ -2,7 +2,7 @@
 
 import { describe, expect, test } from 'bun:test';
 
-import { nudgeDelta } from '../use-keyboard-discipline.tsx';
+import { nudgeDelta, selectsArtboardLevel } from '../use-keyboard-discipline.tsx';
 
 describe('nudgeDelta', () => {
   test('non-arrow key → null', () => {
@@ -23,5 +23,20 @@ describe('nudgeDelta', () => {
     expect(nudgeDelta({ key: 'ArrowRight', shift: true })).toEqual({ dx: 10, dy: 0 });
     expect(nudgeDelta({ key: 'ArrowUp', shift: true })).toEqual({ dx: 0, dy: -10 });
     expect(nudgeDelta({ key: 'ArrowDown', shift: true })).toEqual({ dx: 0, dy: 10 });
+  });
+});
+
+// V2-8.5 C2 (08 · ak-mixed-select) — ⌘A is "everything at this level"
+describe('selectsArtboardLevel', () => {
+  test('nothing selected, or only whole artboards, is the canvas level: ⌘A takes every artboard', () => {
+    expect(selectsArtboardLevel([])).toBe(true);
+    expect(selectsArtboardLevel([{ artboardId: 'ig' }])).toBe(true);
+    expect(selectsArtboardLevel([{ artboardId: 'ig' }, { artboardId: 'karta1' }])).toBe(true);
+  });
+  test('an object selected is the artboard level: ⌘A takes that artboard’s objects', () => {
+    expect(selectsArtboardLevel([{ id: 'hero', artboardId: 'ig' }])).toBe(false);
+    expect(selectsArtboardLevel([{ artboardId: 'ig' }, { id: 'hero', artboardId: 'ig' }])).toBe(
+      false
+    );
   });
 });

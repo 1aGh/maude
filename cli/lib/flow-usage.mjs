@@ -69,23 +69,19 @@ export function scanTranscript(text) {
   return s;
 }
 
-/** The lead transcript for `sid`: the project folder of `root` first, then every project folder. */
+/** The lead transcript for `sid`, in the project folder of `root` ONLY. It used to fall back to every
+ *  folder under ~/.claude/projects, which let an AI session read another project's session records
+ *  (security batch 2, A3). No root, no search. */
 export function findTranscript(
   sid,
   { root, home = homedir(), configDir = process.env.CLAUDE_CONFIG_DIR } = {}
 ) {
   if (!SESSION_ID.test(sid ?? '')) return null; // a session id is a path segment — no `../`
+  if (!root) return null;
   const bases = [configDir, join(home, '.claude')].filter(Boolean).map((b) => join(b, 'projects'));
   for (const base of bases) {
-    if (!existsSync(base)) continue;
-    if (root) {
-      const p = join(base, projectSlug(root), `${sid}.jsonl`);
-      if (existsSync(p)) return p;
-    }
-    for (const d of readdirSync(base)) {
-      const p = join(base, d, `${sid}.jsonl`);
-      if (existsSync(p)) return p;
-    }
+    const p = join(base, projectSlug(root), `${sid}.jsonl`);
+    if (existsSync(p)) return p;
   }
   return null;
 }

@@ -1,0 +1,43 @@
+S6.16 evidence — 01/cf-frames-text   (12 · Frames and text in place)
+canvas: .design/ui/v2/01 Create Flow.tsx line 541
+words : Type right on the artboard. Double-click text to type in place. Layers shows the frames nested inside; the inspector switches to type.
+verdict proposed: verified
+
+How to re-check the pins (from the repo root): grep -E "^[0-9a-f]{64}  " <this file> | shasum -a 256 -c
+Unit/component run: scripts/v2-test-lane.sh -- bash -c "cd apps/studio && NO_OPEN=1 MAUDE_NO_AUTOBUILD=1 bun test <the test files below, all rows>" → 523 pass · 0 fail · 27 files (2026-10-20, branch s6-16 on feat/maude-v2 435b37e75)
+
+IMPLEMENTED BY (code, hash-pinned):
+3f8e84b94a68ae94b02cbbe67d8a22bd220d24e13a63a53746071d6e7694260e  apps/studio/editing/text-in-place.tsx
+      ↳ the edit-tone ring and the Czech ties around the caret
+5fea5b85124587a770b2b7b06c7073191c77026358a2930c02591040ff654eb7  apps/studio/editing/text-actions.ts
+      ↳ commitTextInPlace: one edit-op, one undo step
+ce32a6de29819778466f82264d82a39b100ab998e5992562a8f4306a5f5eea3a  apps/studio/edit-ops/text-copy.ts
+      ↳ text.set: the copy, id and style untouched
+ee3343a9531ba1b1f606bec1038ac399b6108c1266ad28622c80e3f17500940a  apps/studio/canvas-shell.tsx
+      ↳ serializeArtboardTree: the Layers tree with nested frames
+7fd934743a4a17fa96ba4600eaf9b14b3f7232255381636272db4cbe9687cd5c  apps/studio/client/v2/inspector/kinds/text.jsx
+      ↳ the inspector switches to Type
+
+PINNED BY (tests, hash-pinned):
+9d32252101b380f512642dc51908d29ad943467775bc84078a0836016d279f88  apps/studio/test/edit-text-client.test.tsx
+      ↳ "asks text.set with the copy, what it was and the language in force; records the undo" · ties arcs · the ring is drawn from tokens
+2299eb5acd0c00f2febeb25f170bcaf4e45efd7c3a8f9659e3616b9e66623d93  apps/studio/test/edit-ops-text.test.ts
+      ↳ "one write; the id and the style are untouched"
+f19843b2d3914f70179db7f5fd604720a6589b4236b24160c9ea7e249df236eb  apps/studio/test/v2-inspector-text.test.tsx
+      ↳ the Type section
+c7741724ee67db56d65f9ba8fc266376babcc5b432f449f46c1f3d483339aee9  apps/studio/test/layers-synthetic-groups.test.ts
+      ↳ nesting preserved in the layers tree
+
+LIVE (written, not run — needs the debug app, an unlocked screen and the e2e lock):
+c619d4c187a589ca8d0169e153b2b189939f8510ec25910d39315a999f9bada0  apps/desktop/e2e/scenarios/first-canvas.e2e.ts
+  → apps/desktop/e2e/scenarios/first-canvas.e2e.ts step 5 (double-click ×2 the Desktop headline, type, blur → words in the file; element id kept; Tablet and Mobile unchanged)
+54b05befd65bd6c4d37dbd73babcc596b7a83b8d7b4fa34b42e9ea2426135f96  apps/desktop/e2e/wdio.first-canvas.conf.ts
+02a6d0c73edd7db6d1a84f205a30c45b7760c5550ff1ef084874bfcf9501b9eb  apps/desktop/e2e/fixtures/fake-acp/first-canvas-agent.mjs
+545834d2e31beaea6d653bac13b01dd544eee03e6f81a6aa6bd7c14e347d74c3  .ai/scenarios/maude-v2/s6-first-canvas.md
+
+EARLIER EVIDENCE on the topic canvases (rows already verified in the ledger):
+  14/ed-text-edit → .ai/plans/notes/v2-evidence/S2.V2/ed-text-edit.v2.png (verified)
+  14/ed-obj-enter → .ai/plans/notes/v2-evidence/S2.V/ed-obj-enter.png (verified: double-click goes inside a frame, the “Name · frame” tag, dashed parent, Layers mirror)
+
+GAPS:
+  none against the 01 words.

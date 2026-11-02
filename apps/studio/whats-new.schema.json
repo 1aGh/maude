@@ -49,6 +49,11 @@
           "type": "array",
           "description": "Optional spotlight steps that highlight the new UI (consumed by the tour engine — Phase 3).",
           "items": { "$ref": "#/$defs/tourStep" }
+        },
+        "replayable": {
+          "type": "boolean",
+          "default": true,
+          "description": "false = the tour spotlights chrome that no longer exists (the v1 menubar, the CSS panel, ...), so the panel does not offer 'Take tour' for this entry. The steps stay in the file as history. Absent means true. test/tour-targets.test.ts holds every replayable tour to real hooks."
         }
       }
     },
@@ -75,6 +80,11 @@
         "tab": {
           "enum": ["inspect", "layers", "css"],
           "description": "Setup: switch the Inspector to this tab before the step."
+        },
+        "optional": {
+          "type": "boolean",
+          "default": false,
+          "description": "Skip this step when its target is absent (a role or shell state without that element) instead of showing it centred. Never set on a single-step tour."
         },
         "requireSelection": {
           "type": "boolean",

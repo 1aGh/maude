@@ -1,0 +1,36 @@
+{
+  "journey": "S9",
+  "pass": true,
+  "results": [
+    {
+      "id": "replied-and-resolved",
+      "grader": "comments",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "implemented",
+      "grader": "text",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "ids-kept",
+      "grader": "ids-kept",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "comments-through-the-verb",
+      "grader": "no-tool",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "ai-version",
+      "grader": "history",
+      "pass": true,
+      "why": ""
+    }
+  ]
+}

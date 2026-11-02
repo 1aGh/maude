@@ -7,7 +7,7 @@
 
 import { mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { launchChromium, safeArtboardFilename } from './_pw-launch.mjs';
+import { launchChromium, newShellContext, safeArtboardFilename } from './_pw-launch.mjs';
 import { layoutRegion, parseRegionArg } from './_region.mjs';
 
 const args = Object.fromEntries(
@@ -27,7 +27,18 @@ const {
   region: regionArg,
   timeout = '12',
   scale = '1',
+  // S8.1 — the JPG adapter: same capture, Chromium's JPEG encoder.
+  type: typeArg = 'png',
+  quality: qualityArg = '85',
+  // S8.1b — `display-p3` renders + tags in Display P3 (exporters/_runtime.ts colorProfileShimArgs).
+  'color-profile': colorProfile = 'srgb',
 } = args;
+const P3_LAUNCH_ARGS = ['--force-color-profile=display-p3-d65', '--use-angle=swiftshader'];
+const shotType = typeArg === 'jpeg' ? 'jpeg' : 'png';
+const shotOpts =
+  shotType === 'jpeg'
+    ? { type: 'jpeg', quality: Math.min(100, Math.max(1, Math.round(Number(qualityArg) || 85))) }
+    : {};
 
 if (!url) {
   console.error('usage: _png-playwright.mjs --url <url> --selector <css> --out <path>');
@@ -41,7 +52,8 @@ const timeoutMs = Number(timeout) * 1000;
 // feature-2-print-artboards T4 — ceiling raised 4→8 so a 300dpi export
 // (3.125×) AND 600dpi (6.25×) both fit; exporters/png.ts resolveDeviceScale
 // is the only caller that can reach beyond 3, via the `dpi` option.
-const deviceScaleFactor = Math.max(1, Math.min(8, Number(scale) || 1));
+// S8.1 — an ExportSpec v2 size goes down to 0.25× (exporters/png.ts resolveDeviceScale).
+const deviceScaleFactor = Math.max(0.25, Math.min(8, Number(scale) || 1));
 // feature-2-print-artboards T4 — a raster export's actual pixel dimensions
 // are only known once the target element's DOM rect is measured below (the
 // adapter can't pre-compute them — see png.ts's own comment), so the "too
@@ -71,11 +83,14 @@ function assertOutputSizeOk(widthCss, heightCss) {
   }
 }
 
-const browser = await launchChromium();
+const browser = await launchChromium(
+  colorProfile === 'display-p3' ? { args: P3_LAUNCH_ARGS } : undefined
+);
 try {
   // 1440x900 matches the canvas viewport the design tool uses everywhere;
   // exporters resize per-target before each shot to fit the artboard exactly.
-  const ctx = await browser.newContext({
+  // gate-b-c4d — confined to the origin the shell lands on (popups, other origins refused).
+  const { ctx, goto: gotoShell } = await newShellContext(browser, {
     serviceWorkers: 'block',
     viewport: { width: 1440, height: 900 },
     deviceScaleFactor,
@@ -96,7 +111,7 @@ try {
     diag.push(`requestfailed: ${r.url()} — ${r.failure()?.errorText ?? '?'}`)
   );
   try {
-    await page.goto(url, { waitUntil: 'load', timeout: timeoutMs });
+    await gotoShell(page, url, { waitUntil: 'load', timeout: timeoutMs });
   } catch (e) {
     if (diag.length) console.error(`[page diagnostics]\n${diag.slice(0, 40).join('\n')}`);
     throw e;
@@ -187,6 +202,7 @@ try {
     const clipX = Math.min(Math.max(0, Math.floor(finalRect.x)), Math.max(0, vp.width - 1));
     const clipY = Math.min(Math.max(0, Math.floor(finalRect.y)), Math.max(0, vp.height - 1));
     await page.screenshot({
+      ...shotOpts,
       path: target,
       clip: {
         x: clipX,
@@ -217,6 +233,7 @@ try {
     assertOutputSizeOk(box.width, box.height);
     await page.setViewportSize({ width: Math.max(1, box.width), height: Math.max(1, box.height) });
     await page.screenshot({
+      ...shotOpts,
       path: out,
       clip: { x: 0, y: 0, width: box.width, height: box.height },
     });
@@ -231,7 +248,10 @@ try {
     for (let i = 0; i < screens.length; i += 1) {
       const handle = screens[i];
       const id = await handle.getAttribute('data-dc-screen');
-      await captureHandle(handle, join(outDir, safeArtboardFilename(id, i, 'png')));
+      await captureHandle(
+        handle,
+        join(outDir, safeArtboardFilename(id, i, shotType === 'jpeg' ? 'jpg' : 'png'))
+      );
       console.log(`MAUDE_PROGRESS {"current":${i + 1},"total":${screens.length}}`);
     }
   } else {
@@ -246,7 +266,7 @@ try {
   }
 
   for (const w of written) console.log(w);
-  console.error(`✓ playwright wrote ${written.length} png file(s)`);
+  console.error(`✓ playwright wrote ${written.length} ${shotType} file(s)`);
 } finally {
   await browser.close();
 }

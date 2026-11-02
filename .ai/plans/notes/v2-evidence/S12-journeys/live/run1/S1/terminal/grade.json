@@ -1,0 +1,95 @@
+{
+  "journey": "S1",
+  "lane": "terminal",
+  "pass": false,
+  "harnessFailure": false,
+  "infra": null,
+  "turns": [
+    {
+      "turn": 1,
+      "code": 0,
+      "ok": true,
+      "costUsd": 0.6432798,
+      "numTurns": 19
+    },
+    {
+      "turn": 2,
+      "code": 0,
+      "ok": true,
+      "costUsd": 0.6786376,
+      "numTurns": 2
+    },
+    {
+      "turn": 3,
+      "code": 0,
+      "ok": true,
+      "costUsd": 0.7100165999999999,
+      "numTurns": 2
+    },
+    {
+      "turn": 4,
+      "code": 0,
+      "ok": true,
+      "costUsd": 0.7423763999999998,
+      "numTurns": 2
+    },
+    {
+      "turn": 5,
+      "code": 0,
+      "ok": true,
+      "costUsd": 0.7737551999999999,
+      "numTurns": 2
+    },
+    {
+      "turn": 6,
+      "code": 0,
+      "ok": true,
+      "costUsd": 0.8090491999999999,
+      "numTurns": 2
+    }
+  ],
+  "results": [
+    {
+      "id": "created-by-ai",
+      "grader": "history",
+      "pass": false,
+      "why": "0 matching action(s) on ui/Greeting.tsx (want 1…∞; kind any, by ai, op create)"
+    },
+    {
+      "id": "renamed",
+      "grader": "moved",
+      "pass": false,
+      "why": "no move ui/Welcome.tsx → ui/Greeting.tsx in Version history (or the files disagree)"
+    },
+    {
+      "id": "version-restored",
+      "grader": "history",
+      "pass": false,
+      "why": "0 matching action(s) on ui/Greeting.tsx (want 1…∞; kind restore, by any, op restore)"
+    },
+    {
+      "id": "restored-content",
+      "grader": "text",
+      "pass": false,
+      "why": "ui/Greeting.tsx is missing"
+    },
+    {
+      "id": "restore-by-verb",
+      "grader": "tool-used",
+      "pass": false,
+      "why": "0 call(s) of Bash matching /maude design history restore ui/Greeting\\.tsx/ (22 tool call(s) in all)"
+    },
+    {
+      "id": "back-from-trash",
+      "grader": "trash",
+      "pass": false,
+      "why": "ui/Greeting.tsx: trashed false, live false, still listed false"
+    },
+    {
+      "id": "no-hard-delete",
+      "grader": "no-tool",
+      "pass": true,
+      "why": ""
+    }
+  ]
+}

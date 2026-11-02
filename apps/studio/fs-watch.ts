@@ -50,11 +50,36 @@ export function createFsWatch(
 ): FsWatch {
   let watcher: ReturnType<typeof watch> | null = null;
   const seen = new Map<string, number>();
+  /** Paths with a trailing delivery due at the end of their debounce window. */
+  const trailing = new Map<string, ReturnType<typeof setTimeout>>();
 
+  // Leading AND trailing per path: the first event goes out at once, any further ones inside the
+  // window collapse into ONE delivery when it closes. Never leading-only — that dropped the last
+  // change of a burst: Linux inotify reports the studio's own write and a person's save a few ms
+  // later as two prompt events, the second fell in the window and nobody ever heard it (U21 on CI:
+  // the local store missed the edit, so a restore restored nothing). Subscribers re-read the disk,
+  // so a second delivery for one save is harmless; a lost one is not.
   function emit(filename: string) {
     const now = Date.now();
     const prev = seen.get(filename) ?? 0;
-    if (now - prev < DEBOUNCE_MS) return;
+    if (now - prev < DEBOUNCE_MS) {
+      if (!trailing.has(filename)) {
+        const t = setTimeout(
+          () => {
+            trailing.delete(filename);
+            deliver(filename, Date.now());
+          },
+          DEBOUNCE_MS - (now - prev)
+        );
+        (t as { unref?: () => void }).unref?.();
+        trailing.set(filename, t);
+      }
+      return;
+    }
+    deliver(filename, now);
+  }
+
+  function deliver(filename: string, now: number) {
     seen.set(filename, now);
     const ext = path.extname(filename).toLowerCase();
     const rel = filename.replace(/\\/g, '/');
@@ -151,6 +176,8 @@ export function createFsWatch(
     }
     watcher = null;
     seen.clear();
+    for (const t of trailing.values()) clearTimeout(t);
+    trailing.clear();
   }
 
   return { start, stop };

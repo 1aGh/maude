@@ -82,19 +82,45 @@ describe('git-lifecycle', () => {
     writeFileSync(path.join(tmp, '.git', 'HEAD'), 'ref: refs/heads/main\n');
     const ctx = ctxFor(tmp);
     const registry = createRegistry(noopCallbacks());
-    const events: unknown[] = [];
-    ctx.bus.on('git-lifecycle', (e) => events.push(e));
+    // V2-3.10: wait for the EVENT, not a clock. A fixed 700 ms sleep raced the fs event +
+    // 250 ms debounce + flush under full-suite load (and lost outright when the fs event was
+    // dropped — see the next test). Detection is guaranteed by the HEAD poll, so the wait is
+    // bounded by the test timeout, not by a guess.
+    const first = new Promise<unknown>((resolve) => ctx.bus.on('git-lifecycle', resolve));
     const gl = createGitLifecycle(ctx, registry);
 
-    // Rewrite HEAD; the watcher fires + 250 ms debounce + flush. Wait > 500 ms
-    // to be safe with fs.watch + flushAll latency on macOS + Linux.
     writeFileSync(path.join(tmp, '.git', 'HEAD'), 'ref: refs/heads/other\n');
-    await Bun.sleep(700);
+    const evt = (await first) as { reason?: string; head?: string };
 
-    expect(events.length).toBeGreaterThanOrEqual(1);
-    const evt = events[0] as { reason?: string; head?: string };
     expect(evt.reason).toBe('head-changed');
     expect(evt.head).toContain('refs/heads/other');
     gl.stop();
+  });
+
+  // V2-3.10 — the flake's cause: fs.watch on macOS is FSEvents, whose stream starts
+  // asynchronously; a HEAD write landing before it is live (a busy process, many watchers) is
+  // never reported. Correctness must not depend on that delivery: with NO fs events at all,
+  // a HEAD change is still seen (by the content poll), exactly once.
+  test('a HEAD change is seen even when no fs event is ever delivered', async () => {
+    mkdirSync(path.join(tmp, '.git'), { recursive: true });
+    writeFileSync(path.join(tmp, '.git', 'HEAD'), 'ref: refs/heads/main\n');
+    const ctx = ctxFor(tmp);
+    const registry = createRegistry(noopCallbacks());
+    const events: Array<{ head?: string }> = [];
+    let resolveFirst: () => void = () => {};
+    const first = new Promise<void>((r) => {
+      resolveFirst = r;
+    });
+    ctx.bus.on('git-lifecycle', (e) => {
+      events.push(e as { head?: string });
+      resolveFirst();
+    });
+    const gl = createGitLifecycle(ctx, registry, { watchFs: false, pollMs: 20 });
+
+    writeFileSync(path.join(tmp, '.git', 'HEAD'), 'ref: refs/heads/other\n');
+    await first;
+    expect(events[0]?.head).toBe('ref: refs/heads/other');
+    gl.stop();
+    expect(events.length).toBe(1);
   });
 });

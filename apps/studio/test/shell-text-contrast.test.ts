@@ -1,16 +1,15 @@
 import { expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
-import { contrastRatio, oklchToRgb, parseOklch } from '../draw/palette';
+import { contrastRatio } from '../draw/palette';
+import { shellCss } from './_shell-css';
+import { shellColor } from './fixtures/shell-palette';
 
-const shell = readFileSync(new URL('../client/styles/3-shell-maude.css', import.meta.url), 'utf8');
-const components = readFileSync(
-  new URL('../client/styles/4-components.css', import.meta.url),
+const shell = shellCss();
+const leftPanel = readFileSync(
+  new URL('../client/v2/left-panel/left-panel.css', import.meta.url),
   'utf8'
 );
-const tokens = readFileSync(
-  new URL('../client/styles/1-tokens-maude.css', import.meta.url),
-  'utf8'
-);
+const callouts = readFileSync(new URL('../client/v2/shell/callouts.css', import.meta.url), 'utf8');
 function block(css: string, selector: string): string {
   const start = css.indexOf(`${selector} {`);
   if (start < 0) throw new Error(`Missing selector ${selector}`);
@@ -21,20 +20,12 @@ function block(css: string, selector: string): string {
 // decorative content. Pin their real CSS/token pairs; live axe additionally
 // checks cascade, opacity and rendered backgrounds on the affected screens.
 for (const theme of ['light', 'dark']) {
-  const palette = block(tokens, `.maude[data-theme="${theme}"]`);
-  const color = (token: string) => {
-    const value = palette.match(new RegExp(`${token}:\\s*(oklch\\([^)]*\\))`))?.[1];
-    if (!value) throw new Error(`Missing ${theme} ${token}`);
-    return oklchToRgb(parseOklch(value));
-  };
+  // P8 C0: the generated maude-v2 shell ladder; translucent values composite over the island (--bg-1)
+  const color = (token: string) => shellColor(theme as 'light' | 'dark', token);
   for (const [selector, css] of [
-    ['.st-mb-proj', shell],
-    ['.st-sb-slot .lbl', shell],
-    ['.st-sb-version .val', shell],
-    ['.st-docktab', shell],
+    ['.sh-callout-t > span', callouts],
+    ['.lp-tab', leftPanel],
     ['.dv-zoom-sync', shell],
-    ['.st-skel-cap', shell],
-    ['.st-cloudwho-out', components],
   ]) {
     test(`${theme} ${selector} text meets AA on shell surfaces`, () => {
       const foreground = block(css, selector).match(/(?:^|;)\s*color:\s*var\((--[^)]+)\)/)?.[1];
@@ -46,4 +37,81 @@ for (const theme of ['light', 'dark']) {
       }
     });
   }
+}
+
+// V2-4.gate (design-critic blocker 3, a11y B6): `--fg-3` is the DISABLED grade (3.0:1 on the islands) and
+// had been used for real text — palette group labels and footer, Settings notes, Layers type labels, the
+// "?" sheet's "or" and notes, placeholders. Every rule below carries text, so each must resolve to a token
+// that holds 4.5:1 on the three surfaces text sits on (--bg-1 island, --bg-2 popover, --bg-3 well).
+// V2-8.0 B: `.sh-skel-cap`, `.sh-pal-empty`, `.sh-rp-hint` and `.v2s-settings-intro` left with their rules — no
+// element the shell bundle renders carries them any more (scripts/v2-css-inventory.mjs).
+const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), 'utf8');
+const components = shellCss();
+const search = read('../client/v2/search/search.css');
+const fold = read('../client/v2/fold/fold.css');
+
+const TEXT_RULES: [string, string, string][] = [
+  ['shell', '.cv-search-box', shell],
+  ['shell', '.cv-search-box input::placeholder', shell],
+  ['shell', '.sh-tree-empty', shell],
+  ['shell', '.sh-pal-search', shell],
+  ['shell', '.sh-pal-search input::placeholder', shell],
+  ['shell', '.sh-pal-group', shell],
+  ['shell', '.v2s-pref-note', shell],
+  ['shell', '.sh-layer-caret', shell],
+  ['shell', '.sh-layer-type', shell],
+  ['shell', '.so-or', shell],
+  ['shell', '.so-section-hd', shell],
+  ['shell', '.pv-present-exit-kbd', shell],
+  ['shell', '.sh-tree-sec-hd .cv-sec-name', shell],
+  ['shell', '.sh-tree-sec-hd .cv-sec-count', shell],
+  ['components', '.v2s-provider-notes', components],
+  ['components', '.v2s-engine-radio-note', components],
+  ['search', '.sh-pal-aside', search],
+  ['search', '.sh-pal-meta', search],
+  ['search', '.sh-pal-foot', search],
+  ['search', '.so-find', search],
+  ['search', '.so-note', search],
+  ['search', '.so-sub', search],
+  ['search', '.so-adv-count', search],
+  ['search', '.so-adv-path', search],
+  ['fold', '.v2-fold-hint', fold],
+];
+
+for (const theme of ['light', 'dark']) {
+  // P8 C0: the generated maude-v2 shell ladder; translucent values composite over the island (--bg-1)
+  const color = (token: string) => shellColor(theme as 'light' | 'dark', token);
+  const ratio = (fg: string, bg: string) => contrastRatio(color(fg), color(bg));
+  const SURFACES = ['--bg-1', '--bg-2', '--bg-3'];
+
+  for (const [label, selector, css] of TEXT_RULES) {
+    test(`${theme} ${label} ${selector} text is off the disabled --fg-3 and holds AA`, () => {
+      const token = block(css, selector).match(/(?:^|;)\s*color:\s*var\((--[^),]+)/)?.[1];
+      if (!token) throw new Error(`Missing text color for ${selector}`);
+      expect(token).not.toBe('--fg-3');
+      for (const surface of SURFACES) {
+        expect(ratio(token, surface)).toBeGreaterThanOrEqual(4.5);
+      }
+    });
+  }
+
+  for (const tone of ['success', 'warn', 'error']) {
+    test(`${theme} --status-${tone}-text holds AA on the surfaces (Diagnostics words, menu status)`, () => {
+      for (const surface of SURFACES) {
+        expect(ratio(`--status-${tone}-text`, surface)).toBeGreaterThanOrEqual(4.5);
+      }
+    });
+  }
+
+  // the Diagnostics tabs are gone (P8 C2, decision v2-p8-c2-kitadv-diagnostics-three-boxes: Logs, Server and AI
+  // setup are three boxes at once), so the selected-tab contrast pin has nothing left to read.
+
+  test(`${theme} the Present exit pill is not faded and its label and Esc hint hold AA on it`, () => {
+    const pill = block(shell, '.pv-present-exit');
+    expect(pill).not.toMatch(/(^|;)\s*opacity:/);
+    expect(ratio('--fg-1', '--bg-1')).toBeGreaterThanOrEqual(4.5);
+    const kbd = block(shell, '.pv-present-exit-kbd').match(/color:\s*var\((--[^)]+)\)/)?.[1];
+    if (!kbd) throw new Error('Missing Esc hint colour');
+    expect(ratio(kbd, '--bg-1')).toBeGreaterThanOrEqual(4.5);
+  });
 }

@@ -1,0 +1,14 @@
+V2-3.11 — Tab keys like every browser (⌘1–⌘8 tab 1–8, ⌘9 last tab), Actual size ⇧0
+Date: 2026-10-15 · feat/maude-v2 · gated on e07871a0
+Michal 2026-10-15: "klávesy nechám na tobě, jak to mají ostatní aplikace to udělej"
+Commits: 807d35c2 781bfd3b 13ee2f02 (builder, Opus — native Rust = risk class) · 4120b769 (lead: plan row + V2-1.3 §5.4 amended) · merge + e07871a0 (bundle)
+
+- Registry: tab.select-1…8 = ⌘1…⌘8, tab.select-last = ⌘9 (native accelerators); view.zoom-actual ⌘1 → ⇧0 (inText false); ⌘0 Fit unchanged; ⌥⌘1–9 jump-artboard unchanged. actions-uniqueness tab-keys block red on the old registry → green; canvas-zoom-keys.test.ts (⌘1–9 not canvas keys, ⇧0 on US + Czech, not while typing) red twice (view.ts fix set aside; keys.ts rule reverted) → green; actions-keys +4 rows.
+- canvas-lib zoom keys resolve through the registry (no preventDefault on ⌘1 any more).
+- keys.ts: ⇧+digit without ⌘/⌥ is ⇧<digit> by e.code (V2-1.3 §5.4 amended).
+- menu.rs: CmdOrCtrl+Ctrl+N → CmdOrCtrl+N; cargo test --lib 180/0 (menu_actions_file_menu_per_c3 red first), clippy 0.
+- CONTRACT §1/§2 updated (Actual size ⇧0; ⌘1–⌘8 tab 1–8 · ⌘9 last tab; keys that moved).
+- Characterization: v1-keys refreshed (Meta+1 in canvas no longer zooms; new Shift+Digit0 case; "?" sheet hash) and verified identical on a second run; browser/menu-view + browser/shortcuts updated, all 30 states identical; approved deltas in both headers.
+- Gates on e07871a0: typecheck / lint / format ok; studio suite (lane, alone) 8006 pass / 5 fail — canvas-create-api (5 s timeout), config-version (5 s timeout), export-e2e-lanes PDF, notifications, schema-drift: all 5 files 79/0 when rerun alone (load in the full run); v1-keys green inside the suite this time.
+- Desktop e2e (debug build of e07871a0, Arc hidden, probe every 2 s): default 12/12 (1:29; 3 covered samples, all before the window existed) · tabs 1/1 (0:27; 2 covered samples, before boot). Valid.
+- Not covered by automation: the AppKit accelerator itself (WebDriver keystrokes don't reach the native menu) — ⌘1 with the canvas focused, ⇧0 = 100 %, ⌘0 = fit go to Ready to try.

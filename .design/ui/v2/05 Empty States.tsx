@@ -683,7 +683,7 @@ export default function EmptyStates() {
                   { t: "A matchday poster", l: "A4, ready to print", art: "gator-poster" },
                 ]} />
                 <div className="es-shelf">
-                  <Shelf title="Your projects" where={<><Icon name="cloud" size={13} />cloud.maude.sh</>}>
+                  <Shelf title="Your projects" where={<><Icon name="cloud" size={13} />Maude Cloud</>}>
                     <div className="es-shelf-row">
                       <GhostCards n={3} />
                       <Empty align="left" title="No projects yet.">
@@ -706,7 +706,7 @@ export default function EmptyStates() {
                   { t: "Three logo ideas", l: "for a new brand", art: "brand" },
                   { t: "A moodboard", l: "photos and swatches", art: "moodboard" },
                 ]} />
-                <span className="island es-signin"><span className="btn btn--ghost btn--sm"><Icon name="cloud" size={14} />Sign in to cloud.maude.sh</span></span>
+                <span className="island es-signin"><span className="btn btn--ghost btn--sm"><Icon name="cloud" size={14} />Sign in to Maude Cloud</span></span>
                 <div className="es-shelf">
                   <Shelf title="Your projects" where={<><Icon name="laptop" size={13} />On this Mac</>}>
                     <div className="es-shelf-row">
@@ -732,7 +732,7 @@ export default function EmptyStates() {
                   { t: "A mobile detail", l: "for the Homepage", art: "mobile" },
                 ]} />
                 <div className="es-shelf es-shelves">
-                  <Shelf title="Your projects" where={<><Icon name="cloud" size={13} />cloud.maude.sh</>}>
+                  <Shelf title="Your projects" where={<><Icon name="cloud" size={13} />Maude Cloud</>}>
                     <div className="es-projrow">
                       <span className="k-project es-proj">
                         <span className="k-stack"><Thumb art="home" /><Thumb art="price" /><Thumb art="onb" /></span>
@@ -786,7 +786,7 @@ export default function EmptyStates() {
             <Window tabs={STUDIO_TABS} activeTab={0}>
               <Canvas>
                 <Empty size="canvas" spot="canvas" land className="es-center es-center--panel" title="Your canvas is ready."
-                  action={<AskBtn keys="⌘/">Ask AI</AskBtn>}>
+                  action={<><AskBtn keys="⌘/">Ask AI</AskBtn><span className="btn btn--ghost btn--sm">New artboard</span></>}>
                   Ask AI for a first draft, or start drawing.
                 </Empty>
               </Canvas>
@@ -1127,7 +1127,7 @@ export default function EmptyStates() {
         </DCArtboard>
 
         <DCArtboard id="es-arriving" label="17 · The cloud copy hasn't arrived yet" width={W} height={H} fixed>
-          <Stage note={<Note n={17} title="Arriving is not empty.">On a new Mac, Alligators brand comes down in the order you'll need it. Names and sizes are known first, so the panel lists every canvas by name and the canvas shows its shape — never an “empty project”.</Note>}>
+          <Stage note={<Note n={17} title="Arriving is not empty.">On a new Mac, Alligators brand comes down in the order you'll need it. Names and sizes are known first, so the panel lists every canvas by name and the canvas shows its shape — never an “empty project”. A canvas whose artboard sizes haven't come down yet is one small card instead of shapes (bottom right).</Note>}>
             <Window tabs={[TABS.studio, { ...TABS.alligators, syncing: true }]} activeTab={1}>
               <Canvas>
                 <Artboard label="Web · STAŇ SE GATOREM" kind="web" x={330} y={110} w={460} h={288}><GatorMock variant="web" /></Artboard>
@@ -1136,6 +1136,7 @@ export default function EmptyStates() {
                 <SkelBoard label="A4 · plakát" kind="print" x={830} y={400} w={200} h={283} />
                 <SkelBoard label="16:9 · teaser" kind="video" x={330} y={450} w={320} h={180} />
                 <span className="es-arrive-tag"><Icon name="sync" size={12} />4 artboards on their way</span>
+                <Empty size="canvas" className="es-arrive-card es-e--plain" title="Combine-video-AI is on its way." />
               </Canvas>
               <ProjectPill project="Alligators brand" canvas="Combine-kampan" />
               <PanelShell foot={<span className="es-progress"><span>Getting Alligators brand · 41 of {ALLIGATORS_COUNT} canvases</span><span className="es-bar"><i style={{ width: "44%" }} /></span></span>}>
@@ -1161,7 +1162,7 @@ export default function EmptyStates() {
               <Canvas>
                 <Empty size="canvas" glyph="offline" className="es-center es-center--panel es-e--plain" title="Combine-video-AI isn't on this Mac yet."
                   action={<span className="btn btn--sm">Show canvases on this Mac</span>}>
-                  It opens by itself when this Mac is back online. Nothing in it is lost — the cloud copy is safe.
+                  It opens by itself when this Mac is back online. Nothing in it is lost — the Maude Cloud copy is safe.
                 </Empty>
               </Canvas>
               <ProjectPill project="Alligators brand" canvas="Combine-video-AI" />

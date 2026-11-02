@@ -210,6 +210,15 @@ describe('accepted revisions on a real hub', () => {
 
       // A reader proposes nothing.
       assert.equal((await viewer.propose([{ op: 'dir.create', path: 'ui/X' }])).status, 403);
+      // S4.16 - Can comment holds no annotation write either: the annotations lane is refused like any other.
+      assert.equal(
+        (
+          await viewer.propose([
+            { op: 'lane.replace', doc, lane: 'annotations', base: '', content: '' },
+          ])
+        ).status,
+        403
+      );
 
       // FENCE: a client writing raw Yjs content changes nothing accepted.
       const rogue = reader(ws, t.alice, doc);

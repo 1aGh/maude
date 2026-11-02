@@ -1,0 +1,44 @@
+V2-2.4b — AI paths from the registry · closed 2026-10-11
+
+Done when (plan row V2-2.4b): parity coverage (every action has a file or CLI path or a human-only
+reason); contract tests red-first.
+
+Parity (apps/studio/actions.manifest.json, manifestVersion 0d7b2b433d20, 115 actions):
+  cli 23 · file 37 · human 55 · pending 0
+  apps/studio/actions.parity.json: pendingMax 9 → 0, pending [] (§5.7 rule 2, reached at this gate);
+  humanMax 51 → 55 (lead change, decision:maude/v2-2.4b-undo-keys-human: edit.undo/redo +
+  timeline.undo/redo are "human (keys)" per V2-1.5 §5.3; new HumanReason 'keys', V2-1.11 §5.1 amended).
+  test/ai-parity-coverage.test.ts 12/12 — rule 1 (every action has a path), 2 (pending ≤ 0),
+  3/4 (human ≤ humanMax, every reason cites a decision — red with humanMax 51 / no 'keys' entry,
+  green with the lead change), 5/5b (file formats have a schema + skill section), 6/6b (cli verbs in
+  `maude design help`, exit 0 on --help), 7 (server → per-role refusal row; vacuous today, a
+  planted fixture proves it bites).
+
+What the whole task built (Progress log lines 2026-10-10 … 2026-10-11, ~50 V2-2.4b commits):
+  S4 per-verb tiers + verbs.ts tier table; actions.manifest.json + gen-actions --check drift gate;
+  verbs open, check, place, layout-check, hook, history list|show|diff|restore|undo,
+  comments list, exports list|again; hooks prompt / pre-edit / post-edit / pre-bash / post-bash /
+  SubagentStart / SubagentStop (owns) / Stop (screenshot gate) / SessionStart (§5.6 handshake);
+  deny codes read-only, soft-locked, out-of-scope, use-trash, use-verb, not-a-writer, out-of-project
+  (§9 Q3); C17 trash parking; actor maude-chat vs claude-code; §5.2 schemas (annotations.v2,
+  canvas-meta.v2, edl.v1, DS manifests, canvas-tsx.md) + strict validateBoard for AI writes;
+  handoff.schema.json + validateHandoff; generated /design:help, `maude design help`, studio-actions
+  skill index; plugin manifest byte copy asserted by check-version-parity.sh; /_health manifestVersion.
+
+Final slice integration (feat 2026-10-11, after cherry-picking 51744034 af60fede 895a2a72 3b31c13b
+c9eb7158 4b1f36f9 11cf0fa9 + lead a2de25f9), all through scripts/v2-test-lane.sh:
+  studio: ai-parity-coverage + maude-verb-tiers* + acp-session-allowed-tools* + maude-verbs-* +
+          exports-again-parity  70 pass / 0 fail
+  cli/lib/*.test.mjs 324 / 0 · scripts/test/*.test.mjs 69 / 0 · cli/commands/*.test.mjs 152 / 0
+  plugins/design/hooks 32 / 0 · gen-actions --check: 8 generated files match · tsc 0 errors ·
+  biome clean · import coherence OK · dist/ untouched.
+  §5.8 invariant 7 for exports again: exports-again-parity.test.tsx mounts the real Export sheet;
+  sheet and verb post byte-equal job bodies for 3 history entries.
+
+Owned elsewhere, not V2-2.4b scope (per the §5.2 table's Owner column; rule 5 holds because no file
+action uses these formats yet): comments schema (S9), photo-edit / footage schemas (S7/S8),
+ds-config format (V2-1.6/V2-1.13). Also left for their packages: `comments add|reply|resolve --as-ai`
+(S9, C3), one-artboard restore + history --filter/--at/word diff (S1), `history undo --chat` (needs
+the kernel's {chatId} body), the ⌘/ scope UI (S12). Known pre-bash fail-open residuals:
+`{ maude …; } > /x`, `maude … | jq > /x` (jq is not under the maude allow rule, so Claude Code
+prompts), `> >(tee /x)`.

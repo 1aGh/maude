@@ -49,12 +49,40 @@ export function openSqliteProjectStore(dataDir, { now } = {}) {
   db.pragma('journal_mode = WAL');
   db.pragma('synchronous = FULL');
   db.pragma('foreign_keys = ON');
-  const core = createStoreCore(betterSqliteAdapter(db), { now });
+  // Ballot secrecy (S4-S9-votes-comments.md §2.6): a deleted ballot must not
+  // stay readable in the page's free space. secure_delete zeroes it in the
+  // database file; the WAL still holds the frames that wrote it, so a vote's
+  // end (explicit, or lazy inside any later call) also truncates the WAL once
+  // its transaction has committed. Best effort: a reader holding the WAL open
+  // makes the checkpoint a partial one, and the next end retries.
+  db.pragma('secure_delete = ON');
+  let purge = false;
+  const core = createStoreCore(betterSqliteAdapter(db), {
+    now,
+    onBallotsDeleted: () => {
+      purge = true;
+    },
+  });
   core.migrate();
+  const purgeWal = () => {
+    if (!purge || db.inTransaction) return;
+    purge = false;
+    try {
+      db.pragma('wal_checkpoint(TRUNCATE)');
+    } catch {
+      /* a later end retries */
+    }
+  };
   const store = { kind: 'sqlite', file, close: () => db.close() };
   for (const [name, fn] of Object.entries(core)) {
     if (name === 'migrate') continue;
-    store[name] = async (...args) => fn(...args);
+    store[name] = async (...args) => {
+      try {
+        return fn(...args);
+      } finally {
+        purgeWal();
+      }
+    };
   }
   return store;
 }

@@ -1,6 +1,6 @@
 // Shared test scaffolding. Bun-test only.
 
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { type Subprocess, spawn } from 'bun';
@@ -20,6 +20,9 @@ export function makeSandbox(): Sandbox {
       {
         name: 'test',
         designRoot: '.design',
+        // v2 edits only a format-2 project (format.ts FORMAT_GATE_OPTS, CONTRACT §4.1); a test of
+        // the format-1 view-only path drops the key itself (format-gate-studio.test.ts).
+        formatVersion: 2,
         canvasGroups: [
           { label: 'System', path: 'system' },
           { label: 'UI', path: 'ui' },
@@ -44,10 +47,41 @@ export function makeSandbox(): Sandbox {
 // below is the actual safety net — but it makes collisions rare in practice.
 let portCounter = 4500 + (process.pid % 4000);
 export function nextPort(): number {
-  // Bump on every call so parallel tests don't collide. Bun.serve will throw
-  // EADDRINUSE if the host happened to bind one — caller retries with nextPort().
-  portCounter += 1;
+  // Bump on every call so parallel tests don't collide, and skip a port something on this machine
+  // already listens on: the range crosses long-lived local services (Syncthing's GUI is 8384, and
+  // ~/git is a Syncthing folder), and no caller retries — a held port timed out bootServer after
+  // 15 s (acl-l21-capture in the V2-5 A3 full suite).
+  for (let tries = 0; tries < 64; tries++) {
+    portCounter += 1;
+    if (portIsFree(portCounter)) return portCounter;
+  }
   return portCounter;
+}
+
+function portIsFree(port: number): boolean {
+  // Both the loopback AND the wildcard address: macOS ControlCenter (AirPlay) holds `*:5000`
+  // and `*:7000`, yet a 127.0.0.1 bind there succeeds — and `localhost` then reaches AirPlay
+  // over ::1, so the boot's health probe never sees the studio (S9.12b, port 5000).
+  for (const hostname of ['127.0.0.1', '0.0.0.0']) {
+    try {
+      const probe = Bun.listen({ hostname, port, socket: { data() {} } });
+      probe.stop(true);
+    } catch {
+      return false;
+    }
+  }
+  return true;
+}
+
+/** The hub a fixture's `.design/config.json` names, as the app's own binding (see bootServer). */
+function appBoundHub(root: string): Record<string, string> {
+  try {
+    const url = JSON.parse(readFileSync(join(root, '.design', 'config.json'), 'utf8'))?.linkedHub
+      ?.url;
+    return typeof url === 'string' && url ? { MAUDE_APP_BOUND_HUB: url } : {};
+  } catch {
+    return {};
+  }
 }
 
 export async function bootServer(
@@ -59,7 +93,23 @@ export async function bootServer(
   const proc = spawn({
     cmd: ['bun', 'run', serverPath, '--port', String(port), '--root', root],
     cwd: join(import.meta.dir, '..'),
-    env: { ...process.env, NO_OPEN: '1', NODE_ENV: 'test', ...extraEnv },
+    env: {
+      ...process.env,
+      NO_OPEN: '1',
+      NODE_ENV: 'test',
+      // p8-orphan-sidecars — a test server ends by itself when the test process is SIGKILLed (a
+      // lane timeout, a killed run), instead of living on under launchd (shell/parent-watch.ts)
+      MAUDE_EXIT_WITH_PARENT: '1',
+      // S5.1b — an unlinked project's boot stamps this install's machine id; a test boot keeps it
+      // inside the sandbox (never ~/.config/maude/machine.json). One file per root, so a re-boot of
+      // the same project is the same machine and its store is not moved aside (C1).
+      MAUDE_MACHINE_FILE: join(root, '.design', '_state', 'machine.json'),
+      // gate-b-sec4 — a fixture's committed linkedHub is honoured only for a link made on this Mac
+      // (sync/link-consent.ts). The harness IS the app that made it, so it says so the way the
+      // desktop does for its own copies. A test of the gate itself passes `MAUDE_APP_BOUND_HUB: ''`.
+      ...appBoundHub(root),
+      ...extraEnv,
+    },
     stdout: 'pipe',
     stderr: 'pipe',
   });

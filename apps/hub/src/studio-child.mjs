@@ -162,11 +162,13 @@ function pairingEnv(env) {
   };
 }
 
-export function childEnv(env = process.env, { port, formatFile = null }) {
+export function childEnv(env = process.env, { port, formatFile = null, knownCanvasesFile = null }) {
   return {
     // V2-1.12 §5.2 — where the hub keeps the project format for this child
     // (a path in the hub's own data dir, written by the hub, read-only here).
     ...(formatFile ? { MAUDE_HUB_FORMAT_FILE: formatFile } : {}),
+    // p8-c4b — the canvases the hub's stored grants name (known-canvases.mjs), same contract.
+    ...(knownCanvasesFile ? { MAUDE_HUB_KNOWN_CANVASES_FILE: knownCanvasesFile } : {}),
     PATH: env.PATH ?? '/usr/local/bin:/usr/bin:/bin',
     HOME: env.HOME ?? '/tmp',
     NODE_ENV: env.NODE_ENV ?? 'production',
@@ -300,6 +302,8 @@ export function createStudioChild({
   log = console,
   /** The hub-owned file carrying the project format (V2-1.12 §5.2). */
   formatFile = null,
+  /** p8-c4b — the hub-owned file listing the canvases its stored grants name. */
+  knownCanvasesFile = null,
 } = {}) {
   let child = null;
   let stopped = false;
@@ -339,7 +343,7 @@ export function createStudioChild({
     let proc;
     try {
       proc = spawn(plan.cmd, [...plan.args, '--root', env.MAUDE_REPO_DIR ?? process.cwd()], {
-        env: childEnv(env, { port, formatFile }),
+        env: childEnv(env, { port, formatFile, knownCanvasesFile }),
         cwd: env.MAUDE_REPO_DIR ?? process.cwd(),
         stdio: ['ignore', 'pipe', 'pipe'],
       });

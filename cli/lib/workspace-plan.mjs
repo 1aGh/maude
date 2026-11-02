@@ -409,6 +409,16 @@ export function envEntries(cfg, { hubSecret, adminPassword, renderSecret }) {
       comment: 'the browser studio is a project participant (required for accepted revisions)',
     },
     {
+      // Michal 1A (2026-10-28): a brand-new project saves through accepted
+      // revisions from the start — the same rule a cloud cell runs with
+      // (cell-config). The hub applies it only to a project that never
+      // switched and holds no canvas (hub-integration adoptNewProjectMode), so
+      // an existing project keeps its mode; the owner's switch still covers it.
+      key: 'MAUDE_NEW_PROJECT_MODE',
+      value: 'transactions',
+      comment: 'a NEW project saves through accepted revisions; existing ones keep their mode',
+    },
+    {
       key: 'MAUDE_ADMIN_EMAIL',
       value: cfg.adminEmail,
       comment: 'first user, created on first boot',
@@ -561,6 +571,7 @@ export function renderCompose(cfg) {
     ...(cfg.local ? ['HUB_INSECURE_HTTP'] : []),
     'MAUDE_WORKSPACE_MODE',
     'MAUDE_CELL_PAIRING',
+    'MAUDE_NEW_PROJECT_MODE',
     'MAUDE_ADMIN_EMAIL',
     // The password has to cross into the container too, or the hub knows WHO
     // the first user is and has no way to create them — which is precisely the
@@ -651,7 +662,7 @@ ${
     image: caddy:2-alpine
     restart: unless-stopped
     ports:
-      - "80:80"${cfg.local ? '' : '\n      - "443:443"'}
+      - "${cfg.local ? '127.0.0.1:80:80' : '80:80'}"${cfg.local ? '' : '\n      - "443:443"'}
     environment:
       PUBLIC_DOMAIN: \${PUBLIC_DOMAIN}
       ACME_EMAIL: \${ACME_EMAIL}${cfg.canvasDomain ? '\n      CANVAS_DOMAIN: ${CANVAS_DOMAIN}' : ''}
@@ -676,9 +687,11 @@ ${
       MINIO_ROOT_PASSWORD: \${MAUDE_S3_SECRET_ACCESS_KEY}
     volumes:
       - minio-data:/data
+    # V2-8.9 round B P1 — fixed dev root credentials: loopback only, never the LAN. The hub reaches
+    # it at minio:9000 on the compose network; these are for the operator's own browser / mc.
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 3s

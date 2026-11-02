@@ -233,3 +233,81 @@
   .motion-soft { animation: none; }
 }
 [data-reduced-motion="true"] .motion-soft { animation: none; }
+
+/* ─── Schema v1 class contract (V2-2.15 bring-up) ─────────────────────────────
+ * The core components this system had only as specimen classes, lifted verbatim from those
+ * specimens (source in each comment) under the schema's class names. Scoped to `.ds` (the
+ * <DSRoot> wrapper), so a canvas that names a local class `.card` or `.badge` under the
+ * `.maude-v2` wrapper renders exactly as before. components.json maps every core component;
+ * a component this system has no rule for is a declared gap there (null), never invented. */
+
+/* Checkbox ← components-toggles.css .tg-check / .tg-radio */
+:where(.ds) .checkbox, :where(.ds) .radio {
+  appearance: none; flex: none; margin: 0; width: 16px; height: 16px; display: inline-grid; place-items: center; cursor: pointer;
+  background: var(--bg-2); box-shadow: inset 0 0 0 1px var(--control-off);
+  transition: background var(--dur-flip) var(--ease-out), box-shadow var(--dur-flip) var(--ease-out);
+}
+:where(.ds) .checkbox { border-radius: var(--radius-xs); }
+:where(.ds) .radio { border-radius: var(--radius-pill); }
+:where(.ds) .checkbox::after {
+  content: ""; width: 8px; height: 4px; margin-top: -2px;
+  border-left: 2px solid var(--accent-fg); border-bottom: 2px solid var(--accent-fg);
+  transform: rotate(-45deg) scale(0.4); opacity: 0;
+  transition: transform var(--dur-flip) var(--ease-out), opacity var(--dur-flip) var(--ease-out);
+}
+:where(.ds) .checkbox:checked, :where(.ds) .checkbox:indeterminate { background: var(--accent); box-shadow: none; }
+:where(.ds) .checkbox:checked::after { transform: rotate(-45deg) scale(1); opacity: 1; }
+:where(.ds) .checkbox:indeterminate::after { width: 8px; height: 0; margin-top: 0; border-left: 0; border-bottom: 2px solid var(--accent-fg); transform: none; opacity: 1; }
+
+/* Card ← components-cards.css .cd-card */
+:where(.ds) .card {
+  position: relative;
+  display: flex; flex-direction: column;
+  padding: var(--space-2) var(--space-2) var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--bg-1);
+  box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-default);
+  cursor: pointer; min-width: 0;
+  transition: transform var(--dur-flip) var(--ease-out);
+}
+
+/* Callout ← components-callout.css .co */
+:where(.ds) .callout {
+  display: flex; align-items: flex-start; gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1);
+}
+
+/* Dialog ← components-dialogs.css .dg-sheet (its absolute placement belongs to the specimen stage) */
+:where(.ds) .dialog {
+  display: flex; flex-direction: column; gap: var(--space-2);
+  padding: var(--space-4);
+  background: var(--bg-2);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg), inset 0 0 0 0.5px var(--x-island-edge);
+  color: var(--fg-0);
+}
+
+/* Tooltip ← components-tooltips.css .tt-tip */
+:where(.ds) .tooltip {
+  position: relative;
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  width: max-content; padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--fg-0); color: var(--bg-1);
+  font-size: var(--type-xs); font-weight: var(--weight-medium); line-height: var(--lh-xs);
+  box-shadow: var(--shadow-md);
+}
+
+/* Type roles (<Text role>) — token compositions from the schema registry; no new value. */
+:where(.ds) .t-title { font-family: var(--font-display); font-size: var(--type-2xl); line-height: var(--lh-2xl); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-tight); }
+:where(.ds) .t-heading { font-family: var(--font-display); font-size: var(--type-xl); line-height: var(--lh-xl); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-tight); }
+:where(.ds) .t-subheading { font-family: var(--font-body); font-size: var(--type-lg); line-height: var(--lh-lg); font-weight: var(--weight-medium); letter-spacing: var(--tracking-normal); }
+:where(.ds) .t-body { font-family: var(--font-body); font-size: var(--type-base); line-height: var(--lh-base); font-weight: var(--weight-regular); letter-spacing: var(--tracking-normal); }
+:where(.ds) .t-body-sm { font-family: var(--font-body); font-size: var(--type-sm); line-height: var(--lh-sm); font-weight: var(--weight-regular); letter-spacing: var(--tracking-normal); }
+:where(.ds) .t-caption { font-family: var(--font-body); font-size: var(--type-xs); line-height: var(--lh-xs); font-weight: var(--weight-regular); letter-spacing: var(--tracking-normal); }
+:where(.ds) .t-label { font-family: var(--font-body); font-size: var(--type-sm); line-height: var(--lh-sm); font-weight: var(--weight-medium); letter-spacing: var(--tracking-normal); }
+:where(.ds) .t-eyebrow { font-family: var(--font-body); font-size: var(--type-xs); line-height: var(--lh-xs); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-wide); }
+:where(.ds) .t-code { font-family: var(--font-mono); font-size: var(--type-sm); line-height: var(--lh-sm); font-weight: var(--weight-regular); letter-spacing: 0; }
+:where(.ds) .t-num { font-variant-numeric: tabular-nums; }

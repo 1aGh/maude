@@ -1,0 +1,40 @@
+---
+title: /design:history
+description: "List, show and restore versions of a canvas in Version history; name a version."
+---
+
+| Property | Value |
+| -------- | ----- |
+| **Command** | `/design:history` |
+| **Category** | `daily` (daily) |
+| **Argument hint** | `[list\|show\|diff\|restore\|name] [<canvas>] [<r12>] [--artboard <id> \| --element <artboard>/<id>]` |
+| **Source** | [`plugins/design/commands/history.md`](https://github.com/1aGh/maude/blob/main/plugins/design/commands/history.md) |
+
+## Description
+
+List, show and restore versions of a canvas in Version history; name a version.
+
+## Invocation
+
+**Claude Code**
+
+```text
+/design:history [list|show|diff|restore|name] [<canvas>] [<r12>] [--artboard <id> | --element <artboard>/<id>]
+```
+
+**Codex**
+
+```text
+$design:source-command-history [list|show|diff|restore|name] [<canvas>] [<r12>] [--artboard <id> | --element <artboard>/<id>]
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
+## Source of truth
+
+<Callout type="note" title="Generated from frontmatter">
+
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/design/commands/history.md`**](https://github.com/1aGh/maude/blob/main/plugins/design/commands/history.md).
+
+</Callout>

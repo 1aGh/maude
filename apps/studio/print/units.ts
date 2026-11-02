@@ -167,6 +167,9 @@ export interface ArtboardPrintProp {
   /** Bleed extension, mm. Omitted ⇒ defaultBleedMm(preset). */
   bleedMm?: number;
   marginsMm?: Partial<PrintMargins>;
+  /** S7.23 (C25) — this artboard's own switch for its bleed/trim/margin guides; absent = follow View › Advanced ›
+   *  Print guides. Display intent only: no exporter reads it, and a 1.x peer keeps it untouched. */
+  showGuides?: boolean;
 }
 
 export interface ResolvedPrintArtboard {

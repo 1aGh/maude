@@ -81,6 +81,9 @@ describe('timeline — manual cut (select · split · delete · undo · zoom)', 
     // exists only in band mode, which this media-free fixture deliberately does
     // not trigger; asserting it here is what made this scenario permanently red.
     await expect($('[data-testid="timeline-track"]')).toExist();
+    // P8 C3 (07 · ve-long) — the zoom − bar + and Fit are the FULL timeline's; the compact one has none
+    await expect($('[data-testid="timeline-zoom"]')).not.toExist();
+    await $('[data-testid="timeline-size"]').click();
     await expect($('[data-testid="timeline-zoom"]')).toExist();
     await capture('timeline-3-beats');
   });
@@ -170,7 +173,9 @@ describe('timeline — manual cut (select · split · delete · undo · zoom)', 
    * strictly between fit and max with a real expansion, and 0 returns to fit.
    */
   it('zoom slider expands the scaled track (px-per-frame scale)', async () => {
-    const LABEL_GUTTER = 96;
+    // P8 C3 (07 · .ve-tl-labs): the zoom lives in the FULL timeline, whose label gutter is 140 px (Timeline.jsx
+    // FULL_GUTTER; the compact body's 30 px gutter has no zoom). The track is gutter + frames × px/frame wide.
+    const LABEL_GUTTER = 140;
     const TOTAL_FRAMES = 210; // Cut.tsx: 60 + 90 + 60 frames (split/delete/undo keep the total)
     const MAX_PX_PER_FRAME = 40;
     const widthOf = () =>
@@ -221,5 +226,29 @@ describe('timeline — manual cut (select · split · delete · undo · zoom)', 
       timeout: 5000,
       timeoutMsg: 'slider 0 did not return the track to fit-to-width',
     });
+  });
+  // S8.6 — the export step: the cut is on the Timeline; ⇧⌘E offers it as a video. Sound only is the same
+  // mix with no picture, one click under Other…. Nothing is exported here (a render is minutes; the format
+  // and the file are covered by test/export-video-sound.test.ts) — the step proves the sheet is reachable
+  // from the cut and speaks the video words.
+  it('export: the cut offers MP4, GIF and Sound only from the one Export sheet', async () => {
+    await browser.execute(() => {
+      window.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'E', metaKey: true, shiftKey: true, bubbles: true })
+      );
+    });
+    await $('[data-testid="export-submit"]').waitForDisplayed({ timeout: 20000 });
+    await (await $('[data-testid="export-other"]')).click();
+    const menu = $('[data-testid="export-other-menu"]');
+    await menu.waitForDisplayed({ timeout: 10000 });
+    for (const id of ['mp4', 'gif', 'webm', 'audio']) {
+      const row = menu.$(`[data-testid="export-format-${id}"]`);
+      await row.waitForExist({ timeout: 5000 });
+      expect(await row.getAttribute('aria-disabled')).not.toBe('true');
+    }
+    await menu.$('[data-testid="export-format-audio"]').click();
+    await expect($('[data-testid="export-format-audio"]')).toExist();
+    await capture('export-sound-only');
+    await key({ key: 'Escape' });
   });
 });

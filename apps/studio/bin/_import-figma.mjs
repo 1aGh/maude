@@ -27,22 +27,32 @@
 // Exit: 0 ok · 2 usage · 3 validation/mapping reject · 4 fetch/parse error ·
 //       5 not configured (no token) · 6 write/containment error · 1 other.
 
+import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   copyFileSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   renameSync,
   rmSync,
+  statSync,
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
-import { join, resolve, sep } from 'node:path';
+import { dirname, join, posix, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { readBoardFile, writeBoardFileAtomic } from '../annotations/board-io.ts';
+import { MAX_BOARD_BYTES } from '../annotations/constants.ts';
+import { applyOps } from '../annotations/ops.ts';
+import '../annotations/ops-merge.ts';
+import { DESIGN_REL, findProjectRoot } from '../../../cli/lib/studio-locate.mjs';
+import { Scene } from '../annotations/scene.ts';
 import { serializeBoard } from '../annotations/schema.ts';
+import { claimWritesSync } from './_write-claim.mjs';
 
 /**
  * Translated strokes → canonical v2 board text (DDR-242): straight to
@@ -52,6 +62,7 @@ function boardText(strokes) {
   return serializeBoard(toBoardElements(strokes).elements);
 }
 
+import { canvasSlugFromRel } from '../canvas-slug.ts';
 import {
   applyRewrites,
   FIGMA_ASSET_HOSTS,
@@ -67,19 +78,24 @@ import {
   fetchNodes,
   fetchPages,
   fetchStyles,
+  fixtureAsset,
 } from '../figma/client.ts';
 import { CodegenError, CodegenSession } from '../figma/codegen-client.ts';
-import { commentsToStrokes, indexNodes } from '../figma/comments-to-strokes.ts';
+import { commentsToPins } from '../figma/comments-to-pins.ts';
+import { commentStrokeId, commentsToStrokes, indexNodes } from '../figma/comments-to-strokes.ts';
 import { decodeFigArchive, FigDecodeError } from '../figma/fig-decode.ts';
 import { artToSvg } from '../figma/fig-vector.ts';
 import { readFigZip } from '../figma/fig-zip.ts';
+import { strokesIntoOps } from '../figma/into-board.ts';
 import { attrValue, ImportReport } from '../figma/sanitize.ts';
 import { JsxTooLargeError, toArtboard, toCanvas } from '../figma/to-artboard.ts';
-import { toRenderCanvas } from '../figma/to-render.ts';
+import { classifyPageChildren, toRenderCanvas } from '../figma/to-render.ts';
 import { BoardTooLargeError, toBoardElements, toStrokes } from '../figma/to-strokes.ts';
 import { stylesToTokens, variablesToTokens } from '../figma/to-tokens.ts';
 import { FigmaCapError, normalizeDocument, walkNodes } from '../figma/types.ts';
 import { FigmaUrlError, parseFigmaTarget } from '../figma/url.ts';
+import { findCloseName, tooCloseText } from '../sync-name-key.ts';
+import { PostOpsError, postOps } from './_annotate-post.mjs';
 import { fetchAsset } from './_fetch-asset.mjs';
 import {
   importSvg,
@@ -87,12 +103,68 @@ import {
   sniffRasterKind,
   writeContainedAsset,
 } from './_import-asset.mjs';
+import { canvasRelFromArg, fileSlug } from './read-annotations.mjs';
 
 export class ImportFigmaError extends Error {
   constructor(code, message) {
     super(message);
     this.code = code;
   }
+}
+
+/** Every canvas-shaped file under the design root (design-root-relative); runtime / hidden dirs skipped. */
+function designCanvasRels(designRoot) {
+  const out = [];
+  const walk = (abs, rel) => {
+    let entries;
+    try {
+      entries = readdirSync(abs, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const e of entries) {
+      if (e.name.startsWith('_') || e.name.startsWith('.') || e.name === 'node_modules') continue;
+      const childRel = rel ? `${rel}/${e.name}` : e.name;
+      if (e.isDirectory()) walk(join(abs, e.name), childRel);
+      else if (/\.(tsx|html)$/i.test(e.name)) out.push(childRel);
+    }
+  };
+  walk(designRoot, '');
+  return out;
+}
+
+const fileIdOf = (abs) => {
+  try {
+    const st = statSync(abs);
+    return `${st.dev}:${st.ino}`;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * gate-b-c4h (S1.23b) — the existing DIFFERENT canvas whose sync key `rel` (design-root-relative)
+ * would share, or null. The studio's create / move / rename guard (sync-name-key.ts), here for the
+ * importer: two canvases on one key share one sync document (one overwrites the other on every peer)
+ * and every slug-keyed sidecar (comments, board, EDL). The same file (a re-import, or a case-only
+ * spelling of it on a case-insensitive volume) is not a twin.
+ */
+export function slugTwinOf(designRoot, rel) {
+  const self = fileIdOf(join(designRoot, rel));
+  return findCloseName(
+    rel,
+    designCanvasRels(designRoot),
+    (other) => self !== null && fileIdOf(join(designRoot, other)) === self
+  );
+}
+
+/** Refuse to write a NEW canvas at `rel` whose sync key an existing different canvas already has. */
+export function assertNoSlugTwin(designRoot, rel) {
+  const other = slugTwinOf(designRoot, rel);
+  if (!other) return;
+  const dir = posix.dirname(rel);
+  const name = posix.basename(rel).replace(/\.(tsx|html)$/i, '');
+  throw new ImportFigmaError(6, tooCloseText(name, other, dir === '.' ? '' : dir));
 }
 
 /**
@@ -154,6 +226,24 @@ function makeStagingDir() {
 }
 
 /**
+ * p8-a1-claims — inside a Maude chat, a canvas lane file (`.tsx`, `.meta.json`, `.annotations.json`)
+ * is claimed for the chat's live run with its exact staged bytes BEFORE the rename lands it
+ * (bin/_write-claim.mjs). Outside a chat it returns at once. Never throws.
+ */
+function claimPromotion(src, dest) {
+  if (!process.env.MAUDE_CHAT_ID || !/\.(?:tsx|meta\.json|annotations\.json)$/i.test(dest)) return;
+  try {
+    const root = findProjectRoot(dirname(dest));
+    if (!root) return;
+    const rel = relative(join(root, DESIGN_REL), dest).split(sep).join('/');
+    if (!rel || rel.startsWith('..')) return;
+    claimWritesSync(root, [{ rel, content: readFileSync(src, 'utf8') }]);
+  } catch {
+    /* a claim never blocks the import */
+  }
+}
+
+/**
  * Promote one staged file into the project tree.
  *
  * A bare `renameSync` is atomic — and SAME-FILESYSTEM ONLY. Staging lives under
@@ -172,6 +262,7 @@ function makeStagingDir() {
  * file is still a single atomic rename.
  */
 function promoteFile(src, dest) {
+  claimPromotion(src, dest);
   try {
     renameSync(src, dest);
     return;
@@ -235,6 +326,74 @@ function assertContained(root, designRootRel, target) {
     throw new ImportFigmaError(6, 'refusing to write outside the design root');
   }
   return abs;
+}
+
+/**
+ * S8.17b - who ran the import: the `by` of every comment pin it writes. The same answer the studio's
+ * comment door gives a desktop (git's `user.name`); empty when git has none. A caller that knows the
+ * session better (a cell's vouched member) passes `importer` and this is never asked.
+ */
+function importerName(root) {
+  try {
+    return execFileSync('git', ['config', 'user.name'], {
+      cwd: root,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 5000,
+    })
+      .trim()
+      .slice(0, 120);
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * S8.17b - Figma design comments -> comment pins for `_comments/<slug>.json`, staged now and promoted by the
+ * caller like the board next to it (a canvas that is not there yet has no thread file to merge with).
+ * Returns the placed / unplaced split `commentsToStrokes` gave, so the summary accounting is unchanged.
+ */
+function stageCommentPins({
+  comments,
+  pageNode,
+  origin,
+  report,
+  root,
+  designRootRel,
+  canvasRel,
+  frameIds,
+  importer,
+  staging,
+}) {
+  const { records, placedIds, unplacedIds } = commentsToPins(
+    comments,
+    indexNodes(pageNode),
+    origin,
+    report,
+    {
+      file: `${designRootRel.replace(/\/+$/, '')}/${canvasRel}`,
+      importer: importer || importerName(root),
+      now: new Date().toISOString(),
+      frameIds,
+      pageId: pageNode.id,
+    }
+  );
+  let promote = null;
+  if (records.length > 0) {
+    const staged = join(staging, 'canvas.comments.json');
+    writeFileSync(staged, `${JSON.stringify(records, null, 2)}\n`, 'utf8');
+    const dir = join(resolve(root, designRootRel), '_comments');
+    const dest = assertContained(
+      root,
+      designRootRel,
+      join(dir, `${canvasSlugFromRel(`${designRootRel}/${canvasRel}`, designRootRel)}.json`)
+    );
+    promote = () => {
+      mkdirSync(dir, { recursive: true });
+      promoteFile(staged, dest);
+    };
+  }
+  return { placedIds, unplacedIds, promote };
 }
 
 /**
@@ -601,6 +760,8 @@ export async function importBoard({
       designRootRel,
       join(root, designRootRel, `ui/${title}.meta.json`)
     );
+    // gate-b-c4h — never a canvas whose sync key another canvas already has.
+    assertNoSlugTwin(join(root, designRootRel), canvasRel);
     mkdirSync(join(root, designRootRel, 'ui'), { recursive: true });
     // Promote by rename — atomic, and nothing lands in the versioned tree
     // until the whole translation has succeeded.
@@ -619,6 +780,232 @@ export async function importBoard({
   } finally {
     rmSync(staging, { recursive: true, force: true });
   }
+}
+
+/**
+ * Phase 2 (S4.5, C23) — import a FigJam board INTO an existing canvas.
+ *
+ * Where `importBoard` makes a new host canvas, this lands the board in the canvas you name as ONE
+ * section ("From FigJam") on its annotation layer: stickies, shapes, connectors and text arrive
+ * editable, comment threads arrive as stickies (open on yellow paper, resolved on grey) carrying
+ * their author in `source`, and widgets arrive as pictures of themselves. It EMITS OPS — the same
+ * `put` batch the studio's op route takes — so the import is one merge, one broadcast, one undo:
+ * through a live dev-server when one is up, else a direct canonical board write.
+ *
+ * Nothing upstream is echoed back: the result carries counts and the section id, and the ops stay
+ * in memory (D10 — this verb's stdout is model input).
+ */
+/**
+ * S4.16 - the PLAN half of `importBoardInto`: fetch the board, map it, mint the ops and prove the board would
+ * take them (the registry, the size cap) - and stop there. Nothing is written to the board, so the studio's
+ * `POST /_api/annotations/figjam` can apply the same ops as ONE transaction through its own writer (hub
+ * action, undo and all), while the verb below writes them itself. (Fetched pictures are the one thing the
+ * plan lands on disk: `assets/<sha8>.png`, content-addressed, so a plan that is never applied leaves only
+ * assets, never a half-written board.) `existing` is the board as the caller reads it now (the studio's
+ * live copy); absent, the file on disk.
+ */
+export async function planBoardInto({
+  url,
+  root,
+  designRootRel = '.design',
+  into,
+  at = null,
+  dryRun = false,
+  confirmLarge = false,
+  local = null,
+  existing: given = null,
+}) {
+  const designRoot = resolve(root, designRootRel);
+  const canvasRel = canvasRelFromArg(into, root, designRootRel);
+  if (!canvasRel) throw new ImportFigmaError(2, '--into must name a canvas inside the design root');
+  if (!/\.tsx$/.test(canvasRel)) throw new ImportFigmaError(2, '--into wants a canvas (.tsx)');
+  const canvasAbs = assertContained(root, designRootRel, join(designRoot, canvasRel));
+  if (!existsSync(canvasAbs)) throw new ImportFigmaError(2, `no such canvas: ${canvasRel}`);
+  const slug = fileSlug(canvasRel, designRootRel);
+
+  const target = local ? { fileKey: local.fileKey, nodeId: null } : parseFigmaTarget(url, 'board');
+  const doc =
+    local?.document ??
+    (await fetchDocument({
+      fileKey: target.fileKey,
+      surface: 'board',
+      ...(target.nodeId ? { nodeId: target.nodeId } : {}),
+    }));
+  const { strokes, report, pendingImages, origin } = toStrokes(doc, {
+    confirmLarge,
+    widgetsAsPictures: true,
+  });
+
+  // C23 — FigJam comments become stickies. A comment fetch that fails never costs the board.
+  let comments = [];
+  if (!local) {
+    try {
+      comments = await fetchComments(target.fileKey);
+    } catch {
+      comments = [];
+    }
+  }
+  const { strokes: pins } = commentsToStrokes(comments, indexNodes(doc.root), origin, report);
+  const authors = new Map();
+  for (const c of comments) {
+    if (!c.parentId && c.author) authors.set(commentStrokeId(c.id), c.author);
+  }
+  const widgets = report.entries.filter((e) => e.detail === 'widget as a picture').length;
+
+  if (dryRun) {
+    return {
+      canvas: canvasRel,
+      items: strokes.length + pins.length,
+      comments: pins.length,
+      widgets,
+      report,
+      pendingImages,
+      origin,
+      via: null,
+    };
+  }
+
+  const staging = makeStagingDir();
+  try {
+    const assets = await resolveAssets(
+      target.fileKey,
+      pendingImages.map((p) => ({ nodeId: p.nodeId, format: 'png', placeholder: p.strokeId })),
+      makeAssetDeps({ root, designRootRel, stagingDir: staging }),
+      report
+    );
+    for (const stroke of strokes) {
+      const ref = assets.rewrites.get(stroke.id);
+      if (ref) stroke.href = ref.replace(/^\//, '');
+    }
+    // A picture that never resolved would persist an empty frame — drop it, it is reported.
+    const usable = strokes.filter((s) => s.tool !== 'image' || Boolean(s.href));
+
+    let existing = given;
+    if (!existing) {
+      const boardFile = readBoardFile(designRoot, slug);
+      if (boardFile.tooLarge || boardFile.unreadable) {
+        throw new ImportFigmaError(6, `${slug}.annotations.json is not a board we can write to`);
+      }
+      existing = boardFile.elements;
+    }
+    const { ops, section, count, dropped } = strokesIntoOps([...usable, ...pins], {
+      existing,
+      at: at ?? defaultOrigin(designRoot, canvasRel, existing),
+      tag: Math.random().toString(36).slice(2, 7).padEnd(5, '0'),
+      authors,
+    });
+    for (const d of dropped)
+      report.add(d.id ?? '0:0', 'BOARD', 'asset-skipped', 'registry refused');
+
+    // Direct-write fallback: apply the same ops to the board and keep it canonical.
+    const next = applyOps(new Map(existing.map((e) => [e.id, e])), ops);
+    if (next.rejected.length) {
+      throw new ImportFigmaError(3, `the board refused ${next.rejected.length} imported item(s)`);
+    }
+    const text = serializeBoard([...next.state.values()]);
+    if (text.length > MAX_BOARD_BYTES) {
+      throw new ImportFigmaError(
+        3,
+        `the board would exceed ${MAX_BOARD_BYTES} bytes — nothing written`
+      );
+    }
+
+    return {
+      canvas: canvasRel,
+      section,
+      items: count,
+      ops,
+      text,
+      comments: pins.length,
+      widgets,
+      report,
+      pendingImages,
+      origin,
+      via: null,
+      slug,
+      designRoot,
+      designRootRel,
+    };
+  } finally {
+    rmSync(staging, { recursive: true, force: true });
+  }
+}
+
+/**
+ * Phase 2 (S4.5, C23) - import a FigJam board INTO an existing canvas, from the command line: plan it
+ * (`planBoardInto`), then write the ops through a live dev-server when one is up, else straight to the board.
+ */
+export async function importBoardInto(args) {
+  const plan = await planBoardInto(args);
+  if (args.dryRun) return plan;
+  const { ops, section, text, canvas, slug, designRoot, designRootRel } = plan;
+  let via = 'file';
+  let res = null;
+  try {
+    // p8-a1-claims — inside a Maude chat the batch is the chat's live run's (`run:<id>`, postOps'
+    // defaultActionId), so it joins that run and undoes with it; elsewhere one import action
+    res = await postOps(
+      designRoot,
+      `${designRootRel}/${canvas}`,
+      ops,
+      process.env.MAUDE_CHAT_ID ? undefined : `figjam-import-${section}`
+    );
+  } catch (err) {
+    if (err instanceof PostOpsError) throw new ImportFigmaError(6, err.message);
+    throw err;
+  }
+  if (res) {
+    via = 'server';
+    const rejected = Array.isArray(res.rejected) ? res.rejected : [];
+    if (rejected.length) {
+      throw new ImportFigmaError(6, `the server refused ${rejected.length} imported item(s)`);
+    }
+  } else {
+    writeBoardFileAtomic(designRoot, slug, text);
+  }
+  return {
+    canvas: plan.canvas,
+    section: plan.section,
+    items: plan.items,
+    comments: plan.comments,
+    widgets: plan.widgets,
+    report: plan.report,
+    pendingImages: plan.pendingImages,
+    origin: plan.origin,
+    via,
+  };
+}
+
+/**
+ * Where a FigJam section lands when `--at` is not given: right of everything the canvas already has
+ * (its artboards from `<canvas>.meta.json`, and the annotations already drawn), at the top.
+ */
+function defaultOrigin(designRoot, canvasRel, existing) {
+  let right = Number.NEGATIVE_INFINITY;
+  let top = Number.POSITIVE_INFINITY;
+  try {
+    const meta = JSON.parse(
+      readFileSync(join(designRoot, canvasRel.replace(/\.tsx$/, '.meta.json')), 'utf8')
+    );
+    for (const a of meta?.layout?.artboards ?? []) {
+      if (!Number.isFinite(a?.x) || !Number.isFinite(a?.y)) continue;
+      const w = Number.isFinite(a.w) ? a.w : Number.isFinite(a.width) ? a.width : 1440;
+      right = Math.max(right, a.x + w);
+      top = Math.min(top, a.y);
+    }
+  } catch {
+    /* no meta — fall through to the annotations */
+  }
+  const scene = new Scene(existing);
+  for (const el of scene.childrenOf(null)) {
+    const b = scene.worldBox(el.id);
+    if (!b) continue;
+    right = Math.max(right, b.x + b.w);
+    top = Math.min(top, b.y);
+  }
+  return Number.isFinite(right)
+    ? { x: Math.round(right + 120), y: Math.round(top) }
+    : { x: 0, y: 0 };
 }
 
 /**
@@ -681,6 +1068,15 @@ function makeAssetDeps({ root, designRootRel, stagingDir }) {
       return join(stagingDir, `${nodeId.replace(/[^0-9]+/g, '-')}.${ext}`);
     },
     async stage(url, outPath, maxBytes) {
+      // S8.17b — MAUDE_FIGMA_FIXTURE only: a `maude-fixture:<file>` picture is read from the fixture directory. Null (so
+      // the download gate below runs, unchanged) whenever the variable is unset or the URL is anything else.
+      const fixture = fixtureAsset(url);
+      if (fixture) {
+        if (fixture.bytes.length > maxBytes)
+          throw new ImportFigmaError(4, 'fixture picture too large');
+        writeFileSync(outPath, fixture.bytes);
+        return { bytes: fixture.bytes.length, ext: fixture.ext };
+      }
       const { bytes, ext } = await fetchAsset({
         url,
         root,
@@ -874,6 +1270,7 @@ export async function importPages({
   dryRun = false,
   kind = 'digital',
   mode = 'render',
+  importer = '',
 }) {
   const target = parseFigmaTarget(url, 'design');
   const pages = await fetchPages(target.fileKey);
@@ -892,6 +1289,13 @@ export async function importPages({
 
   const folderSlug = folder ?? `figma-${target.fileKey.slice(0, 8).toLowerCase()}`;
   if (!SLUG_RE.test(folderSlug)) throw new ImportFigmaError(2, 'invalid --folder');
+
+  // gate-b-c4h — every page's canvas is checked BEFORE any lands: a twin is the request's own fault
+  // (fatal below, like every ImportFigmaError), and a partial folder must not look complete.
+  for (const page of pages) {
+    const title = attrValue(page.name) || `Page ${page.id.replace(/[^0-9]+/g, '-')}`;
+    assertNoSlugTwin(join(root, designRootRel), `ui/${folderSlug}/${title}.tsx`);
+  }
 
   const tokens = readDsTokens(root, designRootRel);
   const budget = makeAssetBudget();
@@ -1029,6 +1433,8 @@ export async function importPages({
         const stagedMeta = join(staging, 'page.meta.json');
         writeFileSync(stagedTsx, tsx, 'utf8');
         writeFileSync(stagedMeta, `${JSON.stringify(meta, null, 2)}\n`, 'utf8');
+        // gate-b-c4h — never a canvas whose sync key another canvas already has (checked up front too).
+        assertNoSlugTwin(join(root, designRootRel), `${relDir}/${title}.tsx`);
         const outDir = join(root, designRootRel, relDir);
         mkdirSync(outDir, { recursive: true });
         const finalTsx = assertContained(root, designRootRel, join(outDir, `${title}.tsx`));
@@ -1043,9 +1449,9 @@ export async function importPages({
         //      stray screenshots — through the same whiteboard translator the
         //      FigJam door uses. This is what rescues a flow diagram drawn in
         //      CONNECTORs inside a design file.
-        //   2. The file's REVIEW COMMENTS, which live on a separate endpoint and
-        //      appear nowhere in the tree. Every previous import brought across
-        //      exactly zero of them.
+        //   (The file's REVIEW COMMENTS, which live on a separate endpoint and
+        //   appear nowhere in the tree, are NOT part of this layer any more: they
+        //   come across as comment pins in `_comments/` - S8.17b below.)
         const annStrokes = [];
 
         if (result.annotations.length > 0) {
@@ -1085,21 +1491,31 @@ export async function importPages({
           }
         }
 
+        let promoteComments = null;
         if (comments.length > 0) {
           const commentReport = new ImportReport();
+          // S8.17b - comment PINS in `_comments/`, not stickies on the board.
+          const annotated = new Set((result.annotations ?? []).map((a) => a.id));
           const {
-            strokes: pins,
             placedIds,
             unplacedIds,
-          } = commentsToStrokes(
+            promote: promoteThis,
+          } = stageCommentPins({
             comments,
-            indexNodes(pageNode),
-            result.origin,
-            commentReport,
-            page.id
-          );
+            pageNode,
+            origin: result.origin,
+            report: commentReport,
+            root,
+            designRootRel,
+            canvasRel: `${relDir}/${title}.tsx`,
+            frameIds: result.meta.figma?.frames
+              ? result.meta.figma.frames.map((f) => f.nodeId)
+              : (pageNode.children ?? []).filter((c) => !annotated.has(c.id)).map((c) => c.id),
+            importer,
+            staging,
+          });
+          promoteComments = promoteThis;
           reports.push(commentReport);
-          annStrokes.push(...pins);
           // A thread not placed HERE usually just lives on another page. Only a
           // thread unplaced on EVERY page is genuinely homeless, so the verdict
           // waits until all pages have had their turn.
@@ -1118,6 +1534,7 @@ export async function importPages({
           );
           promoteFile(stagedAnn, finalAnn);
         }
+        promoteComments?.();
         written.push({
           title,
           path: finalTsx,
@@ -1292,6 +1709,8 @@ export async function importFrames({
       writeFileSync(stagedTsx, tsx, 'utf8');
       writeFileSync(stagedMeta, `${JSON.stringify(meta, null, 2)}\n`, 'utf8');
 
+      // gate-b-c4h — never a canvas whose sync key another canvas already has.
+      assertNoSlugTwin(join(root, designRootRel), `ui/${base}.tsx`);
       const uiDir = join(root, designRootRel, 'ui');
       mkdirSync(uiDir, { recursive: true });
       const finalTsx = assertContained(root, designRootRel, join(uiDir, `${base}.tsx`));
@@ -1310,6 +1729,290 @@ export async function importFrames({
   }
 
   return { written, reports, pendingExports, resolvedAssets, frameCount: frames.length };
+}
+
+// ── S8.17 — the Import from Figma sheet: list a page's frames, bring the picked ones in as pictures ──
+//
+// canvas 12 · ia-figma-sheets / ia-figma-arrived. Two halves of ONE flow, both deterministic code:
+//
+//   listFigmaFrames     the frames on the linked page — id, a SANITIZED label, the Figma size. What the
+//                       sheet's picker shows. Nothing is written.
+//   importFramePictures the picked frames → ONE new canvas, each frame an artboard at its Figma px, kind
+//                       `digital` (Fixed size), its picture being Figma's own render (to-render.ts, DDR-216
+//                       D12). Comments ride along as comment pins when asked; colours and text styles go to the
+//                       tokens file when asked (`importTokens`). The summary is counts + node ids + reason
+//                       codes (D7/D10) — never a word the file said.
+//
+// The caller never picks an output PATH: it names a folder (checked segment by segment, never a runtime
+// `_*` dir, never `system/` or `assets/`) and a canvas name (a filename charset, no separators). The write
+// stages outside the design root and is promoted only on success (D5), realpath-contained.
+
+/** At most this many frames in one import — the asset budget's own ceiling, stated where the caller sees it. */
+export const MAX_PICTURE_FRAMES = 60;
+const NODE_ID_RE = /^-?[0-9]{1,10}:[0-9]{1,10}(?:;[0-9:;-]{1,64})?$/;
+const FOLDER_SEGMENT_RE = /^[\p{L}\p{N}][\p{L}\p{N} ._()-]{0,63}$/u;
+const RESERVED_TOP = new Set(['system', 'assets']);
+
+/** A designRoot-relative folder a new canvas may land in (`ui`, `2026/dresy`), `''` for the root, or null. */
+export function safeCanvasFolder(raw) {
+  if (raw === undefined || raw === null || raw === '') return '';
+  if (typeof raw !== 'string' || raw.length > 256 || raw.startsWith('/')) return null;
+  const segs = raw.replace(/\/+$/g, '').split('/');
+  if (segs.length > 8) return null;
+  for (const s of segs) {
+    if (!FOLDER_SEGMENT_RE.test(s) || s.endsWith('.')) return null;
+  }
+  if (RESERVED_TOP.has(segs[0].toLowerCase())) return null;
+  return segs.join('/');
+}
+
+/** A canvas file name (no extension, no separator), or null. The person's words — or the link's. */
+export function safeCanvasName(raw) {
+  if (typeof raw !== 'string') return null;
+  const s = raw.normalize('NFC').replace(/\s+/g, ' ').trim();
+  if (!s || s.length > 80) return null;
+  if (!/^[\p{L}\p{N}][\p{L}\p{N} ,._()'-]*$/u.test(s)) return null;
+  if (s.endsWith('.')) return null;
+  return s;
+}
+
+/** The file's name as the LINK spells it (`/design/<key>/Uniformy-2027`) — the person's paste, not the API's. */
+export function fileNameFromLink(url) {
+  try {
+    const u = new URL(String(url));
+    const seg = u.pathname.split('/').filter(Boolean)[2] ?? '';
+    const words = decodeURIComponent(seg)
+      .replace(/[^\p{L}\p{N} ,._()'-]+/gu, ' ')
+      .replace(/^[^\p{L}\p{N}]+/u, '');
+    return safeCanvasName(words.slice(0, 80)) ?? 'Figma import';
+  } catch {
+    return 'Figma import';
+  }
+}
+
+/** The page the link points at, and its frames exactly as `to-render.ts` would render them. */
+async function linkedPage(url) {
+  const target = parseFigmaTarget(url, 'design');
+  if (target.surface === 'board') return { target, board: true };
+  let nodeId = target.nodeId;
+  if (!nodeId) {
+    const pages = await fetchPages(target.fileKey);
+    if (pages.length === 0) throw new ImportFigmaError(3, 'file has no pages');
+    nodeId = pages[0].id;
+  }
+  const doc = await fetchDocument({ fileKey: target.fileKey, surface: 'design', nodeId });
+  const page = doc.root;
+  // A link to ONE frame is a page of one: the frame itself is the only pick.
+  const frames =
+    page.type === 'CANVAS'
+      ? classifyPageChildren(page, new ImportReport()).frames
+      : page.absoluteBoundingBox
+        ? [page]
+        : [];
+  return { target, board: false, page, frames };
+}
+
+/**
+ * `POST /_api/figma/frames` and `import-figma --list <url>`: the linked page's frames, nothing written.
+ * Labels go through `attrValue` — the charset the artboard labels land in — because they are
+ * third-party strings shown in the sheet (D6).
+ */
+export async function listFigmaFrames({ url }) {
+  const linked = await linkedPage(url);
+  if (linked.board) return { surface: 'board', fileName: fileNameFromLink(url), frames: [] };
+  const { page, frames } = linked;
+  return {
+    surface: 'design',
+    fileName: fileNameFromLink(url),
+    page: { id: page.id, name: page.type === 'CANVAS' ? attrValue(page.name ?? '') : '' },
+    frames: frames.slice(0, 500).map((f) => ({
+      id: f.id,
+      name: attrValue(f.name ?? '') || f.id,
+      width: Math.max(1, Math.round(f.absoluteBoundingBox.width)),
+      height: Math.max(1, Math.round(f.absoluteBoundingBox.height)),
+    })),
+    more: frames.length > 500,
+  };
+}
+
+/** `<folder>/<name>.tsx`, or `<name> (Figma)` / `(Figma 2)` … when that canvas is already there. */
+export function freeCanvasRel(designRoot, folder, name) {
+  const at = (n) => (folder ? `${folder}/${n}.tsx` : `${n}.tsx`);
+  // gate-b-c4h — "taken" includes a different canvas on the same sync key (S1.23b).
+  const free = (rel) => !existsSync(join(designRoot, rel)) && slugTwinOf(designRoot, rel) === null;
+  if (free(at(name))) return at(name);
+  for (let i = 1; i < 100; i += 1) {
+    const n = i === 1 ? `${name} (Figma)` : `${name} (Figma ${i})`;
+    if (free(at(n))) return at(n);
+  }
+  throw new ImportFigmaError(6, 'no free canvas name');
+}
+
+/**
+ * `POST /_api/figma/import-frames` and `import-figma --frames <url> --pick <ids>`: the picked frames
+ * become ONE new canvas of pictures. Returns counts, node ids and reason codes only.
+ *
+ * @param {{ url: string, root: string, designRootRel?: string, frames: string[], folder?: string,
+ *   name?: string | null, comments?: boolean, styles?: boolean, dryRun?: boolean,
+ *   importer?: string }} args  `importer` = who ran it (the comment pins' `by`); absent = git's user.name.
+ */
+export async function importFramePictures({
+  url,
+  root,
+  designRootRel = '.design',
+  frames: picked,
+  folder = '',
+  name = null,
+  comments: withComments = true,
+  styles = false,
+  dryRun = false,
+  importer = '',
+}) {
+  const folderRel = safeCanvasFolder(folder);
+  if (folderRel === null) throw new ImportFigmaError(2, 'invalid folder');
+  if (!Array.isArray(picked) || picked.length === 0)
+    throw new ImportFigmaError(2, 'pick at least one frame');
+  if (picked.length > MAX_PICTURE_FRAMES)
+    throw new ImportFigmaError(2, `at most ${MAX_PICTURE_FRAMES} frames in one import`);
+  if (!picked.every((id) => typeof id === 'string' && NODE_ID_RE.test(id)))
+    throw new ImportFigmaError(2, 'invalid frame id');
+  const canvasName =
+    name === null || name === undefined ? fileNameFromLink(url) : safeCanvasName(name);
+  if (!canvasName) throw new ImportFigmaError(2, 'invalid canvas name');
+
+  const linked = await linkedPage(url);
+  if (linked.board)
+    throw new ImportFigmaError(2, 'a FigJam board comes in as annotations, not frames');
+  const { target, page, frames: onPage } = linked;
+  const want = new Set(picked);
+  // Only frames the page actually HAS: an id the sheet did not list is refused, never fetched on its own.
+  const chosen = onPage.filter((f) => want.has(f.id));
+  if (chosen.length !== want.size)
+    throw new ImportFigmaError(3, 'a picked frame is not on this page');
+
+  const pageNode = { ...page, type: 'CANVAS', children: chosen };
+  const doc = {
+    fileKey: target.fileKey,
+    surface: 'design',
+    origin: 'rest',
+    root: pageNode,
+    nodeCount: 0,
+    maxDepth: 0,
+  };
+  const result = toRenderCanvas(doc, pageNode, { kind: 'digital' });
+  const reports = [result.report];
+  const designRoot = join(root, designRootRel);
+  const canvasRel = freeCanvasRel(designRoot, folderRel, canvasName);
+  const out = {
+    canvas: dryRun ? null : canvasRel,
+    planned: canvasRel,
+    artboards: result.artboardCount,
+    frames: chosen.map((f) => ({
+      id: f.id,
+      width: Math.max(1, Math.round(f.absoluteBoundingBox.width)),
+      height: Math.max(1, Math.round(f.absoluteBoundingBox.height)),
+    })),
+    comments: { placed: 0, resolved: 0, elsewhere: 0 },
+    tokens: null,
+    assets: { resolved: 0, pending: result.pendingRenders.length },
+    dispositions: [],
+  };
+  if (dryRun) {
+    out.dispositions = result.report.entries;
+    return out;
+  }
+
+  let fileComments = [];
+  if (withComments) {
+    try {
+      fileComments = await fetchComments(target.fileKey);
+    } catch {
+      fileComments = []; // the design is the point; a file whose comments we cannot read still imports
+    }
+  }
+
+  const staging = makeStagingDir();
+  try {
+    const assets = await resolveAssets(
+      target.fileKey,
+      result.pendingRenders.map((x) => ({
+        nodeId: x.node.id,
+        format: 'svg',
+        placeholder: x.placeholder,
+      })),
+      makeAssetDeps({ root, designRootRel, stagingDir: staging }),
+      result.report,
+      makeAssetBudget(),
+      { outlineText: false, svgMaxBytes: FIGMA_RENDER_MAX_BYTES }
+    );
+    out.assets.resolved = assets.resolved.length;
+    const tsx = applyRewrites(result.tsx, assets.rewrites);
+    const meta = {
+      ...result.meta,
+      source: { ...result.meta.source, importedAt: new Date().toISOString() },
+    };
+    const stagedTsx = join(staging, 'canvas.tsx');
+    const stagedMeta = join(staging, 'canvas.meta.json');
+    writeFileSync(stagedTsx, tsx, 'utf8');
+    writeFileSync(stagedMeta, `${JSON.stringify(meta, null, 2)}\n`, 'utf8');
+
+    // S8.17b - a design file's comments are comment PINS (threads in `_comments/`), not stickies on the
+    // board (decision v2-michal-figma-comments-as-pins). A comment whose pinned node is not among the
+    // picked frames is counted, never placed - there is no sticky fallback to invent a spot for it.
+    let promoteComments = null;
+    if (fileComments.length > 0) {
+      const commentReport = new ImportReport();
+      const { placedIds, promote } = stageCommentPins({
+        comments: fileComments,
+        pageNode,
+        origin: result.origin,
+        report: commentReport,
+        root,
+        designRootRel,
+        canvasRel,
+        frameIds: result.meta.figma.frames.map((f) => f.nodeId),
+        importer,
+        staging,
+      });
+      reports.push(commentReport);
+      promoteComments = promote;
+      const placed = new Set(placedIds);
+      out.comments.placed = placed.size;
+      out.comments.resolved = fileComments.filter((c) => placed.has(c.id) && c.resolved).length;
+      out.comments.elsewhere = fileComments.filter((c) => !c.parentId && !placed.has(c.id)).length;
+    }
+
+    const finalTsx = assertContained(root, designRootRel, join(designRoot, canvasRel));
+    const finalMeta = assertContained(
+      root,
+      designRootRel,
+      join(designRoot, canvasRel.replace(/\.tsx$/, '.meta.json'))
+    );
+    mkdirSync(join(finalTsx, '..'), { recursive: true });
+    promoteComments?.();
+    promoteFile(stagedMeta, finalMeta);
+    // The canvas last: the watcher sees a .tsx whose meta (and board) are already there.
+    promoteFile(stagedTsx, finalTsx);
+  } finally {
+    rmSync(staging, { recursive: true, force: true });
+  }
+
+  if (styles) {
+    try {
+      const t = await importTokens({ url, root, designRootRel });
+      out.tokens = { count: t.count, path: t.path ?? null };
+      reports.push(t.report);
+    } catch (err) {
+      // The frames landed; a style read that failed is one line of the summary, not a failed import.
+      out.tokens = {
+        count: 0,
+        path: null,
+        failed: err instanceof FigmaApiError ? err.kind : 'failed',
+      };
+    }
+  }
+  out.dispositions = reports.flatMap((r) => r.entries);
+  return out;
 }
 
 // ── Phase 7 — `--explode`: one artboard, via the local Dev Mode codegen ─────
@@ -1689,7 +2392,7 @@ export async function importTokens({ url, root, designRootRel = '.design', dryRu
 
 // ── CLI ─────────────────────────────────────────────────────────────────────
 
-function parseArgv(argv) {
+export function parseArgv(argv) {
   const out = {
     mode: null,
     url: null,
@@ -1707,6 +2410,12 @@ function parseArgv(argv) {
     confirmDocument: false,
     figPath: null,
     fileKey: null,
+    into: null,
+    at: null,
+    pick: null,
+    name: null,
+    comments: true,
+    styles: false,
   };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
@@ -1749,6 +2458,16 @@ function parseArgv(argv) {
       case '--canvas':
         out.canvas = argv[++i];
         break;
+      // `--into` lands a FigJam board in an EXISTING canvas as one section; `--at x,y` places it.
+      case '--into':
+        out.into = argv[++i];
+        break;
+      case '--at': {
+        const m = /^(-?\d{1,7}(?:\.\d+)?),(-?\d{1,7}(?:\.\d+)?)$/.exec(String(argv[++i] ?? ''));
+        if (!m) throw new ImportFigmaError(2, '--at wants "x,y" in world units (e.g. 1600,0)');
+        out.at = { x: Number(m[1]), y: Number(m[2]) };
+        break;
+      }
       case '--confirm-document':
         out.confirmDocument = true;
         break;
@@ -1770,8 +2489,48 @@ function parseArgv(argv) {
       case '--confirm-large':
         out.confirmLarge = true;
         break;
-      case '--editable':
-        out.editable = true;
+      // S8.17 — `--editable <artboard-id>` is Make editable: the DDR-219 codegen of ONE artboard, the
+      // same operation as `--explode` (it needs `--canvas`). Bare `--editable` keeps its v1 meaning on
+      // `--pages` / `--frames`: the JSX translation instead of Figma's picture.
+      case '--editable': {
+        const next = argv[i + 1];
+        if (next !== undefined && !next.startsWith('-') && !out.mode) {
+          out.mode = 'explode';
+          out.artboard = argv[++i];
+        } else if (next !== undefined && !next.startsWith('-')) {
+          throw new ImportFigmaError(
+            2,
+            '--editable <artboard> is its own operation — drop the other mode'
+          );
+        } else {
+          out.editable = true;
+        }
+        break;
+      }
+      // S8.17 — the sheet's two halves on the command line: list a page's frames, pick some of them.
+      case '--list':
+        if (out.mode)
+          throw new ImportFigmaError(
+            2,
+            'pick exactly one of --board/--frames/--tokens/--list/--explode'
+          );
+        out.mode = 'list';
+        out.url = argv[++i];
+        break;
+      case '--pick':
+        out.pick = String(argv[++i] ?? '')
+          .split(',')
+          .map((x) => x.trim())
+          .filter(Boolean);
+        break;
+      case '--name':
+        out.name = argv[++i];
+        break;
+      case '--no-comments':
+        out.comments = false;
+        break;
+      case '--styles':
+        out.styles = true;
         break;
       case '--json':
         out.json = true;
@@ -1793,8 +2552,14 @@ const HELP = `import-figma — Figma / FigJam import (reached via \`maude design
 Usage:
   maude design import-figma --board  <figjam-url> --root <repo> [--design-root .design]
                             [--slug <name>] [--dry-run] [--confirm-large] [--json]
+  maude design import-figma --board  <figjam-url> --into <canvas.tsx> --root <repo>
+                            [--at x,y] [--dry-run] [--confirm-large] [--json]
   maude design import-figma --pages  <figma-url>  --root <repo> [--folder <name>] [--editable]
-  maude design import-figma --frames <figma-url>  --root <repo> [--slug <name>]
+  maude design import-figma --list   <figma-url>  [--json]
+  maude design import-figma --frames <figma-url>  --root <repo> [--pick <id,id…>] [--folder <dir>]
+                            [--name <canvas>] [--no-comments] [--styles] [--dry-run] [--json]
+  maude design import-figma --frames <figma-url>  --root <repo> --editable [--slug <name>]
+  maude design import-figma --editable <artboard-id> --canvas <dir>/<Canvas>.tsx --root <repo>
   maude design import-figma --tokens <figma-url>  --root <repo>
   maude design import-figma --fig    <path.fig>   --root <repo> [--slug <name>]
                             [--file-key <key>] [--dry-run] [--json]
@@ -1815,6 +2580,22 @@ inside the SVG. The trade is that a rendered artboard is not directly editable;
 \`--editable\` opts back into the JSX translation when an editable artboard
 matters more than an accurate one.
 
+\`--frames\` brings frames in as Figma's exact picture: each picked frame (\`--pick\`, ids from
+\`--list\`; default every frame on the linked page, at most 60) becomes one Fixed size artboard at
+its Figma size, all on ONE new canvas (\`<folder>/<name>.tsx\`; "<name> (Figma)" when that canvas
+is already there). The pictures are not editable. \`--editable <artboard-id> --canvas …\` makes ONE
+of them editable later (the same operation as \`--explode\`); bare \`--editable\` translates every
+frame to JSX instead, as before.
+
+\`--board … --into <canvas>\` lands the board in a canvas you already have, as ONE section
+("From FigJam") on its annotation layer, right of what is there (or at \`--at\`). Stickies,
+shapes, connectors and text arrive editable; the file's comment threads arrive as stickies
+(open on yellow paper, resolved on grey) carrying their author in \`source\`; widgets, stamps,
+tables, code blocks and embeds arrive as pictures of themselves. It emits ONE batch of
+annotation ops — through the running studio when there is one (one undo, every open canvas
+updates), else straight into the board file. Importing the same board twice adds a second
+section; nothing already on the canvas is replaced. The summary lists counts, never text.
+
 \`--explode\` makes ONE already-imported artboard editable, by asking Figma's own
 Dev Mode code generator for that frame's resolved DOM and converting it locally.
 It is NOT an import route — the artboard must already exist on an imported
@@ -1832,8 +2613,10 @@ inside the archive, so nothing expires and nothing is rate-limited. A local file
 carries no REST file key, so provenance is content-addressed unless you pass
 \`--file-key\`; the summary says which you got.
 
-The file's REVIEW COMMENTS come across as sticky annotations pinned where they
-sit — open threads on yellow paper, resolved ones on grey.
+The file's REVIEW COMMENTS come across as comment pins, where they sit: a thread
+with its replies, resolved ones resolved. Whoever wrote one in Figma shows as
+"<name> · from Figma" — a label, not a person on this project; the pins are
+yours (the person running the import) for permissions.
 
 Every node that is skipped, degraded or normalized is listed in the summary by
 NODE ID and a fixed reason code — never silently dropped.
@@ -1868,6 +2651,49 @@ async function main() {
   }
 
   try {
+    if (opts.into) {
+      if (opts.mode !== 'board' && opts.mode !== 'fig') {
+        throw new ImportFigmaError(
+          2,
+          '--into goes with --board <figjam-url> (or --fig <board.jam>)'
+        );
+      }
+      const local = opts.mode === 'fig' ? decodeLocalFig(opts.figPath, opts.fileKey) : null;
+      if (local && local.surface !== 'board') {
+        throw new ImportFigmaError(2, '--into takes a FigJam board — this .fig is a design file');
+      }
+      const r = await importBoardInto({
+        url: opts.url,
+        root,
+        designRootRel: opts.designRoot,
+        into: opts.into,
+        at: opts.at,
+        dryRun: opts.dryRun,
+        confirmLarge: opts.confirmLarge,
+        local,
+      });
+      if (opts.json) {
+        process.stdout.write(
+          `${JSON.stringify({
+            canvas: r.canvas,
+            section: r.section ?? null,
+            items: r.items,
+            comments: r.comments,
+            widgets: r.widgets,
+            via: r.via,
+            pendingImages: r.pendingImages.length,
+            dispositions: r.report.entries,
+          })}\n`
+        );
+      } else {
+        process.stdout.write(
+          `import-figma: ${r.items} item(s) -> ${r.canvas}${r.via ? ` (section ${r.section}, via ${r.via})` : ' (dry run)'}\n` +
+            `  comments: ${r.comments} · widgets as pictures: ${r.widgets}\n` +
+            `${formatSummary(r.report, { pendingImages: r.pendingImages.length })}\n`
+        );
+      }
+      return;
+    }
     if (opts.mode === 'explode') {
       const r = await explodeArtboard({
         root,
@@ -1991,6 +2817,38 @@ async function main() {
           `import-figma: ${r.written.length} page(s) -> ui/${r.folder}/${opts.dryRun ? ' (dry run)' : ''}\n${[...lines, ...skips].join('\n')}\n${formatSummary(merged, { assets: `${r.resolvedAssets}/${r.pendingExports} resolved` })}\n`
         );
       }
+      return;
+    }
+    if (opts.mode === 'list') {
+      const r = await listFigmaFrames({ url: opts.url });
+      process.stdout.write(
+        opts.json
+          ? `${JSON.stringify(r)}\n`
+          : `import-figma: ${r.surface === 'board' ? 'a FigJam board — use --board' : `${r.frames.length} frame(s)`}\n${r.frames.map((f) => `  ${f.id}  ${f.width} x ${f.height}`).join('\n')}\n`
+      );
+      return;
+    }
+    // S8.17 — `--frames` brings frames in as Figma's exact picture (Fixed size, at Figma px), into ONE
+    // new canvas. Bare `--editable` keeps the v1 JSX translation below.
+    if (opts.mode === 'frames' && !opts.editable) {
+      const r = await importFramePictures({
+        url: opts.url,
+        root,
+        designRootRel: opts.designRoot,
+        frames: opts.pick ?? (await listFigmaFrames({ url: opts.url })).frames.map((f) => f.id),
+        folder: opts.folder ?? '',
+        name: opts.name,
+        comments: opts.comments,
+        styles: opts.styles,
+        dryRun: opts.dryRun,
+      });
+      const merged = new ImportReport();
+      merged.entries.push(...r.dispositions);
+      process.stdout.write(
+        opts.json
+          ? `${JSON.stringify(r)}\n`
+          : `import-figma: ${r.artboards} frame(s) as pictures -> ${r.planned}${opts.dryRun ? ' (dry run)' : ''}\n${formatSummary(merged, { assets: `${r.assets.resolved}/${r.assets.pending} resolved` })}\n`
+      );
       return;
     }
     if (opts.mode === 'frames') {

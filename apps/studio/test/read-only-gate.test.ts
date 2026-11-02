@@ -127,8 +127,19 @@ describe('read-only gate — viewer role refuses project writes locally', () => 
     expect((await fetch(`${base}/_comments-all`)).status).toBe(200);
   }, 30000);
 
-  test('member (no role on the credential): writes are NOT gated', async () => {
+  // S9.9 / Phase 4 security D3 — this USED to be "no role = member, writes NOT gated": a
+  // credential whose role nobody ever learned counted as writable. It is now the floor
+  // (read-only) until a sign-in stores the role (test/sync-access-v1-compat.test.ts).
+  test('no role on the credential: read-only until a sign-in heals it (D3)', async () => {
     const { base } = await boot(undefined);
+    const cfg = (await (await fetch(`${base}/_config`)).json()) as { readOnly?: boolean };
+    expect(cfg.readOnly).toBe(true);
+    const r = await fetch(`${base}/_api/edit-text`, { method: 'POST', body: '{}' });
+    expect(r.status).toBe(403);
+  }, 30000);
+
+  test('member on the credential: writes are NOT gated', async () => {
+    const { base } = await boot('member');
     const cfg = (await (await fetch(`${base}/_config`)).json()) as { readOnly?: boolean };
     expect(cfg.readOnly).toBe(false);
     // A write reaches its handler (400 on bad shape — not the 403 refusal).

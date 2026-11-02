@@ -12,12 +12,24 @@
 /** Gap between the content and the image edge, in CSS px. */
 export const REGION_PADDING = 32;
 
-/** Parse the shim's `--region` value: `canvas` or `{"selectors":[...]}`. */
+/** Parse the shim's `--region` value: `canvas`, `{"selectors":[...]}` or `{"rect":{x,y,w,h}}`. */
 export function parseRegionArg(raw) {
   if (raw === undefined) return null;
   if (raw === 'canvas') return { kind: 'canvas' };
   try {
     const v = JSON.parse(raw);
+    // S8.1 — a WORLD rectangle (ExportSpec v2 `region.rect`, S2.13 Export area): exactly it.
+    const r = v?.rect;
+    if (
+      r &&
+      [r.x, r.y, r.w, r.h].every((n) => typeof n === 'number' && Number.isFinite(n)) &&
+      r.w > 0 &&
+      r.h > 0 &&
+      r.w <= 32768 &&
+      r.h <= 32768
+    ) {
+      return { kind: 'rect', rect: { x: r.x, y: r.y, w: r.w, h: r.h } };
+    }
     if (v && Array.isArray(v.selectors) && v.selectors.every((s) => typeof s === 'string')) {
       return { kind: 'selectors', selectors: v.selectors };
     }
@@ -36,6 +48,7 @@ export function parseRegionArg(raw) {
  * to the returned box and captures from the origin.
  */
 export async function layoutRegion(page, region, padding = REGION_PADDING) {
+  if (region.kind === 'rect') return layoutRect(page, region.rect);
   const box = await page.evaluate(
     ({ region, padding }) => {
       const world = document.querySelector('.dc-world');
@@ -89,4 +102,27 @@ export async function layoutRegion(page, region, padding = REGION_PADDING) {
   );
   if (!box) throw new Error('region capture: nothing to export — no visible element matched');
   return { width: Math.ceil(box.width), height: Math.ceil(box.height) };
+}
+
+/**
+ * S8.1 — lay a WORLD rectangle out at the viewport origin, no padding: world point (x, y)
+ * lands on (0, 0) and the caller captures exactly `w × h` CSS px. The world plane is reset
+ * first (pan/zoom), exactly as `layoutRegion` does, so world units are CSS px.
+ */
+export async function layoutRect(page, rect) {
+  const ok = await page.evaluate((rect) => {
+    const world = document.querySelector('.dc-world');
+    if (!world) return false;
+    world.style.zoom = '1';
+    world.style.transform = 'none';
+    for (const ab of document.querySelectorAll('[data-dc-screen][aria-current]')) {
+      ab.removeAttribute('aria-current');
+    }
+    const r0 = world.getBoundingClientRect();
+    world.style.transform = `translate(${-(r0.left + rect.x)}px, ${-(r0.top + rect.y)}px)`;
+    window.scrollTo(0, 0);
+    return true;
+  }, rect);
+  if (!ok) throw new Error('region capture: the canvas has no world plane');
+  return { width: Math.ceil(rect.w), height: Math.ceil(rect.h) };
 }

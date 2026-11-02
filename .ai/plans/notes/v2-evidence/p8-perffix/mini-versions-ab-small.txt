@@ -1,0 +1,265 @@
+remote-lane: slot2 · 42c7a0191 · log /Volumes/D/maude-runner/runs/20261026-033930-42c7a0191-9204.log
+MODE whole
+{
+  "root": "/tmp/pf-a/a",
+  "at": "2026-10-26T02:39:34.784Z",
+  "index": {
+    "canvases": 95,
+    "staticArtboards": 225,
+    "buildMs": {
+      "p50": 81,
+      "p95": 81,
+      "budgetP95": 250
+    },
+    "stampMs": {
+      "p50": 1,
+      "p95": 1,
+      "budget": 10
+    },
+    "homeMerge20Ms": {
+      "p50": 10,
+      "p95": 10,
+      "budget": 150,
+      "note": "20 × (read + stamp) of this snapshot"
+    }
+  },
+  "versionPictures": {
+    "canvases": 12,
+    "coldBuild": {
+      "totalMs": 4355,
+      "jobs": 11,
+      "perPictureMs": {
+        "p50": 855,
+        "p95": 2402
+      },
+      "phasesP50Ms": {
+        "viewport": 2,
+        "goto": 82,
+        "mount": 459,
+        "settle": 121,
+        "fonts": 1,
+        "harvest": 2,
+        "shoot": 99
+      }
+    },
+    "warmBuild": {
+      "totalMs": 1585,
+      "jobs": 11,
+      "perPictureMs": {
+        "p50": 529,
+        "p95": 628
+      },
+      "phasesP50Ms": {
+        "viewport": 1,
+        "goto": 42,
+        "mount": 180,
+        "settle": 98,
+        "fonts": 2,
+        "harvest": 1,
+        "shoot": 110
+      }
+    },
+    "budget": {
+      "p50": 300,
+      "p95": 800
+    }
+  }
+}
+MODE only
+{
+  "root": "/tmp/pf-a/a",
+  "at": "2026-10-26T02:39:52.677Z",
+  "index": {
+    "canvases": 95,
+    "staticArtboards": 225,
+    "buildMs": {
+      "p50": 66,
+      "p95": 66,
+      "budgetP95": 250
+    },
+    "stampMs": {
+      "p50": 2,
+      "p95": 2,
+      "budget": 10
+    },
+    "homeMerge20Ms": {
+      "p50": 13,
+      "p95": 13,
+      "budget": 150,
+      "note": "20 × (read + stamp) of this snapshot"
+    }
+  },
+  "versionPictures": {
+    "canvases": 12,
+    "coldBuild": {
+      "totalMs": 3359,
+      "jobs": 11,
+      "perPictureMs": {
+        "p50": 880,
+        "p95": 1730
+      },
+      "phasesP50Ms": {
+        "viewport": 2,
+        "goto": 67,
+        "mount": 385,
+        "settle": 132,
+        "fonts": 2,
+        "harvest": 1,
+        "shoot": 170
+      }
+    },
+    "warmBuild": {
+      "totalMs": 1776,
+      "jobs": 11,
+      "perPictureMs": {
+        "p50": 488,
+        "p95": 710
+      },
+      "phasesP50Ms": {
+        "viewport": 3,
+        "goto": 50,
+        "mount": 178,
+        "settle": 103,
+        "fonts": 2,
+        "harvest": 2,
+        "shoot": 166
+      }
+    },
+    "budget": {
+      "p50": 300,
+      "p95": 800
+    }
+  }
+}
+MODE whole
+{
+  "root": "/tmp/pf-a/a",
+  "at": "2026-10-26T02:40:09.692Z",
+  "index": {
+    "canvases": 95,
+    "staticArtboards": 225,
+    "buildMs": {
+      "p50": 67,
+      "p95": 67,
+      "budgetP95": 250
+    },
+    "stampMs": {
+      "p50": 2,
+      "p95": 2,
+      "budget": 10
+    },
+    "homeMerge20Ms": {
+      "p50": 9,
+      "p95": 9,
+      "budget": 150,
+      "note": "20 × (read + stamp) of this snapshot"
+    }
+  },
+  "versionPictures": {
+    "canvases": 12,
+    "coldBuild": {
+      "totalMs": 3457,
+      "jobs": 11,
+      "perPictureMs": {
+        "p50": 791,
+        "p95": 1700
+      },
+      "phasesP50Ms": {
+        "viewport": 2,
+        "goto": 118,
+        "mount": 427,
+        "settle": 92,
+        "fonts": 2,
+        "harvest": 2,
+        "shoot": 130
+      }
+    },
+    "warmBuild": {
+      "totalMs": 1953,
+      "jobs": 11,
+      "perPictureMs": {
+        "p50": 520,
+        "p95": 1017
+      },
+      "phasesP50Ms": {
+        "viewport": 5,
+        "goto": 69,
+        "mount": 280,
+        "settle": 89,
+        "fonts": 4,
+        "harvest": 2,
+        "shoot": 101
+      }
+    },
+    "budget": {
+      "p50": 300,
+      "p95": 800
+    }
+  }
+}
+MODE only
+{
+  "root": "/tmp/pf-a/a",
+  "at": "2026-10-26T02:40:27.014Z",
+  "index": {
+    "canvases": 95,
+    "staticArtboards": 225,
+    "buildMs": {
+      "p50": 99,
+      "p95": 99,
+      "budgetP95": 250
+    },
+    "stampMs": {
+      "p50": 2,
+      "p95": 2,
+      "budget": 10
+    },
+    "homeMerge20Ms": {
+      "p50": 9,
+      "p95": 9,
+      "budget": 150,
+      "note": "20 × (read + stamp) of this snapshot"
+    }
+  },
+  "versionPictures": {
+    "canvases": 12,
+    "coldBuild": {
+      "totalMs": 3195,
+      "jobs": 11,
+      "perPictureMs": {
+        "p50": 747,
+        "p95": 1595
+      },
+      "phasesP50Ms": {
+        "viewport": 2,
+        "goto": 73,
+        "mount": 466,
+        "settle": 63,
+        "fonts": 2,
+        "harvest": 1,
+        "shoot": 102
+      }
+    },
+    "warmBuild": {
+      "totalMs": 1585,
+      "jobs": 11,
+      "perPictureMs": {
+        "p50": 457,
+        "p95": 661
+      },
+      "phasesP50Ms": {
+        "viewport": 2,
+        "goto": 56,
+        "mount": 173,
+        "settle": 47,
+        "fonts": 1,
+        "harvest": 1,
+        "shoot": 107
+      }
+    },
+    "budget": {
+      "p50": 300,
+      "p95": 800
+    }
+  }
+}

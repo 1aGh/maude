@@ -1,0 +1,129 @@
+{
+  "task": "e6",
+  "group": "edit",
+  "fixture": "video",
+  "topology": "A",
+  "delegates": null,
+  "run": {
+    "code": 0,
+    "killed": false,
+    "wallMs": 82773
+  },
+  "metrics": {
+    "subtype": "success",
+    "isError": false,
+    "costUsd": 0.566,
+    "durationMs": 81409,
+    "apiMs": 75043,
+    "turns": 13,
+    "tokens": 444364,
+    "inTok": 24,
+    "outTok": 9112,
+    "cacheRead": 397200,
+    "cacheWrite": 38028,
+    "freshTokens": 47164,
+    "models": [
+      "claude-opus-5-5"
+    ],
+    "permissionDenials": [],
+    "subagents": 0,
+    "subagentTypes": [],
+    "mainToolUses": 12,
+    "subToolUses": 0
+  },
+  "agents": [],
+  "invariants": {
+    "check": {
+      "pass": true,
+      "why": ""
+    },
+    "scope": {
+      "pass": true,
+      "why": ""
+    },
+    "ids-kept": {
+      "pass": true,
+      "why": ""
+    },
+    "locked-kept": {
+      "pass": true,
+      "why": ""
+    },
+    "no-bash-writes": {
+      "pass": true,
+      "why": ""
+    },
+    "owns": {
+      "pass": true,
+      "why": ""
+    }
+  },
+  "quality": {
+    "changed:ui/Alligators Cinematic Cut.tsx": {
+      "pass": true,
+      "why": ""
+    },
+    "finished": {
+      "pass": true,
+      "why": "success"
+    },
+    "judge": {
+      "pass": true,
+      "why": "pass (4): The opening title sequence went from 54 to 84 frames (+30). The cold-open clip was extended by the same amount, and every later clip and overlay was shifted +30, so nothing overlaps or leaves a gap. The Kinetic fade-out follows the sequence duration, so it moves with the title. TOTAL and the subtitle were updated, and nothing unrelated changed. There was no visual check, which is the only reason this isn't a 5.",
+      "unknown": false
+    }
+  },
+  "invPass": true,
+  "qualPass": true,
+  "judge": {
+    "verdict": "pass",
+    "score": 4,
+    "why": "The opening title sequence went from 54 to 84 frames (+30). The cold-open clip was extended by the same amount, and every later clip and overlay was shifted +30, so nothing overlaps or leaves a gap. The Kinetic fade-out follows the sequence duration, so it moves with the title. TOTAL and the subtitle were updated, and nothing unrelated changed. There was no visual check, which is the only reason this isn't a 5.",
+    "costUsd": 0.0462371,
+    "model": "sonnet"
+  },
+  "render": {
+    "ran": false,
+    "error": null,
+    "shots": []
+  },
+  "changed": [
+    "M .design/ui/Alligators Cinematic Cut.meta.json",
+    "M .design/ui/Alligators Cinematic Cut.tsx",
+    "?? .design/_cache/index/ds-usage.json"
+  ],
+  "runState": [
+    {
+      "session": "7c750538-b967-4d1f-b2a7-7d38627bd190",
+      "touched": {
+        "ui/Alligators Cinematic Cut.tsx": {
+          "at": 1793247685569,
+          "by": "main",
+          "via": "tool",
+          "artboards": [
+            "cinematic"
+          ]
+        },
+        "ui/Alligators Cinematic Cut.meta.json": {
+          "at": 1793247700976,
+          "by": "main",
+          "via": "tool",
+          "artboards": []
+        }
+      },
+      "stopBlocks": 0,
+      "shots": 1,
+      "bases": 2
+    }
+  ],
+  "hooks": {
+    "events": 0,
+    "denies": [],
+    "blocks": [],
+    "errors": [],
+    "ms": {},
+    "checkMs": []
+  },
+  "harnessFailure": false,
+  "finalText": "The \"ALLIGATORS BRNO\" opening title now stays on screen one second longer: about 2.8s instead of 1.8s. The canvas passes its check.\n\n- **What changed:** the title layer and the cold-open shot behind it each run 30 frames (1s) longer. I moved everything after them 1s later so the next title, \"DŘINA\", doesn't run into the opening one. The impact flash and the cut to the tackle shot still come at the same point relative to the end of the title.\n- **Knock-on effect:** the whole video is now 1s longer, about 24.8s instead of 23.8s. I updated the length in the canvas and in the section subtitle to match.\n- **Left alone:** `Alligators Cinematic Cut.edl.json` belongs to the earlier, trimmed reel cut and already didn't match this canvas, so I didn't change it.\n\nThe screenshot of the artboard renders without errors, but it only shows the poster frame (the \"RYCHLOST\" card), not the opening. Play the first few seconds on the canvas to check the new timing."
+}

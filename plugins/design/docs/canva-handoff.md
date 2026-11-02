@@ -6,7 +6,7 @@
 
 ## TL;DR
 
-1. Open the export dialog (toolbar `⬇` button, `⌘E`, or right-click → **Export this artboard…**).
+1. Open the Export sheet (**Menu › File › Export…**, ⇧⌘E, or right-click → **Export this artboard…**).
 2. Pick **format: Canva**.
 3. Pick **scope: Canvas → separate** (one Canva page per artboard).
 4. Click **Export**. You'll get a ZIP with two files:

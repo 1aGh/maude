@@ -66,6 +66,16 @@ export interface Selection {
    *  pre-fill correctly regardless of zoom. */
   worldW?: number;
   worldH?: number;
+  /**
+   * S2.3 (via S2.1) — the element's box in WORLD px for the Position / Size / Constraints rows:
+   * offsetLeft/Top/Width/Height (untransformed by the `.dc-world` zoom) and the offset parent's
+   * client size (what a constraint is measured against). Absent for a non-HTML element.
+   */
+  geometry?: { x: number; y: number; w: number; h: number; parentW: number; parentH: number };
+  /** P8 c10 (14 ed-lay-auto) — an auto-layout frame's children: how many, of what kind, how wide ("3 frames, each Fills the width."). */
+  kids?: import('./editing/kids-summary.ts').KidsSummary;
+  /** S2.12 — the style a text object wears, what that style computes to, what the object overrides. */
+  textInfo?: import('./edit-ops/text-style.ts').TextInfo;
   html?: string;
   /** Comment drops only — the annotation the click landed on, and the click's
    *  world point (comment-anchor.ts). */
@@ -77,6 +87,8 @@ export interface Selection {
   /** Phase 12.3 — authored inline-style props OUTSIDE the curated knob set, so the
    *  panel can surface a custom CSS property the user added (e.g. `letter-spacing`). */
   customStyles?: Record<string, string>;
+  /** r3 — the inline `background` shorthand as written (a `var()` one has no longhands in `authored`). */
+  declared?: Record<string, string>;
   /** Phase 12.3 — custom HTML attributes on the element (data-, aria-, role, title…),
    *  so the panel reflects a custom attribute the user added via the escape hatch. */
   attrs?: Record<string, string>;
@@ -118,6 +130,13 @@ interface SelectionSetValue {
   remove: (s: Selection) => void;
   toggle: (s: Selection) => void;
   clear: () => void;
+  /**
+   * The shell putting ITS selection back (`select-by-id`: the post-reload restore ladder, the halo / artboard
+   * resync, a place that selects what it made). Yields — returns false, changes nothing — when it would undo a
+   * local pick the shell has not heard yet (see RESTORE_YIELD_MS). True when applied.
+   */
+  replaceFromShell: (s: Selection | Selection[]) => boolean;
+  addFromShell: (s: Selection | Selection[]) => boolean;
 }
 
 const SelectionSetContext = createContext<SelectionSetValue | null>(null);
@@ -146,6 +165,48 @@ function dedupe(list: Selection[]): Selection[] {
 
 const POST_DEBOUNCE_MS = 50; // mirrors canvas-lib's SETTLE/PUBLISH cadence
 
+/**
+ * r2-first-canvas-inspector — how long a local pick outranks a selection the shell sends back. A pick reaches the
+ * shell only after the 50 ms debounce, a postMessage and the shell's render; until then every restore rung
+ * (selection-scope.js, rungs 250…5000 ms after a reload) still carries the OLD selection, and applying it replaced
+ * the fresh pick and cancelled its post — the shell never heard it (a ⌘-click on an element right after picking its
+ * artboard left the artboard selected and no Inspector). Far below any deliberate follow-up: a later rung, or a
+ * Layers click, still lands.
+ */
+export const RESTORE_YIELD_MS = 500;
+
+const sameKeys = (a: Selection[], b: Selection[]): boolean =>
+  a.length === b.length && a.every((x, i) => selectionKey(x) === selectionKey(b[i] as Selection));
+
+/** A selection the shell sends would change a local pick made `RESTORE_YIELD_MS` ago or less → the pick wins. */
+export function yieldsToLocalPick(
+  localAt: number,
+  current: Selection[],
+  next: Selection[],
+  now = Date.now()
+): boolean {
+  return now - localAt < RESTORE_YIELD_MS && !sameKeys(next, current);
+}
+
+/**
+ * S2.1 (S2-edit-ops.md §7) — `editing/selection.tsx` adds `refs` / `crumbs` / `kind` to every
+ * `select-set` post. A registry (not an import) so this leaf provider never imports the editing
+ * layer; absent = the v1 payload.
+ */
+type SelectionDescriber = (next: Selection[]) => Record<string, unknown> | null;
+let selectionDescriber: SelectionDescriber | null = null;
+export function setSelectionDescriber(fn: SelectionDescriber | null): void {
+  selectionDescriber = fn;
+}
+function describeForShell(next: Selection[]): Record<string, unknown> | null {
+  if (!selectionDescriber || next.length === 0) return null;
+  try {
+    return selectionDescriber(next);
+  } catch {
+    return null; // a describer fault never costs the selection itself
+  }
+}
+
 export function SelectionSetProvider({
   children,
   /** Override the postMessage destination (used in tests). */
@@ -155,6 +216,9 @@ export function SelectionSetProvider({
   postTarget?: { postMessage: (msg: unknown, targetOrigin: string) => void } | null;
 }) {
   const [selected, setSelected] = useState<Selection[]>([]);
+  // the selection as of the last change (state lags a render) and when the canvas itself last changed it
+  const currentRef = useRef<Selection[]>([]);
+  const localAtRef = useRef(Number.NEGATIVE_INFINITY);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingPostRef = useRef<(() => void) | null>(null);
 
@@ -170,7 +234,10 @@ export function SelectionSetProvider({
         const payload: Selection | Selection[] | null =
           next.length === 0 ? null : next.length === 1 ? (next[0] ?? null) : next;
         try {
-          target.postMessage({ dgn: 'select-set', selection: payload }, '*');
+          target.postMessage(
+            { dgn: 'select-set', selection: payload, ...describeForShell(next) },
+            '*'
+          );
         } catch {
           /* iframe likely cross-origin or detached */
         }
@@ -191,20 +258,50 @@ export function SelectionSetProvider({
     []
   );
 
-  const replace = useCallback(
-    (s: Selection | Selection[]) => {
-      const next = dedupe(Array.isArray(s) ? s : [s]);
+  const apply = useCallback(
+    (next: Selection[]) => {
+      currentRef.current = next;
       setSelected(next);
       post(next);
     },
     [post]
   );
 
+  const replace = useCallback(
+    (s: Selection | Selection[]) => {
+      localAtRef.current = Date.now();
+      apply(dedupe(Array.isArray(s) ? s : [s]));
+    },
+    [apply]
+  );
+
+  const replaceFromShell = useCallback(
+    (s: Selection | Selection[]) => {
+      const next = dedupe(Array.isArray(s) ? s : [s]);
+      if (yieldsToLocalPick(localAtRef.current, currentRef.current, next)) return false;
+      apply(next);
+      return true;
+    },
+    [apply]
+  );
+
+  const addFromShell = useCallback(
+    (s: Selection | Selection[]) => {
+      const next = dedupe([...currentRef.current, ...(Array.isArray(s) ? s : [s])]);
+      if (yieldsToLocalPick(localAtRef.current, currentRef.current, next)) return false;
+      apply(next);
+      return true;
+    },
+    [apply]
+  );
+
   const add = useCallback(
     (s: Selection | Selection[]) => {
       const incoming = Array.isArray(s) ? s : [s];
+      localAtRef.current = Date.now();
       setSelected((prev) => {
         const next = dedupe([...prev, ...incoming]);
+        currentRef.current = next;
         post(next);
         return next;
       });
@@ -215,8 +312,10 @@ export function SelectionSetProvider({
   const remove = useCallback(
     (s: Selection) => {
       const k = selectionKey(s);
+      localAtRef.current = Date.now();
       setSelected((prev) => {
         const next = prev.filter((x) => selectionKey(x) !== k);
+        currentRef.current = next;
         post(next);
         return next;
       });
@@ -227,10 +326,12 @@ export function SelectionSetProvider({
   const toggle = useCallback(
     (s: Selection) => {
       const k = selectionKey(s);
+      localAtRef.current = Date.now();
       setSelected((prev) => {
         const next = prev.some((x) => selectionKey(x) === k)
           ? prev.filter((x) => selectionKey(x) !== k)
           : [...prev, s];
+        currentRef.current = next;
         post(next);
         return next;
       });
@@ -239,13 +340,13 @@ export function SelectionSetProvider({
   );
 
   const clear = useCallback(() => {
-    setSelected([]);
-    post([]);
-  }, [post]);
+    localAtRef.current = Date.now();
+    apply([]);
+  }, [apply]);
 
   const value = useMemo<SelectionSetValue>(
-    () => ({ selected, replace, add, remove, toggle, clear }),
-    [selected, replace, add, remove, toggle, clear]
+    () => ({ selected, replace, add, remove, toggle, clear, replaceFromShell, addFromShell }),
+    [selected, replace, add, remove, toggle, clear, replaceFromShell, addFromShell]
   );
 
   return <SelectionSetContext.Provider value={value}>{children}</SelectionSetContext.Provider>;

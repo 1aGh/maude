@@ -120,6 +120,29 @@ function mergeText(base: unknown, ours: unknown, theirs: unknown, budget: MergeB
   return m.ok ? m.merged : ours;
 }
 
+/**
+ * p8-hub-undo-collision — would `mergeText(base, ours, theirs)` fall back to "ours wins" because
+ * the two edits touch (overlapping hunks)? `null` when it cannot tell: no merge is registered
+ * (a canvas-iframe graph), so a caller fails open. Same rule as `mergeText`, no budget.
+ */
+export function textMergeCollides(base: string, ours: string, theirs: string): boolean | null {
+  if (theirs === base || ours === base || ours === theirs) return false;
+  if (!textMerge) return null;
+  return !textMerge(base, ours, theirs).ok;
+}
+
+/**
+ * p8-fix-d F12 — what `mergeText(base, ours, theirs)` leaves (no budget): the merged text, or `ours`
+ * when the edits collide or no merge is registered (acceptance order, as the board applies it).
+ */
+export function textMergeResult(base: string, ours: string, theirs: string): string {
+  if (theirs === base) return ours;
+  if (ours === base) return theirs;
+  if (!textMerge) return ours;
+  const m = textMerge(base, ours, theirs);
+  return m.ok ? m.merged : ours;
+}
+
 /** Resolve one field's new value under the merge rule. */
 function mergeField(
   type: string,

@@ -126,6 +126,24 @@ test('the browser studio is a project participant by default (MAUDE_CELL_PAIRING
   assert.match(renderCompose(ok(BASE)), /MAUDE_CELL_PAIRING: \$\{MAUDE_CELL_PAIRING\}/);
 });
 
+test('a fresh workspace starts NEW projects in accepted revisions (MAUDE_NEW_PROJECT_MODE, Michal 1A)', () => {
+  // 2026-10-28: the operator path no longer needs the owner's manual switch for a brand-new
+  // project. The hub applies it only to a project that never switched and holds no canvas
+  // (hub-integration adoptNewProjectMode), so an existing project is untouched — and the
+  // manual switch stays for it. Pairing is on in the same stack, which the switch requires.
+  const byKey = Object.fromEntries(
+    envEntries(ok(BASE), { hubSecret: 'x' }).map((e) => [e.key, e.value])
+  );
+  assert.equal(byKey.MAUDE_NEW_PROJECT_MODE, 'transactions');
+  assert.equal(byKey.MAUDE_CELL_PAIRING, '1');
+  // written into .env AND forwarded to the container (the hand-maintained pair, see S3 below)
+  assert.match(renderCompose(ok(BASE)), /MAUDE_NEW_PROJECT_MODE: \$\{MAUDE_NEW_PROJECT_MODE\}/);
+  assert.match(
+    renderEnv(envEntries(ok(BASE), { hubSecret: 'x' })),
+    /^MAUDE_NEW_PROJECT_MODE='transactions'$/m
+  );
+});
+
 test('.env includes S3 only when configured', () => {
   const without = envEntries(ok(BASE), { hubSecret: 'x' }).map((e) => e.key);
   assert.ok(!without.includes('MAUDE_S3_BUCKET'));
@@ -153,6 +171,20 @@ test('MinIO is behind a PROFILE, not a comment', () => {
   assert.match(yaml, /profiles: \["dev"\]/);
   assert.match(yaml, /DEV ONLY/);
   assert.ok(!renderCompose(ok(BASE)).includes('minio'), 'no MinIO without devMinio');
+});
+
+// V2-8.9 round B P1 — the dev MinIO carries fixed root credentials, so it must never listen on the LAN:
+// its ports are published on loopback only (the hub reaches it at minio:9000 on the compose network).
+test('the dev MinIO publishes on 127.0.0.1 only', () => {
+  const yaml = renderCompose(ok({ ...BASE, devMinio: true }));
+  const block = yaml.slice(
+    yaml.indexOf('  minio:'),
+    yaml.indexOf('healthcheck:', yaml.indexOf('  minio:'))
+  );
+  const ports = [...block.matchAll(/^\s*- "([^"]+)"\s*$/gm)].map((m) => m[1]);
+  assert.ok(ports.length > 0, block);
+  for (const p of ports)
+    assert.match(p, /^127\.0\.0\.1:\d+:\d+$/, `MinIO published beyond loopback: ${p}`);
 });
 
 test('the hub is exposed, never published — Caddy is the only way in', () => {
@@ -318,6 +350,17 @@ test('the compose file matches the scheme it is actually serving', () => {
   assert.match(real, /HUB_PUBLIC_URL: https:\/\/\$\{PUBLIC_DOMAIN\}/);
   assert.match(real, /"443:443"/);
   assert.ok(!real.includes('HUB_INSECURE_HTTP'));
+});
+
+// V2-8.18 (the local workspace run by the Docker gate): `"80:80"` publishes on every interface, so a
+// --local trial — plain HTTP, sign-in passwords in the clear — answered anyone on the same Wi-Fi.
+test('--local publishes its plain-HTTP port on loopback only; a real workspace stays public', () => {
+  const local = renderCompose(ok(LOCAL));
+  assert.match(local, /- "127\.0\.0\.1:80:80"/);
+  assert.ok(!/- "80:80"/.test(local), 'no all-interfaces binding in local mode');
+  const real = renderCompose(ok(BASE));
+  assert.match(real, /- "80:80"/, 'a real workspace still answers ACME + the redirect on :80');
+  assert.match(real, /- "443:443"/);
 });
 
 test('the admin PASSWORD reaches the container, not just the address', () => {

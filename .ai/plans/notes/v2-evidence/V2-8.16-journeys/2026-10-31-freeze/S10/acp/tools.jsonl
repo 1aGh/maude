@@ -1,0 +1,6 @@
+{"lane":"acp","name":"Skill","input":{"skill":"design:system"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design ds status --json","description":"Show design systems state"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design ds usage maude --json","description":"Show canvases using the maude system"}}
+{"lane":"acp","name":"Bash","input":{"command":"cd .design 2>/dev/null && ls system/maude; cat system/maude/config.json 2>/dev/null | head -40; grep -n -i \"accent\" system/maude/colors_and_type.css | head -30","description":"Inspect maude system config and accent tokens"}}
+{"lane":"acp","name":"Edit","input":{"replace_all":false,"file_path":"/Users/iagh/git/personal/maude/.claude/worktrees/freeze/.ai/plans/notes/v2-evidence/V2-8.16-journeys/2026-10-31-freeze/S10/acp/project/.design/system/maude/colors_and_type.css","old_string":"  --accent:        oklch(0.520 0.195 268);   /* deeper on light for contrast  */","new_string":"  --accent:        oklch(0.470 0.195 268);   /* deeper on light for contrast  */"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design ds-check maude --emit; echo \"--- check\"; maude design ds-check maude; echo \"--- check-system\"; maude design ds check-system maude --json; echo \"--- usage\"; maude design ds usage maude --json","description":"Refresh tokens, check system, list usage"}}

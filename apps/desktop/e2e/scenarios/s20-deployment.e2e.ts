@@ -1,10 +1,10 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { $, $$, browser, expect } from '@wdio/globals';
-
 import { capture, startReport } from '../helpers/evidence';
-import { isNativeShell } from '../helpers/native';
+import { connectHubFromHome, focusHome } from '../helpers/home-entry';
 import { waitForSidecar } from '../helpers/sidecar';
+import { pinCurrentWindow } from '../helpers/windows';
 
 /**
  * S20 — the invited designer, on a deployment that is actually live.
@@ -187,32 +187,21 @@ describe('s20-deployment (native-desktop)', () => {
     if (!S20) this.skip();
     startReport(`S20 — an invited designer works on ${S20?.label ?? 'the deployment'}`);
     await browser.setTimeout({ script: 60_000 });
-    await (browser as unknown as { tauri?: { switchWindow(label: string): Promise<void> } }).tauri
-      ?.switchWindow('main')
-      .catch((error: unknown) => console.warn(`[s20] window pin failed: ${String(error)}`));
+    await pinCurrentWindow().catch((error: unknown) =>
+      console.warn(`[s20] window pin failed: ${String(error)}`)
+    );
   });
 
-  it('1 · first run offers the invited-project door', async () => {
-    await waitForSidecar();
-    expect(await isNativeShell()).toBe(true);
-    const door = await $(tid('ob-door-team'));
-    await door.waitForDisplayed({ timeout: 180_000 });
-    expect(await door.getText()).toContain('invited');
-    await capture('01-first-run-team-door');
-    await door.click();
-    await (await $(tid('team-projects'))).waitForDisplayed({ timeout: 15_000 });
-    await capture('02-team-projects');
+  it('1 · a clean profile opens Home, which offers the self-hosted hub', async () => {
+    await focusHome();
+    await capture('01-home-first-run');
   });
 
   it('2 · email + password opens the real project’s own copy', async () => {
     const t = S20 as NonNullable<typeof S20>;
-    await (await $(tid('team-hub-url'))).setValue(t.hub);
-    await (await $(tid('team-hub-email'))).setValue(t.email);
-    await (await $(tid('team-hub-password'))).setValue(t.password);
-    await (await $(tid('team-hub-open'))).click();
-    // The shell switches the sidecar and the webview reloads onto the project.
-    await browser.pause(6_000);
-    await waitForSidecar();
+    // The v1 first-run wizard door is retired with the wizard (S6.15): Home's "Use a self-hosted hub" is
+    // the way in, and the project opens as a tab of its own.
+    await connectHubFromHome({ hub: t.hub, email: t.email, password: t.password });
     // A real project's checkout takes as long as it takes.
     await (await $(tid('canvas-list'))).waitForDisplayed({ timeout: 300_000 });
     await eventually(
@@ -319,9 +308,7 @@ describe('s20-deployment (native-desktop)', () => {
   it('5 · quit and reopen: the app comes back to the project on its own', async () => {
     const t = S20 as NonNullable<typeof S20>;
     await browser.reloadSession();
-    await (browser as unknown as { tauri?: { switchWindow(label: string): Promise<void> } }).tauri
-      ?.switchWindow('main')
-      .catch(() => {});
+    await pinCurrentWindow().catch(() => {});
     await waitForSidecar();
     // No door, no folder picker: the project is simply there again.
     await (await $(tid('canvas-list'))).waitForDisplayed({ timeout: 300_000 });
@@ -347,35 +334,14 @@ describe('s20-deployment (native-desktop)', () => {
     // Deleting the FILE is not deleting the canvas: the deployment holds the
     // document and puts the file back, which is what should happen when an
     // editor or a stray `rm` removes one. Removal is a deliberate action, so
-    // the designer takes it in the product — the row's own delete control.
-    // Its confirmation is a native `window.confirm`, outside the DOM and
-    // outside WebDriver's reach in this shell; answering it here is the only
-    // accommodation in this scenario.
-    await browser.execute(() => {
-      window.confirm = () => true;
-    });
+    // the designer takes it in the product — the row menu's "Move to trash" (S1.2: it asks nothing and
+    // offers Undo, so there is no native confirm to answer any more).
     const row = await $(`[data-testid^="canvas-row-"][data-testid$="s20-release-check"]`);
     await row.waitForDisplayed({ timeout: 60_000 });
     await row.moveTo();
-    // The row IS a <button>, so its delete control cannot be nested inside it —
-    // it is a sibling in the row wrapper. Pick it out of the tree's delete
-    // controls by the canvas it names.
-    let del: WebdriverIO.Element | null = null;
-    await eventually(
-      'the delete control for the throwaway canvas',
-      async () => {
-        for (const b of await $$('[aria-label^="Delete canvas"]')) {
-          const label = (await b.getAttribute('aria-label')) ?? '';
-          if (label.toLowerCase().includes('s20-release-check')) {
-            del = b as unknown as WebdriverIO.Element;
-            return true;
-          }
-        }
-        return false;
-      },
-      30_000
-    );
-    await (del as unknown as WebdriverIO.Element).click();
+    const trigger = await $(`[data-testid^="tree-row-menu-"][data-testid$="s20-release-check"]`);
+    await trigger.click();
+    await (await $(tid('canvas-menu-trash'))).click();
     await eventually('the throwaway canvas retired on the deployment', async () =>
       (await hubDocs(t.hub)).every((p) => p !== REL)
     );

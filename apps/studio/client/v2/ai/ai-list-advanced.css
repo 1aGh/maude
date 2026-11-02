@@ -1,0 +1,625 @@
+/* @layer components — S5.12: the chat list (03 `ai-chat-list`) and the Advanced fold (03 `ai-advanced`,
+   `ai-adv-edges`). Tokens only: no hex, weights ≤ 600, motion collapses to 1 ms under reduced motion
+   (the global rule). The thread keeps the v1 `chat-*` classes; this file adds what 03 draws on top. */
+@layer components {
+  /* ── The chat list ── */
+  .sh-rp-body--list {
+    padding: 0;
+    min-height: 0;
+    gap: 0;
+  }
+  .ai-cl {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-3);
+    gap: var(--space-2);
+  }
+  .ai-cl-hd {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .ai-cl-hd strong {
+    flex: 1;
+    font-family: var(--font-rounded);
+    font-size: var(--type-sm);
+    font-weight: 600;
+  }
+  .ai-cl-back {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-2);
+    rotate: 180deg;
+    cursor: pointer;
+  }
+  .ai-cl-back:hover {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+  .ai-cl-back:focus-visible,
+  .ai-cl-open:focus-visible,
+  .ai-cl-dots:focus-visible,
+  .ai-cl-more:focus-visible,
+  .ai-cl-menu-item:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .ai-cl-chip {
+    max-width: 50%;
+    overflow: hidden;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-pill);
+    background: var(--bg-3);
+    color: var(--fg-1);
+    font-size: var(--type-xs);
+    line-height: 20px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ai-cl-find {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    height: 30px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+    color: var(--fg-2);
+  }
+  .ai-cl-find.is-on,
+  .ai-cl-find:focus-within {
+    background: var(--bg-2);
+    box-shadow:
+      0 0 0 3px var(--accent-tint),
+      inset 0 0 0 1px var(--accent);
+    color: var(--fg-1);
+  }
+  .ai-cl-find-in {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--fg-0);
+    font: inherit;
+    font-size: var(--type-sm);
+  }
+  .ai-cl-find-in::placeholder {
+    color: var(--fg-2);
+  }
+  .ai-cl-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .ai-cl-gt {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin: var(--space-3) 0 var(--space-1);
+    font-size: var(--type-xs);
+    font-weight: 600;
+    color: var(--fg-2);
+  }
+  .ai-cl-gc {
+    font-size: var(--type-xs);
+    font-weight: 400;
+    color: var(--fg-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .ai-cl-grp {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-bottom: var(--space-2);
+  }
+  .ai-cl-canvas {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--type-xs);
+    font-weight: 600;
+    color: var(--fg-1);
+  }
+  .ai-cl-thumb {
+    flex: none;
+    width: 28px;
+    height: 20px;
+    overflow: hidden;
+    border-radius: var(--radius-xs, 3px);
+    background: var(--bg-3);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+  }
+  .ai-cl-thumb img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .ai-cl-canvas-n {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ai-cl-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-height: 40px;
+    border-radius: var(--radius-md);
+  }
+  .ai-cl-row:hover,
+  .ai-cl-row.is-active,
+  .ai-cl-row.is-menu {
+    background: var(--bg-3);
+  }
+  .ai-cl-open {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 40px;
+    padding: 0 var(--space-2) 0 var(--space-5);
+    border: 0;
+    border-radius: inherit;
+    background: transparent;
+    color: var(--fg-0);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .ai-cl-state {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+  }
+  .ai-cl-stxt {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .ai-cl-st {
+    overflow: hidden;
+    font-size: var(--type-sm);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ai-cl-sw {
+    overflow: hidden;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ai-cl-mark {
+    border-radius: var(--radius-xs);
+    background: var(--accent-tint);
+    color: inherit;
+  }
+  .ai-cl-when {
+    flex: none;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .ai-cl-when--needs {
+    color: var(--accent-text);
+    font-weight: 600;
+  }
+  .ai-cl-more {
+    align-self: flex-start;
+    padding: var(--space-1) var(--space-2) var(--space-1)
+      calc(var(--space-5) + 8px + var(--space-2));
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--accent-text);
+    font: inherit;
+    font-size: var(--type-xs);
+    cursor: pointer;
+  }
+  .ai-cl-more:hover {
+    background: var(--bg-3);
+  }
+  .ai-cl-dots-wrap {
+    position: relative;
+    flex: none;
+  }
+  .ai-cl-dots {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    margin-right: var(--space-1);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-2);
+    opacity: 0;
+    cursor: pointer;
+  }
+  .ai-cl-row:hover .ai-cl-dots,
+  .ai-cl-dots:focus-visible,
+  .ai-cl-dots[aria-expanded="true"] {
+    opacity: 1;
+  }
+  .ai-cl-dots:hover {
+    background: var(--bg-4);
+    color: var(--fg-0);
+  }
+  .ai-cl-menu {
+    position: absolute;
+    top: calc(100% + 2px);
+    right: 0;
+    z-index: 20;
+    min-width: 200px;
+    padding: var(--space-1);
+    border-radius: var(--radius-md);
+    background: var(--bg-2);
+    box-shadow:
+      0 0 0 0.5px var(--border-default),
+      var(--shadow-md);
+  }
+  .ai-cl-menu-item {
+    display: block;
+    width: 100%;
+    padding: var(--space-1) var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-0);
+    font: inherit;
+    font-size: var(--type-sm);
+    text-align: left;
+    cursor: pointer;
+  }
+  .ai-cl-menu-item:hover {
+    background: var(--bg-3);
+  }
+  .ai-cl-menu-item--danger {
+    color: var(--status-error-text);
+  }
+  .ai-cl-menu-sep {
+    height: 0;
+    margin: var(--space-1) 0;
+    border: 0;
+    box-shadow: inset 0 0.5px 0 var(--border-default);
+  }
+  .ai-cl-rename {
+    flex: 1;
+    min-width: 0;
+    height: 30px;
+    margin: 0 var(--space-1) 0 var(--space-5);
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    box-shadow: inset 0 0 0 1px var(--accent);
+    color: var(--fg-0);
+    font: inherit;
+    font-size: var(--type-sm);
+  }
+  .ai-cl-foot {
+    padding-top: var(--space-2);
+    box-shadow: inset 0 0.5px 0 var(--border-default);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .ai-cl-empty {
+    padding: var(--space-4) var(--space-2);
+    font-size: var(--type-sm);
+    color: var(--fg-2);
+  }
+
+  /* The trash dialog: the title asks with the verb the button carries. */
+  .ai-cl-scrim {
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+    display: grid;
+    place-items: center;
+    padding: var(--space-4);
+    background: oklch(0 0 0 / 0.32);
+  }
+  .ai-cl-dialog {
+    width: min(100%, 320px);
+    padding: var(--space-4);
+    border-radius: var(--radius-lg);
+    background: var(--bg-2);
+    box-shadow:
+      0 0 0 0.5px var(--border-default),
+      var(--shadow-md);
+  }
+  .ai-cl-dialog-t {
+    margin: 0 0 var(--space-2);
+    font-family: var(--font-rounded);
+    font-size: var(--type-sm);
+    font-weight: 600;
+  }
+  .ai-cl-dialog-b {
+    margin: 0 0 var(--space-3);
+    font-size: var(--type-sm);
+    line-height: var(--lh-sm);
+    color: var(--fg-1);
+  }
+  .ai-cl-dialog-err {
+    margin: 0 0 var(--space-3);
+    font-size: var(--type-xs);
+    color: var(--status-error-text);
+  }
+  .ai-cl-dialog-acts {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2);
+  }
+
+  /* ── The suggest-only banner ── */
+  .ai-modebar {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    margin: var(--space-2) var(--space-3) 0;
+    padding: var(--space-2);
+    border-radius: var(--radius-md);
+    background: var(--accent-muted);
+    font-size: var(--type-sm);
+    line-height: var(--lh-sm);
+    color: var(--fg-0);
+  }
+  .ai-modebar-t {
+    flex: 1;
+    min-width: 0;
+  }
+  .ai-modebar-t strong {
+    font-weight: 600;
+  }
+  .ai-modebar .btn {
+    flex: none;
+    background: var(--bg-2);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+  }
+
+  /* ── The Advanced fold ── */
+  .ai-adv {
+    flex: none;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .ai-adv-fold {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    margin: 0 var(--space-2) var(--space-2);
+    padding-top: var(--space-1);
+    box-shadow: inset 0 0.5px 0 var(--border-default);
+  }
+  .ai-adv-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    height: 28px;
+    padding: 0 var(--space-1);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    font-family: var(--font-body);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    cursor: pointer;
+  }
+  .ai-adv-btn:hover {
+    background: var(--bg-2);
+    color: var(--fg-1);
+  }
+  .ai-adv-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .ai-adv-ch {
+    display: inline-grid;
+    color: var(--fg-2);
+  }
+  .ai-adv-fold[data-open] .ai-adv-ch {
+    transform: rotate(90deg);
+  }
+  .ai-adv-body {
+    max-height: 46vh;
+    overflow-y: auto;
+    padding: var(--space-1);
+  }
+  .ai-adv-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .ai-adv-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-1) var(--space-2);
+    min-height: 30px;
+    font-size: var(--type-sm);
+  }
+  .ai-adv-k {
+    color: var(--fg-1);
+  }
+  .ai-adv-select {
+    max-width: 100%; /* P8 c5: a native select sizes to its longest option; 62% cut "Replace or move to the t…" */
+    height: 26px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+    color: var(--fg-0);
+    font: inherit;
+    font-size: var(--type-xs);
+  }
+  .ai-adv-select:focus-visible,
+  .ai-adv-acts .btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .ai-adv-sub {
+    margin-top: var(--space-2);
+    font-size: var(--type-xs);
+    font-weight: 600;
+    color: var(--fg-2);
+  }
+  .ai-adv-hint {
+    flex-basis: 100%;
+    padding-bottom: var(--space-1);
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+  }
+  .ai-adv-val {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .ai-adv-mono {
+    max-width: 62%;
+    overflow: hidden;
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ai-meter {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--type-xs);
+    font-variant-numeric: tabular-nums;
+  }
+  .ai-meter b {
+    font-weight: 500;
+    color: var(--fg-1);
+  }
+  .ai-bar {
+    display: block;
+    width: 72px;
+    height: 4px;
+    overflow: hidden;
+    border-radius: var(--radius-pill);
+    background: var(--bg-4);
+  }
+  .ai-bar i {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--fg-1);
+  }
+  .ai-adv-acts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    margin-top: var(--space-2);
+  }
+  .ai-adv-foot {
+    margin-top: var(--space-2);
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+  }
+
+  /* ── The raw log island ── */
+  .ai-log {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin-top: var(--space-3);
+    padding: var(--space-2);
+    border-radius: var(--radius-md);
+    background: var(--bg-2);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+  }
+  .ai-log:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .ai-log-t {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--type-sm);
+    font-weight: 600;
+  }
+  .ai-log-t > span:first-child {
+    flex: 1;
+  }
+  .ai-log-chat {
+    max-width: 50%;
+    overflow: hidden;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-pill);
+    background: var(--bg-3);
+    color: var(--fg-1);
+    font-size: var(--type-xs);
+    font-weight: 400;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ai-log-lines {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 200px;
+    overflow-y: auto;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-1);
+  }
+  .ai-log-line {
+    overflow-wrap: anywhere;
+  }
+  .ai-log-line b {
+    display: inline-block;
+    min-width: 4.5ch;
+    font-weight: 600;
+    color: var(--fg-0);
+  }
+  .ai-log-line em {
+    font-style: normal;
+  }
+  .ai-log-bad {
+    color: var(--status-error-text);
+  }
+  .ai-log-run,
+  .ai-log-note,
+  .ai-log-sum,
+  .ai-log-empty {
+    color: var(--fg-2);
+  }
+  .ai-log-empty {
+    font-size: var(--type-xs);
+  }
+}

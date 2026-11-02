@@ -124,20 +124,28 @@ fi
 DESIGN_ROOT="$REPO/.design"
 STATE="$DESIGN_ROOT/_server.json"
 
-read_port() {
+# V2-8.9 round B A4 — `_server.json` sits in the project, so a planted or stale copy is untrusted: a value is
+# used only when it is a plain number (port 1–5 digits, pid digits); anything else reads as empty, which makes
+# the file stale. Nothing read from the file is ever printed except a validated number.
+read_field() {
+  local v
   if command -v jq >/dev/null 2>&1; then
-    jq -r .port "$STATE" 2>/dev/null
+    v=$(jq -r ".$1 // empty" "$STATE" 2>/dev/null | head -n1)
   else
     # Best-effort grep — jq is in repo deps but be defensive.
-    sed -nE 's/.*"port"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p' "$STATE" 2>/dev/null | head -n1
+    v=$(sed -nE "s/.*\"$1\"[[:space:]]*:[[:space:]]*([0-9]+).*/\\1/p" "$STATE" 2>/dev/null | head -n1)
   fi
+  printf '%s' "$v"
+}
+read_port() {
+  local v
+  v=$(read_field port)
+  if [[ "$v" =~ ^[0-9]{1,5}$ ]] && [ "$v" -ge 1 ] && [ "$v" -le 65535 ]; then printf '%s\n' "$v"; fi
 }
 read_pid() {
-  if command -v jq >/dev/null 2>&1; then
-    jq -r .pid "$STATE" 2>/dev/null
-  else
-    sed -nE 's/.*"pid"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p' "$STATE" 2>/dev/null | head -n1
-  fi
+  local v
+  v=$(read_field pid)
+  if [[ "$v" =~ ^[0-9]{1,10}$ ]]; then printf '%s\n' "$v"; fi
 }
 
 # Step 1 — check existing.
@@ -148,8 +156,27 @@ if [ -f "$STATE" ]; then
   # Sandboxed agents may reach Studio while kill -0 returns EPERM. Verify the
   # server's identity over HTTP instead of mistaking denied signalling for death.
   HEALTH=""
+  PROBE_RC=0
+  probe() {
+    HEALTH=$(curl -fs --max-time "$1" "http://127.0.0.1:$PORT/_health" 2>/dev/null)
+    PROBE_RC=$?
+  }
   if [ -n "$PORT" ]; then
-    HEALTH=$(curl -fs --max-time 2 "http://localhost:$PORT/_health" 2>/dev/null || true)
+    # A probe that TIMES OUT (curl 28) means something is listening on the port: a busy studio on a loaded Mac,
+    # not a dead one. Ask again with longer waits before calling it stale — respawning a live studio starts a
+    # second instance and the first one ends (2026-10-28: the design.studyfi.com sync went down twice). A refused
+    # connection or a wrong identity is still stale.
+    probe 2
+    for wait in 5 10; do
+      [ "$PROBE_RC" = 28 ] || break
+      echo "… /_health on port $PORT is slow; asking again (${wait}s)" >&2
+      probe "$wait"
+    done
+    if [ "$PROBE_RC" = 28 ]; then
+      echo "✗ a server is listening on port $PORT but has not answered /_health in 17s; not starting a second one" >&2
+      echo "  (stop it first if it is stuck: pid ${PID:-?}, see $STATE)" >&2
+      exit 1
+    fi
   fi
   if [ -n "$PID" ] && [ -n "$PORT" ] \
      && printf '%s' "$HEALTH" | node -e '
@@ -221,12 +248,22 @@ fi
 # Step 2 — spawn.
 mkdir -p "$DESIGN_ROOT"
 echo "→ starting dev server: $RUNTIME_CMD --root $REPO" >&2
+# Its own session, not the caller's process group: `nohup … &` alone keeps the caller's group, and an agent's shell
+# tool that times out or is stopped signals that whole group — the studio got SIGTERM with nobody asking
+# (2026-10-28). macOS has no setsid(1); perl ships with it. Without perl, plain nohup (the old behaviour).
+detached() {
+  if command -v perl >/dev/null 2>&1; then
+    nohup perl -MPOSIX -e 'POSIX::setsid(); exec { $ARGV[0] } @ARGV or exit 127' -- "$@"
+  else
+    nohup "$@"
+  fi
+}
 if [ "$RUNTIME" = "binary" ]; then
-  nohup "$SERVER_BIN" --root "$REPO" > "$DESIGN_ROOT/_server.log" 2>&1 &
+  detached "$SERVER_BIN" --root "$REPO" > "$DESIGN_ROOT/_server.log" 2>&1 &
 elif [ "$RUNTIME" = "bun" ]; then
-  nohup bun "$SERVER_TS" --root "$REPO" > "$DESIGN_ROOT/_server.log" 2>&1 &
+  detached bun "$SERVER_TS" --root "$REPO" > "$DESIGN_ROOT/_server.log" 2>&1 &
 elif [ "$RUNTIME" = "node" ]; then
-  nohup node "$SERVER_MJS" --root "$REPO" > "$DESIGN_ROOT/_server.log" 2>&1 &
+  detached node "$SERVER_MJS" --root "$REPO" > "$DESIGN_ROOT/_server.log" 2>&1 &
 fi
 disown 2>/dev/null || true
 
@@ -237,7 +274,7 @@ while [ $i -lt "$TIMEOUT" ]; do
   i=$((i + 1))
   if [ -f "$STATE" ]; then
     PORT=$(read_port)
-    if [ -n "$PORT" ] && curl -fs "http://localhost:$PORT/_health" >/dev/null 2>&1; then
+    if [ -n "$PORT" ] && curl -fs "http://127.0.0.1:$PORT/_health" >/dev/null 2>&1; then
       echo "✓ server started port=$PORT after ${i}s" >&2
       echo "$PORT"
       exit 0

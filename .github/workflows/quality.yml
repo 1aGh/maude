@@ -162,6 +162,15 @@ jobs:
       - name: MDCC tokens drift (.design ↔ site/app)
         run: pnpm --filter @maude/site sync:tokens:check
 
+      # V2-2.6: the studio's generated token copies (maude-v2 client ladder + canvas HUD block)
+      - name: Studio token drift (scripts/gen-tokens.mjs)
+        run: node scripts/gen-tokens.mjs --check
+
+      # S10.13 (S10 Q4): both in-repo systems stay at schema level 0 — an edit to colors_and_type.css that skips
+      # `ds-check --emit` turns `manifest-stale` (level 10) red here, not at the next release.
+      - name: Design-system schema (maude + maude-v2 at level 0)
+        run: node cli/bin/maude.mjs design ds-check maude maude-v2
+
       - name: Site generated content drift (reference + stats + lib mirrors)
         # The whole generated set, not a subset: site/lib/whats-new.json sat
         # outside this gate and went stale through the v1.0.0 release (the
@@ -174,6 +183,8 @@ jobs:
           pnpm --filter @maude/site gen:stats
           pnpm --filter @maude/site gen:roadmap
           pnpm --filter @maude/site gen:whatsnew
+          # V2-2.4 — the action registry's generated files (canvas keymap, native menu slice).
+          node scripts/gen-actions.mjs --check
           DRIFT_PATHS="site/content/docs/commands-design site/content/docs/commands-flow site/content/docs/config-schema.mdx site/lib/stats.json site/lib/roadmap.json site/lib/whats-new.json"
           if ! git diff --quiet -- $DRIFT_PATHS; then
             echo "::error::Generated site content is stale. Run \`pnpm --filter @maude/site gen:reference && pnpm --filter @maude/site gen:stats && pnpm --filter @maude/site gen:roadmap && pnpm --filter @maude/site gen:whatsnew\` locally and commit the diff."
@@ -333,3 +344,10 @@ jobs:
             git --no-pager diff --stat -- apps/studio/dist/
             exit 1
           }
+
+      - name: Design plugin hooks (bun test)
+        # V2-2.4b — `maude design hook <event>` against a fixture studio over the real agent
+        # RouteSpecs, so it needs apps/studio installed (this job). Neither `pnpm test`
+        # (cli/**) nor the studio suite reaches plugins/ — scripts/test/quality-gates.test.mjs
+        # fails when a plugins/ test file has no `bun test` step here.
+        run: bun test plugins/design/hooks

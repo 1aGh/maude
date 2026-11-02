@@ -175,6 +175,7 @@ describe('L2 — nothing moves, deletes or edits a locked element', () => {
 });
 
 describe('L3 — marquee and duplicate', () => {
+  // Michal rc.1 #17: Preview's Select (V, the resting pointer) rubber-bands again, and a locked sticky stays out.
   test('a marquee over both stickies selects only the unlocked one', async () => {
     await reset();
     const a = await c.pageBox('lk');

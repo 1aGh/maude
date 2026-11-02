@@ -1,0 +1,14 @@
+[0-0] [team-cell-missing] the card: LetakA6 has no artboards left.You moved all three to the trash just now. Restore puts them back where they were; every earlier version is in Version history too.Restore 3 artboards
+[0-0] [team-cell-missing] race outcome: designer=["flag-front","flag-back","tackle-front"] teammate=["tackle-back"]
+Expected: false
+Received: true
+[webkit 605.1.15 macos #0-0]    ✓ 12 · ia-missing: a picture alice holds and the cell does not reads "Waiting for Alice’s device" — quiet, not Missing
+[webkit 605.1.15 macos #0-0]    ✓ 12 · ia-edges D: a photo dropped while the cell is away is kept on this Mac, and goes up by itself once it is online
+[webkit 605.1.15 macos #0-0]    ✓ 05 · es-all-trashed (card): a canvas with no artboard left shows the card and its Restore button
+[webkit 605.1.15 macos #0-0]    ✖ 05 · es-all-trashed (race): two offline trashes never merge to zero — one side keeps its trash, the other is held
+[webkit 605.1.15 macos #0-0] 3 passing (2m 10.2s)
+[webkit 605.1.15 macos #0-0] 1 failing
+Expected: false
+Received: true
+[webkit 605.1.15 macos #0-0] Expected: false
+[webkit 605.1.15 macos #0-0] Received: true

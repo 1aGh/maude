@@ -1,0 +1,6 @@
+S4.V verifier findings (canvas 15), build = feat/maude-v2 e80f9d3b0.
+VERIFIED  an-enter       N in Edit -> Preview with Sticky in hand (toolbar-slot-sticky pressed, colour popover above), no banner.
+VERIFIED  an-stk-search  "done": All 6, done 4, almost-done 2, finished 2 (+ "complete 2" where the canvas draws "approved 2" - pack keyword data), "Project status 6 of 80", footer "No “done” in FigJam Doodle, Life Style or Opposing Thoughts · no stamp either".
+GAPS: an-visibility (no "Annotations hidden…Show" toast after shift-P; shift-cmd-A selects the 17 design objects instead of switching to Preview with the annotation bar), an-sticky (words set in monospace, canvas: rounded face), an-follow (one cmd-Z undoes the members only; members hidden under the dragged artboard), an-stk-gallery (pack order + Stamps subtitle).
+PARTIAL (not set): an-place (on-artboard parent + "On Homepage · moves with it" tag + 12 px stack seen; between-artboards and 5-line growth not probed), an-layers (Annotations 10, chips Everyone/You/AI, "Arrow to Book a call" rows seen; lock/section grouping/foot not probed).
+NOT REACHED: an-today an-marker an-arrow-bind an-rebind an-arrow-kinds an-dangling an-crowd an-section an-vs an-convert (Hand click does not select a sticky in Preview, right-click opens the design menu) - see ## Continue.

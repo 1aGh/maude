@@ -1,0 +1,92 @@
+{
+  "format": "maude.agent-journey/1",
+  "id": "S4",
+  "package": "S4",
+  "title": "Annotate: a sticky note + a sticker, then resolve the sticky",
+  "fixture": "app5",
+  "setup": [],
+  "turns": [
+    {
+      "say": "On the annotations of ui/GitPanel.tsx, add a sticky note saying “Check the empty-state spacing” next to “D · Nothing to save”, and put a sticker on “A · Changes, docked in the shell”. Then mark that sticky note resolved."
+    }
+  ],
+  "graders": [
+    {
+      "id": "sticky-resolved",
+      "grader": "sticky",
+      "path": "ui/GitPanel.tsx",
+      "text": "empty-state spacing",
+      "resolved": true
+    },
+    { "id": "sticker", "grader": "sticker", "path": "ui/GitPanel.tsx" },
+    {
+      "id": "through-the-verb",
+      "grader": "no-tool",
+      "tool": "Edit|Write|MultiEdit",
+      "input": "annotations\\.(json|svg)"
+    },
+    { "id": "canvas-untouched", "grader": "untouched", "path": "ui/GitPanel.tsx" }
+  ],
+  "dry": {
+    "good": [
+      {
+        "tag": "board",
+        "op": "board",
+        "path": "ui/GitPanel.tsx",
+        "ops": [
+          { "create": "sticky", "text": "Check the empty-state spacing", "resolve": true },
+          { "create": "sticker" }
+        ]
+      },
+      {
+        "op": "tool",
+        "name": "Bash",
+        "input": { "command": "maude design annotate ui/GitPanel.tsx --ops -" }
+      }
+    ],
+    "faults": {
+      "sticky-resolved": {
+        "replace": {
+          "board": {
+            "op": "board",
+            "path": "ui/GitPanel.tsx",
+            "ops": [
+              { "create": "sticky", "text": "Check the empty-state spacing" },
+              { "create": "sticker" }
+            ]
+          }
+        }
+      },
+      "sticker": {
+        "replace": {
+          "board": {
+            "op": "board",
+            "path": "ui/GitPanel.tsx",
+            "ops": [
+              { "create": "sticky", "text": "Check the empty-state spacing", "resolve": true }
+            ]
+          }
+        }
+      },
+      "through-the-verb": {
+        "add": [
+          {
+            "op": "tool",
+            "name": "Write",
+            "input": { "file_path": ".design/ui-gitpanel.annotations.json" }
+          }
+        ]
+      },
+      "canvas-untouched": {
+        "add": [
+          {
+            "op": "edit",
+            "path": "ui/GitPanel.tsx",
+            "old": ">Nothing to save</h3>",
+            "new": ">Check spacing</h3>"
+          }
+        ]
+      }
+    }
+  }
+}

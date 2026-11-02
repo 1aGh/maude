@@ -1,99 +1,107 @@
 # browser/palette-open
-div .st-palette [role="dialog"] [aria-label="Command palette"] [aria-modal="true"]
-  div .st-pal-search
+button .sh-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="true"] [title="Edit"] [type="button"]
+  svg .sh-mode-g [aria-hidden="true"]
+button .sh-mode-b [data-testid="palette-mode-preview"] [aria-label="Preview — the design is live"] [aria-pressed="false"] [title="Preview"] [type="button"]
+  svg .sh-mode-g [aria-hidden="true"]
+button .sh-mode-hit [data-testid="palette-mode-present"] [aria-label="Present"] [aria-pressed="false"] [title="Present"] [type="button"] [disabled]
+  svg .sh-mode-g [aria-hidden="true"]
+div .sh-palette.sh-palette--search [role="dialog"] [aria-label="Command palette"] [aria-modal="true"] [tabindex="-1"]
+  div .sh-pal-search
     svg [aria-hidden="true"]
-    input [aria-label="Command search"] [placeholder="Type a command or search…"] [value]
-    span .kbd "⌘K"
-  div .st-pal-list
-    div .st-pal-group "Canvas"
-    button .is-active.st-pal-item [type="button"]
-      span .st-pal-icon
+    input [data-testid="palette-input"] [role="combobox"] [aria-label="Command search"] [aria-expanded="true"] [aria-haspopup="listbox"] [placeholder="Search canvases, actions, or ask AI…"] [value]
+    span .kbd "esc"
+  div .sh-pal-list [data-testid="palette-list"] [role="listbox"] [aria-label="Results"]
+    div [role="presentation"]
+      div .sh-pal-group [role="presentation"] "Recent"
+      p .sh-pal-recent-none [data-testid="palette-recent-empty"]
+        span .sh-pal-sit "Nothing opened yet."
+        span .sh-pal-next "Canvases you open show up here, newest first."
+    div [role="group"]
+      div .sh-pal-group [role="presentation"] "Start here"
+      button .is-active.sh-pal-item [data-testid="palette-row-start:canvas.new"] [role="option"] [aria-selected="true"] [type="button"] [tabindex="-1"]
+        span .sh-pal-icon
+          svg [aria-hidden="true"]
+        span .sh-pal-label
+          span .sh-pal-ltxt "New canvas"
+      button .sh-pal-item [data-testid="palette-row-start:project.open"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+        span .sh-pal-icon
+          svg [aria-hidden="true"]
+        span .sh-pal-label
+          span .sh-pal-ltxt "Open project…"
+      button .sh-pal-item [data-testid="palette-row-start:import.figma"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+        span .sh-pal-icon
+          svg [aria-hidden="true"]
+        span .sh-pal-label
+          span .sh-pal-ltxt "Import from Figma…"
+      button .sh-pal-item [data-testid="palette-row-start:help.shortcuts"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+        span .sh-pal-icon
+          svg [aria-hidden="true"]
+        span .sh-pal-label
+          span .sh-pal-ltxt "Keyboard shortcuts"
+        span .sh-pal-kbd
+          span .kbd "?"
+  div .sh-pal-foot
+    span .sh-pal-hints
+      span "move"
+        span .kbd "↑"
+        span .kbd "↓"
+      span "run"
+        span .kbd "↵"
+    span [data-testid="palette-count"] [role="status"] "Every tool is here — type its name"
+input [data-testid="palette-input"] [role="combobox"] [aria-label="Command search"] [aria-expanded="true"] [aria-haspopup="listbox"] [placeholder="Search canvases, actions, or ask AI…"] [value]
+div .sh-pal-list [data-testid="palette-list"] [role="listbox"] [aria-label="Results"]
+  div [role="presentation"]
+    div .sh-pal-group [role="presentation"] "Recent"
+    p .sh-pal-recent-none [data-testid="palette-recent-empty"]
+      span .sh-pal-sit "Nothing opened yet."
+      span .sh-pal-next "Canvases you open show up here, newest first."
+  div [role="group"]
+    div .sh-pal-group [role="presentation"] "Start here"
+    button .is-active.sh-pal-item [data-testid="palette-row-start:canvas.new"] [role="option"] [aria-selected="true"] [type="button"] [tabindex="-1"]
+      span .sh-pal-icon
         svg [aria-hidden="true"]
-      span .st-pal-label "New canvas…"
-      span .st-pal-kbd
-        span .kbd "N"
-    button .st-pal-item [type="button"]
-      span .st-pal-icon
+      span .sh-pal-label
+        span .sh-pal-ltxt "New canvas"
+    button .sh-pal-item [data-testid="palette-row-start:project.open"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+      span .sh-pal-icon
         svg [aria-hidden="true"]
-      span .st-pal-label "New video…"
-    button .st-pal-item [type="button"]
-      span .st-pal-icon
+      span .sh-pal-label
+        span .sh-pal-ltxt "Open project…"
+    button .sh-pal-item [data-testid="palette-row-start:import.figma"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+      span .sh-pal-icon
         svg [aria-hidden="true"]
-      span .st-pal-label "Export…"
-      span .st-pal-kbd
-        span .kbd "⇧⌘E"
-    button .st-pal-item [type="button"]
-      span .st-pal-icon
+      span .sh-pal-label
+        span .sh-pal-ltxt "Import from Figma…"
+    button .sh-pal-item [data-testid="palette-row-start:help.shortcuts"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+      span .sh-pal-icon
         svg [aria-hidden="true"]
-      span .st-pal-label "Copy share link"
-    button .st-pal-item [type="button"]
-      span .st-pal-icon
-        svg [aria-hidden="true"]
-      span .st-pal-label "Handoff to production"
-      span .st-pal-kbd
-        span .kbd "⇧⌘H"
-    button .st-pal-item [type="button"]
-      span .st-pal-icon
-        svg [aria-hidden="true"]
-      span .st-pal-label "Generate with AI…"
-    button .st-pal-item [type="button"]
-      span .st-pal-icon
-        svg [aria-hidden="true"]
-      span .st-pal-label "Settings…"
-      span .st-pal-kbd
-        span .kbd "⌘,"
-    div .st-pal-group "View"
-    button .st-pal-item [type="button"]
-      span .st-pal-icon
-        svg [aria-hidden="true"]
-      span .st-pal-label "Open design system view"
-      span .st-pal-kbd
-        span .kbd "S"
-    button .st-pal-item [type="button"]
-      span .st-pal-icon
-        svg [aria-hidden="true"]
-      span .st-pal-label "Toggle comments panel"
-      span .st-pal-kbd
-        span .kbd "⌘⇧M"
-    button .st-pal-item [type="button"]
-      span .st-pal-icon
-        svg [aria-hidden="true"]
-      span .st-pal-label "Open inspector"
-      span .st-pal-kbd
-        span .kbd "⌘⇧I"
-    button .st-pal-item [type="button"]
-      span .st-pal-icon
-        svg [aria-hidden="true"]
-      span .st-pal-label "Reload active canvas"
-      span .st-pal-kbd
-        span .kbd "⌘R"
-    div .st-pal-group "Tools"
-    button .st-pal-item [type="button"]
-      span .st-pal-icon
-        svg [aria-hidden="true"]
-      span .st-pal-label "Draw a mark with the SVG agent"
-    button .st-pal-item [type="button"]
-      span .st-pal-icon
-        svg [aria-hidden="true"]
-      span .st-pal-label "Toggle light / dark theme"
-    div .st-pal-group "Help"
-    button .st-pal-item [type="button"]
-      span .st-pal-icon
-        svg [aria-hidden="true"]
-      span .st-pal-label "What's new in maude"
-    button .st-pal-item [type="button"]
-      span .st-pal-icon
-        svg [aria-hidden="true"]
-      span .st-pal-label "Keyboard shortcuts"
-      span .st-pal-kbd
+      span .sh-pal-label
+        span .sh-pal-ltxt "Keyboard shortcuts"
+      span .sh-pal-kbd
         span .kbd "?"
-    button .st-pal-item [type="button"]
-      span .st-pal-icon
-        svg [aria-hidden="true"]
-      span .st-pal-label "Help · commands & flows"
-      span .st-pal-kbd
-        span .kbd "F1"
-    button .st-pal-item [type="button"]
-      span .st-pal-icon
-        svg [aria-hidden="true"]
-      span .st-pal-label "Report a bug…"
+p .sh-pal-recent-none [data-testid="palette-recent-empty"]
+  span .sh-pal-sit "Nothing opened yet."
+  span .sh-pal-next "Canvases you open show up here, newest first."
+button .is-active.sh-pal-item [data-testid="palette-row-start:canvas.new"] [role="option"] [aria-selected="true"] [type="button"] [tabindex="-1"]
+  span .sh-pal-icon
+    svg [aria-hidden="true"]
+  span .sh-pal-label
+    span .sh-pal-ltxt "New canvas"
+button .sh-pal-item [data-testid="palette-row-start:project.open"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+  span .sh-pal-icon
+    svg [aria-hidden="true"]
+  span .sh-pal-label
+    span .sh-pal-ltxt "Open project…"
+button .sh-pal-item [data-testid="palette-row-start:import.figma"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+  span .sh-pal-icon
+    svg [aria-hidden="true"]
+  span .sh-pal-label
+    span .sh-pal-ltxt "Import from Figma…"
+button .sh-pal-item [data-testid="palette-row-start:help.shortcuts"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+  span .sh-pal-icon
+    svg [aria-hidden="true"]
+  span .sh-pal-label
+    span .sh-pal-ltxt "Keyboard shortcuts"
+  span .sh-pal-kbd
+    span .kbd "?"
+span [data-testid="palette-count"] [role="status"] "Every tool is here — type its name"

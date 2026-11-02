@@ -20,6 +20,8 @@ export const SHAPE_MIN_SIZE = 4;
 export const SECTION_MIN_SIZE = 64;
 export const SECTION_LABEL_FONT = 12;
 export const SECTION_LABEL_H = 20;
+/** S4.13 — a folded section is drawn, boxed and grabbed as this one line (the file keeps its full size). */
+export const SECTION_FOLDED_H = 40;
 export const IMAGE_MIN_SIZE = 16;
 export const TEXT_LINE_HEIGHT = 1.25;
 

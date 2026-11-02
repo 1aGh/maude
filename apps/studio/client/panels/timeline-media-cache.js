@@ -46,7 +46,9 @@ function enqueue(fn) {
 /** Server-persisted cache key — the content-addressed sha8 in the asset path
  *  when present (stable across machines/paths), else a djb2 of the src. */
 export function mediaCacheKey(src, bucket) {
-  const sha = String(src).match(/([a-f0-9]{8,})\.[a-z0-9]+$/i)?.[1]?.slice(0, 12);
+  const sha = String(src)
+    .match(/([a-f0-9]{8,})\.[a-z0-9]+$/i)?.[1]
+    ?.slice(0, 12);
   if (sha) return `${sha}-${bucket}`;
   let h = 5381;
   for (let i = 0; i < src.length; i += 1) h = ((h << 5) + h + src.charCodeAt(i)) >>> 0;
@@ -92,7 +94,8 @@ async function loadVideoMetadata(url, timeoutMs) {
   // WKWebView refuses to decode a detached <video> in some codec paths (the
   // desktop "no filmstrips" bug) — keep it in the document, invisible, for the
   // whole extraction, and kick the load explicitly.
-  video.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:2px;height:2px;opacity:0;pointer-events:none;';
+  video.style.cssText =
+    'position:fixed;left:-9999px;top:-9999px;width:2px;height:2px;opacity:0;pointer-events:none;';
   document.body.appendChild(video);
   video.src = url;
   try {
@@ -307,4 +310,67 @@ export function peaksToPath(peaks) {
     bottom.unshift(`${px.toFixed(2)} ${(6 + a).toFixed(2)}`);
   }
   return `M${top.join(' L')} L${bottom.join(' L')} Z`;
+}
+
+const stillMemory = new Map();
+
+/**
+ * One still per second asked for, from ONE load of the video (the Export sheet's filmstrip draws a picture for every
+ * clip of a cut, and a cut reuses a few source files). Resolves to an array the length of `seconds`, each a small JPEG
+ * data URL or null; never throws. Held in memory only — the sheet asks again next time it opens.
+ */
+export function getStillsAt(url, seconds) {
+  const keys = seconds.map((t) => `${url}@${t}`);
+  if (keys.every((k) => stillMemory.has(k)))
+    return Promise.resolve(keys.map((k) => stillMemory.get(k)));
+  return enqueue(async () => {
+    let video;
+    try {
+      video = await loadVideoMetadata(url, 8000);
+    } catch {
+      return keys.map(() => null);
+    }
+    const dur = video.duration;
+    const ratio = (video.videoHeight || 9) / (video.videoWidth || 16);
+    const canvas = document.createElement('canvas');
+    canvas.width = THUMB_W;
+    canvas.height = Math.max(2, Math.round(THUMB_W * ratio));
+    const g = canvas.getContext('2d');
+    const out = [];
+    for (let i = 0; i < seconds.length; i += 1) {
+      const hit = stillMemory.get(keys[i]);
+      if (hit !== undefined) {
+        out.push(hit);
+        continue;
+      }
+      let still = null;
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise((res, rej) => {
+          const to = setTimeout(() => rej(new Error('seek timeout')), 6000);
+          video.addEventListener(
+            'seeked',
+            () => {
+              clearTimeout(to);
+              res();
+            },
+            { once: true }
+          );
+          video.currentTime = Math.min(
+            Number.isFinite(dur) ? dur - 0.01 : seconds[i],
+            Math.max(0, seconds[i])
+          );
+        });
+        g.drawImage(video, 0, 0, canvas.width, canvas.height);
+        still = canvas.toDataURL('image/jpeg', 0.55);
+      } catch {
+        /* a flat tile stays */
+      }
+      stillMemory.set(keys[i], still);
+      out.push(still);
+    }
+    video.removeAttribute('src');
+    video.remove();
+    return out;
+  }).then((r) => r ?? keys.map(() => null));
 }

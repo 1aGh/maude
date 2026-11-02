@@ -1,0 +1,104 @@
+{
+  "canvas": "ui/panels/GitPanel.tsx",
+  "from": "maude",
+  "to": "maude-v2",
+  "meta": { "designSystem": "maude-v2" },
+  "edits": [
+    {
+      "old": " * @ds          maude\n",
+      "new": " * @ds          maude-v2\n",
+      "why": "Header tag follows the canvas's design system."
+    },
+    {
+      "old": " * Authored under the `maude` DS (\"Unified Pro Studio\", dark-first). Tokens +\n * shared component classes (.panel/.btn/.callout/.input/.tree-row/.kbd) arrive\n * via the imports below so the canvas renders in `maude` regardless of which DS\n * the host injects (UI canvases get designSystems[0] = `project` by default —\n * the explicit import + `.maude[data-theme]` scope wins). Mirrors Studio.tsx.",
+      "new": " * Authored under the `maude-v2` DS (\"Light glass with a spark\"). Tokens + shared\n * component classes (.card/.btn/.icon-btn/.callout/.checkbox/.row-item) are injected\n * by the shell from the canvas's design system; the `.ds[data-theme]` wrapper scopes\n * them per artboard.",
+      "why": "The old comment describes the maude imports and wrapper this switch removes."
+    },
+    {
+      "old": "import \"../../system/maude/colors_and_type.css\";\nimport \"../../system/maude/preview/_components.css\";\n",
+      "new": "",
+      "why": "ds-check S5 own-css: the shell injects the canvas's design system; pinned maude imports would override maude-v2."
+    },
+    {
+      "old": "<div className=\"panel gp-mini\">",
+      "new": "<div className=\"card gp-mini\">",
+      "why": "maude-v2 has no .panel. The canvas peek is content, and v2 forbids glass on content, so it takes the v2 .card surface rather than .island."
+    },
+    {
+      "old": "<div className=\"tree-row gp-row\" data-depth=\"0\" role=\"treeitem\" aria-expanded=\"true\">",
+      "new": "<div className=\"row-item gp-row\" data-depth=\"0\" role=\"treeitem\" aria-expanded=\"true\">",
+      "why": "maude .tree-row → maude-v2 .row-item (the v2 list row)."
+    },
+    {
+      "old": "<div className=\"tree-row gp-row\" data-depth=\"1\" role=\"treeitem\" aria-selected=\"true\">",
+      "new": "<div className=\"row-item gp-row\" data-depth=\"1\" role=\"treeitem\" aria-selected=\"true\" aria-current=\"true\">",
+      "why": ".row-item shows the current row via [aria-current]; aria-selected stays for the treeitem role."
+    },
+    {
+      "old": "<div className=\"tree-row gp-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"gp-row-icon\" /><span data-cd-id=\"onboarding-flow\"",
+      "new": "<div className=\"row-item gp-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"gp-row-icon\" /><span data-cd-id=\"onboarding-flow\"",
+      "why": ".tree-row → .row-item."
+    },
+    {
+      "old": "<div className=\"tree-row gp-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"gp-row-icon\" /><span data-cd-id=\"checkout-sheet\"",
+      "new": "<div className=\"row-item gp-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"gp-row-icon\" /><span data-cd-id=\"checkout-sheet\"",
+      "why": ".tree-row → .row-item."
+    },
+    {
+      "old": "<div className=\"tree-row gp-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"gp-row-icon\" /><span data-cd-id=\"team-avatars\"",
+      "new": "<div className=\"row-item gp-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"gp-row-icon\" /><span data-cd-id=\"team-avatars\"",
+      "why": ".tree-row → .row-item."
+    },
+    {
+      "old": "<div className=\"tree-row gp-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"gp-row-icon\" /><span data-cd-id=\"marketing-site\"",
+      "new": "<div className=\"row-item gp-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"gp-row-icon\" /><span data-cd-id=\"marketing-site\"",
+      "why": ".tree-row → .row-item."
+    },
+    {
+      "old": "<div className=\"tree-row gp-row\" data-depth=\"0\" role=\"treeitem\" aria-expanded=\"false\">",
+      "new": "<div className=\"row-item gp-row\" data-depth=\"0\" role=\"treeitem\" aria-expanded=\"false\">",
+      "why": ".tree-row → .row-item."
+    },
+    {
+      "old": "className=\"check\"",
+      "new": "className=\"checkbox\"",
+      "why": "maude .check → maude-v2 Checkbox class .checkbox (components.json); it draws checked and indeterminate the same way."
+    },
+    {
+      "old": "<button type=\"button\" className=\"btn btn--icon\" title=\"More\" aria-label=\"More options\">",
+      "new": "<button type=\"button\" className=\"icon-btn\" title=\"More\" aria-label=\"More options\">",
+      "why": "maude-v2 has no .btn--icon; its IconButton class is .icon-btn."
+    },
+    {
+      "old": "<div className=\"callout callout--info gp-nudge\">",
+      "new": "<div className=\"callout gp-nudge\">",
+      "why": "maude-v2 declares no info variant for Callout (components.json: null); .gp-nudge already carries this callout's look."
+    },
+    {
+      "old": "<div className=\"callout callout--warn\">",
+      "new": "<div className=\"callout gp-callout-warn\">",
+      "why": "maude-v2 declares no warn variant. Its specimen marks a warning with a bg-3 fill and a warn icon (co--heads), so this needs a small local .gp-callout-warn rule in GitPanel.css. See notes."
+    },
+    {
+      "old": " * Each artboard body is scoped to the maude DS token ladder via `.maude[data-theme]`\n * (specificity 0,2,0 beats any :root host injection). Mirrors Studio.tsx Board(). */",
+      "new": " * Each artboard body is scoped to the maude-v2 token ladder via `.ds[data-theme]`\n * (the DSRoot wrapper the v2 tokens and component classes are scoped to). */",
+      "why": "Comment follows the wrapper change below."
+    },
+    {
+      "old": "<div className=\"maude\" data-theme=\"dark\" style={{ position: \"absolute\", inset: 0 }}>",
+      "new": "<div className=\"ds\" data-theme=\"dark\" style={{ position: \"absolute\", inset: 0 }}>",
+      "why": "ds-check S6 wrapper: maude-v2 tokens are scoped to .ds[data-theme]. Dark is kept so the look stays the same; v2's default is light (see notes)."
+    }
+  ],
+  "notes": [
+    "LOCKED, left alone: the Changes tab (data-cd-id=\"changes\", data-cd-locked) has class \"tab\". maude-v2 has no .tabbar/.tab; it switches views with its segmented control (.seg + aria-pressed). I didn't touch the tab bar, so it stays half-converted until a person unlocks that button (⇧⌘L). Then the .tabbar/.tab pair can become .seg, with aria-pressed alongside aria-selected.",
+    "GitPanel.css is a sibling file, not part of this canvas edit. After the switch, run `maude design ds-check --fix=mechanical --canvas ui/panels/GitPanel.tsx` to apply the S2 aliases it reports: --canvas-bg/--canvas-dot/--canvas-grid → --x-canvas-*, --accent-muted → --accent-soft, --accent-tint → --selection. It also needs a .gp-callout-warn rule (background: var(--bg-3); plus a warn icon in --status-warn-text) to replace callout--warn.",
+    "GitPanel.css says .callout is 'row-flex with a left accent bar' (line 401). The v2 callout has no accent bar, so the Get-latest nudge and the conflict callout will look flatter. Check them in the screenshot after applying.",
+    "Already-existing ds-check warnings, not caused by the switch: literal font-weight: 600, font-size: 10px, gap: 5px, margin-left: -6px in GitPanel.css, plus 15 more. v2 has --weight-semibold and the --type-* ladder for these.",
+    "DECISION — layout: maude-v2's hard rule is 'Chrome floats; it never frames', with a docked layout only as an Advanced option. Every artboard here is a full-height docked side panel plus a menubar. The class swap keeps that layout. Moving it onto a floating .island is a redesign, not a switch.",
+    "DECISION — words: v2 says no developer chrome in the default view (no branch names, no paths). The menubar shows 'maude / main' and each file row shows a path such as ui/Pricing v3.tsx. One row points at system/maude/preview/components-cards.tsx, the old system. Decide whether these move behind an Advanced section.",
+    "DECISION — colour roles: the avatars use --accent ('YO') and --status-info ('RY') as hues. In v2, azure is for actions only and status colours always come with a word, so --presence-* would be the fit. The M/A/D/U badges are a local .gp-badge; v2 marks status with .chip, which you may want to adopt.",
+    "DECISION — theme and mark: data-theme stays dark. Light is v2's default and dark has equal status, so either works. The local <Mark> draws its own spark-on-bubble. v2 asks for the mark lifted verbatim from system/maude-v2/assets/logos.",
+    "meta.json: only designSystem changes, maude → maude-v2. opt_out_scope \"palette\" stays as it is."
+  ]
+}

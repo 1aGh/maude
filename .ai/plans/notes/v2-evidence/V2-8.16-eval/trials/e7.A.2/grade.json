@@ -1,0 +1,129 @@
+{
+  "task": "e7",
+  "group": "edit",
+  "fixture": "video",
+  "topology": "A",
+  "delegates": null,
+  "run": {
+    "code": 0,
+    "killed": false,
+    "wallMs": 99197
+  },
+  "metrics": {
+    "subtype": "success",
+    "isError": false,
+    "costUsd": 0.6080104,
+    "durationMs": 97600,
+    "apiMs": 90373,
+    "turns": 27,
+    "tokens": 410214,
+    "inTok": 20,
+    "outTok": 9386,
+    "cacheRead": 357212,
+    "cacheWrite": 43596,
+    "freshTokens": 53002,
+    "models": [
+      "claude-opus-5-5"
+    ],
+    "permissionDenials": [],
+    "subagents": 0,
+    "subagentTypes": [],
+    "mainToolUses": 26,
+    "subToolUses": 0
+  },
+  "agents": [],
+  "invariants": {
+    "check": {
+      "pass": true,
+      "why": ""
+    },
+    "scope": {
+      "pass": true,
+      "why": ""
+    },
+    "ids-kept": {
+      "pass": true,
+      "why": ""
+    },
+    "locked-kept": {
+      "pass": true,
+      "why": ""
+    },
+    "no-bash-writes": {
+      "pass": true,
+      "why": ""
+    },
+    "owns": {
+      "pass": true,
+      "why": ""
+    }
+  },
+  "quality": {
+    "changed:ui/Alligators Cinematic Cut.tsx": {
+      "pass": true,
+      "why": ""
+    },
+    "finished": {
+      "pass": true,
+      "why": "success"
+    },
+    "judge": {
+      "pass": true,
+      "why": "pass (4): The cold-open Sequence is now 30 frames. Every later clip and overlay moved exactly 24 frames earlier, so the clip spine has no gaps or overlaps, and TOTAL was updated to 690. The opening title was also retimed (start 10→2, length 54→38) and the \"~24s\" labels changed to \"~23s\". Both edits are defensible but go slightly beyond the literal request, and playback wasn't verified.",
+      "unknown": false
+    }
+  },
+  "invPass": true,
+  "qualPass": true,
+  "judge": {
+    "verdict": "pass",
+    "score": 4,
+    "why": "The cold-open Sequence is now 30 frames. Every later clip and overlay moved exactly 24 frames earlier, so the clip spine has no gaps or overlaps, and TOTAL was updated to 690. The opening title was also retimed (start 10→2, length 54→38) and the \"~24s\" labels changed to \"~23s\". Both edits are defensible but go slightly beyond the literal request, and playback wasn't verified.",
+    "costUsd": 0.0383215,
+    "model": "sonnet"
+  },
+  "render": {
+    "ran": false,
+    "error": null,
+    "shots": []
+  },
+  "changed": [
+    "M .design/ui/Alligators Cinematic Cut.meta.json",
+    "M .design/ui/Alligators Cinematic Cut.tsx",
+    "?? .design/_cache/index/ds-usage.json"
+  ],
+  "runState": [
+    {
+      "session": "6d566ca0-6427-4c85-ac0d-22a321dbbfa0",
+      "touched": {
+        "ui/Alligators Cinematic Cut.tsx": {
+          "at": 1793236850173,
+          "by": "main",
+          "via": "tool",
+          "artboards": [
+            "cinematic"
+          ]
+        },
+        "ui/Alligators Cinematic Cut.meta.json": {
+          "at": 1793236852467,
+          "by": "main",
+          "via": "tool",
+          "artboards": []
+        }
+      },
+      "stopBlocks": 0,
+      "shots": 1,
+      "bases": 2
+    }
+  ],
+  "hooks": {
+    "events": 0,
+    "denies": [],
+    "blocks": [],
+    "errors": [],
+    "ms": {},
+    "checkMs": []
+  },
+  "harnessFailure": false,
+  "finalText": "The cold open is now 1 second (30 frames) instead of 1.8 seconds (54 frames). That makes the whole video 0.8 s shorter: 23.0 s instead of 23.8 s.\n\n- **Everything after the first shot** starts 24 frames earlier. That covers all 16 later shots and every overlay: flash, titles, glitches, light leak, lower thirds, call to action and crest. They all still line up with their shots as before.\n- **\"ALLIGATORS BRNO\" title:** it used to run 54 frames. That would have spilled over the whole next shot and its flash, so I shortened it to 38 frames (frames 2–40). It still ends 10 frames into the next shot, as before. Because it's shorter, the last letters are still settling when it starts to fade.\n- **Length labels:** I changed \"~24s\" to \"~23s\" in the canvas header comment and in the canvas description.\n\nThe canvas check passes, and a screenshot shows the video loading in the artboard without errors. A still image can't show timing, though, so I haven't confirmed the new cut by playing it. Play it to make sure the shorter title reads well.\n\nThe `.edl.json` file doesn't drive this canvas — it's the edit list for the earlier trailer — so I didn't change it."
+}

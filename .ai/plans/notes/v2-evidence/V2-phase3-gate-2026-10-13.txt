@@ -1,0 +1,66 @@
+Phase 3 gate — feat/maude-v2, 2026-10-13 (V2-3.5, V2-3.6 verification + gate)
+
+## Desktop e2e on the final tree cdfae18d (debug e2e build, scripts/v2-test-lane.sh; lock checked before each lane, winprobe every 2 s)
+build start 19:59:49 head cdfae18d
+build exit=0 20:01:16
+test:e2e:desktop exit=0 20:03:27 Spec Files:	 12 passed, 12 total (100% completed) in 00:02:00  
+test:e2e:desktop:tabs exit=0 20:04:07 Spec Files:	 1 passed, 1 total (100% completed) in 00:00:31  
+test:e2e:desktop:home exit=0 20:04:37 Spec Files:	 1 passed, 1 total (100% completed) in 00:00:22  
+test:e2e:desktop:switchrepos exit=0 20:05:06 Spec Files:	 1 passed, 1 total (100% completed) in 00:00:20  
+test:e2e:desktop:tabs-identity exit=0 20:05:38 Spec Files:	 1 passed, 1 total (100% completed) in 00:00:24  
+test:e2e:desktop:onboarding exit=0 20:06:32 Spec Files:	 1 passed, 1 total (100% completed) in 00:00:46  
+probe test:e2e:desktop.probe: 61 samples, locked 0, not on screen 0, covered 0
+probe test:e2e:desktop:home.probe: 14 samples, locked 0, not on screen 0, covered 0
+probe test:e2e:desktop:onboarding.probe: 25 samples, locked 0, not on screen 0, covered 13
+probe test:e2e:desktop:switchrepos.probe: 14 samples, locked 0, not on screen 0, covered 0
+probe test:e2e:desktop:tabs-identity.probe: 15 samples, locked 0, not on screen 0, covered 0
+probe test:e2e:desktop:tabs.probe: 18 samples, locked 0, not on screen 0, covered 0
+Note: the onboarding lane passed with the Claude window above the Maude test window in 13/25 samples (a covered window yields false reds, never false greens); SecurityAgent was frontmost then.
+
+## Earlier runs on 58e9089e (before the canvas-list watcher fix)
+Default lane 11/12 twice: share-link before-all 'canvas-row-ui-smoke never appeared in the Files panel'; share-link alone 3/3. Root cause: canvas-list watcher baseline ignored API announcements, so file-tree-move's restore ~120 ms after a UI move was never announced (product bug, af4ac961, fail-first unit tests 21 pass / 3 fail before, 24/24 after; builder runs: race probe 3/3, pair 2/2, default 12/12).
+tabs 1/1, home 1/1, switchrepos 1/1, tabs-identity 1/1, onboarding 1/1 on 58e9089e too.
+
+## Rust (cargo test --lib, clippy --all-targets -D warnings) on b459e318
+144 passed; clippy clean. b459e318 fail-first: the canvas-blob assertion fails without the check.
+
+## Static gates on a7725c46..ebf164b3
+typecheck ok (tsc + coverage), lint ok (lint-ratchet 142 ≤ baseline 142), format ok (project-tabs.e2e.ts reformatted, 5e5afd6c), build ok, parity ok, tarball ok, tokens ok, site-content ok (stats regen a7725c46).
+
+## Tests
+tests gate (pnpm test + sync lane) rc=0 on a7725c46.
+v1 characterization: all 30 states identical (a7725c46).
+Full studio suite on a7725c46: 7937 pass / 2 fail -> KEY_CLASS tripwire (maude-home-page-secret unclassified; fixed a6486d25, home-origin class) and v1-keys tauri/canvas/chrome Meta+n (approved V2-3.4 C3 delta, ebf164b3; second full v1-keys run differed from the old golden in that one case only).
+Full studio suite on ebf164b3: 7938 pass / 1 fail -> v1-keys Settings (Meta+,) case captured 213 instead of 359 lines (async readiness section not yet rendered) at load ~10 while a builder compiled; the two runs before matched the golden on that case (load noise).
+
+## Security
+Consolidated review .ai/logs/security-reviews/feat-maude-v2-phase3-2026-10-13.md (kg security-review:maude/feat-maude-v2-phase3-2026-10-13): 0 findings >= medium open after b459e318; low follow-ups listed there.
+
+## v1-keys determinism (fb440d6e, merge + comment-mount 54f0234f)
+Varying cases traced: Settings readiness card from a late GET (harness stable() now waits for open GETs ≤ 20 s); in-canvas Meta+d shortText before first paint (product fix, fail-first test/short-text-unrendered.test.ts 2/4 red before); V1_KEYS_LANES=2 run differs by design (cold/warm server dealing, golden pinned to 4 lanes). Three consecutive full v1-keys runs identical to the golden (builder fin1–fin3). Golden unchanged.
+
+## FINAL run on 54f0234f (lock checked before each lane; winprobe every 2 s)
+build start 23:19:44 head 54f0234f
+build exit=0 23:20:12
+test:e2e:desktop exit=0 23:21:55 Spec Files:	 12 passed, 12 total (100% completed) in 00:01:37  
+test:e2e:desktop:tabs exit=0 23:22:24 Spec Files:	 1 passed, 1 total (100% completed) in 00:00:22  
+test:e2e:desktop:home exit=0 23:22:46 Spec Files:	 1 passed, 1 total (100% completed) in 00:00:17  
+test:e2e:desktop:switchrepos exit=0 23:23:10 Spec Files:	 1 passed, 1 total (100% completed) in 00:00:18  
+test:e2e:desktop:tabs-identity exit=0 23:23:36 Spec Files:	 1 passed, 1 total (100% completed) in 00:00:20  
+test:e2e:desktop:onboarding exit=0 23:24:26 Spec Files:	 1 passed, 1 total (100% completed) in 00:00:45  
+studio suite start 23:24:26
+studio-full rc=1 23:38:08  7945 pass  1 fail 
+(fail) git-lifecycle > emits git-lifecycle bus event on HEAD change (manual rewrite) [703.12ms]
+release build rc=1 (updater signing expected to fail locally) 23:39:17
+rel-smoke rc=0
+rel-boots rc=0
+Oct 13 23:38:44 2026
+probe test:e2e:desktop.probe: 50 samples, locked 0, not on screen 3, covered 3
+probe test:e2e:desktop:home.probe: 11 samples, locked 0, not on screen 1, covered 1
+probe test:e2e:desktop:onboarding.probe: 24 samples, locked 0, not on screen 1, covered 1
+probe test:e2e:desktop:switchrepos.probe: 12 samples, locked 0, not on screen 2, covered 2
+probe test:e2e:desktop:tabs-identity.probe: 13 samples, locked 0, not on screen 2, covered 2
+probe test:e2e:desktop:tabs.probe: 14 samples, locked 0, not on screen 2, covered 3
+Not-on-screen / covered samples fall at each lane's app launch (window not yet created); every lane green.
+Full studio suite 7945 pass / 1 fail: git-lifecycle 'emits git-lifecycle bus event on HEAD change (manual rewrite)' (fs event missed under suite load; untouched since V2-2.16); alone 3/3, 3/3, 3/3. v1-keys green inside the full suite. Logged as a follow-up flake.
+Release .app (pnpm build:desktop) built 23:38 from 54f0234f: apps/desktop/src-tauri/target/release/bundle/macos/Maude.app (1.9.1, com.maude.app); only the updater-archive signing step fails locally (no TAURI_SIGNING_PRIVATE_KEY). check-bundle-completeness --smoke rc=0, check-client-boots rc=0. Debug e2e app (cdfae18d build) also passed both.

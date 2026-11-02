@@ -1,0 +1,16 @@
+Row: pn-tab-menu (11 · Right-click a tab — whose menu it is) — GAP: no tab menu exists in the shipped strip
+Base: feat/maude-v2 58ac858d (branch s1-21). Canvas blob 721366f14aae.
+Written from reading code. NO desktop e2e was run for this file.
+
+PICK: B ("Maude owns the menu", "CONTRACT section 6, as written"): decisions maude/v2-3.7-own-tab-bar, maude/v2-3.7-own-tab-bar-mechanism. In A the Mac owned the tab menu; that variant is gone (no native tabs).
+
+WHAT THE STRIP HAS (apps/desktop/src/strip.js, strip.html): no contextmenu / right-click handler on a tab (grep "contextmenu" in apps/desktop/src -> none). A right-click does nothing. The ways to do what the artboard's menu lists:
+  - Close tab: the tab's x (strip.js:58-72), a middle click (strip.js:87-92), Cmd+W (registry tab.close, apps/studio/actions/defs/native.ts:75; the user path runs the "Stop AI in <name>?" guard first: windows.rs:1144 close_guard, tabs.rs:443 close_tab_by_user). Pin: e2e project-tabs.e2e.ts:342 (Cmd+W closes the active tab, its server stops after the grace) and :429 (x closes a background tab).
+  - Sign in as another account...: the project menu (registry account.switch, apps/studio/actions/defs/app.ts:24; shell handler client/app.jsx:1653 onSwitchAccount; testid project-menu-row-account.switch). Pin: e2e project-tabs-identity.e2e.ts:112 (B signs in as Y, A still reports X) and the Rust gate profiles.rs:823.
+    CONTRACT.md line 18 already puts it "in the project pill menu".
+  - Move to a new window: not offered, by decision (one shell window: V2-3.7 contract section 10 q2).
+  - Rename...: not offered; there is no rename action for a project tab in the registry.
+GAPS:
+  GAP-TAB-MENU-1  no right-click menu on a tab (Close tab / Close other tabs / Sign in as another account... as written in the canvas and the old CONTRACT section 6).
+  GAP-TAB-MENU-2  "Rename..." and "Move to a new window" are listed by the artboard and do not exist (the second by decision).
+Resolution options for the lead: (a) accept "no tab menu in v1" and mark the artboard not-shipped with CONTRACT amended; (b) a Rust-owned context menu on the strip (needs a strip command, a caller check and a registry id for each row). Not S1 scope.

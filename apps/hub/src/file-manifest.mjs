@@ -43,6 +43,8 @@ import {
   statSync,
 } from 'node:fs';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
+import { declaredCanvasGroups } from '../../studio/sync/canvas-path.ts';
+import { fileAccessFor } from './access-files.mjs';
 import { MAX_PROJECT_FILE_BYTES, parseRange } from './file-limits.mjs';
 import { classifyProjectFile, isFilePlaneClass, isProjectFileShape } from './file-membership.mjs';
 import { isContainedReal, realpathOfDeepestExisting } from './path-contain.mjs';
@@ -115,16 +117,139 @@ const shaCache = new Map();
 const warnedTruncated = new Set();
 
 /**
+ * designRoot → the journal's class-hold store (`noteBoundaryCanvas`,
+ * `heldCodeSha`, `releaseHold`, `heldPaths`). Registered by the hub once its
+ * journal is open (`registerClassHolds`); a checkout with none registered (a
+ * test, a hub with no journal) classifies exactly as before.
+ */
+const classHolds = new Map();
+
+/** Wire (or, with `null`, unwire) the class-hold store for one checkout. */
+export function registerClassHolds(designRoot, holds) {
+  if (holds) classHolds.set(designRoot, holds);
+  else classHolds.delete(designRoot);
+}
+
+/**
+ * The hub's class for one checkout path — the classifier, plus ONE rule about
+ * where a path's trust came from (p8-boundary-harden, final-3 attacker L1;
+ * decision maude/v2-p8-boundary-harden-config-never-promotes-to-code):
+ *
+ *   A CONFIG CHANGE NEVER PROMOTES A PATH INTO `code-module`.
+ *
+ * While the owner has declared no folders the hub is the folder boundary, so a
+ * teammate's `brand/x.tsx` is a canvas (doc lane, anyone may edit). Each path
+ * that is a canvas ONLY because of the boundary (it would be `code-module`
+ * under the default groups) is noted in the journal, with the sha of the owner's
+ * last code row for it, if any. Once the owner declares folders that leave it
+ * outside, the classifier says `code-module` — and without this rule the
+ * reconciler journalled teammate content onto the owner-trusted code lane, and
+ * the owner's desktop auto-committed it under the owner's name. A noted path
+ * therefore classifies `never` (not listed, not journalled, not written through
+ * a door) until either its bytes are again exactly the owner's last code
+ * version — nothing was promoted, the hold lifts by itself — or the owner moves
+ * it into a declared canvas folder. `heldCodePaths` names what is held.
+ *
+ * `sha256` is a thunk (only a held path pays for the hash). Without it a held
+ * path stays held.
+ *
+ * `note` (p8-holds-fix, recheck N1): only a caller that has a REAL canvas body
+ * in hand passes it — the walk (`listProjectFiles`) and `recordWrite` for a
+ * regular file a non-owner lane wrote. A read or a door only CLASSIFIES: it
+ * used to note too, so any token probing `GET /_project-file/lib/Foo.tsx` on an
+ * undeclared hub planted a hold for a path that does not exist, and after the
+ * declaration the owner's real code there was `never` for good.
+ */
+export function hubCheckoutClass(
+  rel,
+  designRoot,
+  { hasFile, sha256 = null, canvasGroups = readCanvasGroups(designRoot), note = false } = {}
+) {
+  const cls = classifyProjectFile(rel, { canvasGroups, hasFile });
+  const holds = classHolds.get(designRoot);
+  if (!holds) return cls;
+  if (canvasGroups === null) {
+    if (note && cls === 'canvas-owned' && classifyProjectFile(rel, { hasFile }) === 'code-module') {
+      holds.noteBoundaryCanvas(rel);
+    }
+    return cls;
+  }
+  if (cls !== 'code-module') return cls;
+  const ownerSha = holds.heldCodeSha(rel);
+  if (ownerSha === undefined) return cls;
+  if (ownerSha && typeof sha256 === 'function' && sha256() === ownerSha) {
+    holds.releaseHold(rel);
+    return cls;
+  }
+  return 'never';
+}
+
+/** Paths a checkout holds back from the code lane (see `hubCheckoutClass`). */
+export function heldCodePaths(designRoot) {
+  return heldCodeEntries(designRoot).map((h) => h.path);
+}
+
+/**
+ * What a checkout holds back from the code lane, with WHY (p8-held-surface): the
+ * owner is told, so a held file is never a silent failure. A hold whose file is
+ * MISSING is listed too (p8-holds-fix): it still blocks the path until the walk
+ * prunes it, and a block the owner cannot see is the silent failure again. `reason` is
+ * `canvas-before-folders` (the path was a canvas only because no folders were
+ * declared, and the owner had no code version of it) or `changed-as-canvas` (the
+ * owner had a code version, and the bytes changed on the canvas lane while no
+ * folders were declared). A path whose bytes are again exactly the owner's last
+ * code version is not held — the same lift `listProjectFiles` applies.
+ *
+ * @returns {{ path: string, reason: 'canvas-before-folders' | 'changed-as-canvas' }[]}
+ */
+export function heldCodeEntries(designRoot) {
+  const holds = classHolds.get(designRoot);
+  if (!holds || !designRoot) return [];
+  const canvasGroups = readCanvasGroups(designRoot);
+  if (canvasGroups === null) return [];
+  const hasFile = (r) => existsSync(join(designRoot, r));
+  const out = [];
+  for (const rel of holds.heldPaths()) {
+    const abs = join(designRoot, rel);
+    let st = null;
+    try {
+      st = lstatSync(abs);
+    } catch {
+      /* missing — still held until the walk prunes it */
+    }
+    // Tenant content: a link or a FIFO is not a file the owner can be told about.
+    if (st && !st.isFile()) continue;
+    if (classifyProjectFile(rel, { canvasGroups, hasFile }) !== 'code-module') continue;
+    const ownerSha = holds.heldCodeSha(rel);
+    const cls = hubCheckoutClass(rel, designRoot, {
+      canvasGroups,
+      hasFile,
+      sha256: st ? () => shaOf(abs, st.size, st.mtimeMs) : null,
+    });
+    if (cls !== 'never') continue;
+    out.push({ path: rel, reason: ownerSha ? 'changed-as-canvas' : 'canvas-before-folders' });
+  }
+  return out;
+}
+
+/**
  * The checkout's declared canvas groups, read from `<designRoot>/config.json`.
- * Unreadable/absent config → undefined, and the classifier falls back to the
- * same `['system', 'ui']` default the canvas-path receiver uses.
+ *
+ * `null` when the owner has declared none — absent/unreadable config, no
+ * `canvasGroups` array, or no entry naming a path: the kernel's own rule
+ * (server.mjs `acceptedCanvasGroups` → `allowUndeclaredGroup`). The
+ * classifier reads `null` as "the hub is the folder boundary" (p8-hub-folder-
+ * boundary, decision maude/v2-michal-hub-is-the-folder-boundary-before-config),
+ * so a path the kernel takes as a canvas is never classed owner-only code.
  */
 export function readCanvasGroups(designRoot) {
   try {
     const parsed = JSON.parse(readFileSync(join(designRoot, 'config.json'), 'utf8'));
-    return Array.isArray(parsed?.canvasGroups) ? parsed.canvasGroups : undefined;
+    // The one "declared" predicate (canvas-path.ts) — the kernel, the workspace
+    // agent and the paired studio decide through it too (final-3 attacker I2).
+    return declaredCanvasGroups(parsed?.canvasGroups);
   } catch {
-    return undefined;
+    return null;
   }
 }
 
@@ -187,7 +312,12 @@ export function listProjectFiles(designRoot) {
 
   const files = [];
   for (const f of found) {
-    const cls = classifyProjectFile(f.rel, opts);
+    const cls = hubCheckoutClass(f.rel, designRoot, {
+      ...opts,
+      sha256: () => shaOf(f.abs, f.size, f.mtimeMs),
+      // The walk holds a real regular file in hand — a note site (N1).
+      note: true,
+    });
     if (!isFilePlaneClass(cls)) continue;
     const sha256 = shaOf(f.abs, f.size, f.mtimeMs);
     if (sha256 === null) continue;
@@ -288,7 +418,12 @@ export function handleFilesRoute({
       a.path < b.path ? -1 : a.path > b.path ? 1 : 0
     );
   }
-  const visible = files.filter((f) => matchesScope(match.scope, f.path));
+  // V2-1.16 L1 — a project session: its DDR-053 scope, as always; a
+  // canvas-only session: its canvases' closure (`access-files.mjs`).
+  const access = fileAccessFor(match, { designRoot, journal: inertFromJournal });
+  const visible = files.filter((f) =>
+    access.claimDecides ? access.sees(f.path) : matchesScope(match.scope, f.path)
+  );
   respondJson(200, {
     files: visible,
     count: visible.length,
@@ -303,8 +438,9 @@ export function handleFilesRoute({
  */
 export function checkoutFileClass(rel, designRoot) {
   if (!designRoot) return 'never';
-  return classifyProjectFile(rel, {
-    canvasGroups: readCanvasGroups(designRoot),
+  // The provenance-aware class: a path held back from the code lane is `never`
+  // at every door too (see `hubCheckoutClass`).
+  return hubCheckoutClass(rel, designRoot, {
     // `r` only ever derives from a shape-valid rel (the sibling `.tsx` swap),
     // so it is contained by construction before it touches the filesystem.
     hasFile: (r) => existsSync(join(designRoot, r)),
@@ -461,11 +597,13 @@ export async function handleProjectFileRoute(ctx) {
   // write half was fixed for: a committed symlink inside a token's scope could
   // point at a file outside it, and the read would pass the gate on the name
   // while serving the target's bytes.
-  if (
-    !target.ok ||
-    !isFilePlaneClass(checkoutFileClass(target.realRel, designRoot)) ||
-    !matchesScope(match.scope, target.realRel)
-  ) {
+  // V2-1.16 L1 / A19 — a canvas-only session reads (and downloads) only its
+  // closure; outside it the answer is this same 404 (U1).
+  const access = fileAccessFor(match, { designRoot, dataDir });
+  const inScope = access.claimDecides
+    ? target.ok && access.sees(target.realRel) && access.exports(target.realRel)
+    : target.ok && matchesScope(match.scope, target.realRel);
+  if (!target.ok || !isFilePlaneClass(checkoutFileClass(target.realRel, designRoot)) || !inScope) {
     respond(response, 404, 'not found');
     return true;
   }

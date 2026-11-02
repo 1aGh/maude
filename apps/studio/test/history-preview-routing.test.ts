@@ -6,17 +6,17 @@ import { clientSource, fileContaining } from './_client-source.ts';
 // V2-0.2 split, its modules after) — see `_client-source.ts`.
 const app = clientSource();
 
-// Actual-cloud reproduction: select Inspector, then press the status-bar
-// Changes button. Directly setting changesOpen leaves Inspector open too;
-// its earlier dock precedence hides History although aria-pressed is true.
-test('the status-bar history button opens its panel exclusively, like a dock tab', () => {
-  // The <StatusBar …> USAGE (App's render), sliced inside the file that holds it.
-  const shell = fileContaining('<StatusBar\n').src;
-  const statusBar = shell.slice(shell.indexOf('<StatusBar\n'));
-  const callback = statusBar.match(/onOpenChanges=\{([\s\S]*?)\n\s*\}/)?.[1];
-  expect(callback).toBeDefined();
-  expect(callback).toMatch(/=>\s*openRightPanel\('changes'\)/);
-  expect(callback).not.toContain('setChangesOpen');
+// Actual-cloud reproduction: select Inspector, then press the Changes entry. Directly setting
+// changesOpen leaves Inspector open too; its earlier dock precedence hides History although the
+// entry looks pressed. The entry is Menu › Version history now (the status-bar chip is gone,
+// V2-4.8b) — it must open its panel exclusively, like a dock tab.
+test('Version history opens its panel exclusively, like a dock tab', () => {
+  const handler = app.match(/'history\.open':\s*\(\)\s*=>\s*([^,\n]+)/)?.[1];
+  expect(handler).toBeDefined();
+  expect(handler).toMatch(/toggleRightPanel\('changes'\)/);
+  expect(handler).not.toContain('setChangesOpen');
+  // ... and nothing reaches past the dock helpers for it
+  expect(app).not.toMatch(/onOpenChanges=\{[^}]*setChangesOpen/);
 });
 
 // Wiring guard: the rendered DiffView's selected revision must reach the same
@@ -33,12 +33,16 @@ test('accepted preview history and restore use project actions, not Git discard'
   expect(diff).toContain('loadLog={loadDiffLog}');
   expect(diff).toContain('onRestore={async (file, version) =>');
   expect(diff).toContain('acceptedDiff');
-  expect(diff).toContain('restoreProjectVersion(file,');
-  expect(/historyRefresh=.*syncStatus\?\.appliedRevision.*projectHistoryRefresh/.test(app)).toBe(
-    true
-  );
-  expect(app).toContain(
-    'onRestoreVersion={(revision) => restoreProjectVersion(activePath, revision)'
+  expect(diff).toMatch(/restoreProjectVersion\(\s*file,/);
+  // S11.10 retired the Changes panel: the refresh key now rides the Version history host
+  // (`refreshKey=` and the Advanced fold's `historyRefresh:`), same two inputs.
+  expect(
+    /(historyRefresh[=:]|refreshKey=).*syncStatus\?\.appliedRevision.*projectHistoryRefresh/.test(
+      app
+    )
+  ).toBe(true);
+  expect(app).toMatch(
+    /onRestoreVersion[=:]\s*\{?\(revision\) =>\s*restoreProjectVersion\(activePath, revision\)/
   );
   expect(app).toMatch(/if \(!acceptedDiff\) return gitLoadLog\(path\);/);
   expect(app).toMatch(

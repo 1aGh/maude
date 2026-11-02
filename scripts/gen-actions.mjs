@@ -1,0 +1,269 @@
+#!/usr/bin/env node
+// gen-actions.mjs — the action registry's generated files (Maude v2, V2-1.3 contract §5.1, §5.7;
+// V2-2.4). The registry (apps/studio/actions/) is the source; these are derived and committed,
+// drift-gated like site/lib/roadmap.json:
+//
+//   apps/studio/actions/keymap.gen.ts          the canvas iframe's slim key table (§5.7)
+//   apps/desktop/src-tauri/menu.actions.json   the native menu, which menu.rs builds from (§5.8)
+//   apps/studio/actions.manifest.json          every action's AI path + every verb's tier + the
+//                                              format schemas (V2-1.11 §5.1, §5.2, §5.6, §5.7)
+//   apps/studio/schema/<name>.vN.schema.json   the GENERATED format schemas (V2-1.11 §5.2) — today
+//                                              annotations.v2 from annotations/registry.ts
+//
+// (The docs page site/content/docs/shortcuts.mdx lands with the v2 "?" in Phase 4 / 7.)
+//
+// Usage (repo root):
+//   node scripts/gen-actions.mjs           write the files
+//   node scripts/gen-actions.mjs --check   exit 1 when a committed file differs from the registry
+//
+// Output goes through Biome (the repo's formatter) so `pnpm lint` and the check agree byte for
+// byte. Node 24 strips the registry's erasable TypeScript natively.
+
+import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const CHECK = process.argv.includes('--check');
+
+const { ACTIONS, ACTIONS_BY_ID } = await import('../apps/studio/actions/index.ts');
+const { primaryBinding } = await import('../apps/studio/actions/resolve.ts');
+const { toTauriAccel } = await import('../apps/studio/actions/keys.ts');
+const { NATIVE_MENU } = await import('../apps/studio/actions/native-menu.ts');
+const { bindingInDocument } = await import('../apps/studio/actions/documents.ts');
+const { AGENT_PATHS } = await import('../apps/studio/actions/agents.ts');
+const { MAUDE_VERBS, verbTier, autoAllowRules } = await import('../apps/studio/actions/verbs.ts');
+const { aiActionsDoc, cliHelpModule, designHelpBlock, studioActionsSkill, withHelpBlock } =
+  await import('./gen-actions-docs.mjs');
+const { FORMAT_SCHEMAS } = await import('../apps/studio/schema/formats.ts');
+const { annotationsJsonSchema } = await import('../apps/studio/annotations/board-schema.ts');
+const { transcriptJsonSchema, beatsJsonSchema } = await import(
+  '../apps/studio/video/format-ids.ts'
+);
+
+/** The generated schemas, by the `schema` path formats.ts names for them. */
+const GENERATED = {
+  'annotations/board-schema.ts#annotationsJsonSchema': annotationsJsonSchema,
+  'video/format-ids.ts#transcriptJsonSchema': transcriptJsonSchema,
+  'video/format-ids.ts#beatsJsonSchema': beatsJsonSchema,
+};
+
+function die(msg) {
+  console.error(`gen-actions: ${msg}`);
+  process.exit(2);
+}
+
+/** Format `text` as Biome would format the file at `rel` (Markdown is written as generated). */
+function biome(rel, text) {
+  if (/\.mdx?$/.test(rel)) return text;
+  // Biome's stdin formatter has been seen to hang with its stdin already closed while other biome
+  // processes run on the machine (2026-10-20: three hours, twice). A bounded run, retried, never waits forever.
+  let r;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    r = spawnSync(join(ROOT, 'node_modules/.bin/biome'), ['format', `--stdin-file-path=${rel}`], {
+      cwd: ROOT,
+      input: text,
+      encoding: 'utf8',
+      maxBuffer: 32 * 1024 * 1024,
+      timeout: 60_000,
+      killSignal: 'SIGKILL',
+    });
+    if (!r.error && r.signal == null) break;
+  }
+  if (r.error || r.signal != null)
+    die(`biome did not finish formatting ${rel} in three tries (${r.error?.code ?? r.signal})`);
+  if (r.status !== 0) die(`biome could not format ${rel}:\n${(r.stderr || r.stdout).slice(-1500)}`);
+  return r.stdout;
+}
+
+// ── keymap.gen.ts: every binding the canvas document resolves, no labels or docs ──────────
+function keymap() {
+  const rows = [];
+  for (const a of ACTIONS) {
+    const keys = (a.keys ?? []).filter((b) => bindingInDocument(b, 'canvas'));
+    if (!keys.length) continue;
+    const row = { id: a.id, exec: a.exec };
+    if (a.visible) row.visible = a.visible;
+    if (a.enabled) row.enabled = a.enabled;
+    if (a.fromCanvas) row.fromCanvas = true;
+    row.keys = keys;
+    rows.push(row);
+  }
+  // Interpolated, not a literal line: the generated file's import resolves next to it (actions/),
+  // and a line-leading `import … from './types.ts'` in THIS file reads as this file's own import
+  // to check-import-coherence.sh, which then fails the release gate.
+  const TYPES_IMPORT = ["import type { KeyedAction } from './types", ".ts';"].join('');
+  return `// GENERATED by scripts/gen-actions.mjs from apps/studio/actions/ — DO NOT EDIT BY HAND.
+// Run: node scripts/gen-actions.mjs (CI runs it with --check). The canvas iframe's slim key
+// table (V2-1.3 §5.7): every binding the canvas document resolves, without labels or docs, so the
+// canvas bundle never needs the whole registry and never waits for a keymap push.
+${TYPES_IMPORT}
+
+export const CANVAS_KEYMAP: readonly KeyedAction[] = ${JSON.stringify(rows)};
+`;
+}
+
+// ── menu.actions.json: the native menu, item by item ────────────────────────────────────────
+function nativeMenu() {
+  const menus = NATIVE_MENU.map((m) => ({
+    title: m.title,
+    ...(m.windowsMenu ? { windows_menu: true } : {}),
+    items: m.items.map((n) => {
+      if ('predefined' in n)
+        return { kind: 'predefined', name: n.predefined, ...(n.macos ? { macos: true } : {}) };
+      if ('separator' in n) return { kind: 'separator', ...(n.macos ? { macos: true } : {}) };
+      const a = ACTIONS_BY_ID.get(n.action);
+      if (!a) die(`native-menu.ts names '${n.action}', which is not a registered action`);
+      // S1.22b: an item may carry one of the action's ALIAS chords (a second key for the same
+      // action is its own, usually hidden, menu item — a menu item has one accelerator).
+      const key = n.chord ? (a.keys ?? []).find((b) => b.chord === n.chord) : primaryBinding(a);
+      if (n.chord && !key) die(`native-menu.ts: '${n.action}' has no key '${n.chord}'`);
+      if (n.hidden && !n.chord) die(`native-menu.ts: hidden item '${n.nativeId}' needs a chord`);
+      return {
+        kind: 'item',
+        id: n.nativeId,
+        action: a.id,
+        label: n.label,
+        exec: a.exec,
+        ...(key ? { accel: toTauriAccel(key.chord) } : {}),
+        ...(n.hidden ? { hidden: true } : {}),
+      };
+    }),
+  }));
+  return `${JSON.stringify({ generated: 'scripts/gen-actions.mjs — do not edit by hand', menus }, null, 2)}\n`;
+}
+
+// ── actions.manifest.json: the AI paths (V2-1.11 §5.1) and the verb tiers (§5.3, §5.5) ─────
+function manifest() {
+  for (const id of Object.keys(AGENT_PATHS)) {
+    if (!ACTIONS_BY_ID.has(id)) die(`agents.ts names '${id}', which is not a registered action`);
+  }
+  const actions = ACTIONS.map((a) => {
+    const ai = AGENT_PATHS[a.id];
+    return {
+      id: a.id,
+      label: a.label,
+      kind: a.kind,
+      exec: a.exec,
+      ...(a.fromCanvas ? { fromCanvas: true } : {}),
+      ...(ai ? { ...ai } : {}),
+    };
+  });
+  const verbs = MAUDE_VERBS.map((v) => ({
+    scope: v.scope,
+    verb: v.scope === 'design' ? `design ${v.verb}` : v.verb,
+    effect: v.effect,
+    tier: verbTier(v),
+    ...(v.hold ? { hold: v.hold } : {}),
+  }));
+  const schemas = FORMAT_SCHEMAS.map((f) => {
+    const rel = join('apps/studio', f.schema).split('\\').join('/');
+    if (!existsSync(join(ROOT, rel)) && f.source !== 'generated')
+      die(`formats.ts names ${rel} for '${f.format}', which does not exist`);
+    return {
+      format: f.format,
+      schema: rel,
+      ...(f.id ? { id: f.id } : {}),
+      source: f.source,
+      skill: f.skill,
+      ...(f.runtime ? { runtime: true } : {}),
+    };
+  });
+  // §5.6: sha256 of the ids + verbs + schemas, first 12 hex — the app↔plugin↔CLI handshake.
+  const manifestVersion = createHash('sha256')
+    .update(
+      JSON.stringify({
+        ids: actions.map((a) => a.id),
+        verbs: verbs.map((v) => `${v.verb}:${v.tier}`),
+        schemas: schemas.map((s) => `${s.format}:${s.id ?? s.schema}`),
+      })
+    )
+    .digest('hex')
+    .slice(0, 12);
+  return `${JSON.stringify(
+    {
+      generated: 'scripts/gen-actions.mjs — do not edit by hand',
+      format: 'maude.actions-manifest',
+      v: 1,
+      manifestVersion,
+      actions,
+      verbs,
+      schemas,
+    },
+    null,
+    2
+  )}\n`;
+}
+
+// ── apps/studio/schema/*.schema.json: the format schemas a TS validator is the source of ──────
+function generatedSchemas() {
+  return FORMAT_SCHEMAS.filter((f) => f.source === 'generated').map((f) => {
+    const build = GENERATED[f.generator];
+    if (!build)
+      die(
+        `formats.ts: '${f.format}' names generator '${f.generator}', which gen-actions doesn't know`
+      );
+    const schema = build();
+    if (schema.$id !== f.id)
+      die(`${f.generator} builds $id ${schema.$id}, formats.ts says ${f.id}`);
+    return [
+      join('apps/studio', f.schema).split('\\').join('/'),
+      `${JSON.stringify(schema, null, 2)}\n`,
+    ];
+  });
+}
+
+// ── the docs (V2-1.11 §4 decision 1): skill index, /design:help, `maude design help`, docs page ──
+const MANIFEST_TEXT = manifest();
+const MANIFEST = JSON.parse(MANIFEST_TEXT);
+const HELP_MD = 'plugins/design/commands/help.md';
+const FORMATS = FORMAT_SCHEMAS.map((f) => ({
+  ...f,
+  schema: join('apps/studio', f.schema).split('\\').join('/'),
+}));
+
+if (process.argv.includes('--print-docs')) {
+  // The public page (site/content/docs/ai-actions.mdx) is Phase 7's to place; print it.
+  process.stdout.write(aiActionsDoc(MANIFEST, FORMATS, autoAllowRules()));
+  process.exit(0);
+}
+
+const OUTPUTS = [
+  ['apps/studio/actions/keymap.gen.ts', keymap()],
+  ['apps/desktop/src-tauri/menu.actions.json', nativeMenu()],
+  ['apps/studio/actions.manifest.json', MANIFEST_TEXT],
+  // §5.6: the design plugin ships a byte copy; session-start compares its manifestVersion with
+  // /_health's, and scripts/check-version-parity.sh asserts the two files are equal.
+  ['plugins/design/actions.manifest.json', MANIFEST_TEXT],
+  ...generatedSchemas(),
+  ['plugins/design/skills/studio-actions/SKILL.md', studioActionsSkill(MANIFEST, FORMATS)],
+  [HELP_MD, withHelpBlock(readFileSync(join(ROOT, HELP_MD), 'utf8'), designHelpBlock(MANIFEST))],
+  ['cli/lib/design-help.gen.mjs', cliHelpModule(MANIFEST)],
+];
+
+let stale = 0;
+for (const [rel, raw] of OUTPUTS) {
+  const want = biome(rel, raw);
+  const path = join(ROOT, rel);
+  const have = existsSync(path) ? readFileSync(path, 'utf8') : null;
+  if (CHECK) {
+    if (have !== want) {
+      stale++;
+      console.error(
+        `gen-actions: ${rel} is stale — run \`node scripts/gen-actions.mjs\` and commit it`
+      );
+    }
+    continue;
+  }
+  if (have !== want) {
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, want);
+    console.log(`wrote ${rel}`);
+  } else console.log(`same  ${rel}`);
+}
+if (CHECK) {
+  if (stale) process.exit(1);
+  console.log(`gen-actions: ${OUTPUTS.length} generated file(s) match the registry`);
+}

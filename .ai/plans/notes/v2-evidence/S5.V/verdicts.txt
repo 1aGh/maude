@@ -1,0 +1,21 @@
+S5.V — one-probe verdicts for 03 AI Chat (package S5). Rig: scripts/v2-verify/S5-rig.mjs (fake ACP agent; never a real provider).
+Browser: Browser-pane tab on http://localhost:4400 with window.__TAURI__ stubbed after load (the chat is native-only) then ⌘/.
+
+VERIFIED
+  ai-attach-menu   menu words exact (ai-attach-menu.txt)
+  ai-long-pinned   pin button title "Pin to the side" → "Unpin — float over the canvas"; panel docks as a full-height column (ai-long-pinned.jpg)
+
+GAPS (G<n> in the hand-back)
+  G1 scope.canvas repo-relative vs design-relative: own edit denied out-of-scope, lease key `.design/.design/…`, no working ring/tag (G1-scope-canvas.txt)
+     → ai-working, ai-hero, ai-two-artboards, ai-same-artboard, ai-copy, ai-queue-rule, ai-permission (azure ring), ai-needs-hidden (ring + canvas-row "Needs you")
+  G2 scope chip + menu show the artboard id ("pricing") and no "Choose artboards…": use-ai-scope.js fetches canvas-meta with the design-relative path (returns {}) and reads meta.artboards (real metas carry sections[].artboards) → ai-scope, ai-open (chip)
+  G3 the internal "[maude-context canvas=…" block leaks into the chat title, the chat-list search snippet and the Version-history label ("Claude: Make … [maude-context canvas=".design/ui/Site.t") → ai-chat-list, ai-history
+  G4 ai-open: the empty chat draws the v1 "Create new design system" CTA + 4 /design:* verb buttons + 3 slash suggestions; the canvas draws only the hint + the Suggest strip
+  G5 ai-chat-list: chats sent with Whole canvas group under "No canvas" (path form again), not under "Site"
+  G6 ai-advanced: missing "AI may" switches, "Folders AI may read", "Always allowed on this canvas · Reset", Images/video/voice, 5-hour limit (present: Ask before, Model, Show in chat, Suggestions, context, Session, Raw log, Copy transcript, Open in terminal)
+  G7 ai-choice-fail: failure card says "Connection problem / Something interrupted the connection to Claude." with View details + Try again; 03 says "Couldn't finish — <what>. Nothing changed." + ONE verb. The question card has Skip + Send buttons and no per-option hints (03: picks only)
+  G8 ai-done: Undo · Keep going · "What AI did · 1 step · 7 s" present and the ring settles, but no "Made by AI" tag on the artboard header and no follow-up chips (touched was all 3 artboards because no pre-edit snapshot — fake agent limit)
+  G9 folded spark: title/aria "Assistant" / "Open Assistant" (03 tip: "Ask AI ⌘/")
+
+UNREACHABLE (U)
+  ai-tereza (hub peer), ai-quit, ai-other-tab, ai-needs-tab, ai-needs-away (native / desktop lane), ai-attach (drop/paste), ai-suggest (clips / shared / last-ask contexts: comments context matched), ai-question (point ring), ai-not-ready (needs logged-out fake claude + offline), ai-adv-edges (needs richer mode list + hover/paste), ai-long (resize drag + "N new" count), ai-panel-closed (done toast), ai-history (Version history panel is S1; API row exists with kind=ai, runId, chatId)

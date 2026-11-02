@@ -32,7 +32,7 @@ import { describe, expect, test } from 'bun:test';
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
-import { MAUDE_DEFAULT_ALLOWED_TOOLS, newSessionParams } from '../acp/bridge.ts';
+import { chatAllowedTools, MAUDE_DEFAULT_ALLOWED_TOOLS, newSessionParams } from '../acp/bridge.ts';
 import type { SdkPluginConfig } from '../acp/plugin-bootstrap.ts';
 import { WRITE_TOOL_NAMES } from '../acp/write-scope.ts';
 
@@ -54,7 +54,11 @@ const PLUGINS: SdkPluginConfig[] = [
 describe('newSessionParams — allowedTools carrier shape (DDR-184)', () => {
   test('the allow-list rides _meta.claudeCode.options.allowedTools', () => {
     const opts = (newSessionParams('/repo', undefined)._meta as Meta).claudeCode?.options;
-    expect(opts?.allowedTools).toEqual([...MAUDE_DEFAULT_ALLOWED_TOOLS]);
+    // M2 — the read boundary's `Read(//abs/**)` rules first, then Maude's tools.
+    expect(opts?.allowedTools).toEqual(chatAllowedTools('/repo'));
+    expect(opts?.allowedTools?.slice(-MAUDE_DEFAULT_ALLOWED_TOOLS.length)).toEqual([
+      ...MAUDE_DEFAULT_ALLOWED_TOOLS,
+    ]);
   });
 
   test('allowedTools is a COPY, not the shared module constant (no accidental mutation)', () => {
@@ -66,22 +70,130 @@ describe('newSessionParams — allowedTools carrier shape (DDR-184)', () => {
     const opts = (newSessionParams('/repo', 'BRIEF', PLUGINS)._meta as Meta).claudeCode?.options;
     expect(opts?.settingSources).toEqual(['user']);
     expect(opts?.plugins).toEqual(PLUGINS);
-    expect(opts?.allowedTools).toEqual([...MAUDE_DEFAULT_ALLOWED_TOOLS]);
+    expect(opts?.allowedTools).toEqual(chatAllowedTools('/repo', PLUGINS));
   });
 
   test('present even with no plugins (npm / web / power-user path)', () => {
     const opts = (newSessionParams('/repo', 'BRIEF', [])._meta as Meta).claudeCode?.options;
     expect(opts?.plugins).toBeUndefined();
-    expect(opts?.allowedTools).toEqual([...MAUDE_DEFAULT_ALLOWED_TOOLS]);
+    expect(opts?.allowedTools).toEqual(chatAllowedTools('/repo', []));
   });
 });
+
+/** Claude Code's `Bash(<prefix>:*)` match: the command is the prefix, or starts with it + a space. */
+function bashRuleMatches(rule: string, cmd: string): boolean {
+  const m = /^Bash\((.*):\*\)$/.exec(rule);
+  // an exact rule (`Bash(maude --help)`) matches that one command only
+  if (!m) return rule === 'Bash' || rule === 'Bash(*)' || rule === `Bash(${cmd})`;
+  const prefix = m[1] as string;
+  return cmd === prefix || cmd.startsWith(`${prefix} `);
+}
+
+const TOP_LEVEL_READ_RULES = [
+  'Bash(maude version:*)',
+  'Bash(maude doctor:*)',
+  'Bash(maude config show:*)',
+  'Bash(maude config get:*)',
+  'Bash(maude kg context:*)',
+  'Bash(maude kg resolve:*)',
+  'Bash(maude kg doctor:*)',
+  // lead answer (a), decision:maude/v2-2.4b-held-and-prompting-verbs
+  'Bash(maude help:*)',
+  'Bash(maude preflight:*)',
+  // flow refactor #159 (merged from main): token spend from this project's Claude Code session records, read-only
+  'Bash(maude flow usage:*)',
+  // V2-8.16: the help FLAG forms, exact (no `:*`) — that one command line and nothing else
+  'Bash(maude --help)',
+  'Bash(maude design --help)',
+];
+
+// Prompt tier (external / shared / destructive) and human tier, contract V2-1.11 §5.3: each one
+// must show the permission card.
+const NOT_AUTO = [
+  'maude design curl-local -X POST http://127.0.0.1:4399/_api/git/push',
+  'maude design curl-local http://localhost:4399/_api/sync/trash',
+  'maude design generate --kind image --prompt x',
+  'maude design audio-search x',
+  'maude design draw-build build.ts',
+  'maude design to-lottie x.svg',
+  'maude design fetch-asset https://example.com/x.png',
+  'maude design ensure-browser',
+  'maude design transcribe x.mp4',
+  'maude design import-figma https://figma.com/file/x --explode',
+  'maude design photo-bg-remove x.png',
+  'maude design init --force',
+  'maude design ds-upgrade apply',
+  'maude design ds-upgrade acme --apply plan.json',
+  'maude design ds-upgrade acme --stage plan.json',
+  'maude kg ingest',
+  'maude kg import',
+  'maude design export png --out ~/Downloads/x.png',
+  'maude design bulk-deletes',
+  'maude design link https://hub.example',
+  'maude design adopt',
+  'maude design unlink',
+  'maude design detach',
+  'maude config set quality.lint x',
+  'maude kg sync',
+  'maude hub start',
+  'maude init',
+  'maude harness',
+  'maude codex',
+  'maude cache clear',
+  'maude-safe design curl-local http://127.0.0.1:4399/_api/sync/trash',
+  // S5.4 — `runs` has two tiered sub-verbs; anything else prompts until it gets its own entry,
+  // and a compound command is not the verb (V2-1.18 harness finding: one verb per command)
+  'maude design runs cancel r_abcdef01',
+  'maude design runs',
+  'ls .design && maude design runs list',
+  // V2-8.16: the help flag forms are exact rules — a prompt verb's `--help` still prompts, and
+  // anything after the flag is not the help form
+  'maude design generate --help',
+  'maude design curl-local --help',
+  'maude --help design',
+  'maude design --help && maude design curl-local http://127.0.0.1:4399/_api/sync/trash',
+];
+
+const STILL_AUTO = [
+  'maude design screenshot --full',
+  'maude design prep --json',
+  'maude design server-up',
+  'maude design canvas-rects ui/x.tsx',
+  'maude design read-annotations ui/x.tsx',
+  'maude design annotate --in x',
+  'maude design ds-check --json',
+  'maude design index',
+  'maude design help',
+  'maude design ds-upgrade analyse acme',
+  'maude design ds-upgrade plan acme',
+  'maude design ds-upgrade validate acme plan.json',
+  'maude help',
+  'maude preflight',
+  'maude version',
+  'maude config get project',
+  'maude kg context --about x',
+  // S5.4 (V2-1.15 §5.10): a terminal / chat Claude sees busy artboards and stops its own run
+  'maude design runs list',
+  'maude design runs list --canvas ui/x.tsx --json',
+  'maude design runs stop r_abcdef01',
+  // S7.2 (V2-1.10 §5.7): local whisper.cpp only, effect project → auto; `transcribe` (cloud) stays
+  // in NOT_AUTO above
+  'maude design transcribe-local assets/abcd1234.mp4',
+  'maude design transcribe-local assets/abcd1234.mp4 --speech-only --json',
+  // V2-8.16 live journeys: the read-only help flag forms (exact rules) and an auto verb's own `--help`
+  'maude --help',
+  'maude design --help',
+  'maude design screenshot --help',
+];
 
 describe('MAUDE_DEFAULT_ALLOWED_TOOLS — source-of-truth guard (DDR-184 / DDR-062)', () => {
   const bashRules = MAUDE_DEFAULT_ALLOWED_TOOLS.filter((t) => t.startsWith('Bash'));
 
-  test('the READ-ONLY file tools are present', () => {
-    for (const t of ['Read', 'Glob', 'Grep']) {
-      expect(MAUDE_DEFAULT_ALLOWED_TOOLS).toContain(t);
+  test('the read tools are NOT name-allowed — reads are scoped per folder (M2 read boundary)', () => {
+    // Decision maude/v2-michal-m2-read-boundary: a bare name let the agent read any file on the Mac.
+    // The session carries `Read(//abs/**)` per boundary root instead (test/acp-read-boundary.test.ts).
+    for (const t of ['Read', 'Glob', 'Grep', 'NotebookRead']) {
+      expect(MAUDE_DEFAULT_ALLOWED_TOOLS).not.toContain(t);
     }
   });
 
@@ -133,7 +245,39 @@ describe('MAUDE_DEFAULT_ALLOWED_TOOLS — source-of-truth guard (DDR-184 / DDR-0
     //   - the read-only fs verb group must NEVER appear — every one of them
     //     accepts `>`, making the rule an arbitrary-write grant. See the
     //     dedicated test below.
-    expect(bashRules).toEqual(['Bash(maude:*)']);
+    // V2-2.8 S4 (contract V2-1.11 §5.5): the one blanket `Bash(maude:*)` became one rule per
+    // auto-tier verb. Every Bash rule is now `Bash(maude design <verb>:*)` or one of the closed
+    // top-level read rules; nothing broader.
+    for (const r of bashRules) {
+      expect(
+        /^Bash\(maude design [a-z][a-z0-9-]*( [a-z][a-z0-9-]*)?:\*\)$/.test(r) ||
+          TOP_LEVEL_READ_RULES.includes(r)
+      ).toBe(true);
+    }
+  });
+
+  // ── V2-2.8 S4: `Bash(maude:*)` let `curl-local` reach every studio route ───────────────────
+  // (the git routes, trash prune, paid generation). The blanket rule is gone; prompt and human
+  // verbs fall back to Claude Code's own permission card.
+  test('`Bash(maude:*)` is gone (V2-2.8 S4)', () => {
+    expect(MAUDE_DEFAULT_ALLOWED_TOOLS).not.toContain('Bash(maude:*)');
+    expect(MAUDE_DEFAULT_ALLOWED_TOOLS).not.toContain('Bash(maude design:*)');
+  });
+
+  test('prompt- and human-tier verbs are not auto-allowed — curl-local first (V2-2.8 S4)', () => {
+    for (const cmd of NOT_AUTO) {
+      const hit = bashRules.find((r) => bashRuleMatches(r, cmd));
+      expect({ cmd, hit }).toEqual({ cmd, hit: undefined });
+    }
+  });
+
+  test('the read-only / local design helpers stay auto-allowed (V2-2.8 S4)', () => {
+    for (const cmd of STILL_AUTO) {
+      expect({ cmd, ok: bashRules.some((r) => bashRuleMatches(r, cmd)) }).toEqual({
+        cmd,
+        ok: true,
+      });
+    }
   });
 
   test('NO redirect-capable bare-command Bash rule — `cat > file` is an arbitrary write (F1)', () => {

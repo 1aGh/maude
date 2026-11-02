@@ -310,7 +310,208 @@ export const MIGRATIONS = [
           );`,
     ],
   },
+  {
+    version: 17, // Maude v2 S9.8 (V2-1.7 §5.8) — Can view, canvas grants, links, requests
+    // ATOMIC: a table rebuild is drop + rename, and a crash between the two
+    // would leave the membership table missing. D1 runs a `batch()` as ONE
+    // transaction, so the rebuild and its schema_migrations row land together
+    // or not at all — and a re-run after a failure starts from intact v16.
+    atomic: true,
+    statements: [
+      // SQLite cannot alter a CHECK, so the two role-pinned tables are rebuilt
+      // the standard way: create `_v2`, copy every row verbatim, drop, rename,
+      // recreate the indexes. Nothing references these two tables, and the
+      // deferral keeps the copy free of ordering concerns all the same.
+      'PRAGMA defer_foreign_keys = on;',
+      // `observer` (Can view) joins the stored roles. `source` says where a
+      // row came from when it is not a plain invite or an owner's add: a
+      // project-scope link (`link:<id>`) or an approved request
+      // (`request:<id>`). NULL — every row that exists today — is invite/owner.
+      // Turning a link off deletes exactly the rows it created.
+      `CREATE TABLE project_members_v2 (
+        project_id TEXT NOT NULL REFERENCES projects (id) ON DELETE CASCADE,
+        account_id TEXT NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
+        role       TEXT NOT NULL CHECK (role IN ('observer','viewer','member','owner')),
+        added_at   INTEGER NOT NULL,
+        source     TEXT,
+        PRIMARY KEY (project_id, account_id)
+      );`,
+      `INSERT INTO project_members_v2 (project_id, account_id, role, added_at)
+         SELECT project_id, account_id, role, added_at FROM project_members;`,
+      'DROP TABLE project_members;',
+      'ALTER TABLE project_members_v2 RENAME TO project_members;',
+      'CREATE INDEX IF NOT EXISTS members_account ON project_members (account_id);',
+      // An invitation may be to ONE canvas (`canvas_path`, the designRoot-
+      // relative path the access claim uses); NULL is the whole project, as
+      // every invitation sent so far was.
+      `CREATE TABLE project_invites_v2 (
+        id          TEXT PRIMARY KEY,
+        project_id  TEXT NOT NULL REFERENCES projects (id) ON DELETE CASCADE,
+        email       TEXT NOT NULL,
+        role        TEXT NOT NULL CHECK (role IN ('observer','viewer','member')),
+        created_at  INTEGER NOT NULL,
+        expires_at  INTEGER NOT NULL,
+        redeemed_at INTEGER,
+        revoked_at  INTEGER,
+        canvas_path TEXT
+      );`,
+      `INSERT INTO project_invites_v2
+         (id, project_id, email, role, created_at, expires_at, redeemed_at, revoked_at)
+         SELECT id, project_id, email, role, created_at, expires_at, redeemed_at, revoked_at
+           FROM project_invites;`,
+      'DROP TABLE project_invites;',
+      'ALTER TABLE project_invites_v2 RENAME TO project_invites;',
+      'CREATE INDEX IF NOT EXISTS project_invites_email ON project_invites (email);',
+      // A grant ADDS access to one canvas and never lowers (V2-1.7 G1). Never
+      // 'owner': ownership is the project's column.
+      `CREATE TABLE IF NOT EXISTS canvas_grants (
+        project_id  TEXT NOT NULL REFERENCES projects (id) ON DELETE CASCADE,
+        account_id  TEXT NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
+        canvas_path TEXT NOT NULL,
+        role        TEXT NOT NULL CHECK (role IN ('observer','viewer','member')),
+        source      TEXT NOT NULL,
+        granted_by  TEXT,
+        granted_at  INTEGER NOT NULL,
+        PRIMARY KEY (project_id, account_id, canvas_path)
+      );`,
+      'CREATE INDEX IF NOT EXISTS canvas_grants_source ON canvas_grants (project_id, source);',
+      // A link: Can view or Can comment only. `team` is a location and grants
+      // nothing; `anyone` redeems (signed in) into a `link:<id>` grant. Only a
+      // SHA-256 of the secret is stored — a D1 read never yields a usable link.
+      `CREATE TABLE IF NOT EXISTS share_links (
+        id          TEXT PRIMARY KEY,
+        project_id  TEXT NOT NULL REFERENCES projects (id) ON DELETE CASCADE,
+        canvas_path TEXT,
+        role        TEXT NOT NULL CHECK (role IN ('observer','viewer')),
+        who         TEXT NOT NULL CHECK (who IN ('team','anyone')),
+        secret_hash TEXT,
+        created_by  TEXT NOT NULL,
+        created_at  INTEGER NOT NULL,
+        expires_at  INTEGER,
+        revoked_at  INTEGER
+      );`,
+      'CREATE INDEX IF NOT EXISTS share_links_project ON share_links (project_id);',
+      // Ask to edit. One OPEN request per person per scope, held by the index.
+      `CREATE TABLE IF NOT EXISTS access_requests (
+        id          TEXT PRIMARY KEY,
+        project_id  TEXT NOT NULL REFERENCES projects (id) ON DELETE CASCADE,
+        account_id  TEXT NOT NULL,
+        canvas_path TEXT,
+        created_at  INTEGER NOT NULL,
+        decided_at  INTEGER,
+        decision    TEXT CHECK (decision IN ('approved','declined')),
+        decided_by  TEXT
+      );`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS access_requests_open
+         ON access_requests (project_id, account_id, IFNULL(canvas_path, ''))
+         WHERE decided_at IS NULL;`,
+      // The AccessClaim captured at mint (re-decided at exchange), and where
+      // the app should land once it has exchanged the code (S9 Q6). NULL —
+      // every code minted before v2 — is the legacy role-only claim, no landing.
+      'ALTER TABLE handoff_codes ADD COLUMN access TEXT;',
+      'ALTER TABLE handoff_codes ADD COLUMN landing TEXT;',
+      // "New people join as" (NULL = 'member', today's default).
+      'ALTER TABLE projects ADD COLUMN default_invite_role TEXT;',
+    ],
+  },
+  {
+    version: 18, // Maude v2 S9.14a (contract S6↔S9 §5.3) — who invited you, and to which comment
+    // Two nullable columns, nothing rewritten: every invitation sent before
+    // v18 keeps NULL in both, which the invite page reads as "no inviter name"
+    // and "no comment". `invited_by` is an ACCOUNT ID (the page shows that
+    // account's name, never its e-mail); `thread` is a comment thread id on
+    // the invite's canvas, only ever set together with `canvas_path`.
+    atomic: true,
+    statements: [
+      'ALTER TABLE project_invites ADD COLUMN invited_by TEXT;',
+      'ALTER TABLE project_invites ADD COLUMN thread TEXT;',
+    ],
+  },
+  {
+    version: 19, // Maude v2 S9.15 (Gate 0 A3) — the trial belongs to the account
+    statements: [
+      // Stamped once, at the first sign-in (`startTrial`, COALESCE). NULL = an
+      // account that has not signed in since v19 — its trial has not started.
+      'ALTER TABLE accounts ADD COLUMN trial_started_at INTEGER;',
+      // NULL = not a trial project (checkout-born, hand-provisioned, legacy):
+      // only a row with this set and no subscription can ever pause.
+      'ALTER TABLE projects ADD COLUMN trial_ends_at INTEGER;',
+      // One row per trial workspace, keyed by the ADDRESS's hash rather than
+      // the account, so deleting an account and signing up again on the same
+      // address does not mint a second trial — and no plain address is kept.
+      // `request_id` makes provisioning idempotent: a retried request finds
+      // its own row and answers the same project.
+      `CREATE TABLE IF NOT EXISTS trial_claims (
+        email_hash TEXT NOT NULL,
+        request_id TEXT NOT NULL,
+        account_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        claimed_at INTEGER NOT NULL,
+        PRIMARY KEY (email_hash, request_id)
+      );`,
+      'CREATE INDEX IF NOT EXISTS trial_claims_account ON trial_claims (account_id, request_id);',
+    ],
+  },
+  {
+    version: 20, // Maude v2 S9.18 — mention e-mails, the switch for them, and its unsubscribe link
+    // ATOMIC, like v17: `email_tokens` is rebuilt (SQLite cannot alter a
+    // CHECK) and a crash between drop and rename would lose every live
+    // verify/reset link.
+    atomic: true,
+    statements: [
+      'PRAGMA defer_foreign_keys = on;',
+      // 'unsub' joins the purposes. It can only turn mention e-mails off; the
+      // purpose is bound into the row and re-checked on consumption, so it is
+      // never a reset, a verify, or a session.
+      `CREATE TABLE email_tokens_v2 (
+        id         TEXT PRIMARY KEY,
+        account_id TEXT NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
+        purpose    TEXT NOT NULL CHECK (purpose IN ('verify','reset','unsub')),
+        created_at INTEGER NOT NULL,
+        expires_at INTEGER NOT NULL,
+        used_at    INTEGER
+      );`,
+      `INSERT INTO email_tokens_v2 (id, account_id, purpose, created_at, expires_at, used_at)
+         SELECT id, account_id, purpose, created_at, expires_at, used_at FROM email_tokens;`,
+      'DROP TABLE email_tokens;',
+      'ALTER TABLE email_tokens_v2 RENAME TO email_tokens;',
+      'CREATE INDEX IF NOT EXISTS email_tokens_account ON email_tokens (account_id, purpose);',
+      // Which e-mails an account gets. No row = the defaults (mention e-mails
+      // on), so nothing is backfilled and every existing account keeps today's
+      // behaviour until it says otherwise.
+      `CREATE TABLE IF NOT EXISTS email_prefs (
+        account_id TEXT PRIMARY KEY REFERENCES accounts (id) ON DELETE CASCADE,
+        mentions   INTEGER NOT NULL DEFAULT 1 CHECK (mentions IN (0, 1)),
+        updated_at INTEGER NOT NULL
+      );`,
+      // What was mailed, for two limits only: the same thread does not mail the
+      // same person twice within the hour, and a project's cell cannot mail
+      // past its daily cap. No address and no text — ids and a time.
+      `CREATE TABLE IF NOT EXISTS mention_emails (
+        project_id TEXT NOT NULL,
+        account_id TEXT NOT NULL,
+        thread     TEXT NOT NULL,
+        sent_at    INTEGER NOT NULL
+      );`,
+      'CREATE INDEX IF NOT EXISTS mention_emails_project ON mention_emails (project_id, sent_at);',
+      'CREATE INDEX IF NOT EXISTS mention_emails_thread ON mention_emails (project_id, account_id, thread, sent_at);',
+    ],
+  },
 ];
+
+/** Run one migration's statements plus its schema_migrations row. */
+async function runMigration(db, m) {
+  const mark = db
+    .prepare('INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)')
+    .bind(m.version, Date.now());
+  if (m.atomic && typeof db.batch === 'function') {
+    // One transaction: the version row lands only with every statement.
+    await db.batch([...m.statements.map((sql) => db.prepare(sql)), mark]);
+    return;
+  }
+  for (const sql of m.statements) await db.prepare(sql).run();
+  await mark.run();
+}
 
 /** Apply baseline + pending versioned migrations. Safe to run repeatedly. */
 export async function applySchema(db, schemaSql) {
@@ -324,11 +525,7 @@ export async function applySchema(db, schemaSql) {
       .bind(m.version)
       .first();
     if (done) continue;
-    for (const sql of m.statements) await db.prepare(sql).run();
-    await db
-      .prepare('INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)')
-      .bind(m.version, Date.now())
-      .run();
+    await runMigration(db, m);
   }
   const row = await db.prepare('SELECT MAX(version) AS v FROM schema_migrations').first();
   return { version: row?.v ?? null, statements: schemaStatements(schemaSql).length };

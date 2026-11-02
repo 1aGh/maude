@@ -75,10 +75,11 @@ describe('format × scope coherence', () => {
  * `export-dialog.tsx`'s copy was missing mp4/webm/gif entirely.
  */
 describe('region scopes (issue #125)', () => {
-  test('canvas-whole + selection-bounds are png/pdf only', () => {
+  // S8.1 — jpg captures exactly what png does (contract S8-export-spec §5.2)
+  test('canvas-whole + selection-bounds are png/jpg/pdf only', () => {
     for (const scope of ['canvas-whole', 'selection-bounds']) {
       for (const format of FORMATS) {
-        expect(isScopeValidForFormat(format, scope)).toBe(format === 'png' || format === 'pdf');
+        expect(isScopeValidForFormat(format, scope)).toBe(['png', 'jpg', 'pdf'].includes(format));
       }
     }
   });
@@ -96,14 +97,15 @@ describe('no client keeps its own copy of the scope table', () => {
   // client module may carry the literal table, and the module that defines
   // ExportDialog — the one consumer of the scope helpers — imports the shared
   // table (app.jsx today; its own module after the V2-0.2 split).
-  test('the studio client (ExportDialog) sources its scopes from exporters/format-scopes.ts', () => {
+  // S8.2 — ExportDialog is now a shim over the one sheet (`ExportSheet`); the in-canvas
+  // export-dialog.tsx, the table's second client, is retired.
+  test('the studio client (ExportSheet) sources its scopes from exporters/format-scopes.ts', () => {
     expect(clientSource()).not.toContain('EXPORT_VALID_SCOPES = {');
-    expect(fileDefining('ExportDialog').src).toContain('format-scopes');
+    expect(fileDefining('ExportSheet').src).toContain('format-scopes');
   });
 
-  test('export-dialog.tsx sources its scopes from exporters/format-scopes.ts', () => {
-    const src = read('export-dialog.tsx');
-    expect(src).not.toContain('VALID_SCOPES_PER_FORMAT: Record');
-    expect(src).toContain('format-scopes');
+  test('the retired in-canvas dialog left no second copy of the table behind', () => {
+    expect(() => read('export-dialog.tsx')).toThrow();
+    expect(clientSource()).not.toContain('VALID_SCOPES_PER_FORMAT: Record');
   });
 });

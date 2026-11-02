@@ -1,0 +1,26 @@
+S1.V — wave-A verifier, package S1, canvas 11 Projects and Navigation. Base feat/maude-v2 8eb1438f3.
+Rig: scripts/v2-verify/s1-fixture.mjs (93-canvas "Alligators brand" project) + s1-boot.sh + agent-browser-js.sh; agent-browser, 1440x900,
+browser (not desktop). Pictures/Tauri rows are U. Screenshots next to this file.
+
+VERIFIED
+  pn-jump   foot "21 artboards · 19 digital, 2 print", kind glyphs, current row, click glides + selects (pn-jump.png)
+  pn-ab     decision artboard: B picked, ids in S1.21-ab.txt (maude/v2-3.7-own-tab-bar, -mechanism)
+  pn-tab-a  variant A not picked, superseded by that decision (S1.21-tab-a.txt)
+  pn-tab-a20 same (S1.21-tab-a20.txt)
+
+GAPS (not verified)
+  pn-organise  Sort menu is clipped by the panel's left edge: menu x=4 inside a panel at x=16, so "Sort by" shows as "ort by" and the checks are cut (pn-organise.png). canvas: 260 wide, drawn outside the panel.
+  pn-move      rename refuses the artboard's own example "Combine — test barev" with "name may contain only letters, numbers, spaces, hyphens and underscores" (canvas-create.ts:56/80 NAME_RE; message is not CONTRACT voice). The "↵ rename · esc keep “<name>”" hint line is not drawn. Drag + "Move here" + ghost row + sidecars moved OK (pn-move-drag.png, pn-move-rename.png).
+  pn-trash     artboard row is named by its id slug ("arch-1-vnejsek-str-4-...") not its label (label=id from the trash action origin; history/trash.ts:176/196); canvas rows have no picture and the sub reads "ui/legacy · You, just now" not "legacy · …" (path keeps the ui/ prefix); panel foot kept "21 artboards" after an artboard was trashed (stale). Header counts, Today group, hover Restore, Clear out dialog, toast words "“Test2” moved to the trash." + Undo all OK (pn-trash-*.png).
+  pn-history   rows never get a picture: http.ts history deps (~1862) do not pass `thumb:` (routes/history.ts:139 says absent -> no `picture`), so every row shows an empty box; Viewing bar runs under the top-right cluster at 1440 (its "back to now" is covered). Rest OK: filters, Now row, Name this version… (named row + chip), click = Viewing, esc returns, Compare + Restore this version.
+  pn-compare   the two frames and the change list lie under the left Canvases panel (A is cut off) — the stage is not inset by the docked panels (history/compare-view.jsx); why-line, A/B marks, Stop comparing / Restore only <artboard> / Restore this version, per-change words OK (pn-compare.png).
+  pn-k-close   marks, accent/typo matching, "Nothing called “…”. Showing close matches for Uniformy." and "13 close matches" OK; canvas rows show "<project> · 2026/dresy · 12 artboards" and a picture, the build shows the path "ui/2026/dresy" and an icon, and artboard meta lacks " · print" (client/v2/search/search-model.js:289-303 canvasMeta) (pn-k-close-*.png).
+  pn-switch-ai "?" sheet: group "Finding a canvas" lists "Search ⌘K or ⇧⌘K" and "Version history ⌥⌘H"; canvas says "Search every project ⌘K" and has "Open project… ⌘O". "Find a shortcut" field OK. Tabs-and-windows group only exists in the desktop app (U).
+  pn-ds        not S1's (Q11, S10): the panel shows one row per design system named by the system ("maude", "maude-v2") rather than the canvas's "Design system · Alligators brand system · used by 3 projects". Lead/S10 decides.
+  pn-home, pn-home-search   S6 (Home redraw) not built on this base (only S6.2 landed); Home is a desktop window.
+
+UNREACHABLE HERE (desktop lane)
+  pn-tab-b, pn-tab-b20, pn-tab-menu, pn-windows, pn-accounts, pn-relaunch: native strip / menus / windows / profiles; S1.21 notes were written on an older base (58ac858d) — S1.22a/b/c have since built the strip square, account badge, "N more" list, right-click tab menu, Rename…, Home-first. Re-run project-tabs*.e2e.ts on an unlocked screen.
+  pn-k-across: needs a second project in the same profile (Tauri index_scope). cargo open_search_result_scope + project-tabs.e2e.ts.
+  pn-deeplink: ?c=<entry>#<artboard> in a plain browser tab does nothing (links arrive as native navigate events); GET /_api/link/resolve OK (live, unknown). cargo deep_link_anchor + share-link.e2e.ts.
+  pn-cant-open: skipped (waits on S1.20).

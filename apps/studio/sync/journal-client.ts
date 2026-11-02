@@ -58,6 +58,45 @@ export interface JournalPage {
   reason?: string;
   /** The hub sent more than its own published ceiling; the rest was dropped. */
   overflowed?: true;
+  /**
+   * p8-held-surface — paths the hub holds back from the code lane, sent to the
+   * project OWNER only. Absent for everyone else (and from an older hub); an
+   * empty list from the hub is "nothing is held".
+   */
+  held?: { count: number; paths: { path: string; reason: HeldReason }[] };
+}
+
+export type HeldReason = 'canvas-before-folders' | 'changed-as-canvas';
+
+/** How many held paths one page may carry here (the hub sends at most 200). */
+const MAX_HELD = 200;
+
+/**
+ * The owner's held list, shape-checked like every other journal field (the hub
+ * is untrusted to peers, DDR-054): project-file shaped paths, a known reason,
+ * capped, with the count clamped so it never reads below the list.
+ */
+function parseHeld(body: Record<string, unknown>): JournalPage['held'] | undefined {
+  if (!Array.isArray(body?.held)) return undefined;
+  const paths: { path: string; reason: HeldReason }[] = [];
+  // p8-holds-fix (recheck info D): one row per path — the panel keys rows by it.
+  const seen = new Set<string>();
+  for (const raw of (body.held as unknown[]).slice(0, MAX_HELD)) {
+    if (!raw || typeof raw !== 'object') continue;
+    const h = raw as Record<string, unknown>;
+    if (typeof h.path !== 'string' || !isProjectFileShape(h.path)) continue;
+    if (seen.has(h.path)) continue;
+    seen.add(h.path);
+    const reason: HeldReason =
+      h.reason === 'changed-as-canvas' ? 'changed-as-canvas' : 'canvas-before-folders';
+    paths.push({ path: h.path, reason });
+  }
+  const rawCount = body.heldCount;
+  const count =
+    typeof rawCount === 'number' && Number.isInteger(rawCount) && rawCount >= paths.length
+      ? Math.min(rawCount, 1_000_000)
+      : paths.length;
+  return { count, paths };
 }
 
 // A designRoot-relative path a peer will turn into a real file: the SAME shape
@@ -151,6 +190,7 @@ export async function fetchJournal(opts: {
     // point becomes a ledger row on disk, a key in `_sync.json`, and a member
     // of the union every future pass re-walks. One response should not be able
     // to grow this machine's state without bound.
+    const held = parseHeld(body);
     const rawEntries = Array.isArray(body?.entries) ? body.entries : [];
     const overflowed = rawEntries.length > MAX_JOURNAL_PAGE;
     const entries: JournalEntry[] = [];
@@ -168,6 +208,7 @@ export async function fetchJournal(opts: {
       truncated: body?.truncated === true || overflowed,
       reanchor: false,
       ...(overflowed ? { overflowed: true } : {}),
+      ...(held ? { held } : {}),
     };
   } catch {
     return null;
@@ -214,6 +255,9 @@ export async function hubHealth(opts: {
   try {
     const timeout = AbortSignal.timeout(HEALTH_TIMEOUT_MS);
     const res = await fetchImpl(`${base}/health`, {
+      // a hub answers its own /health: a redirect is never followed (gate-b-sec1 A5 — a bounce to an internal
+      // http address from a cell). The other sync requests do not follow one either (`redirect: 'manual'`).
+      redirect: 'error',
       signal: opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout,
     });
     if (!res.ok) return { capabilities: null, formatVersion: null };

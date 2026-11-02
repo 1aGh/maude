@@ -7,6 +7,9 @@
 // the loopback bridge). In a plain browser (no Tauri) `isNativeApp()` is false and
 // the IdentityBar shows the "open the desktop app" state instead of sign-in.
 
+import { listen as shellListen } from './shell-bus.js';
+import { browserDoorOf, openBrowserDoor } from './v2/cloud/browser-door.js';
+
 export function isNativeApp() {
   return typeof window !== 'undefined' && !!window.__TAURI__;
 }
@@ -22,15 +25,49 @@ export function invoke(cmd, args) {
   return tauri().core.invoke(cmd, args);
 }
 
-/** Subscribe to a Tauri event; resolves to an async unlisten fn. */
+/** Hear a shell message (`github://device-code`, `menu://action`, `update-ready`, …) addressed
+ *  to THIS page; resolves to an unlisten fn. Finding 1d: not a Tauri event — Tauri delivers an
+ *  `emit_to` to every `Any`-target listener in every webview, so a sibling tab would read this
+ *  one's device code. The shell writes to the Channel this page handed `shell_subscribe`
+ *  (shell-bus.js). Outside the app: a no-op unlisten. */
 export function listen(event, handler) {
-  return tauri().event.listen(event, (e) => handler(e.payload));
+  return shellListen(event, handler);
+}
+
+/** Same as `listen` — every shell message is addressed to one page now. Kept for callers. */
+export function listenHere(event, handler) {
+  return shellListen(event, handler);
 }
 
 // ── Tauri shell commands ──────────────────────────────────────────────────────
 /** Run the device flow; resolves to the login (public handle) on success. */
 export const signIn = () => invoke('github_sign_in');
 export const signOut = () => invoke('github_sign_out');
+/** V2-3.8 — a Maude Cloud sign-in keeps its project's own profile. Call before
+ *  the device flow: `true` means this project already held a cloud sign-in and
+ *  was moved to a fresh profile (its server restarts and the page reloads —
+ *  stop, the person starts again there). In a plain browser there is no shell:
+ *  `false`. */
+export const cloudSignInPrepare = () =>
+  isNativeApp() ? invoke('cloud_sign_in_prepare') : Promise.resolve(false);
+/** V2-3.8 — after the server stored the cloud credential: the shell records the
+ *  account and, when it would re-sign a profile other projects use under another
+ *  account, moves it to this project's own profile (`true`: reloading). */
+export const cloudSignedIn = () =>
+  isNativeApp() ? invoke('cloud_signed_in') : Promise.resolve(false);
+/** S1.22a — every account on this Mac with the projects bound to it, for the account card:
+ *  `[{ id, label, email, projects: string[] }]`. A shell command that returns it FOR THE CALLER
+ *  (patch request S1.22a-1); an older shell has none, so this resolves `null` — the card then says
+ *  only what the tab itself knows. Never throws. */
+export const accountsList = () =>
+  isNativeApp()
+    ? Promise.resolve()
+        .then(() => invoke('accounts_list'))
+        .then(
+          (v) => (Array.isArray(v) ? v : null),
+          () => null
+        )
+    : Promise.resolve(null);
 /** Whether a token is in the keychain (boolean). Safe to call on launch. */
 export const isSignedIn = () => invoke('github_is_signed_in');
 export const openVerification = () =>
@@ -47,13 +84,13 @@ export const openGitHubUrl = (url) => invoke('open_github_url', { url });
  *  a visible link the person can use by hand. */
 export const openCloudUrl = (url) => invoke('open_cloud_url', { url });
 /** Show the device code as soon as the shell has it. Returns an unlisten promise. */
-export const onDeviceCode = (cb) => listen('github://device-code', cb);
-/** Fire when sign-in completes (any surface) so other surfaces can flip live. cb(login). */
-export const onSignedIn = (cb) => listen('github://signed-in', cb);
-/** Fire when the native File ▸ New Project… menu item is chosen. Returns an unlisten promise. */
-export const onMenuNewProject = (cb) => listen('menu://new-project', cb);
-/** Fire when the native Help ▸ Report a Bug… menu item is chosen. Returns an unlisten promise. */
-export const onMenuReportBug = (cb) => listen('menu://report-bug', cb);
+export const onDeviceCode = (cb) => listenHere('github://device-code', cb);
+/** Fire when sign-in completes in THIS window so its other surfaces can flip live. cb(login). */
+export const onSignedIn = (cb) => listenHere('github://signed-in', cb);
+/** Fire when a native menu item whose registry action runs in the webview is chosen
+ *  (`menu://action {id}`, sent to the focused window only — V2-1.3 §5.8). cb(actionId).
+ *  Returns an unlisten promise. */
+export const onMenuAction = (cb) => listenHere('menu://action', (p) => cb(p?.id));
 
 // ── dev-server endpoints ────────────────────────────────────────────────────────
 async function api(path, opts = {}) {
@@ -76,15 +113,22 @@ async function api(path, opts = {}) {
 
 export const fetchIdentity = () => api('/_api/github/identity');
 export const listRepos = () => api('/_api/github/repos');
-export const createRepo = (body) => api('/_api/github/create-repo', { method: 'POST', body: JSON.stringify(body) });
-export const invite = (username) => api('/_api/github/invite', { method: 'POST', body: JSON.stringify({ username }) });
-export const cloneRepo = (body) => api('/_api/github/clone', { method: 'POST', body: JSON.stringify(body) });
-export const createProject = (body) => api('/_api/github/create-project', { method: 'POST', body: JSON.stringify(body) });
+export const createRepo = (body) =>
+  api('/_api/github/create-repo', { method: 'POST', body: JSON.stringify(body) });
+export const invite = (username) =>
+  api('/_api/github/invite', { method: 'POST', body: JSON.stringify({ username }) });
+export const cloneRepo = (body) =>
+  api('/_api/github/clone', { method: 'POST', body: JSON.stringify(body) });
+export const createProject = (body) =>
+  api('/_api/github/create-project', { method: 'POST', body: JSON.stringify(body) });
 /** Create a local-only project (git init + .design scaffold, no GitHub remote). body: { name, parentDir }. */
-export const createLocalProject = (body) => api('/_api/project/create-local', { method: 'POST', body: JSON.stringify(body) });
-export const initDesign = (dir) => api('/_api/design/init', { method: 'POST', body: JSON.stringify({ dir }) });
+export const createLocalProject = (body) =>
+  api('/_api/project/create-local', { method: 'POST', body: JSON.stringify(body) });
+export const initDesign = (dir) =>
+  api('/_api/design/init', { method: 'POST', body: JSON.stringify({ dir }) });
 /** Phase 29 (E4) Door C — connect to a team hub (saves the global hub credential). */
-export const hubLink = (body) => api('/_api/hub/link', { method: 'POST', body: JSON.stringify(body) });
+export const hubLink = (body) =>
+  api('/_api/hub/link', { method: 'POST', body: JSON.stringify(body) });
 
 // ── managed team projects (plan T21/T22) ───────────────────────────────────────
 /**
@@ -93,7 +137,8 @@ export const hubLink = (body) => api('/_api/hub/link', { method: 'POST', body: J
  * { kind: 'handoff', code, claimedProject } | { kind: 'hub', url, email, password }
  * | { kind: 'known-hub', url }.
  */
-export const prepareProject = (body) => api('/_api/projects/prepare', { method: 'POST', body: JSON.stringify(body) });
+export const prepareProject = (body) =>
+  api('/_api/projects/prepare', { method: 'POST', body: JSON.stringify(body) });
 /** Create (first time) or reuse the project's managed copy, then switch to it. */
 export const managedProjectOpen = (p) =>
   invoke('managed_project_open', {
@@ -103,16 +148,27 @@ export const managedProjectOpen = (p) =>
     canvasGroups: p.canvasGroups || [],
   });
 /** The team projects this computer keeps a copy of, most recent first. */
-export const managedProjectsList = () => invoke('managed_projects_list');
+// Outside the app there are no managed copies — and invoke() throws synchronously there, which a
+// caller's `.catch()` never sees (the P8 sweep: Settings › Add a team server… crashed the browser shell).
+export const managedProjectsList = () =>
+  isNativeApp() ? invoke('managed_projects_list') : Promise.resolve([]);
 
 /**
  * Prepare, then open. Resolves `{ ok: true, path }` once the switch has started
- * (the webview reloads onto the project), or `{ ok: false, error }`.
+ * (the webview reloads onto the project), or `{ ok: false, error }`. A Can view
+ * account's browser door (S9.17b) opens the cell as a tab instead — `{ ok: true,
+ * via }`, nothing switches here; a project tab names no profile (Rust uses its own).
  */
 export async function openTeamProject(input) {
   const r = await prepareProject(input);
+  const door = browserDoorOf(r.json);
+  if (door) return openBrowserDoor({ url: door.url }, { invoke: isNativeApp() ? invoke : null });
   if (!r.ok || !r.json?.ok) {
-    return { ok: false, error: r.json?.error || 'The project could not be opened.', status: r.status };
+    return {
+      ok: false,
+      error: r.json?.error || 'The project could not be opened.',
+      status: r.status,
+    };
   }
   try {
     const path = await managedProjectOpen(r.json);
@@ -122,13 +178,10 @@ export async function openTeamProject(input) {
   }
 }
 
-// ── Tauri shell: app-state (first-run / last-project / recent) — Phase 29 (E4) ──
-// In a plain browser these throw via tauri(); the wizard only mounts in the native
-// app (isNativeApp()), so call sites guard accordingly.
-/** True on a fresh install with no usable last project → show the onboarding wizard. */
-export const appIsFirstRun = () => invoke('app_is_first_run');
+// ── Tauri shell: app-state (last-project / recent) — Phase 29 (E4) ──
+// In a plain browser these throw via tauri(), so call sites guard on isNativeApp().
+// (S6.15 retired `appIsFirstRun`: first launch boots Home, there is no wizard to show.)
 export const appGetLastProject = () => invoke('app_get_last_project');
-export const appSetLastProject = (path) => invoke('app_set_last_project', { path });
 export const appRecentProjects = () => invoke('app_recent_projects');
 
 // ── Tauri shell commands for "pull a local copy" ────────────────────────────────
@@ -207,6 +260,12 @@ export async function readPickedMediaBlob(ref, type) {
 export const onUpdateReady = (cb) => listen('update-ready', cb);
 /** Apply the staged update by relaunching the app (kills the sidecar first). */
 export const restartToUpdate = () => invoke('restart_to_update');
+/**
+ * V2-4.7c — Settings › Advanced › Check for updates: the menu's Maude ▸ Check for Updates… path
+ * (signed feed, native "up to date" / "failed" dialogs, a found build stages → `update-ready`).
+ * No arguments by design; the shell throttles repeat calls.
+ */
+export const checkForUpdates = () => invoke('check_for_updates');
 
 // ── Tauri shell: opt-in crash reporting (Phase 32 / Task 4) ─────────────────────
 // Local-file-only, default OFF. The first-run wizard's opt-in checkbox flips it.

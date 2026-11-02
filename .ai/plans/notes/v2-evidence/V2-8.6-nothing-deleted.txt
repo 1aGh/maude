@@ -1,0 +1,17 @@
+v1 entry points mapped to a row   100.0 %  (0 of 1561 open, 243 added after the freeze; 241 excluded as not v1 features)
+rows with a v2 home (where + id)  100.0 %  (0 of 144 open)
+rows reachable in a headless boot 100.0 %  (0 of 144 open — reachability from 2026-10-25T23:25:14.774Z)
+kept actions/hooks reachable      100.0 %  (0 of 450 open)
+v2.where free of v1 names         100.0 %
+nothing-deleted: 100 %
+
+open rows (0):
+open kept targets (0):
+exit=0
+
+how it was reached (V2-8.6, branch p8-nd)
+  reachability.json: a full per-shell probe pass on the local lane (desktop, browser, cloud-owner, cloud-member, cloud-viewer,
+  viewer, embed; --build), then the openers that were new or failed re-run per shell and merged (--merge/--evidence), then
+  --no-run to write the file. The mini's slots were taken by other agents (remote-lane waited 15 min, exit 75).
+  moved rows: Artboard theme -> Inspector > Advanced > Theme; Fit just this artboard -> Canvases panel jump list.
+  proofs (named render tests): artboard-new-section, video-scrub-bar/-time/-fill.

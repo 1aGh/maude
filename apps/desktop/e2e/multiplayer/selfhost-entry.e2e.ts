@@ -1,9 +1,14 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { $, browser, expect } from '@wdio/globals';
+import { focusShell } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
+import { connectHubFromHome } from '../helpers/home-entry';
 import { isNativeShell } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
+import { ensureFilesTab, expandTree } from '../helpers/tree';
+import { pinCurrentWindow } from '../helpers/windows';
 
 const run = JSON.parse(process.env.MAUDE_SELFHOST_ENTRY_RUN ?? 'null') as {
   input: string;
@@ -16,6 +21,11 @@ const target = JSON.parse(readFileSync(run.input, 'utf8')) as {
   email: string;
   password: string;
 };
+// the same dir selfhost-entry.conf.ts cleans (macOS: the shared e2e bundle's app dir)
+const e2eAppDir = (scratch: string) =>
+  process.platform === 'darwin'
+    ? join(homedir(), 'Library', 'Application Support', 'com.maude.app.e2e')
+    : join(scratch, 'data', 'com.maude.app.e2e');
 const tid = (id: string) => `[data-testid="${id}"]`;
 const canvasName = `Native selfhost ${run.scratch.split('-').at(-1)}`;
 const editedTitle = `${canvasName} edited by designer`;
@@ -35,32 +45,53 @@ async function probe(query: string, operation = 'read', value: unknown = null) {
   );
 }
 
-describe('S01 self-host entry on a clean Linux native profile', () => {
+/**
+ * ⌘K "New brief canvas" (`canvas.new-brief`): the centered name dialog (R3 (6)), a name, Create. The panel's
+ * "New canvas" makes a blank canvas since R2-P2 (TD2) — no artboard, no heading — and this lane's next step
+ * edits the brief's heading, so it takes the brief door (surface.e2e.ts covers New canvas).
+ */
+async function createBriefCanvas(name: string) {
+  await focusShell();
+  await browser.keys(['Meta', 'k']);
+  const input = await $(tid('palette-input'));
+  await input.waitForExist({ timeout: 10_000 });
+  await input.setValue('New brief canvas');
+  const action = await $(tid('palette-row-action:canvas.new-brief'));
+  await action.waitForExist({ timeout: 4000 });
+  await action.click();
+  const field = await $(tid('name-dialog-input'));
+  await field.waitForDisplayed({ timeout: 10_000 });
+  await field.setValue(name);
+  await (await $(tid('name-dialog-create'))).click();
+}
+
+describe('S01 self-host entry on a clean native profile (Linux, or macOS on a local container)', () => {
   it('signs in to the team server, opens its project and creates a canvas through its UI', async () => {
     startReport('S01 actual self-host entry — Linux native debug');
-    await (
-      browser as unknown as { tauri?: { switchWindow(label: string): Promise<void> } }
-    ).tauri?.switchWindow('main');
+    await pinCurrentWindow();
     await waitForSidecar();
     expect(await isNativeShell()).toBe(true);
     expect(existsSync(process.env.HUBS_CONFIG_PATH as string)).toBe(false);
-    const door = await $(tid('ob-door-team'));
-    await door.waitForDisplayed({ timeout: 120_000 });
     await capture('clean-first-run');
-    await door.click();
-    // The fields a teammate's invitation told them: address, email, password.
-    await (await $(tid('team-hub-url'))).setValue(target.hubUrl);
-    await (await $(tid('team-hub-email'))).setValue(target.email);
-    await (await $(tid('team-hub-password'))).setValue(target.password);
+    // Home → Advanced options → Use a self-hosted hub: the fields a teammate's invitation told them —
+    // address, email, password. (The v1 first-run wizard door is retired with the wizard, S6.15.)
+    await connectHubFromHome({
+      hub: target.hubUrl,
+      email: target.email,
+      password: target.password,
+    });
     await capture('team-server-form');
-    await (await $(tid('team-hub-open'))).click();
     // The project is open once its canvases arrive. A consent step, when this
-    // server asks for one, is the same choice a person makes.
+    // server asks for one, is the same choice a person makes. The Canvases panel
+    // starts collapsed (issue #124): a project with more than one group draws each
+    // as a closed folder, so the rows exist only once a person opens them.
     try {
       await browser.waitUntil(
         async () => {
           const consent = await $(tid('sync-consent-accept'));
           if (await consent.isDisplayed().catch(() => false)) await consent.click();
+          await ensureFilesTab();
+          await expandTree();
           return (await browser.$$('[data-testid^="canvas-row-ui-"]').length) > 0;
         },
         { timeout: 180_000, interval: 1000, timeoutMsg: 'The invited project never opened' }
@@ -68,19 +99,23 @@ describe('S01 self-host entry on a clean Linux native profile', () => {
     } catch (error) {
       writeFileSync(
         join(run.out, 'open-failure.txt'),
-        await browser.execute(
-          () => document.querySelector('[data-testid="team-projects"]')?.textContent ?? ''
-        )
+        await browser.execute(() => document.body.innerText.slice(0, 4000))
       );
       await capture('open-failure');
       throw error;
     }
     await capture('managed-copy-open');
 
-    const roots = join(run.scratch, 'data/com.maude.app.e2e/projects');
-    const copies = readdirSync(roots).filter((name) =>
-      existsSync(join(roots, name, '.design/config.json'))
-    );
+    const roots = join(e2eAppDir(run.scratch), 'projects');
+    // this server's copies only: on macOS the e2e app dir is shared with the other lanes
+    const copies = readdirSync(roots).filter((name) => {
+      try {
+        const c = JSON.parse(readFileSync(join(roots, name, '.design/config.json'), 'utf8'));
+        return new URL(c.linkedHub?.url).origin === new URL(target.hubUrl).origin;
+      } catch {
+        return false;
+      }
+    });
     expect(copies).toHaveLength(1);
     const copy = join(roots, copies[0]);
     const cfg = JSON.parse(readFileSync(join(copy, '.design/config.json'), 'utf8'));
@@ -89,18 +124,24 @@ describe('S01 self-host entry on a clean Linux native profile', () => {
     const hubs = readFileSync(process.env.HUBS_CONFIG_PATH as string, 'utf8');
     expect(hubs.includes(target.password)).toBe(false);
 
-    await (await $('button[aria-label="New blank brief board"]')).click();
-    await (await $('input[aria-label="New brief board name"]')).setValue(canvasName);
-    await (await $('button[aria-label="Create brief board"]')).click();
+    await createBriefCanvas(canvasName);
     const row = `canvas-row-ui-${canvasName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
-    await (await $(tid(row))).waitForDisplayed({ timeout: 60_000 });
+    // (its folder may still be closed: a person opens it to see the new row)
+    await browser.waitUntil(
+      async () => {
+        await ensureFilesTab();
+        await expandTree();
+        return $(tid(row)).isDisplayed();
+      },
+      { timeout: 60_000, interval: 500, timeoutMsg: `${row} never appeared in the Canvases panel` }
+    );
     const heading = 'div[style*="font-size: 22px"]';
     await browser.waitUntil(async () => (await probe(heading)).observation?.visible === true, {
       timeout: 60_000,
       timeoutMsg: 'Created board did not render in native canvas',
     });
     await capture('first-ui-create');
-    await probe(tid('palette-mode-edit'), 'click');
+    await (await browser.$(tid('palette-mode-edit'))).click(); // V2-4.3b: the switch is the Share cluster's (shell document)
     const editor = '[contenteditable="plaintext-only"]';
     await browser.waitUntil(
       async () => {

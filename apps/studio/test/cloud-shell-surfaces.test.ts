@@ -22,7 +22,7 @@
 //                         refuses by design (DDR-209 D1). Left in, they render
 //                         as a wall of `HTTP 404`, which is what the owner saw.
 //
-// Source-level assertions, because the menubar's dropdowns do not open under a
+// Source-level assertions, because the shell's menus do not open under a
 // synthetic click and a test that cannot fail is worse than no test. What these
 // pin is exactly what would regress: someone re-introducing `TABS.map` or
 // dropping the gate on `<CloudBar />`.
@@ -43,40 +43,49 @@ const STUDIO = join(import.meta.dir, '..');
 // The shell's code, whichever client file it lives in (app.jsx before the
 // V2-0.2 split, its modules after) — see `_client-source.ts`.
 const APP = clientSource();
-const SETTINGS = readFileSync(join(STUDIO, 'client', 'panels', 'SettingsPanel.jsx'), 'utf8');
+const SETTINGS_MODEL = readFileSync(
+  join(STUDIO, 'client', 'v2', 'settings', 'settings-model.js'),
+  'utf8'
+);
+const SHEET = readFileSync(join(STUDIO, 'client', 'v2', 'settings', 'settings-sheet.jsx'), 'utf8');
 
 describe('the cloud shell offers nothing it cannot honour', () => {
-  test('the local-machine settings tabs are flagged — and the list is exact', () => {
-    // An exact list, not a `toContain`: the failure this guards is a tab that
-    // configures machine-local state shipping to the cloud shell UNFLAGGED,
-    // where its routes are refused by design (DDR-209 D1) and it renders as a
-    // wall of 404s. A new tab has to be classified deliberately, which means
-    // this assertion is SUPPOSED to fail when one is added.
+  // V2-4.7a: the seven tabs became three sections (client/v2/settings/). The rule is the same — what
+  // configures THIS machine is ABSENT in a cloud tab, not disabled — and now lives in one model.
+  test('the local-machine settings sections are flagged — and the list is exact', () => {
+    // An exact list, not a `toContain`: the failure this guards is a section that configures
+    // machine-local state shipping to the cloud shell UNFLAGGED, where its routes are refused by
+    // design (DDR-209 D1) and it renders as a wall of 404s. A new section has to be classified
+    // deliberately, which means this assertion is SUPPOSED to fail when one is added.
     //
-    // `figma` (DDR-216) is local-machine for the same reason `ai-generation`
-    // is: the credential lives in `~/.config/maude/keys.json` on this machine,
-    // and the import writes into this machine's design root.
+    // Connections holds the Figma token, the provider keys, GitHub and the workspace link (DDR-216:
+    // the credential lives in `~/.config/maude/keys.json` on this machine); Advanced holds ffmpeg,
+    // whisper, mlx-vlm, the keychain and the sync switches.
     const flagged = [
-      ...SETTINGS.matchAll(/\{ id: '([a-z-]+)', label: '[^']+', local: true \}/g),
+      ...SETTINGS_MODEL.matchAll(
+        /\{ id: '([a-z-]+)', label: '[^']+', icon: '[a-z-]+', local: true \}/g
+      ),
     ].map((m) => m[1]);
-    expect(flagged.sort()).toEqual(['ai-generation', 'figma', 'subtitles', 'video']);
+    expect(flagged.sort()).toEqual(['advanced', 'connections']);
   });
 
-  test('the tab rail renders the FILTERED list, not the raw table', () => {
-    // `TABS.map` is what shipped the wall of 404s.
-    expect(SETTINGS).toContain('{tabs.map((t) => (');
-    expect(SETTINGS).not.toContain('{TABS.map(');
-    // …and every keyboard path must walk the same list, or End/Home select a
-    // tab that is not on screen.
-    expect(SETTINGS).not.toMatch(/setTab\(TABS\[/);
-    expect(SETTINGS).toContain('const tabs = useMemo(');
+  test('the section rail renders the FILTERED list, not the raw table', () => {
+    // Rendering SECTIONS directly is what would ship the wall of 404s.
+    expect(SHEET).toContain('const sections = sectionsFor(cloud, readOnly);');
+    expect(SHEET).toContain('{sections.map((s) => (');
+    expect(SHEET).not.toContain('{SECTIONS.map(');
+    // …and every keyboard path must walk the same list, or End/Home select a section that is
+    // not on screen.
+    expect(SHEET).toContain('railTarget(ids, current, e.key)');
+    expect(SHEET).not.toMatch(/setTab\(SECTIONS\[/);
   });
 
-  test('a remembered tab this shell does not have cannot select nothing', () => {
-    // Open Video on the desktop, then open Settings in the cloud.
-    const init =
-      /const \[tab, setTab\] = useState\(\(\) => \{[\s\S]*?\}\);/.exec(SETTINGS)?.[0] ?? '';
-    expect(init).toContain('!(cloud && t.local)');
+  test('a remembered section this shell does not have cannot select nothing', () => {
+    // Open Advanced on the desktop, then open Settings in the cloud.
+    expect(SHEET).toContain('resolveTab(cloud, initialTab, remembered(), readOnly)');
+    expect(SETTINGS_MODEL).toContain('sectionsFor(cloud, readOnly).map((s) => s.id)');
+    // …and the local sections need `cloud === null`, never mere falsiness.
+    expect(SETTINGS_MODEL).toMatch(/!s\.local \|\| \(cloud === null/);
   });
 
   test('the cloud sign-in is not offered inside the cloud', () => {
@@ -86,8 +95,10 @@ describe('the cloud shell offers nothing it cannot honour', () => {
     // Matched on the GUARD rather than the whole element, so adding a prop to
     // CloudBar (DDR-214 drilled the live sync payload in) does not read as a
     // regression in a rule that is entirely about `=== null`.
-    expect(clientMatches(/\{cloud === null \? <CloudBar[^>]*\/> : null\}/)).not.toEqual([]);
-    expect(APP).not.toMatch(/\{cloud \? null : <CloudBar/);
+    expect(
+      clientMatches(/\{cloud === null \?\s*\(?\s*<CloudBar[^>]*\/>\s*\)?\s*: null\s*\}/)
+    ).not.toEqual([]);
+    expect(APP).not.toMatch(/\{cloud \?\s*null\s*:\s*\(?\s*<CloudBar/);
   });
 
   test('the local export queue does not hydrate before the shell is known', () => {
@@ -124,7 +135,7 @@ describe('the cloud shell offers nothing it cannot honour', () => {
   test('every component that gates on the shell is actually GIVEN the flag', () => {
     // The bug this exists for: three `cfg?.cloud` reads inside a component that
     // never receives `cfg` — a ReferenceError at render, and a blank app.
-    for (const call of ['<Menubar', '<Sidebar', '<SettingsPanel']) {
+    for (const call of ['<Sidebar', '<SettingsSheet']) {
       // Sliced inside the one file that renders it, so the window never runs
       // past the end of that file into the next.
       const { src } = fileContaining(call);
@@ -140,7 +151,7 @@ describe('the cloud shell offers nothing it cannot honour', () => {
   test('no component reaches for `cfg` where only the flag was passed', () => {
     // `cfg` is a real variable at the top level, so a stray reference in a
     // child component is a ReferenceError the bundler happily emits.
-    for (const name of ['Menubar', 'Sidebar']) {
+    for (const name of ['Sidebar']) {
       // Bounded window: the component's own body, not the whole file —
       // wherever that component is defined.
       const body = fnBody(name);
@@ -159,13 +170,10 @@ describe('"not known yet" survives every layer between /_config and the DOM', ()
   // frame, and the boot 404 came back looking exactly like the one just fixed.
   // Checked in EVERY client module (app.jsx and SettingsPanel.jsx were the two
   // named here; a component split out of app.jsx must stay covered wherever it
-  // lands), except the one panel whose `cloud = null` default is pinned on
-  // purpose by sync-panel-surface.test.ts ("it is ABSENT in the cloud").
-  const DEFAULTS_ON_PURPOSE = new Set(['panels/SyncPanel.jsx']);
+  // lands). The one panel that defaulted it on purpose (SyncPanel.jsx) left in V2-8.0.
 
   test('no component defaults the shell flag', () => {
     for (const { path, src } of clientFiles()) {
-      if (DEFAULTS_ON_PURPOSE.has(path)) continue;
       expect(src, path).not.toMatch(/^\s*cloud = (null|false|\{\}),$/m);
     }
   });
@@ -194,16 +202,18 @@ describe('the way back out exists only where there is somewhere to go', () => {
     }
   });
 
-  test('the ← Dashboard anchor is gated on the URL, not on the shell', () => {
-    const { src } = fileContaining('data-testid="cloud-back"');
-    const at = src.indexOf('data-testid="cloud-back"');
+  // V2-4.8a: the menubar's "← Dashboard" anchor is the project menu's "Back to Home" row in a cloud tab.
+  test('Back to Home is gated on the URL, not on the shell', () => {
+    const { src } = fileContaining('onOpenDashboard: () => {');
+    const at = src.indexOf('onOpenDashboard: () => {');
     expect(at).toBeGreaterThan(0);
-    const block = src.slice(at, at + 1200);
-    expect(block).toContain('{cloud.dashboardUrl ? (');
-    expect(block).toContain('href={cloud.dashboardUrl}');
-    // The project name is NOT gated with it: a tab must still say which
-    // project it is showing, dashboard or no dashboard.
-    expect(block).toContain('data-testid="cloud-project-name"');
+    const open = src.slice(at, at + 200);
+    // It navigates to the configured URL — there is no fallback literal (the test above).
+    expect(open).toContain('cfg?.cloud?.dashboardUrl');
+    expect(open).toContain('window.location.assign(url)');
+    // A hub that serves one project has no dashboard: the row is left out, not dead.
+    expect(src).toContain('const noDashboard = isCloudTab && !cfg.cloud.dashboardUrl;');
+    expect(src).toContain("...(noDashboard ? ['nav.home'] : []),");
   });
 
   test('the server sends the field only when it is configured', () => {
@@ -211,7 +221,7 @@ describe('the way back out exists only where there is somewhere to go', () => {
     // Conditional spread — the same shape `canvasToken` uses two fields down,
     // so an absent value is absent rather than a string nobody can act on.
     expect(HTTP).toContain(
-      '...(process.env.HUB_DASHBOARD_URL\n                  ? { dashboardUrl: process.env.HUB_DASHBOARD_URL }\n                  : {}),'
+      '...(process.env.HUB_DASHBOARD_URL\n                ? { dashboardUrl: process.env.HUB_DASHBOARD_URL }\n                : {}),'
     );
     expect(HTTP).not.toContain("HUB_DASHBOARD_URL ?? 'https://cloud.maude.sh'");
   });

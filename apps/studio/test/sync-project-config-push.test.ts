@@ -7,6 +7,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { sanitizeProjectConfig } from '../context.ts';
 import { createProjectConfigPusher, projectConfigSubset } from '../sync/project-config-push.ts';
 
 let root: string;
@@ -117,5 +118,48 @@ describe('createProjectConfigPusher', () => {
     });
     expect(await p.push()).toBe('nothing');
     expect(h.sent).toHaveLength(0);
+  });
+});
+
+// P-5 (V2-1.13 §5.12): the design-system schema fields travel desktop → hub → desktop, sanitized
+// the same way at every hop (the hub door's own rules: schema 1 only, rootClass / themes in the
+// class charset, themeDefault one of themes when themes is given).
+describe('P-5: schema, rootClass, themes, themeDefault per system', () => {
+  const raw = {
+    designSystems: [
+      {
+        name: 'ok',
+        path: 'system/ok',
+        schema: 1,
+        rootClass: 'fx',
+        themes: ['light', 'dark'],
+        themeDefault: 'dark',
+      },
+      {
+        name: 'bad',
+        path: 'system/bad',
+        schema: 2,
+        rootClass: 'a b',
+        themes: ['light', '</style>'],
+        themeDefault: 'dark',
+      },
+    ],
+  };
+  const expected = [
+    {
+      name: 'ok',
+      path: 'system/ok',
+      schema: 1,
+      rootClass: 'fx',
+      themes: ['light', 'dark'],
+      themeDefault: 'dark',
+    },
+    { name: 'bad', path: 'system/bad', themes: ['light'] },
+  ];
+  test('the push subset carries them', () => {
+    expect(projectConfigSubset(raw)?.designSystems).toEqual(expected);
+  });
+  test('the received project config keeps them', () => {
+    expect(sanitizeProjectConfig(raw)?.designSystems).toEqual(expected);
   });
 });

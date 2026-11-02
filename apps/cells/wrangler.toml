@@ -158,6 +158,12 @@ CELL_LIVE_PAIRING = "*"
 # existing project keeps its mode until its owner switches; only a brand-new
 # one starts in accepted revisions (MAUDE_NEW_PROJECT_MODE, cell-config).
 CELL_PROJECT_STORE = "*"
+# MAUDE 2 CONVERSION KILL SWITCH (p8-selfhost-convert) — a stable 2.0.0+ cell
+# converts its project at hub boot (apps/hub/src/v2-convert.mjs). Unset = on.
+# Set to "0" to hold every cell back; cellEnv projects it as CELL_V2_CONVERT
+# (the same name a self-hosted hub reads from its .env). Env applies at
+# container start, and it never undoes a conversion that already ran.
+# CELL_V2_CONVERT = "0"
 # CELL MATERIALIZER (plan feature-cell-materializer, Phase 1) — which tenants'
 # cells treat their disk as a bounded cache of the bucket: inert media is
 # fetched on demand, verified against the journal, and evicted, instead of

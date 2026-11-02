@@ -213,6 +213,37 @@ describe('a peer with an empty design root pulls the project down whole', () => 
     expect(cfg.canvasGroups.map((g: { path: string }) => g.path)).toContain('screens');
   });
 
+  // p8-detach-format: a project pulled from a format-2 hub keeps its format in
+  // the config it is seeded with. The mirror is what the link's /health,
+  // bootstrap or notice wrote before the pull.
+  async function pullWithHubMirror(mirror: number | null): Promise<Record<string, unknown>> {
+    hubListing([{ name: 'ws/acme/main/screens-home', bytes: 10 }]);
+    const ctx = makeCtx();
+    if (mirror !== null) {
+      const { noteHubFormat } = await import('../format.ts');
+      noteHubFormat(ctx.paths.designRoot, { hub: URL_, formatVersion: mirror });
+    }
+    const runtime = createSyncRuntime(ctx, {
+      providerFactory: hubDocProviderFactory({
+        'screens-home': { body: 'x\n', path: 'screens/home.tsx' },
+      }),
+    });
+    await runtime?.start();
+    await runtime?.stop();
+    return JSON.parse(readFileSync(join(ctx.paths.designRoot, 'config.json'), 'utf8'));
+  }
+
+  test('a seeded config carries the format of a format-2 hub', async () => {
+    const cfg = await pullWithHubMirror(2);
+    expect(cfg.formatVersion).toBe(2);
+    expect((cfg.canvasGroups as Array<{ path: string }>).map((g) => g.path)).toContain('screens');
+  });
+
+  test('seeding from a 1.x hub (or an unknown one) stays format 1: no stamp', async () => {
+    expect('formatVersion' in (await pullWithHubMirror(1))).toBe(false);
+    expect('formatVersion' in (await pullWithHubMirror(null))).toBe(false);
+  });
+
   test('a project that already declared itself is NEVER overwritten', async () => {
     const ctx = makeCtx();
     mkdirSync(join(ctx.paths.designRoot, 'ui'), { recursive: true });

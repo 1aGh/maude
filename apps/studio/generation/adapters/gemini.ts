@@ -137,6 +137,9 @@ export const GEMINI_DESCRIPTOR: ProviderDescriptor = {
   keyUrl: 'https://aistudio.google.com/apikey',
   notes:
     'Nano Banana image generation + Veo video (async, native synced audio + image-to-video). Your Google AI Studio key bills your own Google account. Generated media may carry a SynthID watermark; review Google’s usage terms for commercial use. A video clip takes 1–several minutes.',
+  payer: 'your Google key',
+  licence:
+    'Images may carry an invisible SynthID watermark. Check Google’s terms for commercial use.',
 };
 
 export const GEMINI_MODELS: ModelDescriptor[] = [

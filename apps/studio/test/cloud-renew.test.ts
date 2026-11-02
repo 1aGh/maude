@@ -93,6 +93,20 @@ describe('renewHubCredential', () => {
     expect(calls).toHaveLength(0);
   });
 
+  // V2-3.10 W4 — the account token goes only to the control plane recorded in cloud.json.
+  test('a cloud.json issued by another control plane → not-signed-in, no network', async () => {
+    writeFileSync(
+      join(dir, 'cloud.json'),
+      JSON.stringify({ url: 'https://other-plane.test', token: 'mpt_account', connectedAt: 1 })
+    );
+    const { doFetch, calls } = fakeFetch(HAPPY_ROUTES);
+    expect(await renewHubCredential(HUB_URL, doFetch)).toEqual({
+      ok: false,
+      reason: 'not-signed-in',
+    });
+    expect(calls).toHaveLength(0);
+  });
+
   test('happy path: projects → open → cell login → hubs.json updated, role preserved', async () => {
     signIn();
     writeHubRecord({ token: 'mau_stale', linkedAt: 1, role: 'member', expiresAt: 2 });
@@ -137,6 +151,45 @@ describe('renewHubCredential', () => {
     expect(readHubRecord()?.role).toBe('member');
   });
 
+  // Phase 4 security low D3 (S9.2): a stored record without a role reads as
+  // writable, so renewal must never write one. Cell silent + no stored role →
+  // the control plane's listed role; nothing at all → the floor, explicitly.
+  test('D3: no fresh and no stored role → the listed role, stored explicitly', async () => {
+    signIn();
+    writeHubRecord({ token: 'mau_stale', linkedAt: 1 });
+    const { doFetch } = fakeFetch({
+      ...HAPPY_ROUTES,
+      'https://cloud.test/api/projects': {
+        status: 200,
+        body: { projects: [{ id: 'alligators', url: HUB_URL, role: 'member' }] },
+      },
+      [`${HUB_URL}/auth/login`]: { status: 200, body: { token: 'mau_new', expiresAt: 12345 } },
+    });
+    expect((await renewHubCredential(HUB_URL, doFetch)).ok).toBe(true);
+    expect(readHubRecord()?.role).toBe('member');
+  });
+
+  test('D3: nobody names a role → the observer floor is stored, never undefined', async () => {
+    signIn();
+    writeHubRecord({ token: 'mau_stale', linkedAt: 1 });
+    const { doFetch } = fakeFetch({
+      ...HAPPY_ROUTES,
+      'https://cloud.test/api/projects': {
+        status: 200,
+        body: { projects: [{ id: 'alligators', url: HUB_URL }] },
+      },
+      [`${HUB_URL}/auth/login`]: { status: 200, body: { token: 'mau_new', expiresAt: 12345 } },
+    });
+    expect((await renewHubCredential(HUB_URL, doFetch)).ok).toBe(true);
+    const stored = readHubRecord();
+    expect(stored && 'role' in stored).toBe(true);
+    // The floor is `observer`, stored the way a 1.x peer reads it (decision v2-1.7 Q3 / `v1RoleProjection`:
+    // 1.9.x knows only `viewer` as read-only, `observer` would read as writable there); the real claim
+    // rides in `access`. Never undefined, never writable.
+    expect(stored?.role).toBe('viewer');
+    expect(stored?.access?.role).toBe('observer');
+  });
+
   test('claim-a: an embedded-credential hubUrl is refused, no network touched', async () => {
     signIn();
     const { doFetch, calls } = fakeFetch(HAPPY_ROUTES);
@@ -178,6 +231,21 @@ describe('renewHubCredential', () => {
     });
     const r = await renewHubCredential(HUB_URL, doFetch);
     expect(r).toEqual({ ok: false, reason: 'no-matching-project' });
+  });
+
+  test('an unknown or read-only role (observer, guest, Viewer) never renews an editor credential', async () => {
+    // V2-4 gate: the `=== 'viewer'` comparison failed open for every other non-editing role (V2-1.7 R1).
+    for (const role of ['observer', 'guest', 'Viewer', 'commenter']) {
+      signIn();
+      const { doFetch } = fakeFetch({
+        'https://cloud.test/api/projects': {
+          status: 200,
+          body: { projects: [{ id: 'alligators', url: HUB_URL, role }] },
+        },
+      });
+      const r = await renewHubCredential(HUB_URL, doFetch);
+      expect(r, role).toEqual({ ok: false, reason: 'no-matching-project' });
+    }
   });
 
   test('removed member: /projects/open refuses → open-refused (the right place to die)', async () => {

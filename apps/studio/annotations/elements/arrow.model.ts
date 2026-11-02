@@ -8,9 +8,9 @@
  */
 
 import { ARROW_HEADS, ARROW_LINES, DEFAULT_INK } from '../constants.ts';
-import { bool, color, type FieldSpec, id, num, oneOf, round } from '../fields.ts';
+import { bool, color, type FieldSpec, id, num, oneOf, round, str } from '../fields.ts';
 import type { AnnotationElement, ArrowEnd, Box, ElementDef, GeomCtx } from '../types.ts';
-import { get, pointSegmentDist, rotatePoint } from './_shared.ts';
+import { canvasHostField, get, pointSegmentDist, rotatePoint } from './_shared.ts';
 
 const MAGNETS = [0, 0.5, 1] as const;
 
@@ -30,6 +30,23 @@ export function arrowEnd(): FieldSpec<ArrowEnd> {
   return {
     required: true,
     eq: (a, b) => JSON.stringify(a) === JSON.stringify(b),
+    // Bound to an element (magnet optional), or a free point. `el` wins when both are given.
+    schema: {
+      anyOf: [
+        {
+          type: 'object',
+          required: ['el'],
+          properties: { el: elId.schema, nx: unit.schema, ny: unit.schema },
+          additionalProperties: false,
+        },
+        {
+          type: 'object',
+          required: ['x', 'y'],
+          properties: { x: coord.schema, y: coord.schema },
+          additionalProperties: false,
+        },
+      ],
+    },
     parse(raw) {
       if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
       const r = raw as Record<string, unknown>;
@@ -139,6 +156,16 @@ export function arrowEnds(el: AnnotationElement, ctx: GeomCtx): ResolvedArrow | 
 export const arrow: ElementDef = {
   type: 'arrow',
   fields: FIELDS,
+  // Format 2 (R5, contract S4 Q1): ends bound to an artboard (`ab:`) or a
+  // canvas element (`el:`). `start` / `end` keep caching the last resolved
+  // point, so a format-1 peer draws the arrow frozen (R2/R3).
+  // `label` (S4.11, an-arrow-kinds 3): the words written on the line. It is the arrow's own field,
+  // so it follows every re-route and an agent reads it with the arrow; a 1.x peer keeps it unread.
+  ext: {
+    endHost: canvasHostField(),
+    startHost: canvasHostField(),
+    label: str({ max: 200, plain: true }),
+  },
   caps: {
     box: false,
     rotatable: false,

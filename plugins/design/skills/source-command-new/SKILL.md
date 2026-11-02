@@ -1,6 +1,6 @@
 ---
 name: source-command-new
-description: "Create a multi-artboard canvas, a blank brief board, or artboards from annotations; verify with the critic loop."
+description: "Create a canvas with several artboards, an empty brief canvas, or artboards from annotations; verify with the critic loop."
 user-invocable: false
 ---
 

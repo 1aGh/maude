@@ -1,0 +1,54 @@
+{
+  "canvas": "ui/panels/RepoBranchSwitcher.tsx",
+  "from": "maude",
+  "to": "maude-v2",
+  "meta": { "designSystem": "maude-v2" },
+  "edits": [
+    {
+      "old": "import \"../../system/maude/colors_and_type.css\";",
+      "new": "import \"../../system/maude-v2/colors_and_type.css\";",
+      "why": "Load the maude-v2 tokens instead of maude. Every token the canvas and RepoBranchSwitcher.css use exists in maude-v2 under the same name."
+    },
+    {
+      "old": "import \"../../system/maude/preview/_components.css\";",
+      "new": "import \"../../system/maude-v2/preview/_components.css\";",
+      "why": "Use the maude-v2 shared component styles."
+    },
+    {
+      "old": "<div className=\"maude\" data-theme=\"dark\"><ShellFrame /></div>",
+      "new": "<div className=\"maude-v2\" data-theme=\"light\"><ShellFrame /></div>",
+      "why": "Artboard A: maude-v2's tokens are scoped to .maude-v2[data-theme]; light is its default theme."
+    },
+    {
+      "old": "<div className=\"maude\" data-theme=\"dark\"><ShellFrame open /></div>",
+      "new": "<div className=\"maude-v2\" data-theme=\"light\"><ShellFrame open /></div>",
+      "why": "Artboard B: same wrapper change."
+    },
+    {
+      "old": "<div className=\"maude\" data-theme=\"dark\"><ShellFrame open onDraft /></div>",
+      "new": "<div className=\"maude-v2\" data-theme=\"light\"><ShellFrame open onDraft /></div>",
+      "why": "Artboard C: same wrapper change."
+    },
+    {
+      "old": "<div className=\"maude\" data-theme=\"dark\"><ShellFrame onDraft foldConfirm /></div>",
+      "new": "<div className=\"maude-v2\" data-theme=\"light\"><ShellFrame onDraft foldConfirm /></div>",
+      "why": "Artboard D: same wrapper change."
+    },
+    {
+      "old": "<div className=\"maude\" data-theme=\"dark\"><ShellFrame newDraft /></div>",
+      "new": "<div className=\"maude-v2\" data-theme=\"light\"><ShellFrame newDraft /></div>",
+      "why": "Artboard E: same wrapper change."
+    },
+    {
+      "old": "<div className=\"maude\" data-theme=\"dark\"><ShellFrame onDraft switching",
+      "new": "<div className=\"maude-v2\" data-theme=\"light\"><ShellFrame onDraft switching",
+      "why": "Artboard F: same wrapper change."
+    }
+  ],
+  "notes": [
+    "maude-v2 has no .panel or .tree-row; the sidebar and file tree use them and will render unstyled until restyled with maude-v2 parts (.island, .row-item) or added to RepoBranchSwitcher.css.",
+    "The draft state is drawn in amber. In maude-v2 colour is functional (azure = action/selection, vermilion = AI only), so check the amber draft chip still reads right; --status-warn is the nearest token.",
+    "The theme goes from dark to light. Use data-theme=\"dark\" instead if the dark look should stay.",
+    "The comments in RepoBranchSwitcher.css still name system/maude."
+  ]
+}

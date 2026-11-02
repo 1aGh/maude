@@ -2,7 +2,7 @@
 # chat-open.sh — Phase 31 (DDR-123). Backs `/design:chat` (via `maude design
 # chat-open`): asks the running dev-server to surface the native ACP chat
 # sidepanel by POSTing /_api/acp/focus. The server emits a bus event the shell
-# (app.jsx, native-only) turns into "open the Assistant panel".
+# (app.jsx, native-only) turns into "open the AI chat panel".
 #
 # Reads:  $DESIGN_ROOT/_server.json  (port the running server wrote)
 # Usage:  chat-open.sh [--root <repo>]
@@ -37,7 +37,7 @@ if [ -z "${PORT:-}" ]; then
 fi
 
 if curl -fsS -X POST "http://127.0.0.1:${PORT}/_api/acp/focus" >/dev/null 2>&1; then
-  echo "→ opened the Assistant panel in Maude (port ${PORT})."
+  echo "→ opened the AI chat panel in Maude (port ${PORT})."
 else
   echo "chat-open: focus request to the dev server failed (port ${PORT})." >&2
   exit 1

@@ -4,7 +4,7 @@
 
 **Dual-theme DSes get a SECOND full pass in the alternate theme (2026-07-08).** When step 1 resolved `ALT_THEME` (non-empty — `DS_THEMES` declared more than one theme), a canvas is not visually verified until BOTH themes have been captured and read. This closes the exact gap a studyfi-v3 system-review caught: a canvas that renders fine in dark shipped with near-invisible light-theme text (a token frozen at its `:root` default, never redeclared inside `[data-theme="light"]`) because only the pinned default theme was ever screenshotted — the light-theme regression was found by a human manually toggling the theme, after critics had already passed. If `ALT_THEME` is empty (single-theme DS, or a legacy DS entry with no `themes[]` declared), this second pass is skipped entirely — no behavior change from before this fix.
 
-> **Activity overlay (Phase 13 / DDR-029).** As the canvas file is written, any open tab shows a live "editing — `<file>`" overlay (pulsing rim + corner badge) on the affected artboard(s), fading out ~3 s after the last write. Automatic, fs-watch-driven, no action required; `hide-chrome` / export captures suppress it.
+> **While you draft,** the artboards you are changing show the AI working on them in the person's window, and a ring when you are done. It is automatic: no action needed. Exports and hidden-chrome captures leave it out, so it never gets into the screenshots below.
 
 **Per-artboard element screenshots are the default for `/design:new`** because new canvases are typically multi-artboard (3–8) and DesignCanvas's pan/zoom viewport means a single full-page snapshot misses everything outside the visible viewport. The canonical screenshot helper handles navigation, mount-poll, per-screen loop, and the agent-browser CLI gotchas in one call:
 
@@ -17,11 +17,12 @@
 This hides the ~3–5 s capture inside the prompt-prep window (validation target 3: scaffold→critic-spawn within ~200 ms of prep-alone time). The step-9 BLOCKER contract is unchanged — it just evaluates after the job completes, not inline. **If `run_in_background` is unavailable** (restrictive sandbox / permission mode), fall back to the synchronous capture below — identical recipe, it just blocks — and do the prep afterward.
 
 ```bash
-HIST="$DESIGN_ROOT/_history/$SLUG"
+HIST="$RUN/shots"      # runtime state under the run folder: never versioned
 mkdir -p "$HIST"
 
 # Default-theme pass — preferred engine.
 maude design screenshot \
+  --canvas "$TARGET_REL" \
   --all-screens \
   --out-dir "$HIST" \
   --timeout 10
@@ -31,6 +32,7 @@ PER_SCREEN_EXIT=$?
 if [ "$PER_SCREEN_EXIT" -ne 0 ]; then
   echo "→ agent-browser per-screen failed; retrying with playwright engine" >&2
   maude design screenshot \
+    --canvas "$TARGET_REL" \
     --all-screens \
     --engine playwright \
     --out-dir "$HIST" \
@@ -45,6 +47,7 @@ if [ -n "$ALT_THEME" ]; then
   ALT_HIST="$HIST/theme-$ALT_THEME"
   mkdir -p "$ALT_HIST"
   maude design screenshot \
+    --canvas "$TARGET_REL" \
     --all-screens \
     --theme "$ALT_THEME" \
     --out-dir "$ALT_HIST" \
@@ -53,6 +56,7 @@ if [ -n "$ALT_THEME" ]; then
   if [ "$ALT_SCREEN_EXIT" -ne 0 ]; then
     echo "→ agent-browser alt-theme per-screen failed; retrying with playwright engine" >&2
     maude design screenshot \
+      --canvas "$TARGET_REL" \
       --all-screens \
       --theme "$ALT_THEME" \
       --engine playwright \
@@ -65,9 +69,9 @@ fi
 
 The helper:
 
-- Resolves URL from `_server.json` + `_active.json` (no manual port/URL math).
+- Resolves the URL from `_server.json` and the `--canvas` you name (`$TARGET_REL`, design-root-relative; ingest sets it to the active canvas) — no manual port/URL math, and it never depends on which canvas the person has open.
 - Polls for `[data-dc-screen]`/`[data-dc-slot]` mount up to `--timeout`s (Babel/React canvases need 2–4 s).
-- Scrolls each artboard into view (defeats `DesignCanvas` pan/zoom lazy-mount) and captures `<HIST>/<NNN>-screen-<id>.png`.
+- Scrolls each artboard into view (defeats `DesignCanvas` pan/zoom lazy-mount) and captures `$RUN/shots/<NNN>-screen-<id>.png`.
 - Picks engine `agent-browser` > `playwright` fallback automatically when `--engine auto`; explicit `--engine playwright` forces the second-pass shim.
 - Stdout = written paths (one per line); diagnostic + engine choice in stderr.
 - `--theme <name>` (used only for the alternate-theme pass above) forces every `[data-theme]` element to that value via a DOM eval before capturing — it does not touch the canvas file, so the default-theme pass and any later interactive session are unaffected.
@@ -80,7 +84,7 @@ Do NOT silently fall back to a single full-page PNG. The full-page fallback prod
 
 ```
 Per-artboard screenshot failed on both agent-browser and playwright engines.
-The canvas TSX wrote cleanly; this is a visual-verification gap, not a render
+The draft went into the canvas cleanly; this is a visual-verification gap, not a render
 failure. Pick:
   (a) Retry once — sometimes a fresh /_health + mount poll succeeds. (default)
   (b) Launch agent-browser interactively — I'll open the URL and you tell me
@@ -92,13 +96,13 @@ failure. Pick:
 
 Auto Mode (AskUserQuestion denied) → default to (c) but **the final print MUST stamp `⚠ visual verification SKIPPED — per-artboard capture failed on both engines; canvas IA was not visually confirmed`** so the user sees the gap before they discover it via "where are the mobile screens?". The critic panel runs WITHOUT a baseline screenshot path; signature-moment-critic and design-critic both flag absent baseline as a warning.
 
-**Per-screen partial fail (some IDs captured, some failed):** Helper returns the captured paths on stdout and exit 3. Treat this as success-with-gap — record which artboard IDs failed in the print + chat.md iter-0 row; do NOT auto-retry the failed IDs (signal that those artboards have render issues worth investigating manually).
+**Per-screen partial fail (some IDs captured, some failed):** Helper returns the captured paths on stdout and exit 3. Treat this as success-with-gap — record which artboard IDs failed in the print; do NOT auto-retry the failed IDs (signal that those artboards have render issues worth investigating manually).
 
-**If blank render / timeout on ALL artboards** → warn `⚠ canvas rendered blank — likely JSX error`. Don't auto-rollback (user can open browser + see console). This screenshot's path (or the absent-baseline marker) goes into the final print + chat.md iteration 0 row.
+**If blank render / timeout on ALL artboards** → warn `⚠ canvas rendered blank — likely JSX error`. Don't auto-rollback (user can open browser + see console). This screenshot's path (or the absent-baseline marker) goes into the final print.
 
 **Alternate-theme FAIL handling (`ALT_SCREEN_EXIT ≠ 0`, both engines exhausted):** the default-theme baseline still exists, so this is not a full-abort condition the way the primary pass is — but it must not resolve to silent-pass either, since an un-audited theme is exactly how the studyfi-v3 regression shipped. Surface the same one-shot AskUserQuestion as the primary FAIL path (§ above), reworded for the alternate theme, with the same four options; **Auto Mode defaults to (c)** and the final print MUST stamp `⚠ <ALT_THEME>-theme visual verification SKIPPED — canvas was only confirmed in <THEME>; the DS declares both as co-equal`. The critic panel still runs (it has the default-theme baseline), but `design-critic` treats a missing alternate-theme baseline on a declared-dual-theme DS as a warning it cannot silently drop, the same way it treats an absent default-theme baseline today.
 
-**Alternate-theme partial fail (some IDs captured, some failed):** same contract as the primary pass — record which artboard IDs failed in the print + chat.md iter-0 row, don't auto-retry.
+**Alternate-theme partial fail (some IDs captured, some failed):** same contract as the primary pass — record which artboard IDs failed in the print, don't auto-retry.
 
 **No `--full` shortcut for ≤ 3 artboards.** The single-PNG path was removed per system-review D-2 — even 1 artboard at 1200×760 with a full page panable canvas can produce a misleading PNG (offscreen content cropped, transform state ambiguous). The per-screen path is mandatory; if it fails, the AskUserQuestion above is the only escape hatch.
 

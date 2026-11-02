@@ -1,0 +1,4 @@
+C6 (p8-c6-drag) deltas over _d-harness-g5 + _d2/_d3-harness-g5 (copy those first, then these over them; set REPO in lib.mjs; node_modules symlinks into the main checkout; release-build the client).
+Order: run chain-c6.sh (s14a studio + gators, s14b, s14c, light then dark), then mkpairs.mjs 14-editing with ONLY_EXISTING=1 after moving the impl pngs of other ids aside.
+s14a.mjs: ed-ab-arrange steers the 4th post by two readings of the X.Y pill (pointer -> layout scale) and a fine correction until the board lands exactly left of the row at the row's gap and line (guide + three "80" chips, no snap delta); ed-ab-tidy first slides a story down (a loose layout), marquees three artboards and RESTS the pointer on "Tidy up" (dashed preview + tip), the undo toast dismissed.
+s14b.mjs: ed-lay-reorder pinches in on Services, double-clicks INTO the card (a drag then reorders it), grabs it high and left (the middle of a small card is its own gap grip) and drags it to the front.

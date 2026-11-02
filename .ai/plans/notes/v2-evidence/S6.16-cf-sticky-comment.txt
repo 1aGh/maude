@@ -1,0 +1,49 @@
+S6.16 evidence — 01/cf-sticky-comment   (5 · A sticky and a comment)
+canvas: .design/ui/v2/01 Create Flow.tsx line 405
+words : Think out loud, or ask someone. N switches to Preview with Sticky: one anywhere, for you. C pins a comment to the exact spot; Tereza’s sits on the button and waits for an answer.
+verdict proposed: verified
+
+How to re-check the pins (from the repo root): grep -E "^[0-9a-f]{64}  " <this file> | shasum -a 256 -c
+Unit/component run: scripts/v2-test-lane.sh -- bash -c "cd apps/studio && NO_OPEN=1 MAUDE_NO_AUTOBUILD=1 bun test <the test files below, all rows>" → 523 pass · 0 fail · 27 files (2026-10-20, branch s6-16 on feat/maude-v2 435b37e75)
+
+IMPLEMENTED BY (code, hash-pinned):
+ff12392018a3f6bf28327a1993631597be6531244029f33f0636324071280748  apps/studio/actions/keymap.gen.ts
+      ↳ N = tool.sticky, C = tool.comment (Edit, Preview, Viewing)
+e919a0c98ad5526be68a0e7d39ba9d286659bfddf096f4a6aa56c1d867643ba7  apps/studio/actions/defs/tool.ts
+      ↳ tool.sticky / tool.comment definitions
+5e817ae7384361d72b28517eda81d8c9a685d7344d953ecd963d35d5164159d2  apps/studio/annotations-layer.tsx
+      ↳ places the sticky; Preview with Sticky in hand
+795999ce16664f73ccfbcec7d132a270900fa20f3c9b7e5fecfb4286ac0d5e25  apps/studio/tool-palette.tsx
+      ↳ the Preview toolbar and its Sticky slot
+df3575ecdadc48a3fcd3a4c1e4bbbf3e822e7516eb4fb58b83ba669f9b64f44a  apps/studio/comments-overlay.tsx
+      ↳ the composer at the click, the thread, Resolve / Reopen
+
+PINNED BY (tests, hash-pinned):
+4fc4c871cf1818c9deb73eccfee38b5a2d73c6e36be81575359c40d57cc1ad14  apps/studio/test/tool-keys.test.ts
+      ↳ edit+N → request preview/sticky · edit+C → request preview/comment · preview N arms sticky · viewing C by role
+21ae8491bddd874fd3dfedfaf205e410bf1c960c79f12e2886c3d7589ce1d206  apps/studio/test/tool-palette.test.tsx
+      ↳ the toolbar slots
+1c344c515187addb66d37f85bda7d719089f293e9a7071dc3f50e26789ba0d63  apps/studio/test/mode-lane.test.tsx
+      ↳ the mode lane
+397b441c7a61446a9856f13858d5f82a1f5eea621fd299905ef6bf0d71667936  apps/studio/test/comments-v2-overlay.test.tsx
+      ↳ thread header, Resolve, Reopen, the op goes to the shell and the answer comes back
+6b9eba973006a75642f7ef214d0ebc23bbcd14ce82cb4a1bc0e393fa95f99950  apps/studio/test/s9-22b-comment-bridge.test.tsx
+      ↳ the add is pinned to the open canvas
+c6210f38f8760d63a1a36222668b143a10c301a14f7ca8516cfdb8246168272c  apps/studio/test/s9-22b-comments-shell.test.tsx
+      ↳ the comments shell
+
+LIVE (written, not run — needs the debug app, an unlocked screen and the e2e lock):
+c619d4c187a589ca8d0169e153b2b189939f8510ec25910d39315a999f9bada0  apps/desktop/e2e/scenarios/first-canvas.e2e.ts
+  → apps/desktop/e2e/scenarios/first-canvas.e2e.ts steps 6 and 7 (N → sticky stored in *.annotations.json; C → composer → comment stored under _comments/)
+54b05befd65bd6c4d37dbd73babcc596b7a83b8d7b4fa34b42e9ea2426135f96  apps/desktop/e2e/wdio.first-canvas.conf.ts
+02a6d0c73edd7db6d1a84f205a30c45b7760c5550ff1ef084874bfcf9501b9eb  apps/desktop/e2e/fixtures/fake-acp/first-canvas-agent.mjs
+545834d2e31beaea6d653bac13b01dd544eee03e6f81a6aa6bd7c14e347d74c3  .ai/scenarios/maude-v2/s6-first-canvas.md
+
+EARLIER EVIDENCE on the topic canvases (rows already verified in the ledger):
+  15/an-enter   → .ai/plans/notes/v2-evidence/S4.V/an-enter.png (verified: N in Edit opens Preview with Sticky in hand)
+  15/an-place   → .ai/plans/notes/v2-evidence/S4.V5/an-place.png (verified)
+  15/an-sticky  → .ai/plans/notes/v2-evidence/S4.V5/an-sticky.png (verified)
+  15/an-convert → .ai/plans/notes/v2-evidence/S4.V5/an-convert.png (verified)
+
+GAPS:
+  none against the 01 words. (Tereza’s pin is another person’s comment: its look is the S9 comments rows, 10/*.)

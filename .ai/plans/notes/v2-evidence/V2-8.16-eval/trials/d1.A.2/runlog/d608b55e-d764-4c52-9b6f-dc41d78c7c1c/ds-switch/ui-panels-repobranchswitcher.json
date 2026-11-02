@@ -1,0 +1,65 @@
+{
+  "canvas": "ui/panels/RepoBranchSwitcher.tsx",
+  "from": "maude",
+  "to": "maude-v2",
+  "meta": { "designSystem": "maude-v2" },
+  "edits": [
+    {
+      "old": " * @ds          maude\n",
+      "new": " * @ds          maude-v2\n",
+      "why": "Header names the system the canvas uses."
+    },
+    {
+      "old": "import \"../../system/maude/colors_and_type.css\";",
+      "new": "import \"../../system/maude-v2/colors_and_type.css\";",
+      "why": "Tokens come from maude-v2. Every token this canvas and RepoBranchSwitcher.css use exists in maude-v2 under the same name."
+    },
+    {
+      "old": "import \"../../system/maude/preview/_components.css\";",
+      "new": "import \"../../system/maude-v2/preview/_components.css\";",
+      "why": "Shared component classes come from maude-v2."
+    },
+    {
+      "old": "<div className=\"maude\" data-theme=\"dark\"><ShellFrame /></div>",
+      "new": "<div className=\"maude-v2 ds\" data-theme=\"dark\"><ShellFrame /></div>",
+      "why": "Artboard resting: maude-v2 scopes its tokens to .maude-v2[data-theme], and its core components only apply under :where(.ds)."
+    },
+    {
+      "old": "<div className=\"maude\" data-theme=\"dark\"><ShellFrame open /></div>",
+      "new": "<div className=\"maude-v2 ds\" data-theme=\"dark\"><ShellFrame open /></div>",
+      "why": "Artboard switch-popup: same scope change."
+    },
+    {
+      "old": "<div className=\"maude\" data-theme=\"dark\"><ShellFrame open onDraft /></div>",
+      "new": "<div className=\"maude-v2 ds\" data-theme=\"dark\"><ShellFrame open onDraft /></div>",
+      "why": "Artboard on-draft: same scope change."
+    },
+    {
+      "old": "<div className=\"maude\" data-theme=\"dark\"><ShellFrame onDraft foldConfirm /></div>",
+      "new": "<div className=\"maude-v2 ds\" data-theme=\"dark\"><ShellFrame onDraft foldConfirm /></div>",
+      "why": "Artboard fold-confirm: same scope change."
+    },
+    {
+      "old": "<div className=\"maude\" data-theme=\"dark\"><ShellFrame newDraft /></div>",
+      "new": "<div className=\"maude-v2 ds\" data-theme=\"dark\"><ShellFrame newDraft /></div>",
+      "why": "Artboard new-draft: same scope change."
+    },
+    {
+      "old": "<div className=\"maude\" data-theme=\"dark\"><ShellFrame onDraft switching switchingLabel=",
+      "new": "<div className=\"maude-v2 ds\" data-theme=\"dark\"><ShellFrame onDraft switching switchingLabel=",
+      "why": "Artboard switching: same scope change."
+    },
+    {
+      "old": "title=\"RepoBranchSwitcher · maude\"",
+      "new": "title=\"RepoBranchSwitcher · maude-v2\"",
+      "why": "The section title names the system."
+    }
+  ],
+  "notes": [
+    "Decision: .panel (1 use, panel rb-mini) → closest is .island; .tree-row (5 uses) → closest is .row-item. Neither has a maude-v2 rule; the local rb- classes keep them visible.",
+    "Buttons (btn, btn--primary, btn--ghost, btn--sm) and .input all exist in maude-v2: no change needed. The on-draft fold-back CTA keeps its filled accent.",
+    "Line heights change from fixed px to ratios (RepoBranchSwitcher.css uses --lh-* four times): the compact one-line dock trigger should be checked after the switch.",
+    "maude-v2's :root default is light; every artboard sets data-theme=\"dark\" explicitly, so it stays dark.",
+    "Comments only: RepoBranchSwitcher.css line 5 and the TSX docblock still mention system/maude. The design is 'handed-off' (handoffCommit 8e9758e); RepoBranchSwitcher.registry.json describes the maude build until the handoff is redone."
+  ]
+}

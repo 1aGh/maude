@@ -84,9 +84,21 @@ fi
 # screenshot.sh's URL construction.
 REL_ENC=$(printf '%s' "$DESIGN_REL/$REL" | sed 's/ /%20/g')
 URL="http://localhost:${PORT}/_canvas-shell.html?canvas=${REL_ENC}"
+. "$SCRIPT_DIR/_url-guard.sh" && maude_url_guard "$URL" || exit 2 # V2-8.9 B2 — http(s) to this Mac only
 
 # ---------- engine resolution (mirrors screenshot.sh) ----------
 AB="${MAUDE_AGENT_BROWSER:-agent-browser}"
+# p8-e2e-fix-r11: a session of this run's own, unless the caller names one. On the shared `default` session a
+# daemon that died mid-run (reaped, crashed) was replaced by the next `eval` with a second daemon and browser, and
+# any other helper or agent on `default` could navigate or close this run's page.
+: "${AGENT_BROWSER_SESSION:=maude-rects-$$}"
+export AGENT_BROWSER_SESSION
+# V2-8.9 M1: AI may › Search the web off (MAUDE_NO_EGRESS=1) → this browser reaches loopback only.
+. "$(dirname "$0")/_no-egress.sh"
+# p8-e2e-fix-r10: on exit, a page this run opened is parked on about:blank and its session closed.
+. "$(dirname "$0")/_ab-park.sh"
+# p8-e2e-fix-r11: the headless browser screenshot.sh uses, and a daemon idle limit.
+. "$(dirname "$0")/_ab-headless.sh"
 if [ "$ENGINE" = "auto" ]; then
   if command -v "$AB" >/dev/null 2>&1; then
     ENGINE="agent-browser"
@@ -94,6 +106,7 @@ if [ "$ENGINE" = "auto" ]; then
     ENGINE="playwright"
   fi
 fi
+ab_headless_browser
 echo "→ canvas-rects engine: $ENGINE | url: $URL" >&2
 
 # ---------- agent-browser lane ----------
@@ -103,6 +116,7 @@ if [ "$ENGINE" = "agent-browser" ]; then
     emit_static
     exit 0
   fi
+  ab_park_arm
   "$AB" open "$URL" >&2
 
   # Poll for the hook itself (more precise than screenshot.sh's generic

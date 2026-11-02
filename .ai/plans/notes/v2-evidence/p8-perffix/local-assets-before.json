@@ -1,0 +1,40 @@
+{
+  "root": "/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/pf/alli",
+  "at": "2026-10-26T02:20:32.888Z",
+  "index": {
+    "canvases": 95,
+    "staticArtboards": 225,
+    "buildMs": {
+      "p50": 121,
+      "p95": 121,
+      "budgetP95": 250
+    },
+    "stampMs": {
+      "p50": 4,
+      "p95": 4,
+      "budget": 10
+    },
+    "homeMerge20Ms": {
+      "p50": 25,
+      "p95": 25,
+      "budget": 150,
+      "note": "20 × (read + stamp) of this snapshot"
+    }
+  },
+  "assetTiles": {
+    "pictures": 194,
+    "failed": [],
+    "ok": 1,
+    "glyph": 189,
+    "totalMs": 1367,
+    "perTileMs": {
+      "p50": 2,
+      "p95": 4
+    },
+    "avgBytes": 17016,
+    "budget": {
+      "totalMsFor250": 30000
+    },
+    "contentHashColdMs": 396
+  }
+}

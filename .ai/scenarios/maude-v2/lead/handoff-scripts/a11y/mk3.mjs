@@ -1,0 +1,16 @@
+import { cpSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+const W = '/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/a11y';
+rmSync(`${W}/fmt3`, { recursive: true, force: true });
+cpSync(`${W}/fix`, `${W}/fmt3`, { recursive: true });
+rmSync(`${W}/fmt3/.git`, { recursive: true, force: true });
+const p = `${W}/fmt3/.design/config.json`;
+const c = JSON.parse(readFileSync(p, 'utf8'));
+c.formatVersion = 3;
+c.name = 'newer-format';
+writeFileSync(p, JSON.stringify(c, null, 2));
+const run = (...a) => spawnSync('git', ['-C', `${W}/fmt3`, '-c', 'user.email=a@b.c', '-c', 'user.name=t', ...a], { encoding: 'utf8' });
+run('init', '-q');
+run('add', '-A');
+run('commit', '-qm', 'init');
+console.log('ok');

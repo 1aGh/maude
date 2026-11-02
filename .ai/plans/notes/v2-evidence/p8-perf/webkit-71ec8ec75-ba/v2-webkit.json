@@ -1,0 +1,104 @@
+{
+  "current": {
+    "date": "2026-11-02T15:06:09.593Z",
+    "canvas": ".design/ui/c12.tsx (studio)",
+    "engine": "webkit-safari",
+    "url": "http://localhost:4831/",
+    "panFrames": 60,
+    "zoomFrames": 40,
+    "p50FrameMs": 17,
+    "p95FrameMs": 21,
+    "maxFrameMs": 33,
+    "panP95Ms": 19,
+    "zoomP95Ms": 28,
+    "settleMaxMs": 22,
+    "longtasks": 0,
+    "longFrames": 0,
+    "jankFrames": 2,
+    "settleLongFrames": 0,
+    "boardsOnScreen": 21,
+    "artboardRenders": 147,
+    "annotationRenders": 9,
+    "instrumented": true,
+    "passes": 6,
+    "p95SpreadMs": 2,
+    "zoomP95SpreadMs": 8,
+    "longFramesRange": 2,
+    "kept": [
+      {
+        "p50": 17,
+        "p95": 21,
+        "panP95": 18,
+        "zoomP95": 25,
+        "longFrames": 0,
+        "jankFrames": 2,
+        "settleLongFrames": 0,
+        "boardsOnScreen": 21
+      },
+      {
+        "p50": 17,
+        "p95": 21,
+        "panP95": 19,
+        "zoomP95": 28,
+        "longFrames": 0,
+        "jankFrames": 2,
+        "settleLongFrames": 0,
+        "boardsOnScreen": 21
+      },
+      {
+        "p50": 17,
+        "p95": 21,
+        "panP95": 18,
+        "zoomP95": 26,
+        "longFrames": 0,
+        "jankFrames": 2,
+        "settleLongFrames": 0,
+        "boardsOnScreen": 21
+      },
+      {
+        "p50": 17,
+        "p95": 22,
+        "panP95": 46,
+        "zoomP95": 22,
+        "longFrames": 2,
+        "jankFrames": 4,
+        "settleLongFrames": 0,
+        "boardsOnScreen": 21
+      },
+      {
+        "p50": 17,
+        "p95": 20,
+        "panP95": 18,
+        "zoomP95": 30,
+        "longFrames": 0,
+        "jankFrames": 2,
+        "settleLongFrames": 0,
+        "boardsOnScreen": 21
+      },
+      {
+        "p50": 17,
+        "p95": 20,
+        "panP95": 19,
+        "zoomP95": 29,
+        "longFrames": 0,
+        "jankFrames": 2,
+        "settleLongFrames": 0,
+        "boardsOnScreen": 21
+      }
+    ],
+    "window": "1600x1000",
+    "frame": {
+      "mode": "today",
+      "w": 1600,
+      "h": 948,
+      "dpr": 2,
+      "innerW": 1600,
+      "innerH": 948
+    },
+    "idle": {
+      "frameP50": 17,
+      "parentP50": 17
+    }
+  },
+  "previous": null
+}

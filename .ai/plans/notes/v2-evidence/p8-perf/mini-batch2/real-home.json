@@ -1,0 +1,61 @@
+{
+  "at": "2026-10-25T21:54:51.123Z",
+  "indexDir": "/tmp/maude-perf-real.0FwJlM/home/index",
+  "runs": 30,
+  "index": {
+    "coldMs": 20.6,
+    "p50": 1.3,
+    "p95": 2.2,
+    "budgetP95": 150,
+    "n": 30,
+    "bytes": 55063,
+    "projects": 1,
+    "canvases": 95
+  },
+  "search": {
+    "p50": 0.2,
+    "p95": 0.4,
+    "budgetP95": 30
+  },
+  "coverKeysFound": 58,
+  "covers12": {
+    "ms": 8,
+    "statuses": [
+      200
+    ],
+    "budgetMs": 3000
+  },
+  "shelfTestids": [
+    "home-root",
+    "project-pill",
+    "home-search-open",
+    "home-ask-input",
+    "home-ask-send",
+    "home-target-chip",
+    "home-starter-portfolio",
+    "home-starter-logos-new",
+    "home-starter-moodboard",
+    "home-empty-canvas",
+    "home-projects-empty",
+    "empty-es-home-local.projects-none",
+    "home-open-folder"
+  ],
+  "page": {
+    "firstContentfulPaintMs": [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "shelvesInDomMs": [
+      186,
+      143,
+      142,
+      132,
+      130
+    ],
+    "budgetMs": 300,
+    "note": "domcontentloaded → shelves in the DOM; the page is a plain browser here"
+  }
+}

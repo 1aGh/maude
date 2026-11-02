@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# agent-evals PATH shim: `maude` → THIS worktree's CLI (cli/bin/maude.mjs, source dev-server). Every
+# verb is the shipped one (`design check|runs|trash|screenshot|curl-local…`); there are no stand-ins.
+# Every boot is NO_OPEN + no autobuild (memory: servers boot with NO_OPEN=1; CLAUDE.md: MAUDE_NO_AUTOBUILD=1
+# for in-tree boots).
+H="$(cd "$(dirname "$0")/.." && pwd)"          # apps/studio/test/agent-evals
+WT="$(cd "$H/../../../.." && pwd)"               # worktree root
+export NO_OPEN=1 MAUDE_NO_AUTOBUILD=1 MAUDE_FORCE_SOURCE=1
+exec node "$WT/cli/bin/maude.mjs" "$@"

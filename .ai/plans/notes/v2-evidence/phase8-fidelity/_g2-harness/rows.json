@@ -1,0 +1,489 @@
+{
+ "03-ai-chat": {
+  "ai-hero": {
+   "state": "1 - two AIs, two artboards: the finish lands in place (Post wipe, Tereza's AI on the poster)",
+   "how": "chat 1 hangs on A4 (second AI), chat 2 asks on Post and finishes; edit attributed through the plugin hooks",
+   "reach": "partially: no second person; no wipe / ring / Made-by-AI tag",
+   "diff": "No before-to-after wipe, no solid ring, no 'Made by AI' tag on Post after the finish (spec draws all three); result card has Undo and Keep going plus an extra 'What AI did - 1 step' fold; spec shows the folder consent card (Let AI read 'Combine 2026 fotky'? Not now / Let AI read) and three attach chips inside the same panel; Tereza's cursor and her AI's tag ('Tereza's AI - translating to English') absent (own chat shows 'AI is working'); C1-C4"
+  },
+  "ai-open": {
+   "state": "2 - cmd-slash opens the AI chat panel (Post selected, suggestions, Inspector)",
+   "how": "click the Post artboard label, then the AI corner icon. cmd-slash itself is in the extra frame ai-open-cmdslash-*",
+   "reach": "partially: cmd-slash does not open the panel",
+   "diff": "Cmd-slash in the app opens an in-place ask bar on the selection ('1 element' chip + Ask AI...) over the Inspector, not the panel (extra frame ai-open-cmdslash); via the corner icon the panel is the empty state ('Ask for a change, a few variants, or an answer.' / 'AI works on what the chip says.') with NO suggestion chips and no why line (spec: Resolve 3 comments / Three variants / English version, 'Because Tereza left 3 comments on Post 1:1'); no Inspector card for the selected artboard beside it; C6; C1-C4"
+  },
+  "ai-suggest": {
+   "state": "3 - suggestions follow what you were doing (four contexts)",
+   "how": "panel crop of the ai-open frame; the only suggestion strip reachable is after a run (see ai-done)",
+   "reach": "partially: one of four contexts, and only after a run",
+   "diff": "Empty chat shows no suggestion strip; after a finished run the strip appears with 'Same on the other artboards / A darker shade / Apply it everywhere' and the line 'Because you last asked about colour' (matches the spec's 4th context in spirit, copy differs: spec 'Same for the story / A darker green / Same on all 21'). Comments-open, clips-selected and just-shared contexts not driven (no comments, footage, hub)"
+  },
+  "ai-scope": {
+   "state": "4 - the chip says what AI touches (folded, one artboard, nothing selected, several)",
+   "how": "click the scope chip: menu rows Whole canvas / the artboard / No canvas - just ask",
+   "reach": "partially: menu only",
+   "diff": "Menu rows match (Whole canvas, tick on the artboard, No canvas - just ask) but the artboard row reads 'post' (id) not 'Post 1:1 - Combine 2026'; no 'Choose artboards...' row visible; folded spark ('Ask AI' key cap) and the multi-artboard count chip not driven; menu opens downward, spec upward"
+  },
+  "ai-working": {
+   "state": "5 - AI works where you can see it (ring + tag on the artboard, working line + Stop)",
+   "how": "prompt containing 'hang' on Post; pre-edit hook claims the artboard lease",
+   "reach": "yes",
+   "diff": "Working line says 'AI is working' / 'Edit the canvas 0:02' (spec: 'AI is making it greener' / 'Background done - badge next') - words come from the fake agent's generic tool title (harness H); dashed spark ring + tag 'AI is working' exist on the artboard (spec tag 'AI is making it greener'); Stop present; Post does not turn green live (fake agent writes nothing until done); chip 'post' (C6)"
+  },
+  "ai-done": {
+   "state": "6 - done: the finish, then Undo or Keep going (wipe before/after, Made by AI)",
+   "how": "second chat 'Make it greener': tool call, pre-edit, write, post-edit hook, end_turn",
+   "reach": "yes",
+   "diff": "Result line 'Done - Post 1:1 is greener: background, badge and button. The logo stays white.' + Undo + Keep going present and identical in words; MISSING on the artboard: Before/After wipe pills, solid ring, 'Made by AI' tag; extra 'What AI did - 1 step - 1 s' fold; suggestion strip is below the result (spec chips sit in the result block: Same on Story 9:16 / A darker green)"
+  },
+  "ai-attach": {
+   "state": "7 - drop a photo or footage in (Drop to attach overlay, footage + PDF chips)",
+   "how": "a file set on the hidden attach input (one image)",
+   "reach": "partially: no drag overlay, no footage or PDF chip",
+   "diff": "Only a small thumbnail chip appears inside the field after the scope chip; the 'Drop to attach / AI can use it in this chat' overlay (drag-over) not driven; footage chip (length, 'Use this clip for the fit...') and PDF chip with page count not driven; spec panel is taller with the chips row above the field"
+  },
+  "ai-attach-menu": {
+   "state": "8 - the paperclip: files, a folder, Assets, a screenshot (+ what a chip shows, folder asks once)",
+   "how": "click the paperclip, crop to the panel",
+   "reach": "yes (menu); the other two spec columns not driven",
+   "diff": "Menu rows match (Attach files..., Choose a folder..., From Assets, Paste a screenshot cmd-V, 'Or drag files here'); menu opens above the field (spec: same, with 'Choose a folder' highlighted); the spec's 'what a chip shows' legend and the folder consent card ('Let AI read ...? Not now / Let AI read') are not part of the app frame"
+  },
+  "ai-question": {
+   "state": "9 - a question: AI answers in words, canvas unchanged, spark pin on the poster, follow-up chips",
+   "how": "prompt with 'question': the fake agent asks a choice (elicitation) rather than answering in prose",
+   "reach": "partially: the choice-card path, not the answer-in-words path",
+   "diff": "Spec is a prose answer ('Mostly, COMBINE 2026 reads from five metres...The canvas didn't change.') with follow-up chips ('Make the date line 14 pt', 'Check LetakAB too') and a '9 pt' spark pin on the poster; the app frame is the Which-green choice card (that is board 25's left half); the prose-answer path appears in ai-long (plain answers, 'The canvas did not change.') but without follow-up chips or a pin; azure 'Waiting for you' tags on every artboard while a question is open (spec: none)"
+  },
+  "ai-long": {
+   "state": "10 - a long chat: full height, resizable, scrolled up, attachments, Jump to latest",
+   "how": "six turns before anything else runs (plain answers)",
+   "reach": "partially: long text chat only",
+   "diff": "Panel grows to full window height (good); MISSING: photos / PDF / folder chips inside the transcript, 'Jump to latest' pill with unread count, the edge-resize tooltip 'Drag to resize - double-click for full height', 'What AI did' folds; left Canvases panel still open; transcript shows the user's turns as pills and answers as plain text, same as spec"
+  },
+  "ai-long-pinned": {
+   "state": "11 - pinned to the side: a full-height column, canvas re-fits to the left",
+   "how": "ai-chat-pin on the long chat",
+   "reach": "yes",
+   "diff": "Pinned full-height column present with the pin pressed; the left Canvases panel body collapses to its header, search and Trash (the canvas list is empty) while pinned at 1440x900 - looks like a layout bug; canvas does not re-fit to the narrower area the way the spec's artboards do; spec shows a Reels recap with attachments in the transcript (H)"
+  },
+  "ai-two-artboards": {
+   "state": "12 - two chats, two artboards (list popover with 'Working' rows, each artboard with its own verb)",
+   "how": "second chat on A4 while the first works on Post",
+   "reach": "partially",
+   "diff": "Both artboards carry a ring and 'AI is working' (spec: distinct verbs 'AI is making it greener' / 'AI is translating to English'); header shows the '2' running chip but no popover list of chats with 'Working' rows (title chevron opens the Chats list instead, see ai-chat-list); working card says 'AI is working / Edit the canvas'"
+  },
+  "ai-same-artboard": {
+   "state": "13 - same artboard: the second one waits (Waiting card, Run on a copy)",
+   "how": "third chat asks on the busy A4",
+   "reach": "yes",
+   "diff": "Waiting card matches: 'Waiting for \"...\" to finish on A4 - plakat. Starts by itself, on top of its result.' + 'Run on a copy'; artboard tag reads 'AI is working - 1 waiting' like the spec; the spec's card names the other ask ('Make it greener' on Post 1:1) and its own ask sits above as a pill; app shows two waiting cards stacked because a whole-canvas ask queued too; working text generic (H)"
+  },
+  "ai-copy": {
+   "state": "14 - run on a copy: both versions side by side, 'Copied from Post 1:1 before ...'",
+   "how": "click 'Run on a copy' on the waiting card; frame taken 2.5 s later",
+   "reach": "partially: the copy starts but the frame is mid-run",
+   "diff": "A copy artboard 'A4 - plakat (copy)' appears next to the original and the copy is working (tag 'AI is working'); spec shows the finished copy with 'Made by AI' tag and the caption 'Copied from Post 1:1 before \"Make it greener\"', result card 'Undo / Keep the copy'; not captured after completion"
+  },
+  "ai-queue-rule": {
+   "state": "15 - the rule drawn once (timeline of queued asks)",
+   "how": "not reachable: an explanatory graphic",
+   "reach": "no - documentation board",
+   "diff": "n/a (the rule is exercised in ai-same-artboard / ai-copy)"
+  },
+  "ai-other-tab": {
+   "state": "16 - running in another project tab (tab mark, toast 'Show')",
+   "how": "not reachable: needs a second project tab",
+   "reach": "no - desktop shell tabs (the lane has one project)",
+   "diff": "n/a"
+  },
+  "ai-tereza": {
+   "state": "17 - Tereza's AI on the same canvas (her tag and outline, 'Your' / 'On this canvas' list)",
+   "how": "not reachable: needs a second person",
+   "reach": "no - hub / cloud project",
+   "diff": "n/a"
+  },
+  "ai-chat-list": {
+   "state": "18 - 41 chats: Running, then Earlier by canvas; search; row menu",
+   "how": "click the chat title (chevron) in the panel header",
+   "reach": "partially",
+   "diff": "Structure matches (back chevron 'Chats', 'Alligators brand' chip, +, search, 'Running 3' section, rows with title + 'Combine-kampan > Post' + 'now', footer '3 chats - kept with the project'); BUG-LOOKING: the first chat's title reads 'Make it greener hang [maude-...' - the attachment header text leaks into the title when a prompt carried an attachment; no 'Earlier' groups, no 'Needs you' state, row menu (Open / Rename / Copy transcript / Archive / Move to trash) and the search-with-hits state not driven"
+  },
+  "ai-panel-closed": {
+   "state": "19 - panel hidden, AI keeps going (ring stays, spark dot, 'Done ... Show' toast)",
+   "how": "ai-chat-hide while the poster chat works",
+   "reach": "partially",
+   "diff": "Panel hides to the corner spark icon; ring and 'AI is working' tag stay on A4; no completion toast ('Done - Post 1:1 is greener. The logo stays white. Show') in this frame because the chat that finished is not the hidden one; spark icon dot not clearly visible"
+  },
+  "ai-quit": {
+   "state": "20 - quitting mid-run: 'Quit while AI is working?' + the panel after relaunch",
+   "how": "a quit://ask message pushed through a stubbed shell Channel (the dialog listens for it)",
+   "reach": "yes (dialog only)",
+   "diff": "Dialog copy identical ('2 chats stop where they are. Everything AI finished so far is kept as a version, and each chat can carry on next time.' Cancel / Quit); app dims the whole shell and the dialog is small and centred, spec shows it inside a framed excerpt; the 'next launch' half (Stopped when the app quit divider, 'Post 1:1 is half done', Undo / Keep going) not driven"
+  },
+  "ai-needs-hidden": {
+   "state": "21 - needs you, panel hidden, another canvas (spark count, row says Needs you, one toast 'Show')",
+   "how": "permission ask, then hide the panel",
+   "reach": "partially",
+   "diff": "Bottom toast 'AI needs you on Combine-kampan - edit Combine-kampan.tsx? Open' with a close x (spec: pill 'AI needs you on Uniformy-2027 - replace 4 team photos? Show'); canvas row shows 'Needs you' like the spec; corner spark shows a dot; the app tags ALL five artboards 'Waiting for you' (spec: only the affected one); the ask names the file, not what changes (H)"
+  },
+  "ai-needs-tab": {
+   "state": "22 - needs you in another project tab",
+   "how": "not reachable",
+   "reach": "no - desktop shell tabs",
+   "diff": "n/a"
+  },
+  "ai-needs-away": {
+   "state": "23 - needs you, the app in the background (Mac notification, Dock badge)",
+   "how": "not reachable",
+   "reach": "no - OS notification, native only",
+   "diff": "n/a"
+  },
+  "ai-permission": {
+   "state": "24 - asks before replacing your work (4 photos, ring on what changes, Not now / Replace 4 photos)",
+   "how": "prompt with 'permission': a real requestPermission",
+   "reach": "yes",
+   "diff": "Card present with the same two verbs shape (Not now / primary) but reads 'Edit Combine-kampan.tsx? Replace the photos on 4 team artboards' with the verb 'Edit'; spec: 'Replace 4 team photos in Uniformy-2027?' with a strip of the four photo thumbnails, an 'Always for this canvas' checkbox and the verb 'Replace 4 photos'; outline on the affected artboards only (app: all five tagged)"
+  },
+  "ai-choice-fail": {
+   "state": "25 - a question back (Which green? picks) and a failure (what happened, nothing changed, one verb)",
+   "how": "prompt with 'fail' for the failure; the choice card is in ai-question",
+   "reach": "partially: failure card here, choice card in ai-question",
+   "diff": "Failure card present: 'Couldn't finish - the connection to Claude was interrupted. Nothing changed.' + Advanced + 'Try again' (spec: 'the footage file is missing. Nothing changed.' + the file detail + the one fixing verb 'Pick another clip') - app maps my error to a generic cause (H); choice rows lack the colour dot and sub-line ('from the Alligators design system') the spec draws"
+  },
+  "ai-not-ready": {
+   "state": "26 - not connected, offline, setting up, used up, almost used up (five panels)",
+   "how": "default signed-out claude stub; the first send opens the connect sheet",
+   "reach": "partially: only the first of five",
+   "diff": "Connect sheet ('Connect your Claude account?', Claude Pro or Max, Cancel / Connect) opens INSIDE the panel (spec: as a card to the left of the panel with 'Your prompt waits here and sends as soon as it's connected' line); offline, setting up, used up, almost used up not reachable (network / quota states); extra frame ai-not-ready-after = after Cancel",
+   "light": "same structure; checked"
+  },
+  "ai-advanced": {
+   "state": "27 - Advanced, inside the panel: model, effort, fast mode, ask before, AI may..., session, raw log",
+   "how": "click the panel's Advanced fold",
+   "reach": "partially",
+   "diff": "Fold opens with Ask before (Replace or move to the trash, with 'default' on a second line instead of beside it), Show in chat (Normal), Suggestions (On), 'AI may'; the crop is cut by the window height so Raw log / Copy transcript / Open in terminal are below the fold; no Model / Effort / Fast mode / Context used / 5-hour limit / Session rows because the fake agent offers no config (H); spec's side cards (raw log, slash commands, search-the-palette) not part of the live frame"
+  },
+  "ai-adv-edges": {
+   "state": "28 - modes, slash, paste, Copy and Retry, the terminal (four panels)",
+   "how": "type / in the field",
+   "reach": "partially: one of four",
+   "diff": "Slash menu present (/design:critic, :edit, :screenshot, :export + 'More... 27 more') matching the spec's third panel; Ask-before menu (Replace or move to the trash / When unsure / Nothing - change freely / Suggest only / Skip what needs asking / Skip every check), the 'AI is set to suggest only - Allow changes' banner and the Copy / Retry hover not driven"
+  },
+  "ai-history": {
+   "state": "29 - made by AI, in Version history (Made by AI rows, Undo this chat, Compare side by side)",
+   "how": "alt-cmd-H after an AI edit",
+   "reach": "partially",
+   "diff": "Version history panel opens with All / Named / Made by AI / People tabs and the row actions; but the new version is attributed 'You - changed outside the app' (harness: the fake agent edits through hooks, not the real write path), so no 'Made by AI' badge, no 'Undo this chat' / 'Restore' pair on the row, no Compare bar (Side by side / Overlay) and no before/after pair on the canvas"
+  }
+ },
+ "04-modes": {
+  "md-model": {
+   "state": "1 - the mode switch, and what each mode shows (table + three toolbar mock-ups)",
+   "how": "Edit mode on Homepage with Desktop selected; the Share cluster shows the switch",
+   "reach": "partially: a table board vs one live state",
+   "diff": "Share-cluster mode switch present (Edit / Preview / Present with chevron) but the app shows only 3 slots (no Viewing for an owner, correct); glyph look: spec Edit = pen-nib-like mark, app = crossed-tools mark - compare at zoom; the spec's tables (what each mode shows / hides, key column) and the Present-Artboards / Viewing rows have no one-frame app counterpart; Edit toolbar in the app: select, hand, frame, shape, pen, text, image, components, more (spec lists the same set)"
+  },
+  "md-keys": {
+   "state": "2 - its own glyphs, words and keys (mode cards, proposed keys, View menu)",
+   "how": "hover the Preview glyph",
+   "reach": "partially: the hover shows no tooltip in the frame",
+   "diff": "No tooltip or key hint is visible after a 1.5 s hover (spec says the glyphs carry words and keys: Edit, Preview, Present, Viewing + key caps cmd-alt-P etc.); the View menu list ('Hide panels', 'Comments', 'Assets', 'Annotations', Preview / Present / Present from the start / Present the canvas, zoom items) is a desktop menu-bar menu - not in the browser lane"
+  },
+  "md-edit": {
+   "state": "3 - Edit: set up where a click goes (See pricing: On click Go to Pricing, link chip on the canvas)",
+   "how": "cmd-click 'See pricing' in Edit (a data-cd-link to Pricing)",
+   "reach": "yes",
+   "diff": "Link chip on the element reads 'See pricing - 126 x 46 / Go to Pricing' (spec: 'Go to Pricing' chip + '112' gap measure); the right panel is the FULL Inspector (Position, Size, Layout, Fill, Corners, Border, Effects...) with no visible On click row in the first screen, spec shows a compact property card (Size, Fill, Border, On click: Go to Pricing, On hover: Fill with Ink, Advanced 3 properties); the left panel is hidden while the Inspector is open (spec keeps nothing on the left)"
+  },
+  "md-edit-image": {
+   "state": "4 - Image: a photo into a frame (Assets open, Image tool armed, hero image fills)",
+   "how": "Assets tab of the left panel",
+   "reach": "partially: Assets open, no image placed",
+   "diff": "Assets tab shows a 6-photo grid ('Photos', 'From this Mac...') like the spec's; Image tool not armed and no photo dropped into a frame ('Hero image - fills, cropped to fit' chip); spec shows a purple hero image on the Desktop artboard; selection stays on the artboard"
+  },
+  "md-edit-component": {
+   "state": "5 - Component: a Button from the Design system (picker with variants, Button - Secondary placed)",
+   "how": "toolbar Components slot",
+   "reach": "partially: picker opens, no instance placed",
+   "diff": "Picker lists Brand (Logo with Mark / Wordmark / Lockup variants, Icon) and Components (Button, IconButton, Input, Field, Switch, Checkbox, Segmented, Tabs, Chip, Badge, Card, Callout, Dialog, Tooltip) + 'Open Design system'; spec header is 'Studio site system' with Button expanded to Primary / Secondary / Ghost and a placed 'Button - Secondary' chip; the app picker is wider and the Inspector is open on a Section frame behind it"
+  },
+  "md-motion": {
+   "state": "6 - Edit to Preview, in motion (storyboard 0 / 40 / 140 / 220 ms)",
+   "how": "not reachable: a motion storyboard",
+   "reach": "no - animation, not a state (the end state is md-annotate)",
+   "diff": "n/a"
+  },
+  "md-annotate": {
+   "state": "7 - Preview's toolbar: annotation tools only (five stages + a key table)",
+   "how": "press Preview in the Share cluster",
+   "reach": "partially: the end stage only",
+   "diff": "Preview toolbar order matches the table (hand, sticky, comment, marker, arrow, shape, text, stickers, section) with the hand armed; the app shows the page full-bleed (81 % zoom) with the Preview pill; the storyboard stages, 'N in Edit' colour dots and the key table are documentation"
+  },
+  "md-preview": {
+   "state": "8 - Previewing Homepage (hover and pointer alive, 'AI's changes show live' note)",
+   "how": "same frame as md-annotate",
+   "reach": "yes",
+   "diff": "'Previewing Homepage - esc to edit' pill, panels hidden, corner spark; camera lands at 65 % on the Tablet artboard (spec: Desktop at 76 %); left corner panel icon sits over the artboard edge"
+  },
+  "md-preview-follow": {
+   "state": "9 - followed a link to Pricing ('< Homepage' back, 'Previewing Pricing')",
+   "how": "click 'See pricing' in Preview",
+   "reach": "yes",
+   "diff": "Back chip '< Homepage' and 'Previewing Pricing' match; the left Canvases panel is open in this frame (spec hides it) and the Pricing artboard is fit to the window, spec at 56 %"
+  },
+  "md-preview-combine": {
+   "state": "10 - Preview on a canvas with no links (all 15 artboards, 'Playing' video badge)",
+   "how": "open Combine-kampan, Preview",
+   "reach": "partially",
+   "diff": "Camera lands at 65 % on one artboard (A4) instead of an overview of the whole canvas; spec shows all artboards, a 'Playing' badge on the video artboard, a sticky and the no-links hint; app has no video artboard here"
+  },
+  "md-present-menu": {
+   "state": "11 - Present, and its small menu (Present from 'Post 1:1', from the start, the canvas, Presenter view on another display, Order and notes, Copy presentation link)",
+   "how": "Present chevron",
+   "reach": "yes",
+   "diff": "Menu rows: Present from 'Tablet' / Present from the start / The canvas - pan freely: Present the canvas / Order and notes... / Copy presentation link (greyed 'in a cloud project'); spec also has 'Presenter view on another display' (tick, 'On Ultrawide') - desktop only; spec row label names the selected artboard (Post 1:1), app names Tablet; keys right-aligned in both"
+  },
+  "md-present-lift": {
+   "state": "12 - Present lifts the artboard out of the canvas (3 frames: 0 / 40 % / 280 ms)",
+   "how": "alt-cmd-Enter from the selected artboard, shot 0.45 s in",
+   "reach": "partially: an animation; the frame is the end state",
+   "diff": "At 0.45 s the app is already full-screen on Desktop (page pinned light) with a controls pill '< 1/3 > Desktop esc to leave'; no visible lift / dark fade; spec frame 3 shows the dark stage with 'Present - Artboards 3 of 14' pill"
+  },
+  "md-present-full": {
+   "state": "13 - full screen, 3 of 15 (pointer dot and trail, controls pill)",
+   "how": "same Present run, 2.6 s later",
+   "reach": "yes",
+   "diff": "Controls pill present (counter, label, esc to leave); spec's dark stage with the presenter pointer dot and trail and a card on a dark ground; app shows the light Homepage fitted to the screen with a grey strip under it (the 1440x900 frame is not full-height of 900: page letterboxed)"
+  },
+  "md-present-video": {
+   "state": "14 - a 9:16 video plays inline (transport)",
+   "how": "not reachable",
+   "reach": "no - needs a footage-backed video artboard (the fixture has no media)",
+   "diff": "n/a"
+  },
+  "md-present-canvas": {
+   "state": "15 - Present the canvas: pan freely ('Presenting the canvas - 21 % - esc to leave')",
+   "how": "Present chevron, Present the canvas",
+   "reach": "yes",
+   "diff": "Pill 'Presenting the canvas - 39 % - esc to leave' matches the spec's pill; canvas chrome hidden; the app frames the Homepage tiles on the light page (user design pinned light) and the camera shows two of three artboards partially; spec shows Combine-kampan tiles on dark"
+  },
+  "md-presenter": {
+   "state": "16 - Presenter view on the Mac (now, next, notes, clock)",
+   "how": "not reachable",
+   "reach": "no - needs a second display, desktop shell",
+   "diff": "n/a"
+  },
+  "md-present-link": {
+   "state": "17 - watching from a link, and looking back",
+   "how": "not reachable",
+   "reach": "no - cloud viewer link (hub)",
+   "diff": "n/a"
+  },
+  "md-comment": {
+   "state": "18 - pins on artboards, a thread, resolve, Open / Mine, @mention (Comments panel)",
+   "how": "Comment tool, click on a heading, type, send (frame also md-comment-thread)",
+   "reach": "partially: one comment, single user",
+   "diff": "Composer popover with the artboard name ('Tablet') and send button appears at the click; spec shows the Comments panel on the left (Open 3 / Mine 1 / Resolved 2 with Tereza / Jonas threads), a thread with Resolve and an @mention popup; app: the left panel is the Canvases list, no Comments panel opened, no other people"
+  },
+  "md-comment-only": {
+   "state": "19 - someone who may only comment (Comment view, toolbar cut to Hand + Comment)",
+   "how": "not reachable",
+   "reach": "no - a Can comment role needs a hub / second person",
+   "diff": "n/a"
+  },
+  "md-draw": {
+   "state": "20 - annotate in Preview: stickies, arrows, a section; AI reads the layer",
+   "how": "Sticky tool, click, type",
+   "reach": "partially: one sticky",
+   "diff": "Sticky placed with its context toolbar (colour dots, size 'Medium', Resolve, 'Turn into a comment') and a hint toast '(cmd)Enter commits and creates the next one beside it'; spec shows a section 'Feedback od trenerů' with several stickies, arrows to artboards and an AI chat panel reading the layer ('Do what the stickies in Feedback od trenérů ask')"
+  },
+  "md-inspect": {
+   "state": "21 - Inspect 'Book a call' (spec card: size, padding, corners, fill, text, export, Copy code, Advanced CSS)",
+   "how": "cmd-click in Preview",
+   "reach": "partially: selection chip only",
+   "diff": "Cmd-click selects the button (measure tag 'Book a call 97 x 33') but the Inspect side panel is not open in the frame (spec shows the Inspect panel at the right with Size and spacing, Colour and type, Export PNG 1x/2x/SVG/Handoff, Copy code, Advanced CSS list)"
+  },
+  "md-edge-ai": {
+   "state": "22 - AI changes the artboard you're clicking through (tag 'AI's new from ... shown live', note)",
+   "how": "Preview + AI panel + prompt on Combine-kampan; frame at +0.9 s (also md-edge-ai-after)",
+   "reach": "partially",
+   "diff": "Preview with the AI panel open and the AI's edit landing; no 'AI is making a change - shown live' tag on the previewed artboard and no pointer-hold note; the spec shows Homepage preview with an orange tag at the artboard corner"
+  },
+  "md-edge-viewer": {
+   "state": "23 - a view-only link, in a browser (Can view)",
+   "how": "not reachable",
+   "reach": "no - cloud project and a viewer role (hub)",
+   "diff": "n/a"
+  },
+  "md-edge-mixed": {
+   "state": "24 - mixed kinds on one screen (Present - Artboards on web / social / video / print: six stage treatments)",
+   "how": "Present the canvas on Combine-kampan",
+   "reach": "partially: canvas mode, not the per-kind run",
+   "diff": "The app frame is Present-the-canvas (all artboards at 33 %, pill 'Presenting the canvas'), not the per-kind treatments the spec draws (web fills width, post fits height, reel plays, print at the trim, banner letterboxed, 16:9 edge to edge) - those need Present - Artboards on a 15-artboard canvas with those kinds"
+  },
+  "md-edge-offline": {
+   "state": "25 - presenting with no internet (Presenter view offline, clip missing, Skip)",
+   "how": "not reachable",
+   "reach": "no - desktop shell (Presenter view, offline clip)",
+   "diff": "n/a"
+  },
+  "md-esc": {
+   "state": "26 - what esc does, everywhere (table)",
+   "how": "Preview on Combine-kampan, then one esc",
+   "reach": "partially: one row of the table",
+   "diff": "After one esc from Preview the app returns to Edit with panels back (matches row 'Preview: esc back to Edit'); the other ten rows (menus, Present, Image, Comment, Annotation tools, Inspect, Viewing, mid-drag, browser) not driven"
+  }
+ },
+ "06-advanced": {
+  "ad-map": {
+   "state": "The map - 62 things, each with its home (2560 px table)",
+   "how": "not reachable",
+   "reach": "no - documentation",
+   "diff": "n/a"
+  },
+  "ad-why": {
+   "state": "Why there is no switch (explanation)",
+   "how": "not reachable",
+   "reach": "no - documentation",
+   "diff": "n/a"
+  },
+  "ad-trace": {
+   "state": "One thing traced end to end",
+   "how": "not reachable",
+   "reach": "no - documentation",
+   "diff": "n/a"
+  },
+  "ad-inspector": {
+   "state": "Inspector > Advanced - the code behind what you selected (closed / button open / artboard open)",
+   "how": "cmd-click the headline, open the Advanced row",
+   "reach": "partially: scrolled, fold only started",
+   "diff": "The app Inspector is much denser than the spec's closed card (spec: Size, Padding, Fill, Text, Corners; app: Position X/Y, Rotation, Size, Layout direction / padding, Fill, Corners, Border, Effects, Type, Resizing, Case, Language, Interaction, Export presets, Copy as PNG...); the Advanced row ('Code, tokens, CSS') is at the foot, below the 840 px crop its rows (Tag, Classes, Selector, Element id, Used in, Tokens bound, CSS, In code) are not visible - only the 'Element' heading; the spec's Copy style / Paste style / Copy CSS / Copy code buttons not visible"
+  },
+  "ad-left": {
+   "state": "Canvases and Layers > Advanced - file names, hidden files, the tree, Trash (four cards)",
+   "how": "open the Canvases Advanced fold (frame also ad-left-layers for Layers)",
+   "reach": "yes",
+   "diff": "Fold rows present: Show file names, Show hidden files (toggles, off), Open canvas path with Copy, Folder with Copy, Trash Empty / Open, '12 of 12 shown - updated just now - Refresh'; spec adds 'Design system system/alligators Open' (no design system here) and draws toggles ON; spec's file-name subtitles under each row, row context menu (Reveal in Finder / Open in editor / View code / Copy file path / Rename file...) and the Trash and Layers cards are not driven in this frame"
+  },
+  "ad-ai": {
+   "state": "AI chat panel > Advanced - the short version (three cards)",
+   "how": "AI panel, open Advanced",
+   "reach": "partially",
+   "diff": "Fold opens in a fresh chat showing \"Connecting...\" (no session yet), then Show in chat (Normal), Suggestions (On), an empty \"AI may\" heading, Folders AI may read (None), \"This chat\"; Model / Effort / Fast mode / Ask before / Images, video and voice / Context used / 5-hour limit / Session / Raw log / Copy transcript / Open in terminal are not there (they depend on a connected session; the fake agent offers no config - H); the spec draws all of them for a finished chat"
+  },
+  "ad-share": {
+   "state": "Share > Advanced - the other links, the link's rules, where it syncs (cloud team project)",
+   "how": "Share sheet, open the fold",
+   "reach": "partially: local-project variant",
+   "diff": "Local project: the sheet leads with 'Move Alligators brand to the cloud?' (Cancel / Move to cloud) then Advanced > 'Other ways in' (App link maude://..., This Mac only, Invite by GitHub username); spec shows a cloud project: people rows (You, Teresa, Jonas with roles), 'Anyone in the Alligators team' link row, Advanced with who can open / role / expires / new people join as, Other ways in, Where it syncs (Hub, Last synced)"
+  },
+  "ad-timeline": {
+   "state": "Timeline > Advanced (clip frames, source files)",
+   "how": "not reachable",
+   "reach": "no - needs a video canvas with a timeline (not in this fixture)",
+   "diff": "n/a"
+  },
+  "ad-export": {
+   "state": "Export > Advanced - exact scale, colour profile, file names, the command (closed / open / other formats)",
+   "how": "shift-cmd-E, open the fold",
+   "reach": "yes",
+   "diff": "Sheet is wider and richer than the spec's: Scope row Selection / This canvas / Folder / Whole project, three format groups (Fixed size, Web page, Print) with per-group selects, Include annotations, Other format..., and an Advanced fold with Size by Scale/dpi, Exact scale, Images mode, Bleed, Crop marks, Registration marks, 'File names {canvas} - {artboard}@{scale}'; spec shows a narrower sheet (Scope / Format / Size / Save to) and an Advanced with exact scale, For print dpi, colour profile, file names + the terminal command ('maude design export png ...') block; terminal/command block not visible in the frame"
+  },
+  "ad-history": {
+   "state": "Version history > Advanced - versions up top, the git one fold down (git-backed project)",
+   "how": "alt-cmd-H, open the Advanced row",
+   "reach": "partially: a local, non-git project",
+   "diff": "Advanced fold reads 'Compare pictures', 'Project Alligators brand / main', 'Not versioned yet...' (a local project); spec shows Branch (main), Drafts (teresa/uniformy-v2), Remote (github.com/brno-alligators/brand), 'Changed in this version' file list and diff, and the git action buttons (Save a version with a note..., New branch..., Fetch, Publish 2 versions, Pull a copy to this Mac..., Add to main - opens a pull request); version list has no 'Made by AI' rows (H)"
+  },
+  "ad-ds": {
+   "state": "The specimen view - the Advanced layer of the Design system canvas (Design system > Advanced)",
+   "how": "not reachable",
+   "reach": "no - no Design system board in this lane (the DS seeds do not make a real board; known from the wave-B gate)",
+   "diff": "n/a"
+  },
+  "ad-menus": {
+   "state": "File / View > Advanced / Help in the menu bar",
+   "how": "not reachable",
+   "reach": "no - native menu bar (desktop)",
+   "diff": "n/a"
+  },
+  "ad-diag": {
+   "state": "Menu > Diagnostics: status in words (Sync, Server, AI setup, Logs, Reload canvas, Check AI setup again, Advanced address / process / folder)",
+   "how": "palette Diagnostics, Server tab",
+   "reach": "yes (different shape)",
+   "diff": "Structure differs: the app opens a Diagnostics panel with tabs (Logs / Server Running / AI setup Needs setup / Sync - Local project) and a key-value list (Showing, Local connection, Address, Version, Process, Project folder with Copy); spec is a menu popover list: Sync Up to date, Server Running, AI setup Ready, Logs, Reload canvas, Check AI setup again and an Advanced block (Address, Process, Project folder, Resync now, Download all)"
+  },
+  "ad-logs": {
+   "state": "Diagnostics, opened - Logs, Server and AI setup (three boxes: log with filters, Server, AI setup)",
+   "how": "palette Diagnostics > Logs",
+   "reach": "yes (tabbed)",
+   "diff": "App shows the Logs tab alone (filter box, All / Sync / Server / AI / Export chips, Refresh, Copy all, Show in Finder) with real server lines incl. red error lines; spec shows Logs, Server and AI setup as three boxes at once plus a 'Combine-kampan reloaded' pill; AI setup rows (Claude Code installed, Found at, Signed in, Plugins ready) live on the AI tab"
+  },
+  "ad-syncd": {
+   "state": "Diagnostics > Sync: a sync problem in words, 3 changes waiting, retry, the old Sync panel",
+   "how": "palette Diagnostics > Sync tab",
+   "reach": "partially: local-project variant",
+   "diff": "Local project: the Sync tab says only \"This project isn't linked to the cloud, so there's nothing to sync. Everything is on this Mac.\"; spec shows the cloud problem card (2 new versions from Teresa - Get latest, Needs you: conflicts with Keep mine / Use theirs / Keep both / Compare, an AI-stopped-halfway Publish / Discard, a Moving list with progress, Counts, Hub, Last good sync, terminal hint, \"Sync stopped - sign in again\")"
+  },
+  "ad-settings": {
+   "state": "Settings > Advanced - this Mac and this project (three columns: This Mac, Engines, This project)",
+   "how": "palette Settings, then the Advanced tab",
+   "reach": "yes",
+   "diff": "Sheet opens on Advanced with This Mac (Version, Update, Local server port, Runtime, Server build, Keys are kept in, Claude Code: Plugins, Use my own plugin copy, Install and sign in automatically, terminal commands) in a single scrolling column; spec lays it out in three columns (This Mac / Engines: auto-picks for you / This project: Studio site plus Experimental, Reset, Close all Advanced sections); app sheet is narrower and clipped by the window height; 'Remember design decisions' group is further down"
+  },
+  "ad-pinned": {
+   "state": "Pin panels to the side - docked, as an option (Inspector right, Canvases left, Advanced stays open)",
+   "how": "AI chat pinned with Advanced open",
+   "reach": "partially: only the AI panel pinned",
+   "diff": "AI panel pinned as a full-height right column with its Advanced fold open (Ask before, Show in chat, Suggestions, AI may read ..., This chat, Raw log / Copy transcript / Open in terminal); left Canvases panel collapses to its header (the canvas list is empty) while a panel is pinned - possible layout bug; spec shows Inspector pinned right and Canvases pinned left with Advanced open on both and the 'Drag - double-click resets - move it' chip"
+  },
+  "ad-search": {
+   "state": "Two keys find everything: cmd-K by name, ? by key (palette 'copy' + Keyboard shortcuts sheet)",
+   "how": "cmd-K, type 'advanced'",
+   "reach": "partially: the palette half",
+   "diff": "Palette matches in kind: grouped 'Actions' and 'Fold' rows with the path chip on the right (Menu - Diagnostics - Advanced, Timeline - Advanced, In chat panel - Advanced, ...), 'N results' footer; spec query is 'copy' and the sheet half (? Keyboard shortcuts with an Advanced fold) is a second panel not driven"
+  },
+  "ad-open-all": {
+   "state": "'Advanced mode' as a one-shot: cmd-K > Open all Advanced sections; each panel remembers its own fold",
+   "how": "cmd-K, 'Open all Advanced', Enter",
+   "reach": "yes",
+   "diff": "Matches: toast 'All Advanced sections are open. Close all' and the Canvases panel's Advanced fold open; spec also draws the palette rows and a diagram of every panel with its Advanced open (Canvases / Inspector / Share / AI)"
+  },
+  "ad-code": {
+   "state": "The canvas as code - read-only code panel (Combine-kampan.tsx, selected artboard's lines highlighted, terminal commands)",
+   "how": "cmd-K, 'code' (View code lives in a canvas row's menu)",
+   "reach": "partially: only the palette rows",
+   "diff": "Palette shows 'Copy code', 'Open in editor' (Canvases panel - Advanced - row menu - Open in editor), 'View code' rows with path chips; the read-only code panel itself (file path, Copy, Open in editor, highlighted artboard lines, 'From the terminal - this canvas' commands, 'In Claude Code' slash commands) was not opened"
+  },
+  "ad-edge-sync": {
+   "state": "A sync problem, in words, with one next step",
+   "how": "not reachable",
+   "reach": "no - needs a cloud project in trouble (hub)",
+   "diff": "n/a"
+  },
+  "ad-edge-syntax": {
+   "state": "Broken canvas code, said plainly - the details for the developer (error, place, excerpt, Open in editor, Copy error, Last good version)",
+   "how": "open a canvas with a syntax error, Show details",
+   "reach": "yes",
+   "diff": "Very close: card 'Broken can't be drawn right now.' + 'Ask AI to fix it' + Show details (Error, Where 'Broken.tsx - line 9, column 30' with Copy, code excerpt with the failing line marked) + Open in editor / Copy error / Last good version / Reload canvas; difference: spec's sentence says 'Its code was changed outside the app 2 min ago and stops halfway on line 212' (provenance) where the app says 'Its code stops halfway on line 8'; spec dims the last good board behind the card (grey tiles), app shows plain background"
+  },
+  "ad-edge-hub": {
+   "state": "A self-hosted hub looks exactly like the cloud",
+   "how": "not reachable",
+   "reach": "no - needs a hub-linked project",
+   "diff": "n/a"
+  },
+  "ad-edge-where": {
+   "state": "Where you are changes a few Advanced rows - browser, comment-only, local, offline (table)",
+   "how": "not reachable",
+   "reach": "no - needs those contexts (browser viewer, role, offline)",
+   "diff": "n/a"
+  },
+  "ad-edge-remember": {
+   "state": "An Advanced you open stays open - for that panel (remembered fold across days and canvases)",
+   "how": "not reachable as one state",
+   "reach": "no - a per-Mac preference story over days (the fold is remembered per panel under a fold key)",
+   "diff": "n/a"
+  }
+ }
+}

@@ -29,6 +29,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { trashAssets } from '../asset-trash.ts';
 import { createFileLedger, type FileLedger } from '../sync/file-ledger.ts';
 import {
   createFilePlane,
@@ -320,6 +321,20 @@ describe('down — the hub has something we do not', () => {
     expect(read('system/ds/brand.css')).toBe(':root{--a:1}');
     expect(ledger.ancestorOf('system/ds/brand.css')).toBe(sha(':root{--a:1}'));
     expect(ledger.cursor()).toBe(hub.head());
+  });
+
+  // S10.3b — the DS outside watcher names a delivered file's change "peer", not "unknown".
+  test('a landed file is reported once, after it is on disk; a refused one never', async () => {
+    const hub = fakeHub({ 'system/ds/brand.css': 'real', 'system/ds/x.css': 'x' });
+    hub.rows.set('system/ds/x.css', {
+      ...hub.rows.get('system/ds/x.css')!,
+      body: 'TAMPERED',
+    });
+    const seen: Array<[string, string]> = [];
+    await plane(hub, {
+      onDelivered: (rel: string) => seen.push([rel, read(rel)]),
+    }).reconcile();
+    expect(seen).toEqual([['system/ds/brand.css', 'real']]);
   });
 
   // F3 S14 (2026-09-23): the journal reader's own path regex refused a space,
@@ -922,6 +937,84 @@ describe('deletion propagates — Increment 6', () => {
   });
 });
 
+describe('a trashed asset propagates like a trashed canvas — S8.13, both directions', () => {
+  const propagating = (hub: ReturnType<typeof fakeHub>) => plane(hub, { propagateDeletes: true });
+  const PIC = 'assets/a1b2c3d4.png';
+  const SIDE = 'assets/a1b2c3d4.photo.json';
+  const free = () => ({ usedIn: [], usedElsewhere: false, olderVersions: false, notUsed: true });
+  // a project of a realistic size: the deletion breakers are a rate against what this machine tracks
+  const others = Object.fromEntries(
+    Array.from({ length: 14 }, (_, i) => [`system/ds/other${i}.css`, `:root{--n:${i}}`])
+  );
+  const seeded = () => fakeHub({ [PIC]: 'PNG', [SIDE]: '{"v":1}', ...others });
+
+  test('out: Move to the trash on this Mac tells the hub about the picture AND its sidecar', async () => {
+    const hub = seeded();
+    const p = propagating(hub);
+    await p.reconcile();
+    expect(existsSync(join(root, PIC))).toBe(true);
+
+    const { results } = trashAssets({ designRoot: root, rels: [PIC], rowOf: free });
+    expect(results[0]?.ok).toBe(true);
+    expect(existsSync(join(root, PIC))).toBe(false);
+    expect(existsSync(join(root, SIDE))).toBe(false);
+
+    const res = await p.reconcile();
+    expect(res.deleted.map((d) => d.rel).sort()).toEqual([PIC, SIDE].sort());
+    expect(hub.deletes.slice().sort()).toEqual([PIC, SIDE].sort());
+  });
+
+  test('in: a peer that never touched them parks both in ITS _trash/, never unlinks', async () => {
+    const hub = seeded();
+    const p = propagating(hub);
+    await p.reconcile();
+
+    hub.tombstone(PIC);
+    hub.tombstone(SIDE);
+    const res = await p.reconcile();
+
+    expect(existsSync(join(root, PIC))).toBe(false);
+    expect(existsSync(join(root, SIDE))).toBe(false);
+    const parked = res.deleted.map((d) => d.parked);
+    expect(parked).toHaveLength(2);
+    for (const rel of parked) expect(rel?.startsWith('_trash/')).toBe(true);
+    expect(read(res.deleted.find((d) => d.rel === PIC)?.parked as string)).toBe('PNG');
+  });
+
+  test('a bulk move past the breaker is HELD, not lost: nothing is told to the project until the owner confirms', async () => {
+    const files = Object.fromEntries(
+      Array.from({ length: 12 }, (_, i) => [
+        `assets/bulk${String(i).padStart(2, '0')}.png`,
+        `PNG${i}`,
+      ])
+    );
+    const hub = fakeHub({ ...files, ...others });
+    const p = propagating(hub);
+    await p.reconcile();
+    const { results } = trashAssets({ designRoot: root, rels: Object.keys(files), rowOf: free });
+    expect(results.every((r) => r.ok)).toBe(true);
+    const res = await p.reconcile();
+    expect(res.deleteHeld?.direction).toBe('out');
+    expect(res.deleteHeld?.count).toBe(12);
+    expect(hub.deletes).toEqual([]); // the picture files sit in _trash/ here; the project still has them
+    expect(Object.keys(files).every((rel) => hub.rows.has(rel))).toBe(true);
+  });
+
+  test('in: a peer that edited the sidecar meanwhile keeps it and pushes it back', async () => {
+    const hub = seeded();
+    const p = propagating(hub);
+    await p.reconcile();
+
+    write(SIDE, '{"v":1,"mine":true}');
+    hub.tombstone(PIC);
+    hub.tombstone(SIDE);
+    await p.reconcile();
+
+    expect(read(SIDE)).toBe('{"v":1,"mine":true}');
+    expect(existsSync(join(root, PIC))).toBe(false);
+  });
+});
+
 describe('the deletion breakers — the only protection now that this ships ON', () => {
   test("a branch switch does not become everyone else's deletion", async () => {
     const seeded: Record<string, string> = {};
@@ -1210,6 +1303,34 @@ describe('rate limits', () => {
     clock += 1_000;
     await p.reconcile();
     expect(wire.journals()).toHaveLength(1);
+  });
+
+  test('a cursor-read refusal still counts what waits HERE — the callout has a number to say (P8 06 ad-edge-sync)', async () => {
+    // The hub's per-label read bucket is shared by the cursor poll, History and
+    // the pulls, so under a rate limit the cursor read is the request that meets
+    // the wall. The pass returned before it looked at this disk, reported
+    // `waiting: 0`, and the held passes after it counted only `stuck` rows — so
+    // four notes written while the hub asked to wait never reached the
+    // "N changes are waiting to reach the cloud" callout (its gate is waiting > 0).
+    const hub = fakeHub({});
+    for (let i = 1; i <= 4; i += 1) write(`notes/n${i}.md`, `# Note ${i}\n`);
+    const wire = metered(hub, { refuse: (p) => (p === '/api/journal' ? 429 : null) });
+    let clock = 1_700_000_000_000;
+    const p = plane(hub, { fetchImpl: wire.fetchImpl, now: () => clock });
+
+    const first = await p.reconcile();
+    expect(first.rateLimited).toBeTruthy();
+    expect(first.rateLimited?.waiting).toBe(4);
+    // still nothing pushed: the door is shut, the files only got COUNTED
+    expect(wire.files()).toHaveLength(0);
+    expect(first.pushed).toEqual([]);
+
+    // a held pass reports the same honest count, still without touching the wire
+    const calls = wire.calls.length;
+    clock += 1_000;
+    const held = await p.reconcile();
+    expect(wire.calls.length).toBe(calls);
+    expect(held.rateLimited?.waiting).toBe(4);
   });
 
   test('the request ceiling bounds a pass that lands NOTHING', async () => {

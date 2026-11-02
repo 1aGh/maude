@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { createContext } from '../context.ts';
-import { createFsWatch } from '../fs-watch.ts';
+import { createFsWatch, type FsWatch as FsWatchT } from '../fs-watch.ts';
 
 describe('fs-watch.ts', () => {
   test('emits fs:html on recursive write', async () => {
@@ -151,5 +151,66 @@ describe('fs-watch.ts — a watcher error never takes the studio down', () => {
       fw?.stop();
       process.argv = origArgv;
     }
+  });
+});
+
+// p8-ci-linux-2 (CI 40990963284, U21 local-kernel-routes) — the per-path debounce was LEADING
+// only: a second event inside DEBOUNCE_MS was dropped, never delivered later. Linux inotify
+// hands the studio its own write (the undo putting v0 back) and the person's save right after
+// it (v2) as two prompt events; v2 fell in the window, nobody heard it, the local store never
+// recorded it, and the restore that followed restored nothing. macOS FSEvents delivers late
+// and coalesced, so the Mac stayed green. The last change in a burst must always arrive.
+describe('fs-watch.ts — a change inside the debounce window is delivered, not dropped', () => {
+  type Feed = (event: string, filename: string | null) => void;
+  const withFakeWatch = async (
+    body: (feed: Feed, seen: string[], fw: FsWatchT) => Promise<void>
+  ) => {
+    const root = mkdtempSync(join(tmpdir(), 'mdcc-fswatch-'));
+    mkdirSync(join(root, '.design'), { recursive: true });
+    writeFileSync(join(root, '.design', 'config.json'), '{"name":"t"}');
+    const origArgv = process.argv;
+    process.argv = [...origArgv, '--root', root];
+    let feed: Feed = () => {};
+    const fakeWatch = ((_dir: string, _opts: unknown, cb: Feed) => {
+      feed = cb;
+      return Object.assign(new EventEmitter(), { close() {} });
+    }) as unknown as typeof import('node:fs').watch;
+    let fw: FsWatchT | null = null;
+    try {
+      const ctx = createContext();
+      const seen: string[] = [];
+      ctx.bus.on('fs:any', (rel) => seen.push(String(rel)));
+      fw = createFsWatch(ctx, fakeWatch);
+      fw.start();
+      await body((e, f) => feed(e, f), seen, fw);
+    } finally {
+      fw?.stop();
+      process.argv = origArgv;
+    }
+  };
+
+  test('two writes 5 ms apart: both reach fs:any (the second after the window)', async () => {
+    await withFakeWatch(async (feed, seen) => {
+      feed('change', 'ui/card.tsx'); // the studio's own write (undo → v0)
+      await Bun.sleep(5);
+      feed('change', 'ui/card.tsx'); // the person's save right after (v2)
+      expect(seen).toEqual(['ui/card.tsx']); // the first at once
+      await Bun.sleep(120);
+      expect(seen).toEqual(['ui/card.tsx', 'ui/card.tsx']); // and the last, once the window closes
+      // a burst still collapses: ten events inside one window → one at once, one after it
+      for (let i = 0; i < 10; i++) feed('change', 'ui/card.tsx');
+      await Bun.sleep(120);
+      expect(seen).toHaveLength(4);
+    });
+  });
+
+  test('stop() cancels a pending trailing delivery', async () => {
+    await withFakeWatch(async (feed, seen, fw) => {
+      feed('change', 'ui/a.tsx');
+      feed('change', 'ui/a.tsx');
+      fw.stop();
+      await Bun.sleep(120);
+      expect(seen).toEqual(['ui/a.tsx']);
+    });
   });
 });

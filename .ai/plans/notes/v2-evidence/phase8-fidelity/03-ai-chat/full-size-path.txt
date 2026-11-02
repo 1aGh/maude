@@ -1,0 +1,66 @@
+stage D (6d19daa9a): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ace93bd2b562b89ad/.scr/pairs/03-ai-chat/
+(one PNG per artboard id and theme: <id>-<dark|light>.png, spec left | impl right, same height, label strip on top)
+stage D IMPL frames alone: /Users/iagh/git/personal/maude/.claude/worktrees/agent-ace93bd2b562b89ad/.scr/impl-out/03-ai-chat/
+stage D SPEC images (reused from stage A): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ace93bd2b562b89ad/.scr/spec/03/
+stage D harness: .ai/plans/notes/v2-evidence/phase8-fidelity/_d-harness-g2/
+
+stage A: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a45b4750975bd8337/.scr/pairs/03-ai-chat/
+(one PNG per artboard id and theme: <id>-<dark|light>.png, spec left | impl right, same height, label strip on top)
+SPEC images alone: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a45b4750975bd8337/.scr/spec/03/
+IMPL frames alone: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a45b4750975bd8337/.scr/impl-out/03-ai-chat/
+Harness (scenarios, fake agent, fixtures): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a45b4750975bd8337/.scr/impl/
+round 3 (p8-c3-ai): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a4979f0dfac4967a6/.scr/pairs/03-ai-chat/ (IMPL frames alone: .scr/impl-out/03-ai-chat/; harness changes: _c3-ai-harness/)
+
+final (D2, d3881fe41): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a948527cf7721a4d9/.scr/pairs/03-ai-chat/
+(one PNG per artboard id and theme: <id>-<dark|light>.png, spec left | impl right, same height, label strip on top)
+final (D2) IMPL frames alone: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a948527cf7721a4d9/.scr/impl-out/03-ai-chat/
+final (D2) SPEC images (reused from stage A): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a948527cf7721a4d9/.scr/spec/03/
+final (D2) harness: .ai/plans/notes/v2-evidence/phase8-fidelity/_d-harness-g2/ (D2 changes under _d2-harness-g2/)
+round 5: p8-c5-aichat re-shot ai-scope, ai-attach-menu, ai-permission, ai-choice-fail, ai-advanced, ai-long-pinned (both themes) with _d2-harness-g2/s03c.mjs; IMPL frames alone: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a344ba05f6504f8ca/.scr/impl-out/03-ai-chat/
+
+final (D3, 63592219a): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a1d011f1a56ad7ee9/.scr/pairs/03-ai-chat/
+(one PNG per artboard id and theme: <id>-<dark|light>.png, spec left | impl right, same height, label strip on top)
+final (D3) IMPL frames alone: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a1d011f1a56ad7ee9/.scr/impl-out/03-ai-chat/
+final (D3) SPEC images (reused from stage A): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a1d011f1a56ad7ee9/.scr/spec/03/
+final (D3) harness: .ai/plans/notes/v2-evidence/phase8-fidelity/_d3-harness-g2/ (on top of _d2-harness-g2/)
+
+round 6 (p8-c6-aisurf, 89a794e96): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ad6307ded82bdaa41/.scr/pairs/03-ai-chat/
+(one PNG per artboard id and theme: <id>-<dark|light>.png, spec left | impl right, same height, label strip on top)
+round 6 IMPL frames alone: /Users/iagh/git/personal/maude/.claude/worktrees/agent-ad6307ded82bdaa41/.scr/impl-out/03-ai-chat/
+round 6 harness: .ai/plans/notes/v2-evidence/phase8-fidelity/_c6-harness-g2/ (on top of _d3-harness-g2/ and _d2-harness-g2/)
+
+final (D4, 21c9714cf): /Users/iagh/git/personal/maude/.claude/worktrees/wf_74ac1088-f6f-10/.scr/pairs/03-ai-chat/
+(one PNG per artboard id and theme: <id>-<dark|light>.png, spec left | impl right, same height, label strip on top)
+final (D4) IMPL frames alone: /Users/iagh/git/personal/maude/.claude/worktrees/wf_74ac1088-f6f-10/.scr/impl-out/03-ai-chat/
+final (D4) SPEC images (reused from stage A): /Users/iagh/git/personal/maude/.claude/worktrees/wf_74ac1088-f6f-10/.scr/spec/03/
+final (D4) harness: .ai/plans/notes/v2-evidence/phase8-fidelity/_d4-harness-g2/ (on top of _c6-harness-g2/ -> _d3-harness-g2/ -> _d2-harness-g2/)
+
+round 7 (p8-c7-ai, p8-c7-ai): /Users/iagh/git/personal/maude/.claude/worktrees/agent-abc3d018bba1d4c49/.scr/pairs/03-ai-chat/
+(one PNG per artboard id and theme: <id>-<dark|light>.png, spec left | impl right, same height, label strip on top)
+round 7 IMPL frames alone: /Users/iagh/git/personal/maude/.claude/worktrees/agent-abc3d018bba1d4c49/.scr/impl-out/03-ai-chat/
+round 7 harness: .ai/plans/notes/v2-evidence/phase8-fidelity/_c7-ai-harness/ (on top of _c6-harness-g2/ -> _d3-harness-g2/ -> _d2-harness-g2/)
+
+round 7b (p8-c7-ai2, p8-c7-ai2): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a90250e5bf24e5b43/.scr/pairs/03-ai-chat/
+(one PNG per artboard id and theme: <id>-<dark|light>.png, spec left | impl right, same height, label strip on top)
+round 7b IMPL frames alone: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a90250e5bf24e5b43/.scr/impl-out/03-ai-chat/
+round 7b harness: .ai/plans/notes/v2-evidence/phase8-fidelity/_c7b-ai-harness/ (on top of _c7-ai-harness/ -> _c6-harness-g2/ -> _d3-harness-g2/ -> _d2-harness-g2/)
+
+final (D5, e37e7d82a): /Users/iagh/git/personal/maude/.claude/worktrees/agent-aa5f4fe6c7d7fccbe/.scr/pairs/03-ai-chat/
+(one PNG per artboard id and theme: <id>-<dark|light>.png, spec left | impl right, same height, label strip on top)
+final (D5) IMPL frames alone: /Users/iagh/git/personal/maude/.claude/worktrees/agent-aa5f4fe6c7d7fccbe/.scr/d5/03-ai-chat/
+final (D5) SPEC images (reused from stage A): /Users/iagh/git/personal/maude/.claude/worktrees/agent-aa5f4fe6c7d7fccbe/.scr/spec/03/
+final (D5) harness: .ai/plans/notes/v2-evidence/phase8-fidelity/_d5-harness-g2/ (chain.sh 03 on the remote lane, then mkpairs.sh 03-ai-chat)
+
+final (D6, 3d58f57df): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a8e434254e5deab1e/.scr/pairs/03-ai-chat/
+(one PNG per artboard id and theme: <id>-<dark|light>.png, spec left | impl right, same height, label strip on top)
+final (D6) IMPL frames alone: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a8e434254e5deab1e/.scr/d6/03-ai-chat/
+final (D6) SPEC images (reused from stage A): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a8e434254e5deab1e/.scr/spec/03/
+final (D6) harness: .ai/plans/notes/v2-evidence/phase8-fidelity/_d6-harness-g2/ (chain.sh 03 on the remote lane, then mkpairs.sh 03-ai-chat)
+
+round 10 (8580b42e6): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a56999ac67afdc39a/.scr/pairs/03-ai-chat/
+(one PNG per artboard id and theme: <id>-<dark|light>.png, spec left | impl right, same height, label strip on top)
+round 10 IMPL frames alone: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a56999ac67afdc39a/.scr/d6/03-ai-chat/
+round 10 SPEC images (reused from stage A): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a56999ac67afdc39a/.scr/spec/03/
+round 10 harness: .ai/plans/notes/v2-evidence/phase8-fidelity/_c10-ai-harness/ (chain.sh 03 on the remote lane, then mkpairs.sh 03-ai-chat)
+final (D7, 98ed9c011): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a04ea748cd3666ab7/.scr/pairs/03-ai-chat (raw impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a04ea748cd3666ab7/.scr/d7/03-ai-chat; spec: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a04ea748cd3666ab7/.scr/spec/03; harness _d7-harness-g1/g2/)
+round 11 (p8-r11-03): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ab76ed67b7618ff98/.scr/pairs/03-ai-chat/ (ai-done, ai-question, ai-long, ai-long-pinned only; IMPL frames alone: .scr/d7/03-ai-chat/; harness _r11-harness-g1/, spec reused from D7)

@@ -19,6 +19,15 @@
 import { type ReactNode, useCallback, useEffect, useRef } from 'react';
 import { globalCdOccurrence, resolveSelectionEl } from './dom-selection.ts';
 import { isElementDragActive } from './drag-state.ts';
+import { layoutOpsDeps } from './editing/reorder-slot.tsx';
+import { framesWithGap, runSetGap } from './editing/set-gap.ts';
+import {
+  gapValue,
+  rulerWindow,
+  spaceStops,
+  spaceTokenFor,
+  tokenRuler,
+} from './editing/token-ruler.tsx';
 import {
   computeGapDrag,
   computeGapMidpoints,
@@ -51,29 +60,37 @@ const SPACING_CSS = `
   transition: opacity 120ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 .dc-spacing-handle--padding {
-  width: 10px;
-  height: 10px;
+  /* P8 R3 (14 Editing) — at rest the board draws the BANDS and their chips, not grips: the handle is a grabbable
+     hit zone that wears its square only under the pointer (or while it is dragged). */
+  width: 14px;
+  height: 14px;
   border-radius: 2px;
-  background: var(--maude-hud-accent, oklch(0.680 0.180 268));
-  border: 1px solid var(--maude-hud-accent-fg, oklch(0.180 0.030 268));
-  opacity: 0.55;
+  background: transparent;
+  border: 1px solid transparent;
+  opacity: 1;
 }
 .dc-spacing-handle--padding:hover,
-.dc-spacing-handle--padding[data-dragging="true"] { opacity: 1; }
+.dc-spacing-handle--padding[data-dragging="true"] {
+  background: var(--maude-hud-accent, oklch(0.680 0.180 268));
+  border-color: var(--maude-hud-accent-fg, oklch(0.180 0.030 268));
+}
 .dc-spacing-handle--padding[data-side="top"],
 .dc-spacing-handle--padding[data-side="bottom"] { cursor: ns-resize; }
 .dc-spacing-handle--padding[data-side="left"],
 .dc-spacing-handle--padding[data-side="right"] { cursor: ew-resize; }
 .dc-spacing-handle--gap {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #FF24BD;
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  opacity: 0.7;
+  /* the gap's chip ("24") IS the grip at rest: an invisible hit zone the size of the chip, a magenta ring on hover */
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  background: transparent;
+  border: 0;
+  opacity: 1;
 }
 .dc-spacing-handle--gap:hover,
-.dc-spacing-handle--gap[data-dragging="true"] { opacity: 1; }
+.dc-spacing-handle--gap[data-dragging="true"] {
+  box-shadow: 0 0 0 1.5px #FF24BD;
+}
 .dc-spacing-handle--gap[data-axis="x"] { cursor: ew-resize; }
 .dc-spacing-handle--gap[data-axis="y"] { cursor: ns-resize; }
 @media (prefers-reduced-motion: reduce) {
@@ -114,6 +131,10 @@ interface SpacingDrag {
    *  Alt+Shift (all) box-model modifiers (`paddingSideSet`), which can touch
    *  sides OTHER than the one grabbed. Undefined for a gap drag. */
   paddingBefore?: Record<PaddingSide, string | null>;
+  /** S2.11 — the design system's space stops (px, ascending); a gap drag clicks onto them. Empty = free. */
+  stops: number[];
+  /** S2.11 — which gap (0 = between the first two children) is held; the bands light that one. */
+  gapIndex: number;
 }
 
 /** One touched property's before/after — the shape `resizeElement`'s multi-prop
@@ -241,9 +262,8 @@ export function SpacingHandlesOverlay(): ReactNode {
    *  drag has 2 or 4, all set to the SAME value (mirrors the CSS panel's own
    *  `side()` scrub semantics — every touched side becomes the dragged value,
    *  not each grown independently). */
-  const commit = useCallback((d: SpacingDrag, entries: PropEntry[], value: number) => {
+  const commit = useCallback((d: SpacingDrag, entries: PropEntry[], after: string) => {
     if (!entries.length) return;
-    const after = `${value}px`;
     lastCommitRef.current = { el: d.el, entries };
     const patch: Record<string, string> = {};
     const before: Record<string, string | null> = {};
@@ -258,6 +278,20 @@ export function SpacingHandlesOverlay(): ReactNode {
       );
     } catch {
       /* detached / cross-origin teardown */
+    }
+  }, []);
+
+  /**
+   * ⌥ — every gap that was the size of the held one, in this frame and the frames inside it, becomes
+   * the new value: ONE `layout.set-gap` edit-op (one write, one undo step; S2.11c). A refusal puts the
+   * held frame's preview back.
+   */
+  const commitEveryGap = useCallback(async (d: SpacingDrag, value: number) => {
+    const frames = [d.el, ...framesWithGap(d.el, d.startValue)];
+    const result = await runSetGap(frames, value, layoutOpsDeps.current);
+    if (result && !result.ok) {
+      if (d.before == null) d.el.style.removeProperty(d.prop);
+      else d.el.style.setProperty(d.prop, d.before);
     }
   }, []);
 
@@ -292,6 +326,8 @@ export function SpacingHandlesOverlay(): ReactNode {
         startClientY: e.clientY,
         zoom: zoom > 0 ? zoom : 1,
         startValue: computedPx(cs, prop),
+        stops: isGap ? spaceStops(document) : [],
+        gapIndex: isGap ? Array.from(c.querySelectorAll('.dc-spacing-handle--gap')).indexOf(t) : -1,
         prop,
         before: el.style.getPropertyValue(prop) || null,
         // Alt (pair) / Alt+Shift (all sides) can touch sides OTHER than the one
@@ -324,17 +360,37 @@ export function SpacingHandlesOverlay(): ReactNode {
       return sides.map((s) => ({ prop: `padding-${s}`, before: d.paddingBefore?.[s] ?? null }));
     };
 
+    // S2.11 — a gap clicks onto the system's space stops (⌘ = any number); padding stays free.
+    const valueFor = (d: SpacingDrag, ev: PointerEvent, dx: number, dy: number): number => {
+      if (d.kind !== 'gap')
+        return computePaddingDrag(d.side ?? 'top', d.startValue, dx, dy, d.zoom);
+      const raw = computeGapDrag(d.axis, d.startValue, dx, dy, d.zoom);
+      return gapValue(raw, d.stops, ev.metaKey || ev.ctrlKey);
+    };
+    const showRuler = (d: SpacingDrag, ev: PointerEvent, value: number) => {
+      if (!d.stops.length) return;
+      const free = ev.metaKey || ev.ctrlKey;
+      tokenRuler.show({
+        x: ev.clientX,
+        y: ev.clientY,
+        stops: rulerWindow(d.stops, value),
+        on: free ? null : value,
+        value,
+        free,
+        all: ev.altKey,
+        gapIndex: d.gapIndex,
+      });
+    };
+
     const onMove = (e: PointerEvent) => {
       const d = dragRef.current;
       if (!d || e.pointerId !== d.pointerId) return;
       e.preventDefault();
       const dx = e.clientX - d.startClientX;
       const dy = e.clientY - d.startClientY;
-      const next =
-        d.kind === 'gap'
-          ? computeGapDrag(d.axis, d.startValue, dx, dy, d.zoom)
-          : computePaddingDrag(d.side ?? 'top', d.startValue, dx, dy, d.zoom);
+      const next = valueFor(d, e, dx, dy);
       for (const entry of touchedEntries(d, e)) d.el.style.setProperty(entry.prop, `${next}px`);
+      if (d.kind === 'gap') showRuler(d, e, next);
     };
 
     const onUp = (e: PointerEvent) => {
@@ -345,17 +401,23 @@ export function SpacingHandlesOverlay(): ReactNode {
         `.dc-spacing-handle[data-prop="${d.prop}"][data-dragging="true"]`
       );
       if (handle) delete handle.dataset.dragging;
+      tokenRuler.hide();
       const dx = e.clientX - d.startClientX;
       const dy = e.clientY - d.startClientY;
-      const next =
-        d.kind === 'gap'
-          ? computeGapDrag(d.axis, d.startValue, dx, dy, d.zoom)
-          : computePaddingDrag(d.side ?? 'top', d.startValue, dx, dy, d.zoom);
+      const next = valueFor(d, e, dx, dy);
       const entries = touchedEntries(d, e);
-      const after = `${next}px`;
-      const changed = entries.some((entry) => after !== (entry.before ?? `${d.startValue}px`));
+      // S2.24 G4 — a gap that clicked onto a stop of the system's scale is written as the stop (`var(--space-6)`),
+      // like the ⌥ drag does; ⌘ (any number), padding and a system without that stop write the number.
+      const token =
+        d.kind === 'gap' && !(e.metaKey || e.ctrlKey) ? spaceTokenFor(next, document) : null;
+      const after = token ? `var(${token})` : `${next}px`;
+      const changed = entries.some(
+        (entry) => `${next}px` !== (entry.before ?? `${d.startValue}px`) && after !== entry.before
+      );
       if (!changed) return; // no-op guard
-      commit(d, entries, next);
+      // ⌥ on a gap: one multi-frame op carries the held frame too (no second write for it)
+      if (d.kind === 'gap' && e.altKey) void commitEveryGap(d, next);
+      else commit(d, entries, after);
     };
 
     // Restore the pre-drag inline value(s) if the shell reports the write
@@ -380,13 +442,14 @@ export function SpacingHandlesOverlay(): ReactNode {
     window.addEventListener('pointercancel', onUp);
     window.addEventListener('message', onFail);
     return () => {
+      tokenRuler.hide();
       c.removeEventListener('pointerdown', onDown);
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
       window.removeEventListener('message', onFail);
     };
-  }, [one, commit]);
+  }, [one, commit, commitEveryGap]);
 
   return <div ref={containerRef} aria-hidden="true" />;
 }

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-accounts-list"
+description = "Enables the accounts_list command without any pre-configured scope."
+commands.allow = ["accounts_list"]
+
+[[permission]]
+identifier = "deny-accounts-list"
+description = "Denies the accounts_list command without any pre-configured scope."
+commands.deny = ["accounts_list"]

@@ -1,0 +1,14 @@
+await prev();
+await sleep(1500);
+await page.keyboard.press('Meta+k');
+await sleep(600);
+await page.keyboard.type('Start a vote');
+await sleep(600);
+await page.keyboard.press('Enter');
+await sleep(1200);
+await shot('v2-sheet');
+const out = {};
+out.sheet = await page.evaluate(() => document.querySelector('[data-testid="vote-sheet"]')?.innerText);
+out.tids = await tids(/vote/);
+out.ftids = await ftids(/vote/);
+return out;

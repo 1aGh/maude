@@ -18,6 +18,11 @@
 // feature — which is exactly what happens to an ordering that lives inside an
 // effects handler (DDR-196 §1).
 
+import { TRIAL_DAYS, TRIALS_PER_VERIFIED_EMAIL, trialView } from './billing.mjs';
+import { ACCESS_MESSAGES } from './project-access.mjs';
+
+const DAY_MS = 24 * 3600_000;
+
 /**
  * How long a person waits before we give up and void.
  *
@@ -142,4 +147,65 @@ export function waitingRoom(attempt, { now = Date.now(), timeoutMs = PROVISION_T
           'that happens once your project is up.'
         : decision.tellCustomer,
   };
+}
+
+// ----------------------------------------------------------- the A3 trial
+//
+// Maude v2 S9.15. The first cloud project provisions under the ACCOUNT's
+// trial, with no checkout and no Stripe object — so there is no charge to
+// order against a boot, and none of the above applies. What does need one
+// reviewable place is who gets a free workspace, because free cells for any
+// sign-up is the cost and abuse risk the run flagged.
+
+/** The refusal a trial that cannot start gives — the contract's 402 `plan`. */
+const NEEDS_PLAN = Object.freeze({
+  outcome: 'refuse',
+  status: 402,
+  reason: 'plan',
+  error: ACCESS_MESSAGES.plan,
+});
+
+/**
+ * May this account provision a trial project now? Pure.
+ *
+ * Order matters and each step is a test:
+ *   1. a REPLAY (same request id, or the same name without one) answers the
+ *      project it already made — whatever else became true since. Provisioning
+ *      is idempotent; a retry never makes a second project nor spends a claim;
+ *   2. an ended trial needs a plan;
+ *   3. the address must be verified — the trial is per verified e-mail;
+ *   4. `TRIALS_PER_VERIFIED_EMAIL` claims already spent need a plan;
+ *   5. a taken name is the caller's to change (409), and spends nothing.
+ *
+ * @param {{ account: object, now?: number, replay?: object|null, claimsUsed?: number, nameTaken?: boolean }} args
+ */
+export function decideTrialProvision({
+  account,
+  now = Date.now(),
+  replay = null,
+  claimsUsed = 0,
+  nameTaken = false,
+}) {
+  if (replay) return { outcome: 'replay', project: replay };
+  const trial = trialView(account, { now });
+  if (trial.state === 'ended') return { ...NEEDS_PLAN };
+  if (!account?.email_verified_at) {
+    return {
+      outcome: 'refuse',
+      status: 403,
+      reason: 'email-unverified',
+      error: 'Confirm your e-mail address first — the link is in your inbox.',
+    };
+  }
+  if (claimsUsed >= TRIALS_PER_VERIFIED_EMAIL) return { ...NEEDS_PLAN };
+  if (nameTaken) {
+    return {
+      outcome: 'refuse',
+      status: 409,
+      reason: 'name-taken',
+      error: 'That name is already a web address here. Pick another name.',
+    };
+  }
+  // A trial that has not started (no sign-in since v19) starts now.
+  return { outcome: 'provision', trialEndsAt: trial.endsAt ?? now + TRIAL_DAYS * DAY_MS };
 }

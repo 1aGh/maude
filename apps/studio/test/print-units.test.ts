@@ -165,6 +165,8 @@ describe('print/units — single-source lint guard', () => {
       const rel = relative(STUDIO_ROOT, file);
       if (rel === join('print', 'units.ts')) continue;
       if (rel === join('test', 'print-units.test.ts')) continue;
+      // a frozen copy of an older release's print/units.ts (a v1-peer fixture), never a second source
+      if (rel.startsWith(`${join('test', 'fixtures', 'v1')}/`)) continue;
       const text = readFileSync(file, 'utf8');
       if (CONVERSION_SHAPE.test(text)) offenders.push(rel);
     }

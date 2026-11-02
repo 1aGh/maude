@@ -1,0 +1,10 @@
+stage A: undefined
+stage D: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a1266e1495ea7588d/.scr/pairs/05
+round 3: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a5f4696a9f55c2299/.scr/pairs/05 (p8-c3-shell, impl at c7f1a0efd)
+round 3: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a4979f0dfac4967a6/.scr/pairs/05
+final (D2, d3881fe41): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a14cd45eae2ac5f32/.scr/pairs/05
+round 5: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a6978930be4932b00/.scr/pairs/05/ (p8-c5-panels @ 2e203e9e6; IMPL re-shot light + dark, SPEC reused)
+final (D3, 63592219a): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a81ec5fb665864bd9/.scr/pairs/05
+round 7: /Users/iagh/git/personal/maude/.claude/worktrees/agent-afdb592ad78b001dc/.scr/pairs/05 (p8-c7-oboard; IMPL re-shot light + dark, SPEC reused from round 5)
+final (D5, e37e7d82a): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a47304d95ce1393d6/.scr/pairs/05 (raw impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a47304d95ce1393d6/.scr/impl-raw/05)
+final (D6, 3d58f57df): /Users/iagh/git/personal/maude/.claude/worktrees/agent-af2cca2becd40770b/.scr/pairs/05 (raw impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-af2cca2becd40770b/.scr/impl-raw/05)

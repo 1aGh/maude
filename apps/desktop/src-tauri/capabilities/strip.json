@@ -1,0 +1,17 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "strip",
+  "description": "The tab strip (V2-3.7, contract V2-3.7-own-tab-bar.md §8): the trusted app-local `strip.html` child webview across the top of the one `shell` window. `webviews` only, never the `shell` window, whose label every tab shares. No `remote`: it runs on the app-local origin only, and its navigation guard pins it to strip.html. Every tab command re-checks in Rust that the caller is the `strip` webview on the app-local strip.html (tabs::check_strip). The state reaches it through the Channel it hands `tabs_state`, never an event (an `Any` listener in a project page would hear an emit_to), so it needs no emit and no listen. `start-dragging` + `internal-toggle-maximize`: its empty areas are `data-tauri-drag-region` (drag the window, double-click to zoom).",
+  "webviews": ["strip"],
+  "permissions": [
+    "allow-tabs-state",
+    "allow-tab-activate",
+    "allow-tab-close",
+    "allow-tab-reorder",
+    "allow-tab-menu",
+    "allow-tab-rename",
+    "allow-tab-overview",
+    "core:window:allow-start-dragging",
+    "core:window:allow-internal-toggle-maximize"
+  ]
+}

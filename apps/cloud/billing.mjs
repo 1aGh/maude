@@ -38,6 +38,38 @@ const DAY_MS = 24 * 3600_000;
  */
 export const RETENTION_DAYS = SUSPEND_RETENTION_DAYS;
 
+/**
+ * THE A3 TRIAL (Maude v2 S9.15): 14 days, no card, from the account's first
+ * sign-in. The number pricing.json advertises (`trialDays`); a test holds the
+ * two equal.
+ */
+export const TRIAL_DAYS = 14;
+
+/**
+ * How many trial WORKSPACES one verified e-mail address may start.
+ *
+ * The run's recorded default (`.ai/state/v2-waiting-for-michal.md`). The abuse
+ * policy is Michal's decision before any live rollout — change it HERE, the
+ * one place every check reads it from.
+ */
+export const TRIALS_PER_VERIFIED_EMAIL = 1;
+
+/**
+ * Where an account's trial stands. Pure.
+ *
+ * @param {{ trial_started_at?: number | null } | null} account
+ * @returns {{ state: 'none'|'trialing'|'ended', startedAt: number|null, endsAt: number|null, daysLeft: number }}
+ */
+export function trialView(account, { now = Date.now() } = {}) {
+  const startedAt = account?.trial_started_at ?? null;
+  if (startedAt === null) {
+    return { state: 'none', startedAt: null, endsAt: null, daysLeft: TRIAL_DAYS };
+  }
+  const endsAt = startedAt + TRIAL_DAYS * DAY_MS;
+  if (now >= endsAt) return { state: 'ended', startedAt, endsAt, daysLeft: 0 };
+  return { state: 'trialing', startedAt, endsAt, daysLeft: Math.ceil((endsAt - now) / DAY_MS) };
+}
+
 /** `1753...` ms → `28 August 2026`. The one date format a customer sees. */
 export function formatDay(ms) {
   return new Date(Number(ms)).toLocaleDateString('en-GB', {

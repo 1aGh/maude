@@ -1,9 +1,12 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { $, browser, expect } from '@wdio/globals';
+import { focusShell } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
+import { focusHome, followNewTab } from '../helpers/home-entry';
 import { isNativeShell } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
+import { labels, pinCurrentWindow } from '../helpers/windows';
 
 const run = JSON.parse(process.env.MAUDE_CLOUD_ENTRY_RUN ?? 'null') as {
   controlUrl: string;
@@ -31,12 +34,30 @@ async function probe(query: string, operation = 'read', value: unknown = null) {
   );
 }
 
+/**
+ * ⌘K "New brief canvas" (`canvas.new-brief`): the centered name dialog (R3 (6)), a name, Create. The panel's
+ * "New canvas" makes a blank canvas since R2-P2 (TD2) — no artboard, no heading — and this lane's next step
+ * edits the brief's heading, so it takes the brief door (surface.e2e.ts covers New canvas).
+ */
+async function createBriefCanvas(name: string) {
+  await focusShell();
+  await browser.keys(['Meta', 'k']);
+  const input = await $(tid('palette-input'));
+  await input.waitForExist({ timeout: 10_000 });
+  await input.setValue('New brief canvas');
+  const action = await $(tid('palette-row-action:canvas.new-brief'));
+  await action.waitForExist({ timeout: 4000 });
+  await action.click();
+  const field = await $(tid('name-dialog-input'));
+  await field.waitForDisplayed({ timeout: 10_000 });
+  await field.setValue(name);
+  await (await $(tid('name-dialog-create'))).click();
+}
+
 describe('S01 cloud entry on a clean Linux native profile', () => {
   it('approves a real device login, picks the invited project and creates a canvas through its UI', async () => {
     startReport('S01 actual cloud entry — Linux native debug');
-    await (
-      browser as unknown as { tauri?: { switchWindow(label: string): Promise<void> } }
-    ).tauri?.switchWindow('main');
+    await pinCurrentWindow();
     await waitForSidecar();
     expect(await isNativeShell()).toBe(true);
     const cloudTarget = await browser.execute(async () => {
@@ -46,20 +67,20 @@ describe('S01 cloud entry on a clean Linux native profile', () => {
     });
     expect(cloudTarget).toEqual({ status: 200, url: run.controlUrl, connected: false });
     expect(existsSync(process.env.MAUDE_CLOUD_CONFIG as string)).toBe(false);
-    const door = await $(tid('ob-door-team'));
-    await door.waitForDisplayed({ timeout: 120_000 });
+    // S6.15: the v1 first-run wizard door is retired. A clean profile opens Home, whose sign-in card
+    // starts the browser sign-in; "use a code instead" shows the device code this lane approves.
+    await focusHome();
     await capture('clean-first-run');
-    await door.click();
-    const signin = await $(tid('team-cloud-signin'));
-    await signin.waitForDisplayed();
+    await (await $(tid('signin-cloud'))).click();
+    await (await $(tid('signin-waiting'))).waitForDisplayed();
     console.log('[cloud-entry] starting device sign-in through the UI');
-    await signin.click();
-    const code = await $(tid('team-cloud-code'));
+    await (await $(tid('signin-use-code'))).click();
+    const code = await $(tid('signin-code'));
     try {
       await code.waitForDisplayed();
     } catch (error) {
       const text = await browser.execute(() =>
-        (document.querySelector('[data-testid="team-projects"]')?.textContent ?? '').replace(
+        (document.querySelector('[data-testid="signin-card"]')?.textContent ?? '').replace(
           /[A-Z0-9]{4}-[A-Z0-9]{4}/g,
           '[code]'
         )
@@ -77,10 +98,13 @@ describe('S01 cloud entry on a clean Linux native profile', () => {
       }),
       { mode: 0o600 }
     );
-    const project = await $(tid(`team-cloud-project-${run.projectId}`));
+    // Signed in, Home lists the invited project; opening it makes the project's own tab.
+    const project = await $(tid(`home-cloud-open-${run.projectId}`));
     await project.waitForDisplayed({ timeout: 240_000 });
     await capture('real-login-project-picker');
+    const before = await labels();
     await project.click();
+    await followNewTab(before, 240_000);
     await browser.waitUntil(
       async () => {
         const rows = await browser.$$(tid('canvas-row-ui-cloud-acceptance'));
@@ -108,9 +132,7 @@ describe('S01 cloud entry on a clean Linux native profile', () => {
     expect(session.url).toBe(run.controlUrl.replace(/\/$/, ''));
     expect(session.email).toBe('designer-a@maude-f3.invalid');
 
-    await (await $('button[aria-label="New blank brief board"]')).click();
-    await (await $('input[aria-label="New brief board name"]')).setValue(canvasName);
-    await (await $('button[aria-label="Create brief board"]')).click();
+    await createBriefCanvas(canvasName);
     const row = `canvas-row-ui-${canvasName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
     await (await $(tid(row))).waitForDisplayed({
       timeout: 60_000,
@@ -121,7 +143,7 @@ describe('S01 cloud entry on a clean Linux native profile', () => {
       timeoutMsg: 'Created board did not render in native canvas',
     });
     await capture('first-ui-create');
-    await probe(tid('palette-mode-edit'), 'click');
+    await (await browser.$(tid('palette-mode-edit'))).click(); // V2-4.3b: the switch is the Share cluster's (shell document)
     const editor = '[contenteditable="plaintext-only"]';
     await browser.waitUntil(
       async () => {

@@ -647,12 +647,13 @@ const presence = {
       // wrong question — it happened to pass one direction and not the other.
       return waitFor(
         async () => {
+          // V2-4.8b: the status bar is gone; the project pill names the open canvas.
           const bar = await b.eval(
-            'document.querySelector(\'[data-testid="statusbar"]\')?.textContent ?? ""'
+            'document.querySelector(\'[data-testid="project-pill"]\')?.textContent ?? ""'
           );
-          return typeof bar === 'string' && bar.includes(`${m.name}.tsx`);
+          return typeof bar === 'string' && bar.includes(m.name);
         },
-        { timeoutMs: 25_000, label: 'the status bar naming this canvas' }
+        { timeoutMs: 25_000, label: 'the project pill naming this canvas' }
       );
     };
     const here = await openIt(from);

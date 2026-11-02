@@ -1,0 +1,12 @@
+{"lane":"terminal","name":"Grep","input":{"pattern":"Save all|Get the latest before you publish yours|B · Save a version|C · Publish","path":"ui/GitPanel.tsx","output_mode":"content"}}
+{"lane":"terminal","name":"Glob","input":{"pattern":"**/GitPanel.tsx"}}
+{"lane":"terminal","name":"Grep","input":{"pattern":"Save all|Get the latest before you publish yours|B · Save a version|C · Publish","path":".design/ui/GitPanel.tsx","output_mode":"content"}}
+{"lane":"terminal","name":"Grep","input":{"pattern":"Composer|Nudge|function |<DCArtboard","path":".design/ui/GitPanel.tsx","output_mode":"content"}}
+{"lane":"terminal","name":"Read","input":{"file_path":".design/ui/GitPanel.tsx","offset":214,"limit":130}}
+{"lane":"terminal","name":"Edit","input":{"file_path":".design/ui/GitPanel.tsx"}}
+{"lane":"terminal","name":"Edit","input":{"file_path":".design/ui/GitPanel.tsx"}}
+{"lane":"terminal","name":"Edit","input":{"file_path":".design/ui/GitPanel.tsx"}}
+{"lane":"terminal","name":"Edit","input":{"file_path":".design/ui/GitPanel.tsx"}}
+{"lane":"terminal","name":"Bash","input":{"command":"S=/private/tmp/claude-501/-private-tmp-claude-501--Users-iagh-git-personal-maude-87d978ed-80c9-4461-b6c8-391c975c5c9a-scratchpad-live-r2t-S5-terminal-project/eb5eba0b-9c5f-4336-8385-260953c143bb/scratchpad; maude design screenshot --canvas \"ui/GitPanel.tsx\" --screen changes --out $S/changes.png && maude design screenshot --canvas \"ui/GitPanel.tsx\" --screen save-version --out $S/save-version.png","description":"Screenshot the changes and save-version artboards"}}
+{"lane":"terminal","name":"Read","input":{"file_path":"/private/tmp/claude-501/-private-tmp-claude-501--Users-iagh-git-personal-maude-87d978ed-80c9-4461-b6c8-391c975c5c9a-scratchpad-live-r2t-S5-terminal-project/eb5eba0b-9c5f-4336-8385-260953c143bb/scratchpad/changes.png"}}
+{"lane":"terminal","name":"Read","input":{"file_path":"/private/tmp/claude-501/-private-tmp-claude-501--Users-iagh-git-personal-maude-87d978ed-80c9-4461-b6c8-391c975c5c9a-scratchpad-live-r2t-S5-terminal-project/eb5eba0b-9c5f-4336-8385-260953c143bb/scratchpad/save-version.png"}}

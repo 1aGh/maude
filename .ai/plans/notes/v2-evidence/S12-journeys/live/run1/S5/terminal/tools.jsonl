@@ -1,0 +1,10 @@
+{"lane":"terminal","name":"Grep","input":{"pattern":"Save all|Get the latest before you publish yours|B · Save a version|C · Publish","path":"ui/GitPanel.tsx","output_mode":"content"}}
+{"lane":"terminal","name":"Glob","input":{"pattern":"**/GitPanel.tsx"}}
+{"lane":"terminal","name":"Grep","input":{"pattern":"Save all|Get the latest before you publish yours|Save a version|Publish \\+ Get latest","path":".design/ui/GitPanel.tsx","output_mode":"content"}}
+{"lane":"terminal","name":"Read","input":{"file_path":".design/ui/GitPanel.tsx","offset":210,"limit":210}}
+{"lane":"terminal","name":"Edit","input":{"file_path":".design/ui/GitPanel.tsx"}}
+{"lane":"terminal","name":"Edit","input":{"file_path":".design/ui/GitPanel.tsx"}}
+{"lane":"terminal","name":"Edit","input":{"file_path":".design/ui/GitPanel.tsx"}}
+{"lane":"terminal","name":"Edit","input":{"file_path":".design/ui/GitPanel.tsx"}}
+{"lane":"terminal","name":"Bash","input":{"command":"maude design runs list 2>&1 | head -30","description":"List active Maude design runs"}}
+{"lane":"terminal","name":"Edit","input":{"file_path":".design/ui/GitPanel.tsx"}}

@@ -53,8 +53,7 @@ export type CellPairingRefusal =
   | 'no-url'
   | 'not-loopback'
   | 'no-token'
-  | 'autocommit-enabled'
-  | 'shared-doc-off';
+  | 'autocommit-enabled';
 
 export interface CellPairingVerdict {
   pairing: CellPairing | null;
@@ -71,17 +70,11 @@ function on(value: string | undefined): boolean {
 }
 
 /**
- * Is the single-shared-doc model enabled? — DEFAULT ON (the DDR-064 cutover,
- * Sync v2 Increment 7). Only an explicit falsy value opts a machine back onto
- * the proven two-doc path, and that opt-out IS the rollback for this release:
- * both paths coexist, nothing is deleted, `MAUDE_SHARED_DOC=0` flips back.
- *
- * ONE parser, exported — `server.ts` and the pairing gate used to carry
- * byte-identical mirrors of the opt-in regex, and a default flip is exactly
- * the change that would have let them drift.
+ * The single-shared-doc model (DDR-064) is the only one since p8-v1-drop: `MAUDE_SHARED_DOC=0`, the
+ * opt-out back onto the two-doc + disk-reconcile path, is gone. The env value is ignored.
  */
-export function sharedDocEnabled(env: Record<string, string | undefined> = process.env): boolean {
-  return !/^(0|false|off|no)$/i.test(env.MAUDE_SHARED_DOC ?? '');
+export function sharedDocEnabled(_env: Record<string, string | undefined> = process.env): true {
+  return true;
 }
 
 /**
@@ -170,18 +163,6 @@ export function resolveCellPairing(
         'refusing to pair without MAUDE_SYNC_NO_AUTOCOMMIT=1 — the hub is the sole committer ' +
         'in a cell, and a second autocommit over the same working tree is the exact ' +
         'duplication DDR-209 exists to prevent.',
-    };
-  }
-
-  if (!sharedDocEnabled(env)) {
-    return {
-      pairing: null,
-      refusal: 'shared-doc-off',
-      detail:
-        'refusing to pair with MAUDE_SHARED_DOC explicitly off — pairing IS the ' +
-        'single-shared-doc model (DDR-064). Without it the loopback provider would open a ' +
-        'second Y.Doc per canvas beside the browser room, which is the two-doc world ' +
-        'pairing exists to end.',
     };
   }
 

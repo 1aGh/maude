@@ -1,0 +1,60 @@
+{
+  "journey": "S6",
+  "lane": "terminal",
+  "pass": false,
+  "harnessFailure": false,
+  "infra": null,
+  "turns": [
+    {
+      "turn": 1,
+      "code": 0,
+      "ok": true,
+      "costUsd": 1.5851561999999997,
+      "numTurns": 24
+    }
+  ],
+  "results": [
+    {
+      "id": "artboards-first",
+      "grader": "artboards",
+      "pass": false,
+      "why": "2 artboard(s), want 3; no artboard of kind web"
+    },
+    {
+      "id": "filled-in",
+      "grader": "artboards",
+      "pass": false,
+      "why": "2 artboard(s), want 3"
+    },
+    {
+      "id": "words-from-the-sentence",
+      "grader": "text",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "design-system-tokens",
+      "grader": "text",
+      "pass": false,
+      "why": "no /var\\(--/"
+    },
+    {
+      "id": "by-the-ai",
+      "grader": "history",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "one-undo-step",
+      "grader": "one-undo-step",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "no-second-canvas",
+      "grader": "canvas-exists",
+      "pass": true,
+      "why": ""
+    }
+  ]
+}

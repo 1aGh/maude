@@ -20,6 +20,8 @@ import type { Subprocess } from 'bun';
 import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
 
 const HTTP = readFileSync(join(import.meta.dir, '..', 'http.ts'), 'utf8');
+// S11.11 — `/_api/sync/resync` moved out of http.ts's legacy literal into the route table.
+const SYNC_ROUTES = readFileSync(join(import.meta.dir, '..', 'routes', 'sync.ts'), 'utf8');
 
 let proc: Subprocess;
 let base: string;
@@ -130,13 +132,25 @@ describe('the route is wired to the whole-sync restart, and refuses rather than 
     // `restart(null)` is the DETACH lane: it clears the in-memory link and
     // cycles to solo. A resync that passed a falsy value through would
     // disconnect the person's project instead of re-checking it.
-    expect(HTTP).toContain('const sync = await control.restart();');
-    expect(HTTP).not.toMatch(/sync\/resync[\s\S]{0,900}restart\(null\)/);
+    expect(SYNC_ROUTES).toContain('const sync = await control.restart();');
+    expect(SYNC_ROUTES).not.toMatch(/restart\(null\)/);
+    // …and it is no longer a legacy key (the table owns it; checkRouteTable would refuse both)
+    expect(HTTP).not.toContain("'/_api/sync/resync': async");
   });
 
   test('a cycle in flight is a 409, not a second full re-link', () => {
-    expect(HTTP).toMatch(/control\.busy\?\.\(\)/);
-    expect(HTTP).toMatch(/status: 409[\s\S]{0,120}'busy'/);
+    expect(SYNC_ROUTES).toMatch(/control\.busy\?\.\(\)/);
+    expect(SYNC_ROUTES).toMatch(/json\(409[\s\S]{0,120}'busy'/);
+  });
+
+  test('S11.11: the route starts the trace and /_sync-status reports it (one trace, one place)', () => {
+    expect(SYNC_ROUTES).toContain('deps.trace.begin()');
+    // the SAME trace instance feeds the route (allSpecs `sync:`) and the status the toast / card / verb poll
+    // (gate-b-sec4 added `link:` beside them — the pin is the shared trace, not the deps' exact list)
+    expect(HTTP).toMatch(/sync: \{ control: \(\) => ctx\.syncControl, trace: resyncTrace[,} ]/);
+    expect(HTTP).toMatch(
+      /const resync = resyncTrace\.view\(\);[\s\S]{0,160}\{ \.\.\.status, resync \}/
+    );
   });
 
   test('cancel reaches the sweep through the live runtime, not the supervisor', () => {

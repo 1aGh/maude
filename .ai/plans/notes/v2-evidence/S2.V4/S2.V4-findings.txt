@@ -1,0 +1,20 @@
+S2.V4 wave-A final recheck, canvas 14 Editing, base feat/maude-v2 60f49a322 (after S2.24). Rig: scripts/v2-verify/s2-rig.mjs (S2_PORT=4492 S2_CDP=9394), scratch Site.tsx
+(+ gap/padding authored as var(--space-5/-7/-8)), maude-v2 DS copied to system/maude-v2 + system/colors_and_type.css + a designSystems entry. Chromium headless 1600x1000.
+
+VERIFIED
+ed-shape      R + drag: within 0.6 s the canvas draws the selection on the new rectangle — name tag "Rectangle · 498 × 192", 8 handles, corner dots, pin guides + chips, parent outline;
+              inspector "div · Shape / Kind Rectangle / Constraints / W·H / Corners". Not present at 0.4 s, present at 0.6 s and 1.0 s (ed-shape.v4-t400/t600/t1000.png). S2.24 G2 holds.
+ed-lay-auto   gap authored var(--space-5) reads "Space 24" (token dot), padding "Space 48 / Space 64"; a plain gap drag shows the Space ruler "16 24 32 48 64" with the active stop lit
+              + hint "⌘ any number · ⌥ every gap at once" and writes gap: "var(--space-7)" (a token, not 32px). S2.24 G4 holds (ed-lay-auto.v4-sel.png, ed-lay-auto.v4-drag.png).
+
+GAPS (row not verified)
+G1 ed-text-style  Reset now refreshes: after a size override the inspector reads "Title · changed / Size differs from Title. / Reset"; Reset -> within 1 s "Title / Change Title in the Design system and this follows." and the canvas h1 goes 12 -> 32 px,
+                  inline fontSize gone from the file (ed-text-style.v4-override.png, ed-text-style.v4-reset.png). BUT "Use a style > Title" (text.use-style) leaves the inspector on "No style / This text follows no style. / Use a style"
+                  for 4 s+ although the file has className="t-title" and the canvas has re-rendered (32 px); only a re-select shows "Title" (ed-text-style.v4-applied.png). Same staleness class as the Reset one S2.24 fixed;
+                  the re-probe after a text write does not run for use-style. client/v2/inspector/kinds/text.jsx:128 (ask 'text.use-style') + the editing/dom-selection.ts probeTextInfo re-probe. S
+G2 ed-edge-undo   "Opened from Menu › Edit › Undo history" is there; "Drew a rectangle" names its step. A keyboard nudge (⇧→, ↓ on the rectangle) records "Edit canvas · You · now" — the canvas says what the step did
+                  ("Moved See pricing 10 px"). The nudge writes through the v1 POST /_api/edit-css (two calls per key: left, top), a source write that carries no label, so the home records the default "Edit canvas"
+                  (ed-edge-undo.v4-history.png). Suspect: the edit-css route's source-written emit (apps/studio/routes/edit.ts or api.ts) — pass "Moved <name> N px" (and the same for a drag/inspector X·Y). S
+
+LEFT ALONE
+U ed-edge-tereza / ed-edge-ai / ed-edge-ask — as in S2.V3 (hub session, live AI run, native chat).

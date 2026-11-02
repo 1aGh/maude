@@ -1,0 +1,80 @@
+{
+  "journey": "S8",
+  "lane": "terminal",
+  "pass": false,
+  "harnessFailure": false,
+  "infra": null,
+  "turns": [
+    {
+      "turn": 1,
+      "code": 0,
+      "ok": true,
+      "costUsd": 0.20107599999999998,
+      "numTurns": 4
+    },
+    {
+      "turn": 2,
+      "code": 0,
+      "ok": true,
+      "costUsd": 0.3631238,
+      "numTurns": 6
+    },
+    {
+      "turn": 3,
+      "code": 0,
+      "ok": true,
+      "costUsd": 0.39933640000000004,
+      "numTurns": 2
+    }
+  ],
+  "results": [
+    {
+      "id": "asset-imported",
+      "grader": "files",
+      "pass": false,
+      "why": "0/0 file(s) in assets/ match /^[0-9a-f]{8}\\.svg$/ with the wanted content (want 1)"
+    },
+    {
+      "id": "asset-clean",
+      "grader": "files",
+      "pass": false,
+      "why": "0/0 file(s) in assets/ match /^[0-9a-f]{8}\\.svg$/ with the wanted content (want 1)"
+    },
+    {
+      "id": "import-by-verb",
+      "grader": "tool-used",
+      "pass": false,
+      "why": "0 call(s) of Bash matching /maude design import-asset/ (8 tool call(s) in all)"
+    },
+    {
+      "id": "export-written",
+      "grader": "files",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "export-by-verb",
+      "grader": "tool-used",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "exports-listed",
+      "grader": "tool-used",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "no-route-by-hand",
+      "grader": "no-tool",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "canvas-untouched",
+      "grader": "untouched",
+      "pass": true,
+      "why": ""
+    }
+  ]
+}

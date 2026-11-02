@@ -1,0 +1,139 @@
+{
+  "root": "/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/allig/a",
+  "at": "2026-11-02T14:53:03.389Z",
+  "index": {
+    "canvases": 95,
+    "staticArtboards": 225,
+    "buildMs": {
+      "p50": 51,
+      "p95": 51,
+      "budgetP95": 250
+    },
+    "stampMs": {
+      "p50": 1,
+      "p95": 3,
+      "budget": 10
+    },
+    "homeMerge20Ms": {
+      "p50": 7,
+      "p95": 8,
+      "budget": 150,
+      "note": "20 × (read + stamp) of this snapshot"
+    }
+  },
+  "coversCold": {
+    "totalMs": 18661,
+    "first12Ms": 1438,
+    "budget": {
+      "totalMs": 45000,
+      "first12Ms": 3000
+    },
+    "perCanvasMs": {
+      "p50": 326,
+      "p95": 846
+    },
+    "phasesP50Ms": {
+      "take": 0,
+      "viewport": 1,
+      "goto": 16,
+      "mount": 159,
+      "settle": 36,
+      "fonts": 1,
+      "harvest": 1,
+      "shoot": 35
+    },
+    "tally": {
+      "ready": 95
+    },
+    "failed": [],
+    "avgBytes": 20344,
+    "artboardsAfterHarvest": 695
+  },
+  "coversWarm": {
+    "totalMs": 9323,
+    "first12Ms": 806,
+    "perCanvasMs": {
+      "p50": 188,
+      "p95": 332
+    }
+  },
+  "chromiumLaunchMs": {
+    "cold": 146,
+    "warm": 66,
+    "budgetWarm": 500
+  },
+  "everyArtboard": {
+    "requested": 695,
+    "shots": 695,
+    "missing": 0,
+    "totalMs": 24358,
+    "perShotMs": {
+      "p50": 46,
+      "p95": 100,
+      "budgetP95": 120
+    }
+  },
+  "assetTiles": {
+    "pictures": 194,
+    "failed": [],
+    "ok": 190,
+    "glyph": 0,
+    "totalMs": 9956,
+    "perTileMs": {
+      "p50": 75,
+      "p95": 228
+    },
+    "phasesP50Ms": {
+      "nav": 21,
+      "draw": 52
+    },
+    "avgBytes": 25943,
+    "budget": {
+      "totalMsFor250": 30000
+    },
+    "contentHashColdMs": 246
+  },
+  "versionPictures": {
+    "canvases": 12,
+    "coldBuild": {
+      "totalMs": 3132,
+      "jobs": 12,
+      "perPictureMs": {
+        "p50": 861,
+        "p95": 1507
+      },
+      "phasesP50Ms": {
+        "take": 400,
+        "viewport": 3,
+        "goto": 26,
+        "mount": 277,
+        "settle": 30,
+        "fonts": 1,
+        "harvest": 1,
+        "shoot": 74
+      }
+    },
+    "warmBuild": {
+      "totalMs": 1575,
+      "jobs": 12,
+      "perPictureMs": {
+        "p50": 475,
+        "p95": 559
+      },
+      "phasesP50Ms": {
+        "take": 249,
+        "viewport": 4,
+        "goto": 29,
+        "mount": 98,
+        "settle": 36,
+        "fonts": 1,
+        "harvest": 1,
+        "shoot": 82
+      }
+    },
+    "budget": {
+      "p50": 300,
+      "p95": 800
+    }
+  }
+}

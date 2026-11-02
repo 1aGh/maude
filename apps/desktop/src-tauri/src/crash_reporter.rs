@@ -69,9 +69,10 @@ fn valid_log_name(name: &str) -> bool {
 /// written scrubbed by design (no user data, no tokens — see module header),
 /// so listing carries nothing sensitive.
 #[tauri::command]
-pub fn list_crash_logs(app: tauri::AppHandle) -> Vec<CrashLogInfo> {
-    let Some(dir) = crashes_dir(&app) else { return Vec::new() };
-    let Ok(rd) = std::fs::read_dir(&dir) else { return Vec::new() };
+pub fn list_crash_logs(app: tauri::AppHandle, webview: tauri::Webview) -> Result<Vec<CrashLogInfo>, String> {
+    crate::windows::caller_project(&webview, false)?;
+    let Some(dir) = crashes_dir(&app) else { return Ok(Vec::new()) };
+    let Ok(rd) = std::fs::read_dir(&dir) else { return Ok(Vec::new()) };
     let mut names: Vec<String> = rd
         .filter_map(|e| e.ok())
         .filter_map(|e| e.file_name().into_string().ok())
@@ -79,7 +80,7 @@ pub fn list_crash_logs(app: tauri::AppHandle) -> Vec<CrashLogInfo> {
         .collect();
     names.sort();
     names.reverse(); // crash-<unix-secs> — lexical == chronological
-    names
+    Ok(names
         .into_iter()
         .take(10)
         .map(|name| {
@@ -89,14 +90,15 @@ pub fn list_crash_logs(app: tauri::AppHandle) -> Vec<CrashLogInfo> {
                 .unwrap_or_default();
             CrashLogInfo { name, first_line }
         })
-        .collect()
+        .collect())
 }
 
 /// Read one crash log body for a consented report attachment. The backtrace
 /// can carry the user's home path in frame locations (our own source files
 /// when built locally) — collapse it to `~` before it leaves the shell.
 #[tauri::command]
-pub fn read_crash_log(app: tauri::AppHandle, name: String) -> Result<String, String> {
+pub fn read_crash_log(app: tauri::AppHandle, webview: tauri::Webview, name: String) -> Result<String, String> {
+    crate::windows::caller_project(&webview, false)?;
     if !valid_log_name(&name) {
         return Err("not a crash log".into());
     }

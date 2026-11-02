@@ -1,25 +1,100 @@
 // hooks/use-photo-and-timeline.jsx — moved verbatim out of client/app.jsx (Maude v2 plan V2-0.2, move-only split).
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { syncAnnotationsHiddenToast } from './annotations-hidden-toast.js';
+import { acceptFromCanvas } from '../../bridge/dgn-protocol.ts';
 import { persistUiPrefs, shellToast } from '../shell/util.js';
-import { ANNOT_STORE, LAYERS_MODE_STORE, MINIMAP_STORE, PANEL_SIDES_STORE, SHOW_HIDDEN_STORE, SIDEBAR_STORE, SYSTEM_TAB, THEME_STORE, ZOOMCTL_STORE } from '../shell/constants.js';
-import { activeComp } from '../panels/timeline-comp-target.js';
+import { installDropGuard } from '../shell/drop-guard.js';
+import { togglePresentCanvas, usePresentMode } from '../v2/shell/use-canvas-mode-lane.js';
+import {
+  ANNOT_STORE,
+  LAYERS_MODE_STORE,
+  MINIMAP_STORE,
+  PANEL_SIDES_STORE,
+  SHOW_HIDDEN_STORE,
+  SIDEBAR_STORE,
+  SYSTEM_TAB,
+  THEME_STORE,
+  ZOOMCTL_STORE,
+} from '../shell/constants.js';
 import { parseCompTimeline } from '../panels/timeline-parse.js';
+import { trackRecordableWrite } from '../inspector/css-knobs.jsx';
+import { menuRunner } from '../v2/shell/menu-runner.js';
+import {
+  clipVerbRefusal,
+  clipVerbToast,
+  clipVerbToastAction,
+  refusalText,
+  runClipVerb,
+  seqUndoPayload,
+} from '../v2/timeline/clip-verb.js';
+import { photoPreviewMessage } from '../v2/photo/photo-section.jsx';
 import { PANEL_SIDES_DEFAULTS } from '../shell/dock.jsx';
-import { collectDirPaths, pruneDirs, toggleSection as toggleSectionState } from '../tree-expansion.js';
+import { canvasTargetOrigin } from '../v2/kinds/kind-dim-relay.js';
+import {
+  collectDirPaths,
+  pruneDirs,
+  toggleSection as toggleSectionState,
+} from '../tree-expansion.js';
 
 export function usePhotoAndTimeline({
-  groups, treeLoaded, activePath, selected, theme, setTheme, sidebarOpen, showHidden, treeExp,
-  updateTreeExp, panelSide, setPanelSide, layersMode, setLayersMode, timelineOpen, activeComps,
-  setActiveComps, timelineFrame, setTimelineFrame, timelinePlaying, setTimelinePlaying, timelineLoop,
-  timelineMuted, canvasActiveArtboard, timelineSequences, setTimelineSequences, setTimelineAudio,
-  setTimelineTransitions, timelineTotal, setTimelineTotal, timelineArtboardId, setTimelineArtboardId,
-  timelineArtboardIdRef, timelineCompId, timelineSelectedClip, setTimelineSelectedClip,
-  timelineRefresh, timelineOpFailed, photoUndoRef, setPhotoRev, autoOpenInspector,
-  setAutoOpenInspector, annotationsVisible, setAnnotationsVisible, uiPrefsHydrated,
-  setUiPrefsHydrated, minimapVisible, setMinimapVisible, zoomCtlVisible, setZoomCtlVisible,
-  setPresentMode, setPrintGuidesVisible, setActiveArtboards, setGitUser, iframesRef,
-  postToActiveCanvas, wsSend
+  groups,
+  treeLoaded,
+  activePath,
+  selected,
+  theme,
+  setTheme,
+  sidebarOpen,
+  showHidden,
+  treeExp,
+  updateTreeExp,
+  panelSide,
+  setPanelSide,
+  layersMode,
+  setLayersMode,
+  timelineOpen,
+  activeComps,
+  setActiveComps,
+  timelineFrame,
+  setTimelineFrame,
+  timelinePlaying,
+  setTimelinePlaying,
+  timelineLoop,
+  timelineMuted,
+  canvasActiveArtboard,
+  timelineSequences,
+  setTimelineSequences,
+  setTimelineAudio,
+  setTimelineTransitions,
+  timelineTotal,
+  setTimelineTotal,
+  timelineArtboardId,
+  setTimelineArtboardId,
+  timelineArtboardIdRef,
+  timelineCompId,
+  timelineSelectedClip,
+  setTimelineSelectedClip,
+  timelineRefresh,
+  timelineOpFailed,
+  photoUndoRef,
+  setPhotoRev,
+  autoOpenInspector,
+  setAutoOpenInspector,
+  annotationsVisible,
+  setAnnotationsVisible,
+  uiPrefsHydrated,
+  setUiPrefsHydrated,
+  minimapVisible,
+  setMinimapVisible,
+  zoomCtlVisible,
+  setZoomCtlVisible,
+  setPresentMode,
+  setPrintGuidesVisible,
+  setActiveArtboards,
+  setGitUser,
+  iframesRef,
+  postToActiveCanvas,
+  wsSend,
 }) {
   // ── feature-photo-editor — the Photo tab's three channels ─────────────────
   // (1) live preview: broadcast the edit DOWN to the active canvas iframe, whose
@@ -29,8 +104,9 @@ export function usePhotoAndTimeline({
   //     overlay). (2) undo: a shell-side stack (photo edits are sidecar writes,
   //     not the canvas-side source-edit stack). (3) background removal: the
   //     client-side @imgly ML flow (Task 12).
+  // S8.15 — `use` (the picture's `data-cd-id`) previews that one use only; without it, every use.
   const onPhotoEdit = useCallback(
-    (asset, edit) => postToActiveCanvas({ dgn: 'photo-preview', asset, edit }),
+    (asset, edit, use) => postToActiveCanvas(photoPreviewMessage(asset, edit, use)),
     [postToActiveCanvas]
   );
   const onPhotoRecordEdit = useCallback((asset, before, after) => {
@@ -111,33 +187,18 @@ export function usePhotoAndTimeline({
     [postToActiveCanvas]
   );
 
-  // DDR-150 dogfood #7 — a file dragged from Finder and dropped on a shell area
-  // with no drop target used to make the browser NAVIGATE AWAY to the file
-  // (file:// replaces the app). Document-level guard: always cancel the default
-  // for file drags; the TimelinePanel's own onDrop (bubbling before this) still
-  // receives the drop first — this only blocks the browser fallback.
-  useEffect(() => {
-    const isFileDrag = (e) => Array.from(e.dataTransfer?.types ?? []).includes('Files');
-    const onDocDragOver = (e) => {
-      if (isFileDrag(e)) e.preventDefault();
-    };
-    const onDocDrop = (e) => {
-      if (isFileDrag(e)) e.preventDefault();
-    };
-    document.addEventListener('dragover', onDocDragOver);
-    document.addEventListener('drop', onDocDrop);
-    return () => {
-      document.removeEventListener('dragover', onDocDragOver);
-      document.removeEventListener('drop', onDocDrop);
-    };
-  }, []);
+  // DDR-150 dogfood #7 + V2-3.6 N-M2 — a file OR a link dropped on a shell area
+  // with no drop target used to make the browser NAVIGATE the top frame to it.
+  // Document-level guard (shell/drop-guard.js): cancel the default of every
+  // drag except text into an editable field; the TimelinePanel's own onDrop
+  // (bubbling before this) still receives the drop first.
+  useEffect(() => installDropGuard(document), []);
 
-  // DDR-150 P3 Task 9 — timeline keyboard shortcuts. Read live state through a
-  // ref so the listener attaches once. Gated on: timeline open + a comp active +
-  // focus NOT in a text field. Space doesn't steal the canvas PAN chord because
-  // that keydown fires inside the focused canvas iframe, never reaching this
-  // top-document listener. Space = play/pause · ←/→ = ±1 frame (Shift = ±1s) ·
-  // Home/End = start/end · ,/. = prev/next keyframe boundary.
+  // DDR-150 P3 Task 9 — timeline keyboard shortcuts. The transport's keys are
+  // registry actions now (V2-2.4: actions/defs/timeline.ts, handled by
+  // client/actions/shell-key-handlers.js); they read the live timeline through
+  // this ref. Space doesn't steal the canvas PAN chord because that keydown
+  // fires inside the focused canvas iframe, never reaching the shell.
   const tlKeyRef = useRef({});
   tlKeyRef.current = {
     open: timelineOpen,
@@ -153,53 +214,24 @@ export function usePhotoAndTimeline({
     canvas: activePath,
   };
 
-  // DDR-150 dogfood #1 — Timeline undo/redo. Every successful clip op (move /
-  // trim / remove / insert / z-reorder / replace-src) returns a server `seq`
-  // registered in the whole-file undo log; Cmd+Z / Shift+Cmd+Z replay it via
-  // /_api/reorder-revert (guarded swap — 409s honestly if the canvas diverged).
-  const tlUndoRef = useRef({ undo: [], redo: [] });
-  const pushTlUndo = useCallback((canvas, seq, label) => {
-    if (typeof seq !== 'number') return;
-    tlUndoRef.current.undo.push({ canvas, seq, label });
-    tlUndoRef.current.redo = []; // a new edit invalidates the redo branch
-    if (tlUndoRef.current.undo.length > 50) tlUndoRef.current.undo.shift();
-  }, []);
-  const tlUndoRedo = useCallback((dir) => {
-    const s = tlUndoRef.current;
-    const src = dir === 'undo' ? s.undo : s.redo;
-    const dst = dir === 'undo' ? s.redo : s.undo;
-    const canvas = tlKeyRef.current.canvas;
-    // Last entry for THIS canvas (stacks are global; ops are per-canvas).
-    let idx = -1;
-    for (let i = src.length - 1; i >= 0; i--) {
-      if (src[i].canvas === canvas) {
-        idx = i;
-        break;
-      }
-    }
-    if (idx < 0) {
-      shellToast(dir === 'undo' ? 'Nothing to undo on this timeline.' : 'Nothing to redo.');
-      return;
-    }
-    const entry = src[idx];
-    fetch('/_api/reorder-revert', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ canvas: entry.canvas, seq: entry.seq, dir }),
-    })
-      .then((r) => r.json().catch(() => ({})))
-      .then((j) => {
-        src.splice(idx, 1);
-        if (j?.ok) {
-          dst.push(entry);
-          shellToast(`${dir === 'undo' ? 'Undid' : 'Redid'}: ${entry.label}`, true);
-        } else {
-          // 409 canvas diverged / 404 server restarted — entry is dead, drop it.
-          shellToast(`${dir === 'undo' ? 'Undo' : 'Redo'} skipped: ${j?.error || 'failed'}`);
-        }
-      })
-      .catch(() => shellToast(`${dir === 'undo' ? 'Undo' : 'Redo'} failed: network error`));
-  }, []);
+  // S7.6 — Timeline undo IS the canvas's undo (decision `maude/v2-S7-timeline-undo-is-project-undo`):
+  // one log, so ⌘Z (`edit.undo`, timeline focused or not) takes back the last edit whoever made it.
+  // A clip verb records its edit-op `writeId` (client/v2/timeline/clip-verb.js); a v1 clip route
+  // that still answers a revert `seq` records the canvas's existing `reorder` record. Both go to the
+  // ACTIVE canvas's stack via `record-edit` (parent-origin only there, DDR-054).
+  const recordOnCanvas = useCallback(
+    (payload) => {
+      if (payload) postToActiveCanvas({ dgn: 'record-edit', payload });
+    },
+    [postToActiveCanvas]
+  );
+  const pushTlUndo = useCallback(
+    (canvas, seq, label) => {
+      if (canvas !== tlKeyRef.current.canvas) return; // the record belongs to the canvas on screen
+      recordOnCanvas(seqUndoPayload(canvas, seq, label));
+    },
+    [recordOnCanvas]
+  );
   // Task 3 — resolve a `{ stableId, index }` clipRef against a fresh comp-clips
   // response. stableId wins (multi-comp-safe, survives reorder); the row index
   // stays as the legacy fallback for rows the enumerator couldn't identify.
@@ -218,104 +250,76 @@ export function usePhotoAndTimeline({
     return seqs[clipRef] || null;
   }, []);
 
-  // Task 3 — remove a clip (with server-side ripple for series beats). Shared by
-  // the panel's ×/context-menu and the Delete/Backspace key on the selection.
-  const timelineRemoveClip = useCallback(
-    (clipRef) => {
-      const canvas = tlKeyRef.current.canvas;
-      if (!canvas || canvas === SYSTEM_TAB) return;
-      const artboardId = timelineArtboardIdRef.current || undefined;
-      const ccUrl = `/_api/comp-clips?canvas=${encodeURIComponent(canvas)}${artboardId ? `&artboardId=${encodeURIComponent(artboardId)}` : ''}`;
-      fetch(ccUrl)
-        .then((r) => r.json().catch(() => ({})))
-        .then((cc) => {
-          const clip = resolveClipRef(cc, clipRef);
-          if (!clip?.stableId) return null;
-          return fetch('/_api/remove-sequence', {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({
-              canvas,
-              artboardId,
-              stableId: clip.stableId,
-              contentHash: clip.contentHash,
-            }),
-          });
-        })
-        .then((r) => (r ? r.json() : null))
-        .then((j) => {
-          if (j && !j.ok) {
-            console.warn('[remove-clip]', j.error || 'failed');
-            timelineOpFailed('Remove refused', j.error);
-          } else if (j?.ok) {
-            shellToast('Clip removed.', true);
-            if (j.seq != null) pushTlUndo(canvas, j.seq, 'remove clip');
-            setTimelineSelectedClip(null);
-          }
-        })
-        .catch(() => shellToast('Remove failed: network error'));
-    },
-    [resolveClipRef, pushTlUndo]
-  );
-  // Phase 2/3 — the parametric verb pipe (speed/trim-in/audio/detach-audio/
-  // framing/grade/transition/split/insert-transition/remove-transition), shared
-  // by the inspector popover, context menu, seam chips, and keyboard (⌘B).
+  // Phase 2/3 — the parametric verb pipe (speed/trim-in/audio/detach-audio/framing/grade/
+  // transition/split/insert-transition/remove-transition/remove …), shared by the inspector popover,
+  // context menu, seam chips, ⌫ and ⌘B. S7.6: every verb is `clip.<verb>` through `/_api/edit-op`.
   const timelineClipVerb = useCallback(
-    (clipRef, verb, params) => {
+    // `opts.quiet`: the caller words the outcome itself (a drop that falls back to a new cut). Resolves the
+    // answer (`{ ok, … }`), or null when nothing ran — so a multi-step gesture can wait for its one write.
+    (clipRef, verb, params, opts = {}) => {
       const canvas = tlKeyRef.current.canvas;
-      if (!canvas || canvas === SYSTEM_TAB) return;
+      if (!canvas || canvas === SYSTEM_TAB) return Promise.resolve(null);
       const artboardId = timelineArtboardIdRef.current || undefined;
-      const ccUrl = `/_api/comp-clips?canvas=${encodeURIComponent(canvas)}${artboardId ? `&artboardId=${encodeURIComponent(artboardId)}` : ''}`;
-      fetch(ccUrl)
-        .then((r) => r.json().catch(() => ({})))
-        .then((cc) => {
+      const run = runClipVerb({
+        fetch: (url, init) => fetch(url, init),
+        canvas,
+        artboardId,
+        clipRef,
+        verb,
+        params,
+        resolveClip: (cc, ref) => {
+          // S7.12 — a loose music bed has no sequence row: the op resolves its `loose:` id itself
+          if (ref?.bed && typeof ref.stableId === 'string') return { stableId: ref.stableId };
           const all = cc?.ok && Array.isArray(cc.clips) ? cc.clips : [];
-          const clip = clipRef?.transition
-            ? all.find((c) => c.kind === 'transition' && c.stableId === clipRef.stableId) || null
-            : resolveClipRef(cc, clipRef);
-          if (!clip?.stableId) return null;
-          return fetch('/_api/clip-edit', {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({
-              canvas,
-              artboardId,
-              stableId: clip.stableId,
-              contentHash: clip.contentHash,
-              verb,
-              ...params,
-            }),
-          });
-        })
-        .then((r) => (r ? r.json() : null))
+          return ref?.transition
+            ? all.find((c) => c.kind === 'transition' && c.stableId === ref.stableId) || null
+            : resolveClipRef(cc, ref);
+        },
+        record: recordOnCanvas,
+      });
+      // ⌘Z right after a verb waits for its record (the canvas's undo barrier, css-knobs.jsx).
+      trackRecordableWrite(run);
+      return run
         .then((j) => {
+          if (opts.quiet) return j;
           if (j && !j.ok) {
-            console.warn('[clip-edit]', verb, j.error || 'failed');
-            timelineOpFailed(`${verb} refused`, j.error);
+            console.warn('[clip-op]', verb, refusalText(j));
+            timelineOpFailed(clipVerbRefusal(verb), refusalText(j));
           } else if (j?.ok) {
-            const labels = {
-              speed: 'set speed',
-              'trim-in': 'trim in-point',
-              audio: 'clip audio',
-              'detach-audio': 'detach audio',
-              framing: 'crop clip',
-              grade: 'grade clip',
-              transition: 'edit transition',
-              split: 'split clip',
-              'insert-transition': 'add transition',
-              'remove-transition': 'remove transition',
-              'set-text': 'edit text',
-              'to-overlay': 'move to overlay layer',
-              'to-storyline': 'move to storyline',
-              'layer-order': 'reorder layers',
-            };
-            shellToast(`Applied: ${labels[verb] || verb}.`, true);
-            if (j.seq != null) pushTlUndo(canvas, j.seq, labels[verb] || verb);
+            // S7.9 — S names what it split and offers the one Undo; the other verbs say what happened.
+            const s = tlKeyRef.current;
+            const row = (s.sequences || []).find(
+              (r) => r.stableId && r.stableId === (clipRef?.stableId ?? clipRef)
+            );
+            const toast = clipVerbToast(verb, {
+              name: row?.label,
+              atFrame: params?.atFrame,
+              fps: (s.comps || []).find((c) => c.id === s.compId)?.fps,
+              params,
+            });
+            // Undo = the shell's own ⌘Z (menu-runner → runUndoKey), the same path as every toast Undo.
+            shellToast(
+              toast.text,
+              true,
+              clipVerbToastAction(toast, () => menuRunner.run('edit.undo'))
+            );
+            if (verb === 'remove') setTimelineSelectedClip(null);
           }
+          return j;
         })
-        .catch(() => shellToast(`${verb} failed: network error`));
+        .catch(() => {
+          if (!opts.quiet)
+            shellToast(`${clipVerbRefusal(verb).replace(' refused', '')} failed: network error`);
+          return null;
+        });
     },
-    [resolveClipRef, pushTlUndo, timelineOpFailed]
+    [resolveClipRef, recordOnCanvas, timelineOpFailed, postToActiveCanvas]
+  );
+  // Task 3 — remove a clip (with server-side ripple for series beats): `clip.remove`, the same op
+  // `/_api/remove-sequence` applies. Shared by the panel's ×/context-menu and Delete/Backspace.
+  const timelineRemoveClip = useCallback(
+    (clipRef) => timelineClipVerb(clipRef, 'remove'),
+    [timelineClipVerb]
   );
   // Tauri's WKWebView does NOT implement window.prompt() (returns null
   // synchronously — the "click does nothing" desktop bug), so every text ask
@@ -363,118 +367,6 @@ export function usePhotoAndTimeline({
   tlKeyRef.current.clipVerb = timelineClipVerb;
   tlKeyRef.current.addComment = timelineAddComment;
   tlKeyRef.current.askText = askText;
-
-  useEffect(() => {
-    const onKey = (e) => {
-      const s = tlKeyRef.current;
-      if (!s.open || !s.comps?.length) return;
-      const t = e.target;
-      const tag = t?.tagName;
-      // Range sliders (zoom / volume) keep focus after a drag — Space must
-      // still play/pause (the "spacebar stopped working" dogfood bug). Text
-      // inputs stay exempt.
-      if (tag === 'INPUT' && t?.type !== 'range') return;
-      if (tag === 'TEXTAREA' || tag === 'SELECT' || t?.isContentEditable) return;
-      // The timebase of the comp the transport is on, not of whichever comp
-      // announced first — Shift+arrow is "±1 second" on THIS artboard (#75).
-      const fps = activeComp(s.comps, s.compId)?.fps || 30;
-      const total = Math.max(1, s.total);
-      const doSeek = (f) => {
-        const nf = Math.max(0, Math.min(total - 1, Math.round(f)));
-        setTimelineFrame(nf);
-        setTimelinePlaying(false);
-        s.post({ dgn: 'timeline-seek', frame: nf, id: s.compId });
-      };
-      const snapFrames = () => {
-        const pts = new Set([0, total - 1]);
-        for (const seq of s.sequences || []) {
-          pts.add(seq.from);
-          for (const kf of seq.keyframes || []) {
-            pts.add(kf.from);
-            pts.add(kf.to);
-          }
-        }
-        return [...pts].filter((n) => n >= 0 && n < total).sort((a, b) => a - b);
-      };
-      if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z')) {
-        // Cmd+Z / Shift+Cmd+Z — undo/redo the last timeline clip op. Only when
-        // the shell (not the canvas iframe) has focus + the timeline is active,
-        // so the canvas's own annotation undo is untouched.
-        e.preventDefault();
-        tlUndoRedo(e.shiftKey ? 'redo' : 'undo');
-        return;
-      }
-      // Task 3 — the select → act grammar: Esc deselects, Delete/Backspace
-      // removes the selection (with ripple on the server for series beats).
-      if (e.key === 'Escape') {
-        if (s.selected != null) {
-          e.preventDefault();
-          s.setSelected?.(null);
-        }
-        return;
-      }
-      if ((e.key === 'Delete' || e.key === 'Backspace') && s.selected != null) {
-        e.preventDefault();
-        s.removeClip?.({ stableId: s.selected });
-        return;
-      }
-      // Task 23 + dogfood 2026-07-30 — `C` ARMS the panel's comment tool
-      // (click-to-place, like the artboard's C); the panel's own window
-      // keydown owns the toggle, so the shell must NOT double-handle it.
-      // Task 16 — ⌘B splits the selection at the playhead; with nothing
-      // selected, the clip under the playhead (iMovie behavior).
-      if ((e.metaKey || e.ctrlKey) && (e.key === 'b' || e.key === 'B')) {
-        e.preventDefault();
-        let ref = s.selected != null ? { stableId: s.selected } : null;
-        if (!ref) {
-          const rows = s.sequences || [];
-          const under =
-            rows.find((r2) => r2.series && s.frame >= r2.from && s.frame < r2.from + r2.duration) ||
-            rows.find((r2) => s.frame >= r2.from && s.frame < r2.from + r2.duration);
-          if (under?.stableId) ref = { stableId: under.stableId };
-        }
-        if (ref) s.clipVerb?.(ref, 'split', { atFrame: s.frame });
-        else shellToast('Nothing under the playhead to split.');
-        return;
-      }
-      if (e.key === ' ' || e.code === 'Space') {
-        e.preventDefault();
-        if (s.playing) {
-          setTimelinePlaying(false);
-          s.post({ dgn: 'timeline-pause', id: s.compId });
-        } else {
-          setTimelinePlaying(true);
-          s.post({ dgn: 'timeline-mute', muted: s.muted, id: s.compId });
-          s.post({ dgn: 'timeline-loop', loop: s.loop, id: s.compId });
-          s.post({ dgn: 'timeline-play', id: s.compId });
-        }
-      } else if (e.key === 'ArrowRight') {
-        e.preventDefault();
-        doSeek(s.frame + (e.shiftKey ? fps : 1));
-      } else if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        doSeek(s.frame - (e.shiftKey ? fps : 1));
-      } else if (e.key === 'Home') {
-        e.preventDefault();
-        doSeek(0);
-      } else if (e.key === 'End') {
-        e.preventDefault();
-        doSeek(total - 1);
-      } else if (e.key === '.') {
-        e.preventDefault();
-        const next = snapFrames().find((n) => n > s.frame);
-        if (next != null) doSeek(next);
-      } else if (e.key === ',') {
-        e.preventDefault();
-        const prev = snapFrames()
-          .reverse()
-          .find((n) => n < s.frame);
-        if (prev != null) doSeek(prev);
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
 
   // DDR-148 — reset the Timeline's comp meta when the active canvas changes (a
   // non-comp canvas fires no announce, so stale comps would linger), then ask
@@ -582,6 +474,13 @@ export function usePhotoAndTimeline({
         contentHash: cm.contentHash,
         // Phase 2 — authoritative parametric props for the clip inspector.
         mediaProps: cm.mediaProps ?? null,
+        // S7.10 — what the clip inspector reads back: the title's text and entrance, the picture's fit
+        text: cm.text ?? s.text ?? null,
+        titleMotion: cm.titleMotion ?? null,
+        titleStyle: cm.titleStyle ?? null,
+        fit: cm.fit ?? null,
+        // S7.13 — the clip's framing keyframes, for the Re-frame island
+        reframe: cm.reframe ?? null,
         // Task 21 — AI placeholder slate (✨ row + Generate flow).
         placeholder: cm.placeholder ?? null,
         mediaTag: cm.mediaTag ?? s.mediaTag,
@@ -606,11 +505,43 @@ export function usePhotoAndTimeline({
       const el = activePath ? iframesRef.current.get(activePath) : null;
       if (el && el.contentWindow) {
         try {
-          el.contentWindow.postMessage({ dgn: 'view-annotations', visible: next }, '*');
+          // V2-8.9 defender L2 (C6): the frame's canvas origin, never '*'
+          const origin = canvasTargetOrigin(el);
+          if (origin)
+            el.contentWindow.postMessage({ dgn: 'view-annotations', visible: next }, origin);
         } catch {}
       }
+      // S4.9: hiding says how to bring them back; the shell owns the toast because canvas notices
+      // can't carry an action (decision v2-S4.9-shell-owns-hidden-toast).
+      queueMicrotask(() => syncAnnotationsHiddenToast(next, () => toggleAnnotations()));
       return next;
     });
+  }, [activePath]);
+  const toggleAnnotationsRef = useRef(toggleAnnotations);
+  toggleAnnotationsRef.current = toggleAnnotations;
+
+  // S4.18 (an-visibility) — ⇧P pressed inside the canvas toggles the layer there (annotations-layer) and
+  // reports it: the shell keeps the pref in step and shows the same toast, once (the canvas path never
+  // calls toggleAnnotations). Only the active canvas, from the origin its frame was built on.
+  useEffect(() => {
+    const onMessage = (e) => {
+      const el = activePath ? iframesRef.current.get(activePath) : null;
+      const win = el?.contentWindow;
+      if (!win || e.source !== win) return;
+      let canvasOrigin;
+      try {
+        canvasOrigin = new URL(el.src, window.location.href).origin;
+      } catch {
+        return;
+      }
+      const m = acceptFromCanvas(e, { canvasOrigin, active: win });
+      if (m && m.dgn === 'annotations-visibility') {
+        setAnnotationsVisible(m.visible);
+        syncAnnotationsHiddenToast(m.visible, () => toggleAnnotationsRef.current());
+      }
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
   }, [activePath]);
 
   // Chrome visibility (minimap / zoom-controls / Presentation Mode) applies to
@@ -619,7 +550,9 @@ export function usePhotoAndTimeline({
   const broadcastChrome = useCallback((patch) => {
     for (const el of iframesRef.current.values()) {
       try {
-        el.contentWindow.postMessage({ dgn: 'view-chrome', ...patch }, '*');
+        // V2-8.9 defender L2 (C6): the frame's canvas origin, never '*'
+        const origin = canvasTargetOrigin(el);
+        if (origin) el.contentWindow.postMessage({ dgn: 'view-chrome', ...patch }, origin);
       } catch {}
     }
   }, []);
@@ -637,17 +570,18 @@ export function usePhotoAndTimeline({
       return next;
     });
   }, [broadcastChrome]);
-  const togglePresent = useCallback(() => {
-    setPresentMode((v) => {
-      const next = !v;
-      broadcastChrome({ present: next });
-      return next;
-    });
-  }, [broadcastChrome]);
-  const exitPresent = useCallback(() => {
-    setPresentMode(false);
-    broadcastChrome({ present: false });
-  }, [broadcastChrome]);
+  // S3.1 (D1) — Present lives in the ONE mode store (use-canvas-mode-lane): the toggle and the exit
+  // are calls into it, and the canvases' `view-chrome {present}` follows the store, whatever entered
+  // or left Present (the switch, ⌥⌘↵, a canvas `mode-request`, esc, the pill).
+  const [presenting] = usePresentMode();
+  const chromePresentRef = useRef(false);
+  useEffect(() => {
+    if (chromePresentRef.current === presenting) return;
+    chromePresentRef.current = presenting;
+    broadcastChrome({ present: presenting });
+  }, [presenting, broadcastChrome]);
+  const togglePresent = useCallback(() => togglePresentCanvas(), []);
+  const exitPresent = useCallback(() => setPresentMode(false), [setPresentMode]);
   // feature-2-print-artboards T3 — per-canvas persisted, so (unlike
   // broadcastChrome above) this targets ONLY the active iframe and PATCHes
   // view.json's `overlays.print` through the same GET-merge/PATCH-split lane
@@ -658,6 +592,12 @@ export function usePhotoAndTimeline({
     setPrintGuidesVisible((v) => {
       const next = !v;
       postToActiveCanvas({ dgn: 'view-chrome', print: next });
+      // S7.23 (C25): the Print inspector shows View's default until an artboard has its own switch — tell it
+      globalThis.window?.dispatchEvent?.(
+        new CustomEvent('maude:print-guides-default', {
+          detail: { canvas: activePath, visible: next },
+        })
+      );
       fetch('/_api/canvas-meta', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -778,7 +718,9 @@ export function usePhotoAndTimeline({
     // iframe instead gets the current theme from the `dgn:'loaded'` handler.
     for (const el of iframesRef.current.values()) {
       try {
-        el.contentWindow.postMessage({ dgn: 'theme', theme }, '*');
+        // V2-8.9 defender L2 (C6): the frame's canvas origin, never '*'
+        const origin = canvasTargetOrigin(el);
+        if (origin) el.contentWindow.postMessage({ dgn: 'theme', theme }, origin);
       } catch {}
     }
   }, [theme]);
@@ -892,10 +834,29 @@ export function usePhotoAndTimeline({
     [updateTreeExp]
   );
   return {
-    askText, broadcastChrome, exitPresent, lockedKeys, onPhotoEdit, onPhotoRecordEdit,
-    onPhotoRemoveBackground, performPhotoUndo, pushTlUndo, resolveClipRef, settleShellPrompt,
-    shellPromptState, timelineAddComment, timelineClipVerb, timelineRemoveClip, timelineTransClips,
-    tlKeyRef, toggleAnnotations, toggleLockedKey, toggleMinimap, togglePresent, togglePrintGuides,
-    toggleSection, toggleZoomCtl
+    askText,
+    broadcastChrome,
+    exitPresent,
+    lockedKeys,
+    onPhotoEdit,
+    onPhotoRecordEdit,
+    onPhotoRemoveBackground,
+    performPhotoUndo,
+    pushTlUndo,
+    resolveClipRef,
+    settleShellPrompt,
+    shellPromptState,
+    timelineAddComment,
+    timelineClipVerb,
+    timelineRemoveClip,
+    timelineTransClips,
+    tlKeyRef,
+    toggleAnnotations,
+    toggleLockedKey,
+    toggleMinimap,
+    togglePresent,
+    togglePrintGuides,
+    toggleSection,
+    toggleZoomCtl,
   };
 }

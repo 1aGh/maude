@@ -1,0 +1,15 @@
+{
+  "format": "maude.transcript",
+  "v": 1,
+  "asset": "assets/aaaa1111.mp4",
+  "durationSec": 5,
+  "lang": "cs",
+  "engine": { "id": "whisper.cpp", "timing": "dtw+energy" },
+  "words": [
+    { "id": "w0", "t0": 0.2, "t1": 0.97, "text": "Přišel" },
+    { "id": "w1", "t0": 1.0, "t1": 1.4, "text": "Ehm…" },
+    { "id": "w2", "t0": 1.43, "t1": 1.7, "text": "Za" }
+  ],
+  "speech": { "source": "words", "regions": [[0.2, 1.7]] },
+  "createdAt": "2026-10-20T09:00:00.000Z"
+}

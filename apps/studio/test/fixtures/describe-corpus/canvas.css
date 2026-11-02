@@ -1,0 +1,61 @@
+/* Same-name stylesheet of canvas.tsx — the CSS lane's fixture. */
+:root {
+  --bg-1: #111111;
+  --gap: 8px;
+}
+
+.fx-hero {
+  display: flex;
+  gap: 16px;
+  background: #000000;
+}
+
+.fx-btn {
+  padding: 8px 16px;
+  border-radius: 4px;
+}
+
+.fx-btn--primary {
+  background: #c9a227;
+  color: #ffffff;
+}
+
+.fx-btn--primary:hover {
+  background: #d9b237;
+}
+
+.fx-list {
+  margin: 0;
+  list-style: none;
+}
+
+.fx-jersey {
+  width: 120px;
+}
+
+.sb-role--sticky {
+  font-size: 12px;
+}
+
+.fx-disc {
+  opacity: 1;
+}
+
+.kit-only {
+  color: red;
+}
+
+@media (max-width: 600px) {
+  .fx-hero {
+    gap: 8px;
+  }
+}
+
+@keyframes fx-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

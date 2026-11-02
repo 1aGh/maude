@@ -1,0 +1,42 @@
+{
+  "journey": "S2",
+  "lane": "terminal",
+  "pass": true,
+  "harnessFailure": false,
+  "infra": null,
+  "turns": [
+    {
+      "turn": 1,
+      "code": 0,
+      "ok": true,
+      "costUsd": 0.6117452,
+      "numTurns": 13
+    }
+  ],
+  "results": [
+    {
+      "id": "edited",
+      "grader": "text",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "ids-kept",
+      "grader": "ids-kept",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "linked",
+      "grader": "link",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "ai-version",
+      "grader": "history",
+      "pass": true,
+      "why": ""
+    }
+  ]
+}

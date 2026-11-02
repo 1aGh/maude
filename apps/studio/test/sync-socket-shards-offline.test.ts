@@ -207,8 +207,21 @@ describe.skipIf(!HUB_READY)('a project on several sockets, cut off and reconnect
     // The project grows past one socket while the copy runs.
     for (let i = FIRST; i < FIRST + LATER; i++) writeFileSync(join(ui, `c${i}.tsx`), body(i));
     await runtime?.rescanNow();
+    // The hub already holds a canvas at each of these paths, so this Mac's same-named canvas is a SECOND
+    // canvas: it is renamed to the next free name and added beside theirs, never held as a conflict
+    // (decision "an offline-created canvas whose name a peer took meanwhile is renamed to the next free
+    // name"). Every document counts, theirs and the renamed copies — however many of those the copy has
+    // added by now. So the count to hold across the cut is the settled one, not FIRST + LATER.
     const all = FIRST + LATER;
-    expect(await waitFor(() => synced() === all, 30_000)).toBe(true);
+    expect(await waitFor(() => synced() >= all, 30_000)).toBe(true);
+    let settled = synced();
+    for (let stable = 0; stable < 12; ) {
+      await new Promise((r) => setTimeout(r, 1000));
+      const now = synced();
+      stable = now === settled ? stable + 1 : 0;
+      settled = now;
+    }
+    expect(settled).toBeGreaterThanOrEqual(all);
 
     // A pulled cable, then the cable back.
     await fetch(`${control}/offline`, { method: 'POST' });
@@ -216,7 +229,7 @@ describe.skipIf(!HUB_READY)('a project on several sockets, cut off and reconnect
     await new Promise((r) => setTimeout(r, 3000));
     await fetch(`${control}/online`, { method: 'POST' });
     const back = await waitFor(
-      () => runtime?.status()?.state === 'online' && synced() === all,
+      () => runtime?.status()?.state === 'online' && synced() === settled,
       90_000
     );
     const docs = runtime?.status()?.docs;

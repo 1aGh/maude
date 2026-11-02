@@ -61,6 +61,13 @@ export interface ProviderDescriptor {
    */
   keyUrl?: string;
   notes?: string;
+  /**
+   * S8.16 — whose account pays, as the consent line names it ("your Google key"). Absent = a
+   * local runtime (nothing is billed). Inert copy.
+   */
+  payer?: string;
+  /** S8.16 — the one licence line shown before anything is sent (S8 sidecars O3). Inert copy. */
+  licence?: string;
   /** Default loopback host:port for a `local` runtime (probe target). */
   localEndpoint?: string;
 }

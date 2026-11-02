@@ -1,0 +1,20 @@
+V2-4.1 — Window body = canvas edge to edge, floating panels, ⌘\ Hide/Show panels, Pin panels to the side, occluded insets
+Date: 2026-10-15 · branch feat/maude-v2 · gated on 5b43dc71
+Commits: 453c43da d924b4fb 1c9b4bcc (builder, Sonnet) · e9cfed1b (lead: canvas boot re-fit I2) · merge d4da4112 · 190a7afe (bundle) · 5b43dc71 (characterization refresh)
+
+Done-when
+- panels never cover a fit artboard: test/v2-floating-fit.test.tsx (real DockSlot/CornerIcons markup measured by measureShellInsets, fit via canvas computeFit; floating open / folded icons / ⌘\ hidden / pinned = 0) green; builder's live Chromium probe (floating, hidden, pinned, pinned-hidden after ⌘0) no overlaps; boot fit covered by the lead's I2 re-fit (test/occlusion-boot-refit.test.ts, red with the fix sabotaged: 2 fail → restored 5/0).
+- reduced motion = cut: test/v2-floating-motion.test.ts (durations via --dur-panel, collapse to 1 ms; red on a literal 220 ms).
+- WebKit only after V2-2.20: V2-2.20 verified 2026-10-11 (full-width iframe OK on WebKit).
+- islands use the solid material (V2-1.8 M1–M3): .island tokens, no backdrop-filter outside var(--island-backdrop); island-material tests green.
+
+Gates (on 5b43dc71)
+- typecheck / lint / format: ok
+- studio suite (lane, alone): 7997 pass / 3 fail → v1-keys (refreshed, below), notifications + schema-drift pass alone (22/0; known flaky in the full run)
+- v1-keys golden: refreshed with V1_KEYS_UPDATE=1 after attributing the diff (I2 disabled → only the ⌘D case differed, an insets-vs-boot-fit race; with I2 the boot camera is the inset-aware fit in every case), verify run green; approved delta in the test header
+- 30-state characterization: 29 same, browser/inspector-selected box core 663×180 → 512×139 (zoom from the inset-aware boot fit), updated and re-verified identical; header notes it
+- release client bundle rebuilt; check-client-boots-source OK
+- desktop e2e default lane (debug build of 5b43dc71): 12/12 passed in 1:27; window probe every 2 s, 45 samples, 1 covered sample before boot only (valid). Two earlier attempts were invalid (Arc/Claude covering the window) and were stopped.
+
+Registry: view.panels T → ⌘\ (fromCanvas), new view.pin-panels (PREF), actions.parity humanMax 68 → 69, keymap/manifests regenerated.
+Open / follow-ups: panel height is full body height (contract silent; kit shows content height); island tokens set on the shell until the DS carries them; host-zero-size-at-mount path is not treated as a boot fit for I2; builder peak context 386k (> 300k budget — split next brief).

@@ -1,0 +1,10 @@
+{"lane":"acp","name":"Skill","input":{"skill":"design:present","args":"canvas=ui/GitPanel.tsx order=\"D,A,C\" skip=\"B,E\" note[D]=\"Start with the calm state.\" then open in Present"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design index .design/ui/GitPanel.tsx","description":"List artboard ids for GitPanel canvas"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design index .design/ui/GitPanel.tsx --verbose 2>&1 || maude design index ui/GitPanel.tsx --artboards 2>&1","description":"Get detailed artboard list for GitPanel"}}
+{"lane":"acp","name":"Grep","input":{"pattern":"DCArtboard|id=|label=","path":".design/ui/GitPanel.tsx","output_mode":"content","-n":true}}
+{"lane":"acp","name":"Bash","input":{"command":"cat .design/ui/GitPanel.meta.json 2>/dev/null || find .design/ui -iname \"GitPanel*\"","description":"Read GitPanel meta.json"}}
+{"lane":"acp","name":"Edit","input":{"file_path":".design/ui/GitPanel.meta.json"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design check --strict .design/ui/GitPanel.meta.json","description":"Validate GitPanel meta.json after edit"}}
+{"lane":"acp","name":"Bash","input":{"command":"cd \"$(git rev-parse --show-toplevel)\" && git diff --stat -- .design/ui/GitPanel.meta.json; git show HEAD:.design/ui/GitPanel.meta.json 2>/dev/null | head -5","description":"Check if artboards field predates my edit"}}
+{"lane":"acp","name":"Bash","input":{"command":"cd \"$(git rev-parse --show-toplevel)\" && python3 -c \"\nimport json\nd = json.load(open('.design/ui/GitPanel.meta.json'))\nprint(json.dumps(d.get('present'), indent=2))\nprint(json.dumps(d.get('artboardMeta'), indent=2))\nids = {a['id'] for a in d['artboards']}\nprint('ids', ids)\nprint('order valid?', set(d['present']['order']) <= ids)\nprint('skip valid?', set(d['present']['skip']) <= ids)\n\"\n","description":"Sanity-check present/artboardMeta ids against canvas artboard ids"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design open ui/GitPanel.tsx --mode present","description":"Open GitPanel canvas in Present mode"}}

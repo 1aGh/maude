@@ -35,6 +35,7 @@ import { resolveCanvasBodyRel } from '../../studio/sync/canvas-path.ts';
 // spelling here is how the hub came to write and commit source the desktop
 // refuses (audit 2026-09-13 P0 #2).
 import { sourceError } from '../../studio/sync/source-validation.ts';
+import { readCanvasGroups } from './file-manifest.mjs';
 import { createGitRunner, ensureRepo, gitAvailable } from './git-runner.mjs';
 import { realpathOfDeepestExisting } from './path-contain.mjs';
 import {
@@ -139,9 +140,6 @@ export function createWorkspaceAgent(opts) {
   // The candidate itself stays in the Y.Doc; the checkout keeps the last
   // valid body and history never records the rejected one.
   const rejectedSources = new Map();
-  /** Declared canvas groups, from the tenant's own `.design/config.json`. */
-  let canvasGroups = null;
-
   /**
    * The tenant's declared canvas groups, or null when they have not said.
    *
@@ -149,19 +147,15 @@ export function createWorkspaceAgent(opts) {
    * path is allowed to be and where an un-pathed canvas lands, and a project
    * that renamed `ui` to `screens` would otherwise have every fallback go to a
    * directory it does not use. Never throws: a missing or unparseable config is
-   * the normal state of a fresh checkout, and `canvas-path.ts` has a documented
-   * default for exactly that.
+   * the normal state of a fresh checkout.
+   *
+   * RE-READ AT EVERY DECISION, through the hub's one "declared" predicate
+   * (`readCanvasGroups` → canvas-path `declaredCanvasGroups`, final-3 attacker
+   * I2). This used to treat `[{}]`/`[{ path: '' }]` as declared and kept the
+   * first non-null answer for the life of the process, so the agent, the
+   * kernel and the paired studio could each hold a different answer.
    */
-  function readCanvasGroups() {
-    try {
-      const raw = readFileSync(join(designRoot, 'config.json'), 'utf8');
-      const cfg = JSON.parse(raw);
-      const groups = cfg?.canvasGroups;
-      return Array.isArray(groups) && groups.length > 0 ? groups : null;
-    } catch {
-      return null;
-    }
-  }
+  const currentCanvasGroups = () => readCanvasGroups(designRoot);
 
   /**
    * Design-root-relative paths that mean something other than "a canvas".
@@ -241,7 +235,6 @@ export function createWorkspaceAgent(opts) {
         if (body !== null)
           storedBodyHashes.set(rel, createHash('sha256').update(body).digest('hex'));
       }
-      canvasGroups = readCanvasGroups();
       auto = createAutoCommit({
         repoRoot: repoDir,
         run,
@@ -488,8 +481,9 @@ export function createWorkspaceAgent(opts) {
       // (see sweepRetirements for the decision table).
       sweepRetirements();
       // A fresh checkout has no config until the project's first sync brings
-      // one down, so this cannot be a boot-time-only read.
-      if (canvasGroups === null) canvasGroups = readCanvasGroups();
+      // one down, so this cannot be a boot-time-only read — and the owner can
+      // declare folders at any moment, so it is not cached either.
+      const canvasGroups = currentCanvasGroups();
 
       // WHERE THIS CANVAS GOES, in the only order that is safe.
       //
@@ -518,7 +512,15 @@ export function createWorkspaceAgent(opts) {
             path: content.path,
             slug,
             designRel,
-            canvasGroups,
+            canvasGroups: canvasGroups ?? undefined,
+            // The kernel's own rule (server.mjs `acceptedCanvasGroups` →
+            // `allowUndeclaredGroup`): until the owner declares folders the
+            // hub is the folder boundary, so this writer takes the same paths
+            // its kernel and its paired studio take. Without it a teammate's
+            // `components/new.tsx` landed here as the flat fallback
+            // `components-new.tsx` while the paired studio wrote
+            // `components/new.tsx` — one slug, two files (final-3 defender L1).
+            allowUndeclaredGroup: canvasGroups === null,
             onRefused: (reason) =>
               log.warn?.(`[workspace] ignoring the path on ${slug} — ${reason}`),
           });

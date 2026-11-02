@@ -5,7 +5,10 @@
 #
 # Usage:  canvas-edit.sh <canvas-abs-path> <data-cd-id> <attr> <value>
 #
-#   <canvas-abs-path>  absolute path of the .tsx canvas file
+#   <canvas-abs-path>  the .tsx canvas — absolute, or relative to the design
+#                      root (`ui/C.tsx`) or the cwd. It must resolve (symlinks
+#                      followed) inside this project's .design/, outside its
+#                      `_*` runtime folders (V2-2.4b gate).
 #   <data-cd-id>       8-hex id from the inspector / _locator.json
 #   <attr>             "className" | "style.<prop>" | any JSX attribute name
 #   <value>            new value (bare string for className / plain attrs;
@@ -14,8 +17,11 @@
 #
 # Exit codes:
 #   0   edit applied (or no-op when source already matched)
-#   1   bad usage / missing file
-#   2   AST edit failed (id not found, parse error, unsupported attribute shape)
+#   1   bad usage / missing file / the element is locked, or inside a locked
+#       one (`soft-locked: …` — the person's, never the AI's; V2-2.19)
+#   2   canvas outside the project's design folder ("Pick a canvas inside the
+#       project's design folder"), or the AST edit failed (id not found, parse
+#       error, unsupported attribute shape)
 #
 # Output:
 #   On success, prints one JSON line: {"canvas": "...", "id": "...", "delta": <int>}
@@ -38,11 +44,13 @@ ID="$2"
 ATTR="$3"
 VALUE="$4"
 
-if [ ! -f "$CANVAS" ]; then
-  echo "canvas-edit: file not found: $CANVAS" >&2
-  exit 1
-fi
-
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 
-bun --silent run "$HERE/canvas-edit.ts" --invoke "$CANVAS" "$ID" "$ATTR" "$VALUE" 2>&1 || exit 2
+# canvas-edit.ts resolves + contains the path and checks the lock; its exit
+# code (0 / 1 / 2) passes straight through — anything else is a crash (2).
+RC=0
+bun --silent run "$HERE/canvas-edit.ts" --invoke "$CANVAS" "$ID" "$ATTR" "$VALUE" 2>&1 || RC=$?
+case "$RC" in
+  0|1|2) exit "$RC" ;;
+  *) exit 2 ;;
+esac

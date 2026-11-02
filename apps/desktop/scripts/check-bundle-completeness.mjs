@@ -24,10 +24,17 @@
 // not found (so CI can distinguish "bundle incomplete" from "ran wrong").
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
-import { classifyHelpers, collectImports } from './helper-deps.mjs';
+import { stubClaudeEnv } from '../../../scripts/lib/stub-claude.mjs';
+import {
+  classifyHelpers,
+  collectImports,
+  renderShimGaps,
+  serverRenderShims,
+} from './helper-deps.mjs';
 
 const RED = '\x1b[31m';
 const GRN = '\x1b[32m';
@@ -202,6 +209,24 @@ if (!helpers.length) {
     ok(`all ${standalone.length} standalone helpers have complete dep closures`);
 }
 
+// === Check 3b — the render shims the SERVER spawns (exports, thumbnails) =======
+// `exportShimPath('<name>')` in the staged server source: not `maude design` helpers, so
+// check 3 never sees them. Missing → exports fail and Home covers stay grey, only in the .app.
+console.log('\n[3b] server render shims (exports, thumbnail renderer)');
+{
+  const shims = serverRenderShims(studio);
+  if (!shims.length) fail('no server render shims found', `no exportShimPath('…') under ${studio}`);
+  for (const g of renderShimGaps(studio))
+    fail(
+      `render shim ${g.shim} incomplete`,
+      g.missing[0] === 'file'
+        ? `${join(binDir, g.shim)} not staged`
+        : `missing staged deps: ${g.missing.join(', ')}`
+    );
+  if (shims.length && !renderShimGaps(studio).length)
+    ok(`all ${shims.length} server render shims staged with their deps`, shims.join(', '));
+}
+
 // === Check 4 — optional stripped-PATH smoke against the real binary (G1–G4) ===
 if (doSmoke) {
   console.log('\n[4] stripped-PATH smoke (no node/bun/claude on PATH — fresh-machine sim)');
@@ -221,7 +246,14 @@ if (doSmoke) {
     ];
     // Probe a representative verb from each track. `--help`/no-op so we exercise
     // resolution (pkgRoot + runtime + import) without needing real inputs.
-    const probes = helpers.filter((h) => h.track !== 'other').slice(0, 12);
+    const first = helpers.filter((h) => h.track !== 'other').slice(0, 12);
+    // …plus the verbs a release must always reach, wherever they sort (S12.13: `describe` spawns
+    // the person's `claude` from inside the bundle, so a missing closure must fail here).
+    const ALWAYS_PROBE = ['describe'];
+    const probes = [
+      ...first,
+      ...helpers.filter((h) => ALWAYS_PROBE.includes(h.verb) && !first.includes(h)),
+    ];
     for (const h of probes) {
       let output = '';
       try {
@@ -244,6 +276,192 @@ if (doSmoke) {
         ok(`smoke ${h.verb}`, 'reached helper (no missing runtime/dep/helper)');
       }
     }
+    reelPlaceSmoke(target.binary, strippedPath);
+  }
+  const serverBin = target.macosDir ? join(target.macosDir, 'maude-server') : null;
+  if (serverBin && existsSync(serverBin)) await renderExportSmoke(serverBin);
+  else warn('smoke render export skipped', `no bundled maude-server at ${serverBin}`);
+}
+
+// p8-export-runtime — the render shims (every export, the thumbnail renderer) are spawned by the
+// SERVER, not by a `maude design` verb, so no `--help` probe above reaches them. With no node/bun
+// on PATH the server must run them with its own compiled binary under BUN_BE_BUN=1
+// (`resolveExportRuntime`, DDR-177); before that rung every export and every Home cover failed in
+// the .app only. Boot the bundled maude-server in the stripped PATH on a one-canvas throwaway
+// project and export one png. Headless Chromium needs no display; only a machine with no browser
+// at all for Playwright is a warning — a runtime failure, or any other refusal, is red.
+async function renderExportSmoke(serverBin) {
+  const strippedPath = '/usr/bin:/bin:/usr/sbin:/sbin';
+  const root = mkdtempSync(join(tmpdir(), 'maude-smoke-render-'));
+  const design = join(root, 'proj', '.design');
+  mkdirSync(join(design, 'ui'), { recursive: true });
+  writeFileSync(join(design, 'config.json'), '{"name":"smoke-render"}');
+  writeFileSync(
+    join(design, 'ui', 'a.tsx'),
+    [
+      "import { DCArtboard, DCSection, DesignCanvas } from '@maude/canvas-lib';",
+      'export default function C() {',
+      '  return (<DesignCanvas><DCSection id="s" title="S">',
+      '    <DCArtboard id="a" label="A" width={320} height={200}><div style={{ background: "#36a", width: "100%", height: "100%" }} /></DCArtboard>',
+      '  </DCSection></DesignCanvas>);',
+      '}',
+      '',
+    ].join('\n')
+  );
+  writeFileSync(
+    join(design, '_active.json'),
+    JSON.stringify({ active: '.design/ui/a.tsx', open_tabs: ['.design/ui/a.tsx'], selected: null })
+  );
+  const home = join(root, 'home');
+  const realHome = process.env.HOME || '/tmp';
+  const { spawn } = await import('node:child_process');
+  const log = [];
+  const server = spawn(serverBin, ['--root', join(root, 'proj')], {
+    env: {
+      HOME: home,
+      XDG_CONFIG_HOME: join(root, 'xdg'),
+      MAUDE_INDEX_DIR: join(root, 'idx'), // never the person's ~/.maude/index
+      MAUDE_LOG_DIR: join(root, 'logs'),
+      MAUDE_UI_PREFS_PATH: join(root, 'xdg', 'maude', 'prefs.json'),
+      MAUDE_MACHINE_FILE: join(root, 'xdg', 'maude', 'machine.json'),
+      MAUDE_DEV_SERVER_ROOT: studio,
+      MAUDE_PKG_ROOT: target.resources,
+      NO_OPEN: '1',
+      MAUDE_NO_AUTOBUILD: '1',
+      // read-only: the browsers Playwright already has, so a throwaway HOME still finds one
+      PLAYWRIGHT_BROWSERS_PATH:
+        process.env.PLAYWRIGHT_BROWSERS_PATH ||
+        join(realHome, 'Library', 'Caches', 'ms-playwright'),
+      ...stubClaudeEnv(home, strippedPath),
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  server.stdout.on('data', (d) => log.push(String(d)));
+  server.stderr.on('data', (d) => log.push(String(d)));
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  try {
+    let url = null;
+    for (let waited = 0; waited < 30_000 && !url && server.exitCode === null; waited += 400) {
+      await sleep(400);
+      try {
+        url = JSON.parse(readFileSync(join(design, '_server.json'), 'utf8')).url;
+      } catch {
+        /* not up yet / mid-write */
+      }
+    }
+    if (!url) {
+      fail(
+        'smoke render export',
+        `the bundled maude-server never came up — ${log.join('').slice(-200)}`
+      );
+      return;
+    }
+    const origin = new URL(url).origin;
+    const r = await fetch(`${origin}/_api/export`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin },
+      body: JSON.stringify({ format: 'png', scope: 'canvas-as-separate', options: {} }),
+      signal: AbortSignal.timeout(120_000),
+    });
+    const bytes = new Uint8Array(await r.arrayBuffer());
+    const isPng = bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
+    const text = r.ok ? '' : new TextDecoder().decode(bytes).slice(0, 240);
+    if (r.ok && isPng) ok('smoke render export (png, no node/bun)', `${bytes.length} B png`);
+    else if (/Executable doesn't exist|no Chromium|browser.*not (found|installed)/i.test(text))
+      warn('smoke render export', `no browser for Playwright on this machine — ${text}`);
+    else
+      fail('smoke render export (png, no node/bun)', `HTTP ${r.status} — ${text || 'not a png'}`);
+  } catch (e) {
+    fail('smoke render export (png, no node/bun)', e instanceof Error ? e.message : String(e));
+  } finally {
+    server.kill('SIGTERM');
+    await sleep(500);
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
+// p8-t-video-2 — `--help` stops before any import that loads a native module, so it never saw that a
+// parse-reaching verb could not load oxc-parser's binding. `reel-place` on a fixture cut parses the canvas
+// (check fast tier + clip ops). It runs the way the AI's Bash runs it inside the app: with the stripped PATH
+// AND the `/$bunfs/…` oxc binding path a sidecar child inherited before p8-t-video-2 — a helper must place
+// the shot whatever its parent leaked.
+function reelPlaceSmoke(binary, strippedPath) {
+  const root = mkdtempSync(join(tmpdir(), 'maude-smoke-reel-'));
+  try {
+    const design = join(root, '.design');
+    mkdirSync(join(design, 'ui'), { recursive: true });
+    writeFileSync(join(design, 'config.json'), '{}');
+    writeFileSync(
+      join(design, 'ui', 'recap.tsx'),
+      [
+        "import { DCArtboard, DesignCanvas, VideoComp } from '@maude/canvas-lib';",
+        "import { AbsoluteFill } from 'remotion';",
+        "const Recap = () => <AbsoluteFill style={{ background: '#000' }}></AbsoluteFill>;",
+        'export default function Canvas() {',
+        '  return (',
+        '    <DesignCanvas>',
+        '      <DCArtboard id="recap" kind="video" width={1080} height={1920}>',
+        '        <VideoComp component={Recap} durationInFrames={900} fps={30} width={1080} height={1920} />',
+        '      </DCArtboard>',
+        '    </DesignCanvas>',
+        '  );',
+        '}',
+        '',
+      ].join('\n')
+    );
+    writeFileSync(
+      join(design, 'recap.edl.json'),
+      JSON.stringify({
+        version: 1,
+        fps: 30,
+        beats: [
+          {
+            clip: 'assets/caaf0000.mp4',
+            startSec: 0,
+            durationFrames: 30,
+            name: 'Shot 1',
+            transition: null,
+          },
+        ],
+      })
+    );
+    let output = '';
+    let status = 0;
+    try {
+      output = execFileSync(binary, ['design', 'reel-place', 'recap', '--next', '--root', root], {
+        cwd: root,
+        env: {
+          PATH: strippedPath,
+          HOME: process.env.HOME || '/tmp',
+          MAUDE_INDEX_DIR: join(root, '.maude-index'), // P8: never the person's ~/.maude/index (Home lists every project indexed there)
+          NO_OPEN: '1',
+          MAUDE_NO_AUTOBUILD: '1',
+          NAPI_RS_NATIVE_LIBRARY_PATH: '/$bunfs/root/parser.darwin-arm64-smoke.node',
+          // a stub `claude` first on PATH: nothing here may reach the person's real CLI / keychain
+          ...stubClaudeEnv(root, strippedPath),
+        },
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+        timeout: 60000,
+      });
+    } catch (e) {
+      status = e.status ?? 1;
+      output = `${e.stdout || ''}${e.stderr || ''}`;
+    }
+    const placed = readFileSync(join(design, 'ui', 'recap.tsx'), 'utf8').includes(
+      'TransitionSeries.Sequence'
+    );
+    if (status === 0 && placed && /^Placed shot 1 of 1/.test(output)) {
+      ok('smoke reel-place (parses a canvas)', 'placed shot 1 — native parser binding loads');
+    } else {
+      const line =
+        output.split('\n').find((l) => /^\s*(error:|cause:)|Cannot find/.test(l)) ||
+        output.split('\n')[0] ||
+        '';
+      fail('smoke reel-place (parses a canvas)', `exit ${status} — ${line.slice(0, 200)}`);
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
   }
 }
 

@@ -17,26 +17,32 @@ const STUDIO = join(import.meta.dir, '..');
 // The shell's code, whichever client file it lives in (app.jsx before the
 // V2-0.2 split, its modules after) — see `_client-source.ts`.
 const APP = clientSource();
-const GIT_PANEL = readFileSync(join(STUDIO, 'client', 'panels', 'GitPanel.jsx'), 'utf8');
+// S11.10 — the Changes / History panel is Version history › Advanced now: the fold's three files are one text.
+const GIT_PANEL = ['git-advanced.jsx', 'git-parts.jsx', 'git-model.js']
+  .map((f) => readFileSync(join(STUDIO, 'client', 'v2', 'history', f), 'utf8'))
+  .join('\n');
 const CLOUD_BAR = readFileSync(join(STUDIO, 'client', 'panels', 'CloudBar.jsx'), 'utf8');
 
 describe('a cloud-linked repo shows ONE save mechanism (DDR-218)', () => {
   test('cloudManaged withdraws exactly like the cell-side historyOnly', () => {
-    expect(GIT_PANEL).toContain('const withdrawn = historyOnly || cloudManaged;');
+    expect(GIT_PANEL).toMatch(/if \(cellManaged\) return \{ mode: 'cloud'/);
+    expect(GIT_PANEL).toMatch(/if \(cloudManaged\)\s+return \{ mode: 'cloud-saving'/);
     // Every render gate the working-tree half hides behind must read the
-    // merged flag — a `!historyOnly` guard reintroduces the desktop leak.
-    expect(GIT_PANEL).toMatch(/\{!withdrawn && \(\s*<div className="gp-tabs"/);
-    expect(GIT_PANEL).toContain("{tab === 'changes' && !withdrawn ? (");
+    // mode — the buttons belong to 'full' alone, so no later guard can leak them.
+    expect(GIT_PANEL).toContain("const full = surface.mode === 'full';");
+    expect(GIT_PANEL).toMatch(/\{full \? \(\s*<>\s*<div className="vh-git-acts">/);
   });
 
   test('the posture reacts LIVE to connect/disconnect, not only at mount', () => {
-    // The initial useState alone would leave a freshly-linked panel on Changes.
-    expect(GIT_PANEL).toMatch(/useEffect\(\(\) => \{\s*if \(withdrawn\) setTab\('history'\);/);
+    // There is no tab to leave behind: the mode is computed from the live props on every render.
+    expect(GIT_PANEL).toContain('cloudManaged: git.cloudManaged,');
   });
 
   test('the note names the active mechanism, and only in the desktop posture', () => {
-    expect(GIT_PANEL).toContain('data-testid="git-cloud-managed"');
-    expect(GIT_PANEL).toMatch(/\{cloudManaged && \(\s*<div className="gp-cloud-note"/);
+    expect(GIT_PANEL).toContain("'git-cloud-managed'");
+    expect(GIT_PANEL).toContain(
+      "surface.mode === 'cloud-saving' ? 'git-cloud-managed' : 'vh-git-note'"
+    );
     expect(GIT_PANEL).toContain('Cloud is saving');
   });
 
@@ -50,8 +56,8 @@ describe('a cloud-linked repo shows ONE save mechanism (DDR-218)', () => {
     expect(APP).toContain('const cloudManaged = !cfg.cloud && !!cloudLinkedHub?.credentialed;');
     expect(APP).toContain('const cellManaged = !!cfg.cloud;');
     // …and the panel is fed from those names, not a re-derivation.
-    expect(APP).toContain('cloudManaged={cloudManaged}');
-    expect(APP).toContain('historyOnly={cellManaged}');
+    expect(APP).toContain('cloudManaged,');
+    expect(APP).toContain('historyOnly: cellManaged,');
   });
 
   test('CloudBar lifts every link change the posture depends on', () => {

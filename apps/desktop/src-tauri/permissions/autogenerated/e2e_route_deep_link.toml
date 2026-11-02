@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-e2e-route-deep-link"
+description = "Enables the e2e_route_deep_link command without any pre-configured scope."
+commands.allow = ["e2e_route_deep_link"]
+
+[[permission]]
+identifier = "deny-e2e-route-deep-link"
+description = "Denies the e2e_route_deep_link command without any pre-configured scope."
+commands.deny = ["e2e_route_deep_link"]

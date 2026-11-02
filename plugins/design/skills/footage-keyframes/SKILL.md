@@ -56,7 +56,7 @@ maude design smart-frames <asset> [--root <repo>] [--out-dir DIR] [--frames N]
   "scout": null,                            // "mlx" | "ollama" when the gemma scout contributed beats
   "sceneCuts": [0.233, 6.533],              // ffmpeg scene-detect (empty in blind)
   "scoutBeats": [{ "t": 6.9, "what": "run play" }],  // gemma only (empty otherwise)
-  "outDir": "/tmp/smart-frames-…",
+  "outDir": "$TMPDIR/smart-frames-…",
   "frames": [ { "index": 1, "t": 0.0, "png": "…/f_01.png" }, … ] }
 ```
 
@@ -81,7 +81,7 @@ Consumers read `frames[]` (index + source-time `t` + PNG path) exactly as they r
 
 ## Two front doors, one engine
 
-- **Maude Studio Settings** → the "Scene-aware keyframes" section persists the engine
+- **Settings** → the "Scene-aware keyframes" section persists the engine
   choice (`keyframeEngine`) and offers a one-click Gemma-model download (like the
   Subtitles / whisper section). App-served runs honor that pref.
 - **Terminal / power users** → `--engine auto` **self-detects deps** with no app or
@@ -91,7 +91,7 @@ Consumers read `frames[]` (index + source-time `t` + PNG path) exactly as they r
 ## Consumers (who references this skill)
 
 - **`/design:video-analyze`** — the canonical one-shot analysis: the orchestrator runs
-  `smart-frames` + `maude design transcribe`, the Read-only `footage-analyst` watches
+  `smart-frames` + `maude design transcribe-local`, the Read-only `footage-analyst` watches
   the smart frames (with the transcript folded in) and returns JSON, the orchestrator
   persists it → a combined **visual + audio** metadata report.
 - **`/design:reel`** — runs the **same** shared analysis step (no duplicate workflow)
@@ -104,7 +104,9 @@ Consumers read `frames[]` (index + source-time `t` + PNG path) exactly as they r
 
 ## Related
 
-- `maude design transcribe` (skill/verb) — the audio half (whisper.cpp local / cloud STT).
-  Audio quality is engine-independent, so transcription is a separate, unchanged step.
+- `maude design transcribe-local` (verb) — the audio half: the words of a clip on this Mac
+  (whisper.cpp), written to `assets/<sha8>.transcript.json`. A cloud engine is `maude design
+  transcribe --provider`, which spends the person's account. Audio quality is
+  engine-independent, so transcription is a separate step from the frames.
 - Implementation: `apps/studio/bin/smart-frames.sh` → `_smart-frames.mjs` (pure JS;
   runs under node or bun). Manifest superset of `apps/studio/bin/_probe-footage-playwright.mjs`.

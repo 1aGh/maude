@@ -1,0 +1,42 @@
+{
+  "canvas": "ui/panels/GitPanel.tsx",
+  "from": "maude",
+  "to": "maude-v2",
+  "meta": { "designSystem": "maude-v2" },
+  "edits": [
+    {
+      "old": " * @ds          maude\n",
+      "new": " * @ds          maude-v2\n",
+      "why": "Header names the system the canvas uses."
+    },
+    {
+      "old": "import \"../../system/maude/colors_and_type.css\";",
+      "new": "import \"../../system/maude-v2/colors_and_type.css\";",
+      "why": "Tokens come from maude-v2. Every token this canvas and GitPanel.css use exists in maude-v2 under the same name."
+    },
+    {
+      "old": "import \"../../system/maude/preview/_components.css\";",
+      "new": "import \"../../system/maude-v2/preview/_components.css\";",
+      "why": "Shared component classes come from maude-v2."
+    },
+    {
+      "old": "return <div className=\"maude\" data-theme=\"dark\" style={{ position: \"absolute\", inset: 0 }}>{children}</div>;",
+      "new": "return <div className=\"maude-v2 ds\" data-theme=\"dark\" style={{ position: \"absolute\", inset: 0 }}>{children}</div>;",
+      "why": "maude-v2 scopes its tokens to .maude-v2[data-theme] (the .maude scope would no longer match), and its core components (callout, card, dialog, checkbox) only apply under :where(.ds)."
+    },
+    {
+      "old": "className=\"btn btn--icon\" title=\"More\"",
+      "new": "className=\"icon-btn\" title=\"More\"",
+      "why": "maude-v2 has no btn--icon; its icon button is .icon-btn (components.json IconButton)."
+    }
+  ],
+  "notes": [
+    "Locked: the 'Changes' tab (data-cd-id=\"changes\", data-cd-locked) uses className=\"tab\", which maude-v2 does not have (its Tabs map to the .seg segmented control). It is left exactly as it is; to move both tabs to .seg, someone unlocks it first (⇧⌘L). The 'History' tab is left too, so the pair stays matched.",
+    "Decision: .panel (1 use, panel gp-mini) has no maude-v2 rule. Its closest match is .island (ext.Island). The local gp- classes still style the panel, so it renders; whether to adopt .island is a look decision.",
+    "Decision: .tree-row (7 uses) has no maude-v2 rule; the closest is .row-item (ext.ListRow). Not renamed: the local gp-row styling keeps the rows readable, and .row-item brings its own padding and hover.",
+    "Decision: callout--info and callout--warn have no tone in maude-v2 (Callout variants are all null). Base .callout applies under .ds; the tone colour is lost unless GitPanel.css adds it, or the system adds variants.",
+    "Line heights change from fixed px (20px base) to ratios (1.45 base): text runs slightly tighter.",
+    "maude-v2's :root default is light; this canvas sets data-theme=\"dark\" explicitly, so it stays dark.",
+    "Comments only: GitPanel.css line 3 and the TSX docblock still mention system/maude. The design is 'handed-off' (handoffCommit 97859dc); GitPanel.registry.json still describes the maude build until the handoff is redone."
+  ]
+}

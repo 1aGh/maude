@@ -1,0 +1,27 @@
+{
+  "run": "2026-10-21, bot account, claude-opus-5-5, feat 636fa1e48. Run 1 passes (8) kept; the 14 others re-run once; ACP S2 S5 S7 re-run once more after a harness fix (the lane stopped the studio before the run's stage was published).",
+  "result": "18 of 22 pass. Failing: S1 terminal, S1 acp, S6 acp, S8 terminal.",
+  "harnessFixed": [
+    "lanes/acp.mjs: after the runs end, wait (<= 30 s) for _state/ai-stage-local.json to hold no open run; on a loaded machine the AI's one Version-history row is written seconds after 'ended'. S2 S5 S7 acp failed ai-version / one-undo-step before, passed after, same product.",
+    "graders.mjs artboards: an artboard is filled by the local components it renders (S6 terminal drafted 3 sized web artboards that each render one shared <Page />; elements are counted through it). Empty shells still fail. Widened because the result on disk is correct: 3 sized web artboards, each rendering a full page."
+  ],
+  "table": {
+    "S1": { "terminal": "FAIL c", "acp": "FAIL b" },
+    "S2": { "terminal": "PASS run1", "acp": "PASS run2 rerun" },
+    "S3": { "terminal": "PASS run1", "acp": "PASS run1" },
+    "S4": { "terminal": "PASS run1", "acp": "PASS run1" },
+    "S5": { "terminal": "PASS run2", "acp": "PASS run2 rerun" },
+    "S6": { "terminal": "PASS run2 (grader widened)", "acp": "FAIL c" },
+    "S7": { "terminal": "PASS run1", "acp": "PASS run2 rerun" },
+    "S8": { "terminal": "FAIL c", "acp": "PASS run2" },
+    "S9": { "terminal": "PASS run1", "acp": "PASS run2" },
+    "S10": { "terminal": "PASS run2", "acp": "PASS run2" },
+    "S11": { "terminal": "PASS run1", "acp": "PASS run2" }
+  },
+  "failures": {
+    "S1 terminal": "c: the agent put the heading back by hand instead of restoring the version (version-restored, restore-by-verb). Result on disk is right, but the journey tests the Version-history restore, so the grader is not widened. Also created-by-ai, as S1 acp.",
+    "S1 acp": "b: created-by-ai. The agent created the canvas through the studio's own create route (maude design curl-local POST /_api/canvas, the documented path); Version history records that create as 'outside', and the AI's later edits as 'ai'. The create call carries no run identity. Not widened: the journey's claim 'the AI made it' is not what the history says. Rename (fs-move), restore, trash and bring-back all worked.",
+    "S6 acp": "c: 1 artboard and hex colours. The result on disk misses the spec (not correct), so not widened.",
+    "S8 terminal": "c: the agent wrote a sanitised copy of the logo by hand instead of maude design import-asset; export and exports list passed."
+  }
+}

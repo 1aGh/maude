@@ -1,0 +1,22 @@
+maude: conformant (0)
+  tier 1: 95/95 declared
+  info: maude declares no class for Button.secondary, Button.size-lg, IconButton.secondary, IconButton.size-lg, Input.size-sm, Segmented.size-sm, Chip.accent, Chip.soft, Badge.success, Badge.warn, Badge.error, Badge.info, Card.raised, Card.interactive, Card.flat
+  C7: 1 accent family vs single → pass
+  note: status-fg-as-text (--status-success-fg) — may mean text-on-surface rather than text-on-fill
+  note: bg-4-order (--bg-4) — may mean elevated rather than pressed
+  note: space-multiples (--space-0) — may be N×4px rather than an ordinal step
+  note: legacy-accent-name — legacy accent names: --accent-muted, --accent-tint
+  note: ladder-order (dur) — --dur-* is not strictly increasing
+
+maude-v2: conformant (0)
+  tier 1: 95/95 declared
+  info: maude-v2 declares no class for Button.secondary, Button.danger, IconButton.primary, IconButton.secondary, IconButton.ghost, IconButton.danger, IconButton.size-sm, IconButton.size-lg, Input.size-sm, Segmented.size-sm, Chip.soft, Badge.success, Badge.warn, Badge.error, Badge.info, Card.raised, Card.interactive, Card.flat, Callout.info, Callout.success, Callout.warn, Callout.error
+  C7: 1 accent family vs single → pass
+  note: status-fg-as-text (--status-success-fg) — may mean text-on-surface rather than text-on-fill
+  note: bg-4-order (--bg-4) — may mean elevated rather than pressed
+  note: space-multiples (--space-0) — may be N×4px rather than an ordinal step
+  note: legacy-accent-name — legacy accent names: --accent-muted, --accent-tint
+
+--stderr--
+
+--exit 0

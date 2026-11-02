@@ -1,0 +1,29 @@
+{
+  "canvas": "ui/panels/GitPanel.tsx",
+  "from": "maude",
+  "to": "maude-v2",
+  "meta": { "designSystem": "maude-v2" },
+  "edits": [
+    {
+      "old": "import \"../../system/maude/colors_and_type.css\";",
+      "new": "import \"../../system/maude-v2/colors_and_type.css\";",
+      "why": "Load the maude-v2 tokens instead of maude. Every token the canvas and GitPanel.css use (--bg-*, --fg-*, --accent*, --space-*, --type-*, --radius-*, --status-*, --canvas-*, --font-mono …) exists in maude-v2 under the same name."
+    },
+    {
+      "old": "import \"../../system/maude/preview/_components.css\";",
+      "new": "import \"../../system/maude-v2/preview/_components.css\";",
+      "why": "Use the maude-v2 shared component styles (.btn, .chip, .input, .seg, .switch …)."
+    },
+    {
+      "old": "return <div className=\"maude\" data-theme=\"dark\" style={{ position: \"absolute\", inset: 0 }}>{children}</div>;",
+      "new": "return <div className=\"maude-v2\" data-theme=\"light\" style={{ position: \"absolute\", inset: 0 }}>{children}</div>;",
+      "why": "maude-v2's tokens are scoped to .maude-v2[data-theme]; light is maude-v2's default theme (dark is also available)."
+    }
+  ],
+  "notes": [
+    "maude-v2 has no .callout / .callout--info / .callout--warn, .panel, .tab / .tabbar, .tree-row or .btn--icon. They are used here (Get-latest nudge, Publish-rejected warning, the docked panel, the file tree, icon buttons) and nothing else in the project defines them, so they will render unstyled until they are restyled with maude-v2 parts (.island, .row-item, .icon-btn, .chip) or added to GitPanel.css.",
+    "maude-v2 keeps mono for Advanced only; this canvas uses --font-mono for file paths and badges. It still renders, but it goes against the system's direction.",
+    "The theme goes from dark to light. Use data-theme=\"dark\" instead if the dark look should stay.",
+    "The comments at the top of the canvas and GitPanel.css still name system/maude. The mock file path system/maude/preview/components-cards.tsx in the change list is sample data and stays."
+  ]
+}

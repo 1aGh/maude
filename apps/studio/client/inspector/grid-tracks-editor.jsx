@@ -3,6 +3,7 @@
 import { GRID_KEYWORD_UNITS } from '../../grid-track-handles.ts';
 import { NumberField, Select, UnitSelect } from '../inspector-controls.jsx';
 import { GRID_TRACK_UNITS } from './css-vocab.jsx';
+import { reasonProps } from '../v2/access/disabled-reason.js';
 
 // feature-3-web-artboards T5 (absorbed feature-grid-track-editor stub) — the
 // CssKnobs "Grid" section's track-list editor: one row per track (a
@@ -30,20 +31,21 @@ export function GridTracksEditor({ label, tracks, editable, onChange }) {
   const addTrack = () => onChange([...tracks, { value: 1, unit: 'fr' }]);
   const removeTrack = (idx) => onChange(tracks.filter((_, i) => i !== idx));
   return (
-    <div className="st-cp-gridtracks">
-      <div className="st-cp-gridtracks-hd">
-        <span className="st-cp-gridtracks-label">{label}</span>
+    <div className="insp-cp-gridtracks" data-testid="inspector-grid-tracks">
+      <div className="insp-cp-gridtracks-hd">
+        <span className="insp-cp-gridtracks-label">{label}</span>
         <button
           type="button"
-          className="st-btn st-cp-gridtracks-add"
+          className="sh-btn insp-cp-gridtracks-add"
           disabled={!editable}
+          {...reasonProps(!editable, 'cantEditHere')}
           onClick={addTrack}
         >
           + Track
         </button>
       </div>
       {tracks.length === 0 ? (
-        <div className="st-cp-note">
+        <div className="insp-cp-note">
           No explicit tracks — add one to start defining {label.toLowerCase()}.
         </div>
       ) : (
@@ -53,7 +55,7 @@ export function GridTracksEditor({ label, tracks, editable, onChange }) {
             // biome-ignore lint/suspicious/noArrayIndexKey: tracks have no stable id;
             // add/remove/reorder all rebuild the array positionally, same as every
             // other index-keyed list in this file (e.g. the Layers tree rows).
-            <div className="st-cp-gridtrack-row" key={idx}>
+            <div className="insp-cp-gridtrack-row" key={idx}>
               {isKeyword ? (
                 <Select
                   value={t.unit}
@@ -79,15 +81,19 @@ export function GridTracksEditor({ label, tracks, editable, onChange }) {
                   onCommit={(n) => setValue(idx, n)}
                 />
               )}
-              <button
-                type="button"
-                className="st-btn st-cp-gridtrack-remove"
-                aria-label={`remove ${label} track ${idx + 1}`}
-                disabled={!editable || tracks.length <= 1}
-                onClick={() => removeTrack(idx)}
-              >
-                ×
-              </button>
+              {/* a grid keeps one track at least: the last one has no remove */}
+              {tracks.length > 1 ? (
+                <button
+                  type="button"
+                  className="sh-btn insp-cp-gridtrack-remove"
+                  aria-label={`remove ${label} track ${idx + 1}`}
+                  disabled={!editable}
+                  {...reasonProps(!editable, 'cantEditHere')}
+                  onClick={() => removeTrack(idx)}
+                >
+                  ×
+                </button>
+              ) : null}
             </div>
           );
         })

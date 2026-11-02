@@ -8,8 +8,18 @@
 //     re-asserted per message (T7: a cached permission is not a boundary).
 //   • `handleRoutes` — `/api/projects/:project/v1/*`.
 
+import { canvasSlugFromRel } from '../../../studio/canvas-slug.ts';
+import {
+  NOT_IN_SCOPE_REFUSAL,
+  proposalScope,
+  scopeActions,
+  scopeBootstrap,
+  seesDocRow,
+} from '../access-docs.mjs';
+import { createPokeVisibility } from '../access-files.mjs';
+import { createRunsPoke, createRunsRoutes, RUNS_CAPABILITY, RUNS_ROUTE } from '../runs-routes.mjs';
 import { importBaseline } from './baseline.mjs';
-import { createKernel } from './kernel.mjs';
+import { createKernel, MAX_UNDO_TARGETS } from './kernel.mjs';
 import { applyLane, LANE_NAMES, laneHash, readLane } from './lanes.mjs';
 import { asFormat, DEFAULT_FORMAT } from './store-core.mjs';
 
@@ -109,6 +119,8 @@ export function createAcceptedRevisions({
    * seed) — `(formatVersion, epoch)`. A cell hands it to its own studio child.
    */
   onFormat = () => {},
+  /** Tests: the `{t:'runs'}` poke emitter (default: on `server`'s control document). */
+  runsPoke = null,
 }) {
   let state = { mode: 'legacy', epoch: 0, revision: 0, formatVersion: DEFAULT_FORMAT };
   // T19/T29 — the coordinator's own readiness and counters, apart from the
@@ -204,6 +216,55 @@ export function createAcceptedRevisions({
     canvasGroups,
     designRel,
     log,
+  });
+
+  // V2-1.15 §5.3 — AI runs and leases. Any save mode: leases are about who
+  // may write an artboard, not how the write is stored.
+  const runs = createRunsRoutes({
+    store,
+    // Scoped like the votes poke: a canvas-only connection hears a change only
+    // when it touched a canvas its grants see (the claim decides, no closure).
+    poke:
+      runsPoke ??
+      (server
+        ? createRunsPoke({
+            instance: server,
+            visibility: createPokeVisibility({ designRoot: null, journal: null }),
+            log,
+          })
+        : null),
+    // A key's canvas → its design-root-relative path, for that poke.
+    canvasPathFor: async (canvas) => {
+      if (typeof canvas !== 'string' || !canvas) return null;
+      if (canvas.startsWith('path:') || canvas.includes('/')) {
+        const rel = canvas.startsWith('path:') ? canvas.slice(5) : canvas;
+        const prefix = `${String(designRel ?? '.design').replace(/^\/+|\/+$/g, '')}/`;
+        return rel.startsWith(prefix) ? rel.slice(prefix.length) : rel;
+      }
+      const doc = await store.liveDocByEntry(canvas).catch(() => null);
+      return doc ? ((await rowsOf())(doc)?.path ?? null) : null;
+    },
+    // The document name a canvas scope is written against. A lease key's
+    // canvas is the kernel's stable entry, or `path:<repoRel>` before the
+    // project is on the op log; an ElementRef's is the repo path. Unknown →
+    // null, which a scoped member's check refuses (fail closed).
+    docNameFor: async (canvas) => {
+      if (typeof canvas !== 'string' || !canvas) return null;
+      const rel = canvas.startsWith('path:') ? canvas.slice(5) : canvas;
+      if (canvas.startsWith('path:') || rel.includes('/')) {
+        // Manifest paths are design-root relative; a key may be repo relative.
+        const prefix = `${String(designRel ?? '.design').replace(/^\/+|\/+$/g, '')}/`;
+        const inRoot = rel.startsWith(prefix) ? rel.slice(prefix.length) : rel;
+        const doc = await store.docByPath(inRoot).catch(() => null);
+        if (doc) return doc;
+        try {
+          return canvasSlugFromRel(rel, designRel ?? '.design') || null;
+        } catch {
+          return null;
+        }
+      }
+      return (await store.liveDocByEntry(canvas).catch(() => null)) ?? null;
+    },
   });
 
   /**
@@ -650,6 +711,88 @@ export function createAcceptedRevisions({
   }
 
   /**
+   * "Update project" in a hub that serves its own checkout (a cloud cell, a workspace hub): the
+   * owner's Update project rewrote the checkout through the studio child, and the hub now raises
+   * its OWN project format to the checkout's marker AT ONCE — the cell twin of Move to cloud's
+   * `raiseFormat` (routes/cloud-move.ts: the hub never stays below the folder's marker), and not
+   * the next boot's checkout seed, which is one-time and refuses after any earlier decision (lead,
+   * Michal 2A, 2026-10-28). It is the owner's flip (`setFormat`: barrier, notices, the child's
+   * mirror), RAISE-ONLY (never lowers — only the owner's explicit unflip does) and capped at what
+   * this hub knows. The caller is the studio door, which has already required the owner.
+   */
+  async function raiseFormatToCheckout(n, { by = 'owner' } = {}) {
+    const want = asFormat(n);
+    const cur = asFormat((await store.state()).formatVersion);
+    if (want <= cur) return { changed: false, formatVersion: cur };
+    if (want > HUB_MAX_FORMAT) {
+      log.warn?.(
+        `[transactions] the checkout declares format ${want}, newer than this hub knows (${HUB_MAX_FORMAT}) — not raised`
+      );
+      return { changed: false, formatVersion: cur };
+    }
+    const out = await setFormat({ formatVersion: want, by });
+    return { changed: true, formatVersion: out.formatVersion, epoch: out.epoch };
+  }
+
+  /**
+   * A BRAND-NEW project takes its format from the writer that founds it (lead decision on Michal 2A,
+   * 2026-10-28): the first writer to connect or propose declares its format, and that is the project's —
+   * a v2 client founds a format-2 project (so it edits from the start, and 1.x peers look), a 1.x
+   * client, which declares nothing, founds a format-1 one (so a 1.x person's own new project on a
+   * just-upgraded hub is never view only to them before they wrote anything). Brand new is the
+   * adoptNewProjectMode test widened by the switch that test itself makes: no accepted revision yet,
+   * epoch 0 or the one new-project switch (1), no documents and no canvas in the checkout. Anything else
+   * — and every call after the first answer — leaves the format alone; a format already set (an owner
+   * flip, a checkout seed) is final through the store's own raise-only rule. `writer: false` (a viewer
+   * or the hub's own paired studio) never founds.
+   */
+  let foundingOpen = true;
+  async function foundNewProject(declared, { writer = true } = {}) {
+    if (!foundingOpen || !writer) return null;
+    let s;
+    try {
+      s = await store.state();
+    } catch {
+      return null; // an unread store founds nothing; the next writer asks again
+    }
+    if (!foundingOpen) return null;
+    const docs = listDocuments().filter(({ name }) => name !== 'maude.files');
+    const brandNew =
+      (s.revision ?? 0) === 0 && (s.epoch ?? 0) <= 1 && !docs.length && !checkoutHasCanvases();
+    foundingOpen = false;
+    if (!brandNew) return null;
+    const want = declaredFormat(declared);
+    if (want <= asFormat(s.formatVersion)) return { founded: asFormat(s.formatVersion) };
+    const out = await seedFormat(want, { by: 'founder' });
+    log.log?.(`[transactions] a new project — founded at format ${out.formatVersion}`);
+    // The founder is still authenticating, so seedFormat's notice missed it: say it again once its
+    // socket is open, so its copy learns the format it founded (the client's gate reads the notice).
+    if (out.changed) {
+      const t = setTimeout(() => {
+        for (const document of server.hocuspocus?.documents?.values?.() ?? []) {
+          for (const connection of document.getConnections?.() ?? []) {
+            try {
+              connection.sendStateless(
+                JSON.stringify({
+                  type: 'maude.mode',
+                  mode: state.mode,
+                  epoch: state.epoch,
+                  writable: writableAfter(connection, state),
+                  formatVersion: asFormat(state.formatVersion),
+                })
+              );
+            } catch {
+              /* gone */
+            }
+          }
+        }
+      }, 300);
+      t.unref?.();
+    }
+    return { founded: out.formatVersion };
+  }
+
+  /**
    * `POST /api/project-format` (V2-1.12 §5.5). Owner, operator or cell secret
    * only — the same `admin` predicate as the save-mode switch. Returns true
    * when handled. `auth(request)` → `{ actor, readOnly, admin }` or null.
@@ -944,14 +1087,75 @@ export function createAcceptedRevisions({
     return Buffer.concat(chunks).toString('utf8');
   }
 
+  /** doc → its manifest row (current path), for the canvas-only filters. */
+  async function rowsOf() {
+    const manifest = await kernel.bootstrap();
+    const byDoc = new Map(manifest.docs.map((r) => [r.doc, r]));
+    return (doc) => byDoc.get(doc) ?? null;
+  }
+
+  /** The design-system names the given docs' meta lanes declare. */
+  async function designSystemsOf(rows) {
+    const names = new Set();
+    for (const row of rows) {
+      const hash = row.lanes?.meta?.hash;
+      if (!hash) continue;
+      try {
+        const meta = JSON.parse((await kernel.blob(hash)) ?? 'null');
+        if (typeof meta?.designSystem === 'string') names.add(meta.designSystem);
+      } catch {
+        /* an unparseable meta names no design system */
+      }
+    }
+    return names;
+  }
+
+  /**
+   * Every lane hash a visible doc ever held (heads + every effect's before /
+   * after), cached per (revision, grants). L4 blobs: a hash no visible doc ever
+   * held is not this session's to fetch.
+   */
+  const hashCache = new Map();
+  async function visibleHashes(access) {
+    const s = await kernel.state();
+    const key = `${s.epoch}:${s.revision}:${JSON.stringify(access.grants)}`;
+    const hit = hashCache.get(key);
+    if (hit) return hit;
+    const rowOf = await rowsOf();
+    const out = new Set();
+    for (const row of (await kernel.bootstrap()).docs) {
+      if (!seesDocRow(access, row)) continue;
+      for (const l of Object.values(row.lanes ?? {})) if (l?.hash) out.add(l.hash);
+    }
+    let after = 0;
+    for (;;) {
+      const page = await kernel.revisions({ after, limit: 1000 });
+      if (page.length === 0) break;
+      for (const a of page) {
+        for (const e of a.effects ?? []) {
+          if (!seesDocRow(access, rowOf(e.doc))) continue;
+          if (e.beforeHash) out.add(e.beforeHash);
+          if (e.afterHash) out.add(e.afterHash);
+        }
+      }
+      after = page[page.length - 1].revision;
+      if (page.length < 1000) break;
+    }
+    if (hashCache.size > 16) hashCache.clear();
+    hashCache.set(key, out);
+    return out;
+  }
+
   /**
    * `/api/projects/:project/v1/<route>[/<id>]`. Returns true when handled.
    * `auth(request)` → `{ actor, readOnly, scope, admin }` or null.
    */
   async function handleRoutes({ path, method, query, request, auth, respondJson }) {
-    const m = ROUTE.exec(path);
-    if (!m) return false;
-    const [, project, route, id] = m;
+    // `runs/:id/claim` is three segments deep — matched before the general shape.
+    const rm = RUNS_ROUTE.exec(path);
+    const m = rm ? null : ROUTE.exec(path);
+    if (!m && !rm) return false;
+    const [, project, route, id] = m ?? [null, rm[1], 'runs', rm[2]];
     const who = auth(request);
     if (!who) {
       respondJson(401, { error: 'sign in to this project first', code: 'unauthenticated' });
@@ -961,17 +1165,49 @@ export function createAcceptedRevisions({
       respondJson(404, { error: 'no such project', code: 'unknown-project' });
       return true;
     }
+    // V2-1.16 L4 (S9.5): a canvas-only session sees only its granted canvases'
+    // documents here. `who.access` is absent for every non-peer credential
+    // (operator, cell secret, cloud owner, dev) — those are project-level.
+    const canvasOnly = who.access?.canvasOnly === true ? who.access : null;
+    // The claim decides for a canvas-only session (the stored read_only bit
+    // is the fail-closed projection for doors that do not read it).
+    const readOnly = canvasOnly
+      ? !canvasOnly.grants.some((g) => canvasOnly.can('edit', g.c))
+      : who.readOnly;
+    const admin = who.admin && !canvasOnly;
+    const notInScope = () => respondJson(403, { ...NOT_IN_SCOPE_REFUSAL });
     try {
+      if (rm) {
+        return await runs.handle({
+          sub: rm[2],
+          verb: rm[3],
+          method,
+          query,
+          request,
+          who,
+          respondJson,
+          readBody,
+        });
+      }
       if (route === 'bootstrap' && method === 'GET') {
         const manifest = await kernel.bootstrap();
+        const scoped = canvasOnly
+          ? await scopeBootstrap(canvasOnly, manifest, {
+              projectConfig: projectConfig() ?? null,
+              designSystemsOf: (rows) => designSystemsOf(rows),
+            })
+          : null;
         respondJson(200, {
           protocol: 1,
           projectId,
           // The project's declared canvas groups (workspace checkouts), so a
           // brand-new managed copy can be declared before its first pull.
-          canvasGroups: (typeof canvasGroups === 'function' ? canvasGroups() : null) ?? null,
-          projectConfig: projectConfig() ?? null,
+          canvasGroups: scoped
+            ? scoped.canvasGroups
+            : ((typeof canvasGroups === 'function' ? canvasGroups() : null) ?? null),
+          projectConfig: scoped ? scoped.projectConfig : (projectConfig() ?? null),
           ...manifest,
+          ...(scoped ? { docs: scoped.docs, dirs: scoped.dirs } : {}),
           // V2-1.12 §5.5 — the project's file format (the manifest's state
           // carries it too; named so a client need not know that).
           formatVersion: asFormat(manifest.formatVersion ?? projectFormat()),
@@ -990,10 +1226,19 @@ export function createAcceptedRevisions({
               'history.undo',
               'history.redo',
               'history.restore',
+              // S1.6 (S1-trash.md §3) — a v2 studio spots an older hub by their absence.
+              'history.name',
+              'history.aside',
+              'trash.restore',
+              'trash.clear',
             ],
+            // S5.1a — `history.undo { actionIds }` takes this many targets.
+            undoTargets: MAX_UNDO_TARGETS,
+            // V2-1.15 §5.3 — the runs routes, the `fence` envelope, `{t:'runs'}`.
+            runs: RUNS_CAPABILITY,
           },
           limits: { proposalBytes: MAX_BODY_BYTES - 1024 * 1024 },
-          you: { actor: who.actor, readOnly: !!who.readOnly },
+          you: { actor: who.actor, readOnly: !!readOnly },
         });
         return true;
       }
@@ -1002,7 +1247,7 @@ export function createAcceptedRevisions({
         // 2): a switch or a resume holds proposals, and each waiting request
         // would otherwise pin a body of up to 17 MB in memory — a viewer could
         // run the hub out of memory while it waited.
-        if (who.readOnly) {
+        if (readOnly) {
           respondJson(403, {
             protocol: 1,
             status: 'rejected',
@@ -1028,6 +1273,10 @@ export function createAcceptedRevisions({
         // credential on a 403. Decided after the switch the proposal waited on,
         // and against a reading of the store, never the boot default.
         if (!isReady()) await refreshOnce();
+        // A brand-new project takes the format of the writer that founds it.
+        await foundNewProject(declaredFormatFromRequest(request), {
+          writer: who.actor !== 'cell-loopback-sync',
+        });
         if (declaredFormatFromRequest(request) !== projectFormat()) {
           respondJson(426, {
             protocol: 1,
@@ -1043,7 +1292,11 @@ export function createAcceptedRevisions({
         const t0 = performance.now();
         const { status, body } = await kernel.submit(bytes, {
           actor: who.actor,
-          readOnly: who.readOnly,
+          readOnly,
+          // S1.6/S1.7 — the per-op role gate: `delete` (trash.clear) is the
+          // project owner's, never a canvas-only session's (S1-trash.md §5).
+          can: (cap) => cap !== 'delete' || (!!who.owner && !canvasOnly),
+          ...(canvasOnly ? { inScope: proposalScope(canvasOnly) } : {}),
         });
         metrics.record(body, performance.now() - t0);
         respondJson(status, body);
@@ -1062,7 +1315,12 @@ export function createAcceptedRevisions({
           limit: Number.isFinite(limit) ? limit : 200,
         });
         const s = await kernel.state();
-        respondJson(200, { revision: s.revision, epoch: s.epoch, mode: s.mode, revisions });
+        respondJson(200, {
+          revision: s.revision,
+          epoch: s.epoch,
+          mode: s.mode,
+          revisions: canvasOnly ? scopeActions(canvasOnly, revisions, await rowsOf()) : revisions,
+        });
         return true;
       }
       if (route === 'history' && method === 'GET') {
@@ -1072,8 +1330,22 @@ export function createAcceptedRevisions({
           before: Number.isFinite(before) ? before : null,
           limit: Number.isFinite(limit) ? limit : 50,
           entry: typeof query.entry === 'string' ? query.entry.slice(0, 128) : null,
+          // S5.1a — "this person's actions of chat X" (indexed columns).
+          chat: typeof query.chat === 'string' ? query.chat.slice(0, 64) : null,
+          run: typeof query.run === 'string' ? query.run.slice(0, 64) : null,
+          actor: typeof query.actor === 'string' ? query.actor.slice(0, 64) : null,
+          kind: typeof query.kind === 'string' ? query.kind.slice(0, 64) : null,
         });
-        respondJson(200, { history });
+        respondJson(200, {
+          history: canvasOnly ? scopeActions(canvasOnly, history, await rowsOf()) : history,
+        });
+        return true;
+      }
+      if (route === 'trash' && method === 'GET') {
+        // S1.7 — the shared Trash's records (S1-trash.md §1) + where each
+        // artboard item's canvas lives now. L18: a canvas-only session gets
+        // only the items whose canvas it was granted (path, never slug).
+        respondJson(200, await trashListing(canvasOnly));
         return true;
       }
       if (route === 'lane' && method === 'GET') {
@@ -1085,12 +1357,23 @@ export function createAcceptedRevisions({
           respondJson(400, { code: 'invalid' });
           return true;
         }
+        // An invisible doc answers exactly as an unknown one (U1).
+        if (canvasOnly && !seesDocRow(canvasOnly, (await rowsOf())(doc))) {
+          notInScope();
+          return true;
+        }
         const hash = await kernel.laneAt(doc, lane, rev);
         const body = hash ? await kernel.blob(hash) : '';
         respondJson(200, { doc, lane, revision: rev, hash, body: body ?? '' });
         return true;
       }
       if (route === 'blobs' && method === 'GET' && id) {
+        // Served to a canvas-only session only when a visible doc's lane ever
+        // held it; anything else — B's hash, a random one — is one answer (U1).
+        if (canvasOnly && !(await visibleHashes(canvasOnly)).has(id)) {
+          notInScope();
+          return true;
+        }
         const body = /^[0-9a-f]{64}$/.test(id) ? await kernel.blob(id) : null;
         respondJson(
           body === null ? 404 : 200,
@@ -1103,7 +1386,7 @@ export function createAcceptedRevisions({
         return true;
       }
       if (route === 'parity' && method === 'GET') {
-        if (!who.admin) {
+        if (!admin) {
           respondJson(403, {
             error: 'only the project owner can run a parity check',
             code: 'forbidden',
@@ -1114,7 +1397,7 @@ export function createAcceptedRevisions({
         return true;
       }
       if (route === 'mode' && method === 'POST') {
-        if (!who.admin) {
+        if (!admin) {
           respondJson(403, {
             error: 'only the project owner can switch the save mode',
             code: 'forbidden',
@@ -1159,11 +1442,64 @@ export function createAcceptedRevisions({
     }
   }
 
+  /** S1.7 — `GET v1/trash`: the store's records, the live paths, L18-filtered. */
+  async function trashListing(canvasOnly = null) {
+    const { canvases, artboards } = await kernel.trash();
+    const { docs = [] } = await kernel.bootstrap();
+    const live = {};
+    for (const d of docs)
+      if (!d.retired && d.entry && d.path) live[d.entry] = { doc: d.doc, path: d.path };
+    const trashedPath = new Map(canvases.map((c) => [c.entry, c.path]));
+    const pathOf = (a) => live[a.entry]?.path ?? trashedPath.get(a.entry) ?? null;
+    const sees = (p) => !canvasOnly || (!!p && canvasOnly.seesCanvas(p));
+    const keptArtboards = artboards.filter((a) => sees(pathOf(a)));
+    const named = {};
+    for (const a of keptArtboards) if (live[a.entry]) named[a.entry] = live[a.entry];
+    return {
+      canvases: canvases.filter((c) => sees(c.path)),
+      artboards: keptArtboards,
+      live: named,
+    };
+  }
+
+  /**
+   * S1.7 — the hub door `POST /api/trash/clear` (V2-1.7 §5.6): the kernel op
+   * `trash.clear` for the project owner. The door's row refuses every
+   * canvas-only session; the kernel re-checks the role per op.
+   */
+  let doorTx = 0;
+  async function clearTrash({ who, items }) {
+    if (!isReady()) await refreshOnce();
+    const s = await kernel.state();
+    const bytes = JSON.stringify({
+      protocol: 1,
+      projectId,
+      epoch: s.epoch,
+      transactionId: `hub_trash_${Date.now().toString(36)}_${(++doorTx).toString(36)}`,
+      origin: { client: 'hub-trash-door' },
+      action: {
+        kind: 'trash.clear',
+        label: 'Cleared out the trash',
+        operations: [{ op: 'trash.clear', ...(items ? { items } : {}) }],
+      },
+    });
+    const canvasOnly = who.access?.canvasOnly === true;
+    return kernel.submit(bytes, {
+      actor: who.actor,
+      readOnly: !!who.readOnly || canvasOnly,
+      can: (cap) => cap !== 'delete' || (!!who.owner && !canvasOnly),
+    });
+  }
+
   return {
     kernel,
+    trashListing,
+    clearTrash,
     refreshOnce,
     setFormat,
     seedFormat,
+    raiseFormatToCheckout,
+    foundNewProject,
     handleFormatRoute,
     projectFormat,
     isReady,

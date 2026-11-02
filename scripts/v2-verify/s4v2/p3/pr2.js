@@ -1,0 +1,12 @@
+await openSite('ui/Site.tsx');
+await sleep(1500);
+await page.click('[data-testid="palette-mode-preview"]');
+await sleep(1200);
+const out = {};
+await page.keyboard.press('Shift+Meta+e');
+await sleep(2000);
+await shot('pr2-export');
+out.tids = await tids(/^export-/);
+out.ann = await page.evaluate(() => { const e = document.querySelector('[data-testid="export-include-annotations"]'); return e ? { text: e.innerText, html: e.outerHTML.slice(0, 400) } : null; });
+out.dlg = await page.evaluate(() => (document.querySelector('[role="dialog"]')?.innerText || '').slice(0, 700));
+return out;

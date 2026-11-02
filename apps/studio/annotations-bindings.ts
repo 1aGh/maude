@@ -11,6 +11,14 @@
  *             endpoint frozen in place (Excalidraw `fixBindingsAfterDeletion`).
  */
 
+import {
+  applyHostEnd,
+  boxCenter,
+  type HostBox,
+  type HostResolver,
+  hostsOf,
+  resolveHost,
+} from './annotations/hosts.ts';
 import { defOf } from './annotations/registry.ts';
 import {
   type ArrowBind,
@@ -83,6 +91,8 @@ export function isBindable(s: Stroke): boolean {
   }
   return false;
 }
+
+export type { HostResolver } from './annotations/hosts.ts';
 
 /** Bind proximity threshold in world px at zoom 1 (Excalidraw's 15 px). */
 export const BIND_THRESHOLD_PX = 15;
@@ -177,26 +187,48 @@ export function anchorPoint(host: Stroke, nx: number, ny: number): [number, numb
  * FACING the arrow's other end on every recompute, so a connector keeps a
  * sensible direction as the shapes move around each other. A `pinned` bind
  * (explicit user re-anchor) keeps its magnet.
+ *
+ * **Canvas hosts (S4.2).** With a `resolver`, an end that carries a
+ * `startHost` / `endHost` (`ab:` artboard, `el:` canvas element) is derived
+ * from the resolver's live box the same way (`hosts.ts` `hostEndpoint`: an
+ * artboard end slides along the facing edge). Unlike a stroke bind, an
+ * unresolvable canvas host is NEVER stripped: the bind stays, the end keeps its
+ * cached point (dangling is derived — `danglingEnds`), and a host that comes
+ * back re-attaches. Without a resolver canvas hosts are inert. A canvas host on
+ * an end wins over a stroke bind on the same end.
  */
-export function recomputeBoundArrows(strokes: readonly Stroke[]): Stroke[] {
+export function recomputeBoundArrows(
+  strokes: readonly Stroke[],
+  resolver?: HostResolver
+): Stroke[] {
   const byId = new Map<string, Stroke>();
   for (const s of strokes) byId.set(s.id, s);
   let mutated = false;
   const out = strokes.map((s) => {
-    if (s.tool !== 'arrow' || (!s.startBind && !s.endBind)) return s;
+    if (s.tool !== 'arrow') return s;
+    const hosts = resolver ? hostsOf(s) : {};
+    const startCanvas = hosts.startHost;
+    const endCanvas = hosts.endHost;
+    const startStroke = startCanvas ? undefined : s.startBind;
+    const endStroke = endCanvas ? undefined : s.endBind;
+    if (!startStroke && !endStroke && !startCanvas && !endCanvas) return s;
     let next: ArrowStroke = s;
+    // Live boxes of the canvas hosts (null = dangling).
+    const startBox = startCanvas && resolver ? resolveHost(resolver, startCanvas.ref) : null;
+    const endBox = endCanvas && resolver ? resolveHost(resolver, endCanvas.ref) : null;
     // Opposite-end reference points for the facing computation. When both
     // ends are bound, face the OTHER HOST's center (stable under endpoint
     // churn); a free end is its literal coordinate.
-    const startHost = s.startBind ? byId.get(s.startBind.hostId) : undefined;
-    const endHost = s.endBind ? byId.get(s.endBind.hostId) : undefined;
+    const startHost = startStroke ? byId.get(startStroke.hostId) : undefined;
+    const endHost = endStroke ? byId.get(endStroke.hostId) : undefined;
     const centerOf = (host: Stroke | undefined): [number, number] | null => {
       if (!host) return null;
       const bb = strokeBBox(host);
       return bb ? [bb.x + bb.w / 2, bb.y + bb.h / 2] : null;
     };
-    const startRef: [number, number] = centerOf(endHost) ?? [s.x2, s.y2];
-    const endRef: [number, number] = centerOf(startHost) ?? [s.x1, s.y1];
+    const centerOfBox = (b: HostBox | null): [number, number] | null => (b ? boxCenter(b) : null);
+    const startRef: [number, number] = centerOf(endHost) ?? centerOfBox(endBox) ?? [s.x2, s.y2];
+    const endRef: [number, number] = centerOf(startHost) ?? centerOfBox(startBox) ?? [s.x1, s.y1];
     const applyEnd = (
       bind: ArrowBind | undefined,
       end: 'start' | 'end',
@@ -247,8 +279,22 @@ export function recomputeBoundArrows(strokes: readonly Stroke[]): Stroke[] {
         mutated = true;
       }
     };
-    applyEnd(s.startBind, 'start', startRef);
-    applyEnd(next.endBind, 'end', endRef);
+    applyEnd(startStroke, 'start', startRef);
+    applyEnd(endStroke && next.endBind, 'end', endRef);
+    if (startCanvas) {
+      const after = applyHostEnd(next, 'start', startCanvas, startBox, startRef);
+      if (after !== next) {
+        next = after;
+        mutated = true;
+      }
+    }
+    if (endCanvas) {
+      const after = applyHostEnd(next, 'end', endCanvas, endBox, endRef);
+      if (after !== next) {
+        next = after;
+        mutated = true;
+      }
+    }
     return next;
   });
   return mutated ? out : (strokes as Stroke[]);

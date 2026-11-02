@@ -1,0 +1,121 @@
+{
+  "task": "d3",
+  "group": "ds",
+  "fixture": "multids",
+  "topology": "A",
+  "delegates": null,
+  "run": {
+    "code": 0,
+    "killed": false,
+    "wallMs": 103388
+  },
+  "metrics": {
+    "subtype": "success",
+    "isError": false,
+    "costUsd": 0.7569156000000001,
+    "durationMs": 101828,
+    "apiMs": 97653,
+    "turns": 30,
+    "tokens": 840931,
+    "inTok": 38,
+    "outTok": 8908,
+    "cacheRead": 779138,
+    "cacheWrite": 52847,
+    "freshTokens": 61793,
+    "models": [
+      "claude-opus-5-5"
+    ],
+    "permissionDenials": [
+      {
+        "tool": "Bash",
+        "input": "{\"command\":\"cd \\\"$PWD\\\"; ls .design .design/system; maude design ds status 2>&1 | head -50; maude design ds usage 2>&1 | head -60\",\"description\":\"List design systems and their usage\"}"
+      },
+      {
+        "tool": "Bash",
+        "input": "{\"command\":\"sed -n '70,400p' /Users/iagh/.claude-instances/personal/claude-config/projects/-private-var-folders-t--kf80xz3j79sfmkrq4snj2qk00000gn-T-maude-agent-evals-v2-8-16-trials-d3-A-2-project/386e"
+      },
+      {
+        "tool": "Bash",
+        "input": "{\"command\":\"S=/private/tmp/claude-501/-private-var-folders-t--kf80xz3j79sfmkrq4snj2qk00000gn-T-maude-agent-evals-v2-8-16-trials-d3-A-2-project/386e65aa-dff8-470f-a52b-f4af06d221ae/scratchpad; cat $S/u"
+      }
+    ],
+    "subagents": 0,
+    "subagentTypes": [],
+    "mainToolUses": 29,
+    "subToolUses": 0
+  },
+  "agents": [],
+  "invariants": {
+    "check": {
+      "pass": true,
+      "why": ""
+    },
+    "scope": {
+      "pass": true,
+      "why": ""
+    },
+    "ids-kept": {
+      "pass": true,
+      "why": ""
+    },
+    "locked-kept": {
+      "pass": true,
+      "why": ""
+    },
+    "no-bash-writes": {
+      "pass": true,
+      "why": ""
+    },
+    "owns": {
+      "pass": true,
+      "why": ""
+    }
+  },
+  "quality": {
+    "finished": {
+      "pass": true,
+      "why": "success"
+    },
+    "judge": {
+      "pass": true,
+      "why": "pass (5): It lists the four ui/panels canvases as maude and 00 Index as maude-v2. It names the hard-coded system/maude CSS imports, the maude-only classes (btn--danger, btn--icon, callout variants), and the dark vs light default. Nothing was changed apart from an auto-generated cache file.",
+      "unknown": false
+    }
+  },
+  "invPass": true,
+  "qualPass": true,
+  "judge": {
+    "verdict": "pass",
+    "score": 5,
+    "why": "It lists the four ui/panels canvases as maude and 00 Index as maude-v2. It names the hard-coded system/maude CSS imports, the maude-only classes (btn--danger, btn--icon, callout variants), and the dark vs light default. Nothing was changed apart from an auto-generated cache file.",
+    "costUsd": 0.0229515,
+    "model": "sonnet"
+  },
+  "render": {
+    "ran": false,
+    "error": null,
+    "shots": []
+  },
+  "changed": [
+    "?? .design/_cache/index/ds-usage.json"
+  ],
+  "runState": [
+    {
+      "session": "386e65aa-dff8-470f-a52b-f4af06d221ae",
+      "touched": {},
+      "stopBlocks": 0,
+      "shots": 0,
+      "bases": 0
+    }
+  ],
+  "hooks": {
+    "events": 0,
+    "denies": [],
+    "blocks": [],
+    "errors": [],
+    "ms": {},
+    "checkMs": []
+  },
+  "harnessFailure": false,
+  "finalText": "## Canvases on the `maude` design system\n\nFour canvases use it, all in `ui/panels/`:\n\n- `ui/panels/GitPanel.tsx` (the one you have open)\n- `ui/panels/DiffView.tsx`\n- `ui/panels/GitHubIdentity.tsx`\n- `ui/panels/RepoBranchSwitcher.tsx`\n\n`ui/v2/00 Index.tsx` already uses `maude-v2`. A dry run of the switch says all four can be switched, with nothing blocking it. That only covers the settings, though. These are the things that would break or look different:\n\n### Would break or change without warning\n\n1. **The panels would turn light.** Each canvas wraps its artboards in `className=\"maude\" data-theme=\"dark\"` (for example `ui/panels/GitPanel.tsx:399`, plus six places in `RepoBranchSwitcher.tsx`). `maude-v2` only sets its themes on `.maude-v2[data-theme]` and `.ds[data-theme]`, and its default theme is light. So the `maude` wrapper would match nothing and every panel would fall back to light. The wrappers need to change to `maude-v2` or `ds`. Separately, you need to decide whether these panels stay dark.\n2. **The imports point to the old system's files by path.** Each `.tsx` loads `../../system/maude/colors_and_type.css` and `../../system/maude/preview/_components.css`. Changing the design-system setting alone leaves them loading the old styles.\n3. **Some shared components are missing from `maude-v2`:**\n   - `btn--danger` (the Sign out button in GitHubIdentity)\n   - `btn--icon` (the close buttons in DiffView, an icon button in GitPanel)\n   - `callout--info`, `--warn`, `--error` and `--success`: `maude-v2` has a plain `.callout` and only inside `.ds`. The colours GitPanel, GitHubIdentity and DiffView use for their notices would disappear.\n\n### Will look different, but nothing breaks\n\nEvery token the panels use, about 60 of them, exists in both systems, so nothing will be missing a value. The values themselves do change:\n\n| | `maude` | `maude-v2` |\n|---|---|---|\n| Accent | violet (hue 268) | azure (hue 238) |\n| Fonts | Inter / Inter Tight / JetBrains Mono | system-ui / SF Mono |\n| Line heights | fixed px (20px at 14px) | ratios (1.45) |\n| Corner radius md / lg | 7 / 10px | 10 / 14px |\n| Text sizes md–3xl | 16–34px | 17–35px, about 1px larger |\n\nEach canvas also has its own CSS file whose header says it uses `maude` tokens, so those comments would need updating. The brand mark in GitPanel, GitHubIdentity and DiffView is copied from the `maude` logo. It's worth comparing with `maude-v2`'s logo, since v2 uses a spark (vermilion) for the AI.\n\n### Worth knowing\n\n- **Someone locked one element:** the \"Changes\" tab in GitPanel (`ui/panels/GitPanel.tsx:258`). The switch doesn't need to touch it, but leave it alone.\n- **Status:** neither system has a published revision yet, and both are marked as needing their files regenerated (`manifest-stale`). It would make sense to publish `maude-v2` before moving canvases onto it.\n- No other AI is editing these canvases right now.\n\nI didn't change anything. Two of my shell commands were blocked because they needed approval, "
+}

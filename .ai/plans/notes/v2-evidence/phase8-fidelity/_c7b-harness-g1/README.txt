@@ -1,0 +1,3 @@
+Round 7b (p8-c7-cf08b), G1 (01 only): s01b.mjs / s01c.mjs on top of _c7-harness-g1/ (which sits on _d-harness-g1-d4/). Setup as in _c7-harness-g1/README.txt; the 01 chain = chain01.mjs, then s01c re-run alone.
+s01b: cf-add-artboard is shot AFTER the pick (F, then the Laptop tile: the new artboard drawn and selected, the picker gone); the picker frame stays as cf-add-artboard.picker; leftover toasts are closed first.
+s01c: prepare() writes _canvas-state/_recent.json so the project opens its last canvas (Wide) with a Recent block; the stray What's new toast is closed; cf-open-big focuses the canvas (click) before ⌘0 so the key is the canvas's own and the readout says "Zoom to fit · N%"; the trailing render-error open is gone (s01d shoots cf-render-error).

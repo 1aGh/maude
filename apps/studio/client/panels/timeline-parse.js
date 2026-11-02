@@ -9,6 +9,8 @@
 // an unparseable comp yields `{ sequences: [] }` and the panel shows a scrub-
 // only track. It is NOT a general TSX parser.
 
+import { describeKeyframes, interpolateCalls } from '../../video/keyframes.ts';
+
 /**
  * Collect top-level numeric consts so `durationInFrames={A}` resolves. Two
  * passes: literal ints first, then expression consts built from them
@@ -36,7 +38,9 @@ function resolveNum(raw, consts) {
   const t = String(raw).trim();
   if (/^-?\d+$/.test(t)) return Number(t);
   if (Object.hasOwn(consts, t)) return consts[t];
-  const expr = t.replace(/[A-Za-z_$][\w$]*/g, (id) => (Object.hasOwn(consts, id) ? String(consts[id]) : id));
+  const expr = t.replace(/[A-Za-z_$][\w$]*/g, (id) =>
+    Object.hasOwn(consts, id) ? String(consts[id]) : id
+  );
   if (/^[-+*/()\d\s.]+$/.test(expr) && /\d/.test(expr)) {
     try {
       // eslint-disable-next-line no-new-func
@@ -49,23 +53,33 @@ function resolveNum(raw, consts) {
   return null;
 }
 
-/** Animation (interpolate-of-frame) windows inside a named component's body. */
+/**
+ * Animation (interpolate-of-frame) windows inside a named component's body: `kf` is what the marker overview
+ * draws, `info` (S7.18) is parallel to it and says what each window moves and what curve it has — the Advanced
+ * panel's rows. Both come from the same calls (video/keyframes.ts), so the k-th marker is the k-th window.
+ */
 function keyframesForComponent(source, compName, consts, seqFrom) {
-  if (!compName) return [];
-  const def = source.search(new RegExp(`\\b(?:const|function)\\s+${compName}\\b`));
-  if (def < 0) return [];
-  // Heuristic body window — components in a comp are small; the next top-level
-  // `const X =`/`function X` bounds it well enough for the marker overview.
-  const rest = source.slice(def + compName.length);
-  const nextDef = rest.search(/\n(?:const|function)\s+[A-Z]/);
-  const body = rest.slice(0, nextDef > 0 ? nextDef : 2400);
+  if (!compName) return { kf: [], info: [] };
+  const calls = interpolateCalls(source, compName);
+  if (calls.length === 0) return { kf: [], info: [] };
+  const details = describeKeyframes(source, compName);
   const kf = [];
-  for (const m of body.matchAll(/interpolate\(\s*frame\s*,\s*\[\s*([^,\]]+?)\s*,\s*([^,\]]+?)\s*[,\]]/g)) {
-    const a = resolveNum(m[1], consts);
-    const b = resolveNum(m[2], consts);
-    if (a != null && b != null && b >= a) kf.push({ from: seqFrom + a, to: seqFrom + b });
+  const info = [];
+  for (const call of calls) {
+    const a = resolveNum(call.from, consts);
+    const b = resolveNum(call.to, consts);
+    if (a != null && b != null && b >= a) {
+      kf.push({ from: seqFrom + a, to: seqFrom + b });
+      info.push(details.find((d) => d.index === call.index));
+    }
   }
-  return kf;
+  return { kf, info };
+}
+
+/** The `keyframes` + `keyframeInfo` fields of one sequence row. */
+function keyframeFields(src, compName, consts, seqFrom) {
+  const { kf, info } = keyframesForComponent(src, compName, consts, seqFrom);
+  return { keyframes: kf, keyframeInfo: info };
 }
 
 /**
@@ -146,7 +160,14 @@ export function parseCompTimeline(source, totalFrames, selectedArtboardId) {
     const openEnd = tagRe.lastIndex;
     if (/Transition$/.test(kind)) {
       const d = attrs.match(/durationInFrames:\s*([^,}\s)]+)/);
-      items.push({ type: 'transition', dur: resolveNum(d?.[1], consts) ?? 0 });
+      // S7.10 — which of the six the join plays (the picker highlights it): fade() · slide() · wipe() · flip() ·
+      // clockWipe(…) · none()
+      const pm = attrs.match(/presentation=\{\s*([A-Za-z]+)\s*\(/);
+      items.push({
+        type: 'transition',
+        dur: resolveNum(d?.[1], consts) ?? 0,
+        presentation: pm ? (pm[1] === 'clockWipe' ? 'clock-wipe' : pm[1]) : null,
+      });
     } else {
       const dm = attrs.match(/durationInFrames=\{([^}]+)\}/);
       const fm = attrs.match(/from=\{([^}]+)\}/);
@@ -162,8 +183,22 @@ export function parseCompTimeline(source, totalFrames, selectedArtboardId) {
       const lm = after.match(/<([A-Z][A-Za-z0-9]*)\b/);
       // Media child sniff (badge + replace affordance): the first
       // <Video|OffthreadVideo|Audio|Img src="…"> DIRECTLY inside the clip body.
-      const mm = after.match(/<(?:Maude)?(Video|OffthreadVideo|Audio|Img)\b[^>]*src=["']([^"']+)["']/);
+      const mm = after.match(
+        /<(?:Maude)?(Video|OffthreadVideo|Audio|Img)\b[^>]*src=["']([^"']+)["']/
+      );
       const nameM = attrs.match(/name=["']([^"']+)["']/);
+      // P8 C3 (07 · ve-text) — a clip with no name of its own whose body is a literal text block (a "+ Title"
+      // overlay) goes by its words, never by the component that wraps them ("AbsoluteFill"). Display only: the
+      // label (the component name keyframes and ops are keyed by) is unchanged.
+      const litM = nameM ? null : after.match(/\{\s*("(?:[^"\\\n]|\\.){1,120}")\s*\}/);
+      let text = null;
+      if (litM) {
+        try {
+          text = String(JSON.parse(litM[1])).trim() || null;
+        } catch {
+          text = null;
+        }
+      }
       items.push({
         type: 'seq',
         // DDR-150 dogfood fix: a `from` on a SERIES clip is a lie — Remotion's
@@ -175,6 +210,7 @@ export function parseCompTimeline(source, totalFrames, selectedArtboardId) {
         dur: resolveNum(dm?.[1], consts),
         from: kind === 'Sequence' && fm ? resolveNum(fm[1], consts) : null,
         compName: nameM ? nameM[1] : lm ? lm[1] : null,
+        text,
         mediaTag: mm ? mm[1] : null,
         mediaSrc: mm ? mm[2] : null,
       });
@@ -191,7 +227,12 @@ export function parseCompTimeline(source, totalFrames, selectedArtboardId) {
   for (const it of items) {
     if (it.type === 'transition') {
       cursor -= it.dur || 0;
-      if (sequences.length > 0) pendingTransition = { afterIndex: sequences.length - 1, dur: it.dur || 0 };
+      if (sequences.length > 0)
+        pendingTransition = {
+          afterIndex: sequences.length - 1,
+          dur: it.dur || 0,
+          presentation: it.presentation ?? null,
+        };
       continue;
     }
     const from = it.from != null ? it.from : cursor;
@@ -202,19 +243,18 @@ export function parseCompTimeline(source, totalFrames, selectedArtboardId) {
     }
     sequences.push({
       label: it.compName ?? `Seq ${sequences.length + 1}`,
+      ...(it.text ? { text: it.text } : {}),
       series: !!it.series,
       mediaTag: it.mediaTag,
       mediaSrc: it.mediaSrc,
       from: Math.max(0, from),
       duration: Math.max(1, duration),
-      keyframes: keyframesForComponent(src, it.compName, consts, Math.max(0, from)),
+      ...keyframeFields(src, it.compName, consts, Math.max(0, from)),
     });
     cursor = from + duration;
   }
 
-  const derived = sequences.length
-    ? Math.max(...sequences.map((s) => s.from + s.duration))
-    : 30;
+  const derived = sequences.length ? Math.max(...sequences.map((s) => s.from + s.duration)) : 30;
   const total = Number.isFinite(scopedTotal) && scopedTotal > 0 ? scopedTotal : derived;
 
   // Audio/music beds — their OWN rows (a `<Audio>` isn't a Sequence, so it never

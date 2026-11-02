@@ -66,7 +66,7 @@ Emit a `react-native-svg` + Reanimated component (reference `Mascot.fallback.tsx
 - **Gradients** → `<LinearGradient>`/`<RadialGradient>` with **colors passed as props**
   → theme-aware (the one place native beats Lottie's baked colors).
 - **Reduced motion** → `useReducedMotion()` collapses to the rest pose (the RM gate
-  the format can't carry — `_draw-motion-rules.md` M4).
+  the format can't carry — `references/draw/motion-rules.md` M4).
 - **No `feTurbulence`** — if the mark needs procedural texture, pre-bake it to an
   `<Image>` or accept it's web-only.
 

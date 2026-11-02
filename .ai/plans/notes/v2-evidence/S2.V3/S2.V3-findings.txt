@@ -1,0 +1,35 @@
+S2.V3 wave-A verifier pass 3 — package S2, canvas 14 Editing. Base feat/maude-v2 e80f9d3b0 (after S2.23).
+Rig: scripts/v2-verify/s2-rig.mjs (setup/boot/chrome/run), scratch Site.tsx + the maude-v2 design system copied into <scratch>/proj/.design/system/maude-v2
+(+ system/colors_and_type.css copy and a designSystems entry in config.json so the Space tokens reach the inspector), MAUDE_CANVAS_ORIGIN_SPLIT=0, Playwright over CDP, 1600x1000.
+
+VERIFIED
+ed-ab-resize  drag the E handle: bubble "Laptop · 1280 × 1544" + hint "⌘ ignores presets · ⌥ from the centre"; after release the artboard keeps 8 handles and the inspector is full
+              (Preset "Laptop · 1280", W 1280 / H 1544, Height Fits content|Fixed, Other widths without Laptop) — S2.23 G1 holds (ed-ab-resize.v3-mid.png, ed-ab-resize.v3-end.png)
+ed-obj-multi  h1 + p ⇧-clicked (and two sections): "2 objects · Mixed", Position (X · Y, Rotation), Size (Width Mixed · Fixed), Fill Mixed, "Changes go to all 2. Text settings show when only text is selected.", align bar on the canvas
+              (children in a flow layout read X/Y as 0 and disabled — layout owns them; the canvas's X Mixed case is a free-placed set) (ed-obj-multi.v3b.png, ed-obj-multi.v3.png)
+ed-pen        P + clicks: the overlay is full size now, points, rubber band, close ring, hints "Click — a sharp point / Drag — a smooth one / ⇧ 45° steps / ↵ or esc — finish, open"; ↵ writes <svg data-shape="path"> and the inspector reads "Pen · 4 points";
+              double-click the path → point edit (edit-pen-point-0-0…3, segments, edit hints). Not reached: the inspector's "Point" section (Corner ⇄, X · Y) — a click on an anchor deselected (ed-pen.v3-mid.png, ed-pen.v3-end.png, ed-pen.v3-edit2.png)
+ed-edge-paste Figma picture paste: the picture is placed ("From · Figma · Hero / v3" in the Image inspector) and the line "Pasted from Figma as an image of “Hero / v3”." STAYS (the S2.23 G5 fix holds, 4 samples 0.8-6 s).
+              "Make editable" is deliberately not offered until S8.17 (paste-bar.tsx:7, :40) — known default (ed-edge-paste.v3.png)
+
+GAPS (not verified)
+G1 ed-text-style  Type section is right now (Style · Font · Size·weight · Line·letter · Align · Colour · Resizing · Case · Language, titled "Type"; Style chip "Plakat · changed" + dot, "Size differs from Plakat." + Reset;
+                  Detach style -> "No style" + "Keeps its look; stops following Plakat. Nothing else changes." + "Use a style", values inlined in the file). BUT after Reset the file and the canvas update (56 -> 40 px, inline fontSize gone)
+                  and the inspector keeps "Plakat · changed / Size differs from Plakat. / Reset" and the size 48 (2.5 s and later) until the object is re-selected. Detach refreshes, Reset does not.
+                  Suspect: the text inspector's textInfo (editing/type-role.ts probeTextInfo -> dom-selection.ts:590) is re-probed only on a class change, not when only the inline style changes (kinds/text.jsx:199 ask 'text.reset-style'). S
+                  Also: "Update Plakát for every canvas…" is hidden until S10's ds.review-update (kinds/text.jsx:122) — known deferral. Keyboard descent (↵ into a section) selects the h1 as "Frame" (the selection lacks `text`; kind:'text' is set but resolveKind reads el.text, kinds/index.js:165) — a nit on ed-edge-keys, S.
+G2 ed-shape       R + drag writes <div data-cd-id="rectangle" data-shape="rectangle" position:absolute …> and the inspector now says "div · Shape / Kind Rectangle / Constraints / W·H / Corners", but the canvas draws NO selection on the new rectangle
+                  (no outline, no "Rectangle · 460 × 103" tag, no handles, no corner dots; only edit-rotate-handle exists, 0×0) at 0.4 / 1 / 2 / 4 s; the title is the tag "div", not a name. Clicking it selects the artboard root.
+                  Canvas: tag "Podklad · 216 × 216", 8 handles, 4 corner dots. Suspect: the S2.23 post-reload restore (client selection store) sets the inspector selection but not the canvas-side overlay selection (editing/selection.tsx). S–M
+G3 ed-edge-undo   ⌘Z works now (the rectangle goes) and Menu › Edit › Undo history lists the step, newest first, ⌘Z on the top row, "Version history ⌥⌘H" foot. Words differ: the row says "Edit canvas · You · now" where the canvas says what the step did
+                  ("Headline text", "Moved See pricing 10 px"); no "Opened from Menu › Edit › Undo history" line; "Tereza's changes are hers to undo." foot absent (alone here); "Would undo · N changes" tag on hover not exercised.
+                  routes/edit.ts:283 (p.action ?? {label:'Edit canvas'}) — the edit-op route never passes a per-op label. S
+G4 ed-lay-auto    With the Space tokens in the project: bands (gap 24 ×2, padding 48/64), chips "24"/"24"/"48", the Space ruler "16 24 32 48 64" during a gap drag, the hint "⌘ any number · ⌥ every gap at once" and the Layout inspector
+                  (Direction, Gap, Spacing Packed/Space between, Padding chips "Space 48 / Space 64", Align, Advanced › Convert children to absolute position) are all there. But a gap authored as var(--space-5) reads as the plain number 24 with "Bind"
+                  (padding authored the same way reads "Space 48"), and the snap-drag writes gap: "32px" (not var(--space-6)). The Gap menu on that row lists only "Auto — space between / A number, no token… / None" while it is a number.
+                  Suspect: sections/layout.jsx:55-60 (gap read falls to el.computed.gap when read.gap is empty) / edit-ops/words-css.ts:323-325 (lengthFromCss(gapParts[0], tokens) for `gap: var(--space-5)`) and lengthToCss for the dragged gap. S–M
+
+UNREACHABLE
+U1 ed-edge-ai     needs a live AI run (S5 mock agent + native chat) — not booted in this pass.
+U2 ed-edge-ask    ⌘/ on a selection opens the native chat; the browser lane has no chat panel.
+U3 ed-edge-tereza a second collaborator (hub session) — lead default U.

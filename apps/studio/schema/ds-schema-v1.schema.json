@@ -1,0 +1,663 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/1aGh/maude/main/apps/studio/schema/ds-schema-v1.schema.json",
+  "title": "Maude design-system schema registry, v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "schemaVersion",
+    "valueTypes",
+    "themeRule",
+    "roles",
+    "subRoleSuffixes",
+    "slots",
+    "own",
+    "aliases",
+    "collisions",
+    "components",
+    "states",
+    "icons",
+    "typeRoles",
+    "selectors",
+    "canvasRules",
+    "levels"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "format": {
+      "const": "maude.ds-schema"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "valueTypes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "color",
+        "length",
+        "length-or-none",
+        "duration",
+        "easing",
+        "number",
+        "line-height",
+        "font-family",
+        "shadow"
+      ],
+      "properties": {
+        "color": {
+          "$ref": "#/$defs/valueType"
+        },
+        "length": {
+          "$ref": "#/$defs/valueType"
+        },
+        "length-or-none": {
+          "$ref": "#/$defs/valueType"
+        },
+        "duration": {
+          "$ref": "#/$defs/valueType"
+        },
+        "easing": {
+          "$ref": "#/$defs/valueType"
+        },
+        "number": {
+          "$ref": "#/$defs/valueType"
+        },
+        "line-height": {
+          "$ref": "#/$defs/valueType"
+        },
+        "font-family": {
+          "$ref": "#/$defs/valueType"
+        },
+        "shadow": {
+          "$ref": "#/$defs/valueType"
+        }
+      }
+    },
+    "themeRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "colorRolesPerTheme",
+        "rootCountsForDefaultTheme",
+        "lightDarkCountsForBoth",
+        "countedRules"
+      ],
+      "properties": {
+        "colorRolesPerTheme": {
+          "const": true
+        },
+        "rootCountsForDefaultTheme": {
+          "const": true
+        },
+        "lightDarkCountsForBoth": {
+          "const": true
+        },
+        "countedRules": {
+          "const": ["top-level", "layer"]
+        }
+      }
+    },
+    "roles": {
+      "type": "array",
+      "minItems": 95,
+      "maxItems": 95,
+      "items": {
+        "$ref": "#/$defs/role"
+      }
+    },
+    "subRoleSuffixes": {
+      "const": ["hover", "active", "fg", "soft", "on-soft", "text", "glow"]
+    },
+    "slots": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/slot"
+      }
+    },
+    "own": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["token", "class", "component", "localPalette"],
+      "properties": {
+        "token": {
+          "$ref": "#/$defs/regex"
+        },
+        "class": {
+          "$ref": "#/$defs/regex"
+        },
+        "component": {
+          "$ref": "#/$defs/regex"
+        },
+        "localPalette": {
+          "$ref": "#/$defs/regex"
+        }
+      }
+    },
+    "aliases": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/alias"
+      }
+    },
+    "collisions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/collision"
+      }
+    },
+    "components": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["core", "brand", "extended"],
+      "properties": {
+        "core": {
+          "type": "array",
+          "minItems": 14,
+          "maxItems": 14,
+          "items": {
+            "$ref": "#/$defs/component"
+          }
+        },
+        "brand": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "$ref": "#/$defs/brandPiece"
+          }
+        },
+        "extended": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/component"
+          }
+        },
+        "packs": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "states": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "icons": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["vocabulary"],
+      "properties": {
+        "vocabulary": {
+          "type": "array",
+          "minItems": 40,
+          "maxItems": 40,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z]+(-[a-z]+)*$"
+          }
+        }
+      }
+    },
+    "typeRoles": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/typeRole"
+      }
+    },
+    "selectors": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scopeClass", "themeAttribute"],
+      "properties": {
+        "scopeClass": {
+          "const": "ds"
+        },
+        "themeAttribute": {
+          "const": "data-theme"
+        }
+      }
+    },
+    "canvasRules": {
+      "type": "array",
+      "minItems": 9,
+      "maxItems": 9,
+      "items": {
+        "$ref": "#/$defs/canvasRule"
+      }
+    },
+    "levels": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["system", "canvas", "exit"],
+      "properties": {
+        "system": {
+          "const": ["conformant", "missing-roles", "private-only"]
+        },
+        "canvas": {
+          "const": ["switchable", "review", "blocked", "pinned"]
+        },
+        "exit": {
+          "const": {
+            "conformant": 0,
+            "missing-roles": 10,
+            "private-only": 11,
+            "canvas-blocked": 12,
+            "write-refused": 13,
+            "error": 1,
+            "usage": 2
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "cssVar": {
+      "type": "string",
+      "pattern": "^--[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+    },
+    "regex": {
+      "type": "string",
+      "minLength": 2
+    },
+    "valueType": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["forms"],
+      "properties": {
+        "forms": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "var-ref",
+              "hex",
+              "color-function",
+              "named-color",
+              "light-dark",
+              "zero",
+              "dimension",
+              "percentage",
+              "math",
+              "none",
+              "normal",
+              "time",
+              "cubic-bezier",
+              "steps",
+              "linear-function",
+              "easing-keyword",
+              "number",
+              "family-list",
+              "shadow-layers"
+            ]
+          }
+        }
+      }
+    },
+    "typeName": {
+      "enum": [
+        "color",
+        "length",
+        "length-or-none",
+        "duration",
+        "easing",
+        "number",
+        "line-height",
+        "font-family",
+        "shadow"
+      ]
+    },
+    "role": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "group", "origin", "type", "perTheme", "meaning", "fallback"],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/cssVar"
+        },
+        "group": {
+          "enum": [
+            "surfaces",
+            "text",
+            "borders",
+            "accent",
+            "status",
+            "presence",
+            "elevation",
+            "radius",
+            "space",
+            "fonts",
+            "type",
+            "motion",
+            "layout",
+            "focus",
+            "selection",
+            "overlay",
+            "weight",
+            "tracking"
+          ]
+        },
+        "origin": {
+          "enum": ["ddr-043", "ddr-043-de-facto", "v1"]
+        },
+        "type": {
+          "$ref": "#/$defs/typeName"
+        },
+        "perTheme": {
+          "type": "boolean"
+        },
+        "family": {
+          "enum": ["presence"]
+        },
+        "meaning": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "fallback": {
+          "type": ["string", "null"],
+          "maxLength": 200
+        },
+        "fallbackUnsupported": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "reducedMotion": {
+          "const": "1ms"
+        }
+      }
+    },
+    "slot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "pairing", "absent"],
+      "properties": {
+        "kind": {
+          "enum": [
+            "display",
+            "brand",
+            "palette",
+            "chart",
+            "texture",
+            "device",
+            "signature-motion",
+            "accent-n",
+            "extension"
+          ]
+        },
+        "tokenPatterns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/regex"
+          }
+        },
+        "names": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/cssVar"
+          }
+        },
+        "companions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/cssVar"
+          }
+        },
+        "classPattern": {
+          "$ref": "#/$defs/regex"
+        },
+        "roleHints": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "pairing": {
+          "enum": ["rank", "index", "index-mod", "role-then-index", "name"]
+        },
+        "absent": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["ai"],
+          "properties": {
+            "use": {
+              "$ref": "#/$defs/cssVar"
+            },
+            "ai": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "alias": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["native", "v1", "context"],
+      "properties": {
+        "native": {
+          "type": "string",
+          "pattern": "^--[A-Za-z0-9-]+$"
+        },
+        "v1": {
+          "type": "string",
+          "pattern": "^--[a-z0-9-]+$"
+        },
+        "context": {
+          "oneOf": [
+            {
+              "const": "any"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["declares"],
+              "properties": {
+                "declares": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "seenIn": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "collision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "detect", "meaning"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$"
+        },
+        "name": {
+          "type": "string"
+        },
+        "detect": {
+          "enum": ["type", "signature", "judgement"]
+        },
+        "whenDeclared": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "meaning": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "resolution": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "export", "class", "states"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Za-z]+$"
+        },
+        "export": {
+          "type": "string"
+        },
+        "class": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "alsoClasses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "parts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^__[a-z]+$"
+          }
+        },
+        "variants": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sizes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tone": {
+          "type": "boolean"
+        },
+        "states": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "uiName": {
+          "type": "string"
+        },
+        "fallbackCss": {
+          "type": "string",
+          "maxLength": 4000
+        }
+      }
+    },
+    "brandPiece": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "export", "requires"],
+      "properties": {
+        "name": {
+          "enum": ["Logo", "Icon", "Text"]
+        },
+        "export": {
+          "type": "string"
+        },
+        "requires": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "typeRole": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "class", "required", "fallback"],
+      "properties": {
+        "role": {
+          "type": "string"
+        },
+        "class": {
+          "type": "string",
+          "pattern": "^t-[a-z0-9-]+$"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "whenSlot": {
+          "const": "display"
+        },
+        "fallback": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "canvasRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "severity", "blocks"],
+      "properties": {
+        "id": {
+          "pattern": "^S[1-9]$",
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "severity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["default", "strict"],
+          "properties": {
+            "default": {
+              "enum": ["autofix", "warning", "blocker"]
+            },
+            "strict": {
+              "enum": ["autofix", "warning", "blocker"]
+            }
+          }
+        },
+        "blocks": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "autofix": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

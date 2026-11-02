@@ -1,0 +1,5 @@
+{"lane":"terminal","name":"Bash","input":{"command":"ls ~/Library/Logs/ | grep -i maude; ls ~/Library/Logs/Maude* 2>/dev/null | tail -20; which maude; maude --help 2>&1 | head -50","description":"Locate Maude logs and CLI"}}
+{"lane":"terminal","name":"Skill","input":{"skill":"design:studio-actions","args":"read app logs, sync status, comments on canvas"}}
+{"lane":"terminal","name":"Bash","input":{"command":"maude design logs 2>&1 | tail -80","description":"Read Maude logs"}}
+{"lane":"terminal","name":"Bash","input":{"command":"maude design sync status 2>&1","description":"Show Maude sync status"}}
+{"lane":"terminal","name":"Bash","input":{"command":"maude design comments list ui/GitPanel.tsx --all 2>&1","description":"List comments on GitPanel canvas"}}

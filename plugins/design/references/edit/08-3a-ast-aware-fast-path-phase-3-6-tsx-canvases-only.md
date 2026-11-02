@@ -3,7 +3,7 @@
 **Trigger:** all four conditions true:
 
 1. Active canvas extension is `.tsx` (TSX format, two-pass pipeline emits `data-cd-id`).
-2. `_active.json.selected.v === 2` AND `_active.json.selected.id` is set (the user Cmd+Clicked an element that carries a pipeline-emitted `data-cd-id`).
+2. `_active.json.selected.v === 2` AND `_active.json.selected.id` is set (the person selected an object that carries a `data-cd-id`).
 3. Feedback names a **single-element single-attribute** change. Heuristic — the feedback contains exactly one of: a class change ("make this `<X>`-class", "set className to …", "switch to `.btn--ghost`"), a style swap ("change padding to 14", "color → amber", "border-radius 8"), or a plain string-attribute set ("aria-label X", "title X").
 4. The change is **non-structural** — feedback doesn't insert, delete, or reorder elements.
 
@@ -29,7 +29,7 @@ fi
 
 **When AST fast-path runs**, the orchestrator still:
 
-- Takes the step-4 snapshot (single-line edits are still rollback-able).
+- Runs inside the same run as any other edit: the hooks keep the bytes before the write (step 4), so a one-attribute change is still one undo step and one version. `canvas-edit` keeps the element's `data-cd-id` and refuses a locked element (`soft-locked`, the same words as the hook). It does not look at busy artboards, so run the step 4.5 check first and skip the fast path on a busy one.
 - Runs the step-7 post-write reality-check screenshot (the change still needs to render).
 - Routes to the critic panel per step 8 (the panel reads screenshots, not source — format-blind).
 - Refreshes docs per step 9.

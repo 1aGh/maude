@@ -1,0 +1,33 @@
+export function DCArtboard({
+  id,
+  label,
+  width,
+  height,
+  fixed,
+  background,
+  padding,
+  layout,
+  gap,
+  kind,
+  guides,
+  print,
+  children,
+}: {
+  const readBackAttrs = {
+    'data-dc-fixed': fixed ? 'true' : undefined,
+    'data-dc-bg': background,
+    'data-dc-padding': padding != null ? String(padding) : undefined,
+    'data-dc-layout': layout,
+    'data-dc-gap': gap != null ? String(gap) : undefined,
+    // Always present (unlike the optional-override props above) — this is a
+    // resolved classification, not a "no override" style knob. Chrome, the
+    // Inspector kind picker (T8), and canvas-shell's artboardHasVideo gate
+    // (T2) all key off this attribute.
+    'data-dc-kind': resolvedKind,
+    // feature-2-print-artboards T2 — read-back for the Inspector's print
+    // picker (paper/orientation/bleed pre-fill), same "stamp the resolved
+    // prop as JSON, parse it back" shape `guides` would need if it grew an
+    // Inspector editor. Small object (≤ ~150 bytes), so a plain JSON attr is
+    // simpler than adding parallel data-dc-print-* scalar attrs per field.
+    'data-dc-print': print ? JSON.stringify(print) : undefined,
+  };

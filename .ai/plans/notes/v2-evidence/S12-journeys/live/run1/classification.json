@@ -1,0 +1,34 @@
+{
+  "run": "2026-10-21, bot account, model claude-opus-5-5, 11 journeys x 2 lanes once (run2); S1 terminal re-run once after a harness fix (run3)",
+  "result": "8 of 22 pass: S2 S3 S4 S7 S9 S11 terminal; S3 S4 acp. The S12 package row is NOT verified.",
+  "harnessFixed": [
+    "acp lane tools.jsonl carried input {} for every call (adapter announces a call before its input) - every tool-used/no-tool grader read an empty log; fixed in lanes/acp.mjs toolLog, ACP trials re-graded offline from transcript.jsonl (grade.regraded.json)",
+    "S1 grader kinds: a version restore is kind history.restore (effect op restore); the restore-by-verb pattern missed a quoted .design/ path",
+    "S1 allow: create / rename / trash a canvas are the studio's own routes, reached through maude design curl-local (a prompt-tier card)",
+    "studio boot timeout 30 s -> 300 s under a loaded machine; a refused (not signed in) claude is a lane error"
+  ],
+  "trials": {
+    "S1 terminal": { "pass": false, "class": "b", "why": "bash-guard use-verb names 'maude design canvas move' (no such verb); agent could not rename; also hand-wrote Welcome.tsx (rerun run3 the same). Message fixed in 3c3b9ff55, not re-run." },
+    "S1 acp": { "pass": false, "class": "b", "why": "created-by-ai: agent wrote the new canvas with Write; history row actor is 'outside', not AI (no hook or route stops a hand-made canvas). Rename/restore/trash all worked." },
+    "S2 terminal": { "pass": true },
+    "S2 acp": { "pass": false, "class": "b", "why": "ai-version: correct edit on disk, but the Version history row is kind 'outside' (terminal lane: kind ai). The harness-hosted AcpBridge starts no studio run; unproven whether the panel-hosted bridge attributes." },
+    "S3 terminal": { "pass": true },
+    "S3 acp": { "pass": true },
+    "S4 terminal": { "pass": true },
+    "S4 acp": { "pass": true },
+    "S5 terminal": { "pass": false, "class": "b", "why": "free part not done: an edit to a helper component (Composer) reaches 'every artboard' (agent-runs.ts changedArtboards: any change outside a DCArtboard span is file scope), so a hold on one artboard blocks the rest of the file; busy-denied itself is right" },
+    "S5 acp": { "pass": false, "class": "b", "why": "same as terminal" },
+    "S6 terminal": { "pass": false, "class": "c", "why": "2 artboards (desktop, phone), hex colours, opt_out palette; not widened: the result misses the spec" },
+    "S6 acp": { "pass": false, "class": "c", "why": "2 artboards, plus the 'outside' attribution of S2 acp" },
+    "S7 terminal": { "pass": true },
+    "S7 acp": { "pass": false, "class": "b", "why": "ai-version / one-undo-step: attribution as S2 acp; the cut itself graded green" },
+    "S8 terminal": { "pass": false, "class": "c", "why": "agent wrote a sanitised copy into system/maude/assets/logos by hand instead of maude design import-asset; export and exports list passed" },
+    "S8 acp": { "pass": false, "class": "c", "why": "agent refused to import the hostile logo and asked first; export and exports list passed" },
+    "S9 terminal": { "pass": true },
+    "S9 acp": { "pass": false, "class": "b", "why": "ai-version: attribution as S2 acp; threads resolved with replies" },
+    "S10 terminal": { "pass": false, "class": "b", "why": "ds verbs refuse a folder system (ds-not-converted); agent would not hand-edit colors_and_type.css; no agent path to change a folder system's accent" },
+    "S10 acp": { "pass": false, "class": "c", "why": "accent changed on disk, but tokens.json edited by hand (manifest-by-the-verb: a real catch)" },
+    "S11 terminal": { "pass": true },
+    "S11 acp": { "pass": false, "class": "b", "why": "agent never ran maude design logs / sync status / comments list; read the real ~/Library/Logs/com.maude.app/server.log and Application Support instead (read-only, outside the scratch project)" }
+  }
+}

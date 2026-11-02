@@ -3,7 +3,7 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import DiffView from '../client/panels/DiffView.jsx';
-import GitPanel from '../client/panels/GitPanel.jsx';
+import { HistoryAdvanced } from '../client/v2/history/git-advanced.jsx';
 
 beforeAll(() => {
   GlobalRegistrator.register();
@@ -25,14 +25,16 @@ test('history reloads the same canvas after a restore outside the panel', async 
     },
   ];
   const panel = (historyRefresh: number) => (
-    <GitPanel
-      status={{ repo: true, files: [] }}
-      project="Fixture"
-      activeCanvas=".design/ui/History.tsx"
-      historyOnly={true}
-      historySource="project"
-      historyRefresh={historyRefresh}
-      loadLog={loadLog}
+    <HistoryAdvanced
+      canvas=".design/ui/History.tsx"
+      git={{
+        status: { repo: true, files: [] },
+        project: 'Fixture',
+        cellManaged: true,
+        historySource: 'project',
+        historyRefresh,
+        loadLog,
+      }}
     />
   );
   try {

@@ -1,0 +1,87 @@
+/* client/v2/kinds/convert.css — S7.25: the Change kind dialog (08 ak-convert). `kcv-` namespaced, tokens only.
+ * Same material as the other v2 dialogs (an island over a scrim); the warning glyph carries the "check" meaning with its sentence,
+ * never the tint alone. */
+
+@layer shell {
+  .kcv-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: grid;
+    place-items: center;
+    background: var(--scrim, rgb(0 0 0 / 0.32));
+  }
+  .kcv-dialog {
+    width: min(520px, calc(100vw - 32px));
+    max-height: calc(100vh - 64px);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-4);
+  }
+  .kcv-title {
+    margin: 0;
+    font-size: var(--type-base);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+  .kcv-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    overflow: auto;
+    font-size: var(--type-sm);
+    color: var(--fg-0);
+  }
+  .kcv-p,
+  .kcv-h {
+    margin: 0;
+  }
+  .kcv-h {
+    margin-top: var(--space-1);
+    font-weight: var(--w-semibold);
+    color: var(--fg-1);
+  }
+  .kcv-checks {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .kcv-line,
+  .kcv-note {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: var(--space-2);
+    align-items: start;
+    margin: 0;
+  }
+  .kcv-line svg {
+    color: var(--status-warn-text);
+    margin-top: 2px;
+  }
+  .kcv-note {
+    color: var(--fg-1);
+  }
+  .kcv-note svg {
+    margin-top: 2px;
+  }
+  .kcv-quiet {
+    margin: 0;
+    color: var(--fg-1);
+  }
+  .kcv-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-top: var(--space-1);
+  }
+  .kcv-err {
+    margin: 0;
+    color: var(--status-warn-text);
+  }
+  .kcv-acts {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2);
+  }
+}

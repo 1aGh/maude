@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-take-tabs-restored"
+description = "Enables the take_tabs_restored command without any pre-configured scope."
+commands.allow = ["take_tabs_restored"]
+
+[[permission]]
+identifier = "deny-take-tabs-restored"
+description = "Denies the take_tabs_restored command without any pre-configured scope."
+commands.deny = ["take_tabs_restored"]

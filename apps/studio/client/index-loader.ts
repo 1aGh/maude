@@ -43,7 +43,9 @@ export function createIndexLoader<T>({
         const status = (error as { status?: number } | null)?.status;
         if (status == null || status === 408 || status === 429 || status >= 500) {
           const delay = Math.min(maxRetryDelayMs, retryDelayMs * 2 ** Math.min(failures++, 10));
-          retryTimer = setTimeout(() => { void reload(); }, delay);
+          retryTimer = setTimeout(() => {
+            void reload();
+          }, delay);
         }
       } finally {
         clearTimeout(timeout);

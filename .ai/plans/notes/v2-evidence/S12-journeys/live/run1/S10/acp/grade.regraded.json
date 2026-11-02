@@ -1,0 +1,48 @@
+{
+  "journey": "S10",
+  "pass": false,
+  "results": [
+    {
+      "id": "status-read",
+      "grader": "tool-used",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "accent-darker",
+      "grader": "text",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "dark-accent-kept",
+      "grader": "text",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "system-checked",
+      "grader": "tool-used",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "usage-read",
+      "grader": "tool-used",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "manifest-by-the-verb",
+      "grader": "no-tool",
+      "pass": false,
+      "why": "1 call(s): Edit {\"replace_all\":false,\"file_path\":\"/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975"
+    },
+    {
+      "id": "canvases-untouched",
+      "grader": "untouched",
+      "pass": true,
+      "why": ""
+    }
+  ]
+}

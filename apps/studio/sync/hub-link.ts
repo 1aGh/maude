@@ -25,7 +25,8 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
-import { hubsConfigPath, normalizeUrl } from './hubs-config.ts';
+import { legacyClaim } from '../access/scope.ts';
+import { hubsConfigPath, normalizeUrl, safeAccount, v1RoleProjection } from './hubs-config.ts';
 
 export interface HubLinkResult {
   status: number;
@@ -41,11 +42,15 @@ interface HubsFile {
       token: string;
       linkedAt: number;
       role?: string;
+      /** V2-1.7 §5.4 — the claim when `role` cannot say it (see `saveHubCredential`). */
+      access?: import('../access/scope.ts').AccessClaim;
       expiresAt?: number;
       /** Local consent — see `HubRecord.codeModulesAllowed` in hubs-config.ts. */
       codeModulesAllowed?: boolean;
       /** Local consent — see `HubRecord.unlimitedDeletes` in hubs-config.ts. */
       unlimitedDeletes?: boolean;
+      /** Who signed in — see `HubRecord.account` in hubs-config.ts. Display only. */
+      account?: string;
     }
   >;
   trusted?: string[];
@@ -132,9 +137,16 @@ export function saveHubCredential(
   normUrl: string,
   token: string,
   role?: string,
-  expiresAt?: number
+  expiresAt?: number,
+  /** The profile's hubs.json (Home prepares per profile, N-H1); absent = this process's file. */
+  path: string = hubsConfigPath(),
+  /**
+   * P8-T G1b-3 — the account the hub vouched at sign-in (`user.email`), for "Signed in as" in
+   * Settings › Connections. Replaced like `role`: absent (a pasted token) stores none, so a new
+   * credential never inherits the last person's name; a silent renewal passes the old one on.
+   */
+  account?: string | null
 ): void {
-  const path = hubsConfigPath();
   const dir = dirname(path);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true, mode: 0o700 });
   let cfg: HubsFile = { hubs: {} };
@@ -155,10 +167,15 @@ export function saveHubCredential(
   cfg.hubs[normUrl] = {
     token,
     linkedAt: Date.now(),
-    ...(role ? { role } : {}),
+    // S9.9 — `role` is what a 1.x build reads (1.9.x: only `viewer` is read-only), so a
+    // role it would read as writable (`observer`, anything newer) is stored as `viewer`
+    // and the real one rides in `access`, which only a v2 build reads (`accessFor`).
+    ...(role ? { role: v1RoleProjection(role) } : {}),
+    ...(role && v1RoleProjection(role) !== role ? { access: legacyClaim(role) } : {}),
     ...(typeof expiresAt === 'number' && Number.isFinite(expiresAt) ? { expiresAt } : {}),
     ...(typeof priorConsent === 'boolean' ? { codeModulesAllowed: priorConsent } : {}),
     ...(typeof priorDeletes === 'boolean' ? { unlimitedDeletes: priorDeletes } : {}),
+    ...(safeAccount(account) ? { account: safeAccount(account) as string } : {}),
   };
   if (!Array.isArray(cfg.trusted)) cfg.trusted = [];
   if (!cfg.trusted.includes(normUrl)) cfg.trusted.push(normUrl);
@@ -208,5 +225,8 @@ export function deleteHubCredential(normUrl: string): void {
   }
   renameSync(tmp, path);
 }
+
+/** S11.14 — the same tokenless probe, for Settings › Connections › the hub's version. */
+export const probeHubHealth = probeHealth;
 
 export const __testing = { probeHealth };

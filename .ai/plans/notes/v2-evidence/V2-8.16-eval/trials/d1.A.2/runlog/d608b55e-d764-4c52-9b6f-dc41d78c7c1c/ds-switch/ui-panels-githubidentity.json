@@ -1,0 +1,41 @@
+{
+  "canvas": "ui/panels/GitHubIdentity.tsx",
+  "from": "maude",
+  "to": "maude-v2",
+  "meta": { "designSystem": "maude-v2" },
+  "edits": [
+    {
+      "old": " * @ds          maude\n",
+      "new": " * @ds          maude-v2\n",
+      "why": "Header names the system the canvas uses."
+    },
+    {
+      "old": "import \"../../system/maude/colors_and_type.css\";",
+      "new": "import \"../../system/maude-v2/colors_and_type.css\";",
+      "why": "Tokens come from maude-v2. Every token this canvas and GitHubIdentity.css use exists in maude-v2 under the same name."
+    },
+    {
+      "old": "import \"../../system/maude/preview/_components.css\";",
+      "new": "import \"../../system/maude-v2/preview/_components.css\";",
+      "why": "Shared component classes come from maude-v2."
+    },
+    {
+      "old": "return <div className=\"maude\" data-theme=\"dark\" style={{ position: \"absolute\", inset: 0 }}>{children}</div>;",
+      "new": "return <div className=\"maude-v2 ds\" data-theme=\"dark\" style={{ position: \"absolute\", inset: 0 }}>{children}</div>;",
+      "why": "maude-v2 scopes its tokens to .maude-v2[data-theme] (the .maude scope would no longer match), and its core components (callout, card, dialog, checkbox) only apply under :where(.ds)."
+    },
+    {
+      "old": "className=\"btn btn--danger\"",
+      "new": "className=\"btn btn--ghost\"",
+      "why": "maude-v2 has no danger button; components.json's fallback for danger is ghost. Needs a yes: the Sign out button in the sign-out confirmation loses its red emphasis."
+    }
+  ],
+  "notes": [
+    "Decision: the Sign out button (sign-out artboard) — accept the ghost fallback above, or keep a red Sign out with a local gi- class over --status-error, or add a danger variant to maude-v2.",
+    "Decision: callout--warn, callout--error, callout--success and callout--info (states artboard) have no tones in maude-v2 (Callout variants are all null). Base .callout applies under .ds, but all four edge states will look the same unless GitHubIdentity.css adds the tones. This is the largest visual change in this canvas.",
+    "Decision: .panel (1 use, panel gi-mini) → closest is .island; .tree-row (5 uses) → closest is .row-item. Neither has a maude-v2 rule; the local gi- classes keep them visible.",
+    "Line heights change from fixed px to ratios (GitHubIdentity.css uses --lh-* six times); the big device code and its spacing should be checked after the switch.",
+    "maude-v2's :root default is light; this canvas sets data-theme=\"dark\" explicitly, so it stays dark.",
+    "Comments only: GitHubIdentity.css line 3 and the TSX docblock still mention system/maude. The design is 'handed-off' (handoffCommit 278d11a); GitHubIdentity.registry.json describes the maude build until the handoff is redone."
+  ]
+}

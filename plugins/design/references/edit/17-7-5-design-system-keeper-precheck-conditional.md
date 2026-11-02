@@ -4,8 +4,8 @@
 
 Unlike `/design:new` (where ds-keeper always fires), `/design:edit` runs ds-keeper **only when the iteration is non-trivial** — to avoid spawn cost on every single-line tweak. Triggers:
 
-- **Diff ≥ 10 lines changed** between snapshot (`$HIST/$N-$TS.bak` from step 4) and current `$ACTIVE`, OR
-- **Any new class root appears** in the candidate that wasn't in the snapshot (new compositional element added)
+- **≥ 10 lines changed** by your edits in this round (count the lines of the `new_string` of each Edit you made), OR
+- **Any new class root appears** that the canvas did not use before (a new compositional element added). The file as it was is in the version before this run: `maude design history list "$ACTIVE_REL" --limit 1`, then `maude design history show <ref>`. For a small edit you already know what you added.
 
 ```bash
 # Skip if --skip-ds-keeper flag was passed.
@@ -13,24 +13,17 @@ if grep -q -- '--skip-ds-keeper' <<< "$ARGUMENTS"; then
   echo "→ ds-keeper precheck skipped per --skip-ds-keeper flag"
   RUN_KEEPER=0
 else
-  SNAPSHOT="$HIST/$N-$TS.bak"
-  DIFF_LINES=$(diff "$SNAPSHOT" "$ACTIVE" | grep -cE '^[<>]' || echo 0)
-
-  # New class roots — set difference (candidate − snapshot).
-  CAND_CLASSES=$(grep -oE '(className|class)="[^"]+"' "$ACTIVE"   | sed -E 's/^(className|class)="//; s/"$//' | tr ' ' '\n' | grep -E '^[a-z][a-z0-9-]+$' | sort -u)
-  PREV_CLASSES=$(grep -oE '(className|class)="[^"]+"' "$SNAPSHOT" | sed -E 's/^(className|class)="//; s/"$//' | tr ' ' '\n' | grep -E '^[a-z][a-z0-9-]+$' | sort -u)
-  NEW_CLASSES=$(comm -23 <(echo "$CAND_CLASSES") <(echo "$PREV_CLASSES") | wc -l)
-
-  if [ "$DIFF_LINES" -ge 10 ] || [ "$NEW_CLASSES" -gt 0 ]; then
+  # CHANGED_LINES: the lines your Edit calls wrote. NEW_CLASSES: class roots they introduced.
+  if [ "$CHANGED_LINES" -ge 10 ] || [ "$NEW_CLASSES" -gt 0 ]; then
     RUN_KEEPER=1
   else
     RUN_KEEPER=0
-    echo "→ ds-keeper precheck skipped (diff $DIFF_LINES lines, $NEW_CLASSES new class roots — below trigger threshold)"
+    echo "→ ds-keeper precheck skipped ($CHANGED_LINES lines, $NEW_CLASSES new class roots — below trigger threshold)"
   fi
 fi
 ```
 
-When `RUN_KEEPER=1`, spawn ds-keeper in parallel with the critic panel (step 8), same envelope shape as `/design:new` step 9.5. Output → `$HIST/$N_KEEPER-ds-keeper.md`. Findings merge into the iter-1 panel summary; self-promoted blockers (mass drift) get priority in the auto-fix loop. Same failure handling as `/design:new` step 9.5 — agent failure does not block the panel.
+When `RUN_KEEPER=1`, spawn ds-keeper in parallel with the critic panel (step 8), same envelope shape as `/design:new` step 9.5. The keeper is read-only and returns its verdict JSON in its final message: save it to `$RUN/critique/keeper-<n>.json` (`<n>` is the critic round) so the critics get it in their hand-off `reads`. Findings merge into the iter-1 panel summary; self-promoted blockers (mass drift) get priority in the auto-fix loop. Same failure handling as `/design:new` step 9.5 — agent failure does not block the panel.
 
 **Pass `platform_showcase_path` + the DDR-141 brand/fidelity inputs to the keeper** so Pass A.6 (product-shell reuse, DDR-127) and Pass A.8 (brand-asset reuse, DDR-141) can check whether a substantial edit reinvented the shell or the brand identity. Resolve them cheaply here even when the step-1.5 pre-loads didn't run (a non-add-surface edit can still cross the diff threshold):
 

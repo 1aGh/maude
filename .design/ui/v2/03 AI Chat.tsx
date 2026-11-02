@@ -228,7 +228,7 @@ function Consent({ name = "Combine 2026 fotky", count = 48 }: { name?: string; c
   return (
     <div className="ai-consent">
       <p className="ai-consent-t"><span className="ai-consent-ic"><Icon name="folder" size={14} /></span><span>Let AI read “{name}” ({count} files)?</span></p>
-      <p className="ai-consent-d">Asked once for this folder. AI only reads it — nothing on disk changes.</p>
+      <p className="ai-consent-d">Asked once for this folder. AI only reads it — nothing on disk changes. Outside this project, AI reads nothing else without asking.</p>
       <span className="ai-card-a"><span className="btn btn--sm">Not now</span><span className="btn btn--sm btn--primary">Let AI read</span></span>
     </div>
   );

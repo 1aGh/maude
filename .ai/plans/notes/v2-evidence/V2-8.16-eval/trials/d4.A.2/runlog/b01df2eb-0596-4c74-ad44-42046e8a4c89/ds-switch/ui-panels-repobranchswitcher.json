@@ -1,0 +1,54 @@
+{
+  "canvas": "ui/panels/RepoBranchSwitcher.tsx",
+  "from": "maude",
+  "to": "maude-v2",
+  "meta": { "designSystem": "maude-v2" },
+  "edits": [
+    {
+      "old": "import \"../../system/maude/colors_and_type.css\";",
+      "new": "import \"../../system/maude-v2/colors_and_type.css\";",
+      "why": "Load the maude-v2 tokens instead of maude's."
+    },
+    {
+      "old": "import \"../../system/maude/preview/_components.css\";",
+      "new": "import \"../../system/maude-v2/preview/_components.css\";",
+      "why": "Load the maude-v2 component classes instead of maude's."
+    },
+    {
+      "old": "<div className=\"maude\" data-theme=\"dark\"><ShellFrame /></div>",
+      "new": "<div className=\"ds\" data-theme=\"dark\"><ShellFrame /></div>",
+      "why": "maude-v2 sets its tokens on .maude-v2 / .ds, not .maude (artboard A · resting)."
+    },
+    {
+      "old": "<div className=\"maude\" data-theme=\"dark\"><ShellFrame open /></div>",
+      "new": "<div className=\"ds\" data-theme=\"dark\"><ShellFrame open /></div>",
+      "why": "Same wrapper change (artboard B · switch-popup)."
+    },
+    {
+      "old": "<div className=\"maude\" data-theme=\"dark\"><ShellFrame open onDraft /></div>",
+      "new": "<div className=\"ds\" data-theme=\"dark\"><ShellFrame open onDraft /></div>",
+      "why": "Same wrapper change (artboard C · on-draft)."
+    },
+    {
+      "old": "<div className=\"maude\" data-theme=\"dark\"><ShellFrame onDraft foldConfirm /></div>",
+      "new": "<div className=\"ds\" data-theme=\"dark\"><ShellFrame onDraft foldConfirm /></div>",
+      "why": "Same wrapper change (artboard D · fold-confirm)."
+    },
+    {
+      "old": "<div className=\"maude\" data-theme=\"dark\"><ShellFrame newDraft /></div>",
+      "new": "<div className=\"ds\" data-theme=\"dark\"><ShellFrame newDraft /></div>",
+      "why": "Same wrapper change (artboard E · new-draft)."
+    },
+    {
+      "old": "<div className=\"maude\" data-theme=\"dark\"><ShellFrame onDraft switching switchingLabel=",
+      "new": "<div className=\"ds\" data-theme=\"dark\"><ShellFrame onDraft switching switchingLabel=",
+      "why": "Same wrapper change (artboard F · switching)."
+    }
+  ],
+  "notes": [
+    "Token names used by RepoBranchSwitcher.css all exist in maude-v2.",
+    "What will look different: the accent moves from indigo to azure. On artboard C, the filled 'Add this draft to the Shared version' CTA becomes azure, and the draft chip stays amber (status colour). Check that the two still read as different.",
+    "RepoBranchSwitcher.css line 5 still mentions system/maude in a comment. It has no effect.",
+    "status is \"handed-off\" (handoffCommit 8e9758e)."
+  ]
+}

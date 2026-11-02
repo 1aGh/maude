@@ -27,16 +27,14 @@ import {
   useRef,
   useState,
 } from 'react';
-
 import {
   type CommandRecord,
   type CommandSinks,
   canRedo as canRedoOf,
   canUndo as canUndoOf,
+  dropStackState,
   type EditCommand,
-  loadStackState,
   rebuildCommand,
-  saveStackState,
   type UndoStackState,
   undoReducer,
 } from './undo-stack.ts';
@@ -136,9 +134,7 @@ export function UndoStackProvider({
 }: UndoStackProviderProps) {
   // Ref is the authoritative store — the async runner reads + writes it
   // synchronously between awaited side-effects.
-  const stateRef = useRef<UndoStackState>(
-    canvasFile ? loadStackState(canvasFile) : { past: [], future: [] }
-  );
+  const stateRef = useRef<UndoStackState>({ past: [], future: [] });
   const [, setRenderToken] = useState(0);
 
   // Sinks live in a ref so writes don't churn re-renders; the runner reads
@@ -156,13 +152,22 @@ export function UndoStackProvider({
   useEffect(() => {
     if (canvasFile === fileRef.current) return;
     fileRef.current = canvasFile;
-    stateRef.current = canvasFile ? loadStackState(canvasFile) : { past: [], future: [] };
+    stateRef.current = { past: [], future: [] };
     setRenderToken((t) => t + 1);
   }, [canvasFile]);
 
-  const writeState = useCallback((next: UndoStackState) => {
-    stateRef.current = next;
-    if (fileRef.current) saveStackState(fileRef.current, next);
+  // S2.20b / p8-v1-drop — the shell owns ⌘Z (the projection over the op log): this provider still runs
+  // every command's side effect, but keeps no stack — nothing in memory past the call, nothing in
+  // sessionStorage, no records. The legacy DDR-050 stack (a project off the op log) is gone; a stack an
+  // older build left in sessionStorage is dropped on mount.
+  useEffect(() => {
+    stateRef.current = { past: [], future: [] };
+    if (fileRef.current) dropStackState(fileRef.current);
+    setLastTick((t) => t + 1); // canUndo / canRedo re-read the (empty) stack
+  }, []);
+
+  const writeState = useCallback((_next: UndoStackState) => {
+    stateRef.current = { past: [], future: [] };
     setRenderToken((t) => t + 1);
   }, []);
 
@@ -195,7 +200,6 @@ export function UndoStackProvider({
     const run = async () => {
       // The previous mount may have persisted its ACK after this mount read
       // the initial state. Re-read only at the serialized operation boundary.
-      if (file) stateRef.current = loadStackState(file);
       await task();
     };
     const next = previous.then(run, run);
@@ -237,20 +241,12 @@ export function UndoStackProvider({
           return;
         }
         writeState(undoReducer(stateRef.current, { type: 'push', record }));
-        bumpLabel(record.label);
       }),
     [enqueue, build, reportError, bumpLabel, writeState]
   );
 
-  const record = useCallback(
-    (rec: CommandRecord): void => {
-      void enqueue(async () => {
-        writeState(undoReducer(stateRef.current, { type: 'push', record: rec }));
-        bumpLabel(rec.label);
-      });
-    },
-    [enqueue, writeState, bumpLabel]
-  );
+  // the op log holds the edit; the iframe holds nothing (p8-v1-drop)
+  const record = useCallback((_rec: CommandRecord): void => {}, []);
 
   const undo = useCallback(
     (): Promise<void> =>
@@ -271,7 +267,7 @@ export function UndoStackProvider({
           return;
         }
         writeState(undoReducer(stateRef.current, { type: 'undo' }));
-        bumpLabel(`Undo: ${top.label}`);
+        bumpLabel(`Undone — ${top.label}`);
       }),
     [enqueue, build, reportError, bumpLabel, writeState]
   );
@@ -295,7 +291,7 @@ export function UndoStackProvider({
           return;
         }
         writeState(undoReducer(stateRef.current, { type: 'redo' }));
-        bumpLabel(`Redo: ${top.label}`);
+        bumpLabel(`Redone — ${top.label}`);
       }),
     [enqueue, build, reportError, bumpLabel, writeState]
   );

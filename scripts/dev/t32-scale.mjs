@@ -71,6 +71,8 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { crc32, deflateSync } from 'node:zlib';
+import { stubClaudeEnv } from '../lib/stub-claude.mjs';
+import { v2Config } from './v2-config.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const FIXTURE = join(ROOT, 'apps/hub/test/fixtures/serve-hub.mjs');
@@ -403,9 +405,12 @@ function isolatedHome(name) {
   return {
     HOME: home,
     XDG_CONFIG_HOME: join(home, '.config'),
+    MAUDE_INDEX_DIR: join(home, 'index'), // P8: never the person's ~/.maude/index (Home lists every project indexed there)
     XDG_CACHE_HOME: join(home, '.cache'),
     CLAUDE_CONFIG_DIR: join(home, '.claude'),
     MAUDE_CLOUD_CONFIG: join(home, 'cloud.json'),
+    // never the machine's real `claude` (keychain dialog in a throwaway HOME): scripts/lib/stub-claude.mjs
+    ...stubClaudeEnv(home),
   };
 }
 function spawnLogged(name, cmd, args, env, cwd = ROOT) {
@@ -881,11 +886,11 @@ function prepareClean(root, name) {
   writeFileSync(
     join(designOf(root), 'config.json'),
     `${JSON.stringify(
-      {
+      v2Config({
         name: `t32-clean-${name}`,
         canvasGroups: CANVAS_GROUPS,
         linkedHub: { url: HUB_URL, linkedAt: Date.now(), syncFiles: true },
-      },
+      }),
       null,
       2
     )}\n`
@@ -929,6 +934,8 @@ async function startStudio(who, root) {
     cleanEnv({
       ...isolatedHome(`client-${who}`),
       HUBS_CONFIG_PATH: hubsConfig(who),
+      // gate-b-sec4: the harness is the app that made this link (sync/link-consent.ts)
+      MAUDE_APP_BOUND_HUB: HUB_URL,
       MAUDE_PROJECT_ROOT: root,
       CLAUDE_PROJECT_DIR: root,
       MAUDE_NO_AUTOBUILD: '1',

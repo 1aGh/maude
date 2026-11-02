@@ -52,6 +52,26 @@ export function parsePoke(payload: unknown): Poke | null {
 }
 
 /**
+ * The hub's AI-runs poke (`runs-routes.mjs` `createRunsPoke`, V2-1.15 §5.3): `{t:'runs', seq}` on
+ * the same control document. Payload-free like the files poke — the receiver re-reads
+ * `GET runs?after=` and believes that. The seq, or null when the frame is not one.
+ */
+export function parseRunsPoke(payload: unknown): number | null {
+  if (typeof payload !== 'string' || payload.length > MAX_POKE_BYTES) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(payload);
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+  const frame = parsed as { t?: unknown; seq?: unknown };
+  if (frame.t !== 'runs') return null;
+  const seq = frame.seq;
+  return typeof seq === 'number' && Number.isSafeInteger(seq) && seq >= 0 ? seq : null;
+}
+
+/**
  * The hub's keep-alive frame (`files-ctl.mjs` `CTL_KEEPALIVE_FRAME`). It exists
  * only so an idle socket is not silent; the receiver ignores it — it is neither
  * a poke nor a malformed frame. Exact match: anything longer or different is

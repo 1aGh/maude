@@ -36,7 +36,7 @@
 // Exit: 0 ok · 2 usage · 3 SSRF/validation reject · 4 download/http error ·
 //       5 unsupported media type · 6 write/containment error · 1 other.
 
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { lookup } from 'node:dns/promises';
 import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync } from 'node:fs';
@@ -365,10 +365,16 @@ export function containedAssetPath(root, designRootRel, name) {
   return { assetsDir, fileAbs };
 }
 
+// S8.18 — a refusal's KIND, so a caller can word it without parsing the message (and without
+// echoing anything the remote said): refused (the gate said no) · redirect (too many hops) ·
+// timeout · unreachable · http (a non-200 status) · size · type.
+const KIND_BY_CODE = { 2: 'usage', 3: 'refused', 4: 'unreachable', 5: 'type', 6: 'write' };
+
 export class FetchAssetError extends Error {
-  constructor(code, message) {
+  constructor(code, message, kind) {
     super(message);
     this.code = code;
+    this.kind = kind ?? KIND_BY_CODE[code] ?? 'other';
   }
 }
 
@@ -384,20 +390,29 @@ function truncate(s, n = 120) {
  * also resolves to an internal IP is treated as hostile, defeating a mixed
  * public/internal rebinding answer), and return the public IP to pin to.
  */
-export async function resolveSafeIp(host) {
-  // An IP literal host is classified directly — no DNS.
-  if (isIP(host)) {
-    const reason = classifyAddress(host);
-    if (reason) throw new FetchAssetError(3, `blocked address ${host} — ${reason}`);
-    return host;
+export async function resolveSafeIp(host, lookupFn = lookup) {
+  // An IP literal host is classified directly — no DNS. `URL.hostname` keeps an IPv6 literal's
+  // brackets (`[::1]`), which `isIP` does not recognise: unbracketed it is classified as the
+  // address it is (S8.18 — it used to fall through to a DNS lookup that failed closed, so it was
+  // refused, but as "DNS failed" rather than as the private address it names).
+  const bare = /^\[[^\]]*\]$/.test(host) ? host.slice(1, -1) : host;
+  if (isIP(bare)) {
+    const reason = classifyAddress(bare);
+    if (reason) throw new FetchAssetError(3, `blocked address ${bare} — ${reason}`);
+    return bare;
   }
   let records;
   try {
-    records = await lookup(host, { all: true, verbatim: true });
+    records = await lookupFn(host, { all: true, verbatim: true });
   } catch (err) {
-    throw new FetchAssetError(3, `DNS resolution failed for ${host}: ${err?.code ?? err?.message}`);
+    throw new FetchAssetError(
+      3,
+      `DNS resolution failed for ${safeHostLabel(host)}: ${safeHostLabel(err?.code ?? 'error')}`,
+      'unreachable'
+    );
   }
-  if (!records.length) throw new FetchAssetError(3, `no DNS records for ${host}`);
+  if (!records.length)
+    throw new FetchAssetError(3, `no DNS records for ${safeHostLabel(host)}`, 'unreachable');
   for (const { address } of records) {
     const reason = classifyAddress(address);
     if (reason) throw new FetchAssetError(3, `${host} resolves to blocked ${address} — ${reason}`);
@@ -454,6 +469,179 @@ export function curlDownload({ url, host, port, pinIp, tmpAbs, maxBytes, maxTime
       4,
       `server returned HTTP ${httpCode || '(none)'} (redirects disabled)`
     );
+  }
+}
+
+// ── text pages, hop by hop (S8.18) ───────────────────────────────────────────
+//
+// The brand import reads a website the person typed: its HTML and a few of its stylesheets. A
+// website is the first caller that must FOLLOW redirects (apex → www, / → /en/), and a redirect is
+// exactly how an SSRF reaches an internal address the first URL never named. So curl still never
+// follows one (`--max-redirs 0`); this loop does, and every hop is a fresh, FULL gate pass — https
+// only, no credentials, the caller's port pin and host allowlist, every resolved address public,
+// and the connection pinned to the address that was checked. One time budget spans every hop; the
+// body is capped while it streams (curl's own --max-filesize is blind to a chunked body).
+//
+// The result is BYTES for a parser, never text for a model (DDR-173): the caller extracts typed
+// values from it and drops the rest. Error messages carry no remote-controlled text — a status
+// number, a charset-cleaned host label, never a body or a header.
+
+export const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+const DEFAULT_TEXT_MAX_BYTES = 2 * 1024 * 1024;
+const DEFAULT_MAX_HOPS = 3;
+const WRITE_OUT_TAG = 'MAUDE-W';
+
+/** The fixed curl argv for one hop of a text read. The URL is the last element, after `--`. */
+export function curlTextArgs({ url, host, port, pinIp, maxBytes, maxTime, accept }) {
+  const pin = isIP(pinIp) === 6 ? `[${pinIp}]` : pinIp;
+  return [
+    '--proto',
+    '=https',
+    '--proto-redir',
+    '=https',
+    '--max-redirs',
+    '0', // the gate follows redirects itself, re-checking every hop
+    '--max-filesize',
+    String(maxBytes),
+    '--max-time',
+    String(maxTime),
+    '--connect-timeout',
+    String(Math.min(maxTime, 10)),
+    '--noproxy',
+    '*',
+    '-sS',
+    '-A',
+    BROWSER_UA,
+    '-H',
+    `Accept: ${accept.join(', ')}`,
+    '--resolve',
+    `${host}:${port}:${pin}`,
+    '-o',
+    '-',
+    '-w',
+    `%{stderr}\n${WRITE_OUT_TAG}\t%{http_code}\t%{content_type}\t%{redirect_url}\n`,
+    '--',
+    url,
+  ];
+}
+
+const CURL_EXIT_KIND = { 28: 'timeout', 63: 'size', 6: 'unreachable', 7: 'unreachable' };
+
+/** One hop over real curl: `{ status, contentType, location, body }`. Never follows a redirect. */
+export function curlText(hop) {
+  const { maxBytes, maxTime } = hop;
+  return new Promise((resolvePromise, reject) => {
+    let child;
+    try {
+      child = spawn('curl', curlTextArgs(hop), { stdio: ['ignore', 'pipe', 'pipe'] });
+    } catch {
+      reject(new FetchAssetError(4, 'curl could not start', 'unreachable'));
+      return;
+    }
+    const chunks = [];
+    let size = 0;
+    let over = false;
+    let err = '';
+    const killer = setTimeout(() => child.kill('SIGKILL'), (maxTime + 5) * 1000);
+    child.stdout.on('data', (c) => {
+      size += c.length;
+      if (size > maxBytes) {
+        over = true;
+        child.kill('SIGKILL');
+        return;
+      }
+      chunks.push(c);
+    });
+    child.stderr.on('data', (c) => {
+      if (err.length < 16_384) err += c.toString('utf8');
+    });
+    child.on('error', () => {
+      clearTimeout(killer);
+      reject(new FetchAssetError(4, 'curl could not start', 'unreachable'));
+    });
+    child.on('close', (exit) => {
+      clearTimeout(killer);
+      if (over) {
+        reject(new FetchAssetError(4, `the page is over ${maxBytes} bytes`, 'size'));
+        return;
+      }
+      const line = err
+        .split('\n')
+        .reverse()
+        .find((l) => l.startsWith(`${WRITE_OUT_TAG}\t`));
+      if (exit !== 0) {
+        const kind = CURL_EXIT_KIND[exit] ?? 'unreachable';
+        reject(new FetchAssetError(4, `the site could not be read (curl exit ${exit})`, kind));
+        return;
+      }
+      const [, code = '', contentType = '', location = ''] = (line ?? '').split('\t');
+      resolvePromise({
+        status: Number(code) || 0,
+        contentType,
+        location,
+        body: Buffer.concat(chunks),
+      });
+    });
+  });
+}
+
+/**
+ * Read one text resource (a page, a stylesheet) through the gate, following at most `maxHops`
+ * redirects, each re-checked. `accept` is the list of base media types the final answer may have.
+ * Returns `{ url, host, contentType, text }` (the final URL). Throws FetchAssetError with a `kind`.
+ * `deps` (`lookup`, `transport`) exist for the tests; production uses DNS + curl.
+ */
+export async function fetchPublicText({
+  url,
+  maxBytes = DEFAULT_TEXT_MAX_BYTES,
+  maxTime = DEFAULT_MAX_TIME,
+  maxHops = DEFAULT_MAX_HOPS,
+  accept = ['text/html', 'application/xhtml+xml'],
+  allowHosts,
+  pinPort443 = false,
+  deps = {},
+}) {
+  const lookupFn = deps.lookup ?? lookup;
+  const transport = deps.transport ?? curlText;
+  const deadline = Date.now() + maxTime * 1000;
+  let current = url;
+  for (let hop = 0; ; hop += 1) {
+    // EVERY hop: scheme, credentials, port pin, allowlist, then every resolved address.
+    const { host, port } = parseHttpsTarget(current, { allowHosts, pinPort443 });
+    const pinIp = await resolveSafeIp(host, lookupFn);
+    const left = Math.floor((deadline - Date.now()) / 1000);
+    if (left < 1) throw new FetchAssetError(4, `no answer within ${maxTime} s`, 'timeout');
+    const r = await transport({ url: current, host, port, pinIp, maxBytes, maxTime: left, accept });
+    if (REDIRECT_STATUSES.has(r.status)) {
+      if (hop >= maxHops) {
+        throw new FetchAssetError(3, `more than ${maxHops} redirects`, 'redirect');
+      }
+      if (!r.location) throw new FetchAssetError(4, `HTTP ${r.status} without a target`, 'http');
+      let next;
+      try {
+        next = new URL(r.location, current).href;
+      } catch {
+        throw new FetchAssetError(3, 'a redirect to an unreadable address', 'refused');
+      }
+      current = next;
+      continue;
+    }
+    if (r.status !== 200) {
+      throw new FetchAssetError(4, `HTTP ${Number(r.status) || 0}`, 'http');
+    }
+    const base = String(r.contentType || '')
+      .split(';')[0]
+      .trim()
+      .toLowerCase();
+    if (!accept.includes(base)) {
+      throw new FetchAssetError(5, `not ${accept.join(' / ')}`, 'type');
+    }
+    const body = Buffer.isBuffer(r.body) ? r.body : Buffer.from(r.body ?? '');
+    if (body.length > maxBytes) {
+      throw new FetchAssetError(4, `the page is over ${maxBytes} bytes`, 'size');
+    }
+    if (body.includes(0)) throw new FetchAssetError(5, 'a binary body', 'type');
+    return { url: current, host, contentType: base, text: body.toString('utf8') };
   }
 }
 
@@ -712,9 +900,15 @@ async function main() {
   }
 }
 
-// Run only when invoked directly (not when imported by the test). This shim runs
-// under real `node` on a real on-disk path (never embedded in bun --compile), so
-// the classic argv[1] guard is correct here — see the v0.38.0 self-heal memory.
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+// Run only when invoked directly (not when imported by the test or by the server). Since the brand
+// import (S8.18) http.ts reaches this module through `_brand-site.mjs`, so it IS embedded in the
+// `bun --compile` binary — where every bundled module's import.meta.url collapses to the binary's own
+// path and the classic argv[1] compare is TRUE, hijacking the process before Bun.serve runs (the
+// v0.38.0 "Starting…" hang class; the binary printed this verb's usage). `import.meta.main` is the
+// reliable entry-module flag under bun; the compare stays only for plain `node` (Node <24 leaves it
+// undefined).
+const runDirectly =
+  import.meta.main ?? (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href);
+if (runDirectly) {
   main();
 }

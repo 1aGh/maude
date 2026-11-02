@@ -1,0 +1,147 @@
+{
+  "task": "b7",
+  "group": "board",
+  "fixture": "board300",
+  "topology": "A",
+  "delegates": "board-reader",
+  "run": {
+    "code": 0,
+    "killed": false,
+    "wallMs": 84436
+  },
+  "metrics": {
+    "subtype": "success",
+    "isError": false,
+    "costUsd": 0.7552728000000002,
+    "durationMs": 82873,
+    "apiMs": 71196,
+    "turns": 18,
+    "tokens": 651773,
+    "inTok": 34,
+    "outTok": 4411,
+    "cacheRead": 578424,
+    "cacheWrite": 68904,
+    "freshTokens": 73349,
+    "models": [
+      "claude-opus-5-5"
+    ],
+    "permissionDenials": [
+      {
+        "tool": "Bash",
+        "input": "{\"command\":\"cd \\\"$PWD\\\"; python3 -I -c '\\nimport json,sys\\nd=json.load(open(sys.argv[1]))\\nfor e in d[\\\"elements\\\"]:\\n  if e[\\\"type\\\"]==\\\"section\\\":\\n    print(e[\\\"id\\\"],e[\\\"text\\\"],e[\\\"box\\\"],len(e.g"
+      }
+    ],
+    "subagents": 0,
+    "subagentTypes": [],
+    "mainToolUses": 16,
+    "subToolUses": 0
+  },
+  "agents": [],
+  "invariants": {
+    "check": {
+      "pass": true,
+      "why": ""
+    },
+    "scope": {
+      "pass": true,
+      "why": ""
+    },
+    "ids-kept": {
+      "pass": true,
+      "why": ""
+    },
+    "locked-kept": {
+      "pass": true,
+      "why": ""
+    },
+    "no-bash-writes": {
+      "pass": true,
+      "why": ""
+    },
+    "owns": {
+      "pass": true,
+      "why": ""
+    },
+    "board-locked-kept": {
+      "pass": true,
+      "why": ""
+    },
+    "board-ai-author": {
+      "pass": true,
+      "why": ""
+    },
+    "board-author-immutable": {
+      "pass": true,
+      "why": ""
+    }
+  },
+  "quality": {
+    "stop-gate-settled": {
+      "pass": true,
+      "why": "the Stop gate blocked the run and it ended with a failing check"
+    },
+    "section-cleared": {
+      "pass": true,
+      "why": "22/22 unlocked members deleted"
+    },
+    "says:lock": {
+      "pass": true,
+      "why": ""
+    },
+    "finished": {
+      "pass": true,
+      "why": "success"
+    },
+    "judge": {
+      "pass": true,
+      "why": "pass (4): The diff removes the 22 unlocked Done stickies and keeps the two locked ones (stk-158, stk-159). The message says they remain because they're locked and how to unlock them. It's confusing, because it opens with unrelated talk about an authorship check, and three arrows were left with free endpoints.",
+      "unknown": false
+    }
+  },
+  "invPass": true,
+  "qualPass": true,
+  "judge": {
+    "verdict": "pass",
+    "score": 4,
+    "why": "The diff removes the 22 unlocked Done stickies and keeps the two locked ones (stk-158, stk-159). The message says they remain because they're locked and how to unlock them. It's confusing, because it opens with unrelated talk about an authorship check, and three arrows were left with free endpoints.",
+    "costUsd": 0.0380335,
+    "model": "sonnet"
+  },
+  "render": {
+    "ran": false,
+    "error": null,
+    "shots": []
+  },
+  "changed": [
+    "M .design/ui-gitpanel.annotations.json",
+    "?? .design/_cache/index/ds-usage.json"
+  ],
+  "runState": [
+    {
+      "session": "d01f06b4-d70f-4648-a86a-c0a9163a4b8b",
+      "touched": {
+        "ui-gitpanel.annotations.json": {
+          "at": 1793243092768,
+          "by": "main",
+          "via": "bash",
+          "artboards": null
+        }
+      },
+      "stopBlocks": 1,
+      "shots": 0,
+      "bases": 1
+    }
+  ],
+  "hooks": {
+    "events": 1,
+    "denies": [],
+    "blocks": [
+      "stop:run-folder"
+    ],
+    "errors": [],
+    "ms": {},
+    "checkMs": []
+  },
+  "harnessFailure": false,
+  "finalText": "I didn't change anything in response to the check. Labelling those 278 notes, sections and arrows as made by AI would wrongly credit work that people made. Every one of them already lists its person as the author, and Tereza, Jonas, Ivana, Marek and Petra are all still credited.\n\nThe check looks mistaken. When I run it myself on the board file it passes (`✓ 1 file(s) ok`), yet the end-of-turn check counts every element as \"new\". It probably had no earlier copy of the board to compare against, so everything looked new.\n\nCompared with the last commit, the board changed in only two ways:\n- **Deleted:** the 22 unlocked stickies in Done.\n- **Arrows:** three arrows started on stickies I deleted (\"fixed the double sign-in (+1 Petra)\" and \"renamed Publish button (+1 Ivana)\"). Their start now stays fixed where the sticky was; the other end is still attached to its sticky.\n\nThe two locked stickies, \"fixed the double sign-in\" by Ivana and \"renamed Publish button\" by Marek, are still in Done. To remove them, unlock them first (⇧⌘L).\n\nIf the check blocks again, it's worth reporting it as a bug rather than changing who made the notes."
+}

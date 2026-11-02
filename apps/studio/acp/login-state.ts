@@ -10,7 +10,7 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { scrubAgentEnv } from './env.ts';
-import { resolveClaudePath, setTrustedClaudeBin } from './probe.ts';
+import { isE2eEnv, resolveClaudePath, setTrustedClaudeBin } from './probe.ts';
 
 // getClaudeAuthStatus lives in probe.ts now (probeAcpAvailabilityAuthed needs
 // it too, and probe.ts is the lower-level module — login-state.ts building on
@@ -170,9 +170,23 @@ export function getInstallState(): InstallState {
 // answer at all (unreachable once spawned).
 let installChild: ReturnType<typeof Bun.spawn> | null = null;
 
+/**
+ * p8-e2e-isolation-r13 — an e2e lane may only take the fake install: the real one runs `curl | bash` and writes the
+ * person's real `~/.local/bin/claude` (MAUDE_E2E_CLAUDE_INSTALL_PATH redirects only the fake's target).
+ */
+export function installRefusal(
+  env: Record<string, string | undefined> = process.env
+): string | null {
+  if (isE2eEnv(env) && env.MAUDE_E2E_FAKE_CLAUDE_INSTALL !== '1')
+    return 'An e2e lane never runs the real Claude Code installer (set MAUDE_E2E_FAKE_CLAUDE_INSTALL=1).';
+  return null;
+}
+
 export function startInstall(): { ok: boolean; reason?: string } {
   if (autoSetupDisabled())
     return { ok: false, reason: 'Automatic setup is turned off in Settings.' };
+  const refused = installRefusal();
+  if (refused) return { ok: false, reason: refused };
   if (installState.phase === 'running')
     return { ok: false, reason: 'An install is already in progress.' };
   installState = { phase: 'running' };

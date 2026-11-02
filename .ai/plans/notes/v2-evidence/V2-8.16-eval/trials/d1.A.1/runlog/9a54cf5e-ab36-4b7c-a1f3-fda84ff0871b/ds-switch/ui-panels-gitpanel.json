@@ -1,0 +1,31 @@
+{
+  "canvas": "ui/panels/GitPanel.tsx",
+  "from": "maude",
+  "to": "maude-v2",
+  "meta": { "designSystem": "maude-v2" },
+  "edits": [
+    { "old": " * @ds          maude\n * @platform    desktop", "new": " * @ds          maude-v2\n * @platform    desktop", "why": "Header names the canvas's design system." },
+    { "old": "import \"../../system/maude/colors_and_type.css\";", "new": "import \"../../system/maude-v2/colors_and_type.css\";", "why": "Load the maude-v2 tokens. Every token the canvas and GitPanel.css use exists in maude-v2 (incl. --lh-*, which maude never defined)." },
+    { "old": "import \"../../system/maude/preview/_components.css\";", "new": "import \"../../system/maude-v2/preview/_components.css\";", "why": "Load the maude-v2 shared component classes." },
+    { "old": "return <div className=\"maude\" data-theme=\"dark\" style={{ position: \"absolute\", inset: 0 }}>{children}</div>;", "new": "return <div className=\"maude-v2 ds\" data-theme=\"dark\" style={{ position: \"absolute\", inset: 0 }}>{children}</div>;", "why": "maude-v2 scopes its tokens to .maude-v2/.ds[data-theme]; its .callout/.card rules need a .ds ancestor. Theme stays dark (see notes)." },
+    { "old": "<div className=\"panel gp-mini\">", "new": "<div className=\"island gp-mini\">", "why": "maude-v2 has no .panel; floating chrome is .island." },
+    { "old": "<div className=\"tree-row gp-row\" data-depth=\"0\" role=\"treeitem\" aria-expanded=\"true\">", "new": "<div className=\"row-item gp-row\" data-depth=\"0\" role=\"treeitem\" aria-expanded=\"true\">", "why": "maude-v2 has no .tree-row; its list row is .row-item. Depth indent stays in GitPanel.css (.gp-row[data-depth])." },
+    { "old": "<div className=\"tree-row gp-row\" data-depth=\"1\" role=\"treeitem\" aria-selected=\"true\">", "new": "<div className=\"row-item gp-row\" data-depth=\"1\" role=\"treeitem\" aria-selected=\"true\" aria-current=\"true\">", "why": ".row-item marks the current row with aria-current; aria-selected stays for the treeitem role." },
+    { "old": "<div className=\"tree-row gp-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"gp-row-icon\" /><span data-cd-id=\"onboarding-flow\"", "new": "<div className=\"row-item gp-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"gp-row-icon\" /><span data-cd-id=\"onboarding-flow\"", "why": ".tree-row → .row-item" },
+    { "old": "<div className=\"tree-row gp-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"gp-row-icon\" /><span data-cd-id=\"checkout-sheet\"", "new": "<div className=\"row-item gp-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"gp-row-icon\" /><span data-cd-id=\"checkout-sheet\"", "why": ".tree-row → .row-item" },
+    { "old": "<div className=\"tree-row gp-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"gp-row-icon\" /><span data-cd-id=\"team-avatars\"", "new": "<div className=\"row-item gp-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"gp-row-icon\" /><span data-cd-id=\"team-avatars\"", "why": ".tree-row → .row-item" },
+    { "old": "<div className=\"tree-row gp-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"gp-row-icon\" /><span data-cd-id=\"marketing-site\"", "new": "<div className=\"row-item gp-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"gp-row-icon\" /><span data-cd-id=\"marketing-site\"", "why": ".tree-row → .row-item" },
+    { "old": "<div className=\"tree-row gp-row\" data-depth=\"0\" role=\"treeitem\" aria-expanded=\"false\">", "new": "<div className=\"row-item gp-row\" data-depth=\"0\" role=\"treeitem\" aria-expanded=\"false\">", "why": ".tree-row → .row-item" },
+    { "old": "<button type=\"button\" className=\"btn btn--icon\" title=\"More\" aria-label=\"More options\">", "new": "<button type=\"button\" className=\"icon-btn\" title=\"More\" aria-label=\"More options\">", "why": "maude-v2's icon button is .icon-btn (components.json IconButton); .btn--icon doesn't exist." }
+  ],
+  "notes": [
+    "LOCKED: the 'Changes' tab (data-cd-id=\"changes\", data-cd-locked) is left untouched, so the Changes / History tab bar keeps the v1 .tabbar/.tab classes. maude-v2 has no .tab; its Tabs are .seg with aria-pressed. Converting the tab bar needs that tab unlocked (⇧⌘L); until then the tabs are styled only by GitPanel.css .gp-tabs.",
+    "Callouts (.callout--info on the Get-latest nudge, .callout--warn on 'Publish didn't go through') keep their classes. maude-v2's .callout has no tone variants, so they render as quiet neutral callouts with no status-hue bar. Decide: accept quiet, or add a local tone in GitPanel.css.",
+    "Theme: kept data-theme=\"dark\". maude-v2 is light-first ('Light glass'); switching the artboards to light is one word per wrapper if wanted.",
+    "Look shifts that come from the tokens alone: accent goes indigo (hue 268) → azure (238), radii grow (sm 5→6, md 7→10, lg 10→14 px), fonts go Inter/JetBrains Mono → system UI / SF Mono.",
+    "Words: maude-v2 CONTRACT §3 says 'Share' (not Publish) and 'Version history' (not History), and the collaborators are Tereza and Jonas (not Anna). The brief calls this vocabulary load-bearing, so copy is not changed here — needs a decision.",
+    "The inline Maude mark is the v1 spark-on-bubble; maude-v2 keeps its own mark in system/maude-v2/preview/logo. Not redrawn here.",
+    "Prose comments in the file header and GitPanel.css still say 'maude DS'; harmless, can be tidied after the switch.",
+    "The sample changed-file row 'system/maude/preview/components-cards.tsx' is mock data and is left as is."
+  ]
+}

@@ -1,0 +1,1 @@
+p8-c7-ds3 deltas on _c7-harness-g5: s13.mjs (groups g = three old folders, k = one folder, both open the sheet through the maude:ds-convert event; f = Fg 1 edited in Dark; a = ds-advanced at 1440x1500 with Check run; b waits 9 s for the frames), lanes.sh, chain-c7ds3.sh. Copy over the earlier harness folders in order, set REPO in lib.mjs.

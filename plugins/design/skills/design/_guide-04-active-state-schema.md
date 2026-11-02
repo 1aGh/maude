@@ -22,6 +22,6 @@
 }
 ```
 
-`active` = the tab the user clicked last. `selected` = element the user Cmd+Clicked inside the canvas (cleared automatically when the active tab switches; cleared on Esc inside the iframe; persists otherwise). **`active_comments`** = read-only mirror that the dev server keeps in sync with `<designRoot>/_comments/<slug>.json` for the currently active file — `/design` reads from `_active.json` once and has both selection and comments. Authoritative comment storage remains under `_comments/`; for non-active files, read those files directly.
+`active` = the canvas the person has open (the tab they used last). `selected` = the object they clicked in Edit mode (cleared when another canvas opens, and when they press Esc or click empty canvas; persists otherwise). **`active_comments`** = read-only mirror that the dev server keeps in sync with `<designRoot>/_comments/<slug>.json` for the currently active file — `/design` reads from `_active.json` once and has both selection and comments. Authoritative comment storage remains under `_comments/`; for non-active files, read those files directly.
 
-If `selected.file !== active`, the selection is stale (tab was switched but server didn't yet clear it on its side — race). Treat as canvas-wide.
+If `selected.file !== active`, the selection is stale (another canvas was opened but the studio hasn't cleared it yet — a race). Treat as canvas-wide.

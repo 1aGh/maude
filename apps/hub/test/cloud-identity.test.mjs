@@ -26,7 +26,10 @@ const HYBRID = { MAUDE_CLOUD_IDENTITY: '1', MAUDE_TENANT_ID: 'alligators' };
 
 const tokenFor = (over = {}, secret = SECRET) =>
   signAccessToken(
-    accessClaims({ email: 'a@example.com', project: 'alligators', ...over }, { now: NOW }),
+    accessClaims(
+      { email: 'a@example.com', project: 'alligators', role: 'member', ...over },
+      { now: NOW }
+    ),
     secret
   );
 

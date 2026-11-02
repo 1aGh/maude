@@ -1,0 +1,22 @@
+{"lane":"terminal","name":"Skill","input":{"skill":"design:new","args":"ui/Welcome.tsx with one artboard called \"Hello\" that shows a heading saying \"Hello\""}}
+{"lane":"terminal","name":"Bash","input":{"command":"ls; ls .design 2>/dev/null; cat .design/config.* 2>/dev/null | head -50; find / -path \"*references/new/00-overview.md\" 2>/dev/null | head -2","description":"Inspect project and locate skill references"}}
+{"lane":"terminal","name":"Bash","input":{"command":"ls -a; ls -a .design ui 2>/dev/null","description":"List project and design folders"}}
+{"lane":"terminal","name":"Glob","input":{"pattern":"**/references/new/0*.md","path":"/Users/iagh"}}
+{"lane":"terminal","name":"Bash","input":{"command":"cat .design/config.json; ls -R .design/ui .design/system | head -60; echo \"PLUGIN=$CLAUDE_PLUGIN_ROOT\"; which maude","description":"Read design config and list canvases"}}
+{"lane":"terminal","name":"Read","input":{"file_path":"/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/live/run2/S1/terminal/project/.design/config.json"}}
+{"lane":"terminal","name":"Bash","input":{"command":"ls -R .design/ui .design/system; which maude","description":"List canvases and locate maude CLI"}}
+{"lane":"terminal","name":"Bash","input":{"command":"maude design --help 2>&1 | head -80","description":"Show maude design commands"}}
+{"lane":"terminal","name":"Bash","input":{"command":"maude design --help","description":"Show maude design commands"}}
+{"lane":"terminal","name":"Glob","input":{"pattern":"**/references/new/09-*.md","path":"/Users/iagh/.claude-instances/bot/claude-config"}}
+{"lane":"terminal","name":"Glob","input":{"pattern":"**/references/new/09-*.md","path":"/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/live/run2/S1/terminal"}}
+{"lane":"terminal","name":"Glob","input":{"pattern":"**/references/new/09-*.md","path":"/Users/iagh/git/personal/maude"}}
+{"lane":"terminal","name":"Read","input":{"file_path":"/Users/iagh/git/personal/maude/plugins/design/references/new/09-3-validate-name-resolve-target-path.md"}}
+{"lane":"terminal","name":"Read","input":{"file_path":"/Users/iagh/git/personal/maude/plugins/design/references/new/16-6-generate-preferred-fallback.md"}}
+{"lane":"terminal","name":"Read","input":{"file_path":"/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/live/run2/S1/terminal/project/.design/_server.json"}}
+{"lane":"terminal","name":"Read","input":{"file_path":"/Users/iagh/git/personal/maude/plugins/design/skills/design/_guide-28-artboards.md"}}
+{"lane":"terminal","name":"Bash","input":{"command":"maude design curl-local \"http://127.0.0.1:4402/_api/canvas\" --method POST --header \"Content-Type: application/json\" --data '{\"kind\":\"blank\",\"group\":\"ui\",\"designSystem\":\"maude\",\"name\":\"Welcome\"}'","description":"Create the Welcome canvas via the studio"}}
+{"lane":"terminal","name":"Bash","input":{"command":"ls .design/ui","description":"List canvases in the ui folder"}}
+{"lane":"terminal","name":"Bash","input":{"command":"ls .design/ui","description":"List canvases in the ui folder"}}
+{"lane":"terminal","name":"Bash","input":{"command":"ls .design/ui","description":"List canvases in the ui folder"}}
+{"lane":"terminal","name":"Bash","input":{"command":"ls .design/ui","description":"List canvases in the ui folder"}}
+{"lane":"terminal","name":"Bash","input":{"command":"ls .design/ui; ls -a .design/_state; ls -a .design | grep -i trash","description":"Check ui folder and look for a trash folder"}}

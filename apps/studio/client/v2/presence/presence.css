@@ -1,0 +1,187 @@
+/* client/v2/presence/presence.css — S9.23: faces in the Share cluster, the face menu, the people list
+ * (canvas 10 co-presence · co-twelve). A person wears one of five tones (sky · green · yellow · lilac ·
+ * grey — never coral, which belongs to the AI); the ring is the tone, the fill stays the cluster's.
+ * Motion: none of its own — a menu appears with the shell; the glide and the follow frame live in the
+ * canvas (presence/canvas-presence.tsx), which collapses them to 1 ms under reduced motion. */
+
+@layer shell {
+  .sh-faces-host {
+    position: relative;
+    display: inline-flex;
+    flex: none;
+  }
+  /* 10 co-presence: a face is a tone FILL with the object ink and ONE letter (kit `.k-av--<tone>`), with
+     the cluster's 2 px ring around it — not an accent wash with the tone as a ring. The AI wears the
+     spark on the agent fill. The tone ring is reserved for Follow (below), where it means something. */
+  .sh-faces .sh-face[style*="--face-tone"],
+  .sh-faces .sh-face.is-you {
+    background: var(--face-tone);
+    color: var(--object-ink);
+  }
+  .sh-faces .sh-face.is-agent {
+    background: var(--presence-agent, var(--spark));
+    color: var(--spark-fg);
+  }
+  .sh-faces .sh-face.is-idle {
+    opacity: 0.55;
+    filter: grayscale(1);
+  }
+  .sh-faces .sh-face.is-following {
+    box-shadow:
+      0 0 0 2px var(--island-bg, var(--bg-1)),
+      0 0 0 4px var(--face-tone, var(--accent));
+  }
+  /* "+4" — a grey face (kit: a Who with the grey tone), tabular so 9 → 10 does not shift the row */
+  .sh-faces .sh-face.sh-face--more {
+    width: auto;
+    min-width: 24px;
+    padding: 0 6px;
+    border: 0;
+    font: inherit;
+    font-family: var(--font-rounded, var(--font-body));
+    font-size: var(--type-xs, 12px);
+    font-weight: var(--w-semibold, 600);
+    font-variant-numeric: tabular-nums;
+    color: var(--object-ink);
+    background: var(--object-grey);
+    cursor: pointer;
+  }
+
+  .sh-pmenu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 12px);
+    z-index: 40;
+    min-width: 236px;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    color: var(--fg-0);
+    font-size: var(--type-sm, 13px);
+  }
+  .sh-pmenu-hd {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 8px 8px;
+  }
+  .sh-pmenu-who {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .sh-pmenu-who em {
+    font-style: normal;
+    font-size: var(--type-xs, 12px);
+    color: var(--fg-2);
+  }
+  .sh-pface {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 24px;
+    height: 24px;
+    border-radius: var(--radius-pill, 999px);
+    font-size: var(--type-xs, 12px);
+    font-weight: var(--w-semibold, 600);
+    font-family: var(--font-rounded, var(--font-body));
+    color: var(--object-ink);
+    background: var(--face-tone, var(--object-grey));
+  }
+  .sh-pface--lg {
+    width: 32px;
+    height: 32px;
+  }
+  .sh-pmenu-sep {
+    border: 0;
+    height: 1px;
+    margin: 4px 0;
+    background: var(--border-subtle, rgba(127, 127, 127, 0.2));
+  }
+  .sh-pmenu-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    height: 32px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: var(--radius-sm, 6px);
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    background: transparent;
+    cursor: pointer;
+  }
+  .sh-pmenu-row:hover,
+  .sh-pmenu-row:focus-visible {
+    background: var(--bg-3);
+  }
+  .sh-pmenu-row:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: -2px;
+  }
+  /* `.k-mi-ic` — the 16 px glyph column of a menu row */
+  .sh-pmenu-ic {
+    display: grid;
+    place-items: center;
+    width: 16px;
+    flex: none;
+    color: var(--fg-2);
+  }
+
+  .sh-plist {
+    min-width: 300px;
+  }
+  .sh-plist-h {
+    display: flex;
+    justify-content: space-between;
+    margin: 0;
+    padding: 6px 8px 4px;
+    font-weight: var(--w-semibold, 600);
+  }
+  .sh-plist-h span + span {
+    font-weight: var(--w-regular, 400);
+    color: var(--fg-2);
+  }
+  .sh-plist-rows {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    max-height: 320px;
+    overflow: auto;
+  }
+  .sh-plist-row {
+    display: grid;
+    grid-template-columns: 24px 1fr auto;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    height: 34px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: var(--radius-sm, 6px);
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    background: transparent;
+    cursor: pointer;
+  }
+  .sh-plist-row:hover,
+  .sh-plist-row:focus-visible {
+    background: var(--bg-3);
+  }
+  .sh-plist-row em {
+    font-style: normal;
+    font-size: var(--type-xs, 12px);
+    color: var(--fg-2);
+    white-space: nowrap;
+  }
+  .sh-plist-row.is-idle {
+    opacity: 0.6;
+  }
+  .sh-plist-row.is-idle .sh-pface {
+    filter: grayscale(1);
+  }
+}

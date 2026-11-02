@@ -29,7 +29,7 @@ export function FileTree({ children, ...props }) {
     const onKey = (event) => {
       const item = event.target.closest?.(ITEM);
       if (!item || !tree.contains(item) || event.metaKey || event.ctrlKey || event.altKey) return;
-      const row = item.querySelector(':scope > .st-row-wrap');
+      const row = item.querySelector(':scope > .sh-row-wrap');
       const primary = row?.querySelector('[data-tree-primary]');
       // Extra buttons keep their native Enter/Space/Tab behavior. Escape
       // returns from a row action to the tree; open menus own their own keys.
@@ -99,7 +99,7 @@ export function FileTree({ children, ...props }) {
     };
   }, []);
   return (
-    <div {...props} ref={ref} className="st-tree" role="tree">
+    <div {...props} ref={ref} className="sh-tree" role="tree">
       {children}
     </div>
   );
@@ -138,7 +138,7 @@ export function FileTreeItem({
   return (
     <div
       ref={ref}
-      className={`st-tree-item ${className}`}
+      className={`sh-tree-item ${className}`}
       role="treeitem"
       tabIndex={-1}
       aria-label={label}
@@ -147,7 +147,7 @@ export function FileTreeItem({
       aria-disabled={disabled || undefined}
       aria-busy={busy || undefined}
     >
-      <div className="st-row-wrap">
+      <div className="sh-row-wrap">
         {primary}
         {actions}
       </div>

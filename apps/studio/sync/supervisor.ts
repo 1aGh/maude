@@ -30,6 +30,7 @@ import {
   createSyncRuntime,
   type SyncRuntime,
 } from './index.ts';
+import { hubHost } from './link-consent.ts';
 
 /**
  * What happened when the runtime was (re)started — the honest answer the cloud
@@ -41,7 +42,14 @@ export interface SyncStartOutcome {
   /** Canvases the runtime actually took ownership of. */
   canvases: number;
   /** Machine-readable cause when `syncing` is false. */
-  reason?: 'unlinked' | 'no-credential' | 'insecure-url' | 'refused' | 'nothing-syncable' | 'error';
+  reason?:
+    | 'unlinked'
+    | 'unconfirmed'
+    | 'no-credential'
+    | 'insecure-url'
+    | 'refused'
+    | 'nothing-syncable'
+    | 'error';
   /** One sentence a person can act on. Present whenever `syncing` is false. */
   detail?: string;
 }
@@ -98,6 +106,13 @@ function diagnose(ctx: Context): { reason: SyncStartOutcome['reason']; detail: s
     };
   }
   const linked = ctx.cfg.linkedHub;
+  if (!linked && ctx.unconfirmedHub) {
+    // gate-b-sec4 — the folder names a hub this Mac never linked: solo until Connect.
+    return {
+      reason: 'unconfirmed',
+      detail: `This project says it syncs with ${hubHost(ctx.unconfirmedHub.url)}. Connect?`,
+    };
+  }
   if (!linked) {
     return { reason: 'unlinked', detail: 'This project is not linked to a workspace.' };
   }
@@ -189,7 +204,10 @@ export function createSyncSupervisor(
         }
         runtime = null;
         if (linkedHub) adoptLinkedHub(ctx, linkedHub);
-        else if (linkedHub === null) delete ctx.cfg.linkedHub;
+        else if (linkedHub === null) {
+          delete ctx.cfg.linkedHub;
+          delete ctx.unconfirmedHub;
+        }
         return boot();
       }),
     stop: () =>

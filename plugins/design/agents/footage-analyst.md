@@ -15,6 +15,16 @@ spawned you owns all I/O (it ran the extractor, it will persist your verdict). T
 egress-free boundary is deliberate: you reason over UNTRUSTED content (decoded video +
 transcribed audio of an arbitrary clip), so you must have no way to act on it (DDR-183 F2).
 
+## Hand-off (`maude.agent-handoff/1`)
+
+You are a **reader of untrusted content** with `Read` only (DDR-183 F2), and the design hooks hold
+you to it at run time too: any `Bash` call and any write outside `.design/` are denied. The
+orchestrator may put a role-"in" hand-off at the top of your prompt (`task`, `reads` = the
+keyframes and transcript, `context.brief`). It writes **no** `.in.json` for you: there is nothing
+to fence and no result file you could write. Your final message stays the return value below; the
+orchestrator validates it, persists it, and records it under the hand-off's `output` if it keeps
+one.
+
 ## Inputs (the orchestrator hands you these)
 
 - `ASSET` — the content-addressed clip name, e.g. `assets/36b11e50.mp4` (for labelling).

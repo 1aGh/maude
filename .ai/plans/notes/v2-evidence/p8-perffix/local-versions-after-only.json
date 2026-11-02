@@ -1,0 +1,65 @@
+{
+  "root": "/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/pf/alli",
+  "at": "2026-10-26T02:38:23.251Z",
+  "index": {
+    "canvases": 95,
+    "staticArtboards": 225,
+    "buildMs": {
+      "p50": 179,
+      "p95": 179,
+      "budgetP95": 250
+    },
+    "stampMs": {
+      "p50": 5,
+      "p95": 5,
+      "budget": 10
+    },
+    "homeMerge20Ms": {
+      "p50": 42,
+      "p95": 42,
+      "budget": 150,
+      "note": "20 × (read + stamp) of this snapshot"
+    }
+  },
+  "versionPictures": {
+    "canvases": 12,
+    "coldBuild": {
+      "totalMs": 15957,
+      "jobs": 11,
+      "perPictureMs": {
+        "p50": 4335,
+        "p95": 6764
+      },
+      "phasesP50Ms": {
+        "viewport": 8,
+        "goto": 322,
+        "mount": 3729,
+        "settle": 88,
+        "fonts": 16,
+        "harvest": 8,
+        "shoot": 117
+      }
+    },
+    "warmBuild": {
+      "totalMs": 4124,
+      "jobs": 11,
+      "perPictureMs": {
+        "p50": 1261,
+        "p95": 2078
+      },
+      "phasesP50Ms": {
+        "viewport": 24,
+        "goto": 243,
+        "mount": 589,
+        "settle": 97,
+        "fonts": 16,
+        "harvest": 24,
+        "shoot": 201
+      }
+    },
+    "budget": {
+      "p50": 300,
+      "p95": 800
+    }
+  }
+}

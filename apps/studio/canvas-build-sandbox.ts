@@ -23,6 +23,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve, sep } from 'node:path';
 
+import { bothForms } from './access/frame.ts';
 import { DEV_SERVER_ROOT } from './paths.ts';
 
 /** Wall clock a single canvas build may take. */
@@ -37,6 +38,8 @@ export interface SandboxBuildOk {
   js: string;
   locator: unknown;
   etag: string;
+  /** gate-b-c4e — every file the module inlined, absolute (canvas-build.ts `inputs`). */
+  inputs: string[];
   cached: boolean;
 }
 export interface SandboxBuildFail {
@@ -45,6 +48,8 @@ export interface SandboxBuildFail {
   kind: 'build' | 'timeout' | 'memory' | 'runtime';
   /** How many imports the allowlist refused. A COUNT — never the specifiers. */
   rejectedImports?: number;
+  /** gate-b-c4m — the canvas's own source did not parse (a `TranspileError`), nothing it imports. */
+  transpile?: boolean;
 }
 export type SandboxBuildResult = SandboxBuildOk | SandboxBuildFail;
 
@@ -152,8 +157,9 @@ export function _resetBuildStats(): void {
   cache.clear();
 }
 
-/** key → { js, locator, etag } */
-const cache = new Map<string, { js: string; locator: unknown; etag: string }>();
+type CachedBuild = { js: string; locator: unknown; etag: string; inputs: string[] };
+/** key → { js, locator, etag, inputs } */
+const cache = new Map<string, CachedBuild>();
 
 /**
  * The cache key: the canvas source plus every sibling source it could pull in.
@@ -231,7 +237,7 @@ function graphBytes(designRoot: string, canvasAbs: string): number {
   return total;
 }
 
-function remember(key: string, value: { js: string; locator: unknown; etag: string }): void {
+function remember(key: string, value: CachedBuild): void {
   cache.set(key, value);
   while (cache.size > CACHE_MAX_ENTRIES) {
     const oldest = cache.keys().next().value as string;
@@ -363,7 +369,12 @@ export async function buildCanvasSandboxed({
 
   if (result.ok) {
     counters.builds++;
-    const value = { js: result.js, locator: result.locator, etag: result.etag };
+    const value = {
+      js: result.js,
+      locator: result.locator,
+      etag: result.etag,
+      inputs: result.inputs,
+    };
     remember(key, value);
     return { ...value, ok: true, cached: false };
   }
@@ -455,13 +466,31 @@ async function runWorker({
   try {
     const parsed = JSON.parse(out);
     if (parsed.ok) {
-      return { ok: true, js: parsed.js, locator: parsed.locator, etag: parsed.etag, cached: false };
+      // gate-b-c4e — no input list, no module: the serve path cannot hold it to a closure.
+      // gate-b-c4g (M2) — nor a list that does not name the canvas itself: an empty or missing
+      // metafile is no evidence of what the module read. Fail closed.
+      const entryForms = bothForms(canvasAbs);
+      if (
+        !Array.isArray(parsed.inputs) ||
+        !parsed.inputs.every((p: unknown) => typeof p === 'string') ||
+        !parsed.inputs.some((p: string) => entryForms.includes(resolve(p)))
+      )
+        return { ok: false, kind: 'runtime', error: 'the build reported no inputs' };
+      return {
+        ok: true,
+        js: parsed.js,
+        locator: parsed.locator,
+        etag: parsed.etag,
+        inputs: parsed.inputs,
+        cached: false,
+      };
     }
     return {
       ok: false,
       kind: 'build',
       error: String(parsed.error),
       rejectedImports: Number(parsed.rejectedImports ?? 0) || 0,
+      transpile: parsed.transpile === true,
     };
   } catch {
     return {

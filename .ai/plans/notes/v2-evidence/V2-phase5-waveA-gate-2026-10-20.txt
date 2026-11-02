@@ -1,0 +1,41 @@
+V2 Phase 5 wave A (S1–S5) — gate evidence, 2026-10-19/20, tip 908e64ac5 (feat/maude-v2)
+
+Rows (ledger, canvas artboards): 97 of 135 wave-A rows verified
+  S1 10/23 · S2 23/26 · S3 18/26 · S4 25/31 · S5 21/29
+  Open = unreachable in this lane (desktop-native S1 tabs/windows/accounts/relaunch/deeplink/home; cloud/hub
+  viewer & two-person rows; live-AI rows ai-hero/ai-long/md-draw/an-plan legend; S7-owned an-video timeline;
+  wave-B md-comment) plus 3 partials (an-today, an-follow, an-templates ghost). Evidence: v2-evidence/S4.V4,
+  S4.V5, GATE-A-MIX, waveA-gate/*.
+
+Suites
+  studio full suite (lane, --max 5400): 14621 pass / 217 fail under concurrent desktop-e2e load; the 47 files
+    with a red rerun alone: 509 pass / 0 fail (all boot timeouts) — logs scratchpad gateA-suite-final2*.txt
+  hub 1767/1767 · cloud 782/782 (after the kernel undo fix and the cloud --fg-3 sync)
+  tsc 0 · import coherence OK · token drift in sync · client-boots-source OK
+  v1-keys golden regenerated (10 key/write changes attributed in v1-keys.test.ts)
+  nothing-deleted 100 % on all four lines (1524 entries, 144 rows, 468 kept hooks)
+
+Reviews
+  security defender + attacker (Opus): blockers fixed (sec-a-fix, sec-a-fix2); C4 deferred to before any rc
+  design critic: 03 4.1 · 04 4.1 · 11 4.1 · 14 4.0 · 15 4.1 (after polish 1+2)
+  a11y: B1–B4, W1, W3, W6, W7 fixed and re-checked (axe 0 on the scanned surfaces); W2 minor open
+
+Desktop e2e (debug app of 908e64ac5, screen unlocked, window on screen)
+  default lane 18/31; the 13 red specs alone: edit-keyboard, edit-layout, edit-shapes, modes-present green;
+  edit-undo 2/4 then 4/4 (instant-⌘Z timing flake);
+  still red alone: acp-capability-picker + acp-write-scope (need a signed-in `claude` — environment),
+  canvas-text-editing 1/9 (sticky dblclick caret — canvas 15 does not specify), edit-components 2 (instance
+  before-hook, ↵ in picker), edit-images 2 (Figma paste in WKWebView, Fit race), edit-multi 1 (Distribute
+  vertically), export-formats 1 (project groups / Advanced replay), exports-panel 2 (Show in Finder rows).
+  Harness made to run the 22 wave-A specs that slices had written but never run (fixture-tree net, canvas-row
+  testids, real canvas focus, __name shim) — 9 → 18 in the lane.
+
+Packaged app: apps/desktop/src-tauri/target/release/bundle/macos/Maude.app (1.9.1, built 00:58 from 908e64ac5;
+  updater-archive signing skipped locally) — check-bundle-completeness --smoke ✓, check-client-boots ✓,
+  'WebDriver' strings 0, no wdio-webdriver:default grant.
+
+Gate fixes this pass: 3 (Esc keeps sticky text, stickies grow, armed pick places, v2 scope on panels),
+  3b (board column tones + free placement), 3c (vote cast + live read, comment turns back into a sticky),
+  4a (kernel undo skips own redo chain), 4b (style keys, image Fit, F6 order), 4c (history refresh, toasts
+  under the tour offer, remembered export folder, HTML is one page), reach2, e2e harness 1+2, cloud tokens.
+Not run: perf gates (S4.9 200-sticky LOD, S4.10 drag — the --drag mode is not built) → carried to wave B.

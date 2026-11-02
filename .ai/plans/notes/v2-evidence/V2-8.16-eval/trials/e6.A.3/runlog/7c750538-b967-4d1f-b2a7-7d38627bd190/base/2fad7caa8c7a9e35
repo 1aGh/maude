@@ -1,0 +1,13 @@
+{
+  "title": "Alligators Brno — Cinematic Cut",
+  "subtitle": "Remotion max-potential showcase — kinetic type + RGB split, freeze/flash, slow-mo, VHS archival, glitch, light leaks, chalkboard play-diagram + value-bar infographic, 3D CTA",
+  "brief": "Effect-maxed cinematic version of the /design:reel Alligators recruiting trailer. Demonstrates the full Remotion + motion-graphics arsenal, all frame-deterministic. 1280×720, 30fps, ~24s.",
+  "platform": "desktop",
+  "opt_out_scope": "full",
+  "status": "draft",
+  "tags": ["reel", "video", "vfx", "motion-graphics", "showcase"],
+  "sections": [
+    { "id": "cinematic", "title": "Alligators Brno — Cinematic Cut", "subtitle": "1280×720 · 30fps · ~24s · VFX + infographics" }
+  ],
+  "artboards": [{ "id": "cinematic", "label": "Cinematic" }]
+}

@@ -1,0 +1,92 @@
+{
+  "canvas": "ui/panels/GitPanel.tsx",
+  "from": "maude",
+  "to": "maude-v2",
+  "meta": { "designSystem": "maude-v2" },
+  "edits": [
+    {
+      "old": " * @ds          maude\n",
+      "new": " * @ds          maude-v2\n",
+      "why": "Header tag follows the canvas's design system."
+    },
+    {
+      "old": " * Authored under the `maude` DS (\"Unified Pro Studio\", dark-first). Tokens +",
+      "new": " * Authored under the `maude-v2` DS (switched from `maude`). Tokens +",
+      "why": "Header comment names the system the canvas now uses."
+    },
+    {
+      "old": "import \"../../system/maude/colors_and_type.css\";\nimport \"../../system/maude/preview/_components.css\";",
+      "new": "import \"../../system/maude-v2/colors_and_type.css\";\nimport \"../../system/maude-v2/preview/_components.css\";",
+      "why": "Load maude-v2 tokens and component classes instead of maude's. (ds-check S5 suggests dropping the imports because the shell injects them; repointing keeps the canvas self-contained, the same way it was built.)"
+    },
+    {
+      "old": "return <div className=\"maude\" data-theme=\"dark\" style={{ position: \"absolute\", inset: 0 }}>{children}</div>;",
+      "new": "return <div className=\"maude-v2 ds\" data-theme=\"dark\" style={{ position: \"absolute\", inset: 0 }}>{children}</div>;",
+      "why": "maude-v2 tokens are scoped to .maude-v2[data-theme]; its schema components (.checkbox, .callout, .card) are scoped to :where(.ds), so the wrapper needs both classes (ds-check S6)."
+    },
+    {
+      "old": "className=\"check\"",
+      "new": "className=\"checkbox\"",
+      "why": "maude-v2 maps Checkbox to .checkbox; .check has no rule there. Indeterminate is supported (.checkbox:indeterminate)."
+    },
+    {
+      "old": "<button type=\"button\" className=\"btn btn--icon\" title=\"More\" aria-label=\"More options\">",
+      "new": "<button type=\"button\" className=\"icon-btn\" title=\"More\" aria-label=\"More options\">",
+      "why": "maude-v2 has no .btn--icon; its IconButton is .icon-btn."
+    },
+    {
+      "old": "<div className=\"panel gp-mini\">",
+      "new": "<div className=\"island gp-mini\">",
+      "why": "maude-v2 has no .panel; the floating surface is .island (ext.Island)."
+    },
+    {
+      "old": "<div className=\"tree-row gp-row\" data-depth=\"0\" role=\"treeitem\" aria-expanded=\"true\">",
+      "new": "<div className=\"row-item gp-row\" data-depth=\"0\" role=\"treeitem\" aria-expanded=\"true\">",
+      "why": "maude-v2 has no .tree-row; its list row is .row-item (ext.ListRow)."
+    },
+    {
+      "old": "<div className=\"tree-row gp-row\" data-depth=\"1\" role=\"treeitem\" aria-selected=\"true\">",
+      "new": "<div className=\"row-item gp-row\" data-depth=\"1\" role=\"treeitem\" aria-selected=\"true\" aria-current=\"true\">",
+      "why": ".row-item marks the selected row with [aria-current=\"true\"] (accent-muted fill), not [aria-selected]; aria-selected stays for the tree role."
+    },
+    {
+      "old": "<div className=\"tree-row gp-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"gp-row-icon\" /><span data-cd-id=\"onboarding-flow\"",
+      "new": "<div className=\"row-item gp-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"gp-row-icon\" /><span data-cd-id=\"onboarding-flow\"",
+      "why": ".tree-row → .row-item."
+    },
+    {
+      "old": "<div className=\"tree-row gp-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"gp-row-icon\" /><span data-cd-id=\"checkout-sheet\"",
+      "new": "<div className=\"row-item gp-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"gp-row-icon\" /><span data-cd-id=\"checkout-sheet\"",
+      "why": ".tree-row → .row-item."
+    },
+    {
+      "old": "<div className=\"tree-row gp-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"gp-row-icon\" /><span data-cd-id=\"team-avatars\"",
+      "new": "<div className=\"row-item gp-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"gp-row-icon\" /><span data-cd-id=\"team-avatars\"",
+      "why": ".tree-row → .row-item."
+    },
+    {
+      "old": "<div className=\"tree-row gp-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"gp-row-icon\" /><span data-cd-id=\"marketing-site\"",
+      "new": "<div className=\"row-item gp-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"gp-row-icon\" /><span data-cd-id=\"marketing-site\"",
+      "why": ".tree-row → .row-item."
+    },
+    {
+      "old": "<div className=\"tree-row gp-row\" data-depth=\"0\" role=\"treeitem\" aria-expanded=\"false\">",
+      "new": "<div className=\"row-item gp-row\" data-depth=\"0\" role=\"treeitem\" aria-expanded=\"false\">",
+      "why": ".tree-row → .row-item."
+    },
+    {
+      "old": "/* The Maude mark — spark-on-bubble (the brand source is system/maude/preview/logo). */",
+      "new": "/* The Maude mark — spark-on-bubble (the brand source is system/maude-v2/assets/logos/mark.svg). */",
+      "why": "Comment points at the maude-v2 brand source. The drawing itself is left alone — see notes."
+    }
+  ],
+  "notes": [
+    "Every token the canvas and GitPanel.css use is defined in maude-v2 (the old names --accent-muted, --accent-tint and --canvas-* are kept there as aliases), so colours, spacing and type resolve with no token edits.",
+    "Locked, left alone: the Changes tab (data-cd-id=\"changes\", data-cd-locked) keeps className=\"tab\". maude-v2 has no .tabbar/.tab rule (its Tabs map to the .seg segmented control), so the Changes/History tabs render as plain buttons after the switch. To move them to .seg, unlock the Changes tab (⇧⌘L) first; the History tab is not changed either, so the two stay consistent.",
+    "Callouts: maude-v2's .callout has no info/warn variants and no left accent bar. The 'Anna published 2 changes' nudge (C) and 'Publish didn't go through' (E) lose their tone colour. The classes callout--info / callout--warn are left in place (they are harmless) — decide whether GitPanel.css should draw the tone locally.",
+    "Theme: the canvas stays data-theme=\"dark\" (the brief says 'dark studio'). maude-v2 is light-first and its v2 kit canvases use light — decide whether to switch to data-theme=\"light\".",
+    "Mark: maude-v2's mark is an azure tile (--accent) with an --accent-fg star, lifted verbatim from assets/logos/mark.svg. The canvas still draws maude's grey bubble with the spark. Not changed here; replacing it is a brand decision.",
+    "GitPanel.css is not part of these edits: its header comment still names system/maude and the DS classes it 'lifts' (.panel, .tree-row, .tab, .check). Its rules still apply. ds-check also lists optional alias renames there (--accent-muted → --accent-soft, --accent-tint → --selection, --canvas-* → --x-canvas-*) and some literal font sizes/weights — none of them block the switch.",
+    "Before the switch, ds-check --canvas reports the canvas as 'switchable'."
+  ]
+}

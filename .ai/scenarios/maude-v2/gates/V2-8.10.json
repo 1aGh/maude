@@ -1,0 +1,14 @@
+{
+  "gate": "V2-8.10",
+  "pass": true,
+  "qualityHash": "ca053cd5bbc8fa64231dfde679d7b0108280b8f384c154322c75c50c872e7071",
+  "reportHashes": {
+    ".ai/plans/notes/v2-evidence/V2-8.10-app-final/README.md": "429de98a7b182a2594b3b72db005d55d6daeab3b8241c1fefb7b6b4cd39a4709"
+  },
+  "head": "4597c1b56449078c2e7c40c15ac1b727a69b36ec",
+  "ts": "2026-11-02T17:03:04.116Z",
+  "reports": [
+    ".ai/plans/notes/v2-evidence/V2-8.10-app-final/README.md"
+  ],
+  "note": "scripted half green on the .app built at 71ec8ec75; r6 changes only the client bundle — the rc.1 desktop build from the tag reruns bundle-completeness + client-boots in build-desktop.yml. Clean-user smoke NOT RUN — Michal chose to merge without it; packaged-app.json stays pass:false (rc soak). r6 (Michal 2026-11-02, scoped re-check per kg v2-michal-gates-scoped-recheck): the product diff 71ec8ec75..18e10e9e3 is the Inspector Fill + (now opens the picker on Custom; the Colour/Gradient/Image add row and its 5 testids removed) and the DS bar's dark-values caption removed — re-checked by V2-8.1 at 18e10e9e3, the inspector/ds-board tests, inspector-colour browser e2e and edit-shapes desktop e2e 2/2 + 4597c1b56: CI-only test guards in scripts/test (macOS-only reap test, the CI better-sqlite3 ABI skip) — no product file"
+}

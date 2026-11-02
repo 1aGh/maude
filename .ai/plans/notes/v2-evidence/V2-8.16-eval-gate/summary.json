@@ -1,0 +1,252 @@
+{
+  "generatedAt": "2026-10-29T06:03:05.962Z",
+  "trials": 6,
+  "harnessFailures": 0,
+  "rows": [
+    {
+      "task": "e4",
+      "group": "edit",
+      "delegates": null,
+      "A": {
+        "trials": 3,
+        "valid": 3,
+        "harnessFailures": 0,
+        "invPassAll": true,
+        "invPassRate": 1,
+        "qualPassAny": true,
+        "qualPassRate": 1,
+        "judgePass": 1,
+        "judgeUnknown": 0,
+        "tokens": 534395,
+        "freshTokens": 40363,
+        "costUsd": 0.48126906666666674,
+        "wallS": 63.24100000000001,
+        "subagents": 0,
+        "helperSpawns": 0,
+        "failedInvariants": [],
+        "failedQuality": []
+      },
+      "B": {
+        "trials": 0,
+        "valid": 0,
+        "harnessFailures": 0,
+        "invPassAll": false,
+        "invPassRate": null,
+        "qualPassAny": false,
+        "qualPassRate": null,
+        "judgePass": null,
+        "judgeUnknown": 0,
+        "tokens": null,
+        "freshTokens": null,
+        "costUsd": null,
+        "wallS": null,
+        "subagents": null,
+        "helperSpawns": null,
+        "failedInvariants": [],
+        "failedQuality": []
+      }
+    },
+    {
+      "task": "e5",
+      "group": "edit",
+      "delegates": null,
+      "A": {
+        "trials": 3,
+        "valid": 3,
+        "harnessFailures": 0,
+        "invPassAll": true,
+        "invPassRate": 1,
+        "qualPassAny": true,
+        "qualPassRate": 1,
+        "judgePass": 0.6666666666666666,
+        "judgeUnknown": 1,
+        "tokens": 815487,
+        "freshTokens": 50085.666666666664,
+        "costUsd": 0.6620256,
+        "wallS": 115.75866666666666,
+        "subagents": 0,
+        "helperSpawns": 0,
+        "failedInvariants": [],
+        "failedQuality": []
+      },
+      "B": {
+        "trials": 0,
+        "valid": 0,
+        "harnessFailures": 0,
+        "invPassAll": false,
+        "invPassRate": null,
+        "qualPassAny": false,
+        "qualPassRate": null,
+        "judgePass": null,
+        "judgeUnknown": 0,
+        "tokens": null,
+        "freshTokens": null,
+        "costUsd": null,
+        "wallS": null,
+        "subagents": null,
+        "helperSpawns": null,
+        "failedInvariants": [],
+        "failedQuality": []
+      }
+    }
+  ],
+  "helpers": {
+    "board-reader": {
+      "A": {
+        "tasks": 0,
+        "invPassAll": 0,
+        "qualPassAny": 0,
+        "qualPassRate": null,
+        "judgePass": null,
+        "tokens": null,
+        "costUsd": null,
+        "wallS": null,
+        "wallMedianS": null,
+        "subagents": null
+      },
+      "B": {
+        "tasks": 0,
+        "invPassAll": 0,
+        "qualPassAny": 0,
+        "qualPassRate": null,
+        "judgePass": null,
+        "tokens": null,
+        "costUsd": null,
+        "wallS": null,
+        "wallMedianS": null,
+        "subagents": null
+      },
+      "tokenRatio": null,
+      "qualityWin": false,
+      "latencyWin": false,
+      "invNoDrop": true,
+      "keepSplit": false
+    },
+    "artboard-drafter": {
+      "A": {
+        "tasks": 0,
+        "invPassAll": 0,
+        "qualPassAny": 0,
+        "qualPassRate": null,
+        "judgePass": null,
+        "tokens": null,
+        "costUsd": null,
+        "wallS": null,
+        "wallMedianS": null,
+        "subagents": null
+      },
+      "B": {
+        "tasks": 0,
+        "invPassAll": 0,
+        "qualPassAny": 0,
+        "qualPassRate": null,
+        "judgePass": null,
+        "tokens": null,
+        "costUsd": null,
+        "wallS": null,
+        "wallMedianS": null,
+        "subagents": null
+      },
+      "tokenRatio": null,
+      "qualityWin": false,
+      "latencyWin": false,
+      "invNoDrop": true,
+      "keepSplit": false
+    },
+    "ds-switcher": {
+      "A": {
+        "tasks": 0,
+        "invPassAll": 0,
+        "qualPassAny": 0,
+        "qualPassRate": null,
+        "judgePass": null,
+        "tokens": null,
+        "costUsd": null,
+        "wallS": null,
+        "wallMedianS": null,
+        "subagents": null
+      },
+      "B": {
+        "tasks": 0,
+        "invPassAll": 0,
+        "qualPassAny": 0,
+        "qualPassRate": null,
+        "judgePass": null,
+        "tokens": null,
+        "costUsd": null,
+        "wallS": null,
+        "wallMedianS": null,
+        "subagents": null
+      },
+      "tokenRatio": null,
+      "qualityWin": false,
+      "latencyWin": false,
+      "invNoDrop": true,
+      "keepSplit": false
+    }
+  },
+  "controls": {
+    "A": {
+      "tasks": 0,
+      "invPassAll": 0,
+      "qualPassAny": 0,
+      "qualPassRate": null,
+      "judgePass": null,
+      "tokens": null,
+      "costUsd": null,
+      "wallS": null,
+      "wallMedianS": null,
+      "subagents": null
+    },
+    "B": {
+      "tasks": 0,
+      "invPassAll": 0,
+      "qualPassAny": 0,
+      "qualPassRate": null,
+      "judgePass": null,
+      "tokens": null,
+      "costUsd": null,
+      "wallS": null,
+      "wallMedianS": null,
+      "subagents": null
+    },
+    "tokenRatio": null,
+    "qualityWin": false,
+    "latencyWin": false,
+    "invNoDrop": true,
+    "keepSplit": false
+  },
+  "overall": {
+    "A": {
+      "tasks": 0,
+      "invPassAll": 0,
+      "qualPassAny": 0,
+      "qualPassRate": null,
+      "judgePass": null,
+      "tokens": null,
+      "costUsd": null,
+      "wallS": null,
+      "wallMedianS": null,
+      "subagents": null
+    },
+    "B": {
+      "tasks": 0,
+      "invPassAll": 0,
+      "qualPassAny": 0,
+      "qualPassRate": null,
+      "judgePass": null,
+      "tokens": null,
+      "costUsd": null,
+      "wallS": null,
+      "wallMedianS": null,
+      "subagents": null
+    },
+    "tokenRatio": null,
+    "qualityWin": false,
+    "latencyWin": false,
+    "invNoDrop": true,
+    "keepSplit": false
+  },
+  "costUsd": 3.6857661,
+  "wallS": 536.999
+}

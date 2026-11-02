@@ -284,6 +284,52 @@ describe('applySetPlaybackRate (Task 10)', () => {
   });
 });
 
+// The e2e fixture shape: a faded two-beat storyline with a standalone title that STARTS INSIDE
+// the first beat. Ripple like an editor — only pieces starting at/after the edited beat's old
+// end move; a title inside the span stays put (it used to shift to -20 and refuse the edit).
+const STORYLINE_TITLE = [
+  "import { TransitionSeries } from '@remotion/transitions';",
+  'const TOTAL = 105;',
+  'const Comp = () => (',
+  '  <>',
+  '    <TransitionSeries>',
+  '      <TransitionSeries.Sequence name="oslava" durationInFrames={60}><Video src="a.mp4" /></TransitionSeries.Sequence>',
+  '      <TransitionSeries.Transition presentation={fade()} timing={linearTiming({ durationInFrames: 15 })} />',
+  '      <TransitionSeries.Sequence name="logo" durationInFrames={60}><Card /></TransitionSeries.Sequence>',
+  '    </TransitionSeries>',
+  '    <Sequence name="title" from={10} durationInFrames={45}><Title /></Sequence>',
+  '    <Sequence name="outro" from={70} durationInFrames={20}><Title /></Sequence>',
+  '  </>',
+  ');',
+  'function Canvas() {',
+  '  return (',
+  '    <DCArtboard id="a"><VideoComp component={Comp} durationInFrames={TOTAL} fps={30} /></DCArtboard>',
+  '  );',
+  '}',
+].join('\n');
+
+describe('ripple like an editor — only pieces after the edited clip old end move', () => {
+  test('Speed 2x on a beat leaves a title that starts inside its span alone', () => {
+    const r = applySetPlaybackRate(CANVAS, STORYLINE_TITLE, 'a', 'name:oslava', undefined, 2);
+    expect(r.newDuration).toBe(30);
+    expect(r.source).toContain('name="title" from={10}'); // inside the old 0-60 span: stays
+    expect(r.source).toContain('name="outro" from={40}'); // started after frame 60: 70 - 30
+    expect(r.source).toContain('const TOTAL = 75;');
+  });
+
+  test('in-point trim: same rule', () => {
+    const r = applyTrimIn(CANVAS, STORYLINE_TITLE, 'a', 'name:oslava', undefined, 20);
+    expect(r.source).toContain('name="title" from={10}');
+    expect(r.source).toContain('name="outro" from={50}');
+  });
+
+  test('a piece starting exactly at the old end moves', () => {
+    const exact = STORYLINE_TITLE.replace('name="outro" from={70}', 'name="outro" from={60}');
+    const r = applySetPlaybackRate(CANVAS, exact, 'a', 'name:oslava', undefined, 2);
+    expect(r.source).toContain('name="outro" from={30}');
+  });
+});
+
 describe('applyTrimIn (Task 11)', () => {
   test('trims into the clip: trimBefore + shorter duration + ripple', () => {
     const r = applyTrimIn(CANVAS, SERIES, 'a', 'name:s2', undefined, 20);

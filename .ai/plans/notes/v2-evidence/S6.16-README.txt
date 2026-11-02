@@ -1,0 +1,33 @@
+S6.16 — first-canvas journey evidence (branch s6-16 on feat/maude-v2 435b37e75, 2026-10-20)
+
+One file per 01 row: S6.16-<artboard>.txt. Each holds the 01 canvas words, the code that implements the row and
+the tests that pin it (both sha256-pinned; re-check with
+  cat .ai/plans/notes/v2-evidence/S6.16-*.txt | grep -E "^[0-9a-f]{64}  " | sort -u | shasum -a 256 -c
+from the repo root), the earlier verified topic-canvas rows, the live e2e step, and the named gaps.
+
+Run (one lane run, all rows): 27 test files · 523 pass · 0 fail.
+Pins bite (red → green): inspector-follow.js shouldOpenOnSelect forced to false and save-status.js
+WORDS.local changed to "Local" → v2-right-islands.test.tsx "appears on a selection" and share-cluster.test.tsx
+"the status word, one per state" went red (2 fail / 34 pass); both reverted → 36 pass, pins unchanged.
+
+LIVE: apps/desktop/e2e/scenarios/first-canvas.e2e.ts (fake ACP). WRITTEN, NOT RUN.
+Implemented-state screenshots: not taken (the disk of this machine was at 98 % during the slice).
+
+Proposed ledger lines (the lead writes them; <sha> = the commit that adds these files):
+  node scripts/v2-ledger.mjs set 01/cf-sticky-comment   verified --evidence .ai/plans/notes/v2-evidence/S6.16-cf-sticky-comment.txt   --commit <sha>
+  node scripts/v2-ledger.mjs set 01/cf-add-artboard     verified --evidence .ai/plans/notes/v2-evidence/S6.16-cf-add-artboard.txt     --commit <sha>
+  node scripts/v2-ledger.mjs set 01/cf-duplicate-width  verified --evidence .ai/plans/notes/v2-evidence/S6.16-cf-duplicate-width.txt  --commit <sha>
+  node scripts/v2-ledger.mjs set 01/cf-frames-text      verified --evidence .ai/plans/notes/v2-evidence/S6.16-cf-frames-text.txt      --commit <sha>
+  node scripts/v2-ledger.mjs set 01/cf-status-words     verified --evidence .ai/plans/notes/v2-evidence/S6.16-cf-status-words.txt     --commit <sha>
+  node scripts/v2-ledger.mjs set 01/cf-select-tweak     built    --evidence .ai/plans/notes/v2-evidence/S6.16-cf-select-tweak.txt     --commit <sha>
+  node scripts/v2-ledger.mjs set 01/cf-duplicate-done   built    --evidence .ai/plans/notes/v2-evidence/S6.16-cf-duplicate-done.txt   --commit <sha>
+
+Rule save-status-shown-not-operated (S6.16 via cf-status-words): the five words and the "never a control" claim
+are pinned by the cf-status-words file; S6 closes it unless the lead names another owner.
+
+Named gaps (the two `built` rows):
+  cf-select-tweak   (1) the Canvases panel does not fold when the inspector arrives; (2) the canvas does not
+                    slide left — by contract an inset change never moves the camera (canvas-mode-store.ts I1).
+  cf-duplicate-done (1) the copy lands right of the row at its gap (14 ed-ab-menu), not under the source as 01
+                    draws it — two canvases disagree, 14 is the topic canvas; (2) no success toast "Duplicated at
+                    Laptop — 1280 wide." with Undo (writeCopies toasts only a refusal).

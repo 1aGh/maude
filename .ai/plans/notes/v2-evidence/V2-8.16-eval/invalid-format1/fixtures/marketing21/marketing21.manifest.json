@@ -1,0 +1,430 @@
+{
+  "fixture": "marketing21",
+  "canvases": [
+    "ui/2026/combine/Combine-kampan.tsx"
+  ],
+  "ids": {
+    "ui/2026/combine/Combine-kampan.tsx": [
+      {
+        "id": "start",
+        "text": "START",
+        "tag": "text",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "dosah-v-cm",
+        "text": "DOSAH V CM",
+        "tag": "text",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "delka",
+        "text": "DÉLKA",
+        "tag": "text",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "odraz",
+        "text": "ODRAZ",
+        "tag": "text",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "tri-kuzely-do",
+        "text": "TŘI KUŽELY DO L",
+        "tag": "text",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "yardu",
+        "text": "YARDŮ",
+        "tag": "text",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "routy-podle-postu",
+        "text": "ROUTY PODLE POSTU",
+        "tag": "text",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "co-merime",
+        "text": "CO MĚŘÍME",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "combine-2026-brno",
+        "text": "COMBINE 2026 · BRNO ·",
+        "tag": "div",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "stopky",
+        "text": "STOPKY",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "nelzou",
+        "text": "NELŽOU",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "sedm-disciplin-z",
+        "text": "Sedm disciplín z NFL combine. Jedno odpoledne. Tvoje čísla černé na bílém.",
+        "tag": "div",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "kdy",
+        "text": "KDY",
+        "tag": "div",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "kde",
+        "text": "KDE",
+        "tag": "div",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "od-15-let",
+        "text": "Od 15 let. Zkušenost nechceme, dres ti půjčíme.",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "prvni-brnenske-combine",
+        "text": "PRVNÍ BRNĚNSKÉ COMBINE · SEDM DISCIPLÍN Z NFL",
+        "tag": "div",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "stopky-nelzou",
+        "text": "STOPKY NELŽOU",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "satny-a-sprchy",
+        "text": "Šatny a sprchy zajištěny. Dres ti půjčíme.",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "stopky-2",
+        "text": "STOPKY",
+        "tag": "div",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "nelzou-2",
+        "text": "NELŽOU",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "sedm-disciplin-z-2",
+        "text": "Sedm disciplín z NFL combine za jedno odpoledne. Odejdeš s čísly, ne s dojmem.",
+        "tag": "div",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "kde-2",
+        "text": "KDE",
+        "tag": "div",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "od-15-let-2",
+        "text": "Od 15 let, i úplným nováčkům. Dres ti půjčíme.",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "stopky-3",
+        "text": "STOPKY",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "nelzou-3",
+        "text": "NELŽOU",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "sedm-disciplin-z-3",
+        "text": "Sedm disciplín z NFL combine. Jedno odpoledne. Tvoje čísla černé na bílém.",
+        "tag": "div",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "od-15-let-3",
+        "text": "Od 15 let. Dres ti půjčíme.",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "pokus",
+        "text": "POKUS",
+        "tag": "div",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "partneri-klubu",
+        "text": "PARTNEŘI KLUBU",
+        "tag": "div",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "combine-jsou-dvere",
+        "text": "COMBINE JSOU DVEŘE, NE CÍL",
+        "tag": "div",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "treninky",
+        "text": "TRÉNINKY",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "bezi-cely-rok",
+        "text": "BĚŽÍ CELÝ ROK",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "cisla-na-tehle",
+        "text": "Čísla na téhle kartě jsou tvůj startovní bod. Jestli tě odpoledne chytlo, ozvi se. Dres ti půjčíme, zkušenost nechceme.",
+        "tag": "div",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "prijd-na-trenink",
+        "text": "PŘIJĎ NA TRÉNINK",
+        "tag": "div",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "ve-spolupraci-s",
+        "text": "VE SPOLUPRÁCI S",
+        "tag": "div",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "est-1991",
+        "text": "EST. 1991",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "combine-2026-brno-2",
+        "text": "COMBINE 2026 · BRNO ·",
+        "tag": "div",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "vysledkova",
+        "text": "VÝSLEDKOVÁ",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "karta",
+        "text": "KARTA",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "sedm-disciplin-sedm",
+        "text": "Sedm disciplín, sedm čísel. Všechno se měří, nic se neodhaduje.",
+        "tag": "div",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "abychom-se-ozvali",
+        "text": "ABYCHOM SE OZVALI",
+        "tag": "div",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "kdo-jsi",
+        "text": "KDO JSI",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "kartu-si-odnasis",
+        "text": "Kartu si odnášíš ty, tenhle sloupec zůstává nám. Píšeme jenom kvůli termínu nejbližšího tréninku, nikam jinam údaje nedá",
+        "tag": "div",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "souhlasim-aby-me",
+        "text": "Souhlasím, aby mě Brno Alligators, z. s. kontaktovali ohledně tréninků. Souhlas můžu kdykoli odvolat na info@alligators.",
+        "tag": "div",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "zadny-spam-zadna",
+        "text": "Žádný spam, žádná reklama. Jen termín dalšího tréninku.",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "co-jsi-nameril",
+        "text": "CO JSI NAMĚŘIL",
+        "tag": "div",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "tva-cisla",
+        "text": "TVÁ ČÍSLA",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "poznamka",
+        "text": "POZNÁMKA",
+        "tag": "div",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "vysledky-online",
+        "text": "VÝSLEDKY ONLINE",
+        "tag": "div",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "combinecz-shclub-cz",
+        "text": "COMBINECZ.SHCLUB.CZ",
+        "tag": "div",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "stopky-4",
+        "text": "STOPKY",
+        "tag": "span",
+        "locked": false,
+        "artboard": "release-plan"
+      },
+      {
+        "id": "nelzou-4",
+        "text": "NELŽOU",
+        "tag": "span",
+        "locked": false,
+        "artboard": "release-plan"
+      },
+      {
+        "id": "ctyri-tydny-jeden",
+        "text": "Čtyři týdny, jeden cíl: dostat na stadion CESA lidi, kteří si chtějí změřit vlastní čísla. Plán níž říká, co postnout, k",
+        "tag": "div",
+        "locked": false,
+        "artboard": "release-plan"
+      },
+      {
+        "id": "den-d",
+        "text": "DEN D",
+        "tag": "div",
+        "locked": false,
+        "artboard": "release-plan"
+      },
+      {
+        "id": "serie-6-videi",
+        "text": "SÉRIE 6 VIDEÍ · POZVÁNKA OD HOSTA ZE ZÁMOŘÍ",
+        "tag": "div",
+        "locked": false,
+        "artboard": "release-plan"
+      },
+      {
+        "id": "jedna-tvar-provede",
+        "text": "Jedna tvář provede celou kampaní. přijede na combine a postupně, díl po dílu, ukáže, co které stanoviště obnáší. První č",
+        "tag": "div",
+        "locked": false,
+        "artboard": "release-plan"
+      },
+      {
+        "id": "doplnit-pred-startem",
+        "text": "DOPLNIT PŘED STARTEM",
+        "tag": "div",
+        "locked": false,
+        "artboard": "release-plan"
+      },
+      {
+        "id": "jmeno-a-role",
+        "text": "jméno a role hosta",
+        "tag": "div",
+        "locked": false,
+        "artboard": "release-plan"
+      },
+      {
+        "id": "pravidlo-kombinace",
+        "text": "PRAVIDLO KOMBINACE",
+        "tag": "div",
+        "locked": false,
+        "artboard": "release-plan"
+      },
+      {
+        "id": "nikdy-tri-posty",
+        "text": "Nikdy tři posty v jeden den. Každé video doprovodí story se stejnou myšlenkou, ale jinými slovy. Feed nese KDY a KDE, vi",
+        "tag": "div",
+        "locked": false,
+        "artboard": "release-plan"
+      }
+    ]
+  }
+}

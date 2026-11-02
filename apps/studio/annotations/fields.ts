@@ -31,6 +31,16 @@ export const COORD_MAX = 1_000_000;
 export type Json = null | boolean | number | string | Json[] | { [k: string]: Json };
 
 /**
+ * A JSON Schema (draft 2020-12) fragment describing what a field ACCEPTS without
+ * repair — the strict, AI-write reading of the spec (contract V2-1.11 §5.2). The
+ * lenient `parse` above it clamps, truncates and drops; the schema names the
+ * values that survive a load unchanged (modulo rounding and default omission).
+ * Descriptive only: no parse path reads it. `board-schema.ts` assembles the
+ * generated `apps/studio/schema/annotations.v2.schema.json` from these.
+ */
+export type JsonSchema = { readonly [k: string]: unknown };
+
+/**
  * A field spec. `parse` returns the clean value, or `undefined` when the raw
  * value is unusable (the engine then applies the default, or rejects the
  * element when the field is required). `def` is the implicit value: a field
@@ -42,6 +52,8 @@ export interface FieldSpec<T = unknown> {
   required?: boolean;
   /** Structural equality for default-omission and change detection. */
   eq?(a: T, b: T): boolean;
+  /** What the field accepts without repair (generated-schema source; never read by parse). */
+  schema?: JsonSchema;
 }
 
 export function round(v: number, dp: number): number {
@@ -65,6 +77,7 @@ export function num(opts: NumOpts = {}): FieldSpec<number> {
   return {
     def: opts.def,
     required: opts.required,
+    schema: { type: 'number', minimum: min, maximum: max },
     parse(raw) {
       if (typeof raw !== 'number' || !Number.isFinite(raw)) return undefined;
       return round(Math.min(max, Math.max(min, raw)), dp);
@@ -108,6 +121,12 @@ export function str(opts: StrOpts): FieldSpec<string> {
   return {
     def: opts.def,
     required: opts.required,
+    schema: {
+      type: 'string',
+      ...(opts.allowEmpty ? {} : { minLength: 1 }),
+      maxLength: opts.max,
+      ...(opts.re ? { pattern: opts.re.source } : {}),
+    },
     parse(raw) {
       if (typeof raw !== 'string') return undefined;
       let v = opts.plain ? stripUnsafe(raw, false).trim() : raw.replace(/\r\n?/g, '\n');
@@ -132,6 +151,7 @@ export function text(max = 20_000): FieldSpec<string> {
 export function bool(def = false): FieldSpec<boolean> {
   return {
     def,
+    schema: { type: 'boolean' },
     parse(raw) {
       return typeof raw === 'boolean' ? raw : undefined;
     },
@@ -147,6 +167,7 @@ export function oneOf<T extends string>(
   return {
     def,
     required,
+    schema: { type: 'string', enum: [...values] },
     parse(raw) {
       return typeof raw === 'string' && set.has(raw) ? (raw as T) : undefined;
     },
@@ -164,6 +185,7 @@ export function color(def?: string, required?: boolean): FieldSpec<string> {
 export function fill(): FieldSpec<string | null> {
   return {
     def: null,
+    schema: { type: ['string', 'null'], pattern: COLOR_RE.source },
     parse(raw) {
       if (raw === null) return null;
       return typeof raw === 'string' && COLOR_RE.test(raw) ? raw : undefined;
@@ -185,6 +207,7 @@ export function stringList(maxItems: number, item: FieldSpec<string>): FieldSpec
   return {
     def: [],
     eq: (a, b) => a.length === b.length && a.every((v, i) => v === b[i]),
+    schema: { type: 'array', maxItems, uniqueItems: true, items: item.schema ?? {} },
     parse(raw) {
       if (!Array.isArray(raw)) return undefined;
       const out: string[] = [];
@@ -202,6 +225,12 @@ export function points(maxPoints: number): FieldSpec<number[]> {
   return {
     required: true,
     eq: (a, b) => a.length === b.length && a.every((v, i) => v === b[i]),
+    schema: {
+      type: 'array',
+      minItems: 2,
+      maxItems: maxPoints * 2,
+      items: { type: 'number', minimum: -COORD_MAX, maximum: COORD_MAX },
+    },
     parse(raw) {
       if (!Array.isArray(raw)) return undefined;
       const n = Math.min(raw.length - (raw.length % 2), maxPoints * 2);
@@ -244,6 +273,7 @@ export function record(
     required: opts.required,
     def: opts.def,
     eq: jsonEq,
+    schema: specMapSchema(spec),
     parse(raw) {
       if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
       const r = parseFields(spec, raw as Record<string, unknown>);
@@ -256,6 +286,7 @@ export function record(
 export function either<T>(...alts: FieldSpec<T>[]): FieldSpec<T> {
   return {
     eq: jsonEq as (a: T, b: T) => boolean,
+    schema: { anyOf: alts.map((a) => a.schema ?? {}) },
     parse(raw) {
       for (const a of alts) {
         const v = a.parse(raw);
@@ -267,6 +298,26 @@ export function either<T>(...alts: FieldSpec<T>[]): FieldSpec<T> {
 }
 
 export type FieldSpecMap = Readonly<Record<string, FieldSpec<unknown>>>;
+
+/**
+ * The closed object schema of a field-spec map: every key its spec, `required`
+ * where the spec is, nothing else (`additionalProperties: false`). A field with no
+ * declared schema (a plugin's custom spec) accepts any value here.
+ */
+export function specMapSchema(spec: FieldSpecMap): JsonSchema {
+  const properties: Record<string, unknown> = {};
+  const required: string[] = [];
+  for (const [k, f] of Object.entries(spec)) {
+    properties[k] = f.schema ?? {};
+    if (f.required) required.push(k);
+  }
+  return {
+    type: 'object',
+    ...(required.length ? { required } : {}),
+    properties,
+    additionalProperties: false,
+  };
+}
 
 export type ParseResult =
   | { ok: true; value: Record<string, unknown> }

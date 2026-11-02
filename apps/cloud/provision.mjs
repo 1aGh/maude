@@ -296,3 +296,31 @@ export async function nudgeCellRevocations(
     return { ok: false, reason: String(err?.message ?? err) };
   }
 }
+
+/**
+ * Restart a tenant's cell so its next start reads fresh config (`/_cell/restart`).
+ *
+ * Env applies at container START only, so a change the cell must see — a plan
+ * that paused or was chosen (A3, Maude v2 S9.15b) — reaches a RUNNING cell
+ * only through this. The data plane answers it before any wake: a sleeping
+ * cell stays asleep and picks the new config up on its next start. Authorized
+ * by the tenant's own derived secret, like the revocation nudge.
+ */
+export async function restartCell(env, projectId, { fetchImpl = fetch, timeoutMs = 30_000 } = {}) {
+  if (!env.CELL_SECRET_MASTER) return { ok: false, reason: 'no cell secret' };
+  try {
+    const secret = await deriveCellSecret(env.CELL_SECRET_MASTER, projectId);
+    const res = await fetchImpl(
+      `https://${projectId}.${env.CELL_ZONE ?? 'cloud.maude.sh'}/_cell/restart`,
+      {
+        method: 'POST',
+        headers: { authorization: `Bearer ${secret}` },
+        redirect: 'manual',
+        signal: AbortSignal.timeout(timeoutMs),
+      }
+    );
+    return { ok: res.ok, status: res.status };
+  } catch (err) {
+    return { ok: false, reason: String(err?.message ?? err) };
+  }
+}

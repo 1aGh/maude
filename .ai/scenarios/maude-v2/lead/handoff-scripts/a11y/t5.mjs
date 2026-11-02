@@ -1,0 +1,11 @@
+import * as d from './drv.mjs';
+d.ab('set', 'viewport', '1600', '1000');
+d.ab('set', 'media', 'reduced-motion');
+d.open('http://127.0.0.1:4431/');
+d.sleep(1500);
+d.clickName(/^Smoke$/);
+d.sleep(2000);
+d.clickName(/^Ask AI/);
+d.sleep(1200);
+console.log(d.ev(`(()=>{const f=document.querySelector('.chat-feed');if(!f)return 'nofeed';const p=document.createElement('p');p.textContent='Here is a long enough message to count as real text content in the feed.';f.appendChild(p);return f.outerHTML.slice(0,200)})()`));
+d.scan('chatfeed-with-text', 'dark');

@@ -32,8 +32,27 @@ interface GitLifecycleEvent {
 }
 
 const HEAD_DEBOUNCE_MS = 250;
+/**
+ * The content poll behind the fs watch (V2-3.10). fs.watch on macOS is FSEvents: its stream
+ * starts asynchronously and coalesces, so a HEAD write that lands before the stream is live (a
+ * busy process, many watchers) is never reported — the git-lifecycle test flake, and a real
+ * missed branch switch right after boot. Reading a ~40-byte file once a second makes detection
+ * independent of event delivery; the watch stays as the fast path.
+ */
+const HEAD_POLL_MS = 1000;
 
-export function createGitLifecycle(ctx: Context, registry: Registry): GitLifecycle {
+export interface GitLifecycleOptions {
+  /** Arm the fs watch (default true). Tests turn it off to model a dropped event. */
+  watchFs?: boolean;
+  /** Content-poll interval (default HEAD_POLL_MS). */
+  pollMs?: number;
+}
+
+export function createGitLifecycle(
+  ctx: Context,
+  registry: Registry,
+  opts: GitLifecycleOptions = {}
+): GitLifecycle {
   const gitDir = path.join(ctx.paths.repoRoot, '.git');
   const headPath = path.join(gitDir, 'HEAD');
 
@@ -46,6 +65,7 @@ export function createGitLifecycle(ctx: Context, registry: Registry): GitLifecyc
   let prevHead: string | null = readHeadSafe(headPath);
   let debounce: ReturnType<typeof setTimeout> | null = null;
   let watcher: ReturnType<typeof watch> | null = null;
+  let poll: ReturnType<typeof setInterval> | null = null;
   let stopped = false;
 
   async function onChange() {
@@ -82,28 +102,40 @@ export function createGitLifecycle(ctx: Context, registry: Registry): GitLifecyc
     }, HEAD_DEBOUNCE_MS);
   }
 
-  try {
-    // Watch the HEAD file directly. fs.watch on .git/HEAD fires on every
-    // checkout (git rewrites the file with the new ref) and on pull (when
-    // git updates HEAD to a new commit via the `update-ref` path). Some
-    // filesystems / git implementations fire spurious events on packfile
-    // operations too — the readHead diff above filters noise.
-    watcher = watch(headPath, { persistent: false }, () => schedule());
-    // An 'error' with no listener is thrown and exits the studio (the
-    // 2026-10-02 cell crash loop came from a sibling watcher). Log and stop.
-    watcher.on('error', (err) => {
-      console.warn('[git-lifecycle] .git/HEAD watcher error — stopped:', err.message);
-      watcher?.close();
-    });
-  } catch (err) {
-    console.warn(
-      '[git-lifecycle] failed to watch .git/HEAD:',
-      err instanceof Error ? err.message : err
-    );
-  }
+  // The content poll: schedule() only when HEAD's content actually moved, so an idle repo
+  // never debounces, and onChange's diff still dedups a poll + watch pair into one event.
+  poll = setInterval(() => {
+    if (!debounce && readHeadSafe(headPath) !== prevHead) schedule();
+  }, opts.pollMs ?? HEAD_POLL_MS);
+  (poll as { unref?: () => void }).unref?.(); // like the watch's persistent: false
+
+  if (opts.watchFs !== false)
+    try {
+      // Watch the HEAD file directly. fs.watch on .git/HEAD fires on every
+      // checkout (git rewrites the file with the new ref) and on pull (when
+      // git updates HEAD to a new commit via the `update-ref` path). Some
+      // filesystems / git implementations fire spurious events on packfile
+      // operations too — the readHead diff above filters noise.
+      watcher = watch(headPath, { persistent: false }, () => schedule());
+      // An 'error' with no listener is thrown and exits the studio (the
+      // 2026-10-02 cell crash loop came from a sibling watcher). Log and stop.
+      watcher.on('error', (err) => {
+        console.warn('[git-lifecycle] .git/HEAD watcher error — stopped:', err.message);
+        watcher?.close();
+      });
+    } catch (err) {
+      console.warn(
+        '[git-lifecycle] failed to watch .git/HEAD:',
+        err instanceof Error ? err.message : err
+      );
+    }
 
   function stop() {
     stopped = true;
+    if (poll) {
+      clearInterval(poll);
+      poll = null;
+    }
     if (debounce) {
       clearTimeout(debounce);
       debounce = null;

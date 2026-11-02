@@ -1,0 +1,633 @@
+# Phase 8 fidelity — 13 Design System (stage A evidence)
+
+Branch p8-fid-g5 from feat/maude-v2 6d780ab1b. SPEC = the board artboard rendered 1:1 from a scratch copy of `.design/ui/v2/13 Design System.tsx` through the capture origin (app theme light / dark; the designs inside an artboard stay theme-pinned, as designed). IMPL = the release-built v2 app (Playwright Chromium 1440×900 with a `window.__TAURI__` stub, throwaway HOME/XDG, `claude` stubbed signed-out, `NO_OPEN=1 MAUDE_NO_AUTOBUILD=1`) driven into the artboard's state; theme set through prefs.json `theme`. Pairs: spec left, impl right, label strip `<id> · <theme>`; the artboard is padded (grey) to the taller side so nothing is rescaled in the full-size copy.
+
+Full-size pairs: see `full-size-path.txt`. Committed copies here are JPEG q55, max 1100 px wide (an artboard larger than 1440 px wide is therefore small — read the full-size one).
+
+**30 artboards · 60 pairs (30 × light + dark where drawn) · impl reachable: 8 yes, 12 partially, 10 no.**
+
+Reading the impl side: most artboards are a 1440×900 window plus an 80 px note strip (the spec is 1440×980 — the grey band under the impl is that strip, not a defect). Close-up artboards (a sheet, a menu, several panes side by side) depict a region; the impl is the whole window with that region on it — the "how reached" column says where to look.
+
+## Method notes for this canvas
+
+- **Converted design system.** The in-repo systems are not converted, so IMPL is a scratch project built from this repo's `maude-v2` and `maude` system folders (+ a Homepage / Landing / Pricing / Combine-kampaň set of plain-code canvases), converted with the real verb: `maude design ds convert` over a running studio (`apps/studio/bin/_ds.mjs`). Further states were driven with the same verb family (`ds pending`, `publish --leave-out`, `keep`, `trash`, `make`, `draft`, `mix`, `use`, `done`). The board names (Studio site, Alligators brand, Combine 2026, Tereza, Jonas, 87 canvases…) therefore do not exist in IMPL.
+- **Board images.** `ds-board-studio`, `ds-board-dark`, `ds-board-gator`: the IMPL side is the converted system's own `design-system.tsx` canvas rendered 1:1 through the capture origin (the whole board), the same way the SPEC is. The in-app frame of the same state (panel + bar + inspector) is `.scr/impl/13-design-system/<id>-<theme>.png` in the worktree; the pair uses the full board because the spec artboard is the board itself.
+- **A build gate found on the way.** Two preview specimens of the copied system (`ui_kits-desktop-showcase.tsx`, `ui_kits-desktop-index.tsx`) made the converted board answer `403 not-in-scope` and render a blank white page; they were removed from the scratch copy of the second system and the first. Cause not chased (stage-C candidate: a specimen reaching a file the import closure rejects; the 07 `waveB-gate` note had a similar "bare board" finding). Without that removal there would be no impl board at all. The two showcase artboards (Desktop index / showcase) still show "This specimen is not loaded" in impl.
+- **Unreachable here:** AI-driven states (`ds-make-*` need AI to draw the directions; `ds-edge-suggest`, `ds-multi-schema`), hub states (`ds-many-library`, `ds-many-linked`). `ds-truth-outside` / `ds-truth-conflict` did not surface a review within the shot.
+- **Dark.** The spec shows the app chrome around the board in the app theme; the board contents are the system's own colours (Light|Dark chosen by the board's switch), so most dark pairs differ from light only in the chrome. Dark pairs spot-checked: `ds-edit-review`, `ds-make-directions`, `ds-make-done`. IMPL in dark: bottom toolbar looks washed/translucent in several dark frames (also seen on 14).
+
+
+| id | theme | state (as the board draws it) | how reached | impl reachable? | first-glance differences |
+| --- | --- | --- | --- | --- | --- |
+| `ds-where-studio` | light | Studio site: the Design system row pinned above the canvas list; selecting an artboard makes the inspector say “Uses <system> system” | open Homepage, left panel on, select the artboard, inspector on | yes | Impl pins TWO rows (`maude` "Default · no canvas uses it", `maude-v2` "4 canvases") — the board shows one row with "used by 1 project". Row sub-lines differ in wording. Inspector "Uses maude-v2" link is there. Impl list is a flat canvas list with folder carets, no thumbnails; spec rows have thumbnails and a status dot. IMPL runs on the converted `maude-v2` system (+ `maude`), so names differ from the board's Studio site / Alligators brand copy (not a defect). |
+| `ds-where-studio` | dark | Studio site: the Design system row pinned above the canvas list; selecting an artboard makes the inspector say “Uses <system> system” | open Homepage, left panel on, select the artboard, inspector on | yes | As the light row. No dark-only difference noticed (dark pairs not all inspected one by one — see the note above). |
+| `ds-where-gator` | light | ⌘K "design system" lists the system, every colour/type style/component by name, and the actions | ⌘K, type “design system” | partially — palette finds the two systems and the Design system action, but not the in-system tokens/styles/components by name | Spec results: system row "used by 3 projects · 7 sections", then token/style/component hits ("Klubová zelená — Colour · used in 88 canvases"), then actions (Check the system, Switch canvases…). Impl: two system rows, an action "Design system", "Link a team library", Ask AI — no token/style/component hits, no Check / Switch actions. Impl palette is bigger and more centred; spec is a compact card at the top. |
+| `ds-where-gator` | dark | ⌘K "design system" lists the system, every colour/type style/component by name, and the actions | ⌘K, type “design system” | partially — palette finds the two systems and the Design system action, but not the in-system tokens/styles/components by name | As the light row. No dark-only difference noticed (dark pairs not all inspected one by one — see the note above). |
+| `ds-board-studio` | light | The Design system canvas at 100 %: hero + seven sections as artboards (Brand, Colour, Type, Space & shape, Motion, Components, Patterns) | open the pinned system row; board rendered 1:1 through the capture origin (impl image = the converted system's own canvas, whole board) | partially — the board exists and is editable; the board hero, sizes and several sections differ | Spec has a hero block ("Design system · Studio site system", count line "7 sections · 22 colours…", Light·Dark switch) above the sections; impl board has NO hero — the Light/Dark switch and "maude-v2" live in the app bar instead. Impl sections are small thumbnails of the specimen pages (Brand, Colour, Type are tiny, Type is a single narrow column; Colour has more swatches: 60+ vs 22) and uses a 3-column grid that wraps differently. Patterns shows an empty frame ("No patterns yet"); the two showcase artboards ("Desktop index", "Desktop showcase") show "This specimen is not loaded" (the seed's specimen failed to build — see INDEX note). Spec Patterns row shows five real screens. Section frames have no per-section titles in the board font/weight of the spec. |
+| `ds-board-studio` | dark | The Design system canvas at 100 %: hero + seven sections as artboards (Brand, Colour, Type, Space & shape, Motion, Components, Patterns) | open the pinned system row; board rendered 1:1 through the capture origin (impl image = the converted system's own canvas, whole board) | partially — the board exists and is editable; the board hero, sizes and several sections differ | As the light row. No dark-only difference noticed (dark pairs not all inspected one by one — see the note above). |
+| `ds-board-dark` | light | The same system in its Dark values (the app theme is unchanged) | board bar › Dark | yes | Dark toggle works and swaps every specimen to the dark values; the bar says "60 colours in their dark values" (spec: "22 colours"). Same layout differences as `ds-board-studio` (no hero, empty Patterns, unloaded showcase artboards). In the app (non-capture) frame the Dark/Light segmented control is in the top bar, not on the board. |
+| `ds-board-dark` | dark | The same system in its Dark values (the app theme is unchanged) | board bar › Dark | yes | As the light row. No dark-only difference noticed (dark pairs not all inspected one by one — see the note above). |
+| `ds-board-gator` | light | A second system on its own Design system canvas (club-green, Avenir Condensed) | open the second pinned system (`maude`) — it has no club colours, so only the structure compares | partially — the second board opens; content is the Maude (indigo) system, not a club brand | Same structure gaps as `ds-board-studio`. Colour/type are the other system's (spec: green + yellow, Avenir Next Condensed, brand lock icons). No lock affordance on brand colours is visible. The impl bar title is the system name only; spec shows "Alligators brand system" with a mode switch and a "3 projects" chip. |
+| `ds-board-gator` | dark | A second system on its own Design system canvas (club-green, Avenir Condensed) | open the second pinned system (`maude`) — it has no club colours, so only the structure compares | partially — the second board opens; content is the Maude (indigo) system, not a club brand | As the light row. No dark-only difference noticed (dark pairs not all inspected one by one — see the note above). |
+| `ds-edit-colour` | light | Select the Accent swatch: inspector with Light value, Dark follows toggle, contrast line, "Used in 5 canvases — was Azure" | fold panels, inspector on, click the Accent swatch on the board | yes | Impl inspector: Accent · Colour, Editing Light/Dark, Light/Dark values, "Light value" field, Dark follows automatically toggle, contrast line ("Light 4.6:1 · Dark 4.7:1"), Advanced OKLCH — same anatomy. Missing vs spec: the drawn colour picker (lightness/chroma square + hue rail), the swatch name chips ("Deeper azure"), "Used in 5 canvases · was Azure · Show". The board itself is tiny in the impl frame (fit-to-window) so the selected swatch is hard to see. |
+| `ds-edit-colour` | dark | Select the Accent swatch: inspector with Light value, Dark follows toggle, contrast line, "Used in 5 canvases — was Azure" | fold panels, inspector on, click the Accent swatch on the board | yes | As the light row. No dark-only difference noticed (dark pairs not all inspected one by one — see the note above). |
+| `ds-edit-reach` | light | One colour, everywhere it lands: lines from the swatch to every canvas spot that will change, plus the review list | inspector › Show (needs a colour used by canvases) | partially — the Show action is not offered in the converted project (no canvas references the changed token); no ringed reach lines | Impl shows the board with the colour selected and a waiting change in the bar ("1 change waiting · Review…"); the board draws no connector lines to canvas artboards and does not bring the using canvases onto the board. Spec is a 2400×1250 diagram with Patterns + two canvases and ringed spots. |
+| `ds-edit-reach` | dark | One colour, everywhere it lands: lines from the swatch to every canvas spot that will change, plus the review list | inspector › Show (needs a colour used by canvases) | partially — the Show action is not offered in the converted project (no canvas references the changed token); no ringed reach lines | As the light row. No dark-only difference noticed (dark pairs not all inspected one by one — see the note above). |
+| `ds-edit-review` | light | "Update canvases with the new Accent?": canvases with thumbnails and place counts, tick per canvas, Before/After, Cancel / Update 4 canvases | bar › Review… | yes | Dialog is there with the same controls (swatch pair, "Fine in Light and Dark", Before/After toggle, tick per canvas, Cancel / Update N canvases). Differences: impl rows have empty grey thumbnails and "Follows the system" / "1 place" lines (spec: real thumbnails, "14 places — buttons, links, cards"); impl dialog is narrower and sits mid-board; no "Tereza's open Pricing updates…" note; no un-ticked "Landing page · left out" example. Dialog radius/shadow look flatter. |
+| `ds-edit-review` | dark | "Update canvases with the new Accent?": canvases with thumbnails and place counts, tick per canvas, Before/After, Cancel / Update 4 canvases | bar › Review… | yes | As the light row. No dark-only difference noticed (dark pairs not all inspected one by one — see the note above). |
+| `ds-edit-master` | light | Edit a component master (Button corners 2 → 6): review lists canvases by folder with one tick per folder; a folder can be left out | ds pending components (Button corners), bar › Review… | partially — the master-edit review opens, but it is a flat canvas list, not folders | Impl lists the four canvases flat ("Follows the system"); the board draws folder groups ("club-web 5 canvases", "2026/combine 6 canvases · left out"), a folder tick, an expandable list of the left-out folder's canvases and the master preview chip. No Before/After preview of the component corners. Counts line differs ("4 of 4 canvases in Studio site"). |
+| `ds-edit-master` | dark | Edit a component master (Button corners 2 → 6): review lists canvases by folder with one tick per folder; a folder can be left out | ds pending components (Button corners), bar › Review… | partially — the master-edit review opens, but it is a flat canvas list, not folders | As the light row. No dark-only difference noticed (dark pairs not all inspected one by one — see the note above). |
+| `ds-edit-instance` | light | A canvas left out of an update: the instance shows "Update available" (Update / Detach) | ds publish --leave-out ui/Pricing, open Pricing, select the button | partially — canvas opens, but no "update available" state shows on the instance | Impl: selecting the Buy button shows a plain frame inspector (no Component/instance section, no "Update available · Corners 2 → 6", no Update/Detach). The left-out canvas has no quiet update dot in the canvas list. The Pricing artboard also renders unstyled (white page, serif) because the fixture canvas is plain code, not a system-styled one. |
+| `ds-edit-instance` | dark | A canvas left out of an update: the instance shows "Update available" (Update / Detach) | ds publish --leave-out ui/Pricing, open Pricing, select the button | partially — canvas opens, but no "update available" state shows on the instance | As the light row. No dark-only difference noticed (dark pairs not all inspected one by one — see the note above). |
+| `ds-truth-outside` | light | "2 tokens changed outside the app": review popover with old → new values, Keep / Undo | edit colors_and_type.css on disk while the board is open | no — no outside-change review appeared in the app within 9 s of the file edit | Impl board shows no popover and no marked tokens (spec: "Changed outside" tags on the swatch, a card listing Quiet and Corner M with old → new chips, Undo/Keep). `maude design ds status` did see the file ("source: unknown"), so the engine knows; the board did not surface it in this lane (maybe the watcher needs more time or a focused window — worth a re-probe in stage B). |
+| `ds-truth-outside` | dark | "2 tokens changed outside the app": review popover with old → new values, Keep / Undo | edit colors_and_type.css on disk while the board is open | no — no outside-change review appeared in the app within 9 s of the file edit | As the light row. No dark-only difference noticed (dark pairs not all inspected one by one — see the note above). |
+| `ds-truth-conflict` | light | "You and the file changed the same token": two values side by side, Use this | pending edit + a different file edit of the same token | no — same as `ds-truth-outside`; no clash card | Impl shows the plain board; no "Accent changed in two places" card, no "2 versions" tag on the swatch, no "On this canvas / In colors_and_type.css" cards. |
+| `ds-truth-conflict` | dark | "You and the file changed the same token": two values side by side, Use this | pending edit + a different file edit of the same token | no — same as `ds-truth-outside`; no clash card | As the light row. No dark-only difference noticed (dark pairs not all inspected one by one — see the note above). |
+| `ds-make-inputs` | light | Make a design system: three quick inputs (sentence, learn-from tiles, "Mostly for") | empty project, Canvases › Make a design system | yes | Sheet is in the app and works. Differences: spec sheet floats over a "What shall we make?" Home with the sentence pre-filled and the "Logo" and "Your canvases" tiles ticked; impl sheet sits over an empty canvas list with the sentence empty and nothing ticked (expected: a fresh project). Primary button reads "Make three directions" in both but is outline-style in impl (spec: filled blue). Impl sheet is wider with smaller type. |
+| `ds-make-inputs` | dark | Make a design system: three quick inputs (sentence, learn-from tiles, "Mostly for") | empty project, Canvases › Make a design system | yes | As the light row. No dark-only difference noticed (dark pairs not all inspected one by one — see the note above). |
+| `ds-make-directions` | light | Three directions (A calm daylight / B warm paper / C night shift) as artboards on the Design system canvas, with AI chat asking one question | `ds make club` + 3× `ds draft` (CLI; AI is signed out) | no — directions are not drawn on the system canvas; the app shows the folder view of the new system | Impl opens the new system as the legacy folder view ("…UDE-DSN/01 design system view", "No tokens parsed from .design/system/club/colors_and_type.css", "Turn this folder into a Design system canvas · Convert…") — the draft directions the CLI wrote are not shown as artboards, and there is no AI chat card. The directions UI exists in code but needs AI to lay out the tiles. Heading is monospaced and cut at the left edge ("UDE-DSN/01"). |
+| `ds-make-directions` | dark | Three directions (A calm daylight / B warm paper / C night shift) as artboards on the Design system canvas, with AI chat asking one question | `ds make club` + 3× `ds draft` (CLI; AI is signed out) | no — directions are not drawn on the system canvas; the app shows the folder view of the new system | As the light row. No dark-only difference noticed (dark pairs not all inspected one by one — see the note above). |
+| `ds-make-mix` | light | Pick one, or mix: A selected, bar "Use A · Mix with…", menu of parts from B and C | `ds mix club a --take colour=b` | no — same blocker as `ds-make-directions` | No direction artboards, no "Use A / Mix with…" bar, no parts menu. Folder view with "No tokens parsed" only. |
+| `ds-make-mix` | dark | Pick one, or mix: A selected, bar "Use A · Mix with…", menu of parts from B and C | `ds mix club a --take colour=b` | no — same blocker as `ds-make-directions` | As the light row. No dark-only difference noticed (dark pairs not all inspected one by one — see the note above). |
+| `ds-make-filling` | light | The Design system fills in section by section; later sections wait as dashed outlines; AI chat shows progress with Stop | `ds make club` outline | no — same blocker | No outline artboards, no "AI is setting the type" tag, no progress card. |
+| `ds-make-filling` | dark | The Design system fills in section by section; later sections wait as dashed outlines; AI chat shows progress with Stop | `ds make club` outline | no — same blocker | As the light row. No dark-only difference noticed (dark pairs not all inspected one by one — see the note above). |
+| `ds-make-done` | light | "Studio site system is ready": banner with "Use as Studio site's style", seven sections with "Made by AI" tags, AI summary | `ds done club` | no — same blocker | No ready banner, no section artboards for the new system (folder view says "No tokens parsed"), no summary. |
+| `ds-make-done` | dark | "Studio site system is ready": banner with "Use as Studio site's style", seven sections with "Made by AI" tags, AI summary | `ds done club` | no — same blocker | As the light row. No dark-only difference noticed (dark pairs not all inspected one by one — see the note above). |
+| `ds-many-switch` | light | Preview the project in another system: ↑↓ in the row's menu previews every canvas; "Previewing … Switch… / Stop previewing" bar | row menu › Preview in… | yes | Works: a "Design systems" list at the foot (maude "in use", maude-v2 "previewing") and a bar "Previewing maude in maude-v2. Switch… / Stop previewing". Differences: impl bar and list sit at the bottom centre (spec: bar top-centre, menu anchored under the row); spec canvas visibly re-styles to warm paper, impl canvases do not visibly change (they are code-styled, not system-styled); no "Make a design system…" / "Link a team library…" rows in the list. |
+| `ds-many-switch` | dark | Preview the project in another system: ↑↓ in the row's menu previews every canvas; "Previewing … Switch… / Stop previewing" bar | row menu › Preview in… | yes | As the light row. No dark-only difference noticed (dark pairs not all inspected one by one — see the note above). |
+| `ds-many-library` | light | A team library on a hub (3 projects read it) — "Update from Alligators brand? 3 changes" review | — | no — needs a hub-linked library and 3 projects | Not drawable locally; the Design system rows have no "Team library / used by N projects" state to compare. |
+| `ds-many-library` | dark | A team library on a hub (3 projects read it) — "Update from Alligators brand? 3 changes" review | — | no — needs a hub-linked library and 3 projects | As the light row. No dark-only difference noticed (dark pairs not all inspected one by one — see the note above). |
+| `ds-many-linked` | light | A project that links a team library: view-only Design system row, banner "Linked from Alligators brand · Open in Alligators brand" | — | no — needs a hub-linked library | Not reachable locally (no linked-library state). |
+| `ds-many-linked` | dark | A project that links a team library: view-only Design system row, banner "Linked from Alligators brand · Open in Alligators brand" | — | no — needs a hub-linked library | As the light row. No dark-only difference noticed (dark pairs not all inspected one by one — see the note above). |
+| `ds-multi-panel` | light | Two systems in use, pinned together; the inspector names the system a selected canvas uses | Canvases panel on a project with two systems | partially — two pinned rows exist, but both show "no canvas uses it"/"4 canvases" and the selection is empty | Impl rows: `maude` (Default · no canvas uses it) and `maude-v2` (4 canvases) with an amber dot on neither; spec: "Alligators brand system 87 canvases" and "Combine 2026 6 canvases · 2026/combine" plus a draft row, with a "made before the schema" amber dot. Impl has no draft row and no folder tree under the rows. Inspector is empty ("Press V…") because nothing is selected in the shot. |
+| `ds-multi-panel` | dark | Two systems in use, pinned together; the inspector names the system a selected canvas uses | Canvases panel on a project with two systems | partially — two pinned rows exist, but both show "no canvas uses it"/"4 canvases" and the selection is empty | As the light row. No dark-only difference noticed (dark pairs not all inspected one by one — see the note above). |
+| `ds-multi-schema` | light | A system made before the schema: "Bring Combine 2026 up to the schema?" review (AI fills the missing roles) | — | no — AI-driven; no schema-upgrade surface reachable with AI signed out | No amber dot on a row, no "Bring it up" sheet. |
+| `ds-multi-schema` | dark | A system made before the schema: "Bring Combine 2026 up to the schema?" review (AI fills the missing roles) | — | no — AI-driven; no schema-upgrade surface reachable with AI signed out | As the light row. No dark-only difference noticed (dark pairs not all inspected one by one — see the note above). |
+| `ds-multi-switch` | light | Switch canvases to another system — one review: scope tabs, per-canvas ticks, "AI restyles N tokens" toggle | row menu › Switch canvases to another system… | yes | Sheet is there with Scope tabs (This canvas / Folder / Whole project), per-canvas rows, "Both follow the schema — core roles and components swap", footer buttons. Differences: impl lists "0 of 0 canvases in Whole project" with every row un-ticked and a disabled "Switch no canvases" (canvases here follow no system); no "AI restyles N own tokens" toggle; rows have no thumbnails/kind lines ("Print · at the printer"). Spec sheet is wider with a "Folder · 2026/combine" default scope. |
+| `ds-multi-switch` | dark | Switch canvases to another system — one review: scope tabs, per-canvas ticks, "AI restyles N tokens" toggle | row menu › Switch canvases to another system… | yes | As the light row. No dark-only difference noticed (dark pairs not all inspected one by one — see the note above). |
+| `ds-multi-menu` | light | A system's own menu: Open, Use for new canvases (default), Switch canvases to another system…, Rename… | pinned row ⋯ | yes | Menu items: Open maude, Default for new canvases (this one), Switch canvases to another system…, Preview in…, Check the system. Differs: "Use for new canvases · now <system> is default" wording vs impl "Default for new canvases"; spec has Rename… (missing), impl has extra Preview in… and Check the system. Menu sits on the row in both. |
+| `ds-multi-menu` | dark | A system's own menu: Open, Use for new canvases (default), Switch canvases to another system…, Rename… | pinned row ⋯ | yes | As the light row. No dark-only difference noticed (dark pairs not all inspected one by one — see the note above). |
+| `ds-multi-migrate` | light | Convert 3 system folders: three old system folders → two Design system canvases + a draft | unconverted project: Canvases panel with two system rows | partially — the unconverted panel is shown; the convert sheet itself is in `ds-edge-migrate` | Impl panel shows `maude`/`maude-v2` rows as plain folders ("All 2" chips, no folder tree) with no amber dot and no Convert prompt in this frame; the sheet (draft / canvas rows with "Design system canvas / Draft" chips) appears when Convert is opened — see next row. |
+| `ds-multi-migrate` | dark | Convert 3 system folders: three old system folders → two Design system canvases + a draft | unconverted project: Canvases panel with two system rows | partially — the unconverted panel is shown; the convert sheet itself is in `ds-edge-migrate` | As the light row. No dark-only difference noticed (dark pairs not all inspected one by one — see the note above). |
+| `ds-edge-contrast` | light | A change that breaks contrast: warning in the inspector ("3.1:1 on Pole and Hover — Lighten to 4.5:1", "Falls short in 3 canvases · Show") | pending a too-light Text 3 (`--fg-2`), select the token | partially — the pending change exists; the contrast warning line is not visible | Impl inspector shows "Fg 2 · Colour", Light/Dark values and "Dark follows automatically", then a small "2:1 on Fg 4, Bg 3 and Bg 0 in Light and Dark — Fix to 4.5:1" line; spec has an amber warning row with a "Lighten to 4.5:1" button and "Falls short in 3 canvases · Show". Impl copy is terser; button is a link, no amber warning colour. |
+| `ds-edge-contrast` | dark | A change that breaks contrast: warning in the inspector ("3.1:1 on Pole and Hover — Lighten to 4.5:1", "Falls short in 3 canvases · Show") | pending a too-light Text 3 (`--fg-2`), select the token | partially — the pending change exists; the contrast warning line is not visible | As the light row. No dark-only difference noticed (dark pairs not all inspected one by one — see the note above). |
+| `ds-edge-trash` | light | A colour 40 canvases use, moved to the trash: confirm "Move Linka to the trash? 40 canvases switch to the closest colour" | `ds trash --object-coral → --object-yellow` (CLI); the UI confirm sheet is a separate path | partially — the trash result is visible (version history "the trash · 4 canvases updated"), the confirm sheet is not | Impl shows the board after the move with a history line "Claude Code … --object-coral → the trash · 4 canvases updated". The "Move … to the trash?" sheet with the colour pair and Restore note is not reached (no UI entry found from the board). |
+| `ds-edge-trash` | dark | A colour 40 canvases use, moved to the trash: confirm "Move Linka to the trash? 40 canvases switch to the closest colour" | `ds trash --object-coral → --object-yellow` (CLI); the UI confirm sheet is a separate path | partially — the trash result is visible (version history "the trash · 4 canvases updated"), the confirm sheet is not | As the light row. No dark-only difference noticed (dark pairs not all inspected one by one — see the note above). |
+| `ds-edge-suggest` | light | AI spots a hand-picked colour not in the system: chat card "Add it to the system / Use Accent" | — | no — AI-driven (stubbed signed-out) | No off-system question surface without AI. |
+| `ds-edge-suggest` | dark | AI spots a hand-picked colour not in the system: chat card "Add it to the system / Use Accent" | — | no — AI-driven (stubbed signed-out) | As the light row. No dark-only difference noticed (dark pairs not all inspected one by one — see the note above). |
+| `ds-edge-migrate` | light | Convert system/alligators into its Design system canvas: 42 pages fold into 7 sections | unconverted project: open the pinned row → Convert… | partially — the convert sheet opens; wording and contents differ | Impl sheet "Convert 2 system folders?" lists the two folders with a status chip each (Draft / Design system canvas) and a one-line explanation; spec sheet is for ONE folder and lists the 7 sections with counts ("Brand 6 · Colour 7 …"). Impl background is the legacy folder view (token grid) not a board. |
+| `ds-edge-migrate` | dark | Convert system/alligators into its Design system canvas: 42 pages fold into 7 sections | unconverted project: open the pinned row → Convert… | partially — the convert sheet opens; wording and contents differ | As the light row. No dark-only difference noticed (dark pairs not all inspected one by one — see the note above). |
+| `ds-advanced` | light | Design system › Advanced: used-by, modes, Check the system, tokens CSS/JSON, files tree, Hand off tokens; history; check results | Canvases panel › Advanced; select the system | partially — inspector + panel Advanced exist; the combined card does not | Impl: the inspector for the system shows Modes, Check (button), Advanced Tokens · files, "Which way changes flow", "Version history"; "Hand off tokens" and the CSS/JSON token preview and the files tree card are not reachable in one place. The Canvases panel Advanced shows "Show file names / Show hidden files / Open canvas / Folder" and a raw file tree (more technical than spec). |
+| `ds-advanced` | dark | Design system › Advanced: used-by, modes, Check the system, tokens CSS/JSON, files tree, Hand off tokens; history; check results | Canvases panel › Advanced; select the system | partially — inspector + panel Advanced exist; the combined card does not | As the light row. No dark-only difference noticed (dark pairs not all inspected one by one — see the note above). |
+
+## After (stage D, 6d19daa9a) — IMPL re-shot on the stage-C-round-2 tip
+
+Re-shot 52 of 60 pairs; 8 unreachable. SPEC side: `.design/ui/v2/13 Design System.*` is unchanged since the stage-A shot, so the stage-A spec PNGs are reused. The committed JPEG pairs in this folder are overwritten with the stage-D pairs (same format and size as stage A); the stage-A IMPL frames are in the first section of this file (their pairs are in git history, commit 902d112ac).
+
+- Shot with the stage-A harness (scenario scripts s13 groups a-j, `dsboard.mjs` for the three whole-board frames), same fixtures (a converted scratch copy of the in-repo `maude-v2` + `maude` systems + Homepage / Landing / Pricing / Combine-kampaň canvases), on the stage-C-round-2 tip.
+- Harness fix only: the one-time What’s-new toast now has "See all (3)" as its FIRST button, so the old dismiss click opened the What’s-new panel over the app; the harness now clicks the "Dismiss notification" button. No product code changed.
+- **Gate from stage A is gone:** the two showcase specimens (`ui_kits-desktop-index/-showcase`) that made the converted board answer 403 in stage A were NOT removed from the scratch copy this time and the board renders; the three whole-board frames (`ds-board-*`) therefore now show the real Desktop index / Desktop showcase artboards (stage A: "This specimen is not loaded"). The crop is the top 2900 px of the board as in stage A (the board is now 9636 px tall, so the lower part is cut).
+- Still unreachable (no product path in a local single-project lane, as in stage A and confirmed in `fix-dsedit.md`): the AI suggestion, the team library / linked library (hub) and the older-schema upgrade.
+- `ds-make-*`, `ds-edit-instance`, `ds-edit-master` are re-shot with the same verb sequence as stage A; `fix-dsedit.md` RC6 says the make verbs still open the legacy folder view, so those frames show what the app draws now, not necessarily the board state.
+
+| id | theme | after (stage D) | spec |
+| --- | --- | --- | --- |
+| `ds-advanced` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-advanced` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-board-dark` | dark | re-shot (whole-board crop through the capture origin; the plain in-app frame was re-shot too) | spec reused (board unchanged since stage A) |
+| `ds-board-dark` | light | re-shot (whole-board crop through the capture origin; the plain in-app frame was re-shot too) | spec reused (board unchanged since stage A) |
+| `ds-board-gator` | dark | re-shot (whole-board crop through the capture origin; the plain in-app frame was re-shot too) | spec reused (board unchanged since stage A) |
+| `ds-board-gator` | light | re-shot (whole-board crop through the capture origin; the plain in-app frame was re-shot too) | spec reused (board unchanged since stage A) |
+| `ds-board-studio` | dark | re-shot (whole-board crop through the capture origin; the plain in-app frame was re-shot too) | spec reused (board unchanged since stage A) |
+| `ds-board-studio` | light | re-shot (whole-board crop through the capture origin; the plain in-app frame was re-shot too) | spec reused (board unchanged since stage A) |
+| `ds-edge-contrast` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-edge-contrast` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-edge-migrate` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-edge-migrate` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-edge-suggest` | dark | unreachable — AI offers the closest system colour — needs a signed-in Claude (stubbed signed-out here); no off-system question surface reachable without AI. | spec reused (board unchanged since stage A) |
+| `ds-edge-suggest` | light | unreachable — AI offers the closest system colour — needs a signed-in Claude (stubbed signed-out here); no off-system question surface reachable without AI. | spec reused (board unchanged since stage A) |
+| `ds-edge-trash` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-edge-trash` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-edit-colour` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-edit-colour` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-edit-instance` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-edit-instance` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-edit-master` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-edit-master` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-edit-reach` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-edit-reach` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-edit-review` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-edit-review` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-make-directions` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-make-directions` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-make-done` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-make-done` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-make-filling` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-make-filling` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-make-inputs` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-make-inputs` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-make-mix` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-make-mix` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-many-library` | dark | unreachable — A team library on a hub (3 projects read it) needs a linked hub + library; not reachable in a local single-project lane. | spec reused (board unchanged since stage A) |
+| `ds-many-library` | light | unreachable — A team library on a hub (3 projects read it) needs a linked hub + library; not reachable in a local single-project lane. | spec reused (board unchanged since stage A) |
+| `ds-many-linked` | dark | unreachable — A project that links a team library (view-only Design system row) needs a hub-linked library; not reachable locally. | spec reused (board unchanged since stage A) |
+| `ds-many-linked` | light | unreachable — A project that links a team library (view-only Design system row) needs a hub-linked library; not reachable locally. | spec reused (board unchanged since stage A) |
+| `ds-many-switch` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-many-switch` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-multi-menu` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-multi-menu` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-multi-migrate` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-multi-migrate` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-multi-panel` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-multi-panel` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-multi-schema` | dark | unreachable — An older-schema system brought up by AI first — AI-driven (signed out here); no schema-upgrade surface reachable without it. | spec reused (board unchanged since stage A) |
+| `ds-multi-schema` | light | unreachable — An older-schema system brought up by AI first — AI-driven (signed out here); no schema-upgrade surface reachable without it. | spec reused (board unchanged since stage A) |
+| `ds-multi-switch` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-multi-switch` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-truth-conflict` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-truth-conflict` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-truth-outside` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-truth-outside` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-where-gator` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-where-gator` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-where-studio` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-where-studio` | light | re-shot | spec reused (board unchanged since stage A) |
+
+## Round 3 (p8-c3-dsboard) — IMPL re-shot on the round-3 branch
+
+Re-shot (light + dark pairs overwritten, same harness `_d-harness-g5`, same fixtures): `ds-where-studio`, `ds-where-gator`, `ds-board-studio`, `ds-board-dark`, `ds-board-gator` (whole-board crop), `ds-edit-colour`, `ds-edit-reach`, `ds-edit-review`, `ds-edit-master`, `ds-make-inputs`, `ds-make-directions`, `ds-make-mix`, `ds-make-filling`, `ds-make-done`, `ds-many-switch`, `ds-multi-panel`, `ds-multi-menu`, `ds-multi-switch`, `ds-edge-contrast`, `ds-edge-trash`, `ds-advanced`. Not re-shot (unchanged since stage D): `ds-edit-instance`, `ds-truth-outside`, `ds-truth-conflict`, `ds-edge-migrate`, `ds-multi-migrate`, and the unreachable ids. What changed: see `fix-c3-dsboard.md`. The `ds-make-*` frames now show the Design system CANVAS (directions, mix, sections filling, done) instead of the legacy folder view.
+
+## FINAL (stage D2, d3881fe41) — IMPL re-shot on the merged tip (all stage C rounds 1–4)
+
+Re-shot 52 of 60 pairs; 8 unreachable. Supersedes the per-round "after" sections above: every pair in this folder (`<id>-<theme>.jpg`, JPEG q55, max 1100 px wide) now shows the merged product. The SPEC side is unchanged — the board `.design/ui/v2/13 Design System.*` has no commit after the stage-A shot, so the stage-A spec PNGs are reused. Full-size pairs: last line of `full-size-path.txt` ("final (D2):").
+
+- Frames driven: scenario groups s13 a-j (Studio site / Alligators fixtures, a converted scratch copy of the in-repo `maude-v2` + `maude` systems), `dsboard.mjs` for the three whole-board frames (`ds-board-*`: crop of the top 2900 px of the board, loaded through the capture origin — the board is 9636 px tall, so the lower part is cut). Same fixtures and driving as stages A/D; harness changes: What’s-new toast dismissed through its "Dismiss notification" button, `REPO` repointed.
+- Also shot (no spec pair, full-size only): `ds-edit-colour-pending`, `ds-make-entry`, `ds-make-sentence`.
+- Unreachable in a local single-project lane (no stage-C change built these states, see `fix-c3-dsboard.md` / `fix-dsedit.md`): AI suggestion (`ds-edge-suggest`), team library / linked library on a hub (`ds-many-library`, `ds-many-linked`), older-schema upgrade (`ds-multi-schema`).
+
+| id | theme | FINAL (D2) | spec |
+| --- | --- | --- | --- |
+| `ds-advanced` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-advanced` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-dark` | dark | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-dark` | light | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-gator` | dark | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-gator` | light | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-studio` | dark | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-studio` | light | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-contrast` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-contrast` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-migrate` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-migrate` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-suggest` | dark | unreachable — AI offers the closest system colour — needs a signed-in Claude (stubbed signed-out here); no off-system question surface reachable without AI. | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-suggest` | light | unreachable — AI offers the closest system colour — needs a signed-in Claude (stubbed signed-out here); no off-system question surface reachable without AI. | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-trash` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-trash` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-colour` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-colour` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-instance` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-instance` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-master` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-master` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-reach` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-reach` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-review` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-review` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-directions` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-directions` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-done` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-done` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-filling` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-filling` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-inputs` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-inputs` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-mix` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-mix` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-library` | dark | unreachable — A team library on a hub (3 projects read it) needs a linked hub + library; not reachable in a local single-project lane. | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-library` | light | unreachable — A team library on a hub (3 projects read it) needs a linked hub + library; not reachable in a local single-project lane. | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-linked` | dark | unreachable — A project that links a team library (view-only Design system row) needs a hub-linked library; not reachable locally. | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-linked` | light | unreachable — A project that links a team library (view-only Design system row) needs a hub-linked library; not reachable locally. | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-switch` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-switch` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-menu` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-menu` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-migrate` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-migrate` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-panel` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-panel` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-schema` | dark | unreachable — An older-schema system brought up by AI first — AI-driven (signed out here); no schema-upgrade surface reachable without it. | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-schema` | light | unreachable — An older-schema system brought up by AI first — AI-driven (signed out here); no schema-upgrade surface reachable without it. | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-switch` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-switch` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-truth-conflict` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-truth-conflict` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-truth-outside` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-truth-outside` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-where-gator` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-where-gator` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-where-studio` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-where-studio` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+
+## Round 5 (p8-c5-dsfix) — IMPL re-shot on the round-5 branch
+
+Re-shot (light + dark pairs overwritten, harness `_d-harness-g5` + `_d2-harness-g5`, same fixtures, nothing judged): every id except the three whole-board crops `ds-board-studio` / `-dark` / `-gator` (the board did not change this round, the D2 pairs stay) and the unreachable ones. Product changes this round: ⌘K "design system" (`ds-where-gator`: the system, "In the Design system", Actions with `where`; the board is no longer listed twice), the "Uses <system>" door after the fields (`ds-where-studio`, `ds-multi-panel`), a colour opens with Advanced open (`ds-edit-colour`, `ds-edge-contrast`). Harness: `ds-truth-outside` / `ds-truth-conflict` wait for the tree before opening the board (the D2 frames fell back to the old folder view), `ds-edge-trash` drives the real "Move to the trash?" sheet (token `--palette-4`), `ds-make-mix` selects Direction A so "Use A · Mix with…" can show. `ds-multi-migrate` still shows the "No canvas open" empty state (the convert sheet opens only from the unconverted folder view). See `fix-c5-dsfix.md`.
+
+## FINAL (D3, 63592219a) — IMPL re-shot on the merged tip (stage C rounds 1–5 + bugs3)
+
+Re-shot 52 of 60 pairs; 8 unreachable. Supersedes every earlier "after" / "FINAL" section above: every pair in this folder (`<id>-<theme>.jpg`, JPEG q55, max 1100 px wide) now shows the merged product. The SPEC side is unchanged — the board `.design/ui/v2/13 Design System.*` has no commit after the stage-A shot, so the stage-A spec PNGs are reused. Full-size pairs: last line of `full-size-path.txt` ("final (D3):").
+
+- Harness: `_d3-harness-g5/` (the D2 harness + the round-5 deltas; `REPO` repointed). D3 changes: the artboard label is pressed by coordinates (`g5.mjs`), `ds` calls retry while the kernel answers "unavailable", a `system-*` board is waited for before shooting (no "Opening…" card), the ds make door is opened through Canvases › Advanced, ds-edit-instance drills 3 deep to the Buy button, ds-where-studio / ds-multi-migrate re-open the left panel so the pinned row shows with the inspector. `ds-board-*` are whole-board crops through the capture origin (top 2900 px of a 9636 px board).
+- Also shot (no spec pair, full-size only): `ds-edit-colour-pending`, `ds-make-entry`, `ds-make-sentence`, `ds-edge-trash-board`.
+- Unreachable in a local single-project lane: AI suggestion (`ds-edge-suggest`), team library / linked library on a hub (`ds-many-library`, `ds-many-linked`), older-schema upgrade (`ds-multi-schema`).
+- Shot but the state is not drawn by the app in this lane: `ds-truth-outside` (a disk edit of `colors_and_type.css` on a converted system never surfaces a "Changed outside" review: `ds status` stays `outside: null` after 9 s; probe `.scr/outside-probe.mjs`) — the frame shows the board as it is.
+
+| id | theme | FINAL (D3) | spec |
+| --- | --- | --- | --- |
+| `ds-advanced` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-advanced` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-dark` | dark | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-dark` | light | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-gator` | dark | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-gator` | light | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-studio` | dark | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-studio` | light | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-contrast` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-contrast` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-migrate` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-migrate` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-suggest` | dark | unreachable — AI offers the closest system colour — needs a signed-in Claude (stubbed signed-out here); no off-system question surface reachable without AI. | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-suggest` | light | unreachable — AI offers the closest system colour — needs a signed-in Claude (stubbed signed-out here); no off-system question surface reachable without AI. | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-trash` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-trash` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-colour` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-colour` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-instance` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-instance` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-master` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-master` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-reach` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-reach` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-review` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-review` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-directions` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-directions` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-done` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-done` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-filling` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-filling` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-inputs` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-inputs` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-mix` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-mix` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-library` | dark | unreachable — A team library on a hub (3 projects read it) needs a linked hub + library; not reachable in a local single-project lane. | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-library` | light | unreachable — A team library on a hub (3 projects read it) needs a linked hub + library; not reachable in a local single-project lane. | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-linked` | dark | unreachable — A project that links a team library (view-only Design system row) needs a hub-linked library; not reachable locally. | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-linked` | light | unreachable — A project that links a team library (view-only Design system row) needs a hub-linked library; not reachable locally. | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-switch` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-switch` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-menu` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-menu` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-migrate` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-migrate` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-panel` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-panel` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-schema` | dark | unreachable — An older-schema system brought up by AI first — AI-driven (signed out here); no schema-upgrade surface reachable without it. | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-schema` | light | unreachable — An older-schema system brought up by AI first — AI-driven (signed out here); no schema-upgrade surface reachable without it. | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-switch` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-switch` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-truth-conflict` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-truth-conflict` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-truth-outside` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-truth-outside` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-where-gator` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-where-gator` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-where-studio` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-where-studio` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+
+## Round 6 (p8-c6-dsboard2) — IMPL re-shot on the round-6 branch
+
+Re-shot (light + dark pairs overwritten, harness `_d3-harness-g5` copied over `_d2`/`_d` into `.scr/`, `REPO` repointed, nothing judged): only the three whole-board crops. The board's Brand section now draws the system's icons, voice and "Rules for AI and code" (from `assets/icons` + SKILL.md) and Patterns draws the kept showcases live and scaled. Every other pair keeps its D3 shot. See `fix-c6-dsboard2.md`.
+
+| id | theme | after (round 6) | spec |
+| --- | --- | --- | --- |
+| `ds-board-studio` | light, dark | re-shot (capture-origin crop) | spec reused |
+| `ds-board-dark` | light, dark | re-shot (capture-origin crop) | spec reused |
+| `ds-board-gator` | light, dark | re-shot (capture-origin crop) | spec reused |
+## Round 6 (p8-c6-bugs4) — after
+
+| id | after | notes |
+|---|---|---|
+| ds-truth-outside | re-shot, light + dark | `s13` group c: the inspector is opened (nothing selected) and the 6 s poll awaited — the "2 tokens changed outside the app" card (file, accent / bg-1 old → new, Undo / Keep) draws. The earlier "never surfaces" was the probe reading the FIRST system of `ds status` (maude, no change) instead of `ds status maude-v2`; the detection itself works |
+
+## FINAL (D4, 21c9714cf) — IMPL re-shot on the merged tip (stage C rounds 1–6)
+
+Re-shot 56 of 60 pairs; 4 unreachable. Supersedes every earlier "after" / "FINAL" / "Round" section above: every pair in this folder (`<id>-<theme>.jpg`, JPEG q55, max 1100 px wide) now shows the merged product. The SPEC side is unchanged (no commit to the board `.design/ui/v2/13 Design System.*` since the stage-A shot), so the stage-A spec PNGs are reused. Full-size pairs: last line of `full-size-path.txt` ("final (D4):").
+
+- Harness: `_d4-harness-g5/` = `_d-harness-g5` + `_d2` + `_d3` + `_c6-bugs4-harness` + `_d6-harness-g5` (copied over each other in that order, `REPO` repointed, release-built client, `bun mk-dsconv.mjs` first) plus the D4 scenarios `s13s.mjs` (ds-edge-suggest) and `s13u.mjs` (ds-multi-schema). Chain: `chain-d4.sh` (light, dark, then `dsboard.mjs` for the whole-board crops through the capture origin) and `chain-x.sh` for the newly reached states.
+- Also shot (no spec pair, full-size only): `ds-edit-colour-pending`, `ds-make-entry`, `ds-make-sentence`, `ds-edge-trash-board`, `ds-multi-schema.row`.
+- Still unreachable: `ds-many-library`, `ds-many-linked` — a team library on a hub; no real hub is booted in this lane.
+
+| id | theme | FINAL (D4) | spec |
+| --- | --- | --- | --- |
+| `ds-advanced` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-advanced` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-dark` | dark | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-dark` | light | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-gator` | dark | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-gator` | light | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-studio` | dark | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-studio` | light | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-contrast` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-contrast` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-migrate` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-migrate` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-suggest` | dark | re-shot — NEWLY REACHED — the question is not AI-driven: a canvas on a converted system with a hand-picked blue (`#3b6fe0` on the "Save two months" badge) in a git repo with the canvas uncommitted; the quiet question draws at the bottom ("A colour picked by hand isn’t in maude-v2. The closest is Accent." Use Accent · Add it to the system · Not now). Fixture canvas is a small Pricing page (`s13s.mjs`). | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-suggest` | light | re-shot — NEWLY REACHED — the question is not AI-driven: a canvas on a converted system with a hand-picked blue (`#3b6fe0` on the "Save two months" badge) in a git repo with the canvas uncommitted; the quiet question draws at the bottom ("A colour picked by hand isn’t in maude-v2. The closest is Accent." Use Accent · Add it to the system · Not now). Fixture canvas is a small Pricing page (`s13s.mjs`). | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-trash` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-trash` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-colour` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-colour` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-instance` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-instance` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-master` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-master` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-reach` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-reach` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-review` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-review` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-directions` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-directions` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-done` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-done` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-filling` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-filling` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-inputs` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-inputs` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-mix` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-mix` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-library` | dark | unreachable — A team library on a hub (3 projects read it) needs a linked hub + library; not reachable in a local single-project lane (no real hub in this run). | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-library` | light | unreachable — A team library on a hub (3 projects read it) needs a linked hub + library; not reachable in a local single-project lane (no real hub in this run). | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-linked` | dark | unreachable — A project that links a team library (view-only Design system row) needs a hub-linked library; not reachable locally (no real hub in this run). | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-linked` | light | unreachable — A project that links a team library (view-only Design system row) needs a hub-linked library; not reachable locally (no real hub in this run). | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-switch` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-switch` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-menu` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-menu` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-migrate` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-migrate` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-panel` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-panel` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-schema` | dark | re-shot — NEWLY REACHED — an UNCONVERTED second system `maude` with its core colours removed: amber dot + "Made before the schema" on its row, row ⋯ › "Bring it up to the schema…" opens "Bring maude up to the schema?" (`s13u.mjs`; a converted system is refused with "is on a Design system canvas…"). The full frame shows the sheet; `ds-multi-schema.row` is the row alone (full-size only). | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-schema` | light | re-shot — NEWLY REACHED — an UNCONVERTED second system `maude` with its core colours removed: amber dot + "Made before the schema" on its row, row ⋯ › "Bring it up to the schema…" opens "Bring maude up to the schema?" (`s13u.mjs`; a converted system is refused with "is on a Design system canvas…"). The full frame shows the sheet; `ds-multi-schema.row` is the row alone (full-size only). | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-switch` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-switch` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-truth-conflict` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-truth-conflict` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-truth-outside` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-truth-outside` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-where-gator` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-where-gator` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-where-studio` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-where-studio` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+
+## After (round 7, p8-c7-ds) — IMPL re-shot on the p8-c7-ds tip
+
+Re-shot light + dark (pairs overwritten, harness `.scr/chain-c7.sh` = `_d4-harness-g5` + the c7 patches; nothing judged): ds-where-studio, ds-where-gator, ds-board-studio / -dark / -gator (the board crops now draw "Used in N canvases" under every swatch — the usage index is built soon after boot), ds-edit-colour, ds-edit-reach, ds-edit-review (real canvas pictures, old → new colour words), ds-edit-master (before | after corners pair), ds-edit-instance (a real component instance; the "Update available" block with Update · Detach), ds-truth-outside / -conflict (the waiting review is the whole inspector place; sides named in words, never raw oklch), ds-multi-panel ("Design systems · 2 in use", amber "Made before the schema" dot, "Uses <system>" door — new lane `s13p.mjs`), ds-multi-menu, ds-multi-switch (the canvases follow a system now: Folder scope, ticked rows, "Switch 4 canvases", AI restyles toggle), ds-multi-migrate, ds-many-switch, ds-edge-contrast, ds-edge-trash, ds-edge-migrate, ds-advanced. Not re-shot: ds-make-* / ds-many-library / ds-many-linked (unreachable), ds-edge-suggest, ds-multi-schema (unchanged). Details: `fix-c7-ds.md`.
+
+## After (round 7 continuation, p8-c7-ds2) — IMPL re-shot on the p8-c7-ds2 tip
+
+| id | theme | impl | note |
+|---|---|---|---|
+| `ds-edit-colour` | light | re-shot | the swatch carries the selection ring (no Colour artboard handles / size tag); framed on the Colour section |
+| `ds-edit-colour` | dark | re-shot | same |
+| `ds-edge-contrast` | light | re-shot | the swatch carries the selection ring; framed on the Colour section |
+| `ds-edge-contrast` | dark | re-shot | same |
+| `ds-multi-menu` | light | re-shot | menu on the non-default system: Open · Use for new canvases (now …) · Switch… · Preview in… · Rename…; no Check the system |
+| `ds-multi-menu` | dark | re-shot | same |
+
+Harness `.scr/chain-c7ds2.sh` + `chain-c7ds2b.sh` (the round-7 harness + `frameColour()` and the non-default menu row). Nothing judged. Details: `fix-c7-ds.md` § Round 7 continuation.
+
+## After (round 7 third pass, p8-c7-ds3) — IMPL re-shot on the p8-c7-ds3 tip
+
+| id | theme | impl | note |
+|---|---|---|---|
+| `ds-edit-colour` | light | re-shot | contrast line in the board's words ("4.8:1 on white · …"); the edited mode's row first, the picker under it, the other mode last; the ring is 2 px, 4 px clear |
+| `ds-edit-colour` | dark | re-shot | same |
+| `ds-edit-reach` | light | re-shot | header, "Colour › Accent" key, the contrast line and the note per the board; the frames wait for their canvases |
+| `ds-edit-reach` | dark | re-shot | same |
+| `ds-edge-contrast` | light | re-shot | a token the canvases use (Fg 1), edited in Dark: "N:1 on A and B" (two surfaces, the mode being edited), Role row, "Falls short in 2 canvases · Show" |
+| `ds-edge-contrast` | dark | re-shot | same |
+| `ds-multi-migrate` | light | re-shot | the "Convert 3 system folders?" sheet is OPEN (harness: three old folders, two in use, one draft; the ds.convert event) |
+| `ds-multi-migrate` | dark | re-shot | same |
+| `ds-edge-migrate` | light | re-shot | the one-folder sheet with the per-section map (harness: a single unconverted folder) |
+| `ds-edge-migrate` | dark | re-shot | same |
+| `ds-advanced` | light | re-shot | Advanced open (CSS \| JSON, tokens from `:root`, Files, Hand off), "Studio site · N canvases", Check run, the check card closes the column; 1440×1500 viewport so the whole column shows |
+| `ds-advanced` | dark | re-shot | same |
+
+Harness `.scr/chain-c7ds3.sh` (`_c7-harness-g5` + the `_c7ds3-harness-g5` deltas; s13 groups a f b g k). Nothing judged. Details: `fix-c7-ds3.md`.
+
+## FINAL (D5, e37e7d82a) — IMPL re-shot on the merged tip (stage C rounds 1–7)
+
+Re-shot 56 of 60 pairs; 4 unreachable. Supersedes every earlier "after" / "FINAL" / "Round" section above: every pair in this folder (`<id>-<theme>.jpg`, JPEG q55, max 1100 px wide) shows the merged product at e37e7d82a. The SPEC side is unchanged (no commit to the board since the stage-A shot), so the stage-A spec PNGs are reused. Full-size pairs: last line of `full-size-path.txt` ("final (D5):").
+
+Shot on the Mac mini (`scripts/remote-lane.sh`) with its installed Google Chrome (no Playwright browser there; `SHOT_CHANNEL=chrome`), harness `_d5-harness-g5/` = the newest layers per canvas flattened (see its README).
+- Scenarios: `s13.mjs` groups a–k (where, board, edit, truth, make, many-switch, multi-menu/-switch, edge-contrast/-trash, migrate, advanced), `s13p.mjs` (ds-multi-panel), `s13s.mjs` (ds-edge-suggest), `s13u.mjs` (ds-multi-schema), `dsboard.mjs` (the three whole-board crops through the capture origin, both themes). ds-multi-panel light re-run alone (a random port collided once).
+- Also shot (no spec pair, full-size only): `ds-edit-colour-pending`, `ds-make-entry`, `ds-make-sentence`, `ds-edge-trash-board`, `ds-multi-schema.row`.
+
+| id | theme | FINAL (D5) | spec |
+| --- | --- | --- | --- |
+| `ds-advanced` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-advanced` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-dark` | dark | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-dark` | light | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-gator` | dark | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-gator` | light | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-studio` | dark | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-studio` | light | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-contrast` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-contrast` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-migrate` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-migrate` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-suggest` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-suggest` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-trash` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-trash` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-colour` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-colour` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-instance` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-instance` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-master` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-master` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-reach` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-reach` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-review` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-review` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-directions` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-directions` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-done` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-done` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-filling` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-filling` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-inputs` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-inputs` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-mix` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-mix` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-library` | dark | unreachable — a team library lives on a hub; no real hub is booted in this lane (safety rule), so the library rows cannot be drawn | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-library` | light | unreachable — a team library lives on a hub; no real hub is booted in this lane (safety rule), so the library rows cannot be drawn | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-linked` | dark | unreachable — a linked team library needs a hub; no real hub is booted in this lane | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-linked` | light | unreachable — a linked team library needs a hub; no real hub is booted in this lane | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-switch` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-switch` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-menu` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-menu` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-migrate` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-migrate` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-panel` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-panel` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-schema` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-schema` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-switch` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-switch` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-truth-conflict` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-truth-conflict` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-truth-outside` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-truth-outside` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-where-gator` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-where-gator` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-where-studio` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-where-studio` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+
+## After (round 8, p8-c8-ds) — IMPL re-shot on the p8-c8-ds tip (light + dark, every reachable id)
+
+Harness `_c8ds-harness-g5/` (the D5 harness plus an `s13.mjs` overlay), shot on the Mac mini. Full-size pairs: last line of `full-size-path.txt` ("round 8:"). Fixes: `fix-c8-ds.md`. The `<id>-<theme>.jpg` pairs in this folder show this tip; `ds-many-library` / `ds-many-linked` (hub) keep their earlier pair.
+
+| id | what changed |
+| --- | --- |
+| `ds-board-studio` · `ds-board-dark` · `ds-board-gator` | Brand logo row: the lockup painted from the system's colours, again on the ink ground, then the marks |
+| `ds-edit-colour` · `ds-edge-contrast` | the pass line judges a fill on the page ("… on white · … on the dark page") |
+| `ds-edit-reach` | the Patterns strip leads, Light \| Dark halves on the token card, review rows with pictures, pass line (the harness edit passes in Dark) |
+| `ds-edit-instance` | Canvases panel open: the update tag on the left-out row is on screen |
+| `ds-many-switch` | the menu hangs beside the Design systems row (the empty inspector card still shows — open) |
+| `ds-edge-suggest` | the question is a chat card, bottom right |
+| `ds-edge-trash` | re-shot (buttons fixed on feat) |
+
+## FINAL (D6, 3d58f57df) — IMPL re-shot on the merged tip (stage C rounds 1–8)
+
+Re-shot 56 of 60 pairs; 4 unreachable. Supersedes every earlier "after" / "FINAL" / "Round" section above: every pair in this folder (`<id>-<theme>.jpg`, JPEG q55, max 1100 px wide) shows the merged product at 3d58f57df. The SPEC side is unchanged (no commit to the board since the stage-A shot), so the stage-A spec PNGs are reused. Full-size pairs: last line of `full-size-path.txt` ("final (D6):").
+
+Shot on the Mac mini (`scripts/remote-lane.sh`) with its installed Google Chrome (no Playwright browser there; `SHOT_CHANNEL=chrome`), harness `_d6f-harness-g5/` = the newest layers per canvas flattened (see its README).
+- Scenarios: `s13.mjs` groups a–k (where, board, edit, truth, make, many-switch, multi-menu/-switch, edge-contrast/-trash, migrate, advanced), `s13p.mjs` (ds-multi-panel), `s13s.mjs` (ds-edge-suggest), `s13u.mjs` (ds-multi-schema), `dsboard.mjs` (the three whole-board crops through the capture origin, both themes). ds-multi-panel light re-run alone (a random port collided once).
+- Also shot (no spec pair, full-size only): `ds-edit-colour-pending`, `ds-make-entry`, `ds-make-sentence`, `ds-edge-trash-board`, `ds-multi-schema.row`.
+
+| id | theme | FINAL (D6) | spec |
+| --- | --- | --- | --- |
+| `ds-advanced` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-advanced` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-dark` | dark | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-dark` | light | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-gator` | dark | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-gator` | light | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-studio` | dark | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-studio` | light | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-contrast` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-contrast` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-migrate` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-migrate` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-suggest` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-suggest` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-trash` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-trash` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-colour` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-colour` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-instance` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-instance` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-master` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-master` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-reach` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-reach` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-review` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-review` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-directions` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-directions` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-done` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-done` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-filling` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-filling` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-inputs` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-inputs` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-mix` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-mix` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-library` | dark | unreachable — a team library lives on a hub; no real hub is booted in this lane (safety rule), so the library rows cannot be drawn | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-library` | light | unreachable — a team library lives on a hub; no real hub is booted in this lane (safety rule), so the library rows cannot be drawn | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-linked` | dark | unreachable — a linked team library needs a hub; no real hub is booted in this lane | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-linked` | light | unreachable — a linked team library needs a hub; no real hub is booted in this lane | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-switch` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-switch` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-menu` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-menu` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-migrate` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-migrate` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-panel` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-panel` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-schema` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-schema` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-switch` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-switch` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-truth-conflict` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-truth-conflict` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-truth-outside` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-truth-outside` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-where-gator` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-where-gator` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-where-studio` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-where-studio` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+
+## after (round 10, p8-c10-misc)
+
+Re-shot light + dark on the Mac mini (Google Chrome), impl side only; spec reused.
+
+| id | theme | after | note |
+| --- | --- | --- | --- |
+| `ds-edit-reach` | dark | re-shot | the canvas island (name, Light | Dark, "1 change waiting", Review...) is no longer drawn inside the Patterns frame |
+| `ds-edit-reach` | light | re-shot | the canvas island (name, Light | Dark, "1 change waiting", Review...) is no longer drawn inside the Patterns frame |
+| `ds-multi-panel` | dark | re-shot | light re-shot with the two-systems-in-use state ("Design systems . 2 in use", amber dot, "Uses maude") |
+| `ds-multi-panel` | light | re-shot | light re-shot with the two-systems-in-use state ("Design systems . 2 in use", amber dot, "Uses maude") |
+| `ds-edit-review` | dark | re-shot | re-shot with the same chain (unchanged) |
+| `ds-edit-review` | light | re-shot | re-shot with the same chain (unchanged) |
+
+## FINAL (D7, 0d2eab1d6)
+
+Re-shot 56 of 60 pairs (28 ids x 2 themes); 4 unreachable (2 ids x 2 themes). Supersedes every earlier "after" / "FINAL" / "Round" section above: every pair in this folder (`<id>-<theme>.jpg`, JPEG q55, max 1100 px wide) shows the merged product at `0d2eab1d6` (stage C round 10 merged; run from harness commit `c9708768e`/`921220c3b`/`c3bebfb11` = that tip + `_d7-harness-g3/`). The SPEC side is unchanged (the board `.design/ui/v2/13 Design System.*` last changed 2026-10-08), so the stage-A spec PNGs are reused. Full-size pairs: last line of `full-size-path.txt` ("final (D7, ...)"). No match judged here.
+
+Shot on the Mac mini (`scripts/remote-lane.sh`) with its installed Google Chrome (`SHOT_CHANNEL=chrome`), harness `_d7-harness-g3/g5` (= `_d6f-harness-g5` chain `13`, one run per theme): `s13.mjs` groups a-k, `s13p.mjs` (ds-multi-panel), `s13s.mjs` (ds-edge-suggest), `s13u.mjs` (ds-multi-schema), `dsboard.mjs` (the three whole-board crops through the capture origin, both themes, in the light run). `ds-multi-schema` dark hit a browser-blocked random port (`ERR_UNSAFE_PORT`) in the main dark run and was re-run alone (`13u`). Also shot (no spec pair, full-size only): `ds-edit-colour-pending`, `ds-make-entry`, `ds-make-sentence`, `ds-edge-trash-board`, `ds-multi-schema.row`.
+
+| artboard id | light | dark | note |
+|---|---|---|---|
+| ds-advanced | re-shot | re-shot |  |
+| ds-board-dark, ds-board-gator, ds-board-studio | re-shot | re-shot | whole-board crop through the capture origin (`dsboard.mjs`) |
+| ds-edge-contrast, ds-edge-migrate, ds-edge-suggest, ds-edge-trash | re-shot | re-shot |  |
+| ds-edit-colour, ds-edit-instance, ds-edit-master | re-shot | re-shot |  |
+| ds-edit-reach | re-shot | re-shot | round 10: the canvas island is no longer drawn inside the Patterns frame |
+| ds-edit-review | re-shot | re-shot |  |
+| ds-make-directions, ds-make-done, ds-make-filling, ds-make-inputs, ds-make-mix | re-shot | re-shot |  |
+| ds-many-switch | re-shot | re-shot |  |
+| ds-multi-menu, ds-multi-migrate, ds-multi-switch, ds-multi-schema | re-shot | re-shot | `ds-multi-schema` dark re-run alone (blocked random port) |
+| ds-multi-panel | re-shot | re-shot | round 10: two systems in use ("Design systems . 2 in use", amber dot, "Uses maude") |
+| ds-truth-conflict, ds-truth-outside | re-shot | re-shot |  |
+| ds-where-gator, ds-where-studio | re-shot | re-shot |  |
+| ds-many-library | unreachable - a team library lives on a hub; no real hub is booted in this lane (safety rule), so the library rows cannot be drawn | unreachable - same | the pair is the grey "not reachable" card (unchanged) |
+| ds-many-linked | unreachable - a linked team library needs a hub; no real hub is booted in this lane | unreachable - same | the pair is the grey "not reachable" card (unchanged) |
+
+## Round 11 (p8-r11-1213) — three sheet pairs re-shot on a pre-convert fixture
+
+Re-shot 6 of 60 pairs (ds-multi-migrate, ds-edge-migrate, ds-multi-schema x light + dark), on the branch tip after D7. Everything else in this folder is unchanged (the D7 section above stands). Full-size pairs: last line of `full-size-path.txt` ("round 11: ..."). No match judged here.
+
+Why the D7 pairs differed: the harness fixture copied this repo's own `.design/system/{maude,maude-v2}`, which are Design system canvases since `88d671dee` (`ds convert`), so the Convert sheet was refused with the "already a Design system canvas" toast and Bring it up answered with the "can't update those yet ... Close" variant. The fixture now strips what that commit added (`design-system.{tsx,meta.json}`, `revisions/`, `"source": "canvas"` back to `"css"`; checked byte for byte against `88d671dee^`), so the shots show the board's sheets again.
+
+| id | light | dark | note |
+| --- | --- | --- | --- |
+| ds-multi-migrate | re-shot | re-shot | "Convert 3 system folders?": folder rows with Design system canvas / Draft chips, Cancel / Convert |
+| ds-edge-migrate | re-shot | re-shot | "Convert system/maude-v2 into its Design system canvas?": the 7-section map, Cancel / Convert |
+| ds-multi-schema | re-shot | re-shot | "Bring maude up to the schema?": Adds 4 roles, Renames its components, Updates 0 canvases, Cancel / Bring it up; the amber dot "Made before the schema" on the `maude` row behind |
+
+Product check (amber dot next to the "already a Design system canvas" sheet): it only occurs for a system that is converted AND made before the schema (ds-check level 11), a state the D7 fixture built by accident. It is by decision (kg `S10.15a: bring-up refuses a converted system for now`, `S10.15b: the bring-up dialog's face derives from status`), and the board's own Convert sheet footnote names it ("A converted system made before the schema shows an amber dot — Bring it up lines it up"). On an unconverted pre-schema system dot and sheet agree (the shots above). Not changed; open question for the lead: Bring it up for a converted system needs the publish-based path.

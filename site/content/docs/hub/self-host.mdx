@@ -40,7 +40,7 @@ The hub image carries **no browser** — that is a security invariant (no tenant
 
 Two honest options:
 
-- **Do nothing.** PNG/SVG of the active artboard, the PPTX deck, ZIP and AI handoff all work in the hosted studio; video/PDF show up disabled in the export dialog with the reason, and the desktop app exports every format. Many teams never need more.
+- **Do nothing.** PNG/SVG of the active artboard, the PPTX deck, ZIP and AI handoff all work in the hosted studio; video/PDF show up disabled in the Export sheet with the reason, and the desktop app exports every format. Many teams never need more.
 - **Add `--render`** to `workspace-up`. It deploys the **`maude-render` sidecar** — a separate container that holds the Chromium and nothing else: no hub secret, no volume, no public port (the hub reaches it over the compose network only), and a boot-time refusal if any known secret variable is present in its environment. Renders authenticate back to the hub with the same short-lived read-only capability a member's own browser holds.
 
 ```sh
@@ -52,6 +52,25 @@ Re-running with the flag is also how you add it to an existing workspace — lik
 **Pin the tag, and know your architecture.** `MAUDE_IMAGE_TAG` covers both containers, and the sidecar is published for **release tags only** — unlike the hub it has no `:latest`, so `--render` without `--image-tag vX.Y.Z` names an image that does not exist. Both images are published for `linux/amd64` and `linux/arm64`; releases up to and including **v1.0.3** published the sidecar for amd64 only, so on an arm64 host pin a later tag. `workspace-up` checks the published architectures before it writes anything and refuses with the reason — Docker itself would pull the image happily and only fail at `exec format error`, ~3 GB later.
 
 The sidecar is a **~3 GB image running Chromium**, so give it room: a 2 GB instance is tight for the hub plus a render, and swap or a larger instance is the cheaper answer than a killed container mid-export.
+
+## Upgrading to 2.0.0: the image converts your project
+
+The first time a workspace hub starts on the stable **2.0.0** image, or any later stable one, it converts its project to Maude 2 by itself: the file format goes to 2 and saving moves to accepted revisions. Maude Cloud does the same at the same release. Nobody has to press "Update project".
+
+- **A backup comes first.** One full copy (the documents, the project store and the checkout) goes to your configured backup target under `v2-convert/`, or to `<data dir>/v2-convert/` when you have not set one. The regular backup schedule never prunes it. If there is nowhere durable to put it (no backup target and a disposable data disk), the project is not converted and stays as it was.
+- **Only a stable image converts.** A release candidate (`2.0.0-rc.N`) and a 1.x image never do, and a second start converts nothing.
+- **The kill switch.** Put `CELL_V2_CONVERT=0` in the hub's `.env` and restart to hold the conversion back. Nothing converts while it is set. Remove it, or set it to `1`, and the next start converts. Any other value also holds it back, so a typo never converts by accident.
+- **How to check.** `/health` reports it as `v2Convert`:
+
+```bash
+curl -s https://design.acme.com/health | jq .v2Convert
+# {"state":"done","converted":1,"skipped":0,"failed":0,"at":"…"}   first 2.0.0 start
+# {"state":"done","converted":0,"skipped":1,"failed":0,"at":"…"}   every start after that
+# {"state":"disabled","by":"CELL_V2_CONVERT=0"}                     the kill switch is on
+# {"state":"gated","reason":"prerelease"}                            an rc or 1.x image
+```
+
+The hub's log carries the same counts on one line, `[v2-convert] converted=1 skipped=0 failed=0`, and says `[v2-convert] disabled by CELL_V2_CONVERT=0` while the switch is on. `failed=1` leaves the project exactly as it was; the line before it names the reason. Fix that and restart, and the next start converts it.
 
 ## What you are taking on
 

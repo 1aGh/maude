@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { cp, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { homedir, tmpdir } from 'node:os';
 import { delimiter, join, resolve } from 'node:path';
+import { stubClaudeEnv } from './lib/stub-claude.mjs';
 
 const repoRoot = resolve(import.meta.dirname, '..');
 const workspaces = [
@@ -50,6 +51,8 @@ try {
       MAUDE_HARNESS_STATE_ROOT: state,
       MAUDE_NO_UPDATE_CHECK: '1',
       XDG_CONFIG_HOME: join(home, '.config'),
+      // never the machine's real `claude` (keychain dialog in a throwaway HOME): scripts/lib/stub-claude.mjs
+      ...stubClaudeEnv(home),
     };
     const migrated = spawnSync(
       process.execPath,

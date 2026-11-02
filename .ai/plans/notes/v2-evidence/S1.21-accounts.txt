@@ -1,0 +1,20 @@
+Row: pn-accounts (11 · A · Two accounts on this Mac — the account is the project's) — the BINDING is shipped; the account CARD by the faces is a GAP
+Base: feat/maude-v2 58ac858d (branch s1-21). Canvas blob 721366f14aae.
+Written from reading code, the graph and existing gate evidence. NO desktop e2e was run for this file.
+
+PICK: the artboard is titled "A" but its subject (the account belongs to the project, on this Mac) is independent of the tab variant. The rule shipped as V2-3.8.
+decisions: maude/v2-3.8-bind-on-sign-in ("a sign-in never overwrites another account; the project moves to its own profile"), maude/v2-3.8-most-recent-profile ("a never-bound project adopts the most recent sign-in profile once"), maude/v2-3.8-signout-shared ("sign-out clears only the calling project's profile credential; projects sharing that profile are signed out too").
+
+SHIPPED (code -> pin):
+  - project -> account binding, machine-local: apps/desktop/src-tauri/src/app_state.rs:26 (projects[pid].profile), :320 profile_for; opens as that account "next time" because the profile is re-read at spawn.
+  - a sign-in never re-signs a profile under another account; the project moves to a profile of its own: profiles.rs:585 cloud_sign_in_prepare, :534 prepare; pin profiles.rs:823 a_sign_in_never_re_signs_a_profile_under_another_account, :840 a_moved_cloud_credential_leaves_the_shared_profile_signed_out; e2e project-tabs-identity.e2e.ts:96 (A signs in as X; B follows the most recent profile), :112 (B signs in as Y: B moves, A still X), :181 (an in-tab switch A->B->A keeps each identity).
+  - "Sign in as another account...": registry account.switch (apps/studio/actions/defs/app.ts:24, desktop + cloud), handler client/app.jsx:1653 onSwitchAccount, shown in the project menu (testid project-menu-row-account.switch). CONTRACT.md line 18 places it there.
+  - accounts grouped on Home: client/home/home-app.jsx ProfileGroup (testid home-profile-<id>), V2-3.3.
+Desktop e2e evidence (valid window probe): V2-3.7-3.10-rework-gate-2026-10-14.txt "test:e2e:desktop:tabs-identity exit=0 ... 1 passed" and "Michal's Ready-to-try findings" item 5 "sign-in drift across projects -> closed by V2-3.8 (tabs-identity A=X B=Y A still X)" (sha256 ed33f6dad36ed9f7b66875873229284b05f27c56772f1d30c45675f0956d71a2). Not re-run in the phase-4 gate.
+
+NAMED GAPS (what the artboard draws that is not in the app):
+  GAP-ACCOUNTS-1  the account chip beside the faces and its card ("Work - you@work-studio.cz / Alligators brand uses this account", "Also on this Mac", per-account project counts): no emitter. client/v2/shell/share-cluster.jsx has no account control; the only door is the project menu row.
+  GAP-ACCOUNTS-2  "Sign out of you@work-studio.cz..." with "Signs out every project on it: ...": no desktop row. The behaviour exists in the binding (maude/v2-3.8-signout-shared) but nothing in the desktop shell offers a sign-out that names the projects. (A cloud tab has a sign-out: account.switch in a cloud tab posts /auth/browser/signout, app.jsx:1653-1660.)
+  GAP-ACCOUNTS-3  the footnote "Kept on this Mac - Alligators brand opens as Work next time": not shown anywhere.
+  GAP-ACCOUNTS-4  a tab-strip account badge (pn-tab-b callout 2): see S1.21-tab-b.txt GAP-TAB-B-2.
+These need a card in the cluster (a client change plus a Rust list-accounts-with-projects command). Not S1 scope; handed to the lead as one gap.

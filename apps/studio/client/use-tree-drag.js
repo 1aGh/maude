@@ -102,6 +102,8 @@ export function useTreeDrag(onMove) {
           const fromPath = e.dataTransfer.getData(TREE_DRAG_MIME);
           setDraggedPath(null);
           if (!fromPath || fromPath === dirPath) return;
+          // S1.2 — dropped on the folder it already sits in: nothing to move (the server would refuse it)
+          if (fromPath.slice(0, fromPath.lastIndexOf('/')) === dirPath) return;
           setBusyPath(fromPath);
           try {
             await onMove(fromPath, dirPath);

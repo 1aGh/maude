@@ -10,7 +10,7 @@ import { type KnownPlatform, PlatformGlyph, usePlatform } from '@/components/mdc
 
 const ORDER: KnownPlatform[] = ['macos', 'windows', 'linux'];
 const LABEL: Record<KnownPlatform, string> = {
-  macos: 'Download for macOS',
+  macos: 'Download for Mac',
   windows: 'Download for Windows',
   linux: 'Download for Linux',
 };
@@ -20,7 +20,7 @@ const SHORT: Record<KnownPlatform, string> = {
   linux: 'Linux',
 };
 const FILE: Record<KnownPlatform, string> = {
-  macos: '.dmg · Intel & Apple Silicon',
+  macos: '.dmg · Apple Silicon & Intel',
   windows: '.msi · 64-bit',
   linux: '.deb · Debian/Ubuntu',
 };

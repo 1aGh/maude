@@ -11,17 +11,20 @@
 // A plain GET with no Upgrade headers passes a WS gate and then fails the upgrade → 400.
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import { readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { request } from 'node:http';
 import { join } from 'node:path';
 import type { Subprocess } from 'bun';
 
+import { frameCap, withFc } from './_acl-cell.ts';
 import { bootServer, killProc, makeSandbox, nextPort, type Sandbox } from './_helpers.ts';
 
 let box: Sandbox;
 let proc: Subprocess;
 let port: number;
 let canvas: string;
+/** gate-b-c4 — the frame (ui/card.tsx) every canvas-listener handshake below is made from. */
+let fc: string | null = null;
 
 /** node:http, because fetch() will not send a Host header other than the URL's. */
 function get(p: number, path: string, headers: Record<string, string>): Promise<number> {
@@ -39,6 +42,8 @@ function get(p: number, path: string, headers: Record<string, string>): Promise<
 beforeAll(async () => {
   box = makeSandbox();
   writeFileSync(join(box.root, '.env'), 'SECRET=planted\n');
+  writeFileSync(join(box.root, 'notes.txt'), 'plain repo file\n');
+  mkdirSync(join(box.designRoot, 'assets'), { recursive: true });
   port = nextPort();
   proc = await bootServer(box.root, port, {
     MAUDE_NO_AUTOBUILD: '1',
@@ -53,6 +58,7 @@ beforeAll(async () => {
     }
     if (!canvas) await Bun.sleep(50);
   }
+  fc = await frameCap({ base: `http://localhost:${port}` }, {}, 'ui/card.tsx');
 });
 afterAll(async () => {
   await killProc(proc);
@@ -63,8 +69,17 @@ describe('DNS rebinding: the repo-file lane answers loopback hosts only', () => 
   test('a rebound Host cannot read /.env', async () => {
     expect(await get(port, '/.env', { Host: `attacker.example:${port}` })).toBe(403);
   });
+  test('a rebound Host cannot read project media through /assets/ either', async () => {
+    writeFileSync(join(box.designRoot, 'assets', 'planted.png'), 'x');
+    expect(await get(port, '/assets/planted.png', { Host: `attacker.example:${port}` })).toBe(403);
+    expect(await get(port, '/assets/planted.png', { Host: `localhost:${port}` })).toBe(200);
+  });
   test('the studio itself still reads repo files', async () => {
-    expect(await get(port, '/.env', { Host: `localhost:${port}` })).toBe(200);
+    expect(await get(port, '/notes.txt', { Host: `localhost:${port}` })).toBe(200);
+    expect(await get(port, '/notes.txt', { Host: `attacker.example:${port}` })).toBe(403);
+  });
+  test('…and a dot path outside the design root is not a repo file for anyone (V2-8.9 re-check 2)', async () => {
+    expect(await get(port, '/.env', { Host: `localhost:${port}` })).toBe(404);
   });
 });
 
@@ -73,16 +88,23 @@ describe('canvas-listener sockets refuse a cross-origin handshake', () => {
   for (const path of ['/_ws/collab/ui-card', '/_ws']) {
     test(`${path}: a drive-by Origin is 403'd`, async () => {
       const host = `localhost:${canvasPort()}`;
-      expect(await get(canvasPort(), path, { Host: host, Origin: 'https://evil.example' })).toBe(
+      // inside a valid frame, so the 403 is the Origin gate's own
+      const framed = withFc(path, fc);
+      expect(await get(canvasPort(), framed, { Host: host, Origin: 'https://evil.example' })).toBe(
         403
       );
       expect(
-        await get(canvasPort(), path, { Host: host, Origin: `http://localhost:${port}` })
+        await get(canvasPort(), framed, { Host: host, Origin: `http://localhost:${port}` })
       ).toBe(403);
     });
     test(`${path}: the canvas iframe's own origin passes the gate`, async () => {
       const host = `localhost:${canvasPort()}`;
-      expect(await get(canvasPort(), path, { Host: host, Origin: `http://${host}` })).toBe(400);
+      // (400: past every gate, a plain GET is no upgrade) — from inside the frame; frame-less,
+      // the frame gate refuses the handshake first (gate-b-c4).
+      expect(
+        await get(canvasPort(), withFc(path, fc), { Host: host, Origin: `http://${host}` })
+      ).toBe(400);
+      expect(await get(canvasPort(), path, { Host: host, Origin: `http://${host}` })).toBe(403);
     });
   }
 });

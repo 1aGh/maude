@@ -185,9 +185,9 @@ test('an expired link and a guessed id read identically', async () => {
 });
 
 test('an account created AFTER the invite is sent to sign in, not to sign up', async () => {
-  // The direct-add path covers an address that already has an account at
-  // invite time (no invite row is written at all — asserted elsewhere). This
-  // is the other ordering: invited first, signed up independently later.
+  // An address that already has an account at invite time gets the same
+  // pending invitation (gate-b-sec3, pending-invites.test.mjs). This is the
+  // other ordering: invited first, signed up independently later.
   const { env, sqlite } = await freshEnv();
   const { session } = await ownerWithProject(env, sqlite);
   await inviteSomeone(env, session);
@@ -442,4 +442,44 @@ test('a hostile next is ignored — external and protocol-relative URLs fall bac
     );
     assert.equal(res.headers.get('location'), '/', `"${evil}" must not be a destination`);
   }
+});
+
+test('the owner’s People page lists pending invitations and Can-view people (S9.16)', async () => {
+  const { env, sqlite } = await freshEnv(); // no RESEND_API_KEY: the invite is still created
+  const { session, ownerId } = await ownerWithProject(env, sqlite);
+  await inviteSomeone(env, session, 'pending@example.com');
+  await signup(env, { email: 'guest@example.com' });
+  const guest = sqlite.prepare("SELECT id FROM accounts WHERE email = 'guest@example.com'").get();
+  sqlite
+    .prepare(
+      `INSERT INTO canvas_grants (project_id, account_id, canvas_path, role, source, granted_by, granted_at)
+       VALUES ('alligators', ?, 'ui/Homepage.tsx', 'viewer', 'owner', ?, 1)`
+    )
+    .run(guest.id, ownerId);
+  const res = await worker.fetch(
+    new Request('https://cloud.test/projects/alligators/people', {
+      headers: { cookie: `maude_session=${session}` },
+    }),
+    env
+  );
+  const html = await res.text();
+  assert.match(html, /pending@example\.com/, 'a pending invitation is listed');
+  assert.match(html, /guest@example\.com/, 'a Can-view person is listed');
+  assert.match(html, /Homepage/, 'with the canvas they can open');
+});
+
+test('the People page invites an account holder like anyone: same answer, nobody added (gate-b-sec3)', async () => {
+  const { env, sqlite } = await freshEnv();
+  const { session } = await ownerWithProject(env, sqlite);
+  await signup(env, { email: 'teammate@example.com' });
+  const known = await inviteSomeone(env, session, 'teammate@example.com');
+  const unknown = await inviteSomeone(env, session, 'nobody-yet@example.com');
+  assert.equal(known.status, unknown.status);
+  assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM project_members').get().n, 0);
+  assert.equal(
+    sqlite
+      .prepare("SELECT COUNT(*) AS n FROM project_invites WHERE email = 'teammate@example.com'")
+      .get().n,
+    1
+  );
 });

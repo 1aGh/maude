@@ -1,0 +1,1 @@
+head 62146d9d4, rig scripts/v2-verify/p84-*.mjs, P84_KEEP_LEGACY=1 (project left at formatVersion 1)1, Mac mini remote lane, 2026-11-02

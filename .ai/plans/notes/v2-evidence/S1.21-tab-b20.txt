@@ -1,0 +1,20 @@
+Row: pn-tab-b20 (11 · B · 20 tabs — square and short name on every tab) — variant B picked; GAP at 20 tabs
+Base: feat/maude-v2 58ac858d (branch s1-21). Canvas blob 721366f14aae; contract V2-3.7-own-tab-bar.md blob 7443b61b81f6.
+Written from reading code and existing gate evidence. NO desktop e2e was run for this file. No 20-tab e2e exists.
+
+PICK: B. decisions maude/v2-3.7-own-tab-bar, maude/v2-3.7-own-tab-bar-mechanism.
+
+WHAT 20 TABS DO TODAY (code read):
+  - apps/desktop/src/strip.html:73-79: .tab {flex: 0 1 200px; min-width: 72px}, .tabs {min-width: 0}. Tabs shrink to 72 px, then the row clips. There is no scrolling, no "N more" control, and no list of the clipped tabs.
+  - The strip is fed one TabStripState with every tab (tabs.rs:82 TabStripState, :90 strip_state), so the data for an overflow list is already there; only the UI is missing.
+  - Rest policy: sidecar.rs:238 RUNNING_CAP = 5, :1245 pick_rest, windows.rs:1089 rest_window; a resting tab is dimmed text (strip.html:96) and keeps its name.
+  - Reaching a tab at any count: keyboard (tab.next / tab.prev, Cmd+1-8, Cmd+9 = last: menu.rs:28-31, registry actions/defs/native.ts:84-117) and Cmd+K by name (client/v2/search/search-projects.js).
+Pins that exist: sidecar.rs:1804 rest_policy_cap_is_five_and_nothing_rests_at_or_under_it, :1814 rests the least-recently-focused idle tab, :1825 never rests a busy instance, :1851 overflows when every candidate is busy; e2e project-tabs.e2e.ts:386 (a third running project rests an idle tab) and :418 (focus wakes it, the cap rests another).
+Desktop e2e evidence (valid probe): V2-3.7-3.10-rework-gate-2026-10-14.txt tabs 1/1 (sha256 ed33f6dad36ed9f7b66875873229284b05f27c56772f1d30c45675f0956d71a2).
+
+NAMED GAPS:
+  GAP-TAB-B20-1  the "10 more" overflow list (folder, account and state per row): absent.
+  GAP-TAB-B20-2  a square + short name on every tab: no square (same as GAP-TAB-B-1).
+  GAP-TAB-B20-3  the resting "ring": a resting tab is dimmed, not ringed.
+  GAP-TAB-B20-4  no automated test of the strip at 20 tabs (clipping, activate-by-index past the edge).
+Not S1 scope (Rust strip + strip.js); handed to the lead. Not "verified".

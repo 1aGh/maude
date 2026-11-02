@@ -1,0 +1,38 @@
+S6.16 evidence — 01/cf-status-words   (18 · Save status, in words)
+canvas: .design/ui/v2/01 Create Flow.tsx line 715
+words : Save status is a word, not a control. Shown, never operated. One word beside the faces. Resync and the rest live in Menu › Diagnostics, for when something is actually wrong.
+verdict proposed: verified
+
+How to re-check the pins (from the repo root): grep -E "^[0-9a-f]{64}  " <this file> | shasum -a 256 -c
+Unit/component run: scripts/v2-test-lane.sh -- bash -c "cd apps/studio && NO_OPEN=1 MAUDE_NO_AUTOBUILD=1 bun test <the test files below, all rows>" → 523 pass · 0 fail · 27 files (2026-10-20, branch s6-16 on feat/maude-v2 435b37e75)
+
+IMPLEMENTED BY (code, hash-pinned):
+177e3fb72f054847eef16af0259564ede56e8ce4f1c4b6708f4e69be5c31ea87  apps/studio/client/v2/shell/save-status.js
+      ↳ the five words (Saved · Syncing… · Offline — kept on this Mac · Local project · Not saved) and their precedence; access words
+238304f0573b25e2a479e1fceab94eb22079f212761dd2206a527e054847feea  apps/studio/client/v2/shell/share-cluster.jsx
+      ↳ one word in the cluster (share-cluster-status); an action only beside Not saved
+62a435131b086ae041cf22aa962d1bf98efa0b92eef52ed709bb476d9db8964b  apps/studio/client/v2/shell/share-cluster-host.jsx
+      ↳ feeds it from sync phase, outbox pending, online, the disk-full fact
+73bc048f7c8f3d5e2c1d2f3136fca90b1e12d1ab45b24b5ab70f28e70efa5c00  apps/studio/client/v2/shell/recovery-store.js
+      ↳ the full-disk held writes behind Not saved
+
+PINNED BY (tests, hash-pinned):
+bec128e38c2cdfc819b4ec074f16e520f9063acf559cb23480c9438094583784  apps/studio/test/share-cluster.test.tsx
+      ↳ saveStatus for every precedence, the word in the cluster, Not saved + Retry / Show in Finder, disk-full sentence
+e8204e853a84db7769a5ff1648391b654f8f456ffbfa20f5bf3c61aeaeca87f5  apps/studio/test/v2-callouts-recovery.test.ts
+      ↳ the full-disk recovery line
+001f5859b95eb1447e65a40748563dae56526df55bf99fc24e5884a986acf5aa  apps/studio/test/presence-faces.test.tsx
+      ↳ the faces beside the word
+
+LIVE (written, not run — needs the debug app, an unlocked screen and the e2e lock):
+c619d4c187a589ca8d0169e153b2b189939f8510ec25910d39315a999f9bada0  apps/desktop/e2e/scenarios/first-canvas.e2e.ts
+  → apps/desktop/e2e/scenarios/first-canvas.e2e.ts step 8 (the word reads “Local project”, is not inside a button, no Retry beside it)
+54b05befd65bd6c4d37dbd73babcc596b7a83b8d7b4fa34b42e9ea2426135f96  apps/desktop/e2e/wdio.first-canvas.conf.ts
+02a6d0c73edd7db6d1a84f205a30c45b7760c5550ff1ef084874bfcf9501b9eb  apps/desktop/e2e/fixtures/fake-acp/first-canvas-agent.mjs
+545834d2e31beaea6d653bac13b01dd544eee03e6f81a6aa6bd7c14e347d74c3  .ai/scenarios/maude-v2/s6-first-canvas.md
+
+EARLIER EVIDENCE on the topic canvases (rows already verified in the ledger):
+  rule save-status-shown-not-operated: S6 closes it unless the lead names another owner (S6-slices.md § Rules). The proposed ledger line is below.
+
+GAPS:
+  none against the 01 words. The Diagnostics half (“Resync lives in Menu › Diagnostics”) is S11.12 (diag-sync), pinned by its own row, not by these files.

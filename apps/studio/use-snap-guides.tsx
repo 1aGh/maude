@@ -121,6 +121,8 @@ interface AxisCandidate {
   to: number;
   /** Whether this candidate came from the grid pass or the sibling pass. */
   kind: SnapKind;
+  /** S2.22 — a landing that continues an equal-gap rhythm: it beats every other candidate in tolerance. */
+  rhythm?: boolean;
 }
 
 function nearestGridDelta(coord: number, gridSize: number, tolerance: number): number | null {
@@ -130,19 +132,66 @@ function nearestGridDelta(coord: number, gridSize: number, tolerance: number): n
   return Math.abs(delta) <= tolerance ? delta : null;
 }
 
-function pickClosest(cands: AxisCandidate[]): AxisCandidate | null {
-  if (cands.length === 0) return null;
+const TIE = 1e-9;
+
+function pickClosest(all: AxisCandidate[]): AxisCandidate | null {
+  if (all.length === 0) return null;
+  // S2.22 — an equal-gap landing (the rhythm of the boards already in the row) beats the grid and the edges:
+  // 3794 wins over the grid's 3800 when both are in reach.
+  const rhythm = all.filter((c) => c.rhythm);
+  const cands = rhythm.length ? rhythm : all;
   let best = cands[0] as AxisCandidate;
   let bestAbs = Math.abs(best.delta);
   for (let i = 1; i < cands.length; i++) {
     const c = cands[i] as AxisCandidate;
     const a = Math.abs(c.delta);
-    if (a < bestAbs) {
+    // a tie goes to the board's edge, never to the grid: the guide the designer sees is the sibling's
+    if (a < bestAbs - TIE || (a < bestAbs + TIE && best.kind === 'grid' && c.kind !== 'grid')) {
       best = c;
       bestAbs = a;
     }
   }
   return best;
+}
+
+/**
+ * S2.22 (ed-ab-arrange) — where `proposed` lands to carry on the rhythm of the boards in its row (axis 'x') or
+ * column ('y'): one gap past the last, one gap before the first, or the middle of a free gap between two.
+ * Needs two boards in the band; only positive gaps count. Returns top-left coordinates on `axis`.
+ */
+export function equalGapLandings(
+  proposed: Rect,
+  others: readonly Rect[],
+  axis: SnapAxis
+): number[] {
+  const start = (r: Rect) => (axis === 'x' ? r.x : r.y);
+  const size = (r: Rect) => (axis === 'x' ? r.w : r.h);
+  const crossLo = (r: Rect) => (axis === 'x' ? r.y : r.x);
+  const crossSize = (r: Rect) => (axis === 'x' ? r.h : r.w);
+  const band = others
+    .filter(
+      (o) =>
+        Math.min(crossLo(o) + crossSize(o), crossLo(proposed) + crossSize(proposed)) -
+          Math.max(crossLo(o), crossLo(proposed)) >
+        0
+    )
+    .sort((a, b) => start(a) - start(b));
+  if (band.length < 2) return [];
+  const out: number[] = [];
+  const first = band[0] as Rect;
+  const last = band[band.length - 1] as Rect;
+  const gapAfter =
+    start(last) - (start(band[band.length - 2] as Rect) + size(band[band.length - 2] as Rect));
+  const gapBefore = start(band[1] as Rect) - (start(first) + size(first));
+  if (gapAfter > 0) out.push(start(last) + size(last) + gapAfter);
+  if (gapBefore > 0) out.push(start(first) - gapBefore - size(proposed));
+  for (let i = 0; i + 1 < band.length; i++) {
+    const a = band[i] as Rect;
+    const b = band[i + 1] as Rect;
+    const free = start(b) - (start(a) + size(a)) - size(proposed);
+    if (free > 0) out.push(start(a) + size(a) + free / 2);
+  }
+  return out;
 }
 
 /**
@@ -292,12 +341,32 @@ export function computeSnap(proposed: Rect, others: Rect[], opts: SnapOptions): 
     }
   }
 
+  // S2.22 — equal-gap landings (Layout intent: they are siblings' business, not the grid's)
+  if (intent === 'layout') {
+    for (const axis of ['x', 'y'] as const) {
+      const prop = axis === 'x' ? propLeft : propTop;
+      for (const land of equalGapLandings(proposed, others, axis)) {
+        const delta = land - prop;
+        if (Math.abs(delta) > tolerance) continue;
+        (axis === 'x' ? xCands : yCands).push({
+          delta,
+          pos: land,
+          from: axis === 'x' ? propTop : propLeft,
+          to: axis === 'x' ? propBottom : propRight,
+          kind: 'sibling',
+          rhythm: true,
+        });
+      }
+    }
+  }
+
   const winX = pickClosest(xCands);
   const winY = pickClosest(yCands);
 
   const guides: SnapGuide[] = [];
-  if (winX) guides.push(mergeAtPos('x', winX, xCands));
-  if (winY) guides.push(mergeAtPos('y', winY, yCands));
+  // a rhythm landing draws no line of its own: the equal-gap chips are its picture
+  if (winX && !winX.rhythm) guides.push(mergeAtPos('x', winX, xCands));
+  if (winY && !winY.rhythm) guides.push(mergeAtPos('y', winY, yCands));
 
   return {
     x: proposed.x + (winX ? winX.delta : 0),

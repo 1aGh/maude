@@ -1,0 +1,63 @@
+{
+  "journey": "S10",
+  "lane": "acp",
+  "pass": false,
+  "harnessFailure": false,
+  "infra": null,
+  "turns": [
+    {
+      "turn": 1,
+      "ok": true,
+      "stopReason": "end_turn"
+    },
+    {
+      "turn": 2,
+      "ok": true,
+      "stopReason": "end_turn"
+    }
+  ],
+  "results": [
+    {
+      "id": "status-read",
+      "grader": "tool-used",
+      "pass": false,
+      "why": "0 call(s) of Bash matching /maude design ds status/ (12 tool call(s) in all)"
+    },
+    {
+      "id": "accent-darker",
+      "grader": "text",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "dark-accent-kept",
+      "grader": "text",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "system-checked",
+      "grader": "tool-used",
+      "pass": false,
+      "why": "0 call(s) of Bash matching /maude design ds[- ]check/ (12 tool call(s) in all)"
+    },
+    {
+      "id": "usage-read",
+      "grader": "tool-used",
+      "pass": false,
+      "why": "0 call(s) of Bash matching /maude design ds usage/ (12 tool call(s) in all)"
+    },
+    {
+      "id": "manifest-by-the-verb",
+      "grader": "no-tool",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "canvases-untouched",
+      "grader": "untouched",
+      "pass": true,
+      "why": ""
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+D4 harness for G1 (01 only): _d-harness-g1-d3 repointed; chain01.mjs (s01ai s01b s01c s01d + home2 cf-home-prompt), final-index-d4.mjs + d4-notes.json. Setup: copy to <repo>/.scr/h, symlink node_modules, spec-raw/01 reused from D3, release-build client, node chain01.mjs light,dark; node pair.mjs 01 light,dark; node final-index-d4.mjs <tip>.

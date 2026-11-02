@@ -30,6 +30,51 @@ export function isReadOnlyCanvas(): boolean {
   return cached;
 }
 
+let commentCached: boolean | null = null;
+
+/**
+ * S9.22 — may this read-only canvas still take COMMENTS? A Can comment session boots `ro=1` (it
+ * cannot edit) but may reply, resolve and reopen; a Can view session may not. The shell says so
+ * with `cm=1` (client/canvas-url.js, from `/_config.canComment`). Like `ro`, boot-static: it decides
+ * what the thread OFFERS; the comment door (`POST /_api/comments/op`) holds the line either way.
+ */
+export function canCommentCanvas(): boolean {
+  if (typeof window === 'undefined') return false;
+  if (commentCached === null) {
+    try {
+      commentCached = new URLSearchParams(window.location.search).get('cm') === '1';
+    } catch {
+      commentCached = false;
+    }
+  }
+  return commentCached;
+}
+
+let pausedCached: boolean | null = null;
+
+/**
+ * p8-cell-copy — are COMMENTS paused on this canvas? The project is view only because of its FORMAT gate
+ * (a format-1 project not yet updated, one that still saves the old way): the studio refuses every comment
+ * write then, whoever the person is — an owner included. The shell says so with `cg=1` (client/canvas-url.js,
+ * from `/_config.formatGate` + `canComment`). Unlike dropping `cm`, this keeps the Comment tool and the card
+ * in reach, so the person is TOLD why before typing instead of learning it from a refused send. Boot-static
+ * like `ro` / `cm`; the studio's 403 holds the line either way.
+ */
+export function commentsPausedCanvas(): boolean {
+  if (typeof window === 'undefined') return false;
+  if (pausedCached === null) {
+    try {
+      pausedCached = new URLSearchParams(window.location.search).get('cg') === '1';
+    } catch {
+      pausedCached = false;
+    }
+  }
+  return pausedCached;
+}
+
+/** Why a paused comment control is off (CONTRACT §3/§4: what is so, no blame). */
+export const COMMENTS_PAUSED_REASON = 'Comments are paused while this project is view only.';
+
 let embedCached: boolean | null = null;
 
 /**
@@ -48,6 +93,44 @@ export function isEmbedCanvas(): boolean {
     }
   }
   return embedCached;
+}
+
+/**
+ * S3.7a — is this canvas a Present follower (`client/v2/present/follow-view.jsx` frames it with
+ * `follow=1` next to `ro=1&comments=0`)? A follower moves its camera with the presenter, so — like an
+ * embed — it persists no camera, and it never publishes a Present position of its own. Read from the
+ * URL on every call (no cache): it is asked a handful of times per mode change, never per frame.
+ */
+export function isFollowCanvas(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return new URLSearchParams(window.location.search).get('follow') === '1';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * S1.14 — is this canvas a past version (`?sha=` — Version history's Viewing, V2-1.9 §5.6)? The shell frames
+ * it read-only (`ro=1&comments=0`); this is the canvas's own half: a past version never writes its camera
+ * or layout back over the designer's (the S1.11 risk note), and esc asks the shell for "now". Read from the
+ * URL on every call, like `isFollowCanvas`.
+ */
+export function isHistoricalCanvas(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return !!new URLSearchParams(window.location.search).get('sha');
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Does this canvas persist its camera / layout (`PATCH /_api/canvas-meta`)? Not an embed (DDR-247), not a
+ * Present follower (S3.7a), not a past version (S1.14): in each of them the view is not the designer's own.
+ */
+export function persistsCanvasMeta(): boolean {
+  return !isEmbedCanvas() && !isFollowCanvas() && !isHistoricalCanvas();
 }
 
 /**

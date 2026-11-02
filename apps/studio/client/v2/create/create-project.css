@@ -1,0 +1,260 @@
+/* Create a project (panels/CreateProject.jsx, SourceConflictPanel): the cp-* dialog (V2-8.0: its rules left the retired styles/ layer files). */
+
+/* ── V2-8.0: rules moved here from the retired styles/ layer files, in their original order and ahead of this file's own rules, so the cascade is unchanged. ── */
+
+/* from styles/3-shell-maude.css */
+@layer shell {
+  .cp-dialog .textarea {
+    resize: vertical;
+    min-height: 76px;
+  }
+
+  /* create / pull / share dialog */
+  .cp-dialog {
+    width: min(560px, 94vw);
+    max-height: 88vh;
+  }
+
+  .cp-dialog-hd {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    padding: var(--space-4) var(--space-4) var(--space-3);
+    border-bottom: 1px solid var(--border-subtle);
+    flex: none;
+  }
+
+  .cp-dialog-titles {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .cp-dialog-hd h2 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--type-lg);
+    font-weight: 600;
+    color: var(--fg-0);
+  }
+
+  .cp-dialog-hd p {
+    margin: 2px 0 0;
+    font-size: var(--type-sm);
+    color: var(--fg-2);
+    line-height: var(--lh-base);
+  }
+
+  .cp-body {
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    overflow: auto;
+  }
+
+  .cp-body--list {
+    gap: var(--space-2);
+  }
+
+  .cp-ft {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    border-top: 1px solid var(--border-subtle);
+    background: var(--bg-1);
+    flex: none;
+  }
+
+  .cp-spacer {
+    flex: 1;
+  }
+
+  .cp-cl-glyph {
+    flex: 0 0 auto;
+    display: inline-flex;
+  }
+
+  .cp-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .cp-field-label {
+    font-size: var(--type-sm);
+    font-weight: 600;
+    color: var(--fg-0);
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  .cp-optional {
+    font-weight: 400;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    text-transform: lowercase;
+  }
+
+  .cp-field-help {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    line-height: var(--lh-base);
+  }
+
+  .cp-field-help b {
+    color: var(--fg-1);
+    font-family: var(--font-mono);
+    font-weight: 500;
+  }
+
+  .cp-input,
+  .cp-textarea {
+    width: 100%;
+  }
+
+  .cp-textarea {
+    resize: none;
+  }
+
+  .cp-seg {
+    width: 100%;
+  }
+
+  .cp-seg button {
+    flex: 1;
+    justify-content: center;
+    gap: var(--space-1);
+  }
+
+  .cp-seg button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+
+  .cp-invite {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    position: relative;
+  }
+
+  .cp-invite-at {
+    position: absolute;
+    left: var(--space-2);
+    font-family: var(--font-mono);
+    color: var(--fg-2);
+    pointer-events: none;
+  }
+
+  .cp-dialog .cp-invite-input {
+    flex: 1;
+    padding-left: calc(var(--space-2) + 0.9em);
+    font-family: var(--font-mono);
+  }
+
+  .cp-invite-btn {
+    flex: 0 0 auto;
+  }
+
+  .cp-repolist {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 360px;
+    overflow: auto;
+  }
+
+  .cp-repo {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    padding: var(--space-2);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    background: var(--bg-2);
+    color: var(--fg-0);
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .cp-repo:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: var(--bg-3);
+  }
+
+  .cp-repo:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .cp-repo:disabled {
+    cursor: default;
+    opacity: 0.6;
+  }
+
+  .cp-repo.is-busy {
+    opacity: 1;
+    border-color: var(--accent);
+  }
+
+  .cp-repo > svg:first-child {
+    color: var(--fg-2);
+    flex: 0 0 auto;
+  }
+
+  .cp-repo-tx {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .cp-repo-name {
+    font-weight: 600;
+    font-size: var(--type-sm);
+    color: var(--fg-0);
+  }
+
+  .cp-repo-meta {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+
+  .cp-repo-go {
+    color: var(--fg-2);
+    flex: 0 0 auto;
+    display: inline-flex;
+  }
+
+  .cp-repo:hover:not(:disabled) .cp-repo-go {
+    color: var(--accent);
+  }
+
+  .cp-repo.is-busy .cp-repo-go {
+    color: var(--accent);
+  }
+
+  .cp-spin {
+    animation: cp-spin 0.9s linear infinite;
+    transform-origin: center;
+  }
+
+  @keyframes cp-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .gi-pulse,
+    .cp-spin {
+      animation: none;
+    }
+  }
+}
+
+/* ── end of the moved rules ── */

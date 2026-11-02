@@ -1,0 +1,414 @@
+/*
+ * GitPanel.css — chrome for the in-Maude git-awareness panel (Phase 27).
+ * Every value is a var(--*) token from system/maude/colors_and_type.css.
+ * Local classes are prefixed `gp-`; everything that already exists in the
+ * maude DS (.panel / .btn / .callout / .input / .textarea / .kbd / .tree-row /
+ * .tab / .chip / .presence-dot) is LIFTED, not re-declared.
+ */
+
+/* ── artboard frame: the studio shell backdrop (dotted canvas) ──────────────── */
+.gp-shell {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-0);
+  color: var(--fg-0);
+  font-family: var(--font-body);
+  font-size: var(--type-base);
+  line-height: var(--lh-base);
+  overflow: hidden;
+}
+.gp-canvas-bleed {
+  background-color: var(--canvas-bg);
+  background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1px);
+  background-size: var(--canvas-grid) var(--canvas-grid);
+}
+
+/* ── menubar: grounds the panel as the real app + carries repo/branch context ─ */
+.gp-menubar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: 44px;
+  flex: 0 0 44px;
+  padding: 0 var(--space-4);
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--border-default);
+}
+.gp-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  color: var(--fg-0);
+}
+.gp-mark-spark { color: var(--accent); }
+/* "you are in repo X on branch Y" — the IA primitive (DDR-110). Plain words. */
+.gp-context {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-2);
+  font-family: var(--font-mono);
+  font-size: var(--type-sm);
+  color: var(--fg-1);
+}
+.gp-context b { color: var(--fg-0); font-weight: 600; }
+.gp-context .gp-sep { color: var(--fg-3); }
+.gp-spacer { flex: 1; }
+.gp-avatars { display: inline-flex; }
+.gp-avatar {
+  width: 22px;
+  height: 22px;
+  margin-left: -6px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--bg-1);
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--accent-fg);
+}
+
+.gp-main { flex: 1; display: flex; min-height: 0; }
+
+/* ── left file tree (dirty indicators live here too — DDR-075 badge style) ──── */
+.gp-tree {
+  width: 248px;
+  flex: 0 0 248px;
+  background: var(--bg-1);
+  border-right: 1px solid var(--border-default);
+  display: flex;
+  flex-direction: column;
+}
+.gp-tree-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 34px;
+  padding: 0 var(--space-3) 0 var(--space-4);
+  font-family: var(--font-mono);
+  font-size: var(--type-xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--fg-2);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.gp-tree-body { padding: var(--space-2) var(--space-2); overflow: hidden; }
+/* file-tree rows lift the DS .tree-row (hover + [aria-selected] accent-tint + inset
+   bar come from the DS); .gp-row only adds the depth indent + the dirty-badge slot. */
+.gp-row[data-depth="1"] { padding-left: var(--space-5); }
+.gp-row[data-depth="2"] { padding-left: calc(var(--space-5) + var(--space-5)); }
+.gp-row-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gp-row-icon { color: var(--fg-2); flex: 0 0 auto; }
+
+/* ── the M / A / D / U dirty badge — a letter-in-pill. No DS prior carried a
+ *    letter glyph (.presence-dot is a bare dot, .chip is text-only), so this is
+ *    a justified new element; it mirrors the DDR-075 activity-overlay hue logic
+ *    (status palette, never the accent). ───────────────────────────────────── */
+.gp-badge {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-xs);
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--bg-0);
+}
+/* All three filled badges keep the base dark --bg-0 glyph (M/A clear 9:1+; on the
+   darker error fill --bg-0 clears AA where the near-white --fg-0 did not — a11y iter-1). */
+.gp-badge[data-kind="M"] { background: var(--status-warn); }
+.gp-badge[data-kind="A"] { background: var(--status-success); }
+.gp-badge[data-kind="D"] { background: var(--status-error); }
+.gp-badge[data-kind="U"] { background: transparent; border: 1px dashed var(--border-strong); color: var(--fg-2); }
+/* tree-row variant: smaller dot-with-letter on the row's trailing edge */
+.gp-row .gp-badge { width: 15px; height: 15px; }
+
+/* ── canvas peek (between tree and the docked panel) ────────────────────────── */
+.gp-stage {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: var(--space-7);
+}
+/* the canvas-peek preview lifts the DS .panel material; only widens it + lifts
+   the elevation one step (it floats over the dotted canvas). */
+.gp-mini { width: 320px; box-shadow: var(--shadow-md); }
+.gp-mini-bar {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  height: 24px;
+  padding: 0 var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-2);
+}
+.gp-mini-dot { width: 7px; height: 7px; border-radius: var(--radius-pill); background: var(--border-strong); }
+.gp-mini-body { padding: var(--space-5); display: flex; flex-direction: column; gap: var(--space-4); }
+.gp-sk { background: var(--bg-3); border-radius: var(--radius-xs); height: 10px; }
+.gp-sk.is-accent { background: var(--accent-muted); height: 26px; width: 46%; border-radius: var(--radius-sm); }
+.gp-stage-tag {
+  position: absolute;
+  left: var(--space-5);
+  bottom: var(--space-5);
+  font-family: var(--font-mono);
+  font-size: var(--type-xs);
+  color: var(--fg-2);
+}
+
+/* ── the GitPanel itself: a docked right-side panel ─────────────────────────── */
+.gp-panel {
+  width: 380px;
+  flex: 0 0 380px;
+  background: var(--bg-1);
+  border-left: 1px solid var(--border-default);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.gp-panel.is-standalone { border-left: none; border: 1px solid var(--border-default); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); }
+
+.gp-panel-hd {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 40px;
+  flex: 0 0 40px;
+  padding: 0 var(--space-3) 0 var(--space-4);
+  border-bottom: 1px solid var(--border-default);
+}
+.gp-panel-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--type-md);
+  color: var(--fg-0);
+}
+/* the "N unsaved" count badge on the panel tab */
+.gp-count {
+  font-family: var(--font-mono);
+  font-size: var(--type-xs);
+  font-weight: 600;
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--accent-tint);
+  color: var(--accent);
+  border: 1px solid var(--accent-muted);
+}
+
+/* Changes / History tabs — lifts the DS .tabbar/.tab (active via [aria-selected]);
+   .gp-tabs only adds the panel-edge inset padding. */
+.gp-tabs { padding: var(--space-2) var(--space-3) 0; }
+
+.gp-list { flex: 1; overflow: hidden; padding: var(--space-2) 0; }
+.gp-group-hd {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4) var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--type-xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--fg-2);
+}
+.gp-group-count { color: var(--fg-2); }
+
+/* a changed-file row in the panel: checkbox · badge · name · path · discard */
+.gp-file {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  margin: 0 var(--space-2);
+}
+.gp-file:hover { background: var(--bg-2); }
+.gp-file.is-checked { background: color-mix(in oklab, var(--accent-tint) 60%, transparent); }
+.gp-file-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.gp-file-name { color: var(--fg-0); font-size: var(--type-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gp-file-path { color: var(--fg-2); font-family: var(--font-mono); font-size: var(--type-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* the accent-tint of a checked row drops --fg-2 path text to 3.94:1 — lift it to
+   --fg-1 (~9:1) on checked rows only (a11y iter-2). */
+.gp-file.is-checked .gp-file-path { color: var(--fg-1); }
+.gp-discard {
+  flex: 0 0 auto;
+  opacity: 0;
+  color: var(--fg-2);
+  background: none;
+  border: none;
+  padding: var(--space-1);
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: opacity var(--dur-soft) var(--ease-out), color var(--dur-soft) var(--ease-out);
+}
+/* reveal on hover AND keyboard focus-within, so a Tab-focused row surfaces it (a11y iter-1) */
+.gp-file:hover .gp-discard,
+.gp-file:focus-within .gp-discard { opacity: 1; }
+.gp-discard:hover { color: var(--status-error); background: var(--bg-3); }
+
+/* checkboxes lift the DS .check (native <input>, components-toggles) — no local
+   checkbox styles needed; the DS draws the box, tick, indeterminate dash + focus ring. */
+.gp-discard:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-xs); }
+
+/* ── the commit composer at the panel footer ────────────────────────────────── */
+.gp-compose {
+  flex: 0 0 auto;
+  border-top: 1px solid var(--border-default);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  background: var(--bg-1);
+}
+/* lifts the DS .textarea; only overrides: no drag-resize in a mock, a readable
+   placeholder (a11y), and the mock "active" state (screenshots can't show :focus). */
+.gp-msg { resize: none; min-height: 64px; }
+.gp-msg::placeholder { color: var(--fg-2); }
+.gp-msg.is-focused { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-tint); }
+
+.gp-compose-actions { display: flex; align-items: center; gap: var(--space-3); }
+.gp-save {
+  flex: 1;
+  justify-content: center;
+}
+.gp-save:disabled, .gp-save[aria-disabled="true"],
+.gp-publish:disabled, .gp-publish[aria-disabled="true"] {
+  background: var(--bg-3);
+  color: var(--fg-3);
+  border-color: var(--border-default);
+  cursor: not-allowed;
+}
+/* instructional copy — must be readable (was --fg-3, the disabled token: a11y iter-1) */
+.gp-hint { font-size: var(--type-xs); color: var(--fg-2); }
+.gp-selectall {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  align-self: flex-start;
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--font-body);
+  font-size: var(--type-sm);
+  color: var(--fg-1);
+  cursor: pointer;
+}
+
+/* ── publish / get-latest bar (reuses the <SyncBanner> idiom + .callout) ─────── */
+.gp-publishbar {
+  flex: 0 0 auto;
+  border-top: 1px solid var(--border-default);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  background: var(--bg-1);
+}
+.gp-publish { width: 100%; justify-content: center; }
+.gp-nudge {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+}
+.gp-nudge-text { flex: 1; font-size: var(--type-sm); }
+.gp-nudge-text b { color: var(--fg-0); font-weight: 600; }
+.gp-nudge-text span { color: var(--fg-1); }
+.gp-dot-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-pill);
+  background: var(--status-info);
+  flex: 0 0 auto;
+  box-shadow: 0 0 0 0 color-mix(in oklab, var(--status-info) 60%, transparent);
+  animation: gp-pulse 2.4s var(--ease-out) infinite;
+}
+@keyframes gp-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--status-info) 55%, transparent); }
+  70% { box-shadow: 0 0 0 7px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+/* the pulse uses a hardcoded duration (not a --dur-* token), so gate it explicitly (a11y iter-1) */
+@media (prefers-reduced-motion: reduce) {
+  .gp-dot-pulse { animation: none; }
+}
+
+/* ── History timeline ───────────────────────────────────────────────────────── */
+.gp-history { padding: var(--space-2) var(--space-3); display: flex; flex-direction: column; gap: 0; overflow: hidden; }
+.gp-version {
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-2);
+  align-items: start;
+  position: relative;
+}
+.gp-version-rail { display: grid; place-items: center; position: relative; }
+.gp-version-node { width: 8px; height: 8px; border-radius: var(--radius-pill); background: var(--accent); margin-top: 4px; z-index: 1; }
+.gp-version:not(:last-child) .gp-version-rail::after {
+  content: "";
+  position: absolute;
+  top: 12px;
+  bottom: -12px;
+  width: 1px;
+  background: var(--border-default);
+}
+.gp-version-msg { color: var(--fg-0); font-size: var(--type-sm); }
+.gp-version-meta { color: var(--fg-2); font-family: var(--font-mono); font-size: var(--type-xs); margin-top: 2px; }
+.gp-version-when { color: var(--fg-2); font-family: var(--font-mono); font-size: var(--type-xs); white-space: nowrap; }
+
+/* ── empty state — "Nothing to save" ───────────────────────────────────────── */
+.gp-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  padding: var(--space-8) var(--space-6);
+  text-align: center;
+}
+.gp-empty-glyph {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-pill);
+  display: grid;
+  place-items: center;
+  background: color-mix(in oklab, var(--status-success) 16%, transparent);
+  color: var(--status-success);
+}
+.gp-empty-mark { margin-bottom: var(--space-2); opacity: 0.9; }
+.gp-empty h3 { font-family: var(--font-display); font-size: var(--type-lg); color: var(--fg-0); margin: 0; font-weight: 600; }
+/* body copy matches the DS empty-state specimen (.es-state-body uses --fg-1). */
+.gp-empty p { color: var(--fg-1); font-size: var(--type-sm); max-width: 28ch; margin: 0; }
+
+/* ── conflict state ─────────────────────────────────────────────────────────── */
+/* .callout is row-flex with a left accent bar — give it ONE column child so the
+   body text and its actions stack instead of competing for the row. */
+.gp-callout-col { display: flex; flex-direction: column; gap: var(--space-2); flex: 1; }
+.gp-callout-actions { display: flex; gap: var(--space-3); margin-top: var(--space-2); }
+
+/* a labelled section heading inside a focused panel artboard */
+.gp-sect-label {
+  font-family: var(--font-mono);
+  font-size: var(--type-xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--fg-2);
+  padding: var(--space-4) var(--space-4) var(--space-2);
+}

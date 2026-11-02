@@ -45,10 +45,18 @@ import {
   createWriteStream,
   existsSync,
   mkdirSync,
+  readFileSync,
   renameSync,
   rmSync,
+  statSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
+import {
+  contentAddressedAsset,
+  isAssetCreate,
+  PER_USE_PHOTO_RE,
+} from '../../studio/access/scope.ts';
+import { fileAccessFor, NOT_IN_SCOPE_REFUSAL } from './access-files.mjs';
 import { diskPressureRefusal, respondDiskPressure } from './disk.mjs';
 import {
   MAX_PROJECT_FILE_BYTES,
@@ -249,6 +257,15 @@ export function parseFileDoorPath(pathname) {
   return rel;
 }
 
+/** A per-use photo edit's landed bytes (≤ 64 KiB — a PhotoEdit); undefined when unreadable or larger. */
+function readLanded(tmp) {
+  try {
+    return statSync(tmp).size <= 64 * 1024 ? readFileSync(tmp) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function respond(response, status, message) {
   const body = JSON.stringify({ error: message });
   response
@@ -378,7 +395,14 @@ export async function handleFileDoor(ctx) {
     respond(response, 401, 'unauthorized');
     return true;
   }
-  if (match.readOnly) {
+  // V2-1.16 L1 — a canvas-only session is judged by its claim (`writes`, G2)
+  // below, never by the fail-closed `read_only` bit its token stores.
+  const access = fileAccessFor(match, {
+    designRoot: ctx.designRoot,
+    journal: ctx.journal,
+    dataDir,
+  });
+  if (match.readOnly && !access.claimDecides) {
     respond(response, 403, 'this token is read-only');
     return true;
   }
@@ -395,7 +419,11 @@ export async function handleFileDoor(ctx) {
   // REAL landing path. Same call the older checkout door makes.
   const target = resolveCheckoutFileWrite(ctx.designRoot, rel);
   if (!target.ok) {
-    respond(response, 400, 'invalid path');
+    // A canvas-only session gets the U1 answer here too: the class half of
+    // admission reads the checkout (a `.css` beside a canvas is canvas-owned),
+    // so a 400 would tell it which other canvases exist.
+    if (access.claimDecides) respondJson(response, 403, { ...NOT_IN_SCOPE_REFUSAL });
+    else respond(response, 400, 'invalid path');
     return true;
   }
 
@@ -411,7 +439,37 @@ export async function handleFileDoor(ctx) {
   // scoped to one canvas can WRITE the whole project's file plane while being
   // unable to read most of it back — and a leaked low-value token becomes a
   // project-wide write primitive (DDR-053 §3).
-  if (!matchesScope(match.scope, landing)) {
+  // Set when a canvas-only session creates a new asset: the bytes must hash to
+  // its name (checked again once they are hashed, below).
+  let mustContentAddress = false;
+  // Set when a canvas-only session creates a per-use photo edit (S8.15): the landed bytes must
+  // hash to its name, so `writes()` is asked again with them once they are on disk.
+  let mustHashToName = false;
+  if (access.claimDecides) {
+    // The closure decides (V2-1.7 G2): create-only new assets, a photo sidecar
+    // whose every referrer this session edits. Anything else — another
+    // canvas's file, an asset a second canvas uses, a missing path — is the
+    // one U1 answer.
+    const exists =
+      existsSync(target.abs) ||
+      (ctx.journal ? currentHashFor(ctx.journal, landing) !== null : false);
+    // A new asset is named by its bytes (`assets/<sha8>.<ext>`, V2-1.16 L20):
+    // a chosen name would be refused when another canvas holds it and written
+    // when it is free — an existence oracle (V2-5 sweep-fix, lead decision).
+    mustHashToName = PER_USE_PHOTO_RE.test(landing);
+    mustContentAddress = !mustHashToName && isAssetCreate(landing, { exists });
+    const admitted = mustHashToName
+      ? !exists && access.mayCreatePerUse(landing)
+      : access.writes(landing, { exists });
+    if (
+      method === 'DELETE' ||
+      !admitted ||
+      (mustContentAddress && !contentAddressedAsset(landing, null))
+    ) {
+      respondJson(response, 403, { ...NOT_IN_SCOPE_REFUSAL });
+      return true;
+    }
+  } else if (!matchesScope(match.scope, landing)) {
     respond(response, 403, 'this token is not scoped to that path');
     return true;
   }
@@ -518,6 +576,14 @@ export async function handleFileDoor(ctx) {
   if (declared && declared !== r.sha256) {
     rmSync(r.tmp, { force: true });
     respond(response, 400, 'content hash does not match the bytes sent');
+    return true;
+  }
+  if (
+    (mustContentAddress && !contentAddressedAsset(landing, r.sha256)) ||
+    (mustHashToName && !access.writes(landing, { exists: false, body: readLanded(r.tmp) }))
+  ) {
+    rmSync(r.tmp, { force: true });
+    respondJson(response, 403, { ...NOT_IN_SCOPE_REFUSAL });
     return true;
   }
 

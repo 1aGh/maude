@@ -1,0 +1,47 @@
+# Agent eval — A (one writer + skills) vs B (A + helpers)
+
+90 trials · 0 infra-failures (excluded, re-run) · agent+judge cost ≈ $85.34 (list) · agent wall 193.7 min (sum)
+
+| task | group | helper | A inv | B inv | A qual | B qual | A judge | B judge | A tok | B tok | A wall s | B wall s | B agents | failed (A / B) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| b1 | board | board-reader | 3/3 | – | 3/3 | – | 3/3 | – | 123k | – | 41 | – | – |  /  |
+| b2 | board | board-reader | 3/3 | – | 2/3 | – | 2/3 | – | 1633k | – | 185 | – | – |  /  |
+| b3 | board | board-reader | 3/3 | – | 3/3 | – | 3/3 | – | 465k | – | 50 | – | – |  /  |
+| b4 | board | board-reader | 3/3 | – | 3/3 | – | 3/3 | – | 751k | – | 79 | – | – |  /  |
+| b5 | board | board-reader | 3/3 | – | 3/3 | – | 3/3 | – | 752k | – | 71 | – | – |  /  |
+| b6 | board | board-reader | 3/3 | – | 3/3 | – | 3/3 | – | 248k | – | 40 | – | – |  /  |
+| b7 | board | board-reader | 3/3 | – | 3/3 | – | 3/3 | – | 684k | – | 68 | – | – |  /  |
+| d1 | ds | ds-switcher | 3/3 | – | 3/3 | – | 3/3 | – | 1573k | – | 222 | – | – |  /  |
+| d2 | ds | — | 3/3 | – | 3/3 | – | 3/3 | – | 1010k | – | 173 | – | – |  /  |
+| d3 | ds | — | 3/3 | – | 3/3 | – | 3/3 | – | 630k | – | 88 | – | – |  /  |
+| d4 | ds | ds-switcher | 2/3 | – | 1/3 | – | 1/3 | – | 908k | – | 154 | – | – | scope,ds-review-not-apply /  |
+| e1 | edit | — | 3/3 | – | 3/3 | – | 3/3 | – | 548k | – | 68 | – | – |  /  |
+| e2 | edit | — | 3/3 | – | 3/3 | – | 3/3 | – | 496k | – | 66 | – | – |  /  |
+| e3 | edit | — | 3/3 | – | 2/3 | – | 2/3 | – | 433k | – | 68 | – | – |  /  |
+| e4 | edit | — | 0/3 | – | 3/3 | – | 3/3 | – | 1139k | – | 159 | – | – | artboard-scope /  |
+| e5 | edit | — | 0/3 | – | 3/3 | – | 1/3 (2?) | – | 942k | – | 133 | – | – | artboard-scope /  |
+| e6 | edit | — | 3/3 | – | 3/3 | – | 3/3 | – | 425k | – | 83 | – | – |  /  |
+| e7 | edit | — | 3/3 | – | 3/3 | – | 3/3 | – | 425k | – | 105 | – | – |  /  |
+| e8 | edit | — | 3/3 | – | 3/3 | – | 3/3 | – | 409k | – | 68 | – | – |  /  |
+| n1 | new | artboard-drafter | 3/3 | – | 2/3 | – | 2/3 | – | 3185k | – | 300 | – | – |  /  |
+| n2 | new | artboard-drafter | 3/3 | – | 3/3 | – | 3/3 | – | 3639k | – | 301 | – | – |  /  |
+| n3 | new | artboard-drafter | 3/3 | – | 3/3 | – | 3/3 | – | 6833k | – | 442 | – | – |  /  |
+| n4 | new | — | 0/3 | – | 3/3 | – | 3/3 | – | 1398k | – | 198 | – | – | artboard-scope /  |
+| n5 | new | artboard-drafter | 3/3 | – | 3/3 | – | 3/3 | – | 2231k | – | 289 | – | – |  /  |
+| x1 | negative | — | 3/3 | – | 3/3 | – | 3/3 | – | 67k | – | 15 | – | – |  /  |
+| x2 | negative | — | 3/3 | – | 3/3 | – | 3/3 | – | 117k | – | 19 | – | – |  /  |
+| x3 | negative | — | 3/3 | – | 3/3 | – | 3/3 | – | 68k | – | 16 | – | – |  /  |
+| x4 | negative | — | 3/3 | – | 3/3 | – | 3/3 | – | 152k | – | 25 | – | – |  /  |
+| x5 | negative | — | 3/3 | – | 1/3 | – | 1/3 | – | 1357k | – | 295 | – | – |  /  |
+| x6 | negative | — | 3/3 | – | 3/3 | – | 3/3 | – | 298k | – | 51 | – | – |  /  |
+
+## Decision rule per helper (keep only if quality or latency wins at ≤ 1.5× tokens, no invariant drop)
+
+| helper | tasks | A pass^k | B pass^k | A qual | B qual | A judge | B judge | tokens B/A | A wall s | B wall s | quality win | latency win | keep split |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| board-reader | 0 | 0 | 0 | 0 % | 0 % | 0 % | 0 % | – | – | – | no | no | no |
+| artboard-drafter | 0 | 0 | 0 | 0 % | 0 % | 0 % | 0 % | – | – | – | no | no | no |
+| ds-switcher | 0 | 0 | 0 | 0 % | 0 % | 0 % | 0 % | – | – | – | no | no | no |
+| controls | 0 | 0 | 0 | 0 % | 0 % | 0 % | 0 % | – | – | – | no | no | — |
+| overall | 0 | 0 | 0 | 0 % | 0 % | 0 % | 0 % | – | – | – | no | no | — |
+

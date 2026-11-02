@@ -6,15 +6,25 @@
 // "remaining writers" catch-all the plan forbids cannot come back silently.
 
 import { describe, expect, test } from 'bun:test';
-import { existsSync, readFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { WRITER_REGISTRY } from '../sync/writer-registry.ts';
 
 const ROOT = join(import.meta.dir, '..');
 
-function servedRoutes(): string[] {
-  const src = readFileSync(join(ROOT, 'http.ts'), 'utf8');
+/** Every `/_api` route the studio serves: http.ts's literals, plus each spec `path:` in the
+ *  V2-2.5 table (routes/*.ts) — so a route added there is classified like one in http.ts. */
+function servedRoutes(root = ROOT): string[] {
+  const src = readFileSync(join(root, 'http.ts'), 'utf8');
   const found = new Set<string>();
   for (const m of src.matchAll(/'(\/_api\/[a-zA-Z0-9/_:-]+)'/g)) {
     const route = m[1] as string;
@@ -22,6 +32,12 @@ function servedRoutes(): string[] {
     // handler, not listed; comments ride the comments lane (S24).
     if (route.endsWith('/')) continue;
     found.add(route);
+  }
+  const tableDir = join(root, 'routes');
+  for (const f of readdirSync(tableDir).filter((n) => n.endsWith('.ts'))) {
+    const table = readFileSync(join(tableDir, f), 'utf8');
+    for (const m of table.matchAll(/\bpath:\s*'(\/_api\/[a-zA-Z0-9/_:-]+)'/g))
+      found.add(m[1] as string);
   }
   return [...found].sort();
 }
@@ -38,9 +54,26 @@ describe('persistent writer registry', () => {
     expect(stale).toEqual([]);
   });
 
-  test('every lane/structural writer names how it travels and a test that proves it', () => {
+  test('the scrape sees a route planted in the routes/ table (V2-2.5)', () => {
+    const root = mkdtempSync(join(tmpdir(), 'writer-registry-'));
+    mkdirSync(join(root, 'routes'));
+    writeFileSync(
+      join(root, 'http.ts'),
+      "const legacyRoutes = { '/_api/legacy-x': () => null };\n"
+    );
+    writeFileSync(
+      join(root, 'routes', 'plant.ts'),
+      "export const plant = () => [{ method: 'POST', path: '/_api/planted/:id/go', origin: 'main' }];\n"
+    );
+    expect(servedRoutes(root)).toEqual(['/_api/legacy-x', '/_api/planted/:id/go']);
+    // …and the real scrape sees the real table.
+    expect(servedRoutes()).toContain('/_api/project/migrate');
+    expect(servedRoutes()).toContain('/_api/outbox/:id/retry');
+  });
+
+  test('every lane/structural/migration writer names how it travels and a test that proves it', () => {
     for (const [route, e] of Object.entries(WRITER_REGISTRY)) {
-      if (e.class !== 'lane' && e.class !== 'structural') continue;
+      if (e.class !== 'lane' && e.class !== 'structural' && e.class !== 'migration') continue;
       expect({ route, via: typeof e.via }).toEqual({ route, via: 'string' });
       expect({ route, test: !!e.test && existsSync(join(ROOT, e.test)) }).toEqual({
         route,

@@ -11,6 +11,10 @@
 // cookie session, so the landing page redeems IN THE BROWSER: one form, one
 // POST, and the person is in the studio. No desktop required.
 //
+// Words per the v2 CONTRACT §3–§4 (Maude v2 S9.14): a self-hosted hub is a
+// "project" to the person reading this, never a "workspace", and the page
+// names no protocol ("identity provider") and never says "we".
+//
 // Server-rendered and script-free, like `signInPage` and `servicePage`: this
 // is the first thing a newcomer sees, and a page that needs a bundle to show
 // a form is a page that can fail to show it.
@@ -24,7 +28,7 @@ import { MIN_PASSWORD_LENGTH } from './users.mjs';
 
 /** A hostname for the heading — `https://design.acme.com/` → `design.acme.com`. */
 function workspaceName(workspace) {
-  if (!workspace) return 'this workspace';
+  if (!workspace) return 'this project';
   const raw = String(workspace);
   try {
     return new URL(raw).host || raw;
@@ -73,13 +77,17 @@ export function joinPage({ token, workspace, email, error = null, env = process.
   // link alone, and says so.
   const body = passwordsRefused
     ? `<h1>You're invited to ${esc(name)}</h1>
-  <p>This workspace signs people in through its identity provider. Sign in there${
+  <p>${workspace ? esc(name) : 'This project'} signs people in through its own sign-in page. Sign in there${
     email ? ` with <strong>${esc(email)}</strong>` : ''
   } and whoever invited you will see you arrive.</p>
   ${oidc}`
     : `<form method="post" action="/join" autocomplete="on">
   <h1>You're invited to ${esc(name)}</h1>
-  <p>Choose a password and you're in — no download, no setup.</p>
+  <p>${
+    email
+      ? `Choose a password and you're in — no download, no setup. Already have an account on this project? Enter its password instead.`
+      : `Choose a password and you're in — no download, no setup.`
+  }</p>
   <input type="hidden" name="token" value="${esc(token)}">
   <label for="email">Email</label>
   ${
@@ -87,17 +95,21 @@ export function joinPage({ token, workspace, email, error = null, env = process.
       ? `<input id="email" name="email" type="email" value="${esc(email)}" readonly autocomplete="username">`
       : `<input id="email" name="email" type="email" autocomplete="username" required autofocus placeholder="you@example.com">`
   }
-  <label for="password">Choose a password</label>
+  <label for="password">${email ? 'Password' : 'Choose a password'}</label>
   <input id="password" name="password" type="password" autocomplete="new-password" minlength="${MIN_PASSWORD_LENGTH}" required${
     email ? ' autofocus' : ''
   }>
-  <p class="hint">At least ${MIN_PASSWORD_LENGTH} characters. You'll use it to sign in next time.</p>
+  <p class="hint">${
+    email
+      ? `New here: at least ${MIN_PASSWORD_LENGTH} characters. You'll use it to sign in next time.`
+      : `At least ${MIN_PASSWORD_LENGTH} characters. You'll use it to sign in next time.`
+  }</p>
   ${error ? `<p class="err">${esc(error)}</p>` : ''}
   <button type="submit">Join ${esc(name)}</button>
   ${oidc ? `<p class="or">or</p>${oidc}` : ''}
   ${
     workspace
-      ? `<p class="hint" data-desktop>Using the Maude desktop app? After you join, choose <b>Open a project you were invited to</b> and sign in with <b>${esc(String(workspace))}</b> and this email.</p>`
+      ? `<p class="hint" data-desktop>Using the Maude app? After you join, choose <b>Open a project you were invited to</b> and sign in with <b>${esc(String(workspace))}</b> and this email.</p>`
       : ''
   }
 </form>`;

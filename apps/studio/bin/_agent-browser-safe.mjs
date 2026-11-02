@@ -106,6 +106,8 @@ import { spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { urlRefusal } from './_url-guard.mjs';
+
 const HERE = dirname(fileURLToPath(import.meta.url));
 // A fixed, empty, valid-JSON config file this wrapper always points
 // agent-browser at — per agent-browser's own docs, `--config <path>`
@@ -156,6 +158,32 @@ export const CLEARED_ENV_KEYS = Object.freeze([
   'all_proxy',
 ]);
 
+const NO_EGRESS_WEBRTC = '--force-webrtc-ip-handling-policy=disable_non_proxied_udp';
+
+/**
+ * The env agent-browser runs with: every policy/proxy key above cleared, the localhost-only domain
+ * list, and — V2-8.9 re-check 2 H-b (decision maude/v2-p8-agent-browser-safe-no-egress) — with
+ * MAUDE_NO_EGRESS=1 ("Search the web" off) the same dead-proxy rule _no-egress.sh gives the shell
+ * helpers, set AFTER the clearing: a dead loopback proxy for everything that is not loopback, no
+ * bypass lists, WebRTC limited to proxied (= no) UDP, and a session of its own. --allowed-domains
+ * alone never stopped in-page navigation, a meta refresh or an <img> to a website.
+ */
+export function safeEnv(base = process.env) {
+  const env = { ...base };
+  for (const key of CLEARED_ENV_KEYS) delete env[key];
+  env.AGENT_BROWSER_ALLOWED_DOMAINS = 'localhost,127.0.0.1';
+  if (env.MAUDE_NO_EGRESS === '1') {
+    env.AGENT_BROWSER_PROXY = 'http://127.0.0.1:9';
+    for (const k of ['AGENT_BROWSER_PROXY_BYPASS', 'NO_PROXY', 'no_proxy']) delete env[k];
+    const args = (env.AGENT_BROWSER_ARGS ?? '').split(',').filter(Boolean);
+    if (!args.includes(NO_EGRESS_WEBRTC)) args.push(NO_EGRESS_WEBRTC);
+    env.AGENT_BROWSER_ARGS = args.join(',');
+    const session = env.AGENT_BROWSER_SESSION || 'default';
+    env.AGENT_BROWSER_SESSION = session.endsWith('-noegress') ? session : `${session}-noegress`;
+  }
+  return env;
+}
+
 /** Returns a block-reason string if this argv should be refused, else null. */
 export function validateArgv(argv) {
   const sub = argv[0];
@@ -167,6 +195,13 @@ export function validateArgv(argv) {
   if (rest.length < min || rest.length > max) {
     const expected = min === max ? `exactly ${min}` : `${min}-${max}`;
     return `"${sub}" takes ${expected} argument(s), got ${rest.length} — no flags of any kind are accepted here (agent-browser-safe has no flag vocabulary at all; see --help)`;
+  }
+  // V2-8.9 B2 — `--allowed-domains` names hosts, so it never stopped `file://` (no host at all):
+  // `open file:///…/.ssh/id_ed25519` + `get text body` read any file. Only http(s) to this Mac.
+  // (`screenshot <path>` is confined to the project / temp dir by the dispatcher, cli design.mjs.)
+  if (sub === 'open') {
+    const why = urlRefusal(rest[0]);
+    if (why) return why;
   }
   return null;
 }
@@ -202,9 +237,7 @@ function main() {
     process.exit(2);
   }
   const [sub, ...rest] = argv;
-  const env = { ...process.env };
-  for (const key of CLEARED_ENV_KEYS) delete env[key];
-  env.AGENT_BROWSER_ALLOWED_DOMAINS = 'localhost,127.0.0.1';
+  const env = safeEnv(process.env);
   const result = spawnSync(
     'agent-browser',
     ['--config', EMPTY_CONFIG_PATH, sub, ...rest, '--allowed-domains', 'localhost,127.0.0.1'],

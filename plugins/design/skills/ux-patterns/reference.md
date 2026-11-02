@@ -58,6 +58,11 @@ following natural reading flow.
 than their container, input fields recessed (darker + inner shadow) so "type here" reads as a well, and edge scrims
 where text must stay legible.
 
+**UX-HIER-10 · Popovers stay inside the window.** A popover opened from a control (a colour picker, a menu)
+sits on the top layer, so no panel clips it, and is placed against the window: beside its panel when there is room,
+else below the control, else above it, else where more room is, scrolling inside. It never runs off an edge or
+covers the control that opened it. *Check:* at every window size the popover's rectangle is inside the viewport.
+
 ## 2. Decisions, actions & buttons
 
 **UX-ACT-1 · One primary action.** Multiple competing actions distract; one CTA with a verb ("Buy tickets").
@@ -84,6 +89,11 @@ secondary = neutral filled; tertiary/More = neutral outline.
 
 **UX-ACT-8 · Decoration must not look like an action.** Icons styled as small primary buttons (e.g. transaction
 icons) read as clickable → replace with logos/neutral small icons.
+
+**UX-ACT-9 · A hidden control with a non-default value surfaces on the face.** Disclosure (UX-ACT-7) hides
+what is rarely changed — not what *is* changed. When a value behind Advanced/More differs from the default (a blend
+mode, a theme override), it shows as one quiet row on the face, with a reset. *Check:* a non-default value behind
+Advanced shows a face row while Advanced is closed.
 
 **UX-ACT-6 · Visual anchors speed comparison.** In option lists, a recognizable icon/shape per option lets users
 recognize shape before reading text and scan vertically → faster decisions. Contrast with UX-HIER-5: anchors must
@@ -128,6 +138,16 @@ Never cramp the form against a container or the screen edge. Same spacing in dar
 
 **UX-FORM-4 · Pickers carry decision data.** Readable contrast and medium/semibold weights (no thin), roomy rows,
 single-letter weekday headers, and contextual data in cells (price per day) so the decision happens in the picker.
+
+**UX-FORM-5 · Number fields scrub from their label.** Drag the field's letter or icon (W, H, X, Y, a rotate
+glyph) to change it by one unit per px; Shift ×10, Alt ×0.1; a 3 px dead zone so a click only focuses; ↑↓ ±1 and
+Shift ±10; arithmetic accepted; one drag = one undo step. Percent and token-bound fields don't scrub (a drag there
+clashes with its neighbours, and a token is chosen, not dragged). *Check:* a 20 px drag changes the value by 20,
+Shift by 200, and a 2 px drag changes nothing.
+
+**UX-FORM-6 · A value not set here names its source.** An inherited, mixed or `currentColor` value reads in words
+("Inherited", "Text colour", "Mixed"), shows its *resolved* swatch (the object's real colour, never the panel's), and
+can be replaced or reset in one step. *Check:* no field shows a CSS keyword as its value.
 
 ## 5. Dialogs & destructive flows
 
@@ -183,6 +203,12 @@ cool colors at ~60% opacity/strength.
 **UX-TOK-4 · Gradients in HSL, in steps.** Constant hue; four steps light source → hold → fall-off → anchor; a palette
 varies only hue. Avoid two-step dark→light ("grey limbo").
 
+**UX-TOK-5 · Pickers are token-first, with one honest escape.** The system's tokens grouped by role (in the
+system's own order, both themes on each swatch) → Recent; the Custom tab is the escape. A raw value is allowed, said in words
+and flagged once with the nearest token or "Add it to the system" — never blocked. A new value defaults to the
+slot's role token (a fallback literal keeps it visible without a system), never `currentColor` or a bare hex.
+*Check:* adding a fill in a system writes `var(--…)`.
+
 ## 11. Shape
 
 **UX-SHAPE-1 · Nested radius: outer = inner + padding.** Same radius inside and outside leaves an awkward gap.
@@ -231,6 +257,8 @@ Yes/no checks, cite the rule ID in findings. Severity suggestion: **B** = blocke
 | UX-ACT-7 | Actions are tiered (primary/secondary/tertiary); overflow behind "More" when > ~4 | W |
 | UX-ACT-8 | No decorative icon is styled like a button | W |
 | UX-HIER-9 | Interactive elements are distinguishable from their container by luminance; inputs read as recessed | W |
+| UX-HIER-10 | Popovers stay inside the window, on the top layer | W |
+| UX-ACT-9 | A non-default value behind Advanced/More shows on the face | W |
 | UX-ACT-3 | Destructive and primary actions are visually distinct (not the same color) | B |
 | UX-ACT-4 | Buttons have a min width; side-by-side buttons are equal/aligned | W |
 | UX-ACT-5 | One action = one control in one position (toggle states, not two buttons) | W |
@@ -242,6 +270,8 @@ Yes/no checks, cite the rule ID in findings. Severity suggestion: **B** = blocke
 | UX-FORM-1 | Every input has a persistent visible label | B |
 | UX-FORM-2 | Placeholders are examples/instructions; no "e.g.", no "Type here" | W |
 | UX-FORM-3 | Form gaps follow 4/8/20/24 scale; form not cramped to edges | W |
+| UX-FORM-5 | Number fields scrub from their letter/icon (1/px, Shift ×10, Alt ×0.1, dead zone); % and token fields don't | W |
+| UX-FORM-6 | An inherited / mixed / currentColor value is named in words over its resolved swatch | W |
 | UX-DLG-1 | Confirm dialogs: action-named title, consequence body, verb CTA + Cancel, close ×, no "Are you sure?" | B |
 | UX-COPY-1 | CTAs are precise verb (+ noun) | W |
 | UX-COPY-2 | No ALL CAPS labels/buttons/tabs | W |
@@ -251,6 +281,7 @@ Yes/no checks, cite the rule ID in findings. Severity suggestion: **B** = blocke
 | UX-A11Y-1 | Text over imagery passes contrast (scrim/gradient) | B |
 | UX-TOK-1/2 | Components reference semantic tokens named by element/priority/state | W |
 | UX-TOK-3 | Saturated accents are toned down in dark mode | W |
+| UX-TOK-5 | Pickers are token-first; a new value starts at the slot's role token, never currentColor | W |
 | UX-SHAPE-1 | Nested radii satisfy outer = inner + padding | W |
 | UX-ICON-1 | One icon family throughout | W |
 | UX-MOT-1 | Entrance motion reveals primary → secondary → tertiary, staggered | W |

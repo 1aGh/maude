@@ -34,6 +34,27 @@ function setup() {
   return { p, detach, log, states };
 }
 
+describe('a pick in hand (S4.V4 G4)', () => {
+  test('while a gallery pick trails the pointer no stage sees the press, so a click on an annotation places instead of selecting', () => {
+    const { p, detach, log } = setup();
+    p.add({
+      priority: 100,
+      name: 'select',
+      down: () => (log.push('select'), { kind: 'dragging' }),
+    });
+    let placing = true;
+    p.holdOff = () => placing;
+    fire(document.body, 'pointerdown');
+    expect(log).toEqual([]);
+    expect(p.state).toBe('idle');
+    placing = false;
+    fire(document.body, 'pointerup');
+    fire(document.body, 'pointerdown');
+    expect(log).toEqual(['select']);
+    detach();
+  });
+});
+
 describe('stage order and ownership', () => {
   test('the lowest priority claiming stage wins, whatever order stages registered in', () => {
     const { p, detach, log } = setup();

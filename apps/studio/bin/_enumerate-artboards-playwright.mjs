@@ -4,7 +4,7 @@
 // merge. Lives as a subprocess (not a direct import) so `bun build --compile`
 // of the dev-server binary doesn't pull in playwright + chromium-bidi deep deps.
 
-import { launchChromium } from './_pw-launch.mjs';
+import { launchChromium, newShellContext } from './_pw-launch.mjs';
 
 const args = process.argv.slice(2);
 let url;
@@ -26,9 +26,12 @@ if (!url) {
 const timeoutMs = timeoutSec * 1000;
 const browser = await launchChromium();
 try {
-  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  // gate-b-c4d — confined to the origin the shell lands on (popups, other origins refused).
+  const { ctx, goto: gotoShell } = await newShellContext(browser, {
+    viewport: { width: 1440, height: 900 },
+  });
   const page = await ctx.newPage();
-  await page.goto(url, { waitUntil: 'networkidle', timeout: timeoutMs });
+  await gotoShell(page, url, { waitUntil: 'networkidle', timeout: timeoutMs });
   const ids = await page.evaluate(() =>
     Array.from(document.querySelectorAll('[data-dc-screen]')).map(
       (el) => el.getAttribute('data-dc-screen') ?? ''

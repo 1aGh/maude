@@ -23,7 +23,10 @@ const STUDIO = join(import.meta.dir, '..');
 // The shell's code, whichever client file it lives in (app.jsx before the
 // V2-0.2 split, its modules after) — see `_client-source.ts`.
 const APP = clientSource();
-const PANEL = readFileSync(join(STUDIO, 'client', 'panels', 'GitPanel.jsx'), 'utf8');
+// S11.10 — the Changes / History panel is Version history › Advanced now: the fold's three files are one text.
+const PANEL = ['git-advanced.jsx', 'git-parts.jsx', 'git-model.js']
+  .map((f) => readFileSync(join(STUDIO, 'client', 'v2', 'history', f), 'utf8'))
+  .join('\n');
 
 describe('one expression owns "who is saving this project"', () => {
   test('both postures are named once, at the top level', () => {
@@ -32,10 +35,10 @@ describe('one expression owns "who is saving this project"', () => {
     expect(APP).toContain('const savingIsManaged = cellManaged || cloudManaged;');
   });
 
-  test('the GitPanel call site consumes those names rather than re-deriving them', () => {
+  test('the Version history › Advanced call site consumes those names rather than re-deriving them', () => {
     // Re-deriving is how the two halves drift apart in the first place.
-    expect(APP).toContain('historyOnly={cellManaged}');
-    expect(APP).toContain('cloudManaged={cloudManaged}');
+    expect(APP).toContain('historyOnly: cellManaged,');
+    expect(APP).toContain('cloudManaged,');
   });
 });
 
@@ -55,41 +58,36 @@ describe('the dirty COUNT is withheld wherever saving is managed', () => {
   });
 
   test('every changesCount consumer is fed the gated value', () => {
+    // (None may be left at all: V2-4.8b removed the status-bar chip, V2-4.8a removes the menubar.)
     const feeds = clientMatches(/changesCount=\{[^}]+\}/g);
-    expect(feeds.length).toBeGreaterThan(0);
     for (const feed of feeds) expect(feed).toBe('changesCount={unsavedCount}');
   });
 });
 
-describe('the status-bar chip names the mechanism instead of a count', () => {
-  test('it receives the posture', () => {
-    expect(APP).toContain('savingIsManaged={savingIsManaged}');
-    expect(APP).toMatch(/savingIsManaged = false,/);
-  });
-
-  test('managed saving short-circuits the whole unsaved / to-publish ladder', () => {
-    expect(APP).toMatch(/\{savingIsManaged\s*\?/);
-    expect(APP).toContain("'cloud saving'");
-  });
-
-  test('"N to publish" is withheld too — Publish is withdrawn in that posture', () => {
-    // A gated count alone would fall through to the unpushed branch, which is
-    // the same local-git offer wearing a different label.
-    expect(APP).toContain('unpushed={savingIsManaged ? 0 : gitStatus?.unpushed || 0}');
+describe('no surface re-derives a save count the posture withdrew', () => {
+  // The status-bar chip ("N unsaved" / "N to publish" / "cloud saving") left with the bar in
+  // V2-4.8b. What it said lives on: a project somebody else saves reads Saved / Syncing… in the
+  // Share cluster (save-status.js), and the Changes panel itself names the mechanism (below).
+  test('the chip and its posture props are gone', () => {
+    expect(APP).not.toContain("'cloud saving'");
+    expect(APP).not.toMatch(/unpushed=\{/);
   });
 });
 
 describe('the panel half of DDR-218 is still intact', () => {
   test('withdrawal covers both postures', () => {
-    expect(PANEL).toContain('const withdrawn = historyOnly || cloudManaged;');
+    // one function names it (gitSurface): the cell, then the linked repo, each before any button is drawn
+    expect(PANEL).toMatch(/if \(cellManaged\) return \{ mode: 'cloud'/);
+    expect(PANEL).toMatch(/if \(cloudManaged\)\s+return \{ mode: 'cloud-saving'/);
   });
 
-  test('the panel badge stays gated on it', () => {
-    expect(PANEL).toMatch(/!withdrawn && count > 0/);
+  test('no unsaved count is drawn while somebody else saves', () => {
+    // the buttons (and the unsaved list) belong to the 'full' / 'read-only' modes alone
+    expect(PANEL).toMatch(/surface\.mode === 'full' \|\| surface\.mode === 'read-only'/);
   });
 
   test('the cloud-managed note keeps its testid and names the live mechanism', () => {
-    expect(PANEL).toContain('data-testid="git-cloud-managed"');
+    expect(PANEL).toContain("'git-cloud-managed'");
     expect(PANEL).toMatch(/Cloud is saving/);
   });
 });

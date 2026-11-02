@@ -13,7 +13,7 @@ Wraps the bundled `smoke.sh` helper, invoked via `maude design smoke` (the on-PA
 
 ## When to invoke
 
-**Manually:** any time you want a quick "did I break the iframe?" pass — typically after a dev-server refactor, a bulk migration, or a runtime library change. ~30 s for a project with ~40 canvases.
+**Manually:** any time you want a quick "does every canvas still render?" pass — typically after a dev-server refactor, a bulk migration, or a runtime library change. ~30 s for a project with ~40 canvases.
 
 **Automatic via `/flow:execute` (DDR-021):** the executor runs this at phase-end when the diff matches any of:
 
@@ -27,7 +27,7 @@ Per-canvas hooks (`/design:edit` step 7, `/design:new` step 9, `/design:setup-ds
 ## Procedure
 
 1. **Server lifecycle** — `PORT=$(maude design server-up)`.
-1a. **Runtime-bundle health** — `maude design runtime-health --port "$PORT" --restart --quiet`. Smoke's whole purpose is "did I break the iframe?" — a stale dev-server serving a defective `/_canvas-runtime/*.js` will produce blanket `ERROR` rows across every canvas with the same `ReferenceError` (and no source change explains it). Probing the runtime bundles first separates "I broke a canvas" from "the server is broken". System-review 2026-05-27 (D-1).
+1a. **Runtime-bundle health** — `maude design runtime-health --port "$PORT" --restart --quiet`. Smoke's whole purpose is "does every canvas still render?" — a stale dev-server serving a defective `/_canvas-runtime/*.js` will produce blanket `ERROR` rows across every canvas with the same `ReferenceError` (and no source change explains it). Probing the runtime bundles first separates "I broke a canvas" from "the server is broken". System-review 2026-05-27 (D-1).
 2. **Run smoke** — `maude design smoke [$ARGUMENTS]`.
 3. **Read every PNG.** When the report has > 5 canvases, **Read each PNG into the conversation, not a sample.** This is the rule from Phase 3.6.1 retro learning #4 — the agent screenshotted 38 specimens, sampled 3, called it good; user opened `colors-accent` and triple-chrome was pre-attentive in 2 s. Some visual regressions are catchable by human glance and miss-able by sampling. Don't skip.
 4. **If exit ≠ 0:**
@@ -39,13 +39,13 @@ Per-canvas hooks (`/design:edit` step 7, `/design:new` step 9, `/design:setup-ds
 
 ## Output layout
 
-Helper writes to `<designRoot>/_history/_smoke/<timestamp>/`:
+The helper writes a timestamped folder under the smoke runtime area and prints its path (or use `--out-dir`):
 
 - `<slug>.png` — one screenshot per canvas
 - `report.tsv` — tab-separated status/file/screenshot/detail (machine-parseable)
 - `report.md` — human-readable table; links every PNG
 
-Path is gitignored under the existing `_history/` pattern.
+The folder is runtime state (DDR-115): never versioned.
 
 ## Status semantics
 
@@ -73,16 +73,16 @@ The helper exits `0` only if every canvas is `OK` **and** the import-graph lint 
 |---|---|---|
 | `--include-system 0\|1` | `1` | Set `0` to skip `system/*/preview/*.tsx` and only smoke `ui/*.tsx`. Faster when iterating only user canvases. |
 | `--timeout <secs>` | `8` | Per-canvas mount poll budget. Bump up for heavy canvases or slow machines. |
-| `--out-dir <dir>` | `<designRoot>/_history/_smoke/<timestamp>/` | Override output location (used by `/flow:execute` to land reports in a phase-scoped folder). |
+| `--out-dir <dir>` | a timestamped folder under the smoke runtime area | Override output location (used by `/flow:execute` to land reports in a phase-scoped folder). |
 | `--engine auto\|agent-browser\|playwright` | `auto` | Forced fallback. Playwright loses the error-overlay probe (coarser verdict). |
-| `--changed-only` | off | **Incremental mode (Phase C / DDR-061).** Screenshot only canvases changed since the last smoke run (baseline recorded in `_history/_smoke/.last-smoke.json`). **Escalates back to the full set** when the diff touches `dev-server/**`, `canvas-lib.tsx`, or a `canvas*.tsx.template` (the "everything could break" shapes). No baseline / no git → full set. Empty change set → exit 0, nothing to screenshot. **`/flow:execute`'s phase-end gate defaults to this**; manual `/design:smoke` and release/CI stay full-set. |
+| `--changed-only` | off | **Incremental mode (Phase C / DDR-061).** Screenshot only canvases changed since the last smoke run (the helper records the baseline next to its reports). **Escalates back to the full set** when the diff touches `dev-server/**`, `canvas-lib.tsx`, or a `canvas*.tsx.template` (the "everything could break" shapes). No baseline / no git → full set. Empty change set → exit 0, nothing to screenshot. **`/flow:execute`'s phase-end gate defaults to this**; manual `/design:smoke` and release/CI stay full-set. |
 
 ## Examples
 
 ```sh
 /design:smoke
 /design:smoke --include-system 0
-/design:smoke --timeout 12 --out-dir .design/_history/_smoke/post-canvas-lib-refactor
+/design:smoke --timeout 12 --out-dir .design/_runs/local/smoke/post-canvas-lib-refactor
 ```
 
 ## Failure modes
@@ -97,7 +97,7 @@ The helper exits `0` only if every canvas is `OK` **and** the import-graph lint 
 - Doesn't change `_active.json` (smoke iterates URLs directly; doesn't touch the user's selection).
 - Doesn't make a qualitative judgment — no critic, no aesthetic scores. Pure render check.
 - Can't do a per-artboard breakdown — that's `/design:screenshot --all-screens` on a specific canvas. Smoke is full-page per file.
-- Doesn't save into `_history/<slug>/screenshots/` (= the per-canvas snapshot dir for `/design:edit`). Smoke goes to `_history/_smoke/<timestamp>/` so it doesn't pollute canvas-level history.
+- Doesn't write into a canvas's Version history or into an edit run's folder. Smoke reports live in their own folder, so a canvas's history stays clean.
 
 ## What this loop drills against
 

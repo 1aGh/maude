@@ -1,0 +1,42 @@
+{
+  "journey": "S5",
+  "lane": "terminal",
+  "pass": true,
+  "harnessFailure": false,
+  "infra": null,
+  "turns": [
+    {
+      "turn": 1,
+      "code": 0,
+      "ok": true,
+      "costUsd": 0.4350684,
+      "numTurns": 20
+    }
+  ],
+  "results": [
+    {
+      "id": "busy-denied",
+      "grader": "denied",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "busy-untouched",
+      "grader": "untouched",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "free-part-done",
+      "grader": "text",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "one-undo-step",
+      "grader": "one-undo-step",
+      "pass": true,
+      "why": ""
+    }
+  ]
+}

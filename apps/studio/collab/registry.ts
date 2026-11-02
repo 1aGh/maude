@@ -14,6 +14,9 @@ import { type ApplyResult, applyOps, type Op } from '../annotations/ops.ts';
 import '../annotations/ops-merge.ts';
 import { readReplica, validActionId, writeReplica } from '../annotations/replica.ts';
 import { parseBoard, serializeBoard } from '../annotations/schema.ts';
+import { createTextContest } from '../annotations/text-steps.ts';
+import { isDraftWriteId } from '../annotations/ui/text-session.ts';
+import type { BoardGuard } from '../annotations/vote-guard.ts';
 import { applyCommentsToDoc, stampAnnotationsEdit } from '../sync/codec.ts';
 import { MAX_ANNOTATIONS_BYTES } from '../sync/limits.ts';
 import { bridgeAwareness } from './awareness-bridge.ts';
@@ -63,13 +66,35 @@ export interface Registry {
    * to the room's replica — the freshest state, ahead of a debounced flush —
    * instead of to disk, where a peer's not-yet-flushed edit would be reverted.
    * `null` when no room (or a never-populated one) is live; `'too-large'` when
-   * the result would exceed the board cap (nothing written).
+   * the result would exceed the board cap (nothing written); `'refused'` when `guard` names a
+   * change (sec-a M1 — a vote / ballot change off the vote door; nothing written).
    */
   applyOpsToRoom(
     slug: string,
     ops: readonly Op[],
-    actionId?: string
-  ): ApplyResult | 'too-large' | null;
+    actionId?: string,
+    guard?: BoardGuard
+  ): ApplyResult | 'too-large' | 'refused' | null;
+  /**
+   * S4.V4 G4 — the board a live room holds (canonical text), ahead of its debounced flush: a reader that
+   * must see its own `applyOpsToRoom` write reads this first. `null` when no room (or a never-populated
+   * one) is live — the file is the truth then.
+   */
+  readRoomBoard(slug: string): string | null;
+  /**
+   * p8-undo-collab-refuse — the ids whose text a batch merged 3-way since the room last projected
+   * its board (a collaborator changed that text during the step: its ⌘Z is refused,
+   * annotations/text-steps.ts). Taken by the projection that carries those batches; clears.
+   */
+  takeTextContest(slug: string): string[];
+  /**
+   * p8-fix-d F13 — did every batch since the room last projected its board come from a text
+   * session's idle-typing drafts (`draft-…` write id, annotations/ui/text-session.ts)? Such a
+   * projection is not a ⌘Z step of its own: the local home records it with the session's commit.
+   * A file import or any other batch in the same flush makes it an ordinary step. Taken by the
+   * projection that carries those batches; clears.
+   */
+  takeDraftOnly(slug: string): boolean;
   /**
    * Phase 30 — project agent editing-presence onto a slug's room awareness so
    * it crosses the hub (the loopback `ai-activity` bus event does not). `null`
@@ -157,6 +182,15 @@ export function createRegistry(callbacks: RoomCallbacks): Registry {
   // flag-ON sync runtime ever adds to this; flag-OFF leaves it empty so `drop`
   // is unchanged.
   const pinned = new Set<string>();
+  const textContest = createTextContest();
+  // p8-fix-d F13 — per slug since its last projection: did a draft batch land, did anything else.
+  const flushKinds = new Map<string, { draft: boolean; other: boolean }>();
+  const noteFlushKind = (slug: string, draft: boolean) => {
+    const k = flushKinds.get(slug) ?? { draft: false, other: false };
+    if (draft) k.draft = true;
+    else k.other = true;
+    flushKinds.set(slug, k);
+  };
 
   function wireBridge(slug: string, room: Room): void {
     if (bridges.has(slug)) return;
@@ -233,23 +267,29 @@ export function createRegistry(callbacks: RoomCallbacks): Registry {
   function syncRoomFromAnnotations(slug: string, text: string, actionId?: string): void {
     const room = rooms.get(slug);
     if (!room) return;
+    noteFlushKind(slug, false);
     applyAnnotationsToDoc(room.doc, text, 'inspector-write', actionId);
   }
 
   function applyOpsToRoom(
     slug: string,
     ops: readonly Op[],
-    actionId?: string
-  ): ApplyResult | 'too-large' | null {
+    actionId?: string,
+    guard?: BoardGuard
+  ): ApplyResult | 'too-large' | 'refused' | null {
     const room = rooms.get(slug);
     // A replica that was never populated is not the board's truth — the
     // caller takes the disk path instead (DDR-223: no value ≠ empty).
     const cur = room ? readReplica(room.doc) : null;
     if (!room || cur === null) return null;
-    const r = applyOps(new Map(cur.elements.map((e) => [e.id, e])), ops);
+    const before = new Map(cur.elements.map((e) => [e.id, e]));
+    const r = applyOps(before, ops);
+    if (guard && guard(before, r.state) !== null) return 'refused';
     if (!r.touched.size) return r;
     const next = [...r.state.values()];
     if (serializeBoard(next).length > MAX_ANNOTATIONS_BYTES) return 'too-large';
+    textContest.record(slug, before, ops);
+    noteFlushKind(slug, isDraftWriteId(actionId));
     // One transaction with the lane's newest-wins stamp, so peers get ONE
     // update and the room's persistence projects it to disk.
     room.doc.transact(() => {
@@ -259,6 +299,12 @@ export function createRegistry(callbacks: RoomCallbacks): Registry {
       stampAnnotationsEdit(room.doc, 'inspector-write');
     }, 'inspector-write');
     return r;
+  }
+
+  function readRoomBoard(slug: string): string | null {
+    const room = rooms.get(slug);
+    const cur = room ? readReplica(room.doc) : null;
+    return cur ? serializeBoard(cur.elements) : null;
   }
 
   function setAgentEditing(slug: string, state: { name: string; since: number } | null): void {
@@ -313,6 +359,13 @@ export function createRegistry(callbacks: RoomCallbacks): Registry {
     syncRoomFromComments,
     syncRoomFromAnnotations,
     applyOpsToRoom,
+    readRoomBoard,
+    takeTextContest: (slug) => textContest.take(slug),
+    takeDraftOnly: (slug) => {
+      const k = flushKinds.get(slug);
+      flushKinds.delete(slug);
+      return !!k && k.draft && !k.other;
+    },
     setAgentEditing,
     attachHubAwareness,
     pin,

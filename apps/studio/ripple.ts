@@ -53,6 +53,14 @@ export interface RippleOptions {
   shiftFroms?: boolean;
   /** Bump the comp's durationInFrames / its const (default true). */
   bumpTotal?: boolean;
+  /**
+   * Ripple like an editor: shift only standalone pieces that START at or after
+   * this frame (the edited clip's OLD end), wherever they sit in the source.
+   * A piece that starts inside the edited clip's span stays where it is. Left
+   * unset, every standalone piece AFTER the clip in source order shifts (the
+   * pre-Phase-8 behaviour, which the insert / remove / transition callers rely on).
+   */
+  fromFrame?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -279,7 +287,12 @@ export function applyRippleAfterClip(
   if (shiftFroms) {
     const after = enumerateClips(canvasAbsPath, mid, artboardId);
     const idx = after.clips.findIndex((c) => c.stableId === afterStableId);
-    const downstream = after.clips.slice(idx + 1).filter((c) => c.kind === 'sequence');
+    const fromFrame = options.fromFrame;
+    // With a threshold the source order no longer decides: a title written BEFORE the clip
+    // in the file but starting after its old end follows it too.
+    const downstream = (fromFrame == null ? after.clips.slice(idx + 1) : after.clips).filter(
+      (c) => c.kind === 'sequence' && (fromFrame == null || c.stableId !== afterStableId)
+    );
     const s = new MagicString(mid);
     let touched = false;
     for (const clip of downstream) {
@@ -288,6 +301,11 @@ export function applyRippleAfterClip(
       if (!attr) continue; // cursor-implicit — follows the flow by construction
       const v0 = resolveNum(attr.inner, consts0);
       const v1 = resolveNum(attr.inner, consts1);
+      if (fromFrame != null) {
+        // Unresolvable and written before the clip: it was never shifted, don't start refusing now.
+        if (after.clips.indexOf(clip) < idx && (v0 == null || v1 == null)) continue;
+        if (v0 != null && v0 < fromFrame) continue; // starts inside the edited span: stays
+      }
       if (v0 == null || v1 == null) {
         throw new RippleError(
           `cannot ripple "${clip.stableId}": \`from={${attr.inner.trim()}}\` is not simple arithmetic — move it by hand, then retry`,

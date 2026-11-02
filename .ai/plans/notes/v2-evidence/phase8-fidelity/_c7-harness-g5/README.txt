@@ -1,0 +1,3 @@
+p8-c7-ds deltas over the D4 harness. Copy the final D4 .scr first (_d-harness-g5 .. _d6-harness-g5, then _d4-harness-g5), this folder over it; set REPO in lib.mjs to your worktree; symlink node_modules (root + apps/studio) into the main checkout; release-build the client.
+Order: bash .scr/chain-c7.sh (s13 groups a b c e f g h i j + s13p, light then dark, then the dsboard crops); ONLY_EXISTING=1 bun .scr/mkpairs.mjs 13-design-system.
+s13.mjs: G=e canvases follow maude-v2 (meta) + waitCovers (the sheets' pictures); G=h Pricing's Buy is a @maude/ds Button + page reload after the CLI publish; G=c wheel-zoom + pointer parked. s13p.mjs: ds-multi-panel (two systems in use, amber dot, Uses door). dsboard.mjs: 9 s wait for the usage index. crop.mjs: crop a png (sharp).

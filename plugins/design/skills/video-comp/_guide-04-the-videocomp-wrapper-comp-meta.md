@@ -38,5 +38,5 @@ export default function Canvas() {
   same as any canvas — a video-comp is still a DS surface.
 - Multiple comps on one canvas → give each `<VideoComp id="…">` a stable id.
 - **Keep `<Sequence>`/`<TransitionSeries.Sequence>` structure parseable** (literal
-  `from` / `durationInFrames` props, one block per beat) — the Timeline panel
+  `from` / `durationInFrames` props, one block per beat) — the timeline
   reads it directly.

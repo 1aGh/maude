@@ -23,7 +23,7 @@ export default function VideoFixture() {
   return (
     <DesignCanvas>
       <DCSection id="v" title="Video E2E">
-        <DCArtboard id="clip" label="Clip · 320×180" width={W} height={H}>
+        <DCArtboard id="clip" kind="video" label="Clip · 320×180" width={W} height={H}>
           <VideoComp component={Clip} durationInFrames={TOTAL} fps={FPS} width={W} height={H} />
         </DCArtboard>
       </DCSection>

@@ -25,6 +25,7 @@
 /** Every format the export pipeline knows. Mirrors `index.ts`'s `Format`. */
 export type ExportFormatName =
   | 'png'
+  | 'jpg'
   | 'pdf'
   | 'svg'
   | 'html'
@@ -33,7 +34,8 @@ export type ExportFormatName =
   | 'zip'
   | 'mp4'
   | 'webm'
-  | 'gif';
+  | 'gif'
+  | 'audio';
 
 /** Mirrors `scope.ts`'s `Scope`. */
 export type ExportScopeName =
@@ -61,6 +63,8 @@ export const VALID_SCOPES_BY_FORMAT: Readonly<
   Record<ExportFormatName, readonly ExportScopeName[]>
 > = Object.freeze({
   png: ['selection', 'artboard', 'canvas-as-separate', 'canvas-whole', 'selection-bounds'],
+  // S8.1 — JPG captures exactly what PNG does (same shim, `--type jpeg`).
+  jpg: ['selection', 'artboard', 'canvas-as-separate', 'canvas-whole', 'selection-bounds'],
   pdf: ['selection', 'artboard', 'canvas-as-separate', 'canvas-whole', 'selection-bounds'],
   svg: ['selection', 'artboard', 'canvas-as-separate'],
   html: ['artboard', 'canvas-as-separate'],
@@ -70,6 +74,8 @@ export const VALID_SCOPES_BY_FORMAT: Readonly<
   mp4: ['artboard'],
   webm: ['artboard'],
   gif: ['artboard'],
+  // S8.6 — Sound only: the mix of one video artboard, so one artboard at a time like the video it comes from.
+  audio: ['artboard'],
 });
 
 /** The scope a picker should select when the format changes. */

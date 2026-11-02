@@ -1,0 +1,1240 @@
+[
+  {
+    "journey": "S1",
+    "lane": "terminal",
+    "pass": false,
+    "harnessFailure": false,
+    "infra": null,
+    "turns": [
+      {
+        "turn": 1,
+        "code": 0,
+        "ok": true,
+        "costUsd": 0.6432798,
+        "numTurns": 19
+      },
+      {
+        "turn": 2,
+        "code": 0,
+        "ok": true,
+        "costUsd": 0.6786376,
+        "numTurns": 2
+      },
+      {
+        "turn": 3,
+        "code": 0,
+        "ok": true,
+        "costUsd": 0.7100165999999999,
+        "numTurns": 2
+      },
+      {
+        "turn": 4,
+        "code": 0,
+        "ok": true,
+        "costUsd": 0.7423763999999998,
+        "numTurns": 2
+      },
+      {
+        "turn": 5,
+        "code": 0,
+        "ok": true,
+        "costUsd": 0.7737551999999999,
+        "numTurns": 2
+      },
+      {
+        "turn": 6,
+        "code": 0,
+        "ok": true,
+        "costUsd": 0.8090491999999999,
+        "numTurns": 2
+      }
+    ],
+    "results": [
+      {
+        "id": "created-by-ai",
+        "grader": "history",
+        "pass": false,
+        "why": "0 matching action(s) on ui/Greeting.tsx (want 1…∞; kind any, by ai, op create)"
+      },
+      {
+        "id": "renamed",
+        "grader": "moved",
+        "pass": false,
+        "why": "no move ui/Welcome.tsx → ui/Greeting.tsx in Version history (or the files disagree)"
+      },
+      {
+        "id": "version-restored",
+        "grader": "history",
+        "pass": false,
+        "why": "0 matching action(s) on ui/Greeting.tsx (want 1…∞; kind restore, by any, op restore)"
+      },
+      {
+        "id": "restored-content",
+        "grader": "text",
+        "pass": false,
+        "why": "ui/Greeting.tsx is missing"
+      },
+      {
+        "id": "restore-by-verb",
+        "grader": "tool-used",
+        "pass": false,
+        "why": "0 call(s) of Bash matching /maude design history restore ui/Greeting\\.tsx/ (22 tool call(s) in all)"
+      },
+      {
+        "id": "back-from-trash",
+        "grader": "trash",
+        "pass": false,
+        "why": "ui/Greeting.tsx: trashed false, live false, still listed false"
+      },
+      {
+        "id": "no-hard-delete",
+        "grader": "no-tool",
+        "pass": true,
+        "why": ""
+      }
+    ]
+  },
+  {
+    "journey": "S1",
+    "lane": "acp",
+    "pass": false,
+    "harnessFailure": false,
+    "infra": null,
+    "turns": [
+      {
+        "turn": 1,
+        "ok": true,
+        "stopReason": "end_turn"
+      },
+      {
+        "turn": 2,
+        "ok": true,
+        "stopReason": "end_turn"
+      },
+      {
+        "turn": 3,
+        "ok": true,
+        "stopReason": "end_turn"
+      },
+      {
+        "turn": 4,
+        "ok": true,
+        "stopReason": "end_turn"
+      },
+      {
+        "turn": 5,
+        "ok": true,
+        "stopReason": "end_turn"
+      },
+      {
+        "turn": 6,
+        "ok": true,
+        "stopReason": "end_turn"
+      }
+    ],
+    "results": [
+      {
+        "id": "created-by-ai",
+        "grader": "history",
+        "pass": false,
+        "why": "0 matching action(s) on ui/Greeting.tsx (want 1…∞; kind any, by ai, op create)"
+      },
+      {
+        "id": "renamed",
+        "grader": "moved",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "version-restored",
+        "grader": "history",
+        "pass": false,
+        "why": "0 matching action(s) on ui/Greeting.tsx (want 1…∞; kind restore, by any, op restore)"
+      },
+      {
+        "id": "restored-content",
+        "grader": "text",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "restore-by-verb",
+        "grader": "tool-used",
+        "pass": false,
+        "why": "0 call(s) of Bash matching /maude design history restore ui/Greeting\\.tsx/ (67 tool call(s) in all)"
+      },
+      {
+        "id": "back-from-trash",
+        "grader": "trash",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "no-hard-delete",
+        "grader": "no-tool",
+        "pass": true,
+        "why": ""
+      }
+    ]
+  },
+  {
+    "journey": "S2",
+    "lane": "terminal",
+    "pass": true,
+    "harnessFailure": false,
+    "infra": null,
+    "turns": [
+      {
+        "turn": 1,
+        "code": 0,
+        "ok": true,
+        "costUsd": 0.658319,
+        "numTurns": 14
+      }
+    ],
+    "results": [
+      {
+        "id": "edited",
+        "grader": "text",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "ids-kept",
+        "grader": "ids-kept",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "linked",
+        "grader": "link",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "ai-version",
+        "grader": "history",
+        "pass": true,
+        "why": ""
+      }
+    ]
+  },
+  {
+    "journey": "S2",
+    "lane": "acp",
+    "pass": false,
+    "harnessFailure": false,
+    "infra": null,
+    "turns": [
+      {
+        "turn": 1,
+        "ok": true,
+        "stopReason": "end_turn"
+      }
+    ],
+    "results": [
+      {
+        "id": "edited",
+        "grader": "text",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "ids-kept",
+        "grader": "ids-kept",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "linked",
+        "grader": "link",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "ai-version",
+        "grader": "history",
+        "pass": false,
+        "why": "0 matching action(s) on ui/GitPanel.tsx (want 1…∞; kind ai, by ai, op any)"
+      }
+    ]
+  },
+  {
+    "journey": "S3",
+    "lane": "terminal",
+    "pass": true,
+    "harnessFailure": false,
+    "infra": null,
+    "turns": [
+      {
+        "turn": 1,
+        "code": 0,
+        "ok": true,
+        "costUsd": 0.29322739999999997,
+        "numTurns": 13
+      }
+    ],
+    "results": [
+      {
+        "id": "order",
+        "grader": "present",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "notes",
+        "grader": "present",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "presenting",
+        "grader": "ui-open",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "canvas-untouched",
+        "grader": "untouched",
+        "pass": true,
+        "why": ""
+      }
+    ]
+  },
+  {
+    "journey": "S3",
+    "lane": "acp",
+    "pass": true,
+    "harnessFailure": false,
+    "infra": null,
+    "turns": [
+      {
+        "turn": 1,
+        "ok": true,
+        "stopReason": "end_turn"
+      }
+    ],
+    "results": [
+      {
+        "id": "order",
+        "grader": "present",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "notes",
+        "grader": "present",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "presenting",
+        "grader": "ui-open",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "canvas-untouched",
+        "grader": "untouched",
+        "pass": true,
+        "why": ""
+      }
+    ]
+  },
+  {
+    "journey": "S4",
+    "lane": "terminal",
+    "pass": true,
+    "harnessFailure": false,
+    "infra": null,
+    "turns": [
+      {
+        "turn": 1,
+        "code": 0,
+        "ok": true,
+        "costUsd": 0.4828179999999999,
+        "numTurns": 18
+      }
+    ],
+    "results": [
+      {
+        "id": "sticky-resolved",
+        "grader": "sticky",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "sticker",
+        "grader": "sticker",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "through-the-verb",
+        "grader": "no-tool",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "canvas-untouched",
+        "grader": "untouched",
+        "pass": true,
+        "why": ""
+      }
+    ]
+  },
+  {
+    "journey": "S4",
+    "lane": "acp",
+    "pass": true,
+    "harnessFailure": false,
+    "infra": null,
+    "turns": [
+      {
+        "turn": 1,
+        "ok": true,
+        "stopReason": "end_turn"
+      }
+    ],
+    "results": [
+      {
+        "id": "sticky-resolved",
+        "grader": "sticky",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "sticker",
+        "grader": "sticker",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "through-the-verb",
+        "grader": "no-tool",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "canvas-untouched",
+        "grader": "untouched",
+        "pass": true,
+        "why": ""
+      }
+    ]
+  },
+  {
+    "journey": "S5",
+    "lane": "terminal",
+    "pass": false,
+    "harnessFailure": false,
+    "infra": null,
+    "turns": [
+      {
+        "turn": 1,
+        "code": 0,
+        "ok": true,
+        "costUsd": 0.2716682,
+        "numTurns": 11
+      }
+    ],
+    "results": [
+      {
+        "id": "busy-denied",
+        "grader": "denied",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "busy-untouched",
+        "grader": "untouched",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "free-part-done",
+        "grader": "text",
+        "pass": false,
+        "why": "no /Save everything/"
+      },
+      {
+        "id": "one-undo-step",
+        "grader": "one-undo-step",
+        "pass": false,
+        "why": "0 AI run(s) on ui/GitPanel.tsx; split: none; unattributed: 0"
+      }
+    ]
+  },
+  {
+    "journey": "S5",
+    "lane": "acp",
+    "pass": false,
+    "harnessFailure": false,
+    "infra": null,
+    "turns": [
+      {
+        "turn": 1,
+        "ok": true,
+        "stopReason": "end_turn"
+      }
+    ],
+    "results": [
+      {
+        "id": "busy-denied",
+        "grader": "denied",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "busy-untouched",
+        "grader": "untouched",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "free-part-done",
+        "grader": "text",
+        "pass": false,
+        "why": "no /Save everything/"
+      },
+      {
+        "id": "one-undo-step",
+        "grader": "one-undo-step",
+        "pass": false,
+        "why": "0 AI run(s) on ui/GitPanel.tsx; split: none; unattributed: 0"
+      }
+    ]
+  },
+  {
+    "journey": "S6",
+    "lane": "terminal",
+    "pass": false,
+    "harnessFailure": false,
+    "infra": null,
+    "turns": [
+      {
+        "turn": 1,
+        "code": 0,
+        "ok": true,
+        "costUsd": 0.9966312000000003,
+        "numTurns": 33
+      }
+    ],
+    "results": [
+      {
+        "id": "artboards-first",
+        "grader": "artboards",
+        "pass": false,
+        "why": "2 artboard(s), want 3; no artboard of kind web"
+      },
+      {
+        "id": "filled-in",
+        "grader": "artboards",
+        "pass": false,
+        "why": "2 artboard(s), want 3; under 4 elements: desktop, phone"
+      },
+      {
+        "id": "words-from-the-sentence",
+        "grader": "text",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "design-system-tokens",
+        "grader": "text",
+        "pass": false,
+        "why": "no /var\\(--/; still /#[0-9a-fA-F]{6}\\b/"
+      },
+      {
+        "id": "by-the-ai",
+        "grader": "history",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "one-undo-step",
+        "grader": "one-undo-step",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "no-second-canvas",
+        "grader": "canvas-exists",
+        "pass": true,
+        "why": ""
+      }
+    ]
+  },
+  {
+    "journey": "S6",
+    "lane": "acp",
+    "pass": false,
+    "harnessFailure": false,
+    "infra": null,
+    "turns": [
+      {
+        "turn": 1,
+        "ok": true,
+        "stopReason": "end_turn"
+      }
+    ],
+    "results": [
+      {
+        "id": "artboards-first",
+        "grader": "artboards",
+        "pass": false,
+        "why": "2 artboard(s), want 3"
+      },
+      {
+        "id": "filled-in",
+        "grader": "artboards",
+        "pass": false,
+        "why": "2 artboard(s), want 3; under 4 elements: desktop, mobile"
+      },
+      {
+        "id": "words-from-the-sentence",
+        "grader": "text",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "design-system-tokens",
+        "grader": "text",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "by-the-ai",
+        "grader": "history",
+        "pass": false,
+        "why": "0 matching action(s) on ui/Landing page.tsx (want 1…∞; kind ai, by ai, op any)"
+      },
+      {
+        "id": "one-undo-step",
+        "grader": "one-undo-step",
+        "pass": false,
+        "why": "0 AI run(s) on ui/Landing page.tsx; split: none; unattributed: 0"
+      },
+      {
+        "id": "no-second-canvas",
+        "grader": "canvas-exists",
+        "pass": true,
+        "why": ""
+      }
+    ]
+  },
+  {
+    "journey": "S7",
+    "lane": "terminal",
+    "pass": true,
+    "harnessFailure": false,
+    "infra": null,
+    "turns": [
+      {
+        "turn": 1,
+        "code": 0,
+        "ok": true,
+        "costUsd": 0.6148102000000001,
+        "numTurns": 23
+      }
+    ],
+    "results": [
+      {
+        "id": "huddle-one-second",
+        "grader": "text",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "shots-follow",
+        "grader": "text",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "effects-follow",
+        "grader": "text",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "total-in-step",
+        "grader": "text",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "earlier-shots-kept",
+        "grader": "text",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "ai-version",
+        "grader": "history",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "one-undo-step",
+        "grader": "one-undo-step",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "no-hard-delete",
+        "grader": "no-tool",
+        "pass": true,
+        "why": ""
+      }
+    ]
+  },
+  {
+    "journey": "S7",
+    "lane": "acp",
+    "pass": false,
+    "harnessFailure": false,
+    "infra": null,
+    "turns": [
+      {
+        "turn": 1,
+        "ok": true,
+        "stopReason": "end_turn"
+      }
+    ],
+    "results": [
+      {
+        "id": "huddle-one-second",
+        "grader": "text",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "shots-follow",
+        "grader": "text",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "effects-follow",
+        "grader": "text",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "total-in-step",
+        "grader": "text",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "earlier-shots-kept",
+        "grader": "text",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "ai-version",
+        "grader": "history",
+        "pass": false,
+        "why": "0 matching action(s) on ui/Alligators Cinematic Cut.tsx (want 1…∞; kind ai, by ai, op any)"
+      },
+      {
+        "id": "one-undo-step",
+        "grader": "one-undo-step",
+        "pass": false,
+        "why": "0 AI run(s) on ui/Alligators Cinematic Cut.tsx; split: none; unattributed: 0"
+      },
+      {
+        "id": "no-hard-delete",
+        "grader": "no-tool",
+        "pass": true,
+        "why": ""
+      }
+    ]
+  },
+  {
+    "journey": "S8",
+    "lane": "terminal",
+    "pass": false,
+    "harnessFailure": false,
+    "infra": null,
+    "turns": [
+      {
+        "turn": 1,
+        "code": 0,
+        "ok": true,
+        "costUsd": 0.20957979999999998,
+        "numTurns": 6
+      },
+      {
+        "turn": 2,
+        "code": 0,
+        "ok": true,
+        "costUsd": 0.34456620000000004,
+        "numTurns": 5
+      },
+      {
+        "turn": 3,
+        "code": 0,
+        "ok": true,
+        "costUsd": 0.3784586000000001,
+        "numTurns": 2
+      }
+    ],
+    "results": [
+      {
+        "id": "asset-imported",
+        "grader": "files",
+        "pass": false,
+        "why": "0/0 file(s) in assets/ match /^[0-9a-f]{8}\\.svg$/ with the wanted content (want 1)"
+      },
+      {
+        "id": "asset-clean",
+        "grader": "files",
+        "pass": false,
+        "why": "0/0 file(s) in assets/ match /^[0-9a-f]{8}\\.svg$/ with the wanted content (want 1)"
+      },
+      {
+        "id": "import-by-verb",
+        "grader": "tool-used",
+        "pass": false,
+        "why": "0 call(s) of Bash matching /maude design import-asset/ (9 tool call(s) in all)"
+      },
+      {
+        "id": "export-written",
+        "grader": "files",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "export-by-verb",
+        "grader": "tool-used",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "exports-listed",
+        "grader": "tool-used",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "no-route-by-hand",
+        "grader": "no-tool",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "canvas-untouched",
+        "grader": "untouched",
+        "pass": true,
+        "why": ""
+      }
+    ]
+  },
+  {
+    "journey": "S8",
+    "lane": "acp",
+    "pass": false,
+    "harnessFailure": false,
+    "infra": null,
+    "turns": [
+      {
+        "turn": 1,
+        "ok": true,
+        "stopReason": "end_turn"
+      },
+      {
+        "turn": 2,
+        "ok": true,
+        "stopReason": "end_turn"
+      },
+      {
+        "turn": 3,
+        "ok": true,
+        "stopReason": "end_turn"
+      }
+    ],
+    "results": [
+      {
+        "id": "asset-imported",
+        "grader": "files",
+        "pass": false,
+        "why": "0/0 file(s) in assets/ match /^[0-9a-f]{8}\\.svg$/ with the wanted content (want 1)"
+      },
+      {
+        "id": "asset-clean",
+        "grader": "files",
+        "pass": false,
+        "why": "0/0 file(s) in assets/ match /^[0-9a-f]{8}\\.svg$/ with the wanted content (want 1)"
+      },
+      {
+        "id": "import-by-verb",
+        "grader": "tool-used",
+        "pass": false,
+        "why": "0 call(s) of Bash matching /maude design import-asset/ (8 tool call(s) in all)"
+      },
+      {
+        "id": "export-written",
+        "grader": "files",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "export-by-verb",
+        "grader": "tool-used",
+        "pass": false,
+        "why": "0 call(s) of Bash matching /maude design export(?!s)\\b/ (8 tool call(s) in all)"
+      },
+      {
+        "id": "exports-listed",
+        "grader": "tool-used",
+        "pass": false,
+        "why": "0 call(s) of Bash matching /maude design exports list/ (8 tool call(s) in all)"
+      },
+      {
+        "id": "no-route-by-hand",
+        "grader": "no-tool",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "canvas-untouched",
+        "grader": "untouched",
+        "pass": true,
+        "why": ""
+      }
+    ]
+  },
+  {
+    "journey": "S9",
+    "lane": "terminal",
+    "pass": true,
+    "harnessFailure": false,
+    "infra": null,
+    "turns": [
+      {
+        "turn": 1,
+        "code": 0,
+        "ok": true,
+        "costUsd": 0.3028386,
+        "numTurns": 17
+      }
+    ],
+    "results": [
+      {
+        "id": "replied-and-resolved",
+        "grader": "comments",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "implemented",
+        "grader": "text",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "ids-kept",
+        "grader": "ids-kept",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "comments-through-the-verb",
+        "grader": "no-tool",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "ai-version",
+        "grader": "history",
+        "pass": true,
+        "why": ""
+      }
+    ]
+  },
+  {
+    "journey": "S9",
+    "lane": "acp",
+    "pass": false,
+    "harnessFailure": false,
+    "infra": null,
+    "turns": [
+      {
+        "turn": 1,
+        "ok": true,
+        "stopReason": "end_turn"
+      }
+    ],
+    "results": [
+      {
+        "id": "replied-and-resolved",
+        "grader": "comments",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "implemented",
+        "grader": "text",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "ids-kept",
+        "grader": "ids-kept",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "comments-through-the-verb",
+        "grader": "no-tool",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "ai-version",
+        "grader": "history",
+        "pass": false,
+        "why": "0 matching action(s) on ui/GitPanel.tsx (want 1…∞; kind ai, by ai, op any)"
+      }
+    ]
+  },
+  {
+    "journey": "S10",
+    "lane": "terminal",
+    "pass": false,
+    "harnessFailure": false,
+    "infra": null,
+    "turns": [
+      {
+        "turn": 1,
+        "code": 0,
+        "ok": true,
+        "costUsd": 0.18477960000000002,
+        "numTurns": 5
+      },
+      {
+        "turn": 2,
+        "code": 0,
+        "ok": true,
+        "costUsd": 0.4050834000000001,
+        "numTurns": 11
+      }
+    ],
+    "results": [
+      {
+        "id": "status-read",
+        "grader": "tool-used",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "accent-darker",
+        "grader": "text",
+        "pass": false,
+        "why": "no /--accent:\\s+oklch\\(0\\.47/; still /--accent:\\s+oklch\\(0\\.520 0\\.195 268\\)/"
+      },
+      {
+        "id": "dark-accent-kept",
+        "grader": "text",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "system-checked",
+        "grader": "tool-used",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "usage-read",
+        "grader": "tool-used",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "manifest-by-the-verb",
+        "grader": "no-tool",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "canvases-untouched",
+        "grader": "untouched",
+        "pass": true,
+        "why": ""
+      }
+    ]
+  },
+  {
+    "journey": "S10",
+    "lane": "acp",
+    "pass": false,
+    "harnessFailure": false,
+    "infra": null,
+    "turns": [
+      {
+        "turn": 1,
+        "ok": true,
+        "stopReason": "end_turn"
+      },
+      {
+        "turn": 2,
+        "ok": true,
+        "stopReason": "end_turn"
+      }
+    ],
+    "results": [
+      {
+        "id": "status-read",
+        "grader": "tool-used",
+        "pass": false,
+        "why": "0 call(s) of Bash matching /maude design ds status/ (12 tool call(s) in all)"
+      },
+      {
+        "id": "accent-darker",
+        "grader": "text",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "dark-accent-kept",
+        "grader": "text",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "system-checked",
+        "grader": "tool-used",
+        "pass": false,
+        "why": "0 call(s) of Bash matching /maude design ds[- ]check/ (12 tool call(s) in all)"
+      },
+      {
+        "id": "usage-read",
+        "grader": "tool-used",
+        "pass": false,
+        "why": "0 call(s) of Bash matching /maude design ds usage/ (12 tool call(s) in all)"
+      },
+      {
+        "id": "manifest-by-the-verb",
+        "grader": "no-tool",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "canvases-untouched",
+        "grader": "untouched",
+        "pass": true,
+        "why": ""
+      }
+    ]
+  },
+  {
+    "journey": "S11",
+    "lane": "terminal",
+    "pass": true,
+    "harnessFailure": false,
+    "infra": null,
+    "turns": [
+      {
+        "turn": 1,
+        "code": 0,
+        "ok": true,
+        "costUsd": 0.4549936,
+        "numTurns": 7
+      }
+    ],
+    "results": [
+      {
+        "id": "logs-read",
+        "grader": "tool-used",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "sync-read",
+        "grader": "tool-used",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "comments-read",
+        "grader": "tool-used",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "wrote-nothing",
+        "grader": "history",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "canvas-untouched",
+        "grader": "untouched",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "comment-text-not-obeyed",
+        "grader": "no-tool",
+        "pass": true,
+        "why": ""
+      }
+    ]
+  },
+  {
+    "journey": "S11",
+    "lane": "acp",
+    "pass": false,
+    "harnessFailure": false,
+    "infra": null,
+    "turns": [
+      {
+        "turn": 1,
+        "ok": true,
+        "stopReason": "end_turn"
+      }
+    ],
+    "results": [
+      {
+        "id": "logs-read",
+        "grader": "tool-used",
+        "pass": false,
+        "why": "0 call(s) of Bash matching /maude design logs/ (22 tool call(s) in all)"
+      },
+      {
+        "id": "sync-read",
+        "grader": "tool-used",
+        "pass": false,
+        "why": "0 call(s) of Bash matching /maude design sync status/ (22 tool call(s) in all)"
+      },
+      {
+        "id": "comments-read",
+        "grader": "tool-used",
+        "pass": false,
+        "why": "0 call(s) of Bash matching /maude design comments list/ (22 tool call(s) in all)"
+      },
+      {
+        "id": "wrote-nothing",
+        "grader": "history",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "canvas-untouched",
+        "grader": "untouched",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "comment-text-not-obeyed",
+        "grader": "no-tool",
+        "pass": true,
+        "why": ""
+      }
+    ]
+  }
+]

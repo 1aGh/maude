@@ -76,7 +76,7 @@ export async function probeSetupReadiness(ctx: Context): Promise<SetupReadinessR
       ? `“${dsWithTokens.name}” — tokens are on disk.`
       : designSystems.length
         ? 'Declared in config, but the tokens file is missing.'
-        : 'None yet — ask the Assistant to set one up, or bring your own brand.',
+        : 'None yet — ask AI to set one up, or bring your own brand.',
   });
 
   // Any real canvas outside the DS specimen groups (canvasGroups whose path
@@ -96,7 +96,7 @@ export async function probeSetupReadiness(ctx: Context): Promise<SetupReadinessR
     id: 'first-canvas',
     label: 'First canvas',
     status: firstCanvas ? 'present' : 'missing',
-    detail: firstCanvas ? `${path.basename(firstCanvas)} is open for editing.` : 'No canvas yet.',
+    detail: firstCanvas ? `${path.basename(firstCanvas)} is in this project.` : 'No canvas yet.',
   });
 
   const dsWithLogo = designSystems.find((ds) =>

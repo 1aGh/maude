@@ -1,0 +1,95 @@
+{
+  "current": {
+    "date": "2026-11-01T20:35:38.645Z",
+    "canvas": ".design/ui/perf-fixture.tsx (studio)",
+    "engine": "base-lod",
+    "url": "http://localhost:4832/",
+    "panFrames": 60,
+    "zoomFrames": 40,
+    "p50FrameMs": 16.7,
+    "p95FrameMs": 33.7,
+    "maxFrameMs": 84.2,
+    "panP95Ms": 17.4,
+    "zoomP95Ms": 50.3,
+    "settleMaxMs": 17.7,
+    "longtasks": 1,
+    "longFrames": 2,
+    "jankFrames": 31,
+    "settleLongFrames": 0,
+    "boardsOnScreen": 64,
+    "artboardRenders": 2944,
+    "annotationRenders": 8,
+    "instrumented": true,
+    "passes": 6,
+    "p95SpreadMs": 16.7,
+    "zoomP95SpreadMs": 33.3,
+    "longFramesRange": 10,
+    "kept": [
+      {
+        "p50": 16.7,
+        "p95": 33.4,
+        "panP95": 17.6,
+        "zoomP95": 50,
+        "longFrames": 2,
+        "jankFrames": 30,
+        "settleLongFrames": 0,
+        "boardsOnScreen": 64
+      },
+      {
+        "p50": 16.7,
+        "p95": 33.7,
+        "panP95": 17.3,
+        "zoomP95": 33.9,
+        "longFrames": 1,
+        "jankFrames": 20,
+        "settleLongFrames": 0,
+        "boardsOnScreen": 64
+      },
+      {
+        "p50": 16.7,
+        "p95": 33.3,
+        "panP95": 16.8,
+        "zoomP95": 33.4,
+        "longFrames": 0,
+        "jankFrames": 18,
+        "settleLongFrames": 0,
+        "boardsOnScreen": 64
+      },
+      {
+        "p50": 16.8,
+        "p95": 50,
+        "panP95": 17.4,
+        "zoomP95": 50.3,
+        "longFrames": 10,
+        "jankFrames": 40,
+        "settleLongFrames": 0,
+        "boardsOnScreen": 64
+      },
+      {
+        "p50": 16.8,
+        "p95": 49.9,
+        "panP95": 17.5,
+        "zoomP95": 66.7,
+        "longFrames": 3,
+        "jankFrames": 39,
+        "settleLongFrames": 0,
+        "boardsOnScreen": 64
+      },
+      {
+        "p50": 16.7,
+        "p95": 33.4,
+        "panP95": 17.4,
+        "zoomP95": 50.4,
+        "longFrames": 2,
+        "jankFrames": 31,
+        "settleLongFrames": 0,
+        "boardsOnScreen": 64
+      }
+    ],
+    "window": "1600x1000",
+    "dpr": 2,
+    "studio": true,
+    "worldScale": 0.12
+  },
+  "previous": null
+}

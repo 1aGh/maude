@@ -20,12 +20,20 @@
 // Exit: 0 ok / 1 dependency-or-input problem / 3 transcription failed.
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, extname, join, resolve } from 'node:path';
 
 import { wordsToSrt, wordsToVtt } from '../generation/captions.ts';
-import { resolveWhisperModel } from '../generation/whisper-models.ts';
+import { resolveWhisperModel, WHISPER_MODELS } from '../generation/whisper-models.ts';
+import { DecodeError } from '../video/decode.ts';
+import {
+  analyseSpeech,
+  isSidecarableAsset,
+  toTranscript,
+  WhisperRunError,
+  writeTranscriptSidecar,
+} from '../video/words-run.ts';
+import { chromiumDecoder } from './_transcribe-local.mjs';
 
 /** Read `.design/config.json` → generation.transcription.whisperModel, or null
  *  (the preferred managed model id, e.g. "base"). */
@@ -37,39 +45,6 @@ function readConfigWhisperModel(repo) {
   } catch {
     return null;
   }
-}
-
-/**
- * whisper.cpp can't decode arbitrary containers (mp4/mov/m4a) unless built with
- * ffmpeg — the owner hit this on a real clip (GOTCHA C). If the input isn't
- * already a WAV and system ffmpeg is present, transcode to a temp 16 kHz mono
- * WAV (whisper's native rate) and transcribe THAT. Best-effort: no ffmpeg → we
- * pass the original through and let whisper try (with the existing hint on
- * failure). Returns { path, cleanup } — cleanup removes the temp file (if any).
- */
-function ensureWav(input) {
-  if (/\.wav$/i.test(input)) return { path: input, cleanup: () => {} };
-  const ffmpeg = spawnSync('ffmpeg', ['-version'], { stdio: 'ignore' });
-  if (ffmpeg.error) return { path: input, cleanup: () => {} }; // no ffmpeg → try as-is
-  // Security (ethical-hacker Finding 1): write into a FRESH 0700 private dir
-  // (mkdtemp), NOT a predictable `/tmp/maude-transcribe-<name>-<pid>.wav`. On a
-  // shared/multi-user host (Linux CI, the hub Docker image) a co-tenant could
-  // pre-plant a symlink at a guessable path and ffmpeg's `-y` would follow it
-  // and overwrite the target. An unguessable per-run dir removes the primitive.
-  const dir = mkdtempSync(join(tmpdir(), 'maude-transcribe-'));
-  const wav = join(dir, `${basename(input, extname(input))}.wav`);
-  process.stderr.write('transcribe: converting to 16 kHz mono WAV via ffmpeg…\n');
-  const conv = spawnSync(
-    'ffmpeg',
-    ['-y', '-i', input, '-ar', '16000', '-ac', '1', '-c:a', 'pcm_s16le', wav],
-    { stdio: ['ignore', 'ignore', 'inherit'] }
-  );
-  const cleanup = () => rmSync(dir, { recursive: true, force: true });
-  if (conv.status !== 0 || !existsSync(wav)) {
-    cleanup();
-    return { path: input, cleanup: () => {} }; // conversion failed → fall back
-  }
-  return { path: wav, cleanup };
 }
 
 /**
@@ -403,36 +378,53 @@ async function main() {
     );
   }
 
-  // Transcode to a WAV whisper.cpp can always read (GOTCHA C), when needed.
-  const wav = ensureWav(input);
-
   const outBase = args.out
     ? args.out.replace(/\.(srt|vtt|json)$/i, '')
     : join(dirname(input), basename(input, extname(input)));
 
-  // whisper.cpp: JSON output for the shared reflow, `-ml 1` for word-level timings.
-  const flags = ['-m', model, '-f', wav.path, '-oj', '-of', outBase];
-  if (args.words) flags.push('-ml', '1');
-  if (args.lang) flags.push('-l', args.lang);
-
+  // The words pipeline (S7.2, V2-1.10 §5.6) — the same one `transcribe-local` runs: decode (ffmpeg,
+  // else Chromium), whisper.cpp `-ojf -ml 1 -sow -dtw -nfa` into a PRIVATE temp dir (never a bare
+  // `assets/<sha8>.json` beside the source), lag calibration + energy snap + loop flags. `--segments`
+  // is kept as a no-op for old callers: words are always timed now.
   process.stderr.write(`transcribe: running ${whisper} (${basename(model)})…\n`);
-  const run = spawnSync(whisper, flags, { stdio: ['ignore', 'inherit', 'inherit'] });
-  wav.cleanup();
-  if (run.status !== 0) {
-    process.stderr.write(
-      `transcribe: whisper.cpp exited ${run.status ?? '?'} — if the input is a non-WAV container, install ffmpeg so Maude can auto-convert it (or convert to 16 kHz mono WAV first).\n`
-    );
+  let analysis;
+  try {
+    analysis = await analyseSpeech({
+      input,
+      whisper,
+      modelPath: model,
+      modelId: WHISPER_MODELS.find((m) => m.file === basename(model))?.id ?? null,
+      lang: args.lang,
+      decode: { chromium: chromiumDecoder },
+      log: (l) => process.stderr.write(`transcribe: ${l}\n`),
+    });
+  } catch (err) {
+    if (err instanceof DecodeError || err instanceof WhisperRunError) {
+      process.stderr.write(
+        `transcribe: ${err.message} — if the input is a non-WAV container, install ffmpeg so Maude can read its sound.\n`
+      );
+      process.exit(3);
+    }
+    throw err;
+  }
+  if (analysis.words.length === 0) {
+    process.stderr.write('transcribe: no words recognized (silent or unsupported audio?)\n');
     process.exit(3);
   }
 
-  const jsonPath = `${outBase}.json`;
-  if (!existsSync(jsonPath)) {
-    process.stderr.write(`transcribe: whisper produced no JSON at ${jsonPath}\n`);
-    process.exit(3);
+  // The machine-written sidecar for a project asset — through the strict writer, so the word timings
+  // reach peers and the Transcript panel; the SRT below is an export artefact (C36).
+  if (args.source.startsWith('assets/') && isSidecarableAsset(args.source)) {
+    const rel = writeTranscriptSidecar(join(repo, '.design'), toTranscript(analysis, args.source));
+    process.stderr.write(`transcribe: wrote ${rel}\n`);
   }
-  const words = whisperJsonToWords(readFileSync(jsonPath, 'utf8'));
+
+  // Loop-flagged words are left out of captions until a person confirms them (V2-1.10 Q1).
+  const words = analysis.words
+    .filter((w) => !w.flags?.includes('loop'))
+    .map((w) => ({ text: w.text, start: w.t0, end: w.t1 }));
   if (words.length === 0) {
-    process.stderr.write('transcribe: no words recognized (silent or unsupported audio?)\n');
+    process.stderr.write('transcribe: only repeated noise was recognized — no captions written\n');
     process.exit(3);
   }
 

@@ -1,0 +1,106 @@
+{
+  "root": "/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/pf/alli",
+  "at": "2026-10-26T02:12:26.894Z",
+  "index": {
+    "canvases": 95,
+    "staticArtboards": 225,
+    "buildMs": {
+      "p50": 170,
+      "p95": 170,
+      "budgetP95": 250
+    },
+    "stampMs": {
+      "p50": 4,
+      "p95": 4,
+      "budget": 10
+    },
+    "homeMerge20Ms": {
+      "p50": 27,
+      "p95": 27,
+      "budget": 150,
+      "note": "20 × (read + stamp) of this snapshot"
+    }
+  },
+  "coversCold": {
+    "totalMs": 45453,
+    "first12Ms": 4268,
+    "budget": {
+      "totalMs": 45000,
+      "first12Ms": 3000
+    },
+    "perCanvasMs": {
+      "p50": 852,
+      "p95": 1870
+    },
+    "phasesP50Ms": {
+      "viewport": 4,
+      "goto": 70,
+      "mount": 560,
+      "settle": 50,
+      "fonts": 9,
+      "harvest": 3,
+      "shoot": 90
+    },
+    "tally": {
+      "ready": 87,
+      "unavailable:failed": 8
+    },
+    "failed": [
+      {
+        "rel": "ui/2026/combine/Combine-admin.tsx",
+        "status": "unavailable",
+        "reason": "failed"
+      },
+      {
+        "rel": "ui/club-web/admin-details.tsx",
+        "status": "unavailable",
+        "reason": "failed"
+      },
+      {
+        "rel": "ui/club-web/admin-states.tsx",
+        "status": "unavailable",
+        "reason": "failed"
+      },
+      {
+        "rel": "ui/club-web/admin.tsx",
+        "status": "unavailable",
+        "reason": "failed"
+      },
+      {
+        "rel": "ui/club-web/flows.tsx",
+        "status": "unavailable",
+        "reason": "failed"
+      },
+      {
+        "rel": "ui/club-web/public-states.tsx",
+        "status": "unavailable",
+        "reason": "failed"
+      },
+      {
+        "rel": "ui/club-web/responsive.tsx",
+        "status": "unavailable",
+        "reason": "failed"
+      },
+      {
+        "rel": "ui/club-web/website.tsx",
+        "status": "unavailable",
+        "reason": "failed"
+      }
+    ],
+    "avgBytes": 19494,
+    "artboardsAfterHarvest": 345
+  },
+  "coversWarm": {
+    "totalMs": 23401,
+    "first12Ms": 1595,
+    "perCanvasMs": {
+      "p50": 410,
+      "p95": 1052
+    }
+  },
+  "chromiumLaunchMs": {
+    "cold": 209,
+    "warm": 160,
+    "budgetWarm": 500
+  }
+}

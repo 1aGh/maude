@@ -35,12 +35,22 @@ import {
   useRef,
   useState,
 } from 'react';
-
-import { AiBanner } from './ai-banner.tsx';
+import { createPortal } from 'react-dom';
 import { AnnotationsLayer } from './annotations-layer.tsx';
+import { ArtboardRingsLayer } from './artboard-activity-overlay.tsx';
+import { AiCopyLinks } from './artboard-ai-copies.tsx';
+import { setConvertMarks } from './artboard-convert-marks.tsx';
 import { ArtboardMarqueeOverlay } from './artboard-marquee.tsx';
+import { canvasInsets, canvasModeStore } from './bridge/canvas-mode-store.ts';
+import { canvasMayHandle } from './bridge/dgn-protocol.ts';
+import { escClearsSelection, runEscRung } from './bridge/esc-ladder.ts';
+import { modeShows } from './bridge/mode-shows.ts';
+import { type Insets, revealViewBox } from './bridge/occlusion.ts';
+import { dispatchPasteData, parsePasteData } from './bridge/paste-data.ts';
+import { HUD_TOKENS_CSS } from './canvas-hud-tokens.gen.ts';
 import {
   type ArtboardRect,
+  fitRectIntoHost,
   PhotoPreviewBridge,
   SnapGuideOverlay,
   useArtboardsContext,
@@ -48,6 +58,10 @@ import {
   useViewportControllerContext,
   type ViewportControllerHandle,
 } from './canvas-lib.tsx';
+import { replayActionKey, replayToolKey } from './canvas-replay-keys.ts';
+import { getCanvasTheme, subscribeCanvasTheme } from './canvas-theme.ts';
+import { CanvasThemePill } from './canvas-theme-pill.tsx';
+import { scopedMatches } from './client/v2/left-panel/selector-scope.js';
 import {
   buildEditSourceRecord,
   type EditSourceApplyFn,
@@ -64,7 +78,6 @@ import {
   type MenuItem,
   useContextMenu,
 } from './context-menu.tsx';
-import { ContextualToolbar } from './contextual-toolbar.tsx';
 import { CursorsOverlay } from './cursors-overlay.tsx';
 import {
   buildComposeSelection,
@@ -76,21 +89,55 @@ import {
   resolveSelectionEl,
 } from './dom-selection.ts';
 import { setElementDragActive } from './drag-state.ts';
+import { useBoardModel } from './ds/board/state.ts';
+import { useArtboardActions } from './editing/artboard-actions.ts';
+import { type ArtboardMenuDeps, artboardMenuSections } from './editing/artboard-menu.tsx';
+import { useClipboard } from './editing/clipboard-actions.ts';
+import { clippedGrab } from './editing/clipped-grab.ts';
+import { drawToolOfAction } from './editing/draw-geometry.ts';
+import { EditingLayer } from './editing/index.tsx';
+import { selectWhenRendered, useObjectOps } from './editing/object-actions.ts';
+import { type ObjectMenuDeps, objectMenuSections } from './editing/object-menu.tsx';
+// S2.11 — the reorder slot's state + the ⌥-copy / drag-out drops (editing/reorder-slot.tsx)
+import {
+  copyPlacedTo,
+  duplicateObject,
+  liftCard,
+  panelMotion,
+  reorderSlot,
+  takeOver,
+} from './editing/reorder-slot.tsx';
+import { isLockedDom, lockedClickSelection, stepOut } from './editing/selection.tsx';
+import { commitTextInPlace, lockedTextLine, textOpDeps } from './editing/text-actions.ts';
+import { worldMenuSections } from './editing/world-menu.ts';
 import { EqualSpacingHandles } from './equal-spacing-handles.tsx';
-import { ExportDialogProvider } from './export-dialog.tsx';
 import {
   crossedDragThreshold,
+  dropPageRoot,
   type HoverTarget,
+  pageRootOf,
   resolveHoverTarget,
   useInputRouter,
 } from './input-router.tsx';
+import { inspectedSelection, shouldFlipToMove } from './inspect-canvas.ts';
+import { InspectOverlay, measureNeighbour } from './inspect-overlay.tsx';
+import { displayLayerName, isPictureTag, saysItsText } from './layer-name.ts';
+import { LinkChipOverlay } from './link-chip-overlay.tsx';
 import { ElementMarqueeOverlay } from './marquee-overlay.tsx';
 import { MeasureOverlay } from './measure-overlay.tsx';
 import { ParticipantsChrome } from './participants-chrome.tsx';
-import { installEmbedEscapeRelay, isEmbedCanvas, isReadOnlyCanvas } from './read-only-mode.ts';
+import { usePresentSelection } from './present/present-stage.tsx';
+import { usePreviewing } from './preview/preview-camera.tsx';
+import { clampsEngineScroll } from './preview/wheel-scroll.ts';
+import {
+  installEmbedEscapeRelay,
+  isEmbedCanvas,
+  isFollowCanvas,
+  isReadOnlyCanvas,
+} from './read-only-mode.ts';
 import { mountCaret, placeCaretAt } from './text-caret.ts';
 import { ToolPalette } from './tool-palette.tsx';
-import { UndoHud } from './undo-hud.tsx';
+import { setShellPanelOpen } from './toolbars/shell-panels.ts';
 import {
   AnnotationSelectionProvider,
   useAnnotationSelection,
@@ -112,6 +159,7 @@ import {
 import { SpacingHandlesOverlay } from './use-spacing-handles.tsx';
 import { useToolMode } from './use-tool-mode.tsx';
 import { useUndoSinks, useUndoStack } from './use-undo-stack.tsx';
+import { ViewOnlyGesture } from './view-only-gesture.tsx';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Styles — halos render as `position: fixed` siblings of the canvas. Reading
@@ -144,7 +192,7 @@ import { useUndoSinks, useUndoStack } from './use-undo-stack.tsx';
 //     attribute on the iframe `documentElement`, propagated over the existing
 //     `dgn:*` postMessage bridge (see CanvasRouter onMessage + app.jsx).
 //
-// Values mirror the Maude app-chrome neutrals (client/styles/1-tokens.css) so
+// Values mirror the Maude app-chrome neutrals (client/styles/1-tokens-shell.css) so
 // the in-iframe chrome and the outer shell read as one product. The DARK set is
 // also the default (attribute absent / "dark") so a canvas that never receives
 // a theme message renders coherent-dark — matching the dev-server's own default
@@ -156,43 +204,8 @@ import { useUndoSinks, useUndoStack } from './use-undo-stack.tsx';
 // with the rewritten outer shell. Accent-fg is the maude dark navy (NOT white):
 // maude's bright indigo accent needs a dark fg for WCAG contrast (white/indigo
 // ≈ 3:1, fails AA; navy/indigo ≈ 6.3:1). Token-only swap — no overlay logic
-// changes (DDR-054). Values lifted from `.design/system/maude/colors_and_type.css`.
-const HUD_TOKENS_CSS = `
-:root,
-:root[data-maude-theme="dark"] {
-  --maude-hud-accent:        oklch(0.680 0.180 268);
-  --maude-hud-accent-hover:  oklch(0.730 0.170 268);
-  --maude-hud-accent-active: oklch(0.630 0.180 268);
-  --maude-hud-accent-fg:     oklch(0.180 0.030 268);
-  --maude-hud-accent-tint:   color-mix(in oklab, oklch(0.680 0.180 268) 16%, transparent);
-
-  --maude-chrome-bg-0:      oklch(0.165 0.012 255);
-  --maude-chrome-bg-1:      oklch(0.198 0.012 255);
-  --maude-chrome-bg-2:      oklch(0.232 0.013 255);
-  --maude-chrome-fg-0:      oklch(0.955 0.005 250);
-  --maude-chrome-fg-1:      oklch(0.790 0.008 250);
-  --maude-chrome-border:    oklch(0.290 0.012 255);
-  --maude-chrome-dot:       oklch(0.340 0.012 255);
-  --maude-chrome-shadow:    rgba(0, 0, 0, 0.46);
-  --maude-chrome-font-mono: 'JetBrains Mono', 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-}
-:root[data-maude-theme="light"] {
-  --maude-hud-accent:        oklch(0.520 0.195 268);
-  --maude-hud-accent-hover:  oklch(0.470 0.195 268);
-  --maude-hud-accent-active: oklch(0.430 0.190 268);
-  --maude-hud-accent-fg:     oklch(0.995 0.004 268);
-  --maude-hud-accent-tint:   color-mix(in oklab, oklch(0.520 0.195 268) 12%, transparent);
-
-  --maude-chrome-bg-0:   oklch(0.975 0.004 255);
-  --maude-chrome-bg-1:   oklch(1.000 0 0);
-  --maude-chrome-bg-2:   oklch(0.987 0.003 255);
-  --maude-chrome-fg-0:   oklch(0.225 0.015 260);
-  --maude-chrome-fg-1:   oklch(0.400 0.014 260);
-  --maude-chrome-border: oklch(0.922 0.005 255);
-  --maude-chrome-dot:    oklch(0.860 0.008 255);
-  --maude-chrome-shadow: color-mix(in oklab, oklch(0.225 0.015 260) 14%, transparent);
-}
-`;
+// changes (DDR-054). V2-2.6: the block is GENERATED from the DS (scripts/gen-tokens.mjs →
+// canvas-hud-tokens.gen.ts), byte-identical to the hand-lifted copy it replaces.
 
 // DDR-046 — Three-state halo language. Each state has its own border weight,
 // color treatment, and geometric idiom so 8+ semantic states (hover / selected
@@ -211,22 +224,24 @@ const HALO_CSS = `
 /* Hover — lighter 1.5px tinted line + white inner ring for contrast on dark
    elements. NO ring, NO ticks. Synchronous paint (no debounce). */
 .dc-cv-halo--hover {
-  border: 1.5px solid color-mix(in oklab, var(--maude-hud-accent, #0d99ff) 60%, transparent);
-  box-shadow: inset 0 0 0 1px var(--maude-chrome-bg-0, #ffffff);
+  border: 1px solid var(--maude-hud-accent, #0d99ff);
+  opacity: 0.7;
 }
-/* Selected (single) — 2px solid + 18% ring halo + 4 filled corner ticks.
-   Ticks are <i class="tick tick-*"> children at inset:-3px, 8x8, accent fill. */
+/* Selected (single) — P8 C5 (14 R2, board .ed-sel): a 1.5 px accent outline, no halo, no corner ticks; the
+   eight square handles (use-element-resize) are the only marks. The tick children stay in the DOM for the
+   callers that still place them, drawn as nothing. */
 .dc-cv-halo--selected {
-  border: 2px solid var(--maude-hud-accent, #0d99ff);
-  box-shadow: 0 0 0 4px color-mix(in oklab, var(--maude-hud-accent, #0d99ff) 18%, transparent);
+  border: 1.5px solid var(--maude-hud-accent, #0d99ff);
+  box-shadow: none;
 }
 .dc-cv-halo--selected .tick {
-  position: absolute;
-  width: 8px;
-  height: 8px;
-  background: var(--maude-hud-accent, #0d99ff);
-  border-radius: 1px;
-  box-shadow: 0 0 0 1px var(--maude-chrome-bg-0, #ffffff);
+  display: none;
+}
+/* P8 C7 (13 · ds-edit-colour): a Design system swatch / master is a thing drawn on the board, not a frame — its
+   ring is the board's own: 2 px, 4 px clear of the swatch. */
+.dc-cv-halo--selected[data-ring] {
+  border-width: 2px;
+  border-radius: 6px;
 }
 .dc-cv-halo--selected .tick-tl { top: -3px; left: -3px; }
 .dc-cv-halo--selected .tick-tr { top: -3px; right: -3px; }
@@ -266,6 +281,22 @@ const HALO_CSS = `
 .dc-cv-group-bbox .tick-tr { top: -3px; right: -3px; }
 .dc-cv-group-bbox .tick-bl { bottom: -3px; left: -3px; }
 .dc-cv-group-bbox .tick-br { bottom: -3px; right: -3px; }
+.dc-cv-group-bbox .tick-t { top: -3px; left: calc(50% - 3px); }
+.dc-cv-group-bbox .tick-b { bottom: -3px; left: calc(50% - 3px); }
+.dc-cv-group-bbox .tick-l { left: -3px; top: calc(50% - 3px); }
+.dc-cv-group-bbox .tick-r { right: -3px; top: calc(50% - 3px); }
+/* P8 round 7 (12 · ia-placed \`.ia-groupsel-tag\`) — a group of photos says how many, inside its top-left corner */
+.dc-cv-group-tag {
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: var(--maude-hud-accent, #0d99ff);
+  color: #fff;
+  font: 600 11px/16px system-ui, -apple-system, sans-serif;
+  white-space: nowrap;
+}
 /*
  * Active-artboard indicator — the artboard whose center sits closest to the
  * viewport midpoint after pan settles is "active" (DesignCanvas tracks this
@@ -278,7 +309,9 @@ const HALO_CSS = `
      (3 px ring + hard 6×6×0 offset) was readable but visually expensive once
      the frame itself lost its brutalist treatment. A 2 px ring on a 22 %
      tinted hairline reads unambiguous without claiming subject-ness. */
-  box-shadow: 0 0 0 2px var(--maude-hud-accent, #0d99ff);
+  /* P8 C5 (07 ve-none) — the boards draw no rim on an artboard nobody selected: the active one is a keyboard /
+     context anchor (aria-current), not a mark. A selected artboard wears its own frame + handles. */
+  box-shadow: none;
   transition: box-shadow 120ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 /* Respect prefers-reduced-motion across all chrome transitions. */
@@ -327,6 +360,8 @@ const HALO_CSS = `
 [contenteditable].dc-text-editing {
   outline: 2px solid var(--maude-hud-accent, #0d99ff);
   outline-offset: 1px;
+  /* 14 ed-text-edit: the ring wears an accent-tint halo */
+  box-shadow: 0 0 0 5px color-mix(in oklch, var(--maude-hud-accent, #0d99ff) 18%, transparent);
   border-radius: 1px;
   cursor: text;
   /* Unify the caret with the annotation editors (CARET_FIX_STYLE in
@@ -334,6 +369,11 @@ const HALO_CSS = `
      No compositing trigger here (no translateZ/will-change) so WebKit keeps
      blinking the native caret. */
   caret-color: var(--maude-hud-accent, #4a63e7);
+}
+/* 14 ed-text-edit - while a text is typed in place the board draws ONLY the edit ring: no resize handles, no size
+   tag, no bands or badges over it. */
+body:has([contenteditable].dc-text-editing) :is(.dc-el-resize-handle, .dc-el-resize-readout, .ed-name-tag, .ed-parent-outline, .dc-spacing-handle, .ed-band, .ed-order, .ed-focus-ring) {
+  display: none !important;
 }
 /* Dogfood fix — hover affordance for the same leaf-text elements the dblclick
    handler above enters edit mode on. The :not(:empty):not(:has(> *)) selector
@@ -418,6 +458,8 @@ interface LayerNode {
    *  route CssKnobs uses), so this must reflect the SOURCE value, not a
    *  client-only preview flag (see app.jsx `toggleVisibility`). */
   hidden: boolean;
+  /** S2.6 — the shared lock (`data-cd-locked` in the TSX): the Layers padlock's source of truth. */
+  locked?: boolean;
   /** feature-4 T7 — a SYNTHETIC group row for an unstamped wrapper that holds
    *  stamped descendants. It's a structural stand-in so the tree mirrors real
    *  nesting instead of hoisting descendants up a level (the "some elements
@@ -439,17 +481,25 @@ function kebabToTitle(s: string): string {
     .join(' ');
 }
 
-// Human label: data-dc-element (Title Case) → aria-label → role → tag(.class).
+// Human label: data-dc-element (Title Case) → aria-label → what the element says (its words, a picture's alt or
+// file — P8 C7) → the plain word for its role / tag ("Heading", "Text", "Frame" — P8 C5: never the code's own
+// `div` / `h1` / `div.hero`).
 function layerLabel(el: Element): string {
   const dc = el.getAttribute('data-dc-element');
   if (dc) return kebabToTitle(dc);
   const aria = el.getAttribute('aria-label');
   if (aria) return aria.slice(0, 40);
-  const role = el.getAttribute('role');
-  if (role) return role;
-  const tag = el.tagName.toLowerCase();
-  const cls = realClasses(el).split(/\s+/).filter(Boolean)[0];
-  return cls ? `${tag}.${cls}` : tag;
+  // P8 c10 (14 ed-pen): a drawn shape is what it is — "Path", "Rectangle" — not the svg's "Icon"
+  const shape = el.getAttribute('data-shape');
+  if (shape && /^[a-z][a-z-]{0,23}$/.test(shape)) return kebabToTitle(shape);
+  const picture = isPictureTag(el.tagName);
+  return displayLayerName({
+    tag: el.tagName,
+    role: el.getAttribute('role'),
+    text: saysItsText(el.tagName) ? el.textContent : null,
+    alt: picture ? (el.getAttribute('alt') ?? el.querySelector('img')?.getAttribute('alt')) : null,
+    src: picture ? (el.getAttribute('src') ?? el.querySelector('img')?.getAttribute('src')) : null,
+  });
 }
 
 function layerType(el: Element): string {
@@ -563,7 +613,9 @@ export function serializeArtboardTree(root: Element): LayerNode[] {
           label: layerLabel(child),
           type: layerType(child),
           index: idx,
-          hidden: (child as HTMLElement).style.display === 'none',
+          hidden:
+            (child as HTMLElement).style.display === 'none' || child.hasAttribute('data-cd-hidden'),
+          locked: child.hasAttribute('data-cd-locked'),
           dcElement: child.getAttribute('data-dc-element'),
           children: walk(child),
         });
@@ -602,7 +654,16 @@ export function serializeArtboardTree(root: Element): LayerNode[] {
     }
     return out;
   }
-  return walk(root);
+  const top = walk(root);
+  // V2-8.5 round 4 — the page root IS the artboard (14 Editing: Layers lists Nav · Hero · Services directly under
+  // "Desktop"; decision v2-c3-page-root-is-the-artboard): the one filling root is not a row, its objects are the top
+  // level. A page that does not fill the artboard (a lone card) stays a row — it is an object like any other.
+  const body = root.querySelector('.dc-artboard-body');
+  const page = body ? pageRootOf(body) : null;
+  const only = top[0];
+  if (page && top.length === 1 && only && only.id === page.getAttribute('data-cd-id'))
+    return only.children ?? [];
+  return top;
 }
 
 // The artboard whose Layers tree the shell is currently showing. Set every time
@@ -715,25 +776,18 @@ export function CanvasShell({
 }) {
   ensureHaloStyles();
 
-  // theme-default-follow — every un-pinned artboard tracks the chrome theme.
-  // When it flips (the theme postMessage handler in CanvasRouter updates
-  // `data-maude-theme` on <html>), re-theme them. A single observer per canvas
-  // (cleaned up on unmount) — no per-artboard listeners to leak. The rule is a
-  // CSS block keyed by data-dc-screen (see rebuildArtboardThemeStyle), so it
-  // survives React re-renders without flicker.
+  // r4 #6 — every artboard shows the canvas's Light | Dark. When the mode flips (the pill; canvas-theme.ts), re-theme
+  // them. The rule is a CSS block keyed by data-dc-screen (see rebuildArtboardThemeStyle), so it survives React
+  // re-renders without flicker.
   useEffect(() => {
-    if (typeof MutationObserver === 'undefined' || typeof document === 'undefined') return;
-    const obs = new MutationObserver(() => applyArtboardFollowers());
-    obs.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['data-maude-theme'],
-    });
-    // Initial follow — theme every un-pinned artboard once the DS stylesheet has
-    // parsed. The observer only fires on a `data-maude-theme` CHANGE, which may
-    // not happen on first paint (the chrome theme can already equal the canvas
-    // default), so first paint needs its own trigger. `window 'load'` guarantees
-    // every <link>/<style> sheet is parsed → collectThemeDeclarations sees the
-    // DS tokens. Runs immediately if the document is already complete.
+    const offTheme = subscribeCanvasTheme(applyArtboardFollowers);
+    const offProbe = subscribeDsThemeProbe(applyArtboardFollowers);
+    const off = () => {
+      offTheme();
+      offProbe();
+    };
+    // First paint needs its own trigger: `window 'load'` guarantees every <link>/<style> sheet is parsed →
+    // collectThemeDeclarations sees the DS tokens. Runs immediately if the document is already complete.
     let onLoad: (() => void) | null = null;
     if (document.readyState === 'complete') {
       applyArtboardFollowers();
@@ -742,7 +796,7 @@ export function CanvasShell({
       window.addEventListener('load', onLoad, { once: true });
     }
     return () => {
-      obs.disconnect();
+      off();
       if (onLoad) window.removeEventListener('load', onLoad);
     };
   }, []);
@@ -762,6 +816,27 @@ export function CanvasShell({
         </AnnotationsVisibilityProvider>
       </AnnotationSelectionProvider>
     </MaybeSelectionSetProvider>
+  );
+}
+
+/**
+ * r4 #6 — the Light | Dark pill every ordinary canvas carries. It steps aside where the canvas is not the person's own
+ * to edit or is shown to others: Preview, Present, an embed, a Present follower — and on the Design system canvas,
+ * which draws its own bar (ds/board/ds-bar.tsx) over the same mode. Lifted out of the transformed world (a portal to
+ * `<body>`) so it stays put while the canvas pans and zooms, as the DS bar does.
+ */
+function CanvasThemePillMount() {
+  const chrome = useChromeVisibility();
+  const previewing = usePreviewing();
+  const board = useBoardModel();
+  if (typeof document === 'undefined' || !document.body) return null;
+  if (previewing || chrome?.present || board || isEmbedCanvas() || isFollowCanvas()) return null;
+  return createPortal(
+    <CanvasThemePill
+      bothThemes={() => detectDsThemeSupport().supported}
+      onProbeStale={subscribeDsThemeProbe}
+    />,
+    document.body
   );
 }
 
@@ -1069,6 +1144,10 @@ function CanvasCore({
     [controller, artboardsCtx]
   );
 
+  // V2-clipboard-objects — the object / artboard menus' Cut · Copy · Paste (editing/clipboard-actions.ts)
+  const clipboard = useClipboard();
+  const objectOps = useObjectOps(clipboard);
+  const artboardActions = useArtboardActions(clipboard);
   const registry = useMemo<ContextRegistry>(
     () =>
       buildRegistry({
@@ -1078,38 +1157,45 @@ function CanvasCore({
         distributeArtboards,
         alignArtboards,
         focusArtboard,
+        objectMenu: objectOps.menuDeps,
+        artboardMenu: artboardActions.menuDeps,
       }),
-    [controller, selSet, distributeArtboards, alignArtboards, focusArtboard]
+    [
+      controller,
+      selSet,
+      distributeArtboards,
+      alignArtboards,
+      focusArtboard,
+      objectOps,
+      artboardActions,
+    ]
   );
 
-  // Distribute is reached via the MultiArtboardToolbar (floating chrome
-  // anchored above the group bbox) + context menu. No keyboard shortcut —
+  // Distribute is reached via the align bar (editing/align-bar.tsx, above the
+  // group bbox) + context menu. No keyboard shortcut —
   // user feedback (post-Wave-2) preferred the toolbar over global hotkeys.
 
   return (
-    <ExportDialogProvider>
-      <ContextMenuProvider registry={registry}>
-        <CanvasRouter
-          hostRef={hostRef}
-          distributeArtboards={distributeArtboards}
-          alignArtboards={alignArtboards}
-        >
-          {children}
-        </CanvasRouter>
-      </ContextMenuProvider>
-    </ExportDialogProvider>
+    <ContextMenuProvider registry={registry}>
+      <CanvasRouter
+        hostRef={hostRef}
+        distributeArtboards={distributeArtboards}
+        alignArtboards={alignArtboards}
+      >
+        {children}
+      </CanvasRouter>
+    </ContextMenuProvider>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Artboard theme (D9 + theme-default-follow, 2026-05-31). The status-bar theme
-// toggle (vpravo dole) is the SINGLE SOURCE OF TRUTH: the canvas-shell chrome
-// AND every artboard follow it by default via `data-maude-theme`. The right-
-// click `Theme ▸ DS default / Light / Dark / Follow chrome` submenu PINS one
-// artboard to override that default — re-themed by stamping its content wrapper
-// with the DS's theme-wrapper convention. (Before this date the default was the
-// inverse — artboards kept their own DS theme and following was opt-in — which
-// produced the recurring "canvas dark / chrome light" mismatch.)
+// Canvas theme (D9 → r4 #6, decision `v2-michal-r4-global-light-dark`). ONE Light | Dark per canvas, switched by the
+// pill at the top (canvas-theme-pill.tsx; the mode and where it is remembered: canvas-theme.ts). EVERY artboard shows
+// that mode — a person no longer pins artboards one by one, and "Follow chrome" (the app's own theme) is gone: the
+// canvas starts in its design system's own default and the person moves it from there. (Before r4 the artboards
+// followed the app's theme, which is why a design system canvas switched only its seven sections and left the
+// specimen pages in Light.) The mode is applied by re-declaring that theme's tokens on every artboard's content
+// wrapper with an injected stylesheet (see rebuildArtboardThemeStyle).
 //
 // DS theme-wrapper conventions vary (`.maude[data-theme]`, `.mdcc[data-theme]`,
 // `.app[data-theme]`, bare `[data-theme]`, …) and there's no reliable config
@@ -1147,7 +1233,19 @@ let _dsThemeSupport: DsThemeSupport | null = null;
 // precisely instead: the negative answer holds until a stylesheet is added to
 // or finishes loading in the document, then the next call probes again.
 let _dsThemeUnsupported = false;
+// Did the negative probe see a DS wrapper (an element carrying `data-theme`) in the document? If not, the answer is
+// "I could not tell yet" (the artboards had not mounted), not "this system has one theme" — a wrapper appearing
+// later must re-ask (r5-7: the pill asked before the artboard content mounted and stayed greyed for good).
+let _dsThemeSawWrapper = false;
 let _dsThemeWatch = false;
+const _probeSubs = new Set<() => void>();
+/** Called when a cached "this design system has one theme" may be stale (a stylesheet or the first wrapper arrived). */
+export function subscribeDsThemeProbe(f: () => void): () => void {
+  _probeSubs.add(f);
+  return () => {
+    _probeSubs.delete(f);
+  };
+}
 const _unsupported: DsThemeSupport = { supported: false, wrapperClass: '' };
 
 function watchStylesheetsOnce(): void {
@@ -1155,16 +1253,31 @@ function watchStylesheetsOnce(): void {
   _dsThemeWatch = true;
   const invalidate = (): void => {
     _dsThemeUnsupported = false;
+    for (const f of [..._probeSubs]) f(); // whoever drew a greyed answer asks again
   };
   try {
     new MutationObserver((records) => {
+      if (!_dsThemeUnsupported) return; // nothing cached that could be stale
       for (const r of records) {
+        // the probe's own scratch nodes and the follow rule's own <style> are not news: re-asking on them
+        // re-ran the probe forever on a canvas with no Dark (r5 full-suite hang)
+        if ((r.target as Element | null)?.hasAttribute?.('data-dc-probe')) continue;
         for (const n of Array.from(r.addedNodes)) {
-          const tag = (n as Element).tagName;
+          const el = n as Element;
+          if (el.nodeType !== 1) continue;
+          if (el.hasAttribute?.('data-dc-probe') || el.id === 'dc-artboard-theme-css') continue;
+          const tag = el.tagName;
           if (tag === 'STYLE' || tag === 'LINK') return invalidate();
+          // the first DS wrapper arriving after a probe that had none to look at
+          if (
+            !_dsThemeSawWrapper &&
+            el.nodeType === 1 &&
+            (el.hasAttribute?.('data-theme') || el.querySelector?.('[data-theme]'))
+          )
+            return invalidate();
         }
       }
-    }).observe(document.head ?? document.documentElement, { childList: true, subtree: true });
+    }).observe(document.documentElement, { childList: true, subtree: true });
     // A <link> that was already in the DOM finishing its load (capture: load
     // does not bubble).
     document.addEventListener(
@@ -1183,7 +1296,10 @@ function watchStylesheetsOnce(): void {
 export function __resetDsThemeProbeForTests(): void {
   _dsThemeSupport = null;
   _dsThemeUnsupported = false;
+  _dsThemeSawWrapper = false;
   _dsThemeWatch = false; // its observer watched the previous file's document
+  _themeDecls.light = undefined; // the token scan read the previous file's stylesheets
+  _themeDecls.dark = undefined;
 }
 
 export function detectDsThemeSupport(): DsThemeSupport {
@@ -1194,6 +1310,7 @@ export function detectDsThemeSupport(): DsThemeSupport {
   try {
     const host = document.createElement('div');
     host.setAttribute('aria-hidden', 'true');
+    host.setAttribute('data-dc-probe', '');
     host.style.cssText =
       'position:absolute;left:-9999px;top:0;width:0;height:0;overflow:hidden;pointer-events:none;';
     document.body.appendChild(host);
@@ -1211,14 +1328,21 @@ export function detectDsThemeSupport(): DsThemeSupport {
     // the full className ("maude di-root") and each individual token ("maude",
     // "di-root"). Bare `''` first (cleanest), historical guesses last as a
     // pre-mount fallback. A Set de-dupes; insertion order keeps DOM-derived first.
+    // A wrapper's className is often several classes (`maude-v2 k-v2 k-stage`, the kit's artboards): the DS scopes
+    // its theme blocks to ONE of them, and the others differ from board to board. So each single token is tried
+    // first (the selector that then matches EVERY wrapper), the whole string only as a fallback for a DS whose
+    // blocks are scoped to a compound (`.a.b[data-theme]`) — the selector is built per class, never one escaped string.
     const candidates = new Set<string>(['']);
-    for (const el of Array.from(document.querySelectorAll('[data-theme]'))) {
+    const wrappers = Array.from(document.querySelectorAll('[data-theme]'));
+    const compounds: string[] = [];
+    for (const el of wrappers) {
       const cn = (el as HTMLElement).className;
       if (typeof cn === 'string' && cn.trim()) {
-        candidates.add(cn.trim());
         for (const tok of cn.trim().split(/\s+/)) candidates.add(tok);
+        compounds.push(cn.trim());
       }
     }
+    for (const c of compounds) candidates.add(c);
     candidates.add('mdcc');
     candidates.add('app');
     let found = fallback;
@@ -1239,6 +1363,7 @@ export function detectDsThemeSupport(): DsThemeSupport {
     if (found.supported) _dsThemeSupport = found;
     else {
       _dsThemeUnsupported = true;
+      _dsThemeSawWrapper = wrappers.length > 0;
       watchStylesheetsOnce();
     }
     return found;
@@ -1310,41 +1435,24 @@ function collectThemeDeclarations(theme: 'light' | 'dark'): string {
   return decls;
 }
 
-// Every artboard FOLLOWS the chrome theme by default (the status-bar toggle is
-// the source of truth). A per-artboard pin OVERRIDES that: 'ds' = the design
-// system's native theme (opt out of following entirely), 'light' / 'dark' = a
-// fixed theme. Absence from this map = follow chrome.
-type ArtboardPin = 'ds' | 'light' | 'dark';
-const _artboardPins = new Map<string, ArtboardPin>();
-
 function cssEsc(v: string): string {
   return typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(v) : v;
 }
 
-// Selector targeting the artboard's content wrapper (where the DS theme block
-// is re-established). Beats `.<wrapper>[data-theme="…"]` because the injected
-// <style> is appended after the DS stylesheet (later-wins on equal specificity).
-function artboardScopeSelector(screenId: string): string {
+// Selector matching the content wrapper of EVERY artboard — where the DS theme block is re-established. Beats
+// `.<wrapper>[data-theme="…"]` because the injected <style> is appended after the DS stylesheet (later-wins on equal
+// specificity).
+function globalArtboardScopeSelector(): string {
   const { wrapperClass } = detectDsThemeSupport();
-  const base = `[data-dc-screen="${cssEsc(screenId)}"]`;
+  const base = '[data-dc-screen]';
   if (wrapperClass) {
-    const c = cssEsc(wrapperClass);
-    return `${base} .${c},${base}.${c}`;
-  }
-  return `${base} [data-theme],${base}[data-theme]`;
-}
-
-// Like artboardScopeSelector but matches EVERY artboard except the pinned ones —
-// backs the default-follow rule, which themes all un-pinned artboards in one
-// declaration. Pinned ids are :not()-excluded so the per-screen pin rule never
-// has to out-specify this global one (they target disjoint elements).
-function globalArtboardScopeSelector(excludeIds: string[]): string {
-  const { wrapperClass } = detectDsThemeSupport();
-  const not = excludeIds.map((id) => `:not([data-dc-screen="${cssEsc(id)}"])`).join('');
-  const base = `[data-dc-screen]${not}`;
-  if (wrapperClass) {
-    const c = cssEsc(wrapperClass);
-    return `${base} .${c},${base}.${c}`;
+    // `wrapperClass` can be a compound ("a b" = both classes on one element): one `.x` per class, never one escaped string
+    const c = wrapperClass
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((t) => `.${cssEsc(t)}`)
+      .join('');
+    return `${base} ${c},${base}${c}`;
   }
   return `${base} [data-theme],${base}[data-theme]`;
 }
@@ -1357,51 +1465,16 @@ function rebuildArtboardThemeStyle(): void {
     el.id = 'dc-artboard-theme-css';
     document.head.appendChild(el);
   }
-  let css = '';
-  // (1) Default — every un-pinned artboard follows the chrome theme. Pinned
-  // artboards are :not()-excluded so this rule never competes with their
-  // per-screen rule below. When the DS doesn't define the chrome theme's tokens
-  // (collectThemeDeclarations → ''), nothing is emitted and the artboard keeps
-  // its native DS theme — there's no alternate palette to follow to.
-  const pinnedIds = [..._artboardPins.keys()];
-  const followDecls = collectThemeDeclarations(currentChromeTheme());
-  if (followDecls) css += `${globalArtboardScopeSelector(pinnedIds)}{${followDecls}}\n`;
-  // (2) Explicit per-artboard pins. 'ds' emits nothing (the :not() above already
-  // released that artboard back to its native DS theme); 'light' / 'dark'
-  // re-declare the chosen theme's tokens scoped to that one artboard.
-  for (const [screenId, pin] of _artboardPins) {
-    if (pin === 'ds') continue;
-    const decls = collectThemeDeclarations(pin);
-    if (decls) css += `${artboardScopeSelector(screenId)}{${decls}}\n`;
-  }
-  el.textContent = css;
-}
-
-/** Current canvas-shell chrome theme (mirrors `data-maude-theme` on <html>). */
-function currentChromeTheme(): 'light' | 'dark' {
-  if (typeof document === 'undefined') return 'dark';
-  return document.documentElement.dataset.maudeTheme === 'light' ? 'light' : 'dark';
+  // Every artboard shows the canvas's mode. When the DS doesn't define that mode's tokens
+  // (collectThemeDeclarations → ''), nothing is emitted and the artboards keep their native DS theme — there's no
+  // alternate palette to switch to (the pill greys the mode out in that case).
+  const decls = collectThemeDeclarations(getCanvasTheme());
+  el.textContent = decls ? `${globalArtboardScopeSelector()}{${decls}}\n` : '';
 }
 
 /**
- * Pin a single artboard's theme (keyed by its stable `data-dc-screen` id), or
- * clear the pin so it returns to the default — following the chrome theme.
- *   'follow' → remove the pin (default: track the chrome theme toggle)
- *   'ds'     → pin to the design system's native theme (stop following)
- *   'light' / 'dark' → pin to a fixed theme
- */
-function setArtboardTheme(screenId: string, mode: 'follow' | ArtboardPin): void {
-  if (mode === 'follow') _artboardPins.delete(screenId);
-  else _artboardPins.set(screenId, mode);
-  rebuildArtboardThemeStyle();
-}
-
-/**
- * Re-theme every following artboard when the chrome theme flips. The
- * default-follow rule in rebuildArtboardThemeStyle reads currentChromeTheme()
- * live, so a plain rebuild re-points every un-pinned artboard at the new theme
- * in one shot. Kept under the original name so the MutationObserver call site
- * and the initial 'load' trigger stay untouched.
+ * Re-theme every artboard when the canvas's mode flips (the pill, the app's ds-theme preview) or when the DS
+ * stylesheet has finished loading. A plain rebuild re-points every artboard in one shot.
  */
 function applyArtboardFollowers(): void {
   rebuildArtboardThemeStyle();
@@ -1417,6 +1490,10 @@ function buildRegistry(deps: {
   distributeArtboards: (axis: 'x' | 'y') => void;
   alignArtboards: (mode: 'left' | 'right' | 'center-x' | 'top' | 'bottom' | 'center-y') => void;
   focusArtboard: (artboardId: string) => void;
+  /** S2.6 — what the object menu's rows run (editing/object-actions.ts) */
+  objectMenu: ObjectMenuDeps;
+  /** S2.10 — what the artboard menu's rows run (editing/artboard-actions.ts) */
+  artboardMenu: ArtboardMenuDeps;
 }): ContextRegistry {
   const { controller, clearSelection, selSet, distributeArtboards, alignArtboards, focusArtboard } =
     deps;
@@ -1449,16 +1526,17 @@ function buildRegistry(deps: {
     openCommentComposer(sel, target.clientX, target.clientY);
   };
 
+  // P5 (F17) — the View menu's words and keys: view.zoom-fit "Zoom to fit ⌘0", view.zoom-actual "Actual size ⇧0".
   const fitItem: MenuItem = {
     id: 'fit-view',
-    label: 'Fit to view',
-    shortcut: '1',
+    label: 'Zoom to fit',
+    shortcut: '⌘0',
     onSelect: () => controller?.fit(),
   };
   const resetItem: MenuItem = {
     id: 'reset-view',
-    label: 'Reset view',
-    shortcut: '⌘0',
+    label: 'Actual size',
+    shortcut: '⇧0',
     onSelect: () => controller?.reset(),
   };
 
@@ -1466,72 +1544,25 @@ function buildRegistry(deps: {
   // event the dialog provider listens for; this avoids prop-drilling the
   // dialog handle through every menu callback. The scope arg prefills the
   // dialog's scope dropdown so the user lands on the right resolution.
+  const openExportSheet = (scope?: string): void => {
+    try {
+      // S8.2 — the iframe's own export dialog is gone: the entry names a scope (none: the shell picks it from
+      // the selection, the current canvas when nothing is selected) and the shell's one Export sheet opens
+      // (the shell re-checks the frame before it acts, use-canvas-bridge).
+      window.parent.postMessage({ dgn: 'open-export', detail: scope ? { scope } : {} }, '*');
+    } catch {
+      /* non-window environments */
+    }
+  };
   const exportItem = (id: string, label: string, scope: string, shortcut?: string): MenuItem => ({
     id,
     label,
     shortcut,
-    onSelect: () => {
-      try {
-        window.dispatchEvent(new CustomEvent('maude:open-export', { detail: { scope } }));
-      } catch {
-        /* non-window environments */
-      }
-    },
+    onSelect: () => openExportSheet(scope),
   });
 
-  // Per-artboard theme PIN, keyed by the stable `data-dc-screen` id
-  // (target.artboardId) via an injected stylesheet (see setArtboardTheme).
-  // Following the chrome theme is the default; this submenu overrides it for one
-  // artboard. The DS-supports-both probe gates Light / Dark / "Follow chrome"
-  // (all no-ops on a single-theme DS); only "DS default" is always meaningful.
-  const themeSupport = detectDsThemeSupport();
-  const themeHint = 'This design system defines only one theme';
-  const themeItem: MenuItem = {
-    id: 'theme',
-    label: 'Theme',
-    onSelect: () => {
-      /* parent of a submenu — never invoked directly */
-    },
-    submenu: [
-      {
-        id: 'theme-ds-default',
-        label: 'DS default',
-        onSelect: (target) => {
-          if (target.artboardId) setArtboardTheme(target.artboardId, 'ds');
-        },
-      },
-      {
-        id: 'theme-light',
-        label: 'Light',
-        disabled: !themeSupport.supported,
-        disabledHint: themeHint,
-        onSelect: (target) => {
-          if (target.artboardId) setArtboardTheme(target.artboardId, 'light');
-        },
-      },
-      {
-        id: 'theme-dark',
-        label: 'Dark',
-        disabled: !themeSupport.supported,
-        disabledHint: themeHint,
-        onSelect: (target) => {
-          if (target.artboardId) setArtboardTheme(target.artboardId, 'dark');
-        },
-      },
-      {
-        id: 'theme-follow',
-        label: 'Follow chrome (default)',
-        disabled: !themeSupport.supported,
-        disabledHint: themeHint,
-        onSelect: (target) => {
-          if (target.artboardId) setArtboardTheme(target.artboardId, 'follow');
-        },
-      },
-    ],
-  };
-
   // feature-1-artboard-kinds-foundation, T8 — kind-switch submenu, same
-  // shape as themeItem above (a parent-only MenuItem whose onSelect never
+  // shape as kindItem below (a parent-only MenuItem whose onSelect never
   // fires). The write is main-origin-only (DDR-054): post to the parent
   // shell (dgn:'set-artboard-kind-request'), which calls
   // api.setArtboardKindOp and records undo — mirrors delete-artboard-request.
@@ -1897,6 +1928,12 @@ function buildRegistry(deps: {
     }
     await runSubtreeConvert(containerEl, containerId, artboardId);
   };
+  // S2.11 — the registry action `layout.convert-to-absolute` (⌘K, Layout › Advanced) runs this same
+  // function: editing/layout-actions.ts calls it through the window.
+  if (typeof window !== 'undefined')
+    (
+      window as unknown as { __maudeConvertToAbsolute?: (el: HTMLElement) => Promise<void> }
+    ).__maudeConvertToAbsolute = postConvertToAbsolute;
   // Artboard-level (context menu + kind switch).
   const postConvertArtboardToAbsolute = async (
     artboardId: string,
@@ -2116,11 +2153,19 @@ function buildRegistry(deps: {
           // Task L3 — main-origin source duplicate; post to the parent shell.
           onSelect: (target) => {
             if (!target.cdId) return;
-            try {
-              window.parent.postMessage({ dgn: 'duplicate-request', id: target.cdId }, '*');
-            } catch {
-              /* detached / cross-origin */
-            }
+            const id = target.cdId;
+            // r1 #15 (Michal) — the same as ⌘D: a placed object's copy lands +10 / +10, selected
+            duplicateObject(
+              target.el ?? null,
+              () => {
+                try {
+                  window.parent.postMessage({ dgn: 'duplicate-request', id }, '*');
+                } catch {
+                  /* detached / cross-origin */
+                }
+              },
+              (created) => selectWhenRendered(created, (s) => selSet.replace(s))
+            );
           },
         },
         {
@@ -2245,7 +2290,7 @@ function buildRegistry(deps: {
       [
         // G7 — align commands. Six modes; gated on ≥ 2 selected artboards
         // (alignment is well-defined with 2). Primary surface is the
-        // MultiArtboardToolbar; menu entries are discoverability backup.
+        // align bar; menu entries are discoverability backup.
         {
           id: 'align-left',
           label: 'Align left',
@@ -2285,7 +2330,7 @@ function buildRegistry(deps: {
       ],
       [
         // T24 — distribute commands. Primary surface is the floating
-        // MultiArtboardToolbar above the group bbox; the menu entries are
+        // align bar above the group bbox; the menu entries are
         // a discoverability backup. Disabled when fewer than 3 artboards
         // are selected.
         {
@@ -2301,7 +2346,7 @@ function buildRegistry(deps: {
           onSelect: () => distributeArtboards('y'),
         },
       ],
-      [themeItem, kindItem, duplicateAtBreakpointItem],
+      [kindItem, duplicateAtBreakpointItem],
       [
         {
           id: 'delete-artboard',
@@ -2326,26 +2371,23 @@ function buildRegistry(deps: {
       ],
       [exportItem('export-artboard', 'Export this artboard…', 'artboard')],
     ],
-    world: [
-      // issue-90 — right-click on empty canvas background (no artboard, no
-      // element) had no "Add comment" entry at all. Anchors at the click
-      // point, same as the comment tool's own floating-pin fallback.
-      [
-        {
-          id: 'add-comment',
-          label: 'Add comment',
-          shortcut: 'C',
-          onSelect: postComposeForTarget,
-        },
-      ],
-      [fitItem, resetItem],
-      [
-        exportItem('export-canvas', 'Export canvas as separate…', 'canvas-as-separate'),
-        exportItem('export-project', 'Export project (ZIP)…', 'project-raw'),
-      ],
-    ],
+    // P5 (F17) — Add comment · Paste · Zoom to fit · Actual size · Export… (editing/world-menu.ts)
+    world: worldMenuSections({
+      addComment: postComposeForTarget,
+      fit: () => controller?.fit(),
+      actualSize: () => controller?.reset(),
+      paste: deps.artboardMenu.paste,
+      openExport: () => openExportSheet(),
+    }),
     overlay: [],
   };
+  // S2.6 — the v1 element rows above, laid out as the v2 object menu (editing/object-menu.tsx)
+  registry.element = objectMenuSections(registry.element, deps.objectMenu);
+  // S2.10 — the v1 artboard rows, laid out as the v2 artboard menu (editing/artboard-menu.tsx)
+  registry['artboard-chrome'] = artboardMenuSections(
+    registry['artboard-chrome'],
+    deps.artboardMenu
+  );
   return filterRegistryForReadOnly(registry);
 }
 
@@ -2367,6 +2409,7 @@ const READ_ONLY_MENU_IDS = new Set([
   'copy-style',
   'inspect',
   'select-layer',
+  'select-matching',
   'deselect',
   'export-selection',
   'export-artboard',
@@ -2379,7 +2422,17 @@ function filterRegistryForReadOnly(registry: ContextRegistry): ContextRegistry {
   const out = {} as ContextRegistry;
   for (const key of Object.keys(registry) as (keyof ContextRegistry)[]) {
     out[key] = registry[key]
-      .map((section) => section.filter((item) => READ_ONLY_MENU_IDS.has(item.id)))
+      .map((section) =>
+        section.flatMap((item) => {
+          if (READ_ONLY_MENU_IDS.has(item.id)) return [item];
+          // S2.6 — the object menu's Advanced ▸ holds read rows (Copy CSS, Inspect…): keep those
+          if (item.id === 'advanced' && Array.isArray(item.submenu)) {
+            const kept = item.submenu.filter((sub) => READ_ONLY_MENU_IDS.has(sub.id));
+            return kept.length ? [{ ...item, submenu: kept }] : [];
+          }
+          return [];
+        })
+      )
       .filter((section) => section.length > 0);
   }
   return out;
@@ -2432,9 +2485,12 @@ export function revealAxisDelta(
 export function revealElementViaCamera(
   host: HTMLElement,
   target: HTMLElement,
-  controller: ViewportControllerHandle
+  controller: ViewportControllerHandle,
+  // V2-2.10 (V2-1.2 §5.6) — the view a reveal targets is the host minus the shell's occluded
+  // insets; zero insets keep the whole host, exactly as before.
+  insets: Readonly<Insets> = canvasInsets()
 ): void {
-  const hostRect = host.getBoundingClientRect();
+  const hostRect = revealViewBox(host.getBoundingClientRect(), insets);
   const r = target.getBoundingClientRect();
   if (r.width <= 0 && r.height <= 0) return; // detached / display:none — nothing to reveal
   const dx = revealAxisDelta(r.left, r.right, hostRect.left, hostRect.right, REVEAL_MARGIN_PX);
@@ -2466,6 +2522,9 @@ function lockedKeySet(): Set<string> {
  *  artboard body (same occurrence math the Layers rows use). */
 function isLockedElement(el: Element | null, cdId: string | null): boolean {
   if (!el || !cdId) return false;
+  // S2.6 — the shared lock is the attribute in the TSX (V2-1.4 §5.5); the per-user key set below
+  // only carries locks made before it, until V2-2.14 migrates them.
+  if (el.hasAttribute('data-cd-locked')) return true;
   const locked = lockedKeySet();
   if (locked.size === 0) return false;
   const body = el.closest('.dc-artboard-body');
@@ -2528,6 +2587,7 @@ function CanvasRouter({
   const { tool, setTool, resetTool, clearSticky } = useToolMode();
   const selSet = useSelectionSet();
   const annotSel = useAnnotationSelection();
+  usePresentSelection(selSet, annotSel); // S3.14 - no halo for the audience; back as left on the way out
   const ctxMenu = useContextMenu();
   const undoStack = useUndoStack();
   const undoSinks = useUndoSinks();
@@ -2535,6 +2595,17 @@ function CanvasRouter({
   // without making them a hook dependency — avoids re-binding on every undo op.
   const undoStackRef = useRef(undoStack);
   undoStackRef.current = undoStack;
+  // S2.20b — ⌘Z / ⇧⌘Z from this canvas (its keys, or the shell's `run-action edit.undo`): after the
+  // shell's pending writes settle, the op log's projection runs it — `undo-key` to the shell. The canvas
+  // keeps no stack of its own (p8-v1-drop deleted the legacy one and its undo-mode state message).
+  const canvasUndoKey = (redo: boolean) =>
+    void afterShellRecords().then(() => {
+      try {
+        window.parent.postMessage({ dgn: 'undo-key', redo }, '*');
+      } catch {
+        /* detached */
+      }
+    });
   // Selection readback can refresh while the user is typing (e.g. the shell's
   // post-HMR halo restore). Keep the editor's lifetime tied to its host, not
   // the changing selection snapshot, or effect cleanup silently ends typing.
@@ -2663,9 +2734,11 @@ function CanvasRouter({
     };
     const overlays = w.__canvas_meta__?.overlays;
     if (!overlays) return;
-    const patch: { guides?: boolean; print?: boolean } = {};
+    const patch: { guides?: boolean; print?: boolean; safeZones?: boolean } = {};
     if (overlays.guides === true) patch.guides = true;
     if (overlays.print === true) patch.print = true;
+    // S7.22 — the one overlay that defaults to SHOWN; only an explicit false (the person turned it off) hides.
+    if (overlays.safeZones === false) patch.safeZones = false;
     if (Object.keys(patch).length > 0) chromeCtx.setChrome(patch);
   }, [chromeCtx]);
 
@@ -2687,11 +2760,8 @@ function CanvasRouter({
     const clamp = (e: Event) => {
       const t = e.target;
       if (!(t instanceof HTMLElement)) return;
-      const isEngineClip =
-        t === host ||
-        t.classList.contains('dc-artboard-body') ||
-        t.classList.contains('dc-artboard');
-      if (!isEngineClip) return;
+      // S3.15 (md-preview-combine) — Preview lets a web artboard's body scroll inside itself.
+      if (!clampsEngineScroll(t, host, canvasModeStore(window).get().mode)) return;
       if (t.scrollLeft !== 0) t.scrollLeft = 0;
       if (t.scrollTop !== 0) t.scrollTop = 0;
     };
@@ -2751,13 +2821,83 @@ function CanvasRouter({
     const onMessage = (e: MessageEvent) => {
       const m = e.data as { dgn?: string } | null;
       if (!m || typeof m !== 'object' || !m.dgn) return;
-      if (m.dgn === 'force-clear' || m.dgn === 'select-clear' || m.dgn === 'selection-clear') {
+      // V2-2.10 — the typed table's gate for every shell→canvas type this listener
+      // handles (bridge/dgn-protocol.ts; the branches keep their own checks).
+      if (!canvasMayHandle(e, window)) return;
+      if (m.dgn === 'force-clear' || m.dgn === 'select-clear') {
         selSet.clear();
         annotSel.clear();
         setHoverEl(null);
         return;
       }
+      // p8-sweep-leftovers — Menu › Edit › Paste: the shell read the clipboard (this frame may not) and
+      // forwards it; replayed as a paste event so ⌘V's own listeners handle it. Only from the shell itself.
+      if (m.dgn === 'paste-data') {
+        if (e.source !== window.parent) return;
+        const data = parsePasteData(m);
+        if (data) dispatchPasteData(data, document);
+        return;
+      }
+      // V2-1.3 §5.7 — the shell runs one of this listener's canvas actions:
+      // `{dgn:'run-action', v:1, id, params?}`, only from the shell itself
+      // (`e.source === window.parent` — a sibling canvas must not undo or move the
+      // active one, V2-2.8 S1). Replaces the `undo` / `redo` / `zoom` /
+      // `selection-clear` lanes (V2-2.4); `select.all-annotations` is
+      // annotations-layer's.
+      if (m.dgn === 'run-action') {
+        if (e.source !== window.parent || (m as { v?: unknown }).v !== 1) return;
+        const { id, params } = m as { id?: unknown; params?: { id?: unknown } };
+        if (id === 'select.none') {
+          selSet.clear();
+          annotSel.clear();
+          setHoverEl(null);
+        } else if (id === 'edit.undo' || id === 'edit.redo') {
+          // Plan C — Edit menu (shell) bridges to the in-canvas undo stack. S2.20b — on the op log
+          // the iframe keeps no stack: the key goes back to the shell's projection.
+          canvasUndoKey(id === 'edit.redo');
+        } else if (
+          id === 'tool.key' &&
+          (params as { key?: unknown } | undefined)?.key === 'L' &&
+          canvasModeStore(window).get().mode === 'present'
+        ) {
+          // S3.14 (G7) - L in Present is the Pointer's, and present/pointer-dot.tsx hears this very message
+          // itself: replaying the key as well toggled the dot on and straight off again.
+        } else if (replayToolKey(id, params)) {
+          // V2-4.5b — a toolbar key pressed with the shell focused; the router decides.
+        } else if (drawToolOfAction(id)) {
+          // S2.13 — ⌘K / the menu arm a drag tool (Line · Ellipse · Polygon · Export area have no key)
+          setTool(drawToolOfAction(id) as never);
+        } else if (replayActionKey(id)) {
+          // V2-4.2 — Select all / Copy properties / Paste properties from the project menu: the
+          // canvas replays the action's own chord, so the key handler is the one implementation.
+        } else if (zoomController) {
+          // Shell View-menu zoom items — route to the live viewport controller
+          // (the same methods the in-canvas zoom pill calls).
+          if (id === 'view.zoom-in') zoomController.zoomIn();
+          else if (id === 'view.zoom-out') zoomController.zoomOut();
+          else if (id === 'view.zoom-fit') zoomController.fit();
+          else if (id === 'view.zoom-actual') zoomController.reset();
+          else if (id === 'view.zoom-to-artboard') {
+            // DDR-247 — the embed view's `&artboard=<id>`: frame one artboard,
+            // found by its `data-dc-screen` id through the same world-coordinate
+            // manifest the whiteboard toolkit reads. Unknown id ⇒ nothing moves.
+            const aid = params?.id;
+            const rect =
+              typeof aid === 'string'
+                ? window.__maudeCanvasRects?.().artboards.find((a) => a.id === aid)
+                : undefined;
+            if (rect) zoomController.jumpTo(rect);
+          }
+        }
+        return;
+      }
+      // V2-2.8 S1 — `tool-set`, `locked-set` and `select-by-id` are honoured only
+      // from the shell itself (`e.source === window.parent`, run-action's gate): a
+      // sibling canvas frame (same canvasOrigin, reachable via `parent.frames`,
+      // DDR-054 untrusted) must not arm a tool, rewrite the locked set or move
+      // the selection (and camera) of the active canvas.
       if (m.dgn === 'tool-set') {
+        if (e.source !== window.parent) return;
         const t = (m as { tool?: string }).tool;
         if (typeof t === 'string') setTool(t as never);
         return;
@@ -2831,6 +2971,7 @@ function CanvasRouter({
       }
       // feature-4 T7b — live locked-layer set from the shell's Layers panel.
       if (m.dgn === 'locked-set') {
+        if (e.source !== window.parent) return;
         const arr = (m as { locked?: unknown }).locked;
         if (Array.isArray(arr)) {
           const s = lockedKeySet();
@@ -2839,21 +2980,13 @@ function CanvasRouter({
         }
         return;
       }
-      // Plan C — Edit menu (shell) bridges to the in-canvas undo stack.
-      if (m.dgn === 'undo') {
-        void afterShellRecords().then(() => undoStackRef.current.undo());
-        return;
-      }
-      if (m.dgn === 'redo') {
-        void afterShellRecords().then(() => undoStackRef.current.redo());
-        return;
-      }
       // Phase 12 Task 4 (DDR-103) — Layers-tree round-trip. select-by-id resolves
       // the node + replaces the selection (which posts select-set back, updating
       // the Inspect/CSS tabs + halos); highlight shows the transient hover halo;
       // request-layers re-walks + posts the tree for an artboard.
       if (m.dgn === 'select-by-id') {
-        const mm = m as { id?: string; artboardId?: string | null; index?: number };
+        if (e.source !== window.parent) return; // V2-2.8 S1 (see tool-set above)
+        const mm = m as { id?: string; artboardId?: string | null; index?: number; add?: boolean };
         // Dogfood follow-up — a bare ARTBOARD selection (no data-cd-id, the
         // ArtboardKnobs panel's own case) has no `mm.id` to resolve by, so
         // the element branch below never ran for it: after a structural
@@ -2885,13 +3018,19 @@ function CanvasRouter({
               one.id === mm.id &&
               (mm.index == null || one.index == null || one.index === mm.index)
             : !!one && !one.id && one.artboardId === (mm.artboardId ?? null);
-          selSet.replace(
-            hoverTargetToSelection({
-              el: target,
-              cdId: mm.id,
-              artboardId: mm.artboardId ?? null,
-            } as HoverTarget)
-          );
+          const picked = hoverTargetToSelection({
+            el: target,
+            cdId: mm.id,
+            artboardId: mm.artboardId ?? null,
+          } as HoverTarget);
+          // P8 round 7 (12 · ia-placed) — `add` grows the selection (the photos a place made, as one group)
+          // r2-first-canvas-inspector — the shell sends back what IT holds; a pick made here that it has not heard
+          // yet (inside the post's debounce) wins, or a restore rung undid a ⌘-click (use-selection-set.tsx).
+          const applied =
+            mm.add && mm.id && !sameSelection
+              ? selSet.addFromShell(picked)
+              : selSet.replaceFromShell(picked);
+          if (!applied) return;
           // Task A1 — reveal THROUGH the camera, not host scroll. The old
           // `scrollIntoView` scrolled the overflow:hidden `.dc-canvas` /
           // `.dc-artboard-body` clip layers, desyncing the `.dc-world`
@@ -2901,6 +3040,72 @@ function CanvasRouter({
           if (host && zoomController && !sameSelection) {
             revealElementViaCamera(host, target as HTMLElement, zoomController);
           }
+        }
+        return;
+      }
+      // S11.9 — Layers › Advanced › Select by selector. The selector is typed in the shell; the match is
+      // scoped to the artboards and capped (selector-scope.js), so a planted `*` cannot select the page.
+      if (m.dgn === 'select-by-selector') {
+        if (e.source !== window.parent) return;
+        const found = scopedMatches(document, (m as { selector?: unknown }).selector as string);
+        if (found.ok && found.els.length > 0) {
+          selSet.replace(
+            found.els.map((el) =>
+              hoverTargetToSelection({
+                el,
+                cdId: el.getAttribute('data-cd-id') ?? undefined,
+                artboardId: el.closest('[data-dc-screen]')?.getAttribute('data-dc-screen') ?? null,
+              } as HoverTarget)
+            )
+          );
+        }
+        return;
+      }
+      // S1.3 L1 (A6c) — the jump list's / Compare's camera move: glide (or cut, under reduced motion or
+      // `glide: false`) to one artboard and flash it. Parent-only like select-by-id: a sibling canvas
+      // frame must not move this camera. An unknown id moves nothing.
+      // V2-8.5 c7 (15 an-stk-gallery, 04 md-edit-image) - which shell panel is open, so the dock's Stickers / Image slot
+      // presses. Parent-only; two words or null, anything else is ignored.
+      if (m.dgn === 'shell-panels') {
+        if (e.source !== window.parent) return;
+        const open = (m as { open?: unknown }).open;
+        setShellPanelOpen(
+          open === 'stickers' || open === 'assets' || open === 'components' ? open : null
+        );
+        return;
+      }
+      // V2-8.5 c7 (08 ak-convert-after) — the two marks after "Make A6 print". Parent-only, like the rest of this block:
+      // a sibling canvas frame must not paint marks on this canvas. The strings are built here from the facts.
+      if (m.dgn === 'convert-marks') {
+        if (e.source !== window.parent) return;
+        const mm = m as { from?: unknown; to?: unknown; extraPct?: unknown; fill?: unknown };
+        if (typeof mm.from !== 'string' || typeof mm.to !== 'string') return;
+        setConvertMarks({
+          from: mm.from,
+          to: mm.to,
+          extraPct: typeof mm.extraPct === 'number' && mm.extraPct > 0 ? mm.extraPct : 0,
+          fill: typeof mm.fill === 'string' && mm.fill ? mm.fill : null,
+        });
+        return;
+      }
+      if (m.dgn === 'reveal-artboard') {
+        if (e.source !== window.parent) return;
+        const mm = m as { artboardId?: unknown; glide?: unknown; flash?: unknown };
+        if (typeof mm.artboardId !== 'string' || !mm.artboardId) return;
+        const aid = mm.artboardId;
+        const board = document.querySelector<HTMLElement>(`[data-dc-screen="${CSS.escape(aid)}"]`);
+        if (!board) return;
+        const rect = window.__maudeCanvasRects?.().artboards.find((a) => a.id === aid);
+        const host = hostRef.current;
+        if (rect && zoomController) {
+          if (mm.glide === true || !host) zoomController.jumpTo(rect);
+          else zoomController.animateTo(fitRectIntoHost(rect, host), 0);
+        }
+        if (mm.flash === true) {
+          board.classList.remove('dc-reveal-flash');
+          void board.offsetWidth; // restart the ring when the same board is revealed twice
+          board.classList.add('dc-reveal-flash');
+          window.setTimeout(() => board.classList.remove('dc-reveal-flash'), 900);
         }
         return;
       }
@@ -2967,6 +3172,10 @@ function CanvasRouter({
         if (e.source !== window.parent) return;
         const p = (m as { payload?: Partial<EditSourcePayload> & { seq?: number; label?: string } })
           .payload;
+        // S2.2b / S2.10b / S7.6 — a landed edit-op the SHELL made (the inspector's Element id rename,
+        // ⌫ Move to trash, a Timeline clip verb) is a kernel action: it undoes through the op log, so
+        // the canvas records nothing (the legacy `revert {writeId}` record went with p8-v1-drop).
+        if (p && (p as { op?: string }).op === 'edit-op') return;
         // Phase 12.1 — a landed reorder (drag / keyboard move). The shell POSTed
         // /_api/reorder already; record so Cmd+Z reverts via the server's log.
         if (p && (p as { op?: string }).op === 'reorder') {
@@ -3016,27 +3225,6 @@ function CanvasRouter({
         }
         return;
       }
-      // Shell View-menu zoom items — route to the live viewport controller
-      // (the same methods the in-canvas zoom pill calls).
-      if (m.dgn === 'zoom' && zoomController) {
-        const op = (m as { op?: string }).op;
-        if (op === 'in') zoomController.zoomIn();
-        else if (op === 'out') zoomController.zoomOut();
-        else if (op === 'fit') zoomController.fit();
-        else if (op === 'actual') zoomController.reset();
-        else if (op === 'artboard') {
-          // DDR-247 — the embed view's `&artboard=<id>`: frame one artboard,
-          // found by its `data-dc-screen` id through the same world-coordinate
-          // manifest the whiteboard toolkit reads. Unknown id ⇒ nothing moves.
-          const id = (m as { id?: unknown }).id;
-          const rect =
-            typeof id === 'string'
-              ? window.__maudeCanvasRects?.().artboards.find((a) => a.id === id)
-              : undefined;
-          if (rect) zoomController.jumpTo(rect);
-        }
-        return;
-      }
       // Shell View-menu chrome toggles + Presentation Mode. Only the fields the
       // shell sends are merged, so a `{ present: true }` enter keeps the user's
       // individual minimap/zoom toggles for the eventual exit. `guides` (T6) is
@@ -3050,6 +3238,8 @@ function CanvasRouter({
           present?: boolean;
           guides?: boolean;
           print?: boolean;
+          safeZones?: boolean;
+          zen?: boolean;
         };
         const patch: {
           minimap?: boolean;
@@ -3057,7 +3247,11 @@ function CanvasRouter({
           present?: boolean;
           guides?: boolean;
           print?: boolean;
+          safeZones?: boolean;
+          zen?: boolean;
         } = {};
+        // P8 C8 (01 cf-open-big) - the panels are hidden: the toolbar folds to its current tool. Shell-driven.
+        if (typeof mm.zen === 'boolean') patch.zen = mm.zen;
         if (typeof mm.minimap === 'boolean') patch.minimap = mm.minimap;
         if (typeof mm.zoom === 'boolean') patch.zoom = mm.zoom;
         if (typeof mm.present === 'boolean') patch.present = mm.present;
@@ -3065,6 +3259,8 @@ function CanvasRouter({
         // feature-2-print-artboards T3 — "Show print guides" (bleed/trim/
         // margin overlay). Same per-canvas-persisted shape as `guides`.
         if (typeof mm.print === 'boolean') patch.print = mm.print;
+        // S7.22 — "Show on canvas" on the Safe zones row; mirrored below like guides/print.
+        if (typeof mm.safeZones === 'boolean') patch.safeZones = mm.safeZones;
         // Dogfood follow-up — mirror `guides`/`print` into the in-iframe
         // `window.__canvas_meta__.overlays` snapshot, exactly like the
         // existing viewport/layout mirror in canvas-lib.tsx's onSettle (DDR-
@@ -3078,7 +3274,11 @@ function CanvasRouter({
         // guide back to hidden even though the View-menu checkbox still
         // shows it checked. Same class of bug DDR-138 fixed for the camera;
         // this is its `overlays` counterpart.
-        if (patch.guides !== undefined || patch.print !== undefined) {
+        if (
+          patch.guides !== undefined ||
+          patch.print !== undefined ||
+          patch.safeZones !== undefined
+        ) {
           const w = window as unknown as {
             __canvas_meta__?: { overlays?: Record<string, boolean> };
           };
@@ -3087,6 +3287,7 @@ function CanvasRouter({
               ...w.__canvas_meta__.overlays,
               ...(patch.guides !== undefined ? { guides: patch.guides } : {}),
               ...(patch.print !== undefined ? { print: patch.print } : {}),
+              ...(patch.safeZones !== undefined ? { safeZones: patch.safeZones } : {}),
             };
           }
         }
@@ -3110,6 +3311,9 @@ function CanvasRouter({
     if (!host) return;
     let editing: HTMLElement | null = null;
     let original = '';
+    // r2-text-tool — a text the Text tool has just made: esc keeps what was typed (there is nothing of yours to
+    // restore; restoring would put back the placeholder "Text"). Any other text: esc restores, as before.
+    let escKeeps = false;
     // Unified custom blinking caret (text-caret.ts) — mounted for the whole
     // edit session, disposed in teardown. Hides the native caret while up.
     let caretDispose: (() => void) | null = null;
@@ -3122,7 +3326,7 @@ function CanvasRouter({
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') {
         e.preventDefault();
-        commitEdit(false);
+        commitEdit(escKeeps);
       } else if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         (e.currentTarget as HTMLElement | null)?.blur?.();
@@ -3161,40 +3365,57 @@ function CanvasRouter({
       } catch {
         /* querySelectorAll/CSS.escape unavailable — occurrence stays 0 */
       }
-      try {
-        window.parent.postMessage(
-          { dgn: 'edit-text', id: cdId, file, text, occurrence, before: original.trim() },
-          '*'
+      // S2.12 — the copy goes as ONE edit-op (`text.set`: one write, one undo step, Czech ties when the
+      // text is Czech). A studio that has no `text.set` (an older build) takes the legacy post below.
+      const original0 = original;
+      const legacy = (): void => {
+        try {
+          window.parent.postMessage(
+            { dgn: 'edit-text', id: cdId, file, text, occurrence, before: original0.trim() },
+            '*'
+          );
+        } catch {
+          /* detached / cross-origin */
+        }
+        // Stash the optimistic edit so a shell rejection can revert it (DDR-150 P1).
+        lastTextCommit = { el: elx, original: original0 };
+        // Record onto the in-canvas undo stack so Cmd+Z reverts the rewrite. The
+        // edit already posted above (record, don't re-run do()). before/after are
+        // the trimmed bodies the edit-text endpoint persists.
+        //
+        // ONLY the record is gated on `file`. An earlier version of this guard
+        // sat above the `postMessage` and returned out of the whole function —
+        // which silently dropped THE EDIT ITSELF, not just an unusable undo
+        // entry. `deriveFile` returning undefined must not cost the user their
+        // typing; it costs them only a Cmd+Z step they could not have applied
+        // anyway (a record with no canvas is one undo can never target).
+        if (!file) return;
+        undoStackRef.current.record(
+          buildEditSourceRecord({
+            op: 'text',
+            canvas: file,
+            id: cdId,
+            key: '',
+            before: original0.trim(),
+            after: text,
+            // Carry the occurrence so undo/redo can re-target a `{variable}` edit
+            // (the .map()/component-prop resolution needs it — canvas-edit.ts).
+            occurrence,
+          })
         );
-      } catch {
-        /* detached / cross-origin */
-      }
-      // Stash the optimistic edit so a shell rejection can revert it (DDR-150 P1).
-      lastTextCommit = { el: elx, original };
-      // Record onto the in-canvas undo stack so Cmd+Z reverts the rewrite. The
-      // edit already posted above (record, don't re-run do()). before/after are
-      // the trimmed bodies the edit-text endpoint persists.
-      //
-      // ONLY the record is gated on `file`. An earlier version of this guard
-      // sat above the `postMessage` and returned out of the whole function —
-      // which silently dropped THE EDIT ITSELF, not just an unusable undo
-      // entry. `deriveFile` returning undefined must not cost the user their
-      // typing; it costs them only a Cmd+Z step they could not have applied
-      // anyway (a record with no canvas is one undo can never target).
-      if (!file) return;
-      undoStackRef.current.record(
-        buildEditSourceRecord({
-          op: 'text',
-          canvas: file,
-          id: cdId,
-          key: '',
-          before: original.trim(),
-          after: text,
-          // Carry the occurrence so undo/redo can re-target a `{variable}` edit
-          // (the .map()/component-prop resolution needs it — canvas-edit.ts).
-          occurrence,
-        })
-      );
+      };
+      void commitTextInPlace(
+        { el: elx, text, before: original0.trim() },
+        {
+          ...textOpDeps.current,
+          record: (rec) => undoStackRef.current.record(rec),
+          revert: () => {
+            elx.textContent = original0;
+          },
+        }
+      ).then((handled) => {
+        if (!handled) legacy();
+      });
     }
     // Enter contenteditable edit mode on a leaf-text `stamped` element, caret
     // placed at (clientX, clientY) rather than a full select-all (that used to
@@ -3210,15 +3431,23 @@ function CanvasRouter({
       stamped: HTMLElement,
       clientX: number,
       clientY: number,
-      opts?: { selectAll?: boolean }
+      opts?: { selectAll?: boolean; escKeeps?: boolean }
     ): void {
       if (editing) return;
       // Cloud Phase 25 C2 — inline text edit is a source write; a read-only
       // canvas never enters edit mode (one gate for BOTH entry points: the
       // dblclick drill and the annotation Text-tool click-through).
       if (isReadOnlyCanvas()) return;
+      // p8-lock-reasons — a shared-locked text refuses the save (409 locked): the caret never opens on it, and
+      // the lock line says why (one gate for the dblclick and the ↵ / Text-tool entry)
+      const lockedLine = lockedTextLine(stamped);
+      if (lockedLine) {
+        textOpDeps.current.toast?.(lockedLine, 'info');
+        return;
+      }
       editing = stamped;
       original = stamped.textContent ?? '';
+      escKeeps = opts?.escKeeps === true;
       stamped.setAttribute('contenteditable', 'plaintext-only');
       stamped.classList.add('dc-text-editing');
       stamped.addEventListener('blur', onBlur, true);
@@ -3250,7 +3479,7 @@ function CanvasRouter({
       if (editing) return;
       // feature-4 — browse is a pure pass-through: no drill-select, no inline
       // text-edit. The mock owns its own double-clicks. Press V to edit.
-      if (dblToolRef.current === 'browse') return;
+      if (dblToolRef.current === 'browse' || dblToolRef.current === 'inspect') return;
       const t = e.target as HTMLElement | null;
       const stamped = (t?.closest?.('[data-cd-id]') as HTMLElement | null) ?? null;
       if (!stamped) return;
@@ -3271,7 +3500,8 @@ function CanvasRouter({
         // progressively deeper; the chain's last rung is the clicked element
         // itself); default to the outermost rung when nothing in the chain is
         // currently selected.
-        const chain = stampedChainToBody(stamped);
+        // V2-8.5 round 3 — the page root is the artboard, so the ladder starts one rung below it.
+        const chain = dropPageRoot(stampedChainToBody(stamped));
         if (chain.length > 0) {
           const curIdx = currentId
             ? chain.findIndex((n) => n.getAttribute('data-cd-id') === currentId)
@@ -3316,10 +3546,21 @@ function CanvasRouter({
     // `[data-cd-id]` element; canvas-shell owns the DOM/contentEditable side
     // of editing, so it's the one that must act on it.
     const onEnterTextEdit = (e: Event): void => {
-      const detail = (e as CustomEvent<{ el?: HTMLElement; clientX?: number; clientY?: number }>)
-        .detail;
+      const detail = (
+        e as CustomEvent<{
+          el?: HTMLElement;
+          clientX?: number;
+          clientY?: number;
+          selectAll?: boolean;
+          escKeeps?: boolean;
+        }>
+      ).detail;
       if (!detail?.el || !host.contains(detail.el)) return;
-      enterEditModeAt(detail.el, detail.clientX ?? 0, detail.clientY ?? 0);
+      // V2-8.7 — ↵ on a selected text arrives with selectAll (the keyboard door has no caret point)
+      enterEditModeAt(detail.el, detail.clientX ?? 0, detail.clientY ?? 0, {
+        selectAll: detail.selectAll === true,
+        escKeeps: detail.escKeeps === true,
+      });
     };
     // The shell rejected the last inline text edit — revert the optimistic
     // contenteditable text so the canvas reflects the true (unsaved) source
@@ -3380,14 +3621,22 @@ function CanvasRouter({
           // it actually captured something.
           return;
         }
-        // feature-4 T7b — a locked layer can't be selected from the canvas
-        // (the Layers panel row still can, so it stays reachable to unlock).
-        if (isLockedElement(target.el, target.cdId)) return;
+        // feature-4 T7b + S2.1 — a click on a locked object selects its nearest unlocked parent
+        // (or the artboard); the Layers row still selects the object itself, so it stays
+        // reachable to unlock. The lock is the shared `data-cd-locked` (V2-1.4) or the v1 key.
+        const lockedAt = (el: Element) =>
+          isLockedDom(el) || isLockedElement(el, el.getAttribute('data-cd-id'));
+        if (target.el && lockedAt(target.el)) {
+          const up = lockedClickSelection(target.el, lockedAt);
+          if (up) selSet.replace(up);
+          return;
+        }
         // feature-4 escape hatch (user steer 2026-07-19) — a Cmd+click select
         // from BROWSE means "I want to edit now": flip to the Move (select)
         // tool so the follow-up gestures (drag, dblclick drill, keyboard)
         // work without a separate V press.
-        if (tool === 'browse') setTool('move');
+        // S3.11 — only on a canvas no shell governs: in a governed Preview ⌘-click INSPECTS (↵ asks for Edit).
+        if (shouldFlipToMove(tool, canvasModeStore(window).get().mode)) setTool('move');
         // feature-4 dogfood fix (2026-07-19) — Figma's "entered group" context:
         // a bare (top-mode) click INSIDE the currently selected element keeps
         // that selection instead of resetting to the top-level ancestor.
@@ -3413,7 +3662,15 @@ function CanvasRouter({
             }
           }
         }
-        const sel = hoverTargetToSelection(target);
+        let sel = hoverTargetToSelection(target);
+        // S3.11 — an inspection carries the gap to its nearest sibling for the Inspect panel's rows
+        // S3.15 — and is MARKED `inspected`: the shell opens the panel for that selection only, never for one
+        // made in Edit and carried into Preview (04 md-model).
+        sel = inspectedSelection(sel, canvasModeStore(window).get().mode, tool);
+        if ((sel as { inspected?: boolean }).inspected) {
+          const neighbour = measureNeighbour(target.el);
+          if (neighbour) sel = { ...sel, neighbour } as typeof sel;
+        }
         if (mode === 'replace') selSet.replace(sel);
         else selSet.add(sel);
         // Phase 12 Task 4 — refresh the Layers tree for the selected artboard.
@@ -3430,31 +3687,72 @@ function CanvasRouter({
           clientX,
           clientY,
         };
+        // P8 C3 (14 ed-ab-menu / ed-obj-order): the artboard or object you right-clicked is the selection under its
+        // menu (chip + handles), unless it already is part of it - then the menu acts on the whole selection.
+        if (
+          target &&
+          (kind === 'element' || kind === 'artboard-chrome') &&
+          !isReadOnlyCanvas() &&
+          modeShows(canvasModeStore(window).get().mode, 'object-tools')
+        ) {
+          const sel = hoverTargetToSelection(target);
+          const same = (a: { selector: string; index?: number }) =>
+            a.selector === sel.selector && (a.index ?? 0) === (sel.index ?? 0);
+          if (!selSet.selected.some(same)) {
+            selSet.replace(sel);
+            postLayersTree(target.artboardId);
+          }
+        }
         ctxMenu.open(ctxTarget);
       },
       onTool: ({ tool: t }) => setTool(t),
-      onUndo: () => {
-        void afterShellRecords().then(() => undoStackRef.current.undo());
-      },
-      onRedo: () => {
-        void afterShellRecords().then(() => undoStackRef.current.redo());
-      },
+      onUndo: () => canvasUndoKey(false),
+      onRedo: () => canvasUndoKey(true),
       onEscape: () => {
-        // T21 — abort any mid-stroke draw FIRST. The annotations layer
-        // listens for `maude:cancel-stroke` and drops the in-progress
-        // shape without committing.
+        const governed = canvasModeStore(window).get().mode;
+        if (governed) {
+          // S3.12 — a governed canvas takes ONE rung per press (bridge/esc-ladder.ts, 04 md-esc): a cleared
+          // selection, a left tool or a set-down stroke is the step; the mode steps back only when none applied.
+          const outcome = runEscRung(governed, tool, {
+            stroke: () => {
+              // T21 — abort any mid-stroke draw. The annotations layer listens for `maude:cancel-stroke`,
+              // drops the in-progress shape without committing, and marks the event when it did.
+              const detail = { cancelled: false };
+              try {
+                document.dispatchEvent(new CustomEvent('maude:cancel-stroke', { detail }));
+              } catch {
+                /* non-DOM env */
+              }
+              return detail.cancelled;
+            },
+            selection: () => {
+              if (selSet.selected.length === 0 && annotSel.selectedIds.length === 0) return false;
+              // S2.1 — `object.step-out`, esc's selection rung: one level up; at the top, deselect.
+              // S3.15 — an inspection (Preview, Viewing) has no level to step to: esc clears it (md-esc).
+              if (escClearsSelection(governed) || !stepOut(selSet)) selSet.clear();
+              annotSel.clear();
+              return true;
+            },
+            tool: () => {
+              // T19 — clear the sticky-tool lock and flip back to the mode's resting tool.
+              clearSticky();
+              resetTool();
+              return true;
+            },
+          });
+          setHoverEl(null);
+          return outcome !== 'back' && outcome !== 'stay';
+        }
+        // An ungoverned canvas (no shell yet): v1's single-press ladder, byte for byte.
         try {
           document.dispatchEvent(new CustomEvent('maude:cancel-stroke'));
         } catch {
           /* non-DOM env */
         }
-        // T19 — clear sticky-tool lock + flip back to the mode's resting tool
-        // (DDR-223: move in edit, browse in preview). Esc is the canonical
-        // "back to default state" gesture across canvas apps.
         clearSticky();
         resetTool();
         ctxMenu.close();
-        selSet.clear();
+        if (!stepOut(selSet)) selSet.clear();
         annotSel.clear();
         setHoverEl(null);
       },
@@ -3477,10 +3775,17 @@ function CanvasRouter({
           (canvas-comment-mount.tsx), not here — single instance per surface. */}
       <AnnotationsLayer />
       <ToolPalette />
+      <CanvasThemePillMount />
       <ArtboardMarqueeOverlay />
+      <ArtboardRingsLayer />
+      {/* V2-8.5 c7 (03 ai-copy) - "Copied from <name>" + the dashed link beside a copy "Run on a copy" made */}
+      <AiCopyLinks />
       <ElementMarqueeOverlay />
       <HoverHalo el={hoverEl} />
       <SelectionHalos />
+      {/* S3.10a — the link chip: Edit only, read-only (the component gates its own mode) */}
+      <LinkChipOverlay />
+      <EditingLayer />
       {!readOnly && <ElementResizeOverlay />}
       {!readOnly && <SpacingHandlesOverlay />}
       {!readOnly && <GridTrackHandlesOverlay />}
@@ -3488,322 +3793,21 @@ function CanvasRouter({
       <LayersLiveSync />
       <GroupBbox />
       {!readOnly && <EqualSpacingHandles />}
+      {/* S9.21b — a view-only drag on the design tells the shell (its tip says why nothing moved) */}
+      {readOnly && <ViewOnlyGesture />}
       <MeasureOverlay />
-      {!readOnly && <ContextualToolbar />}
-      {!readOnly && (
-        <MultiArtboardToolbar
-          distributeArtboards={distributeArtboards}
-          alignArtboards={alignArtboards}
-        />
-      )}
+      <InspectOverlay />
+      {/* S2.7 — align / distribute for objects AND artboards is editing/align-bar.tsx (mounted by EditingLayer); the v1 MultiArtboardToolbar is deleted (S2.9) */}
       <SnapGuideOverlay />
       <PhotoPreviewBridge />
-      <UndoHud />
       {/* DDR-247 — an embed inside another app shows the design, not who
-          else is in the room: collaborator cursors, the AI banner and the
-          avatar stack are studio chrome. */}
+          else is in the room: collaborator cursors and the avatar stack are
+          studio chrome. */}
       {!isEmbedCanvas() && <CursorsOverlay />}
-      {!isEmbedCanvas() && <AiBanner />}
+      {/* P8 C3 (03 ai-working): no v1 "AI is editing this canvas" banner - the dashed spark ring + tag on the
+          artboard (ArtboardRingsLayer) say it for every run, the board draws nothing else. */}
       {!isEmbedCanvas() && <ParticipantsChrome />}
     </>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// MultiArtboardToolbar — floating chrome anchored above the group bbox when
-// ≥ 2 artboards are multi-selected. Primary surface for the distribute
-// commands (post-Wave-2 feedback preferred this over global ⌘⌥H / ⌘⌥V
-// hotkeys). Disabled state when fewer than 3 artboards are selected — the
-// math is undefined for 2.
-
-const MULTI_TOOLBAR_CSS = `
-.dc-multi-artboard-tb {
-  position: fixed;
-  pointer-events: auto;
-  z-index: 6;
-  display: none;
-  align-items: stretch;
-  gap: 2px;
-  padding: 4px;
-  background: var(--maude-chrome-bg-0, #ffffff);
-  border: 1px solid var(--maude-chrome-fg-0, #1c1917);
-  border-radius: 8px;
-  box-shadow: 0 6px 24px var(--maude-chrome-shadow, color-mix(in oklab, #1c1917 10%, transparent));
-  font-family: var(--maude-chrome-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-  font-size: 11px;
-  letter-spacing: 0.02em;
-  color: var(--maude-chrome-fg-0, #1a1a1a);
-  user-select: none;
-}
-.dc-multi-artboard-tb button {
-  appearance: none;
-  background: transparent;
-  border: 0;
-  border-radius: 6px;
-  padding: 4px 10px;
-  font: inherit;
-  cursor: pointer;
-  color: inherit;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  transition: background-color 80ms linear;
-}
-.dc-multi-artboard-tb button:hover:not(:disabled) {
-  background: color-mix(in oklab, var(--maude-hud-accent, #d63b1f) 8%, transparent);
-}
-.dc-multi-artboard-tb button:disabled {
-  cursor: default;
-  opacity: 0.4;
-}
-.dc-multi-artboard-tb .dc-mab-count {
-  padding: 4px 8px 4px 10px;
-  color: var(--maude-chrome-fg-1, rgba(40,30,20,0.7));
-  border-right: 1px solid var(--maude-chrome-border, rgba(0,0,0,0.08));
-  margin-right: 2px;
-  font-variant-numeric: tabular-nums;
-}
-.dc-multi-artboard-tb .dc-mab-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.dc-multi-artboard-tb .dc-mab-divider {
-  width: 1px;
-  align-self: stretch;
-  background: var(--maude-chrome-border, rgba(0,0,0,0.10));
-  margin: 0 4px;
-}
-@media (prefers-reduced-motion: reduce) {
-  .dc-multi-artboard-tb button { transition: none; }
-}
-`.trim();
-
-function ensureMultiToolbarStyles(): void {
-  if (typeof document === 'undefined') return;
-  if (document.getElementById('dc-multi-artboard-tb-css')) return;
-  const s = document.createElement('style');
-  s.id = 'dc-multi-artboard-tb-css';
-  s.textContent = MULTI_TOOLBAR_CSS;
-  document.head.appendChild(s);
-}
-
-function MultiArtboardToolbar({
-  distributeArtboards,
-  alignArtboards,
-}: {
-  distributeArtboards: (axis: 'x' | 'y') => void;
-  alignArtboards: (mode: 'left' | 'right' | 'center-x' | 'top' | 'bottom' | 'center-y') => void;
-}) {
-  ensureMultiToolbarStyles();
-  const { selected } = useSelectionSet();
-  const ref = useRef<HTMLDivElement | null>(null);
-  const rafRef = useRef<number | null>(null);
-
-  const artboardSelections = useMemo(() => selected.filter((s) => !!s.artboardId), [selected]);
-  const artboardCount = artboardSelections.length;
-  const distributeOk = artboardCount >= 3;
-  const alignOk = artboardCount >= 2;
-
-  useEffect(() => {
-    const div = ref.current;
-    if (!div) return;
-    if (artboardCount < 2) {
-      div.style.display = 'none';
-      return;
-    }
-    // Track the screen-coord union bbox of all selected artboards each
-    // frame. Anchor toolbar centered horizontally above the bbox top
-    // edge with a 14 px gap; flip BELOW if the top edge is < 60 px from
-    // the viewport top.
-    const tick = () => {
-      rafRef.current = null;
-      let xMin = Number.POSITIVE_INFINITY;
-      let yMin = Number.POSITIVE_INFINITY;
-      let xMax = Number.NEGATIVE_INFINITY;
-      let yMax = Number.NEGATIVE_INFINITY;
-      let any = false;
-      for (const sel of artboardSelections) {
-        const el = document.querySelector(`[data-dc-screen="${sel.artboardId}"]`);
-        if (!el) continue;
-        const r = (el as HTMLElement).getBoundingClientRect();
-        if (r.width === 0 && r.height === 0) continue;
-        any = true;
-        if (r.left < xMin) xMin = r.left;
-        if (r.top < yMin) yMin = r.top;
-        if (r.right > xMax) xMax = r.right;
-        if (r.bottom > yMax) yMax = r.bottom;
-      }
-      if (!any) {
-        div.style.display = 'none';
-        rafRef.current = requestAnimationFrame(tick);
-        return;
-      }
-      // Make the toolbar visible OFFSCREEN first to measure its own
-      // width, then move it to the anchor. (Cheap: only re-anchors on
-      // every frame after the first.)
-      div.style.display = 'flex';
-      const tw = div.offsetWidth || 0;
-      const centerX = (xMin + xMax) / 2;
-      const top = yMin;
-      const gap = 14;
-      let anchorY = top - div.offsetHeight - gap;
-      if (anchorY < 60) anchorY = yMax + gap; // flip below
-      div.style.left = `${Math.round(centerX - tw / 2)}px`;
-      div.style.top = `${Math.round(anchorY)}px`;
-      rafRef.current = requestAnimationFrame(tick);
-    };
-    rafRef.current = requestAnimationFrame(tick);
-    return () => {
-      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
-    };
-  }, [artboardCount, artboardSelections]);
-
-  if (artboardCount < 2) {
-    return <div ref={ref} className="dc-multi-artboard-tb" aria-hidden="true" />;
-  }
-
-  return (
-    <div
-      ref={ref}
-      className="dc-multi-artboard-tb"
-      role="toolbar"
-      aria-label="Multi-artboard actions"
-    >
-      <span className="dc-mab-count">{artboardCount} artboards</span>
-      {/* G7 — align cluster. Icon-only to keep the toolbar narrow; full
-          label lives in the tooltip + the right-click menu. Enabled at ≥ 2
-          artboards (alignment is well-defined with 2). */}
-      <button
-        type="button"
-        disabled={!alignOk}
-        title={alignOk ? 'Align left' : 'Select at least 2 artboards to align'}
-        aria-label="Align left"
-        onClick={() => alignArtboards('left')}
-      >
-        <span className="dc-mab-icon" aria-hidden="true">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-            <line x1="0.5" y1="0.5" x2="0.5" y2="13.5" stroke="currentColor" />
-            <rect x="1" y="2" width="7" height="3" fill="currentColor" />
-            <rect x="1" y="9" width="11" height="3" fill="currentColor" />
-          </svg>
-        </span>
-      </button>
-      <button
-        type="button"
-        disabled={!alignOk}
-        title={alignOk ? 'Align center (horizontal)' : 'Select at least 2 artboards to align'}
-        aria-label="Align center horizontally"
-        onClick={() => alignArtboards('center-x')}
-      >
-        <span className="dc-mab-icon" aria-hidden="true">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-            <line x1="7" y1="0.5" x2="7" y2="13.5" stroke="currentColor" />
-            <rect x="3.5" y="2" width="7" height="3" fill="currentColor" />
-            <rect x="1.5" y="9" width="11" height="3" fill="currentColor" />
-          </svg>
-        </span>
-      </button>
-      <button
-        type="button"
-        disabled={!alignOk}
-        title={alignOk ? 'Align right' : 'Select at least 2 artboards to align'}
-        aria-label="Align right"
-        onClick={() => alignArtboards('right')}
-      >
-        <span className="dc-mab-icon" aria-hidden="true">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-            <line x1="13.5" y1="0.5" x2="13.5" y2="13.5" stroke="currentColor" />
-            <rect x="6" y="2" width="7" height="3" fill="currentColor" />
-            <rect x="2" y="9" width="11" height="3" fill="currentColor" />
-          </svg>
-        </span>
-      </button>
-      <button
-        type="button"
-        disabled={!alignOk}
-        title={alignOk ? 'Align top' : 'Select at least 2 artboards to align'}
-        aria-label="Align top"
-        onClick={() => alignArtboards('top')}
-      >
-        <span className="dc-mab-icon" aria-hidden="true">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-            <line x1="0.5" y1="0.5" x2="13.5" y2="0.5" stroke="currentColor" />
-            <rect x="2" y="1" width="3" height="7" fill="currentColor" />
-            <rect x="9" y="1" width="3" height="11" fill="currentColor" />
-          </svg>
-        </span>
-      </button>
-      <button
-        type="button"
-        disabled={!alignOk}
-        title={alignOk ? 'Align center (vertical)' : 'Select at least 2 artboards to align'}
-        aria-label="Align center vertically"
-        onClick={() => alignArtboards('center-y')}
-      >
-        <span className="dc-mab-icon" aria-hidden="true">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-            <line x1="0.5" y1="7" x2="13.5" y2="7" stroke="currentColor" />
-            <rect x="2" y="3.5" width="3" height="7" fill="currentColor" />
-            <rect x="9" y="1.5" width="3" height="11" fill="currentColor" />
-          </svg>
-        </span>
-      </button>
-      <button
-        type="button"
-        disabled={!alignOk}
-        title={alignOk ? 'Align bottom' : 'Select at least 2 artboards to align'}
-        aria-label="Align bottom"
-        onClick={() => alignArtboards('bottom')}
-      >
-        <span className="dc-mab-icon" aria-hidden="true">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-            <line x1="0.5" y1="13.5" x2="13.5" y2="13.5" stroke="currentColor" />
-            <rect x="2" y="6" width="3" height="7" fill="currentColor" />
-            <rect x="9" y="2" width="3" height="11" fill="currentColor" />
-          </svg>
-        </span>
-      </button>
-      <span className="dc-mab-divider" aria-hidden="true" />
-      <button
-        type="button"
-        disabled={!distributeOk}
-        title={
-          distributeOk
-            ? 'Distribute horizontally — equal gaps between artboards'
-            : 'Select at least 3 artboards to distribute'
-        }
-        aria-label="Distribute horizontally"
-        onClick={() => distributeArtboards('x')}
-      >
-        <span className="dc-mab-icon" aria-hidden="true">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-            <rect x="0.5" y="3" width="3" height="8" fill="currentColor" />
-            <rect x="5.5" y="3" width="3" height="8" fill="currentColor" />
-            <rect x="10.5" y="3" width="3" height="8" fill="currentColor" />
-          </svg>
-        </span>
-      </button>
-      <button
-        type="button"
-        disabled={!distributeOk}
-        title={
-          distributeOk
-            ? 'Distribute vertically — equal gaps between artboards'
-            : 'Select at least 3 artboards to distribute'
-        }
-        aria-label="Distribute vertically"
-        onClick={() => distributeArtboards('y')}
-      >
-        <span className="dc-mab-icon" aria-hidden="true">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-            <rect x="3" y="0.5" width="8" height="3" fill="currentColor" />
-            <rect x="3" y="5.5" width="8" height="3" fill="currentColor" />
-            <rect x="3" y="10.5" width="8" height="3" fill="currentColor" />
-          </svg>
-        </span>
-      </button>
-    </div>
   );
 }
 
@@ -3861,6 +3865,8 @@ function HoverHalo({ el }: { el: Element | null }) {
 // the lighter 1px tinted outline (no ticks). The GroupBbox renders the loud
 // signal when selected.length > 1.
 const TICK_CLASSES = ['tick-tl', 'tick-tr', 'tick-bl', 'tick-br'] as const;
+// S2.9 — the parent box of a multi-selection carries eight marks: the four corners and four edge midpoints
+const GROUP_TICK_CLASSES = [...TICK_CLASSES, 'tick-t', 'tick-r', 'tick-b', 'tick-l'] as const;
 
 function makeSelectedNode(withTicks: boolean): HTMLDivElement {
   const child = document.createElement('div');
@@ -3933,14 +3939,18 @@ function SelectionHalos() {
         // `left/top` in real-time), so the halo can follow via
         // getBoundingClientRect — no special drag suppression needed.
         const r = (el as HTMLElement).getBoundingClientRect();
+        // a swatch / master of the Design system board rings 4 px clear of itself (see HALO_CSS `[data-ring]`)
+        const gap = el.hasAttribute('data-ds-token') || el.hasAttribute('data-ds-master') ? 4 : 0;
+        if (gap) child.setAttribute('data-ring', 'true');
+        else child.removeAttribute('data-ring');
         if (r.width === 0 && r.height === 0) {
           child.style.display = 'none';
         } else {
           child.style.display = 'block';
-          child.style.left = `${Math.round(r.left)}px`;
-          child.style.top = `${Math.round(r.top)}px`;
-          child.style.width = `${Math.round(r.width)}px`;
-          child.style.height = `${Math.round(r.height)}px`;
+          child.style.left = `${Math.round(r.left) - gap}px`;
+          child.style.top = `${Math.round(r.top) - gap}px`;
+          child.style.width = `${Math.round(r.width) + gap * 2}px`;
+          child.style.height = `${Math.round(r.height) + gap * 2}px`;
         }
       }
       rafRef.current = requestAnimationFrame(tick);
@@ -4033,6 +4043,8 @@ function ReorderDrag() {
       settleKey: string | null;
       /** The last PREVIEWED (already reflowed) drop, committed on release. */
       applied: { refId: string; position: 'before' | 'after' | 'inside-end' } | null;
+      /** S2.11 — the neighbour element `applied` names (⌥ copy needs the node, not the id). */
+      appliedRef: HTMLElement | null;
       /** Stamped [data-cd-id] nodes in their ORIGINAL order — for computing a
        *  reused instance's occurrence index even after the DOM reflowed. */
       snapshot: Element[] | null;
@@ -4167,7 +4179,7 @@ function ReorderDrag() {
     // its own cursor-following transform. Deltas divide by each element's own
     // zoom (screen px → world px), same math as the float. Respects
     // prefers-reduced-motion (skips straight to the end state).
-    const REFLOW_MS = 180;
+    // S2.11 — neighbours slide on --dur-panel / --ease-out (panelMotion), not a private 180 ms.
     const animateReflow = (moved: HTMLElement, act: () => void) => {
       if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
         act();
@@ -4199,8 +4211,9 @@ function ReorderDrag() {
       }
       if (!anims.length) return;
       void document.body.offsetWidth; // flush the inverted state
+      const motion = panelMotion();
       for (const a of anims) {
-        a.el.style.transition = `transform ${REFLOW_MS}ms ease`;
+        a.el.style.transition = `transform ${motion.ms}ms ${motion.easing}`;
         a.el.style.transform = 'translate(0px, 0px)';
       }
       setTimeout(() => {
@@ -4209,7 +4222,7 @@ function ReorderDrag() {
           a.el.style.transition = a.prevTransition;
           a.el.style.transform = a.prevTransform;
         }
-      }, REFLOW_MS + 40);
+      }, motion.ms + 40);
     };
 
     // Move the node to match the target (used by the settle preview AND the
@@ -4259,6 +4272,7 @@ function ReorderDrag() {
       if (!drop) return;
       animateReflow(d.el, () => applyDrop(d.el, t));
       d.applied = drop;
+      d.appliedRef = t.kind === 'inside' ? t.container : t.el;
       d.el.style.transform = 'none';
       const rect = d.el.getBoundingClientRect();
       d.zoom = d.el.offsetWidth ? rect.width / d.el.offsetWidth : 1;
@@ -4288,6 +4302,7 @@ function ReorderDrag() {
       else d.el.setAttribute('style', d.prevStyle);
       setHighlight(null);
       hideDivider();
+      reorderSlot.end();
       suppressNextCanvasClick();
       drag = null;
       setElementDragActive(false);
@@ -4301,7 +4316,8 @@ function ReorderDrag() {
     };
 
     const onDown = (e: PointerEvent) => {
-      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      // r1 #15 — ⌥ is allowed: an ⌥-drag of the selected object drops a copy (decided at the drop, as before)
+      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return;
       if (toolRef.current !== 'move') return;
       const sel = selRef.current;
       const one = sel && sel.length === 1 ? sel[0] : null;
@@ -4313,7 +4329,15 @@ function ReorderDrag() {
       // the Layers panel, but the canvas won't move it).
       if (isLockedElement(el, cdId)) return;
       const t = e.target;
-      if (!(t instanceof Node) || !el.contains(t)) return;
+      // r1 #12 — or a press inside its box where its artboard clips it (it was dragged off the artboard)
+      const grabbed =
+        t instanceof Node && !el.contains(t) && clippedGrab(document, e.clientX, e.clientY, t, sel);
+      if (!(t instanceof Node) || (!el.contains(t) && !grabbed)) return;
+      // the marquee on empty canvas must not also take this press (it would clear the selection)
+      if (grabbed) e.stopImmediatePropagation();
+      // r1 #15 — ⌥ on the selected object is this drag's: the artboard's own ⌥-drag (copy the ARTBOARD) must not
+      // also take the press, or ⌥-dragging a shape duplicated the whole artboard
+      else if (e.altKey) e.stopPropagation();
       // Candidate — do NOT claim yet (a plain click must still work). We only
       // become a drag once the pointer crosses the threshold in onMove.
       const outOfFlowPos = getComputedStyle(el).position;
@@ -4335,6 +4359,7 @@ function ReorderDrag() {
         settle: null,
         settleKey: null,
         applied: null,
+        appliedRef: null,
         snapshot: null,
         outOfFlow: outOfFlowPos === 'absolute' || outOfFlowPos === 'fixed',
         originLeft: 0,
@@ -4364,6 +4389,7 @@ function ReorderDrag() {
         // reflect the pre-drag layout, not the reflowed one.
         d.snapshot = [...document.querySelectorAll('[data-cd-id]')];
         d.prevStyle = d.el.getAttribute('style');
+        if (!d.outOfFlow) reorderSlot.begin(d.el, d.origin?.parent ?? null);
         if (d.outOfFlow) {
           // Resolved (used) value in px — matches the unit space `left`/`top`
           // are written back in, regardless of an ancestor's zoom transform
@@ -4378,9 +4404,8 @@ function ReorderDrag() {
         }
         d.el.style.zIndex = '9990';
         d.el.style.pointerEvents = 'none'; // so elementFromPoint sees what's beneath
-        d.el.style.opacity = '0.9';
         d.el.style.cursor = 'grabbing';
-        d.el.style.boxShadow = '0 10px 28px rgba(0, 0, 0, 0.28)';
+        liftCard(d.el); // 14 ed-lay-reorder: tilted, accent-ringed, deep shadow, opaque
         d.el.style.willChange = 'transform';
         d.el.style.transition = 'none';
       }
@@ -4399,6 +4424,7 @@ function ReorderDrag() {
       const target = computeTarget(e.clientX, e.clientY, d);
       const current = target ? isCurrentPosition(target, d) : false;
       d.target = target && !current ? target : null;
+      reorderSlot.move(e.clientX, e.clientY, e.altKey, !!target);
       if (!d.target) {
         clearSettle(d);
         setHighlight(null);
@@ -4429,9 +4455,12 @@ function ReorderDrag() {
       setElementDragActive(false);
       setHighlight(null);
       hideDivider();
+      const slot = reorderSlot.end();
       if (!d || e.pointerId !== d.pointerId) return;
       if (!d.dragging) return; // a plain click — leave it to native handlers
       clearSettle(d);
+      // S2.11 — where the float was when the pointer let go (screen px), before it is un-floated
+      const floatRect = d.el.getBoundingClientRect();
       // Occurrence index of a node among its like-id siblings, read from the
       // PRE-drag snapshot (the live DOM already reflowed for an in-flow drop). For
       // a reused component (many DOM nodes share one internal id) the server maps
@@ -4461,6 +4490,12 @@ function ReorderDrag() {
         if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return; // negligible — nothing to persist
         const left = Math.round(d.originLeft + dx);
         const top = Math.round(d.originTop + dy);
+        if (e.altKey) {
+          // r1 #15 — ⌥-drop: the original stays put, a copy lands here (one edit-op, one ⌘Z)
+          suppressNextCanvasClick();
+          void copyPlacedTo(d.el, { left, top });
+          return;
+        }
         d.el.style.left = `${left}px`;
         d.el.style.top = `${top}px`;
         lastPosition = { el: d.el, prevStyle: d.prevStyle };
@@ -4482,6 +4517,43 @@ function ReorderDrag() {
       // Un-float: restore the element's exact original inline style.
       if (d.prevStyle == null) d.el.removeAttribute('style');
       else d.el.setAttribute('style', d.prevStyle);
+      // S2.11 — a drop outside the frame places the card freely; ⌥ drops a copy in the slot. Both
+      // are edit-ops (editing/reorder-slot.tsx); the card goes back to where it was lifted from so
+      // the canvas shows what the file has until the remount.
+      if (slot && (slot.out || e.altKey)) {
+        const fresh = d.target ? targetToDrop(d.target) : null;
+        const drop = fresh ?? d.applied;
+        const refEl = fresh
+          ? d.target?.kind === 'inside'
+            ? d.target.container
+            : (d.target?.el ?? null)
+          : d.appliedRef;
+        if (d.applied && d.origin) {
+          try {
+            d.origin.parent.insertBefore(d.el, d.origin.next);
+          } catch {
+            /* origin gone — remount re-syncs */
+          }
+        }
+        if (
+          takeOver({
+            el: d.el,
+            floatRect: {
+              left: floatRect.left,
+              top: floatRect.top,
+              width: floatRect.width,
+              height: floatRect.height,
+            },
+            ref: refEl,
+            position: drop?.position ?? null,
+            altKey: e.altKey,
+            out: slot.out,
+          })
+        ) {
+          suppressNextCanvasClick();
+          return;
+        }
+      }
       // Commit priority: a fresh (un-settled) target under the cursor wins;
       // otherwise the last settled preview (the layout the user is LOOKING at).
       let drop = d.target ? targetToDrop(d.target) : null;
@@ -4562,6 +4634,14 @@ function ReorderDrag() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// P8 round 7 (12 · ia-placed) — a selection of two or more pictures and nothing else is "N photos" on the group box.
+export function groupPhotoCount(els: ReadonlyArray<Element | null | undefined>): number {
+  if (els.length < 2) return 0;
+  for (const el of els) if (!el || el.tagName !== 'IMG') return 0;
+  return els.length;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // GroupBbox — dashed outline around the union of selected elements when N > 1.
 
 function GroupBbox() {
@@ -4616,11 +4696,17 @@ function GroupBbox() {
   }, [selected]);
 
   if (selected.length < 2) return null;
+  const photos = groupPhotoCount(selected.map((sel) => resolveSelectionEl(document, sel)));
   return (
     <div ref={ref} className="dc-cv-group-bbox" aria-hidden="true">
-      {TICK_CLASSES.map((cls) => (
+      {GROUP_TICK_CLASSES.map((cls) => (
         <i key={cls} className={`tick ${cls}`} />
       ))}
+      {photos ? (
+        <span className="dc-cv-group-tag" data-testid="canvas-group-tag">
+          {photos} photos
+        </span>
+      ) : null}
     </div>
   );
 }

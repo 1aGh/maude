@@ -18,6 +18,7 @@ import { HocuspocusProvider } from '@hocuspocus/provider';
 import * as Y from 'yjs';
 
 import { createAcceptedRevisions } from '../src/project-transactions/hub-integration.mjs';
+import { openSqliteProjectStore } from '../src/project-transactions/store-sqlite.mjs';
 import { createHub } from '../src/server.mjs';
 import { addToken } from '../src/tokens.mjs';
 
@@ -26,31 +27,62 @@ after(() => {
   for (const d of dirs) rmSync(d, { recursive: true, force: true });
 });
 
-async function until(fn, ms = 8000, what = 'condition') {
-  const end = Date.now() + ms;
+/** A poll gap this far above the 20 ms interval means the process did not run. */
+const FROZEN_GAP_MS = 500;
+
+/**
+ * Wait for `fn()` for `ms` of time this process actually RAN.
+ *
+ * A wall-clock deadline also charges time the process spent not running — a
+ * runner starved by the rest of the machine, a stopped process, a clock step.
+ * The deadline then expires on the first tick after the freeze, before the
+ * socket data queued behind it is read, and the test reports a hub that never
+ * answered when the hub was never asked (the V2-8.1 red of 2026-10-31: every
+ * other step of the restart test ran in its usual ~55 ms, then the v2 peer
+ * "waited" exactly the 8 s deadline). So the clock is monotonic and a frozen
+ * gap is charged as one poll. A hub that really never answers still fails:
+ * the loop keeps ticking and every tick is charged.
+ */
+async function until(fn, ms = 8000, what = 'condition', explain = null) {
+  let ran = 0;
+  let frozen = 0;
+  let last = performance.now();
   while (!(await fn())) {
-    if (Date.now() >= end) throw new Error(`${what} not reached before deadline`);
+    if (ran >= ms) {
+      const why = explain ? ` — ${explain()}` : '';
+      throw new Error(
+        `${what} not reached before deadline (ran ${Math.round(ran)} ms, frozen ${Math.round(frozen)} ms)${why}`
+      );
+    }
     await new Promise((r) => setTimeout(r, 20));
+    const now = performance.now();
+    const gap = now - last;
+    last = now;
+    if (gap > FROZEN_GAP_MS) frozen += gap;
+    ran += gap > FROZEN_GAP_MS ? 20 : gap;
   }
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function startHub() {
-  const dataDir = mkdtempSync(join(tmpdir(), 'maude-format-fence-'));
-  dirs.push(dataDir);
-  const owner = addToken(dataDir, { label: 'owner-machine', scope: '*', role: 'owner' }).value;
-  const member = addToken(dataDir, {
-    label: 'member',
-    scope: '*',
-    role: 'member',
-    owner: 'm@x.test',
-  }).value;
+async function startHub(reuse = null) {
+  const dataDir = reuse?.dataDir ?? mkdtempSync(join(tmpdir(), 'maude-format-fence-'));
+  if (!reuse) dirs.push(dataDir);
+  const owner =
+    reuse?.owner ?? addToken(dataDir, { label: 'owner-machine', scope: '*', role: 'owner' }).value;
+  const member =
+    reuse?.member ??
+    addToken(dataDir, {
+      label: 'member',
+      scope: '*',
+      role: 'member',
+      owner: 'm@x.test',
+    }).value;
   const built = createHub({ port: 0, dataDir, secret: 'test-secret', verbose: false });
   await built.server.listen();
   await built.acceptedReady;
   const http = built.server.httpURL.replace('0.0.0.0', '127.0.0.1');
   const ws = built.server.webSocketURL.replace('0.0.0.0', '127.0.0.1');
-  return { built, http, ws, owner, member };
+  return { built, http, ws, owner, member, dataDir };
 }
 
 /** A peer on one document. `format` undefined = a pre-compat client (no param). */
@@ -58,11 +90,23 @@ function peer(ws, token, name, format) {
   const doc = new Y.Doc();
   const url = format === undefined ? ws : `${ws}?maude-format=${format}`;
   const notices = [];
+  // What the provider saw, for a wait's failure message.
+  const born = performance.now();
+  const trail = [];
+  const mark = (event) => (e) =>
+    trail.push(
+      `${Math.round(performance.now() - born)}ms ${event}${e?.status ? `:${e.status}` : ''}${e?.reason ? `:${e.reason}` : ''}`
+    );
   const provider = new HocuspocusProvider({
     url,
     name,
     token,
     document: doc,
+    onStatus: mark('status'),
+    onAuthenticated: mark('authenticated'),
+    onAuthenticationFailed: mark('authenticationFailed'),
+    onDisconnect: mark('disconnect'),
+    onSynced: mark('synced'),
     onStateless: ({ payload }) => {
       try {
         notices.push(JSON.parse(payload));
@@ -73,6 +117,7 @@ function peer(ws, token, name, format) {
     doc,
     provider,
     notices,
+    trail: () => trail.join(', ') || 'no provider event',
     text: () => doc.getText('html').toString(),
     write: (t) => doc.getText('html').insert(doc.getText('html').length, t),
     close: () => (provider.destroy(), doc.destroy()),
@@ -103,8 +148,10 @@ describe('the format fence on a real hub', () => {
       const name = 'ws/local/main/ui-fence';
       // 1. A pre-compat client on a format-1 project — exactly as before.
       const v1 = open(ws, member, name);
+      // the pre-compat client FOUNDS this brand-new project (format 1) before a format-2 peer joins
+      await until(() => v1.provider.synced, 8000, 'v1 synced');
       const reader = open(ws, owner, name, 2);
-      await until(() => v1.provider.synced && reader.provider.synced, 8000, 'synced');
+      await until(() => reader.provider.synced, 8000, 'synced');
       assert.equal(v1.provider.authorizedScope, 'read-write', 'v1 is a writer on format 1');
       v1.write('v1-before;');
       await until(() => reader.text().includes('v1-before;'), 8000, 'v1 write arrives');
@@ -269,6 +316,91 @@ const conn = (user, sent) => ({
   sendStateless: (m) => sent.push(JSON.parse(m)),
 });
 
+const health = async (http) => (await fetch(`${http}/health`)).json();
+
+describe('a brand-new project takes the format of the writer that founds it (lead, Michal 2A)', () => {
+  test('a v2 founder: the project is format 2 and the v2 writer edits; a 1.x client is a reader', {
+    timeout: 60000,
+  }, async () => {
+    const { built, http, ws, member, owner } = await startHub();
+    const peers = [];
+    try {
+      const name = 'ws/local/main/ui-found-v2';
+      const v2 = peer(ws, member, name, 2);
+      peers.push(v2);
+      await until(() => v2.provider.synced, 8000, 'v2 synced');
+      assert.equal((await health(http)).formatVersion, 2, 'founded at format 2');
+      assert.equal(v2.provider.authorizedScope, 'read-write', 'the v2 founder edits');
+      const other = peer(ws, owner, name, 2);
+      peers.push(other);
+      await until(() => other.provider.synced, 8000, 'second v2 synced');
+      v2.write('v2-founder;');
+      await until(() => other.text().includes('v2-founder;'), 8000, 'the v2 edit arrives');
+      const v1 = peer(ws, owner, name);
+      peers.push(v1);
+      await until(() => v1.provider.synced, 8000, 'v1 synced');
+      assert.equal(v1.provider.authorizedScope, 'readonly', 'a 1.x client looks only');
+    } finally {
+      for (const p of peers) p.close();
+      await built.server.destroy();
+    }
+  });
+
+  test('a 1.x founder: the project stays format 1 and the 1.x writer edits; a later v2 join does not restamp it', {
+    timeout: 60000,
+  }, async () => {
+    const { built, http, ws, member, owner } = await startHub();
+    const peers = [];
+    try {
+      const name = 'ws/local/main/ui-found-v1';
+      const v1 = peer(ws, member, name);
+      peers.push(v1);
+      await until(() => v1.provider.synced, 8000, 'v1 synced');
+      assert.equal(v1.provider.authorizedScope, 'read-write', 'the 1.x founder edits');
+      const v2 = peer(ws, owner, name, 2);
+      peers.push(v2);
+      await until(() => v2.provider.synced, 8000, 'v2 synced');
+      assert.equal((await health(http)).formatVersion, 1, 'still format 1');
+      assert.equal(
+        v2.provider.authorizedScope,
+        'readonly',
+        'the v2 joiner reads a format-1 project'
+      );
+      v1.write('v1-founder;');
+      await until(() => v2.text().includes('v1-founder;'), 8000, 'the 1.x edit arrives');
+    } finally {
+      for (const p of peers) p.close();
+      await built.server.destroy();
+    }
+  });
+
+  test('a new project that already holds content is never restamped (a restart re-asks, and says no)', {
+    timeout: 60000,
+  }, async () => {
+    const first = await startHub();
+    const name = 'ws/local/main/ui-found-content';
+    const v1 = peer(first.ws, first.member, name);
+    await until(() => v1.provider.synced, 8000, 'v1 synced');
+    v1.write('made-on-1.x;');
+    await sleep(1500); // the document is stored
+    v1.close();
+    await first.built.server.destroy();
+    const again = await startHub(first);
+    const peers = [];
+    try {
+      const v2 = peer(again.ws, again.member, name, 2);
+      peers.push(v2);
+      await until(() => v2.provider.synced, 8000, 'v2 synced after the restart', v2.trail);
+      assert.equal((await health(again.http)).formatVersion, 1, 'content exists: not restamped');
+      assert.equal(v2.provider.authorizedScope, 'readonly');
+      assert.match(v2.text(), /made-on-1\.x;/);
+    } finally {
+      for (const p of peers) p.close();
+      await again.built.server.destroy();
+    }
+  });
+});
+
 describe('the fence predicate', () => {
   test('an UNREAD format fences every writer, whatever it declares', () => {
     const acc = coordinator({
@@ -403,5 +535,65 @@ describe('the format barrier (the setMode order)', () => {
     await acc3.refresh();
     assert.equal((await acc3.seedFormat(3)).changed, false);
     assert.equal(acc3.projectFormat(), 1);
+  });
+
+  // Lead decision on the cloud-cell open question (Michal 2A): the owner's Update project in a
+  // cell raises the hub's OWN format to the checkout's marker now — even where the one-time seed
+  // refuses (an earlier owner decision) — raise-only, capped, with the barrier's notice.
+  test("Update project in a cell raises the hub's format to the checkout's now, where the seed would not", async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'maude-format-raise-'));
+    const store = openSqliteProjectStore(dir);
+    try {
+      // An owner went to 2 and back to 1 once: the checkout seed can never move this project again.
+      await store.setFormat({ formatVersion: 2, by: 'o@x' });
+      await store.setFormat({ formatVersion: 1, by: 'o@x' });
+      const sent = [];
+      const acc = coordinator({ store, connections: [conn({ format: 2 }, sent)] });
+      await acc.refresh();
+      assert.equal((await acc.seedFormat(2)).changed, false, 'the boot seed refuses here');
+      assert.equal(acc.projectFormat(), 1);
+      const raised = await acc.raiseFormatToCheckout(2, { by: 'owner@x' });
+      assert.equal(raised.changed, true);
+      assert.equal(acc.projectFormat(), 2);
+      assert.equal((await store.state()).formatVersion, 2);
+      assert.deepEqual(
+        sent.map((n) => [n.type, n.formatVersion, n.writable]),
+        [['maude.mode', 2, true]],
+        'the v2 writer is told at once'
+      );
+      // raise-only and capped
+      assert.equal((await acc.raiseFormatToCheckout(1)).changed, false);
+      assert.equal((await acc.raiseFormatToCheckout(3)).changed, false);
+      assert.equal(acc.projectFormat(), 2);
+    } finally {
+      store.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('the wait helper charges only the time the process ran', () => {
+  // The same process that serves the hub runs the wait, so a freeze stops both:
+  // what was queued behind it (here a flag, on a real hub the socket's answer)
+  // is read one tick after the freeze, and the wait must still be waiting then.
+  const freeze = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+
+  test('a freeze longer than the deadline is not a hang', async () => {
+    let ready = false;
+    setTimeout(() => {
+      freeze(900);
+      // Queued after the wait's own overdue tick, as a socket's data would be.
+      setTimeout(() => {
+        ready = true;
+      }, 1);
+    }, 30);
+    await until(() => ready, 300, 'the flag set behind the freeze');
+  });
+
+  test('a condition that never holds still fails, and says how long it ran', async () => {
+    await assert.rejects(
+      until(() => false, 200, 'never'),
+      /^Error: never not reached before deadline \(ran \d+ ms, frozen 0 ms\)$/
+    );
   });
 });

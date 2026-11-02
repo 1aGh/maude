@@ -1,0 +1,8 @@
+V2-3.4 on feat bb7d376f: cargo test + clippy, node --test cli/lib/hubs-config.test.mjs, registry tests, generator check
+test result: ok. 119 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.90s
+ℹ tests 19
+ℹ pass 19
+ℹ fail 0
+gen-actions: 8 generated file(s) match the registry
+registry tests (lane): 250 pass / 0 fail (actions-*, ai-parity-*, menu-action-listener)

@@ -11,9 +11,9 @@ The `design-system-keeper` agent runs two read-only passes — pattern-reinventi
 if grep -q -- '--skip-ds-keeper' <<< "$ARGS"; then
   echo "→ ds-keeper precheck skipped per --skip-ds-keeper flag"
 else
-  HIST="$DESIGN_ROOT/_history/$SLUG"
-  N_KEEPER=$(printf "%03d" $(($(ls "$HIST" 2>/dev/null | wc -l) + 1)))
-  KEEPER_OUT="$HIST/$N_KEEPER-ds-keeper.md"
+  # <n> is the critic round this keeper verdict belongs to (0 for the first).
+  mkdir -p "$RUN/critique"
+  KEEPER_OUT="$RUN/critique/keeper-0.json"
 
   # Collect existing canvases in the same DS (excludes the new canvas).
   EXISTING_JSON=$(find "$DESIGN_ROOT/$NEW_CANVAS_DIR" -maxdepth 2 -name "*.tsx" \
@@ -38,16 +38,15 @@ brand_iconography_path:  "<abs path to ICON_SPECIMEN from step 5a, or empty if n
 opt_out_scope:           "<SCOPE from step 4>"
 ds_fidelity:             "<DS_FIDELITY from step 4>"
 token_guide_path:        "<abs path to DS_ROOT/README.md>"
-output_path:             "<abs path to KEEPER_OUT>"
 iter_n:                  1
 EOF
 )
 ```
 
-The agent writes its report to `<HIST>/<NNN>-ds-keeper.md` and returns a JSON verdict. The orchestrator merges the verdict's `top_warnings` into the iter-1 critic-panel summary so the user sees one consolidated view.
+The keeper is read-only: it returns its verdict JSON in its final message, and you save that to `$KEEPER_OUT` so the critics get it in their hand-off `reads`. It never writes a file. The orchestrator merges the verdict's `top_warnings` into the iter-1 critic-panel summary so the user sees one consolidated view.
 
 **If ds-keeper self-promoted to blocker** (≥ 5 token mismatches OR ≥ 3 pattern reinventions stacked) → the orchestrator surfaces this in the iter-1 print as `ds-keeper: BLOCKER (mass drift detected — see <KEEPER_OUT>)` and the auto-fix loop's first iteration prioritizes ds-keeper findings before any other critic's blockers. This catches mass-drift early — before the panel chases symptom-level fixes.
 
 **Failure handling:**
-- Agent fails entirely (no report written) → **do not block the panel**. Surface a warning in the final print (`ds-keeper precheck failed — DS-fidelity audit unavailable for this iteration`) and let the panel proceed.
-- Report written but verdict JSON malformed → treat as no findings, surface report path in the final print so the user can read it manually.
+- Agent fails entirely (no verdict returned) → **do not block the panel**. Surface a warning in the final print (`ds-keeper precheck failed — DS-fidelity audit unavailable for this iteration`) and let the panel proceed.
+- Verdict malformed → treat as no findings, and say so in the final print.

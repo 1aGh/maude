@@ -111,8 +111,9 @@ describe('POST /_api/insert-element', () => {
       expect(res.status).toBe(200);
       const json = (await res.json()) as { ok: boolean; newId: string | null; seq: number };
       expect(json.ok).toBe(true);
-      expect(json.newId).toMatch(/^[0-9a-f]{8}$/);
-      expect(readFileSync(canvasPath, 'utf8')).toContain("background: 'var(--bg-2)'");
+      // V2-2.19: the new element is stamped with a readable id (contract V2-1.4 §5.2).
+      expect(json.newId).toBe('div');
+      expect(readFileSync(canvasPath, 'utf8')).toContain("background: 'var(--bg-3, #d4d4d8)'");
 
       // Undo removes the inserted element.
       await fetch(`${main}/_api/reorder-revert`, {
@@ -120,7 +121,7 @@ describe('POST /_api/insert-element', () => {
         body: JSON.stringify({ canvas: 'ui/List', seq: json.seq, dir: 'undo' }),
         signal: AbortSignal.timeout(2000),
       });
-      expect(readFileSync(canvasPath, 'utf8')).not.toContain("background: 'var(--bg-2)'");
+      expect(readFileSync(canvasPath, 'utf8')).not.toContain("background: 'var(--bg-3, #d4d4d8)'");
 
       // An image insert with no src is a 422 refusal (needs a contained asset).
       const noSrc = await fetch(`${main}/_api/insert-element`, {
@@ -149,6 +150,7 @@ describe('POST /_api/duplicate-element', () => {
       expect(res.status).toBe(200);
       const json = (await res.json()) as { ok: boolean; newId: string | null; seq: number };
       expect(json.ok).toBe(true);
+      // V2-2.19: an unstamped original makes an unstamped (lazy) copy — positional newId.
       expect(json.newId).toMatch(/^[0-9a-f]{8}$/);
       // The first <div>A</div> is now duplicated → A, A, B, C.
       expect(letters(readFileSync(canvasPath, 'utf8'))).toEqual(['A', 'A', 'B', 'C']);

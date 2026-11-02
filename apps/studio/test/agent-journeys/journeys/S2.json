@@ -1,0 +1,87 @@
+{
+  "format": "maude.agent-journey/1",
+  "id": "S2",
+  "package": "S2",
+  "title": "Id-safe edit + link",
+  "fixture": "app5",
+  "setup": [],
+  "turns": [
+    {
+      "say": "In ui/GitPanel.tsx, change the “Nothing to save” heading to “All saved”, and make that heading link to the “B · Save a version” artboard."
+    }
+  ],
+  "graders": [
+    {
+      "id": "edited",
+      "grader": "text",
+      "path": "ui/GitPanel.tsx",
+      "has": [">All saved<"],
+      "lacks": [">Nothing to save<"]
+    },
+    { "id": "ids-kept", "grader": "ids-kept", "path": "ui/GitPanel.tsx" },
+    {
+      "id": "linked",
+      "grader": "link",
+      "path": "ui/GitPanel.tsx",
+      "element": "nothing-to-save",
+      "target": "#save-version"
+    },
+    { "id": "ai-version", "grader": "history", "path": "ui/GitPanel.tsx", "kind": "ai", "by": "ai" }
+  ],
+  "dry": {
+    "good": [
+      {
+        "tag": "text",
+        "op": "edit",
+        "path": "ui/GitPanel.tsx",
+        "old": ">Nothing to save</h3>",
+        "new": ">All saved</h3>"
+      },
+      {
+        "tag": "link",
+        "op": "edit",
+        "path": "ui/GitPanel.tsx",
+        "old": "data-cd-id=\"nothing-to-save\"",
+        "new": "data-cd-id=\"nothing-to-save\" data-cd-link=\"#save-version\""
+      },
+      {
+        "op": "action",
+        "kind": "migration.import",
+        "label": "Version history starts here",
+        "effects": [{ "lane": "@manifest", "op": "create", "path": "ui/GitPanel.tsx" }]
+      },
+      {
+        "tag": "step",
+        "op": "action",
+        "kind": "ai",
+        "run": "run-1",
+        "label": "Edit canvas",
+        "effects": [{ "lane": "html", "op": "replace", "path": "ui/GitPanel.tsx" }]
+      }
+    ],
+    "faults": {
+      "edited": { "drop": ["text"] },
+      "ids-kept": {
+        "add": [
+          {
+            "op": "edit",
+            "path": "ui/GitPanel.tsx",
+            "old": " data-cd-id=\"view-history\"",
+            "new": ""
+          }
+        ]
+      },
+      "linked": { "drop": ["link"] },
+      "ai-version": {
+        "replace": {
+          "step": {
+            "op": "action",
+            "kind": "outside",
+            "label": "Changed outside Maude",
+            "effects": [{ "lane": "html", "op": "replace", "path": "ui/GitPanel.tsx" }]
+          }
+        }
+      }
+    }
+  }
+}

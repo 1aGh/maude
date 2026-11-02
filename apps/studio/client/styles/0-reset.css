@@ -1,22 +1,85 @@
 /* @layer reset — minimal base reset. */
 @layer reset {
-* { box-sizing: border-box; }
+  * {
+    box-sizing: border-box;
+  }
 
-html, body {
-  margin: 0; padding: 0; height: 100%;
-  background: var(--u-bg-0);
-  color: var(--u-fg-0);
-  font-family: var(--u-font-sans);
-  font-size: 13px;
-  line-height: 1.45;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  /* WebKit (Safari + WKWebView) text inflation can re-grow text that the canvas
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    /* rc.1 finding 20: the window is one fixed stage; panels scroll inside themselves (v2/shell/scroll-lock.js backs
+       this for what a program can still scroll) */
+    overflow: hidden;
+    overscroll-behavior: none;
+    background: var(--bg-0);
+    color: var(--fg-0);
+    font-family: var(--font-body);
+    font-size: 13px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* WebKit (Safari + WKWebView) text inflation can re-grow text that the canvas
      scales down during zoom-out, undoing the shrink. Pin it off. No-op on Blink. */
-  -webkit-text-size-adjust: 100%;
-  text-size-adjust: 100%;
-}
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
 
-button { font: inherit; }
-::selection { background: var(--u-accent-bg); color: var(--u-fg-0); }
+  button {
+    font: inherit;
+  }
+  ::selection {
+    background: var(--accent-tint);
+    color: var(--fg-0);
+  }
+
+  /* r2-p3 (Michal TD9, UX audit F28 — WCAG 2.4.7 / 1.4.11): EVERY control shows a 2 px ring when focused from the
+     keyboard. Nine component rules drew focus as an accent-tint box-shadow with `outline: none` (1.36:1 light,
+     1.56:1 dark). `!important` in this, the FIRST layer, outranks every later layer and unlayered rule, so no
+     component can switch the ring off; a component still picks its own `outline-offset` (an inset ring in a
+     clipped list). Text fields keep their own field focus (the caret + the field's edge). */
+  :where(
+    button,
+    a[href],
+    summary,
+    select,
+    input[type="checkbox"],
+    input[type="radio"],
+    input[type="range"],
+    input[type="button"],
+    input[type="submit"],
+    [role="button"],
+    [role="menuitem"],
+    [role="menuitemcheckbox"],
+    [role="menuitemradio"],
+    [role="tab"],
+    [role="option"],
+    [role="switch"],
+    [role="checkbox"],
+    [role="radio"],
+    [role="treeitem"],
+    [role="slider"],
+    [tabindex]:not([tabindex="-1"]):not(input):not(textarea):not([contenteditable])
+  ):focus-visible {
+    outline-style: solid !important;
+    outline-width: var(--focus-ring-width, 2px) !important;
+    outline-color: var(--focus-ring, var(--accent)) !important;
+    outline-offset: var(--focus-ring-offset, 2px);
+  }
+  /* A row inside a menu, list or tree is drawn inset, so a scroll box never clips its ring. */
+  :where(
+    [role="menuitem"],
+    [role="menuitemcheckbox"],
+    [role="menuitemradio"],
+    [role="option"],
+    [role="treeitem"]
+  ):focus-visible {
+    outline-offset: -2px;
+  }
+
+  /* r2-p3 (TD9 c, before merge): a menu wears a 1 px edge, so it reads as above the panel it opens from. */
+  :where([role="menu"]) {
+    border: 1px solid var(--border-default, oklch(0.5 0 0 / 0.2)) !important;
+  }
 }

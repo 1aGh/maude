@@ -1,0 +1,155 @@
+{
+  "task": "e2",
+  "group": "edit",
+  "fixture": "app5",
+  "topology": "A",
+  "delegates": null,
+  "run": {
+    "code": 0,
+    "killed": false,
+    "wallMs": 57745
+  },
+  "metrics": {
+    "subtype": "success",
+    "isError": false,
+    "costUsd": 0.508067,
+    "durationMs": 56220,
+    "apiMs": 48472,
+    "turns": 13,
+    "tokens": 467985,
+    "inTok": 22,
+    "outTok": 4536,
+    "cacheRead": 421815,
+    "cacheWrite": 41612,
+    "freshTokens": 46170,
+    "models": [
+      "claude-opus-5-5"
+    ],
+    "permissionDenials": [
+      {
+        "tool": "Bash",
+        "input": "{\"command\":\"S=/private/tmp/claude-501/-private-var-folders-t--kf80xz3j79sfmkrq4snj2qk00000gn-T-maude-agent-evals-v2-8-16-trials-e2-A-3-project/392e3448-44f3-4bb6-be74-394bf73bfd09/scratchpad && maude "
+      }
+    ],
+    "subagents": 0,
+    "subagentTypes": [],
+    "mainToolUses": 12,
+    "subToolUses": 0
+  },
+  "agents": [],
+  "invariants": {
+    "check": {
+      "pass": true,
+      "why": ""
+    },
+    "scope": {
+      "pass": true,
+      "why": ""
+    },
+    "artboard-scope": {
+      "pass": true,
+      "why": ""
+    },
+    "ids-kept": {
+      "pass": true,
+      "why": ""
+    },
+    "locked-kept": {
+      "pass": true,
+      "why": ""
+    },
+    "no-bash-writes": {
+      "pass": true,
+      "why": ""
+    },
+    "owns": {
+      "pass": true,
+      "why": ""
+    }
+  },
+  "quality": {
+    "changed:ui/GitPanel.tsx|ui/GitPanel.css": {
+      "pass": true,
+      "why": ""
+    },
+    "finished": {
+      "pass": true,
+      "why": "success"
+    },
+    "render-non-blank": {
+      "pass": true,
+      "why": ""
+    },
+    "judge": {
+      "pass": true,
+      "why": "pass (4): The Publish artboard's only list is History, and the diff tightens it with a new `.gp-history.is-dense` variant. Row padding goes from 8px to 4px and the gap from 8px to 4px. The conflict artboard, which shares the list, keeps the base `.gp-history` and is unchanged. The screenshot is tiny, so the visible tightening can't be judged closely, but the CSS clearly reduces the spacing.",
+      "unknown": false
+    }
+  },
+  "invPass": true,
+  "qualPass": true,
+  "judge": {
+    "verdict": "pass",
+    "score": 4,
+    "why": "The Publish artboard's only list is History, and the diff tightens it with a new `.gp-history.is-dense` variant. Row padding goes from 8px to 4px and the gap from 8px to 4px. The conflict artboard, which shares the list, keeps the base `.gp-history` and is unchanged. The screenshot is tiny, so the visible tightening can't be judged closely, but the CSS clearly reduces the spacing.",
+    "costUsd": 0.029925099999999996,
+    "model": "sonnet"
+  },
+  "render": {
+    "ran": true,
+    "error": null,
+    "shots": [
+      {
+        "canvas": "ui/GitPanel.tsx",
+        "artboard": "publish",
+        "blank": false,
+        "exit": 0
+      },
+      {
+        "canvas": "ui/GitPanel.tsx",
+        "artboard": "changes",
+        "blank": false,
+        "exit": 0
+      }
+    ]
+  },
+  "changed": [
+    "M .design/ui/GitPanel.css",
+    "M .design/ui/GitPanel.tsx",
+    "?? .design/_cache/index/ds-usage.json"
+  ],
+  "runState": [
+    {
+      "session": "392e3448-44f3-4bb6-be74-394bf73bfd09",
+      "touched": {
+        "ui/GitPanel.tsx": {
+          "at": 1793246986230,
+          "by": "main",
+          "via": "tool",
+          "artboards": [
+            "publish"
+          ]
+        },
+        "ui/GitPanel.css": {
+          "at": 1793246989686,
+          "by": "main",
+          "via": "tool",
+          "artboards": []
+        }
+      },
+      "stopBlocks": 0,
+      "shots": 2,
+      "bases": 2
+    }
+  ],
+  "hooks": {
+    "events": 0,
+    "denies": [],
+    "blocks": [],
+    "errors": [],
+    "ms": {},
+    "checkMs": []
+  },
+  "harnessFailure": false,
+  "finalText": "The History list on the Publish artboard is now tighter. That's the artboard's only list: Publish doesn't have a changed-file list, so I treated History as the list you meant.\n\n- **What changed:** The space above and below each version row went from 8px to 4px. The space between the dot, the text and the time went from 8px to 4px. The space at the top and bottom of the list went from 4px to 2px. The line connecting the dots still reaches each next dot.\n- **Only on Publish:** The \"Publish rejected — Get latest first\" artboard uses the same list, so I added a separate dense setting (`is-dense`) that only Publish uses. That artboard keeps its current spacing.\n- **Checks:** The canvas check passed. The screenshot shows the four rows sitting closer together. It's a small image, so check it in the studio if you want a closer look.\n\nThe changes are in `.design/ui/GitPanel.tsx` (one class added) and `.design/ui/GitPanel.css` (two new rules). I didn't change anything else on the panel, including the \"Changes\" tab, which someone has locked."
+}

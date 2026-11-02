@@ -22,6 +22,8 @@ import { memo, useEffect, useState } from 'react';
 
 import { REPLICA_TYPE } from './annotations/replica.ts';
 import { useLiveViewport } from './canvas-lib.tsx';
+import { TONE_COLOR } from './presence/tones.ts';
+import { PointerPeers } from './present/pointer-dot.tsx';
 import {
   type AnnotationGesture,
   type ForeignAwareness,
@@ -62,17 +64,20 @@ const CURSOR_CSS = `
   top: 14px;
   left: 10px;
   padding: 1px 8px;
-  font-family: var(--maude-chrome-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-family: var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
   font-weight: 500;
   font-size: 10px;
   line-height: 1.4;
-  color: var(--maude-hud-accent-fg, oklch(0.180 0.030 268));
+  color: oklch(0.180 0.030 268);
   border-radius: 999px;
   white-space: nowrap;
   max-width: 180px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.dc-cursor--idle { opacity: 0.85; }
+.dc-cursor--idle .dc-cursor-arrow { transform: scale(0.8); transform-origin: 0 0; }
+.dc-cursor--idle .dc-cursor-label { padding: 1px 5px; }
 .dc-peer-selection {
   position: absolute;
   top: 0;
@@ -109,7 +114,7 @@ const CURSOR_CSS = `
   font-weight: 600;
   font-size: 10px;
   line-height: 1.3;
-  color: var(--maude-hud-accent-fg, #fff);
+  color: oklch(0.180 0.030 268);
   border-radius: 2px 2px 0 0;
   white-space: nowrap;
 }
@@ -143,6 +148,9 @@ interface ViewportSnapshot {
   zoom: number;
 }
 
+/** S9.23 — an idle person's cursor: the grey tone (C32). */
+const IDLE_TINT = TONE_COLOR.grey;
+
 interface CursorProps {
   peer: ForeignAwareness;
   viewport: ViewportSnapshot;
@@ -173,16 +181,20 @@ function sameIds(a: readonly string[] | undefined, b: readonly string[] | undefi
   return a.every((id, i) => id === b[i]);
 }
 
-const Cursor = memo(
+export const Cursor = memo(
   function Cursor({ peer, viewport }: CursorProps): JSX.Element | null {
     if (!peer.cursor) return null;
     // world → screen: screen = world * zoom + viewport.{x,y}
     const screenX = peer.cursor.x * viewport.zoom + viewport.x;
     const screenY = peer.cursor.y * viewport.zoom + viewport.y;
     const editing = !!peer.editing;
+    // S9.23 (Q9): idle for 3 minutes — the cursor greys and shrinks to an initial (co-twelve).
+    const idle = !!peer.idleSince;
+    const tint = idle ? IDLE_TINT : peer.color;
     return (
       <div
-        className={`dc-cursor${editing ? ' dc-cursor--editing' : ''}`}
+        className={`dc-cursor${editing ? ' dc-cursor--editing' : ''}${idle ? ' dc-cursor--idle' : ''}`}
+        data-idle={idle ? 'true' : undefined}
         style={{ transform: `translate(${screenX}px, ${screenY}px)` }}
       >
         {/* DS colors-presence Pointer — one plain triangle glyph, tinted by its
@@ -194,11 +206,11 @@ const Cursor = memo(
           viewBox="0 0 24 24"
           aria-hidden="true"
         >
-          <path d="M4 3 L20 11.5 L12.5 13 L10 21 Z" fill={peer.color} />
+          <path d="M4 3 L20 11.5 L12.5 13 L10 21 Z" fill={tint} />
         </svg>
-        <div className="dc-cursor-label" style={{ background: peer.color }}>
-          {peer.name}
-          {editing && (
+        <div className="dc-cursor-label" style={{ background: tint }}>
+          {idle ? (peer.name.trim()[0] ?? '?').toUpperCase() : peer.name}
+          {editing && !idle && (
             <span className="dc-cursor-edit-mark" aria-hidden="true">
               ✎
             </span>
@@ -211,6 +223,7 @@ const Cursor = memo(
     sameViewport(a.viewport, b.viewport) &&
     sameLabel(a.peer, b.peer) &&
     !!a.peer.editing === !!b.peer.editing &&
+    !!a.peer.idleSince === !!b.peer.idleSince &&
     (a.peer.cursor === b.peer.cursor ||
       (!!a.peer.cursor &&
         !!b.peer.cursor &&
@@ -435,7 +448,8 @@ interface PeerSelectionProps {
 
 export const PeerSelection = memo(
   function PeerSelection({ peer }: PeerSelectionProps): JSX.Element | null {
-    if (!peer.selection) return null;
+    // S2.18 — a peer holding an object gets its hold ring + name tag instead (editing/hold-rings.tsx)
+    if (!peer.selection || peer.holding) return null;
     const { cssPath, bounds } = peer.selection;
 
     let rect: { x: number; y: number; w: number; h: number } | null = bounds ?? null;
@@ -474,7 +488,8 @@ export const PeerSelection = memo(
     sameViewport(a.viewport, b.viewport) &&
     a.tick === b.tick &&
     sameLabel(a.peer, b.peer) &&
-    sameSelection(a.peer.selection, b.peer.selection)
+    sameSelection(a.peer.selection, b.peer.selection) &&
+    !a.peer.holding === !b.peer.holding
 );
 
 /**
@@ -547,6 +562,8 @@ export function CursorsOverlay(): JSX.Element {
       {peers.map((peer) => (
         <Cursor key={peer.clientID} peer={peer} viewport={vp} />
       ))}
+      {/* S3.2b — a presenter's Pointer (L) dot, beside the cursors (present/pointer-dot.tsx). */}
+      <PointerPeers viewport={vp} />
     </div>
   );
 }

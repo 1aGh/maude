@@ -325,3 +325,21 @@ test('no expectation, or a studio too old to answer with one, still boots', asyn
     assert.equal(child.status().ok, true, JSON.stringify({ expectedRootId, verdict }));
   }
 });
+
+// Michal 2026-10-21 (S8.5b M2, decision:maude/v2-michal-render-seconds-in-studio): the studio
+// counts a tenant's render seconds and reports them in `/_health` `render`; the hub's
+// `/health.render` must carry them through untouched — a flat set of numbers, additive beside the
+// sandbox counters, so the control plane's whitelist can read them without a new shape.
+test('renderStats carries the studio’s render seconds through unchanged', async () => {
+  const render = {
+    builds: 3,
+    windowStartedAt: 1_000,
+    renderSeconds: 12.5,
+    renderJobs: 2,
+    renderSecondsSince: 2_000,
+  };
+  const { child } = harness({ probe: async () => ({ ok: true, rootId: null, render }) });
+  child.start();
+  await tick();
+  assert.deepEqual(await child.renderStats(), render);
+});

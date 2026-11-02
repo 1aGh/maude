@@ -12,9 +12,11 @@
 // nothing from it.
 import { useEffect, useRef, useState } from 'react';
 
+import { NO_CAPS } from '../bridge/canvas-modes.ts';
 import { canvasTokenRefreshDelay, canvasUrl, setLiveCanvasToken } from './canvas-url.js';
 import { postToEmbedder, readEmbedParams } from './embed.js';
 import { normalizeOpenPath } from './share-link.js';
+import { setModeMessage } from './v2/shell/canvas-mode.js';
 
 const CANVAS_EXT_RE = /\.(tsx|html?)$/i;
 // DDR-247 — every config read this view makes says it is the embed, so a hub
@@ -28,7 +30,7 @@ const LOAD_TIMEOUT_MS = 20_000;
 // short ladder rather than once. Every message on it is idempotent.
 const SEED_LADDER_MS = [0, 150, 500, 1200, 2500];
 
-const ROOT_STYLE = { position: 'fixed', inset: 0, overflow: 'hidden', background: 'var(--u-bg-0)' };
+const ROOT_STYLE = { position: 'fixed', inset: 0, overflow: 'hidden', background: 'var(--bg-0)' };
 const FRAME_STYLE = { width: '100%', height: '100%', border: 0, display: 'block' };
 const NOTE_STYLE = {
   position: 'absolute',
@@ -37,7 +39,7 @@ const NOTE_STYLE = {
   placeItems: 'center',
   padding: 24,
   textAlign: 'center',
-  color: 'var(--u-fg-2)',
+  color: 'var(--fg-2)',
 };
 
 function originOf(value) {
@@ -61,7 +63,8 @@ export default function EmbedView() {
   // The allowlist and the echo travel in refs: posting must never wait on a render.
   const allowRef = useRef([]);
   const openRef = useRef('');
-  const post = (type, title) => postToEmbedder(window, allowRef.current, type, openRef.current, title);
+  const post = (type, title) =>
+    postToEmbedder(window, allowRef.current, type, openRef.current, title);
 
   // Follow the OS theme for the little chrome there is. Never persisted.
   useEffect(() => {
@@ -124,7 +127,8 @@ export default function EmbedView() {
       let title = null;
       try {
         const meta = await readJson(`/_api/canvas-meta?file=${encodeURIComponent(path)}`);
-        if (typeof meta?.title === 'string' && meta.title.trim()) title = meta.title.trim().slice(0, 200);
+        if (typeof meta?.title === 'string' && meta.title.trim())
+          title = meta.title.trim().slice(0, 200);
       } catch {
         /* a canvas without a sidecar still renders — it just has no title */
       }
@@ -135,7 +139,14 @@ export default function EmbedView() {
         designSystems: data.designSystems,
         canvasOrigin: data.canvasOrigin,
         canvasToken: data.canvasToken,
+        // gate-b-c4 — the frame's capability is minted from this session's key (client/frame-cap.js)
+        frameKey: data.frameKey,
         canvasDesignSystems: index.canvasDesignSystems ?? {},
+        // S10.4 — an embed renders the revision the canvas is on
+        canvasDsRevs: index.canvasDsRevs ?? {},
+        systemHeads: index.systemHeads ?? {},
+        dsConverted: index.dsConverted ?? {},
+        dsRevGaps: index.dsRevGaps ?? {},
       };
       setView({
         phase: 'canvas',
@@ -160,6 +171,11 @@ export default function EmbedView() {
     const timers = [];
     let ready = false;
     let giveUp = null;
+    // V2-4.9 (shell parity): the embed is a shell like the others, so the canvas mode is governed here too —
+    // Preview with no capability (looking, nothing else), over the one `set-mode` lane (V2-4.3b). `seq`
+    // only grows (I4), so no seed of the ladder is dropped as stale, however often the frame reloads;
+    // each one is idempotent.
+    let modeSeq = 0;
     const seed = () => {
       const win = frameRef.current?.contentWindow;
       if (!win || !canvasOrigin) return;
@@ -168,7 +184,11 @@ export default function EmbedView() {
         { dgn: 'comments-set', comments: [] },
         { dgn: 'theme', theme },
         { dgn: 'view-chrome', minimap: false, zoom: false, present: true },
-        view.artboard ? { dgn: 'zoom', op: 'artboard', id: view.artboard } : { dgn: 'zoom', op: 'fit' },
+        setModeMessage({ seq: ++modeSeq, mode: 'preview', caps: NO_CAPS }),
+        // V2-2.4 — the canvas zoom rides the `run-action` lane (V2-1.3 §5.7).
+        view.artboard
+          ? { dgn: 'run-action', v: 1, id: 'view.zoom-to-artboard', params: { id: view.artboard } }
+          : { dgn: 'run-action', v: 1, id: 'view.zoom-fit' },
       ];
       for (const m of messages) {
         try {

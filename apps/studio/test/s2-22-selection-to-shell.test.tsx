@@ -1,0 +1,229 @@
+// S2.22 G2 / G4 / G6 — what the shell holds after the canvas speaks, at the selection-store level.
+//
+//   G4/G6  a multi-selection must reach the inspector: the shell used to keep only the head of a `select-set` list,
+//          so "4 artboards · Mixed" and the multi-element inspector never drew.
+//   G2     after a write reloads the canvas, a whole-artboard selection (no element id) is put back by its name,
+//          so the inspector shows the new W × H instead of an empty payload.
+//
+// The wire is a real `dgn: 'select-set'` message through the canvas-side store (SelectionSetProvider); the shell-side
+// reducer is `shellSelectionOf`, the pure part of the handler in hooks/use-canvas-bridge.jsx.
+import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
+import { GlobalRegistrator } from '@happy-dom/global-registrator';
+import { act } from 'react';
+import { createRoot } from 'react-dom/client';
+
+beforeAll(() => {
+  GlobalRegistrator.register();
+  (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+});
+afterAll(() => GlobalRegistrator.unregister());
+
+import {
+  isArtboardSelectionOf,
+  RESTORE_LEAD_MS,
+  restoreAfterLoad,
+  restorePostOf,
+  shellSelectionOf,
+  startSelectionRestore,
+} from '../client/selection-scope.js';
+import { SelectionSetProvider, useSelectionSet } from '../use-selection-set.tsx';
+
+const FILE = '.design/ui/Site.tsx';
+const board = (id: string) => ({
+  file: FILE,
+  selector: `[data-dc-screen="${id}"]`,
+  artboardId: id,
+  tag: 'article',
+});
+const el = (id: string) => ({ file: FILE, id, selector: `[data-cd-id="${id}"]`, artboardId: 'a1' });
+
+describe('G4/G6 — several selected reach the shell as a list', () => {
+  test('through the canvas store: ⇧-adding a second element posts an ARRAY, and the shell keeps all of it', async () => {
+    const posted: Array<Record<string, unknown>> = [];
+    const target = { postMessage: (m: unknown) => void posted.push(m as Record<string, unknown>) };
+    let api: ReturnType<typeof useSelectionSet> | null = null;
+    const Probe = () => {
+      api = useSelectionSet();
+      return null;
+    };
+    const host = document.createElement('div');
+    document.body.append(host);
+    const root = createRoot(host);
+    await act(async () => {
+      root.render(
+        <SelectionSetProvider postTarget={target}>
+          <Probe />
+        </SelectionSetProvider>
+      );
+    });
+    await act(async () => api?.replace(el('aaaaaaaa')));
+    await act(async () => api?.add(el('bbbbbbbb')));
+    await new Promise((r) => setTimeout(r, 150)); // the store posts after its 50 ms debounce
+    const last = posted.at(-1) as { selection: unknown };
+    expect(Array.isArray(last.selection)).toBe(true);
+    expect((last.selection as unknown[]).length).toBe(2);
+    // the shell's side of the same message
+    const held = shellSelectionOf(last.selection) as unknown[];
+    expect(Array.isArray(held)).toBe(true);
+    expect(held.length).toBe(2);
+    await act(async () => root.unmount());
+  });
+
+  test('four artboards stay four (the inspector says "4 artboards")', async () => {
+    const four = ['a', 'b', 'c', 'd'].map(board);
+    expect(shellSelectionOf(four)).toBe(four);
+    const { titleOf } = await import('../client/v2/inspector/model.js');
+    expect(titleOf(shellSelectionOf(four), null)).toBe('4 artboards');
+  });
+
+  test('one stays one object (with the canvas’s description), none stays none', () => {
+    const add = (s: object) => ({ ...s, kind: 'frame' });
+    expect(shellSelectionOf([el('x')], add)).toEqual({ ...el('x'), kind: 'frame' });
+    expect(shellSelectionOf(el('x'), add)).toEqual({ ...el('x'), kind: 'frame' });
+    expect(shellSelectionOf(null)).toBeNull();
+    expect(shellSelectionOf([])).toBeNull();
+  });
+});
+
+describe('G2 — the artboard is still selected after the write reloads the canvas', () => {
+  test('an element is put back by its id, as before', () => {
+    expect(restoreAfterLoad(el('abcd1234'), FILE)).toEqual({
+      kind: 'element',
+      sel: el('abcd1234'),
+    });
+  });
+
+  test('a whole artboard is put back by its name', () => {
+    expect(restoreAfterLoad(board('laptop'), FILE)).toEqual({
+      kind: 'artboard',
+      artboardId: 'laptop',
+      file: FILE,
+    });
+  });
+
+  test('the server echo drops artboardId: the selector still names the board', () => {
+    const echo = { file: FILE, selector: '[data-dc-screen="laptop"]' };
+    expect(restoreAfterLoad(echo, FILE)).toEqual({
+      kind: 'artboard',
+      artboardId: 'laptop',
+      file: FILE,
+    });
+    expect(isArtboardSelectionOf(echo, 'laptop', FILE)).toBe(true);
+  });
+
+  test('S2.23 G1: the canvas’s own select-set names no file; the board still goes back when the canvas that loaded is the one', () => {
+    // what `select-set` actually carries (dom-selection.ts): no `file` — the shell knows the canvas
+    const own = { selector: '[data-dc-screen="desktop"]', artboardId: 'desktop', tag: 'article' };
+    expect(restoreAfterLoad(own, FILE)).toEqual({
+      kind: 'artboard',
+      artboardId: 'desktop',
+      file: FILE,
+    });
+    expect(isArtboardSelectionOf(own, 'desktop', FILE)).toBe(true);
+    // an element drawn a moment ago (G8) goes back the same way, carrying the canvas it belongs to
+    const drawn = { selector: '[data-cd-id="rectangle"]', id: 'rectangle', artboardId: 'desktop' };
+    expect(restoreAfterLoad(drawn, FILE)).toEqual({
+      kind: 'element',
+      sel: { ...drawn, file: FILE },
+    });
+    // a selection that names ANOTHER canvas is still not this one's
+    expect(restoreAfterLoad({ ...own, file: '.design/ui/Other.tsx' }, FILE)).toBeNull();
+    expect(isArtboardSelectionOf({ ...own, file: '.design/ui/Other.tsx' }, 'desktop', FILE)).toBe(
+      false
+    );
+  });
+
+  test('S2.23: the restore waits longer than the canvas’s own select-what-I-made poll (100 ms), so it never lands on top', () => {
+    expect(RESTORE_LEAD_MS).toBeGreaterThan(100);
+  });
+
+  test('another canvas, another board, or nothing restores nothing', () => {
+    expect(restoreAfterLoad(board('laptop'), '.design/ui/Other.tsx')).toBeNull();
+    expect(restoreAfterLoad(null, FILE)).toBeNull();
+    expect(isArtboardSelectionOf(board('laptop'), 'tablet', FILE)).toBe(false);
+    expect(isArtboardSelectionOf(el('x'), 'a1', FILE)).toBe(false);
+  });
+});
+
+describe('S2.24 G2 — the restore reads the selection when it FIRES, not when the canvas said "loaded"', () => {
+  // The drawn rectangle: the old tree flushes its select-set a beat AFTER the new tree's `loaded`. At `loaded` time
+  // the shell still held the artboard, so the restore was planned for the artboard and then dropped as superseded
+  // when the rectangle arrived — the inspector showed the rectangle, the canvas drew no selection on it.
+  test('a selection that arrives after `loaded` is the one that is posted back to the canvas', () => {
+    let held: unknown = board('desktop');
+    const posts: Array<Record<string, unknown>> = [];
+    const fire: Array<() => void> = [];
+    startSelectionRestore({
+      file: FILE,
+      lead: 250,
+      getSelected: () => held,
+      post: (m: Record<string, unknown>) => posts.push(m),
+      timers: {
+        set: (fn: () => void) => {
+          fire.push(fn);
+          return fire.length;
+        },
+        clear: () => {},
+      },
+    });
+    // the rectangle's select-set lands after `loaded` but before the first rung fires
+    held = { ...el('rectangle'), artboardId: 'desktop', index: 0 };
+    for (const f of fire) f();
+    expect(posts.length).toBeGreaterThan(0);
+    for (const p of posts)
+      expect(p).toEqual({ dgn: 'select-by-id', id: 'rectangle', artboardId: 'desktop', index: 0 });
+  });
+
+  test('a whole board goes back by its name, and a multi-selection is left alone', () => {
+    expect(restorePostOf(board('laptop'), FILE)).toEqual({
+      dgn: 'select-by-id',
+      artboardId: 'laptop',
+    });
+    expect(restorePostOf([el('a'), el('b')], FILE)).toBeNull();
+    expect(restorePostOf(null, FILE)).toBeNull();
+  });
+
+  test('cancelling stops every rung', () => {
+    const posts: unknown[] = [];
+    const fire: Array<() => void> = [];
+    const stop = startSelectionRestore({
+      file: FILE,
+      getSelected: () => board('desktop'),
+      post: (m: unknown) => posts.push(m),
+      timers: {
+        set: (fn: () => void) => {
+          fire.push(fn);
+          return fire.length;
+        },
+        clear: (h: number) => {
+          fire[h - 1] = () => {};
+        },
+      },
+    });
+    stop();
+    for (const f of fire) f();
+    expect(posts).toEqual([]);
+  });
+});
+
+describe('S2.25 G1 — a write that names the selected text moves the selection with it', () => {
+  test('restorePostOf follows a rename (artboard + old id → new id) and leaves the rest alone', () => {
+    const renames = new Map([['a1\u0000aaaaaaaa', 'jedeme-v-zelenem']]);
+    expect(restorePostOf(el('aaaaaaaa'), FILE, renames)).toEqual({
+      dgn: 'select-by-id',
+      id: 'jedeme-v-zelenem',
+      artboardId: 'a1',
+      index: 0,
+    });
+    expect(restorePostOf(el('bbbbbbbb'), FILE, renames)).toEqual({
+      dgn: 'select-by-id',
+      id: 'bbbbbbbb',
+      artboardId: 'a1',
+      index: 0,
+    });
+    expect(restorePostOf(board('laptop'), FILE, renames)).toEqual({
+      dgn: 'select-by-id',
+      artboardId: 'laptop',
+    });
+  });
+});

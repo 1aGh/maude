@@ -1,0 +1,11 @@
+S3.V2 verifier findings (canvas 04), build = feat/maude-v2 e80f9d3b0, Chromium headless, MAUDE_CANVAS_ORIGIN_SPLIT=0 scratch project.
+VERIFIED  md-annotate        Preview toolbar = Hand N C M A R T E S with the drawn keys; N in Edit opens Preview with Sticky in hand, 5 colours + "+5" above it.
+VERIFIED  md-preview-follow  click on a linked button opens the other canvas in Preview; bar "<Back chip> Previewing Pricing | esc to edit"; back chip returns.
+VERIFIED  md-inspect         cmd-click in Preview: outline + size tag, panel (Size and spacing, Colour and type, Export, Copy code, Edit ↵, Advanced CSS); Alt over neighbour = "Gap to Schedule 12" + red gap tag; Enter = Edit with the element selected.
+VERIFIED  md-edge-ai         Preview shows an on-disk change live (3.5 s); Present holds it on the current artboard and lands it after → ←.
+VERIFIED  md-present-video   Present from the reel: plays on arrival (counter advances), click pauses, controls "4 / 5 · 0:01 / 0:15 · Reel · esc to leave", pillarboxed, controls fade after 2 s.
+VERIFIED  md-edge-mixed      web fills the width and scrolls on a wheel (Present stage), print at the trim, 9:16 video pillarboxed. NOT probed: 16:9 video holds its last frame, skipped artboard counter.
+VERIFIED  md-edit-component  shift-I picker: Search components, variant chips on the focused row, Open Design system (placement/linking not placed).
+GAPS (see hand-back): md-preview-combine (web scroll clamped), md-model (inspect panel opens on an Edit selection), md-esc (inspect row), md-keys, md-edit (chip overlaps size tag), md-edit-image (From this Mac…), md-comment (v1 composer).
+UNREACHABLE: md-present-menu (rows all present; "Copy presentation link — in a cloud project"), md-presenter, md-present-link, md-edge-viewer, md-comment-only (stubbed /_config shows Viewing glyph, "Can comment" word, Ask to edit, Hand only), md-edge-offline.
+Probe repro: scripts/v2-verify/s34-rig.mjs + s34-site.tpl + s34-pricing.tpl.

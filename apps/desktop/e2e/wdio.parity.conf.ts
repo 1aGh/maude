@@ -5,11 +5,16 @@
  * config with the parity spec selected, so `shell-parity.e2e.ts` runs inside the
  * bundled `.app`. With it, the same file runs in a browser against a cell.
  *
- *   pnpm test:e2e:desktop:parity                          # the .app
- *   pnpm test:e2e:desktop:parity:cloud                    # a local cell stand-in
+ *   pnpm test:e2e:desktop:parity                          # the .app          → shell `desktop`
+ *   pnpm test:e2e:desktop:parity:cloud                    # a local cell stand-in → shell `cloud-viewer`
+ *   MAUDE_E2E_PARITY_ROLE=owner pnpm test:e2e:desktop:parity:cloud   # …vouching an owner (or `member`)
  *   MAUDE_E2E_CLOUD_URL=https://x.cloud.maude.sh \
  *   MAUDE_E2E_CLOUD_COOKIE='maude_session=…' \
  *     pnpm test:e2e:desktop:parity:cloud                  # a REAL deployment
+ *
+ * The spec checks the v2 shell parity contract (client/v2/shell/shell-parity.json) for the shell it finds
+ * itself in. `MAUDE_E2E_PARITY_SHELL` names the shell the run is MEANT for — set here for the native lane and
+ * the stand-in — so a run that quietly fell back to another column fails instead of passing against it.
  *
  * THE LOCAL STAND-IN, AND WHAT IT DOES NOT EMULATE. With no URL given, this
  * boots the studio in workspace mode behind a tiny proxy that injects the two
@@ -22,7 +27,9 @@
  */
 
 import { spawn } from 'node:child_process';
+import { cpSync, mkdtempSync } from 'node:fs';
 import { createServer, request as httpRequest } from 'node:http';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -38,13 +45,18 @@ if (!WANT_CLOUD) {
   const { config: base } = await import('./wdio.conf.ts');
   // biome-ignore lint/suspicious/noExplicitAny: the config shape is wdio's
   (globalThis as any).__maudeParityConfig = { ...base, specs: [SPEC] };
+  process.env.MAUDE_E2E_PARITY_SHELL ||= 'desktop';
 }
 
 // ---- the cloud target ----------------------------------------------------
 async function startStandIn(): Promise<{ url: string; close: () => void }> {
   const studioEntry = resolve(HERE, '../../studio/server.ts');
   const studioPort = 4894;
-  const child = spawn('bun', [studioEntry, '--root', FIXTURE, '--port', String(studioPort)], {
+  // p8-e2e-fix-r10: a workspace-mode studio writes its runtime state into the tree it serves — a throwaway copy
+  // of the fixture, never the repo's own (`_*` runtime state is not copied)
+  const root = mkdtempSync(join(tmpdir(), 'maude-e2e-parity-cloud-'));
+  cpSync(FIXTURE, root, { recursive: true, filter: (src) => !/[/\\]_[^/\\]*$/.test(src) });
+  const child = spawn('bun', [studioEntry, '--root', root, '--port', String(studioPort)], {
     env: {
       ...process.env,
       MAUDE_WORKSPACE_MODE: '1',
@@ -71,8 +83,12 @@ async function startStandIn(): Promise<{ url: string; close: () => void }> {
     void poll();
   });
 
-  // The proxy: vouch a VIEWER, which is the role with the most to lose from a
-  // parity regression (C1 — a reviewer who cannot inspect).
+  // The proxy: vouch a VIEWER by default, which is the role with the most to lose from a
+  // parity regression (C1 — a reviewer who cannot inspect). MAUDE_E2E_PARITY_ROLE picks another.
+  const role = (process.env.MAUDE_E2E_PARITY_ROLE || 'viewer') as 'owner' | 'member' | 'viewer';
+  if (!['owner', 'member', 'viewer'].includes(role))
+    throw new Error(`MAUDE_E2E_PARITY_ROLE must be owner, member or viewer (got "${role}")`);
+  process.env.MAUDE_E2E_PARITY_SHELL ||= `cloud-${role}`;
   const proxyPort = 4895;
   const proxy = createServer((req, res) => {
     // Everything the browser sent EXCEPT `host` (the real data plane drops it
@@ -81,10 +97,12 @@ async function startStandIn(): Promise<{ url: string; close: () => void }> {
     const { host: _dropped, ...forwarded } = req.headers;
     const headers = {
       ...forwarded,
-      'x-maude-role': 'viewer',
-      'x-maude-readonly': '1',
-      'x-maude-session': 'parityviewer0001',
-      'x-maude-user': 'viewer@example.com',
+      'x-maude-role': role,
+      // The real proxy injects the capability both ways (studio-proxy upstreamHeaders); a cell reads
+      // a missing header as read-only (defaults closed), so an owner/member must get '0'.
+      'x-maude-readonly': role === 'viewer' ? '1' : '0',
+      'x-maude-session': `parity${role}0001`,
+      'x-maude-user': `${role}@example.com`,
     };
     const up = httpRequest(
       { host: '127.0.0.1', port: studioPort, method: req.method, path: req.url, headers },

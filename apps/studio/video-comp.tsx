@@ -21,7 +21,18 @@
  */
 
 import { Player, type PlayerRef } from '@remotion/player';
-import { type ComponentType, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  type ComponentType,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
+import { canvasModeStore } from './bridge/canvas-mode-store.ts';
+import { videoLabelTail } from './editing/video-label.ts';
+import { resolvedPoster } from './kinds/meta.ts';
+import { VideoPlayChrome } from './video-play-chrome.tsx';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Comp meta contract + the module-level seek registry
@@ -153,6 +164,110 @@ function registry(): Map<string, CompEntry> {
 // Player registers. Never touched during capture (`hideChrome()` forces the
 // deterministic frame 0 / render-shim frame regardless of this mirror).
 const liveTimelineFrame = new Map<string, number>();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// S4.16 — the read-only playhead (annotations pin a note to a moment; S7 draws the marks)
+//
+// `usePlayhead(artboardId)` answers "where is the clip on this artboard, in seconds" and nothing else: it
+// has no setter, so a reader (the annotation layer, the timeline) can never move the transport. The
+// writers stay the Player's own `frameupdate` and the Timeline's `timeline-seek`, both below.
+
+/** Where a clip stands: seconds, plus the clip's length. */
+export interface Playhead {
+  t: number;
+  duration: number;
+}
+
+/**
+ * Window-level, like the seek registry: the annotation layer (canvas shell bundle) and the VideoComp (the
+ * canvas's own bundle) can be two instances of this module, so the mirror and its listeners must not live
+ * in module scope or the layer would never hear the clip move.
+ */
+interface PlayheadHub {
+  frames: Map<string, number>;
+  listeners: Set<() => void>;
+  memo: Map<string, Playhead | null>;
+}
+const HUB_KEY = Symbol.for('maude.playhead.v1');
+const localHub: PlayheadHub = { frames: new Map(), listeners: new Set(), memo: new Map() };
+function hub(): PlayheadHub {
+  const w = seekWindow() as unknown as Record<symbol, PlayheadHub | undefined> | null;
+  if (!w) return localHub;
+  let h = w[HUB_KEY];
+  if (!h) {
+    h = { frames: new Map(), listeners: new Set(), memo: new Map() };
+    w[HUB_KEY] = h;
+  }
+  return h;
+}
+
+function emitPlayhead(compId?: string, frame?: number): void {
+  const h = hub();
+  if (compId !== undefined && frame !== undefined) h.frames.set(compId, frame);
+  for (const fn of [...h.listeners]) {
+    try {
+      fn();
+    } catch {
+      /* a listener failing must not stop the transport */
+    }
+  }
+}
+
+/** The clip mounted on `artboardId`: its playhead in seconds, or null when no comp is registered there. */
+export function playheadOf(artboardId: string | null | undefined): Playhead | null {
+  if (!artboardId) return null;
+  let entry: CompEntry | undefined;
+  for (const e of registry().values()) {
+    if (e.artboardId === artboardId) {
+      entry = e;
+      break;
+    }
+  }
+  if (!entry || !(entry.fps > 0)) {
+    hub().memo.set(artboardId, null);
+    return null;
+  }
+  const frame =
+    hub().frames.get(entry.id) ??
+    liveTimelineFrame.get(entry.id) ??
+    (() => {
+      try {
+        return entry.ref.current?.getCurrentFrame() ?? 0;
+      } catch {
+        return 0;
+      }
+    })();
+  const t = Math.round((frame / entry.fps) * 1000) / 1000;
+  const duration = Math.round((entry.durationInFrames / entry.fps) * 1000) / 1000;
+  const prev = hub().memo.get(artboardId);
+  if (prev && prev.t === t && prev.duration === duration) return prev;
+  const next = { t, duration };
+  hub().memo.set(artboardId, next);
+  return next;
+}
+
+/** S7.17 — the same playhead in FRAMES (what a teammate's timeline draws), or null with no clip there. */
+export function playheadFrameOf(artboardId: string | null | undefined): number | null {
+  const head = playheadOf(artboardId);
+  if (!head) return null;
+  for (const e of registry().values()) {
+    if (e.artboardId === artboardId && e.fps > 0) return Math.max(0, Math.round(head.t * e.fps));
+  }
+  return null;
+}
+
+/** React: re-renders when the clip on `artboardId` moves. `null` for an artboard with no clip. */
+export function usePlayhead(artboardId: string | null | undefined): Playhead | null {
+  return useSyncExternalStore(
+    (fn) => {
+      const { listeners } = hub();
+      listeners.add(fn);
+      return () => void listeners.delete(fn);
+    },
+    () => playheadOf(artboardId),
+    () => null
+  );
+}
 
 function clamp(n: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, n));
@@ -321,15 +436,20 @@ export function findArtboardOf(el: Element | null): {
   // reads hidden nodes happily. The label is shell chrome the user reads to know
   // which artboard the transport moves, so it must come from the element
   // canvas-lib owns, not from whatever matches the class first.
-  const header = Array.from(board.children).find(
-    (c) =>
-      (c.tagName === 'HEADER' || c.tagName === 'BUTTON') &&
-      c.classList.contains('dc-artboard-label')
-  );
+  const header = labelElementOf(board);
   return {
     artboardId: board.getAttribute('data-dc-screen'),
     artboardLabel: header?.textContent?.trim() || null,
   };
+}
+
+/** The artboard's own label element (a direct child, the two tags canvas-lib renders it as), else null. */
+function labelElementOf(board: Element): Element | undefined {
+  return Array.from(board.children).find(
+    (c) =>
+      (c.tagName === 'HEADER' || c.tagName === 'BUTTON') &&
+      c.classList.contains('dc-artboard-label')
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -356,6 +476,30 @@ export interface VideoCompProps extends VideoCompMeta {
 }
 
 let mountCounter = 0;
+
+/**
+ * S3.3 — the loop the Player gets. Present · Artboards plays a clip once and HOLDS its last frame (04
+ * md-edge-mixed: "Holds its last frame when it ends; → moves on"), whatever the author or the Timeline
+ * asked for in the editor. Everywhere else the loop is the author's / the Timeline's.
+ */
+export function loopFor(loop: boolean, presentingArtboards: boolean): boolean {
+  return presentingArtboards ? false : loop;
+}
+
+const NO_SUBSCRIBE = () => () => {};
+
+/** True while the shell has this canvas in Present · Artboards (the mode store the stage reads). */
+function usePresentingArtboards(): boolean {
+  const store = typeof window === 'undefined' ? null : canvasModeStore(window);
+  return useSyncExternalStore(
+    store ? store.subscribe : NO_SUBSCRIBE,
+    () => {
+      const s = store?.get();
+      return !!s && s.mode === 'present' && s.present?.kind === 'artboards';
+    },
+    () => false
+  );
+}
 
 function prefersReducedMotion(): boolean {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
@@ -412,6 +556,7 @@ export function VideoComp({
   // Loop is live-controlled from the Timeline (timeline-loop message), not just
   // the mount prop — so toggling loop OFF actually stops the replay.
   const [loopState, setLoopState] = useState(loop);
+  const presenting = usePresentingArtboards();
   const capturing = hideChrome();
   // The Timeline panel is the control surface (transport + scrub + volume), so
   // the Player's own chrome is redundant on the artboard — hidden by default.
@@ -423,7 +568,11 @@ export function VideoComp({
   // poster frame ~35% in so a paused comp shows content, not an empty frame 0.
   const play = (autoPlay ?? false) && !capturing;
   const maxFrame = Math.max(0, durationInFrames - 1);
-  const posterFrame = capturing ? 0 : Math.min(maxFrame, Math.round(durationInFrames * 0.35));
+  // S7.8 — the poster frame is `artboardMeta[id].poster` (the picture the artboard rests on, and the export's);
+  // absent = today's 35 % of the length.
+  const posterFrame = capturing
+    ? 0
+    : resolvedPoster(readCanvasArtboardMeta(), compId, Math.max(1, Math.round(durationInFrames)));
   // rca/issue-video-artboard-frame-reset-on-edit — reopen on the Timeline's
   // last known frame for this comp (survives the remount that tore this
   // instance down), not the fixed poster-frame formula. Falls back to
@@ -451,11 +600,21 @@ export function VideoComp({
       inputProps: inputProps ?? {},
     };
     registry().set(compId, entry);
+    // 07 · M1: the label reads "Name · Format · Length" — the tail is data the label's ::after draws (canvas-lib css)
+    const board = hostRef.current?.closest?.('[data-dc-screen]') ?? null;
+    const labelEl = board ? labelElementOf(board) : undefined;
+    labelEl?.setAttribute(
+      'data-dc-vtail',
+      videoLabelTail(artboardLabel ?? '', { fps, durationInFrames, width, height }, false)
+    );
+    emitPlayhead();
     // Announce comps to the shell so the Timeline panel can auto-suggest.
     postToShell({ dgn: 'timeline-comps', comps: seekWindow()?.__maude_comps__?.() ?? [] });
     return () => {
       const cur = registry().get(compId);
       if (cur === entry) registry().delete(compId);
+      labelEl?.removeAttribute('data-dc-vtail');
+      emitPlayhead();
       postToShell({ dgn: 'timeline-comps', comps: seekWindow()?.__maude_comps__?.() ?? [] });
     };
   }, [compId, fps, durationInFrames, width, height, component, inputProps]);
@@ -489,6 +648,7 @@ export function VideoComp({
           p.pause();
           p.seekTo(f);
           liveTimelineFrame.set(compId, f);
+          emitPlayhead(compId, f);
         } else if (m.dgn === 'timeline-play') {
           p.play();
         } else if (m.dgn === 'timeline-pause') {
@@ -518,6 +678,7 @@ export function VideoComp({
       try {
         const f = p.getCurrentFrame();
         liveTimelineFrame.set(compId, f);
+        emitPlayhead(compId, f);
         postToShell({ dgn: 'timeline-frame', id: compId, frame: f });
       } catch {
         /* ignore */
@@ -532,6 +693,61 @@ export function VideoComp({
       }
     };
   }, [compId]);
+
+  // S7.8 — the poster moved (set from the timeline, or by a peer): a video nobody has played or scrubbed
+  // rests on the new picture; one whose playhead was moved keeps its place. The poster is keyed by the
+  // enclosing artboard's id (the `<VideoComp id>` when it matches), so it is looked up once mounted too.
+  const resting = useRef<number | null>(null);
+  useEffect(() => {
+    if (typeof document === 'undefined' || capturing) return undefined;
+    const rest = () => {
+      const p = ref.current;
+      if (!p) return;
+      const seen = liveTimelineFrame.get(compId);
+      if (seen !== undefined && seen !== resting.current) return; // moved by hand, or playing
+      const artboard = findArtboardOf(hostRef.current).artboardId ?? compId;
+      const to = clamp(
+        resolvedPoster(
+          readCanvasArtboardMeta(),
+          artboard,
+          Math.max(1, Math.round(durationInFrames))
+        ),
+        0,
+        Math.max(0, durationInFrames - 1)
+      );
+      if (to === resting.current && seen === to) return;
+      resting.current = to;
+      try {
+        p.seekTo(to);
+      } catch {
+        /* Player transitional */
+      }
+    };
+    rest();
+    document.addEventListener('maude:meta-refreshed', rest);
+    return () => document.removeEventListener('maude:meta-refreshed', rest);
+  }, [compId, durationInFrames, capturing]);
+
+  // S7.8 — the Player is the truth about playing: tell the shell on every play / pause, so a click on the
+  // artboard's own button and the Timeline's Space or button can never disagree.
+  useEffect(() => {
+    const p = ref.current;
+    if (!p || capturing) return undefined;
+    const tell = (playing: boolean) => () =>
+      postToShell({ dgn: 'timeline-playing', id: compId, playing });
+    const onPlay = tell(true);
+    const onPause = tell(false);
+    p.addEventListener('play', onPlay);
+    p.addEventListener('pause', onPause);
+    return () => {
+      try {
+        p.removeEventListener('play', onPlay);
+        p.removeEventListener('pause', onPause);
+      } catch {
+        /* unmounted */
+      }
+    };
+  }, [compId, capturing]);
 
   // iframe → shell: with loop off (now the default), the Player stops itself
   // at the last frame — nothing else tells the Timeline panel's Play/Pause
@@ -559,7 +775,7 @@ export function VideoComp({
       className="dc-video-comp"
       ref={hostRef}
       data-comp-id={compId}
-      style={{ width, height, maxWidth: '100%' }}
+      style={{ width, height, maxWidth: '100%', position: 'relative' }}
     >
       <Player
         ref={ref}
@@ -570,7 +786,7 @@ export function VideoComp({
         compositionHeight={height}
         inputProps={inputProps ?? {}}
         controls={showControls}
-        loop={loopState}
+        loop={loopFor(loopState, presenting)}
         autoPlay={play}
         initialFrame={initialFrame}
         // Clicking the artboard must NOT toggle playback — it selects elements
@@ -585,10 +801,23 @@ export function VideoComp({
         acknowledgeRemotionLicense
         style={style}
       />
+      {capturing || presenting ? null : (
+        <VideoPlayChrome
+          playerRef={ref}
+          fps={fps}
+          durationInFrames={Math.max(1, Math.round(durationInFrames))}
+        />
+      )}
     </div>
   );
 }
 VideoComp.displayName = 'VideoComp';
+
+/** `window.__canvas_meta__` (the shell injects the sidecar before mount): what a canvas may read of it. */
+function readCanvasArtboardMeta(): unknown {
+  if (typeof window === 'undefined') return undefined;
+  return (window as unknown as { __canvas_meta__?: unknown }).__canvas_meta__;
+}
 
 function postToShell(payload: Record<string, unknown>): void {
   if (typeof window === 'undefined' || window.parent === window) return;

@@ -34,3 +34,12 @@ export function filterTranscriptParts(parts, mode) {
 export function transcriptForcesExpand(mode) {
   return mode === 'verbose';
 }
+
+/**
+ * P8-C6 (03 `ai-working`): the feed shows what AI SAID, never its tool calls — "Edit the canvas" cards sat above the
+ * working line and made one run read as four items. The steps live behind the result's "What AI did" fold (and the
+ * raw log under Advanced). Only the two views that ask for everything (`thinking`, `verbose`) draw them in the feed.
+ */
+export function showsToolSteps(mode) {
+  return mode === 'thinking' || mode === 'verbose';
+}

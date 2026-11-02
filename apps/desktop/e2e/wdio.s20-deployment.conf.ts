@@ -30,7 +30,7 @@ import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { config as base } from './wdio.conf';
+import { config as base, completeLane } from './wdio.conf';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -79,7 +79,8 @@ export const config: WebdriverIO.Config = {
   ...base,
   specs: [resolve(HERE, 'scenarios', 's20-deployment.e2e.ts')],
   mochaOpts: { ...base.mochaOpts, timeout: 600_000 },
-  onComplete() {
+  async onComplete() {
+    await completeLane();
     // The managed copy of somebody's real project is NOT deleted here — the
     // spec's own cleanup removes what it created, and a checkout that took
     // minutes to arrive is worth keeping for a look afterwards.

@@ -14,8 +14,14 @@
 // recalled. So removal is only as fast as the token is short, and this module
 // is where that trade is written down rather than discovered.
 
-/** Roles a person can hold, weakest first. */
-export const ROLES = ['viewer', 'member', 'owner'];
+import { ROLES as MATRIX_ROLES, rankOf } from '../studio/access/roles.ts';
+
+/**
+ * Roles a person can hold here, weakest first — THE matrix's roles
+ * (`apps/studio/access/roles.ts`, S9.1), not a local list. `observer` (Can
+ * view) is stored since D1 v17 (V2-1.7 §5.8).
+ */
+export const ROLES = MATRIX_ROLES;
 
 /**
  * Decide a membership change.
@@ -77,7 +83,7 @@ export function decideMembershipChange({
   // edit, and a session opened as a member still carries it — offline
   // verification cannot be told otherwise. Treating a demotion as "just an
   // update" would leave the person editing until their token expired.
-  const demoted = targetRole ? ROLES.indexOf(newRole) < ROLES.indexOf(targetRole) : false;
+  const demoted = targetRole ? rankOf(newRole) < rankOf(targetRole) : false;
   return {
     ok: true,
     action: targetRole ? 'change-role' : 'add',

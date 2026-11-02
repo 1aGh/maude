@@ -1,0 +1,14 @@
+S1.V3 — wave-A verifier pass 3, package S1, canvas 11 Projects and Navigation. Base feat/maude-v2 e80f9d3b0 (after S1.23/S1.23b/S1.23c).
+Rig: scripts/v2-verify (s1-fixture.mjs + the 93-canvas "Alligators brand" project), studio on :4414, Playwright over CDP 1600x1000, browser lane.
+
+VERIFIED
+  pn-move  (1) rename of the ROOT canvas ahoj2 while it is open: double-click the row, "↵ rename · esc keep “ahoj2”" hint, type ahoj3, ↵ -> row "ahoj3", project pill "Alligators brand / ahoj3", the canvas still renders (no blank page),
+           /_api/trash stays {items: []} and the Trash row shows no count (pn-move.v3-0.png, pn-move.v3-edit.png, pn-move.v3-renamed.png).
+           (2) rename to "Combine — test barev": refused in place, the field now holds "Combine - test barev" and the line reads "Names can use letters, numbers, spaces, - and _. Try “Combine - test barev”."; one ↵ accepts -> row
+           "Combine - test barev" (file ui/combine-test-barev), Trash still empty (pn-move.v3-refused.png, pn-move.v3-accepted.png). Move to… + move were verified in S1.V2.
+
+NOT SET (browser lane matches; the row's desktop remainder stays for the desktop lane)
+  pn-switch-ai  "Keyboard shortcuts" sheet (⌘K › Keyboard shortcuts, Menu › Help): group "Finding a canvas" = "Search every project ⌘K", "Version history ⌥⌘H" — no "Search, too" row any more (pn-switch-ai.v3.png).
+                The canvas's "Open project… ⌘O" and "Tabs and windows" are desktop-only, so the row is U (desktop lane) as in S1.V2.
+
+LEFT AS THEY ARE (not re-probed): pn-tab-b, pn-tab-b20, pn-tab-menu, pn-windows, pn-accounts, pn-relaunch, pn-k-across, pn-deeplink (desktop lane); pn-home, pn-home-search, pn-ds, pn-cant-open (wave B).

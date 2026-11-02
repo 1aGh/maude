@@ -93,6 +93,25 @@ function db(dataDir) {
     .map((c) => c.name);
   if (!columns.includes('oidc_sub')) handle.exec('ALTER TABLE users ADD COLUMN oidc_sub TEXT');
   handle.exec('CREATE UNIQUE INDEX IF NOT EXISTS users_oidc_sub ON users(oidc_sub)');
+  // V2-1.7 §5.8 (S9.6) — the self-hosted authority's two additions, the
+  // existing ADD COLUMN way:
+  //   access     the account's AccessClaim JSON when it is narrower than its
+  //              account role — today only a canvas-only person
+  //              (`{ v: 1, role: null, grants }`). NULL = `legacyClaim` of the
+  //              account role, which is every account that predates S9.6.
+  //   public_id  the id the access API names a person by. NEVER the e-mail:
+  //              a people answer to a non-owner carries no address (V2-1.16
+  //              L17), so its ids must not be one either.
+  if (!columns.includes('access')) handle.exec('ALTER TABLE users ADD COLUMN access TEXT');
+  if (!columns.includes('public_id')) handle.exec('ALTER TABLE users ADD COLUMN public_id TEXT');
+  handle.exec('CREATE UNIQUE INDEX IF NOT EXISTS users_public_id ON users(public_id)');
+  const unnamed = handle.prepare('SELECT email FROM users WHERE public_id IS NULL').all();
+  if (unnamed.length) {
+    const name = handle.prepare('UPDATE users SET public_id = ? WHERE email = ?');
+    handle.transaction(() => {
+      for (const { email } of unnamed) name.run(newPublicId(), email);
+    })();
+  }
   try {
     chmodSync(path, 0o600);
   } catch {
@@ -225,41 +244,133 @@ export function verifyPassword(password, stored) {
 // ---------------------------------------------------------------------- CRUD
 
 function rowToRecord(row) {
+  const access = accessFromColumn(row.access);
   return {
     email: row.email,
     role: row.role,
     scope: row.scope ?? '*',
     createdAt: row.created_at,
     disabled: !!row.disabled,
+    ...(row.public_id ? { id: row.public_id } : {}),
+    ...(access ? { access } : {}),
   };
+}
+
+const newPublicId = () => `u_${randomBytes(8).toString('hex')}`;
+
+/**
+ * The stored claim, or null. A malformed column reads as NO ACCESS rather
+ * than as the account role: an unreadable narrowing must never widen.
+ */
+function accessFromColumn(raw) {
+  if (raw === null || raw === undefined) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return normalizeAccess(parsed);
+  } catch {
+    return { v: 1, role: null, grants: [] };
+  }
+}
+
+/**
+ * What a self-hosted account's `access` column may hold: a canvas-only claim
+ * (`role: null`) whose grants are `member` — the only role below owner a
+ * self-hosted hub has (V2-1.7 §5.8, "no view-only accounts"). Sorted by
+ * canvas, de-duplicated, at most 256 (the claim's bound).
+ */
+export function normalizeAccess(access) {
+  if (access === null || access === undefined) return null;
+  const ok =
+    typeof access === 'object' &&
+    !Array.isArray(access) &&
+    access.v === 1 &&
+    access.role === null &&
+    Array.isArray(access.grants ?? []);
+  if (!ok) throw new Error('access must be a canvas-only claim ({ v: 1, role: null, grants })');
+  const byCanvas = new Map();
+  for (const g of access.grants ?? []) {
+    if (!g || typeof g.c !== 'string' || !g.c || g.r !== 'member') {
+      throw new Error('a self-hosted grant is { c: <canvas path>, r: "member" }');
+    }
+    byCanvas.set(g.c, { c: g.c, r: 'member' });
+  }
+  const grants = [...byCanvas.values()].sort((a, b) => (a.c < b.c ? -1 : a.c > b.c ? 1 : 0));
+  if (grants.length > 256) throw new Error('at most 256 canvases');
+  return { v: 1, role: null, grants };
 }
 
 /**
  * Create a user. Throws on a duplicate address (callers map that to 409) so a
  * signup can never silently overwrite an existing account's password.
  */
-export function createUser(dataDir, { email, password, role, scope } = {}) {
+export function createUser(dataDir, { email, password, role, scope, access } = {}) {
   const normalized = assertValidEmail(email);
   assertValidPassword(password);
   const effectiveRole = assertValidRole(role);
+  const storedAccess = normalizeAccess(access);
+  // A canvas-only person is never an admin: `admin` is the project's owner.
+  if (storedAccess && effectiveRole !== 'member') {
+    throw new Error('a canvas-only account has the member role');
+  }
   const storedScope = scope && scope !== '*' ? String(scope) : null;
   const handle = db(dataDir);
   if (handle.prepare('SELECT 1 FROM users WHERE email = ?').get(normalized)) {
     throw new Error(`user "${normalized}" already exists`);
   }
   const createdAt = Date.now();
+  const id = newPublicId();
   handle
     .prepare(
-      'INSERT INTO users (email, hash, role, scope, created_at, disabled) VALUES (?, ?, ?, ?, ?, 0)'
+      'INSERT INTO users (email, hash, role, scope, created_at, disabled, access, public_id) VALUES (?, ?, ?, ?, ?, 0, ?, ?)'
     )
-    .run(normalized, hashPassword(password), effectiveRole, storedScope, createdAt);
+    .run(
+      normalized,
+      hashPassword(password),
+      effectiveRole,
+      storedScope,
+      createdAt,
+      storedAccess ? JSON.stringify(storedAccess) : null,
+      id
+    );
   return {
     email: normalized,
     role: effectiveRole,
     scope: storedScope ?? '*',
     createdAt,
     disabled: false,
+    id,
+    ...(storedAccess ? { access: storedAccess } : {}),
   };
+}
+
+/** The account the access API names by `id` (`public_id`), or null. */
+export function getUserById(dataDir, id) {
+  if (typeof id !== 'string' || !/^u_[0-9a-f]{16}$/.test(id)) return null;
+  try {
+    const row = db(dataDir).prepare('SELECT * FROM users WHERE public_id = ?').get(id);
+    return row ? rowToRecord(row) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Set (a canvas-only claim) or clear (null: the account role decides again)
+ * one account's access. Returns the updated record, or null when absent.
+ * Ending the sessions the old claim minted is the CALLER's job — the access
+ * API pairs this with a `maude.access` notice and a graced kick.
+ */
+export function setUserAccess(dataDir, email, access) {
+  const normalized = normalizeEmail(email);
+  const stored = normalizeAccess(access);
+  const handle = db(dataDir);
+  const row = handle.prepare('SELECT role FROM users WHERE email = ?').get(normalized);
+  if (!row) return null;
+  if (stored && row.role !== 'member') throw new Error('a canvas-only account has the member role');
+  handle
+    .prepare('UPDATE users SET access = ? WHERE email = ?')
+    .run(stored ? JSON.stringify(stored) : null, normalized);
+  return getUser(dataDir, normalized);
 }
 
 export function getUser(dataDir, email) {
@@ -320,7 +431,12 @@ export function authenticate(dataDir, email, password) {
   // Checked AFTER the password so a disabled account can't be probed for
   // existence with an arbitrary password.
   if (row.disabled) return { ok: false, reason: 'disabled' };
-  return { ok: true, user: rowToRecord(row) };
+  const user = rowToRecord(row);
+  // A narrowed account's claim rides the result, where the mint door
+  // (`claimOf` → `peerTokenDoor`) reads it: a v1 client meets 426, never a
+  // project-wide session. Absent for every account without one — the v1.9.1
+  // answer is unchanged.
+  return { ok: true, user, ...(user.access ? { access: user.access } : {}) };
 }
 
 /** Set/clear the disabled flag. Returns the updated record, or null if absent. */

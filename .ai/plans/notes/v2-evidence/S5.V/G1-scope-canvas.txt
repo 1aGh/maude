@@ -1,0 +1,18 @@
+S5.V G1 — a scoped chat's own edit is denied "out-of-scope" (measured, scratch project, fake ACP agent + the REAL `maude design hook pre-edit`)
+
+Setup: scratch project (design root `.design`, canvas ui/Site.tsx with artboards landing/pricing/settings), panel opened, prompt sent
+with Whole canvas (scope artboards '*') AND with the Pricing artboard selected. The fake agent runs the plugin's own PreToolUse
+hook the way Claude Code does (stdin JSON: session_id, cwd, tool_name Edit, tool_input.file_path = <root>/.design/ui/Site.tsx).
+
+GET /_api/ai/runs → mine[-1].scope = {"canvas":".design/ui/Site.tsx","artboards":"*"}        (repo-relative; chat-context.js:158 sends the frame's data-path)
+                 → leases (artboard selected) = [{"canvas":"path:.design/.design/ui/Site.tsx","artboard":"pricing"}]   (ai/runs.ts:144 canvasKey joins designRel again)
+
+Hook answer (permissionDecision deny):
+  out-of-scope: this chat is about .design/ui/Site.tsx (the selection it started from) — ui/Site.tsx is outside it.
+  Change only what is in the selection, or ask the person to widen it.
+
+Cause: routes/agent.ts:704 `offCanvas = rel !== sc.canvas` compares the design-relative hook path (ui/Site.tsx) with the repo-relative scope.canvas.
+Consequences seen: (a) every edit by a Maude chat that sent a scope is denied; (b) the lease key has `.design/.design/`, so the shell's ringsFor
+(client/v2/ai/runs-model.js onCanvas → pathKey(activeCanvas)) never matches and NO working ring/tag is drawn on the artboard; (c) a terminal Claude run
+(design-relative keys) and a chat run (doubled keys) never collide, so "one AI per artboard" does not hold between them.
+Suggested fix (S): normalise scope.canvas to design-relative in acp/index.ts parseRunScope (strip `<designRel>/`), or send design-relative from chat-context.js.

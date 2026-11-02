@@ -28,9 +28,9 @@ import { existsSync, readFileSync } from 'node:fs';
 
 import type * as Y from 'yjs';
 
+import { textSessionOfWriteId, textSessionTransactionId } from '../annotations/ui/text-session.ts';
 import { atomicWrite } from './atomic-write.ts';
 import {
-  applyAnnotationsToDoc,
   applyCommentsToDoc,
   applyCssToDoc,
   applyHtmlToDoc,
@@ -99,6 +99,8 @@ export interface BodyRejection {
   kind: 'body-rejected';
   reason: 'invalid-source' | 'local-edit' | 'history-failed' | 'merge-budget';
   snapshotFailed: boolean;
+  /** p8-fix-e (F8a) — the refused text is the sibling stylesheet, not the body. Absent: the body. */
+  file?: 'css';
 }
 
 export interface DocProjectionOptions {
@@ -181,6 +183,21 @@ export interface ProposalOutcome {
   head?: string;
   /** On acceptance: the project action that carries it (T26 — Cmd+Z binds to it). */
   actionId?: string;
+  /**
+   * S9.24 — accepted with elements HELD at the head's version (sync/object-conflict.ts): both
+   * sides changed them. The proposal's board is kept aside in the same action; the card offers
+   * Keep yours / Keep theirs / Keep both.
+   */
+  objectConflicts?: HeldObjectConflict[];
+}
+
+/** One held element as the kernel answers it (`merged[].conflicts`). */
+export interface HeldObjectConflict {
+  id: string;
+  type: string;
+  fields: string[];
+  mine: Record<string, unknown> | null;
+  theirs: Record<string, unknown> | null;
 }
 
 export interface LaneProposal {
@@ -198,7 +215,24 @@ export interface LaneProposal {
    * person made through the UI is never stageable.
    */
   stageable?: boolean;
+  /**
+   * S12.16 — this lane belongs to a canvas that is NOT in the store yet, created by the run that
+   * claimed it: its path. A stage holds it with the run's other changes and publishes one
+   * `doc.create` (sync/action-stage.ts); only a run that explicitly claimed the canvas takes it.
+   */
+  create?: string;
+  /**
+   * S2.20c — ⌘Z on the person's edit with this transaction id while it waits behind an AI run:
+   * this proposal is its inverse (V2-1.5 §5.4), and lands as that edit's undo right behind it.
+   */
+  undoes?: string;
 }
+
+/** p8-fix-c2 — sends one lane proposal under the id (and dependency) the projection assigned. */
+export type ProposeVia = (tx: {
+  transactionId: string;
+  dependsOn?: string[];
+}) => Promise<ProposalOutcome>;
 
 export interface AcceptedLaneLink {
   /** Is the project in accepted-revisions mode right now? */
@@ -230,6 +264,13 @@ export interface DocProjection {
    */
   adoptBase(body: string): void;
   /**
+   * S6.13b — this Mac's canvas moved away from this path on purpose (its name
+   * was taken while it was away): the file is gone by agreement, and what the
+   * project holds here — the peer's canvas — is written fresh, never held as
+   * a local edit.
+   */
+  vacate(): void;
+  /**
    * Accepted mode, cold start: `value` is this disk's own html proposal that a
    * previous run left in the outbox and the drain just had accepted. It is
    * what the disk was saved as — the base of whatever it holds next — even
@@ -246,6 +287,40 @@ export interface DocProjection {
     value: string,
     opts?: { baseContent?: string; writeId?: string; stageable?: boolean }
   ): Promise<ProposalOutcome> | null;
+  /**
+   * S2.20c — ⌘Z on the person's html edit `undoes` while it waits behind an AI run: put `value`
+   * (the disk without that edit) on disk now — the projection's own write, so the watcher reads it
+   * as an echo — and propose it as that edit's inverse, another waiting edit behind the same run.
+   * Resolves with the inverse's outcome; null when the projection is not in accepted mode.
+   */
+  proposeInverse(value: string, undoes: string): Promise<ProposalOutcome> | null;
+  /**
+   * p8-fix-c2 #2 — a lane value the caller sends ITSELF, inside a larger action (an edit-op's
+   * `lanes.edit`: the source, its layout and its board as one action). The projection owns it as it
+   * owns its own proposals: the lane is pending under `value` (so the caller's own file write is
+   * an echo, never proposed a second time), a later edit depends on it, and its answer settles
+   * here — accepted, the next base; refused, the held conflict with both versions kept, however
+   * long after the caller stopped waiting (a queued offline action the hub later refuses).
+   * `via` sends the action under the transaction id (and dependency) the projection hands it.
+   */
+  proposeVia(
+    lane: ProposalLane,
+    value: string,
+    baseContent: string,
+    via: ProposeVia
+  ): Promise<ProposalOutcome> | null;
+  /**
+   * S10.3b — the value a proposal of `lane` made now is derived from: the newest unanswered
+   * proposal's value, else what disk and the accepted replica last agreed on. A caller that
+   * proposes this lane outside the projection (a multi-canvas action, `SyncRuntime.proposeFiles`)
+   * bases it here, exactly as `proposeLane` does.
+   */
+  agreedLane(lane: ProposalLane): string;
+  /**
+   * S10.3b — resolve once the accepted replica holds `value` for `lane` (true), or after `ms`
+   * (false); then the doc→file writer is flushed, so an accepted action is on disk on return.
+   */
+  settleLane(lane: ProposalLane, value: string, ms?: number): Promise<boolean>;
   /** Lanes with an unresolved proposal (status surfaces). */
   pendingCount(): number;
   /**
@@ -379,7 +454,13 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       snapshotFailed = true;
     }
     console.warn(`[projection/${slug}] source sync blocked (${reason}); local file kept.`);
-    opts.onConflict?.({ slug, kind: 'body-rejected', reason, snapshotFailed });
+    opts.onConflict?.({
+      slug,
+      kind: 'body-rejected',
+      reason,
+      snapshotFailed,
+      ...(paths.css && file === paths.css ? { file: 'css' as const } : {}),
+    });
   }
 
   let flushTimer: ReturnType<typeof setTimeout> | null = null;
@@ -797,11 +878,16 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     writeId?: string,
     stageable = false,
     op?: SourceOp,
-    replays = 0
+    replays = 0,
+    undoes?: string,
+    via?: ProposeVia
   ): Promise<ProposalOutcome> {
     const link = opts.accepted as AcceptedLaneLink;
     const prior = pending.get(lane);
-    const transactionId = link.newTransactionId();
+    // p8-hub-drafts — a text session's writes go out under transaction ids that name the session, so
+    // the hub's history row carries it and the ⌘Z stack folds the session into one step.
+    const session = lane === 'annotations' ? textSessionOfWriteId(writeId) : null;
+    const transactionId = session ? textSessionTransactionId(session) : link.newTransactionId();
     if (SYNC_DEBUG) {
       console.log(
         `[projection/${slug}] propose ${lane} tx=${transactionId.slice(0, 11)} value=${hashBytes(value).slice(0, 8)} base=${hashBytes(baseContent).slice(0, 8)} doc=${hashBytes(readLaneFromDoc(doc, lane)).slice(0, 8)} last=${lastHtml === null ? '-' : hashBytes(lastHtml).slice(0, 8)} via=${new Error().stack?.split('\n')[3]?.trim().slice(0, 60)}`
@@ -876,41 +962,54 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
         } else if (lane === 'meta') {
           lastMeta = null;
         }
+      } else if (
+        outcome.code === 'run-overlap' &&
+        lane === 'html' &&
+        readLocal(paths.html) === local
+      ) {
+        // S5.15 (A13 rollback) — a run's tool write that changes what another open run changed was
+        // refused: it leaves the disk. What the file held before it (both runs' staged bytes) comes
+        // back as an echo, so it is never read as a new change.
+        observedBody = baseContent;
+        recordEcho(paths.html, baseContent);
+        writeAndAnnounce(paths.html, baseContent);
       } else {
         onRejected(lane, local, outcome, baseContent);
       }
       scheduleFlush();
       return outcome;
     };
-    return link
-      .propose({
-        lane,
-        content: value,
-        baseContent,
-        transactionId,
-        ...(prior ? { dependsOn: [prior.lastTx] } : {}),
-        ...(writeId ? { writeId } : {}),
-        ...(stageable ? { stageable: true } : {}),
-      })
-      .then(settle, (err: unknown) => {
-        const code = (err as { code?: unknown })?.code;
-        if (code === 'stopped') {
-          // The runtime is going away with this proposal unanswered. It is
-          // still in the durable outbox and the next runtime resends it — so
-          // it is neither a failure nor a rejection, and nothing is reported.
-          const p = pending.get(lane);
-          if (p) {
-            p.count -= 1;
-            if (p.count <= 0) pending.delete(lane);
-          }
-          return { status: 'rejected', code: 'stopped' } as ProposalOutcome;
-        }
-        console.error(`[projection/${slug}] proposing ${lane} failed:`, err);
-        return settle({
-          status: 'rejected',
-          code: typeof code === 'string' ? code : 'client-error',
+    const sent = via
+      ? via({ transactionId, ...(prior ? { dependsOn: [prior.lastTx] } : {}) })
+      : link.propose({
+          lane,
+          content: value,
+          baseContent,
+          transactionId,
+          ...(prior ? { dependsOn: [prior.lastTx] } : {}),
+          ...(writeId ? { writeId } : {}),
+          ...(stageable ? { stageable: true } : {}),
+          ...(undoes ? { undoes } : {}),
         });
+    return sent.then(settle, (err: unknown) => {
+      const code = (err as { code?: unknown })?.code;
+      if (code === 'stopped') {
+        // The runtime is going away with this proposal unanswered. It is
+        // still in the durable outbox and the next runtime resends it — so
+        // it is neither a failure nor a rejection, and nothing is reported.
+        const p = pending.get(lane);
+        if (p) {
+          p.count -= 1;
+          if (p.count <= 0) pending.delete(lane);
+        }
+        return { status: 'rejected', code: 'stopped' } as ProposalOutcome;
+      }
+      console.error(`[projection/${slug}] proposing ${lane} failed:`, err);
+      return settle({
+        status: 'rejected',
+        code: typeof code === 'string' ? code : 'client-error',
       });
+    });
   }
 
   function untilLaneHash(lane: ProposalLane, head: string, ms = 3_000): Promise<void> {
@@ -957,7 +1056,15 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     const onDisk = readLocal(evt.path);
     if (onDisk !== null && onDisk !== str) return false;
     if (lane === 'html') {
-      if (str === lastHtml && !held.has('html')) return false; // a redelivered projection
+      if (str === lastHtml && !held.has('html')) {
+        // A redelivered projection — or an announced API write whose action was answered AND
+        // published before its bytes landed (an edit-op through `proposeVia`: `settle` already made
+        // its value the agreed body). Either way the disk is the agreed body, so an announced base
+        // is over: left set, the next hand edit is proposed from the version before the action and
+        // refused (p8-fix-c3, the restore run's "hand edit at alice"; the F14 shape again).
+        localWrite = null;
+        return false;
+      }
       if (!withinCap(paths.html, str, MAX_HTML_BYTES)) return false;
       if (validation(str) !== null) {
         strike(evt.path, evt.hash);
@@ -974,8 +1081,19 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     }
     clearStrike(evt.path);
     const inFlight = pending.get(lane);
-    // The watcher redelivering what we already proposed is not a new edit.
-    if (inFlight?.lastValue === value) return false;
+    // The watcher redelivering what we already proposed is not a new edit. Nor is our own
+    // ACCEPTED value whose publication has not reached this replica yet (an edit-op's action,
+    // answered before the route wrote its bytes — p8-fix-c2 #2).
+    const ours =
+      inFlight?.lastValue === value ||
+      (lane === 'html' && !inFlight && acceptedOwn === value && !held.has('html'));
+    if (ours) {
+      // An announced API write whose bytes ARE that value (an edit-op's action, proposed through
+      // `proposeVia`) is over here: its base must not outlive it, or the next, unrelated file edit
+      // is proposed from the version before it and refused (the F14 shape, p8-fix-c).
+      if (lane === 'html') localWrite = null;
+      return false;
+    }
     const current = readLaneFromDoc(doc, lane);
     if (value === current) {
       if (inFlight) return false;
@@ -983,6 +1101,11 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       if (lane === 'html') {
         observedBody = str;
         lastHtml = str;
+        // F14 (p8-fix-c) — an announced API write whose bytes the project already holds (its own
+        // action was accepted and published first: an artboard trash, a restore) is over here.
+        // Left set, its base (the version BEFORE that write) was handed to the next, unrelated
+        // file edit, which the hub then refused as a base conflict and this disk held.
+        localWrite = null;
         recovered();
       } else if (lane === 'css') {
         lastCss = str;
@@ -1219,6 +1342,13 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       lastHtml = body;
       observedBody = body;
     },
+    vacate() {
+      observedBody = null;
+      lastHtml = null;
+      lastCss = null;
+      lastMeta = null;
+      deferredBeforeReady.clear();
+    },
     adoptOwnAccepted(value: string) {
       // Exactly what an answer in this process does (see `submit`): the
       // replica either holds it already, or its publication is still coming.
@@ -1261,6 +1391,16 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
         base: candidate?.base ?? null,
       };
     },
+    agreedLane(lane) {
+      return pending.get(lane)?.lastValue ?? agreedValue(lane);
+    },
+    async settleLane(lane, value, ms = 3_000) {
+      const want = laneHash(value);
+      await untilLaneHash(lane, want, ms);
+      const reached = laneHash(readLaneFromDoc(doc, lane)) === want;
+      if (!stopped) await flush();
+      return reached;
+    },
     proposeLane(lane, value, o) {
       if (!acceptedOn() || stopped) return null;
       if (lane === 'html') observedBody = value;
@@ -1272,6 +1412,33 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       }
       const base = o?.baseContent ?? (inFlight ? inFlight.lastValue : agreedValue(lane));
       return submit(lane, value, base, value, o?.writeId, o?.stageable === true);
+    },
+    proposeVia(lane, value, baseContent, via) {
+      if (!acceptedOn() || stopped) return null;
+      if (lane === 'html') observedBody = value;
+      return submit(
+        lane,
+        value,
+        baseContent,
+        value,
+        undefined,
+        false,
+        undefined,
+        0,
+        undefined,
+        via
+      );
+    },
+    proposeInverse(value, undoes) {
+      if (!acceptedOn() || stopped) return null;
+      const inFlight = pending.get('html');
+      const base = inFlight ? inFlight.lastValue : agreedValue('html');
+      // The disk shows the inverse at once; the projection wrote it, so its fs event is an echo
+      // and the disk stays the candidate (`observedBody`) the doc→file writer leaves alone.
+      observedBody = value;
+      recordEcho(paths.html, value);
+      writeAndAnnounce(paths.html, value);
+      return submit('html', value, base, value, undefined, false, undefined, 0, undoes);
     },
     noteSourceOp(op) {
       if (localWrite) localWrite.op = op;

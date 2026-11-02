@@ -1,0 +1,157 @@
+/* client/v2/inspector/kinds/clip.css — S7.10: the clip / title inspector (07 Video Editing · ve-text, ve-transition).
+ * The Motion grid is lifted from the canvas's `.ve-motion*` rules under an `insp-motion` prefix; tokens only; the one
+ * transition rides --dur-flip, which reduced motion already sets to 1 ms. */
+
+@layer shell {
+  /* P8 C8 (07 · ve-reframe): the Framing row is the board's one select; Re-frame… and Other takes… sit under it on one
+     line instead of wrapping beside it ("All for…", "Re-frame…" stacked in a cramped cell). */
+  .insp-framing {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: var(--space-1);
+    min-width: 0;
+  }
+  .insp-framing .insp-cp-nsel {
+    width: 140px;
+    max-width: 100%;
+  }
+  .insp-framing-links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--space-2);
+  }
+  .insp-motion {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-1);
+    width: 100%;
+  }
+  .insp-motion-o {
+    appearance: none;
+    border: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: var(--space-1) 0;
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-xs);
+    cursor: pointer;
+    transition: background var(--dur-flip) var(--ease-out);
+  }
+  .insp-motion-o:hover {
+    background: var(--bg-4);
+  }
+  .insp-motion-o:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .insp-motion-o[data-on] {
+    background: var(--accent-muted);
+    color: var(--accent-text);
+    font-weight: var(--w-semibold);
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+  .insp-motion-pic {
+    position: relative;
+    width: 44px;
+    height: 20px;
+    overflow: hidden;
+    border-radius: var(--radius-xs);
+    background: var(--bg-2);
+  }
+  .insp-motion-pic i {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    top: 8px;
+    height: 4px;
+    border-radius: var(--radius-pill);
+    background: var(--fg-2);
+  }
+  .insp-motion-pic--up i {
+    top: 11px;
+    opacity: 0.6;
+  }
+  .insp-motion-pic--up i + i {
+    top: 6px;
+    opacity: 1;
+  }
+  .insp-motion-pic--pop i {
+    left: 14px;
+    right: 14px;
+  }
+  .insp-motion-pic--type i {
+    right: 22px;
+  }
+  .insp-motion-pic--word i {
+    right: 26px;
+  }
+  .insp-motion-pic--word i + i {
+    left: 22px;
+    right: 12px;
+    background: var(--accent);
+  }
+  .insp-motion-pic--fade i {
+    opacity: 0.4;
+  }
+
+  .insp-text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-1);
+    width: 100%;
+  }
+  .insp-textarea {
+    width: 100%;
+    box-sizing: border-box;
+    resize: vertical;
+    padding: var(--space-1) var(--space-2);
+    border: 0;
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+    color: var(--fg-0);
+    font: inherit;
+    font-size: var(--type-sm);
+    box-shadow: inset 0 0 0 1px var(--border-default);
+  }
+  .insp-textarea:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 0;
+  }
+
+  .insp-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    padding: var(--space-1) 0;
+  }
+  .insp-chip {
+    appearance: none;
+    border: 0;
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-pill);
+    background: var(--bg-3);
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-xs);
+    cursor: pointer;
+  }
+  .insp-chip:hover {
+    background: var(--bg-4);
+  }
+  .insp-chip:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  .insp-adv-g {
+    padding-top: var(--space-1);
+  }
+}

@@ -1,0 +1,385 @@
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -61,6 +61,7 @@
+ 
+ [dependencies.tauri]
+ version = "2.10.0"
++features = ["unstable"]
+ 
+ [dependencies.tempfile]
+ version = "3"
+--- a/src/platform/android.rs
++++ b/src/platform/android.rs
+@@ -1,7 +1,7 @@
+ use async_trait::async_trait;
+ use serde::{Deserialize, Serialize};
+ use serde_json::Value;
+-use tauri::{Manager, Runtime, WebviewWindow};
++use tauri::{Manager, Runtime, Webview};
+ 
+ use crate::mobile::{
+     AlertResult, EvaluateJsArgs, JsResult, ScreenshotArgs, SendAlertTextArgs, TouchArgs, Webdriver,
+@@ -16,13 +16,13 @@
+ /// Android `WebView` executor using Tauri's mobile plugin bridge
+ #[derive(Clone)]
+ pub struct AndroidExecutor<R: Runtime> {
+-    window: WebviewWindow<R>,
++    window: Webview<R>,
+     timeouts: Timeouts,
+     frame_context: Vec<FrameId>,
+ }
+ 
+ impl<R: Runtime> AndroidExecutor<R> {
+-    pub fn new(window: WebviewWindow<R>, timeouts: Timeouts, frame_context: Vec<FrameId>) -> Self {
++    pub fn new(window: Webview<R>, timeouts: Timeouts, frame_context: Vec<FrameId>) -> Self {
+         Self {
+             window,
+             timeouts,
+@@ -85,7 +85,7 @@
+ 
+ #[async_trait]
+ impl<R: Runtime + 'static> PlatformExecutor<R> for AndroidExecutor<R> {
+-    fn window(&self) -> &WebviewWindow<R> {
++    fn window(&self) -> &Webview<R> {
+         &self.window
+     }
+ 
+--- a/src/platform/executor.rs
++++ b/src/platform/executor.rs
+@@ -2,7 +2,7 @@
+ use serde::{Deserialize, Serialize};
+ use serde_json::Value;
+ use tauri::webview::Cookie as TauriCookie;
+-use tauri::{Runtime, WebviewWindow};
++use tauri::{Runtime, Webview};
+ 
+ #[cfg(desktop)]
+ use tauri::{PhysicalPosition, PhysicalSize};
+@@ -129,7 +129,7 @@
+     // =========================================================================
+ 
+     /// Get a reference to the underlying window
+-    fn window(&self) -> &WebviewWindow<R>;
++    fn window(&self) -> &Webview<R>;
+ 
+     /// Get the script timeout in milliseconds
+     fn script_timeout_ms(&self) -> u64;
+@@ -1463,8 +1463,8 @@
+     /// Get window rectangle (position and size)
+     #[cfg(desktop)]
+     async fn get_window_rect(&self) -> Result<WindowRect, WebDriverErrorResponse> {
+-        if let Ok(position) = self.window().outer_position() {
+-            if let Ok(size) = self.window().outer_size() {
++        if let Ok(position) = self.window().window().outer_position() {
++            if let Ok(size) = self.window().window().outer_size() {
+                 return Ok(WindowRect {
+                     x: position.x,
+                     y: position.y,
+@@ -1487,12 +1487,12 @@
+     ) -> Result<WindowRect, WebDriverErrorResponse> {
+         // Exit fullscreen/maximized state before setting rect
+         // Otherwise the window manager may ignore our size/position request
+-        if self.window().is_fullscreen().unwrap_or(false) {
+-            let _ = self.window().set_fullscreen(false);
++        if self.window().window().is_fullscreen().unwrap_or(false) {
++            let _ = self.window().window().set_fullscreen(false);
+             tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+         }
+-        if self.window().is_maximized().unwrap_or(false) {
+-            let _ = self.window().unmaximize();
++        if self.window().window().is_maximized().unwrap_or(false) {
++            let _ = self.window().window().unmaximize();
+             tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+         }
+ 
+@@ -1503,7 +1503,7 @@
+         // Calculate chrome/decoration size to set outer size correctly
+         // On Windows/Linux, set_size sets inner size, but we want to set outer size
+         let (chrome_width, chrome_height) = if let (Ok(outer), Ok(inner)) =
+-            (self.window().outer_size(), self.window().inner_size())
++            (self.window().window().outer_size(), self.window().window().inner_size())
+         {
+             (
+                 outer.width.saturating_sub(inner.width),
+@@ -1526,7 +1526,7 @@
+     /// Maximize window
+     #[cfg(desktop)]
+     async fn maximize_window(&self) -> Result<WindowRect, WebDriverErrorResponse> {
+-        let _ = self.window().maximize();
++        let _ = self.window().window().maximize();
+         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+         self.get_window_rect().await
+     }
+@@ -1534,14 +1534,14 @@
+     /// Minimize window
+     #[cfg(desktop)]
+     async fn minimize_window(&self) -> Result<(), WebDriverErrorResponse> {
+-        let _ = self.window().minimize();
++        let _ = self.window().window().minimize();
+         Ok(())
+     }
+ 
+     /// Set window to fullscreen
+     #[cfg(desktop)]
+     async fn fullscreen_window(&self) -> Result<WindowRect, WebDriverErrorResponse> {
+-        let _ = self.window().set_fullscreen(true);
++        let _ = self.window().window().set_fullscreen(true);
+         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+         self.get_window_rect().await
+     }
+--- a/src/platform/ios.rs
++++ b/src/platform/ios.rs
+@@ -1,7 +1,7 @@
+ use async_trait::async_trait;
+ use serde::{Deserialize, Serialize};
+ use serde_json::Value;
+-use tauri::{Manager, Runtime, WebviewWindow};
++use tauri::{Manager, Runtime, Webview};
+ 
+ use crate::mobile::{
+     AlertResult, EvaluateJsArgs, JsResult, ScreenshotArgs, SendAlertTextArgs, TouchArgs, Webdriver,
+@@ -16,13 +16,13 @@
+ /// iOS WKWebView executor using Tauri's mobile plugin bridge
+ #[derive(Clone)]
+ pub struct IOSExecutor<R: Runtime> {
+-    window: WebviewWindow<R>,
++    window: Webview<R>,
+     timeouts: Timeouts,
+     frame_context: Vec<FrameId>,
+ }
+ 
+ impl<R: Runtime> IOSExecutor<R> {
+-    pub fn new(window: WebviewWindow<R>, timeouts: Timeouts, frame_context: Vec<FrameId>) -> Self {
++    pub fn new(window: Webview<R>, timeouts: Timeouts, frame_context: Vec<FrameId>) -> Self {
+         Self {
+             window,
+             timeouts,
+@@ -44,7 +44,7 @@
+ 
+ #[async_trait]
+ impl<R: Runtime + 'static> PlatformExecutor<R> for IOSExecutor<R> {
+-    fn window(&self) -> &WebviewWindow<R> {
++    fn window(&self) -> &Webview<R> {
+         &self.window
+     }
+ 
+--- a/src/platform/linux.rs
++++ b/src/platform/linux.rs
+@@ -6,7 +6,7 @@
+ use glib::MainContext;
+ use javascriptcore::ValueExt;
+ use serde_json::Value;
+-use tauri::{Manager, Runtime, WebviewWindow};
++use tauri::{Manager, Runtime, Webview};
+ use tokio::sync::oneshot;
+ use webkit2gtk::{
+     PrintOperationExt, ScriptDialogType, SnapshotOptions, SnapshotRegion, WebViewExt,
+@@ -81,13 +81,13 @@
+ /// Linux `WebKitGTK` executor
+ #[derive(Clone)]
+ pub struct LinuxExecutor<R: Runtime> {
+-    window: WebviewWindow<R>,
++    window: Webview<R>,
+     timeouts: Timeouts,
+     frame_context: Vec<FrameId>,
+ }
+ 
+ impl<R: Runtime> LinuxExecutor<R> {
+-    pub fn new(window: WebviewWindow<R>, timeouts: Timeouts, frame_context: Vec<FrameId>) -> Self {
++    pub fn new(window: Webview<R>, timeouts: Timeouts, frame_context: Vec<FrameId>) -> Self {
+         Self {
+             window,
+             timeouts,
+@@ -188,7 +188,7 @@
+     // Window Access
+     // =========================================================================
+ 
+-    fn window(&self) -> &WebviewWindow<R> {
++    fn window(&self) -> &Webview<R> {
+         &self.window
+     }
+ 
+--- a/src/platform/macos.rs
++++ b/src/platform/macos.rs
+@@ -14,7 +14,7 @@
+     WKWebView,
+ };
+ use serde_json::Value;
+-use tauri::{Manager, Runtime, WebviewWindow};
++use tauri::{Manager, Runtime, Webview};
+ use tokio::sync::oneshot;
+ 
+ use crate::platform::alert_state::{AlertState, AlertStateManager, AlertType, PendingAlert};
+@@ -28,13 +28,13 @@
+ /// macOS `WebView` executor using `WKWebView` native APIs
+ #[derive(Clone)]
+ pub struct MacOSExecutor<R: Runtime> {
+-    window: WebviewWindow<R>,
++    window: Webview<R>,
+     timeouts: Timeouts,
+     frame_context: Vec<FrameId>,
+ }
+ 
+ impl<R: Runtime> MacOSExecutor<R> {
+-    pub fn new(window: WebviewWindow<R>, timeouts: Timeouts, frame_context: Vec<FrameId>) -> Self {
++    pub fn new(window: Webview<R>, timeouts: Timeouts, frame_context: Vec<FrameId>) -> Self {
+         Self {
+             window,
+             timeouts,
+@@ -82,7 +82,7 @@
+     // Window Access
+     // =========================================================================
+ 
+-    fn window(&self) -> &WebviewWindow<R> {
++    fn window(&self) -> &Webview<R> {
+         &self.window
+     }
+ 
+--- a/src/platform/mod.rs
++++ b/src/platform/mod.rs
+@@ -25,14 +25,14 @@
+ mod ios;
+ 
+ use std::sync::Arc;
+-use tauri::{Runtime, WebviewWindow};
++use tauri::{Runtime, Webview};
+ 
+ use crate::webdriver::Timeouts;
+ 
+ /// Create a platform-specific executor for the given window
+ #[cfg(target_os = "macos")]
+ pub fn create_executor<R: Runtime + 'static>(
+-    window: WebviewWindow<R>,
++    window: Webview<R>,
+     timeouts: Timeouts,
+     frame_context: Vec<FrameId>,
+ ) -> Arc<dyn PlatformExecutor<R>> {
+@@ -42,7 +42,7 @@
+ /// Create a platform-specific executor for the given window
+ #[cfg(target_os = "windows")]
+ pub fn create_executor<R: Runtime + 'static>(
+-    window: WebviewWindow<R>,
++    window: Webview<R>,
+     timeouts: Timeouts,
+     frame_context: Vec<FrameId>,
+ ) -> Arc<dyn PlatformExecutor<R>> {
+@@ -56,7 +56,7 @@
+ /// Create a platform-specific executor for the given window
+ #[cfg(target_os = "linux")]
+ pub fn create_executor<R: Runtime + 'static>(
+-    window: WebviewWindow<R>,
++    window: Webview<R>,
+     timeouts: Timeouts,
+     frame_context: Vec<FrameId>,
+ ) -> Arc<dyn PlatformExecutor<R>> {
+@@ -66,7 +66,7 @@
+ /// Create a platform-specific executor for the given window
+ #[cfg(target_os = "android")]
+ pub fn create_executor<R: Runtime + 'static>(
+-    window: WebviewWindow<R>,
++    window: Webview<R>,
+     timeouts: Timeouts,
+     frame_context: Vec<FrameId>,
+ ) -> Arc<dyn PlatformExecutor<R>> {
+@@ -80,7 +80,7 @@
+ /// Create a platform-specific executor for the given window
+ #[cfg(target_os = "ios")]
+ pub fn create_executor<R: Runtime + 'static>(
+-    window: WebviewWindow<R>,
++    window: Webview<R>,
+     timeouts: Timeouts,
+     frame_context: Vec<FrameId>,
+ ) -> Arc<dyn PlatformExecutor<R>> {
+--- a/src/platform/windows.rs
++++ b/src/platform/windows.rs
+@@ -5,7 +5,7 @@
+ use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
+ use base64::Engine as _;
+ use serde_json::Value;
+-use tauri::{Manager, Runtime, WebviewWindow};
++use tauri::{Manager, Runtime, Webview};
+ use tokio::sync::oneshot;
+ use webview2_com::Microsoft::Web::WebView2::Win32::{
+     ICoreWebView2, ICoreWebView2CapturePreviewCompletedHandler, ICoreWebView2Environment6,
+@@ -113,13 +113,13 @@
+ /// Windows `WebView2` executor
+ #[derive(Clone)]
+ pub struct WindowsExecutor<R: Runtime> {
+-    window: WebviewWindow<R>,
++    window: Webview<R>,
+     timeouts: Timeouts,
+     frame_context: Vec<FrameId>,
+ }
+ 
+ impl<R: Runtime> WindowsExecutor<R> {
+-    pub fn new(window: WebviewWindow<R>, timeouts: Timeouts, frame_context: Vec<FrameId>) -> Self {
++    pub fn new(window: Webview<R>, timeouts: Timeouts, frame_context: Vec<FrameId>) -> Self {
+         Self {
+             window,
+             timeouts,
+@@ -239,7 +239,7 @@
+     // Window Access
+     // =========================================================================
+ 
+-    fn window(&self) -> &WebviewWindow<R> {
++    fn window(&self) -> &Webview<R> {
+         &self.window
+     }
+ 
+--- a/src/server/handlers/window.rs
++++ b/src/server/handlers/window.rs
+@@ -58,7 +58,7 @@
+     drop(sessions);
+ 
+     // Return all window labels as handles
+-    let handles: Vec<String> = state.app.webview_windows().keys().cloned().collect();
++    let handles: Vec<String> = state.app.webviews().keys().cloned().collect();
+ 
+     Ok(WebDriverResponse::success(handles))
+ }
+@@ -85,13 +85,13 @@
+         drop(sessions);
+ 
+         // Close the current window
+-        if let Some(window) = state.app.webview_windows().get(&current_window).cloned() {
++        if let Some(window) = state.app.webviews().get(&current_window).cloned() {
+             window
+-                .destroy()
++                .close()
+                 .map_err(|e| WebDriverErrorResponse::unknown_error(&e.to_string()))?;
+ 
+             // Return remaining window handles
+-            let handles: Vec<String> = state.app.webview_windows().keys().cloned().collect();
++            let handles: Vec<String> = state.app.webviews().keys().cloned().collect();
+ 
+             Ok(WebDriverResponse::success(handles))
+         } else {
+@@ -110,7 +110,7 @@
+     let session = sessions.get_mut(&session_id)?;
+ 
+     // Verify the window exists
+-    if !state.app.webview_windows().contains_key(&request.handle) {
++    if !state.app.webviews().contains_key(&request.handle) {
+         return Err(WebDriverErrorResponse::no_such_window());
+     }
+ 
+--- a/src/server/mod.rs
++++ b/src/server/mod.rs
+@@ -35,7 +35,7 @@
+         frame_context: Vec<FrameId>,
+     ) -> Result<Arc<dyn PlatformExecutor<R>>, WebDriverErrorResponse> {
+         self.app
+-            .webview_windows()
++            .webviews()
+             .get(window_label)
+             .cloned()
+             .map(|window| create_executor(window, timeouts, frame_context))
+@@ -44,7 +44,7 @@
+ 
+     /// Get all window labels
+     pub fn get_window_labels(&self) -> Vec<String> {
+-        self.app.webview_windows().keys().cloned().collect()
++        self.app.webviews().keys().cloned().collect()
+     }
+ }
+ 

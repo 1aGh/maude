@@ -15,6 +15,7 @@
 import path from 'node:path';
 
 import type { Context } from './context.ts';
+import { isCanvasFile } from './skip-dirs.ts';
 
 /** Idle debounce — fs silence longer than this flips a file `active` → `idle`. */
 export const ACTIVITY_IDLE_MS = 3000;
@@ -24,20 +25,6 @@ export const SUPPRESS_TTL_MS = 2500;
 
 /** LRU cap on the per-file text stash used by the Task 7 region diff. */
 const STASH_CAP = 50;
-
-// Mirrors api.ts SKIP_DIRS — directories that never hold user-facing canvases.
-const SKIP_DIRS = new Set([
-  'node_modules',
-  '.git',
-  '.next',
-  '.turbo',
-  'dist',
-  'build',
-  '.expo',
-  'coverage',
-  'dev-server',
-  '_history',
-]);
 
 /**
  * True when a design-root-relative path is a user-facing canvas the overlay
@@ -51,24 +38,10 @@ const SKIP_DIRS = new Set([
  *     extended to `.tsx` specimens, not just the `.html` the plan named, because
  *     the rationale is identical).
  *
- * Pure — no disk access. Accepts back-slash or forward-slash input.
+ * Pure — no disk access. Accepts back-slash or forward-slash input. gate-b-c4m — the one copy lives
+ * in skip-dirs.ts (the access closure asks it for `.html` canvases, and the hub imports that leaf).
  */
-export function isCanvasFile(rel: string): boolean {
-  if (typeof rel !== 'string') return false;
-  const p = rel.replace(/\\/g, '/').replace(/^\/+/, '');
-  if (!p) return false;
-  const segs = p.split('/');
-  const base = segs[segs.length - 1] ?? '';
-  const dot = base.lastIndexOf('.');
-  const ext = dot >= 0 ? base.slice(dot).toLowerCase() : '';
-  if (ext !== '.tsx' && ext !== '.html') return false;
-  for (const s of segs) {
-    if (SKIP_DIRS.has(s)) return false;
-    if (s.startsWith('_')) return false;
-  }
-  if (/(^|\/)system\/[^/]+\/preview\//.test(p)) return false;
-  return true;
-}
+export { isCanvasFile };
 
 export interface ActivityEntry {
   status: 'active' | 'idle';

@@ -1,0 +1,22 @@
+04/md-comment-only — Someone who may only comment
+Steps: Klára (Can comment) opens ui/pitch; switches to Preview; picks Comment; clicks the Plan artboard; types; Post. Owner opens
+Comments (share-cluster-comments).
+Seen BEFORE the fix: Preview toolbar = Hand only (toolbar-slot-browse); C armed nothing; a click placed nothing — DEFECT.
+Cause: filterToolsForReadOnly stripped the comment tool for every ro=1 session, although S9.22 boots Can comment with cm=1.
+Fixed in 054cdd3e7 (use-tool-mode.tsx + test, fail-first). AFTER (with a temporary release build of dist/comment-mount.js, reverted):
+toolbar-preview = Hand + Comment (toolbar-slot-comment); comment-composer-where opens; Post lands; the owner's Comments shows
+"KT · Číslo na zádech by mělo být větší — gate-b". No AI chat panel in the shell for Can comment (no chat/acp testids). Edit/draw
+tools absent (hidden, not greyed). Chip "Can comment" + "Ask to edit" (share-cluster-ask) in the cluster.
+Shots: r-viewer-preview-toolbar.png (before), r-viewer-comment-tool.png + r-viewer-comment-composer.png (after), r-owner-sees-comment.png
+Verdict: defect → fixed (054cdd3e7); needs the lead's release build so dist/comment-mount.js carries it.
+
+Rig (2026-10-21, gate-b-compat fork): local cell from scripts/dev/local-cell.mjs on port 4890 (--no-watch --keep),
+hub process binary /Users/iagh/.nvm/versions/node/v24.13.0/bin/node (lsof txt of the hub pid), studio child bun on 4690.
+Cloud identity: MAUDE_CLOUD_IDENTITY=1 (hybrid), MAUDE_TENANT_ID=alligators, MAUDE_CONTROL_PLANE_URL=http://127.0.0.1:4899 —
+a LOOPBACK fake control plane (scratchpad gate/b/fake-cp.mjs) that answers only POST /auth/handoff/exchange with a token signed by
+apps/hub/src/cloud-identity.mjs (signAccessToken / signAccessTokenV2). Browser sessions go through the cell's real /auth/browser door.
+/health.access = {authority:control-plane, roles:[viewer,member,owner], scopes:[project], links:false} (rolesV2 dark, production posture).
+Identities (each its own Playwright context; Tereza in a separate browser process where focus matters):
+  owner  you@local.test (password sign-in) · member tereza@local.test · Can comment klara@local.test (role viewer) ·
+  Can view jonas@local.test (v2 claim role observer). Canvas ui/pitch.tsx (3 artboards Cover/Plan/Ask) seeded into the cell checkout.
+No real cloud, hub, Stripe or Cloudflare was contacted. Scripts: scratchpad gate/b/p*.mjs. Shots: shots/ (this dir).

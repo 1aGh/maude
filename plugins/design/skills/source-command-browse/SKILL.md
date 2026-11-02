@@ -1,6 +1,6 @@
 ---
 name: source-command-browse
-description: "Open the local Maude canvas browser."
+description: "Start the Maude studio for this project and open it."
 user-invocable: false
 ---
 

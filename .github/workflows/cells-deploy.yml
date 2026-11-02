@@ -368,3 +368,25 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
           SEALED_CLIENT: ${{ steps.sealed.outputs.client }}
         run: bash scripts/verify-fleet-release.sh "$HEALTH_URL" "$RELEASE_TAG" "$SEALED_CLIENT"
+
+      - name: Report the Maude 2 cloud conversion
+        # A STABLE 2.x FLEET CONVERTS EVERY CLOUD PROJECT (decision
+        # maude/v2-michal-drop-v1-auto-convert). Each cell does it on its first
+        # start under the new image — backup, format 2, accepted revisions —
+        # and reports `v2Convert: {state, converted, skipped, failed}` on the
+        # same /health the step above polls (apps/hub/src/v2-convert.mjs). This
+        # reads it the same way, from the probe cell by default (or the
+        # space-separated `CELL_CONVERT_HEALTH_URLS`), and writes one
+        # `[v2-convert] fleet converted=N skipped=N failed=N` line to the log
+        # and the run summary (scripts/test/collect-v2-convert.test.mjs).
+        #
+        # A FAILED COUNT NEVER FAILS THE DEPLOY: that cell left its project as
+        # it was and still serves it, and a rollback would not convert it
+        # either. It is a warning, and .ai/release-guide.md § "Verify the cloud
+        # converted every project" says what to do. A sleeping cell converts
+        # when it next wakes, so this covers the cells that are up. A 1.x
+        # maintenance tag has no conversion to report.
+        if: ${{ github.ref_type == 'tag' && !startsWith(github.ref_name, 'v0.') && !startsWith(github.ref_name, 'v1.') }}
+        env:
+          HEALTH_URLS: ${{ vars.CELL_CONVERT_HEALTH_URLS || vars.CELL_HEALTH_URL || 'https://alligators.cloud.maude.sh/health' }}
+        run: node scripts/collect-v2-convert.mjs $HEALTH_URLS

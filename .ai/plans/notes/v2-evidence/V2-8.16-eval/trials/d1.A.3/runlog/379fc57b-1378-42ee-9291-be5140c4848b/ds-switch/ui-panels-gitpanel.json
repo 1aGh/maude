@@ -1,0 +1,26 @@
+{
+  "canvas": "ui/panels/GitPanel.tsx",
+  "from": "maude",
+  "to": "maude-v2",
+  "meta": { "designSystem": "maude-v2" },
+  "edits": [
+    {
+      "old": "import \"../../system/maude/colors_and_type.css\";\nimport \"../../system/maude/preview/_components.css\";",
+      "new": "import \"../../system/maude-v2/colors_and_type.css\";\nimport \"../../system/maude/preview/_components.css\";\nimport \"../../system/maude-v2/preview/_components.css\";",
+      "why": "Tokens come from maude-v2. The v2 component sheet loads last, so .btn, .input, .seg, .switch, .chip and .kbd take the v2 look. The old sheet stays only as a bridge for classes v2 doesn't have (.panel, .tree-row, .tabbar/.tab, .callout, .btn--icon). It now draws them with v2 tokens."
+    },
+    {
+      "old": " * @ds          maude\n",
+      "new": " * @ds          maude-v2\n",
+      "why": "The canvas header names its design system. It should match the meta."
+    }
+  ],
+  "notes": [
+    "Every var(--…) token in this canvas also exists in maude-v2, so no token is renamed.",
+    "Classes that v2 doesn't have, used here: .panel (line 130), .tree-row (152–158), .btn--icon (252), .tabbar/.tab (257–259), .callout/.callout--info/.callout--warn (320–373). They keep their old anatomy through the bridge import.",
+    "The theme stays forced to dark (Shell wrapper, line 399). maude-v2 is light-first, and its dark theme is an equal option.",
+    "Not in this switch: the layout docks the panel in a full-height shell (menubar + sidebar). That breaks maude-v2's rule 'Chrome floats; it never frames.' Fixing it is a redesign.",
+    "The inline Mark (lines 53–60) keeps its bg-3 tile. maude-v2's logo uses an --accent tile with an --accent-fg star.",
+    "The header comment's prose (lines 11–15) still says 'Authored under the maude DS'. The comment in the sibling GitPanel.css does too. Both are text only and don't change the render."
+  ]
+}

@@ -91,9 +91,50 @@ export function atomicWrite(path: string, bytes: string | Uint8Array): string {
     } catch {
       /* ignore */
     }
-    throw err;
+    throw asDiskFull(err, path);
   }
   return path;
+}
+
+// ── S11.17 (C37) — a full disk is a typed error ────────────────────────────
+//
+// ENOSPC (no space left) and EDQUOT (over a quota) mean the same thing to a
+// person: "This Mac is out of space". Callers that hold the bytes until there
+// is room (`sync/write-hold.ts`) catch exactly this type; everyone else still
+// sees an Error whose `code` is the system's own, so existing `.code` checks
+// keep working.
+
+const DISK_FULL_CODES = new Set(['ENOSPC', 'EDQUOT']);
+// ENOSPC's errno is 28 on Linux and macOS (Bun signs it negative); only read when `code` is absent.
+const DISK_FULL_ERRNOS = new Set([28, -28]);
+
+export class DiskFullError extends Error {
+  readonly code: string;
+  readonly path: string;
+  override readonly cause: unknown;
+  constructor(path: string, cause?: unknown) {
+    super(`No space left on this Mac to write ${path}`);
+    this.name = 'DiskFullError';
+    this.path = path;
+    this.cause = cause;
+    const code = (cause as { code?: unknown } | null)?.code;
+    this.code = typeof code === 'string' && DISK_FULL_CODES.has(code) ? code : 'ENOSPC';
+  }
+}
+
+/** Is `err` a full disk (ENOSPC / EDQUOT, typed or raw)? */
+export function isDiskFull(err: unknown): boolean {
+  if (err instanceof DiskFullError) return true;
+  if (!err || typeof err !== 'object') return false;
+  const { code, errno } = err as { code?: unknown; errno?: unknown };
+  if (typeof code === 'string') return DISK_FULL_CODES.has(code);
+  return typeof errno === 'number' && DISK_FULL_ERRNOS.has(errno);
+}
+
+/** A raw full-disk error as a `DiskFullError` for `path`; any other error handed back unchanged. */
+export function asDiskFull(err: unknown, path: string): unknown {
+  if (err instanceof DiskFullError || !isDiskFull(err)) return err;
+  return new DiskFullError(path, err);
 }
 
 function isWindowsBusy(err: unknown): boolean {

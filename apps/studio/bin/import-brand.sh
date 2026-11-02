@@ -9,15 +9,17 @@
 #
 # Usage:
 #   import-brand.sh <sanitized-svg-path> --root <repo> [--design-root .design] [--json]
+#   import-brand.sh [<sanitized-svg-path>] --url <website> --root <repo>   (S8.18)
 #
-# stdout on success = the typed payload `{ palette, fonts, logoRef, logoRasterRef }`.
+# stdout on success = the typed payload `{ palette, fonts, logoRef, logoRasterRef }`
+# (+ `site` and `colours` with --url: typed colours/fonts only, through the fetch-asset gate).
 #
 # Exit: 0 ok · 1 other · 2 usage · 3 validation/hardening reject ·
-#       4 read/parse error · 6 write/containment error.
+#       4 read/parse error · 5 the website could not be read · 6 write/containment error.
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 case "$1" in
-  --help|-h) sed -n '2,15p' "$0" | sed 's/^# \?//'; exit 0 ;;
+  --help|-h) sed -n '2,18p' "$0" | sed 's/^# \?//'; exit 0 ;;
 esac
 
 if ! command -v bun >/dev/null 2>&1; then

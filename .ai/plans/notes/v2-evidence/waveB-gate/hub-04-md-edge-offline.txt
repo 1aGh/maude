@@ -1,0 +1,18 @@
+04/md-edge-offline — Presenting with no internet
+Steps: owner presents ui/pitch; context.setOffline(true); → ; esc; reopen Present ⌄.
+Seen: presenting keeps going offline (3 / 3 reached); Copy presentation link greyed "waits for a connection", aria-disabled=true.
+Not reachable: the "one clip that never downloaded … presenter view says why, with Skip" half (no video clip on this canvas, no
+second display).
+Shots: r-present-offline.png, r-present-menu-offline.png
+Verdict: partial — offline presenting + the waiting copy row verified; the missing-clip/presenter-view half unexercised.
+
+Rig (2026-10-21, gate-b-compat fork): local cell from scripts/dev/local-cell.mjs on port 4890 (--no-watch --keep),
+hub process binary /Users/iagh/.nvm/versions/node/v24.13.0/bin/node (lsof txt of the hub pid), studio child bun on 4690.
+Cloud identity: MAUDE_CLOUD_IDENTITY=1 (hybrid), MAUDE_TENANT_ID=alligators, MAUDE_CONTROL_PLANE_URL=http://127.0.0.1:4899 —
+a LOOPBACK fake control plane (scratchpad gate/b/fake-cp.mjs) that answers only POST /auth/handoff/exchange with a token signed by
+apps/hub/src/cloud-identity.mjs (signAccessToken / signAccessTokenV2). Browser sessions go through the cell's real /auth/browser door.
+/health.access = {authority:control-plane, roles:[viewer,member,owner], scopes:[project], links:false} (rolesV2 dark, production posture).
+Identities (each its own Playwright context; Tereza in a separate browser process where focus matters):
+  owner  you@local.test (password sign-in) · member tereza@local.test · Can comment klara@local.test (role viewer) ·
+  Can view jonas@local.test (v2 claim role observer). Canvas ui/pitch.tsx (3 artboards Cover/Plan/Ask) seeded into the cell checkout.
+No real cloud, hub, Stripe or Cloudflare was contacted. Scripts: scratchpad gate/b/p*.mjs. Shots: shots/ (this dir).

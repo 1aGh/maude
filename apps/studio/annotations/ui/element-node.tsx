@@ -20,7 +20,7 @@
  *             events only while the layer is interactive.
  */
 
-import { Component, type CSSProperties, memo, type ReactNode } from 'react';
+import { Component, type CSSProperties, memo, type ReactNode, useEffect, useState } from 'react';
 import {
   clampLinkTitle,
   LINK_CARD_FILL,
@@ -38,15 +38,25 @@ import {
   SECTION_CORNER_RADIUS,
   SECTION_LABEL_FONT,
   SECTION_LABEL_H,
-  STICKY_CORNER_RADIUS,
-  stickyCornerPath,
   type WorldPoint,
 } from '../../annotations-model.ts';
 import { arrowPrimitives, type SvgPrimitive } from '../../canvas-arrowheads.ts';
 import { countRender, useLiveViewport } from '../../canvas-lib.tsx';
-import { colorForName } from '../../use-collab.tsx';
+import { SECTION_FOLDED_H } from '../constants.ts';
+import { authorLine, provenanceLine, relativeTime, tiltOf } from '../elements/sticky.model.ts';
 import type { AnnotationElement } from '../types.ts';
+import {
+  AI_SPARK,
+  isAiAuthored,
+  resolvedByAi,
+  SparkGlyph,
+  sectionTone,
+  stickyPaper,
+} from './ai-marks.tsx';
+import { quietPaper, whoInk } from './posture.ts';
 import type { ResolvedEnds } from './render-model.ts';
+import { labelPoint } from './rest-route.ts';
+import { polylinePrims } from './ride.ts';
 import { type CommitInfo, type SizeMode, TextEditor } from './text-editor.tsx';
 import {
   anchorShift,
@@ -55,8 +65,10 @@ import {
   TEXT_FONT,
   type TextAlign,
   type TextSlot,
+  UI_FONT,
   withListMarkers,
 } from './text-style.ts';
+import { PinTags, useTimePin } from './time-pins.tsx';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Props
@@ -76,6 +88,16 @@ export interface ElementNodeProps {
   /** Resolved arrow endpoints (arrows only). */
   ends?: ResolvedEnds;
   interactive: boolean;
+  /** S4.9 — Edit's posture: a sticky's paper is mixed with grey (its words keep their ink); CSS fades the rest. */
+  quiet?: boolean;
+  /** S4.12 — this element is in the selection (a sticky then shows its author line). */
+  selected?: boolean;
+  /** S4.12 — the signed-in person wrote this (the author line says "You"). */
+  mine?: boolean;
+  /** S4.12 — a folded section's count line ("6 stickies · 2 people"), computed by the layer. */
+  foldNote?: string;
+  /** S4.12 — a collaborator is typing in this sticky: their cursor colour edges the paper. */
+  typist?: string | null;
   edit: EditRequest | null;
   /** Maps a stored `assets/…` path to a URL the canvas can load. */
   resolveAsset: (href: string) => string;
@@ -129,6 +151,7 @@ function Node({
   rot = 0,
   raised = false,
   extraStyle,
+  extraAttrs,
   children,
 }: {
   el: AnnotationElement;
@@ -140,6 +163,8 @@ function Node({
   /** An open editor floats above the elements painted after it. */
   raised?: boolean;
   extraStyle?: CSSProperties;
+  /** S4.16 — `data-pin` on a note pinned to a moment of a video. */
+  extraAttrs?: Record<string, string>;
   children: ReactNode;
 }) {
   const tool = v1ToolOf(el);
@@ -149,7 +174,9 @@ function Node({
       data-id={el.id}
       data-tool={tool}
       data-type={el.type}
+      {...(isAiAuthored(el) ? { 'data-author': 'ai' } : {})}
       {...(tool === 'polygon' ? { 'data-shape': str(el.kind) } : {})}
+      {...extraAttrs}
       style={{
         left: x,
         top: y,
@@ -234,34 +261,99 @@ function EditNotice({ notice }: { notice: EditRequest['notice'] }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Per-type views
 
-function StickyView({ el, interactive, edit }: ElementNodeProps) {
+/** `--radius-xs` of the maude-v2 kit: the corner of a sticky's paper (SVG paths cannot read a var). */
+const STICKY_PAPER_RADIUS = 4;
+/** The DS `.sticky` ink: `--object-ink`, through the HUD's own name, with the old literal as the fallback. */
+const STICKY_INK_VAR = 'var(--maude-hud-object-ink, #2a2a28)';
+
+/** A rounded rectangle, all four corners the same - the sticky's paper outline. */
+export function stickyBoxPath(x: number, y: number, w: number, h: number, r: number): string {
+  const rr = Math.max(0, Math.min(r, w / 2, h / 2));
+  return [
+    `M${x + rr} ${y}`,
+    `L${x + w - rr} ${y}`,
+    `Q${x + w} ${y} ${x + w} ${y + rr}`,
+    `L${x + w} ${y + h - rr}`,
+    `Q${x + w} ${y + h} ${x + w - rr} ${y + h}`,
+    `L${x + rr} ${y + h}`,
+    `Q${x} ${y + h} ${x} ${y + h - rr}`,
+    `L${x} ${y + rr}`,
+    `Q${x} ${y} ${x + rr} ${y}`,
+    'Z',
+  ].join(' ');
+}
+
+function StickyView({ el, interactive, edit, quiet, selected, mine, typist }: ElementNodeProps) {
   const x = num(el.x);
   const y = num(el.y);
   const w = num(el.w);
   const h = num(el.h);
-  const r = num(el.radius, STICKY_CORNER_RADIUS);
-  const fill = str(el.fill, '#fce8a6');
+  // P8-C2 (15 R1c): the paper is `--radius-xs` on all four corners (the DS `.sticky`) - no dog-ear, whatever radius a file stored
+  const r = STICKY_PAPER_RADIUS;
+  // S4.15 - an AI sticky is neutral paper with a spark edge, never a swatch (ai-marks.tsx)
+  const aiMade = isAiAuthored(el);
+  const paper = stickyPaper(el); // the stored fill always renders; neutral paper is only an AI sticky's default
+  const fill = quiet ? quietPaper(paper) : paper;
+  const resolved =
+    el.resolved && typeof el.resolved === 'object'
+      ? (el.resolved as { by?: unknown; at?: unknown })
+      : null;
+  const fmt = textFmt(el, 'left');
+  // S4.12 (C29) — a resolved sticky is struck through in place and kept; the words stay readable, in full ink
+  // (the strike and the tick say it is done - the DS `.sticky` never dims its words). Rounded SEMIBOLD in the
+  // object ink, 12 px (`--space-3`) of padding.
   const style = {
-    ...slotTextStyle('sticky', textFmt(el, 'left')),
-    color: '#2a2a28',
-    padding: '14px 16px',
+    ...slotTextStyle('sticky', resolved ? { ...fmt, strike: true } : fmt),
+    color: STICKY_INK_VAR,
+    fontWeight: fmt.bold ? 700 : 600,
+    padding: aiMade ? '12px 12px 12px 28px' : '12px',
   };
   const text = str(el.text);
   const lst = list(el.list);
-  const authorName =
-    el.author && typeof el.author === 'object' ? str((el.author as { name?: unknown }).name) : '';
+  const a =
+    el.author && typeof el.author === 'object'
+      ? (el.author as { kind?: unknown; name?: unknown })
+      : null;
+  const authorName = a ? str(a.name) : '';
+  const isAi = a?.kind === 'ai';
+  // S4.12 — a hand-rotated sticky keeps its angle; the rest tilt a little, from the id, and lie flat while typed in.
+  const rot = num(el.rot) || (edit ? 0 : tiltOf(el.id));
+  const line = authorLine(
+    { name: authorName, ai: isAi, me: mine },
+    typeof el.at === 'string' ? el.at : null,
+    Date.now()
+  );
+  const origin = provenanceLine(el.source);
+  const doneLine =
+    resolved && typeof resolved.by === 'string'
+      ? `Resolved by ${resolved.by}${typeof resolved.at === 'string' ? ` · ${relativeTime(resolved.at, Date.now())}` : ''}`
+      : null;
+  const shown = [line, origin, doneLine].filter(Boolean).join(' · ');
+  const pin = useTimePin(el); // S4.16 — the time chip, the fade off range, "Not printed"
   return (
-    <Node el={el} x={x} y={y} w={w} h={h} rot={num(el.rot)} raised={!!edit}>
+    <Node el={el} x={x} y={y} w={w} h={h} rot={rot} raised={!!edit} extraAttrs={pin.attrs}>
+      <PinTags pin={pin} />
       <Geo x={x} y={y} w={w} h={h}>
         <path
-          d={stickyCornerPath(x, y, w, h, r)}
+          d={stickyBoxPath(x, y, w, h, r)}
           fill={fill}
-          stroke="rgba(0,0,0,0.05)"
-          strokeWidth={1}
+          stroke={aiMade ? AI_SPARK : 'rgba(0,0,0,0.05)'}
+          strokeWidth={aiMade ? 2 : 1}
           vectorEffect="non-scaling-stroke"
           filter="url(#dc-sticky-shadow)"
           pointerEvents={hit(interactive)}
         />
+        {typist ? (
+          <path
+            d={stickyBoxPath(x, y, w, h, r)}
+            fill="none"
+            stroke={typist}
+            strokeWidth={2}
+            vectorEffect="non-scaling-stroke"
+            pointerEvents="none"
+            data-typist-edge="1"
+          />
+        ) : null}
       </Geo>
       {edit ? (
         <div
@@ -276,7 +368,7 @@ function StickyView({ el, interactive, edit }: ElementNodeProps) {
             // the `background` shorthand: the fill is peer-controlled and the
             // shorthand would take a `url(…)`.
             backgroundColor: fill,
-            borderRadius: `${r}px ${r}px 0 ${r}px`,
+            borderRadius: `${r}px`,
             zIndex: 1,
           }}
         >
@@ -303,28 +395,54 @@ function StickyView({ el, interactive, edit }: ElementNodeProps) {
         </div>
       )}
       {edit ? <EditNotice notice={edit.notice} /> : null}
-      {authorName ? (
+      {aiMade && !edit ? <SparkGlyph className="dc-annot-spark" /> : null}
+      {resolved ? (
         <span
-          title={authorName}
+          className="dc-annot-done"
+          data-resolved="1"
+          {...(resolvedByAi(el) ? { 'data-by': 'ai' } : {})}
+          title={resolvedByAi(el) ? 'Resolved by AI' : 'Resolved'}
+          role="img"
+          aria-label={resolvedByAi(el) ? 'Resolved by AI' : 'Resolved'}
+        >
+          <svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true">
+            <path
+              d="M2.5 6.4 5 8.8l4.5-5.2"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </span>
+      ) : null}
+      {shown && !edit ? (
+        // gate-a-polish2 (canvas 15 `.an-st-who`): the line sits INSIDE the paper, in the body face at xs, in ink
+        // mixed to >= 5.2:1 on this paper - not hung under it, where the resize handles are.
+        <span
+          className="dc-annot-who an-st-who"
+          title={shown}
+          data-an-who={selected ? 'sel' : undefined}
           style={{
             position: 'absolute',
-            right: 4,
-            bottom: 3,
-            maxWidth: 156,
+            left: aiMade ? 28 : 12,
+            right: 12,
+            bottom: 5,
+            padding: '0 2px',
+            borderRadius: 3,
+            backgroundColor: fill,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
-            fontSize: 9,
-            fontWeight: 600,
-            fontFamily: TEXT_FONT,
-            color: colorForName(authorName),
-            background: 'rgba(255,255,255,0.78)',
-            padding: '1px 5px',
-            borderRadius: 8,
+            fontSize: 'var(--type-xs, 11px)',
+            fontWeight: 400,
+            fontFamily: UI_FONT,
+            color: whoInk(fill, aiMade),
             lineHeight: 1.4,
           }}
         >
-          {authorName}
+          {shown}
         </span>
       ) : null}
     </Node>
@@ -505,26 +623,63 @@ function ArrowView({ el, ends, interactive }: ElementNodeProps) {
   if (!ends) return null;
   const width = num(el.width, 2);
   const pad = width * 4 + 24; // heads + curve bulge stay inside the node's box
-  const x = Math.min(ends.x1, ends.x2) - pad;
-  const y = Math.min(ends.y1, ends.y2) - pad;
-  const w = Math.abs(ends.x2 - ends.x1) + pad * 2;
-  const h = Math.abs(ends.y2 - ends.y1) + pad * 2;
+  // S4.11 — an elbow arrow at rest draws the route it settled on (rest-route.ts), so its box
+  // covers every waypoint, not just the two ends.
+  const routed = el.line === 'elbow' && ends.route && ends.route.length >= 2 ? ends.route : null;
+  const xs = routed ? routed.map((p) => p.x) : [];
+  const ys = routed ? routed.map((p) => p.y) : [];
+  const x = Math.min(ends.x1, ends.x2, ...xs) - pad;
+  const y = Math.min(ends.y1, ends.y2, ...ys) - pad;
+  const w = Math.max(ends.x1, ends.x2, ...xs) - Math.min(ends.x1, ends.x2, ...xs) + pad * 2;
+  const h = Math.max(ends.y1, ends.y2, ...ys) - Math.min(ends.y1, ends.y2, ...ys) + pad * 2;
+  const label = str(el.label);
+  const lp = label ? labelPoint(el, ends) : null;
+  // A dangling end (its host is gone) keeps its place, dashed, with no head (an-dangling).
+  const dangling = ends.dangling;
+  // S4.15 - an arrow the AI drew is spark-coloured, shaft and head alike
+  const aiMade = isAiAuthored(el);
+  const drawn = aiMade
+    ? { ...danglingEl(el, dangling), color: AI_SPARK }
+    : danglingEl(el, dangling);
+  const prims = routed ? polylinePrims(routed, drawn) : arrowPrimitives(arrowGeom(drawn, ends));
   return (
     <Node el={el} x={x} y={y} w={w} h={h}>
       <Geo x={x} y={y} w={w} h={h}>
         <g
-          stroke={str(el.color, '#1a1a1a')}
+          stroke={aiMade ? AI_SPARK : str(el.color, '#1a1a1a')}
           strokeWidth={width}
           strokeLinecap="round"
           strokeLinejoin="round"
           fill="none"
           pointerEvents={hit(interactive)}
+          {...(routed ? { 'data-route': routed.length } : {})}
+          {...(dangling?.start || dangling?.end ? { 'data-dangling': '1' } : {})}
         >
-          {arrowPrimitives(arrowGeom(el, ends)).map((p, i) => renderArrowPrimitive(p, i))}
+          {prims.map((p, i) => renderArrowPrimitive(p, i))}
         </g>
       </Geo>
+      {lp ? (
+        <span
+          className="dc-annot-alabel"
+          data-testid="annot-arrow-label"
+          style={{ left: lp.x - x, top: lp.y - y }}
+        >
+          {label}
+        </span>
+      ) : null}
     </Node>
   );
+}
+
+/** The record as drawn when an end is dangling: dashed, and no head on the lost end. */
+function danglingEl(el: AnnotationElement, d: ResolvedEnds['dangling']): AnnotationElement {
+  if (!d?.start && !d?.end) return el;
+  return {
+    ...el,
+    dashed: true,
+    ...(d.start ? { startHead: 'none' } : {}),
+    ...(d.end ? { endHead: 'none' } : {}),
+  };
 }
 
 function PenView({ el, interactive }: ElementNodeProps) {
@@ -573,7 +728,37 @@ function PenView({ el, interactive }: ElementNodeProps) {
   );
 }
 
+/**
+ * p8-sticker-image-retry — a placed picture renders before its board write lands, and a canvas frame
+ * reads an asset only once its closure holds it (learned from the board on disk, C4), so the first
+ * request can be `403 not-in-scope`. An SVG <image> never asks again: re-ask after each delay, under
+ * a new URL (`?r=<n>`), until it loads or the delays run out (a picture that is really gone).
+ */
+export const IMAGE_RETRY_DELAYS_MS: readonly number[] = [400, 1200, 3000, 6000];
+
+function useRetryingHref(url: string): { href: string; onError: () => void } {
+  const [state, setState] = useState({ url, attempt: 0, waiting: false });
+  const cur = state.url === url ? state : { url, attempt: 0, waiting: false };
+  useEffect(() => {
+    if (!cur.waiting) return;
+    const t = setTimeout(
+      () => setState((s) => (s.url === url ? { url, attempt: s.attempt + 1, waiting: false } : s)),
+      IMAGE_RETRY_DELAYS_MS[cur.attempt] ?? 0
+    );
+    return () => clearTimeout(t);
+  }, [cur.waiting, cur.attempt, url]);
+  const onError = () => {
+    if (!url || /^(?:blob|data):/i.test(url) || cur.waiting) return;
+    if (cur.attempt >= IMAGE_RETRY_DELAYS_MS.length) return;
+    setState({ url, attempt: cur.attempt, waiting: true });
+  };
+  const href = cur.attempt > 0 ? `${url}${url.includes('?') ? '&' : '?'}r=${cur.attempt}` : url;
+  return { href, onError };
+}
+
 function ImageView({ el, interactive, resolveAsset }: ElementNodeProps) {
+  const picture = useRetryingHref(resolveAsset(str(el.href)));
+  const flipped = (el.sticker as { flip?: unknown } | undefined)?.flip === true;
   const x = num(el.x);
   const y = num(el.y);
   const w = num(el.w);
@@ -586,12 +771,22 @@ function ImageView({ el, interactive, resolveAsset }: ElementNodeProps) {
           y={y}
           width={w}
           height={h}
-          href={resolveAsset(str(el.href))}
+          // S4.13 - Flip mirrors the picture about its own centre; the box and the handles stay put.
+          transform={flipped ? `translate(${2 * x + w} 0) scale(-1 1)` : undefined}
+          data-flipped={flipped ? '1' : undefined}
+          href={picture.href}
+          onError={picture.onError}
           preserveAspectRatio="xMidYMid meet"
           aria-label={str(el.alt) || undefined}
           pointerEvents={hit(interactive)}
         />
       </Geo>
+      {/* S4.15 - a status sticker the AI placed (Done! / Flagged) wears a small spark badge */}
+      {el.sticker && isAiAuthored(el) ? (
+        <span className="dc-annot-ai-badge" data-testid="annot-ai-badge" title="Placed by AI">
+          <SparkGlyph size={10} />
+        </span>
+      ) : null}
     </Node>
   );
 }
@@ -754,10 +949,15 @@ function SectionChip({
   el,
   interactive,
   edit,
+  note,
+  count,
 }: {
   el: AnnotationElement;
   interactive: boolean;
   edit: EditRequest | null;
+  note?: string;
+  /** S4.13 - how many an open section holds, drawn as a small number after its name. */
+  count?: string;
 }) {
   // Counter-scaled chrome needs the live zoom, not the settle-cadence one.
   const zoom = useLiveViewport().zoom || 1;
@@ -768,7 +968,9 @@ function SectionChip({
     fontFamily: TEXT_FONT,
     fontSize: `${g.fontSize}px`,
     lineHeight: `${g.chipH}px`,
-    color,
+    // 15 `.an-sec-t`: a SOLID object-colour chip, the title in the object ink, rounded semibold
+    color: 'var(--maude-hud-object-ink, #1a1a1a)',
+    fontWeight: 600,
     padding: `0 ${g.padX}px`,
     textAlign: 'left',
   };
@@ -776,9 +978,8 @@ function SectionChip({
     top: -(g.chipH + g.gap),
     minWidth: g.chipW,
     height: g.chipH,
-    borderRadius: 5 / zoom,
-    // Same wash the SVG chip had (fill-opacity 0.16).
-    backgroundColor: `color-mix(in oklab, ${color} 16%, transparent)`,
+    borderRadius: 6 / zoom, // --radius-sm
+    backgroundColor: color,
     pointerEvents: interactive ? 'auto' : 'none',
   };
   if (edit) {
@@ -801,36 +1002,56 @@ function SectionChip({
     );
   }
   return (
-    <div className="dc-annot-chip" data-section-chip="1" style={{ ...box, width: g.chipW }}>
+    <div
+      className="dc-annot-chip"
+      data-section-chip="1"
+      style={{ ...box, width: note || count ? undefined : g.chipW, whiteSpace: 'nowrap' }}
+    >
       <div className="dc-annot-text dc-annot-text--nowrap" style={style}>
         {label}
+        {count ? (
+          <span data-section-count="1" style={{ opacity: 0.65, marginLeft: 6, fontWeight: 500 }}>
+            {count}
+          </span>
+        ) : null}
+        {note ? (
+          <span data-fold-note="1" style={{ opacity: 0.75, marginLeft: 8, fontWeight: 500 }}>
+            {note}
+          </span>
+        ) : null}
       </div>
     </div>
   );
 }
 
-function SectionView({ el, interactive, edit }: ElementNodeProps) {
+function SectionView({ el, interactive, edit, foldNote }: ElementNodeProps) {
   const x = num(el.x);
   const y = num(el.y);
   const w = num(el.w);
   const h = num(el.h);
-  const color = str(el.color, '#8a8a8a');
+  const color = sectionTone(el);
+  // S4.12 - folded: the members are not drawn, so the body is a faint dashed outline and the chip says what is inside.
+  const folded = el.folded === true;
+  // S4.13 - and a folded section is ONE LINE on the board: the strip under its chip, not the full outline.
+  // The element keeps its size in the file, so Unfold restores it.
+  const drawnH = folded ? Math.min(h, SECTION_FOLDED_H) : h;
   return (
-    <Node el={el} x={x} y={y} w={w} h={h} raised={!!edit}>
-      <Geo x={x} y={y} w={w} h={h}>
+    <Node el={el} x={x} y={y} w={w} h={drawnH} raised={!!edit}>
+      <Geo x={x} y={y} w={w} h={drawnH}>
         {/* Body: pure backdrop, click-through (content on a section selects normally). */}
         <rect
           x={x}
           y={y}
           width={w}
-          height={h}
+          height={drawnH}
           rx={SECTION_CORNER_RADIUS}
           ry={SECTION_CORNER_RADIUS}
           fill={color}
-          fillOpacity={0.07}
+          fillOpacity={folded ? 0.03 : 0.07}
           stroke={color}
-          strokeOpacity={0.45}
+          strokeOpacity={folded ? 0.3 : 0.45}
           strokeWidth={1.5}
+          strokeDasharray={folded ? '6 5' : undefined}
           vectorEffect="non-scaling-stroke"
           pointerEvents="none"
         />
@@ -840,7 +1061,7 @@ function SectionView({ el, interactive, edit }: ElementNodeProps) {
             x={x}
             y={y}
             width={w}
-            height={h}
+            height={drawnH}
             rx={SECTION_CORNER_RADIUS}
             ry={SECTION_CORNER_RADIUS}
             fill="none"
@@ -851,7 +1072,13 @@ function SectionView({ el, interactive, edit }: ElementNodeProps) {
           />
         ) : null}
       </Geo>
-      <SectionChip el={el} interactive={interactive} edit={edit} />
+      <SectionChip
+        el={el}
+        interactive={interactive}
+        edit={edit}
+        note={folded ? (foldNote ?? '') : undefined}
+        count={!folded && foldNote ? foldNote : undefined}
+      />
       {edit ? <EditNotice notice={edit.notice} /> : null}
     </Node>
   );
@@ -903,6 +1130,13 @@ export function registerElementView(type: string, view: (p: ElementNodeProps) =>
   VIEWS.set(type, view);
 }
 
+/** The counterpart of `registerElementView` (a runtime type going away with `unregisterElementType`). */
+export function unregisterElementView(type: string): void {
+  if (BUILTIN_VIEWS.has(type)) throw new Error(`"${type}" is a built-in element view`);
+  VIEWS.delete(type);
+}
+const BUILTIN_VIEWS = new Set(VIEWS.keys());
+
 export { Node as ElementBox };
 
 /**
@@ -940,8 +1174,17 @@ function sameEnds(a?: ResolvedEnds, b?: ResolvedEnds): boolean {
     a.startAnchor?.nx === b.startAnchor?.nx &&
     a.startAnchor?.ny === b.startAnchor?.ny &&
     a.endAnchor?.nx === b.endAnchor?.nx &&
-    a.endAnchor?.ny === b.endAnchor?.ny
+    a.endAnchor?.ny === b.endAnchor?.ny &&
+    sameRoute(a.route, b.route) &&
+    a.dangling?.start === b.dangling?.start &&
+    a.dangling?.end === b.dangling?.end
   );
+}
+
+function sameRoute(a?: ResolvedEnds['route'], b?: ResolvedEnds['route']): boolean {
+  if (a === b) return true;
+  if (!a || !b || a.length !== b.length) return false;
+  return a.every((p, i) => p.x === b[i]?.x && p.y === b[i]?.y);
 }
 
 export const ElementNode = memo(
@@ -949,6 +1192,11 @@ export const ElementNode = memo(
   (a, b) =>
     a.el === b.el &&
     a.interactive === b.interactive &&
+    a.quiet === b.quiet &&
+    a.selected === b.selected &&
+    a.mine === b.mine &&
+    a.foldNote === b.foldNote &&
+    a.typist === b.typist &&
     a.edit === b.edit &&
     a.resolveAsset === b.resolveAsset &&
     sameEnds(a.ends, b.ends)

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { AppPreview } from '@/components/mdcc/app-preview';
 import { DemoVideo } from '@/components/mdcc/demo-video';
 import { DownloadNative } from '@/components/mdcc/download-native';
 import { QuickStart } from '@/components/mdcc/quick-start';
@@ -16,7 +17,7 @@ const CATALOG = [
     slug: 'design',
     title: 'Iterates canvases until they stop being embarrassing.',
     description:
-      'Canvas-first iteration on HTML/JSX mocks. Zero-dep Node dev-server. Cmd+Click element inspector. Snapshot stack per canvas.',
+      'Canvas-first iteration on TSX mocks, in Claude Code. A local dev server, an element inspector, a snapshot stack per canvas. The Mac app bundles it.',
     tags: [
       `commands · ${stats.plugins.design.commands}`,
       `skills · ${stats.plugins.design.skills}`,
@@ -87,18 +88,20 @@ export default function HomePage() {
             (maude, how it works mostly.)
           </div>
           <p className="mdcc-hero-punchline">
-            Real files. Real git. Real tokens. Nothing here pretends Claude Code doesn&apos;t exist.
-            That&apos;s why it just works.
+            Built around AI, not bent to fit one. Real files, real git history, a real design
+            system. That&apos;s why it just works.
           </p>
           <p>
-            <code>design</code> iterates on HTML mocks. <code>flow</code> runs the agentic loop
-            until the feature actually ships. <code>maude</code> scaffolds the second-brain{' '}
-            <code>.ai/</code> workspace they both pretend they could live without.
+            Open the Mac app, tell AI what to make, and it lands on a canvas as real{' '}
+            <code>.tsx</code> files in your repo. Draw on it yourself with Shape, Text and Frame, or
+            press <kbd>⌘/</kbd> on an element and ask AI. Version history keeps saved versions, with
+            Restore.
           </p>
+          <DownloadNative />
           <p className="mdcc-hero-fineprint">
-            Open-source. Catalog-graded. No telemetry, no signup, no{' '}
-            <em className="mdcc-strike">book a demo</em> button. If it crashes,{' '}
-            <code>git pull</code> and try again. That&apos;s the entire support contract.
+            Free and open-source. No telemetry, no signup, no{' '}
+            <em className="mdcc-strike">book a demo</em> button. If it crashes, open an issue.
+            That&apos;s the entire support contract.
           </p>
           <div className="flex flex-wrap items-center gap-3 mt-4">
             <Link href="/docs" className="mdcc-cta-primary">
@@ -121,11 +124,12 @@ export default function HomePage() {
               Watch the intro <span className="mdcc-watch-dur">0:38</span>
             </a>
           </div>
-          <p className="mdcc-hero-fineprint">Or skip the terminal — get the native desktop app:</p>
-          <DownloadNative />
+          <p className="mdcc-hero-fineprint">
+            Prefer a terminal? <a href="#advanced">Advanced: install from the command line.</a>
+          </p>
         </div>
 
-        <QuickStart />
+        <AppPreview />
       </section>
 
       <section aria-labelledby="why-h">
@@ -176,25 +180,26 @@ export default function HomePage() {
           <span>{stats.version}</span>
         </div>
         <h2 id="spot-h" className="mdcc-spotlight-title">
-          The canvas <span style={{ color: 'var(--accent)' }}>talks back</span> now.
+          Draw it yourself, or <span style={{ color: 'var(--accent)' }}>ask AI</span>.
         </h2>
         <p className="mdcc-spotlight-lede">
-          Cmd+Click an element and edit its CSS against your real design tokens — Figma-style scrub
-          fields, a searchable Variables popover that shows where each token is defined, and one
-          colour picker for fill and border alike. It writes straight back to the source{' '}
-          <code>.tsx</code>. The AI sits this one out.
+          Shape, Pen, Text, Frame, Component and Image each get an Inspector of their own, and Undo
+          history shows real names. Press <kbd>⌘/</kbd> on an element to ask AI about just that
+          element, and one <kbd>⌘Z</kbd> takes back a whole AI run. Preview turns the canvas into a
+          whiteboard: stickies, a marker, arrows, votes. Present shares it with a stable link.
         </p>
         <div className="mdcc-spotlight-tags">
-          <span>Figma-style token editor</span>
-          <span>searchable Variables · provenance</span>
-          <span>writes back to source</span>
+          <span>Edit tools + Inspector</span>
+          <span>Ask AI on the element</span>
+          <span>one ⌘Z per AI run</span>
+          <span>Preview whiteboard · Present</span>
         </div>
         <div className="mdcc-spotlight-ctas">
           <Link href="/changelog" className="mdcc-cta-primary">
             See what shipped
           </Link>
-          <Link href="/docs/design" className="mdcc-cta-ghost">
-            Read the design docs
+          <Link href="/docs" className="mdcc-cta-ghost">
+            Read the docs
           </Link>
         </div>
       </section>
@@ -203,13 +208,20 @@ export default function HomePage() {
         <DemoVideo />
       </div>
 
-      <section aria-labelledby="cat-h">
+      <section id="advanced" aria-labelledby="cat-h">
         <div className="mdcc-section-head">
-          <h2 id="cat-h">The catalog.</h2>
+          <h2 id="cat-h">Advanced.</h2>
           <span className="mdcc-eyebrow">
-            two plugins · one CLI · one hub · {stats.version} ·{' '}
-            <Link href="/changelog">what shipped -&gt;</Link>
+            the terminal route · {stats.version} · <Link href="/changelog">what shipped -&gt;</Link>
           </span>
+        </div>
+        <p className="mdcc-hero-fineprint" style={{ marginBottom: 'var(--space-5)' }}>
+          The Mac app is the front door. Underneath it is a pair of plugins and a CLI, and you can
+          use them on their own from Claude Code in a terminal. Same files, same git, same design
+          system.
+        </p>
+        <div style={{ marginBottom: 'var(--space-6)' }}>
+          <QuickStart />
         </div>
         <div className="mdcc-cat-grid">
           {CATALOG.map((item) => (

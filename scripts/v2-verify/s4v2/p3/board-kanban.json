@@ -1,0 +1,30 @@
+{
+  "title": "Combine 2026",
+  "layout": "columns",
+  "groups": [
+    {
+      "title": "Nápady",
+      "cards": [
+        { "text": "Reel: 40 yd sprint ve zpomaleném záběru", "color": "#c9b8f0" },
+        { "text": "Story: odpočet 7 dní do Combine", "color": "#a8d8f0" },
+        { "text": "Plakát do škol v Brně a Blansku", "color": "#f4b6a8" },
+        { "text": "Rozhovor s trenérem O-line", "color": "#c9b8f0" }
+      ]
+    },
+    {
+      "title": "Rozpracované",
+      "cards": [
+        { "text": "Leták A6 — registrace s QR kódem", "color": "#f4b6a8" },
+        { "text": "Web: stránka STAŇ SE GATOREM", "color": "#a6e3a1" },
+        { "text": "Post 1:1 — datum tučně", "color": "#a8d8f0" }
+      ]
+    },
+    {
+      "title": "Hotovo",
+      "cards": [
+        { "text": "Pozvánka pro partnery", "color": "#a6e3a1" },
+        { "text": "Combine v číslech 2025", "color": "#a8d8f0" }
+      ]
+    }
+  ]
+}

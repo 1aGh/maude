@@ -22,7 +22,7 @@
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
 use tokio::time::sleep;
 
 /// The Maude GitHub OAuth App client id. NOT a secret. Replace the placeholder
@@ -157,7 +157,7 @@ async fn poll_for_token(
             }
             other => {
                 // Don't surface raw GitHub error codes to a non-technical user.
-                eprintln!("[maude] github device-flow error: {:?}", other);
+                crate::sidecar::log_line(&format!("[maude] github device-flow error: {other:?}"));
                 return Err("Sign-in didn't finish. Please try again.".to_string());
             }
         }
@@ -192,14 +192,37 @@ fn http_client() -> Result<reqwest::Client, String> {
         .map_err(|_| "Couldn't start the sign-in client.".to_string())
 }
 
+/// Sign-in progress goes to the CALLING window only (V2-3.1, plan T4), over
+/// its own `shell_subscribe` channel (bus.rs). Never `emit_to`: Tauri also
+/// delivers that to every JS listener registered with target `Any`, in every
+/// webview, so a sibling tab would read this tab's device code (finding 1d).
+fn to_caller<S: Serialize>(label: &str, kind: &str, payload: S) {
+    crate::bus::send(label, kind, payload);
+}
+
 /// `#[tauri::command]` — the whole device flow, awaited by the webview.
 ///
-/// 1. POST for a device+user code → emit `github://device-code` so the modal shows
-///    the code, and open the browser at the verification URL.
+/// 1. POST for a device+user code → emit `github://device-code` to the calling
+///    window so its modal shows the code, and open the browser at the
+///    verification URL.
 /// 2. Poll until authorized (or expired/denied).
-/// 3. Store the token in the OS keychain (never on disk) and return the **login**.
+/// 3. Store the token in a keychain slot (never on disk) and return the
+///    **login** — the slot is picked by `complete_github_sign_in` (V2-3.8).
+///
+/// The profile is the CALLING window's project binding (V2-3.2, contract §5.4:
+/// resolved from the `Webview`, never from an argument — the `Some(profile)`
+/// arm is gone). All poll state (device code, interval, back-off) is local to
+/// this call — never a static — so two windows signing into two profiles at
+/// once cannot cross wires.
 #[tauri::command]
-pub async fn github_sign_in(app: AppHandle) -> Result<String, String> {
+pub async fn github_sign_in(app: AppHandle, webview: tauri::Webview) -> Result<String, String> {
+    let caller = crate::windows::caller_project(&webview, false)?;
+    let profile = crate::app_state::profile_for(&app, &caller.root);
+    if !crate::profiles::exists(&profile) {
+        return Err("That account profile doesn't exist.".to_string());
+    }
+    let target = webview.label().to_string();
+
     // E2E (debug builds only): the device flow opens the system browser + polls GitHub —
     // neither DOM-drivable nor deterministic. With MAUDE_E2E_FAKE_GITHUB_LOGIN set, show a
     // deterministic device-code modal, "authorize" after a beat, then report the fake
@@ -208,7 +231,8 @@ pub async fn github_sign_in(app: AppHandle) -> Result<String, String> {
     #[cfg(debug_assertions)]
     if let Ok(login) = std::env::var("MAUDE_E2E_FAKE_GITHUB_LOGIN") {
         if !login.is_empty() {
-            let _ = app.emit(
+            to_caller(
+                &target,
                 "github://device-code",
                 DeviceCodeEvent {
                     user_code: "E2E-CODE".to_string(),
@@ -217,7 +241,7 @@ pub async fn github_sign_in(app: AppHandle) -> Result<String, String> {
                 },
             );
             sleep(Duration::from_millis(2500)).await;
-            let _ = app.emit("github://signed-in", &login);
+            to_caller(&target, "github://signed-in", &login);
             return Ok(login);
         }
     }
@@ -227,8 +251,9 @@ pub async fn github_sign_in(app: AppHandle) -> Result<String, String> {
 
     let dc = request_device_code(&client, &client_id).await?;
 
-    // Show the code in the UI (the device-code modal listens for this).
-    let _ = app.emit(
+    // Show the code in the calling window (its device-code modal listens).
+    to_caller(
+        &target,
         "github://device-code",
         DeviceCodeEvent {
             user_code: dc.user_code.clone(),
@@ -238,23 +263,149 @@ pub async fn github_sign_in(app: AppHandle) -> Result<String, String> {
     );
     // Best-effort: open the verification page in the system browser.
     if let Err(e) = open::that(&dc.verification_uri) {
-        eprintln!("[maude] could not open browser for device flow: {e}");
+        crate::sidecar::log_line(&format!("[maude] could not open browser for device flow: {e}"));
     }
 
     let token = poll_for_token(&client, &client_id, &dc.device_code, dc.interval).await?;
-
-    // The token is a secret → keychain only.
-    crate::keychain::set_token(&token)
-        .map_err(|e| format!("Signed in, but couldn't save it securely: {e}"))?;
-
+    // The login FIRST: which profile the token may go to depends on whose it is.
     let login = fetch_login(&client, &token).await?;
-    let _ = app.emit("github://signed-in", &login);
+    complete_github_sign_in(&app, &caller.label, &caller.root, &login, &token)?;
     Ok(login)
+}
+
+/// S6.10 — the device flow for a caller with no project (Home): the code goes to `label` on its
+/// own channel, the browser opens, and the answer is `(login, token)` for the caller to store
+/// (github_home.rs `home_github_sign_in`, which picks the profile). The token is returned to Rust
+/// only. Debug builds honour `MAUDE_E2E_FAKE_GITHUB_LOGIN` like `github_sign_in`, and only with
+/// the in-memory keychain, so a fake token can never land in the person's keychain.
+pub(crate) async fn device_flow(label: &str) -> Result<(String, String), String> {
+    #[cfg(debug_assertions)]
+    if let Ok(login) = std::env::var("MAUDE_E2E_FAKE_GITHUB_LOGIN") {
+        if !login.is_empty() {
+            if !crate::keychain::test_store::e2e_installed() {
+                return Err("e2e sign-in needs MAUDE_E2E_FAKE_KEYCHAIN".into());
+            }
+            to_caller(
+                label,
+                "github://device-code",
+                DeviceCodeEvent {
+                    user_code: "E2E-CODE".to_string(),
+                    verification_uri: "https://github.com/login/device".to_string(),
+                    expires_in: 900,
+                },
+            );
+            sleep(Duration::from_millis(1500)).await;
+            to_caller(label, "github://signed-in", &login);
+            let token = format!("e2e-token-{login}");
+            return Ok((login, token));
+        }
+    }
+    let client_id = client_id()?;
+    let client = http_client()?;
+    let dc = request_device_code(&client, &client_id).await?;
+    to_caller(
+        label,
+        "github://device-code",
+        DeviceCodeEvent {
+            user_code: dc.user_code.clone(),
+            verification_uri: dc.verification_uri.clone(),
+            expires_in: dc.expires_in,
+        },
+    );
+    if let Err(e) = open::that(&dc.verification_uri) {
+        crate::sidecar::log_line(&format!("[maude] could not open browser for device flow: {e}"));
+    }
+    let token = poll_for_token(&client, &client_id, &dc.device_code, dc.interval).await?;
+    let login = fetch_login(&client, &token).await?;
+    to_caller(label, "github://signed-in", &login);
+    Ok((login, token))
+}
+
+/// V2-3.8 — the write half of a GitHub sign-in, shared by the device flow and
+/// the debug-only e2e seam. The project at `root` keeps its own sign-in: a
+/// token for another account than its profile holds (or one that would re-sign
+/// a profile other projects are bound to) goes to a NEW profile the project is
+/// rebound to, and the project's server restarts onto it — the old profile's
+/// token, and every other project's account, are untouched. A first sign-in
+/// stores on the project's own profile and creates nothing.
+pub(crate) fn complete_github_sign_in(
+    app: &AppHandle,
+    label: &str,
+    root: &str,
+    login: &str,
+    token: &str,
+) -> Result<crate::app_state::SignedIn, String> {
+    // The token is a secret → a keychain slot only (DDR-108/132); the profile
+    // records the public handle.
+    let out = crate::app_state::settle_sign_in_app(
+        app,
+        root,
+        crate::profiles::SignInKind::GitHub,
+        login,
+        |p| crate::keychain::get_token(p).is_some(),
+        |p| {
+            crate::keychain::set_token(p, token)
+                .map_err(|e| format!("Signed in, but couldn't save it securely: {e}"))
+        },
+    )?;
+    to_caller(label, "github://signed-in", login);
+    if out.rebound {
+        crate::sidecar::log_line(&format!(
+            "[maude] {label}: signed in on a new account profile {} — restarting its server",
+            out.profile
+        ));
+        crate::sidecar::restart_on_binding(app, label, root);
+    }
+    Ok(out)
+}
+
+/// Debug-only e2e seam (V2-3.8 `project-tabs-identity`): finish a GitHub
+/// sign-in as `login` for the CALLING window, through the real write path —
+/// `complete_github_sign_in` picks the profile, stores a fake token, rebinds
+/// and restarts exactly as the device flow does. Only the device flow itself
+/// (browser + GitHub) is skipped. Refused unless the in-memory keychain is in
+/// use (`MAUDE_E2E_FAKE_KEYCHAIN`), so it can never write the person's real
+/// keychain. Granted only by capabilities/debug/e2e-webdriver.json; a release
+/// build answers Err.
+#[tauri::command]
+pub fn e2e_github_sign_in_as(
+    app: AppHandle,
+    webview: tauri::Webview,
+    login: String,
+) -> Result<String, String> {
+    #[cfg(debug_assertions)]
+    {
+        if !crate::keychain::test_store::e2e_installed() {
+            return Err("e2e sign-in needs MAUDE_E2E_FAKE_KEYCHAIN".into());
+        }
+        let caller = crate::windows::caller_project(&webview, false)?;
+        let token = e2e_sign_in_token(&login, std::env::var("MAUDE_E2E_GITHUB_TOKEN").ok());
+        let out = complete_github_sign_in(&app, &caller.label, &caller.root, &login, &token)?;
+        Ok(out.profile)
+    }
+    #[cfg(not(debug_assertions))]
+    {
+        let _ = (app, webview, login);
+        Err("debug builds only".into())
+    }
+}
+
+/// The token `e2e_github_sign_in_as` stores (debug builds only, and only into the
+/// in-memory keychain). Normally a fake `e2e-token-<login>`. A live check against a
+/// real GitHub repo (V2-8.16) hands a real token in through `MAUDE_E2E_GITHUB_TOKEN`
+/// — env only, so it never lands in a file, a log or the person's keychain.
+#[cfg(any(test, debug_assertions))]
+fn e2e_sign_in_token(login: &str, env_token: Option<String>) -> String {
+    match env_token.as_deref().map(str::trim) {
+        Some(t) if !t.is_empty() => t.to_string(),
+        _ => format!("e2e-token-{login}"),
+    }
 }
 
 /// `#[tauri::command]` — re-open the verification URL (the modal's "Open it again").
 #[tauri::command]
-pub fn github_open_verification(url: String) -> Result<(), String> {
+pub fn github_open_verification(webview: tauri::Webview, url: String) -> Result<(), String> {
+    crate::windows::caller_project(&webview, false)?;
     // Only ever the GitHub device-verification URL — refuse anything else so this
     // can't be turned into an arbitrary-URL opener from the webview.
     if url != "https://github.com/login/device" {
@@ -269,7 +420,8 @@ pub fn github_open_verification(url: String) -> Result<(), String> {
 /// reject whitespace — the untrusted webview can't turn this into an arbitrary-URL
 /// opener (DDR-054 posture, same rationale as `github_open_verification`).
 #[tauri::command]
-pub fn open_github_url(url: String) -> Result<(), String> {
+pub fn open_github_url(webview: tauri::Webview, url: String) -> Result<(), String> {
+    crate::windows::caller_project(&webview, false)?;
     // Host-locked to github.com (the trailing `/` closes the URL authority — no
     // `@`/label host-smuggle), length-capped, and rejecting bytes that could re-open
     // the authority (`@`, `\`) or that Rust std's Windows launcher has historically
@@ -322,7 +474,7 @@ const DEFAULT_CLOUD_HOST: &str = "cloud.maude.sh";
 /// shells out to `xdg-open`, a POSIX shell script whose `$BROWSER`-with-`%s` path
 /// word-splits and glob-expands the URL. The whitespace rule is the only thing
 /// standing between that and argv injection.
-fn has_unsafe_bytes(url: &str) -> bool {
+pub(crate) fn has_unsafe_bytes(url: &str) -> bool {
     url.contains(|c: char| {
         c.is_whitespace()
             || c.is_control()
@@ -338,7 +490,7 @@ fn has_unsafe_bytes(url: &str) -> bool {
 /// would leave Rust locked to a different origin than the one the sidecar is
 /// actually talking to — the opener would then refuse the very URL the dialog is
 /// showing. Falls back to the default on anything unparseable.
-fn cloud_base() -> reqwest::Url {
+pub(crate) fn cloud_base() -> reqwest::Url {
     if let Ok(raw) = std::env::var("MAUDE_CLOUD_URL") {
         if let Ok(u) = reqwest::Url::parse(raw.trim()) {
             // A bare single-label host (`https://sh`, `https://com`) is a typo, not
@@ -429,11 +581,19 @@ fn cloud_url_allowed(url: &str, base: &reqwest::Url) -> Option<reqwest::Url> {
     None
 }
 
+/// Is a validated server origin (`scheme://host[:port]`) the configured Maude
+/// Cloud or a host in its zone? (V2-3.6 M3: the team servers a project window
+/// may open a managed copy of without asking.)
+pub(crate) fn in_cloud_zone(server: &str) -> bool {
+    cloud_url_allowed(server, &cloud_base()).is_some()
+}
+
 /// `#[tauri::command]` — open a Maude Cloud URL (device-activation page, share
 /// view, dashboard) in the OS browser. Zone-locked in Rust against the address
 /// resolved at call time; the webview's argument never widens what is allowed.
 #[tauri::command]
-pub async fn open_cloud_url(url: String) -> Result<(), String> {
+pub async fn open_cloud_url(webview: tauri::Webview, url: String) -> Result<(), String> {
+    crate::windows::caller_any(&webview, false)?;
     // Launch the PARSED url, never the caller's string — see cloud_url_allowed.
     let validated = cloud_url_allowed(&url, &cloud_base())
         .ok_or_else(|| "Refusing to open a URL outside Maude Cloud.".to_string())?;
@@ -448,7 +608,18 @@ pub async fn open_cloud_url(url: String) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{cloud_base, cloud_url_allowed, DEFAULT_CLOUD_URL};
+    use super::{cloud_base, cloud_url_allowed, e2e_sign_in_token, DEFAULT_CLOUD_URL};
+
+    #[test]
+    fn e2e_sign_in_token_takes_a_real_token_from_env_only_when_set() {
+        assert_eq!(e2e_sign_in_token("x", None), "e2e-token-x");
+        assert_eq!(e2e_sign_in_token("x", Some(String::new())), "e2e-token-x");
+        assert_eq!(e2e_sign_in_token("x", Some("  ".into())), "e2e-token-x");
+        assert_eq!(e2e_sign_in_token("x", Some(" live-1 \n".into())), "live-1");
+    }
+
+    // Sign-in progress reaching the calling window only is bus.rs's
+    // `a_message_reaches_its_own_page_and_no_other` (finding 1d).
 
     fn base(s: &str) -> reqwest::Url {
         reqwest::Url::parse(s).unwrap()

@@ -26,9 +26,17 @@
 import { createHash } from 'node:crypto';
 import { request as httpRequest } from 'node:http';
 import { connect as netConnect } from 'node:net';
-
+import { legacyClaim } from '../../studio/access/scope.ts';
+import { OBSERVER_REFUSAL, planPausedFromEnv, planPauseRefusal } from './access-gate.mjs';
+import {
+  followAccessClaim,
+  followAskOf,
+  followRoomPath,
+  mayFollow,
+  sessionAccess,
+} from './follow-capability.mjs';
 import { RENDER_TOKEN_TTL_MS } from './render-token.mjs';
-import { isReadOnlyRole } from './role-matrix.mjs';
+import { FLOOR_ROLE, isReadOnlyRole, maxRole } from './role-matrix.mjs';
 import { servicePage } from './studio-door.mjs';
 import { decide } from './studio-manifest.mjs';
 
@@ -199,12 +207,59 @@ const HOP_BY_HOP = new Set([
 ]);
 
 /**
+ * The role a browser session is judged at by the shell door's one table.
+ *
+ * A project session: its role. S3.7c — a CANVAS-ONLY session (`browserSession`
+ * admits a claim-bearing role-null cookie as `canvasOnly`): the highest role
+ * any of its grants holds (V2-1.7 §5.4 — `x-maude-role` is `maxRole(role,
+ * ...grants)`, for display), and it is forwarded WITH its claim, so the
+ * studio's per-request reader (access/request.ts, S9.9) decides every target —
+ * a project-scope request from it is refused there, with the same answer a
+ * missing target gets. Anything else (no session, a role-null session without
+ * such a claim) has no door role and is refused here.
+ */
+export function doorRoleOf(session) {
+  if (!session) return null;
+  if (session.role) return session.role;
+  if (session.canvasOnly !== true) return null;
+  const access = sessionAccess(session);
+  if (!access.canvasOnly) return null;
+  return access.grants.reduce((top, g) => maxRole(top, g.r), null);
+}
+
+/** A role (+ the render capability's sorted grants) as the access claim it states. */
+function claimFrom(role, grants) {
+  const claim = legacyClaim(role);
+  return Array.isArray(grants) && grants.length
+    ? { ...claim, grants: grants.map(({ c, r }) => ({ c, r })) }
+    : claim;
+}
+
+/** `x-maude-access` — base64url(JSON AccessClaim) (V2-1.7 §5.4). */
+export function encodeAccessClaim(claim) {
+  return Buffer.from(JSON.stringify(claim), 'utf8').toString('base64url');
+}
+
+/**
  * The headers we send upstream: the client's, minus anything hop-by-hop, minus
  * anything it could have used to impersonate the proxy — plus the truth.
  */
 export function upstreamHeaders(
   incoming,
-  { role, user, sessionKey, publicUrl, canvasToken, renderToken, collabRealm }
+  {
+    role,
+    access,
+    grants,
+    user,
+    sessionKey,
+    publicUrl,
+    canvasToken,
+    renderToken,
+    collabRealm,
+    paused = false,
+    canvasOnly = false,
+    collabFollow = false,
+  }
 ) {
   const out = {};
   for (const [k, v] of Object.entries(incoming ?? {})) {
@@ -234,7 +289,33 @@ export function upstreamHeaders(
   // what `viewer` means — that would be a second copy of the role model, in
   // another language, in a package that ships to end users on npm. One table
   // (`role-matrix.mjs`), one authority; everything else mirrors its answer.
-  out[`${INJECTED_HEADER_PREFIX}readonly`] = isReadOnlyRole(role) ? '1' : '0';
+  //
+  // `paused` (A3, S9.15b) — a socket on a paused project opens READ-ONLY at
+  // the member's real role: the studio's existing read-only socket gates then
+  // drop its Yjs body writes and its inspector mutations, while it keeps
+  // receiving everything. Only the socket lanes pass it; an HTTP write on a
+  // paused project never gets this far (402 plan above).
+  //
+  // S9.15c — and with NO writable lane: `plan`, not `1`. `1` is read-only BY
+  // ROLE, where the comment lane stays open (Can comment); `plan` closes it too,
+  // so a paused project's comments cannot sync over a socket either (lead
+  // decision `v2-lead-paused-comments-refused`). A studio reads anything but
+  // `0`/`1` as that stricter mode; an older one reads it as "not `0`" =
+  // read-only by role, which is what S9.15b already sent.
+  //
+  // S3.7c — a canvas-only session has NO project role: the projection says
+  // read-only whatever its grants hold (the claim below carries the grants).
+  out[`${INJECTED_HEADER_PREFIX}readonly`] = paused
+    ? 'plan'
+    : canvasOnly || isReadOnlyRole(role)
+      ? '1'
+      : '0';
+  // V2-1.7 §5.4 — the whole ACCESS CLAIM (project role + canvas grants), which
+  // the studio's `withSession` reads into `currentAccess()` (S9.9). The role and
+  // readonly headers above stay what they were — the PROJECT role and its
+  // projection — so a grant cannot widen a studio gate that does not read the
+  // claim yet (interim, fail closed, like `peerSessionFields`).
+  out[`${INJECTED_HEADER_PREFIX}access`] = encodeAccessClaim(access ?? claimFrom(role, grants));
   if (user) out[`${INJECTED_HEADER_PREFIX}user`] = user;
   // The capability that opens the cookieless canvas origin. The client appends
   // it to every canvas iframe URL; minting it here keeps the signing secret in
@@ -256,6 +337,10 @@ export function upstreamHeaders(
   // the prefix strip above already removed any client-supplied value), so a
   // canvas-origin socket cannot claim the privileged shell realm.
   if (collabRealm) out[`${INJECTED_HEADER_PREFIX}collab-realm`] = collabRealm;
+  // S3.7c — a presentation follower's socket: receive-only in the studio room
+  // (every sync update dropped, awareness stripped to `watching`). Injected
+  // only by the canvas door, for the one room its follow capability names.
+  if (collabFollow) out[`${INJECTED_HEADER_PREFIX}collab-follow`] = '1';
   return out;
 }
 
@@ -359,6 +444,34 @@ export function isAssetWriteCompletion(method, path, statusCode) {
   );
 }
 
+/** The studio's "Update project" route (routes/project-format.ts). */
+export const PROJECT_MIGRATE_PATH = '/_api/project/migrate';
+const MIGRATE_BODY_BYTES = 64 * 1024;
+const MIGRATE_REPLY_BYTES = 8 * 1024 * 1024;
+
+export function isProjectMigrate(method, path) {
+  return method === 'POST' && path === PROJECT_MIGRATE_PATH;
+}
+
+/** A whole stream as one Buffer, or a throw past `max` bytes. */
+function readCapped(stream, max) {
+  return new Promise((resolve, reject) => {
+    const parts = [];
+    let n = 0;
+    stream.on('data', (chunk) => {
+      n += chunk.length;
+      if (n > max) {
+        stream.destroy?.();
+        reject(new Error('too large'));
+        return;
+      }
+      parts.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    });
+    stream.on('end', () => resolve(Buffer.concat(parts)));
+    stream.on('error', reject);
+  });
+}
+
 function refuse(response, status, body) {
   const payload = JSON.stringify(body);
   response.writeHead(status, {
@@ -374,6 +487,10 @@ function refuse(response, status, body) {
  *  surfaces concludes one of them is broken. */
 export const READ_ONLY_MESSAGE =
   'You can look at this project, comment and download it, but not change it.';
+
+/** Can view holds no comment and no download, so it reads its own sentence (V2-1.7 §5.9). */
+const readOnlyMessageFor = (role) =>
+  role === 'observer' ? OBSERVER_REFUSAL.error : READ_ONLY_MESSAGE;
 
 /**
  * Build the proxy.
@@ -399,6 +516,8 @@ export function createStudioProxy({
   mintRenderToken = null,
   forward = defaultForward,
   forwardUpgrade = defaultForwardUpgrade,
+  /** S8.5b-2 — `forwardAs`'s hop (tests inject a recorder). */
+  forwardRaw = defaultForwardRaw,
   /**
    * Cloud Phase 27 B3 — called after a browser upload has actually landed.
    *
@@ -410,7 +529,80 @@ export function createStudioProxy({
    * child's environment.
    */
   onAssetWritten = null,
+  /**
+   * "Update project" in a hub that serves its own checkout (lead decision on Michal 2A): called
+   * after the studio child answered the OWNER's `POST /_api/project/migrate` with a 2xx, and
+   * awaited BEFORE that answer reaches the browser — the hub raises its own project format to the
+   * checkout's marker now (`raiseFormatToCheckout`), so no window opens with the two disagreeing.
+   * Null = the plain byte pipe (no hub authority to raise).
+   */
+  onProjectMigrated = null,
 } = {}) {
+  /**
+   * The canvas capability a shell request is handed, or null.
+   *
+   *  - S3.7c `follow=1&canvas=<rel>` (the follower page): a FOLLOW capability
+   *    for that one canvas when the session may read it — otherwise none, the
+   *    same answer for a canvas that does not exist (no oracle). Never falls
+   *    back to a wider token.
+   *  - DDR-247 `embed=1` (its `/_config` and every re-mint): READ-ONLY, so the
+   *    canvas it frames can never write, whatever the member's role.
+   *  - a canvas-only session gets no other capability: the general one would
+   *    carry no project role and floor to observer of the WHOLE project.
+   */
+  // S9.12b (V2-1.16 U6) — every upgrade this proxy spliced, by who opened it. The splice is
+  // a raw byte pipe, so the hub's own socket kick (`kickSessionsForLabel`, Hocuspocus peers)
+  // never reached these: a person removed from the project kept the studio's inspector,
+  // collab and canvas-HMR sockets — and every frame on them — until they closed the tab.
+  /** @type {Set<{ socket: any, email: string | null, label: string | null }>} */
+  const spliced = new Set();
+  function track(socket, { email, label = null }) {
+    const entry = {
+      socket,
+      email: typeof email === 'string' && email ? email.trim().toLowerCase() : null,
+      label: typeof label === 'string' && label ? label : null,
+    };
+    spliced.add(entry);
+    const drop = () => spliced.delete(entry);
+    if (typeof socket?.once === 'function') socket.once('close', drop);
+    else socket?.on?.('close', drop);
+  }
+
+  /**
+   * Destroy every spliced socket opened by `email` (both doors) or by the session holding
+   * token `label` (the shell door). Returns how many. Naming nobody closes nothing.
+   */
+  function closeUpgrades({ email = null, label = null } = {}) {
+    const who = typeof email === 'string' && email ? email.trim().toLowerCase() : null;
+    const tag = typeof label === 'string' && label ? label : null;
+    if (!who && !tag) return 0;
+    let n = 0;
+    for (const entry of [...spliced]) {
+      if (!((who && entry.email === who) || (tag && entry.label === tag))) continue;
+      spliced.delete(entry);
+      try {
+        entry.socket.destroy();
+      } catch {
+        /* already gone */
+      }
+      n += 1;
+    }
+    return n;
+  }
+
+  function canvasTokenFor(session, request, canvasOnly) {
+    const ask = followAskOf(request);
+    if (ask.asked) {
+      return ask.rel && mayFollow(session, ask.rel)
+        ? (mintCanvasToken?.(session, { readOnly: true, follow: ask.rel }) ?? null)
+        : null;
+    }
+    if (canvasOnly) return null;
+    return (
+      mintCanvasToken?.(session, isEmbedRequest(request) ? { readOnly: true } : undefined) ?? null
+    );
+  }
+
   /**
    * Handle one HTTP request destined for the studio.
    *
@@ -422,12 +614,14 @@ export function createStudioProxy({
     // Order matters. The session check comes BEFORE the manifest so an
     // unauthenticated request never learns which routes exist, and the upstream
     // check comes last so a signed-in member gets "starting up", not "sign in".
-    if (!session?.role) {
+    const doorRole = doorRoleOf(session);
+    if (!doorRole) {
       refuse(response, 401, { error: 'sign in to open this project', reason: 'no-session' });
       return true;
     }
+    const canvasOnly = !session.role;
 
-    const verdict = decide(method, pathname, session.role);
+    const verdict = decide(method, pathname, doorRole);
     if (!verdict.allow) {
       if (verdict.reason === 'method') {
         refuse(response, 405, { error: 'method not allowed' });
@@ -441,10 +635,22 @@ export function createStudioProxy({
         return true;
       }
       refuse(response, 403, {
-        error: READ_ONLY_MESSAGE,
+        error: readOnlyMessageFor(doorRole),
         reason: 'read-only',
         capability: verdict.capability,
       });
+      return true;
+    }
+    // A3 (S9.15b) — a paused project: the browser studio's writes answer the
+    // same 402 plan as the hub's own routes, AFTER the role check, so a role
+    // that could not write keeps its 403. Reads and keeping your place pass.
+    const paused = planPauseRefusal({
+      capability: verdict.capability,
+      role: session.role,
+      paused: planPausedFromEnv(env),
+    });
+    if (paused) {
+      refuse(response, paused.status, paused.body);
       return true;
     }
 
@@ -471,24 +677,34 @@ export function createStudioProxy({
       return true;
     }
 
-    await forward({
-      request,
-      response,
-      port: up.port,
-      headers: upstreamHeaders(request.headers, {
-        role: session.role,
-        user: session.email,
-        sessionKey: session.sessionKey,
-        publicUrl,
-        // DDR-247 — the `?embed=1` view asks with `embed=1` (its `/_config`
-        // and every re-mint) and is handed a READ-ONLY capability, so the
-        // canvas it frames can never write, whatever the member's role.
-        canvasToken:
-          mintCanvasToken?.(session, isEmbedRequest(request) ? { readOnly: true } : undefined) ??
-          null,
-        renderToken: mintRenderToken?.(session) ?? null,
-      }),
+    const headers = upstreamHeaders(request.headers, {
+      role: doorRole,
+      access: session.access,
+      canvasOnly,
+      user: session.email,
+      sessionKey: session.sessionKey,
+      publicUrl,
+      canvasToken: canvasTokenFor(session, request, canvasOnly),
+      // A canvas-only session gets no project-wide render capability (it is
+      // viewer-scoped to the whole project); its exports wait on one that
+      // carries its grants.
+      renderToken: canvasOnly ? null : (mintRenderToken?.(session) ?? null),
     });
+    if (onProjectMigrated && isProjectMigrate(method, pathname)) {
+      // The format is the WHOLE project's: a canvas grant never confers it (PROJECT_ONLY), however
+      // high its role — the manifest's `delete` already keeps editors and viewers out.
+      if (canvasOnly) {
+        refuse(response, 403, {
+          error: readOnlyMessageFor(doorRole),
+          reason: 'read-only',
+          capability: verdict.capability,
+        });
+        return true;
+      }
+      await forwardMigrate({ request, response, port: up.port, headers, session });
+      return true;
+    }
+    await forward({ request, response, port: up.port, headers });
     // B3 — only on a write that SUCCEEDED. The studio's own caps and sniff have
     // already run by the time it answered 2xx, so mirroring here inherits every
     // one of them rather than re-deciding what an asset is.
@@ -500,6 +716,133 @@ export function createStudioProxy({
       }
     }
     return true;
+  }
+
+  /**
+   * The owner's Update project, through the hub: the request body and the studio's report are
+   * small JSON, so both are held (capped) — the answer waits until the hub raised its own format.
+   * A raise that fails is logged and the studio's answer still goes out: the checkout DID update,
+   * and the owner's next probe of the callout (the dry run on opening) raises again.
+   */
+  async function forwardMigrate({ request, response, port, headers, session }) {
+    let payload;
+    try {
+      payload = await readCapped(request, MIGRATE_BODY_BYTES);
+    } catch {
+      refuse(response, 413, { error: 'request too large' });
+      return;
+    }
+    // upstreamHeaders already dropped the hop-by-hop ones (transfer-encoding): the body is whole.
+    const out = { ...headers, 'content-length': String(payload.length) };
+    let res;
+    let body;
+    try {
+      res = await forwardRaw({ port, method: 'POST', path: request.url, headers: out, payload });
+      body = await readCapped(res, MIGRATE_REPLY_BYTES);
+    } catch {
+      refuse(response, 502, { error: 'the project server is not answering' });
+      return;
+    }
+    const status = res.statusCode ?? 502;
+    if (status >= 200 && status < 300) {
+      try {
+        await onProjectMigrated({ session });
+      } catch (err) {
+        console.error(`[studio-proxy] the project format was not raised: ${err?.message ?? err}`);
+      }
+    }
+    const replyHeaders = {
+      ...filterResponseHeaders(res.headers),
+      'content-length': String(body.length),
+    };
+    response.writeHead(status, replyHeaders);
+    response.end(body);
+  }
+
+  /**
+   * S8.5b-2 — one request to the studio AS a session the hub built itself (the cloud render
+   * door, `routes-v2/render-jobs.mjs`; contract S8.5b §4.1, T9). The same one-table `decide()`,
+   * the same plan-pause gate and the same upstream check as `handle`, and the same
+   * `upstreamHeaders` — over a request the hub writes from scratch, so the caller's
+   * `authorization` and `cookie` (the hub's bearer, the browser's session) never reach the
+   * studio or the render service. Nothing else from the inbound request rides along either.
+   *
+   * `renderGrants`: a canvas-only session's render capability carries these grants as `g`, so
+   * the canvas origin enforces the closure even if a door bug let a target through (§8.4).
+   *
+   * @returns {Promise<{ ok: false, status: number, body: object, headers?: object }
+   *   | { ok: true, status: number, headers: object, stream: import('node:http').IncomingMessage }>}
+   */
+  async function forwardAs(
+    session,
+    { method, path, body = null, doorJob = null, renderGrants = [] } = {}
+  ) {
+    const doorRole = doorRoleOf(session);
+    if (!doorRole) return { ok: false, status: 401, body: { reason: 'no-session' } };
+    const canvasOnly = !session.role;
+    const pathname = String(path ?? '').split('?')[0];
+    const verdict = decide(method, pathname, doorRole);
+    if (!verdict.allow) {
+      if (verdict.reason === 'method') return { ok: false, status: 405, body: { code: 'method' } };
+      if (verdict.reason === 'unclassified' || verdict.reason === 'refused')
+        return { ok: false, status: 404, body: { code: 'not-found' } };
+      return {
+        ok: false,
+        status: 403,
+        body: { error: readOnlyMessageFor(doorRole), reason: 'read-only', code: 'forbidden' },
+      };
+    }
+    const paused = planPauseRefusal({
+      capability: verdict.capability,
+      role: session.role,
+      paused: planPausedFromEnv(env),
+    });
+    if (paused) return { ok: false, status: paused.status, body: paused.body };
+    const up = upstream();
+    if (!up?.ok) {
+      return {
+        ok: false,
+        status: 503,
+        body: { code: 'upstream-starting', retryAfterMs: 2000 },
+        headers: { 'retry-after': '2' },
+      };
+    }
+    const payload = body === null ? null : Buffer.from(JSON.stringify(body), 'utf8');
+    // From scratch: never the inbound request's headers (no authorization, no cookie).
+    const incoming = {
+      accept: 'application/json',
+      ...(payload
+        ? { 'content-type': 'application/json', 'content-length': String(payload.length) }
+        : {}),
+    };
+    const headers = upstreamHeaders(incoming, {
+      role: doorRole,
+      access: session.access,
+      canvasOnly,
+      user: session.email,
+      sessionKey: session.sessionKey,
+      publicUrl,
+      // A canvas-only session's capability exists only WITH its grants: without them it would
+      // floor to viewer of the whole project (the reason `handle` mints it none).
+      renderToken:
+        canvasOnly && !(renderGrants?.length > 0)
+          ? null
+          : (mintRenderToken?.(session, { grants: canvasOnly ? renderGrants : [] }) ?? null),
+    });
+    // Set AFTER upstreamHeaders, whose property-2 strip would drop it: the hub, not a client,
+    // names the job (the studio honours it only off the local lane).
+    if (doorJob) headers[`${INJECTED_HEADER_PREFIX}door-job`] = doorJob;
+    try {
+      const res = await forwardRaw({ port: up.port, method, path, headers, payload });
+      return {
+        ok: true,
+        status: res.statusCode ?? 502,
+        headers: filterResponseHeaders(res.headers),
+        stream: res,
+      };
+    } catch {
+      return { ok: false, status: 502, body: { code: 'upstream' } };
+    }
   }
 
   /**
@@ -636,9 +979,10 @@ export function createStudioProxy({
       return true;
     }
     // The capability that actually authenticated this request, and the role it
-    // vouches. Older tokens carry no claim — the floor is `viewer`.
+    // vouches. A token without a claim falls to the floor — Can view, never a
+    // role that downloads (V2-1.7 §5.4).
     const auth = verdict?.ok ? verdict : cookieVerdict;
-    const role = auth?.role ?? 'viewer';
+    const role = auth?.role ?? FLOOR_ROLE;
     // DDR-247 — an embed's capability reads and nothing else. Checked before
     // the role table on purpose: a viewer may still comment, an embed may not.
     if (unsafeMethod && auth?.readOnly) {
@@ -669,10 +1013,21 @@ export function createStudioProxy({
           return true;
         }
         refuse(response, 403, {
-          error: READ_ONLY_MESSAGE,
+          error: readOnlyMessageFor(role),
           reason: 'read-only',
           capability: writeVerdict.capability,
         });
+        return true;
+      }
+      // A3 (S9.15b) — the same pause as the shell door, at the role the
+      // capability vouches.
+      const paused = planPauseRefusal({
+        capability: writeVerdict.capability,
+        role,
+        paused: planPausedFromEnv(env),
+      });
+      if (paused) {
+        refuse(response, paused.status, paused.body);
         return true;
       }
     }
@@ -718,6 +1073,10 @@ export function createStudioProxy({
         // the studio's own canvas-origin allowlist (DDR-088 — no source
         // routes, no export, no config exist on this origin at any role).
         role,
+        grants: auth?.grants,
+        // S3.7c — a follower's capability looks at its ONE canvas: the studio
+        // reads it as a canvas-only observer of that canvas (V2-1.16 L15).
+        ...(auth?.follow ? { access: followAccessClaim(auth.follow) } : {}),
         // The MEMBER, not null: the capability names its subject, and
         // `/_api/git-user` on the canvas listener is where collab presence gets
         // its display name. Without this every cloud peer is `anonymous-…` (the
@@ -831,7 +1190,13 @@ export function createStudioProxy({
     // them); an embed's read-only capability gets none. The HMR socket
     // (`/_ws`) ignores inbound frames and stays open, so the embed still
     // follows edits to the source.
-    if (verdict.readOnly && rest !== '/_ws') {
+    // S3.7c — the one exception: a FOLLOW capability opens the collab room of
+    // the ONE canvas it names (receive-only — the studio room drops its sync
+    // and keeps only its `watching`). Any other room answers exactly like an
+    // embed's refusal, whether that canvas exists or not.
+    const followRoom = verdict.follow ? followRoomPath(verdict.follow) : null;
+    const following = followRoom !== null && rest === followRoom;
+    if (verdict.readOnly && rest !== '/_ws' && !following) {
       socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');
       socket.destroy();
       return true;
@@ -849,13 +1214,18 @@ export function createStudioProxy({
       port: up.port,
       path: `${rest}${url.search}`,
       headers: upstreamHeaders(request.headers, {
-        role: verdict.role ?? 'viewer',
+        role: verdict.role ?? FLOOR_ROLE,
+        grants: verdict.grants,
+        ...(verdict.follow ? { access: followAccessClaim(verdict.follow) } : {}),
         user: verdict.subject ?? null,
         sessionKey: null,
         publicUrl: env.MAUDE_PUBLIC_CANVAS_ORIGIN ?? null,
         collabRealm: 'canvas',
+        paused: planPausedFromEnv(env),
+        collabFollow: following,
       }),
     });
+    track(socket, { email: verdict.subject ?? null });
     return true;
   }
 
@@ -890,7 +1260,8 @@ export function createStudioProxy({
    * whose panels never update. Same gate: session first, manifest second.
    */
   function handleUpgrade({ request, socket, head, session }) {
-    if (!session?.role) {
+    const doorRole = doorRoleOf(session);
+    if (!doorRole) {
       socket.write('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n');
       socket.destroy();
       return true;
@@ -930,16 +1301,30 @@ export function createStudioProxy({
       head,
       port: up.port,
       headers: upstreamHeaders(request.headers, {
-        role: session.role,
+        role: doorRole,
+        access: session.access,
+        canvasOnly: !session.role,
         user: session.email,
         sessionKey: session.sessionKey,
         publicUrl,
+        paused: planPausedFromEnv(env),
       }),
     });
+    track(socket, { email: session.email, label: session.label ?? null });
     return true;
   }
 
-  return { handle, handleCanvas, handleUpgrade, handleCanvasUpgrade };
+  return { handle, handleCanvas, handleUpgrade, handleCanvasUpgrade, closeUpgrades, forwardAs };
+}
+
+/** S8.5b-2 — `forwardAs`'s loopback hop: a request the hub wrote, the upstream's response. */
+function defaultForwardRaw({ port, method, path, headers, payload }) {
+  return new Promise((resolve, reject) => {
+    const req = httpRequest({ host: '127.0.0.1', port, method, path, headers }, resolve);
+    req.on('error', reject);
+    req.setTimeout(30_000, () => req.destroy(new Error('upstream timeout')));
+    req.end(payload ?? undefined);
+  });
 }
 
 /** Straight byte pipe to loopback. Streams both ways — the asset lane moves
@@ -1010,4 +1395,7 @@ function defaultForwardUpgrade({ request, socket, head, port, path, headers }) {
   });
   upstreamSocket.on('error', () => socket.destroy());
   socket.on('error', () => upstreamSocket.destroy());
+  // S9.12b — a socket the proxy closes (U6) takes its studio half with it, and vice versa.
+  socket.on('close', () => upstreamSocket.destroy());
+  upstreamSocket.on('close', () => socket.destroy());
 }

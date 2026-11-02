@@ -25,15 +25,19 @@ import { join } from 'node:path';
 import { HocuspocusProvider } from '@hocuspocus/provider';
 import { Awareness, encodeAwarenessUpdate } from 'y-protocols/awareness';
 import * as Y from 'yjs';
+import { stageRunAnnotations } from '../annotations/run-tag.ts';
 import { applyEdit } from '../canvas-edit.ts';
 import { createRegistry } from '../collab/registry.ts';
 import type { RoomCallbacks } from '../collab/room.ts';
 import type { Context } from '../context.ts';
 import { createBus } from '../context.ts';
+import { createProjectUndoRoutes } from '../routes/project-undo.ts';
 import { readLaneFromDoc } from '../sync/codec.ts';
+import { hashBytes } from '../sync/echo-guard.ts';
 import { createSyncRuntime, type SyncRuntime } from '../sync/index.ts';
 import { describeSourceOp } from '../sync/source-ops.ts';
 import { signInToWorkspace } from '../sync/workspace-signin.ts';
+import { board, sticky } from './fixtures/annotations-v2/boards.ts';
 
 const HUB_DIR = join(import.meta.dir, '..', '..', 'hub');
 const FIXTURE = join(HUB_DIR, 'test', 'fixtures', 'serve-hub.mjs');
@@ -205,7 +209,13 @@ async function startPeer(name: string, repoRoot: string, url: string): Promise<P
 async function api(hub: Hub, route: string, init: RequestInit = {}) {
   const res = await fetch(`${hub.http}/api/projects/current/v1/${route}`, {
     ...init,
-    headers: { authorization: `Bearer ${hub.tokens.owner}`, 'content-type': 'application/json' },
+    // A v2 writer: the v2 peers found the project at format 2 (lead, Michal 2A), and the hub fences
+    // a writer that declares nothing (1.x) on it with 426.
+    headers: {
+      authorization: `Bearer ${hub.tokens.owner}`,
+      'content-type': 'application/json',
+      'x-maude-format': '2',
+    },
   });
   return { status: res.status, body: (await res.json()) as Record<string, unknown> };
 }
@@ -291,13 +301,16 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
     });
     try {
       await waitFor(() => provider.synced, 'the author to open its new room');
-      await waitFor(async () => {
-        const res = await fetch(`${hub.http}/api/documents`, {
-          headers: { authorization: `Bearer ${hub.tokens.owner}` },
-        });
-        const listing = (await res.json()) as { documents: { name: string }[] };
-        return listing.documents.some((d) => d.name === slug);
-      }, 'the unaccepted room to appear in the transport listing');
+      // gate-b F2: the hub advertises a live, not-yet-stored room only once a writer put content into it, and in
+      // accepted mode no peer's Y update lands at all — so the author's open, empty room is never listed and a
+      // receiver has nothing to attach. (Before F2 it WAS listed, and the receiver pinned a slug-derived path.)
+      // Give the hub a moment to register the room, then assert it stays out of the listing.
+      await new Promise((r) => setTimeout(r, 1500));
+      const res = await fetch(`${hub.http}/api/documents`, {
+        headers: { authorization: `Bearer ${hub.tokens.owner}` },
+      });
+      const listing = (await res.json()) as { documents: { name: string }[] };
+      expect(listing.documents.some((d) => d.name === slug)).toBe(false);
       const boot = await api(hub, 'bootstrap');
       expect((boot.body.docs as { doc: string }[]).some((d) => d.doc === slug)).toBe(false);
       await bob.runtime.pullRemoteNow();
@@ -683,7 +696,12 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
     expect(old?.retired).toBe(true);
     const late = await fetch(`${hub.http}/api/projects/current/v1/proposals`, {
       method: 'POST',
-      headers: { authorization: `Bearer ${hub.tokens.bob}`, 'content-type': 'application/json' },
+      // a v2 writer (see api())
+      headers: {
+        authorization: `Bearer ${hub.tokens.bob}`,
+        'content-type': 'application/json',
+        'x-maude-format': '2',
+      },
       body: JSON.stringify({
         protocol: 1,
         projectId: boot.body.projectId,
@@ -985,8 +1003,13 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
 
     // --- a clean run: two files, one action
     alice.runtime.beginAiAction?.('acp:chat-1', 'Claude: rename both titles');
-    alice.write('ui/ai-a.tsx', src('ai-a by Claude'));
-    alice.write('ui/ai-b.tsx', src('ai-b by Claude'));
+    // p8-a1-claims — the tool claims the exact bytes it writes (every run is claim-only)
+    const aiWrite = (key: string, rel: string, text: string) => {
+      alice.runtime.claimAiWrite?.(key, `design/${rel}`, hashBytes(text));
+      alice.write(rel, text);
+    };
+    aiWrite('acp:chat-1', 'ui/ai-a.tsx', src('ai-a by Claude'));
+    aiWrite('acp:chat-1', 'ui/ai-b.tsx', src('ai-b by Claude'));
     // The person keeps working on a canvas the agent never touched: theirs,
     // published at once, not swallowed into the agent's action.
     alice.ctx.bus.emit('activity:suppress', 'ui/ai-c.tsx');
@@ -1031,7 +1054,7 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
 
     // --- a failed run: held, unpublished, then published by the person
     alice.runtime.beginAiAction?.('edit:design/ui/ai-a.tsx', 'Claude edited ai-a');
-    alice.write('ui/ai-a.tsx', src('ai-a half done'));
+    aiWrite('edit:design/ui/ai-a.tsx', 'ui/ai-a.tsx', src('ai-a half done'));
     await new Promise((r) => setTimeout(r, 400));
     await alice.runtime.endAiAction?.('edit:design/ui/ai-a.tsx', 'failed');
     await new Promise((r) => setTimeout(r, 800));
@@ -1046,7 +1069,7 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
 
     // --- a failed run the person discards: the accepted version comes back
     alice.runtime.beginAiAction?.('acp:chat-2', 'Claude: experiment');
-    alice.write('ui/ai-b.tsx', src('ai-b experiment'));
+    aiWrite('acp:chat-2', 'ui/ai-b.tsx', src('ai-b experiment'));
     await new Promise((r) => setTimeout(r, 400));
     await alice.runtime.endAiAction?.('acp:chat-2', 'failed');
     const discarded = await alice.runtime.resolveAiAction?.('discard');
@@ -1056,6 +1079,161 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
       'the accepted version back on alice'
     );
     expect(bob.read('ui/ai-b.tsx')).toBe(src('ai-b by Claude'));
+  }, 90_000);
+
+  test('T-S4.5b: a run-tagged annotation batch lands in its run’s ONE action; Undo this chat reverts it', async () => {
+    alice.write('ui/runboard.tsx', src('Run board'));
+    await alice.runtime.rescanNow();
+    await waitFor(async () => {
+      await bob.runtime.pullRemoteNow();
+      return bob.read('ui/runboard.tsx') === src('Run board');
+    }, 'the run-board canvas on bob');
+    const slug = 'ui-runboard';
+    const bobBoard = () => readLaneFromDoc(bob.registry.getDoc(slug), 'annotations');
+    const base = readLaneFromDoc(alice.registry.getDoc(slug), 'annotations');
+
+    // The chat's run is open (its turn began the stage under the registry's run id).
+    alice.runtime.beginAiAction?.('acp:chat-ann', 'Claude: resolve the stickies', {
+      runId: 'r_annot0001',
+      chatId: 'chat-ann',
+    });
+    const next = board(sticky('s_run1', 'Resolved by Claude'));
+    const staged = stageRunAnnotations(alice.runtime, {
+      runId: 'r_annot0001',
+      open: true,
+      chatId: 'chat-ann',
+      label: 'Claude: resolve the stickies',
+      slug,
+      canvasRel: 'design/ui/runboard.tsx',
+      text: next,
+      base,
+      writeId: 'run:r_annot0001',
+    });
+    expect(staged).not.toBeNull();
+    await new Promise((r) => setTimeout(r, 800));
+    expect(bobBoard()).not.toContain('s_run1'); // staged with the run, not proposed on its own
+
+    const ended = await alice.runtime.endAiAction?.('r_annot0001', 'done');
+    expect(ended?.status).toBe('accepted');
+    await waitFor(() => bobBoard().includes('s_run1'), 'the run’s board on bob');
+    const rows = (await alice.runtime.acceptedHistory?.({ chat: 'chat-ann', limit: 20 })) ?? [];
+    expect(rows.length).toBe(1);
+
+    const undone = await alice.runtime.acceptedUndo?.({ chatId: 'chat-ann' });
+    expect(undone?.status).toBe('accepted');
+    await waitFor(() => !bobBoard().includes('s_run1'), 'Undo this chat on bob');
+  }, 60_000);
+
+  test('S2.20c: ⌘Z on your edit made during an AI run queues its inverse behind the run; run, edit and undo land in order; Undo this chat leaves neither', async () => {
+    const rel = 'ui/pending.tsx';
+    const repoRel = 'design/ui/pending.tsx';
+    const body = (title: string, color: string) =>
+      `export default function Pending() {\n  return (\n    <section>\n      <h1 title="${title}">Hi</h1>\n      <p>between</p>\n      <p color="${color}">Body</p>\n    </section>\n  );\n}\n`;
+    alice.write(rel, body('v1', 'black'));
+    await alice.runtime.rescanNow();
+    await waitFor(async () => {
+      await bob.runtime.pullRemoteNow();
+      return bob.read(rel) === body('v1', 'black');
+    }, 'the canvas on bob');
+    const created = (await api(hub, 'revisions?limit=500')).body.revisions.at(-1)
+      ?.revision as number;
+    await waitFor(
+      () =>
+        ((alice.runtime.status?.() as { appliedRevision?: number } | null)?.appliedRevision ?? 0) >=
+        created,
+      'alice to apply the canvas revision'
+    );
+    const specs = createProjectUndoRoutes({ control: () => alice.runtime, designRel: 'design' });
+    const spec = (method: string, p: string) => {
+      const s = specs.find((x) => x.method === method && x.path === p);
+      if (!s) throw new Error(`no ${method} ${p}`);
+      return s;
+    };
+    const stack = async () =>
+      (await (
+        await spec('GET', '/_api/project/undo-stack').handle(
+          new Request(
+            `http://localhost/_api/project/undo-stack?canvas=${encodeURIComponent(repoRel)}`
+          ),
+          {} as never
+        )
+      ).json()) as {
+        ok: boolean;
+        entries: Record<string, unknown>[];
+        redo: Record<string, unknown>[];
+      };
+
+    // Your AI run writes the title; you change the colour while it is open (a UI edit).
+    alice.runtime.beginAiAction?.('acp:chat-pend', 'Claude: retitle', {
+      runId: 'r_pend0001',
+      chatId: 'chat-pend',
+    });
+    // p8-a1-claims — the run's tool claims its bytes before they land
+    alice.runtime.claimAiWrite?.('r_pend0001', repoRel, hashBytes(body('by Claude', 'black')));
+    alice.write(rel, body('by Claude', 'black'));
+    await new Promise((r) => setTimeout(r, 400));
+    alice.ctx.bus.emit('activity:suppress', rel);
+    alice.write(rel, body('by Claude', 'red'));
+    const [mine] = await waitFor(() => {
+      const w = alice.runtime.pendingEdits?.(repoRel);
+      return w?.length ? w : null;
+    }, 'your edit waiting behind the run');
+    expect(mine).toMatchObject({ label: 'Edit canvas' });
+    const s0 = await stack();
+    expect(s0.entries[0]).toMatchObject({ actionId: null, pendingTx: mine.transactionId });
+
+    // ⌘Z on it: the disk loses YOUR change at once and keeps the run's; nothing is published.
+    const res = await spec('POST', '/_api/project/undo').handle(
+      new Request('http://localhost/_api/project/undo', {
+        method: 'POST',
+        body: JSON.stringify({ pendingTx: mine.transactionId, canvas: repoRel, via: 'keys' }),
+        headers: { 'content-type': 'application/json' },
+      }),
+      {} as never
+    );
+    const undone = (await res.json()) as { ok: boolean; pendingTx: string };
+    expect(undone.ok).toBe(true);
+    expect(alice.read(rel)).toBe(body('by Claude', 'black'));
+    expect(alice.runtime.pendingEdits?.(repoRel)).toEqual([
+      mine,
+      {
+        transactionId: undone.pendingTx,
+        label: 'Undo',
+        madeAt: expect.any(Number),
+        undoes: mine.transactionId,
+      },
+    ]);
+    const s1 = await stack();
+    expect(s1.entries.find((e) => e.pendingTx === mine.transactionId)).toBeUndefined();
+    expect(s1.redo[0]).toMatchObject({ pendingTx: mine.transactionId, state: 'undone' });
+    await new Promise((r) => setTimeout(r, 800));
+    expect(bob.read(rel)).toBe(body('v1', 'black')); // nothing overtook the run
+    expect(alice.read(rel)).toBe(body('by Claude', 'black')); // the inverse write was never re-proposed
+
+    // The run publishes: the run, your edit, then its undo — in that order.
+    const ended = await alice.runtime.endAiAction?.('r_pend0001', 'done');
+    expect(ended?.status).toBe('accepted');
+    await waitFor(() => bob.read(rel) === body('by Claude', 'black'), 'the run on bob');
+    const rows = await waitFor(async () => {
+      const h = (await alice.runtime.acceptedHistory?.({ path: repoRel, limit: 10 })) ?? [];
+      return h.length >= 4 ? h : null;
+    }, 'run, edit and undo in history');
+    const [u, edit, ai] = rows;
+    expect(ai).toMatchObject({ kind: 'ai', label: 'Claude: retitle', runId: 'r_pend0001' });
+    expect(edit).toMatchObject({ kind: 'edit', transactionId: mine.transactionId });
+    expect(u).toMatchObject({ kind: 'undo', label: 'Undo', undoes: edit.actionId });
+    expect(edit.madeAt as number).toBeLessThan(ai.madeAt as number); // your gesture time
+    expect(alice.runtime.pendingEdits?.(repoRel)).toEqual([]);
+    const s2 = await stack();
+    expect(s2.entries[0]).toMatchObject({ actionId: ai.actionId, who: 'ai' });
+    expect(s2.redo[0]).toMatchObject({ actionId: edit.actionId, undoneVia: u.actionId });
+    await waitFor(() => alice.read(rel) === body('by Claude', 'black'), 'alice settled');
+
+    // The run is undone: as if it never happened — your edit and its undo cancel out.
+    const chat = await alice.runtime.acceptedUndo?.({ chatId: 'chat-pend' });
+    expect(chat?.status).toBe('accepted');
+    await waitFor(() => bob.read(rel) === body('v1', 'black'), 'Undo this chat on bob');
+    await waitFor(() => alice.read(rel) === body('v1', 'black'), 'Undo this chat on alice');
   }, 90_000);
 
   test('a fresh checkout replays the project byte-identically (T14)', async () => {

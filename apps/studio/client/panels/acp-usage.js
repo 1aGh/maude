@@ -55,7 +55,10 @@ export function parseUsage(frame, now = Date.now()) {
     rateLimit = {
       type: raw.rateLimitType || null,
       label: rateLimitLabel(raw.rateLimitType),
-      pct: typeof raw.utilization === 'number' ? Math.max(0, Math.min(100, Math.round(raw.utilization))) : null,
+      pct:
+        typeof raw.utilization === 'number'
+          ? Math.max(0, Math.min(100, Math.round(raw.utilization)))
+          : null,
       resetsAt: raw.resetsAt || null,
       status: raw.status,
     };

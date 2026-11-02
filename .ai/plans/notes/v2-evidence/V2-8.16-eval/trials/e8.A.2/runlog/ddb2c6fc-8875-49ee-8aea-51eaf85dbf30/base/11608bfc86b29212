@@ -1,0 +1,351 @@
+/**
+ * @canvas      Onboarding — first-run wizard for the native Maude app · the very first screen a non-technical collaborator sees · sign in, open or create a shared project, and land in the canvas browser — zero terminal, zero setup · 5 artboards · dark studio
+ * @ds          maude
+ * @platform    desktop
+ * @opt_out     palette
+ * @artboards   welcome | github | local | hub | success
+ * @brief       Phase 29 (native collab app, epic E4). On first launch (no last project remembered) Maude shows THIS instead of the canvas browser. Three doors, GitHub first: (A) Continue with GitHub — the headline door — open a shared project or start a new one; (B) Open a folder on this computer; (C) Connect to a team hub (advanced, collapsed). The bar: a complete first-timer is guided into a working project in under two minutes. Lifts the Studio Hub artboard-B wizard skeleton (left rail + main card + "next step" peek) but DEMOTES the hub bootstrap-key claim to the advanced door — GitHub is the headline. Vocabulary stays plain throughout (no OAuth / token / clone / repo-jargon in body copy). Success state previews the Save → Publish → Pull cycle that the collab tour teaches.
+ * @stack       React 19 · TSX · Bun.build · css_mode=inline (sibling Onboarding.css)
+ * @history     .design/_history/onboarding/
+ *
+ * Authored under the `maude` DS ("Unified Pro Studio", dark-first). Tokens + shared
+ * component classes (.btn/.callout/.input/.field/.panel/.seg) arrive via the imports
+ * below so the canvas renders in `maude` regardless of which DS the host injects.
+ * The wizard is FULL-WINDOW (it replaces the canvas browser on first run), not docked
+ * in the studio shell — that is the one deliberate divergence from GitHubIdentity.tsx.
+ */
+
+import "../system/maude/colors_and_type.css";
+import "../system/maude/preview/_components.css";
+import "./Onboarding.css";
+import { DesignCanvas, DCSection, DCArtboard } from "@maude/canvas-lib";
+
+/* ───────────────────────────── Icon set ─────────────────────────────────────
+ * Thin-stroke (1.4) geometric glyphs — terminal/IDE heritage, no emoji (DS rule).
+ * ──────────────────────────────────────────────────────────────────────────── */
+type IconName = keyof typeof ICONS;
+const ICONS = {
+  check: <polyline points="3 8.2 6.4 11.5 13 4.2" />,
+  "arrow-right": (<><line x1="2.5" y1="8" x2="13" y2="8" /><polyline points="9 4 13 8 9 12" /></>),
+  "chevron-right": <polyline points="6 3.5 10.5 8 6 12.5" />,
+  "chevron-down": <polyline points="3.5 6 8 10.5 12.5 6" />,
+  folder: <path d="M2 4.5h4l1.3 1.5H14V13H2z" />,
+  "folder-open": (<><path d="M2 4.5h4l1.3 1.5H14" /><path d="M2 6h12.5l-1.4 7H3.4z" /></>),
+  file: (<><path d="M4 2h5l3 3v9H4z" /><polyline points="9 2 9 5 12 5" /></>),
+  lock: (<><rect x="3.5" y="7" width="9" height="6.5" rx="1.2" /><path d="M5.5 7V5.2a2.5 2.5 0 0 1 5 0V7" /></>),
+  globe: (<><circle cx="8" cy="8" r="5.5" /><path d="M2.5 8h11M8 2.5c1.7 1.5 2.6 3.5 2.6 5.5S9.7 12.5 8 13.5C6.3 12 5.4 10 5.4 8S6.3 3.5 8 2.5z" /></>),
+  plus: (<><line x1="8" y1="3" x2="8" y2="13" /><line x1="3" y1="8" x2="13" y2="8" /></>),
+  upload: (<><line x1="8" y1="2.6" x2="8" y2="10" /><polyline points="5 5.4 8 2.4 11 5.4" /><polyline points="3 11 3 13.4 13 13.4 13 11" /></>),
+  download: (<><line x1="8" y1="2.5" x2="8" y2="10" /><polyline points="4.5 7 8 10.5 11.5 7" /><polyline points="3 12.8 3 13.6 13 13.6 13 12.8" /></>),
+  link: (<><path d="M6.5 9.5 9.5 6.5" /><path d="M7 4.5 8.4 3.1a2.6 2.6 0 0 1 3.7 3.7L10.7 8.2" /><path d="M9 11.5 7.6 12.9a2.6 2.6 0 0 1-3.7-3.7L5.3 7.8" /></>),
+  key: (<><circle cx="5" cy="5" r="2.6" /><path d="M6.9 6.9 13 13M11 11l1.4-1.4M9.2 9.2l1.6-1.6" /></>),
+  server: (<><rect x="2.5" y="3" width="11" height="4" rx="1" /><rect x="2.5" y="9" width="11" height="4" rx="1" /><circle cx="5" cy="5" r="0.5" fill="currentColor" /><circle cx="5" cy="11" r="0.5" fill="currentColor" /></>),
+  publish: (<><line x1="8" y1="13.4" x2="8" y2="6" /><polyline points="5 9 8 6 11 9" /><polyline points="3 4 3 2.6 13 2.6 13 4" /></>),
+  save: (<><path d="M3 2.5h7.5L13.5 5.5V13.5H3z" /><path d="M5 2.5V6h5V2.5" /><rect x="5.5" y="9" width="5" height="3" /></>),
+  shield: (<><path d="M8 2 13 4v3.5c0 3.2-2.2 5.4-5 6.5-2.8-1.1-5-3.3-5-6.5V4z" /></>),
+  spinner: <path d="M8 2.2a5.8 5.8 0 1 0 5.8 5.8" />,
+} as const;
+
+function Icon({ name, size = 16, className }: { name: IconName; size?: number; className?: string }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 16 16" fill="none"
+      stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {ICONS[name]}
+    </svg>
+  );
+}
+
+/* The official GitHub mark (filled silhouette) — the platform identity glyph,
+ * used only on the headline door where the platform identity is load-bearing. */
+function GitHubMark({ size = 18, className }: { size?: number; className?: string }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z" />
+    </svg>
+  );
+}
+
+/* The maude mark — the canonical spark-on-bubble tile (source of truth:
+ * system/maude/preview/logo.tsx + logo.css `.lg-mark`): a four-point star in
+ * --accent-fg on the one indigo, the bottom-right corner squared so the tile reads
+ * as a message bubble, with the in-app accent-tint halo. NOT a hand-drawn glyph. */
+function Mark({ size = 30 }: { size?: number }) {
+  return (
+    <span className="ob-mark" style={{ width: size, height: size }} role="img" aria-label="maude">
+      <svg viewBox="0 0 32 32" fill="none">
+        <path d="M16 5l2.8 8.2L27 16l-8.2 2.8L16 27l-2.8-8.2L5 16l8.2-2.8z" fill="currentColor" />
+      </svg>
+    </span>
+  );
+}
+
+/* The left rail shared by every door: brand lockup + a short, warm value prop +
+ * three reassurances. `signedInAs` swaps the reassurance block for a "you're in"
+ * confirmation once a door is underway. */
+function Rail({ step, signedInAs }: { step?: string; signedInAs?: string }) {
+  return (
+    <aside className="ob-rail">
+      <div className="ob-rail-brand">
+        <Mark size={30} />
+        <span data-cd-id="maude" className="ob-rail-wordmark">maude</span>
+      </div>
+      <div className="ob-rail-lede">
+        {/* Visual lede, intentionally NOT a heading: the rail renders before the
+            step <main> in DOM, so a heading here would land h2-before-h1. */}
+        <p data-cd-id="design-together-no" className="ob-rail-h">Design together.<br />No setup, no terminal.</p>
+        <p data-cd-id="open-maude-and">Open Maude, and you're in a real project in under two minutes — sharing canvases with your team as you go.</p>
+      </div>
+      {signedInAs ? (
+        <div className="ob-rail-signed">
+          <span className="ob-rail-signed-dot" aria-hidden="true" />
+          <span data-cd-id="signed-in-as">Signed in as <b>@{signedInAs}</b></span>
+        </div>
+      ) : (
+        <ul className="ob-rail-reassure">
+          <li data-cd-id="sign-in-once"><span className="ob-rail-tick" aria-hidden="true"><Icon name="check" size={12} /></span>Sign in once — Maude remembers you</li>
+          <li data-cd-id="your-work-saves"><span className="ob-rail-tick" aria-hidden="true"><Icon name="check" size={12} /></span>Your work saves on its own</li>
+          <li data-cd-id="invite-anyone-by"><span className="ob-rail-tick" aria-hidden="true"><Icon name="check" size={12} /></span>Invite anyone by their name</li>
+        </ul>
+      )}
+      <div className="ob-rail-foot">{step ?? "You can change any of this later."}</div>
+    </aside>
+  );
+}
+
+/* ─────────────────────────── A · Welcome (door picker) ───────────────────────
+ * GitHub is the headline door (accent ring + primary CTA). Local folder is the
+ * quiet secondary. The hub door is collapsed to one advanced line by default. ── */
+function Welcome() {
+  return (
+    <div className="ob-shell">
+      <Rail />
+      <main className="ob-main">
+        <header className="ob-head">
+          <span data-cd-id="welcome" className="ob-eyebrow">Welcome</span>
+          <h1 data-cd-id="how-would-you">How would you like to start?</h1>
+          <p data-cd-id="most-people-sign">Most people sign in with GitHub — it's the simplest way to work with a team.</p>
+        </header>
+
+        <div className="ob-doors">
+          <button type="button" className="ob-door ob-door--primary" aria-label="Continue with GitHub — recommended">
+            <span className="ob-door-icon ob-door-icon--gh"><GitHubMark size={26} /></span>
+            <span className="ob-door-tx">
+              <span data-cd-id="continue-with-github" className="ob-door-title">Continue with GitHub<span data-cd-id="recommended" className="ob-door-tag">Recommended</span></span>
+              <span data-cd-id="start-a-shared" className="ob-door-sub">Start a shared project, or open one a teammate shared with you.</span>
+            </span>
+            <span className="ob-door-cta">
+              <span data-cd-id="sign-in-with" className="btn btn--primary ob-door-btn"><GitHubMark size={15} /> Sign in with GitHub</span>
+            </span>
+          </button>
+
+          <button type="button" className="ob-door" aria-label="Open a folder on this computer">
+            <span className="ob-door-icon"><Icon name="folder-open" size={22} /></span>
+            <span className="ob-door-tx">
+              <span data-cd-id="open-a-folder" className="ob-door-title">Open a folder on this computer</span>
+              <span data-cd-id="already-have-a" className="ob-door-sub">Already have a project folder? Open it and keep designing.</span>
+            </span>
+            <span className="ob-door-go" aria-hidden="true"><Icon name="chevron-right" size={16} /></span>
+          </button>
+
+          <button type="button" className="ob-door ob-door--advanced" aria-label="Connect to a team hub — advanced">
+            <span className="ob-door-icon ob-door-icon--quiet"><Icon name="server" size={18} /></span>
+            <span className="ob-door-tx">
+              <span data-cd-id="connect-to-a" className="ob-door-title">Connect to a team hub <span data-cd-id="advanced" className="ob-door-adv">Advanced</span></span>
+              <span data-cd-id="your-team-runs" className="ob-door-sub">Your team runs its own Maude hub? Paste its address and access token.</span>
+            </span>
+            <span className="ob-door-go" aria-hidden="true"><Icon name="chevron-down" size={15} /></span>
+          </button>
+        </div>
+
+        <p data-cd-id="maude-never-touches" className="ob-foot-note">Maude never touches the terminal. Everything here happens in the app.</p>
+      </main>
+    </div>
+  );
+}
+
+/* ─────────────────────── B · GitHub door — pick or create ────────────────────
+ * After sign-in: a "Start a new project" card on top, then the shared projects
+ * the user can open. This is the door that does the most work. ── */
+const SHARED = [
+  { name: "Acme Rebrand", owner: "acme-design", when: "2 hours ago", priv: true },
+  { name: "Mobile Checkout", owner: "octocat", when: "yesterday", priv: true },
+  { name: "Marketing Site", owner: "acme-design", when: "last week", priv: false },
+];
+function GitHubDoor() {
+  return (
+    <div className="ob-shell">
+      <Rail step="Step 2 of 2 — pick a project" signedInAs="octocat" />
+      <main className="ob-main">
+        <header className="ob-head">
+          <span data-cd-id="you-re-signed" className="ob-eyebrow">You're signed in</span>
+          <h1 data-cd-id="open-a-project">Open a project, or start a new one</h1>
+          <p data-cd-id="pick-up-a">Pick up a shared project below, or create a fresh one — it's private until you invite someone.</p>
+        </header>
+
+        <button type="button" className="ob-create" aria-label="Start a new project">
+          <span className="ob-create-icon"><Icon name="plus" size={20} /></span>
+          <span className="ob-create-tx">
+            <span data-cd-id="start-a-new" className="ob-create-title">Start a new project</span>
+            <span data-cd-id="a-blank-private" className="ob-create-sub">A blank, private project — you choose where it lives.</span>
+          </span>
+          <span data-cd-id="create" className="btn btn--primary ob-create-btn"><Icon name="arrow-right" size={15} /> Create</span>
+        </button>
+
+        <div data-cd-id="shared-with-you" className="ob-section-label">Shared with you</div>
+        <div className="ob-repolist" role="group" aria-label="Shared projects you can open">
+          {SHARED.map((r) => (
+            <button type="button" className="ob-repo" key={r.name}>
+              <span className="ob-repo-icon"><Icon name={r.priv ? "lock" : "globe"} size={15} /></span>
+              <span className="ob-repo-tx">
+                <span className="ob-repo-name">{r.name}</span>
+                <span data-cd-id="updated" className="ob-repo-meta">{r.owner} · updated {r.when}</span>
+              </span>
+              <span data-cd-id="open" className="ob-repo-go"><Icon name="download" size={16} /> Open</span>
+            </button>
+          ))}
+        </div>
+        <p data-cd-id="opening-a-project" className="ob-foot-note">Opening a project saves a copy on this computer and keeps it in sync.</p>
+      </main>
+    </div>
+  );
+}
+
+/* ─────────────────────── C · Local folder door (drag-drop) ───────────────────── */
+function LocalDoor() {
+  return (
+    <div className="ob-shell">
+      <Rail step="Open a folder you already have" />
+      <main className="ob-main">
+        <header className="ob-head">
+          <span data-cd-id="from-this-computer" className="ob-eyebrow">From this computer</span>
+          <h1 data-cd-id="open-a-project-2">Open a project folder</h1>
+          <p data-cd-id="drag-a-folder">Drag a folder in, or browse for it. We'll check it's a Maude project before opening.</p>
+        </header>
+
+        <div className="ob-drop">
+          <span className="ob-drop-glyph"><Icon name="folder-open" size={34} /></span>
+          <span data-cd-id="drag-a-project" className="ob-drop-title">Drag a project folder here</span>
+          <span data-cd-id="or" className="ob-drop-or">or</span>
+          <button data-cd-id="choose-a-folder" data-cd-locked type="button" className="btn btn--primary ob-drop-btn"><Icon name="folder" size={15} /> Choose a folder…</button>
+        </div>
+
+        <div className="callout callout--info ob-callout">
+          <span className="ob-callout-glyph" style={{ color: "var(--status-info)" }}><Icon name="shield" size={15} /></span>
+          <span data-cd-id="not-a-maude">Not a Maude project yet? No problem — we'll offer to <b data-cd-id="set-one-up">set one up</b> for you. Nothing is changed until you say so.</span>
+        </div>
+        <p data-cd-id="to-open-a" className="ob-foot-note">To open a project a teammate shared, use <b data-cd-id="continue-with-github-2">Continue with GitHub</b> instead.</p>
+      </main>
+    </div>
+  );
+}
+
+/* ─────────────────────── D · Hub door (advanced) ─────────────────────────────── */
+function HubDoor() {
+  return (
+    <div className="ob-shell">
+      <Rail step="Advanced — connect to a team hub" />
+      <main className="ob-main">
+        <header className="ob-head">
+          <span className="ob-eyebrow">Advanced</span>
+          <h1>Connect to a team hub</h1>
+          <p>For teams running their own Maude hub. Paste the address and the access token your team gave you.</p>
+        </header>
+
+        <div className="ob-form">
+          <label className="ob-field">
+            <span className="ob-field-label">Hub address</span>
+            <span className="ob-field-wrap"><Icon name="server" size={14} className="ob-field-pre" />
+              <input className="input ob-input" type="text" defaultValue="https://hub.acme.dev" aria-label="Hub address" />
+            </span>
+          </label>
+          <label className="ob-field">
+            <span className="ob-field-label">Access token</span>
+            <span className="ob-field-wrap"><Icon name="key" size={14} className="ob-field-pre" />
+              <input className="input ob-input" type="text" placeholder="paste the access token your team gave you" aria-label="Access token" />
+            </span>
+          </label>
+          <div className="ob-form-actions">
+            <button type="button" className="btn btn--primary"><Icon name="link" size={15} /> Connect</button>
+          </div>
+        </div>
+
+        <div className="callout callout--success ob-callout">
+          <span className="ob-callout-glyph" style={{ color: "var(--status-success)" }}><Icon name="check" size={15} /></span>
+          <span><b style={{ color: "var(--fg-0)" }}>Connected to hub.acme.dev.</b> Your team's projects will sync here automatically.</span>
+        </div>
+        <p className="ob-foot-note">Most people use <b>Continue with GitHub</b> — you only need a hub if your team runs one.</p>
+      </main>
+    </div>
+  );
+}
+
+/* ─────────────────────── E · Success (+ collab cycle preview) ─────────────────
+ * The handoff to the canvas browser. Previews the Save → Publish → Pull cycle the
+ * collab tour will teach (the same loop the infographic renders), and offers the
+ * tour. The live layer is named as "automatic — no buttons". ── */
+function CycleStep({ icon, label, sub }: { icon: IconName; label: string; sub: string }) {
+  return (
+    <span className="ob-cyc-step">
+      <span className="ob-cyc-icon"><Icon name={icon} size={16} /></span>
+      <span className="ob-cyc-label">{label}</span>
+      <span className="ob-cyc-sub">{sub}</span>
+    </span>
+  );
+}
+function Success() {
+  return (
+    <div className="ob-shell">
+      <Rail step="You're all set" signedInAs="octocat" />
+      <main className="ob-main ob-main--center">
+        <div className="ob-success">
+          <span className="ob-success-badge" role="img" aria-label="Success"><Icon name="check" size={26} /></span>
+          <h1>You're in.</h1>
+          <p className="ob-success-sub"><b>Acme Rebrand</b> is open and ready. Here's the whole idea in one picture:</p>
+
+          <div className="ob-cycle panel">
+            <div className="ob-cycle-live">
+              <span className="ob-cycle-live-dot" aria-hidden="true" />
+              <span>Together · cursors, comments, who's here — <b>automatic, no buttons</b></span>
+            </div>
+            <div className="ob-cycle-row">
+              <CycleStep icon="save" label="Save changes locally" sub="keep a version on your machine" />
+              <span className="ob-cyc-arrow" aria-hidden="true"><Icon name="arrow-right" size={15} /></span>
+              <CycleStep icon="publish" label="Publish for everyone" sub="share it with the team" />
+              <span className="ob-cyc-arrow" aria-hidden="true"><Icon name="arrow-right" size={15} /></span>
+              <CycleStep icon="download" label="Pull changes" sub="get everyone else's work" />
+            </div>
+          </div>
+
+          <div className="ob-success-actions">
+            <button type="button" className="btn btn--primary ob-success-go"><Icon name="arrow-right" size={15} /> Take the 60-second tour</button>
+            <button type="button" className="btn btn--ghost">Skip — open my canvases</button>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+export default function Onboarding() {
+  return (
+    <DesignCanvas background="var(--bg-0)">
+      <DCSection id="onboarding" title="Onboarding · maude" subtitle="MAUDE/E4 · 5 artboards · first-run wizard · GitHub-first · zero terminal">
+        <DCArtboard id="welcome" label="A · Welcome — three doors, GitHub first" width={1240} height={860}>
+          <div className="maude" data-theme="dark"><Welcome /></div>
+        </DCArtboard>
+        <DCArtboard id="github" label="B · GitHub door — open a shared project or start new" width={1240} height={860}>
+          <div className="maude" data-theme="dark"><GitHubDoor /></div>
+        </DCArtboard>
+        <DCArtboard id="local" label="C · Local folder — drag-drop or choose" width={1240} height={860}>
+          <div className="maude" data-theme="dark"><LocalDoor /></div>
+        </DCArtboard>
+        <DCArtboard id="hub" label="D · Team hub (advanced) — address + invite link" width={1240} height={860}>
+          <div className="maude" data-theme="dark"><HubDoor /></div>
+        </DCArtboard>
+        <DCArtboard id="success" label="E · You're in — the Save → Publish → Pull cycle" width={1240} height={860}>
+          <div className="maude" data-theme="dark"><Success /></div>
+        </DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}

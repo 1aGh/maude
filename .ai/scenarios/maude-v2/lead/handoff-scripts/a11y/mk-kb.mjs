@@ -1,0 +1,11 @@
+import { cpSync, mkdirSync, rmSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+const W = '/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/a11y';
+rmSync(`${W}/kbp`, { recursive: true, force: true });
+mkdirSync(`${W}/kbp/.design`, { recursive: true });
+cpSync(`${W}/fix/.design/config.json`, `${W}/kbp/.design/config.json`);
+const run = (...a) => spawnSync('git', ['-C', `${W}/kbp`, '-c', 'user.email=a@b.c', '-c', 'user.name=t', ...a], { encoding: 'utf8' });
+run('init', '-q');
+run('add', '-A');
+run('commit', '-qm', 'init');
+console.log('ok');

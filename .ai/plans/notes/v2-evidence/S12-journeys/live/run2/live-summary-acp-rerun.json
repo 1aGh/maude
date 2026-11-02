@@ -1,0 +1,146 @@
+[
+  {
+    "journey": "S2",
+    "lane": "acp",
+    "pass": true,
+    "harnessFailure": false,
+    "infra": null,
+    "turns": [
+      {
+        "turn": 1,
+        "ok": true,
+        "stopReason": "end_turn"
+      }
+    ],
+    "results": [
+      {
+        "id": "edited",
+        "grader": "text",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "ids-kept",
+        "grader": "ids-kept",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "linked",
+        "grader": "link",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "ai-version",
+        "grader": "history",
+        "pass": true,
+        "why": ""
+      }
+    ]
+  },
+  {
+    "journey": "S5",
+    "lane": "acp",
+    "pass": true,
+    "harnessFailure": false,
+    "infra": null,
+    "turns": [
+      {
+        "turn": 1,
+        "ok": true,
+        "stopReason": "end_turn"
+      }
+    ],
+    "results": [
+      {
+        "id": "busy-denied",
+        "grader": "denied",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "busy-untouched",
+        "grader": "untouched",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "free-part-done",
+        "grader": "text",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "one-undo-step",
+        "grader": "one-undo-step",
+        "pass": true,
+        "why": ""
+      }
+    ]
+  },
+  {
+    "journey": "S7",
+    "lane": "acp",
+    "pass": true,
+    "harnessFailure": false,
+    "infra": null,
+    "turns": [
+      {
+        "turn": 1,
+        "ok": true,
+        "stopReason": "end_turn"
+      }
+    ],
+    "results": [
+      {
+        "id": "huddle-one-second",
+        "grader": "text",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "shots-follow",
+        "grader": "text",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "effects-follow",
+        "grader": "text",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "total-in-step",
+        "grader": "text",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "earlier-shots-kept",
+        "grader": "text",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "ai-version",
+        "grader": "history",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "one-undo-step",
+        "grader": "one-undo-step",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "no-hard-delete",
+        "grader": "no-tool",
+        "pass": true,
+        "why": ""
+      }
+    ]
+  }
+]

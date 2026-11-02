@@ -160,7 +160,7 @@ function main() {
   );
 }
 
-export { harvestSeeds, resolveArtboards, synthDefaultGrid };
+export { harvestSeeds, loadMetaLayout, resolveArtboards, synthDefaultGrid };
 
 const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) main();

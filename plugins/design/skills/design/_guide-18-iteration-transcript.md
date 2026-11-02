@@ -1,24 +1,22 @@
-### Iteration transcript
+### Iteration record
 
-Every auto-critic iteration appends to `<designRoot>/_history/<slug>/chat.md` — the project's "intent record" (à la Claude Design's `chats/`). The chat is the canonical record of *why* the canvas evolved the way it did. Format:
+Version history is the record of why a canvas changed. Every auto-critic iteration lands as one AI version, labelled with what it did, so there is no separate transcript file to keep. `maude design history list <canvas>` prints the versions, newest first, and `maude design history show <ref>` prints who made one, when, and what changed. Each version's label is the edit summary: write it as one line a person would recognise (for example "Added a presence dot before each name").
+
+What an iteration adds beyond the version itself goes in your reply to the person, in this order:
 
 ```markdown
-## Iteration {N} — {ISO ts}
+## Iteration {N}
 
-**Feedback:** {user feedback verbatim, or "/design:new <brief>"}
+**Feedback:** {the person's feedback verbatim, or "/design:new <brief>"}
 
-**Selection:** {selected.selector or "canvas-wide"}
+**Selection:** {the selected element, or "the whole canvas"}
 
-**Snapshot:** {NNN-ts.bak}
-
-**Edit summary:** {1-line — e.g. "added presence dot before each .roster-row .name"}
+**Version:** {r12, from `maude design history list`}
 
 **Critic verdict:** {panel members} · blockers {X} → {X'} · {pass | fix-and-retry | divergent}
 
 **Top blockers:** (if X' > 0)
 - [{category}] {summary}
-
----
 ```
 
-`chat.md` is **committed** (not gitignored) — it's project documentation, like the canvas itself. The plugin runs in the same repo as the implementation, so the chat is always available to anyone reading the source.
+A project from before v2 may still hold `_history/<slug>/chat.md` (pre-v2). Read it for the intent behind older changes; do not add to it.

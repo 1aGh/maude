@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/1aGh/maude/main/apps/studio/schema/ds-revision-v1.schema.json",
+  "title": "Maude design-system revision (system/<ds>/revisions/<id>.json), v1",
+  "description": "An immutable, content-addressed freeze of a system's working files (V2-1.6 §5.6). The file name is the id: lowercase hex sha256 of the UTF-8 canonical body (keys sorted by UTF-16 code unit at every depth, no whitespace). Every files[k].sha256 is the sha256 of files[k].text. The body carries no time, author, parent or message. A future format is new files with a new v; this one is never rewritten.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "v", "schemaVersion", "system", "files"],
+  "properties": {
+    "format": { "const": "maude.ds-revision" },
+    "v": { "const": 1 },
+    "schemaVersion": { "const": 1 },
+    "system": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,63}$" },
+    "files": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "patternProperties": {
+        "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_][A-Za-z0-9 ._/-]{0,255}$": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["sha256", "text"],
+          "properties": {
+            "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+            "text": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,40 @@
+---
+title: /design:assets
+description: "List the project's assets, see where each is used, find the ones nothing uses, and search pictures by what they show."
+---
+
+| Property | Value |
+| -------- | ----- |
+| **Command** | `/design:assets` |
+| **Category** | `daily` (daily) |
+| **Argument hint** | `[<asset>] [--details] \| --not-used \| describe [--batch N \| --status \| --stop]` |
+| **Source** | [`plugins/design/commands/assets.md`](https://github.com/1aGh/maude/blob/main/plugins/design/commands/assets.md) |
+
+## Description
+
+List the project's assets, see where each is used, find the ones nothing uses, and search pictures by what they show.
+
+## Invocation
+
+**Claude Code**
+
+```text
+/design:assets [<asset>] [--details] | --not-used | describe [--batch N | --status | --stop]
+```
+
+**Codex**
+
+```text
+$design:source-command-assets [<asset>] [--details] | --not-used | describe [--batch N | --status | --stop]
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
+## Source of truth
+
+<Callout type="note" title="Generated from frontmatter">
+
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/design/commands/assets.md`**](https://github.com/1aGh/maude/blob/main/plugins/design/commands/assets.md).
+
+</Callout>

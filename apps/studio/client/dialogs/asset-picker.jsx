@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { uploadAsset } from '../../asset-upload.ts';
+import { toastArrivals } from '../v2/assets/import-toast.js';
 import { isNativeApp, pickMediaFile, pickMediaFiles, pickedMediaSource } from '../github.js';
 import { StIcon } from '../shell/icons.jsx';
 
@@ -11,15 +12,32 @@ import { StIcon } from '../shell/icons.jsx';
 // upload is always magic-byte-sniffed server-side, so a wrong guess here
 // can't misrepresent what gets stored, only which picker UI state it shows.
 export const EXT_MIME = {
-  png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif',
-  webp: 'image/webp', avif: 'image/avif', svg: 'image/svg+xml',
-  mp4: 'video/mp4', mov: 'video/quicktime', webm: 'video/webm', m4v: 'video/mp4', ogg: 'video/ogg',
-  mp3: 'audio/mpeg', wav: 'audio/wav', m4a: 'audio/mp4', aac: 'audio/aac',
-  flac: 'audio/flac', oga: 'audio/ogg', opus: 'audio/opus',
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  avif: 'image/avif',
+  svg: 'image/svg+xml',
+  mp4: 'video/mp4',
+  mov: 'video/quicktime',
+  webm: 'video/webm',
+  m4v: 'video/mp4',
+  ogg: 'video/ogg',
+  mp3: 'audio/mpeg',
+  wav: 'audio/wav',
+  m4a: 'audio/mp4',
+  aac: 'audio/aac',
+  flac: 'audio/flac',
+  oga: 'audio/ogg',
+  opus: 'audio/opus',
 };
 
 export function mimeFromExt(name) {
-  const ext = String(name || '').split('.').pop()?.toLowerCase();
+  const ext = String(name || '')
+    .split('.')
+    .pop()
+    ?.toLowerCase();
   return EXT_MIME[ext] || 'application/octet-stream';
 }
 
@@ -37,6 +55,9 @@ export function AssetPicker({
   multiple = false,
   hasArtboardAnchor = false,
   onPickMany,
+  // S8.22b — the one line per arrival (a second copy, a flat picture from a .psd, a cleaned logo, offline); absent = silent
+  toast = undefined,
+  isOffline = undefined,
 }) {
   const [assets, setAssets] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -80,7 +101,9 @@ export function AssetPicker({
     return () => window.removeEventListener('keydown', onKey, true);
   }, [onClose]);
 
-  const hasNonImageSelected = Array.from(selected).some((p) => (kindByPath[p] || 'image') !== 'image');
+  const hasNonImageSelected = Array.from(selected).some(
+    (p) => (kindByPath[p] || 'image') !== 'image'
+  );
   const artboardDisabled = !hasArtboardAnchor || hasNonImageSelected;
   const artboardDisabledReason = !hasArtboardAnchor
     ? 'No artboard on this canvas'
@@ -109,8 +132,18 @@ export function AssetPicker({
   const uploadOne = async (f) => {
     const res = await uploadAsset(f, { onProgress: setProgress });
     setProgress(null);
-    return 'path' in res ? { ok: true, path: res.path } : { ok: false, error: res.error };
+    const name = typeof f?.name === 'string' ? f.name : undefined;
+    const entry = { name, result: res };
+    return 'path' in res
+      ? { ok: true, path: res.path, entry }
+      : { ok: false, error: res.error, entry };
   };
+  const sayArrivals = (rows) =>
+    toastArrivals(
+      toast,
+      rows.map((r) => r.entry),
+      { offline: isOffline?.() === true }
+    );
 
   const doUpload = async (f) => {
     if (!f) return;
@@ -118,6 +151,7 @@ export function AssetPicker({
     setErr(null);
     const res = await uploadOne(f);
     setBusy(false);
+    sayArrivals([res]);
     if (res.ok) onPick(res.path);
     else setErr(res.error);
   };
@@ -139,6 +173,7 @@ export function AssetPicker({
       files.map((f) => uploadOne(f).then((r) => ({ ...r, file: f })))
     );
     setBusy(false);
+    sayArrivals(results);
     const ok = results.filter((r) => r.ok);
     const failed = results.length - ok.length;
     if (failed > 0) setErr(`${failed} of ${results.length} uploads failed`);
@@ -230,35 +265,40 @@ export function AssetPicker({
 
   return (
     <div
-      className="st-scrim"
+      className="sh-scrim"
       role="presentation"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="st-dialog st-asset-picker" role="dialog" aria-modal="true" aria-label="Choose media">
-        <div className="st-dialog-hd">
-          <span className="st-dialog-title">Choose media</span>
-          <button type="button" className="st-iconbtn" aria-label="Close" onClick={onClose}>
+      <div
+        className="sh-dialog sh-asset-picker"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Choose media"
+      >
+        <div className="sh-dialog-hd">
+          <span className="sh-dialog-title">Choose media</span>
+          <button type="button" className="sh-iconbtn" aria-label="Close" onClick={onClose}>
             <StIcon name="x" size={15} />
           </button>
         </div>
-        <div className="st-dialog-bd">
-          <div className="st-ap-toolbar">
-            <button type="button" className="st-btn" onClick={openFilePicker} disabled={busy}>
+        <div className="sh-dialog-bd">
+          <div className="sh-ap-toolbar">
+            <button type="button" className="sh-btn" onClick={openFilePicker} disabled={busy}>
               {busy
                 ? progress == null
                   ? 'Uploading…'
                   : `Uploading… ${Math.round(progress * 100)}%`
                 : 'Upload…'}
             </button>
-            {err && <span className="st-ap-err">{err}</span>}
+            {err && <span className="sh-ap-err">{err}</span>}
           </div>
-          <div className="st-ap-grid">
+          <div className="sh-ap-grid">
             {assets == null ? (
-              <div className="st-ap-empty">Loading…</div>
+              <div className="sh-ap-empty">Loading…</div>
             ) : assets.length === 0 ? (
-              <div className="st-ap-empty">No assets yet — upload one.</div>
+              <div className="sh-ap-empty">No assets yet — upload one.</div>
             ) : (
               assets.map((a) => {
                 const isSelected = multiple && selected.has(a.path);
@@ -266,23 +306,28 @@ export function AssetPicker({
                   <button
                     type="button"
                     key={a.path}
-                    className="st-ap-cell"
+                    className="sh-ap-cell"
                     data-selected={isSelected ? 'true' : undefined}
                     aria-pressed={multiple ? isSelected : undefined}
                     title={`${a.name} · ${Math.max(1, Math.round(a.size / 1024))} KB`}
                     onClick={() => (multiple ? toggleSelected(a.path) : onPick(a.path))}
                   >
                     {multiple && (
-                      <span className="st-ap-check" aria-hidden="true">
+                      <span className="sh-ap-check" aria-hidden="true">
                         {isSelected ? <StIcon name="check" size={12} /> : null}
                       </span>
                     )}
                     {a.kind === 'video' ? (
-                      <video className="st-ap-thumb" src={assetUrl(a.path)} muted playsInline />
+                      <video className="sh-ap-thumb" src={assetUrl(a.path)} muted playsInline />
                     ) : (
-                      <img className="st-ap-thumb" src={assetUrl(a.path)} alt={a.name} loading="lazy" />
+                      <img
+                        className="sh-ap-thumb"
+                        src={assetUrl(a.path)}
+                        alt={a.name}
+                        loading="lazy"
+                      />
                     )}
-                    <span className="st-ap-name">{a.name}</span>
+                    <span className="sh-ap-name">{a.name}</span>
                   </button>
                 );
               })
@@ -290,12 +335,12 @@ export function AssetPicker({
           </div>
         </div>
         {multiple && selected.size > 0 && (
-          <div className="st-dialog-ft st-ap-confirm">
-            <span className="st-ap-count">{selected.size} selected</span>
-            <div className="st-ap-seg" role="radiogroup" aria-label="Insert as">
+          <div className="sh-dialog-ft sh-ap-confirm">
+            <span className="sh-ap-count">{selected.size} selected</span>
+            <div className="sh-ap-seg" role="radiogroup" aria-label="Insert as">
               <button
                 type="button"
-                className="st-ap-seg-btn"
+                className="sh-ap-seg-btn"
                 aria-pressed={destination === 'artboard'}
                 disabled={artboardDisabled}
                 onClick={() => setDestination('artboard')}
@@ -304,15 +349,15 @@ export function AssetPicker({
               </button>
               <button
                 type="button"
-                className="st-ap-seg-btn"
+                className="sh-ap-seg-btn"
                 aria-pressed={destination === 'annotation'}
                 onClick={() => setDestination('annotation')}
               >
                 Add as annotation
               </button>
             </div>
-            {artboardDisabled && <span className="st-ap-dest-note">{artboardDisabledReason}</span>}
-            <span className="st-ap-confirm-spacer" />
+            {artboardDisabled && <span className="sh-ap-dest-note">{artboardDisabledReason}</span>}
+            <span className="sh-ap-confirm-spacer" />
             <button type="button" className="btn btn--ghost" onClick={onClose}>
               Cancel
             </button>

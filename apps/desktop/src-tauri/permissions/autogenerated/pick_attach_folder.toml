@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-pick-attach-folder"
+description = "Enables the pick_attach_folder command without any pre-configured scope."
+commands.allow = ["pick_attach_folder"]
+
+[[permission]]
+identifier = "deny-pick-attach-folder"
+description = "Denies the pick_attach_folder command without any pre-configured scope."
+commands.deny = ["pick_attach_folder"]

@@ -31,7 +31,7 @@ export function QuickStart() {
   return (
     <section className="mdcc-install" aria-label="Quick start">
       <div className="mdcc-install-head">
-        <strong>Quick start</strong>
+        <strong>Install from the terminal</strong>
       </div>
       <Tabs defaultValue="claude">
         <TabsList className="mdcc-install-tabs" aria-label="Choose your coding agent">

@@ -1,0 +1,61 @@
+{
+  "nodes": {
+    "1:1": {
+      "document": {
+        "id": "1:1",
+        "name": "Dresy 2027",
+        "type": "CANVAS",
+        "children": [
+          {
+            "id": "2:1",
+            "name": "Dres domácí",
+            "type": "FRAME",
+            "visible": true,
+            "absoluteBoundingBox": {
+              "x": 0,
+              "y": 0,
+              "width": 900,
+              "height": 1280
+            },
+            "fills": [
+              {
+                "type": "SOLID",
+                "color": {
+                  "r": 1,
+                  "g": 1,
+                  "b": 1,
+                  "a": 1
+                }
+              }
+            ],
+            "children": []
+          },
+          {
+            "id": "2:2",
+            "name": "Helma z boku",
+            "type": "FRAME",
+            "visible": true,
+            "absoluteBoundingBox": {
+              "x": 0,
+              "y": 0,
+              "width": 600,
+              "height": 600
+            },
+            "fills": [
+              {
+                "type": "SOLID",
+                "color": {
+                  "r": 1,
+                  "g": 1,
+                  "b": 1,
+                  "a": 1
+                }
+              }
+            ],
+            "children": []
+          }
+        ]
+      }
+    }
+  }
+}

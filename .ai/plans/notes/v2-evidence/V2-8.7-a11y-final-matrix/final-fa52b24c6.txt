@@ -1,0 +1,361 @@
+=== dark main (4431)
+theme now dark
+ok    dark shell-empty: -  | incomplete: color-contrast(serious)x2
+ok    dark left-layers: -  | incomplete: color-contrast(serious)x1
+ok    dark left-assets: -  | incomplete: color-contrast(serious)x1
+ok    dark left-new-canvas: aria-allowed-role(minor)x1  | incomplete: color-contrast(serious)x2
+ok    dark left-kind-chip: -  | incomplete: color-contrast(serious)x1
+ok    dark left-search: -  | incomplete: color-contrast(serious)x1
+ok    dark left-sort-menu: -  | incomplete: color-contrast(serious)x2
+ok    dark left-row-actions: -  | incomplete: color-contrast(serious)x3
+ok    dark left-advanced: -  | incomplete: color-contrast(serious)x2
+ok    dark whatsnew-all: -  | incomplete: color-contrast(serious)x2
+ok    dark project-menu: -  | incomplete: color-contrast(serious)x10
+ok    dark menu-File: -  | incomplete: color-contrast(serious)x10
+ok    dark menu-Edit: -  | incomplete: color-contrast(serious)x10
+ok    dark menu-View: -  | incomplete: color-contrast(serious)x10
+ok    dark menu-Help: -  | incomplete: color-contrast(serious)x10
+ok    dark palette: -  | incomplete: aria-valid-attr-value(critical)x1 color-contrast(serious)x2
+ok    dark palette-typed: -  | incomplete: aria-valid-attr-value(critical)x1 color-contrast(serious)x2
+ok    dark settings: -  | incomplete: color-contrast(serious)x2
+ok    dark keyboard-sheet: -  | incomplete: color-contrast(serious)x2
+ok    dark canvas-smoke: -  | incomplete: color-contrast(serious)x3
+ok    dark canvas-smoke-artboard: -  | incomplete: color-contrast(serious)x2
+ok    dark canvas-smoke-object: -  | incomplete: color-contrast(serious)x2
+ok    dark canvas-smoke-share: -  | incomplete: color-contrast(serious)x2
+ok    dark canvas-smoke-export: -  | incomplete: color-contrast(serious)x2
+ok    dark canvas-smoke-history: -  | incomplete: color-contrast(serious)x3
+ok    dark canvas-smoke-palette: -  | incomplete: aria-valid-attr-value(critical)x1 color-contrast(serious)x2
+ok    dark canvas-smoke-present-options: -  | incomplete: color-contrast(serious)x4
+ok    dark canvas-smoke-preview: -  | incomplete: color-contrast(serious)x1
+ok    dark canvas-smoke-layers: -  | incomplete: color-contrast(serious)x1
+ok    dark canvas-smoke-assets: -  | incomplete: color-contrast(serious)x1
+ok    dark canvas-smoke-more: -  | incomplete: color-contrast(serious)x2
+ok    dark tool-Pen: -  | incomplete: color-contrast(serious)x2
+ok    dark tool-Shape: -  | incomplete: color-contrast(serious)x2
+ok    dark tool-Image: -  | incomplete: color-contrast(serious)x2
+ok    dark tool-Component: -  | incomplete: color-contrast(serious)x2
+ok    dark tool-frame-sizes: -  | incomplete: color-contrast(serious)x3
+ok    dark tool-text-added: -  | incomplete: color-contrast(serious)x2
+ok    dark canvas-zoom-menu: -  | incomplete: color-contrast(serious)x2
+ok    dark canvas-smoke-inspector: -  | incomplete: color-contrast(serious)x2
+ok    dark canvas-ai-chat: -  | incomplete: color-contrast(serious)x3
+ok    dark canvas-comments: -  | incomplete: color-contrast(serious)x3
+ok    dark canvas-print: -  | incomplete: color-contrast(serious)x4
+ok    dark canvas-Video: -  | incomplete: bypass(serious)x1 color-contrast(serious)x2
+ok    dark canvas-VideoClipInspect: -  | incomplete: bypass(serious)x1 color-contrast(serious)x2
+ok    dark canvas-VideoMusic: -  | incomplete: bypass(serious)x1 color-contrast(serious)x2
+ok    dark canvas-VideoEdit: -  | incomplete: bypass(serious)x1 color-contrast(serious)x2
+ok    dark canvas-VideoFormats: -  | incomplete: bypass(serious)x1 color-contrast(serious)x2
+ok    dark canvas-VideoTranscript: -  | incomplete: bypass(serious)x1 color-contrast(serious)x2
+ok    dark canvas-Cut: -  | incomplete: bypass(serious)x1 color-contrast(serious)x2
+ok    dark canvas-Export: -  | incomplete: bypass(serious)x1 color-contrast(serious)x2
+ok    dark video-clip-timeline: -  | incomplete: bypass(serious)x1 color-contrast(serious)x3
+ok    dark video-clip-selected: -  | incomplete: bypass(serious)x1 color-contrast(serious)x2
+ok    dark assets-add-menu: -  | incomplete: color-contrast(serious)x1
+ok    dark assets-link-sheet: -  | incomplete: color-contrast(serious)x1
+ok    dark assets-link-typed: -  | incomplete: color-contrast(serious)x1
+ok    dark assets-generate: -  | incomplete: color-contrast(serious)x2
+ok    dark assets-generate-run: -  | incomplete: color-contrast(serious)x1
+ok    dark inspector-text: -  | incomplete: color-contrast(serious)x2
+ok    dark inspector-sticky: -  | incomplete: color-contrast(serious)x2
+ok    dark inspector-standalone: -  | incomplete: color-contrast(serious)x2
+ok    dark inspector-card: -  | incomplete: color-contrast(serious)x2
+ok    dark comments-panel-view: -  | incomplete: color-contrast(serious)x2
+ok    dark exports-panel-view: -  | incomplete: color-contrast(serious)x2
+ok    dark view-advanced: -  | incomplete: color-contrast(serious)x10
+ok    dark help-menu-open: -  | incomplete: color-contrast(serious)x10
+ok    dark canvas-row-menu-open: -  | incomplete: color-contrast(serious)x3
+ok    dark canvas-pin-hint: -  | incomplete: color-contrast(serious)x3
+ok    dark minimap-on: -  | incomplete: color-contrast(serious)x3
+ok    dark video-lane-select: -  | incomplete: bypass(serious)x1 color-contrast(serious)x10
+ok    dark video-timeline-vm: -  | incomplete: bypass(serious)x1 color-contrast(serious)x4
+ok    dark video-timeline-cut: -  | incomplete: bypass(serious)x1 color-contrast(serious)x3
+ok    dark video-timeline-transcript: -  | incomplete: bypass(serious)x1 color-contrast(serious)x4
+ok    dark video-preview-play: -  | incomplete: bypass(serious)x1 color-contrast(serious)x1
+ok    dark print-inspector: -  | incomplete: color-contrast(serious)x4
+ok    dark present-run: -  | incomplete: -
+ok    dark sheet-import-figma: -  | incomplete: color-contrast(serious)x2
+ok    dark sheet-import-brand: -  | incomplete: color-contrast(serious)x2
+ok    dark sheet-assemble: -  | incomplete: color-contrast(serious)x2
+ok    dark sheet-handoff: -  | incomplete: color-contrast(serious)x2
+ok    dark sheet-move-to: -  | incomplete: color-contrast(serious)x2
+ok    dark sheet-rename: -  | incomplete: color-contrast(serious)x2
+ok    dark sheet-new-project: -  | incomplete: color-contrast(serious)x2
+ok    dark sheet-duplicate: -  | incomplete: color-contrast(serious)x2
+ok    dark sheet-close-canvas: page-has-heading-one(moderate)x1  | incomplete: color-contrast(serious)x3
+ok    dark menu-edit-open: -  | incomplete: color-contrast(serious)x2
+ok    dark help-whats-new: -  | incomplete: color-contrast(serious)x2
+ok    dark help-guides: -  | incomplete: color-contrast(serious)x2
+ok    dark settings-general: -  | incomplete: color-contrast(serious)x2
+ok    dark settings-advanced: -  | incomplete: color-contrast(serious)x2
+ok    dark share-advanced: -  | incomplete: color-contrast(serious)x2
+ok    dark history-advanced: -  | incomplete: color-contrast(serious)x3
+ok    dark export-advanced: -  | incomplete: color-contrast(serious)x2
+ok    dark export-other: -  | incomplete: color-contrast(serious)x2
+ok    dark face-popover: -  | incomplete: color-contrast(serious)x2
+ok    dark context-menu-artboard: -  | incomplete: color-contrast(serious)x3
+ok    dark tool-comment: -  | incomplete: color-contrast(serious)x3
+ok    dark tool-sticky: -  | incomplete: color-contrast(serious)x1
+ok    dark tool-marker-arrow: -  | incomplete: color-contrast(serious)x1
+ok    dark mode-preview-toolbar: -  | incomplete: color-contrast(serious)x1
+ok    dark layers-tab-selected: -  | incomplete: color-contrast(serious)x1
+ok    dark sticky-menu: -  | incomplete: color-contrast(serious)x2
+ok    dark left-new-canvas-row: aria-allowed-role(minor)x1  | incomplete: color-contrast(serious)x2
+ok    dark left-new-folder: -  | incomplete: color-contrast(serious)x2
+ok    dark left-canvas-rename: -  | incomplete: color-contrast(serious)x2
+ok    dark left-canvas-trash-confirm: -  | incomplete: color-contrast(serious)x2
+ok    dark left-trash-view: -  | incomplete: color-contrast(serious)x2
+ok    dark assets-details: -  | incomplete: color-contrast(serious)x2
+ok    dark assets-describe: -  | incomplete: color-contrast(serious)x1
+ok    dark assets-link-door: -  | incomplete: color-contrast(serious)x1
+ok    dark assets-link-door-typed: -  | incomplete: color-contrast(serious)x1
+ok    dark assets-generate-nokey: -  | incomplete: color-contrast(serious)x1
+ok    dark diag-sync: -  | incomplete: color-contrast(serious)x2
+ok    dark diag-server: -  | incomplete: color-contrast(serious)x3
+ok    dark diag-ai-setup: -  | incomplete: color-contrast(serious)x3
+ok    dark diag-logs: -  | incomplete: color-contrast(serious)x3
+ok    dark diag-advanced: -  | incomplete: color-contrast(serious)x10
+ok    dark diag-all-checks: -  | incomplete: color-contrast(serious)x3
+ok    dark diag-logs-filter-ai: -  | incomplete: color-contrast(serious)x2
+ok    dark diag-logs-filter-typed: -  | incomplete: color-contrast(serious)x3
+ok    dark comment-placed: -  | incomplete: color-contrast(serious)x2
+ok    dark comment-typed: -  | incomplete: color-contrast(serious)x2
+done 783 s
+=== dark fmt3 (4434)
+theme now dark
+ok    dark fmt3-shell: -  | incomplete: color-contrast(serious)x3
+ok    dark fmt3-canvas-smoke: -  | incomplete: color-contrast(serious)x3
+ok    dark fmt3-canvas-artboard: -  | incomplete: color-contrast(serious)x3
+ok    dark fmt3-project-menu: -  | incomplete: color-contrast(serious)x10
+ok    dark fmt3-comments: -  | incomplete: color-contrast(serious)x3
+ok    dark fmt3-share: -  | incomplete: color-contrast(serious)x3
+ok    dark fmt3-sync-pill: -  | incomplete: color-contrast(serious)x3
+ok    dark fmt3-comment-placed: -  | incomplete: color-contrast(serious)x3
+done 45 s
+=== dark ds (4433)
+theme now dark
+ok    dark ds-left-system: -  | incomplete: color-contrast(serious)x1
+ok    dark ds-ds-menu: -  | incomplete: bypass(serious)x1 color-contrast(serious)x3
+ok    dark ds-preview-menu: -  | incomplete: color-contrast(serious)x3
+ok    dark ds-canvas-home-artboard: -  | incomplete: color-contrast(serious)x1
+ok    dark ds-shell: -  | incomplete: color-contrast(serious)x1
+ok    dark ds-left: -  | incomplete: color-contrast(serious)x1
+ok    dark ds-canvas-home: -  | incomplete: color-contrast(serious)x1
+ok    dark ds-open-system: -  | incomplete: bypass(serious)x1 color-contrast(serious)x3
+done 39 s
+=== dark empty (4432)
+theme now dark
+ok    dark empty-shell: -  | incomplete: bypass(serious)x1
+ok    dark empty-new-door: -  | incomplete: bypass(serious)x1
+ok    dark empty-share-cluster: -  | incomplete: bypass(serious)x1
+ok    dark empty-canvas-door: -  | incomplete: bypass(serious)x1
+done 16 s
+=== dark native
+theme now dark
+ok    dark native-shell: -  | incomplete: color-contrast(serious)x3
+ok    dark native-ai-ask: -  | incomplete: aria-prohibited-attr(serious)x1 color-contrast(serious)x4
+ok    dark native-ai-typed: -  | incomplete: aria-prohibited-attr(serious)x1 color-contrast(serious)x4
+ok    dark native-ai-advanced: -  | incomplete: aria-prohibited-attr(serious)x1 color-contrast(serious)x4
+ok    dark native-ai-slash: -  | incomplete: aria-prohibited-attr(serious)x1 color-contrast(serious)x4
+ok    dark native-ai-attach: -  | incomplete: aria-prohibited-attr(serious)x1 aria-valid-attr-value(critical)x1 color-contrast(serious)x4
+ok    dark native-settings-connections: -  | incomplete: color-contrast(serious)x4
+ok    dark native-project-menu: -  | incomplete: color-contrast(serious)x10
+ok    dark native-menu-Diagnostics: -  | incomplete: color-contrast(serious)x10
+done 64 s
+=== dark strip
+ok    dark strip-default: -  | incomplete: color-contrast(serious)x1
+ok    dark strip-last-active: -  | incomplete: color-contrast(serious)x1
+ok    dark strip-overview: -  | incomplete: color-contrast(serious)x2
+ok    dark strip-overview-typed: -  | incomplete: color-contrast(serious)x2
+ok    dark desktop-index.html: landmark-one-main(moderate)x1  | incomplete: color-contrast(serious)x4
+ok    dark desktop-root-missing.html: landmark-one-main(moderate)x1  | incomplete: color-contrast(serious)x4
+=== dark home
+ok    dark home-default: -  | incomplete: color-contrast(serious)x3
+ok    dark home-search: -  | incomplete: color-contrast(serious)x10
+ok    dark home-ask-typed: -  | incomplete: color-contrast(serious)x3
+- button "Home, project menu" [expanded=false, ref=e2]
+=== light main (4431)
+theme now light
+ok    light shell-empty: -  | incomplete: color-contrast(serious)x2
+ok    light left-layers: -  | incomplete: color-contrast(serious)x1
+ok    light left-assets: -  | incomplete: color-contrast(serious)x1
+ok    light left-new-canvas: aria-allowed-role(minor)x1  | incomplete: color-contrast(serious)x2
+ok    light left-kind-chip: -  | incomplete: color-contrast(serious)x1
+ok    light left-search: -  | incomplete: color-contrast(serious)x1
+ok    light left-sort-menu: -  | incomplete: color-contrast(serious)x2
+ok    light left-row-actions: -  | incomplete: color-contrast(serious)x3
+ok    light left-advanced: -  | incomplete: color-contrast(serious)x2
+ok    light whatsnew-all: -  | incomplete: color-contrast(serious)x2
+ok    light project-menu: -  | incomplete: color-contrast(serious)x10
+ok    light menu-File: -  | incomplete: color-contrast(serious)x10
+ok    light menu-Edit: -  | incomplete: color-contrast(serious)x10
+ok    light menu-View: -  | incomplete: color-contrast(serious)x10
+ok    light menu-Help: -  | incomplete: color-contrast(serious)x10
+ok    light palette: -  | incomplete: aria-valid-attr-value(critical)x1 color-contrast(serious)x2
+ok    light palette-typed: -  | incomplete: aria-valid-attr-value(critical)x1 color-contrast(serious)x2
+ok    light settings: -  | incomplete: color-contrast(serious)x2
+ok    light keyboard-sheet: -  | incomplete: color-contrast(serious)x2
+ok    light canvas-smoke: -  | incomplete: color-contrast(serious)x3
+ok    light canvas-smoke-artboard: -  | incomplete: color-contrast(serious)x2
+ok    light canvas-smoke-object: -  | incomplete: color-contrast(serious)x2
+ok    light canvas-smoke-share: -  | incomplete: color-contrast(serious)x2
+ok    light canvas-smoke-export: -  | incomplete: color-contrast(serious)x2
+ok    light canvas-smoke-history: -  | incomplete: color-contrast(serious)x3
+ok    light canvas-smoke-palette: -  | incomplete: aria-valid-attr-value(critical)x1 color-contrast(serious)x2
+ok    light canvas-smoke-present-options: -  | incomplete: color-contrast(serious)x4
+ok    light canvas-smoke-preview: -  | incomplete: color-contrast(serious)x1
+ok    light canvas-smoke-layers: -  | incomplete: color-contrast(serious)x1
+ok    light canvas-smoke-assets: -  | incomplete: color-contrast(serious)x1
+ok    light canvas-smoke-more: -  | incomplete: color-contrast(serious)x2
+ok    light tool-Pen: -  | incomplete: color-contrast(serious)x2
+ok    light tool-Shape: -  | incomplete: color-contrast(serious)x2
+ok    light tool-Image: -  | incomplete: color-contrast(serious)x2
+ok    light tool-Component: -  | incomplete: color-contrast(serious)x2
+ok    light tool-frame-sizes: -  | incomplete: color-contrast(serious)x3
+ok    light tool-text-added: -  | incomplete: color-contrast(serious)x2
+ok    light canvas-zoom-menu: -  | incomplete: color-contrast(serious)x2
+ok    light canvas-smoke-inspector: -  | incomplete: color-contrast(serious)x2
+ok    light canvas-ai-chat: -  | incomplete: color-contrast(serious)x3
+ok    light canvas-comments: -  | incomplete: color-contrast(serious)x3
+ok    light canvas-print: -  | incomplete: color-contrast(serious)x4
+ok    light canvas-Video: -  | incomplete: bypass(serious)x1 color-contrast(serious)x2
+ok    light canvas-VideoClipInspect: -  | incomplete: bypass(serious)x1 color-contrast(serious)x2
+ok    light canvas-VideoMusic: -  | incomplete: bypass(serious)x1 color-contrast(serious)x2
+ok    light canvas-VideoEdit: -  | incomplete: bypass(serious)x1 color-contrast(serious)x2
+ok    light canvas-VideoFormats: -  | incomplete: bypass(serious)x1 color-contrast(serious)x2
+ok    light canvas-VideoTranscript: -  | incomplete: bypass(serious)x1 color-contrast(serious)x2
+ok    light canvas-Cut: -  | incomplete: bypass(serious)x1 color-contrast(serious)x2
+ok    light canvas-Export: -  | incomplete: bypass(serious)x1 color-contrast(serious)x2
+ok    light video-clip-timeline: -  | incomplete: bypass(serious)x1 color-contrast(serious)x3
+ok    light video-clip-selected: -  | incomplete: bypass(serious)x1 color-contrast(serious)x2
+ok    light assets-add-menu: -  | incomplete: color-contrast(serious)x2
+ok    light assets-link-sheet: -  | incomplete: color-contrast(serious)x2
+ok    light assets-link-typed: -  | incomplete: color-contrast(serious)x2
+ok    light assets-generate: -  | incomplete: color-contrast(serious)x3
+ok    light assets-generate-run: -  | incomplete: color-contrast(serious)x2
+ok    light inspector-text: -  | incomplete: color-contrast(serious)x3
+ok    light inspector-sticky: -  | incomplete: color-contrast(serious)x2
+ok    light inspector-standalone: -  | incomplete: color-contrast(serious)x2
+ok    light inspector-card: -  | incomplete: color-contrast(serious)x2
+ok    light comments-panel-view: -  | incomplete: color-contrast(serious)x2
+ok    light exports-panel-view: -  | incomplete: color-contrast(serious)x2
+ok    light view-advanced: -  | incomplete: color-contrast(serious)x10
+ok    light help-menu-open: -  | incomplete: color-contrast(serious)x10
+ok    light canvas-row-menu-open: -  | incomplete: color-contrast(serious)x3
+ok    light canvas-pin-hint: -  | incomplete: color-contrast(serious)x3
+ok    light minimap-on: -  | incomplete: color-contrast(serious)x3
+ok    light video-lane-select: -  | incomplete: bypass(serious)x1 color-contrast(serious)x10
+ok    light video-timeline-vm: -  | incomplete: bypass(serious)x1 color-contrast(serious)x4
+ok    light video-timeline-cut: -  | incomplete: bypass(serious)x1 color-contrast(serious)x3
+ok    light video-timeline-transcript: -  | incomplete: bypass(serious)x1 color-contrast(serious)x4
+ok    light video-preview-play: -  | incomplete: bypass(serious)x1 color-contrast(serious)x1
+ok    light print-inspector: -  | incomplete: color-contrast(serious)x4
+ok    light present-run: -  | incomplete: -
+ok    light sheet-import-figma: -  | incomplete: color-contrast(serious)x2
+ok    light sheet-import-brand: -  | incomplete: color-contrast(serious)x2
+ok    light sheet-assemble: -  | incomplete: color-contrast(serious)x1
+ok    light sheet-handoff: -  | incomplete: color-contrast(serious)x1
+ok    light sheet-move-to: -  | incomplete: color-contrast(serious)x1
+ok    light sheet-rename: -  | incomplete: color-contrast(serious)x1
+ok    light sheet-new-project: -  | incomplete: color-contrast(serious)x1
+ok    light sheet-duplicate: -  | incomplete: color-contrast(serious)x1
+ok    light sheet-close-canvas: page-has-heading-one(moderate)x1  | incomplete: color-contrast(serious)x3
+WARN panels not shown false
+BLOCK light menu-edit-open: document-title(serious)x1 html-has-lang(serious)x1 landmark-one-main(moderate)x1 page-has-heading-one(moderate)x1  | incomplete: -
+      document-title: ["html"] <html><head></head><body></body></html>
+      html-has-lang: ["html"] <html><head></head><body></body></html>
+WARN panels not shown false
+BLOCK light help-whats-new: document-title(serious)x1 html-has-lang(serious)x1 landmark-one-main(moderate)x1 page-has-heading-one(moderate)x1  | incomplete: -
+      document-title: ["html"] <html><head></head><body></body></html>
+      html-has-lang: ["html"] <html><head></head><body></body></html>
+ok    light help-guides: -  | incomplete: color-contrast(serious)x2
+ok    light settings-general: -  | incomplete: color-contrast(serious)x2
+ok    light settings-advanced: -  | incomplete: color-contrast(serious)x2
+ok    light share-advanced: -  | incomplete: color-contrast(serious)x1
+ok    light history-advanced: -  | incomplete: color-contrast(serious)x2
+ok    light export-advanced: -  | incomplete: color-contrast(serious)x1
+ok    light export-other: -  | incomplete: color-contrast(serious)x1
+ok    light face-popover: -  | incomplete: color-contrast(serious)x1
+ok    light context-menu-artboard: -  | incomplete: color-contrast(serious)x2
+ok    light tool-comment: -  | incomplete: color-contrast(serious)x2
+ok    light tool-sticky: -  | incomplete: -
+ok    light tool-marker-arrow: -  | incomplete: -
+ok    light mode-preview-toolbar: -  | incomplete: -
+ok    light layers-tab-selected: -  | incomplete: -
+ok    light sticky-menu: -  | incomplete: color-contrast(serious)x1
+ok    light left-new-canvas-row: aria-allowed-role(minor)x1  | incomplete: color-contrast(serious)x2
+ok    light left-new-folder: -  | incomplete: color-contrast(serious)x2
+ok    light left-canvas-rename: -  | incomplete: color-contrast(serious)x1
+ok    light left-canvas-trash-confirm: -  | incomplete: color-contrast(serious)x1
+ok    light left-trash-view: -  | incomplete: color-contrast(serious)x1
+ok    light assets-details: -  | incomplete: color-contrast(serious)x1
+ok    light assets-describe: -  | incomplete: -
+ok    light assets-link-door: -  | incomplete: -
+ok    light assets-link-door-typed: -  | incomplete: -
+ok    light assets-generate-nokey: -  | incomplete: -
+ok    light diag-sync: -  | incomplete: color-contrast(serious)x1
+ok    light diag-server: -  | incomplete: color-contrast(serious)x2
+ok    light diag-ai-setup: -  | incomplete: color-contrast(serious)x2
+ok    light diag-logs: -  | incomplete: color-contrast(serious)x2
+ok    light diag-advanced: -  | incomplete: color-contrast(serious)x10
+ok    light diag-all-checks: -  | incomplete: color-contrast(serious)x2
+ok    light diag-logs-filter-ai: -  | incomplete: color-contrast(serious)x1
+ok    light diag-logs-filter-typed: -  | incomplete: color-contrast(serious)x2
+ok    light comment-placed: -  | incomplete: color-contrast(serious)x1
+ok    light comment-typed: -  | incomplete: color-contrast(serious)x1
+done 949 s
+=== light fmt3 (4434)
+theme now light
+ok    light fmt3-shell: -  | incomplete: color-contrast(serious)x3
+ok    light fmt3-canvas-smoke: -  | incomplete: color-contrast(serious)x3
+ok    light fmt3-canvas-artboard: -  | incomplete: color-contrast(serious)x3
+ok    light fmt3-project-menu: -  | incomplete: color-contrast(serious)x10
+ok    light fmt3-comments: -  | incomplete: color-contrast(serious)x3
+ok    light fmt3-share: -  | incomplete: color-contrast(serious)x3
+ok    light fmt3-sync-pill: -  | incomplete: color-contrast(serious)x3
+ok    light fmt3-comment-placed: -  | incomplete: color-contrast(serious)x3
+done 42 s
+=== light ds (4433)
+theme now light
+ok    light ds-left-system: -  | incomplete: -
+ok    light ds-ds-menu: -  | incomplete: bypass(serious)x1 color-contrast(serious)x3
+ok    light ds-preview-menu: -  | incomplete: color-contrast(serious)x2
+ok    light ds-canvas-home-artboard: -  | incomplete: -
+ok    light ds-shell: -  | incomplete: -
+ok    light ds-left: -  | incomplete: -
+ok    light ds-canvas-home: -  | incomplete: -
+ok    light ds-open-system: -  | incomplete: bypass(serious)x1 color-contrast(serious)x3
+done 36 s
+=== light empty (4432)
+theme now light
+ok    light empty-shell: -  | incomplete: bypass(serious)x1
+ok    light empty-new-door: -  | incomplete: bypass(serious)x1
+ok    light empty-share-cluster: -  | incomplete: bypass(serious)x1
+ok    light empty-canvas-door: -  | incomplete: bypass(serious)x1
+done 12 s
+=== light native
+theme now light
+ok    light native-shell: -  | incomplete: color-contrast(serious)x3
+ok    light native-ai-ask: -  | incomplete: aria-prohibited-attr(serious)x1 color-contrast(serious)x2
+ok    light native-ai-typed: -  | incomplete: aria-prohibited-attr(serious)x1 color-contrast(serious)x2
+ok    light native-ai-advanced: -  | incomplete: aria-prohibited-attr(serious)x1 color-contrast(serious)x2
+ok    light native-ai-slash: -  | incomplete: aria-prohibited-attr(serious)x1 color-contrast(serious)x1
+ok    light native-ai-attach: -  | incomplete: aria-prohibited-attr(serious)x1 aria-valid-attr-value(critical)x1 color-contrast(serious)x1
+ok    light native-settings-connections: -  | incomplete: color-contrast(serious)x1
+ok    light native-project-menu: -  | incomplete: color-contrast(serious)x10
+ok    light native-menu-Diagnostics: -  | incomplete: color-contrast(serious)x10
+done 65 s
+=== light strip
+ok    light strip-default: -  | incomplete: color-contrast(serious)x1
+ok    light strip-last-active: -  | incomplete: color-contrast(serious)x1
+ok    light strip-overview: -  | incomplete: color-contrast(serious)x2
+ok    light strip-overview-typed: -  | incomplete: color-contrast(serious)x2
+ok    light desktop-index.html: landmark-one-main(moderate)x1  | incomplete: -
+ok    light desktop-root-missing.html: landmark-one-main(moderate)x1  | incomplete: -
+=== light home
+ok    light home-default: -  | incomplete: color-contrast(serious)x3
+ok    light home-search: -  | incomplete: color-contrast(serious)x10
+ok    light home-ask-typed: -  | incomplete: color-contrast(serious)x3
+- button "Home, project menu" [expanded=false, ref=e17]
+ALLDONE

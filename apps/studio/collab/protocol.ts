@@ -16,6 +16,70 @@ import type * as Y from 'yjs';
 
 export const MESSAGE_SYNC = 0;
 export const MESSAGE_AWARENESS = 1;
+/**
+ * p8-collab-epoch — the handshake epoch (decision `v2-p8-collab-epoch`). Outside
+ * the y-websocket range (0 sync, 1 awareness, 2 auth, 3 query-awareness), so a
+ * 1.x peer or server ignores it as an unknown type.
+ *
+ *   client → server  [64, 0, varString claim]   the epoch its doc was last synced
+ *                                               under; '' = a doc that never synced
+ *   server → client  [64, 1, varString epoch, varUint accepted]
+ *
+ * `accepted` 0 tells the client its doc belongs to an earlier server instance:
+ * it starts a fresh doc and claims again (use-collab.tsx). Not a security
+ * boundary — the epoch is sent to every peer; it keeps honest peers consistent.
+ */
+export const MESSAGE_EPOCH = 64;
+export const EPOCH_CLAIM = 0;
+export const EPOCH_VERDICT = 1;
+/** An epoch claim's charset; anything else reads as no claim. */
+const EPOCH_RE = /^[A-Za-z0-9_-]{0,64}$/;
+
+/** The client's claim frame. */
+export function encodeEpochClaim(claim: string): Uint8Array {
+  const e = encoding.createEncoder();
+  encoding.writeVarUint(e, MESSAGE_EPOCH);
+  encoding.writeVarUint(e, EPOCH_CLAIM);
+  encoding.writeVarString(e, claim);
+  return encoding.toUint8Array(e);
+}
+
+/** The server's verdict frame. */
+export function encodeEpochVerdict(epoch: string, accepted: boolean): Uint8Array {
+  const e = encoding.createEncoder();
+  encoding.writeVarUint(e, MESSAGE_EPOCH);
+  encoding.writeVarUint(e, EPOCH_VERDICT);
+  encoding.writeVarString(e, epoch);
+  encoding.writeVarUint(e, accepted ? 1 : 0);
+  return encoding.toUint8Array(e);
+}
+
+/** A claim frame's epoch, or null when `payload` is not a well-formed claim. */
+export function readEpochClaim(payload: Uint8Array): string | null {
+  try {
+    const d = decoding.createDecoder(payload);
+    if (decoding.readVarUint(d) !== MESSAGE_EPOCH) return null;
+    if (decoding.readVarUint(d) !== EPOCH_CLAIM) return null;
+    const claim = decoding.readVarString(d);
+    return EPOCH_RE.test(claim) ? claim : null;
+  } catch {
+    return null;
+  }
+}
+
+/** A verdict frame, or null when `payload` is not one. */
+export function readEpochVerdict(payload: Uint8Array): { epoch: string; accepted: boolean } | null {
+  try {
+    const d = decoding.createDecoder(payload);
+    if (decoding.readVarUint(d) !== MESSAGE_EPOCH) return null;
+    if (decoding.readVarUint(d) !== EPOCH_VERDICT) return null;
+    const epoch = decoding.readVarString(d);
+    const accepted = decoding.readVarUint(d) === 1;
+    return EPOCH_RE.test(epoch) && epoch !== '' ? { epoch, accepted } : null;
+  } catch {
+    return null;
+  }
+}
 
 export interface CollabConn {
   /** Push a frame to this single peer. */

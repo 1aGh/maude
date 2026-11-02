@@ -99,7 +99,8 @@ test('the flow: code → human approves on /activate → poll → personal token
     }),
     env
   );
-  assert.match(await approve.text(), /You're connected/);
+  // Words per the S6↔S9 contract §5.1 step 6 (Maude v2 S9.14).
+  assert.match(await approve.text(), /You're signed in — go back to Maude\./);
 
   const minted = await (
     await worker.fetch(jpost('/auth/device/token', { device_code: code.device_code }), env)
@@ -155,20 +156,34 @@ test('the personal token lists projects and opens one', async () => {
   assert.equal(opened.role, 'owner');
 });
 
-test('revoking from /account cuts the device off, with ONE neutral 401', async () => {
+test('signing a Mac out from /account/macs cuts the device off, with ONE neutral 401', async () => {
   const { env, sqlite } = await freshEnv();
   const session = await signedIn(env);
   const { token } = await connectDevice(env, session);
 
+  // The page names the row by a handle, never by the stored id (S9.16), and
+  // the POST carries the session-derived CSRF field.
+  const page = await (
+    await worker.fetch(
+      new Request('https://cloud.test/account/macs', {
+        headers: { cookie: `maude_session=${session}` },
+      }),
+      env
+    )
+  ).text();
   const id = sqlite.prepare('SELECT id FROM personal_tokens').get().id;
+  assert.ok(!page.includes(id), 'the stored id never reaches the page');
+  const csrf = /name="csrf" value="([0-9a-f]{32})"/.exec(page)?.[1];
+  const mac = /name="mac" value="([0-9a-f]+)"/.exec(page)?.[1];
+  assert.ok(csrf && mac);
   await worker.fetch(
-    new Request('https://cloud.test/account', {
+    new Request('https://cloud.test/account/macs', {
       method: 'POST',
       headers: {
         'content-type': 'application/x-www-form-urlencoded',
         cookie: `maude_session=${session}`,
       },
-      body: form({ revoke: id }),
+      body: form({ csrf, mac }),
     }),
     env
   );

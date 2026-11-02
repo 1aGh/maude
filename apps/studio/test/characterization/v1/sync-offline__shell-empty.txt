@@ -1,131 +1,145 @@
 # sync-offline/shell-empty
 div
   div .maude
-    div .st-banner.st-banner--error [role="status"]
-      span .st-banner-dot [aria-hidden="true"]
-      span "Long offline — 3 edit(s) queued. Consider `git commit && git push` as backup. (1 conflict notice(s))"
-      button .st-banner-close [aria-label="Dismiss"] [title="Dismiss"] [type="button"] "×"
+    div .sh-callouts [data-testid="callouts"]
+      div .sh-callout.sh-callout--error [data-testid="callout-sync-offline-long"] [role="status"]
+        span .sh-callout-ic [aria-hidden="true"]
+          svg [aria-hidden="true"]
+        span .sh-callout-t "Offline for a long while"
+          span "3 edits kept on this Mac, waiting to sync."
+        button .btn.btn--primary.btn--sm [data-testid="callout-sync-offline-long-action"] [type="button"] "Details"
+        button .sh-callout-x [data-testid="callout-sync-offline-long-dismiss"] [aria-label="Dismiss"] [title="Dismiss"] [type="button"] "×"
     div .maude-notifications
       section [aria-label="Notifications alt+T"] [tabindex="-1"]
-    div .st-shell
-      header .st-menubar [data-testid="menubar"] [aria-label="Application menubar"]
-        span .st-brand [data-tour="brand"]
-          span .st-brand-mark
-            svg [aria-hidden="true"]
-          span .st-brand-name "maude"
-        nav .st-menus [role="menubar"] [aria-label="Application menus"] [data-tour="menus"]
-          button .st-menu [data-testid="menu-file"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "File"
-          button .st-menu [data-testid="menu-edit"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "Edit"
-          button .st-menu [data-testid="menu-view"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "View"
-          button .st-menu [data-testid="menu-selection"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "Selection"
-          button .st-menu [data-testid="menu-tools"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "Tools"
-          button .st-menu [data-testid="menu-help"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [data-tour="help"] [type="button"] "Help"
-        div .st-mb-right [data-tour="status"]
-          div .st-presence
-            span .st-avatar [aria-label="You"] "YO"
-          button .st-mb-icon.st-share-btn [data-testid="share-btn"] [aria-label="Share link"] [type="button"] [disabled]
-            svg [aria-hidden="true"]
-          button .st-exports [aria-label="Exports"] [data-tour="exports"] [type="button"]
-            span [aria-hidden="true"] "⬇"
-          button .st-reportbug [data-testid="report-bug-toggle"] [aria-label="Report a bug"] [type="button"]
-            svg [aria-hidden="true"]
-          button .st-whatsnew [aria-label="What's new"] [data-tour="whatsnew"] [type="button"]
-            svg [aria-hidden="true"]
-          span .st-stamp "IDLE"
-          span .st-mb-file [title]
-            span "no canvas open"
-          span .st-mb-sep
-          span .st-mb-count "0 ARTBOARDS"
-            span .st-dot
-          span .st-mb-sep
-          span .st-mb-proj "characterization"
-      div .st-body
-        div .st-rail
-          div .st-rail-inner
-            button .st-iconbtn [aria-label="Expand sidebar"] [title="Expand sidebar (T)"] [type="button"]
+    div .sh-shell
+      div .sh-body.sh-body--float
+        span .island.sh-pill
+          button .sh-pill-btn [data-testid="project-pill"] [aria-label="characterization, project menu"] [aria-expanded="false"] [aria-haspopup="menu"] [data-tour="menus"] [title="Project menu"] [type="button"]
+            span .sh-pill-mark [data-tour="brand"]
               svg [aria-hidden="true"]
-            button .st-iconbtn [aria-label="Search"] [title="Search (/)"] [type="button"]
+            span .sh-pill-name "characterization"
+            span .sh-pill-caret [aria-hidden="true"]
               svg [aria-hidden="true"]
-            button .st-iconbtn [aria-label="Files"] [title="Files"] [type="button"]
-              svg [aria-hidden="true"]
-        div .st-dockslot.st-dockslot--left
-          div .st-docktabs [role="tablist"] [aria-label="left panels"]
-            button .is-active.st-docktab [data-testid="dock-tab-tree"] [role="tab"] [aria-selected="true"] [type="button"] "Files"
-            button .st-docktab [data-testid="dock-tab-layers"] [role="tab"] [aria-selected="false"] [type="button"] "Layers"
-          nav .st-sidebar [aria-label="Files"] [data-tour="sidebar"]
-            div .st-sb-hd
-              span .st-sb-title "Files"
-              div .st-sb-hd-actions
-                button .st-iconbtn [aria-label="New blank brief board"] [aria-expanded="false"] [type="button"]
-                  svg [aria-hidden="true"]
-                button .st-iconbtn [data-testid="tree-new-folder"] [aria-label="New folder"] [aria-expanded="false"] [type="button"]
-                  svg [aria-hidden="true"]
-                button .st-iconbtn.st-refresh [aria-label="Refresh files"] [type="button"]
-                  svg [aria-hidden="true"]
-                span .st-live "4 / 4"
-                  span .is-connected.st-live-dot [aria-hidden="true"]
-                button .st-iconbtn [aria-label="Collapse sidebar"] [type="button"]
-                  svg [aria-hidden="true"]
-            div .st-search
-              div .st-search-box
+        div .island.sh-share [data-testid="share-cluster"] [data-tour="status"]
+          span .sh-faces-host
+            ul .sh-faces [data-testid="share-cluster-faces"] [aria-label="People here"]
+              li .is-you.sh-face [aria-label="You"] [title="You"] "Y"
+          span .sh-saved.sh-saved--warn [data-testid="share-cluster-status"] [role="status"] [title="Not reachable: characterization. Your edits are safe on this machine and queued."]
+            svg [aria-hidden="true"]
+            span .sh-saved-w "Offline — kept on this Mac"
+          div .sh-modes [data-testid="share-cluster-mode"] [role="group"] [aria-label="Mode"]
+            button .sh-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="true"] [title="Edit"] [type="button"]
+              svg .sh-mode-g [aria-hidden="true"]
+            button .sh-mode-b [data-testid="palette-mode-preview"] [aria-label="Preview — the design is live"] [aria-pressed="false"] [title="Preview"] [type="button"]
+              svg .sh-mode-g [aria-hidden="true"]
+            span .sh-mode-b.sh-mode-b--menu
+              button .sh-mode-hit [data-testid="palette-mode-present"] [aria-label="Present"] [aria-pressed="false"] [title="Present"] [type="button"] [disabled]
+                svg .sh-mode-g [aria-hidden="true"]
+              button .sh-mode-ch [data-testid="mode-present-menu"] [aria-label="Present options"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] [disabled]
                 svg [aria-hidden="true"]
-                input [data-testid="canvas-search"] [aria-label="Filter files"] [type="search"] [placeholder="Search canvases…"] [value]
-                span .kbd "/"
-            div .st-tree [data-testid="canvas-list"] [role="tree"] [aria-label="Project file tree"] [tabindex="-1"]
-              div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="DESIGN SYSTEM"] [aria-expanded="false"] [tabindex="0"]
-                div .st-row-wrap
-                  button .st-tree-sec-hd [data-testid="tree-section-design-system"] [aria-expanded="false"] [title="Expand section"] [type="button"] [tabindex="-1"]
-                    svg .st-chev [aria-hidden="true"]
-                    span .st-sec-name "DESIGN SYSTEM"
-                    span .st-pill "1"
-              div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="UI CANVASES"] [aria-expanded="false"] [tabindex="-1"]
-                div .st-row-wrap
-                  button .st-tree-sec-hd [data-testid="tree-section-ui-kit"] [aria-expanded="false"] [title="Expand section"] [type="button"] [tabindex="-1"]
-                    svg .st-chev [aria-hidden="true"]
-                    span .st-sec-name "UI CANVASES"
-                    span .st-pill "3"
-            div .cb-rail.gi-rail [data-testid="cloud-bar"]
-              button .btn.btn--ghost.btn--sm.gi-rail-signin [data-testid="cloud-signin"] [type="button"] "Sign in to Maude Cloud"
+          button .sh-share-ic [data-testid="share-cluster-panels"] [aria-label="Hide panels"] [title="Hide panels ⌘\\"] [type="button"]
+            svg [aria-hidden="true"]
+          span .sh-tipwrap
+            button .btn.btn--primary.btn--sm.sh-share-btn [data-testid="share-cluster-share"] [aria-disabled="true"] [title="Open a canvas to share it"] [type="button"] "Share"
+              svg [aria-hidden="true"]
+            span .sh-tip [data-testid="share-offline-tip"] [role="tooltip"] "Invites send when this Mac is online."
+        div .sh-dockslot.sh-dockslot--left
+          div .island.sh-dockslot-inner [data-testid="dock-slot-left"]
+            div .lp-head [data-testid="panel-head-left"]
+              div .lp-tabs [role="tablist"] [aria-label="left panels"] [tabindex="-1"]
+                button .is-active.lp-tab [data-testid="panel-tab-tree"] [role="tab"] [aria-selected="true"] [type="button"] [tabindex="0"] "Canvases"
+                button .lp-tab [data-testid="panel-tab-layers"] [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Layers"
+                button .lp-tab [data-testid="panel-tab-assets"] [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Assets"
+              button .lp-fold.sh-iconbtn [data-testid="panel-fold-left"] [aria-label="Hide Canvases"] [title="Hide Canvases"] [type="button"]
                 svg [aria-hidden="true"]
-        div .st-grip [role="separator"] [aria-label="Resize left panel"] [tabindex="0"]
-          svg .st-grip-dots [aria-hidden="true"]
+            nav .sh-sidebar [aria-label="Canvases"] [data-tour="sidebar"]
+              div .cv-sb-hd
+                span .cv-sb-title "Canvases"
+              div .cv-search
+                div .cv-search-box
+                  svg [aria-hidden="true"]
+                  input [data-testid="canvas-search"] [aria-label="Search canvases"] [type="search"] [placeholder="Search"] [value]
+                  span .kbd "⌘K"
+              div .lp-pinned [data-testid="canvases-pinned"]
+                div .lp-ds-wrap
+                  button .lp-ds.lp-ds--two.lp-row [data-testid="canvases-ds-row"] [title="Design system — demo · 3 canvases"] [type="button"]
+                    span .lp-ds-ic
+                      svg [aria-hidden="true"]
+                    span .lp-ds-two
+                      span .lp-name "Design system"
+                      span .lp-ds-sub [data-testid="canvases-ds-row-sub"]
+                        span .lp-ds-line "demo"
+                        span .lp-ds-line "3 canvases"
+                    span .lp-ds-warn [data-testid="canvases-ds-row-warn"] [role="img"] [aria-label="Made before the schema"] [title="Made before the schema — click to bring it up"]
+                  button .lp-ds-more [data-testid="canvases-ds-row-menu"] [aria-label="Design system menu"] [aria-haspopup="menu"] [type="button"]
+                    span [aria-hidden="true"] "⋯"
+              div .cv-panel
+                div .cv-listwrap
+                  div .cv-sort-lane
+                    button .cv-sort.cv-sort--quiet [data-testid="canvases-sort"] [aria-label="3 canvases — sort canvases (Recently opened)"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "3 canvases"
+                      svg [aria-hidden="true"]
+                  div .cv-tree.sh-tree [data-testid="canvas-list"] [role="tree"] [aria-label="Project file tree"] [tabindex="-1"]
+                    div .cv-spacer
+                      div .cv-head [data-testid="canvases-head-project"]
+                        span .cv-head-name "characterization"
+                      div .cv-item [role="treeitem"] [aria-label="marketing"] [aria-expanded="false"] [tabindex="0"]
+                        div .cv-row.cv-row--folder
+                          button .cv-main [data-testid="tree-folder-ui-marketing"] [aria-expanded="false"] [type="button"] [tabindex="-1"]
+                            span .cv-twisty
+                              svg .cv-chev [aria-hidden="true"]
+                            span .cv-fic
+                              svg [aria-hidden="true"]
+                            span .cv-name "marketing"
+                            span .cv-count [role="img"] [aria-label="1 canvases"] "1"
+                          span .cv-actions
+                            button .cv-act [data-testid="tree-row-menu-ui-marketing"] [aria-label="Folder actions for marketing"] [aria-haspopup="menu"] [title="Folder actions — marketing"] [type="button"]
+                              svg [aria-hidden="true"]
+                      div .cv-item [role="treeitem"] [aria-label="Broken"] [aria-selected="false"] [tabindex="-1"]
+                        div .cv-row.cv-row--canvas
+                          button .cv-main [data-testid="canvas-row-ui-broken"] [title=".design/ui/Broken.tsx"] [type="button"] [tabindex="-1"]
+                            span .cv-thumb [aria-hidden="true"]
+                            span .cv-name "Broken"
+                            span .cv-badges
+                          span .cv-actions
+                            button .cv-act.cv-act--pin [data-testid="canvas-pin-ui-broken"] [aria-label="Pin Broken"] [aria-pressed="false"] [title="Pin"] [type="button"]
+                              svg [aria-hidden="true"]
+                            button .cv-act [data-testid="tree-row-menu-ui-broken"] [aria-label="Actions for Broken"] [aria-haspopup="menu"] [title="Actions for Broken"] [type="button"]
+                              svg [aria-hidden="true"]
+                      div .cv-item [role="treeitem"] [aria-label="Home"] [aria-expanded="false"] [aria-selected="false"] [tabindex="-1"]
+                        div .cv-row.cv-row--canvas
+                          button .cv-jt [data-testid="canvas-jump-toggle-ui-home"] [aria-label="Show the artboards in Home"] [aria-expanded="false"] [title="Show artboards"] [type="button"] [tabindex="-1"]
+                            svg .cv-chev [aria-hidden="true"]
+                          button .cv-main [data-testid="canvas-row-ui-home"] [title=".design/ui/Home.tsx"] [type="button"] [tabindex="-1"]
+                            span .cv-thumb [aria-hidden="true"]
+                              img
+                            span .cv-name "Home"
+                            span .cv-badges
+                          span .cv-actions
+                            button .cv-act.cv-act--pin [data-testid="canvas-pin-ui-home"] [aria-label="Pin Home"] [aria-pressed="false"] [title="Pin"] [type="button"]
+                              svg [aria-hidden="true"]
+                            button .cv-act [data-testid="tree-row-menu-ui-home"] [aria-label="Actions for Home"] [aria-haspopup="menu"] [title="Actions for Home"] [type="button"]
+                              svg [aria-hidden="true"]
+                div .lp-newrow [data-testid="canvases-new-row"]
+                  button .lp-newrow-main.lp-row [aria-label="New canvas"] [aria-expanded="false"] [type="button"]
+                    span .lp-new-ic [aria-hidden="true"]
+                      svg [aria-hidden="true"]
+                    span .lp-name "New canvas"
+                  button .lp-newrow-folder.sh-iconbtn [data-testid="tree-new-folder"] [aria-label="New folder"] [aria-expanded="false"] [type="button"]
+                    svg [aria-hidden="true"]
+                p .cv-foot [data-testid="canvases-foot"] "3 changes since <time> — kept on this Mac"
+              div .k-adv.lp-adv [data-testid="canvases-advanced-fold"]
+                button .k-adv-btn.lp-adv-btn [data-testid="canvases-advanced"] [aria-expanded="false"] [type="button"] "Advanced"
+                  span .k-adv-ch.lp-adv-ch
+                    svg [aria-hidden="true"]
+              div .cb-host [data-testid="cloud-host"]
+        div .sh-grip.sh-grip--l [data-testid="panel-grip-left"] [role="separator"] [aria-label="Resize left panel"] [tabindex="0"]
+          svg .sh-grip-dots [aria-hidden="true"]
+          span .sh-grip-tip [aria-hidden="true"] "Drag · double-click resets · ← → move 8"
         div .main
-          div .st-stage.viewport [data-tour="viewport"]
-            div .st-empty
-              div .st-empty-brand
-                span .st-brand-mark
-                  svg [aria-hidden="true"]
-                span .st-empty-wm "maude"
-                span .st-empty-sub.st-mono "CANVAS · CHARACTERIZATION / <ver> / localhost:<port>"
-              div .st-empty-title "Nothing open yet"
-              div .st-empty-body "← Pick a screen from the list on the left, or open above it to see your colors, type, and components. hold and hover to preview an element, "
-                strong "Design system"
-                br
-                br
-                strong "To select something on the canvas:"
-                span .kbd "⌘"
-                span .kbd "⌘⇧"
-      footer .st-statusbar [data-testid="statusbar"] [role="contentinfo"]
-        span .st-sb-active.st-sb-slot [role="group"] [aria-label="Active file"]
-          span .lead [aria-hidden="true"]
-          span .lbl "active"
-          span .val [title] "—"
-        span .st-sb-slot [role="group"] [aria-label="Open comments"]
-          span .lbl "comments"
-          span .val "0 open"
-        span .st-sb-spacer
-        span .st-sb-slot [role="group"] [aria-label="Connection"]
-          span .is-connected.st-live-dot [aria-hidden="true"]
-          span .lbl "live"
-        button .st-sb-slot.st-sb-sync.st-sb-sync--btn [data-testid="open-sync"] [aria-label="Open Sync panel"] [aria-pressed="false"] [type="button"]
-          span .st-sb-sync-dot [aria-hidden="true"]
-          span .lbl "hub sync"
-          span .val [data-testid="statusbar-sync"] [title="Not reachable: characterization. Your edits are safe on this machine and queued."] "offline · 3 ↑"
-        span .st-sb-slot.st-sb-version [role="group"] [aria-label="Maude version"]
-          span .val [data-testid="statusbar-version"] "<ver>"
-        button .st-sb-theme [aria-label="Switch to light theme"] [type="button"] "light"
-          svg [aria-hidden="true"]
-    div .mdcc-tour-nudge [role="status"]
-      div .mdcc-tour-nudge__body "New here? Take a 60-second tour of the canvas browser."
-      button .mdcc-tour-nudge__cta [type="button"] "Start"
-      button .mdcc-tour-nudge__skip [aria-label="Dismiss"] [type="button"] "×"
+          main .sh-stage.viewport [data-tour="viewport"]
+            div .sh-empty
+              div .sh-empty-title "No canvas open"
+              div .sh-empty-body "Open a canvas from the Canvases panel, or start a new one."
+        span .island.sh-corner.sh-corner--right
+          button .sh-iconbtn [data-testid="panel-icon-right"] [aria-label="Open Inspector"] [title="Inspector"] [type="button"]
+            svg [aria-hidden="true"]

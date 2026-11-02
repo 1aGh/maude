@@ -1,0 +1,285 @@
+{
+  "fixture": "board300",
+  "canvases": [
+    "ui/GitPanel.tsx"
+  ],
+  "ids": {
+    "ui/GitPanel.tsx": [
+      {
+        "id": "changes",
+        "text": "Changes",
+        "tag": "button",
+        "locked": true,
+        "artboard": null
+      },
+      {
+        "id": "maude",
+        "text": "Maude",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "main",
+        "text": "main",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "maude-2",
+        "text": "maude",
+        "tag": "b",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "unsaved",
+        "text": "unsaved",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "files",
+        "text": "Files",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "ui",
+        "text": "ui",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "pricing-v3",
+        "text": "Pricing v3",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "onboarding-flow",
+        "text": "Onboarding Flow",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "checkout-sheet",
+        "text": "Checkout Sheet",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "team-avatars",
+        "text": "Team Avatars",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "marketing-site",
+        "text": "Marketing Site",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "system",
+        "text": "system",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "of-selected",
+        "text": "of selected",
+        "tag": "label",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "save-version",
+        "text": "Save version",
+        "tag": "button",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "save-all",
+        "text": "Save all",
+        "tag": "button",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "type-a-message",
+        "text": "Type a message and pick at least one file to save a version.",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "unsaved-2",
+        "text": "unsaved",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "history",
+        "text": "History",
+        "tag": "button",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "files-in-this",
+        "text": "Files in this version",
+        "tag": "div",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "anna-published-2",
+        "text": "Anna published 2 changes.",
+        "tag": "b",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "get-the-latest",
+        "text": "Get the latest before you publish yours.",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "get-latest",
+        "text": "Get latest",
+        "tag": "button",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "history-2",
+        "text": "History",
+        "tag": "div",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "publish-changes",
+        "text": "Publish changes",
+        "tag": "button",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "sends-your-2",
+        "text": "Sends your 2 saved versions to the shared project so the team can get them.",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "nothing-to-save",
+        "text": "Nothing to save",
+        "tag": "h3",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "every-change-is",
+        "text": "Every change is saved and published. When you edit a canvas, it shows up here.",
+        "tag": "p",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "view-history",
+        "text": "View History",
+        "tag": "button",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "the-shared-project",
+        "text": "The shared project moved on while you were working — Anna published changes first. , then publish yours on top.",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "publish-didn-t",
+        "text": "Publish didn't go through",
+        "tag": "strong",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "get-the-latest-2",
+        "text": "Get the latest",
+        "tag": "strong",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "get-latest-2",
+        "text": "Get latest",
+        "tag": "button",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "see-what-changed",
+        "text": "See what changed",
+        "tag": "button",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "your-saved-versions",
+        "text": "Your saved versions, waiting to publish",
+        "tag": "div",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "publish-changes-2",
+        "text": "Publish changes",
+        "tag": "button",
+        "locked": false,
+        "artboard": null
+      }
+    ]
+  },
+  "board": "ui-gitpanel.annotations.json",
+  "elements": 300,
+  "counts": {
+    "section": 6,
+    "sticky": 236,
+    "text": 22,
+    "shape": 15,
+    "arrow": 20,
+    "vote": 1
+  },
+  "sections": {
+    "Onboarding": "sec-001",
+    "Export": "sec-002",
+    "Performance": "sec-003",
+    "Pricing": "sec-004",
+    "Ideas": "sec-005",
+    "Done": "sec-006"
+  },
+  "locked": [
+    "stk-299",
+    "stk-158",
+    "stk-159"
+  ]
+}

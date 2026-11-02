@@ -11,7 +11,17 @@ import { cssColorToHex } from './color.js';
 // `kind='value'` a variable list (pretty name + resolved value, à la Figma's
 // variable picker). Picking commits `var(--token)`. Portals to <body> +
 // fixed-positions from the trigger rect so the panel's overflow never clips it.
-export function TokenPopover({ kind, groups, current, onPick, label, swatchBg, seedHex, activeDs, swatchClassName }) {
+export function TokenPopover({
+  kind,
+  groups,
+  current,
+  onPick,
+  label,
+  swatchBg,
+  seedHex,
+  activeDs,
+  swatchClassName,
+}) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState(null);
   // Phase 12.3 (#4) — colour popover gets two tabs: a normal colour input
@@ -71,7 +81,7 @@ export function TokenPopover({ kind, groups, current, onPick, label, swatchBg, s
     // instead of dismissing. `place()` computes viewport-relative coordinates
     // from `getBoundingClientRect()`, but this fixed-positioned popover's actual
     // containing block is whichever ANCESTOR (if any) has a transform/filter/
-    // will-change — e.g. the right panel's mount-in `st-panel-in` transform —
+    // will-change — e.g. the right panel's mount-in `insp-panel-in` transform —
     // not necessarily the viewport. Re-running place() keeps it glued to the
     // trigger through any layout change instead of vanishing on the first
     // scroll (the old dismiss-on-scroll workaround for the same root cause).
@@ -120,7 +130,8 @@ export function TokenPopover({ kind, groups, current, onPick, label, swatchBg, s
   // `rgb(1 2 3) url(//x)` passes the colour sniff). Refuse to write a literal
   // carrying url()/image-set()/expression()/@import — fall back to var(), which
   // resolves against the CANVAS's own DS (never the attacker's value).
-  const UNSAFE_TOKEN_VALUE = /url\(|image-set\(|cross-fade\(|element\(|expression\(|@import|javascript:/i;
+  const UNSAFE_TOKEN_VALUE =
+    /url\(|image-set\(|cross-fade\(|element\(|expression\(|@import|javascript:/i;
   const pickFrom = (ds, n, resolved) => {
     if (activeDs && ds && ds !== activeDs && resolved && !UNSAFE_TOKEN_VALUE.test(resolved)) {
       onPick(resolved);
@@ -138,7 +149,7 @@ export function TokenPopover({ kind, groups, current, onPick, label, swatchBg, s
   // A search field over the token list (name + value). Auto-focuses so the user
   // can type straight away.
   const searchBar = (
-    <div className="st-cp-pop-search">
+    <div className="insp-cp-pop-search">
       <StIcon name="search" size={12} />
       <input
         value={query}
@@ -153,23 +164,23 @@ export function TokenPopover({ kind, groups, current, onPick, label, swatchBg, s
   // #2 — colour Variables as a scannable LIST (swatch · name · value), per DS.
   const swatchList = (grps) =>
     grps.map((g) => (
-      <div className="st-cp-pop-group" key={g.ds}>
-        {showDsHeaders ? <div className="st-cp-pop-ds">{g.ds}</div> : null}
-        <div className="st-cp-pop-list">
+      <div className="insp-cp-pop-group" key={g.ds}>
+        {showDsHeaders ? <div className="insp-cp-pop-ds">{g.ds}</div> : null}
+        <div className="insp-cp-pop-list">
           {g.names.map((n) => (
             <button
               key={`${g.ds}:${n}`}
               type="button"
-              className={`st-cp-pop-row st-cp-pop-crow${isOn(n) ? ' is-on' : ''}`}
+              className={`insp-cp-pop-row insp-cp-pop-crow${isOn(n) ? ' is-on' : ''}`}
               onClick={() => pickFrom(g.ds, n, g.vals?.[n])}
             >
               <span
-                className="st-cp-pop-cswatch"
+                className="insp-cp-pop-cswatch"
                 style={{ background: g.vals?.[n] || 'transparent' }}
                 aria-hidden="true"
               />
-              <span className="st-cp-pop-name">{pretty(n)}</span>
-              <span className="st-cp-pop-val">{g.vals?.[n] || ''}</span>
+              <span className="insp-cp-pop-name">{pretty(n)}</span>
+              <span className="insp-cp-pop-val">{g.vals?.[n] || ''}</span>
             </button>
           ))}
         </div>
@@ -178,24 +189,24 @@ export function TokenPopover({ kind, groups, current, onPick, label, swatchBg, s
   // The value-token list (non-colour), per DS.
   const valueList = (grps) =>
     grps.map((g) => (
-      <div className="st-cp-pop-group" key={g.ds}>
-        {showDsHeaders ? <div className="st-cp-pop-ds">{g.ds}</div> : null}
-        <div className="st-cp-pop-list">
+      <div className="insp-cp-pop-group" key={g.ds}>
+        {showDsHeaders ? <div className="insp-cp-pop-ds">{g.ds}</div> : null}
+        <div className="insp-cp-pop-list">
           {g.names.map((n) => (
             <button
               key={`${g.ds}:${n}`}
               type="button"
-              className={`st-cp-pop-row${isOn(n) ? ' is-on' : ''}`}
+              className={`insp-cp-pop-row${isOn(n) ? ' is-on' : ''}`}
               onClick={() => pickFrom(g.ds, n, g.vals?.[n])}
             >
-              <span className="st-cp-pop-name">{pretty(n)}</span>
-              <span className="st-cp-pop-val">{g.vals?.[n] || ''}</span>
+              <span className="insp-cp-pop-name">{pretty(n)}</span>
+              <span className="insp-cp-pop-val">{g.vals?.[n] || ''}</span>
             </button>
           ))}
         </div>
       </div>
     ));
-  const noMatch = <div className="st-cp-pop-empty">No match</div>;
+  const noMatch = <div className="insp-cp-pop-empty">No match</div>;
 
   return (
     <>
@@ -206,7 +217,7 @@ export function TokenPopover({ kind, groups, current, onPick, label, swatchBg, s
         <button
           type="button"
           ref={btnRef}
-          className={`${swatchClassName || 'st-cp-swatch st-cp-swatch--mini st-cp-swatch--trigger'}${bound && !swatchClassName ? ' is-bound' : ''}`}
+          className={`${swatchClassName || 'insp-cp-swatch insp-cp-swatch--mini insp-cp-swatch--trigger'}${bound && !swatchClassName ? ' is-bound' : ''}`}
           aria-haspopup="dialog"
           aria-expanded={open}
           aria-label={label || 'pick a colour'}
@@ -219,14 +230,14 @@ export function TokenPopover({ kind, groups, current, onPick, label, swatchBg, s
         <button
           type="button"
           ref={btnRef}
-          className={`st-cp-tokbtn${bound ? ' is-bound' : ''}`}
+          className={`insp-cp-tokbtn${bound ? ' is-bound' : ''}`}
           aria-haspopup="dialog"
           aria-expanded={open}
           aria-label={label || 'pick a design token'}
           title="design tokens"
           onClick={() => setOpen((v) => !v)}
         >
-          <span className="st-cp-tokbtn-glyph" aria-hidden="true" />
+          <span className="insp-cp-tokbtn-glyph" aria-hidden="true" />
         </button>
       )}
       {open && pos
@@ -236,7 +247,7 @@ export function TokenPopover({ kind, groups, current, onPick, label, swatchBg, s
               // Portalled to <body> (outside the App's `.maude` div), so it must
               // re-establish the maude token scope itself — otherwise var(--bg-*)
               // resolves to the legacy :root project palette (the cream popover bug).
-              className="maude st-cp-pop"
+              className="maude insp-cp-pop"
               data-theme={
                 (typeof document !== 'undefined' &&
                   document.documentElement.getAttribute('data-theme')) ||
@@ -253,12 +264,12 @@ export function TokenPopover({ kind, groups, current, onPick, label, swatchBg, s
             >
               {kind === 'color' ? (
                 <>
-                  <div className="st-cp-poptabs" role="tablist">
+                  <div className="insp-cp-poptabs" role="tablist">
                     <button
                       type="button"
                       role="tab"
                       aria-selected={mode === 'custom'}
-                      className={`st-cp-poptab${mode === 'custom' ? ' is-active' : ''}`}
+                      className={`insp-cp-poptab${mode === 'custom' ? ' is-active' : ''}`}
                       onClick={() => setMode('custom')}
                     >
                       Custom
@@ -267,16 +278,19 @@ export function TokenPopover({ kind, groups, current, onPick, label, swatchBg, s
                       type="button"
                       role="tab"
                       aria-selected={mode === 'vars'}
-                      className={`st-cp-poptab${mode === 'vars' ? ' is-active' : ''}`}
+                      className={`insp-cp-poptab${mode === 'vars' ? ' is-active' : ''}`}
                       onClick={() => setMode('vars')}
                     >
                       Variables
                     </button>
                   </div>
                   {mode === 'custom' ? (
-                    <ColorPicker seed={seedHex || cssColorToHex(current) || '#000000'} onApply={applyRaw} />
+                    <ColorPicker
+                      seed={seedHex || cssColorToHex(current) || '#000000'}
+                      onApply={applyRaw}
+                    />
                   ) : !total ? (
-                    <div className="st-cp-pop-empty">No color tokens</div>
+                    <div className="insp-cp-pop-empty">No color tokens</div>
                   ) : (
                     <>
                       {searchBar}
@@ -285,7 +299,7 @@ export function TokenPopover({ kind, groups, current, onPick, label, swatchBg, s
                   )}
                 </>
               ) : !total ? (
-                <div className="st-cp-pop-empty">No tokens for this property</div>
+                <div className="insp-cp-pop-empty">No tokens for this property</div>
               ) : (
                 <>
                   {searchBar}

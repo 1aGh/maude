@@ -1,0 +1,28 @@
+# critic-d3 — 02 Onboarding — V2-8.5 stage D re-check after round 3 (impl c7f1a0efd + p8-c3-ai)
+
+One critic, four lenses. Every id was re-shot in round 3 (shell frames at 17:59-18:01; AI ids ob-ai-connect / ob-first-draw / ob-sig-draw / ob-edge-ai-missing again at 18:09 by p8-c3-ai; latest pair wins). Home-only frames (no shell) are visually unchanged from stage D: those verdicts are "carried from stage D" (critic-d.md) and checked against the new pair. Light and dark agree for every id, one row per id. Rulings: CONTRACT over board; owning board wins (11 Home, 05 starters/shelves, 04/14 left panel); fixture content is not a blocker.
+
+| id | theme | verdict | remaining blockers |
+| --- | --- | --- | --- |
+| ob-first-launch | L+D | match (carried) | none |
+| ob-signin-browser | L+D | match (carried) | none (browser window + OS prompt outside the app) |
+| ob-home-new | L+D | match (carried) | none (toast not run = fixture) |
+| ob-ai-connect | L+D | differs | design/copy: Connect is now a centred modal over a veil with Cancel/Connect and focus on Connect (fixed), but the spec's "Advanced · Use an API key instead" row is missing (open, DDR-123 guardrail, lead call: `v2/ai/ConnectSheet.jsx`); sheet ~270 px vs 300 spec; left panel is a tall column with extra rows (Make a design system, kind chips, Trash, Advanced, project foot) not an island hugging the board's rows (`v2/canvases/canvases-panel.jsx`, kept per fix-c3-shell) |
+| ob-first-draw | L+D | differs | signature: still no dashed poster while built, no "AI is writing the headline" tag, no AI cursor, no "3 of 4 · button next" step in the chat row, no project-open toast with Rename; whole Desktop/Tablet/Mobile land with "AI is drawing Tablet" tag and 3 stacked "AI is working" element tags per artboard (`runs-model.js`, `hold-rings.tsx`); Made-by-AI label now correct. Left panel column |
+| ob-sig-draw | L+D | unreachable | motion study with no app counterpart; needs a draft-progress layer (dashed placeholders, per-piece tags, AI cursor, one-time ⌘/ hint) |
+| ob-invite-page | - | unreachable | web page on cloud.maude.sh, not in the app |
+| ob-invite-landed | L+D | differs | landing on Tereza's comment not shown (camera on the poster, her cursor + thread, "Tereza invited you here" pill); the Join / Open-as sheets are shot; frame 3 is own composer from 01. Needs hub project + second peer + deep-link-to-comment (`home/invite-flow.js`) |
+| ob-home-team | L+D | differs (carried) | copy: "Nothing shared with you yet." printed beside the shared "Alligators brand · Tereza's · Can edit"; chip "a new project" vs "Alligators brand", no project-themed starters (`Shelves.jsx` SharedWithYou, `home-model.js`) |
+| ob-local-name | L+D | differs (carried) | design: Advanced row has no hairline / weight, "Location" beside label; sheet shorter, tight foot padding (`v2/signin/CreateLocalSheet.jsx:68-81`, `signin.css`); name placeholder = fixture |
+| ob-local-first | L+D | differs | design: Undo · Redo · 100 % island is now present (fixed), but the Canvases panel still has the header row `+` / folder, "Make a design system", kind chips, Trash, "N canvases · ⌘K…" foot, Advanced fold and project switcher; board draws tabs, search, one project list + "New canvas" (open per fix-c3-shell, lead call); populated canvas not the empty "Your canvas is ready." (05 es-canvas-ai owns) |
+| ob-local-share | L+D | differs | design: popover untitled with Cancel, but still ~437 px vs 360 spec (`v2/share/share.css:17`); left panel as ob-local-first |
+| ob-local-moved | - | unreachable | needs the local project moved to a hub (Share opens on Invite + moved toast) |
+| ob-adv-open | L+D | match (carried) | none |
+| ob-adv-sheets | L+D | differs (carried) | cannot confirm material: sheets shot only in first states (no probes: "Reachable — hub 1.4", GitHub repo list, Claude/API-key radios, "Installed", "Figma connected"); Connect AI frame mid-fade and its first option is not the radio pair; Figma sheet lacks link field / Advanced · Access token; GitHub-invite sheet not covered (`v2/onboarding/ConnectAiSheet.jsx`, `FigmaSheet.jsx`) |
+| ob-settings | L+D | differs | design/copy: 06-style full-window sheet with sidebar, General has no Account block (You · Signed in, Plan · Free trial, Manage, account links), no Theme-in-card layout, no "Where every old door went" card; Connections rows lack the "AI — your Claude account" row, Figma token field shown open (`v2/settings/general-section.jsx`, `connections-section.jsx`) |
+| ob-edge-offline | L+D | match (carried) | none |
+| ob-edge-timeout | L+D | match (carried) | none |
+| ob-edge-other-mac | L+D | differs (carried) | copy: "Nothing shared with you yet." beside "Alligators brand · Tereza's"; chip "a new project" vs "Studio site"; no recents |
+| ob-edge-accounts | L+D | differs (carried) | copy: rows say "you@studio.cz" / "A new tab" vs "You · personal" / "Work · a new tab", lead "signed in as" vs "with your personal account"; no team badge on the work face (`home/invite-flow.js:46-47,194`, `home/InviteSheet.jsx:73-80`) |
+| ob-edge-ai-missing | L+D | differs | same as ob-ai-connect: modal + veil fixed, but no Advanced · API-key row and the canvas behind is the solo Smoke fixture, not the team canvas; left panel column |
+| ob-edge-whats-new | L+D | differs | Home pill is now a menu (File ›, Help › What's new "1 new") but the Help flyout lists only What's new; spec has Keyboard shortcuts, Help and guides, What's new ●, Take the tour, Watch the intro, How sharing works, Report a bug…; the line lacks "in 2.0 — one menu, calmer panels, cloud first" (`home-app.jsx` Home pill menu, `WhatsNewLine.jsx:11`) |

@@ -1,0 +1,48 @@
+{
+  "journey": "S6",
+  "pass": true,
+  "results": [
+    {
+      "id": "artboards-first",
+      "grader": "artboards",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "filled-in",
+      "grader": "artboards",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "words-from-the-sentence",
+      "grader": "text",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "design-system-tokens",
+      "grader": "text",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "by-the-ai",
+      "grader": "history",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "one-undo-step",
+      "grader": "one-undo-step",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "no-second-canvas",
+      "grader": "canvas-exists",
+      "pass": true,
+      "why": ""
+    }
+  ]
+}

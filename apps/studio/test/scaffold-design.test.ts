@@ -2,27 +2,28 @@ import { describe, expect, test } from 'bun:test';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { scaffoldDesign } from '../scaffold-design.ts';
+import { addGuideCanvases, scaffoldDesign } from '../scaffold-design.ts';
 
-// DDR-166 Phase 1 — scaffoldDesign() now seeds THREE canvases (Welcome +
-// the two onboarding reference canvases), embedded as escaped template
-// literals. A bug in that escaping (an unescaped backtick/${ from the
+// DDR-166 Phase 1 — the two onboarding reference canvases are embedded as escaped template
+// literals; since S6.15 (Q10) a new project starts empty and Help › Help and guides adds them
+// through addGuideCanvases() (scaffold-empty.test.ts covers the empty scaffold). A bug in that escaping (an unescaped backtick/${ from the
 // source .design/ui/*.tsx files) would silently truncate the written file
 // into broken JS at scaffold time — every future new project would boot to
 // a corrupt canvas. Exercise the REAL function against a REAL temp dir, not
 // a mock, so a truncation shows up as a parse failure below.
-describe('scaffoldDesign — onboarding canvas seeding', () => {
+describe('addGuideCanvases — onboarding guide templates', () => {
   function scaffold() {
     const dir = mkdtempSync(join(tmpdir(), 'maude-scaffold-test-'));
-    const result = scaffoldDesign(dir, 'Scaffold Test');
+    scaffoldDesign(dir, 'Scaffold Test');
+    const result = addGuideCanvases(join(dir, '.design', 'ui'));
     return { dir, result };
   }
 
-  test('writes ok:true and all three seeded canvases + their meta sidecars', () => {
+  test('writes ok:true and both guide canvases + their meta sidecars', () => {
     const { dir, result } = scaffold();
     try {
       expect(result.ok).toBe(true);
-      for (const name of ['Welcome', 'How to use Maude', 'How to make video']) {
+      for (const name of ['How to use Maude', 'How to make video']) {
         expect(existsSync(join(dir, '.design', 'ui', `${name}.tsx`))).toBe(true);
         expect(existsSync(join(dir, '.design', 'ui', `${name}.meta.json`))).toBe(true);
       }
@@ -49,11 +50,11 @@ describe('scaffoldDesign — onboarding canvas seeding', () => {
     }
   });
 
-  test('every seeded .tsx parses as valid TSX (Bun.Transpiler) and has exactly one default export', () => {
+  test('every guide .tsx parses as valid TSX (Bun.Transpiler) and has exactly one default export', () => {
     const { dir } = scaffold();
     try {
       const transpiler = new Bun.Transpiler({ loader: 'tsx' });
-      for (const name of ['Welcome', 'How to use Maude', 'How to make video']) {
+      for (const name of ['How to use Maude', 'How to make video']) {
         const src = readFileSync(join(dir, '.design', 'ui', `${name}.tsx`), 'utf8');
         expect(() => transpiler.transformSync(src)).not.toThrow();
         expect(src).toMatch(/export default function \w+/);
@@ -63,15 +64,9 @@ describe('scaffoldDesign — onboarding canvas seeding', () => {
     }
   });
 
-  test('every seeded meta.json is valid JSON with a matching artboards list', () => {
+  test('every guide meta.json is valid JSON with a matching artboards list', () => {
     const { dir } = scaffold();
     try {
-      // Welcome's meta nests artboards under sections[0] (the older, still-live
-      // convention); the two onboarding canvases use a top-level `artboards`.
-      const welcome = JSON.parse(
-        readFileSync(join(dir, '.design', 'ui', 'Welcome.meta.json'), 'utf8')
-      );
-      expect(welcome.sections[0].artboards.length).toBe(1);
       for (const [name, count] of [
         ['How to use Maude', 10],
         ['How to make video', 7],

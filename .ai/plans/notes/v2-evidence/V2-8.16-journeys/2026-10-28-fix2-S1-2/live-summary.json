@@ -1,0 +1,180 @@
+[
+  {
+    "journey": "S1",
+    "lane": "terminal",
+    "pass": true,
+    "harnessFailure": false,
+    "infra": null,
+    "turns": [
+      {
+        "turn": 1,
+        "code": 0,
+        "ok": true,
+        "costUsd": 0.6670102,
+        "numTurns": 14
+      },
+      {
+        "turn": 2,
+        "code": 0,
+        "ok": true,
+        "costUsd": 1.1173998,
+        "numTurns": 8
+      },
+      {
+        "turn": 3,
+        "code": 0,
+        "ok": true,
+        "costUsd": 1.3005849999999999,
+        "numTurns": 6
+      },
+      {
+        "turn": 4,
+        "code": 0,
+        "ok": true,
+        "costUsd": 1.5247943999999998,
+        "numTurns": 7
+      },
+      {
+        "turn": 5,
+        "code": 0,
+        "ok": true,
+        "costUsd": 1.5813433999999997,
+        "numTurns": 2
+      },
+      {
+        "turn": 6,
+        "code": 0,
+        "ok": true,
+        "costUsd": 1.7469583999999998,
+        "numTurns": 5
+      }
+    ],
+    "results": [
+      {
+        "id": "created-by-ai",
+        "grader": "history",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "renamed",
+        "grader": "moved",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "version-restored",
+        "grader": "history",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "restored-content",
+        "grader": "text",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "restore-by-verb",
+        "grader": "tool-used",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "back-from-trash",
+        "grader": "trash",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "no-hard-delete",
+        "grader": "no-tool",
+        "pass": true,
+        "why": ""
+      }
+    ]
+  },
+  {
+    "journey": "S1",
+    "lane": "acp",
+    "pass": true,
+    "harnessFailure": false,
+    "infra": null,
+    "turns": [
+      {
+        "turn": 1,
+        "ok": true,
+        "stopReason": "end_turn"
+      },
+      {
+        "turn": 2,
+        "ok": true,
+        "stopReason": "end_turn"
+      },
+      {
+        "turn": 3,
+        "ok": true,
+        "stopReason": "end_turn"
+      },
+      {
+        "turn": 4,
+        "ok": true,
+        "stopReason": "end_turn"
+      },
+      {
+        "turn": 5,
+        "ok": true,
+        "stopReason": "end_turn"
+      },
+      {
+        "turn": 6,
+        "ok": true,
+        "stopReason": "end_turn"
+      }
+    ],
+    "results": [
+      {
+        "id": "created-by-ai",
+        "grader": "history",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "renamed",
+        "grader": "moved",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "version-restored",
+        "grader": "history",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "restored-content",
+        "grader": "text",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "restore-by-verb",
+        "grader": "tool-used",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "back-from-trash",
+        "grader": "trash",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "no-hard-delete",
+        "grader": "no-tool",
+        "pass": true,
+        "why": ""
+      }
+    ]
+  }
+]

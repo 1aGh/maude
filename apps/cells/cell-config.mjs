@@ -274,6 +274,9 @@ export async function fetchTenantConfig({ tenantId, env, storage = null, fetchIm
       projectName: body?.projectName ?? null,
       seedRepo: body?.seedRepo ?? null,
       adminEmail: body?.adminEmail ?? null,
+      // A3 (Maude v2 S9.15b) — present only when the control plane said it
+      // (one older than S9.15b answers the three fields above, unchanged).
+      ...(typeof body?.planState === 'string' ? { planState: body.planState } : {}),
     };
     // Cached against the NEXT cold start, which may happen during an outage —
     // and a cell that cannot learn its seed repo on first boot comes up empty
@@ -731,6 +734,11 @@ function safeForLog(raw) {
   );
 }
 
+/** The worker's `CELL_V2_CONVERT` as the cell's: '1' (convert) or '0' (held back). */
+export function v2ConvertSwitch(raw) {
+  return raw === undefined || raw === null || raw === '' || String(raw) === '1' ? '1' : '0';
+}
+
 /**
  * Environment for one tenant's cell.
  *
@@ -831,6 +839,12 @@ export async function cellEnv({ tenantId, env, hostname, config = NO_CONFIG, s3C
     // operator placeholder a customer should never meet, and (since B1) never
     // to another tenant's name.
     ...(config.projectName ? { MAUDE_PROJECT_NAME: config.projectName } : {}),
+    // A paused project (A3, Maude v2 S9.15b): the trial ended with no plan.
+    // The hub refuses writes with 402 plan on exactly this value
+    // (`planPausedFromEnv`, apps/hub/src/access-gate.mjs) — reads and exports
+    // keep working. The control plane restarts a running cell when the state
+    // flips, because env applies only at container start.
+    ...(config.planState === 'paused' ? { MAUDE_PLAN_STATE: 'paused' } : {}),
     // Object storage — PER-TENANT credentials ONLY (Cloud Phase 25 A-1).
     //
     // `s3Creds` are temporary credentials the control plane minted for THIS
@@ -897,6 +911,12 @@ export async function cellEnv({ tenantId, env, hostname, config = NO_CONFIG, s3C
     ...(projectStoreEnabled(env, tenantId) && livePairingEnabled(env, tenantId)
       ? { MAUDE_NEW_PROJECT_MODE: 'transactions' }
       : {}),
+    // THE MAUDE 2 CONVERSION KILL SWITCH (p8-selfhost-convert). A stable 2.0.0+ cell converts
+    // its project at hub boot (apps/hub/src/v2-convert.mjs); the worker var `CELL_V2_CONVERT=0`
+    // holds the whole fleet back. Always listed (envVars REPLACE the image's ENV): `1` unless the
+    // fleet says otherwise, and anything but unset/empty/1 fails closed to `0` — the same rule
+    // the hub applies to a self-hosted hub's own env.
+    CELL_V2_CONVERT: v2ConvertSwitch(env.CELL_V2_CONVERT),
     MAUDE_S3_REGION: 'auto',
     // Checkpoint cadence. A cell's disk is ephemeral and the platform migrates
     // instances freely, so the gap between checkpoints IS the window of

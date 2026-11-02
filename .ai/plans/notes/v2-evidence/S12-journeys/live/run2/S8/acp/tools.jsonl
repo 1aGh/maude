@@ -1,0 +1,9 @@
+{"lane":"acp","name":"Bash","input":{"command":"ls -la .design/incoming/ 2>&1; echo \"---\"; ls -la .design/ 2>&1; echo \"---assets---\"; find .design -iname \"*asset*\" -maxdepth 3 2>&1"}}
+{"lane":"acp","name":"Skill","input":{"skill":"design:studio-actions","args":"add an asset / bring a file into project assets from .design/incoming"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design import-asset .design/incoming/brand-mark.svg 2>&1"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design assets --usage assets/cb46edc4.svg --details 2>&1; echo \"---\"; ls -la .design/assets/ 2>&1 | grep -i cb46edc4"}}
+{"lane":"acp","name":"Grep","input":{"pattern":"DCArtboard","path":".design/ui/GitPanel.tsx","-n":true}}
+{"lane":"acp","name":"Grep","input":{"pattern":"DCArtboard|id=|label=","path":".design/ui/GitPanel.tsx","-n":true,"-C":1}}
+{"lane":"acp","name":"Grep","input":{"pattern":"DCArtboard","path":".design/ui/GitPanel.tsx","output_mode":"content","-n":true}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design export png --scope selection --canvas ui/GitPanel.tsx --artboard publish --out .design/out/publish.png 2>&1 || maude design export png --scope canvas --canvas ui/GitPanel.tsx --out .design/out/ 2>&1"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design exports list 2>&1"}}

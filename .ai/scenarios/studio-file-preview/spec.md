@@ -34,7 +34,7 @@ Native + mobile **SKIPPED** — the Maude Studio dev-server is desktop-developme
 ## Steps
 
 1. **Boot + open shell.** Navigate to `http://localhost:<N>`. Screenshot the default file tree (canvases only, DS group collapsed).
-2. **Expand `DESIGN SYSTEM › maude`.** Assert `assets/glyphs/{canvas,inspector}.svg`, `assets/logos/{favicon,mark,wordmark}.svg`, `README.md`, `SKILL.md`, `colors_and_type.css` all appear as tree rows. Screenshot.
+2. **Open Canvases › Advanced (V2-4.4a: the DS files live there), then expand `DESIGN SYSTEM › maude`.** Assert `assets/glyphs/{canvas,inspector}.svg`, `assets/logos/{favicon,mark,wordmark}.svg`, `README.md`, `SKILL.md`, `colors_and_type.css` all appear as tree rows. Screenshot.
 3. **Click `README.md`.** Assert the viewport renders formatted markdown (not raw text, not blank). Screenshot.
 4. **Click `colors_and_type.css`.** Assert the viewport renders raw CSS text in a monospace block. Screenshot.
 5. **Click `assets/logos/mark.svg`** (brand mark, token-fill). Assert the image preview mounts (checkerboard background) but the mark itself is **not visible** — the documented `var(--accent)` limitation, not a bug.

@@ -18,7 +18,7 @@ if (url.protocol !== 'https:' || url.username || url.password || url.pathname !=
 if (!/^[a-z0-9-]+$/.test(target.projectId)) throw new Error('Invalid explicit project id.');
 
 if (!process.env.MAUDE_CLOUD_ENTRY_RUN) {
-  const scratch = mkdtempSync(join(tmpdir(), 'maude-cloud-entry-'));
+  const scratch = mkdtempSync(join(tmpdir(), 'maude-e2e-cloud-entry-'));
   const out = resolve(
     here,
     '../../../../.ai/device/scenario-runs/reliable-project-multiplayer',

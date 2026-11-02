@@ -20,13 +20,24 @@
 // (DDR-045); the home dir is always a real disk path.
 
 import { createHash } from 'node:crypto';
-import { chmodSync, mkdirSync, readFileSync, statSync } from 'node:fs';
+import { chmodSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { atomicWrite } from '../sync/atomic-write.ts';
 import type { GitHubIdentity } from './service.ts';
 
-const CACHE_FILE = 'github-identity.json';
+// V2-3.4 (old T9) — ONE FILE PER KEY. Account profiles put two GitHub tokens on one machine
+// (one per tab's profile); a single slot made them evict each other, so every switch between
+// two tabs was a cache miss and a GitHub round-trip. Each token hash now owns
+// `github-identity-<hash16>.json`; the newest MAX_ENTRIES survive (a profile is a handful of
+// accounts, not a crowd). The token itself is still never written (DDR-132).
+const CACHE_PREFIX = 'github-identity-';
+const CACHE_SUFFIX = '.json';
+/** The pre-V2-3.4 single slot. Removed on the next write; never read. */
+const LEGACY_CACHE_FILE = 'github-identity.json';
+const MAX_ENTRIES = 8;
+/** A key names a file, so it must be exactly what `tokenHash` produces. */
+const KEY_RE = /^[0-9a-f]{16}$/;
 // The record is three short public strings — a few hundred bytes. Cap the read so
 // a poisoned/oversized file at the cache path can't slurp into memory on the
 // identity hot path (security review: treat the on-disk file as untrusted input).
@@ -60,8 +71,33 @@ export function cacheDir(): string {
   return base;
 }
 
-function cacheFile(): string {
-  return join(cacheDir(), CACHE_FILE);
+function cacheFile(key: string): string {
+  return join(cacheDir(), `${CACHE_PREFIX}${key}${CACHE_SUFFIX}`);
+}
+
+/** Keep the newest MAX_ENTRIES per-key files (by mtime) and drop the legacy slot. Best-effort. */
+function prune(dir: string): void {
+  try {
+    unlinkSync(join(dir, LEGACY_CACHE_FILE));
+  } catch {
+    /* absent — the usual case */
+  }
+  let entries: { name: string; at: number }[];
+  try {
+    entries = readdirSync(dir)
+      .filter((n) => n.startsWith(CACHE_PREFIX) && n.endsWith(CACHE_SUFFIX))
+      .map((name) => ({ name, at: statSync(join(dir, name)).mtimeMs }));
+  } catch {
+    return;
+  }
+  entries.sort((a, b) => b.at - a.at);
+  for (const e of entries.slice(MAX_ENTRIES)) {
+    try {
+      unlinkSync(join(dir, e.name));
+    } catch {
+      /* raced with another sidecar — fine */
+    }
+  }
 }
 
 /**
@@ -79,7 +115,8 @@ export function tokenHash(token: string): string {
  * — never throws, so the endpoint always degrades to a fresh fetch.
  */
 export function readCached(key: string): GitHubIdentity | null {
-  const file = cacheFile();
+  if (!KEY_RE.test(key)) return null;
+  const file = cacheFile(key);
   let raw: string;
   try {
     // Size-gate before reading: a record is a few hundred bytes; refuse anything
@@ -117,22 +154,24 @@ export function readCached(key: string): GitHubIdentity | null {
  * by the caller (a cache miss next time is harmless).
  */
 export function writeCached(key: string, identity: GitHubIdentity): void {
+  if (!KEY_RE.test(key)) return;
   const rec: CacheRecord = { key, identity, at: Date.now() };
-  atomicWrite(cacheFile(), JSON.stringify(rec));
+  atomicWrite(cacheFile(key), JSON.stringify(rec));
+  prune(cacheDir());
 }
 
 /**
- * Drop the cache (e.g. a revoked token surfaced during background revalidation),
- * so the next call re-prompts / re-fetches. Best-effort; a missing file is fine.
+ * Drop one key's entry (e.g. a revoked token surfaced during background
+ * revalidation), so the next call for that token re-fetches. Other profiles'
+ * entries stay. Best-effort; a missing file is fine.
  */
-export function clearCached(): void {
+export function clearCached(key: string): void {
+  if (!KEY_RE.test(key)) return;
   try {
-    // Overwrite with an empty-key record rather than unlink — atomicWrite already
-    // owns the dir/permissions and a key that can never match forces a clean miss.
-    atomicWrite(cacheFile(), JSON.stringify({ key: '', identity: null, at: Date.now() }));
+    unlinkSync(cacheFile(key));
   } catch {
-    /* ignore — a stale entry will simply miss on the next account/token change */
+    /* already gone */
   }
 }
 
-export const __testing = { CACHE_FILE, cacheFile };
+export const __testing = { cacheFile, MAX_ENTRIES, LEGACY_CACHE_FILE };

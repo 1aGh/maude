@@ -154,7 +154,7 @@ export function createGitHubEndpoints(ctx: Context): GitHubEndpoints {
     try {
       writeCached(key, await getIdentity(token));
     } catch (e) {
-      if (e instanceof GitHubApiError && e.status === 401) clearCached();
+      if (e instanceof GitHubApiError && e.status === 401) clearCached(key);
       // any other failure (network blip, etc.) — keep the last-known cache as-is.
     }
   }

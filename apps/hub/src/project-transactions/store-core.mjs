@@ -16,6 +16,9 @@
 //
 // No Node, Bun or Worker globals. No I/O but `sql`.
 
+import { createVotesCore, VOTES_DDL } from '../votes.mjs';
+import { createRunsCore, RUNS_DDL } from './runs-core.mjs';
+
 export const STORE_SCHEMA_VERSION = 1;
 
 /** Lanes a canvas document carries (DDR-241 §4). */
@@ -34,11 +37,17 @@ export function asFormat(v) {
 }
 
 export class StoreConflict extends Error {
-  /** @param {'epoch-stale'|'revision-moved'|'head-moved'} code */
-  constructor(code, detail = '') {
+  /**
+   * @param {'epoch-stale'|'revision-moved'|'head-moved'|'lease-fenced'} code
+   * @param {string} [detail]
+   * @param {{ keys?: Array<{entry: string, artboard: string, token: number, fence: number}> }} [extra]
+   *   `lease-fenced` names the keys a newer grant took (V2-1.15 §5.3).
+   */
+  constructor(code, detail = '', extra = undefined) {
     super(`${code}${detail ? `: ${detail}` : ''}`);
     this.name = 'StoreConflict';
     this.code = code;
+    if (Array.isArray(extra?.keys)) this.keys = extra.keys;
   }
 }
 
@@ -79,10 +88,37 @@ const DDL = [
   `CREATE TABLE IF NOT EXISTS results (
      actor TEXT NOT NULL, tx TEXT NOT NULL, proposal_hash TEXT NOT NULL, result TEXT NOT NULL,
      rev INTEGER, at INTEGER NOT NULL, PRIMARY KEY (actor, tx))`,
+  // V2-1.15 §5.2 — AI runs, leases, the waiting line (additive: CREATE IF NOT
+  // EXISTS, no schema bump; an old hub opening this store ignores them).
+  ...RUNS_DDL,
+  // S1.6 (V2-1.9 §5.4, S1-trash.md §4) — additive indexes of facts the log
+  // already carries (`origin.named` / `origin.cleared`). An old hub opening
+  // this store ignores both; nothing here deletes a row or a body.
+  `CREATE TABLE IF NOT EXISTS names (
+     entry TEXT NOT NULL, target_rev INTEGER NOT NULL, name TEXT NOT NULL, actor TEXT NOT NULL,
+     at INTEGER NOT NULL, rev INTEGER NOT NULL, PRIMARY KEY (entry, target_rev))`,
+  // `artboard` '' = the whole canvas; `rev` = the action that put it in the trash.
+  `CREATE TABLE IF NOT EXISTS trash_cleared (
+     entry TEXT NOT NULL, artboard TEXT NOT NULL, rev INTEGER NOT NULL, by TEXT NOT NULL,
+     at INTEGER NOT NULL, cleared_rev INTEGER NOT NULL, PRIMARY KEY (entry, artboard, rev))`,
+  `CREATE INDEX IF NOT EXISTS actions_kind ON actions(kind)`,
+  // Gate 0 A18 (S4.6) — formal votes and hub-held ballots (additive, as runs).
+  ...VOTES_DDL,
 ];
 
 function one(rows) {
   return rows.length ? rows[0] : null;
+}
+
+/** A stored `undoes`: a plain id (v1, single target), a JSON id list (multi-target), or null. */
+function parseUndoes(v) {
+  if (typeof v !== 'string' || !v.startsWith('[')) return v ?? null;
+  try {
+    const ids = JSON.parse(v);
+    return Array.isArray(ids) ? ids : v;
+  } catch {
+    return v;
+  }
 }
 
 /**
@@ -104,7 +140,24 @@ export function blobParts(body, units = BLOB_PART_UNITS) {
   return parts;
 }
 
-export function createStoreCore(sql, { now = () => Date.now() } = {}) {
+/**
+ * The default blob codec: the stored body IS the lane text. A codec (V2-1.9
+ * §5.3 C4 — the local home passes gzip) maps the raw text to what the row
+ * holds and back; `hash` and `size` always describe the raw text, so
+ * deduplication and the part split never see the codec. `decode` must accept a
+ * value written before the codec existed (a plain TEXT row).
+ */
+export const IDENTITY_CODEC = Object.freeze({ encode: (text) => text, decode: (stored) => stored });
+
+/** Meta flag: the additive `run_id` / `chat_id` action columns exist (S5.1a). */
+const RUN_CHAT_COLUMNS = 'actionsRunChat';
+
+export function createStoreCore(
+  sql,
+  { now = () => Date.now(), codec = IDENTITY_CODEC, onBallotsDeleted = null } = {}
+) {
+  const encode = (text) => codec.encode(text);
+  const decode = (stored) => codec.decode(stored);
   function meta(k, fallback = null) {
     const row = one(sql.exec(`SELECT v FROM store_meta WHERE k = ?`, k));
     return row ? row.v : fallback;
@@ -117,6 +170,9 @@ export function createStoreCore(sql, { now = () => Date.now() } = {}) {
     );
   }
 
+  const runs = createRunsCore(sql, { now, meta, setMeta });
+  const votes = createVotesCore(sql, { now, onBallotsDeleted });
+
   function migrate() {
     sql.transaction(() => {
       for (const ddl of DDL) sql.exec(ddl);
@@ -126,6 +182,17 @@ export function createStoreCore(sql, { now = () => Date.now() } = {}) {
         setMeta('epoch', 0);
         setMeta('revision', 0);
       }
+      // S5.1a (V2-1.5 §5.2) — additive, nullable: "this person's actions of
+      // chat X" without scanning `origin`. Gated by a meta flag rather than a
+      // schema probe, which a Durable Object's SQLite may not allow; an old hub
+      // opening the migrated store ignores both (every INSERT names columns).
+      if (meta(RUN_CHAT_COLUMNS) !== '1') {
+        sql.exec(`ALTER TABLE actions ADD COLUMN run_id TEXT`);
+        sql.exec(`ALTER TABLE actions ADD COLUMN chat_id TEXT`);
+        setMeta(RUN_CHAT_COLUMNS, '1');
+      }
+      sql.exec(`CREATE INDEX IF NOT EXISTS actions_chat ON actions(chat_id, actor)`);
+      sql.exec(`CREATE INDEX IF NOT EXISTS actions_run ON actions(run_id)`);
     });
   }
 
@@ -257,10 +324,11 @@ export function createStoreCore(sql, { now = () => Date.now() } = {}) {
   function blob(hash) {
     const row = one(sql.exec(`SELECT body, size FROM blobs WHERE hash = ?`, hash));
     if (!row) return null;
-    if (row.body !== '' || !row.size) return row.body;
+    // A parted body's row holds '' with a non-zero size; a real empty body has size 0.
+    if (row.body !== '' || !row.size) return decode(row.body);
     return sql
       .exec(`SELECT body FROM blob_parts WHERE hash = ? ORDER BY n`, hash)
-      .map((r) => r.body)
+      .map((r) => decode(r.body))
       .join('');
   }
 
@@ -318,6 +386,12 @@ export function createStoreCore(sql, { now = () => Date.now() } = {}) {
         sql.exec(`SELECT 1 AS x FROM results WHERE actor = ? AND tx = ?`, input.actor, input.tx)
       );
       if (prior) throw new StoreConflict('head-moved', 'transaction already has a result');
+      // V2-1.15 §5.3 (L4) — an AI run's publish carries its lease tokens; a
+      // newer grant on any of its artboards refuses it in THIS transaction.
+      const fenced = runs.fenceMismatches(input.fence, now());
+      if (fenced.length) {
+        throw new StoreConflict('lease-fenced', `${fenced.length} artboard(s)`, { keys: fenced });
+      }
       for (const h of input.heads ?? []) {
         if (h.expectHash === undefined) continue;
         const row = one(
@@ -333,13 +407,21 @@ export function createStoreCore(sql, { now = () => Date.now() } = {}) {
         if (one(sql.exec(`SELECT 1 AS x FROM blobs WHERE hash = ?`, b.hash))) continue;
         const size = b.size ?? b.body.length;
         if (b.body.length <= BLOB_PART_UNITS) {
-          sql.exec(`INSERT INTO blobs (hash, body, size) VALUES (?, ?, ?)`, b.hash, b.body, size);
+          // The empty body stays '' under every codec: '' + size 0 is how a
+          // reader tells "empty" from "parted".
+          const stored = b.body === '' ? '' : encode(b.body);
+          sql.exec(`INSERT INTO blobs (hash, body, size) VALUES (?, ?, ?)`, b.hash, stored, size);
           continue;
         }
         // Parted: an empty body with a non-zero size (a real empty body has size 0).
         sql.exec(`INSERT INTO blobs (hash, body, size) VALUES (?, '', ?)`, b.hash, size || 1);
         blobParts(b.body).forEach((part, n) =>
-          sql.exec(`INSERT INTO blob_parts (hash, n, body) VALUES (?, ?, ?)`, b.hash, n, part)
+          sql.exec(
+            `INSERT INTO blob_parts (hash, n, body) VALUES (?, ?, ?)`,
+            b.hash,
+            n,
+            encode(part)
+          )
         );
       }
       for (const d of input.docs ?? []) {
@@ -389,7 +471,7 @@ export function createStoreCore(sql, { now = () => Date.now() } = {}) {
         sql.exec(`INSERT INTO dirs (path, rev) VALUES (?, ?) ON CONFLICT(path) DO NOTHING`, p, rev);
       }
       sql.exec(
-        `INSERT INTO actions (rev, tx, actor, action_id, kind, label, origin, committed_at, undoes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO actions (rev, tx, actor, action_id, kind, label, origin, committed_at, undoes, run_id, chat_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         rev,
         input.tx,
         input.actor,
@@ -398,7 +480,11 @@ export function createStoreCore(sql, { now = () => Date.now() } = {}) {
         input.label ?? null,
         input.origin ? JSON.stringify(input.origin) : null,
         at,
-        input.undoes ?? null
+        // A single-target undo keeps the plain id (v1); a multi-target one
+        // (V2-1.5 §5.2) stores its id list as JSON. Readers accept both.
+        Array.isArray(input.undoes) ? JSON.stringify(input.undoes) : (input.undoes ?? null),
+        typeof input.origin?.runId === 'string' ? input.origin.runId : null,
+        typeof input.origin?.chatId === 'string' ? input.origin.chatId : null
       );
       for (const e of input.effects ?? []) {
         sql.exec(
@@ -415,6 +501,36 @@ export function createStoreCore(sql, { now = () => Date.now() } = {}) {
           e.afterHash ?? null,
           e.beforePath ?? null,
           e.afterPath ?? null
+        );
+      }
+      // S1.6 — `history.name` (null removes the row; the action stays logged)
+      // and `trash.clear`, in the same transaction as their action.
+      for (const n of input.names ?? []) {
+        if (n.name === null) {
+          sql.exec(`DELETE FROM names WHERE entry = ? AND target_rev = ?`, n.entry, n.targetRev);
+          continue;
+        }
+        sql.exec(
+          `INSERT INTO names (entry, target_rev, name, actor, at, rev) VALUES (?, ?, ?, ?, ?, ?)
+           ON CONFLICT(entry, target_rev) DO UPDATE SET name = excluded.name, actor = excluded.actor, at = excluded.at, rev = excluded.rev`,
+          n.entry,
+          n.targetRev,
+          n.name,
+          input.actor,
+          at,
+          rev
+        );
+      }
+      for (const c of input.cleared ?? []) {
+        sql.exec(
+          `INSERT INTO trash_cleared (entry, artboard, rev, by, at, cleared_rev) VALUES (?, ?, ?, ?, ?, ?)
+           ON CONFLICT(entry, artboard, rev) DO NOTHING`,
+          c.entry,
+          c.artboard ?? '',
+          c.rev,
+          input.actor,
+          at,
+          rev
         );
       }
       const res = { ...input.result, revision: rev, parentRevision: cur.revision, committedAt: at };
@@ -463,7 +579,7 @@ export function createStoreCore(sql, { now = () => Date.now() } = {}) {
       label: a.label,
       origin: a.origin ? JSON.parse(a.origin) : null,
       committedAt: Number(a.committed_at),
-      undoes: a.undoes,
+      undoes: parseUndoes(a.undoes),
     };
   }
 
@@ -477,19 +593,39 @@ export function createStoreCore(sql, { now = () => Date.now() } = {}) {
     return rows.map((a) => ({ ...actionRow(a), effects: effectRows('WHERE rev = ?', a.rev) }));
   }
 
-  /** Logical history, newest first. */
-  function history({ before = null, limit = 50, entry = null } = {}) {
+  /**
+   * Logical history, newest first. `chat` / `run` / `actor` / `kind` are
+   * additive filters (S5.1a): "this person's actions of chat X" reads the
+   * indexed `chat_id` column, never `origin`.
+   */
+  function history({
+    before = null,
+    limit = 50,
+    entry = null,
+    chat = null,
+    run = null,
+    actor = null,
+    kind = null,
+  } = {}) {
     const lim = Math.max(1, Math.min(limit, 200));
-    const rows = entry
-      ? sql.exec(
-          `SELECT DISTINCT a.* FROM actions a JOIN effects e ON e.rev = a.rev
-           WHERE e.entry = ? ${before ? 'AND a.rev < ?' : ''} ORDER BY a.rev DESC LIMIT ?`,
-          ...(before ? [entry, before, lim] : [entry, lim])
-        )
-      : sql.exec(
-          `SELECT * FROM actions ${before ? 'WHERE rev < ?' : ''} ORDER BY rev DESC LIMIT ?`,
-          ...(before ? [before, lim] : [lim])
-        );
+    const where = [];
+    const params = [];
+    const add = (clause, v) => {
+      where.push(clause);
+      params.push(v);
+    };
+    if (entry) add('e.entry = ?', entry);
+    if (before) add('a.rev < ?', before);
+    if (typeof chat === 'string' && chat) add('a.chat_id = ?', chat);
+    if (typeof run === 'string' && run) add('a.run_id = ?', run);
+    if (typeof actor === 'string' && actor) add('a.actor = ?', actor);
+    if (typeof kind === 'string' && kind) add('a.kind = ?', kind);
+    const rows = sql.exec(
+      `SELECT DISTINCT a.* FROM actions a ${entry ? 'JOIN effects e ON e.rev = a.rev' : ''}
+       ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY a.rev DESC LIMIT ?`,
+      ...params,
+      lim
+    );
     return rows.map((a) => ({ ...actionRow(a), effects: effectRows('WHERE rev = ?', a.rev) }));
   }
 
@@ -498,6 +634,12 @@ export function createStoreCore(sql, { now = () => Date.now() } = {}) {
       sql.exec(`SELECT * FROM actions WHERE action_id = ? ORDER BY rev LIMIT 1`, actionId)
     );
     return a ? { ...actionRow(a), effects: effectRows('WHERE action_id = ?', actionId) } : null;
+  }
+
+  /** `action` for up to 50 ids in one call (a multi-target undo is one RPC on a cell). */
+  function actions(actionIds) {
+    if (!Array.isArray(actionIds)) return [];
+    return actionIds.slice(0, 50).map((id) => (typeof id === 'string' ? action(id) : null));
   }
 
   /** The live (non-retired) document at a manifest path, if any. */
@@ -528,6 +670,106 @@ export function createStoreCore(sql, { now = () => Date.now() } = {}) {
   function liveDocByEntry(entry) {
     const row = one(sql.exec(`SELECT doc FROM docs WHERE entry = ? AND retired = 0`, entry));
     return row ? row.doc : null;
+  }
+
+  /** S1.6 — the names of one canvas's versions, target newest first. */
+  function names(entry) {
+    if (typeof entry !== 'string' || !entry) return [];
+    return sql
+      .exec(
+        `SELECT entry, target_rev, name, actor, at, rev FROM names WHERE entry = ? ORDER BY target_rev DESC`,
+        entry
+      )
+      .map((n) => ({
+        entry: n.entry,
+        targetRev: Number(n.target_rev),
+        name: n.name,
+        actor: n.actor,
+        at: Number(n.at),
+        rev: Number(n.rev),
+      }));
+  }
+
+  /** S1.6 — cleared trash items (S1-trash.md §4), newest clear first. */
+  function trashCleared({ entry = null } = {}) {
+    const byEntry = typeof entry === 'string' && entry;
+    return sql
+      .exec(
+        `SELECT entry, artboard, rev, by, at, cleared_rev FROM trash_cleared ${byEntry ? 'WHERE entry = ?' : ''}
+         ORDER BY cleared_rev DESC, entry, artboard`,
+        ...(byEntry ? [entry] : [])
+      )
+      .map((c) => ({
+        entry: c.entry,
+        artboard: c.artboard,
+        rev: Number(c.rev),
+        by: c.by,
+        at: Number(c.at),
+        clearedRev: Number(c.cleared_rev),
+      }));
+  }
+
+  /**
+   * S1.6 — what is in the shared Trash, derived from the log (S1 Q2,
+   * S1-trash.md §1), cleared items left out, newest first. A canvas: its
+   * entry's NEWEST `@manifest delete`, while no live doc carries the entry
+   * (the doc row alone would lose it to a new canvas at the same path). An
+   * artboard: an action of kind `trash` naming it in `origin.trashed`.
+   */
+  function trash({ entry = null } = {}) {
+    const byEntry = typeof entry === 'string' && entry;
+    const canvases = sql
+      .exec(
+        `SELECT e.entry, e.doc, e.before_path, e.rev, e.action_id, a.actor, a.committed_at
+         FROM effects e JOIN actions a ON a.rev = e.rev
+         WHERE e.lane = '@manifest' AND e.op = 'delete' AND e.entry IS NOT NULL
+           ${byEntry ? 'AND e.entry = ?' : ''}
+           AND e.rev = (SELECT MAX(x.rev) FROM effects x
+                        WHERE x.lane = '@manifest' AND x.op = 'delete' AND x.entry = e.entry)
+           AND NOT EXISTS (SELECT 1 FROM docs d WHERE d.entry = e.entry AND d.retired = 0)
+           AND NOT EXISTS (SELECT 1 FROM trash_cleared c
+                           WHERE c.entry = e.entry AND c.artboard = '' AND c.rev = e.rev)
+         ORDER BY e.rev DESC`,
+        ...(byEntry ? [entry] : [])
+      )
+      .map((c) => ({
+        id: `canvas:${c.entry}`,
+        entry: c.entry,
+        doc: c.doc,
+        path: c.before_path,
+        rev: Number(c.rev),
+        actionId: c.action_id,
+        actor: c.actor,
+        at: Number(c.committed_at),
+      }));
+    const cleared = new Set(
+      trashCleared({ entry }).map((c) => `${c.entry}\u0000${c.artboard}\u0000${c.rev}`)
+    );
+    const artboards = [];
+    for (const a of sql.exec(`SELECT * FROM actions WHERE kind = 'trash' ORDER BY rev DESC`)) {
+      const row = actionRow(a);
+      const trashed = Array.isArray(row.origin?.trashed) ? row.origin.trashed : [];
+      if (!trashed.length) continue;
+      const first = effectRows('WHERE rev = ?', a.rev).find(
+        (e) => LANES.includes(e.lane) && e.entry
+      );
+      if (!first || (byEntry && first.entry !== entry)) continue;
+      for (const t of trashed) {
+        if (cleared.has(`${first.entry}\u0000${t.artboard}\u0000${row.revision}`)) continue;
+        artboards.push({
+          id: `artboard:${row.actionId}/${t.artboard}`,
+          entry: first.entry,
+          doc: first.doc,
+          artboard: t.artboard,
+          label: typeof t.label === 'string' ? t.label : null,
+          rev: row.revision,
+          actionId: row.actionId,
+          actor: row.actor,
+          at: row.committedAt,
+        });
+      }
+    }
+    return { canvases, artboards };
   }
 
   function manifest() {
@@ -565,10 +807,25 @@ export function createStoreCore(sql, { now = () => Date.now() } = {}) {
     revisions,
     history,
     action,
+    actions,
     manifest,
     docByPath,
     laneAt,
     effectsAfter,
     liveDocByEntry,
+    // S1.6 — additive readers (S1-trash.md §4).
+    names,
+    trash,
+    trashCleared,
+    runsBegin: runs.runsBegin,
+    runsClaim: runs.runsClaim,
+    runsRenew: runs.runsRenew,
+    runsEnd: runs.runsEnd,
+    runsList: runs.runsList,
+    votesStart: votes.votesStart,
+    votesCast: votes.votesCast,
+    votesEnd: votes.votesEnd,
+    votesGet: votes.votesGet,
+    votesList: votes.votesList,
   };
 }

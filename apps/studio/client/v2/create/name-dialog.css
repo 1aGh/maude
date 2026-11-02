@@ -1,0 +1,36 @@
+/* client/v2/create/name-dialog.css — R3 (6): the "name a new canvas" dialog. `nd-` namespaced, tokens only;
+ * the same material as the other v2 dialogs (an island over a scrim). */
+
+@layer shell {
+  .nd-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: grid;
+    place-items: center;
+    background: var(--scrim, rgb(0 0 0 / 0.32));
+  }
+  .nd-dialog {
+    width: min(380px, calc(100vw - 32px));
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-4);
+  }
+  .nd-title {
+    margin: 0;
+    font-size: var(--type-base);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+  .nd-err {
+    margin: 0;
+    font-size: var(--type-sm);
+    color: var(--status-warn-text);
+  }
+  .nd-acts {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2);
+  }
+}

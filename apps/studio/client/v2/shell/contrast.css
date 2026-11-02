@@ -1,0 +1,37 @@
+/* client/v2/shell/contrast.css — the Phase 4 gate a11y floor (WCAG 1.4.3, re-audit R1–R3).
+ *
+ * In the utilities layer so it wins over the shell and components layers it corrects. Three rules:
+ *   R1  secondary text on a highlighted or selected row takes the row's own text colour — the muted
+ *       --fg-2 and the status tones fall to ~4.2:1 (light) / ~2.3:1 (dark) on --accent-muted;
+ *   R2  --fg-3 is the DISABLED token — real text that used it reads --fg-2 (≥ 4.5:1 both themes);
+ *   R3  an input placeholder never falls back to the browser default (#757575, 4.0–4.4:1). */
+
+@layer utilities {
+  /* R1 */
+  :is(.sh-pm-row:hover, .sh-pm-row:focus-visible, .sh-pm-row[aria-expanded="true"])
+    :is(.sh-pm-status, .sh-pm-ic, .sh-pm-ch, .sh-mode-menu-note),
+  .sh-pm-row--adv:is(:hover, :focus-visible, [aria-expanded="true"]) .sh-pm-lab {
+    color: inherit;
+  }
+  /* the "› Advanced" row is itself --fg-1, so its highlighted label takes --fg-0 (dark was 3.74:1) */
+  .sh-pm-row--adv:is(:hover, :focus-visible, [aria-expanded="true"]) {
+    color: var(--fg-0);
+  }
+
+  /* R2 */
+  .v2s-step.is-done .v2s-step-title,
+  .v2s-provider-card .sh-pill,
+  .v2s-provider-modalities,
+  .v2s-main .sh-pill,
+  .v2s-main details > summary,
+  .rdy-resolved-path {
+    color: var(--fg-2);
+  }
+
+  /* R3 */
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--fg-2);
+    opacity: 1;
+  }
+}

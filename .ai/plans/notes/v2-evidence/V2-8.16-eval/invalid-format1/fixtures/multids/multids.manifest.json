@@ -1,0 +1,862 @@
+{
+  "fixture": "multids",
+  "canvases": [
+    "ui/panels/GitPanel.tsx",
+    "ui/panels/RepoBranchSwitcher.tsx",
+    "ui/panels/GitHubIdentity.tsx",
+    "ui/panels/DiffView.tsx",
+    "ui/v2/00 Index.tsx"
+  ],
+  "ids": {
+    "ui/panels/GitPanel.tsx": [
+      {
+        "id": "changes",
+        "text": "Changes",
+        "tag": "button",
+        "locked": true,
+        "artboard": null
+      },
+      {
+        "id": "maude",
+        "text": "Maude",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "main",
+        "text": "main",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "maude-2",
+        "text": "maude",
+        "tag": "b",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "unsaved",
+        "text": "unsaved",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "files",
+        "text": "Files",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "ui",
+        "text": "ui",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "pricing-v3",
+        "text": "Pricing v3",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "onboarding-flow",
+        "text": "Onboarding Flow",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "checkout-sheet",
+        "text": "Checkout Sheet",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "team-avatars",
+        "text": "Team Avatars",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "marketing-site",
+        "text": "Marketing Site",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "system",
+        "text": "system",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "of-selected",
+        "text": "of selected",
+        "tag": "label",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "save-version",
+        "text": "Save version",
+        "tag": "button",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "save-all",
+        "text": "Save all",
+        "tag": "button",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "type-a-message",
+        "text": "Type a message and pick at least one file to save a version.",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "unsaved-2",
+        "text": "unsaved",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "history",
+        "text": "History",
+        "tag": "button",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "files-in-this",
+        "text": "Files in this version",
+        "tag": "div",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "anna-published-2",
+        "text": "Anna published 2 changes.",
+        "tag": "b",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "get-the-latest",
+        "text": "Get the latest before you publish yours.",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "get-latest",
+        "text": "Get latest",
+        "tag": "button",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "history-2",
+        "text": "History",
+        "tag": "div",
+        "locked": false,
+        "artboard": null
+      }
+    ],
+    "ui/panels/RepoBranchSwitcher.tsx": [
+      {
+        "id": "maude",
+        "text": "Maude",
+        "tag": "b",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "project",
+        "text": "Project",
+        "tag": "div",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "open-another-folder",
+        "text": "Open another folder…",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "version",
+        "text": "Version",
+        "tag": "div",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "nav-redesign",
+        "text": "Nav redesign",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "you-2h-ago",
+        "text": "you · 2h ago · 12 changes",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "add-this-draft",
+        "text": "Add this draft to the Shared version",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "make-it-the",
+        "text": "make it the version everyone works from",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "shared-version",
+        "text": "Shared version",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "what-everyone-sees",
+        "text": "what everyone sees",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "pricing-experiment",
+        "text": "Pricing experiment",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "octocat-yesterday",
+        "text": "octocat · yesterday",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "shared-version-2",
+        "text": "Shared version",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "what-everyone-sees-2",
+        "text": "what everyone sees",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "drafts",
+        "text": "Drafts",
+        "tag": "div",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "new-draft",
+        "text": "New draft",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "a-separate-line",
+        "text": "a separate line of work, just yours for now",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "name-your-draft",
+        "text": "Name your draft",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "creates-a-draft",
+        "text": "Creates a draft called",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "nav-redesign-2",
+        "text": "nav-redesign",
+        "tag": "b",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "cancel",
+        "text": "Cancel",
+        "tag": "button",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "create-draft",
+        "text": "Create draft",
+        "tag": "button",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "a-draft-is",
+        "text": "A draft is your own copy to try things in. Add it to the Shared version when you're happy, or throw it away — nothing el",
+        "tag": "p",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "mobile-checkout",
+        "text": "Mobile Checkout",
+        "tag": "b",
+        "locked": false,
+        "artboard": null
+      }
+    ],
+    "ui/panels/GitHubIdentity.tsx": [
+      {
+        "id": "maude",
+        "text": "Maude",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "sign-in-with",
+        "text": "Sign in with GitHub",
+        "tag": "button",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "connect-your-account",
+        "text": "Connect your account to publish changes and create projects.",
+        "tag": "p",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "octo-cat",
+        "text": "Octo Cat",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "octocat",
+        "text": "@octocat",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "octo-cat-2",
+        "text": "Octo Cat",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "octocat-connected",
+        "text": "@octocat · connected",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "view-profile-on",
+        "text": "View profile on GitHub",
+        "tag": "button",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "sign-out",
+        "text": "Sign out",
+        "tag": "button",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "ui",
+        "text": "ui",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "pricing-v3",
+        "text": "Pricing v3",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "onboarding-flow",
+        "text": "Onboarding Flow",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "checkout-sheet",
+        "text": "Checkout Sheet",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "system",
+        "text": "system",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "main",
+        "text": "main",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "maude-2",
+        "text": "maude",
+        "tag": "b",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "files",
+        "text": "Files",
+        "tag": "div",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "sign-in-with-2",
+        "text": "Sign in with GitHub",
+        "tag": "h2",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "maude-opened-github",
+        "text": "Maude opened GitHub in your browser. Enter the code below to connect this app to your account.",
+        "tag": "p",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "on-the-page",
+        "text": "On the page we opened, go to",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "github-com-login",
+        "text": "github.com/login/device",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "open-it-again",
+        "text": "Open it again",
+        "tag": "button",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "enter-this-code",
+        "text": "Enter this code to connect Maude",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "wdjb-8209-mjht",
+        "text": "WDJB&#8209;MJHT",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      }
+    ],
+    "ui/panels/DiffView.tsx": [
+      {
+        "id": "maude",
+        "text": "Maude",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "changed",
+        "text": "CHANGED",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "added",
+        "text": "ADDED",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "what-changed",
+        "text": "What changed",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "pricing-v3",
+        "text": "Pricing v3",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "changes-since-you",
+        "text": "changes since you last published",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "side-by-side",
+        "text": "Side by side",
+        "tag": "button",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "overlay",
+        "text": "Overlay",
+        "tag": "button",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "last-published",
+        "text": "Last published",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "anna-2-days",
+        "text": "Anna · 2 days ago",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "your-version",
+        "text": "Your version",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "you-just-now",
+        "text": "you · just now",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "a-rendered-before",
+        "text": "A rendered before/after — see the change, not the code. Added a Team plan and recolored Pro.",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "restore-last-published",
+        "text": "Restore last published",
+        "tag": "button",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "keep-my-version",
+        "text": "Keep my version",
+        "tag": "button",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "what-changed-2",
+        "text": "What changed",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "pricing-v3-2",
+        "text": "Pricing v3",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "side-by-side-2",
+        "text": "Side by side",
+        "tag": "button",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "overlay-2",
+        "text": "Overlay",
+        "tag": "button",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "last-published-2",
+        "text": "Last published",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "your-version-2",
+        "text": "Your version",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "drag-the-handle",
+        "text": "Drag the handle to wipe between the published version and yours.",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "restore-last-published-2",
+        "text": "Restore last published",
+        "tag": "button",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "keep-my-version-2",
+        "text": "Keep my version",
+        "tag": "button",
+        "locked": false,
+        "artboard": null
+      }
+    ],
+    "ui/v2/00 Index.tsx": [
+      {
+        "id": "queued-sends-when",
+        "text": "Queued — sends when this Mac is online.",
+        "tag": "q",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "ai-is-back",
+        "text": "AI is back when this Mac is online.",
+        "tag": "q",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "connect-your-claude",
+        "text": "Connect your Claude account to let AI draft this.",
+        "tag": "q",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "start-with-an",
+        "text": "Start with an empty canvas ⌘N",
+        "tag": "q",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "done-three-hero",
+        "text": "Done — three hero variants are on the canvas. Pick one.",
+        "tag": "q",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "invite",
+        "text": "Invite",
+        "tag": "b",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "can-view",
+        "text": "Can view",
+        "tag": "b",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "can-comment",
+        "text": "Can comment",
+        "tag": "b",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "ask-to-edit",
+        "text": "Ask to edit",
+        "tag": "b",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "viewing",
+        "text": "Viewing",
+        "tag": "b",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "edit",
+        "text": "Edit",
+        "tag": "b",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "image",
+        "text": "Image",
+        "tag": "b",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "component",
+        "text": "Component",
+        "tag": "b",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "preview",
+        "text": "Preview",
+        "tag": "b",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "design-system",
+        "text": "Design system",
+        "tag": "b",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "uses",
+        "text": "Uses …",
+        "tag": "q",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "update-5-canvases",
+        "text": "Update 5 canvases",
+        "tag": "q",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "exported-114-of",
+        "text": "Exported 114 of 115",
+        "tag": "q",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "rgb-the-print",
+        "text": "RGB — the print shop converts to CMYK",
+        "tag": "q",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "in",
+        "text": "in",
+        "tag": "i",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "waiting-for-jonas",
+        "text": "Waiting for Jonas's Mac",
+        "tag": "q",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "missing",
+        "text": "Missing",
+        "tag": "b",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "what-shall-we",
+        "text": "What shall we make?",
+        "tag": "q",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "move-pricing-to",
+        "text": "Move “Pricing” to the trash?",
+        "tag": "q",
+        "locked": false,
+        "artboard": null
+      }
+    ]
+  }
+}

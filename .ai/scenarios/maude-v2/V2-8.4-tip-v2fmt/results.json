@@ -1,0 +1,415 @@
+{
+  "browser": {
+    "steps": [
+      {
+        "gaps": [],
+        "id": "open-project",
+        "title": "Open the project",
+        "status": "pass",
+        "notes": [
+          "table shell browser: 14 chrome testids present, 0 stray",
+          "status word: \"Local project\""
+        ],
+        "data": {
+          "chrome": 14,
+          "status": "Local project"
+        },
+        "shot": "shots/browser-01-open-project.png",
+        "extra": [
+          "shots/browser-01-open-project-menu.png"
+        ],
+        "error": null
+      },
+      {
+        "gaps": [],
+        "id": "open-canvas",
+        "title": "Open a canvas",
+        "status": "pass",
+        "notes": [
+          "rendered in localhost:51328"
+        ],
+        "data": {
+          "frameHost": "localhost:51328"
+        },
+        "shot": "shots/browser-02-open-canvas.png",
+        "extra": [],
+        "error": null
+      },
+      {
+        "gaps": [],
+        "id": "select-inspect",
+        "title": "Select an element and inspect it",
+        "status": "pass",
+        "notes": [
+          "inspector: \"Card Frame esc Frame Frame Uses smoke Position X · Y X Y Rotation It sits where its frame’s layout puts it. Pl\"",
+          "14 editable input(s) in the Inspector (table readOnly=false)"
+        ],
+        "data": {
+          "editableInputs": 14,
+          "readOnly": false,
+          "header": "Card Frame esc Frame Frame Uses smoke Position X · Y X Y Rot"
+        },
+        "shot": "shots/browser-03-select-inspect.png",
+        "extra": [],
+        "error": null
+      },
+      {
+        "gaps": [],
+        "id": "comment",
+        "title": "Leave a comment",
+        "status": "pass",
+        "notes": [
+          "the Comments panel holds the comment: true (1 comment(s) listed — a cell shows every shell's)",
+          "share-cluster-comments button drawn: true"
+        ],
+        "data": {
+          "saved": true
+        },
+        "shot": "shots/browser-04-comment.png",
+        "extra": [
+          "shots/browser-04-comment-composer.png"
+        ],
+        "error": null
+      },
+      {
+        "gaps": [],
+        "id": "export-png",
+        "title": "Export a PNG",
+        "status": "pass",
+        "notes": [
+          "sheet: \"Export “Card”\" · scope selection",
+          "server job done: \"board — Card@1x.png PNG · On this Mac · just now Ready\"",
+          "downloaded board Card@1x.png — PNG signature ok"
+        ],
+        "data": {
+          "lane": "server-job",
+          "title": "Export “Card”",
+          "png": {
+            "file": "shots/browser-export.png",
+            "signature": "89504e470d0a1a0a",
+            "ok": true
+          }
+        },
+        "shot": "shots/browser-05-export-png.png",
+        "extra": [
+          "shots/browser-05-export-png-sheet.png",
+          "shots/browser-05-export-png-job.png"
+        ],
+        "error": null
+      },
+      {
+        "gaps": [],
+        "id": "share",
+        "title": "Share sheet",
+        "status": "pass",
+        "notes": [
+          "share sheet (local project: no invite): \"Share board Local project — kept on this Mac. Invite people once it is in the cloud. Advanced Links, link rules, sync\""
+        ],
+        "data": {
+          "local": true,
+          "hasInvite": false
+        },
+        "shot": "shots/browser-06-share.png",
+        "extra": [],
+        "error": null
+      }
+    ],
+    "errors": [
+      "console: Unrecognized Content-Security-Policy directive 'webrtc'.",
+      "console: Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "console: Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 409 (Conflict)"
+    ]
+  },
+  "owner": {
+    "steps": [
+      {
+        "gaps": [],
+        "id": "open-project",
+        "title": "Open the project",
+        "status": "pass",
+        "notes": [
+          "table shell cloud-owner: 14 chrome testids present, 0 stray",
+          "status word: \"Saved\""
+        ],
+        "data": {
+          "chrome": 14,
+          "status": "Saved"
+        },
+        "shot": "shots/owner-01-open-project.png",
+        "extra": [
+          "shots/owner-01-open-project-menu.png"
+        ],
+        "error": null
+      },
+      {
+        "gaps": [],
+        "id": "open-canvas",
+        "title": "Open a canvas",
+        "status": "pass",
+        "notes": [
+          "rendered in canvas.cell.localhost:4881"
+        ],
+        "data": {
+          "frameHost": "canvas.cell.localhost:4881"
+        },
+        "shot": "shots/owner-02-open-canvas.png",
+        "extra": [],
+        "error": null
+      },
+      {
+        "gaps": [],
+        "id": "select-inspect",
+        "title": "Select an element and inspect it",
+        "status": "pass",
+        "notes": [
+          "inspector: \"Card Frame esc Frame Frame Uses smoke Position X · Y X Y Rotation It sits where its frame’s layout puts it. Pl\"",
+          "14 editable input(s) in the Inspector (table readOnly=false)"
+        ],
+        "data": {
+          "editableInputs": 14,
+          "readOnly": false,
+          "header": "Card Frame esc Frame Frame Uses smoke Position X · Y X Y Rot"
+        },
+        "shot": "shots/owner-03-select-inspect.png",
+        "extra": [],
+        "error": null
+      },
+      {
+        "gaps": [],
+        "id": "comment",
+        "title": "Leave a comment",
+        "status": "pass",
+        "notes": [
+          "the Comments panel holds the comment: true (1 comment(s) listed — a cell shows every shell's)",
+          "share-cluster-comments button drawn: true"
+        ],
+        "data": {
+          "saved": true
+        },
+        "shot": "shots/owner-04-comment.png",
+        "extra": [
+          "shots/owner-04-comment-composer.png"
+        ],
+        "error": null
+      },
+      {
+        "gaps": [],
+        "id": "export-png",
+        "title": "Export a PNG",
+        "status": "pass",
+        "notes": [
+          "sheet: \"Export “Card”\" · scope selection",
+          "browser lane: \"Capturing…\"",
+          "downloaded card.png — PNG signature ok"
+        ],
+        "data": {
+          "lane": "browser",
+          "title": "Export “Card”",
+          "png": {
+            "file": "shots/owner-export.png",
+            "signature": "89504e470d0a1a0a",
+            "ok": true
+          }
+        },
+        "shot": "shots/owner-05-export-png.png",
+        "extra": [
+          "shots/owner-05-export-png-sheet.png",
+          "shots/owner-05-export-png-saved.png"
+        ],
+        "error": null
+      },
+      {
+        "gaps": [],
+        "id": "share",
+        "title": "Share sheet",
+        "status": "pass",
+        "notes": [
+          "share sheet (invite + people): \"Share board local-cell-smoke · syncs to the studio’s own hub Can edit Invite 1 person Y you you@local.test Owner Advanced Other ways in, sync, roles\"",
+          "invited from the tab — people list: \"1 person · 1 invited Y you you@local.test Owner I invitee@local.test Invited just now · expires in 7 days Resend Can edit\""
+        ],
+        "data": {
+          "local": false,
+          "hasInvite": true,
+          "invited": true
+        },
+        "shot": "shots/owner-06-share.png",
+        "extra": [
+          "shots/owner-06-share-invited.png"
+        ],
+        "error": null
+      }
+    ],
+    "errors": [
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Unrecognized Content-Security-Policy directive 'webrtc'.",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
+  },
+  "viewer": {
+    "steps": [
+      {
+        "gaps": [],
+        "id": "open-project",
+        "title": "Open the project",
+        "status": "pass",
+        "notes": [
+          "table shell cloud-viewer: 14 chrome testids present, 0 stray",
+          "status word: \"Can comment\""
+        ],
+        "data": {
+          "chrome": 14,
+          "status": "Can comment"
+        },
+        "shot": "shots/viewer-01-open-project.png",
+        "extra": [
+          "shots/viewer-01-open-project-menu.png"
+        ],
+        "error": null
+      },
+      {
+        "gaps": [],
+        "id": "open-canvas",
+        "title": "Open a canvas",
+        "status": "pass",
+        "notes": [
+          "rendered in canvas.cell.localhost:4881"
+        ],
+        "data": {
+          "frameHost": "canvas.cell.localhost:4881"
+        },
+        "shot": "shots/viewer-02-open-canvas.png",
+        "extra": [],
+        "error": null
+      },
+      {
+        "gaps": [],
+        "id": "select-inspect",
+        "title": "Select an element and inspect it",
+        "status": "pass",
+        "notes": [
+          "inspector: \"Card Frame Cross-shell card esc Cross-shell card Text Uses smoke Type Style Aa No style Font Inherited Size · \"",
+          "0 editable input(s) in the Inspector (table readOnly=true)"
+        ],
+        "data": {
+          "editableInputs": 0,
+          "readOnly": true,
+          "header": "Card Frame Cross-shell card esc Cross-shell card Text Uses s"
+        },
+        "shot": "shots/viewer-03-select-inspect.png",
+        "extra": [],
+        "error": null
+      },
+      {
+        "gaps": [],
+        "id": "comment",
+        "title": "Leave a comment",
+        "status": "pass",
+        "notes": [
+          "the Comments panel holds the comment: true (2 comment(s) listed — a cell shows every shell's)",
+          "share-cluster-comments button drawn: true"
+        ],
+        "data": {
+          "saved": true
+        },
+        "shot": "shots/viewer-04-comment.png",
+        "extra": [
+          "shots/viewer-04-comment-composer.png"
+        ],
+        "error": null
+      },
+      {
+        "gaps": [],
+        "id": "export-png",
+        "title": "Export a PNG",
+        "status": "pass",
+        "notes": [
+          "sheet: \"Export “Cross-shell card One canvas, three shel…”\" · scope selection",
+          "browser lane: \"Capturing…\"",
+          "downloaded card.png — PNG signature ok"
+        ],
+        "data": {
+          "lane": "browser",
+          "title": "Export “Cross-shell card One canvas, three shel…”",
+          "png": {
+            "file": "shots/viewer-export.png",
+            "signature": "89504e470d0a1a0a",
+            "ok": true
+          }
+        },
+        "shot": "shots/viewer-05-export-png.png",
+        "extra": [
+          "shots/viewer-05-export-png-sheet.png",
+          "shots/viewer-05-export-png-saved.png"
+        ],
+        "error": null
+      },
+      {
+        "gaps": [],
+        "id": "share",
+        "title": "Share sheet",
+        "status": "pass",
+        "notes": [
+          "Ask to edit answered: [\"Asked. The owner will see your request.\"]"
+        ],
+        "data": {
+          "surface": "ask-to-edit",
+          "said": [
+            "Asked. The owner will see your request."
+          ],
+          "sent": true
+        },
+        "shot": "shots/viewer-06-share.png",
+        "extra": [
+          "shots/viewer-06-share-asked.png"
+        ],
+        "error": null
+      }
+    ],
+    "errors": [
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Unrecognized Content-Security-Policy directive 'webrtc'.",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "console: Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
+  }
+}

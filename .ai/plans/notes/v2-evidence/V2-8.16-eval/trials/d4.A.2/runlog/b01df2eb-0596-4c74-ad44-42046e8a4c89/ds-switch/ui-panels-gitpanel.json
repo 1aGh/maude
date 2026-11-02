@@ -1,0 +1,35 @@
+{
+  "canvas": "ui/panels/GitPanel.tsx",
+  "from": "maude",
+  "to": "maude-v2",
+  "meta": { "designSystem": "maude-v2" },
+  "edits": [
+    {
+      "old": "import \"../../system/maude/colors_and_type.css\";",
+      "new": "import \"../../system/maude-v2/colors_and_type.css\";",
+      "why": "Load the maude-v2 tokens instead of maude's."
+    },
+    {
+      "old": "import \"../../system/maude/preview/_components.css\";",
+      "new": "import \"../../system/maude-v2/preview/_components.css\";",
+      "why": "Load the maude-v2 component classes instead of maude's."
+    },
+    {
+      "old": "return <div className=\"maude\" data-theme=\"dark\" style={{ position: \"absolute\", inset: 0 }}>{children}</div>;",
+      "new": "return <div className=\"ds\" data-theme=\"dark\" style={{ position: \"absolute\", inset: 0 }}>{children}</div>;",
+      "why": "maude-v2 sets its tokens on .maude-v2 / .ds, not .maude. Without this the artboards render with no tokens. .ds is the neutral wrapper ds-check asks for (S6), so the next switch needs no wrapper edit."
+    },
+    {
+      "old": "/* The Maude mark — spark-on-bubble (the brand source is system/maude/preview/logo). */",
+      "new": "/* The Maude mark — spark-on-bubble (the brand source is system/maude-v2/preview/logo). */",
+      "why": "Point the comment at the new system's logo specimen."
+    }
+  ],
+  "notes": [
+    "Token names used by GitPanel.css (--canvas-bg/-dot/-grid, --accent-muted, --accent-tint) all exist in maude-v2 as aliases, so nothing else breaks.",
+    "What will look different: the accent moves from indigo (hue 268) to azure (hue 238), and accent-soft/selection become translucent tints instead of solid colours. Selected rows, chips and focus rings change colour on all 5 artboards.",
+    "Left as it is: line 170, the mock file row \"system/maude/preview/components-cards.tsx\". It is sample data in the change list, not an import.",
+    "GitPanel.css line 3 still says \"token from system/maude/colors_and_type.css\" in a comment. Update it when you apply the switch if you want; it has no effect.",
+    "ds-check also reports literal font sizes/weights and spacing (S3/S4) in GitPanel.css. Those don't block the switch and aren't part of it."
+  ]
+}

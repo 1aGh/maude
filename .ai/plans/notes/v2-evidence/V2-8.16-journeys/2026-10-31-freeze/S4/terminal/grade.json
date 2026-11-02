@@ -1,0 +1,42 @@
+{
+  "journey": "S4",
+  "lane": "terminal",
+  "pass": true,
+  "harnessFailure": false,
+  "infra": null,
+  "turns": [
+    {
+      "turn": 1,
+      "code": 0,
+      "ok": true,
+      "costUsd": 1.0626178,
+      "numTurns": 17
+    }
+  ],
+  "results": [
+    {
+      "id": "sticky-resolved",
+      "grader": "sticky",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "sticker",
+      "grader": "sticker",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "through-the-verb",
+      "grader": "no-tool",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "canvas-untouched",
+      "grader": "untouched",
+      "pass": true,
+      "why": ""
+    }
+  ]
+}

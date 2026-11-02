@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-github-create"
+description = "Enables the github_create command without any pre-configured scope."
+commands.allow = ["github_create"]
+
+[[permission]]
+identifier = "deny-github-create"
+description = "Denies the github_create command without any pre-configured scope."
+commands.deny = ["github_create"]

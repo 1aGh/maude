@@ -25,11 +25,10 @@
 // matched project — never to an address read from repo-committed state.
 
 import { existsSync, readFileSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { join } from 'node:path';
-
+import { FLOOR_ROLE } from '../access/roles.ts';
 import { saveHubCredential } from '../sync/hub-link.ts';
-import { getHubRecord, normalizeUrl } from '../sync/hubs-config.ts';
+import { getHubRecord, isEditRole, normalizeUrl } from '../sync/hubs-config.ts';
+import { boundCloudToken, cloudConfigPath } from './config-path.ts';
 
 export interface RenewedCredential {
   token: string;
@@ -54,17 +53,13 @@ function cloudUrl(): string {
   return (process.env.MAUDE_CLOUD_URL ?? 'https://cloud.maude.sh').replace(/\/+$/, '');
 }
 
-function cloudConfigPath(): string {
-  return process.env.MAUDE_CLOUD_CONFIG ?? join(homedir(), '.config', 'maude', 'cloud.json');
-}
-
 /** The account credential, or null when this machine is signed out. */
 function readAccountToken(): string | null {
   const p = cloudConfigPath();
   if (!existsSync(p)) return null;
   try {
-    const parsed = JSON.parse(readFileSync(p, 'utf8'));
-    return parsed && typeof parsed.token === 'string' && parsed.token ? parsed.token : null;
+    // W4: only for the control plane that issued it.
+    return boundCloudToken(JSON.parse(readFileSync(p, 'utf8')), cloudUrl());
   } catch {
     return null;
   }
@@ -131,8 +126,14 @@ export async function renewHubCredential(
     }
   }) as { id?: unknown; role?: unknown } | undefined;
   // A viewer's Connect is a different lane (share-view); renewing an editor
-  // credential for one would mint capability the panel never offered.
-  if (!match || typeof match.id !== 'string' || match.role === 'viewer') {
+  // credential for one would mint capability the panel never offered. Fail closed: any role a
+  // hub names that is not an editing role (observer, guest, a new one) is treated like a viewer
+  // — the `=== 'viewer'` comparison failed open (V2-4 gate, V2-1.7 R1). No role = an older hub.
+  if (
+    !match ||
+    typeof match.id !== 'string' ||
+    (match.role !== undefined && !isEditRole(match.role))
+  ) {
     return { ok: false, reason: 'no-matching-project' };
   }
 
@@ -170,11 +171,23 @@ export async function renewHubCredential(
   // over the stored one — this is the one moment the code learns the current
   // role, and carrying the stale value forward would discard exactly that.
   // Fall back to the prior role only when the cell didn't say (older cell).
-  const freshRoleRaw = (cellLogin.body.user as { role?: unknown } | undefined)?.role;
-  const freshRole = typeof freshRoleRaw === 'string' && freshRoleRaw ? freshRoleRaw : undefined;
-  const role = freshRole ?? getHubRecord(norm)?.role;
+  //
+  // D3 (S9.2): NEVER store an undefined role — a record without one reads as
+  // writable (`isHubReadOnly`). Then the control plane's listed role, and with
+  // nobody naming one, the floor (`observer`, read-only), stated explicitly.
+  const named = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
+  const freshRole = named((cellLogin.body.user as { role?: unknown } | undefined)?.role);
+  const role = freshRole ?? named(getHubRecord(norm)?.role) ?? named(match.role) ?? FLOOR_ROLE;
   try {
-    saveHubCredential(norm, cellLogin.body.token, role, expiresAt ?? undefined);
+    // the same person, renewed: the account they signed in as stays on the credential
+    saveHubCredential(
+      norm,
+      cellLogin.body.token,
+      role,
+      expiresAt ?? undefined,
+      undefined,
+      getHubRecord(norm)?.account
+    );
   } catch {
     return { ok: false, reason: 'save-failed' };
   }

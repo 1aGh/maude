@@ -58,7 +58,9 @@ test('soft HMR announces only committed replacement DOM so the shell can refresh
       errors.mockRestore();
     }
     expect(host.querySelector('h1')?.getAttribute('title')).toBe('original');
-    expect(host.querySelector('.dc-hmr-holding')).not.toBeNull();
+    // S6.12: a render error is the shell card's to say (render-error dgn); the amber toast is for a live run
+    // (test/render-signal.test.tsx) and for the build-error path.
+    expect(host.querySelector('.dc-hmr-holding')).toBeNull();
     expect(announcements).toEqual([]);
 
     await act(async () => runtime.remount(repaired));

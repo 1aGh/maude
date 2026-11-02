@@ -19,7 +19,8 @@
 // for both surfaces. A separate browser session type would be a second place
 // for the role model to drift, which is exactly what Track C exists to stop.
 
-import { authenticateForMode } from './cloud-identity.mjs';
+import { ACCESS_VERSION, peerTokenDoor } from '../../studio/access/scope.ts';
+import { authenticateForMode, claimOf, peerSessionFields } from './cloud-identity.mjs';
 import {
   authorizeUrl,
   createTransaction,
@@ -34,7 +35,6 @@ import {
 } from './oidc-routes.mjs';
 import { takeReturnTo } from './return-to.mjs';
 import { isRevoked } from './revocations.mjs';
-import { isReadOnlyRole, projectRoleForAccount } from './role-matrix.mjs';
 import { escapeHtml, oidcButton, servicePage } from './studio-door.mjs';
 import { addToken, removeToken, verifyToken } from './tokens.mjs';
 import { authenticate as localAuthenticate } from './users.mjs';
@@ -148,6 +148,19 @@ export function formOriginAllowed(request, publicUrl) {
     .trim()
     .toLowerCase();
   return Boolean(host) && parsed.host.toLowerCase() === host;
+}
+
+/**
+ * The mint door for a LOCAL account signing in on the browser lane (S9.6b):
+ * the account's `access` claim when it has one, else its account role
+ * translated (`claimOf` → `legacyClaim`) — byte-identical to 1.9.1 for every
+ * account without one. The browser lane understands v2 and admits an observer.
+ */
+function browserLaneDoor(user) {
+  return peerTokenDoor(claimOf({ user, ...(user?.access ? { access: user.access } : {}) }), {
+    declaredAccess: ACCESS_VERSION,
+    browserLane: true,
+  });
 }
 
 /** The short-lived transaction cookie for an OIDC sign-in in flight. */
@@ -292,14 +305,19 @@ export async function handleOidc({
     const outcome = resolveSubject(dataDir, verified, cfg);
     if (outcome.action === 'sign-in') {
       const ttlMs = STUDIO_SESSION_TTL_MS;
-      const projectRole = projectRoleForAccount(outcome.user.role);
+      // THROUGH THE MINT DOOR (S9.6b), not from the account role: a canvas-only
+      // account's `access` claim is what the session carries.
+      const door = browserLaneDoor(outcome.user);
+      if (door.outcome !== 'mint') {
+        clearTxnCookie(response);
+        page(response, 403, 'You do not have access', 'This account cannot sign in.');
+        return true;
+      }
       const minted = addToken(dataDir, {
         label: `studio-${Math.random().toString(36).slice(2, 10)}`,
-        scope: outcome.user.scope ?? '*',
         owner: outcome.user.email,
         expiresAt: Date.now() + ttlMs,
-        role: projectRole,
-        readOnly: isReadOnlyRole(projectRole),
+        ...peerSessionFields(door, { scope: outcome.user.scope ?? '*' }),
       });
       clearTxnCookie(response, [
         `${BROWSER_SESSION_COOKIE}=${encodeURIComponent(minted.value)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${Math.floor(ttlMs / 1000)}`,
@@ -425,18 +443,23 @@ export async function handleBrowserAuth({
       // unknown role, gets nothing, and reads as read-only: the owner opens
       // his own project and cannot edit it. Same fix as `/auth/login`; this
       // door was missed the first time.
-      const projectRole = projectRoleForAccount(user.role);
+      //
+      // S9.6b: through the mint door (browser lane), so a canvas-only account's
+      // `access` claim — not its account role — is what the session carries.
+      const door = browserLaneDoor(user);
+      if (door.outcome !== 'mint') {
+        respondHtml(response, 401, signInPage('That email and password did not match.'));
+        return true;
+      }
       const minted = addToken(dataDir, {
         label: `studio-${Math.random().toString(36).slice(2, 10)}`,
-        scope: user.scope ?? '*',
         owner: user.email,
         expiresAt: Date.now() + ttlMs,
         // The ROLE is what the session carries; `readOnly` is stored alongside
         // it only because every other token type has the column. The cell
         // re-derives the capability from the role on every request, so a role
         // that changes reaches a live session instead of waiting out its TTL.
-        role: projectRole,
-        readOnly: isReadOnlyRole(projectRole),
+        ...peerSessionFields(door, { scope: user.scope ?? '*' }),
       });
       setSessionCookie(response, minted.value, ttlMs / 1000);
       // THE STUDIO IS `/`. It used to be `/studio`, a page this hub rendered
@@ -483,7 +506,9 @@ export async function handleBrowserAuth({
   try {
     const res = await fetchImpl(`${controlPlane}/auth/handoff/exchange`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      // This cell understands v2 claims (V2-1.7 §5.4): it is the browser door
+      // an observer is sent to, so it must be able to receive one.
+      headers: { 'content-type': 'application/json', 'x-maude-access': String(ACCESS_VERSION) },
       body: JSON.stringify({ code }),
       signal: AbortSignal.timeout(15_000),
     });
@@ -523,15 +548,22 @@ export async function handleBrowserAuth({
     ) - Date.now()
   );
   // The role the control plane vouched for, in the PROJECT vocabulary — the
-  // same translation /auth/login makes (C1).
-  const projectRole = projectRoleForAccount(user.role);
+  // same translation and the same mint door /auth/login uses (C1, V2-1.7
+  // §5.4). This IS the browser door, so an observer mints here (no 409), and
+  // the cell itself always understands a v2 claim.
+  const door = peerTokenDoor(claimOf(result), {
+    declaredAccess: ACCESS_VERSION,
+    browserLane: true,
+  });
+  if (door.outcome !== 'mint') {
+    page(response, 403, 'You do not have access', 'Ask whoever runs this project to invite you.');
+    return true;
+  }
   const minted = addToken(dataDir, {
     label: `studio-${Math.random().toString(36).slice(2, 10)}`,
-    scope: user.scope ?? '*',
     owner: user.email,
     expiresAt: Date.now() + ttlMs,
-    role: projectRole,
-    readOnly: isReadOnlyRole(projectRole),
+    ...peerSessionFields(door, { scope: user.scope ?? '*' }),
   });
   setSessionCookie(response, minted.value, ttlMs / 1000);
   redirect(response, takeReturnTo(request, response));

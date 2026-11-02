@@ -235,3 +235,127 @@ test('the bulk-deletes consent records, and survives a token re-save', () => {
     assert.equal(setHubUnlimitedDeletes('https://nope.example.com', true), false);
   });
 });
+
+// V2-3.4 (old T9) — profile parity. A project tab's server reads hubs.json through
+// apps/studio/sync/hubs-config.ts; `maude design link` (run from that tab's AI session, which
+// inherits the tab's env) writes it through this module. Both must resolve
+// `HUBS_CONFIG_PATH` / `XDG_CONFIG_HOME` / home the same way, or a link lands in a profile the
+// server never reads. The matrix pins the expected paths, and (where this Node strips types)
+// asserts the TS resolver agrees case by case; apps/studio/test/sync-hubs-config-parity.test.ts
+// runs the same comparison under bun on every CI run.
+const HOME = '/tmp/maude-home-fixture';
+const HUBS_PATH_MATRIX = [
+  { name: 'env unset', env: {}, want: `${HOME}/.config/maude/hubs.json` },
+  { name: 'XDG_CONFIG_HOME', env: { XDG_CONFIG_HOME: '/x/cfg' }, want: '/x/cfg/maude/hubs.json' },
+  {
+    name: 'empty XDG_CONFIG_HOME',
+    env: { XDG_CONFIG_HOME: '' },
+    want: `${HOME}/.config/maude/hubs.json`,
+  },
+  { name: 'HUBS_CONFIG_PATH', env: { HUBS_CONFIG_PATH: '/p/b/hubs.json' }, want: '/p/b/hubs.json' },
+  {
+    name: 'empty HUBS_CONFIG_PATH',
+    env: { HUBS_CONFIG_PATH: '' },
+    want: `${HOME}/.config/maude/hubs.json`,
+  },
+  {
+    name: 'both (HUBS_CONFIG_PATH wins)',
+    env: { HUBS_CONFIG_PATH: '/p/b/hubs.json', XDG_CONFIG_HOME: '/x/cfg' },
+    want: '/p/b/hubs.json',
+  },
+  // V2-8.9 M2 — an AI session has the profile id but no HUBS_CONFIG_PATH (acp/env.ts scrubs it).
+  {
+    name: 'MAUDE_PROFILE_ID only',
+    env: { MAUDE_PROFILE_ID: 'work' },
+    want: `${HOME}/.config/maude/profiles/work/hubs.json`,
+  },
+  {
+    name: 'MAUDE_PROFILE_ID + XDG_CONFIG_HOME',
+    env: { MAUDE_PROFILE_ID: 'work', XDG_CONFIG_HOME: '/x/cfg' },
+    want: '/x/cfg/maude/profiles/work/hubs.json',
+  },
+  {
+    name: 'MAUDE_PROFILE_ID default',
+    env: { MAUDE_PROFILE_ID: 'default' },
+    want: `${HOME}/.config/maude/hubs.json`,
+  },
+  {
+    name: 'MAUDE_PROFILE_ID not an id',
+    env: { MAUDE_PROFILE_ID: '../x' },
+    want: `${HOME}/.config/maude/hubs.json`,
+  },
+  {
+    name: 'HUBS_CONFIG_PATH wins over MAUDE_PROFILE_ID',
+    env: { MAUDE_PROFILE_ID: 'work', HUBS_CONFIG_PATH: '/p/b/hubs.json' },
+    want: '/p/b/hubs.json',
+  },
+];
+
+function withEnv(env, fn) {
+  const keys = ['HOME', 'HUBS_CONFIG_PATH', 'XDG_CONFIG_HOME', 'MAUDE_PROFILE_ID'];
+  const prior = Object.fromEntries(keys.map((k) => [k, process.env[k]]));
+  try {
+    for (const k of keys) delete process.env[k];
+    process.env.HOME = HOME;
+    for (const [k, v] of Object.entries(env)) process.env[k] = v;
+    return fn();
+  } finally {
+    for (const k of keys) {
+      if (prior[k] === undefined) delete process.env[k];
+      else process.env[k] = prior[k];
+    }
+  }
+}
+
+test('hubsConfigPath: the profile env matrix resolves to the pinned paths', () => {
+  for (const c of HUBS_PATH_MATRIX) {
+    assert.equal(
+      withEnv(c.env, () => hubsConfigPath()),
+      c.want,
+      c.name
+    );
+  }
+});
+
+test('hubsConfigPath agrees with the studio server resolver (sync/hubs-config.ts)', async (t) => {
+  if (!process.features?.typescript) {
+    t.skip('this Node does not strip types; the bun parity test covers it');
+    return;
+  }
+  const ts = await import('../../apps/studio/sync/hubs-config.ts');
+  for (const c of HUBS_PATH_MATRIX) {
+    assert.equal(
+      withEnv(c.env, () => ts.hubsConfigPath()),
+      withEnv(c.env, () => hubsConfigPath()),
+      c.name
+    );
+  }
+});
+
+// V2-5 A4 (S9.9) — `access` is the hub's real claim, cached at sign-in by the studio's
+// saveHubCredential. A relink from the CLI has no fresher answer, so it carries the claim across the
+// way it carries `role` — dropping it would fall a canvas-grant session back to the v1 projection.
+test('addHub keeps the cached access claim across a relink', () => {
+  withTmpConfig(() => {
+    const access = { role: 'commenter', grants: [{ canvas: 'ui/a.tsx', role: 'editor' }] };
+    saveHubsConfig({
+      hubs: { 'https://h.example': { token: 'mau_old', linkedAt: 1, role: 'viewer', access } },
+    });
+    const rec = addHub('https://h.example', 'mau_new');
+    assert.deepEqual(rec.access, access);
+    assert.equal(rec.role, 'viewer');
+    assert.deepEqual(loadHubsConfig().hubs['https://h.example'].access, access);
+    // …and a fresher one (the sign-in path's `extra`) still wins.
+    const fresh = { role: 'editor' };
+    assert.deepEqual(addHub('https://h.example', 'mau_new', { access: fresh }).access, fresh);
+  });
+});
+
+test('addHub drops a malformed cached access value', () => {
+  withTmpConfig(() => {
+    saveHubsConfig({
+      hubs: { 'https://h.example': { token: 'mau_old', linkedAt: 1, access: 'x' } },
+    });
+    assert.equal('access' in addHub('https://h.example', 'mau_new'), false);
+  });
+});

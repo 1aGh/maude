@@ -43,7 +43,14 @@ export function classifyHelpers(binDir) {
 // the packaging build (`missing serif (design helper)`, 2026-08-12). Not an AST
 // walk (see the note on collectImports), just the cheap 90 % of it.
 function stripComments(text) {
-  return text.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+  return (
+    text
+      .replace(/\/\*[\s\S]*?\*\//g, ' ')
+      .replace(/(^|[^:])\/\/[^\n]*/g, '$1')
+      // A template literal is text a helper GENERATES (canvas-edit.ts writes a reel's
+      // `import … from '@remotion/media'` into a new canvas), never an import it loads.
+      .replace(/`(?:\\[\s\S]|[^`\\])*`/g, '``')
+  );
 }
 
 // Match import/export…from, bare import, and static/dynamic require/import().
@@ -104,6 +111,14 @@ export function collectImports(entryFile) {
       // alternative can otherwise span statements and capture junk.
       if (!spec || /[\s,]/.test(spec) || spec.startsWith('node:') || spec.startsWith('bun:'))
         continue;
+      // An interpolated specifier is code the helper GENERATES (clip-ops.ts writes
+      // `from '${specifier}'` into a canvas), never a package the helper itself loads.
+      if (spec.includes('${')) continue;
+      // A backslash never appears in a module specifier: it is a regex literal that quotes one
+      // (ds-resolver.ts's `/from\s*["']@maude\/ds["']/`), never an import.
+      if (spec.includes('\\')) continue;
+      // `import type … from 'x'` is erased at build time — nothing loads `x` at runtime.
+      if (/^(?:import|export)\s+type\b/.test(m[0])) continue;
       // `@maude/*` is never an npm package here: `@maude/canvas-lib` is the
       // dev-server's VIRTUAL specifier (canvas-build resolves it to
       // apps/studio/canvas-lib.tsx — DDR-025), and it reaches this scrape only
@@ -116,6 +131,9 @@ export function collectImports(entryFile) {
         if (local) stack.push(local);
         continue;
       }
+      // A bare specifier must be a valid npm name: the lazy `from` alternative can match string
+      // text (sync/doc-name.ts's "…could not be read from ' +" message once read as package `+`).
+      if (!/^(?:@[a-z0-9~][a-z0-9._~-]*\/)?[a-z0-9~][a-z0-9._~-]*(?:\/.*)?$/i.test(spec)) continue;
       bare.add(pkgName(spec));
     }
   }
@@ -135,4 +153,59 @@ export function standaloneHelperNpmDeps(binDir) {
     for (const d of collectImports(entryFile)) deps.add(d);
   }
   return [...deps].sort();
+}
+
+const SHIM_RE = /exportShimPath\(\s*['"]([^'"\s]+)['"]\s*\)/g;
+const SKIP_DIRS = new Set(['node_modules', 'test', 'dist', 'client', '.git']);
+
+/**
+ * Every render shim the SERVER spawns itself — `exportShimPath('<basename>')` in
+ * `apps/studio/**.ts` (the exporters, the thumbnail renderer `_thumbs-playwright.mjs`).
+ * They are not `maude design` helpers, so `classifyHelpers` never sees them; a shim
+ * that is not staged in `<studio>/bin` (or lacks its npm closure) fails only in the
+ * packaged app — exports error, Home covers stay grey. `studioDir` = `<studio>`.
+ */
+export function serverRenderShims(studioDir) {
+  const found = new Set();
+  const walk = (dir) => {
+    let names = [];
+    try {
+      names = readdirSync(dir);
+    } catch {
+      return;
+    }
+    for (const n of names) {
+      if (SKIP_DIRS.has(n)) continue;
+      const abs = join(dir, n);
+      let st;
+      try {
+        st = statSync(abs);
+      } catch {
+        continue;
+      }
+      if (st.isDirectory()) walk(abs);
+      else if (/\.tsx?$/.test(n) && !/\.test\.tsx?$/.test(n))
+        for (const m of stripComments(readFileSync(abs, 'utf8')).matchAll(SHIM_RE)) found.add(m[1]);
+    }
+  };
+  walk(studioDir);
+  return [...found].sort();
+}
+
+/** The server's render shims that are not staged (`missing: ['file']`) or whose npm
+ *  closure is not under `<studio>/node_modules` (`missing: [<pkg>…]`). Empty = complete. */
+export function renderShimGaps(studioDir) {
+  const gaps = [];
+  for (const shim of serverRenderShims(studioDir)) {
+    const entry = join(studioDir, 'bin', shim);
+    if (!existsSync(entry)) {
+      gaps.push({ shim, missing: ['file'] });
+      continue;
+    }
+    const missing = collectImports(entry).filter(
+      (d) => !existsSync(join(studioDir, 'node_modules', d))
+    );
+    if (missing.length) gaps.push({ shim, missing });
+  }
+  return gaps;
 }

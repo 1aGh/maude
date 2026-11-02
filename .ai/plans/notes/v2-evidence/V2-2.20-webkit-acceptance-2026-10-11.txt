@@ -1,0 +1,81 @@
+V2-2.20 — WebKit acceptance, pinned vs full-width canvas iframe · 2026-10-11
+
+Done when (plan row V2-2.20): `maude design perf --engine safari --studio` with the pinned full-size
+iframe: zoom p95 and long frames within the today-size spread (V2-1.8 §6 method, ≥ 5 passes,
+Retina 2×); both sizes show the SAME boards on screen (the harness records the count, refuses 0,
+and refuses an occluded page).
+
+Conditions: Safari 26.5 via safaridriver, MacBook built-in Liquid Retina 2560×1664 (2×), AC power
+(100 %, charged), screen unlocked (lock samples 0 at start and end of each batch), caffeinate -d,
+window 1600×948, Combine-kampan (21 artboards) fit-all, unlinked Alligators clone, the test lane
+held for the whole batch. Two subagents were reading code at the time (load avg 3–6); the variants
+are interleaved pass by pass, alternating which goes first, so load lands on both.
+
+Command (scratchpad/v220-accept.sh):
+  perf.sh --root <clone> --canvas ui/2026/combine/Combine-kampan.tsx --engine safari --studio \
+    --fit-all --repeat N --timeout 120 --window 1600x1000 --frame pinned --compare-frame full
+
+Harness fix found by this run (b0e94ed0): the occlusion guard read 40 Hz right after the iframe was
+resized pinned → full (the page re-rasters 21 boards at 2×), so a BUSY page was refused as hidden.
+The guard now reads up to 20 × 500 ms windows and refuses only when none reaches 50 Hz.
+
+Batch 1 (accept-0823, --repeat 5 → 4 kept passes per variant after the warm-up)
+  canvas: .design/ui/2026/combine/Combine-kampan.tsx (studio) {frame=pinned} [v220-accept]    engine: webkit-safari
+  zoom p95               1149ms   (no prior run)
+  long frames (≥50ms)    45   (no prior run)
+  boards on screen       21   (no prior run)
+  artboard renders       1848   (no prior run)
+  p95 spread across 4 kept passes: 199ms (zoom p95 227ms, long frames 3) — treat any delta smaller than this as noise.
+  canvas: .design/ui/2026/combine/Combine-kampan.tsx (studio) {frame=full} [v220-accept]    engine: webkit-safari
+  zoom p95               1221ms   (no prior run)
+  long frames (≥50ms)    45   (no prior run)
+  boards on screen       21   (no prior run)
+  artboard renders       1848   (no prior run)
+  p95 spread across 4 kept passes: 286ms (zoom p95 368ms, long frames 0) — treat any delta smaller than this as noise.
+  paired, full − pinned, per round over 4 rounds:
+    gesture p95 -15 (-78 … 168) ms · zoom p95 -8 (-156 … 214) ms · long frames 1 (-1 … 2)
+
+Batch 2 (accept-0830, --repeat 6 → 5 kept passes per variant) — the acceptance batch
+  canvas: .design/ui/2026/combine/Combine-kampan.tsx (studio) {frame=pinned} [v220-accept]    engine: webkit-safari
+  zoom p95               981ms   ▼ -168ms -14.6%  (was 1149ms)
+  long frames (≥50ms)    44   ▼ -1 -2.2%  (was 45)
+  boards on screen       21   = 0 0%  (was 21)
+  artboard renders       1806   ▼ -42 -2.3%  (was 1848)
+  p95 spread across 5 kept passes: 84ms (zoom p95 59ms, long frames 1) — treat any delta smaller than this as noise.
+  canvas: .design/ui/2026/combine/Combine-kampan.tsx (studio) {frame=full} [v220-accept]    engine: webkit-safari
+  zoom p95               978ms   ▼ -243ms -19.9%  (was 1221ms)
+  long frames (≥50ms)    44   ▼ -1 -2.2%  (was 45)
+  boards on screen       21   = 0 0%  (was 21)
+  artboard renders       1806   ▼ -42 -2.3%  (was 1848)
+  p95 spread across 5 kept passes: 109ms (zoom p95 142ms, long frames 2) — treat any delta smaller than this as noise.
+  paired, full − pinned, per round over 5 rounds:
+    gesture p95 12 (-73 … 88) ms · zoom p95 4 (-61 … 85) ms · long frames 1 (0 … 2)
+
+→ pass 1/6 [pinned]: 21 boards on screen, gesture p95 1004ms zoom p95 1053ms long 44 (warm-up, discarded)
+→ pass 1/6 [full]: 21 boards on screen, gesture p95 894ms zoom p95 905ms long 45 (warm-up, discarded)
+→ pass 2/6 [full]: 21 boards on screen, gesture p95 957ms zoom p95 978ms long 46
+→ pass 2/6 [pinned]: 21 boards on screen, gesture p95 869ms zoom p95 974ms long 44
+→ pass 3/6 [pinned]: 21 boards on screen, gesture p95 877ms zoom p95 961ms long 43
+→ pass 3/6 [full]: 21 boards on screen, gesture p95 889ms zoom p95 924ms long 44
+→ pass 4/6 [full]: 21 boards on screen, gesture p95 865ms zoom p95 1066ms long 44
+→ pass 4/6 [pinned]: 21 boards on screen, gesture p95 938ms zoom p95 981ms long 44
+→ pass 5/6 [pinned]: 21 boards on screen, gesture p95 953ms zoom p95 1008ms long 43
+→ pass 5/6 [full]: 21 boards on screen, gesture p95 974ms zoom p95 1059ms long 44
+→ pass 6/6 [full]: 21 boards on screen, gesture p95 898ms zoom p95 959ms long 44
+→ pass 6/6 [pinned]: 21 boards on screen, gesture p95 904ms zoom p95 1020ms long 44
+
+Verdict (batch 2): full vs pinned (today-size) — zoom p95 median 978 vs 981 ms (pinned spread 59 ms);
+long frames median 44 vs 44 (pinned range 1); paired per round full − pinned zoom p95 +4 ms
+(−61 … 85), long frames +1 (0 … 2). 21 boards on screen in every pass of both variants. Within the
+today-size spread → V2-2.20 passes; the full-width iframe may ship to WebKit (V2-4.1 gate).
+Batch 1 agrees (zoom p95 −8 ms, long frames +1; pinned spread 227 ms / 3).
+
+Not V2-2.20 scope (decision v2-2.20-fit-all-raster-cost, V2-8.8): the ABSOLUTE cost — ~1 s zoom
+frames and ~44 long frames at fit-all with 21 boards at 2× — is the same in both sizes, i.e. today's
+behaviour. New evidence for that finding: ~1800 DCArtboard renders per 100-frame gesture. Scout
+(code reading, not measured): the gesture is meant to be render-free, but frames > 220 ms end the
+interact burst on every wheel event (markInteracting's 220 ms timer, canvas-lib.tsx ~1210–1245),
+which flips isInteracting + publishes the viewport; the unmemoised controller object
+(useViewportController ~1716–1727) re-renders all 21 boards through ControllerContext. A symptom of
+the slow raster that also feeds it. Candidate fixes (not done): keep isInteracting out of React
+(ref + data attribute), memoise/split the controller context, adaptive debounce.

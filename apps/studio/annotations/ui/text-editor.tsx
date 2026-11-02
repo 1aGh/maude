@@ -266,6 +266,7 @@ export interface TextEditorProps {
   caretPoint: { x: number; y: number } | null;
   ariaLabel: string;
   onCommit: (info: CommitInfo) => void;
+  /** Kept for callers; Esc commits now (see `cancel` below), so the editor itself never calls it. */
   onCancel: () => void;
   /** Idle-typing draft hook (Task 19): the current text, list markers stripped. */
   onDraft?: (text: string) => void;
@@ -307,11 +308,12 @@ export function TextEditor(props: TextEditorProps) {
   ).current;
 
   const commit = useCallback((chain = false) => guard.fire(chain), [guard]);
+  // Esc leaves editing and KEEPS the words (S4.V4 G5): it flushes what is typed through the one
+  // commit path. It used to close the guard and drop the text typed since the last 600 ms draft, so
+  // a new sticky saved empty when Esc followed the last keystroke closely.
   const cancel = useCallback(() => {
-    if (guard.done) return;
-    guard.close();
-    propsRef.current.onCancel();
-  }, [guard]);
+    commit(false);
+  }, [commit]);
 
   // Size follows content. Layout effect: no frame paints at the stale size.
   // biome-ignore lint/correctness/useExhaustiveDependencies: `value` + format changes resize the box

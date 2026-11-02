@@ -1,0 +1,20 @@
+stage A: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a55262287b808e562/.scr/pairs/13-design-system
+stage D: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a57a21718e6d25731/.scr/pairs/13-design-system
+round 3: /Users/iagh/git/personal/maude/.claude/worktrees/agent-aa7620f74c8aa594a/.scr/pairs/13-design-system (p8-c3-dsboard; only the ids listed in INDEX "round 3" were re-shot)
+final (D2): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ae0b93df010d6d2f4/.scr/pairs/13-design-system
+round 5: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a5bb8bb16e773b003/.scr/pairs/13-design-system (p8-c5-dsfix; every pair re-shot except the three whole-board ds-board-* crops, which keep the D2 shots — nothing on the board changed this round)
+final (D3): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a6c55c2a9eae9f5e5/.scr/pairs/13-design-system
+round 6: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a3e6a63c5fd565894/.scr/pairs/13-design-system (p8-c6-dsboard2; only ds-board-studio / ds-board-dark / ds-board-gator re-shot, light + dark)
+round 6: /Users/iagh/git/personal/maude/.claude/worktrees/agent-aa6b69031abb5eb4d/.scr/pairs/13-design-system (p8-c6-bugs4: ds-truth-outside only; raw impl /Users/iagh/git/personal/maude/.claude/worktrees/agent-aa6b69031abb5eb4d/.scr/impl/13-design-system)
+final (D4): /Users/iagh/git/personal/maude/.claude/worktrees/wf_74ac1088-f6f-13/.scr/pairs/13-design-system
+round 7: /Users/iagh/git/personal/maude/.claude/worktrees/agent-aaaace93ac4fa079b/.scr/pairs/13-design-system (p8-c7-ds; re-shot light + dark: ds-where-*, ds-board-*, ds-edit-{colour,reach,review,master,instance}, ds-truth-*, ds-multi-{panel,menu,switch,migrate}, ds-many-switch, ds-edge-{contrast,trash,migrate}, ds-advanced; not re-shot: ds-make-*, ds-edge-suggest, ds-multi-schema, ds-many-library/-linked)
+round 7 (cont.): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a0ab2a68ffd056d5e/.scr/pairs/13-design-system (p8-c7-ds2; re-shot light + dark: ds-edit-colour, ds-edge-contrast, ds-multi-menu)
+round 7 (third pass): /Users/iagh/git/personal/maude/.claude/worktrees/agent-aaa00e63eaadd619e/.scr/pairs/13-design-system (p8-c7-ds3; re-shot light + dark: ds-edit-colour, ds-edit-reach, ds-edge-contrast, ds-multi-migrate, ds-edge-migrate, ds-advanced; raw impl .scr/impl-c7ds3/13-design-system)
+final (D5): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ab9bfb98617a582f7/.scr/pairs/13-design-system
+round 8: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a8efb26c80da9dadb/.scr/pairs/13-design-system (p8-c8-ds; re-shot light + dark, every reachable id; the groups b and e were shot twice, the later wins; raw impl .scr/impl/13-design-system)
+final (D6): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ad16b7d7df8d5efc0/.scr/pairs/13-design-system
+round 10: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a9edb1b6ebcc9cfe4/.scr/pairs/13-design-system (p8-c10-misc; re-shot light + dark: ds-edit-reach, ds-multi-panel (two systems in use), ds-edit-review; raw impl .scr/impl/13-design-system)
+
+final (D7, 0d2eab1d6): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a736007e7ade80094/.scr/pairs/13-design-system (full-size PNG pairs: <id>-<theme>.png, spec | impl; spec PNGs reused from stage A (boards unchanged since), raw impl frames in /Users/iagh/git/personal/maude/.claude/worktrees/agent-a736007e7ade80094/.scr/impl/13-design-system; merged tip of feat/maude-v2 after stage C round 10, release-built client, Mac mini with Google Chrome, harness _d7-harness-g3)
+
+round 11: /Users/iagh/git/personal/maude/.claude/worktrees/agent-afc6dce2d7b3f0533/.scr/pairs/13-design-system (p8-r11-1213; re-shot light + dark: ds-multi-migrate, ds-edge-migrate, ds-multi-schema; side frame ds-multi-schema.row is impl only in /Users/iagh/git/personal/maude/.claude/worktrees/agent-afc6dce2d7b3f0533/.scr/impl/13-design-system; fixture = the pre-convert system folders, harness fx5.mjs unconvert, chain 13m; Mac mini, Google Chrome)

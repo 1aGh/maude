@@ -1,0 +1,13 @@
+COMMON RULES (Maude v2, round r4: Michal's findings on READY TO TRY 12). Michal's binding rule: "every button must do something, nothing may fail."
+- You work in your own git worktree based on feat/maude-v2 @ 6763174c2 (if your worktree starts elsewhere, `git reset --hard 6763174c2` first and confirm `git log --oneline -1`). Commit small commits on your branch; do NOT push, do NOT merge, do NOT touch the main checkout /Users/iagh/git/personal/maude.
+- Fail-first: every fix gets a test you have SEEN red against the unfixed code (revert the fix, run, red; restore, green). Say in the hand-back which command showed red.
+- Run tests only through `scripts/v2-test-lane.sh -- <cmd>` (machine-wide lock; others queue). apps/studio tests: `bun test ./test/<file>` (prefix ./). Prefix commands with FARM_LOCAL=1. Never `farm run`.
+- Do NOT commit apps/studio/dist/* (the lead rebuilds the release bundle at merge). `git status apps/studio/dist` before and after any test; `git checkout -- apps/studio/dist` if it moved.
+- Any studio server/browser you boot: NO_OPEN=1, MAUDE_NO_AUTOBUILD=1, throwaway XDG_CONFIG_HOME + MAUDE_UI_PREFS_PATH + MAUDE_INDEX_DIR in your scratch dir, stub claude on PATH. Never touch ~/.config/maude, the real keychain, real hubs/cells/Cloudflare/Stripe. No system dialogs.
+- Never symlink the shared apps/desktop/src-tauri/target. Don't kill processes you didn't start.
+- After edits: `npx biome check --write <files>` then `bunx tsc --noEmit -p apps/studio` (check exit code), `node scripts/gen-actions.mjs --check`, `node scripts/gen-plugin-surfaces.mjs --check`. If you add/rename a data-testid, update apps/studio/client/testids.json + TESTIDS.md. If you remove a reachable UI path, check apps/studio/client/v2/nothing-deleted.json / reachability.json tests.
+- If you edit app.jsx, run the source boot check (apps/desktop/scripts/check-client-boots-source* if present).
+- Copy: plain user words, the v2 vocabulary (Artboard, Frame, Maude Cloud). No v1 words (board, sidebar, status bar).
+- Hand back (≤25 lines): branch name, commits, root cause in one sentence, the fail-first evidence, the files touched, anything you could NOT verify (and why), and anything left for the lead.
+- The checklist is `.ai/scenarios/maude-v2/lead/r4-michal-findings.md` (in the lead's tree, do not edit it — the lead updates it). Michal will check every item himself in the release .app, so say in the hand-back exactly how a person sees your fix working (which click, which key, which canvas).
+- Budget is tight this week: stay within ~150 turns; prefer the smallest correct fix; no speculative refactors.

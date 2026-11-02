@@ -1,0 +1,45 @@
+remote-lane: slot3 · 5568d0b8b · log /Volumes/D/maude-runner/runs/20261026-033343-5568d0b8b-5106.log
+{
+  "root": "/tmp/pf-a/a",
+  "at": "2026-10-26T02:33:47.130Z",
+  "index": {
+    "canvases": 95,
+    "staticArtboards": 225,
+    "buildMs": {
+      "p50": 65,
+      "p95": 66,
+      "budgetP95": 250
+    },
+    "stampMs": {
+      "p50": 1,
+      "p95": 2,
+      "budget": 10
+    },
+    "homeMerge20Ms": {
+      "p50": 9,
+      "p95": 9,
+      "budget": 150,
+      "note": "20 × (read + stamp) of this snapshot"
+    }
+  },
+  "assetTiles": {
+    "pictures": 194,
+    "failed": [],
+    "ok": 190,
+    "glyph": 0,
+    "totalMs": 12600,
+    "perTileMs": {
+      "p50": 124,
+      "p95": 314
+    },
+    "phasesP50Ms": {
+      "nav": 16,
+      "draw": 105
+    },
+    "avgBytes": 25943,
+    "budget": {
+      "totalMsFor250": 30000
+    },
+    "contentHashColdMs": 347
+  }
+}

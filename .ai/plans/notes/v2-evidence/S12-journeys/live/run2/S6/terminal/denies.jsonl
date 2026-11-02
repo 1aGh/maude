@@ -1,0 +1,1 @@
+{"lane":"terminal","tool":"Write","code":"whole-file-rewrite","reason":"PreToolUse:Write hook error: whole-file-rewrite: ui/Landing page.tsx already exists (79 lines). Use Edit on existing canvases — it keeps element ids and locked elements."}

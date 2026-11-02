@@ -43,9 +43,12 @@ const EL_RESIZE_CSS = `
   position: fixed;
   width: 8px;
   height: 8px;
-  background: var(--maude-hud-accent, oklch(0.680 0.180 268));
-  border: 1px solid var(--maude-hud-accent-fg, oklch(0.180 0.030 268));
-  border-radius: 3px;
+  box-sizing: border-box;
+  /* P8 C5 (14 R2, board .ed-h): a bg-2 square with a 1.5 px inset accent, no radius — the same 8 x 8 on edges */
+  background: var(--maude-chrome-bg-2, #ffffff);
+  border: 0;
+  box-shadow: inset 0 0 0 1.5px var(--maude-hud-accent, oklch(0.53 0.175 238));
+  border-radius: 0;
   z-index: 6;
   pointer-events: auto;
   touch-action: none;
@@ -54,8 +57,8 @@ const EL_RESIZE_CSS = `
 }
 .dc-el-resize-handle[data-corner="nw"], .dc-el-resize-handle[data-corner="se"] { cursor: nwse-resize !important; }
 .dc-el-resize-handle[data-corner="ne"], .dc-el-resize-handle[data-corner="sw"] { cursor: nesw-resize !important; }
-.dc-el-resize-handle[data-corner="n"], .dc-el-resize-handle[data-corner="s"] { cursor: ns-resize !important; width: 14px; height: 6px; }
-.dc-el-resize-handle[data-corner="e"], .dc-el-resize-handle[data-corner="w"] { cursor: ew-resize !important; width: 6px; height: 14px; }
+.dc-el-resize-handle[data-corner="n"], .dc-el-resize-handle[data-corner="s"] { cursor: ns-resize !important; }
+.dc-el-resize-handle[data-corner="e"], .dc-el-resize-handle[data-corner="w"] { cursor: ew-resize !important; }
 /* Rotation lives in INVISIBLE zones just outside each CORNER (FigJam / mirrors
    the annotation .dc-annot-rotate-zone) — the cursor flips to a rotate glyph and
    dragging turns the element. z-index BELOW the corner squares so the resize
@@ -73,7 +76,7 @@ const EL_RESIZE_CSS = `
 .dc-el-resize-readout {
   position: fixed;
   transform: translate(-50%, 12px);
-  font-family: var(--maude-chrome-font-mono, ui-monospace, SFMono-Regular, monospace);
+  font-family: var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
   font-size: 11px;
   padding: 3px 7px;
   background: var(--maude-hud-accent, oklch(0.680 0.180 268));
@@ -90,7 +93,7 @@ const EL_RESIZE_CSS = `
 /* INV-2 — reveal/settle collapses to 1ms, same idiom as every other overlay
    stylesheet in this codebase (equal-spacing-handles.tsx, etc). This overlay
    is mounted inside the canvas iframe's OWN document, which never loads the
-   shell's 1-tokens-maude.css — the prefers-reduced-motion guard has to be
+   shell's 1-tokens-shell.css — the prefers-reduced-motion guard has to be
    re-declared per injected stylesheet, it doesn't cascade in from the shell.
    Comment stays backtick-free — it lives inside the template literal. */
 @media (prefers-reduced-motion: reduce) {
@@ -416,8 +419,9 @@ export function ElementResizeOverlay(): ReactNode {
   // `data-dc-screen` host) also gets handles, restricted to E/S/SE (growth-only —
   // see the `artboardId` doc on ElResizeDrag for why left/top never move).
   const artboardOnly = one && !cdId && typeof one.artboardId === 'string' ? one.artboardId : null;
-  // A real element OR artboard selection with the move tool active gets handles.
-  const active = tool === 'move' && (!!cdId || !!artboardOnly);
+  // A real ELEMENT selection with the move tool active gets handles. S2.8: a whole-ARTBOARD selection no longer does
+  // — editing/artboard-handles.tsx draws the eight handles with the preset ruler there, one set not two.
+  const active = tool === 'move' && !!cdId;
 
   // rAF loop — follow the selected element's screen box (pan/zoom + layout).
   useEffect(() => {

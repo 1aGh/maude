@@ -1,0 +1,166 @@
+{
+  "format": "maude.agent-journey/1",
+  "id": "S1",
+  "package": "S1",
+  "title": "New canvas → rename → restore a version → move to the trash → restore",
+  "ledger": ["00/rule/moved-to-the-trash"],
+  "fixture": "app5",
+  "allow": ["maude design history restore", "maude design curl-local"],
+  "setup": [],
+  "turns": [
+    {
+      "say": "Make a new canvas at ui/Welcome.tsx with one artboard called “Hello” that shows a heading saying “Hello”."
+    },
+    { "say": "Rename ui/Welcome.tsx to ui/Greeting.tsx." },
+    { "say": "Change the heading in ui/Greeting.tsx to “Hi there”." },
+    { "say": "Actually, put ui/Greeting.tsx back to the version from before the heading change." },
+    { "say": "Move ui/Greeting.tsx to the trash." },
+    { "say": "Bring ui/Greeting.tsx back from the trash." }
+  ],
+  "graders": [
+    {
+      "id": "created-by-ai",
+      "grader": "history",
+      "path": "ui/Greeting.tsx",
+      "op": "create",
+      "first": true,
+      "by": "ai"
+    },
+    { "id": "renamed", "grader": "moved", "from": "ui/Welcome.tsx", "to": "ui/Greeting.tsx" },
+    {
+      "id": "version-restored",
+      "grader": "history",
+      "path": "ui/Greeting.tsx",
+      "kind": ["restore", "history.restore"],
+      "op": "restore"
+    },
+    {
+      "id": "restored-content",
+      "grader": "text",
+      "path": "ui/Greeting.tsx",
+      "has": ["Hello"],
+      "lacks": ["Hi there"]
+    },
+    {
+      "id": "restore-by-verb",
+      "grader": "tool-used",
+      "tool": "Bash",
+      "input": "maude design history restore[^|]*ui/Greeting\\.tsx"
+    },
+    { "id": "back-from-trash", "grader": "trash", "path": "ui/Greeting.tsx", "state": "restored" },
+    { "id": "no-hard-delete", "grader": "no-tool", "tool": "Bash", "input": "\\brm\\b" }
+  ],
+  "dry": {
+    "good": [
+      {
+        "op": "write",
+        "path": "ui/Welcome.tsx",
+        "text": "import { DesignCanvas, DCSection, DCArtboard } from \"@maude/canvas-lib\";\n\nexport default function Welcome() {\n  return (\n    <DesignCanvas>\n      <DCSection id=\"main\" title=\"Welcome\">\n        <DCArtboard id=\"hello\" label=\"Hello\" width={800} height={600}>\n          <h1 data-cd-id=\"hello-heading\">Hello</h1>\n        </DCArtboard>\n      </DCSection>\n    </DesignCanvas>\n  );\n}\n"
+      },
+      {
+        "tag": "create",
+        "op": "action",
+        "kind": "ai",
+        "run": "run-1",
+        "label": "Make a new canvas",
+        "effects": [{ "lane": "@manifest", "op": "create", "path": "ui/Welcome.tsx" }]
+      },
+      { "op": "mv", "from": "ui/Welcome.tsx", "to": "ui/Greeting.tsx" },
+      {
+        "tag": "move",
+        "op": "action",
+        "kind": "ai",
+        "run": "run-2",
+        "label": "Rename",
+        "effects": [
+          { "lane": "@manifest", "op": "move", "from": "ui/Welcome.tsx", "to": "ui/Greeting.tsx" }
+        ]
+      },
+      { "op": "edit", "path": "ui/Greeting.tsx", "old": ">Hello<", "new": ">Hi there<" },
+      {
+        "op": "action",
+        "kind": "ai",
+        "run": "run-3",
+        "label": "Change the heading",
+        "effects": [{ "lane": "html", "op": "replace", "path": "ui/Greeting.tsx" }]
+      },
+      {
+        "tag": "restore-file",
+        "op": "edit",
+        "path": "ui/Greeting.tsx",
+        "old": ">Hi there<",
+        "new": ">Hello<"
+      },
+      {
+        "tag": "restore",
+        "op": "action",
+        "kind": "restore",
+        "run": "run-4",
+        "label": "Restore Greeting",
+        "effects": [{ "lane": "html", "op": "restore", "path": "ui/Greeting.tsx" }]
+      },
+      {
+        "tag": "restore-cmd",
+        "op": "tool",
+        "name": "Bash",
+        "input": { "command": "maude design history restore ui/Greeting.tsx @last-good" }
+      },
+      {
+        "tag": "trash",
+        "op": "action",
+        "kind": "ai",
+        "run": "run-5",
+        "label": "Move to the trash",
+        "effects": [{ "lane": "@manifest", "op": "delete", "path": "ui/Greeting.tsx" }]
+      },
+      {
+        "tag": "untrash",
+        "op": "action",
+        "kind": "restore",
+        "run": "run-6",
+        "label": "Restored “Greeting” from the trash",
+        "effects": [{ "lane": "@manifest", "op": "undelete", "path": "ui/Greeting.tsx" }]
+      },
+      {
+        "op": "tool",
+        "name": "Bash",
+        "input": { "command": "maude design trash restore ui/Greeting.tsx" }
+      }
+    ],
+    "faults": {
+      "created-by-ai": {
+        "replace": {
+          "create": {
+            "op": "action",
+            "kind": "outside",
+            "label": "Changed outside Maude",
+            "effects": [{ "lane": "@manifest", "op": "create", "path": "ui/Welcome.tsx" }]
+          }
+        }
+      },
+      "renamed": {
+        "replace": {
+          "move": {
+            "op": "action",
+            "kind": "ai",
+            "run": "run-2",
+            "label": "Rename",
+            "effects": [
+              { "lane": "@manifest", "op": "delete", "path": "ui/Welcome.tsx" },
+              { "lane": "@manifest", "op": "create", "path": "ui/Greeting.tsx" }
+            ]
+          }
+        }
+      },
+      "version-restored": { "drop": ["restore"] },
+      "restore-by-verb": { "drop": ["restore-cmd"] },
+      "restored-content": { "drop": ["restore-file"] },
+      "back-from-trash": { "drop": ["untrash"] },
+      "no-hard-delete": {
+        "add": [
+          { "op": "tool", "name": "Bash", "input": { "command": "rm .design/ui/Greeting.tsx" } }
+        ]
+      }
+    }
+  }
+}

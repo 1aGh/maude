@@ -72,26 +72,40 @@ pub fn init(app: &tauri::AppHandle) {
 
 // ── Tauri commands (webview → shell) ────────────────────────────────────────────
 #[tauri::command]
-pub fn prefs_get_crash_reporting(app: tauri::AppHandle) -> bool {
-    load(&app).crash_reporting
+pub fn prefs_get_crash_reporting(app: tauri::AppHandle, webview: tauri::Webview) -> Result<bool, String> {
+    crate::windows::caller_project(&webview, false)?;
+    Ok(load(&app).crash_reporting)
 }
 
 #[tauri::command]
-pub fn prefs_set_crash_reporting(app: tauri::AppHandle, enabled: bool) {
+pub fn prefs_set_crash_reporting(
+    app: tauri::AppHandle,
+    webview: tauri::Webview,
+    enabled: bool,
+) -> Result<(), String> {
+    crate::windows::caller_project(&webview, false)?;
     let mut pr = load(&app);
     pr.crash_reporting = enabled;
     save(&app, &pr);
     CRASH_REPORTING.store(enabled, Ordering::Relaxed);
+    Ok(())
 }
 
 #[tauri::command]
-pub fn prefs_get_claude_auto_setup(app: tauri::AppHandle) -> bool {
-    load(&app).claude_auto_setup
+pub fn prefs_get_claude_auto_setup(app: tauri::AppHandle, webview: tauri::Webview) -> Result<bool, String> {
+    crate::windows::caller_project(&webview, false)?;
+    Ok(load(&app).claude_auto_setup)
 }
 
 #[tauri::command]
-pub fn prefs_set_claude_auto_setup(app: tauri::AppHandle, enabled: bool) {
+pub fn prefs_set_claude_auto_setup(
+    app: tauri::AppHandle,
+    webview: tauri::Webview,
+    enabled: bool,
+) -> Result<(), String> {
+    crate::windows::caller_project(&webview, false)?;
     let mut pr = load(&app);
     pr.claude_auto_setup = enabled;
     save(&app, &pr);
+    Ok(())
 }

@@ -1,0 +1,15 @@
+GATE-A-MIX verifier, S2 rows. Base feat/maude-v2 312b9cca4. Rig scripts/v2-verify/s2-rig.mjs (scratch Site.tsx + maude-v2 DS), Chromium 1600x1000, studio on :4571.
+
+14/ed-text-style (S2.25 G1) VERIFIED
+  Select the Desktop h1 (click + 2 dblclick). Inspector Type: "No style / This text follows no style. / Use a style".
+  Use a style > Title: the row reads "Title / Change Title in the Design system and this follows." within 0.7 s (was stale 4 s+ in S2.V4); file gets className="t-title"; canvas h1 32 px.
+  Size override (chip > "A number, no token…" > 44): canvas 44 px at once, inspector flips to "Title · changed / Size differs from Title. / Reset" after ~1.8 s.
+  Reset: row back to "Title" within 0.6 s, canvas 32 px. Style menu holds "Detach style"; Detach: "No style / Keeps its look; stops following Title. Nothing else changes. / Use a style", font-size kept inline (look kept).
+  Evidence: ed-text-style.v5-changed.png (the changed state), ed-text-style.v5-detached.png.
+  Known deferral (not a gap): "Update Plakát for every canvas…" quiet link waits for S10 ds.review-update (kinds/text.jsx:122), as S2.V3.
+  Nit: in ONE probe (Reset then override in the same selection) the inspector stayed "Title" for 14 s although file + canvas read 44 px; a clean repeat flips at 1.8 s. Not reproduced, watch.
+
+14/ed-edge-undo (S2.25 G2) VERIFIED
+  R + drag a rectangle on Desktop, then ⇧→ and ↓ on it. Menu > Edit > Undo history… opens "Undo history · newest first · Opened from Menu › Edit › Undo history":
+  rows "Moved Rectangle 2 1 px" (⌘Z, top), "Moved Rectangle 2 10 px", "Drew a rectangle"; Version history ⌥⌘H foot row. The nudge row names its step (was "Edit canvas").
+  Evidence: ed-edge-undo.v5-history.png. AI rows and the "Tereza's changes are hers to undo." foot need a live AI run / hub peer (U, as S2.V3: ed-edge-ai / ed-edge-tereza).

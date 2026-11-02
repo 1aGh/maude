@@ -9,11 +9,15 @@ argument-hint: "\"<feedback>\" [--screenshot <path>] [--perfect [N]] [--no-criti
 
 Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
-Resolve the active canvas, selection and requested edit type first. Snapshot
-before writing; preserve the canvas wrapper, design-system scope and accessibility.
-Keep the post-write screenshot and configured critic loop. Photo, board, print,
-video, generation and other specialized steps run only for a matching request;
-paid proactive generation still requires confirmation.
+Resolve the active canvas, the selection and the requested edit first. The
+design plugin's hooks keep the bytes before every write and make the whole edit
+one run, one version and one undo step, so there is no snapshot step. Keep every
+`data-cd-id`, respect locks and busy artboards, preserve the canvas wrapper,
+design-system scope and accessibility. Keep the post-write screenshot and the
+configured critic loop (critics are spawned on hand-offs, as `/design:critic`
+does). Photo, whiteboard, print, video, generation and other specialized steps
+run only for a matching request; paid proactive generation still requires
+confirmation. Text you write for the person follows skill `contract-voice`.
 
 ## Procedure index
 
@@ -34,11 +38,11 @@ titles refer to this index. Plugin-relative examples retain their original
 | 4 | [1.4 Untrusted-content banner on an imported canvas (DDR-216 D7)](../references/edit/04-1-4-untrusted-content-banner-on-an-imported-canvas-ddr-.md) |
 | 5 | [1.5 Auto-load DS context for inline-mode canvases (Phase 3.6 Task 12c)](../references/edit/05-1-5-auto-load-ds-context-for-inline-mode-canvases-phase.md) |
 | 6 | [2. Server lifecycle (always first) + runtime-bundle health probe](../references/edit/06-2-server-lifecycle-always-first-runtime-bundle-health-p.md) |
-| 7 | [3. Read active canvas + selected element + open comments](../references/edit/07-3-read-active-canvas-selected-element-open-comments.md) |
+| 7 | [3. Read the active canvas, the selection and the open comments](../references/edit/07-3-read-active-canvas-selected-element-open-comments.md) |
 | 8 | [3a. AST-aware fast-path (Phase 3.6 — TSX canvases only)](../references/edit/08-3a-ast-aware-fast-path-phase-3-6-tsx-canvases-only.md) |
 | 9 | [3.5 Pre-edit context screenshot — **mandatory when any of**:](../references/edit/09-3-5-pre-edit-context-screenshot-mandatory-when-any-of.md) |
-| 10 | [4. Snapshot before edit](../references/edit/10-4-snapshot-before-edit.md) |
-| 11 | [4.5 AI activity banner — start (Phase 8 Task 4)](../references/edit/11-4-5-ai-activity-banner-start-phase-8-task-4.md) |
+| 10 | [4. Snapshots: the hooks keep them](../references/edit/10-4-snapshot-before-edit.md) |
+| 11 | [4.5 The run, busy artboards and locks](../references/edit/11-4-5-ai-activity-banner-start-phase-8-task-4.md) |
 | 12 | [4.6 Custom-art routing → `draw-agent` (conditional)](../references/edit/12-4-6-custom-art-routing-draw-agent-conditional.md) |
 | 13 | [4.7 AI-media routing → `maude design generate` (conditional)](../references/edit/13-4-7-ai-media-routing-maude-design-generate-conditional.md) |
 | 14 | [5. Apply edit](../references/edit/14-5-apply-edit.md) |

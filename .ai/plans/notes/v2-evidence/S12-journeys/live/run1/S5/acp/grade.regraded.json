@@ -1,0 +1,30 @@
+{
+  "journey": "S5",
+  "pass": false,
+  "results": [
+    {
+      "id": "busy-denied",
+      "grader": "denied",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "busy-untouched",
+      "grader": "untouched",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "free-part-done",
+      "grader": "text",
+      "pass": false,
+      "why": "no /Save everything/"
+    },
+    {
+      "id": "one-undo-step",
+      "grader": "one-undo-step",
+      "pass": false,
+      "why": "0 AI run(s) on ui/GitPanel.tsx; split: none; unattributed: 0"
+    }
+  ]
+}

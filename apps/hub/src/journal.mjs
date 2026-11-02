@@ -39,14 +39,29 @@
 // path", and the hub looks. It cannot say what it found.
 
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync } from 'node:fs';
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  statSync,
+} from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 // Imported, never re-typed — same reason server.mjs pulls this in for the
 // canvas-path receiver (see that file's own import of it).
 import { canvasSlugFromRel } from '../../studio/canvas-slug.ts';
+import { fileAccessFor, visibleJournalPage } from './access-files.mjs';
 import { MAX_PROJECT_FILE_BYTES, sha256File } from './file-limits.mjs';
-import { listProjectFiles, readCanvasGroups, resolveProjectFileTarget } from './file-manifest.mjs';
+import {
+  heldCodeEntries,
+  hubCheckoutClass,
+  listProjectFiles,
+  readCanvasGroups,
+  resolveProjectFileTarget,
+} from './file-manifest.mjs';
 import {
   classifyProjectFile,
   isFilePlaneClass,
@@ -71,6 +86,22 @@ export const JOURNAL_SOURCES = Object.freeze([
   'tail-replay', // reconstructed from the R2 tail after a rehydrate
   'disk-lost', // a live row whose bytes neither the checkout nor the bucket has
 ]);
+
+/**
+ * How many class holds one checkout keeps (p8-holds-fix, recheck N1). A hold is
+ * noted only for a real canvas body on disk and pruned when the file goes, so
+ * the store tracks the tree; the walk itself stops at 20 000 files
+ * (file-manifest.mjs `MAX_MANIFEST_FILES`), and this matches it. Past the cap a
+ * note is refused LOUDLY, once — the same residual as the walk cap (info C).
+ */
+export const MAX_CLASS_HOLDS = 20_000;
+
+/** Sources whose `recordWrite` may note a hold: a lane that wrote (or found) a
+ *  body that is not provably the owner's. `peer-put` is the write door, which
+ *  admits a would-be-code `.tsx` only from an owner token (and never a canvas),
+ *  so its rows are the owner's own and never noted; a replayed tail row says
+ *  nothing about the disk. */
+const HOLD_NOTE_SOURCES = new Set(['studio-report', 'walk-import', 'boot-scan', 'hydrate']);
 
 /** Refuse an implausible file rather than hash it — the file-manifest figure. */
 // T18 — the one project-file ceiling (file-limits.mjs).
@@ -134,7 +165,10 @@ export function journalDbPath(dataDir) {
  * Idempotent and cached. The epoch is minted on first open and then only ever
  * rotated deliberately, by `rotateEpoch`.
  */
-export function openJournal(dataDir, { now = Date.now } = {}) {
+export function openJournal(
+  dataDir,
+  { now = Date.now, maxHolds = MAX_CLASS_HOLDS, log = console } = {}
+) {
   const cached = handleCache.get(dataDir);
   if (cached) return cached;
   if (!existsSync(dataDir)) mkdirSync(dataDir, { recursive: true });
@@ -172,6 +206,14 @@ export function openJournal(dataDir, { now = Date.now } = {}) {
       mtime_ms INTEGER NOT NULL,
       sha256   TEXT    NOT NULL
     );
+    -- p8-boundary-harden: paths the hub held as canvases only because the owner
+    -- had declared no folders (file-manifest.mjs hubCheckoutClass). code_sha is
+    -- the owner's last code row for the path when it was noted, or NULL.
+    CREATE TABLE IF NOT EXISTS class_holds (
+      path     TEXT PRIMARY KEY,
+      code_sha TEXT,
+      at_ms    INTEGER NOT NULL
+    );
   `);
 
   const getMeta = db.prepare('SELECT v FROM journal_meta WHERE k = ?');
@@ -180,9 +222,18 @@ export function openJournal(dataDir, { now = Date.now } = {}) {
   );
   if (!getMeta.get('epoch')) setMeta.run('epoch', randomUUID());
 
-  const handle = makeHandle({ db, getMeta, setMeta, now });
+  const handle = makeHandle({ db, getMeta, setMeta, now, maxHolds, log });
   handleCache.set(dataDir, handle);
   return handle;
+}
+
+/**
+ * The handle already open for a data directory, or null — never opens one.
+ * For a door that was not handed the journal but must see what it names
+ * (`access-files.mjs`: a cell's inert media lives in the journal, not on disk).
+ */
+export function cachedJournal(dataDir) {
+  return handleCache.get(dataDir) ?? null;
 }
 
 /** Drop the cached handle (tests; a closed db must not be handed out again). */
@@ -197,7 +248,7 @@ export function closeJournal(dataDir) {
   }
 }
 
-function makeHandle({ db, getMeta, setMeta, now }) {
+function makeHandle({ db, getMeta, setMeta, now, maxHolds = MAX_CLASS_HOLDS, log = console }) {
   const stmts = {
     head: db.prepare('SELECT COALESCE(MAX(seq), 0) AS head FROM file_journal'),
     latestForPath: db.prepare(
@@ -240,6 +291,13 @@ function makeHandle({ db, getMeta, setMeta, now }) {
          last_seen = excluded.last_seen`
     ),
     allCursors: db.prepare('SELECT * FROM peer_cursors ORDER BY label ASC'),
+    holdGet: db.prepare('SELECT code_sha FROM class_holds WHERE path = ?'),
+    holdInsert: db.prepare(
+      'INSERT OR IGNORE INTO class_holds (path, code_sha, at_ms) VALUES (?, ?, ?)'
+    ),
+    holdDelete: db.prepare('DELETE FROM class_holds WHERE path = ?'),
+    holdAll: db.prepare('SELECT path FROM class_holds ORDER BY path ASC'),
+    holdCount: db.prepare('SELECT COUNT(*) AS n FROM class_holds'),
     getSha: db.prepare('SELECT * FROM sha_cache WHERE path = ?'),
     setSha: db.prepare(
       `INSERT INTO sha_cache (path, size, mtime_ms, sha256) VALUES (?, ?, ?, ?)
@@ -265,8 +323,130 @@ function makeHandle({ db, getMeta, setMeta, now }) {
    *  checkout's copy (or its absence) says nothing about it. */
   let inertCached = false;
 
+  /** Paths already in `class_holds` — the walk notes on every pass, the db once.
+   *  Mirrors the table, so it is bounded by the same cap. */
+  const noted = new Set();
+  let holdCount = stmts.holdCount.get().n;
+  let warnedHoldCap = false;
+  /** Listeners fired when the hold set changes — the R2 tail carries it (N2). */
+  const holdListeners = new Set();
+  const holdsChanged = () => {
+    for (const fn of holdListeners) {
+      try {
+        fn();
+      } catch (err) {
+        console.error(`[journal] hold subscriber threw: ${err.message}`);
+      }
+    }
+  };
+  /** Insert one hold with the owner's last live code sha for it (or NULL). */
+  const insertHold = (rel) => {
+    if (holdCount >= maxHolds) {
+      if (!warnedHoldCap) {
+        warnedHoldCap = true;
+        log.error?.(
+          `[journal] class-hold cap (${maxHolds}) reached — further boundary canvases are not noted, so a later folder declaration could read them as owner code.`
+        );
+      }
+      return false;
+    }
+    const row = stmts.latestForPath.get(rel);
+    const codeSha = row && row.deleted === 0 && row.class === 'code-module' ? row.sha256 : null;
+    const info = stmts.holdInsert.run(rel, codeSha, now());
+    if (info.changes > 0) {
+      holdCount += 1;
+      holdsChanged();
+    }
+    return true;
+  };
+  const deleteHold = (rel) => {
+    const info = stmts.holdDelete.run(rel);
+    noted.delete(rel);
+    if (info.changes > 0) {
+      holdCount = Math.max(0, holdCount - 1);
+      holdsChanged();
+    }
+  };
+
   const handle = {
     db,
+
+    /**
+     * Class holds (p8-boundary-harden, final-3 attacker L1) — the store behind
+     * file-manifest.mjs `hubCheckoutClass`: "a config change never promotes a
+     * path into code-module". `noteBoundaryCanvas` records a path that is a
+     * canvas only because the owner has declared no folders, with the sha of
+     * the owner's last live code row for it (so unchanged owner code is never
+     * held); the first note wins.
+     */
+    noteBoundaryCanvas(rel) {
+      if (noted.has(rel)) return;
+      if (insertHold(rel)) noted.add(rel);
+    },
+    /** `undefined` = not held; otherwise the owner's code sha (or null). */
+    heldCodeSha(rel) {
+      const r = stmts.holdGet.get(rel);
+      return r ? (r.code_sha ?? null) : undefined;
+    },
+    releaseHold(rel) {
+      deleteHold(rel);
+    },
+    heldPaths() {
+      return stmts.holdAll.all().map((r) => r.path);
+    },
+    /**
+     * Drop the hold on `rel` when its file is GONE from the checkout (N1). Only
+     * a real absence (ENOENT/ENOTDIR) counts: a file the walk skips (too big, a
+     * link) still exists, and dropping its hold would let a later declaration
+     * promote it.
+     */
+    dropHoldIfGone(designRoot, rel) {
+      if (!designRoot || stmts.holdGet.get(rel) === undefined) return false;
+      try {
+        lstatSync(join(designRoot, rel));
+        return false;
+      } catch (err) {
+        if (err?.code !== 'ENOENT' && err?.code !== 'ENOTDIR') return false;
+      }
+      deleteHold(rel);
+      return true;
+    },
+    /** The walk's prune: every hold whose file is gone. */
+    pruneGoneHolds(designRoot) {
+      let dropped = 0;
+      for (const rel of handle.heldPaths()) {
+        if (handle.dropHoldIfGone(designRoot, rel)) dropped += 1;
+      }
+      return dropped;
+    },
+    /** Subscribe to changes of the hold set (the R2 tail, N2). */
+    onHoldsChange(fn) {
+      holdListeners.add(fn);
+      return () => holdListeners.delete(fn);
+    },
+    /**
+     * Restore holds a replayed tail carried (N2). Paths only: the owner's code
+     * sha is re-derived from THIS journal, exactly as a live note derives it, so
+     * a tail can only add a hold, never pick the bytes that lift one. Union, not
+     * replace — a release since the last generation may come back after a wake
+     * (fail closed; the walk prunes a gone file again).
+     */
+    restoreHolds(paths) {
+      let restored = 0;
+      let malformed = 0;
+      for (const rel of Array.isArray(paths) ? paths.slice(0, maxHolds) : []) {
+        if (typeof rel !== 'string' || !isProjectFileShape(rel)) {
+          malformed += 1;
+          continue;
+        }
+        if (stmts.holdGet.get(rel) !== undefined) continue;
+        if (insertHold(rel)) {
+          noted.add(rel);
+          restored += 1;
+        }
+      }
+      return { restored, malformed };
+    },
 
     /**
      * Cell mode (cell materializer Task 13). Once on, absence of an inert-media
@@ -349,6 +529,8 @@ function makeHandle({ db, getMeta, setMeta, now }) {
      */
     recordGone({ designRoot, path: rel, source }) {
       if (!designRoot || typeof rel !== 'string' || rel.length === 0) return null;
+      // A held canvas has no file-plane row, so its hold goes here or nowhere.
+      handle.dropHoldIfGone(designRoot, rel);
       const prev = stmts.latestForPath.get(rel);
       if (!prev || prev.deleted === 1) return null;
       // On a cell an inert-media file is ABSENT from the checkout by design.
@@ -416,9 +598,13 @@ function makeHandle({ db, getMeta, setMeta, now }) {
       // Membership is the classifier's call and nobody else's (DDR-226 §1).
       // A path outside the file plane simply has no journal, which is what
       // makes "no row" a meaningful statement about the plane.
-      const cls = classifyProjectFile(rel, {
-        canvasGroups: readCanvasGroups(designRoot),
+      // Provenance-aware (`hubCheckoutClass`): a path held back from the code
+      // lane gets no row — the reconciler cannot promote it either.
+      // A note only for a regular file a non-owner lane wrote or found (N1).
+      const cls = hubCheckoutClass(rel, designRoot, {
         hasFile: (r) => existsSync(join(designRoot, r)),
+        sha256: () => handle.shaOf(designRoot, rel)?.sha256 ?? null,
+        note: !deleted && HOLD_NOTE_SOURCES.has(source) && isRegularFile(join(designRoot, rel)),
       });
       if (!isFilePlaneClass(cls)) return null;
 
@@ -634,7 +820,13 @@ function makeHandle({ db, getMeta, setMeta, now }) {
       const rows = db
         .prepare('SELECT * FROM file_journal WHERE seq > ? ORDER BY seq ASC')
         .all(sinceSeq);
-      return rows.map((r) => JSON.stringify(toTail(r))).join('\n');
+      const lines = rows.map((r) => JSON.stringify(toTail(r)));
+      // N2 — the hold set rides every tail write, whole (it is capped): a hold
+      // is noted with no journal row, and a cell that slept between a note and
+      // the next generation must wake with it. No holds ⇒ the old shape exactly.
+      const held = handle.heldPaths();
+      if (held.length > 0) lines.push(JSON.stringify({ holds: held }));
+      return lines.join('\n');
     },
 
     /**
@@ -690,6 +882,9 @@ function makeHandle({ db, getMeta, setMeta, now }) {
       const lines = String(text ?? '')
         .split('\n')
         .filter((l) => l.trim().length > 0);
+      /** N2 — hold lines, applied AFTER the rows (their code sha is re-derived
+       *  from the replayed journal, see `restoreHolds`). */
+      const holdLines = [];
       const run = db.transaction(() => {
         for (const line of lines) {
           let row;
@@ -697,6 +892,10 @@ function makeHandle({ db, getMeta, setMeta, now }) {
             row = JSON.parse(line);
           } catch {
             malformed += 1;
+            continue;
+          }
+          if (row && typeof row === 'object' && 'holds' in row && !('seq' in row)) {
+            holdLines.push(row.holds);
             continue;
           }
           if (
@@ -719,8 +918,7 @@ function makeHandle({ db, getMeta, setMeta, now }) {
             continue;
           }
           if (designRoot) {
-            const cls = classifyProjectFile(row.path, {
-              canvasGroups: readCanvasGroups(designRoot),
+            const cls = hubCheckoutClass(row.path, designRoot, {
               hasFile: (r) => existsSync(join(designRoot, r)),
             });
             if (!isFilePlaneClass(cls)) {
@@ -751,6 +949,13 @@ function makeHandle({ db, getMeta, setMeta, now }) {
             at_ms: Number.isFinite(row.atMs) ? row.atMs : now(),
           });
           applied += 1;
+        }
+        for (const holds of holdLines) {
+          if (!Array.isArray(holds)) {
+            malformed += 1;
+            continue;
+          }
+          malformed += handle.restoreHolds(holds).malformed;
         }
       });
       run();
@@ -797,6 +1002,30 @@ export const JOURNAL_REPORT_PATH = '/api/journal/report';
 
 /** How many paths one nudge may name. A nudge is a hint, not a work queue. */
 const MAX_NUDGE_PATHS = 64;
+
+/** How many held paths one journal answer names (the count is always whole). */
+const MAX_HELD_LISTED = 200;
+
+/**
+ * The checkout's held code paths, for the OWNER only (p8-held-surface).
+ *
+ * A path held back from the code lane (`hubCheckoutClass`) is not synced and
+ * not committed — and a hold nobody is told about is a silent failure. Only the
+ * owner can resolve one (only the owner sets the canvas folders), and the list
+ * names teammate work, so it goes to exactly the bar the project-config door
+ * sets: a project-wide, writable, owner token. An editor, a viewer, a
+ * canvas-scoped token and a canvas-only session get no field at all. The list
+ * is this checkout's alone: the holds are keyed by its design root.
+ *
+ * An owner always gets the field (an empty list clears a panel row).
+ */
+function ownerHeld(match, designRoot) {
+  if (!match || match.readOnly || match.role !== 'owner') return {};
+  if (match.scope && match.scope !== '*') return {};
+  if (!designRoot) return {};
+  const held = heldCodeEntries(designRoot);
+  return { held: held.slice(0, MAX_HELD_LISTED), heldCount: held.length };
+}
 
 /**
  * Handle the journal's two routes. Same dependency-injected contract as
@@ -852,10 +1081,33 @@ export function handleJournalRoutes({
     }
 
     const epoch = journal.epoch();
-    const head = journal.head();
     const askedEpoch = query?.epoch ?? null;
     const sinceRaw = query?.since;
     const since = Number.isFinite(Number(sinceRaw)) ? Math.trunc(Number(sinceRaw)) : 0;
+
+    // V2-1.16 L1 — a canvas-only session reads its closure's rows only, under
+    // the last VISIBLE seq as its head (U5). Project sessions: unchanged.
+    const files = fileAccessFor(match, { designRoot, journal });
+    if (files.claimDecides) {
+      const visibleHead = files.visibleHead();
+      if (askedEpoch !== null && askedEpoch !== epoch) {
+        respondJson(200, { epoch, head: visibleHead, reanchor: true, reason: 'epoch changed' });
+        return true;
+      }
+      const page = visibleJournalPage(files, journal, { since, pageMax: MAX_JOURNAL_PAGE });
+      if (page.reanchor) {
+        respondJson(200, { epoch, head: page.head, reanchor: true, reason: page.reanchor });
+        return true;
+      }
+      respondJson(200, {
+        epoch,
+        head: page.head,
+        entries: page.entries,
+        truncated: page.truncated,
+      });
+      return true;
+    }
+    const head = journal.head();
 
     // FAIL CLOSED, three ways (DDR-214's ordering rule applied to the cursor):
     // a different epoch, a cursor from the future, and a negative cursor are
@@ -871,7 +1123,13 @@ export function handleJournalRoutes({
 
     const page = journal.entriesSince(since);
     const entries = page.entries.filter((e) => matchesScope(match.scope, e.path));
-    respondJson(200, { epoch, head, entries, truncated: page.truncated });
+    respondJson(200, {
+      epoch,
+      head,
+      entries,
+      truncated: page.truncated,
+      ...ownerHeld(match, designRoot),
+    });
     return true;
   }
 
@@ -985,6 +1243,9 @@ export function createJournalTail({
   let again = false;
   let failures = 0;
   let stopped = false;
+  // N2 — a hold is noted with no journal row, so the append listener never
+  // fires for it; the tail carries the hold set and must be woken by it.
+  let unsubscribeHolds = null;
 
   const baseSeq = () => {
     const row = journal.db.prepare('SELECT v FROM journal_meta WHERE k = ?').get(TAIL_BASE_KEY);
@@ -1038,15 +1299,18 @@ export function createJournalTail({
     return inFlight;
   }
 
+  function schedule() {
+    if (stopped || timer !== null) return;
+    timer = setTimeoutImpl(() => {
+      timer = null;
+      void flush();
+    }, debounceMs);
+  }
+  unsubscribeHolds = journal.onHoldsChange?.(schedule) ?? null;
+
   return {
     /** Called from the journal's append listener — coalesces a burst. */
-    schedule() {
-      if (stopped || timer !== null) return;
-      timer = setTimeoutImpl(() => {
-        timer = null;
-        void flush();
-      }, debounceMs);
-    },
+    schedule,
     flush,
     /**
      * A backup generation has snapshotted `journal.db` up to `seq` — the tail
@@ -1065,6 +1329,8 @@ export function createJournalTail({
     /** SIGTERM: land whatever is inside the debounce window. */
     async stop() {
       stopped = true;
+      unsubscribeHolds?.();
+      unsubscribeHolds = null;
       if (timer !== null) {
         clearTimeoutImpl(timer);
         timer = null;
@@ -1531,5 +1797,16 @@ export function walkImport({ journal, designRoot, source = 'walk-import', log = 
       `[journal] walk-import skipped ${skippedFlatTwin} flat .tsx twin(s) (pre-fix-5 fallback debris — body byte-identical to a grouped twin, doubled) — left on disk, unjournaled, for a human/future hub-side quarantine.`
     );
   }
+  // N1 — a hold whose file is gone no longer blocks the path.
+  journal.pruneGoneHolds?.(designRoot);
   return { appended, scanned: files.length, unchanged, skippedFlatTwin };
+}
+
+/** A regular file at `abs` (never a link, a FIFO or a directory). */
+function isRegularFile(abs) {
+  try {
+    return lstatSync(abs).isFile();
+  } catch {
+    return false;
+  }
 }

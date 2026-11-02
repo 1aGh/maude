@@ -1,0 +1,17 @@
+Row: pn-tab-a (11 · A · Native macOS tabs, titles only) — variant A was NOT picked
+Base: feat/maude-v2 58ac858d (branch s1-21). Canvas ".design/ui/v2/11 Projects and Navigation.tsx" blob 721366f14aae. Contract apps/studio/client/v2/contracts/V2-3.7-own-tab-bar.md blob 7443b61b81f6.
+Written from reading code and existing gate evidence. NO desktop e2e was run for this file (the lead re-runs the lanes at the wave gate).
+
+PICK (applies to every A/B row of S1.21): Michal chose B, "Maude draws its own tab bar instead of macOS NSWindow tabbing" (2026-10-14).
+  decisions: maude/v2-3.7-own-tab-bar, maude/v2-3.7-own-tab-bar-mechanism (kg search "tab bar").
+  contract: V2-3.7-own-tab-bar.md section 1 (measurements) and section 2 (rejects A = a window per tab, and C = native tab group with the bar hidden).
+
+STATUS: superseded by the B decision. Nothing in the shipped app has to look like this artboard, and nothing does: there is no NSWindow tab group.
+  - tabbing_identifier / addTabbedWindow: were deleted (contract section 3.3).
+  - The shell is ONE window with child webviews: apps/desktop/src-tauri/src/tabs.rs:189 ensure_shell, :234 add_tab, :270 activate.
+What the artboard's four callouts become in B:
+  1 "Titles, x and + are AppKit's"  -> apps/desktop/src/strip.js:31 tabEl draws the title (.name) and the x (testid tab-close-<label>, strip.js:58). There is no "+": a new tab is Home, pinned at the right (strip.html:166-176, testid tab-home).
+  2 "project and its AI sit in the pill", 3 "account by the faces", 4 "design system pinned above every canvas": not tab-bar concerns (V2-4.2 pill client/v2/shell/project-pill.jsx, V2-4.3 cluster, V2-4.4a pinned DS row).
+Pinned by: tabs.rs:623 the_strip_state_pins_home_last_and_never_in_tabs_and_sanitizes_names; e2e apps/desktop/e2e/scenarios/project-tabs.e2e.ts:189 (strip lists tabs, Home pinned icon-only).
+Desktop e2e evidence (valid window probe): V2-3.7-3.10-rework-gate-2026-10-14.txt "test:e2e:desktop:tabs exit=0 ... 1 passed" (sha256 ed33f6dad36ed9f7b66875873229284b05f27c56772f1d30c45675f0956d71a2); V2-phase4-gate-2026-10-18.txt "tabs 1/1" (sha256 5ea83e54ed1b08a689f01a3f34dca351e8e8feb26a38656c397c78c4c52641c8).
+Suggested ledger state: verified, superseded (decision maude/v2-3.7-own-tab-bar). No app gap.

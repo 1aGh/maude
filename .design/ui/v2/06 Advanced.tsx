@@ -1959,7 +1959,7 @@ const WHERE_ROWS: [string, string, Cell[]][] = [
   ["Reveal in Finder · Open in editor", "Canvases › Advanced", [{ t: "✓", s: "same" }, { t: "Open in the Mac app", s: "swap" }, { t: "hidden", s: "hide" }, { t: "✓", s: "same" }, { t: "✓", s: "same" }]],
   ["Open in terminal", "AI chat panel › Advanced", [{ t: "✓", s: "same" }, { t: "hidden", s: "hide" }, { t: "hidden — no AI", s: "hide" }, { t: "✓", s: "same" }, { t: "✓", s: "same" }]],
   ["This Mac only link", "Share › Advanced", [{ t: "✓", s: "same" }, { t: "hidden", s: "hide" }, { t: "hidden", s: "hide" }, { t: "✓", s: "same" }, { t: "✓", s: "same" }]],
-  ["Link rules · GitHub invite", "Share › Advanced", [{ t: "✓", s: "same" }, { t: "✓", s: "same" }, { t: "hidden", s: "hide" }, { t: "Move to the cloud to share", s: "swap" }, { t: "greyed — needs the internet", s: "grey" }]],
+  ["Link rules · GitHub invite", "Share › Advanced", [{ t: "✓", s: "same" }, { t: "✓", s: "same" }, { t: "hidden", s: "hide" }, { t: "Move to Maude Cloud to share", s: "swap" }, { t: "greyed — needs the internet", s: "grey" }]],
   ["Address · Process · Project folder", "Diagnostics › Advanced", [{ t: "✓", s: "same" }, { t: "Runs in the cloud", s: "swap" }, { t: "✓", s: "same" }, { t: "✓", s: "same" }, { t: "✓", s: "same" }]],
   ["Resync now · Download all", "Diagnostics › Advanced", [{ t: "✓", s: "same" }, { t: "Download all only", s: "swap" }, { t: "Download all only", s: "swap" }, { t: "hidden — nothing syncs", s: "hide" }, { t: "greyed — back online", s: "grey" }]],
   ["Raw CSS · Property · Attribute", "Inspector › Advanced", [{ t: "✓", s: "same" }, { t: "✓", s: "same" }, { t: "read-only · Copy CSS", s: "swap" }, { t: "✓", s: "same" }, { t: "✓", s: "same" }]],

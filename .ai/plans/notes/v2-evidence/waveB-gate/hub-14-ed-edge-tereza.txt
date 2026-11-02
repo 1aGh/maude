@@ -1,0 +1,21 @@
+14/ed-edge-tereza — Tereza is editing the same button
+Steps: Tereza (member) in her own browser process selects the Cover frame on ui/pitch (⌘0, coordinate click) and focuses an inspector
+field; the owner opens the same canvas, then selects the same frame.
+Seen: the owner sees Tereza's face (TE) in the cluster, her cursor tag and her name tag on the selection outline, and edit-hold-ring
+before selecting. After the owner selects the same frame: the inspector stays fully editable — no .ed-insp--view, no "tereza is editing
+… You can look; the fields open when they move on." line (91 inputs, 14 disabled = the normal read-only fields).
+Not resolved in budget: whether holdViewFor(target, live, …) misses because the owner's target ref differs from Tereza's published
+hold, or because the hold's intent lapsed (headless focus). Repro: scratchpad gate/b/p3-tereza.mjs on the rig above.
+Shots: r-tereza-selects.png, r-owner-sees-tereza.png, r-owner-selects-same.png
+Verdict: partial — presence + hold ring cross the hub; the inspector view mode did not engage (possible defect, S2.18, needs a look).
+
+Rig (2026-10-21, gate-b-compat fork): local cell from scripts/dev/local-cell.mjs on port 4890 (--no-watch --keep),
+hub process binary /Users/iagh/.nvm/versions/node/v24.13.0/bin/node (lsof txt of the hub pid), studio child bun on 4690.
+Cloud identity: MAUDE_CLOUD_IDENTITY=1 (hybrid), MAUDE_TENANT_ID=alligators, MAUDE_CONTROL_PLANE_URL=http://127.0.0.1:4899 —
+a LOOPBACK fake control plane (scratchpad gate/b/fake-cp.mjs) that answers only POST /auth/handoff/exchange with a token signed by
+apps/hub/src/cloud-identity.mjs (signAccessToken / signAccessTokenV2). Browser sessions go through the cell's real /auth/browser door.
+/health.access = {authority:control-plane, roles:[viewer,member,owner], scopes:[project], links:false} (rolesV2 dark, production posture).
+Identities (each its own Playwright context; Tereza in a separate browser process where focus matters):
+  owner  you@local.test (password sign-in) · member tereza@local.test · Can comment klara@local.test (role viewer) ·
+  Can view jonas@local.test (v2 claim role observer). Canvas ui/pitch.tsx (3 artboards Cover/Plan/Ask) seeded into the cell checkout.
+No real cloud, hub, Stripe or Cloudflare was contacted. Scripts: scratchpad gate/b/p*.mjs. Shots: shots/ (this dir).

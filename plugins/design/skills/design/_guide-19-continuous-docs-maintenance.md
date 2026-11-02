@@ -6,7 +6,7 @@ The orchestrator calls **`refresh_docs()`** at every exit of the auto-critic loo
 
 1. **Update `<Canvas>.meta.json` sidecar** (the per-canvas metadata, schema at `dev-server/canvas-meta.schema.json`):
    - `last_modified` ← now (ISO 8601)
-   - `iteration_count` ← count of `## Iteration` headers in `_history/<slug>/chat.md`
+   - `iteration_count` ← count of AI versions in `maude design history list <canvas> --json` (a pre-v2 project: the `## Iteration` headers in `_history/<slug>/chat.md`, pre-v2)
    - `tokens_used` ← `grep -oE 'var\(--[a-z0-9-]+\)' <canvas> | sort -u`
    - For `/design:new`: also bootstrap `title`, `subtitle` (one-line of brief), `brief` (full), `platform`, `created`, and `sections[]` with `artboards[]` extracted from generated JSX (`DCSection id="..." title="..."` and `DCArtboard id="..." label="..."`).
 2. **Update `<designRoot>/INDEX.md`** — find the row for this canvas, replace it; or append if new. Update top-level statistics block (Canvases, Total artboards, Total iterations).

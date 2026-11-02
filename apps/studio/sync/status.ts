@@ -137,6 +137,12 @@ export interface FilePlaneStatus {
    *  half of its own, so this is absent on a journal-less hub. */
   pushed?: number;
   /**
+   * `'v1'` — this report is a whole pass of the v1 manifest pull, the lane of a journal-less hub (no file
+   * plane, so never a `progress`). Set only once the runtime decided that lane. Resync reads one such
+   * report from the new runtime as its finished comparison (sync/resync-trace.ts).
+   */
+  lane?: 'v1';
+  /**
    * A BREAKER IS HOLDING, and this is how anyone finds out.
    *
    * The breakers shipped with their state living only in a `console.warn` and
@@ -150,7 +156,8 @@ export interface FilePlaneStatus {
    * safety control, it is a stall.
    */
   held?: {
-    kind: 'delete-out' | 'delete-in' | 'first-anchor' | 'reanchor';
+    /** `code-held` (p8-held-surface): files the hub holds back from the code lane — the owner only. */
+    kind: 'delete-out' | 'delete-in' | 'first-anchor' | 'reanchor' | 'code-held';
     count: number;
     paths: string[];
     /** One sentence, in the user's terms, about what is waiting and why. */

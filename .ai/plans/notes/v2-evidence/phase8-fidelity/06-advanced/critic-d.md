@@ -1,0 +1,38 @@
+# critic-d — 06 Advanced · V2-8.5 stage D (one critic, four lenses)
+
+_Board `.design/ui/v2/06 Advanced.tsx`; impl = stage-D re-shot pairs on 6d19daa9a (full-size PNGs read, dark + light). Read-only. Lens tags: D design · C copy · A a11y · S signature._
+
+**Fixed since stage B (seen in the shots):** fold row anatomy (semibold, `kept open` pill) on every panel; Settings sheet is 1300-wide material with rail glyphs; Diagnostics is three boxes at once with the status dot; Copy buttons are icons in the ARow rows; palette is 560 wide with per-action glyphs; toast is the one-line pill; "Compare" is one line; no app name in the History not-versioned sentence; no "Connecting…" in the AI fold; the Canvases list no longer collapses while the AI panel is pinned.
+
+Summary: 1 id matches in both themes (ad-open-all), 15 differ, 9 unreachable.
+
+| id | theme | verdict | remaining blockers |
+|---|---|---|---|
+| ad-map, ad-why, ad-trace | both | unreachable | documentation boards, no app surface |
+| ad-ds | both | unreachable | no real Design system canvas can be seeded; needs a seed that writes a DS board so `v2/ds/advanced.jsx` renders |
+| ad-menus | both | unreachable | native menu bar; desktop-e2e lane only |
+| ad-edge-sync, ad-edge-hub | both | unreachable | hub-linked fixture (cloud project in trouble / self-hosted hub) |
+| ad-edge-where | both | unreachable | viewer-origin + comment-only role + offline fixtures |
+| ad-edge-remember | both | unreachable | multi-day per-Mac memory story, no single state |
+| ad-left | dark, light | differs | D: extra "Open canvas" row the board doesn't draw (`canvases-advanced.jsx`); foot line wraps ("12 of 11 shown" / "· updated just now" beside Refresh). D (cannot confirm): row menu, Trash card and Layers-fold states are not in the frame (only the Canvases fold is shown); Design system row absent (fixture). Fold anatomy, kept-open pill, switches, Copy icon now match. |
+| ad-inspector | dark, light | differs | D (cannot confirm): the open fold body (Element / Used in / Tokens bound / CSS / Copy style…Copy code) is below the 840 px crop, only the "Element" heading peeks; the fold still sits under ~15 plain rows where the board draws it under 5. S: "a layer under the plain rows" not shown. Fold row + pill + selects now match. |
+| ad-ai | dark, light | differs | D: Model / Effort / Fast mode / Ask before / Images, video and voice / context + 5-hour rows absent (fake agent; cannot confirm); Show in chat / Suggestions selects are auto-width small, not the 140x28 kit select; Raw log / Copy transcript / Open in terminal drawn without their glyphs; composer is the 03 shape not one 40 px row. C: board's "AI may" rows empty-heading complaint is gone. |
+| ad-share | dark, light | differs | D: app link / This Mac only values sit in bordered input boxes, truncated, instead of plain mono value + icon copy; extra "Opens the folder on this Mac only. Open in the Mac app" line; sheet is wider than 400. Link rules, people and "Where it syncs" are not drawn (local project, cannot confirm). |
+| ad-timeline | dark, light | differs | D: rows show raw keys (`fps`, `durationInFrames`, `codec`) not "Frame rate / Size / Codec / Length"; ruler in frames, keyframe diamonds and the Easing / curve readout are not shown (no clip selected); extra tool row (To the start, Add image, Shot for AI, Comment, Sound on, Volume). In light the beat clips render as solid black blocks (token not flipping on clip fill). |
+| ad-export | dark, light | differs | D: Advanced body is two columns, not one (`export/advanced/advanced.css`); no "File names" pattern + live preview and no "From the terminal" command blocks; Exact scale is "1 ×" not the single `2.5×` field; Registration switch is cut off at the sheet's bottom edge. Sheet itself is 09's. |
+| ad-history | dark, light | differs | D: container is still a full-height dock column, board draws a 340/400 floating island (`shell/dock.jsx`); All / Named / Made by AI / People seg above the list is not on this board; Compare + Restore row under the list absent; fold body shows only Compare / Project (local, cannot confirm Branch, Drafts, Remote). Kept-open pill and one-line Compare now match. |
+| ad-diag | dark, light | differs | D: board draws the Menu › Diagnostics submenu (Sync / Server / AI setup status words, Logs, Reload canvas, Check AI setup again, Advanced: Address, Process, Project folder, Resync now, Download all); the shot is the sheet opened, the submenu is not captured. Status dot + word on the sheet header now match. |
+| ad-logs | dark, light | differs | D: "Show in Finder" ghost button absent and an extra Refresh icon; "Combine-kampan reloaded." toast not shown; AI setup box carries a large Needs-setup card + "All checks" (fixture). Source filter, log well, warn bar, ARow Copy, three-box layout, no migration note now match. |
+| ad-syncd | dark, light | differs | D (cannot confirm): the frame is the Logs sheet again (local project has no Sync card); none of Get latest / conflicts (Keep mine, Use theirs, Keep both, Compare) / Moving now / Counts / "Sync stopped" is visible. Needs a cloud-linked fixture in trouble to be shootable. |
+| ad-settings | dark, light | differs | D (cannot confirm): the frame opens the General tab, not Advanced; the three columns (This Mac · Engines · This project), Restart now, Copy install command rows and Reset are not in the shot. Sheet material and rail glyphs match. |
+| ad-pinned | dark, light | differs | D: only the AI panel is pinned; the board pins Canvases left + Inspector right with folds open and the "Drag · double-click resets · ← → move 8" chip (not shown); the top-bar corner icon still overprints the pinned AI column's header. A: pinned Canvases/Inspector state not shown, cannot confirm. |
+| ad-search | dark, light | differs | D: board shows query "copy" (6 hidden tools with per-action glyphs) beside the "?" Keyboard shortcuts sheet with its Advanced fold; shot is query "advanced" and no shortcuts sheet. Several rows still use the fallback chevron (Hidden files, Allow longer videos, Keep timeline open, Layers as a panel, Close all/Open all Advanced sections, Use my own plugin copy). |
+| ad-code | dark, light | differs | D (cannot confirm): board is the read-only code panel (path, Read only, Copy, Open in editor, highlighted lines, terminal + Claude Code command blocks); shot is the palette only, the panel was not opened. Palette still shows chevron-fallback rows. |
+| ad-edge-syntax | dark, light | differs | D: the card is shown closed; the Advanced body (Error / Where rows, 210-213 code excerpt with the red bar, Open in editor / Copy error / Last good version) is not shown; no dimmed last-good boards behind the card; "Ask AI to fix it" not in the frame. C: provenance clause ("changed outside the app 2 min ago …") still absent ("Its code stops halfway on line 9"; needs a server signal). |
+| ad-open-all | dark, light | **match** | none. One-line toast pill with done glyph, "All Advanced sections are open.", "Close all" in accent; panel folds open with kept-open pill. (The extra quiet × is the kit toast's close; the board's ⌘K palette half is the previous step.) |
+
+## Stage-B blocker classes still open
+
+1. A11y V1 (chosen-segment 3:1 cue on Inspector / History / Export segments, Logs "All" now has the ring) and V3 (Export OFF switch outline): not provable from these shots; ad-export / ad-history / ad-inspector unchanged. V2 (Diagnostics tabs) is gone, the tabs no longer exist.
+2. A11y V4 (pinned collision): the Canvases list now renders; the corner icon over the pinned header is still visible.
+3. Signature S: "kept open" pill present on every fold; Diagnostics popover evidence still missing (shot is the sheet).

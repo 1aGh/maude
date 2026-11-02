@@ -1,0 +1,334 @@
+/**
+ * @canvas      GitHubIdentity — "Sign in with GitHub" for the native Maude app · the identity surface a non-technical collaborator uses to connect their GitHub account (OAuth device flow → OS keychain), see who they're signed in as, and sign out · 5 artboards docked in the studio shell · dark studio
+ * @ds          maude
+ * @platform    desktop
+ * @opt_out     palette
+ * @artboards   signed-out | device-code | signed-in | sign-out | states
+ * @brief       Phase 28 (native collab app, epic E3). The IdentityBar lives in the sidebar header: "Sign in with GitHub" when signed out, avatar + name when signed in. Sign-in is GitHub's OAuth device flow — Maude shows a short code, you enter it on github.com/login/device, the token lands in the OS keychain (never on disk). Vocabulary stays plain: "Sign in", "Connected", "Sign out" — never "OAuth", "token", "PAT". Lifts the Studio Hub artboard-G returning-operator sign-in card anatomy + the GitPanel shell/menubar docking; swaps the HUB_SECRET paste for the device-flow code.
+ * @stack       React 19 · TSX · Bun.build · css_mode=inline (sibling GitHubIdentity.css)
+ * @history     .design/_history/githubidentity/
+ *
+ * Authored under the `maude` DS ("Unified Pro Studio", dark-first). Tokens +
+ * shared component classes (.panel/.btn/.callout/.input/.field/.kbd/.tree-row)
+ * arrive via the imports below so the canvas renders in `maude` regardless of
+ * which DS the host injects. Every state artboard is the IdentityBar DOCKED in
+ * the studio shell (menubar + sidebar + dotted canvas peek), not a floating card
+ * — so the surface always reads in context. Mirrors GitPanel.tsx.
+ */
+
+import "../../system/maude/colors_and_type.css";
+import "../../system/maude/preview/_components.css";
+import "./GitHubIdentity.css";
+import { DesignCanvas, DCSection, DCArtboard } from "@maude/canvas-lib";
+
+/* ───────────────────────────── Icon set ─────────────────────────────────────
+ * Thin-stroke (1.4) geometric glyphs — terminal/IDE heritage, no emoji (DS rule).
+ * The GitHub mark is the one brand glyph (filled silhouette), used only on the
+ * sign-in affordance where the platform identity is load-bearing.
+ * ──────────────────────────────────────────────────────────────────────────── */
+type IconName = keyof typeof ICONS;
+const ICONS = {
+  check: <polyline points="3 8.2 6.4 11.5 13 4.2" />,
+  copy: (<><rect x="5.5" y="5.5" width="7.5" height="7.5" rx="1.2" /><path d="M3 10.5V3.2A.7.7 0 0 1 3.7 2.5H10" /></>),
+  "external": (<><path d="M6 3.5H3.2A.7.7 0 0 0 2.5 4.2v8.6a.7.7 0 0 0 .7.7h8.6a.7.7 0 0 0 .7-.7V10" /><line x1="8" y1="8" x2="13" y2="3" /><polyline points="9.5 3 13 3 13 6.5" /></>),
+  "chevron-down": <polyline points="3.5 6 8 10.5 12.5 6" />,
+  "chevron-right": <polyline points="6 3.5 10.5 8 6 12.5" />,
+  x: (<><line x1="3.5" y1="3.5" x2="12.5" y2="12.5" /><line x1="12.5" y1="3.5" x2="3.5" y2="12.5" /></>),
+  folder: <path d="M2 4.5h4l1.3 1.5H14V13H2z" />,
+  file: (<><path d="M4 2h5l3 3v9H4z" /><polyline points="9 2 9 5 12 5" /></>),
+  lock: (<><rect x="3.5" y="7" width="9" height="6.5" rx="1.2" /><path d="M5.5 7V5.2a2.5 2.5 0 0 1 5 0V7" /></>),
+  signout: (<><path d="M6.5 13.5H3.2a.7.7 0 0 1-.7-.7V3.2a.7.7 0 0 1 .7-.7h3.3" /><line x1="13" y1="8" x2="6.5" y2="8" /><polyline points="10 5 13 8 10 11" /></>),
+  refresh: (<><path d="M12.8 8a4.8 4.8 0 1 1-1.3-3.3" /><polyline points="12.8 2.4 12.8 5 10.2 5" /></>),
+} as const;
+
+function Icon({ name, size = 16, className }: { name: IconName; size?: number; className?: string }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 16 16" fill="none"
+      stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {ICONS[name]}
+    </svg>
+  );
+}
+
+/* The official GitHub mark (filled silhouette) — the platform identity glyph. */
+function GitHubMark({ size = 18, className }: { size?: number; className?: string }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z" />
+    </svg>
+  );
+}
+
+/* The Maude mark — spark-on-bubble (the brand source is system/maude/preview/logo). */
+function Mark({ size = 18, className }: { size?: number; className?: string }) {
+  return (
+    <span data-cd-id="maude" className={"gi-mark" + (className ? " " + className : "")} style={{ fontSize: size > 22 ? "var(--type-xl)" : undefined }}>
+      <svg width={size} height={size} viewBox="0 0 16 16" aria-hidden="true">
+        <path d="M2.4 7.2a5 5 0 1 1 1.7 3.8L2.2 13.6l.5-2.7a5 5 0 0 1-.3-3.7z" fill="var(--bg-3)" stroke="var(--border-strong)" strokeWidth="0.8" />
+        <path className="gi-mark-spark" d="M9.6 4.4l.7 2.3 2.3.7-2.3.7-.7 2.3-.7-2.3-2.3-.7 2.3-.7z" fill="currentColor" />
+      </svg>
+      Maude
+    </span>
+  );
+}
+
+/* The signed-in collaborator's GitHub avatar — a deterministic hue-tinted tile
+ * (the mock has no real avatar image; production swaps in `avatar_url`). */
+function Avatar({ initials, hue, size = 22 }: { initials: string; hue?: string; size?: number }) {
+  return (
+    <span className="gi-avatar" style={{ background: hue ?? "var(--accent)", width: size, height: size, fontSize: size > 30 ? "var(--type-base)" : undefined }}>
+      {initials}
+    </span>
+  );
+}
+
+/* ── the IdentityBar — the one component this canvas specs. Lives in the sidebar
+ *    header; signed-out shows the GitHub sign-in button, signed-in the account. ─ */
+function IdentityBar({ state, open }: { state: "out" | "in"; open?: boolean }) {
+  if (state === "out") {
+    return (
+      <div className="gi-idbar">
+        <button data-cd-id="sign-in-with" type="button" className="btn btn--primary gi-signin-btn">
+          <GitHubMark size={16} /> Sign in with GitHub
+        </button>
+        <p data-cd-id="connect-your-account" className="gi-idbar-hint">Connect your account to publish changes and create projects.</p>
+      </div>
+    );
+  }
+  return (
+    <div className="gi-idbar">
+      <button type="button" className={"gi-account" + (open ? " is-open" : "")} aria-expanded={!!open} aria-haspopup="menu">
+        <Avatar initials="OC" hue="var(--accent)" />
+        <span className="gi-account-tx">
+          <span data-cd-id="octo-cat" className="gi-account-name">Octo Cat</span>
+          <span data-cd-id="octocat" className="gi-account-login">@octocat</span>
+        </span>
+        <Icon name="chevron-down" size={14} className="gi-account-caret" />
+      </button>
+      {open && (
+        <div className="gi-menu panel" role="menu" aria-label="GitHub account">
+          <div className="gi-menu-hd">
+            <Avatar initials="OC" hue="var(--accent)" size={34} />
+            <span className="gi-menu-id">
+              <span data-cd-id="octo-cat-2" className="gi-account-name">Octo Cat</span>
+              <span data-cd-id="octocat-connected" className="gi-account-login">@octocat · connected</span>
+            </span>
+          </div>
+          <button data-cd-id="view-profile-on" type="button" className="gi-menu-item" role="menuitem">
+            <Icon name="external" size={15} /> View profile on GitHub
+          </button>
+          <div className="gi-menu-sep" />
+          <button data-cd-id="sign-out" type="button" className="gi-menu-item gi-menu-item--danger" role="menuitem">
+            <Icon name="signout" size={15} /> Sign out
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── the file tree below the IdentityBar (grounds the sidebar as the real app) ── */
+function FileTree() {
+  return (
+    <div className="gi-tree-body" role="tree" aria-label="Project files">
+      <div className="tree-row gi-row" data-depth="0" role="treeitem" aria-expanded="true"><Icon name="chevron-down" size={12} className="gi-row-icon" /><span data-cd-id="ui" className="gi-row-name">ui</span></div>
+      <div className="tree-row gi-row" data-depth="1" role="treeitem" aria-selected="true"><Icon name="file" size={13} className="gi-row-icon" /><span data-cd-id="pricing-v3" className="gi-row-name">Pricing v3</span></div>
+      <div className="tree-row gi-row" data-depth="1" role="treeitem"><Icon name="file" size={13} className="gi-row-icon" /><span data-cd-id="onboarding-flow" className="gi-row-name">Onboarding Flow</span></div>
+      <div className="tree-row gi-row" data-depth="1" role="treeitem"><Icon name="file" size={13} className="gi-row-icon" /><span data-cd-id="checkout-sheet" className="gi-row-name">Checkout Sheet</span></div>
+      <div className="tree-row gi-row" data-depth="0" role="treeitem" aria-expanded="false"><Icon name="chevron-right" size={12} className="gi-row-icon" /><span data-cd-id="system" className="gi-row-name">system</span></div>
+    </div>
+  );
+}
+
+/* ── the studio menubar (repo/branch context — DDR-110 IA) ────────────────────── */
+function MenuBar() {
+  return (
+    <div className="gi-menubar">
+      <Mark />
+      <span data-cd-id="main" className="gi-context" title="Project and shared draft">
+        <Icon name="folder" size={13} /><b data-cd-id="maude-2">maude</b><span className="gi-sep">/</span>main
+      </span>
+      <span className="gi-spacer" />
+      <span className="gi-avatars">
+        <Avatar initials="YO" hue="var(--accent)" />
+        <Avatar initials="AN" hue="var(--presence-online)" />
+      </span>
+    </div>
+  );
+}
+
+/* ── ShellFrame: every artboard is the IdentityBar docked in the studio shell ─── */
+function ShellFrame({ idState, menuOpen, dim, children }: {
+  idState: "out" | "in"; menuOpen?: boolean; dim?: boolean; children?: React.ReactNode;
+}) {
+  return (
+    <div className="gi-shell">
+      <MenuBar />
+      <div className="gi-main">
+        <nav className="gi-side" aria-label="Account and files">
+          <IdentityBar state={idState} open={menuOpen} />
+          <div data-cd-id="files" className="gi-side-label">Files</div>
+          <FileTree />
+        </nav>
+        <div className="gi-stage gi-canvas-bleed">
+          <div className="panel gi-mini">
+            <div className="gi-mini-bar"><span className="gi-mini-dot" /><span className="gi-mini-dot" /><span className="gi-mini-dot" /></div>
+            <div className="gi-mini-body">
+              <div className="gi-sk" style={{ width: "58%", height: 14 }} />
+              <div className="gi-sk" style={{ width: "90%" }} />
+              <div className="gi-sk" style={{ width: "76%" }} />
+              <div className="gi-sk is-accent" />
+            </div>
+          </div>
+        </div>
+        {dim && <div className="gi-scrim" aria-hidden="true" />}
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────── the device-code modal ─────────────────────────── */
+function DeviceCodeModal() {
+  return (
+    <div className="gi-modal" role="dialog" aria-modal="true" aria-labelledby="gi-dc-title">
+      <div className="gi-modal-card panel">
+        <div className="gi-dc-head">
+          <span className="gi-dc-marks"><GitHubMark size={26} className="gi-gh-glyph" /></span>
+          <h2 data-cd-id="sign-in-with-2" id="gi-dc-title">Sign in with GitHub</h2>
+          <p data-cd-id="maude-opened-github">Maude opened GitHub in your browser. Enter the code below to connect this app to your account.</p>
+        </div>
+
+        <ol className="gi-dc-steps">
+          <li>
+            <span className="gi-dc-step-n">1</span>
+            <span data-cd-id="on-the-page" className="gi-dc-step-tx">
+              On the page we opened, go to <span data-cd-id="github-com-login" className="gi-dc-url">github.com/login/device</span>
+              <button data-cd-id="open-it-again" type="button" className="btn btn--ghost btn--sm gi-dc-open"><Icon name="external" size={14} /> Open it again</button>
+            </span>
+          </li>
+          <li>
+            <span className="gi-dc-step-n">2</span>
+            <span data-cd-id="enter-this-code" className="gi-dc-step-tx">Enter this code to connect Maude</span>
+          </li>
+        </ol>
+
+        <div className="gi-code">
+          <span data-cd-id="wdjb-8209-mjht" className="gi-code-val">WDJB&#8209;MJHT</span>
+          <button type="button" className="btn btn--ghost gi-code-copy" aria-label="Copy the code">
+            <Icon name="copy" size={15} /> Copy
+          </button>
+        </div>
+
+        <div className="gi-dc-status">
+          <span className="gi-pulse" aria-hidden="true" />
+          <span>Waiting for you to authorize in your browser…</span>
+        </div>
+
+        <div className="gi-modal-foot">
+          <button type="button" className="btn btn--ghost">Cancel</button>
+          <span className="gi-dc-foot-note">The code expires in 15 minutes. Nothing is stored until you authorize.</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────── the sign-out confirm ──────────────────────────── */
+function SignOutModal() {
+  return (
+    <div className="gi-modal" role="dialog" aria-modal="true" aria-labelledby="gi-so-title">
+      <div className="gi-modal-card gi-modal-card--sm panel">
+        <h2 id="gi-so-title">Sign out of GitHub?</h2>
+        <p className="gi-so-body">
+          Your projects stay on your computer. You'll need to sign in again to
+          <strong> publish changes</strong> or <strong>create new projects</strong>.
+        </p>
+        <div className="gi-modal-foot gi-modal-foot--end">
+          <button type="button" className="btn btn--ghost">Stay signed in</button>
+          <button type="button" className="btn btn--danger"><Icon name="signout" size={15} /> Sign out</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────── states column ─────────────────────────────── */
+function StatesPanel() {
+  return (
+    <div className="gi-states">
+      <div className="gi-state-blk">
+        <h3>Code expired · nobody authorized in time</h3>
+        <div className="callout callout--warn">
+          <span className="gi-state-glyph" style={{ color: "var(--status-warn)" }}><Icon name="refresh" /></span>
+          <span>
+            <strong style={{ color: "var(--fg-0)" }}>That code expired.</strong> Codes last 15 minutes — start again and we'll show a fresh one.
+            <span className="gi-state-act"><button type="button" className="btn btn--sm"><Icon name="refresh" size={14} /> Start again</button></span>
+          </span>
+        </div>
+      </div>
+
+      <div className="gi-state-blk">
+        <h3>Sign-in cancelled · access not granted</h3>
+        <div className="callout callout--error">
+          <span className="gi-state-glyph" style={{ color: "var(--status-error)" }}><Icon name="x" /></span>
+          <span>
+            <strong style={{ color: "var(--fg-0)" }}>Sign-in didn't finish.</strong> You closed the GitHub page or didn't approve access. You can try again any time.
+            <span className="gi-state-act"><button type="button" className="btn btn--sm"><GitHubMark size={14} /> Try again</button></span>
+          </span>
+        </div>
+      </div>
+
+      <div className="gi-state-blk">
+        <h3>Connected · token in the OS keychain (never on disk)</h3>
+        <div className="callout callout--success">
+          <span className="gi-state-glyph" style={{ color: "var(--status-success)" }}><Icon name="lock" /></span>
+          <span>
+            <strong style={{ color: "var(--fg-0)" }}>Signed in as @octocat.</strong> Your sign-in is kept in your computer's secure keychain — never written into the project or shared.
+          </span>
+        </div>
+      </div>
+
+      <div className="gi-state-blk">
+        <h3>In the browser, not the app · sign-in needs the desktop app</h3>
+        <div className="callout callout--info">
+          <span className="gi-state-glyph" style={{ color: "var(--status-info)" }}><Mark size={16} /></span>
+          <span>
+            <strong style={{ color: "var(--fg-0)" }}>Open the Maude app to sign in.</strong> Secure GitHub sign-in lives in the desktop app, where your account can be stored safely. You're viewing in a browser tab.
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ───────────────────────────── World wrapper ──────────────────────────────────
+ * Each artboard body is scoped to the maude DS token ladder via `.maude[data-theme]`
+ * (specificity 0,2,0 beats any :root host injection). Mirrors GitPanel.tsx Board(). */
+function Board({ children }: { children: React.ReactNode }) {
+  return <div className="maude" data-theme="dark" style={{ position: "absolute", inset: 0 }}>{children}</div>;
+}
+
+export default function GitHubIdentity() {
+  return (
+    <DesignCanvas>
+      <DCSection id="identity" title="GitHubIdentity — sign in, connected, sign out" subtitle="MAUDE/GH · 5 artboards · OAuth device flow → OS keychain · plain words, no token paste">
+        <DCArtboard id="signed-out" label="A · Not signed in — Sign in with GitHub" width={1360} height={860}>
+          <Board><ShellFrame idState="out" /></Board>
+        </DCArtboard>
+        <DCArtboard id="device-code" label="B · Device code — enter this code on github.com" width={1360} height={860}>
+          <Board><ShellFrame idState="out" dim><DeviceCodeModal /></ShellFrame></Board>
+        </DCArtboard>
+        <DCArtboard id="signed-in" label="C · Connected — account menu open" width={1360} height={860}>
+          <Board><ShellFrame idState="in" menuOpen /></Board>
+        </DCArtboard>
+        <DCArtboard id="sign-out" label="D · Sign out confirmation" width={1360} height={860}>
+          <Board><ShellFrame idState="in" dim><SignOutModal /></ShellFrame></Board>
+        </DCArtboard>
+        <DCArtboard id="states" label="E · Edge states — expired · cancelled · connected · browser-only" width={760} height={860}>
+          <Board><div className="gi-states-frame"><StatesPanel /></div></Board>
+        </DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}

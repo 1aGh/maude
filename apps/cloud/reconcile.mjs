@@ -116,6 +116,20 @@ export function reconcile(tenant, subscription, { now = Date.now() } = {}) {
     return { desiredState: 'purged', actions: [], notes: ['purged is terminal'] };
   }
 
+  // A trial project (A3, Maude v2 S9.15) runs with NO subscription by design —
+  // it was provisioned under the account's trial, not by a Checkout. Read
+  // through the machine below, "no subscription" means `pending`, and
+  // `active → pending` is unreachable, so every active trial raised an
+  // `illegal-transition` alert into the customer-visible audit log on every
+  // hourly sweep. Its plan lives on the row (`planState`, project-access.mjs):
+  // the cell pauses on expiry, nothing here tears it down. Once Choose a plan
+  // attaches a subscription, the ordinary machine owns it again — including a
+  // converted project whose subscription then VANISHED at Stripe (null with a
+  // subscription id on the row), which must still alert and hold.
+  if (!subscription && tenant.trialEndsAt != null && !tenant.subscriptionId) {
+    return { desiredState: tenant.state, actions: [], notes: ['trial project (A3)'] };
+  }
+
   const implied = stateForSubscription(subscription);
 
   if (implied === 'unknown') {

@@ -1,0 +1,295 @@
+{
+  "fixture": "busy",
+  "canvases": [
+    "ui/Onboarding.tsx"
+  ],
+  "ids": {
+    "ui/Onboarding.tsx": [
+      {
+        "id": "choose-a-folder",
+        "text": "Choose a folder…",
+        "tag": "button",
+        "locked": true,
+        "artboard": null
+      },
+      {
+        "id": "maude",
+        "text": "maude",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "design-together-no",
+        "text": "Design together.No setup, no terminal.",
+        "tag": "p",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "open-maude-and",
+        "text": "Open Maude, and you're in a real project in under two minutes — sharing canvases with your team as you go.",
+        "tag": "p",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "signed-in-as",
+        "text": "Signed in as",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "sign-in-once",
+        "text": "Sign in once — Maude remembers you",
+        "tag": "li",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "your-work-saves",
+        "text": "Your work saves on its own",
+        "tag": "li",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "invite-anyone-by",
+        "text": "Invite anyone by their name",
+        "tag": "li",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "welcome",
+        "text": "Welcome",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "how-would-you",
+        "text": "How would you like to start?",
+        "tag": "h1",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "most-people-sign",
+        "text": "Most people sign in with GitHub — it's the simplest way to work with a team.",
+        "tag": "p",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "continue-with-github",
+        "text": "Continue with GitHub",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "recommended",
+        "text": "Recommended",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "start-a-shared",
+        "text": "Start a shared project, or open one a teammate shared with you.",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "sign-in-with",
+        "text": "Sign in with GitHub",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "open-a-folder",
+        "text": "Open a folder on this computer",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "already-have-a",
+        "text": "Already have a project folder? Open it and keep designing.",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "connect-to-a",
+        "text": "Connect to a team hub",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "advanced",
+        "text": "Advanced",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "your-team-runs",
+        "text": "Your team runs its own Maude hub? Paste its address and access token.",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "maude-never-touches",
+        "text": "Maude never touches the terminal. Everything here happens in the app.",
+        "tag": "p",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "you-re-signed",
+        "text": "You're signed in",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "open-a-project",
+        "text": "Open a project, or start a new one",
+        "tag": "h1",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "pick-up-a",
+        "text": "Pick up a shared project below, or create a fresh one — it's private until you invite someone.",
+        "tag": "p",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "start-a-new",
+        "text": "Start a new project",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "a-blank-private",
+        "text": "A blank, private project — you choose where it lives.",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "create",
+        "text": "Create",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "shared-with-you",
+        "text": "Shared with you",
+        "tag": "div",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "updated",
+        "text": "· updated",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "open",
+        "text": "Open",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "opening-a-project",
+        "text": "Opening a project saves a copy on this computer and keeps it in sync.",
+        "tag": "p",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "from-this-computer",
+        "text": "From this computer",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "open-a-project-2",
+        "text": "Open a project folder",
+        "tag": "h1",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "drag-a-folder",
+        "text": "Drag a folder in, or browse for it. We'll check it's a Maude project before opening.",
+        "tag": "p",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "drag-a-project",
+        "text": "Drag a project folder here",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "or",
+        "text": "or",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "not-a-maude",
+        "text": "Not a Maude project yet? No problem — we'll offer to for you. Nothing is changed until you say so.",
+        "tag": "span",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "set-one-up",
+        "text": "set one up",
+        "tag": "b",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "to-open-a",
+        "text": "To open a project a teammate shared, use instead.",
+        "tag": "p",
+        "locked": false,
+        "artboard": null
+      },
+      {
+        "id": "continue-with-github-2",
+        "text": "Continue with GitHub",
+        "tag": "b",
+        "locked": false,
+        "artboard": null
+      }
+    ]
+  },
+  "busy": {
+    "canvas": "ui/Onboarding.tsx",
+    "artboard": "hub",
+    "held": "choose-a-folder"
+  }
+}

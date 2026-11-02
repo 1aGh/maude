@@ -1,0 +1,14 @@
+{
+  "gate": "V2-8.14",
+  "pass": true,
+  "qualityHash": "ca053cd5bbc8fa64231dfde679d7b0108280b8f384c154322c75c50c872e7071",
+  "reportHashes": {
+    ".ai/plans/notes/v2-evidence/V2-8.14-perf.md": "a94ce1ce0ab77e9d1ead163618fd0fb90347faf7862dc50a760913bd25edb600"
+  },
+  "head": "4597c1b56449078c2e7c40c15ac1b727a69b36ec",
+  "ts": "2026-11-02T17:03:04.169Z",
+  "reports": [
+    ".ai/plans/notes/v2-evidence/V2-8.14-perf.md"
+  ],
+  "note": "final: budgets at 71ec8ec75 (LOD +1 ms accepted); r6 touches no index, cover, panel or LOD path. r6 (Michal 2026-11-02, scoped re-check per kg v2-michal-gates-scoped-recheck): the product diff 71ec8ec75..18e10e9e3 is the Inspector Fill + (now opens the picker on Custom; the Colour/Gradient/Image add row and its 5 testids removed) and the DS bar's dark-values caption removed — re-checked by V2-8.1 at 18e10e9e3, the inspector/ds-board tests, inspector-colour browser e2e and edit-shapes desktop e2e 2/2 + 4597c1b56: CI-only test guards in scripts/test (macOS-only reap test, the CI better-sqlite3 ABI skip) — no product file"
+}

@@ -87,7 +87,7 @@ The command scaffolds and verifies a workspace **once**. It does not operate it.
 
 ## Where "back" goes in a browser tab
 
-Open a workspace project in a browser and the menubar names the project you are in. It shows **no** "← Dashboard" link, because a workspace is one hub serving one project — there is no list of projects to go back to. That is deliberate, not missing: the link used to default to Maude Cloud, which walked self-hosters off their own deployment onto an account most of them do not have.
+Open a workspace project in a browser and the project pill names the project you are in. Its menu shows **no** "← Dashboard" link, because a workspace is one hub serving one project — there is no list of projects to go back to. That is deliberate, not missing: the link used to default to Maude Cloud, which walked self-hosters off their own deployment onto an account most of them do not have.
 
 If you run your own landing page and want the way back, set two optional variables in `.env`:
 
@@ -104,7 +104,7 @@ That is enforced by the process itself plus a CI gate, not by a convention someo
 
 **"Never run on the server" does not mean "not visible in your browser."** The two are easy to conflate and the first live deployment did: canvases *do* render in the browser studio — in *your* browser, on a segregated canvas origin the workspace serves. What the workspace never does is evaluate your canvas for its own purposes. If canvases come up as blank frames with `ERR_CONNECTION_REFUSED` in the console, that is not this policy at work — it is a missing **canvas domain**: the canvas origin needs its own public hostname (`workspace-up --canvas-domain canvas.acme.com`, plus a DNS record), or the iframe falls back to a container-internal port no remote browser can reach.
 
-Exports split along the same line. **PNG and SVG of the active artboard, and the PPTX deck, are captured by *your* browser** — the same place the canvas already renders — so they work in every workspace, instantly, with no extra moving parts. Exports that need a *server-side* browser (video, PDF, multi-artboard scopes) run in Maude Desktop on your machine, or — if you deploy it — in the dedicated **`maude-render` sidecar**, a separate container that holds the browser and none of the workspace's secrets ([Self-hosting → the render sidecar](/docs/hub/self-host)). Without either, the export dialog says so instead of failing; ZIP export always works, because zipping evaluates nothing.
+Exports split along the same line. **PNG and SVG of the active artboard, and the PPTX deck, are captured by *your* browser** — the same place the canvas already renders — so they work in every workspace, instantly, with no extra moving parts. Exports that need a *server-side* browser (video, PDF, multi-artboard scopes) run in Maude Desktop on your machine, or — if you deploy it — in the dedicated **`maude-render` sidecar**, a separate container that holds the browser and none of the workspace's secrets ([Self-hosting → the render sidecar](/docs/hub/self-host)). Without either, the Export sheet says so instead of failing; ZIP export always works, because zipping evaluates nothing.
 
 ## Costs
 

@@ -1,0 +1,17 @@
+V2-4.4 — Left panel (Canvases · Layers · Assets, Advanced fold, Trash row) · AI chat panel shell (03 header) · Inspector on selection · Dock tab strip + CollapsedRail removed
+Date: 2026-10-17 · feat/maude-v2
+Commits: 4.4a (Sonnet) b384f8d5 merge · lead 97a4c30e (humanMax 73 → 75, nothing-deleted D4/D5, scenario text) · 4.4b (Sonnet) 641705f3 · c301ebd2 merge · lead de088565 (pure inspector-follow rules wired — they were never called; rail/dock words gone; panel-icon-<which>) · 4bb457a1 (goldens + bundle)
+
+Done-when: old Sidebar/Dock/CollapsedRail gone, their features rehomed per ledger
+- client/v2/left-panel/*: Canvases · Layers · Assets tabs (panel-tab-*, panel-fold-*), pinned DS row, Trash view (Clear out says what today's server does until S1), Canvases › Advanced (hidden files, ⇧⌘R, …). v2-left-panel-model/render tests red-first.
+- right side (option A): one exclusive main island (Inspector · Comments · Changes · Sync) + the AI chat as its own island with the 03 header (ai-chat-header / ai-chat-new / ai-chat-hide). v2-right-islands 22/22, red with the guard or the close rule broken.
+- Inspector on selection: shouldOpenOnSelect / shouldCloseOnDeselect (client/v2/shell/inspector-follow.js) run by use-shell-core; the chat island does not count as "a right panel is open".
+- dock.jsx: DOCK_PANELS + PanelTabs; collapsed-rail.jsx deleted; every rail/dock-strip feature rehomed in dock-rail-homes.js (panel-icon-<which>); nothing-deleted D4/D5 + dock/rail rows filled.
+
+Gates
+- studio suite (lane, alone, on e691d56b): 8147 pass / 6 skip / 3 fail = notifications + schema-drift (known, pass alone) + asset-api round-trip 5 s timeout while three builders loaded the machine; all three re-run alone: 32/32 pass.
+- characterization 30/30 + v1-keys 1/1 refreshed in 4bb457a1, each verified identical on a second run (approved deltas in both headers).
+- desktop e2e (debug build of e691d56b, Arc hidden, 2 s window probe): default 12/12 (2:11) · tabs 1/1 (0:42). Covered samples only before boot (Claude/Finder over the pre-layout window, 11:40:40–48 and 11:43:00–09); none after the Maude window was up.
+- on screen (Chromium 1440×900, scratch copy of the e2e fixture, NO_OPEN + MAUDE_NO_AUTOBUILD): ⌘-click selects → the Inspector island opens on the right (V2-4.4/inspector-on-select.jpg); ⇧⌘A with a Tauri stub (the action is desktop-only) → the AI chat island bottom-right with "New chat · Ready · Claude Code", suggestions, selection chip and composer (V2-4.4/ai-chat-island.jpg).
+
+Follow-ups: ⇧⌘A moves off AI chat in V2-4.5b (rule 13 — v2's ⇧⌘A is Select all annotations); notifications + schema-drift fail in every full run (pass alone); builders' peaks 4.4a ~ / 4.4b ~ over 300k → keep briefs split.

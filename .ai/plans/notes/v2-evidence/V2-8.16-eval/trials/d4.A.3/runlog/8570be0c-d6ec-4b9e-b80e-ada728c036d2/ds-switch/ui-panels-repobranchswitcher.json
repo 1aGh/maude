@@ -1,0 +1,59 @@
+{
+  "canvas": "ui/panels/RepoBranchSwitcher.tsx",
+  "from": "maude",
+  "to": "maude-v2",
+  "meta": { "designSystem": "maude-v2" },
+  "edits": [
+    {
+      "old": " * @ds          maude\n",
+      "new": " * @ds          maude-v2\n",
+      "why": "Header names the system the canvas follows."
+    },
+    {
+      "old": "import \"../../system/maude/colors_and_type.css\";\nimport \"../../system/maude/preview/_components.css\";\n",
+      "new": "",
+      "why": "S5: the canvas pins maude's own CSS. The shell injects the system named in .meta.json, so the import goes."
+    },
+    {
+      "old": "<div className=\"maude\" data-theme=\"dark\"><ShellFrame /></div>",
+      "new": "<div className=\"ds\" data-theme=\"dark\"><ShellFrame /></div>",
+      "why": "S6 wrapper (line 324): `.ds` follows the canvas's system."
+    },
+    {
+      "old": "<div className=\"maude\" data-theme=\"dark\"><ShellFrame open /></div>",
+      "new": "<div className=\"ds\" data-theme=\"dark\"><ShellFrame open /></div>",
+      "why": "S6 wrapper (line 327)."
+    },
+    {
+      "old": "<div className=\"maude\" data-theme=\"dark\"><ShellFrame open onDraft /></div>",
+      "new": "<div className=\"ds\" data-theme=\"dark\"><ShellFrame open onDraft /></div>",
+      "why": "S6 wrapper (line 330)."
+    },
+    {
+      "old": "<div className=\"maude\" data-theme=\"dark\"><ShellFrame onDraft foldConfirm /></div>",
+      "new": "<div className=\"ds\" data-theme=\"dark\"><ShellFrame onDraft foldConfirm /></div>",
+      "why": "S6 wrapper (line 333)."
+    },
+    {
+      "old": "<div className=\"maude\" data-theme=\"dark\"><ShellFrame newDraft /></div>",
+      "new": "<div className=\"ds\" data-theme=\"dark\"><ShellFrame newDraft /></div>",
+      "why": "S6 wrapper (line 336)."
+    },
+    {
+      "old": "<div className=\"maude\" data-theme=\"dark\"><ShellFrame onDraft switching ",
+      "new": "<div className=\"ds\" data-theme=\"dark\"><ShellFrame onDraft switching ",
+      "why": "S6 wrapper (line 339)."
+    },
+    {
+      "old": "<Avatar initials=\"MK\" hue=\"var(--presence-agent)\" />",
+      "new": "<Avatar initials=\"MK\" hue=\"var(--x-presence-agent)\" />",
+      "why": "S2: the maude-v2 name for the agent-presence colour. In v2 it is the vermilion AI spark."
+    }
+  ],
+  "notes": [
+    "The theme stays dark on all six artboards. maude-v2 defaults to light: a decision for you.",
+    "The inline brand mark (around line 55) is maude's (S7). maude-v2 has system/maude-v2/assets/logos/mark.svg. Not changed.",
+    "RepoBranchSwitcher.css uses --canvas-bg/-dot/-grid (21–23), --accent-tint (155, 233) and --accent-muted (255). They still resolve as maude-v2 aliases. Renaming is optional.",
+    "S3/S4 literal warnings are left as they are."
+  ]
+}

@@ -1,0 +1,53 @@
+Phase 4 gate — the v2 shell replaces the old chrome (V2-4.1 … V2-4.10)
+Date: 2026-10-17/18 · feat/maude-v2 · product HEAD 4c925e4c (+ 45212aab probe data, goldens commit)
+
+Plan gate: "the frozen v1 manifest, the 124-row ledger and the G0-D rows each resolve to a reachable v2 element
+(check-v2-nothing-deleted.mjs walking the registry + DOM in a headless boot per shell and role) — first green;
+interactive boot gates green on a built .app; desktop e2e green in both shells; per-role server-enforcement tests
+green for owner · member · viewer; a11y-auditor 0 blockers on the shell; design-critic ≥ 4.0 on shell screenshots."
+
+1 · Nothing-deleted — 100 % (45212aab, clean full probe of the committed release bundle, no merged runs)
+  v1 entry points mapped 1419/1419 (101 added after the freeze; 63 excluded as not v1 features) · rows with a v2 home
+  144/144 · rows reachable in a headless boot 144/144 · kept actions/hooks reachable 377/377. 7 shells × role
+  (desktop, browser, cloud-owner, -member, -viewer, read-only link, embed). The first clean run (4 rows / 20 targets
+  open) found the probe's history openers still pressing the retired ⇧⌘G → ⌥⌘H (4c925e4c), re-run green.
+
+2 · Interactive boot gates on a built .app (apps/desktop/src-tauri/target/release/bundle/macos/Maude.app, built from
+  4c925e4c 2026-10-18 03:02; updater-archive signing skipped locally as always): check-bundle-completeness --smoke ✓
+  ("Bundle is self-contained"), check-client-boots ✓ (Tauri global, #root mounts, menu + ⌘K + tree answer),
+  maude-desktop 'WebDriver' strings 0, no wdio-webdriver:default grant. Source boot gate ✓ at every rebuild.
+
+3 · Desktop e2e (debug build of 2cb0b4ab+, Arc hidden, 2 s window probe; covered samples only before boot):
+  default 12/12 · tabs 1/1 (first run: "strip × closes a background tab" JS-exception click, passed on re-run — flake
+  noted) · parity (native) 1/1 after fb2b9652 (menu walk now closes the menu fully — Esc steps back one level since
+  polish-b) · parity:cloud viewer 1/1, owner 1/1, member 1/1 (headless Chrome; the stand-in now vouches
+  x-maude-readonly '0' for edit roles like the real proxy — it ran owner/member as readers before).
+
+4 · Per-role server enforcement: test/access-role-matrix.test.ts (owner · member · viewer, hubs.json + cell path),
+  read-only-gate, cloud-session-role, cloud-renew (unknown/observer roles read-only, no renewal) — green in the
+  full suite.
+
+5 · Full studio suite alone (lane, 31dbf38d…76b9135b): 8636 pass / 6 skip / 5 fail → 2 stale source pins fixed
+  (2cb0b4ab: sync availability moved to panel-availability.js in V2-4.9; dashboardUrl spread in configResponse);
+  canvas-route traversal (5 s timeout), notifications, schema-drift pass alone (known).
+
+6 · a11y-auditor: iteration 1 8 blockers → iteration 2 7 fixed + 3 contrast residuals (R1–R3) → f1607c3e +
+  4c925e4c → 0 blockers (lowest 6.33:1 on the highlighted › Advanced row, dark). 13 warnings carried (landmarks/h1,
+  heading order, Layers tree semantics, radio tab stops, …). Reports: phase4-shell/a11y-audit.md, a11y-2/, a11y-3/.
+  The auditor's "renderer CPU runaway" was the harness: agent-browser `press` pegs Chrome even on a data: page;
+  Playwright/CDP measure the shell at 0.7–2.5 % in every state (memory maude-agent-browser-press-cpu).
+
+7 · design-critic: iteration 1 3.1/5 (8 blockers) → iteration 2 4.1/5, all 8 fixed; 2b (the "?" sheet) one new
+  blocker = the Find placeholder 4.44:1 → fixed in f1607c3e (global ::placeholder --fg-2, measured 5.56/5.41).
+  14 warnings carried to S11/S3 sweeps (Preview hides Not saved/Offline, dock size, Preview looks editable, ⌘K v1
+  phrasing, toast copy, menu separators, …). Reports: phase4-shell/design-critic.md, design-critic-2.md.
+
+8 · Security pair (Opus) over 5ae2c90e..HEAD: defender D1 medium (projectFolder on unguarded /_config) + attacker
+  EH-P4-1 medium chain (the whole /_config readable by DNS rebinding) → fixed 4b6521d0 + 2cd0bbbd, red-first; 0 at
+  or above the floor after fixes; lows D2–D5, EH-P4-2/3 assigned to S5.6 / S9.2 / S9.9 / S4.3 (EH-P4-2 already
+  closed in S4.3 on its branch). Report: phase4-shell/security-review.md; kg security-review:maude/feat-maude-v2-phase4-2026-10-18.
+
+9 · Goldens: characterization 30/30 + keys refreshed after polish-a/b, roles and the "?" fixes, each verified
+  identical on further runs (approved deltas in both headers): ec2ad93f, 31dbf38d + the final refresh commit.
+
+10 · Static: biome 0 errors, lint ratchet 132 ≤ baseline, tsc 0, gen-actions + gen-shell-parity up to date.

@@ -1,0 +1,424 @@
+/**
+ * @canvas      GitPanel — in-Maude git-awareness panel for non-technical collaborators · the "what have I changed, and how do I save/publish it" surface · 5 artboards, each the panel docked in the studio shell (Changes · Save version · Publish + Get latest · Nothing to save · Publish rejected) · dark studio
+ * @ds          maude
+ * @platform    desktop
+ * @opt_out     palette
+ * @artboards   changes | save-version | publish | empty | conflict
+ * @brief       Phase 27 (native collab app, epic E2). A docked side panel that lets a non-technical collaborator SEE what they changed and Save / Publish / Get latest — never a terminal. Vocabulary is load-bearing: Save version (commit) · Publish (push) · Get latest (pull) · History (log) · Unsaved (working-tree dirty). No raw git jargon anywhere. Dirty M/A/D badges in the file tree + the panel mirror the DDR-075 activity-overlay status-hue logic. Reuses the <SyncBanner> idiom for the publish/Get-latest bar.
+ * @stack       React 19 · TSX · Bun.build · css_mode=inline (sibling GitPanel.css)
+ * @history     .design/_history/gitpanel/
+ *
+ * Authored under the `maude` DS ("Unified Pro Studio", dark-first). Tokens +
+ * shared component classes (.panel/.btn/.callout/.input/.tree-row/.kbd) arrive
+ * via the imports below so the canvas renders in `maude` regardless of which DS
+ * the host injects (UI canvases get designSystems[0] = `project` by default —
+ * the explicit import + `.maude[data-theme]` scope wins). Mirrors Studio.tsx.
+ *
+ * Every state artboard is the panel DOCKED in the studio shell (menubar + dotted
+ * canvas peek), not a floating card — so the panel always reads in context.
+ */
+
+import { useEffect, useRef } from "react";
+import "../../system/maude/colors_and_type.css";
+import "../../system/maude/preview/_components.css";
+import "./GitPanel.css";
+import { DesignCanvas, DCSection, DCArtboard } from "@maude/canvas-lib";
+
+/* ───────────────────────────── Icon set ─────────────────────────────────────
+ * Thin-stroke (1.4) geometric glyphs — terminal/IDE heritage, no emoji (DS rule).
+ * ──────────────────────────────────────────────────────────────────────────── */
+type IconName = keyof typeof ICONS;
+const ICONS = {
+  check: <polyline points="3 8.2 6.4 11.5 13 4.2" />,
+  file: (<><path d="M4 2h5l3 3v9H4z" /><polyline points="9 2 9 5 12 5" /></>),
+  folder: <path d="M2 4.5h4l1.3 1.5H14V13H2z" />,
+  "chevron-down": <polyline points="3.5 6 8 10.5 12.5 6" />,
+  "chevron-right": <polyline points="6 3.5 10.5 8 6 12.5" />,
+  undo: (<><path d="M5.5 6H10a3.4 3.4 0 0 1 0 6.8H6.2" /><polyline points="5.5 3.6 3 6 5.5 8.4" /></>),
+  publish: (<><line x1="8" y1="13" x2="8" y2="3.5" /><polyline points="4.5 7 8 3.5 11.5 7" /><polyline points="3 12.8 3 13.6 13 13.6 13 12.8" /></>),
+  download: (<><line x1="8" y1="2.5" x2="8" y2="10" /><polyline points="4.5 7 8 10.5 11.5 7" /><polyline points="3 12.8 3 13.6 13 13.6 13 12.8" /></>),
+  history: (<><path d="M3.2 8a5 5 0 1 1 1.4 3.5" /><polyline points="3.2 11.4 3.2 8 6.6 8" /><polyline points="8 5.5 8 8 10 9.3" /></>),
+  save: (<><path d="M3 3h8l2 2v8H3z" /><polyline points="5 3 5 6 10 6" /><rect x="5.5" y="9" width="5" height="3.5" /></>),
+} as const;
+
+function Icon({ name, size = 16, className }: { name: IconName; size?: number; className?: string }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 16 16" fill="none"
+      stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {ICONS[name]}
+    </svg>
+  );
+}
+
+/* The Maude mark — spark-on-bubble (the brand source is system/maude/preview/logo). */
+function Mark({ size = 18, className }: { size?: number; className?: string }) {
+  return (
+    <span data-cd-id="maude" className={"gp-mark" + (className ? " " + className : "")} style={{ fontSize: size > 22 ? "var(--type-xl)" : undefined }}>
+      <svg width={size} height={size} viewBox="0 0 16 16" aria-hidden="true">
+        <path d="M2.4 7.2a5 5 0 1 1 1.7 3.8L2.2 13.6l.5-2.7a5 5 0 0 1-.3-3.7z" fill="var(--bg-3)" stroke="var(--border-strong)" strokeWidth="0.8" />
+        <path className="gp-mark-spark" d="M9.6 4.4l.7 2.3 2.3.7-2.3.7-.7 2.3-.7-2.3-2.3-.7 2.3-.7z" fill="currentColor" />
+      </svg>
+      Maude
+    </span>
+  );
+}
+
+/* ── shared atoms ───────────────────────────────────────────────────────────── */
+type Kind = "M" | "A" | "D" | "U";
+const KIND_TITLE: Record<Kind, string> = { M: "Modified", A: "Added", D: "Deleted", U: "Untracked" };
+
+function Badge({ kind }: { kind: Kind }) {
+  return <span className="gp-badge" data-kind={kind} title={`${KIND_TITLE[kind]} — unsaved`} aria-label={`${KIND_TITLE[kind]}, unsaved`}>{kind}</span>;
+}
+
+function Check({ state, label }: { state: "on" | "off" | "some"; label: string }) {
+  // Lifts the DS .check (native <input>, components-toggles). Indeterminate has no
+  // React prop, so set it via ref — the DS draws the tick/dash with ::after.
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = state === "some";
+  }, [state]);
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      className="check"
+      defaultChecked={state === "on"}
+      aria-label={label}
+    />
+  );
+}
+
+function Avatar({ initials, hue }: { initials: string; hue: string }) {
+  return <span className="gp-avatar" style={{ background: hue }}>{initials}</span>;
+}
+
+/* ── the studio menubar: grounds the panel + carries the repo/branch context ── */
+function MenuBar({ unsaved }: { unsaved?: number }) {
+  return (
+    <div className="gp-menubar">
+      <Mark />
+      {/* DDR-110: "you are in repo X on branch Y" is the top-level IA. Plain words —
+          "main" is the shared draft; we never say "branch" in body copy. */}
+      <span data-cd-id="main" className="gp-context" title="Project and shared draft">
+        <Icon name="folder" size={13} />
+        <b data-cd-id="maude-2">maude</b><span className="gp-sep">/</span>main
+      </span>
+      <span className="gp-spacer" />
+      {typeof unsaved === "number" && unsaved > 0 && (
+        <span data-cd-id="unsaved" className="gp-count" title={`${unsaved} files changed since your last saved version`}>{unsaved} unsaved</span>
+      )}
+      <span className="gp-avatars">
+        <Avatar initials="YO" hue="var(--accent)" />
+        <Avatar initials="AN" hue="var(--presence-online)" />
+        <Avatar initials="RY" hue="var(--status-info)" />
+      </span>
+    </div>
+  );
+}
+
+/* ── ShellFrame: every artboard is the panel docked in the studio shell ──────── */
+function ShellFrame({ unsaved, withTree, stageTag, children }: {
+  unsaved?: number; withTree?: boolean; stageTag: string; children: React.ReactNode;
+}) {
+  return (
+    <div className="gp-shell">
+      <MenuBar unsaved={unsaved} />
+      <div className="gp-main">
+        {withTree && <FileTree />}
+        <div className="gp-stage gp-canvas-bleed">
+          <div className="panel gp-mini">
+            <div className="gp-mini-bar"><span className="gp-mini-dot" /><span className="gp-mini-dot" /><span className="gp-mini-dot" /></div>
+            <div className="gp-mini-body">
+              <div className="gp-sk" style={{ width: "58%", height: 14 }} />
+              <div className="gp-sk" style={{ width: "90%" }} />
+              <div className="gp-sk" style={{ width: "76%" }} />
+              <div className="gp-sk is-accent" />
+            </div>
+          </div>
+          <span className="gp-stage-tag">{stageTag}</span>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function FileTree() {
+  return (
+    <nav className="gp-tree" aria-label="Project files">
+      <div className="gp-tree-hd"><span data-cd-id="files">Files</span><Icon name="chevron-down" size={12} /></div>
+      <div className="gp-tree-body" role="tree" aria-label="Project files">
+        <div className="tree-row gp-row" data-depth="0" role="treeitem" aria-expanded="true"><Icon name="chevron-down" size={12} className="gp-row-icon" /><span data-cd-id="ui" className="gp-row-name">ui</span></div>
+        <div className="tree-row gp-row" data-depth="1" role="treeitem" aria-selected="true"><Icon name="file" size={13} className="gp-row-icon" /><span data-cd-id="pricing-v3" className="gp-row-name">Pricing v3</span><Badge kind="M" /></div>
+        <div className="tree-row gp-row" data-depth="1" role="treeitem"><Icon name="file" size={13} className="gp-row-icon" /><span data-cd-id="onboarding-flow" className="gp-row-name">Onboarding Flow</span><Badge kind="M" /></div>
+        <div className="tree-row gp-row" data-depth="1" role="treeitem"><Icon name="file" size={13} className="gp-row-icon" /><span data-cd-id="checkout-sheet" className="gp-row-name">Checkout Sheet</span><Badge kind="A" /></div>
+        <div className="tree-row gp-row" data-depth="1" role="treeitem"><Icon name="file" size={13} className="gp-row-icon" /><span data-cd-id="team-avatars" className="gp-row-name">Team Avatars</span><Badge kind="U" /></div>
+        <div className="tree-row gp-row" data-depth="1" role="treeitem"><Icon name="file" size={13} className="gp-row-icon" /><span data-cd-id="marketing-site" className="gp-row-name">Marketing Site</span></div>
+        <div className="tree-row gp-row" data-depth="0" role="treeitem" aria-expanded="false"><Icon name="chevron-right" size={12} className="gp-row-icon" /><span data-cd-id="system" className="gp-row-name">system</span></div>
+      </div>
+    </nav>
+  );
+}
+
+/* ── the changed-file list (grouped Modified / Added / Deleted / Untracked) ──── */
+type Change = { kind: Kind; name: string; path: string; checked: boolean };
+
+const CHANGES: Change[] = [
+  { kind: "M", name: "Pricing v3", path: "ui/Pricing v3.tsx", checked: true },
+  { kind: "M", name: "Onboarding Flow", path: "ui/Onboarding Flow.tsx", checked: true },
+  { kind: "M", name: "components-cards", path: "system/maude/preview/components-cards.tsx", checked: false },
+  { kind: "A", name: "Checkout Sheet", path: "ui/Checkout Sheet.tsx", checked: true },
+  { kind: "D", name: "Old Hero", path: "ui/Old Hero.tsx", checked: false },
+  { kind: "U", name: "Team Avatars", path: "ui/Team Avatars.tsx", checked: false },
+];
+
+const GROUP_ORDER: Kind[] = ["M", "A", "D", "U"];
+
+function FileRow({ change }: { change: Change }) {
+  return (
+    <div className={"gp-file" + (change.checked ? " is-checked" : "")}>
+      <Check state={change.checked ? "on" : "off"} label={`Include ${change.name} in this version`} />
+      <Badge kind={change.kind} />
+      <span className="gp-file-text">
+        <span className="gp-file-name">{change.name}</span>
+        <span className="gp-file-path">{change.path}</span>
+      </span>
+      <button type="button" className="gp-discard" title="Discard this change" aria-label={`Discard changes to ${change.name}`}>
+        <Icon name="undo" size={14} />
+      </button>
+    </div>
+  );
+}
+
+function ChangeList({ items }: { items: Change[] }) {
+  return (
+    <div className="gp-list">
+      {GROUP_ORDER.map((k) => {
+        const rows = items.filter((c) => c.kind === k);
+        if (rows.length === 0) return null;
+        return (
+          <div key={k}>
+            <div className="gp-group-hd">
+              <Badge kind={k} />
+              {KIND_TITLE[k]}
+              <span className="gp-group-count">· {rows.length}</span>
+            </div>
+            {rows.map((c) => <FileRow key={c.path} change={c} />)}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── the commit composer (message + Save version + Save all) ─────────────────── */
+function Composer({ message, selected, total, canSave }: {
+  message: string; selected: number; total: number; canSave: boolean;
+}) {
+  return (
+    <div className="gp-compose">
+      {/* a real <label> + native .check input associates correctly (valid HTML) */}
+      <label data-cd-id="of-selected" className="gp-selectall">
+        <Check state={selected === total ? "on" : selected === 0 ? "off" : "some"} label="Select all changed files" />
+        {selected} of {total} selected
+      </label>
+      <textarea
+        className={"textarea gp-msg" + (message ? " is-focused" : "")}
+        defaultValue={message}
+        placeholder="Describe what changed in this version…"
+        aria-label="Describe this version"
+        rows={2}
+      />
+      <div className="gp-compose-actions">
+        <button data-cd-id="save-version" type="button" className="btn btn--primary gp-save" aria-disabled={!canSave} disabled={!canSave}>
+          <Icon name="save" size={15} /> Save version
+        </button>
+        <button data-cd-id="save-all" type="button" className="btn btn--ghost btn--sm">Save all</button>
+      </div>
+      {!canSave && <span data-cd-id="type-a-message" className="gp-hint">Type a message and pick at least one file to save a version.</span>}
+    </div>
+  );
+}
+
+/* ── the panel header (title + count + Changes/History tabs) ─────────────────── */
+function PanelHead({ title, count, tab }: { title: string; count?: number; tab?: "changes" | "history" }) {
+  return (
+    <>
+      <div className="gp-panel-hd">
+        <span className="gp-panel-title">{title}</span>
+        {typeof count === "number" && count > 0 && <span data-cd-id="unsaved-2" className="gp-count">{count} unsaved</span>}
+        <span className="gp-spacer" />
+        <button type="button" className="btn btn--icon" title="More" aria-label="More options">
+          <Icon name="chevron-down" size={14} />
+        </button>
+      </div>
+      {tab && (
+        <div className="tabbar gp-tabs" role="tablist" aria-label="Changes and history">
+          <button data-cd-id="changes" data-cd-locked type="button" className="tab" role="tab" aria-selected={tab === "changes"}>Changes</button>
+          <button data-cd-id="history" type="button" className="tab" role="tab" aria-selected={tab === "history"}>History</button>
+        </div>
+      )}
+    </>
+  );
+}
+
+const HISTORY = [
+  { msg: "Tighten pricing card spacing", meta: "you · 6 files", when: "2m ago" },
+  { msg: "Add the annual billing toggle", meta: "you · 3 files", when: "1h ago" },
+  { msg: "Rework the onboarding welcome", meta: "Anna · 4 files", when: "yesterday" },
+  { msg: "First pass at the checkout sheet", meta: "you · 8 files", when: "2 days ago" },
+];
+
+function VersionRow({ msg, meta, when }: { msg: string; meta: string; when: string }) {
+  return (
+    <div className="gp-version">
+      <span className="gp-version-rail"><span className="gp-version-node" /></span>
+      <span>
+        <span className="gp-version-msg">{msg}</span>
+        <span className="gp-version-meta">{meta}</span>
+      </span>
+      <span className="gp-version-when">{when}</span>
+    </div>
+  );
+}
+
+/* ─────────────────────────────── Panel bodies ─────────────────────────────── */
+
+function ChangesPanel() {
+  const checked = CHANGES.filter((c) => c.checked).length;
+  return (
+    <aside className="gp-panel" aria-label="Changes">
+      <PanelHead title="Changes" count={4} tab="changes" />
+      <ChangeList items={CHANGES} />
+      <Composer message="" selected={checked} total={CHANGES.length} canSave={false} />
+    </aside>
+  );
+}
+
+function SaveVersionPanel() {
+  const selected = CHANGES.filter((c) => c.checked).length;
+  return (
+    <aside className="gp-panel" aria-label="Save a version">
+      <PanelHead title="Save a version" />
+      <div data-cd-id="files-in-this" className="gp-sect-label">Files in this version</div>
+      <ChangeList items={CHANGES} />
+      <Composer
+        message="Tighten pricing card spacing and add the annual toggle"
+        selected={selected}
+        total={CHANGES.length}
+        canSave
+      />
+    </aside>
+  );
+}
+
+function PublishPanel() {
+  return (
+    <aside className="gp-panel" aria-label="Publish and history">
+      <PanelHead title="Publish" tab="history" />
+      {/* Get latest nudge — reuses the <SyncBanner> idiom + .callout--info */}
+      <div style={{ padding: "var(--space-4) var(--space-4) 0" }}>
+        <div className="callout callout--info gp-nudge">
+          <span className="gp-dot-pulse" aria-hidden="true" />
+          <span className="gp-nudge-text">
+            <b data-cd-id="anna-published-2">Anna published 2 changes.</b> <span data-cd-id="get-the-latest">Get the latest before you publish yours.</span>
+          </span>
+          <button data-cd-id="get-latest" type="button" className="btn btn--sm"><Icon name="download" size={14} /> Get latest</button>
+        </div>
+      </div>
+      <div data-cd-id="history-2" className="gp-sect-label">History</div>
+      <div className="gp-history">
+        {HISTORY.map((h) => <VersionRow key={h.msg} msg={h.msg} meta={h.meta} when={h.when} />)}
+      </div>
+      <div className="gp-publishbar">
+        <button type="button" className="btn btn--primary gp-publish">
+          <Icon name="publish" size={15} /> Publish changes
+        </button>
+        <span className="gp-hint" style={{ textAlign: "center" }}>Sends your 2 saved versions to the shared project so the team can get them.</span>
+      </div>
+    </aside>
+  );
+}
+
+function EmptyPanel() {
+  return (
+    <aside className="gp-panel" aria-label="Changes">
+      <PanelHead title="Changes" tab="changes" />
+      <div className="gp-empty">
+        <Mark size={40} className="gp-empty-mark" />
+        <span className="gp-empty-glyph"><Icon name="check" size={26} /></span>
+        <h3>Nothing to save</h3>
+        <p>Every change is saved and published. When you edit a canvas, it shows up here.</p>
+        <button type="button" className="btn btn--ghost btn--sm"><Icon name="history" size={14} /> View History</button>
+      </div>
+    </aside>
+  );
+}
+
+function ConflictPanel() {
+  return (
+    <aside className="gp-panel" aria-label="Publish">
+      <PanelHead title="Publish" tab="history" />
+      <div style={{ padding: "var(--space-5) var(--space-4) var(--space-4)" }}>
+        <div className="callout callout--warn">
+          <div className="gp-callout-col">
+            <span>
+              <strong style={{ display: "block", marginBottom: "var(--space-2)", color: "var(--fg-0)" }}>
+                Publish didn't go through
+              </strong>
+              The shared project moved on while you were working — Anna published changes
+              first. <strong>Get the latest</strong>, then publish yours on top.
+            </span>
+            <div className="gp-callout-actions">
+              <button type="button" className="btn btn--primary btn--sm"><Icon name="download" size={14} /> Get latest</button>
+              <button type="button" className="btn btn--ghost btn--sm">See what changed</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="gp-sect-label">Your saved versions, waiting to publish</div>
+      <div className="gp-history">
+        <VersionRow msg="Tighten pricing card spacing" meta="you · 6 files · not yet published" when="2m ago" />
+        <VersionRow msg="Add the annual billing toggle" meta="you · 3 files · not yet published" when="1h ago" />
+      </div>
+      <div className="gp-publishbar">
+        <button type="button" className="btn btn--primary gp-publish" aria-disabled disabled>
+          <Icon name="publish" size={15} /> Publish changes
+        </button>
+        <span className="gp-hint" style={{ textAlign: "center" }}>Get the latest first — it only takes a moment, and no work is lost.</span>
+      </div>
+    </aside>
+  );
+}
+
+/* ───────────────────────────── World wrapper ──────────────────────────────────
+ * Each artboard body is scoped to the maude DS token ladder via `.maude[data-theme]`
+ * (specificity 0,2,0 beats any :root host injection). Mirrors Studio.tsx Board(). */
+function Board({ children }: { children: React.ReactNode }) {
+  return <div className="maude" data-theme="dark" style={{ position: "absolute", inset: 0 }}>{children}</div>;
+}
+
+export default function GitPanel() {
+  return (
+    <DesignCanvas>
+      <DCSection id="git" title="GitPanel — see, save, publish" subtitle="MAUDE/GIT · 5 artboards · Save version · Publish · Get latest (never commit/push/pull)">
+        <DCArtboard id="changes" label="A · Changes, docked in the shell" width={1360} height={880}>
+          <Board><ShellFrame unsaved={4} withTree stageTag="Pricing v3 · editing"><ChangesPanel /></ShellFrame></Board>
+        </DCArtboard>
+        <DCArtboard id="save-version" label="B · Save a version" width={940} height={880}>
+          <Board><ShellFrame unsaved={4} stageTag="Pricing v3 · editing"><SaveVersionPanel /></ShellFrame></Board>
+        </DCArtboard>
+        <DCArtboard id="publish" label="C · Publish + Get latest nudge" width={940} height={880}>
+          <Board><ShellFrame stageTag="Pricing v3 · all saved"><PublishPanel /></ShellFrame></Board>
+        </DCArtboard>
+        <DCArtboard id="empty" label="D · Nothing to save" width={940} height={880}>
+          <Board><ShellFrame stageTag="Pricing v3 · clean"><EmptyPanel /></ShellFrame></Board>
+        </DCArtboard>
+        <DCArtboard id="conflict" label="E · Publish rejected — Get latest first" width={940} height={880}>
+          <Board><ShellFrame stageTag="Pricing v3 · all saved"><ConflictPanel /></ShellFrame></Board>
+        </DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}

@@ -97,6 +97,29 @@ describe('writeCompileEntry', () => {
     }
   });
 
+  // p8-t-video-2: the variable names a `/$bunfs/root/…` path that exists only INSIDE this binary. Every
+  // child the server spawns inherits process.env — the ACP agent, its `claude`, the AI's Bash, and so
+  // `maude design reel-place` → `bun _reel-place.mjs` → oxc-parser, whose loader tries ONLY that path when
+  // the variable is set ("Cannot find native binding … /$bunfs/root/parser.darwin-arm64-….node"). So the
+  // entry loads oxc-parser while the variable names the embedded binding, then removes it, before either
+  // server mode starts and can spawn anything.
+  test('entry loads oxc-parser, then removes NAPI_RS_NATIVE_LIBRARY_PATH before any server mode starts', () => {
+    for (const target of ALL_TARGETS) {
+      const slug = maudeSlug(target);
+      writeCompileEntry(target);
+      const content = readFileSync(join(ENTRY_DIR, `server-${slug}.ts`), 'utf8');
+      const initIdx = content.indexOf(`./init-oxc-${slug}.ts`);
+      const loadIdx = content.indexOf("await import('oxc-parser')");
+      const dropIdx = content.indexOf('delete process.env.NAPI_RS_NATIVE_LIBRARY_PATH');
+      const homeIdx = content.indexOf('home/main.ts');
+      const serverIdx = content.indexOf('server.ts');
+      expect(loadIdx).toBeGreaterThan(initIdx);
+      expect(dropIdx).toBeGreaterThan(loadIdx);
+      expect(homeIdx).toBeGreaterThan(dropIdx);
+      expect(serverIdx).toBeGreaterThan(dropIdx);
+    }
+  });
+
   test('entry uses POSIX path separators in the server.ts import', () => {
     writeCompileEntry('bun-windows-x64');
     const content = readFileSync(join(ENTRY_DIR, 'server-win32-x64.ts'), 'utf8');

@@ -65,7 +65,7 @@ function prune(edit) {
 // for both `:root`/`[data-theme="light"]` and `[data-theme="dark"]`.
 const S = {
   body: { fontSize: 12, color: 'var(--fg-0)', overflowY: 'auto' },
-  sec: { marginBottom: 'var(--space-4)' },
+  sec: { marginBottom: 'var(--space-3)' },
   secHead: {
     display: 'flex',
     alignItems: 'center',
@@ -76,7 +76,7 @@ const S = {
     color: 'var(--fg-2)',
     margin: '4px 0 8px',
   },
-  row: { display: 'flex', alignItems: 'center', gap: 8, margin: 'var(--space-2) 0' },
+  row: { display: 'flex', alignItems: 'center', gap: 8, margin: 'var(--space-1) 0' },
   label: { flex: '0 0 72px', fontSize: 11, color: 'var(--fg-1)' },
   tip: {
     flex: 1,
@@ -87,7 +87,14 @@ const S = {
   },
   // handoff — tips go BELOW the control (help text), not inline right, aligned
   // under the control column (past the 72px label).
-  tipBelow: { marginLeft: 80, marginTop: 2, marginBottom: 'var(--space-2)', fontSize: 10, color: 'var(--fg-2)', lineHeight: 1.4 },
+  tipBelow: {
+    marginLeft: 80,
+    marginTop: 2,
+    marginBottom: 'var(--space-1)',
+    fontSize: 10,
+    color: 'var(--fg-2)',
+    lineHeight: 1.4,
+  },
   reset: {
     font: 'inherit',
     fontSize: 10,
@@ -143,14 +150,34 @@ function PhotoColorField({ value, fallback, label, ColorPicker, onApply }) {
   return (
     <ColorField
       swatch={
-        <span className="st-cp-tokwrap" ref={wrapRef}>
-          <button type="button" className="st-cp-cf-sw" style={{ background: hex }} aria-haspopup="dialog" aria-expanded={open} aria-label={label} title={hex} onClick={() => setOpen((o) => !o)} />
+        <span className="insp-cp-tokwrap" ref={wrapRef}>
+          <button
+            type="button"
+            className="insp-cp-cf-sw"
+            style={{ background: hex }}
+            aria-haspopup="dialog"
+            aria-expanded={open}
+            aria-label={label}
+            title={hex}
+            onClick={() => setOpen((o) => !o)}
+          />
           {open ? (
-            <div className="st-cp-pop" role="dialog" aria-label={label} style={{ padding: 'var(--space-2)' }}>
+            <div
+              className="insp-cp-pop"
+              role="dialog"
+              aria-label={label}
+              style={{ padding: 'var(--space-1)' }}
+            >
               {ColorPicker ? (
                 <ColorPicker seed={hex} label={label} onApply={onApply} />
               ) : (
-                <input type="color" value={hex} aria-label={label} onChange={(e) => onApply(e.target.value)} style={{ width: '100%', height: 32 }} />
+                <input
+                  type="color"
+                  value={hex}
+                  aria-label={label}
+                  onChange={(e) => onApply(e.target.value)}
+                  style={{ width: '100%', height: 32 }}
+                />
               )}
             </div>
           ) : null}
@@ -158,7 +185,9 @@ function PhotoColorField({ value, fallback, label, ColorPicker, onApply }) {
       }
       displayValue={(hex || '').replace('#', '')}
       ariaLabel={label}
-      onValue={(v) => onApply(v.startsWith('#') ? v : `#${v.replace(/[^0-9a-fA-F]/g, '').slice(0, 6)}`)}
+      onValue={(v) =>
+        onApply(v.startsWith('#') ? v : `#${v.replace(/[^0-9a-fA-F]/g, '').slice(0, 6)}`)
+      }
     />
   );
 }
@@ -174,10 +203,27 @@ function PhotoColorField({ value, fallback, label, ColorPicker, onApply }) {
  * @param {Function} [p.onRemoveBackground] async (asset) => { maskAsset } | null.
  * @param {Function} [p.onRecordEdit]    (before, after) => void — undo integration.
  * @param {Function} [p.StIcon]         Injected shell icon component (optional).
+ * @param {object}  [p.value]            S8.15 — controlled mode: the edit to show. The panel then neither
+ *                                       fetches nor writes; every change goes to `onChange` (the owner —
+ *                                       Photo › Advanced — decides where it lands: one use, or every use).
+ * @param {Function} [p.onChange]        (next, { commit }) => void — controlled mode's change channel.
  */
-export function PhotoKnobs({ asset, initialEdit, ColorPicker, onEdit, onRemoveBackground, onRecordEdit, StIcon }) {
-  const [edit, setEditState] = useState(() => clone(initialEdit));
-  const [loading, setLoading] = useState(!initialEdit);
+export function PhotoKnobs({
+  asset,
+  initialEdit,
+  ColorPicker,
+  onEdit,
+  onRemoveBackground,
+  onRecordEdit,
+  StIcon,
+  value,
+  onChange,
+}) {
+  const controlled = value !== undefined;
+  const [ownEdit, setEditState] = useState(() => clone(initialEdit));
+  const [ownLoading, setLoading] = useState(!initialEdit && !controlled);
+  const edit = controlled ? value || {} : ownEdit;
+  const loading = controlled ? false : ownLoading;
   const [saveState, setSaveState] = useState('idle'); // idle | saving | saved | error
   const [bgBusy, setBgBusy] = useState(false);
   // sr-only live-region text for the background-removal busy state (Task 19).
@@ -188,7 +234,7 @@ export function PhotoKnobs({ asset, initialEdit, ColorPicker, onEdit, onRemoveBa
 
   // Hydrate from the sidecar unless seeded.
   useEffect(() => {
-    if (initialEdit || !asset) return;
+    if (controlled || initialEdit || !asset) return;
     let dead = false;
     setLoading(true);
     fetch(`/_api/photo-edit?asset=${encodeURIComponent(asset)}`)
@@ -202,7 +248,7 @@ export function PhotoKnobs({ asset, initialEdit, ColorPicker, onEdit, onRemoveBa
     return () => {
       dead = true;
     };
-  }, [asset, initialEdit]);
+  }, [asset, initialEdit, controlled]);
 
   const put = useCallback(
     (next) => {
@@ -234,30 +280,45 @@ export function PhotoKnobs({ asset, initialEdit, ColorPicker, onEdit, onRemoveBa
       // Reset and a number field's blur can arrive before React renders.
       // The next mutation (and its undo base) must already see this edit.
       editRef.current = next;
-      setEditState(next);
       onEdit?.(next);
-      put(next);
+      if (controlled) onChange?.(next, { commit });
+      else {
+        setEditState(next);
+        put(next);
+      }
       if (commit) onRecordEdit?.(before, next);
     },
-    [onEdit, put, onRecordEdit]
+    [onEdit, put, onRecordEdit, controlled, onChange]
   );
 
   const setAdj = (key, value, commit) =>
-    mutate((e) => {
-      e.adjustments = e.adjustments || {};
-      if (value === 0 || value == null) delete e.adjustments[key];
-      else e.adjustments[key] = value;
-      if (Object.keys(e.adjustments).length === 0) delete e.adjustments;
-    }, { commit });
+    mutate(
+      (e) => {
+        e.adjustments = e.adjustments || {};
+        if (value === 0 || value == null) delete e.adjustments[key];
+        else e.adjustments[key] = value;
+        if (Object.keys(e.adjustments).length === 0) delete e.adjustments;
+      },
+      { commit }
+    );
 
   const setSection = (section, patch, commit) =>
-    mutate((e) => {
-      e[section] = { ...(e[section] || {}), ...patch };
-    }, { commit });
+    mutate(
+      (e) => {
+        e[section] = { ...(e[section] || {}), ...patch };
+      },
+      { commit }
+    );
 
   const resetAdjustments = () => mutate((e) => delete e.adjustments, { commit: true });
   // handoff — per-section reset (⟲): remove the section → back to its defaults.
-  const clearSection = (section) => mutate((e) => { delete e[section]; }, { commit: true });
+  const clearSection = (section) =>
+    mutate(
+      (e) => {
+        delete e[section];
+      },
+      { commit: true }
+    );
 
   // Shared by both the initial "Remove Background" and the "redo" button —
   // drives the busy state + the sr-only live-region announcement (Task 19).
@@ -291,10 +352,26 @@ export function PhotoKnobs({ asset, initialEdit, ColorPicker, onEdit, onRemoveBa
 
   return (
     <div style={S.body} data-testid="photo-knobs">
-      <div style={{ ...S.secHead, marginTop: 0, color: 'var(--fg-2)', textTransform: 'none', letterSpacing: 0 }}>
+      <div
+        style={{
+          ...S.secHead,
+          marginTop: 0,
+          color: 'var(--fg-2)',
+          textTransform: 'none',
+          letterSpacing: 0,
+        }}
+      >
         <span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 10 }}>{asset}</span>
-        <span style={{ fontSize: 10, color: saveState === 'error' ? 'var(--status-error)' : undefined }}>
-          {saveState === 'saving' ? 'saving…' : saveState === 'error' ? '⚠ save failed' : saveState === 'saved' ? 'saved' : ''}
+        <span
+          style={{ fontSize: 10, color: saveState === 'error' ? 'var(--status-error)' : undefined }}
+        >
+          {saveState === 'saving'
+            ? 'saving…'
+            : saveState === 'error'
+              ? '⚠ save failed'
+              : saveState === 'saved'
+                ? 'saved'
+                : ''}
         </span>
       </div>
 
@@ -317,19 +394,45 @@ export function PhotoKnobs({ asset, initialEdit, ColorPicker, onEdit, onRemoveBa
 
       <Section
         title="Duotone"
-        right={<Toggle checked={duo.enabled} onChange={(v) => setSection('duotone', { enabled: v }, true)} label="on" ariaLabel="Duotone on" />}
+        right={
+          <Toggle
+            checked={duo.enabled}
+            onChange={(v) => setSection('duotone', { enabled: v }, true)}
+            label="on"
+            ariaLabel="Duotone on"
+          />
+        }
         onReset={() => clearSection('duotone')}
       >
         {duo.enabled && (
           <>
             <Row label="Shadow">
-              <PhotoColorField value={duo.colorA} fallback="#111111" label="Shadow" ColorPicker={ColorPicker} onApply={(hex) => setSection('duotone', { colorA: hex }, true)} />
+              <PhotoColorField
+                value={duo.colorA}
+                fallback="#111111"
+                label="Shadow"
+                ColorPicker={ColorPicker}
+                onApply={(hex) => setSection('duotone', { colorA: hex }, true)}
+              />
             </Row>
             <Row label="Highlight">
-              <PhotoColorField value={duo.colorB} fallback="#ffffff" label="Highlight" ColorPicker={ColorPicker} onApply={(hex) => setSection('duotone', { colorB: hex }, true)} />
+              <PhotoColorField
+                value={duo.colorB}
+                fallback="#ffffff"
+                label="Highlight"
+                ColorPicker={ColorPicker}
+                onApply={(hex) => setSection('duotone', { colorB: hex }, true)}
+              />
             </Row>
             <Row label="Intensity">
-              <SliderField value={duo.intensity ?? 1} min={0} max={1} ariaLabel="Duotone intensity" onInput={(v) => setSection('duotone', { intensity: v })} onCommit={(v) => setSection('duotone', { intensity: v }, true)} />
+              <SliderField
+                value={duo.intensity ?? 1}
+                min={0}
+                max={1}
+                ariaLabel="Duotone intensity"
+                onInput={(v) => setSection('duotone', { intensity: v })}
+                onCommit={(v) => setSection('duotone', { intensity: v }, true)}
+              />
             </Row>
           </>
         )}
@@ -337,20 +440,42 @@ export function PhotoKnobs({ asset, initialEdit, ColorPicker, onEdit, onRemoveBa
 
       <Section
         title="Grain"
-        right={<Toggle checked={grain.enabled} onChange={(v) => setSection('grain', { enabled: v }, true)} label="on" ariaLabel="Grain on" />}
+        right={
+          <Toggle
+            checked={grain.enabled}
+            onChange={(v) => setSection('grain', { enabled: v }, true)}
+            label="on"
+            ariaLabel="Grain on"
+          />
+        }
         onReset={() => clearSection('grain')}
       >
         {grain.enabled && (
           <>
             <Row label="Amount">
-              <SliderField value={grain.amount ?? 0.4} min={0} max={1} ariaLabel="Grain amount" onInput={(v) => setSection('grain', { amount: v })} onCommit={(v) => setSection('grain', { amount: v }, true)} />
+              <SliderField
+                value={grain.amount ?? 0.4}
+                min={0}
+                max={1}
+                ariaLabel="Grain amount"
+                onInput={(v) => setSection('grain', { amount: v })}
+                onCommit={(v) => setSection('grain', { amount: v }, true)}
+              />
             </Row>
             <Row label="Size">
               {/* Task 7 (feature-inspector-controls-redesign) — range reconciled
                   against photo/schema.ts's clamp (num(errors, g, 'size', 1, 32));
                   the panel used to cap at 8, silently hiding the top 3/4 of what
                   the server would actually accept. */}
-              <SliderField value={grain.size ?? 1} min={1} max={32} step={1} ariaLabel="Grain size" onInput={(v) => setSection('grain', { size: v })} onCommit={(v) => setSection('grain', { size: v }, true)} />
+              <SliderField
+                value={grain.size ?? 1}
+                min={1}
+                max={32}
+                step={1}
+                ariaLabel="Grain size"
+                onInput={(v) => setSection('grain', { size: v })}
+                onCommit={(v) => setSection('grain', { size: v }, true)}
+              />
             </Row>
           </>
         )}
@@ -358,27 +483,65 @@ export function PhotoKnobs({ asset, initialEdit, ColorPicker, onEdit, onRemoveBa
 
       <Section
         title="Pattern"
-        right={<Toggle checked={pat.enabled} onChange={(v) => setSection('pattern', { enabled: v }, true)} label="on" ariaLabel="Pattern on" />}
+        right={
+          <Toggle
+            checked={pat.enabled}
+            onChange={(v) => setSection('pattern', { enabled: v }, true)}
+            label="on"
+            ariaLabel="Pattern on"
+          />
+        }
         onReset={() => clearSection('pattern')}
       >
         {pat.enabled && (
           <>
             <Row label="Type">
-              <Select value={pat.type || 'dots'} options={PATTERN_TYPES} ariaLabel="Pattern type" onChange={(v) => setSection('pattern', { type: v }, true)} />
+              <Select
+                value={pat.type || 'dots'}
+                options={PATTERN_TYPES}
+                ariaLabel="Pattern type"
+                onChange={(v) => setSection('pattern', { type: v }, true)}
+              />
             </Row>
             <Row label="Blend">
-              <Select value={pat.blend || 'normal'} options={PATTERN_BLENDS} ariaLabel="Pattern blend" onChange={(v) => setSection('pattern', { blend: v }, true)} />
+              <Select
+                value={pat.blend || 'normal'}
+                options={PATTERN_BLENDS}
+                ariaLabel="Pattern blend"
+                onChange={(v) => setSection('pattern', { blend: v }, true)}
+              />
             </Row>
             <Row label="Color" tip="tip: dark colour + Multiply blend reads best">
-              <PhotoColorField value={pat.color} fallback="#ffffff" label="Pattern color" ColorPicker={ColorPicker} onApply={(hex) => setSection('pattern', { color: hex }, true)} />
+              <PhotoColorField
+                value={pat.color}
+                fallback="#ffffff"
+                label="Pattern color"
+                ColorPicker={ColorPicker}
+                onApply={(hex) => setSection('pattern', { color: hex }, true)}
+              />
             </Row>
             <Row label="Scale">
               {/* Task 7 — reconciled against schema.ts's clamp (num(errors, p,
                   'scale', 0.1, 16)); the panel used to cap at 4. */}
-              <SliderField value={pat.scale ?? 1} min={0.1} max={16} step={0.1} ariaLabel="Pattern scale" onInput={(v) => setSection('pattern', { scale: v })} onCommit={(v) => setSection('pattern', { scale: v }, true)} />
+              <SliderField
+                value={pat.scale ?? 1}
+                min={0.1}
+                max={16}
+                step={0.1}
+                ariaLabel="Pattern scale"
+                onInput={(v) => setSection('pattern', { scale: v })}
+                onCommit={(v) => setSection('pattern', { scale: v }, true)}
+              />
             </Row>
             <Row label="Opacity">
-              <SliderField value={pat.opacity ?? 0.5} min={0} max={1} ariaLabel="Pattern opacity" onInput={(v) => setSection('pattern', { opacity: v })} onCommit={(v) => setSection('pattern', { opacity: v }, true)} />
+              <SliderField
+                value={pat.opacity ?? 0.5}
+                min={0}
+                max={1}
+                ariaLabel="Pattern opacity"
+                onInput={(v) => setSection('pattern', { opacity: v })}
+                onCommit={(v) => setSection('pattern', { opacity: v }, true)}
+              />
             </Row>
           </>
         )}
@@ -386,11 +549,23 @@ export function PhotoKnobs({ asset, initialEdit, ColorPicker, onEdit, onRemoveBa
 
       <Section title="Mask" onReset={() => clearSection('mask')}>
         <Row label="Preset">
-          <Select value={mask.preset || 'none'} options={MASK_PRESETS} ariaLabel="Mask preset" onChange={(v) => setSection('mask', { preset: v }, true)} />
+          <Select
+            value={mask.preset || 'none'}
+            options={MASK_PRESETS}
+            ariaLabel="Mask preset"
+            onChange={(v) => setSection('mask', { preset: v }, true)}
+          />
         </Row>
         {mask.preset && mask.preset !== 'none' && (
           <Row label="Strength">
-            <SliderField value={mask.strength ?? 0.6} min={0} max={1} ariaLabel="Mask strength" onInput={(v) => setSection('mask', { strength: v })} onCommit={(v) => setSection('mask', { strength: v }, true)} />
+            <SliderField
+              value={mask.strength ?? 0.6}
+              min={0}
+              max={1}
+              ariaLabel="Mask strength"
+              onInput={(v) => setSection('mask', { strength: v })}
+              onCommit={(v) => setSection('mask', { strength: v }, true)}
+            />
           </Row>
         )}
       </Section>
@@ -399,7 +574,11 @@ export function PhotoKnobs({ asset, initialEdit, ColorPicker, onEdit, onRemoveBa
         <div style={{ ...S.row, gap: 10 }} aria-busy={bgBusy || undefined}>
           {bg.maskAsset ? (
             <>
-              <Toggle checked={bg.enabled} onChange={(v) => setSection('backgroundRemoved', { enabled: v }, true)} label="applied" />
+              <Toggle
+                checked={bg.enabled}
+                onChange={(v) => setSection('backgroundRemoved', { enabled: v }, true)}
+                label="applied"
+              />
               <button
                 type="button"
                 style={{ ...S.reset, opacity: bgBusy ? 0.6 : 1 }}
@@ -413,7 +592,7 @@ export function PhotoKnobs({ asset, initialEdit, ColorPicker, onEdit, onRemoveBa
           ) : (
             <button
               type="button"
-              className="st-btn"
+              className="sh-btn"
               style={{ opacity: bgBusy ? 0.6 : 1 }}
               disabled={bgBusy || !onRemoveBackground}
               data-testid="photo-remove-bg"

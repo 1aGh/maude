@@ -1,0 +1,219 @@
+/* client/v2/export/print.css — S8.7: the Print section of the Export sheet (09 Export `ex-print`,
+ * `ex-print-warn`). The paper is drawn from the artboard's own millimetres (preflight/paper.jsx); this only
+ * dresses it. Tokens only — no hex, no raw durations; the marks draw in on --dur-panel, which collapses to
+ * 1 ms under prefers-reduced-motion. */
+
+@layer shell {
+  /* The print section is the sheet's own body: the paper column, then the rows (the sheet is 780 wide). */
+  .ex-print {
+    display: contents;
+  }
+  .ex-checks {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2, 8px);
+  }
+
+  .ex-pic--paper {
+    display: block;
+    overflow: visible;
+    background: transparent;
+  }
+  /* gate-b-polish3 — the page before its numbers come (or when the artboard has none): a blank sheet */
+  .ex-paper-blank {
+    display: grid;
+    place-items: center;
+    padding: var(--space-2, 8px);
+  }
+  .ex-paper-blank-page {
+    display: block;
+    width: 150px;
+    aspect-ratio: 1 / 1.414;
+    border-radius: var(--radius-xs, 3px);
+    background: var(--bg-0);
+    box-shadow: 0 0 0 1px var(--bg-3);
+  }
+  .ex-paper-blank[data-state="measuring"] .ex-paper-blank-page {
+    opacity: 0.7;
+  }
+  .ex-paper-wrap {
+    position: relative;
+    display: block;
+    flex: none;
+  }
+  .ex-paper {
+    position: absolute;
+    left: 0;
+    top: 0;
+    display: block;
+    background: var(--bg-0);
+    box-shadow:
+      var(--shadow-md),
+      0 0 0 0.5px var(--border-default);
+  }
+  .ex-paper--under {
+    left: 8px;
+    top: 8px;
+    box-shadow:
+      var(--shadow-sm),
+      0 0 0 0.5px var(--border-default);
+  }
+  /* The art: trim + bleed. The bleed is the tinted frame inside its edge. */
+  .ex-paper-art {
+    position: absolute;
+    overflow: hidden;
+    background: var(--bg-3);
+  }
+  .ex-tint {
+    position: absolute;
+    inset: 0;
+    box-sizing: border-box;
+    border-style: solid;
+    border-color: color-mix(in oklab, var(--object-coral, var(--status-warn)) 30%, transparent);
+    pointer-events: none;
+  }
+  .ex-crop {
+    position: absolute;
+    background: var(--fg-0);
+    transform-origin: center;
+    animation: ex-mark-in var(--dur-panel, 220ms) var(--ease-out, cubic-bezier(0.2, 0, 0, 1)) both;
+  }
+  .ex-reg {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    box-sizing: border-box;
+    border: 1px solid var(--fg-0);
+    border-radius: 50%;
+    background:
+      linear-gradient(var(--fg-0), var(--fg-0)) center / 1px 100% no-repeat,
+      linear-gradient(var(--fg-0), var(--fg-0)) center / 100% 1px no-repeat;
+  }
+  .ex-margin {
+    position: absolute;
+    box-sizing: border-box;
+    border: 1px dashed var(--border-strong, var(--fg-2));
+    pointer-events: none;
+  }
+  .ex-flag {
+    position: absolute;
+    box-sizing: border-box;
+    border: 1.5px solid var(--status-warn);
+    border-radius: var(--radius-sm, 6px);
+    pointer-events: none;
+  }
+  /* 09 ex-print-warn: "2 mm to the cut", the amber tag over the ringed element */
+  .ex-flag-tag {
+    position: absolute;
+    z-index: 3;
+    padding: 1px var(--space-1);
+    border-radius: var(--radius-xs);
+    background: var(--status-warn);
+    color: var(--object-ink);
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    font-weight: var(--w-semibold);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+  }
+  @keyframes ex-mark-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .ex-pages {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+  }
+  .ex-pg-th {
+    display: block;
+    width: 34px;
+    height: 47px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-xs, 3px);
+    background: var(--bg-2) center / cover no-repeat;
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+    color: var(--fg-1);
+    cursor: pointer;
+  }
+  .ex-pg-th[data-on="true"] {
+    box-shadow: 0 0 0 1.5px var(--accent);
+  }
+  .ex-pg-nav {
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-pill, 999px);
+    background: transparent;
+    color: var(--fg-1);
+    cursor: pointer;
+  }
+  .ex-pg-nav:hover:not(:disabled) {
+    background: var(--bg-3);
+  }
+  .ex-pg-nav:disabled {
+    color: var(--fg-3);
+    cursor: default;
+  }
+  .ex-pg-nav:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .ex-pg-th:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .ex-prev-cap {
+    min-height: calc(var(--type-xs) * var(--lh-xs)); /* --lh-* is a ratio on the v2 ladder */
+    font-size: var(--type-xs, 11px);
+    line-height: var(--lh-xs, 1.4);
+    color: var(--fg-2);
+    text-align: center;
+  }
+  .ex-legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-1, 4px) var(--space-3, 12px);
+    font-size: var(--type-xs, 11px);
+    line-height: var(--lh-xs, 1.4);
+    color: var(--fg-2);
+  }
+  .ex-legend > span {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1, 4px);
+  }
+  .ex-lg {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    box-sizing: border-box;
+  }
+  .ex-lg--tint {
+    background: color-mix(in oklab, var(--object-coral, var(--status-warn)) 30%, transparent);
+  }
+  .ex-lg--cut {
+    border: 1px solid var(--fg-0);
+  }
+  .ex-lg--safe {
+    border: 1px dashed var(--border-strong, var(--fg-2));
+  }
+
+  .ex-hint[data-tone="warn"] {
+    background: color-mix(in oklab, var(--status-warn) 14%, var(--bg-3));
+  }
+  .ex-hint[data-tone="warn"] .ex-hint-ic {
+    color: var(--status-warn-text);
+  }
+}

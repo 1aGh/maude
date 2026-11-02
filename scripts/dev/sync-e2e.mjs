@@ -41,8 +41,12 @@ import { fileURLToPath } from 'node:url';
 
 import { Browser, Side, sleep, waitFor } from './sync-e2e/harness.mjs';
 import { SCENARIOS } from './sync-e2e/scenarios.mjs';
+import { v2Config } from './v2-config.mjs';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+// P8: the studios index into a scratch dir, never the person's ~/.maude/index (Home lists it)
+const INDEX_DIR =
+  process.env.MAUDE_INDEX_DIR || join(tmpdir(), `maude-sync-e2e-index-${process.pid}`);
 
 const argv = process.argv.slice(2);
 const has = (n) => argv.includes(`--${n}`);
@@ -191,6 +195,17 @@ async function startCell() {
  * by something that did not write that file, this stops and says so rather than
  * running a suite whose every result would be meaningless.
  */
+/** The hub a harness project's config names ('' when none) — the harness is the app that linked it. */
+function linkedHubOf(repo) {
+  try {
+    return (
+      JSON.parse(readFileSync(join(repo, '.design', 'config.json'), 'utf8')).linkedHub?.url ?? ''
+    );
+  } catch {
+    return '';
+  }
+}
+
 async function startPeer(peerRepo, hubsConfig) {
   const base = `http://127.0.0.1:${peerPort}`;
   const stateFile = join(peerRepo, '.design', '_server.json');
@@ -222,7 +237,10 @@ async function startPeer(peerRepo, hubsConfig) {
         ...process.env,
         // NEVER the user's real credential store. The cell wrote a scratch one.
         HUBS_CONFIG_PATH: hubsConfig,
+        // gate-b-sec4: the harness is the app that made this link (sync/link-consent.ts)
+        MAUDE_APP_BOUND_HUB: linkedHubOf(peerRepo),
         MAUDE_PROJECT_ROOT: peerRepo,
+        MAUDE_INDEX_DIR: INDEX_DIR,
         MAUDE_NO_AUTOBUILD: '1',
       },
     }
@@ -458,14 +476,14 @@ async function coldStart(ctx, cellRoot) {
   writeFileSync(
     join(freshDesign, 'config.json'),
     `${JSON.stringify(
-      {
+      v2Config({
         name: 'fresh-machine',
         canvasGroups: [
           { label: 'Canvases', path: 'ui' },
           { label: 'Design system', path: 'system' },
         ],
         linkedHub: { url: `http://127.0.0.1:${port}`, linkedAt: Date.now(), syncFiles: true },
-      },
+      }),
       null,
       2
     )}\n`
@@ -481,6 +499,7 @@ async function coldStart(ctx, cellRoot) {
         ...process.env,
         HUBS_CONFIG_PATH: join(cellRoot, 'hubs.json'),
         MAUDE_PROJECT_ROOT: freshRoot,
+        MAUDE_INDEX_DIR: INDEX_DIR,
         MAUDE_NO_AUTOBUILD: '1',
       },
     }

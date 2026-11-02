@@ -1,0 +1,10 @@
+await prev(0.45, 280, 90);
+await sleep(1500);
+const out = {};
+await page.mouse.click(346, 222);
+await sleep(1500);
+out.panel = await page.evaluate(() => (document.querySelector('[data-testid="comments-panel"]')?.innerText || '').slice(0, 300));
+out.thread = await page.evaluate(() => [...document.querySelectorAll('[data-testid*="thread"], [data-testid*="comment-card"]')].map(e => e.getAttribute('data-testid') + '|' + e.innerText.slice(0, 200)).slice(0, 4));
+out.fthread = await frame().evaluate(() => [...document.querySelectorAll('[data-testid*="thread"], [data-testid*="comment"]')].map(e => e.getAttribute('data-testid') + '|' + e.innerText.slice(0, 200)).slice(0, 6));
+await shot('cv2-thread');
+return out;

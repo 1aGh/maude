@@ -3,7 +3,6 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { acceptCanvasNotice } from '../canvas-notice-message.ts';
-import { useWhatsNew, WhatsNewToast } from '../client/whats-new.jsx';
 import { dismissNotice, NotificationHost, notify, notifyCanvasText } from '../notifications.tsx';
 
 beforeAll(() => {
@@ -142,17 +141,24 @@ test('focus and page visibility pause the clock; Undo lasts ten seconds', async 
 });
 
 test('older notices wait their turn, and closing one cannot remove a newer one', async () => {
+  // r2-p3 (F03, UX-TOAST-1): one toast on screen; the others wait, clocks paused.
   const oldClosed = mock(() => {});
   await show({ id: 'old', title: 'Older', onDismiss: oldClosed });
-  for (const id of ['a', 'b', 'c']) await show({ id, title: id, duration: Infinity });
+  for (const id of ['a', 'b']) await show({ id, title: id, duration: Infinity });
   await advance(30_000);
   expect(oldClosed).not.toHaveBeenCalled();
+  expect(host.querySelector('[data-testid="notice-b"]')).not.toBeNull();
   await act(async () =>
     host.querySelector<HTMLButtonElement>('[data-testid="notice-b"] button')?.click()
   );
   await advance(5000);
+  expect(oldClosed).not.toHaveBeenCalled();
+  expect(host.querySelector('[data-testid="notice-a"]')).not.toBeNull();
+  await act(async () =>
+    host.querySelector<HTMLButtonElement>('[data-testid="notice-a"] button')?.click()
+  );
+  await advance(5000);
   expect(oldClosed).toHaveBeenCalledTimes(1);
-  expect(host.querySelector('[data-testid="notice-c"]')).not.toBeNull();
 });
 
 test('manual actions run once and programmatic removal does not acknowledge', async () => {
@@ -229,52 +235,6 @@ test('hover pauses expiry and long diagnostic text is shortened before announcem
   expect(closed).toHaveBeenCalledTimes(1);
 });
 
-test('What’s New expiry acknowledges the toast but keeps the unread badge', async () => {
-  const originalFetch = globalThis.fetch;
-  localStorage.setItem('mdcc-whatsnew-seen', '1.0.0');
-  localStorage.removeItem('mdcc-whatsnew-toast-dismissed');
-  globalThis.fetch = mock(
-    async () =>
-      new Response(
-        JSON.stringify({
-          version: '2.0.0',
-          entries: [
-            {
-              id: 'notice-fixture',
-              version: '2.0.0',
-              title: 'New feature',
-              summary: 'Try this change.',
-            },
-          ],
-        })
-      )
-  ) as unknown as typeof fetch;
-  let wn!: ReturnType<typeof useWhatsNew>;
-  function Probe() {
-    wn = useWhatsNew('1.0.0');
-    return (
-      <>
-        <NotificationHost />
-        <WhatsNewToast wn={wn} />
-      </>
-    );
-  }
-  try {
-    await act(async () => root.render(<Probe />));
-    await settle();
-    ids.add('whats-new-2.0.0');
-    expect(wn.unseen).toHaveLength(1);
-    await advance(10_000);
-    expect(wn.showToast).toBe(false);
-    expect(localStorage.getItem('mdcc-whatsnew-toast-dismissed')).toBe('2.0.0');
-    expect(localStorage.getItem('mdcc-whatsnew-seen')).toBe('1.0.0');
-    expect(wn.unseen).toHaveLength(1);
-  } finally {
-    globalThis.fetch = originalFetch;
-    localStorage.clear();
-  }
-});
-
 test('canvas bursts stay bounded and cannot hide trusted export notices', async () => {
   await show({ id: 'trusted', title: 'Export failed', duration: Infinity });
   const accepted: string[] = [];
@@ -298,7 +258,8 @@ test('canvas bursts stay bounded and cannot hide trusted export notices', async 
   }
   await settle();
   expect(host.querySelector('[data-testid="notice-trusted"]')).not.toBeNull();
-  expect(host.querySelectorAll('.maude-notice')).toHaveLength(3);
+  // r2-p3: one slot, and it is the trusted notice's while it stands
+  expect(host.querySelectorAll('.maude-notice')).toHaveLength(1);
   await advance(10_000);
   await act(async () => {
     await new Promise((resolve) => realTimeout(resolve, 350));

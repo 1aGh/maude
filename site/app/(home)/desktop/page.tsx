@@ -1,53 +1,54 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { AppPreview } from '@/components/mdcc/app-preview';
 import { SkuLabel } from '@/components/mdcc/sku-label';
 import stats from '@/lib/stats.json';
 import { DownloadButton } from './download-button';
 
 export const metadata: Metadata = {
   alternates: { canonical: '/desktop' },
-  title: 'Download Maude for desktop',
+  title: 'Download Maude for Mac',
   description:
-    'Install the Maude desktop app for macOS and Windows. Canvas browser, git versioning, GitHub sign-in, and live collaboration — no terminal required. It keeps itself up to date.',
+    'Download the Maude desktop app for Mac. Ask AI to make a canvas, edit it with real tools, share it. Free, open-source, no terminal needed, and it keeps itself up to date. Windows and Linux builds are listed too.',
 };
 
 // What's included — the value-prop trio (lifts the Studio Hub artboard A skeleton,
 // rewritten for the native app: the app IS the studio, not the self-hosted hub).
 const INCLUDED = [
   {
-    title: 'Canvas browser',
-    body: 'Open a project and browse every screen as a live, multi-artboard canvas. Cmd+Click any element to edit its CSS against your real design tokens.',
+    title: 'Home and project tabs',
+    body: 'Home asks “What shall we make?” and starts a canvas from your answer. Every project opens in its own tab, so a few projects sit side by side in one window.',
   },
   {
-    title: 'Git versioning, no git',
-    body: 'See what you changed, Save a version, Publish, and Get latest — plain words for branches, commits, and pull. History and visual before/after built in.',
+    title: 'AI chat panel',
+    body: 'Ask for a screen and the result lands on the canvas as real .tsx files. Press ⌘/ on an element to ask about just that one. One ⌘Z takes back a whole AI run.',
   },
   {
-    title: 'Sign in with GitHub',
-    body: 'One sign-in (device flow → your OS keychain). Start a private project, share by username, and collaborate. No new account, no SaaS tier.',
+    title: 'Edit and Preview',
+    body: 'Draw with Shape, Pen, Text and Frame, with an Inspector for each kind. Switch to Preview and the canvas is a whiteboard: stickies, a marker, arrows, votes.',
   },
   {
-    title: 'Live collaboration',
-    body: 'On the same branch, cursors, comments, and edits sync in real time across machines through your own self-hosted hub. No cloud middleman.',
+    title: 'Version history and Share',
+    body: 'Version history keeps saved versions, with Restore. Share puts a project in front of other people, and Present gives a stable link to show a canvas.',
   },
 ];
 
 const FAQ = [
   {
     q: 'Does it require a terminal?',
-    a: 'No. Download, install, sign in with GitHub, and start designing. The desktop app does everything the CLI does, in the UI.',
+    a: 'No. Download, install, open a project and start designing. The desktop app covers the same ground as the CLI, in the UI. If you would rather work from a terminal, the CLI and plugins are still there under Advanced.',
   },
   {
     q: 'Is it free?',
     a: 'Yes — open source under MIT. No telemetry, no signup, no “book a demo” button.',
   },
   {
-    q: 'What about the AI editing?',
-    a: 'AI editing drives a paired Claude Code on your own Pro/Max subscription — never API billing. The chat panel talks to the `claude` you already have installed.',
+    q: 'What about the AI?',
+    a: 'The AI chat panel drives a paired Claude Code on your own Pro/Max subscription, never API billing. It talks to the `claude` you already have installed, and asks to connect the first time you send a message.',
   },
   {
     q: 'Does it update itself?',
-    a: 'Yes. Maude downloads new versions in the background and shows “Maude updated · restart to apply.” No npm, no terminal.',
+    a: 'Yes. Maude downloads new versions in the background and tells you when one is ready to apply. No npm, no terminal.',
   },
   // Cloud Phase 24 A7. Windows is not code-signed yet, so the OS tells a
   // first-time user that the app is dangerous at the exact moment they are
@@ -72,42 +73,25 @@ export default function DesktopPage() {
             <span aria-hidden="true">·</span>
             <span>{stats.version}</span>
             <span aria-hidden="true">·</span>
-            <span>macOS + WINDOWS</span>
+            <span>MAC · WINDOWS · LINUX</span>
           </div>
           <h1 id="desktop-h1">
             Install <span style={{ color: 'var(--accent)' }}>Maude</span>.
           </h1>
           <p className="mdcc-hero-punchline">
-            The canvas browser, git versioning, and live collaboration — as a native app. No
-            terminal, ever. It keeps itself up to date.
+            A Mac app built around AI, not bent to fit one. Ask AI for a canvas, edit it with real
+            tools, share it. No terminal, and it keeps itself up to date.
           </p>
           <DownloadButton />
           <p className="mdcc-hero-fineprint">
-            Free and open source. Requires <strong>macOS 13+</strong> (Intel or Apple Silicon) or{' '}
-            <strong>Windows 10+</strong> (64-bit). The AI editing pairs with your own{' '}
-            <Link href="/docs/design">Claude Code</Link>.
+            Free and open source. Requires <strong>macOS 13+</strong> (Apple Silicon or Intel). The
+            AI chat panel pairs with your own <Link href="/docs/design">Claude Code</Link>. Windows
+            10+ and Linux builds are listed under the button. Prefer a terminal?{' '}
+            <Link href="/#advanced">Advanced: install from the command line.</Link>
           </p>
         </div>
 
-        <aside className="mdcc-dl-preview" aria-hidden="true">
-          <div className="mdcc-dl-preview-bar">
-            <span className="mdcc-dl-dot" />
-            <span className="mdcc-dl-dot" />
-            <span className="mdcc-dl-dot" />
-            <span className="mdcc-dl-preview-title">maude</span>
-          </div>
-          <div className="mdcc-dl-preview-body">
-            <div className="mdcc-dl-preview-tree">
-              <span>● ui / Studio.tsx</span>
-              <span>○ ui / GitPanel.tsx</span>
-              <span>○ system / tokens</span>
-            </div>
-            <div className="mdcc-dl-preview-stage">
-              <div className="mdcc-dl-preview-ab" />
-              <div className="mdcc-dl-preview-ab" />
-            </div>
-          </div>
-        </aside>
+        <AppPreview />
       </section>
 
       <section aria-labelledby="incl-h">
@@ -146,7 +130,7 @@ export default function DesktopPage() {
             <dd>~250 MB</dd>
           </div>
           <div>
-            <dt>AI editing</dt>
+            <dt>AI chat panel</dt>
             <dd>
               optional — a paired <Link href="/docs/design">Claude Code</Link>
             </dd>
@@ -167,7 +151,7 @@ export default function DesktopPage() {
           ))}
         </dl>
         <p className="mdcc-hero-fineprint">
-          Running a team? The desktop app connects to a hub from the onboarding wizard — see{' '}
+          Running a team? Share can connect to a hub you host yourself, see{' '}
           <Link href="/docs/hub">self-hosting the hub</Link>.
         </p>
       </section>

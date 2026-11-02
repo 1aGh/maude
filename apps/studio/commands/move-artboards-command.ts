@@ -17,6 +17,8 @@
  * stale layout.
  */
 
+import type { Op as AnnotationOp } from '../annotations/ops.ts';
+import { type CommitRiderPayload, mintUndoGroup } from '../drag-bus.ts';
 import type { CommandRecord, EditCommand } from '../undo-stack.ts';
 import { registerCommand } from '../undo-stack.ts';
 
@@ -34,11 +36,24 @@ export interface ArtboardLayoutEntry {
  * Tests pass a spy; production wiring passes the real React-state-+-PATCH
  * applier.
  */
-export type LayoutPatchFn = (layout: ArtboardLayoutEntry[]) => void | Promise<void>;
+export type LayoutPatchFn = (
+  layout: ArtboardLayoutEntry[],
+  /** S2.9b — the annotations riding with this layout write (one PATCH, one action). */
+  rider?: LayoutRider
+) => void | Promise<void>;
+
+/** S2.9b — the `annotations` rider of one layout write (`PATCH /_api/canvas-meta`). */
+export interface LayoutRider {
+  ops: AnnotationOp[];
+  actionId: string;
+  label: string;
+}
 
 export interface MoveArtboardsPayload {
   before: readonly ArtboardLayoutEntry[];
   after: readonly ArtboardLayoutEntry[];
+  /** S2.9b — the annotation ops that rode with the move + their inverse (contract §2). */
+  rider?: CommitRiderPayload;
 }
 
 /** Convenience constant — keeps spelling consistent across files. */
@@ -52,6 +67,8 @@ export interface MoveArtboardsCommandInit {
   label?: string;
   /** Telemetry kind. Defaults to `MOVE_ARTBOARDS_KIND`. */
   kind?: string;
+  /** S2.9b — riders: `do` sends `ops`, `undo` sends `inverse`. */
+  rider?: CommitRiderPayload;
 }
 
 export function createMoveArtboardsCommand(init: MoveArtboardsCommandInit): EditCommand {
@@ -62,15 +79,32 @@ export function createMoveArtboardsCommand(init: MoveArtboardsCommandInit): Edit
   const movedCount = countMoved(beforeSnapshot, afterSnapshot);
   const label = init.label ?? `move ${movedCount} artboard${movedCount === 1 ? '' : 's'}`;
   const kind = init.kind ?? MOVE_ARTBOARDS_KIND;
+  const rider = init.rider;
+  // The first `do` IS the commit and carries the bus's undoGroup; every replay (undo, redo) is a
+  // new write with a fresh id — a reused id would read as the same proposal to the home.
+  let first = true;
+  const riderFor = (ops: AnnotationOp[] | undefined): LayoutRider | undefined => {
+    if (!rider || !ops?.length) return undefined;
+    const actionId = first ? rider.undoGroup : mintUndoGroup();
+    first = false;
+    return { ops, actionId, label };
+  };
 
   return {
     kind,
     label,
     async do() {
-      await patchFn(afterSnapshot.map(cloneEntry));
+      const r = riderFor(rider?.ops);
+      await (r
+        ? patchFn(afterSnapshot.map(cloneEntry), r)
+        : patchFn(afterSnapshot.map(cloneEntry)));
     },
     async undo() {
-      await patchFn(beforeSnapshot.map(cloneEntry));
+      first = false;
+      const r = riderFor(rider?.inverse);
+      await (r
+        ? patchFn(beforeSnapshot.map(cloneEntry), r)
+        : patchFn(beforeSnapshot.map(cloneEntry)));
     },
   };
 }
@@ -84,12 +118,18 @@ export function buildMoveArtboardsRecord(opts: {
   before: readonly ArtboardLayoutEntry[];
   after: readonly ArtboardLayoutEntry[];
   label?: string;
+  rider?: CommitRiderPayload;
 }): CommandRecord<MoveArtboardsPayload> {
   const before = opts.before.map(cloneEntry);
   const after = opts.after.map(cloneEntry);
   const moved = countMoved(before, after);
   const label = opts.label ?? `move ${moved} artboard${moved === 1 ? '' : 's'}`;
-  return { kind: MOVE_ARTBOARDS_KIND, label, payload: { before, after } };
+  const rider = opts.rider?.ops.length ? structuredClone(opts.rider) : undefined;
+  return {
+    kind: MOVE_ARTBOARDS_KIND,
+    label,
+    payload: { before, after, ...(rider ? { rider } : {}) },
+  };
 }
 
 /**
@@ -126,6 +166,7 @@ registerCommand<MoveArtboardsPayload>(MOVE_ARTBOARDS_KIND, (record, sinks) => {
     after: record.payload.after,
     patchFn,
     label: record.label,
+    ...(record.payload.rider ? { rider: record.payload.rider } : {}),
   });
 });
 

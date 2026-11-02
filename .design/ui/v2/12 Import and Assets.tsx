@@ -1105,7 +1105,7 @@ export default function ImportAndAssets() {
                     <span className="input ia-dest-v"><Icon name="folder" size={12} />2026/dresy › New canvas<Icon name="chevron" size={11} /></span>
                   </span>
                   <p className="ia-fine ia-dest-n">Uniformy-2027 is already in 2026/dresy, so this one is called <strong>Uniformy-2027 (Figma)</strong>. Pick it in the list to add to it instead.</p>
-                  <span className="ia-opt"><Check on /><span>Comments, as stickies</span></span>
+                  <span className="ia-opt"><Check on /><span>Comments, as comment pins</span></span>
                   <span className="ia-opt"><Check on={false} /><span>Colours and text styles, into the project's style</span></span>
                   <p className="ia-fine">Each frame arrives as Figma's exact picture. Make editable turns one artboard into layers later — it needs Figma Dev Mode on a paid seat.</p>
                 </IaSheet>

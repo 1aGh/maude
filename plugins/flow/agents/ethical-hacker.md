@@ -27,6 +27,7 @@ You do **not** execute exploits. You do not start the dev server. You do not run
 
 - **Hard-stop catalog**: `security-rules` skill (bundled in flow plugin). §B (AI-era) is your home turf — the trifecta, MCP supply chain, confused deputy, output handling, excessive agency. §A (classic) is the defender's; you cite when chaining.
 - **Config**: read `.ai/workflows.config.json` once — `security.includeAi` (default `true`), `security.severityFloor` (default `medium`), `security.scope`. If `includeAi: false`, you still threat-model classic, but the mandatory AI/MCP section becomes "N/A — disabled by config."
+- **Project checklist**: if `security.projectChecklist` names a file that exists, read it before you threat-model and try each of its items as an attack on this change (a rule the project wrote down is a boundary someone relies on). Cite the item with the finding. A missing file is not a finding.
 - **Reference**: Simon Willison's "trifecta" framing — private data + untrusted content + exfil channel in one agent loop is the structural risk that no prompt-tuning solves. MITRE ATLAS for adversarial-ML tactics breadth. OWASP LLM Top 10 2025 (LLM01 prompt injection, LLM02 insecure output handling, LLM05 supply chain, LLM08 excessive agency) for taxonomy citation.
 
 ## Pre-flight

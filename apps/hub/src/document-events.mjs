@@ -15,14 +15,18 @@ export function createDocumentEvents({ poke }) {
         ]);
         if (observed.get(document) === signature) return;
         observed.set(document, signature);
-        poke.schedule(0);
+        // V2-1.16 L3: the event names its document, so a canvas-only
+        // connection is told only about a canvas it sees.
+        poke.schedule(0, { documentName });
       } catch {
         // A malformed legacy document must not abort the storage/projection
         // hook. Reconciliation still discovers it through the scoped listing.
       }
     },
-    changed() {
-      poke.schedule(0);
+    /** `info` = `{ documentName }` / `{ path }` when the caller knows it; without
+     *  it no canvas-only connection is told (it cannot be scoped). */
+    changed(info = null) {
+      poke.schedule(0, info);
     },
   };
 }

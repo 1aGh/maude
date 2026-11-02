@@ -4,18 +4,19 @@
 // (signed out), docked at the bottom of the sidebar. Clicking the avatar opens an
 // account menu UPWARD (New project / Pull a copy / Share / Sign out). Sign-in runs
 // GitHub's device flow (code modal). All chrome is the shell maude DS — solid
-// surfaces, the .st-dialog scrim+card treatment, no canvas-side `.panel`. In a
+// surfaces, the .sh-dialog scrim+card treatment, no canvas-side `.panel`. In a
 // plain browser (no Tauri shell) the rail renders nothing.
 
 import { useEffect, useRef, useState } from 'react';
 
+import { MENU_ACTION_EVENT } from '../v2/shell/menu-runner.js';
 import CreateProject from './CreateProject.jsx';
 import {
   fetchIdentity,
   isNativeApp,
   isSignedIn,
   onDeviceCode,
-  onMenuNewProject,
+  onMenuAction,
   onSignedIn,
   openVerification,
   signIn,
@@ -68,7 +69,17 @@ function Icon({ name, size = 16 }) {
     ),
   }[name];
   return (
-    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
       {p}
     </svg>
   );
@@ -97,7 +108,100 @@ function Avatar({ identity, size = 26 }) {
   );
 }
 
-export default function IdentityBar() {
+// V2-4.7a — `variant`:
+//   'rail'     (default) the sidebar-footer avatar + menu, as before;
+//   'host'     the left panel's footer: NO visible rail. It stays mounted for what must work from
+//              anywhere — File › New project… (the create dialog) and a sign-in's code sheet;
+//   'settings' Settings › Connections › GitHub: signed-in state, Sign in / Sign out, as one row.
+//              It owns no create dialog and no menu listener (the host answers those once).
+// Sign-in reaches every instance through the shell's own `github://signed-in`; sign-out has no such
+// event, so it is announced on the window.
+/**
+ * GitHub's device-flow code sheet (S11.14: lifted out of IdentityBar so Settings › Connections draws
+ * the same one). `onClose` dismisses it; the sign-in itself keeps waiting in the shell.
+ */
+export function GitHubDeviceDialog({ device, onClose }) {
+  const [copied, setCopied] = useState(false);
+  function copyCode() {
+    if (!device?.user_code) return;
+    navigator.clipboard?.writeText(device.user_code).then(
+      () => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      },
+      () => {}
+    );
+  }
+  return (
+    <div
+      className="gi-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Sign in with GitHub"
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') onClose();
+      }}
+    >
+      <div className="gi-scrim" aria-hidden="true" onClick={() => onClose()} />
+      <div className="gi-dialog gi-dialog--code">
+        <div className="gi-dc-head">
+          <span className="gi-dc-marks">
+            <GitHubMark size={26} />
+          </span>
+          <h2>Sign in with GitHub</h2>
+          <p>Maude opened GitHub in your browser. Enter this code to connect your account.</p>
+        </div>
+        <ol className="gi-dc-steps">
+          <li>
+            <span className="gi-dc-step-n">1</span>
+            <span className="gi-dc-step-tx">
+              Go to{' '}
+              <span className="gi-dc-url">
+                {(device.verification_uri || 'github.com/login/device').replace(/^https?:\/\//, '')}
+              </span>
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm gi-dc-open"
+                onClick={() => openVerification().catch(() => {})}
+              >
+                <Icon name="external" size={14} /> Open it again
+              </button>
+            </span>
+          </li>
+          <li>
+            <span className="gi-dc-step-n">2</span>
+            <span className="gi-dc-step-tx">Enter this code to connect Maude</span>
+          </li>
+        </ol>
+        <div className="gi-code">
+          <span className="gi-code-val">{device.user_code}</span>
+          <button
+            type="button"
+            className="btn btn--ghost gi-code-copy"
+            onClick={copyCode}
+            aria-label="Copy the code"
+          >
+            <Icon name="copy" size={15} /> {copied ? 'Copied' : 'Copy'}
+          </button>
+        </div>
+        <div className="gi-dc-status" aria-live="polite">
+          <span className="gi-pulse" aria-hidden="true" />
+          <span>Waiting for you to authorize in your browser…</span>
+        </div>
+        <div className="gi-dc-foot">
+          <button type="button" className="btn btn--ghost" onClick={() => onClose()}>
+            Cancel
+          </button>
+          <span className="gi-dc-foot-note">Nothing is stored until you authorize.</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export const GITHUB_SIGNED_OUT_EVENT = 'maude:github-signed-out';
+
+export default function IdentityBar({ variant = 'rail' }) {
   const native = isNativeApp();
   const [state, setState] = useState('loading'); // loading | out | in
   const [identity, setIdentity] = useState(null);
@@ -106,7 +210,6 @@ export default function IdentityBar() {
   const [error, setError] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [view, setView] = useState(null); // null | 'new' | 'get' | 'share'
-  const [copied, setCopied] = useState(false);
   const unlistenRef = useRef(null);
   const railRef = useRef(null);
   const stateRef = useRef(state);
@@ -161,18 +264,43 @@ export default function IdentityBar() {
     };
   }, [native]);
 
-  // Native File ▸ New Project… (menu.rs emits `menu://new-project`). Open the create
-  // dialog once the GitHub check settled — even when signed out, since it offers a
-  // local-only project (no GitHub needed); the dialog gates the GitHub option itself.
+  // Native File ▸ New Project… ⇧⌘N (menu.rs sends `menu://action {id:'project.new'}` to
+  // the focused window). Open the create dialog once the GitHub check settled — even
+  // when signed out, since it offers a local-only project (no GitHub needed); the dialog
+  // gates the GitHub option itself.
   useEffect(() => {
-    if (!native) return undefined;
-    const p = onMenuNewProject(() => {
-      if (stateRef.current !== 'loading') setView('new');
+    if (!native || variant === 'settings') return undefined;
+    const p = onMenuAction((id) => {
+      if (id === 'project.new' && stateRef.current !== 'loading') setView('new');
     });
+    // V2-4.2: the project pill's menu row (File › New project…) is the same action, run in-page.
+    // V2-4 gate: File › Pull a local copy… / Share on GitHub… open the 'get' / 'share' views (the
+    // sidebar avatar menu that held them is gone).
+    const VIEW_OF = {
+      'project.new': 'new',
+      'project.pull-copy': 'get',
+      'project.share-github': 'share',
+    };
+    const onLocal = (e) => {
+      const v = VIEW_OF[e.detail?.id];
+      if (v && stateRef.current !== 'loading') setView(v);
+    };
+    window.addEventListener(MENU_ACTION_EVENT, onLocal);
     return () => {
+      window.removeEventListener(MENU_ACTION_EVENT, onLocal);
       p?.then?.((fn) => fn?.());
     };
-  }, [native]);
+  }, [native, variant]);
+
+  useEffect(() => {
+    const onOut = (e) => {
+      if (e.detail?.from === railRef) return;
+      setIdentity(null);
+      setState('out');
+    };
+    window.addEventListener(GITHUB_SIGNED_OUT_EVENT, onOut);
+    return () => window.removeEventListener(GITHUB_SIGNED_OUT_EVENT, onOut);
+  }, []);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -216,35 +344,99 @@ export default function IdentityBar() {
     }
     setIdentity(null);
     setState('out');
+    try {
+      window.dispatchEvent(new CustomEvent(GITHUB_SIGNED_OUT_EVENT, { detail: { from: railRef } }));
+    } catch {
+      /* no window — nobody to tell */
+    }
   }
 
-  function copyCode() {
-    if (!device?.user_code) return;
-    navigator.clipboard?.writeText(device.user_code).then(
-      () => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1500);
-      },
-      () => {}
-    );
+  if (!native) {
+    // A browser tab has no keychain to hold a token. Settings still says so, in the row where
+    // the sign-in would be, instead of leaving a hole where the setting should be.
+    return variant === 'settings' ? (
+      <div className="gi-settings" data-testid="settings-github">
+        <div className="cb-settings-row">
+          <span className="cb-settings-t">
+            <strong>GitHub</strong>
+            <span>Signing in with GitHub needs the Maude desktop app.</span>
+          </span>
+        </div>
+      </div>
+    ) : null;
   }
 
-  if (!native) return null;
+  const visible = variant === 'rail';
 
   return (
-    <div className="gi-rail" ref={railRef}>
-      {state === 'loading' && <span className="gi-rail-hint">Checking GitHub…</span>}
+    <div
+      className={
+        variant === 'settings' ? 'gi-settings' : variant === 'host' ? 'gi-host' : 'gi-rail'
+      }
+      ref={railRef}
+      data-testid={variant === 'settings' ? 'settings-github' : undefined}
+    >
+      {variant === 'settings' && (
+        <div className="cb-settings-row">
+          <span className="cb-settings-t">
+            <strong>GitHub</strong>
+            <span>
+              {state === 'in'
+                ? `Connected as @${identity?.login}`
+                : state === 'loading'
+                  ? 'Checking GitHub…'
+                  : 'GitHub projects and invites by username.'}
+            </span>
+          </span>
+          {state === 'out' && (
+            <button
+              type="button"
+              className="btn btn--sm"
+              onClick={handleSignIn}
+              disabled={signing}
+              data-testid="settings-github-signin"
+            >
+              {signing ? 'Starting…' : 'Sign in'}
+            </button>
+          )}
+          {state === 'in' && (
+            <button
+              type="button"
+              className="btn btn--sm"
+              onClick={handleSignOut}
+              data-testid="settings-github-signout"
+            >
+              Disconnect
+            </button>
+          )}
+        </div>
+      )}
+      {variant === 'settings' && error && (
+        <span className="gi-rail-err" role="alert" title={error}>
+          {error}
+        </span>
+      )}
+      {visible && state === 'loading' && <span className="gi-rail-hint">Checking GitHub…</span>}
 
-      {state === 'out' && (
+      {visible && state === 'out' && (
         <>
-          <button type="button" className="btn btn--primary btn--sm gi-rail-signin" onClick={handleSignIn} disabled={signing}>
+          <button
+            type="button"
+            className="btn btn--primary btn--sm gi-rail-signin"
+            onClick={handleSignIn}
+            disabled={signing}
+          >
             <GitHubMark size={15} /> {signing ? 'Starting…' : 'Sign in with GitHub'}
           </button>
-          {error && <span className="gi-rail-err" title={error}>{error}</span>}
+          {error && (
+            <span className="gi-rail-err" title={error}>
+              {error}
+            </span>
+          )}
         </>
       )}
 
-      {state === 'in' && (
+      {visible && state === 'in' && (
         <>
           <button
             type="button"
@@ -269,17 +461,46 @@ export default function IdentityBar() {
                   <span className="gi-menu-login">@{identity?.login} · connected</span>
                 </span>
               </div>
-              <button type="button" className="gi-menu-item" role="menuitem" onClick={() => { setMenuOpen(false); setView('new'); }}>
+              <button
+                type="button"
+                className="gi-menu-item"
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setView('new');
+                }}
+              >
                 <Icon name="plus" size={15} /> New project
               </button>
-              <button type="button" className="gi-menu-item" role="menuitem" onClick={() => { setMenuOpen(false); setView('get'); }}>
+              <button
+                type="button"
+                className="gi-menu-item"
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setView('get');
+                }}
+              >
                 <Icon name="download" size={15} /> Pull a local copy
               </button>
-              <button type="button" className="gi-menu-item" role="menuitem" onClick={() => { setMenuOpen(false); setView('share'); }}>
+              <button
+                type="button"
+                className="gi-menu-item"
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setView('share');
+                }}
+              >
                 <Icon name="invite" size={15} /> Share this project
               </button>
               <div className="gi-menu-sep" />
-              <button type="button" className="gi-menu-item gi-menu-item--danger" role="menuitem" onClick={handleSignOut}>
+              <button
+                type="button"
+                className="gi-menu-item gi-menu-item--danger"
+                role="menuitem"
+                onClick={handleSignOut}
+              >
                 <Icon name="signout" size={15} /> Sign out
               </button>
             </div>
@@ -287,49 +508,16 @@ export default function IdentityBar() {
         </>
       )}
 
-      {device && (
-        <div className="gi-modal" role="dialog" aria-modal="true" aria-label="Sign in with GitHub" onKeyDown={(e) => { if (e.key === 'Escape') setDevice(null); }}>
-          <div className="gi-scrim" aria-hidden="true" onClick={() => setDevice(null)} />
-          <div className="gi-dialog gi-dialog--code">
-            <div className="gi-dc-head">
-              <span className="gi-dc-marks"><GitHubMark size={26} /></span>
-              <h2>Sign in with GitHub</h2>
-              <p>Maude opened GitHub in your browser. Enter this code to connect your account.</p>
-            </div>
-            <ol className="gi-dc-steps">
-              <li>
-                <span className="gi-dc-step-n">1</span>
-                <span className="gi-dc-step-tx">
-                  Go to <span className="gi-dc-url">{(device.verification_uri || 'github.com/login/device').replace(/^https?:\/\//, '')}</span>
-                  <button type="button" className="btn btn--ghost btn--sm gi-dc-open" onClick={() => openVerification().catch(() => {})}>
-                    <Icon name="external" size={14} /> Open it again
-                  </button>
-                </span>
-              </li>
-              <li>
-                <span className="gi-dc-step-n">2</span>
-                <span className="gi-dc-step-tx">Enter this code to connect Maude</span>
-              </li>
-            </ol>
-            <div className="gi-code">
-              <span className="gi-code-val">{device.user_code}</span>
-              <button type="button" className="btn btn--ghost gi-code-copy" onClick={copyCode} aria-label="Copy the code">
-                <Icon name="copy" size={15} /> {copied ? 'Copied' : 'Copy'}
-              </button>
-            </div>
-            <div className="gi-dc-status" aria-live="polite">
-              <span className="gi-pulse" aria-hidden="true" />
-              <span>Waiting for you to authorize in your browser…</span>
-            </div>
-            <div className="gi-dc-foot">
-              <button type="button" className="btn btn--ghost" onClick={() => setDevice(null)}>Cancel</button>
-              <span className="gi-dc-foot-note">Nothing is stored until you authorize.</span>
-            </div>
-          </div>
-        </div>
-      )}
+      {device && <GitHubDeviceDialog device={device} onClose={() => setDevice(null)} />}
 
-      {view && <CreateProject view={view} identity={identity} signedIn={state === 'in'} onClose={() => setView(null)} />}
+      {view && variant !== 'settings' && (
+        <CreateProject
+          view={view}
+          identity={identity}
+          signedIn={state === 'in'}
+          onClose={() => setView(null)}
+        />
+      )}
     </div>
   );
 }

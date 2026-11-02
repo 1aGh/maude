@@ -1,0 +1,10 @@
+await prev();
+await sleep(2500);
+const out = {};
+await page.evaluate(() => { window.__msgs = []; window.addEventListener('message', (e) => { if (e.data?.dgn && !/rect|camera|zoom|hover|metrics/.test(e.data.dgn)) window.__msgs.push(e.data.dgn + ':' + JSON.stringify(e.data).slice(0, 100)); }); });
+await frame().evaluate(() => { document.querySelector('[data-testid="vote-add-home"]').click(); });
+await sleep(1500);
+out.msgs = await page.evaluate(() => window.__msgs.slice(-15));
+out.mine = await page.evaluate(async () => (await (await fetch('/_api/votes?file=ui/Site.tsx')).json()).mine);
+out.disabled = await frame().evaluate(() => document.querySelector('[data-testid="vote-add-home"]').disabled);
+return out;

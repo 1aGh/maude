@@ -1,0 +1,33 @@
+stage A: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a0a73ec7448623bcc/.scr/pairs/10-share-and-collaboration
+(full-size PNG pairs: <id>-<theme>.png; spec-only full size + raw impl frames as in the stage-A harness worktree)
+
+stage D (53ceb26c5): /Users/iagh/git/personal/maude/.claude/worktrees/agent-aeba9f7af8f925f8e/.scr/pairs/10-share-and-collaboration
+(full-size PNG pairs: <id>-<theme>.png; spec PNGs, reused from stage A: /Users/iagh/git/personal/maude/.claude/worktrees/agent-aeba9f7af8f925f8e/.scr/spec/10-share-and-collaboration/<id>-<theme>.png; raw impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-aeba9f7af8f925f8e/.scr/impl/10-share-and-collaboration/)
+
+final (D2, d3881fe41): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a88fc0565d3f0bdf8/.scr/pairs/10-share-and-collaboration
+(full-size PNG pairs: <id>-<theme>.png; spec PNGs, reused from stage A: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a88fc0565d3f0bdf8/.scr/spec/10-share-and-collaboration/<id>-<theme>.png; raw impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a88fc0565d3f0bdf8/.scr/impl/10-share-and-collaboration/)
+round 5: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a6978930be4932b00/.scr/pairs/10-share-and-collaboration/ (p8-c5-panels @ 2e203e9e6; co-comment-thread / -video / -print only, IMPL re-shot light + dark)
+
+final (D3, 63592219a): /Users/iagh/git/personal/maude/.claude/worktrees/agent-aaa727bd7827e55cb/.scr/pairs/10-share-and-collaboration
+(full-size PNG pairs: <id>-<theme>.png; spec PNGs, reused from stage A: /Users/iagh/git/personal/maude/.claude/worktrees/agent-aaa727bd7827e55cb/.scr/spec/10-share-and-collaboration/<id>-<theme>.png; raw impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-aaa727bd7827e55cb/.scr/impl/10-share-and-collaboration/)
+round 6: /Users/iagh/git/personal/maude/.claude/worktrees/agent-aa6b69031abb5eb4d/.scr/pairs/10-share-and-collaboration (p8-c6-bugs4: co-sync-offline, co-comment-thread only; raw impl /Users/iagh/git/personal/maude/.claude/worktrees/agent-aa6b69031abb5eb4d/.scr/impl/10-share-and-collaboration)
+
+final (D4, 21c9714cf): /Users/iagh/git/personal/maude/.claude/worktrees/wf_74ac1088-f6f-12/.scr/pairs/10-share-and-collaboration
+(full-size PNG pairs: <id>-<theme>.png; spec PNGs, reused from stage A: /Users/iagh/git/personal/maude/.claude/worktrees/wf_74ac1088-f6f-12/.scr/spec/10-share-and-collaboration/<id>-<theme>.png; raw impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/wf_74ac1088-f6f-12/.scr/impl/10-share-and-collaboration/)
+round 7: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a77a266636203291c/.scr/pairs/10-share-and-collaboration (p8-c7-ex10; raw impl /Users/iagh/git/personal/maude/.claude/worktrees/agent-a77a266636203291c/.scr/impl/10-share-and-collaboration)
+round 7c: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a304382bb7d0b37dc/.scr/pairs/10-share-and-collaboration (p8-c7-ex10c; raw impl /Users/iagh/git/personal/maude/.claude/worktrees/agent-a304382bb7d0b37dc/.scr/impl/10-share-and-collaboration)
+
+final (D5, e37e7d82a): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a14648f2c5028a8a1/.scr/pairs/10-share-and-collaboration
+(full-size PNG pairs: <id>-<theme>.png; spec PNGs, reused from stage A (boards unchanged since): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a14648f2c5028a8a1/.scr/spec/10-share-and-collaboration/<id>-<theme>.png; raw impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a14648f2c5028a8a1/.scr/impl/10-share-and-collaboration/; shot on the Mac mini with Google Chrome, harness _d5-harness-g4)
+
+round 8: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a875aa11387588478/.scr/pairs/10-share-and-collaboration (p8-c8-exshare: co-share-advanced, co-ask-edit, co-comment-print; Mac mini, Google Chrome, _c8-harness-g4; raw impl /Users/iagh/git/personal/maude/.claude/worktrees/agent-a875aa11387588478/.scr/impl/10-share-and-collaboration)
+
+final (D6, 3d58f57df): /Users/iagh/git/personal/maude/.claude/worktrees/agent-afe06393dccec2837/.scr/pairs/10-share-and-collaboration
+(full-size PNG pairs: <id>-<theme>.png, spec | impl; spec PNGs reused from stage A (boards unchanged since): /Users/iagh/git/personal/maude/.claude/worktrees/agent-afe06393dccec2837/.scr/spec/10-share-and-collaboration/<id>-<theme>.png; raw impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-afe06393dccec2837/.scr/impl/10-share-and-collaboration/; merged tip of feat/maude-v2 after stage C round 8, release-built client, Mac mini slot 2 with Google Chrome, harness _d6-harness-g4)
+
+round 10: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a911414b78223a6e5/.scr/pairs/10-share-and-collaboration (p8-c10-print: co-comment-print re-shot, both themes, Mac mini + Google Chrome; harness _c10-harness-g4 SCNS=s10cm; raw impl /Users/iagh/git/personal/maude/.claude/worktrees/agent-a911414b78223a6e5/.scr/impl/10-share-and-collaboration/)
+round 10: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a9edb1b6ebcc9cfe4/.scr/pairs/10-share-and-collaboration (p8-c10-misc; re-shot light + dark: co-comment-thread, co-comment-video, co-comment-print; raw impl .scr/impl/10-share-and-collaboration)
+
+final (D7, 0d2eab1d6): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a736007e7ade80094/.scr/pairs/10-share-and-collaboration (full-size PNG pairs: <id>-<theme>.png, spec | impl; spec PNGs reused from stage A (boards unchanged since), raw impl frames in /Users/iagh/git/personal/maude/.claude/worktrees/agent-a736007e7ade80094/.scr/impl/10-share-and-collaboration; merged tip of feat/maude-v2 after stage C round 10, release-built client, Mac mini with Google Chrome, harness _d7-harness-g3)
+
+round 11: /Users/iagh/git/personal/maude/.claude/worktrees/agent-ab4268bb8e4f96d25/.scr/pairs/10-share-and-collaboration (p8-r11-10: co-comment-video, co-sync-offline, co-sync-back re-shot, both themes, Mac mini + Google Chrome; harness _d7-harness-g3/g4 s10r11v s10r11s via run-r11-10.sh; raw impl /Users/iagh/git/personal/maude/.claude/worktrees/agent-ab4268bb8e4f96d25/.scr/impl/10-share-and-collaboration)

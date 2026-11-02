@@ -502,6 +502,67 @@ describe('continuous canvas discovery', () => {
     await runtime?.stop();
   });
 
+  test("an EMPTY linked copy asks for a cycle when a TEAMMATE's first canvas reaches the hub", async () => {
+    // p8-fix-c2 #1. The local half above watches this disk only. A copy that boots
+    // onto a project with no canvas anywhere ("linked … but 0 syncable canvases")
+    // never asked the hub again, so a teammate's first canvas reached it only on a
+    // restart — the rig seeded a canvas before the second copy booted to hide it.
+    writeHubsConfig(HUB, 'mau_test');
+    const ctx = makeCtx({ url: HUB, linkedAt: 1 });
+    hubListing([]);
+
+    const asked: unknown[] = [];
+    ctx.bus.on('sync:needs-restart', (p) => asked.push(p));
+
+    const { factory } = inMemoryProviderFactory();
+    const runtime = createSyncRuntime(ctx, { providerFactory: factory });
+    await runtime?.start();
+    expect(runtime?.size()).toBe(0);
+
+    // A poll of an empty hub asks for nothing.
+    await runtime?.pullRemoteNow();
+    expect(asked).toHaveLength(0);
+
+    // The teammate's first canvas. One cycle, and no second ask on the next poll.
+    hubListing([{ name: 'ui-fromteammate', bytes: 20 }]);
+    await runtime?.pullRemoteNow();
+    expect(asked).toHaveLength(1);
+    await runtime?.pullRemoteNow();
+    expect(asked).toHaveLength(1);
+
+    await runtime?.stop();
+  });
+
+  test('an EMPTY copy never cycles over what the hub offered at boot, nor over a deleted canvas', async () => {
+    // A document this copy refused at boot (sandbox off, opt-out, a bad path) is
+    // in the boot listing and stays refused after a cycle; cycling on it again
+    // would restart the runtime every poll. A tombstoned name is not a canvas.
+    writeHubsConfig(HUB, 'mau_test');
+    const ctx = makeCtx({ url: HUB, linkedAt: 1 }, null);
+    hubListing([{ name: 'ui-refused', bytes: 20 }]);
+
+    const asked: unknown[] = [];
+    ctx.bus.on('sync:needs-restart', (p) => asked.push(p));
+
+    const { factory } = inMemoryProviderFactory();
+    const runtime = createSyncRuntime(ctx, { providerFactory: factory });
+    await runtime?.start();
+    expect(runtime?.size()).toBe(0);
+
+    await runtime?.pullRemoteNow();
+    hubListing(
+      [
+        { name: 'ui-refused', bytes: 20 },
+        { name: 'ui-gone', bytes: 20 },
+      ],
+      [{ name: 'ui-gone', deletedAt: 1 }]
+    );
+    await runtime?.pullRemoteNow();
+    expect(asked).toHaveLength(0);
+
+    await runtime?.stop();
+  });
+
   test('adopt() refuses after stop() — nothing joins a dead runtime', async () => {
     writeHubsConfig(HUB, 'mau_test');
     const ctx = makeCtx({ url: HUB, linkedAt: 1 });

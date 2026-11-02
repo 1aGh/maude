@@ -14,7 +14,11 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 
 // Boot into the freshly-built multi-branch git repo (overrides the base's static
 // fixture). The app reads MAUDE_PROJECT_ROOT at spawn, so this last write wins.
-process.env.MAUDE_PROJECT_ROOT = makeGitFixture();
+// Evaluated twice (launcher, worker): build ONCE, in the launcher. The worker's rebuild wiped and re-made the repo
+// under the running app, which could read HEAD between `init -b main` and `checkout -b feat/nav-redesign` (2026-10-27
+// V2-8.3 record, run 3: the select said "main").
+if (!process.env.MAUDE_E2E_GIT_ROOT) process.env.MAUDE_E2E_GIT_ROOT = makeGitFixture();
+process.env.MAUDE_PROJECT_ROOT = process.env.MAUDE_E2E_GIT_ROOT;
 
 // Per-run evidence under this scenario's slug (same convention as /flow:scenario).
 const stamp = new Date().toISOString().slice(0, 16).replace('T', '-').replace(':', '');

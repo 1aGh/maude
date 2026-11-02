@@ -83,7 +83,9 @@ describe('file-tree-move (native-desktop / WKWebView)', () => {
     const newFolderBtn = await $('[data-testid="tree-new-folder"]');
     await newFolderBtn.waitForDisplayed({ timeout: 10_000 });
     await newFolderBtn.click();
-    const nameInput = await $('[aria-label="New folder name"]');
+    // R2-P2 (F06): the "+ New canvas" row itself turns into the name field, aria-label "Folder name"
+    // (TESTIDS.md); the separate "New folder name" composer is gone.
+    const nameInput = await $('[aria-label="Folder name"]');
     await nameInput.waitForDisplayed({ timeout: 5_000 });
     await nameInput.setValue('Archive');
     await browser.keys(['Enter']);

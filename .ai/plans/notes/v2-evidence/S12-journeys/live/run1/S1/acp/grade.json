@@ -1,0 +1,83 @@
+{
+  "journey": "S1",
+  "lane": "acp",
+  "pass": false,
+  "harnessFailure": false,
+  "infra": null,
+  "turns": [
+    {
+      "turn": 1,
+      "ok": true,
+      "stopReason": "end_turn"
+    },
+    {
+      "turn": 2,
+      "ok": true,
+      "stopReason": "end_turn"
+    },
+    {
+      "turn": 3,
+      "ok": true,
+      "stopReason": "end_turn"
+    },
+    {
+      "turn": 4,
+      "ok": true,
+      "stopReason": "end_turn"
+    },
+    {
+      "turn": 5,
+      "ok": true,
+      "stopReason": "end_turn"
+    },
+    {
+      "turn": 6,
+      "ok": true,
+      "stopReason": "end_turn"
+    }
+  ],
+  "results": [
+    {
+      "id": "created-by-ai",
+      "grader": "history",
+      "pass": false,
+      "why": "0 matching action(s) on ui/Greeting.tsx (want 1…∞; kind any, by ai, op create)"
+    },
+    {
+      "id": "renamed",
+      "grader": "moved",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "version-restored",
+      "grader": "history",
+      "pass": false,
+      "why": "0 matching action(s) on ui/Greeting.tsx (want 1…∞; kind restore, by any, op restore)"
+    },
+    {
+      "id": "restored-content",
+      "grader": "text",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "restore-by-verb",
+      "grader": "tool-used",
+      "pass": false,
+      "why": "0 call(s) of Bash matching /maude design history restore ui/Greeting\\.tsx/ (67 tool call(s) in all)"
+    },
+    {
+      "id": "back-from-trash",
+      "grader": "trash",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "no-hard-delete",
+      "grader": "no-tool",
+      "pass": true,
+      "why": ""
+    }
+  ]
+}

@@ -357,6 +357,8 @@ test('a cell can read its OWN config, and only with its own derived secret', asy
     projectName: 'Brno Alligators',
     seedRepo: 'https://github.com/1aGh/alligators.git',
     adminEmail: 'owner@example.com',
+    // S9.15b — the cell starts paused exactly when this says `paused`.
+    planState: 'paid',
   });
 
   // Another tenant's secret does not open this door — the secret IS the
@@ -386,6 +388,7 @@ test('an unknown project answers "nothing known", never another tenant’s value
     projectName: null,
     seedRepo: null,
     adminEmail: null,
+    planState: 'none',
   });
 });
 

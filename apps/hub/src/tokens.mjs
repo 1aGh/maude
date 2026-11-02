@@ -115,6 +115,12 @@ function db(dataDir) {
     // stale-session branch in `browserSession`, which refuses rather than
     // guesses.
     ['role', 'ALTER TABLE tokens ADD COLUMN role TEXT'],
+    // V2-1.7 §5.4 (S9.2) — the ACCESS CLAIM, as JSON (`{v: 1, role, grants?}`).
+    // NULL means `legacyClaim(role)`: every token minted before this shipped,
+    // and every v1-expressible session minted after. `read_only` stays the
+    // projection old code reads; `scope` keeps its DDR-053 meaning and is never
+    // used for canvas scope.
+    ['access', 'ALTER TABLE tokens ADD COLUMN access TEXT'],
   ]) {
     const present = handle
       .prepare('SELECT COUNT(*) AS n FROM pragma_table_info(?) WHERE name = ?')
@@ -205,6 +211,36 @@ function rowToRecord(row) {
     ...(row.owner ? { owner: row.owner } : {}),
     ...(row.dev ? { dev: true } : {}),
   };
+}
+
+/**
+ * Normalize an access claim for storage. Throws on anything that is not a claim —
+ * a mint that cannot say what it grants must fail loud, never store a guess.
+ */
+function accessForStore(access) {
+  if (access === undefined || access === null) return null;
+  const ok =
+    typeof access === 'object' &&
+    !Array.isArray(access) &&
+    access.v === 1 &&
+    (access.role === null || typeof access.role === 'string') &&
+    (access.grants === undefined || Array.isArray(access.grants));
+  if (!ok) throw new Error('access must be an access claim ({ v: 1, role, grants? })');
+  return {
+    v: 1,
+    role: access.role,
+    ...(access.grants?.length ? { grants: access.grants.map(({ c, r }) => ({ c, r })) } : {}),
+  };
+}
+
+/** A stored claim. An unreadable one holds NOTHING — never a fall-back to `role`. */
+function accessFromRow(raw) {
+  if (typeof raw !== 'string' || raw.length === 0) return null;
+  try {
+    return accessForStore(JSON.parse(raw));
+  } catch {
+    return { v: 1, role: null };
+  }
 }
 
 /** True when a token row's lifetime has elapsed. NULL expires_at = never. */
@@ -301,10 +337,11 @@ export function matchesScope(scope, documentName) {
  */
 export function addToken(
   dataDir,
-  { label, dev = false, scope, expiresAt, owner, readOnly = false, role } = {}
+  { label, dev = false, scope, expiresAt, owner, readOnly = false, role, access } = {}
 ) {
   assertValidLabel(label);
   assertValidScope(scope);
+  const storedAccess = accessForStore(access);
   const handle = db(dataDir);
   const value = generateToken({ dev });
   // Default scope per DDR-053 §3: bind to label. Explicit `scope: '*'` /
@@ -319,7 +356,7 @@ export function addToken(
 
   handle
     .prepare(
-      'INSERT OR REPLACE INTO tokens (label, hash, scope, dev, created_at, last_used_at, expires_at, owner, read_only, role) VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)'
+      'INSERT OR REPLACE INTO tokens (label, hash, scope, dev, created_at, last_used_at, expires_at, owner, read_only, role, access) VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)'
     )
     .run(
       label,
@@ -330,7 +367,8 @@ export function addToken(
       storedExpiry,
       storedOwner,
       readOnly ? 1 : 0,
-      storedRole
+      storedRole,
+      storedAccess ? JSON.stringify(storedAccess) : null
     );
 
   return {
@@ -340,6 +378,7 @@ export function addToken(
     expiresAt: storedExpiry,
     ...(storedOwner ? { owner: storedOwner } : {}),
     ...(storedRole ? { role: storedRole } : {}),
+    ...(storedAccess ? { access: storedAccess } : {}),
     ...(readOnly ? { readOnly: true } : {}),
     ...(dev ? { dev: true } : {}),
     ...(storedScope ? { scope: storedScope } : {}),
@@ -377,6 +416,9 @@ export function rotateToken(dataDir, label) {
     readOnly: !!prior.read_only,
     // Same reasoning one level up: rotation replaces a secret, never a role.
     role: prior.role ?? undefined,
+    // …and the access claim with it (V2-1.7 §5.4): a rotated canvas-only token
+    // that lost its claim would be a role-less row, which no door may guess at.
+    access: accessFromRow(prior.access) ?? undefined,
   });
 }
 
@@ -420,6 +462,59 @@ export function listTokensForOwner(dataDir, owner) {
 }
 
 /**
+ * The at-rest digests of one user's tokens, with their expiry (S9.21d — the
+ * cell remembers which sessions an access notice ended, so the cookie that
+ * named one hears why). Digests only — never a value.
+ *
+ * @param {string} dataDir
+ * @param {string} owner
+ * @returns {Array<{ digest: string, expiresAt: number|null }>}
+ */
+export function listTokenDigestsForOwner(dataDir, owner) {
+  if (typeof owner !== 'string' || owner.length === 0) return [];
+  try {
+    return db(dataDir)
+      .prepare('SELECT hash, expires_at FROM tokens WHERE owner = ?')
+      .all(owner)
+      .map((r) => ({ digest: r.hash, expiresAt: r.expires_at ?? null }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * The at-rest digest a presented value has (S9.21d), or null when the store
+ * cannot be opened. Lets a caller recognise a value it once saw as a token
+ * without the table still holding the row.
+ */
+export function digestToken(dataDir, value) {
+  if (typeof value !== 'string' || value.length === 0) return null;
+  try {
+    return hashToken(db(dataDir), value);
+  } catch {
+    return null;
+  }
+}
+
+/** One owner's tokens with what each grants, as `verifyToken` reads them (no value, no digest). */
+function listOwnerClaims(dataDir, owner) {
+  if (typeof owner !== 'string' || owner.length === 0) return [];
+  try {
+    return db(dataDir)
+      .prepare('SELECT label, role, read_only, access FROM tokens WHERE owner = ?')
+      .all(owner)
+      .map((row) => ({
+        label: row.label,
+        readOnly: !!row.read_only,
+        ...(row.role ? { role: row.role } : {}),
+        ...(row.access ? { access: accessFromRow(row.access) } : {}),
+      }));
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Revoke every token belonging to one user. Returns the labels removed, so the
  * caller can kick exactly those live sessions (DDR-053 §4).
  *
@@ -430,8 +525,15 @@ export function listTokensForOwner(dataDir, owner) {
  * @param {string} owner
  * @returns {string[]} labels of the revoked tokens
  */
-export function revokeTokensForOwner(dataDir, owner) {
-  const doomed = listTokensForOwner(dataDir, owner).map((t) => t.label);
+export function revokeTokensForOwner(dataDir, owner, { keep = null } = {}) {
+  // P8 G1a — `keep(token)` spares a token (a narrowing's survivor, routes-v2/access.mjs). It is asked with
+  // what the STORE says the token grants ({ label, role?, readOnly, access? }), never anything presented.
+  const doomed =
+    typeof keep === 'function'
+      ? listOwnerClaims(dataDir, owner)
+          .filter((t) => !keep(t))
+          .map((t) => t.label)
+      : listTokensForOwner(dataDir, owner).map((t) => t.label);
   if (doomed.length === 0) return [];
   const handle = db(dataDir);
   const del = handle.prepare('DELETE FROM tokens WHERE label = ? AND owner = ?');
@@ -486,6 +588,32 @@ export function listTokenLabels(dataDir) {
     scope: t.scope,
     ...(t.dev ? { dev: true } : {}),
   }));
+}
+
+/**
+ * p8-c4b — every canvas a stored token's access claim grants (expired and
+ * revoked-by-expiry rows included: a canvas once granted stays a canvas). The
+ * closure's canvas test reads it (`known-canvases.mjs`); never a token value.
+ *
+ * @param {string} dataDir
+ * @returns {string[]}
+ */
+export function tokenGrantCanvases(dataDir) {
+  const out = new Set();
+  try {
+    const rows = db(dataDir).prepare('SELECT access FROM tokens WHERE access IS NOT NULL').all();
+    for (const { access } of rows) {
+      try {
+        for (const g of JSON.parse(access)?.grants ?? [])
+          if (typeof g?.c === 'string') out.add(g.c);
+      } catch {
+        /* an unreadable claim names nothing */
+      }
+    }
+  } catch {
+    /* no store yet */
+  }
+  return [...out];
 }
 
 /**
@@ -569,6 +697,8 @@ export function verifyToken(dataDir, candidate, secret) {
         // NULL for every token minted before the role column existed, and for
         // every machine-to-machine token that has no project role at all.
         ...(row.role ? { role: row.role } : {}),
+        // NULL = `legacyClaim(role)`; present = the claim the mint door decided.
+        ...(row.access ? { access: accessFromRow(row.access) } : {}),
         ...(row.owner ? { owner: row.owner } : {}),
         ...(row.dev ? { dev: true } : {}),
       };

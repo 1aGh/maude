@@ -1,0 +1,238 @@
+{
+  "url": "http://localhost:4831/",
+  "runs": 6,
+  "kept": 5,
+  "firstRowMs": 216,
+  "firstRowMax": 295,
+  "rowsInDom": 16,
+  "scrollP95": 17.4,
+  "scrollMax": 17.7,
+  "scrollLong": 0,
+  "scrollHeight": 1182,
+  "rowsFlat": 28,
+  "scrollFlatP95": 17.3,
+  "scrollFlatMax": 17.8,
+  "scrollFlatLong": 0,
+  "scrollFlatHeight": 2832,
+  "searchP95": 48,
+  "searchMax": 52,
+  "openMs": 40,
+  "raw": [
+    {
+      "firstRowMs": 401,
+      "rowsInDom": 27,
+      "rowsAfterFilter": null,
+      "scroll": {
+        "scrollable": true,
+        "scrollHeight": 1182,
+        "n": 81,
+        "p50": 16.699999999999818,
+        "p95": 16.800000000000182,
+        "max": 33.399999999999864,
+        "long": 0
+      },
+      "searchMs": {
+        "p95": 97,
+        "max": 97,
+        "all": [
+          68,
+          84,
+          97,
+          73,
+          78
+        ]
+      },
+      "rowsFlat": 29,
+      "scrollFlat": {
+        "scrollable": true,
+        "scrollHeight": 2832,
+        "n": 81,
+        "p50": 16.699999999999818,
+        "p95": 17.399999999999636,
+        "max": 17.699999999999818,
+        "long": 0
+      },
+      "openMs": 300
+    },
+    {
+      "firstRowMs": 216,
+      "rowsInDom": 16,
+      "rowsAfterFilter": null,
+      "scroll": {
+        "scrollable": true,
+        "scrollHeight": 1182,
+        "n": 81,
+        "p50": 16.699999999999818,
+        "p95": 17.199999999999818,
+        "max": 17.59999999999991,
+        "long": 0
+      },
+      "searchMs": {
+        "p95": 52,
+        "max": 52,
+        "all": [
+          40,
+          46,
+          52,
+          31,
+          36
+        ]
+      },
+      "rowsFlat": 28,
+      "scrollFlat": {
+        "scrollable": true,
+        "scrollHeight": 2832,
+        "n": 81,
+        "p50": 16.699999999999818,
+        "p95": 16.899999999999636,
+        "max": 17.300000000000182,
+        "long": 0
+      },
+      "openMs": 40
+    },
+    {
+      "firstRowMs": 295,
+      "rowsInDom": 16,
+      "rowsAfterFilter": null,
+      "scroll": {
+        "scrollable": true,
+        "scrollHeight": 1182,
+        "n": 81,
+        "p50": 16.699999999999818,
+        "p95": 17.40000000000009,
+        "max": 17.59999999999991,
+        "long": 0
+      },
+      "searchMs": {
+        "p95": 47,
+        "max": 47,
+        "all": [
+          42,
+          44,
+          47,
+          34,
+          36
+        ]
+      },
+      "rowsFlat": 28,
+      "scrollFlat": {
+        "scrollable": true,
+        "scrollHeight": 2832,
+        "n": 81,
+        "p50": 16.699999999999818,
+        "p95": 17.300000000000182,
+        "max": 17.800000000000182,
+        "long": 0
+      },
+      "openMs": 40
+    },
+    {
+      "firstRowMs": 211,
+      "rowsInDom": 16,
+      "rowsAfterFilter": null,
+      "scroll": {
+        "scrollable": true,
+        "scrollHeight": 1182,
+        "n": 81,
+        "p50": 16.699999999999818,
+        "p95": 17.399999999999864,
+        "max": 17.699999999999818,
+        "long": 0
+      },
+      "searchMs": {
+        "p95": 48,
+        "max": 48,
+        "all": [
+          44,
+          46,
+          48,
+          33,
+          29
+        ]
+      },
+      "rowsFlat": 28,
+      "scrollFlat": {
+        "scrollable": true,
+        "scrollHeight": 2832,
+        "n": 81,
+        "p50": 16.699999999999818,
+        "p95": 17.100000000000364,
+        "max": 17.700000000000728,
+        "long": 0
+      },
+      "openMs": 44
+    },
+    {
+      "firstRowMs": 233,
+      "rowsInDom": 16,
+      "rowsAfterFilter": null,
+      "scroll": {
+        "scrollable": true,
+        "scrollHeight": 1182,
+        "n": 81,
+        "p50": 16.699999999999818,
+        "p95": 17.200000000000273,
+        "max": 17.699999999999818,
+        "long": 0
+      },
+      "searchMs": {
+        "p95": 45,
+        "max": 45,
+        "all": [
+          45,
+          34,
+          32,
+          24,
+          37
+        ]
+      },
+      "rowsFlat": 28,
+      "scrollFlat": {
+        "scrollable": true,
+        "scrollHeight": 2832,
+        "n": 81,
+        "p50": 16.699999999999818,
+        "p95": 17.5,
+        "max": 17.699999999999818,
+        "long": 0
+      },
+      "openMs": 24
+    },
+    {
+      "firstRowMs": 210,
+      "rowsInDom": 16,
+      "rowsAfterFilter": null,
+      "scroll": {
+        "scrollable": true,
+        "scrollHeight": 1182,
+        "n": 81,
+        "p50": 16.699999999999818,
+        "p95": 17.59999999999991,
+        "max": 17.700000000000045,
+        "long": 0
+      },
+      "searchMs": {
+        "p95": 52,
+        "max": 52,
+        "all": [
+          34,
+          46,
+          52,
+          32,
+          24
+        ]
+      },
+      "rowsFlat": 28,
+      "scrollFlat": {
+        "scrollable": true,
+        "scrollHeight": 2832,
+        "n": 81,
+        "p50": 16.699999999999818,
+        "p95": 17.300000000000182,
+        "max": 17.599999999999454,
+        "long": 0
+      },
+      "openMs": 39
+    }
+  ]
+}

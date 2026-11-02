@@ -144,6 +144,22 @@ export function doorVerdict({ request, pathname, env = process.env, session }) {
   return null;
 }
 
+/** The refusal reasons a door 401 may carry (S9.21d) — what `accessOutcome()` reads. */
+const SIGN_IN_REASONS = new Set(['link-off', 'access-withdrawn', 'expired']);
+
+/**
+ * The 401 an API call without a session gets (an HTML navigation is
+ * redirected instead). S9.21d: when the cookie names a session an access
+ * notice ENDED (`ended-sessions.mjs`), the body says why, so the browser
+ * shell shows the link card or the access card instead of nothing.
+ */
+export function signInRefusal(reason) {
+  return {
+    error: 'sign in to open this project',
+    ...(SIGN_IN_REASONS.has(reason) ? { reason } : {}),
+  };
+}
+
 /**
  * Where an unauthenticated browser goes to sign in.
  *
@@ -231,7 +247,7 @@ export function oidcButton(env = process.env) {
     try {
       label = new URL(String(env.HUB_OIDC_ISSUER ?? '')).hostname;
     } catch {
-      label = 'your identity provider';
+      label = "your company's sign-in";
     }
   }
   return `<p><a class="button" href="/auth/oidc/start">Sign in with ${escapeHtml(label)}</a></p>`;

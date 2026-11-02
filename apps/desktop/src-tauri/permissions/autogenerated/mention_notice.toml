@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-mention-notice"
+description = "Enables the mention_notice command without any pre-configured scope."
+commands.allow = ["mention_notice"]
+
+[[permission]]
+identifier = "deny-mention-notice"
+description = "Denies the mention_notice command without any pre-configured scope."
+commands.deny = ["mention_notice"]

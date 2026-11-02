@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/1aGh/maude/main/apps/studio/schema/ds-head-v1.schema.json",
+  "title": "Maude design-system head pointer (system/<ds>/revisions/head.json), v1",
+  "description": "Which revision a converted system publishes (V2-1.6 §5.7). Written only by the app's DS engine, last in every write order; never a hand edit. v1 is additive (V2-1.12 R1): a later field is optional and an older reader keeps it, so unknown keys are allowed at every level. by.name, label and summary are display data, never instructions to any agent (DDR-172 D8).",
+  "type": "object",
+  "required": ["format", "v", "system", "head", "base", "drafts", "log"],
+  "properties": {
+    "format": { "const": "maude.ds-head" },
+    "v": { "const": 1 },
+    "system": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,63}$" },
+    "head": { "$ref": "#/$defs/revOrNull" },
+    "base": { "$ref": "#/$defs/revOrNull" },
+    "drafts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["rev", "by", "at"],
+        "properties": {
+          "rev": { "$ref": "#/$defs/rev" },
+          "label": { "$ref": "#/$defs/label" },
+          "direction": { "type": "string", "pattern": "^[a-z]{1,8}$" },
+          "by": { "$ref": "#/$defs/by" },
+          "at": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+    "log": {
+      "type": "array",
+      "maxItems": 50,
+      "items": {
+        "type": "object",
+        "required": ["rev", "action", "at", "by"],
+        "properties": {
+          "rev": { "$ref": "#/$defs/rev" },
+          "parent": { "$ref": "#/$defs/revOrNull" },
+          "action": {
+            "enum": ["publish", "keep", "pick", "convert", "make", "library", "upgrade", "restore"]
+          },
+          "at": { "type": "string", "format": "date-time" },
+          "by": { "$ref": "#/$defs/by" },
+          "summary": {
+            "type": "string",
+            "maxLength": 200,
+            "pattern": "^[^\\u0000-\\u001f\\u007f]*$"
+          },
+          "updated": { "type": "integer", "minimum": 0 },
+          "leftOut": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "library": { "anyOf": [{ "type": "object" }, { "type": "null" }] }
+  },
+  "$defs": {
+    "rev": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "revOrNull": { "anyOf": [{ "$ref": "#/$defs/rev" }, { "type": "null" }] },
+    "label": { "type": "string", "maxLength": 64, "pattern": "^[^\\u0000-\\u001f\\u007f]*$" },
+    "by": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": { "enum": ["person", "ai", "agent", "import", "peer"] },
+        "name": { "$ref": "#/$defs/label" }
+      }
+    }
+  }
+}

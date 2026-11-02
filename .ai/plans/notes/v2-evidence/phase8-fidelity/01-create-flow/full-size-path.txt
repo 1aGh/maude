@@ -1,0 +1,24 @@
+stage A: undefined
+stage D: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a1266e1495ea7588d/.scr/pairs/01
+
+round 3 (p8-c3-modes): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a79ab1936d7f7e854/.scr/pairs/01-create-flow/
+(pairs re-shot: cf-duplicate-width; IMPL frames alone: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a79ab1936d7f7e854/.scr/impl-out/01-create-flow/; harness: _d-harness-g2 plus s-menus.mjs / s04c.mjs kept in the worktree .scr/impl/)
+round 3: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a5f4696a9f55c2299/.scr/pairs/01 (p8-c3-shell, impl at c7f1a0efd)
+round 3: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a4979f0dfac4967a6/.scr/pairs/01
+final (D2, d3881fe41): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a14cd45eae2ac5f32/.scr/pairs/01
+bugfix (p8-bug-aiundo — ⌘Z after an AI run undoes that run; pairs re-shot: cf-undo-before, cf-undo-ai): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a40066d9a08a8bead/.scr/pairs/01 (IMPL frames: .scr/impl-raw/01; harness _d-harness-g1-final/s01ai.mjs now waits for the run's Done + dark hero, and for the undone frame)
+round 5: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a6978930be4932b00/.scr/pairs/01/ (p8-c5-panels @ 2e203e9e6; IMPL re-shot light + dark, SPEC reused; every id with a pair)
+bugs3: (undo toast "Undone — <label> · Redo"; ⌘Z while your own AI works is refused — pairs re-shot: cf-undo-ai): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ad1e7b1fa8d504037/.scr/pairs/01
+final (D3, 63592219a): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a81ec5fb665864bd9/.scr/pairs/01
+
+round 6 (p8-c6-aisurf, 89a794e96): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ad6307ded82bdaa41/.scr/pairs/01-create-flow/
+(one PNG per artboard id and theme: <id>-<dark|light>.png, spec left | impl right, same height, label strip on top)
+round 6 IMPL frames alone: /Users/iagh/git/personal/maude/.claude/worktrees/agent-ad6307ded82bdaa41/.scr/impl-out/01/
+round 6 harness: .ai/plans/notes/v2-evidence/phase8-fidelity/_c6-harness-g2/ (on top of _d3-harness-g2/ and _d2-harness-g2/)
+final (D4, 21c9714cf): /Users/iagh/git/personal/maude/.claude/worktrees/wf_74ac1088-f6f-9/.scr/pairs/01
+round 7 (p8-c7-cf08): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a83dd4e69dad79c1e/.scr/pairs/01 (raw impl frames: .../agent-a83dd4e69dad79c1e/.scr/impl-raw/01/; harness _c7-harness-g1/ on top of _d-harness-g1-d4/; cf-ai-*, cf-undo-*, cf-home-prompt, cf-busy NOT re-shot this round)
+round 7b (p8-c7-cf08b): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ae7f6a5e804968df1/.scr/pairs/01 (raw impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-ae7f6a5e804968df1/.scr/impl-raw/01/; harness _c7b-harness-g1/ on top of _c7-harness-g1/)
+final (D5, e37e7d82a): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a47304d95ce1393d6/.scr/pairs/01 (raw impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a47304d95ce1393d6/.scr/impl-raw/01)
+final (D6, 3d58f57df): /Users/iagh/git/personal/maude/.claude/worktrees/agent-af2cca2becd40770b/.scr/pairs/01 (raw impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-af2cca2becd40770b/.scr/impl-raw/01)
+round 10: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a9edb1b6ebcc9cfe4/.scr/pairs/01 (p8-c10-misc; re-shot light + dark: cf-render-error; raw impl .scr/impl-raw/01)
+final (D7, 98ed9c011): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a04ea748cd3666ab7/.scr/pairs/01 (raw impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a04ea748cd3666ab7/.scr/impl-raw/01; spec: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a04ea748cd3666ab7/.scr/spec-raw/01; harness _d7-harness-g1/g1/)

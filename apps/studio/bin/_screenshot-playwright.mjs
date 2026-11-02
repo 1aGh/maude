@@ -11,7 +11,7 @@
 
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { launchChromium } from './_pw-launch.mjs';
+import { launchChromium, newShellContext } from './_pw-launch.mjs';
 
 const args = Object.fromEntries(
   process.argv.slice(2).reduce((acc, cur, i, all) => {
@@ -33,9 +33,12 @@ mkdirSync(dirname(out), { recursive: true });
 
 const browser = await launchChromium();
 try {
-  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  // gate-b-c4d — confined to the origin the shell lands on (popups, other origins refused).
+  const { ctx, goto: gotoShell } = await newShellContext(browser, {
+    viewport: { width: 1440, height: 900 },
+  });
   const page = await ctx.newPage();
-  await page.goto(url, { waitUntil: 'networkidle', timeout: timeoutMs });
+  await gotoShell(page, url, { waitUntil: 'networkidle', timeout: timeoutMs });
 
   if (theme) {
     // Dual-theme reality check (/design:new step 9): force every DS artboard

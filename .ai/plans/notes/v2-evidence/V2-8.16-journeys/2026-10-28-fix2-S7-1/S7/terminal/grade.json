@@ -1,0 +1,66 @@
+{
+  "journey": "S7",
+  "lane": "terminal",
+  "pass": true,
+  "harnessFailure": false,
+  "infra": null,
+  "turns": [
+    {
+      "turn": 1,
+      "code": 0,
+      "ok": true,
+      "costUsd": 1.143535,
+      "numTurns": 23
+    }
+  ],
+  "results": [
+    {
+      "id": "huddle-one-second",
+      "grader": "text",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "shots-follow",
+      "grader": "text",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "effects-follow",
+      "grader": "text",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "total-in-step",
+      "grader": "text",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "earlier-shots-kept",
+      "grader": "text",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "ai-version",
+      "grader": "history",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "one-undo-step",
+      "grader": "one-undo-step",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "no-hard-delete",
+      "grader": "no-tool",
+      "pass": true,
+      "why": ""
+    }
+  ]
+}

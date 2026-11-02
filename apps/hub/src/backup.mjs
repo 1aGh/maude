@@ -68,6 +68,9 @@ export const BACKUP_DATABASES = [
   // A restore without it would bring back documents the store has never
   // heard of — or none at all once the project saves through it.
   'project-store.sqlite',
+  // S10.18a-2: team-library grants (hashed tokens only) — without it every rollout would
+  // 401 the projects that linked this design system until the owner mints again.
+  'ds-grants.db',
 ];
 
 /** Default retention: keep this many snapshot generations. */

@@ -20,6 +20,10 @@
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
+import { GRANT_ROLES, MAX_GRANTS } from '../../studio/access/scope.ts';
+import { followRelOf } from './follow-capability.mjs';
+import { FLOOR_ROLE, ROLES } from './role-matrix.mjs';
+
 /** How long a render capability lives. Short: it cannot be revoked. */
 export const RENDER_TOKEN_TTL_MS = 15 * 60 * 1000;
 
@@ -55,8 +59,12 @@ function sign(secret, payload) {
  * source-write, export, or config route at any role (DDR-088 allowlist +
  * DDR-122 realm gate for the WS body lanes). An exfiltrated token is therefore
  * worth exactly the subject's own role on the inert collab surface, for the
- * TTL — the same grant the WS lane already made. Absent (older tokens) →
- * verifiers fall back to `viewer`.
+ * TTL — the same grant the WS lane already made. Absent (older tokens) or
+ * unknown → the verifier floors to `observer` (V2-1.7 §5.4, S9.2; was `viewer`).
+ *
+ * `grants` (V2-1.7 §5.3) ride as `g`, sorted by canvas, so the canvas listener
+ * resolves them against the closure (V2-1.16 L15). Absent when empty, so a v1
+ * capability stays byte-identical.
  */
 export function mintRenderToken({
   secret,
@@ -67,10 +75,21 @@ export function mintRenderToken({
    *  door refuses EVERY unsafe method and every collab socket carrying it,
    *  whatever `role` says — the comment lane a viewer keeps included. */
   readOnly = false,
+  /** S3.7c — a presentation follower's capability (follow-capability.mjs): the
+   *  ONE canvas (designRoot-relative) whose room it may join, receive-only.
+   *  Implies `ro` and carries no project role, so it floors to observer and
+   *  the canvas door narrows its access to that canvas. Signed like `ro`. */
+  follow = null,
+  grants = [],
   now = Date.now(),
   ttlMs = RENDER_TOKEN_TTL_MS,
 }) {
   if (!secret) throw new Error('a hub secret is required to mint a render token');
+  const f = follow === null || follow === undefined ? null : followRelOf(follow);
+  if ((follow ?? null) !== null && !f) throw new Error('a follow capability names one canvas');
+  const g = (grants ?? [])
+    .map(({ c, r }) => ({ c, r }))
+    .sort((a, b) => (a.c < b.c ? -1 : a.c > b.c ? 1 : 0));
   // JSON, not a delimiter-joined string: the subject is an EMAIL ADDRESS and
   // addresses contain dots, so a `a.b.c` payload split back into the wrong
   // three fields and every token read as expired. Structured in, structured
@@ -78,8 +97,10 @@ export function mintRenderToken({
   const payload = JSON.stringify({
     p: project,
     s: subject,
-    ...(role ? { r: role } : {}),
-    ...(readOnly ? { ro: 1 } : {}),
+    ...(role && !f ? { r: role } : {}),
+    ...(readOnly || f ? { ro: 1 } : {}),
+    ...(f ? { f } : {}),
+    ...(g.length && !f ? { g } : {}),
     e: now + ttlMs,
   });
   return `${Buffer.from(payload).toString('base64url')}.${sign(secret, payload)}`;
@@ -110,6 +131,21 @@ export function verifyRenderToken({ secret, token, project, now = Date.now() }) 
   } catch {
     return { ok: false, reason: 'malformed' };
   }
+  if (!claims || typeof claims !== 'object') return { ok: false, reason: 'malformed' };
+  // A malformed grant list fails the WHOLE capability — never "the grants that parsed".
+  const g = claims.g;
+  if (
+    g !== undefined &&
+    !(
+      Array.isArray(g) &&
+      g.length <= MAX_GRANTS &&
+      g.every((x) => x && typeof x.c === 'string' && x.c.length > 0 && GRANT_ROLES.includes(x.r))
+    )
+  ) {
+    return { ok: false, reason: 'malformed' };
+  }
+  // S3.7c — a follow claim that does not name one canvas fails the WHOLE capability.
+  if (claims.f !== undefined && !followRelOf(claims.f)) return { ok: false, reason: 'malformed' };
   const exp = Number(claims?.e);
   if (!Number.isFinite(exp) || exp < now) return { ok: false, reason: 'expired' };
   if (project && claims?.p !== project) return { ok: false, reason: 'wrong-project' };
@@ -117,9 +153,14 @@ export function verifyRenderToken({ secret, token, project, now = Date.now() }) 
     ok: true,
     project: claims.p,
     subject: claims.s,
-    // Fail toward the floor: a token without a role claim is a viewer's.
-    role: typeof claims.r === 'string' ? claims.r : null,
+    // Fail toward the floor: a token without a (known) role claim is an
+    // observer's — the lowest role, never null (a null read as `viewer` by every
+    // `?? 'viewer'` fallback downstream).
+    role: ROLES.includes(claims.r) ? claims.r : FLOOR_ROLE,
+    grants: (g ?? []).map(({ c, r }) => ({ c, r })),
     // DDR-247 — signed, so a holder cannot strip it to regain the role's writes.
-    readOnly: claims.ro === 1,
+    readOnly: claims.ro === 1 || claims.f !== undefined,
+    // S3.7c — the one canvas a follower's capability may watch; null for every other token.
+    follow: claims.f ?? null,
   };
 }

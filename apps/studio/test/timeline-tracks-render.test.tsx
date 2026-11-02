@@ -1,0 +1,244 @@
+// S7.8 (07 · ve-select, ve-play) — the panel draws four tracks in order (Text · Graphics · Video · Music,
+// Video 2 only when a standalone video/image is on it), a ruler that steps 3 s on a 15 s reel and reads
+// m:ss, the loop band I / O draws, and the Poster flag. Every row keeps its own testid.
+
+import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
+import { GlobalRegistrator } from '@happy-dom/global-registrator';
+
+beforeAll(() => {
+  GlobalRegistrator.register();
+  (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  // happy-dom has no layout: give the scroll area the width a real island has (900 less the label gutter)
+  Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+    configurable: true,
+    get: () => 900,
+  });
+});
+afterAll(() => {
+  GlobalRegistrator.unregister();
+});
+
+import { act } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
+import { clipLabel } from '../client/v2/timeline/fit-fill.jsx';
+import { TimelineIslandContext } from '../client/v2/timeline/island-context.js';
+import { playbackStore } from '../client/v2/timeline/playhead.js';
+import TimelinePanel from '../client/v2/timeline/Timeline.jsx';
+
+let root: Root | null = null;
+let host: HTMLElement | null = null;
+afterEach(() => {
+  act(() => root?.unmount());
+  host?.remove();
+  root = null;
+  playbackStore.reset();
+});
+
+const beat = (id: string, from: number, duration: number) => ({
+  stableId: id,
+  label: id,
+  series: true,
+  mediaTag: 'Video',
+  mediaSrc: `assets/${id}.mp4`,
+  from,
+  duration,
+  keyframes: [],
+});
+const SEQ = [
+  beat('Oslava', 0, 240),
+  beat('Touchdown', 240, 210),
+  {
+    stableId: 'dr',
+    label: 'DŘINA',
+    series: false,
+    mediaTag: null,
+    from: 45,
+    duration: 60,
+    keyframes: [],
+  },
+  {
+    stableId: 'lg',
+    label: 'LogoBug',
+    series: false,
+    mediaTag: null,
+    from: 0,
+    duration: 450,
+    keyframes: [],
+  },
+  {
+    stableId: 'ph',
+    label: 'photo',
+    series: false,
+    mediaTag: 'Img',
+    mediaSrc: 'assets/p.jpg',
+    from: 100,
+    duration: 60,
+    keyframes: [],
+  },
+];
+
+function mount(
+  sequences: unknown[],
+  { audio = [] as unknown[], island = {} as Record<string, unknown>, frame = 0 } = {}
+) {
+  host = document.createElement('div');
+  host.style.width = '1200px';
+  document.body.append(host);
+  root = createRoot(host);
+  act(() => {
+    root?.render(
+      <TimelineIslandContext.Provider value={island}>
+        <TimelinePanel
+          comps={[{ id: 'c1', fps: 30, durationInFrames: 450, width: 270, height: 480 }]}
+          compId="c1"
+          sequences={sequences}
+          audio={audio}
+          total={450}
+          frame={frame}
+          height={300}
+          onSelect={() => {}}
+        />
+      </TimelineIslandContext.Provider>
+    );
+  });
+}
+const q = (sel: string) => document.querySelector(sel);
+const all = (sel: string) => [...document.querySelectorAll(sel)];
+
+describe('four tracks', () => {
+  test('Text · Graphics · Video · Music, in that order, each with its rows', () => {
+    mount(SEQ.slice(0, 4));
+    expect(all('[data-track]').map((t) => t.getAttribute('data-track'))).toEqual([
+      'text',
+      'gfx',
+      'video',
+      'music',
+    ]);
+    expect(q('[data-track="text"] [data-testid="timeline-row-2"]')).not.toBeNull(); // the title
+    expect(q('[data-track="gfx"] [data-testid="timeline-row-3"]')).not.toBeNull(); // the logo bug
+    expect(q('[data-track="video"] [data-testid="timeline-storyline"]')).not.toBeNull();
+    expect(q('[data-track="video"] .tl-track-name')?.textContent).toBe('Video');
+  });
+
+  test('an image on its own lands on Video 2, directly above Video (C35)', () => {
+    mount(SEQ);
+    expect(all('[data-track]').map((t) => t.getAttribute('data-track'))).toEqual([
+      'text',
+      'gfx',
+      'video2',
+      'video',
+      'music',
+    ]);
+    expect(q('[data-track="video2"] [data-testid="timeline-row-4"]')).not.toBeNull();
+    expect(q('[data-track="video2"] .tl-track-name')?.textContent).toBe('Video 2');
+  });
+
+  test('a bed is Music; a second one at the same time is Music 2; an empty Music says so only when the video is silent', () => {
+    // S7.10 (07 · ve-fit-fill): clips with sound leave an empty Music track quiet; only a silent video gets the line.
+    mount(SEQ.slice(0, 2));
+    expect(q('[data-track="music"] .tl-track-hint')).toBeNull();
+    act(() => root?.unmount());
+    host?.remove();
+    mount(SEQ.slice(0, 2).map((s) => ({ ...s, mediaProps: { muted: true } })));
+    expect(q('[data-track="music"] [data-testid="timeline-music-hint"]')?.textContent).toStartWith(
+      'No sound in this video.'
+    );
+    act(() => root?.unmount());
+    host?.remove();
+    mount(SEQ.slice(0, 2), {
+      audio: [
+        { kind: 'audio', label: 'bed.mp3', src: 'a.mp3', from: 0, duration: 450 },
+        { kind: 'audio', label: 'sting.mp3', src: 'b.mp3', from: 30, duration: 60 },
+      ],
+    });
+    expect(q('[data-track="music"] .tl-track-hint')).toBeNull();
+    expect(q('[data-track="music2"]')).not.toBeNull();
+  });
+});
+
+describe('ruler', () => {
+  test('a 15 s reel steps 3 s and reads m:ss', () => {
+    mount(SEQ.slice(0, 2));
+    const labels = all('.tl-tick-label').map((e) => e.textContent);
+    expect(labels.slice(0, 4)).toEqual(['0:00', '0:03', '0:06', '0:09']);
+  });
+
+  test('the readout is the time over the length, with the frame in its title', () => {
+    mount(SEQ.slice(0, 2), { frame: 212 });
+    const r = q('[data-testid="timeline-readout"]');
+    // 450 frames at 30 fps are 15 s (the scrubber on the artboard and the advanced timecode say 0:15): the length is
+    // frames / fps, not the time of the last frame index (P8-B2: a 7 s video read "0:06", a 1 s one "0:00")
+    expect(r?.textContent).toBe('0:07 / 0:15');
+    expect(r?.getAttribute('title')).toBe('Frame 212 of 449');
+  });
+
+  test('stepping shows the frame; the play button names its key', () => {
+    playbackStore.markStep();
+    mount(SEQ.slice(0, 2), { frame: 212 });
+    expect(q('[data-testid="timeline-readout"] b')?.textContent).toBe('0:07 + 2 frames');
+    // 07 ve-play (V2-8.5 c4-video): the keys are drawn tips (a dark pill with the key caps), not the browser's title
+    expect(q('[data-testid="timeline-playpause"]')?.getAttribute('title')).toBeNull();
+    const play = q('[data-testid="timeline-play-tip"]');
+    expect(play?.getAttribute('role')).toBe('tooltip');
+    expect(play?.textContent).toContain('Play — tap space');
+    expect(play?.textContent).toContain('hold space and drag to pan');
+    expect(play?.querySelector('kbd')?.textContent).toBe('space');
+    const step = q('[data-testid="timeline-step-tip"]');
+    expect(step?.textContent).toBe('Step ←→ one frame · ⇧ one second');
+  });
+
+  test('the step tip shows only while the playhead is being stepped', () => {
+    mount(SEQ.slice(0, 2), { frame: 212 });
+    expect(q('[data-testid="timeline-step-tip"]')).toBeNull();
+    expect(q('[data-testid="timeline-play-tip"]')).not.toBeNull(); // drawn always, shown on hover / focus by CSS
+  });
+});
+
+describe('loop band and poster', () => {
+  test('I / O draw the band on the ruler and tint the lanes; nothing without one', () => {
+    mount(SEQ.slice(0, 2));
+    expect(q('[data-testid="timeline-loop-band"]')).toBeNull();
+    act(() => root?.unmount());
+    host?.remove();
+    playbackStore.setLoop('c1', { in: 105, out: 270 });
+    mount(SEQ.slice(0, 2));
+    expect(q('[data-testid="timeline-loop-band"]')).not.toBeNull();
+    expect(q('[data-testid="timeline-loop-lane"]')).not.toBeNull();
+    // P8 C3 (07 · .ve-loop) — the band's accent edges are the in and out; no letters on it
+    expect(q('[data-testid="timeline-loop-band"]')?.textContent).toBe('');
+  });
+
+  test('the poster frame flags the ruler — at the default (35 %) until one is stored', () => {
+    mount(SEQ.slice(0, 2));
+    expect(q('[data-testid="timeline-poster-flag"]')?.getAttribute('data-frame')).toBe('158');
+    act(() => root?.unmount());
+    host?.remove();
+    mount(SEQ.slice(0, 2), { island: { poster: 105 } });
+    expect(q('[data-testid="timeline-poster-flag"]')?.textContent).toBe('Poster');
+    expect(q('[data-testid="timeline-poster-flag"]')?.getAttribute('data-frame')).toBe('105');
+  });
+});
+
+// p8-t-video-2 (07 · "IMG_5120 is vertical") — a dropped clip goes by its file's name, never its content hash
+describe('clip names', () => {
+  test('a named clip shows its name; an unnamed hash-file clip is "Clip N"', () => {
+    mount([
+      {
+        ...beat('x', 0, 240),
+        stableId: 'name:IMG_5120',
+        label: 'Video',
+        mediaSrc: 'assets/9f1c2b7a.mov',
+      },
+      { ...beat('y', 240, 210), stableId: 'c1#1', label: 'Video', mediaSrc: 'assets/0badc0de.mp4' },
+    ]);
+    expect(all('[data-track="video"] .tl-clip-lab').map((e) => e.textContent)).toEqual([
+      'IMG_5120',
+      'Clip 2',
+    ]);
+  });
+
+  test('the vertical-clip question names the clip the same way', () => {
+    expect(clipLabel('name:IMG_5120', 'assets/9f1c2b7a.mov')).toBe('IMG_5120');
+    expect(clipLabel('c1#1', 'assets/9f1c2b7a.mov')).toBe('9f1c2b7a.mov');
+  });
+});

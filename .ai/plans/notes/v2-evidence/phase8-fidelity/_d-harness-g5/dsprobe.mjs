@@ -1,0 +1,17 @@
+import { boot, playwright, scratchProject, sleep } from './lib.mjs';
+import { join } from 'node:path';
+import { REPO } from './lib.mjs';
+const { scratch, project } = scratchProject(join(REPO, '.scr/fx-cache/ds-converted'), true); import('node:fs').then((fs) => { if (process.env.NOPREV === 'tsx') for (const f of fs.readdirSync(join(project, '.design/system/maude-v2/preview'))) { if (f.endsWith('.tsx')) fs.rmSync(join(project, '.design/system/maude-v2/preview', f)); } if (process.env.NOPREV === 'css') for (const f of fs.readdirSync(join(project, '.design/system/maude-v2/preview'))) { if (f.endsWith('.css')) fs.rmSync(join(project, '.design/system/maude-v2/preview', f)); } });
+const s = await boot(project, scratch, {}, { theme: 'light' });
+const browser = await playwright.chromium.launch();
+const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
+const page = await ctx.newPage();
+page.on('console', (m) => { if (/error|warn/.test(m.type())) console.log('[' + m.type() + ']', m.text().slice(0, 400)); });
+page.on('pageerror', (e) => console.log('pageerror', e.message.slice(0, 400)));
+page.on('response', (r) => { if (r.status() >= 400) console.log('HTTP', r.status(), r.url().slice(0, 200)); });
+await page.goto(`${s.url}/_canvas-shell.html?canvas=${encodeURIComponent('system/maude-v2/design-system.tsx')}`);
+await sleep(9000);
+console.log(await page.evaluate(() => document.body.innerText.slice(0, 600)));
+await browser.close();
+console.log('SERVERLOG', s.log().slice(-1500)); s.stop();
+process.exit(0);

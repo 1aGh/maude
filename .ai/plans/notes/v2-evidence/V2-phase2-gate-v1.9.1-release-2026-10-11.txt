@@ -1,0 +1,44 @@
+v1.9.1 security patch — release + post-release verification, 2026-10-11
+
+Go: Michal in chat 2026-10-11 ("1.9.1 ano"), waiting-for-michal #8. Scope: exactly the Phase 2 gate fixes for
+holes that also ship in v1.9.0 — main-origin /_ws/collab + /_ws CSWSH (298c6cf2 → 5ec64708 on main),
+canvas-listener /_ws/collab + HMR /_ws CSWSH and the repo-file lane's DNS-rebinding read (51ee7d2c → 226ce7d8),
+test formatting (75cd3c37), changeset a95b04f0, release commit fcc24f4d, annotated tag v1.9.1.
+Branch release/1.9.1 from 4c8aa55a (v1.9.0), fast-forward push to main by the 1aGh admin key.
+
+## Before the tag (release tree, scripts/v2-test-lane.sh)
+socket + static suites (main-ws-origin-gate, rebind-and-canvas-ws-gate, acp-origin-gate, ws*, collab*, canvas-origin*,
+acl-l21*, static*, asset*, cell-*, workspace*, presence*, ui-open*): 240 pass / 0 fail across 30 files
+doctor schema 0 · client build --release (only the version string changed) · build · format · lint · parity ·
+site-content (after staging the regen) · tarball · tokens · typecheck · tests: cli 413 / hub 1222 / harness 27 / sync 1327, 0 fail
+biome --fix touched 2 non-manifest files → reverted per the runbook. No What's New entry (security patch; as v1.8.1).
+main CI before: quality + version-parity success on 4c8aa55a. Dry-run push: only main fast-forward + tag v1.9.1.
+
+## CI (tag v1.9.1 + release commit on main) — all success
+  .github/workflows/render-canary.yml [main] success
+  Dependabot Updates [main] success
+  Build per-platform binaries [v1.9.1] success
+  Self-hostable images are multi-arch [v1.9.1] success
+  Publish hub image [v1.9.1] success
+  Cell image + data plane [v1.9.1] success
+  Build desktop app (macOS .dmg + Windows .msi + Linux .deb) [v1.9.1] success
+  .github/workflows/render-deploy.yml [v1.9.1] success
+  Quality [main] success
+  Version parity check [main] success
+  Cell image + data plane [main] success
+  .github/workflows/render-deploy.yml [main] success
+build-binaries jobs: classify (latest) · create-release · 7 platform builds · Desktop blank-window gates · publish-main
+publish-main: "+ @1agh/maude@1.9.1" with provenance (sigstore logIndex 3204356788) at 09:09:55Z; npm processed the
+22.7 MB tarball until ~09:20Z ("may take a few minutes") — dist-tags then latest = 1.9.1; all 7 sub-packages latest = 1.9.1.
+
+## After
+npm dist-tags: {"latest":"1.9.1"}
+GitHub Release v1.9.1: {"assets":15,"draft":false,"prerelease":false}
+cell: {"ok":true,"version":"1.9.1","releaseVersion":"1.9.1","uptimeMs":418740,"port":1234,"token
+render: {"ok":true,"app":"maude-render","version":"v1.9.1","configured":true,"running":0,"queued":0}
+canvas-alligators: 401 (401 without a capability is correct)
+render-canary (workflow_dispatch run 38127778050): Production service posture = success, Shipped image renders a PNG end-to-end = success
+scripts/verify-cloud-production.sh: 9 passed, 0 failed
+
+Not run: the team-project compat lane — 1.9.1 changes no hub code (the hub image is a rebuild of the same source at the
+new tag) and the studio change only refuses cross-origin/cross-host requests that no Maude client makes.

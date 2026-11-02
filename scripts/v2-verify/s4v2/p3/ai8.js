@@ -1,0 +1,10 @@
+await openSite('ui/Hero.tsx');
+await sleep(1500);
+await page.click('[data-testid="palette-mode-preview"]');
+await sleep(1200);
+await view(0.55, 260, 110);
+await sleep(1200);
+await shot('ai8-preview');
+const out = {};
+out.tids = await ftids(/annot|sticker|stamp/);
+return out;

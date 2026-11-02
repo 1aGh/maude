@@ -1,0 +1,323 @@
+# 06 Advanced - spec vs implementation, evidence (V2-8.5 stage A)
+
+Canvas `.design/ui/v2/06 Advanced.tsx`. **25 artboards**, 50 pairs (dark + light), **15 reached in the app**, 10 not reachable (placeholder on the right of the pair, reason in the row).
+
+How the two sides were made. SPEC: the board rendered from a scratch copy of `.design/` (`.scr/design-copy`, own studio, throwaway HOME, claude stubbed), camera forced to 1:1, host theme set dark (default) then light (`data-maude-theme`: the host re-themes every unpinned artboard; pinned user designs stay light). IMPL: Playwright Chromium 1440x900 (the spec's Stage window size) with a `window.__TAURI__` stub, release client, `theme` in prefs.json, on a generated fixture project. Project: the 03 "Alligators brand" fixture plus a deliberately broken canvas (Broken.tsx). Every frame opens one panel's Advanced fold through its testid or the visible 'Advanced' row, or the Diagnostics / Settings / palette routes.
+Theme: both themes were made for every artboard. Differences below are the dark pair's unless the "theme" column says otherwise; a theme-only difference (a token that does not flip) is called out there.
+
+**Common differences (C1-C4):**
+- **C1** The spec draws closed-vs-open pairs side by side ("Closed - what everyone sees" next to "Advanced open"); the app can only show one state per frame, so each row is the OPEN state, cropped to the panel where the spec is a panel excerpt.
+- **C2** The spec project is a cloud/git team project with hub, branches and teammates (Teresa, Jonas); the app lane is a LOCAL project, so Share, Version history > Advanced and Sync show the local variants (move-to-cloud offer, "not versioned yet").
+- **C3** Title bar and tab strip (desktop shell) are absent in the browser lane.
+- **C4** The spec note strip has no app counterpart; documentation boards (ad-map, ad-why, ad-trace) have no app surface.
+
+| id | state (spec) | how the impl was reached | impl reachable? | first-glance differences | theme | pair |
+|---|---|---|---|---|---|---|
+| `ad-map` | The map - 62 things, each with its home (2560 px table) | not reachable | no - documentation | n/a | base | `06-advanced/ad-map-dark.jpg` |
+| `ad-map` | The map - 62 things, each with its home (2560 px table) | not reachable | no - documentation | n/a | same structure; chrome follows the light host theme | `06-advanced/ad-map-light.jpg` |
+| `ad-why` | Why there is no switch (explanation) | not reachable | no - documentation | n/a | base | `06-advanced/ad-why-dark.jpg` |
+| `ad-why` | Why there is no switch (explanation) | not reachable | no - documentation | n/a | same structure; chrome follows the light host theme | `06-advanced/ad-why-light.jpg` |
+| `ad-trace` | One thing traced end to end | not reachable | no - documentation | n/a | base | `06-advanced/ad-trace-dark.jpg` |
+| `ad-trace` | One thing traced end to end | not reachable | no - documentation | n/a | same structure; chrome follows the light host theme | `06-advanced/ad-trace-light.jpg` |
+| `ad-inspector` | Inspector > Advanced - the code behind what you selected (closed / button open / artboard open) | cmd-click the headline, open the Advanced row | partially: scrolled, fold only started | The app Inspector is much denser than the spec's closed card (spec: Size, Padding, Fill, Text, Corners; app: Position X/Y, Rotation, Size, Layout direction / padding, Fill, Corners, Border, Effects, Type, Resizing, Case, Language, Interaction, Export presets, Copy as PNG...); the Advanced row ('Code, tokens, CSS') is at the foot, below the 840 px crop its rows (Tag, Classes, Selector, Element id, Used in, Tokens bound, CSS, In code) are not visible - only the 'Element' heading; the spec's Copy style / Paste style / Copy CSS / Copy code buttons not visible | base | `06-advanced/ad-inspector-dark.jpg` |
+| `ad-inspector` | Inspector > Advanced - the code behind what you selected (closed / button open / artboard open) | cmd-click the headline, open the Advanced row | partially: scrolled, fold only started | The app Inspector is much denser than the spec's closed card (spec: Size, Padding, Fill, Text, Corners; app: Position X/Y, Rotation, Size, Layout direction / padding, Fill, Corners, Border, Effects, Type, Resizing, Case, Language, Interaction, Export presets, Copy as PNG...); the Advanced row ('Code, tokens, CSS') is at the foot, below the 840 px crop its rows (Tag, Classes, Selector, Element id, Used in, Tokens bound, CSS, In code) are not visible - only the 'Element' heading; the spec's Copy style / Paste style / Copy CSS / Copy code buttons not visible | same structure; chrome follows the light host theme | `06-advanced/ad-inspector-light.jpg` |
+| `ad-left` | Canvases and Layers > Advanced - file names, hidden files, the tree, Trash (four cards) | open the Canvases Advanced fold (frame also ad-left-layers for Layers) | yes | Fold rows present: Show file names, Show hidden files (toggles, off), Open canvas path with Copy, Folder with Copy, Trash Empty / Open, '12 of 12 shown - updated just now - Refresh'; spec adds 'Design system system/alligators Open' (no design system here) and draws toggles ON; spec's file-name subtitles under each row, row context menu (Reveal in Finder / Open in editor / View code / Copy file path / Rename file...) and the Trash and Layers cards are not driven in this frame | base | `06-advanced/ad-left-dark.jpg` |
+| `ad-left` | Canvases and Layers > Advanced - file names, hidden files, the tree, Trash (four cards) | open the Canvases Advanced fold (frame also ad-left-layers for Layers) | yes | Fold rows present: Show file names, Show hidden files (toggles, off), Open canvas path with Copy, Folder with Copy, Trash Empty / Open, '12 of 12 shown - updated just now - Refresh'; spec adds 'Design system system/alligators Open' (no design system here) and draws toggles ON; spec's file-name subtitles under each row, row context menu (Reveal in Finder / Open in editor / View code / Copy file path / Rename file...) and the Trash and Layers cards are not driven in this frame | same structure; chrome follows the light host theme | `06-advanced/ad-left-light.jpg` |
+| `ad-ai` | AI chat panel > Advanced - the short version (three cards) | AI panel, open Advanced | partially | Fold opens in a fresh chat showing "Connecting..." (no session yet), then Show in chat (Normal), Suggestions (On), an empty "AI may" heading, Folders AI may read (None), "This chat"; Model / Effort / Fast mode / Ask before / Images, video and voice / Context used / 5-hour limit / Session / Raw log / Copy transcript / Open in terminal are not there (they depend on a connected session; the fake agent offers no config - H); the spec draws all of them for a finished chat | base | `06-advanced/ad-ai-dark.jpg` |
+| `ad-ai` | AI chat panel > Advanced - the short version (three cards) | AI panel, open Advanced | partially | Fold opens in a fresh chat showing "Connecting..." (no session yet), then Show in chat (Normal), Suggestions (On), an empty "AI may" heading, Folders AI may read (None), "This chat"; Model / Effort / Fast mode / Ask before / Images, video and voice / Context used / 5-hour limit / Session / Raw log / Copy transcript / Open in terminal are not there (they depend on a connected session; the fake agent offers no config - H); the spec draws all of them for a finished chat | same structure; chrome follows the light host theme | `06-advanced/ad-ai-light.jpg` |
+| `ad-share` | Share > Advanced - the other links, the link's rules, where it syncs (cloud team project) | Share sheet, open the fold | partially: local-project variant | Local project: the sheet leads with 'Move Alligators brand to the cloud?' (Cancel / Move to cloud) then Advanced > 'Other ways in' (App link maude://..., This Mac only, Invite by GitHub username); spec shows a cloud project: people rows (You, Teresa, Jonas with roles), 'Anyone in the Alligators team' link row, Advanced with who can open / role / expires / new people join as, Other ways in, Where it syncs (Hub, Last synced) | base | `06-advanced/ad-share-dark.jpg` |
+| `ad-share` | Share > Advanced - the other links, the link's rules, where it syncs (cloud team project) | Share sheet, open the fold | partially: local-project variant | Local project: the sheet leads with 'Move Alligators brand to the cloud?' (Cancel / Move to cloud) then Advanced > 'Other ways in' (App link maude://..., This Mac only, Invite by GitHub username); spec shows a cloud project: people rows (You, Teresa, Jonas with roles), 'Anyone in the Alligators team' link row, Advanced with who can open / role / expires / new people join as, Other ways in, Where it syncs (Hub, Last synced) | same structure; chrome follows the light host theme | `06-advanced/ad-share-light.jpg` |
+| `ad-timeline` | Timeline > Advanced (clip frames, source files) | not reachable | no - needs a video canvas with a timeline (not in this fixture) | n/a | base | `06-advanced/ad-timeline-dark.jpg` |
+| `ad-timeline` | Timeline > Advanced (clip frames, source files) | not reachable | no - needs a video canvas with a timeline (not in this fixture) | n/a | same structure; chrome follows the light host theme | `06-advanced/ad-timeline-light.jpg` |
+| `ad-export` | Export > Advanced - exact scale, colour profile, file names, the command (closed / open / other formats) | shift-cmd-E, open the fold | yes | Sheet is wider and richer than the spec's: Scope row Selection / This canvas / Folder / Whole project, three format groups (Fixed size, Web page, Print) with per-group selects, Include annotations, Other format..., and an Advanced fold with Size by Scale/dpi, Exact scale, Images mode, Bleed, Crop marks, Registration marks, 'File names {canvas} - {artboard}@{scale}'; spec shows a narrower sheet (Scope / Format / Size / Save to) and an Advanced with exact scale, For print dpi, colour profile, file names + the terminal command ('maude design export png ...') block; terminal/command block not visible in the frame | base | `06-advanced/ad-export-dark.jpg` |
+| `ad-export` | Export > Advanced - exact scale, colour profile, file names, the command (closed / open / other formats) | shift-cmd-E, open the fold | yes | Sheet is wider and richer than the spec's: Scope row Selection / This canvas / Folder / Whole project, three format groups (Fixed size, Web page, Print) with per-group selects, Include annotations, Other format..., and an Advanced fold with Size by Scale/dpi, Exact scale, Images mode, Bleed, Crop marks, Registration marks, 'File names {canvas} - {artboard}@{scale}'; spec shows a narrower sheet (Scope / Format / Size / Save to) and an Advanced with exact scale, For print dpi, colour profile, file names + the terminal command ('maude design export png ...') block; terminal/command block not visible in the frame | same structure; chrome follows the light host theme | `06-advanced/ad-export-light.jpg` |
+| `ad-history` | Version history > Advanced - versions up top, the git one fold down (git-backed project) | alt-cmd-H, open the Advanced row | partially: a local, non-git project | Advanced fold reads 'Compare pictures', 'Project Alligators brand / main', 'Not versioned yet...' (a local project); spec shows Branch (main), Drafts (teresa/uniformy-v2), Remote (github.com/brno-alligators/brand), 'Changed in this version' file list and diff, and the git action buttons (Save a version with a note..., New branch..., Fetch, Publish 2 versions, Pull a copy to this Mac..., Add to main - opens a pull request); version list has no 'Made by AI' rows (H) | base | `06-advanced/ad-history-dark.jpg` |
+| `ad-history` | Version history > Advanced - versions up top, the git one fold down (git-backed project) | alt-cmd-H, open the Advanced row | partially: a local, non-git project | Advanced fold reads 'Compare pictures', 'Project Alligators brand / main', 'Not versioned yet...' (a local project); spec shows Branch (main), Drafts (teresa/uniformy-v2), Remote (github.com/brno-alligators/brand), 'Changed in this version' file list and diff, and the git action buttons (Save a version with a note..., New branch..., Fetch, Publish 2 versions, Pull a copy to this Mac..., Add to main - opens a pull request); version list has no 'Made by AI' rows (H) | same structure; chrome follows the light host theme | `06-advanced/ad-history-light.jpg` |
+| `ad-ds` | The specimen view - the Advanced layer of the Design system canvas (Design system > Advanced) | not reachable | no - no Design system board in this lane (the DS seeds do not make a real board; known from the wave-B gate) | n/a | base | `06-advanced/ad-ds-dark.jpg` |
+| `ad-ds` | The specimen view - the Advanced layer of the Design system canvas (Design system > Advanced) | not reachable | no - no Design system board in this lane (the DS seeds do not make a real board; known from the wave-B gate) | n/a | same structure; chrome follows the light host theme | `06-advanced/ad-ds-light.jpg` |
+| `ad-menus` | File / View > Advanced / Help in the menu bar | not reachable | no - native menu bar (desktop) | n/a | base | `06-advanced/ad-menus-dark.jpg` |
+| `ad-menus` | File / View > Advanced / Help in the menu bar | not reachable | no - native menu bar (desktop) | n/a | same structure; chrome follows the light host theme | `06-advanced/ad-menus-light.jpg` |
+| `ad-diag` | Menu > Diagnostics: status in words (Sync, Server, AI setup, Logs, Reload canvas, Check AI setup again, Advanced address / process / folder) | palette Diagnostics, Server tab | yes (different shape) | Structure differs: the app opens a Diagnostics panel with tabs (Logs / Server Running / AI setup Needs setup / Sync - Local project) and a key-value list (Showing, Local connection, Address, Version, Process, Project folder with Copy); spec is a menu popover list: Sync Up to date, Server Running, AI setup Ready, Logs, Reload canvas, Check AI setup again and an Advanced block (Address, Process, Project folder, Resync now, Download all) | base | `06-advanced/ad-diag-dark.jpg` |
+| `ad-diag` | Menu > Diagnostics: status in words (Sync, Server, AI setup, Logs, Reload canvas, Check AI setup again, Advanced address / process / folder) | palette Diagnostics, Server tab | yes (different shape) | Structure differs: the app opens a Diagnostics panel with tabs (Logs / Server Running / AI setup Needs setup / Sync - Local project) and a key-value list (Showing, Local connection, Address, Version, Process, Project folder with Copy); spec is a menu popover list: Sync Up to date, Server Running, AI setup Ready, Logs, Reload canvas, Check AI setup again and an Advanced block (Address, Process, Project folder, Resync now, Download all) | same structure; chrome follows the light host theme | `06-advanced/ad-diag-light.jpg` |
+| `ad-logs` | Diagnostics, opened - Logs, Server and AI setup (three boxes: log with filters, Server, AI setup) | palette Diagnostics > Logs | yes (tabbed) | App shows the Logs tab alone (filter box, All / Sync / Server / AI / Export chips, Refresh, Copy all, Show in Finder) with real server lines incl. red error lines; spec shows Logs, Server and AI setup as three boxes at once plus a 'Combine-kampan reloaded' pill; AI setup rows (Claude Code installed, Found at, Signed in, Plugins ready) live on the AI tab | base | `06-advanced/ad-logs-dark.jpg` |
+| `ad-logs` | Diagnostics, opened - Logs, Server and AI setup (three boxes: log with filters, Server, AI setup) | palette Diagnostics > Logs | yes (tabbed) | App shows the Logs tab alone (filter box, All / Sync / Server / AI / Export chips, Refresh, Copy all, Show in Finder) with real server lines incl. red error lines; spec shows Logs, Server and AI setup as three boxes at once plus a 'Combine-kampan reloaded' pill; AI setup rows (Claude Code installed, Found at, Signed in, Plugins ready) live on the AI tab | same structure; chrome follows the light host theme | `06-advanced/ad-logs-light.jpg` |
+| `ad-syncd` | Diagnostics > Sync: a sync problem in words, 3 changes waiting, retry, the old Sync panel | palette Diagnostics > Sync tab | partially: local-project variant | Local project: the Sync tab says only "This project isn't linked to the cloud, so there's nothing to sync. Everything is on this Mac."; spec shows the cloud problem card (2 new versions from Teresa - Get latest, Needs you: conflicts with Keep mine / Use theirs / Keep both / Compare, an AI-stopped-halfway Publish / Discard, a Moving list with progress, Counts, Hub, Last good sync, terminal hint, "Sync stopped - sign in again") | base | `06-advanced/ad-syncd-dark.jpg` |
+| `ad-syncd` | Diagnostics > Sync: a sync problem in words, 3 changes waiting, retry, the old Sync panel | palette Diagnostics > Sync tab | partially: local-project variant | Local project: the Sync tab says only "This project isn't linked to the cloud, so there's nothing to sync. Everything is on this Mac."; spec shows the cloud problem card (2 new versions from Teresa - Get latest, Needs you: conflicts with Keep mine / Use theirs / Keep both / Compare, an AI-stopped-halfway Publish / Discard, a Moving list with progress, Counts, Hub, Last good sync, terminal hint, "Sync stopped - sign in again") | same structure; chrome follows the light host theme | `06-advanced/ad-syncd-light.jpg` |
+| `ad-settings` | Settings > Advanced - this Mac and this project (three columns: This Mac, Engines, This project) | palette Settings, then the Advanced tab | yes | Sheet opens on Advanced with This Mac (Version, Update, Local server port, Runtime, Server build, Keys are kept in, Claude Code: Plugins, Use my own plugin copy, Install and sign in automatically, terminal commands) in a single scrolling column; spec lays it out in three columns (This Mac / Engines: auto-picks for you / This project: Studio site plus Experimental, Reset, Close all Advanced sections); app sheet is narrower and clipped by the window height; 'Remember design decisions' group is further down | base | `06-advanced/ad-settings-dark.jpg` |
+| `ad-settings` | Settings > Advanced - this Mac and this project (three columns: This Mac, Engines, This project) | palette Settings, then the Advanced tab | yes | Sheet opens on Advanced with This Mac (Version, Update, Local server port, Runtime, Server build, Keys are kept in, Claude Code: Plugins, Use my own plugin copy, Install and sign in automatically, terminal commands) in a single scrolling column; spec lays it out in three columns (This Mac / Engines: auto-picks for you / This project: Studio site plus Experimental, Reset, Close all Advanced sections); app sheet is narrower and clipped by the window height; 'Remember design decisions' group is further down | same structure; chrome follows the light host theme | `06-advanced/ad-settings-light.jpg` |
+| `ad-pinned` | Pin panels to the side - docked, as an option (Inspector right, Canvases left, Advanced stays open) | AI chat pinned with Advanced open | partially: only the AI panel pinned | AI panel pinned as a full-height right column with its Advanced fold open (Ask before, Show in chat, Suggestions, AI may read ..., This chat, Raw log / Copy transcript / Open in terminal); left Canvases panel collapses to its header (the canvas list is empty) while a panel is pinned - possible layout bug; spec shows Inspector pinned right and Canvases pinned left with Advanced open on both and the 'Drag - double-click resets - move it' chip | base | `06-advanced/ad-pinned-dark.jpg` |
+| `ad-pinned` | Pin panels to the side - docked, as an option (Inspector right, Canvases left, Advanced stays open) | AI chat pinned with Advanced open | partially: only the AI panel pinned | AI panel pinned as a full-height right column with its Advanced fold open (Ask before, Show in chat, Suggestions, AI may read ..., This chat, Raw log / Copy transcript / Open in terminal); left Canvases panel collapses to its header (the canvas list is empty) while a panel is pinned - possible layout bug; spec shows Inspector pinned right and Canvases pinned left with Advanced open on both and the 'Drag - double-click resets - move it' chip | same structure; chrome follows the light host theme | `06-advanced/ad-pinned-light.jpg` |
+| `ad-search` | Two keys find everything: cmd-K by name, ? by key (palette 'copy' + Keyboard shortcuts sheet) | cmd-K, type 'advanced' | partially: the palette half | Palette matches in kind: grouped 'Actions' and 'Fold' rows with the path chip on the right (Menu - Diagnostics - Advanced, Timeline - Advanced, In chat panel - Advanced, ...), 'N results' footer; spec query is 'copy' and the sheet half (? Keyboard shortcuts with an Advanced fold) is a second panel not driven | base | `06-advanced/ad-search-dark.jpg` |
+| `ad-search` | Two keys find everything: cmd-K by name, ? by key (palette 'copy' + Keyboard shortcuts sheet) | cmd-K, type 'advanced' | partially: the palette half | Palette matches in kind: grouped 'Actions' and 'Fold' rows with the path chip on the right (Menu - Diagnostics - Advanced, Timeline - Advanced, In chat panel - Advanced, ...), 'N results' footer; spec query is 'copy' and the sheet half (? Keyboard shortcuts with an Advanced fold) is a second panel not driven | same structure; chrome follows the light host theme | `06-advanced/ad-search-light.jpg` |
+| `ad-open-all` | 'Advanced mode' as a one-shot: cmd-K > Open all Advanced sections; each panel remembers its own fold | cmd-K, 'Open all Advanced', Enter | yes | Matches: toast 'All Advanced sections are open. Close all' and the Canvases panel's Advanced fold open; spec also draws the palette rows and a diagram of every panel with its Advanced open (Canvases / Inspector / Share / AI) | base | `06-advanced/ad-open-all-dark.jpg` |
+| `ad-open-all` | 'Advanced mode' as a one-shot: cmd-K > Open all Advanced sections; each panel remembers its own fold | cmd-K, 'Open all Advanced', Enter | yes | Matches: toast 'All Advanced sections are open. Close all' and the Canvases panel's Advanced fold open; spec also draws the palette rows and a diagram of every panel with its Advanced open (Canvases / Inspector / Share / AI) | same structure; chrome follows the light host theme | `06-advanced/ad-open-all-light.jpg` |
+| `ad-code` | The canvas as code - read-only code panel (Combine-kampan.tsx, selected artboard's lines highlighted, terminal commands) | cmd-K, 'code' (View code lives in a canvas row's menu) | partially: only the palette rows | Palette shows 'Copy code', 'Open in editor' (Canvases panel - Advanced - row menu - Open in editor), 'View code' rows with path chips; the read-only code panel itself (file path, Copy, Open in editor, highlighted artboard lines, 'From the terminal - this canvas' commands, 'In Claude Code' slash commands) was not opened | base | `06-advanced/ad-code-dark.jpg` |
+| `ad-code` | The canvas as code - read-only code panel (Combine-kampan.tsx, selected artboard's lines highlighted, terminal commands) | cmd-K, 'code' (View code lives in a canvas row's menu) | partially: only the palette rows | Palette shows 'Copy code', 'Open in editor' (Canvases panel - Advanced - row menu - Open in editor), 'View code' rows with path chips; the read-only code panel itself (file path, Copy, Open in editor, highlighted artboard lines, 'From the terminal - this canvas' commands, 'In Claude Code' slash commands) was not opened | same structure; chrome follows the light host theme | `06-advanced/ad-code-light.jpg` |
+| `ad-edge-sync` | A sync problem, in words, with one next step | not reachable | no - needs a cloud project in trouble (hub) | n/a | base | `06-advanced/ad-edge-sync-dark.jpg` |
+| `ad-edge-sync` | A sync problem, in words, with one next step | not reachable | no - needs a cloud project in trouble (hub) | n/a | same structure; chrome follows the light host theme | `06-advanced/ad-edge-sync-light.jpg` |
+| `ad-edge-syntax` | Broken canvas code, said plainly - the details for the developer (error, place, excerpt, Open in editor, Copy error, Last good version) | open a canvas with a syntax error, Show details | yes | Very close: card 'Broken can't be drawn right now.' + 'Ask AI to fix it' + Show details (Error, Where 'Broken.tsx - line 9, column 30' with Copy, code excerpt with the failing line marked) + Open in editor / Copy error / Last good version / Reload canvas; difference: spec's sentence says 'Its code was changed outside the app 2 min ago and stops halfway on line 212' (provenance) where the app says 'Its code stops halfway on line 8'; spec dims the last good board behind the card (grey tiles), app shows plain background | base | `06-advanced/ad-edge-syntax-dark.jpg` |
+| `ad-edge-syntax` | Broken canvas code, said plainly - the details for the developer (error, place, excerpt, Open in editor, Copy error, Last good version) | open a canvas with a syntax error, Show details | yes | Very close: card 'Broken can't be drawn right now.' + 'Ask AI to fix it' + Show details (Error, Where 'Broken.tsx - line 9, column 30' with Copy, code excerpt with the failing line marked) + Open in editor / Copy error / Last good version / Reload canvas; difference: spec's sentence says 'Its code was changed outside the app 2 min ago and stops halfway on line 212' (provenance) where the app says 'Its code stops halfway on line 8'; spec dims the last good board behind the card (grey tiles), app shows plain background | same structure; chrome follows the light host theme | `06-advanced/ad-edge-syntax-light.jpg` |
+| `ad-edge-hub` | A self-hosted hub looks exactly like the cloud | not reachable | no - needs a hub-linked project | n/a | base | `06-advanced/ad-edge-hub-dark.jpg` |
+| `ad-edge-hub` | A self-hosted hub looks exactly like the cloud | not reachable | no - needs a hub-linked project | n/a | same structure; chrome follows the light host theme | `06-advanced/ad-edge-hub-light.jpg` |
+| `ad-edge-where` | Where you are changes a few Advanced rows - browser, comment-only, local, offline (table) | not reachable | no - needs those contexts (browser viewer, role, offline) | n/a | base | `06-advanced/ad-edge-where-dark.jpg` |
+| `ad-edge-where` | Where you are changes a few Advanced rows - browser, comment-only, local, offline (table) | not reachable | no - needs those contexts (browser viewer, role, offline) | n/a | same structure; chrome follows the light host theme | `06-advanced/ad-edge-where-light.jpg` |
+| `ad-edge-remember` | An Advanced you open stays open - for that panel (remembered fold across days and canvases) | not reachable as one state | no - a per-Mac preference story over days (the fold is remembered per panel under a fold key) | n/a | base | `06-advanced/ad-edge-remember-dark.jpg` |
+| `ad-edge-remember` | An Advanced you open stays open - for that panel (remembered fold across days and canvases) | not reachable as one state | no - a per-Mac preference story over days (the fold is remembered per panel under a fold key) | n/a | same structure; chrome follows the light host theme | `06-advanced/ad-edge-remember-light.jpg` |
+
+## After stage C round 2 (kit-advanced) — re-shot 2026-10-24
+
+The pairs above (`06-advanced/<id>-<theme>.jpg`) were overwritten with the release client built from branch `p8-c2-kitadv`. Harness: stage A's, repointed (`s06d.mjs` = `s06b` + the Diagnostics popover, the three boxes, Settings › Advanced, Open all). Fix log: `fix-kitadv.md`.
+
+| id | dark | light | state now |
+|---|---|---|---|
+| ad-left | fixed | fixed | kit fold row + "kept open", ARow rows (sm / fg-0 right, Folder Copy = icon), kit switch; still differs: the extra "Open canvas" row (a nothing-deleted row), no file-name subtitles / row menu / Trash card driven |
+| ad-inspector | still differs | still differs | fold row + selects are the kit's; the fold sits under about 25 rows (Inspector builder's layout) |
+| ad-ai | fixed (look) | fixed (look) | kit fold, kit selects; the headings are not empty (Folders row sits under "AI may"); Model / Effort / Fast need a configured agent (H) |
+| ad-share | not re-shot | not re-shot | the harness step could not reach the cluster after the pin step (frame is stage A's); C7 owns the fixes |
+| ad-export | still differs | still differs | kit fold + selects; Advanced body layout and the terminal block are C4's open list |
+| ad-history | still differs | still differs | "Compare" is one line, kit fold; container (island vs dock) is the chrome builder's |
+| ad-diag | board-fixed / fixed | board-fixed / fixed | the menu popover (Sync · Server · AI setup · Logs · Reload canvas · Check AI setup again · Advanced) with kit status dots |
+| ad-logs | fixed | fixed | three boxes at once, no tabs; kit seg, find, log well, rows, discs; still differs: the spec's "reloaded" pill, and the log content (a stub on this fixture) |
+| ad-syncd | not re-shot | not re-shot | the Sync view opens alone now; the harness step used a palette row that is not on this local fixture ("nothing to sync") |
+| ad-settings | fixed (layout) | fixed (layout) | 1300 x 700, three columns, rail glyphs, kit veil; still differs: Engines cards are the v1 cards (taller than the board's model cards), a second hint line under many rows |
+| ad-pinned | still differs | still differs | the Canvases-collapses-while-pinned bug is the red-test builder's |
+| ad-search | fixed | fixed | 560, 36 px rows, quiet glyph tile, DS chip path, per-action glyphs |
+| ad-open-all | fixed | fixed | one-line pill with the done glyph and "Close all" inline |
+| ad-code | fixed (palette rows) | fixed (palette rows) | per-action glyphs; the read-only code panel was not opened |
+| ad-edge-syntax | still differs | still differs | disclosure is "Advanced", ARow rows, ghost Copy error; the provenance clause and the last-good ghost boards need server signals |
+| ad-map · ad-why · ad-trace · ad-timeline · ad-ds · ad-menus · ad-edge-sync · ad-edge-hub · ad-edge-where · ad-edge-remember | unreachable | unreachable | unchanged: documentation, native menu bar, hub / roles / offline, a video canvas, a Design system board |
+
+
+## after (stage D, 6d19daa9a)
+
+Re-shoot of the IMPL side on tip 6d19daa9a (stage C round 2 merged), both themes, so the critic re-check compares the board with what the app draws now. No match / mismatch judged here. Pair images (`<id>-<theme>.jpg`, SPEC left | IMPL right) were overwritten in place; the SPEC side is **reused** from stage A for every id (no `.design/ui/v2/06 *` change since the stage-A shot; `git log` shows only 02 and 09 touched). The `extra-impl-*` frames were re-shot too.
+
+- Same harness as stage A. Adaptations: the What's new toast dismissed through its close button.
+- **ad-share** was re-shot with the `window.__TAURI__` stub removed just before the Share click: in the desktop shell a local project's Share now opens "Move to the cloud?" and hides Share > Advanced (`offering`, share-sheet.jsx), so the Advanced fold is only drawn for a local project in the browser lane (or a linked one). The desktop-shell frame of the same click is not part of the pair.
+- **ad-diag / ad-syncd / ad-ai-diag**: the Diagnostics sheet no longer has the Server / Sync / AI tabs; it draws Logs, Server and AI setup at once (a local project has no Sync card). The three ids therefore show the same sheet frame (taken after the Logs frame, no tab click).
+- **ad-timeline** is newly reached (stage A: unreachable): the base fixture's VideoEdit canvas, Reel artboard selected, timeline expanded, its Advanced row opened (S7.18).
+- Panel-detail crops (ad-ai, ad-pinned...) widened as in 03. ad-ds stays unreachable: no Design system canvas can be seeded in this lane (the sheet needs a real system/ folder with specimens).
+- Not reachable, unchanged: ad-map, ad-why, ad-trace (explanation boards), ad-menus (native menu bar), ad-edge-sync / ad-edge-hub (hub), ad-edge-where, ad-edge-remember (multi-context stories).
+
+| id | dark | light |
+|---|---|---|
+| `ad-map` | unreachable (A reference map of where every old control went; documentation, not an app surface.) | unreachable (same) |
+| `ad-why` | unreachable (An explanation board (why there is no switch).) | unreachable (same) |
+| `ad-trace` | unreachable (An explanation board (one thing traced end to end).) | unreachable (same) |
+| `ad-inspector` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ad-left` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ad-ai` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ad-share` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ad-timeline` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ad-export` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ad-history` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ad-ds` | unreachable (Design system board: the DS seeds do not make a real board in this lane (see wave-B gate note); no Design system canvas to open.) | unreachable (same) |
+| `ad-menus` | unreachable (File / View / Help menu-bar menus are the desktop shell menu bar (native menus); not in the browser lane.) | unreachable (same) |
+| `ad-diag` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ad-logs` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ad-syncd` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ad-settings` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ad-pinned` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ad-search` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ad-open-all` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ad-code` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ad-edge-sync` | unreachable (A sync problem needs a cloud project in trouble (hub).) | unreachable (same) |
+| `ad-edge-syntax` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ad-edge-hub` | unreachable (A self-hosted hub project (hub).) | unreachable (same) |
+| `ad-edge-where` | unreachable (A table of where Advanced rows hide in browser / comment-only / local / offline; needs those contexts.) | unreachable (same) |
+| `ad-edge-remember` | unreachable (The remembered fold across days and canvases; a per-Mac preference story, no single state.) | unreachable (same) |
+
+## after (stage D, round 3 — p8-c3-shell, impl c7f1a0efd)
+
+Re-shot, IMPL side only, light + dark (SPEC reused): ad-history, ad-pinned. What changed in the shell frame: the Undo · Redo · zoom % island bottom left, the Canvases panel and Version history hug their rows (no twisty at rest), B on the Now row replaces its dot, kind chips only for a mixed project. The other rows of this canvas were not re-shot this round. See `01-create-flow/fix-c3-shell.md`.
+
+
+## FINAL (stage D2, d3881fe41)
+
+Re-shoot of the IMPL side on the merged tip d3881fe41 (stage C rounds 1-4 all merged), both themes, **every reachable id**, so the critic re-check compares the board with what the app draws now; this section supersedes the per-round "after" sections above. The committed `<id>-<theme>.jpg` pairs (SPEC left | IMPL right) are overwritten in place. SPEC side **reused** from stage A for every id (`git log` shows no change to `.design/ui/v2/06 *` after the stage-A shot). No match / mismatch is judged here.
+
+- Harness: stage-D scripts; Canvases / Layers > Advanced first opens the left panel from its corner icon (it folds when an artboard is selected). **ad-share** keeps the `window.__TAURI__` stub removed just before the Share click (in the desktop shell a local project's Share opens "Move to the cloud?" and hides Share > Advanced). **ad-diag / ad-syncd** show the one Diagnostics sheet (no tabs; Logs, Server, AI setup at once; a local project has no Sync card), taken after the Logs frame.
+- **ad-ds is newly reached**: the converted-system project fixture (the g5 `ds-converted`), the pinned Design system row opened, nothing selected, the right panel opened from its corner icon: the system panel (Modes, Check the system, Advanced with the tokens CSS / JSON and the files, Hand off tokens). Cropped to the panel (x 1050 / w 390 / h 760). The board draws the same panel beside a "how you get here" step; the app has no such step.
+- **ad-timeline** is the VideoEdit canvas, Reel selected, timeline expanded, its Advanced row open (S7.18); reached since stage D.
+- Not reachable, unchanged: ad-map, ad-why, ad-trace (explanation boards), ad-menus (native menu bar), ad-edge-sync / ad-edge-hub (hub), ad-edge-where, ad-edge-remember (multi-context stories).
+
+| id | dark | light |
+|---|---|---|
+| `ad-map` | unreachable (A reference map of where every old control went; documentation, not an app surface.) | unreachable (same) |
+| `ad-why` | unreachable (An explanation board (why there is no switch).) | unreachable (same) |
+| `ad-trace` | unreachable (An explanation board (one thing traced end to end).) | unreachable (same) |
+| `ad-inspector` | re-shot | re-shot |
+| `ad-left` | re-shot | re-shot |
+| `ad-ai` | re-shot | re-shot |
+| `ad-share` | re-shot | re-shot |
+| `ad-timeline` | re-shot | re-shot |
+| `ad-export` | re-shot | re-shot |
+| `ad-history` | re-shot | re-shot |
+| `ad-ds` | re-shot | re-shot |
+| `ad-menus` | unreachable (File / View / Help menu-bar menus are the desktop shell menu bar (native menus); not in the browser lane.) | unreachable (same) |
+| `ad-diag` | re-shot | re-shot |
+| `ad-logs` | re-shot | re-shot |
+| `ad-syncd` | re-shot | re-shot |
+| `ad-settings` | re-shot | re-shot |
+| `ad-pinned` | re-shot | re-shot |
+| `ad-search` | re-shot | re-shot |
+| `ad-open-all` | re-shot | re-shot |
+| `ad-code` | re-shot | re-shot |
+| `ad-edge-sync` | unreachable (A sync problem needs a cloud project in trouble (hub).) | unreachable (same) |
+| `ad-edge-syntax` | re-shot | re-shot |
+| `ad-edge-hub` | unreachable (A self-hosted hub project (hub).) | unreachable (same) |
+| `ad-edge-where` | unreachable (A table of where Advanced rows hide in browser / comment-only / local / offline; needs those contexts.) | unreachable (same) |
+| `ad-edge-remember` | unreachable (The remembered fold across days and canvases; a per-Mac preference story, no single state.) | unreachable (same) |
+
+## Round 7b re-shoot (p8-c7-g0607b, light + dark, the merged tip + this branch)
+
+All 25 ids re-shot (the same reachable set as above). Product changes since the last pairs: an artboard kind outside digital / web /
+print / video (an old `kind="social"`) resolves like no kind, so a Post's inspector draws its Size / Fill rows (ad-pinned, ad-inspector
+for an artboard); AI Advanced › Raw log / Copy transcript / Open in terminal carry the board's glyphs (ad-ai); the id copy glyph and
+palette glyphs from round 7a. Harness changes (`_c7o-harness-g2/`):
+
+- **ad-pinned** pins both panels (⌘K "pin panels"), selects the Post artboard and opens the Inspector's Advanced fold — it pinned only the AI chat before.
+- **ad-edge-syntax** runs with the desktop stub ON (`isNativeApp()` gates the "Ask AI to fix it" button; the earlier walk had deleted `__TAURI__` for ad-share), opens the card's Advanced fold and closes the left panel (the board draws the card alone).
+- **ad-history** runs on a throwaway copy that is a real git repo (3 commits, a draft branch, an origin remote), so the fold shows Branch / Drafts / Remote and the git actions; the app's history list itself is 11's (the seg + Now row are 11 · pn-vh), the board's Compare / Restore row under the list is 11's `pn-vh-acts`.
+- ad-diag = Menu › Diagnostics submenu; ad-settings = the Advanced tab; ad-logs with the desktop stub on (from round 7a).
+
+
+## FINAL (D5, e37e7d82a)
+
+Final verification shoot on the merged tip after stage C round 7 (harness `_d5-harness-g2/`, a flattened copy of the newest per-canvas layers; shot on the Mac mini with Google Chrome, not the Playwright headless shell). Spec side reused (the boards `.design/ui/v2/03|04|06` are unchanged since 2026-10-19). Committed JPEG pairs overwritten (spec left | impl right). The critic judges; this builder does not.
+
+- Impl frames: scenarios mk-dsconv (the converted-DS fixture for ad-ds) then s06b s06f s06d s06e s06g s06h s06i (later wins), both themes in one chain on the mini; s06i = ad-history on a throwaway git-backed copy (three commits, a draft branch, a remote); the extra-impl frame ad-left-layers was refreshed too.
+
+| id | dark | light |
+|---|---|---|
+| `ad-map` | unreachable (A reference map of where every old control went; documentation, not an app surface.) | unreachable (A reference map of where every old control went; documentation, not an app surface.) |
+| `ad-why` | unreachable (An explanation board (why there is no switch).) | unreachable (An explanation board (why there is no switch).) |
+| `ad-trace` | unreachable (An explanation board (one thing traced end to end).) | unreachable (An explanation board (one thing traced end to end).) |
+| `ad-inspector` | re-shot | re-shot |
+| `ad-left` | re-shot | re-shot |
+| `ad-ai` | re-shot | re-shot |
+| `ad-share` | re-shot | re-shot |
+| `ad-timeline` | re-shot | re-shot |
+| `ad-export` | re-shot | re-shot |
+| `ad-history` | re-shot | re-shot |
+| `ad-ds` | re-shot | re-shot |
+| `ad-menus` | unreachable (File / View / Help menu-bar menus are the desktop shell menu bar (native menus); not in the browser lane.) | unreachable (File / View / Help menu-bar menus are the desktop shell menu bar (native menus); not in the browser lane.) |
+| `ad-diag` | re-shot | re-shot |
+| `ad-logs` | re-shot | re-shot |
+| `ad-syncd` | re-shot | re-shot |
+| `ad-settings` | re-shot | re-shot |
+| `ad-pinned` | re-shot | re-shot |
+| `ad-search` | re-shot | re-shot |
+| `ad-open-all` | re-shot | re-shot |
+| `ad-code` | re-shot | re-shot |
+| `ad-edge-sync` | unreachable (A sync problem needs a cloud project in trouble (hub).) | unreachable (A sync problem needs a cloud project in trouble (hub).) |
+| `ad-edge-syntax` | re-shot | re-shot |
+| `ad-edge-hub` | unreachable (A self-hosted hub project (hub).) | unreachable (A self-hosted hub project (hub).) |
+| `ad-edge-where` | unreachable (A table of where Advanced rows hide in browser / comment-only / local / offline; needs those contexts.) | unreachable (A table of where Advanced rows hide in browser / comment-only / local / offline; needs those contexts.) |
+| `ad-edge-remember` | unreachable (The remembered fold across days and canvases; a per-Mac preference story, no single state.) | unreachable (The remembered fold across days and canvases; a per-Mac preference story, no single state.) |
+
+
+## Round 8 re-shoot (p8-c8-adv, light + dark, impl at 86a865e14)
+
+Harness `_c8adv-harness-g2/` (chain `06c8` = s06f s06g s06h s06j, Mac mini, Google Chrome). Committed JPEG pairs overwritten (spec left | impl right). ad-timeline is p8-c8-video's; the other 06 ids are untouched. The critic judges; this builder does not.
+
+| id | what the frame shows now | dark | light |
+|---|---|---|---|
+| `ad-inspector` | a tall window (1760 px): the whole Advanced fold of a text element in frame | re-shot | re-shot |
+| `ad-left` | Show file names ON + Show hidden files ON (the file tree the board draws) | re-shot | re-shot |
+| `ad-export` | a tall window (1500 px): the whole Advanced body, File names + "The same export from a terminal" | re-shot | re-shot |
+| `ad-history` | a version SELECTED (git-backed copy), fold open: Changed in this version | re-shot | re-shot |
+| `ad-diag` | Menu > Diagnostics with its Advanced row open (Resync now / Download all are hidden for a local project) | re-shot | re-shot |
+| `ad-logs` | no Refresh icon (live tail) | re-shot | re-shot |
+| `ad-settings` | Engines as selects + one model box, Reset as one button row incl. red Reset all settings…, no per-fold list | re-shot | re-shot |
+| `ad-pinned` | Fixed size Advanced = Exact size / Look and layout / In code | re-shot | re-shot |
+| `ad-search` | the board query "copy"; one Close all result; chip "Canvases › Advanced" | re-shot | re-shot |
+| `ad-open-all` | unchanged state, re-shot on the new tip | re-shot | re-shot |
+| `ad-code` | code panel open with its Advanced fold open (From the terminal / In Claude Code) | re-shot | re-shot |
+| `ad-edge-syntax` | last-good boards as dashed ghosts behind the card, no Reload canvas | re-shot | re-shot |
+
+
+## FINAL (D6, 3d58f57df)
+
+Final verification shoot on the merged tip after stage C round 8 (harness `_d6-harness-g2/`, a flattened copy of the newest per-canvas layers; shot on the Mac mini with Google Chrome, not the Playwright headless shell). Spec side reused (the boards `.design/ui/v2/03|04|06` are unchanged since 2026-10-19). Committed JPEG pairs overwritten (spec left | impl right). The critic judges; this builder does not.
+
+- Shot on feat/maude-v2 tip 3d58f57df (stage C round 8 merged); harness _d6-harness-g2 = _d5 + the round-8 edits (_c8adv-harness-g2: s06h, s06j, pairs-map). Full chain 06 (not only the c8 subset).
+
+| id | dark | light |
+|---|---|---|
+| `ad-map` | unreachable (A reference map of where every old control went; documentation, not an app surface.) | unreachable (A reference map of where every old control went; documentation, not an app surface.) |
+| `ad-why` | unreachable (An explanation board (why there is no switch).) | unreachable (An explanation board (why there is no switch).) |
+| `ad-trace` | unreachable (An explanation board (one thing traced end to end).) | unreachable (An explanation board (one thing traced end to end).) |
+| `ad-inspector` | re-shot | re-shot |
+| `ad-left` | re-shot | re-shot |
+| `ad-ai` | re-shot | re-shot |
+| `ad-share` | re-shot | re-shot |
+| `ad-timeline` | re-shot | re-shot |
+| `ad-export` | re-shot | re-shot |
+| `ad-history` | re-shot | re-shot |
+| `ad-ds` | re-shot | re-shot |
+| `ad-menus` | unreachable (File / View / Help menu-bar menus are the desktop shell menu bar (native menus); not in the browser lane.) | unreachable (File / View / Help menu-bar menus are the desktop shell menu bar (native menus); not in the browser lane.) |
+| `ad-diag` | re-shot | re-shot |
+| `ad-logs` | re-shot | re-shot |
+| `ad-syncd` | re-shot | re-shot |
+| `ad-settings` | re-shot | re-shot |
+| `ad-pinned` | re-shot | re-shot |
+| `ad-search` | re-shot | re-shot |
+| `ad-open-all` | re-shot | re-shot |
+| `ad-code` | re-shot | re-shot |
+| `ad-edge-sync` | unreachable (A sync problem needs a cloud project in trouble (hub).) | unreachable (A sync problem needs a cloud project in trouble (hub).) |
+| `ad-edge-syntax` | re-shot | re-shot |
+| `ad-edge-hub` | unreachable (A self-hosted hub project (hub).) | unreachable (A self-hosted hub project (hub).) |
+| `ad-edge-where` | unreachable (A table of where Advanced rows hide in browser / comment-only / local / offline; needs those contexts.) | unreachable (A table of where Advanced rows hide in browser / comment-only / local / offline; needs those contexts.) |
+| `ad-edge-remember` | unreachable (The remembered fold across days and canvases; a per-Mac preference story, no single state.) | unreachable (The remembered fold across days and canvases; a per-Mac preference story, no single state.) |
+
+## Round 9 (p8-c9-video) — ad-timeline re-shot light + dark on a keyframed title
+`ad-timeline` is shot on the NaborKeyframes fixture (`_c9v-harness-g3/t06v.mjs`): the title clip carries keyframe diamonds, the Keyframe card is the Easing card with its curve and `cubic-bezier(0.22, 1, 0.36, 1)`, and the cut as code is filled (the picked clip's EDL). Full timeline with the Music lane in view. Details: `../07-video-editing/fix-c9-video.md`. No match judged here.
+
+## FINAL (D6b, 9557e9de1)
+
+Final verification shoot on the merged tip after stage C round 8 (harness `_d6b-harness-g2/`, a flattened copy of the newest per-canvas layers; shot on the Mac mini with Google Chrome, not the Playwright headless shell). Spec side reused (the boards `.design/ui/v2/03|04|06` are unchanged since 2026-10-19). Committed JPEG pairs overwritten (spec left | impl right). The critic judges; this builder does not.
+
+- Shot on feat/maude-v2 tip 9557e9de1 (stage C round 8 merged) via 07b475ddb (this branch = tip + the harness). Harness _d6b-harness-g2 = _d6 + s06j run LAST (ad-diag Advanced row open, ad-code panel + fold, ad-search "copy", ad-inspector in a 1760 px window, ad-export in a 1500 px window, ad-history a version selected, ad-left Show file names + Show hidden files ON) and ad-ds with its Advanced fold opened only if closed (the fold is open by default; the D6 blind click closed it). Only canvas 06 re-shot (the D6 chain had skipped the round-8 s06j step).
+
+| id | dark | light |
+|---|---|---|
+| `ad-map` | unreachable (A reference map of where every old control went; documentation, not an app surface.) | unreachable (A reference map of where every old control went; documentation, not an app surface.) |
+| `ad-why` | unreachable (An explanation board (why there is no switch).) | unreachable (An explanation board (why there is no switch).) |
+| `ad-trace` | unreachable (An explanation board (one thing traced end to end).) | unreachable (An explanation board (one thing traced end to end).) |
+| `ad-inspector` | re-shot | re-shot |
+| `ad-left` | re-shot | re-shot |
+| `ad-ai` | re-shot | re-shot |
+| `ad-share` | re-shot | re-shot |
+| `ad-timeline` | re-shot | re-shot |
+| `ad-export` | re-shot | re-shot |
+| `ad-history` | re-shot | re-shot |
+| `ad-ds` | re-shot | re-shot |
+| `ad-menus` | unreachable (File / View / Help menu-bar menus are the desktop shell menu bar (native menus); not in the browser lane.) | unreachable (File / View / Help menu-bar menus are the desktop shell menu bar (native menus); not in the browser lane.) |
+| `ad-diag` | re-shot | re-shot |
+| `ad-logs` | re-shot | re-shot |
+| `ad-syncd` | re-shot | re-shot |
+| `ad-settings` | re-shot | re-shot |
+| `ad-pinned` | re-shot | re-shot |
+| `ad-search` | re-shot | re-shot |
+| `ad-open-all` | re-shot | re-shot |
+| `ad-code` | re-shot | re-shot |
+| `ad-edge-sync` | unreachable (A sync problem needs a cloud project in trouble (hub).) | unreachable (A sync problem needs a cloud project in trouble (hub).) |
+| `ad-edge-syntax` | re-shot | re-shot |
+| `ad-edge-hub` | unreachable (A self-hosted hub project (hub).) | unreachable (A self-hosted hub project (hub).) |
+| `ad-edge-where` | unreachable (A table of where Advanced rows hide in browser / comment-only / local / offline; needs those contexts.) | unreachable (A table of where Advanced rows hide in browser / comment-only / local / offline; needs those contexts.) |
+| `ad-edge-remember` | unreachable (The remembered fold across days and canvases; a per-Mac preference story, no single state.) | unreachable (The remembered fold across days and canvases; a per-Mac preference story, no single state.) |
+
+## FINAL (D7, 6d062a4d3)
+
+Final merged-tip re-shoot after stage C round 10 (p8-d7-g2), IMPL side only, Mac mini + Google Chrome, light + dark. Shot on `ccf36b5a0` (feat/maude-v2 tip when the task started) + the harness commit `6d062a4d3`; the tip has since moved by merges that touch no 06 surface (only `ai-may.js` / `ai-run.css` in the client). Harness `_d7-harness-g2/` (`run.sh 06` = `g2/chain.sh 06`, the D6b chain with `s06j` LAST, then `g3/chain.sh 06-advanced` = `t06v`, which overwrites `ad-timeline` on the keyframed NaborKeyframes fixture). Spec reused unchanged (boards `03|04|06` unchanged). Committed `<id>-<theme>.jpg` pairs overwritten. No match judged here.
+
+| id | light | dark |
+|---|---|---|
+| ad-inspector, ad-left, ad-ai, ad-share, ad-timeline (t06v), ad-export, ad-history, ad-ds, ad-diag, ad-logs, ad-syncd, ad-settings, ad-pinned, ad-search, ad-open-all, ad-code, ad-edge-syntax | re-shot | re-shot |
+| ad-map, ad-why, ad-trace | unreachable (reference / explanation boards, not app surfaces) | unreachable (same) |
+| ad-menus | unreachable (native menu-bar menus; not in the browser lane) | unreachable (same) |
+| ad-edge-sync, ad-edge-hub | unreachable (need a cloud project in trouble / a self-hosted hub) | unreachable (same) |
+| ad-edge-where, ad-edge-remember | unreachable (a table of contexts / a per-Mac preference story, no single state) | unreachable (same) |
+
+Totals: 34 id×theme re-shot (17 ids), 16 unreachable (8 ids). Extra impl frames shot with no board artboard: ad-ai-diag, ad-ds-pre, ad-left-layers.

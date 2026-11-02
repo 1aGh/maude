@@ -9,6 +9,20 @@
  * Underscore file ⇒ hidden from the canvas tree. Canvas agents NEVER edit this file — build a
  * local piece in your canvas and list it as a "kit candidate" instead.
  *
+ * ─── Gate 0 (signed by Michal 2026-10-08; CONTRACT.md carries the full set) ─────────────────
+ * What the run builds where this kit draws more, or differently:
+ *   · Project tabs are NATIVE macOS window tabs [A1]. The tab avatar / initial / status glyphs and
+ *     the custom tab right-click menu (`Window tabMenu`) are NOT built — that state lives in the
+ *     project pill and the Share cluster; right-click is the native tab menu; "Sign in as another
+ *     account…" is in the project pill menu. Treat `Tab.initial/account/unsaved/syncing` as mock-only.
+ *   · The tool is "Stickers (E)" [C12]; "stamp" means a vote stamp only. Packs: FigJam Doodle ·
+ *     Life Style · Opposing Thoughts · Project status [C13].
+ *   · Marker tips Marker · Highlighter · Eraser; inks Ink · red · amber · green · blue + more [C14].
+ *   · Comments float on the RIGHT, like the AI chat panel [C8]; filters Open · Mine · Resolved · All [C7].
+ *   · Save status has a fifth word "Not saved" (+ Retry) only while true [C2].
+ *   · One Share sheet everywhere (10's), incl. a local project's "Move to cloud…" [C11].
+ *   · The AI chat panel header is 03's canonical one [C28]; no AI chat for Can view / Can comment [C30].
+ *
  * Every canvas imports, in this order:
  *   import "../../system/maude-v2/colors_and_type.css";
  *   import "../../system/maude-v2/preview/_components.css";
@@ -145,7 +159,7 @@ const FAMILY: Record<string, ReactNode> = {
   pen: (<><path d="M10.25 3.25l2.5 2.5L6 12.5l-3.25.75.75-3.25z" /><path d="M8.75 4.75l2.5 2.5" /></>),
   text: <path d="M3.5 4.5V3h9v1.5M8 3v10M6.25 13h3.5" />,
   sticky: (<><path d="M4 2.5h8A1.5 1.5 0 0 1 13.5 4v5L9 13.5H4A1.5 1.5 0 0 1 2.5 12V4A1.5 1.5 0 0 1 4 2.5z" /><path d="M13.5 9h-3A1.5 1.5 0 0 0 9 10.5v3" /></>),
-  comment: <path d="M5 2.5h6A2.5 2.5 0 0 1 13.5 5v8.5H5A2.5 2.5 0 0 1 2.5 11V5A2.5 2.5 0 0 1 5 2.5z" />,
+  comment: <path d="M5 2.5h6A2.5 2.5 0 0 1 13.5 5v3.5A2.5 2.5 0 0 1 11 11H8l-3 2.5V11A2.5 2.5 0 0 1 2.5 8.5V5A2.5 2.5 0 0 1 5 2.5z" />,
   more: (<g fill="currentColor" stroke="none"><circle cx="3.5" cy="8" r="1.1" /><circle cx="8" cy="8" r="1.1" /><circle cx="12.5" cy="8" r="1.1" /></g>),
   chevron: <path d="M5 6.5l3 3 3-3" />,
   submenu: <path d="M6 4.5l3.5 3.5L6 11.5" />,

@@ -1,0 +1,403 @@
+/*
+ * Onboarding.css — the first-run wizard (Phase 29, epic E4).
+ * Every value is a var(--*) token from system/maude/colors_and_type.css.
+ * Local classes are prefixed `ob-`; .btn / .callout / .input / .panel are LIFTED
+ * from the maude DS, not re-declared. Full-window (not docked in the studio shell):
+ * a calm left rail + a roomy main column, lifting the Studio Hub artboard-B skeleton.
+ */
+
+/* ── shell: full-bleed two-pane wizard ──────────────────────────────────────── */
+.ob-shell {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  background: var(--bg-0);
+  color: var(--fg-0);
+  font-family: var(--font-body);
+  font-size: var(--type-base);
+  line-height: var(--lh-base);
+  overflow: hidden;
+}
+
+/* ── left rail: brand + value prop + reassurance ────────────────────────────── */
+.ob-rail {
+  flex: 0 0 372px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-7);
+  padding: var(--space-8) var(--space-7);
+  background:
+    radial-gradient(120% 90% at 0% 0%, var(--accent-tint) 0%, transparent 55%),
+    var(--bg-1);
+  border-right: 1px solid var(--border-default);
+}
+.ob-rail-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+/* The maude mark tile — lifted from system/maude/preview/logo.css `.lg-mark`:
+ * spark in --accent-fg on the one indigo, bottom-right corner squared (the bubble),
+ * accent-tint halo. */
+.ob-mark {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-radius: 24% 24% 0 24%;
+  box-shadow: 0 0 0 3px var(--accent-tint);
+}
+.ob-mark svg { width: 100%; height: 100%; display: block; }
+.ob-rail-wordmark {
+  font-family: var(--font-display);
+  font-size: var(--type-xl);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+}
+.ob-rail-h {
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-display);
+  font-size: var(--type-2xl);
+  line-height: var(--lh-xl);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  color: var(--fg-0);
+}
+.ob-rail-lede p {
+  margin: 0;
+  max-width: 30ch;
+  color: var(--fg-2);
+  font-size: var(--type-md);
+  line-height: var(--lh-lg);
+}
+.ob-rail-reassure {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.ob-rail-reassure li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--fg-1);
+  font-size: var(--type-sm);
+}
+.ob-rail-tick {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--accent-tint);
+  color: var(--accent);
+}
+.ob-rail-signed {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  align-self: flex-start;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-pill);
+  background: var(--bg-2);
+  font-size: var(--type-sm);
+  color: var(--fg-1);
+}
+.ob-rail-signed b { color: var(--fg-0); font-weight: 600; }
+.ob-rail-signed-dot {
+  width: 7px; height: 7px; border-radius: var(--radius-pill);
+  background: var(--presence-online);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--presence-online) 28%, transparent);
+}
+.ob-rail-foot {
+  margin-top: auto;
+  color: var(--fg-2);
+  font-size: var(--type-xs);
+  font-family: var(--font-mono);
+}
+
+/* ── main column ────────────────────────────────────────────────────────────── */
+.ob-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: var(--space-8) clamp(var(--space-7), 6vw, 96px);
+  overflow: auto;
+}
+.ob-main--center { justify-content: center; align-items: center; }
+
+.ob-head { display: flex; flex-direction: column; gap: var(--space-2); }
+.ob-eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--type-xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.ob-head h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--type-3xl);
+  line-height: var(--lh-2xl);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+}
+.ob-head p { margin: 0; max-width: 56ch; color: var(--fg-2); font-size: var(--type-md); line-height: var(--lh-lg); }
+
+/* ── A · doors ──────────────────────────────────────────────────────────────── */
+.ob-doors { display: flex; flex-direction: column; gap: var(--space-4); max-width: 720px; }
+.ob-door {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--space-4);
+  width: 100%;
+  text-align: left;
+  padding: var(--space-5);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-1);
+  color: inherit;
+  cursor: pointer;
+  transition: border-color var(--dur-soft) var(--ease-out), background var(--dur-soft) var(--ease-out), transform var(--dur-soft) var(--ease-out);
+}
+.ob-door:hover { border-color: var(--border-strong); background: var(--bg-2); transform: translateY(-1px); }
+.ob-door:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ob-door--primary {
+  padding: var(--space-6);
+  border-color: color-mix(in oklab, var(--accent) 55%, transparent);
+  background:
+    linear-gradient(180deg, var(--accent-tint) 0%, transparent 70%),
+    var(--bg-1);
+  box-shadow: var(--shadow-md);
+}
+.ob-door--primary:hover { border-color: var(--accent); }
+/* The advanced door stays visually quiet (dashed) but keeps a faint fill so its
+ * boundary is perceivable by surface contrast, not the sub-3:1 hairline alone. */
+.ob-door--advanced { background: var(--bg-1); border-style: dashed; border-color: var(--border-strong); }
+.ob-door--advanced:hover { background: var(--bg-2); }
+
+.ob-door-icon {
+  width: 48px; height: 48px;
+  display: grid; place-items: center;
+  border-radius: var(--radius-md);
+  background: var(--bg-3);
+  color: var(--fg-1);
+  border: 1px solid var(--border-subtle);
+}
+.ob-door-icon--gh { background: var(--fg-0); color: var(--bg-0); border-color: transparent; }
+.ob-door-icon--quiet { width: 40px; height: 40px; background: var(--bg-2); color: var(--fg-2); }
+
+.ob-door-tx { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ob-door-title {
+  display: inline-flex; align-items: center; gap: var(--space-3);
+  font-family: var(--font-display);
+  font-size: var(--type-lg);
+  font-weight: 600;
+  color: var(--fg-0);
+}
+.ob-door--primary .ob-door-title { font-size: var(--type-xl); }
+.ob-door-sub { color: var(--fg-2); font-size: var(--type-sm); line-height: var(--lh-md); }
+.ob-door-tag {
+  font-family: var(--font-mono);
+  font-size: var(--type-xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--accent);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--accent-tint);
+}
+.ob-door-adv {
+  font-family: var(--font-mono);
+  font-size: var(--type-xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--fg-2);
+  padding: 1px var(--space-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+}
+.ob-door-cta { display: flex; }
+.ob-door-btn { pointer-events: none; white-space: nowrap; }
+.ob-door-go { color: var(--fg-3); display: grid; place-items: center; }
+.ob-door:hover .ob-door-go { color: var(--fg-1); }
+
+.ob-foot-note { margin: 0; color: var(--fg-2); font-size: var(--type-xs); }
+
+/* ── B · create card + shared project list ──────────────────────────────────── */
+.ob-create {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: 720px;
+  text-align: left;
+  padding: var(--space-5);
+  border: 1px solid color-mix(in oklab, var(--accent) 45%, transparent);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, var(--accent-tint) 0%, transparent 80%), var(--bg-1);
+  cursor: pointer;
+  color: inherit;
+  transition: border-color var(--dur-soft) var(--ease-out);
+}
+.ob-create:hover { border-color: var(--accent); }
+.ob-create:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ob-create-icon {
+  width: 44px; height: 44px; display: grid; place-items: center;
+  border-radius: var(--radius-md); background: var(--accent); color: var(--accent-fg);
+}
+.ob-create-tx { display: flex; flex-direction: column; gap: 2px; }
+.ob-create-title { font-family: var(--font-display); font-size: var(--type-lg); font-weight: 600; color: var(--fg-0); }
+.ob-create-sub { color: var(--fg-2); font-size: var(--type-sm); }
+.ob-create-btn { pointer-events: none; }
+
+.ob-section-label {
+  font-family: var(--font-mono);
+  font-size: var(--type-xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--fg-2);
+  margin-top: var(--space-2);
+}
+.ob-repolist { display: flex; flex-direction: column; gap: var(--space-2); max-width: 720px; }
+.ob-repo {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--space-4);
+  width: 100%;
+  text-align: left;
+  padding: var(--space-4) var(--space-4);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-1);
+  color: inherit;
+  cursor: pointer;
+  transition: border-color var(--dur-soft) var(--ease-out), background var(--dur-soft) var(--ease-out);
+}
+.ob-repo:hover { border-color: var(--border-strong); background: var(--bg-2); }
+.ob-repo:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ob-repo-icon { color: var(--fg-2); display: grid; place-items: center; }
+.ob-repo-tx { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.ob-repo-name { font-weight: 600; color: var(--fg-0); }
+.ob-repo-meta { color: var(--fg-2); font-size: var(--type-xs); font-family: var(--font-mono); }
+.ob-repo-go {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  color: var(--fg-2); font-size: var(--type-sm); white-space: nowrap;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+}
+.ob-repo:hover .ob-repo-go { color: var(--accent); background: var(--accent-tint); }
+
+/* ── C · drag-drop zone ─────────────────────────────────────────────────────── */
+.ob-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  max-width: 720px;
+  padding: var(--space-8) var(--space-6);
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--bg-1);
+  text-align: center;
+}
+.ob-drop-glyph {
+  width: 64px; height: 64px; display: grid; place-items: center;
+  border-radius: var(--radius-lg); background: var(--bg-3); color: var(--accent);
+  margin-bottom: var(--space-2);
+}
+.ob-drop-title { font-family: var(--font-display); font-size: var(--type-lg); font-weight: 600; color: var(--fg-0); }
+.ob-drop-or { color: var(--fg-2); font-size: var(--type-sm); }
+.ob-drop-btn { pointer-events: none; }
+
+.ob-callout { max-width: 720px; }
+.ob-callout-glyph { flex: 0 0 auto; display: grid; place-items: center; }
+
+/* ── D · hub form ───────────────────────────────────────────────────────────── */
+.ob-form { display: flex; flex-direction: column; gap: var(--space-4); max-width: 560px; }
+.ob-field { display: flex; flex-direction: column; gap: var(--space-2); }
+.ob-field-label { font-size: var(--type-sm); font-weight: 600; color: var(--fg-1); }
+.ob-field-wrap { position: relative; display: flex; align-items: center; }
+.ob-field-pre { position: absolute; left: var(--space-3); color: var(--fg-3); pointer-events: none; }
+.ob-input { width: 100%; padding-left: calc(var(--space-3) * 2 + 16px); font-family: var(--font-mono); }
+.ob-form-actions { display: flex; gap: var(--space-3); margin-top: var(--space-1); }
+
+/* ── E · success + cycle preview ────────────────────────────────────────────── */
+.ob-success { display: flex; flex-direction: column; align-items: center; gap: var(--space-4); max-width: 720px; text-align: center; }
+.ob-success-badge {
+  width: 60px; height: 60px; display: grid; place-items: center;
+  border-radius: var(--radius-pill);
+  background: color-mix(in oklab, var(--status-success) 22%, transparent);
+  color: var(--status-success);
+  border: 1px solid color-mix(in oklab, var(--status-success) 45%, transparent);
+}
+.ob-success h1 { margin: 0; font-family: var(--font-display); font-size: var(--type-3xl); font-weight: 600; letter-spacing: var(--tracking-tight); }
+.ob-success-sub { margin: 0; color: var(--fg-2); font-size: var(--type-md); }
+.ob-success-sub b { color: var(--fg-0); }
+
+.ob-cycle { width: 100%; padding: var(--space-5) var(--space-5) var(--space-6); display: flex; flex-direction: column; gap: var(--space-5); margin-top: var(--space-2); }
+.ob-cycle-live {
+  display: inline-flex; align-items: center; gap: var(--space-3); align-self: center;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-pill);
+  background: var(--bg-2);
+  border: 1px solid var(--border-subtle);
+  font-size: var(--type-sm); color: var(--fg-2);
+}
+.ob-cycle-live b { color: var(--fg-0); }
+.ob-cycle-live-dot {
+  width: 8px; height: 8px; border-radius: var(--radius-pill);
+  background: var(--presence-online);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--presence-online) 24%, transparent);
+}
+/* The three verbs read as ONE connected loop: an accent track runs behind the
+ * step icons (the signature moment — the whole mental model in one shape). */
+.ob-cycle-row {
+  position: relative;
+  display: flex; align-items: flex-start; justify-content: center; gap: var(--space-3);
+}
+.ob-cycle-row::before {
+  content: "";
+  position: absolute;
+  top: 34px; left: 12%; right: 12%; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent-muted) 18%, var(--accent-muted) 82%, transparent);
+  border-radius: var(--radius-pill);
+}
+.ob-cyc-step {
+  position: relative;
+  flex: 1 1 0;
+  max-width: 200px;
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-2);
+  padding: var(--space-4) var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-2);
+}
+.ob-cyc-icon {
+  width: 38px; height: 38px; display: grid; place-items: center;
+  border-radius: var(--radius-md); background: var(--accent-tint); color: var(--accent);
+}
+.ob-cyc-label { font-weight: 600; color: var(--fg-0); font-size: var(--type-sm); }
+.ob-cyc-sub { color: var(--fg-2); font-size: var(--type-xs); line-height: var(--lh-sm); }
+.ob-cyc-arrow { color: var(--accent); align-self: center; padding-top: 18px; }
+
+.ob-success-actions { display: flex; gap: var(--space-3); margin-top: var(--space-3); }
+.ob-success-go { pointer-events: none; }
+
+/* prefers-reduced-motion — collapse the door lift (a11y invariant). */
+@media (prefers-reduced-motion: reduce) {
+  .ob-door, .ob-create, .ob-repo { transition-duration: 1ms; }
+  .ob-door:hover { transform: none; }
+}

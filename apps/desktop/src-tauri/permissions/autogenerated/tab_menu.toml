@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-tab-menu"
+description = "Enables the tab_menu command without any pre-configured scope."
+commands.allow = ["tab_menu"]
+
+[[permission]]
+identifier = "deny-tab-menu"
+description = "Denies the tab_menu command without any pre-configured scope."
+commands.deny = ["tab_menu"]

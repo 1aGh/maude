@@ -14,31 +14,66 @@
 // else binds to a port. The orchestrator (slash commands) reads _server.json
 // to detect a live instance and avoid duplicate boots.
 
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { createAcp } from './acp/index.ts';
+import { canvasOfSlug, createWsVisibility, seesSlug } from './access/filters.ts';
+import { frameRefusal, runInFrame } from './access/frame.ts';
+import {
+  accessForDesktop,
+  acpRefusal,
+  lanesClosedFromProxy,
+  notInScopeResponse,
+  runWithAccess,
+  setAccessFallback,
+} from './access/request.ts';
+import type { Access } from './access/scope.ts';
+import type { AskQueue } from './acp/ask-queue.ts';
+import { type Acp, createAcp } from './acp/index.ts';
 import { cancelInstall, cancelSignin } from './acp/login-state.ts';
+import { registerLiveRuns } from './acp/running.ts';
 import { createActivity } from './activity.ts';
+import { artboardSpans } from './agent-runs.ts';
+import { createLocalLeaseHome, selectLeaseHome } from './ai/lease-home.ts';
+import { createRunProgress } from './ai/run-progress.ts';
+import { createRunRegistry } from './ai/runs.ts';
+import { saveHold, withSaveRequest } from './ai/save-hold.ts';
 import { migrateAnnotationsV2 } from './annotations/migrate-boot.ts';
+import { runContext, runTagOf, stageRunAnnotations } from './annotations/run-tag.ts';
 import { ASSET_MAX_VIDEO_BYTES, createApi } from './api.ts';
 import { bootSelfHeal } from './boot-self-heal.ts';
 import { isSandboxArmed } from './canvas-build-sandbox.ts';
 import { createCanvasListWatch } from './canvas-list-watch.ts';
+import { canvasTopLevelRefusal, topLevelGuardedRoutes } from './canvas-top-level.ts';
 import { type AiActivityEntry, createAiActivity } from './collab/ai-activity.ts';
 import { createGitLifecycle } from './collab/git-lifecycle.ts';
+import { personHoldsOf } from './collab/holds.ts';
 import { createCollab } from './collab/index.ts';
 import { createContext, reloadConfig } from './context.ts';
 import { installLogRing } from './debug-bundle.ts';
+import { initDiagnostics, registerStatus, stopDiagnostics } from './diagnostics/store.ts';
 import { parseEmbedOrigins } from './embed-origins.ts';
 import { createExportJobQueue } from './exporters/jobs.ts';
+import { FORMAT_GATE_OPTS, formatGate } from './format.ts';
 import { createFsWatch } from './fs-watch.ts';
 import { createGenerationJobQueue } from './generation/jobs.ts';
 import { createGitWatch } from './git/watch.ts';
 import { createHttp } from './http.ts';
+import { flushAllIndexes } from './index/service.ts';
 import { createInspectRegistry } from './inspect.ts';
+import { listenLoopback, V4_LOOPBACK } from './loopback-listen.ts';
 import { startHeapWatch } from './mem.ts';
+import { bindFirst, PORT_LADDER, portCandidates, resolvePort } from './port.ts';
+import { canvasOriginRoutes } from './routes/canvas-origin.ts';
+import { runStageHooks } from './routes/index.ts';
 import { normalizeSessionKey, runInSession, SESSION_HEADER } from './session-scope.ts';
-import { sharedDocEnabled } from './sync/cell-pairing.ts';
+import { writeShellInfoFile } from './shell/info-file.ts';
+import { exitWithParent } from './shell/parent-watch.ts';
+import { createActionFeed } from './sync/action-feed.ts';
+import { accessFor, getHubRecord, watchHubsConfig } from './sync/hubs-config.ts';
+import { hubHealth } from './sync/journal-client.ts';
+import { attachLocalHome } from './sync/local-kernel.ts';
 import { createSyncSupervisor } from './sync/supervisor.ts';
+import { stopAllThumbs } from './thumbs/service.ts';
 import {
   assertContainment,
   isForbiddenRoute,
@@ -58,17 +93,24 @@ installLogRing();
 // builds on first boot; opt out with MAUDE_NO_AUTOBUILD=1.
 await bootSelfHeal();
 
+// V2-3.3 (contract V2-1.1 §5.3) — `--home` is the project-less Home server: its own module and
+// route table, no createContext(). Only the explicit flag gets here; project mode below still
+// fails loud without `.design/`. A top-level await keeps everything after it from running.
+if (process.argv.includes('--home')) {
+  (await import('./home/main.ts')).runHome();
+  await new Promise<never>(() => {});
+}
+
 const ctx = createContext();
 
-// DDR-064 cutover (Sync v2 Increment 7) — `MAUDE_SHARED_DOC` now defaults ON:
-// the collab room's Y.Doc is THE doc per canvas, everywhere. The two-doc +
-// disk-reconcile path still exists in full and `MAUDE_SHARED_DOC=0` flips a
-// machine back onto it — that config flip is this release's rollback, which is
-// why NOTHING is deleted here (the relay's deletion is the next increment,
-// one soak later). The flag is threaded onto ctx here (before createCollab /
-// createSyncRuntime read it) so every downstream consumer sees one source of
-// truth, parsed by the same function the cell-pairing interlock uses.
-ctx.sharedDoc = sharedDocEnabled(process.env);
+// V2-2.9 (T23) — persist the per-source diagnostics (server · sync · ai · export) under
+// ~/.maude/logs (or $MAUDE_LOG_DIR), scrubbed, 7 days. Local only: nothing is sent anywhere.
+await initDiagnostics({ repoRoot: ctx.paths.repoRoot });
+
+// DDR-064 — the collab room's Y.Doc is THE doc per canvas, everywhere. Since p8-v1-drop there is no
+// opt-out: `MAUDE_SHARED_DOC=0` (the rollback onto the two-doc + disk-reconcile path) is gone. Set on
+// ctx here, before createCollab / createSyncRuntime read it.
+ctx.sharedDoc = true;
 
 // Forward-declared so the api.commentsAdd/patch/delete/addReply callback can
 // reach into the collab registry (Phase 8 Task 3 bridge). collab is initialized
@@ -117,12 +159,33 @@ const api = createApi(ctx, {
   },
   // Phase 8 Task 5 — same bridge for annotations. PUT /_api/annotations writes
   // the SVG blob to disk; we mirror it into the live Y.Map for collab peers.
-  onAnnotationsChanged: (file, svg, writeId, base) => {
+  onAnnotationsChanged: (file, svg, writeId, base, recordedWithLanes) => {
     const runtime = ctx.syncControl?.current?.();
-    const proposed = runtime?.proposeLane?.(api.fileSlug(file), 'annotations', svg, {
-      ...(writeId ? { writeId } : {}),
-      ...(base !== undefined ? { baseText: base } : {}),
-    });
+    // T-S4.5b — a `run:<id>` batch (gated in http.ts annotationOps) joins its run's stage.
+    const runId = runTagOf(writeId);
+    if (runId) {
+      const staged = stageRunAnnotations(runtime, {
+        runId,
+        ...runContext(runRegistry, runId),
+        slug: api.fileSlug(file),
+        canvasRel: file,
+        text: svg,
+        ...(base !== undefined ? { base } : {}),
+        writeId: writeId as string,
+      });
+      if (staged) {
+        void staged.catch(() => {});
+        return;
+      }
+    }
+    // A board that rides the same action as another lane (the artboard move rider) is recorded by that
+    // proposal; a stroke of its own here would make ⌘Z a two-step gesture.
+    const proposed = recordedWithLanes
+      ? null
+      : runtime?.proposeLane?.(api.fileSlug(file), 'annotations', svg, {
+          ...(writeId ? { writeId } : {}),
+          ...(base !== undefined ? { baseText: base } : {}),
+        });
     if (proposed) {
       void proposed.catch(() => {});
       return;
@@ -134,9 +197,14 @@ const api = createApi(ctx, {
   // Code review H1 — the canvas op path goes to a live room's replica, not to a
   // file its debounced flush hasn't caught up with. Accepted mode keeps the
   // disk + proposeLane path: there the hub kernel merges against the base.
-  applyAnnotationOpsLive: (file, ops, actionId) => {
+  applyAnnotationOpsLive: (file, ops, actionId, guard) => {
     if (ctx.syncControl?.current?.()?.acceptedMode?.()) return null;
-    return collab?.registry.applyOpsToRoom(api.fileSlug(file), ops, actionId) ?? null;
+    return collab?.registry.applyOpsToRoom(api.fileSlug(file), ops, actionId, guard) ?? null;
+  },
+  // S4.V4 G4 — the reader's half of the same shortcut (the vote door reads its own write back).
+  readAnnotationsLive: (file) => {
+    if (ctx.syncControl?.current?.()?.acceptedMode?.()) return null;
+    return collab?.registry.readRoomBoard(api.fileSlug(file)) ?? null;
   },
   // feature-file-tree-drag-drop-folders (Task 3) — moveCanvas's collab guard
   // + `_active.json` retarget, bridged the same forward-declared way as the
@@ -201,6 +269,61 @@ if (process.env.MAUDE_WORKSPACE_MODE !== '1') {
 collab = createCollab(ctx, api);
 const aiActivity = createAiActivity(ctx);
 
+// S5.3 — THE AI run registry (ai/runs.ts, V2-1.15): every AI run on this Mac — a Maude chat, a
+// terminal Claude Code, a v1 `/design:edit` — with its per-artboard leases. Records live in
+// `_state/runs/` (runtime state); boot() ends what a crash left live as `interrupted`. The lease
+// home starts per-Mac and moves to the linked hub once its `/health` says `runs-v1` (below).
+// S5.6 — the registry sends a chat run's turn through the ACP manager (built below, after the
+// registry boots: boot only ends crashed runs, it never sends a turn).
+let acpTurns: Pick<Acp, 'sendTurn' | 'cancelTurn'> | null = null;
+const runRegistry = createRunRegistry({
+  turns: {
+    send: (rec, text) => acpTurns?.sendTurn(rec, text),
+    cancel: (rec) => acpTurns?.cancelTurn(rec),
+  },
+  designRoot: ctx.paths.designRoot,
+  designRel: ctx.paths.designRel,
+  home: createLocalLeaseHome({ actor: 'you' }),
+  // a whole-canvas ask leases each artboard of the canvas
+  artboardsOf: (rel) => {
+    try {
+      const src = readFileSync(path.join(ctx.paths.designRoot, rel), 'utf8');
+      return (artboardSpans(src) ?? []).map((s) => s.id);
+    } catch {
+      return [];
+    }
+  },
+  emit: (e, p) => ctx.bus.emit(e, p),
+  // S7.14 — your runs' studio-local progress (the AI cut's shots), derived from their files
+  progressOf: createRunProgress({ designRoot: ctx.paths.designRoot }),
+  // S5.5b — THE end of every run's stage, by its run id (publish / partial / hold), announced as
+  // `project:action`. The ACP tracker leaves a registry run's stage to this hook, so without it no chat
+  // turn's edits would ever publish (http.ts wires the same hook only on its test fallback registry).
+  stage: runStageHooks({
+    control: () => ctx.syncControl?.current?.() ?? null,
+    emit: (e, p) => ctx.bus.emit(e, p),
+  }),
+});
+await runRegistry.boot();
+// S5.15 — every accepted action reaches the shell as `project:action`, not only a run's publish and the
+// undo routes': a person's edit (yours, or a teammate's arriving from the hub) clears "Made by AI".
+const actionFeed = createActionFeed({
+  control: () => ctx.syncControl?.current?.() ?? null,
+  designRel: ctx.paths.designRel,
+  emit: (e, p) => ctx.bus.emit(e, p),
+  on: (e, fn) => ctx.bus.on(e, fn),
+});
+ctx.bus.on('fs:any', (rel: unknown) => {
+  if (typeof rel === 'string' && /\.tsx$/i.test(rel)) actionFeed.poke();
+});
+ctx.bus.on('sync:projected', () => actionFeed.poke());
+// runningChats() / activitySnapshot() read the registry (unioned with the bridge until S5.6)
+registerLiveRuns(() => runRegistry.live());
+// the hub's `{t:'runs', seq}` on the control channel (sync/ctl-provider.ts → bus)
+ctx.bus.on('hub:runs', (p: { seq?: unknown }) => {
+  if (typeof p?.seq === 'number') runRegistry.poke(p.seq);
+});
+
 // Phase 30 — bridge agent `ai-activity` onto the per-canvas room awareness so a
 // remote peer sees "X is editing" cross-machine. The `ai-activity` bus event is
 // loopback-only (inspector WS); awareness is the one channel that crosses the
@@ -233,27 +356,71 @@ const activity = createActivity(ctx);
 // Gets the ai-activity registry so agent edits raise the same "Claude is
 // editing" banner + presence as /design:edit (RC5,
 // rca/issue-canvas-hmr-optimistic-update-consistency).
-const acp = createAcp(ctx, aiActivity);
-const ws = createWs(ctx, api, inspects, collab, activity, acp);
-const exportJobs = createExportJobQueue(ctx.bus, ctx.paths.designRoot);
+// S5.6 — chat turns run on the run registry (V2-1.15 §5.4), and every state-changing frame is
+// gated PER FRAME on the live read-only predicate: the role (hubs.json, re-read each call — a
+// workspace sign-in or an A6 removal lands on the next frame) + the format gate, the same pair
+// http.ts's `projectReadOnly` reads. `/_ws/acp` never runs in a cell, so no per-request role.
+const acp = createAcp(ctx, aiActivity, {
+  runs: runRegistry,
+  queue: () => askQueue,
+  // S9.9 (D2) — `acpRefusal`: the chat needs `edit` (C30), from the linked hub's stored
+  // access (`accessFor`, re-read per frame), the same answer the HTTP gate gives.
+  readOnly: () =>
+    acpRefusal(accessForDesktop(ctx.cfg.linkedHub?.url, accessFor)) !== null ||
+    formatGate(ctx, FORMAT_GATE_OPTS) !== null,
+});
+acpTurns = acp;
+// V2-1.14 — the outbox lives in createHttp (below); the chat reaches its door lazily.
+let askQueue: AskQueue | null = null;
+// S9.11 (V2-1.16 L12) — a canvas-only socket hears only about canvases it sees. The closure
+// is http's (declared below; only read once a canvas-only socket exists).
+const ws = createWs(
+  ctx,
+  api,
+  inspects,
+  collab,
+  activity,
+  acp,
+  createWsVisibility({
+    designRel: ctx.paths.designRel,
+    closureOf: (access) => http.closureOf(access),
+  })
+);
+const exportJobs = createExportJobQueue(ctx.bus, ctx.paths.designRoot, { runs: () => runRegistry });
 // feature-ai-media-generation (DDR-16x) — background AI-media generation queue.
 const generateJobs = createGenerationJobQueue(ctx.bus, ctx.paths.designRoot);
-const http = createHttp(ctx, api, inspects, aiActivity, exportJobs, generateJobs);
+const http = createHttp(ctx, api, inspects, aiActivity, exportJobs, generateJobs, {
+  shellCount: () => ws.shellCount(),
+  runs: runRegistry,
+  // V2-1.15 §4 #13 — a person's live hold (awareness `holding`) denies the AI's write
+  personHolds: collab ? personHoldsOf(collab.registry, (rel) => api.fileSlug(rel)) : undefined,
+});
+askQueue = http.askQueue;
+// S9.9 — `currentAccess()` outside a request (timers, boot): this process's own answer.
+setAccessFallback(() => http.accessOf());
+// S9.12b (V2-1.16 U6, desktop) — a socket keeps the access stamped at its upgrade; when that is
+// wider than the session's access now (hubs.json rewritten by a re-sign-in or a role drop, or the
+// project linked / relinked), it is closed and its client reconnects at the new access. A cell's
+// sockets are closed by the hub's proxy instead (studio-proxy.mjs `closeUpgrades`).
+if (!isWorkspaceMode()) {
+  const narrowSockets = () => ws.closeWiderThan(http.accessOf());
+  // p8-e2e-rolefix (2) — a raise closes no socket, so the shell is also TOLD (ws.ts `access-changed`) and
+  // re-reads /_config: a canvas-only Can edit grant must open its canvas for editing without a reload.
+  watchHubsConfig(() => {
+    narrowSockets();
+    ctx.bus.emit('access:changed');
+  });
+  ctx.bus.on('config-updated', narrowSockets);
+}
 const fsWatch = createFsWatch(ctx);
 
-// Port: --port arg > $PORT > $MDCC_DEV_PORT > 4399.
+// Port: --port arg > $PORT > $MDCC_DEV_PORT > $MAUDE_PORT_BASE > 47399 (e2e) > 46399 (the desktop app) > 4399 — port.ts.
 // When the port wasn't explicitly chosen and the default is busy (another
-// project's dev-server is running on the same machine), walk up to 4408 before
-// giving up. Explicit ports stay fatal so users notice their own collisions.
-function resolvePort(): { port: number; explicit: boolean } {
-  const i = process.argv.indexOf('--port');
-  if (i !== -1 && process.argv[i + 1]) return { port: Number(process.argv[i + 1]), explicit: true };
-  const env = process.env.PORT ?? process.env.MDCC_DEV_PORT;
-  if (env) return { port: Number(env), explicit: true };
-  return { port: 4399, explicit: false };
-}
-
+// project's dev-server is running on the same machine), walk PORT_LADDER ports before
+// giving up. Explicit ports stay fatal so users notice their own collisions. The desktop app's recorded port
+// ($MAUDE_SHELL_PORT, p8-port-gc) is tried first when it lies inside the ladder — port.ts portCandidates.
 const { port: BASE_PORT, explicit: PORT_EXPLICIT } = resolvePort();
+const PORT_CANDIDATES = portCandidates();
 
 type BunServer = ReturnType<typeof Bun.serve<WsData, never>>;
 
@@ -312,9 +479,15 @@ const pruned = WORKSPACE ? pruneForWorkspace(http.routes) : { routes: http.route
 function withSession<T extends unknown[]>(
   handler: (req: Request, ...rest: T) => Response | Promise<Response>
 ): (req: Request, ...rest: T) => Response | Promise<Response> {
+  // S9.9 — and WHAT it may do: the request's Access (V2-1.7 §5.4) in AsyncLocalStorage,
+  // so a leaf asks `currentAccess()` instead of re-deriving a role.
+  // p8-a1-save-hold — and WHO saves: a write from the studio page (a browser) is a person's save, which
+  // waits while a running interpreter call names its file (ai/save-hold.ts); a terminal verb never does.
   return (req, ...rest) =>
-    runInSession(WORKSPACE ? normalizeSessionKey(req.headers.get(SESSION_HEADER)) : '', () =>
-      handler(req, ...rest)
+    runWithAccess(http.accessOf(req), () =>
+      runInSession(WORKSPACE ? normalizeSessionKey(req.headers.get(SESSION_HEADER)) : '', () =>
+        withSaveRequest(req, () => handler(req, ...rest))
+      )
     );
 }
 
@@ -382,10 +555,12 @@ if (isWorkspaceMode()) {
   console.log('[studio] workspace mode — sync + git + assets only (DDR-193 containment invariant)');
 }
 
-function startServer(port: number): BunServer {
+// V2-3.6 NEW-1 — `hostname` is 127.0.0.1 or ::1: every localhost listener is
+// bound on BOTH families through listenLoopback (loopback-listen.ts).
+function startServer(port: number, hostname = V4_LOOPBACK): BunServer {
   return Bun.serve<WsData, never>({
     port,
-    hostname: '127.0.0.1',
+    hostname,
     development: process.env.NODE_ENV !== 'production',
     maxRequestBodySize: MAX_REQUEST_BODY,
     routes: SERVER_ROUTES,
@@ -434,12 +609,19 @@ function startServer(port: number): BunServer {
         if (!WORKSPACE && !isSameOriginWs(req)) {
           return new Response('collab is same-origin only', { status: 403 });
         }
+        // S9.11 (V2-1.16 L11) — a canvas-only session joins only its canvases' rooms.
+        const access = http.accessOf(req);
+        if (!seesSlug(access, collabSlug, ctx.paths.designRel)) return notInScopeResponse();
+        if (!(await seesRoomCanvas(access, collabSlug))) return notInScopeResponse();
         const ok = srv.upgrade(req, {
           data: {
             id: crypto.randomUUID(),
             remote: req.headers.get('x-forwarded-for') ?? '127.0.0.1',
             kind: 'collab',
             slug: collabSlug,
+            access,
+            // V2-8.9 round B A2 — the vouched person binds the socket's presence clientIDs
+            user: WORKSPACE ? (req.headers.get('x-maude-user') ?? '').slice(0, 120) : '',
             // Privileged shell origin — ungated (see collab/origins.ts) —
             // UNLESS the proxy marked this socket as canvas-realm (a cell's
             // canvas lane forwards here when the canvas listener is the same
@@ -447,8 +629,11 @@ function startServer(port: number): BunServer {
             realm:
               WORKSPACE && req.headers.get('x-maude-collab-realm') === 'canvas' ? 'canvas' : 'main',
             // Same fail-closed posture as the inspector branch: in a cell an
-            // absent header is an unproven session.
-            readOnly: WORKSPACE ? req.headers.get('x-maude-readonly') !== '0' : false,
+            // absent header is an unproven session. S9.11 — from the access, so a
+            // hub-linked desktop viewer is read-only too (and a grant edits its canvas).
+            readOnly: !access.can('edit', canvasOfSlug(access, collabSlug, ctx.paths.designRel)),
+            // S9.15c — a paused project (`x-maude-readonly: plan`): no lane writable, comments too.
+            ...(WORKSPACE && lanesClosedFromProxy(req.headers) ? { lanesClosed: true } : {}),
           },
         });
         if (ok) return undefined as unknown as Response;
@@ -470,6 +655,11 @@ function startServer(port: number): BunServer {
         if (!isSameOriginWs(req)) {
           return new Response('ACP chat is same-origin only', { status: 403 });
         }
+        // D2 (S9.9) — and only for a session that may edit (C30: no AI below `edit`).
+        // The socket used to check WHERE the handshake came from, never WHO; a
+        // hub-linked viewer's chat could drive edits its sync would then refuse.
+        const refusal = acpRefusal(http.accessOf(req));
+        if (refusal) return refusal;
         const ok = srv.upgrade(req, {
           data: {
             id: crypto.randomUUID(),
@@ -488,6 +678,7 @@ function startServer(port: number): BunServer {
         if (!WORKSPACE && !isSameOriginWs(req)) {
           return new Response('inspector is same-origin only', { status: 403 });
         }
+        const access = http.accessOf(req);
         const ok = srv.upgrade(req, {
           data: {
             id: crypto.randomUUID(),
@@ -503,8 +694,14 @@ function startServer(port: number): BunServer {
             // the one moment the session is unambiguous. Fails CLOSED in a cell
             // for the same reason the HTTP gate does: an absent header is an
             // unproven session, and this channel can delete other people's
-            // comments.
-            readOnly: WORKSPACE ? req.headers.get('x-maude-readonly') !== '0' : false,
+            // comments. S9.11 — derived from the request's access: in a cell the
+            // proxy's claim (fail closed as before), on a desktop the linked hub's
+            // stored claim — a hub-linked viewer's socket was writable here.
+            readOnly: !access.can('edit', null),
+            // S9.15c — a paused project: no comment write over this socket either.
+            ...(WORKSPACE && lanesClosedFromProxy(req.headers) ? { lanesClosed: true } : {}),
+            // S9.11 (V2-1.16 L12) — what this socket may hear.
+            access,
           },
         });
         if (ok) return undefined as unknown as Response;
@@ -557,6 +754,21 @@ function captureWriteRefusal(): Response {
  *     it would answer the NEXT canvas's capture with whatever the first chose;
  *   - GET/HEAD only.
  */
+/**
+ * gate-b-c4e — a slug folds a path (`/`→`-`, lowercased, whitespace→`_`), so two canvases can
+ * share one room: `ui/a-b.tsx` and `ui/a/b.tsx` are both `ui-a-b`. A canvas-only session (every
+ * frame is one) joins a room only when it sees the canvas the room is really bound to — the same
+ * slug→file resolution the room persists through (api.fileForSlug, first match). No canvas behind
+ * the slug yet: `seesSlug` alone decides, as before.
+ */
+async function seesRoomCanvas(access: Access, slug: string): Promise<boolean> {
+  if (access.role !== null) return true;
+  const file = await api.fileForSlug(slug);
+  if (file === null) return true;
+  const prefix = `${ctx.paths.designRel.replace(/^\/+|\/+$/g, '')}/`;
+  return access.seesCanvas(file.startsWith(prefix) ? file.slice(prefix.length) : file);
+}
+
 function captureRefusal(req: Request): Response | null {
   if (!isLoopbackHost(req.headers.get('host')))
     return new Response('local request required (DNS-rebinding guard)', { status: 403 });
@@ -566,6 +778,28 @@ function captureRefusal(req: Request): Response | null {
     return new Response('the capture origin installs no service workers', { status: 403 });
   if (req.method !== 'GET' && req.method !== 'HEAD') return captureWriteRefusal();
   return null;
+}
+
+/**
+ * gate-b-c4 — every canvas / capture listener request runs inside the frame its `fc` capability
+ * names (access/frame.ts): `http.accessOf` then answers the opener NARROWED to that canvas, and a
+ * request whose frame holds no canvas reaches only the vendor runtime, the shell and its chrome.
+ */
+function inFrame(req: Request, fn: () => Response | Promise<Response>): Promise<Response> {
+  return runInFrame(http.frameScopeOf(req), async () => {
+    const stop = frameRefusal(new URL(req.url).pathname, http.accessOf(req));
+    return stop ?? fn();
+  });
+}
+
+/** Each canvas-listener route inside its request's frame (the routes half of `inFrame`). */
+function framedRoutes<R extends Record<string, unknown>>(routes: R): R {
+  const out: Record<string, unknown> = {};
+  for (const [path, handler] of Object.entries(routes)) {
+    const fn = handler as (req: Request) => Response | Promise<Response>;
+    out[path] = (req: Request) => inFrame(req, () => fn(req));
+  }
+  return out as R;
 }
 
 /** Each route behind the capture gate — the capture origin's copy of the ONE table. */
@@ -580,48 +814,24 @@ function readOnlyRoutes<R extends Record<string, unknown>>(routes: R): R {
 
 function startCanvasServer(
   port: number,
-  { capture = false }: { capture?: boolean } = {}
+  { capture = false, hostname = V4_LOOPBACK }: { capture?: boolean; hostname?: string } = {}
 ): BunServer {
   // Hard allowlist of route-table endpoints (Bun matches `routes` before
-  // `fetch`). Only the collab/display-data endpoints the canvas runtime needs
-  // — see http.isCanvasSafeRoute for the trust rationale. The dynamic
-  // /_api/comments/<id>/reply POST is fetch-handled + gated there.
-  const routes = {
-    '/_health': http.routes['/_health'],
-    '/_api/git-user': http.routes['/_api/git-user'],
-    '/_api/canvas-meta': http.routes['/_api/canvas-meta'],
-    '/_api/annotations': http.routes['/_api/annotations'],
-    '/_api/annotations/ops': http.routes['/_api/annotations/ops'],
-    // Phase 23 — capped binary image upload (magic-byte sniff + category cap +
-    // content-addressed name + traversal guard + no-SVG, in api.saveAsset).
-    // Bun matches `routes` BEFORE `fetch`, so the route must be listed here
-    // explicitly — the CANVAS_SAFE_API entry alone only opens the fetch
-    // fall-through (which serves files, not route handlers). See DDR (Task 9).
-    '/_api/asset': http.routes['/_api/asset'],
-    // Issue #126 — chunked upload; MIRROR of the CANVAS_SAFE_API entries (http.ts).
-    '/_api/asset/chunk-start': http.routes['/_api/asset/chunk-start'],
-    '/_api/asset/chunk': http.routes['/_api/asset/chunk'],
-    '/_api/asset/chunk-finish': http.routes['/_api/asset/chunk-finish'],
-    // feature-photo-editor — PhotoEdit sidecar GET/PUT. MUST be here AND in
-    // CANVAS_SAFE_API (http.ts): Bun matches `routes` before `fetch`, so a
-    // one-list entry 404s from the canvas iframe (the DDR-088 rollout bug).
-    '/_api/photo-edit': http.routes['/_api/photo-edit'],
-    // V2-2.8 S6 — NOT the main-origin handler: the canvas origin gets the
-    // no-e-mail projection (names + commit counts) for @mention suggestions.
-    '/_api/git-committers': http.canvasRoutes['/_api/git-committers'],
-    '/_api/ai': http.routes['/_api/ai'],
-    '/_comments': http.routes['/_comments'],
-  };
+  // `fetch`) — routes/canvas-origin.ts (V2-2.5 moved the literal there verbatim,
+  // so test/canvas-origin-parity.test.ts can hold it to CANVAS_SAFE_API).
+  const routes = framedRoutes(canvasOriginRoutes(http));
   return Bun.serve<WsData, never>({
     port,
-    hostname: '127.0.0.1',
+    hostname,
     development: process.env.NODE_ENV !== 'production',
     // DDR-088 follow-up — bound the pre-handler request buffer on the UNTRUSTED
     // canvas origin (the asset upload lives here). See MAX_REQUEST_BODY.
     maxRequestBodySize: MAX_REQUEST_BODY,
     // The capture origin serves the SAME route table, each entry behind a
     // GET/HEAD gate — never a third allowlist (V2-2.8 S9).
-    routes: capture ? readOnlyRoutes(routes) : routes,
+    // V2-3.6 N-M2 — the interactive canvas origin refuses a top-level document
+    // (canvas-top-level.ts); the capture origin is loaded top-level by design.
+    routes: capture ? readOnlyRoutes(routes) : topLevelGuardedRoutes(routes),
     async fetch(req, srv) {
       const pathname = new URL(req.url).pathname;
 
@@ -630,75 +840,99 @@ function startCanvasServer(
       if (capture) {
         const refused = captureRefusal(req);
         if (refused) return refused;
+      } else {
+        const refused = canvasTopLevelRefusal(req);
+        if (refused) return refused;
       }
-
-      // Collab WS — shared registry, loopback-only (same gate as the main
-      // origin), with the same workspace-mode vouched path: in a cell the hub's
-      // canvas lane forwards the iframe's collab socket HERE, capability-
-      // authenticated, with Host rewritten to the public canvas origin (D4) —
-      // RCA issue-cloud-live-collaboration-dead.
-      const collabSlug = parseCollabSlug(pathname);
-      if (collabSlug !== null) {
-        const vouchedRole = WORKSPACE ? req.headers.get('x-maude-role') : null;
-        if (!isLoopbackHost(req.headers.get('host')) && !vouchedRole) {
-          return new Response('cross-machine collab requires Phase 9 hub deploy', { status: 403 });
+      // gate-b-c4 — the rest runs inside this request's frame (see inFrame).
+      return inFrame(req, async () => {
+        // Collab WS — shared registry, loopback-only (same gate as the main
+        // origin), with the same workspace-mode vouched path: in a cell the hub's
+        // canvas lane forwards the iframe's collab socket HERE, capability-
+        // authenticated, with Host rewritten to the public canvas origin (D4) —
+        // RCA issue-cloud-live-collaboration-dead.
+        const collabSlug = parseCollabSlug(pathname);
+        if (collabSlug !== null) {
+          const vouchedRole = WORKSPACE ? req.headers.get('x-maude-role') : null;
+          if (!isLoopbackHost(req.headers.get('host')) && !vouchedRole) {
+            return new Response('cross-machine collab requires Phase 9 hub deploy', {
+              status: 403,
+            });
+          }
+          // CSWSH (Phase 2 gate) — the canvas iframe keeps its own origin
+          // (`allow-same-origin`), so only a page ON this canvas origin passes; a drive-by
+          // site could otherwise read the Y-doc and write comments/annotations here.
+          if (!WORKSPACE && !isSameOriginWs(req)) {
+            return new Response('collab is same-origin only', { status: 403 });
+          }
+          // S9.11 (V2-1.16 L11/L15) — the render token's access joins only its canvases' rooms.
+          const access = http.accessOf(req);
+          if (!seesSlug(access, collabSlug, ctx.paths.designRel)) return notInScopeResponse();
+          if (!(await seesRoomCanvas(access, collabSlug))) return notInScopeResponse();
+          const ok = srv.upgrade(req, {
+            data: {
+              id: crypto.randomUUID(),
+              remote: req.headers.get('x-forwarded-for') ?? '127.0.0.1',
+              kind: 'collab',
+              slug: collabSlug,
+              access,
+              user: WORKSPACE ? (req.headers.get('x-maude-user') ?? '').slice(0, 120) : '',
+              // UNTRUSTED canvas iframe origin (DDR-063 split). Every sync frame
+              // from here goes through the origin gate and may never write a
+              // body lane — DDR-122 follow-up, collab/origins.ts. ALWAYS
+              // 'canvas' on this listener — the proxy's realm marker is not
+              // consulted, so a forged header cannot promote the socket.
+              realm: 'canvas',
+              // Fail closed in a cell (absent header = unproven session);
+              // loopback desktop keeps full capability as before. S9.11 — from the access.
+              readOnly: !access.can('edit', canvasOfSlug(access, collabSlug, ctx.paths.designRel)),
+              // S3.7c — the hub's canvas door opened this on a receive-only FOLLOW
+              // capability (stripped-then-injected, so a client cannot claim it; it
+              // only ever narrows): the room drops its sync, keeps its `watching`.
+              ...(WORKSPACE && req.headers.get('x-maude-collab-follow') === '1'
+                ? { follow: true }
+                : {}),
+              // S9.15c — a paused project (`x-maude-readonly: plan`): no lane writable, comments too.
+              ...(WORKSPACE && lanesClosedFromProxy(req.headers) ? { lanesClosed: true } : {}),
+            },
+          });
+          if (ok) return undefined as unknown as Response;
+          return new Response('Upgrade failed', { status: 400 });
         }
-        // CSWSH (Phase 2 gate) — the canvas iframe keeps its own origin
-        // (`allow-same-origin`), so only a page ON this canvas origin passes; a drive-by
-        // site could otherwise read the Y-doc and write comments/annotations here.
-        if (!WORKSPACE && !isSameOriginWs(req)) {
-          return new Response('collab is same-origin only', { status: 403 });
+
+        // HMR-only socket — canvas iframes listen for `canvas-hmr` here. Carries
+        // NO privileged inspector feed and ignores inbound messages (ws.ts) — but its
+        // frames name files (→ collab slugs), so a drive-by Origin is refused too.
+        if (pathname.startsWith('/_ws')) {
+          if (!WORKSPACE && !isSameOriginWs(req)) {
+            return new Response('canvas socket is same-origin only', { status: 403 });
+          }
+          const ok = srv.upgrade(req, {
+            data: {
+              id: crypto.randomUUID(),
+              remote: req.headers.get('x-forwarded-for') ?? '127.0.0.1',
+              kind: 'canvas-hmr',
+              // S9.11 (V2-1.16 L12) — the render token's access decides which frames it hears.
+              access: http.accessOf(req),
+            },
+          });
+          if (ok) return undefined as unknown as Response;
+          return new Response('Upgrade failed', { status: 400 });
         }
-        const ok = srv.upgrade(req, {
-          data: {
-            id: crypto.randomUUID(),
-            remote: req.headers.get('x-forwarded-for') ?? '127.0.0.1',
-            kind: 'collab',
-            slug: collabSlug,
-            // UNTRUSTED canvas iframe origin (DDR-063 split). Every sync frame
-            // from here goes through the origin gate and may never write a
-            // body lane — DDR-122 follow-up, collab/origins.ts. ALWAYS
-            // 'canvas' on this listener — the proxy's realm marker is not
-            // consulted, so a forged header cannot promote the socket.
-            realm: 'canvas',
-            // Fail closed in a cell (absent header = unproven session);
-            // loopback desktop keeps full capability as before.
-            readOnly: WORKSPACE ? req.headers.get('x-maude-readonly') !== '0' : false,
-          },
-        });
-        if (ok) return undefined as unknown as Response;
-        return new Response('Upgrade failed', { status: 400 });
-      }
 
-      // HMR-only socket — canvas iframes listen for `canvas-hmr` here. Carries
-      // NO privileged inspector feed and ignores inbound messages (ws.ts) — but its
-      // frames name files (→ collab slugs), so a drive-by Origin is refused too.
-      if (pathname.startsWith('/_ws')) {
-        if (!WORKSPACE && !isSameOriginWs(req)) {
-          return new Response('canvas socket is same-origin only', { status: 403 });
+        // Canvas mount harness with the strict CSP ALWAYS on (F1 gate).
+        if (pathname === '/_canvas-shell.html' || pathname === '/_canvas-shell') {
+          // gate-b-c4c — with the request, so what it inlines about a canvas is held to its frame.
+          return http.serveCanvasShell(true, false, new URL(req.url).searchParams, req);
         }
-        const ok = srv.upgrade(req, {
-          data: {
-            id: crypto.randomUUID(),
-            remote: req.headers.get('x-forwarded-for') ?? '127.0.0.1',
-            kind: 'canvas-hmr',
-          },
-        });
-        if (ok) return undefined as unknown as Response;
-        return new Response('Upgrade failed', { status: 400 });
-      }
 
-      // Canvas mount harness with the strict CSP ALWAYS on (F1 gate).
-      if (pathname === '/_canvas-shell.html' || pathname === '/_canvas-shell') {
-        return http.serveCanvasShell(true);
-      }
-
-      // Allowlist gate — runtime bundles, comment-mount, transpiled .tsx + CSS/
-      // assets under designRoot. Everything else is refused at the door.
-      if (!http.isCanvasSafeRoute(pathname)) {
-        return new Response('Forbidden (canvas origin)', { status: 403 });
-      }
-      return http.fetch(req);
+        // Allowlist gate — runtime bundles, comment-mount, transpiled .tsx + CSS/
+        // assets under designRoot. Everything else is refused at the door.
+        if (!http.isCanvasSafeRoute(pathname)) {
+          return new Response('Forbidden (canvas origin)', { status: 403 });
+        }
+        return http.fetch(req);
+      });
     },
     websocket: ws.handler,
     error(e) {
@@ -708,43 +942,25 @@ function startCanvasServer(
   });
 }
 
-function isAddrInUse(e: unknown): boolean {
-  if (!e || typeof e !== 'object') return false;
-  const err = e as { code?: string; errno?: number };
-  return err.code === 'EADDRINUSE';
-}
-
 let server: BunServer;
 {
-  const MAX_TRIES = PORT_EXPLICIT ? 1 : 10;
-  let lastErr: unknown;
-  let bound: BunServer | null = null;
-  for (let i = 0; i < MAX_TRIES; i++) {
-    const tryPort = BASE_PORT + i;
-    try {
-      bound = startServer(tryPort);
-      if (i > 0) {
-        console.log(`[port] ${BASE_PORT} busy, using ${tryPort} instead.`);
-      }
-      break;
-    } catch (e) {
-      lastErr = e;
-      if (!isAddrInUse(e)) throw e;
-    }
-  }
-  if (!bound) {
+  const r = bindFirst(PORT_CANDIDATES, (p) => listenLoopback((h, port) => startServer(port, h), p));
+  if (r.bound === null) {
     if (PORT_EXPLICIT) {
       console.error(
         `\n  Port ${BASE_PORT} is in use. Pick a different one with --port <N> or $PORT.\n`
       );
     } else {
       console.error(
-        `\n  Ports ${BASE_PORT}-${BASE_PORT + MAX_TRIES - 1} are all in use. Stop a running dev-server or pass --port <N>.\n`
+        `\n  Ports ${BASE_PORT}-${BASE_PORT + PORT_LADDER - 1} are all in use. Stop a running dev-server or pass --port <N>.\n`
       );
     }
-    throw lastErr;
+    throw r.error;
   }
-  server = bound;
+  if (r.port !== PORT_CANDIDATES[0]) {
+    console.log(`[port] ${PORT_CANDIDATES[0]} busy, using ${r.port} instead.`);
+  }
+  server = r.bound;
 }
 
 // T2 (9.1-A) — advertise the main origin so the canvas origin's CSP can
@@ -815,7 +1031,9 @@ const CANVAS_ORIGIN_SPLIT = !/^(0|false|off|no)$/i.test(
 // not merely protective — it is the boundary between one tenant's executing
 // canvas and everything else on that host, which is the strongest reason any
 // deployment has ever had to keep it on.
-const canvasServer = CANVAS_ORIGIN_SPLIT ? startCanvasServer(0) : null;
+const canvasServer = CANVAS_ORIGIN_SPLIT
+  ? listenLoopback((hostname, p) => startCanvasServer(p, { hostname }), 0)
+  : null;
 // D4 — PUBLIC IDENTITY COMES FROM CONFIGURATION, NEVER FROM THE REQUEST.
 //
 // The loopback origin is what this process BINDS; behind a reverse proxy it is
@@ -836,9 +1054,12 @@ if (canvasOrigin) ctx.canvasOrigin = canvasOrigin;
 // interactive canvases (a named residual). Not advertised in `_server.json`:
 // callers reach it through the main origin's 307.
 const captureServer =
-  CANVAS_ORIGIN_SPLIT && !WORKSPACE ? startCanvasServer(0, { capture: true }) : null;
+  CANVAS_ORIGIN_SPLIT && !WORKSPACE
+    ? listenLoopback((hostname, p) => startCanvasServer(p, { capture: true, hostname }), 0)
+    : null;
 if (captureServer) ctx.captureOrigin = `http://localhost:${captureServer.port}`;
 
+const startedAt = new Date().toISOString();
 await Bun.write(
   ctx.paths.serverInfoFile,
   JSON.stringify(
@@ -851,7 +1072,7 @@ await Bun.write(
       // public `canvasOrigin` name above. A co-located reverse proxy (the cell's
       // hub) forwards canvas-origin traffic here; nothing else needs it.
       ...(canvasServer ? { canvasPort: canvasServer.port } : {}),
-      started: new Date().toISOString(),
+      started: startedAt,
       project: ctx.cfg.name,
       config_source: ctx.cfg._source,
     },
@@ -859,6 +1080,17 @@ await Bun.write(
     2
   )
 );
+// V2-1.1 decision 8 — the same facts, to the desktop shell's own info file when it asked for one
+// (MAUDE_SHELL_INFO_FILE; atomic, 0600). Its probes read only that file + call the token-gated
+// /_api/shell/status, so a planted _server.json is never believed. _server.json is unchanged.
+writeShellInfoFile({
+  pid: process.pid,
+  port: server.port ?? 0, // a TCP listener always has one; the type allows a unix socket
+  url: `http://localhost:${server.port}`,
+  ...(canvasOrigin ? { canvasOrigin } : {}),
+  started: startedAt,
+  mode: 'project',
+});
 
 fsWatch.start();
 startHeapWatch();
@@ -905,7 +1137,37 @@ ctx.bus.on('fs:json', (rel: string) => {
 // cloud panel cycles the runtime in place (ctx.syncControl), so pressing
 // Connect starts syncing instead of printing "restart the studio server".
 const syncRuntime = createSyncSupervisor(ctx, collab ? { registry: collab.registry } : {});
-ctx.syncControl = syncRuntime;
+// S5.1b — a project with no hub answers history / undo / restore from its own
+// store (`_state/project-store.sqlite`, the in-process kernel); a linked one is
+// unchanged. The watcher feeds it through the bus.
+const localHome = attachLocalHome(ctx, syncRuntime);
+ctx.syncControl = localHome.control;
+// S5.3 — the run registry's lease home (Q2): the linked hub when its `/health` advertises
+// `runs-v1`, else per-Mac leases plus the Diagnostics line. An unreachable hub (capabilities
+// null) keeps the per-Mac home without the line — it is offline, not old. A cell keeps its own.
+{
+  const hubUrl = ctx.cfg.linkedHub?.url;
+  if (hubUrl && !isWorkspaceMode()) {
+    void hubHealth({ hubUrl })
+      .then(({ capabilities }) => {
+        if (capabilities === null) return;
+        const sel = selectLeaseHome({
+          actor: 'you',
+          linked: { hubUrl, token: () => getHubRecord(hubUrl)?.token ?? null },
+          capabilities,
+        });
+        runRegistry.setHome(sel.home, sel.diagnostics);
+        if (sel.home.kind === 'hub') void runRegistry.pull();
+      })
+      .catch(() => {});
+  }
+}
+registerStatus('sync', () => ({
+  linked: Boolean(ctx.cfg.linkedHub),
+  hub: ctx.cfg.linkedHub?.url ?? null,
+  running: syncRuntime.current() !== null,
+  cycling: syncRuntime.busy(),
+}));
 // A linked project that had NOTHING syncable at boot asks for one cycle the
 // moment it gains its first canvas — see the zero-canvas branch in
 // `sync/index.ts`. The runtime cannot cycle itself (the supervisor owns the
@@ -959,7 +1221,11 @@ if (!process.env.NO_OPEN && !WORKSPACE) {
 
 const SHUTDOWN_WATCHDOG_MS = Number(process.env.MAUDE_SHUTDOWN_WATCHDOG_MS) || 5000;
 
+let shuttingDown = false;
 async function shutdown() {
+  // a signal and the parent watch (below) can both ask; the teardown runs once
+  if (shuttingDown) return;
+  shuttingDown = true;
   console.log('\n  Stopping…');
   // V2-2.8 B4: a teardown step that never settles (syncRuntime.stop, a collab flush) must not
   // keep the process alive after a signal — 26 CI runs hung in figma-routes this way. Logged,
@@ -970,6 +1236,18 @@ async function shutdown() {
   }, SHUTDOWN_WATCHDOG_MS).unref();
   // Test seam (V2-2.8 B4 regression test only): simulate a teardown that never settles.
   if (process.env.MAUDE_TEST_HANG_SHUTDOWN === '1') await new Promise(() => {});
+  // p8-a1-save-hold — closing the app during a hold finishes the save: a person's save waiting behind an
+  // AI call lands now, as theirs, before the watcher and the sync runtime stop
+  try {
+    await saveHold().flushAll();
+  } catch {
+    /* each landing logs its own failure; the process is exiting either way */
+  }
+  void stopDiagnostics();
+  // live run records stay on disk: the next boot ends them `interrupted` (R11)
+  runRegistry.close();
+  flushAllIndexes();
+  stopAllThumbs();
   // DDR-166 — reap in-flight claude-provisioning grandchildren before this
   // process exits. Security-review finding: neither the SIGTERM/SIGINT path
   // here nor sidecar.rs's child.kill() on the Tauri side propagate to a
@@ -1009,6 +1287,11 @@ async function shutdown() {
     await syncRuntime.stop();
   } catch {
     /* best-effort — provider sockets will be closed by process exit anyway */
+  }
+  try {
+    localHome.close(); // releases `_state/project-store.lock`
+  } catch {
+    /* a dead pid's lock is taken over at the next boot anyway */
   }
   try {
     if (collab) {
@@ -1052,3 +1335,8 @@ async function shutdown() {
 
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
+// p8-orphan-sidecars — a server the desktop shell spawned (or a harness opted in) stops the same way
+// once its parent is gone: a force-quit or crashed app runs none of its own cleanup. A server started
+// from a terminal (`maude design serve`, server-up.sh's nohup respawn) is meant to outlive that
+// terminal and is left alone (shell/parent-watch.ts says who is who).
+exitWithParent(() => void shutdown(), 'server');

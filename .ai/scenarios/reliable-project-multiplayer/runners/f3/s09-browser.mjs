@@ -79,8 +79,9 @@ try {
   result.steps.cameraAndPresence = { newRevisions: afterCamera.length - startLog };
 
   // A persistent comment through the real comment tool.
-  await frame.locator('[data-testid="palette-mode-edit"]').click().catch(() => {});
-  await frame.locator('.dc-tool-palette button[aria-label^="Comment"]').click();
+  // Comment and Sticky live only in the Preview toolbar since V2-4.5c (Edit's tools draw the design).
+  await page.locator('[data-testid="palette-mode-preview"]').click().catch(() => {}); // shell document since V2-4.3b
+  await frame.locator('[data-testid="toolbar-slot-comment"]').click();
   await frame.locator('h1').click();
   await frame.locator('[aria-label="Comment body"]').fill(`S09 comment ${tag}`);
   await frame.locator('.cm-composer .cm-btn--primary').click();
@@ -88,7 +89,7 @@ try {
 
   // A persistent annotation (sticky) through the real annotation tool.
   await page.keyboard.press('Escape');
-  await frame.locator('[aria-label^="Sticky ("]').click();
+  await frame.locator('[data-testid="toolbar-slot-sticky"]').click();
   const input = frame.locator('.dc-annot-input');
   await input.waitFor();
   const ib = await input.boundingBox();
@@ -100,7 +101,7 @@ try {
 
   // A persistent artboard layout move.
   await page.keyboard.press('Escape');
-  await frame.locator('[data-testid="palette-mode-edit"]').click().catch(() => {});
+  await page.locator('[data-testid="palette-mode-edit"]').click().catch(() => {}); // shell document since V2-4.3b
   const label = frame.locator('[data-dc-screen="main"] .dc-artboard-label');
   const lb = await label.boundingBox();
   await page.mouse.move(lb.x + lb.width / 2, lb.y + lb.height / 2);

@@ -1,0 +1,267 @@
+{
+  "format": "maude.agent-journey/1",
+  "id": "S7",
+  "package": "S7",
+  "title": "A video edit: shorten one shot, close the gap, keep the length in step",
+  "ledger": [],
+  "fixture": "video",
+  "setup": [],
+  "turns": [
+    {
+      "say": "In ui/Alligators Cinematic Cut.tsx, cut the “huddle” shot down to one second (the video is 30 fps) and pull everything after it up so there is no gap: the shots and the effect layers. Keep the total length in step."
+    }
+  ],
+  "graders": [
+    {
+      "id": "huddle-one-second",
+      "grader": "text",
+      "path": "ui/Alligators Cinematic Cut.tsx",
+      "has": [
+        "<Sequence\\s+from=\\{378\\}\\s+durationInFrames=\\{30\\}\\s+name=\"huddle\"",
+        "<Sequence\\s+from=\\{378\\}\\s+durationInFrames=\\{30\\}\\s+name=\"fx-leak-huddle\""
+      ]
+    },
+    {
+      "id": "shots-follow",
+      "grader": "text",
+      "path": "ui/Alligators Cinematic Cut.tsx",
+      "has": [
+        "from=\\{408\\}[^>]*name=\"coach\"",
+        "from=\\{442\\}[^>]*name=\"value-bars\"",
+        "from=\\{508\\}[^>]*name=\"join-us\"",
+        "from=\\{554\\}[^>]*name=\"cta-walk\"",
+        "from=\\{620\\}[^>]*name=\"crest\""
+      ]
+    },
+    {
+      "id": "effects-follow",
+      "grader": "text",
+      "path": "ui/Alligators Cinematic Cut.tsx",
+      "has": [
+        "from=\\{410\\}[^>]*name=\"fx-lt-bratrstvi\"",
+        "from=\\{562\\}[^>]*name=\"fx-cta\"",
+        "from=\\{628\\}[^>]*name=\"fx-crest-graphics\""
+      ]
+    },
+    {
+      "id": "total-in-step",
+      "grader": "text",
+      "path": "ui/Alligators Cinematic Cut.tsx",
+      "has": [
+        "54 \\+ 34 \\+ 50 \\+ 54 \\+ 40 \\+ 38 \\+ 18 \\+ 16 \\+ 16 \\+ 18 \\+ 40 \\+ 30 \\+ 34 \\+ 66 \\+ 46 \\+ 66 \\+ 68"
+      ]
+    },
+    {
+      "id": "earlier-shots-kept",
+      "grader": "text",
+      "path": "ui/Alligators Cinematic Cut.tsx",
+      "has": [
+        "from=\\{0\\}\\s+durationInFrames=\\{54\\}\\s+name=\"cold-open\"",
+        "from=\\{192\\}\\s+durationInFrames=\\{40\\}\\s+name=\"hero-run-slowmo\"",
+        "from=\\{338\\}\\s+durationInFrames=\\{40\\}\\s+name=\"celebration\""
+      ]
+    },
+    {
+      "id": "ai-version",
+      "grader": "history",
+      "path": "ui/Alligators Cinematic Cut.tsx",
+      "kind": "ai",
+      "by": "ai"
+    },
+    {
+      "id": "one-undo-step",
+      "grader": "one-undo-step",
+      "path": "ui/Alligators Cinematic Cut.tsx",
+      "minRuns": 1,
+      "maxRuns": 1
+    },
+    {
+      "id": "no-hard-delete",
+      "grader": "no-tool",
+      "tool": "Bash",
+      "input": "\\brm\\b"
+    }
+  ],
+  "dry": {
+    "good": [
+      {
+        "op": "action",
+        "kind": "migration.import",
+        "label": "Version history starts here",
+        "effects": [
+          {
+            "lane": "@manifest",
+            "op": "create",
+            "path": "ui/Alligators Cinematic Cut.tsx"
+          }
+        ]
+      },
+      {
+        "tag": "huddle",
+        "op": "edit",
+        "path": "ui/Alligators Cinematic Cut.tsx",
+        "old": "from={378} durationInFrames={56} name=\"huddle\"",
+        "new": "from={378} durationInFrames={30} name=\"huddle\""
+      },
+      {
+        "tag": "huddle",
+        "op": "edit",
+        "path": "ui/Alligators Cinematic Cut.tsx",
+        "old": "from={378} durationInFrames={56} name=\"fx-leak-huddle\"",
+        "new": "from={378} durationInFrames={30} name=\"fx-leak-huddle\""
+      },
+      {
+        "tag": "huddle",
+        "op": "edit",
+        "path": "ui/Alligators Cinematic Cut.tsx",
+        "old": "from={384} durationInFrames={46} name=\"fx-title-srdce\"",
+        "new": "from={384} durationInFrames={24} name=\"fx-title-srdce\""
+      },
+      {
+        "tag": "shots",
+        "op": "edit",
+        "path": "ui/Alligators Cinematic Cut.tsx",
+        "old": "from={434} durationInFrames={34} name=\"coach\"",
+        "new": "from={408} durationInFrames={34} name=\"coach\""
+      },
+      {
+        "tag": "shots",
+        "op": "edit",
+        "path": "ui/Alligators Cinematic Cut.tsx",
+        "old": "from={468} durationInFrames={66} name=\"value-bars\"",
+        "new": "from={442} durationInFrames={66} name=\"value-bars\""
+      },
+      {
+        "tag": "shots",
+        "op": "edit",
+        "path": "ui/Alligators Cinematic Cut.tsx",
+        "old": "from={534} durationInFrames={46} name=\"join-us\"",
+        "new": "from={508} durationInFrames={46} name=\"join-us\""
+      },
+      {
+        "tag": "shots",
+        "op": "edit",
+        "path": "ui/Alligators Cinematic Cut.tsx",
+        "old": "from={580} durationInFrames={66} name=\"cta-walk\"",
+        "new": "from={554} durationInFrames={66} name=\"cta-walk\""
+      },
+      {
+        "tag": "shots",
+        "op": "edit",
+        "path": "ui/Alligators Cinematic Cut.tsx",
+        "old": "from={646} durationInFrames={68} name=\"crest\"",
+        "new": "from={620} durationInFrames={68} name=\"crest\""
+      },
+      {
+        "tag": "effects",
+        "op": "edit",
+        "path": "ui/Alligators Cinematic Cut.tsx",
+        "old": "from={436} durationInFrames={30} name=\"fx-lt-bratrstvi\"",
+        "new": "from={410} durationInFrames={30} name=\"fx-lt-bratrstvi\""
+      },
+      {
+        "tag": "effects",
+        "op": "edit",
+        "path": "ui/Alligators Cinematic Cut.tsx",
+        "old": "from={588} durationInFrames={58} name=\"fx-cta\"",
+        "new": "from={562} durationInFrames={58} name=\"fx-cta\""
+      },
+      {
+        "tag": "effects",
+        "op": "edit",
+        "path": "ui/Alligators Cinematic Cut.tsx",
+        "old": "from={654} durationInFrames={60} name=\"fx-crest-graphics\"",
+        "new": "from={628} durationInFrames={60} name=\"fx-crest-graphics\""
+      },
+      {
+        "tag": "total",
+        "op": "edit",
+        "path": "ui/Alligators Cinematic Cut.tsx",
+        "old": "40 + 56 + 34 + 66 + 46 + 66 + 68; // = 714 (23.8s)",
+        "new": "40 + 30 + 34 + 66 + 46 + 66 + 68; // = 688 (22.9s)"
+      },
+      {
+        "tag": "step",
+        "op": "action",
+        "kind": "ai",
+        "run": "run-1",
+        "label": "Shorten the huddle shot",
+        "effects": [
+          {
+            "lane": "html",
+            "op": "replace",
+            "path": "ui/Alligators Cinematic Cut.tsx"
+          }
+        ]
+      }
+    ],
+    "faults": {
+      "huddle-one-second": {
+        "drop": ["huddle"]
+      },
+      "shots-follow": {
+        "drop": ["shots"]
+      },
+      "effects-follow": {
+        "drop": ["effects"]
+      },
+      "total-in-step": {
+        "drop": ["total"]
+      },
+      "earlier-shots-kept": {
+        "add": [
+          {
+            "op": "edit",
+            "path": "ui/Alligators Cinematic Cut.tsx",
+            "old": "from={338} durationInFrames={40} name=\"celebration\"",
+            "new": "from={338} durationInFrames={44} name=\"celebration\""
+          }
+        ]
+      },
+      "ai-version": {
+        "replace": {
+          "step": {
+            "op": "action",
+            "kind": "outside",
+            "label": "Changed outside Maude",
+            "effects": [
+              {
+                "lane": "html",
+                "op": "replace",
+                "path": "ui/Alligators Cinematic Cut.tsx"
+              }
+            ]
+          }
+        }
+      },
+      "one-undo-step": {
+        "add": [
+          {
+            "op": "action",
+            "kind": "ai",
+            "run": "run-1",
+            "label": "Shorten the huddle shot",
+            "effects": [
+              {
+                "lane": "html",
+                "op": "replace",
+                "path": "ui/Alligators Cinematic Cut.tsx"
+              }
+            ]
+          }
+        ]
+      },
+      "no-hard-delete": {
+        "add": [
+          {
+            "op": "tool",
+            "name": "Bash",
+            "input": {
+              "command": "rm \".design/ui/Alligators Cinematic Cut.tsx\""
+            }
+          }
+        ]
+      }
+    }
+  }
+}

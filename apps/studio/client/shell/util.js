@@ -1,8 +1,8 @@
 // shell/util.js — moved verbatim out of client/app.jsx (Maude v2 plan V2-0.2, move-only split).
 
-import { CANVAS_EXT_RE, MODE_HINT_SEEN, THEME_STORE } from './constants.js';
+import { CANVAS_EXT_RE, THEME_STORE } from './constants.js';
 import { invoke, isNativeApp } from '../github.js';
-import { dismissNotice, notify } from '../../notifications.tsx';
+import { notify } from '../../notifications.tsx';
 
 // feature-unified-settings-modal — the Settings modal's view prefs are ALSO
 // persisted to disk (~/.config/maude/prefs.json via /_api/ui-prefs), so they
@@ -49,6 +49,13 @@ export function pathTestIdSlug(p) {
     .replace(/[^a-z0-9]+/gi, '-')
     .toLowerCase()
     .replace(/^-+|-+$/g, '');
+}
+
+// The Layers tree is whatever the open canvas last posted, tagged with that canvas. A tree posted by
+// another canvas is not this canvas's (a blank canvas posts none, and kept listing the previous canvas's
+// `div`): no tree until this one posts its own.
+export function layersTreeOf(tree, canvas) {
+  return tree && canvas && tree.canvas === canvas ? tree : null;
 }
 
 // A layers tree's identity: its element ids in document order. Two trees with
@@ -145,42 +152,20 @@ export function basename(p) {
 }
 
 // Keep call sites (including Undo actions) on the shared notification stack.
-export function shellToast(message, ok = false, action) {
-  notify({ title: message, kind: ok ? 'success' : 'error', action });
-}
-
-export function browseFirstRunHint(readOnly = false) {
-  if (typeof document === 'undefined' || typeof localStorage === 'undefined') return;
-  try {
-    if (localStorage.getItem(MODE_HINT_SEEN) === '1') return;
-  } catch {
-    return;
-  }
-  if (browseFirstRunHint.active) return;
-  browseFirstRunHint.active = true;
-  const dismiss = () => {
-    browseFirstRunHint.active = false;
-    try { localStorage.setItem(MODE_HINT_SEEN, '1'); } catch {}
-    document.removeEventListener('keydown', onV, true);
-  };
-  const onV = (e) => {
-    if ((e.key === 'v' || e.key === 'V') && !e.metaKey && !e.ctrlKey && !e.altKey) {
-      dismissNotice('mode-hint');
-      dismiss();
-    }
-  };
-  if (readOnly) document.addEventListener('keydown', onV, true);
-  notify({ id: 'mode-hint', title: readOnly ? 'Your mock is live' : 'You’re in Edit',
-    description: readOnly ? 'Click things to try it. Press V to select & inspect.'
-      : 'Click selects, like Figma. Switch to Preview in the toolbar to use the live mock.',
-    onDismiss: dismiss });
+// `extra` carries the pill's placement / icon / kind for events that are states of the app, not outcomes
+// (06 ad-open-all, 10 co-sync-back: the one-line pill at the top).
+export function shellToast(message, ok = false, action, extra) {
+  notify({ title: message, kind: ok ? 'success' : 'error', action, ...extra });
 }
 
 // Strip canvas extensions for display. `Canvas Viewport.tsx` → `Canvas Viewport`.
 // Sidecars (`.meta.json`, `.css`, `.registry.json`) keep their extensions so
 // the file type stays unambiguous.
+// A system's own canvas file is `design-system.tsx`; people see "Design system" (CONTRACT §7), never the slug.
+const DS_CANVAS_SLUG = 'design-system';
 export function displayName(name) {
-  return name.replace(CANVAS_EXT_RE, '');
+  const base = name.replace(CANVAS_EXT_RE, '');
+  return base === DS_CANVAS_SLUG ? 'Design system' : base;
 }
 
 // Primary base = name with the canvas extension stripped. `Canvas Viewport.tsx`
@@ -246,7 +231,9 @@ export function groupBySidecar(files) {
 export function buildTree(paths, stripPrefix, dirs) {
   const root = {};
   for (const d of dirs || []) {
-    const stripped = d.startsWith(stripPrefix) ? d.slice(stripPrefix.length).replace(/^\/+/, '') : d;
+    const stripped = d.startsWith(stripPrefix)
+      ? d.slice(stripPrefix.length).replace(/^\/+/, '')
+      : d;
     const parts = stripped.split('/').filter(Boolean);
     let node = root;
     for (const key of parts) node = node[key] = node[key] || {};

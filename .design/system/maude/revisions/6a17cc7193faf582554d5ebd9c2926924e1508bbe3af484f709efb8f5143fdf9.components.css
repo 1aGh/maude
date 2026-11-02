@@ -1,0 +1,327 @@
+/*
+ * maude — shared component anatomy · MAUDE/COMPONENTS · "Unified Pro Studio"
+ *
+ * ONE material across every chrome surface: panels, toolbars, inspectors, layer
+ * trees and controls share the same 1px hairlines (--border-default), the same
+ * radii (--radius-sm/md), the same elevation tokens. That shared material IS the
+ * signature — chrome that frames the canvas without competing with it. Dense.
+ *
+ * Specimens reference these classes instead of re-implementing the anatomy.
+ * The 8 MOTION ROLE CLASSES at the bottom ship verbatim (DDR-049, fixed vocab).
+ */
+
+/* ─── Buttons ───────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-body);
+  font-size: var(--type-sm);
+  font-weight: 500;
+  line-height: 1;
+  padding: var(--space-3) var(--space-4);     /* dense: 8/12 */
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-2);
+  color: var(--fg-0);
+  cursor: pointer;
+  transition: background var(--dur-soft) var(--ease-out),
+              border-color var(--dur-soft) var(--ease-out),
+              color var(--dur-soft) var(--ease-out);
+}
+.btn:hover { background: var(--bg-3); border-color: var(--border-strong); }
+.btn:active { background: var(--bg-4); }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.btn:disabled { color: var(--fg-3); cursor: not-allowed; background: var(--bg-1); }
+
+.btn--primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.btn--primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.btn--primary:active { background: var(--accent-active); }
+
+.btn--ghost { background: transparent; border-color: transparent; color: var(--fg-1); }
+.btn--ghost:hover { background: var(--bg-2); color: var(--fg-0); }
+
+.btn--danger { background: transparent; border-color: var(--border-default); color: var(--status-error); }
+.btn--danger:hover { background: color-mix(in oklab, var(--status-error) 14%, transparent); border-color: var(--status-error); }
+
+.btn--icon { padding: var(--space-3); width: 28px; height: 28px; justify-content: center; }
+.btn--sm { font-size: var(--type-xs); padding: var(--space-2) var(--space-3); }
+
+/* ─── Keyboard hint ─────────────────────────────────────────────────────── */
+.kbd {
+  font-family: var(--font-mono);
+  font-size: var(--type-xs);
+  line-height: 1;
+  padding: 3px 6px;
+  border: 1px solid var(--border-default);
+  border-bottom-width: 2px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-2);
+  color: var(--fg-1);
+}
+
+/* ─── Inputs ────────────────────────────────────────────────────────────── */
+.input, .select, .textarea {
+  font-family: var(--font-body);
+  font-size: var(--type-sm);
+  color: var(--fg-0);
+  background: var(--bg-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3) var(--space-4);
+  width: 100%;
+  transition: border-color var(--dur-soft) var(--ease-out), box-shadow var(--dur-soft) var(--ease-out);
+}
+.input::placeholder, .textarea::placeholder { color: var(--fg-3); }
+.input:focus, .select:focus, .textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-tint);
+}
+.textarea { resize: vertical; min-height: 76px; }
+
+/* Numeric / coordinate field — tabular mono, the inspector's native unit. */
+.field {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--type-xs);
+  color: var(--fg-0);
+  background: var(--bg-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xs);
+  padding: var(--space-2) var(--space-3);
+  width: 64px;
+  text-align: right;
+}
+.field:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-tint); }
+
+/* ─── Segmented control ─────────────────────────────────────────────────── */
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--bg-2);
+}
+.seg button {
+  appearance: none; border: 0; background: transparent;
+  color: var(--fg-2); font-size: var(--type-xs); font-family: var(--font-mono);
+  padding: var(--space-2) var(--space-4); cursor: pointer;
+}
+.seg button[aria-pressed="true"], .seg button[aria-selected="true"] {
+  background: var(--bg-4); color: var(--fg-0);
+}
+.seg button + button { border-left: 1px solid var(--border-subtle); }
+
+/* ─── Switch ────────────────────────────────────────────────────────────── */
+.switch {
+  appearance: none; position: relative; width: 34px; height: 18px;
+  border-radius: var(--radius-pill); background: var(--bg-4);
+  border: 1px solid var(--border-default); cursor: pointer;
+  transition: background var(--dur-flip) var(--ease-out);
+}
+.switch::after {
+  content: ""; position: absolute; top: 1px; left: 1px; width: 14px; height: 14px;
+  border-radius: var(--radius-pill); background: var(--fg-1);
+  transition: transform var(--dur-flip) var(--ease-out), background var(--dur-flip) var(--ease-out);
+}
+.switch:checked { background: var(--accent); border-color: var(--accent); }
+.switch:checked::after { transform: translateX(16px); background: var(--accent-fg); }
+.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ─── Chips / tags / badges ─────────────────────────────────────────────── */
+.chip, .tag {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  font-size: var(--type-xs); font-family: var(--font-mono);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--border-default); border-radius: var(--radius-pill);
+  color: var(--fg-1); background: var(--bg-2);
+}
+.tag--accent { color: var(--accent); border-color: var(--accent-muted); background: var(--accent-tint); }
+
+/* ─── The unified panel material — the signature ────────────────────────── */
+.panel {
+  background: var(--bg-1);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+.panel-hd {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
+  font-family: var(--font-mono); font-size: var(--type-xs);
+  letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--fg-2);
+}
+.panel-bd { padding: var(--space-4); }
+
+/* Toolbar — same material, horizontal. */
+.toolbar {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-1); border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+}
+.toolbar-group { display: flex; align-items: center; gap: var(--space-1); }
+.toolbar-sep { width: 1px; align-self: stretch; background: var(--border-subtle); margin: 0 var(--space-2); }
+
+/* Inspector rows — label + tabular field grid. */
+.insp-row { display: grid; grid-template-columns: 64px 1fr; align-items: center; gap: var(--space-3); padding: var(--space-2) 0; }
+.insp-label { font-family: var(--font-mono); font-size: var(--type-xs); color: var(--fg-2); text-transform: uppercase; letter-spacing: var(--tracking-wide); }
+.insp-fields { display: flex; gap: var(--space-2); }
+
+/* Layer tree rows. */
+.tree-row {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-2) var(--space-3); border-radius: var(--radius-xs);
+  font-size: var(--type-sm); color: var(--fg-1); cursor: default;
+}
+.tree-row:hover { background: var(--bg-2); }
+.tree-row[aria-selected="true"] { background: var(--accent-tint); color: var(--fg-0); box-shadow: inset 2px 0 0 var(--accent); }
+
+/* ─── Tabs ──────────────────────────────────────────────────────────────── */
+.tabbar { display: flex; gap: var(--space-1); border-bottom: 1px solid var(--border-subtle); }
+.tab {
+  appearance: none; border: 0; background: transparent;
+  font-size: var(--type-sm); color: var(--fg-2); font-family: var(--font-body);
+  padding: var(--space-3) var(--space-4); cursor: pointer; border-bottom: 2px solid transparent;
+}
+.tab[aria-selected="true"] { color: var(--fg-0); border-bottom-color: var(--accent); }
+
+/* ─── Callout ───────────────────────────────────────────────────────────── */
+.callout {
+  display: flex; gap: var(--space-3); padding: var(--space-4);
+  border: 1px solid var(--border-default); border-left-width: 3px;
+  border-radius: var(--radius-sm); background: var(--bg-1); color: var(--fg-1);
+}
+.callout--info    { border-left-color: var(--status-info); }
+.callout--success { border-left-color: var(--status-success); }
+.callout--warn    { border-left-color: var(--status-warn); }
+.callout--error   { border-left-color: var(--status-error); }
+
+/* ─── Presence ──────────────────────────────────────────────────────────── */
+.presence-dot { width: 8px; height: 8px; border-radius: var(--radius-pill); display: inline-block; }
+.presence-dot--online  { background: var(--presence-online); }
+.presence-dot--away    { background: var(--presence-away); }
+.presence-dot--offline { background: var(--presence-offline); }
+.presence-dot--agent   { background: var(--presence-agent); box-shadow: 0 0 0 3px color-mix(in oklab, var(--presence-agent) 28%, transparent); }
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * Motion role classes — CSS-only mirror of canvas-lib <MotionDemo role> (DDR-049).
+ * Fixed 8-role vocabulary; each loops on first paint (matching loop="always").
+ * Reduced-motion handled by the --dur-* token collapse + the killswitch below.
+ * ───────────────────────────────────────────────────────────────────────── */
+@keyframes motion-flip-kf { 0% { transform: translateY(0); } 100% { transform: translateY(-12px); } }
+.motion-flip { animation: motion-flip-kf var(--dur-flip) var(--ease-out) infinite alternate; overflow: hidden; }
+
+@keyframes motion-panel-kf { 0% { transform: translateX(-80px); } 100% { transform: translateX(0); } }
+.motion-panel { animation: motion-panel-kf var(--dur-panel) var(--ease-in-out) infinite alternate; overflow: hidden; }
+
+@keyframes motion-route-kf { 0% { opacity: 0; transform: scale(0.92); } 100% { opacity: 1; transform: scale(1); } }
+.motion-route { animation: motion-route-kf var(--dur-route) var(--ease-out) infinite alternate; overflow: hidden; }
+
+@keyframes motion-soft-kf { 0% { opacity: 0; } 100% { opacity: 1; } }
+.motion-soft { animation: motion-soft-kf var(--dur-soft) var(--ease-out) infinite alternate; }
+
+@keyframes motion-spring-kf { 0% { transform: translateY(0); } 60% { transform: translateY(-20px); } 78% { transform: translateY(-12px); } 90% { transform: translateY(-16px); } 100% { transform: translateY(-14px); } }
+.motion-spring { animation: motion-spring-kf var(--dur-panel) cubic-bezier(0.34, 1.56, 0.64, 1) infinite alternate; overflow: hidden; }
+
+@keyframes motion-scroll-kf { 0% { transform: translateX(0); } 100% { transform: translateX(24px); } }
+.motion-scroll { animation: motion-scroll-kf var(--dur-route) var(--ease-in-out) infinite alternate; overflow: hidden; }
+
+@keyframes motion-drag-kf { 0% { transform: rotate(0); } 50% { transform: rotate(4deg); } 100% { transform: rotate(0); } }
+.motion-drag { animation: motion-drag-kf var(--dur-flip) var(--ease-out) infinite alternate; overflow: hidden; }
+
+@keyframes motion-presence-kf { 0% { opacity: 0; transform: scale(0.9); } 100% { opacity: 1; transform: scale(1); } }
+.motion-presence { animation: motion-presence-kf var(--dur-soft) var(--ease-out) infinite alternate; overflow: hidden; max-width: 56px; max-height: 56px; }
+
+:root[data-reduced-motion="true"] [class*="motion-"] { animation: none !important; }
+
+/* ─── Schema v1 class contract (V2-2.15 bring-up) ─────────────────────────────
+ * The core components this system had only as specimen classes, lifted verbatim from those
+ * specimens (source in each comment) under the schema's class names. Scoped to `.ds` (the
+ * <DSRoot> wrapper), so a canvas that names a local class `.dialog` or `.tooltip` under the
+ * `.maude` wrapper renders exactly as before. components.json maps every core component;
+ * a component this system has no rule for is a declared gap there (null), never invented. */
+
+/* Checkbox ← components-toggles.css .check */
+:where(.ds) .checkbox {
+  appearance: none;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xs);
+  background: var(--bg-3);
+  cursor: pointer;
+  position: relative;
+  transition: background var(--dur-flip) var(--ease-out), border-color var(--dur-flip) var(--ease-out);
+}
+:where(.ds) .checkbox:checked,
+:where(.ds) .checkbox:indeterminate {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+:where(.ds) .checkbox:checked::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 1px;
+  width: 4px;
+  height: 8px;
+  border: solid var(--accent-fg);
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(42deg);
+}
+:where(.ds) .checkbox:indeterminate::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 7px;
+  width: 8px;
+  height: 1.5px;
+  background: var(--accent-fg);
+}
+:where(.ds) .checkbox:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+:where(.ds) .checkbox:disabled { cursor: not-allowed; }
+
+/* Dialog ← components-dialogs.css .dlg (a .panel with elevation) */
+:where(.ds) .dialog {
+  position: relative;
+  box-shadow: var(--shadow-lg);
+  z-index: 1;
+}
+
+/* Tooltip ← components-tooltips.css .tt-tip */
+:where(.ds) .tooltip {
+  position: absolute;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  white-space: nowrap;
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-2);
+  color: var(--fg-0);
+  font-size: var(--type-xs);
+  line-height: 1;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  pointer-events: none;
+}
+
+/* Type roles (<Text role>) — token compositions from the schema registry; no new value. */
+:where(.ds) .t-title { font-family: var(--font-display); font-size: var(--type-2xl); line-height: var(--lh-2xl); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-tight); }
+:where(.ds) .t-heading { font-family: var(--font-display); font-size: var(--type-xl); line-height: var(--lh-xl); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-tight); }
+:where(.ds) .t-subheading { font-family: var(--font-body); font-size: var(--type-lg); line-height: var(--lh-lg); font-weight: var(--weight-medium); letter-spacing: var(--tracking-normal); }
+:where(.ds) .t-body { font-family: var(--font-body); font-size: var(--type-base); line-height: var(--lh-base); font-weight: var(--weight-regular); letter-spacing: var(--tracking-normal); }
+:where(.ds) .t-body-sm { font-family: var(--font-body); font-size: var(--type-sm); line-height: var(--lh-sm); font-weight: var(--weight-regular); letter-spacing: var(--tracking-normal); }
+:where(.ds) .t-caption { font-family: var(--font-body); font-size: var(--type-xs); line-height: var(--lh-xs); font-weight: var(--weight-regular); letter-spacing: var(--tracking-normal); }
+:where(.ds) .t-label { font-family: var(--font-body); font-size: var(--type-sm); line-height: var(--lh-sm); font-weight: var(--weight-medium); letter-spacing: var(--tracking-normal); }
+:where(.ds) .t-eyebrow { font-family: var(--font-mono); font-size: var(--type-xs); line-height: var(--lh-xs); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-wide); }
+:where(.ds) .t-code { font-family: var(--font-mono); font-size: var(--type-sm); line-height: var(--lh-sm); font-weight: var(--weight-regular); letter-spacing: 0; }
+:where(.ds) .t-num { font-variant-numeric: tabular-nums; }

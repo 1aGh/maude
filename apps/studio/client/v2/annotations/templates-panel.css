@@ -1,0 +1,344 @@
+/* client/v2/annotations/templates-panel.css — S4.4: the Templates panel (canvas 15 `.an-tpl*`).
+ *
+ * Rides on the `.sh-scrim` / `.sh-dialog.sh-sticker-picker` shell the Stickers gallery uses (an open
+ * modal dialog is what the mode lane's M4 check reads; tool-panels.css pins it to the toolbar) and only
+ * restyles what is inside: a 640 px panel, a 4-up tile grid with drawn thumbnails, and the Ask field.
+ * Tokens only; weights stop at 600. */
+
+@layer shell {
+  /* Pinned to the toolbar the scrim lets the pointer through to the canvas ("or drag on the canvas for a blank
+     one"); the panel itself still takes it. The component closes the panel on a press outside / focus leaving. */
+  .sh-scrim.tp-scrim {
+    pointer-events: none;
+  }
+  .sh-scrim.tp-scrim > .sh-sticker-picker.tp {
+    pointer-events: auto;
+  }
+  .sh-sticker-picker.tp {
+    width: 640px;
+    max-width: calc(100vw - 2 * var(--space-2));
+    border-radius: var(--radius-xl);
+    font-family: var(--font-body, system-ui, sans-serif);
+  }
+  .tp .sh-dialog-hd {
+    gap: var(--space-2);
+  }
+  .tp .sh-dialog-title {
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+  }
+  .tp-hint {
+    margin-right: auto;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .tp .sh-dialog-bd {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .tp-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-2);
+  }
+  .tp-tile {
+    appearance: none;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    padding: var(--space-2);
+    border: 0;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--fg-0);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .tp-tile[data-on] {
+    background: var(--accent-muted);
+    box-shadow: inset 0 0 0 1.5px var(--accent);
+  }
+  .tp-tile:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .tp-tile strong {
+    margin-top: var(--space-1);
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+  }
+  .tp-tile em {
+    font-style: normal;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* thumbnails — six absolutely placed marks per tile, drawn per kind */
+  .tp-th {
+    position: relative;
+    display: block;
+    height: 64px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+    overflow: hidden;
+  }
+  .tp-th i {
+    position: absolute;
+    display: block;
+    border-radius: 2px;
+  }
+  .tp-th--kanban i:nth-child(-n + 3) {
+    top: 8px;
+    bottom: 8px;
+    width: 26%;
+    background: color-mix(in oklch, var(--object-grey) 70%, var(--bg-2));
+  }
+  .tp-th--kanban i:nth-child(1) {
+    left: 6%;
+  }
+  .tp-th--kanban i:nth-child(2) {
+    left: 37%;
+  }
+  .tp-th--kanban i:nth-child(3) {
+    left: 68%;
+  }
+  .tp-th--kanban i:nth-child(n + 4) {
+    top: 14px;
+    width: 18%;
+    height: 12px;
+  }
+  .tp-th--kanban i:nth-child(4) {
+    left: 10%;
+    background: var(--object-yellow);
+  }
+  .tp-th--kanban i:nth-child(5) {
+    left: 41%;
+    background: var(--object-sky);
+  }
+  .tp-th--kanban i:nth-child(6) {
+    left: 72%;
+    background: var(--object-green);
+  }
+  .tp-th--retro i:nth-child(-n + 3) {
+    top: 8px;
+    bottom: 8px;
+    width: 26%;
+  }
+  .tp-th--retro i:nth-child(1) {
+    left: 6%;
+    background: color-mix(in oklch, var(--object-green) 45%, var(--bg-2));
+  }
+  .tp-th--retro i:nth-child(2) {
+    left: 37%;
+    background: color-mix(in oklch, var(--object-yellow) 45%, var(--bg-2));
+  }
+  .tp-th--retro i:nth-child(3) {
+    left: 68%;
+    background: color-mix(in oklch, var(--object-sky) 45%, var(--bg-2));
+  }
+  .tp-th--flow i:nth-child(1) {
+    left: 8%;
+    top: 24px;
+    width: 18%;
+    height: 16px;
+    background: var(--fg-2);
+  }
+  .tp-th--flow i:nth-child(2) {
+    left: 41%;
+    top: 18px;
+    width: 18%;
+    height: 28px;
+    rotate: 45deg;
+    scale: 0.7;
+    background: var(--object-yellow);
+  }
+  .tp-th--flow i:nth-child(3) {
+    left: 74%;
+    top: 24px;
+    width: 18%;
+    height: 16px;
+    background: var(--fg-2);
+  }
+  .tp-th--flow i:nth-child(4) {
+    left: 26%;
+    top: 31px;
+    width: 15%;
+    height: 2px;
+    background: var(--fg-1);
+  }
+  .tp-th--flow i:nth-child(5) {
+    left: 59%;
+    top: 31px;
+    width: 15%;
+    height: 2px;
+    background: var(--fg-1);
+  }
+  .tp-th--cal i {
+    top: 8px;
+    bottom: 8px;
+    width: 12%;
+    background: color-mix(in oklch, var(--object-grey) 70%, var(--bg-2));
+  }
+  .tp-th--cal i:nth-child(1) {
+    left: 4%;
+  }
+  .tp-th--cal i:nth-child(2) {
+    left: 20%;
+  }
+  .tp-th--cal i:nth-child(3) {
+    left: 36%;
+  }
+  .tp-th--cal i:nth-child(4) {
+    left: 52%;
+  }
+  .tp-th--cal i:nth-child(5) {
+    left: 68%;
+  }
+  .tp-th--cal i:nth-child(6) {
+    left: 84%;
+    background: var(--object-sky);
+  }
+  .tp-th--road i {
+    height: 10px;
+    border-radius: var(--radius-pill);
+  }
+  .tp-th--road i:nth-child(1) {
+    left: 6%;
+    top: 12px;
+    width: 40%;
+    background: var(--object-lilac);
+  }
+  .tp-th--road i:nth-child(2) {
+    left: 30%;
+    top: 28px;
+    width: 46%;
+    background: var(--object-green);
+  }
+  .tp-th--road i:nth-child(3) {
+    left: 54%;
+    top: 44px;
+    width: 38%;
+    background: var(--object-coral);
+  }
+  .tp-th--road i:nth-child(n + 4) {
+    display: none;
+  }
+  .tp-th--brain i:nth-child(1) {
+    left: 40%;
+    top: 22px;
+    width: 20%;
+    height: 20px;
+    border-radius: var(--radius-pill);
+    background: var(--fg-2);
+  }
+  .tp-th--brain i:nth-child(n + 2) {
+    width: 14%;
+    height: 12px;
+    background: var(--object-yellow);
+  }
+  .tp-th--brain i:nth-child(2) {
+    left: 12%;
+    top: 8px;
+  }
+  .tp-th--brain i:nth-child(3) {
+    left: 74%;
+    top: 8px;
+  }
+  .tp-th--brain i:nth-child(4) {
+    left: 10%;
+    top: 44px;
+  }
+  .tp-th--brain i:nth-child(5) {
+    left: 76%;
+    top: 44px;
+  }
+  .tp-th--brain i:nth-child(6) {
+    left: 43%;
+    top: 50px;
+  }
+  .tp-th--check i {
+    left: 12%;
+    width: 76%;
+    height: 8px;
+    background: color-mix(in oklch, var(--object-grey) 80%, var(--bg-2));
+  }
+  .tp-th--check i:nth-child(1) {
+    top: 10px;
+  }
+  .tp-th--check i:nth-child(2) {
+    top: 24px;
+  }
+  .tp-th--check i:nth-child(3) {
+    top: 38px;
+  }
+  .tp-th--check i:nth-child(4) {
+    top: 52px;
+    width: 50%;
+  }
+  .tp-th--check i:nth-child(n + 5) {
+    display: none;
+  }
+  .tp-th--blank {
+    box-shadow: inset 0 0 0 1.5px var(--border-strong);
+    background: transparent;
+  }
+  .tp-th--blank i {
+    display: none;
+  }
+
+  /* the Ask field: describe it, AI builds it */
+  .tp-ask {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 40px;
+    padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+    border: 1px solid var(--border-default);
+  }
+  .tp-ask:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-tint);
+  }
+  .tp-ask-in {
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--fg-0);
+    font: inherit;
+    font-size: var(--type-sm);
+    outline: none;
+  }
+  .tp-ask-in::placeholder {
+    color: var(--fg-2);
+  }
+  .tp-send {
+    appearance: none;
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--spark);
+    color: var(--spark-fg);
+    cursor: pointer;
+  }
+  .tp-send:disabled {
+    background: var(--bg-2);
+    color: var(--fg-2);
+    cursor: default;
+  }
+}

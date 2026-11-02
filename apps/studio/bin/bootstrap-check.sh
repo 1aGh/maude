@@ -27,7 +27,8 @@ case "$1" in
     ;;
 esac
 
-REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+# V2-8.9 r2 C2 — the pinned project first (the dispatcher sets it in an AI session), like the other helpers
+REPO_ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 CFG="$REPO_ROOT/.design/config.json"
 
 CONFIG_PRESENT="false"

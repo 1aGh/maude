@@ -45,6 +45,9 @@ rmSync(join(homedir(), 'Library', 'Application Support', 'com.maude.app.e2e', 'p
 });
 
 process.env.MAUDE_E2E_FORCE_CLAUDE_STATUS = 'missing';
+// wdio.conf.ts names the lane's stub in MAUDE_CLAUDE_BIN, and an explicit override out-ranks the forced-missing
+// status (acp/probe.ts) — this lane starts with NO claude, so it empties it; the install flow sets it again.
+process.env.MAUDE_CLAUDE_BIN = '';
 process.env.MAUDE_E2E_FAKE_CLAUDE_INSTALL = '1';
 const installDir = mkdtempSync(join(tmpdir(), 'maude-e2e-claude-install-'));
 process.env.MAUDE_E2E_CLAUDE_INSTALL_PATH = join(installDir, 'claude');

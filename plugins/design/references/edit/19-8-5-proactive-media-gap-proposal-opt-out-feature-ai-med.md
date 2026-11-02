@@ -8,7 +8,7 @@ did NOT just run an explicit generate (4.7 already handled that). This is the
 
 1. **Spawn the read-only director** (it proposes, never edits or generates):
    ```
-   Task tool → subagent_type: "design:media-generation-director"
+   Agent → subagent_type: "design:media-generation-director"
    prompt: "ROOT=<repo>  PORT=<port>  SURFACE=canvas  BRIEF=\"<canvas brief / meta subtitle>\"
             TARGET=<artboard set + declared aspects>.  Canvas: <ACTIVE path>.  Emit the generation plan JSON."
    ```

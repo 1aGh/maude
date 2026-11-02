@@ -1,0 +1,9 @@
+head b1020a18e 15:09:40
+build rc=1 (updater signing fails locally: expected)
+app built Oct 29 15:10:21 2026
+1.9.1
+bundle-completeness --smoke rc=0
+client-boots rc=0
+wdio strings in release binary: 1
+dist dirty after:        0
+done 15:11:09

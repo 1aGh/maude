@@ -1,0 +1,17 @@
+await prev();
+await sleep(2500);
+const out = {};
+await frame().evaluate(() => { document.querySelector('[data-testid="vote-add-pricing"]').click(); });
+await sleep(800);
+await frame().evaluate(() => { document.querySelector('[data-testid="vote-add-pricing"]').click(); });
+await sleep(1500);
+out.bar = await page.evaluate(() => document.querySelector('[data-testid="vote-bar"]')?.innerText);
+await shot('v10-dots');
+await frame().evaluate(() => { const b = document.querySelector('[data-testid="vote-dots-home"]'); });
+await page.evaluate(() => document.querySelector('[data-testid="vote-bar-end"]').click());
+await sleep(3500);
+out.barAfter = await page.evaluate(() => document.querySelector('[data-testid="vote-bar"]')?.innerText ?? null);
+out.board = (board().elements || []).map(e => e.type + ':' + (e.title || e.text || '') + (e.type === 'vote' ? ':' + JSON.stringify(Object.keys(e)) : '') );
+out.section = (board().elements || []).filter(e => e.type === 'section').map(e => JSON.stringify(e).slice(0, 700));
+await shot('v10-ended');
+return out;

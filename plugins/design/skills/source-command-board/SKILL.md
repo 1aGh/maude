@@ -1,6 +1,6 @@
 ---
 name: source-command-board
-description: "Read a whiteboard or create a structured board template with element-aware annotations."
+description: "Read the annotations on a canvas, or lay out a structured template of sticky notes (retro, kanban, roadmap) on it."
 user-invocable: false
 ---
 

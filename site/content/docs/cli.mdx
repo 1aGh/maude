@@ -99,7 +99,7 @@ maude design serve [--port N] [--root <path>]
 
 `maude studio` is a top-level alias for `maude design serve` — the verb matches the studio's home under `apps/studio/`. Both are equivalent, and both also match invoking `claude-design-server` directly (the second bin shipped by `@1agh/maude`). All remaining args are forwarded to the server.
 
-- `--port`. Listen on a specific port (default `4399`; falls back to a random free port if taken).
+- `--port`. Listen on a specific port (also `$PORT`). Without it the server takes `4399`, walks up to `4408` when that is busy, and stops with a message naming the range when all ten are taken. An explicit port is never walked: if it is taken, the server stops with an error.
 - `--root`. Serve a different repo. By default uses `$CLAUDE_PROJECT_DIR`, then `process.cwd()`.
 
 The server **fails loud** if launched from a directory without a `.design/` folder. That's deliberate. It stops you from accidentally serving the wrong project.
@@ -136,7 +136,7 @@ For everything beyond a Core scaffold (audience-specific specimens, platform-con
 
 ## `maude design export`
 
-Drive the same export endpoint the dev-server UI uses (⌘E). Requires a running server — the port is auto-detected from `.design/_server.json`.
+Drive the same export endpoint the dev-server UI uses (the Export sheet, ⇧⌘E). Requires a running server — the port is auto-detected from `.design/_server.json`.
 
 ```bash
 maude design export <png|pdf|svg|html|pptx|canva|zip> \
@@ -158,6 +158,8 @@ maude design status [--json]
 ```
 
 The `linkedHub` pointer lands in committed `.design/config.json`; the token is stored per-machine in `~/.config/maude/hubs.json` (mode 0600, never committed). The first link to a non-loopback hub asks for confirmation — a linked hub gets write access to your `.design/`. See [Linking peers](/docs/hub/linking).
+
+In Maude Desktop, a project tab's AI session inherits that tab's account-profile environment (`HUBS_CONFIG_PATH`, `MAUDE_CLOUD_CONFIG`), so a `maude design link` run from that chat stores its token in the tab's profile, not in your default `~/.config/maude/hubs.json`.
 
 ## `maude hub`
 

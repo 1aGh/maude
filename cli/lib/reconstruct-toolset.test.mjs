@@ -148,9 +148,9 @@ test('import.md stat calls are portable (GNU-first, BSD-fallback), not BSD-only 
   );
 });
 
-test('import.md non-git fallback excludes _history/ (DDR-174 Addendum confirmation pass)', () => {
-  // The reconstruct loop writes its own screenshots/verdict files under
-  // _history/_reconstruct/<slug>/ every round. A git-repo target gets this
+test('import.md non-git fallback excludes _runs/ (DDR-174 Addendum confirmation pass)', () => {
+  // The reconstruct loop writes its own hand-offs, screenshots and verdict files under
+  // the run folder (.design/_runs/<session>/) every round (S12.11; was _history/_reconstruct). A git-repo target gets this
   // excluded for free via .gitignore; the non-git `find`-based fallback has
   // no such filter and would false-positive-abort on its own round-1 output
   // the moment round 2's diff check runs, in a non-git target repo.
@@ -162,19 +162,29 @@ test('import.md non-git fallback excludes _history/ (DDR-174 Addendum confirmati
   );
   for (const line of findOccurrences) {
     assert.ok(
-      line.includes("-not -path '*/_history/*'"),
-      `non-git fallback find command must exclude _history/ (its own round-N artifacts) or every multi-round run in a non-git target repo false-positive-aborts: ${line}`
+      line.includes("-not -path '*/_runs/*'"),
+      `non-git fallback find command must exclude _runs/ (its own round-N artifacts) or every multi-round run in a non-git target repo false-positive-aborts: ${line}`
     );
   }
 });
 
-test('import.md uses mktemp for the _active.json patch, not a fixed /tmp filename (DDR-174 Addendum)', () => {
+test('import.md uses no fixed /tmp filename and never rewrites _active.json (DDR-174 Addendum, S12.11)', () => {
+  // The Addendum's finding was a predictable /tmp name for the jq patch of _active.json (a symlink
+  // race on a shared machine). S12.11 removed the patch itself: the screenshot names its canvas with
+  // --canvas, and every round file lives in the per-session run folder.
   const importMd = readFileSync('plugins/design/commands/import.md', 'utf8');
   assert.ok(
     !/\/tmp\/active\.json\.tmp/.test(importMd),
-    'import.md must not use a fixed, predictable /tmp filename for the _active.json patch — a symlink race target on a shared machine (DDR-174 Addendum adversarial finding)'
+    'import.md must not use a fixed, predictable /tmp filename — a symlink race target on a shared machine (DDR-174 Addendum adversarial finding)'
   );
-  assert.ok(/mktemp/.test(importMd), 'import.md must use mktemp for its temp file(s)');
+  assert.ok(
+    !/jq [^\n]*\.active\s*=/.test(importMd),
+    'import.md must not rewrite the studio-owned _active.json'
+  );
+  assert.ok(
+    /maude design screenshot --canvas "\$CANVAS_REL"/.test(importMd),
+    'the reality-check screenshot names its canvas with --canvas'
+  );
 });
 
 test('design-critic.md is never repurposed as the reconstruct comparator (DDR-174 Decision 1 Round-2)', () => {

@@ -1,0 +1,373 @@
+/* client/v2/code/code.css — S11.7: the code view (06 `ad-code`) and the broken-canvas card (06 `ad-edge-syntax`,
+   01 `cf-render-error`). Tokens only; weights stop at 600; motion is `--dur-*` and collapses to a cut under
+   reduced motion.
+
+   MONO LIVES ONLY INSIDE: the path, the code lines, the commands, the error text and its excerpt. The
+   words around them (title, chip, buttons, notes) are the app's own type — test/v2-code-view.test.tsx reads
+   this file and fails if any other rule sets a mono family. */
+@layer shell {
+  /* ─── The code view ─────────────────────────────────────────────────────────────────────── */
+  .v2-code {
+    position: absolute;
+    /* below the Share cluster (the right dock starts here too), above the docks and grips (z 20-25) */
+    top: calc(var(--float-gap, 16px) + var(--pill-h, 40px) + var(--pill-gap, 12px));
+    right: var(--space-4, 16px);
+    bottom: var(--space-4, 16px);
+    z-index: 26;
+    width: min(760px, calc(100% - 2 * var(--space-4, 16px)));
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--island-bg, var(--bg-1));
+    border-radius: var(--island-radius, 14px);
+    box-shadow:
+      var(--island-shadow, var(--shadow-md)),
+      inset 0 0 0 0.5px var(--island-edge, var(--border-default));
+    color: var(--fg-0);
+    outline: none;
+  }
+  .v2-code:focus-visible {
+    box-shadow:
+      var(--island-shadow, var(--shadow-md)),
+      0 0 0 2px var(--focus-ring, var(--accent));
+  }
+  .v2-code-hd {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+    box-shadow: inset 0 -0.5px 0 var(--border-default);
+    font-size: var(--type-sm);
+    min-width: 0;
+  }
+  .v2-code-hd > svg {
+    color: var(--fg-1);
+    flex: none;
+  }
+  .v2-code-name {
+    font-weight: var(--w-semibold, 600);
+    white-space: nowrap;
+  }
+  .v2-code-path {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .v2-code-ro {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    flex: none;
+    height: 20px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+  }
+  .v2-code-sp {
+    flex: 1;
+  }
+  .v2-code-hd .btn,
+  .v2-code-cmd .btn,
+  .v2-code-hd .icon-btn {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  .v2-code-hd .icon-btn,
+  .v2-code-cmd-copy {
+    display: inline-grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-1);
+    cursor: pointer;
+  }
+  .v2-code-hd .icon-btn:hover,
+  .v2-code-cmd-copy:hover {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+  .v2-code-hd .icon-btn:focus-visible,
+  .v2-code-cmd-copy:focus-visible,
+  .v2-code-body:focus-visible {
+    outline: 2px solid var(--focus-ring, var(--accent));
+    outline-offset: -2px;
+  }
+  .v2-code-note {
+    margin: 0;
+    padding: var(--space-1) var(--space-3);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+    box-shadow: inset 0 -0.5px 0 var(--border-default);
+  }
+  .v2-code-body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: var(--space-2) 0;
+    background: var(--bg-2);
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    line-height: 20px;
+  }
+  .v2-code-line {
+    display: flex;
+    white-space: pre;
+    color: var(--fg-0);
+  }
+  .v2-code-line.is-marked {
+    background: var(--accent-muted);
+    box-shadow: inset 2px 0 0 var(--accent);
+  }
+  .v2-code-n {
+    flex: none;
+    width: 52px;
+    padding-right: var(--space-3);
+    text-align: right;
+    color: var(--fg-2);
+    font-variant-numeric: tabular-nums;
+    user-select: none;
+  }
+  .v2-code-c {
+    min-width: 0;
+    user-select: text;
+  }
+  .v2-code-t-com {
+    color: var(--fg-2);
+  }
+  .v2-code-t-kw {
+    color: var(--accent-text, var(--accent));
+  }
+  .v2-code-t-str {
+    color: var(--status-success-text);
+  }
+  .v2-code-t-fn {
+    color: var(--status-info-text, var(--accent-text));
+  }
+  .v2-code-t-at {
+    color: var(--status-warn-text);
+  }
+  .v2-code-msg {
+    margin: 0;
+    padding: var(--space-4);
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+    line-height: var(--lh-sm, 1.5);
+    color: var(--fg-1);
+  }
+  .v2-code-foot {
+    flex: none;
+    padding: 0 var(--space-3) var(--space-2);
+  }
+  .v2-code-foot .v2-fold {
+    margin: var(--space-1) 0 0;
+  }
+  .v2-code-sub {
+    margin: var(--space-2) 0 var(--space-1);
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold, 600);
+    color: var(--fg-2);
+  }
+  .v2-code-cmd {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-width: 0;
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+  }
+  .v2-code-cmd-t {
+    flex: 1;
+    min-width: 0;
+    overflow-x: auto;
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+  }
+
+  /* ─── The broken-canvas card ────────────────────────────────────────────────────────────── */
+  .v2-err {
+    width: 460px; /* 01 cf-render-error: 460, radius-xl */
+    max-width: calc(100% - var(--space-8, 32px));
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-4);
+    border-radius: var(--radius-xl);
+    background: var(--bg-2);
+    box-shadow:
+      var(--shadow-lg),
+      inset 0 0 0 0.5px var(--island-edge, var(--border-default));
+    color: var(--fg-0);
+    position: relative; /* above the last-good ghosts */
+    z-index: 1;
+  }
+  /* 06 ad-edge-syntax: the last-good boards, dimmed behind the card (`.ad-ghost`) */
+  .v2-err-ghosts {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+  .v2-err-ghost {
+    fill: var(--bg-1);
+    stroke: var(--border-strong);
+    stroke-width: 1.5px;
+    stroke-dasharray: 5 4;
+    opacity: 0.6;
+  }
+  .v2-err-hd {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+  /* the 36 px icon tile of the kit's situation block (bg-3, error text) */
+  .v2-err-ic {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    flex: none;
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+    color: var(--status-error-text);
+  }
+  .v2-err-t {
+    margin: 0;
+    font-size: var(--type-md);
+    line-height: var(--lh-md, 1.35);
+    font-weight: var(--w-semibold, 600);
+  }
+  .v2-err-d {
+    margin: 0;
+    padding-left: 48px;
+    font-size: var(--type-sm);
+    line-height: var(--lh-sm, 1.5);
+    color: var(--fg-1);
+  }
+  .v2-err-lg {
+    margin: 0;
+    padding-left: 48px;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .v2-err-acts {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--space-2);
+  }
+  .v2-err-acts--row {
+    justify-content: flex-start;
+    margin-top: var(--space-1);
+  }
+  .v2-err .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  /* Ask AI is an AI action: vermilion fill with dark ink (rule: the spark is the AI's colour). */
+  .v2-err .btn--spark {
+    background: var(--spark, var(--accent));
+    color: var(--spark-fg, var(--accent-fg));
+    border-color: transparent;
+  }
+  .v2-err .btn--spark:hover {
+    background: var(--spark-hover, var(--accent-hover));
+  }
+  .v2-err .v2-fold {
+    margin: var(--space-1) 0 0;
+  }
+  .v2-err .v2-fold-body {
+    max-height: none;
+    gap: var(--space-2);
+  }
+  /* the kit ARow (06 .ad-row): key fg-1 sm and flexible, value fg-0 mono xs on the right, Copy an icon button */
+  .v2-err-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+    min-height: 28px;
+  }
+  .v2-err-k {
+    flex: 1;
+    min-width: 0;
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
+  .v2-err-v {
+    max-width: 64%;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    text-align: right;
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    line-height: var(--lh-sm, 1.5);
+    color: var(--fg-0);
+  }
+  .v2-err-none {
+    margin: 0;
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+  }
+  .v2-err-snip {
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-1) 0;
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+    overflow-x: auto;
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    line-height: 18px;
+    color: var(--fg-1);
+  }
+  .v2-err-snip-row {
+    display: flex;
+    white-space: pre;
+  }
+  .v2-err-snip-row.is-bad {
+    color: var(--fg-0);
+    background: var(--bg-4);
+    box-shadow: inset 2px 0 0 var(--status-error);
+  }
+  .v2-err-snip-row.is-caret {
+    color: var(--status-error-text);
+  }
+  .v2-err-snip-n {
+    flex: none;
+    width: 40px;
+    padding-right: var(--space-2);
+    text-align: right;
+    color: var(--fg-2);
+    font-variant-numeric: tabular-nums;
+    user-select: none;
+  }
+
+  /* The viewport slot the card sits in (client/shell/viewport.jsx keeps `.sh-canvas-error` and its testid). */
+  .sh-canvas-error--v2 {
+    overflow: auto;
+    padding: var(--space-4);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .v2-err {
+      animation: sh-pop var(--dur-panel) var(--ease-out);
+    }
+  }
+}

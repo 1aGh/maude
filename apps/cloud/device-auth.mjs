@@ -10,14 +10,16 @@
 //   app polls            →  POST /auth/device/token  → a personal token
 //
 // The personal token is the DEVICE's credential: stored hashed here, held in
-// the OS keychain there, revocable from /account — which is the visible
+// the OS keychain there, revocable from /account/macs (Your Macs) — which is the visible
 // revocation surface the offline project-token story has needed all along.
 // With it, a client calls GET /api/projects and POST /projects/open; the
 // project token it receives is then exchanged at the cell over a POST body.
 
-import { appShell } from './brand.mjs';
+import { handleAccountPages } from './account-pages.mjs';
+import { appShell, backToAppLink, isAppState, publicPage, publicResponse } from './brand.mjs';
 import { STATE_COPY } from './dashboard.mjs';
 import { audit } from './db.mjs';
+import { landingAfterSignIn, pendingInviteCookieFor, redeemPendingInvite } from './invites.mjs';
 
 const DEVICE_CODE_TTL_MS = 15 * 60 * 1000;
 const POLL_INTERVAL_S = 5;
@@ -76,19 +78,9 @@ function json(body, status = 200) {
   });
 }
 
-function html(body, status = 200) {
-  return new Response(body, {
-    status,
-    headers: {
-      'content-type': 'text/html; charset=utf-8',
-      'cache-control': 'no-store',
-      'x-content-type-options': 'nosniff',
-      'content-security-policy':
-        "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'",
-      'referrer-policy': 'no-referrer',
-    },
-  });
-}
+// The public page headers (brand.mjs) — the same CSP, plus `frame-ancestors`
+// and `base-uri`, which this module's own copy never had.
+const html = (body, status = 200, extraHeaders = {}) => publicResponse(body, status, extraHeaders);
 
 function redirect(to) {
   return new Response(null, { status: 303, headers: { location: to } });
@@ -110,11 +102,31 @@ const ACTIVATE_CSS = `
   }
 `;
 
-export function activatePage({ account, code = '', error = null, done = false, client = null }) {
+/**
+ * The app's return link (S6↔S9 §5.1 steps 6–7). `state` is the app's
+ * per-attempt nonce, accepted only as 32 lowercase hex — anything else is
+ * dropped and the page simply has no app links (invariant 2). The links are
+ * NUDGES: `done` makes the app poll now, `cancelled` puts its card back. No
+ * credential, e-mail or project name ever rides them (invariant 1).
+ */
+const appReturn = (kind, state) =>
+  isAppState(state) ? `maude://auth/${kind}?state=${state}` : null;
+
+export function activatePage({
+  account,
+  code = '',
+  error = null,
+  done = false,
+  client = null,
+  state = null,
+}) {
+  const s = isAppState(state) ? state : null;
+  const doneUrl = appReturn('done', s);
+  const DONE = "You're signed in — go back to Maude.";
   const body = done
-    ? `<div class="card"><h2>You're connected</h2>
-       <p class="quiet" style="margin:0">Go back to the app — it signs itself in within a few
-         seconds. You can close this tab.</p></div>`
+    ? `<div class="card">${s ? '' : `<h2>${DONE}</h2>`}
+       <p class="quiet">The app signs itself in within a few seconds. You can close this tab.</p>
+       ${doneUrl ? `<p style="margin:0"><a class="btn" href="${doneUrl}">Open Maude</a></p>` : ''}</div>`
     : `${error ? `<p class="error">${esc(error)}</p>` : ''}
        ${
          client
@@ -129,11 +141,25 @@ export function activatePage({ account, code = '', error = null, done = false, c
            <label for="code">${client ? 'Confirm the code the app is showing' : 'Enter the code the app is showing'}</label>
            <input class="code-input" type="text" id="code" name="code" value="${esc(code)}"
                   placeholder="XXXX-XXXX" autocomplete="one-time-code" required>
+           ${s ? `<input type="hidden" name="state" value="${s}">` : ''}
            <p style="margin-top:var(--space-4)"><button type="submit">Connect the app</button></p>
          </form>
          <p class="quiet" style="margin:0">Only enter a code you are looking at yourself, in an
            app you just started. Anyone with this code can act as you here.</p>
        </div>`;
+  if (s) {
+    // The app opened this page (S6↔S9 §5.1): it wears the public sign-in
+    // shell, the done page hands the browser back with one `meta refresh`
+    // (never a Location header — a `maude://` URL in a redirect is a URL a
+    // proxy logs), and every other state carries the quiet way back.
+    return publicPage({
+      title: done ? DONE : 'Connect the app',
+      sub: done ? null : 'A Maude app on this Mac is asking to use your account.',
+      css: ACTIVATE_CSS,
+      extraHead: done ? `<meta http-equiv="refresh" content="0;url=${doneUrl}">` : '',
+      body: `${body}${done ? '' : backToAppLink(s)}`,
+    });
+  }
   return appShell({
     account,
     title: 'Connect an app',
@@ -144,42 +170,12 @@ export function activatePage({ account, code = '', error = null, done = false, c
   });
 }
 
-export function accountPage({ account, tokens = [], notice = null }) {
-  const rows = tokens
-    .map(
-      (t) => `<tr>
-        <td>${esc(t.label || 'A Maude app')}</td>
-        <td class="quiet">added ${new Date(Number(t.created_at)).toISOString().slice(0, 10)}
-            ${t.last_used_at ? `· last used ${new Date(Number(t.last_used_at)).toISOString().slice(0, 10)}` : '· never used'}</td>
-        <td class="right"><form method="post" action="/account">
-          <input type="hidden" name="revoke" value="${esc(t.id)}">
-          <button type="submit" class="ghost">Disconnect</button>
-        </form></td>
-      </tr>`
-    )
-    .join('\n');
-  return appShell({
-    account,
-    title: 'Account',
-    active: 'account',
-    extraCss: `
-      table { width: 100%; border-collapse: collapse; background: var(--bg-1); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden; margin-bottom: var(--space-6); }
-      td { padding: var(--space-4) var(--space-5); border-top: 1px solid var(--border-subtle); font-size: var(--type-base); vertical-align: baseline; }
-      tr:first-child td { border-top: 0; }
-      td.right { text-align: right; white-space: nowrap; }
-    `,
-    lede: `Signed in as ${account.email}. Apps and devices connected to your account are listed here — disconnecting one signs it out the next time it checks in.`,
-    body: `${notice ? `<p class="ok">${esc(notice)}</p>` : ''}
-      ${tokens.length ? `<table><tbody>${rows}</tbody></table>` : '<p class="quiet">No apps are connected yet. The Maude desktop app connects itself when you sign in there.</p>'}`,
-  });
-}
-
 // -------------------------------------------------------------------- routes
 
 /**
  * Route the device-auth + client-API surfaces. Returns a Response or null.
  */
-export async function handleDeviceAuth(request, env, { account }) {
+export async function handleDeviceAuth(request, env, { account, ctx = null }) {
   const url = new URL(request.url);
   const { pathname } = url;
   const now = Date.now();
@@ -248,13 +244,40 @@ export async function handleDeviceAuth(request, env, { account }) {
       action: 'device.connected',
       detail: row.client_name,
     });
-    return json({ token: value, account: { email: who?.email ?? null } });
+    // "Which project first" for a fresh install (S6↔S9 §5.2): derived NOW
+    // from an invitation this address redeemed in the last half hour, and
+    // re-checked against the claim. Additive — a 1.x app reads token + email.
+    const landing = await landingAfterSignIn(env, {
+      accountId: row.approved_account,
+      email: who?.email ?? null,
+      now,
+    });
+    return json({
+      token: value,
+      account: { email: who?.email ?? null },
+      ...(landing ? { landing } : {}),
+    });
   }
 
   // ---- the human half (dashboard session required)
   if (pathname === '/activate') {
-    if (!account) return redirect(`/login?next=${encodeURIComponent(url.pathname + url.search)}`);
+    // The app's own additions (S6↔S9 §5.1 step 3): `state` (its per-attempt
+    // nonce) and `invite` (when it is handling an invitation). Anything that
+    // is not exactly the expected shape is dropped silently — the page works,
+    // it just has no app links and remembers no invitation.
+    const asked = url.searchParams.get('invite') ?? '';
+    const inviteCookie =
+      request.method === 'GET' && /^[0-9a-f-]{36}$/.test(asked)
+        ? await pendingInviteCookieFor(env, asked, { now })
+        : null;
+    if (!account) {
+      const to = `/login?next=${encodeURIComponent(url.pathname + url.search)}`;
+      return inviteCookie
+        ? new Response(null, { status: 303, headers: { location: to, 'set-cookie': inviteCookie } })
+        : redirect(to);
+    }
     if (request.method === 'GET') {
+      const state = url.searchParams.get('state');
       const prefilled = String(url.searchParams.get('code') ?? '')
         .trim()
         .toUpperCase();
@@ -277,13 +300,20 @@ export async function handleDeviceAuth(request, env, { account }) {
           };
         }
       }
-      return html(activatePage({ account, code: prefilled, client }));
+      return html(
+        activatePage({ account, code: prefilled, client, state }),
+        200,
+        inviteCookie ? { 'set-cookie': inviteCookie } : {}
+      );
     }
     if (request.method !== 'POST') return html('<p>Not allowed.</p>', 405);
     const form = await request.formData();
     const code = String(form.get('code') ?? '')
       .trim()
       .toUpperCase();
+    // Bound to THIS attempt: the hidden field the app's own page carried.
+    // Re-validated, never echoed raw.
+    const state = String(form.get('state') ?? '');
     const row = await env.DB.prepare(
       'SELECT * FROM device_codes WHERE user_code = ? AND approved_account IS NULL'
     )
@@ -293,6 +323,7 @@ export async function handleDeviceAuth(request, env, { account }) {
       return html(
         activatePage({
           account,
+          state,
           error:
             'That code is not waiting for approval. Codes expire after a few minutes — ask the app for a fresh one.',
         }),
@@ -302,34 +333,23 @@ export async function handleDeviceAuth(request, env, { account }) {
     await env.DB.prepare('UPDATE device_codes SET approved_account = ? WHERE device_code = ?')
       .bind(account.id, row.device_code)
       .run();
-    return html(activatePage({ account, done: true }));
+    // A sign-in completion (S6↔S9 §5.1 step 5): an invitation this browser
+    // remembered is redeemed into the account now, so the token the app is
+    // about to collect already carries its landing.
+    const pending = await redeemPendingInvite(env, request, account, { now, ctx });
+    return html(
+      activatePage({ account, done: true, state }),
+      200,
+      pending.clear ? { 'set-cookie': pending.clear } : {}
+    );
   }
 
-  // ---- account + connected devices
-  if (pathname === '/account') {
-    if (!account) return redirect('/login?next=%2Faccount');
-    let notice = null;
-    if (request.method === 'POST') {
-      const form = await request.formData();
-      const id = String(form.get('revoke') ?? '');
-      await env.DB.prepare(
-        'UPDATE personal_tokens SET revoked_at = ? WHERE id = ? AND account_id = ? AND revoked_at IS NULL'
-      )
-        .bind(now, id, account.id)
-        .run();
-      await audit(env.DB, {
-        accountId: account.id,
-        actor: `customer:${account.email}`,
-        action: 'device.disconnected',
-      });
-      notice = 'Disconnected. The app signs out the next time it checks in.';
-    }
-    const rows = await env.DB.prepare(
-      'SELECT id, label, created_at, last_used_at FROM personal_tokens WHERE account_id = ? AND revoked_at IS NULL ORDER BY created_at DESC'
-    )
-      .bind(account.id)
-      .all();
-    return html(accountPage({ account, tokens: rows?.results ?? [], notice }));
+  // ---- the account pages (Maude v2 S9.16): overview, people, billing, Macs,
+  // download everything, delete. The COOKIE session only — a device token
+  // never opens them (`account` here is the cookie's).
+  if (pathname === '/account' || pathname.startsWith('/account/')) {
+    const surface = await handleAccountPages(request, env, { account, ctx });
+    if (surface) return surface;
   }
 
   // ---- the client API (Bearer personal token)
@@ -374,18 +394,7 @@ export function allDeviceHtml() {
         'That code is not waiting for approval. Codes expire after a few minutes — ask the app for a fresh one.',
     }),
     activatePage({ account, done: true }),
-    accountPage({ account, tokens: [] }),
-    accountPage({
-      account,
-      tokens: [
-        {
-          id: 'x',
-          label: 'Maude Desktop on MacBook',
-          created_at: 1753872000000,
-          last_used_at: 1753872000000,
-        },
-      ],
-      notice: 'Disconnected. The app signs out the next time it checks in.',
-    }),
+    activatePage({ account, code: 'ABCD-EFGH', state: 'a'.repeat(32) }),
+    activatePage({ account, done: true, state: 'a'.repeat(32) }),
   ].join('\n');
 }

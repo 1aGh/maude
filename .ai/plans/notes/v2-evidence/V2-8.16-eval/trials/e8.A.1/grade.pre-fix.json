@@ -1,0 +1,174 @@
+{
+  "task": "e8",
+  "group": "edit",
+  "fixture": "busy",
+  "topology": "A",
+  "delegates": null,
+  "run": {
+    "code": 0,
+    "killed": false,
+    "wallMs": 67208
+  },
+  "metrics": {
+    "subtype": "success",
+    "isError": false,
+    "costUsd": 0.4903602,
+    "durationMs": 65113,
+    "apiMs": 55606,
+    "turns": 22,
+    "tokens": 446835,
+    "inTok": 24,
+    "outTok": 5517,
+    "cacheRead": 403901,
+    "cacheWrite": 37393,
+    "freshTokens": 42934,
+    "models": [
+      "claude-opus-5-5"
+    ],
+    "permissionDenials": [
+      {
+        "tool": "Bash",
+        "input": "{\"command\":\"cd \\\"$PWD\\\"; ls .design .design/ui; maude design runs list; cat .design/ui/Onboarding.tsx\",\"description\":\"List design files, busy runs, and read the canvas\"}"
+      },
+      {
+        "tool": "Bash",
+        "input": "{\"command\":\"S=/private/tmp/claude-501/-private-var-folders-t--kf80xz3j79sfmkrq4snj2qk00000gn-T-maude-agent-evals-v2-8-16-trials-e8-A-1-project/0c4a1504-d0af-4f0d-92be-802a466eb953/scratchpad; for a in"
+      }
+    ],
+    "subagents": 0,
+    "subagentTypes": [],
+    "mainToolUses": 21,
+    "subToolUses": 0
+  },
+  "agents": [],
+  "invariants": {
+    "check": {
+      "pass": true,
+      "why": ""
+    },
+    "scope": {
+      "pass": true,
+      "why": ""
+    },
+    "ids-kept": {
+      "pass": true,
+      "why": ""
+    },
+    "locked-kept": {
+      "pass": true,
+      "why": ""
+    },
+    "no-bash-writes": {
+      "pass": true,
+      "why": ""
+    },
+    "owns": {
+      "pass": true,
+      "why": ""
+    },
+    "untouched:hub": {
+      "pass": false,
+      "why": "shared stylesheet ui/Onboarding.css changed"
+    },
+    "held-untouched": {
+      "pass": true,
+      "why": ""
+    },
+    "hold-in-force": {
+      "pass": true,
+      "why": "the hold on hub was gone from the registry at grade time"
+    }
+  },
+  "quality": {
+    "run-log:busy-not-touched": {
+      "pass": true,
+      "why": ""
+    },
+    "says:busy|another AI|hub": {
+      "pass": true,
+      "why": ""
+    },
+    "finished": {
+      "pass": true,
+      "why": "success"
+    },
+    "render-non-blank": {
+      "pass": false,
+      "why": "welcome: capture failed ✗ navigation failed: http://localhost:48399/_canvas-shell.html?canvas=ui/Onboarding.tsx | ✗ could not load http://localhost:48399/_canvas-shell.html?canvas=ui/Onboarding.tsx — no screenshot written; github: capture failed ✗ navigation failed: http://localhost:48399/_canvas-shell.html?canvas=ui/Onboarding.tsx | ✗ could not load http://localhost:48399/_canvas-shell.html?canvas=ui/Onboarding.tsx — no screenshot written"
+    },
+    "judge": {
+      "pass": true,
+      "why": "pass (4): The four free headlines (welcome, github, local, success) got a new `.ob-h1--up` class. The shared `.ob-head` rule, the hub artboard and the locked \"Choose a folder…\" button are untouched, and the answer says hub waits. No `--type-4xl` token exists, so it used calc(--type-3xl × 1.2) and said so. That's a reasonable fallback, though not a true token step.",
+      "unknown": false
+    }
+  },
+  "invPass": false,
+  "qualPass": false,
+  "judge": {
+    "verdict": "pass",
+    "score": 4,
+    "why": "The four free headlines (welcome, github, local, success) got a new `.ob-h1--up` class. The shared `.ob-head` rule, the hub artboard and the locked \"Choose a folder…\" button are untouched, and the answer says hub waits. No `--type-4xl` token exists, so it used calc(--type-3xl × 1.2) and said so. That's a reasonable fallback, though not a true token step.",
+    "costUsd": 0.0291085,
+    "model": "sonnet"
+  },
+  "render": {
+    "ran": true,
+    "error": null,
+    "shots": [
+      {
+        "canvas": "ui/Onboarding.tsx",
+        "artboard": "welcome",
+        "blank": null,
+        "exit": 3
+      },
+      {
+        "canvas": "ui/Onboarding.tsx",
+        "artboard": "github",
+        "blank": null,
+        "exit": 3
+      }
+    ]
+  },
+  "changed": [
+    "M .design/ui/Onboarding.css",
+    "M .design/ui/Onboarding.tsx",
+    "?? .design/_cache/index/ds-usage.json"
+  ],
+  "runState": [
+    {
+      "session": "0c4a1504-d0af-4f0d-92be-802a466eb953",
+      "touched": {
+        "ui/Onboarding.css": {
+          "at": 1793195638362,
+          "by": "main",
+          "via": "tool",
+          "artboards": []
+        },
+        "ui/Onboarding.tsx": {
+          "at": 1793195645442,
+          "by": "main",
+          "via": "tool",
+          "artboards": [
+            "welcome",
+            "github",
+            "local",
+            "success"
+          ]
+        }
+      },
+      "stopBlocks": 0,
+      "shots": 4,
+      "bases": 2
+    }
+  ],
+  "hooks": {
+    "events": 0,
+    "denies": [],
+    "blocks": [],
+    "errors": [],
+    "ms": {},
+    "checkMs": []
+  },
+  "harnessFailure": false,
+  "finalText": "I made the headlines bigger on 4 of the 5 artboards: Welcome, GitHub, Local and Success. The Hub artboard is still waiting.\n\n**Why Hub is waiting:** another AI run is working on that artboard right now. All five headlines share one style rule in `Onboarding.css`, so I didn't change that rule, because it would have changed Hub too. Instead I gave the four free headlines their own size class. Once that run finishes, Hub can get the same change: add `className=\"ob-h1--up\"` to its `<h1>`.\n\n**What \"one step bigger\" means here:** the headlines were already at `--type-3xl` (34px), the largest size in the maude type scale. There's no bigger size to step up to. So I used the scale's own ~1.2 ratio and set them to about 41px, with line height increased by the same ratio to 48px. That size isn't a design-system token. If you'd rather it be one, add a `--type-4xl` token to the maude system and switch these headlines to it.\n\n**Checked:** I took screenshots of all four changed artboards. They came out small, so I couldn't check fine detail, but every headline shows larger, sits on one line and doesn't overlap anything. I didn't run `maude design check` myself; the automatic check on each save didn't reject any edit.\n\n**Left alone:** the locked \"Choose a folder…\" button on Local, and the left-rail lede (\"Design together…\"), which is styled as text rather than a headline."
+}

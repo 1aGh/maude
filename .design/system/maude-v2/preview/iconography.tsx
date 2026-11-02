@@ -135,7 +135,7 @@ const GLYPHS: Glyph[] = [
     id: "comment",
     name: "Comment",
     home: "Preview toolbar · C · top-right panel",
-    draw: <path d="M5 2.5h6A2.5 2.5 0 0 1 13.5 5v8.5H5A2.5 2.5 0 0 1 2.5 11V5A2.5 2.5 0 0 1 5 2.5z" />,
+    draw: <path d="M5 2.5h6A2.5 2.5 0 0 1 13.5 5v3.5A2.5 2.5 0 0 1 11 11H8l-3 2.5V11A2.5 2.5 0 0 1 2.5 8.5V5A2.5 2.5 0 0 1 5 2.5z" />,
   },
   {
     id: "marker",

@@ -4,11 +4,14 @@
 // (DDR-123 guardrail #1, verified end-to-end — the mock echoes its own env).
 
 import { afterEach, describe, expect, test } from 'bun:test';
+import { existsSync } from 'node:fs';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { AcpBridge } from '../acp/bridge.ts';
+import { ownServerPorts } from '../acp/index.ts';
+import { chatScratchDir } from '../acp/may-scope.ts';
 import {
   getClaudeAuthStatus,
   probeAcpAvailability,
@@ -51,6 +54,9 @@ describe('AcpBridge — round-trip + subscription guardrail', () => {
       // `claude` (here MAUDE_CLAUDE_BIN = this bun) via CLAUDE_CODE_EXECUTABLE, so
       // it never falls back to the unshipped ~210 MB native binary.
       expect(streamed).toContain(`claudeExe=${process.execPath}`);
+      // V2-2.4b — the bridge marks its adapter (and so `claude` and every design-plugin hook it
+      // runs) as the Maude chat: `maude design hook` tells it from a terminal Claude Code by this.
+      expect(streamed).toContain('actor=maude-chat');
     } finally {
       await bridge.stop();
     }
@@ -121,6 +127,123 @@ describe('AcpBridge — round-trip + subscription guardrail', () => {
       await bridge.stop();
     }
   }, 15000);
+
+  test("V2-1.15 §5.4 — a chat's adapter carries its own MAUDE_CHAT_ID and nothing else's", async () => {
+    process.env.MAUDE_ACP_ADAPTER_ENTRY = FIXTURE;
+    process.env.MAUDE_ACP_RUNTIME = process.execPath;
+    process.env.MAUDE_CLAUDE_BIN = process.execPath;
+    // A binding in the studio's own env (another chat's, or a terminal's) must never leak in.
+    const prev = process.env.MAUDE_CHAT_ID;
+    process.env.MAUDE_CHAT_ID = 'someone-elses-chat';
+    const runOne = async (chatId?: string) => {
+      const updates: unknown[] = [];
+      const bridge = new AcpBridge({
+        repoRoot: process.cwd(),
+        onUpdate: (u) => updates.push(u),
+        ...(chatId ? { chatId } : {}),
+      });
+      try {
+        await bridge.prompt('hi', chatId || 'c0');
+        return JSON.stringify(updates);
+      } finally {
+        await bridge.stop();
+      }
+    };
+    try {
+      const a = await runOne('chat_A-1');
+      const b = await runOne('chat_B-2');
+      const none = await runOne();
+      expect(a).toContain('chatId=chat_A-1');
+      expect(b).toContain('chatId=chat_B-2');
+      expect(a).not.toContain('chat_B-2');
+      expect(b).not.toContain('chat_A-1');
+      expect(none).toContain('chatId=<unset>');
+      for (const s of [a, b, none]) expect(s).not.toContain('someone-elses-chat');
+    } finally {
+      if (prev === undefined) delete process.env.MAUDE_CHAT_ID;
+      else process.env.MAUDE_CHAT_ID = prev;
+    }
+  }, 20000);
+
+  test('gate-b-sec2 — the adapter carries MAUDE_SESSION_ROOT = its project, never an inherited one', async () => {
+    process.env.MAUDE_ACP_ADAPTER_ENTRY = FIXTURE;
+    process.env.MAUDE_ACP_RUNTIME = process.execPath;
+    process.env.MAUDE_CLAUDE_BIN = process.execPath;
+    const prev = process.env.MAUDE_SESSION_ROOT;
+    process.env.MAUDE_SESSION_ROOT = '/somewhere/else';
+    const updates: unknown[] = [];
+    const bridge = new AcpBridge({ repoRoot: process.cwd(), onUpdate: (u) => updates.push(u) });
+    try {
+      await bridge.prompt('hi', 'c0');
+      const s = JSON.stringify(updates);
+      expect(s).toContain(`sessionRoot=${process.cwd()}`);
+      expect(s).not.toContain('/somewhere/else');
+    } finally {
+      await bridge.stop();
+      if (prev === undefined) delete process.env.MAUDE_SESSION_ROOT;
+      else process.env.MAUDE_SESSION_ROOT = prev;
+    }
+  }, 20000);
+
+  // V2-8.9 H2 / M2 — the source-reading verbs get this chat's read boundary from the bridge, never
+  // from an inherited env, and the agent's temp folder is the chat's own scratch.
+  test('H2/M2 — the adapter carries MAUDE_READ_ROOTS, MAUDE_GRANTS_FILE and TMPDIR = the chat scratch', async () => {
+    process.env.MAUDE_ACP_ADAPTER_ENTRY = FIXTURE;
+    process.env.MAUDE_ACP_RUNTIME = process.execPath;
+    process.env.MAUDE_CLAUDE_BIN = process.execPath;
+    process.env.MAUDE_READ_ROOTS = '/';
+    process.env.MAUDE_GRANTS_FILE = '/planted.json';
+    const updates: unknown[] = [];
+    const bridge = new AcpBridge({
+      repoRoot: process.cwd(),
+      chatId: 'c-env',
+      readBoundary: [process.cwd()],
+      grantsFile: '/idx/ai-grants.json',
+      // V2-8.9 re-check 2 H-a — this session's own server ports (main, canvas, capture)
+      ownPorts: () => [4399, 51000, 51001],
+      onUpdate: (u) => updates.push(u),
+    });
+    process.env.MAUDE_OWN_PORTS = '4400';
+    try {
+      await bridge.prompt('hi', 'c-env');
+      const s = JSON.stringify(updates);
+      expect(s).toContain(`readRoots=${process.cwd()} `);
+      expect(s).toContain('grantsFile=/idx/ai-grants.json');
+      expect(s).toContain('ownPorts=4399,51000,51001 ');
+      // re-check 2 M-b — the scratch is this chat's AND this run's (a later `default` chat gets
+      // another one), and it is gone when the chat ends
+      const scratch = bridge.scratchDir;
+      expect(scratch.startsWith(`${chatScratchDir(process.cwd(), 'c-env')}/`)).toBe(true);
+      expect(s).toContain(`tmpdir=${scratch}/`);
+      expect(s).not.toContain('/planted.json');
+      expect(existsSync(scratch)).toBe(true);
+      const other = new AcpBridge({ repoRoot: process.cwd(), chatId: 'c-env' });
+      expect(other.scratchDir).not.toBe(scratch);
+    } finally {
+      await bridge.stop();
+      delete process.env.MAUDE_READ_ROOTS;
+      delete process.env.MAUDE_GRANTS_FILE;
+      delete process.env.MAUDE_OWN_PORTS;
+    }
+    expect(existsSync(bridge.scratchDir)).toBe(false);
+  }, 20000);
+
+  test('H-a — ownServerPorts: main, canvas and capture loopback ports; a public canvas origin is not one', () => {
+    expect(
+      ownServerPorts({
+        mainOrigin: 'http://localhost:4399 http://127.0.0.1:4399 https://shell.example',
+        canvasOrigin: 'http://localhost:51000',
+        captureOrigin: 'http://localhost:51001',
+      })
+    ).toEqual([4399, 51000, 51001]);
+    expect(
+      ownServerPorts({
+        mainOrigin: 'http://localhost:4399',
+        canvasOrigin: 'https://c-abc.maude.example',
+      })
+    ).toEqual([4399]);
+    expect(ownServerPorts({})).toEqual([]);
+  });
 });
 
 describe('AcpBridge — cross-restart session resume (DDR-125 gap)', () => {

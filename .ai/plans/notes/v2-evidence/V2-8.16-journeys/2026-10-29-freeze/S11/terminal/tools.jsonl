@@ -1,0 +1,10 @@
+{"lane":"terminal","name":"Bash","input":{"command":"which maude; maude --help 2>&1 | head -50; maude design --help 2>&1 | head -80","description":"Check Maude CLI commands available"}}
+{"lane":"terminal","name":"Bash","input":{"command":"maude design --help","description":"Show Maude design CLI help"}}
+{"lane":"terminal","name":"ToolSearch","input":{"query":"select:DesignSync","max_results":1}}
+{"lane":"terminal","name":"Bash","input":{"command":"ls -la ~/Library/Logs/ ; ls -la .design","description":"List Mac log folders and project design folder"}}
+{"lane":"terminal","name":"Bash","input":{"command":"ls -la /private/var/folders/t_/kf80xz3j79sfmkrq4snj2qk00000gn/T/maude-agent-journeys/2026-10-29-freeze/S11/terminal/project /private/var/folders/t_/kf80xz3j79sfmkrq4snj2qk00000gn/T/maude-agent-journeys/2026-10-29-freeze/S11/terminal/project/.design","description":"List project and design folder contents"}}
+{"lane":"terminal","name":"Bash","input":{"command":"cd /private/var/folders/t_/kf80xz3j79sfmkrq4snj2qk00000gn/T/maude-agent-journeys/2026-10-29-freeze/S11/terminal/project/.design && cat _server.log _server.json _active.json && find _state _comments _cache -type f | head -50","description":"Read server log and list state, comment files"}}
+{"lane":"terminal","name":"Bash","input":{"command":"cat _comments/ui-gitpanel.json; echo ---; cat _state/runs/r_1b3cc2c14f8a.json; echo ---; cat config.json; echo ---; ls ui system; ls -la _state","description":"Read comments, run state, config and folder listings"}}
+{"lane":"terminal","name":"Bash","input":{"command":"cat _state/project-store.lock; echo; ps -p 44874 -o pid,etime,command; lsof -nP -iTCP:48400 -sTCP:LISTEN 2>/dev/null | head","description":"Check store lock owner and whether studio server is running"}}
+{"lane":"terminal","name":"Read","input":{"file_path":"/private/var/folders/t_/kf80xz3j79sfmkrq4snj2qk00000gn/T/maude-agent-journeys/2026-10-29-freeze/S11/terminal/project/.design/_state/project-store.lock"}}
+{"lane":"terminal","name":"Bash","input":{"command":"ps -p 44874 -o pid,etime,command","description":"Check whether the studio server process is running"}}

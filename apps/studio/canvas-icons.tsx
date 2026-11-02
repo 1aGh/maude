@@ -9,6 +9,14 @@
  */
 
 import type { JSX, SVGProps } from 'react';
+import {
+  IconCrop,
+  IconExportArea,
+  IconFrame,
+  IconLineTool,
+  IconPenTool,
+  IconPolygon,
+} from './toolbars/toolbar-icons.tsx';
 
 type IconProps = SVGProps<SVGSVGElement> & { size?: number };
 
@@ -299,6 +307,33 @@ export function IconTrash(props: IconProps) {
   );
 }
 
+// Duplicate / Flip / Stamp-disc — the sticker toolbar's glyphs (the board's kit `duplicate`, `FlipGlyph`, `stamp`).
+export function IconDuplicate(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="8" y="8" width="12" height="12" rx="2.5" />
+      <path d="M16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2" />
+    </Svg>
+  );
+}
+export function IconFlip(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M12 3v18" strokeDasharray="2 3" />
+      <path d="M8 6.5L3.5 17.5H8zM16 6.5l4.5 11H16z" />
+    </Svg>
+  );
+}
+export function IconStampDisc(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M8.4 13.9a4.4 4.4 0 007.2 0" />
+      <path d="M9.2 9.6h.01M14.8 9.6h.01" strokeWidth={3} />
+    </Svg>
+  );
+}
+
 // ── Phase 24 shape-tool icons ────────────────────────────────────────────────
 // IconShape — the Shape tool button: a square + circle composite (FigJam-style).
 export function IconShape(props: IconProps) {
@@ -506,6 +541,7 @@ export const TOOL_ICONS: Record<string, (p: IconProps) => JSX.Element> = {
   browse: IconBrowse,
   move: IconMove,
   hand: IconHand,
+  inspect: IconHand, // S3.11 — Viewing's Hand slot (a drag pans)
   comment: IconComment,
   pen: IconPen,
   highlighter: IconHighlighter,
@@ -518,6 +554,17 @@ export const TOOL_ICONS: Record<string, (p: IconProps) => JSX.Element> = {
   section: IconSection,
   arrow: IconArrow,
   text: IconText,
+  // S2.12b — Edit's click-to-type Text wears the same glyph.
+  'el-text': IconText,
+  // S2.13 — Edit's drag tools wear the toolbar glyphs (toolbars/toolbar-icons.tsx)
+  frame: IconFrame,
+  'el-shape': IconRect,
+  line: IconLineTool,
+  polygon: IconPolygon,
+  slice: IconExportArea,
+  // S2.14 — Edit's Pen (P)
+  'el-pen': IconPenTool,
+  crop: IconCrop,
   eraser: IconEraser,
 };
 

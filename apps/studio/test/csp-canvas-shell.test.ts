@@ -21,8 +21,8 @@ describe('cspForCanvasShell — A6 hardening', () => {
     expect(csp).not.toMatch(/script-src[^;]*unsafe-inline/);
   });
 
-  test("adds webrtc 'block' (connect-src does not cover WebRTC exfil)", () => {
-    expect(cspForCanvasShell(SHELL)).toContain("webrtc 'block'");
+  test('no webrtc directive — enforced nowhere we ship (p8-leftovers-canvas-csp); the _shell.html lockout is the control', () => {
+    expect(cspForCanvasShell(SHELL)).not.toContain('webrtc');
   });
 
   test("adds form-action 'none'", () => {

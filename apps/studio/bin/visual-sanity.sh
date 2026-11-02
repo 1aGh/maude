@@ -180,6 +180,7 @@ for s in "${EXISTING[@]}"; do
   REL="system/$DS/preview/${s}.tsx"
   REL_ENC=$(printf '%s' "$REL" | sed 's/ /%20/g')
   URL="http://localhost:${PORT}/_canvas-shell.html?canvas=${REL_ENC}"
+  . "$SCRIPT_DIR/_url-guard.sh" && maude_url_guard "$URL" || exit 2 # V2-8.9 B2 — http(s) to this Mac only
   OUT_PNG="$OUT_DIR/${s}.png"
   echo "→ screenshot: $s" >&2
   if bash "$SCRIPT_DIR/screenshot.sh" \

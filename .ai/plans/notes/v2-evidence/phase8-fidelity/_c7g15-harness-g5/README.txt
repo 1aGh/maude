@@ -1,0 +1,7 @@
+C7 (p8-c7-g15) deltas over the D4 harness (copy _d-harness-g5, _d2/_d3-harness-g5, _c6-bugs4-harness, _d6-harness-g5, _d4-harness-g5 into .scr/ in that order, then this folder; set REPO in lib.mjs; node_modules symlinks into the main checkout; release-build the client; spec pngs: .scr/spec/15-annotations/ from an earlier worktree).
+s15.mjs   15 Annotations. Framing: `frame(n)` = jump to artboard 1 (Alt+Meta+1) then n x Meta+- (~60 %), the way the board frames Desktop (the stickies, arrows and chrome read at their drawn size); `zoomIn(x, y, n)` = Meta + wheel at a point.
+  an-place   Preview with N: the sticky tool armed (paper dots over the dock). an-sticky: a sticky selected and zoomed to. an-marker: stroke drawn, Esc, M again (the one-row pill with the stroke visible). an-section: Preview, the section chip clicked (Fold / Ask AI about it toolbar), zoomed.
+  G=b        a bound connector from the loose note to the button; frame(2). G=c: an-vote opens through ⌘K "Start a vote" (the artboard right-click no longer lists it); an-stk-drop drops the sticker over Desktop and waits 3.8 s for the upload (a shorter wait shot the broken-picture placeholder).
+  G=b an-crowd zooms two steps past fit (LOD).
+s15r.mjs  probe: print artboard + sticky parentArtboard + the .dc-annot-pintag DOM rect.  s15q.mjs  probe: the sticker drop wait.
+Run: THEMES="light dark" GRP="a b c d e f" bash .scr/chain15.sh (SHOTS_OUT=.scr/impl), then bun .scr/mkpairs.mjs 15-annotations.

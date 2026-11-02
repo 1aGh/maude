@@ -1,0 +1,34 @@
+// node pairs.mjs  — builds .scr/pairs/<NN>/<id>-<theme>.png (full) and the committed JPEG copies
+import { existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { join } from 'node:path';
+
+const R = '/Users/iagh/git/personal/maude/.claude/worktrees/agent-a1af84c21309d604f';
+const FONT = '/System/Library/Fonts/Supplemental/Arial.ttf';
+const CANV = { '07': '07-video-editing', '08': '08-artboard-kinds', '09': '09-export' };
+const made = [];
+for (const nn of ['07']) {
+  const full = join(R, '.scr/pairs', nn);
+  const out = join(R, '.ai/plans/notes/v2-evidence/phase8-fidelity', CANV[nn]);
+  mkdirSync(full, { recursive: true });
+  mkdirSync(out, { recursive: true });
+  for (const f of readdirSync(join(R, '.scr/g3/impl', nn))) {
+    const m = f.match(/^(.*)-(light|dark)\.jpg$/);
+    if (!m) continue;
+    const [, id, theme] = m;
+    const spec = join(R, '.scr/spec', nn, `${id}-${theme}.png`);
+    if (!existsSync(spec)) { console.log('no spec for', id, theme); continue; }
+    const impl = join(R, '.scr/g3/impl', nn, f);
+    const tmpS = join(full, `_s.png`), tmpI = join(full, `_i.png`);
+    // spec: drop the note strip under a 1440x900 stage (artboard 982 tall)
+    const dims = execFileSync('magick', ['identify', '-format', '%w %h', spec]).toString().trim().split(' ').map(Number);
+    const cropArgs = dims[1] >= 975 && dims[1] <= 985 && dims[0] >= 1440 ? ['-crop', `${dims[0]}x902+0+0`, '+repage'] : [];
+    execFileSync('magick', [spec, ...cropArgs, '-resize', 'x900', tmpS]);
+    execFileSync('magick', [impl, '-resize', 'x900', tmpI]);
+    const pair = join(full, `${id}-${theme}.png`);
+    execFileSync('magick', [tmpS, '(', '-size', '10x900', 'xc:#888', ')', tmpI, '+append', '-background', '#1c1c1c', '-gravity', 'North', '-splice', '0x34', '-font', FONT, '-pointsize', '20', '-fill', 'white', '-annotate', '+10+6', `${id} · ${theme}      SPEC (left)   |   IMPL (right)`, pair]);
+    execFileSync('magick', [pair, '-resize', '1100x>', '-quality', '55', join(out, `${id}-${theme}.jpg`)]);
+    made.push(`${nn}/${id}-${theme}`);
+  }
+}
+console.log(made.length, 'pairs');

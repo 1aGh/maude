@@ -1,0 +1,19 @@
+Row: pn-windows (11 · A · Tabs and windows — drag out, merge back, open once) — OPEN-ONCE verified; drag-out / merge NOT shipped (by decision)
+Base: feat/maude-v2 58ac858d (branch s1-21). Canvas blob 721366f14aae; contract V2-3.7-own-tab-bar.md blob 7443b61b81f6.
+Written from reading code and existing gate evidence. NO desktop e2e was run for this file.
+
+PICK: B, so "drag a tab off the strip and it becomes a window; Window > Merge All Windows" (the artboard's A story) is not part of the app. The artboard itself says "In B, Maude would rebuild all of this."
+decisions: maude/v2-3.7-own-tab-bar, maude/v2-3.7-own-tab-bar-mechanism. Contract section 10: q2 "Multiple shell windows (Move Tab to New Window)? No in v1: one shell." q3 "Drag tabs out of or between windows? No. Reorder is in-strip only."
+
+THE PART OF THE ARTBOARD THAT SURVIVES - "Proposed: a project opens once. Opening it again - from Home, Cmd+K or a link - switches to its tab":
+  - Rust open-once: apps/desktop/src-tauri/src/windows.rs:998 open_project_window (existing label -> focus, never a second webview). Pins: windows.rs:2117 open_once_focuses_the_existing_window_instead_of_creating_one, :2150 open_once_from_home_and_from_a_project, :2249 open_once_replaces_a_stale_entry_and_a_failed_build_leaves_none.
+  - From Home: e2e project-tabs.e2e.ts:275 "opening the secondary again focuses its tab instead of opening a third".
+  - From Cmd+K: e2e project-tabs.e2e.ts:293 (Enter on another project's row switches to that tab, never a third); client/v2/search/search-projects.js:22-27.
+  - From a link: parked for that tab only (kg: "A link for a known project opens or focuses its tab and is parked for that tab only"); client/shell-events.js navigate path.
+  - The line the user sees: "<Project> is open in this window." client/shell-events.js:29 openedExistingWords, pinned by apps/studio/test/shell-events.test.ts:116 and :131.
+  - Reorder in the strip: tabs.rs:532 tab_reorder (command exists; the strip has no drag UI yet - strip.js has no dragstart; see GAP-WINDOWS-2).
+Desktop e2e evidence (valid window probe): V2-3.7-3.10-rework-gate-2026-10-14.txt tabs 1/1 (sha256 ed33f6dad36ed9f7b66875873229284b05f27c56772f1d30c45675f0956d71a2).
+
+NAMED GAPS:
+  GAP-WINDOWS-1  drag a tab out into a window, merge back, Window > Merge All Windows, Show All Tabs: not built, by decision. The Window menu (menu.rs windows_menu, :177) still lets AppKit append its window-tab items; with no native tab group those items are inert. Lead to confirm the artboard is marked "A - not picked".
+  GAP-WINDOWS-2  strip reordering has a Rust command (tabs.rs:532 tab_reorder) but strip.js draws no drag handle, so the order can only change by closing and opening. The contract says "reorder is in-strip only" - the UI half is missing.
