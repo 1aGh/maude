@@ -7,7 +7,9 @@
 //
 // Drawn on Maude's own HUD tokens like the DS bar — never the system's tokens — and tagged `data-dc-overlay`, so an
 // export never carries it. It steps aside in Preview, Present, an embed, a Present follower, and on the Design system
-// canvas (which draws its own bar over the same mode).
+// canvas (which draws its own bar over the same mode). It also steps aside while a people pill holds the same spot
+// ("Following …" / "Everyone here is following you … Stop", presence/canvas-presence.tsx): the pill sat on top of it and
+// took the Stop click.
 
 import { useEffect, useState } from 'react';
 import { DsIcon } from './canvas-ds-icons.tsx';
@@ -28,6 +30,7 @@ const PILL_CSS = `
 .dc-theme-pill-path:hover{background:var(--maude-chrome-bg-3);color:var(--maude-chrome-fg-0)}
 .dc-theme-pill-path:focus-visible{outline:2px solid var(--maude-hud-focus-ring);outline-offset:1px}
 .dc-theme-pill-b:focus-visible{outline:2px solid var(--maude-hud-focus-ring);outline-offset:1px}
+body:has(.dc-presence-pill) .dc-theme-pill{display:none}
 @media (prefers-reduced-motion:reduce){.dc-theme-pill *{transition-duration:1ms !important;animation-duration:1ms !important}}
 `;
 
