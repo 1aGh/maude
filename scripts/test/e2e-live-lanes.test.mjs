@@ -29,10 +29,26 @@ const post = (url, body, headers = {}) =>
   });
 
 // The hub's better-sqlite3 is built for Node 24 on a Mac that runs the lanes. A CI runner on another Node has none,
-// so there the two hub tests skip with the reason printed; anywhere else a missing Node 24 stays a red test.
+// so there the two hub tests skip with the reason printed; anywhere else a missing Node 24 stays a red test. A runner
+// can also carry a Node 24 while the job's install built better-sqlite3 for its own Node (ERR_DLOPEN_FAILED) — on CI
+// that skips too, with the reason.
 const NO_NODE24 = (() => {
   try {
-    hub.findNode24();
+    const bin = hub.findNode24();
+    if (process.env.CI) {
+      try {
+        execFileSync(bin, ['-e', "require('better-sqlite3')(':memory:').close()"], {
+          cwd: join(REPO, 'apps/hub'),
+          stdio: 'pipe',
+        });
+      } catch (e) {
+        return `better-sqlite3 does not load under ${bin} (built for another Node ABI): ${
+          String(e.stderr ?? e.message)
+            .split('\n')
+            .find((l) => /Error|ERR_/.test(l)) ?? 'load failed'
+        }`;
+      }
+    }
     return false;
   } catch (e) {
     return process.env.CI ? String(e.message) : false;

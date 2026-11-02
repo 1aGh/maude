@@ -28,7 +28,13 @@ const alive = (pid) => {
 const exited = (child) =>
   new Promise((r) => (child.exitCode !== null || child.signalCode ? r() : child.once('exit', r)));
 
-test('the e2e app agent-browser and its children go; another agent-browser stays', async () => {
+// the reap walks a macOS app bundle's MacOS dir through `ps`; it only ever runs beside the desktop e2e app on a Mac
+const NOT_MAC =
+  process.platform === 'darwin' ? false : 'the desktop e2e app (Maude.app) runs on macOS only';
+
+test('the e2e app agent-browser and its children go; another agent-browser stays', {
+  skip: NOT_MAC,
+}, async () => {
   const dir = mkdtempSync(join(tmpdir(), 'maude-ab-reap-'));
   const macos = join(dir, 'Maude.app', 'Contents', 'MacOS');
   const other = join(dir, 'elsewhere');
