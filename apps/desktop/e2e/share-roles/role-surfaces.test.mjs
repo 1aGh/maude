@@ -155,12 +155,17 @@ async function dismiss(page) {
     await sleep(250);
   }
 }
-/** The tool slots the canvas toolbar shows, in order (`toolbar-slot-<id>`), or null with no toolbar. */
+/**
+ * The tool slots the canvas toolbar shows, in order (`toolbar-slot-<id>`), or null with no toolbar. Scoped to the
+ * tool palette ("Canvas tools"): the Light | Dark pill every canvas carries since r4 #6 (one pill per canvas, for
+ * every role) is also `role="toolbar"`, so a bare `[role="toolbar"]` never reads as gone for a Can view person.
+ */
+const PALETTE = '[role="toolbar"][aria-label="Canvas tools"]';
 async function toolbarSlots(page) {
   const frame = frameOf(page);
-  if ((await frame.locator('[role="toolbar"]').count()) === 0) return null;
+  if ((await frame.locator(PALETTE).count()) === 0) return null;
   return frame
-    .locator('[role="toolbar"] [data-testid^="toolbar-slot-"]')
+    .locator(`${PALETTE} [data-testid^="toolbar-slot-"]`)
     .evaluateAll((ns) => ns.map((n) => n.getAttribute('data-testid').replace('toolbar-slot-', '')));
 }
 async function openMenu(page) {
