@@ -82,3 +82,33 @@ export const CTL_KEEPALIVE_FRAME = '{"t":"ka"}';
 export function isKeepalive(payload: unknown): boolean {
   return payload === CTL_KEEPALIVE_FRAME;
 }
+
+/**
+ * The hub's mode/format notice (`hub-integration.mjs`, v1.x and 2.x alike):
+ * `{type:'maude.mode', mode, epoch, writable, formatVersion}` is sent to EVERY
+ * open connection — the control socket included — when the project's mode flips
+ * or its format is raised (a 2.0 studio attaching to a format-1 project raises
+ * it, so this arrives right after attach). The canvas providers act on it; the
+ * control channel has no use for it and must neither act on it nor call it
+ * garbage. Strict on purpose: bounded size, a known mode, a boolean `writable`,
+ * a sane epoch. Anything else stays malformed.
+ */
+export function isModeNotice(payload: unknown): boolean {
+  if (typeof payload !== 'string' || payload.length > MAX_POKE_BYTES) return false;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(payload);
+  } catch {
+    return false;
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return false;
+  const frame = parsed as { type?: unknown; mode?: unknown; epoch?: unknown; writable?: unknown };
+  return (
+    frame.type === 'maude.mode' &&
+    (frame.mode === 'legacy' || frame.mode === 'transactions') &&
+    typeof frame.writable === 'boolean' &&
+    typeof frame.epoch === 'number' &&
+    Number.isSafeInteger(frame.epoch) &&
+    frame.epoch >= 0
+  );
+}
