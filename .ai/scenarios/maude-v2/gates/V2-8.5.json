@@ -3,12 +3,12 @@
   "pass": true,
   "qualityHash": "ca053cd5bbc8fa64231dfde679d7b0108280b8f384c154322c75c50c872e7071",
   "reportHashes": {
-    ".ai/plans/notes/v2-evidence/V2-8.5-browser-runs/all-be9824591/env.txt": "160a022bf20dd5e1acffd6e6113053816282d18bbbd46898e077acca33986498"
+    ".ai/plans/notes/v2-evidence/V2-8.5-browser-runs/all-62146d9d4/env.txt": "690f00f52ce1ee75dcc7e27d959ba3e02c7e5bb2c3f7c0f94df1ccf5c08ed6b8"
   },
-  "head": "aeb2ba166612744f416adb9052d524381b8a72d3",
-  "ts": "2026-11-02T08:49:09.471Z",
+  "head": "a9742475b4d0217ff735e5badb09165ec37dda93",
+  "ts": "2026-11-02T10:45:37.604Z",
   "reports": [
-    ".ai/plans/notes/v2-evidence/V2-8.5-browser-runs/all-be9824591/env.txt"
+    ".ai/plans/notes/v2-evidence/V2-8.5-browser-runs/all-62146d9d4/env.txt"
   ],
-  "note": "final (r4+r5): all 24 browser e2e x2 at be9824591 on the mini: 48/48 green (the r5 annotation / presence reds fixed in ea233a0be); ledger artboard rows unchanged; the e2e rows re-checked on V2-8.3"
+  "note": "final at 62146d9d4: all 24 browser e2e x2 on the mini: 47/48, the one red (run2 annotations-lock) was the harness failing to bind its port ('Is port 50319 in use?' before any step) — rerun x2 green (.ai/plans/notes/v2-evidence/V2-8.5-browser-runs/rerun-lock-62146d9d4); ledger artboard rows unchanged; e2e rows re-checked on V2-8.3"
 }

@@ -1,1 +1,1 @@
-head be9824591, rig scripts/v2-verify/p84-*.mjs, project formatVersion 2, Mac mini remote lane, 2026-11-02
+head 62146d9d4, rig scripts/v2-verify/p84-*.mjs, project formatVersion 2, Mac mini remote lane, 2026-11-02

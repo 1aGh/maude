@@ -26,10 +26,10 @@
         "title": "Open a canvas",
         "status": "pass",
         "notes": [
-          "rendered in localhost:64723"
+          "rendered in localhost:63131"
         ],
         "data": {
-          "frameHost": "localhost:64723"
+          "frameHost": "localhost:63131"
         },
         "shot": "shots/browser-02-open-canvas.png",
         "extra": [],
@@ -246,8 +246,9 @@
       }
     ],
     "errors": [
-      "console: failed to load comments TypeError: Failed to fetch\n    at o (http://studio.cell.localhost:4787/_client/client.bundle.js?v=408895-1a19b5fd18f:1:24987)\n    at http://studio.cell.localhost:4787/_client/client.bundle.js?v=408895-1a19b5fd18f:5789:13038\n    at http://studio.cell.localhost:4787/_client/cli",
-      "console: failed to load tree TypeError: Failed to fetch\n    at o (http://studio.cell.localhost:4787/_client/client.bundle.js?v=408895-1a19b5fd18f:1:24987)\n    at read (http://studio.cell.localhost:4787/_client/client.bundle.js?v=408895-1a19b5fd18f:5787:4703)\n    at h (http://studio.cell.localhost:4787/_clien",
+      "console: failed to load comments TypeError: Failed to fetch\n    at o (http://studio.cell.localhost:4787/_client/client.bundle.js?v=408895-1a19bc455c2:1:24987)\n    at http://studio.cell.localhost:4787/_client/client.bundle.js?v=408895-1a19bc455c2:5789:13038\n    at http://studio.cell.localhost:4787/_client/cli",
+      "console: failed to load tree TypeError: Failed to fetch\n    at o (http://studio.cell.localhost:4787/_client/client.bundle.js?v=408895-1a19bc455c2:1:24987)\n    at read (http://studio.cell.localhost:4787/_client/client.bundle.js?v=408895-1a19bc455c2:5787:4703)\n    at h (http://studio.cell.localhost:4787/_clien",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
       "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
       "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
       "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
@@ -260,7 +261,6 @@
       "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
       "console: Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "console: Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
       "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
       "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
       "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
