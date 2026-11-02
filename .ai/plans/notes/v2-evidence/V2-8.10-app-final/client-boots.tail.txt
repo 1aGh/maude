@@ -5,4 +5,4 @@ Maude client-boot check — apps/desktop/src-tauri/target/release/bundle/macos/M
   sidecar up at http://localhost:4399
 
 ======================================================================
-[32mThe packaged client mounts and responds with a Tauri global present.[0m [2m(#root children: 1, 365 chars of text; menu, ⌘K palette, tree all answer)[0m
+[32mThe packaged client mounts and responds with a Tauri global present.[0m [2m(#root children: 1, 494 chars of text; menu, ⌘K palette, tree all answer)[0m
