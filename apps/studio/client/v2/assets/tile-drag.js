@@ -4,14 +4,19 @@
 // in the shell's `assetDragSession` (asset-drop-session.js) and puts `{asset, w?, h?}` under the tile's own MIME type
 // (editing/asset-drag.ts) for same-origin targets. The CANVAS never reads the drag: WebKit gives a shell-started drag no event
 // in the canvas origin (r3), so the shell's catcher over the frame takes the drop, the canvas names what lies under it and the
-// shell asks `image.place` with this path. Only pictures drag (video and sound are placed by S7's clip door).
+// shell asks `image.place` with this path. Pictures AND clips drag (r5-1: a clip lands as a `<video>` in Edit, as an annotation video in Preview); sound does not.
 
 import { ASSET_DRAG_MIME, assetDragData, isAssetPath } from '../../../editing/asset-drag.ts';
 import { assetDragSession } from './asset-drop-session.js';
 
 export { ASSET_DRAG_MIME };
 
-/** Start a drag of `asset` (`assets/<name>`); `img` is the tile's picture, for the natural size. */
+/** The natural size of a tile's picture (`naturalWidth`) or clip (`videoWidth`); 0 until it has loaded. */
+function naturalOf(el) {
+  return { w: el?.naturalWidth || el?.videoWidth, h: el?.naturalHeight || el?.videoHeight };
+}
+
+/** Start a drag of `asset` (`assets/<name>`); `img` is the tile's picture or clip, for the natural size. */
 export function startAssetDrag(e, asset, img) {
   const dt = e?.dataTransfer;
   if (!dt || !isAssetPath(asset)) {
@@ -19,11 +24,9 @@ export function startAssetDrag(e, asset, img) {
     return false;
   }
   dt.effectAllowed = 'copy';
-  assetDragSession.begin({ asset, w: img?.naturalWidth, h: img?.naturalHeight });
-  dt.setData(
-    ASSET_DRAG_MIME,
-    assetDragData({ asset, w: img?.naturalWidth, h: img?.naturalHeight })
-  );
+  const { w, h } = naturalOf(img);
+  assetDragSession.begin({ asset, w, h });
+  dt.setData(ASSET_DRAG_MIME, assetDragData({ asset, w, h }));
   // a plain-text twin so a drop on a text field says what it is, and nothing richer leaks
   dt.setData('text/plain', asset);
   if (img && typeof dt.setDragImage === 'function') {
@@ -41,7 +44,7 @@ export function tileDragProps(asset) {
   return {
     draggable: true,
     onDragStart: (e) => {
-      const img = e.currentTarget?.querySelector?.('img') ?? null;
+      const img = e.currentTarget?.querySelector?.('img, video') ?? null;
       startAssetDrag(e, asset, img);
     },
     // a drop, an esc or a release anywhere else: the catcher goes away (the drop already took its copy)
