@@ -229,8 +229,7 @@ describe('r2-p6b — the Inspector colour picker, in a real browser', () => {
     try {
       await c.select('empty');
       assert.equal(c.style('empty', 'background'), null, 'starts with no fill');
-      await c.page.locator('[data-testid="insp-add-fill"]').click();
-      await c.page.locator('[data-testid="insp-fill-add-colour"]').click();
+      await c.page.locator('[data-testid="insp-add-fill"]').click(); // r6: "+" writes the slot default and opens the picker
       await waitFor(
         () => c.style('empty', 'background') === 'var(--bg-3, #d4d4d8)',
         `the slot default was written (got ${c.style('empty', 'background')})`

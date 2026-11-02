@@ -183,6 +183,7 @@ export function ColourPopover({
   canvasFile = null,
   designRel = '.design',
   fillApi = null,
+  startTab = null, // 'custom' when the section's "+" opened it
   anchorRef,
   onPick,
   onCustom,
@@ -194,6 +195,7 @@ export function ColourPopover({
   const fillKind = fillApi ? kindOfFill(fillApi.fill) : 'solid';
   const [kind, setKind] = useState(fillKind);
   const [tab, setTab] = useState(() => {
+    if (startTab) return startTab;
     const rawColour =
       !!value &&
       !('token' in value.paint) &&

@@ -254,30 +254,15 @@ describe('Fill', () => {
     expect(edits().map((p) => [p.body.property, p.body.reset])).toEqual([['background', true]]);
   });
 
-  test('+ offers a gradient: it is a layer over the colour, written as longhands', async () => {
+  test('+ opens the picker (Solid · Gradient · Image are its tabs); no second row of buttons', async () => {
     const host = await one();
     await click(q(host, 'insp-add-fill'));
-    expect(q(host, 'insp-fill-add')).not.toBeNull();
-    await click(q(host, 'insp-fill-add-gradient'));
-    const w = written();
-    // P6 T3: from the fill it has to the slot's end stop, a role token with its literal fallback
-    expect(w['background-image']).toBe('linear-gradient(180deg, var(--ink), var(--bg-0, #ffffff))');
-    expect(w['background-color']).toBe('var(--ink)');
-    expect(w.background).toBeNull();
-  });
-
-  test('+ an image: a script address is refused with the reason and writes nothing; a project path is written', async () => {
-    const host = await one();
-    await click(q(host, 'insp-add-fill'));
-    const input = q(host, 'insp-fill-add-image');
-    await typeIn(input, 'javascript:alert(1)');
-    await press(input, 'Enter');
-    expect(q(host, 'insp-fill-image-error')?.textContent).toContain('https://');
-    expect(edits()).toEqual([]);
-    await typeIn(q(host, 'insp-fill-add-image'), 'assets/hero.png');
-    await press(q(host, 'insp-fill-add-image'), 'Enter');
-    expect(written()['background-image']).toBe('url("assets/hero.png")');
-    expect(written()['background-size']).toBe('cover');
+    expect(q(host, 'insp-fill-add')).toBeNull();
+    expect(q(host, 'insp-kinds-fill')).not.toBeNull();
+    expect(q(host, 'insp-ctl-fill')?.querySelector('button')?.getAttribute('aria-expanded')).toBe(
+      'true'
+    );
+    expect(edits()).toEqual([]); // it has a colour already: the "+" writes nothing by itself
   });
 
   test('a layer the file already has can be removed', async () => {
@@ -567,19 +552,18 @@ const key = async (el: Element | null, k: string) => {
 const activeId = () => document.activeElement?.getAttribute('data-testid') ?? null;
 
 describe('IR-11 — a new paint starts from the slot’s role token, never currentColor', () => {
-  test('no design system: Fill › + Colour writes the background role with its literal fallback', async () => {
+  test('no design system: Fill › + on an empty fill writes the background role with its literal fallback', async () => {
     const host = await one({ authored: {} }, NO_DS);
     await click(q(host, 'insp-add-fill'));
-    await click(q(host, 'insp-fill-add-colour'));
     const v = String(written().background);
     expect(v).not.toMatch(/currentcolor/i);
     expect(v).toBe('var(--bg-1, #f4f4f5)');
   });
 
-  test('no design system: + Gradient never writes currentColor either', async () => {
+  test('no design system: + Gradient (the picker tab) never writes currentColor either', async () => {
     const host = await one({ authored: {} }, NO_DS);
     await click(q(host, 'insp-add-fill'));
-    await click(q(host, 'insp-fill-add-gradient'));
+    await click(q(host, 'insp-kind-gradient-fill'));
     expect(JSON.stringify(written())).not.toMatch(/currentcolor/i);
   });
 
@@ -590,7 +574,6 @@ describe('IR-11 — a new paint starts from the slot’s role token, never curre
       designSystems: [{ name: 'maude-v2', tokensCssRel: 'x.css' }],
     });
     await click(q(host, 'insp-add-fill'));
-    await click(q(host, 'insp-fill-add-colour'));
     expect(written().background).toBe('var(--bg-3, #d4d4d8)');
   });
 });

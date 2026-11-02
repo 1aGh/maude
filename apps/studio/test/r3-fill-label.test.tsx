@@ -287,26 +287,14 @@ describe('a freshly drawn shape: the Fill row shows its fill', () => {
     expect(chipText(host)).toContain('None');
   });
 
-  test('+ gradient keeps the colour it shows: the shorthand becomes a colour longhand and a layer', async () => {
+  // r6 (Michal): "+" opens the picker on Custom; Gradient is its tab (the old row of Colour · Gradient · Image is gone)
+  test('+ then Gradient writes a gradient fill from the role colours, never currentColor', async () => {
     const host = await fresh();
     await click(q(host, 'insp-add-fill'));
-    await click(q(host, 'insp-fill-add-gradient'));
+    expect(q(host, 'insp-fill-add')).toBeNull();
+    await click(q(host, 'insp-kind-gradient-fill'));
     const w = written();
-    expect(w['background-image']).toContain('linear-gradient(180deg, var(--bg-3, #d4d4d8)');
-    expect(w['background-color']).toBe(FRESH_VAR);
-    expect(w.background).toBeNull();
-  });
-
-  test('a reselect with a colour in a longhand reads that (declared is only a fallback)', async () => {
-    const host = await fresh({
-      authored: { 'background-color': 'var(--ink)' },
-      declared: { background: FRESH_VAR },
-    });
-    expect(chipText(host)).toContain('Ink');
-    await click(q(host, 'insp-add-fill'));
-    await click(q(host, 'insp-fill-add-gradient'));
-    const w = written();
-    expect(w['background-image']).toContain('var(--ink)');
-    expect(w['background-color']).toBeUndefined(); // already there: same as today
+    expect(w['background-image']).toStartWith('linear-gradient(180deg, ');
+    expect(JSON.stringify(w)).not.toMatch(/currentcolor/i);
   });
 });

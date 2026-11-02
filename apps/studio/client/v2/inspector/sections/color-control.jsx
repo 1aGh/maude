@@ -12,7 +12,7 @@
 // canvas reports in `el.computed`), never the panel's own `currentColor`; the system's name for it follows in grey.
 
 import { Droplet } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { activeDsNameFor } from '../../../inspector/ds-tokens.js';
 import { tokenLabel } from '../../../../edit-ops/words-css.ts';
 import { paintToCss, swatchCss } from '../../../../edit-ops/words-paint.ts';
@@ -62,8 +62,15 @@ export function ColorControl({
   slotGroup = null, // the role group "Use <nearest>" looks in first (`surfaces` for a fill)
   fillApi = null, // a Fill only: { fill, set, live, upload?, start, end } — what makes the Solid · Gradient · Image tabs
   face = null, // a Fill that is a gradient or a picture: { swatch: CSS background, word } — the chip says what it is, not "None"
+  openSignal = 0, // bumped by the section's "+": open the picker (its Solid · Gradient · Image tabs are the add choice)
 }) {
   const [open, setOpen] = useState(false);
+  const [startTab, setStartTab] = useState(null); // the "+" opens on Custom, where the kind tabs are
+  useEffect(() => {
+    if (!openSignal || disabled) return;
+    setStartTab('custom');
+    setOpen(true);
+  }, [openSignal, disabled]);
   const ref = useRef(null);
   const chipRef = useRef(null);
   const recent = useRecentColours(ctx);
@@ -111,7 +118,11 @@ export function ColorControl({
         aria-haspopup="dialog"
         aria-expanded={open}
         disabled={disabled}
-        onClick={() => !disabled && setOpen((o) => !o)}
+        onClick={() => {
+          if (disabled) return;
+          setStartTab(null);
+          setOpen((o) => !o);
+        }}
       >
         <span
           className={`insp-chip-face${value || inherited || face ? '' : ' insp-chip-face--none'}${offSystem ? ' insp-chip-face--css' : ''}`}
@@ -219,6 +230,7 @@ export function ColorControl({
             ''
           )}
           fillApi={fillApi}
+          startTab={startTab}
           anchorRef={chipRef}
           onPick={pick}
           onCustom={custom}

@@ -1,17 +1,16 @@
 // client/v2/inspector/sections/fill.jsx — S2.4: Fill (14 Editing, ed-inspector §4).
-// "Colour from the Design system first; + adds another fill — a colour, a gradient or an image."
+// "Colour from the Design system first; + adds another fill — a colour, a gradient or an image." Since r6 the "+" opens
+// the picker, whose Solid · Gradient · Image tabs are that choice (Michal: three buttons under the row repeated it).
 //
 // The colour is a token chip with its opacity; gradients and images are layers over it. Several objects that differ show
 // their swatches and "Mixed"; a pick goes to all of them. Writes go through the words → CSS writer (words-paint.ts).
 
 import { X } from 'lucide-react';
-import { useState, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import {
   fillFromCss,
   fillToCss,
-  imageUrlOk,
   paintFromCss,
-  paintToCss,
   reduceMixed,
 } from '../../../../edit-ops/words-paint.ts';
 import { fillSlotFor, slotCss, slotPaint } from '../../../../edit-ops/slot-defaults.ts';
@@ -25,7 +24,7 @@ import { GRADIENT_WORDS, parseGradient } from './colour-model.js';
 import { useRecentColours } from './recent-colours.js';
 import { Quiet, Row } from './row.jsx';
 
-/* The "+" in the header opens the add row for the selected element; one at a time, forgotten on a new selection. */
+/* The "+" in the header opens the picker for the selected element; one at a time, forgotten on a new selection. */
 let adding = null;
 const subs = new Set();
 const setAdding = (v) => {
@@ -69,8 +68,7 @@ export function FillBody({ el, selection, kind, ctx }) {
   const { cssAll, editable, write, live } = useCssWrite(targetOf({ el, selection, kind }), ctx);
   const fam = useDsFamilies(ctx);
   const open = useSyncExternalStore(subscribe, () => adding) === keyOf(el);
-  const [url, setUrl] = useState('');
-  const [bad, setBad] = useState(false);
+  const [openSignal, setOpenSignal] = useState(0);
 
   const fills = cssAll.map(fillFromCss);
   const red = reduceMixed(fills);
@@ -109,27 +107,16 @@ export function FillBody({ el, selection, kind, ctx }) {
       : { swatch: 'var(--bg-4)', word: top.url.split('/').pop() }
     : null;
 
-  const addColour = () => {
+  // "+": an empty fill first gets the slot's role colour (IR-11), then the picker opens on it — a gradient or a picture is
+  // a tab there, not a second row of buttons
+  // biome-ignore lint/correctness/useExhaustiveDependencies: once per "+", with this render's fill
+  useEffect(() => {
+    if (!open) return;
     setAdding(null);
-    set({ ...base, color: base.color ?? { paint: startPaint(), opacity: 100 } });
-  };
-  const addGradient = () => {
-    setAdding(null);
-    const a = base.color ? paintToCss(base.color.paint) : slotCss(slot);
-    const b = slotCss('gradientEnd');
-    set({
-      ...base,
-      layers: [{ kind: 'gradient', css: `linear-gradient(180deg, ${a}, ${b})` }, ...base.layers],
-    });
-  };
-  const addImage = () => {
-    const u = url.trim();
-    if (!imageUrlOk(u)) return setBad(true);
-    setBad(false);
-    setUrl('');
-    setAdding(null);
-    set({ ...base, layers: [{ kind: 'image', url: u }, ...base.layers] });
-  };
+    if (editable && !base.color && !base.layers.length)
+      set({ ...base, color: { paint: startPaint(), opacity: 100 } });
+    setOpenSignal((n) => n + 1);
+  }, [open]);
 
   return (
     <>
@@ -156,6 +143,7 @@ export function FillBody({ el, selection, kind, ctx }) {
           disabled={!editable}
           fillApi={fillApi}
           face={face}
+          openSignal={openSignal}
           onChange={(color, o) =>
             set(
               color === null
@@ -179,49 +167,6 @@ export function FillBody({ el, selection, kind, ctx }) {
             />
           ))
         : null}
-      {open ? (
-        <div className="insp-addrow" data-testid="insp-fill-add">
-          <button
-            type="button"
-            className="insp-chip"
-            data-testid="insp-fill-add-colour"
-            onClick={addColour}
-            disabled={!editable || !!base.color}
-            title={base.color ? 'There is a colour already; change it above.' : undefined}
-          >
-            Colour
-          </button>
-          <button
-            type="button"
-            className="insp-chip"
-            data-testid="insp-fill-add-gradient"
-            onClick={addGradient}
-          >
-            Gradient
-          </button>
-          <span className="insp-num">
-            <input
-              className="insp-num-in insp-url-in"
-              type="text"
-              aria-label="Image — a file in the project or an https:// address"
-              aria-invalid={bad || undefined}
-              data-testid="insp-fill-add-image"
-              placeholder="Image…"
-              value={url}
-              onChange={(e) => setUrl(e.currentTarget.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') addImage();
-                else if (e.key === 'Escape') setAdding(null);
-              }}
-            />
-          </span>
-          {bad ? (
-            <Quiet testid="insp-fill-image-error">
-              Use a file in the project or an https:// address.
-            </Quiet>
-          ) : null}
-        </div>
-      ) : null}
       {!editable ? (
         <Quiet testid="insp-fill-locked">
           This object has no id yet. Edit element id… gives it one.

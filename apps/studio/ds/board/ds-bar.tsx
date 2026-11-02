@@ -35,7 +35,6 @@ export function DsBarView({
   const linked = !!model.library;
   // a linked library takes no edits here: nothing waits, so there is nothing to Review…
   const waiting = linked ? null : waitingWords(model.pendingCount);
-  const colours = model.tokens.filter((t) => t.section === 'colour').length;
   const hasDark = model.themes.dark !== null;
   return (
     <div className="ds-bar" data-testid="ds-bar" role="toolbar" aria-label="Design system">
@@ -58,9 +57,6 @@ export function DsBarView({
           </button>
         ))}
       </fieldset>
-      {mode === 'dark' ? (
-        <span className="ds-bar-p">{colours} colours in their dark values</span>
-      ) : null}
       {linked ? (
         <>
           <span className="ds-bar-sep" />
