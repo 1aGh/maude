@@ -4,6 +4,20 @@ This replaces `checkpoint-2026-11-01b.md`. The keeper reported the weekly usage 
 from here. Michal said there are no more rounds before the final checks; the lead runs them and reports to the keeper
 (the peer session "Maude v2 keeper").
 
+## UPDATE ~17:10 — the final round is DONE
+
+- 8.7 (318/318), 8.8 (WebKit 21/21 vs 47/45), 8.14 (budgets; LOD +1 ms as accepted) and 8.10 (the final `.app` at
+  71ec8ec75, scripted half green) are attested. **`node scripts/v2-gates.mjs --status`: all 15 green.**
+- `v2-done.sh` on `feat/maude-v2`: everything passes except the two items that wait on Michal. These are expected:
+  - ledger row **V2-8.13** (close-out after the merge);
+  - **`packaged-app.json` pass** (his clean-user smoke).
+- PR.md, the verification table and the PR #160 body are up to date. The PR is still a draft.
+- The Progress log and the r4/r5 checklist have a final-state section.
+- Nothing is left running.
+
+The only things left are Michal's: the clean-user smoke of the final `.app`, the VoiceOver listen, his look at the
+r4/r5 rows in this build, and the merge. After the merge: V2-8.12 (cut `2.0.0-rc.1`) and V2-8.13 (`/flow:done`).
+
 ## Where things are
 
 - `feat/maude-v2`: the product tree is **`71ec8ec75`**. Every commit after it touches only `.ai/`. Pushed.
