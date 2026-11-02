@@ -31,6 +31,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { startLocalHub } from '../apps/desktop/e2e/fixtures/local-hub.mjs';
+import { stubClaudeEnv } from './lib/stub-claude.mjs';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -170,10 +171,10 @@ writeFileSync(
 
 // ── the studio server, isolated from every real config ────────────────────────
 const home = join(OUT, 'home');
-const bin = join(OUT, 'bin');
 mkdirSync(join(home, 'config'), { recursive: true });
-mkdirSync(bin, { recursive: true });
-writeFileSync(join(bin, 'claude'), '#!/bin/sh\nexit 1\n', { mode: 0o755 });
+// A throwaway HOME with the shared signed-out stub `claude` first on PATH: the studio's ACP probe
+// never reaches the real CLI or the keychain.
+const claudeStub = stubClaudeEnv(home);
 const hubsFile = join(home, 'hubs.json');
 writeFileSync(
   hubsFile,
@@ -205,8 +206,8 @@ const studio = spawn(
   ],
   {
     env: {
-      PATH: `${bin}:${process.env.PATH}`,
-      HOME: process.env.HOME,
+      ...claudeStub,
+      HOME: home,
       TMPDIR: process.env.TMPDIR,
       LANG: process.env.LANG ?? 'en_US.UTF-8',
       XDG_CONFIG_HOME: join(home, 'config'),
