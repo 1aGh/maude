@@ -642,6 +642,7 @@ pub fn navigate_home(app: &AppHandle) {
     match url.parse::<tauri::Url>() {
         Ok(parsed) if crate::server_json::is_loopback_url(&parsed) => {
             stamp_home_origin(app, &url);
+            log_line(&format!("[maude] Home navigate → {url}"));
             if let Err(e) = window.navigate(parsed) {
                 log_line(&format!("[maude] Home navigate failed: {e}"));
             }
