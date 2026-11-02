@@ -236,7 +236,9 @@ describe('edit-shapes — draw a rectangle, round a corner, Export area writes n
       timeout: 15_000,
       timeoutMsg: 'the picked colour never reached the file',
     });
-    // reopen: the colour is the newest Recent (the Custom tab stays open while you work: esc puts it away)
+    // reopen: the colour is the newest Recent (the Custom tab stays open while you work: esc from inside it puts it
+    // away — the blur above left focus on the page, where the card's own esc never hears it)
+    await field.click();
     await browser.keys('Escape');
     await browser.waitUntil(
       async () => !(await (await $('[data-testid="insp-menu-fill"]')).isExisting()),
