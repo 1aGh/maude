@@ -63,7 +63,9 @@ const BOARD = [
     id: 'sec',
     type: 'section',
     index: 'a3',
-    x: 500,
+    // Clear of T1's fanned-out row (120 → 632): a sticky Fan out moves onto a section is adopted by it
+    // (r4 #18, decision v2-r4-moved-element-adopted-by-section), which is not what T1 or T3 are about.
+    x: 700,
     y: 100,
     w: 360,
     h: 260,

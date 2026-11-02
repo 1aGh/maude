@@ -40,7 +40,11 @@ after(async () => {
 
 async function reset() {
   for (let i = 0; i < 3; i++) await c.page.keyboard.press('Escape');
-  await sleep(250);
+  // r4 #14 (decision v2-r4-14-esc-stays-in-preview): the third Esc no longer leaves Preview, so the harness no longer
+  // re-enters it and re-fits. A scenario that panned (R3's Hand drag) would leave the next one looking elsewhere:
+  // re-fit here, as that round trip did (⌘0 is Zoom to fit; it keeps the keyboard focus on the canvas).
+  await c.page.keyboard.press('Meta+0');
+  await sleep(400);
 }
 
 /** The open editor (v2 textarea or v1 contentEditable), or null. */
