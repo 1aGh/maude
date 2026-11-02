@@ -582,4 +582,45 @@ describe('edit-artboards (part 3) — the artboard menu, ⌘D, rename in place',
     await capture('artboard-rename-tab');
     await browser.keys('Escape');
   });
+
+  // issue #147 ("Nejde smazat artboard", v1.7.1): the menu's Move to trash really takes the artboard out of the file
+  it('right-click the name › Move to trash: the artboard leaves the file and the canvas', async () => {
+    await inFrame((d) => {
+      const win = d.defaultView as Window & typeof globalThis;
+      const label = d.querySelector('[data-dc-screen="b"] .dc-artboard-label') as HTMLElement;
+      const r = label.getBoundingClientRect();
+      label.dispatchEvent(
+        new win.MouseEvent('contextmenu', {
+          bubbles: true,
+          cancelable: true,
+          clientX: r.left + r.width / 2,
+          clientY: r.top + r.height / 2,
+        })
+      );
+      return true;
+    });
+    await browser.waitUntil(
+      async () =>
+        inFrame((d) => !!d.querySelector('[data-testid="canvas-menu-item-delete-artboard"]')),
+      { timeout: 10_000, timeoutMsg: 'the artboard menu never offered Move to trash' }
+    );
+    await inFrame((d) => {
+      (d.querySelector('[data-testid="canvas-menu-item-delete-artboard"]') as HTMLElement).click();
+      return true;
+    });
+    await browser.waitUntil(() => !readFileSync(MENU_TSX, 'utf8').includes('id="b"'), {
+      timeout: 15_000,
+      timeoutMsg: 'Move to trash did not take the artboard out of the file',
+    });
+    expect(readFileSync(MENU_TSX, 'utf8')).toContain('id="a"');
+    await browser.waitUntil(
+      async () =>
+        inFrame(
+          (d) =>
+            !d.querySelector('[data-dc-screen="b"]') && !!d.querySelector('[data-dc-screen="a"]')
+        ),
+      { timeout: 15_000, timeoutMsg: 'the canvas never redrew without the trashed artboard' }
+    );
+    await capture('artboard-moved-to-trash');
+  });
 });
