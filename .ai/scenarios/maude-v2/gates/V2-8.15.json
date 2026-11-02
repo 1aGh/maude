@@ -5,10 +5,10 @@
   "reportHashes": {
     ".ai/plans/notes/v2-evidence/V2-8.15-docs.md": "9fe88e4be553bd4a8732cd167ed2c62e891e0a839962b511ca16b57ea5865a39"
   },
-  "head": "62146d9d4f5073997e6916137ebfd085ea9b7adb",
-  "ts": "2026-11-02T10:18:39.496Z",
+  "head": "64632ff097688143257975ac2cc5c7ae112447f4",
+  "ts": "2026-11-02T14:52:38.977Z",
   "reports": [
     ".ai/plans/notes/v2-evidence/V2-8.15-docs.md"
   ],
-  "note": "final at 62146d9d4: r3+r4+r5 people and agent docs as attested at aeb2ba166; gen-plugin-surfaces --check 0 (84 files), gen-actions --check 0; product diff aeb2ba166..62146d9d4 = 3 files: edit-shapes e2e spec (click the field before esc), two dead .insp-pop-custom CSS rules removed (V2-8.0 inventory) + the rebuilt styles.css — no copy or doc surface"
+  "note": "final at 71ec8ec75: r3+r4+r5 docs as attested; gen-plugin-surfaces --check 0, gen-actions --check 0; product diff 62146d9d4..71ec8ec75 = desktop e2e harness only (edit-artboards double-click retry, helpers/assistant.ts icon re-click, ai-runs Mac 2 page 60 s); no app, studio, hub, plugin or doc file"
 }
