@@ -159,7 +159,10 @@ app is verified in the shells it ships in (desktop, browser, cloud tab, viewer).
 - **Bugs the final checks found after your rounds, each fixed:** the theme probe re-ran forever on a canvas with no Dark
   (~20 canvas suites timed out on the mini); the default canvas name failed the second time; the Light | Dark pill
   covered the co-spotlight Stop; the desktop e2e read your real Maude Cloud sign-in (the shell's `cloud.json` now follows
-  the server's override in debug builds).
+  the server's override in debug builds). On the last day: two dead CSS rules the picker rewrite left (V2-8.0 bar), and
+  three e2e harness races that showed only under load (an Esc that the page never heard, a double-click lost in the ⌘Z
+  remount, an Assistant click lost while two studios and a hub share one Mac). Those three were spec fixes, not app
+  fixes.
 - **Security delta r4 + r5:** one medium — Copy link handed out an https address the committed config names even when
   this Mac never confirmed that hub (a lookalike URL in a PR → a fake sign-in with a real device code) — fixed: only a
   cell or a signed-in hub lends its address; two lows fixed (the overview strip, setup-ds quoting); three lows in the
@@ -219,30 +222,29 @@ app is verified in the shells it ships in (desktop, browser, cloud tab, viewer).
 ## Verification
 
 Phase 8 gates, from `node scripts/v2-gates.mjs`. The script reads recorded evidence, and a record goes stale as soon as
-any file outside `.ai/` changes. **Every record is at the final freeze, product tree `fab4e6c4a`** (2026-11-01). The full
-chain4 (8.1, 8.3 ×3, 8.18, 8.2) ran green at `08b35c8db`; the changes after it are logic-free (the slash-menu ink, the
-surface runner's isolation, `--carry`, the rebuilt release bundles), so per your gate policy 8.1 was recorded again and
-8.3 / 8.18 / 8.2 were carried with the diff and the scoped checks written into their evidence. The two things only you
-can do are listed under "Before you merge".
+any file outside `.ai/` changes. **Every record is at the final product tree `71ec8ec75`** (2026-11-02), after your
+rounds r3–r5. The full chain4 (8.1, 8.3 ×3, 8.18, 8.2) ran green at that exact tree — no carry. The attested gates
+(8.4, 8.5, 8.9, 8.15, 8.16) were run at `62146d9d4`; the only change since is three desktop e2e harness files, written
+into each note. The two things only you can do are listed under "Before you merge".
 
 | Gate | What | Status | Evidence |
 | --- | --- | --- | --- |
-| V2-8.0 | Cleanup (old layers, dead code, CSS bar) | PASS (live check) | 638 KB vs 742 KB at the start of the phase |
-| V2-8.1 | Quality gates (format, lint, typecheck, tests, build, parity, tarball, tokens, site, import coherence) | PASS | recorded at `78aba4749`, carried to `fab4e6c4a`; also green on Linux (figga): biome, lint, tsc, node + hub tests |
-| V2-8.2 | Rust (`cargo test`, clippy `-D warnings`) | PASS | recorded at `08b35c8db`, carried (no Rust change since) |
-| V2-8.3 | Desktop e2e, every lane, 3 consecutive runs (debug build) | PASS | `08b35c8db`: 0 failing over 3 runs, prefs untouched, screen never locked; carried |
-| V2-8.4 | Cross-shell scenarios (browser, cloud owner, cloud viewer) | PASS | 18/18 on the Mac mini at `92c8adc2e`; format-1 run 14/18 = the view-only gate |
-| V2-8.5 | Design fidelity | PASS | artboard rows: 342 verified, 14 soak, 4 not-a-state, 0 open; all 24 browser e2e files ×2 green on the mini (48/48) |
+| V2-8.0 | Cleanup (old layers, dead code, CSS bar) | PASS (live check) | 0 B in dead CSS rules (two left by the r4 picker rewrite, removed at `62146d9d4`) |
+| V2-8.1 | Quality gates (format, lint, typecheck, tests, build, parity, tarball, tokens, site, import coherence) | PASS | recorded at `71ec8ec75`; the full apps/studio suite on the Mac mini at `62146d9d4`: 21,688 pass, 0 fail |
+| V2-8.2 | Rust (`cargo test`, clippy `-D warnings`) | PASS | recorded at `71ec8ec75` |
+| V2-8.3 | Desktop e2e, every lane, 3 consecutive runs (debug build) | PASS | `71ec8ec75`: 0 failing over 3 runs, prefs untouched, screen never locked |
+| V2-8.4 | Cross-shell scenarios (browser, cloud owner, cloud viewer) | PASS | 18/18 on the Mac mini at `62146d9d4`; format-1 run 14/18 = the view-only gate |
+| V2-8.5 | Design fidelity | PASS | artboard rows: 342 verified, 14 soak, 4 not-a-state, 0 open; all 24 browser e2e files ×2 on the mini at `62146d9d4` (47/48 + one port-bind harness red, rerun ×2 green) |
 | V2-8.6 | Nothing-deleted audit | PASS (live check) | 100 % |
 | V2-8.7 | A11y (axe, keyboard-only, VoiceOver strings) | PASS | the whole matrix in one pass at `08b35c8db` — 317 states × both themes; one serious contrast (dark slash menu) fixed red-first and re-scanned clean; VoiceOver listen is yours |
 | V2-8.8 | Pan/zoom perf (Chromium + WebKit) | PASS | WebKit both orders p95 22 / 20 ms vs pre-v2 48 / 45; Chromium studio 18.1 vs 18.2, bare 16.7 vs 16.8 |
-| V2-8.9 | Security | PASS | final … final5 pairs + rechecks; the r2 delta pair (1 medium blocker + 2 medium fixed, closure 0 blockers) and the browser-reds delta; lows in follow-ups |
+| V2-8.9 | Security | PASS | final … final5 pairs + rechecks; the r2, r3 and r4+r5 delta pairs (r4+r5: one medium + two lows fixed red-first); lows in follow-ups |
 | V2-8.10 | Packaged app | PASS (scripted) | `.app` 2.0.0-rc.1 built at `fab4e6c4a`: `check-bundle-completeness --smoke` ✓, `check-client-boots` ✓, no WebDriver in release, opening card clears; the clean-user smoke is yours |
 | V2-8.14 | Perf beyond pan/zoom | PASS | index/covers/artboards/tiles in budget (Alligators clone, 2 runs); panel + 12 people PASS; LOD base-first +1 ms accepted by you |
-| V2-8.15 | Docs for people and agents | PASS | gens in sync, drift tests 12/12; 15 stale lines fixed after the r2 renames |
-| V2-8.16 | AI parity | PASS | 512/512 at the freeze; eval 24/30 pass^3; live journeys 19/22 (the 3 fails agent-caused) |
+| V2-8.15 | Docs for people and agents | PASS | gens in sync; r3–r5 people and agent docs updated (getting-started, desktop/window, design, DS schema, setup-ds canvas-first) |
+| V2-8.16 | AI parity | PASS | 512/512 at `71ec8ec75`; eval 24/30 pass^3; live journeys 19/22 (the 3 fails agent-caused) |
 | V2-8.17 | Offline overlap on reconnect (#121) | verified | merged with tests |
-| V2-8.18 | Self-hosted hub + cell images (Docker) | PASS | 16/16 at `08b35c8db`, carried |
+| V2-8.18 | Self-hosted hub + cell images (Docker) | PASS | 22/22 legs at `71ec8ec75` (hub v2 + v1.9.1 and cell images built here, nothing pushed) |
 | V2-8.11 | Branch build and PR | this PR | |
 | V2-8.12 | After the merge: rc | after merge | see below |
 | V2-8.13 | Close-out | after merge | `v2-done.sh` turns green once this PR is merged and closed out |
