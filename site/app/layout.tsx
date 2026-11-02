@@ -1,7 +1,7 @@
 import { Analytics } from '@vercel/analytics/next';
 import { RootProvider } from 'fumadocs-ui/provider/next';
 import type { Metadata } from 'next';
-import { Inter, Inter_Tight, JetBrains_Mono } from 'next/font/google';
+import localFont from 'next/font/local';
 import { appName, gitConfig, siteUrl } from '@/lib/shared';
 import stats from '@/lib/stats.json';
 import './global.css';
@@ -9,23 +9,27 @@ import './global.css';
 // maude type system — Inter (body/UI), Inter Tight (display headings),
 // JetBrains Mono (code + numerics). Wired to --font-body / --font-display /
 // --font-mono in global.css. See DDR-09X token retarget.
-const jetbrains = JetBrains_Mono({
-  subsets: ['latin'],
+// Self-hosted variable woff2 (latin, SIL OFL 1.1 — licences beside the files in
+// app/fonts/), so the build never fetches from Google: next/font/google failed
+// the CI site build whenever the fetch did.
+const jetbrains = localFont({
+  src: './fonts/jetbrains-mono-latin-wght-normal.woff2',
   variable: '--font-mdcc-mono',
-  weight: ['400', '500', '700'],
+  weight: '100 800',
   display: 'swap',
 });
 
-const inter = Inter({
-  subsets: ['latin'],
+const inter = localFont({
+  src: './fonts/inter-latin-wght-normal.woff2',
   variable: '--font-inter',
+  weight: '100 900',
   display: 'swap',
 });
 
-const interTight = Inter_Tight({
-  subsets: ['latin'],
+const interTight = localFont({
+  src: './fonts/inter-tight-latin-wght-normal.woff2',
   variable: '--font-inter-tight',
-  weight: ['500', '600', '700'],
+  weight: '100 900',
   display: 'swap',
 });
 

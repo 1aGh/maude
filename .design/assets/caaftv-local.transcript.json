@@ -1,0 +1,33 @@
+{
+  "format": "maude.transcript",
+  "v": 1,
+  "asset": "assets/caaftv-local.mp4",
+  "engine": {
+    "id": "whisper.cpp",
+    "timing": "segment"
+  },
+  "words": [
+    {
+      "id": "w0",
+      "t0": 0,
+      "t1": 2.56,
+      "text": "na víci, kři jsou silní je to silnej jsou peč."
+    },
+    {
+      "id": "w1",
+      "t0": 2.56,
+      "t1": 7.58,
+      "text": "Myslali jsme, že to bude vyrovnany útkání a že zvíte zíme na kon"
+    }
+  ],
+  "speech": {
+    "source": "words",
+    "regions": [
+      [
+        0,
+        7.58
+      ]
+    ]
+  },
+  "createdAt": "2026-11-01T14:38:17.053Z"
+}
