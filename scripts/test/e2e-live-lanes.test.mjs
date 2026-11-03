@@ -140,6 +140,13 @@ test('cloud and team-project lanes sit on the local hub, never a real one', () =
     'the stub control plane must hand out the local hub as the cell'
   );
   assert.doesNotMatch(cloud, /req\.url === '\/auth\/login'/, '/auth/login is the local hub’s own');
+  // rc3-j (#162): the cell forwards Share's access calls to a control plane (the real forwarder), or the moved
+  // project's Share sheet shows the cell's own "Sharing is not available right now" — and the scenario says so.
+  assert.match(cloud, /access: \{ project: 'stub-project', owner: 'e2e@example\.com' \}/);
+  assert.match(
+    read('scenarios/cloud-attach.e2e.ts'),
+    /expect\(await \(await \$\(tid\('share-error'\)\)\)\.isExisting\(\)\)\.toBe\(false\)/
+  );
   const team = read('wdio.team-project.conf.ts');
   assert.match(team, /startLocalHub/);
   // a first run for real: Home's first-run flag cleared, a fresh index, the real `claude` held off

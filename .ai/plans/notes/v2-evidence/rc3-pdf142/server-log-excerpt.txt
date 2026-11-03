@@ -1,0 +1,16 @@
+
+  test Design — local browser
+  ─────────────────────────────
+  http://localhost:4871
+  Project:   test
+  Config:    .design/config.json
+  Design:    <scratch>/proj/.design
+  Active:    <scratch>/proj/.design/_active.json
+  Press Ctrl+C to stop.
+
+[jobs] pdf: lane=local dispatchRemote=false (renderUrl=unset)
+[_pdf-playwright] ✓ page.pdf wrote 1 file(s)
+[jobs] pdf: lane=local dispatchRemote=false (renderUrl=unset)
+[_pdf-playwright] ✓ page.pdf wrote 1 file(s)
+
+  Stopping…

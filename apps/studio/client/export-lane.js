@@ -75,7 +75,7 @@ function thisMacSub(online, seconds) {
 /**
  * The Render row for one sheet.
  * @param {{ pref?: string, render?: { cloud: boolean, suggest: string, why: string|null } | null,
- *           online?: boolean, picked?: string|null, seconds?: number|null }} o
+ *           online?: boolean, picked?: string|null, seconds?: number|null, workspace?: boolean }} o
  *   `render` = the estimate's block; `picked` = what the person clicked in this sheet (wins);
  *   `seconds` = the estimate's this-Mac time (the option says it when known).
  * @returns {{ show: boolean, lane: 'cloud'|'this-mac', suggested: boolean, why: string|null,
@@ -87,8 +87,10 @@ export function renderChoice({
   online = true,
   picked = null,
   seconds = null,
+  workspace = false,
 } = {}) {
-  const show = !!render?.cloud;
+  // rc3-i — "cloud or this Mac" is the desktop's question; a cloud tab (a cell) has no Mac to pick
+  const show = !!render?.cloud && !workspace;
   if (!show) return { show: false, lane: 'this-mac', suggested: false, why: null, options: [] };
   let lane;
   let suggested = false;

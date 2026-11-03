@@ -37,12 +37,14 @@ import {
   LINK_CONFIRMED_EVENT,
   lastSyncedAt,
   peopleRows,
+  queuedInviteWords,
   readJoinAs,
   roleWord,
   shareApi,
   sheetView,
   takeShareFocus,
   teamRow,
+  unreachableWords,
   writeJoinAs,
 } from './share-model.js';
 
@@ -267,7 +269,7 @@ export function ShareSheet({
       if (r.status === 202 && r.body?.queued) {
         setNotice({
           kind: 'queued',
-          text: r.body.words ?? 'Invites send when this Mac is online.',
+          text: r.body.words ?? queuedInviteWords(shell),
         });
         return true;
       }
@@ -444,7 +446,8 @@ export function ShareSheet({
             </button>
           </div>
         )}
-        {posture && !view.linked && !offerMove && !moving && !pendingLink && (
+        {/* a cloud tab is never a "local project": it IS the workspace, so this line has no true form there (rc3-i) */}
+        {posture && !view.linked && !offerMove && !moving && !pendingLink && shell !== 'cloud' && (
           <div className="v2sh-arow v2sh-arow--stack">
             <p className="v2sh-hint" data-testid="share-local-note">
               Local project — kept on this Mac. To invite people, move it to Maude Cloud in the
@@ -455,8 +458,7 @@ export function ShareSheet({
         )}
         {posture && view.linked && !view.reachable && (
           <p className="v2sh-hint" data-testid="share-unreachable">
-            Sharing is not available right now. Invites you send wait here and go out once this Mac
-            reaches the project.
+            {unreachableWords(shell)}
           </p>
         )}
 

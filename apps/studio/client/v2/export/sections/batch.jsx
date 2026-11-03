@@ -53,7 +53,17 @@ export function stillsOf(pictures, kind, max = 3) {
     .map((i) => ({ url: i.picture.url, label: i.label }));
 }
 
-function Group({ kind, row, pick, cloud, onPick, boards = [], canvases = 0, stills = [] }) {
+function Group({
+  kind,
+  row,
+  pick,
+  cloud,
+  workspace = false,
+  onPick,
+  boards = [],
+  canvases = 0,
+  stills = [],
+}) {
   const Icon = KIND_ICON[kind] ?? DigitalIcon;
   const choice = choiceFor(kind, { [kind]: pick });
   // 09: the small note under the value — what the format adds (print: "Bleed + crop marks"), or that a video renders in
@@ -70,7 +80,8 @@ function Group({ kind, row, pick, cloud, onPick, boards = [], canvases = 0, stil
         </strong>
         <span className="ex-group-s" data-testid={`export-group-${kind}-names`}>
           {canvases > 1 ? `from ${canvases} canvases — ` : ''}
-          {namesLine(boards) || (kind === 'video' && cloud ? WHERE_CLOUD : WHERE_THIS_MAC)}
+          {namesLine(boards) ||
+            (kind === 'video' && cloud ? WHERE_CLOUD : workspace ? '' : WHERE_THIS_MAC)}
         </span>
       </div>
       {stills.length ? (
@@ -142,7 +153,7 @@ function IncludeRow({ state, set, counts }) {
  * @param est      the server's estimate (`byKind`, `skipped`, `counts`, numbers)
  * @param setFormat  the sheet's format setter (Project ZIP instead)
  */
-export function BatchSection({ state, set, est, setFormat, pictures }) {
+export function BatchSection({ state, set, est, setFormat, pictures, workspace = false }) {
   const byKind = est?.byKind ?? {};
   const boards = est?.boards ?? [];
   const kinds = orderKinds(Object.keys(byKind));
@@ -150,7 +161,11 @@ export function BatchSection({ state, set, est, setFormat, pictures }) {
   const cloud = est?.lane === 'cloud';
   const shared = sharedPartsLine(est?.skipped);
   const unit = formatSkipLine(est?.skipped);
-  const big = bigWords(est, { summary: summaryWords(est), hasVideo: kinds.includes('video') });
+  const big = bigWords(est, {
+    summary: summaryWords(est, { workspace }),
+    hasVideo: kinds.includes('video'),
+    workspace,
+  });
   return (
     <>
       {/* biome-ignore lint/a11y/useSemanticElements: a labelled run of format groups, not a form fieldset */}
@@ -167,6 +182,7 @@ export function BatchSection({ state, set, est, setFormat, pictures }) {
             row={byKind[kind]}
             pick={picks[kind]}
             cloud={cloud}
+            workspace={workspace}
             boards={boards.filter((b) => (b.kind ?? 'digital') === kind)}
             canvases={
               new Set(boards.filter((b) => (b.kind ?? 'digital') === kind).map((b) => b.canvas))

@@ -48,6 +48,12 @@ export const WORDS = Object.freeze({
   'not-saved': 'Not saved',
 });
 
+/**
+ * rc3-i — a cloud tab (a browser on a cell) keeps nothing on a Mac, so its offline word drops the place
+ * (the callouts' rule, p8-cell-copy: same words, minus the part that is false there).
+ */
+export const OFFLINE_WORD_CLOUD = 'Offline';
+
 export const ACCESS_WORDS = Object.freeze({ view: 'Can view', comment: 'Can comment' });
 
 /** A held source conflict's one action (CONTRACT §6): the two versions side by side in Sync details. */
@@ -71,6 +77,7 @@ const count = (n) => (Number.isFinite(n) && n > 0 ? n : 0);
 
 /**
  * @param in.linked      a hub / cloud link exists
+ * @param in.cloud       this shell is a cloud tab (a browser on a cell): no word names a Mac
  * @param in.online      false only when the browser says there is no network
  * @param in.phase       SyncPhase from syncPresentation, or null
  * @param in.pending     edits waiting to leave this Mac
@@ -82,6 +89,7 @@ const count = (n) => (Number.isFinite(n) && n > 0 ? n : 0);
 export function saveStatus(input) {
   const {
     linked = false,
+    cloud,
     online = true,
     phase = null,
     pending = 0,
@@ -117,7 +125,8 @@ export function saveStatus(input) {
     });
   }
   if (!linked) return make('local');
-  if (online === false || OFFLINE_PHASES.has(phase)) return make('offline');
+  if (online === false || OFFLINE_PHASES.has(phase))
+    return make('offline', cloud ? { word: OFFLINE_WORD_CLOUD } : {});
   if (SYNCING_PHASES.has(phase) || count(pending) > 0) return make('syncing');
   return make('saved');
 }

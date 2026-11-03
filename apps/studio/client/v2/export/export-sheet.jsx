@@ -219,6 +219,8 @@ export function ExportSheet({
   // S8.5 — a video's Render row: cloud or this Mac (Suggest each time / always, export-lane.js)
   const online = useOnline();
   const [pickedLane, setPickedLane] = useState(null);
+  // rc3-i — a cloud tab (any lane but the desktop's own): nothing runs on a Mac, so the words never say it does
+  const workspace = exportLane !== 'local';
   const lanePref = state.adv?.lane ?? readLanePref();
   const render = useMemo(
     () =>
@@ -228,8 +230,9 @@ export function ExportSheet({
         online,
         picked: pickedLane,
         seconds: est?.seconds ?? null,
+        workspace,
       }),
-    [lanePref, est, online, pickedLane]
+    [lanePref, est, online, pickedLane, workspace]
   );
   // 09 — one artboard exported (a post, a web page, a video, a print page): its picture + its size line beside the rows
   const videoRow = section === 'video' ? (video.rows?.[0] ?? null) : null;
@@ -342,7 +345,7 @@ export function ExportSheet({
       ? summaryWords(
           // 09 ex-video / 07 ve-export: the words follow the Render card that is ticked, not the estimate's lane
           estimateForLane(est, render),
-          printChoice.printPdf ? { pdfPages: printChoice.withBack ? 2 : 1 } : undefined
+          { workspace, ...(printChoice.printPdf ? { pdfPages: printChoice.withBack ? 2 : 1 } : {}) }
         )
       : null;
   const button =
@@ -564,6 +567,7 @@ export function ExportSheet({
   const sectionProps = {
     state,
     set,
+    workspace,
     setFormat: (f) => {
       setFormat(f);
       setStatus(null);

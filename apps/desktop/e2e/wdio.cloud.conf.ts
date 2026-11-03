@@ -174,6 +174,10 @@ if (!process.env.MAUDE_E2E_CLOUD_HUB) {
   hub = await startCloudLaneCell({
     dir: join(scratch, 'cell'),
     cloudKey: cloudKey(),
+    // rc3-j (#162): the cell forwards Share's access calls to a control plane, as every fleet cell does — the real
+    // forwarder, holding the project the stub's tokens name. Without it the moved project's Share sheet showed the
+    // cell's own "Sharing is not available right now" under "Moved to Maude Cloud".
+    access: { project: 'stub-project', owner: 'e2e@example.com' },
     projectConfig: JSON.parse(
       readFileSync(join(HERE, 'fixtures', 'project', '.design', 'config.json'), 'utf8')
     ),

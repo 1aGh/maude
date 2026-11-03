@@ -21,9 +21,12 @@ import { LANES, renderStatus } from './model.js';
 
 export function RenderPart({ spec, exportLane, video, setAdv }) {
   const status = renderStatus(exportLane);
+  // rc3-i — "Suggest each time · always the cloud · always this Mac" and "always export on this Mac" are the
+  // desktop's: a cloud tab renders where its workspace does, so it is told only the service and its state
+  const workspace = exportLane !== 'local';
   return (
     <section className="ex-advp" data-testid="export-adv-render" aria-label={RENDER_TITLE}>
-      {video ? (
+      {video && !workspace ? (
         <>
           <Row k={RENDER_VIDEO}>
             <Select
@@ -41,7 +44,7 @@ export function RenderPart({ spec, exportLane, video, setAdv }) {
           <Note>{RENDER_NOTE_VIDEO}</Note>
         </>
       ) : null}
-      <Note>{RENDER_NOTE_IMAGES}</Note>
+      {workspace ? null : <Note>{RENDER_NOTE_IMAGES}</Note>}
       <span className="ex-kv">
         <span>{RENDER_SERVICE}</span>
         <span className="ex-mono" data-testid="export-adv-render-service">

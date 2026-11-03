@@ -368,7 +368,9 @@ export function advancedView({ view, shell, hubUrl } = {}) {
         }
       : null,
     hint: !linked
-      ? 'Addresses that open on this Mac'
+      ? shell === 'cloud'
+        ? 'Other ways in'
+        : 'Addresses that open on this Mac'
       : selfHosted
         ? 'Other ways in, sync, roles'
         : 'Links, link rules, sync',
@@ -467,3 +469,20 @@ export function shareApi(fetchImpl = (...a) => fetch(...a)) {
     confirmLink: () => go('POST', '/_api/sync/link/confirm', {}),
   };
 }
+
+/**
+ * The sentence under a queued invite when the studio gave none (the desktop's route always does), and under
+ * Share while offline. rc3-i — a cloud tab (shell `cloud`) has no Mac in it.
+ */
+export const INVITES_WAIT_CLOUD = 'Invites send when you are back online.';
+export const queuedInviteWords = (shell) =>
+  shell === 'cloud' ? INVITES_WAIT_CLOUD : 'Invites send when this Mac is online.';
+
+/**
+ * The line under a linked project the hub cannot be asked about. The desktop queues an invite on this Mac
+ * until it reaches the project; a cloud tab queues nothing — it just cannot reach its workspace.
+ */
+export const unreachableWords = (shell) =>
+  shell === 'cloud'
+    ? 'Sharing is not available right now. Try again in a moment.'
+    : 'Sharing is not available right now. Invites you send wait here and go out once this Mac reaches the project.';

@@ -29,6 +29,8 @@ export function startLocalHub(opts: {
   /** P8 G1b-3: run in workspace mode with this checkout (a cell-shaped hub: file door + journal). */
   workspace?: string;
   node?: string;
+  /** rc3-j: extra cell env the caller owns (MAUDE_CONTROL_PLANE_URL, MAUDE_TENANT_ID). */
+  env?: Record<string, string>;
   /** Test seam: the spawn the hub is started with (defaults to node:child_process spawn). */
   spawn?: typeof import('node:child_process').spawn;
 }): Promise<LocalHub>;
@@ -39,7 +41,26 @@ export function startCloudLaneCell(opts: {
   cloudKey: string;
   projectConfig: Record<string, unknown> & { designRoot?: string };
   node?: string;
-}): Promise<LocalHub & { checkout: string }>;
+  /** rc3-j: give the cell a control plane that answers its forwarded `/api/access/*` (the real forwarder). */
+  access?: { project: string; owner: string };
+}): Promise<LocalHub & { checkout: string; authority: AccessAuthority | null }>;
+
+export interface AccessAuthority {
+  http: string;
+  pid: number;
+  stop(): void;
+}
+
+/** The secret serve-hub.mjs signs with — the lane cell's bearer toward its control plane. */
+export const LANE_HUB_SECRET: string;
+
+/** rc3-j: the real control-plane access forwarder over a throwaway D1 holding `project`, owned by `owner`. */
+export function startAccessAuthority(opts: {
+  project: string;
+  owner: string;
+  cellSecret: string;
+  node?: string;
+}): Promise<AccessAuthority>;
 
 export function mintProjectToken(
   key: string,
