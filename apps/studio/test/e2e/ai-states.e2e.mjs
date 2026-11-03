@@ -79,14 +79,21 @@ describe('01 cf-ai-drafting - AI drafts on a new canvas, in the open', () => {
       },
     ]);
     await ui.ask('Draw a calm landing page for my studio');
-    // the working line names the ask in the present tense, says the step under it, and has Stop
+    // rc3-h (issue 182): the working line says what AI does NOW (from the stream, never a tool title); the ask, in
+    // the present tense, moves under it; Stop is there
     await until(
-      async () => /^AI is drawing a calm landing page/.test(await workingText(ui)),
-      'the working line to say what the ask is doing'
+      async () => (await workingText(ui)) === 'AI is editing Landing',
+      'the working line to say what AI is doing now'
     );
     await until(
-      async () => /Desktop done - Mobile next/.test(await ui.tid('ai-working').first().innerText()),
-      'the step under the working line'
+      async () =>
+        /Drawing a calm landing page/.test(await ui.tid('ai-working').first().innerText()),
+      'the ask under the working line'
+    );
+    assert.doesNotMatch(
+      await ui.tid('ai-working').first().innerText(),
+      /Desktop done - Mobile next/,
+      'a tool title is not the line'
     );
     assert.ok(await ui.tid('ai-stop').count(), 'Stop is one click away');
     // Desktop landed: it is the artboard being drawn so far
@@ -137,6 +144,15 @@ ${step >= 4 ? '            <button data-cd-id="poster-button" type="button" styl
 }
 `;
 const POSTER_FILE = '.design/ui/Poster.tsx';
+// rc3-h: the working line's step comes from the agent's plan (Claude Code's todo list), not a tool title
+const POSTER_PLAN = (i) =>
+  ['Draw the paper and colour', 'Draw the picture', 'Write the headline', 'Add the button'].map(
+    (content, n) => ({
+      content,
+      status: n < i ? 'completed' : n === i ? 'in_progress' : 'pending',
+      priority: 'medium',
+    })
+  );
 
 describe('02 ob-first-draw + ob-sig-draw - a first draft arrives piece by piece, never a spinner', () => {
   let lane;
@@ -154,14 +170,17 @@ describe('02 ob-first-draw + ob-sig-draw - a first draft arrives piece by piece,
   test('paper first, then the picture, then the words; the ring stays on the poster; one Undo takes the whole draft back', async () => {
     lane.script([
       { op: 'say', text: 'An A4 poster is on the canvas - the words are going in now.' },
+      { op: 'plan', entries: POSTER_PLAN(0) },
       tool('p1', 'Paper and colour', POSTER_FILE),
       { op: 'edit', path: POSTER_FILE, content: POSTER(1) },
       { op: 'gate', name: 'picture' },
       { op: 'done', id: 'p1', path: POSTER_FILE },
+      { op: 'plan', entries: POSTER_PLAN(1) },
       tool('p2', 'The picture', POSTER_FILE),
       { op: 'edit', path: POSTER_FILE, content: POSTER(2) },
       { op: 'gate', name: 'words' },
       { op: 'done', id: 'p2', path: POSTER_FILE },
+      { op: 'plan', entries: POSTER_PLAN(2) },
       tool('p3', '3 of 4 - button next', POSTER_FILE),
       { op: 'edit', path: POSTER_FILE, content: POSTER(3) },
       { op: 'gate', name: 'finish' },
@@ -182,8 +201,8 @@ describe('02 ob-first-draw + ob-sig-draw - a first draft arrives piece by piece,
       'big shapes have not landed yet'
     );
     await until(
-      async () => /Paper and colour/.test(await ui.tid('ai-working').first().innerText()),
-      'step 1'
+      async () => /Step 1 of 4/.test(await ui.tid('ai-working').first().innerText()),
+      'step 1 (the plan, rc3-h)'
     );
     await ui.shot('02-ob-sig-draw.1-paper');
     lane.gate('picture');
@@ -205,8 +224,8 @@ describe('02 ob-first-draw + ob-sig-draw - a first draft arrives piece by piece,
       'the headline on the poster'
     );
     await until(
-      async () => /3 of 4 - button next/.test(await ui.tid('ai-working').first().innerText()),
-      'the step "3 of 4 - button next"'
+      async () => /Step 3 of 4/.test(await ui.tid('ai-working').first().innerText()),
+      'the step "Step 3 of 4" (the plan, rc3-h)'
     );
     const r3 = await ringOf(ui, 'poster');
     assert.ok(r3 && r3.state === 'running' && r3.dashed, 'still one dashed ring');

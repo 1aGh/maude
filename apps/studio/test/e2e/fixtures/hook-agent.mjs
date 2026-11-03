@@ -7,7 +7,10 @@
 // What a prompt does is decided by a one-shot script file, `$HOOK_AGENT_SCRIPT` (JSON `{ steps: [...] }`, deleted
 // when read; with no file the turn says "ok." and ends). The test writes it before it sends the prompt. A step is:
 //   { op: 'say',   text }                         an agent_message_chunk
-//   { op: 'tool',  id, title, kind?, path? }      a tool_call (in_progress) - `title` is what the working line shows
+//   { op: 'tool',  id, title, kind?, path?, input? }  a tool_call (in_progress); `input` = its rawInput (default
+//                                                  `{ file_path }`): the activity line reads it, never `title` (rc3-h)
+//   { op: 'think', text }                         an agent_thought_chunk (rc3-h)
+//   { op: 'plan',  entries }                      a plan update, entries `{ content, status, priority }` (rc3-h)
 //   { op: 'done',  id, path? }                    its tool_call_update (completed)
 //   { op: 'edit',  path, content }                pre-edit hook, write the file, post-edit hook (project-relative path)
 //   { op: 'replace', path, from, to }             the same, as a string replace in the file's current text
@@ -111,8 +114,21 @@ async function runSteps(ctx, steps, s) {
           kind: st.kind ?? 'edit',
           status: 'in_progress',
           locations: st.path ? [{ path: abs(st.path) }] : [],
-          rawInput: st.path ? { file_path: abs(st.path) } : {},
+          rawInput: st.input
+            ? { ...st.input, ...(st.path ? { file_path: abs(st.path) } : {}) }
+            : st.path
+              ? { file_path: abs(st.path) }
+              : {},
         });
+        break;
+      case 'think':
+        await note(ctx, {
+          sessionUpdate: 'agent_thought_chunk',
+          content: { type: 'text', text: st.text },
+        });
+        break;
+      case 'plan':
+        await note(ctx, { sessionUpdate: 'plan', entries: st.entries });
         break;
       case 'done':
         await note(ctx, {

@@ -454,6 +454,12 @@
     border-radius: var(--radius-xs);
     background: var(--spark-muted);
   }
+  /* the page lines are faint: the wrapper holds the opacity, the pulse animates the lines inside it */
+  .es-aid-page {
+    position: absolute;
+    inset: 0;
+    opacity: 0.2;
+  }
   .es-aid-ghost i {
     position: absolute;
     left: 10%;
@@ -461,7 +467,6 @@
     height: 7%;
     border-radius: var(--radius-xs);
     background: var(--spark);
-    opacity: 0.18;
   }
   .es-aid-ghost i:nth-child(1) {
     top: 14%;

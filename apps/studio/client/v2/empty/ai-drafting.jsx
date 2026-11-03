@@ -54,9 +54,11 @@ export function AiDrafting({ label, centre, waiting = false }) {
           {label}
         </span>
         <span className="es-aid-ghost" data-testid="ai-drafting-ghost">
-          <i />
-          <i />
-          <i />
+          <span className="es-aid-page">
+            <i />
+            <i />
+            <i />
+          </span>
         </span>
         <span className="es-aid-cur" data-testid="ai-drafting-cursor">
           <svg width="14" height="16" viewBox="0 0 14 16" aria-hidden="true">
