@@ -8,12 +8,37 @@
 // throwaway D1. Everything is loopback; no control plane, cell or account outside this machine.
 
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, describe, test } from 'node:test';
 
-import { mintProjectToken, startCloudLaneCell } from '../../desktop/e2e/fixtures/local-hub.mjs';
+import {
+  findNode24,
+  mintProjectToken,
+  startCloudLaneCell,
+} from '../../desktop/e2e/fixtures/local-hub.mjs';
+
+// The lane cell is the real hub on Node 24 with better-sqlite3. A CI runner whose install built better-sqlite3 for
+// another Node ABI (ERR_DLOPEN_FAILED), or that has no Node 24, cannot start it: there these tests skip with the
+// reason, as scripts/test/e2e-live-lanes.test.mjs does. Anywhere else a hub that cannot start stays a red test.
+const NO_HUB = (() => {
+  if (!process.env.CI) return false;
+  try {
+    execFileSync(findNode24(), ['-e', "require('better-sqlite3')(':memory:').close()"], {
+      cwd: new URL('..', import.meta.url).pathname,
+      stdio: 'pipe',
+    });
+    return false;
+  } catch (e) {
+    return `the local hub cannot start on this runner: ${
+      String(e.stderr ?? e.message)
+        .split('\n')
+        .find((l) => /Error|ERR_/.test(l)) ?? 'better-sqlite3 load failed'
+    }`;
+  }
+})();
 
 const OWNER = 'e2e@example.com';
 const PROJECT = 'stub-project';
@@ -54,7 +79,7 @@ async function laneCell({ access }) {
   return { cell, ask };
 }
 
-describe('the cloud lane cell and Share', () => {
+describe('the cloud lane cell and Share', { skip: NO_HUB }, () => {
   test('with its control plane: me and people answer at once, the owner is in the list', async () => {
     const { cell, ask } = await laneCell({ access: true });
     const me = await ask('/api/access/me');
