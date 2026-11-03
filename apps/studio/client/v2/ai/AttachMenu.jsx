@@ -8,6 +8,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Clip, FileGlyph, FolderGlyph, ImageGlyph } from './AChip.jsx';
+import { onCanvasPointer } from '../shell/canvas-pointer.js';
 
 /** Asks the shell to open the Assets tab (app.jsx listens; lead patch). */
 export const OPEN_ASSETS_EVENT = 'maude:ai-attach-assets';
@@ -85,12 +86,15 @@ export function AttachMenu({ attach, disabled = false }) {
     };
     document.addEventListener('pointerdown', onDown);
     document.addEventListener('keydown', onKey, true);
+    // rc3 r4-12 — a press in the canvas closes it too (told over the dgn bridge; it never reaches this document)
+    const offCanvas = onCanvasPointer(() => close(false));
     rootRef.current
       ?.querySelector('[role="menuitem"]:not([aria-disabled="true"])')
       ?.focus({ preventScroll: true });
     return () => {
       document.removeEventListener('pointerdown', onDown);
       document.removeEventListener('keydown', onKey, true);
+      offCanvas();
     };
   }, [open, close]);
 

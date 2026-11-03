@@ -23,6 +23,7 @@ import { formatChord } from '../../../actions/keys.ts';
 import { StIcon } from '../../shell/icons.jsx';
 import { MODE_WORD, modeSegments } from './canvas-mode.js';
 import { reasonProps } from '../access/disabled-reason.js';
+import { onCanvasPointer } from './canvas-pointer.js';
 
 const GLYPH = {
   edit: (
@@ -253,9 +254,12 @@ export function ModeSwitch({
     };
     document.addEventListener('pointerdown', onDown, true);
     document.addEventListener('keydown', onKey, true);
+    // rc3 r4-12 — a press in the canvas closes it too (told over the dgn bridge; it never reaches this document)
+    const offCanvas = onCanvasPointer(() => setMenu(false));
     return () => {
       document.removeEventListener('pointerdown', onDown, true);
       document.removeEventListener('keydown', onKey, true);
+      offCanvas();
     };
   }, [menu]);
 

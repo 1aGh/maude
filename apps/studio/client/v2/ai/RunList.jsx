@@ -17,6 +17,7 @@ import { canvasRows, fitRunListWidth, RUN_WORD, yoursCount, yoursRows } from './
 import { fetchChats } from './chat-store-api.js';
 import { useAiRuns } from './runs-store.js';
 import { StIcon } from '../../shell/icons.jsx';
+import { onCanvasPointer } from '../shell/canvas-pointer.js';
 
 export const Clock = ({ size = 12 }) => (
   <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -215,9 +216,12 @@ export function RunsCount({
     };
     document.addEventListener('pointerdown', onDown);
     document.addEventListener('keydown', onKey, true);
+    // rc3 r4-12 — a press in the canvas closes it too (told over the dgn bridge; it never reaches this document)
+    const offCanvas = onCanvasPointer(() => close(false));
     return () => {
       document.removeEventListener('pointerdown', onDown);
       document.removeEventListener('keydown', onKey, true);
+      offCanvas();
     };
   }, [open, close]);
 

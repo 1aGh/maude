@@ -24,6 +24,7 @@ import {
   whereOf,
 } from './exports-model.js';
 import { isQueuedCloud, RENDER_HERE } from './cloud-queue.js';
+import { onCanvasPointer } from '../shell/canvas-pointer.js';
 
 // Per-job anchor for the ETA: the FIRST progress sample the client sees. For a video export that is
 // the first frame-step frame — after the (progress-less) renderMediaOnWeb attempt — so the rate is
@@ -138,9 +139,12 @@ function RowMenu({ job, native, on, anchorRef, onClose }) {
     };
     document.addEventListener('pointerdown', onPointer, true);
     document.addEventListener('keydown', onKey, true);
+    // rc3 r4-12 — a press in the canvas closes it too (told over the dgn bridge; it never reaches this document)
+    const offCanvas = onCanvasPointer(() => onClose());
     return () => {
       document.removeEventListener('pointerdown', onPointer, true);
       document.removeEventListener('keydown', onKey, true);
+      offCanvas();
     };
   }, [anchorRef, onClose]);
   const run = (id) => {

@@ -29,6 +29,7 @@ import { useChatUndoReady, useUndoChat } from './ChatUndo.jsx';
 import { fetchChats, searchChats, trashChat } from './chat-store-api.js';
 import { Spark } from './icons.jsx';
 import { RunIcon } from './RunList.jsx';
+import { onCanvasPointer } from '../shell/canvas-pointer.js';
 
 const SEARCH_DEBOUNCE_MS = 150;
 
@@ -69,7 +70,12 @@ function RowMenu({ items, anchorRef, onPick, onClose }) {
       if (!ref.current?.contains(e.target) && !anchorRef.current?.contains(e.target)) onClose();
     };
     document.addEventListener('pointerdown', onDown);
-    return () => document.removeEventListener('pointerdown', onDown);
+    // rc3 r4-12 — a press in the canvas closes it too (told over the dgn bridge; it never reaches this document)
+    const offCanvas = onCanvasPointer(() => onClose());
+    return () => {
+      document.removeEventListener('pointerdown', onDown);
+      offCanvas();
+    };
   }, [anchorRef, onClose]);
   const onKeyDown = (e) => {
     if (e.key === 'Escape') {

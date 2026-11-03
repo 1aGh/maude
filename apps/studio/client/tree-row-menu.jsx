@@ -10,6 +10,7 @@
 // arbitrary row, not the menubar's fixed offset.
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { onCanvasPointer } from './v2/shell/canvas-pointer.js';
 
 const EDGE = 8;
 
@@ -117,9 +118,12 @@ export function TreeRowMenu({ state, onClose, rootItems, destinations, onPickDes
     };
     document.addEventListener('pointerdown', onDocPointer, true);
     document.addEventListener('keydown', onKey, true);
+    // rc3 r4-12 — a press in the canvas closes it too (told over the dgn bridge; it never reaches this document)
+    const offCanvas = onCanvasPointer(() => onClose());
     return () => {
       document.removeEventListener('pointerdown', onDocPointer, true);
       document.removeEventListener('keydown', onKey, true);
+      offCanvas();
     };
   }, [state, onClose]);
 

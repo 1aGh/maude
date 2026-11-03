@@ -125,6 +125,344 @@ const ROWS: Row[] = [
       return { isOpen: () => !closed };
     },
   },
+
+  // ── r4-12, second sweep: every shell menu that already closed on an outside press ──────────────────────────
+  {
+    name: 'the mode switch Present ⌄ menu',
+    async open() {
+      const React = await import('react');
+      const { ModeSwitch } = await import('../client/v2/shell/mode-switch.jsx');
+      await mount(
+        React.createElement(ModeSwitch, {
+          mode: 'edit',
+          caps: { edit: true, preview: true, present: true },
+          onSelect() {},
+          onPresentCanvas() {},
+        })
+      );
+      const chev = document.querySelector('[data-testid="mode-present-menu"]') as HTMLElement;
+      await act(async () => chev.click());
+      return { isOpen: () => chev.getAttribute('aria-expanded') === 'true' };
+    },
+  },
+  {
+    name: 'the undo history popover',
+    async open() {
+      const React = await import('react');
+      const { UndoHistoryHost, undoHistoryOpen } = await import(
+        '../client/v2/undo/undo-history.jsx'
+      );
+      const { createUndoProjection } = await import('../client/v2/undo/use-undo-projection.jsx');
+      const store = createUndoProjection({
+        request: async () => ({ ok: true, entries: [], others: [] }),
+        now: () => 0,
+        announce: () => {},
+      });
+      await mount(
+        React.createElement(UndoHistoryHost, {
+          activePath: '.design/ui/a.tsx',
+          store,
+          now: () => 0,
+          postToActiveCanvas() {},
+          onVersionHistory() {},
+        })
+      );
+      await act(async () => undoHistoryOpen.open());
+      return { isOpen: () => undoHistoryOpen.get() };
+    },
+  },
+  {
+    name: 'the account card',
+    async open() {
+      const React = await import('react');
+      const { AccountChip } = await import('../client/v2/shell/account-card.jsx');
+      const { accountCard, accountChip } = await import('../client/v2/shell/account-card-model.js');
+      const profile = { id: 'work', label: 'Work' };
+      const email = 'you@studio.test';
+      await mount(
+        React.createElement(AccountChip, {
+          chip: accountChip({ native: true, connected: true, profile, email }),
+          card: accountCard({ project: 'Studio site', profile, email }),
+          onSwitch() {},
+          async onSignOut() {},
+        })
+      );
+      const chip = document.querySelector('[data-testid="share-cluster-account"]') as HTMLElement;
+      await act(async () => chip.click());
+      return { isOpen: () => !!document.querySelector('[data-testid="account-card"]') };
+    },
+  },
+  {
+    name: 'a token chip menu (useDismiss)',
+    async open() {
+      const React = await import('react');
+      const { useDismiss } = await import('../client/v2/inspector/token-chip.jsx');
+      let closed = false;
+      function Probe() {
+        const ref = React.useRef(null);
+        useDismiss(true, () => (closed = true), ref);
+        return React.createElement('div', { ref });
+      }
+      await mount(React.createElement(Probe));
+      return { isOpen: () => !closed };
+    },
+  },
+  {
+    name: 'the AI scope chip menu',
+    async open() {
+      const React = await import('react');
+      const { ScopeChip } = await import('../client/v2/ai/ScopeChip.jsx');
+      await mount(
+        React.createElement(ScopeChip, {
+          scope: { kind: 'whole' },
+          artboards: [{ id: 'post', label: 'Post 1:1' }],
+          onChoose() {},
+          onRemove() {},
+        })
+      );
+      const chip = document.querySelector('[data-testid="ai-scope-chip"]') as HTMLElement;
+      await act(async () => chip.click());
+      return { isOpen: () => !!document.querySelector('[data-testid="ai-scope-menu"]') };
+    },
+  },
+  {
+    name: 'the AI attach menu',
+    async open() {
+      const React = await import('react');
+      const { AttachMenu } = await import('../client/v2/ai/AttachMenu.jsx');
+      await mount(React.createElement(AttachMenu, { attach: { add() {}, files: [] } }));
+      const clip = document.querySelector('[data-testid="ai-attach-clip"]') as HTMLElement;
+      await act(async () => clip.click());
+      return { isOpen: () => !!document.querySelector('[data-testid="ai-attach-menu"]') };
+    },
+  },
+  {
+    name: 'the AI run list',
+    async open() {
+      const React = await import('react');
+      const { RunsCount } = await import('../client/v2/ai/RunList.jsx');
+      const { createRunsStore } = await import('../client/v2/ai/runs-store.js');
+      const FILE = '.design/ui/combine.tsx';
+      const run = {
+        v: 1,
+        runId: 'r_1aaaaaa',
+        askId: 'a_1aaaaaa',
+        chatId: 'c1',
+        origin: 'maude-chat',
+        actor: 'you',
+        label: 'Make it greener',
+        scope: { canvas: 'ui/combine.tsx', artboards: ['post'] },
+        state: 'running',
+        leases: [{ canvas: `path:${FILE}`, artboard: 'post', token: 1 }],
+        waiting: [],
+        touched: {},
+        objects: [],
+        createdAt: 1,
+      };
+      const fetchImpl = (async () =>
+        new Response(JSON.stringify({ seq: 1, mine: [run], others: [] }), {
+          status: 200,
+        })) as unknown as typeof fetch;
+      const store = createRunsStore({ fetchImpl, target: new EventTarget() as unknown as Window });
+      await store.refresh();
+      await mount(
+        React.createElement(RunsCount, { store, activeCanvas: FILE, designRel: '.design' })
+      );
+      const count = document.querySelector('[data-testid="ai-chat-count"]') as HTMLElement;
+      await act(async () => count.click());
+      return { isOpen: () => !!document.querySelector('[data-testid="ai-runs-list"]') };
+    },
+  },
+  {
+    name: 'the AI chat list row ⋯ menu',
+    async open() {
+      const React = await import('react');
+      const { ChatList } = await import('../client/v2/ai/ChatList.jsx');
+      const { menuCtx } = await import('../client/v2/shell/project-menu-model.js');
+      const now = Date.now();
+      const fetchImpl = (async (url: string) =>
+        url.startsWith('/_api/acp/chats')
+          ? Response.json({
+              groups: [
+                { canvas: 'ui/A.tsx', chats: [{ id: 'c1', title: 'Greener', updated: now }] },
+              ],
+            })
+          : new Response('{}', { status: 404 })) as unknown as typeof fetch;
+      await mount(
+        React.createElement(ChatList, {
+          projectName: 'Studio site',
+          busy: {},
+          ctx: menuCtx({ native: true }),
+          fetchImpl,
+          onOpen() {},
+          onBack() {},
+          onRename() {},
+          onCopyTranscript() {},
+          onArchive() {},
+          onTrashed() {},
+        })
+      );
+      await act(async () => new Promise((r) => setTimeout(r, 5)));
+      const dots = document.querySelector('[aria-label="More options"]') as HTMLElement;
+      await act(async () => dots.click());
+      return { isOpen: () => !!document.querySelector('[data-testid="chat-overflow-menu"]') };
+    },
+  },
+  {
+    name: 'the export Other formats menu',
+    async open() {
+      const React = await import('react');
+      const { OtherFormats } = await import('../client/v2/export/other-formats.jsx');
+      let open = true;
+      await mount(
+        React.createElement(OtherFormats, {
+          groups: [
+            { group: 'Images', items: [{ id: 'png', label: 'PNG', format: 'png', note: 'n' }] },
+          ],
+          format: 'png',
+          onPick() {},
+          open: true,
+          setOpen: (v: boolean) => {
+            open = v;
+          },
+        })
+      );
+      return { isOpen: () => open };
+    },
+  },
+  {
+    name: 'an export job row menu',
+    async open() {
+      const React = await import('react');
+      const { JobRow } = await import('../client/v2/export/job-row.jsx');
+      const noop = () => {};
+      await mount(
+        React.createElement(JobRow, {
+          job: {
+            id: 'j9',
+            format: 'png',
+            scope: 'canvas-as-separate',
+            status: 'done',
+            createdAt: '2026-10-18T11:40:00',
+            filename: 'Hype.zip',
+            spec: { v: 2, scope: 'canvas', canvas: 'ui/Hype.tsx', format: 'png' },
+          },
+          native: true,
+          on: {
+            reveal: noop,
+            download: noop,
+            again: noop,
+            retry: noop,
+            againWith: noop,
+            copyNames: noop,
+            remove: noop,
+          },
+        })
+      );
+      const more = document.querySelector('[data-testid="export-job-more-j9"]') as HTMLElement;
+      await act(async () => more.click());
+      return { isOpen: () => !!document.querySelector('[data-testid="export-job-menu-j9"]') };
+    },
+  },
+  {
+    name: 'the share role menu',
+    async open() {
+      const React = await import('react');
+      const { RoleMenu } = await import('../client/v2/share/role-menu.jsx');
+      let closed = false;
+      await mount(
+        React.createElement(RoleMenu, {
+          row: { id: 'tereza', name: 'Tereza', role: 'member' },
+          roles: ['member', 'viewer'],
+          scopeName: 'Studio site',
+          anchor: { left: 10, top: 10, bottom: 30, right: 100, width: 90, height: 20 },
+          onPick() {},
+          onClose: () => {
+            closed = true;
+          },
+        })
+      );
+      return { isOpen: () => !closed };
+    },
+  },
+  {
+    name: 'a presence face menu',
+    async open() {
+      const React = await import('react');
+      const { PresenceFaces } = await import('../client/v2/presence/faces.jsx');
+      const presence = {
+        labelOf: () => 'Pricing',
+        roleOf: () => 'member',
+        canvasLabel: () => 'Pricing',
+        canSummon: () => false,
+        run() {},
+        follow() {},
+        go() {},
+        bring() {},
+      };
+      await mount(
+        React.createElement(PresenceFaces, {
+          faces: [{ clientID: 7, name: 'Tereza', initials: 'T' }],
+          presence,
+          onFollow() {},
+        })
+      );
+      const face = document.querySelector('[data-testid="share-cluster-face-7"]') as HTMLElement;
+      await act(async () => face.click());
+      const host = document.querySelector('.sh-faces-host') as HTMLElement;
+      const opened = host.querySelectorAll('[role="menu"], [role="dialog"]').length;
+      expect(opened).toBeGreaterThan(0);
+      return { isOpen: () => host.querySelectorAll('[role="menu"], [role="dialog"]').length > 0 };
+    },
+  },
+  {
+    name: 'the timeline transition picker',
+    async open() {
+      const React = await import('react');
+      const { TransitionPicker } = await import(
+        '../client/v2/timeline/joins/transition-picker.jsx'
+      );
+      let closed = false;
+      await mount(
+        React.createElement(TransitionPicker, {
+          title: 'Join',
+          tile: 'fade',
+          frames: 12,
+          fps: 24,
+          a: { url: null },
+          b: { url: null },
+          x: 10,
+          y: 10,
+          onPick() {},
+          onLength() {},
+          onClose: () => {
+            closed = true;
+          },
+        })
+      );
+      return { isOpen: () => !closed };
+    },
+  },
+  {
+    name: 'the Move to… picker (TreeRowMenu, the project menu’s move)',
+    async open() {
+      const React = await import('react');
+      const { TreeRowMenu } = await import('../client/tree-row-menu.jsx');
+      let closed = false;
+      await mount(
+        React.createElement(TreeRowMenu, {
+          state: { x: 10, y: 10, view: 'root', path: 'ui/a.tsx' },
+          rootItems: [{ id: 'open', label: 'Open', onSelect() {} }],
+          destinations: [],
+          onPickDestination() {},
+          onClose: () => {
+            closed = true;
+          },
+        })
+      );
+      return { isOpen: () => !closed };
+    },
+  },
 ];
 
 describe('shell popovers close on a press in the canvas, with no window blur', () => {
