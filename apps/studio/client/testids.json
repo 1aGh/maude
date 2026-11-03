@@ -24056,6 +24056,19 @@
     "v2": "new"
   },
   {
+    "hook": "video-play-centre",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "rc3 r4-1: Inside the canvas iframe: the big centre play button over a `<video controls>` that has not started, drawn exactly over the browser's own 60 px start disc so the first click plays (a click elsewhere on the clip still selects). Gone once the clip has started. Its own hit target: the selection handlers skip it.",
+    "producer": {
+      "file": "apps/studio/video-play-overlay.tsx",
+      "symbol": "VideoPlayLayer"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
     "hook": "video-play-button",
     "kind": "testid",
     "pattern": false,
