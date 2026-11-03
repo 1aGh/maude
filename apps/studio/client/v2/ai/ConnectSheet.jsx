@@ -3,21 +3,76 @@
 // is connected. Exported for S6 (the first-canvas drafting flow) and for 02 `ob-ai-connect`: it is a controlled
 // view — the caller owns what Connect does (the panel runs `connectClaude`; onboarding may do the same).
 //
-//   <ConnectSheet inline width phase="idle|installing|waiting" error onConnect onCancel>{advanced}</ConnectSheet>
+//   <ConnectSheet inline width phase="idle|checking|installing|waiting" startedAt error onConnect onCancel>{advanced}</ConnectSheet>
+//
+// rc3-f (issue #181): while it works the sheet SAYS what runs — a live status line with the step, the elapsed time
+// of the install and how long it usually takes, and what comes next — never just a disabled button. After a
+// failure the button is "Try again" and runs the whole setup again.
 //
 // `inline` draws it in flow (inside the panel); otherwise it is a window sheet (the caller puts a Veil under
 // it). Words are CONTRACT §7: "Connect your Claude account to let AI draft this." → Connect · Cancel.
 
-import { useId, useRef } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { portalToBody } from '../portal-scope.jsx';
 import { useModalFocus } from '../shell/modal-focus.js';
 import { Spark } from './icons.jsx';
 
 const CONNECT_LABEL = {
   idle: 'Connect',
-  installing: 'Setting up Claude Code…',
+  checking: 'Checking Claude Code…',
+  installing: 'Installing Claude Code…',
   waiting: 'Waiting for your browser…',
 };
+
+/** The button after a failure: the same whole setup, again. */
+export const TRY_AGAIN = 'Try again';
+
+/** 42_000 → "0:42", 125_000 → "2:05". */
+export function elapsedClock(ms) {
+  const s = Math.max(0, Math.floor((Number.isFinite(ms) ? ms : 0) / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+/**
+ * What the setup is doing now, in the sheet's status line: the lead, the rest, the step.
+ * @param {string} phase
+ * @param {number} elapsedMs  the install's time so far (only 'installing' shows it)
+ */
+export function setupProgressWords(phase, elapsedMs = 0) {
+  if (phase === 'checking')
+    return { lead: 'Checking Claude Code on this Mac…', rest: 'This takes a few seconds.' };
+  if (phase === 'installing')
+    return {
+      lead: `Installing Claude Code… ${elapsedClock(elapsedMs)}`,
+      rest: 'Usually 1–2 minutes. Then your browser opens to sign in.',
+      step: 'Step 1 of 2',
+    };
+  if (phase === 'waiting')
+    return {
+      lead: 'Sign in through your browser.',
+      rest: "AI is ready as soon as you're signed in.",
+      step: 'Step 2 of 2',
+    };
+  return null;
+}
+
+/** The elapsed time of an install, ticking once a second while it runs. Without a start from the caller the
+ *  sheet's own clock starts when the install phase begins. */
+function useElapsed(phase, startedAt, now) {
+  const own = useRef(null);
+  const [, tick] = useState(0);
+  const installing = phase === 'installing';
+  if (!installing) own.current = null;
+  else if (own.current === null) own.current = now();
+  useEffect(() => {
+    if (!installing) return undefined;
+    const timer = setInterval(() => tick((n) => n + 1), 1000);
+    return () => clearInterval(timer);
+  }, [installing]);
+  if (!installing) return 0;
+  const from = Number.isFinite(startedAt) ? startedAt : own.current;
+  return now() - from;
+}
 
 export function ConnectSheet({
   width = 440,
@@ -27,6 +82,9 @@ export function ConnectSheet({
   onConnect,
   onCancel,
   connectRef,
+  // rc3-f: when the install began (ms, the server's clock) — a sheet that joins a running install shows its real time
+  startedAt = null,
+  now = Date.now,
   // S6.9 (02 ob-adv-sheets): Home's "Connect AI" reads "Connect AI" and carries no "your prompt waits"
   // line (there is no prompt yet). The defaults are CONTRACT §7's words, unchanged for every other caller.
   title = 'Connect your Claude account?',
@@ -38,6 +96,7 @@ export function ConnectSheet({
 }) {
   const titleId = useId();
   const busy = phase !== 'idle';
+  const progress = setupProgressWords(phase, useElapsed(phase, startedAt, now));
   return (
     // biome-ignore lint/a11y/useAriaPropsSupportedByRole: aria-modal is set only while role is "dialog" (inline, the sheet is a group and carries none)
     <div
@@ -66,6 +125,18 @@ export function ConnectSheet({
           </span>
         ) : null}
         {children}
+        {progress ? (
+          <p
+            className="ai-conn-prog"
+            role="status"
+            aria-live="polite"
+            data-testid="ai-connect-progress"
+            data-phase={phase}
+          >
+            {progress.step ? <span className="ai-conn-step">{progress.step}</span> : null}
+            <strong>{progress.lead}</strong> {progress.rest}
+          </p>
+        ) : null}
         {error ? (
           <p className="ai-conn-err" role="alert" data-testid="ai-connect-error">
             {error}
@@ -90,7 +161,7 @@ export function ConnectSheet({
           data-testid="ai-connect-go"
           onClick={onConnect}
         >
-          {CONNECT_LABEL[phase] ?? CONNECT_LABEL.idle}
+          {!busy && error ? TRY_AGAIN : (CONNECT_LABEL[phase] ?? CONNECT_LABEL.idle)}
         </button>
       </div>
     </div>

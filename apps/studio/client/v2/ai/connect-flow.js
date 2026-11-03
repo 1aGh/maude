@@ -5,6 +5,10 @@
 //   connectClaude({ fetchImpl, sleep, signal, onPhase })  → { ok: true } | { ok: false, reason }
 //
 // Phases: 'installing' · 'waiting' (for the browser). Cancel = abort the signal (the sign-in is withdrawn).
+// `onPhase(phase, info)`: for 'installing', `info.startedAt` (ms) is when the install began — the server's own
+// clock when it says so, so a sheet that joins a running install shows the real elapsed time.
+// rc3-f (issue #181): a click while an install already runs JOINS it (the server answers 409 "already in
+// progress"); it is never a dead-end error.
 // Pure of React so test/v2-ai-needs-you.test.ts drives it with a scripted fetch.
 
 const SIGNIN_POLL_MS = 2000;
@@ -38,21 +42,38 @@ export async function connectClaude({
   if (first?.status === 'present' && !force) return { ok: true };
 
   if (first?.action === 'install' && !force) {
-    onPhase('installing');
+    const installState = () =>
+      fetchImpl('/_api/claude/install-status')
+        .then(json)
+        .catch(() => null);
+    const startedAtOf = (state) =>
+      typeof state?.startedAt === 'number' && Number.isFinite(state.startedAt)
+        ? state.startedAt
+        : now();
     const started = await post('/_api/claude/install');
-    if (!started?.ok)
-      return { ok: false, reason: started?.reason || 'Could not start the installer.' };
+    let startedAt = now();
+    if (!started?.ok) {
+      // Already running (an earlier click, another window, a sheet that was closed): join it.
+      const state = await installState();
+      if (state?.phase !== 'running')
+        return { ok: false, reason: started?.reason || 'Could not start the installer.' };
+      startedAt = startedAtOf(state);
+    }
+    onPhase('installing', { startedAt });
     let deadline = now() + INSTALL_MAX_MS;
     for (;;) {
       if (cancelled()) return { ok: false, reason: 'cancelled' };
-      if (now() > deadline) return { ok: false, reason: 'Install is taking longer than expected.' };
-      const state = await fetchImpl('/_api/claude/install-status')
-        .then(json)
-        .catch(() => null);
+      if (now() > deadline)
+        return {
+          ok: false,
+          reason: 'Could not tell how the Claude Code install is going. Try again.',
+        };
+      const state = await installState();
       if (state?.phase === 'running')
         deadline = now() + INSTALL_MAX_MS; // progressing: never cut off
       else if (state?.phase === 'done') {
-        if (!state.ok) return { ok: false, reason: state.reason || 'Install failed.' };
+        if (!state.ok)
+          return { ok: false, reason: state.reason || 'Claude Code did not install. Try again.' };
         break;
       }
       await sleep(INSTALL_POLL_MS);

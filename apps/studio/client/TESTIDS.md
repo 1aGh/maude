@@ -1719,12 +1719,14 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `ai-problem-verb` | testid | The problem card's one verb, when it has one. | `client/v2/ai/ProblemCard.jsx` · `ProblemCard` | — | new |
 | `ai-not-ready` | testid | The state of a kept prompt. `data-kind` = offline | connect | setting-up | used-up | waiting. | `client/v2/ai/NotReady.jsx` · `QueuedState` | — | new |
 | `ai-queued-line` | testid | "Queued — sends when this Mac is online." | `client/v2/ai/NotReady.jsx` · `QueuedState` | — | new |
+| `ai-connect-waiting` | testid | The kept prompt's line in the chat while Claude is not connected ("Waiting for Claude to be connected. …"). `data-phase` = idle | checking | installing | waiting. | `client/v2/ai/NotReady.jsx` · `QueuedState` | — | new |
 | `ai-offline-line` | testid | "AI is back when this Mac is online." | `client/v2/ai/NotReady.jsx` · `QueuedState` | — | new |
 | `ai-quota-line` | testid | The almost-used-up meter above the field ("90% of this 5-hour allowance used · resets 18:40"). | `client/v2/ai/NotReady.jsx` · `QuotaLine` | — | new |
-| `ai-connect-sheet` | testid | The one "Connect your Claude account?" sheet (CONTRACT §7). `data-phase` = idle | installing | waiting. | `client/v2/ai/ConnectSheet.jsx` · `ConnectSheet` | — | new |
+| `ai-connect-sheet` | testid | The one "Connect your Claude account?" sheet (CONTRACT §7). `data-phase` = idle | checking | installing | waiting. | `client/v2/ai/ConnectSheet.jsx` · `ConnectSheet` | — | new |
 | `ai-connect-go` | testid | The sheet's Connect button (installs Claude Code if missing, then opens the browser sign-in). | `client/v2/ai/ConnectSheet.jsx` · `ConnectSheet` | — | new |
 | `ai-connect-cancel` | testid | The sheet's Cancel (withdraws a sign-in in flight, else drops the kept prompt). | `client/v2/ai/ConnectSheet.jsx` · `ConnectSheet` | — | new |
 | `ai-connect-error` | testid | Why Connect did not finish. | `client/v2/ai/ConnectSheet.jsx` · `ConnectSheet` | — | new |
+| `ai-connect-progress` | testid | The sheet's live setup line while it works: what runs, the install's elapsed time and usual length, what is next. `data-phase` = checking | installing | waiting. | `client/v2/ai/ConnectSheet.jsx` · `ConnectSheet` | — | new |
 | `ai-fold-needs` | testid | The azure count on the folded AI spark when chats wait for you (wins over the busy dot). | `client/v2/ai/FoldNeeds.jsx` · `FoldNeeds` | — | new |
 | `shell-prompt-input` | testid | Input of the shell's own prompt dialog (`.sh-prompt`, replaces `window.prompt`). | `client/app.jsx` · `App` | e2e-mp:surface | stable — re-emit |
 | `shell-prompt-ok` | testid | OK button of the shell prompt dialog. | `client/app.jsx` · `App` | e2e-mp:surface | stable — re-emit |

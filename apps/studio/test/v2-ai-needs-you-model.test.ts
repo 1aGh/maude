@@ -473,6 +473,65 @@ describe('Connect: install if missing, sign in, wait until present', () => {
     expect(calls).not.toContain('POST /_api/claude/signin');
   });
 
+  // rc3-f (issue #181): a second click while the first install still ran got the red "An install is already in
+  // progress." and nothing else. The click now joins the running install: progress, then the sign-in by itself.
+  test('Connect while an install already runs joins it — progress with its start time, then the sign-in', async () => {
+    const seen: Array<[string, unknown]> = [];
+    const { calls, fetchImpl } = rig([
+      { match: '/_api/preflight', body: pre({ status: 'missing', action: 'install' }) },
+      {
+        match: '/_api/claude/install',
+        body: { ok: false, reason: 'An install is already in progress.' },
+      },
+      { match: '/_api/claude/install-status', body: { phase: 'running', startedAt: 1234 } },
+      { match: '/_api/claude/install-status', body: { phase: 'done', ok: true } },
+      { match: '/_api/claude/signin', body: { ok: true } },
+      { match: '/_api/preflight', body: pre({ status: 'present' }) },
+    ]);
+    const r = await connectClaude({
+      ...base,
+      fetchImpl,
+      onPhase: (p: string, info?: unknown) => seen.push([p, info]),
+    });
+    expect(r).toEqual({ ok: true });
+    expect(seen[0]).toEqual(['installing', { startedAt: 1234 }]);
+    expect(seen.map(([p]) => p)).toEqual(['installing', 'waiting']);
+    expect(calls).toContain('POST /_api/claude/signin');
+  });
+
+  test('an install that is not running and cannot start still says why', async () => {
+    const { fetchImpl } = rig([
+      { match: '/_api/preflight', body: pre({ status: 'missing', action: 'install' }) },
+      {
+        match: '/_api/claude/install',
+        body: { ok: false, reason: 'Automatic setup is turned off in Settings.' },
+      },
+      { match: '/_api/claude/install-status', body: { phase: 'idle' } },
+    ]);
+    expect(await connectClaude({ ...base, fetchImpl })).toEqual({
+      ok: false,
+      reason: 'Automatic setup is turned off in Settings.',
+    });
+  });
+
+  test('an install whose progress cannot be read is a named failure, never a silent idle', async () => {
+    let t = 0;
+    const { fetchImpl } = rig([
+      { match: '/_api/preflight', body: pre({ status: 'missing', action: 'install' }) },
+      { match: '/_api/claude/install', body: { ok: true } },
+    ]);
+    const r = await connectClaude({
+      ...base,
+      fetchImpl,
+      now: () => t,
+      sleep: async () => {
+        t += 10_000;
+      },
+    });
+    expect(r.ok).toBe(false);
+    expect(r.reason).toMatch(/install/i);
+  });
+
   test('cancel while waiting for the browser withdraws the sign-in', async () => {
     const ctl = new AbortController();
     const { calls, fetchImpl } = rig([

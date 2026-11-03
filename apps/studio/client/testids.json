@@ -23129,6 +23129,22 @@
     "v2": "new"
   },
   {
+    "hook": "ai-connect-waiting",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The kept prompt's line in the chat while Claude is not connected (\"Waiting for Claude to be connected. …\"). `data-phase` = idle | checking | installing | waiting.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/NotReady.jsx",
+      "symbol": "QueuedState"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-needs-you.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "ai-offline-line",
     "kind": "testid",
     "pattern": false,
@@ -23213,6 +23229,22 @@
     "kind": "testid",
     "pattern": false,
     "meaning": "Why Connect did not finish.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/ConnectSheet.jsx",
+      "symbol": "ConnectSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-needs-you.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-connect-progress",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The sheet's live setup line while it works: what runs, the install's elapsed time and usual length, what is next. `data-phase` = checking | installing | waiting.",
     "producer": {
       "file": "apps/studio/client/v2/ai/ConnectSheet.jsx",
       "symbol": "ConnectSheet"
