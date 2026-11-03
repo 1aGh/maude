@@ -15,7 +15,7 @@ import { waitForSidecar } from '../helpers/sidecar';
 
 /**
  * feature-acp-panel-dynamic-claude-code-capabilities (Milestone A) — proves
- * the permission-mode picker ("Ask before", in the panel's Advanced fold) is
+ * the permission-mode picker ("Permissions", in the panel's Advanced fold) is
  * LIVE, sourced from the ACP session, not a hardcoded list: open the Assistant
  * panel → the visible chat warms its session → the picker lists exactly the
  * modes the connected agent advertises → switching to Suggest only (ACP `plan`)
@@ -81,7 +81,7 @@ describe('acp-capability-picker (native-desktop)', () => {
       // in the picker's table and must stay hidden because this session did not offer them.
       expect([...values].sort()).toEqual(['acceptEdits', 'default', 'plan']);
       const labels = await modePicker.$$('option').map((o) => o.getText());
-      expect(labels).toContain('Replace or move to the trash'); // default, in plain words
+      expect(labels).toContain('Ask before every change'); // default, in plain words
       expect(labels).toContain('Suggest only'); // plan
     }
   });

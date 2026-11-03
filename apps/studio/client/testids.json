@@ -1597,7 +1597,20 @@
     "hook": "chat-caps-bar",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The Advanced fold's picker rows (live model / effort / fast mode / Ask before), under the AI chat panel's Advanced.",
+    "meaning": "The Advanced fold's picker rows (live model / effort / fast mode / Permissions), under the AI chat panel's Advanced.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Advanced.jsx",
+      "symbol": "ChatAdvanced"
+    },
+    "region": "chat/ACP",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "chat-mode-hint",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The line under the Permissions picker: what AI may do without asking in the chosen mode. Carries `data-risky` on the mode that skips every check.",
     "producer": {
       "file": "apps/studio/client/v2/ai/Advanced.jsx",
       "symbol": "ChatAdvanced"
@@ -1610,7 +1623,7 @@
     "hook": "chat-mode-picker",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The \"Ask before\" picker in Advanced (the permission mode, in plain words).",
+    "meaning": "The \"Permissions\" picker in Advanced (the permission mode: what AI may do without asking, in plain words; a line under it says so, and warns on the mode that skips every check).",
     "producer": {
       "file": "apps/studio/client/v2/ai/Advanced.jsx",
       "symbol": "ChatAdvanced"

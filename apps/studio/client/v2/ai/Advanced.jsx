@@ -40,14 +40,23 @@ import { canOpenInTerminal, openChatInTerminal } from './chat-store-api.js';
 import { ChatFootInfo } from './Composer.jsx';
 import { ConnectedRawLog } from './RawLog.jsx';
 
-function Row({ row, label, children, hint }) {
+function Row({ row, label, children, hint, hintRisky, hintTestId }) {
   return (
     <div className="ai-adv-row" data-adv-row={row}>
       <label className="ai-adv-k" htmlFor={rowDomId(row)}>
         {label}
       </label>
       {children}
-      {hint ? <span className="ai-adv-hint">{hint}</span> : null}
+      {hint ? (
+        <span
+          className="ai-adv-hint"
+          id={`${rowDomId(row)}-hint`}
+          data-testid={hintTestId}
+          data-risky={hintRisky ? '' : undefined}
+        >
+          {hint}
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -253,6 +262,7 @@ export function ChatAdvanced({
   const parsed = caps?.parsedOptions ?? { model: null, effort: null, fast: null, others: [] };
   const modes = caps?.modes ?? null;
   const modeList = modeOptions(modes);
+  const currentMode = modeList.find((m) => m.id === modes?.currentModeId);
   // "Change canvases" is the ask-before mode seen as a switch: the "AI changes nothing" modes are off.
   const changesNothing = modeList.find((m) => m.id === modes?.currentModeId)?.group === 'nochange';
   const askingMode = modeList.find((m) => m.group === 'asks')?.id ?? modes?.currentModeId;
@@ -406,23 +416,29 @@ export function ChatAdvanced({
             <OptionSwitch row="fast" label="Fast mode" opt={parsed.fast} onChange={onSetConfig} />
           ) : null}
           {modeList.length ? (
-            <Row row="ask-before" label="Ask before">
+            <Row
+              row="ask-before"
+              label="Permissions"
+              hint={currentMode?.hint}
+              hintRisky={currentMode?.risky}
+              hintTestId="chat-mode-hint"
+            >
               <select
                 id={rowDomId('ask-before')}
                 className="ai-adv-select"
                 data-adv-control
                 data-testid="chat-mode-picker"
+                data-risky={currentMode?.risky ? '' : undefined}
                 value={modes?.currentModeId ?? ''}
-                title={
-                  modeList.find((m) => m.id === modes?.currentModeId)?.description || 'Ask before'
-                }
+                title={currentMode?.hint || currentMode?.description || 'Permissions'}
+                aria-describedby={currentMode?.hint ? `${rowDomId('ask-before')}-hint` : undefined}
                 onChange={(e) => onSetMode(e.target.value)}
               >
                 {['asks', 'nochange', 'free'].map((g) => {
                   const list = modeList.filter((m) => m.group === g);
                   if (!list.length) return null;
                   const options = list.map((m) => (
-                    <option key={m.id} value={m.id}>
+                    <option key={m.id} value={m.id} title={m.hint || undefined}>
                       {m.label}
                     </option>
                   ));

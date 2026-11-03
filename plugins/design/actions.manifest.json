@@ -5585,7 +5585,7 @@
     },
     {
       "id": "chat.advanced.ask-before",
-      "label": "Ask before",
+      "label": "Permissions",
       "kind": "command",
       "exec": "shell",
       "effect": "none",
