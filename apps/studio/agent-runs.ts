@@ -233,6 +233,9 @@ export function createAgentRuns(
       label: b.label,
       scope: toScope(b.scope),
       agent: 'Claude Code',
+      // rc2-e — a Maude chat's hook with no live run of that chat: the agent's turn is running already.
+      // Never a run that wants a turn sent (it failed at once, and every next hook call opened another).
+      hookOpened: b.actor === 'maude-chat',
     });
     if (b.promptId) promptIds.set(rec.runId, [b.promptId]);
     remember(b.session, b.chat, rec.runId);

@@ -14,7 +14,11 @@
 
 import { Database } from 'bun:sqlite';
 // The hub's own runs half of store-core (plain JS, zero imports) — one implementation of L1–L10.
-import { createRunsCore, RUNS_DDL } from '../../hub/src/project-transactions/runs-core.mjs';
+import {
+  createRunsCore,
+  MAX_KEYS_PER_RUN,
+  RUNS_DDL,
+} from '../../hub/src/project-transactions/runs-core.mjs';
 import type { LeaseKey, RunOrigin, RunOutcome, RunPublic } from './run-lifecycle.ts';
 
 export type Granted = LeaseKey & { token: number };
@@ -54,6 +58,12 @@ export interface LeaseHome {
   list(after?: number): Promise<Answer<{ seq: number; runs?: RunPublic[]; unchanged?: true }>>;
   close?(): void;
 }
+
+/**
+ * The most lease keys one run may hold or line up for — the home's cap (runs-core, every hub since
+ * runs-v1). A whole-canvas ask past it begins lazily (runs.ts `wantsOf`).
+ */
+export const MAX_LEASE_KEYS_PER_RUN: number = MAX_KEYS_PER_RUN;
 
 /** `<canvas>|<artboard>` — the `expectFence` key (runs-core `leaseKeyId`). */
 export const leaseKeyId = (k: LeaseKey) => `${k.canvas}|${k.artboard}`;

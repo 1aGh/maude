@@ -24,6 +24,7 @@ import {
   type ElementRef,
   isLive,
   type RunRecord,
+  type RunRefusal,
   type RunScope,
 } from '../ai/run-lifecycle.ts';
 import type { RunRegistry } from '../ai/runs.ts';
@@ -191,6 +192,19 @@ export function audienceIsCanvas(
   } catch {
     return false;
   }
+}
+
+/** rc2-e — a run the lease home refused, in plain words (what happened · what to do). */
+export function refusedWords(r: RunRefusal): string {
+  if (r.code === 'capacity' && r.why === 'artboards')
+    return 'This canvas has too many artboards for one AI run. Select the artboards you mean and ask again.';
+  if (r.code === 'capacity' && r.why === 'runs')
+    return 'Too many AI runs are open in this project. Stop one, then ask again.';
+  if (r.code === 'capacity' && r.why === 'waiting')
+    return 'Too many of these artboards are busy with other AI runs. Select fewer, then ask again.';
+  if (r.code === 'forbidden')
+    return 'AI can’t change this canvas with your access. Ask an owner for edit access.';
+  return 'AI could not start on this. Ask again.';
 }
 
 /** The refusal a read-only session's state-changing frame gets (CONTRACT §4 voice). */
@@ -678,6 +692,8 @@ interface BridgeEntry {
   runId: string | null;
   /** S5.6 — the last `{t:'run'}` frame sent per run, so only a change is sent again. */
   sentRuns: Map<string, string>;
+  /** rc2-e — runs whose refused `begin` this chat was already told about (once, never again) */
+  toldRefused: Set<string>;
 }
 
 export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOptions = {}): Acp {
@@ -815,6 +831,7 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
       reapTimer: null,
       runId: null,
       sentRuns: new Map(),
+      toldRefused: new Set(),
     };
     entry.bridge = new AcpBridge({
       // V2-1.15 §5.4 — the adapter carries MAUDE_CHAT_ID=<this chat> (the hook's run binding).
@@ -1100,6 +1117,11 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
       if (runId && runs && cur && isLive(cur)) {
         void runs.turnEnded(runId, turnOutcome).catch(() => null);
       }
+      // rc2-e — a run this turn's own hooks opened (its run had ended mid-turn) ends with the turn, even
+      // when no Stop hook says so: left live it would hold the chat's line for every next prompt.
+      for (const r of runs?.live() ?? [])
+        if (r.chatId === entry.chatId && r.hookOpened && r.runId !== runId)
+          void runs?.turnEnded(r.runId, turnOutcome).catch(() => null);
     }
   }
 
@@ -1109,7 +1131,17 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
     for (const run of runs.view().mine) {
       if (run.chatId !== entry.chatId) continue;
       const prior = entry.sentRuns.get(run.runId);
-      if (prior === undefined && run.state === 'ended') continue;
+      // rc2-e — the home refused this run before any turn: say why, once. The coded error ends the
+      // prompt's working state (client `prompt()` throws on it; with no prompt in flight it is a card).
+      if (run.state === 'ended' && run.refused && !entry.toldRefused.has(run.runId)) {
+        entry.toldRefused.add(run.runId);
+        broadcast(entry, {
+          t: 'error',
+          code: 'run-refused',
+          chat: entry.chatId,
+          message: refusedWords(run.refused),
+        });
+      } else if (prior === undefined && run.state === 'ended') continue;
       const json = JSON.stringify(run);
       if (json === prior) continue;
       entry.sentRuns.set(run.runId, json);
@@ -1258,7 +1290,8 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
   /** The registry's `turns.cancel` — see `Acp.cancelTurn`. */
   async function cancelTurn(rec: RunRecord): Promise<void> {
     const entry = rec.chatId ? bridges.get(sanitizeChatId(rec.chatId)) : undefined;
-    if (!entry || entry.runId !== rec.runId) return;
+    // rc2-e — Stop on a run the chat's agent hook opened stops the turn that is writing for it
+    if (!entry || (entry.runId !== rec.runId && !(rec.hookOpened && entry.turnActive))) return;
     entry.tracker?.endTurn();
     await entry.bridge.cancel();
   }

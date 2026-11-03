@@ -1,6 +1,6 @@
 {
   "generated": "2026-10-10T00:00:00.000Z",
-  "version": "2.0.0-rc.1",
+  "version": "2.0.0-rc.2",
   "entries": [
     {
       "id": "maude-v2-canvas-window",
@@ -9,6 +9,15 @@
       "kind": "feature",
       "title": "A new look: the canvas fills the window",
       "summary": "The canvas now fills the window, and everything else floats around it: one project menu, Home to start from, a tab per project, Share, and an AI chat panel that works on what you select. Preview adds whiteboard tools, Present shows a canvas to an audience, video artboards get a timeline, and a design system is a canvas of its own. Menu › Help › Take the tour walks through it.",
+      "surface": "design-ui"
+    },
+    {
+      "id": "ai-big-canvas-ask",
+      "version": null,
+      "date": null,
+      "kind": "fix",
+      "title": "AI works on canvases with hundreds of artboards",
+      "summary": "Asking the AI about a whole canvas with more than 200 artboards no longer leaves the chat on “AI is working” forever: it starts right away and takes each artboard as it changes it. If an ask cannot start, the chat now says why.",
       "surface": "design-ui"
     },
     {

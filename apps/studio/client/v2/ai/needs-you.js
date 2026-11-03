@@ -298,6 +298,16 @@ export function problemModel(error) {
       verb: null,
     };
   }
+  if (error.code === 'run-refused') {
+    // rc2-e — the lease home refused the run before any turn (acp/index.ts `refusedWords`). Nothing ran, so
+    // nothing changed; no verb: the same ask would be refused again — the words say what to change.
+    return {
+      code: 'run-refused',
+      title: message || 'AI could not start on this. Ask again.',
+      detail: 'Nothing changed.',
+      verb: null,
+    };
+  }
   // An uncoded error is the v1 connection-problem card (Feed.jsx ErrorCard, `chat-error-card`): it keeps its place.
   return null;
 }
