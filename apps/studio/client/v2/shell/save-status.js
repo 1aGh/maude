@@ -89,7 +89,7 @@ const count = (n) => (Number.isFinite(n) && n > 0 ? n : 0);
 export function saveStatus(input) {
   const {
     linked = false,
-    cloud = false,
+    cloud,
     online = true,
     phase = null,
     pending = 0,

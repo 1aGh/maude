@@ -93,7 +93,7 @@ export function ShareCluster({
   mode = null,
   present = null,
   accountSlot = null,
-  cloud = false,
+  cloud,
 }) {
   const cluster = mode ? modeCell('share-cluster', mode, present) : 'full';
   const offline = !access && status?.kind === 'offline';
