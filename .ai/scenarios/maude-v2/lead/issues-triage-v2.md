@@ -41,3 +41,9 @@ Categories:
 - **(d)** 1 — #154 (closed with Michal's yes)
 - Closed on GitHub: #147, #154, #153 (fixed, PR #161) and #157 (by design). Open: 10
 - **(e)** 0
+
+## After the triage (2026-11-02 → 2026-11-03)
+
+- **Follow-up issues #162–#172** were filed from `lead/pr-followups.md`. #162 is the rc-soak checklist.
+- **#175** (rc.1 field findings) was filed and then fixed in PR #178 (a014e7e91).
+- **#177** (no sign of which agents are working in the chat) is new and not triaged yet.

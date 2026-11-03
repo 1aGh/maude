@@ -3,6 +3,42 @@
   "version": "2.0.0-rc.1",
   "entries": [
     {
+      "id": "home-opens-dark",
+      "version": null,
+      "date": null,
+      "kind": "fix",
+      "title": "Maude opens dark, never on a white window",
+      "summary": "The first window no longer sits white while it waits on the network: Home and every project tab draw on the dark background from the first moment, even offline.",
+      "surface": "design-ui"
+    },
+    {
+      "id": "sync-refused-files-held",
+      "version": null,
+      "date": null,
+      "kind": "fix",
+      "title": "Sync stops retrying files the server refuses",
+      "summary": "A file the project’s server turns down is no longer sent again and again: it stays on this Mac and Sync details shows it with the server’s reason, and it is tried once more when you change it. A first sync of a big project also uses much less memory.",
+      "surface": "design-ui"
+    },
+    {
+      "id": "fonts-ship-with-maude",
+      "version": null,
+      "date": null,
+      "kind": "improvement",
+      "title": "Maude’s fonts ship with the app",
+      "summary": "Inter, Inter Tight and JetBrains Mono now come with Maude, so the app makes no request to Google Fonts and looks the same offline.",
+      "surface": "design-ui"
+    },
+    {
+      "id": "rename-keeps-css-import",
+      "version": null,
+      "date": null,
+      "kind": "fix",
+      "title": "Renaming a canvas keeps its styles",
+      "summary": "Renaming or moving a canvas carries its own stylesheet along and points the canvas at it, so the canvas renders right away instead of showing a “could not resolve” error.",
+      "surface": "design-ui"
+    },
+    {
       "id": "maude-v2-canvas-window",
       "version": null,
       "date": null,

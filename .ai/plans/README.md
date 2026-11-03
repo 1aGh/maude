@@ -27,6 +27,7 @@ docs and the site. All 15 Phase 8 gates are green. PR 1aGh/maude#160 is merged i
 **v2.0.0-rc.1** is out on npm `next` and as a prerelease (eca51fce5); the fleet stays on 1.10.0 until the stable promote.
 On the rc soak list: the clean-user smoke and the VoiceOver listen (not run, Michal's choice) and
 `../scenarios/maude-v2/lead/pr-followups.md`.
+After the merge, the rc.1 soak fixes landed on main: #161, #174 (white Home), #176 (main CI) and #178 (#175: held 4xx, first-sync memory, self-hosted fonts). The follow-ups are issues #162–#172; the rc.2 tag is Michal's call.
 
 ## Reliable project multiplayer — planned 2026-09-13
 

@@ -612,14 +612,14 @@ Persona: Michal (owner), Tereza (editor, second Mac), Jonas (Can comment, browse
 
 ## Acceptance Criteria
 
-- [ ] Gate 0 signed by Michal; outcomes folded into CONTRACT.md
-- [ ] Phases 1–8 "Done when" all true, each with Progress-log evidence
-- [ ] Coverage matrix: 15/15 canvases with evidence + critic ≥ 4.0
-- [ ] Nothing-deleted audit 100 %
-- [ ] All validation commands green; security 0 blockers; a11y 0 blockers
-- [ ] Packaged `.app` from `feat/maude-v2` verified, Michal's test findings closed, PR into `main` ready (rc release after the merge, owner-triggered)
-- [ ] DDRs recorded for every Phase 1 spike and every Gate 0 amendment; `kg` plan node closed
-- [ ] No regressions in today's flows (characterization tests from V2-0.1 still green, with selectors mapped)
+- [x] Gate 0 signed by Michal; outcomes folded into CONTRACT.md
+- [x] Phases 1–8 "Done when" all true, each with Progress-log evidence
+- [x] Coverage matrix: 15/15 canvases with evidence + critic ≥ 4.0
+- [x] Nothing-deleted audit 100 %
+- [x] All validation commands green; security 0 blockers; a11y 0 blockers
+- [ ] Packaged `.app` from `feat/maude-v2` verified, Michal's test findings closed, PR into `main` ready (rc release after the merge, owner-triggered). PR merged and rc.1 released; the scripted half of the .app check is green. The clean-user smoke was not run (Michal's choice), so this item stays open on the rc soak (#162).
+- [x] DDRs recorded for every Phase 1 spike and every Gate 0 amendment; `kg` plan node closed
+- [x] No regressions in today's flows (characterization tests from V2-0.1 still green, with selectors mapped)
 
 ---
 
@@ -864,6 +864,12 @@ CHECKPOINT 8 · 2026-10-26 · phase 8 finish line · feat/maude-v2 @ e4aa4d56e
 2026-11-02 · V2-8.11 · done · 3a095da29 · https://github.com/1aGh/maude/pull/160 · merged into main (squash, as admin — Michal); main was merged into feat first with -s ours (take feat's v2 side of ux-patterns, tree unchanged); feat/maude-v2 kept for the evidence SHAs (GitHub auto-deleted it, restored at 80e0f36fb)
 2026-11-02 · V2-8.12 · progress · eca51fce5 (tag v2.0.0-rc.1) · https://github.com/1aGh/maude/releases/tag/v2.0.0-rc.1 · first run failed notarization (oxc-parser .node bindings unsigned in Resources) → sign-staged-macho.mjs as tauri beforeBundleCommand, tag force-moved (npm had not published); build-binaries + build-desktop green, npm `next` = 2.0.0-rc.1, prerelease with 15 assets, latest stays 1.10.0, no hub-image/cells/render/selfhost run
 2026-11-02 · V2-8.13 · done · eca51fce5 · .ai/plans/archive/feature-maude-v2-redesign.md · plan archived, roadmap regenerated, plans README + STATE updated, kg plan node closed; NOT RUN by Michal's choice: the clean-user smoke (packaged-app.json pass:false) and the VoiceOver listen — both on the rc soak list (lead/pr-followups.md), so v2-done.sh keeps exactly that one check red
+2026-11-02 · issues triage · done · 451d5a3c2 50c805681 · .ai/scenarios/maude-v2/lead/issues-triage-v2.md · the 14 open issues sorted against v2: #147 verified by a new desktop e2e step (edit-artboards 11/11, twice) and closed; #154 closed (the v1 dock strip is gone); #153 fixed in PR #161 (409607833, 3 fail-first tests); #157 closed by design (⌘Enter sends, kg v2-michal-comment-submit-cmd-enter-only)
+2026-11-02 · follow-up issues · filed · — · issues #162–#172 · the rc soak checklist (#162) and the open items of lead/pr-followups.md as 11 tracking issues (decisions, AI attribution, undo, sync, held files, security lows, perf, polish, harness, unbuilt board states)
+2026-11-02 · rc.1 white Home · fixed · 019182b42 (PR #174) · .ai/plans/notes/v2-evidence/rc1-white-home/ · cause: a parser-inserted Google Fonts stylesheet in client/index.html held the first paint (8 s font delay → first paint at 8.3 s); fonts off the critical path, the shell window dark (SHELL_BG) with drawsBackground=NO behind every webview, a rotating shell.log; cold start on the release app: rc.1 white until 5.1 s, the fix build dark from 0.7 s
+2026-11-02 · .design on Maude 2 · merged · edda61698 (PR #173, keeper) · — · this repo's own design root at formatVersion 2, transcripts in the v2 .transcript.json name
+2026-11-02 · main CI · fixed · 022f11312 (PR #176) · — · main had been red since the merge for two unrelated reasons: the site build fetched fonts with next/font/google (failed whenever Google did; now next/font/local) and a Copy-code test fixture read a canvas a fork had moved into .design/ui/v1
+2026-11-03 · rc.1 field findings (#175) · fixed · a014e7e91 (PR #178) · .ai/scenarios/maude-v2/lead/pr-followups.md · from Michal's real 309-canvas project on hub 1.10.0: a permanent 4xx is held by content hash and shown in Sync details, and a hub without the new file-classes-v2 is not offered the 2.0-only files; the maude.mode broadcast is ignored on the control channel; first-sync peak RSS 4,193 → 1,170 MB on an unlinked 300-canvas fixture; Inter / Inter Tight / JetBrains Mono self-hosted (OFL); every item fail-first; full suite on the mini 21714 pass + 1 tripwire red on the new bench (real HOME), fixed before merge; CI green
 
 ## Retro
 
@@ -875,3 +881,17 @@ CHECKPOINT 8 · 2026-10-26 · phase 8 finish line · feat/maude-v2 @ e4aa4d56e
   - Add a dry-run signed/notarized desktop build to the pre-merge checks, so packaging problems appear before the tag.
   - Run `node --test scripts/test` on Linux before the PR goes ready.
 - **Left for the rc soak:** the clean-user smoke, the VoiceOver listen, Michal's own look at the r4/r5 rows, and every item in `lead/pr-followups.md`.
+
+### After the merge (2026-11-02 → 2026-11-03)
+
+- **What worked:** the rc channel. One day of Michal using rc.1 on a real project found four defects that no gate could have found: the white Home under real network latency, the 2.0 file list against a 1.10.0 hub, the hub's mode broadcast on the control socket, and memory at 309 canvases. Each fix was fail-first and measured on a generated, unlinked fixture rather than the real hub.
+- **What didn't:**
+  - Main stayed red for about a day after the squash merge, and nobody looked at main's own CI. Two causes, neither visible from the PR: an intermittent network fetch in the site build, and a test fixture whose canvas another session moved.
+  - Both the app and the site fetched fonts from Google, once at first paint and once at build time.
+  - A new bench script passed the real HOME to a studio server. Only the full-suite tripwire caught it.
+- **Change next time:**
+  - Watch main's CI after every merge, not only the PR's.
+  - No network fetch on the first-paint path or in a build.
+  - Every harness and bench goes through `scripts/lib/stub-claude.mjs`.
+  - Test mixed versions against a frozen copy of the older peer's rules, as `file-classes-v2` now does against 1.10.0.
+- **Still open:** the rc soak (#162, the clean-user smoke and the VoiceOver listen), the follow-ups #163–#172 and #177, the remaining ~1.1 GB early first-sync peak, and the rc.2 tag (Michal's call).
