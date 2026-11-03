@@ -30,6 +30,8 @@ import {
   ringsFor,
 } from './runs-model.js';
 import { getRunsStore } from './runs-store.js';
+import { targetRings } from './activity-line.js';
+import { getActivityStore } from './activity-store.js';
 
 const FRAME = 'iframe[data-testid="canvas-frame"]';
 
@@ -37,6 +39,8 @@ export function createRingsLane({
   store,
   // S5.15 — "Made by AI" (made-by-ai.js): settled rings that last until the next person's change
   madeByAi = getMadeByAiStore(),
+  // rc3-h (#182) — the artboard the chat's in-flight edit names, ringed before the write lands
+  activity = getActivityStore(),
   doc = globalThis.document,
   win = globalThis.window,
 } = {}) {
@@ -54,7 +58,11 @@ export function createRingsLane({
     if (!origin) return;
     const { view, done } = store.getSnapshot();
     const file = frame.getAttribute('data-path') || frame.dataset?.path || '';
-    const artboards = mergeRings(ringsFor(view, { activeCanvas: file }), {
+    const live = {
+      ...targetRings(activity?.get?.(), file),
+      ...ringsFor(view, { activeCanvas: file }),
+    };
+    const artboards = mergeRings(live, {
       ...madeByAiRings(madeByAi?.getSnapshot(), file),
       ...doneRings(Object.keys(done)),
     });
@@ -116,6 +124,7 @@ export function createRingsLane({
   }
   const unsub = store.subscribe(onTick);
   const unsubMade = madeByAi?.subscribe(tellAll);
+  const unsubActivity = activity?.subscribe?.(tellAll);
   const onMessage = (e) => {
     const dgn = e.data?.dgn;
     if (dgn !== 'loaded' && dgn !== 'canvas-rendered') return;
@@ -133,6 +142,7 @@ export function createRingsLane({
     clearTimeout(expiryTimer);
     unsub();
     unsubMade?.();
+    unsubActivity?.();
     win?.removeEventListener?.('message', onMessage);
   };
 }

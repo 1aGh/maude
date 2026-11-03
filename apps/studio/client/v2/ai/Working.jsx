@@ -35,7 +35,7 @@ export function WorkingLine({ text, step, elapsed, onStop, stopping = false }) {
         <Spark size={14} />
       </span>
       <span className="ai-working-txt">
-        <span className="ai-working-main" data-testid="ai-working-text">
+        <span className="ai-working-main" data-testid="ai-working-text" key={text}>
           {text}
         </span>
         {step || elapsed ? (
@@ -69,6 +69,18 @@ export function RunLiveRegion({ message }) {
   return (
     <div className="ai-sr-only" role="status" aria-live="polite" data-testid="ai-live">
       {message?.text ? <span key={message.id}>{message.text}</span> : null}
+    </div>
+  );
+}
+
+/**
+ * rc3-h (#182) — the working line changes with what AI does; this sibling region reads a changed line out at most
+ * once per 10 s (activity-line.js ANNOUNCE_GAP_MS), never the clock. `announce` is `{ id, text }`.
+ */
+export function ActivityLiveRegion({ announce }) {
+  return (
+    <div className="ai-sr-only" role="status" aria-live="polite" data-testid="ai-activity-live">
+      {announce?.text ? <span key={announce.id}>{announce.text}</span> : null}
     </div>
   );
 }

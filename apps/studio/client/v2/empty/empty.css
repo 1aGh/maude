@@ -437,4 +437,97 @@
     line-height: var(--lh-xs);
     color: var(--fg-2);
   }
+
+  /* ─── rc3-h (issue 182): an empty canvas while AI drafts on it (01 cf-ai-drafting's ghost + the _kit AI cursor) ─── */
+  .es-aid {
+    position: absolute;
+    left: var(--es-cx, 50%);
+    top: 45%;
+    translate: -50% -50%;
+    width: min(400px, calc(100% - var(--space-8)));
+    aspect-ratio: 16 / 10;
+  }
+  .es-aid-ghost {
+    position: absolute;
+    inset: 0;
+    border: 1.5px dashed var(--spark);
+    border-radius: var(--radius-xs);
+    background: var(--spark-muted);
+  }
+  .es-aid-ghost i {
+    position: absolute;
+    left: 10%;
+    display: block;
+    height: 7%;
+    border-radius: var(--radius-xs);
+    background: var(--spark);
+    opacity: 0.18;
+  }
+  .es-aid-ghost i:nth-child(1) {
+    top: 14%;
+    width: 46%;
+  }
+  .es-aid-ghost i:nth-child(2) {
+    top: 28%;
+    width: 30%;
+    height: 5%;
+  }
+  .es-aid-ghost i:nth-child(3) {
+    top: 46%;
+    right: 10%;
+    height: 38%;
+  }
+  .es-aid-l {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + var(--space-1));
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    max-width: 100%;
+    overflow: hidden;
+    font-size: var(--type-xs);
+    font-weight: var(--w-medium);
+    color: var(--spark-text);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .es-aid-cur {
+    position: absolute;
+    left: 74%;
+    top: 62%;
+    display: inline-flex;
+    align-items: flex-start;
+    color: var(--spark);
+  }
+  .es-aid-cur-l {
+    margin: 12px 0 0 -2px;
+    padding: 0 var(--space-1);
+    border-radius: var(--radius-xs);
+    background: var(--spark);
+    color: var(--bg-0);
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold, 600);
+    line-height: var(--lh-xs);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .es-aid:not([data-waiting]) .es-aid-ghost i {
+      animation: v2-empty-pulse calc(var(--dur-panel) * 6) var(--ease-in-out) infinite alternate;
+    }
+    .es-aid:not([data-waiting]) .es-aid-cur {
+      animation: es-aid-drift calc(var(--dur-panel) * 8) var(--ease-in-out) infinite alternate;
+    }
+  }
+  [data-reduced-motion="true"] .es-aid-ghost i,
+  [data-reduced-motion="true"] .es-aid-cur {
+    animation: none;
+  }
+  @keyframes es-aid-drift {
+    from {
+      translate: 0 0;
+    }
+    to {
+      translate: -56px -26px;
+    }
+  }
 }

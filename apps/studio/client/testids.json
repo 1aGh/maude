@@ -7002,6 +7002,22 @@
     "v2": "new"
   },
   {
+    "hook": "ai-activity-live",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The working line's own polite live region (`role=status`, a sibling of the line): a changed activity phrase (\"AI is reading Kanban\") is read out at most once per 10 s, never the clock.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Working.jsx",
+      "symbol": "ActivityLiveRegion"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/e2e/rc3-liveness.e2e.mjs"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "ai-result",
     "kind": "testid",
     "pattern": false,
@@ -23378,6 +23394,71 @@
     "consumers": [],
     "sourceConsumers": [
       "apps/studio/test/v2-empty-kit.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-drafting",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "An empty canvas while a run of yours drafts on it (01 cf-ai-drafting): replaces the empty-canvas card from the run's start until the first artboard lands or the run ends. `data-waiting` while it waits for you. Decorative (`aria-hidden`).",
+    "producer": {
+      "file": "apps/studio/client/v2/empty/ai-drafting.jsx",
+      "symbol": "AiDrafting"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/rc3-ai-presence.test.tsx",
+      "apps/studio/test/e2e/rc3-liveness.e2e.mjs"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-drafting-ghost",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The dashed spark ghost where the first artboard will land.",
+    "producer": {
+      "file": "apps/studio/client/v2/empty/ai-drafting.jsx",
+      "symbol": "AiDrafting"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/rc3-ai-presence.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-drafting-label",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The ghost's label: \"AI is drafting…\", \"AI is drawing <artboard>\" once an edit names the artboard, or \"Waiting for you\".",
+    "producer": {
+      "file": "apps/studio/client/v2/empty/ai-drafting.jsx",
+      "symbol": "AiDrafting"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/e2e/rc3-liveness.e2e.mjs"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-drafting-cursor",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The AI cursor (spark arrow + \"AI\") parked on the ghost; drifts slowly, still under reduced motion.",
+    "producer": {
+      "file": "apps/studio/client/v2/empty/ai-drafting.jsx",
+      "symbol": "AiDrafting"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/rc3-ai-presence.test.tsx"
     ],
     "v2": "new"
   },

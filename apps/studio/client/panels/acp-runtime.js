@@ -224,6 +224,13 @@ export function createAcpConnection() {
     if (reduceActivity(activeTools, frame)) emitActivity();
   }
 
+  // rc3-h (#182) — every turn frame (`update` / `turn-end` / `error`), for the one activity line that says what
+  // AI is doing now (v2/ai/activity-line.js). Not turn content: the line reads the stream, it renders none of it.
+  const turnFrameListeners = new Set();
+  function emitTurnFrame(frame) {
+    for (const fn of turnFrameListeners) fn(frame);
+  }
+
   // Post-turn-end continuation — the ACP adapter settles the prompt at the main
   // agent's `result` (claude-agent-acp #773) but KEEPS streaming background work
   // (subagent results, the consolidation) afterward. Those frames arrive with no
@@ -406,6 +413,7 @@ export function createAcpConnection() {
     }
     // Everything else belongs to the active prompt turn.
     trackActivity(frame);
+    emitTurnFrame(frame);
     if (turnHandler) turnHandler(frame);
     else if (frame.t === 'update') {
       // No active turn, but the adapter is still streaming (the post-settle
@@ -471,6 +479,12 @@ export function createAcpConnection() {
       activityListeners.add(fn);
       fn([...activeTools.values()]);
       return () => activityListeners.delete(fn);
+    },
+
+    /** rc3-h — each turn frame as it comes (no replay: a line that joins late starts from the next event). */
+    onTurnFrame(fn) {
+      turnFrameListeners.add(fn);
+      return () => turnFrameListeners.delete(fn);
     },
 
     /** Subscribe to the post-turn-end continuation parts; replays the current tail. */

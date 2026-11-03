@@ -31,6 +31,25 @@
   }
   .ai-working-main {
     overflow-wrap: anywhere;
+    /* rc3-h (issue 182): one line — a long name ends in an ellipsis instead of growing the row */
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* a new phrase (the span re-mounts on change) eases in; reduced motion: just the text change */
+  @media (prefers-reduced-motion: no-preference) {
+    .ai-working-main {
+      animation: ai-working-swap var(--dur-flip) var(--ease-out, ease-out);
+    }
+  }
+  @keyframes ai-working-swap {
+    from {
+      opacity: 0.35;
+    }
+    to {
+      opacity: 1;
+    }
   }
   .ai-step {
     color: var(--fg-1);

@@ -18,6 +18,9 @@ import { menuRunner } from '../shell/menu-runner.js';
 import { insetsNow } from '../shell/insets-now.js';
 import { shellMode } from '../shell/use-canvas-mode-lane.js';
 import { freeCentre } from './free-centre.js';
+import { useActivityTarget } from '../ai/activity-store.js';
+import { useAiRuns } from '../ai/runs-store.js';
+import { AiDrafting, draftingPresence } from './ai-drafting.jsx';
 import { AllTrashed } from './all-trashed.jsx';
 import { ArtboardHint, HINT_SIZE } from './artboard-hint.jsx';
 import { EmptyCanvas } from './empty-canvas.jsx';
@@ -58,6 +61,18 @@ export function EmptyHost() {
 
   const model = canvasOpen
     ? emptyCanvasModel({ count, mode, canEdit, online, claude, canAsk })
+    : null;
+  // rc3-h (#182): a run of yours on this empty canvas — the ghost where the first artboard lands, not the invitation
+  const { view: runsView } = useAiRuns();
+  const target = useActivityTarget();
+  const drafting = canvasOpen
+    ? draftingPresence({
+        view: runsView,
+        activePath,
+        designRel: cfg?.designRel || '.design',
+        count,
+        target,
+      })
     : null;
 
   // P8 C5 (05 es-all-trashed): a canvas whose every artboard is in the Trash says that, not "Your canvas is
@@ -132,6 +147,8 @@ export function EmptyHost() {
   );
 
   const showHint = !!hint && !!placement && canEdit && mode === 'edit' && !model;
+  if (drafting)
+    return <AiDrafting label={drafting.label} centre={centre} waiting={drafting.waiting} />;
   if (!model && !showHint && !trashWatch) return null;
   return (
     <>
