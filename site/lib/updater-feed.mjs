@@ -171,3 +171,40 @@ export function pickInstaller(releases, platform) {
   const release = selectRelease(releases, '0.0.0');
   return release?.assets?.find((a) => exts.some((e) => a.name.endsWith(e))) ?? null;
 }
+
+// Where /desktop/download/<platform> sends a visitor, and for how long the CDN may keep that answer
+// (2.0.2). Two rules, both learnt from the 2.0.1 release, when the button sent visitors to 1.10.0
+// three hours after 2.0.0 had shipped with its installers:
+//
+//   - ONLY the newest stable release's installer is ever the download. When that release has no
+//     installer for the platform yet (the desktop build uploads it ~15 min after the release is
+//     published), the visitor gets that release's page — never an older release's installer.
+//   - The answer is cached for a BOUNDED time and never served stale. The 1.10.0 redirect was
+//     Next's data cache: `fetch(…, { next: { revalidate: 300 } })` is stale-while-revalidate, so the
+//     first request after a quiet spell is answered from the last list fetched, however old. The
+//     route now reads the list uncached and these headers cache the redirect itself, at the CDN —
+//     5 minutes for an installer, 30 seconds for anything that is not one (an upload in progress,
+//     GitHub refusing the API call), so "not there yet" is never kept as if it were final.
+export const DOWNLOAD_CACHE_FINAL = 'public, max-age=0, s-maxage=300';
+export const DOWNLOAD_CACHE_PENDING = 'public, max-age=0, s-maxage=30';
+
+/**
+ * @param {unknown} releases the GitHub releases list (anything else is treated as unreadable)
+ * @param {string} platform macos | windows | linux
+ * @param {string} repo `owner/name`
+ * @returns {{ location: string, cacheControl: string }}
+ */
+export function downloadRedirect(releases, platform, repo) {
+  const releasesPage = `https://github.com/${repo}/releases/latest`;
+  const pending = (location) => ({ location, cacheControl: DOWNLOAD_CACHE_PENDING });
+  if (!INSTALLER_EXT[platform] || !Array.isArray(releases)) return pending(releasesPage);
+  const release = selectRelease(releases, '0.0.0');
+  if (!release) return pending(releasesPage);
+  const asset = pickInstaller([release], platform);
+  if (asset?.browser_download_url) {
+    return { location: asset.browser_download_url, cacheControl: DOWNLOAD_CACHE_FINAL };
+  }
+  return pending(
+    `https://github.com/${repo}/releases/tag/${encodeURIComponent(String(release.tag_name))}`
+  );
+}
