@@ -17,7 +17,14 @@ afterEach(() => {
 const CANVAS = '.design/ui/Landing page.tsx';
 const SENTENCE = 'A calm landing page for a Brno architecture studio';
 
-type Opts = { folded?: boolean; frame?: string | null; draft?: string; frameAfterMs?: number };
+type Opts = {
+  folded?: boolean;
+  frame?: string | null;
+  draft?: string;
+  frameAfterMs?: number;
+  /** ChatHeader draws no New chat while Claude is not connected (chat-header.jsx) */
+  noNewChat?: boolean;
+};
 
 /** A panel shaped like ChatPanel's: header New chat, one field per chat (others hidden), a send that wakes on input. */
 function stage(o: Opts = {}) {
@@ -52,7 +59,7 @@ function stage(o: Opts = {}) {
   const newBtn = document.createElement('button');
   newBtn.dataset.testid = 'ai-chat-new';
   newBtn.addEventListener('click', addChat);
-  header.append(newBtn);
+  if (!o.noNewChat) header.append(newBtn);
   island.append(header);
   addChat();
   document.body.append(island);
@@ -188,6 +195,35 @@ describe('S6.3 relayAiSend — the composer path', () => {
       { ok: true }
     );
     expect(s.sent).toEqual([{ chat: 1, text: SENTENCE }]);
+    s.stop();
+  });
+
+  // rc3-f (issue #181): a Home prompt into a fresh project with no Claude connected yet. The header draws no New
+  // chat then, so the relay waited 4 s for a field that never came, gave up ('chat') and the prompt was gone.
+  test('no Claude connected (no New chat in the header): the empty open chat takes the sentence and sends it', async () => {
+    const { relayAiSend } = await import('../client/v2/ai/ai-send.js');
+    const s = stage({ noNewChat: true });
+    const out = await relayAiSend(
+      s.island,
+      { prompt: SENTENCE, canvas: CANVAS, newChat: true },
+      { timeoutMs: 300 }
+    );
+    expect(out).toEqual({ ok: true });
+    expect(s.sent).toEqual([{ chat: 1, text: SENTENCE }]);
+    s.stop();
+  });
+
+  test('no New chat and a draft in the open chat: the draft is kept, the failure is named', async () => {
+    const { relayAiSend } = await import('../client/v2/ai/ai-send.js');
+    const s = stage({ noNewChat: true, draft: 'my own words' });
+    const out = await relayAiSend(
+      s.island,
+      { prompt: SENTENCE, canvas: CANVAS, newChat: true },
+      { timeoutMs: 300 }
+    );
+    expect(out).toEqual({ ok: false, reason: 'draft' });
+    expect(s.sent).toEqual([]);
+    expect((s.island.querySelector('textarea') as HTMLTextAreaElement).value).toBe('my own words');
     s.stop();
   });
 
