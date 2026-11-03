@@ -28,6 +28,7 @@ import MagicString from 'magic-string';
 import { parseSync } from 'oxc-parser';
 
 import { applyEdit, applyRemove, readAttributeState } from '../canvas-edit.ts';
+import { dsAssetRelOfSrc } from '../editing/ds-asset-ref.ts';
 import {
   generateElementId,
   type IdElement,
@@ -54,6 +55,22 @@ export const isAssetSrc = (v: unknown): v is string =>
   typeof v === 'string' && ASSET_SRC_RE.test(v) && !v.includes('..');
 
 const NOT_AN_ASSET = 'That picture is not in this project’s assets.';
+
+/**
+ * 2.0.2 — what `image.place` / `image.replace` may write as a source: a project upload (`assets/<flat name>`), or a
+ * design system's own picture as its literal `/<designRel>/system/<ds>/assets/…` reference — under THIS server's
+ * designRel (`ctx`), naming a regular file that is there (`exists`: a symlink is not one).
+ */
+export function isPlaceableSrc(
+  v: unknown,
+  req: Pick<ResolvedEditOp, 'ctx' | 'exists'>
+): v is string {
+  if (isAssetSrc(v)) return true;
+  const designRel = req.ctx?.designRel;
+  if (typeof designRel !== 'string' || !req.exists) return false;
+  const rel = dsAssetRelOfSrc(v, designRel);
+  return rel !== null && req.exists(rel);
+}
 
 /** A video in Assets: the extensions the asset route stores for video (`sniffAssetType`: mp4 · mov · m4v · webm). */
 export const VIDEO_ASSET_RE = /\.(mp4|mov|m4v|webm)$/i;
@@ -173,7 +190,7 @@ function placeParams(req: ResolvedEditOp): PlaceParams {
   const list = Array.isArray(p.assets) ? p.assets : p.asset !== undefined ? [p.asset] : [];
   if (!list.length) return refuse(req, 'Pick a picture to place.');
   if (list.length > MAX_ASSETS) return refuse(req, `Place up to ${MAX_ASSETS} pictures at a time.`);
-  for (const a of list) if (!isAssetSrc(a)) return refuse(req, NOT_AN_ASSET);
+  for (const a of list) if (!isPlaceableSrc(a, req)) return refuse(req, NOT_AN_ASSET);
   const mode = p.mode === undefined ? 'fill' : p.mode;
   if (typeof mode !== 'string' || !(PLACE_MODES as readonly string[]).includes(mode))
     return refuse(req, 'Place it to fill, loose, in order or in a grid.');
@@ -562,7 +579,7 @@ export const imageReplace: EditOp = {
     const t = req.targets[0];
     if (!t) return refuse(req, 'Select a picture first.');
     const asset = req.params.asset;
-    if (!isAssetSrc(asset)) return refuse(req, NOT_AN_ASSET, t.element);
+    if (!isPlaceableSrc(asset, req)) return refuse(req, NOT_AN_ASSET, t.element);
     const walk = walkOrRefuse(source, req);
     const el = elementOf(walk, t);
     if (!el || !isPicture(el)) return refuse(req, 'That is not a picture.', t.element);

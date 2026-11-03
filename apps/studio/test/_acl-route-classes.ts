@@ -90,6 +90,8 @@ const FILTERED = [
   // S8.21 — an asset's details and the Generated runs: judged per asset like /_api/assets
   '/_api/asset-details',
   '/_api/asset-generated',
+  // 2.0.2 — a design system's own library: a canvas-only session lists only what its closure reads (routes/ds-assets.ts)
+  '/_api/ds/assets',
   '/_api/ai',
   '/_api/ai/runs',
   '/_api/outbox',

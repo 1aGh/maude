@@ -7,9 +7,15 @@
 // listener can tell a tile from a file, and for same-origin targets.
 // Pure: no DOM, no React, no server import (the canvas bundle imports this).
 
+import { isDsAssetSrc } from './ds-asset-ref.ts';
+
 export const ASSET_DRAG_MIME = 'application/x-maude-asset';
 
-/** The same allowlist the server applies: `assets/<flat name>`, no `..`, no scheme. */
+/**
+ * The same allowlist the server applies: `assets/<flat name>`, no `..`, no scheme — or (2.0.2) a design system's own
+ * picture by its literal `/<designRel>/system/<ds>/assets/…` reference (ds-asset-ref.ts; the server re-checks the
+ * designRel and that the file is there).
+ */
 const ASSET_RE = /^assets\/[A-Za-z0-9._-]+$/;
 const MAX_PX = 100_000;
 
@@ -21,7 +27,7 @@ export interface AssetDrag {
 }
 
 export const isAssetPath = (v: unknown): v is string =>
-  typeof v === 'string' && ASSET_RE.test(v) && !v.includes('..');
+  (typeof v === 'string' && ASSET_RE.test(v) && !v.includes('..')) || isDsAssetSrc(v);
 
 /** The string a tile puts under {@link ASSET_DRAG_MIME}. */
 export function assetDragData(a: AssetDrag): string {

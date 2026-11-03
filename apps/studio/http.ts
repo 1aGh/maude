@@ -2514,6 +2514,13 @@ export function createHttp(
       },
       inCell: isWorkspaceMode(),
     },
+    // 2.0.2 — GET /_api/ds/assets (routes/ds-assets.ts): a design system's own library in the Assets tab, paged by
+    // folder; a canvas-only session is answered from its closure (visOf), like /_api/assets.
+    dsAssets: {
+      designRoot: ctx.paths.designRoot,
+      systems: () => ctx.cfg.designSystems ?? [],
+      visibility: (req) => visOf(req),
+    },
     // S8.16 — /_api/generate-takes* (routes/generate.ts): N takes on the generation queue, the consent quote, ← →.
     generate: generateDepsFor({
       designRoot: ctx.paths.designRoot,

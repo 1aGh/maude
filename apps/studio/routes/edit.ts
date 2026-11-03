@@ -503,6 +503,7 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
           dsRev: dsRevOf(rel),
           layout: layoutOf(rel),
           variantsOf: variantsOf(rel),
+          designRel: deps.designRel,
         }),
         ...(deps.references ? { references: deps.references } : {}),
         ...(deps.ops ? { ops: deps.ops } : {}),

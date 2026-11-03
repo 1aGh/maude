@@ -35,6 +35,7 @@ import { type ConnectionsRouteDeps, createConnectionsRoutes } from './connection
 import { createDescribeRoutes, type DescribeRouteDeps } from './describe.ts';
 import { createDiagnosticsRoutes, type DiagnosticsRouteDeps } from './diagnostics.ts';
 import { createDsRoutes, type DsRouteDeps } from './ds.ts';
+import { createDsAssetsRoutes, type DsAssetsRouteDeps } from './ds-assets.ts';
 import { createDsCheckRoutes } from './ds-check.ts';
 import { createEditRoutes, type EditRouteDeps } from './edit.ts';
 import { createElementLinksRoutes, type ElementLinksRouteDeps } from './element-links.ts';
@@ -150,6 +151,8 @@ export interface RouteDeps {
   describe?: DescribeRouteDeps;
   /** S8.21 — `GET /_api/asset-details` and `GET /_api/asset-generated` (main origin, reads): details per kind, the Generated runs */
   assetDetails?: AssetDetailsRouteDeps;
+  /** 2.0.2 — `GET /_api/ds/assets`: a design system's own asset library for the Assets tab (main origin, reads) */
+  dsAssets?: DsAssetsRouteDeps;
   /** S8.22 — `POST /_api/import-asset` v2 (main origin, Can edit on the project): PSD/HEIC converters, the dedupe answer */
   assetImport?: AssetImportRouteDeps;
   /**
@@ -270,6 +273,7 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...(deps.figma ? createFigmaRoutes(deps.figma) : []),
     ...(deps.describe ? createDescribeRoutes(deps.describe) : []),
     ...(deps.assetDetails ? createAssetDetailsRoutes(deps.assetDetails) : []),
+    ...(deps.dsAssets ? createDsAssetsRoutes(deps.dsAssets) : []),
     ...(deps.assetImport ? createAssetImportRoutes(deps.assetImport) : []),
     ...importLinkSpecs(deps),
     ...(deps.generate ? createGenerateRoutes(deps.generate) : []),
