@@ -4,6 +4,11 @@
 // out of reach; the button is its own hit target — one click plays or pauses, and the press never reaches the selection
 // handlers (`.dc-vplay` is in their chrome lists). Space still plays the selected clip (editing/video-play.ts).
 //
+// rc3 walk (r4-1): a paused clip that has not started also shows WebKit's own big centre ▶ (and Chromium's), and in Edit
+// a click on it only selected — the canvas takes the press. The layer draws its own centre ▶ exactly over it (the same
+// 60 px disc, measured in a WKWebView), so the first click there plays; a click anywhere else on the clip still selects.
+// It goes once the clip has started, when the native one does too.
+//
 // Drawn as a body-level fixed layer (like asset-placeholder.tsx's frames), never inside the design, so it is never exported
 // and never part of the artboard's content. Outside the shell's frame (an export capture) nothing is drawn.
 
@@ -20,6 +25,8 @@ export const VPLAY_SELECTOR = '[data-vplay]';
 export const VPLAY_MIN = 48;
 const BTN = 30;
 const INSET = 8;
+/** WebKit's (and Chromium's) start-playback disc over a paused clip: 60 px, centred, whatever the clip's size. */
+export const VPLAY_CENTRE = 60;
 
 const CSS = `
 .dc-vplay-layer { position: fixed; inset: 0; z-index: 7; pointer-events: none; }
@@ -29,6 +36,7 @@ const CSS = `
 .dc-vplay:hover { background: oklch(0.2 0.01 250 / 0.9); }
 .dc-vplay:focus-visible { outline: 2px solid oklch(0.64 0.165 238); outline-offset: 2px; }
 .dc-vplay svg { display: block; }
+.dc-vplay--centre { width: ${VPLAY_CENTRE}px; height: ${VPLAY_CENTRE}px; background: oklch(0.2 0.01 250 / 0.8); box-shadow: none; }
 `;
 
 function ensureStyles(): void {
@@ -73,13 +81,31 @@ export function buttonBox(r: {
   return { left: Math.round(r.left + INSET), top: Math.round(r.top + INSET) };
 }
 
+/** Where the centre ▶ sits over a clip: centred, the native disc's size; null when the clip cannot hold it. */
+export function centreBox(r: {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}): { left: number; top: number } | null {
+  if (r.width < VPLAY_CENTRE + 2 * INSET || r.height < VPLAY_CENTRE + 2 * INSET) return null;
+  return {
+    left: Math.round(r.left + r.width / 2 - VPLAY_CENTRE / 2),
+    top: Math.round(r.top + r.height / 2 - VPLAY_CENTRE / 2),
+  };
+}
+
 const isPlaying = (v: HTMLVideoElement): boolean => !v.paused && !v.ended;
+/** The native centre ▶ is drawn only before the clip has started: so is this one. */
+export const showsCentre = (v: HTMLVideoElement): boolean =>
+  v.paused && !v.ended && !(v.currentTime > 0);
 
 export function VideoPlayLayer({ inShell }: { inShell?: boolean } = {}): ReactElement | null {
   const sel = useSelectionSetOptional();
   const [hover, setHover] = useState<HTMLVideoElement | null>(null);
   const [, bump] = useState(0);
   const nodes = useRef(new Map<HTMLVideoElement, HTMLButtonElement>());
+  const centres = useRef(new Map<HTMLVideoElement, HTMLButtonElement>());
   const hoverRef = useRef<HTMLVideoElement | null>(null);
   const inside = inShell ?? (typeof window !== 'undefined' && window.parent !== window);
 
@@ -130,16 +156,20 @@ export function VideoPlayLayer({ inShell }: { inShell?: boolean } = {}): ReactEl
     const tick = () => {
       const present = canvasModeStore(window).get().mode === 'present';
       for (const v of targets) {
-        const b = nodes.current.get(v);
-        if (!b) continue;
-        const at = v.isConnected && !present ? buttonBox(v.getBoundingClientRect()) : null;
-        if (!at) {
-          b.style.display = 'none';
-          continue;
+        const rect = v.isConnected && !present ? v.getBoundingClientRect() : null;
+        for (const [b, at] of [
+          [nodes.current.get(v), rect ? buttonBox(rect) : null],
+          [centres.current.get(v), rect ? centreBox(rect) : null],
+        ] as const) {
+          if (!b) continue;
+          if (!at) {
+            b.style.display = 'none';
+            continue;
+          }
+          b.style.display = 'grid';
+          b.style.left = `${at.left}px`;
+          b.style.top = `${at.top}px`;
         }
-        b.style.display = 'grid';
-        b.style.left = `${at.left}px`;
-        b.style.top = `${at.top}px`;
       }
       raf = requestAnimationFrame(tick);
     };
@@ -157,11 +187,35 @@ export function VideoPlayLayer({ inShell }: { inShell?: boolean } = {}): ReactEl
   if (!inside || typeof document === 'undefined' || targets.length === 0) return null;
   return createPortal(
     <div className="dc-vplay-layer" data-vplay-layer="" data-testid="video-play-layer">
-      {targets.map((v) => {
+      {targets.flatMap((v) => {
         const playing = isPlaying(v);
-        return (
+        const key = v.getAttribute('data-cd-id') ?? v.src;
+        const centre = showsCentre(v) ? (
           <button
-            key={v.getAttribute('data-cd-id') ?? v.src}
+            key={`${key}:centre`}
+            type="button"
+            className="dc-vplay dc-vplay--centre"
+            data-vplay=""
+            data-testid="video-play-centre"
+            aria-label="Play video"
+            title="Play"
+            ref={(el) => {
+              if (el) centres.current.set(v, el);
+              else centres.current.delete(v);
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggle(v);
+            }}
+          >
+            <svg width="22" height="22" viewBox="0 0 14 14" aria-hidden="true" fill="currentColor">
+              <path d="M3.5 1.8v10.4L12 7z" />
+            </svg>
+          </button>
+        ) : null;
+        const corner = (
+          <button
+            key={key}
             type="button"
             className="dc-vplay"
             data-vplay=""
@@ -183,6 +237,7 @@ export function VideoPlayLayer({ inShell }: { inShell?: boolean } = {}): ReactEl
             </svg>
           </button>
         );
+        return centre ? [corner, centre] : [corner];
       })}
     </div>,
     document.body

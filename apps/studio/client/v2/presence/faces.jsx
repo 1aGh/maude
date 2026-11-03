@@ -21,6 +21,7 @@ import {
 } from '../../../presence/model.ts';
 import { toneFor, toneVar, YOU_TONE } from '../../../presence/tones.ts';
 import { Glyph, SparkGlyph } from '../share/glyphs.jsx';
+import { onCanvasPointer } from '../shell/canvas-pointer.js';
 
 const isPeer = (f) => !f.you && !f.agent && typeof f.clientID === 'number';
 
@@ -40,9 +41,12 @@ function useDismiss(open, onClose, ref, restore) {
     };
     document.addEventListener('mousedown', onDown);
     document.addEventListener('keydown', onKey, true);
+    // rc3 r4-12 — a press in the canvas closes it too (told over the dgn bridge; it never reaches this document)
+    const offCanvas = onCanvasPointer(() => onClose());
     return () => {
       document.removeEventListener('mousedown', onDown);
       document.removeEventListener('keydown', onKey, true);
+      offCanvas();
     };
   }, [open, onClose, ref, restore]);
 }

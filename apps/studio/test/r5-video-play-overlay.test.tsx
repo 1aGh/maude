@@ -11,7 +11,13 @@ import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 
 import { shouldIgnoreTarget } from '../artboard-marquee.tsx';
-import { buttonBox, VideoPlayLayer, VPLAY_MIN } from '../video-play-overlay.tsx';
+import {
+  buttonBox,
+  centreBox,
+  VideoPlayLayer,
+  VPLAY_CENTRE,
+  VPLAY_MIN,
+} from '../video-play-overlay.tsx';
 
 beforeAll(() => {
   GlobalRegistrator.register();
@@ -114,6 +120,37 @@ describe('the play button over a clip (r5-2)', () => {
       left: 108,
       top: 58,
     });
+  });
+
+  // rc3 walk of the packaged rc.2 (r4-1) — the big centre ▶ WebKit draws over a paused clip only selected on the first
+  // click in Edit. The layer's own centre ▶ sits exactly over it: the first click there plays, a click elsewhere selects.
+  test('the centre ▶ over an unstarted clip plays on the first click and is its own hit target', async () => {
+    await mount(true);
+    const { v, calls } = clip();
+    await over(v);
+    const c = document.querySelector<HTMLButtonElement>('[data-testid="video-play-centre"]');
+    expect(c).not.toBeNull();
+    expect(c?.getAttribute('aria-label')).toBe('Play video');
+    expect(shouldIgnoreTarget(c as HTMLButtonElement)).toBe(true);
+    await act(async () => void c?.click());
+    expect(calls).toEqual(['play']);
+    // playing: the native disc is gone, and so is this one; the corner button offers Pause
+    expect(document.querySelector('[data-testid="video-play-centre"]')).toBeNull();
+    expect(button()?.getAttribute('aria-label')).toBe('Pause video');
+    // paused part-way: no centre ▶ comes back (the native one does not either)
+    Object.defineProperty(v, 'currentTime', { get: () => 1.5, configurable: true });
+    await act(async () => void button()?.click());
+    expect(calls).toEqual(['play', 'pause']);
+    expect(document.querySelector('[data-testid="video-play-centre"]')).toBeNull();
+  });
+
+  test('the centre ▶ is the native disc: 60 px, centred, none on a clip too small to hold it', () => {
+    expect(VPLAY_CENTRE).toBe(60);
+    expect(centreBox({ left: 100, top: 100, width: 320, height: 180 })).toEqual({
+      left: 230,
+      top: 160,
+    });
+    expect(centreBox({ left: 0, top: 0, width: 70, height: 200 })).toBeNull();
   });
 
   test('canvas-lib mounts the layer', () => {

@@ -12,6 +12,7 @@ import { lengthPx, nearestSpace, tokenLabel } from '../../../edit-ops/words-css.
 import { ScrubLabelContext, makeScrubHandler } from '../../inspector-controls.jsx';
 import { StIcon } from '../../shell/icons.jsx';
 import { activeDsNameFor, useAllDsTokens } from '../../inspector/ds-tokens.js';
+import { onCanvasPointer } from '../shell/canvas-pointer.js';
 
 const pxOf = (value) => {
   const m = /^(-?\d*\.?\d+)(px|rem)?$/i.exec(String(value ?? '').trim());
@@ -73,9 +74,12 @@ export function useDismiss(open, onClose, ref) {
     };
     document.addEventListener('pointerdown', down, true);
     document.addEventListener('keydown', key, true);
+    // rc3 r4-12 — a press in the canvas closes it too (told over the dgn bridge; it never reaches this document)
+    const offCanvas = onCanvasPointer(() => onClose());
     return () => {
       document.removeEventListener('pointerdown', down, true);
       document.removeEventListener('keydown', key, true);
+      offCanvas();
     };
   }, [open, onClose, ref]);
 }

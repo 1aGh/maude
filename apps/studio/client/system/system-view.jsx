@@ -183,9 +183,13 @@ export function SystemView({ data, onOpen, cfg, onSelectDs }) {
   if (noSystem) {
     return (
       <div className="sv">
+        {/* rc3 r4-7 walk — the product's own word for the view (CONTRACT §7 "called 'Design system' in UI copy"); the
+            MAUDE-DSN/01 code and "design system view" were the specimen board's labels and read as a leak here.
+            The code stays where 06 · ad-ds keeps it: the Advanced view of a system that exists. */}
         <header className="sv-header">
-          <span className="sv-sku">MAUDE-DSN/01</span>
-          <span className="sv-title">design system view</span>
+          <h1 className="sv-title" data-testid="sv-no-system-heading">
+            Design system
+          </h1>
         </header>
         <div className="sv-empty sv-no-system" data-testid="sv-no-system">
           <div>

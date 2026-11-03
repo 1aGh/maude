@@ -18,6 +18,7 @@ import { layersTreeSig, shellToast } from '../shell/util.js';
 // S7.21 — the toast after the inspector's "Add a width" (08 ak-web-widths) and the video artboard's length
 import { settleDuplicateAtWidth } from '../v2/create/duplicate-done.js';
 import { menuRunner } from '../v2/shell/menu-runner.js';
+import { announceCanvasPointer } from '../v2/shell/canvas-pointer.js';
 import { panelLayout } from '../v2/shell/use-panel-layout.js';
 
 // 01 cf-duplicate-done / 08 ak-web-widths: a copy made is told with the copy glyph, not a success tick
@@ -233,6 +234,11 @@ export function useCanvasBridge({
             ? iframesRef.current.get(activePath)?.contentWindow
             : null;
         if (!activeWin || e.source !== activeWin) return;
+      }
+      // rc3 r4-12 — a press in the active canvas: the shell's open menus close on it (use-dismiss-outside.js)
+      if (m.dgn === 'canvas-pointerdown') {
+        announceCanvasPointer();
+        return;
       }
       // S9.22b — the overlay's comment door + mention people (comment-bridge.js). Accepted only from the
       // active canvas's own window and only once the dgn table's parser has cleaned it; the answer goes

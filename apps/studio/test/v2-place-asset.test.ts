@@ -109,6 +109,27 @@ describe('placeAsset', () => {
     }
   });
 
+  // rc3 walk of the packaged rc.2 (r4-2) — a video dropped from Assets onto a photo was refused as a "picture"
+  test('a refused video is called a video; a picture stays a picture; a mix is said neutrally', async () => {
+    const onto = { ...TARGET, frameId: 'hero' };
+    for (const [asked, text] of [
+      [{ asset: 'assets/clip.mp4' }, 'Not placed. That video does not fit there; try another.'],
+      [
+        { assets: ['assets/a.MOV', 'assets/b.webm'] },
+        'Not placed. That video does not fit there; try another.',
+      ],
+      [{ asset: 'assets/a.png' }, 'Not placed. That picture does not fit there; try another.'],
+      [
+        { assets: ['assets/a.png', 'assets/clip.mp4'] },
+        'Not placed. That does not fit there; try another.',
+      ],
+    ] as const) {
+      const { fetch } = fakeFetch(400, { ok: false, code: 'invalid', message: 'x' });
+      const r = await placeAsset({ ...asked, target: onto }, { fetch });
+      expect(r).toEqual({ ok: false, message: text });
+    }
+  });
+
   test('an older studio, an unreachable one, and an empty ask never throw', async () => {
     expect(
       (await placeAsset({ asset: 'assets/a.png', target: TARGET }, fakeFetch(404, {}))).ok

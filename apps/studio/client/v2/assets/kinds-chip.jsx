@@ -34,7 +34,7 @@ export function KindsChip({ value, onChange }) {
     document.addEventListener('keydown', onKey, true);
     return () => document.removeEventListener('keydown', onKey, true);
   }, [open]);
-  // a click anywhere else closes it — also a click into the canvas (another origin), which only blurs this window
+  // a click anywhere else closes it — also a click into the canvas (another origin, told over the dgn bridge)
   useDismissOutside(open, root, () => setOpen(false));
   return (
     <span className="lp-kinds" ref={root}>

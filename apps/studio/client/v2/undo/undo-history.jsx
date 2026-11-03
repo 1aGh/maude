@@ -17,6 +17,7 @@ import { useShellStore } from '../../stores/shell-store.jsx';
 import { useUndoModeLane } from './use-undo-mode-lane.js';
 import { undoProjection, useUndoProjection } from './use-undo-projection.jsx';
 import { reasonProps } from '../access/disabled-reason.js';
+import { onCanvasPointer } from '../shell/canvas-pointer.js';
 
 /** One open flag for the shell (the menu row opens it; Esc / outside / a click closes it). */
 function createOpenFlag() {
@@ -237,7 +238,12 @@ export function UndoHistoryHost(p) {
       if (!e.target?.closest?.('[data-testid="undo-history"]')) undoHistoryOpen.close();
     };
     document.addEventListener('pointerdown', onDown, true);
-    return () => document.removeEventListener('pointerdown', onDown, true);
+    // rc3 r4-12 — a press in the canvas closes it too (told over the dgn bridge; it never reaches this document)
+    const offCanvas = onCanvasPointer(() => undoHistoryOpen.close());
+    return () => {
+      document.removeEventListener('pointerdown', onDown, true);
+      offCanvas();
+    };
   }, [open]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: clear the highlight when the popover closes or the canvas changes
   useEffect(() => {

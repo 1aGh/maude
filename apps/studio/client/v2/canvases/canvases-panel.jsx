@@ -23,6 +23,7 @@ import { useFold } from '../fold/use-fold.js';
 import { KindChips } from '../kinds/KindChips.jsx';
 import { countByKind, isFilterKind, noCanvasesOfKind } from '../kinds/kind-filter-model.js';
 import { clearKindFilter, useKindFilter } from '../kinds/kind-filter-store.js';
+import { onCanvasPointer } from '../shell/canvas-pointer.js';
 import { nativeDoors } from '../shell/native-doors.js';
 import { PANEL_NONE_FOOT, PanelNoCanvases } from '../create/empty-project.jsx';
 import { AskButton, Empty } from '../empty/index.js';
@@ -389,15 +390,18 @@ export function CanvasesPanel({
       setSortMenu(null);
       if (e.type === 'keydown') sortButton()?.focus();
     };
-    // a click into the canvas (another origin) never reaches this document; it only blurs the window
+    // a click into the canvas (another origin) never reaches this document: the canvas tells the shell over the dgn
+    // bridge (rc3 r4-12 — the packaged app's WebKit gives no window blur for it); Chromium also blurs the window
     const away = () => setSortMenu(null);
     document.addEventListener('pointerdown', close);
     document.addEventListener('keydown', close);
     window.addEventListener('blur', away);
+    const offCanvas = onCanvasPointer(away);
     return () => {
       document.removeEventListener('pointerdown', close);
       document.removeEventListener('keydown', close);
       window.removeEventListener('blur', away);
+      offCanvas();
     };
   }, [sortMenu]);
   // opening it takes the focus into the menu (the checked choice), so the keys have somewhere to land

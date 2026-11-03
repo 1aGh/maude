@@ -22,6 +22,22 @@ const SAID = {
   invalid: 'Not placed. That picture does not fit there; try another.',
 };
 
+// rc3 walk (r4-2) — a video dropped onto a photo was refused as a "picture". The refusal names what was dropped: a
+// video (the extensions the shell previews as video, client/shell/util.js PREVIEW_KIND_RULES), or neutrally for a mix.
+const VIDEO_PATH = /\.(mp4|webm|mov|m4v)$/i;
+const INVALID_VIDEO = 'Not placed. That video does not fit there; try another.';
+const INVALID_MIXED = 'Not placed. That does not fit there; try another.';
+
+/** The words for a refusal `code`, for the files `list` that were being placed. */
+export function refusalWords(code, list = []) {
+  if (code === 'invalid' && list.length) {
+    const videos = list.filter((p) => typeof p === 'string' && VIDEO_PATH.test(p)).length;
+    if (videos === list.length) return INVALID_VIDEO;
+    if (videos > 0) return INVALID_MIXED;
+  }
+  return SAID[code];
+}
+
 /**
  * "Placed 6 photos in Fotky ze zápasu. They're in Assets too." — the line a placement says (12 · ia-placed). The same words
  * the drop says (`editing/finder-drop-model.ts` placedLine; pinned equal in p8-c9-assets.test.tsx), kept here so the shell
@@ -100,7 +116,10 @@ export async function placeAsset(req, opts = {}) {
       created: Array.isArray(body.created) ? body.created : [],
     };
   }
-  return { ok: false, message: SAID[body?.code] ?? body?.message ?? 'Not placed; try again.' };
+  return {
+    ok: false,
+    message: refusalWords(body?.code, list) ?? body?.message ?? 'Not placed; try again.',
+  };
 }
 
 /**

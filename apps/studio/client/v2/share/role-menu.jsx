@@ -20,6 +20,7 @@ import { useEffect, useLayoutEffect, useState } from 'react';
 import { useModalFocus } from '../shell/modal-focus.js';
 import { Glyph } from './glyphs.jsx';
 import { ROLE_WORDS } from './share-model.js';
+import { onCanvasPointer } from '../shell/canvas-pointer.js';
 
 /** Where a menu of `size` hangs from `anchor`: right-aligned, below, or above when it would not fit. */
 export function menuPlace(anchorRect, size, view, gap = 4) {
@@ -59,7 +60,12 @@ export function RoleMenu({ row, roles, makeOwner, scopeName, anchor, onPick, onC
       if (ref.current && !ref.current.contains(e.target)) onClose();
     };
     document.addEventListener('mousedown', onDown, true);
-    return () => document.removeEventListener('mousedown', onDown, true);
+    // rc3 r4-12 — a press in the canvas closes it too (told over the dgn bridge; it never reaches this document)
+    const offCanvas = onCanvasPointer(() => onClose());
+    return () => {
+      document.removeEventListener('mousedown', onDown, true);
+      offCanvas();
+    };
   }, [onClose, ref]);
 
   const onKeyDown = (e) => {

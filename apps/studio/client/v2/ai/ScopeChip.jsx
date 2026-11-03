@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
 import { scopeLabel, scopeMenu, scopeNames, scopeTitle, toggleArtboard } from './scope.js';
+import { onCanvasPointer } from '../shell/canvas-pointer.js';
 
 export function ScopeChip({
   scope,
@@ -49,9 +50,12 @@ export function ScopeChip({
     };
     document.addEventListener('pointerdown', onDown);
     document.addEventListener('keydown', onKey, true);
+    // rc3 r4-12 — a press in the canvas closes it too (told over the dgn bridge; it never reaches this document)
+    const offCanvas = onCanvasPointer(() => close(false));
     return () => {
       document.removeEventListener('pointerdown', onDown);
       document.removeEventListener('keydown', onKey, true);
+      offCanvas();
     };
   }, [open, close]);
 

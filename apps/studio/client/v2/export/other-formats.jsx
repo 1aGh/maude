@@ -7,6 +7,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { matchOther, OTHER_LABEL, OTHER_NONE, OTHER_SEARCH } from './export-copy.js';
+import { onCanvasPointer } from '../shell/canvas-pointer.js';
 
 const GAP = 4;
 const EDGE = 16;
@@ -84,7 +85,12 @@ export function OtherFormats({ groups, format, onPick, open, setOpen }) {
       if (!root.current?.contains(e.target)) setOpen(false);
     };
     document.addEventListener('mousedown', away);
-    return () => document.removeEventListener('mousedown', away);
+    // rc3 r4-12 — a press in the canvas closes it too (told over the dgn bridge; it never reaches this document)
+    const offCanvas = onCanvasPointer(() => setOpen(false));
+    return () => {
+      document.removeEventListener('mousedown', away);
+      offCanvas();
+    };
   }, [open, setOpen]);
 
   const rows = () => [

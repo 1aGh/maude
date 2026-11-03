@@ -13,6 +13,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
+import { onCanvasPointer } from './canvas-pointer.js';
 
 function Face({ initial, tone, size = 'md' }) {
   return (
@@ -48,7 +49,12 @@ export function AccountChip({ chip, card, onSwitch, onSignOut }) {
       if (wrap.current && !wrap.current.contains(e.target)) close(false);
     };
     document.addEventListener('pointerdown', onDown, true);
-    return () => document.removeEventListener('pointerdown', onDown, true);
+    // rc3 r4-12 — a press in the canvas closes it too (told over the dgn bridge; it never reaches this document)
+    const offCanvas = onCanvasPointer(() => close(false));
+    return () => {
+      document.removeEventListener('pointerdown', onDown, true);
+      offCanvas();
+    };
   }, [open, close]);
 
   if (!chip || !card) return null;

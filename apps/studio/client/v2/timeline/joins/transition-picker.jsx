@@ -22,6 +22,7 @@ import {
   tileOfPresentation,
 } from './join-model.js';
 import { reasonProps } from '../../access/disabled-reason.js';
+import { onCanvasPointer } from '../../shell/canvas-pointer.js';
 
 const reducedMotion = () =>
   typeof window !== 'undefined' &&
@@ -125,7 +126,12 @@ export function TransitionPicker({
       if (!rootRef.current?.contains(e.target)) onClose?.();
     };
     window.addEventListener('pointerdown', onDown, true);
-    return () => window.removeEventListener('pointerdown', onDown, true);
+    // rc3 r4-12 — a press in the canvas closes it too (told over the dgn bridge; it never reaches this document)
+    const offCanvas = onCanvasPointer(() => onClose?.());
+    return () => {
+      window.removeEventListener('pointerdown', onDown, true);
+      offCanvas();
+    };
   }, [onClose]);
 
   // the slider moves the number on screen; the write waits for the release (a drag would be a write per tick)

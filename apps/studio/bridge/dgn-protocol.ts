@@ -338,6 +338,12 @@ export interface CanvasToShell {
    */
   'space-tap': Empty;
   /**
+   * rc3 r4-12 — a press landed in this canvas (editing/canvas-pointer.ts). The shell's open menus close on it: a
+   * press in the iframe never reaches the shell document, and WebKit does not blur the shell window for it. Carries
+   * nothing; the press itself goes on to do what it does in the canvas.
+   */
+  'canvas-pointerdown': Empty;
+  /**
    * S7.17 (07 · ve-together) — the teammates whose timeline is open, from this canvas's awareness (already through
    * `sanitizeForeignState`): where each playhead is (`artboardId`, `frame`) and the caption word each is fixing
    * (`word`, a `src|wordId|clip` key). ≤ PEERS_MAX entries; names are untrusted text, rendered as text only.
@@ -1757,6 +1763,13 @@ const c2s: C2S = {
     gate: 'active',
     status: 'live',
     owner: 'v2/timeline (S7.8)',
+    parse: none,
+  },
+  // rc3 r4-12 — a press in the canvas closes the shell's open menus (client/v2/shell/canvas-pointer.js).
+  'canvas-pointerdown': {
+    gate: 'active',
+    status: 'live',
+    owner: 'v2/shell dismiss-outside (rc3 r4-12)',
     parse: none,
   },
   // S7.17 — teammates' playheads + caption words for the timeline island (collab/timeline-presence → v2/timeline/peers).

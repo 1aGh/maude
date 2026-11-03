@@ -19,6 +19,7 @@ import { useEffect, useRef, useState } from 'react';
 import { TEMPLATES } from '../../../annotations/templates.ts';
 import { v2Scope } from './v2-scope.js';
 import { reasonProps } from '../access/disabled-reason.js';
+import { onCanvasPointer } from '../shell/canvas-pointer.js';
 
 /** The columns of the tile grid (canvas 15 `.an-tpl-g`). */
 export const TEMPLATE_COLUMNS = 4;
@@ -118,9 +119,12 @@ export default function TemplatesPanel({
     const onBlur = () => onClose();
     document.addEventListener('pointerdown', onDown, true);
     window.addEventListener('blur', onBlur);
+    // rc3 r4-12 — a press in the canvas, told over the dgn bridge (WebKit gives this window no blur for it)
+    const offCanvas = onCanvasPointer(onBlur);
     return () => {
       document.removeEventListener('pointerdown', onDown, true);
       window.removeEventListener('blur', onBlur);
+      offCanvas();
     };
   }, [anchor, onClose]);
 
