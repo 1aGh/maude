@@ -204,7 +204,7 @@ export function refusedWords(r: RunRefusal): string {
     return 'Too many of these artboards are busy with other AI runs. Select fewer, then ask again.';
   if (r.code === 'forbidden')
     return 'AI can’t change this canvas with your access. Ask an owner for edit access.';
-  return 'AI could not start on this. Nothing changed. Ask again.';
+  return 'AI could not start on this. Ask again.';
 }
 
 /** The refusal a read-only session's state-changing frame gets (CONTRACT §4 voice). */

@@ -18,10 +18,11 @@ import { join } from 'node:path';
 
 import type { ServerWebSocket } from 'bun';
 
-import { createAcp } from '../acp/index.ts';
+import { createAcp, refusedWords } from '../acp/index.ts';
 import { createAgentRuns } from '../agent-runs.ts';
 import { createLocalLeaseHome, type LeaseHome } from '../ai/lease-home.ts';
 import { createRunRegistry } from '../ai/runs.ts';
+import { problemModel } from '../client/v2/ai/needs-you.js';
 import { type Context, createBus } from '../context.ts';
 import { agentRouteSpecs } from '../routes/agent.ts';
 import { mountRoutes } from '../routes/table.ts';
@@ -352,4 +353,20 @@ describe('part 3 — hook calls for a chat with no live run never loop new faili
     await until(() => (runs.get(String(opened?.runId))?.state === 'ended' ? true : undefined));
     expect(runs.live().filter((r) => r.chatId === 'c7')).toEqual([]);
   }, 15000);
+});
+
+describe('part 2, the chat — a refused run is a problem card with the server’s words', () => {
+  test('`run-refused` → its plain words, "Nothing changed.", and no verb that would only fail again', () => {
+    const message = refusedWords({ code: 'capacity', why: 'artboards' });
+    expect(problemModel({ code: 'run-refused', message })).toEqual({
+      code: 'run-refused',
+      title: message,
+      detail: 'Nothing changed.',
+      verb: null,
+    });
+    // a coded error the card cannot draw draws NOTHING (NeedsYouSlot sends every coded error here)
+    expect(problemModel({ code: 'run-refused', message: '' })?.title).toBe(
+      'AI could not start on this. Ask again.'
+    );
+  });
 });
