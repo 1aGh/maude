@@ -1150,6 +1150,13 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
 
   function applyFromFs(evt: { path: string; bytes: Uint8Array; hash: string }): boolean {
     if (stopped) return false;
+    // NOT OURS, SO NOT TOUCHED (#175). The runtime offers every file event to
+    // every canvas's projection in turn; decoding the bytes before asking whose
+    // path it is cost a 300-canvas project 300 decodes of each write — the
+    // file plane's ~2.6 MB ledger, once a second, through a first sync — and
+    // took the server to GBs of RSS. It also let a foreign projection consume
+    // the owner's echo token from the shared guard below.
+    if (laneOfPath(evt.path) === null) return false;
     // Write-inert both ways — a local edit to a stale pre-move file must not
     // revive the retired document (see codec stampMovedTo).
     if (movedToFromDoc(doc) !== null) return false;

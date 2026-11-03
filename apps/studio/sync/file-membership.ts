@@ -345,6 +345,34 @@ export function isProjectFileShape(rel: string): boolean {
   return relShape(rel) !== null;
 }
 
+/**
+ * The `.json` sidecars a hub WITHOUT the `file-classes-v2` capability (every
+ * 1.x hub, v1.10.0 included) already took. Its door classifies any other
+ * `.json` as `never` and answers `400 invalid path`.
+ */
+const OLDER_DOOR_JSON_SUFFIXES = [
+  '.photo.json',
+  '.audio.json',
+  '.footage.json',
+  '.registry.json',
+  '.edl.json',
+];
+
+/**
+ * Would a hub without `file-classes-v2` refuse this FILE-PLANE path? (issue #175)
+ *
+ * 2.0 added `.transcript.json`, `.beats.json`, `.gen.json` and the design-system
+ * manifests (`<group>/<ds>/tokens.json`, `components.json`, `revisions/*.json`)
+ * to the plane; the deployed 1.x hubs refuse every one of them. Asked only about
+ * a path this side already classifies into the plane, where the only `.json`
+ * files are exactly those plus the five older sidecars — so the test is the
+ * suffix, not a second copy of the classifier. Studio-only: a hub never asks it.
+ */
+export function olderDoorRefuses(rel: string): boolean {
+  const lower = (rel.split('/').pop() ?? '').toLowerCase();
+  return lower.endsWith('.json') && !OLDER_DOOR_JSON_SUFFIXES.some((s) => lower.endsWith(s));
+}
+
 /** The segment shape rules alone — split parts, or null on refusal. */
 
 /**

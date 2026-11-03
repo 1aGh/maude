@@ -216,6 +216,34 @@ describe('the doors on a real hub (H4, H5)', () => {
     }
   });
 
+  // Issue #175 — a 2.0 desktop holds the 2.0-only files back from a hub that does not say
+  // `file-classes-v2` (every 1.x hub answers them `400 invalid path`). This hub says it, so its
+  // door must take them — or the word would move the 400 here instead of curing it.
+  test('file-classes-v2: advertised, and the 2.0-only files land', {
+    timeout: 60000,
+  }, async () => {
+    const hub = await startHub();
+    try {
+      const health = await (await fetch(`${hub.http}/health`)).json();
+      assert.ok(health.capabilities.includes('file-classes-v2'));
+      const member = caller(hub.http, hub.member);
+      for (const rel of [
+        'assets/a1b2c3d4.transcript.json',
+        'assets/a1b2c3d4.beats.json',
+        'assets/a1b2c3d4.gen.json',
+        'ui/studyfi-web/tokens.json',
+        'ui/studyfi-web/components.json',
+      ]) {
+        const put = await member.put(`/api/file/${rel}`, Buffer.from('{}'), {
+          'content-type': 'application/json',
+        });
+        assert.equal(put.status, 200, `${rel}: ${put.status} ${put.text}`);
+      }
+    } finally {
+      await hub.stop();
+    }
+  });
+
   test('POST /api/project-format: owner only; 400 / 422 / 409; same value = no bump', {
     timeout: 60000,
   }, async () => {

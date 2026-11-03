@@ -459,3 +459,35 @@ rights or is an availability nuisance). Candidates for the first rc patch:
 - **`[sync/ctl] refused a malformed control frame`** appears right after attaching to that hub (2.0 studio ↔ 1.10.0 hub).
 - **Sidecar RSS about 1.8 GB** during the first full sync of a 309-canvas project ("[mem] rss 1821MB > warn threshold").
 - **The cold-start measurement** of the release app is still to do once Michal frees the Mac.
+
+### Fixed for rc.2 (#174, #176, #175, 2026-11-02)
+
+- **White Home**: fixed in PR #174 (019182b42). The shell has a dark background behind every webview, the fonts are
+  off the critical path and there is a shell log. Cold start on the fix build: no white frame, dark from 0.7 s.
+- **Main CI red** (site build fetching Google fonts; fixture moved to `.design/ui/v1`): fixed in PR #176 (022f11312).
+- **#175, items 1–4**, in one PR (branch `rc2-175`):
+  1. A permanent 400/404/413/422 on a file upload marks the file refused, keyed by its content hash.
+     - The hub now advertises `file-classes-v2` on `/health`. A hub that doesn't (every 1.x) is never offered the
+       2.0-only classes (`.transcript.json`, `.beats.json`, `.gen.json`, DS `tokens/components/revisions`).
+     - Both cases show in Sync details › Counts as `diag-sync-held-hub-refused` and `diag-sync-held-hub-older`.
+  2. The control channel ignores the hub's `maude.mode` broadcast. A strict validator still logs real garbage.
+  3. A projection drops a file event for a path it doesn't own before decoding the bytes.
+     - Measured on an unlinked 300-canvas, 7,200-file fixture: peak RSS went from 4,193 to 1,170 MB, and p50 from
+       1,515 to 424 MB.
+     - Bench: `scripts/bench-first-sync-mem.mjs --budget-rss-mb 2000`.
+  4. Inter, Inter Tight and JetBrains Mono are self-hosted (OFL, latin + latin-ext) in `client/fonts/`, so the app
+     makes no Google request. A guard test forbids any Google host in the shell's pages and styles.
+- **Open after #175:**
+  - **Maude Cloud during the rc.** The cloud cells stay on hub 1.x until the stable release, so a 2.0 desktop holds
+    the 2.0-only files for a cloud project and shows why. This is by design; they sync once the fleet rolls.
+  - **403 is still a credential failure** (renew and end the pass), not a final per-file refusal. Revisit if
+    per-file 403s loop.
+  - **`maude.access` / `maude.access-request` notices** may also reach the control socket. Unconfirmed, and it would
+    be a one-line addition to the allowlist.
+  - **About 1.1 GB early peak** in the first 2 minutes of a first sync.
+    - About 300 canvas builds are requested through the canvas origin with no browser open; the cause is not found.
+    - `_locator.json` (24 MB on the fixture) is read, parsed and rewritten on every canvas build.
+  - **The fs reader still reads and hashes every runtime-state `.json` write.** Filter it in `accept`, but
+    `_comments/` must stay in.
+  - **`sync/agent.ts` `applyFromFs`** decodes before checking the path too. It is on the legacy two-doc path, which
+    is unused.

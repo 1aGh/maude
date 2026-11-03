@@ -193,6 +193,14 @@ export interface LedgerRow {
    * Remembering which remote we parked makes the second pass a no-op.
    */
   parkedRemote?: string;
+  /**
+   * The local hash the hub's door REFUSED for good (a 400/404/413/422 on its
+   * PUT — issue #175). Set with `state: 'refused'` + `blockedClass: 'refused'`.
+   * While the file still hashes to this, the plane does not ask again: the
+   * door's answer about these bytes is final, and retrying it with backoff
+   * forever was the bug. A real change gives a new hash, which is tried once.
+   */
+  refusedHash?: string;
   pushedAt?: number;
   pulledAt?: number;
   healedAt?: number;
@@ -424,6 +432,8 @@ export function createFileLedger(opts: FileLedgerOptions): FileLedger {
           ? { attempts: Math.min(Math.trunc(r.attempts as number), 1_000) }
           : {}),
         ...(Number.isFinite(r.nextAttemptAt) ? { nextAttemptAt: r.nextAttemptAt } : {}),
+        // Same allowlist rule: dropped here, a final refusal would be asked again after every restart.
+        ...(typeof r.refusedHash === 'string' ? { refusedHash: r.refusedHash } : {}),
       };
     }
     return out;
@@ -638,6 +648,8 @@ export function createFileLedger(opts: FileLedgerOptions): FileLedger {
       // prune. A hub re-offering H a week later got a `noop` with no
       // recoverable copy anywhere, while the row still claimed one was made.
       r.parkedRemote = undefined;
+      // The door took these bytes (or the hub already holds them): no refusal stands.
+      r.refusedHash = undefined;
       schedule();
       return true;
     },

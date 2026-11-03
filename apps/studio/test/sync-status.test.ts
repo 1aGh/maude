@@ -238,7 +238,8 @@ describe('held breakers reach the status payload', () => {
   test('the FilePlaneStatus shape carries them', () => {
     const src = readFileSync(join(import.meta.dir, '..', 'sync', 'status.ts'), 'utf8');
     expect(src).toContain('held?:');
-    expect(src).toMatch(/'delete-out' \| 'delete-in' \| 'first-anchor' \| 'reanchor'/);
+    // One kind per line once the union outgrew a line (issue #175 added `hub-older`, `hub-refused`).
+    expect(src).toMatch(/'delete-out'\s*\|\s*'delete-in'\s*\|\s*'first-anchor'\s*\|\s*'reanchor'/);
   });
 
   test('and the sync runtime actually fills it in', () => {

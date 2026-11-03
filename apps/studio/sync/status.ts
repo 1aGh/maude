@@ -157,7 +157,15 @@ export interface FilePlaneStatus {
    */
   held?: {
     /** `code-held` (p8-held-surface): files the hub holds back from the code lane — the owner only. */
-    kind: 'delete-out' | 'delete-in' | 'first-anchor' | 'reanchor' | 'code-held';
+    /** `hub-older` / `hub-refused` (issue #175): files the project's server cannot / will not take. */
+    kind:
+      | 'delete-out'
+      | 'delete-in'
+      | 'first-anchor'
+      | 'reanchor'
+      | 'code-held'
+      | 'hub-older'
+      | 'hub-refused';
     count: number;
     paths: string[];
     /** One sentence, in the user's terms, about what is waiting and why. */

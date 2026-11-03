@@ -3572,17 +3572,9 @@ function App() {
   );
 }
 
-// The web fonts load from here, not from a <link> in index.html: a parser-inserted stylesheet holds the FIRST
-// PAINT until it answers, so a slow or unreachable fonts.googleapis.com kept Home (and every tab) a white void on
-// v2.0.0-rc.1's first launch (8 s of delay = 8 s of white, measured). A script-inserted one never blocks; the text
-// shows in the fallback face and swaps (`display=swap`).
-{
-  const fonts = document.createElement('link');
-  fonts.rel = 'stylesheet';
-  fonts.href =
-    'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap';
-  document.head.appendChild(fonts);
-}
+// The web fonts (Inter, Inter Tight, JetBrains Mono) are self-hosted: `client/styles/fonts.css` declares them from
+// `/_client/fonts/` with `font-display: swap`, so the app makes no request to Google Fonts (#175 item 4) and the
+// first paint waits on nothing (v2.0.0-rc.1's white Home was a parser-blocking Google stylesheet).
 
 // DDR-247 — `?embed=1` is a different root, not a mode of <App>: nothing the
 // shell does (prefs, address bar, panels) runs inside another app's frame.

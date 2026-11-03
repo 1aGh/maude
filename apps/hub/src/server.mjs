@@ -151,6 +151,7 @@ import {
 import { embedSignInPage, isEmbedPageRequest, parseEmbedOrigins } from './embed-page.mjs';
 import { endedSessionReason } from './ended-sessions.mjs';
 import {
+  FILE_CLASSES_V2_CAPABILITY,
   FILE_DOOR_PREFIX,
   FILE_LIMITS_PATH,
   handleFileDoor,
@@ -1333,11 +1334,16 @@ export function createHub(config = {}) {
           // `ds-library-grants` (S10.18a-2): this hub mints library grants at
           // `/api/projects/:p/v1/ds-grants*` and admits them at the ds door — only while
           // MAUDE_DS_LIBRARY_GRANTS=1 AND it serves a library.
+          // `file-classes-v2` (issue #175): this hub's file door takes the 2.0 file
+          // classes — `.transcript.json`, `.beats.json`, `.gen.json` and the design-system
+          // manifests. Every 1.x door answers those `400 invalid path`, so a 2.0 desktop
+          // offers them only where this word is.
           capabilities: withRolesV2(
             [
               ...(journal
                 ? ['ledger', 'annotations-v2', 'format-v2', RUNS_CAPABILITY, VOTES_CAPABILITY]
                 : ['annotations-v2', 'format-v2', RUNS_CAPABILITY, VOTES_CAPABILITY]),
+              FILE_CLASSES_V2_CAPABILITY,
               ...(renderDoorEnabled({ studio }) ? [RENDER_JOBS_CAPABILITY] : []),
               ...(dsLibraryRoutes.enabled() ? [DS_LIBRARY_CAPABILITY] : []),
               ...(dsLibraryRoutes.enabled() && dsGrants.enabled() ? [DS_GRANTS_CAPABILITY] : []),

@@ -211,6 +211,66 @@ describe('createCtlProvider', () => {
     ctl.stop();
   });
 
+  test('the hub mode notice (v1.10.0 raiseFormat/setMode broadcast) is ignored, not "malformed"', async () => {
+    // rc.2 / #175: a 1.10.0 hub broadcasts `maude.mode` to EVERY open
+    // connection when the project format is raised or the mode flips
+    // (hub-integration.mjs raiseFormat — exactly what a 2.0 studio triggers by
+    // attaching to a format-1 project), and the control socket is one of them.
+    // Canvas providers act on it; this channel only has to not call it garbage.
+    const f = fakeProvider();
+    const heads: number[] = [];
+    const warns: string[] = [];
+    const ctl = createCtlProvider({
+      url: 'http://127.0.0.1:1',
+      token: 't',
+      onPoke: (h) => heads.push(h),
+      log: { log() {}, warn: (m: string) => warns.push(m), error() {} },
+      connect: () => f.provider,
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    // Built byte-for-byte the way v1.10.0's `raiseFormat` builds it.
+    const v110 = JSON.stringify({
+      type: 'maude.mode',
+      mode: 'legacy',
+      epoch: 1,
+      writable: true,
+      formatVersion: 2,
+    });
+    f.emit('stateless', { payload: v110 });
+    f.emit('stateless', { payload: v110.replace('"legacy"', '"transactions"') });
+    expect(heads).toEqual([]);
+    expect(ctl.received()).toBe(0);
+    expect(ctl.malformed()).toBe(0);
+    expect(warns).toEqual([]);
+    ctl.stop();
+  });
+
+  test('a mode-notice lookalike that is not one is still malformed', async () => {
+    const f = fakeProvider();
+    const ctl = createCtlProvider({
+      url: 'http://127.0.0.1:1',
+      token: 't',
+      onPoke: () => {},
+      log: { log() {}, warn() {}, error() {} },
+      connect: () => f.provider,
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    const lookalikes = [
+      { type: 'maude.mode', mode: 'rm -rf', epoch: 1, writable: true },
+      { type: 'maude.mode', mode: 'legacy', epoch: -1, writable: true },
+      { type: 'maude.mode', mode: 'legacy', epoch: 1, writable: 'yes' },
+      { type: 'maude.mode', mode: 'legacy', epoch: 1, writable: true, pad: 'x'.repeat(600) },
+      { type: 'maude.modes', mode: 'legacy', epoch: 1, writable: true },
+      ['maude.mode'],
+    ];
+    for (const l of lookalikes) f.emit('stateless', { payload: JSON.stringify(l) });
+    f.emit('stateless', { payload: 'garbage' });
+    expect(ctl.malformed()).toBe(lookalikes.length + 1);
+    ctl.stop();
+  });
+
   test('the keep-alive frame is a twin of the hub constant, and never a poke', () => {
     expect(CTL_KEEPALIVE_FRAME).toBe(hub.CTL_KEEPALIVE_FRAME);
     expect(isKeepalive(hub.CTL_KEEPALIVE_FRAME)).toBe(true);

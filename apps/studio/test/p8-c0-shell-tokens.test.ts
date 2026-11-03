@@ -175,7 +175,7 @@ describe('P8 C0 · the shell resolves the maude-v2 tokens', () => {
 });
 
 describe('P8 C0 · the cascade lets v2 rules win', () => {
-  test('nothing in the bundle is unlayered but keyframes and the reduced-motion cut', () => {
+  test('nothing in the bundle is unlayered but keyframes, @font-face (the self-hosted fonts) and the reduced-motion cut', () => {
     const css = shellCss().replace(/\/\*[\s\S]*?\*\//g, '');
     const top: string[] = [];
     let depth = 0;
@@ -191,7 +191,8 @@ describe('P8 C0 · the cascade lets v2 rules win', () => {
       } else if (depth === 0) head += c;
     }
     const stray = top.filter(
-      (h) => !/^@layer\b|^@keyframes\b|^@media \(prefers-reduced-motion: reduce\)/.test(h)
+      (h) =>
+        !/^@layer\b|^@keyframes\b|^@font-face$|^@media \(prefers-reduced-motion: reduce\)/.test(h)
     );
     expect(stray).toEqual([]);
   });

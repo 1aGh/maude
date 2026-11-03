@@ -21,7 +21,11 @@ import {
   isFilePlaneClass,
   isProjectFileShape,
   isRuntimeStateRel,
+  olderDoorRefuses,
 } from '../sync/file-membership.ts';
+import { FILE_CLASSES_V2_CAPABILITY, hasFileClassesV2 } from '../sync/journal-client.ts';
+// The classifier every deployed 1.x hub judges a push with (issue #175) — a frozen copy.
+import * as hubV110 from './fixtures/hub-v1.10.0-file-membership.mjs';
 
 describe('file-membership — the RCA miss-list flows', () => {
   // The 103-file gap, by shape (RCA
@@ -458,6 +462,73 @@ describe('file-membership — studio ↔ hub parity (the doc-name precedent)', (
     for (const rel of bodies) {
       expect(isFilePlaneClass(classifyProjectFile(rel))).toBe(false);
       expect(hub.isFilePlaneClass(hub.classifyProjectFile(rel))).toBe(false);
+    }
+  });
+});
+
+// Issue #175 — a 2.0 desktop offered a 1.10.0 hub 19 files its door refuses (`400 invalid path`)
+// and retried them forever. The desktop now holds exactly the files an older door refuses, and
+// only for a hub that does not advertise `file-classes-v2`.
+describe('olderDoorRefuses — exactly what a 1.x door refuses that 2.0 syncs', () => {
+  const groups = [{ path: 'system' }, { path: 'ui' }];
+  const corpus = [
+    // the field report's shapes
+    'assets/0f3a9c21.transcript.json',
+    'system/studyfi-web/tokens.json',
+    'system/studyfi-v3/tokens.json',
+    // the rest of what 2.0 added
+    'assets/0f3a9c21.beats.json',
+    'assets/0f3a9c21.gen.json',
+    'system/ds/components.json',
+    'system/ds/revisions/head.json',
+    `system/ds/revisions/${'a'.repeat(64)}.json`,
+    // what both take
+    'assets/0f3a9c21.photo.json',
+    'assets/0f3a9c21.12345678.photo.json',
+    'assets/clip.audio.json',
+    'assets/clip.footage.json',
+    'system/ds/x.registry.json',
+    'ui/reel.edl.json',
+    'assets/hero.png',
+    'system/ds/brand.css',
+    'assets/captions.vtt',
+    'ui/notes.md',
+    'system/ds/_brand.ts',
+    // what neither takes
+    'config.json',
+    'assets/data.json',
+    'ui/a.tsx',
+    'ui/a.meta.json',
+    '_sync.json',
+  ];
+
+  test('pinned against the 1.10.0 classifier: held ⇔ 2.0 syncs it and 1.10.0 does not', () => {
+    for (const rel of corpus) {
+      const now = isFilePlaneClass(classifyProjectFile(rel, { canvasGroups: groups }));
+      const then = hubV110.isFilePlaneClass(
+        hubV110.classifyProjectFile(rel, { canvasGroups: groups })
+      );
+      const held = now && olderDoorRefuses(rel);
+      expect({ rel, held }).toEqual({ rel, held: now && !then });
+    }
+  });
+
+  test('the field report’s paths are all held for a 1.x hub', () => {
+    for (const rel of corpus.slice(0, 3)) expect(olderDoorRefuses(rel)).toBe(true);
+  });
+
+  test('the capability decides: absent (every 1.x hub, or an unreadable /health) holds them', () => {
+    expect(FILE_CLASSES_V2_CAPABILITY).toBe('file-classes-v2');
+    expect(hasFileClassesV2(['ledger', 'annotations-v2', 'format-v2'])).toBe(false); // 1.10.0
+    expect(hasFileClassesV2(null)).toBe(false);
+    expect(hasFileClassesV2(['ledger', 'format-v2', 'file-classes-v2'])).toBe(true);
+  });
+
+  test('the current hub mirror takes them — the 2.0 door is not the bug', () => {
+    for (const rel of corpus.slice(0, 8)) {
+      expect(hub.isFilePlaneClass(hub.classifyProjectFile(rel, { canvasGroups: groups }))).toBe(
+        true
+      );
     }
   });
 });
