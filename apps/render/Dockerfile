@@ -64,7 +64,7 @@ COPY --from=deps /app/apps/studio/node_modules apps/studio/node_modules
 COPY apps/studio apps/studio
 COPY apps/render apps/render
 # The studio imports a few dependency-free helpers from cli/lib (canvas-edit.ts → finding-text.mjs, studio-locate.mjs).
-# 2.0.0 shipped without them and the service exited at boot; apps/studio/test/render-image-closure.test.ts now checks
+# 2.0.0 shipped without them and the service exited at boot; apps/studio/test/image-source-closure.test.ts now checks
 # every import server.ts reaches against these COPY lines.
 COPY cli/lib cli/lib
 
