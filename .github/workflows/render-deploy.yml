@@ -172,6 +172,56 @@ jobs:
             }
           done
 
+      - name: The release image boots and renders a PNG before Cloudflare gets it
+        # 2.0.0 published an image that exited at boot (a studio import of cli/lib the Dockerfile
+        # did not copy), and "Verify the service answers" still went green: /_health's version is
+        # the env var, not the running image. The daily canary (render-canary.yml) runs this same
+        # job against the SHIPPED image — here it runs against the amd64 child of the digest just
+        # built, so a broken image stops before the fleet rolls to it.
+        if: ${{ github.ref_type == 'tag' }}
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p /tmp/fixture
+          cat > /tmp/fixture/_canvas-shell.html <<'HTML'
+          <!doctype html><html><head><meta charset="utf-8"><title>release smoke</title></head>
+          <body style="margin:0">
+            <div class="dc-world">
+              <div data-dc-screen="smoke" style="position:absolute;left:0;top:0;width:320px;height:200px;
+                   background:linear-gradient(120deg,#123,#345);color:#fff;font:16px sans-serif">
+                <div style="padding:24px">maude-render release smoke</div>
+              </div>
+            </div>
+          </body></html>
+          HTML
+          (cd /tmp/fixture && python3 -m http.server 8080 &) && sleep 1
+          SRC="ghcr.io/1agh/maude-render@${DIGEST}"
+          docker pull --platform linux/amd64 "$SRC"
+          docker run -d --name render-smoke --network host \
+            -e MAUDE_RENDER_SECRET=smoke-secret \
+            -e MAUDE_RENDER_CANVAS_ORIGINS=http://127.0.0.1:8080 \
+            -e PORT=8790 \
+            "$SRC"
+          up=0
+          for i in $(seq 1 30); do
+            BODY=$(curl -s http://127.0.0.1:8790/_health || true)
+            if echo "$BODY" | jq -e '.ok and .configured' >/dev/null 2>&1; then up=1; echo "image up: $BODY"; break; fi
+            sleep 2
+          done
+          [ "$up" = 1 ] || { echo "::error::the release image never came healthy"; docker logs render-smoke | tail -50; exit 1; }
+          JOB='{"format":"png","targets":[{"kind":"element","cssPath":"[data-dc-screen]","canvasSlug":"smoke","file":"smoke.tsx"}],"options":{},"canvas":{"origin":"http://127.0.0.1:8080"}}'
+          CODE=$(curl -s -o /tmp/out.png -w '%{http_code}' --max-time 300 \
+            -X POST -H 'content-type: application/json' \
+            -H 'authorization: Bearer smoke-secret' \
+            -d "$JOB" http://127.0.0.1:8790/render)
+          if [ "$CODE" != "200" ]; then
+            echo "::error::render returned $CODE: $(head -c 500 /tmp/out.png)"; docker logs render-smoke | tail -80; exit 1
+          fi
+          MAGIC=$(head -c 8 /tmp/out.png | xxd -p)
+          [ "$MAGIC" = "89504e470d0a1a0a" ] || { echo "::error::the release image's artifact is not a PNG"; exit 1; }
+          [ "$(wc -c < /tmp/out.png)" -gt 1000 ] || { echo "::error::the release image's PNG is suspiciously small"; exit 1; }
+          docker rm -f render-smoke >/dev/null
+
       - name: Build the render image (dispatch lane — Cloudflare only)
         # A manual run off a non-tag ref never touches ghcr (see the header's
         # rule 2), so there is nothing to pull by digest: build the one platform

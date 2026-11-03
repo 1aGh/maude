@@ -276,6 +276,41 @@ jobs:
           echo "client=$CLIENT" >> "$GITHUB_OUTPUT"
           echo "This image serves client.bundle.js $CLIENT"
 
+      - name: The cell image builds a canvas in its sandbox
+        # 2.0.0 rolled a fleet whose canvas build sandbox could not load the studio's engine
+        # (canvas-build.ts → … → ../../cli/lib/finding-text.mjs and `diff`, neither in the image):
+        # every cloud canvas said "It didn't finish loading" while /health was green. This runs the
+        # sandbox's own worker, exactly as the cell spawns it, on a one-artboard canvas in the image
+        # this run just built — before Cloudflare gets it.
+        if: ${{ steps.hub.outputs.hub != '' && (github.ref_type == 'tag' || github.event_name == 'workflow_dispatch') }}
+        env:
+          IMAGE: ${{ steps.image.outputs.image }}
+        run: |
+          mkdir -p /tmp/cell-smoke/.design
+          cat > /tmp/cell-smoke/.design/smoke.tsx <<'TSX'
+          import { DCArtboard, DesignCanvas } from '@maude/canvas-lib';
+          export default function Smoke() {
+            return (
+              <DesignCanvas>
+                <DCArtboard id="a" title="A" width={200} height={120}>
+                  <div style={{ padding: 16 }}>cell smoke</div>
+                </DCArtboard>
+              </DesignCanvas>
+            );
+          }
+          TSX
+          chmod -R a+rX /tmp/cell-smoke
+          OUT=$(docker run --rm -v /tmp/cell-smoke:/tmp/cell-smoke:ro -w /maude/apps/studio \
+            -e BUN_BE_BUN=1 -e MAUDE_STUDIO_SRC=/maude/apps/studio \
+            --entrypoint /app/maude-server "$IMAGE" \
+            /maude/apps/studio/canvas-build-worker.ts /tmp/cell-smoke/.design /tmp/cell-smoke/.design/smoke.tsx || true)
+          if echo "$OUT" | jq -e '.ok == true and (.js | length > 100)' >/dev/null 2>&1; then
+            echo "the cell's sandbox built the smoke canvas ($(echo "$OUT" | jq -r '.js | length') bytes of JS)"
+          else
+            echo "::error::the cell image cannot build a canvas: $(echo "$OUT" | head -c 600)"
+            exit 1
+          fi
+
       - name: Push it to the Cloudflare registry
         # Same gate as the build. This is the step that could produce two sets
         # of bytes under one tag, which is the failure `bundle-identity.mjs`

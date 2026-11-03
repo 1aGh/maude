@@ -63,6 +63,10 @@ COPY --from=deps /app/apps/studio/node_modules apps/studio/node_modules
 # process serves only /render and /_health (server.ts).
 COPY apps/studio apps/studio
 COPY apps/render apps/render
+# The studio imports a few dependency-free helpers from cli/lib (canvas-edit.ts → finding-text.mjs, studio-locate.mjs).
+# 2.0.0 shipped without them and the service exited at boot; apps/studio/test/image-source-closure.test.ts now checks
+# every import server.ts reaches against these COPY lines.
+COPY cli/lib cli/lib
 
 ENV PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers
 # The shims resolve a runtime off PATH (exporters/_runtime.ts) — bun is it.

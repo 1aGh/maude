@@ -297,12 +297,15 @@ writeFileSync('/build/bundle-manifest.json',JSON.stringify({artifacts:a},null,2)
 # sandbox is a separate process with an empty environment.
 FROM oven/bun:1.4.2 AS canvas-deps
 WORKDIR /canvas
-# oxc-parser + magic-string are the identity pass (data-cd-id injection); the
-# rest of the engine's imports are the studio's own files, copied below.
+# oxc-parser + magic-string are the identity pass (data-cd-id injection); `diff` is the three-way
+# merge v2's engine reaches (canvas-build.ts → … → sync/source-merge.ts; no dependencies of its
+# own) — 2.0.0 shipped without it and every cloud canvas failed to build. The rest of the engine's
+# imports are the studio's own files, copied below; apps/studio/test/image-source-closure.test.ts
+# holds this list equal to the packages the sandbox's imports need.
 # EXACT versions, matching apps/studio/package.json — the sandbox's parser is
 # the desktop's parser, or the two produce different `data-cd-id`s and a
 # comment anchored in the browser stops resolving in the app.
-RUN echo '{"name":"maude-canvas-sandbox","private":true,"dependencies":{"magic-string":"0.30.21","oxc-parser":"0.139.0"}}' > package.json \
+RUN echo '{"name":"maude-canvas-sandbox","private":true,"dependencies":{"diff":"8.0.4","magic-string":"0.30.21","oxc-parser":"0.139.0"}}' > package.json \
   && bun install --no-save
 
 # ---- Stage 3: runtime ----
@@ -395,6 +398,10 @@ COPY --from=studio-build /build/apps/studio/dist/client.bundle.js \
      /build/apps/studio/dist/comment-mount.js /maude/apps/studio/dist/
 COPY --from=studio-build /build/apps/studio/dist/runtime /maude/apps/studio/dist/runtime
 COPY plugins/design/templates /maude/plugins/design/templates
+# The engine reaches the dependency-free cli/lib helpers (canvas-build.ts → element-ids.ts → finding-text.mjs), as
+# `../../cli/lib` from /maude/apps/studio. 2.0.0 shipped without them and every cloud canvas failed to build ("It
+# didn't finish loading"); apps/studio/test/image-source-closure.test.ts walks the sandbox's imports against this stage.
+COPY cli/lib /maude/cli/lib
 # The runtime bundles are ALSO reachable at the legacy path the hub's asset
 # lane looked them up under, so nothing that used it has to learn a new one.
 COPY --from=studio-build /build/apps/studio/dist/runtime /app/dist/canvas-runtime
