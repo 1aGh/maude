@@ -17,6 +17,7 @@
 // overlay. Tokens only (size-picker.css).
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { onCanvasPointer } from '../shell/canvas-pointer.js';
 import {
   DigitalIcon,
   ImageIcon,
@@ -328,10 +329,13 @@ export default function SizePicker({
     window.addEventListener('keydown', onKey, true);
     document.addEventListener('pointerdown', onDown, true);
     window.addEventListener('blur', onBlur);
+    // rc3 r4-12 — a press in the canvas, told over the dgn bridge (WebKit gives this window no blur for it)
+    const offCanvas = onCanvasPointer(onBlur);
     return () => {
       window.removeEventListener('keydown', onKey, true);
       document.removeEventListener('pointerdown', onDown, true);
       window.removeEventListener('blur', onBlur);
+      offCanvas();
     };
   }, []);
 

@@ -26,6 +26,7 @@ import { deltaE } from '../../../../ds/nearest.ts';
 import { requestDsMake } from '../../ds/default-write.js';
 import { addColourNow } from '../../ds/edge-write.js';
 import { OffSystemQuestion } from '../../ds/off-system.jsx';
+import { onCanvasPointer } from '../../shell/canvas-pointer.js';
 import { colourGroups, groupOf, swatchOf } from '../colour-groups.js';
 import {
   GradientEditor,
@@ -302,9 +303,12 @@ export function ColourPopover({
     const away = () => closeRef.current();
     document.addEventListener('pointerdown', down, true);
     window.addEventListener('blur', away);
+    // rc3 r4-12 — a press in the canvas, told over the dgn bridge (WebKit gives this window no blur for it)
+    const offCanvas = onCanvasPointer(away);
     return () => {
       document.removeEventListener('pointerdown', down, true);
       window.removeEventListener('blur', away);
+      offCanvas();
     };
   }, [anchorRef]);
 

@@ -16,6 +16,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Kbd, StIcon } from '../../shell/icons.jsx';
 import { SWITCHER_TRIGGER_TESTID } from '../../panels/RepoBranchSwitcher.jsx';
 import { reasonProps } from '../access/disabled-reason.js';
+import { onCanvasPointer } from './canvas-pointer.js';
 import { buildProjectMenu } from './project-menu-model.js';
 
 const slug = (s) =>
@@ -264,9 +265,12 @@ export function ProjectPill({
     const onBlur = () => close(false);
     document.addEventListener('pointerdown', onDown, true);
     window.addEventListener('blur', onBlur);
+    // rc3 r4-12 — a press in the canvas, told over the dgn bridge (WebKit gives this window no blur for it)
+    const offCanvas = onCanvasPointer(onBlur);
     return () => {
       document.removeEventListener('pointerdown', onDown, true);
       window.removeEventListener('blur', onBlur);
+      offCanvas();
     };
   }, [open, close]);
 
