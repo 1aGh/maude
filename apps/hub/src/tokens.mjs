@@ -149,6 +149,32 @@ function hubKey(handle) {
   return key;
 }
 
+// Other hub-owned facts that must survive a cell's cold start may ride this
+// db's `meta` table: `tokens.db` is in every backup generation
+// (backup.mjs BACKUP_DATABASES), restored before the hub process starts, and
+// sits outside the tenant's checkout. An allowlist rather than a free key, so
+// nothing reached through these two can ever read or replace `hmac_key`.
+const SHARED_META_KEYS = new Set([
+  // project-config-door.mjs — the owner's sanitized project config.
+  'project_config',
+]);
+
+/** A shared `meta` value (a string), or null when absent or unreadable. */
+export function readHubMeta(dataDir, key) {
+  if (!SHARED_META_KEYS.has(key)) throw new Error(`not a shared meta key: ${key}`);
+  try {
+    return db(dataDir).prepare('SELECT v FROM meta WHERE k = ?').get(key)?.v ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Store a shared `meta` value (a string). Throws when the store cannot be written. */
+export function writeHubMeta(dataDir, key, value) {
+  if (!SHARED_META_KEYS.has(key)) throw new Error(`not a shared meta key: ${key}`);
+  db(dataDir).prepare('INSERT OR REPLACE INTO meta (k, v) VALUES (?, ?)').run(key, String(value));
+}
+
 /** hmac_sha256(value, hubKey) → hex digest used as the at-rest token hash. */
 function hashToken(handle, value) {
   return createHmac('sha256', hubKey(handle)).update(String(value), 'utf8').digest('hex');

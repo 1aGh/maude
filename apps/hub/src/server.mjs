@@ -198,7 +198,11 @@ import {
 } from './materializer.mjs';
 import { assertStrictIsSurvivable, oidcConfig } from './oidc-routes.mjs';
 import { stripPresent } from './present-strip.mjs';
-import { handleProjectConfigDoor, PROJECT_CONFIG_PATH } from './project-config-door.mjs';
+import {
+  handleProjectConfigDoor,
+  PROJECT_CONFIG_PATH,
+  restoreProjectConfigAtBoot,
+} from './project-config-door.mjs';
 import {
   createAcceptedRevisions,
   declaredFormatFromRequest,
@@ -629,6 +633,14 @@ export function createHub(config = {}) {
   // written — and no client consumes any of it yet. That is deliberate: the
   // durability half has to have soaked before anything depends on the seqs.
   const journalDesignRoot = workspaceMode && repoDir ? designRootFor() : null;
+  // The owner's project config a cold start lost (project-config-door.mjs):
+  // put back HERE, before the classifier below, the studio child and the first
+  // request can read the checkout's config.json — every one of them would
+  // otherwise run on the defaults until the owner's desktop reconnected.
+  if (journalDesignRoot) {
+    const r = restoreProjectConfigAtBoot({ dataDir, designRoot: journalDesignRoot });
+    if (r.restored) console.log('[hub] project config restored from the last owner push');
+  }
   const journal = journalDesignRoot ? openJournal(dataDir) : null;
   // "A config change never promotes a path into code-module" (p8-boundary-
   // harden): the checkout's classifier reads its holds from this journal.

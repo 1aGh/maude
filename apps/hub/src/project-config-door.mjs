@@ -38,6 +38,23 @@
 // only in a config.json this door itself created (recorded in the hub's data
 // dir, outside the tenant's reach); a git-seeded, tenant-versioned config is
 // only ever filled in. Keys this door knows nothing about are never touched.
+//
+// IT MUST SURVIVE A COLD START (2.0.2). The file this door writes is never
+// committed, and the marker above is a plain file in the data dir — and a
+// cell's cold start keeps neither: the checkout is re-cloned from the backup's
+// git bundle and the data dir comes back as the backed-up SQLite databases
+// alone. So every release roll, migration and restart put the cell back on
+// the studio's defaults until the owner's desktop happened to reconnect — and
+// since C4 the frame's closure takes a design system folder ONLY from
+// `config.designSystems` (studio access/closure.ts), so every font, photo and
+// video under `system/<ds>/` was refused to every canvas ("Picture not found"
+// on files that exist; alligators on 2.0.1). Each accepted PUT therefore also
+// keeps the config's sanitized subset and the "door created it" fact in
+// `tokens.db`'s meta table (backed up, restored before the hub starts), and
+// `restoreProjectConfigAtBoot` puts both back BEFORE anything reads the
+// checkout's config. It only ever fills in an ABSENT file — through the same
+// no-link write as the door — so a git-seeded config still wins, and a link
+// at `config.json` is still never written through.
 
 import { randomBytes } from 'node:crypto';
 import {
@@ -56,7 +73,7 @@ import {
 import { join } from 'node:path';
 
 import { normalizeGroup } from './file-membership.mjs';
-import { verifyToken } from './tokens.mjs';
+import { readHubMeta, verifyToken, writeHubMeta } from './tokens.mjs';
 
 export const PROJECT_CONFIG_PATH = '/api/project-config';
 
@@ -201,6 +218,116 @@ function markDoorOwnsConfig(dataDir) {
   }
 }
 
+/**
+ * Write `<root>/config.json` without ever following a link: a RANDOM temp
+ * name opened with O_EXCL (`wx` refuses an existing path, link or not), then
+ * a rename over the entry — rename replaces a link, it never writes through
+ * it. `root` is the realpath of the design root. Throws on failure, with no
+ * temp file left behind.
+ */
+function writeConfigFile(root, value) {
+  const tmp = join(root, `.config.json.${randomBytes(12).toString('hex')}.tmp`);
+  try {
+    writeFileSync(tmp, `${JSON.stringify(value, null, 2)}\n`, { flag: 'wx', mode: 0o644 });
+    renameSync(tmp, join(root, 'config.json'));
+  } catch (err) {
+    try {
+      unlinkSync(tmp);
+    } catch {
+      /* never created, or already renamed */
+    }
+    throw err;
+  }
+}
+
+/** `tokens.db` meta key for what survives a cold start (see the header). */
+const KEPT_KEY = 'project_config';
+
+/**
+ * Keep the config as it stands after an accepted PUT — the SANITIZED subset of
+ * it, never the request body — and whether this door created the file.
+ * Best-effort: the PUT already succeeded, and the owner's desktop pushes again
+ * on its next reconnect, which is all a cell without this record ever had.
+ */
+function keepProjectConfig(dataDir, config, createdByDoor) {
+  const subset = sanitizeProjectConfigSubset(config);
+  if (!dataDir || !subset) return;
+  try {
+    writeHubMeta(
+      dataDir,
+      KEPT_KEY,
+      JSON.stringify({ v: 1, subset, createdByDoor, at: Date.now() })
+    );
+  } catch (err) {
+    console.warn(
+      `[project-config] could not keep the project config for a restart: ${err.message}`
+    );
+  }
+}
+
+/**
+ * What the last accepted PUT left for a cold start, or null. The subset is
+ * sanitized AGAIN on the way out: the row is the hub's own, but a sanitizer
+ * that tightened since it was written must still have the last word.
+ *
+ * @returns {{ subset: object, createdByDoor: boolean, at: number } | null}
+ */
+export function readPersistedProjectConfig(dataDir) {
+  if (!dataDir) return null;
+  try {
+    const raw = JSON.parse(readHubMeta(dataDir, KEPT_KEY) ?? 'null');
+    if (raw?.v !== 1) return null;
+    const subset = sanitizeProjectConfigSubset(raw.subset);
+    if (!subset) return null;
+    return { subset, createdByDoor: raw.createdByDoor === true, at: Number(raw.at) || 0 };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * At hub start, BEFORE the studio child or the hub's own classifier reads the
+ * checkout: put back the owner's config a cold start lost (see the header).
+ *
+ * Fills in an ABSENT `config.json` only. Anything at that name — a git-seeded
+ * file, a symlink (dangling or not), a directory — is left exactly as it is:
+ * the git-seeded config is the tenant's and wins, and a link is refused by the
+ * door on its next PUT as it always was. The file written is the one the door
+ * itself would write for an absent config, so it is the door's again (the
+ * marker comes back) and later owner pushes may update its display keys.
+ *
+ * No class-holds walk first, unlike the door's `beforeChange`: this restores
+ * the declaration the checkout and `journal.db` were backed up under, before
+ * this process has run a moment undeclared — there is no flip to note.
+ *
+ * @returns {{ restored: boolean, reason?: string }}
+ */
+export function restoreProjectConfigAtBoot({ dataDir, designRoot }) {
+  if (!dataDir || !designRoot) return { restored: false, reason: 'no project' };
+  const kept = readPersistedProjectConfig(dataDir);
+  if (!kept) return { restored: false, reason: 'nothing kept' };
+  let root;
+  try {
+    root = realpathSync(designRoot);
+  } catch {
+    return { restored: false, reason: 'no design root' };
+  }
+  try {
+    lstatSync(join(root, 'config.json'));
+    return { restored: false, reason: 'present' };
+  } catch (err) {
+    if (err?.code !== 'ENOENT') return { restored: false, reason: 'unreadable' };
+  }
+  try {
+    writeConfigFile(root, kept.subset);
+  } catch (err) {
+    console.warn(`[project-config] could not restore config.json at boot: ${err.message}`);
+    return { restored: false, reason: 'write failed' };
+  }
+  markDoorOwnsConfig(dataDir);
+  return { restored: true };
+}
+
 function respond(response, status, payload) {
   const body = JSON.stringify(typeof payload === 'string' ? { error: payload } : payload);
   response
@@ -337,6 +464,9 @@ export async function handleProjectConfigDoor(ctx) {
   }
   const before = JSON.stringify(existing);
   if (JSON.stringify(next) === before) {
+    // Kept even when nothing changed: a cell upgraded from a build that kept
+    // nothing gets its record on the owner's first reconnect.
+    keepProjectConfig(ctx.dataDir, next, ours);
     respond(response, 200, { ok: true, changed: false, config: subset });
     return true;
   }
@@ -347,20 +477,14 @@ export async function handleProjectConfigDoor(ctx) {
   } catch {
     /* best-effort — the hold is a backstop, never a reason to refuse the owner */
   }
-  const tmp = join(root, `.config.json.${randomBytes(12).toString('hex')}.tmp`);
   try {
-    writeFileSync(tmp, `${JSON.stringify(next, null, 2)}\n`, { flag: 'wx', mode: 0o644 });
-    renameSync(tmp, file);
+    writeConfigFile(root, next);
     if (!present) markDoorOwnsConfig(ctx.dataDir);
   } catch {
-    try {
-      unlinkSync(tmp);
-    } catch {
-      /* never created, or already renamed */
-    }
     respond(response, 500, 'could not write the project config');
     return true;
   }
+  keepProjectConfig(ctx.dataDir, next, ours || !present);
   ctx.onChanged?.();
   respond(response, 200, { ok: true, changed: true, config: subset });
   return true;

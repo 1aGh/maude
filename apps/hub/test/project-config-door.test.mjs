@@ -7,7 +7,9 @@
 
 import assert from 'node:assert/strict';
 import {
+  copyFileSync,
   linkSync,
+  lstatSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
@@ -20,12 +22,13 @@ import { join } from 'node:path';
 import { Writable } from 'node:stream';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 
+import * as door from '../src/project-config-door.mjs';
 import {
   handleProjectConfigDoor,
   PROJECT_CONFIG_PATH,
   sanitizeProjectConfigSubset,
 } from '../src/project-config-door.mjs';
-import { addToken } from '../src/tokens.mjs';
+import { addToken, readHubMeta } from '../src/tokens.mjs';
 
 let dataDir;
 let designRoot;
@@ -330,5 +333,140 @@ describe('the checkout is tenant-controlled — no link is ever followed', () =>
       readdirSync(designRoot).filter((n) => n.endsWith('.tmp')),
       []
     );
+  });
+});
+
+// 2.0.2 (alligators on 2.0.1): the door wrote config.json into the checkout
+// UNCOMMITTED and kept the "door created it" fact in a marker file — and a
+// cell's cold start keeps neither. The checkout is re-cloned from the backup's
+// git bundle and the data dir comes back as the backed-up SQLite databases
+// alone, so every release roll ran on the studio's defaults until the owner's
+// desktop reconnected: no design systems, and (since C4) every DS font, photo
+// and video refused to the frame. `coldStart` is exactly that restore.
+describe('the owner’s project config survives a cold start', () => {
+  const spare = [];
+  afterEach(() => {
+    for (const d of spare.splice(0)) rmSync(d, { recursive: true, force: true });
+  });
+  /** A data dir holding only what a backup generation restores, and a checkout without the door's file. */
+  function coldStart() {
+    const fresh = mkdtempSync(join(tmpdir(), 'pcfg-cold-'));
+    spare.push(fresh);
+    copyFileSync(join(dataDir, 'tokens.db'), join(fresh, 'tokens.db'));
+    rmSync(join(designRoot, 'config.json'), { force: true });
+    return fresh;
+  }
+  /** From here on the door runs against the restored data dir, as the new hub process would. */
+  function adopt(fresh) {
+    spare.push(dataDir);
+    dataDir = fresh;
+  }
+  const marker = (dir) => join(dir, 'project-config-created.json');
+
+  it('a door PUT, then a cold start: config.json and its ownership come back at boot', async () => {
+    await put(ALLIGATORS);
+    const before = config();
+    const fresh = coldStart();
+    assert.throws(() => config());
+
+    const r = door.restoreProjectConfigAtBoot({ dataDir: fresh, designRoot });
+    assert.equal(r.restored, true);
+    assert.deepEqual(config(), before);
+    assert.equal(JSON.parse(readFileSync(marker(fresh), 'utf8')).createdByDoor, true);
+
+    // The ownership is real: the owner's next push may change a display key again.
+    adopt(fresh);
+    await put({ ...ALLIGATORS, projectLabel: 'Gators' });
+    assert.equal(config().projectLabel, 'Gators');
+  });
+
+  it('a git-seeded config.json present at boot is never overwritten, and gains no marker', async () => {
+    await put(ALLIGATORS);
+    const fresh = coldStart();
+    const seeded = '{"name":"from-git","tokensCssRel":"git.css"}\n';
+    writeFileSync(join(designRoot, 'config.json'), seeded);
+
+    const r = door.restoreProjectConfigAtBoot({ dataDir: fresh, designRoot });
+    assert.equal(r.restored, false);
+    assert.equal(readFileSync(join(designRoot, 'config.json'), 'utf8'), seeded);
+    assert.throws(() => readFileSync(marker(fresh)));
+  });
+
+  it('a symlinked config.json at boot is left alone — nothing written through it — and the door still refuses it', async () => {
+    const victimDir = mkdtempSync(join(tmpdir(), 'pcfg-victim-'));
+    spare.push(victimDir);
+    const victim = join(victimDir, 'admin.json');
+    writeFileSync(victim, '{"secret":"real"}');
+    await put(ALLIGATORS);
+    const fresh = coldStart();
+    symlinkSync(victim, join(designRoot, 'config.json'));
+
+    const r = door.restoreProjectConfigAtBoot({ dataDir: fresh, designRoot });
+    assert.equal(r.restored, false);
+    assert.equal(readFileSync(victim, 'utf8'), '{"secret":"real"}');
+    assert.ok(lstatSync(join(designRoot, 'config.json')).isSymbolicLink());
+
+    adopt(fresh);
+    assert.equal((await put(ALLIGATORS)).status, 409);
+    assert.equal(readFileSync(victim, 'utf8'), '{"secret":"real"}');
+  });
+
+  it('what is kept is the SANITIZED subset — never the raw body, never the rest of the file', async () => {
+    // A checkout config carrying keys the door must never carry anywhere.
+    writeFileSync(
+      join(designRoot, 'config.json'),
+      JSON.stringify({ linkedHub: { url: 'https://evil.example/linked' }, handoffTargets: ['x'] })
+    );
+    await put({
+      ...ALLIGATORS,
+      secret: 'attacker',
+      hubUrl: 'https://evil.example/hub',
+      tokensCssRel: '../../etc/passwd',
+    });
+    // The stored row itself, not the reader (which sanitizes again on the way out).
+    const raw = readHubMeta(dataDir, 'project_config');
+    assert.ok(raw);
+    for (const bad of [
+      'evil.example',
+      'attacker',
+      'passwd',
+      'linkedHub',
+      'handoffTargets',
+      'long text',
+    ]) {
+      assert.ok(!raw.includes(bad), bad);
+    }
+    const kept = door.readPersistedProjectConfig(dataDir);
+    assert.deepEqual(kept.subset, sanitizeProjectConfigSubset(config()));
+    assert.equal(kept.createdByDoor, false);
+
+    const fresh = coldStart();
+    assert.equal(door.restoreProjectConfigAtBoot({ dataDir: fresh, designRoot }).restored, true);
+    assert.deepEqual(config(), kept.subset);
+    assert.equal(config().tokensCssRel, undefined);
+  });
+
+  it('an unchanged PUT is kept too, and records that the door did not create the file', async () => {
+    writeFileSync(
+      join(designRoot, 'config.json'),
+      JSON.stringify({ name: 'alligators', handoffTargets: ['x'] })
+    );
+    const r = await put({ name: 'alligators' });
+    assert.equal(r.json.changed, false);
+    const kept = door.readPersistedProjectConfig(dataDir);
+    assert.deepEqual(kept.subset, { name: 'alligators' });
+    assert.equal(kept.createdByDoor, false);
+  });
+
+  it('a refused PUT keeps nothing', async () => {
+    assert.equal((await put(ALLIGATORS, { bearer: member })).status, 403);
+    assert.equal(door.readPersistedProjectConfig(dataDir), null);
+  });
+
+  it('nothing kept, or no design root: boot writes nothing and does not throw', () => {
+    assert.equal(door.restoreProjectConfigAtBoot({ dataDir, designRoot }).restored, false);
+    assert.throws(() => config());
+    const absent = join(designRoot, 'absent');
+    assert.equal(door.restoreProjectConfigAtBoot({ dataDir, designRoot: absent }).restored, false);
   });
 });
