@@ -128,7 +128,13 @@ async function startHub({ checkoutFormat } = {}) {
     owner: 'm@x.test',
   }).value;
   const viewer = addToken(dataDir, { label: 'viewer', scope: '*', readOnly: true }).value;
-  const built = createHub({ port: 0, dataDir, secret: 'test-secret', verbose: false });
+  const built = createHub({
+    port: 0,
+    dataDir,
+    secret: 'test-secret',
+    verbose: false,
+    v2Convert: false,
+  });
   await built.server.listen();
   await built.acceptedReady;
   const http = built.server.httpURL.replace('0.0.0.0', '127.0.0.1');

@@ -197,7 +197,13 @@ describe('v1: a write to a paused cell is refused, and nothing is lost', () => {
       role: 'member',
       owner: 'm@x.test',
     }).value;
-    const built = createHub({ port: 0, dataDir, secret: 'test-secret', verbose: false });
+    const built = createHub({
+      port: 0,
+      dataDir,
+      secret: 'test-secret',
+      verbose: false,
+      v2Convert: false,
+    });
     await built.server.listen();
     await built.acceptedReady;
     hub = { built, http: built.server.httpURL.replace('0.0.0.0', '127.0.0.1') };
@@ -517,7 +523,13 @@ describe('S9.15b: the hub Yjs door opens writers read-only while paused', () => 
       role: 'member',
       owner: 'm@x.test',
     }).value;
-    built = createHub({ port: 0, dataDir, secret: 'test-secret', verbose: false });
+    built = createHub({
+      port: 0,
+      dataDir,
+      secret: 'test-secret',
+      verbose: false,
+      v2Convert: false,
+    });
     await built.server.listen();
     await built.acceptedReady;
     ws = built.server.webSocketURL.replace('0.0.0.0', '127.0.0.1');

@@ -87,7 +87,7 @@ export async function bootAclHub(prefix, { files, studioChild = false, v2Convert
     dataDir,
     secret: 'test-secret',
     verbose: false,
-    ...(v2Convert === undefined ? {} : { v2Convert }),
+    ...(v2Convert === undefined ? { v2Convert: false } : { v2Convert }),
   });
   await built.server.listen();
   await built.acceptedReady;
