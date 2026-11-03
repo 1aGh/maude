@@ -63,11 +63,16 @@ describe('autoConvertPolicy — the rc never converts a cloud project unasked', 
     ).toEqual({ allowed: true });
   });
 
-  test('this build is an rc, so its default policy holds a cell-linked project', () => {
+  test("the build's own version decides: an rc holds a cell-linked project, a stable 2.x converts it", () => {
     const prev = process.env.MAUDE_CLOUD_URL;
     process.env.MAUDE_CLOUD_URL = CLOUD;
+    const pkgVersion: string = JSON.parse(
+      readFileSync(path.join(import.meta.dir, '..', 'package.json'), 'utf8')
+    ).version;
     try {
-      expect(defaultAutoConvert(CELL)).toEqual({ allowed: false, why: 'cloud-rc' });
+      expect(defaultAutoConvert(CELL)).toEqual(
+        /-/.test(pkgVersion) ? { allowed: false, why: 'cloud-rc' } : { allowed: true }
+      );
       expect(defaultAutoConvert(TEAM)).toEqual({ allowed: true });
       expect(defaultAutoConvert(null)).toEqual({ allowed: true });
     } finally {
