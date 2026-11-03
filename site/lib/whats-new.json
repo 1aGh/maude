@@ -3,6 +3,15 @@
   "version": "2.0.0-rc.1",
   "entries": [
     {
+      "id": "maude-v2-canvas-window",
+      "version": null,
+      "date": null,
+      "kind": "feature",
+      "title": "A new look: the canvas fills the window",
+      "summary": "The canvas now fills the window, and everything else floats around it: one project menu, Home to start from, a tab per project, Share, and an AI chat panel that works on what you select. Preview adds whiteboard tools, Present shows a canvas to an audience, video artboards get a timeline, and a design system is a canvas of its own. Menu › Help › Take the tour walks through it.",
+      "surface": "design-ui"
+    },
+    {
       "id": "home-opens-dark",
       "version": null,
       "date": null,
@@ -36,15 +45,6 @@
       "kind": "fix",
       "title": "Renaming a canvas keeps its styles",
       "summary": "Renaming or moving a canvas carries its own stylesheet along and points the canvas at it, so the canvas renders right away instead of showing a “could not resolve” error.",
-      "surface": "design-ui"
-    },
-    {
-      "id": "maude-v2-canvas-window",
-      "version": null,
-      "date": null,
-      "kind": "feature",
-      "title": "A new look: the canvas fills the window",
-      "summary": "The canvas now fills the window, and everything else floats around it: one project menu, Home to start from, a tab per project, Share, and an AI chat panel that works on what you select. Preview adds whiteboard tools, Present shows a canvas to an audience, video artboards get a timeline, and a design system is a canvas of its own. Menu › Help › Take the tour walks through it.",
       "surface": "design-ui"
     },
     {
