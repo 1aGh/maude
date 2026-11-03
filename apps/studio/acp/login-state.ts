@@ -122,7 +122,8 @@ exit 1
 
 type InstallState =
   | { phase: 'idle' }
-  | { phase: 'running' }
+  // `startedAt` (ms): the sheet shows the elapsed time from it, also when it joins a running install (rc3-f)
+  | { phase: 'running'; startedAt: number }
   | { phase: 'done'; ok: boolean; reason?: string };
 
 let installState: InstallState = { phase: 'idle' };
@@ -189,8 +190,8 @@ export function startInstall(): { ok: boolean; reason?: string } {
   if (refused) return { ok: false, reason: refused };
   if (installState.phase === 'running')
     return { ok: false, reason: 'An install is already in progress.' };
-  installState = { phase: 'running' };
   const startedAt = Date.now();
+  installState = { phase: 'running', startedAt };
   (async () => {
     try {
       let code: number;

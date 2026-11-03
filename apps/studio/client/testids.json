@@ -1597,7 +1597,20 @@
     "hook": "chat-caps-bar",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The Advanced fold's picker rows (live model / effort / fast mode / Ask before), under the AI chat panel's Advanced.",
+    "meaning": "The Advanced fold's picker rows (live model / effort / fast mode / Permissions), under the AI chat panel's Advanced.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Advanced.jsx",
+      "symbol": "ChatAdvanced"
+    },
+    "region": "chat/ACP",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "chat-mode-hint",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The line under the Permissions picker: what AI may do without asking in the chosen mode. Carries `data-risky` on the mode that skips every check.",
     "producer": {
       "file": "apps/studio/client/v2/ai/Advanced.jsx",
       "symbol": "ChatAdvanced"
@@ -1610,7 +1623,7 @@
     "hook": "chat-mode-picker",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The \"Ask before\" picker in Advanced (the permission mode, in plain words).",
+    "meaning": "The \"Permissions\" picker in Advanced (the permission mode: what AI may do without asking, in plain words; a line under it says so, and warns on the mode that skips every check).",
     "producer": {
       "file": "apps/studio/client/v2/ai/Advanced.jsx",
       "symbol": "ChatAdvanced"
@@ -6985,6 +6998,22 @@
     "consumers": [],
     "sourceConsumers": [
       "apps/studio/test/v2-ai-run-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-activity-live",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The working line's own polite live region (`role=status`, a sibling of the line): a changed activity phrase (\"AI is reading Kanban\") is read out at most once per 10 s, never the clock.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Working.jsx",
+      "symbol": "ActivityLiveRegion"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/e2e/rc3-liveness.e2e.mjs"
     ],
     "v2": "new"
   },
@@ -23129,6 +23158,22 @@
     "v2": "new"
   },
   {
+    "hook": "ai-connect-waiting",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The kept prompt's line in the chat while Claude is not connected (\"Waiting for Claude to be connected. …\"). `data-phase` = idle | checking | installing | waiting.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/NotReady.jsx",
+      "symbol": "QueuedState"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-needs-you.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "ai-offline-line",
     "kind": "testid",
     "pattern": false,
@@ -23213,6 +23258,22 @@
     "kind": "testid",
     "pattern": false,
     "meaning": "Why Connect did not finish.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/ConnectSheet.jsx",
+      "symbol": "ConnectSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-needs-you.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-connect-progress",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The sheet's live setup line while it works: what runs, the install's elapsed time and usual length, what is next. `data-phase` = checking | installing | waiting.",
     "producer": {
       "file": "apps/studio/client/v2/ai/ConnectSheet.jsx",
       "symbol": "ConnectSheet"
@@ -23333,6 +23394,71 @@
     "consumers": [],
     "sourceConsumers": [
       "apps/studio/test/v2-empty-kit.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-drafting",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "An empty canvas while a run of yours drafts on it (01 cf-ai-drafting): replaces the empty-canvas card from the run's start until the first artboard lands or the run ends. `data-waiting` while it waits for you. Decorative (`aria-hidden`).",
+    "producer": {
+      "file": "apps/studio/client/v2/empty/ai-drafting.jsx",
+      "symbol": "AiDrafting"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/rc3-ai-presence.test.tsx",
+      "apps/studio/test/e2e/rc3-liveness.e2e.mjs"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-drafting-ghost",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The dashed spark ghost where the first artboard will land.",
+    "producer": {
+      "file": "apps/studio/client/v2/empty/ai-drafting.jsx",
+      "symbol": "AiDrafting"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/rc3-ai-presence.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-drafting-label",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The ghost's label: \"AI is drafting…\", \"AI is drawing <artboard>\" once an edit names the artboard, or \"Waiting for you\".",
+    "producer": {
+      "file": "apps/studio/client/v2/empty/ai-drafting.jsx",
+      "symbol": "AiDrafting"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/e2e/rc3-liveness.e2e.mjs"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-drafting-cursor",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The AI cursor (spark arrow + \"AI\") parked on the ghost; drifts slowly, still under reduced motion.",
+    "producer": {
+      "file": "apps/studio/client/v2/empty/ai-drafting.jsx",
+      "symbol": "AiDrafting"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/rc3-ai-presence.test.tsx"
     ],
     "v2": "new"
   },

@@ -11,7 +11,7 @@
 
 import { useThread, useThreadRuntime } from '@assistant-ui/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { activityLabel } from '../../panels/acp-runtime.js';
+import { isSubagentTool } from '../../panels/acp-runtime.js';
 import { sendToAskAI } from '../search/search-env.js';
 import { focusComposer } from './panel-focus.js';
 import { ResultCard } from './Result.jsx';
@@ -43,7 +43,9 @@ import { useBoardLabels } from './RunList.jsx';
 import { shortArtboardName } from './scope.js';
 import { runCardFor } from './run-cards.js';
 import './video/cards.jsx';
-import { RunLiveRegion, useRunClock, WorkingLine } from './Working.jsx';
+import { ActivityLiveRegion, RunLiveRegion, useRunClock, WorkingLine } from './Working.jsx';
+import { workingLineParts } from './activity-line.js';
+import { useActivityLine } from './use-activity-line.js';
 import { useChatRuns } from './use-chat-runs.js';
 import { setAnswered, setResultShown } from './result-shown.js';
 
@@ -92,6 +94,13 @@ export function RunSurface({ conn, chatId, tools = [], artboards = [], designRel
   const elapsed = useRunClock(run?.startedAt, showWorking);
   // S5.18 G2: a run that ran on a copy says so, with the artboard that was busy
   const boardLabels = useBoardLabels(designRel, 0);
+  // rc3-h (#182) — the ONE line says what AI is doing now, from the live stream (activity-line.js)
+  const activity = useActivityLine(conn, live, { designRel, labels: boardLabels });
+  const line = workingLineParts({
+    headline: workingText(run),
+    activity,
+    subagents: tools.filter(isSubagentTool).length,
+  });
   const copyLine = run?.copyOf
     ? copyDividerText(run, {
         name: shortArtboardName(
@@ -211,6 +220,7 @@ export function RunSurface({ conn, chatId, tools = [], artboards = [], designRel
   return (
     <>
       <RunLiveRegion message={message} />
+      {showWorking ? <ActivityLiveRegion announce={activity.announce} /> : null}
       {copyLine && (showWorking || showResult) ? (
         <p className="ai-copy-rule" data-testid="ai-copy-divider">
           {copyLine}
@@ -219,8 +229,8 @@ export function RunSurface({ conn, chatId, tools = [], artboards = [], designRel
       {kindCard('top')}
       {showWorking ? (
         <WorkingLine
-          text={workingText(run)}
-          step={tools.length ? activityLabel(tools) : ''}
+          text={line.text}
+          step={line.step}
           elapsed={elapsed}
           onStop={onStop}
           stopping={stopping}

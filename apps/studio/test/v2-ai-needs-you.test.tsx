@@ -637,3 +637,186 @@ describe('the folded spark (03 ai-needs-hidden, ai-panel-closed)', () => {
     v.store.resetNeedsYou();
   });
 });
+
+// ── rc3-f (issue #181): the Claude setup shows what is happening, and a click never dead-ends ──
+describe('Connect shows the setup as it runs (rc3-f)', () => {
+  const realFetch = globalThis.fetch;
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  const keptForConnect = {
+    intents: [
+      {
+        id: 'i_ddd444',
+        kind: 'ai.prompt',
+        state: 'queued',
+        gates: ['ai-connected'],
+        payload: { chatId: 'c1', text: 'A calm landing page' },
+      },
+    ],
+  };
+  const pre = (item: object) => ({ items: [{ id: 'claude', ...item }] });
+  type Answer = { status?: number; body: unknown };
+  /** A scripted server: `routes[key]` is a list of answers, the last one repeats. */
+  function server(routes: Record<string, Answer[]>) {
+    const calls: string[] = [];
+    globalThis.fetch = (async (url: string, init?: { method?: string }) => {
+      const key = `${init?.method ?? 'GET'} ${url}`;
+      calls.push(key);
+      const list = routes[key];
+      const a = list ? (list.length > 1 ? list.shift() : list[0]) : { status: 404, body: {} };
+      const status = a?.status ?? 200;
+      return {
+        ok: status < 400,
+        status,
+        json: async () => a?.body,
+      } as Response;
+    }) as unknown as typeof fetch;
+    return calls;
+  }
+  const quick = { sleep: () => tick(5) };
+  const sheetText = () => document.querySelector('[data-testid="ai-connect-sheet"]')?.textContent;
+  const progress = () => document.querySelector('[data-testid="ai-connect-progress"]');
+  const goBtn = () => document.querySelector('[data-testid="ai-connect-go"]') as HTMLButtonElement;
+
+  test('the sheet says what runs, for how long, how long it usually takes and what comes next', async () => {
+    const v = await mount(({ ConnectSheet }) => (
+      <ConnectSheet inline phase="installing" startedAt={1_000} now={() => 43_000} />
+    ));
+    const p = v.q('ai-connect-progress');
+    expect(p?.getAttribute('role')).toBe('status');
+    expect(p?.textContent).toContain('Installing Claude Code…');
+    expect(p?.textContent).toContain('0:42');
+    expect(p?.textContent).toContain('Usually 1–2 minutes');
+    expect(p?.textContent).toContain('browser');
+    const signin = await mount(({ ConnectSheet }) => <ConnectSheet inline phase="waiting" />);
+    expect(signin.q('ai-connect-progress')?.textContent).toContain('Sign in through your browser.');
+  });
+
+  test('a failed setup says why, and its button is a working Try again', async () => {
+    const calls: string[] = [];
+    const v = await mount(({ ConnectSheet }) => (
+      <ConnectSheet inline error="No network." onConnect={() => calls.push('again')} />
+    ));
+    expect(v.q('ai-connect-error')?.textContent).toBe('No network.');
+    expect(v.q('ai-connect-go')?.textContent).toBe('Try again');
+    expect((v.q('ai-connect-go') as HTMLButtonElement).disabled).toBe(false);
+    await v.act(async () => (v.q('ai-connect-go') as HTMLElement).click());
+    expect(calls).toEqual(['again']);
+  });
+
+  test('the kept prompt says in the chat that it waits for Claude', async () => {
+    server({ 'GET /_api/outbox': [{ body: keptForConnect }] });
+    const v = await mount(({ NeedsYouSlot, runtime }) => (
+      <NeedsYouSlot conn={runtime.createAcpConnection()} chatId="c1" connectDeps={quick} />
+    ));
+    await v.act(async () => {
+      await tick(20);
+    });
+    const line = v.q('ai-connect-waiting');
+    expect(line?.textContent).toContain('Waiting for Claude to be connected');
+    expect(line?.getAttribute('data-phase')).toBe('idle');
+  });
+
+  test('Connect while an install runs shows its progress, never the "already in progress" error', async () => {
+    server({
+      'GET /_api/outbox': [{ body: keptForConnect }],
+      // the panel mounted before the install started: nothing to join yet
+      'GET /_api/claude/install-status': [
+        { body: { phase: 'idle' } },
+        { body: { phase: 'running', startedAt: Date.now() - 5_000 } },
+      ],
+      'GET /_api/preflight': [{ body: pre({ status: 'missing', action: 'install' }) }],
+      'POST /_api/claude/install': [
+        { status: 409, body: { ok: false, reason: 'An install is already in progress.' } },
+      ],
+    });
+    const v = await mount(({ NeedsYouSlot, runtime }) => (
+      <NeedsYouSlot conn={runtime.createAcpConnection()} chatId="c1" connectDeps={quick} />
+    ));
+    await v.act(async () => {
+      await tick(20);
+    });
+    await v.act(async () => goBtn().click());
+    await v.act(async () => {
+      await tick(60);
+    });
+    expect(document.querySelector('[data-testid="ai-connect-error"]')).toBeNull();
+    expect(progress()?.textContent).toContain('Installing Claude Code…');
+    expect(sheetText()).not.toContain('already in progress');
+    expect(v.q('ai-connect-waiting')?.getAttribute('data-phase')).toBe('installing');
+  });
+
+  test('an install already running when the chat opens is shown, and its end starts the sign-in by itself', async () => {
+    const calls = server({
+      'GET /_api/outbox': [{ body: keptForConnect }],
+      'GET /_api/claude/install-status': [
+        ...Array.from({ length: 6 }, () => ({
+          body: { phase: 'running', startedAt: Date.now() - 30_000 },
+        })),
+        { body: { phase: 'done', ok: true } },
+      ],
+      'GET /_api/preflight': [{ body: pre({ status: 'missing', action: 'install' }) }],
+      'POST /_api/claude/install': [
+        { status: 409, body: { ok: false, reason: 'An install is already in progress.' } },
+      ],
+      'POST /_api/claude/signin': [{ body: { ok: true } }],
+    });
+    const v = await mount(({ NeedsYouSlot, runtime }) => (
+      <NeedsYouSlot
+        conn={runtime.createAcpConnection()}
+        chatId="c1"
+        connectDeps={{ sleep: () => tick(20) }}
+      />
+    ));
+    await v.act(async () => {
+      await tick(25);
+    });
+    expect(progress()?.textContent).toContain('Installing Claude Code… 0:3'); // its real time, from the server
+    expect(document.querySelector('[data-testid="ai-connect-error"]')).toBeNull();
+    await v.act(async () => {
+      await tick(250);
+    });
+    expect(calls).toContain('POST /_api/claude/signin'); // nobody clicked
+    expect(progress()?.textContent).toContain('Sign in through your browser.');
+  });
+
+  test('a failed install: the plain reason, and Try again runs the install again', async () => {
+    const calls = server({
+      'GET /_api/outbox': [{ body: keptForConnect }],
+      'GET /_api/claude/install-status': [
+        { body: { phase: 'idle' } },
+        {
+          body: {
+            phase: 'done',
+            ok: false,
+            reason: 'The installer exited with an error (code 7).',
+          },
+        },
+      ],
+      'GET /_api/preflight': [{ body: pre({ status: 'missing', action: 'install' }) }],
+      'POST /_api/claude/install': [{ body: { ok: true } }],
+    });
+    const v = await mount(({ NeedsYouSlot, runtime }) => (
+      <NeedsYouSlot conn={runtime.createAcpConnection()} chatId="c1" connectDeps={quick} />
+    ));
+    await v.act(async () => {
+      await tick(20);
+    });
+    await v.act(async () => goBtn().click());
+    await v.act(async () => {
+      await tick(60);
+    });
+    expect(document.querySelector('[data-testid="ai-connect-error"]')?.textContent).toBe(
+      'The installer exited with an error (code 7).'
+    );
+    expect(goBtn().textContent).toBe('Try again');
+    expect(goBtn().disabled).toBe(false);
+    await v.act(async () => goBtn().click());
+    await v.act(async () => {
+      await tick(60);
+    });
+    expect(calls.filter((c) => c === 'POST /_api/claude/install')).toHaveLength(2);
+  });
+});

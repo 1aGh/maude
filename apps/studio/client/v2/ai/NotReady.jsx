@@ -3,7 +3,7 @@
 // the line for it and nothing else. The rest of the app keeps working.
 //
 //   offline      "Queued — sends when this Mac is online."  +  "AI is back when this Mac is online."
-//   connect      the ConnectSheet (ask once; the waiting prompt runs when connected)
+//   connect      "Waiting for Claude to be connected. …" + the ConnectSheet (ask once; the prompt runs when connected)
 //   setting-up   "Setting up AI on this Mac. About a minute — keep drawing meanwhile."
 //   used-up      "AI's allowance is used up until 18:40. Your prompt is kept and sends then."
 //   quota        "90% of this 5-hour allowance used · resets 18:40" (above the field, while it still works)
@@ -29,14 +29,35 @@ const Clock = ({ size = 12 }) => (
   </svg>
 );
 
-/** One kept prompt's state line(s). `children` = the ConnectSheet when the gate is `ai-connected`. */
-export function QueuedState({ queued, count = 1, children }) {
+/** rc3-f (issue #181): the kept prompt's line in the chat while Claude is not connected — under the prompt the
+ *  person sent, so the chat says it waits and what for, step by step with the sheet. */
+export const CONNECT_WAITING = {
+  idle: 'Waiting for Claude to be connected. Your prompt sends by itself then.',
+  checking: 'Waiting for Claude to be connected. Your prompt sends by itself then.',
+  installing: "Installing Claude Code. Your prompt sends as soon as you're signed in.",
+  waiting: 'Waiting for you to sign in through your browser. Your prompt sends then.',
+};
+
+/** One kept prompt's state line(s). `children` = the ConnectSheet when the gate is `ai-connected`;
+ *  `connectPhase` = what that sheet is doing now. */
+export function QueuedState({ queued, count = 1, connectPhase = 'idle', children }) {
   const m = notReadyModel(queued);
   if (!m.kind) return null;
   const more = count > 1 ? ` · ${count} prompts kept` : '';
   if (m.kind === 'connect') {
     return (
       <div className="ai-nr" data-testid="ai-not-ready" data-kind="connect">
+        <p
+          className="ai-nr-queued"
+          data-testid="ai-connect-waiting"
+          data-phase={connectPhase}
+          role="status"
+          aria-live="polite"
+        >
+          <Clock />
+          {CONNECT_WAITING[connectPhase] ?? CONNECT_WAITING.idle}
+          {more}
+        </p>
         {children}
       </div>
     );

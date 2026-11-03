@@ -12,6 +12,33 @@
       "surface": "design-ui"
     },
     {
+      "id": "ai-shows-what-it-is-doing",
+      "version": null,
+      "date": null,
+      "kind": "improvement",
+      "title": "See what the AI is doing",
+      "summary": "While AI works, the chat says what it is doing right now — reading a canvas, thinking, drawing an artboard — and an empty canvas shows where the first artboard will land the moment AI starts.",
+      "surface": "design-ui"
+    },
+    {
+      "id": "claude-setup-shows-progress",
+      "version": null,
+      "date": null,
+      "kind": "fix",
+      "title": "Setting up Claude shows what is happening",
+      "summary": "Connecting your Claude account now shows each step — installing Claude Code with a timer and how long it usually takes, then your browser opens to sign in by itself. A prompt you typed before that waits in the chat and sends itself once you are signed in.",
+      "surface": "design-ui"
+    },
+    {
+      "id": "ai-permissions-in-plain-words",
+      "version": null,
+      "date": null,
+      "kind": "improvement",
+      "title": "AI permissions in plain words",
+      "summary": "The AI chat’s Advanced › Permissions says what AI may do without asking for each choice, and marks the one that skips every check as risky.",
+      "surface": "design-ui"
+    },
+    {
       "id": "ai-big-canvas-ask",
       "version": null,
       "date": null,

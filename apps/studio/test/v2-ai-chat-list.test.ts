@@ -11,6 +11,7 @@ import {
   AI_FOLD_PANEL,
   contextMeter,
   limitMeter,
+  MODE_GROUP_LABEL,
   modeBanner,
   modeOptions,
   rawLogLines,
@@ -304,13 +305,81 @@ describe('Advanced: modes read as what AI may do', () => {
   test('plain words in the canvas order; the agent name is the grey note; unknown ids are kept', () => {
     const o = modeOptions(modes);
     expect(o.map((m: { label: string }) => m.label)).toEqual([
-      'Replace or move to the trash',
-      'Nothing — change freely',
+      'Ask before every change',
+      'Edit freely, ask before commands',
       'Suggest only',
       'Mystery',
     ]);
     expect(o[0].note).toBe('default');
     expect(o.find((m: { id: string }) => m.id === 'plan')?.group).toBe('nochange');
+  });
+
+  // rc3-g (issue #181 C): every mode says what AI may do WITHOUT asking, in a label that reads alone and one line
+  // under it; the one mode with no checks at all says so, including commands and files outside the project.
+  test('every mode has a label that reads alone and a one-line hint; only bypass is risky', () => {
+    const all = {
+      currentModeId: 'default',
+      availableModes: [
+        'default',
+        'auto',
+        'acceptEdits',
+        'plan',
+        'dontAsk',
+        'bypassPermissions',
+      ].map((id) => ({ id, name: id })),
+    };
+    const o = modeOptions(all) as Array<{
+      id: string;
+      label: string;
+      hint: string;
+      risky: boolean;
+    }>;
+    expect(o.map((m) => [m.id, m.label, m.hint])).toEqual([
+      [
+        'default',
+        'Ask before every change',
+        'AI asks before it changes a canvas, replaces or deletes a file, or runs a command.',
+      ],
+      ['auto', 'Ask only when unsure', 'AI decides what is safe to do and asks when it is unsure.'],
+      [
+        'acceptEdits',
+        'Edit freely, ask before commands',
+        'AI changes canvases and files in this project without asking. It still asks before running a command.',
+      ],
+      ['plan', 'Suggest only', 'AI changes nothing. It only suggests what it would do.'],
+      [
+        'dontAsk',
+        'Skip what needs asking',
+        'AI never asks. Anything that would need a yes is skipped.',
+      ],
+      [
+        'bypassPermissions',
+        'Skip every check — risky',
+        'No checks at all. AI runs commands and changes files, also outside this project, without asking.',
+      ],
+    ]);
+    expect(o.filter((m) => m.risky).map((m) => m.id)).toEqual(['bypassPermissions']);
+    expect(o.find((m) => m.id === 'bypassPermissions')?.hint).toMatch(
+      /commands.*outside this project/
+    );
+    // nothing in the words is an article before AI, a "we", or a v1 word
+    for (const m of o) expect(`${m.label} ${m.hint}`).not.toMatch(/\bthe AI\b|\bwe\b|\bboard\b/i);
+  });
+
+  test('an unknown mode keeps the agent’s own description as its hint and is not risky', () => {
+    const o = modeOptions({
+      currentModeId: 'x',
+      availableModes: [{ id: 'x', name: 'Mystery', description: 'Does a thing' }],
+    }) as Array<{ hint: string; risky: boolean }>;
+    expect(o[0]).toMatchObject({ hint: 'Does a thing', risky: false });
+  });
+
+  test('the groups name what each one means, and the no-checks group is marked', () => {
+    expect(MODE_GROUP_LABEL).toEqual({
+      asks: 'AI asks first',
+      nochange: 'AI changes nothing',
+      free: 'No safety net',
+    });
   });
 
   test('only what the session offers is listed ("Skip every check" shows only where the agent allows it)', () => {

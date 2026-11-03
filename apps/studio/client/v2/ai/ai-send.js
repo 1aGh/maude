@@ -125,9 +125,13 @@ export async function relayAiSend(island, d, env = {}) {
   }
 
   let field = composerField(island);
-  if (d.newChat) {
+  // rc3-f (issue #181): while Claude is not connected the header draws no New chat (chat-header.jsx). The open
+  // chat then IS the place for the sentence when its field is empty — waiting for a New chat that never comes
+  // dropped a Home prompt on a fresh Mac. A draft the person is typing is still never overwritten.
+  const newBtn = d.newChat ? island.querySelector('[data-testid="ai-chat-new"]') : null;
+  if (d.newChat && newBtn) {
     const before = field;
-    island.querySelector('[data-testid="ai-chat-new"]')?.click();
+    newBtn.click();
     field = await until(() => {
       const f = composerField(island);
       return f && f !== before ? f : null;

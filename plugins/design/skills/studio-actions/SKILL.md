@@ -412,7 +412,6 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 | Ask AI about the selection | `ai.ask-selection` | ai-chat |
 | Ask AI about this artboard | `artboard.ask-ai` | ai-chat |
 | Ask AI to fill this artboard | `ai.ask-fill-artboard` | summon |
-| Ask before | `chat.advanced.ask-before` | ai-chat |
 | Ask to edit | `share.ask-to-edit` | roles |
 | Attach files… | `ai.attach-files` | ai-chat |
 | Back to Home | `nav.home` | native-window |
@@ -498,6 +497,7 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 | Open project… | `project.open` | native-window |
 | Paste | `edit.paste` | view-pref — the clipboard is the user’s; write the content into the source instead |
 | Paste a screenshot | `ai.attach-screenshot` | ai-chat |
+| Permissions | `chat.advanced.ask-before` | ai-chat |
 | Pin canvas | `canvases.pin` | view-pref — a per-person pin; an agent reads the canvas list with `maude design index` |
 | Pin panels to the side | `view.pin-panels` | view-pref |
 | Play / pause | `timeline.play` | view-pref — playback |

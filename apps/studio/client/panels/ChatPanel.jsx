@@ -602,8 +602,16 @@ export default function ChatPanel({
     () =>
       fetch('/_api/acp/status')
         .then((r) => r.json())
-        .then((d) => setStatus({ available: d.available, reason: d.reason }))
-        .catch(() => setStatus({ available: false, reason: 'Could not reach the Claude bridge.' })),
+        .then((d) => {
+          const next = { available: d.available, reason: d.reason };
+          setStatus(next);
+          return next; // rc3-f: the Connect sheet reads it — a setup that leaves AI unable to start says so
+        })
+        .catch(() => {
+          const next = { available: false, reason: 'Could not reach the Claude bridge.' };
+          setStatus(next);
+          return next;
+        }),
     []
   );
   useEffect(() => {

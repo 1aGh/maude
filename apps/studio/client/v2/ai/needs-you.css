@@ -520,6 +520,24 @@
     font-size: var(--type-xs);
     color: var(--status-error-text);
   }
+  /* rc3-f: the setup's live status line (what runs, how long, what is next) */
+  .ai-conn-b .ai-conn-prog {
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--spark-muted);
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-1);
+  }
+  .ai-conn-prog strong {
+    color: var(--fg-0);
+    font-weight: var(--w-semibold);
+    font-variant-numeric: tabular-nums;
+  }
+  .ai-conn-step {
+    display: block;
+    color: var(--fg-2);
+  }
   .ai-conn-a {
     display: flex;
     justify-content: flex-end;

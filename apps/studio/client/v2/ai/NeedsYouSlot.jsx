@@ -15,7 +15,7 @@ import ChoiceCard from './ChoiceCard.jsx';
 import { ConnectModal } from './ConnectSheet.jsx';
 import { connectClaude } from './connect-flow.js';
 import { ErrorCard } from './Feed.jsx';
-import { queuedForChat } from './gate-lines.js';
+import { notReadyModel, queuedForChat } from './gate-lines.js';
 import { choiceModel, needsYouLine, permissionModel, willChangeFor } from './needs-you.js';
 import { setLocalNeedsYou } from './needs-you-store.js';
 import { needsYouNotice, openAiChat } from './needs-you-toast.js';
@@ -110,6 +110,8 @@ export default function NeedsYouSlot({
   onRetry,
   onConnected,
   designRel = '',
+  // test seam: `connectClaude`'s sleep / now / fetchImpl
+  connectDeps = null,
 }) {
   const { queued, refresh } = useQueuedPrompts(conn, chatId);
   // S5.17b G7 — the failure card says "Nothing changed" only when this chat's run touched nothing; no run seen = not claimed
@@ -147,24 +149,55 @@ export default function NeedsYouSlot({
   useWaitingQuestions({ conn, chatId, away, requests });
 
   // ── Connect (the one sheet, only for the `ai-connected` gate) ──
+  // rc3-f (issue #181): the sheet and the chat line say what the setup is doing ('checking' · 'installing' with
+  // its start time · 'waiting' for the browser); a click during an install joins it (connect-flow.js); an install
+  // already running when this chat opens is shown at once and goes on to the sign-in by itself; a failure says
+  // why and the button is Try again; a setup that ends but leaves AI unable to start says so too.
   const [phase, setPhase] = useState('idle');
+  const [startedAt, setStartedAt] = useState(null);
   const [connectError, setConnectError] = useState(null);
   const abortRef = useRef(null);
   useEffect(() => () => abortRef.current?.abort(), []);
   const connect = useCallback(async () => {
+    if (abortRef.current) return; // one setup at a time: the running one is already on screen
     const ctl = new AbortController();
     abortRef.current = ctl;
     setConnectError(null);
-    setPhase('waiting'); // the browser sign-in is the common case; the flow says 'installing' when it must
-    const r = await connectClaude({ signal: ctl.signal, onPhase: setPhase });
-    abortRef.current = null;
+    setPhase('checking');
+    const r = await connectClaude({
+      ...(connectDeps ?? {}),
+      signal: ctl.signal,
+      onPhase: (p, info) => {
+        if (p === 'installing') setStartedAt(info?.startedAt ?? null);
+        setPhase(p);
+      },
+    });
+    if (abortRef.current === ctl) abortRef.current = null;
     setPhase('idle');
     if (r.ok) {
-      onConnected?.();
-      // The drain sends the kept prompt by itself once the gate opens; look again so the line goes with it.
+      // Look again so the panel unlocks in place; the drain sends the kept prompt by itself once the gate opens.
+      const now = await Promise.resolve(onConnected?.()).catch(() => null);
+      if (now && now.available === false)
+        setConnectError(now.reason || 'Claude is connected, but AI could not start. Try again.');
       setTimeout(refresh, 1500);
     } else if (r.reason !== 'cancelled') setConnectError(r.reason);
-  }, [onConnected, refresh]);
+  }, [onConnected, refresh, connectDeps]);
+
+  // An install that is already running (an earlier click, a closed sheet, another window) is shown, not hidden
+  // behind an idle Connect: look once when a prompt starts waiting for Claude, and join it.
+  const waitsForClaude = queued.length > 0 && notReadyModel(queued[0]).kind === 'connect';
+  const looked = useRef(false);
+  useEffect(() => {
+    if (!waitsForClaude || looked.current) return;
+    looked.current = true;
+    const f = connectDeps?.fetchImpl ?? ((...a) => fetch(...a));
+    f('/_api/claude/install-status')
+      .then((res) => res.json())
+      .then((state) => {
+        if (state?.phase === 'running') connect();
+      })
+      .catch(() => {});
+  }, [waitsForClaude, connect, connectDeps]);
   const cancelConnect = useCallback(async () => {
     if (abortRef.current) {
       abortRef.current.abort();
@@ -236,9 +269,10 @@ export default function NeedsYouSlot({
         <ErrorCard error={turnError} onRetry={onRetry} changed={changed} />
       )}
       {queued.length > 0 ? (
-        <QueuedState queued={queued[0]} count={queued.length}>
+        <QueuedState queued={queued[0]} count={queued.length} connectPhase={phase}>
           <ConnectModal
             phase={phase}
+            startedAt={startedAt}
             error={connectError}
             onConnect={connect}
             onCancel={cancelConnect}

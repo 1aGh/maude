@@ -387,6 +387,36 @@ async function mountAdvanced(props: Record<string, unknown> = {}) {
   return { root, log, act, foldStore, render };
 }
 
+describe('Advanced: the Permissions row says which mode skips every check', () => {
+  test('bypass: its option and its line under the closed row are marked risky, in the open menu its own group', async () => {
+    const modes = (currentModeId: string) => ({
+      currentModeId,
+      availableModes: [
+        { id: 'default', name: 'Default' },
+        { id: 'bypassPermissions', name: 'Bypass' },
+      ],
+    });
+    const m = await mountAdvanced({
+      caps: { modes: modes('bypassPermissions'), parsedOptions: OPTIONS },
+    });
+    await m.act(async () => q('[data-testid="ai-advanced"]')?.click());
+    const ask = q('[data-testid="chat-mode-picker"]') as HTMLSelectElement;
+    const risky = [...ask.options].find((o) => o.value === 'bypassPermissions');
+    expect(risky?.textContent).toBe('Skip every check — risky');
+    expect(risky?.parentElement?.tagName).toBe('OPTGROUP');
+    expect(risky?.parentElement?.getAttribute('label')).toBe('No safety net');
+    const hint = q('[data-testid="chat-mode-hint"]');
+    expect(hint?.hasAttribute('data-risky')).toBe(true);
+    expect(hint?.textContent).toMatch(/commands.*outside this project/);
+    // switching to a safe mode lifts the warning
+    await m.act(async () =>
+      m.render({ caps: { modes: modes('default'), parsedOptions: OPTIONS } })
+    );
+    expect(q('[data-testid="chat-mode-hint"]')?.hasAttribute('data-risky')).toBe(false);
+    await m.act(async () => m.root.unmount());
+  });
+});
+
 describe('Advanced: one quiet row; everything that was visible sits under it', () => {
   test('closed it is the row alone; opening it shows the pickers, in plain words', async () => {
     const m = await mountAdvanced();
@@ -396,10 +426,15 @@ describe('Advanced: one quiet row; everything that was visible sits under it', (
     expect(m.foldStore.get('ai.chat')).toBe(true); // remembered per Mac
     const ask = q('[data-testid="chat-mode-picker"]') as HTMLSelectElement;
     expect([...ask.options].map((o) => o.textContent)).toEqual([
-      'Replace or move to the trash',
-      'Nothing — change freely',
+      'Ask before every change',
+      'Edit freely, ask before commands',
       'Suggest only',
     ]);
+    // the closed row says what the chosen mode lets AI do, in a line under it (no warning for a safe mode)
+    const row = q('[data-adv-row="ask-before"]');
+    expect(row?.textContent).toContain('AI asks before it changes a canvas');
+    expect(q('[data-testid="chat-mode-hint"]')?.hasAttribute('data-risky')).toBe(false);
+    expect(ask.getAttribute('aria-describedby')).toBe(q('[data-testid="chat-mode-hint"]')?.id);
     expect(q('[data-testid="chat-caps-bar"]')).not.toBeNull();
     expect(qa('select').some((s) => s.getAttribute('title')?.includes('Transcript view'))).toBe(
       true

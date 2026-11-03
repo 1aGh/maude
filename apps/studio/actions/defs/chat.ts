@@ -101,7 +101,10 @@ export const CHAT_ACTIONS: ActionDef[] = [
   // S5.12 — the rows of the AI chat panel's Advanced fold, findable by name in ⌘K ("AI chat panel ›
   // Advanced"). Picking one opens the panel and the fold and takes that row (client/v2/ai/advanced-handlers.js).
   // They change nothing by themselves — each is "go to that setting" — so none has a key or a menu home.
-  advanced('ask-before', 'Ask before', [
+  // rc3-g (issue #181 C): the row is called Permissions — "Ask before: Suggest only" read backwards. "Ask before"
+  // stays a search word so the old name still finds it.
+  advanced('ask-before', 'Permissions', [
+    'ask before',
     'mode',
     'permission',
     'plan',

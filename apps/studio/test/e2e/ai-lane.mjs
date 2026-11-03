@@ -228,7 +228,11 @@ export async function startAiLane({ files = {}, name = 'Studio site', prefs = {}
 
 /** A page on the studio, with the helpers every AI-state scenario needs. */
 async function openStudio(lane, rel, { w = 1600, h = 1000, theme = 'dark', ls = {} } = {}, pages) {
-  const browser = await chromium.launch({ headless: process.env.E2E_HEADED !== '1' });
+  // E2E_CHROMIUM=<path>: a Chromium this machine has when the cache lacks the build this playwright pins
+  const browser = await chromium.launch({
+    headless: process.env.E2E_HEADED !== '1',
+    ...(process.env.E2E_CHROMIUM ? { executablePath: process.env.E2E_CHROMIUM } : {}),
+  });
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, colorScheme: theme });
   await ctx.addInitScript(TAURI_STUB);
   const store = {

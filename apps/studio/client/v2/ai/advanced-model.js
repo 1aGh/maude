@@ -19,7 +19,7 @@ export const ADVANCED_WHERE = 'AI chat panel › Advanced';
  * to and focuses. Open in terminal and Copy transcript are registry actions that already existed (S5.7).
  */
 export const ADVANCED_ROWS = Object.freeze([
-  { row: 'ask-before', action: 'chat.advanced.ask-before', label: 'Ask before' },
+  { row: 'ask-before', action: 'chat.advanced.ask-before', label: 'Permissions' },
   { row: 'model', action: 'chat.advanced.model', label: 'Model' },
   { row: 'effort', action: 'chat.advanced.effort', label: 'Effort' },
   { row: 'fast', action: 'chat.advanced.fast-mode', label: 'Fast mode' },
@@ -36,27 +36,75 @@ export const rowDomId = (row) => `ai-adv-${row}`;
 
 // ── modes in plain words ─────────────────────────────────────────────────────────────────────────
 
-/** Claude Code's mode ids → what AI may do (03 `ai-adv-edges`). Order = the order the menu lists them. */
+/**
+ * Claude Code's mode ids → what AI may do (03 `ai-adv-edges`; rc3-g, issue #181 C). Order = the order the menu
+ * lists them. Each entry: id · label · group · hint · risky.
+ *  - The LABEL reads alone — it is all the closed row shows ("Permissions: Edit freely, ask before commands"),
+ *    so it never leans on a heading or on the row's name.
+ *  - The HINT is one line under the closed row: what AI may do WITHOUT asking, and what it still asks.
+ *  - RISKY marks the one mode with no checks at all; it says so in its label, its group and its hint.
+ */
 const MODE_WORDS = [
-  ['default', 'Replace or move to the trash', 'asks'],
-  ['auto', 'When unsure', 'asks'],
-  ['acceptEdits', 'Nothing — change freely', 'asks'],
-  ['plan', 'Suggest only', 'nochange'],
-  ['dontAsk', 'Skip what needs asking', 'nochange'],
-  ['bypassPermissions', 'Skip every check', 'free'],
+  [
+    'default',
+    'Ask before every change',
+    'asks',
+    'AI asks before it changes a canvas, replaces or deletes a file, or runs a command.',
+    false,
+  ],
+  [
+    'auto',
+    'Ask only when unsure',
+    'asks',
+    'AI decides what is safe to do and asks when it is unsure.',
+    false,
+  ],
+  [
+    'acceptEdits',
+    'Edit freely, ask before commands',
+    'asks',
+    'AI changes canvases and files in this project without asking. It still asks before running a command.',
+    false,
+  ],
+  [
+    'plan',
+    'Suggest only',
+    'nochange',
+    'AI changes nothing. It only suggests what it would do.',
+    false,
+  ],
+  [
+    'dontAsk',
+    'Skip what needs asking',
+    'nochange',
+    'AI never asks. Anything that would need a yes is skipped.',
+    false,
+  ],
+  [
+    'bypassPermissions',
+    'Skip every check — risky',
+    'free',
+    'No checks at all. AI runs commands and changes files, also outside this project, without asking.',
+    true,
+  ],
 ];
-const WORDS = new Map(MODE_WORDS.map(([id, label, group], i) => [id, { label, group, order: i }]));
+const WORDS = new Map(
+  MODE_WORDS.map(([id, label, group, hint, risky], i) => [
+    id,
+    { label, group, hint, risky, order: i },
+  ])
+);
 
 export const MODE_GROUP_LABEL = Object.freeze({
-  asks: 'AI asks before…',
+  asks: 'AI asks first',
   nochange: 'AI changes nothing',
-  free: '',
+  free: 'No safety net',
 });
 
 /**
  * The modes the SESSION offers, in plain words. The agent decides which it offers; the rest stay hidden
  * ("Skip every check" shows only where the agent allows it). An id Maude has no words for keeps the agent's
- * own name rather than vanishing.
+ * own name (and its own description as the hint) rather than vanishing.
  */
 export function modeOptions(modes) {
   const list = modes?.availableModes ?? [];
@@ -70,6 +118,8 @@ export function modeOptions(modes) {
         group: w?.group ?? 'asks',
         order: w?.order ?? 100,
         description: m.description ?? '',
+        hint: w?.hint ?? m.description ?? '',
+        risky: w?.risky ?? false,
       };
     })
     .sort((a, b) => a.order - b.order);

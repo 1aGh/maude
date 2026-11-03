@@ -854,8 +854,9 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` emits
 | `chat-cmd-item-<name>` | testid (pattern) | One slash-command item; `<name>` = command name with non-alphanumerics → `-`. | `client/v2/ai/Composer.jsx` · `CommandPopover` | — | stable — re-emit |
 | `chat-overflow-menu` | testid | A chat row's ⋯ menu in the chat list: Open · Rename… · Copy transcript · Archive · Move to trash. | `client/v2/ai/ChatList.jsx` · `RowMenu` | — | stable — re-emit |
 | `chat-caps-connecting` | testid | Advanced placeholder while the agent connects. | `client/v2/ai/Advanced.jsx` · `ChatAdvanced` | — | stable — re-emit |
-| `chat-caps-bar` | testid | The Advanced fold's picker rows (live model / effort / fast mode / Ask before), under the AI chat panel's Advanced. | `client/v2/ai/Advanced.jsx` · `ChatAdvanced` | — | stable — re-emit |
-| `chat-mode-picker` | testid | The "Ask before" picker in Advanced (the permission mode, in plain words). | `client/v2/ai/Advanced.jsx` · `ChatAdvanced` | e2e-helper:assistant, e2e:acp-capability-picker, whats-new | stable — re-emit |
+| `chat-caps-bar` | testid | The Advanced fold's picker rows (live model / effort / fast mode / Permissions), under the AI chat panel's Advanced. | `client/v2/ai/Advanced.jsx` · `ChatAdvanced` | — | stable — re-emit |
+| `chat-mode-hint` | testid | The line under the Permissions picker: what AI may do without asking in the chosen mode. Carries `data-risky` on the mode that skips every check. | `client/v2/ai/Advanced.jsx` · `ChatAdvanced` | — | stable — re-emit |
+| `chat-mode-picker` | testid | The "Permissions" picker in Advanced (the permission mode: what AI may do without asking, in plain words; a line under it says so, and warns on the mode that skips every check). | `client/v2/ai/Advanced.jsx` · `ChatAdvanced` | e2e-helper:assistant, e2e:acp-capability-picker, whats-new | stable — re-emit |
 | `chat-permission-prompt` | testid | The tool-permission prompt card. | `client/panels/PermissionPrompt.jsx` · `PermissionPrompt` | e2e:acp-write-scope | stable — re-emit |
 | `chat-perm-queue` | testid | Queue counter on the permission prompt. | `client/panels/PermissionPrompt.jsx` · `PermissionPrompt` | — | stable — re-emit |
 | `chat-perm-outside` | testid | Warning that a requested write is outside the project. | `client/panels/PermissionPrompt.jsx` · `PermissionPrompt` | e2e:acp-write-scope, test:acp-permission-prompt | stable — re-emit |
@@ -1679,6 +1680,7 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `ai-working-text` | testid | The words of the working line ("AI is making it greener") — the same words as the artboard tag. | `client/v2/ai/Working.jsx` · `WorkingLine` | — | new |
 | `ai-stop` | testid | Stop in the working line: the registry's `POST /_api/ai/runs/:id/stop` for the chat's run (cancels the thread when the server has no run for it). | `client/v2/ai/Working.jsx` · `WorkingLine` | — | new |
 | `ai-live` | testid | The panel's one polite live region (`role=status`): each state of a run — working, Needs you, Done, Stopped — is read once. | `client/v2/ai/Working.jsx` · `RunLiveRegion` | — | new |
+| `ai-activity-live` | testid | The working line's own polite live region (`role=status`, a sibling of the line): a changed activity phrase ("AI is reading Kanban") is read out at most once per 10 s, never the clock. | `client/v2/ai/Working.jsx` · `ActivityLiveRegion` | e2e:rc3-liveness | new |
 | `ai-result` | testid | The result card under a finished run (03 `ai-done`). `data-status` = idle | busy | undone | kept. | `client/v2/ai/Result.jsx` · `ResultCard` | — | new |
 | `ai-result-undo` | testid | Undo on the result card: takes the run's whole change back (`POST /_api/project/undo` for the run's own action). First verb. | `client/v2/ai/Result.jsx` · `ResultCard` | — | new |
 | `ai-result-redo` | testid | Redo on the result card, shown in place of the verbs after Undo. | `client/v2/ai/Result.jsx` · `ResultCard` | — | new |
@@ -1719,12 +1721,14 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `ai-problem-verb` | testid | The problem card's one verb, when it has one. | `client/v2/ai/ProblemCard.jsx` · `ProblemCard` | — | new |
 | `ai-not-ready` | testid | The state of a kept prompt. `data-kind` = offline | connect | setting-up | used-up | waiting. | `client/v2/ai/NotReady.jsx` · `QueuedState` | — | new |
 | `ai-queued-line` | testid | "Queued — sends when this Mac is online." | `client/v2/ai/NotReady.jsx` · `QueuedState` | — | new |
+| `ai-connect-waiting` | testid | The kept prompt's line in the chat while Claude is not connected ("Waiting for Claude to be connected. …"). `data-phase` = idle | checking | installing | waiting. | `client/v2/ai/NotReady.jsx` · `QueuedState` | — | new |
 | `ai-offline-line` | testid | "AI is back when this Mac is online." | `client/v2/ai/NotReady.jsx` · `QueuedState` | — | new |
 | `ai-quota-line` | testid | The almost-used-up meter above the field ("90% of this 5-hour allowance used · resets 18:40"). | `client/v2/ai/NotReady.jsx` · `QuotaLine` | — | new |
-| `ai-connect-sheet` | testid | The one "Connect your Claude account?" sheet (CONTRACT §7). `data-phase` = idle | installing | waiting. | `client/v2/ai/ConnectSheet.jsx` · `ConnectSheet` | — | new |
+| `ai-connect-sheet` | testid | The one "Connect your Claude account?" sheet (CONTRACT §7). `data-phase` = idle | checking | installing | waiting. | `client/v2/ai/ConnectSheet.jsx` · `ConnectSheet` | — | new |
 | `ai-connect-go` | testid | The sheet's Connect button (installs Claude Code if missing, then opens the browser sign-in). | `client/v2/ai/ConnectSheet.jsx` · `ConnectSheet` | — | new |
 | `ai-connect-cancel` | testid | The sheet's Cancel (withdraws a sign-in in flight, else drops the kept prompt). | `client/v2/ai/ConnectSheet.jsx` · `ConnectSheet` | — | new |
 | `ai-connect-error` | testid | Why Connect did not finish. | `client/v2/ai/ConnectSheet.jsx` · `ConnectSheet` | — | new |
+| `ai-connect-progress` | testid | The sheet's live setup line while it works: what runs, the install's elapsed time and usual length, what is next. `data-phase` = checking | installing | waiting. | `client/v2/ai/ConnectSheet.jsx` · `ConnectSheet` | — | new |
 | `ai-fold-needs` | testid | The azure count on the folded AI spark when chats wait for you (wins over the busy dot). | `client/v2/ai/FoldNeeds.jsx` · `FoldNeeds` | — | new |
 | `shell-prompt-input` | testid | Input of the shell's own prompt dialog (`.sh-prompt`, replaces `window.prompt`). | `client/app.jsx` · `App` | e2e-mp:surface | stable — re-emit |
 | `shell-prompt-ok` | testid | OK button of the shell prompt dialog. | `client/app.jsx` · `App` | e2e-mp:surface | stable — re-emit |
@@ -2213,6 +2217,10 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `empty-confetti` | testid | The sticky-confetti tile behind Comments "All done." — the one celebration; decorative. | `client/v2/empty/confetti.jsx` · `Confetti` | test:v2-empty-kit | new |
 | `arriving-row` | testid | One canvas or folder still coming down to this Mac: always named, dimmed and quietly pulsing. | `client/v2/empty/skeleton.jsx` · `ArrivingRow` | test:v2-empty-kit | new |
 | `skeleton-artboard` | testid | An artboard whose content has not arrived: its label and its exact rectangle, page-shaped placeholder. | `client/v2/empty/skeleton.jsx` · `SkeletonArtboard` | test:v2-empty-kit | new |
+| `ai-drafting` | testid | An empty canvas while a run of yours drafts on it (01 cf-ai-drafting): replaces the empty-canvas card from the run's start until the first artboard lands or the run ends. `data-waiting` while it waits for you. Decorative (`aria-hidden`). | `client/v2/empty/ai-drafting.jsx` · `AiDrafting` | test:rc3-ai-presence | new |
+| `ai-drafting-ghost` | testid | The dashed spark ghost where the first artboard will land. | `client/v2/empty/ai-drafting.jsx` · `AiDrafting` | test:rc3-ai-presence | new |
+| `ai-drafting-label` | testid | The ghost's label: "AI is drafting…", "AI is drawing <artboard>" once an edit names the artboard, or "Waiting for you". | `client/v2/empty/ai-drafting.jsx` · `AiDrafting` | e2e:rc3-liveness | new |
+| `ai-drafting-cursor` | testid | The AI cursor (spark arrow + "AI") parked on the ghost; drifts slowly, still under reduced motion. | `client/v2/empty/ai-drafting.jsx` · `AiDrafting` | test:rc3-ai-presence | new |
 | `all-trashed` | testid | The card over a canvas whose every artboard is in the trash (05 es-all-trashed): the situation, why it is fine, Restore N; `data-count` is how many artboards it holds. | `client/v2/empty/all-trashed.jsx` · `AllTrashedCard` | test:v2-all-trashed | new |
 | `all-trashed-restore` | testid | Restore N artboards: puts every artboard of this canvas back where it was, one undo step. Absent for Can view; the server refuses a restore from them anyway. | `client/v2/empty/all-trashed.jsx` · `AllTrashedCard` | test:v2-all-trashed | new |
 | `artboard-ghosts` | testid | Inside the canvas iframe: the layer of dashed outlines an all-trashed canvas keeps. Decorative, no hit area. (Canvas origin: reachable by coordinates, not by DOM.) | `artboard-ghosts-overlay.tsx` · `ArtboardGhostsLayer` | test:v2-all-trashed | new |
