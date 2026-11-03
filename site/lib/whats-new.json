@@ -12,6 +12,15 @@
       "surface": "design-ui"
     },
     {
+      "id": "ai-big-canvas-ask",
+      "version": null,
+      "date": null,
+      "kind": "fix",
+      "title": "AI works on canvases with hundreds of artboards",
+      "summary": "Asking the AI about a whole canvas with more than 200 artboards no longer leaves the chat on “AI is working” forever: it starts right away and takes each artboard as it changes it. If an ask cannot start, the chat now says why.",
+      "surface": "design-ui"
+    },
+    {
       "id": "home-opens-dark",
       "version": null,
       "date": null,
