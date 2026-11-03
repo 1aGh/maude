@@ -142,7 +142,14 @@ export function createProjectConfigPusher({
       lastAccepted = body;
       return 'refused' as const;
     }
-    if (res.status === 401 || res.status === 403) {
+    // 401 is the CREDENTIAL, not the answer: the runtime renews it and pushes again (2.0.1 field —
+    // recording it as answered left a cell without its config.json until the next restart). 403 is
+    // the hub saying this account is not the owner: final, not retried on every event.
+    if (res.status === 401) {
+      log.warn("[sync] the workspace did not take this project's config yet (401) — will retry.");
+      return 'refused' as const;
+    }
+    if (res.status === 403) {
       lastAccepted = body;
       log.warn(`[sync] the workspace did not take this project's config (${res.status}).`);
       return 'refused' as const;

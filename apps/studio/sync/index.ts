@@ -3582,6 +3582,9 @@ export function createSyncRuntime(
           renewalsSinceProgress++;
           console.log(`[sync] hub credential renewed for ${linkedHub.url}`);
           scheduleRenewal();
+          // The owner's config push that ran on the stale credential (401) goes again on this one —
+          // without it a cell stayed without its config.json until it next restarted (2.0.1 field).
+          if (!outboundPaused()) void projectConfigPusher?.push();
           return true;
         } catch (err) {
           console.warn(`[sync] hub credential renewal failed: ${(err as Error).message}`);
