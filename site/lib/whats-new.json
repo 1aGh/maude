@@ -12,6 +12,15 @@
       "surface": "design-ui"
     },
     {
+      "id": "ai-shows-what-it-is-doing",
+      "version": null,
+      "date": null,
+      "kind": "improvement",
+      "title": "See what the AI is doing",
+      "summary": "While AI works, the chat says what it is doing right now — reading a canvas, thinking, drawing an artboard — and an empty canvas shows where the first artboard will land the moment AI starts.",
+      "surface": "design-ui"
+    },
+    {
       "id": "claude-setup-shows-progress",
       "version": null,
       "date": null,
