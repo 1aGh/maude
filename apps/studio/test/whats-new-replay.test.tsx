@@ -53,11 +53,19 @@ describe('the committed feed', () => {
     }>;
   };
 
-  test('carries the v2.0 entry as the newest pending one (version null, stamped at release)', () => {
+  test('carries the v2.0 entry as the newest one — pending on an rc, stamped by the 2.0.0 release', () => {
     const v2 = feed.entries.find((e) => e.id === 'maude-v2-canvas-window');
     expect(v2).toBeDefined();
-    expect(v2?.version).toBeNull();
-    expect(v2?.date).toBeNull();
+    const pkgVersion: string = JSON.parse(
+      readFileSync(path.join(import.meta.dir, '..', 'package.json'), 'utf8')
+    ).version;
+    if (/-/.test(pkgVersion)) {
+      expect(v2?.version).toBeNull();
+      expect(v2?.date).toBeNull();
+    } else {
+      expect(v2?.version).toMatch(/^2\.\d+\.\d+$/);
+      expect(typeof v2?.date).toBe('string');
+    }
     expect(v2?.kind).toBe('feature');
     expect(feed.entries[0].id).toBe('maude-v2-canvas-window');
   });
