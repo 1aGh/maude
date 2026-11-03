@@ -1,0 +1,19 @@
+{"t":1793711126427,"event":"cp.up","url":"http://127.0.0.1:50771","withControlPlane":false}
+{"t":1793711127444,"event":"cell.up","node":"v24.13.0","access":{"authority":"control-plane","roles":["viewer","member","owner"],"scopes":["project"],"links":false,"requests":true},"formatVersion":2}
+{"t":1793711127957,"event":"desk.up","url":"http://127.0.0.1:4795"}
+{"t":1793711127961,"event":"cp.create"}
+{"t":1793711127963,"event":"move.post","status":200,"body":{"ok":true,"project":"moved-proj","state":"provisioning"}}
+{"t":1793711127963,"event":"cp.open","n":1}
+{"t":1793711127964,"event":"move.state","state":"linking"}
+{"t":1793711127968,"event":"cp.open","n":2}
+{"t":1793711128066,"event":"move.state","state":"ready"}
+{"t":1793711128067,"event":"share","at":"ready","path":"/_api/share/posture","status":200,"linked":true,"reachable":true}
+{"t":1793711128069,"event":"share","at":"ready","path":"/_api/share/me","status":503,"error":"Sharing is not available right now. Try again in a minute.","reason":"control-plane"}
+{"t":1793711128070,"event":"share","at":"ready","path":"/_api/share/people?canvas=ui%2FSmoke.tsx","status":503,"error":"Sharing is not available right now. Try again in a minute.","reason":"control-plane"}
+{"t":1793711128070,"event":"share","at":"ready","path":"/_api/share/people","status":503,"error":"Sharing is not available right now. Try again in a minute.","reason":"control-plane"}
+{"t":1793711129074,"event":"share.later","s":1,"status":503,"error":"Sharing is not available right now. Try again in a minute.","reason":"control-plane"}
+{"t":1793711130076,"event":"share.later","s":2,"status":503,"error":"Sharing is not available right now. Try again in a minute.","reason":"control-plane"}
+{"t":1793711131078,"event":"share.later","s":3,"status":503,"error":"Sharing is not available right now. Try again in a minute.","reason":"control-plane"}
+{"t":1793711132082,"event":"share.later","s":4,"status":503,"error":"Sharing is not available right now. Try again in a minute.","reason":"control-plane"}
+{"t":1793711133087,"event":"share.later","s":5,"status":503,"error":"Sharing is not available right now. Try again in a minute.","reason":"control-plane"}
+{"t":1793711133097,"event":"summary","withControlPlane":false,"finalState":"ready","projectsOpen":2,"cellSessionsForPerson":2,"internalAccess":[]}
