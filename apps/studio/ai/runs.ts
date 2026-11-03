@@ -27,7 +27,13 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 
-import { type Busy, type Granted, type LeaseHome, leaseKeyId } from './lease-home.ts';
+import {
+  type Busy,
+  type Granted,
+  type LeaseHome,
+  leaseKeyId,
+  MAX_LEASE_KEYS_PER_RUN,
+} from './lease-home.ts';
 import { doingOf } from './run-doing.ts';
 import {
   ASK_ID_RE,
@@ -43,6 +49,7 @@ import {
   type RunProgress,
   type RunPublic,
   type RunRecord,
+  type RunRefusal,
   type RunScope,
   type RunView,
   reduceRun,
@@ -60,6 +67,19 @@ export const RETAIN_MS = 30 * 24 * 60 * 60 * 1000;
 export const MAX_RECORDS = 500;
 /** S5.5b — the most elements one run holds (the oldest go first). */
 export const MAX_OBJECTS = 200;
+
+/** The home's refusal → what the chat may say (rc2-e). The reason text is matched, never shown. */
+export function refusalOf(code: RunRefusal['code'], reason: string | undefined): RunRefusal {
+  const r = typeof reason === 'string' ? reason : '';
+  const why = /artboards a run/.test(r)
+    ? 'artboards'
+    : /live runs/.test(r)
+      ? 'runs'
+      : /waiting artboards/.test(r)
+        ? 'waiting'
+        : undefined;
+  return code === 'capacity' && why ? { code, why } : { code };
+}
 
 export interface RunsView {
   seq: number;
@@ -85,6 +105,11 @@ export interface AskInput {
   attached?: RunRecord['attached'];
   /** lease nothing up front: each edit claims what it reaches (terminal Claude, /design:edit) */
   lazy?: boolean;
+  /**
+   * rc2-e — the agent's own hook opened this run for a Maude chat with no live run: its turn is already
+   * running in the agent, so it is never sent one (see RunRecord.hookOpened)
+   */
+  hookOpened?: boolean;
 }
 
 export interface PublishResult {
@@ -285,15 +310,33 @@ export function createRunRegistry(opts: RegistryOptions) {
 
   // ── keys ──────────────────────────────────────────────────────────────────────────────────
 
+  /**
+   * The keys an ask leases up front. A whole-canvas ask takes every artboard (V2-1.15 A4/Q7) — up to
+   * the home's per-run cap. Past it (rc.1: a 267-artboard canvas) the home refuses the whole `begin`,
+   * so the ask leases nothing up front and begins lazily: each write claims the artboard it reaches
+   * through the hook (edit/check → `claim`), where one AI per artboard and a member's lease hold as
+   * for every lazy run (decision v2-rc2-e-whole-canvas-lazy-past-cap).
+   */
   function wantsOf(scope: RunScope | null | undefined): LeaseKey[] {
     if (!scope?.canvas) return [];
-    const ids =
-      scope.artboards === '*' ? (opts.artboardsOf?.(scope.canvas) ?? []) : scope.artboards;
+    const ids = [
+      ...new Set(
+        scope.artboards === '*' ? (opts.artboardsOf?.(scope.canvas) ?? []) : scope.artboards
+      ),
+    ];
+    if (scope.artboards === '*' && ids.length > MAX_LEASE_KEYS_PER_RUN) return [];
     const canvas = canvasKey(scope.canvas);
-    return [...new Set(ids)].map((artboard) => ({ canvas, artboard }));
+    return ids.map((artboard) => ({ canvas, artboard }));
   }
 
   const hid = (rec: RunRecord) => rec.homeRunId ?? rec.runId;
+  /**
+   * The run's turn runs in the agent already, never sent by this registry: a hook-driven run (terminal
+   * Claude, /design:edit) or, rc2-e, one the chat's agent hook opened. It is accepted at once and lapses
+   * after HOOK_LAPSE_MS without a hook event, like every hook run.
+   */
+  const turnIsTheAgents = (rec: RunRecord) =>
+    rec.origin !== 'maude-chat' || rec.hookOpened === true;
   const mineLive = (runId: string) => {
     const r = records.get(runId);
     return r && isLive(r) ? r : null;
@@ -400,7 +443,8 @@ export function createRunRegistry(opts: RegistryOptions) {
       if (lost && eff !== 'end-leases') continue;
       switch (eff) {
         case 'send-turn': {
-          if (rec.origin !== 'maude-chat') break; // a hook run's turn is already in the terminal
+          // a hook run's turn is already in the terminal — or, rc2-e, in the chat's own agent
+          if (turnIsTheAgents(rec)) break;
           const text = rec.continuationOf ? continuationText(rec) : null;
           void Promise.resolve()
             .then(() => opts.turns?.send?.(rec, text))
@@ -532,7 +576,7 @@ export function createRunRegistry(opts: RegistryOptions) {
         const started = await transition(runId, { type: 'granted' });
         // P8 G2 — as startIfReady: a hook-driven run's turn is already running in the terminal, so a
         // grant to a waiting one makes it `running` (left `starting`, its turn-end was refused for good)
-        if (started && rec.origin !== 'maude-chat') await transition(runId, { type: 'accepted' });
+        if (started && turnIsTheAgents(rec)) await transition(runId, { type: 'accepted' });
       } else changed();
     }
   }
@@ -606,7 +650,8 @@ export function createRunRegistry(opts: RegistryOptions) {
       objects: heldElements(input.scope),
       createdAt: now(),
       ...(ahead ? { behind: ahead.runId } : {}),
-      ...(input.origin !== 'maude-chat' ? { hookAt: now() } : {}),
+      ...(input.origin !== 'maude-chat' || input.hookOpened ? { hookAt: now() } : {}),
+      ...(input.hookOpened && input.origin === 'maude-chat' ? { hookOpened: true as const } : {}),
       ...(input.agent ? { agent: input.agent } : {}),
     };
     persist(rec);
@@ -621,7 +666,7 @@ export function createRunRegistry(opts: RegistryOptions) {
       // lazy (terminal Claude, a selection-less /design:edit): it starts at once and leases what
       // each edit reaches. The home learns of it in the background (renewal needs the row).
       const s = transitionSync(rec0.runId, { type: 'granted' });
-      if (s && rec0.origin !== 'maude-chat') transitionSync(rec0.runId, { type: 'accepted' });
+      if (s && turnIsTheAgents(rec0)) transitionSync(rec0.runId, { type: 'accepted' });
       beginning.add(rec0.runId);
       void home
         .begin({
@@ -669,7 +714,15 @@ export function createRunRegistry(opts: RegistryOptions) {
       return (await startIfReady(rec0.runId, true)) ?? rec;
     }
     if (ans.refused) {
-      persist({ ...rec, state: 'ended', outcome: 'failed', endedAt: now(), waiting: [] });
+      // rc2-e: the refusal rides on the record, so the chat says why instead of "working" forever
+      persist({
+        ...rec,
+        state: 'ended',
+        outcome: 'failed',
+        endedAt: now(),
+        waiting: [],
+        refused: refusalOf(ans.refused, ans.reason),
+      });
       changed();
       return records.get(rec0.runId) as RunRecord;
     }
@@ -703,8 +756,7 @@ export function createRunRegistry(opts: RegistryOptions) {
     }
     const started = await transition(runId, { type: 'granted' });
     // a hook-driven run's turn is already running in the terminal
-    if (started && rec.origin !== 'maude-chat')
-      return await transition(runId, { type: 'accepted' });
+    if (started && turnIsTheAgents(rec)) return await transition(runId, { type: 'accepted' });
     return started;
   }
 
@@ -800,7 +852,7 @@ export function createRunRegistry(opts: RegistryOptions) {
             isLive(r) &&
             !r.behind &&
             !beginning.has(r.runId) &&
-            (r.origin === 'maude-chat' || t - (r.hookAt ?? r.createdAt) < HOOK_LAPSE_MS)
+            (!turnIsTheAgents(r) || t - (r.hookAt ?? r.createdAt) < HOOK_LAPSE_MS)
         );
         if (live.length) {
           const ans = await home.renew({

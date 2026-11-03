@@ -92,6 +92,23 @@ export interface RunRecord {
   busyDenied?: LeaseKey[];
   /** studio-local (S7.15): the footage the ask attached (`assets/<sha8>.<ext>` + the name it was given) */
   attached?: Array<{ asset: string; name: string; durationSec?: number }>;
+  /**
+   * studio-local (rc2-e): the lease home refused this run's `begin` — it ended `failed` before any turn.
+   * `why` is classified here from the home's reason (never the home's own words: a hub is not trusted
+   * to write the chat's copy). The chat is told in plain words (acp/index.ts `refusedWords`).
+   */
+  refused?: RunRefusal;
+  /**
+   * studio-local (rc2-e): opened by the agent's own hook call for a Maude chat that had no live run —
+   * its turn is already running in the agent, so the registry never sends it one (a generated turn
+   * with no text failed it at once, and the next hook call opened another: the rc.1 loop).
+   */
+  hookOpened?: true;
+}
+
+export interface RunRefusal {
+  code: 'capacity' | 'forbidden' | 'invalid' | 'ended';
+  why?: 'artboards' | 'runs' | 'waiting';
 }
 
 export type RunEvent =
