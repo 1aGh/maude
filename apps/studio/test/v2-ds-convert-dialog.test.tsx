@@ -366,6 +366,26 @@ describe('the dialog and its host', () => {
     }
   });
 
+  // rc3 walk of the packaged rc.2 (r4-7) — the empty state's heading read "MAUDE-DSN/01 design system view", the
+  // specimen board's label. It is the product's word now, and no board code shows.
+  test('the empty design system view is headed "Design system", with no board code', async () => {
+    const data = {
+      ds: null,
+      availableDesignSystems: [],
+      previewGallery: [],
+      uiKitsGallery: [],
+      systemDir: 'system',
+      tokens: [],
+      tokenGroups: {},
+    };
+    await render(<SystemView data={data} cfg={{ dsConverted: {} }} onOpen={() => {}} />);
+    const heading = q('sv-no-system-heading');
+    expect(heading?.tagName).toBe('H1');
+    expect(heading?.textContent).toBe('Design system');
+    const view = heading?.closest('.sv');
+    expect(view?.textContent).not.toMatch(/MAUDE-|design system view/);
+  });
+
   test('no banner on a converted system, nor for someone who can only look', async () => {
     const data = {
       ds: { name: 'gator' },

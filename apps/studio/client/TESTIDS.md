@@ -145,6 +145,7 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `ds-upgrade-gain` | testid | r4 #11: One gain row of ds-upgrade-gains; `data-kind` is ai · checks · across. | `client/v2/ds/upgrade-sheet.jsx` · `DsUpgradeSheet` | — | new |
 | `ds-upgrade-hide` | testid | r4 #11: "Hide" on the corner card shown while AI brings a system up to the schema or the check runs: hides the card, the work goes on (Cancel stops it). | `client/v2/ds/upgrade-sheet.jsx` · `DsUpgradeSheet` | — | new |
 | `sv-no-system` | testid | r4 #7: The empty state of the design system view in a project with no design system at all. | `client/system/system-view.jsx` · `SystemView` | — | new |
+| `sv-no-system-heading` | testid | rc3 r4-7: The heading (h1) of the empty design system view: "Design system" (it read the board code "MAUDE-DSN/01 design system view"). | `client/system/system-view.jsx` · `SystemView` | — | new |
 | `sv-create-design-system` | testid | r4 #7: "Create a design system" in the empty design system view (runs ds.make: the short sheet, then AI draws the system on its own canvas). Hidden for Can view. | `client/system/system-view.jsx` · `SystemView` | — | new |
 | `ds-upgrade-error` | testid | S10.15b: A refusal from the server in the person’s words. | `client/v2/ds/upgrade-sheet.jsx` · `DsUpgradeSheet` | — | new |
 | `ds-upgrade-cancel` | testid | S10.15b: Cancel — stops a check in flight and puts a stage back; "Close" on a converted system. | `client/v2/ds/upgrade-sheet.jsx` · `DsUpgradeSheet` | — | new |

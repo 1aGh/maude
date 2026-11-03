@@ -42068,6 +42068,19 @@
     "v2": "new"
   },
   {
+    "hook": "sv-no-system-heading",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "rc3 r4-7: The heading (h1) of the empty design system view: \"Design system\" (it read the board code \"MAUDE-DSN/01 design system view\").",
+    "producer": {
+      "file": "client/system/system-view.jsx",
+      "symbol": "SystemView"
+    },
+    "region": "stage/system-view",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
     "hook": "sv-create-design-system",
     "kind": "testid",
     "pattern": false,
