@@ -169,6 +169,7 @@ import {
   type DragFrame,
   type LayoutRect,
 } from './drag-bus.ts';
+import { installCanvasPointerNotice } from './editing/canvas-pointer.ts';
 import { routeDrop } from './editing/duplicate-rhythm.ts';
 import { growCh, nextRenameId, RENAME_EVENT, requestRename } from './editing/rename-order.ts';
 import { createSpaceTap, sendSpaceTap } from './editing/space-tap.ts';
@@ -2369,6 +2370,12 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
   useEffect(() => {
     setArtboards(initialArtboards());
   }, [initialArtboards]);
+
+  // rc3 r4-12 — every press here tells the shell, so its open menus close (WebKit gives the shell no blur for it)
+  useEffect(
+    () => (typeof window === 'undefined' ? undefined : installCanvasPointerNotice(window)),
+    []
+  );
 
   // Phase 8 — foreign canvas-meta change. The shell-level HMR client
   // re-fetches `<canvas>.meta.json` and dispatches `maude:meta-refreshed`

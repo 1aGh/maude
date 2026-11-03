@@ -75,7 +75,7 @@ export function AssetTileMenu({ state, items, onSelect, onClose }) {
     document.addEventListener('keydown', onKey, true);
     return () => document.removeEventListener('keydown', onKey, true);
   }, [state, onClose]);
-  // a click anywhere else closes it — also a click into the canvas (another origin), which only blurs this window
+  // a click anywhere else closes it — also a click into the canvas (another origin, told over the dgn bridge)
   useDismissOutside(!!state, ref, () => onClose());
 
   if (!state) return null;

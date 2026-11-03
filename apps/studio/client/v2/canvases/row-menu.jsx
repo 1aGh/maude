@@ -82,8 +82,10 @@ export function CanvasRowMenu({ state, items, targets, onSelect, onPick, onClose
     document.addEventListener('keydown', onKey, true);
     return () => document.removeEventListener('keydown', onKey, true);
   }, [state, view, onClose]);
-  // a click anywhere else closes it — also a click into the canvas (another origin), which only blurs this window
-  useDismissOutside(!!state, ref, () => onClose());
+  // a click anywhere else closes it — also a click into the canvas (another origin), which tells the shell over the
+  // dgn bridge (rc3 r4-12: the packaged app's WebKit gives no window blur for it). The focus stays where the click
+  // put it — handing it back to ⋯ would take it out of the canvas the person just clicked; esc still gives it back.
+  useDismissOutside(!!state, ref, () => onClose(false));
 
   if (!state) return null;
   const style = placed
