@@ -10,6 +10,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 
 import { canvasSlugFromRel } from '../canvas-slug.ts';
 import {
+  A_ONLY,
   A_REL,
   type AclCell,
   asUser,
@@ -28,6 +29,19 @@ const A_FILE = `.design/${A_REL}`;
 const B_SLUG = canvasSlugFromRel(B_REL, '.design');
 const A_SLUG = canvasSlugFromRel(A_REL, '.design');
 const OWNER_O = asUser(OWNER, 'owner@example.com');
+/** A share of A alone (no project role) — the opener the strict closure still binds. */
+const A_ONLY_O = asUser(A_ONLY, 'guest@example.com');
+
+/**
+ * B's picture. Michal's decision 2026-11-03 (`maude/v2-202-project-role-frames-read-project-media`):
+ * a frame whose OPENER holds a project read role reads the project's media (pictures, video, audio,
+ * fonts) — the owner can read B's picture on the main origin anyway, and a canvas that builds its
+ * picture paths in code drew "Picture not found" for its own owner. Accepted residual risk: code
+ * planted in A by an A-only editor sees B's PICTURES when the owner opens A (never B's source,
+ * board, comments or meta — those stay refused above). A canvas-only opener keeps the strict
+ * closure: B's picture stays absent to it.
+ */
+const B_MEDIA = ['/assets/bbbb0001.png', '/.design/assets/bbbb0001.png'];
 
 let cell: AclCell;
 let fcA: string;
@@ -49,8 +63,6 @@ const B_READS = [
   `/${B_FILE}`,
   `/${B_FILE}?sha=deadbeef`,
   `/${B_FILE}?file=${encodeURIComponent(A_FILE)}`,
-  '/assets/bbbb0001.png',
-  '/.design/assets/bbbb0001.png',
   `/_comments?file=${encodeURIComponent(B_FILE)}`,
   `/_api/canvas-meta?file=${encodeURIComponent(B_FILE)}`,
   `/_api/annotations?file=${encodeURIComponent(B_FILE)}`,
@@ -81,6 +93,30 @@ describe("the owner's frame for A (canvas code planted by an A-only editor)", ()
     test(`GET ${path} with NO capability → absent`, async () => {
       const r = await get(cell.canvasBase + path, OWNER_O);
       expect({ path, status: r.status }).toEqual({ path, status: 403 });
+      expect(hasCanary(r.text)).toBe(false);
+    });
+  }
+
+  for (const path of B_MEDIA) {
+    test(`GET ${path} (B's picture) in the OWNER's frame for A → served (project-role opener)`, async () => {
+      const r = await get(cell.canvasBase + withFc(path, fcA), OWNER_O);
+      expect({ path, status: r.status }).toEqual({ path, status: 200 });
+    });
+    test(`GET ${path} (B's picture) in an A-only share's frame for A → absent`, async () => {
+      const fcShare = (await frameCap(cell, A_ONLY_O, A_REL)) as string;
+      expect(typeof fcShare).toBe('string');
+      const r = await get(cell.canvasBase + withFc(path, fcShare), A_ONLY_O);
+      expect({ path, status: r.status }).toEqual({ path, status: 403 });
+      expect(hasCanary(r.text)).toBe(false);
+      const ref = await get(cell.canvasBase + path, {
+        ...A_ONLY_O,
+        referer: `${cell.canvasBase}/_canvas-shell.html?canvas=${A_REL}&fc=${encodeURIComponent(fcShare)}`,
+      });
+      expect(ref.status).toBe(403);
+    });
+    test(`GET ${path} (B's picture) with NO capability → absent`, async () => {
+      const r = await get(cell.canvasBase + path, OWNER_O);
+      expect(r.status).toBe(403);
       expect(hasCanary(r.text)).toBe(false);
     });
   }

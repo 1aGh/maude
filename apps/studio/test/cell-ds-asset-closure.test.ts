@@ -50,8 +50,21 @@ export default function Events() {
 let cell: AclCell;
 let hub: Server;
 let fc: string;
+let fcShare: string;
 const asked: string[] = [];
 const OWNER_O = asUser(OWNER, 'owner@example.com');
+/** A share of the one canvas, no project role: its frame reads the strict closure only. That is
+ *  the opener the closure fix is pinned with — a project-role opener's frame reads every media
+ *  file anyway (maude/v2-202-project-role-frames-read-project-media, test below). */
+const SHARE_O = asUser(
+  {
+    'x-maude-access': Buffer.from(
+      JSON.stringify({ v: 1, role: null, grants: [{ c: CANVAS, r: 'member' }] })
+    ).toString('base64url'),
+    'x-maude-readonly': '1',
+  },
+  'guest@example.com'
+);
 
 beforeAll(async () => {
   const { root, designRoot } = makeSandbox();
@@ -115,6 +128,7 @@ beforeAll(async () => {
     canvasBase: `http://localhost:${info.canvasPort}`,
   };
   fc = (await frameCap(cell, OWNER_O, CANVAS)) as string;
+  fcShare = (await frameCap(cell, SHARE_O, CANVAS)) as string;
 }, 60000);
 
 afterAll(async () => {
@@ -123,8 +137,9 @@ afterAll(async () => {
 });
 
 describe("a cell frame reads its own design system's media (not on the checkout)", () => {
-  test('the frame capability was minted', () => {
+  test('the frame capabilities were minted', () => {
     expect(typeof fc).toBe('string');
+    expect(typeof fcShare).toBe('string');
   });
 
   test('the owner on the main origin gets the logo (control — the hub serves it)', async () => {
@@ -134,23 +149,23 @@ describe("a cell frame reads its own design system's media (not on the checkout)
 
   test('the system stylesheet on disk loads (control)', async () => {
     const r = await get(
-      cell.canvasBase + withFc(`/.design/${SYS}/colors_and_type.css`, fc),
-      OWNER_O
+      cell.canvasBase + withFc(`/.design/${SYS}/colors_and_type.css`, fcShare),
+      SHARE_O
     );
     expect(r.status).toBe(200);
   });
 
   for (const rel of [LOGO, PHOTO, USED]) {
-    test(`GET /.design/${rel} with the frame's capability → 200, materialized`, async () => {
-      const r = await get(cell.canvasBase + withFc(`/.design/${rel}`, fc), OWNER_O);
+    test(`share frame: GET /.design/${rel} (in its closure) → 200, materialized`, async () => {
+      const r = await get(cell.canvasBase + withFc(`/.design/${rel}`, fcShare), SHARE_O);
       expect({ rel, status: r.status }).toEqual({ rel, status: 200 });
       expect(r.text).toContain('<svg');
       expect(asked).toContain(rel);
     });
-    test(`GET /.design/${rel} with the capability in the Referer → 200`, async () => {
+    test(`share frame: GET /.design/${rel} with the capability in the Referer → 200`, async () => {
       const r = await get(`${cell.canvasBase}/.design/${rel}`, {
-        ...OWNER_O,
-        referer: `${cell.canvasBase}/.design/${CANVAS}?fc=${encodeURIComponent(fc)}`,
+        ...SHARE_O,
+        referer: `${cell.canvasBase}/.design/${CANVAS}?fc=${encodeURIComponent(fcShare)}`,
       });
       expect({ rel, status: r.status }).toEqual({ rel, status: 200 });
     });
@@ -162,9 +177,9 @@ describe("a cell frame reads its own design system's media (not on the checkout)
   });
 
   for (const rel of [FOREIGN, UNUSED]) {
-    test(`journal media outside the canvas's system / closure stays refused: ${rel}`, async () => {
+    test(`share frame: journal media outside its closure stays refused: ${rel}`, async () => {
       const before = asked.length;
-      const r = await get(cell.canvasBase + withFc(`/.design/${rel}`, fc), OWNER_O);
+      const r = await get(cell.canvasBase + withFc(`/.design/${rel}`, fcShare), SHARE_O);
       expect({ rel, status: r.status }).toEqual({ rel, status: 403 });
       expect(JSON.parse(r.text).error).toBe('not-in-scope');
       expect(r.text).not.toContain('OTHER-SYSTEM-BYTES');
@@ -172,4 +187,21 @@ describe("a cell frame reads its own design system's media (not on the checkout)
       expect(asked.slice(before)).not.toContain(rel);
     });
   }
+});
+
+describe('an owner frame on a cell reads any project media from the hub cache', () => {
+  // maude/v2-202-project-role-frames-read-project-media (Michal, 2026-11-03): a project-role opener's
+  // frame reads every project media file — on a cell that includes media only the hub's
+  // materialize cache holds.
+  for (const rel of [FOREIGN, UNUSED, LOGO]) {
+    test(`owner frame: GET /.design/${rel} → 200, materialized`, async () => {
+      const r = await get(cell.canvasBase + withFc(`/.design/${rel}`, fc), OWNER_O);
+      expect({ rel, status: r.status }).toEqual({ rel, status: 200 });
+      expect(asked).toContain(rel);
+    });
+  }
+  test('owner frame: a non-media file outside the closure stays refused', async () => {
+    const r = await get(cell.canvasBase + withFc('/.design/config.json', fc), OWNER_O);
+    expect(r.status).toBe(403);
+  });
 });

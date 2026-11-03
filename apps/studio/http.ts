@@ -50,6 +50,7 @@ import {
   FRAME_PARAM,
   type FrameScope,
   frameKeyFor,
+  frameReadsProjectMedia,
   frameSubjectOf,
   frameTokenOf,
   inputsRefusal,
@@ -7972,8 +7973,12 @@ export function createHttp(
       }
       const file = canvasOriginTarget(pathname, designRel);
       const see = seerOf(access, () => closureOf(access));
-      if (file !== undefined && (file === null || see?.(file) !== true))
-        return notInScopeResponse();
+      if (file !== undefined && (file === null || see?.(file) !== true)) {
+        // 2.0.2 (decision maude/v2-202-project-role-frames-read-project-media) — a frame opened with a
+        // project read role GETs any project media; a canvas-only opener keeps the strict closure.
+        if (file === null || !frameReadsProjectMedia(access, file, req.method))
+          return notInScopeResponse();
+      }
     }
     const scope = await canvasScopeRefusal(req, g);
     if (scope) return scope;

@@ -28,6 +28,7 @@ import { classifyProjectFile } from '../sync/file-membership.ts';
 import type { Closure, ProjectReader } from './closure.ts';
 // S9.12 — the revert-guard seam (a call-time read, so the import cycle with filters.ts is inert).
 import { aclCheckOn } from './filters.ts';
+import { frameReadsProjectMedia } from './frame.ts';
 import type { Capability, ProjectRole } from './roles.ts';
 import { FLOOR_ROLE, can as roleCan } from './roles.ts';
 import {
@@ -439,8 +440,30 @@ export async function canvasScopeRefusal(req: Request, g: GateInput): Promise<Re
   if (!g.access.canvasOnly || !aclCheckOn('canvasScopeRefusal')) return null;
   const target = await gateTarget(req, g);
   if (target === undefined) return null;
-  if (target === null || !seesTarget(g, target, req.method)) return notInScopeResponse();
-  return null;
+  if (target === null) return notInScopeResponse();
+  if (seesTarget(g, target, req.method)) return null;
+  // 2.0.2 (decision maude/v2-202-project-role-frames-read-project-media) — the static lane's own
+  // path (never a `?file=` naming it for an API) may be project media a project-role opener's frame
+  // reads; `frameReadsProjectMedia` holds it to GET/HEAD and media, and never a canvas-only opener.
+  if (
+    staticPathTarget(req, g.designRel) === target &&
+    frameReadsProjectMedia(g.access, target, req.method)
+  )
+    return null;
+  return notInScopeResponse();
+}
+
+/** The designRoot file a request's PATH names when no target key in its query names another. */
+function staticPathTarget(req: Request, designRel: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(req.url);
+  } catch {
+    return null;
+  }
+  if (TARGET_KEYS.some((k) => url.searchParams.has(k))) return null;
+  const base = `/${designRel.replace(/^\/+|\/+$/g, '')}/`;
+  return url.pathname.startsWith(base) ? toDesignRel(url.pathname, designRel) : null;
 }
 
 export type LocalGate =

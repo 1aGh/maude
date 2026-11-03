@@ -4,6 +4,7 @@
 
 import { describe, expect, test } from 'bun:test';
 import { closureFor, type ProjectReader } from '../access/closure.ts';
+import { frameReadsProjectMedia, narrowToFrame } from '../access/frame.ts';
 import { resolveAccess } from '../access/scope.ts';
 import { placeRequestFor } from '../client/v2/assets/asset-drop-session.js';
 import { type DispatchDeps, dispatchEditOp } from '../edit-ops/dispatch.ts';
@@ -155,7 +156,7 @@ describe('the canvas closure sees the placed reference', () => {
   // The placed literal must be a STATIC reference the canvas closure (access/closure.ts) reads, so a frame may load the
   // picture. A canvas whose meta names the system already reads that system's assets. A canvas that does NOT name it
   // (another system, or none) and places one of its pictures is the "Picture not found" / 403 `not-in-scope` case a
-  // parallel builder owns: `staticAssetRefs` reads only project `assets/…`. That one is `test.todo` until it merges.
+  // parallel builder owned: `staticAssetRefs` reads only project `assets/…`. Michal's 2026-11-03 rule answers it for project-role frames (last test).
   const reader = (files: Record<string, string>): ProjectReader => ({
     list: () => Object.keys(files),
     text: (rel) => files[rel] ?? null,
@@ -189,7 +190,15 @@ describe('the canvas closure sees the placed reference', () => {
     expect(closureFor(grant, reader(files('alligators'))).read.has(PHOTO)).toBe(true);
   });
 
-  test.todo('a canvas on another system places one of this system’s pictures: the closure reads it (parallel closure fix)', () => {
-    expect(closureFor(grant, reader(files('club'))).read.has(PHOTO)).toBe(true);
+  // maude/v2-202-project-role-frames-read-project-media (Michal, 2026-11-03): the closure stays
+  // strict (a share of the canvas still does not read another system's picture), and a frame opened
+  // with a project read role reads every project media file — so the placed picture loads for the
+  // owner, members and viewers whatever system the canvas names.
+  test('a canvas on another system places one of this system’s pictures: a project-role frame reads it', () => {
+    expect(closureFor(grant, reader(files('club'))).read.has(PHOTO)).toBe(false);
+    const member = narrowToFrame(resolveAccess({ v: 1, role: 'member' }), ['ui/Post.tsx']);
+    expect(frameReadsProjectMedia(member, PHOTO, 'GET')).toBe(true);
+    const share = narrowToFrame(grant, ['ui/Post.tsx']);
+    expect(frameReadsProjectMedia(share, PHOTO, 'GET')).toBe(false);
   });
 });
