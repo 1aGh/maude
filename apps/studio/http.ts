@@ -7949,6 +7949,9 @@ export function createHttp(
 
   async function accessRefusal(req: Request): Promise<Response | null> {
     const access = accessOf(req);
+    // 2.0.2 — on a materializing cell, the closure lists the journal's media (DDR-243: none of it
+    // is on the checkout); wait for the first listing so a frame's own DS asset is not refused.
+    if (access.grants.length > 0) await visibility.ready?.();
     const g = gateInput(access);
     // S9.11 (V2-1.16 L15) — a file of the design root (the static lane, its `/assets/`
     // alias, `?sha=` builds) is judged on its PATH, before any query names a target: a
