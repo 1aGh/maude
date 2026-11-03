@@ -967,7 +967,7 @@ export default function DesignSystem() {
           <Stage note={<Note n={4} title="Dark is the system's own mode, not the app's theme.">Light · Dark at the top switches every section to the system's dark values — swatches, components, Patterns. The app around it keeps its own theme.</Note>}>
             <Window tabs={TABS2} activeTab={0}>
               <Canvas><Board sys="studio" z={0.42} x={300} y={104} o={{ dark: true }} /></Canvas>
-              <BoardChrome project="studio" zoom={42} bar={<DsBar name={STUDIO_SYS} mode="Dark" view="22 colours in their dark values" />} />
+              <BoardChrome project="studio" zoom={42} bar={<DsBar name={STUDIO_SYS} mode="Dark" />} />
             </Window>
           </Stage>
         </DCArtboard>
