@@ -338,6 +338,24 @@ describe('POST /_api/cloud/move — the move, idempotent per folder', () => {
     expect(creates()).toBe(1);
   });
 
+  // rc3-j (#162): the move opened the project and signed in at the cell TWICE within ~5 ms (once
+  // for the format marker, once more to link), minting two hub sessions for one person. One move =
+  // one /projects/open + one /auth/login; the link reuses the credential the open stored.
+  test('one move opens the project and signs in at the cell exactly once, format raise included', async () => {
+    signIn();
+    fake.hubFormat = 1;
+    const r = routes({ localFormat: 2 });
+    await r.post();
+    expect((await r.settle()).state).toBe('ready');
+    expect(fake.events.filter((e) => e === 'open')).toHaveLength(1);
+    expect(fake.events.filter((e) => e === 'login')).toHaveLength(1);
+    // the marker still goes up before the folder is linked (V2-1.12 §5.2)
+    expect(fake.linkedAtFormat).toEqual([false]);
+    expect(readConfig().linkedHub.url).toBe(CELL);
+    const hubs = JSON.parse(readFileSync(process.env.HUBS_CONFIG_PATH as string, 'utf8'));
+    expect(hubs.hubs[CELL].token).toBe('hubtok_secret');
+  });
+
   test('a double call (sequential and concurrent) creates ONE cloud project and answers the same job', async () => {
     signIn();
     fake.pendingPolls = 20;

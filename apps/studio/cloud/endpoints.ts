@@ -29,7 +29,7 @@ import { basename, dirname, join, relative, sep } from 'node:path';
 import { browserDoorOf } from '../client/v2/cloud/browser-door.js';
 import { asFormat, formatToKeep } from '../format.ts';
 import { deleteHubCredential, saveHubCredential } from '../sync/hub-link.ts';
-import { getHubToken, normalizeUrl } from '../sync/hubs-config.ts';
+import { getHubRecord, getHubToken, normalizeUrl } from '../sync/hubs-config.ts';
 import { deleteProjectLink, linksPath, recordProjectLink } from '../sync/link-consent.ts';
 import { boundCloudToken, cloudConfigPath } from './config-path.ts';
 
@@ -474,6 +474,25 @@ export function createCloudEndpoints(ctx: Ctx) {
         role: opened.body.role,
         project: projectId,
       });
+    },
+
+    /**
+     * Link THIS folder to a cell whose hub credential this Mac already holds — the second half
+     * of Move to cloud, after `openManaged` signed in (rc3-j, #162). Same linkedHub + sync start
+     * as `attach`, without a second /projects/open + /auth/login (which minted a second hub
+     * session for the same person). No stored credential for that cell = signed out.
+     */
+    async attachStored(hubUrl: string): Promise<CloudEndpointResult> {
+      let norm: string;
+      try {
+        norm = normalizeUrl(String(hubUrl ?? ''));
+      } catch {
+        return { status: 400, json: { ok: false, error: 'unknown workspace' } };
+      }
+      if (!getHubRecord(norm, ctx.hubsConfigPath)) {
+        return { status: 401, json: { ok: false, error: 'Sign in to Maude Cloud first.' } };
+      }
+      return linkFolder(norm);
     },
 
     /** The maude:// handoff lane, as a managed copy (see `attachCode`). */
@@ -1002,7 +1021,18 @@ export function createCloudEndpoints(ctx: Ctx) {
 
     const norm = normalizeUrl(workspaceUrl);
     saveHubCredential(norm, hubToken, vouchedRole, hubTokenExpiresAt, ctx.hubsConfigPath);
+    return linkFolder(norm, role, project);
+  }
 
+  /**
+   * The folder half of every attach: linkedHub in config.json, the link recorded on this Mac, the
+   * live sync runtime cycled onto it. The caller has already stored the hub credential for `norm`.
+   */
+  async function linkFolder(
+    norm: string,
+    role?: string,
+    project?: string
+  ): Promise<CloudEndpointResult> {
     // Project side — linkedHub in .design/config.json (committed; no token).
     const cfgPath = join(ctx.paths.designRoot, 'config.json');
     let cfg: Record<string, unknown> = {};

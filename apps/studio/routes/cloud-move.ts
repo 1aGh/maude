@@ -10,8 +10,9 @@
 // Order (§5.5): create the cloud project (`POST <cloud>/api/projects {name}`, Bearer device
 // token) → poll `GET <cloud>/api/projects` until `active` → open it and exchange at the cell
 // (stores the hub credential, writes nothing in the folder) → raise the hub format marker to the
-// local one (V2-1.12 §5.2, raise-only, BEFORE the first seed-up) → attach (linkedHub + the live
-// sync runtime's seed-up, cloud/endpoints.ts). The canvas never waits: the POST answers once the
+// local one (V2-1.12 §5.2, raise-only, BEFORE the first seed-up) → attach with the credential the
+// open stored (linkedHub + the live sync runtime's seed-up, cloud/endpoints.ts `attachStored` — one
+// open and one cell sign-in per move, rc3-j). The canvas never waits: the POST answers once the
 // cloud project exists and the rest runs here. A failure leaves the folder local, `failed`, with
 // words; the next POST resumes the SAME cloud project — one folder never makes two.
 //
@@ -39,7 +40,8 @@ export interface CloudMoveDeps {
   /** the attach lane (cloud/endpoints.ts) — the one place a hub credential and linkedHub are written */
   cloud: {
     openManaged(projectId: string): Promise<CloudEndpointResult>;
-    attach(projectId: string): Promise<CloudEndpointResult>;
+    /** links the folder with the credential `openManaged` stored — no second sign-in (rc3-j) */
+    attachStored(hubUrl: string): Promise<CloudEndpointResult>;
   };
   /** this profile's cloud.json (V2-3.3); absent = `cloudConfigPath()` */
   cloudConfigPath?: () => string;
@@ -234,7 +236,8 @@ export function createCloudMoveRoutes(deps: CloudMoveDeps): RouteSpec[] {
       f = update(f, { state: 'linking', hub });
       await raiseFormat(hub);
       f = update(f, { state: 'uploading' });
-      const attached = await deps.cloud.attach(f.project);
+      // The credential the open just stored links the folder: one open, one sign-in per move.
+      const attached = await deps.cloud.attachStored(hub);
       if (attached.status === 401) throw new MoveFailure(WORDS.signedOut);
       const linkedTo = (attached.json as { url?: unknown } | null)?.url;
       if (attached.status !== 200 || typeof linkedTo !== 'string')
