@@ -83,7 +83,7 @@ export function hubEnv(extra = {}, base = process.env) {
 
 /**
  * Start a local hub. Resolves once it listens (and its accepted-revisions store is ready).
- * @param {{ dir: string, port?: number, extraArgs?: string[], transactions?: boolean, users?: boolean, cloudKey?: string, node?: string, workspace?: string }} opts
+ * @param {{ dir: string, port?: number, extraArgs?: string[], transactions?: boolean, users?: boolean, cloudKey?: string, node?: string, workspace?: string, env?: Record<string, string> }} opts
  *   `dir` is the hub's data dir (a throwaway); `cloudKey` switches on cloud identity with that project-token key.
  */
 export function startLocalHub(opts) {
@@ -114,6 +114,8 @@ export function startLocalHub(opts) {
     env.MAUDE_DESIGN_ROOT = '.design';
     env.MAUDE_STUDIO_CHILD = '0';
   }
+  // `env` (additive, rc3-j): cell settings the caller owns (the control plane the cell forwards access to).
+  Object.assign(env, opts.env ?? {});
   const spawnHub = opts.spawn ?? spawn;
   return new Promise((ok, fail) => {
     const proc = spawnHub(node, args, { env, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -159,6 +161,12 @@ export function startLocalHub(opts) {
  * @param {{ dir: string, cloudKey: string, projectConfig: object, node?: string }} opts
  */
 export async function startCloudLaneCell(opts) {
+  // rc3-j (#162): a cloud cell decides nothing about access — it forwards `/api/access/*` to its control plane.
+  // Without one every Share sheet answer was the cell's own 503 ("Sharing is not available right now"), a line no
+  // real cell draws. `access` gives the cell the REAL forwarder (serve-access-authority.mjs) as its control plane.
+  const authority = opts.access
+    ? await startAccessAuthority({ ...opts.access, cellSecret: LANE_HUB_SECRET, node: opts.node })
+    : null;
   const checkout = join(opts.dir, 'checkout');
   const designRoot = join(checkout, opts.projectConfig?.designRoot ?? '.design');
   mkdirSync(designRoot, { recursive: true });
@@ -166,13 +174,85 @@ export async function startCloudLaneCell(opts) {
     join(designRoot, 'config.json'),
     `${JSON.stringify(opts.projectConfig, null, 2)}\n`
   );
-  const hub = await startLocalHub({
-    dir: join(opts.dir, 'hub'),
-    cloudKey: opts.cloudKey,
-    workspace: checkout,
-    node: opts.node,
+  let hub;
+  try {
+    hub = await startLocalHub({
+      dir: join(opts.dir, 'hub'),
+      cloudKey: opts.cloudKey,
+      workspace: checkout,
+      node: opts.node,
+      ...(authority
+        ? {
+            env: {
+              MAUDE_CONTROL_PLANE_URL: authority.http,
+              MAUDE_TENANT_ID: opts.access.project,
+            },
+          }
+        : {}),
+    });
+  } catch (err) {
+    authority?.stop();
+    throw err;
+  }
+  const stopHub = hub.stop;
+  return {
+    ...hub,
+    checkout,
+    authority,
+    stop: () => {
+      stopHub();
+      authority?.stop();
+    },
+  };
+}
+
+/** The secret serve-hub.mjs signs with — the lane cell's HUB_SECRET (its cell-to-control-plane bearer). */
+export const LANE_HUB_SECRET = 'test-secret';
+
+/**
+ * The control plane's access authority for a lane cell (serve-access-authority.mjs, under Node 24): the real
+ * `/internal/projects/:p/access/*` forwarder over a throwaway D1 holding `project`, owned by `owner`.
+ * @param {{ project: string, owner: string, cellSecret: string, node?: string }} opts
+ */
+export function startAccessAuthority(opts) {
+  const node = opts.node ?? findNode24();
+  const args = [
+    join(HERE, 'serve-access-authority.mjs'),
+    '--project',
+    opts.project,
+    '--owner',
+    opts.owner,
+    '--cell-secret',
+    opts.cellSecret,
+  ];
+  return new Promise((ok, fail) => {
+    const proc = spawn(node, args, {
+      env: hubEnv({ PATH: `${dirname(node)}${delimiter}${process.env.PATH ?? ''}` }),
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let buf = '';
+    const timer = setTimeout(() => {
+      proc.kill('SIGTERM');
+      fail(new Error(`the access authority did not start in 30 s: ${buf.slice(-600)}`));
+    }, 30_000);
+    proc.on('exit', (code) => {
+      clearTimeout(timer);
+      fail(
+        new Error(`the access authority exited (${code}) before it listened: ${buf.slice(-600)}`)
+      );
+    });
+    proc.stdout.on('data', (c) => {
+      buf += c.toString('utf8');
+      const line = buf.split('\n').find((l) => l.startsWith('{'));
+      if (!line) return;
+      clearTimeout(timer);
+      proc.removeAllListeners('exit');
+      ok({ http: JSON.parse(line).http, pid: proc.pid ?? 0, stop: () => proc.kill('SIGTERM') });
+    });
+    proc.stderr.on('data', (c) => {
+      buf += c.toString('utf8');
+    });
   });
-  return { ...hub, checkout };
 }
 
 /** A project access token the way the control plane mints one for `email` (role: owner | member | viewer…). */

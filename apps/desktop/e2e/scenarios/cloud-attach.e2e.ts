@@ -201,6 +201,16 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
     await inviteEmail.waitForDisplayed({ timeout: 30_000 });
     expect((await (await $(tid('share-invite-submit'))).getText()).trim()).toBe('Invite');
     expect(await (await $(tid('share-move-confirm'))).isExisting()).toBe(false);
+    // rc3-j (#162): once the people answer is in, no red line. The board draws none and a real cell answers
+    // Share at once; the lane's cell used to have no control plane to forward access to, and the shot showed
+    // "Sharing is not available right now" here (fixtures/local-hub.mjs `startCloudLaneCell` `access`).
+    await browser.waitUntil(
+      async () =>
+        (await (await $(tid('share-people'))).isExisting()) ||
+        (await (await $(tid('share-people-empty'))).isExisting()),
+      { timeout: 15_000, timeoutMsg: 'the moved project’s people never drew' }
+    );
+    expect(await (await $(tid('share-error'))).isExisting()).toBe(false);
     await capture('moved to the cloud');
     await (await $(tid('share-close'))).click();
 
