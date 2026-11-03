@@ -376,6 +376,21 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `assets-browse-count` | testid | "6 selected · 18.4 MB" on the Browse foot. | `client/v2/assets/browse-view.jsx` · `BrowseView` | — | new |
 | `assets-browse-clear` | testid | Clear on the Browse foot: drops the pick. | `client/v2/assets/browse-view.jsx` · `BrowseView` | — | new |
 | `assets-browse-place` | testid | "Place 6 in <artboard> ↵" on the Browse foot: `image.place` fill-in-order, the picked pictures in reading order. Disabled until an artboard is selected. | `client/v2/assets/browse-view.jsx` · `BrowseView` | — | new |
+| `assets-source` | testid | 2.0.2 — the Assets tab's Library switch, a native select: "This project", then each design system ("<name> · design system"). Only drawn when the project has a design system. | `client/v2/left-panel/assets-panel.jsx` · `AssetsPanel` | — | new |
+| `assets-ds` | testid | A design system's own library in the Assets tab (2.0.2): `data-ds` is the system, `data-dir` the folder shown ('' = its top). | `client/v2/assets/ds-library-view.jsx` · `DsLibraryView` | — | new |
+| `assets-ds-search` | testid | The library's search field: names below the current folder. | `client/v2/assets/ds-library-view.jsx` · `DsLibraryView` | — | new |
+| `assets-ds-crumbs` | testid | The breadcrumb over the library ("alligators › photos-cut"). | `client/v2/assets/ds-library-view.jsx` · `DsLibraryView` | — | new |
+| `assets-ds-crumb` | testid | One breadcrumb step; `data-dir` is the folder it opens, the last one is `aria-current="location"`. | `client/v2/assets/ds-library-view.jsx` · `DsLibraryView` | — | new |
+| `assets-ds-dirs` | testid | The list of folders in the current one. | `client/v2/assets/ds-library-view.jsx` · `DsLibraryView` | — | new |
+| `assets-ds-folder` | testid | One folder row: its name and how many files are directly inside; `data-dir` is what it opens. | `client/v2/assets/ds-library-view.jsx` · `DsLibraryView` | — | new |
+| `assets-ds-grid` | testid | The library's tiles (the same `assets-tile` as the project's; `data-asset` is the literal `/<designRel>/system/<ds>/assets/…` reference a placement writes). | `client/v2/assets/ds-library-view.jsx` · `DsLibraryView` | — | new |
+| `assets-ds-total` | testid | How many files the folder (or the search) holds, all pages together. | `client/v2/assets/ds-library-view.jsx` · `DsLibraryView` | — | new |
+| `assets-ds-more` | testid | "Show more · N files left": the next page (also asked when it scrolls into view). | `client/v2/assets/ds-library-view.jsx` · `DsLibraryView` | — | new |
+| `assets-ds-empty` | testid | A folder with no files and no folders. | `client/v2/assets/ds-library-view.jsx` · `DsLibraryView` | — | new |
+| `assets-ds-nohits` | testid | The library when nothing matches the search. | `client/v2/assets/ds-library-view.jsx` · `DsLibraryView` | — | new |
+| `assets-ds-error` | testid | The library could not be read (or the folder is gone). | `client/v2/assets/ds-library-view.jsx` · `DsLibraryView` | — | new |
+| `assets-ds-note` | testid | Why ↵ did not place: no artboard selected, a name that cannot be a reference, or the studio's refusal. | `client/v2/assets/ds-library-view.jsx` · `DsLibraryView` | — | new |
+| `assets-ds-foot` | testid | The picked file's name at the foot of the library. | `client/v2/assets/ds-library-view.jsx` · `DsLibraryView` | — | new |
 | `canvases-count` | testid | The "N of M shown" readout with the live dot in the foot of Canvases > Advanced (the status bar's files count and live dot, moved). | `client/v2/left-panel/canvases-advanced.jsx` · `CanvasesAdvanced` | — | new |
 | `canvas-row-unsaved` | testid | The unsaved-change badge (M / A / D / U) on a canvas or file row in Canvases (`data-kind` carries the letter). | `client/tree/tree.jsx` · `FileRow` | — | new |
 

@@ -1,0 +1,123 @@
+/* client/v2/assets/ds-library.css — 2.0.2: the Assets tab's Library switch and a design system's own library
+ * (ds-library-view.jsx): the breadcrumb, a row per folder, then the same tiles as the project's. Tokens only. */
+
+@layer shell {
+  .lp-source-row {
+    flex: none;
+    padding: var(--space-1) var(--space-2) 0;
+  }
+  .lp-source {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+  }
+  .lp-source-l {
+    flex: none;
+    font-weight: var(--w-medium);
+  }
+  .lp-source select {
+    flex: 1;
+    min-width: 0;
+    height: 26px;
+    padding: 0 var(--space-1);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+    color: var(--fg-0);
+    font: inherit;
+    font-size: var(--type-sm);
+  }
+  .lp-source select:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .lp-ds-lib {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .lp-ds-crumbs {
+    flex: none;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px;
+    padding: 0 var(--space-2) var(--space-1);
+    font-size: var(--type-xs);
+  }
+  .lp-ds-crumb-w {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    min-width: 0;
+  }
+  .lp-ds-sep {
+    color: var(--fg-2);
+  }
+  .lp-ds-crumb {
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 2px var(--space-1);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-1);
+    font: inherit;
+    cursor: pointer;
+  }
+  .lp-ds-crumb[aria-current="location"] {
+    color: var(--fg-0);
+    font-weight: var(--w-semibold);
+    cursor: default;
+  }
+  .lp-ds-crumb:hover:not([aria-current]) {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+  .lp-ds-dirs {
+    margin: 0 0 var(--space-2);
+    padding: 0;
+    list-style: none;
+  }
+  .lp-ds-dir {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    height: 30px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-sm);
+    text-align: left;
+    cursor: pointer;
+  }
+  .lp-ds-dir:hover {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+  .lp-ds-dir-n {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .lp-ds-dir .lp-count {
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+  }
+  .lp-ds-crumb:focus-visible,
+  .lp-ds-dir:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+}

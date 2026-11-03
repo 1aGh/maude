@@ -55,6 +55,8 @@ import { AssetTileMenu, tileMenuItems } from '../assets/tile-menu.jsx';
 import { ConfirmTrash, NotCountedNote, TidyFoot, tidyModel } from '../assets/tidy.jsx';
 import { moveAssetsToTrash, undoAssetTrash } from '../assets/trash-assets.js';
 import { useAssets } from '../assets/use-assets.js';
+import { dsOfSource, PROJECT_SOURCE, sourcesOf } from '../assets/ds-library.js';
+import { DsLibraryView } from '../assets/ds-library-view.jsx';
 import { AskButton, copy, Empty } from '../empty/index.js';
 import { getPaletteEnv } from '../search/search-env.js';
 import { menuRunner } from '../shell/menu-runner.js';
@@ -160,9 +162,16 @@ export function AssetsPanel({
   isOffline = undefined,
   // S8.21 — "Used in" in the details opens the canvas (`<designRel>/<canvas>`) and selects the artboard
   onOpenCanvas = undefined,
+  // 2.0.2 — the project's design systems (config `designSystems`): each is a source the tab can show instead
+  designSystems = [],
   fetchImpl = undefined,
 }) {
   const { assets, history, reload } = useAssets({ fetchImpl });
+  // 2.0.2 — which library the tab shows: this project's assets, or one design system's own (ds-library-view.jsx)
+  const sources = useMemo(() => sourcesOf(designSystems), [designSystems]);
+  const [source, setSource] = useState(PROJECT_SOURCE);
+  const sourceDs = sources.some((x) => x.id === source) ? dsOfSource(source) : null;
+  const dsApi = useRef(null);
   const generated = useGenerated({ fetchImpl });
   const reloadGenerated = generated.reload;
   // a run's record is a file of its own: re-read when the rows move, so a take that just landed is in its run
@@ -566,6 +575,7 @@ export function AssetsPanel({
   // The registry reaches the tab through the bus: the same functions the tile menu runs.
   const live = useRef({});
   live.current = {
+    sourceDs,
     describe,
     picked,
     browse,
@@ -582,7 +592,8 @@ export function AssetsPanel({
       bindAssetsPanel({
         place: () => {
           const l = live.current;
-          if (l.browse) {
+          if (l.sourceDs) void dsApi.current?.place();
+          else if (l.browse) {
             const list = l.browsePicked();
             if (list.length) void l.placeMany(list);
           } else if (l.picked) void l.place(l.picked);
@@ -623,6 +634,7 @@ export function AssetsPanel({
         },
         tileSelected: () => {
           const l = live.current;
+          if (l.sourceDs) return !!dsApi.current?.tileSelected();
           const has = l.browse ? l.browse.selected.size > 0 : !!l.picked;
           return has && !!rootRef.current?.contains(document.activeElement);
         },
@@ -791,6 +803,52 @@ export function AssetsPanel({
       void upload(() => Promise.all(files.map((f) => uploadNamed(f, noteProgress))));
   };
 
+  // 2.0.2 — "Library": this project, or a design system's own (only when the project has one)
+  const sourceSwitch =
+    sources.length > 1 ? (
+      <div className="lp-source-row">
+        <label className="lp-source">
+          <span className="lp-source-l">Library</span>
+          <select
+            data-testid="assets-source"
+            aria-label="Library"
+            value={sourceDs ? source : PROJECT_SOURCE}
+            onChange={(e) => {
+              setSource(e.target.value);
+              setPicked(null);
+              setBrowse(null);
+              setDetails(null);
+              setMenu(null);
+            }}
+          >
+            {sources.map((x) => (
+              <option key={x.id} value={x.id}>
+                {x.ds ? `${x.label} · design system` : x.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+    ) : null;
+  if (sourceDs)
+    return (
+      <div className="lp-assets" data-testid="assets-panel" data-source="ds">
+        {sourceSwitch}
+        <DsLibraryView
+          key={sourceDs}
+          ds={sourceDs}
+          designRel={designRel}
+          readOnly={readOnly}
+          placeTarget={placeTarget}
+          placeLabel={placeLabel}
+          onRecord={onRecord}
+          toast={toast}
+          apiRef={dsApi}
+          fetchImpl={fetchImpl}
+        />
+      </div>
+    );
+
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: a file drop target is a pointer door; the Upload button is the keyboard path
     <div
@@ -809,6 +867,7 @@ export function AssetsPanel({
       }}
       onDrop={onDrop}
     >
+      {detailed ? null : sourceSwitch}
       {detailed ? null : (
         <div className="lp-head-row">
           <label className="lp-find">
