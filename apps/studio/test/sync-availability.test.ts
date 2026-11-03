@@ -105,6 +105,32 @@ describe('partial seed', () => {
     expect(m.pending.every((p) => p.state === 'arriving')).toBe(true);
   });
 
+  test('a listed module is not a canvas: `_` files never arrive, never count', () => {
+    // 2.0.1 field (alligators): the v2 conversion keeps a document for every `.tsx` in a canvas
+    // folder, shared modules included — `_kit`, `_frames`, `_social` drew as ghost canvases that
+    // never arrived ("Getting Design · 94 of 103") and failed when clicked. The index never lists
+    // them (isCanvasFile); the hub's listing is held to the same rule.
+    const paths: Record<string, string> = {
+      'ui-social-events': 'ui/social/events.tsx',
+      'ui-social-social': 'ui/social/_social.tsx',
+      'ui-club-web-frames': 'ui/club-web/_frames.tsx',
+      'system-alligators-preview-kit': 'system/alligators/preview/_kit.tsx',
+      'system-alligators-preview-buttons': 'system/alligators/preview/components-buttons.tsx',
+      'ui-hero': 'ui/hero.tsx',
+    };
+    const m = computeAvailability({
+      source: source({ listing: Object.keys(paths), paths }),
+      local: ['.design/ui/social/events.tsx'],
+      designRel: DR,
+    });
+    // A DS specimen IS a canvas (the index lists it by its own rule) — it still arrives.
+    expect(m.pending.map((p) => p.path).sort()).toEqual([
+      'system/alligators/preview/components-buttons.tsx',
+      'ui/hero.tsx',
+    ]);
+    expect(m).toMatchObject({ phase: 'arriving', done: 1, total: 3 });
+  });
+
   test('the names a person reads come from the document path (folders kept)', () => {
     const m = computeAvailability({
       source: source({ listing: Object.keys(ALLIGATORS), paths: ALLIGATORS }),

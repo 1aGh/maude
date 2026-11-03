@@ -160,6 +160,11 @@ export function computeAvailability(input: AvailabilityInput): Availability {
       if (path === null) continue;
     }
     if (path !== null && localPaths.has(path)) continue;
+    // A `_`-named file or folder is never a canvas (skip-dirs.ts `isCanvasFile`; the index never
+    // lists one), but the v2 conversion keeps a document for every `.tsx` in a canvas folder, shared
+    // modules included: `_kit` / `_frames` / `_social` drew as ghost canvases that never arrived and
+    // failed when clicked (2.0.1, alligators: "94 of 103").
+    if (path !== null && path.split('/').some((s) => s.startsWith('_'))) continue;
     pending.push({ path, name: path === null ? null : nameOf(path), state });
   }
   pending.sort((a, b) =>
