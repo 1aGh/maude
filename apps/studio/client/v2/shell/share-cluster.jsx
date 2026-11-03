@@ -17,10 +17,13 @@ import { ACTIONS_BY_ID } from '../../../actions/index.ts';
 import { modeCell } from '../../../bridge/mode-shows.ts';
 import { StIcon } from '../../shell/icons.jsx';
 import { PresenceFaces } from '../presence/faces.jsx';
+import { INVITES_WAIT_CLOUD } from '../share/share-model.js';
 import { keyHint } from './project-menu-model.js';
 
 /** The words under Share while this Mac is offline — the same sentence the sheet gives a queued invite. */
 export const OFFLINE_INVITE_TIP = 'Invites send when this Mac is online.';
+/** rc3-i — the same line in a cloud tab, which has no Mac in it. */
+export const OFFLINE_INVITE_TIP_CLOUD = INVITES_WAIT_CLOUD;
 
 function Ring({ value }) {
   return (
@@ -65,6 +68,7 @@ const withKey = (label, def, ctx) => {
  *   (bridge/mode-shows.ts): Preview is `compact`, Viewing `full-access`; `data-cluster` carries it
  * @param present the Present spec while presenting (Artboards · Canvas are two columns of the table)
  * @param accountSlot the account chip + card (S1.22a, account-card.jsx) — first, desktop only
+ * @param cloud this shell is a cloud tab: no sentence names a Mac (rc3-i)
  */
 export function ShareCluster({
   faces,
@@ -89,6 +93,7 @@ export function ShareCluster({
   mode = null,
   present = null,
   accountSlot = null,
+  cloud = false,
 }) {
   const cluster = mode ? modeCell('share-cluster', mode, present) : 'full';
   const offline = !access && status?.kind === 'offline';
@@ -238,7 +243,7 @@ export function ShareCluster({
             className="sh-tip"
             data-testid="share-offline-tip"
           >
-            {OFFLINE_INVITE_TIP}
+            {cloud ? OFFLINE_INVITE_TIP_CLOUD : OFFLINE_INVITE_TIP}
           </span>
         </span>
       ) : (

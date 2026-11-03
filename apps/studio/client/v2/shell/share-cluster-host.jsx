@@ -162,6 +162,7 @@ export function ShellShareCluster() {
   useHeldConflictToast({ held, names: conflictNames, onCompare: compare, toast: notify });
   const status = saveStatus({
     linked,
+    cloud: !!cfg?.cloud,
     online,
     phase,
     pending,
@@ -306,6 +307,7 @@ export function ShellShareCluster() {
   return (
     <>
       <ShareCluster
+        cloud={!!cfg?.cloud}
         accountSlot={
           chip ? (
             <AccountChip

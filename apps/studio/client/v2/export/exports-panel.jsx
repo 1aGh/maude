@@ -24,7 +24,7 @@ import {
   PANEL_FOOT,
   PANEL_TITLE,
   panelGroups,
-  RUNNING_FOOT,
+  runningFoot,
 } from './exports-model.js';
 
 const EMPTY_ID = 'es-panels-make.exports-none';
@@ -157,7 +157,9 @@ export function ExportsPanel({
         )}
       </div>
       {groups.length > 0 ? (
-        <p className="ex-panel-foot">{running ? RUNNING_FOOT : PANEL_FOOT}</p>
+        <p className="ex-panel-foot">
+          {running ? runningFoot(center.jobs, { native }) : PANEL_FOOT}
+        </p>
       ) : null}
     </div>
   );

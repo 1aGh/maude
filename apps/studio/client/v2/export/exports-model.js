@@ -14,6 +14,19 @@ export const PANEL_FOOT = 'The last 20 exports stay here. Also in Search: “Exp
 /** 09 ex-progress: while something runs the foot says what survives a sleeping Mac. */
 export const RUNNING_FOOT =
   'Cloud renders keep going if this Mac sleeps or the window closes. Exports on this Mac need the window open — images and PDFs take seconds.';
+/**
+ * rc3-i — a browser tab (a cloud tab) has no Mac to sleep: when everything running there runs in the cloud, the
+ * foot says only the part that is true. The desktop keeps RUNNING_FOOT whatever runs.
+ */
+export const RUNNING_FOOT_CLOUD = 'Cloud renders keep going if the window closes.';
+export function runningFoot(jobs, { native = true } = {}) {
+  const active = (Array.isArray(jobs) ? jobs : []).filter(
+    (j) => j?.status === 'queued' || j?.status === 'running'
+  );
+  if (!native && active.length > 0 && active.every((j) => j.runsOn === 'cloud'))
+    return RUNNING_FOOT_CLOUD;
+  return RUNNING_FOOT;
+}
 export const OPEN_FOLDER = 'Open the Downloads folder';
 export const SHOW_IN_FINDER = 'Show in Finder';
 export const DOWNLOAD = 'Download';

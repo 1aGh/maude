@@ -143,16 +143,23 @@ function secondsWords(seconds) {
   return `about ${Math.round(seconds / 60)} min`;
 }
 
-/** "21 files · about 140 MB · about 20 seconds on this Mac". */
-export function estimateWords({ files, bytes, seconds, lane }, { pdfPages = null } = {}) {
-  const where = lane === 'cloud' ? 'in the cloud' : 'on this Mac';
+/**
+ * "21 files · about 140 MB · about 20 seconds on this Mac".
+ * `workspace` = a cloud tab (a browser on a cell): nothing runs on a Mac there, so the time names the cloud or no
+ * place at all (rc3-i — the callouts' rule: same words, minus the part that is false there).
+ */
+export function estimateWords(
+  { files, bytes, seconds, lane },
+  { pdfPages = null, workspace = false } = {}
+) {
+  const where = lane === 'cloud' ? ' in the cloud' : workspace ? '' : ' on this Mac';
   return [
     // 09 ex-print: one print PDF says its pages — "1 PDF · 2 pages", not "1 file"
     pdfPages && files === 1
       ? `1 PDF · ${pdfPages} ${pdfPages === 1 ? 'page' : 'pages'}`
       : `${files} ${files === 1 ? 'file' : 'files'}`,
     `about ${bytesWords(bytes)}`,
-    `${secondsWords(seconds)} ${where}`,
+    `${secondsWords(seconds)}${where}`,
   ].join(' · ');
 }
 

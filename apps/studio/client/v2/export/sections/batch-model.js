@@ -193,10 +193,11 @@ export const isBig = (est) =>
  * the cloud — that the window can close once this Mac's part is done. `summary` is the sheet's own
  * estimate sentence (counts, size, time), so the two never disagree.
  */
-export function bigWords(est, { summary, hasVideo }) {
+export function bigWords(est, { summary, hasVideo, workspace = false }) {
   if (!isBig(est)) return null;
   const head = `This is a big export — ${summary ?? `${countWord(est.files)} files`}.`;
-  if (hasVideo && est.lane === 'cloud')
+  // rc3-i — a cloud tab has no "this Mac's part": the sheet's own browser captures stay with the window
+  if (hasVideo && est.lane === 'cloud' && !workspace)
     return `${head} Once this Mac’s part is done you can close the window — the cloud finishes the videos.`;
   return `${head} Keep this window open until it is done.`;
 }
