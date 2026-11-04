@@ -122,6 +122,8 @@ const DEDICATED: Record<string, string> = {
   'remember-folds.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:remember',
   // P8 test round missing-a: 05 es-all-trashed (alice and bob race), 12 ia-missing, 12 ia-edges D — the cell lane's world.
   'team-cell-missing.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:team-cell-missing',
+  // 2.0.3: a generated git project with Git LFS pointer media, the canvas-origin split ON, the real clipboard.
+  'lfs-placeholder.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:lfs',
 };
 
 // Drift tripwire. Adding a wdio.<name>.conf.ts without listing its spec above
