@@ -4,6 +4,7 @@ import { DemoCaptioned } from './compositions/DemoCaptioned';
 import { Final } from './compositions/Final';
 import { V4, V4_TOTAL_FRAMES } from './compositions/V4';
 import { Intro2, INTRO2_SCENES, INTRO2_TOTAL_FRAMES } from './compositions/Intro2';
+import { INTROV2_FRAMES, IntroV2 } from './compositions/IntroV2';
 import { V5, V5_SCENES, V5_TOTAL_FRAMES } from './compositions/V5';
 import { PlaceholderScene } from './scenes/_placeholder';
 import { SmokeScene } from './scenes/_smoke';
@@ -226,6 +227,16 @@ export const Root = () => (
       id="Intro2"
       component={Intro2}
       durationInFrames={INTRO2_TOTAL_FRAMES}
+      fps={30}
+      width={1920}
+      height={1080}
+    />
+
+    {/* ── IntroV2: the approved storyboard (.design/ui/Intro Film v2.tsx), one continuous canvas ── */}
+    <Composition
+      id="IntroV2"
+      component={IntroV2}
+      durationInFrames={INTROV2_FRAMES}
       fps={30}
       width={1920}
       height={1080}

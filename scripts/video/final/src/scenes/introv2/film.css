@@ -1,0 +1,9 @@
+/* IntroV2 is driven only by the film clock (useCurrentFrame). Any CSS animation or transition
+ * inside the kit (e.g. the AI tag's soft pulse) is frozen so every frame is deterministic. */
+.iv2 *,
+.iv2 *::before,
+.iv2 *::after {
+  animation-play-state: paused !important;
+  transition-property: none !important;
+}
+.iv2 .k-cur { position: absolute; }
