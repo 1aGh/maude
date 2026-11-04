@@ -1,5 +1,6 @@
 import { $, browser, expect } from '@wdio/globals';
 
+import { capturedSignInUrl, captureTeamServerSignIn, signInOnHubPage } from './hub-signin-page';
 import { isNativeShell } from './native';
 import { waitForSidecar } from './sidecar';
 import { activeTab, HOME, labels, pinCurrentWindow, waitWindow } from './windows';
@@ -39,9 +40,11 @@ export async function followNewTab(before: string[], timeout = 60_000): Promise<
 }
 
 /**
- * Home → Advanced options → Use a self-hosted hub → address, email, password → Connect. Returns the new
- * project tab's label (already switched to and pinned). Does not wait for canvases: the caller names what
- * it expects (and handles a first-sync consent, which sits in the project's own window).
+ * Home → Advanced options → Use a self-hosted hub → address → Sign in, which opens the hub's OWN page
+ * (issue #204 K2: the app has no email or password field); the helper walks that page's hops with the
+ * given account (helpers/hub-signin-page.ts) and Home opens the project. Returns the new project tab's
+ * label (already switched to and pinned). Does not wait for canvases: the caller names what it expects
+ * (and handles a first-sync consent, which sits in the project's own window).
  */
 export async function connectHubFromHome(creds: {
   hub: string;
@@ -56,8 +59,9 @@ export async function connectHubFromHome(creds: {
   await row.click();
   await (await $(tid('onb-hub'))).waitForDisplayed({ timeout: 10_000 });
   await (await $(tid('onb-hub-url'))).setValue(creds.hub);
-  await (await $(tid('onb-hub-email'))).setValue(creds.email);
-  await (await $(tid('onb-hub-password'))).setValue(creds.password);
+  await captureTeamServerSignIn();
   await (await $(tid('onb-hub-go'))).click();
+  await (await $(tid('onb-hub-waiting'))).waitForDisplayed({ timeout: 15_000 });
+  await signInOnHubPage(await capturedSignInUrl(), creds.email, creds.password);
   return followNewTab(before);
 }

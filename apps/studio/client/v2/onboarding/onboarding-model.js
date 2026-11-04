@@ -3,17 +3,21 @@
 // main button ("Connect to your own hub" → Connect). Advanced language (addresses, commands, keys) is allowed
 // here and only here (the canvas's note 15).
 
+// Issue #204: one Sign in — the hub's own page in the browser; no email or password field in the app.
 export const HUB_WORDS = {
-  title: 'Connect to your own hub',
-  verb: 'Connect',
-  busy: 'Connecting…',
+  title: 'Sign in to your own hub',
+  verb: 'Sign in',
+  busy: 'Signing in…',
   addressLabel: 'Hub address',
   test: 'Test connection',
   testing: 'Testing…',
   reachable: (version) => (version ? `Reachable — hub ${version}` : 'Reachable'),
-  modePassword: 'Email and password',
-  modeInvite: 'Invite link or key',
-  fine: 'Projects on this hub open like cloud ones. cloud.maude.sh stays signed in too.',
+  inviteLabel: 'Invite link or key (if you have one)',
+  invitePlaceholder: 'Invite link or key',
+  waiting: 'Finish signing in in your browser.',
+  refused: 'That address can’t be opened. Check the hub address.',
+  noBrowser: 'The browser didn’t open. Try again.',
+  fine: 'Sign in opens the hub’s own sign-in page in your browser. Maude Cloud stays signed in too.',
   unreachable: "Couldn't reach that hub. Check the address, or whether it's online.",
 };
 
