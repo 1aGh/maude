@@ -23,6 +23,7 @@
     "allow-save-export",
     "allow-reveal-export",
     "allow-clipboard-write-png",
+    "allow-clipboard-write-text",
     "allow-pick-media-file",
     "allow-pick-media-files",
     "allow-read-picked-media",

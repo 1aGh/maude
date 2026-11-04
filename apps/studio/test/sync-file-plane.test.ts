@@ -2433,3 +2433,28 @@ describe('a hub without file-classes-v2 is not offered the 2.0-only files', () =
     expect(ledger.row('system/ds/tokens.json')?.state).toBe('on-hub');
   });
 });
+
+describe('2.0.3 — a Git LFS pointer is never uploaded as the media', () => {
+  const POINTER = `version https://git-lfs.github.com/spec/v1\noid sha256:${'d'.repeat(64)}\nsize 48213\n`;
+
+  test('held once with plain words; the real file goes up once it is restored', async () => {
+    const hub = fakeHub();
+    write('assets/hero.png', POINTER);
+    write('assets/real.png', 'png bytes');
+    const first = await plane(hub).reconcile();
+    expect(first.pushed).toEqual(['assets/real.png']);
+    expect(hub.puts.map((p) => p.rel)).toEqual(['assets/real.png']);
+    expect(first.dropped.map((d) => d.rel)).toEqual(['assets/hero.png']);
+    expect(ledger.row('assets/hero.png')?.state).toBe('refused');
+    expect(ledger.row('assets/hero.png')?.reason).toContain('Git LFS placeholder');
+    // the same pointer is not tried (or reported) again
+    const second = await plane(hub).reconcile();
+    expect(second.dropped).toEqual([]);
+    expect(second.pushed).toEqual([]);
+    // `git lfs pull` put the picture back: a new hash, so it goes up
+    write('assets/hero.png', 'the real picture, much bigger than a pointer '.repeat(40));
+    const third = await plane(hub).reconcile();
+    expect(third.pushed).toEqual(['assets/hero.png']);
+    expect(hub.puts.at(-1)?.rel).toBe('assets/hero.png');
+  });
+});

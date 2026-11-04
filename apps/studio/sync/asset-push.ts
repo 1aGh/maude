@@ -45,6 +45,7 @@ import { type Dirent, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 import { type CanvasGroupLike, classifyProjectFile, isFilePlaneClass } from './file-membership.ts';
+import { readLfsPointer } from './lfs-pointer.ts';
 import { failureReason, retryAfterMs } from './retry-after.ts';
 
 /** Max designRoot-relative depth (matches the classifier's 8-segment cap). */
@@ -437,10 +438,16 @@ export async function pushAssets(opts: {
   const base = hubUrl.replace(/\/+$/, '');
   const out: AssetPushResult = { pushed: [], skipped: 0, failed: [] };
 
-  const assets = listPushableAssets(designRoot, {
+  const listed = listPushableAssets(designRoot, {
     canvasGroups: opts.canvasGroups,
     syncFiles: opts.syncFiles,
   });
+  // 2.0.3 — a Git LFS pointer (a clone without `git lfs pull`) is not the media: never pushed as it.
+  const assets = listed.filter((rel) => readLfsPointer(path.join(designRoot, rel)) === null);
+  if (assets.length < listed.length)
+    log.warn(
+      `[asset-push] ${listed.length - assets.length} Git LFS placeholder(s) not uploaded — run git lfs pull`
+    );
   // -Infinity seeds the throttle open, so the first emit always passes.
   let lastEmit = -Infinity;
   const emitProgress = (active: string | null, finished: boolean, force = false): void => {

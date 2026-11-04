@@ -45,6 +45,7 @@ fn main() {
                 "save_export",
                 "reveal_export",
                 "clipboard_write_png",
+                "clipboard_write_text",
                 "pick_media_file",
                 "pick_media_files",
                 "read_picked_media",

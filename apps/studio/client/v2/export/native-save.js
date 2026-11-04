@@ -7,6 +7,10 @@
 //                                                              `save` returned in this run of the app
 //   copyPng(blob)                     → navigator.clipboard, then `clipboard_write_png` (Q13: WKWebView
 //                                                              refuses ClipboardItem outside some gestures)
+//   copyText(text)                    → navigator.clipboard (≤ 800 ms), then `clipboard_write_text` (2.0.3:
+//                                                              a click inside the canvas iframe leaves the
+//                                                              shell without user activation; WKWebView
+//                                                              refuses, or leaves the promise pending)
 //
 // The bytes of a save never pass through the page: Rust fetches the job from this project's own server by
 // id. `saveTo` is ExportSpecV2's (`ask` | `remembered` | `downloads`; absent = ask). Rust is the gate (the
@@ -25,7 +29,13 @@ export const SAVE_COMMANDS = Object.freeze({
   save: 'save_export',
   reveal: 'reveal_export',
   copyPng: 'clipboard_write_png',
+  copyText: 'clipboard_write_text',
 });
+
+/** Mirrors export_save.rs `MAX_CLIPBOARD_TEXT` (UTF-8 bytes). */
+export const MAX_CLIPBOARD_TEXT = 64 * 1024;
+/** How long `navigator.clipboard.writeText` may stay pending before the shell writes it instead. */
+export const BROWSER_COPY_TIMEOUT_MS = 800;
 
 export const SAVE_TO = Object.freeze(['ask', 'remembered', 'downloads']);
 
@@ -79,6 +89,7 @@ export function nativeSave(win = typeof window !== 'undefined' ? window : null, 
   const download = opts.download ?? ((jobId, filename) => browserDownload(win, jobId, filename));
   const clipboard = opts.clipboard ?? win?.navigator?.clipboard ?? null;
   const Item = opts.ClipboardItem ?? win?.ClipboardItem ?? null;
+  const copyTimeoutMs = opts.copyTimeoutMs ?? BROWSER_COPY_TIMEOUT_MS;
 
   return {
     available: !!invoke,
@@ -151,6 +162,39 @@ export function nativeSave(win = typeof window !== 'undefined' ? window : null, 
       try {
         // A Uint8Array as the whole argument travels as the raw IPC body, not a JSON array.
         await invoke(SAVE_COMMANDS.copyPng, bytes);
+        return { ok: true, via: 'shell' };
+      } catch (e) {
+        return { ok: false, reason: 'refused', error: words(e) };
+      }
+    },
+
+    /** Plain text. `navigator.clipboard` first, raced against a short timeout; then the shell. */
+    async copyText(text) {
+      const s = typeof text === 'string' ? text : '';
+      if (!s || s.includes('\0'))
+        return { ok: false, reason: 'refused', error: "There's nothing to copy." };
+      if (new TextEncoder().encode(s).length > MAX_CLIPBOARD_TEXT) {
+        return { ok: false, reason: 'refused', error: 'That text is too long to copy.' };
+      }
+      if (clipboard?.writeText) {
+        let timer = null;
+        try {
+          const done = await Promise.race([
+            Promise.resolve(clipboard.writeText(s)).then(() => true),
+            new Promise((res) => {
+              timer = setTimeout(() => res(false), copyTimeoutMs);
+            }),
+          ]);
+          if (done) return { ok: true, via: 'browser' };
+        } catch {
+          // refused outside a gesture it trusts — the shell writes it instead
+        } finally {
+          if (timer !== null) clearTimeout(timer);
+        }
+      }
+      if (!invoke) return { ok: false, reason: 'refused', error: "Couldn't copy the text." };
+      try {
+        await invoke(SAVE_COMMANDS.copyText, { text: s });
         return { ok: true, via: 'shell' };
       } catch (e) {
         return { ok: false, reason: 'refused', error: words(e) };
