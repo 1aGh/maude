@@ -17,18 +17,19 @@
     "test": "bun test"
   },
   "dependencies": {
-    "react": "19.2.0",
-    "react-dom": "19.2.0",
-    "remotion": "4.0.463",
+    "@remotion/animation-utils": "4.0.463",
     "@remotion/bundler": "4.0.463",
     "@remotion/captions": "4.0.463",
     "@remotion/cli": "4.0.463",
-    "@remotion/animation-utils": "4.0.463",
     "@remotion/google-fonts": "4.0.463",
     "@remotion/install-whisper-cpp": "4.0.463",
     "@remotion/layout-utils": "4.0.463",
+    "@remotion/motion-blur": "4.0.463",
     "@remotion/renderer": "4.0.463",
     "@remotion/transitions": "4.0.463",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "remotion": "4.0.463",
     "remotion-animated": "2.2.0",
     "remotion-bits": "0.2.0",
     "zod": "4.3.6"
