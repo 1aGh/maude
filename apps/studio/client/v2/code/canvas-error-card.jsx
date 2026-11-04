@@ -21,7 +21,10 @@ import { useEffect, useRef, useState } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
 import { AdvancedFold } from '../fold/advanced-fold.jsx';
 import { Check, Copy, Spark } from '../ai/icons.jsx';
+import { INDEX_CHANGED_EVENT } from '../canvases/use-canvas-index.js';
 import { projectRel } from '../shell/native-doors.js';
+import { BUILD_FAILURE_BODY, buildFailureReason } from './canvas-waiting.js';
+import { CanvasWaitingCard } from './canvas-waiting-card.jsx';
 import { registerErrorCard } from './code-bus.js';
 import {
   askAiText,
@@ -36,6 +39,8 @@ import {
 } from './use-canvas-source.js';
 
 const pad2 = (n) => String(n).padStart(2, '0');
+/** 2.0.4 — the waiting card re-asks this often (a landed file re-asks at once, via the index). */
+export const WAITING_WATCH_MS = 4000;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /** "14:05" (24 hour, local). */
@@ -53,7 +58,7 @@ export function whenLabel(at) {
 }
 
 /** The card's sentence under the title. */
-export function cardBody({ kind, error, lastGood }) {
+export function cardBody({ kind, error, lastGood, buildFailure = null }) {
   const tail = 'Other canvases are fine; the last good version is in Version history.';
   if (kind === 'render') {
     const when = lastGood ? whenLabel(lastGood.at) : '';
@@ -62,6 +67,8 @@ export function cardBody({ kind, error, lastGood }) {
       : "The last change has a mistake the canvas can't show. Nothing is lost; every version stays in Version history.";
   }
   // 01 cf-render-error: the body is one plain sentence; the error and the line live under Show details
+  // #189 — the build stopped on the app's side (engine, time, memory, refused imports): not the code
+  if (!error && buildFailure) return BUILD_FAILURE_BODY;
   // the load gave up and the server knows of no mistake in the code: say that, not a guess about it
   if (!error)
     return "It didn't finish loading. Nothing is lost. Reload the canvas, or ask AI to look.";
@@ -143,10 +150,14 @@ export function CanvasErrorCard({
   onReload,
   onCopy,
   askAiAvailable = true,
+  /** #189 — the build stopped outside the code (`{ class, count? }`): no Ask AI, the reason under the fold. */
+  buildFailure = null,
   /** The fold starts open (a test / a caller that wants the details up front). */
   detailsOpen = false,
 }) {
   const [open, setOpen] = useState(detailsOpen);
+  // AI can't fix the app's own build: Ask AI is offered only when the cause may be the code
+  const offerAi = askAiAvailable && !(buildFailure && !error);
   const name = canvasTitle(canvas);
   const where = whereLabel(error);
   const excerpt = excerptOf(error, lines);
@@ -155,7 +166,16 @@ export function CanvasErrorCard({
   // The registry's three card actions (canvas.copy-error · canvas.ask-ai-fix · canvas.last-good) reach the
   // card that is showing through the bus; a ref keeps the newest props without re-registering.
   const live = useRef({});
-  live.current = { canvas, kind, error, lastGood, onAskAi, onGoBack, onCopy, askAiAvailable };
+  live.current = {
+    canvas,
+    kind,
+    error,
+    lastGood,
+    onAskAi,
+    onGoBack,
+    onCopy,
+    askAiAvailable: offerAi,
+  };
   useEffect(
     () =>
       registerErrorCard({
@@ -191,7 +211,7 @@ export function CanvasErrorCard({
         </h2>
       </header>
       <p className="v2-err-d" data-testid="canvas-error-body">
-        {cardBody({ kind, error, lastGood })}
+        {cardBody({ kind, error, lastGood, buildFailure })}
       </p>
       {lastGood ? (
         <p className="v2-err-lg" data-testid="canvas-error-last-good-line">
@@ -209,7 +229,7 @@ export function CanvasErrorCard({
             {clock ? `Go back to ${clock}` : 'Go back'}
           </button>
         ) : null}
-        {askAiAvailable && onAskAi ? (
+        {offerAi && onAskAi ? (
           <button
             type="button"
             className="btn btn--sm btn--spark"
@@ -247,6 +267,13 @@ export function CanvasErrorCard({
             ) : null}
             <ErrorExcerpt excerpt={excerpt} />
           </>
+        ) : buildFailure ? (
+          <div className="v2-err-row">
+            <span className="v2-err-k">Reason</span>
+            <span className="v2-err-v" data-testid="canvas-error-build-reason">
+              {buildFailureReason(buildFailure)}
+            </span>
+          </div>
         ) : (
           <p className="v2-err-none" data-testid="canvas-error-none">
             No details were reported. Reload the canvas, or ask AI to look.
@@ -359,10 +386,40 @@ export function CanvasLoadFailure({
   onNotify,
   onCopy,
   fetchImpl,
+  /** How often the waiting card re-asks (a file landing also re-asks at once). */
+  watchMs = WAITING_WATCH_MS,
 }) {
-  const err = useCanvasError({ canvas, fetchImpl });
+  const [stamp, setStamp] = useState(0);
+  const err = useCanvasError({ canvas, stamp, quiet: true, fetchImpl });
   const ghosts = useGhostBoxes({ canvas, fetchImpl });
   const error = err.status === 'ok' ? err.error : null;
+  const waiting = err.status === 'ok' ? err.waiting : null;
+  const buildFailure = err.status === 'ok' ? err.buildFailure : null;
+  // 2.0.4 — while it waits for files, watch: re-ask when the project index moves (a file landed) and on
+  // a modest timer, and load the canvas by itself the moment nothing is missing any more. This is not
+  // a retry of a failure (CONTRACT C20): the cause it named went away.
+  const waitingNow = !!waiting;
+  useEffect(() => {
+    if (!waitingNow) return undefined;
+    const again = () => setStamp((n) => n + 1);
+    const timer = setInterval(again, watchMs);
+    globalThis.addEventListener?.(INDEX_CHANGED_EVENT, again);
+    return () => {
+      clearInterval(timer);
+      globalThis.removeEventListener?.(INDEX_CHANGED_EVENT, again);
+    };
+  }, [waitingNow, watchMs]);
+  const wasWaiting = useRef(false);
+  const reloadRef = useRef(onReload);
+  reloadRef.current = onReload;
+  useEffect(() => {
+    if (err.status !== 'ok') return;
+    if (err.waiting) wasWaiting.current = true;
+    else if (wasWaiting.current) {
+      wasWaiting.current = false;
+      reloadRef.current?.();
+    }
+  }, [err]);
   // Context lines come from the source — for people who may read it (Can view gets the one quoted line).
   const src = useCanvasSource({ canvas, enabled: !!error?.line, fetchImpl });
   const lines = src.status === 'ok' ? src.lines : null;
@@ -387,6 +444,8 @@ export function CanvasLoadFailure({
       </p>
     );
   }
+  // files it imports haven't reached this Mac, or are held back: not a mistake in its code
+  if (waiting) return <CanvasWaitingCard canvas={canvas} waiting={waiting} />;
   return (
     <>
       <LastGoodGhosts boxes={ghosts} />
@@ -401,6 +460,7 @@ export function CanvasLoadFailure({
         onGoBack={canEdit ? goBack : undefined}
         onReload={onReload}
         onCopy={onCopy}
+        buildFailure={buildFailure}
       />
     </>
   );
