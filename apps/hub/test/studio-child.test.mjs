@@ -8,7 +8,15 @@ import { EventEmitter } from 'node:events';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 
-import { BACKOFF_MS, childEnv, createStudioChild, studioLaunch } from '../src/studio-child.mjs';
+import {
+  _resetKnobWarnings,
+  BACKOFF_MS,
+  BUILD_KNOBS,
+  buildKnobEnv,
+  childEnv,
+  createStudioChild,
+  studioLaunch,
+} from '../src/studio-child.mjs';
 
 class FakeChild extends EventEmitter {
   constructor(pid) {
@@ -167,6 +175,55 @@ test('the embed allowlist reaches the studio, which frames with it (DDR-247)', (
     { port: 4399 }
   );
   assert.equal(on.MAUDE_EMBED_ORIGINS, 'https://orbit.studyfi.com');
+});
+
+test('2.0.4 task P — the canvas build ceilings reach the studio, validated and clamped', () => {
+  // design.studyfi.com: the board needed more than the 20 s build ceiling on a shared host, and
+  // MAUDE_CANVAS_BUILD_TIMEOUT_MS set on the hub never reached the child (the allowlist).
+  _resetKnobWarnings();
+  const off = childEnv({ PATH: '/bin' }, { port: 4399 });
+  for (const name of Object.keys(BUILD_KNOBS)) assert.equal(off[name], undefined, name);
+
+  const on = childEnv(
+    {
+      PATH: '/bin',
+      MAUDE_CANVAS_BUILD_TIMEOUT_MS: '120000',
+      MAUDE_CANVAS_BUILD_WAIT_MS: ' 25000 ',
+      MAUDE_CANVAS_BUILD_RSS_MB: '1024',
+      MAUDE_CANVAS_CACHE_ENTRIES: '128',
+    },
+    { port: 4399 }
+  );
+  assert.equal(on.MAUDE_CANVAS_BUILD_TIMEOUT_MS, '120000');
+  assert.equal(on.MAUDE_CANVAS_BUILD_WAIT_MS, '25000');
+  assert.equal(on.MAUDE_CANVAS_BUILD_RSS_MB, '1024');
+  assert.equal(on.MAUDE_CANVAS_CACHE_ENTRIES, '128');
+});
+
+test('2.0.4 task P — a bad build knob is dropped and said once; out of range is clamped', () => {
+  _resetKnobWarnings();
+  const said = [];
+  const bad = {
+    MAUDE_CANVAS_BUILD_TIMEOUT_MS: '90s',
+    MAUDE_CANVAS_BUILD_RSS_MB: '-5',
+    MAUDE_CANVAS_CACHE_ENTRIES: '999999',
+    MAUDE_CANVAS_BUILD_WAIT_MS: '10',
+  };
+  const first = buildKnobEnv(bad, (m) => said.push(m));
+  assert.equal(first.MAUDE_CANVAS_BUILD_TIMEOUT_MS, undefined);
+  assert.equal(first.MAUDE_CANVAS_BUILD_RSS_MB, undefined);
+  assert.equal(first.MAUDE_CANVAS_CACHE_ENTRIES, '1024');
+  assert.equal(first.MAUDE_CANVAS_BUILD_WAIT_MS, '1000');
+  assert.equal(said.length, 4);
+  assert.match(said[0], /MAUDE_CANVAS_BUILD_TIMEOUT_MS is not a whole number/);
+  // a respawn does not repeat the warnings
+  buildKnobEnv(bad, (m) => said.push(m));
+  assert.equal(said.length, 4);
+  // and the real childEnv carries the same answer
+  _resetKnobWarnings();
+  const env = childEnv({ PATH: '/bin', ...bad }, { port: 1 });
+  assert.equal(env.MAUDE_CANVAS_BUILD_TIMEOUT_MS, undefined);
+  assert.equal(env.MAUDE_CANVAS_CACHE_ENTRIES, '1024');
 });
 
 test('the child environment never grows a wildcard', () => {

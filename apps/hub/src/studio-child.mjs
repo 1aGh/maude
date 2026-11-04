@@ -177,8 +177,59 @@ function pairingEnv(env) {
   };
 }
 
+/**
+ * 2.0.4 task P — the canvas build sandbox's ceilings, which an operator of a slow or busy host must
+ * be able to raise (design.studyfi.com: the design-system board did not fit the 20 s build wait on a
+ * shared t3.large, and nothing outside the child could change it). Name → [min, max], the same
+ * ranges the studio clamps to (`canvas-build-sandbox.ts` `sandboxKnob`).
+ */
+export const BUILD_KNOBS = Object.freeze({
+  /** the hard ceiling: a build is stopped past it, whether or not anyone still waits */
+  MAUDE_CANVAS_BUILD_TIMEOUT_MS: [5_000, 600_000],
+  /** how long one request waits before it answers "still building" */
+  MAUDE_CANVAS_BUILD_WAIT_MS: [1_000, 120_000],
+  MAUDE_CANVAS_BUILD_RSS_MB: [128, 8_192],
+  MAUDE_CANVAS_CACHE_ENTRIES: [1, 1_024],
+});
+
+const warnedKnobs = new Set();
+
+/**
+ * The sandbox knobs the hub's environment sets, validated: a whole number, clamped into its range.
+ * A value that is not one is DROPPED (the studio's default applies) — never handed on as text the
+ * child would turn into NaN. Each problem is logged once per process, not once per (re)spawn.
+ */
+export function buildKnobEnv(env = process.env, warn = (m) => console.warn(m)) {
+  const out = {};
+  for (const [name, [min, max]] of Object.entries(BUILD_KNOBS)) {
+    const raw = env[name];
+    if (raw === undefined || raw === '') continue;
+    const text = String(raw).trim();
+    const say = (msg) => {
+      if (warnedKnobs.has(name)) return;
+      warnedKnobs.add(name);
+      warn(`[studio] ${name} ${msg}`);
+    };
+    const n = Number(text);
+    if (!/^\d+$/.test(text) || !Number.isSafeInteger(n)) {
+      say(`is not a whole number (${sanitizeForLog(text.slice(0, 40))}); not passed to the studio`);
+      continue;
+    }
+    const clamped = Math.min(max, Math.max(min, n));
+    if (clamped !== n) say(`${n} is outside ${min}–${max}; passing ${clamped}`);
+    out[name] = String(clamped);
+  }
+  return out;
+}
+
+/** Test seam: forget which knobs were already warned about. */
+export function _resetKnobWarnings() {
+  warnedKnobs.clear();
+}
+
 export function childEnv(env = process.env, { port, formatFile = null, knownCanvasesFile = null }) {
   return {
+    ...buildKnobEnv(env),
     // V2-1.12 §5.2 — where the hub keeps the project format for this child
     // (a path in the hub's own data dir, written by the hub, read-only here).
     ...(formatFile ? { MAUDE_HUB_FORMAT_FILE: formatFile } : {}),
