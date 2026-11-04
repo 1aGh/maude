@@ -48,19 +48,21 @@ export const HEADS: Head[] = [
   },
 ];
 
-/** One headline line split into letters for the bubble. The letters are hidden from screen readers, the line is not. */
-function BubbleLine({ text }: { text: string }) {
+/**
+ * One headline line. Until a pointer shows up it is plain text, so the h1 reads (and indexes) as
+ * the headline exactly once. Once a mouse or pen is over it, it is split into letters for the
+ * weight bubble; the letters are the same text, not a second copy.
+ */
+function BubbleLine({ text, split }: { text: string; split: boolean }) {
+  if (!split) return <>{text}</>;
   return (
     <>
-      <span className="ps-sr">{`${text} `}</span>
-      <span aria-hidden="true">
-        {Array.from(text).map((c, i) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: letters of a fixed string never reorder
-          <span key={i} className="ps-ch">
-            {c}
-          </span>
-        ))}
-      </span>
+      {Array.from(text).map((c, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: letters of a fixed string never reorder
+        <span key={i} className="ps-ch">
+          {c}
+        </span>
+      ))}
     </>
   );
 }
@@ -72,6 +74,8 @@ export function HeroHeadline() {
   const [gen, setGen] = useState(0);
   const [byAI, setByAI] = useState(false);
   const [busy, setBusy] = useState<number | null>(null);
+  // Letters exist only after a pointer has been over the headline; a rewrite puts plain text back.
+  const [split, setSplit] = useState(false);
   const timer = useRef<number | undefined>(undefined);
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
@@ -83,6 +87,7 @@ export function HeroHeadline() {
       () => {
         setVer(i);
         setGen((g) => g + 1);
+        setSplit(false);
         setByAI(true);
         setBusy(null);
       },
@@ -93,6 +98,7 @@ export function HeroHeadline() {
     if (busy !== null || ver === 0) return;
     setVer(0);
     setGen((g) => g + 1);
+    setSplit(false);
     setByAI(false);
   };
   // ⌘Z / Ctrl+Z puts the first headline back, like the app does.
@@ -113,12 +119,17 @@ export function HeroHeadline() {
   const h = HEADS[ver];
   const first = [T.line1, T.line2, T.line3];
   const bubble = useWeightBubble();
+  const onPointerMove: typeof bubble.onPointerMove = (e) => {
+    if (e.pointerType !== 'touch') setSplit(true);
+    bubble.onPointerMove(e);
+  };
   return (
     <div className="ps-play">
       <div
         className="ps-layer ps-bubble"
         data-busy={busy !== null ? 'true' : undefined}
         {...bubble}
+        onPointerMove={onPointerMove}
       >
         <i />
         <i />
@@ -150,7 +161,7 @@ export function HeroHeadline() {
                 className={`${l.quiet ? 'ps-quiet ' : ''}ps-a`}
                 style={{ display: 'inline-block', ...at(gen === 0 ? first[j] : j * 90) }}
               >
-                <BubbleLine text={l.t} />
+                <BubbleLine text={l.t} split={split} />
               </span>
               {j < h.lines.length - 1 ? <br /> : null}
             </Fragment>
