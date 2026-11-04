@@ -44,5 +44,10 @@ export function framesToMount(tabs, activePath, recent, opts = {}) {
     if (keep.size >= cap) break;
     if (open.has(p)) keep.add(p);
   }
+  // an open tab never shown yet (none in practice — every tab is opened by showing it) takes a free slot
+  for (const p of open) {
+    if (keep.size >= cap) break;
+    keep.add(p);
+  }
   return keep;
 }
