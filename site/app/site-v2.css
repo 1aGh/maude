@@ -1668,6 +1668,34 @@
   font-size: var(--type-xs);
   color: var(--fg-2);
 }
+.v2-site .seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-md);
+  background: var(--bg-3);
+}
+.v2-site .seg button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: var(--type-sm);
+  color: var(--fg-1);
+  padding: var(--space-1) var(--space-3);
+  border-radius: calc(var(--radius-md) - 2px);
+  cursor: pointer;
+  transition:
+    background var(--dur-flip) var(--ease-out),
+    color var(--dur-flip) var(--ease-out);
+}
+.v2-site .seg button[aria-pressed="true"] {
+  background: var(--bg-2);
+  color: var(--fg-0);
+  box-shadow:
+    var(--shadow-sm),
+    inset 0 0 0 1px var(--accent);
+}
 .v2-site .ps-seg-wrap {
   display: flex;
   justify-content: center;
@@ -1760,8 +1788,41 @@
   padding-bottom: var(--space-4);
   border-bottom: 1px solid var(--border-subtle);
 }
-.v2-site .ps-q b {
+.v2-site .ps-q b,
+.v2-site .ps-q summary {
   font-weight: var(--weight-semibold);
+}
+.v2-site .ps-q summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.v2-site .ps-q summary::-webkit-details-marker {
+  display: none;
+}
+.v2-site .ps-q summary::after {
+  content: "+";
+  color: var(--fg-2);
+  font-weight: var(--weight-regular);
+}
+.v2-site .ps-q[open] summary::after {
+  content: "−";
+}
+.v2-site .ps-q[open] summary {
+  margin-bottom: var(--space-1);
+}
+/* Sizes the canvas typed inline; classes here so the phone block can still shrink them. */
+.v2-site .ps-h1--xl {
+  font-size: calc(var(--type-3xl) * 1.7);
+}
+.v2-site .ps-h2--lg {
+  font-size: var(--type-3xl);
+}
+.v2-site .ps-band--cta {
+  grid-template-columns: 1fr auto;
 }
 .v2-site .ps-trust {
   display: flex;
@@ -1824,6 +1885,56 @@
   color: var(--fg-2);
   font-weight: var(--weight-semibold);
   padding: var(--space-3) var(--space-3) var(--space-1);
+}
+.v2-site .ps-doors {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  margin: var(--space-5) 0 var(--space-7);
+  font-family: var(--font-body);
+}
+.v2-site .ps-doors h2 {
+  counter-increment: none;
+  border-top: 0;
+  padding-top: 0;
+  margin-top: 0;
+}
+.v2-site .ps-doors h2::before,
+.v2-site .ps-doors h2:hover::after {
+  content: none;
+}
+.v2-site .ps-doors a {
+  text-decoration: none;
+}
+.v2-site .ps-doors .ps-grid-4 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.v2-site .ps-doors-h {
+  margin-top: var(--space-2);
+}
+.v2-site .ps-doors > .ps-grid-2 {
+  grid-template-columns: minmax(0, 1fr);
+}
+.v2-site .ps-door-cols {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+.v2-site .ps-door-more {
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--type-xs);
+  color: var(--fg-2);
+}
+.v2-site .ps-door-more a {
+  color: var(--accent-text);
+}
+.v2-site .ps-release {
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.v2-site .ps-release .btn {
+  margin-left: auto;
 }
 .v2-site .ps-code {
   background: var(--bg-3);
@@ -3139,13 +3250,30 @@
 }
 
 /* The nav on a phone: the island keeps the brand and the buy button; a sheet holds the links. */
-.v2-site .ps-m-menu {
+.v2-site .ps-m-details {
   display: none;
+}
+.v2-site .ps-m-menu {
+  display: inline-grid;
+  place-items: center;
   width: 44px;
   height: 44px;
+  list-style: none;
+  cursor: pointer;
+}
+.v2-site .ps-m-menu::-webkit-details-marker {
+  display: none;
+}
+.v2-site .ps-m-shut,
+.v2-site .ps-m-details[open] .ps-m-open {
+  display: none;
+}
+.v2-site .ps-m-details[open] .ps-m-shut {
+  display: inline-grid;
 }
 .v2-site .ps-sheet {
   display: none;
+  background: var(--bg-1);
 }
 .v2-site .ps-sheet-links {
   display: flex;
@@ -3221,15 +3349,15 @@
   .v2-site .ps-dl {
     display: none;
   }
-  .v2-site .ps-m-menu {
-    display: inline-grid;
+  .v2-site .ps-m-details {
+    display: block;
   }
   .v2-site .ps-buy {
     min-height: 44px;
     background: var(--accent);
     color: var(--accent-fg);
   }
-  .v2-site .ps-sheet:not([hidden]) {
+  .v2-site .ps-m-details[open] > .ps-sheet {
     display: flex;
     flex-direction: column;
     position: absolute;
@@ -3300,6 +3428,10 @@
   }
   .v2-site .ps-feat[data-wide="true"] {
     grid-column: auto;
+  }
+  .v2-site .ps-door-cols,
+  .v2-site .ps-doors .ps-grid-4 {
+    grid-template-columns: 1fr;
   }
   .v2-site .ps-band {
     padding: var(--space-5);

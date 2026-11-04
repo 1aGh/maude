@@ -2,6 +2,7 @@
 // The Buy CTA: one dark band, the price in the open, two actions.
 import Link from 'next/link';
 import { Icon, Mark } from './kit/glyphs';
+import { PILOT_FINE } from './pilot';
 import { PRICE } from './price';
 
 export function CloudBand() {
@@ -48,8 +49,8 @@ export function CloudBand() {
             </li>
           </ul>
           <span className="ps-fine">
-            Private pilot. Prices without VAT. {PRICE.projectYear} a year, {PRICE.yearFree}. AI runs
-            on your own Claude account.
+            {PILOT_FINE}Prices without VAT. {PRICE.projectYear} a year, {PRICE.yearFree}. AI runs on
+            your own Claude account.
           </span>
         </div>
       </div>
