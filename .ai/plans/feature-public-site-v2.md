@@ -407,6 +407,28 @@ Port only the glyphs the site uses from the kit's inline DS family (`FAMILY` in 
   - If anything is still blocked, Phase B stops here and the site keeps the pilot copy.
 - **Validate**: a table with each prerequisite, its state, and how it was checked
 
+**B0 result (2026-11-04, read-only: `curl` on public URLs, `gh run list`, repo files; no account access, no key).** The real health path is `/health` (`apps/cloud/worker.mjs:569`), not `/_health`. The `/_health` 404 is just the wrong path; `/_health` is the render service's path.
+
+| Prerequisite | State | How it was checked |
+| --- | --- | --- |
+| `cloud.maude.sh` zone + route | Verified live | `GET /login` = 200, `GET /projects/new` = 303 to `/login` (not signed in, which is correct); the route is a Worker custom domain in `apps/cloud/wrangler.toml` |
+| Control-plane Worker answers | Verified live | `GET https://cloud.maude.sh/health` = `{"ok":true,"version":"phase-13","d1":"ok","r2Creds":"per-tenant"}` |
+| D1 reachable, schema usable | Verified live | `"d1":"ok"` (a `SELECT` on `schema_migrations`). "Schema current" is **not** proven by this: the hourly sweep applies pending migrations, so check the migration version in the operator view. **Michal to confirm** |
+| R2 enabled | Verified live (indirectly) | `"r2Creds":"per-tenant"` means the R2 minting secrets are configured and the minting path is on; the cells' `GET /health` is 200, `releaseVersion` 2.0.2 |
+| Workers Paid / Containers | Verified live (indirectly) | A tenant cell (`alligators.cloud.maude.sh/health` = 200, v2.0.2) and `render.cloud.maude.sh/_health` = 200 (`v2.0.2`) are running Containers, which need Workers Paid. The plan itself is **Michal to confirm** in the dashboard |
+| Data plane (cells) + render deployed at the current release | Verified live | Both report 2.0.2, the latest release tag |
+| **Control plane is on the current source** | **Not proven, probably behind** | `/health` `version` is the constant `phase-13`, which does not move. The "Cloud control plane" workflow (`cloud-deploy.yml`, push to `main` touching `apps/cloud/**`) has **no run since 2026-10-01** (v1.6.0), yet `apps/cloud` changed on 2026-11-02 (v2.0, 53 files: trial, accounts, checkout routes). Either that deploy never fired or the Worker was deployed from a laptop. **Michal to confirm**: `cd apps/cloud && npx wrangler deployments list` |
+| `STRIPE_SECRET_KEY` on the Worker | Present, **test** | Documented in `.ai/plans/cloud-live-payments-rollout.md` (the key in use is `rk_test_`). **Michal to confirm** with `npx wrangler secret list` (names only, never values) |
+| `STRIPE_WEBHOOK_SECRET` on the Worker | **Missing as of 2026-10-02** | Same rollout plan, L6: every Stripe webhook gets a bare 400 until it is set, and the hourly sweep hides it. **Michal to confirm** it is still unset |
+| Stripe Worker `/health` reports its mode | **No** | `/health` has no `stripeMode` field, so the Acceptance line "the deployed Worker reports `stripeMode` = `live`" cannot be checked as written. Use the `cs_live_` prefix of the checkout session (B3) or the patch request below |
+| GitHub App | **Michal to confirm** | Cannot be seen without the account. `apps/cloud/github-app.mjs` needs its secrets; `wrangler secret list` shows whether they exist |
+| E-mail sender (Resend, `cloud@maude.sh`) | **Michal to confirm** | `/login` renders, but sending cannot be proven without sending. Needs `RESEND_API_KEY`; the sign-in e-mail you receive is the proof |
+| Stripe account activated for live payments, Stripe Tax and Managed Payments on in **live** mode | **Michal to confirm** | Dashboard only. Sandbox behaviour is wired (`automatic_tax[enabled]=true`, Managed Payments); a sandbox-only tax setup gives a legally wrong first invoice |
+| Legal gates (rollout plan L1 accountant, L2 counsel review) | **Michal to confirm** | `terms.mdx`/`privacy.mdx`/`dpa.mdx` promise both before the first live charge. Open as far as the repo knows |
+| Fleet ceiling | Known: `max_instances = 5` | `apps/cells/wrangler.toml:84`. Customer #6 gets no container, and the sale is voided (rollout plan L7b). Decide before announcing |
+
+**Verdict: the control plane is deployed, routed and healthy, so Phase B does not stop at B0.** Three things stay open before the key switch: (1) whether the deployed control plane is the current source, (2) the webhook secret, (3) the dashboard and legal items. The site keeps the pilot copy until B3 passes.
+
 ### Task B1: CREATE the live catalog script (agent writes, Michal runs)
 
 - **Do (agent)**: write `apps/cloud/scripts/stripe-live-catalog.mjs`, which reads `STRIPE_SECRET_KEY` from Michal's shell environment and:
@@ -422,6 +444,7 @@ Port only the glyphs the site uses from the kit's inline DS family (`FAMILY` in 
   - Create the live webhook endpoint on `cloud.maude.sh`, at the path `checkout-routes.mjs` handles, with the same events as the sandbox endpoint.
 - **Files**: `apps/cloud/scripts/stripe-live-catalog.mjs`, `apps/cloud/scripts/stripe-live-catalog.test.mjs`
 - **Validate**: `node --test apps/cloud/scripts/stripe-live-catalog.test.mjs`; Michal reviews the dry-run output before the real run
+- **Status (agent, 2026-11-04): written and tested with a stubbed `fetch`; never run against Stripe.** It is idempotent: products have fixed ids (`maude_cloud_project`, `maude_cloud_dedicated`, `maude_cloud_storage`), prices are found by `lookup_key` (`maude_cloud_<plan>_<interval>_eur_v1`) before they are created, and a price that exists with a different amount, currency, interval or tax behaviour stops the run (Stripe prices are immutable). After creating, it reads every price back and compares with `pricing.json`; the blob is printed only if they agree.
 
 ### Task B2: FILL the live price ids, switch the secrets, drop the pilot copy
 
@@ -448,6 +471,103 @@ Port only the glyphs the site uses from the kit's inline DS family (`FAMILY` in 
 
   Michal then cancels, and the authorisation is released. The agent watches the operator pages and logs read-only and records the evidence here.
 - **Validate**: an evidence table (checkout total, webhook event ids, provision state, cancellation), and no charge left on the card
+
+### Runbook for Michal: B1 to B3, in order
+
+Everything here runs in the worktree `.claude/worktrees/public-site-v2-pay` (or after the branch is merged, from `main`). **Never paste a key into a chat, a file or a command argument.** Keys live only in your shell environment for the minutes a step needs.
+
+**0. Before any key (dashboard, no commands).** Do not start step 3 until all of these are true:
+
+- [ ] Stripe account is activated for live payments (business details, bank account).
+- [ ] **Stripe Tax is on in live mode**, with your registrations; **Managed Payments** is enabled in live mode (the checkout is built on it: `checkout.mjs` sets `automatic_tax[enabled]=true`). Note the account's **default product tax code** (Tax settings); if it is not SaaS, pass `--tax-code txcd_10103001` in step 3.
+- [ ] **Billing, Customer portal: save a configuration in live mode.** The portal is configured per mode; without a saved live configuration `POST /v1/billing_portal/sessions` fails and the "Manage billing" button breaks (`checkout-routes.mjs:465`).
+- [ ] Rollout plan gates `.ai/plans/cloud-live-payments-rollout.md`: L1 (accountant, "identifikovaná osoba") and L2 (counsel review of terms/privacy/dpa) are done or consciously waived; L7b (`max_instances = 5`) decided.
+- [ ] B0's open rows are confirmed: `npx wrangler deployments list` (is the Worker on the current source?), `npx wrangler secret list` (names only).
+
+**1. Dry run (no key needed, nothing is sent).** Read the output; it is exactly what step 3 will create:
+
+```sh
+node apps/cloud/scripts/stripe-live-catalog.mjs --dry-run
+```
+
+Expected: 3 products and 4 prices: Cloud Project 19.00 EUR/month and 190.00 EUR/year, Dedicated 99.00 EUR/month, Storage add-on 5.00 EUR/month, all `tax_behavior=exclusive`.
+
+**2. Make a temporary live key.** Dashboard, Developers, API keys, *Create restricted key* (live mode), named `catalog-temp`. Permissions: **Products write, Prices write**, and (optional) Account read. Nothing else. Do not reuse the Worker's key for this.
+
+**3. Live run.** The key goes in the environment of this one command only (a leading space keeps it out of zsh history if `HIST_IGNORE_SPACE` is set; otherwise `read -s` it):
+
+```sh
+ read -s STRIPE_SECRET_KEY && export STRIPE_SECRET_KEY      # paste the temp key, Enter
+node apps/cloud/scripts/stripe-live-catalog.mjs --confirm-live > /tmp/live-ids.json
+unset STRIPE_SECRET_KEY
+```
+
+The script refuses a `sk_test_`/`rk_test_` key and a run without `--confirm-live`. Progress goes to the terminal, the id blob to `/tmp/live-ids.json`. It ends with "Read-back OK" and exit 0; any other ending prints no blob. Safe to re-run: finished objects are reused. Then **revoke `catalog-temp`** in the dashboard.
+
+**4. Fill the ids into `pricing.json`.**
+
+```sh
+node apps/cloud/scripts/fill-live-price-ids.mjs --in /tmp/live-ids.json --dry-run   # shows the change
+node apps/cloud/scripts/fill-live-price-ids.mjs --in /tmp/live-ids.json
+git diff apps/cloud/pricing.json          # exactly 3 changed lines, the three "live" blocks
+node --test apps/cloud/pricing.test.mjs apps/cloud/checkout-routes.test.mjs apps/cloud/scripts/*.test.mjs
+rm /tmp/live-ids.json
+```
+
+It refuses sandbox ids, a missing or extra interval, and replacing an id already filled. The pricing tests flip by themselves from "live throws" to "every plan resolves live and the amounts hold". The site's prices do not change (`publicPricing` carries no ids). Commit `apps/cloud/pricing.json` on the Phase B branch.
+
+**5. Webhook endpoint (dashboard, live mode).** Developers, Webhooks, *Add endpoint*:
+
+- URL: `https://cloud.maude.sh/webhooks/stripe` (`worker.mjs:594`, signature-verified in `stripe-webhook.mjs`).
+- Events: at least the ones the Worker acts on (`projectRefFromEvent`): `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `customer.subscription.trial_will_end`, `invoice.paid`, `invoice.payment_failed`, `invoice.payment_action_required`. The handler takes any `customer.subscription.*` or `invoice.*`, so "same events as the sandbox endpoint" is also correct: open the sandbox endpoint and copy its list.
+- Copy the endpoint's **signing secret** (`whsec_…`) for step 7. Do not send a test event yet: the Worker still holds no live secret.
+
+**6. Deploy the Worker with the live ids.** The ids ship inside the bundled Worker. Merge the Phase B PR (or run the workflow by hand); `cloud-deploy.yml` tests, dry-runs and deploys, then polls `/health`. It has **not fired since 2026-10-01**, so do not assume a merge deployed anything:
+
+```sh
+gh workflow run "Cloud control plane" --repo 1aGh/maude -f dry_run=true     # dry run first
+gh workflow run "Cloud control plane" --repo 1aGh/maude -f dry_run=false    # the deploy
+gh run list --repo 1aGh/maude --workflow cloud-deploy.yml --limit 2         # wait for success
+curl -s https://cloud.maude.sh/health                                        # ok:true, d1:ok
+```
+
+This is a control-plane deploy only: the cell/render fleet rolls on a release tag (`.ai/release-guide.md`), not here. With the sandbox key still in place the Worker stays in sandbox mode, so this step is safe.
+
+**7. The switch (two secrets, in this order).** Webhook secret first so no live event ever arrives unverified; the key last because **setting the live `STRIPE_SECRET_KEY` is the moment real cards can be charged**:
+
+```sh
+cd apps/cloud
+npx wrangler secret put STRIPE_WEBHOOK_SECRET   # paste the live whsec_… from step 5
+npx wrangler secret put STRIPE_SECRET_KEY       # paste the live restricted key (below)
+```
+
+The Worker's key is a separate restricted live key, mirroring the permission set of the sandbox `rk_test_` one (Checkout Sessions, Customers, Subscriptions, Billing portal sessions, Invoices read, Tax IDs; confirm against the sandbox key's page). `stripeMode()` flips to `live` on the `rk_live_`/`sk_live_` prefix, and `priceIdFor` then uses the ids from step 4.
+
+**8. Prove the wiring before a purchase.** Dashboard, the live webhook endpoint, *Send test webhook* (`invoice.paid`): it must return **200** (a 400 means the signing secret is wrong; the Worker logs `[webhook] rejected: <reason>`, visible under Workers, Logs). Then B3.
+
+**Rollback.** `npx wrangler secret put STRIPE_SECRET_KEY` with the old `rk_test_` key returns the Worker to sandbox mode in seconds. Prices already created in live mode are harmless and are reused.
+
+**B3 purchase checklist (Michal, own card; the agent watches read-only).**
+
+1. Sign in at `https://cloud.maude.sh/login` with a fresh e-mail, open `/projects/new`, create a project (name like `live-proof`), pick Cloud Project monthly.
+2. At Stripe Checkout: the URL contains `cs_live_` (proves live mode); it shows **14-day trial, nothing due today**, then **€19.00 + Czech VAT = €22.99** after the trial; billing address and VAT-id fields are present.
+3. Pay with your own card. The card is validated, not charged: confirm there is no €19 or €22.99 charge, only the authorisation or none.
+4. On return, the project provisions; open `https://live-proof.cloud.maude.sh/health` (200).
+5. Dashboard, Webhooks (live): `checkout.session.completed` delivered with **200**. Note the event ids.
+6. `/projects/<id>/billing` shows the plan, the trial end date and the invoice list; "Manage billing" opens the Stripe portal (live portal configuration).
+7. Cancel from the billing page (or the portal). Check the subscription is `canceled` in the dashboard, the project follows the retention ladder, and **no charge or pending authorisation is left on the card**. If anything else was charged, refund it.
+8. Record in the evidence table below: checkout total, `cs_live_` id, webhook event ids, provision state, cancellation, card statement check.
+
+| Item | Value |
+| --- | --- |
+| Checkout total after trial (net / VAT / gross) | _pending B3_ |
+| Session id prefix | _pending B3_ |
+| Webhook event ids (all 200) | _pending B3_ |
+| Provision state + cell `/health` | _pending B3_ |
+| Cancellation + retention state | _pending B3_ |
+| Card shows no charge | _pending B3_ |
+
+**Then (agent, after B3 passes, not before):** remove the pilot copy in **the same change that makes it false** (rollout plan L8). That is four files, not one: `site/content/docs/cloud/pricing.mdx`, `site/content/docs/legal/terms.mdx`, `privacy.mdx`, `dpa.mdx`, plus the `/cloud` page callout and the Cloud band fine print from Phase A. Repoint Get Maude Cloud to `https://cloud.maude.sh/projects/new`. Also delete the `$comment` line "PROPOSAL, NOT SIGNED OFF" in `pricing.json` and its test once you have signed the numbers off.
 
 ## Phase C — the intro film (own PR, own lane)
 
