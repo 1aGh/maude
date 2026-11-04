@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from 'react';
 import { indexMeta } from '../canvases/tree-model.js';
+import { fetchIfServed } from '../shell/served-routes.js';
 
 /** @returns ms, or null (no index, no such canvas, or the sheet is closed) */
 export function useLastFinishedAt({ open, activePath, designRel, fetchImpl }) {
@@ -17,7 +18,7 @@ export function useLastFinishedAt({ open, activePath, designRel, fetchImpl }) {
     const doFetch = fetchImpl || ((...a) => fetch(...a));
     (async () => {
       try {
-        const r = await doFetch('/_api/index', { cache: 'no-store' });
+        const r = await fetchIfServed('/_api/index', { cache: 'no-store' }, doFetch);
         if (!r.ok || cancelled) return;
         const snapshot = await r.json();
         const row = indexMeta(snapshot, designRel).get(activePath);

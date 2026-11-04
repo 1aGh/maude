@@ -26,6 +26,7 @@ import { notifyUndo } from '../../../notifications.tsx';
 import { getRunsStore } from '../ai/runs-store.js';
 import { actorName, ownRunWorkingOn } from '../ai/runs-model.js';
 import { historyRows, nextRedo, nextUndo } from './projection.js';
+import { fetchIfServed } from '../shell/served-routes.js';
 
 export const UNDO_STACK_ROUTE = '/_api/project/undo-stack';
 export const UNDO_ROUTE = '/_api/project/undo';
@@ -50,7 +51,8 @@ const isObj = (v) => !!v && typeof v === 'object';
 const str = (v) => (typeof v === 'string' ? v : null);
 
 async function defaultRequest(method, url, body) {
-  const r = await fetch(url, {
+  // #204 R — a workspace cell has no personal undo: its stack is not asked
+  const r = await fetchIfServed(url, {
     method,
     ...(body !== undefined
       ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }

@@ -7,6 +7,7 @@
 // "Recently opened" sort uses it when it is there and falls back to when a canvas last changed.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { fetchIfServed } from '../shell/served-routes.js';
 
 /** The list with `rel` pinned or unpinned — a new array, pin order kept (oldest first). */
 export function withPin(pins, rel, pinned, at = Date.now()) {
@@ -34,7 +35,7 @@ export function usePins({ stamp, fetchImpl } = {}) {
 
   const load = useCallback(async () => {
     try {
-      const r = await fetchRef.current('/_api/pins', { cache: 'no-store' });
+      const r = await fetchIfServed('/_api/pins', { cache: 'no-store' }, fetchRef.current);
       if (!r.ok) return;
       setState({ ...normalisePins(await r.json()), loaded: true });
     } catch {

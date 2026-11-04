@@ -6,6 +6,8 @@
 // `DELETE /_api/canvas` answers with the folder it made, and `sync/trash.ts` reads that folder's manifest to
 // say where each file goes. The kernel's `trash.restore` (S1.6) replaces this; the words stay.
 
+import { fetchIfServed } from '../shell/served-routes.js';
+
 export const TRASH_WORDS = {
   moved: (label) => `“${label}” moved to the trash.`,
   back: (label) => `“${label}” is back.`,
@@ -37,7 +39,7 @@ export async function restoreTrashedCanvas({ trashDir, fetchImpl = fetch }) {
   if (!folder) return { ok: false, restored: 0, failed: 0 };
   let entries = [];
   try {
-    const r = await fetchImpl('/_api/sync/trash', { cache: 'no-store' });
+    const r = await fetchIfServed('/_api/sync/trash', { cache: 'no-store' }, fetchImpl);
     if (r.ok) entries = (await jsonOf(r)).entries || [];
   } catch {
     return { ok: false, restored: 0, failed: 0 };
