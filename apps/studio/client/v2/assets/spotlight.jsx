@@ -147,6 +147,7 @@ export function AssetSpotlight({ items, index, urlOf, rows = [], onIndex, onClos
             data-testid="spotlight-prev"
             aria-label={W.previous}
             disabled={index <= 0}
+            title={index <= 0 ? W.atFirst : undefined}
             onClick={() => step(-1)}
           >
             <StIcon name="chevron-right" size={16} />
@@ -158,6 +159,7 @@ export function AssetSpotlight({ items, index, urlOf, rows = [], onIndex, onClos
             data-testid="spotlight-next"
             aria-label={W.next}
             disabled={index >= n - 1}
+            title={index >= n - 1 ? W.atLast : undefined}
             onClick={() => step(1)}
           >
             <StIcon name="chevron-right" size={16} />

@@ -11,6 +11,9 @@ export const SPOTLIGHT_WORDS = {
   close: 'Close',
   previous: 'Previous',
   next: 'Next',
+  /** why an arrow is off at the ends (dead-controls: a disabled control says why) */
+  atFirst: 'This is the first file.',
+  atLast: 'This is the last file.',
   noPreview: 'This file has no preview.',
   failed: 'This picture could not be shown.',
   /** "3 of 12" — a screen reader hears it as the position. */
