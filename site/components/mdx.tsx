@@ -14,6 +14,7 @@ import {
 } from '@/components/mdcc/diagrams';
 import { DownloadNative } from '@/components/mdcc/download-native';
 import { FlowLoop } from '@/components/mdcc/flow-loop';
+import { DocsDoors } from '@/components/v2/docs-doors';
 import './mdcc/diagrams/_diagrams.css';
 
 export function getMDXComponents(components?: MDXComponents) {
@@ -23,6 +24,7 @@ export function getMDXComponents(components?: MDXComponents) {
     Callout,
     FlowLoop,
     DownloadNative,
+    DocsDoors,
     // phase-17 docs diagram primitives — auto-available in every .mdx
     ArchitectureMap,
     CommandFlow,
