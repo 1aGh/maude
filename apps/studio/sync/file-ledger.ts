@@ -313,6 +313,16 @@ export interface FileLedger {
   outboxHas(hash: string): boolean;
 
   flush(): void;
+  /**
+   * Hold the debounced write until the returned release is called (issue #204).
+   *
+   * A pass that lands thousands of files used to rewrite this file — 2.3 MB of JSON on a 5 000-file
+   * project, stringified twice per write — once a second for the whole pass, because every landing
+   * re-armed the 1 s debounce. While held, changes stay in memory and the caller decides when to
+   * write: every N landings and at the end of the pass, through `flush()`, which always writes.
+   * Holds nest; the last release re-arms the debounce if anything changed meanwhile.
+   */
+  deferFlush(): () => void;
   stop(): void;
   /** Where this ledger persists. Tests and the panel read it. */
   file(): string;
@@ -343,6 +353,8 @@ export interface FileLedgerOptions {
   now?: () => number;
   flushMs?: number;
   log?: Pick<Console, 'warn'>;
+  /** Called after every write that reached the disk — the tests count them. */
+  onPersist?: () => void;
 }
 
 export function createFileLedger(opts: FileLedgerOptions): FileLedger {
@@ -439,7 +451,15 @@ export function createFileLedger(opts: FileLedgerOptions): FileLedger {
     return out;
   }
 
+  /** Open `deferFlush` holds, and whether something changed while one was open. */
+  let holds = 0;
+  let dirtyWhileHeld = false;
+
   function schedule(): void {
+    if (holds > 0) {
+      dirtyWhileHeld = true;
+      return;
+    }
     if (timer !== null) return;
     timer = setTimeout(() => {
       timer = null;
@@ -464,6 +484,8 @@ export function createFileLedger(opts: FileLedgerOptions): FileLedger {
       data.updatedAt = now();
       atomicWrite(file, `${JSON.stringify(data, null, 2)}\n`);
       lastPersisted = body;
+      dirtyWhileHeld = false;
+      opts.onPersist?.();
     } catch (err) {
       // Never throws into the sync hot path. A ledger we cannot persist costs
       // a re-anchor next boot, which is noise rather than loss.
@@ -710,6 +732,19 @@ export function createFileLedger(opts: FileLedgerOptions): FileLedger {
         timer = null;
       }
       persist();
+    },
+    deferFlush() {
+      holds += 1;
+      let released = false;
+      return () => {
+        if (released) return;
+        released = true;
+        holds -= 1;
+        if (holds === 0 && dirtyWhileHeld) {
+          dirtyWhileHeld = false;
+          schedule();
+        }
+      };
     },
     stop() {
       if (timer !== null) {
