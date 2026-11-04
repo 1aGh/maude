@@ -96,14 +96,23 @@ export function indexCanvasPaths(relPaths) {
     if (rel.split('/').some((seg) => seg.startsWith('_'))) continue;
     const slug = canvasSlug(rel);
     const existing = index.get(slug);
-    // Deterministic on collision: shortest path, then lexicographic. An
-    // arbitrary winner would make the agent's output depend on readdir order,
-    // and a history that differs between two identical cells is worse than a
-    // history that picked the "wrong" one consistently.
+    // Deterministic on collision: a path IN A FOLDER beats one at the design
+    // root, then shortest, then lexicographic. An arbitrary winner would make
+    // the agent's output depend on readdir order, and a history that differs
+    // between two identical cells is worse than a history that picked the
+    // "wrong" one consistently.
+    //
+    // The folder rule is 2.0.4's. A root `ui-welcome.tsx` beside `ui/welcome.tsx`
+    // is the same document twice — flat-fallback debris — and the old rule
+    // picked the ROOT one (equal length, `-` sorts before `/`), so every store
+    // of that canvas rewrote the debris every desktop refuses as a code module
+    // while the real grouped file went stale (alligators).
+    const nested = (r) => r.includes('/');
     if (
       !existing ||
-      rel.length < existing.length ||
-      (rel.length === existing.length && rel < existing)
+      (nested(rel) && !nested(existing)) ||
+      (nested(rel) === nested(existing) &&
+        (rel.length < existing.length || (rel.length === existing.length && rel < existing)))
     ) {
       index.set(slug, rel);
     }

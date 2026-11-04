@@ -183,6 +183,7 @@ import {
   JOURNAL_REPORT_PATH,
   OWNER_DELETE_SOURCE,
   openJournal,
+  quarantineFlatCanvasTwins,
   quarantineStaleInert,
   reportLostFiles,
   walkImport,
@@ -2925,11 +2926,27 @@ export function createHub(config = {}) {
       // The reconciler is the TRUTH and the hooks are the optimization: a
       // git-level restore, a write site nobody hooked, or a class flip all
       // land here rather than being lost.
+      //
+      // The flat-twin quarantine runs FIRST (2.0.4), on the same belt: a twin it
+      // parks is tombstoned rather than walked, and at boot this happens before
+      // the workspace agent indexes the checkout (startWorkspaceAgent is called
+      // after this one), so the agent never adopts the debris as the canvas.
+      // A later pass tells a running agent to let go of what it moved.
+      const parkFlatTwins = () =>
+        quarantineFlatCanvasTwins({
+          journal,
+          designRoot: journalDesignRoot,
+          onMoved: (rels) => workspace?.releasePaths?.(rels),
+        });
+      parkFlatTwins();
       const first = walkImport({ journal, designRoot: journalDesignRoot });
       if (first.appended > 0) await journalTail.flush();
       walkImportTimer = setInterval(() => {
         try {
+          parkFlatTwins();
           walkImport({ journal, designRoot: journalDesignRoot });
+          // Bodies the agent held for want of a config (2.0.4) land once it is back.
+          workspace?.retryHeld?.().catch?.(() => {});
         } catch (err) {
           console.error(`[journal] walk-import pass failed: ${err.message}`);
         }

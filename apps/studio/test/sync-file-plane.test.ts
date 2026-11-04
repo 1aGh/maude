@@ -2199,6 +2199,30 @@ describe('a row for a file that exists nowhere', () => {
     expect(p.doruceka()['ui-welcome.tsx']).toBeUndefined();
   });
 
+  // 2.0.4 (alligators): the cell now quarantines its flat canvas twins and
+  // tombstones them. A desktop that refused one as a code module — across a
+  // restart, with the real grouped canvas on its own disk — must just let go:
+  // nothing local is removed, so no owner vouching is needed.
+  test('a stuck flat twin clears on the hub tombstone after a restart, the grouped canvas untouched', async () => {
+    const groups = { canvasGroups: [{ path: 'ui' }, { path: 'system' }] };
+    write('ui/welcome.tsx', 'export default function Welcome() { return null; }');
+    const hub = fakeHub({ 'ui-welcome.tsx': 'export default () => null' });
+    await plane(hub, groups).reconcile();
+    expect(ledger.row('ui-welcome.tsx')?.state).toBe('stuck');
+
+    // A restart: the ledger comes back from disk, a fresh plane reads it.
+    ledger = createFileLedger({ designRoot: root, hubUrl: HUB, flushMs: 0 });
+    expect(ledger.row('ui-welcome.tsx')?.state).toBe('stuck');
+    hub.tombstone('ui-welcome.tsx');
+    const out = await plane(hub, groups).reconcile();
+
+    expect(ledger.row('ui-welcome.tsx')).toBeNull();
+    expect(out.dropped.map((d) => d.rel)).not.toContain('ui-welcome.tsx');
+    expect(read('ui/welcome.tsx')).toBe('export default function Welcome() { return null; }');
+    expect(existsSync(join(root, 'ui-welcome.tsx'))).toBe(false);
+    expect(hub.puts).toEqual([]);
+  });
+
   test('a file that is still here, or still on the hub, is not forgotten', async () => {
     const hub = fakeHub({ 'assets/b.png': 'B' });
     write('assets/a.png', 'A');
