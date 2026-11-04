@@ -50,6 +50,8 @@ export interface SandboxBuildFail {
   rejectedImports?: number;
   /** gate-b-c4m — the canvas's own source did not parse (a `TranspileError`), nothing it imports. */
   transpile?: boolean;
+  /** #189 — the worker stopped before its build engine loaded (Maude's side, never the canvas's). */
+  engine?: boolean;
 }
 export type SandboxBuildResult = SandboxBuildOk | SandboxBuildFail;
 
@@ -491,6 +493,7 @@ async function runWorker({
       error: String(parsed.error),
       rejectedImports: Number(parsed.rejectedImports ?? 0) || 0,
       transpile: parsed.transpile === true,
+      ...(parsed.stage === 'engine' ? { engine: true } : {}),
     };
   } catch {
     return {
@@ -511,4 +514,23 @@ function rssMb(pid: number | undefined): number | null {
   } catch {
     return null; // macOS dev boxes: the wall-clock ceiling still applies
   }
+}
+
+/**
+ * #189 — why a sandboxed build stopped, as a class the card may show, or null when the reason is
+ * the canvas's own code (a syntax error, which `/_api/canvas-errors` re-reads from the file; or a
+ * build error the sandbox keeps illegible, gate-b-c4m). From the host's own fields only — `kind`,
+ * the worker's stage flag and the refusal COUNT — never from `error`, which quotes the build.
+ */
+export function sandboxFailureClass(
+  built: SandboxBuildFail
+): import('./canvas-source/errors.ts').BuildFailure | null {
+  if (built.kind === 'timeout') return { class: 'timed-out' };
+  if (built.kind === 'memory') return { class: 'memory' };
+  if (built.kind === 'runtime') return { class: 'engine' };
+  if (built.transpile) return null;
+  if (built.engine) return { class: 'engine' };
+  const n = Number(built.rejectedImports ?? 0);
+  if (Number.isFinite(n) && n > 0) return { class: 'imports-refused', count: Math.floor(n) };
+  return null;
 }

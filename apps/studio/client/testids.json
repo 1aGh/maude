@@ -22643,6 +22643,134 @@
     "v2": "new"
   },
   {
+    "hook": "canvas-waiting-card",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "2.0.4: the card for a canvas that can't load yet because files it imports haven't reached this Mac (\"<Canvas> is still downloading.\") or are held back (\"<Canvas> can't open on this Mac yet.\"). `data-kind` = `waiting` | `refused`. Loads the canvas by itself when the files land.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-waiting-card.jsx",
+      "symbol": "CanvasWaitingCard"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-canvas-waiting-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-waiting-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The waiting card's title.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-waiting-card.jsx",
+      "symbol": "CanvasWaitingCard"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-canvas-waiting-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-waiting-body",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "What is happening and that nothing is lost; for a refusal, why (the code-consent sentence points at linking the folder again, which asks).",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-waiting-card.jsx",
+      "symbol": "CanvasWaitingCard"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-canvas-waiting-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-waiting-progress",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The bar of the files this canvas needs, \"3 of 5 files\" (waiting kind).",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-waiting-card.jsx",
+      "symbol": "CanvasWaitingCard"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-canvas-waiting-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-waiting-project",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Project sync: 5,029 of 5,041 files\" (waiting kind; absent for a canvas-only session).",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-waiting-card.jsx",
+      "symbol": "CanvasWaitingCard"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-canvas-waiting-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-waiting-files",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Waiting for\": the first five file names it waits for, each with a quiet note (retrying, not shared yet).",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-waiting-card.jsx",
+      "symbol": "CanvasWaitingCard"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-canvas-waiting-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-waiting-more",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"and N more\" under the five names.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-waiting-card.jsx",
+      "symbol": "CanvasWaitingCard"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-canvas-waiting-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-error-build-reason",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "#189: under Show details, why the build stopped on the app's side (engine unavailable, timed out, ran out of memory, N imports refused). The card then offers no Ask AI.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-error-card.jsx",
+      "symbol": "CanvasErrorCard"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-canvas-waiting-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "render-error-host",
     "kind": "testid",
     "pattern": false,

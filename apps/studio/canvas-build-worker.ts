@@ -67,6 +67,14 @@ function studioDir(): string {
  */
 let isTranspileError: (err: unknown) => boolean = () => false;
 
+/**
+ * #189 — where the failure happened, by OUR control flow: `engine` until the build engine has
+ * loaded (a missing studio module — the 2.0.0 `Cannot find module …` — is Maude's, never the
+ * canvas's), `build` once the canvas's own build starts. The host turns it into a class; the
+ * message never decides it.
+ */
+let stage: 'engine' | 'build' = 'engine';
+
 async function main() {
   const pipeline = (await import(join(studioDir(), 'canvas-pipeline.ts'))) as {
     TranspileError: abstract new (...args: never[]) => Error;
@@ -77,6 +85,7 @@ async function main() {
     process.exit(2);
   }
   const { buildCanvasModule } = await import(join(studioDir(), 'canvas-build.ts'));
+  stage = 'build';
   const source = await Bun.file(canvasAbs).text();
   const built = await buildCanvasModule(canvasAbs, source, {
     designRoot,
@@ -110,6 +119,7 @@ main().catch((err) => {
       // gate-b-c4m — a syntax error in the canvas's own source (the host keeps only that legible
       // to a frame; any other failure answers like a refusal).
       transpile: isTranspileError(err),
+      stage,
     })
   );
   process.exit(1);

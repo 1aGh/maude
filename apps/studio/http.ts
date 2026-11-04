@@ -105,10 +105,15 @@ import { createRunRegistry, type RunRegistry } from './ai/runs.ts';
 import { type Api, ASSET_CHUNK_BYTES, ASSET_MAX_BYTES, ASSET_MAX_VIDEO_BYTES } from './api.ts';
 import { importBrandRequest } from './bin/_brand-site.mjs';
 import { buildCanvasModule } from './canvas-build.ts';
-import { buildCanvasSandboxed, buildStats } from './canvas-build-sandbox.ts';
+import { buildCanvasSandboxed, buildStats, sandboxFailureClass } from './canvas-build-sandbox.ts';
 import { canvasLibPath } from './canvas-lib-resolver.ts';
 import { TranspileError } from './canvas-pipeline.ts';
-import { CanvasBuildError, canvasSourceSig, recordCanvasBuild } from './canvas-source/errors.ts';
+import {
+  CanvasBuildError,
+  canvasSourceSig,
+  recordBuildFailure,
+  recordCanvasBuild,
+} from './canvas-source/errors.ts';
 import { rememberCanvasBuild } from './canvas-source-memo.ts';
 import { createCloudEndpoints } from './cloud/endpoints.ts';
 import type { AiActivity } from './collab/ai-activity.ts';
@@ -908,6 +913,10 @@ export async function serveCanvasTsx(
         assetUrlBase: designRootUrlBase(ctx.paths),
       });
       if (!built.ok) {
+        // #189 — why it stopped, as OUR class (never the build's text) for /_api/canvas-errors
+        const failure = sandboxFailureClass(built);
+        if (failure) recordBuildFailure(absPath, canvasSourceSig(source), failure);
+        else recordCanvasBuild(absPath, canvasSourceSig(source), null);
         // gate-b-c4m (defender L-B) — a frame's failed build answers like a refused one: Bun
         // resolves imports the closure walk does not follow (a CSS `url()`), and "Could not resolve"
         // beside the refusal's 403 was an existence oracle. A syntax error in the canvas's own source
@@ -959,6 +968,9 @@ export async function serveCanvasTsx(
         canvasSourceSig(source),
         err instanceof CanvasBuildError ? (err.errors[0] ?? null) : null
       );
+      // #189 — neither the canvas's syntax nor its build log: the engine itself failed
+      if (!(err instanceof CanvasBuildError) && !(err instanceof TranspileError))
+        recordBuildFailure(absPath, canvasSourceSig(source), { class: 'engine' });
       if (err instanceof TranspileError) {
         return new Response(`Transpile error: ${err.message}`, {
           status: 500,

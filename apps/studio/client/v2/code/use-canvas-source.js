@@ -17,6 +17,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { LAST_GOOD, restoreRequest } from '../../../history/surface-requests.ts';
+import { normalizeBuildFailure, normalizeWaiting } from './canvas-waiting.js';
 import { splitLines } from './highlight.js';
 
 export const SOURCE_ROUTE = '/_api/canvas-source';
@@ -94,7 +95,7 @@ export async function fetchCanvasSource(canvas, { fetchImpl = (...a) => fetch(..
   }
 }
 
-/** @returns {Promise<{status:'ok', error:object|null} | {status:'view-only'|'refused'|'missing'|'error'}>} */
+/** @returns {Promise<{status:'ok', error:object|null, waiting:object|null, buildFailure:object|null} | {status:'view-only'|'refused'|'missing'|'error'}>} */
 export async function fetchCanvasError(canvas, { fetchImpl = (...a) => fetch(...a) } = {}) {
   try {
     const res = await fetchImpl(`${ERRORS_ROUTE}?canvas=${encodeURIComponent(canvas)}`, {
@@ -102,7 +103,13 @@ export async function fetchCanvasError(canvas, { fetchImpl = (...a) => fetch(...
     });
     const body = await readJson(res);
     if (!res.ok || !body || !Array.isArray(body.errors)) return failure(res, body);
-    return { status: 'ok', error: normalizeError(body.errors[0]) };
+    return {
+      status: 'ok',
+      error: normalizeError(body.errors[0]),
+      // 2.0.4 — files it is still waiting for; #189 — why its build stopped outside its code
+      waiting: normalizeWaiting(body.waiting),
+      buildFailure: normalizeBuildFailure(body.buildFailure),
+    };
   } catch {
     return { status: 'error' };
   }
@@ -280,15 +287,18 @@ export function useCanvasSource({ canvas, enabled = true, stamp, fetchImpl } = {
 }
 
 /** The canvas's current error (or null) while `enabled`. */
-export function useCanvasError({ canvas, enabled = true, stamp, fetchImpl } = {}) {
+export function useCanvasError({ canvas, enabled = true, stamp, quiet = false, fetchImpl } = {}) {
   const [state, setState] = useState({ status: 'loading' });
   const fetchRef = useRef(fetchImpl);
   fetchRef.current = fetchImpl;
+  const quietRef = useRef(quiet);
+  quietRef.current = quiet;
   // biome-ignore lint/correctness/useExhaustiveDependencies: `stamp` is the "try again" signal
   useEffect(() => {
     if (!enabled || !canvas) return undefined;
     let cancelled = false;
-    setState({ status: 'loading' });
+    // `quiet`: a re-ask keeps the answer on screen until the new one comes (the waiting card's watch)
+    setState((s) => (quietRef.current && s.status === 'ok' ? s : { status: 'loading' }));
     fetchCanvasError(canvas, { fetchImpl: fetchRef.current }).then((r) => {
       if (!cancelled) setState(r);
     });
