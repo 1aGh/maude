@@ -475,6 +475,11 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/cloud/signout': REFUSED,
   '/_api/cloud/status': REFUSED,
   '/_api/connections/hub': REFUSED, // S11.14: the desktop's hub credential (last 4) — a cell has none
+  // Issue #204: the desktop signs in to a team server on its page — a cell holds no hub credential
+  '/_api/hub-signin/cancel': REFUSED,
+  '/_api/hub-signin/poll': REFUSED,
+  '/_api/hub-signin/return': REFUSED,
+  '/_api/hub-signin/start': REFUSED,
   '/_api/github/clone': REFUSED,
   '/_api/github/create-project': REFUSED,
   '/_api/github/create-repo': REFUSED,
