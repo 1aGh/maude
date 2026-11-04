@@ -16,6 +16,8 @@
 // canvas is on screen (the server only offers a review after its 5 s quiet window, so a faster read gains nothing).
 
 import { useEffect, useRef } from 'react';
+import { pacedInterval } from '../../../editing/page-activity.ts';
+import { shellActivity } from '../shell/shell-activity.js';
 import { contrastLine } from './contrast.js';
 import { fetchBoard } from './token-write.js';
 import { getTruth, setTruth, setTruthActions } from './truth-store.js';
@@ -212,7 +214,8 @@ export function DsTruthHost({
     });
 
     refresh();
-    const timer = setInterval(refresh, pollMs);
+    // 2.0.4: at pace while the window is used, slower while it is only looked at, not at all while hidden
+    const stopPoll = pacedInterval(refresh, pollMs, shellActivity());
     const onVisible = () => {
       if (document.visibilityState === 'visible') refresh();
     };
@@ -227,7 +230,7 @@ export function DsTruthHost({
     window.addEventListener('message', onLoaded);
     return () => {
       dead = true;
-      clearInterval(timer);
+      stopPoll();
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('message', onLoaded);
       setTruthActions(null);

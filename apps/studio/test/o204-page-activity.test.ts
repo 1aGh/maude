@@ -109,6 +109,7 @@ function manual(initial: boolean): PageActivity & { set(on: boolean): void } {
   const subs = new Set<(a: boolean) => void>();
   return {
     active: () => on,
+    hidden: () => false,
     subscribe(fn) {
       subs.add(fn);
       return () => void subs.delete(fn);

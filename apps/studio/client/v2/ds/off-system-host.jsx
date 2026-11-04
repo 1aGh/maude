@@ -12,6 +12,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { canvasDsSystem } from '../../canvas-url.js';
 import { EDGE_WORDS, findingKey, nextFinding } from './edge-model.js';
 import { addColourNow, fetchOffSystem, applyNearestNow } from './edge-write.js';
+import { pacedInterval } from '../../../editing/page-activity.ts';
+import { shellActivity } from '../shell/shell-activity.js';
 import { OffSystemQuestion } from './off-system.jsx';
 import { openCanvasRel } from './switch-host.jsx';
 
@@ -62,11 +64,12 @@ export function DsOffSystemHost({
     };
     refreshRef.current = refresh;
     const first = setTimeout(refresh, firstMs);
-    const t = setInterval(refresh, pollMs);
+    // 2.0.4: at pace while the window is used, slower while it is only looked at, not at all while hidden
+    const stopPoll = pacedInterval(refresh, pollMs, shellActivity());
     return () => {
       dead = true;
       clearTimeout(first);
-      clearInterval(t);
+      stopPoll();
       refreshRef.current = null;
     };
   }, [canvas, pollMs, firstMs]);

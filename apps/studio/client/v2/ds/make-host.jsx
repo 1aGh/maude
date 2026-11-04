@@ -30,6 +30,8 @@ import {
   systemLabelFor,
   systemNameFor,
 } from './make-model.js';
+import { pacedInterval } from '../../../editing/page-activity.ts';
+import { shellActivity } from '../shell/shell-activity.js';
 import { DsMakeSheet } from './make-sheet.jsx';
 import { finishMaking, makeSystem, readMakeState, uploadLogo } from './make-write.js';
 import { finishedMaking } from './switch-bus.js';
@@ -189,10 +191,11 @@ export function DsMakeHost({ cfg, activePath, toast, frameFor, fetchImpl, pollMs
       }
     };
     look();
-    const t = setInterval(look, pollMs ?? MAKE_POLL_MS);
+    // 2.0.4: at pace while the window is used, slower while it is only looked at, not at all while hidden
+    const stopPoll = pacedInterval(look, pollMs ?? MAKE_POLL_MS, shellActivity());
     return () => {
       off = true;
-      clearInterval(t);
+      stopPoll();
     };
   }, [ds, pollMs]);
 

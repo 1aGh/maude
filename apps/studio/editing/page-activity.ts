@@ -42,6 +42,8 @@ export interface ActivityEnv {
 
 export interface PageActivity {
   active(): boolean;
+  /** The page is hidden (a background tab, a minimized window). */
+  hidden(): boolean;
   /** Called with the new state on every change. Returns the unsubscribe. */
   subscribe(fn: (active: boolean) => void): () => void;
   /** Count as use now (a caller that knows the page changed). */
@@ -87,6 +89,7 @@ export function createPageActivity(env: ActivityEnv, idleAfter = IDLE_AFTER_MS):
   if (state) arm(idleAfter);
   return {
     active: () => state,
+    hidden: () => env.hidden(),
     subscribe(fn) {
       subs.add(fn);
       return () => void subs.delete(fn);
@@ -102,7 +105,10 @@ export function createPageActivity(env: ActivityEnv, idleAfter = IDLE_AFTER_MS):
 }
 
 /** The real environment: window events, `visibilitychange`, and node (not attribute) changes. */
-export function domActivityEnv(win: Window): ActivityEnv {
+export function domActivityEnv(
+  win: Window,
+  { nodes = true }: { nodes?: boolean } = {}
+): ActivityEnv {
   const doc = win.document;
   return {
     now: () => win.performance?.now?.() ?? Date.now(),
@@ -112,7 +118,7 @@ export function domActivityEnv(win: Window): ActivityEnv {
       for (const t of WAKE_EVENTS) win.addEventListener(t, onWake, opts);
       doc.addEventListener('visibilitychange', onVisibility);
       const MO = (win as Window & { MutationObserver?: typeof MutationObserver }).MutationObserver;
-      const mo = typeof MO === 'function' && doc.documentElement ? new MO(onWake) : null;
+      const mo = nodes && typeof MO === 'function' && doc.documentElement ? new MO(onWake) : null;
       mo?.observe(doc.documentElement, { childList: true, subtree: true, characterData: true });
       return () => {
         for (const t of WAKE_EVENTS) win.removeEventListener(t, onWake, opts);
@@ -204,5 +210,42 @@ export function activeFrameLoop(
   return () => {
     off();
     stop();
+  };
+}
+
+/**
+ * A poll that keeps its pace while the page is in use, slows to `idleMs` while it is visible but unused, and holds
+ * no timer at all while it is hidden. Coming back (visible again, or used again) runs `fn` at once and restores the
+ * pace. For the shell's server polls (2.0.4), where "unused" still means someone may be looking.
+ */
+export function pacedInterval(
+  fn: () => void,
+  ms: number,
+  activity: PageActivity | null,
+  idleMs: number = Math.max(ms * 4, 30_000)
+): () => void {
+  if (!activity) {
+    const t = setInterval(fn, ms);
+    return () => clearInterval(t);
+  }
+  let t: ReturnType<typeof setInterval> | null = null;
+  let every = 0;
+  const pace = () => (activity.hidden() ? 0 : activity.active() ? ms : idleMs);
+  const apply = () => {
+    const next = pace();
+    if (next === every) return;
+    if (t !== null) clearInterval(t);
+    t = next ? setInterval(fn, next) : null;
+    every = next;
+  };
+  apply();
+  const off = activity.subscribe((on) => {
+    if (on) fn();
+    apply();
+  });
+  return () => {
+    off();
+    if (t !== null) clearInterval(t);
+    t = null;
   };
 }
