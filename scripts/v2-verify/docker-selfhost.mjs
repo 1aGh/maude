@@ -5,12 +5,14 @@
 //
 // build → operator path (workspace-up, admin, invite, /join) → sync through the container (two studio peers)
 // → desktop legs (selfhost-entry, team-project on the container) → restart / kill+start on the same volume
-// → the v1.9.1 → v2 upgrade on one volume + mixed 1.x/v2 peers → the cell image behind dev-edge with a
-// file:// backup → down. Writes `<out>/report.md` ending in a ```json verdict and `<out>/verdict.json`.
+// → a pre-1.9.0 hub (v1.8.1) refuses Update project with `hub-too-old` → the v1.9.1 → v2 upgrade on one
+// volume + mixed 1.x/v2 peers → the cell image behind dev-edge with a file:// backup → down. Writes `<out>/report.md` ending in a ```json verdict and `<out>/verdict.json`.
 //
 // Local only, by construction: every image is built here (the v1 image from the v1.9.1 tag's sources via
-// `git archive`), nothing is pushed or pulled from a Maude registry, there is no registry login, no R2, no
-// Cloudflare. Object storage is the hub's own file backend (`MAUDE_BACKUP_TARGET=file://…`); media stay on
+// `git archive`), nothing is pushed, there is no registry login, no R2, no Cloudflare. One named exception
+// (#166, 2.0.4): the pre-1.9.0 hub is the PUBLISHED `ghcr.io/1agh/maude-hub:v1.8.1`, pulled anonymously and
+// read-only (what an operator who never upgraded runs); when it cannot be pulled it is built from the
+// v1.8.1 tag's sources like the 1.9.1 image. Object storage is the hub's own file backend (`MAUDE_BACKUP_TARGET=file://…`); media stay on
 // the checkout disk (a hub without S3 serves them from there). Every container, volume, network and tag this
 // run creates is named `maude-v2-docker-*` (the compose project is `maude-v2-docker-ws`) and removed on the way
 // out, red or green — `--keep-images` keeps only the built images for a re-run.
@@ -56,6 +58,9 @@ export const P = 'maude-v2-docker'; // every docker object this run creates carr
 const IMG = {
   hub: `${P}-hub:v2`,
   hubV1: `${P}-hub:v1.9.1`,
+  // #166 — a pre-1.9.0 hub (no `format-v2`): the published release, else built from its tag
+  hubOld: 'ghcr.io/1agh/maude-hub:v1.8.1',
+  hubOldBuilt: `${P}-hub:v1.8.1`,
   cell: `${P}-cell:v2`,
   // workspace-up renders `ghcr.io/1agh/maude-hub:${MAUDE_IMAGE_TAG}` — the operator's pinned tag. A LOCAL
   // tag on the locally built image (compose's default pull policy uses a present image and never pulls it).
@@ -818,6 +823,9 @@ async function main() {
   for (const p of Object.values(WS.peers)) p.stop();
   if (WS.secret) compose('down', '-v', '--remove-orphans');
 
+  // ── 5b · a pre-1.9.0 hub: Update project refuses `hub-too-old` (#166) ─────────────────────────────────
+  await oldHubLegs();
+
   // ── 6 · upgrade v1.9.1 → v2 on one volume, mixed peers ────────────────────────────────────────────────
   await upgradeLegs();
 
@@ -894,6 +902,103 @@ async function runHub(image, { port, secret, owner, name = UP.container, volumes
   );
   dockerObjects.containers.add(name);
   await until(`${image} healthy`, healthy(`http://localhost:${port}`), 180_000);
+}
+
+/**
+ * #166 (2.0.4) — the real-hub leg for a pre-1.9.0 hub. Until now `hub-too-old` was pinned only by unit
+ * tests (migrate-v2-refusals.test.ts "no format-v2"); the 1.9.1 image is the compat hub and offers Update
+ * project. A v1.8.1 hub advertises no `format-v2`: a v2 owner opens its format-1 project view only, and the
+ * Update dry run refuses `hub-too-old` before anything is touched. Own container and volumes; the upgrade
+ * legs never see this hub.   `--only preflight,old` runs just this.
+ */
+const OLD = { data: `${P}-old-data`, repo: `${P}-old-repo`, container: `${P}-old-hub` };
+async function oldHubLegs() {
+  let image = null;
+  await leg(
+    'old.image',
+    'the pre-1.9.0 hub: the published v1.8.1 image (read-only pull), else its tag’s sources',
+    async () => {
+      if (imageExists(IMG.hubOld)) {
+        image = IMG.hubOld;
+        return { pulled: false, present: true };
+      }
+      const pull = run('docker', ['pull', IMG.hubOld], { timeout: 600_000 });
+      writeFileSync(join(OUT, 'pull-hub-v1.8.1.log'), pull.out);
+      if (pull.status === 0) {
+        dockerObjects.images.add(IMG.hubOld); // pulled by this run → removed on the way out
+        image = IMG.hubOld;
+        return { pulled: true };
+      }
+      const src = join(WORK, 'v1.8.1');
+      mkdirSync(src, { recursive: true });
+      const tar = run('bash', ['-c', `git -C "${ROOT}" archive v1.8.1 | tar -x -C "${src}"`]);
+      assert(tar.status === 0, `git archive v1.8.1: ${tar.out.slice(-300)}`);
+      image = IMG.hubOldBuilt;
+      const b = build(IMG.hubOldBuilt, ['-f', 'apps/hub/Dockerfile', '.'], src, 'hub-v1.8.1');
+      return { pulled: false, ...b };
+    }
+  );
+  await leg(
+    'old.v2-on-v181-hub',
+    'a v2 owner against a v1.8.1 hub: view only, and Update project refuses hub-too-old',
+    async () => {
+      assert(image && imageExists(image), 'no v1.8.1 hub image');
+      const O = {
+        port: await freePort(),
+        secret: randomBytes(32).toString('hex'),
+        owner: { email: 'owner@docker-old.test', password: randomBytes(15).toString('base64url') },
+      };
+      O.url = `http://localhost:${O.port}`;
+      dockerObjects.volumes.add(OLD.data);
+      dockerObjects.volumes.add(OLD.repo);
+      try {
+        await runHub(image, {
+          ...O,
+          name: OLD.container,
+          volumes: [`${OLD.data}:/data`, `${OLD.repo}:/repo`],
+        });
+        const health = (await http(`${O.url}/health`)).body ?? {};
+        assert(
+          !(health.capabilities ?? []).includes('format-v2'),
+          `the v1.8.1 hub advertises format-v2: ${JSON.stringify(health.capabilities)}`
+        );
+        const owner = await signIn(O.url, O.owner.email, O.owner.password);
+        const peer = await startPeer('v2-on-v181', {
+          hubUrl: O.url,
+          token: owner.token,
+          role: 'owner',
+        });
+        try {
+          const cfg = await peer.config();
+          assert(
+            cfg.readOnly === true && cfg.readOnlyReason === 'format' && cfg.formatVersion === 1,
+            `v2 on a v1.8.1 hub is not view only: ${JSON.stringify({ readOnly: cfg.readOnly, reason: cfg.readOnlyReason, fv: cfg.formatVersion })}`
+          );
+          const dry = await peer.migrate(false);
+          const codes = (dry.body?.refusals ?? []).map((r) => r.code);
+          // a refused dry run answers 409 with its refusals (a clean one 200 — the 1.9.1 leg)
+          assert(
+            dry.status === 409 && codes.includes('hub-too-old'),
+            `the dry run on the v1.8.1 hub did not refuse hub-too-old: ${dry.status} ${JSON.stringify(dry.body?.refusals ?? dry.body).slice(0, 300)}`
+          );
+          assert(
+            (await peer.config()).formatVersion === 1,
+            'a refused dry run moved the project to format 2'
+          );
+          return {
+            version: health.version ?? null,
+            capabilities: health.capabilities ?? [],
+            readOnlyReason: cfg.readOnlyReason ?? null,
+            codes,
+          };
+        } finally {
+          peer.stop();
+        }
+      } finally {
+        dockerQuiet('rm', '-f', OLD.container);
+      }
+    }
+  );
 }
 
 async function upgradeLegs() {
