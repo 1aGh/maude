@@ -24,6 +24,8 @@ type Outcome = {
 
 /** What a splice restore reads and writes through (`ctx.syncControl.current()`). */
 export interface SpliceRuntime extends VersionsRuntime {
+  /** F14 — this disk's change goes up before the newest version is read (sync/index.ts). */
+  settleSource?(repoRel: string, ms?: number): Promise<'settled' | 'held' | 'pending' | null>;
   acceptedRestore?(repoRel: string, revision: number, o?: RestoreOptions): Promise<Outcome | null>;
   acceptedVersion?(
     repoRel: string,
@@ -132,6 +134,42 @@ export async function restoreArtboardAt(
   return { ...r, label: s.label, line, sharedKept: s.sharedKept, why: s.why };
 }
 
+/** F14 — the refusals of a restore whose canvas has a change on this disk the project lacks. */
+export const SETTLE_REFUSAL_LINES: Readonly<Record<string, string>> = {
+  'unsaved-change': 'This canvas has a change on this Mac that isn’t saved. Compare it first.',
+  'still-saving': 'This canvas is still saving. Try again in a moment.',
+};
+
+/**
+ * F14 (2.0.4, #166) — a restore splices onto the canvas's NEWEST version, but the person (and the
+ * all-trashed card) sees THIS disk. A change here the project has not taken yet (an AI run, an
+ * editor, a pull, still in the watcher's quiet window or in flight) goes up first, so the restore
+ * lands after it. A change the project refused stays held here, and the restore is refused rather
+ * than landing in the project while this file keeps the held candidate (the "answers ok but the
+ * file stays empty" bug). A home without the seam (a local project, an older runtime) is unchanged.
+ */
+export async function settleBeforeRestore(
+  rt: SpliceRuntime,
+  repoRel: string
+): Promise<{ ok: true } | { ok: false; status: number; reason: string; line: string }> {
+  const s = rt.settleSource ? await rt.settleSource(repoRel).catch(() => null) : null;
+  if (s === 'held')
+    return {
+      ok: false,
+      status: 409,
+      reason: 'unsaved-change',
+      line: SETTLE_REFUSAL_LINES['unsaved-change'] as string,
+    };
+  if (s === 'pending')
+    return {
+      ok: false,
+      status: 409,
+      reason: 'still-saving',
+      line: SETTLE_REFUSAL_LINES['still-saving'] as string,
+    };
+  return { ok: true };
+}
+
 /** "Restored “Hero” from the trash" — the canvas restore's words (sync/index.ts), for one artboard. */
 export const trashRestoreLine = (label: string): string => `Restored “${label}” from the trash`;
 
@@ -161,6 +199,8 @@ export function trashArtboardRestorer(deps: {
     if (!Number.isSafeInteger(item.rev) || item.rev < 1)
       return { status: 'rejected', code: 'not-in-version' };
     const repoRel = designRel ? `${designRel}/${canvas}` : canvas;
+    const settled = await settleBeforeRestore(rt, repoRel);
+    if (!settled.ok) return { status: 'rejected', code: settled.reason };
     const headRev = await newestRevision(rt, repoRel, canvas).catch(() => undefined);
     if (headRev === undefined) return { status: 'rejected', code: 'unreachable' };
     const r = await restoreArtboardAt(rt, {

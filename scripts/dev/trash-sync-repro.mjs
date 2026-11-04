@@ -51,6 +51,9 @@ const arg = (n, fb) => {
 const SCENARIO = arg('scenario', 'restore');
 const RUNS = Number(arg('runs', '1'));
 const RESTORER = arg('restorer', 'bob');
+// F14 (2.0.4) — whose disk the hand edit empties (default bob's); `--editor alice --restorer alice`
+// is the same-Mac race on the other side (a restore over its own change the project lacks)
+const EDITOR = arg('editor', 'bob');
 const KEEP = argv.includes('--keep');
 const SETTLE_MS = Number(arg('settle', '0'));
 // --legacy: a hub with no accepted-revisions store (the shared-document mode a 1.x hub speaks)
@@ -370,14 +373,21 @@ async function restoreRun(n) {
   );
   await until('alice has one artboard', () => ids(disk(alice, rel)).length === 1, 120_000);
   // the hand edit: the last artboard leaves bob's file (an AI run, an editor, a pull)
+  const editor = peers[EDITOR];
+  const watcher = editor === bob ? alice : bob;
   writeFileSync(
-    join(bobRoot, '.design', rel),
+    join(editor.root, '.design', rel),
     SOURCE.replace(/ {8}<DCArtboard[\s\S]*<\/DCArtboard>\n/, '')
   );
   // the hand edit reaches the project (and so alice) before anyone restores — as the e2e waits
   // for Saved — unless --settle N restores N ms after it instead
   if (SETTLE_MS) await sleep(SETTLE_MS);
-  else await until('the hand edit at alice', () => ids(disk(alice, rel)).length === 0, 120_000);
+  else
+    await until(
+      `the hand edit at ${watcher.name}`,
+      () => ids(disk(watcher, rel)).length === 0,
+      120_000
+    );
   const restorer = peers[RESTORER];
   await until(
     `three in ${restorer.name}’s Trash`,
@@ -405,6 +415,16 @@ async function restoreRun(n) {
   await sleep(3_000); // and still there a beat later (nothing undoes it)
   // (the cell's checkout holds no canvas source here — no studio child materializes it)
   const final = { bob: ids(disk(bob, rel)), alice: ids(disk(alice, rel)) };
+  // a held source conflict on either Mac (the Share cluster's Not saved · Compare): never silent
+  const slug = rel
+    .replace(/\//g, '-')
+    .replace(/\.tsx$/, '')
+    .toLowerCase();
+  for (const p of [bob, alice]) {
+    const st = await syncStatus(p).catch(() => null);
+    if ((st?.notices ?? []).some((x) => x?.id === `source-conflict-${slug}`))
+      final[`${p.name}Held`] = true;
+  }
   if (Object.values(final).some((v) => v.length !== want)) ok = false;
   return { ok, answers, final };
 }
