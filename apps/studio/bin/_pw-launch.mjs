@@ -153,6 +153,20 @@ export function safeArtboardFilename(id, index, ext) {
   return `${safe}.${ext}`;
 }
 
+// fix/204-capture-parity — wait until the page has produced a frame AFTER its last layout change
+// (a viewport resize, the world plane moved to the origin) before a raster shot. Taken at once,
+// headless Chromium can hand `page.screenshot` the compositor's previous surface: stale raster
+// tiles of the 1440×900 page repeated across the small viewport. Nothing on an idle canvas page
+// requests a frame by itself, so the shot must. The first callback runs before the frame that
+// carries the change, the second after it was produced. `_ds-prove-playwright.mjs` and
+// `_tile-draw.mjs` already wait the same way.
+export async function afterPaint(page) {
+  await page.evaluate(
+    () =>
+      new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+  );
+}
+
 // Shared by every raster-capture export shim (_png/_pdf-playwright.mjs) that
 // scales its render surface by `deviceScaleFactor` (feature-2-print-artboards
 // T4's DPI support). The requested pixel output is only knowable once the
