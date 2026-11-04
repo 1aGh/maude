@@ -38,6 +38,7 @@ import { type BoardGuard, voteDoorOnly } from './annotations/vote-guard.ts';
 import { createAssetMirror, s3ConfigFromEnv } from './assets-s3.ts';
 import { canvasArtifacts, locatorKeyFor, relocatedName } from './canvas-artifacts.ts';
 import {
+  FOLDER_WORDS,
   foldToAllowedName,
   nameFromPrompt,
   nextFreeCanvasName,
@@ -5388,14 +5389,10 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         return abs === gAbs || abs.startsWith(`${gAbs}${path.sep}`);
       });
     if (!withinAGroup(resolvedDir)) {
-      return {
-        ok: false,
-        status: 400,
-        error: 'only folders under a managed canvas group can be moved',
-      };
+      return { ok: false, status: 400, error: FOLDER_WORDS.notHere };
     }
     if (deletable.some((g) => path.resolve(path.join(paths.designRoot, g.path)) === resolvedDir)) {
-      return { ok: false, status: 400, error: 'cannot move a canvas group root' };
+      return { ok: false, status: 400, error: FOLDER_WORDS.groupRoot };
     }
     if (!(await assertRealpathContained(resolvedDir))) {
       return { ok: false, status: 400, error: 'source path escapes the design root via a symlink' };
@@ -5421,7 +5418,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       return { ok: false, status: 400, error: 'destination resolves outside the design root' };
     }
     if (!withinAGroup(resolvedToDir)) {
-      return { ok: false, status: 400, error: 'destination must be inside a managed canvas group' };
+      return { ok: false, status: 400, error: FOLDER_WORDS.notHere };
     }
     if (!(await assertRealpathContained(resolvedToDir))) {
       return {
@@ -5432,7 +5429,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     }
     // Refuse a move into itself or a descendant of itself.
     if (resolvedToDir === resolvedDir || resolvedToDir.startsWith(`${resolvedDir}${path.sep}`)) {
-      return { ok: false, status: 400, error: 'cannot move a folder into itself' };
+      return { ok: false, status: 400, error: FOLDER_WORDS.intoItself };
     }
 
     // A RENAME is a move to a new name in the same (or another) parent — one
@@ -5456,7 +5453,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       if (closeFolder) return closeFolder;
       try {
         await statp(toDirFinalAbs);
-        return { ok: false, status: 409, error: `"${base}" already exists in ${toDir || '.'}` };
+        return { ok: false, status: 409, error: FOLDER_WORDS.taken(base) };
       } catch {
         /* good — doesn't exist yet */
       }
@@ -5472,7 +5469,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       return {
         ok: false,
         status: 400,
-        error: `folder has ${found.length} canvases — the batch move cap is ${MAX_BATCH}; move a smaller subset`,
+        error: FOLDER_WORDS.tooMany(path.basename(relDir), found.length, MAX_BATCH),
       };
     }
     const canvasRels = found.map((p) =>
@@ -5519,11 +5516,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       to: toRelDir,
     });
     if (folderMove?.status === 'rejected') {
-      return {
-        ok: false,
-        status: 409,
-        error: `the project did not accept this move (${folderMove.code ?? 'rejected'})`,
-      };
+      console.warn(`[fs-move] the project refused dir.move (${folderMove.code ?? 'rejected'})`);
+      return { ok: false, status: 409, error: FOLDER_WORDS.refused };
     }
 
     // Collab guard for every canvas found, BEFORE any disk mutation. Same
@@ -5538,7 +5532,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         return {
           ok: false,
           status: 409,
-          error: `"${path.basename(r)}" has a live shared session — cannot move the folder while it's pinned to the hub`,
+          error: FOLDER_WORDS.live(path.basename(r).replace(/\.tsx$/i, '')),
         };
       }
     }
@@ -5706,7 +5700,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       return resolvedParent === gAbs || resolvedParent.startsWith(`${gAbs}${path.sep}`);
     });
     if (!withinAGroup) {
-      return { ok: false, status: 400, error: 'parent must be inside a managed canvas group' };
+      return { ok: false, status: 400, error: FOLDER_WORDS.notHere };
     }
     if (!(await assertRealpathContained(resolvedParent))) {
       return {
@@ -5730,7 +5724,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     if (closeFolder) return closeFolder;
     try {
       await statp(dirAbs); // throws if absent (works for files AND dirs)
-      return { ok: false, status: 409, error: `"${v.name}" already exists` };
+      return { ok: false, status: 409, error: FOLDER_WORDS.taken(v.name) };
     } catch {
       /* good — doesn't exist yet */
     }
@@ -5740,11 +5734,10 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       path: path.posix.join(parent, v.name),
     });
     if (folderCreate?.status === 'rejected') {
-      return {
-        ok: false,
-        status: 409,
-        error: `the project did not accept this folder (${folderCreate.code ?? 'rejected'})`,
-      };
+      console.warn(
+        `[fs-mkdir] the project refused dir.create (${folderCreate.code ?? 'rejected'})`
+      );
+      return { ok: false, status: 409, error: FOLDER_WORDS.refused };
     }
 
     await mkdir(dirAbs, { recursive: true });
