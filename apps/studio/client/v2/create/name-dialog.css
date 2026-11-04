@@ -10,6 +10,10 @@
     place-items: center;
     background: var(--scrim, rgb(0 0 0 / 0.32));
   }
+  /* a yes/no ask opened from inside another modal sheet (.sh-scrim is 9000; banners keep 9100) */
+  .nd-scrim--over {
+    z-index: 9050;
+  }
   .nd-dialog {
     width: min(380px, calc(100vw - 32px));
     display: flex;

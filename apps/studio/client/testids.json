@@ -42554,15 +42554,19 @@
     "hook": "tree-ask-ok",
     "kind": "testid",
     "pattern": false,
-    "meaning": "#195 (2.0.4): Move to trash (Enter): sends the move; \"Moving…\" while it runs.",
+    "meaning": "The ask's verb (Enter): Move to trash on a folder or file row; Restore in the version diff; Discard in History › Not in a version yet. \"Moving…\" / \"Restoring…\" / \"Discarding…\" while it runs.",
     "producer": {
       "file": "apps/studio/client/v2/canvases/folder-dialogs.jsx",
       "symbol": "ConfirmAskDialog"
     },
     "region": "other",
-    "consumers": [],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "sourceConsumers": [
-      "apps/studio/test/204-folder-dialogs.test.tsx"
+      "apps/studio/test/204-folder-dialogs.test.tsx",
+      "apps/studio/test/history-preview-restore.test.tsx",
+      "apps/studio/test/v2-git-advanced.test.tsx"
     ],
     "v2": "new"
   },
@@ -43519,6 +43523,22 @@
     },
     "region": "sidebar/tree",
     "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "diff-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Why a Restore or a merge in the version diff failed, in plain words, inside the sheet (replaces window.alert).",
+    "producer": {
+      "file": "apps/studio/client/panels/DiffView.jsx",
+      "symbol": "DvError"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/history-preview-restore.test.tsx"
+    ],
     "v2": "new"
   }
 ]

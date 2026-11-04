@@ -12,7 +12,10 @@ import NameDialog from '../create/NameDialog.jsx';
 import { useModalFocus } from '../shell/modal-focus.js';
 import { askFailure, asksForName, checkAskName, folderAskWords } from './folder-ask.js';
 
-/** A yes/no ask on the same material as NameDialog: title, one line, Cancel and the verb. */
+/**
+ * A yes/no ask on the same material as NameDialog: title, one line, Cancel and the verb. `over` lifts it above a
+ * modal sheet that is already open (the version diff) — it is the shell's replacement for `window.confirm`.
+ */
 export function ConfirmAskDialog({
   title,
   body,
@@ -20,6 +23,7 @@ export function ConfirmAskDialog({
   busyLabel,
   busy,
   error,
+  over = false,
   onConfirm,
   onCancel,
 }) {
@@ -27,7 +31,7 @@ export function ConfirmAskDialog({
   const ref = useModalFocus({ onClose: onCancel, initialRef: okRef });
   const titleId = useId();
   return (
-    <div className="nd-scrim" data-testid="tree-ask-scrim">
+    <div className={over ? 'nd-scrim nd-scrim--over' : 'nd-scrim'} data-testid="tree-ask-scrim">
       <form
         ref={ref}
         className="island nd-dialog"
