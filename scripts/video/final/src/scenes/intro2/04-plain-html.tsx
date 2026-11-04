@@ -34,7 +34,8 @@ export const I2PlainHtml = () => {
   const vsOn = (d: number) => ({ opacity: tween(ms, [d, d + 300], [0, 1]), transform: `translateY(${tween(ms, [d, d + 300], [10, 0])}px)` });
   return (
     <SiteStage t0={ms}>
-      <div className="ps-wrap" style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center' }}>
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="ps-wrap" style={{ width: '100%' }}>
         <div className="ps-html" style={{ width: '100%' }}>
           <div className="ps-head" style={{ marginBottom: 0 }}>
             <span className="ps-eyebrow ps-a" style={{ fontSize: 'var(--type-md)', ...at(C.head) }}>No secret file format</span>
@@ -77,10 +78,11 @@ export const I2PlainHtml = () => {
                 <span className="ps-small"><Icon name="check" size={12} /> Opens in any editor, browser or AI</span>
               </div>
             </div>
-            <span className="chip" style={{ alignSelf: 'flex-start', display: 'inline-flex', gap: 6, alignItems: 'center', ...vsOn(C.ship) }}>
-              <Icon name="check" size={14} /> A developer ships it as it is
+            <span className="chip" style={{ alignSelf: 'flex-start', display: 'inline-flex', gap: 8, alignItems: 'center', fontSize: 'var(--type-md)', padding: '6px 14px', ...vsOn(C.ship) }}>
+              <Icon name="check" size={16} /> A developer ships it as it is
             </span>
           </div>
+        </div>
         </div>
       </div>
     </SiteStage>

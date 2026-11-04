@@ -72,19 +72,19 @@ const Together = () => {
   });
   return (
     <AbsoluteFill style={{ overflow: 'hidden' }}>
-      <Img src={staticFile('intro2/captures/canvas-landing.jpg')} style={{ width: 1920, height: 1080, transform: `scale(${tween(ms, [0, 4400], [1.06, 1.14], (x) => x)})`, transformOrigin: '50% 45%' }} />
+      <Img src={staticFile('intro2/captures/canvas-landing.jpg')} style={{ width: 1920, height: 1080, transform: `scale(${tween(ms, [0, 4400], [1.0, 1.05], (x) => x)})`, transformOrigin: '50% 50%' }} />
       <AbsoluteFill className="maude-v2 i2-film" data-theme="light" style={{ ['--t0' as string]: `${ms}ms` }}>
         <div style={{ position: 'absolute', inset: 0, transform: 'scale(1.5)', transformOrigin: '0 0' }}>
           <div style={{ position: 'absolute', left: 0, top: 0, ...glide(100, -120, 60) }}>
-            <Cursor name="tereza" x={420} y={520} />
+            <Cursor name="tereza" x={413} y={507} />
           </div>
           <div style={{ position: 'absolute', left: 0, top: 0, ...glide(450, 140, 90) }}>
-            <Cursor name="jonas" x={780} y={210} />
+            <Cursor name="jonas" x={867} y={267} />
           </div>
-          <div className="ps-a ps-a--land" style={{ position: 'absolute', left: 470, top: 450, width: 170, ...at(1500) }}>
+          <div className="ps-a ps-a--land" style={{ position: 'absolute', left: 493, top: 420, width: 170, ...at(1500) }}>
             <Sticky color="yellow" x={0} y={0} rotate={3} w={170}>Bigger logo on the poster?</Sticky>
           </div>
-          <div className="ps-a ps-a--land" style={{ position: 'absolute', left: 660, top: 90, width: 160, ...at(2300) }}>
+          <div className="ps-a ps-a--land" style={{ position: 'absolute', left: 787, top: 170, width: 160, ...at(2300) }}>
             <Sticky color="green" x={0} y={0} rotate={-2} w={160}>Ship it ✓</Sticky>
           </div>
         </div>

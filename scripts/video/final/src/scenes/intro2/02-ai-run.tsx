@@ -41,7 +41,7 @@ function RunCard({ left, plan, pick = false, d, undo }: { left: number; plan: st
 }
 
 /** The product window with the scripted run, at run time `t` (ms) and undo state `undo`. */
-export function RunShot({ undo = NO_UNDO, undone = false, toast }: { undo?: Undo; undone?: boolean; toast?: ReactNode }) {
+export function RunShot({ t = 99999, undo = NO_UNDO, undone = false, toast }: { t?: number; undo?: Undo; undone?: boolean; toast?: ReactNode }) {
   return (
     <div className="ps-shot">
       <Window tabs={[TABS.studio, TABS.alligators]} activeTab={0} label="Maude with the Studio site project open">
@@ -94,10 +94,11 @@ export function RunShot({ undo = NO_UNDO, undone = false, toast }: { undo?: Undo
         <AIPanel
           chat="Pricing page"
           scope="Pricing · Web desktop"
+          // A message joins the panel when it is sent, so no empty bubble waits for its text.
           messages={[
-            { from: 'you', text: <span className="ps-a ps-a--fade" style={at(T.ask)}>Make a pricing page with three plans. Use Tereza's yearly note.</span> },
-            { from: 'ai', text: <span className="ps-a ps-a--fade" style={at(T.reply)}>Three cards on the Pricing artboard, monthly and yearly side by side.</span> },
-          ]}
+            { from: 'you' as const, at: T.ask, text: <span className="ps-a ps-a--fade" style={at(T.ask)}>Make a pricing page with three plans. Use Tereza's yearly note.</span> },
+            { from: 'ai' as const, at: T.reply, text: <span className="ps-a ps-a--fade" style={at(T.reply)}>Three cards on the Pricing artboard, monthly and yearly side by side.</span> },
+          ].filter((m) => t >= m.at).map(({ from, text }) => ({ from, text }))}
         >
           <span className="ps-a ps-a--on" style={at(T.working)}>
             <span className="ps-a ps-a--out k-ai-msg" style={{ display: 'flex', gap: 6, alignItems: 'center', color: 'var(--spark-text)', ...at(T.done) }}>
@@ -134,7 +135,7 @@ export const I2AiRun = () => {
   return (
     <SiteStage t0={t}>
       <Camera ms={ms} from={[0, 8000]}>
-        <RunShot />
+        <RunShot t={t} />
       </Camera>
     </SiteStage>
   );
