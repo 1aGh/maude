@@ -37,10 +37,16 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { startLocalHub } from '../../apps/desktop/e2e/fixtures/local-hub.mjs';
-import { heldConflicts } from '../../apps/studio/client/v2/diagnostics/sync-details/sync-details-model.js';
-import { saveStatus } from '../../apps/studio/client/v2/shell/save-status.js';
-import { syncPresentation } from '../../apps/studio/sync/presentation.ts';
+import * as syncDetailsModel from '../../apps/studio/client/v2/diagnostics/sync-details/sync-details-model.js';
+import * as saveStatusModule from '../../apps/studio/client/v2/shell/save-status.js';
+import * as presentationModule from '../../apps/studio/sync/presentation.ts';
 import { stubClaudeEnv } from '../lib/stub-claude.mjs';
+
+// Namespace imports: the rig also runs against older builds (the before-the-fix series), where the
+// Share cluster's status word did not exist yet — the run then just leaves that word out.
+const heldConflicts = syncDetailsModel.heldConflicts ?? (() => []);
+const { saveStatus } = saveStatusModule;
+const { syncPresentation } = presentationModule;
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const argv = process.argv.slice(2);
