@@ -4,7 +4,7 @@
 //   waiting        "Uniformy-2027 is still downloading." · 3 of 5 files · Project sync · the names
 //                  (five, then "and N more") · no Ask AI · loads by itself when the files land
 //   refused        "Uniformy-2027 can't open on this Mac yet." · the code-consent sentence pointing at
-//                  Settings › Connections · no Ask AI
+//                  linking the folder again (the link asks) · no Ask AI
 //   build failure  "… can't be drawn right now." · the app's side, not the code · the reason class
 //                  under Show details · no Ask AI · never "No details were reported" (#189)
 //   code error     unchanged: "Its code has a mistake the canvas can't show." + Ask AI to fix it
@@ -121,7 +121,7 @@ describe('the load-failure slot', () => {
     expect(document.body.textContent).not.toContain("can't be drawn");
   });
 
-  test('refused: the code-consent sentence with Settings › Connections, no Ask AI', async () => {
+  test('refused: the code-consent sentence points at linking again (it asks), never a dead end; no Ask AI', async () => {
     await mount(
       <CanvasLoadFailure
         canvas={CANVAS}
@@ -135,8 +135,10 @@ describe('the load-failure slot', () => {
       "Uniformy-2027 can't open on this Mac yet."
     );
     expect(q('canvas-waiting-body')?.textContent).toBe(
-      "This Mac hasn't accepted shared code from this project (_uniform-template.ts). Nothing is lost. To allow it, open Settings › Connections."
+      "This Mac hasn't accepted shared code from this project (_uniform-template.ts). Nothing is lost. To allow it, link this folder to the project again and accept shared code when asked."
     );
+    // Settings has no per-hub consent row: the card must not send anyone there
+    expect(document.body.textContent).not.toContain('Settings');
     expect(q('canvas-waiting-progress')).toBeNull();
     expect(q('canvas-error-ask-ai')).toBeNull();
     expect(document.body.textContent).not.toContain('Ask AI');

@@ -5,8 +5,9 @@
 //             files) · the project's sync (Project sync: 5,029 of 5,041 files) · the names it waits
 //             for (five, then "and N more"). No button: the canvas opens by itself when they land
 //             (CanvasLoadFailure watches and reloads it).
-//   refused   "Uniformy-2027 can't open on this Mac yet." · why, in plain words, with a pointer to
-//             Settings › Connections for the code consent. No "Ask AI to fix it": AI can't change a
+//   refused   "Uniformy-2027 can't open on this Mac yet." · why, in plain words; for the code consent,
+//             linking the folder again (the link asks — Settings has no per-hub consent row, and a
+//             Maude Cloud project opened from Home accepts by itself). No "Ask AI to fix it": AI can't change a
 //             sync consent, and nothing in the code is wrong.
 //
 // Same card frame as the broken-canvas card (`.v2-err`); the words are canvas-waiting.js's.
