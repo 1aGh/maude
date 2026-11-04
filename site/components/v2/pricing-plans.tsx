@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { ProjectPlan } from './billing-toggle.client';
 import { Spark } from './kit/glyphs';
-import { CLOUD_START } from './pilot';
+import { CLOUD_CTA_ON, CLOUD_START, OpeningSoon } from './pilot';
 import { PRICE } from './price';
 import { Tick } from './tick';
 
@@ -61,9 +61,13 @@ export function PricingPlans() {
             <Tick>Region pinning and a custom domain</Tick>
             <Tick>Priority support</Tick>
           </ul>
-          <Link className="btn btn--lg" href={CLOUD_START}>
-            Get Dedicated
-          </Link>
+          {CLOUD_CTA_ON ? (
+            <Link className="btn btn--lg" href={CLOUD_START}>
+              Get Dedicated
+            </Link>
+          ) : (
+            <OpeningSoon />
+          )}
           <span className="ps-small" style={{ textAlign: 'center' }}>
             monthly only
           </span>

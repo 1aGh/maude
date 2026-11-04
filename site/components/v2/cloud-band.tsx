@@ -2,7 +2,7 @@
 // The Buy CTA: one dark band, the price in the open, two actions.
 import Link from 'next/link';
 import { Icon, Mark } from './kit/glyphs';
-import { PILOT_FINE } from './pilot';
+import { CLOUD_CTA_ON, PILOT_FINE } from './pilot';
 import { PRICE } from './price';
 
 export function CloudBand() {
@@ -24,10 +24,15 @@ export function CloudBand() {
             seat, and they open it in the app or the browser.
           </p>
           <div className="ps-row" style={{ marginTop: 'var(--space-3)' }}>
-            <Link className="btn btn--primary btn--lg" href="/cloud">
-              Get Maude Cloud
-            </Link>
-            <Link className="btn btn--ghost btn--lg" href="/cloud#pricing">
+            {CLOUD_CTA_ON ? (
+              <Link className="btn btn--primary btn--lg" href="/cloud">
+                Get Maude Cloud
+              </Link>
+            ) : null}
+            <Link
+              className={`btn btn--lg ${CLOUD_CTA_ON ? 'btn--ghost' : 'btn--primary'}`}
+              href="/cloud#pricing"
+            >
               See pricing
             </Link>
           </div>

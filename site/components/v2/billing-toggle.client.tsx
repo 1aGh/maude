@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { CLOUD_CTA_ON, OpeningSoon } from './pilot';
 import { Tick } from './tick';
 
 type Props = {
@@ -45,9 +46,13 @@ export function ProjectPlan({ monthly, yearly, yearFree, savePct, gb, href }: Pr
         <Tick>Full history and one-click export</Tick>
         <Tick>An automatic copy in your own GitHub</Tick>
       </ul>
-      <Link className="btn btn--primary btn--lg" href={href}>
-        Get Maude Cloud
-      </Link>
+      {CLOUD_CTA_ON ? (
+        <Link className="btn btn--primary btn--lg" href={href}>
+          Get Maude Cloud
+        </Link>
+      ) : (
+        <OpeningSoon />
+      )}
       <span className="ps-small" style={{ textAlign: 'center' }}>
         {yearlyOn ? `Monthly: ${monthly} a month` : `Yearly: ${yearly}, ${yearFree}`}
       </span>

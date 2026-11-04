@@ -1,5 +1,6 @@
 import type { BaseLayoutProps } from 'fumadocs-ui/layouts/shared';
 import { MaudeMark } from '@/components/mdcc/maude-mark';
+import { CLOUD_CTA_ON } from '@/components/v2/pilot';
 import { gitConfig } from './shared';
 
 // Mobile theme toggle — fumadocs renders it inside the burger menu (HomeLayout
@@ -24,7 +25,9 @@ export function baseOptions(): BaseLayoutProps {
       { text: 'Pricing', url: '/cloud', active: 'nested-url' },
       { text: 'GitHub', url: githubUrl, external: true },
       { type: 'button', text: 'Download', url: '/desktop', secondary: true },
-      { type: 'button', text: 'Get Maude Cloud', url: '/cloud' },
+      ...(CLOUD_CTA_ON
+        ? [{ type: 'button' as const, text: 'Get Maude Cloud', url: '/cloud' }]
+        : []),
     ],
     // NB: no `githubUrl` here — the fumadocs GitHub *icon* it renders ships an
     // unlabeled `role="img"` <svg> (axe svg-img-alt, serious). The "GitHub"

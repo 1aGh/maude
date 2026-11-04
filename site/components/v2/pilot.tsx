@@ -5,6 +5,16 @@ import { Icon } from './kit/glyphs';
 /** True while Maude Cloud takes no live payments. */
 export const PILOT_ON = true;
 
+/** Every "Get Maude Cloud" / "Try Maude Cloud" / plan button on the site. Off until Cloud opens for
+ *  sign-up (live Stripe catalog, checkout change, B3 purchase): the pricing stays visible, the
+ *  buttons don't render, and the plan cards say "Opening soon". One edit turns them back on. */
+export const CLOUD_CTA_ON = false;
+
+/** Shown where a plan button would be while CLOUD_CTA_ON is off. */
+export function OpeningSoon() {
+  return <span className="ps-small ps-soon">Opening soon</span>;
+}
+
 /** Where "Get Maude Cloud" leads. Until payments are live it is the page that explains the pilot. */
 export const CLOUD_START = '/docs/cloud/pricing';
 

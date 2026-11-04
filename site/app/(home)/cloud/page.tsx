@@ -4,7 +4,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { DownloadLabel } from '@/components/v2/download-label.client';
 import { Icon } from '@/components/v2/kit/glyphs';
-import { CLOUD_START, PilotBadge } from '@/components/v2/pilot';
+import { CLOUD_CTA_ON, CLOUD_START, PilotBadge } from '@/components/v2/pilot';
 import { PRICE } from '@/components/v2/price';
 import { PricingPlans } from '@/components/v2/pricing-plans';
 
@@ -164,17 +164,24 @@ export default function CloudPage() {
         <div className="ps-band ps-band--cta">
           <div className="ps-head" style={{ marginBottom: 0 }}>
             <h2 id="h-cloud-cta" className="ps-h2 ps-h2--lg">
-              Start a Cloud project.
+              {CLOUD_CTA_ON ? 'Start a Cloud project.' : 'Maude Cloud opens soon.'}
             </h2>
             <p className="ps-body">
-              Move a project from your Mac in the Share sheet, or start a new one here.
+              {CLOUD_CTA_ON
+                ? 'Move a project from your Mac in the Share sheet, or start a new one here.'
+                : 'Until then, Maude is free on your Mac or PC, and self-hosting is free forever.'}
             </p>
           </div>
           <div className="ps-row">
-            <Link className="btn btn--primary btn--lg" href={CLOUD_START}>
-              Get Maude Cloud
-            </Link>
-            <Link className="btn btn--ghost btn--lg" href="/desktop">
+            {CLOUD_CTA_ON ? (
+              <Link className="btn btn--primary btn--lg" href={CLOUD_START}>
+                Get Maude Cloud
+              </Link>
+            ) : null}
+            <Link
+              className={`btn btn--lg ${CLOUD_CTA_ON ? 'btn--ghost' : 'btn--primary'}`}
+              href="/desktop"
+            >
               <DownloadLabel />
             </Link>
           </div>

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { CLOUD_CTA_ON } from './pilot';
 
 /** Get Maude Cloud. On Home the hero owns the primary (Download), so this steps back until the hero scrolls away. */
 export function NavBuy({ href = '/cloud' }: { href?: string }) {
@@ -16,6 +17,7 @@ export function NavBuy({ href = '/cloud' }: { href?: string }) {
     return () => io.disconnect();
   }, [home]);
   const quiet = home && heroInView;
+  if (!CLOUD_CTA_ON) return null;
   return (
     <Link className={`btn btn--sm ps-buy${quiet ? '' : ' btn--primary'}`} href={href}>
       Get Maude Cloud

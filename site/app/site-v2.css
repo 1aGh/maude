@@ -3822,3 +3822,11 @@
     display: none;
   }
 }
+
+/* "Opening soon" in place of a plan button while CLOUD_CTA_ON is off */
+.v2-site .ps-soon {
+  display: block;
+  text-align: center;
+  padding: var(--space-3) 0;
+  font-weight: var(--weight-semibold);
+}

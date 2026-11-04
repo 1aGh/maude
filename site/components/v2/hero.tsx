@@ -1,5 +1,6 @@
 // Ported once from .design/ui/Public Site v2.tsx on 2026-11-04; site/ is the source now.
 // The hero sits ON the canvas: the headline is a selected text layer, people and the AI are around it.
+
 import Link from 'next/link';
 import whatsNew from '@/lib/whats-new.json';
 import { at, T } from './clock';
@@ -8,6 +9,7 @@ import { DragFloat } from './drag-float.client';
 import { HeroHeadline } from './hero-headline.client';
 import { Cursor, Sticky } from './kit/canvas';
 import { Icon } from './kit/glyphs';
+import { CLOUD_CTA_ON } from './pilot';
 import { PRICE } from './price';
 
 const newest = whatsNew.entries[0];
@@ -73,9 +75,11 @@ export function Hero() {
           <Link className="btn btn--primary btn--lg" href="/desktop">
             <DownloadLabel suffix=" · free" />
           </Link>
-          <Link className="btn btn--lg ps-hero-more" href="/cloud">
-            Try Maude Cloud
-          </Link>
+          {CLOUD_CTA_ON ? (
+            <Link className="btn btn--lg ps-hero-more" href="/cloud">
+              Try Maude Cloud
+            </Link>
+          ) : null}
         </div>
         <span className="ps-fine ps-a ps-a--fade ps-fine-m" style={at(T.ctas + 100)}>
           A desktop app for Mac and Windows. Maude Cloud also opens in the browser.
