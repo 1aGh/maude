@@ -313,9 +313,9 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `assets-from-mac` | testid | "From this Mac..." row under the photos in the Assets tab: the same picker and upload as Add files (hidden for a viewer). | `client/v2/left-panel/assets-panel.jsx` · `AssetsPanel` | — | stable — re-emit |
 | `assets-empty` | testid | The Assets tab's empty state ("No images or footage yet."). | `client/v2/left-panel/assets-panel.jsx` · `AssetsPanel` | — | stable — re-emit |
 | `assets-nohits` | testid | The Assets tab's "Nothing called ..." state. | `client/v2/left-panel/assets-panel.jsx` · `AssetsPanel` | — | stable — re-emit |
-| `assets-tile` | testid | One asset tile in the Assets tab (`aria-pressed` when picked; `data-asset` is its `assets/<name>` path, `data-kind` image \| video \| audio). Hover and focus show its name and where it is used; right-click opens `assets-tile-menu`. | `client/v2/assets/tile.jsx` · `AssetTile` | — | stable — re-emit |
+| `assets-tile` | testid | One asset tile in the Assets tab (`aria-pressed` when picked; `data-asset` is its `assets/<name>` path, `data-kind` image \| video \| audio). Hover and focus show its name and where it is used; right-click opens `assets-tile-menu`; a double-click opens `asset-spotlight`. | `client/v2/assets/tile.jsx` · `AssetTile` | — | stable — re-emit |
 | `assets-tile-up` | testid | The thin bar along the foot of an Assets tile whose file this Mac still owes the cloud (`data-known` false = the share is not known). Not drawn in the wide Browse view. | `client/v2/assets/tile.jsx` · `AssetTile` | e2e:drop-photos | new |
-| `assets-tile-menu` | testid | The menu a right-click on an Assets tile opens (S8.12): Place, Show details. A viewer and a video or sound tile get Show details only. | `client/v2/assets/tile-menu.jsx` · `AssetTileMenu` | — | stable — re-emit |
+| `assets-tile-menu` | testid | The menu a right-click on an Assets tile opens (S8.12): Place, View larger, Show details. A viewer and a video or sound tile get View larger and Show details only. | `client/v2/assets/tile-menu.jsx` · `AssetTileMenu` | — | stable — re-emit |
 | `assets-menu-place` | testid | The tile menu's Place row (`assets.place`, ↵): the picture onto the selected artboard. Hidden for a viewer. | `client/v2/assets/tile-menu.jsx` · `AssetTileMenu` | — | stable — re-emit |
 | `assets-menu-details` | testid | The tile menu's Show details row (`assets.details`, ⌘I). | `client/v2/assets/tile-menu.jsx` · `AssetTileMenu` | — | stable — re-emit |
 | `assets-details` | testid | The asset's details, in place of the list (⌘I): a photo, Made by AI, footage or sound (`data-kind` photo | made | footage | clip | sound; `data-state` loading | ready | gone | error). S8.21 replaced the plain card. | `client/v2/assets/details.jsx` · `AssetDetails` | — | stable — re-emit |
@@ -365,6 +365,23 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `assets-trashed` | testid | The status line after a move: "“IMG_2231.jpg” moved to the trash." with Undo (S8.13). | `client/v2/left-panel/assets-panel.jsx` · `AssetsPanel` | — | new |
 | `assets-trashed-undo` | testid | Undo on that line: restores every moved bundle (picture and sidecars) through the Trash's per-file restore. | `client/v2/left-panel/assets-panel.jsx` · `AssetsPanel` | — | new |
 | `assets-menu-trash` | testid | The tile menu's Move to trash row (`assets.trash`): an editor's; with several picked in Browse it reads "Move N to the trash". | `client/v2/assets/tile-menu.jsx` · `AssetTileMenu` | — | new |
+| `asset-spotlight` | testid | 2.0.4 — The large view of an Assets tile (double-click, or Space on the picked tile): a scrim and one dialog. `data-asset` is the asset showing; a step with ← → changes it. | `client/v2/assets/spotlight.jsx` · `AssetSpotlight` | — | new |
+| `spotlight-title` | testid | The file name — the dialog's accessible name (`aria-labelledby`). | `client/v2/assets/spotlight.jsx` · `AssetSpotlight` | — | new |
+| `spotlight-position` | testid | "3 of 12" while more than one tile can be walked (`role=status`). | `client/v2/assets/spotlight.jsx` · `AssetSpotlight` | — | new |
+| `spotlight-close` | testid | The close button of the spotlight (esc and a click outside close it too). | `client/v2/assets/spotlight.jsx` · `AssetSpotlight` | — | new |
+| `spotlight-scrim` | testid | The scrim behind the spotlight; a click on it closes the window. | `client/v2/assets/spotlight.jsx` · `AssetSpotlight` | — | new |
+| `spotlight-stage` | testid | The area around the picture; a click on the empty part closes the window. | `client/v2/assets/spotlight.jsx` · `AssetSpotlight` | — | new |
+| `spotlight-prev` | testid | Previous (←): the tile before this one in the tab's order; disabled at the first. | `client/v2/assets/spotlight.jsx` · `AssetSpotlight` | — | new |
+| `spotlight-next` | testid | Next (→): the tile after this one; disabled at the last. | `client/v2/assets/spotlight.jsx` · `AssetSpotlight` | — | new |
+| `spotlight-image` | testid | A picture, fitted to the window (`src` is the tile's own address). | `client/v2/assets/spotlight.jsx` · `Stage` | — | new |
+| `spotlight-video` | testid | A clip with its controls (`controls`, no autoplay). | `client/v2/assets/spotlight.jsx` · `Stage` | — | new |
+| `spotlight-sound` | testid | A sound with its controls (an `audio` inside). | `client/v2/assets/spotlight.jsx` · `Stage` | — | new |
+| `spotlight-file` | testid | A file the window cannot draw: its name, size and "This file has no preview." | `client/v2/assets/spotlight.jsx` · `Stage` | — | new |
+| `spotlight-meta` | testid | The line under the picture: path and size. | `client/v2/assets/spotlight.jsx` · `AssetSpotlight` | — | new |
+| `spotlight-path` | testid | The file's path (no leading slash). | `client/v2/assets/spotlight.jsx` · `AssetSpotlight` | — | new |
+| `spotlight-size` | testid | The file's size ("3.1 MB"); absent when the studio did not say. | `client/v2/assets/spotlight.jsx` · `AssetSpotlight` | — | new |
+| `spotlight-row-<id>` | testid (pattern) | One of the actions the tile already has, in the window's foot: place, details, rename, copy (never Move to trash). Closes the window, then runs it. | `client/v2/assets/spotlight.jsx` · `AssetSpotlight` | — | new |
+| `assets-menu-spotlight` | testid | The tile menu's View larger row (`assets.spotlight`, Space): the same window a double-click opens. | `client/v2/assets/tile-menu.jsx` · `AssetTileMenu` | — | new |
 | `assets-browse` | testid | The wide Browse view (S8.13): `data-kind` is image | video | audio. Sits over the canvas beside the panel; esc clears the pick, then goes back. | `client/v2/assets/browse-view.jsx` · `BrowseView` | — | new |
 | `assets-browse-back` | testid | "‹ Assets" in the Browse view: back to the narrow tab. | `client/v2/assets/browse-view.jsx` · `BrowseView` | — | new |
 | `assets-browse-search` | testid | The Browse view's search field (names). | `client/v2/assets/browse-view.jsx` · `BrowseView` | — | new |

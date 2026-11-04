@@ -41,6 +41,7 @@ export function BrowseView({
   onChange,
   onPick,
   onMenu,
+  onOpen = undefined,
   onBack,
   onClear,
   onPlace,
@@ -152,6 +153,7 @@ export function BrowseView({
                     pickCircle
                     onPick={(path, e, isMenu) => onPick(ids, path, e, isMenu)}
                     onMenu={onMenu}
+                    onOpen={onOpen}
                   />
                 ))}
               </div>

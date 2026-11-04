@@ -40,6 +40,8 @@ export function AssetTile({
   canDrag,
   onPick,
   onMenu,
+  // 2.0.4 (#191) — a double-click opens the tile large (spotlight.jsx); a tile with no `onOpen` ignores it
+  onOpen = undefined,
   caption = false,
   uploading = null,
   // 12 · ia-assets-find — the name (or tag) a search matched, on a gradient foot
@@ -62,6 +64,7 @@ export function AssetTile({
         uploading ? `${tileLabel(asset)}. ${uploadWords(asset.name, uploading)}` : tileLabel(asset)
       }
       onClick={(e) => onPick(asset.path, e)}
+      onDoubleClick={onOpen ? (e) => onOpen(asset.path, e) : undefined}
       onContextMenu={(e) => {
         onPick(asset.path, e, true);
         onMenu(e, asset);

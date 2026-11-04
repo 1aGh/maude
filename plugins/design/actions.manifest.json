@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "e8a66e17ea3e",
+  "manifestVersion": "4ae7b6bdb900",
   "actions": [
     {
       "id": "search.open",
@@ -2046,6 +2046,18 @@
       "agent": {
         "path": "cli",
         "verb": "maude design assets --usage <asset> --details"
+      }
+    },
+    {
+      "id": "assets.spotlight",
+      "label": "View larger",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "opens a large view on the person's screen; an agent reads the file itself"
       }
     },
     {

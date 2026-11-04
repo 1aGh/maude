@@ -180,6 +180,11 @@ export const SHELL_KEY_HANDLERS = {
     e.preventDefault();
     runAssetsAction('assets.details');
   },
+  // 2.0.4 (#191) — Space on a picked tile: the same window a double-click opens
+  'assets.spotlight': (_d, { event: e }) => {
+    e.preventDefault();
+    runAssetsAction('assets.spotlight');
+  },
   // S8.16 — ← → on a selected picture with other takes: the neighbouring take in its place (image.replace, one undo step)
   'image.next-take': (d, { event: e }) => {
     e.preventDefault();
