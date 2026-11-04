@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-open-team-server-signin"
+description = "Enables the open_team_server_signin command without any pre-configured scope."
+commands.allow = ["open_team_server_signin"]
+
+[[permission]]
+identifier = "deny-open-team-server-signin"
+description = "Denies the open_team_server_signin command without any pre-configured scope."
+commands.deny = ["open_team_server_signin"]
