@@ -163,7 +163,7 @@ export function HeroHeadline() {
               >
                 <BubbleLine text={l.t} split={split} />
               </span>
-              {j < h.lines.length - 1 ? <br /> : null}
+              {j < h.lines.length - 1 ? <>{' '}<br /></> : null}
             </Fragment>
           ))}
         </h1>

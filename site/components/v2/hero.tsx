@@ -74,11 +74,11 @@ export function Hero() {
           </Link>
         </div>
         <span className="ps-fine ps-a ps-a--fade ps-fine-m" style={at(T.ctas + 100)}>
-          Maude is a Mac app. Maude Cloud also opens in the browser.
+          A desktop app for Mac and Windows. Maude Cloud also opens in the browser.
         </span>
         <span className="ps-fine ps-a ps-a--fade ps-fine-d" style={at(T.ctas + 100)}>
-          macOS app, free and open-source. Maude Cloud from {PRICE.project} a month per project, for
-          the whole team.
+          Desktop app for Mac and Windows, free and open-source. Maude Cloud from {PRICE.project} a
+          month per project, for the whole team. <a href="#intro">Watch the 1-minute intro</a>
         </span>
       </div>
     </section>
