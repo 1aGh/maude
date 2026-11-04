@@ -735,6 +735,12 @@ export interface SyncRuntime {
   /** S1.18 — the manifest rows a stable link resolves over (history/links.ts). Null when legacy. */
   acceptedLinkDocs?(): Promise<{ entry: string; path: string | null; retired: boolean }[] | null>;
   /**
+   * F14 (2.0.4, #166) — before a restore reads the canvas's newest version: this disk's change the
+   * project has not taken yet goes up first (projection.ts `settleDisk`). null: no synced canvas
+   * at that path, or not in accepted mode — nothing to wait for.
+   */
+  settleSource?(repoRel: string, ms?: number): Promise<'settled' | 'held' | 'pending' | null>;
+  /**
    * Restore a canvas to a revision as a NEW action. S1.13: `o.lanes` — one artboard / object /
    * kept-aside version, the studio's lanes as ONE `restore` action (local-kernel.ts RestoreOptions).
    */
@@ -6330,6 +6336,12 @@ export function createSyncRuntime(
       if (o?.aside) return acceptedLink.asideAt(slug, lane, revision);
       const r = await acceptedLink.laneAt(slug, lane, revision);
       return r.body || null;
+    },
+    settleSource: async (repoRel, ms) => {
+      if (!acceptedOn() || !acceptedLink) return null;
+      const slug = slugForRepoRel(repoRel);
+      const projection = slug ? projections.get(slug) : undefined;
+      return projection ? projection.settleDisk(ms) : null;
     },
     acceptedRestore: async (repoRel, revision, o) => {
       if (!acceptedOn() || !acceptedLink) return null;
