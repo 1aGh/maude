@@ -42471,6 +42471,102 @@
     "v2": "new"
   },
   {
+    "hook": "tree-ask-scrim",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "#195 (2.0.4): the scrim behind a folder or file row's yes/no ask (\"Move “2026” to the trash?\"), the shell's own dialog instead of window.confirm.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/folder-dialogs.jsx",
+      "symbol": "ConfirmAskDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/204-folder-dialogs.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "tree-ask-confirm",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "#195 (2.0.4): the yes/no ask of a folder row's Delete folder or a file row's Delete: title, one line, Cancel and Move to trash.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/folder-dialogs.jsx",
+      "symbol": "ConfirmAskDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/204-folder-dialogs.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "tree-ask-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "#195 (2.0.4): the yes/no ask's title, the question with the button's verb (\"Move “2026” to the trash?\").",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/folder-dialogs.jsx",
+      "symbol": "ConfirmAskDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/204-folder-dialogs.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "tree-ask-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "#195 (2.0.4): why the folder or file could not be moved to the trash, in plain words; the ask stays open.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/folder-dialogs.jsx",
+      "symbol": "ConfirmAskDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/204-folder-dialogs.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "tree-ask-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "#195 (2.0.4): Cancel (Esc): closes the ask and changes nothing.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/folder-dialogs.jsx",
+      "symbol": "ConfirmAskDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/204-folder-dialogs.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "tree-ask-ok",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "#195 (2.0.4): Move to trash (Enter): sends the move; \"Moving…\" while it runs.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/folder-dialogs.jsx",
+      "symbol": "ConfirmAskDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/204-folder-dialogs.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "ds-upgrade-gains",
     "kind": "testid",
     "pattern": false,

@@ -23,6 +23,12 @@
     font-weight: var(--w-semibold);
     color: var(--fg-0);
   }
+  /* #195 — the tree's yes/no asks ("Move “2026” to the trash?") say one line under the title */
+  .nd-body {
+    margin: 0;
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
   .nd-err {
     margin: 0;
     font-size: var(--type-sm);

@@ -62,6 +62,30 @@ export function underscoreRefusal(suggestion?: string | null): string {
 }
 
 /**
+ * #195 (2.0.4) — the words a refused folder create / rename / move / trash says, CONTRACT §4 (what happened ·
+ * what is safe · one verb). The tree's folder dialogs show the server's words as they are, so these replace
+ * the old lower-case developer strings ("parent must be inside a managed canvas group", "the project did not
+ * accept this folder (code)") the person used to read in a toast. Containment refusals a UI cannot reach
+ * (traversal, symlinks) keep their technical words.
+ */
+export const FOLDER_WORDS = Object.freeze({
+  /** a parent outside every non-design-system canvas folder */
+  notHere: 'Folders go among your canvases, not in the design system. Nothing was changed.',
+  /** the name is already used by a folder or file beside it */
+  taken: (name: string) => `There is already something called “${name}” here. Try another name.`,
+  /** a project that saves through accepted revisions refused the folder action */
+  refused: 'The project did not take this folder change. Nothing was changed. Try again.',
+  intoItself: 'A folder can’t go inside itself. Nothing was changed.',
+  /** a canvas group's own root (the top of the canvas tree) */
+  groupRoot: 'This folder holds all your canvases. It can’t be moved or renamed.',
+  tooMany: (name: string, count: number, max: number) =>
+    `“${name}” holds ${count} canvases; up to ${max} move together. Move some out first.`,
+  /** a canvas inside is pinned to a live shared session */
+  live: (canvas: string) => `“${canvas}” is open in a live session. Try again in a moment.`,
+  gone: 'That folder is not here any more. Nothing was changed.',
+});
+
+/**
  * The typed name folded to the allowed set: — – and kin become `-`, letters lose their accents (NFD, then
  * strip the marks, so č→c), every other character is dropped, runs of spaces collapse, and the ends are
  * trimmed. Capped at the longest name. Empty when nothing usable is left. The client mirrors this

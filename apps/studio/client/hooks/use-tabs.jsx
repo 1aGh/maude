@@ -8,10 +8,16 @@ import { basename, displayName, previewKind, shellToast } from '../shell/util.js
 import { assembleVideoFlow } from '../v2/timeline/assemble-video.js';
 import { notify } from '../../notifications.tsx';
 import { lastOpenedPath } from '../v2/canvases/last-canvas.js';
-import { trashCanvas } from '../v2/canvases/trash-canvas.js';
+import { queueTrashCanvas } from '../v2/canvases/trash-queue.js';
 import { invoke, isNativeApp, listenHere } from '../github.js';
 import { applyShellNavigate, startShellEvents } from '../shell-events.js';
 import { threadAuthor } from '../v2/comments/use-comments-shell.jsx';
+
+/** `.design/ui/x.tsx` → `ui/x.tsx` (the designRoot-relative form the Canvases panel's row slots use). */
+function relToDesignRoot(repoPath, cfg) {
+  const designRel = (cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, '');
+  return repoPath.startsWith(`${designRel}/`) ? repoPath.slice(designRel.length + 1) : repoPath;
+}
 
 export function useTabs({
   groups,
@@ -578,10 +584,13 @@ export function useTabs({
   // moves the whole sidecar set to .design/_trash/), refresh the tree, and close the tab if that canvas was
   // open. S1.2 — it asks nothing: "“name” moved to the trash." with Undo, which brings it back (and reopens
   // it if it was the open one). CONTRACT §4: moved to the trash, never "deleted".
+  // #194 (2.0.4) — through the one trash queue (v2/canvases/trash-queue.js): the row says "Moving to trash…"
+  // at once, quick moves wait their turn instead of racing, and the server's yes takes the row out.
   const deleteBoard = useCallback(
     (filePath, label) =>
-      trashCanvas({
+      queueTrashCanvas({
         path: filePath,
+        rel: relToDesignRoot(filePath, cfg),
         label,
         toast: shellToast,
         reload: loadTree,
@@ -595,7 +604,7 @@ export function useTabs({
           if (activePath === p) openTab(p);
         },
       }),
-    [loadTree, activePath, openTab]
+    [loadTree, activePath, openTab, cfg]
   );
 
   // feature-file-tree-drag-drop-folders (Task 8/10) — drag-drop AND the
@@ -647,12 +656,13 @@ export function useTabs({
   );
 
   // feature-file-tree-drag-drop-folders (Task 4/9/12) — create a folder under
-  // `parentDir`. Two callers: the sidebar header composer (name from its own
-  // input state) and the tree-row context menu's "New folder here" (name via
-  // `window.prompt` — a native, fully keyboard/screen-reader-operable input,
-  // so that path doesn't need its own inline composer instance).
+  // `parentDir`. Two callers: the "+ New canvas" row's in-place folder field and
+  // the folder row menu's "New folder here" (#195: the shell's own dialog,
+  // v2/canvases/folder-dialogs.jsx — `window.prompt` is a no-op in WKWebView, so
+  // on the desktop this did nothing). Answers `{ ok, status?, error?, network? }`;
+  // `{ quiet: true }` leaves the words to the dialog that asked.
   const newFolderReq = useCallback(
-    async (parentDir, name) => {
+    async (parentDir, name, opts = {}) => {
       try {
         const r = await fetch('/_api/fs-mkdir', {
           method: 'POST',
@@ -662,8 +672,8 @@ export function useTabs({
         const j = await r.json().catch(() => ({}));
         if (!r.ok || !j.ok) {
           const error = j.error || `error ${r.status}`;
-          shellToast(`Could not create folder: ${error}`);
-          return { ok: false, error };
+          if (!opts.quiet) shellToast(`Could not create folder: ${error}`);
+          return { ok: false, status: r.status, error };
         }
         // #124 — open the parent so the new folder is visible (it starts closed).
         updateTreeExp((st) => revealPath(st, groups, parentDir, { includeSelf: true }));
@@ -671,8 +681,8 @@ export function useTabs({
         return { ok: true, dir: j.dir };
       } catch (e) {
         const error = e instanceof Error ? e.message : 'network error';
-        shellToast(`Create folder failed: ${error}`);
-        return { ok: false, error };
+        if (!opts.quiet) shellToast(`Create folder failed: ${error}`);
+        return { ok: false, error, network: true };
       }
     },
     [loadTree, groups, updateTreeExp]
@@ -683,25 +693,27 @@ export function useTabs({
   // route now auto-detects a non-.tsx target as a folder delete); every
   // canvas inside is trashed the same recoverable way as a single-canvas
   // delete (`.design/_trash/<stamp>__<slug>/`).
+  // #195 — the tree asks first in its own dialog ("Move “x” to the trash?"); `window.confirm` answered "no"
+  // at once in WKWebView, so on the desktop this never ran. Answers `{ ok, status?, error?, network? }`.
   const deleteFolderReq = useCallback(
-    async (dirPath, label) => {
-      const ok = window.confirm(
-        `Delete folder "${label}"?\n\nEvery canvas inside moves to trash (recoverable from .design/_trash/); ` +
-          `any empty subfolders are removed.`
-      );
-      if (!ok) return;
+    async (dirPath, label, opts = {}) => {
       try {
         const r = await fetch(`/_api/canvas?file=${encodeURIComponent(dirPath)}`, {
           method: 'DELETE',
         });
         const j = await r.json().catch(() => ({}));
         if (!r.ok || !j.ok) {
-          shellToast(`Could not delete folder: ${j.error || `error ${r.status}`}`);
-          return;
+          const error = j.error || `error ${r.status}`;
+          if (!opts.quiet) shellToast(`Could not move “${label}” to the trash. ${error}`);
+          return { ok: false, status: r.status, error };
         }
         await loadTree();
+        shellToast(`“${label}” moved to the trash.`, true);
+        return { ok: true };
       } catch (e) {
-        shellToast(`Delete folder failed: ${e instanceof Error ? e.message : 'network error'}`);
+        const error = e instanceof Error ? e.message : 'network error';
+        if (!opts.quiet) shellToast(`Could not move “${label}” to the trash.`);
+        return { ok: false, error, network: true };
       }
     },
     [loadTree]
@@ -710,7 +722,7 @@ export function useTabs({
   // Plan T17 — rename a folder: a move to a new name in the same parent (one
   // dir.move action in accepted mode, carrying every canvas inside).
   const renameFolderReq = useCallback(
-    async (dirPath, name) => {
+    async (dirPath, name, opts = {}) => {
       const parent = dirPath.split('/').slice(0, -1).join('/');
       try {
         const r = await fetch('/_api/fs-move', {
@@ -720,8 +732,9 @@ export function useTabs({
         });
         const j = await r.json().catch(() => ({}));
         if (!r.ok || !j.ok) {
-          shellToast(`Could not rename folder: ${j.error || `error ${r.status}`}`);
-          return;
+          const error = j.error || `error ${r.status}`;
+          if (!opts.quiet) shellToast(`Could not rename folder: ${error}`);
+          return { ok: false, status: r.status, error };
         }
         // #124 — the renamed folder keeps its open state (and its subfolders').
         const designRel = (cfg?.designRel || cfg?.designRoot || '.design').replace(
@@ -731,8 +744,19 @@ export function useTabs({
         const toDir = typeof j.toRel === 'string' ? `${designRel}/${j.toRel}` : `${parent}/${name}`;
         updateTreeExp((st) => remapDirPrefix(st, dirPath, toDir));
         await loadTree();
+        // an open canvas inside the folder follows it (its tab would otherwise point at the old path)
+        const from = `${dirPath}/`;
+        const follow = (p) =>
+          typeof p === 'string' && p.startsWith(from) ? `${toDir}/${p.slice(from.length)}` : p;
+        setTabs((prev) =>
+          prev.map((t) => (t.path?.startsWith(from) ? { ...t, path: follow(t.path) } : t))
+        );
+        setActivePath((prev) => follow(prev));
+        return { ok: true };
       } catch (e) {
-        shellToast(`Rename failed: ${e instanceof Error ? e.message : 'network error'}`);
+        const error = e instanceof Error ? e.message : 'network error';
+        if (!opts.quiet) shellToast(`Rename failed: ${error}`);
+        return { ok: false, error, network: true };
       }
     },
     [loadTree, cfg, updateTreeExp]
@@ -754,7 +778,7 @@ export function useTabs({
         if (!r.ok || !j.ok) {
           const error = j.error || `error ${r.status}`;
           if (!opts.quiet) shellToast(`Could not rename: ${error}`);
-          return { ok: false, error };
+          return { ok: false, status: r.status, error };
         }
         const designRel = (cfg?.designRel || cfg?.designRoot || '.design').replace(
           /^\/+|\/+$/g,
@@ -769,7 +793,7 @@ export function useTabs({
       } catch (e) {
         const error = e instanceof Error ? e.message : 'network error';
         if (!opts.quiet) shellToast(`Rename failed: ${error}`);
-        return { ok: false, error };
+        return { ok: false, error, network: true };
       }
     },
     [loadTree, cfg]
@@ -802,22 +826,26 @@ export function useTabs({
     [loadTree]
   );
 
+  // #195 — asked first in the tree's own dialog (never `window.confirm`, a no-op in WKWebView).
   const deleteFileReq = useCallback(
-    async (filePath, name) => {
-      if (!window.confirm(`Move “${name}” to trash?\n\nYou can restore it from .design/_trash/.`))
-        return;
+    async (filePath, name, opts = {}) => {
       try {
         const r = await fetch(`/_api/canvas?file=${encodeURIComponent(filePath)}`, {
           method: 'DELETE',
         });
         const j = await r.json().catch(() => ({}));
         if (!r.ok || !j.ok) {
-          shellToast(`Could not delete: ${j.error || `error ${r.status}`}`);
-          return;
+          const error = j.error || `error ${r.status}`;
+          if (!opts.quiet) shellToast(`Could not move “${name}” to the trash. ${error}`);
+          return { ok: false, status: r.status, error };
         }
         await loadTree();
+        shellToast(`“${name}” moved to the trash.`, true);
+        return { ok: true };
       } catch (e) {
-        shellToast(`Delete failed: ${e instanceof Error ? e.message : 'network error'}`);
+        const error = e instanceof Error ? e.message : 'network error';
+        if (!opts.quiet) shellToast(`Could not move “${name}” to the trash.`);
+        return { ok: false, error, network: true };
       }
     },
     [loadTree]

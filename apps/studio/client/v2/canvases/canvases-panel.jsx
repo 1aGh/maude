@@ -58,6 +58,7 @@ import { askForCovers } from './covers.js';
 import { siblingNames } from './rename-model.js';
 import { useRowSlots } from './row-slots.js';
 import { supportIcon, supportIndex } from './support-model.js';
+import { useTrashGone, withoutGone } from './trash-queue.js';
 import { canvasMenuItems, CanvasRowMenu } from './row-menu.jsx';
 import { leftOutOf } from '../ds/update-model.js';
 import { SORT_BYS, SORT_LABELS, KIND_NOTE, sortControl } from './sort.js';
@@ -148,9 +149,19 @@ export function CanvasesPanel({
   }, []);
   // S11.9 — Canvases › Advanced › Show file names: each canvas row grows a second mono line
   const [showFileNames] = useViewPref(VIEW_PREF_KEYS.fileNames);
+  // #194 — a canvas the server has moved to the trash leaves the list at once, before the index re-reads
+  const trashGone = useTrashGone();
+  const listedGroups = useMemo(() => withoutGone(groups, trashGone), [groups, trashGone]);
   const tree = useMemo(
-    () => buildTree({ groups, meta, designRel, opened: pins.opened, ghosts: slots.ghosts }),
-    [groups, meta, designRel, pins.opened, slots.ghosts]
+    () =>
+      buildTree({
+        groups: listedGroups,
+        meta,
+        designRel,
+        opened: pins.opened,
+        ghosts: slots.ghosts,
+      }),
+    [listedGroups, meta, designRel, pins.opened, slots.ghosts]
   );
   const isOpen = expansion?.isOpen;
   // S7.24 — the kind filter chips (one filter for Canvases and Layers, kind-filter-store.js). Counts are over
