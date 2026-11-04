@@ -197,6 +197,7 @@ import {
   MATERIALIZE_PATH,
 } from './materializer.mjs';
 import { assertStrictIsSurvivable, oidcConfig } from './oidc-routes.mjs';
+import { DESKTOP_SIGNIN_CAPABILITY } from './desktop-signin.mjs';
 import { stripPresent } from './present-strip.mjs';
 import {
   handleProjectConfigDoor,
@@ -1356,6 +1357,9 @@ export function createHub(config = {}) {
                 ? ['ledger', 'annotations-v2', 'format-v2', RUNS_CAPABILITY, VOTES_CAPABILITY]
                 : ['annotations-v2', 'format-v2', RUNS_CAPABILITY, VOTES_CAPABILITY]),
               FILE_CLASSES_V2_CAPABILITY,
+              // Issue #204: `/studio/signin?client=desktop` + `/auth/desktop/exchange`. The
+              // desktop request rides a cookie signed with HUB_SECRET — none, no word.
+              ...(secret ? [DESKTOP_SIGNIN_CAPABILITY] : []),
               ...(renderDoorEnabled({ studio }) ? [RENDER_JOBS_CAPABILITY] : []),
               ...(dsLibraryRoutes.enabled() ? [DS_LIBRARY_CAPABILITY] : []),
               ...(dsLibraryRoutes.enabled() && dsGrants.enabled() ? [DS_GRANTS_CAPABILITY] : []),
@@ -2118,6 +2122,8 @@ export function createHub(config = {}) {
         authPath === '/auth/login' ||
         authPath === '/auth/logout' ||
         authPath === '/auth/session' ||
+        // Issue #204 — the Maude app trades the hub sign-in page's one-time code.
+        authPath === '/auth/desktop/exchange' ||
         // Cloud Phase 6 — magic-link invites. `/join/<token>` only LOOKS
         // (a link preview must not burn an invite); `/join` POST redeems.
         authPath === '/join' ||

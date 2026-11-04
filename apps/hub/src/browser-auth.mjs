@@ -22,6 +22,17 @@
 import { ACCESS_VERSION, peerTokenDoor } from '../../studio/access/scope.ts';
 import { authenticateForMode, claimOf, peerSessionFields } from './cloud-identity.mjs';
 import {
+  clearDesktopTxnCookie,
+  DESKTOP_TXN_COOKIE,
+  desktopCodes,
+  desktopHandoffPage,
+  desktopTxnCookie,
+  encodeDesktopTxn,
+  parseDesktopRequest,
+  readDesktopTxn,
+  returnUrl,
+} from './desktop-signin.mjs';
+import {
   authorizeUrl,
   createTransaction,
   createVerifier,
@@ -169,11 +180,41 @@ function setTxnCookie(response, value, maxAgeSeconds) {
     `${OIDC_TXN_COOKIE}=${encodeURIComponent(value)}; Path=/auth/oidc; HttpOnly; Secure; SameSite=Lax; Max-Age=${Math.max(0, Math.floor(maxAgeSeconds))}`,
   ]);
 }
+const OIDC_TXN_CLEAR = `${OIDC_TXN_COOKIE}=; Path=/auth/oidc; HttpOnly; Secure; SameSite=Lax; Max-Age=0`;
 function clearTxnCookie(response, extra = []) {
-  response.setHeader('set-cookie', [
-    `${OIDC_TXN_COOKIE}=; Path=/auth/oidc; HttpOnly; Secure; SameSite=Lax; Max-Age=0`,
-    ...extra,
-  ]);
+  response.setHeader('set-cookie', [OIDC_TXN_CLEAR, ...extra]);
+}
+
+// ---- the desktop's sign-in (issue #204, desktop-signin.mjs) ---------------
+
+/** The desktop request this browser is signing in for — signed, unexpired — or null. */
+function desktopTxnOf(request, secret) {
+  return readDesktopTxn(cookieValue(request, DESKTOP_TXN_COOKIE), { secret });
+}
+
+/**
+ * End a sign-in that the Maude app started: no browser session, a one-time
+ * code (or the reason there is none) on the app's loopback return, and the
+ * desktop request cleared. A 200 page, never a 302 — see desktop-signin.mjs.
+ */
+function handOffToDesktop(response, desktop, { email = null, error = null, extraCookies = [] }) {
+  const params = email
+    ? { code: desktopCodes.issue({ email, challenge: desktop.challenge }) }
+    : { error: error ?? 'denied' };
+  response.setHeader('set-cookie', [...extraCookies, clearDesktopTxnCookie()]);
+  respondHtml(
+    response,
+    200,
+    desktopHandoffPage({
+      href: returnUrl(desktop, params),
+      title: email ? 'Signed in' : 'Not signed in',
+      message: email
+        ? 'Going back to Maude. If nothing happens, use the button below.'
+        : error === 'pending'
+          ? 'You signed in, but nobody here has given your account access yet. Ask whoever runs this workspace to approve you.'
+          : 'This account cannot sign in to this workspace.',
+    })
+  );
 }
 
 /**
@@ -303,6 +344,23 @@ export async function handleOidc({
     }
 
     const outcome = resolveSubject(dataDir, verified, cfg);
+    // Started by the Maude app (issue #204): hand the outcome back to it. The
+    // app's exchange mints through the /auth/login door, so the browser-lane
+    // door below is not this path's to apply.
+    const desktop = desktopTxnOf(request, secret);
+    if (desktop) {
+      handOffToDesktop(
+        response,
+        desktop,
+        outcome.action === 'sign-in'
+          ? { email: outcome.user.email, extraCookies: [OIDC_TXN_CLEAR] }
+          : {
+              error: outcome.action === 'pending' ? 'pending' : 'denied',
+              extraCookies: [OIDC_TXN_CLEAR],
+            }
+      );
+      return true;
+    }
     if (outcome.action === 'sign-in') {
       const ttlMs = STUDIO_SESSION_TTL_MS;
       // THROUGH THE MINT DOOR (S9.6b), not from the account role: a canvas-only
@@ -399,6 +457,43 @@ export async function handleBrowserAuth({
   // studio, the sandbox and the role model are all the same code.
   if (path === '/studio/signin') {
     if (method === 'GET') {
+      // `?client=desktop…` — the Maude app opened this page to sign in (issue
+      // #204). The request is validated HERE (loopback-only target, S256) and
+      // carried to the success in a signed cookie; the page itself is the one
+      // every browser sees, offering whatever this hub offers.
+      const desktop = parseDesktopRequest(
+        new URL(request.url ?? path, 'http://cell.invalid').searchParams
+      );
+      if (desktop.desktop) {
+        if (!desktop.ok) {
+          page(
+            response,
+            400,
+            'This sign-in link is not valid',
+            'Start the sign-in again from the Maude app.'
+          );
+          return true;
+        }
+        if (!secret) {
+          page(
+            response,
+            500,
+            'Not set up yet',
+            'This workspace cannot sign in the Maude app until its operator sets HUB_SECRET.'
+          );
+          return true;
+        }
+        response.setHeader('set-cookie', [
+          desktopTxnCookie(encodeDesktopTxn(desktop.request, secret)),
+        ]);
+        respondHtml(response, 200, signInPage(null, env, { desktop: true }));
+        return true;
+      }
+      // An ordinary visit ends any desktop sign-in this browser left half done,
+      // so a later browser sign-in is never diverted to the app.
+      if (cookieValue(request, DESKTOP_TXN_COOKIE)) {
+        response.setHeader('set-cookie', [clearDesktopTxnCookie()]);
+      }
       respondHtml(response, 200, signInPage());
       return true;
     }
@@ -430,13 +525,23 @@ export async function handleBrowserAuth({
         { email: form.get('email'), password: form.get('password') },
         { local: (email, password) => localAuthenticate(dataDir, email, password) }
       );
+      const desktop = desktopTxnOf(request, secret);
       if (!result.ok) {
         // ONE opaque message — the distinction between "no such user" and
         // "wrong password" is an account-existence oracle.
-        respondHtml(response, 401, signInPage('That email and password did not match.'));
+        respondHtml(
+          response,
+          401,
+          signInPage('That email and password did not match.', env, { desktop: !!desktop })
+        );
         return true;
       }
       const user = result.user;
+      // Started by the Maude app: a one-time code for it, no browser session.
+      if (desktop) {
+        handOffToDesktop(response, desktop, { email: user.email });
+        return true;
+      }
       const ttlMs = STUDIO_SESSION_TTL_MS;
       // TRANSLATED, not passed through — `user.role` is an ACCOUNT role and
       // the role matrix speaks PROJECT roles. Untranslated, an 'admin' is an
@@ -620,7 +725,7 @@ export async function readForm(request, max = 8 * 1024, timeoutMs = 15_000) {
  * so a form shown there can only produce a failed attempt. Strict renders the
  * provider link alone.
  */
-export function signInPage(error = null, env = process.env) {
+export function signInPage(error = null, env = process.env, { desktop = false } = {}) {
   const esc = escapeHtml;
   const oidc = oidcButton(env);
   const passwordsRefused = env.HUB_OIDC_MODE === 'strict';
@@ -644,6 +749,7 @@ export function signInPage(error = null, env = process.env) {
 </style></head>
 <body><form method="post" action="/studio/signin">
   <h1>Sign in to this workspace</h1>
+  ${desktop ? '<p class="or" style="text-align:left;margin:0">After you sign in, you go back to the Maude app.</p>' : ''}
   ${
     passwordsRefused
       ? ''

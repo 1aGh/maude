@@ -46,6 +46,7 @@ import {
   revokeInvite,
   revokeInvitesForEmail,
 } from './invites.mjs';
+import { desktopCodes } from './desktop-signin.mjs';
 import { joinPage } from './join-page.mjs';
 import { isRevoked } from './revocations.mjs';
 import { servicePage } from './studio-door.mjs';
@@ -112,6 +113,71 @@ export function bearerFrom(request) {
 export function permissiveDevAuthDisabled(dataDir, env = process.env) {
   if (env.HUB_WORKSPACE_MODE === '1') return true;
   return userCount(dataDir) > 0;
+}
+
+/**
+ * Mint the peer session a person who proved who they are takes home — the
+ * `/auth/login` answer, shared by the desktop's code exchange (issue #204) so
+ * both doors hand out exactly the same token: same mint door, same role
+ * translation, same expiry, same body.
+ */
+function mintPeerLogin(ctx, result) {
+  const { dataDir, respondJson } = ctx;
+  const user = result.user;
+  // THE MINT DOOR (V2-1.7 §5.4, S9.2). The client declares what it
+  // understands with `X-Maude-Access: 2`; a claim a v1 client cannot honour
+  // (observer, canvas-only, grants) is refused BY VERSION (426, never 403 —
+  // V2-1.12), and an observer who declared goes to the browser door (409):
+  // observers are never minted a peer token, so never a local file-plane
+  // copy (A19). owner / member / viewer answer exactly as 1.9.1 did.
+  //
+  // Cloud Phase 27: TRANSLATED first (`claimOf` → `legacyClaim`). `user.role`
+  // is an ACCOUNT role ('admin' | 'member'); the token stores a PROJECT role.
+  // Passing one to the other made every admin's session read-only — right for
+  // 'member' by coincidence, wrong for 'admin' because an unknown role gets
+  // nothing.
+  const door = peerTokenDoor(claimOf(result), {
+    declaredAccess: declaredAccessOf(ctx.request?.headers?.['x-maude-access']),
+    doorUrl: ctx.publicUrl,
+  });
+  if (door.outcome === 'update' || door.outcome === 'browser-door') {
+    respondJson(door.status, door.body);
+    return true;
+  }
+  if (door.outcome !== 'mint') {
+    // A role the matrix does not know holds nothing: the same opaque answer.
+    console.warn(`[hub] login rejected (no-access) for ${String(user.email).slice(0, 120)}`);
+    respondJson(401, { error: 'invalid email or password' });
+    return true;
+  }
+  // A token-exchanged session dies WITH the project token that minted it
+  // (Phase 23 B2) — never the default 30 days beyond the removal window.
+  const expiresAt = Math.min(Date.now() + userTokenTtlMs(), result.expiresAt ?? Infinity);
+  const minted = addToken(dataDir, {
+    label: mintLabel(),
+    owner: user.email,
+    expiresAt,
+    // Cloud Phase 25 C1. The capability is decided HERE, once, from the role
+    // the control plane vouched for — not re-derived at each write surface,
+    // where one forgotten branch is a viewer with an editor's session.
+    //
+    // STORED, not only projected (the v0.55.0 lesson): `browserSession`
+    // treats a token without a stored role as no session at all, so a mint
+    // that sets only the one-bit `read_only` projection produces a session
+    // every HTTP write surface answers with 401. browser-auth.mjs stores the
+    // role; this door forgot to — desktop/API sessions hit the same wall the
+    // pre-roll stale cookies did.
+    ...peerSessionFields(door, { scope: user.scope ?? '*' }),
+  });
+  ctx.pushActivity?.({ type: 'login', user: user.email, doc: minted.label });
+  respondJson(200, {
+    token: minted.value,
+    label: minted.label,
+    scope: minted.scope ?? '*',
+    expiresAt,
+    user: { email: user.email, role: user.role },
+  });
+  return true;
 }
 
 /**
@@ -184,61 +250,42 @@ export async function handleAuthRoutes(ctx) {
       return true;
     }
 
-    const user = result.user;
-    // THE MINT DOOR (V2-1.7 §5.4, S9.2). The client declares what it
-    // understands with `X-Maude-Access: 2`; a claim a v1 client cannot honour
-    // (observer, canvas-only, grants) is refused BY VERSION (426, never 403 —
-    // V2-1.12), and an observer who declared goes to the browser door (409):
-    // observers are never minted a peer token, so never a local file-plane
-    // copy (A19). owner / member / viewer answer exactly as 1.9.1 did.
-    //
-    // Cloud Phase 27: TRANSLATED first (`claimOf` → `legacyClaim`). `user.role`
-    // is an ACCOUNT role ('admin' | 'member'); the token stores a PROJECT role.
-    // Passing one to the other made every admin's session read-only — right for
-    // 'member' by coincidence, wrong for 'admin' because an unknown role gets
-    // nothing.
-    const door = peerTokenDoor(claimOf(result), {
-      declaredAccess: declaredAccessOf(ctx.request?.headers?.['x-maude-access']),
-      doorUrl: ctx.publicUrl,
-    });
-    if (door.outcome === 'update' || door.outcome === 'browser-door') {
-      respondJson(door.status, door.body);
+    return mintPeerLogin(ctx, result);
+  }
+
+  // POST /auth/desktop/exchange — the Maude app trades the one-time code the
+  // hub's own sign-in page handed it (issue #204, desktop-signin.mjs) for the
+  // token this door's /auth/login answer carries. The code is single use and
+  // bound to the PKCE verifier only the app holds; the person is re-read here,
+  // so an account disabled or revoked since the page is refused.
+  if (method === 'POST' && path === '/auth/desktop/exchange') {
+    if (ctx.checkRateLimit && !ctx.checkRateLimit(ctx.request)) {
+      ctx.respondRateLimited();
       return true;
     }
-    if (door.outcome !== 'mint') {
-      // A role the matrix does not know holds nothing: the same opaque answer.
-      console.warn(`[hub] login rejected (no-access) for ${String(user.email).slice(0, 120)}`);
-      respondJson(401, { error: 'invalid email or password' });
+    let body;
+    try {
+      body = await readJsonBody(ctx.request);
+    } catch (err) {
+      respondJson(400, { error: err.message });
       return true;
     }
-    // A token-exchanged session dies WITH the project token that minted it
-    // (Phase 23 B2) — never the default 30 days beyond the removal window.
-    const expiresAt = Math.min(Date.now() + userTokenTtlMs(), result.expiresAt ?? Infinity);
-    const minted = addToken(dataDir, {
-      label: mintLabel(),
-      owner: user.email,
-      expiresAt,
-      // Cloud Phase 25 C1. The capability is decided HERE, once, from the role
-      // the control plane vouched for — not re-derived at each write surface,
-      // where one forgotten branch is a viewer with an editor's session.
-      //
-      // STORED, not only projected (the v0.55.0 lesson): `browserSession`
-      // treats a token without a stored role as no session at all, so a mint
-      // that sets only the one-bit `read_only` projection produces a session
-      // every HTTP write surface answers with 401. browser-auth.mjs stores the
-      // role; this door forgot to — desktop/API sessions hit the same wall the
-      // pre-roll stale cookies did.
-      ...peerSessionFields(door, { scope: user.scope ?? '*' }),
-    });
-    ctx.pushActivity?.({ type: 'login', user: user.email, doc: minted.label });
-    respondJson(200, {
-      token: minted.value,
-      label: minted.label,
-      scope: minted.scope ?? '*',
-      expiresAt,
-      user: { email: user.email, role: user.role },
-    });
-    return true;
+    const redeemed = desktopCodes.redeem(body?.code, body?.code_verifier);
+    if (!redeemed.ok) {
+      console.warn(`[hub] desktop sign-in exchange refused (${redeemed.reason})`);
+      respondJson(400, {
+        error: 'That sign-in is no longer valid. Start the sign-in again.',
+        reason: 'invalid-code',
+      });
+      return true;
+    }
+    const user = getUser(dataDir, redeemed.email);
+    if (!user || user.disabled || isRevoked(dataDir, user.email, redeemed.issuedAt)) {
+      console.warn(`[hub] desktop sign-in exchange rejected (no-access) for ${redeemed.email}`);
+      respondJson(401, { error: 'This account cannot sign in to this workspace.' });
+      return true;
+    }
+    return mintPeerLogin(ctx, { ok: true, user, ...(user.access ? { access: user.access } : {}) });
   }
 
   if (method === 'POST' && path === '/auth/logout') {
