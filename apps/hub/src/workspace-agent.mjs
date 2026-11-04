@@ -40,6 +40,7 @@ import { createGitRunner, ensureRepo, gitAvailable } from './git-runner.mjs';
 import { realpathOfDeepestExisting } from './path-contain.mjs';
 import {
   attributionFor,
+  canvasSlug,
   committableLanes,
   filesForCanvas,
   indexCanvasPaths,
@@ -156,6 +157,45 @@ export function createWorkspaceAgent(opts) {
    * kernel and the paired studio could each hold a different answer.
    */
   const currentCanvasGroups = () => readCanvasGroups(designRoot);
+
+  /**
+   * Bodies held back because the only place they could go is a flat file the
+   * design root invents (2.0.4). slug → the store's own arguments, replayed by
+   * `retryHeld` once config or a path arrives. A held doc's own next store
+   * retries it too.
+   */
+  const held = new Map();
+
+  /** Is the project's config.json on this disk at all? Not "are groups
+   *  declared" — a project may legitimately declare none. Missing or
+   *  unparseable is the state a cell is in after losing it (2.0.2). */
+  function configKnown() {
+    try {
+      JSON.parse(readFileSync(join(designRoot, 'config.json'), 'utf8'));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * A canvas file already in a folder for `slug` — the checkout's own answer
+   * when the document carries no path. Asked only on the rare un-pathed,
+   * un-indexed store: a file the file plane landed after boot is in no index.
+   * Same deterministic tie-break as `indexCanvasPaths`.
+   */
+  function groupedFileFor(slug) {
+    const want = String(slug).toLowerCase();
+    let best = null;
+    for (const rel of listFiles(designRoot)) {
+      if (!rel.includes('/') || !/\.tsx$/i.test(rel)) continue;
+      if (canvasSlug(rel) !== want) continue;
+      if (!best || rel.length < best.length || (rel.length === best.length && rel < best)) {
+        best = rel;
+      }
+    }
+    return best;
+  }
 
   /**
    * Design-root-relative paths that mean something other than "a canvas".
@@ -506,7 +546,7 @@ export function createWorkspaceAgent(opts) {
       // module in for the same reason it copies autocommit.ts: re-typing a
       // guarantee is re-typing it without its tests.
       const indexed = pathIndex.get(slug);
-      const resolved = indexed?.fromPath
+      let resolved = indexed?.fromPath
         ? null
         : resolveCanvasBodyRel({
             path: content.path,
@@ -524,6 +564,48 @@ export function createWorkspaceAgent(opts) {
             onRefused: (reason) =>
               log.warn?.(`[workspace] ignoring the path on ${slug} — ${reason}`),
           });
+
+      // NO INVENTED FLAT TWINS (2.0.4). The fallback is a guess, and with no
+      // config on disk it guesses `<slug>.tsx` at the design root — a file every
+      // desktop classifies as a code module and refuses, next to the real
+      // grouped canvas the project already has (alligators: four of them, after
+      // the cell lost its config). Only for a first placement; a memoised
+      // fallback keeps the supersede rules below.
+      //   a. a grouped file for this slug is already on disk → that is the
+      //      canvas (a real file is the strongest claim, as at boot);
+      //   b. no config at all, and the slug could name a folder the lost config
+      //      declared (`screens-home` → `screens/home.tsx`; the default groups
+      //      already place `ui-*`/`system-*`) → HOLD the body: write nothing,
+      //      and replay it when config or the document's path arrives. A slug
+      //      with no `-` can only ever live at the root, so it is not held;
+      //   c. otherwise today's behaviour — a configured project's genuinely
+      //      flat canvas keeps its root fallback (the comments above).
+      if (!indexed && resolved && !resolved.fromPath) {
+        const twin = groupedFileFor(slug);
+        if (twin) {
+          resolved = { rel: twin, fromPath: true };
+          // Adopted exactly as the boot scan adopts a file: its bytes are the
+          // last body observed there, so the doc's body is not mistaken for a
+          // local edit still waiting on its watcher (`awaitingBodyImport`).
+          if (!storedBodyHashes.has(twin)) {
+            const disk = readIfPresent(join(designRoot, twin));
+            if (disk !== null) {
+              storedBodyHashes.set(twin, createHash('sha256').update(disk).digest('hex'));
+            }
+          }
+        } else if (!resolved.rel.includes('/') && slug.includes('-') && !configKnown()) {
+          if (!held.has(slug)) {
+            log.warn?.(
+              `[workspace] holding ${slug} — it carries no path and this checkout has no ` +
+                'config.json, so its only home would be an invented flat file at the design root. ' +
+                'It lands once the config or its path arrives.'
+            );
+          }
+          held.set(slug, { documentName, document, user });
+          return null;
+        }
+      }
+      held.delete(slug);
 
       // A late VALIDATED path supersedes a memoised fallback. The first store
       // routinely arrives before the peer's `syncMeta.path` stamp lands, the
@@ -711,9 +793,60 @@ export function createWorkspaceAgent(opts) {
     }
   }
 
+  /**
+   * Replay every held body (2.0.4). Each one goes through `onDocumentStored`
+   * again, so it lands only if config or its path has arrived meanwhile — and
+   * is held again, quietly, otherwise. Never throws.
+   * @returns {Promise<number>} how many landed
+   */
+  async function retryHeld() {
+    if (!ready || !auto || held.size === 0) return 0;
+    let landed = 0;
+    for (const [slug, args] of [...held]) {
+      try {
+        const out = await onDocumentStored(args);
+        if (out && !held.has(slug)) landed += 1;
+      } catch {
+        /* onDocumentStored never throws; belt and braces */
+      }
+    }
+    return landed;
+  }
+
+  /**
+   * Paths that just left the checkout through the hub's flat-twin quarantine
+   * (journal.mjs `quarantineFlatCanvasTwins`). Drops every index entry that
+   * points at one — the boot index can have picked the flat twin, and leaving
+   * it there would write the next store straight back to the root — and
+   * stages the deletions so history agrees (autocommit drops a path git never
+   * tracked). Never throws.
+   */
+  function releasePaths(rels) {
+    try {
+      const gone = new Set((rels ?? []).map(String));
+      if (gone.size === 0) return;
+      for (const [slug, entry] of pathIndex) {
+        if (gone.has(entry.rel)) pathIndex.delete(slug);
+      }
+      for (const rel of gone) {
+        storedBodyHashes.delete(rel);
+        rejectedSources.delete(rel);
+        auto?.note(relative(repoDir, join(designRoot, rel)).split(sep).join('/'), null);
+      }
+    } catch (err) {
+      log.warn?.(`[workspace] could not release ${[...(rels ?? [])].join(', ')}: ${err.message}`);
+    }
+  }
+
   return {
     start,
     onDocumentStored,
+    retryHeld,
+    releasePaths,
+    /** Slugs whose bodies are held (2.0.4). Diagnostic. */
+    get heldSlugs() {
+      return [...held.keys()];
+    },
     /** Force any pending commit now. The shutdown path depends on this. */
     flush: () => (auto ? auto.flush() : Promise.resolve(null)),
     async stop() {
