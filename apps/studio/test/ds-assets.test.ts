@@ -43,7 +43,7 @@ const canvasOnly = (read: string[]): Visibility => {
   };
 };
 
-function route(root: string, vis: Visibility = full) {
+function route(root: string, vis: Visibility = full, journal: readonly string[] | null = null) {
   const [spec] = createDsAssetsRoutes({
     designRoot: root,
     systems: () => [
@@ -51,6 +51,7 @@ function route(root: string, vis: Visibility = full) {
       { name: 'odd', path: 'brand/odd' },
     ],
     visibility: () => vis,
+    journalMedia: async () => journal,
   });
   return async (query: string) => {
     const res = await (spec as NonNullable<typeof spec>).handle(
@@ -255,6 +256,116 @@ describe('GET /_api/ds/assets', () => {
     expect(r.body.total).toBe(3000);
     expect(top.body.dirs).toEqual([{ path: `${LIB}/photos-cut`, name: 'photos-cut', count: 3000 }]);
     expect(searched.body.total).toBe(111); // P29, P290–P299, P2900–P2999
+    expect(ms).toBeLessThan(400);
+  });
+});
+
+// 2.0.3 (alligators.cloud.maude.sh, 2.0.2): in a cell the Library listed graphics/, logos/, photos/, … with 0 files in
+// every one. On a cell the disk is a cache (DDR-243): a system's media is in the hub's journal and bucket, never at its
+// checkout path — the listing must read the hub's media listing too (`listMaterializable`).
+describe('GET /_api/ds/assets on a materializing cell', () => {
+  const J = [
+    `${LIB}/logos/mark-white.svg`,
+    `${LIB}/photos-cut/b.jpg`,
+    `${LIB}/photos-cut/a.jpg`,
+    `${LIB}/photos-cut/2025/helmet.jpg`,
+    `${LIB}/sponsors/acme.png`, // a folder the disk does not hold at all
+    `${LIB}/hero.webp`,
+    `${LIB}/linked/x.png`, // `linked` is a symlink on this disk — never opened
+    `${LIB}/_runtime/a.png`,
+    `${LIB}/logos/notes.txt`,
+    'system/other/assets/logos/theirs.svg',
+    'assets/zzzz0001.png',
+  ];
+  const cell = () => {
+    const root = project();
+    // the checkout: the folders (and one picture), no media of the journal's
+    mkdirSync(path.join(root, LIB, 'logos'), { recursive: true });
+    mkdirSync(path.join(root, LIB, 'photos-cut'), { recursive: true });
+    put(root, `${LIB}/photos-cut/c.jpg`);
+    const away = project();
+    mkdirSync(path.join(away, 'x'), { recursive: true });
+    symlinkSync(path.join(away, 'x'), path.join(root, LIB, 'linked'));
+    return root;
+  };
+
+  test("the library top counts and lists the hub's media", async () => {
+    const get = route(cell(), full, J);
+    const top = await get('ds=alligators');
+    expect(top.status).toBe(200);
+    expect(top.body.dirs).toEqual([
+      { path: `${LIB}/logos`, name: 'logos', count: 1 },
+      { path: `${LIB}/photos-cut`, name: 'photos-cut', count: 3 },
+      { path: `${LIB}/sponsors`, name: 'sponsors', count: 1 },
+    ]);
+    expect(top.body.files.map((f: any) => f.name)).toEqual(['hero.webp']);
+    expect(top.body.files[0]).toMatchObject({ kind: 'image', placeable: true, size: 0 });
+  });
+
+  test('one folder, paging and search span the disk and the journal', async () => {
+    const get = route(cell(), full, J);
+    const photos = await get('ds=alligators&dir=photos-cut');
+    expect(photos.body.files.map((f: any) => f.name)).toEqual(['a.jpg', 'b.jpg', 'c.jpg']);
+    expect(photos.body.dirs).toEqual([{ path: `${LIB}/photos-cut/2025`, name: '2025', count: 1 }]);
+    expect(photos.body.total).toBe(3);
+    const p1 = await get('ds=alligators&dir=photos-cut&limit=2');
+    expect(p1.body.next).toBe(`${LIB}/photos-cut/b.jpg`);
+    const p2 = await get(`ds=alligators&dir=photos-cut&limit=2&cursor=${p1.body.next}`);
+    expect(p2.body.files.map((f: any) => f.name)).toEqual(['c.jpg']);
+    expect((await get('ds=alligators&dir=sponsors')).body.files.map((f: any) => f.name)).toEqual([
+      'acme.png',
+    ]);
+    const found = await get('ds=alligators&q=helmet');
+    expect(found.body.files.map((f: any) => f.path)).toEqual([`${LIB}/photos-cut/2025/helmet.jpg`]);
+    expect((await get('ds=alligators&q=theirs')).body.files).toEqual([]); // another system's
+  });
+
+  test('containment holds: a symlinked folder, a `_` folder, a missing folder', async () => {
+    const get = route(cell(), full, J);
+    expect((await get('ds=alligators&dir=linked')).status).toBe(404);
+    expect((await get('ds=alligators&q=x')).body.files.map((f: any) => f.name)).toEqual([]);
+    expect((await get('ds=alligators&dir=_runtime')).status).toBe(400);
+    expect((await get('ds=alligators&dir=video')).status).toBe(404);
+  });
+
+  test('off a cell (no journal) the disk alone answers, as before', async () => {
+    const top = await route(cell(), full, null)('ds=alligators');
+    expect(top.body.dirs).toEqual([{ path: `${LIB}/photos-cut`, name: 'photos-cut', count: 1 }]);
+  });
+
+  test("a canvas-only session lists its closure's journal media, and nothing else", async () => {
+    const vis = canvasOnly([
+      `${LIB}/logos/mark-white.svg`,
+      `${LIB}/photos-cut/a.jpg`,
+      `${LIB}/gone.jpg`,
+    ]);
+    const get = route(cell(), vis, J);
+    const top = await get('ds=alligators');
+    expect(top.body.dirs).toEqual([
+      { path: `${LIB}/logos`, name: 'logos', count: 1 },
+      { path: `${LIB}/photos-cut`, name: 'photos-cut', count: 1 },
+    ]);
+    expect(top.body.files).toEqual([]); // hero.webp is not in its closure; gone.jpg is nowhere
+    const photos = await get('ds=alligators&dir=photos-cut');
+    expect(photos.body.files.map((f: any) => f.name)).toEqual(['a.jpg']);
+    expect((await get('ds=alligators&dir=sponsors')).status).toBe(404);
+  });
+
+  test('3000 pictures held only by the hub: a page comes back within budget', async () => {
+    const root = project();
+    mkdirSync(path.join(root, LIB, 'photos-cut'), { recursive: true });
+    const journal = Array.from({ length: 3000 }, (_, i) => `${LIB}/photos-cut/P${i}.jpg`);
+    const get = route(root, full, journal);
+    await get('ds=alligators&dir=photos-cut'); // warm
+    const t0 = performance.now();
+    const r = await get('ds=alligators&dir=photos-cut&limit=200');
+    const top = await get('ds=alligators');
+    const searched = await get('ds=alligators&q=P29');
+    const ms = performance.now() - t0;
+    expect(r.body.files).toHaveLength(200);
+    expect(r.body.total).toBe(3000);
+    expect(top.body.dirs).toEqual([{ path: `${LIB}/photos-cut`, name: 'photos-cut', count: 3000 }]);
+    expect(searched.body.total).toBe(111);
     expect(ms).toBeLessThan(400);
   });
 });
