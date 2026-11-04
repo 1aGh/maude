@@ -12628,6 +12628,201 @@
     "v2": "new"
   },
   {
+    "hook": "assets-source",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "2.0.2 — the Assets tab's Library switch, a native select: \"This project\", then each design system (\"<name> · design system\"). Only drawn when the project has a design system.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/assets-panel.jsx",
+      "symbol": "AssetsPanel"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-ds",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "A design system's own library in the Assets tab (2.0.2): `data-ds` is the system, `data-dir` the folder shown ('' = its top).",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/ds-library-view.jsx",
+      "symbol": "DsLibraryView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-ds-search",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The library's search field: names below the current folder.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/ds-library-view.jsx",
+      "symbol": "DsLibraryView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-ds-crumbs",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The breadcrumb over the library (\"alligators › photos-cut\").",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/ds-library-view.jsx",
+      "symbol": "DsLibraryView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-ds-crumb",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "One breadcrumb step; `data-dir` is the folder it opens, the last one is `aria-current=\"location\"`.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/ds-library-view.jsx",
+      "symbol": "DsLibraryView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-ds-dirs",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The list of folders in the current one.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/ds-library-view.jsx",
+      "symbol": "DsLibraryView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-ds-folder",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "One folder row: its name and how many files are directly inside; `data-dir` is what it opens.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/ds-library-view.jsx",
+      "symbol": "DsLibraryView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-ds-grid",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The library's tiles (the same `assets-tile` as the project's; `data-asset` is the literal `/<designRel>/system/<ds>/assets/…` reference a placement writes).",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/ds-library-view.jsx",
+      "symbol": "DsLibraryView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-ds-total",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "How many files the folder (or the search) holds, all pages together.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/ds-library-view.jsx",
+      "symbol": "DsLibraryView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-ds-more",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Show more · N files left\": the next page (also asked when it scrolls into view).",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/ds-library-view.jsx",
+      "symbol": "DsLibraryView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-ds-empty",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "A folder with no files and no folders.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/ds-library-view.jsx",
+      "symbol": "DsLibraryView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-ds-nohits",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The library when nothing matches the search.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/ds-library-view.jsx",
+      "symbol": "DsLibraryView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-ds-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The library could not be read (or the folder is gone).",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/ds-library-view.jsx",
+      "symbol": "DsLibraryView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-ds-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Why ↵ did not place: no artboard selected, a name that cannot be a reference, or the studio's refusal.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/ds-library-view.jsx",
+      "symbol": "DsLibraryView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-ds-foot",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The picked file's name at the foot of the library.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/ds-library-view.jsx",
+      "symbol": "DsLibraryView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
     "hook": "project-menu-status-<action-id>",
     "kind": "testid",
     "pattern": true,

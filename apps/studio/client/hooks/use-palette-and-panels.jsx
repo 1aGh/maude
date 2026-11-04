@@ -679,6 +679,8 @@ export function usePaletteAndPanels({
           isOffline={() => importsWaitHereFrom({ cfg, cloudLinkedHub, syncStatus, project })}
           // S8.21 — "Used in" in an asset's details opens that artboard
           onOpenCanvas={openCanvasAt}
+          // 2.0.2 — each design system's own library is a source of the tab
+          designSystems={cfg?.designSystems}
         />
       );
     // S1.14 — Version history (⌥⌘H): the dock id `changes` stays (testids, the dock strip, `history.open`).

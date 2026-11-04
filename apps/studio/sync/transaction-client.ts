@@ -189,8 +189,19 @@ export interface CreateRename {
   toPath: string;
 }
 
+/**
+ * 2.0.2 — a refused create that is taken OUT of the proposal instead of renamed: the project
+ * already holds this very file (`same`), the file is a module that keeps its name (`module`), or
+ * the canvas is no longer on this Mac (`gone`). What queued behind it names the same document.
+ */
+export interface CreateWithdrawal {
+  doc: string;
+  why: 'same' | 'module' | 'gone';
+}
+
 export interface CreateConflictAnswer {
   renames: CreateRename[];
+  withdrawn?: CreateWithdrawal[];
   /** The renamed create has its FINAL answer (the refused entry is gone). */
   settled: (result: ProposalResult) => void;
 }
@@ -688,16 +699,18 @@ export function createTransactionClient(opts: TransactionClientOptions) {
   function rewriteQueued(
     by: Map<string, CreateRename>,
     oldTx: string,
-    newTx: string,
+    /** null — nothing is sent in its place (every create was withdrawn): the dependency goes. */
+    newTx: string | null,
     after: number
   ): void {
     for (const { file, entry } of readOutbox()) {
       if (entry.createdAt <= after || !entry.action) continue;
       const before = entry.action;
       const operations = before.operations.map((o) => renamedOp(o, by));
-      const deps = before.dependsOn?.map((d) => (d === oldTx ? newTx : d));
+      const deps = before.dependsOn?.flatMap((d) => (d !== oldTx ? [d] : newTx ? [newTx] : []));
       const changed =
         operations.some((o, i) => o !== before.operations[i]) ||
+        deps?.length !== before.dependsOn?.length ||
         !!deps?.some((d, i) => d !== before.dependsOn?.[i]);
       if (!changed) continue;
       const action = { ...before, operations, ...(deps ? { dependsOn: deps } : {}) };
@@ -723,7 +736,11 @@ export function createTransactionClient(opts: TransactionClientOptions) {
     file: string,
     entry: OutboxEntry,
     result: ProposalResult
-  ): Promise<{ file: string; entry: OutboxEntry; answer: CreateConflictAnswer } | null> {
+  ): Promise<
+    | { file: string; entry: OutboxEntry; answer: CreateConflictAnswer }
+    | { file: null; entry: null; answer: CreateConflictAnswer }
+    | null
+  > {
     if (!opts.onCreateConflict || !entry.action) return null;
     let answer: CreateConflictAnswer | null = null;
     try {
@@ -733,18 +750,24 @@ export function createTransactionClient(opts: TransactionClientOptions) {
         `[sync/tx] ${entry.label}: could not move it to a free name (${(err as Error).message})`
       );
     }
-    if (!answer?.renames.length) return null;
+    if (!answer || (!answer.renames.length && !answer.withdrawn?.length)) return null;
     const by = new Map(answer.renames.map((r) => [r.fromDoc, r]));
+    // 2.0.2 — a withdrawn create leaves the proposal; nothing else changes for it.
+    const out = new Set((answer.withdrawn ?? []).map((w) => w.doc));
+    const operations = entry.action.operations
+      .filter((o) => !(o.op === 'doc.create' && typeof o.doc === 'string' && out.has(o.doc)))
+      .map((o) => (o.op === 'doc.create' ? renamedOp(o, by) : o));
+    if (!operations.length) {
+      // Nothing left to send: what waited on it no longer depends on it.
+      rewriteQueued(by, entry.transactionId, null, entry.createdAt);
+      rmSync(file, { force: true });
+      return { file: null, entry: null, answer };
+    }
     // Derived, not drawn: a replay that rewrites the queue again names the
     // same transaction (it is only ever written once, so never sent twice).
     const transactionId = `tx_${sha256(`${entry.transactionId}:renamed`).slice(0, 32)}`;
     rewriteQueued(by, entry.transactionId, transactionId, entry.createdAt);
-    const action = {
-      ...entry.action,
-      operations: entry.action.operations.map((o) =>
-        o.op === 'doc.create' ? renamedOp(o, by) : o
-      ),
-    };
+    const action = { ...entry.action, operations };
     const next: OutboxEntry = {
       ...makeEntry(action, transactionId, {
         transactionId,
@@ -818,14 +841,33 @@ export function createTransactionClient(opts: TransactionClientOptions) {
     // S6.13b — the name was taken while this Mac was away: the canvas moves to
     // the next free one and its create goes again (bounded: a name taken again
     // meanwhile moves on once more).
+    // 2.0.2 — the creates taken out on the way (the same file; a module; a canvas gone).
+    const withdrawn: CreateWithdrawal[] = [];
+    let operations = entry.action?.operations ?? [];
     for (let round = 0; isCreateConflict(entry, result); round++) {
       const renamed = round < 5 ? await renameRefusedCreate(file, entry, result) : null;
       if (!renamed) {
         rmSync(file, { force: true });
         break;
       }
+      withdrawn.push(...(renamed.answer.withdrawn ?? []));
+      if (renamed.file === null) {
+        // Every create left the proposal: nothing was sent. When the project already holds each
+        // of them as it is here, that is the answer this change wanted; otherwise the refusal stands.
+        operations = [];
+        if (withdrawn.every((w) => w.why === 'same'))
+          result = {
+            protocol: result.protocol,
+            status: 'accepted',
+            code: 'withdrawn',
+            transactionId: entry.transactionId,
+          };
+        renamed.answer.settled(result);
+        break;
+      }
       file = renamed.file;
       entry = renamed.entry;
+      operations = entry.action?.operations ?? [];
       const current = entry;
       owned.add(file);
       try {
@@ -835,11 +877,12 @@ export function createTransactionClient(opts: TransactionClientOptions) {
       }
       renamed.answer.settled(result);
     }
+    // The caller of a withdrawn create learns it was not sent (accepted-link `createDoc`).
+    if (withdrawn.length) result = { ...result, withdrawn };
     if (result.status === 'accepted') {
       acks.push(Math.max(0, now() - madeAt));
       if (acks.length > 200) acks.shift();
     } else rejectedCount++;
-    const operations = entry.action?.operations ?? [];
     opts.onResult?.(result, { label: entry.label, operations });
     return { result, operations };
   }

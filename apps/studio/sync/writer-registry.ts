@@ -563,6 +563,8 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/asset-state': { class: 'read' }, // routes/asset-state.ts (S8.19): disk + queue + hub presence, no effect
   // routes/asset-details.ts (S8.21): the details of one asset and the Generated runs — reads of the project's own sidecars
   '/_api/asset-details': { class: 'read' },
+  // routes/ds-assets.ts (2.0.2): a design system's own asset library, one folder per page — a read of versioned media
+  '/_api/ds/assets': { class: 'read' },
   '/_api/asset-generated': { class: 'read' },
   // routes/generate.ts (S8.16): the consent quote is this process's memory; `of` reads a take's `.gen.json`
   '/_api/generate-takes/quote': { class: 'local' },

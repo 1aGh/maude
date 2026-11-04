@@ -1,29 +1,31 @@
 // Stable per-platform download redirect (Phase 32 / Task 3; V2-7.2 stable-only).
 //
-//   GET /desktop/download/macos    → 302 to the latest .dmg on the newest STABLE GitHub Release
-//   GET /desktop/download/windows  → 302 to the latest .msi
-//   GET /desktop/download/linux    → 302 to the latest .deb
+//   GET /desktop/download/macos    → 302 to the .dmg of the newest STABLE GitHub Release
+//   GET /desktop/download/windows  → 302 to its .msi
+//   GET /desktop/download/linux    → 302 to its .deb
 //
 // Asset filenames carry the version (Maude_0.30.0_x64_en-US.msi), so there's no
-// version-less URL to link directly. This resolves the newest matching asset at
-// request time and 302s to it; on any failure it falls back to the releases page,
-// so the button never dead-ends. CDN-cached 5 min.
+// version-less URL to link directly. This resolves the asset at request time and
+// 302s to it; on any failure it falls back to the releases page, so the button
+// never dead-ends.
 //
 // STABLE ONLY. This is the front door for every first-time visitor, so a release candidate must
 // never become the download — by GitHub's flag OR by its version string (a mis-flagged rc would
-// pass a flag check). The pick is site/lib/updater-feed.mjs `pickInstaller`, the same channel rule
-// a stable install gets from the updater feed; scripts/test/download-redirect.test.mjs pins it.
+// pass a flag check). The decision is site/lib/updater-feed.mjs `downloadRedirect`, the same
+// channel rule a stable install gets from the updater feed; scripts/test/download-redirect.test.mjs
+// pins it.
+//
+// NEVER AN OLDER VERSION (2.0.2). Right after 2.0.1 this sent visitors to 1.10.0: the list was
+// read through Next's data cache (`next: { revalidate }`), which is stale-while-revalidate and
+// answered the first request after a quiet spell from a list fetched before 2.0.0 existed. The
+// list is now read uncached and the REDIRECT carries the cache — bounded, never served stale, and
+// short whenever the newest release's installer is not uploaded yet (see `downloadRedirect`).
 
 import { gitConfig } from '@/lib/shared';
-import { pickInstaller } from '@/lib/updater-feed.mjs';
+import { DOWNLOAD_CACHE_PENDING, downloadRedirect } from '@/lib/updater-feed.mjs';
 
 const REPO = `${gitConfig.user}/${gitConfig.repo}`;
 const RELEASES_PAGE = `https://github.com/${REPO}/releases/latest`;
-
-interface GhAsset {
-  name: string;
-  browser_download_url: string;
-}
 
 function ghHeaders(): HeadersInit {
   const h: Record<string, string> = {
@@ -34,24 +36,26 @@ function ghHeaders(): HeadersInit {
   return h;
 }
 
+/** A 302 whose cache lifetime we choose (`Response.redirect` hands back immutable headers). */
+function redirect(location: string, cacheControl: string): Response {
+  return new Response(null, {
+    status: 302,
+    headers: { Location: location, 'Cache-Control': cacheControl },
+  });
+}
+
 export async function GET(_req: Request, { params }: { params: Promise<{ platform: string }> }) {
   const { platform } = await params;
 
   try {
     const res = await fetch(`https://api.github.com/repos/${REPO}/releases?per_page=30`, {
       headers: ghHeaders(),
-      next: { revalidate: 300 },
+      cache: 'no-store',
     });
-    if (!res.ok) return Response.redirect(RELEASES_PAGE, 302);
-    const releases = (await res.json()) as Array<{
-      tag_name: string;
-      draft: boolean;
-      prerelease: boolean;
-      assets: GhAsset[];
-    }>;
-    const asset = pickInstaller(releases, platform) as GhAsset | null;
-    return Response.redirect(asset?.browser_download_url ?? RELEASES_PAGE, 302);
+    if (!res.ok) return redirect(RELEASES_PAGE, DOWNLOAD_CACHE_PENDING);
+    const { location, cacheControl } = downloadRedirect(await res.json(), platform, REPO);
+    return redirect(location, cacheControl);
   } catch {
-    return Response.redirect(RELEASES_PAGE, 302);
+    return redirect(RELEASES_PAGE, DOWNLOAD_CACHE_PENDING);
   }
 }

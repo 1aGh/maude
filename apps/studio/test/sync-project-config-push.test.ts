@@ -94,6 +94,37 @@ describe('createProjectConfigPusher', () => {
     }
   });
 
+  test('a 401 is a stale credential, not a refusal: the next push, on the renewed token, lands', async () => {
+    // 2.0.1 field (alligators): the push ran once on the old token at connect, got 401, and was
+    // recorded as answered — the credential renewed seconds later, the documents recovered, and the
+    // cell stayed without its config.json (no design system, no brand fonts) until a restart.
+    writeFileSync(join(root, 'config.json'), JSON.stringify(CONFIG));
+    let tok = 'stale';
+    const sent: string[] = [];
+    const fetchImpl = (async (_url: string, init?: RequestInit) => {
+      const auth = new Headers(init?.headers).get('authorization') ?? '';
+      sent.push(auth);
+      return new Response(
+        JSON.stringify(auth === 'Bearer fresh' ? { ok: true, changed: true } : {}),
+        {
+          status: auth === 'Bearer fresh' ? 200 : 401,
+        }
+      );
+    }) as unknown as typeof fetch;
+    const p = createProjectConfigPusher({
+      designRoot: root,
+      hubUrl: 'https://alligators.cloud.maude.sh',
+      token: () => tok,
+      fetchImpl,
+      log: { log() {}, warn() {} },
+    });
+    expect(await p.push()).toBe('refused');
+    tok = 'fresh';
+    expect(await p.push()).toBe('sent');
+    expect(sent).toEqual(['Bearer stale', 'Bearer fresh']);
+    expect(await p.push()).toBe('unchanged');
+  });
+
   test('a hub under a path prefix keeps it — the token never leaves the hub (review F4)', async () => {
     writeFileSync(join(root, 'config.json'), JSON.stringify(CONFIG));
     const h = hub();

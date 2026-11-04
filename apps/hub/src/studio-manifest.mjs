@@ -334,6 +334,7 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/ds/make': { safe: null, unsafe: 'edit' }, // S10.16a — make a system, write a direction, finish it
   '/_api/ds/make-state': { safe: 'read', unsafe: null },
   '/_api/ds/system-files': { safe: 'read', unsafe: null }, // S10.19 — Design system › Advanced (GET only)
+  '/_api/ds/assets': { safe: 'read', unsafe: null }, // 2.0.2 — the Assets tab's Design system source (GET only; as /_api/assets)
   '/_api/ds/check-system': { safe: 'read', unsafe: 'edit' }, // S10.19 — the last check (GET) · run it (POST; writes _state/)
   '/_api/ds/default': { safe: null, unsafe: 'edit' }, // S10.13 — the project's default design system
   '/_api/ds/rename': { safe: null, unsafe: 'edit' }, // P8 round 7 — Rename… a design system (its config label)

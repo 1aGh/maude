@@ -170,6 +170,17 @@ export async function listMaterializable({
   return listInflight;
 }
 
+/**
+ * The last listing `listMaterializable` got, whatever its age — `null` before the first answer
+ * (and always off a cell). The SAME array until a new answer replaces it, so a caller may key a
+ * cache on its identity. The access closure reads it synchronously (access/filters.ts): on a cell
+ * a design system's media is in the journal, never at its checkout path, and a canvas frame's
+ * closure must still hold it (2.0.2 — the alligators logos answered 403 on the canvas origin).
+ */
+export function lastMaterializable(): readonly string[] | null {
+  return listCache?.rels ?? null;
+}
+
 /** Test seam — forget the cached listing. */
 export function resetMaterializableListCache(): void {
   listCache = null;

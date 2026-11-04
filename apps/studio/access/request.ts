@@ -24,9 +24,11 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
+import { classifyProjectFile } from '../sync/file-membership.ts';
 import type { Closure, ProjectReader } from './closure.ts';
 // S9.12 — the revert-guard seam (a call-time read, so the import cycle with filters.ts is inert).
 import { aclCheckOn } from './filters.ts';
+import { frameReadsProjectMedia } from './frame.ts';
 import type { Capability, ProjectRole } from './roles.ts';
 import { FLOOR_ROLE, can as roleCan } from './roles.ts';
 import {
@@ -438,8 +440,30 @@ export async function canvasScopeRefusal(req: Request, g: GateInput): Promise<Re
   if (!g.access.canvasOnly || !aclCheckOn('canvasScopeRefusal')) return null;
   const target = await gateTarget(req, g);
   if (target === undefined) return null;
-  if (target === null || !seesTarget(g, target, req.method)) return notInScopeResponse();
-  return null;
+  if (target === null) return notInScopeResponse();
+  if (seesTarget(g, target, req.method)) return null;
+  // 2.0.2 (decision maude/v2-202-project-role-frames-read-project-media) — the static lane's own
+  // path (never a `?file=` naming it for an API) may be project media a project-role opener's frame
+  // reads; `frameReadsProjectMedia` holds it to GET/HEAD and media, and never a canvas-only opener.
+  if (
+    staticPathTarget(req, g.designRel) === target &&
+    frameReadsProjectMedia(g.access, target, req.method)
+  )
+    return null;
+  return notInScopeResponse();
+}
+
+/** The designRoot file a request's PATH names when no target key in its query names another. */
+function staticPathTarget(req: Request, designRel: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(req.url);
+  } catch {
+    return null;
+  }
+  if (TARGET_KEYS.some((k) => url.searchParams.has(k))) return null;
+  const base = `/${designRel.replace(/^\/+|\/+$/g, '')}/`;
+  return url.pathname.startsWith(base) ? toDesignRel(url.pathname, designRel) : null;
 }
 
 export type LocalGate =
@@ -632,6 +656,61 @@ export function diskProjectReader(
         }
       };
       yield* walk(designRoot, '');
+    },
+  };
+}
+
+/**
+ * 2.0.2 — `disk` plus a materializing cell's journal media (`media()`, materialize-client.ts
+ * `lastMaterializable`). On a cell the disk is a cache (DDR-243): inert media lives in the bucket
+ * and is served from a hub-owned cache OUTSIDE the design root, so it never appears at its checkout
+ * path. A closure over the disk alone therefore never held a design system's logos or photos, and
+ * the path-first gate refused a canvas frame its own system's media (alligators, 2.0.1).
+ *
+ * The hub is semi-trusted (DDR-054), so its listing only ADDS names the closure's own rules then
+ * judge — and only inert-media names (`classifyProjectFile(rel, {})`, the check the static lane's
+ * fill makes): never a module, a stylesheet, config or runtime state, never a dot name. `text()` of
+ * one is the disk's (null when absent); serving one still goes through `materializeMissing`.
+ * `head()` carries a version that moves when the listing does, so cached closures are recomputed.
+ */
+export function withJournalMedia(
+  disk: ProjectReader,
+  media: () => readonly string[] | null
+): ProjectReader {
+  let seen: readonly string[] | null = null;
+  let version = 0;
+  let extra: ReadonlySet<string> = new Set();
+  const sync = () => {
+    const rels = media();
+    if (rels === seen) return;
+    seen = rels;
+    const next = new Set<string>();
+    for (const rel of rels ?? []) {
+      if (rel.split('/').some((s) => s.startsWith('.'))) continue;
+      if (classifyProjectFile(rel, {}) !== 'inert-media') continue;
+      next.add(rel);
+    }
+    if (next.size === extra.size && [...next].every((r) => extra.has(r))) return;
+    extra = next;
+    version++;
+  };
+  return {
+    head: () => {
+      sync();
+      return `${disk.head()}+m${version}`;
+    },
+    text: (rel) => disk.text(rel),
+    listTruncated: disk.listTruncated ? () => disk.listTruncated?.() === true : undefined,
+    present: disk.present ? (rel) => disk.present?.(rel) === true || extra.has(rel) : undefined,
+    unlisted: disk.unlisted ? () => disk.unlisted?.() ?? [] : undefined,
+    *list() {
+      sync();
+      const listed = new Set<string>();
+      for (const f of disk.list()) {
+        listed.add(f);
+        yield f;
+      }
+      for (const f of extra) if (!listed.has(f)) yield f;
     },
   };
 }

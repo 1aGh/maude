@@ -94,6 +94,11 @@ export interface EditCtx {
    * against what the request claims.
    */
   variantsOf?(component: string): readonly string[] | null;
+  /**
+   * 2.0.2 — the server's designRoot relative to the repo (`.design`): a design system's own picture is placed as the
+   * literal `/<designRel>/system/<ds>/assets/…` (editing/ds-asset-ref.ts), checked against THIS, never the request.
+   */
+  designRel?: string;
 }
 
 /** One writer. Pure: bytes in, bytes out; throw `CanvasEditError` to refuse with `invalid`. */

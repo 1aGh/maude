@@ -50,6 +50,7 @@ import {
   FRAME_PARAM,
   type FrameScope,
   frameKeyFor,
+  frameReadsProjectMedia,
   frameSubjectOf,
   frameTokenOf,
   inputsRefusal,
@@ -2513,6 +2514,13 @@ export function createHttp(
         }
       },
       inCell: isWorkspaceMode(),
+    },
+    // 2.0.2 — GET /_api/ds/assets (routes/ds-assets.ts): a design system's own library in the Assets tab, paged by
+    // folder; a canvas-only session is answered from its closure (visOf), like /_api/assets.
+    dsAssets: {
+      designRoot: ctx.paths.designRoot,
+      systems: () => ctx.cfg.designSystems ?? [],
+      visibility: (req) => visOf(req),
     },
     // S8.16 — /_api/generate-takes* (routes/generate.ts): N takes on the generation queue, the consent quote, ← →.
     generate: generateDepsFor({
@@ -7949,6 +7957,9 @@ export function createHttp(
 
   async function accessRefusal(req: Request): Promise<Response | null> {
     const access = accessOf(req);
+    // 2.0.2 — on a materializing cell, the closure lists the journal's media (DDR-243: none of it
+    // is on the checkout); wait for the first listing so a frame's own DS asset is not refused.
+    if (access.grants.length > 0) await visibility.ready?.();
     const g = gateInput(access);
     // S9.11 (V2-1.16 L15) — a file of the design root (the static lane, its `/assets/`
     // alias, `?sha=` builds) is judged on its PATH, before any query names a target: a
@@ -7962,8 +7973,12 @@ export function createHttp(
       }
       const file = canvasOriginTarget(pathname, designRel);
       const see = seerOf(access, () => closureOf(access));
-      if (file !== undefined && (file === null || see?.(file) !== true))
-        return notInScopeResponse();
+      if (file !== undefined && (file === null || see?.(file) !== true)) {
+        // 2.0.2 (decision maude/v2-202-project-role-frames-read-project-media) — a frame opened with a
+        // project read role GETs any project media; a canvas-only opener keeps the strict closure.
+        if (file === null || !frameReadsProjectMedia(access, file, req.method))
+          return notInScopeResponse();
+      }
     }
     const scope = await canvasScopeRefusal(req, g);
     if (scope) return scope;

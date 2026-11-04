@@ -52,6 +52,7 @@ import type { ServerWebSocket } from 'bun';
 import { canvasSlugFromRel } from '../canvas-slug.ts';
 import type { Context } from '../context.ts';
 import type { ProjectIndexSnapshot, SearchResult } from '../index/types.ts';
+import { lastMaterializable, listMaterializable } from '../materialize-client.ts';
 import {
   type Closure,
   type ClosureCache,
@@ -61,7 +62,7 @@ import {
   projectClosureConfig,
 } from './closure.ts';
 import { closureConfigFor, knownCanvasesFor } from './known-canvases.ts';
-import { currentAccess, diskProjectReader, toDesignRel } from './request.ts';
+import { currentAccess, diskProjectReader, toDesignRel, withJournalMedia } from './request.ts';
 import { type Access, sees } from './scope.ts';
 
 // ===========================================================================
@@ -580,6 +581,12 @@ export interface ProjectVisibility {
    * the names to what its reader sees (`filterIndexData`). Memoized per tree generation.
    */
   canvasImports(canvases: readonly string[]): ReadonlyMap<string, string[]>;
+  /**
+   * 2.0.2 — resolves once the closure's listing holds a materializing cell's journal media (the
+   * first `listMaterializable` answer; later ones refresh in the background). Immediate off a
+   * cell. The access gate awaits it before judging a session with grants.
+   */
+  ready?(): Promise<void>;
 }
 
 const sources = new WeakMap<object, ProjectVisibility>();
@@ -602,7 +609,21 @@ export function projectVisibility(
     generation++;
   });
   const cache: ClosureCache = createClosureCache();
-  const reader = diskProjectReader(ctx.paths.designRoot, () => String(generation));
+  // 2.0.2 — on a materializing cell the checkout holds no media (DDR-243): the journal's inert
+  // media joins the listing, so a design system's logos and photos are in its canvases' closure.
+  const reader = withJournalMedia(
+    diskProjectReader(ctx.paths.designRoot, () => String(generation)),
+    lastMaterializable
+  );
+  const ready = async (): Promise<void> => {
+    // Stale-while-revalidate: only the FIRST listing is waited for, so a hub that hangs costs one
+    // request its hop timeout, not every request every TTL.
+    if (lastMaterializable() !== null) {
+      void listMaterializable();
+      return;
+    }
+    await listMaterializable();
+  };
   // p8-c4b — plus the canvases the authority knows of (a stored grant), re-read per call.
   const config = () =>
     closureConfigFor(ctx) ?? projectClosureConfig(reader, knownCanvasesFor(undefined));
@@ -625,6 +646,7 @@ export function projectVisibility(
     visibilityFor,
     current: () => visibilityFor(currentAccess()),
     canvasImports,
+    ready,
   });
   sources.set(ctx, src);
   return src;

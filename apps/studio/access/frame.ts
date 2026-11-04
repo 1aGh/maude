@@ -217,6 +217,44 @@ export function narrowToFrame(base: Access, canvases: readonly string[] | null):
   return Object.freeze({ ...narrowed, unnarrowed: base.unnarrowed ?? base });
 }
 
+/**
+ * Project media a frame may read: pictures, video, audio and fonts — inert bytes the canvas CSP
+ * never runs. The same set as the file plane's inert media (sync/file-membership.ts), by extension
+ * only: the shape there refuses names like `Team photo (2).jpg` that a design root does hold.
+ */
+const PROJECT_MEDIA_EXT_RE =
+  /\.(png|jpe?g|webp|gif|avif|svg|ico|mp4|webm|mov|m4v|mp3|wav|m4a|aac|ogg|woff2?|ttf|otf)$/i;
+
+/** A designRoot-relative path that names project media: no runtime state, no dot or empty segment. */
+export function isProjectMediaRel(rel: string): boolean {
+  if (!rel || rel.startsWith('/') || rel.includes('\\')) return false;
+  const segs = rel.split('/');
+  if (segs.some((s) => s === '' || s.startsWith('.'))) return false;
+  // Runtime state is first-segment `_*` (DDR-115) — never project media.
+  if ((segs[0] as string).startsWith('_')) return false;
+  return PROJECT_MEDIA_EXT_RE.test(rel);
+}
+
+/**
+ * Decision `maude/v2-202-project-role-frames-read-project-media` (Michal, 2026-11-03): a frame
+ * whose OPENER holds a project read role (`unnarrowed`, the access before `narrowToFrame`) may GET
+ * any project media, anywhere in the design root — so a canvas that builds a picture path in code
+ * (G3 leaves it out of the closure) or places another system's picture still draws it for the
+ * people who can read that picture on the main origin anyway. Reads only, media only: source, CSS,
+ * JSON, sidecars and other canvases stay behind the closure. A canvas-only opener (a share of one
+ * canvas) gets nothing here — its frame keeps the strict closure.
+ *
+ * Residual risk, accepted: code planted in a canvas by an editor of a single-canvas share can load
+ * other canvases' pictures when an owner or member opens that canvas.
+ */
+export function frameReadsProjectMedia(access: Access, rel: string, method: string): boolean {
+  if (method !== 'GET' && method !== 'HEAD') return false;
+  const opener = access.unnarrowed;
+  if (!access.canvasOnly || !opener || opener.role === null) return false;
+  if (!opener.can('read', null)) return false;
+  return isProjectMediaRel(rel);
+}
+
 // ---------------------------------------------------------------------------
 // The request's frame (set by the canvas / capture listener, read by `accessOf`).
 

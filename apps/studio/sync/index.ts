@@ -3582,6 +3582,9 @@ export function createSyncRuntime(
           renewalsSinceProgress++;
           console.log(`[sync] hub credential renewed for ${linkedHub.url}`);
           scheduleRenewal();
+          // The owner's config push that ran on the stale credential (401) goes again on this one —
+          // without it a cell stayed without its config.json until it next restarted (2.0.1 field).
+          if (!outboundPaused()) void projectConfigPusher?.push();
           return true;
         } catch (err) {
           console.warn(`[sync] hub credential renewal failed: ${(err as Error).message}`);
@@ -3930,9 +3933,14 @@ export function createSyncRuntime(
                   acceptedLink.createDoc(canvas.slug, rel, lanes).then(notOursIfRenamed(docName)),
         };
         let joined = await acceptedColdStart(coldStart);
-        if (joined.kind === 'create-refused' && joined.code === 'renamed') {
+        if (
+          joined.kind === 'create-refused' &&
+          (joined.code === 'renamed' || joined.code === 'in-project')
+        ) {
           // S6.13b — this Mac's canvas moved to a free name while its create
-          // waited; what stays at this path is the peer's canvas.
+          // waited; what stays at this path is the peer's canvas. 2.0.2 — or
+          // its create was withdrawn: the project already holds this document
+          // (the same file, or a module that keeps its name), so it joins it.
           joined = await acceptedColdStart({ ...coldStart, inProject: true });
         }
         renamedAway.delete(docName);

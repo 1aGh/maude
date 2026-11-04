@@ -83,6 +83,10 @@ COPY apps/studio/access/closure.ts /build/apps/studio/access/closure.ts
 # door-fingerprint.ts (the render door, routes-v2/render-jobs.mjs) reaches these; the bundler-copies test was
 # blind to them (a `//` comment naming `access/*` hid the imports) and the image did not build (V2-8.18).
 COPY apps/studio/access/request.ts /build/apps/studio/access/request.ts
+# 2.0.2 — request.ts asks the frame rule (project-role frames read project media) and the cell's
+# materialize listing (DS media that lives only in the hub cache); both reach only files staged here.
+COPY apps/studio/access/frame.ts /build/apps/studio/access/frame.ts
+COPY apps/studio/materialize-client.ts /build/apps/studio/materialize-client.ts
 COPY apps/studio/access/filters.ts /build/apps/studio/access/filters.ts
 COPY apps/studio/access/known-canvases.ts /build/apps/studio/access/known-canvases.ts
 COPY apps/studio/sync/hubs-config.ts /build/apps/studio/sync/hubs-config.ts

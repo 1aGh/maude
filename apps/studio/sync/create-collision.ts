@@ -12,7 +12,20 @@
 // there and the place is free", so a replay of the same refusal finishes the same rename — the same
 // name, once — instead of starting another. A real content conflict (the same canvas edited on two
 // sides) is not this case: that is a `base-conflict` on a lane, and keeps its own path.
+//
+// 2.0.2 — A COLLISION WITH THE SAME FILE IS NOT A COLLISION (Brno Alligators, 2026-11-03: a cloud
+// cell's 2.0 conversion made a document for every `.tsx` of its checkout, the owner's Mac replayed
+// its queued creates for those same files, and each was renamed — ten duplicate canvases). Before
+// renaming, the project's document for the create is compared with this Mac's canvas: when it
+// holds this Mac's source byte for byte (what the create carries, or the file on disk now — edited
+// after the create), it IS this canvas, and the create is WITHDRAWN: nothing moves, and what queued
+// behind it names the same document and goes as it is. Byte-equal source only: a create carries no
+// base, so "the project's copy is newer from the same base" is not decidable here — that renames,
+// as before. A `_` file is a module (decision maude/v2-p8-lead-underscore-file-is-a-module),
+// imported by its name: it is never renamed — its create is withdrawn and the file stays, and the
+// cold start holds a differing source as any lane conflict (both kept).
 
+import { createHash } from 'node:crypto';
 import {
   existsSync,
   mkdirSync,
@@ -29,9 +42,11 @@ import { canvasArtifacts, relocatedName } from '../canvas-artifacts.ts';
 import { nextFreeCanvasName } from '../canvas-create.ts';
 import { canvasSlugFromRel } from '../canvas-slug.ts';
 import type { Paths } from '../context.ts';
+import { isUnderscoreModuleRel } from '../skip-dirs.ts';
 import type {
   CreateConflictAnswer,
   CreateRename,
+  CreateWithdrawal,
   Operation,
   ProposalResult,
 } from './transaction-client.ts';
@@ -55,8 +70,19 @@ interface Journal {
   tx: string;
   at: number;
   renames: JournalRename[];
+  /** 2.0.2 — creates withdrawn instead of renamed (the same file; a module; a canvas gone). */
+  withdrawn?: CreateWithdrawal[];
   told?: boolean;
 }
+
+/** One live document of the project, as its bootstrap lists it (`lanes` carries the lane hashes). */
+export interface LiveDoc {
+  doc: string;
+  path: string | null;
+  lanes?: Record<string, { hash: string | null } | undefined>;
+}
+
+const sha256 = (s: string) => createHash('sha256').update(s, 'utf8').digest('hex');
 
 const TX_FILE = /^tx_[A-Za-z0-9]+\.json$/;
 const nameOf = (rel: string) => path.posix.basename(rel).replace(/\.tsx$/i, '');
@@ -122,7 +148,7 @@ export interface CreateCollisionDeps {
   paths: Paths;
   docNameFor: (slug: string) => string;
   /** The project's live documents now (asked again), or null when it cannot tell. */
-  liveDocs: () => Promise<Array<{ doc: string; path: string | null }> | null>;
+  liveDocs: () => Promise<LiveDoc[] | null>;
   /**
    * The runtime's part, before any file moves: the old canvas lets go of its
    * file (the peer's canvas arrives there), the new one will join as its create.
@@ -162,22 +188,45 @@ export function createCollisionRenamer(deps: CreateCollisionDeps) {
     renameSync(tmp, fileOf(j.tx));
   };
 
-  /** Which of a refused proposal's creates the project already has under its name. */
-  async function conflicting(creates: Operation[], result: ProposalResult): Promise<Operation[]> {
-    const named = creates.filter(
+  /**
+   * Which of a refused proposal's creates the project already has under its name: the one the
+   * refusal names (a scoped session may not be told which), and (2.0.2) every other one the
+   * project lists — the kernel refuses at the FIRST taken name, and answering one per round left a
+   * batch of them past the round cap.
+   */
+  function conflicting(
+    creates: Operation[],
+    result: ProposalResult,
+    live: LiveDoc[] | null
+  ): Operation[] {
+    const docs = new Set((live ?? []).map((d) => d.doc));
+    const rels = new Set((live ?? []).map((d) => d.path?.toLowerCase()).filter((p) => !!p));
+    return creates.filter(
       (o) =>
         (result.doc !== undefined && o.doc === result.doc) ||
-        (result.path !== undefined && o.path === result.path)
+        (result.path !== undefined && o.path === result.path) ||
+        docs.has(o.doc as string) ||
+        rels.has(String(o.path).toLowerCase())
     );
-    if (named.length) return named;
-    // The refusal does not say which (a scoped session may not be told): ask the project.
-    const live = await deps.liveDocs();
-    if (!live) return [];
-    const docs = new Set(live.map((d) => d.doc));
-    const rels = new Set(live.map((d) => d.path?.toLowerCase()).filter((p) => !!p));
-    return creates.filter(
-      (o) => docs.has(o.doc as string) || rels.has(String(o.path).toLowerCase())
-    );
+  }
+
+  /**
+   * 2.0.2 — the project's document for this create holds this Mac's source byte for byte: what the
+   * create carries, or the file as it is now. Only the same document name counts (the kernel ties a
+   * name to its path, so another name at this path is not this canvas).
+   */
+  function sameFile(o: Operation, live: LiveDoc[]): boolean {
+    const d = live.find((x) => x.doc === o.doc);
+    const hash = d?.lanes?.html?.hash;
+    if (!d || !hash || String(d.path).toLowerCase() !== String(o.path).toLowerCase()) return false;
+    const carried = (o.lanes as Record<string, unknown> | undefined)?.html;
+    if (typeof carried === 'string' && carried !== '' && sha256(carried) === hash) return true;
+    try {
+      const disk = readFileSync(path.join(deps.paths.designRoot, o.path as string), 'utf8');
+      return disk !== '' && sha256(disk) === hash;
+    } catch {
+      return false;
+    }
   }
 
   async function choose(
@@ -188,18 +237,34 @@ export function createCollisionRenamer(deps: CreateCollisionDeps) {
     const creates = ops.filter(
       (o) => o.op === 'doc.create' && typeof o.doc === 'string' && typeof o.path === 'string'
     );
-    const hit = await conflicting(creates, result);
+    const listed = await deps.liveDocs();
+    const hit = conflicting(creates, result, listed);
     if (!hit.length) return null;
-    const live = (await deps.liveDocs()) ?? [];
+    const live = listed ?? [];
     const liveDocs = new Set(live.map((d) => d.doc));
     const liveRels = new Set(live.map((d) => d.path?.toLowerCase()).filter((p) => !!p));
     const chosen = new Set<string>();
     const proposed = new Set(creates.map((o) => String(o.path).toLowerCase()));
     const renames: JournalRename[] = [];
+    const withdrawn: CreateWithdrawal[] = [];
     for (const o of hit) {
       const fromRel = o.path as string;
+      const doc = o.doc as string;
+      // The project already holds this very file: this Mac's canvas IS that document.
+      if (sameFile(o, live)) {
+        withdrawn.push({ doc, why: 'same' });
+        continue;
+      }
       // A canvas no longer on this Mac has nothing to keep: the refusal stands for it.
-      if (!existsSync(path.join(deps.paths.designRoot, fromRel))) continue;
+      if (!existsSync(path.join(deps.paths.designRoot, fromRel))) {
+        withdrawn.push({ doc, why: 'gone' });
+        continue;
+      }
+      // A module is imported by its name: a rename would break every canvas that imports it.
+      if (isUnderscoreModuleRel(fromRel)) {
+        withdrawn.push({ doc, why: 'module' });
+        continue;
+      }
       const toRel = freeCreateRel(fromRel, (candidate) => {
         const lower = candidate.toLowerCase();
         const abs = path.join(deps.paths.designRoot, candidate);
@@ -220,8 +285,8 @@ export function createCollisionRenamer(deps: CreateCollisionDeps) {
         toRel,
       });
     }
-    if (!renames.length) return null;
-    const j: Journal = { v: 1, tx, at: now(), renames };
+    if (!renames.length && !withdrawn.length) return null;
+    const j: Journal = { v: 1, tx, at: now(), renames, ...(withdrawn.length ? { withdrawn } : {}) };
     write(j);
     return j;
   }
@@ -245,6 +310,17 @@ export function createCollisionRenamer(deps: CreateCollisionDeps) {
       html: htmlOf(r.fromDoc),
     }));
     const settles = canvases.map((c) => deps.onRenaming(c));
+    for (const w of j.withdrawn ?? []) {
+      const rel = String(ops.find((x) => x.op === 'doc.create' && x.doc === w.doc)?.path);
+      const slug = slugOf(rel);
+      log.log(
+        w.why === 'same'
+          ? `[sync/${slug}] the project already has ${rel} as it is on this Mac — joined, not renamed.`
+          : w.why === 'module'
+            ? `[sync/${slug}] the project already has the module ${rel} — it keeps its name.`
+            : `[sync/${slug}] the project already has ${rel}, and this Mac no longer does.`
+      );
+    }
     for (const c of canvases) {
       moveCanvasArtifacts(deps.paths, c.fromRel, c.toRel, deps.fault);
       log.log(
@@ -260,6 +336,7 @@ export function createCollisionRenamer(deps: CreateCollisionDeps) {
     }));
     return {
       renames,
+      ...(j.withdrawn?.length ? { withdrawn: j.withdrawn } : {}),
       settled: (r) => {
         for (const s of settles) s(r);
         rmSync(fileOf(tx), { force: true });

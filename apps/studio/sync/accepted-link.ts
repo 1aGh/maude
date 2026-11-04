@@ -459,6 +459,12 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
   let createNote: { r: Reservation; file: string } | null = null;
   /** doc → the gate a batched create of it holds until settled or re-queued. */
   const createsInFlight = new Map<string, Promise<void>>();
+  /**
+   * 2.0.2 — a create the transaction client WITHDREW (the project already holds that document:
+   * the same file, or a module kept under its name) was not sent: its caller hears `in-project`,
+   * and its cold start joins the project's document instead of believing it created it.
+   */
+  const IN_PROJECT: ProposalOutcome = { status: 'rejected', code: 'in-project' };
   const proposeCreates = (ops: Operation[], reservation?: Reservation) =>
     client
       .propose({
@@ -467,7 +473,14 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
         operations: ops,
         ...(reservation ? { reservation } : {}),
       })
-      .then(outcome);
+      .then((r) => ({
+        o: outcome(r),
+        out: new Set(
+          (Array.isArray(r.withdrawn) ? r.withdrawn : [])
+            .map((w) => (w as { doc?: unknown })?.doc)
+            .filter((d): d is string => typeof d === 'string')
+        ),
+      }));
   /** Note one create on disk before it is answered (fix 5.12d). */
   function noteCreate(op: Operation): void {
     if (!durable) return;
@@ -518,17 +531,26 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
       note?.r
     );
     if (note && existsSync(client.entryFile(note.r))) rmSync(note.file, { force: true });
-    void sealed.then((o) => {
-      if (o.status === 'accepted' || batch.length === 1) {
+    void sealed.then(({ o, out }) => {
+      const withdrawn = batch.filter((c) => out.has(c.op.doc as string));
+      for (const c of withdrawn) c.resolve(IN_PROJECT);
+      const rest = batch.filter((c) => !out.has(c.op.doc as string));
+      if (o.status === 'accepted' || rest.length <= 1) {
         release();
-        for (const c of batch) c.resolve(o);
+        for (const c of rest) c.resolve(o);
         return;
       }
       // Each create is queued (and so ahead of anything waiting on the gate)
       // before the gate opens.
-      const each = batch.map((c) => proposeCreates([c.op]));
+      const each = rest.map((c) => proposeCreates([c.op]));
       release();
-      each.forEach((answer, i) => void answer.then(batch[i].resolve, () => batch[i].resolve(o)));
+      each.forEach(
+        (answer, i) =>
+          void answer.then(
+            (a) => rest[i].resolve(a.out.has(rest[i].op.doc as string) ? IN_PROJECT : a.o),
+            () => rest[i].resolve(o)
+          )
+      );
     }, fail);
   }
   function queueCreate(op: Operation): Promise<ProposalOutcome> {
