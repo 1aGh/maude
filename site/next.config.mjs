@@ -12,6 +12,8 @@ const config = {
   // three are the canonical entry points; the docs paths are where they live.
   async redirects() {
     return [
+      // The v2 site names the page Maude Cloud; the old address keeps working.
+      { source: '/pricing', destination: '/cloud', permanent: true },
       { source: '/terms', destination: '/docs/legal/terms', permanent: false },
       { source: '/privacy', destination: '/docs/legal/privacy', permanent: false },
       { source: '/dpa', destination: '/docs/legal/dpa', permanent: false },

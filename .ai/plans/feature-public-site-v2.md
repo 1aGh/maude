@@ -368,6 +368,11 @@ Port only the glyphs the site uses from the kit's inline DS family (`FAMILY` in 
   - Before merging, list the URLs in the production `sitemap.xml` and curl each one once against the preview deploy. Record the result in the PR.
 - **Files**: `site/next.config.mjs`
 - **Validate**: every URL returns 200 or 308
+- **Result (2026-11-04, `next start` of the built site on localhost, Phase A tree)**:
+  - `sitemap.xml` lists 89 URLs; all 89 return 200 (`/cloud` was added to `STATIC_ROUTES`).
+  - `/pricing` returns 308 to `/cloud`; `/whats-new` returns 308 to `/changelog`; `/terms`, `/privacy`, `/dpa` return 307 to the docs legal pages (existing, non-permanent).
+  - The check found `/docs/recipes`, `/docs/commands-design` and `/docs/commands-flow` are folders with no index page, so they 404. They are not in the sitemap; the footer's Recipes link and the docs doors now point at real pages (`/docs/recipes/nextjs`, `/docs/commands-design/help`, `/docs/commands-flow/plan`).
+  - Still to do before merge, per the task: repeat the curl against the preview deploy.
 
 ### Task A11: UPDATE metadata
 

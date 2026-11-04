@@ -22,7 +22,7 @@ const COLS: [string, FootLink[]][] = [
       ['Getting started', '/docs/getting-started'],
       ['Using Maude', '/docs'],
       ['Advanced', '/docs#advanced'],
-      ['Recipes', '/docs/recipes'],
+      ['Recipes', '/docs/recipes/nextjs'],
     ],
   ],
   [
