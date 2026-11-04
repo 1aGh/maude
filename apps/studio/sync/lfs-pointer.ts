@@ -22,6 +22,10 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 
+/** What the sync says about a pointer it will not upload (the Sync panel shows it). */
+export const LFS_POINTER_REASON =
+  'A Git LFS placeholder, not the file. Run git lfs pull (or Fix with AI on the picture).';
+
 /** The pointer spec allows ≤ 1024 bytes; anything bigger is the real file. */
 export const LFS_POINTER_MAX_BYTES = 1024;
 export const LFS_SPEC_LINE = 'version https://git-lfs.github.com/spec/v1';

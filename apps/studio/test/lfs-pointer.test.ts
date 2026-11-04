@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { assetStateDepsFor, projectRootOf } from '../routes/asset-state.ts';
+import { pushAssets } from '../sync/asset-push.ts';
 import { createAssetStateService, heldMediaRels } from '../sync/asset-state.ts';
 import {
   hasLfsObject,
@@ -103,5 +104,30 @@ describe('the asset-state answer', () => {
     writeFileSync(join(design, 'assets/hero.png'), pointer());
     writeFileSync(join(design, 'assets/real.png'), Buffer.alloc(2048, 7));
     expect(heldMediaRels(design)).toEqual(['assets/real.png']);
+  });
+});
+
+describe('the legacy push (journal-less hubs)', () => {
+  test('a pointer is not uploaded as the media; it is said once', async () => {
+    const { design } = project();
+    writeFileSync(join(design, 'assets/hero.png'), pointer());
+    writeFileSync(join(design, 'assets/real.png'), Buffer.alloc(2048, 7));
+    const putUrls: string[] = [];
+    const warned: string[] = [];
+    const r = await pushAssets({
+      designRoot: design,
+      hubUrl: 'https://x.example',
+      token: () => 't',
+      syncFiles: false,
+      sleep: async () => {},
+      log: { log: () => {}, warn: (m: string) => warned.push(m) },
+      fetchImpl: (async (url: string, init?: RequestInit) => {
+        if (init?.method === 'PUT') putUrls.push(String(url));
+        return new Response(null, { status: init?.method === 'HEAD' ? 404 : 200 });
+      }) as unknown as typeof fetch,
+    });
+    expect(r.pushed).toEqual(['assets/real.png']);
+    expect(putUrls.some((u) => u.includes('hero.png'))).toBe(false);
+    expect(warned.filter((w) => w.includes('Git LFS'))).toHaveLength(1);
   });
 });

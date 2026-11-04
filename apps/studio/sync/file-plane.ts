@@ -79,6 +79,7 @@ import {
   type JournalEntry,
   type JournalPage,
 } from './journal-client.ts';
+import { LFS_POINTER_REASON, readLfsPointer } from './lfs-pointer.ts';
 import { createPullBudget } from './pull-budget.ts';
 import { failureReason, isBackpressure, refusalWords, retryAfterMs } from './retry-after.ts';
 import { classifyTransportError } from './transport-error.ts';
@@ -2483,6 +2484,19 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         if (opts.outboundPaused?.()) {
           out.heldForFormat = (out.heldForFormat ?? 0) + 1;
           return false;
+        }
+        // 2.0.3 — a Git LFS pointer (a clone without `git lfs pull`) is not the file: never send it
+        // up as if it were. Held like a door's refusal of exactly these bytes (`refusedHash`), so it is
+        // said once and goes up by itself once the real file is restored (the hash changes).
+        if (readLfsPointer(here.abs)) {
+          ledger.setState(rel, 'refused', {
+            reason: LFS_POINTER_REASON,
+            blockedClass: 'refused',
+            refusedHash: here.hash,
+          });
+          out.dropped.push({ rel, reason: LFS_POINTER_REASON });
+          log.warn(`[file-plane] ${rel}: a Git LFS placeholder, not the file — not uploaded`);
+          return true;
         }
         ledger.setState(rel, 'pushing');
         const expect = decision.action === 'revive' ? null : remoteHash;
