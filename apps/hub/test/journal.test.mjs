@@ -711,7 +711,12 @@ describe('the cell quarantines its own flat canvas twins (2.0.4)', () => {
     `import { DesignCanvas } from '@maude/canvas-lib';\nexport default function ${name}() { return <DesignCanvas />; }\n`;
   const quiet = () => {
     const lines = [];
-    return { lines, log: (m) => lines.push(m), warn: (m) => lines.push(m), error() {} };
+    return {
+      lines,
+      log: (m) => lines.push(m),
+      warn: (m) => lines.push(m),
+      error: (m) => lines.push(m),
+    };
   };
   // The 2.0.3 state: walk-import had journaled the flat files as live rows.
   const journalAsWalkImport = (j, ...rels) => {
@@ -865,6 +870,43 @@ describe('the cell quarantines its own flat canvas twins (2.0.4)', () => {
     const out = quarantineFlatCanvasTwins({ journal: j, designRoot, log: quiet() });
     assert.equal(out.moved.length, 1);
     assert.equal(j.latestFor('ui-welcome.tsx'), null);
+  });
+
+  // Something on the cell keeps rewriting the twin (an old writer, a restore
+  // loop). Parking it every tick would stack a copy per minute in _trash/
+  // forever; it is parked once, then reported once, loudly, and left alone.
+  it('a twin that keeps coming back is parked once, then logged once and left in place', () => {
+    writeFileSync(join(designRoot, 'ui/welcome.tsx'), canvas('Welcome'));
+    writeFileSync(join(designRoot, 'ui-welcome.tsx'), canvas('WelcomeFlat'));
+    const j = openJournal(dataDir);
+    journalAsWalkImport(j, 'ui-welcome.tsx');
+    let clock = 1_000_000;
+    const now = () => clock;
+    const q = quiet();
+    assert.equal(
+      quarantineFlatCanvasTwins({ journal: j, designRoot, log: q, now }).moved.length,
+      1
+    );
+
+    for (const body of ['WelcomeFlat', 'WelcomeFlatV2', 'WelcomeFlatV3']) {
+      writeFileSync(join(designRoot, 'ui-welcome.tsx'), canvas(body));
+      clock += 60_000; // one walk tick
+      const again = quarantineFlatCanvasTwins({ journal: j, designRoot, log: q, now });
+      assert.equal(again.moved.length, 0, `re-parked ${body}`);
+      assert.deepEqual(again.held, ['ui-welcome.tsx']);
+    }
+    assert.equal(trashed().filter((p) => p.endsWith('/ui-welcome.tsx')).length, 1, 'one copy');
+    assert.equal(existsSync(join(designRoot, 'ui-welcome.tsx')), true, 'left in place');
+    const loud = q.lines.filter((m) => m.includes('keeps being rewritten'));
+    assert.equal(loud.length, 1, q.lines.join('\n'));
+    assert.match(loud[0], /ui-welcome\.tsx/);
+
+    // Past the window it may be parked again — once.
+    clock += 7 * 60 * 60 * 1000;
+    assert.equal(
+      quarantineFlatCanvasTwins({ journal: j, designRoot, log: q, now }).moved.length,
+      1
+    );
   });
 
   it('never throws, with no journal or no design root', () => {

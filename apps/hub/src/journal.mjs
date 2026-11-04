@@ -1776,6 +1776,17 @@ function isQuarantinableTwin(journal, designRoot, flatRel) {
   }
 }
 
+/** How long a parked flat twin stays parked before the quarantine may park
+ *  that path again. A twin back inside this window is being REWRITTEN by
+ *  something on the cell; parking it every tick would stack one copy per walk
+ *  in `_trash/` forever, so it is reported instead. */
+export const FLAT_TWIN_REPARK_MS = 6 * 60 * 60 * 1000;
+
+/** `<designRoot>\0<rel>` → { at, sha, warned } — what this process parked, and
+ *  whether it already said that the twin came back. In memory on purpose: a
+ *  restart re-parks at most once, and a cold boot is the event worth a copy. */
+const parkedFlatTwins = new Map();
+
 /**
  * The cell's own flat-twin quarantine (2.0.4) — the hub-side twin of the
  * studio's `migrateFlatFallback`, which a cell skips (cell pairing).
@@ -1796,21 +1807,56 @@ function isQuarantinableTwin(journal, designRoot, flatRel) {
  *   - each moved path that has a live row gets a TOMBSTONE, so peers receive
  *     the deletion and their stuck rows clear (`decide-file` tombstone-agreed,
  *     file-plane's "exists nowhere" forget);
- *   - idempotent, one log line per move, never throws.
+ *   - idempotent, one log line per move, never throws;
+ *   - BOUNDED: a path is parked at most once per `FLAT_TWIN_REPARK_MS`. A twin
+ *     back inside that window (same bytes or new) is left in place and reported
+ *     ONCE, loudly, with the lane that last wrote it — the writer is the bug,
+ *     and a trash folder that grows by a copy a minute hides it.
  *
  * `onMoved(rels)` hears every design-root-relative path that left the
  * checkout, so the workspace agent can drop it from its path index and stage
  * the deletion in history.
  *
- * @returns {{ moved: { slug: string, from: string, keptTwin: string, trashedTo: string, tombstoned: string[] }[] }}
+ * @returns {{ moved: { slug: string, from: string, keptTwin: string, trashedTo: string, tombstoned: string[] }[], held: string[] }}
  */
-export function quarantineFlatCanvasTwins({ journal, designRoot, log = console, onMoved } = {}) {
+export function quarantineFlatCanvasTwins({
+  journal,
+  designRoot,
+  log = console,
+  onMoved,
+  now = Date.now,
+  reparkAfterMs = FLAT_TWIN_REPARK_MS,
+} = {}) {
   const moved = [];
-  if (!journal || !designRoot || !existsSync(designRoot)) return { moved };
+  const held = [];
+  if (!journal || !designRoot || !existsSync(designRoot)) return { moved, held };
   try {
-    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const stamp = new Date(now()).toISOString().replace(/[:.]/g, '-');
     for (const { slug, flatRel, groupedRel } of flatCanvasTwinPairs(designRoot)) {
       if (!isQuarantinableTwin(journal, designRoot, flatRel)) continue;
+      const key = `${designRoot}\0${flatRel}`;
+      let sha = null;
+      try {
+        sha = sha256File(join(designRoot, flatRel));
+      } catch {
+        /* unreadable — the move below decides */
+      }
+      const prior = parkedFlatTwins.get(key);
+      if (prior && now() - prior.at < reparkAfterMs) {
+        held.push(flatRel);
+        if (!prior.warned) {
+          prior.warned = true;
+          const lane = journal.latestSourceFor?.(flatRel) ?? 'unknown';
+          log.error?.(
+            `[journal] flat canvas twin ${flatRel} keeps being rewritten (parked ` +
+              `${Math.round((now() - prior.at) / 60_000)} min ago, back with ` +
+              `${sha && sha === prior.sha ? 'the same bytes' : 'new bytes'}; last journaled by '${lane}') — ` +
+              `left in place, not parked again until ${new Date(prior.at + reparkAfterMs).toISOString()}. ` +
+              `Something on this cell still writes it beside ${groupedRel}.`
+          );
+        }
+        continue;
+      }
       const trashedTo = `_trash/flat-twins/${stamp}`;
       const base = flatRel.replace(/\.tsx$/i, '');
       const lanes = [flatRel, `${base}.meta.json`, `${base}.css`];
@@ -1837,6 +1883,7 @@ export function quarantineFlatCanvasTwins({ journal, designRoot, log = console, 
         }
       }
       if (!gone.includes(flatRel)) continue;
+      parkedFlatTwins.set(key, { at: now(), sha, warned: false });
       const tombstoned = [];
       for (const lane of gone) {
         const row = journal.recordGone({ designRoot, path: lane, source: 'flat-twin-quarantine' });
@@ -1857,7 +1904,7 @@ export function quarantineFlatCanvasTwins({ journal, designRoot, log = console, 
   } catch (err) {
     log.error?.(`[journal] flat-twin quarantine pass failed: ${err.message}`);
   }
-  return { moved };
+  return { moved, held };
 }
 
 /** Does `flatRel`'s content equal `groupedRel`'s content, exactly twice?
