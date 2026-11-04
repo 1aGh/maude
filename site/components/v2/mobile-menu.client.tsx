@@ -56,6 +56,9 @@ export function MobileMenu({ github }: { github: string }) {
         <a className="ps-sheet-link" href={github}>
           GitHub
         </a>
+        <a className="ps-sheet-link" href="https://www.buymeacoffee.com/mdovrtelm">
+          Buy me a coffee
+        </a>
         <Link className="ps-sheet-link" href="/desktop">
           Download
         </Link>

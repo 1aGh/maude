@@ -33,7 +33,7 @@ const at = (d: number): CSSProperties => ({ ["--d" as string]: `${d}ms` });
 
 /* ═══ Shared site pieces ═══════════════════════════════════════════════════════════════════════
    Three links and two buttons (UX research: Product · Docs · Pricing). What's new moves into the
-   release chip and a teaser above the footer; Changelog, Roadmap, About and the coffee live in the
+   release chip and a teaser above the footer; Changelog, Roadmap and About live in the
    footer; "Advanced" is the second door inside Docs. */
 
 type Page = "product" | "docs" | "cloud";
@@ -49,6 +49,7 @@ function SiteNav({ on, quietBuy = false, main }: { on?: Page; /** id of the page
           {links.map(([id, t]) => <a key={id} className="ps-link" data-on={on === id ? "true" : undefined} aria-current={on === id ? "page" : undefined} href="#">{t}</a>)}
         </span>
         <span className="ps-nav-end">
+          <a className="ps-gh" href="https://www.buymeacoffee.com/mdovrtelm">Buy me a coffee</a>
           <a className="ps-gh" href="https://github.com/1aGh/maude">GitHub</a>
           <a className="btn btn--ghost btn--sm" href="/desktop">Download</a>
           <a className={`btn btn--sm ${quietBuy ? "" : "btn--primary"}`} href="/cloud">Get Maude Cloud</a>
@@ -227,7 +228,7 @@ function HeroHeadline() {
     if (busy !== null || i === ver) return;
     const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     setBusy(i);
-    timer.current = window.setTimeout(() => { setVer(i); setGen((g) => g + 1); setByAI(true); setBusy(null); }, still ? 0 : 1100);
+    timer.current = window.setTimeout(() => { setVer(i); setGen((g) => g + 1); setByAI(true); setBusy(null); }, still ? 0 : 1500);
   };
   const undo = () => { if (busy !== null || ver === 0) return; setVer(0); setGen((g) => g + 1); setByAI(false); };
   const h = HEADS[ver];
@@ -237,8 +238,9 @@ function HeroHeadline() {
     <div className="ps-play">
       <div className="ps-layer ps-bubble" data-busy={busy !== null ? "true" : undefined} {...bubble}>
         <i /><i /><i /><i />
+        <span className="ps-layer-scan" aria-hidden="true" />
         <span className="ps-layer-tag ps-a ps-a--pop" data-ai={busy !== null || byAI ? "true" : undefined} style={at(T.spark)} aria-hidden="true">
-          {busy !== null ? <><Spark size={10} color="currentColor" /> AI is rewriting</> : byAI ? <><Spark size={10} color="currentColor" /> Made by AI</> : "Text · Display"}
+          {busy !== null ? <><Spark size={10} color="currentColor" /> AI is rewriting<span className="ps-dots"><i /><i /><i /></span></> : byAI ? <><Spark size={10} color="currentColor" /> Made by AI</> : "Text · Display"}
         </span>
         <h1 key={gen} id="h-home" className="ps-h1" lang={h.lang}>
           {h.lines.map((l, j) => (
@@ -437,8 +439,8 @@ function HomePage() {
         <DragFloat style={{ right: 56, top: 120 }}>
           <div className="ps-a ps-a--fade" style={at(T.ctas + 120)}><Sticky color="green" x={0} y={0} rotate={3} w={132}>Ship it ✓</Sticky></div>
         </DragFloat>
-        <div className="ps-float ps-a ps-a--fade" style={{ left: 200, top: 330, ...at(T.ctas + 80) }} aria-hidden="true"><Cursor name="tereza" x={0} y={0} /></div>
-        <div className="ps-float ps-a ps-a--glide" style={{ right: 250, top: 300, ["--fx" as string]: "120px", ["--fy" as string]: "-60px", ...at(T.spark) }} aria-hidden="true"><Cursor name="AI" agent x={0} y={0} /></div>
+        <div className="ps-float ps-a ps-a--fade" style={{ left: 200, top: 330, ...at(T.ctas + 80) }} aria-hidden="true"><span className="ps-roam"><Cursor name="tereza" x={0} y={0} /></span></div>
+        <div className="ps-float ps-a ps-a--glide" style={{ right: 250, top: 300, ["--fx" as string]: "120px", ["--fy" as string]: "-60px", ...at(T.spark) }} aria-hidden="true"><span className="ps-roam ps-roam--ai"><Cursor name="AI" agent x={0} y={0} /></span></div>
 
         <div className="ps-hero-copy">
           <a className="ps-announce ps-a ps-a--fade" href="/whats-new" style={at(0)}>
@@ -992,7 +994,7 @@ function DirectionBoard() {
             <ul className="ps-ticks" style={{ marginTop: "var(--space-2)" }}>
               <Tick>Advanced is the second door inside Docs, not a top link</Tick>
               <Tick>What's new is the release chip above the headline and a teaser above the footer</Tick>
-              <Tick>Changelog, Roadmap, About and the coffee live in the footer</Tick>
+              <Tick>Changelog, Roadmap and About live in the footer; Buy me a coffee stays as a quiet nav link</Tick>
               <Tick>Pricing is its own page, with the price in the open and one Buy button</Tick>
               <Tick>On Home the hero owns the primary button (Download); the nav's Get Maude Cloud steps back until you scroll</Tick>
               <Tick>Every old address keeps working, with a redirect</Tick>

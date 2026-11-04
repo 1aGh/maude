@@ -37,7 +37,9 @@ export function Hero() {
         style={{ left: 200, top: 330, ...at(T.ctas + 80) }}
         aria-hidden="true"
       >
-        <Cursor name="tereza" x={0} y={0} />
+        <span className="ps-roam">
+          <Cursor name="tereza" x={0} y={0} />
+        </span>
       </div>
       <div
         className="ps-float ps-a ps-a--glide"
@@ -50,7 +52,9 @@ export function Hero() {
         }}
         aria-hidden="true"
       >
-        <Cursor name="AI" agent x={0} y={0} />
+        <span className="ps-roam ps-roam--ai">
+          <Cursor name="AI" agent x={0} y={0} />
+        </span>
       </div>
 
       <div className="ps-hero-copy">

@@ -91,7 +91,7 @@ export function HeroHeadline() {
         setByAI(true);
         setBusy(null);
       },
-      still ? 0 : 1100
+      still ? 0 : 1500
     );
   };
   const undo = () => {
@@ -135,6 +135,7 @@ export function HeroHeadline() {
         <i />
         <i />
         <i />
+        <span className="ps-layer-scan" aria-hidden="true" />
         <span
           className="ps-layer-tag ps-a ps-a--pop"
           data-ai={busy !== null || byAI ? 'true' : undefined}
@@ -144,6 +145,11 @@ export function HeroHeadline() {
           {busy !== null ? (
             <>
               <Spark size={10} color="currentColor" /> AI is rewriting
+              <span className="ps-dots">
+                <i />
+                <i />
+                <i />
+              </span>
             </>
           ) : byAI ? (
             <>

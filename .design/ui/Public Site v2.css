@@ -496,3 +496,58 @@
 /* visibility steps with the fade, so Replay can't be focused or clicked before it shows */
 @keyframes ps-show { from { opacity: 0; visibility: hidden; } to { opacity: 1; visibility: visible; } }
 @keyframes ps-out { from { opacity: 1; } to { opacity: 0; } }
+/* ── Life on the page (Michal's comments 2026-11-04) ─────────────────────────────────────────
+   1. The rewrite visibly works: a spark scan sweeps the selected headline, its ring breathes,
+      the old text pulses dim and the tag's three dots tick, then the new lines rise.
+   2. The hero's cursors roam slowly, like people on a canvas.
+   3. Every bento picture runs one quiet loop. Transform and opacity only, long periods,
+      nothing under reduced motion and nothing in a capture (.ps-still). */
+.ps-layer-scan { position: absolute; inset: 0; overflow: hidden; pointer-events: none; opacity: 0; border-radius: var(--radius-xs); }
+.ps-layer[data-busy="true"] .ps-layer-scan { opacity: 1; }
+.ps-layer-scan::after { content: ""; position: absolute; top: 0; bottom: 0; left: -40%; width: 40%; background: linear-gradient(90deg, transparent, var(--spark-muted), transparent); }
+.ps-dots { display: inline-flex; gap: 2px; margin-left: 2px; }
+.ps-dots i { width: 3px; height: 3px; border-radius: var(--radius-pill); background: currentColor; }
+@media (prefers-reduced-motion: no-preference) {
+  .ps-layer[data-busy="true"] .ps-layer-scan::after { animation: ps-scan 1s var(--ease-in-out) infinite; }
+  .ps-layer[data-busy="true"]::before { animation: ps-ring 0.5s var(--ease-in-out) infinite alternate; }
+  .ps-layer[data-busy="true"] .ps-h1 { animation: ps-think 0.5s var(--ease-in-out) infinite alternate; }
+  .ps-dots i { animation: ps-dot 0.9s var(--ease-in-out) infinite; }
+  .ps-dots i:nth-child(2) { animation-delay: 0.15s; } .ps-dots i:nth-child(3) { animation-delay: 0.3s; }
+
+  .ps-roam { display: block; animation: ps-roam-a 11s var(--ease-in-out) 2s infinite; }
+  .ps-roam--ai { animation-name: ps-roam-b; animation-duration: 8s; animation-delay: 3s; }
+
+  .fp-head { animation: fp-play 6s linear infinite; }
+  .fp-paper { animation: fp-float 5s var(--ease-in-out) infinite alternate; }
+  .fp-tap { animation: fp-tap 2.4s var(--ease-out) infinite; }
+  .fp-slide i { transform-origin: 0 50%; animation: fp-progress 4s var(--ease-in-out) infinite; }
+  .fp-multi .k-cur:nth-child(2) { animation: ps-roam-a 7s var(--ease-in-out) infinite; }
+  .fp-multi .k-cur:nth-child(3) { animation: ps-roam-b 9s var(--ease-in-out) infinite; }
+  .fp-tiles i { animation: fp-wobble 6s var(--ease-in-out) infinite alternate; }
+  .fp-tiles i:nth-child(2) { animation-delay: -1.5s; } .fp-tiles i:nth-child(3) { animation-delay: -3s; } .fp-tiles i:nth-child(4) { animation-delay: -4.5s; }
+  .fp-to { animation: fp-nudge 2s var(--ease-in-out) infinite; }
+  .fp-wave i { transform-origin: 50% 50%; animation: fp-bar 1.6s var(--ease-in-out) infinite alternate; }
+  .fp-wave i:nth-child(3n) { animation-delay: -0.4s; } .fp-wave i:nth-child(3n+1) { animation-delay: -0.9s; } .fp-wave i:nth-child(4n) { animation-duration: 1.1s; }
+  .fp-art { animation: fp-arrive 4s var(--ease-in-out) infinite; }
+  .fp-cut { transform-origin: 100% 50%; animation: fp-cut 5s var(--ease-in-out) infinite alternate; }
+  .fp-exp .chip { animation: fp-chip 6s var(--ease-in-out) infinite; }
+  .fp-exp .chip:nth-child(2) { animation-delay: 1s; } .fp-exp .chip:nth-child(3) { animation-delay: 2s; }
+  .fp-exp .chip:nth-child(4) { animation-delay: 3s; } .fp-exp .chip:nth-child(5) { animation-delay: 4s; } .fp-exp .chip:nth-child(6) { animation-delay: 5s; }
+}
+.ps-still .ps-layer-scan::after, .ps-still .ps-roam, .ps-still [class^="fp-"], .ps-still [class^="fp-"] *, .ps-still .ps-dots i { animation: none !important; }
+@keyframes ps-scan { to { transform: translateX(350%); } }
+@keyframes ps-ring { from { box-shadow: 0 0 0 2px var(--spark-muted); } to { box-shadow: 0 0 0 9px var(--spark-muted); } }
+@keyframes ps-think { from { opacity: 0.45; } to { opacity: 0.15; } }
+@keyframes ps-dot { 0%, 100% { opacity: 0.3; transform: none; } 50% { opacity: 1; transform: translateY(-2px); } }
+@keyframes ps-roam-a { 0%, 100% { transform: none; } 25% { transform: translate(38px, -16px); } 50% { transform: translate(70px, 14px); } 75% { transform: translate(24px, 30px); } }
+@keyframes ps-roam-b { 0%, 100% { transform: none; } 30% { transform: translate(-46px, 22px); } 60% { transform: translate(-18px, -26px); } 80% { transform: translate(20px, -8px); } }
+@keyframes fp-play { from { left: 4%; } to { left: 96%; } }
+@keyframes fp-float { from { transform: translateY(3px); } to { transform: translateY(-5px); } }
+@keyframes fp-tap { 0%, 40% { transform: scale(0.6); opacity: 0; } 55% { opacity: 1; } 100% { transform: scale(1.3); opacity: 0; } }
+@keyframes fp-progress { 0% { transform: scaleX(0.05); } 70%, 100% { transform: scaleX(1); } }
+@keyframes fp-wobble { from { transform: rotate(-3deg) translateY(2px); } to { transform: rotate(3deg) translateY(-3px); } }
+@keyframes fp-nudge { 0%, 100% { transform: none; } 50% { transform: translateX(6px); } }
+@keyframes fp-bar { from { transform: scaleY(0.45); } to { transform: scaleY(1); } }
+@keyframes fp-arrive { 0%, 20% { opacity: 0.25; transform: translateX(-10px); } 45%, 100% { opacity: 1; transform: none; } }
+@keyframes fp-cut { from { transform: scaleX(0.35); } to { transform: scaleX(1); } }
+@keyframes fp-chip { 0%, 12%, 100% { transform: none; border-color: var(--border-subtle); } 6% { transform: translateY(-3px); border-color: var(--accent); } }
