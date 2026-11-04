@@ -72,7 +72,11 @@ describe('Git LFS placeholders: the words, Copy prompt and Fix with AI (2.0.3)',
         async () =>
           (await $$(`[data-testid="asset-frame"][data-state="lfs-pointer"]`).length) === 2 &&
           (await $(`${frameSel(PIC)} [data-testid="asset-frame-lfs-copy"]`).isExisting()),
-        { timeout: 45_000, interval: 300, timeoutMsg: 'the two LFS placeholder frames never showed' }
+        {
+          timeout: 45_000,
+          interval: 300,
+          timeoutMsg: 'the two LFS placeholder frames never showed',
+        }
       );
       const out: Record<string, { text: string; fix: string; copy: string }> = {};
       for (const rel of [PIC, CLIP]) {
@@ -151,7 +155,9 @@ describe('Git LFS placeholders: the words, Copy prompt and Fix with AI (2.0.3)',
       },
       { timeout: 15_000, interval: 250, timeoutMsg: 'the composer was never pre-filled' }
     );
-    console.log(`[lfs] composer value (${value.length} chars) equals clipboard: ${value === copied}`);
+    console.log(
+      `[lfs] composer value (${value.length} chars) equals clipboard: ${value === copied}`
+    );
     expect(value).toBe(copied);
     // nothing was sent: give a send the time it would need, then count the thread again
     await browser.pause(3_000);

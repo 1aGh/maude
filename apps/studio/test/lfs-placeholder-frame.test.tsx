@@ -237,7 +237,13 @@ describe('the shell lane (LFS)', () => {
     const listed = many.filter((it) => prompt.includes(`\`design/${it.rel}\``)).length;
     expect(listed).toBeGreaterThan(0);
     expect(prompt).toContain(`…and ${53 - listed} more`);
-    for (const step of ['1. Back up', '2. Restore', '3. Check', '4. Do not commit anything', '5. Leave'])
+    for (const step of [
+      '1. Back up',
+      '2. Restore',
+      '3. Check',
+      '4. Do not commit anything',
+      '5. Leave',
+    ])
       expect(prompt).toContain(step);
   });
 

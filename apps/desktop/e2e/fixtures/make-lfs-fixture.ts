@@ -162,7 +162,13 @@ export function makeLfsFixture(root = mkdtempSync(join(tmpdir(), 'maude-e2e-lfs-
 
   git(root, 'init', '-q', '-b', 'main');
   git(root, 'add', '-A');
-  git(root, 'commit', '-q', '-m', 'fixture: a design project with Git LFS media (cloned without lfs pull)');
+  git(
+    root,
+    'commit',
+    '-q',
+    '-m',
+    'fixture: a design project with Git LFS media (cloned without lfs pull)'
+  );
   // pic.png's real bytes are already in this repo's object store; clip.mp4's are not.
   const obj = join(root, '.git', 'lfs', 'objects', pic.oid.slice(0, 2), pic.oid.slice(2, 4));
   mkdirSync(obj, { recursive: true });
