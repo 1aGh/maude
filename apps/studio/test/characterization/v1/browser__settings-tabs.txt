@@ -322,7 +322,7 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
             span .v2s-conn-t
               strong "Your team’s own server"
               span .v2s-conn-d "A self-hosted server, beside the cloud."
-              span .v2s-conn-s [data-testid="settings-conn-hub-status"] "Sign in with your email and password."
+              span .v2s-conn-s [data-testid="settings-conn-hub-status"] "Sign in on the server’s own page."
             span .v2s-conn-a
               button .btn.btn--sm [data-testid="settings-team-server-add"] [type="button"] "Add a team server…"
         section .v2s-conn [data-testid="settings-claude"] [aria-label="AI — your Claude account"]
@@ -541,7 +541,7 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
             span .v2s-conn-t
               strong "Your team’s own server"
               span .v2s-conn-d "A self-hosted server, beside the cloud."
-              span .v2s-conn-s [data-testid="settings-conn-hub-status"] "Sign in with your email and password."
+              span .v2s-conn-s [data-testid="settings-conn-hub-status"] "Sign in on the server’s own page."
             span .v2s-conn-a
               button .btn.btn--sm [data-testid="settings-team-server-add"] [type="button"] "Add a team server…"
         section .v2s-conn [data-testid="settings-claude"] [aria-label="AI — your Claude account"]
