@@ -26,12 +26,80 @@ import { dirname, join, resolve, sep } from 'node:path';
 import { bothForms } from './access/frame.ts';
 import { DEV_SERVER_ROOT } from './paths.ts';
 
-/** Wall clock a single canvas build may take. */
-export const BUILD_TIMEOUT_MS = Number(process.env.MAUDE_CANVAS_BUILD_TIMEOUT_MS ?? 20_000);
+const warnedKnobs = new Set<string>();
+
+/**
+ * One sandbox ceiling from the environment: a whole number inside `[min, max]`. Anything that is not
+ * a number falls back to `def`; a number outside the range is clamped. Either is said once per
+ * process — an operator who typed `90s` must learn it was ignored, but a request loop must not
+ * repeat it. (`Number('')` is 0 and `Number('abc')` is NaN: both used to reach `setTimeout` as-is,
+ * and a NaN deadline fires at once — every build "timed out" immediately.)
+ */
+export function sandboxKnob(
+  env: NodeJS.ProcessEnv,
+  name: string,
+  def: number,
+  min: number,
+  max: number
+): number {
+  const raw = env[name];
+  if (raw === undefined || raw === '') return def;
+  const n = Number(raw.trim());
+  const say = (msg: string) => {
+    if (warnedKnobs.has(name)) return;
+    warnedKnobs.add(name);
+    console.warn(`[canvas-build] ${name} ${msg}`);
+  };
+  if (!/^\d+$/.test(raw.trim()) || !Number.isSafeInteger(n)) {
+    say(`is not a whole number; using ${def}`);
+    return def;
+  }
+  if (n < min || n > max) {
+    const c = Math.min(max, Math.max(min, n));
+    say(`${n} is outside ${min}–${max}; using ${c}`);
+    return c;
+  }
+  return n;
+}
+
+/**
+ * The HARD ceiling: wall clock a build may run before it is stopped, whether or not anyone is still
+ * waiting for it (2.0.4 task P). It was 20 s and was also the request's wait, so a design system
+ * board that needs 30 s on a shared host was killed on every open and — a timed-out build is never
+ * cached — never drew. A build now outlives its request up to this ceiling and is cached; one per
+ * canvas at a time (a newer source supersedes it), so the ceiling bounds the CPU a canvas can hold.
+ */
+export const BUILD_TIMEOUT_MS = sandboxKnob(
+  process.env,
+  'MAUDE_CANVAS_BUILD_TIMEOUT_MS',
+  90_000,
+  5_000,
+  600_000
+);
+/**
+ * How long a REQUEST waits for its build. Past it the request answers "still building" (503 +
+ * Retry-After) and the build goes on; the next open is a cache hit. Never longer than the ceiling.
+ */
+export const BUILD_WAIT_MS = Math.min(
+  BUILD_TIMEOUT_MS,
+  sandboxKnob(process.env, 'MAUDE_CANVAS_BUILD_WAIT_MS', 20_000, 1_000, 120_000)
+);
 /** Resident memory a build process may reach before it is killed. */
-export const BUILD_RSS_LIMIT_MB = Number(process.env.MAUDE_CANVAS_BUILD_RSS_MB ?? 768);
+export const BUILD_RSS_LIMIT_MB = sandboxKnob(
+  process.env,
+  'MAUDE_CANVAS_BUILD_RSS_MB',
+  768,
+  128,
+  8_192
+);
 /** How many built modules to keep. Each is a string; canvases are ~100–400 kB. */
-export const CACHE_MAX_ENTRIES = Number(process.env.MAUDE_CANVAS_CACHE_ENTRIES ?? 64);
+export const CACHE_MAX_ENTRIES = sandboxKnob(
+  process.env,
+  'MAUDE_CANVAS_CACHE_ENTRIES',
+  64,
+  1,
+  1_024
+);
 
 export interface SandboxBuildOk {
   ok: true;
@@ -45,7 +113,12 @@ export interface SandboxBuildOk {
 export interface SandboxBuildFail {
   ok: false;
   error: string;
-  kind: 'build' | 'timeout' | 'memory' | 'runtime';
+  /**
+   * `building` is not a failure: the request's wait ran out while the build goes on (task P), or a
+   * newer source superseded it. `settled` is the build itself, for whoever records its outcome.
+   */
+  kind: 'build' | 'timeout' | 'memory' | 'runtime' | 'building';
+  settled?: Promise<SandboxBuildResult>;
   /** How many imports the allowlist refused. A COUNT — never the specifiers. */
   rejectedImports?: number;
   /** gate-b-c4m — the canvas's own source did not parse (a `TranspileError`), nothing it imports. */
@@ -74,6 +147,8 @@ const counters = {
   memoryKills: 0,
   /** Imports the allowlist refused. The COUNT only — see buildStats(). */
   rejectedImports: 0,
+  /** Requests whose wait ran out while their build went on (task P). */
+  stillBuilding: 0,
   /** Summed wall-clock of completed builds, the closest thing to Active-CPU
    *  this side of the boundary can honestly report. */
   cpuMsTotal: 0,
@@ -94,6 +169,7 @@ function rollWindow(now: number): void {
   counters.timeouts = 0;
   counters.memoryKills = 0;
   counters.rejectedImports = 0;
+  counters.stillBuilding = 0;
   counters.cpuMsTotal = 0;
   counters.largestGraphBytes = 0;
   counters.durationsMs = [];
@@ -137,6 +213,9 @@ export function buildStats() {
     timeouts: counters.timeouts,
     memoryKills: counters.memoryKills,
     rejectedImports: counters.rejectedImports,
+    stillBuilding: counters.stillBuilding,
+    /** Builds running right now (a gauge, not windowed). */
+    inFlight: inflight.size,
     cpuMsTotal: counters.cpuMsTotal,
     largestGraphBytes: counters.largestGraphBytes,
     p50Ms: p(0.5),
@@ -157,11 +236,37 @@ export function noteRejectedImport(): void {
 export function _resetBuildStats(): void {
   rollWindow(Date.now());
   cache.clear();
+  for (const run of inflight.values()) run.stop(SUPERSEDED);
+  inflight.clear();
 }
 
 type CachedBuild = { js: string; locator: unknown; etag: string; inputs: string[] };
 /** key → { js, locator, etag, inputs } */
 const cache = new Map<string, CachedBuild>();
+
+/** A build that is running: who it is for, its outcome, and how to stop it early. */
+interface Inflight {
+  key: string;
+  promise: Promise<SandboxBuildResult>;
+  stop: (outcome: SandboxBuildFail) => void;
+}
+/**
+ * canvas (absolute) → its ONE running build (task P). Concurrent opens of the same source share it;
+ * a request for a newer source of the same canvas stops it first, so a canvas never holds more than
+ * one build's CPU and memory, however many people open it or however fast it is edited.
+ */
+const inflight = new Map<string, Inflight>();
+
+const SUPERSEDED: SandboxBuildFail = {
+  ok: false,
+  kind: 'building',
+  error: 'a newer version of this canvas is being built.',
+};
+
+/** Whether a build of this canvas is running now — what `/_api/canvas-errors` says as `building`. */
+export function sandboxBuildRunning(canvasAbs: string): boolean {
+  return inflight.has(resolve(canvasAbs));
+}
 
 /**
  * The cache key: the canvas source plus every sibling source it could pull in.
@@ -339,12 +444,18 @@ export async function buildCanvasSandboxed({
   canvasAbs,
   assetUrlBase,
   env = process.env,
+  waitMs,
+  ceilingMs,
 }: {
   designRoot: string;
   canvasAbs: string;
   /** BuildCanvasOptions.assetUrlBase, passed to the worker as argv[4]. */
   assetUrlBase?: string;
   env?: NodeJS.ProcessEnv;
+  /** How long this request waits (default `BUILD_WAIT_MS`); the build itself may run to the ceiling. */
+  waitMs?: number;
+  /** The hard ceiling for a build this call starts (default `BUILD_TIMEOUT_MS`). */
+  ceilingMs?: number;
 }): Promise<SandboxBuildResult> {
   maybeRoll();
   const key = cacheKeyFor(designRoot, canvasAbs);
@@ -353,7 +464,60 @@ export async function buildCanvasSandboxed({
     counters.cacheHits++;
     return { ...hit, ok: true, cached: true };
   }
-  counters.cacheMisses++;
+  const id = resolve(canvasAbs);
+  let run = inflight.get(id);
+  if (run && run.key !== key) {
+    // The source moved on: the running build can only produce a module nobody will be served.
+    run.stop(SUPERSEDED);
+    run = undefined;
+  }
+  if (!run) {
+    counters.cacheMisses++;
+    run = startBuild({
+      id,
+      key,
+      designRoot,
+      canvasAbs,
+      assetUrlBase,
+      env,
+      ceilingMs: ceilingMs ?? BUILD_TIMEOUT_MS,
+    });
+  }
+  const wait = Math.max(0, Math.min(waitMs ?? BUILD_WAIT_MS, ceilingMs ?? BUILD_TIMEOUT_MS));
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const waited = new Promise<null>((done) => {
+    timer = setTimeout(() => done(null), wait);
+  });
+  const result = await Promise.race([run.promise, waited]);
+  clearTimeout(timer);
+  if (result !== null) return result;
+  counters.stillBuilding++;
+  return {
+    ok: false,
+    kind: 'building',
+    error: 'this canvas is still being built.',
+    settled: run.promise,
+  };
+}
+
+/** Start the one build of `key` for canvas `id`, registered until it settles. */
+function startBuild({
+  id,
+  key,
+  designRoot,
+  canvasAbs,
+  assetUrlBase,
+  env,
+  ceilingMs,
+}: {
+  id: string;
+  key: string;
+  designRoot: string;
+  canvasAbs: string;
+  assetUrlBase?: string;
+  env: NodeJS.ProcessEnv;
+  ceilingMs: number;
+}): Inflight {
   // The pathological-canvas signal, measured rather than argued: a huge import
   // graph burns our Active-CPU while the tenant pays a flat rate. Bytes, never
   // filenames.
@@ -361,30 +525,61 @@ export async function buildCanvasSandboxed({
     counters.largestGraphBytes,
     graphBytes(designRoot, canvasAbs)
   );
-
+  let stopEarly: ((outcome: SandboxBuildFail) => void) | null = null;
+  let stoppedWith: SandboxBuildFail | null = null;
+  const entry: Inflight = {
+    key,
+    stop: (outcome) => {
+      stoppedWith ??= outcome;
+      stopEarly?.(outcome);
+    },
+    promise: Promise.resolve(null as unknown as SandboxBuildResult),
+  };
   const started = Date.now();
-  const result = await runWorker({ designRoot, canvasAbs, assetUrlBase, env });
-  const elapsed = Date.now() - started;
-  counters.cpuMsTotal += elapsed;
-  counters.durationsMs.push(elapsed);
-  if (counters.durationsMs.length > 200) counters.durationsMs.shift();
-
-  if (result.ok) {
-    counters.builds++;
-    const value = {
-      js: result.js,
-      locator: result.locator,
-      etag: result.etag,
-      inputs: result.inputs,
-    };
-    remember(key, value);
-    return { ...value, ok: true, cached: false };
-  }
-  counters.failures++;
-  if (result.kind === 'timeout') counters.timeouts++;
-  if (result.kind === 'memory') counters.memoryKills++;
-  counters.rejectedImports += result.rejectedImports ?? 0;
-  return result;
+  entry.promise = (async (): Promise<SandboxBuildResult> => {
+    try {
+      const result = stoppedWith
+        ? stoppedWith
+        : await runWorker({
+            designRoot,
+            canvasAbs,
+            assetUrlBase,
+            env,
+            ceilingMs,
+            onStart: (stop) => {
+              stopEarly = stop;
+              if (stoppedWith) stop(stoppedWith);
+            },
+          });
+      const elapsed = Date.now() - started;
+      counters.cpuMsTotal += elapsed;
+      counters.durationsMs.push(elapsed);
+      if (counters.durationsMs.length > 200) counters.durationsMs.shift();
+      if (result.ok) {
+        counters.builds++;
+        const value = {
+          js: result.js,
+          locator: result.locator,
+          etag: result.etag,
+          inputs: result.inputs,
+        };
+        // Cached whether or not the request that started it is still waiting: that is the point —
+        // the client that gave up gets this on its next open.
+        remember(key, value);
+        return { ...value, ok: true, cached: false };
+      }
+      if (result.kind === 'building') return result; // superseded — not a failure of this canvas
+      counters.failures++;
+      if (result.kind === 'timeout') counters.timeouts++;
+      if (result.kind === 'memory') counters.memoryKills++;
+      counters.rejectedImports += result.rejectedImports ?? 0;
+      return result;
+    } finally {
+      if (inflight.get(id) === entry) inflight.delete(id);
+    }
+  })();
+  inflight.set(id, entry);
+  return entry;
 }
 
 async function runWorker({
@@ -392,11 +587,16 @@ async function runWorker({
   canvasAbs,
   assetUrlBase,
   env,
+  ceilingMs = BUILD_TIMEOUT_MS,
+  onStart,
 }: {
   designRoot: string;
   canvasAbs: string;
   assetUrlBase?: string;
   env: NodeJS.ProcessEnv;
+  ceilingMs?: number;
+  /** Hands the caller a way to stop this build early with a given outcome (supersede). */
+  onStart?: (stop: (outcome: SandboxBuildFail) => void) => void;
 }): Promise<SandboxBuildResult> {
   const bun = resolveBunPath(env);
   let child: Bun.Subprocess<'ignore', 'pipe', 'pipe'>;
@@ -421,15 +621,19 @@ async function runWorker({
   }
 
   let outcome: SandboxBuildFail | null = null;
+  onStart?.((early) => {
+    outcome ??= early;
+    child.kill('SIGKILL');
+  });
 
   const deadline = setTimeout(() => {
-    outcome = {
+    outcome ??= {
       ok: false,
       kind: 'timeout',
-      error: `this canvas took longer than ${Math.round(BUILD_TIMEOUT_MS / 1000)}s to build and was stopped.`,
+      error: `this canvas took longer than ${Math.round(ceilingMs / 1000)}s to build and was stopped.`,
     };
     child.kill('SIGKILL');
-  }, BUILD_TIMEOUT_MS);
+  }, ceilingMs);
 
   // RSS ceiling. A hard `ulimit -v` is the obvious alternative and does not
   // work: JS runtimes reserve enormous virtual address space and would die
@@ -438,7 +642,7 @@ async function runWorker({
   const rssPoll = setInterval(() => {
     const mb = rssMb(child.pid);
     if (mb !== null && mb > BUILD_RSS_LIMIT_MB) {
-      outcome = {
+      outcome ??= {
         ok: false,
         kind: 'memory',
         error: `this canvas needed more than ${BUILD_RSS_LIMIT_MB} MB to build and was stopped.`,
@@ -525,6 +729,7 @@ function rssMb(pid: number | undefined): number | null {
 export function sandboxFailureClass(
   built: SandboxBuildFail
 ): import('./canvas-source/errors.ts').BuildFailure | null {
+  if (built.kind === 'building') return null; // still running — /_api/canvas-errors says `building`
   if (built.kind === 'timeout') return { class: 'timed-out' };
   if (built.kind === 'memory') return { class: 'memory' };
   if (built.kind === 'runtime') return { class: 'engine' };
