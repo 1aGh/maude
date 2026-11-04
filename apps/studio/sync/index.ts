@@ -5208,7 +5208,15 @@ export function createSyncRuntime(
     ): void => {
       const blockedTotal = p.blocked.reduce((n, b) => n + b.count, 0);
       const bits = [`${p.delivered} / ${p.tracked} delivered`];
-      if (p.remaining > 0) bits.push(`${p.remaining} waiting`);
+      // Failing files are not "waiting": they retry with backoff, and the line names one and why.
+      const retrying = p.retrying ?? 0;
+      const waiting = Math.max(0, p.remaining - retrying);
+      if (waiting > 0) bits.push(`${waiting} waiting`);
+      if (retrying > 0 && p.retryingFile) {
+        bits.push(
+          `${retrying} retrying — ${p.retryingFile.rel}: ${p.retryingFile.reason}${retrying > 1 ? ` (and ${retrying - 1} more)` : ''}`
+        );
+      }
       if (blockedTotal > 0) bits.push(`${blockedTotal} need attention`);
       // Issue #204 — rows this Mac refuses are HELD, not waiting: they never move on their own, so
       // the line says how many and why instead of "N waiting" every 20 s forever.
@@ -5218,7 +5226,7 @@ export function createSyncRuntime(
       if (r.storageMisses) bits.push(`${r.storageMisses} still coming from cloud storage`);
       // NOTHING MOVING ⇒ SAY IT ONCE. A converged or only-held/blocked project prints its line when
       // it changes, never again on a timer — that is what made "12 waiting" repeat forever.
-      if (p.remaining === 0 && !r.rateLimited) {
+      if (waiting === 0 && !r.rateLimited) {
         if (p.phase === 'converged' && held === 0) return;
         const still = `[sync/files] ${bits.join(' · ')}`;
         if (still === lastProgressLine) return;
@@ -5381,9 +5389,9 @@ export function createSyncRuntime(
           }`,
         });
       }
-      for (const f of result.failed) {
-        console.warn(`[sync/files] ${f.rel}: ${f.reason}`);
-      }
+      // Per-file failures are named by the plane itself — once per file and reason, with when it
+      // tries again (#204 follow-up). Repeating every failed row here on every pass was what made
+      // a file that kept failing read as noise rather than as one named problem.
       // A pass that landed bytes widened the hub-written set, so the
       // untrusted-context markers have to describe it. Cheap and idempotent —
       // the writer rebuilds the whole set each call — but only when something

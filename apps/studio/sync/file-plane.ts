@@ -198,6 +198,9 @@ export const LEDGER_FLUSH_EVERY_MS = 15_000;
  */
 export const STORAGE_MISS_STREAK_LIMIT = 4;
 
+/** A staged partial download untouched this long, for bytes no pass wants, is removed. */
+export const STALE_PART_MS = 24 * 60 * 60_000;
+
 /** Issue #204 — the most body bytes concurrent downloads may hold in memory at once (see the pool). */
 export const MAX_BUFFERED_IN_FLIGHT_BYTES = 64 * 1024 * 1024;
 
@@ -818,6 +821,8 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
   let unreachableInARow = 0;
   /** Consecutive `fetching from storage` misses this pass (#204). */
   let storageMissesInARow = 0;
+  /** The last failure reason logged per path, so a file that keeps failing is named once. */
+  const failureSaid = new Map<string, string>();
   /** The soonest a path this pass put in (or found in) a backoff window may go again (#204). */
   let soonestRetryAt = Number.POSITIVE_INFINITY;
   /** The door refused our credential this pass. */
@@ -1036,11 +1041,66 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     return { ok: false, reason, rateLimited: true };
   }
 
-  /** Fetch one file's bytes and verify them against the hash we were promised. */
+  /**
+   * Fetch one file's bytes and verify them against the hash we were promised — resuming a staged
+   * partial download (T18) when there is one.
+   *
+   * A STAGED PART ALWAYS RESUMES OR RESTARTS, NEVER WEDGES (#204 follow-up: a self-hosted
+   * workspace sat at "7614 / 7617 delivered · 3 waiting" for good, all three large videos). The
+   * staging file is keyed by content hash and outlives the pass, so every way it can disagree with
+   * the hub is handled inside this one attempt rather than as a failure the next pass meets again:
+   *   - already whole (the size the journal names): verified on disk and landed with NO request;
+   *     overgrown or whole-but-wrong: discarded, fetched fresh;
+   *   - the hub cannot honour the range (416), answers it from a different offset, or ignores it
+   *     (200): discarded, fetched fresh — at most one restart per attempt;
+   *   - resumed bytes that do not hash right (a bad prefix): discarded, fetched fresh once.
+   * What still fails is a real failure: it reaches `failed` with a reason and the path backs off.
+   */
   async function fetchVerified(
     rel: string,
     expectHash: string,
-    ceiling: number
+    ceiling: number,
+    /** The size the journal names, when it does — lets a whole staged part land without a request. */
+    sizeHint = 0
+  ): Promise<Exclude<Awaited<ReturnType<typeof fetchOnce>>, { restart: true }>> {
+    const staged = path.join(designRoot, '_state', 'downloads', `${expectHash}.part`);
+    let resumeFrom = 0;
+    try {
+      resumeFrom = statSync(staged).size;
+    } catch {
+      /* nothing staged */
+    }
+    if (resumeFrom > 0 && sizeHint > 0 && resumeFrom >= sizeHint) {
+      if (resumeFrom === sizeHint) {
+        let got: string | null = null;
+        try {
+          got = await sha256FileAsync(staged);
+        } catch {
+          got = null;
+        }
+        if (got === expectHash) return { ok: true, file: staged, size: resumeFrom };
+      }
+      rmSync(staged, { force: true });
+      resumeFrom = 0;
+    }
+    const first = await fetchOnce(rel, expectHash, ceiling, staged, resumeFrom);
+    if (!('restart' in first) || resumeFrom === 0) {
+      if ('restart' in first) return { ok: false, reason: first.reason };
+      return first;
+    }
+    log.warn?.(`[sync/files] ${rel}: ${first.reason} — fetching it from the start`);
+    rmSync(staged, { force: true });
+    const again = await fetchOnce(rel, expectHash, ceiling, staged, 0);
+    return 'restart' in again ? { ok: false, reason: again.reason } : again;
+  }
+
+  /** One request for `rel`, resuming at `resumeFrom` (0 = whole file). `restart` = discard the part. */
+  async function fetchOnce(
+    rel: string,
+    expectHash: string,
+    ceiling: number,
+    staged: string,
+    resumeFrom: number
   ): Promise<
     | { ok: true; bytes: Uint8Array; file?: undefined; size: number }
     | { ok: true; file: string; bytes?: undefined; size: number }
@@ -1051,19 +1111,13 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         rateLimited?: true;
         /** The hub is still filling these bytes from its bucket (#204). */
         storageMiss?: true;
+        restart?: undefined;
       }
+    | { ok: false; restart: true; reason: string }
   > {
     let res: Response;
     requestsThisPass += 1;
     await pacer.admit('read');
-    // T18 — a partial download of these exact bytes resumes where it stopped.
-    const staged = path.join(designRoot, '_state', 'downloads', `${expectHash}.part`);
-    let resumeFrom = 0;
-    try {
-      resumeFrom = statSync(staged).size;
-    } catch {
-      /* nothing staged */
-    }
     try {
       res = await fetchImpl(
         `${base}/_project-file/${rel.split('/').map(encodeURIComponent).join('/')}`,
@@ -1077,8 +1131,13 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     }
     if (res.status === 416) {
       // The staged part is not a prefix of what the hub holds now: start over.
+      await res.body?.cancel().catch(() => {});
       rmSync(staged, { force: true });
-      return { ok: false, reason: 'the partial download no longer matches — restarting it' };
+      return {
+        ok: false,
+        restart: true,
+        reason: 'the partial download no longer matches — restarting it',
+      };
     }
     // ISSUE #204 — A COLD CELL STILL FETCHING THESE BYTES FROM ITS BUCKET. The materializer answers
     // `503 Retry-After {"error":"fetching from storage"}` once its 15 s deadline passes, and keeps
@@ -1110,6 +1169,21 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     if (!res.ok) return await refusal(res);
     storageMissesInARow = 0;
     const resumed = res.status === 206 && resumeFrom > 0;
+    // A 206 must continue EXACTLY where the part ends — appending any other offset is a corrupt
+    // file that only the hash would catch, after the whole download.
+    if (resumed) {
+      const range = /^bytes\s+(\d+)-/.exec(res.headers?.get?.('content-range') ?? '');
+      if (!range || Number(range[1]) !== resumeFrom) {
+        await res.body?.cancel().catch(() => {});
+        return {
+          ok: false,
+          restart: true,
+          reason: 'the server resumed from a different place — restarting it',
+        };
+      }
+    }
+    // Asked to resume and answered with the whole file (no range support): the part is stale.
+    if (resumeFrom > 0 && !resumed) rmSync(staged, { force: true });
 
     // The cap is consulted BEFORE the body exists, and again as it arrives.
     // Buffering first and measuring after is not a cap at all: a hub answering
@@ -1164,7 +1238,10 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
       }
       if (got !== expectHash) {
         rmSync(staged, { force: true });
-        return { ok: false, reason: 'content hash mismatch (racing a write?)' };
+        // A resumed file that does not hash right had a bad prefix: one fresh fetch settles it.
+        return resumed
+          ? { ok: false, restart: true, reason: 'the resumed download did not verify' }
+          : { ok: false, reason: 'content hash mismatch (racing a write?)' };
       }
       return { ok: true, file: staged, size: total };
     }
@@ -1348,6 +1425,33 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
       hasFile: (r) => existsSync(path.join(designRoot, r)),
     });
     return isFilePlaneClass(cls);
+  }
+
+  /**
+   * Drop staged partial downloads nobody is waiting for (#204 follow-up). A part is keyed by content
+   * hash, so once the hub's file moves on (or the file lands another way) its part is dead weight
+   * that nothing would ever resume. Only parts untouched for `STALE_PART_MS` go, and never one whose
+   * hash this pass still wants — a slow download of a big video keeps its progress.
+   */
+  function sweepStaleParts(wanted: ReadonlySet<string>): void {
+    const dir = path.join(designRoot, '_state', 'downloads');
+    let names: string[];
+    try {
+      names = readdirSync(dir);
+    } catch {
+      return;
+    }
+    for (const name of names.slice(0, 500)) {
+      const m = /^([0-9a-f]{64})\.part$/.exec(name);
+      if (!m || wanted.has(m[1] as string)) continue;
+      const abs = path.join(dir, name);
+      try {
+        if (now() - statSync(abs).mtimeMs < STALE_PART_MS) continue;
+        rmSync(abs, { force: true });
+      } catch {
+        /* gone already */
+      }
+    }
   }
 
   /** Land bytes at `rel`, atomically. Throws on failure — `adoptAfter` catches.
@@ -2404,15 +2508,22 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         const failedHere = out.failed.slice(mark.failed).some((f) => f.rel === item.rel);
         if (failedHere) {
           const delay = ledger.noteAttemptFailed(item.rel, now());
-          log.warn?.(
-            `[sync/files] ${item.rel}: backing off ${Math.round(delay / 1000)}s before the next attempt`
-          );
+          // ONE LINE PER FAILING FILE, naming it and why — said again only when the reason
+          // changes, not on every retry of a file that keeps failing the same way.
+          const why = out.failed.slice(mark.failed).find((f) => f.rel === item.rel)?.reason;
+          if (why !== undefined && failureSaid.get(item.rel) !== why) {
+            failureSaid.set(item.rel, why);
+            log.warn?.(
+              `[sync/files] ${item.rel}: ${why} — trying again in ${Math.round(delay / 1000)}s, then less often`
+            );
+          }
         } else if (
           handled ||
           out.pushed.slice(mark.pushed).includes(item.rel) ||
           out.pulled.slice(mark.pulled).includes(item.rel)
         ) {
           ledger.noteAttemptOk(item.rel);
+          failureSaid.delete(item.rel);
         }
       }
       // ONE ledger write per batch, not one per landing (#204).
@@ -2517,6 +2628,9 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
       await run(item);
     }
     await drain();
+    sweepStaleParts(
+      new Set(work.map((w) => w.remoteHash).filter((h): h is string => typeof h === 'string'))
+    );
 
     // A RATE LIMIT ENDS THE PASS. Every other refusal is about one file and
     // the next one is worth trying; this one is about the door, and the
@@ -2641,7 +2755,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
             out.budgetExhausted = true;
             return false;
           }
-          const got = await fetchVerified(rel, remoteHash, budget.remaining() + claim);
+          const got = await fetchVerified(rel, remoteHash, budget.remaining() + claim, claim);
           if (!got.ok) {
             if (got.overCap && budget.remaining() + claim < MAX_FILE_BYTES) {
               out.budgetExhausted = true;
@@ -2679,7 +2793,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
           out.budgetExhausted = true;
           return false;
         }
-        const got = await fetchVerified(rel, remoteHash, budget.remaining() + claim);
+        const got = await fetchVerified(rel, remoteHash, budget.remaining() + claim, claim);
         if (!got.ok && got.storageMiss) {
           // NOT A FAILURE AND NOT DELIVERED (#204): the hub is still fetching these bytes from its
           // bucket. The row keeps its state (still on its way) and the path waits out a backoff
@@ -2842,7 +2956,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
           });
           return false;
         }
-        const got = await fetchVerified(rel, remoteHash, budget.remaining() + claim);
+        const got = await fetchVerified(rel, remoteHash, budget.remaining() + claim, claim);
         if (!got.ok) {
           out.failed.push({ rel, reason: got.reason });
           if (got.overCap && budget.remaining() + claim < MAX_FILE_BYTES) {

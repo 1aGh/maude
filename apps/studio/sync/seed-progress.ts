@@ -50,6 +50,14 @@ export interface SeedProgress {
    * `computeSeedProgress`; optional only so older snapshots still type.
    */
   held?: number;
+  /**
+   * Outstanding rows whose last attempt FAILED and that wait out a backoff (`stuck`, `attempts`
+   * ≥ 1) — counted inside `remaining` (they are not delivered), named here so a status line can say
+   * "retrying" and which file, instead of "waiting" forever (#204 follow-up). `retryingFile` is the
+   * first such row and its reason.
+   */
+  retrying?: number;
+  retryingFile?: { rel: string; reason: string };
   /** Bytes still to move, as far as the ledger knows. Best-effort. */
   bytesRemaining: number;
   /** Outstanding rows no retry will clear on its own, by class. */
@@ -127,9 +135,11 @@ export function computeSeedProgress(input: SeedProgressInput): SeedProgress {
   let delivered = 0;
   let bytesRemaining = 0;
   let held = 0;
+  let retrying = 0;
+  let retryingFile: { rel: string; reason: string } | undefined;
   const blockedCounts = new Map<BlockedClass, number>();
 
-  for (const row of Object.values(rows)) {
+  for (const [rel, row] of Object.entries(rows)) {
     tracked += 1;
     const state = row.state;
     if (state && DELIVERED.has(state)) {
@@ -144,6 +154,12 @@ export function computeSeedProgress(input: SeedProgressInput): SeedProgress {
       const cls = classifyBlocked(row);
       blockedCounts.set(cls, (blockedCounts.get(cls) ?? 0) + 1);
       continue;
+    }
+    if (state === 'stuck' && (row.attempts ?? 0) >= 1) {
+      retrying += 1;
+      if (retryingFile === undefined || rel < retryingFile.rel) {
+        retryingFile = { rel, reason: row.reason ?? 'the last attempt failed' };
+      }
     }
     // Outstanding. `size` is the stat cache, so it is what we know rather than
     // what is true — a row we have never stat'd contributes nothing, which is
@@ -178,6 +194,8 @@ export function computeSeedProgress(input: SeedProgressInput): SeedProgress {
     delivered,
     remaining,
     held,
+    retrying,
+    ...(retryingFile ? { retryingFile } : {}),
     bytesRemaining,
     blocked,
     ...(input.passCapped ? { passCapped: input.passCapped } : {}),

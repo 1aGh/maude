@@ -6,7 +6,7 @@
 
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -62,6 +62,8 @@ function hub(
     cls?: (rel: string) => string;
     /** What the journal CLAIMS a file weighs (default: its real length). */
     size?: (rel: string) => number;
+    /** How the hub answers a `Range` request: honour it (default), ignore it, or resume from 0. */
+    range?: 'honour' | 'ignore' | 'wrong-offset';
   } = {}
 ) {
   const rows = Object.entries(files).map(([path, body], i) => ({
@@ -125,9 +127,19 @@ function hub(
         const refused = opts.answer?.(rel, n) ?? null;
         if (refused) return refused;
         const body = files[rel];
-        return body === undefined
-          ? new Response('nope', { status: 404 })
-          : new Response(body, { status: 200 });
+        if (body === undefined) return new Response('nope', { status: 404 });
+        const asked = (init?.headers as Record<string, string> | undefined)?.range;
+        const mode = opts.range ?? 'honour';
+        if (asked && mode !== 'ignore') {
+          const start = Number(/bytes=(\d+)-/.exec(asked)?.[1] ?? 0);
+          if (start >= body.length) return new Response('', { status: 416 });
+          const from = mode === 'wrong-offset' ? 0 : start;
+          return new Response(body.slice(from), {
+            status: 206,
+            headers: { 'content-range': `bytes ${from}-${body.length - 1}/${body.length}` },
+          });
+        }
+        return new Response(body, { status: 200 });
       } finally {
         inFlight -= 1;
         bytesInFlight.set(key, (bytesInFlight.get(key) ?? 1) - 1);
@@ -489,5 +501,105 @@ describe('the open canvas first', () => {
   test('a path outside the design root is never wanted', () => {
     writeFileSync(join(root, '_active.json'), JSON.stringify({ active: '../../etc/passwd' }));
     expect(activeCanvasWants(root).size).toBe(0);
+  });
+});
+
+describe('a staged partial download always resumes or restarts — never waits forever', () => {
+  const VIDEO = 'assets/clip.part.mp4';
+  const BODY = `MP4-${'v'.repeat(4000)}`;
+  const stage = (bytes: string) => {
+    mkdirSync(join(root, '_state/downloads'), { recursive: true });
+    writeFileSync(join(root, '_state/downloads', `${sha(BODY)}.part`), bytes);
+  };
+  const partExists = () => existsSync(join(root, '_state/downloads', `${sha(BODY)}.part`));
+
+  test('a part that is already whole lands with no request', async () => {
+    stage(BODY);
+    const h = hub({ [VIDEO]: BODY });
+    const r = await plane(h).reconcile();
+    expect(r.pulled).toEqual([VIDEO]);
+    expect(h.gets).toEqual([]);
+    expect(partExists()).toBe(false);
+  });
+
+  test('a part the hub cannot resume (416) is fetched from the start in the SAME attempt', async () => {
+    // The journal does not say how big the file is, so the overgrown part is only found out by
+    // the hub's 416 — which used to fail the attempt and leave the row waiting for the next pass.
+    stage(`${BODY}-and-then-some`);
+    const h = hub({ [VIDEO]: BODY }, { size: () => 0 });
+    const r = await plane(h).reconcile();
+    expect(r.pulled).toEqual([VIDEO]);
+    expect(r.failed).toEqual([]);
+    expect(h.gets).toHaveLength(2);
+  });
+
+  test('a part with a bad prefix resumes, fails to verify, and restarts once', async () => {
+    stage('GARBAGE-PREFIX');
+    const h = hub({ [VIDEO]: BODY });
+    const r = await plane(h).reconcile();
+    expect(r.pulled).toEqual([VIDEO]);
+    expect(r.failed).toEqual([]);
+    expect(h.gets).toHaveLength(2);
+  });
+
+  test('a 206 from the wrong offset is not appended — it restarts', async () => {
+    stage(BODY.slice(0, 100));
+    const h = hub({ [VIDEO]: BODY }, { range: 'wrong-offset' });
+    const r = await plane(h).reconcile();
+    expect(r.pulled).toEqual([VIDEO]);
+    expect(r.failed).toEqual([]);
+  });
+
+  test('a hub that ignores Range still lands the file, and the stale part goes', async () => {
+    stage(BODY.slice(0, 100));
+    const h = hub({ [VIDEO]: BODY }, { range: 'ignore' });
+    const r = await plane(h).reconcile();
+    expect(r.pulled).toEqual([VIDEO]);
+    expect(partExists()).toBe(false);
+  });
+
+  test('a file that keeps failing is named once, backs off, and reads as retrying — not waiting', async () => {
+    let clock = T0;
+    const warns: string[] = [];
+    const h = hub(
+      { ...media(2), [VIDEO]: BODY },
+      {
+        answer: (rel) =>
+          rel === VIDEO ? new Response(JSON.stringify({ error: 'gone' }), { status: 410 }) : null,
+      }
+    );
+    const p = plane(h, {
+      clock: () => clock,
+      log: { log() {}, warn: (l: string) => warns.push(l) },
+    });
+    await p.reconcile();
+    clock += 11 * 60_000; // past any backoff window
+    await p.reconcile();
+    expect(h.gets.filter((g) => g === VIDEO)).toHaveLength(2);
+    const named = warns.filter((w) => w.includes(VIDEO));
+    expect(named).toHaveLength(1);
+    expect(named[0]).toContain('HTTP 410');
+    expect(ledger.row(VIDEO)?.state).toBe('stuck');
+    expect(ledger.isBackedOff(VIDEO, clock)).toBe(true);
+    const progress = computeSeedProgress({ rows: ledger.rows(), now: clock });
+    expect(progress.retrying).toBe(1);
+    expect(progress.retryingFile?.rel).toBe(VIDEO);
+    expect(progress.retryingFile?.reason).toContain('HTTP 410');
+  });
+
+  test('a part nobody wants any more is swept; one still wanted keeps its progress', async () => {
+    const clock = Date.now();
+    mkdirSync(join(root, '_state/downloads'), { recursive: true });
+    const dead = join(root, '_state/downloads', `${'a'.repeat(64)}.part`);
+    writeFileSync(dead, 'old');
+    const old = (clock - 2 * 24 * 60 * 60_000) / 1000;
+    utimesSync(dead, old, old);
+    // Still wanted (this pass pulls it) — kept even though it is old.
+    stage(BODY.slice(0, 10));
+    utimesSync(join(root, '_state/downloads', `${sha(BODY)}.part`), old, old);
+    const h = hub({ [VIDEO]: BODY }, { answer: () => new Response('busy', { status: 500 }) });
+    await plane(h, { clock: () => clock }).reconcile();
+    expect(existsSync(dead)).toBe(false);
+    expect(partExists()).toBe(true);
   });
 });
