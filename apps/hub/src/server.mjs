@@ -133,6 +133,7 @@ import {
 import { clientIpFor, parseTrustedProxies } from './client-ip.mjs';
 import { projectTokenKey, verifyAccessToken } from './cloud-identity.mjs';
 import { designRootFor } from './design-root.mjs';
+import { DESKTOP_SIGNIN_CAPABILITY } from './desktop-signin.mjs';
 import { diskReportSync, installCrashHandlers } from './disk.mjs';
 import { groupCanvases } from './doc-namespace.mjs';
 import { createDocsTail } from './docs-tail.mjs';
@@ -199,7 +200,6 @@ import {
   MATERIALIZE_PATH,
 } from './materializer.mjs';
 import { assertStrictIsSurvivable, oidcConfig } from './oidc-routes.mjs';
-import { DESKTOP_SIGNIN_CAPABILITY } from './desktop-signin.mjs';
 import { stripPresent } from './present-strip.mjs';
 import {
   handleProjectConfigDoor,
