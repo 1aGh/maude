@@ -14,24 +14,20 @@ export function baseOptions(): BaseLayoutProps {
         <span className="inline-flex items-center gap-2">
           <MaudeMark size={22} />
           <span className="mdcc-wm">maude</span>
-          <span className="mdcc-sku">MDCC/00</span>
         </span>
       ),
     },
+    // The same three links and two buttons as the Home island (components/v2/site-nav.tsx).
     links: [
-      { text: 'Docs', url: '/docs' },
-      { text: 'Download', url: '/desktop' },
-      { text: 'Advanced', url: '/#advanced' },
-      { text: 'Changelog', url: '/changelog' },
-      { text: 'Source', url: githubUrl, external: true },
-      {
-        text: 'Buy me a coffee',
-        url: 'https://www.buymeacoffee.com/mdovrtelm',
-        external: true,
-      },
+      { text: 'Product', url: '/', active: 'url' },
+      { text: 'Docs', url: '/docs', active: 'nested-url' },
+      { text: 'Pricing', url: '/cloud', active: 'nested-url' },
+      { text: 'GitHub', url: githubUrl, external: true },
+      { type: 'button', text: 'Download', url: '/desktop', secondary: true },
+      { type: 'button', text: 'Get Maude Cloud', url: '/cloud' },
     ],
     // NB: no `githubUrl` here — the fumadocs GitHub *icon* it renders ships an
-    // unlabeled `role="img"` <svg> (axe svg-img-alt, serious). The "Source"
+    // unlabeled `role="img"` <svg> (axe svg-img-alt, serious). The "GitHub"
     // text link above already covers GitHub, so the icon is redundant. DDR-09X.
   };
 }
