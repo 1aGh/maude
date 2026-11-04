@@ -42,10 +42,14 @@ export interface HubTextUndoReads {
   action(actionId: string): Promise<{ effects: HubEffect[]; revision?: number } | null>;
   /** p8-fix-d F12 — "Undo this chat": the ids the route will undo (the person's own `ai` runs). */
   chat?(chatId: string): Promise<string[] | null>;
-  /** A lane body by its hash; null = unavailable. */
-  blob(hash: string): Promise<string | null>;
-  /** The doc's annotations lane body at the hub head ('' = empty); null = unavailable. */
-  head(doc: string): Promise<string | null>;
+  /**
+   * A lane body by its hash; null = unavailable. #166 R3: `signal` aborts at the check's deadline
+   * and once the check has answered — a read still in flight then ends instead of running to its
+   * own transport timeout.
+   */
+  blob(hash: string, signal?: AbortSignal): Promise<string | null>;
+  /** The doc's annotations lane body at the hub head ('' = empty); null = unavailable. Same `signal`. */
+  head(doc: string, signal?: AbortSignal): Promise<string | null>;
 }
 
 const HASH_RE = /^[0-9a-f]{64}$/;
@@ -64,6 +68,12 @@ const HASH_RE = /^[0-9a-f]{64}$/;
 export const HUB_UNDO_CHECK_DEADLINE_MS = 2000;
 export const HUB_UNDO_MAX_EFFECTS = 64;
 export const HUB_UNDO_MAX_BODY_BYTES = MAX_BOARD_BYTES;
+/**
+ * #166 R3 — the transport cap on one blob / head read (its JSON envelope, so a body at the board
+ * limit plus its escaping fits): enforced while the bytes stream in, past it the read is cancelled
+ * and answers unreadable (fail open, as every other bound here).
+ */
+export const HUB_UNDO_READ_MAX_BYTES = 2 * HUB_UNDO_MAX_BODY_BYTES + 64 * 1024;
 
 export interface HubTextUndoLimits {
   deadlineMs?: number;
@@ -72,10 +82,14 @@ export interface HubTextUndoLimits {
 }
 
 /** A lane body by an effect's hash: none → '' (the lane's "no value"), a bad hash → null. */
-async function bodyOf(hash: string | null | undefined, reads: HubTextUndoReads) {
+async function bodyOf(
+  hash: string | null | undefined,
+  reads: HubTextUndoReads,
+  signal: AbortSignal
+) {
   if (hash === null || hash === undefined || hash === '') return '';
   if (!HASH_RE.test(hash)) return null;
-  return reads.blob(hash);
+  return reads.blob(hash, signal);
 }
 
 /** Over the byte cap → unreadable (null). `length` first: UTF-8 is never shorter. */
@@ -93,9 +107,13 @@ export async function hubTextUndoConflict(
 ): Promise<boolean> {
   let expired = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  // #166 R3 — one signal for every hub read under the check: aborted at the deadline, and in the
+  // finally once the check answered (a read nobody waits for any more ends there).
+  const reading = new AbortController();
   const deadline = new Promise<false>((resolve) => {
     timer = setTimeout(() => {
       expired = true;
+      reading.abort();
       resolve(false);
     }, limits.deadlineMs ?? HUB_UNDO_CHECK_DEADLINE_MS);
   });
@@ -105,11 +123,13 @@ export async function hubTextUndoConflict(
         maxEffects: limits.maxEffects ?? HUB_UNDO_MAX_EFFECTS,
         maxBodyBytes: limits.maxBodyBytes ?? HUB_UNDO_MAX_BODY_BYTES,
         expired: () => expired,
+        signal: reading.signal,
       }),
       deadline,
     ]);
   } finally {
     clearTimeout(timer);
+    reading.abort();
   }
 }
 
@@ -131,7 +151,7 @@ async function targetIds(target: UndoTarget, reads: HubTextUndoReads): Promise<s
 async function check(
   target: UndoTarget,
   reads: HubTextUndoReads,
-  o: { maxEffects: number; maxBodyBytes: number; expired: () => boolean }
+  o: { maxEffects: number; maxBodyBytes: number; expired: () => boolean; signal: AbortSignal }
 ): Promise<boolean> {
   const ids = await targetIds(target, reads);
   if (!ids) return false;
@@ -153,11 +173,11 @@ async function check(
       if (o.expired()) return false;
       if (e?.lane !== 'annotations' || !e.doc || blind.has(e.doc)) continue;
       if (++examined > o.maxEffects) return false;
-      const before = capped(await bodyOf(e.beforeHash, reads), o.maxBodyBytes);
+      const before = capped(await bodyOf(e.beforeHash, reads, o.signal), o.maxBodyBytes);
       const after =
         before === null || o.expired()
           ? null
-          : capped(await bodyOf(e.afterHash, reads), o.maxBodyBytes);
+          : capped(await bodyOf(e.afterHash, reads, o.signal), o.maxBodyBytes);
       if (before === null || after === null) {
         blind.add(e.doc);
         chains.delete(e.doc);
@@ -170,7 +190,7 @@ async function check(
   }
   for (const [doc, steps] of chains) {
     if (o.expired()) return false;
-    const now = capped(await reads.head(doc), o.maxBodyBytes);
+    const now = capped(await reads.head(doc, o.signal), o.maxBodyBytes);
     if (now === null || o.expired()) continue;
     if (textRevertChainCollides(steps, now)) return true;
   }

@@ -103,7 +103,7 @@ import {
 import { createFsReader, type FsReader } from './fs-mirror.ts';
 import { canvasLanes, namedField, type RowNamed } from './history-fields.ts';
 import { type HubDocRow, hubHolds, indexHubDocs } from './hub-listing.ts';
-import { hubTextUndoConflict } from './hub-text-undo.ts';
+import { HUB_UNDO_READ_MAX_BYTES, hubTextUndoConflict } from './hub-text-undo.ts';
 import { accessFor, getHubRecord } from './hubs-config.ts';
 import { loadJournal, type SyncJournal } from './journal.ts';
 import { hasAnnotationsV2, hasFileClassesV2, hasLedger, hubHealth } from './journal-client.ts';
@@ -6418,8 +6418,10 @@ export function createSyncRuntime(
           );
           return ids.ok ? ids.actionIds : null;
         },
-        blob: (hash) => link.blob(hash),
-        head: (doc) => link.laneHead(doc, 'annotations'),
+        // #166 R3 — aborted at the check's deadline, capped while they stream in
+        blob: (hash, signal) => link.blob(hash, { signal, maxBytes: HUB_UNDO_READ_MAX_BYTES }),
+        head: (doc, signal) =>
+          link.laneHead(doc, 'annotations', { signal, maxBytes: HUB_UNDO_READ_MAX_BYTES }),
       });
     },
     acceptedTrash: async () => {
