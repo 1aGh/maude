@@ -98,7 +98,8 @@ async function aliceHeld() {
   const doc = new Y.Doc();
   const a = studio(doc);
   a.projection.reconcile();
-  // what the create path does when the project takes this Mac's new canvas (accepted-cold-start)
+  // what the create path did before 2.0.4 (v2-204 now persists it): a creator with no base slot —
+  // every canvas made on an older build, and any Mac whose _history lost it
   a.projection.adoptBase(ALL);
   publish(doc, ALL);
   await settle();

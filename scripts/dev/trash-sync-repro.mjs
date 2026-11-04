@@ -551,6 +551,59 @@ async function historyRun(n) {
   return { ok, answers, final };
 }
 
+const hubApi = async (route) =>
+  (
+    await fetch(`${hub.http}/api/projects/current/v1/${route}`, {
+      headers: { authorization: `Bearer ${hub.tokens.owner}` },
+    })
+  ).json();
+/** The project's revision now (null when the hub cannot tell). */
+async function hubRevision() {
+  try {
+    return Number((await hubApi('revisions?after=0&limit=1')).revision);
+  } catch {
+    return null;
+  }
+}
+/** The html lane of `doc` as it stood at `rev` ('' when absent, null when the hub cannot tell). */
+async function hubLaneAt(doc, rev) {
+  try {
+    const r = await hubApi(`lane?doc=${encodeURIComponent(doc)}&lane=html&rev=${rev}`);
+    return typeof r?.body === 'string' ? r.body : null;
+  } catch {
+    return null;
+  }
+}
+const EDITED_A = /<h1 style=\{\{ padding: 16 \}\}>A edited<\/h1>/;
+/**
+ * F15 follow-up (v2-204) — a hand edit inside an artboard the trasher removed, found on neither disk.
+ * Which is it: (a) the trash took the EDITED artboard, so its Trash item (the hub's html at the
+ * revision before the trash action — the version a restore splices back) carries the edit;
+ * (b) the edit never happened (the artboard was already gone from that disk — a rig artefact);
+ * (c) it is lost in silence: on no disk, in no revision's Trash item, and no conflict holds it.
+ */
+async function whereDidTheEditGo(p, rel, fromRev, applied) {
+  if (!applied) return { verdict: 'b-not-applied' };
+  let item = null;
+  await until(
+    `flag-front in ${p.name}’s Trash`,
+    async () => (item = (await trashList(p, rel)).find((i) => i.artboard === 'flag-front')),
+    20_000
+  ).catch(() => {});
+  const trashed = item?.doc ? await hubLaneAt(item.doc, item.rev - 1) : null;
+  const inTrash = trashed !== null && EDITED_A.test(trashed);
+  // was it ever the project's version (any revision of this run)?
+  let onHubAt = null;
+  const to = await hubRevision();
+  if (item?.doc && fromRev !== null && to !== null)
+    for (let r = fromRev + 1; r <= to && onHubAt === null; r++)
+      if (EDITED_A.test((await hubLaneAt(item.doc, r)) ?? '')) onHubAt = r;
+  return {
+    verdict: inTrash ? 'a-in-trash' : 'c-lost',
+    trashRev: item?.rev ?? null,
+    onHubAt,
+  };
+}
 async function cellAway() {
   hub.stop();
   await until('the cell to stop', async () => {
@@ -593,6 +646,7 @@ async function raceRun(n) {
   await seed(rel, `Race${n}`);
   await until('alice has four', () => ids(disk(alice, rel)).length === 4, 60_000);
   await sleep(1_500);
+  const fromRev = await hubRevision();
   if (net === 'offline') await cellAway();
   const trash3 = () =>
     trasher.call('POST', '/_api/edit-op', {
@@ -603,14 +657,15 @@ async function raceRun(n) {
     });
   const handEdit = (label) => {
     const p = join(other.root, '.design', rel);
-    writeFileSync(
-      p,
-      read(p).replace(
-        `<h1 style={{ padding: 16 }}>${label}</h1>`,
-        `<h1 style={{ padding: 16 }}>${label} edited</h1>`
-      )
+    const before = read(p);
+    const after = before.replace(
+      `<h1 style={{ padding: 16 }}>${label}</h1>`,
+      `<h1 style={{ padding: 16 }}>${label} edited</h1>`
     );
-    return Promise.resolve({ status: 'hand' });
+    writeFileSync(p, after);
+    // applied: false = the artboard was already gone from this disk (the trash arrived first) — no
+    // edit happened, so none can be lost
+    return Promise.resolve({ status: 'hand', applied: after !== before });
   };
   const otherEdit = () =>
     otherDoes === 'trash'
@@ -688,6 +743,7 @@ async function raceRun(n) {
     // a hand edit's words, where each side ended (lost everywhere with no conflict = dropped in silence)
     ...(otherDoes.startsWith('text')
       ? {
+          editApplied: b.applied !== false,
           editedAt: {
             alice: /edited</.test(disk(alice, rel) ?? ''),
             bob: /edited</.test(disk(bob, rel) ?? ''),
@@ -735,6 +791,17 @@ async function raceRun(n) {
     (heldAt('alice') && (sameAsHub('bob') || heldAt('bob'))) ||
     (heldAt('bob') && (sameAsHub('alice') || heldAt('alice')));
   final.silent = !converged && !heldAt('alice') && !heldAt('bob');
+  // a hand edit inside a trashed artboard on neither disk, with no conflict holding it: its Trash
+  // item must carry it (restorable with the edit) — or it never happened (the artboard was gone)
+  if (
+    otherDoes === 'text-trashed' &&
+    !final.editedAt.alice &&
+    !final.editedAt.bob &&
+    !heldAt(other.name)
+  ) {
+    final.edit = await whereDidTheEditGo(other, rel, fromRev, final.editApplied);
+    if (final.edit.verdict === 'c-lost') ok = false;
+  }
   if (RESTART_HELD && !converged) {
     // a conflict that lives only in the runtime is gone after a restart: read every apart side again
     for (const p of [alice, bob]) if (!sameAsHub(p.name)) await restartStudio(p);

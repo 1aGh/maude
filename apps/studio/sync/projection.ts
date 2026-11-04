@@ -263,8 +263,10 @@ export interface DocProjection {
    * Adopt `body` as the shared base before `reconcile()`. A restart that could
    * not merge a local candidate (cold start) hands the base back here, so the
    * write stays blocked with a visible conflict and a later save can merge.
+   * `remember` persists it as the recorded base (an accepted create — never a
+   * hold, whose base must stay unagreed so the next restart holds again).
    */
-  adoptBase(body: string): void;
+  adoptBase(body: string, o?: { remember?: boolean }): void;
   /**
    * S6.13b — this Mac's canvas moved away from this path on purpose (its name
    * was taken while it was away): the file is gone by agreement, and what the
@@ -1359,9 +1361,12 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     applyFromFs,
     reconcile,
     flush,
-    adoptBase(body: string) {
+    adoptBase(body: string, o?: { remember?: boolean }) {
       lastHtml = body;
       observedBody = body;
+      // v2-204 — an accepted create IS agreement with the project: persist it like any other
+      // accepted value, or the creator restarts with no base and its next offline edit is held.
+      if (o?.remember) rememberBase(body);
     },
     vacate() {
       observedBody = null;
