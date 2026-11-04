@@ -706,3 +706,15 @@ The Worker's key is a separate restricted live key, mirroring the permission set
 - [ ] Live payments: one real purchase and cancellation proven (B3), with no pilot copy left
 - [ ] Intro film: about 60 s, with VO, captions and music; ≤ 16 MB; hosted as a release asset; plays on Home and in the README
 - [ ] Generated site content regenerated and committed; site gates green
+
+## Progress (2026-11-04, local final — nothing pushed or deployed)
+
+Branch `feat/public-site-v2` (worktree `.claude/worktrees/public-site-v2`), with `feat/public-site-v2-pay` and `feat/public-site-v2-film` merged in.
+
+- **Phase A done:** A0 critic round (design + a11y; fixes applied in site/, canvas frozen), A1–A12. Gates green: lint, format, tokens, site-content, build, types:check. All 89 sitemap URLs return 200 on a local `next start`. Still to do before merge: curl the sitemap against the Vercel preview.
+- **Phase B, agent half done:** catalog + fill scripts with tests, `/health` reports `stripe`, scripts/ tests in CI, Michal's runbook (above). Still open, all Michal's: run the runbook, then B3. After B3: flip `PILOT_ON` and `CLOUD_START` in `site/components/v2/pilot.tsx`, and remove the pilot copy from pricing/terms/privacy/dpa.
+- **Phase C done locally:** the film is `scripts/video/final/out/intro2/Intro2-audio.mp4` (60.0 s, 9.2 MB, -16 LUFS, voice Sarah `EXAVITQu4vr4xnSDxMaL` on eleven_v3, generated music bed). Poster and captions are in site/public, the player is on Home, the README embed points at release `intro-v2`. Still open: Michal listens to the film and approves the voice, checks the music licence for commercial use, and uploads the release asset (command in README).
+
+Acceptance status:
+- met locally: tasks, canvas match, URLs, no-JS, claims, generated content;
+- open: design-system-guard + a11y-auditor on the real site, B3 live purchase, release-asset upload.
