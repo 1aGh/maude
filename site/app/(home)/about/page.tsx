@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import { SkuLabel } from '@/components/mdcc/sku-label';
 
 export const metadata: Metadata = {
   alternates: { canonical: '/about' },
@@ -14,8 +13,6 @@ export default function AboutPage() {
       <section className="mdcc-about" aria-labelledby="about-h1">
         <div className="mdcc-about-copy">
           <div className="mdcc-hero-sku">
-            <SkuLabel>MDCC-MKR/01</SkuLabel>
-            <span aria-hidden="true">·</span>
             <span>MICHAL</span>
             <span aria-hidden="true">·</span>
             <span>MAINTAINER SINCE 2025-12</span>
@@ -40,10 +37,6 @@ export default function AboutPage() {
         </div>
 
         <dl className="mdcc-about-meta">
-          <div>
-            <dt>SKU</dt>
-            <dd>MDCC-MKR/01</dd>
-          </div>
           <div>
             <dt>Role</dt>
             <dd>Maintainer</dd>

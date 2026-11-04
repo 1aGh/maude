@@ -119,16 +119,7 @@ export const ALLOW = {
  * The same, for JSX files, keyed by the path relative to the site's `app/(home)` or
  * `components/v2` root as the finder reports it (`(home)/about/page.tsx`).
  */
-export const JSX_ALLOW = {
-  '(home)/desktop/page.tsx': {
-    why: 'Task A9 (the other (home) routes under the new shell) removes the part-number stamp; until then the page keeps it',
-    rules: ['sku-stamp'],
-  },
-  '(home)/about/page.tsx': {
-    why: 'Task A9 (the other (home) routes under the new shell) removes the part-number stamps; until then the page keeps them',
-    rules: ['sku-stamp'],
-  },
-};
+export const JSX_ALLOW = {};
 
 function walk(dir, ext = '.mdx') {
   const out = [];
