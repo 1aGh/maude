@@ -6986,6 +6986,86 @@
     "v2": "new"
   },
   {
+    "hook": "ai-background",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Issue #177 — the \"Running in the background\" strip between the conversation and the composer: subagents and commands AI left running after its reply. `data-working` = true while any runs; gone when the last finished row leaves.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/BackgroundStrip.jsx",
+      "symbol": "BackgroundStrip"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-204-background-strip.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-background-toggle",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "With more than one task: the strip's summary row (\"3 agents working\" · time), a button that expands one row per task (`aria-expanded`).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/BackgroundStrip.jsx",
+      "symbol": "BackgroundStrip"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-204-background-strip.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-background-summary",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The summary words in the toggle (\"3 agents working\", \"1 agent working · 1 command running\", \"Finished\").",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/BackgroundStrip.jsx",
+      "symbol": "BackgroundStrip"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-204-background-strip.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-background-list",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The strip's rows: always shown for one task, shown on expand for several.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/BackgroundStrip.jsx",
+      "symbol": "BackgroundStrip"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-204-background-strip.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-background-row-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One background task. `<id>` = the task id Claude Code gave it; `data-state` = running or finished (a finished row stays a few seconds).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/BackgroundStrip.jsx",
+      "symbol": "BackgroundStrip"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-204-background-strip.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "ai-live",
     "kind": "testid",
     "pattern": false,

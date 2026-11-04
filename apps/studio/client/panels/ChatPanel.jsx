@@ -44,6 +44,7 @@ import {
   UserMessage,
 } from '../v2/ai/Feed.jsx';
 import { RunSurface } from '../v2/ai/RunSurface.jsx';
+import { BackgroundStrip } from '../v2/ai/BackgroundStrip.jsx';
 import { useChatRuns } from '../v2/ai/use-chat-runs.js';
 import { cleanChatTitle, runTitleFor, shownChatTitle } from '../v2/ai/chat-list-model.js';
 import { useAiRuns } from '../v2/ai/runs-store.js';
@@ -472,6 +473,8 @@ function ChatThread({
               <StoppedDivider chatId={chatId} hidden={hidden} />
               <JumpToLatest hidden={hidden} />
             </ThreadPrimitive.Viewport>
+            {/* Issue #177 — subagents and commands AI left running after its reply, with their time. */}
+            <BackgroundStrip conn={conn} />
             <WaitingCards chatId={chatId} designRel={designRel} />
             {/* S5.13 — the open question, a failure, or the kept prompt's line (client/v2/ai/NeedsYouSlot.jsx):
                 a permission waits here, inline, never modal. */}
@@ -703,7 +706,11 @@ export default function ChatPanel({
       // (claude-agent-acp #773). Track live tool activity so the menubar
       // badge/dot + the "finished" ping reflect TRUE quiescence, not the
       // premature turn-end. (RCA issue-acp-subagent-activity-invisible.)
-      let bgActive = false; // a tool (e.g. a subagent) is still running
+      // Issue #177 — and the background tasks Claude Code reports (a subagent, a command left
+      // running), which outlive even their own tool call: they keep the dot lit and hold the ping too.
+      let toolsActive = false; // a tool (e.g. a subagent) is still running
+      let tasksActive = false; // a background task is still running
+      let bgActive = false; // either of the two
       let busyNow = false; // the prompt turn itself is in flight
       let deferredFinish = false; // turn ended while background work continued
       const syncAggregate = () => {
@@ -712,8 +719,8 @@ export default function ChatPanel({
         const nowAny = [...busyRef.current.values()].some(Boolean);
         if (wasAny !== nowAny) cbRef.current.onBusyChange?.(nowAny);
       };
-      conn.onActivity((activeTools) => {
-        bgActive = activeTools.length > 0;
+      const onBackgroundChange = () => {
+        bgActive = toolsActive || tasksActive;
         syncAggregate();
         if (deferredFinish && !bgActive && !busyNow) {
           deferredFinish = false;
@@ -721,6 +728,19 @@ export default function ChatPanel({
           cbRef.current.onFinished?.();
           refreshChats();
         }
+      };
+      conn.onActivity((activeTools) => {
+        toolsActive = activeTools.length > 0;
+        onBackgroundChange();
+      });
+      conn.onBackgroundTasks((tasks) => {
+        tasksActive = tasks.length > 0;
+        if (tasksActive && !busyNow) {
+          // work started outside a turn (a follow-up the AI began on its own): lit until it ends
+          deferredFinish = true;
+          setBusyChats((prev) => ({ ...prev, [chatId]: true }));
+        }
+        onBackgroundChange();
       });
       conn.onBusy((busy) => {
         busyNow = busy;
