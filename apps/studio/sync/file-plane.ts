@@ -1994,13 +1994,28 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
             out.synced += 1;
             continue;
           }
-          drop(
-            out,
-            rel,
-            'code modules replicate only from an owner-vouched or loopback hub',
-            ledger
-          );
-          continue;
+          // NOR IS AN UPLOAD A LANDING (2.0.3). The hub still holds exactly what
+          // we last agreed on, so the only thing that moved is OUR copy: this is
+          // the upward half, which the upload gate below decides (the door then
+          // enforces the owner role). Refusing it here meant an owner without
+          // receive consent uploaded each code module once and never again — the
+          // cell kept the first version (alligators, 2.0.2). Anything else — the
+          // hub moved, or there is no agreed ancestor — still never lands here.
+          const ancestor = ledger.ancestorOf(rel);
+          const uploadOnly =
+            here !== undefined &&
+            ancestor !== null &&
+            ancestor === remoteHash &&
+            (opts.canUploadCodeModules ?? opts.allowCodeModules);
+          if (!uploadOnly) {
+            drop(
+              out,
+              rel,
+              'code modules replicate only from an owner-vouched or loopback hub',
+              ledger
+            );
+            continue;
+          }
         }
       }
 

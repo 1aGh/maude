@@ -2092,6 +2092,56 @@ describe('a code module this peer may not upload', () => {
   });
 });
 
+// 2.0.3 (alligators, 2.0.2): the owner's desktop logged `dropped '<path>': code modules
+// replicate only from an owner-vouched or loopback hub` on every pass for each `.ts` helper it
+// had EDITED since its first upload. The receive gate ran before the direction was known, so an
+// owner without receive consent uploaded each code module once and never again: the cell kept
+// the first version, and a canvas importing a newer export could not build there.
+describe('an owner edits a code module the hub already holds', () => {
+  const REL = 'ui/2026/dresy/_uniform-template.ts';
+  const OWNER_UP = { canUploadCodeModules: true };
+
+  test('the edit is uploaded (receive consent stays off)', async () => {
+    const hub = fakeHub();
+    write(REL, 'export const v = 1;');
+    expect((await plane(hub, OWNER_UP).reconcile()).pushed).toEqual([REL]);
+    write(REL, 'export const v = 2; export const tpl = 1;');
+    // The live shape: 2.0.2 had already refused it on many passes (`stuck`).
+    ledger.setState(REL, 'stuck', {
+      reason: 'code modules replicate only from an owner-vouched or loopback hub',
+    });
+    const res = await plane(hub, OWNER_UP).reconcile();
+    expect(res.dropped.map((d) => d.rel)).not.toContain(REL);
+    expect(res.pushed).toEqual([REL]);
+    expect(hub.rows.get(REL)?.body).toBe('export const v = 2; export const tpl = 1;');
+  });
+
+  test('a member edit is still never sent', async () => {
+    const hub = fakeHub({ [REL]: 'export const v = 1;' });
+    write(REL, 'export const v = 1;');
+    await plane(hub).reconcile(); // agreement adopted
+    write(REL, 'export const v = 2;');
+    const res = await plane(hub).reconcile();
+    expect(hub.puts.map((p) => p.rel)).not.toContain(REL);
+    expect(res.dropped.map((d) => d.rel)).toContain(REL);
+  });
+
+  test('a hub-side change still never lands without receive consent — nor is it overwritten', async () => {
+    const hub = fakeHub();
+    write(REL, 'export const v = 1;');
+    await plane(hub, OWNER_UP).reconcile();
+    hub.add(REL, 'export const v = "hub";'); // another device's edit
+    const quiet = await plane(hub, OWNER_UP).reconcile();
+    expect(read(REL)).toBe('export const v = 1;');
+    expect(quiet.dropped.map((d) => d.rel)).toContain(REL);
+    write(REL, 'export const v = 3;'); // and a local edit on top: a conflict, not an upload
+    const both = await plane(hub, OWNER_UP).reconcile();
+    expect(hub.rows.get(REL)?.body).toBe('export const v = "hub";');
+    expect(read(REL)).toBe('export const v = 3;');
+    expect(both.dropped.map((d) => d.rel)).toContain(REL);
+  });
+});
+
 // 2026-10-02 (alligators): six `assets/*.mp4` moved into `_trash`, an svg
 // deleted locally before it ever uploaded, and four hub files the hub then
 // deleted — none of them existed ANYWHERE any more, and the panel said
