@@ -194,6 +194,26 @@ test('the hub is exposed, never published — Caddy is the only way in', () => {
   assert.ok(!/^\s+ports:/m.test(hubBlock), 'the hub must not publish a port to the host');
 });
 
+test('2.0.4 task P — compose forwards the big-project tuning knobs to the hub', () => {
+  // design.studyfi.com: the canvas build ceiling could not be raised on a workspace — nothing
+  // carried it from .env to the hub (and the hub not to the studio, apps/hub studio-child.mjs).
+  const yaml = renderCompose(ok(BASE));
+  const hubBlock = yaml.slice(yaml.indexOf('  hub:'), yaml.indexOf('  caddy:'));
+  for (const k of [
+    'MAUDE_CANVAS_BUILD_TIMEOUT_MS',
+    'MAUDE_CANVAS_BUILD_WAIT_MS',
+    'MAUDE_CANVAS_BUILD_RSS_MB',
+    'MAUDE_CANVAS_CACHE_ENTRIES',
+  ])
+    assert.match(hubBlock, new RegExp(`${k}: \\$\\{${k}:-\\}`), k);
+  // never empty: an older hub image reads '' as a 0 ms boot deadline
+  assert.match(hubBlock, /MAUDE_STUDIO_READY_MS: \$\{MAUDE_STUDIO_READY_MS:-60000\}/);
+  assert.match(
+    hubBlock,
+    /MAUDE_STUDIO_READY_CEILING_MS: \$\{MAUDE_STUDIO_READY_CEILING_MS:-600000\}/
+  );
+});
+
 test('compose passes every configured secret by reference, never inline', () => {
   const yaml = renderCompose(ok({ ...BASE, s3: S3 }));
   assert.match(yaml, /MAUDE_S3_SECRET_ACCESS_KEY: \$\{MAUDE_S3_SECRET_ACCESS_KEY\}/);

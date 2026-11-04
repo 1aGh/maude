@@ -61,6 +61,7 @@ export const SWEEP_REQUESTS = {
   '/studio/signin': (tg) => getPost('/studio/signin', tg),
   '/auth/oidc/start': (tg) => getPost('/auth/oidc/start', tg),
   '/auth/oidc/callback': (tg) => getPost('/auth/oidc/callback', tg),
+  '/auth/desktop/exchange': (tg) => getPost('/auth/desktop/exchange', tg),
   '/auth/*': (tg) => [
     ['GET', `/auth/${tg.slug}${q(tg)}`],
     ['POST', `/auth/${tg.slug}`, json({ path: tg.path })],

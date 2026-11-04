@@ -1410,12 +1410,14 @@ export function createAcceptedRevisions({
           return true;
         }
         if (body.dryRun === true) {
-          // Preflight: the import this switch would commit — nothing persists.
+          // Preflight: the import this switch would commit — nothing persists. #166 (2.0.4):
+          // `preview: false` answers the blockers alone, without opening every document — the
+          // studio's Update dry run reads nothing else, and it runs on every owner's probe.
           respondJson(200, {
             dryRun: true,
             mode: state.mode,
             epoch: state.epoch,
-            imported: await previewSwitch(),
+            ...(body.preview === false ? {} : { imported: await previewSwitch() }),
             ...(browserUnpaired ? { blockers: ['browser-not-paired'] } : {}),
           });
           return true;

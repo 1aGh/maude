@@ -6,6 +6,8 @@
 // `DELETE /_api/canvas` answers with the folder it made, and `sync/trash.ts` reads that folder's manifest to
 // say where each file goes. The kernel's `trash.restore` (S1.6) replaces this; the words stay.
 
+import { fetchIfServed } from '../shell/served-routes.js';
+
 export const TRASH_WORDS = {
   moved: (label) => `“${label}” moved to the trash.`,
   back: (label) => `“${label}” is back.`,
@@ -37,7 +39,7 @@ export async function restoreTrashedCanvas({ trashDir, fetchImpl = fetch }) {
   if (!folder) return { ok: false, restored: 0, failed: 0 };
   let entries = [];
   try {
-    const r = await fetchImpl('/_api/sync/trash', { cache: 'no-store' });
+    const r = await fetchIfServed('/_api/sync/trash', { cache: 'no-store' }, fetchImpl);
     if (r.ok) entries = (await jsonOf(r)).entries || [];
   } catch {
     return { ok: false, restored: 0, failed: 0 };
@@ -71,6 +73,10 @@ const TRASH_TOAST = Object.freeze({ icon: 'trash' });
  * @param reload  re-reads the tree (`loadTree`)
  * @param onTrashed (path) — the shell closes the canvas if it was open
  * @param onUndone (path) — the shell opens it again if it had been open
+ * @param onRemoved () — #194: the server took the move (the trash queue hides the row at once)
+ *
+ * #194 (2.0.4): the row, the tab and the toast follow the SERVER's answer; the list re-read comes after and
+ * no longer holds them back (it used to: a slow `/_index-data` read was the "nothing happens for a while").
  */
 export async function trashCanvas({
   path,
@@ -80,6 +86,7 @@ export async function trashCanvas({
   reload,
   onTrashed,
   onUndone,
+  onRemoved,
 }) {
   let j = {};
   try {
@@ -95,7 +102,7 @@ export async function trashCanvas({
     toast?.(TRASH_WORDS.failed(label), false);
     return { ok: false, error: 'network error' };
   }
-  await reload?.();
+  onRemoved?.();
   onTrashed?.(path);
   // the board's toast wears the trash glyph, not a check (11 · pn-trash)
   toast?.(
@@ -116,5 +123,6 @@ export async function trashCanvas({
     },
     TRASH_TOAST
   );
+  await reload?.();
   return { ok: true, trashDir: j.trashDir };
 }

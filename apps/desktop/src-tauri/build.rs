@@ -23,6 +23,8 @@ fn main() {
                 "open_cloud_url",
                 // S3.10b (external_link.rs): a canvas link to a website, after the shell's confirmation.
                 "open_link_external",
+                // Issue #204 (external_link.rs): a team server's own sign-in page, back to the caller.
+                "open_team_server_signin",
                 "github_is_signed_in",
                 "github_sign_out",
                 // V2-3.8 (profiles.rs): a Maude Cloud sign-in keeps its project's profile.

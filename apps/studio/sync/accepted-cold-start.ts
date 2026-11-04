@@ -53,7 +53,7 @@ import type { CommentLedger } from './comment-ledger.ts';
 import { hashBytes } from './echo-guard.ts';
 import type { SyncJournal } from './journal.ts';
 import type { DocProjection, ProjectionPaths, ProposalLane } from './projection.ts';
-import { readRecoveryBody, saveRecoveryBody } from './source-recovery.ts';
+import { readRecoveryBody, readRecoveryCandidate, saveRecoveryBody } from './source-recovery.ts';
 import { sourceError } from './source-validation.ts';
 
 export type LaneDecision = 'agreed' | 'materialize' | 'propose' | 'hold';
@@ -105,6 +105,17 @@ export function commentsOwedToProject(
     return !inProject.has(k) && !synced.has(k);
   });
   return owed.length > 0 ? JSON.stringify([...acceptedList, ...owed]) : null;
+}
+
+/** An unresolved refused draft of this source is on record (unreadable counts: fail closed). */
+function openConflict(historyDir: string | undefined, file: string): boolean {
+  if (!historyDir) return false;
+  try {
+    const c = readRecoveryCandidate(historyDir, file);
+    return c !== null && !c.resolved;
+  } catch {
+    return true;
+  }
 }
 
 /**
@@ -251,8 +262,18 @@ export async function acceptedColdStart(
         (i.historyDir ? readRecoveryBody(i.historyDir, i.paths.html, 'base') : null),
       baseHash: i.journal?.get(i.slug)?.bodyHash ?? null,
     });
+    // "The project once accepted exactly these bytes" proves an OLDER accepted state (a checkout
+    // restored from a backup — every cloud cell wake) only when this Mac is not holding a refused
+    // save: the hub answers by content hash, across every document and revision, and a refused
+    // candidate is very often bytes the project took somewhere (the same artboards trashed on a
+    // twin canvas, a trash a restore undid). An open conflict episode on disk (its first refused
+    // draft, unresolved) keeps the hold — the person sees it again after a restart instead of
+    // losing it in silence (F15, v2-204).
     const older =
-      d.decision === 'hold' && localHtml !== null && (await i.wasAccepted?.(localHtml)) === true;
+      d.decision === 'hold' &&
+      localHtml !== null &&
+      !openConflict(i.historyDir, i.paths.html) &&
+      (await i.wasAccepted?.(localHtml)) === true;
     verdicts.push({
       lane: 'html',
       ...(older ? { decision: 'materialize' as const } : d),

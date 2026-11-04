@@ -753,6 +753,22 @@ describe('accepted revisions on a real hub', () => {
       assert.equal(preview.body.imported.created, 1);
       assert.deepEqual(preview.body.imported.operations, { 'doc.create': 1 });
       assert.equal(preview.body.imported.docs[0].path, 'ui/legacy.tsx');
+      // #166 (2.0.4): the studio's Update dry run only needs the blockers — `preview: false` answers
+      // them without importing (opening) every document. The dashboard's preview keeps the import.
+      const light = await owner.post('/api/projects/local/v1/mode', {
+        mode: 'transactions',
+        dryRun: true,
+        preview: false,
+      });
+      assert.equal(light.status, 200, JSON.stringify(light.body));
+      assert.equal(light.body.dryRun, true);
+      assert.equal(light.body.mode, 'legacy');
+      assert.equal(light.body.epoch, preview.body.epoch);
+      assert.equal(
+        'imported' in light.body,
+        false,
+        'a blockers-only dry run imported the documents'
+      );
       // …and nothing moved: still legacy, still epoch 0, nothing in history.
       assert.equal((await owner.get('/api/projects/local/v1/mode')).body.mode, 'legacy');
       assert.equal((await alice.get('/api/projects/local/v1/history')).body.history.length, 0);

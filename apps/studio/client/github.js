@@ -132,10 +132,10 @@ export const hubLink = (body) =>
 
 // ── managed team projects (plan T21/T22) ───────────────────────────────────────
 /**
- * Sign in / hold the credential and describe a team project, so its own copy can
+ * Describe a team project from the credential this computer holds, so its own copy can
  * be created without choosing a folder. body: { kind: 'cloud', projectId } |
- * { kind: 'handoff', code, claimedProject } | { kind: 'hub', url, email, password }
- * | { kind: 'known-hub', url }.
+ * { kind: 'handoff', code, claimedProject } | { kind: 'known-hub', url }. A body carrying an
+ * email or password is refused with a 400 (issue #204: sign in on the team server's own page).
  */
 export const prepareProject = (body) =>
   api('/_api/projects/prepare', { method: 'POST', body: JSON.stringify(body) });
@@ -147,6 +147,26 @@ export const managedProjectOpen = (p) =>
     name: p.name || p.projectId,
     canvasGroups: p.canvasGroups || [],
   });
+/**
+ * Issue #204 — open a team server's own sign-in page (`/studio/signin?client=desktop…`, built by
+ * `/_api/hub-signin/start`) in the browser. In the app Rust opens exactly that page shape and only
+ * with this tab's own return address (external_link.rs `open_team_server_signin`); in a plain
+ * browser it is a new tab. Resolves 'ok' | 'refused' | 'failed'.
+ */
+export function openTeamServerSignIn(url) {
+  if (isNativeApp()) {
+    return invoke('open_team_server_signin', { url }).then(
+      () => 'ok',
+      (e) => (/Refusing/i.test(String(e)) ? 'refused' : 'failed')
+    );
+  }
+  try {
+    window.open(url, '_blank', 'noopener');
+    return Promise.resolve('ok');
+  } catch {
+    return Promise.resolve('failed');
+  }
+}
 /** The team projects this computer keeps a copy of, most recent first. */
 // Outside the app there are no managed copies — and invoke() throws synchronously there, which a
 // caller's `.catch()` never sees (the P8 sweep: Settings › Add a team server… crashed the browser shell).

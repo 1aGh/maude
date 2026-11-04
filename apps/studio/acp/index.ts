@@ -766,13 +766,19 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
    * must not kill a running turn — but a genuinely abandoned one is torn down
    * on the first TTL. Re-attaching cancels the timer (see `attach`).
    */
+  /** A turn in flight, or background work the turn left running (issue #177). */
+  function isBusy(entry: BridgeEntry): boolean {
+    return entry.turnActive || entry.bridge.backgroundTasks.length > 0;
+  }
+
   function armReap(entry: BridgeEntry): void {
     if (entry.reapTimer) clearTimeout(entry.reapTimer);
     entry.reapTimer = setTimeout(() => {
       entry.reapTimer = null;
       if (entry.sinks.size > 0) return; // re-attached in the meantime
       const detachedFor = Date.now() - entry.detachedSince;
-      if (entry.turnActive && detachedFor < MAX_DETACHED_LIFETIME_MS) {
+      // Issue #177 — background work (a subagent, a background command) outlives the turn: keep it too.
+      if (isBusy(entry) && detachedFor < MAX_DETACHED_LIFETIME_MS) {
         armReap(entry);
         return;
       }
@@ -788,9 +794,7 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
     for (;;) {
       const detached = [...bridges.values()].filter((e) => e.sinks.size === 0);
       if (detached.length <= max) return;
-      detached.sort(
-        (a, b) => Number(a.turnActive) - Number(b.turnActive) || a.lastActive - b.lastActive
-      );
+      detached.sort((a, b) => Number(isBusy(a)) - Number(isBusy(b)) || a.lastActive - b.lastActive);
       reap(detached[0]);
     }
   }
@@ -963,6 +967,8 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
       },
       onCaps: (modes, configOptions) => broadcast(entry, { t: 'caps', modes, configOptions }),
       onSessionInfo: (info) => broadcast(entry, { t: 'session-info', ...info }),
+      // Issue #177 — the live background tasks (chrome, like caps: replayed on attach, never transcripted).
+      onBackground: (tasks) => broadcast(entry, { t: 'background', tasks }),
       onUsage: (usage) => {
         latestUsage = usage;
         noteRateLimit(usage.rateLimit); // S5.6 — the outbox's `ai-allowance` gate fact
@@ -1405,7 +1411,8 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
   registerActivityProbe(() =>
     [...bridges.values()].map((e) => ({
       chatId: e.chatId,
-      state: e.bridge.awaitingInputCount > 0 ? 'awaiting-input' : e.turnActive ? 'running' : 'idle',
+      // Issue #177 — background work counts as running: the tab must not rest mid-run.
+      state: e.bridge.awaitingInputCount > 0 ? 'awaiting-input' : isBusy(e) ? 'running' : 'idle',
     }))
   );
 
@@ -1504,6 +1511,8 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
         // the busy state) rather than a finished one. Without this a reload
         // mid-turn would look idle while the agent kept working.
         send(ws, { t: 'attached', chat: safeChat, running: entry.turnActive });
+        // Issue #177 — what is still running in the background (a reload must not hide it).
+        send(ws, { t: 'background', tasks: entry.bridge.backgroundTasks });
         entry.sentRuns.clear(); // a re-attached client gets the chat's live runs again
         pushRunFrames(entry);
       } else if (frame.t === 'prompt' && typeof frame.text === 'string') {

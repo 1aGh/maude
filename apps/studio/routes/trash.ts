@@ -20,6 +20,7 @@
 // what to draw; the clear route refuses an editor with 403 whatever the client drew.
 
 import type { Access } from '../access/scope.ts';
+import { SETTLE_REFUSAL_LINES } from '../history/restore-artboard-action.ts';
 import {
   ARTBOARD_ID,
   ARTBOARD_NOT_YET_LINE,
@@ -88,6 +89,8 @@ const refused = (code: string | undefined, extra: Record<string, unknown> = {}) 
     ok: false,
     reason: r.reason,
     ...(r.reason === 'needs-hub-update' ? { line: NEEDS_HUB_UPDATE_LINE } : {}),
+    // F14 — a restore over this disk's unsaved change says why (the card shows the line)
+    ...(SETTLE_REFUSAL_LINES[r.reason] ? { line: SETTLE_REFUSAL_LINES[r.reason] } : {}),
     ...extra,
   });
 };

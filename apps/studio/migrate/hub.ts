@@ -149,7 +149,13 @@ export function createHubFormatClient(
         const res = await fetchImpl(`${base}${MODE_PATH}`, {
           method: 'POST',
           headers: { 'content-type': 'application/json', authorization: `Bearer ${hub.token}` },
-          body: JSON.stringify({ mode, expectEpoch, ...(dryRun ? { dryRun: true } : {}) }),
+          // #166 (2.0.4): a dry run here reads only the blockers, so it asks for them alone —
+          // the hub's full preview imports (opens) every document. An older hub ignores the flag.
+          body: JSON.stringify({
+            mode,
+            expectEpoch,
+            ...(dryRun ? { dryRun: true, preview: false } : {}),
+          }),
           // The switch answers after it imported every document (T30) — a big project takes a
           // while. A timeout is not a refusal: the hub may finish, and the next run reads it.
           signal: AbortSignal.timeout(dryRun ? 30_000 : 180_000),

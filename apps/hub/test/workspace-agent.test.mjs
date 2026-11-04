@@ -139,7 +139,13 @@ describe('workspace-files (pure)', () => {
     const a = indexCanvasPaths(['ui/Card.tsx', 'ui-card.tsx']);
     const b = indexCanvasPaths(['ui-card.tsx', 'ui/Card.tsx']);
     assert.equal(a.get('ui-card'), b.get('ui-card'));
-    assert.equal(a.get('ui-card'), 'ui-card.tsx'); // shorter wins
+    // 2.0.4: the file in a folder wins — a root twin of a grouped canvas is
+    // flat-fallback debris, never the canvas.
+    assert.equal(a.get('ui-card'), 'ui/Card.tsx');
+    const c = indexCanvasPaths(['ui-2026-social-krpole.tsx', 'ui/2026/social/Krpole.tsx']);
+    assert.equal(c.get('ui-2026-social-krpole'), 'ui/2026/social/Krpole.tsx');
+    // Among paths of one kind: shortest, then lexicographic.
+    assert.equal(indexCanvasPaths(['ui/a/b.tsx', 'ui/a-b.tsx']).get('ui-a-b'), 'ui/a-b.tsx');
   });
 
   it('derives the sidecars from the body path, with the annotations asymmetry', () => {
@@ -827,6 +833,127 @@ describe('workspace agent, end to end against real git', () => {
     const dirty = execFileSync('git', ['status', '--porcelain'], { cwd: repo, encoding: 'utf8' });
     assert.equal(dirty.trim(), '', 'the move left nothing dirty — both halves committed');
     await agent.stop();
+  });
+
+  // 2.0.4 (alligators): a cell that had lost its config.json projected four
+  // un-pathed canvases FLAT at the design root (`ui-welcome.tsx`), next to their
+  // real grouped files. Desktops refused them as code modules, stuck forever.
+  describe('an un-pathed body never invents a flat twin (2.0.4)', () => {
+    const body = (n) => `export default () => <main>${n}</main>;\n`;
+    const store = (agent, doc, slug) =>
+      agent.onDocumentStored({ documentName: `ws/acme/main/${slug}`, document: doc, user: null });
+
+    it('with no config.json the body is HELD, not written flat, and lands once config arrives', {
+      skip: gitOk ? false : 'git not available',
+    }, async () => {
+      const repo = tmp();
+      const agent = createWorkspaceAgent({ repoDir: repo, debounceMs: 5, log: silent() });
+      await agent.start();
+      const doc = new Y.Doc();
+      doc.getText('html').insert(0, body('welcome'));
+
+      // `screens` is a group the lost config declared; the defaults (ui,
+      // system) cannot place it, so today's fallback invents `screens-home.tsx`.
+      const first = await store(agent, doc, 'screens-home');
+      assert.equal(first, null, 'held, not projected');
+      assert.ok(!existsSync(join(repo, '.design/screens-home.tsx')), 'no flat file at the root');
+      assert.deepEqual(agent.heldSlugs, ['screens-home']);
+      assert.equal(await agent.retryHeld(), 0, 'still nothing to go on');
+
+      // The config comes back (the durable copy, or the owner's next sync).
+      writeFileSync(
+        join(repo, '.design/config.json'),
+        '{"canvasGroups":[{"path":"screens"},{"path":"system"}]}'
+      );
+      assert.equal(await agent.retryHeld(), 1);
+      assert.ok(existsSync(join(repo, '.design/screens/home.tsx')), 'the group-aware home');
+      assert.ok(!existsSync(join(repo, '.design/screens-home.tsx')), 'still no flat twin');
+      assert.deepEqual(agent.heldSlugs, []);
+      await agent.stop();
+    });
+
+    it('a late validated path releases a held body at its real home', {
+      skip: gitOk ? false : 'git not available',
+    }, async () => {
+      const repo = tmp();
+      const agent = createWorkspaceAgent({ repoDir: repo, debounceMs: 5, log: silent() });
+      await agent.start();
+      const doc = new Y.Doc();
+      doc.getText('html').insert(0, body('summer'));
+      assert.equal(await store(agent, doc, 'screens-social-summer'), null);
+      doc.getMap('syncMeta').set('path', 'screens/social/summer.tsx');
+      const out = await store(agent, doc, 'screens-social-summer');
+      assert.equal(out.bodyRel, 'screens/social/summer.tsx');
+      assert.deepEqual(agent.heldSlugs, []);
+      await agent.stop();
+    });
+
+    for (const withConfig of [false, true])
+      it(`a grouped file already on disk is where the body goes (config: ${withConfig})`, {
+        skip: gitOk ? false : 'git not available',
+      }, async () => {
+        const repo = tmp();
+        mkdirSync(join(repo, '.design'), { recursive: true });
+        if (withConfig) {
+          writeFileSync(
+            join(repo, '.design/config.json'),
+            '{"canvasGroups":[{"path":"ui"},{"path":"system"}]}'
+          );
+        }
+        const agent = createWorkspaceAgent({ repoDir: repo, debounceMs: 5, log: silent() });
+        await agent.start();
+        // Arrives AFTER boot (the file plane), so the boot index never saw it.
+        mkdirSync(join(repo, '.design/ui/2026/social'), { recursive: true });
+        const twin = '.design/ui/2026/social/Krpole-v-pohybu.tsx';
+        writeFileSync(join(repo, twin), body('old'));
+
+        const doc = new Y.Doc();
+        doc.getText('html').insert(0, body('new'));
+        const out = await store(agent, doc, 'ui-2026-social-krpole-v-pohybu');
+        assert.equal(out?.bodyRel, 'ui/2026/social/Krpole-v-pohybu.tsx');
+        assert.equal(readFileSync(join(repo, twin), 'utf8'), body('new'));
+        assert.ok(!existsSync(join(repo, '.design/ui-2026-social-krpole-v-pohybu.tsx')));
+        assert.ok(!existsSync(join(repo, '.design/ui/2026-social-krpole-v-pohybu.tsx')));
+        await agent.stop();
+      });
+
+    it('a genuinely flat canvas in a configured project keeps today’s root fallback', {
+      skip: gitOk ? false : 'git not available',
+    }, async () => {
+      const repo = tmp();
+      mkdirSync(join(repo, '.design'), { recursive: true });
+      writeFileSync(join(repo, '.design/config.json'), '{"canvasGroups":[{"path":"ui"}]}');
+      const agent = createWorkspaceAgent({ repoDir: repo, debounceMs: 5, log: silent() });
+      await agent.start();
+      const doc = new Y.Doc();
+      doc.getText('html').insert(0, body('landing'));
+      const out = await store(agent, doc, 'landing');
+      assert.deepEqual(out.written, ['landing.tsx']);
+      await agent.stop();
+    });
+
+    it('a quarantined flat twin is released from the index — the next store lands on the twin', {
+      skip: gitOk ? false : 'git not available',
+    }, async () => {
+      const repo = tmp();
+      mkdirSync(join(repo, '.design/ui'), { recursive: true });
+      writeFileSync(join(repo, '.design/config.json'), '{"canvasGroups":[{"path":"ui"}]}');
+      writeFileSync(join(repo, '.design/ui/welcome.tsx'), body('grouped'));
+      writeFileSync(join(repo, '.design/ui-welcome.tsx'), body('flat'));
+      const agent = createWorkspaceAgent({ repoDir: repo, debounceMs: 5, log: silent() });
+      await agent.start();
+      // The hub's quarantine parks the flat twin and tells the agent.
+      mkdirSync(join(repo, '.design/_trash'), { recursive: true });
+      renameSync(join(repo, '.design/ui-welcome.tsx'), join(repo, '.design/_trash/ui-welcome.tsx'));
+      agent.releasePaths(['ui-welcome.tsx']);
+
+      const doc = new Y.Doc();
+      doc.getText('html').insert(0, body('next'));
+      const out = await store(agent, doc, 'ui-welcome');
+      assert.equal(out.bodyRel, 'ui/welcome.tsx');
+      assert.ok(!existsSync(join(repo, '.design/ui-welcome.tsx')), 'not resurrected');
+      await agent.stop();
+    });
   });
 
   it('a real checkout file is never relocated by a wire path (provenance wins)', {

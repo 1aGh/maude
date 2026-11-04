@@ -65,8 +65,17 @@ const STYLE = `
  * @param {string|null} args.email       the address the invite is bound to, or null for an open invite
  * @param {string|null} [args.error]     one plain sentence to show above the button
  * @param {object}      [args.env]
+ * @param {boolean}     [args.desktop]   the Maude app opened this invite (issue #204 K2): after the
+ *                                       redeem the person goes back to the app, not the browser studio
  */
-export function joinPage({ token, workspace, email, error = null, env = process.env }) {
+export function joinPage({
+  token,
+  workspace,
+  email,
+  error = null,
+  env = process.env,
+  desktop = false,
+}) {
   const name = workspaceName(workspace);
   const oidc = oidcButton(env);
   const passwordsRefused = env.HUB_OIDC_MODE === 'strict';
@@ -108,9 +117,11 @@ export function joinPage({ token, workspace, email, error = null, env = process.
   <button type="submit">Join ${esc(name)}</button>
   ${oidc ? `<p class="or">or</p>${oidc}` : ''}
   ${
-    workspace
-      ? `<p class="hint" data-desktop>Using the Maude app? After you join, choose <b>Open a project you were invited to</b> and sign in with <b>${esc(String(workspace))}</b> and this email.</p>`
-      : ''
+    desktop
+      ? '<p class="hint" data-desktop>After you join, you go back to the Maude app.</p>'
+      : workspace
+        ? `<p class="hint" data-desktop>Using the Maude app? After you join, choose <b>Open a project you were invited to</b> and sign in with <b>${esc(String(workspace))}</b> and this email.</p>`
+        : ''
   }
 </form>`;
 

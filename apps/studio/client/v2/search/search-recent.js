@@ -9,6 +9,8 @@
 // "Recently opened" order read. The list is "known empty" only when the server ANSWERED with an `opened`
 // object — an offline server or an old build is "don't know", and ⌘K then shows the short list as before.
 
+import { fetchIfServed } from '../shell/served-routes.js';
+
 /** Recent rows on screen. */
 export const RECENT_CAP = 5;
 
@@ -31,7 +33,7 @@ export async function fetchRecents({ signal, fetchImpl = globalThis.fetch } = {}
   const none = { known: false, opened: {} };
   if (!fetchImpl) return none;
   try {
-    const r = await fetchImpl('/_api/pins', { signal, cache: 'no-store' });
+    const r = await fetchIfServed('/_api/pins', { signal, cache: 'no-store' }, fetchImpl);
     if (!r.ok) return none;
     const raw = await r.json();
     if (!raw || typeof raw.opened !== 'object' || raw.opened === null || Array.isArray(raw.opened))

@@ -543,6 +543,7 @@ pub fn run() {
             oauth::open_github_url,
             oauth::open_cloud_url,
             external_link::open_link_external,
+            external_link::open_team_server_signin,
             keychain::github_is_signed_in,
             keychain::github_sign_out,
             pick_directory,

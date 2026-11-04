@@ -484,19 +484,9 @@ describe('team-cell-missing (native-desktop)', () => {
       LETAK_SOURCE.replace(/ {8}<DCArtboard[\s\S]*<\/DCArtboard>\n/, '')
     );
     expect(ids(read(join(c.designer, '.design', LETAK)))).toEqual([]);
-    // the hand edit is taken by the cell before anyone restores into it (a restore over a local edit the cell has not
-    // taken yet would be held, not applied)
-    // Saved, and still Saved four seconds on (the word can read Saved for a beat before the watcher sees the file)
-    await browser.pause(2_000);
-    let stable = 0;
-    await eventually(
-      'the hand edit settled (Saved, held for four seconds)',
-      async () => {
-        stable = (await statusWord())?.status === 'saved' ? stable + 1 : 0;
-        return stable >= 8;
-      },
-      120_000
-    );
+    // No wait for "Saved" here: Restore is clicked as soon as the card shows, while the hand edit may still sit in the
+    // watcher's quiet window or be on its way to the cell. The restore brings this disk's change up first
+    // (F14 2.0.4, contracts/F14-restore-settles-disk.md) — the race this scenario used to wait out.
 
     const card = await $(tid('all-trashed'));
     await card.waitForDisplayed({ timeout: 90_000 });

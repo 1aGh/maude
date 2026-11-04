@@ -10,6 +10,10 @@
     place-items: center;
     background: var(--scrim, rgb(0 0 0 / 0.32));
   }
+  /* a yes/no ask opened from inside another modal sheet (.sh-scrim is 9000; banners keep 9100) */
+  .nd-scrim--over {
+    z-index: 9050;
+  }
   .nd-dialog {
     width: min(380px, calc(100vw - 32px));
     display: flex;
@@ -22,6 +26,12 @@
     font-size: var(--type-base);
     font-weight: var(--w-semibold);
     color: var(--fg-0);
+  }
+  /* #195 — the tree's yes/no asks ("Move “2026” to the trash?") say one line under the title */
+  .nd-body {
+    margin: 0;
+    font-size: var(--type-sm);
+    color: var(--fg-1);
   }
   .nd-err {
     margin: 0;

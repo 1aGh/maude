@@ -41,8 +41,23 @@ export interface SeedProgress {
   tracked: number;
   /** Rows in a terminal-good state. */
   delivered: number;
-  /** `tracked - delivered - blocked`, floored at 0. */
+  /** `tracked - delivered - blocked - held`, floored at 0. */
   remaining: number;
+  /**
+   * Issue #204 — rows this Mac REFUSES to take (a code module from a hub it has not vouched for).
+   * Not waiting — nothing moves them but a person's consent — and not "blocked" on the hub's side
+   * either, so they get their own count and their own words, said once. Always set by
+   * `computeSeedProgress`; optional only so older snapshots still type.
+   */
+  held?: number;
+  /**
+   * Outstanding rows whose last attempt FAILED and that wait out a backoff (`stuck`, `attempts`
+   * ≥ 1) — counted inside `remaining` (they are not delivered), named here so a status line can say
+   * "retrying" and which file, instead of "waiting" forever (#204 follow-up). `retryingFile` is the
+   * first such row and its reason.
+   */
+  retrying?: number;
+  retryingFile?: { rel: string; reason: string };
   /** Bytes still to move, as far as the ledger knows. Best-effort. */
   bytesRemaining: number;
   /** Outstanding rows no retry will clear on its own, by class. */
@@ -71,6 +86,19 @@ const DELIVERED: ReadonlySet<DeliveryState> = new Set<DeliveryState>([
   'ui-healed',
   'everywhere',
 ]);
+
+/**
+ * The ledger reason the file plane writes for a code module this Mac will not take (file-plane.ts,
+ * the admission gate). Matched EXACTLY — a reason built from a hub's words always starts `HTTP …` or
+ * `The project’s server …`, so a peer cannot write this sentence into a row.
+ */
+export const CODE_MODULE_HELD_REASON =
+  'code modules replicate only from an owner-vouched or loopback hub';
+
+/** A row the receiver itself refuses, by consent: held, not waiting. */
+export function isHeldByConsent(row: LedgerRow): boolean {
+  return row.state === 'stuck' && row.reason === CODE_MODULE_HELD_REASON;
+}
 
 /** States that will not move again without something changing. */
 const BLOCKED: ReadonlySet<DeliveryState> = new Set<DeliveryState>([
@@ -106,19 +134,32 @@ export function computeSeedProgress(input: SeedProgressInput): SeedProgress {
   let tracked = 0;
   let delivered = 0;
   let bytesRemaining = 0;
+  let held = 0;
+  let retrying = 0;
+  let retryingFile: { rel: string; reason: string } | undefined;
   const blockedCounts = new Map<BlockedClass, number>();
 
-  for (const row of Object.values(rows)) {
+  for (const [rel, row] of Object.entries(rows)) {
     tracked += 1;
     const state = row.state;
     if (state && DELIVERED.has(state)) {
       delivered += 1;
       continue;
     }
+    if (isHeldByConsent(row)) {
+      held += 1;
+      continue;
+    }
     if (state && BLOCKED.has(state)) {
       const cls = classifyBlocked(row);
       blockedCounts.set(cls, (blockedCounts.get(cls) ?? 0) + 1);
       continue;
+    }
+    if (state === 'stuck' && (row.attempts ?? 0) >= 1) {
+      retrying += 1;
+      if (retryingFile === undefined || rel < retryingFile.rel) {
+        retryingFile = { rel, reason: row.reason ?? 'the last attempt failed' };
+      }
     }
     // Outstanding. `size` is the stat cache, so it is what we know rather than
     // what is true — a row we have never stat'd contributes nothing, which is
@@ -130,7 +171,7 @@ export function computeSeedProgress(input: SeedProgressInput): SeedProgress {
     .map(([cls, count]) => ({ class: cls, count }))
     .sort((a, b) => b.count - a.count);
   const blockedTotal = blocked.reduce((n, b) => n + b.count, 0);
-  const remaining = Math.max(0, tracked - delivered - blockedTotal);
+  const remaining = Math.max(0, tracked - delivered - blockedTotal - held);
 
   const paused =
     typeof input.pausedUntil === 'number' && Number.isFinite(input.pausedUntil)
@@ -152,6 +193,9 @@ export function computeSeedProgress(input: SeedProgressInput): SeedProgress {
     tracked,
     delivered,
     remaining,
+    held,
+    retrying,
+    ...(retryingFile ? { retryingFile } : {}),
     bytesRemaining,
     blocked,
     ...(input.passCapped ? { passCapped: input.passCapped } : {}),

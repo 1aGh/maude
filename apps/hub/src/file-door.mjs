@@ -191,8 +191,11 @@ export const FILE_LIMITS_PATH = '/api/file-limits';
  * hub with bytes. The per-token quota figures are only included when a token
  * identifies itself.
  */
-export function fileLimits(label = null, now = Date.now()) {
+export function fileLimits(label = null, now = Date.now(), readsPerMinute = null) {
   const base = {
+    // Issue #204 — the per-label READ ceiling (server.mjs FILE_READ_RATE_LIMIT_MAX), so a client
+    // paces its downloads under it instead of meeting it as a 429. Absent when metering is off.
+    ...(Number.isFinite(readsPerMinute) && readsPerMinute > 0 ? { readsPerMinute } : {}),
     maxFileBytes: MAX_FILE_BYTES,
     // T18 — beyond one PUT: resumable upload sessions up to the project-file
     // ceiling, in parts of `partBytes`.
@@ -237,11 +240,15 @@ export function handleFileLimits(ctx) {
   // refused as "too big" until the next boot (T32 scale run). Metered, the
   // caller still gets the ceilings — just not its quota position.
   if (token && ctx.checkRateLimit && !ctx.checkRateLimit(request)) {
-    respondJson(response, 200, fileLimits(null));
+    respondJson(response, 200, fileLimits(null, Date.now(), ctx.readsPerMinute ?? null));
     return true;
   }
   const match = token ? verifyToken(dataDir, token, secret) : null;
-  respondJson(response, 200, fileLimits(match?.label ?? null));
+  respondJson(
+    response,
+    200,
+    fileLimits(match?.label ?? null, Date.now(), ctx.readsPerMinute ?? null)
+  );
   return true;
 }
 

@@ -5,9 +5,12 @@
 // two halves:
 //
 //   1. HERE (the running studio, which holds the Maude Cloud device session or
-//      takes a team-server sign-in): obtain and store the hub credential, then
-//      ask the project what it looks like (its bootstrap) — name, canvas
-//      groups — so the local copy can be declared correctly before it exists.
+//      a team-server credential the browser sign-in already stored): obtain the
+//      hub credential, then ask the project what it looks like (its bootstrap)
+//      — name, canvas groups — so the local copy can be declared correctly
+//      before it exists. Issue #204: the desktop owns NO login method for a
+//      team server — no email, no password. A team server is signed in to on
+//      its OWN page (routes/hub-signin.ts); `known-hub` opens what that stored.
 //   2. The native shell (`managed_project_open`) creates the project's own
 //      copy under the app's data directory from exactly what this returns,
 //      and switches to it; the sync runtime then brings everything down.
@@ -16,16 +19,53 @@
 
 import { createCloudEndpoints } from './cloud/endpoints.ts';
 import type { Context } from './context.ts';
-import { saveHubCredential } from './sync/hub-link.ts';
 import { getHubRecord, normalizeUrl } from './sync/hubs-config.ts';
-import { signInToWorkspace } from './sync/workspace-signin.ts';
 
 export type PrepareInput =
   | { kind: 'cloud'; projectId: string }
   | { kind: 'handoff'; code: string; claimedProject?: string }
-  | { kind: 'hub'; url: string; email: string; password: string }
-  /** A team server this machine already holds a credential for. */
+  /** A team server this machine already holds a credential for (the browser sign-in stored it). */
   | { kind: 'known-hub'; url: string };
+
+/** The words for an email or password sent to open a team-server project — the app takes neither
+ *  (issue #204). Signing in is the hub's own page; the one fallback is the pasted access token. */
+export const NO_PASSWORD_WORDS = "Sign in on the team server's own page — press Sign in.";
+
+export type PrepareBody =
+  | { ok: true; input: PrepareInput }
+  | { ok: false; status: 400; error: string; reason?: 'password-retired' };
+
+/** True for a body that carries a team-server email or password, or the retired `hub` kind. */
+function carriesPassword(b: Record<string, unknown>): boolean {
+  return b.email !== undefined || b.password !== undefined || b.kind === 'hub';
+}
+
+/** `POST /_api/projects/prepare` body → a typed input, or a plain 400. Anything carrying an email
+ *  or a password is refused for EVERY kind before an input is built — the secret is never read,
+ *  forwarded or echoed. */
+export function parsePrepareBody(body: unknown): PrepareBody {
+  const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
+  if (carriesPassword(b))
+    return { ok: false, status: 400, reason: 'password-retired', error: NO_PASSWORD_WORDS };
+  const str = (v: unknown) => (typeof v === 'string' ? v : '');
+  switch (b.kind) {
+    case 'cloud':
+      return { ok: true, input: { kind: 'cloud', projectId: str(b.projectId) } };
+    case 'handoff':
+      return {
+        ok: true,
+        input: {
+          kind: 'handoff',
+          code: str(b.code),
+          claimedProject: str(b.claimedProject) || undefined,
+        },
+      };
+    case 'known-hub':
+      return { ok: true, input: { kind: 'known-hub', url: str(b.url) } };
+    default:
+      return { ok: false, status: 400, error: 'unknown kind' };
+  }
+}
 
 export interface PreparedProject {
   ok: true;
@@ -119,9 +159,13 @@ export async function prepareManagedProject(
   /** `hubsConfigPath`: where the hub credential is stored and read back (N-H1 — Home prepares
    *  for one profile at a time, so never the process-global file for another profile).
    *  `fetchImpl` (S6.6): every request to a team server goes through it — Home passes one that
-   *  refuses redirects, so a 307 can never carry the password or the token to another host. */
+   *  refuses redirects, so a 307 can never carry the token to another host. */
   opts: { cloudConfigPath?: string; hubsConfigPath?: string; fetchImpl?: typeof fetch } = {}
 ): Promise<PrepareResult> {
+  // A caller outside the types can still hand over a retired shape (an email, a password, the old
+  // `hub` kind): refused before any request, here as well as at the route.
+  if (carriesPassword(input as unknown as Record<string, unknown>))
+    return { ok: false, error: NO_PASSWORD_WORDS, status: 400 };
   let serverUrl: string;
   let projectId: string | null = null;
   let role: string | null = null;
@@ -161,22 +205,6 @@ export async function prepareManagedProject(
     projectId = j.project ?? (input.kind === 'cloud' ? input.projectId : null);
     role = j.role ?? null;
     name = projectId;
-  } else if (input.kind === 'hub') {
-    const hubsPath = opts.hubsConfigPath;
-    const r = await signInToWorkspace(
-      { url: input.url, email: input.email, password: input.password },
-      {
-        fetchImpl: opts.fetchImpl,
-        // S6.6: the credential goes to the SAME hubs.json it is read back from below — before,
-        // a non-default profile stored it in the process-global file and then could not find it
-        save: hubsPath
-          ? (u, t, role, exp, account) => saveHubCredential(u, t, role, exp, hubsPath, account)
-          : undefined,
-      }
-    );
-    if (!r.json.ok) return { ok: false, error: r.json.error, status: r.status };
-    serverUrl = r.json.url;
-    role = r.json.user.role;
   } else {
     try {
       serverUrl = normalizeUrl(input.url);

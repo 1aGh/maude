@@ -9,6 +9,7 @@
 
 import { useSyncExternalStore } from 'react';
 import { EMPTY_RUNS, finishedArtboards, normalizeRuns } from './runs-model.js';
+import { servedFetch } from '../shell/served-routes.js';
 
 export const RUNS_EVENT = 'maude:ai-runs';
 const DONE_MS = 6000;
@@ -37,7 +38,7 @@ export function createRunsStore({ fetchImpl, target = globalThis.window, setTime
 
   async function read() {
     try {
-      const res = await doFetch('/_api/ai/runs', { cache: 'no-store' });
+      const res = await servedFetch('/_api/ai/runs', { cache: 'no-store' }, doFetch);
       if (!res.ok) return;
       const view = normalizeRuns(await res.json());
       // a reply older than what we hold is a late answer to an earlier question

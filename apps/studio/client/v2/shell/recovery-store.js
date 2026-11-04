@@ -11,6 +11,7 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 
 import { onCrashed } from './native-doors.js';
+import { servedFetch } from './served-routes.js';
 
 const EMPTY = Object.freeze({ full: false, held: 0, since: null });
 const POLL_MS = 8000;
@@ -36,7 +37,7 @@ function set(next) {
 export async function refreshDisk(fetchImpl = globalThis.fetch) {
   if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return disk;
   try {
-    const r = await fetchImpl('/_api/diagnostics/disk');
+    const r = await servedFetch('/_api/diagnostics/disk', undefined, fetchImpl);
     if (r.ok) set(await r.json());
   } catch {
     /* the studio is restarting: keep what we knew */

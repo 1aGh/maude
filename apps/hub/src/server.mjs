@@ -17,6 +17,7 @@ import { unloadByIdentity } from './unload-by-identity.mjs';
 //   HUB_ADMIN_RATE_LIMIT    'off' disables the per-IP rate limiter (dev only)
 //   HUB_CONN_RATE_LIMIT     valid-token WS auths per label per minute (default 600)
 //   HUB_ASSET_WRITE_RATE_LIMIT  authenticated asset writes per label per minute (default 600)
+//   HUB_FILE_READ_RATE_LIMIT  authenticated file-plane reads per label per minute (default 1800)
 //
 // Auth: the SQLite token store (tokens.db, HMAC-SHA256 at rest — Task 6) is
 // checked first; HUB_SECRET is a fallback for headless / scripted setups. With
@@ -183,6 +184,7 @@ import {
   JOURNAL_REPORT_PATH,
   OWNER_DELETE_SOURCE,
   openJournal,
+  quarantineFlatCanvasTwins,
   quarantineStaleInert,
   reportLostFiles,
   walkImport,
@@ -197,6 +199,7 @@ import {
   MATERIALIZE_PATH,
 } from './materializer.mjs';
 import { assertStrictIsSurvivable, oidcConfig } from './oidc-routes.mjs';
+import { DESKTOP_SIGNIN_CAPABILITY } from './desktop-signin.mjs';
 import { stripPresent } from './present-strip.mjs';
 import {
   handleProjectConfigDoor,
@@ -326,6 +329,18 @@ export const MAX_PENDING_DOCUMENTS = 4096;
 // Byte volume is bounded elsewhere (MAX_PUT_BYTES + PUT_SESSION_BUDGET in
 // assets.mjs) — this bucket bounds REQUEST RATE, nothing else.
 export const ASSET_WRITE_RATE_LIMIT_MAX = 600;
+// Issue #204 — AUTHENTICATED FILE-PLANE READS (`/_project-file/` GETs, the journal cursor, the
+// presence report), per label per minute. These borrowed the WRITE ceiling (600) when they got their
+// own bucket, and on a first sync that is the wall: a new Mac pulling its own 5 000-file project at
+// 10 requests a second needs ≥ 8.5 minutes before a single byte of bandwidth matters, and the 2.0.x
+// client (200 files per 20 s tick + its cursor reads) already ran into it (`HTTP 429` in the field).
+// 1 800 (30/s) lets a member's first sync run at the speed of the link. Still a ceiling — this bucket
+// bounds REQUEST RATE per credential, and what a request costs is bounded elsewhere: bytes by the
+// per-file cap, bucket work by the materializer's 4 fill slots and its 15 s deadline (a cold miss
+// beyond those is a cheap 503, not more R2 traffic), and the credential reads only what its own
+// scope already lets it read. The value is advertised in `/api/file-limits` (`readsPerMinute`) so a
+// client paces itself under it instead of discovering it as a 429; an older client never asks.
+export const FILE_READ_RATE_LIMIT_MAX = 1800;
 // Activity feed (admin console): bounded in-memory ring buffer. Ephemeral —
 // lost on restart, NOT a persisted audit trail (DDR-097). Caps memory.
 export const ACTIVITY_CAP = 200;
@@ -342,6 +357,7 @@ export const ACTIVITY_CAP = 200;
  * @property {number} [connRateLimit]  valid-token auths per label per minute (default CONN_RATE_LIMIT_MAX; env HUB_CONN_RATE_LIMIT)
  * @property {number} [invalidConnRateLimit]  invalid-token attempts per IP per minute (default INVALID_CONN_RATE_LIMIT_MAX; tests only)
  * @property {number} [assetWriteRateLimit]  authenticated asset writes per label per minute (default ASSET_WRITE_RATE_LIMIT_MAX; env HUB_ASSET_WRITE_RATE_LIMIT)
+ * @property {number} [fileReadRateLimit]  authenticated file-plane reads per label per minute (default FILE_READ_RATE_LIMIT_MAX; env HUB_FILE_READ_RATE_LIMIT)
  * @property {number} [maxPendingDocuments]  documents one socket may have mid-authentication (default MAX_PENDING_DOCUMENTS; tests emulate older hubs with 100)
  */
 
@@ -412,6 +428,8 @@ export function createHub(config = {}) {
   const invalidConnRateLimitMax = config.invalidConnRateLimit ?? INVALID_CONN_RATE_LIMIT_MAX;
   // RCA 2026-08-11 — authenticated asset-write ceiling (per label per minute).
   const assetWriteRateLimitMax = config.assetWriteRateLimit ?? ASSET_WRITE_RATE_LIMIT_MAX;
+  // Issue #204 — authenticated file-plane read ceiling (per label per minute).
+  const fileReadRateLimitMax = config.fileReadRateLimit ?? FILE_READ_RATE_LIMIT_MAX;
   const startedAt = Date.now();
 
   // DDR-053 §5: refuse to boot if publicUrl can be weaponized into shell
@@ -935,7 +953,7 @@ export function createHub(config = {}) {
     journal,
     materializer,
     checkReadRateLimit: rateLimit
-      ? (label) => checkConnRateLimit(fileReadBuckets, label, assetWriteRateLimitMax)
+      ? (label) => checkConnRateLimit(fileReadBuckets, label, fileReadRateLimitMax)
       : undefined,
   });
 
@@ -1356,6 +1374,9 @@ export function createHub(config = {}) {
                 ? ['ledger', 'annotations-v2', 'format-v2', RUNS_CAPABILITY, VOTES_CAPABILITY]
                 : ['annotations-v2', 'format-v2', RUNS_CAPABILITY, VOTES_CAPABILITY]),
               FILE_CLASSES_V2_CAPABILITY,
+              // Issue #204: `/studio/signin?client=desktop` + `/auth/desktop/exchange`. The
+              // desktop request rides a cookie signed with HUB_SECRET — none, no word.
+              ...(secret ? [DESKTOP_SIGNIN_CAPABILITY] : []),
               ...(renderDoorEnabled({ studio }) ? [RENDER_JOBS_CAPABILITY] : []),
               ...(dsLibraryRoutes.enabled() ? [DS_LIBRARY_CAPABILITY] : []),
               ...(dsLibraryRoutes.enabled() && dsGrants.enabled() ? [DS_GRANTS_CAPABILITY] : []),
@@ -1861,6 +1882,8 @@ export function createHub(config = {}) {
             method,
             dataDir,
             secret,
+            // Issue #204 — the read ceiling a client paces itself under; absent when off.
+            readsPerMinute: rateLimit ? fileReadRateLimitMax : null,
             // METERED like every sibling route. The handler verifies a token
             // when one is offered — HMAC-SHA256 plus a SQLite lookup — and
             // answers observably differently for a valid one, so an
@@ -2027,7 +2050,7 @@ export function createHub(config = {}) {
           // limit at all is a named below-floor finding this route does not
           // repeat.
           checkRateLimit: rateLimit
-            ? (label) => checkConnRateLimit(fileReadBuckets, label, assetWriteRateLimitMax)
+            ? (label) => checkConnRateLimit(fileReadBuckets, label, fileReadRateLimitMax)
             : undefined,
           respondJson: (status, payload) => respondAdminJson(response, status, payload),
         });
@@ -2063,7 +2086,7 @@ export function createHub(config = {}) {
           // The same per-label bucket the file-plane READS use — a History poll
           // is the same shape of traffic.
           checkRateLimit: rateLimit
-            ? (label) => checkConnRateLimit(fileReadBuckets, label, assetWriteRateLimitMax)
+            ? (label) => checkConnRateLimit(fileReadBuckets, label, fileReadRateLimitMax)
             : undefined,
           respondJson: (status, payload) => respondAdminJson(response, status, payload),
           response,
@@ -2096,7 +2119,7 @@ export function createHub(config = {}) {
           // whole design system in one pass and must not starve (or be
           // starved by) the asset write budget.
           checkReadRateLimit: rateLimit
-            ? (label) => checkConnRateLimit(fileReadBuckets, label, assetWriteRateLimitMax)
+            ? (label) => checkConnRateLimit(fileReadBuckets, label, fileReadRateLimitMax)
             : undefined,
         });
         if (handled) bailFromOnRequest();
@@ -2118,6 +2141,8 @@ export function createHub(config = {}) {
         authPath === '/auth/login' ||
         authPath === '/auth/logout' ||
         authPath === '/auth/session' ||
+        // Issue #204 — the Maude app trades the hub sign-in page's one-time code.
+        authPath === '/auth/desktop/exchange' ||
         // Cloud Phase 6 — magic-link invites. `/join/<token>` only LOOKS
         // (a link preview must not burn an invite); `/join` POST redeems.
         authPath === '/join' ||
@@ -2925,11 +2950,27 @@ export function createHub(config = {}) {
       // The reconciler is the TRUTH and the hooks are the optimization: a
       // git-level restore, a write site nobody hooked, or a class flip all
       // land here rather than being lost.
+      //
+      // The flat-twin quarantine runs FIRST (2.0.4), on the same belt: a twin it
+      // parks is tombstoned rather than walked, and at boot this happens before
+      // the workspace agent indexes the checkout (startWorkspaceAgent is called
+      // after this one), so the agent never adopts the debris as the canvas.
+      // A later pass tells a running agent to let go of what it moved.
+      const parkFlatTwins = () =>
+        quarantineFlatCanvasTwins({
+          journal,
+          designRoot: journalDesignRoot,
+          onMoved: (rels) => workspace?.releasePaths?.(rels),
+        });
+      parkFlatTwins();
       const first = walkImport({ journal, designRoot: journalDesignRoot });
       if (first.appended > 0) await journalTail.flush();
       walkImportTimer = setInterval(() => {
         try {
+          parkFlatTwins();
           walkImport({ journal, designRoot: journalDesignRoot });
+          // Bodies the agent held for want of a config (2.0.4) land once it is back.
+          workspace?.retryHeld?.().catch?.(() => {});
         } catch (err) {
           console.error(`[journal] walk-import pass failed: ${err.message}`);
         }
@@ -4250,6 +4291,11 @@ async function runAsMain() {
   const assetWriteRateLimit = Number.isFinite(assetWriteRateLimitEnv)
     ? assetWriteRateLimitEnv
     : undefined;
+  // Issue #204 — authenticated file-plane read ceiling override (per label).
+  const fileReadRateLimitEnv = Number.parseInt(process.env.HUB_FILE_READ_RATE_LIMIT ?? '', 10);
+  const fileReadRateLimit = Number.isFinite(fileReadRateLimitEnv)
+    ? fileReadRateLimitEnv
+    : undefined;
 
   let built;
   try {
@@ -4262,6 +4308,7 @@ async function runAsMain() {
       insecureHttp,
       connRateLimit,
       assetWriteRateLimit,
+      ...(fileReadRateLimit !== undefined ? { fileReadRateLimit } : {}),
     });
   } catch (err) {
     console.error('[hub] config error:', err.message);

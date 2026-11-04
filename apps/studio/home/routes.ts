@@ -22,6 +22,9 @@
 //   - `/_home/internal/*` (Rust only): a constant-time `Authorization: Bearer $MAUDE_HOME_TOKEN`,
 //     refused outright when the request carries `Origin` or `Sec-Fetch-Site` — a browser never
 //     gets in, even holding the token
+//   - `/_api/hub-signin/return` (#204 K2, the team server's page sending the browser back): the
+//     ONE path outside the table — GET, a top-level navigation only, a loopback Host; it acts only
+//     on a sign-in this process started (createHomeFetch's navigation lane)
 //   - a picture is served only when that pid's snapshot references its key; missing and forbidden
 //     are the same 404 (no existence oracle)
 // So a project page (same site, other port), a canvas iframe or a web page can neither read nor
@@ -35,6 +38,7 @@ import { nameFromPrompt } from '../canvas-create.ts';
 import { fold } from '../index/match.ts';
 import { DIST_DIR } from '../paths.ts';
 import { serveClientAsset, serveFile, serveIndexHtml } from '../static-lane.ts';
+import { HUB_SIGNIN_RETURN_PATH, returnPage } from '../sync/hub-browser-signin.ts';
 import { thumbNotFound, thumbResponse } from '../thumbs/routes.ts';
 import { checkJpeg } from '../thumbs/validate.ts';
 import { isLoopbackHost } from '../ws.ts';
@@ -240,7 +244,7 @@ interface HomeRoute {
 function post(
   path: string,
   kind: Kind,
-  run: (body: unknown) => HomeAnswer | Promise<HomeAnswer>
+  run: (body: unknown, req: Request) => HomeAnswer | Promise<HomeAnswer>
 ): HomeRoute {
   return {
     method: 'POST',
@@ -249,7 +253,7 @@ function post(
     handle: async (req) => {
       const b = await readBody(req);
       if (!b.ok) return b.res;
-      const r = await run(b.value);
+      const r = await run(b.value, req);
       return json(r.status, r.body);
     },
   };
@@ -466,13 +470,17 @@ export function homeRouteTable(deps: HomeDeps): HomeRoute[] {
     post('/_home/invite/pending/accept', 'home', (b) => invite.pendingAccept(b)),
     post('/_home/invite/pending/leave', 'home', (b) => invite.pendingLeave(b)),
     post('/_home/internal/signin/profile', 'internal', (b) => signin.register(b)),
-    // S6.6 — page routes behind the page secret. The hub password rides one POST body to
-    // `prepare` and is handed straight to the hub (home/hub.ts); nothing here stores or logs it.
+    // S6.6 — page routes behind the page secret. Issue #204 K2: Home takes no team-server password
+    // (`prepare` refuses one); Sign in — and an invite — goes through the hub's own page in the
+    // browser (home/hub.ts), and the browser comes back to HUB_SIGNIN_RETURN_PATH, served outside
+    // this table (createHomeFetch's navigation lane).
     post('/_home/hub/test', 'home', (b) => hub.test(b)),
     post('/_home/hub/prepare', 'home', (b) => hub.prepare(b)),
-    // S6.11b — the hub sheet's "Invite link or key": the invite key, email and password ride this
-    // one body to the hub's own POST /join (home/hub.ts); nothing here stores or logs them.
-    post('/_home/hub/join', 'home', (b) => hub.join(b)),
+    post('/_home/hub/signin/start', 'home', (b, req) =>
+      hub.signInStart(b, new URL(req.url).origin)
+    ),
+    post('/_home/hub/signin/poll', 'home', (b) => hub.signInPoll(b)),
+    post('/_home/hub/signin/cancel', 'home', (b) => hub.signInCancel(b)),
     get('/_home/ai/status', () => ai.status()),
     post('/_home/ai/connect', 'home', (b) => ai.connect(b)),
     get('/_home/cli/status', () => cli.status()),
@@ -519,6 +527,15 @@ export function homeRouteTable(deps: HomeDeps): HomeRoute[] {
   ];
 }
 
+/** A browser's top-level GET navigation (Fetch Metadata) — the same test http.ts applies. */
+function isTopLevelNavigation(req: Request): boolean {
+  return (
+    req.method === 'GET' &&
+    req.headers.get('sec-fetch-mode') === 'navigate' &&
+    req.headers.get('sec-fetch-dest') === 'document'
+  );
+}
+
 function isStatic(pathname: string): boolean {
   return (
     pathname === '/' ||
@@ -544,7 +561,9 @@ async function serveStatic(pathname: string): Promise<Response> {
 
 /** The Home server's whole `fetch`: guards first, then the table. */
 export function createHomeFetch(deps: HomeDeps): (req: Request) => Promise<Response> {
-  const table = homeRouteTable(deps);
+  // one hub flow for the table (start/poll/cancel) AND the navigation lane (the return)
+  const hub = deps.hub ?? createHomeHub();
+  const table = homeRouteTable({ ...deps, hub });
   // fail closed: a page secret that IS the internal bearer would let the bearer open page routes
   const pageSecret = deps.pageSecret && deps.pageSecret !== deps.token ? deps.pageSecret : null;
   return async (req) => {
@@ -561,6 +580,26 @@ export function createHomeFetch(deps: HomeDeps): (req: Request) => Promise<Respo
     if (isStatic(pathname)) {
       if (req.method !== 'GET' && req.method !== 'HEAD') return refuse(405, 'Method Not Allowed');
       return serveStatic(pathname);
+    }
+    // #204 K2 — THE NAVIGATION LANE: the one path a cross-site page may reach, where the team
+    // server's own page sends the browser back with a one-time code. No page secret (a browser tab
+    // has none) and no Sec-Fetch-Site gate (it IS cross-site), so only a top-level navigation
+    // (Sec-Fetch-Mode navigate + Dest document) of a GET is answered: a fetch, an image or a frame
+    // from any page gets 403. What protects it is what protects any OAuth redirect endpoint — it
+    // acts only on a `state` this process minted, once, and the code is worthless without the
+    // verifier that never left this process (sync/hub-browser-signin.ts).
+    if (pathname === HUB_SIGNIN_RETURN_PATH) {
+      if (req.method !== 'GET') return refuse(405, 'Method Not Allowed');
+      if (!isTopLevelNavigation(req)) return refuse(403, 'navigation only');
+      try {
+        return returnPage(await hub.signInReturn(url.searchParams));
+      } catch (err) {
+        console.error(
+          '[home] hub sign-in return failed:',
+          err instanceof Error ? err.message : err
+        );
+        return refuse(500, 'Server error');
+      }
     }
     const candidates = table.filter((r) =>
       r.prefix ? pathname.startsWith(r.path) : pathname === r.path

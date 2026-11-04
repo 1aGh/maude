@@ -9,6 +9,7 @@
 // row in declared order, so the declared order IS the canvas order.
 
 import { canvasOrder } from '../../../present/order.ts';
+import { fetchIfServed } from '../shell/served-routes.js';
 
 const finite = (n) => typeof n === 'number' && Number.isFinite(n);
 const text = (v) => (typeof v === 'string' && v.trim() ? v : null);
@@ -74,7 +75,7 @@ export function indexRowFor(snapshot, path) {
 export async function loadOrderNotesArtboards(path, fetchImpl = (...a) => fetch(...a)) {
   const json = async (url) => {
     try {
-      const r = await fetchImpl(url, { cache: 'no-store' });
+      const r = await fetchIfServed(url, { cache: 'no-store' }, fetchImpl);
       return r.ok ? await r.json() : null;
     } catch {
       return null;

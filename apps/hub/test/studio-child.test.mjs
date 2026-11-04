@@ -8,7 +8,16 @@ import { EventEmitter } from 'node:events';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 
-import { BACKOFF_MS, childEnv, createStudioChild, studioLaunch } from '../src/studio-child.mjs';
+import {
+  _resetKnobWarnings,
+  BACKOFF_MS,
+  BUILD_KNOBS,
+  buildKnobEnv,
+  childEnv,
+  createStudioChild,
+  msFromEnv,
+  studioLaunch,
+} from '../src/studio-child.mjs';
 
 class FakeChild extends EventEmitter {
   constructor(pid) {
@@ -167,6 +176,65 @@ test('the embed allowlist reaches the studio, which frames with it (DDR-247)', (
     { port: 4399 }
   );
   assert.equal(on.MAUDE_EMBED_ORIGINS, 'https://orbit.studyfi.com');
+});
+
+test('2.0.4 task P — the canvas build ceilings reach the studio, validated and clamped', () => {
+  // design.studyfi.com: the board needed more than the 20 s build ceiling on a shared host, and
+  // MAUDE_CANVAS_BUILD_TIMEOUT_MS set on the hub never reached the child (the allowlist).
+  _resetKnobWarnings();
+  const off = childEnv({ PATH: '/bin' }, { port: 4399 });
+  for (const name of Object.keys(BUILD_KNOBS)) assert.equal(off[name], undefined, name);
+
+  const on = childEnv(
+    {
+      PATH: '/bin',
+      MAUDE_CANVAS_BUILD_TIMEOUT_MS: '120000',
+      MAUDE_CANVAS_BUILD_WAIT_MS: ' 25000 ',
+      MAUDE_CANVAS_BUILD_RSS_MB: '1024',
+      MAUDE_CANVAS_CACHE_ENTRIES: '128',
+      MAUDE_CANVAS_MODULE_CACHE_MB: '256',
+    },
+    { port: 4399 }
+  );
+  assert.equal(on.MAUDE_CANVAS_BUILD_TIMEOUT_MS, '120000');
+  assert.equal(on.MAUDE_CANVAS_BUILD_WAIT_MS, '25000');
+  assert.equal(on.MAUDE_CANVAS_BUILD_RSS_MB, '1024');
+  assert.equal(on.MAUDE_CANVAS_CACHE_ENTRIES, '128');
+  assert.equal(on.MAUDE_CANVAS_MODULE_CACHE_MB, '256');
+});
+
+test('2.0.4 task P — a bad build knob is dropped and said once; out of range is clamped', () => {
+  _resetKnobWarnings();
+  const said = [];
+  const bad = {
+    MAUDE_CANVAS_BUILD_TIMEOUT_MS: '90s',
+    MAUDE_CANVAS_BUILD_RSS_MB: '-5',
+    MAUDE_CANVAS_CACHE_ENTRIES: '999999',
+    MAUDE_CANVAS_BUILD_WAIT_MS: '10',
+  };
+  const first = buildKnobEnv(bad, (m) => said.push(m));
+  assert.equal(first.MAUDE_CANVAS_BUILD_TIMEOUT_MS, undefined);
+  assert.equal(first.MAUDE_CANVAS_BUILD_RSS_MB, undefined);
+  assert.equal(first.MAUDE_CANVAS_CACHE_ENTRIES, '1024');
+  assert.equal(first.MAUDE_CANVAS_BUILD_WAIT_MS, '1000');
+  assert.equal(said.length, 4);
+  assert.match(said[0], /MAUDE_CANVAS_BUILD_TIMEOUT_MS is not a whole number/);
+  // a respawn does not repeat the warnings
+  buildKnobEnv(bad, (m) => said.push(m));
+  assert.equal(said.length, 4);
+  // and the real childEnv carries the same answer
+  _resetKnobWarnings();
+  const env = childEnv({ PATH: '/bin', ...bad }, { port: 1 });
+  assert.equal(env.MAUDE_CANVAS_BUILD_TIMEOUT_MS, undefined);
+  assert.equal(env.MAUDE_CANVAS_CACHE_ENTRIES, '1024');
+});
+
+test('2.0.4 task P — an empty or bad ready deadline falls back to the default, never 0', () => {
+  assert.equal(msFromEnv('X', 60_000, {}), 60_000);
+  assert.equal(msFromEnv('X', 60_000, { X: '' }), 60_000);
+  assert.equal(msFromEnv('X', 60_000, { X: '60s' }), 60_000);
+  assert.equal(msFromEnv('X', 60_000, { X: '0' }), 60_000);
+  assert.equal(msFromEnv('X', 60_000, { X: ' 180000 ' }), 180_000);
 });
 
 test('the child environment never grows a wildcard', () => {
@@ -342,4 +410,107 @@ test('renderStats carries the studio’s render seconds through unchanged', asyn
   child.start();
   await tick();
   assert.deepEqual(await child.renderStats(), render);
+});
+
+// #204 (task L) — a large workspace (~311 canvases) took longer than the fixed 60 s to answer
+// `/_health`, so the supervisor SIGKILLed a child that was still booting, twice. The ready
+// deadline is now an IDLE window: every `[boot] …` line the child prints is progress and moves
+// it; a hard ceiling still ends a child that never gets there.
+function clockHarness({ probe, idleMs = 60_000, ceilingMs = 600_000 } = {}) {
+  let t = 0;
+  const h = harness({
+    now: () => t,
+    probe: probe ?? (async () => false),
+    readyIdleMs: idleMs,
+    readyCeilingMs: ceilingMs,
+  });
+  /** Advance the clock by `ms`, one poll step at a time (the poll's own 250 ms sleeps fire). */
+  async function advance(ms, { stepMs = 250 } = {}) {
+    for (let done = 0; done < ms; done += stepMs) {
+      t += stepMs;
+      for (const timer of h.timers.filter((x) => x.ms === 250)) {
+        h.timers.splice(h.timers.indexOf(timer), 1);
+        timer.fn();
+      }
+      await tick();
+      await tick();
+    }
+  }
+  return { ...h, advance };
+}
+
+const bootLine = (proc, text, stream = 'stdout') => proc[stream].emit('data', Buffer.from(text));
+
+test('#204: a child that keeps reporting boot progress is not killed at the idle window', async () => {
+  const { child, spawned, advance } = clockHarness({ idleMs: 60_000 });
+  child.start();
+  const proc = spawned[0].proc;
+  // 140 s of boot, a progress line every 20 s — far past the old fixed 60 s.
+  for (let i = 0; i < 7; i++) {
+    await advance(20_000, { stepMs: 1000 });
+    bootLine(proc, `[boot] indexed ${i * 50}/311 canvases\n`);
+  }
+  assert.deepEqual(proc.killed, [], 'a progressing child is never SIGKILLed');
+  assert.notEqual(child.status().state, 'ready');
+});
+
+test('#204: a child that goes quiet is killed once the idle window passes', async () => {
+  const { child, spawned, advance } = clockHarness({ idleMs: 60_000 });
+  child.start();
+  const proc = spawned[0].proc;
+  await advance(30_000, { stepMs: 1000 });
+  bootLine(proc, '[boot] context\n');
+  await advance(58_000, { stepMs: 1000 });
+  assert.deepEqual(proc.killed, [], 'still inside the window after its last progress');
+  await advance(4_000, { stepMs: 1000 });
+  assert.deepEqual(proc.killed, ['SIGKILL'], 'hung after its last progress');
+});
+
+test('#204: ordinary output is not progress — only the [boot] lines are', async () => {
+  const { child, spawned, advance } = clockHarness({ idleMs: 60_000 });
+  child.start();
+  const proc = spawned[0].proc;
+  for (let i = 0; i < 4; i++) {
+    await advance(20_000, { stepMs: 1000 });
+    bootLine(proc, 'some warning that repeats\n', 'stderr');
+  }
+  assert.deepEqual(proc.killed, ['SIGKILL']);
+});
+
+test('#204: the hard ceiling ends a child that reports progress forever', async () => {
+  const { child, spawned, advance } = clockHarness({ idleMs: 60_000, ceilingMs: 300_000 });
+  child.start();
+  const proc = spawned[0].proc;
+  for (let i = 0; i < 20 && proc.killed.length === 0; i++) {
+    await advance(20_000, { stepMs: 1000 });
+    bootLine(proc, '[boot] still going\n');
+  }
+  assert.deepEqual(proc.killed, ['SIGKILL']);
+});
+
+test('#204: time the SUPERVISOR spent stalled is not charged to the child', async () => {
+  // The hub's own event loop can block for seconds at boot (walk-import, history indexing).
+  // A poll that resumes 70 s later must not read that as 70 s of a silent child.
+  const { child, spawned, advance } = clockHarness({ idleMs: 60_000 });
+  child.start();
+  const proc = spawned[0].proc;
+  await advance(10_000, { stepMs: 1000 });
+  await advance(70_000, { stepMs: 70_000 }); // one stalled step
+  await advance(2_000, { stepMs: 1000 });
+  assert.deepEqual(proc.killed, []);
+});
+
+test('#204: a progressing child that finally answers is ready', async () => {
+  let up = false;
+  const { child, spawned, advance } = clockHarness({ probe: async () => up });
+  child.start();
+  const proc = spawned[0].proc;
+  for (let i = 0; i < 5; i++) {
+    await advance(30_000, { stepMs: 1000 });
+    bootLine(proc, '[boot] http\n');
+  }
+  up = true;
+  await advance(1000);
+  assert.equal(child.status().state, 'ready');
+  assert.deepEqual(proc.killed, []);
 });

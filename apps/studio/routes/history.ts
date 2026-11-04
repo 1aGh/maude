@@ -4,6 +4,8 @@
 //   POST /_api/project/restore   { path, at | revision }   → { ok, status, actionId? } · 409 (moved from http.ts)
 //                                { path, at, artboard? | element? } · { path, at: '@last-good' }
 //                                → { ok, actionId, line, sharedKept?, why? } · 409 { reason, line? } (S1.13)
+//                                every restore: 409 { reason: unsaved-change|still-saving, line } when this
+//                                disk has a change the project lacks (F14, settleBeforeRestore)
 //   GET  /_api/project/versions  ?path&before&limit&filter → { ok, now, rows, next?, source, offline? }
 //   GET  /_api/project/changes   ?path&from&to             → { ok, changes, detail, blame }
 //   GET  /_api/project/source    ?path&at&lane             → { ok, source }   (raw source: `export`)
@@ -36,6 +38,7 @@ import {
   readSide,
   refusalStatus,
   restoreArtboardAt,
+  settleBeforeRestore,
 } from '../history/restore-artboard-action.ts';
 import { type ObjectKey, parseObjectKey, restoreObject } from '../history/restore-object.ts';
 import { formatTime } from '../history/titles.ts';
@@ -90,6 +93,8 @@ type Outcome = {
 
 /** The runtime methods these routes read — all optional (an older home has none). */
 export interface HistoryRuntime extends VersionsRuntime {
+  /** F14 — this disk's change goes up before a restore reads the newest version (sync/index.ts). */
+  settleSource?(repoRel: string, ms?: number): Promise<'settled' | 'held' | 'pending' | null>;
   /** S1.13 — `o.lanes`: one artboard / object / kept-aside body as ONE `restore` action. */
   acceptedRestore?(repoRel: string, revision: number, o?: RestoreOptions): Promise<Outcome | null>;
   /** S1.13 — the annotations lane, and `{ aside: true }` (a kept-aside body at exactly `revision`). */
@@ -301,6 +306,17 @@ export function createHistoryRoutes(deps: HistoryRouteDeps): RouteSpec[] {
     return json(200, { ok: true, actionId: r.actionId, line: label, ...extra });
   }
 
+  /**
+   * F14 (2.0.4, #166) — every restore here reads (or lands on) the canvas's NEWEST version, but the
+   * person sees THIS disk: its change the project has not taken yet goes up first. A held change
+   * answers 409 `unsaved-change`, one still unanswered `still-saving`, each with its line; null:
+   * settled (or a home without the seam), go on.
+   */
+  async function unsettled(rt: HistoryRuntime, t: Target): Promise<Response | null> {
+    const s = await settleBeforeRestore(rt, t.repoRel);
+    return s.ok ? null : json(s.status, { ok: false, reason: s.reason, line: s.line });
+  }
+
   /** `at` names a version nobody kept → that body back over Now (§5.8 last row), else null. */
   async function restoreAside(at: unknown, t: Target): Promise<Response | null> {
     const ref = parseRef(at);
@@ -309,6 +325,8 @@ export function createHistoryRoutes(deps: HistoryRouteDeps): RouteSpec[] {
     if (!rt?.acceptedHistory || !rt.acceptedVersion) return null;
     const row = await rowAt(rt, t.repoRel, ref.rev).catch(() => null);
     if (row?.kind !== 'aside') return null;
+    const refused = await unsettled(rt, t);
+    if (refused) return refused;
     const newest = await revisionOf(rt, 'now', t).catch(() => null);
     for (const lane of ASIDE_ORDER) {
       const body = await rt
@@ -338,6 +356,8 @@ export function createHistoryRoutes(deps: HistoryRouteDeps): RouteSpec[] {
     if (b.at === LAST_GOOD) {
       if (b.artboard !== undefined || b.element !== undefined)
         return json(400, { ok: false, reason: '@last-good restores the whole canvas' });
+      const refused = await unsettled(rt, t);
+      if (refused) return refused;
       const lg = await findLastGood({
         runtime: rt,
         designRoot: deps.designRoot ?? null,
@@ -366,6 +386,8 @@ export function createHistoryRoutes(deps: HistoryRouteDeps): RouteSpec[] {
         ok: false,
         reason: 'element must be <artboard>/<id> or an annotation id',
       });
+    const refused = await unsettled(rt, t);
+    if (refused) return refused;
     const newest = await revisionOf(rt, 'now', t).catch(() => undefined);
     if (newest === undefined) return json(503, { ok: false, reason: 'unreachable' });
     const row = await rowAt(rt, t.repoRel, ref.rev).catch(() => null);
@@ -497,12 +519,13 @@ export function createHistoryRoutes(deps: HistoryRouteDeps): RouteSpec[] {
         // "Restored 5 Oct, 18:40", §5.8): the row in Version history and the toast read it. The v1 body
         // (`revision`) gets it too — the panel's own "Restore this version" sends that body, and without a
         // label the row read "Restore Smoke to version 4" (P8 B1: an internal revision number, never shown).
+        const rt = runtime();
+        if (rt?.acceptedRestore) {
+          const refused = await unsettled(rt, t);
+          if (refused) return refused;
+        }
         const label = await restoreLabel(t, revision);
-        const r = await runtime()?.acceptedRestore?.(
-          t.repoRel,
-          revision,
-          ...(label ? [{ label }] : [])
-        );
+        const r = await rt?.acceptedRestore?.(t.repoRel, revision, ...(label ? [{ label }] : []));
         // The v1 answer shape is kept: `maude design history restore` reads it.
         if (!r) return json(200, { ok: false, reason: 'legacy' });
         if (r.status === 'accepted' && r.actionId && !r.queued)

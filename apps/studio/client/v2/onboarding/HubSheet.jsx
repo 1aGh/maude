@@ -1,16 +1,17 @@
 // client/v2/onboarding/HubSheet.jsx — "Connect to your own hub" (02 ob-adv-sheets, S6.9). The sheet S11.14's
 // Settings › Connections mounts as "Add a team server…" (G0-D/D12), so it is a view: it owns its fields and
-// calls back; what Test connection and Connect DO is the caller's (Home: `/_home/hub/{test,prepare}`).
+// calls back; what Test connection and Sign in DO is the caller's (Home: `/_home/hub/{test,signin/*,prepare}`).
 //
-//   <HubSheet onTest={(url) => {ok, version?, error?}} onConnect={({url, email?, password?}) => {ok, error?}}
-//             onJoin={({url, token, email, password}) => {ok, error?}} onCancel />
-//   (no `onJoin` → the invite segment rests, as before S6.11b)
+//   <HubSheet onTest={(url) => {ok, version?, error?}}
+//             onSignIn={({url, invite, onWaiting}) => {ok, error?, cancelled?}}
+//             onAbortSignIn={() => void} onCancel />
 //
-// The password lives in this component's state only until Connect is pressed: it is read once, handed to
-// `onConnect`, and the field is emptied at once — nothing the sheet draws, before or after, contains it, and
-// an error line is the server's own words, never an echo. S6.11b: "Invite link or key" redeems a hub invite
-// (`onJoin` — Home: `/_home/hub/join`, the hub's own JSON `POST /join`); the invite key is a bearer secret
-// and is treated exactly like the password — a masked field, read once on Connect and emptied at once.
+// Issue #204 (decision maude/v2-michal-team-server-signin-via-hub-page): the app owns NO login method for a
+// team server. There is no email or password field here: Sign in opens the hub's OWN sign-in page in the
+// browser (with an invite, the hub's own invite page), the sheet waits (`onWaiting` → "Finish signing in in
+// your browser.", Cancel = `onAbortSignIn`) and the caller opens the project once the browser came back.
+// The invite key is a bearer secret: a masked field, read once on Sign in and emptied at once; an error
+// line is the server's own words, never an echo.
 
 import { useEffect, useRef, useState } from 'react';
 
@@ -31,18 +32,17 @@ export function hubOfInviteLink(raw) {
 
 /**
  * @param {{ onTest: (url: string) => Promise<{ok: boolean, version?: string|null, error?: string}>,
- *           onConnect: (v: {url: string, email?: string, password?: string}) => Promise<{ok: boolean, error?: string}>,
- *           onJoin?: (v: {url: string, token: string, email: string, password: string}) => Promise<{ok: boolean, error?: string}>,
+ *           onSignIn: (v: {url: string, invite: string, onWaiting: () => void}) =>
+ *             Promise<{ok: boolean, error?: string, cancelled?: boolean}>,
+ *           onAbortSignIn?: () => void,
  *           onCancel: () => void, initialUrl?: string }} props
  */
-export function HubSheet({ onTest, onConnect, onJoin, onCancel, initialUrl = '' }) {
+export function HubSheet({ onTest, onSignIn, onAbortSignIn, onCancel, initialUrl = '' }) {
   const [url, setUrl] = useState(initialUrl);
-  const [mode, setMode] = useState('password'); // 'password' | 'invite'
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [invite, setInvite] = useState('');
   const [test, setTest] = useState({ phase: 'idle', version: null, error: null });
   const [busy, setBusy] = useState(false);
+  const [waiting, setWaiting] = useState(false);
   const [error, setError] = useState(null);
   const alive = useRef(true);
   const seq = useRef(0); // an answer for an address that has since changed is dropped
@@ -70,41 +70,46 @@ export function HubSheet({ onTest, onConnect, onJoin, onCancel, initialUrl = '' 
     );
   };
 
-  const inviteMode = mode === 'invite' && !!onJoin;
-  const connect = async () => {
-    // read once, empty the fields now — the password (and an invite key) never outlives this call in the page
-    const creds = email.trim() || password ? { email: email.trim(), password } : null;
+  const signIn = async () => {
+    // read once, empty the field now — an invite key never outlives this call in the page
     const key = invite.trim();
-    setPassword('');
     setInvite('');
     setError(null);
     setBusy(true);
     let r;
     try {
-      if (inviteMode)
-        r = await onJoin({ url: url.trim(), token: key, email: email.trim(), password });
-      else r = await onConnect(creds ? { url: url.trim(), ...creds } : { url: url.trim() });
+      r = await onSignIn({
+        url: url.trim(),
+        invite: key,
+        onWaiting: () => {
+          if (alive.current) setWaiting(true);
+        },
+      });
     } catch {
       r = { ok: false, error: W.unreachable };
     }
     if (!alive.current) return;
     setBusy(false);
-    if (!r?.ok) setError(r?.error || W.unreachable);
+    setWaiting(false);
+    if (!r?.ok && !r?.cancelled) setError(r?.error || W.unreachable);
+  };
+
+  const abort = () => {
+    setWaiting(false);
+    onAbortSignIn?.();
   };
 
   return (
-    <AdvModal onCancel={onCancel}>
+    <AdvModal onCancel={waiting ? abort : onCancel}>
       <AdvSheet
         id="hub"
         title={W.title}
         verb={W.verb}
         busyVerb={W.busy}
         busy={busy}
-        canSubmit={
-          inviteMode ? !!(url.trim() && invite.trim() && email.trim() && password) : !!url.trim()
-        }
-        onSubmit={connect}
-        onCancel={onCancel}
+        canSubmit={!!url.trim() && !busy}
+        onSubmit={signIn}
+        onCancel={waiting ? abort : onCancel}
       >
         <span className="ob-field">
           <label className="ob-field-label" htmlFor="onb-hub-url">
@@ -122,6 +127,7 @@ export function HubSheet({ onTest, onConnect, onJoin, onCancel, initialUrl = '' 
               placeholder="https://"
               // biome-ignore lint/a11y/noAutofocus: the sheet opens for this one field
               autoFocus
+              disabled={busy}
               value={url}
               onChange={(e) => {
                 seq.current += 1;
@@ -133,7 +139,7 @@ export function HubSheet({ onTest, onConnect, onJoin, onCancel, initialUrl = '' 
               type="button"
               className="btn btn--sm"
               data-testid="onb-hub-test"
-              disabled={!url.trim() || test.phase === 'busy'}
+              disabled={!url.trim() || test.phase === 'busy' || busy}
               onClick={runTest}
             >
               {W.test}
@@ -160,41 +166,20 @@ export function HubSheet({ onTest, onConnect, onJoin, onCancel, initialUrl = '' 
           ) : null}
         </span>
 
-        {/* biome-ignore lint/a11y/useSemanticElements: a two-way segmented control, not a form fieldset */}
-        <span className="ob-seg" role="group" aria-label="How you sign in">
-          <button
-            type="button"
-            className="ob-seg-b"
-            aria-pressed={inviteMode ? 'false' : 'true'}
-            data-testid="onb-hub-mode-password"
-            onClick={() => setMode('password')}
-          >
-            {W.modePassword}
-          </button>
-          <button
-            type="button"
-            className="ob-seg-b"
-            aria-pressed={inviteMode ? 'true' : 'false'}
-            aria-disabled={onJoin ? undefined : 'true'}
-            data-testid="onb-hub-mode-invite"
-            onClick={() => {
-              if (onJoin) setMode('invite');
-            }}
-          >
-            {W.modeInvite}
-          </button>
-        </span>
-
-        {inviteMode ? (
+        <span className="ob-field">
+          <label className="ob-field-label" htmlFor="onb-hub-invite">
+            {W.inviteLabel}
+          </label>
           <input
+            id="onb-hub-invite"
             className="ob-input"
             data-testid="onb-hub-invite"
-            // a bearer secret, like the password: masked, never drawn back
+            // a bearer secret: masked, never drawn back
             type="password"
             autoComplete="off"
             spellCheck={false}
-            aria-label={W.modeInvite}
-            placeholder={W.modeInvite}
+            placeholder={W.invitePlaceholder}
+            disabled={busy}
             value={invite}
             onChange={(e) => {
               const v = e.target.value;
@@ -208,30 +193,13 @@ export function HubSheet({ onTest, onConnect, onJoin, onCancel, initialUrl = '' 
               }
             }}
           />
-        ) : null}
-
-        <span className="ob-row2">
-          <input
-            className="ob-input"
-            data-testid="onb-hub-email"
-            type="email"
-            autoComplete="off"
-            aria-label="Email"
-            placeholder="you@alligators.cz"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <input
-            className="ob-input"
-            data-testid="onb-hub-password"
-            type="password"
-            autoComplete="off"
-            aria-label="Password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
         </span>
+
+        {waiting ? (
+          <p className="ob-ok" role="status" data-testid="onb-hub-waiting">
+            <Sw state="busy">{W.waiting}</Sw>
+          </p>
+        ) : null}
         {error ? (
           <p className="ai-conn-err" role="alert" data-testid="onb-hub-error">
             {error}

@@ -552,7 +552,11 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/tree-state': { class: 'local' },
   '/_api/ui-prefs': { class: 'local' },
   '/_api/workspace/disclosure': { class: 'local' },
-  '/_api/workspace/sign-in': { class: 'local' },
+  // Issue #204 — the team-server browser sign-in: a credential in this Mac's hubs.json
+  '/_api/hub-signin/start': { class: 'local' },
+  '/_api/hub-signin/poll': { class: 'local' },
+  '/_api/hub-signin/cancel': { class: 'local' },
+  '/_api/hub-signin/return': { class: 'local' },
   // --- the V2-2.5 table (routes/*.ts) — classified by the lead (decision v2-2.5 classification)
   '/_api/outbox': { class: 'read' }, // routes/outbox.ts: the queue's view
   '/_api/outbox/:id': { class: 'read' },

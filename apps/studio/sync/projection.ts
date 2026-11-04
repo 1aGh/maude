@@ -77,6 +77,8 @@ export const ACCEPTED_FLUSH_MS = 30;
 export const MAX_OP_REPLAYS = 3;
 /** How long an announced API write may hold the doc→file writer at most. */
 export const LOCAL_WRITE_HOLD_MS = 3_000;
+/** How long a restore waits for this disk's html proposals to be answered (`settleDisk`). */
+export const SETTLE_DISK_MS = 8_000;
 /** `MAUDE_SYNC_DEBUG=1` — one line per proposal and per disk write (diagnosis). */
 const SYNC_DEBUG = process.env.MAUDE_SYNC_DEBUG === '1';
 export const CIRCUIT_MAX_STRIKES = 3;
@@ -321,6 +323,18 @@ export interface DocProjection {
    * (false); then the doc→file writer is flushed, so an accepted action is on disk on return.
    */
   settleLane(lane: ProposalLane, value: string, ms?: number): Promise<boolean>;
+  /**
+   * F14 (2.0.4, #166) — a restore is about to splice onto the project's newest version: bring
+   * THIS disk's source up to the project first. A change on disk the watcher has not delivered
+   * yet (its quiet window) is proposed now, exactly as its file event would propose it, and every
+   * html proposal in flight is waited for (at most `ms`). Without this the restore was spliced onto
+   * a head that lacked the change the person was looking at; the change, proposed after it from
+   * the older base, overlapped the restore and was held here — the click answered ok and the file
+   * stayed as it was. `held`: this disk keeps a refused change (the restore must not land over
+   * it); `pending`: a proposal is still unanswered after `ms`; `settled`: the project's newest
+   * version is what this disk shows.
+   */
+  settleDisk(ms?: number): Promise<'settled' | 'held' | 'pending'>;
   /** Lanes with an unresolved proposal (status surfaces). */
   pendingCount(): number;
   /**
@@ -1475,6 +1489,29 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
         const text = readLocal(p);
         if (text !== null) applyFromFs({ path: p, bytes: new TextEncoder().encode(text), hash });
       }
+    },
+    async settleDisk(ms = SETTLE_DISK_MS) {
+      if (!acceptedOn() || stopped) return 'settled';
+      if (held.has('html')) return 'held';
+      if (ready && movedToFromDoc(doc) === null) {
+        const str = readLocal(paths.html);
+        // Only a change nobody proposed yet: what this projection wrote or proposed last is
+        // `observedBody`, and an invalid source is left to its own file event (one strike each).
+        if (
+          str !== null &&
+          str !== observedBody &&
+          !isQuarantined(paths.html, hashBytes(str)) &&
+          validation(str) === null
+        ) {
+          proposeFromFs({ path: paths.html, hash: hashBytes(str) }, str);
+        }
+      }
+      const end = Date.now() + ms;
+      while (pending.has('html') && !stopped && Date.now() < end) {
+        await new Promise((r) => setTimeout(r, 20));
+      }
+      if (held.has('html')) return 'held';
+      return pending.has('html') ? 'pending' : 'settled';
     },
     pendingCount() {
       let n = 0;

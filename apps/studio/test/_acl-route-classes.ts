@@ -42,7 +42,6 @@ const NONE = [
   '/_api/settings/about',
   '/_api/shell/status',
   '/_api/workspace/disclosure',
-  '/_api/workspace/sign-in',
   '/_api/report',
   '/_api/report-fallback',
   '/_api/hub/link',
@@ -51,6 +50,11 @@ const NONE = [
   '/_api/cloud/plan',
   // S11.14 — the linked team server's Advanced details: about this Mac's sign-in, not the project
   '/_api/connections/hub',
+  // Issue #204 — signing this Mac in to a team server on its own page: about the account
+  '/_api/hub-signin/start',
+  '/_api/hub-signin/poll',
+  '/_api/hub-signin/cancel',
+  '/_api/hub-signin/return',
   '/_api/cloud/signin/start',
   '/_api/cloud/signin/poll',
   '/_api/cloud/signout',

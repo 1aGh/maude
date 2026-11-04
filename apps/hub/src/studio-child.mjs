@@ -34,8 +34,35 @@ export const BACKOFF_MS = Object.freeze([250, 500, 1000, 2000, 5000, 10_000, 30_
 /** How long the build counters are reused before `/health` re-probes for them. */
 const RENDER_STATS_TTL_MS = 60_000;
 
-/** How long a fresh child gets to answer `/_health` before we call it stuck. */
-export const READY_TIMEOUT_MS = Number(process.env.MAUDE_STUDIO_READY_MS ?? 60_000);
+/**
+ * How long a booting child may go WITHOUT PROGRESS before we call it stuck (#204).
+ *
+ * Was a fixed deadline from spawn. A ~311-canvas workspace on a small cell took longer than that
+ * to answer `/_health`, so the supervisor SIGKILLed a child that was still booting — twice, each
+ * restart starting the boot over. Progress is a `[boot] …` line on the child's stdout (the
+ * studio's `boot-progress.ts`): each one moves the deadline. Ordinary output is not progress — a
+ * child stuck repeating one warning is still stuck.
+ */
+export const READY_TIMEOUT_MS = msFromEnv('MAUDE_STUDIO_READY_MS', 60_000);
+/** The hard ceiling: a child that reports progress forever and never answers is still killed. */
+export const READY_CEILING_MS = msFromEnv('MAUDE_STUDIO_READY_CEILING_MS', 10 * 60_000);
+
+/**
+ * A positive whole number of milliseconds from the environment, else `def`. `Number('')` is 0 and
+ * `Number('60s')` is NaN — either made a boot deadline that expired at once (task P: compose
+ * renders these keys, and an unset one arrives empty).
+ */
+export function msFromEnv(name, def, env = process.env) {
+  const raw = env[name];
+  if (raw === undefined || String(raw).trim() === '') return def;
+  const n = Number(String(raw).trim());
+  return Number.isSafeInteger(n) && n > 0 ? n : def;
+}
+/** A line the child prints as it moves through its boot (apps/studio/boot-progress.ts). */
+export const BOOT_PROGRESS_RE = /^\[boot\] /;
+/** A poll gap longer than this means the SUPERVISOR was stalled (a blocked hub event loop);
+ *  that time is not charged to the child. The poll itself sleeps 250 ms + a ≤ 2 s probe. */
+const SUPERVISOR_STALL_MS = 5_000;
 
 /** The loopback port the studio binds inside the container. */
 export const DEFAULT_STUDIO_PORT = 4399;
@@ -162,8 +189,64 @@ function pairingEnv(env) {
   };
 }
 
+/**
+ * 2.0.4 task P — the canvas build sandbox's ceilings, which an operator of a slow or busy host must
+ * be able to raise (design.studyfi.com: the design-system board did not fit the 20 s build wait on a
+ * shared t3.large, and nothing outside the child could change it). Name → [min, max], the same
+ * ranges the studio clamps to (`canvas-build-sandbox.ts` `sandboxKnob`).
+ */
+export const BUILD_KNOBS = Object.freeze({
+  /** the hard ceiling: a build is stopped past it, whether or not anyone still waits */
+  MAUDE_CANVAS_BUILD_TIMEOUT_MS: [5_000, 600_000],
+  /** how long one request waits before it answers "still building" */
+  MAUDE_CANVAS_BUILD_WAIT_MS: [1_000, 120_000],
+  MAUDE_CANVAS_BUILD_RSS_MB: [128, 8_192],
+  MAUDE_CANVAS_CACHE_ENTRIES: [1, 1_024],
+  /** 2.0.4 task D — the byte budgets of the built-module caches (MB; canvas-module-cache.ts
+   *  `budgetFromEnv`). A big workspace cell holds ~30 modules in the default 64 MB live cache. */
+  MAUDE_CANVAS_MODULE_CACHE_MB: [4, 4_096],
+  MAUDE_CANVAS_VERSION_CACHE_MB: [4, 4_096],
+  MAUDE_CANVAS_SANDBOX_CACHE_MB: [4, 4_096],
+});
+
+const warnedKnobs = new Set();
+
+/**
+ * The sandbox knobs the hub's environment sets, validated: a whole number, clamped into its range.
+ * A value that is not one is DROPPED (the studio's default applies) — never handed on as text the
+ * child would turn into NaN. Each problem is logged once per process, not once per (re)spawn.
+ */
+export function buildKnobEnv(env = process.env, warn = (m) => console.warn(m)) {
+  const out = {};
+  for (const [name, [min, max]] of Object.entries(BUILD_KNOBS)) {
+    const raw = env[name];
+    if (raw === undefined || raw === '') continue;
+    const text = String(raw).trim();
+    const say = (msg) => {
+      if (warnedKnobs.has(name)) return;
+      warnedKnobs.add(name);
+      warn(`[studio] ${name} ${msg}`);
+    };
+    const n = Number(text);
+    if (!/^\d+$/.test(text) || !Number.isSafeInteger(n)) {
+      say(`is not a whole number (${sanitizeForLog(text.slice(0, 40))}); not passed to the studio`);
+      continue;
+    }
+    const clamped = Math.min(max, Math.max(min, n));
+    if (clamped !== n) say(`${n} is outside ${min}–${max}; passing ${clamped}`);
+    out[name] = String(clamped);
+  }
+  return out;
+}
+
+/** Test seam: forget which knobs were already warned about. */
+export function _resetKnobWarnings() {
+  warnedKnobs.clear();
+}
+
 export function childEnv(env = process.env, { port, formatFile = null, knownCanvasesFile = null }) {
   return {
+    ...buildKnobEnv(env),
     // V2-1.12 §5.2 — where the hub keeps the project format for this child
     // (a path in the hub's own data dir, written by the hub, read-only here).
     ...(formatFile ? { MAUDE_HUB_FORMAT_FILE: formatFile } : {}),
@@ -304,6 +387,9 @@ export function createStudioChild({
   formatFile = null,
   /** p8-c4b — the hub-owned file listing the canvases its stored grants name. */
   knownCanvasesFile = null,
+  /** #204 — the boot's idle window and hard ceiling (see READY_TIMEOUT_MS). */
+  readyIdleMs = READY_TIMEOUT_MS,
+  readyCeilingMs = READY_CEILING_MS,
 } = {}) {
   let child = null;
   let stopped = false;
@@ -322,6 +408,10 @@ export function createStudioChild({
   let timer = null;
   /** Set when a child answered, healthily, about the WRONG tree. */
   let wrongProject = null;
+  /** #204 — when the booting child last printed a `[boot]` line (null: not booting). */
+  let lastProgressAt = null;
+  /** The latest `[boot]` line, for the "did not become ready" message and /health. */
+  let lastProgress = null;
 
   function launch() {
     if (stopped) return;
@@ -356,7 +446,10 @@ export function createStudioChild({
     // The child's output is the cell's output. Prefixed, not swallowed: the
     // containment boot-assert prints the reason it refused, and losing that
     // message would make the most informative failure the most silent one.
-    proc.stdout?.on('data', (c) => process.stdout.write(prefix(c)));
+    proc.stdout?.on('data', (c) => {
+      process.stdout.write(prefix(c));
+      noteProgress(proc, c);
+    });
     proc.stderr?.on('data', (c) => process.stderr.write(prefix(c)));
     proc.on('exit', (code, signal) => {
       if (child !== proc) return;
@@ -382,9 +475,36 @@ export function createStudioChild({
       .join('');
   }
 
+  /** #204 — a `[boot]` line from the booting child moves its idle deadline. */
+  function noteProgress(proc, chunk) {
+    if (child !== proc || ready || lastProgressAt === null) return;
+    for (const line of String(chunk).split('\n')) {
+      if (!BOOT_PROGRESS_RE.test(line)) continue;
+      lastProgressAt = now();
+      lastProgress = line.slice(0, 160);
+    }
+  }
+
   async function pollReady(proc) {
-    const deadline = now() + READY_TIMEOUT_MS;
-    while (!stopped && child === proc && now() < deadline) {
+    const bootStart = now();
+    lastProgressAt = bootStart;
+    lastProgress = null;
+    let lastPoll = bootStart;
+    const overdue = () => {
+      const t = now();
+      // #204 — a gap far longer than one poll means the supervisor itself was stalled (the hub's
+      // event loop blocked); that time is not the child's silence, so it moves the window.
+      const gap = t - lastPoll;
+      lastPoll = t;
+      if (gap > SUPERVISOR_STALL_MS) lastProgressAt += gap;
+      if (t - bootStart >= readyCeilingMs) return 'ceiling';
+      if (t - lastProgressAt >= readyIdleMs) return 'idle';
+      return null;
+    };
+    let why = null;
+    while (!stopped && child === proc) {
+      why = overdue();
+      if (why) break;
       const verdict = normalizeProbe(await probe(port));
       if (verdict.ok) {
         // D5 — HEALTHY BUT WRONG PROJECT. A child that answers about another
@@ -411,15 +531,24 @@ export function createStudioChild({
         ready = true;
         readyAt = now();
         consecutiveFailures = 0;
-        log.log?.(`[studio] ready on 127.0.0.1:${port}`);
+        lastProgressAt = null;
+        log.log?.(
+          `[studio] ready on 127.0.0.1:${port} after ${Math.round((readyAt - bootStart) / 1000)}s`
+        );
         return;
       }
       await sleep(250);
     }
+    lastProgressAt = null;
     if (!stopped && child === proc && !ready) {
       // Never answered. Kill it rather than leave a process that is running but
       // not serving — that is the exact shape of "200 while half-dead".
-      log.error?.(`[studio] did not become ready within ${Math.round(READY_TIMEOUT_MS / 1000)}s`);
+      const last = lastProgress ? ` (last progress: ${lastProgress})` : ' (no boot progress)';
+      log.error?.(
+        why === 'ceiling'
+          ? `[studio] did not become ready within ${Math.round(readyCeilingMs / 1000)}s${last}`
+          : `[studio] made no boot progress for ${Math.round(readyIdleMs / 1000)}s${last}`
+      );
       try {
         proc.kill('SIGKILL');
       } catch {

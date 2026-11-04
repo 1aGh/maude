@@ -118,8 +118,22 @@ async function readAvailability(fetchImpl) {
  * Mount once in the Canvases panel. `groups` is the panel's index (its change re-asks, throttled).
  * @param {{ groups: object[], designRel: string, fetchImpl?: typeof fetch }} o
  */
+// #204 R — the cadence is the PAGE's, not a mount's. It lived in the hook's useRef, so a panel that mounted
+// again started with no "last asked" and asked at once: a remounting panel asked once per mount, however
+// fast (the report: ~100 in a few seconds against a cell). The last answer, the request in flight and when
+// it was asked are kept here; a mount draws the last answer at once and asks only when the gap allows.
+const poll = { model: null, carried: new Map(), inFlight: false, last: 0 };
+
+/** Tests only: forget the page's last answer and when it was asked. */
+export function resetArrivingPoll() {
+  poll.model = null;
+  poll.carried = new Map();
+  poll.inFlight = false;
+  poll.last = 0;
+}
+
 export function useArrivingRows({ groups, designRel, fetchImpl }) {
-  const state = useRef({ model: null, carried: new Map(), inFlight: false, last: 0, timer: null });
+  const state = useRef({ timer: null });
   const indexed = useRef(new Set());
   indexed.current = indexedPaths(groups, designRel);
 
@@ -127,12 +141,12 @@ export function useArrivingRows({ groups, designRel, fetchImpl }) {
     const s = state.current;
     let alive = true;
     const publish = () => {
-      const out = arrivingSlots(s.model, {
+      const out = arrivingSlots(poll.model, {
         indexed: indexed.current,
-        carried: s.carried,
+        carried: poll.carried,
         localOnly,
       });
-      s.carried = out.carried;
+      poll.carried = out.carried;
       setGhostRows('sync', out.ghosts);
       setFootSlot('arriving', out.foot);
     };
@@ -141,23 +155,26 @@ export function useArrivingRows({ groups, designRel, fetchImpl }) {
       s.timer = setTimeout(ask, Math.max(ms, MIN_GAP_MS));
     };
     async function ask() {
-      if (!alive || s.inFlight) return;
-      const since = Date.now() - s.last;
-      if (since < MIN_GAP_MS) return schedule(MIN_GAP_MS - since);
-      s.inFlight = true;
-      s.last = Date.now();
-      const model = await readAvailability(fetchImpl);
-      s.inFlight = false;
       if (!alive) return;
+      // another mount's read is out: its answer lands in `poll`; look again after the gap
+      if (poll.inFlight) return schedule(MIN_GAP_MS);
+      const since = Date.now() - poll.last;
+      if (since < MIN_GAP_MS) return schedule(MIN_GAP_MS - since);
+      poll.inFlight = true;
+      poll.last = Date.now();
+      const model = await readAvailability(fetchImpl);
+      poll.inFlight = false;
       // A failed read keeps the last answer (never "nothing is coming" because one request failed).
-      if (model) s.model = model;
+      if (model) poll.model = model;
+      if (!alive) return;
       publish();
-      schedule(NEXT_MS[s.model?.phase] ?? NEXT_MS.complete);
+      schedule(NEXT_MS[poll.model?.phase] ?? NEXT_MS.complete);
     }
     s.ask = ask;
     s.publish = publish;
     const onLocalOnly = () => publish();
     localOnlyListeners.add(onLocalOnly);
+    if (poll.model) publish();
     void ask();
     return () => {
       alive = false;

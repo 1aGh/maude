@@ -6,6 +6,7 @@ export function createIndexLoader<T>({
   retryDelayMs = 500,
   maxRetryDelayMs = 5000,
   timeoutMs = 10000,
+  maxTimeoutMs = 120000,
 }: {
   read: (signal: AbortSignal) => Promise<T>;
   apply: (value: T) => void;
@@ -13,10 +14,18 @@ export function createIndexLoader<T>({
   retryDelayMs?: number;
   maxRetryDelayMs?: number;
   timeoutMs?: number;
+  maxTimeoutMs?: number;
 }) {
   let disposed = false;
   let dirty = false;
   let failures = 0;
+  // #204 — a large index on a small cell answered after the fixed timeout, so it was aborted and
+  // asked again forever (each retry another full build on the server). Each timeout in a row
+  // doubles the next one's patience, up to `maxTimeoutMs`; any answer resets it.
+  let timeoutsInARow = 0;
+  // #204 — nothing drawn yet: the first answer is drawn even if a refresh is already queued behind
+  // it (a materialising project asks for one per arriving file, so "only the freshest" was never).
+  let appliedOnce = false;
   let pending: Promise<void> | null = null;
   let retryTimer: ReturnType<typeof setTimeout> | undefined;
   let controller: AbortController | undefined;
@@ -30,15 +39,26 @@ export function createIndexLoader<T>({
       cancelRetry();
       const current = new AbortController();
       controller = current;
-      const timeout = setTimeout(() => current.abort(), timeoutMs);
+      let timedOut = false;
+      const patience = Math.min(maxTimeoutMs, timeoutMs * 2 ** Math.min(timeoutsInARow, 10));
+      const timeout = setTimeout(() => {
+        timedOut = true;
+        current.abort();
+      }, patience);
       try {
         const value = await read(current.signal);
+        timeoutsInARow = 0;
         // A mutation/refresh requested a newer index during this read. Do not
-        // briefly restore the older tree; the next request serves all waiters.
-        if (!disposed && !dirty) apply(value);
+        // briefly restore the older tree; the next request serves all waiters —
+        // unless there is no tree at all yet (#204): then this one is drawn.
+        if (!disposed && (!dirty || !appliedOnce)) {
+          apply(value);
+          appliedOnce = true;
+        }
         failures = 0;
       } catch (error) {
         if (disposed) return;
+        if (timedOut) timeoutsInARow++;
         onError(error);
         const status = (error as { status?: number } | null)?.status;
         if (status == null || status === 408 || status === 429 || status >= 500) {

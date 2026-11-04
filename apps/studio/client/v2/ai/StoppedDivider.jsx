@@ -9,10 +9,11 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { stoppedLine, stoppedRunFor } from './stopped.js';
+import { servedFetch } from '../shell/served-routes.js';
 
 async function fetchMine() {
   try {
-    const r = await fetch('/_api/ai/runs', { cache: 'no-store' });
+    const r = await servedFetch('/_api/ai/runs', { cache: 'no-store' });
     if (!r.ok) return null;
     const j = await r.json();
     return Array.isArray(j?.mine) ? j.mine : null;

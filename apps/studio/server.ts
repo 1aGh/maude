@@ -40,6 +40,7 @@ import { saveHold, withSaveRequest } from './ai/save-hold.ts';
 import { migrateAnnotationsV2 } from './annotations/migrate-boot.ts';
 import { runContext, runTagOf, stageRunAnnotations } from './annotations/run-tag.ts';
 import { ASSET_MAX_VIDEO_BYTES, createApi } from './api.ts';
+import { bootFinished, bootStep } from './boot-progress.ts';
 import { bootSelfHeal } from './boot-self-heal.ts';
 import { isSandboxArmed } from './canvas-build-sandbox.ts';
 import { createCanvasListWatch } from './canvas-list-watch.ts';
@@ -102,10 +103,12 @@ if (process.argv.includes('--home')) {
 }
 
 const ctx = createContext();
+bootStep('context');
 
 // V2-2.9 (T23) — persist the per-source diagnostics (server · sync · ai · export) under
 // ~/.maude/logs (or $MAUDE_LOG_DIR), scrubbed, 7 days. Local only: nothing is sent anywhere.
 await initDiagnostics({ repoRoot: ctx.paths.repoRoot });
+bootStep('diagnostics');
 
 // DDR-064 — the collab room's Y.Doc is THE doc per canvas, everywhere. Since p8-v1-drop there is no
 // opt-out: `MAUDE_SHARED_DOC=0` (the rollback onto the two-doc + disk-reconcile path) is gone. Set on
@@ -244,7 +247,9 @@ const inspects = createInspectRegistry(ctx, (file) => api.loadCommentsForFile(fi
 inspectHandle = inspects;
 // The shared instance is the desktop's, and a cell's fallback for anything that
 // arrives without a vouched session.
+bootStep('api');
 await inspects.for('').load();
+bootStep('inspect');
 
 // Semantic structural notifications include remote sync operations as well as
 // API actions. Keep every session's agent/inspector context on the live path.
@@ -305,6 +310,7 @@ const runRegistry = createRunRegistry({
   }),
 });
 await runRegistry.boot();
+bootStep('runs');
 // S5.15 — every accepted action reaches the shell as `project:action`, not only a run's publish and the
 // undo routes': a person's edit (yours, or a teammate's arriving from the hub) clears "Made by AI".
 const actionFeed = createActionFeed({
@@ -389,6 +395,7 @@ const ws = createWs(
 const exportJobs = createExportJobQueue(ctx.bus, ctx.paths.designRoot, { runs: () => runRegistry });
 // feature-ai-media-generation (DDR-16x) — background AI-media generation queue.
 const generateJobs = createGenerationJobQueue(ctx.bus, ctx.paths.designRoot);
+bootStep('sockets');
 const http = createHttp(ctx, api, inspects, aiActivity, exportJobs, generateJobs, {
   shellCount: () => ws.shellCount(),
   runs: runRegistry,
@@ -412,7 +419,9 @@ if (!isWorkspaceMode()) {
   });
   ctx.bus.on('config-updated', narrowSockets);
 }
+bootStep('http');
 const fsWatch = createFsWatch(ctx);
+bootStep('watcher');
 
 // Port: --port arg > $PORT > $MDCC_DEV_PORT > $MAUDE_PORT_BASE > 47399 (e2e) > 46399 (the desktop app) > 4399 — port.ts.
 // When the port wasn't explicitly chosen and the default is busy (another
@@ -942,6 +951,7 @@ function startCanvasServer(
   });
 }
 
+bootStep('routes');
 let server: BunServer;
 {
   const r = bindFirst(PORT_CANDIDATES, (p) => listenLoopback((h, port) => startServer(port, h), p));
@@ -1060,6 +1070,7 @@ const captureServer =
 if (captureServer) ctx.captureOrigin = `http://localhost:${captureServer.port}`;
 
 const startedAt = new Date().toISOString();
+bootFinished();
 await Bun.write(
   ctx.paths.serverInfoFile,
   JSON.stringify(

@@ -65,6 +65,36 @@ const askAvailability = (path, fetchImpl) =>
     .then((r) => (r.ok ? r.json() : null))
     .then((body) => body?.canvas?.state ?? 'unknown');
 
+// #204 R — one ask per canvas per OPEN, not per render: a tab that flips between canvases (or a viewport
+// that mounts again) asked on every flip. An open shares the ask in flight for its path and reuses an
+// answer younger than OPEN_REUSE_MS. Keyed by the fetch it went through (tests inject their own).
+export const OPEN_REUSE_MS = 1000;
+const DEFAULT_FETCH = {};
+let asks = new WeakMap();
+
+function askOnOpen(path, fetchImpl) {
+  const key = fetchImpl || DEFAULT_FETCH;
+  let byPath = asks.get(key);
+  if (!byPath) {
+    byPath = new Map();
+    asks.set(key, byPath);
+  }
+  const hit = byPath.get(path);
+  if (hit && (hit.pending || Date.now() - hit.at < OPEN_REUSE_MS)) return hit.answer;
+  const entry = { at: Date.now(), pending: true, answer: null };
+  entry.answer = askAvailability(path, fetchImpl).finally(() => {
+    entry.pending = false;
+    entry.at = Date.now();
+  });
+  byPath.set(path, entry);
+  return entry.answer;
+}
+
+/** Tests only: forget every recent ask. */
+export function resetAvailabilityAsks() {
+  asks = new WeakMap();
+}
+
 /**
  * One canvas's availability, asked once per path (and again when `stamp` changes — the tab's reload key).
  * A canvas that is `arriving` is asked again every `recheckMs` until it is here (no flicker: the answer
@@ -82,7 +112,7 @@ export function useCanvasAvailability(
     if (!path) return;
     let alive = true;
     setState(null);
-    askAvailability(path, fetchImpl)
+    askOnOpen(path, fetchImpl)
       .then((s) => alive && setState(s))
       .catch(() => alive && setState('unknown'));
     return () => {

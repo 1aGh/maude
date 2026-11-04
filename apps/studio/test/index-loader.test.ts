@@ -49,7 +49,14 @@ test('refresh during a request skips stale data and all callers await the fresh 
   const first = deferred<string>(),
     second = deferred<string>();
   let calls = 0;
-  const loader = setup(() => (++calls === 1 ? first.promise : second.promise));
+  let primed = false;
+  const loader = setup(() =>
+    !primed ? Promise.resolve('shown tree') : ++calls === 1 ? first.promise : second.promise
+  );
+  await loader.reload();
+  // #204 — a tree is on screen, so a stale answer may wait for the fresh one
+  primed = true;
+  loader.applied.splice(0);
   const beforeMutation = loader.reload();
   const afterMutation = loader.reload();
   const repeated = loader.reload();
@@ -62,6 +69,59 @@ test('refresh during a request skips stale data and all callers await the fresh 
   expect(loader.applied).toEqual(['fresh tree']);
   expect(calls).toBe(2);
 });
+// #204 (task L) — a ~311-canvas workspace: while the hub materialised the tree, every arriving
+// file asked for a reload, so each answer was already "stale" when it landed and was thrown away —
+// the browser drew nothing until the arrivals stopped. The FIRST tree is drawn even if a refresh
+// is already queued behind it.
+test('#204: a first answer is drawn even while refreshes keep arriving', async () => {
+  const gates: Array<ReturnType<typeof deferred<string>>> = [];
+  const loader = setup(() => {
+    const d = deferred<string>();
+    gates.push(d);
+    return d.promise;
+  });
+  void loader.reload();
+  for (let i = 0; i < 3; i++) {
+    await until(() => gates.length === i + 1);
+    void loader.reload(); // another file arrived while this read was in flight
+    gates[i].resolve(`tree ${i}`);
+  }
+  await until(() => gates.length === 4);
+  expect(loader.applied[0]).toBe('tree 0');
+  gates[3].resolve('tree 3');
+  await until(() => loader.applied.at(-1) === 'tree 3');
+});
+
+// #204 — a slow server (a large index on a small cell) answered after the fixed 10 s abort, so
+// the client aborted and asked again forever (ERR_ABORTED again and again), each retry adding
+// another full index build on the server. A timeout now doubles each time it fires in a row.
+test('#204: a slow index gets longer each time it times out, instead of the same abort forever', async () => {
+  const waited: number[] = [];
+  let calls = 0;
+  const loader = setup(
+    (signal) => {
+      if (++calls > 3) return Promise.resolve('finally');
+      const t0 = Date.now();
+      return new Promise((_resolve, reject) =>
+        signal.addEventListener(
+          'abort',
+          () => {
+            waited.push(Date.now() - t0);
+            reject(new Error('Timeout'));
+          },
+          { once: true }
+        )
+      );
+    },
+    { timeoutMs: 20 }
+  );
+  await loader.reload();
+  await until(() => loader.applied.length === 1);
+  expect(waited).toHaveLength(3);
+  expect(waited[1]).toBeGreaterThanOrEqual(38);
+  expect(waited[2]).toBeGreaterThanOrEqual(78);
+});
+
 test('dispose cancels a scheduled recovery', async () => {
   let calls = 0;
   const loader = setup(async () => {
