@@ -29,11 +29,12 @@ export const Chip = ({ ai = false, children, style }: { ai?: boolean; children: 
  * with a soft spark glow. `draw` 0→1 draws the stroke, `out` 0→1 lets it go.
  */
 export const SparkRing = ({ x, y, w, h, draw, out = 0, r = 28 }: { x: number; y: number; w: number; h: number; draw: number; out?: number; r?: number }) => {
-  const per = 2 * (w + h);
+  // nothing at draw 0: a zero-length dash with a round cap would leave a stray dot
+  if (draw <= 0.001 || out >= 0.999) return null;
   return (
     <svg style={{ position: 'absolute', left: x - 12, top: y - 12, overflow: 'visible', opacity: 1 - out, pointerEvents: 'none' }} width={w + 24} height={h + 24}>
       <rect x={12} y={12} width={w} height={h} rx={r} fill="none" stroke="var(--spark-muted)" strokeWidth={14 * draw} />
-      <rect x={12} y={12} width={w} height={h} rx={r} fill="none" stroke="var(--spark)" strokeWidth={4} strokeLinecap="round" strokeDasharray={per} strokeDashoffset={per * (1 - draw)} />
+      <rect x={12} y={12} width={w} height={h} rx={r} fill="none" stroke="var(--spark)" strokeWidth={4} strokeLinecap="round" pathLength={1} strokeDasharray="1 1" strokeDashoffset={1 - draw} />
     </svg>
   );
 };
@@ -74,5 +75,35 @@ export const wobblyBox = (x: number, y: number, w: number, h: number, seed: numb
 /** An SVG path that draws itself between `a` and `b` (s). */
 export const DrawnPath = ({ d, t, a, b, width = 3.2, color = 'var(--fg-0)', opacity = 1 }: { d: string; t: number; a: number; b: number; width?: number; color?: string; opacity?: number }) => {
   const k = tw(t, a, b, 0, 1, EASE.enter);
-  return <path d={d} pathLength={1} fill="none" stroke={color} strokeWidth={width} strokeLinecap="round" strokeLinejoin="round" strokeDasharray="1 1" strokeDashoffset={1 - k} opacity={k > 0 ? opacity : 0} />;
+  return <path d={d} pathLength={1} fill="none" stroke={color} strokeWidth={width} strokeLinecap="round" strokeLinejoin="round" strokeDasharray="1 1" strokeDashoffset={1 - k} opacity={k > 0.002 ? opacity : 0} />;
+};
+
+/**
+ * A point on a rounded rect's outline at arc-length fraction `u` (0→1), starting where an SVG
+ * <rect> path starts (x + r, y) and running clockwise, so it rides exactly on a SparkRing's stroke.
+ */
+export const ringPoint = (x: number, y: number, w: number, h: number, r: number, u: number): [number, number] => {
+  const a = (Math.PI * r) / 2;
+  const sides = [w - 2 * r, a, h - 2 * r, a, w - 2 * r, a, h - 2 * r, a];
+  const L = sides.reduce((s, n) => s + n, 0);
+  let d = Math.max(0, Math.min(1, u)) * L;
+  const arc = (cx: number, cy: number, from: number, k: number): [number, number] => {
+    const ang = from + (k * Math.PI) / 2;
+    return [cx + r * Math.cos(ang), cy + r * Math.sin(ang)];
+  };
+  const segs: ((k: number) => [number, number])[] = [
+    (k) => [x + r + k * (w - 2 * r), y],
+    (k) => arc(x + w - r, y + r, -Math.PI / 2, k),
+    (k) => [x + w, y + r + k * (h - 2 * r)],
+    (k) => arc(x + w - r, y + h - r, 0, k),
+    (k) => [x + w - r - k * (w - 2 * r), y + h],
+    (k) => arc(x + r, y + h - r, Math.PI / 2, k),
+    (k) => [x, y + h - r - k * (h - 2 * r)],
+    (k) => arc(x + r, y + r, Math.PI, k),
+  ];
+  for (let i = 0; i < 8; i++) {
+    if (d <= sides[i] || i === 7) return segs[i](sides[i] ? Math.min(1, d / sides[i]) : 1);
+    d -= sides[i];
+  }
+  return [x + r, y];
 };

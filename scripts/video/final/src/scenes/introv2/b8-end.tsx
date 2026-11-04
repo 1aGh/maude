@@ -17,7 +17,9 @@ export const EndCard = () => {
   const word = sp(t, mark + 0.12, 'snappy');
   const l = sp(t, line, 'snappy');
   const fly = tw(t, stop - 0.75, stop, 0, 1, EASE.move);
-  const land = sp(t, stop, 'bouncy');
+  const land = sp(t, stop, 'pop'); // the full stop: one of the film's two big overshoots
+  // after the CTA, the full stop breathes (1 Hz) so the held poster frame is never dead
+  const glow = tw(t, cta + 1.2, cta + 1.8) * (0.5 - 0.5 * Math.cos((t - cta - 1.2) * Math.PI * 2));
   const c = sp(t, cta, 'snappy');
   return (
     <div style={{ position: 'absolute', left: 5200, top: 1500, transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 34 }}>
@@ -30,14 +32,15 @@ export const EndCard = () => {
       <p style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 60, letterSpacing: '-0.02em', color: 'var(--fg-0)', opacity: l, transform: `translateY(${(1 - l) * 30}px)`, whiteSpace: 'nowrap' }}>
         Built around AI, <span style={{ color: 'var(--fg-2)' }}>not bent to fit one</span>
         {/* the spark lands as the full stop: it flies in on an arc from the upper left */}
-        <span style={{ display: 'inline-block', width: 30, position: 'relative' }}>
+        <span style={{ display: 'inline-block', width: 50, position: 'relative' }}>
           <span
             style={{
-              position: 'absolute', left: 4, bottom: 6, display: 'inline-flex', opacity: fly > 0 ? 1 : 0,
-              transform: `translate(${(1 - fly) * -720}px, ${(1 - fly) * -260 - Math.sin(Math.PI * fly) * 160}px) rotate(${(1 - fly) * -240}deg) scale(${fly < 1 ? 1.6 : 1 + 0.4 * (1 - land)})`,
+              position: 'absolute', left: 6, bottom: 4, display: 'inline-flex', opacity: fly > 0 ? 1 : 0,
+              transform: `translate(${(1 - fly) * -720}px, ${(1 - fly) * -260 - Math.sin(Math.PI * fly) * 160}px) rotate(${(1 - fly) * -150}deg) scale(${fly < 1 ? 1.35 : 1 + 0.35 * (1 - land)})`,
+              filter: glow > 0.01 ? `drop-shadow(0 0 ${4 + 10 * glow}px var(--spark-muted))` : undefined,
             }}
           >
-            <Spark size={30} />
+            <Spark size={40} />
           </span>
         </span>
       </p>

@@ -26,6 +26,7 @@ export const HOOK_BOX = { x: -520, y: -205, w: 1040, h: 410 };
 
 export const Hook = () => {
   const t = useT();
+  if (t > 7.5) return null; // off camera from the first whip on
   const box = sp(t, 0.05, 'calm');
   const ai = tw(t, CUE.hook.edit, CUE.hook.edit + 0.25);
   const p = -3 + tw(t, CUE.hook.edit + 0.1, CUE.hook.edit + 1.2, 0, 1, EASE.move) * 16;
@@ -44,9 +45,9 @@ export const Hook = () => {
         {handle(B.w, B.h)}
         <span
           style={{
-            position: 'absolute', right: -2, top: -44, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 12px', borderRadius: 6,
+            position: 'absolute', right: -14, top: -56, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 12px', borderRadius: 6,
             fontWeight: 600, fontSize: 20, color: ai ? 'var(--spark-fg)' : 'var(--accent-fg)', background: ai ? 'var(--spark)' : 'var(--accent)',
-            transform: `scale(${sp(t, 0.4, 'bouncy')})`, transformOrigin: '100% 100%',
+            transform: `scale(${sp(t, 0.4, 'snappy')})`, transformOrigin: '100% 100%',
           }}
         >
           {ai ? <><Spark size={14} color="currentColor" /> AI is editing</> : 'Text · Display'}
@@ -61,7 +62,7 @@ export const Hook = () => {
         {LINES.map((l, j) => {
           const k = sp(t, l.at, 'snappy');
           return (
-            <span key={j} style={{ display: 'block', whiteSpace: 'nowrap', color: l.quiet ? 'var(--fg-2)' : undefined, opacity: k, transform: `translateY(${(1 - k) * 34}px)` }}>
+            <span key={j} style={{ display: 'block', whiteSpace: 'nowrap', color: l.quiet ? 'var(--fg-1)' : undefined, opacity: k, transform: `translateY(${(1 - k) * 34}px)` }}>
               {Array.from(l.t).map((c, i) => (
                 <Fragment key={i}>
                   <span style={j === 2 ? { fontWeight: weight(i, p) } : undefined}>{c}</span>

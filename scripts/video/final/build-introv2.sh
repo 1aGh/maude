@@ -19,15 +19,16 @@ BED_SEGMENTS="$A/music/bed-a.mp3:0:0:27.5:0.6:0.03:1 \
 $A/music/bed-b2.mp3:31210:0:22.29:0.02:0.03:1 \
 $A/music/bed-c.mp3:59400:0:11.1:0.02:1.2:1"
 
-# SFX, name:frame:volume (30 fps), tight to the picture.
-SFX_LIST="sub-pulse:69f:0.7 spark:90f:0.35 spark:149f:0.3 \
-whoosh:182f:0.45 clip-drop:198f:0.7 clip-drop:209f:0.45 pop:246f:0.4 spark:347f:0.4 whoosh:396f:0.3 \
-whoosh:530f:0.45 clip-drop:546f:0.5 shutter:628f:0.5 shutter:637f:0.5 shutter:647f:0.5 shutter:656f:0.5 shutter:666f:0.5 shutter:676f:0.5 spark:708f:0.35 \
-whoosh:815f:0.45 scribble:834f:0.6 spark:927f:0.45 snap-hit:954f:0.8 click:1026f:0.6 whoosh:1035f:0.3 whoosh:1068f:0.3 \
-whoosh:1149f:0.5 strike:1194f:0.8 strike:1212f:0.8 strike:1332f:0.8 \
+# SFX, name:frame:volume (30 fps), tight to the picture (round 2: re-timed to the new cues —
+# the snap-to-grid shutter burst, the two clicks in wow 3, the 0.7 s flip back).
+SFX_LIST="sub-pulse:69f:0.7 spark:90f:0.35 spark:150f:0.3 \
+whoosh:180f:0.45 clip-drop:218f:0.7 clip-drop:232f:0.45 pop:249f:0.4 spark:347f:0.4 whoosh:396f:0.3 \
+whoosh:534f:0.45 clip-drop:567f:0.5 shutter:626f:0.45 shutter:630f:0.45 shutter:634f:0.45 shutter:637f:0.45 shutter:641f:0.45 shutter:644f:0.5 spark:690f:0.35 spark:734f:0.3 \
+whoosh:810f:0.45 scribble:834f:0.6 spark:927f:0.45 snap-hit:954f:0.8 click:998f:0.6 whoosh:1004f:0.3 click:1061f:0.55 whoosh:1066f:0.3 \
+whoosh:1145f:0.5 strike:1194f:0.8 strike:1212f:0.8 strike:1332f:0.8 \
 whoosh:1395f:0.45 pop:1443f:0.35 pop:1452f:0.35 pop:1461f:0.35 pop:1470f:0.35 pop:1473f:0.4 pop:1479f:0.35 pop:1490f:0.4 \
-whoosh:1599f:0.45 flip:1655f:0.7 flip:1773f:0.7 click:1841f:0.6 \
-whoosh:1889f:0.45 riser:1908f:0.5 spark:1989f:0.55"
+whoosh:1599f:0.45 flip:1655f:0.7 flip:1766f:0.7 click:1841f:0.6 \
+whoosh:1887f:0.45 riser:1908f:0.5 spark:1990f:0.55"
 
 V=out/introv2/IntroV2.mp4 OUT="$OUT" FPS=30 \
 VO_DIR=$A/vo/_trim VO_LIST="$VO_LIST" \

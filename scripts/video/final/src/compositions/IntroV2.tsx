@@ -31,7 +31,7 @@ export const IntroV2 = () => {
         <Hook />
         <WowVideo />
         <WowPosts />
-        <WowSketch hideScreen1={t >= CUE.flip.lift - 0.05 && t < 62.95} />
+        <WowSketch hideScreen1={t >= CUE.flip.lift + 0.1 && t < CUE.flip.off} />
         <NoHandoff />
         <EndCard />
         <SparkTraveler />

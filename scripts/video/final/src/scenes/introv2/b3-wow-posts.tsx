@@ -1,4 +1,6 @@
-import { GatorMock, Thumb } from '../../../vendor/maude-v2/_kit';
+import type { ReactNode } from 'react';
+import { Img } from 'remotion';
+import { photo } from './b2-wow-video';
 import { Chip } from './shared';
 import { CUE, EASE, lerp, sp, tw, useT } from './motion';
 
@@ -6,74 +8,111 @@ import { CUE, EASE, lerp, sp, tw, useT } from './motion';
  * Beat 3 · Wow 2 (18–27.5 s). "Drop in photos from the shoot. Out come the Instagram posts. On
  * brand, because it knows your design system."
  *
- * A recreation. Five photos drop and settle on the left; on "Out come the Instagram posts" each
- * one flies out (staggered, one shutter tick each) to a slot: four 1:1 posts and two 9:16
- * stories, first as the plain photo; on "On brand" the brand's own layout and colours (the
- * Alligators kit) wipe up over each one; "Made by AI" lands last.
+ * A recreation. Six prints from the shoot drop onto the canvas, big, close to the camera; on "Out
+ * come" they snap to a grid in a fast cascade (four 1:1 posts and two 9:16 stories, a shutter
+ * tick each) while the camera eases out to hold the whole grid; on "On brand" the club's layout
+ * (the Alligators kit: ink, green, the leaf) wipes up over each photo; on "design system" every
+ * post swaps to the kit's second layout in one cascade. The photos stay the photos throughout.
  */
-type Slot = { x: number; y: number; w: number; h: number; variant: 'social' | 'reel'; headline: string };
-const SLOTS: Slot[] = [
-  { x: 4860, y: -290, w: 270, h: 270, variant: 'social', headline: 'Game day' },
-  { x: 5150, y: -290, w: 270, h: 270, variant: 'social', headline: 'Join us' },
-  { x: 4860, y: 0, w: 270, h: 270, variant: 'social', headline: 'Season 26' },
-  { x: 5150, y: 0, w: 270, h: 270, variant: 'social', headline: 'Tryouts' },
-  { x: 5470, y: -290, w: 230, h: 410, variant: 'reel', headline: 'Touchdown' },
-  { x: 5730, y: -290, w: 230, h: 410, variant: 'reel', headline: 'Saturday' },
+type Slot = { x: number; y: number; w: number; h: number; story: boolean; pic: string; headline: string; sub: string };
+const P = 360; // post size
+const GAP = 24;
+const SW = 419; // story width (9:16 at the grid's height)
+const GX = 4442;
+const GY = -372;
+const GH = 2 * P + GAP;
+export const SLOTS: Slot[] = [
+  { x: GX, y: GY, w: P, h: P, story: false, pic: '05-hands', headline: 'Game day', sub: 'Sat 3 pm · home' },
+  { x: GX + P + GAP, y: GY, w: P, h: P, story: false, pic: '09-leap', headline: 'Touchdown', sub: 'Gators 24 · 17' },
+  { x: GX, y: GY + P + GAP, w: P, h: P, story: false, pic: '06-cleats', headline: 'Tryouts', sub: 'Open to all · Mon' },
+  { x: GX + P + GAP, y: GY + P + GAP, w: P, h: P, story: false, pic: '08-bench', headline: 'Season 26', sub: 'The full roster' },
+  { x: GX + 2 * (P + GAP), y: GY, w: SW, h: GH, story: true, pic: '04-throw', headline: 'Under the lights', sub: 'Friday 7 pm' },
+  { x: GX + 2 * (P + GAP) + SW + GAP, y: GY, w: SW, h: GH, story: true, pic: '03-huddle', headline: 'One team', sub: 'Join the club' },
 ];
-const PHOTOS = [
-  { x: 4330, y: -250, rot: -7 },
-  { x: 4420, y: -120, rot: 5 },
-  { x: 4350, y: 20, rot: -3 },
-  { x: 4460, y: 120, rot: 8 },
-  { x: 4380, y: 230, rot: -5 },
+const PILE = [
+  { x: 4760, y: -310, rot: -7 },
+  { x: 5180, y: -340, rot: 5 },
+  { x: 5560, y: -250, rot: -4 },
+  { x: 4860, y: 30, rot: 6 },
+  { x: 5260, y: -40, rot: -3 },
+  { x: 5540, y: 60, rot: 8 },
 ];
-const PW = 250;
-const PH = 190;
+const PW = 400;
+const PH = 300;
+
+const Leaf = ({ size }: { size: number }) => <i style={{ display: 'block', width: size, height: size, borderRadius: `${size * 0.2}px 999px ${size * 0.2}px 999px`, background: 'var(--object-green)' }} />;
+
+/** The club's first layout: the photo full bleed, an ink band with the headline, the leaf. */
+const LayoutA = ({ s }: { s: Slot }) => (
+  <div style={{ position: 'absolute', inset: 0 }}>
+    <span style={{ position: 'absolute', left: 22, top: 22 }}><Leaf size={s.story ? 52 : 44} /></span>
+    <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: s.story ? '28px 28px 34px' : '18px 22px 22px', background: 'var(--object-ink)' }}>
+      <b style={{ display: 'block', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: s.story ? 52 : 40, lineHeight: 1.02, letterSpacing: '-0.03em', color: 'var(--object-green)' }}>{s.headline}</b>
+      <span style={{ display: 'block', marginTop: 6, fontSize: s.story ? 22 : 18, color: 'var(--object-grey)' }}>{s.sub}</span>
+    </div>
+  </div>
+);
+
+/** The second layout: ink ground, the photo in the kit's arch, the headline under it. */
+const LayoutB = ({ s, children }: { s: Slot; children: ReactNode }) => (
+  <div style={{ position: 'absolute', inset: 0, background: 'var(--object-ink)' }}>
+    <div style={{ position: 'absolute', left: '9%', right: '9%', top: '7%', bottom: s.story ? '24%' : '33%', borderRadius: '999px 999px 18px 18px', overflow: 'hidden' }}>{children}</div>
+    <b style={{ position: 'absolute', left: '9%', right: 60, bottom: s.story ? '8%' : '9%', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: s.story ? 50 : 36, lineHeight: 1.02, letterSpacing: '-0.03em', color: 'var(--object-green)' }}>{s.headline}</b>
+    <span style={{ position: 'absolute', right: '8%', bottom: s.story ? '8%' : '9%' }}><Leaf size={s.story ? 40 : 30} /></span>
+  </div>
+);
 
 export const WowPosts = () => {
   const t = useT();
-  if (t < 17.2) return null;
-  const made = sp(t, CUE.w2.made, 'bouncy');
+  if (t < 17.2 || (t > 28 && t < 46) || t > 54.2) return null;
+  const made = sp(t, CUE.w2.made, 'snappy');
   return (
     <>
       {SLOTS.map((s, i) => {
-        const p = PHOTOS[i % PHOTOS.length];
+        const p = PILE[i];
         const drop = sp(t, CUE.w2.drop + i * 0.09, 'snappy');
-        const fly = tw(t, CUE.w2.fan + i * 0.32, CUE.w2.fan + 0.62 + i * 0.32, 0, 1, EASE.move);
-        const land = sp(t, CUE.w2.fan + 0.55 + i * 0.32, 'bouncy');
-        const brand = tw(t, CUE.w2.brand + i * 0.14, CUE.w2.brand + 0.55 + i * 0.14, 0, 1, EASE.enter);
-        // the photo falls from above onto the pile, then flies out to its slot on an arc
-        const x = lerp(p.x, s.x, fly);
-        const y = lerp(p.y - (1 - drop) * 700, s.y, fly) - Math.sin(Math.PI * fly) * 140;
+        // snap to the grid: a fast cascade on one spring, with a small settle past the slot
+        const go = sp(t, CUE.w2.fan + i * 0.12, 'bouncy');
+        const fly = Math.min(1, go);
+        const x = lerp(p.x, s.x, go);
+        const y = lerp(p.y - (1 - drop) * 700, s.y, go) - Math.sin(Math.PI * fly) * 90;
         const w = lerp(PW, s.w, fly);
         const h = lerp(PH, s.h, fly);
         const rot = lerp(p.rot, 0, fly);
-        const pop = fly >= 1 ? 1 + 0.05 * Math.sin(Math.PI * Math.min(1, land)) * (1 - land) : 1;
+        const brand = tw(t, CUE.w2.brand + i * 0.12, CUE.w2.brand + 0.5 + i * 0.12, 0, 1, EASE.enter);
+        const swap = tw(t, CUE.w2.swap + i * 0.08, CUE.w2.swap + 0.45 + i * 0.08, 0, 1, EASE.enter);
+        const pic = <Img src={photo(s.pic)} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />;
         return (
           <div
             key={i}
             style={{
-              position: 'absolute', left: x, top: y, width: w, height: h, transform: `rotate(${rot}deg) scale(${pop})`, opacity: drop,
-              borderRadius: 12, overflow: 'hidden', boxShadow: 'var(--shadow-md)', border: `${lerp(8, 0, fly)}px solid var(--bg-0)`, background: 'var(--bg-0)',
+              position: 'absolute', left: x, top: y, width: w, height: h, transform: `rotate(${rot}deg)`, opacity: drop, zIndex: go > 0.02 ? 10 + i : i,
+              borderRadius: 14, overflow: 'hidden', boxShadow: 'var(--shadow-lg)', border: `${lerp(10, 0, fly)}px solid var(--bg-0)`, background: 'var(--object-ink)',
             }}
           >
-            <Thumb art={i % 2 ? 'gator-reel' : 'brand'} w={w} h={h} />
-            {/* the brand layout wipes up over the photo on "On brand" */}
-            <div style={{ position: 'absolute', inset: 0, clipPath: `inset(${(1 - brand) * 100}% 0 0 0)` }}>
-              <div style={{ width: s.w, height: s.h }}>
-                <GatorMock variant={s.variant} headline={s.headline} />
+            {pic}
+            {/* "On brand": the club's layout wipes up over the photo */}
+            <div style={{ position: 'absolute', inset: 0, clipPath: `inset(${(1 - brand) * 100}% 0 0 0)`, opacity: brand > 0.001 ? 1 : 0 }}>
+              <div style={{ position: 'absolute', left: 0, top: 0, width: s.w, height: s.h }}>
+                <LayoutA s={s} />
+              </div>
+            </div>
+            {/* "design system": every post swaps to the kit's second layout, top down */}
+            <div style={{ position: 'absolute', inset: 0, clipPath: `inset(0 0 ${(1 - swap) * 100}% 0)`, opacity: swap > 0.001 ? 1 : 0 }}>
+              <div style={{ position: 'absolute', left: 0, top: 0, width: s.w, height: s.h }}>
+                <LayoutB s={s}>{pic}</LayoutB>
               </div>
             </div>
           </div>
         );
       })}
       {SLOTS.map((s, i) => (
-        <span key={`l${i}`} style={{ position: 'absolute', left: s.x, top: s.y - 30, fontSize: 17, fontWeight: 600, color: 'var(--fg-1)', opacity: tw(t, CUE.w2.fan + 0.6 + i * 0.32, CUE.w2.fan + 0.9 + i * 0.32) }}>
-          {s.variant === 'reel' ? 'Story 9:16' : 'Post 1:1'}
+        <span key={`l${i}`} style={{ position: 'absolute', left: s.x, top: s.y - 34, fontSize: 22, fontWeight: 600, color: 'var(--fg-1)', opacity: tw(t, CUE.w2.fan + 0.45 + i * 0.12, CUE.w2.fan + 0.75 + i * 0.12) }}>
+          {s.story ? 'Story 9:16' : 'Post 1:1'}
         </span>
       ))}
-      <div style={{ position: 'absolute', left: 5470, top: 160, transform: `scale(${made})`, transformOrigin: '0 0' }}>
-        <Chip ai>Made by AI · on brand</Chip>
+      <div style={{ position: 'absolute', left: 5257, top: GY + GH + 22, transform: `translateX(-50%) scale(${1.3 * made})`, transformOrigin: '50% 0' }}>
+        <Chip ai style={{ fontSize: 24 }}>Made by AI · on brand</Chip>
       </div>
     </>
   );

@@ -40,13 +40,22 @@ export const SignUpScreen = ({ k = () => 1, press = 0, frame = true }: { k?: Rev
     >
       Sign up
     </div>
-    <span style={{ position: 'absolute', left: 0, right: 0, top: 470, textAlign: 'center', fontSize: 15, color: 'var(--fg-2)', ...show(k(6)) }}>
+    <span style={{ position: 'absolute', left: 0, right: 0, top: 466, textAlign: 'center', fontSize: 16, color: 'var(--fg-2)', ...show(k(6)) }}>
       Already have an account? <b style={{ color: 'var(--accent-text)' }}>Log in</b>
     </span>
+    {/* the bottom of the card: a divider and the two social sign-ins, so the card is full */}
+    <div style={{ position: 'absolute', left: 30, right: 30, top: 512, display: 'flex', alignItems: 'center', gap: 12, fontSize: 14, color: 'var(--fg-3, var(--fg-2))', ...show(k(6)) }}>
+      <i style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />or<i style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
+    </div>
+    <div style={{ position: 'absolute', left: 30, right: 30, top: 540, display: 'flex', gap: 12, ...show(k(6)) }}>
+      {['Passkey', 'Email link'].map((n) => (
+        <span key={n} style={{ flex: 1, height: 46, borderRadius: 14, border: '1.5px solid var(--border-subtle)', display: 'grid', placeItems: 'center', fontSize: 16, fontWeight: 600, color: 'var(--fg-1)' }}>{n}</span>
+      ))}
+    </div>
   </Frame>
 );
 
-export const WelcomeScreen = () => (
+export const WelcomeScreen = ({ press = 0 }: { press?: number }) => (
   <Frame style={{ boxShadow: 'var(--shadow-lg)' }}>
     <div style={{ position: 'absolute', left: 30, right: 30, top: 60, height: 220, borderRadius: 26, background: 'var(--object-sky)', overflow: 'hidden' }}>
       <i style={{ position: 'absolute', right: 30, top: 34, width: 74, height: 74, borderRadius: 999, background: 'var(--object-yellow)' }} />
@@ -54,7 +63,7 @@ export const WelcomeScreen = () => (
     </div>
     <b style={{ position: 'absolute', left: 30, right: 30, top: 310, fontFamily: 'var(--font-display)', fontSize: 30, color: 'var(--fg-0)' }}>Welcome, Tereza!</b>
     <span style={{ position: 'absolute', left: 30, right: 30, top: 356, fontSize: 17, color: 'var(--fg-2)' }}>Let's set up your first project.</span>
-    <div style={{ position: 'absolute', left: BTN.x, top: 460, width: BTN.w, height: BTN.h, borderRadius: 999, display: 'grid', placeItems: 'center', background: 'var(--accent)', color: 'var(--accent-fg)', fontWeight: 700, fontSize: 20 }}>
+    <div style={{ position: 'absolute', left: BTN.x, top: 460, width: BTN.w, height: BTN.h, borderRadius: 999, display: 'grid', placeItems: 'center', background: press > 0.5 ? 'var(--accent-active)' : 'var(--accent)', color: 'var(--accent-fg)', fontWeight: 700, fontSize: 20, transform: `scale(${1 - 0.05 * Math.sin(Math.PI * press)})` }}>
       Continue
     </div>
   </Frame>
