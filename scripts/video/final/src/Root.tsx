@@ -3,6 +3,7 @@ import { Demo } from './compositions/Demo';
 import { DemoCaptioned } from './compositions/DemoCaptioned';
 import { Final } from './compositions/Final';
 import { V4, V4_TOTAL_FRAMES } from './compositions/V4';
+import { Intro2, INTRO2_SCENES, INTRO2_TOTAL_FRAMES } from './compositions/Intro2';
 import { V5, V5_SCENES, V5_TOTAL_FRAMES } from './compositions/V5';
 import { PlaceholderScene } from './scenes/_placeholder';
 import { SmokeScene } from './scenes/_smoke';
@@ -204,6 +205,27 @@ export const Root = () => (
       id="V5"
       component={V5}
       durationInFrames={V5_TOTAL_FRAMES}
+      fps={30}
+      width={1920}
+      height={1080}
+    />
+
+    {/* ── Intro2: the v2 site's 60-second intro (feature-public-site-v2, Phase C) ── */}
+    {INTRO2_SCENES.map((s) => (
+      <Composition
+        key={s.id}
+        id={`intro2-${s.id}`}
+        component={s.component}
+        durationInFrames={s.frames}
+        fps={30}
+        width={1920}
+        height={1080}
+      />
+    ))}
+    <Composition
+      id="Intro2"
+      component={Intro2}
+      durationInFrames={INTRO2_TOTAL_FRAMES}
       fps={30}
       width={1920}
       height={1080}
