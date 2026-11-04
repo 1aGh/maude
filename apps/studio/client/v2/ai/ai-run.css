@@ -288,12 +288,96 @@
     color: var(--fg-0);
   }
 
+  /* ── Issue #177: "Running in the background" — work AI left running after its reply ── */
+  .ai-bg {
+    flex: none;
+    margin: 0 var(--space-3) var(--space-2);
+    border-radius: var(--radius-md);
+    background: var(--bg-2);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+  }
+  .ai-bg-head,
+  .ai-bg-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+    padding: var(--space-1) var(--space-2);
+  }
+  .ai-bg-head {
+    width: 100%;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+  }
+  .ai-bg-head:hover {
+    background: var(--bg-3);
+  }
+  .ai-bg-list {
+    margin: 0;
+    padding: 0 0 var(--space-1);
+    list-style: none;
+  }
+  .ai-bg-list--one {
+    padding: 0;
+  }
+  .ai-bg-dot {
+    flex: none;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--fg-2);
+  }
+  .ai-bg.is-working .ai-bg-head .ai-bg-dot,
+  .ai-bg-row:not(.is-done) .ai-bg-dot {
+    background: var(--spark);
+    animation: ai-working-pulse 1600ms var(--ease-out, ease-out) infinite;
+  }
+  .ai-bg-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--fg-0);
+    font-weight: var(--w-medium);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ai-bg-row.is-done .ai-bg-name {
+    color: var(--fg-1);
+    font-weight: var(--w-regular);
+  }
+  .ai-bg-kind {
+    flex: none;
+    color: var(--fg-2);
+  }
+  .ai-bg-time {
+    flex: none;
+    color: var(--fg-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .ai-bg-chev {
+    display: grid;
+    flex: none;
+    color: var(--fg-2);
+    transition: transform var(--dur-flip, 120ms) var(--ease-out, ease-out);
+  }
+  .ai-bg-chev.is-open {
+    transform: rotate(90deg);
+  }
+
   @media (prefers-reduced-motion: reduce) {
-    .ai-working-spark {
-      animation: none;
+    .ai-working-spark,
+    .ai-bg-dot {
+      animation: none !important;
     }
     .ai-act,
-    .ai-fold-ch {
+    .ai-fold-ch,
+    .ai-bg-chev {
       transition-duration: 1ms;
     }
   }

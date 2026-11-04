@@ -10,6 +10,7 @@ import { recordSent, sentFromChips } from '../v2/ai/sent-attachments.js';
 import { readMay } from '../v2/ai/ai-may.js';
 import { mayField, mergeOutbox, newAskId, promptFrame, reduceQueued } from '../v2/ai/ask-frame.js';
 import { noteAskedAnnotations } from '../v2/ai/ai-offer.js';
+import { cleanTasks } from '../v2/ai/background-model.js';
 
 const WS_PATH = '/_ws/acp';
 
@@ -252,6 +253,17 @@ export function createAcpConnection() {
     emitBackground();
   }
 
+  // Issue #177 — the chat's live background tasks (subagents, background commands): the server's
+  // `{t:'background', tasks}` snapshot, replaced whole on every change and replayed on attach. Chrome,
+  // not turn content — it outlives the turn by design.
+  const bgTaskListeners = new Set();
+  let bgTasks = [];
+  function setBgTasks(next) {
+    if (next === bgTasks || (!next.length && !bgTasks.length)) return;
+    bgTasks = next;
+    for (const fn of bgTaskListeners) fn(bgTasks);
+  }
+
   // Connection-problem error card (Task C3) — the bridge `error` frame (a
   // socket/adapter failure mid-turn) is ALSO thrown from prompt()'s generator
   // (so assistant-ui's own turn-failed bookkeeping still runs), but a thrown
@@ -305,6 +317,10 @@ export function createAcpConnection() {
       // panel would look idle while the agent keeps working (and the composer
       // would happily start a second, concurrent turn).
       if (frame.running) setBusy(true);
+      return;
+    }
+    if (frame.t === 'background') {
+      setBgTasks(cleanTasks(frame.tasks));
       return;
     }
     if (frame.t === 'ready') {
@@ -456,6 +472,8 @@ export function createAcpConnection() {
         ws = null;
         status.ready = false;
         emitStatus();
+        // The bridge is unreachable: what it ran is unknown until the next attach replays it.
+        setBgTasks([]);
       };
       sock.onmessage = (e) => {
         try {
@@ -485,6 +503,13 @@ export function createAcpConnection() {
     onTurnFrame(fn) {
       turnFrameListeners.add(fn);
       return () => turnFrameListeners.delete(fn);
+    },
+
+    /** Issue #177 — the live background tasks; `fn(list)` now and on every change. */
+    onBackgroundTasks(fn) {
+      bgTaskListeners.add(fn);
+      fn(bgTasks);
+      return () => bgTaskListeners.delete(fn);
     },
 
     /** Subscribe to the post-turn-end continuation parts; replays the current tail. */
