@@ -24,6 +24,7 @@ mod export_save;
 mod external_link;
 mod github_home;
 mod home;
+mod idle_rest;
 mod keychain;
 mod lifecycle;
 // issue #105 — WebKitGTK's GStreamer media path is the one part of the shell that
@@ -780,6 +781,8 @@ pub fn run() {
             // instance and fire on a state transition. Started after
             // `SidecarState` is managed (above) since it reads the pool.
             notify::spawn_activity_poller(&handle);
+            // 2.0.4: a background project tab unused for 15 min rests (idle_rest.rs).
+            idle_rest::spawn_idle_rest(&handle);
             // V2-3.10: `index://changed` to Home when a running project's index changes.
             home::spawn_index_watch(&handle);
             // S1.19: a tab whose folder moved on disk shows the card.
