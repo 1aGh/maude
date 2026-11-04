@@ -129,3 +129,31 @@ final lines, 1 retake (vo-6), 4 music sections (bed-a, bed-b, bed-c, bed-b2), 15
 the studio server crashed on that error, so the next two requests never reached the provider and
 were sent again). Note for the studio: an ElevenLabs 4xx on a generate job takes the dev server
 down (unhandled rejection in `apps/studio/generation/adapters/elevenlabs.ts` `postForAudio`).
+
+## Round 2 (critic pass: hero scale, one motion language)
+
+Driven by the motion, design and signature-moment critics (scratchpad reports). Every wow is
+now framed so its payoff fills at least half the frame: the clip pile at z 1.6, the finished
+reel punched in to ~80 % of the frame height with 58 px captions, the post grid at ~2x, the
+phone at ~65–75 %, the Flip card ~90 % with 22 px code. The VO and its offsets are unchanged.
+
+- Photos: 10 Gemini image requests, one coherent shoot of the fictional Alligators club (green
+  jerseys, helmets on or seen from behind, no text or logos): `final/public/introv2/photos/`.
+  They are the footage in Wow 1 (pile + reel) and the prints in Wow 2.
+- Motion blur: an own running-average sampler in `camera.tsx` (adaptive to a ~3.5 px step, up
+  to 48 samples, long whips 0.8 s). Remotion's CameraMotionBlur (1/N opacity, plus-lighter)
+  tinted flat canvas cyan/navy at high sample counts from 8-bit rounding; normal blending at
+  1/(i+1) leaves an exact mean.
+- Spark: runs on centripetal Catmull-Rom splines walked by arc length, ring runs locked to the
+  ring stroke, whip runs on the camera's ease and window, a tapered tail, a hover at rest.
+- Springs: calm 40/90, `bouncy` is a 5 % settle; the 17 % `pop` only for the spark full stop
+  and the Wow 3 snap.
+- Cues moved to the whisper word times: fan-out "Out come" 20.53, brand "On brand" 22.43, the
+  layout swap "design" 24.47, the Wow 3 click "click" 33.25 (second click 35.35), the
+  `<button>` pulse "HTML" 56.84. SFX re-timed (`SFX_LIST`); bed sections unchanged.
+- Result: `out/introv2/IntroV2-audio.mp4`, 70.5 s, 14.1 MB, -16.1 LUFS, -1.3 dBTP.
+
+## Generation calls, round 2
+
+10 requests (all images, 0 failures), under the 15-call / 10-image budget. Total for the film:
+43 (33 in round 1 + 10).
