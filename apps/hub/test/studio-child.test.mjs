@@ -15,6 +15,7 @@ import {
   buildKnobEnv,
   childEnv,
   createStudioChild,
+  msFromEnv,
   studioLaunch,
 } from '../src/studio-child.mjs';
 
@@ -224,6 +225,14 @@ test('2.0.4 task P — a bad build knob is dropped and said once; out of range i
   const env = childEnv({ PATH: '/bin', ...bad }, { port: 1 });
   assert.equal(env.MAUDE_CANVAS_BUILD_TIMEOUT_MS, undefined);
   assert.equal(env.MAUDE_CANVAS_CACHE_ENTRIES, '1024');
+});
+
+test('2.0.4 task P — an empty or bad ready deadline falls back to the default, never 0', () => {
+  assert.equal(msFromEnv('X', 60_000, {}), 60_000);
+  assert.equal(msFromEnv('X', 60_000, { X: '' }), 60_000);
+  assert.equal(msFromEnv('X', 60_000, { X: '60s' }), 60_000);
+  assert.equal(msFromEnv('X', 60_000, { X: '0' }), 60_000);
+  assert.equal(msFromEnv('X', 60_000, { X: ' 180000 ' }), 180_000);
 });
 
 test('the child environment never grows a wildcard', () => {

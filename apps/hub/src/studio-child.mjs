@@ -43,9 +43,21 @@ const RENDER_STATS_TTL_MS = 60_000;
  * studio's `boot-progress.ts`): each one moves the deadline. Ordinary output is not progress — a
  * child stuck repeating one warning is still stuck.
  */
-export const READY_TIMEOUT_MS = Number(process.env.MAUDE_STUDIO_READY_MS ?? 60_000);
+export const READY_TIMEOUT_MS = msFromEnv('MAUDE_STUDIO_READY_MS', 60_000);
 /** The hard ceiling: a child that reports progress forever and never answers is still killed. */
-export const READY_CEILING_MS = Number(process.env.MAUDE_STUDIO_READY_CEILING_MS ?? 10 * 60_000);
+export const READY_CEILING_MS = msFromEnv('MAUDE_STUDIO_READY_CEILING_MS', 10 * 60_000);
+
+/**
+ * A positive whole number of milliseconds from the environment, else `def`. `Number('')` is 0 and
+ * `Number('60s')` is NaN — either made a boot deadline that expired at once (task P: compose
+ * renders these keys, and an unset one arrives empty).
+ */
+export function msFromEnv(name, def, env = process.env) {
+  const raw = env[name];
+  if (raw === undefined || String(raw).trim() === '') return def;
+  const n = Number(String(raw).trim());
+  return Number.isSafeInteger(n) && n > 0 ? n : def;
+}
 /** A line the child prints as it moves through its boot (apps/studio/boot-progress.ts). */
 export const BOOT_PROGRESS_RE = /^\[boot\] /;
 /** A poll gap longer than this means the SUPERVISOR was stalled (a blocked hub event loop);

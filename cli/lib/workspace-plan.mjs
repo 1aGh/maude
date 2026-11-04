@@ -629,6 +629,19 @@ services:
       # without this the project's only record is its current bytes.
       MAUDE_REPO_DIR: /repo
 ${envLines(hubEnv)}
+      # Tuning for a big project on a small or shared host (docs: Workspace →
+      # Big projects on small hosts). Set a value in .env to change it.
+      # How long the studio may boot without progress, and its hard ceiling.
+      # Defaults written out: an empty value read as 0 by older hub images.
+      MAUDE_STUDIO_READY_MS: \${MAUDE_STUDIO_READY_MS:-60000}
+      MAUDE_STUDIO_READY_CEILING_MS: \${MAUDE_STUDIO_READY_CEILING_MS:-600000}
+      # The sandboxed canvas build: its hard ceiling, how long one request waits
+      # for it, its memory limit and how many built canvases are kept. Empty
+      # means the built-in default (90000 / 20000 / 768 / 64).
+      MAUDE_CANVAS_BUILD_TIMEOUT_MS: \${MAUDE_CANVAS_BUILD_TIMEOUT_MS:-}
+      MAUDE_CANVAS_BUILD_WAIT_MS: \${MAUDE_CANVAS_BUILD_WAIT_MS:-}
+      MAUDE_CANVAS_BUILD_RSS_MB: \${MAUDE_CANVAS_BUILD_RSS_MB:-}
+      MAUDE_CANVAS_CACHE_ENTRIES: \${MAUDE_CANVAS_CACHE_ENTRIES:-}
     volumes:
       - hub-data:/data
       # A SEPARATE volume from hub-data on purpose: the checkout is the one
