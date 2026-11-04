@@ -211,6 +211,7 @@ const baseEnv = {
   MAUDE_NO_AUTOBUILD: '1',
   MAUDE_CANVAS_ORIGIN_SPLIT: '1',
   NO_OPEN: '1',
+  ...(argv.includes('--debug') ? { MAUDE_SYNC_DEBUG: '1' } : {}),
   // p8-orphan-sidecars — a studio ends by itself when this rig is SIGKILLed (no exit handler runs then)
   MAUDE_EXIT_WITH_PARENT: '1',
 };
@@ -639,13 +640,21 @@ async function raceRun(n) {
     const eq = disk(alice, rel) === disk(bob, rel);
     if (!eq && !(ar.aliceConflicts > 0 && kept(alice)) && !(ar.bobConflicts > 0 && kept(bob)))
       ok = false;
+    // a conflict held before the restart that is gone after it, with nobody's choice: its side was
+    // overwritten by the project's version in silence (the recovery copy is not a notice)
+    for (const who of ['alice', 'bob'])
+      if (heldAt(who) && ar[`${who}Conflicts`] === 0 && ar[who].join(',') !== final[who].join(',')) {
+        ar.silentlyResolved = who;
+        ok = false;
+      }
   }
   return { ok, converged, final };
 }
 
 let pass = 0;
 try {
-  for (let n = 1; n <= RUNS; n++) {
+  const FIRST = Number(arg('first', '1'));
+  for (let n = FIRST; n < FIRST + RUNS; n++) {
     const t0 = Date.now();
     // a run that cannot reach its next step is a FAIL of that run, not the end of the series (each run
     // works on its own fresh canvas) — so the rate is honest
