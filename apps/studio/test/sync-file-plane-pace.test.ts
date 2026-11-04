@@ -11,7 +11,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { createFileLedger, type FileLedger } from '../sync/file-ledger.ts';
-import { createFilePlane, MAX_FILES_PER_PASS } from '../sync/file-plane.ts';
+import {
+  createFilePlane,
+  MAX_BUFFERED_IN_FLIGHT_BYTES,
+  MAX_FILES_PER_PASS,
+  STREAM_DOWNLOAD_ABOVE_BYTES,
+} from '../sync/file-plane.ts';
 import {
   createPullPacer,
   followUpDelayMs,
@@ -198,11 +203,16 @@ describe('downloads run side by side, within a bound', () => {
   });
 
   test('bodies buffered in memory stay under a ceiling, however wide the pool', async () => {
-    // Eight 30 MB files (as the journal declares them): two fit under 64 MB, a third does not.
-    const h = hub(media(8), { delayMs: 10, size: () => 30 * 1024 * 1024 });
-    const r = await plane(h).reconcile();
+    // 2.0.4 task D: anything above STREAM_DOWNLOAD_ABOVE_BYTES (1 MB) streams to disk and holds no
+    // buffer, so eight 30 MB files no longer narrow the pool — it runs at its full start width…
+    const big = hub(media(8), { delayMs: 10, size: () => 30 * 1024 * 1024 });
+    const r = await plane(big).reconcile();
     expect(r.pulled).toHaveLength(8);
-    expect(h.peak()).toBe(2);
+    expect(big.peak()).toBe(PULL_CONCURRENCY_START);
+    // …and the bodies that ARE buffered (≤ 1 MB each) can never reach the 64 MB ceiling at that width.
+    expect(STREAM_DOWNLOAD_ABOVE_BYTES * PULL_CONCURRENCY_START).toBeLessThan(
+      MAX_BUFFERED_IN_FLIGHT_BYTES
+    );
   });
 
   test('the width is the pacer’s: a narrower pacer is obeyed', async () => {

@@ -88,7 +88,10 @@ describe('the sign-in dialog opened from the callout stack is reachable', () => 
     const dialog = $('team-projects-dialog');
     expect(dialog).not.toBe(null);
     const inputs = [...(dialog?.querySelectorAll('input') ?? [])] as HTMLInputElement[];
-    expect(inputs.length).toBe(3);
+    // 2.0.4 (K, Michal): the team-server sheet asks only for the server's address — the hub's own page
+    // signs the person in — so no email or password field is drawn any more.
+    expect(inputs.length).toBeGreaterThan(0);
+    expect(inputs.filter((i) => i.type === 'password' || i.type === 'email')).toEqual([]);
     for (const i of inputs) {
       expect(i.disabled).toBe(false);
       expect(i.closest('[inert]')).toBe(null);
