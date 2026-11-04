@@ -20,7 +20,9 @@ const HUB = 'https://design.team.example';
 const SELF = 'http://127.0.0.1:4399';
 
 /** A fake team server: /health + /auth/desktop/exchange, one code it will redeem. */
-function fakeHub(opts: { capabilities?: string[]; exchangeStatus?: number } = {}) {
+function fakeHub(
+  opts: { capabilities?: string[]; exchangeStatus?: number; user?: Record<string, unknown> } = {}
+) {
   const calls: { url: string; body?: unknown }[] = [];
   let challenge = '';
   const code = 'one-time-code-abc';
@@ -44,7 +46,7 @@ function fakeHub(opts: { capabilities?: string[]; exchangeStatus?: number } = {}
       return Response.json({
         token: 'peer-token-xyz',
         expiresAt: 1_900_000_000_000,
-        user: { email: 'michal@team.example', role: 'member' },
+        user: opts.user ?? { email: 'michal@team.example', role: 'member' },
       });
     }
     return new Response('nope', { status: 404 });
@@ -92,6 +94,28 @@ describe('addresses', () => {
     expect(returnUriFor(SELF)).toBe(`${SELF}${HUB_SIGNIN_RETURN_PATH}`);
     expect(returnUriFor('https://evil.example')).toBeNull();
     expect(returnUriFor('http://127.0.0.1')).toBeNull();
+  });
+});
+
+describe('the role the hub vouches for is stored with the credential (Cloud Phase 25 C2)', () => {
+  test('a viewer sign-in saves the role, so the app knows it at boot', async () => {
+    const { hub, flow, saved } = setup({ user: { email: 'v@team.example', role: 'viewer' } });
+    const r = await flow.start(HUB, SELF);
+    if (!r.ok) throw new Error('start failed');
+    hub.rememberChallenge(r.signInUrl);
+    await flow.onReturn(back({ state: r.id, code: hub.code }));
+    expect(saved[0]?.[2]).toBe('viewer');
+  });
+
+  test('a hub that names no role is treated as member, never as viewer', async () => {
+    // Failing OPEN on the UI flag is correct: the hub refuses a write, so a wrong guess costs a
+    // redundant affordance, never access; "viewer" would lock out a hub that predates the field.
+    const { hub, flow, saved } = setup({ user: { email: 'm@team.example' } });
+    const r = await flow.start(HUB, SELF);
+    if (!r.ok) throw new Error('start failed');
+    hub.rememberChallenge(r.signInUrl);
+    await flow.onReturn(back({ state: r.id, code: hub.code }));
+    expect(saved[0]?.[2]).toBe('member');
   });
 });
 

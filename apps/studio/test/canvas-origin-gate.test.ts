@@ -99,7 +99,6 @@ describe('canvas-origin gate — A1/A2 traversal + privilege containment', () =>
         // CANVAS_SAFE_API and from startCanvasServer's route map, so a GET
         // 403s at the gate rather than 405-ing from the handler — which is what
         // proves the route is unreachable on this origin at all.
-        '/_api/workspace/sign-in',
         '/_api/workspace/disclosure',
         '/_api/export',
         // feature-background-export-notification-center — the background job

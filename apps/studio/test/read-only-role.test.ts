@@ -16,7 +16,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { saveHubCredential } from '../sync/hub-link.ts';
-import { signInToWorkspace } from '../sync/workspace-signin.ts';
 
 function withHome<T>(fn: (home: string) => T): T {
   const home = mkdtempSync(join(tmpdir(), 'maude-ro-'));
@@ -47,49 +46,5 @@ describe('the vouched role is persisted with the credential', () => {
       const cfg = JSON.parse(readFileSync(join(home, 'maude', 'hubs.json'), 'utf8'));
       expect(cfg.hubs['https://p.cloud.maude.sh'].role).toBeUndefined();
     });
-  });
-});
-
-describe('sign-in carries the role through to the credential', () => {
-  const okHub = (role: string) =>
-    (async (url: string) => {
-      const u = String(url);
-      if (u.endsWith('/health')) return Response.json({ ok: true, version: '1.0.0' });
-      return Response.json({ token: 'mau_minted', user: { email: 'v@example.com', role } });
-    }) as unknown as typeof fetch;
-
-  test('a viewer sign-in saves the role, and reports it back', async () => {
-    const saved: Array<[string, string, string | undefined]> = [];
-    const res = await signInToWorkspace(
-      { url: 'https://p.cloud.maude.sh', email: 'v@example.com', password: 'x'.repeat(12) },
-      {
-        save: (u, t, r) => saved.push([u, t, r]),
-        fetchImpl: okHub('viewer'),
-      }
-    );
-    expect(res.status).toBe(200);
-    expect(saved[0][2]).toBe('viewer');
-    expect((res.json as { user: { role: string } }).user.role).toBe('viewer');
-  });
-
-  test('a hub that names no role is treated as member, never as viewer', async () => {
-    // Failing OPEN on the UI flag is correct: the cell is what refuses a
-    // write, so a wrong guess here costs a redundant affordance, never
-    // access. Guessing "viewer" instead would lock out every self-hoster
-    // whose hub predates this field.
-    const saved: Array<[string, string, string | undefined]> = [];
-    const res = await signInToWorkspace(
-      { url: 'https://hub.example.com', email: 'm@example.com', password: 'x'.repeat(12) },
-      {
-        save: (u, t, r) => saved.push([u, t, r]),
-        fetchImpl: (async (url: string) => {
-          const u = String(url);
-          if (u.endsWith('/health')) return Response.json({ ok: true, version: '1.0.0' });
-          return Response.json({ token: 'mau_minted', user: { email: 'm@example.com' } });
-        }) as unknown as typeof fetch,
-      }
-    );
-    expect(res.status).toBe(200);
-    expect(saved[0][2]).toBe('member');
   });
 });

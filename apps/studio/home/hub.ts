@@ -21,7 +21,7 @@
 //     Only the exchanged token is kept, in THIS profile's hubs.json (the profile is fixed when the
 //     attempt starts, never read from the return). Every request to the hub refuses redirects.
 
-import { prepareManagedProject } from '../managed-projects.ts';
+import { NO_PASSWORD_WORDS, prepareManagedProject } from '../managed-projects.ts';
 import {
   createHubBrowserSignIn,
   HUB_SIGNIN_WORDS,
@@ -77,7 +77,7 @@ export interface HomeHub {
 }
 
 /** The words for an email or password sent to Home — it takes neither (issue #204). */
-export const NO_PASSWORD_WORDS = "Sign in on the team server's own page — press Sign in.";
+export { NO_PASSWORD_WORDS };
 
 const answer = (status: number, body: unknown): HomeAnswer => ({ status, body });
 

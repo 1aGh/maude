@@ -36,7 +36,7 @@ import { readLaneFromDoc } from '../sync/codec.ts';
 import { hashBytes } from '../sync/echo-guard.ts';
 import { createSyncRuntime, type SyncRuntime } from '../sync/index.ts';
 import { describeSourceOp } from '../sync/source-ops.ts';
-import { signInToWorkspace } from '../sync/workspace-signin.ts';
+import { storeFixtureHubCredential } from './_hub-password-login.ts';
 import { board, sticky } from './fixtures/annotations-v2/boards.ts';
 
 const HUB_DIR = join(import.meta.dir, '..', '..', 'hub');
@@ -1564,13 +1564,8 @@ describe.skipIf(!HUB_READY)('accepted revisions — a designer removed while edi
       mode: 0o600,
     });
     process.env.HUBS_CONFIG_PATH = hubsFile;
-    // The designer's credential comes from the self-hosted sign-in, as in the app.
-    const signed = await signInToWorkspace({
-      url: designerUrl(),
-      email: 'designer@x.test',
-      password: 'designer-pass-1',
-    });
-    expect(signed.json.ok).toBe(true);
+    // The designer's credential is stored from a fixture login (the app signs in on the hub's page).
+    await storeFixtureHubCredential(designerUrl(), 'designer@x.test', 'designer-pass-1');
 
     mkdirSync(join(root, 'alice', 'design', 'ui'), { recursive: true });
     writeFileSync(join(root, 'alice', 'design', 'ui', 'rights.tsx'), src('Start'));
@@ -1620,12 +1615,7 @@ describe.skipIf(!HUB_READY)('accepted revisions — a designer removed while edi
     // reopens the same copy, and the outbox delivers.
     await designer.runtime.stop();
     expect((await admin('users/enable', { email: 'designer@x.test' })).status).toBe(200);
-    const again = await signInToWorkspace({
-      url: designerUrl(),
-      email: 'designer@x.test',
-      password: 'designer-pass-1',
-    });
-    expect(again.json.ok).toBe(true);
+    await storeFixtureHubCredential(designerUrl(), 'designer@x.test', 'designer-pass-1');
     designer = await startPeer('designer', join(root, 'designer'), designerUrl());
     await waitFor(
       () => alice.read('ui/rights.tsx') === src('Edit after removal'),

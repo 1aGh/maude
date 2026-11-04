@@ -534,10 +534,6 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/sync/settings': REFUSED,
   '/_api/sync/ownership': REFUSED,
   '/_api/sync/trash': REFUSED,
-  // Signing in to a workspace from INSIDE that workspace is a loop; the proxy
-  // already knows who this is, and the control plane is the only authority that
-  // could say otherwise (DDR-204).
-  '/_api/workspace/sign-in': REFUSED,
   '/_api/workspace/disclosure': REFUSED,
   // A cell serves ONE project. Creating a second one on its disk is a control-
   // plane action, and there is no UI in a browser tab that should reach it.
