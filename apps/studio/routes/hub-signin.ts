@@ -73,7 +73,12 @@ export function createHubSigninRoutes(deps: HubSigninRouteDeps = {}): RouteSpec[
       async handle(req) {
         const b = await body(req);
         const r = await signIn.start(b.url, new URL(req.url).origin);
-        return r.ok ? json(r) : json({ ok: false, error: r.error }, r.status);
+        return r.ok
+          ? json(r)
+          : json(
+              { ok: false, error: r.error, ...(r.reason ? { reason: r.reason } : {}) },
+              r.status
+            );
       },
     },
     {
