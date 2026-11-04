@@ -39,6 +39,7 @@ const COLS: [string, FootLink[]][] = [
     'Legal',
     [
       ['Terms', '/terms'],
+      ['Withdrawal & refunds', '/withdrawal'],
       ['Privacy', '/privacy'],
       ['Data processing', '/dpa'],
     ],
@@ -75,6 +76,12 @@ export function SiteFoot() {
             </div>
           ))}
         </div>
+        {/* Seller identification (§435 OZ). Every value is the one already published in the Terms. */}
+        <p className="ps-foot-imprint">
+          Bc. Michal Dovrtěl · IČO 03387666 · Houbalova 2088/5, Líšeň, 628 00 Brno, Czech Republic ·
+          registered in the Trade Licensing Register since 10 September 2014 (trade licensing
+          office: [office, Michal to fill]) · <a href="mailto:cloud@maude.sh">cloud@maude.sh</a>
+        </p>
         <div className="ps-foot-base">
           <span>MIT license · no telemetry</span>
           <span>maude.sh</span>

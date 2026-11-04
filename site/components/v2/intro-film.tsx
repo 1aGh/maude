@@ -28,6 +28,7 @@ export function IntroFilm() {
           Your browser can't play this video. <a href={SRC}>Download the intro (MP4)</a>.
         </video>
       </div>
+      <p className="ps-small ps-film-note">Voice and music are AI-generated.</p>
     </section>
   );
 }

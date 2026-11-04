@@ -70,12 +70,16 @@ export function PricingPlans() {
         </article>
       </div>
       <p className="ps-small" style={{ textAlign: 'center', marginTop: 'var(--space-4)' }}>
-        Prices without VAT. Stripe adds your country's VAT at checkout and shows the total before
-        you enter a card.
+        Prices shown without VAT. For individuals: {PRICE.projectCz} a month including 21 % Czech
+        VAT. Other EU countries pay their own rate, shown before you pay. Businesses with a VAT id
+        pay {PRICE.project} (reverse charge). Payment is handled by our merchant of record, Lemon
+        Squeezy (Sold through Link), who add the VAT and show the total before you enter a card.
       </p>
       <p className="ps-small" style={{ textAlign: 'center', marginTop: 'var(--space-2)' }}>
-        The first {PRICE.trialDays} days are free. Your card is authorised but not charged, and you
-        can stop any time before the trial ends.
+        The first {PRICE.trialDays} days are free. If you start through checkout, your card is saved
+        and checked but not charged. After the trial the plan renews automatically until you cancel,
+        and you can stop any time before the trial ends. Starting from the desktop app needs no
+        card.
       </p>
       <div className="ps-ai-note">
         <span className="ps-ico ps-ico--ai">

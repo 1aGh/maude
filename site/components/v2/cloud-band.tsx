@@ -49,8 +49,9 @@ export function CloudBand() {
             </li>
           </ul>
           <span className="ps-fine">
-            {PILOT_FINE}Prices without VAT. {PRICE.projectYear} a year, {PRICE.yearFree}. AI runs on
-            your own Claude account.
+            {PILOT_FINE}Prices without VAT. {PRICE.projectYear} a year, {PRICE.yearFree}. The first{' '}
+            {PRICE.trialDays} days are free, then it renews until you cancel. AI runs on your own
+            Claude account.
           </span>
         </div>
       </div>

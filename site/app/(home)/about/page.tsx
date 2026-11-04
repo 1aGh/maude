@@ -28,7 +28,9 @@ export default function AboutPage() {
 
           <p>I don&apos;t fully understand why it works, but it works.</p>
 
-          <p>I like nerdy jokes and tools without analytics. Based in Brno Czechia</p>
+          <p>
+            I like nerdy jokes and tools that collect as little as they can. Based in Brno Czechia
+          </p>
 
           <p>
             If it breaks it&apos;s almost certainly my fault. Open an issue. I read them (some
