@@ -24,7 +24,62 @@ test('the sandbox ids resolve for every advertised plan and interval', () => {
   assert.equal(pricing.currency, 'eur');
 });
 
-test('LIVE mode throws for an unconfigured price — never falls back to the sandbox', () => {
+// Phase B2: the live ids get filled once, by fill-live-price-ids.mjs. Until then
+// the guard below is the contract; after, `liveFilled` flips it to the
+// "everything resolves" contract further down. A file that is HALF filled is
+// neither, and fails here.
+const liveSlots = (pricing) =>
+  [...pricing.plans, ...pricing.addons].flatMap((x) => {
+    const slots = ['monthly'];
+    if ('annual' in x.stripe.live && x.amounts.annualMinor != null) slots.push('annual');
+    return slots.map((interval) => [x.id, interval, x.stripe.live[interval] ?? null]);
+  });
+const liveFilled = liveSlots(loadPricing()).every(([, , id]) => id);
+
+test('the live ids are all filled or all empty — never half', () => {
+  const slots = liveSlots(loadPricing());
+  const filled = slots.filter(([, , id]) => id).length;
+  assert.ok(
+    filled === 0 || filled === slots.length,
+    `${filled} of ${slots.length} live ids are filled`
+  );
+});
+
+test('once the live ids are filled: every plan resolves in live mode, none equals a sandbox id, amounts hold', {
+  skip: !liveFilled && 'live ids not filled yet (Phase B2 pending)',
+}, async () => {
+  const pricing = loadPricing();
+  const sandboxIds = new Set(
+    [...pricing.plans, ...pricing.addons].flatMap((x) =>
+      Object.values(x.stripe.sandbox).filter(Boolean)
+    )
+  );
+  const stripeSays = new Map();
+  for (const [plan, interval, id] of liveSlots(pricing)) {
+    assert.equal(priceIdFor(plan, interval, { mode: 'live' }), id);
+    assert.match(id, /^price_/);
+    assert.ok(!sandboxIds.has(id), `${plan}/${interval}: live id equals a sandbox id`);
+    const item = [...pricing.plans, ...pricing.addons].find((x) => x.id === plan);
+    stripeSays.set(id, {
+      unit_amount: item.amounts[`${interval}Minor`],
+      currency: pricing.currency,
+    });
+  }
+  assert.equal(new Set(stripeSays.keys()).size, stripeSays.size, 'live ids are distinct');
+  // Dedicated has no annual price; live mode must still refuse it, not approximate it.
+  assert.throws(
+    () => priceIdFor('dedicated', 'annual', { mode: 'live' }),
+    /no live price configured/
+  );
+  assert.deepEqual(
+    await assertAmountsMatchStripe(async (id) => stripeSays.get(id), { mode: 'live' }),
+    []
+  );
+});
+
+test('LIVE mode throws for an unconfigured price — never falls back to the sandbox', {
+  skip: liveFilled && 'live ids are filled; see the resolve test above',
+}, () => {
   // The failure this prevents: a real customer charged nothing, or a test
   // charge landing on a real card.
   for (const [plan, interval] of [
