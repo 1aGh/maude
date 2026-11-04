@@ -34,7 +34,7 @@ import { autoAllowRules } from '../actions/verbs.ts';
 import { HANDOFF_RUN_VERBS } from '../handoff/write-scopes.ts';
 import { DEV_SERVER_ROOT } from '../paths.ts';
 import { readUiPrefs } from '../ui-prefs.ts';
-import { relayAdapterStderr } from './adapter-stderr.ts';
+import { relayAdapterLine } from './adapter-stderr.ts';
 import {
   type AudienceLeak,
   audienceLeak,
@@ -48,6 +48,12 @@ import {
   withoutWriterRules,
   writerVerbCall,
 } from './audience.ts';
+import {
+  type BackgroundTask,
+  createLineSplitter,
+  foldSnapshot,
+  sameTasks,
+} from './background-tasks.ts';
 import { chatSpawnEnv, scrubAgentEnv, teamsSpawnEnv } from './env.ts';
 import {
   type AiMay,
@@ -247,6 +253,12 @@ export interface AcpBridgeOptions {
    * a message part.
    */
   onUsage?: (usage: BridgeUsage) => void;
+  /**
+   * Issue #177 — the live set of background tasks (subagents, background commands), replaced
+   * whenever it changes; `[]` once the last one ends or the adapter goes away. Read from the
+   * adapter's stderr (background-tasks.ts). Chrome, not turn content: never transcripted.
+   */
+  onBackground?: (tasks: BackgroundTask[]) => void;
   /** Override for `PERMISSION_TIMEOUT_MS` (tests only — production always gets the real default). */
   permissionTimeoutMs?: number;
   /**
@@ -856,6 +868,10 @@ export class AcpBridge {
   // running establishSession() and stomping the single shared `replaying` flag.
   private sessionPromises = new Map<string, Promise<string>>();
   private currentSession: string | null = null; // the in-flight prompt's session
+  // Issue #177 — the live background tasks, and which adapter process reported them (a respawned
+  // adapter's old stderr ending must not wipe the new one's list).
+  private background: BackgroundTask[] = [];
+  private backgroundProc: Spawned | null = null;
   // issue-82 — every prompt() call currently racing a forced-cancellation
   // (see `prompt()`), so cancel()/stop() can force ANY of them to settle
   // when the adapter doesn't cooperate, instead of leaving one hanging
@@ -1087,6 +1103,11 @@ export class AcpBridge {
    */
   get awaitingInputCount(): number {
     return this.pendingPermissions.size + this.pendingElicitations.size;
+  }
+
+  /** Issue #177 — the background tasks running now (subagents, background commands). */
+  get backgroundTasks(): BackgroundTask[] {
+    return this.background;
   }
 
   /** The session id of the most recent prompt (for the `connected` frame). */
@@ -1503,7 +1524,7 @@ export class AcpBridge {
       stderr: 'pipe',
     });
     this.proc = proc;
-    void this.drainStderr(proc.stderr);
+    void this.drainStderr(proc);
 
     // Bun's `proc.stdin` is a FileSink, not a WritableStream — wrap it so
     // ndJsonStream can pipe encoded ACP frames into the child's stdin.
@@ -2524,15 +2545,33 @@ export class AcpBridge {
     }
   }
 
-  private async drainStderr(stderr: ReadableStream<Uint8Array>): Promise<void> {
+  private async drainStderr(proc: Spawned): Promise<void> {
+    const log = (line: string) => console.error('[acp-adapter]', line);
+    const lines = createLineSplitter((line) =>
+      relayAdapterLine(line, log, (snap) => this.setBackground(proc, snap))
+    );
     try {
       const decoder = new TextDecoder();
-      for await (const chunk of stderr) {
-        relayAdapterStderr(decoder.decode(chunk), (line) => console.error('[acp-adapter]', line));
+      for await (const chunk of proc.stderr as ReadableStream<Uint8Array>) {
+        lines.push(decoder.decode(chunk, { stream: true }));
       }
     } catch {
       /* stream closed on teardown */
     }
+    lines.flush();
+    // The adapter is gone (stopped, crashed, respawned): nothing it ran is still running for us.
+    if (this.backgroundProc === proc) this.setBackground(proc, null);
+  }
+
+  /** Issue #177 — fold one adapter snapshot (null: that adapter ended) into the live list. */
+  private setBackground(proc: Spawned, snap: Parameters<typeof foldSnapshot>[1] | null): void {
+    const next = snap
+      ? foldSnapshot(this.backgroundProc === proc ? this.background : [], snap)
+      : [];
+    this.backgroundProc = next.length ? proc : null;
+    if (sameTasks(next, this.background)) return;
+    this.background = next;
+    this.opts.onBackground?.(next);
   }
 
   /** Append one transcript line. `claimedSeq` is passed by the update path,
