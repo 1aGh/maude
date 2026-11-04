@@ -19,6 +19,12 @@
 //   nor shifts a page); `limit` defaults to 200 and is capped at 500.
 // - `candidates` (a canvas-only session): the listing is built from THOSE paths only (the session's closure), never
 //   from the disk — such a session learns nothing about a file its canvases do not show.
+// - `journal` (2.0.3, a materializing cell): on a cell the disk is a cache (DDR-243) — a system's media lives in the
+//   bucket and is served from a hub-owned cache outside the design root, never at its checkout path, so a disk-only
+//   listing showed every folder with 0 files. The hub's inert-media listing (`listMaterializable`, the source the file
+//   tree and the closure's `withJournalMedia` read) joins the disk: its paths under the library count, list, search and
+//   page like files on disk (size/mtime 0 — the hub hands out paths only). It only ADDS names: a disk entry at the same
+//   path (a symlink included) is judged as before, and a folder that is a symlink on disk stays refused.
 
 import type { Dirent } from 'node:fs';
 import { lstat, readdir } from 'node:fs/promises';
@@ -120,19 +126,37 @@ function clampLimit(raw: unknown): number {
   return Math.min(Math.trunc(n), DS_ASSETS_LIMIT_MAX);
 }
 
-/** Every segment from the designRoot down to `rel` is a real folder (no symlink on the way). */
-async function realDirChain(designRoot: string, rel: string): Promise<boolean> {
+/**
+ * The folders from the designRoot down to `rel`: `real` when every one is a real folder, `bad` when one is a symlink or
+ * not a folder, `absent` when the chain stops at a name that is not there (only the journal can hold files below it).
+ */
+async function dirChain(designRoot: string, rel: string): Promise<'real' | 'absent' | 'bad'> {
   let cur = designRoot;
   for (const seg of rel.split('/')) {
     cur = path.join(cur, seg);
     try {
       const st = await lstat(cur);
-      if (!st.isDirectory()) return false;
-    } catch {
-      return false;
+      if (!st.isDirectory()) return 'bad';
+    } catch (err) {
+      return (err as NodeJS.ErrnoException)?.code === 'ENOENT' ? 'absent' : 'bad';
     }
   }
-  return true;
+  return 'real';
+}
+
+/** The journal's media below `base` (designRoot-relative), shape-checked: no empty / `..` / `_` / `.` segment. */
+function journalUnder(base: string, journal: Iterable<string> | null | undefined): Set<string> {
+  const out = new Set<string>();
+  if (!journal) return out;
+  const under = `${base}/`;
+  for (const rel of journal) {
+    if (typeof rel !== 'string' || !rel.startsWith(under) || rel.length > 1024) continue;
+    const segs = rel.slice(under.length).split('/');
+    if (segs.some((s) => !s || s === '..' || hiddenName(s) || s.includes('\\') || s.includes('\0')))
+      continue;
+    if (dsAssetKindOf(rel)) out.add(rel);
+  }
+  return out;
 }
 
 async function dirents(abs: string): Promise<Dirent[]> {
@@ -143,16 +167,16 @@ async function dirents(abs: string): Promise<Dirent[]> {
   }
 }
 
-/** Media files directly inside, and whether a folder is inside (a folder with neither is not one to open). */
-async function shallowCount(abs: string): Promise<{ count: number; dirs: boolean }> {
-  let count = 0;
+/** Media files directly inside (by name), and whether a folder is inside (a folder with neither is not one to open). */
+async function shallowCount(abs: string): Promise<{ names: Set<string>; dirs: boolean }> {
+  const names = new Set<string>();
   let dirs = false;
   for (const e of await dirents(abs)) {
     if (hiddenName(e.name)) continue;
     if (e.isDirectory()) dirs = true;
-    else if (e.isFile() && dsAssetKindOf(e.name)) count++;
+    else if (e.isFile() && dsAssetKindOf(e.name)) names.add(e.name);
   }
-  return { count, dirs };
+  return { names, dirs };
 }
 
 /** Media files under `startRel` (designRoot-relative), readdir only. */
@@ -174,23 +198,30 @@ async function walkMedia(designRoot: string, startRel: string): Promise<string[]
   return out;
 }
 
-async function rowOf(designRoot: string, rel: string): Promise<DsAssetFile | null> {
+async function rowOf(
+  designRoot: string,
+  rel: string,
+  journal: ReadonlySet<string>
+): Promise<DsAssetFile | null> {
   const name = rel.slice(rel.lastIndexOf('/') + 1);
   const kind = dsAssetKindOf(name);
   if (!kind) return null;
+  const row = (size: number, mtimeMs: number): DsAssetFile => ({
+    path: rel,
+    name,
+    ext: path.extname(name).slice(1).toLowerCase(),
+    kind,
+    size,
+    mtimeMs,
+    placeable: kind !== 'audio' && dsAssetRel(rel) !== null,
+  });
   try {
     const st = await lstat(path.join(designRoot, rel));
     if (!st.isFile()) return null;
-    return {
-      path: rel,
-      name,
-      ext: path.extname(name).slice(1).toLowerCase(),
-      kind,
-      size: st.size,
-      mtimeMs: st.mtimeMs,
-      placeable: kind !== 'audio' && dsAssetRel(rel) !== null,
-    };
-  } catch {
+    return row(st.size, st.mtimeMs);
+  } catch (err) {
+    // not on this disk: a materializing cell's journal names it (the hub serves it from its cache)
+    if ((err as NodeJS.ErrnoException)?.code === 'ENOENT' && journal.has(rel)) return row(0, 0);
     return null;
   }
 }
@@ -205,6 +236,8 @@ export interface ListDsAssetsInput {
   limit?: unknown;
   /** a canvas-only session: the designRoot-relative paths it may see (its closure); the disk is not walked */
   candidates?: Iterable<string>;
+  /** a materializing cell: inert media the hub serves although the checkout does not hold it (designRoot-relative) */
+  journal?: Iterable<string> | null;
 }
 
 export async function listDsAssets(
@@ -219,6 +252,23 @@ export async function listDsAssets(
   const words = searchWords(input.q);
   const limit = clampLimit(input.limit);
   const cursor = typeof input.cursor === 'string' && input.cursor ? input.cursor : null;
+  const journal = journalUnder(base, input.journal);
+  // one lstat chain per folder, shared by every path below it
+  const chains = new Map<string, Promise<'real' | 'absent' | 'bad'>>();
+  const chainOf = (d: string) => {
+    let p = chains.get(d);
+    if (!p) {
+      p = dirChain(designRoot, d);
+      chains.set(d, p);
+    }
+    return p;
+  };
+  const parentOf = (rel: string) => rel.slice(0, rel.lastIndexOf('/'));
+  /** journal paths, minus any whose folder on the way is a symlink (or not a folder) on this disk */
+  const journalOk = async (rels: string[]) => {
+    const ok = await Promise.all(rels.map(async (r) => (await chainOf(parentOf(r))) !== 'bad'));
+    return rels.filter((_, i) => ok[i]);
+  };
 
   // The candidate files (designRoot-relative) and the folders directly below `base`.
   let files: string[];
@@ -247,42 +297,82 @@ export async function listDsAssets(
     // listed file is a real one (a symlinked folder is not walked in a project listing either)
     if (dir && !files.length && !dirCounts.size)
       return { ok: false, status: 404, reason: 'not-found' };
-    const real = new Map<string, Promise<boolean>>();
-    const chainOk = (rel: string) => {
-      const d = rel.slice(0, rel.lastIndexOf('/'));
-      const known = real.get(d);
-      if (known) return known;
-      const p = realDirChain(designRoot, d);
-      real.set(d, p);
-      return p;
+    // on a cell a closure path may be the journal's only, in a folder this disk does not hold at all
+    const journalBelow = (d: string) => {
+      for (const r of journal) if (r.startsWith(`${d}/`)) return true;
+      return false;
     };
-    const ok = await Promise.all(files.map(chainOk));
+    const fileOk = async (rel: string) => {
+      const c = await chainOf(parentOf(rel));
+      return c === 'real' || (c === 'absent' && journal.has(rel));
+    };
+    const ok = await Promise.all(files.map(fileOk));
     files = files.filter((_, i) => ok[i]);
-    for (const d of [...dirCounts.keys()])
-      if (!(await realDirChain(designRoot, d))) dirCounts.delete(d);
+    for (const d of [...dirCounts.keys()]) {
+      const c = await chainOf(d);
+      if (!(c === 'real' || (c === 'absent' && journalBelow(d)))) dirCounts.delete(d);
+    }
   } else {
-    if (!(await realDirChain(designRoot, base))) {
+    const baseChain = await chainOf(base);
+    if (baseChain === 'bad' || (baseChain === 'absent' && !journal.size)) {
       // no library yet is an empty one; a folder that is not there (or a symlink) is not found
-      if (!dir && !(await realDirChain(designRoot, root)))
+      if (!dir && (await chainOf(root)) === 'absent')
         return { ok: true, root, dir, dirs: [], files: [], total: 0, next: null };
       return { ok: false, status: 404, reason: 'not-found' };
     }
+    const onDisk = baseChain === 'real';
     if (words.length) {
-      files = (await walkMedia(designRoot, base)).filter((rel) =>
-        matches(rel.slice(rel.lastIndexOf('/') + 1), words)
-      );
+      const all = new Set(onDisk ? await walkMedia(designRoot, base) : []);
+      for (const r of await journalOk([...journal].filter((r) => !all.has(r)))) all.add(r);
+      files = [...all].filter((rel) => matches(rel.slice(rel.lastIndexOf('/') + 1), words));
     } else {
-      files = [];
-      const subdirs: string[] = [];
-      for (const e of await dirents(path.join(designRoot, base))) {
-        if (hiddenName(e.name)) continue;
-        if (e.isDirectory()) subdirs.push(`${base}/${e.name}`);
-        else if (e.isFile() && dsAssetKindOf(e.name)) files.push(`${base}/${e.name}`);
+      const here = new Set<string>();
+      const subdirs = new Set<string>();
+      if (onDisk)
+        for (const e of await dirents(path.join(designRoot, base))) {
+          if (hiddenName(e.name)) continue;
+          if (e.isDirectory()) subdirs.add(`${base}/${e.name}`);
+          else if (e.isFile() && dsAssetKindOf(e.name)) here.add(`${base}/${e.name}`);
+        }
+      // the journal's: files directly in this folder, and the folders below it (by their first segment)
+      const direct: string[] = [];
+      const below = new Map<string, string[]>();
+      for (const r of journal) {
+        const rest = r.slice(base.length + 1);
+        const slash = rest.indexOf('/');
+        if (slash < 0) {
+          if (!here.has(r)) direct.push(r);
+          continue;
+        }
+        const d = `${base}/${rest.slice(0, slash)}`;
+        const list = below.get(d);
+        if (list) list.push(r);
+        else below.set(d, [r]);
       }
+      for (const r of await journalOk(direct)) here.add(r);
+      files = [...here];
       if (!cursor) {
-        subdirs.sort(byPath);
-        const shown = subdirs.slice(0, DIRS_MAX);
-        const counts = await Promise.all(shown.map((d) => shallowCount(path.join(designRoot, d))));
+        for (const d of below.keys()) subdirs.add(d);
+        const shown: string[] = [];
+        for (const d of [...subdirs].sort(byPath)) {
+          if (shown.length >= DIRS_MAX) break;
+          // a journal folder whose name is a symlink (or a file) on this disk is not one to open
+          if ((await chainOf(d)) !== 'bad') shown.push(d);
+        }
+        const counts = await Promise.all(
+          shown.map(async (d) => {
+            const c =
+              (await chainOf(d)) === 'real' ? await shallowCount(path.join(designRoot, d)) : null;
+            const names = c?.names ?? new Set<string>();
+            let dirs = c?.dirs ?? false;
+            for (const r of below.get(d) ?? []) {
+              const rest = r.slice(d.length + 1);
+              if (rest.includes('/')) dirs = true;
+              else names.add(rest);
+            }
+            return { count: names.size, dirs };
+          })
+        );
         shown.forEach((d, i) => {
           const c = counts[i] as { count: number; dirs: boolean };
           if (c.count || c.dirs) dirCounts.set(d, c.count);
@@ -295,7 +385,7 @@ export async function listDsAssets(
   const total = files.length;
   const from = cursor ? files.findIndex((f) => byPath(f, cursor) > 0) : 0;
   const slice = from < 0 ? [] : files.slice(from, from + limit);
-  const rows = (await Promise.all(slice.map((rel) => rowOf(designRoot, rel)))).filter(
+  const rows = (await Promise.all(slice.map((rel) => rowOf(designRoot, rel, journal)))).filter(
     (r): r is DsAssetFile => r !== null
   );
   const more = from >= 0 && from + limit < files.length;

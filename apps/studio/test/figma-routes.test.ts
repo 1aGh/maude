@@ -30,6 +30,7 @@ let port: number;
 let base: string;
 let keysPath: string;
 let keysDir: string;
+let figmaFixture: string;
 
 beforeAll(async () => {
   const { root } = makeSandbox();
@@ -38,12 +39,19 @@ beforeAll(async () => {
   writeFileSync(keysPath, JSON.stringify({ keys: {} }), { mode: 0o600 });
   port = nextPort();
   base = `http://localhost:${port}`;
-  proc = await bootServer(root, port, { MAUDE_GEN_KEYS_PATH: keysPath });
+  // An EMPTY fixture dir: Figma is never called (the probe once hung on the real api.figma.com past the server's
+  // 10 s idle timeout and the socket reset — a CI flake, 2026-11-04). /me then answers `not_found`, a typed reason.
+  figmaFixture = mkdtempSync(join(tmpdir(), 'maude-figma-routes-fixture-'));
+  proc = await bootServer(root, port, {
+    MAUDE_GEN_KEYS_PATH: keysPath,
+    MAUDE_FIGMA_FIXTURE: figmaFixture,
+  });
 });
 
 afterAll(async () => {
   await killProc(proc);
   rmSync(keysDir, { recursive: true, force: true });
+  rmSync(figmaFixture, { recursive: true, force: true });
 });
 
 function storedToken(): string | undefined {
@@ -194,8 +202,7 @@ describe('same-origin happy path — and the key never comes back out', () => {
   });
 
   test('probe surfaces a typed failure without leaking the token', async () => {
-    // No network stub here — the real api.figma.com will reject this canary
-    // token (or the call fails to connect in CI). Either way the response must
+    // No network: the empty fixture lane answers /me with not_found. The response must still
     // be a typed reason with a code-owned message and no credential in it.
     const res = await fetch(`${base}/_api/figma/probe`, {
       method: 'POST',
@@ -206,9 +213,14 @@ describe('same-origin happy path — and the key never comes back out', () => {
     expect(raw).not.toContain('figd_');
     const body = JSON.parse(raw) as { ok: boolean; reason?: string };
     if (!body.ok) {
-      expect(['unauthorized', 'forbidden', 'network', 'bad_response', 'rate_limited']).toContain(
-        body.reason
-      );
+      expect([
+        'unauthorized',
+        'forbidden',
+        'network',
+        'bad_response',
+        'rate_limited',
+        'not_found',
+      ]).toContain(body.reason);
     }
   });
 

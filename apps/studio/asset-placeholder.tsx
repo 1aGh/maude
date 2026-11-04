@@ -12,6 +12,12 @@
 //
 // Anything uncertain is "Not here yet", never Missing. Outside a shell (an export capture, a
 // headless screenshot) nothing is ever sent, so nothing is ever drawn — exports carry no frames.
+//
+// 2.0.3 — a Git LFS placeholder (`lfs-pointer`: the file here is a pointer, not the picture) says so
+// in plain words. Where the shell can repair it (`lfsActions`, the desktop app's AI chat) the frame
+// adds "Fix with AI" and "Copy prompt"; both only NAME the rel (`asset-lfs-fix-request`,
+// `asset-lfs-copy-request`) — the shell builds the prompt from its own answer and does the clipboard
+// write (this iframe has no clipboard rights), then answers `asset-lfs-copied` for the "Copied" word.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -21,10 +27,15 @@ import { type AssetStateItem, acceptFromShell } from './bridge/dgn-protocol.ts';
 
 /** What a frame says. `null` = draw nothing (the picture is here, or still uploading from here). */
 export interface FrameWords {
-  state: 'waiting' | 'missing';
+  state: 'waiting' | 'missing' | 'lfs-pointer';
   line: string;
   relink: boolean;
 }
+
+/** 2.0.3 — the line a Git LFS placeholder wears. */
+export const LFS_LINE = 'Not downloaded — Git LFS placeholder';
+/** How long "Copy prompt" reads "Copied" after the shell said it copied. */
+export const LFS_COPIED_MS = 1500;
 
 const KIND_WORD = { mac: 'Mac', pc: 'PC', linux: 'computer' } as const;
 
@@ -43,6 +54,7 @@ function possessive(name: string): string {
 /** The §5.5 words. A name only, never an address: "Jonas's device" when the kind is unknown. */
 export function frameWords(item: AssetStateItem | undefined): FrameWords | null {
   if (!item || item.state === 'here' || item.state === 'uploading') return null;
+  if (item.state === 'lfs-pointer') return { state: 'lfs-pointer', line: LFS_LINE, relink: false };
   if (item.state === 'missing') {
     return { state: 'missing', line: 'Missing — no device has it', relink: RELINK_LIVE };
   }
@@ -209,6 +221,10 @@ const CSS = `
 .dc-absent-btn { pointer-events: auto; margin-top: 2px; padding: 3px 10px; border: 0; border-radius: 6px; cursor: pointer;
   font: inherit; font-weight: 600; background: var(--dc-absent-accent); color: var(--dc-absent-accent-fg); }
 .dc-absent-btn:focus-visible { outline: 2px solid var(--dc-absent-accent); outline-offset: 2px; }
+.dc-absent[data-state="lfs-pointer"] { background-image: repeating-linear-gradient(135deg, var(--dc-absent-stripe) 0 2px, transparent 2px 9px);
+  box-shadow: inset 0 0 0 1px var(--dc-absent-edge); }
+.dc-absent-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.dc-absent-btn--quiet { background: transparent; color: var(--dc-absent-ink); box-shadow: inset 0 0 0 1px var(--dc-absent-edge); }
 `;
 
 function ensureStyles(): void {
@@ -246,21 +262,48 @@ export function AssetPlaceholderLayer({
   const [items, setItems] = useState<ReadonlyMap<string, AssetStateItem>>(new Map());
   const [frames, setFrames] = useState<Frame[]>([]);
   const nodes = useRef(new Map<string, HTMLDivElement>());
+  // 2.0.3: the shell can repair an LFS placeholder (its AI chat exists); rel → what Copy prompt says now.
+  const [lfsActions, setLfsActions] = useState(false);
+  const [copied, setCopied] = useState<ReadonlyMap<string, 'copied' | 'failed'>>(new Map());
+  const copiedTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    const timers = copiedTimers.current;
     const onMessage = (e: MessageEvent) => {
       // Only the shell may say it (DDR-054); the table parses it (≤ 256 items, no e-mail names).
       if (e.source !== window.parent) return;
-      if ((e.data as { dgn?: string } | null)?.dgn !== 'asset-state') return;
+      const dgn = (e.data as { dgn?: string } | null)?.dgn;
+      if (dgn !== 'asset-state' && dgn !== 'asset-lfs-copied') return;
       const m = acceptFromShell(e, window);
       if (m && m.dgn === 'asset-state') {
         ensureStyles();
         setItems(new Map(m.items.map((it) => [it.rel, it])));
+        setLfsActions(m.lfsActions === true);
+      } else if (m && m.dgn === 'asset-lfs-copied') {
+        const rel = m.rel;
+        setCopied((prev) => new Map(prev).set(rel, m.ok ? 'copied' : 'failed'));
+        const old = timers.get(rel);
+        if (old) clearTimeout(old);
+        timers.set(
+          rel,
+          setTimeout(() => {
+            timers.delete(rel);
+            setCopied((prev) => {
+              const next = new Map(prev);
+              next.delete(rel);
+              return next;
+            });
+          }, LFS_COPIED_MS)
+        );
       }
     };
     window.addEventListener('message', onMessage);
-    return () => window.removeEventListener('message', onMessage);
+    return () => {
+      window.removeEventListener('message', onMessage);
+      for (const t of timers.values()) clearTimeout(t);
+      timers.clear();
+    };
   }, []);
 
   // Which elements need a frame: rescanned on news, and on every media load / error (capture
@@ -413,66 +456,118 @@ export function AssetPlaceholderLayer({
       {bars}
       {createPortal(
         <div className="dc-absent-layer" data-testid="asset-frames">
-          {frames.map((f) => (
-            // biome-ignore lint/a11y/useAriaPropsSupportedByRole: role is `group` or `img` (both take a name)
-            <div
-              key={f.key}
-              ref={(el) => {
-                if (el) nodes.current.set(f.key, el);
-                else nodes.current.delete(f.key);
-              }}
-              className="dc-absent"
-              data-testid="asset-frame"
-              data-rel={f.rel}
-              data-state={f.words.state}
-              data-lost={f.lost ? '1' : undefined}
-              // gate-b-a11y: `img` cannot hold the Relink… button (axe nested-interactive) — a labelled group can
-              role={f.words.relink ? 'group' : 'img'}
-              aria-label={
-                f.lost && f.words.line === LOST_VIDEO_LINE
-                  ? `${f.words.line} · ${f.rel}`
-                  : `${f.lost ? f.rel : baseName(f.rel)} · ${f.words.line}`
-              }
-            >
-              <span className="dc-absent-in">
-                <svg
-                  className="dc-absent-ic"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 16 16"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.4"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M8 2.2 14.2 13H1.8z" />
-                  <path d="M8 6.4v3.2" />
-                  <circle cx="8" cy="11.3" r="0.4" fill="currentColor" />
-                </svg>
-                <span className="dc-absent-n">{f.lost ? f.rel : baseName(f.rel)}</span>
-                <span className="dc-absent-d">{f.words.line}</span>
-                {f.words.relink ? (
-                  <button
-                    type="button"
-                    className="dc-absent-btn"
-                    data-testid="asset-frame-relink"
-                    onClick={() => {
-                      // A literal `{ dgn }` so the bridge inventory sees this send site.
-                      try {
-                        window.parent.postMessage({ dgn: 'asset-relink-request', rel: f.rel }, '*');
-                      } catch {
-                        /* detached */
-                      }
-                    }}
+          {frames.map((f) => {
+            const lfs = f.words.state === 'lfs-pointer' && lfsActions && !f.lost;
+            const copyWord = copied.get(f.rel);
+            return (
+              // biome-ignore lint/a11y/useAriaPropsSupportedByRole: role is `group` or `img` (both take a name)
+              <div
+                key={f.key}
+                ref={(el) => {
+                  if (el) nodes.current.set(f.key, el);
+                  else nodes.current.delete(f.key);
+                }}
+                className="dc-absent"
+                data-testid="asset-frame"
+                data-rel={f.rel}
+                data-state={f.words.state}
+                data-lost={f.lost ? '1' : undefined}
+                // gate-b-a11y: `img` cannot hold the Relink… button (axe nested-interactive) — a labelled group can
+                role={f.words.relink || lfs ? 'group' : 'img'}
+                aria-label={
+                  f.lost && f.words.line === LOST_VIDEO_LINE
+                    ? `${f.words.line} · ${f.rel}`
+                    : `${f.lost ? f.rel : baseName(f.rel)} · ${f.words.line}`
+                }
+              >
+                <span className="dc-absent-in">
+                  <svg
+                    className="dc-absent-ic"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
                   >
-                    Relink…
-                  </button>
-                ) : null}
-              </span>
-            </div>
-          ))}
+                    <path d="M8 2.2 14.2 13H1.8z" />
+                    <path d="M8 6.4v3.2" />
+                    <circle cx="8" cy="11.3" r="0.4" fill="currentColor" />
+                  </svg>
+                  <span className="dc-absent-n">{f.lost ? f.rel : baseName(f.rel)}</span>
+                  <span className="dc-absent-d">{f.words.line}</span>
+                  {f.words.relink ? (
+                    <button
+                      type="button"
+                      className="dc-absent-btn"
+                      data-testid="asset-frame-relink"
+                      onClick={() => {
+                        // A literal `{ dgn }` so the bridge inventory sees this send site.
+                        try {
+                          window.parent.postMessage(
+                            { dgn: 'asset-relink-request', rel: f.rel },
+                            '*'
+                          );
+                        } catch {
+                          /* detached */
+                        }
+                      }}
+                    >
+                      Relink…
+                    </button>
+                  ) : null}
+                  {lfs ? (
+                    <span className="dc-absent-row">
+                      <button
+                        type="button"
+                        className="dc-absent-btn"
+                        data-testid="asset-frame-lfs-fix"
+                        onClick={() => {
+                          // A literal `{ dgn }` so the bridge inventory sees this send site.
+                          try {
+                            window.parent.postMessage(
+                              { dgn: 'asset-lfs-fix-request', rel: f.rel },
+                              '*'
+                            );
+                          } catch {
+                            /* detached */
+                          }
+                        }}
+                      >
+                        Fix with AI
+                      </button>
+                      <button
+                        type="button"
+                        className="dc-absent-btn dc-absent-btn--quiet"
+                        data-testid="asset-frame-lfs-copy"
+                        aria-live="polite"
+                        onClick={() => {
+                          // A literal `{ dgn }` so the bridge inventory sees this send site.
+                          try {
+                            window.parent.postMessage(
+                              { dgn: 'asset-lfs-copy-request', rel: f.rel },
+                              '*'
+                            );
+                          } catch {
+                            /* detached */
+                          }
+                        }}
+                      >
+                        {copyWord === 'copied'
+                          ? 'Copied'
+                          : copyWord === 'failed'
+                            ? 'Couldn’t copy'
+                            : 'Copy prompt'}
+                      </button>
+                    </span>
+                  ) : null}
+                </span>
+              </div>
+            );
+          })}
         </div>,
         document.body
       )}

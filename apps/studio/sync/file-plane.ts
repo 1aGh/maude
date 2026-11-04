@@ -79,6 +79,7 @@ import {
   type JournalEntry,
   type JournalPage,
 } from './journal-client.ts';
+import { LFS_POINTER_REASON, readLfsPointer } from './lfs-pointer.ts';
 import { createPullBudget } from './pull-budget.ts';
 import { failureReason, isBackpressure, refusalWords, retryAfterMs } from './retry-after.ts';
 import { classifyTransportError } from './transport-error.ts';
@@ -1994,13 +1995,28 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
             out.synced += 1;
             continue;
           }
-          drop(
-            out,
-            rel,
-            'code modules replicate only from an owner-vouched or loopback hub',
-            ledger
-          );
-          continue;
+          // NOR IS AN UPLOAD A LANDING (2.0.3). The hub still holds exactly what
+          // we last agreed on, so the only thing that moved is OUR copy: this is
+          // the upward half, which the upload gate below decides (the door then
+          // enforces the owner role). Refusing it here meant an owner without
+          // receive consent uploaded each code module once and never again — the
+          // cell kept the first version (alligators, 2.0.2). Anything else — the
+          // hub moved, or there is no agreed ancestor — still never lands here.
+          const ancestor = ledger.ancestorOf(rel);
+          const uploadOnly =
+            here !== undefined &&
+            ancestor !== null &&
+            ancestor === remoteHash &&
+            (opts.canUploadCodeModules ?? opts.allowCodeModules);
+          if (!uploadOnly) {
+            drop(
+              out,
+              rel,
+              'code modules replicate only from an owner-vouched or loopback hub',
+              ledger
+            );
+            continue;
+          }
         }
       }
 
@@ -2468,6 +2484,19 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         if (opts.outboundPaused?.()) {
           out.heldForFormat = (out.heldForFormat ?? 0) + 1;
           return false;
+        }
+        // 2.0.3 — a Git LFS pointer (a clone without `git lfs pull`) is not the file: never send it
+        // up as if it were. Held like a door's refusal of exactly these bytes (`refusedHash`), so it is
+        // said once and goes up by itself once the real file is restored (the hash changes).
+        if (readLfsPointer(here.abs)) {
+          ledger.setState(rel, 'refused', {
+            reason: LFS_POINTER_REASON,
+            blockedClass: 'refused',
+            refusedHash: here.hash,
+          });
+          out.dropped.push({ rel, reason: LFS_POINTER_REASON });
+          log.warn(`[file-plane] ${rel}: a Git LFS placeholder, not the file — not uploaded`);
+          return true;
         }
         ledger.setState(rel, 'pushing');
         const expect = decision.action === 'revive' ? null : remoteHash;

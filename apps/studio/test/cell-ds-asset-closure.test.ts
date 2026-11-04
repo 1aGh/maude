@@ -189,6 +189,40 @@ describe("a cell frame reads its own design system's media (not on the checkout)
   }
 });
 
+// 2.0.3 — the design-system Library listed graphics/, logos/, photos/ … with 0 files each in a cell: the listing read
+// the checkout, and on a cell the media is only in the hub's journal + cache.
+describe("the design-system Library lists the hub's media on a cell", () => {
+  const lib = async (query: string, who: Record<string, string>) => {
+    const r = await get(`${cell.base}/_api/ds/assets?${query}`, who);
+    return { status: r.status, body: JSON.parse(r.text) as Record<string, any> };
+  };
+  test('owner: folders carry counts, a folder lists its files', async () => {
+    const top = await lib('ds=alligators', OWNER_O);
+    expect(top.status).toBe(200);
+    expect(top.body.dirs).toEqual([
+      { path: `${SYS}/assets/logos`, name: 'logos', count: 1 },
+      { path: `${SYS}/assets/photos-cut`, name: 'photos-cut', count: 1 },
+    ]);
+    const logos = await lib('ds=alligators&dir=logos', OWNER_O);
+    expect(logos.body.files.map((f: { path: string }) => f.path)).toEqual([LOGO]);
+    expect(
+      (await lib('ds=alligators&q=helmet', OWNER_O)).body.files.map((f: any) => f.path)
+    ).toEqual([PHOTO]);
+  });
+  test("owner: a row's thumbnail URL loads on the main origin (materialized)", async () => {
+    const logos = await lib('ds=alligators&dir=logos', OWNER_O);
+    const r = await get(`${cell.base}/.design/${logos.body.files[0].path}`, OWNER_O);
+    expect(r.status).toBe(200);
+    expect(r.text).toContain('<svg');
+  });
+  test('a canvas share: only what its closure reads', async () => {
+    const top = await lib('ds=alligators', SHARE_O);
+    expect(top.status).toBe(200);
+    expect(top.body.dirs.map((d: { name: string }) => d.name)).toEqual(['logos', 'photos-cut']);
+    expect((await lib('ds=other', SHARE_O)).status).toBe(404);
+  });
+});
+
 describe('an owner frame on a cell reads any project media from the hub cache', () => {
   // maude/v2-202-project-role-frames-read-project-media (Michal, 2026-11-03): a project-role opener's
   // frame reads every project media file — on a cell that includes media only the hub's
