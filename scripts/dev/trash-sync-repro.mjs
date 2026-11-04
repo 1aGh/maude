@@ -490,7 +490,8 @@ async function restartStudio(p) {
 async function raceRun(n) {
   const rel = `ui/Race${n}.tsx`;
   const r = rng(n);
-  const trasher = (TRASHER === 'mixed' ? pick(r, ['alice', 'bob']) : TRASHER) === 'bob' ? bob : alice;
+  const trasher =
+    (TRASHER === 'mixed' ? pick(r, ['alice', 'bob']) : TRASHER) === 'bob' ? bob : alice;
   const other = trasher === bob ? alice : bob;
   const otherDoes = OTHER === 'mixed' ? pick(r, ['trash', 'dup', 'text', 'text-trashed']) : OTHER;
   const net = NET === 'mixed' ? pick(r, ['offline', 'online']) : NET;
@@ -510,7 +511,13 @@ async function raceRun(n) {
     });
   const handEdit = (label) => {
     const p = join(other.root, '.design', rel);
-    writeFileSync(p, read(p).replace(`<h1 style={{ padding: 16 }}>${label}</h1>`, `<h1 style={{ padding: 16 }}>${label} edited</h1>`));
+    writeFileSync(
+      p,
+      read(p).replace(
+        `<h1 style={{ padding: 16 }}>${label}</h1>`,
+        `<h1 style={{ padding: 16 }}>${label} edited</h1>`
+      )
+    );
     return Promise.resolve({ status: 'hand' });
   };
   const otherEdit = () =>
@@ -588,7 +595,12 @@ async function raceRun(n) {
     shape,
     // a hand edit's words, where each side ended (lost everywhere with no conflict = dropped in silence)
     ...(otherDoes.startsWith('text')
-      ? { editedAt: { alice: /edited</.test(disk(alice, rel) ?? ''), bob: /edited</.test(disk(bob, rel) ?? '') } }
+      ? {
+          editedAt: {
+            alice: /edited</.test(disk(alice, rel) ?? ''),
+            bob: /edited</.test(disk(bob, rel) ?? ''),
+          },
+        }
       : {}),
   };
   // p8-held-conflict-status — the refused Mac's real /_sync-status through the Share cluster's own status
@@ -649,7 +661,11 @@ async function raceRun(n) {
     // a conflict held before the restart that is gone after it, with nobody's choice: its side was
     // overwritten by the project's version in silence (the recovery copy is not a notice)
     for (const who of ['alice', 'bob'])
-      if (heldAt(who) && ar[`${who}Conflicts`] === 0 && ar[who].join(',') !== final[who].join(',')) {
+      if (
+        heldAt(who) &&
+        ar[`${who}Conflicts`] === 0 &&
+        ar[who].join(',') !== final[who].join(',')
+      ) {
         ar.silentlyResolved = who;
         ok = false;
       }
