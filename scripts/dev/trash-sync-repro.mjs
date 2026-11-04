@@ -579,6 +579,10 @@ async function raceRun(n) {
     bobOp: b.status,
     hub: await hubIds(rel),
     shape,
+    // a hand edit's words, where each side ended (lost everywhere with no conflict = dropped in silence)
+    ...(otherDoes.startsWith('text')
+      ? { editedAt: { alice: /edited</.test(disk(alice, rel) ?? ''), bob: /edited</.test(disk(bob, rel) ?? '') } }
+      : {}),
   };
   // p8-held-conflict-status — the refused Mac's real /_sync-status through the Share cluster's own status
   // machine: a held conflict must read Not saved · Compare, never Saved. --status-out <file> keeps that
