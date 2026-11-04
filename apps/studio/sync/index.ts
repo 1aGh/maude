@@ -67,6 +67,7 @@ import {
   resolveCanvasBodyRel,
 } from './canvas-path.ts';
 import { type CellPairing, resolveCellPairing, sanitizeForLog } from './cell-pairing.ts';
+import { codeModuleConsent } from './code-module-consent.ts';
 import {
   canvasPathFromDoc,
   clearMovedTo,
@@ -1258,8 +1259,17 @@ export function createSyncRuntime(
   //
   // Now: an explicit per-hub consent recorded at link time and never rewritten
   // by a login response, or this cell's own loopback pairing — where the hub
-  // and the checkout are one trust domain and there is no remote party.
-  const allowCodeModules = cellPairing !== null || storedRecord?.codeModulesAllowed === true;
+  // and the checkout are one trust domain and there is no remote party — or
+  // (2.0.4) the Maude Cloud cell the desktop app itself bound this copy to
+  // (`MAUDE_APP_BOUND_HUB` + the compiled-in cell zone; never a committed
+  // linkedHub, never a self-hosted hub). See sync/code-module-consent.ts.
+  const allowCodeModules =
+    codeModuleConsent({
+      cellPairing: cellPairing !== null,
+      hubUrl: linkedHub.url,
+      storedRecord,
+      env: process.env,
+    }) !== null;
   // Same shape of consent for the OUTBOUND delete breaker: only what this
   // machine's owner recorded (`maude design bulk-deletes on`), never the hub.
   const unlimitedDeletes = storedRecord?.unlimitedDeletes === true;
