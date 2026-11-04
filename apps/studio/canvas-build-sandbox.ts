@@ -24,14 +24,21 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve, sep } from 'node:path';
 
 import { bothForms } from './access/frame.ts';
+import { budgetFromEnv, createModuleCache } from './canvas-module-cache.ts';
 import { DEV_SERVER_ROOT } from './paths.ts';
 
 /** Wall clock a single canvas build may take. */
 export const BUILD_TIMEOUT_MS = Number(process.env.MAUDE_CANVAS_BUILD_TIMEOUT_MS ?? 20_000);
 /** Resident memory a build process may reach before it is killed. */
 export const BUILD_RSS_LIMIT_MB = Number(process.env.MAUDE_CANVAS_BUILD_RSS_MB ?? 768);
-/** How many built modules to keep. Each is a string; canvases are ~100–400 kB. */
+/** How many built modules to keep. Each is a string that bundles the shared chrome — ~2 MB of
+ *  text however small the canvas (issue #204), so the byte bound below is the one that bites. */
 export const CACHE_MAX_ENTRIES = Number(process.env.MAUDE_CANVAS_CACHE_ENTRIES ?? 64);
+/** Issue #204 — what the kept modules may weigh in all, counted at two bytes a character (a JS
+ *  string holding any non-Latin-1 character). The module route keeps its own byte-bounded copy in
+ *  front of this one (http.ts `canvasCache`), so this cache only saves a rebuild after that one
+ *  evicted; 64 two-megabyte strings held here were ~270 MB of a cell's heap. */
+export const CACHE_MAX_BYTES = budgetFromEnv('MAUDE_CANVAS_SANDBOX_CACHE_MB', 32);
 
 export interface SandboxBuildOk {
   ok: true;
@@ -158,8 +165,11 @@ export function _resetBuildStats(): void {
 }
 
 type CachedBuild = { js: string; locator: unknown; etag: string; inputs: string[] };
-/** key → { js, locator, etag, inputs } */
-const cache = new Map<string, CachedBuild>();
+/** key → { js, locator, etag, inputs }, LRU under both bounds. */
+const cache = createModuleCache<{ bytes: number; build: CachedBuild }>({
+  maxBytes: CACHE_MAX_BYTES,
+  maxEntries: CACHE_MAX_ENTRIES,
+});
 
 /**
  * The cache key: the canvas source plus every sibling source it could pull in.
@@ -238,11 +248,7 @@ function graphBytes(designRoot: string, canvasAbs: string): number {
 }
 
 function remember(key: string, value: CachedBuild): void {
-  cache.set(key, value);
-  while (cache.size > CACHE_MAX_ENTRIES) {
-    const oldest = cache.keys().next().value as string;
-    cache.delete(oldest);
-  }
+  cache.set(key, { bytes: value.js.length * 2, build: value });
 }
 
 /**
@@ -346,7 +352,7 @@ export async function buildCanvasSandboxed({
 }): Promise<SandboxBuildResult> {
   maybeRoll();
   const key = cacheKeyFor(designRoot, canvasAbs);
-  const hit = cache.get(key);
+  const hit = cache.get(key)?.build;
   if (hit) {
     counters.cacheHits++;
     return { ...hit, ok: true, cached: true };
