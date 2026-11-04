@@ -221,6 +221,7 @@ export const WowSketch = ({ hideScreen1 = false }: { hideScreen1?: boolean }) =>
           }}
         />
         <svg
+          aria-hidden="true"
           width={SCR.w}
           height={SCR.h}
           style={{
@@ -276,6 +277,7 @@ export const WowSketch = ({ hideScreen1 = false }: { hideScreen1?: boolean }) =>
 
       {/* the flow: each click draws its prototype link out of the button, the next screen slides in */}
       <svg
+        aria-hidden="true"
         style={{ position: 'absolute', left: 0, top: 0, overflow: 'visible' }}
         width={1}
         height={1}

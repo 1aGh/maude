@@ -241,6 +241,7 @@ export const SparkTraveler = () => {
     <>
       {tail > 0.01 ? (
         <svg
+          aria-hidden="true"
           style={{ position: 'absolute', left: 0, top: 0, overflow: 'visible', zIndex: 49 }}
           width={1}
           height={1}

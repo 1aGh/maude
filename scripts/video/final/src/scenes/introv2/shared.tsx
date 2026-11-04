@@ -88,6 +88,7 @@ export const SparkRing = ({
   if (draw <= 0.001 || out >= 0.999) return null;
   return (
     <svg
+      aria-hidden="true"
       style={{
         position: 'absolute',
         left: x - 12,
