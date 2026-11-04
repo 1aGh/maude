@@ -20,13 +20,13 @@ const CHAR = 38.4; // mono advance at 64 px
 export const NoHandoff = () => {
   const t = useT();
   if (t < 37.5 || t > 48) return null;
-  const line = sp(t, CUE.nh.line, 'snappy');
+  const line = sp(t, CUE.nh.line + 0.1, 'snappy'); // lands once the names have cleared
   return (
     <div className="maude-v2" data-theme="dark" style={{ position: 'absolute', left: NH.x, top: NH.y, width: NH.w, height: NH.h, borderRadius: 28, background: 'var(--bg-0)', overflow: 'hidden', boxShadow: 'var(--shadow-lg)' }}>
       <div style={{ position: 'absolute', left: (NH.w - 25 * CHAR) / 2, top: 400, display: 'flex', flexDirection: 'column', gap: 34 }}>
         {FILES.map((f, i) => {
           const k = sp(t, f.in, 'snappy');
-          const out = tw(t, CUE.nh.line - 0.15 + i * 0.06, CUE.nh.line + 0.3 + i * 0.06, 0, 1, EASE.exit);
+          const out = tw(t, CUE.nh.line - 0.08 + i * 0.04, CUE.nh.line + 0.2 + i * 0.04, 0, 1, EASE.exit);
           const s = tw(t, f.strike, f.strike + 0.27, 0, 1, EASE.enter);
           const jolt = Math.sin(Math.PI * tw(t, f.strike, f.strike + 0.2, 0, 1, EASE.move)) * 10;
           const typed = f.type ? Math.round(tw(t, f.in, f.in + f.type, 0, f.name.length, (n) => n)) : f.name.length;

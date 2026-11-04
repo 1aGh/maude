@@ -106,11 +106,14 @@ export const WowPosts = () => {
           </div>
         );
       })}
-      {SLOTS.map((s, i) => (
-        <span key={`l${i}`} style={{ position: 'absolute', left: s.x, top: s.y - 34, fontSize: 22, fontWeight: 600, color: 'var(--fg-1)', opacity: tw(t, CUE.w2.fan + 0.45 + i * 0.12, CUE.w2.fan + 0.75 + i * 0.12) }}>
-          {s.story ? 'Story 9:16' : 'Post 1:1'}
-        </span>
-      ))}
+      {/* one label per column, above the grid (the 24 px gutter between rows has no room for one) */}
+      {SLOTS.map((s, i) =>
+        s.y === GY ? (
+          <span key={`l${i}`} style={{ position: 'absolute', left: s.x, top: s.y - 36, whiteSpace: 'nowrap', fontSize: 22, fontWeight: 600, color: 'var(--fg-1)', opacity: tw(t, CUE.w2.fan + 0.45 + i * 0.12, CUE.w2.fan + 0.75 + i * 0.12) }}>
+            {s.story ? 'Story 9:16' : 'Post 1:1'}
+          </span>
+        ) : null,
+      )}
       <div style={{ position: 'absolute', left: 5257, top: GY + GH + 22, transform: `translateX(-50%) scale(${1.3 * made})`, transformOrigin: '50% 0' }}>
         <Chip ai style={{ fontSize: 24 }}>Made by AI · on brand</Chip>
       </div>
