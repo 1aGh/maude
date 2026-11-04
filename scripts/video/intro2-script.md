@@ -140,9 +140,13 @@ env it builds V5 exactly as before. `final/build-intro2.sh` calls it for Intro2:
   from 55.5 s. No SFX.
 - `loudnorm` to -16 LUFS, true peak -1.5 dB; video re-encoded x264 CRF 23 (`-preset slow`,
   `+faststart`), AAC 192k.
-- Then the poster (the settled end card) and the captions: `sub.mjs` (whisper.cpp medium.en)
-  on the mixed MP4, `scripts/captions-to-vtt.mjs` to WebVTT, fixing whisper's spelling of our
-  names.
+- Then the poster (the settled end card, last half second) and the captions.
+- **Decided (captions):** whisper (the same whisper.cpp 1.5.5 + medium.en setup as `sub.mjs`)
+  runs on each clean VO take, and every word is shifted by that line's offset in the mix
+  (`scripts/intro2-captions.mjs`), then `scripts/captions-to-vtt.mjs` writes WebVTT and fixes
+  whisper's spelling of our names and the script's punctuation. `sub.mjs` on the mixed film was
+  tried first: under the music bed its word times drifted by up to 1.5 s and it added a
+  `[BLANK_AUDIO]` cue. Burned-in captions are not in this cut (the site has a captions track).
 
 ## Re-render
 
