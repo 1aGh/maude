@@ -14,7 +14,9 @@
 
 import { StIcon } from '../../shell/icons.jsx';
 import {
+  BUILDING_BODY,
   baseName,
+  buildingTitle,
   fileNote,
   moreCount,
   needLabel,
@@ -91,6 +93,36 @@ export function CanvasWaitingCard({ canvas, waiting }) {
           </ul>
         </div>
       ) : null}
+    </section>
+  );
+}
+
+/**
+ * 2.0.4 task P — its build is still running (it outlived the request that started it; a big canvas
+ * on a busy server). Not a failure: no Ask AI, no Reload. CanvasLoadFailure watches and loads the
+ * canvas by itself when the build is done; a build that died past its ceiling turns into the
+ * ordinary "can't be drawn" card with "The build timed out" under Show details.
+ */
+export function CanvasBuildingCard({ canvas }) {
+  return (
+    <section
+      className="v2-err v2-err--waiting"
+      aria-labelledby="v2-err-title"
+      data-testid="canvas-waiting-card"
+      data-kind="building"
+      aria-live="polite"
+    >
+      <header className="v2-err-hd">
+        <span className="v2-err-ic v2-err-ic--calm" aria-hidden="true">
+          <StIcon name="sync" size={20} />
+        </span>
+        <h2 className="v2-err-t" id="v2-err-title" data-testid="canvas-waiting-title">
+          {buildingTitle(canvas, canvasTitle(canvas))}
+        </h2>
+      </header>
+      <p className="v2-err-d" data-testid="canvas-waiting-body">
+        {BUILDING_BODY}
+      </p>
     </section>
   );
 }

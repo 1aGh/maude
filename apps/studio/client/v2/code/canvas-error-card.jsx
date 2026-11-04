@@ -24,7 +24,7 @@ import { Check, Copy, Spark } from '../ai/icons.jsx';
 import { INDEX_CHANGED_EVENT } from '../canvases/use-canvas-index.js';
 import { projectRel } from '../shell/native-doors.js';
 import { BUILD_FAILURE_BODY, buildFailureReason } from './canvas-waiting.js';
-import { CanvasWaitingCard } from './canvas-waiting-card.jsx';
+import { CanvasBuildingCard, CanvasWaitingCard } from './canvas-waiting-card.jsx';
 import { registerErrorCard } from './code-bus.js';
 import {
   askAiText,
@@ -395,10 +395,12 @@ export function CanvasLoadFailure({
   const error = err.status === 'ok' ? err.error : null;
   const waiting = err.status === 'ok' ? err.waiting : null;
   const buildFailure = err.status === 'ok' ? err.buildFailure : null;
-  // 2.0.4 — while it waits for files, watch: re-ask when the project index moves (a file landed) and on
-  // a modest timer, and load the canvas by itself the moment nothing is missing any more. This is not
-  // a retry of a failure (CONTRACT C20): the cause it named went away.
-  const waitingNow = !!waiting;
+  // 2.0.4 task P — its build is still running on the server (no file is missing, nothing failed)
+  const building = err.status === 'ok' && !error && !waiting && err.building === true;
+  // 2.0.4 — while it waits for files (or, task P, for its build), watch: re-ask when the project index
+  // moves (a file landed) and on a modest timer, and load the canvas by itself the moment nothing is
+  // missing any more. This is not a retry of a failure (CONTRACT C20): the cause it named went away.
+  const waitingNow = !!waiting || building;
   useEffect(() => {
     if (!waitingNow) return undefined;
     const again = () => setStamp((n) => n + 1);
@@ -414,10 +416,12 @@ export function CanvasLoadFailure({
   reloadRef.current = onReload;
   useEffect(() => {
     if (err.status !== 'ok') return;
-    if (err.waiting) wasWaiting.current = true;
+    if (err.waiting || (err.building && !err.error)) wasWaiting.current = true;
     else if (wasWaiting.current) {
       wasWaiting.current = false;
-      reloadRef.current?.();
+      // a build that stopped (past its ceiling, out of memory …) stays on the card that says why: a
+      // reload would only start the same build again
+      if (!err.buildFailure && !err.error) reloadRef.current?.();
     }
   }, [err]);
   // Context lines come from the source — for people who may read it (Can view gets the one quoted line).
@@ -446,6 +450,7 @@ export function CanvasLoadFailure({
   }
   // files it imports haven't reached this Mac, or are held back: not a mistake in its code
   if (waiting) return <CanvasWaitingCard canvas={canvas} waiting={waiting} />;
+  if (building) return <CanvasBuildingCard canvas={canvas} />;
   return (
     <>
       <LastGoodGhosts boxes={ghosts} />

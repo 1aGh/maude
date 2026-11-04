@@ -22726,7 +22726,7 @@
     "hook": "canvas-waiting-card",
     "kind": "testid",
     "pattern": false,
-    "meaning": "2.0.4: the card for a canvas that can't load yet because files it imports haven't reached this Mac (\"<Canvas> is still downloading.\") or are held back (\"<Canvas> can't open on this Mac yet.\"). `data-kind` = `waiting` | `refused`. Loads the canvas by itself when the files land.",
+    "meaning": "2.0.4: the card for a canvas that can't load yet because files it imports haven't reached this Mac (\"<Canvas> is still downloading.\") or are held back (\"<Canvas> can't open on this Mac yet.\"). `data-kind` = `waiting` | `refused` | `building` (task P: its build is still running on the server — \"Building the design system…\" / \"Building <Canvas>…\", `CanvasBuildingCard`). Loads the canvas by itself when the files land or the build is done.",
     "producer": {
       "file": "apps/studio/client/v2/code/canvas-waiting-card.jsx",
       "symbol": "CanvasWaitingCard"

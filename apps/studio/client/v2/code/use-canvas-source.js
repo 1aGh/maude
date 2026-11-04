@@ -95,7 +95,7 @@ export async function fetchCanvasSource(canvas, { fetchImpl = (...a) => fetch(..
   }
 }
 
-/** @returns {Promise<{status:'ok', error:object|null, waiting:object|null, buildFailure:object|null} | {status:'view-only'|'refused'|'missing'|'error'}>} */
+/** @returns {Promise<{status:'ok', error:object|null, waiting:object|null, buildFailure:object|null, building:boolean} |{status:'view-only'|'refused'|'missing'|'error'}>} */
 export async function fetchCanvasError(canvas, { fetchImpl = (...a) => fetch(...a) } = {}) {
   try {
     const res = await fetchImpl(`${ERRORS_ROUTE}?canvas=${encodeURIComponent(canvas)}`, {
@@ -109,6 +109,8 @@ export async function fetchCanvasError(canvas, { fetchImpl = (...a) => fetch(...
       // 2.0.4 — files it is still waiting for; #189 — why its build stopped outside its code
       waiting: normalizeWaiting(body.waiting),
       buildFailure: normalizeBuildFailure(body.buildFailure),
+      // 2.0.4 task P — its build is still running on the server (not a failure)
+      building: body.building === true,
     };
   } catch {
     return { status: 'error' };

@@ -261,6 +261,106 @@ describe('the load-failure slot', () => {
     expect(buildFailureReason({ class: 'imports-refused', count: 3 })).toBe('3 imports refused');
   });
 
+  // 2.0.4 task P — design.studyfi.com: the board's build outlived the request, and the card said
+  // "design-system can't be drawn right now… It didn't finish loading" with "No details were reported".
+  const BOARD = '.design/system/studyfi-v3/design-system.tsx';
+
+  test('task P building: the design system says it is being built, not that it broke', async () => {
+    await mount(
+      <CanvasLoadFailure
+        canvas={BOARD}
+        askAiAvailable
+        onAskAi={() => {}}
+        onReload={() => {}}
+        watchMs={60_000}
+        fetchImpl={errorsRoute([{ canvas: BOARD, errors: [], building: true }])}
+      />
+    );
+    expect(q('canvas-waiting-card')?.dataset.kind).toBe('building');
+    expect(q('canvas-waiting-title')?.textContent).toBe('Building the design system…');
+    expect(q('canvas-waiting-body')?.textContent).toBe(
+      "This can take a minute on a big project. Nothing is lost. The canvas opens by itself when it's ready."
+    );
+    expect(q('canvas-error-card')).toBeNull();
+    expect(q('canvas-error-ask-ai')).toBeNull();
+    expect(q('canvas-load-retry')).toBeNull();
+    expect(document.body.textContent).not.toContain("can't be drawn");
+    expect(document.body.textContent).not.toContain('No details were reported');
+  });
+
+  test('task P building: any other canvas by its name', async () => {
+    await mount(
+      <CanvasLoadFailure
+        canvas={CANVAS}
+        watchMs={60_000}
+        fetchImpl={errorsRoute([{ canvas: CANVAS, errors: [], building: true }])}
+      />
+    );
+    expect(q('canvas-waiting-title')?.textContent).toBe('Building Uniformy-2027…');
+  });
+
+  test('task P building: when the build is done the canvas loads by itself, once', async () => {
+    let reloads = 0;
+    const seen = { n: 0 };
+    await mount(
+      <CanvasLoadFailure
+        canvas={BOARD}
+        watchMs={20}
+        onReload={() => {
+          reloads += 1;
+        }}
+        fetchImpl={errorsRoute(
+          [
+            { canvas: BOARD, errors: [], building: true },
+            { canvas: BOARD, errors: [], building: true },
+            { canvas: BOARD, errors: [] },
+          ],
+          seen
+        )}
+      />
+    );
+    expect(q('canvas-waiting-card')?.dataset.kind).toBe('building');
+    // one act per tick: React flushes a tick's re-ask when its act ends
+    for (let i = 0; i < 6 && seen.n < 3; i++) {
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 40));
+      });
+      await settle();
+    }
+    expect(seen.n).toBe(3);
+    expect(reloads).toBe(1);
+  });
+
+  test('task P building → past the ceiling: the timed-out card, and no reload loop', async () => {
+    let reloads = 0;
+    await mount(
+      <CanvasLoadFailure
+        canvas={BOARD}
+        watchMs={20}
+        onReload={() => {
+          reloads += 1;
+        }}
+        fetchImpl={errorsRoute([
+          { canvas: BOARD, errors: [], building: true },
+          { canvas: BOARD, errors: [], buildFailure: { class: 'timed-out' } },
+        ])}
+      />
+    );
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 120));
+    });
+    await settle();
+    expect(reloads).toBe(0);
+    expect(q('canvas-waiting-card')).toBeNull();
+    expect(q('canvas-error-title')?.textContent).toBe("design-system can't be drawn right now.");
+    await act(async () => {
+      q('fold-canvas-error-toggle')?.dispatchEvent(
+        new window.MouseEvent('click', { bubbles: true })
+      );
+    });
+    expect(q('canvas-error-build-reason')?.textContent).toBe('The build timed out');
+  });
+
   test('a genuine code error keeps its card and Ask AI to fix it', async () => {
     await mount(
       <CanvasLoadFailure
