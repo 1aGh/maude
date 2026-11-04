@@ -188,7 +188,7 @@ function clearTxnCookie(response, extra = []) {
 // ---- the desktop's sign-in (issue #204, desktop-signin.mjs) ---------------
 
 /** The desktop request this browser is signing in for — signed, unexpired — or null. */
-function desktopTxnOf(request, secret) {
+export function desktopTxnOf(request, secret) {
   return readDesktopTxn(cookieValue(request, DESKTOP_TXN_COOKIE), { secret });
 }
 
@@ -197,7 +197,11 @@ function desktopTxnOf(request, secret) {
  * code (or the reason there is none) on the app's loopback return, and the
  * desktop request cleared. A 200 page, never a 302 — see desktop-signin.mjs.
  */
-function handOffToDesktop(response, desktop, { email = null, error = null, extraCookies = [] }) {
+export function handOffToDesktop(
+  response,
+  desktop,
+  { email = null, error = null, extraCookies = [] }
+) {
   const params = email
     ? { code: desktopCodes.issue({ email, challenge: desktop.challenge }) }
     : { error: error ?? 'denied' };
