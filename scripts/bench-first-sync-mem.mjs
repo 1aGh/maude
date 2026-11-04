@@ -14,7 +14,7 @@
 //   node scripts/bench-first-sync-mem.mjs --out /tmp/x/first-sync [--canvases 300] [--files 7200]
 //        [--budget-rss-mb 2000] [--timeout 1800] [--json] [--preload probe.ts] [--bun-arg --cpu-prof-md]
 //        [--pull] [--media 3000] [--media-min-kb 50] [--media-max-kb 5000] [--settle 60] [--reuse]
-//        [--client] [--reboot 300]
+//        [--client] [--reboot 300] [--studio <apps/studio dir>] [--hub-rate N]
 //
 // --pull (issue #204): the PULL direction — a second Mac linking an existing project. The fixture is
 // written into the hub's checkout (the hub's boot scan journals it) and the studio starts from an
@@ -26,6 +26,9 @@
 // opens the studio page in a headless Chromium for the measured run (the desktop has its window up).
 // --reboot S then restarts the studio on the synced project and samples it S seconds: that boot
 // renders a cover for every canvas the sync brought, building each canvas module once.
+// --studio <dir> boots the MEASURED server from another apps/studio tree (e.g. a `git archive` of
+// the release before a fix, with node_modules linked in); --hub-rate N opens the hub's write door
+// to N/min so a push-direction run of a big shape finishes in reasonable time.
 // scripts/lib/mem-probe.ts (--preload, MAUDE_PROBE_OUT=<file>) logs heapStats every few seconds, and
 // on macOS every 10th sample also records the phys footprint (`ps` RSS omits compressed pages).
 //
@@ -68,6 +71,8 @@ function parseArgs(argv) {
     reuse: false,
     client: false,
     reboot: 0,
+    studio: null,
+    hubRate: 0,
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -87,6 +92,8 @@ function parseArgs(argv) {
     else if (a === '--reuse') out.reuse = true;
     else if (a === '--client') out.client = true;
     else if (a === '--reboot') out.reboot = Number(argv[++i]);
+    else if (a === '--studio') out.studio = argv[++i];
+    else if (a === '--hub-rate') out.hubRate = Number(argv[++i]);
   }
   return out;
 }
@@ -236,7 +243,11 @@ let hub = await startLocalHub({
   dir: join(OUT, 'hub'),
   workspace: checkout,
   ...(reuse ? { port: JSON.parse(readFileSync(join(OUT, 'hub-port.json'), 'utf8')).port } : {}),
-  ...(args.pull && !reuse ? { env: { HUB_ASSET_WRITE_RATE_LIMIT: '100000' } } : {}),
+  ...(args.pull && !reuse
+    ? { env: { HUB_ASSET_WRITE_RATE_LIMIT: '100000' } }
+    : args.hubRate
+      ? { env: { HUB_ASSET_WRITE_RATE_LIMIT: String(args.hubRate) } }
+      : {}),
 });
 const hubPort = Number(new URL(hub.http).port);
 if (args.pull) writeFileSync(join(OUT, 'hub-port.json'), JSON.stringify({ port: hubPort }));
@@ -327,7 +338,9 @@ async function runStudio(root, name, { probe, settleS, blockedIsDone = false, fo
       ...(probe && args.preload ? ['--preload', resolve(args.preload)] : []),
       // --bun-arg <flag>: any other runtime flag for the server (e.g. --cpu-prof-md).
       ...(probe ? args.bunArgs : []),
-      join(REPO, 'apps/studio/server.ts'),
+      // --studio <dir>: the measured server only (the seed and the hub stay this checkout's) — an
+      // older apps/studio tree, for a before/after on one machine.
+      join(probe && args.studio ? resolve(args.studio) : join(REPO, 'apps/studio'), 'server.ts'),
       '--root',
       root,
       '--port',
@@ -414,6 +427,16 @@ async function runStudio(root, name, { probe, settleS, blockedIsDone = false, fo
     if (forS && t > forS * 1000) break;
   }
   const settled = rssMb(studio.pid);
+  // With the probe loaded: one heap snapshot of the settled server (scripts/lib/mem-probe.ts).
+  const probeOut = process.env.MAUDE_PROBE_OUT;
+  if (probe && args.preload && probeOut && !exited) {
+    const summary = `${probeOut}.final.summary.json`;
+    rmSync(summary, { force: true });
+    studio.kill('SIGUSR2');
+    for (let i = 0; i < 240 && !existsSync(summary); i++) {
+      await new Promise((r) => setTimeout(r, 500));
+    }
+  }
   await browser?.close().catch(() => {});
   writeFileSync(logFile, log.join(''));
   studio.kill('SIGTERM');
