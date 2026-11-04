@@ -601,3 +601,92 @@ describe('hydrate budget — the boot restore stops before the disk does', () =>
     assert.equal(readFileSync(victim, 'utf8'), 'ORIGINAL');
   });
 });
+
+// 2.0.4 J — "6 assets fail to restore from the bucket" (design.studyfi.com, since 1.10.0) and the log said
+// only "6 failed": the per-key reasons were recorded in `result.failed` and never printed, so nobody could
+// say WHY. The summary now names each failed key with its reason — the key path only, never a URL, a
+// signature or the S3 error body (a SignatureDoesNotMatch body echoes the access key id).
+describe('hydrateAssets — the summary names each failure (2.0.4 J)', () => {
+  function capture() {
+    const lines = [];
+    const push = (...a) => lines.push(a.join(' '));
+    return { lines, log: { log: push, warn: push, error: push } };
+  }
+
+  it('prints every failed key with its recorded reason', async () => {
+    const dir = tmp();
+    mkdirSync(join(dir, 'assets'), { recursive: true });
+    const c = capture();
+    await hydrateAssets({
+      designRoot: dir,
+      s3: { bucket: 'x' },
+      prefix: '',
+      log: c.log,
+      deps: {
+        listObjects: async () => [
+          { key: 'assets/aaaaaaaa.png' },
+          { key: 'assets/bbbbbbbb.png' },
+          { key: 'assets/cccccccc.png' },
+        ],
+        getObject: async (_c, key) => {
+          if (key.includes('aaaa')) return null; // listed, then 404
+          if (key.includes('bbbb')) throw new Error('S3 GET assets/bbbbbbbb.png failed: 503');
+          return Buffer.from('ok');
+        },
+      },
+    });
+    const out = c.lines.join('\n');
+    assert.match(out, /aaaaaaaa\.png: not found in the bucket/);
+    assert.match(out, /bbbbbbbb\.png: S3 GET assets\/bbbbbbbb\.png failed: 503/);
+    assert.doesNotMatch(out, /cccccccc\.png:/, 'a restored key is not listed as failed');
+  });
+
+  it('never prints a URL, a signature or the S3 error body', async () => {
+    const dir = tmp();
+    mkdirSync(join(dir, 'assets'), { recursive: true });
+    const c = capture();
+    await hydrateAssets({
+      designRoot: dir,
+      s3: { bucket: 'x' },
+      prefix: '',
+      log: c.log,
+      deps: {
+        listObjects: async () => [{ key: 'assets/aaaaaaaa.png' }, { key: 'assets/bbbbbbbb.png' }],
+        getObject: async (_c, key) => {
+          if (key.includes('aaaa')) {
+            throw new Error(
+              'S3 GET assets/aaaaaaaa.png failed: 403 <?xml version="1.0"?><Error><Code>SignatureDoesNotMatch</Code><AWSAccessKeyId>AKIAEXAMPLEKEY123456</AWSAccessKeyId></Error>'
+            );
+          }
+          throw new Error(
+            'fetch failed for https://bucket.example/assets/bbbbbbbb.png?X-Amz-Signature=deadbeefcafe&X-Amz-Credential=AKIAEXAMPLEKEY123456'
+          );
+        },
+      },
+    });
+    const out = c.lines.join('\n');
+    assert.match(out, /aaaaaaaa\.png: S3 GET assets\/aaaaaaaa\.png failed: 403/);
+    assert.match(out, /bbbbbbbb\.png: fetch failed for/);
+    assert.doesNotMatch(out, /AKIAEXAMPLEKEY123456|X-Amz|deadbeefcafe|https?:\/\/|<Error>/);
+  });
+
+  it('caps the list at 20 lines, then "…and N more"', async () => {
+    const dir = tmp();
+    mkdirSync(join(dir, 'assets'), { recursive: true });
+    const c = capture();
+    const keys = Array.from({ length: 26 }, (_, i) => `assets/${String(i).padStart(8, '0')}.png`);
+    await hydrateAssets({
+      designRoot: dir,
+      s3: { bucket: 'x' },
+      prefix: '',
+      log: c.log,
+      deps: {
+        listObjects: async () => keys.map((key) => ({ key })),
+        getObject: async () => null,
+      },
+    });
+    const out = c.lines.join('\n');
+    assert.equal((out.match(/: not found in the bucket/g) ?? []).length, 20);
+    assert.match(out, /…and 6 more/);
+  });
+});
