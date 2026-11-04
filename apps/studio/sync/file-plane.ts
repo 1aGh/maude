@@ -100,8 +100,11 @@ export const MAX_FILE_BYTES = (() => {
 })();
 
 /** T18 — above this a download streams to disk (and resumes) instead of
- *  being held in memory. */
-export const STREAM_DOWNLOAD_ABOVE_BYTES = 32 * 1024 * 1024;
+ *  being held in memory. Issue #204: it was 32 MB, so every photo and clip of a
+ *  first sync was collected chunk by chunk and then copied into one buffer of
+ *  its full size (twice the file per download); below the threshold that still
+ *  happens, so it is kept at a size where twice the file does not matter. */
+export const STREAM_DOWNLOAD_ABOVE_BYTES = 1024 * 1024;
 
 /** sha256 of a file, read in 1 MiB chunks (T18 — a video is never held whole). */
 export function sha256File(abs: string): string {
