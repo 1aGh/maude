@@ -244,7 +244,7 @@ import { pidOf, projectDir } from './index/snapshot.ts';
 import { feedVersionsToIndex } from './index/version-feed.ts';
 import type { InspectRegistry } from './inspect.ts';
 import { canvasSlug, writeLocator } from './locator.ts';
-import { prepareManagedProject } from './managed-projects.ts';
+import { parsePrepareBody, prepareManagedProject } from './managed-projects.ts';
 import { materializeMissing } from './materialize-client.ts';
 import { createHubReachability } from './outbox/hub-reachability.ts';
 import { createOutbox, type GateFacts, type IntentRecord } from './outbox/index.ts';
@@ -300,7 +300,7 @@ import { createLinkGate } from './sync/link-consent.ts';
 import { createResyncTrace, type ResyncStatusSource } from './sync/resync-trace.ts';
 import { isFirstAnchorMode, readSyncSettings, writeSyncSettings } from './sync/settings.ts';
 import { listTrash, pruneTrash, restoreFromTrash } from './sync/trash.ts';
-import { signInToWorkspace, workspaceDisclosure } from './sync/workspace-signin.ts';
+import { workspaceDisclosure } from './sync/workspace-signin.ts';
 import { thumbNotFound, thumbResponse, wantResponse } from './thumbs/routes.ts';
 import { BOOT_COVERS_DELAY_MS, createThumbService } from './thumbs/service.ts';
 import { normalizeTreeState } from './tree-state.ts';
@@ -4893,53 +4893,26 @@ export function createHttp(
       return gitJson(await linkHub(body));
     },
 
-    // Cloud Phase 3 Task 3 — "Sign in to workspace". The person-facing
-    // counterpart to /_api/hub/link: an address plus an email and password,
-    // rather than a token to paste. Same gates as the link route (MAIN ORIGIN
-    // only, loopback, POST CSRF) for the same reason — this handler receives a
-    // PASSWORD, so the untrusted canvas origin must never be able to reach it.
-    // MANAGED PROJECTS (T21/T22): sign in / open, store the credential and
-    // describe the project, so the native shell can create its own copy.
-    // Main origin only — this mints and stores a credential.
+    // MANAGED PROJECTS (T21/T22): open with the credential this computer holds (Maude Cloud, a
+    // handoff code, or a team server the browser sign-in stored) and describe the project, so the
+    // native shell can create its own copy. Main origin only. No email or password is accepted.
     '/_api/projects/prepare': async (req: Request) => {
       if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
       if (!sameOriginWrite(req))
         return new Response('cross-origin write rejected', { status: 403 });
       if (!isTrustedRequestHost(req))
         return new Response('local request required', { status: 403 });
-      const body = (await readJson<Record<string, unknown>>(req, 8 * 1024)) ?? {};
-      const kind = body.kind;
-      const str = (v: unknown) => (typeof v === 'string' ? v : '');
-      const input =
-        kind === 'cloud'
-          ? { kind, projectId: str(body.projectId) }
-          : kind === 'handoff'
-            ? { kind, code: str(body.code), claimedProject: str(body.claimedProject) || undefined }
-            : kind === 'hub'
-              ? { kind, url: str(body.url), email: str(body.email), password: str(body.password) }
-              : kind === 'known-hub'
-                ? { kind, url: str(body.url) }
-                : null;
-      if (!input) return new Response('unknown kind', { status: 400 });
-      const r = await prepareManagedProject(
-        ctx,
-        input as Parameters<typeof prepareManagedProject>[1]
-      );
+      // Issue #204: the desktop owns no team-server login — a body carrying an email or a password
+      // (or the retired `hub` kind) is a plain 400 and is never forwarded anywhere.
+      const parsed = parsePrepareBody(await readJson<unknown>(req, 8 * 1024));
+      if (!parsed.ok)
+        return Response.json(
+          { ok: false, error: parsed.error, reason: parsed.reason },
+          { status: parsed.status, headers: { 'Cache-Control': 'no-store' } }
+        );
+      const r = await prepareManagedProject(ctx, parsed.input);
       return Response.json(r, {
         status: r.ok ? 200 : r.status,
-        headers: { 'Cache-Control': 'no-store' },
-      });
-    },
-    '/_api/workspace/sign-in': async (req: Request) => {
-      if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
-      if (!sameOriginWrite(req))
-        return new Response('cross-origin write rejected', { status: 403 });
-      if (!isTrustedRequestHost(req))
-        return new Response('local request required', { status: 403 });
-      const body = await readJson<unknown>(req, 8 * 1024);
-      const result = await signInToWorkspace((body ?? {}) as Record<string, unknown>);
-      return Response.json(result.json, {
-        status: result.status,
         headers: { 'Cache-Control': 'no-store' },
       });
     },

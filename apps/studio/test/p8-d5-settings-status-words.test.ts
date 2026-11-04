@@ -11,6 +11,6 @@ describe('Settings › Connections status lines do not repeat the row descriptio
   test('team server, not added', () => {
     const s = hubRow({}).status;
     expect(s).not.toContain('A self-hosted server, beside the cloud');
-    expect(s).toBe('Sign in with your email and password.');
+    expect(s).toBe('Sign in on the server’s own page.');
   });
 });

@@ -552,7 +552,6 @@ export const UNSENT_WRITES: ReadonlySet<string> = new Set([
   '/_api/cloud/signin/start',
   '/_api/cloud/signin/poll',
   '/_api/cloud/signout',
-  '/_api/workspace/sign-in',
   '/_api/workspace/disclosure',
 ]);
 

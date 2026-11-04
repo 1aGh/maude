@@ -42,7 +42,6 @@ const NONE = [
   '/_api/settings/about',
   '/_api/shell/status',
   '/_api/workspace/disclosure',
-  '/_api/workspace/sign-in',
   '/_api/report',
   '/_api/report-fallback',
   '/_api/hub/link',

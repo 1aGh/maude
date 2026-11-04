@@ -59,7 +59,7 @@ export function createHubSigninRoutes(deps: HubSigninRouteDeps = {}): RouteSpec[
     createHubBrowserSignIn({
       // SIGN IN AGAIN: a new credential for the team server this project already syncs with. The
       // running sync still holds the one the server refused — cycle it onto the one just stored
-      // (the same move `prepareManagedProject` makes for the email/password sign-in it replaces).
+      // (the move the retired email/password sign-in used to make).
       onSignedIn: async (url) => {
         if (sameServer(deps.linkedHubUrl?.(), url)) await deps.restartSync?.();
       },
