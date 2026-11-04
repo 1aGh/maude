@@ -3,8 +3,8 @@
   "entries": [
     {
       "id": "lfs-placeholder-fix",
-      "version": null,
-      "date": null,
+      "version": "2.0.3",
+      "date": "2026-11-04",
       "kind": "fix",
       "title": "Pictures that were never downloaded say so",
       "summary": "A picture or video that is still a Git LFS placeholder now says \"Not downloaded — Git LFS placeholder\" instead of \"not found\". In the desktop app, Fix with AI puts a restore prompt in the chat, and Copy prompt copies it. Sync no longer uploads the placeholder as if it were the picture.",
