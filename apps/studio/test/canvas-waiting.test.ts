@@ -285,3 +285,40 @@ describe('#189 — a build that stopped outside the canvas’s code', () => {
     }
   }, 30_000);
 });
+
+describe('2.0.4 task P — a build still running is `building`, not a failure', () => {
+  const ask = async (buildRunning?: (abs: string) => boolean) => {
+    const access = resolveAccess(owner);
+    const specs = createCanvasSourceRoutes({
+      designRoot,
+      designRel: '.design',
+      access: () => access,
+      ledger: () => null,
+      ...(buildRunning ? { buildRunning } : {}),
+    });
+    const u = new URL(`http://localhost${Q}`);
+    const spec = specs.find((s) => s.path === u.pathname) as RouteSpec;
+    const res = await spec.handle(new Request(u), {});
+    return (await res.json()) as Record<string, unknown>;
+  };
+
+  test('while it runs: `building`, and the last failure on record is not shown', async () => {
+    recordBuildFailure(canvasAbs, canvasSourceSig(CANVAS), { class: 'timed-out' });
+    const r = await ask((abs) => abs === canvasAbs);
+    expect(r.errors).toEqual([]);
+    expect(r.building).toBe(true);
+    expect(r.buildFailure).toBeUndefined();
+  });
+
+  test('once it stopped past the ceiling: no `building`, the timed-out class', async () => {
+    recordBuildFailure(canvasAbs, canvasSourceSig(CANVAS), { class: 'timed-out' });
+    const r = await ask(() => false);
+    expect(r.building).toBeUndefined();
+    expect(r.buildFailure).toEqual({ class: 'timed-out' });
+  });
+
+  test('the default asks the sandbox itself (nothing running in this process)', async () => {
+    const r = await ask();
+    expect(r.building).toBeUndefined();
+  });
+});

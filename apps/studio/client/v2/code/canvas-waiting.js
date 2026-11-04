@@ -5,6 +5,7 @@
 //   waiting       files it imports haven't reached this Mac yet (first sync) — "<Canvas> is still downloading."
 //   refused       a file it imports is held back (code from a hub this Mac hasn't accepted, too big, …)
 //   buildFailure  the build stopped on the app's side (engine unavailable, timed out, imports refused)
+//   building      the build is still running on the server (2.0.4 task P) — not a failure
 //
 // The server answers with its own state and reason WORDS (`canvas-source/waiting.ts`,
 // `canvas-source/errors.ts` `BuildFailure`); anything else is dropped here, so no hub text and no
@@ -125,6 +126,21 @@ export function projectLabel(progress) {
 export function moreCount(waiting) {
   return Math.max(0, (waiting?.files.length ?? 0) - SHOWN_FILES) + (waiting?.more ?? 0);
 }
+
+// ── 2.0.4 task P: a build that is still running ──────────────────────────────────────────────────
+
+/** The Design system canvas: `system/<ds>/design-system.tsx` (designRoot- or repo-relative). */
+const DS_BOARD_RE = /(?:^|\/)system\/[^/]+\/design-system\.tsx$/;
+
+/** The building card's title: the design system by its role, any other canvas by its name. */
+export function buildingTitle(canvas, name) {
+  return DS_BOARD_RE.test(String(canvas ?? ''))
+    ? 'Building the design system…'
+    : `Building ${name}…`;
+}
+
+export const BUILDING_BODY =
+  "This can take a minute on a big project. Nothing is lost. The canvas opens by itself when it's ready.";
 
 // ── #189: a build that stopped on the app's side ─────────────────────────────────────────────────
 

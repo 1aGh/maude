@@ -39,6 +39,7 @@ import path from 'node:path';
 
 import { currentAccess, notInScopeResponse, toDesignRel } from '../access/request.ts';
 import type { Access } from '../access/scope.ts';
+import { sandboxBuildRunning } from '../canvas-build-sandbox.ts';
 import {
   type BuildFailure,
   type CanvasError,
@@ -74,6 +75,8 @@ export interface CanvasSourceRouteDeps {
    * `<designRoot>/_state/file-ledger/` (none in a cell, or before a project links).
    */
   ledger?: () => LedgerView | null;
+  /** 2.0.4 task P — whether a sandboxed build of this canvas is running. Default: the sandbox's own. */
+  buildRunning?: (canvasAbs: string) => boolean;
 }
 
 const json = (status: number, body: unknown) =>
@@ -313,11 +316,15 @@ export function createCanvasSourceRoutes(deps: CanvasSourceRouteDeps): RouteSpec
         ledger: (deps.ledger ?? (() => readLedgerView(deps.designRoot)))(),
         project: !access.canvasOnly,
       });
-      const buildFailure = list.length ? null : buildFailureOfFile(file);
+      // 2.0.4 task P — a sandboxed build of it is still running (it outlived the request that
+      // started it): not a failure, and the last failure on record is about to be replaced.
+      const building = !list.length && (deps.buildRunning ?? sandboxBuildRunning)(file);
+      const buildFailure = list.length || building ? null : buildFailureOfFile(file);
       return json(200, {
         canvas: repoRelOf(deps.designRel, rel),
         errors: list,
         ...(waiting ? { waiting } : {}),
+        ...(building ? { building: true } : {}),
         ...(buildFailure ? { buildFailure } : {}),
       });
     }

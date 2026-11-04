@@ -928,6 +928,31 @@ export async function serveCanvasTsx(
         canvasAbs: absPath,
         assetUrlBase: designRootUrlBase(ctx.paths),
       });
+      if (!built.ok && built.kind === 'building') {
+        // 2.0.4 task P — the wait ran out and the build goes on (to the sandbox's hard ceiling). Its
+        // outcome is recorded when it settles, for `/_api/canvas-errors`; a success is in the
+        // sandbox's cache, so the client's next open is a hit. While it runs, canvas-errors answers
+        // `building` (`sandboxBuildRunning`) and the card says so instead of "can't be drawn".
+        const sig = canvasSourceSig(source);
+        void built.settled?.then((r) => {
+          if (r.ok) recordCanvasBuild(absPath, sig, null);
+          else if (r.kind !== 'building') {
+            const failure = sandboxFailureClass(r);
+            if (failure) recordBuildFailure(absPath, sig, failure);
+            else recordCanvasBuild(absPath, sig, null);
+          }
+        });
+        // The frame's own canvas (the path gate and the closure's `before` ran already), so saying
+        // "not yet" tells it nothing a refusal would hide (gate-b-c4m).
+        return new Response('This canvas is still being built.', {
+          status: 503,
+          headers: {
+            'Content-Type': 'text/plain; charset=utf-8',
+            'Cache-Control': 'no-store',
+            'Retry-After': '5',
+          },
+        });
+      }
       if (!built.ok) {
         // #189 — why it stopped, as OUR class (never the build's text) for /_api/canvas-errors
         const failure = sandboxFailureClass(built);
