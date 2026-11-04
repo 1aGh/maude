@@ -6,8 +6,10 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
+  BROWSER_COPY_TIMEOUT_MS,
   looksLikePng,
   MAX_CLIPBOARD_PNG,
+  MAX_CLIPBOARD_TEXT,
   nativeSave,
   SAVE_COMMANDS,
   SAVE_TO,
@@ -44,6 +46,8 @@ describe('native save (S8.23)', () => {
     for (const v of SAVE_TO) expect(src).toContain(`Some("${v}")`);
     expect(src).toContain('pub const MAX_CLIPBOARD_PNG: usize = 64 * 1024 * 1024;');
     expect(MAX_CLIPBOARD_PNG).toBe(64 * 1024 * 1024);
+    expect(src).toContain('pub const MAX_CLIPBOARD_TEXT: usize = 64 * 1024;');
+    expect(MAX_CLIPBOARD_TEXT).toBe(64 * 1024);
   });
 
   test('save sends jobId + filename (+ saveTo) and returns the path Rust wrote', async () => {
@@ -176,5 +180,72 @@ describe('native save (S8.23)', () => {
     expect(r.calls).toEqual([]);
     expect(looksLikePng(PNG)).toBe(true);
     expect(looksLikePng(new Uint8Array(4))).toBe(false);
+  });
+
+  test('2.0.3 copyText: navigator.clipboard first; a refusal falls back to clipboard_write_text', async () => {
+    const r = recorder();
+    const browser: string[] = [];
+    const ok = nativeSave(null, {
+      invoke: r.invoke,
+      clipboard: { writeText: async (t: string) => void browser.push(t) },
+    });
+    expect(await ok.copyText('prompt')).toEqual({ ok: true, via: 'browser' });
+    expect(browser).toEqual(['prompt']);
+    expect(r.calls).toEqual([]);
+
+    const refusing = nativeSave(null, {
+      invoke: r.invoke,
+      clipboard: {
+        writeText: async () => {
+          throw new Error('NotAllowedError');
+        },
+      },
+    });
+    expect(await refusing.copyText('prompt')).toEqual({ ok: true, via: 'shell' });
+    expect(r.calls).toEqual([['clipboard_write_text', { text: 'prompt' }]]);
+  });
+
+  test('2.0.3 copyText: a writeText that never settles (WKWebView) times out to the shell', async () => {
+    expect(BROWSER_COPY_TIMEOUT_MS).toBe(800);
+    const r = recorder();
+    const hanging = nativeSave(null, {
+      invoke: r.invoke,
+      clipboard: { writeText: () => new Promise(() => {}) },
+      copyTimeoutMs: 20,
+    });
+    const t0 = Date.now();
+    expect(await hanging.copyText('prompt')).toEqual({ ok: true, via: 'shell' });
+    expect(Date.now() - t0).toBeLessThan(500);
+    expect(r.calls).toEqual([['clipboard_write_text', { text: 'prompt' }]]);
+  });
+
+  test('2.0.3 copyText: no shell in a browser; empty, NUL and oversized text never reach the shell', async () => {
+    const browserOnly = nativeSave(null, {
+      clipboard: {
+        writeText: async () => {
+          throw new Error('NotAllowedError');
+        },
+      },
+    });
+    expect((await browserOnly.copyText('x')).ok).toBe(false);
+    const r = recorder();
+    const doors = nativeSave(null, { invoke: r.invoke, clipboard: null });
+    expect((await doors.copyText('')).ok).toBe(false);
+    expect((await doors.copyText('a\u0000b')).ok).toBe(false);
+    expect((await doors.copyText('x'.repeat(MAX_CLIPBOARD_TEXT + 1))).error).toBe(
+      'That text is too long to copy.'
+    );
+    expect(r.calls).toEqual([]);
+    const refused = nativeSave(null, {
+      invoke: async () => {
+        throw 'Switch to this tab first.';
+      },
+      clipboard: null,
+    });
+    expect(await refused.copyText('x')).toEqual({
+      ok: false,
+      reason: 'refused',
+      error: 'Switch to this tab first.',
+    });
   });
 });

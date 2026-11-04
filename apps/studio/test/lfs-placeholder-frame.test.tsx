@@ -67,7 +67,10 @@ describe('dgn: the LFS messages', () => {
   });
 });
 
-function harness(items: unknown[], opts: { ai?: boolean; copyOk?: boolean } = {}) {
+function harness(
+  items: unknown[],
+  opts: { ai?: boolean; copyOk?: boolean; realCopy?: boolean } = {}
+) {
   clearAssetAnswers();
   const posts: Array<Record<string, unknown>> = [];
   const canvasWin = { postMessage: (msg: Record<string, unknown>) => posts.push(msg) };
@@ -91,10 +94,14 @@ function harness(items: unknown[], opts: { ai?: boolean; copyOk?: boolean } = {}
     designRel: () => '.design',
     now: () => new Date(2026, 10, 4),
     onLfsFix: (prompt: string, canvas: string) => fixes.push([prompt, canvas]),
-    copyText: async (text: string) => {
-      copies.push(text);
-      return opts.copyOk !== false;
-    },
+    ...(opts.realCopy
+      ? {}
+      : {
+          copyText: async (text: string) => {
+            copies.push(text);
+            return opts.copyOk !== false;
+          },
+        }),
     setTimer: () => 0,
     clearTimer: () => {},
     fetchImpl: (async () =>
@@ -174,6 +181,31 @@ describe('the shell lane (LFS)', () => {
       rel: 'assets/hero.png',
       ok: false,
     });
+  });
+
+  test('Copy prompt in the app: a refused navigator.clipboard falls back to the shell command', async () => {
+    // The click was inside the canvas iframe: the shell has no user activation, WKWebView refuses (or never
+    // settles) writeText, so the desktop's clipboard_write_text writes it.
+    const w = window as unknown as { __TAURI__?: unknown };
+    const invoked: Array<[string, unknown]> = [];
+    w.__TAURI__ = {
+      core: { invoke: async (cmd: string, args: unknown) => void invoked.push([cmd, args]) },
+    };
+    const clip = navigator.clipboard as unknown as { writeText: (t: string) => Promise<void> };
+    const real = clip.writeText;
+    clip.writeText = () => new Promise(() => {}); // WKWebView: pending forever
+    try {
+      const h = harness([PTR], { realCopy: true });
+      await h.lane.refresh();
+      h.send({ dgn: 'asset-lfs-copy-request', rel: 'assets/hero.png' });
+      await new Promise((r) => setTimeout(r, 1000));
+      const prompt = lfsRepairPrompt({ items: [PTR], date: new Date(2026, 10, 4) });
+      expect(invoked).toEqual([['clipboard_write_text', { text: prompt }]]);
+      expect(h.posts.at(-1)).toEqual({ dgn: 'asset-lfs-copied', rel: 'assets/hero.png', ok: true });
+    } finally {
+      clip.writeText = real;
+      w.__TAURI__ = undefined;
+    }
   });
 
   test('the prompt lists at most 50 paths, then "and N more"', () => {

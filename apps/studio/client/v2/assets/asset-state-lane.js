@@ -27,6 +27,7 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { acceptFromCanvas } from '../../../bridge/dgn-protocol.ts';
 import { INDEX_CHANGED_EVENT } from '../canvases/use-canvas-index.js';
+import { nativeSave } from '../export/native-save.js';
 import { dispatchCanvasOp } from '../left-panel/left-panel-bus.js';
 
 /** canvas file → (rel → item): what the studio last said about each canvas. The relink gate and the
@@ -141,11 +142,13 @@ export function lfsRepairPrompt({ items, designRel = '.design', date = new Date(
   ].join('\n');
 }
 
-/** Copy `text` to the clipboard from the shell; false when it was refused. */
+/**
+ * Copy `text` from the shell; false when it was refused. The click was inside the canvas iframe, so the shell
+ * has no user activation: `navigator.clipboard` is tried briefly, then the desktop's `clipboard_write_text`.
+ */
 async function shellCopyText(text) {
   try {
-    await globalThis.navigator?.clipboard?.writeText(String(text));
-    return true;
+    return (await nativeSave().copyText(String(text))).ok === true;
   } catch {
     return false;
   }
