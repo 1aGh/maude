@@ -170,7 +170,11 @@ afterEach(async () => {
   document.body.innerHTML = '';
   model = null;
   asked = 0;
-  (await import('../client/v2/empty/arriving.jsx')).setShowLocalOnly(false);
+  const kit = await import('../client/v2/empty/arriving.jsx');
+  kit.setShowLocalOnly(false);
+  (kit as { resetArrivingPoll?: () => void }).resetArrivingPoll?.();
+  const nl = await import('../client/v2/empty/not-local.jsx');
+  (nl as { resetAvailabilityAsks?: () => void }).resetAvailabilityAsks?.();
 });
 
 const settle = (ms = 420) => act(async () => new Promise((r) => setTimeout(r, ms)));
@@ -294,6 +298,64 @@ describe('the Canvases panel', () => {
     expect(asked - start).toBeLessThanOrEqual(windows);
     // …and it is a storm guard still: 30 moves never make 30 reads
     expect(asked - start).toBeLessThan(10);
+  });
+
+  // #204 R — the cadence was per MOUNT (a useRef): a panel that mounts again starts with no "last asked",
+  // so a remounting panel asked once per mount, however fast. The cadence is the page's now.
+  test('the panel mounting again and again does not become a request storm', async () => {
+    model = arriving();
+    const { MIN_GAP_MS } = await import('../client/v2/empty/arriving.jsx');
+    const { p } = await mount();
+    const { CanvasesPanel } = await import('../client/v2/canvases/canvases-panel.jsx');
+    const start = asked;
+    const t0 = Date.now();
+    for (let i = 0; i < 20; i++) {
+      const host = document.createElement('div');
+      document.body.append(host);
+      const root = createRoot(host);
+      await act(async () =>
+        root.render(
+          <CanvasesPanel
+            groups={p.groups}
+            search=""
+            projectLabel="Alligators brand"
+            activePath={null}
+            onOpen={() => {}}
+            expansion={{ isOpen: () => true, setOpen: () => {} }}
+          />
+        )
+      );
+      await act(async () => root.unmount());
+    }
+    await settle(50);
+    const windows = Math.floor((Date.now() - t0) / MIN_GAP_MS) + 1;
+    expect(asked - start).toBeLessThanOrEqual(windows);
+  });
+
+  test('a panel mounted again shows the last answer at once', async () => {
+    model = arriving();
+    const { host, p } = await mount();
+    expect(q(host, 'canvas-row-arriving-ui-2026-combine-video-ai')).not.toBeNull();
+    for (const r of roots.splice(0)) await act(async () => r.unmount());
+    document.body.innerHTML = '';
+    const { CanvasesPanel } = await import('../client/v2/canvases/canvases-panel.jsx');
+    const again = document.createElement('div');
+    document.body.append(again);
+    const root = createRoot(again);
+    roots.push(root);
+    await act(async () =>
+      root.render(
+        <CanvasesPanel
+          groups={p.groups}
+          search=""
+          projectLabel="Alligators brand"
+          activePath={null}
+          onOpen={() => {}}
+          expansion={{ isOpen: () => true, setOpen: () => {} }}
+        />
+      )
+    );
+    expect(q(again, 'canvas-row-arriving-ui-2026-combine-video-ai')).not.toBeNull();
   });
 });
 
@@ -425,5 +487,32 @@ describe('useCanvasAvailability keeps asking while a canvas is arriving', () => 
       await new Promise((r) => setTimeout(r, 60));
     });
     expect(asked).toBe(after);
+  });
+});
+
+// #204 R — the viewport asks the open canvas's availability once per OPEN: a tab that flips between two
+// canvases (or a viewport that mounts again) asked again on every flip, with no floor.
+describe('useCanvasAvailability is not a storm', () => {
+  test('a tab flipping between two canvases asks each one once per window', async () => {
+    const { useCanvasAvailability } = await import('../client/v2/empty/not-local.jsx');
+    const asked: string[] = [];
+    const fetchImpl = (async (url: string) => {
+      asked.push(url);
+      return { ok: true, json: async () => ({ canvas: { state: 'present' } }) };
+    }) as unknown as typeof fetch;
+    function Probe({ path }: { path: string }) {
+      useCanvasAvailability(path, { fetchImpl });
+      return null;
+    }
+    const host = document.createElement('div');
+    document.body.append(host);
+    const root = createRoot(host);
+    roots.push(root);
+    for (let i = 0; i < 20; i++)
+      await act(async () => root.render(<Probe path={i % 2 ? 'ui/a.tsx' : 'ui/b.tsx'} />));
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 20));
+    });
+    expect(asked.length).toBeLessThanOrEqual(2);
   });
 });
