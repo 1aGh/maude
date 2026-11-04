@@ -10,7 +10,7 @@
 // Undo is the run's own action: "one AI run = one version = one step" (V2-1.5). The stack is read
 // for the entry carrying this `runId`, so a person's later edits never get undone with it.
 
-import { servedFetch } from '../shell/served-routes.js';
+import { fetchIfServed, servedFetch } from '../shell/served-routes.js';
 
 const JSON_HEADERS = { 'content-type': 'application/json' };
 
@@ -70,8 +70,10 @@ async function stackFor(run, designRel, fetchImpl) {
   if (!canvas) return { ok: false, reason: 'not-found' };
   let res;
   try {
-    res = await fetchImpl(
-      `/_api/project/undo-stack?canvas=${encodeURIComponent(canvasPath(designRel, canvas))}`
+    res = await fetchIfServed(
+      `/_api/project/undo-stack?canvas=${encodeURIComponent(canvasPath(designRel, canvas))}`,
+      undefined,
+      fetchImpl
     );
   } catch {
     return { ok: false, reason: 'unreachable' };

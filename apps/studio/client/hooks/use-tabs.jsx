@@ -12,6 +12,7 @@ import { queueTrashCanvas } from '../v2/canvases/trash-queue.js';
 import { invoke, isNativeApp, listenHere } from '../github.js';
 import { applyShellNavigate, startShellEvents } from '../shell-events.js';
 import { threadAuthor } from '../v2/comments/use-comments-shell.jsx';
+import { fetchIfServed } from '../v2/shell/served-routes.js';
 
 /** `.design/ui/x.tsx` → `ui/x.tsx` (the designRoot-relative form the Canvases panel's row slots use). */
 function relToDesignRoot(repoPath, cfg) {
@@ -141,7 +142,7 @@ export function useTabs({
     // 11 pn-deeplink: the artboard's name as the canvas shows it (the project index), not its id
     artboardLabel: async (file, id) => {
       try {
-        const r = await fetch('/_api/index', { cache: 'no-store' });
+        const r = await fetchIfServed('/_api/index', { cache: 'no-store' });
         const j = r.ok ? await r.json() : null;
         const root = j?.project?.designRel || cfg.designRel;
         const c = (j?.canvases ?? []).find((x) => (root ? `${root}/${x.rel}` : x.rel) === file);
@@ -286,7 +287,7 @@ export function useTabs({
     lastOpened.current = true;
     (async () => {
       try {
-        const r = await fetch('/_api/pins', { cache: 'no-store' });
+        const r = await fetchIfServed('/_api/pins', { cache: 'no-store' });
         if (!r.ok) return;
         const body = await r.json();
         const path = lastOpenedPath(body?.opened, groups, cfg.designRel || '.design');

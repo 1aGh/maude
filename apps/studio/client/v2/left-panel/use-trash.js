@@ -17,6 +17,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { trashClearRequest, trashRestoreRequest } from '../../../history/surface-requests.ts';
+import { fetchIfServed } from '../shell/served-routes.js';
 
 /** The app shell relays the bus's `trash:changed { seq }` as this window event. */
 export const TRASH_CHANGED_EVENT = 'maude:trash-changed';
@@ -32,7 +33,7 @@ export function visibleTrash(j) {
 /** Today's per-Mac list (`/_api/sync/trash`): "Kept on this Mac". Null when the route refuses. */
 export async function fetchTrash(fetchImpl = fetch) {
   try {
-    const r = await fetchImpl('/_api/sync/trash');
+    const r = await fetchIfServed('/_api/sync/trash', undefined, fetchImpl);
     if (!r.ok) return null;
     const j = await r.json();
     return j && Array.isArray(j.entries) ? visibleTrash(j) : null;

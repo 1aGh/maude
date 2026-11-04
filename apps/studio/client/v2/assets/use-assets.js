@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { INDEX_CHANGED_EVENT } from '../canvases/use-canvas-index.js';
+import { fetchIfServed } from '../shell/served-routes.js';
 
 const KINDS = new Set(['image', 'video', 'audio']);
 
@@ -70,7 +71,7 @@ export function usageWords(row) {
 
 async function readRows(get) {
   try {
-    const r = await get('/_api/index?part=assets', { cache: 'no-store' });
+    const r = await fetchIfServed('/_api/index?part=assets', { cache: 'no-store' }, get);
     if (r.ok) {
       const j = await r.json();
       if (Array.isArray(j?.assets))
