@@ -409,11 +409,50 @@ async function restoreRun(n) {
   return { ok, answers, final };
 }
 
-async function raceRun(n) {
-  const rel = `ui/Race${n}.tsx`;
-  await seed(rel, `Race${n}`);
-  await until('alice has four', () => ids(disk(alice, rel)).length === 4, 60_000);
-  await sleep(1_500);
+// F15 (v2-204) — the race's shape, varied per run so a series covers the orders a person meets:
+//   --trasher alice|bob|mixed  who moves three artboards to the trash (default alice; the other peer is "the other")
+//   --other trash|dup|text|text-trashed|mixed
+//                           what the other peer does at the same time: trash the fourth, duplicate the fourth
+//                           (adds an artboard), hand-edit the fourth's text, hand-edit a text inside an artboard
+//                           the trasher removes; `mixed` picks one per run
+//   --net offline|online|mixed  the cell away during both edits (default offline), or up the whole time
+//   --order stop|jitter     `stop` (default, the original rig): the trasher is SIGSTOPped while the cell comes
+//                           back; `jitter`: no SIGSTOP, a seeded random order and 0–2.5 s between the two edits
+//   --restart-held          once the outcome is read, restart every studio that is apart and read it again — a
+//                           conflict only in memory is lost there
+const TRASHER = arg('trasher', 'alice');
+const OTHER = arg('other', 'trash');
+const NET = arg('net', 'offline');
+const ORDER = arg('order', 'stop');
+const RESTART_HELD = argv.includes('--restart-held');
+const SEED = Number(arg('seed', '7'));
+function rng(n) {
+  // mulberry32 over (seed, run): the same series replays the same timings
+  let t = (SEED * 1_000_003 + n * 7919) >>> 0;
+  return () => {
+    t = (t + 0x6d2b79f5) >>> 0;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const pick = (r, list) => list[Math.floor(r() * list.length) % list.length];
+/** The hub's accepted html of `rel` (bootstrap lane hash → blob), or null when it cannot tell. */
+async function hubIds(rel) {
+  try {
+    const h = { authorization: `Bearer ${hub.tokens.owner}` };
+    const base = `${hub.http}/api/projects/current/v1`;
+    const boot = await (await fetch(`${base}/bootstrap`, { headers: h })).json();
+    const d = (boot.docs ?? []).find((x) => !x.retired && x.path === rel);
+    const hash = d?.lanes?.html?.hash;
+    if (!hash) return null;
+    const blob = await (await fetch(`${base}/blobs/${hash}`, { headers: h })).json();
+    return typeof blob?.body === 'string' ? ids(blob.body) : null;
+  } catch {
+    return null;
+  }
+}
+async function cellAway() {
   hub.stop();
   await until('the cell to stop', async () => {
     try {
@@ -423,34 +462,94 @@ async function raceRun(n) {
       return true;
     }
   });
-  const a = await alice.call('POST', '/_api/edit-op', {
-    file: rel,
-    op: 'artboard.trash',
-    targets: [],
-    params: { artboards: ['flag-front', 'flag-back', 'tackle-front'] },
-  });
-  process.kill(alice.proc.pid, 'SIGSTOP');
-  const b = await bob.call('POST', '/_api/edit-op', {
-    file: rel,
-    op: 'artboard.trash',
-    targets: [],
-    params: { artboards: ['tackle-back'] },
-  });
+}
+async function cellBack() {
   hub = await startLocalHub({
     dir: hubDir,
     port: hubPort,
     workspace: cellRepo,
     transactions: !LEGACY,
   });
-  process.kill(alice.proc.pid, 'SIGCONT');
+}
+async function restartStudio(p) {
+  const i = children.indexOf(p.proc);
+  p.proc.kill('SIGTERM');
+  await new Promise((r) => (p.proc.exitCode !== null ? r() : p.proc.once('exit', r)));
+  if (i >= 0) children.splice(i, 1);
+  const next = await startStudio(p.name, p.root, join(scratch, `${p.name}-cfg`, 'hubs.json'));
+  Object.assign(p, next);
+}
+
+async function raceRun(n) {
+  const rel = `ui/Race${n}.tsx`;
+  const r = rng(n);
+  const trasher = (TRASHER === 'mixed' ? pick(r, ['alice', 'bob']) : TRASHER) === 'bob' ? bob : alice;
+  const other = trasher === bob ? alice : bob;
+  const otherDoes = OTHER === 'mixed' ? pick(r, ['trash', 'dup', 'text', 'text-trashed']) : OTHER;
+  const net = NET === 'mixed' ? pick(r, ['offline', 'online']) : NET;
+  const otherFirst = ORDER === 'jitter' && r() < 0.5;
+  const gapMs = ORDER === 'jitter' ? Math.round(r() * 2_500) : 0;
+  const shape = { trasher: trasher.name, otherDoes, net, order: ORDER, otherFirst, gapMs };
+  await seed(rel, `Race${n}`);
+  await until('alice has four', () => ids(disk(alice, rel)).length === 4, 60_000);
+  await sleep(1_500);
+  if (net === 'offline') await cellAway();
+  const trash3 = () =>
+    trasher.call('POST', '/_api/edit-op', {
+      file: rel,
+      op: 'artboard.trash',
+      targets: [],
+      params: { artboards: ['flag-front', 'flag-back', 'tackle-front'] },
+    });
+  const handEdit = (label) => {
+    const p = join(other.root, '.design', rel);
+    writeFileSync(p, read(p).replace(`<h1 style={{ padding: 16 }}>${label}</h1>`, `<h1 style={{ padding: 16 }}>${label} edited</h1>`));
+    return Promise.resolve({ status: 'hand' });
+  };
+  const otherEdit = () =>
+    otherDoes === 'trash'
+      ? other.call('POST', '/_api/edit-op', {
+          file: rel,
+          op: 'artboard.trash',
+          targets: [],
+          params: { artboards: ['tackle-back'] },
+        })
+      : otherDoes === 'dup'
+        ? other.call('POST', '/_api/edit-op', {
+            file: rel,
+            op: 'artboard.duplicate',
+            targets: [],
+            params: { items: [{ artboard: 'tackle-back', at: { x: 900, y: 0 } }] },
+          })
+        : handEdit(otherDoes === 'text' ? 'D' : 'A');
+  let a;
+  let b;
+  if (ORDER === 'stop') {
+    a = await trash3();
+    process.kill(trasher.proc.pid, 'SIGSTOP');
+    b = await otherEdit();
+    if (net === 'offline') await cellBack();
+    process.kill(trasher.proc.pid, 'SIGCONT');
+  } else {
+    const first = otherFirst ? otherEdit : trash3;
+    const second = otherFirst ? trash3 : otherEdit;
+    const p1 = first();
+    await sleep(gapMs);
+    const p2 = second();
+    [a, b] = otherFirst ? [await p2, await p1] : [await p1, await p2];
+    if (net === 'offline') {
+      await sleep(Math.round(r() * 1_500));
+      await cellBack();
+    }
+  }
   let converged = false;
   try {
     await until(
       'the two Macs equal',
       () => {
-        const x = ids(disk(alice, rel)).join(',');
-        const y = ids(disk(bob, rel)).join(',');
-        return x === y;
+        const x = disk(alice, rel);
+        const y = disk(bob, rel);
+        return x !== null && x === y;
       },
       Number(arg('race-wait', '90000'))
     );
@@ -478,6 +577,8 @@ async function raceRun(n) {
     bobKeptTheirs: kept(bob),
     aliceOp: a.status,
     bobOp: b.status,
+    hub: await hubIds(rel),
+    shape,
   };
   // p8-held-conflict-status — the refused Mac's real /_sync-status through the Share cluster's own status
   // machine: a held conflict must read Not saved · Compare, never Saved. --status-out <file> keeps that
@@ -510,10 +611,31 @@ async function raceRun(n) {
     console.log('bob /_sync-status', JSON.stringify(await syncStatus(bob)).slice(0, 3000));
   }
   // equal, or the side whose disk is not the project's shows the conflict with both versions kept
-  const ok =
-    converged ||
-    (final.aliceConflicts > 0 && final.aliceKeptTheirs) ||
-    (final.bobConflicts > 0 && final.bobKeptTheirs);
+  const heldAt = (who) => final[`${who}Conflicts`] > 0 && final[`${who}KeptTheirs`];
+  const sameAsHub = (who) => final.hub !== null && final[who].join(',') === final.hub.join(',');
+  // equal (and the hub's), or the side apart shows the conflict with both versions kept while the other
+  // side IS the project's version — two disks apart with nobody told is the F15 silent divergence
+  let ok =
+    (converged && (final.hub === null || sameAsHub('alice'))) ||
+    (heldAt('alice') && (sameAsHub('bob') || heldAt('bob'))) ||
+    (heldAt('bob') && (sameAsHub('alice') || heldAt('alice')));
+  final.silent = !converged && !heldAt('alice') && !heldAt('bob');
+  if (RESTART_HELD && !converged) {
+    // a conflict that lives only in the runtime is gone after a restart: read every apart side again
+    for (const p of [alice, bob]) if (!sameAsHub(p.name)) await restartStudio(p);
+    await sleep(Number(arg('restart-wait', '30000')));
+    const [ra, rb] = [await syncStatus(alice), await syncStatus(bob)];
+    final.afterRestart = {
+      alice: ids(disk(alice, rel)),
+      bob: ids(disk(bob, rel)),
+      aliceConflicts: conflicts(ra),
+      bobConflicts: conflicts(rb),
+    };
+    const ar = final.afterRestart;
+    const eq = disk(alice, rel) === disk(bob, rel);
+    if (!eq && !(ar.aliceConflicts > 0 && kept(alice)) && !(ar.bobConflicts > 0 && kept(bob)))
+      ok = false;
+  }
   return { ok, converged, final };
 }
 
