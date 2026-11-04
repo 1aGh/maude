@@ -12,6 +12,11 @@
 //   --scenario race      F15: the cell goes away, alice trashes A-C, bob trashes D, the cell comes
 //                        back. The two Macs must end EQUAL, or one of them shows a conflict.
 //
+//   --scenario history   F14 follow-up (2.0.4): Version history, no Trash. A hand edit takes the first
+//                        artboard out of the editor's file, the restorer restores it from the version
+//                        before ("Restore only <artboard>", or the whole canvas with --whole). Both
+//                        Macs must end with all four. --settle / --editor / --restorer as for restore.
+//
 //   --scenario first     p8-fix-c2 #1: only the boot — both copies start on an EMPTY project, then
 //                        one (--first-by alice|bob) makes the first canvas; the other must get it
 //                        without a restart. Every scenario boots this way.
@@ -58,6 +63,8 @@ const KEEP = argv.includes('--keep');
 const SETTLE_MS = Number(arg('settle', '0'));
 // --legacy: a hub with no accepted-revisions store (the shared-document mode a 1.x hub speaks)
 const LEGACY = argv.includes('--legacy');
+// --scenario history: restore the whole canvas instead of only the artboard
+const WHOLE = argv.includes('--whole');
 // who makes the project's first canvas after both copies booted empty (p8-fix-c2 #1)
 const FIRST_BY = arg('first-by', 'alice');
 
@@ -429,6 +436,71 @@ async function restoreRun(n) {
   return { ok, answers, final };
 }
 
+async function historyRun(n) {
+  const rel = `ui/Hist${n}.tsx`;
+  await seed(rel, `Hist${n}`);
+  const restorer = peers[RESTORER];
+  // the version before the hand edit: the canvas's newest revision once both Macs have it
+  let before = null;
+  await until(
+    `a version of ${rel} at ${restorer.name}`,
+    async () => {
+      const h = await restorer.call(
+        'GET',
+        `/_api/project/history?path=${encodeURIComponent(rel)}&limit=5`
+      );
+      before = h.body?.history?.[0]?.revision ?? null;
+      return Number.isSafeInteger(before);
+    },
+    60_000
+  );
+  const editor = peers[EDITOR];
+  const watcher = editor === bob ? alice : bob;
+  // the hand edit: the first artboard leaves the editor's file (an AI run, an editor, a pull)
+  writeFileSync(
+    join(editor.root, '.design', rel),
+    SOURCE.replace(/ {8}<DCArtboard id="flag-front"[\s\S]*?<\/DCArtboard>\n/, '')
+  );
+  if (SETTLE_MS) await sleep(SETTLE_MS);
+  else
+    await until(
+      `the hand edit at ${watcher.name}`,
+      () => ids(disk(watcher, rel)).length === 3,
+      120_000
+    );
+  const body = WHOLE
+    ? { path: rel, at: `r${before}` }
+    : { path: rel, at: `r${before}`, artboard: 'flag-front' };
+  const r = await restorer.call('POST', '/_api/project/restore', body);
+  const answers = [
+    `${WHOLE ? 'whole' : 'flag-front'}:${r.status}${r.body?.ok === false ? `/${r.body?.reason}` : ''}`,
+  ];
+  const want = 4;
+  let ok = true;
+  try {
+    await until(
+      'four artboards everywhere',
+      () => [disk(bob, rel), disk(alice, rel)].every((s) => ids(s).length === want),
+      60_000
+    );
+  } catch {
+    ok = false;
+  }
+  await sleep(3_000); // and still there a beat later (nothing undoes it)
+  const final = { bob: ids(disk(bob, rel)), alice: ids(disk(alice, rel)) };
+  const slug = rel
+    .replace(/\//g, '-')
+    .replace(/\.tsx$/, '')
+    .toLowerCase();
+  for (const p of [bob, alice]) {
+    const st = await syncStatus(p).catch(() => null);
+    if ((st?.notices ?? []).some((x) => x?.id === `source-conflict-${slug}`))
+      final[`${p.name}Held`] = true;
+  }
+  if (Object.values(final).some((v) => v.length !== want)) ok = false;
+  return { ok, answers, final };
+}
+
 async function raceRun(n) {
   const rel = `ui/Race${n}.tsx`;
   await seed(rel, `Race${n}`);
@@ -547,13 +619,15 @@ try {
       ? Promise.resolve(firstVerdict())
       : SCENARIO === 'race'
         ? raceRun(n)
-        : restoreRun(n)
+        : SCENARIO === 'history'
+          ? historyRun(n)
+          : restoreRun(n)
     ).catch((e) => ({
       ok: false,
       error: String(e?.message ?? e),
     }));
     if (r.ok) pass++;
-    else if (argv.includes('--dump') || SCENARIO === 'restore') {
+    else if (argv.includes('--dump') || SCENARIO === 'restore' || SCENARIO === 'history') {
       // the sync lines of both studios, so a failed run says why without --keep + a shell on the box
       const pick = (log) =>
         log
