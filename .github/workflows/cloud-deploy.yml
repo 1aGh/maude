@@ -51,7 +51,7 @@ jobs:
 
       - name: Test (node:test)
         working-directory: apps/cloud
-        run: node --test "*.test.mjs"
+        run: node --test "*.test.mjs" "scripts/*.test.mjs"
 
       - name: Validate the Worker build
         working-directory: apps/cloud

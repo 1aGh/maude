@@ -51,6 +51,7 @@ import { handleMentionRoutes } from './mentions.mjs';
 import { applySchema } from './migrate.mjs';
 import { statsDatapoints } from './operator.mjs';
 import { handleOperatorRoutes } from './operator-routes.mjs';
+import { stripeMode as stripeModeOf } from './pricing-core.mjs';
 import { ACCESS_MESSAGES, planState } from './project-access.mjs';
 import { handleProjectAdminRoutes } from './project-admin.mjs';
 import { handleProjectRoutes } from './project-routes.mjs';
@@ -588,6 +589,9 @@ export default {
         version: WORKER_VERSION,
         d1,
         r2Creds: mintingConfigured(env) ? 'per-tenant' : 'legacy-shared',
+        // Which Stripe mode the Worker charges in ('live' | 'sandbox'), so the
+        // live-payments switch is a fact you can read, not a guess (plan B2).
+        stripe: stripeModeOf(env),
       });
     }
 

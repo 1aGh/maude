@@ -87,7 +87,13 @@ test('/health reports D1 reachability truthfully', async () => {
   // shipping the per-tenant path is not the same as being in it: unconfigured
   // means every cell is still on the fleet-wide key, and that must be readable
   // rather than assumed.
-  assert.deepEqual(body, { ok: true, version: 'phase-13', d1: 'ok', r2Creds: 'legacy-shared' });
+  assert.deepEqual(body, {
+    ok: true,
+    version: 'phase-13',
+    d1: 'ok',
+    r2Creds: 'legacy-shared',
+    stripe: 'sandbox',
+  });
 
   const configured = await worker.fetch(new Request('https://x/health'), {
     ...freshEnv().env,
