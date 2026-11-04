@@ -225,7 +225,9 @@ export async function acceptedColdStart(
       // What the project now holds IS the local file: the next save is based
       // on it, even if it lands before the publication reaches this replica.
       const base = r.html ?? localHtml;
-      i.projection.adoptBase(base);
+      // Persisted (v2-204): the creator has a base on record like any peer that received it, so
+      // an offline edit after a restart is proposed against it instead of held as a conflict.
+      i.projection.adoptBase(base, { remember: true });
       // S6.13b — saved again on top of that create while it waited (offline,
       // or a previous run): the disk is an edit of it, proposed as one.
       if (base !== localHtml && !sourceError(i.paths.html, localHtml)) {
