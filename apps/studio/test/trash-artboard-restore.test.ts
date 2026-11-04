@@ -335,6 +335,8 @@ const noop = (): RoomCallbacks => ({
 
 interface Peer {
   runtime: SyncRuntime;
+  /** the studio's bus: `fs:any` is what its file watcher would emit for a change on disk */
+  bus: Context['bus'];
   read: (rel: string) => string | null;
   list: () => Promise<Body[]>;
   restore: (id: string) => Promise<{ status: number; body: Body }>;
@@ -396,6 +398,7 @@ async function startPeer(repoRoot: string, url: string): Promise<Peer> {
   });
   return {
     runtime,
+    bus: ctx.bus,
     read: (rel) => {
       try {
         return readFileSync(join(designRoot, rel), 'utf8');
@@ -545,6 +548,185 @@ describe.skipIf(!HUB_READY)(
       expect(
         await waitFor(async () => idOf(await bob.list(), 'away'), 'away back in bob’s Trash')
       ).toBe(awayId);
+    }, 90_000);
+  }
+);
+
+// ── F14 (2.0.4, #166): a Restore over a change this disk has and the hub has not taken yet ───
+//
+// es-all-trashed on a hub-linked copy: three artboards in the Trash, the last one leaves the file by
+// hand (an AI run, an editor, a pull), and the card's Restore is clicked before the hub has the hand
+// edit (the watcher's quiet window, or its proposal in flight). The restore used to splice onto the
+// hub's newest version — which still had the last artboard — and answer 200; the hand edit, proposed
+// after it from the older base, overlapped the restore (line merge: "overlap"), was refused and held
+// on this disk. The file stayed empty while the project and the other Mac got four artboards.
+
+describe.skipIf(!HUB_READY)(
+  'F14 — Restore over a change on this disk the hub has not taken yet (#166)',
+  () => {
+    let root: string;
+    let hub: Hub;
+    let alice: Peer;
+    let bob: Peer;
+    let tx = 0;
+    const saved: Record<string, string | undefined> = {};
+    const REL = 'ui/letak.tsx';
+    const START = board([HERO, AWAY, THIRD, KEEP]);
+    const ids = (s: string | null) =>
+      [...(s ?? '').matchAll(/<DCArtboard id="([^"]+)"/g)].map((m) => m[1] as string);
+
+    async function bootstrap(who: 'alice' | 'bob') {
+      const auth = { authorization: `Bearer ${hub.tokens[who]}` };
+      const b = (await (
+        await fetch(`${hub.http}/api/projects/current/v1/bootstrap`, { headers: auth })
+      ).json()) as Body;
+      const doc = (b.docs as Body[]).find((d) => d.path === REL)?.doc as string | undefined;
+      return { auth, b, doc };
+    }
+
+    /** One hub action as `who`: a trash of `abs` (S1-trash.md §2), or else a plain html edit. */
+    async function onHub(
+      who: 'alice' | 'bob',
+      peer: Peer,
+      next: (before: string) => string,
+      abs: Ab[] = []
+    ) {
+      const { auth, b, doc } = await bootstrap(who);
+      const before = (await peer.runtime.acceptedVersion?.(`design/${REL}`, b.revision)) ?? '';
+      const trashed = abs.map(([artboard, label]) => ({ artboard, label }));
+      const res = await fetch(`${hub.http}/api/projects/current/v1/proposals`, {
+        method: 'POST',
+        headers: { ...auth, 'content-type': 'application/json', 'x-maude-format': '2' },
+        body: JSON.stringify({
+          protocol: 1,
+          projectId: b.projectId,
+          epoch: b.epoch,
+          transactionId: `tx_f14_${++tx}`,
+          ...(abs.length ? { origin: { trashed } } : {}),
+          action: {
+            kind: abs.length ? 'trash' : 'edit',
+            label: abs.length ? `Moved ${abs.length} artboards to the trash` : 'An edit',
+            operations: [
+              { op: 'lane.replace', doc, lane: 'html', content: next(before), baseContent: before },
+            ],
+          },
+        }),
+      });
+      expect(res.status).toBe(200);
+    }
+    const newest = async () => (await bootstrap('alice')).b.revision as number;
+    const pulled = (fn: () => boolean, what: string) =>
+      waitFor(async () => {
+        await alice.runtime.pullRemoteNow();
+        await bob.runtime.pullRemoteNow();
+        return fn();
+      }, what);
+    const bobFile = () => join(root, 'bob', 'design', REL);
+
+    beforeAll(async () => {
+      root = mkdtempSync(join(tmpdir(), 'f14-restore-'));
+      for (const k of ['HUBS_CONFIG_PATH', 'MAUDE_SYNC_IN_CI', 'MAUDE_SHARED_DOC'])
+        saved[k] = process.env[k];
+      process.env.MAUDE_SYNC_IN_CI = '1';
+      hub = await startHub(join(root, 'hub'));
+      const aliceUrl = `http://127.0.0.1:${hub.port}`;
+      const bobUrl = `http://localhost:${hub.port}`;
+      const hubsFile = join(root, 'hubs.json');
+      writeFileSync(
+        hubsFile,
+        JSON.stringify({
+          hubs: { [aliceUrl]: { token: hub.tokens.alice }, [bobUrl]: { token: hub.tokens.bob } },
+        }),
+        { mode: 0o600 }
+      );
+      process.env.HUBS_CONFIG_PATH = hubsFile;
+      mkdirSync(join(root, 'alice', 'design', 'ui'), { recursive: true });
+      writeFileSync(join(root, 'alice', 'design', REL), START);
+      alice = await startPeer(join(root, 'alice'), aliceUrl);
+      await waitFor(async () => !!(await bootstrap('alice')).doc, 'the canvas on the hub');
+      bob = await startPeer(join(root, 'bob'), bobUrl);
+      await bob.runtime.pullRemoteNow();
+      await waitFor(() => bob.read(REL) === START, 'bob’s copy');
+    }, 60_000);
+
+    afterAll(async () => {
+      await alice?.runtime.stop();
+      await bob?.runtime.stop();
+      if (hub && hub.proc.exitCode === null) {
+        const gone = new Promise((r) => hub.proc.once('exit', r));
+        hub.proc.kill('SIGTERM');
+        await gone;
+      }
+      for (const [k, v] of Object.entries(saved)) {
+        if (v === undefined) delete process.env[k];
+        else process.env[k] = v;
+      }
+      rmSync(root, { recursive: true, force: true });
+    });
+
+    test('the hand edit goes up first: both Macs end with the three restored, and stay so', async () => {
+      await onHub('bob', bob, () => board([HERO]), [AWAY, THIRD, KEEP]);
+      await pulled(
+        () => ids(alice.read(REL)).join() === 'hero' && ids(bob.read(REL)).join() === 'hero',
+        'the trash on both Macs'
+      );
+      const items = await waitFor(async () => {
+        const l = (await bob.list()).filter((i) => i.kind === 'artboard' && i.path === REL);
+        return l.length === 3 ? l : null;
+      }, 'three in bob’s Trash');
+
+      // the last artboard leaves bob's file by hand, and Restore is clicked before his watcher has
+      // delivered that change — the hub still holds Hero
+      writeFileSync(bobFile(), board([]));
+      for (const it of items) {
+        const r = await bob.restore(it.id as string);
+        expect(r.status).toBe(200);
+      }
+      bob.bus.emit('fs:any', REL); // the watcher's (late) event for the hand edit
+
+      const want = ['away', 'keep', 'third'];
+      await pulled(
+        () =>
+          ids(bob.read(REL)).sort().join() === want.join() &&
+          ids(alice.read(REL)).sort().join() === want.join(),
+        'the three restored on both Macs, Hero gone'
+      );
+      await new Promise((r) => setTimeout(r, 1_500)); // nothing takes it back
+      expect(ids(bob.read(REL)).sort()).toEqual(want);
+      expect(bob.read(REL)).toBe(alice.read(REL));
+    }, 90_000);
+
+    test('a change the hub refused stays held: Restore says why and lands nothing', async () => {
+      await onHub(
+        'alice',
+        alice,
+        (s) => s.replace(/ {6}<DCArtboard id="keep"[\s\S]*?<\/DCArtboard>\n/, ''),
+        [KEEP]
+      );
+      await pulled(
+        () => !ids(bob.read(REL)).includes('keep') && !ids(alice.read(REL)).includes('keep'),
+        'keep trashed on both Macs'
+      );
+      const keepId = await waitFor(async () => idOf(await bob.list(), 'keep'), 'keep in the Trash');
+      // bob's Away text and alice's cross: bob's is refused (overlap) and held on his disk
+      const mine = (bob.read(REL) as string).replace('Away v1', 'Away by bob');
+      writeFileSync(bobFile(), mine);
+      await onHub('alice', alice, (s) => s.replace('Away v1', 'Away by alice'));
+      await bob.runtime.pullRemoteNow();
+      bob.bus.emit('fs:any', REL);
+      await waitFor(async () => {
+        const st = (await bob.runtime.status?.()) as Body | undefined;
+        return (st?.notices ?? []).some((n: Body) => String(n?.id).startsWith('source-conflict-'));
+      }, 'bob’s edit held');
+      const top = await newest();
+
+      const r = await bob.restore(keepId as string);
+      expect(r.status).toBe(409);
+      expect(r.body).toMatchObject({ ok: false, reason: 'unsaved-change' });
+      expect(String(r.body.line)).toContain('isn’t saved');
+      expect(await newest()).toBe(top); // nothing reached the project
+      expect(bob.read(REL)).toBe(mine); // the held change is still this Mac's file
+      expect(idOf(await bob.list(), 'keep')).toBe(keepId);
     }, 90_000);
   }
 );
