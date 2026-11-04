@@ -198,6 +198,9 @@ export const LEDGER_FLUSH_EVERY_MS = 15_000;
  */
 export const STORAGE_MISS_STREAK_LIMIT = 4;
 
+/** Issue #204 — the most body bytes concurrent downloads may hold in memory at once (see the pool). */
+export const MAX_BUFFERED_IN_FLIGHT_BYTES = 64 * 1024 * 1024;
+
 /**
  * How many HTTP REQUESTS one pass will issue. Issue #109.
  *
@@ -2371,6 +2374,18 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
      * would have two transfers appending to one staging file. The second copy waits its turn.
      */
     const hashesInFlight = new Set<string>();
+    /**
+     * Bytes being BUFFERED in memory by downloads in flight. A body up to
+     * `STREAM_DOWNLOAD_ABOVE_BYTES` is read into memory before it is verified and landed, so six
+     * 30 MB videos at once would hold ~360 MB (twice that while the chunks are joined). The pool
+     * admits another buffered body only while the total stays under `MAX_BUFFERED_IN_FLIGHT_BYTES`;
+     * a streamed (larger) body costs one chunk and is not counted. One transfer always runs.
+     */
+    let bufferedInFlight = 0;
+    const buffered = (w: (typeof work)[number]): number => {
+      const n = claimedSize(w.row);
+      return n <= STREAM_DOWNLOAD_ABOVE_BYTES ? n : 0;
+    };
     const wall = () => hitRateLimit !== null || formatRefused !== null || authRefused;
 
     const settle = (
@@ -2469,7 +2484,10 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
       seen += 1;
       if (item.decision.action === 'pull' && !hashesInFlight.has(item.remoteHash ?? '')) {
         // Room in the pool: one until the probe came back, then the pacer's width.
-        while (inFlight.size >= (probed ? pacer.limit() : 1)) {
+        while (
+          inFlight.size >= (probed ? pacer.limit() : 1) ||
+          (inFlight.size > 0 && bufferedInFlight + buffered(item) > MAX_BUFFERED_IN_FLIGHT_BYTES)
+        ) {
           await Promise.race(inFlight);
           if (wall()) break;
         }
@@ -2478,10 +2496,13 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
           break;
         }
         const hash = item.remoteHash ?? '';
+        const held = buffered(item);
         hashesInFlight.add(hash);
+        bufferedInFlight += held;
         const p: Promise<void> = run(item).finally(() => {
           inFlight.delete(p);
           hashesInFlight.delete(hash);
+          bufferedInFlight -= held;
         });
         inFlight.add(p);
         continue;

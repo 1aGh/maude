@@ -60,13 +60,15 @@ function hub(
     delayMs?: number;
     answer?: (rel: string, attempt: number) => Response | null;
     cls?: (rel: string) => string;
+    /** What the journal CLAIMS a file weighs (default: its real length). */
+    size?: (rel: string) => number;
   } = {}
 ) {
   const rows = Object.entries(files).map(([path, body], i) => ({
     seq: i + 1,
     path,
     sha256: sha(body),
-    size: body.length,
+    size: opts.size?.(path) ?? body.length,
     mtimeMs: 0,
     class: opts.cls?.(path) ?? 'inert-media',
     deleted: false,
@@ -181,6 +183,14 @@ describe('downloads run side by side, within a bound', () => {
     expect(r.pulled).toHaveLength(18);
     expect(h.peak()).toBeGreaterThan(1);
     expect(h.sameBytesPeak()).toBe(1);
+  });
+
+  test('bodies buffered in memory stay under a ceiling, however wide the pool', async () => {
+    // Eight 30 MB files (as the journal declares them): two fit under 64 MB, a third does not.
+    const h = hub(media(8), { delayMs: 10, size: () => 30 * 1024 * 1024 });
+    const r = await plane(h).reconcile();
+    expect(r.pulled).toHaveLength(8);
+    expect(h.peak()).toBe(2);
   });
 
   test('the width is the pacer’s: a narrower pacer is obeyed', async () => {
