@@ -2,7 +2,7 @@
   "kind": "canvas",
   "title": "Public Site v2",
   "subtitle": "maude.sh redesigned in the maude-v2 language — one message, four links, a Maude Cloud buy button, the Advanced docs kept whole",
-  "brief": "Redesign of the public site to match maude-v2: simpler navigation, more professional and clearer. A headline in the spirit of \"You like Claude? You like Figma? Meet Maude\" / \"it is Figma but it is yours\". Propose a Buy Maude Cloud CTA. Keep the Advanced documentation.",
+  "brief": "Redesign of the public site to match maude-v2: simpler navigation, more professional and clearer. A headline in the spirit of \"You like Claude? You like Figma? Meet Maude\" / \"it is Figma but it is yours\". Propose a Buy Maude Cloud CTA. Keep the Advanced documentation.\n\nFROZEN 2026-11-04: site/ (site/components/v2, site/app/site-v2.css) is the source of truth from here on. The A0 critic fixes (token radii in fp-*, 44px chips, pressed border, DragFloat cancel, HTML-claim wording, wipe valuetext) were applied in site/, not here.",
   "designSystem": "maude-v2",
   "platform": "desktop",
   "created": "2026-11-03T20:56:16.675Z",
@@ -91,5 +91,7 @@
       "label": "6 · Intro motion",
       "note": "The hero intro as four frames on the shared clock, and every motion on the site with its tokens and reduced-motion fallback (from the UX research motion patterns)."
     }
-  ]
+  ],
+  "status": "frozen",
+  "frozen": "2026-11-04"
 }
