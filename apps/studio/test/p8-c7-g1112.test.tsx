@@ -18,6 +18,7 @@ describe('the tile menu (12 · ia-assets-keys)', () => {
     );
     expect(ids).toEqual([
       'Place in MVP zápasu',
+      'View larger',
       'Show details',
       'Rename…',
       'Copy',
@@ -25,6 +26,7 @@ describe('the tile menu (12 · ia-assets-keys)', () => {
       'Move to trash',
     ]);
     expect(tileMenuItems({ kind: 'image' }, { readOnly: true }).map((i) => i.id)).toEqual([
+      'spotlight',
       'details',
     ]);
     // with several picked, the row would name one of many: it is not offered

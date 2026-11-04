@@ -11809,7 +11809,7 @@
     "hook": "assets-tile",
     "kind": "testid",
     "pattern": false,
-    "meaning": "One asset tile in the Assets tab (`aria-pressed` when picked; `data-asset` is its `assets/<name>` path, `data-kind` image | video | audio). Hover and focus show its name and where it is used; right-click opens `assets-tile-menu`.",
+    "meaning": "One asset tile in the Assets tab (`aria-pressed` when picked; `data-asset` is its `assets/<name>` path, `data-kind` image | video | audio). Hover and focus show its name and where it is used; right-click opens `assets-tile-menu`; a double-click opens `asset-spotlight`.",
     "producer": {
       "file": "apps/studio/client/v2/assets/tile.jsx",
       "symbol": "AssetTile"
@@ -11838,7 +11838,7 @@
     "hook": "assets-tile-menu",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The menu a right-click on an Assets tile opens (S8.12): Place, Show details. A viewer and a video or sound tile get Show details only.",
+    "meaning": "The menu a right-click on an Assets tile opens (S8.12): Place, View larger, Show details. A viewer and a video or sound tile get View larger and Show details only.",
     "producer": {
       "file": "apps/studio/client/v2/assets/tile-menu.jsx",
       "symbol": "AssetTileMenu"
@@ -42994,6 +42994,227 @@
     "sourceConsumers": [
       "apps/studio/test/r4-colour-popover.test.tsx"
     ],
+    "v2": "new"
+  },
+  {
+    "hook": "asset-spotlight",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "2.0.4 — The large view of an Assets tile (double-click, or Space on the picked tile): a scrim and one dialog. `data-asset` is the asset showing; a step with ← → changes it.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/spotlight.jsx",
+      "symbol": "AssetSpotlight"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "spotlight-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The file name — the dialog's accessible name (`aria-labelledby`).",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/spotlight.jsx",
+      "symbol": "AssetSpotlight"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "spotlight-position",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"3 of 12\" while more than one tile can be walked (`role=status`).",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/spotlight.jsx",
+      "symbol": "AssetSpotlight"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "spotlight-close",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The close button of the spotlight (esc and a click outside close it too).",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/spotlight.jsx",
+      "symbol": "AssetSpotlight"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "spotlight-scrim",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The scrim behind the spotlight; a click on it closes the window.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/spotlight.jsx",
+      "symbol": "AssetSpotlight"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "spotlight-stage",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The area around the picture; a click on the empty part closes the window.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/spotlight.jsx",
+      "symbol": "AssetSpotlight"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "spotlight-prev",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Previous (←): the tile before this one in the tab's order; disabled at the first.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/spotlight.jsx",
+      "symbol": "AssetSpotlight"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "spotlight-next",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Next (→): the tile after this one; disabled at the last.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/spotlight.jsx",
+      "symbol": "AssetSpotlight"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "spotlight-image",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "A picture, fitted to the window (`src` is the tile's own address).",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/spotlight.jsx",
+      "symbol": "Stage"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "spotlight-video",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "A clip with its controls (`controls`, no autoplay).",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/spotlight.jsx",
+      "symbol": "Stage"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "spotlight-sound",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "A sound with its controls (an `audio` inside).",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/spotlight.jsx",
+      "symbol": "Stage"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "spotlight-file",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "A file the window cannot draw: its name, size and \"This file has no preview.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/spotlight.jsx",
+      "symbol": "Stage"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "spotlight-meta",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The line under the picture: path and size.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/spotlight.jsx",
+      "symbol": "AssetSpotlight"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "spotlight-path",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The file's path (no leading slash).",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/spotlight.jsx",
+      "symbol": "AssetSpotlight"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "spotlight-size",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The file's size (\"3.1 MB\"); absent when the studio did not say.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/spotlight.jsx",
+      "symbol": "AssetSpotlight"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "spotlight-row-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One of the actions the tile already has, in the window's foot: place, details, rename, copy (never Move to trash). Closes the window, then runs it.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/spotlight.jsx",
+      "symbol": "AssetSpotlight"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-menu-spotlight",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The tile menu's View larger row (`assets.spotlight`, Space): the same window a double-click opens.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/tile-menu.jsx",
+      "symbol": "AssetTileMenu"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
     "v2": "new"
   }
 ]

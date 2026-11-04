@@ -174,6 +174,8 @@
 @import url("../v2/assets/describe.css");
 /* 2.0.2 - the Assets tab Library switch and a design system own library (client/v2/assets/ds-library-view.jsx). */
 @import url("../v2/assets/ds-library.css");
+/* 2.0.4 - an Assets tile, large: double-click opens it in a window (client/v2/assets/spotlight.jsx). */
+@import url("../v2/assets/spotlight.css");
 /* Phase 4 gate — the a11y contrast floor (WCAG 1.4.3), utilities layer: wins over shell + components. */
 @import url("../v2/shell/contrast.css");
 /* V2-3.3 — the Home page, scoped under `.maude-v2.home-root` (maude-v2 tokens only). */

@@ -178,9 +178,10 @@ describe('usageWords — never a false "Not used"', () => {
 });
 
 describe('the tile menu', () => {
-  test('a picture offers Place, Show details, Copy and Move to trash; a viewer only details; a clip no Place', () => {
+  test('a picture offers Place, View larger, Show details, Copy and Move to trash; a viewer only details; a clip no Place', () => {
     expect(tileMenuItems({ kind: 'image' }, { placeLabel: 'MVP zápasu' })).toEqual([
       { id: 'place', label: 'Place in MVP zápasu', keys: '↵' },
+      { id: 'spotlight', label: 'View larger', keys: 'Space' },
       { id: 'details', label: 'Show details', keys: '⌘I' },
       { id: 'rename', label: 'Rename…' },
       { id: 'copy', label: 'Copy', keys: '⌘C' },
@@ -189,6 +190,7 @@ describe('the tile menu', () => {
     ]);
     expect(tileMenuItems({ kind: 'image' }).map((i) => i.label)).toEqual([
       'Place',
+      'View larger',
       'Show details',
       'Rename…',
       'Copy',
@@ -196,15 +198,18 @@ describe('the tile menu', () => {
       'Move to trash',
     ]);
     expect(tileMenuItems({ kind: 'image' }, { readOnly: true }).map((i) => i.id)).toEqual([
+      'spotlight',
       'details',
     ]);
     expect(tileMenuItems({ kind: 'video' }).map((i) => i.id)).toEqual([
+      'spotlight',
       'details',
       'rename',
       'sep',
       'trash',
     ]);
     expect(tileMenuItems({ kind: 'video' }, { readOnly: true }).map((i) => i.id)).toEqual([
+      'spotlight',
       'details',
     ]);
   });
