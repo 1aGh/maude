@@ -1,10 +1,9 @@
 /**
- * The one-minute intro film (plan Phase C). The MP4 ships as a GitHub release asset, not in
- * site/public (up to 16 MB per cut would live in the repo forever); poster and captions are local.
- * NEXT_PUBLIC_INTRO_URL names the asset; without it the player points at /intro.mp4, which a local
- * preview can drop into site/public (gitignored).
+ * The intro film (plan Phase C). The MP4 is served from site/public with a real video/mp4 type:
+ * the GitHub release asset (release intro-v2, used by the README) answers application/octet-stream
+ * as an attachment, which WebKit refuses to load, so Safari would show a dead player.
  */
-const SRC = process.env.NEXT_PUBLIC_INTRO_URL ?? '/intro.mp4';
+const SRC = '/intro.mp4';
 
 export function IntroFilm() {
   return (

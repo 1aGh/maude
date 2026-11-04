@@ -32,4 +32,3 @@ yarn-error.log*
 .env*.local
 .vercel
 next-env.d.ts
-/public/intro.mp4
