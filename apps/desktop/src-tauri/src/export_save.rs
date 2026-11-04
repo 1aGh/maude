@@ -11,6 +11,9 @@
 //!     folder — kept in app-state (`ProjectEntry.export_folder`), never in the project.
 //!   - `reveal_export({path})` — Finder with that file selected, ONLY for a path
 //!     `save_export` wrote for this project in this run of the app (`Written`).
+//!   - `clipboard_write_text({text})` — 2.0.3: plain text on the general pasteboard, for a copy the
+//!     page cannot make itself (a click inside the canvas iframe leaves the shell without user
+//!     activation, so WKWebView refuses or never settles `navigator.clipboard.writeText`).
 //!   - `clipboard_write_png(<raw PNG bytes>)` — the ⇧⌘C fallback where WKWebView refuses
 //!     `navigator.clipboard.write` (S8 Q13): size-capped, PNG-shaped, then the general
 //!     pasteboard as `public.png`.
@@ -56,6 +59,11 @@ const COULDNT_WRITE: &str = "Couldn’t write the export.";
 
 /// The most `clipboard_write_png` takes: a 2× 4K artboard is ~30 MB of PNG at worst.
 pub const MAX_CLIPBOARD_PNG: usize = 64 * 1024 * 1024;
+/// The most `clipboard_write_text` takes (bytes of UTF-8): a repair prompt is a few KB.
+pub const MAX_CLIPBOARD_TEXT: usize = 64 * 1024;
+/// `clipboard_write_text` for empty text, a NUL byte, or past the cap.
+pub const NOT_TEXT: &str = "There's nothing to copy.";
+pub const TEXT_TOO_BIG: &str = "That text is too long to copy.";
 /// The paths remembered per project for `reveal_export` (oldest forgotten first).
 pub const MAX_WRITTEN_PER_PROJECT: usize = 256;
 /// §5.4: the most a file name may be before its extension.
@@ -419,6 +427,43 @@ fn put_png(_png: &[u8]) -> Result<(), String> {
     Err("Copy as PNG isn't available here. Export it instead.".to_string())
 }
 
+// ── Copy text ────────────────────────────────────────────────────────────────
+
+/// `text` when it is something to copy: not empty, no NUL, at most `MAX_CLIPBOARD_TEXT` bytes.
+pub fn check_text(text: &str) -> Result<&str, String> {
+    if text.len() > MAX_CLIPBOARD_TEXT {
+        return Err(TEXT_TOO_BIG.to_string());
+    }
+    if text.is_empty() || text.contains('\0') {
+        return Err(NOT_TEXT.to_string());
+    }
+    Ok(text)
+}
+
+/// The general pasteboard, as `public.utf8-plain-text` (`NSPasteboardTypeString`).
+#[cfg(target_os = "macos")]
+fn put_text(text: &str) -> Result<(), String> {
+    use objc2_app_kit::{NSPasteboard, NSPasteboardTypeString};
+    use objc2_foundation::NSString;
+    let pasteboard = NSPasteboard::generalPasteboard();
+    let string = NSString::from_str(text);
+    pasteboard.clearContents();
+    // SAFETY: an AppKit constant string, valid for the life of the process.
+    let string_type = unsafe { NSPasteboardTypeString };
+    if pasteboard.setString_forType(&string, string_type) {
+        Ok(())
+    } else {
+        Err("Couldn't copy the text.".to_string())
+    }
+}
+
+/// WebView2 and WebKitGTK honour `navigator.clipboard.writeText` themselves; the shell has no
+/// pasteboard of its own there.
+#[cfg(not(target_os = "macos"))]
+fn put_text(_text: &str) -> Result<(), String> {
+    Err("Copying text isn't available here.".to_string())
+}
+
 // ── Commands ─────────────────────────────────────────────────────────────────
 
 /// `save_export({jobId, filename, saveTo?})` → the path written, or `None` when the person
@@ -494,6 +539,15 @@ pub fn clipboard_write_png(webview: tauri::Webview, request: tauri::ipc::Request
         return Err(NOT_A_PNG.to_string());
     };
     put_png(check_png(bytes)?)
+}
+
+/// `clipboard_write_text({text})` — the text on the general pasteboard (2.0.3: the canvas's
+/// "Copy prompt", whose click the shell's own `navigator.clipboard` cannot use).
+#[tauri::command]
+pub fn clipboard_write_text(webview: tauri::Webview, text: String) -> Result<(), String> {
+    windows::caller_project(&webview, false)?;
+    windows::caller_in_front(&webview)?;
+    put_text(check_text(&text)?)
 }
 
 #[cfg(test)]
@@ -839,6 +893,21 @@ mod tests {
         let _ = std::fs::remove_dir_all(d);
     }
 
+    #[test]
+    fn copy_text_refuses_empty_nul_and_past_the_cap() {
+        assert_eq!(check_text(""), Err(NOT_TEXT.to_string()));
+        assert_eq!(check_text("a\0b"), Err(NOT_TEXT.to_string()));
+        let at_cap = "x".repeat(MAX_CLIPBOARD_TEXT);
+        assert_eq!(check_text(&at_cap), Ok(at_cap.as_str()));
+        let over = "x".repeat(MAX_CLIPBOARD_TEXT + 1);
+        assert_eq!(check_text(&over), Err(TEXT_TOO_BIG.to_string()));
+        // the cap is bytes, not characters: 3-byte "—" × (cap/3 + 1) is over
+        let wide = "—".repeat(MAX_CLIPBOARD_TEXT / 3 + 1);
+        assert_eq!(check_text(&wide), Err(TEXT_TOO_BIG.to_string()));
+        let prompt = "Some pictures… `git lfs pull`";
+        assert_eq!(check_text(prompt), Ok(prompt));
+    }
+
     /// Source ratchet: each command checks its caller, then the front tab, before it
     /// parses an argument, touches a path, or reads a byte; none runs a shell.
     #[test]
@@ -849,6 +918,7 @@ mod tests {
             ("save_export", "SaveTo::parse("),
             ("reveal_export", "written().resolve("),
             ("clipboard_write_png", "request.body()"),
+            ("clipboard_write_text", "check_text("),
         ] {
             let start = code
                 .find(&format!("pub async fn {cmd}("))
