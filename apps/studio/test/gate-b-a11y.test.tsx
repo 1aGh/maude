@@ -189,7 +189,10 @@ describe('scrollable-region-focusable + nested-interactive (source pins)', () =>
     );
   });
   test("the canvas's Missing frame is a group when it holds the Relink… button, never an img", () => {
-    expect(read('../asset-placeholder.tsx')).toContain("role={f.words.relink ? 'group' : 'img'}");
+    // 2.0.3: an LFS placeholder's Fix with AI / Copy prompt make it a group too
+    expect(read('../asset-placeholder.tsx')).toContain(
+      "role={f.words.relink || lfs ? 'group' : 'img'}"
+    );
   });
   test('the empty project\'s "New canvas" button sits beside role=tree, not in it', () => {
     const src = read('../client/v2/canvases/canvases-panel.jsx');

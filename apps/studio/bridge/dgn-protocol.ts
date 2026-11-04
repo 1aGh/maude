@@ -439,12 +439,18 @@ export interface CanvasToShell {
   // S8.19 — the placeholder frame's Relink… (a Missing picture): the shell opens its relink sheet for
   // that rel. The canvas asks; the shell decides (the write is the shell's `asset.relink` edit op).
   'asset-relink-request': { rel: string };
+  // 2.0.3 — a Git LFS placeholder frame's two buttons (desktop only). The canvas only NAMES a rel; the
+  // shell checks it against its own asset-state answer (`lfs-pointer`) and builds the prompt itself.
+  'asset-lfs-fix-request': { rel: string };
+  'asset-lfs-copy-request': { rel: string };
 }
 
 /** S8.19 — one picture's state, as the shell tells the canvas (contract S8-S9-asset-presence §5.5). */
 export interface AssetStateItem {
   rel: string;
-  state: 'here' | 'uploading' | 'waiting' | 'missing';
+  state: 'here' | 'uploading' | 'waiting' | 'missing' | 'lfs-pointer';
+  /** 2.0.3, `lfs-pointer` only: the real bytes are already in this repo's `.git/lfs/objects`. */
+  localObject?: boolean;
   /** A display name only — never an e-mail, never a device id. */
   who?: { name: string | null; kind: 'mac' | 'pc' | 'linux' | null; self: boolean };
   /** The hub already has the bytes; this Mac has not pulled them yet ("Syncing…"). */
@@ -747,7 +753,12 @@ export interface ShellToCanvas {
   // S8.19 — "Waiting for Jonas's Mac" vs Missing for the open canvas's media. State, not an event: the
   // shell sends the whole list on open, every 60 s while something waits, at reconnect and after a
   // sweep ends. ≤ 256 items; a name with an `@` is refused whole (the canvas never sees an e-mail).
-  'asset-state': { items: AssetStateItem[] };
+  // 2.0.3: `lfsActions` — this shell can repair a Git LFS placeholder (the desktop's AI chat), so its
+  // frame offers "Fix with AI" and "Copy prompt". Absent / false: the words only.
+  'asset-state': { items: AssetStateItem[]; lfsActions?: boolean };
+  // 2.0.3 — the shell's answer to `asset-lfs-copy-request`: it wrote the prompt to the clipboard (`ok`)
+  // or could not. The frame's button reads "Copied" for a moment.
+  'asset-lfs-copied': { rel: string; ok: boolean };
   // S8.16 — the pictures of the open canvas that have other takes (`assets/<sha8>.<ext>`): with one of them
   // selected, ← → are `take-step`, not a nudge. State, not an event: the whole set each time. ≤ 256 items,
   // each an asset path; a planted or oversized list is refused whole.
@@ -1188,7 +1199,8 @@ const assetWho = shape({
 });
 const assetStateItem = shape({
   rel: shortStr(512),
-  state: lit('here', 'uploading', 'waiting', 'missing'),
+  state: lit('here', 'uploading', 'waiting', 'missing', 'lfs-pointer'),
+  localObject: opt(bool),
   who: opt(assetWho),
   syncing: opt(bool),
   progress: opt(unit),
@@ -1939,6 +1951,18 @@ const c2s: C2S = {
     owner: 'client/v2/assets/asset-state-lane (S8.19)',
     parse: p({ rel: shortStr(512) }),
   },
+  'asset-lfs-fix-request': {
+    gate: 'active',
+    status: 'live',
+    owner: 'client/v2/assets/asset-state-lane (2.0.3 LFS placeholder)',
+    parse: p({ rel: shortStr(512) }),
+  },
+  'asset-lfs-copy-request': {
+    gate: 'active',
+    status: 'live',
+    owner: 'client/v2/assets/asset-state-lane (2.0.3 LFS placeholder)',
+    parse: p({ rel: shortStr(512) }),
+  },
 };
 
 const s2c: S2C = {
@@ -2565,7 +2589,13 @@ const s2c: S2C = {
     gate: 'parent',
     status: 'live',
     owner: 'canvas-lib asset placeholder frame (S8.19, L1)',
-    parse: p({ items: assetStateList }),
+    parse: p({ items: assetStateList, lfsActions: opt(bool) }),
+  },
+  'asset-lfs-copied': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'canvas-lib asset placeholder frame (2.0.3 LFS placeholder)',
+    parse: p({ rel: shortStr(512), ok: bool }),
   },
   'gen-takes': {
     gate: 'parent',

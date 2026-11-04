@@ -54,17 +54,21 @@ export function AssetAbsentBox({ el, canvas, onReplace }) {
   const words = item ? frameWords(item) : null;
   if (!item || !words) return null;
   const missing = words.state === 'missing';
+  // 2.0.3 — a Git LFS placeholder: the file IS here, so Relink… has nothing to point at.
+  const lfs = words.state === 'lfs-pointer';
   return (
     <div className="asset-absent" data-testid="asset-absent-box" data-state={words.state}>
       <p className="asset-absent-t">
         <strong data-testid="asset-absent-word">{missing ? 'Missing' : words.line}</strong>
       </p>
       <p className="asset-absent-d">
-        {missing
-          ? 'No device has this file now. The rest of the design is safe.'
-          : 'Not synced yet. Your design is safe — the picture fills in by itself.'}
+        {lfs
+          ? 'The file here is a Git LFS placeholder, not the picture. Run git lfs pull, or use Fix with AI on the picture.'
+          : missing
+            ? 'No device has this file now. The rest of the design is safe.'
+            : 'Not synced yet. Your design is safe — the picture fills in by itself.'}
       </p>
-      {canEdit ? (
+      {canEdit && !lfs ? (
         <p className="asset-absent-a">
           {missing ? null : <span>Have it here?</span>}
           <button
