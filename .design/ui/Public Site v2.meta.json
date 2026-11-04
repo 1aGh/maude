@@ -1,0 +1,95 @@
+{
+  "kind": "canvas",
+  "title": "Public Site v2",
+  "subtitle": "maude.sh redesigned in the maude-v2 language — one message, four links, a Maude Cloud buy button, the Advanced docs kept whole",
+  "brief": "Redesign of the public site to match maude-v2: simpler navigation, more professional and clearer. A headline in the spirit of \"You like Claude? You like Figma? Meet Maude\" / \"it is Figma but it is yours\". Propose a Buy Maude Cloud CTA. Keep the Advanced documentation.",
+  "designSystem": "maude-v2",
+  "platform": "desktop",
+  "created": "2026-11-03T20:56:16.675Z",
+  "last_modified": "2026-11-04",
+  "layout": {
+    "artboards": [
+      {
+        "id": "ps-direction",
+        "x": 0,
+        "y": 0
+      },
+      {
+        "id": "ps-home",
+        "x": 1640,
+        "y": 0
+      },
+      {
+        "id": "ps-cloud",
+        "x": 3280,
+        "y": 0
+      },
+      {
+        "id": "ps-docs",
+        "x": 4920,
+        "y": 0
+      },
+      {
+        "id": "ps-advanced",
+        "x": 6560,
+        "y": 0
+      },
+      {
+        "id": "ps-home-mobile",
+        "x": -590,
+        "y": 0
+      },
+      {
+        "id": "ps-motion",
+        "x": -2140,
+        "y": 0
+      }
+    ]
+  },
+  "opt_out_scope": "palette",
+  "brief_sha": "e2326a3b",
+  "sections": [
+    {
+      "id": "main",
+      "title": "maude.sh, redesigned for Maude 2",
+      "subtitle": "One message, four links, a Maude Cloud button — and the Advanced docs kept whole"
+    }
+  ],
+  "artboards": [
+    {
+      "id": "ps-direction",
+      "label": "0 · The message and the map",
+      "note": "The three lines (Home headline picked), the navigation before and after (6 links → 4 links + Download + Get Maude Cloud), the site map and three rules."
+    },
+    {
+      "id": "ps-home",
+      "label": "1 · Home",
+      "note": "Hero headline, the product shot (AI drawing a pricing page next to a sticky), Figma + Claude = Maude, three tiles, It is yours, the dark Maude Cloud band with the €19 price and Get Maude Cloud, the Advanced door, footer. 2026-11-04: the hero is interactive. The headline is a selected layer: Ask Maude chips play a scripted AI rewrite (bolder · for my mum · Czech), ⌘Z puts it back, the stickies drag. New section \"Good ol' HTML. The AI knows it best.\": a four-beat story for non-technical readers plus a design-to-file wipe slider. Section headlines sharpened."
+    },
+    {
+      "id": "ps-cloud",
+      "label": "2 · Maude Cloud and pricing",
+      "note": "New page. Three plans (Self-host free · Cloud Project €19 · Dedicated €99) with Get Maude Cloud as the one primary action, per project vs per seat, trust row, questions, closing CTA. Numbers from docs/cloud/pricing.mdx."
+    },
+    {
+      "id": "ps-docs",
+      "label": "3 · Docs — two doors",
+      "note": "Search, then two doors: Using Maude (no terminal) and Advanced (Explore · Look up · Recipes, every page kept), the four starting points and the latest release."
+    },
+    {
+      "id": "ps-advanced",
+      "label": "4 · An Advanced docs page",
+      "note": "The docs layout: Using Maude folded, Advanced open with all its groups, The maude CLI as the example page with a callout back to Using Maude, a command table and a table of contents."
+    },
+    {
+      "id": "ps-home-mobile",
+      "label": "5 · Home on a phone",
+      "note": "The same Home at 390: the nav as one island with Get Cloud and a menu, stacked buttons, a small AI picture, the Cloud band and the Advanced row."
+    },
+    {
+      "id": "ps-motion",
+      "label": "6 · Intro motion",
+      "note": "The hero intro as four frames on the shared clock, and every motion on the site with its tokens and reduced-motion fallback (from the UX research motion patterns)."
+    }
+  ]
+}
