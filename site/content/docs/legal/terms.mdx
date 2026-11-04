@@ -3,10 +3,6 @@ title: Terms of Service
 description: The agreement between you and the provider of Maude Cloud — what you get, what you pay, what happens when you stop paying, and what happens to your work when you leave.
 ---
 
-<Callout type="warn" title="Published before it is in force">
-Maude Cloud is in private pilot and takes **no live payments** — the payment integration runs in Stripe test mode. These terms are published now so they can be read and challenged before that changes. They are reviewed by counsel, and the VAT position below settled with an accountant, **before the first live charge**. That is a gate on the live-payments work, not an intention.
-</Callout>
-
 **Last updated:** 4 November 2026
 
 ## 1. Who you are contracting with
@@ -49,7 +45,7 @@ You must be at least 18, or have the authority to bind the organisation you are 
 ## 4. Money
 
 - Prices are shown **before** you enter card details, in euros, and they **exclude VAT**. Customers in the United States pay the same figure in US dollars. You are charged in exactly that currency: the checkout does not convert the price into your local currency.
-- **Who sells you the subscription.** Payment, VAT and invoicing are handled by our reseller and merchant of record, **Lemon Squeezy (Sold through Link, LLC)**, a Stripe affiliate. You buy the subscription from them under their [Buyer Terms](https://www.lemonsqueezy.com/buyer-terms). Your use of Maude Cloud is governed by these terms. Checkout, receipts and invoices show "Sold through Link", and your card statement shows `LINK.COM*` followed by a short descriptor. They calculate and add your country's VAT, collect it and remit it, so the total on the payment screen is higher than the listed price. That total is shown to you before you enter a card. A Czech customer on the <CloudPrice of="project" /> plan pays <CloudPrice of="projectCz" />. Supply a valid business VAT id and reverse charge applies instead.
+- **Who sells you the subscription.** Payment, VAT and invoicing are handled through Stripe Managed Payments by our reseller and merchant of record, **Lemon Squeezy (Sold through Link, LLC)**, a Stripe affiliate. You buy the subscription from them under their [Buyer Terms](https://www.lemonsqueezy.com/buyer-terms). Your use of Maude Cloud is governed by these terms. Checkout, receipts and invoices show "Sold through Link", and your card statement shows `LINK.COM*` followed by a short descriptor. They calculate and add your country's VAT, collect it and remit it, so the total on the payment screen is higher than the listed price. That total is shown to you before you enter a card. A Czech customer on the <CloudPrice of="project" /> plan pays <CloudPrice of="projectCz" />. Supply a valid business VAT id and reverse charge applies instead.
 - The provider is not itself registered for VAT in the Czech Republic. Under the merchant-of-record arrangement above, that does not change what you are charged.
 - **Trial.** A new project is free for <CloudPrice of="trialDays" /> days. If you start it through checkout, your card is saved and checked but not charged. Unless you cancel before the trial ends, the plan you chose starts automatically on the date shown at checkout. It is charged then, and at every renewal after that. You are reminded by email before the trial ends. If you start a free project from the desktop app, no card is needed, and nothing is charged until you choose a plan. If you choose a plan without a trial, you are charged straight away. See [If you are a consumer: withdrawal](#withdrawal).
 - **We charge only for a project that actually came up.** If provisioning fails or times out, the card is not charged. This is enforced in code, not by our good intentions.
@@ -59,7 +55,7 @@ You must be at least 18, or have the authority to bind the organisation you are 
 - We ask for your address, and optionally your VAT id, because they belong on the invoice and because they decide what tax treatment applies. Supplying an incorrect VAT id is your responsibility.
 
 <Callout type="warn" title="TODO (accountant, L1)">
-The sentence on the provider's own VAT status needs the accountant's confirmation before the first live charge. Delete it or replace it with the confirmed wording.
+The sentence on the provider's own VAT status still needs the accountant's confirmation. Delete it or replace it with the confirmed wording.
 </Callout>
 
 <Callout type="warn" title="TODO (counsel)">
@@ -77,7 +73,11 @@ A failed payment is a conversation, not a switch:
 
 ## 6. Cancelling and leaving
 
-You can cancel at any time from your project's billing page. You can also cancel at link.com, where the seller of record manages your subscription. The screen tells you, before you click: the date the project keeps working until, the date it pauses, and the date the data is deleted.
+You can cancel at any time from your project's billing page: choose **Manage billing**, which opens the customer portal hosted by Stripe, and cancel your subscription there. You can also cancel at link.com, where the seller of record manages your subscription.
+
+Cancelling takes effect at the **end of the current billing period**. Renewal stops, and the project keeps working until that period ends. The portal may ask you for a reason. It is optional. The billing page tells you, before you cancel, the date the project keeps working until, the date it pauses, and the date the data is deleted.
+
+In the same portal you can see your invoice history, update your payment method, and update your name, email address, billing address and tax id. Switching plans is not done there.
 
 You can **download everything at any time**, including while a project is paused or past due. The copy is yours to keep forever, and taking it changes nothing about your project.
 
@@ -85,7 +85,7 @@ You can delete a project yourself. Deletion is only offered once a complete copy
 
 ### Refunds
 
-Cancelling stops the next renewal. It does not refund the period you have already paid for, and we do not refund an annual plan pro rata when you cancel part-way through. The project keeps working until the end of the period. The exception is the consumer right of withdrawal below, which is a legal right and always applies. If a payment was taken in error, or the service did not work for you, write to **cloud@maude.sh** and we will look at it fairly.
+Cancelling stops the next renewal. It does not refund the period you have already paid for, and we do not refund an annual plan pro rata when you cancel part-way through. The project keeps working until the end of the period. The exception is the consumer right of withdrawal below. It is a separate legal right, it always applies, and you do not have to cancel first to use it. If a payment was taken in error, or the service did not work for you, write to **cloud@maude.sh** and we will look at it fairly.
 
 <Callout type="warn" title="TODO (Michal)">
 Confirm that an annual plan is not refunded pro rata on cancellation, and decide whether to offer a goodwill refund window beyond the law, for example the first annual payment within 14 days of a renewal. Until you decide, the text above is the statutory minimum only.
@@ -127,6 +127,8 @@ If you buy as a consumer in the EU, you may withdraw from the contract within **
 
 - **If you started with a free trial**, the trial covers that period. Cancel before the trial ends and you pay nothing.
 - **If you chose a plan that starts immediately**, you asked us to start the service before the 14 days end. If you withdraw, we refund what you paid minus a proportionate amount for the days you used.
+
+Withdrawing within 14 days is not the same as cancelling at the end of the billing period. Cancelling stops renewal. Withdrawing ends the contract and gets you a refund as described here.
 
 To withdraw, send us a clear statement, for example using the [model withdrawal form](/docs/legal/withdrawal), to **cloud@maude.sh**. We confirm by email and refund within 14 days through the original payment method. See also [Withdrawal and refunds](/docs/legal/withdrawal).
 
