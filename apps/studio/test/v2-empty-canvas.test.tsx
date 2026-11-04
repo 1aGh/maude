@@ -56,6 +56,20 @@ describe('the empty-canvas model: three variants from the readiness state', () =
     expect(m).toMatchObject({ variant: 'ready', quiet: false, ask: true, offlineLine: null });
   });
 
+  // #204 (task L) — the invitation is for a canvas KNOWN to be empty once it has loaded.
+  test('#204: nothing while the canvas is still loading, nor before it has said a count', () => {
+    expect(emptyCanvasModel({ ...base, loading: true })).toBeNull();
+    expect(emptyCanvasModel({ ...base, count: null })).toBeNull();
+    expect(emptyCanvasModel({ ...base, count: 3 })).toBeNull();
+    expect(emptyCanvasModel({ ...base, loading: false })?.variant).toBe('ready');
+  });
+
+  test('#204: the host passes the shell’s loading state and starts a load with a clean count', () => {
+    const src = readFileSync(join(STUDIO, 'client/v2/empty/empty-host.jsx'), 'utf8');
+    expect(src).toContain('loading: canvasLoading');
+    expect(src).toContain('lane.loadStarted(loadingPath)');
+  });
+
   test('offline: the line keeps its first sentence and adds the S5.13 words, the spot goes quiet', () => {
     const m = emptyCanvasModel({ ...base, online: false });
     expect(m).toMatchObject({ variant: 'offline', quiet: true, ask: true });
@@ -182,6 +196,21 @@ describe('the lane: counts, the hint, and when it leaves', () => {
     expect(l.get().count).toBe(0);
     l.onMessage(msg({ dgn: 'artboards', count: 2 }));
     expect(l.get().count).toBe(2);
+  });
+
+  // #204 (task L) — "Your canvas is ready" sat over a canvas with its artboards drawn underneath:
+  // a 0 the canvas said before its artboards mounted (or a previous document of the same canvas
+  // said) outlived the load. A load that starts forgets what was said about that canvas.
+  test('#204: a canvas that starts loading again forgets the count said before', () => {
+    const l = lane();
+    l.onMessage(msg({ dgn: 'artboards', count: 0 }));
+    expect(l.get().count).toBe(0);
+    l.loadStarted('.design/ui/Home.tsx');
+    expect(l.get().count).toBeNull();
+    l.onMessage(msg({ dgn: 'artboards', count: 3 }));
+    expect(l.get().count).toBe(3);
+    l.loadStarted('.design/ui/Other.tsx'); // another canvas's load leaves this one's count alone
+    expect(l.get().count).toBe(3);
   });
 
   test('`artboard-empty` with a rect shows the hint; rect null clears it', () => {

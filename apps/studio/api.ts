@@ -147,6 +147,7 @@ import {
   sanitizeReuseText,
 } from './generation/audio-library.ts';
 import { createHistory } from './history.ts';
+import { createSingleFlight } from './index-flight.ts';
 import { clearLocatorSlug, readLocator, writeLocator } from './locator.ts';
 import { listMaterializable } from './materialize-client.ts';
 import { resolveUrlPathUnder } from './path-containment.ts';
@@ -7848,7 +7849,20 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
 
   // ---------- Index data + System data ----------
 
-  async function buildIndexData(viewer?: { role?: string | null }) {
+  // #204 — one index build at a time per reader: a client that timed out and asked again joins the
+  // build still running instead of starting another next to it (index-flight.ts). File events bump
+  // it, so a build that started before a change is never handed to a later caller.
+  const indexFlight = createSingleFlight<unknown>();
+  ctx.bus.on('fs:any', () => indexFlight.bump());
+  function buildIndexData(viewer?: { role?: string | null }) {
+    // A canvas-only session's answer is filtered by its own grants: never shared.
+    if (!projectVisibility(ctx).current().full) return buildIndexDataNow(viewer);
+    return indexFlight.run(`${viewer?.role ?? ''}|${currentSession()}`, () =>
+      buildIndexDataNow(viewer)
+    );
+  }
+
+  async function buildIndexDataNow(viewer?: { role?: string | null }) {
     const groups = [];
 
     // DDR-093 — per-canvas design-system map (repo-relative canvas path → DS

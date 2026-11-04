@@ -10,6 +10,7 @@
 // reload. It only ever counts YOUR chats on THIS Mac (`needsYou` is mine-only by construction).
 
 import { useEffect, useSyncExternalStore } from 'react';
+import { servedFetch } from '../shell/served-routes.js';
 
 let local = new Map(); // chatId -> number of open questions
 let server = 0;
@@ -83,7 +84,7 @@ export function startNeedsYouFeed({
     if (stopped || inflight) return;
     inflight = true;
     try {
-      const res = await fetchImpl('/_api/ai/runs');
+      const res = await servedFetch('/_api/ai/runs', undefined, fetchImpl);
       if (!res.ok) return;
       const body = await res.json();
       if (!stopped && typeof body?.needsYou === 'number') setServerNeedsYou(body.needsYou);

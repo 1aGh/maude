@@ -41,12 +41,15 @@ export function hubAway(syncStatus) {
  * Which empty-canvas situation applies — or null (nothing to show).
  *
  * @param {{ count: number|null|undefined, mode: string, canEdit: boolean, online: boolean,
- *   claude: 'present'|'absent'|'unknown', canAsk: boolean }} f
+ *   claude: 'present'|'absent'|'unknown', canAsk: boolean, loading?: boolean }} f
  *   `count` is what the CANVAS reported (null until it has: no flash while it loads). `canEdit` false =
  *   Can view / Can comment: no create affordance at all. `canAsk`: the AI chat exists here (desktop app).
  */
 export function emptyCanvasModel(f) {
   if (f.count !== 0) return null;
+  // #204 — only for a canvas KNOWN to be empty once its load has finished: a 0 said while the canvas is
+  // still loading (before its artboards mount) put the invitation over artboards drawn a moment later.
+  if (f.loading) return null;
   if (f.mode !== 'edit') return null;
   if (!f.canEdit) return null;
   const offline = f.online === false;
@@ -169,6 +172,12 @@ export function createEmptyLane(deps) {
     /** The active canvas changed: what was said about the last one is not about this one. */
     switched() {
       set({ count: countOf(), hint: null });
+    },
+    /** #204 — a canvas started (re)loading: what its last document said about it is not about the next. */
+    loadStarted(path) {
+      if (!path || !counts.has(path)) return;
+      counts.delete(path);
+      set({ ...state, count: countOf() });
     },
     /** A canvas left the project / was closed. */
     forget(path) {

@@ -26,6 +26,7 @@ import { useOfflineFoot } from './offline-foot.jsx';
 import { useOutboxWords } from './row-words.js';
 import { conflictCard, conflictsFor, whenWords } from './sync-states-model.js';
 import { reasonProps } from '../access/disabled-reason.js';
+import { servedFetch } from '../shell/served-routes.js';
 
 /** The shell opens the card from anywhere (the toast's Show, the mark, ⌘K-less row actions). */
 export const OPEN_EVENT = 'maude:sync-conflicts-open';
@@ -42,7 +43,11 @@ export const PICK = Object.freeze({
 
 export async function readConflicts(fetchImpl = fetch) {
   try {
-    const r = await fetchImpl('/_api/sync/conflicts', { headers: { accept: 'application/json' } });
+    const r = await servedFetch(
+      '/_api/sync/conflicts',
+      { headers: { accept: 'application/json' } },
+      fetchImpl
+    );
     if (!r.ok) return null;
     const j = await r.json();
     return Array.isArray(j?.conflicts) ? j.conflicts : null;
@@ -258,7 +263,7 @@ export function SyncStatesHost() {
     let live = true;
     const read = () => {
       if (document.visibilityState === 'hidden') return;
-      fetch('/_api/outbox')
+      servedFetch('/_api/outbox')
         .then((r) => (r.ok ? r.json() : null))
         .then((v) => live && setOutboxView(v))
         .catch(() => {});
