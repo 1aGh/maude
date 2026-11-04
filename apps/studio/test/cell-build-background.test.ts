@@ -14,7 +14,7 @@ import { join } from 'node:path';
 import type { Subprocess } from 'bun';
 
 import { DEV_SERVER_ROOT } from '../paths.ts';
-import { asUser, get, OWNER } from './_acl-cell.ts';
+import { asUser, frameCap, get, OWNER, withFc } from './_acl-cell.ts';
 import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
 
 const CANVAS = 'ui/slow.tsx';
@@ -24,19 +24,24 @@ export default function Slow() {
 }
 `;
 const DELAY_MS = 3000;
+/** A canvas whose build never fits the 5 s ceiling (the worker sleeps longer for it). */
+const STUCK = 'ui/very-slow.tsx';
+const STUCK_DELAY_MS = 8000;
 
 let proc: Subprocess;
 let base: string;
+let canvasBase: string;
 let workers: string;
 const OWNER_O = asUser(OWNER, 'owner@example.com');
 
 beforeAll(async () => {
   const { root, designRoot } = makeSandbox();
   writeFileSync(join(designRoot, CANVAS), SRC);
+  writeFileSync(join(designRoot, STUCK), SRC.replace('slow', 'very slow'));
   workers = mkdtempSync(join(tmpdir(), 'slow-workers-'));
   writeFileSync(
     join(workers, 'canvas-build-worker.ts'),
-    `await Bun.sleep(${DELAY_MS});\nawait import(${JSON.stringify(join(DEV_SERVER_ROOT, 'canvas-build-worker.ts'))});\n`
+    `await Bun.sleep(String(process.argv[3]).endsWith('very-slow.tsx') ? ${STUCK_DELAY_MS} : ${DELAY_MS});\nawait import(${JSON.stringify(join(DEV_SERVER_ROOT, 'canvas-build-worker.ts'))});\n`
   );
   const port = nextPort();
   const home = mkdtempSync(join(tmpdir(), 'slow-home-'));
@@ -49,10 +54,13 @@ beforeAll(async () => {
     MAUDE_PROJECT_NAME: 'Slow',
     MAUDE_CANVAS_WORKERS: workers,
     MAUDE_CANVAS_BUILD_WAIT_MS: '1000',
-    MAUDE_CANVAS_BUILD_TIMEOUT_MS: '60000',
+    MAUDE_CANVAS_BUILD_TIMEOUT_MS: '5000',
   });
   base = `http://localhost:${port}`;
-  readFileSync(join(designRoot, '_server.json'), 'utf8');
+  const info = JSON.parse(readFileSync(join(designRoot, '_server.json'), 'utf8')) as {
+    canvasPort?: number;
+  };
+  canvasBase = `http://localhost:${info.canvasPort}`;
 }, 60_000);
 
 afterAll(async () => {
@@ -101,5 +109,35 @@ describe('a build that outlives its request on a workspace cell', () => {
     console.log(
       `[task P] first open ${firstMs} ms → 503 building; after the build: ${nextMs} ms → 200 (cacheHits ${render.cacheHits}, builds ${render.builds}, timeouts ${render.timeouts})`
     );
+  }, 60_000);
+});
+
+describe('a frame whose build runs out of time is told "not now", never "not yours"', () => {
+  // design.studyfi.com, v2.0.3: the board's frame got 403 not-in-scope for its own module — a
+  // timed-out build answered a frame like a refusal (gate-b-c4m), so devtools showed "Forbidden" on
+  // `/.design/system/studyfi-v3/…` and the card said nothing. The request now stops waiting before
+  // the ceiling, so the frame hears 503 "still being built"; the timeout itself reaches the shell
+  // through canvas-errors (`timed-out`), never as a refusal.
+  test('still building → 503; past the ceiling → canvas-errors timed-out; the frame never gets 403', async () => {
+    const fc = (await frameCap({ base }, OWNER_O, STUCK)) as string;
+    const first = await fetch(canvasBase + withFc(`/.design/${STUCK}`, fc), { headers: OWNER_O });
+    expect(first.status).toBe(503);
+    const until = Date.now() + 30_000;
+    let body: Record<string, unknown> = {};
+    do {
+      await Bun.sleep(250);
+      body = JSON.parse(
+        (await get(`${base}/_api/canvas-errors?canvas=.design/${STUCK}`, OWNER_O)).text
+      );
+    } while (body.building === true && Date.now() < until);
+    expect(body.buildFailure).toEqual({ class: 'timed-out' });
+    // the next opens start the build again (a timed-out build is not kept) and say so
+    const statuses: number[] = [];
+    for (let i = 0; i < 2; i++) {
+      const r = await fetch(canvasBase + withFc(`/.design/${STUCK}`, fc), { headers: OWNER_O });
+      statuses.push(r.status);
+      expect(await r.text()).not.toContain('not-in-scope');
+    }
+    expect(statuses.every((s) => s === 503)).toBe(true);
   }, 60_000);
 });
