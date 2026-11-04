@@ -14,6 +14,7 @@ import {
   type DocCollision,
   docCollisionNotice,
 } from '../sync/index.ts';
+import { pullTargets } from '../sync/remote-docs.ts';
 import { syncKeyOf } from '../sync-name-key.ts';
 
 const ROOT = '/p/.design';
@@ -32,6 +33,47 @@ const namespaced = createDocNameResolver({
   branch: 'main',
 });
 const flat = createDocNameResolver({ repoRoot: '/nonexistent', flag: '0' });
+
+// 2.0.4 — a cell's paired studio child must never resolve a flat-twin slug to
+// the root file. The hub agent's boot index had a "shortest, then
+// alphabetical" tie-break that picked `ui-welcome.tsx` over `ui/welcome.tsx`
+// (`-` sorts before `/`); the child has no tie-break at all: a collision
+// admits NEITHER file, and the document then reaches it through the pull
+// lane, which places `ui-welcome` inside its group. So once the hub parks the
+// flat twin, nothing on the child writes it back.
+describe('2.0.4 — the paired child never resolves a flat twin to the root', () => {
+  test('a flat and a grouped file of one slug: neither is projected, the pull lands grouped', () => {
+    const seen: DocCollision[] = [];
+    const flatTwin = canvas('ui-welcome.tsx');
+    const grouped = canvas('ui/welcome.tsx');
+    expect(flatTwin.slug).toBe(grouped.slug);
+    for (const order of [
+      [flatTwin, grouped],
+      [grouped, flatTwin],
+    ]) {
+      const admitted = admitCanvases(order, true, {
+        docNameOf: namespaced,
+        onCollisions: (c) => seen.push(...c),
+      });
+      expect(admitted.map((c) => c.html)).not.toContain(flatTwin.html);
+      expect(admitted).toEqual([]);
+    }
+    expect(seen).toHaveLength(2);
+
+    // The document is then hub-only for the child; with no path yet it lands
+    // in its group, never at the design root.
+    const join = (...p: string[]) => p.join('/');
+    const targets = pullTargets(
+      [{ name: namespaced('ui-welcome'), bytes: 1 }],
+      ROOT,
+      join,
+      (p) => p,
+      '/',
+      { designRel: '.design', canvasGroups: [{ path: 'system' }, { path: 'ui' }] }
+    );
+    expect(targets.map((t) => t.bodyAbs)).toEqual([`${ROOT}/ui/welcome.tsx`]);
+  });
+});
 
 describe('C5 — admission keys on the wire document', () => {
   test('an em dash and a hyphen collide in a namespaced project: neither syncs', () => {
