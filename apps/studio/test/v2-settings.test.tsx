@@ -329,15 +329,17 @@ describe('the desktop sheet renders every Settings row', () => {
     await goto('connections');
     await click(q('settings-team-server-add'));
     await settle(50);
-    for (const id of [
-      'team-projects-dialog',
-      'team-hub-url',
-      'team-hub-email',
-      'team-hub-password',
-    ])
+    for (const id of ['team-projects-dialog', 'team-hub-url', 'team-hub-open'])
       expect(q(id), id).toBeTruthy();
     // not the recents and not the cloud list — those have their own homes
     const dialog = q('team-projects-dialog') as HTMLElement;
+    // Issue #204 (decision maude/v2-michal-team-server-signin-via-hub-page): the app owns no login
+    // method for a team server — no email or password field; Sign in opens the server's own page.
+    expect(q('team-hub-email')).toBeNull();
+    expect(q('team-hub-password')).toBeNull();
+    expect(dialog.querySelector('input[type="password"]')).toBeNull();
+    expect(dialog.querySelector('input[type="email"]')).toBeNull();
+    expect(q('team-hub-open')?.textContent).toContain('Sign in');
     expect(dialog.querySelector('section[aria-label="Maude Cloud"]')).toBeNull();
     expect(dialog.querySelector('section[aria-label="Recent team projects"]')).toBeNull();
     expect(dialog.querySelector('section[aria-label="Your team\'s server"]')).toBeTruthy();

@@ -104,10 +104,10 @@ describe('p8-lock-reasons — a greyed control says why (the crawl’s 13)', () 
     saysWhy(byTestid(row, 'figma-connect-save'), 'Paste the token first.');
   });
 
-  test('team-hub-open: the address, email and password not all there', async () => {
+  test('team-hub-open: no server address yet', async () => {
     const TeamProjects = (await import('../client/panels/TeamProjects.jsx')).default;
     const host = await mount(<TeamProjects serverOnly />);
-    saysWhy(byTestid(host, 'team-hub-open'), 'Fill in the address, email and password first.');
+    saysWhy(byTestid(host, 'team-hub-open'), 'Fill in the server address first.');
   });
 
   test('edit-distribute-h / -v: fewer than three objects', async () => {

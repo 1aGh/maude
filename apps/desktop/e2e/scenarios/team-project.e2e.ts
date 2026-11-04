@@ -614,15 +614,38 @@ describe('team-project (native-desktop)', () => {
     await capture('10-access-removed-sign-in-again');
     expect(read(theirs) ?? '').not.toContain('after access was removed');
 
-    // The owner lets them back in; the designer signs in with their password.
+    // The owner lets them back in; the designer signs in again — on the TEAM SERVER'S OWN page
+    // (issue #204: the app has no email/password field). The app opens that page in the system
+    // browser, which an e2e cannot drive, so the scenario takes the page URL the tab asked Rust
+    // to open and walks the browser's hops itself: the page, the password form, the hand-off
+    // back to the tab's own loopback server.
     expect((await admin('/users/enable')).status).toBe(200);
     await again.click();
-    await (await $(tid('team-hub-email'))).waitForDisplayed({ timeout: 10_000 });
+    await (await $(tid('team-hub-open'))).waitForDisplayed({ timeout: 10_000 });
     const url = await $(tid('team-hub-url'));
     if (!(await url.getValue())) await url.setValue(t.hub);
-    await (await $(tid('team-hub-email'))).setValue('designer@x.test');
-    await (await $(tid('team-hub-password'))).setValue(t.password);
+    await browser.execute(() => {
+      const core = (
+        window as unknown as {
+          __TAURI__: { core: { invoke: (cmd: string, args?: unknown) => Promise<unknown> } };
+        }
+      ).__TAURI__.core;
+      const real = core.invoke.bind(core);
+      core.invoke = (cmd: string, args?: { url?: string }) => {
+        if (cmd === 'open_team_server_signin') {
+          (window as unknown as { __e2eHubSignIn?: string }).__e2eHubSignIn = args?.url;
+          return Promise.resolve();
+        }
+        return real(cmd, args);
+      };
+    });
     await (await $(tid('team-hub-open'))).click();
+    await (await $(tid('team-hub-waiting'))).waitForDisplayed({ timeout: 15_000 });
+    const pageUrl = (await browser.execute(
+      () => (window as unknown as { __e2eHubSignIn?: string }).__e2eHubSignIn ?? null
+    )) as string | null;
+    expect(pageUrl).toContain('/studio/signin?client=desktop');
+    await signInOnHubPage(String(pageUrl), 'designer@x.test', t.password);
     await eventually(
       'the edit held while access was removed, at the teammate after signing in again',
       () => (read(theirs) ?? '').includes('after access was removed'),
@@ -1001,3 +1024,32 @@ describe('team-project (native-desktop)', () => {
   // 13 · ad-edge-sync (the 429 callout) moved to team-cell.e2e.ts: this lane's hub has no checkout, so every file
   // write is a 405 before any rate check; the cell-shaped hub there accepts them.
 });
+
+/**
+ * Issue #204 — what the system browser does on a team server's sign-in page, as fetches: GET
+ * the page (it sets the signed desktop-request cookie), POST the password form with that cookie,
+ * then follow the hand-off page's link back to the app's loopback return. Same hops, same order.
+ */
+async function signInOnHubPage(pageUrl: string, email: string, password: string): Promise<void> {
+  const page = await fetch(pageUrl);
+  if (page.status !== 200) throw new Error(`the hub sign-in page answered ${page.status}`);
+  const cookie = (page.headers.getSetCookie?.() ?? [])
+    .map((c) => c.split(';')[0])
+    .filter((c) => c.startsWith('maude_desktop_signin='))
+    .join('; ');
+  const origin = new URL(pageUrl).origin;
+  const done = await fetch(`${origin}/studio/signin`, {
+    method: 'POST',
+    redirect: 'manual',
+    headers: { 'content-type': 'application/x-www-form-urlencoded', origin, cookie },
+    body: new URLSearchParams({ email, password }),
+  });
+  const html = await done.text();
+  const href = /<a href="([^"]+)">Go back to Maude<\/a>/.exec(html)?.[1]?.replaceAll('&amp;', '&');
+  if (!href) throw new Error(`no hand-off back to the app (${done.status}): ${html.slice(0, 300)}`);
+  // No Fetch Metadata: Node's fetch overwrites Sec-Fetch-Mode with `cors`, so a "navigation" it
+  // claims would be refused at the gate. A browser's real top-level navigation is pinned in
+  // apps/studio/test/hub-browser-signin.test.ts; here the hop only has to carry code + state.
+  const back = await fetch(href);
+  if (back.status !== 200) throw new Error(`the app's return answered ${back.status}`);
+}
