@@ -4,16 +4,22 @@
  * whisper's word timing), shift every word by that line's offset in the mix, and write one
  * Caption[] JSON for captions-to-vtt.mjs. Same whisper.cpp + model as sub.mjs (whisper-config).
  *
- * Usage: node scripts/intro2-captions.mjs <vo_dir> "<vo-1:400 vo-2:5400 …>" <out.json>
+ * Usage: node scripts/intro2-captions.mjs <vo_dir> "<vo-1:400 vo-2:5400 …>" <out.json> [script.json]
+ *
+ * With script.json ({ "vo-1": "<the approved line>", … }) the caption TEXT is the script, word for
+ * word, and whisper gives only the timing: when whisper's word count matches, each script word takes
+ * its whisper word's time; when it does not (whisper merges or splits words), the script words are
+ * spread over the line's spoken span in proportion to their length.
  */
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { downloadWhisperModel, installWhisperCpp, toCaptions, transcribe } from '@remotion/install-whisper-cpp';
 import { WHISPER_LANG, WHISPER_MODEL, WHISPER_PATH, WHISPER_VERSION } from '../whisper-config.mjs';
 
-const [, , voDir, list, out] = process.argv;
+const [, , voDir, list, out, scriptPath] = process.argv;
+const SCRIPT = scriptPath ? JSON.parse(readFileSync(scriptPath, 'utf8')) : {};
 if (!voDir || !list || !out) {
   console.error('usage: intro2-captions.mjs <vo_dir> "<name:offset_ms …>" <out.json>');
   process.exit(2);
@@ -33,12 +39,28 @@ try {
       whisperCppVersion: WHISPER_VERSION, printOutput: false, translateToEnglish: false,
       language: WHISPER_LANG, splitOnWord: true,
     });
-    const { captions } = toCaptions({ whisperCppOutput });
-    for (const c of captions) {
-      if (/^\s*\[.*\]\s*$/.test(c.text)) continue; // [BLANK_AUDIO] and friends
-      const o = Number(offset);
-      all.push({ ...c, startMs: c.startMs + o, endMs: c.endMs + o, timestampMs: c.timestampMs == null ? null : c.timestampMs + o });
+    const { captions: raw } = toCaptions({ whisperCppOutput });
+    let captions = raw.filter((c) => !/^\s*\[.*\]\s*$/.test(c.text)); // [BLANK_AUDIO] and friends
+    const line = SCRIPT[name];
+    if (line && captions.length) {
+      const words = line.split(/\s+/);
+      if (words.length === captions.length) {
+        captions = captions.map((c, i) => ({ ...c, text: ` ${words[i]}` }));
+      } else {
+        const a = captions[0].startMs;
+        const b = captions[captions.length - 1].endMs;
+        const total = words.reduce((n, w) => n + w.length + 1, 0);
+        let acc = 0;
+        captions = words.map((w) => {
+          const s0 = a + ((b - a) * acc) / total;
+          acc += w.length + 1;
+          const s1 = a + ((b - a) * acc) / total;
+          return { text: ` ${w}`, startMs: s0, endMs: s1, timestampMs: s0, confidence: null };
+        });
+      }
     }
+    const o = Number(offset);
+    for (const c of captions) all.push({ ...c, startMs: c.startMs + o, endMs: c.endMs + o, timestampMs: c.timestampMs == null ? null : c.timestampMs + o });
     console.log(`  ${name} +${offset} ms: ${captions.map((c) => c.text).join('').trim()}`);
   }
 } finally {

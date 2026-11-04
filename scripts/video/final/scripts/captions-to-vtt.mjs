@@ -20,7 +20,7 @@ const FIXES = [
   [/\bMaud\b/g, 'Maude'],
   [/\bmaud\.sh\b/gi, 'maude.sh'],
   [/\bmood board\b/gi, 'moodboard'],
-  [/\bscreens\b/g, 'Screens'],
+  [/^screens\b/, 'Screens'],
   // Intro2's script punctuation, where whisper heard the pause differently.
   [/^Draw it yourself or just ask\./, 'Draw it yourself, or just ask.'],
   [/\bslides, and print\b/, 'slides and print'],

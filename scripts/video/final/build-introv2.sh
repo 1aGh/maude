@@ -50,5 +50,5 @@ echo "✓ loudness: second pass from ${mi} LUFS"
 ffmpeg -y -loglevel error -sseof -0.4 -i "$OUT" -frames:v 1 -q:v 3 out/introv2/intro-poster.jpg
 echo "✓ out/introv2/intro-poster.jpg"
 
-node scripts/intro2-captions.mjs $A/vo/_trim "$VO_LIST" out/introv2/IntroV2-captions.json
+node scripts/intro2-captions.mjs $A/vo/_trim "$VO_LIST" out/introv2/IntroV2-captions.json $A/vo/script.json
 node scripts/captions-to-vtt.mjs out/introv2/IntroV2-captions.json public/introv2/captions.vtt

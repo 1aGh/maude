@@ -93,7 +93,33 @@ is ElevenLabs' casual, down-to-earth male voice: the closest to "a designer tell
   V5 and Intro2 build unchanged. Bed ducked under the VO (sidechain), loudnorm -16 LUFS,
   true peak -1.5 dBTP target.
 - **Captions:** whisper on each clean take shifted to its place in the mix
-  (`scripts/intro2-captions.mjs`), WebVTT via `scripts/captions-to-vtt.mjs`.
+  (`scripts/intro2-captions.mjs`, now with an optional `script.json`): the caption text is the
+  approved line word for word (`public/introv2/audio/vo/script.json`), whisper gives the timing
+  (word by word where its word count matches, else spread over the spoken span by word length;
+  that fallback was needed for line 3, where whisper heard "Drop in" as "Dropping"). WebVTT via
+  `scripts/captions-to-vtt.mjs`, 30 cues.
+
+## Result and QA
+
+- `out/introv2/IntroV2-audio.mp4`: 70.5 s, 11.7 MB, -16.1 LUFS integrated, -1.3 dBTP true peak.
+- Contact sheets (session scratchpad `introv2/`): every 3 s, the camera moves, and the three
+  wows at 5-frame steps. Fixed after looking: the sketch phone drew as a hexagon (rounded
+  corners now), the reel's captions sat on its title, the end card and team shot were too small,
+  the AI cursor was too small to read, motion blur showed 8 visible ghosts (12 samples now).
+- `lint:motion` clean; `tsc` clean for IntroV2; the video tests show the same 2 golden failures
+  as the base commit (Demo and scene-02, 0.52% against 0.5%), none from this work.
+
+## Weak spots for a critic
+
+- Wow 2's "photos from the shoot" are the kit's thumbnail art, not photographs: they read as UI
+  cards. Real photos (or generated ones) would sell the beat.
+- Wow 1's reel artboard is empty for ~0.5 s as it rises before the cut plays.
+- The team pull-back is very wide (zoom 0.29): the wows read as shapes, the people carry it.
+- Whips pass mostly empty canvas between regions 2600 px apart; motion blur is sampled (12
+  sub-frames), so a frame-by-frame look shows stepping.
+- The weight wave in the hook and the button hover in the flip are subtle at 1080p.
+- Rendering needs the network: other compositions in the project load Google Fonts at import
+  (Inter), and a stalled fonts.gstatic.com times the render out; the stills helper retries.
 
 ## Generation calls
 
