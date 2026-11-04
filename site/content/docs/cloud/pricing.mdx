@@ -13,9 +13,9 @@ Pricing is **per project**, never per seat. The invitation is the product's core
 
 | | Cloud Project | Dedicated |
 | --- | --- | --- |
-| **Monthly** | €19 | €99 |
-| **Annual** | €190 — two months free | monthly only |
-| Included media storage | 10 GB | 100 GB |
+| **Monthly** | <CloudPrice of="project" /> | <CloudPrice of="dedicated" /> |
+| **Annual** | <CloudPrice of="projectYear" />, <CloudPrice of="yearFree" /> | monthly only |
+| Included media storage | <CloudPrice of="projectGb" /> | <CloudPrice of="dedicatedGb" /> |
 | Isolated workspace, own address | ✓ | ✓ |
 | People, roles, invitations | ✓ | ✓ |
 | Full history + one-click export | ✓ | ✓ |
@@ -23,11 +23,10 @@ Pricing is **per project**, never per seat. The invitation is the product's core
 | Pinned instance, region pinning | — | ✓ |
 | Custom domain, priority support | — | ✓ |
 
-Extra storage is **€5 per 50 GB block per month**.
 
-**These figures exclude VAT.** Payment is handled by Stripe as the merchant of record: it adds your country's VAT at checkout, collects it, and remits it. A Czech customer on the €19 plan therefore sees **€22.99** on the payment screen. Enter a valid business VAT id and reverse charge applies instead. The exact total is always shown before you enter a card — this page is the net figure, the payment screen is the one you pay.
+**These figures exclude VAT.** Payment is handled by Stripe as the merchant of record: it adds your country's VAT at checkout, collects it, and remits it. A Czech customer on the <CloudPrice of="project" /> plan therefore sees <CloudPrice of="projectCz" /> on the payment screen (21 % VAT). Enter a valid business VAT id and reverse charge applies instead. The exact total is always shown before you enter a card — this page is the net figure, the payment screen is the one you pay.
 
-**The first 14 days are free.** Your card is authorised but not charged, and you can stop any time before the trial ends. We also do not charge for a project that failed to come up: if provisioning does not finish, the authorisation is released — that ordering is enforced in code, not by intention.
+**The first <CloudPrice of="trialDays" /> days are free.** Your card is authorised but not charged, and you can stop any time before the trial ends. We also do not charge for a project that failed to come up: if provisioning does not finish, the authorisation is released — that ordering is enforced in code, not by intention.
 
 ## What you also need, which we do not sell you
 

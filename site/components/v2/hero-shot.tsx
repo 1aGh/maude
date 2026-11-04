@@ -82,9 +82,9 @@ export function HeroShot() {
                 Monthly · Yearly
               </span>
             </span>
-            <RunCard left={22} price="€0" d={T.card1} />
-            <RunCard left={112} price="€19" pick d={T.card2} />
-            <RunCard left={202} price="€99" d={T.card3} />
+            <RunCard left={22} price="Solo" d={T.card1} />
+            <RunCard left={112} price="Studio" pick d={T.card2} />
+            <RunCard left={202} price="Team" d={T.card3} />
           </Artboard>
           <Artboard label="Home · Mobile" kind="web" x={56} y={420} w={136} h={190}>
             <PhoneMock title="Studio site" tone="sky" />

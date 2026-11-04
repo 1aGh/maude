@@ -15,9 +15,5 @@
       "monthlyMinor": 9900,
       "annualMinor": null
     }
-  },
-  "storage": {
-    "blockGb": 50,
-    "monthlyMinor": 500
   }
 }

@@ -1,6 +1,7 @@
 import { docs } from 'collections/server';
 import { loader } from 'fumadocs-core/source';
 import { lucideIconsPlugin } from 'fumadocs-core/source/lucide-icons';
+import { PRICE } from '@/components/v2/price';
 import { docsContentRoute, docsImageRoute, docsRoute } from './shared';
 
 // See https://fumadocs.dev/docs/headless/source-api for more info
@@ -29,7 +30,11 @@ export function getPageMarkdownUrl(page: (typeof source)['$inferPage']) {
 }
 
 export async function getLLMText(page: (typeof source)['$inferPage']) {
-  const processed = await page.data.getText('processed');
+  // <CloudPrice of="…" /> renders a generated price on the page; the markdown copy gets the value.
+  const processed = (await page.data.getText('processed')).replace(
+    /<CloudPrice of="(\w+)" \/(?:>|&#x3E;)/g,
+    (_, k: keyof typeof PRICE) => (k.endsWith('Gb') ? `${PRICE[k]} GB` : String(PRICE[k] ?? ''))
+  );
 
   return `# ${page.data.title} (${page.url})
 

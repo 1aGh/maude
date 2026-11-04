@@ -25,7 +25,7 @@ export const PRICE = {
   projectGb: pricing.plans.project.includedStorageGb,
   dedicated: money(pricing.plans.dedicated.monthlyMinor),
   dedicatedGb: pricing.plans.dedicated.includedStorageGb,
-  storage: money(pricing.storage.monthlyMinor),
-  storageBlockGb: pricing.storage.blockGb,
+  /** The Cloud Project's monthly price with Czech VAT (21 %), the worked example on the pricing page. */
+  projectCz: money(Math.round(monthly * 1.21)),
   trialDays: pricing.trialDays,
 };

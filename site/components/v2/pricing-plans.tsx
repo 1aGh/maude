@@ -71,7 +71,7 @@ export function PricingPlans() {
       </div>
       <p className="ps-small" style={{ textAlign: 'center', marginTop: 'var(--space-4)' }}>
         Prices without VAT. Stripe adds your country's VAT at checkout and shows the total before
-        you enter a card. Extra storage is {PRICE.storage} per {PRICE.storageBlockGb} GB a month.
+        you enter a card.
       </p>
       <p className="ps-small" style={{ textAlign: 'center', marginTop: 'var(--space-2)' }}>
         The first {PRICE.trialDays} days are free. Your card is authorised but not charged, and you
