@@ -58,6 +58,7 @@ import { parseAssetPath } from './assets.mjs';
 import { diskReport } from './disk.mjs';
 import { MAX_PROJECT_FILE_BYTES, sha256File } from './file-limits.mjs';
 import { checkoutFileClass, resolveCheckoutFileWrite } from './file-manifest.mjs';
+import { sanitizeForLog } from './log-safety.mjs';
 import { getObjectToFile, listObjects, putObject, putObjectFromFile } from './s3.mjs';
 
 /**
@@ -475,6 +476,47 @@ export function transientFailures(result) {
   return result.failed.filter((f) => !f.permanent).length;
 }
 
+/** How many failed keys one hydrate names in the log before "…and N more". */
+const MAX_FAILURE_LINES = 20;
+
+/**
+ * A recorded failure reason, fit for a log line.
+ *
+ * The reason is often an S3 error message, which carries the response body
+ * (`s3.mjs`: `S3 GET <key> failed: <status> <body…>`), and a
+ * SignatureDoesNotMatch body echoes the access key id and the string-to-sign;
+ * a network error may name the request URL. So: the text before any XML body,
+ * no URL, no `X-Amz-*` parameter, no access key id, no control characters.
+ */
+function safeFailureReason(reason) {
+  return sanitizeForLog(
+    String(reason ?? '')
+      .split('<')[0]
+      .replace(/\b[a-z][a-z0-9+.-]*:\/\/\S+/gi, '[url]')
+      .replace(/X-Amz-[\w-]+=[^&\s]*/gi, '[redacted]')
+      .replace(/\b(?:AKIA|ASIA)[A-Z0-9]{12,}\b/g, '[redacted]')
+      .trim()
+  ).slice(0, 200);
+}
+
+/**
+ * One log line per failed key — the key path and its reason — capped at
+ * {@link MAX_FAILURE_LINES}, then "…and N more". 2.0.4 J: a hub that logged
+ * only "6 failed" on every boot since 1.10.0 left nobody able to say why.
+ */
+export function failureLines(failed) {
+  const lines = failed
+    .slice(0, MAX_FAILURE_LINES)
+    .map(
+      (f) =>
+        `[assets]   ${sanitizeForLog(f.key)}: ${safeFailureReason(f.reason)}${f.permanent ? ' (permanent)' : ''}`
+    );
+  if (failed.length > MAX_FAILURE_LINES) {
+    lines.push(`[assets]   …and ${failed.length - MAX_FAILURE_LINES} more`);
+  }
+  return lines;
+}
+
 /** Restore order: what a canvas needs to BUILD first, inert media last. */
 const CLASS_ORDER = { 'code-module': 0, 'companion-text': 1, 'inert-media': 2 };
 
@@ -629,6 +671,7 @@ export async function hydrateAssets({
           ? `, ${result.skippedForBudget} left in the bucket (disk budget)`
           : '')
     );
+    for (const line of failureLines(result.failed)) log.warn?.(line);
   }
   return result;
 }
