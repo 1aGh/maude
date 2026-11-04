@@ -25,7 +25,10 @@ import {
   peerTokenDoor,
 } from '../../studio/access/scope.ts';
 import {
+  cookieValue,
+  desktopTxnOf,
   formOriginAllowed,
+  handOffToDesktop,
   readForm,
   respondHtml,
   STUDIO_SESSION_TTL_MS,
@@ -38,6 +41,14 @@ import {
   peerSessionFields,
 } from './cloud-identity.mjs';
 import {
+  clearDesktopTxnCookie,
+  DESKTOP_TXN_COOKIE,
+  desktopCodes,
+  desktopTxnCookie,
+  encodeDesktopTxn,
+  parseDesktopRequest,
+} from './desktop-signin.mjs';
+import {
   createInvite,
   inviteUrl,
   listInvites,
@@ -46,7 +57,6 @@ import {
   revokeInvite,
   revokeInvitesForEmail,
 } from './invites.mjs';
-import { desktopCodes } from './desktop-signin.mjs';
 import { joinPage } from './join-page.mjs';
 import { isRevoked } from './revocations.mjs';
 import { servicePage } from './studio-door.mjs';
@@ -379,12 +389,47 @@ export async function handleAuthRoutes(ctx) {
       return true;
     }
     if (wantsHtml) {
+      // Issue #204 K2 — `?client=desktop…`: the Maude app opened this invite to
+      // accept it (it owns no login method of its own). The same request
+      // `/studio/signin` takes, validated the same way and carried to the redeem
+      // in the same signed cookie; the redeem then hands the app a one-time code
+      // instead of a browser session (POST below). The invite key itself stays
+      // where it always was — this link and the form's hidden field.
+      const desktop = parseDesktopRequest(
+        new URL(ctx.request?.url ?? path, 'http://hub.invalid').searchParams
+      );
+      if (desktop.desktop && (!desktop.ok || !secret)) {
+        respondPage(
+          desktop.ok ? 500 : 400,
+          servicePage(
+            desktop.ok ? 'Not set up yet' : 'This invitation link is not valid',
+            desktop.ok
+              ? 'This project cannot accept invitations from the Maude app until whoever runs it sets HUB_SECRET.'
+              : 'Start again from the Maude app.'
+          )
+        );
+        return true;
+      }
+      if (desktop.desktop) {
+        ctx.response.setHeader('set-cookie', [
+          desktopTxnCookie(encodeDesktopTxn(desktop.request, secret)),
+        ]);
+      } else if (cookieValue(ctx.request, DESKTOP_TXN_COOKIE)) {
+        // An ordinary visit ends a desktop accept this browser left half done.
+        ctx.response.setHeader('set-cookie', [clearDesktopTxnCookie()]);
+      }
       // The welcome page. It carries the token ONLY as the form's hidden
       // field, so the redeem travels in a POST body — never a URL the browser
       // then navigates away from.
       respondPage(
         200,
-        joinPage({ token: value, workspace: ctx.publicUrl ?? null, email: check.invite.email, env })
+        joinPage({
+          token: value,
+          workspace: ctx.publicUrl ?? null,
+          email: check.invite.email,
+          env,
+          desktop: desktop.desktop,
+        })
       );
       return true;
     }
@@ -564,6 +609,16 @@ export async function handleAuthRoutes(ctx) {
       const error = 'This invitation gives no access yet. Ask whoever invited you.';
       if (isForm) respondPage(403, servicePage('You do not have access', error));
       else respondJson(403, { ok: false, reason: 'no-access', error });
+      return true;
+    }
+    // Issue #204 K2 — accepted from the Maude app (the signed desktop cookie
+    // the invite page set): a one-time code for the app on its loopback
+    // return, no browser session. The app's exchange re-reads the account and
+    // mints through the same door `/auth/login` uses.
+    const desktop = isForm ? desktopTxnOf(ctx.request, secret) : null;
+    if (desktop) {
+      ctx.pushActivity?.({ type: 'invite-redeem', user: result.user.email, doc: result.invite.id });
+      handOffToDesktop(ctx.response, desktop, { email: result.user.email });
       return true;
     }
     const ttlMs = isForm ? STUDIO_SESSION_TTL_MS : userTokenTtlMs();

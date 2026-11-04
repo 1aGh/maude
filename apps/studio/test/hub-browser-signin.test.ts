@@ -184,8 +184,9 @@ describe('the round trip', () => {
     const { flow } = setup({ capabilities: ['ledger'] });
     expect(await flow.start(HUB, SELF)).toEqual({
       ok: false,
-      error: HUB_SIGNIN_WORDS.needsUpdate,
+      error: HUB_SIGNIN_WORDS.needsUpdate(null),
       status: 409,
+      reason: 'needs-update',
     });
     expect(flow.size()).toBe(0);
   });

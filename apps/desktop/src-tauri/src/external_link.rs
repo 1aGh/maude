@@ -173,9 +173,12 @@ pub async fn open_link_external(webview: tauri::Webview, url: String) -> Result<
 // (apps/studio/sync/hub-browser-signin.ts). Like the other openers this is not
 // a general one — it opens exactly that page shape and nothing else:
 //
-//   • the caller is a project tab on its own server's origin, in front;
+//   • the caller is a project tab on its own server's origin, or (#204 K2) the
+//     Home webview on the Home origin — in front either way;
 //   • https (http only for a loopback hub), canonical ASCII, no userinfo, no
-//     fragment, path exactly `/studio/signin`;
+//     fragment, path exactly `/studio/signin` — or (#204 K2, accepting an
+//     invite) exactly `/join/<inv_ key>`, the hub's own invite page, whose GET
+//     only looks and never spends the invite;
 //   • the query is exactly client=desktop · state (32 hex) · code_challenge
 //     (43 base64url) · code_challenge_method=S256 · redirect_uri — and the
 //     redirect_uri is the CALLER's own origin + `/_api/hub-signin/return`, so a
@@ -190,8 +193,19 @@ fn is_loopback_host(host: &str) -> bool {
     h == "localhost" || h == "[::1]" || h.parse::<Ipv4Addr>().is_ok_and(|v4| v4.octets()[0] == 127)
 }
 
+/// A hub invite key (apps/hub invites.mjs): `inv_` + 16..=200 of `[A-Za-z0-9_-]`.
+fn invite_key_ok(k: &str) -> bool {
+    k.strip_prefix("inv_").is_some_and(|rest| {
+        (16..=200).contains(&rest.len())
+            && rest
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+    })
+}
+
 /// The team-server sign-in page to launch, or None. Pure. `caller_origin` is the
-/// calling tab's own origin (`http://localhost:<port>`).
+/// calling webview's own origin (a project tab's `http://localhost:<port>`, or
+/// Home's `http://127.0.0.1:<port>`).
 pub(crate) fn team_signin_url_allowed(url: &str, caller_origin: &str) -> Option<reqwest::Url> {
     if url.is_empty() || url.len() > EXTERNAL_URL_MAX || !url.is_ascii() || launcher_unsafe(url) {
         return None;
@@ -209,7 +223,9 @@ pub(crate) fn team_signin_url_allowed(url: &str, caller_origin: &str) -> Option<
     if !scheme_ok || !u.username().is_empty() || u.password().is_some() || u.fragment().is_some() {
         return None;
     }
-    if u.path() != "/studio/signin" {
+    let path = u.path();
+    let invite_page = path.strip_prefix("/join/").is_some_and(invite_key_ok);
+    if path != "/studio/signin" && !invite_page {
         return None;
     }
     let caller = reqwest::Url::parse(caller_origin).ok()?;
@@ -247,10 +263,11 @@ pub(crate) fn team_signin_url_allowed(url: &str, caller_origin: &str) -> Option<
 }
 
 /// `#[tauri::command]` — open a team server's own sign-in page for the calling
-/// tab (issue #204). Project tabs only, in front; the URL is validated in full.
+/// tab (issue #204). A project tab or Home (#204 K2, runtime `home` capability),
+/// in front; the URL is validated in full against the caller's own origin.
 #[tauri::command]
 pub async fn open_team_server_signin(webview: tauri::Webview, url: String) -> Result<(), String> {
-    crate::windows::caller_project(&webview, false)?;
+    crate::windows::caller_any(&webview, false)?;
     crate::windows::caller_in_front(&webview)?;
     let origin = crate::webview_url::url_of(&webview)
         .map(|u| u.origin().ascii_serialization())
@@ -317,6 +334,53 @@ mod tests {
         }
         // A caller that is not a loopback http origin is never one.
         assert!(team_signin_url_allowed(&good, "https://design.team.example").is_none());
+    }
+
+    /// #204 K2 — Home (`http://127.0.0.1:<port>`) is a caller too, and an invite opens the hub's
+    /// own `/join/<inv_…>` page with the same desktop request; every other path stays refused.
+    #[test]
+    fn team_signin_opens_home_and_the_invite_page_back_to_the_caller() {
+        const HOME: &str = "http://127.0.0.1:47123";
+        const KEY: &str = "inv_5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e";
+        let home = |path: &str| {
+            format!(
+                "https://design.team.example{path}?client=desktop&state={STATE}&code_challenge={CH}&code_challenge_method=S256&redirect_uri=http%3A%2F%2F127.0.0.1%3A47123%2F_api%2Fhub-signin%2Freturn"
+            )
+        };
+        if cfg!(target_os = "macos") {
+            assert!(team_signin_url_allowed(&home("/studio/signin"), HOME).is_some());
+            let invite = home(&format!("/join/{KEY}"));
+            assert!(team_signin_url_allowed(&invite, HOME).is_some(), "{invite}");
+        }
+        for bad in [
+            // Home's sign-in sent back to a project tab, or the reverse
+            home("/studio/signin").replace("47123", "46399"),
+            // not an invite key, a nested path, an encoded slash, a short key
+            home("/join/x"),
+            home(&format!("/join/{KEY}/more")),
+            home(&format!("/join/{KEY}%2F..%2Fadmin")),
+            home("/join/inv_short"),
+            home(&format!("/joins/{KEY}")),
+            home(&format!("/x/join/{KEY}")),
+        ] {
+            assert!(
+                team_signin_url_allowed(&bad, HOME).is_none(),
+                "should refuse {bad}"
+            );
+        }
+    }
+
+    #[test]
+    fn home_may_open_a_team_server_sign_in() {
+        assert!(crate::home::HOME_PERMISSIONS.contains(&"allow-open-team-server-signin"));
+        let src = include_str!("external_link.rs");
+        let body = &src[src.find("pub async fn open_team_server_signin(").unwrap()..];
+        let body = &body[..body.find("\n}\n").unwrap()];
+        assert!(
+            body.contains("crate::windows::caller_any(&webview, false)?"),
+            "Home or a project tab, never another webview"
+        );
+        assert!(body.contains("crate::windows::caller_in_front(&webview)?"));
     }
 
     fn ok(u: &str) -> bool {

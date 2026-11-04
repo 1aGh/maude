@@ -3,16 +3,18 @@
 // shell command a sheet's button runs. Each sheet is a view (exported from ./index.js for S11.14), so Settings ›
 // Connections mounts the same sheets with its own wiring.
 //
-//   hub            → /_home/hub/{test,prepare,join}   then Home's own open of the managed copy (a tab);
-//                    `join` (S6.11b) redeems a hub invite ("Invite link or key")
+//   hub            → /_home/hub/test; Sign in (#204 K2) → /_home/hub/signin/start, the shell opens the hub's
+//                    own page (`open_team_server_signin`; with an invite, the hub's invite page), poll until
+//                    the browser came back, then /_home/hub/prepare and Home's own open of the managed copy
 //   folder-github  → the shell's folder picker (`open_project_folder`); "From GitHub" (S6.10) → Rust's
 //                    github_repos / home_github_sign_in / github_clone / github_create, then `open_project({root})`
 //   ai             → /_home/ai/{status,connect}  (install Claude Code, then the browser sign-in)
 //   cli            → /_home/cli/{status,install} (a link to the bundled maude; the plugin when claude is there)
 //   figma          → the target project opens with the `import-figma` intent (Q8)
 //
-// No credential reaches a log or comes back into the page: the hub password is posted once from the sheet's
-// own state and emptied; the AI sign-in is the person's browser; nothing here stores a token.
+// No credential reaches a log or comes back into the page: the app owns no team-server password (the hub's
+// own page in the browser takes it, issue #204); the AI sign-in is the person's browser; nothing here stores
+// a token.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -21,12 +23,15 @@ import {
   aiStatus,
   cliInstall,
   cliStatus,
-  hubJoin,
   hubPrepare,
+  hubSignInCancel,
+  hubSignInPoll,
+  hubSignInStart,
   hubTest,
   inShell,
   openProject,
   openProjectFolder,
+  openTeamServerSignIn,
   shellListen,
 } from '../../home/home-api.js';
 import { useGithubSegment } from './GithubSegment.jsx';
@@ -180,6 +185,95 @@ function FigmaHost({ target, onClose, startFigma }) {
   return <FigmaSheet target={target} busy={busy} error={error} onImport={go} onCancel={onClose} />;
 }
 
+/** How often Home asks whether the browser came back (the hub's code lives a minute). */
+export const HUB_POLL_MS = 1500;
+
+/**
+ * #204 K2 — the hub sheet's host: Sign in opens the hub's own page and waits for the browser to come back to
+ * Home's server; Cancel forgets the attempt (a late return then changes nothing). `pollMs` is a test seam.
+ */
+function HubHost({ onClose, profile, openPrepared, pollMs = HUB_POLL_MS }) {
+  const attempt = useRef(null); // { id, stop: (r) => void }
+  useEffect(
+    () => () => {
+      const a = attempt.current;
+      attempt.current = null;
+      if (a) {
+        a.stop({ ok: false, cancelled: true });
+        void hubSignInCancel(a.id);
+      }
+    },
+    []
+  );
+
+  const waitForBrowser = (id) =>
+    new Promise((resolve) => {
+      let timer = null;
+      const stop = (r) => {
+        clearTimeout(timer);
+        resolve(r);
+      };
+      attempt.current = { id, stop };
+      const tick = async () => {
+        const p = await hubSignInPoll(id);
+        if (attempt.current?.id !== id) return; // cancelled meanwhile
+        if (p.json?.pending) {
+          timer = setTimeout(tick, pollMs);
+          return;
+        }
+        attempt.current = null;
+        stop(
+          p.ok && p.json?.ok && p.json.url
+            ? { ok: true, url: p.json.url }
+            : { ok: false, error: p.json?.error || HUB_WORDS.unreachable }
+        );
+      };
+      timer = setTimeout(tick, 0); // the first ask at once, then every pollMs
+    });
+
+  return (
+    <HubSheet
+      onCancel={onClose}
+      onTest={async (url) => {
+        const r = await hubTest(url);
+        return r.json?.ok
+          ? { ok: true, version: r.json.version ?? null }
+          : { ok: false, error: r.json?.error || HUB_WORDS.unreachable };
+      }}
+      onSignIn={async ({ url, invite, onWaiting }) => {
+        const s = await hubSignInStart(profile, url, invite);
+        if (!s.ok || !s.json?.ok)
+          return { ok: false, error: s.json?.error || HUB_WORDS.unreachable };
+        const id = s.json.id;
+        const opened = await openTeamServerSignIn(s.json.signInUrl);
+        if (opened !== 'ok') {
+          void hubSignInCancel(id);
+          return {
+            ok: false,
+            error: opened === 'refused' ? HUB_WORDS.refused : HUB_WORDS.noBrowser,
+          };
+        }
+        onWaiting();
+        const done = await waitForBrowser(id);
+        if (!done.ok) return done;
+        const r = await hubPrepare(profile, done.url);
+        if (!r.ok || !r.json?.ok)
+          return { ok: false, error: r.json?.error || HUB_WORDS.unreachable };
+        await openPrepared(r, r.json.name, profile);
+        onClose();
+        return { ok: true };
+      }}
+      onAbortSignIn={() => {
+        const a = attempt.current;
+        attempt.current = null;
+        if (!a) return;
+        void hubSignInCancel(a.id);
+        a.stop({ ok: false, cancelled: true });
+      }}
+    />
+  );
+}
+
 /**
  * @param {{ open: string|null, onClose: () => void, profile: string, target?: object|null,
  *           openPrepared: (prep: object, name: string, profile: string) => Promise<unknown>,
@@ -199,34 +293,7 @@ export function AdvancedSheets({
   github = null,
 }) {
   if (open === 'hub')
-    return (
-      <HubSheet
-        onCancel={onClose}
-        onTest={async (url) => {
-          const r = await hubTest(url);
-          return r.json?.ok
-            ? { ok: true, version: r.json.version ?? null }
-            : { ok: false, error: r.json?.error || HUB_WORDS.unreachable };
-        }}
-        onConnect={async ({ url, email, password }) => {
-          const r = await hubPrepare(profile, url, email || password ? { email, password } : null);
-          if (!r.ok || !r.json?.ok)
-            return { ok: false, error: r.json?.error || HUB_WORDS.unreachable };
-          await openPrepared(r, r.json.name, profile);
-          onClose();
-          return { ok: true };
-        }}
-        // S6.11b — "Invite link or key": the hub's own invite redeem, then the same open
-        onJoin={async ({ url, token, email, password }) => {
-          const r = await hubJoin(profile, url, { token, email, password });
-          if (!r.ok || !r.json?.ok)
-            return { ok: false, error: r.json?.error || HUB_WORDS.unreachable };
-          await openPrepared(r, r.json.name, profile);
-          onClose();
-          return { ok: true };
-        }}
-      />
-    );
+    return <HubHost onClose={onClose} profile={profile} openPrepared={openPrepared} />;
   if (open === 'folder-github')
     return (
       <FolderHost onClose={onClose} openFolder={openFolder} profile={profile} github={github} />

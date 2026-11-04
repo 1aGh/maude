@@ -43,8 +43,9 @@ export const HUB_SIGNIN_WORDS = {
   unreachable:
     "Couldn't reach that team server. Check the address, or ask whoever runs it whether it's online.",
   notMaude: "That address answered, but it isn't a Maude team server. Check the address.",
-  needsUpdate:
-    'This team server needs an update before Maude can sign in to it. Ask whoever runs it to update it to Maude 2.0.4 or newer.',
+  // what happened · what is safe · one verb (CONTRACT §4); the version is the one thing an admin needs
+  needsUpdate: (version: string | null) =>
+    `This team server${version ? ` runs ${version}, which` : ''} is too old to sign in from here. Nothing was sent to it. Ask whoever runs it to update it to 2.0.4 or newer.`,
   tooMany: 'Too many sign-ins are open. Finish or cancel one first.',
   expired: 'The sign-in took too long. Start it again.',
   pending:
@@ -57,6 +58,7 @@ export const HUB_SIGNIN_WORDS = {
   browserOnly:
     'This account can only view this project, and viewing works in the browser. Ask whoever runs the team server for edit access.',
   saveFailed: "Couldn't save the sign-in on this computer.",
+  badInvite: "That doesn't look like an invite link or key.",
   unknown: "This sign-in wasn't started in this Maude window, or it's already finished.",
 } as const;
 
@@ -65,6 +67,7 @@ type Attempt = {
   url: string;
   verifier: string;
   createdAt: number;
+  save: SaveCredential;
   phase: 'waiting' | 'exchanging' | 'done' | 'failed';
   result?:
     | { ok: true; url: string; user: { email: string; role: string } }
@@ -73,17 +76,43 @@ type Attempt = {
 
 export type StartAnswer =
   | { ok: true; id: string; signInUrl: string; expiresIn: number }
-  | { ok: false; error: string; status: number };
+  | { ok: false; error: string; status: number; reason?: 'needs-update' };
 
 export type PollAnswer =
   | { ok: true; pending: true }
   | { ok: true; url: string; user: { email: string; role: string } }
   | { ok: false; error: string };
 
+/** Where an attempt's credential goes — the same call the email/password sign-in made. */
+export type SaveCredential = (
+  url: string,
+  token: string,
+  role?: string,
+  expiresAt?: number,
+  account?: string
+) => void;
+
+/** A Maude invite key (apps/hub invites.mjs) — the only thing `start({invite})` puts in a path. */
+const INVITE_RE = /^inv_[A-Za-z0-9_-]{16,200}$/;
+const VERSION_RE = /^[0-9A-Za-z.+-]{1,32}$/;
+
+export interface StartOptions {
+  /**
+   * This attempt's credential store. Home (K2) signs in for a named PROFILE, so each attempt
+   * carries that profile's hubs.json; a project tab uses the flow-wide default.
+   */
+  save?: SaveCredential;
+  /**
+   * #204 K2 — accept this invite (an `inv_…` key) on the hub's own invite page `/join/<key>`
+   * instead of its sign-in page; the desktop request is the same, so is the return.
+   */
+  invite?: string;
+}
+
 export interface HubBrowserSignInDeps {
   fetchImpl?: typeof fetch;
-  /** Where the credential goes — the same call the email/password sign-in made. */
-  save?: (url: string, token: string, role?: string, expiresAt?: number, account?: string) => void;
+  /** Where the credential goes by default — the same call the email/password sign-in made. */
+  save?: SaveCredential;
   /** After a credential is stored: e.g. cycle sync when it renews the linked team server's. */
   onSignedIn?: (url: string) => void | Promise<void>;
   now?: () => number;
@@ -139,30 +168,44 @@ export function createHubBrowserSignIn(deps: HubBrowserSignInDeps = {}) {
     for (const [k, a] of attempts) if (t - a.createdAt > ATTEMPT_TTL_MS) attempts.delete(k);
   };
 
-  async function probe(url: string): Promise<'ok' | 'unreachable' | 'not-maude' | 'old'> {
+  type Probe = { kind: 'ok' | 'unreachable' | 'not-maude' | 'old'; version: string | null };
+  async function probe(url: string): Promise<Probe> {
     try {
       const res = await doFetch(`${url}/health`, {
         redirect: 'manual',
         signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
       });
-      if (!res.ok) return 'not-maude';
+      if (!res.ok) return { kind: 'not-maude', version: null };
       const j = (await res.json().catch(() => null)) as {
         ok?: unknown;
+        version?: unknown;
         capabilities?: unknown;
       } | null;
-      if (j?.ok !== true) return 'not-maude';
-      return Array.isArray(j.capabilities) && j.capabilities.includes(DESKTOP_SIGNIN_CAPABILITY)
-        ? 'ok'
-        : 'old';
+      if (j?.ok !== true) return { kind: 'not-maude', version: null };
+      const version =
+        typeof j.version === 'string' && VERSION_RE.test(j.version) ? j.version : null;
+      return {
+        kind:
+          Array.isArray(j.capabilities) && j.capabilities.includes(DESKTOP_SIGNIN_CAPABILITY)
+            ? 'ok'
+            : 'old',
+        version,
+      };
     } catch {
-      return 'unreachable';
+      return { kind: 'unreachable', version: null };
     }
   }
 
   /** A new attempt for `rawUrl`; `origin` is where the browser comes back (this server). */
-  async function start(rawUrl: unknown, origin: string): Promise<StartAnswer> {
+  async function start(
+    rawUrl: unknown,
+    origin: string,
+    opts: StartOptions = {}
+  ): Promise<StartAnswer> {
     const addr = teamServerAddress(rawUrl);
     if (!addr.ok) return { ok: false, error: addr.error, status: 400 };
+    if (opts.invite !== undefined && !INVITE_RE.test(opts.invite))
+      return { ok: false, error: HUB_SIGNIN_WORDS.badInvite, status: 400 };
     const redirectUri = returnUriFor(origin);
     if (!redirectUri) return { ok: false, error: HUB_SIGNIN_WORDS.unknown, status: 403 };
     sweep();
@@ -170,13 +213,27 @@ export function createHubBrowserSignIn(deps: HubBrowserSignInDeps = {}) {
     if (live.length >= MAX_ATTEMPTS)
       return { ok: false, error: HUB_SIGNIN_WORDS.tooMany, status: 429 };
     const p = await probe(addr.url);
-    if (p === 'unreachable') return { ok: false, error: HUB_SIGNIN_WORDS.unreachable, status: 502 };
-    if (p === 'not-maude') return { ok: false, error: HUB_SIGNIN_WORDS.notMaude, status: 502 };
-    if (p === 'old') return { ok: false, error: HUB_SIGNIN_WORDS.needsUpdate, status: 409 };
+    if (p.kind === 'unreachable')
+      return { ok: false, error: HUB_SIGNIN_WORDS.unreachable, status: 502 };
+    if (p.kind === 'not-maude') return { ok: false, error: HUB_SIGNIN_WORDS.notMaude, status: 502 };
+    if (p.kind === 'old')
+      return {
+        ok: false,
+        error: HUB_SIGNIN_WORDS.needsUpdate(p.version),
+        status: 409,
+        reason: 'needs-update',
+      };
     const id = randomBytes(16).toString('hex');
     const verifier = randomBytes(32).toString('base64url');
     const challenge = createHash('sha256').update(verifier).digest('base64url');
-    attempts.set(id, { id, url: addr.url, verifier, createdAt: now(), phase: 'waiting' });
+    attempts.set(id, {
+      id,
+      url: addr.url,
+      verifier,
+      createdAt: now(),
+      save: opts.save ?? save,
+      phase: 'waiting',
+    });
     const q = new URLSearchParams({
       client: 'desktop',
       state: id,
@@ -187,7 +244,8 @@ export function createHubBrowserSignIn(deps: HubBrowserSignInDeps = {}) {
     return {
       ok: true,
       id,
-      signInUrl: `${addr.url}/studio/signin?${q.toString()}`,
+      // the invite key is the hub's own invite link path (GET there only looks, never spends)
+      signInUrl: `${addr.url}${opts.invite ? `/join/${opts.invite}` : '/studio/signin'}?${q.toString()}`,
       expiresIn: ATTEMPT_TTL_MS / 1000,
     };
   }
@@ -255,7 +313,7 @@ export function createHubBrowserSignIn(deps: HubBrowserSignInDeps = {}) {
     const email = safeAccount(body.user?.email) ?? '';
     const expiresAt = typeof body.expiresAt === 'number' ? body.expiresAt : undefined;
     try {
-      save(a.url, body.token, role, expiresAt, email || undefined);
+      a.save(a.url, body.token, role, expiresAt, email || undefined);
     } catch {
       fail(a, HUB_SIGNIN_WORDS.saveFailed);
       return { ok: false, message: HUB_SIGNIN_WORDS.saveFailed };

@@ -62,8 +62,10 @@ describe('Home route guards (§5.8 item 1)', () => {
       // S6.6 — hub, AI, CLI, What's New
       '/_home/hub/test',
       '/_home/hub/prepare',
-      // S6.11b — the hub sheet's "Invite link or key"
-      '/_home/hub/join',
+      // #204 K2 — Sign in (and an invite) on the team server's own page
+      '/_home/hub/signin/start',
+      '/_home/hub/signin/poll',
+      '/_home/hub/signin/cancel',
       '/_home/ai/status',
       '/_home/ai/connect',
       '/_home/cli/status',
@@ -82,7 +84,9 @@ describe('Home route guards (§5.8 item 1)', () => {
     for (const row of [
       'POST /_home/hub/test',
       'POST /_home/hub/prepare',
-      'POST /_home/hub/join',
+      'POST /_home/hub/signin/start',
+      'POST /_home/hub/signin/poll',
+      'POST /_home/hub/signin/cancel',
       'GET /_home/ai/status',
       'POST /_home/ai/connect',
       'GET /_home/cli/status',
