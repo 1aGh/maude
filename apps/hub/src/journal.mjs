@@ -53,6 +53,9 @@ import { dirname, join } from 'node:path';
 // Imported, never re-typed — same reason server.mjs pulls this in for the
 // canvas-path receiver (see that file's own import of it).
 import { canvasSlugFromRel } from '../../studio/canvas-slug.ts';
+// The content test for "this file is a canvas" (C4 k) — pure, no imports, and
+// already in the image (Dockerfile COPY, reached through access/closure.ts).
+import { isCanvasSource } from '../../studio/skip-dirs.ts';
 import { fileAccessFor, visibleJournalPage } from './access-files.mjs';
 import { MAX_PROJECT_FILE_BYTES, sha256File } from './file-limits.mjs';
 import {
@@ -85,6 +88,7 @@ export const JOURNAL_SOURCES = Object.freeze([
   'hydrate', // bucket→checkout asset refill at boot
   'tail-replay', // reconstructed from the R2 tail after a rehydrate
   'disk-lost', // a live row whose bytes neither the checkout nor the bucket has
+  'flat-twin-quarantine', // the hub parked its own flat canvas twin (2.0.4, quarantineFlatCanvasTwins)
 ]);
 
 /**
@@ -762,6 +766,12 @@ function makeHandle({ db, getMeta, setMeta, now, maxHolds = MAX_CLASS_HOLDS, log
     latestFor(rel) {
       const row = stmts.latestForPath.get(rel);
       return row ? toWire(row) : null;
+    },
+
+    /** Which lane wrote `rel`'s latest row — forensics and provenance, never
+     *  on the wire (`toWire` leaves it out on purpose). Null with no row. */
+    latestSourceFor(rel) {
+      return stmts.latestForPath.get(rel)?.source ?? null;
     },
 
     /** Does any row naming this sha still wait for its mirror? (cell pins) */
@@ -1655,12 +1665,34 @@ function canvasGroupDirs(designRoot) {
  * manage); this is its cell-safe, read-only counterpart. Never touches the
  * checkout — it only decides what `walkImport` journals.
  */
-function flatCanvasTwinPaths(designRoot) {
+function flatCanvasTwinPaths(designRoot, journal = null) {
+  const twins = new Set();
+  for (const { flatRel, groupedRel } of flatCanvasTwinPairs(designRoot)) {
+    if (
+      isDoubledBody(designRoot, flatRel, groupedRel) ||
+      (journal && isQuarantinableTwin(journal, designRoot, flatRel))
+    ) {
+      twins.add(flatRel);
+    }
+  }
+  return twins;
+}
+
+/**
+ * Every flat `.tsx` at the design root's top level paired with a grouped
+ * `.tsx` (inside a canvas-group directory) that claims the SAME slug —
+ * case-insensitively, since the slug lower-cases (`ui/2026/social/Krpole.tsx`
+ * and `ui-2026-social-krpole.tsx` are one document). Names only; whether a
+ * pair may be acted on is the caller's content/provenance question.
+ *
+ * @returns {{ slug: string, flatRel: string, groupedRel: string }[]}
+ */
+function flatCanvasTwinPairs(designRoot) {
   let topEntries;
   try {
     topEntries = readdirSync(designRoot, { withFileTypes: true });
   } catch {
-    return new Set();
+    return [];
   }
   let budget = FLAT_TWIN_WALK_MAX_FILES;
   const flatBySlug = new Map();
@@ -1670,7 +1702,7 @@ function flatCanvasTwinPaths(designRoot) {
     budget -= 1;
     flatBySlug.set(canvasSlugFromRel(entry.name, ''), entry.name);
   }
-  if (flatBySlug.size === 0) return new Set();
+  if (flatBySlug.size === 0) return [];
 
   const groupedBySlug = new Map();
   const walkGroup = (dir, rel, depth) => {
@@ -1699,12 +1731,133 @@ function flatCanvasTwinPaths(designRoot) {
     walkGroup(join(designRoot, group), group, 1);
   }
 
-  const twins = new Set();
+  const pairs = [];
   for (const [slug, flatRel] of flatBySlug) {
     const groupedRel = groupedBySlug.get(slug);
-    if (groupedRel && isDoubledBody(designRoot, flatRel, groupedRel)) twins.add(flatRel);
+    if (groupedRel) pairs.push({ slug, flatRel, groupedRel });
   }
-  return twins;
+  return pairs;
+}
+
+/** Sources whose rows are an OWNER's deliberate act at the write door: the
+ *  door admits a would-be-code `.tsx` only from an owner token (see
+ *  HOLD_NOTE_SOURCES). A flat file whose latest row came from here is the
+ *  owner's own, whatever twin later appeared — the hub never parks it. */
+const OWNER_DOOR_SOURCES = new Set(['peer-put', 'owner-delete']);
+
+/**
+ * May the hub park this flat twin on its own authority? (2.0.4)
+ *
+ * The slug match alone is forgeable — any collaborator who can write a canvas
+ * can name one after an unrelated flat file (the #140 security finding) — so
+ * two further facts are required, and both are unforgeable beyond what that
+ * collaborator could already do through the doc lane:
+ *
+ *   1. CONTENT — the flat body is itself a canvas (`isCanvasSource`). A flat
+ *      helper module is never one, so a forged twin cannot reach it. A flat
+ *      canvas sharing the twin's slug is the SAME document (the slug is the
+ *      doc name); its bytes were already the doc lane's to overwrite.
+ *   2. PROVENANCE — its latest journal row did not come through the owner's
+ *      write door. A tombstone, no row, or a row a non-owner lane wrote
+ *      (`walk-import`, `studio-report`, …) qualifies; an owner's PUT never does.
+ */
+function isQuarantinableTwin(journal, designRoot, flatRel) {
+  try {
+    const abs = join(designRoot, flatRel);
+    const st = lstatSync(abs);
+    if (!st.isFile() || st.size > MAX_PROJECT_FILE_BYTES) return false;
+    const row = journal.latestFor?.(flatRel) ?? null;
+    if (row && !row.deleted && OWNER_DOOR_SOURCES.has(journal.latestSourceFor?.(flatRel))) {
+      return false;
+    }
+    return isCanvasSource(readFileSync(abs, 'utf8'));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The cell's own flat-twin quarantine (2.0.4) — the hub-side twin of the
+ * studio's `migrateFlatFallback`, which a cell skips (cell pairing).
+ *
+ * A cell that had lost its `config.json` wrote canvases FLAT at the design root
+ * (`ui-welcome.tsx` beside the real `ui/welcome.tsx` — the workspace agent's
+ * no-groups fallback), walk-import journaled them, and every desktop refused
+ * them as code modules: "stuck" for good, and only an owner token could delete
+ * them. The hub now parks each such twin itself:
+ *
+ *   - only a flat `.tsx` WITH a grouped twin of the same slug, whose content
+ *     and provenance pass `isQuarantinableTwin` — a genuinely flat canvas with
+ *     no twin, a flat module, or an owner's upload is never touched;
+ *   - QUARANTINED, never unlinked: the body and its flat `.meta.json`/`.css`
+ *     go to `_trash/flat-twins/<stamp>/` (the file door's place for deleted
+ *     bytes). `<slug>.annotations.json` stays — it is keyed by the slug at the
+ *     root and serves the surviving grouped twin;
+ *   - each moved path that has a live row gets a TOMBSTONE, so peers receive
+ *     the deletion and their stuck rows clear (`decide-file` tombstone-agreed,
+ *     file-plane's "exists nowhere" forget);
+ *   - idempotent, one log line per move, never throws.
+ *
+ * `onMoved(rels)` hears every design-root-relative path that left the
+ * checkout, so the workspace agent can drop it from its path index and stage
+ * the deletion in history.
+ *
+ * @returns {{ moved: { slug: string, from: string, keptTwin: string, trashedTo: string, tombstoned: string[] }[] }}
+ */
+export function quarantineFlatCanvasTwins({ journal, designRoot, log = console, onMoved } = {}) {
+  const moved = [];
+  if (!journal || !designRoot || !existsSync(designRoot)) return { moved };
+  try {
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    for (const { slug, flatRel, groupedRel } of flatCanvasTwinPairs(designRoot)) {
+      if (!isQuarantinableTwin(journal, designRoot, flatRel)) continue;
+      const trashedTo = `_trash/flat-twins/${stamp}`;
+      const base = flatRel.replace(/\.tsx$/i, '');
+      const lanes = [flatRel, `${base}.meta.json`, `${base}.css`];
+      const gone = [];
+      for (const lane of lanes) {
+        const src = join(designRoot, lane);
+        if (lane !== flatRel && !isRegularFile(src)) continue;
+        // The write door's two-guard treatment: a committed `_trash` symlink
+        // must not carry the checkout outside the design root.
+        const dest = resolveProjectFileTarget(designRoot, `${trashedTo}/${lane}`);
+        if (!dest.ok) {
+          log.warn?.(
+            `[journal] _trash does not resolve inside the design root — ${lane} left in place.`
+          );
+          break;
+        }
+        try {
+          mkdirSync(dirname(dest.abs), { recursive: true });
+          renameSync(src, dest.abs);
+          gone.push(lane);
+        } catch (err) {
+          log.warn?.(`[journal] could not park flat canvas twin ${lane}: ${err.message}`);
+          if (lane === flatRel) break;
+        }
+      }
+      if (!gone.includes(flatRel)) continue;
+      const tombstoned = [];
+      for (const lane of gone) {
+        const row = journal.recordGone({ designRoot, path: lane, source: 'flat-twin-quarantine' });
+        if (row && !row.noop) tombstoned.push(lane);
+      }
+      moved.push({ slug, from: flatRel, keptTwin: groupedRel, trashedTo, tombstoned });
+      log.log?.(
+        `[journal] flat canvas twin ${flatRel} duplicated ${groupedRel} (slug ${slug}) — ` +
+          `moved ${gone.join(', ')} to ${trashedTo}/` +
+          (tombstoned.length > 0 ? `, tombstoned ${tombstoned.length} row(s)` : ', never journaled')
+      );
+      try {
+        onMoved?.(gone);
+      } catch (err) {
+        log.warn?.(`[journal] flat-twin hook failed: ${err.message}`);
+      }
+    }
+  } catch (err) {
+    log.error?.(`[journal] flat-twin quarantine pass failed: ${err.message}`);
+  }
+  return { moved };
 }
 
 /** Does `flatRel`'s content equal `groupedRel`'s content, exactly twice?
@@ -1768,7 +1921,7 @@ export function walkImport({ journal, designRoot, source = 'walk-import', log = 
   const hasFlatTsxCandidate = files.some(
     (f) => f.class === 'code-module' && !f.path.includes('/') && /\.tsx$/i.test(f.path)
   );
-  const flatTwinPaths = hasFlatTsxCandidate ? flatCanvasTwinPaths(designRoot) : null;
+  const flatTwinPaths = hasFlatTsxCandidate ? flatCanvasTwinPaths(designRoot, journal) : null;
   let appended = 0;
   let unchanged = 0;
   let skippedFlatTwin = 0;
@@ -1794,7 +1947,7 @@ export function walkImport({ journal, designRoot, source = 'walk-import', log = 
   }
   if (skippedFlatTwin > 0) {
     log.warn?.(
-      `[journal] walk-import skipped ${skippedFlatTwin} flat .tsx twin(s) (pre-fix-5 fallback debris — body byte-identical to a grouped twin, doubled) — left on disk, unjournaled, for a human/future hub-side quarantine.`
+      `[journal] walk-import skipped ${skippedFlatTwin} flat .tsx twin(s) of a grouped canvas (fallback debris) — never journaled; quarantineFlatCanvasTwins parks the ones it may.`
     );
   }
   // N1 — a hold whose file is gone no longer blocks the path.

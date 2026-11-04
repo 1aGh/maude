@@ -10,7 +10,16 @@
 //   - the walk-import reconciler catches a checkout mutation nobody hooked.
 
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, it } from 'node:test';
@@ -20,6 +29,7 @@ import {
   createJournalTail,
   JOURNAL_TAIL_KEY,
   openJournal,
+  quarantineFlatCanvasTwins,
   replayTailFromTarget,
   reportLostFiles,
   walkImport,
@@ -688,6 +698,182 @@ describe('walk-import — a pre-existing flat-fallback twin never becomes a row 
     const second = walkImport({ journal: j, designRoot, log: { log() {}, warn() {} } });
     assert.equal(second.skippedFlatTwin, 0);
     assert.match(j.latestFor('ui-welcome.tsx').sha256, /^[0-9a-f]{64}$/);
+  });
+});
+
+// 2.0.4 (alligators): a cell that had lost its config.json wrote four canvases
+// FLAT at the design root (`ui-welcome.tsx` next to `ui/welcome.tsx`), walk-import
+// journaled them, and every desktop refused them as code modules — "stuck"
+// forever, and only an owner token could clean them. The cell now quarantines
+// such a twin itself and tombstones it, so every peer's stuck row clears.
+describe('the cell quarantines its own flat canvas twins (2.0.4)', () => {
+  const canvas = (name) =>
+    `import { DesignCanvas } from '@maude/canvas-lib';\nexport default function ${name}() { return <DesignCanvas />; }\n`;
+  const quiet = () => {
+    const lines = [];
+    return { lines, log: (m) => lines.push(m), warn: (m) => lines.push(m), error() {} };
+  };
+  // The 2.0.3 state: walk-import had journaled the flat files as live rows.
+  const journalAsWalkImport = (j, ...rels) => {
+    for (const path of rels) j.recordWrite({ designRoot, path, source: 'walk-import' });
+  };
+  const trashed = () => {
+    const out = [];
+    const walk = (dir, rel) => {
+      let entries = [];
+      try {
+        entries = readdirSync(dir, { withFileTypes: true });
+      } catch {
+        return;
+      }
+      for (const e of entries) {
+        if (e.isDirectory()) walk(join(dir, e.name), `${rel}${e.name}/`);
+        else out.push(`${rel}${e.name}`);
+      }
+    };
+    walk(join(designRoot, '_trash'), '');
+    return out;
+  };
+
+  it('moves the flat twin into _trash/ and journals a tombstone peers can act on', () => {
+    mkdirSync(join(designRoot, 'ui/2026/social'), { recursive: true });
+    writeFileSync(join(designRoot, 'ui/welcome.tsx'), canvas('Welcome'));
+    writeFileSync(join(designRoot, 'ui/2026/social/Krpole-v-pohybu.tsx'), canvas('Krpole'));
+    // The flat bodies are the doc's body as the fallback wrote it — NOT the
+    // grouped bytes doubled, so the #140 skip never saw them.
+    writeFileSync(join(designRoot, 'ui-welcome.tsx'), canvas('WelcomeFlat'));
+    writeFileSync(join(designRoot, 'ui-welcome.meta.json'), '{"title":"flat"}');
+    writeFileSync(join(designRoot, 'ui-2026-social-krpole-v-pohybu.tsx'), canvas('KrpoleFlat'));
+    // The annotations sidecar is keyed by the slug at the root and serves the
+    // grouped twin — it must stay.
+    writeFileSync(join(designRoot, 'ui-welcome.annotations.json'), '{"elements":[]}');
+
+    const j = openJournal(dataDir);
+    // What 2.0.3 did: walk-import journaled both flat files as live code modules.
+    journalAsWalkImport(
+      j,
+      'ui-welcome.tsx',
+      'ui-welcome.meta.json',
+      'ui-2026-social-krpole-v-pohybu.tsx'
+    );
+    assert.match(j.latestFor('ui-welcome.tsx').sha256, /^[0-9a-f]{64}$/);
+    assert.equal(j.latestFor('ui-welcome.tsx').class, 'code-module');
+
+    const q = quiet();
+    const out = quarantineFlatCanvasTwins({ journal: j, designRoot, log: q });
+
+    assert.deepEqual(out.moved.map((m) => m.from).sort(), [
+      'ui-2026-social-krpole-v-pohybu.tsx',
+      'ui-welcome.tsx',
+    ]);
+    assert.equal(existsSync(join(designRoot, 'ui-welcome.tsx')), false);
+    assert.equal(existsSync(join(designRoot, 'ui-welcome.meta.json')), false);
+    assert.equal(existsSync(join(designRoot, 'ui-2026-social-krpole-v-pohybu.tsx')), false);
+    assert.equal(existsSync(join(designRoot, 'ui-welcome.annotations.json')), true);
+    assert.equal(existsSync(join(designRoot, 'ui/welcome.tsx')), true);
+    assert.equal(existsSync(join(designRoot, 'ui/2026/social/Krpole-v-pohybu.tsx')), true);
+    // Quarantined, never unlinked — the bytes are recoverable.
+    const parked = trashed();
+    assert.ok(
+      parked.some((p) => p.endsWith('/ui-welcome.tsx')),
+      parked.join(',')
+    );
+    assert.ok(parked.some((p) => p.endsWith('/ui-2026-social-krpole-v-pohybu.tsx')));
+    const parkedWelcome = parked.find((p) => p.endsWith('/ui-welcome.tsx'));
+    assert.equal(
+      readFileSync(join(designRoot, '_trash', parkedWelcome), 'utf8'),
+      canvas('WelcomeFlat')
+    );
+    // The tombstone is what clears every peer's stuck row.
+    assert.equal(j.latestFor('ui-welcome.tsx').deleted, true);
+    assert.equal(j.latestFor('ui-2026-social-krpole-v-pohybu.tsx').deleted, true);
+    // One log line per move, naming where the bytes went.
+    const moves = q.lines.filter((m) => m.includes('flat canvas twin'));
+    assert.equal(moves.length, 2, q.lines.join('\n'));
+    assert.ok(moves.some((m) => m.includes('ui-welcome.tsx') && m.includes('ui/welcome.tsx')));
+  });
+
+  it('is idempotent — a second pass moves nothing and appends nothing', () => {
+    writeFileSync(join(designRoot, 'ui/welcome.tsx'), canvas('Welcome'));
+    writeFileSync(join(designRoot, 'ui-welcome.tsx'), canvas('WelcomeFlat'));
+    const j = openJournal(dataDir);
+    journalAsWalkImport(j, 'ui-welcome.tsx');
+    assert.equal(
+      quarantineFlatCanvasTwins({ journal: j, designRoot, log: quiet() }).moved.length,
+      1
+    );
+    const head = j.head();
+    const again = quarantineFlatCanvasTwins({ journal: j, designRoot, log: quiet() });
+    assert.equal(again.moved.length, 0);
+    assert.equal(j.head(), head);
+  });
+
+  it('leaves a genuinely flat canvas with no grouped twin alone', () => {
+    writeFileSync(join(designRoot, 'ui-solo.tsx'), canvas('Solo'));
+    writeFileSync(join(designRoot, 'landing.tsx'), canvas('Landing'));
+    const j = openJournal(dataDir);
+    walkImport({ journal: j, designRoot, log: quiet() });
+    const out = quarantineFlatCanvasTwins({ journal: j, designRoot, log: quiet() });
+    assert.equal(out.moved.length, 0);
+    assert.equal(existsSync(join(designRoot, 'ui-solo.tsx')), true);
+    assert.equal(j.latestFor('ui-solo.tsx').deleted, false);
+  });
+
+  it('never moves a flat file that is not a canvas, whatever shares its slug', () => {
+    // The #140 forgery: a collaborator names a grouped canvas after an
+    // unrelated flat module. A slug collision alone moves nothing.
+    writeFileSync(join(designRoot, 'ui/helpers.tsx'), canvas('Helpers'));
+    writeFileSync(join(designRoot, 'ui-helpers.tsx'), 'export const pad = (n) => n + 1;\n');
+    const j = openJournal(dataDir);
+    walkImport({ journal: j, designRoot, log: quiet() });
+    const out = quarantineFlatCanvasTwins({ journal: j, designRoot, log: quiet() });
+    assert.equal(out.moved.length, 0);
+    assert.equal(existsSync(join(designRoot, 'ui-helpers.tsx')), true);
+  });
+
+  it('never moves a flat file the owner put through the write door', () => {
+    writeFileSync(join(designRoot, 'ui/welcome.tsx'), canvas('Welcome'));
+    writeFileSync(join(designRoot, 'ui-welcome.tsx'), canvas('OwnersOwn'));
+    const j = openJournal(dataDir);
+    // `peer-put` admits a would-be-code `.tsx` only from an owner token.
+    j.recordWrite({ designRoot, path: 'ui-welcome.tsx', source: 'peer-put' });
+    const out = quarantineFlatCanvasTwins({ journal: j, designRoot, log: quiet() });
+    assert.equal(out.moved.length, 0);
+    assert.equal(existsSync(join(designRoot, 'ui-welcome.tsx')), true);
+    assert.equal(j.latestFor('ui-welcome.tsx').deleted, false);
+  });
+
+  it('walk-import never re-journals a flat twin that comes back', () => {
+    writeFileSync(join(designRoot, 'ui/welcome.tsx'), canvas('Welcome'));
+    writeFileSync(join(designRoot, 'ui-welcome.tsx'), canvas('WelcomeFlat'));
+    const j = openJournal(dataDir);
+    journalAsWalkImport(j, 'ui-welcome.tsx');
+    quarantineFlatCanvasTwins({ journal: j, designRoot, log: quiet() });
+    assert.equal(j.latestFor('ui-welcome.tsx').deleted, true);
+    // Something (an old writer, a git restore) puts the twin back before the
+    // next quarantine pass — the walk must not resurrect it as a live row.
+    writeFileSync(join(designRoot, 'ui-welcome.tsx'), canvas('WelcomeFlatAgain'));
+    const walk = walkImport({ journal: j, designRoot, log: quiet() });
+    assert.equal(walk.skippedFlatTwin, 1);
+    assert.equal(j.latestFor('ui-welcome.tsx').deleted, true);
+  });
+
+  it('a twin that was never journaled is moved without inventing a row', () => {
+    writeFileSync(join(designRoot, 'ui/welcome.tsx'), canvas('Welcome'));
+    writeFileSync(join(designRoot, 'ui-welcome.tsx'), canvas('WelcomeFlat'));
+    const j = openJournal(dataDir);
+    const out = quarantineFlatCanvasTwins({ journal: j, designRoot, log: quiet() });
+    assert.equal(out.moved.length, 1);
+    assert.equal(j.latestFor('ui-welcome.tsx'), null);
+  });
+
+  it('never throws, with no journal or no design root', () => {
+    assert.deepEqual(quarantineFlatCanvasTwins({ journal: null, designRoot }).moved, []);
+    const j = openJournal(dataDir);
+    assert.deepEqual(
+      quarantineFlatCanvasTwins({ journal: j, designRoot: join(designRoot, 'nope') }).moved,
+      []
+    );
   });
 });
 
