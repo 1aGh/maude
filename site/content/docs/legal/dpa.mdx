@@ -7,9 +7,9 @@ description: The GDPR Article 28 processor terms for Maude Cloud — scope, inst
 Maude Cloud is in private pilot. This addendum is published so it can be read and negotiated before the service takes live money; it is reviewed by counsel before the first live charge.
 </Callout>
 
-**Last updated:** 1 August 2026
+**Last updated:** 4 November 2026
 
-This addendum forms part of the [Terms of Service](/docs/legal/terms) and applies whenever we process personal data on your behalf. It is accepted by using the service; a signed counterpart is available on request to **cloud@maude.sh**.
+This addendum forms part of the [Terms of Service](/docs/legal/terms). It applies when you use the service as a business and act as a controller, and whenever we process personal data on your behalf. It is accepted by using the service; a signed counterpart is available on request to **cloud@maude.sh**.
 
 ## 1. Roles
 
@@ -54,16 +54,16 @@ The mechanisms behind each of these are named, with file paths, on the [Trust](/
 
 ## 6. Subprocessors
 
-You give general authorisation for the subprocessors below. We give notice before adding or replacing one; if you object on reasonable data-protection grounds, you may cancel and we refund the unused part of the current period.
+You give general authorisation for the subprocessors below. We give at least 30 days' notice by email before adding or replacing one; if you object on reasonable data-protection grounds, you may cancel and we refund the unused part of the current period.
 
 | Who | What for | Where |
 | --- | --- | --- |
-| **Cloudflare** | Workspace hosting (Containers, Durable Objects), object storage (R2), DNS and TLS, and first-party usage events (Analytics Engine) | EU |
-| **Stripe** | Payments and subscription management | EU/US, under Stripe's own terms |
+| **Cloudflare** | Workspace hosting (Containers, Durable Objects), object storage (R2), DNS and TLS, and first-party usage events (Analytics Engine) | EU where available; Cloudflare, Inc. is a US company |
+| **Lemon Squeezy (Sold through Link, LLC)**, with **Stripe** | Payments and subscription management. Not project data: billing details only | EU/US, under their own terms |
 | **Resend** | Transactional email — invitations and billing notices | EU/US |
-| **Vercel** | The documentation site only. **No customer project data.** | US |
+| **Vercel** | The website and its documentation only (hosting and web analytics). **No customer project data.** | US |
 
-Each subprocessor is bound by terms no less protective than these, and transfers outside the EEA run on the European Commission's Standard Contractual Clauses.
+Each subprocessor is bound by terms no less protective than these, and transfers outside the EEA run on the EU-US Data Privacy Framework where the provider is certified, and otherwise on the European Commission's Standard Contractual Clauses.
 
 ## 7. Helping you with your own obligations
 
@@ -83,4 +83,8 @@ We make the information needed to demonstrate compliance available on request, a
 
 ## 10. Where your data lives
 
-EU jurisdiction, on Cloudflare. Region pinning is available on the Dedicated tier.
+On Cloudflare, in the EU where Cloudflare offers it. Cloudflare, Inc. is a US company, so a transfer mechanism applies either way, as set out in section 6. Region pinning is available on the Dedicated tier.
+
+<Callout type="warn" title="TODO (counsel, Michal)">
+Not verified: the R2 storage bucket is configured without an EU jurisdiction setting, and the Durable Objects jurisdiction has not been checked. Confirm both, or keep the qualified wording above. Do not restore "EU jurisdiction" until they are confirmed.
+</Callout>

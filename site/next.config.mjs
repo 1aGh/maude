@@ -17,6 +17,7 @@ const config = {
       { source: '/terms', destination: '/docs/legal/terms', permanent: false },
       { source: '/privacy', destination: '/docs/legal/privacy', permanent: false },
       { source: '/dpa', destination: '/docs/legal/dpa', permanent: false },
+      { source: '/withdrawal', destination: '/docs/legal/withdrawal', permanent: false },
     ];
   },
 };

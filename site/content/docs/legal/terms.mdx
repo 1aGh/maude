@@ -7,7 +7,7 @@ description: The agreement between you and the provider of Maude Cloud — what 
 Maude Cloud is in private pilot and takes **no live payments** — the payment integration runs in Stripe test mode. These terms are published now so they can be read and challenged before that changes. They are reviewed by counsel, and the VAT position below settled with an accountant, **before the first live charge**. That is a gate on the live-payments work, not an intention.
 </Callout>
 
-**Last updated:** 1 August 2026
+**Last updated:** 4 November 2026
 
 ## 1. Who you are contracting with
 
@@ -49,13 +49,22 @@ You must be at least 18, or have the authority to bind the organisation you are 
 ## 4. Money
 
 - Prices are shown **before** you enter card details, in euros, and they **exclude VAT**.
-- **Stripe is the merchant of record for your payment.** It calculates your country's VAT, adds it at checkout, collects it and remits it — so the total on the payment screen is higher than the listed price, and that total is shown to you before you enter a card. A Czech customer on the <CloudPrice of="project" /> plan pays <CloudPrice of="projectCz" />. Supply a valid business VAT id and reverse charge applies instead.
-- The provider is not itself registered for VAT in the Czech Republic; under the merchant-of-record arrangement above, that does not change what you are charged.
-- The **trial** runs for the number of days shown in the wizard. Your card is authorised but not charged during it, and you can stop at any point before it ends.
-- **We charge only for a project that actually came up.** If provisioning fails or times out, the authorisation is released and nothing is taken. This is enforced in code, not by our good intentions.
-- Subscriptions renew automatically at the interval you chose until cancelled.
-- Payments are processed by **Stripe**. We never see or store your card number.
+- **Who sells you the subscription.** Payment, VAT and invoicing are handled by our reseller and merchant of record, **Lemon Squeezy (Sold through Link, LLC)**, a Stripe affiliate. You buy the subscription from them under their [Buyer Terms](https://www.lemonsqueezy.com/buyer-terms). Your use of Maude Cloud is governed by these terms. Checkout, receipts and invoices show "Sold through Link", and your card statement shows `LINK.COM*` followed by a short descriptor. They calculate and add your country's VAT, collect it and remit it, so the total on the payment screen is higher than the listed price. That total is shown to you before you enter a card. A Czech customer on the <CloudPrice of="project" /> plan pays <CloudPrice of="projectCz" />. Supply a valid business VAT id and reverse charge applies instead.
+- The provider is not itself registered for VAT in the Czech Republic. Under the merchant-of-record arrangement above, that does not change what you are charged.
+- **Trial.** A new project is free for <CloudPrice of="trialDays" /> days. If you start it through checkout, your card is saved and checked but not charged. Unless you cancel before the trial ends, the plan you chose starts automatically on the date shown at checkout. It is charged then, and at every renewal after that. You are reminded by email before the trial ends. If you start a free project from the desktop app, no card is needed, and nothing is charged until you choose a plan. If you choose a plan without a trial, you are charged straight away. See [If you are a consumer: withdrawal](#withdrawal).
+- **We charge only for a project that actually came up.** If provisioning fails or times out, the card is not charged. This is enforced in code, not by our good intentions.
+- **Renewal.** Subscriptions renew automatically at the interval you chose (monthly or yearly), on the same day each period, until cancelled. You can stop renewal at any time, see section 6.
+- **Price changes.** We tell you at least 30 days before a new price applies. It applies from your next renewal, and you may cancel before then at no cost.
+- Payments are processed by Lemon Squeezy (Sold through Link) and Stripe. We never see or store your card number.
 - We ask for your address, and optionally your VAT id, because they belong on the invoice and because they decide what tax treatment applies. Supplying an incorrect VAT id is your responsibility.
+
+<Callout type="warn" title="TODO (accountant, L1)">
+The sentence on the provider's own VAT status needs the accountant's confirmation before the first live charge. Delete it or replace it with the confirmed wording.
+</Callout>
+
+<Callout type="warn" title="TODO (counsel)">
+Confirm the exact legal name of the merchant of record, the 30-day price-change notice, and how these terms sit alongside the Buyer Terms (English law, discretionary refunds).
+</Callout>
 
 ## 5. If a payment fails
 
@@ -68,15 +77,23 @@ A failed payment is a conversation, not a switch:
 
 ## 6. Cancelling and leaving
 
-You can cancel at any time from your project's billing page. The screen tells you, before you click: the date the project keeps working until, the date it pauses, and the date the data is deleted.
+You can cancel at any time from your project's billing page. You can also cancel at link.com, where the seller of record manages your subscription. The screen tells you, before you click: the date the project keeps working until, the date it pauses, and the date the data is deleted.
 
 You can **download everything at any time**, including while a project is paused or past due. The copy is yours to keep forever, and taking it changes nothing about your project.
 
 You can delete a project yourself. Deletion is only offered once a complete copy exists, and when you confirm it we stop billing, detach the address, and **erase the stored data**.
 
+### Refunds
+
+Cancelling stops the next renewal. It does not refund the period you have already paid for, and we do not refund an annual plan pro rata when you cancel part-way through. The project keeps working until the end of the period. The exception is the consumer right of withdrawal below, which is a legal right and always applies. If a payment was taken in error, or the service did not work for you, write to **cloud@maude.sh** and we will look at it fairly.
+
+<Callout type="warn" title="TODO (Michal)">
+Confirm that an annual plan is not refunded pro rata on cancellation, and decide whether to offer a goodwill refund window beyond the law, for example the first annual payment within 14 days of a renewal. Until you decide, the text above is the statutory minimum only.
+</Callout>
+
 ## 7. What we may do
 
-We may suspend a project without notice if it is being used to break the law, to attack somebody, or to distribute malware, and we will tell you why. We may change these terms with reasonable notice; if a change materially disadvantages you, you may cancel and we refund the unused part of the current period.
+We may suspend a project without notice if it is being used to break the law, to attack somebody, or to distribute malware, and we will tell you why. We may change these terms. We tell you by email at least 30 days before a change takes effect. If a change materially disadvantages you, you may cancel before it takes effect, and we refund the unused part of the current period.
 
 We may change subprocessors with notice, as recorded in the [Data Processing Addendum](/docs/legal/dpa).
 
@@ -86,14 +103,44 @@ The service is provided **as is**. We do not warrant that it will be uninterrupt
 
 To the extent Czech law permits, our aggregate liability for any claim is limited to the fees you paid in the twelve months before it arose. Nothing here limits liability for death, personal injury, fraud, or anything else that cannot lawfully be limited.
 
+If you are a consumer, nothing in this section limits your statutory rights when the service does not conform to the contract.
+
+<Callout type="warn" title="TODO (counsel)">
+The "as is" wording and the liability cap need counsel's split between consumers and businesses. A consumer keeps the statutory conformity rights for digital services.
+</Callout>
+
 You keep every right in your designs. We claim no licence beyond what is technically necessary to store, sync, back up and hand back your files at your instruction.
 
 ## 9. Law
 
-Czech law. Courts of the Czech Republic. If you are a consumer, this does not deprive you of protections you have where you live.
+Czech law. Courts of the Czech Republic. If you are a consumer, this does not deprive you of protections you have where you live. Consumers may also bring proceedings in the courts where they live.
+
+For out-of-court resolution of a consumer dispute you may contact the Czech Trade Inspection Authority (Česká obchodní inspekce), Štěpánská 567/15, 120 00 Praha 2, [adr.coi.cz](https://adr.coi.cz), which is the competent ADR body.
+
+<Callout type="warn" title="TODO (counsel)">
+Confirm the current ČOI ADR address and URL, and how consumer jurisdiction fits with the English-law Buyer Terms.
+</Callout>
+
+## If you are a consumer: withdrawal [#withdrawal]
+
+If you buy as a consumer in the EU, you may withdraw from the contract within **14 days** of concluding it, without giving a reason.
+
+- **If you started with a free trial**, the trial covers that period. Cancel before the trial ends and you pay nothing.
+- **If you chose a plan that starts immediately**, you asked us to start the service before the 14 days end. If you withdraw, we refund what you paid minus a proportionate amount for the days you used.
+
+To withdraw, send us a clear statement, for example using the [model withdrawal form](/docs/legal/withdrawal), to **cloud@maude.sh**. We confirm by email and refund within 14 days through the original payment method. See also [Withdrawal and refunds](/docs/legal/withdrawal).
+
+<Callout type="warn" title="TODO (counsel)">
+Reconcile this with the merchant of record's Buyer Terms: who refunds, and who is the "trader" for withdrawal. Confirm whether the in-app "Withdraw from contract" button (Directive 2023/2673) is required in the Czech Republic now. It is not built yet on the billing page, so until it is, the email route above is the only one.
+</Callout>
+
+## Consumers and businesses [#consumers-and-businesses]
+
+A **consumer** is a person buying for purposes outside their trade or profession. The withdrawal right, the ADR route and the conformity wording above are for consumers. The liability cap in section 8, the [DPA](/docs/legal/dpa) and VAT reverse charge are for businesses.
 
 ## 10. Reading the rest
 
-- [Privacy notice](/docs/legal/privacy) — what personal data we hold and why.
+- [Withdrawal and refunds](/docs/legal/withdrawal): the model withdrawal form for consumers.
+- [Privacy notice](/docs/legal/privacy): what personal data we hold and why.
 - [Data Processing Addendum](/docs/legal/dpa) — the GDPR processor terms, including the subprocessor list.
 - [Trust](/docs/cloud/trust) — the mechanisms behind the claims on this page.

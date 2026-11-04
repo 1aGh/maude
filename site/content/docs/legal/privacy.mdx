@@ -7,7 +7,7 @@ description: What personal data Maude Cloud holds, why, for how long, who else s
 Maude Cloud is in private pilot. This notice describes the service as it is built today; the pack is reviewed by counsel before the first live charge.
 </Callout>
 
-**Last updated:** 9 October 2026
+**Last updated:** 4 November 2026
 
 ## Who holds your data
 
@@ -27,10 +27,13 @@ We do not have a DPO; the service is small enough that the contact address reach
 | **Stripe customer and subscription ids** | Linking your project to its payments | While the project exists |
 | **Audit log** — who did what to a project, and when | So you can see what happened, including if we ever looked | While the project exists |
 | **Your designs and their history** | The service itself. Processed on your instruction — see the [DPA](/docs/legal/dpa) | Until you delete the project |
+| **Website server logs and analytics** — IP address, page, time, browser; aggregated page views | Hosting the website securely and knowing which pages are read | As set by Vercel for its logs; aggregated counts for analytics |
 | **Usage events** — your account id, the project id, the name of the action, and when it happened | Operating the service and knowing which parts of it are used | 90 days |
 | **Project size figures** — how many designs, artboards and design systems a project holds, and how much media storage it uses | Knowing what it costs us to run your project | 90 days |
 
-We hold **no tracking pixels, no advertising identifiers, and no third-party analytics**. The documentation site sets no analytics cookies, and the application sets one cookie for you: your session. (Signing in with Google adds a second one for ten minutes, to carry that sign-in back.)
+We hold **no tracking pixels and no advertising identifiers**. This website uses **Vercel Web Analytics**, which counts page views without cookies and without storing anything on your device. Vercel Inc. processes it for us, under our legitimate interest in knowing which pages are read. The website sets no cookies. The application sets one cookie for you: your session. (Signing in with Google adds a second one for ten minutes, to carry that sign-in back.) These cookies are strictly necessary, so we ask for no cookie consent.
+
+**Website visitors.** When you read this website, Vercel, which hosts it, keeps ordinary server logs (your IP address, the page, the time, your browser). The analytics above are aggregated page-view counts.
 
 **About those usage events.** They are first-party and emitted by our own servers — the application ships no JavaScript at all, so there is nothing in the page that could report on you even if we wanted it to. An event is the name of something that happened ("signed in", "project created"), your account id, the id of the project it concerned, and a timestamp. It never contains your email address, and it never contains anything from inside your designs. They are stored on Cloudflare, already our hosting subprocessor, and they are not shared with anyone. We rely on legitimate interests for this, and you may object — write to **cloud@maude.sh**.
 
@@ -59,15 +62,38 @@ Anything else the app reaches over the network, it reaches because you connected
 
 - **Performance of a contract** — your account, your projects, your invoices.
 - **Legal obligation** — accounting and tax records.
-- **Legitimate interests** — keeping the service secure and abuse-free, keeping the audit log that lets you check us, and the usage events above.
+- **Legitimate interests** — keeping the service secure and abuse-free, keeping the audit log that lets you check us, the usage events above, and the website analytics and logs.
 
 We do not rely on consent for any of the above, so there is no consent to withdraw. Marketing email, if it ever exists, will be opt-in and separate.
 
 ## Who else sees it
 
-The subprocessor list is in the [DPA](/docs/legal/dpa) and is part of it: **Cloudflare** (hosting, storage, DNS, usage events), **Stripe** (payments), **Resend** (transactional email), **Vercel** (this documentation site only — no customer project data).
+The subprocessor list is in the [DPA](/docs/legal/dpa) and is part of it: **Cloudflare** (hosting, storage, DNS, usage events), **Resend** (transactional email), **Vercel** (this website, its logs and its analytics; no customer project data).
 
-Where a subprocessor transfers data outside the EEA, that transfer runs on the European Commission's Standard Contractual Clauses under that provider's own terms.
+Others receive data for their own purposes or at your instruction:
+
+- **Lemon Squeezy (Sold through Link, LLC)**, a Stripe affiliate, sells you the subscription, processes the payment and issues invoices. It is our merchant of record and acts as an independent controller of your payment and billing data, under its own privacy policy. We receive the details we need for the invoice and the tax treatment, never your card number.
+- **Google**, only if you sign in with Google.
+- **GitHub**, only if you connect the automatic copy to your own GitHub. It happens at your instruction.
+- **Anthropic** receives nothing from Maude Cloud. If you use AI, you do it on your own Claude account, on their terms.
+
+**Transfers outside the EEA.** Several of these providers are US companies: Cloudflare, Inc., Stripe and Lemon Squeezy (Link), Resend, Vercel Inc., Google and GitHub. Each transfer runs on the EU-US Data Privacy Framework where the provider is certified, and otherwise on the European Commission's Standard Contractual Clauses.
+
+<Callout type="warn" title="TODO (Michal)">
+Check how long Vercel keeps the website server logs and write the period in the table above.
+</Callout>
+
+<Callout type="warn" title="TODO (counsel)">
+Confirm, provider by provider, whether the transfer rests on Data Privacy Framework certification or on the Standard Contractual Clauses, and replace the sentence above with the exact mechanism for each.
+</Callout>
+
+**Do you have to give us your data?** You need to give your email address to have an account, and billing details to buy a plan. Without them we cannot provide the service.
+
+**Automated decisions.** We make no decisions about you by automated means alone that have legal or similarly significant effects.
+
+<Callout type="warn" title="TODO (counsel)">
+Check the trial-abuse rule (one free trial per email address), which is automatic, and decide whether the sentence above needs to describe it.
+</Callout>
 
 ## Your rights
 
