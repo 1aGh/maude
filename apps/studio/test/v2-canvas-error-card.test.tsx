@@ -123,6 +123,15 @@ describe('Go back to the last good version (S1.13)', () => {
     }) as unknown as typeof fetch;
     expect((await goBackToLastGood('a.tsx', { fetchImpl: down })).ok).toBe(false);
   });
+
+  test('F14: a 409 with the server’s line (a change on this Mac not saved yet) says that line', async () => {
+    const line = 'This canvas has a change on this Mac that isn’t saved. Compare it first.';
+    const fetchImpl = (async () =>
+      new Response(JSON.stringify({ ok: false, reason: 'unsaved-change', line }), {
+        status: 409,
+      })) as unknown as typeof fetch;
+    expect(await goBackToLastGood('a.tsx', { fetchImpl })).toEqual({ ok: false, line });
+  });
 });
 
 // ── the component ───────────────────────────────────────────────────────────────────────────────

@@ -219,7 +219,8 @@ export function useGitActions({
       setProjectHistoryRefresh((version) => version + 1);
       return result;
     }
-    return { ok: false, error: result?.error };
+    // F14 — a refused restore's own line ("…a change on this Mac that isn't saved…") is the words
+    return { ok: false, error: result?.line || result?.error };
   }, []);
 
   // Repo-relative path → M/A/D/U badge for the tree (paths match: both the tree

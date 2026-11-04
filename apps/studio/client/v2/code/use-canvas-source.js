@@ -246,9 +246,12 @@ export async function goBackToLastGood(canvas, { fetchImpl = (...a) => fetch(...
         line: typeof body?.line === 'string' ? clip(body.line, 120) : 'Went back.',
       };
     }
+    // The server's own line first: a 409 is also "this canvas has a change on this Mac that isn't
+    // saved" / "still saving" (F14), not only "no earlier version".
     return {
       ok: false,
       line:
+        (typeof body?.line === 'string' && body.line ? clip(body.line, 120) : null) ??
         GO_BACK_WORDS[res.status] ??
         "Couldn't go back just now. The canvas is as it was. Try again.",
     };
