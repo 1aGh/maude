@@ -8,6 +8,7 @@ import { type ReactNode, useEffect, useState } from 'react';
 
 import { sizeText, stickyNameTop } from './artboard-resize.ts';
 import { type LongPage, measureLongPages, pageInView } from './long-page.ts';
+import { activeInterval } from './page-activity.ts';
 
 export interface StickyChip {
   id: string;
@@ -77,7 +78,8 @@ const same = (a: StickyChip[], b: StickyChip[]) =>
     );
   });
 
-/** Polls the canvas ~10×/s (a scroll is a pan — the DOM does not tell us) and draws the chip when there is one. */
+/** Polls the canvas ~10×/s while it is in use (a scroll is a pan — the DOM does not tell us) and draws the chip when
+ *  there is one. An idle or hidden page is not polled at all (page-activity.ts, 2.0.4). */
 export function StickyName({ pollMs = 100 }: { pollMs?: number }): ReactNode {
   const [chips, setChips] = useState<StickyChip[]>([]);
   useEffect(() => {
@@ -87,9 +89,7 @@ export function StickyName({ pollMs = 100 }: { pollMs?: number }): ReactNode {
       const next = planStickyChips(measureLongPages(document));
       setChips((prev) => (same(prev, next) ? prev : next));
     };
-    run();
-    const t = setInterval(run, pollMs);
-    return () => clearInterval(t);
+    return activeInterval(run, pollMs);
   }, [pollMs]);
   if (!chips.length) return null;
   return (
