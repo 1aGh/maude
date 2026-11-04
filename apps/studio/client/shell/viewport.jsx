@@ -27,6 +27,7 @@ import { insetsNow } from '../v2/shell/insets-now.js';
 import { normalizeOpenPath } from '../share-link.js';
 import { framesIsolated, sessionRole } from '../v2/access/access-client.js';
 import { CanvasDropCatcher, catcherReadOnly } from '../v2/assets/canvas-drop-catcher.jsx';
+import { framesToMount, noteShown } from './frame-cap.js';
 
 export function Viewport({
   tabs,
@@ -154,6 +155,13 @@ export function Viewport({
           ? 'loading'
           : 'idle';
   const soloFrame = framesIsolated(cfg);
+  // 2.0.4 (task O) — at most the active canvas frame + the one shown before it stay mounted (frame-cap.js): each
+  // frame is a whole page with its own runtime, so an unbounded `tabs` list was an unbounded memory bill.
+  const recentRef = useRef([]);
+  recentRef.current = noteShown(recentRef.current, activePath);
+  const mounted = framesToMount(tabs, activePath, recentRef.current, {
+    skip: (p) => p === SYSTEM_TAB,
+  });
   return (
     // V2-8.7 — the stage IS the page's main landmark (axe landmark-one-main: with no canvas open the shell had none)
     <main className="viewport sh-stage" data-tour="viewport" data-canvas-state={canvasState}>
@@ -230,6 +238,7 @@ export function Viewport({
         // p8-secfix-f F1 — sibling frames on the one canvas origin can read each other; a canvas-only
         // session's frames carry different grants, so only its active canvas is framed (no keep-alive).
         if (soloFrame && t.path !== activePath) return null;
+        if (!mounted.has(t.path)) return null;
         return (
           <iframe
             // The nonce is part of the key ONLY so the #115 Retry can force a

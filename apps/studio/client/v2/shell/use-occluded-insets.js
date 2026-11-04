@@ -82,8 +82,11 @@ export function useOccludedInsets({ bodyRef, iframesRef, presenting, layoutKey }
         pump.seed(win);
         return;
       }
+      // 2.0.4: a finished ladder leaves the set — its cancel holds `win`, and a kept one kept every canvas
+      // ever opened in memory (the webview's per-switch leak, occlusion-insets.js)
       const cancel = seedOnLadder(pump, win, {
         alive: () => frames().some((f) => f.contentWindow === win),
+        onDone: () => cancels.delete(cancel),
       });
       cancels.add(cancel);
     };

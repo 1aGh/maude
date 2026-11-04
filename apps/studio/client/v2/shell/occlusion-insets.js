@@ -45,19 +45,31 @@ export function measureShellInsets(frameEl, root, { presenting = false } = {}) {
  * evaluated and installed the insets listener — a single seed on `loaded` is usually dropped (measured
  * in V2-4.1: the first Fit of a freshly opened canvas ignored the left panel). The same ladder
  * `ui-open.js` / the halo restore use covers the gap: each rung is a fresh seed (newer seq, same value),
- * stopped as soon as the window is gone. Returns a cancel function.
+ * stopped as soon as the window is gone. Returns a cancel function. `onDone` runs once, after the last rung or on
+ * cancel — 2.0.4: the caller must let go of the cancel then, since it holds the canvas window (a kept cancel kept
+ * every canvas ever opened alive, ~14 MB each).
  */
 export const SEED_LADDER_MS = [0, 50, 450, 1200];
-export function seedOnLadder(pump, to, { alive = () => true, setTimer, clearTimer } = {}) {
+export function seedOnLadder(pump, to, { alive = () => true, setTimer, clearTimer, onDone } = {}) {
   const set = setTimer ?? ((fn, ms) => setTimeout(fn, ms));
   const clear = clearTimer ?? ((h) => clearTimeout(h));
+  let left = SEED_LADDER_MS.length;
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    onDone?.();
+  };
   const handles = SEED_LADDER_MS.map((ms) =>
     set(() => {
       if (alive()) pump.seed(to);
+      left -= 1;
+      if (left === 0) finish();
     }, ms)
   );
   return () => {
     for (const h of handles) clear(h);
+    finish();
   };
 }
 
