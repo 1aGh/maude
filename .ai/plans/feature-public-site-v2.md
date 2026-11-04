@@ -494,10 +494,10 @@ Expected: 3 products and 4 prices: Cloud Project 19.00 EUR/month and 190.00 EUR/
 
 **2. Make a temporary live key.** Dashboard, Developers, API keys, *Create restricted key* (live mode), named `catalog-temp`. Permissions: **Products write, Prices write**, and (optional) Account read. Nothing else. Do not reuse the Worker's key for this.
 
-**3. Live run.** The key goes in the environment of this one command only (a leading space keeps it out of zsh history if `HIST_IGNORE_SPACE` is set; otherwise `read -s` it):
+**3. Live run.** The key goes in the environment of this shell only, typed at a silent prompt so it is in no command line and no history:
 
 ```sh
- read -s STRIPE_SECRET_KEY && export STRIPE_SECRET_KEY      # paste the temp key, Enter
+read -s STRIPE_SECRET_KEY && export STRIPE_SECRET_KEY      # paste the temp key, Enter
 node apps/cloud/scripts/stripe-live-catalog.mjs --confirm-live > /tmp/live-ids.json
 unset STRIPE_SECRET_KEY
 ```
@@ -556,7 +556,8 @@ The Worker's key is a separate restricted live key, mirroring the permission set
 5. Dashboard, Webhooks (live): `checkout.session.completed` delivered with **200**. Note the event ids.
 6. `/projects/<id>/billing` shows the plan, the trial end date and the invoice list; "Manage billing" opens the Stripe portal (live portal configuration).
 7. Cancel from the billing page (or the portal). Check the subscription is `canceled` in the dashboard, the project follows the retention ladder, and **no charge or pending authorisation is left on the card**. If anything else was charged, refund it.
-8. Record in the evidence table below: checkout total, `cs_live_` id, webhook event ids, provision state, cancellation, card statement check.
+8. Optional, the path v2 uses for trial projects: create a second project as a trial (no card), then use *Choose a plan* on its billing page. It goes through the same live price ids and proves the `convert` checkout.
+9. Record in the evidence table below: checkout total, `cs_live_` id, webhook event ids, provision state, cancellation, card statement check.
 
 | Item | Value |
 | --- | --- |
