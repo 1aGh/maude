@@ -31,7 +31,7 @@
 
 import { createInterface } from 'node:readline';
 
-import { launchChromium } from './_pw-launch.mjs';
+import { afterPaint, launchChromium } from './_pw-launch.mjs';
 import { drawTile } from './_tile-draw.mjs';
 
 const MAX_PAGES = 4;
@@ -369,6 +369,9 @@ async function shoot(page, job, index, target, runtime, left) {
     if (seek !== true) partial = true;
   }
   assertOrigin(page, job);
+  // 2.0.4: the viewport was just resized — wait for a painted frame, or headless Chromium can hand back
+  // the previous one (the PNG shim's parity flake, decision v2-204-capture-waits-painted-frame).
+  await afterPaint(page);
   const jpeg = await page.screenshot({
     type: 'jpeg',
     quality: 80,
