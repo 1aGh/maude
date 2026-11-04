@@ -72,7 +72,12 @@ const SELECTOR_MAPS = {
       '  :root,\n  .maude-v2[data-theme="light"],\n  .maude-v2[data-theme="dark"] {',
       '  :root,\n  .mdcc,\n  html.dark.mdcc,\n  html.dark .mdcc {',
     ],
-    [':root,\n.maude-v2[data-theme="light"] {', ':root,\n.mdcc,\n.mdcc[data-theme="light"] {'],
+    // `.mdcc-pin-light` re-declares the light palette on one element, so a picture of the user's
+    // work (a thumbnail, an artboard page) keeps its own colours when the site is dark.
+    [
+      ':root,\n.maude-v2[data-theme="light"] {',
+      ':root,\n.mdcc,\n.mdcc[data-theme="light"],\n.mdcc-pin-light {',
+    ],
     ['\n.maude-v2[data-theme="dark"] {', '\nhtml.dark.mdcc,\nhtml.dark .mdcc {'],
   ],
 };

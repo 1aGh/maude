@@ -27,7 +27,8 @@
 
 :root,
 .mdcc,
-.mdcc[data-theme="light"] {
+.mdcc[data-theme="light"],
+.mdcc-pin-light {
   color-scheme: light;
 
   /* ─── Surfaces (deepest → highest) ─────────────────────────────────── */

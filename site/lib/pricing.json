@@ -1,0 +1,23 @@
+{
+  "currency": "eur",
+  "taxBehavior": "exclusive",
+  "trialDays": 14,
+  "plans": {
+    "project": {
+      "name": "Cloud Project",
+      "includedStorageGb": 10,
+      "monthlyMinor": 1900,
+      "annualMinor": 19000
+    },
+    "dedicated": {
+      "name": "Dedicated",
+      "includedStorageGb": 100,
+      "monthlyMinor": 9900,
+      "annualMinor": null
+    }
+  },
+  "storage": {
+    "blockGb": 50,
+    "monthlyMinor": 500
+  }
+}

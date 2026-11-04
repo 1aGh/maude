@@ -134,11 +134,40 @@ const contributors = contributorsRaw
       .filter((line) => !BOT_IDENTITIES.test(line)).length
   : 0;
 
+// Release count + first-release month for the Home proof strip. Same stability rule as
+// publishedDate: the release commit is baked BEFORE its tag exists and CI regenerates AFTER, so
+// package.json's own version always counts once (tagged or not), and nothing newer than it counts.
+// Pre-release tags (v2.0.0-rc.1) are not releases. With no tags at all (a checkout without git
+// history) the previous file's values stay, rather than a proof strip reading "0 releases".
+const stableTags = sh("git tag -l 'v*'")
+  .split('\n')
+  .filter((t) => /^v\d+\.\d+\.\d+$/.test(t));
+const semver = (v) => v.replace(/^v/, '').split('.').map(Number);
+const notNewerThan = (a, b) => {
+  const [x, y] = [semver(a), semver(b)];
+  for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] < y[i];
+  return true;
+};
+const previous = existsSync(out) ? JSON.parse(await readFile(out, 'utf8')) : {};
+const releases =
+  stableTags.length > 0
+    ? new Set([...stableTags.filter((t) => notNewerThan(t, `v${pkg.version}`)), `v${pkg.version}`])
+        .size
+    : (previous.releases ?? 0);
+const firstReleaseDate =
+  sh(
+    "TZ=UTC git for-each-ref --sort=creatordate --count=1 --format='%(creatordate:format-local:%Y-%m-%d)' 'refs/tags/v[0-9]*'"
+  ) ||
+  previous.firstReleaseDate ||
+  '';
+
 const stats = {
   // Regenerated every build — do NOT edit by hand. See site/scripts/build-stats.mjs.
   version: `v${pkg.version}`,
   nodeRange: pkg.engines?.node ?? '>=20',
   publishedDate,
+  releases,
+  firstReleaseDate,
   contributors,
   plugins: {
     design: {
