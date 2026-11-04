@@ -202,6 +202,11 @@ export const BUILD_KNOBS = Object.freeze({
   MAUDE_CANVAS_BUILD_WAIT_MS: [1_000, 120_000],
   MAUDE_CANVAS_BUILD_RSS_MB: [128, 8_192],
   MAUDE_CANVAS_CACHE_ENTRIES: [1, 1_024],
+  /** 2.0.4 task D — the byte budgets of the built-module caches (MB; canvas-module-cache.ts
+   *  `budgetFromEnv`). A big workspace cell holds ~30 modules in the default 64 MB live cache. */
+  MAUDE_CANVAS_MODULE_CACHE_MB: [4, 4_096],
+  MAUDE_CANVAS_VERSION_CACHE_MB: [4, 4_096],
+  MAUDE_CANVAS_SANDBOX_CACHE_MB: [4, 4_096],
 });
 
 const warnedKnobs = new Set();

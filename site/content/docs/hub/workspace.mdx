@@ -110,6 +110,7 @@ If builds or the first start still run out of time, raise these in `.env` and ru
 | `MAUDE_CANVAS_BUILD_WAIT_MS` | `20000` | How long one request waits for a build (1000–120000) before the browser shows "Building…". The build goes on and is kept. |
 | `MAUDE_CANVAS_BUILD_RSS_MB` | `768` | The memory one build may use (128–8192). |
 | `MAUDE_CANVAS_CACHE_ENTRIES` | `64` | How many built canvases are kept in memory (1–1024). |
+| `MAUDE_CANVAS_MODULE_CACHE_MB` | `64` | How much memory the kept canvases may use in all, in MB (4–4096). Each built canvas is about 2 MB; a project with hundreds of canvases opens faster with a larger value, at the cost of memory. |
 
 `GET /_health` on the workspace shows how builds are going under `render`: `timeouts`, `cacheHits`, `stillBuilding` and `p95Ms`. Steady timeouts mean the limit is too low for this machine; a growing `cacheHits` means canvases open from the kept builds.
 

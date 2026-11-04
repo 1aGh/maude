@@ -192,6 +192,7 @@ test('2.0.4 task P — the canvas build ceilings reach the studio, validated and
       MAUDE_CANVAS_BUILD_WAIT_MS: ' 25000 ',
       MAUDE_CANVAS_BUILD_RSS_MB: '1024',
       MAUDE_CANVAS_CACHE_ENTRIES: '128',
+      MAUDE_CANVAS_MODULE_CACHE_MB: '256',
     },
     { port: 4399 }
   );
@@ -199,6 +200,7 @@ test('2.0.4 task P — the canvas build ceilings reach the studio, validated and
   assert.equal(on.MAUDE_CANVAS_BUILD_WAIT_MS, '25000');
   assert.equal(on.MAUDE_CANVAS_BUILD_RSS_MB, '1024');
   assert.equal(on.MAUDE_CANVAS_CACHE_ENTRIES, '128');
+  assert.equal(on.MAUDE_CANVAS_MODULE_CACHE_MB, '256');
 });
 
 test('2.0.4 task P — a bad build knob is dropped and said once; out of range is clamped', () => {

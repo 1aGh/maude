@@ -642,6 +642,7 @@ ${envLines(hubEnv)}
       MAUDE_CANVAS_BUILD_WAIT_MS: \${MAUDE_CANVAS_BUILD_WAIT_MS:-}
       MAUDE_CANVAS_BUILD_RSS_MB: \${MAUDE_CANVAS_BUILD_RSS_MB:-}
       MAUDE_CANVAS_CACHE_ENTRIES: \${MAUDE_CANVAS_CACHE_ENTRIES:-}
+      MAUDE_CANVAS_MODULE_CACHE_MB: \${MAUDE_CANVAS_MODULE_CACHE_MB:-}
     volumes:
       - hub-data:/data
       # A SEPARATE volume from hub-data on purpose: the checkout is the one
