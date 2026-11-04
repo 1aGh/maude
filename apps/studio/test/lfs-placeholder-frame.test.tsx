@@ -15,6 +15,7 @@ import {
   LFS_PROMPT_MAX_PATHS,
   lfsRepairPrompt,
 } from '../client/v2/assets/asset-state-lane.js';
+import { ASK_AI_MAX } from '../client/v2/search/search-env.js';
 
 const ORIGIN = 'http://127.0.0.1:5555';
 const PTR = { rel: 'assets/hero.png', state: 'lfs-pointer', localObject: true };
@@ -210,16 +211,45 @@ describe('the shell lane (LFS)', () => {
 
   test('the prompt lists at most 50 paths, then "and N more"', () => {
     const many = Array.from({ length: 53 }, (_, i) => ({
-      rel: `assets/p${i}.png`,
+      rel: `p${i}.png`,
       state: 'lfs-pointer',
     }));
-    const prompt = lfsRepairPrompt({ items: many, designRel: 'design' });
+    // a char budget wide enough that only the path cap decides
+    const prompt = lfsRepairPrompt({ items: many, designRel: 'd', maxChars: 64 * 1024 });
     expect(LFS_PROMPT_MAX_PATHS).toBe(50);
-    expect(prompt).toContain('`design/assets/p49.png`');
+    expect(prompt).toContain('`d/p49.png`');
     expect(prompt).not.toContain('p50.png');
     expect(prompt).toContain('…and 3 more');
     expect(prompt).toContain('git lfs pull --include');
     expect(prompt).toContain('Do not commit anything');
+  });
+
+  test('2.0.3 e2e: the prompt fits the AI chat composer (ASK_AI_MAX), every step kept', () => {
+    // Fix with AI pre-fills the composer through sendToAskAI, which keeps the first ASK_AI_MAX chars: a long path
+    // list used to push every step (and "Do not commit anything") off the end.
+    const many = Array.from({ length: 53 }, (_, i) => ({
+      rel: `assets/photos/2026/shoot-${i}.png`,
+      state: 'lfs-pointer',
+    }));
+    const prompt = lfsRepairPrompt({ items: many, designRel: 'design' });
+    expect(prompt.length).toBeLessThanOrEqual(ASK_AI_MAX);
+    expect(prompt).toContain('`design/assets/photos/2026/shoot-0.png`');
+    const listed = many.filter((it) => prompt.includes(`\`design/${it.rel}\``)).length;
+    expect(listed).toBeGreaterThan(0);
+    expect(prompt).toContain(`…and ${53 - listed} more`);
+    for (const step of ['1. Back up', '2. Restore', '3. Check', '4. Do not commit anything', '5. Leave'])
+      expect(prompt).toContain(step);
+  });
+
+  test('2.0.3 e2e: the restore is git lfs checkout / pull — never a copy into the design root', () => {
+    // The design plugin's Bash guard refuses `cp <object> .design/…` (not-a-writer), and Write cannot put binary
+    // bytes back: a headless Claude given the first prompt backed up, then stopped. `git lfs checkout` restores a
+    // local object offline (and the guard lets git lfs through).
+    const prompt = lfsRepairPrompt({ items: [PTR, PTR2], date: new Date(2026, 10, 4) });
+    expect(prompt).toContain('git lfs checkout');
+    expect(prompt).toContain('git lfs pull --include');
+    expect(prompt).not.toMatch(/copy that file over the placeholder/i);
+    expect(prompt).toContain('Do not copy or write the media files any other way');
   });
 });
 

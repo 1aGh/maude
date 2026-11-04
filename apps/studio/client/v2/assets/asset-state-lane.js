@@ -29,6 +29,7 @@ import { acceptFromCanvas } from '../../../bridge/dgn-protocol.ts';
 import { INDEX_CHANGED_EVENT } from '../canvases/use-canvas-index.js';
 import { nativeSave } from '../export/native-save.js';
 import { dispatchCanvasOp } from '../left-panel/left-panel-bus.js';
+import { ASK_AI_MAX } from '../search/search-env.js';
 
 /** canvas file → (rel → item): what the studio last said about each canvas. The relink gate and the
  *  Inspector's absent-picture box read it; nothing else does. */
@@ -103,9 +104,22 @@ function dayStamp(d) {
  * The repair prompt for a canvas's Git LFS placeholders. Built from the STUDIO's answer only: `items`
  * are this lane's own items for the canvas; anything not `lfs-pointer` is ignored. Pure.
  *
- * @param {{ items: Iterable<any>, designRel?: string, date?: Date }} o
+ * It fits `maxChars` (default ASK_AI_MAX): Fix with AI pre-fills the chat through `sendToAskAI`, which
+ * keeps only that many chars, so a long path list would push the steps off the end. Paths are listed
+ * while they fit (at most LFS_PROMPT_MAX_PATHS); the rest are "…and N more", with how to find them.
+ *
+ * The restore goes through `git lfs` only (2.0.3 e2e): the design plugin's Bash guard refuses a `cp`
+ * into the design root and Write cannot put binary bytes back, so a prompt that said "copy the object
+ * over the placeholder" stopped after the backup. `git lfs checkout` restores a local object offline.
+ *
+ * @param {{ items: Iterable<any>, designRel?: string, date?: Date, maxChars?: number }} o
  */
-export function lfsRepairPrompt({ items, designRel = '.design', date = new Date() }) {
+export function lfsRepairPrompt({
+  items,
+  designRel = '.design',
+  date = new Date(),
+  maxChars = ASK_AI_MAX,
+}) {
   const root = String(designRel || '')
     .replace(/^\/+|\/+$/g, '')
     .replace(/^\.\/?$/, '');
@@ -116,30 +130,42 @@ export function lfsRepairPrompt({ items, designRel = '.design', date = new Date(
     if (it?.state === 'lfs-pointer' && typeof it.rel === 'string' && !/[`\r\n]/.test(it.rel))
       ptrs.push(it);
   }
-  const shown = ptrs.slice(0, LFS_PROMPT_MAX_PATHS);
-  const more = ptrs.length - shown.length;
   const backup = inRoot(`_trash/lfs-pointers-${dayStamp(date)}`);
-  const lines = shown.map(
-    (it) =>
-      `- \`${inRoot(it.rel)}\`${it.localObject ? ' (its object is already in .git/lfs/objects)' : ''}`
-  );
-  if (more > 0)
-    lines.push(
-      `- …and ${more} more. Find the rest: every file of at most 1 KB under \`${root || '.'}/\` whose first line is exactly \`${LFS_SPEC}\`.`
-    );
-  return [
+  const lineOf = (it) =>
+    `- \`${inRoot(it.rel)}\`${it.localObject ? ' (its object is already in .git/lfs/objects)' : ''}`;
+  const moreLine = (n) =>
+    `- …and ${n} more. Find the rest: every file of at most 1 KB under \`${root || '.'}/\` whose first line is exactly \`${LFS_SPEC}\`.`;
+  const head = [
     'Some pictures and videos in this project are Git LFS placeholders: small text files that stand where the real media should be (the project was cloned without `git lfs pull`). Please put the real files back.',
     '',
     'The placeholder files, from the project root:',
-    ...lines,
+  ];
+  const steps = [
     '',
     'Do this, step by step:',
     `1. Back up the placeholder files first. Copy each one, keeping its path, into \`${backup}/\` (for example \`${inRoot('assets/a.png')}\` goes to \`${backup}/assets/a.png\`). That folder is ignored by git and never syncs.`,
-    '2. Restore each file. Read its pointer: the `oid sha256:<oid>` line and the `size <n>` line. If the repository has `.git/lfs/objects/<oid[0:2]>/<oid[2:4]>/<oid>`, copy that file over the placeholder. For the ones left, run `git lfs pull --include "<their paths, comma-separated>"`, but only if `git lfs` is installed (check with `git lfs version`). If it is not installed, say so and stop.',
-    '3. Check each restored file: its sha256 must equal the oid, and its size must equal the size in the pointer. If one does not match, put the placeholder back from the backup and tell me which file.',
+    '2. Restore them with Git LFS. Check it is installed with `git lfs version`; if it is not, say so (it installs with `brew install git-lfs`, then `git lfs install`) and stop. A file whose object is already in `.git/lfs/objects/<oid[0:2]>/<oid[2:4]>/<oid>` (the `oid sha256:<oid>` line of its pointer) comes back with `git lfs checkout <its path>`, with no network. For the ones left, run `git lfs pull --include "<their paths, comma-separated>"`; if that fails, say why. Do not copy or write the media files any other way.',
+    '3. Check each restored file: its sha256 must equal the oid, and its size must equal the `size <n>` line of its pointer. If one does not match, write its placeholder text back from the backup and tell me which file.',
     '4. Do not commit anything, and do not change any other file.',
     '5. Leave the restored files where they are. Maude uploads them by itself; there is nothing else to do.',
-  ].join('\n');
+  ];
+  // +1 per line for the joining '\n'
+  const len = (lines) => lines.reduce((n, l) => n + l.length + 1, -1);
+  const fixed = len([...head, ...steps]) + 1;
+  const lines = [];
+  let used = fixed;
+  for (const it of ptrs.slice(0, LFS_PROMPT_MAX_PATHS)) {
+    const line = lineOf(it);
+    const rest = ptrs.length - lines.length - 1;
+    // room for this line, and for the "…and N more" line if any are left after it
+    const need = line.length + 1 + (rest > 0 ? moreLine(rest).length + 1 : 0);
+    if (used + need > maxChars) break;
+    lines.push(line);
+    used += line.length + 1;
+  }
+  const more = ptrs.length - lines.length;
+  if (more > 0) lines.push(moreLine(more));
+  return [...head, ...lines, ...steps].join('\n');
 }
 
 /**
