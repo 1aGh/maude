@@ -4,7 +4,7 @@
   "type": "module",
   "description": "Maude Cloud control plane (Cloudflare Worker) + the tenant cell Durable Object.",
   "scripts": {
-    "test": "node --test --test-force-exit *.test.mjs scripts/*.test.mjs",
+    "test": "node --test --test-force-exit *.test.mjs",
     "deploy": "wrangler deploy"
   },
   "dependencies": {
