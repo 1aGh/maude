@@ -24238,6 +24238,32 @@
     "v2": "new"
   },
   {
+    "hook": "asset-frame-lfs-fix",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Inside the canvas iframe: a Git LFS placeholder frame's \"Fix with AI\" (`data-state` = lfs-pointer; posts dgn `asset-lfs-fix-request`). Only where the shell has the AI chat (desktop). The shell opens the chat pre-filled with its own prompt, only for a rel its asset-state answer calls lfs-pointer.",
+    "producer": {
+      "file": "apps/studio/asset-placeholder.tsx",
+      "symbol": "AssetPlaceholderLayer"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "asset-frame-lfs-copy",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Inside the canvas iframe: a Git LFS placeholder frame's \"Copy prompt\" (posts dgn `asset-lfs-copy-request`); reads \"Copied\" for 1.5 s after the shell's `asset-lfs-copied`.",
+    "producer": {
+      "file": "apps/studio/asset-placeholder.tsx",
+      "symbol": "AssetPlaceholderLayer"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
     "hook": "video-play-layer",
     "kind": "testid",
     "pattern": false,

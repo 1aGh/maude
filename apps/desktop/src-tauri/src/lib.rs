@@ -637,6 +637,8 @@ pub fn run() {
             // S8.23: Show in Finder for a saved export + the Copy as PNG fallback.
             export_save::reveal_export,
             export_save::clipboard_write_png,
+            // 2.0.3: the canvas LFS placeholder's Copy prompt (the shell has no user activation).
+            export_save::clipboard_write_text,
         ])
         .menu(menu::build_menu)
         .on_menu_event(|app, event| on_menu(app, event.id().as_ref()))

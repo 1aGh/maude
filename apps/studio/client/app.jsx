@@ -3098,6 +3098,9 @@ function ShellTree() {
   const relink = useRelinkSheet({ canEdit: !viewerMode });
   useAssetStateLane({
     onRelink: relink.onRelink,
+    // 2.0.3 — a Git LFS placeholder's Fix with AI / Copy prompt: where the error card offers Ask AI.
+    askAiAvailable: isNativeApp() && !cfg?.readOnly,
+    designRel: cfg?.designRel || cfg?.designRoot || '.design',
     syncStatus,
     wsConnected,
     canvasOrigin: () => cfg?.canvasOrigin || window.location.origin,

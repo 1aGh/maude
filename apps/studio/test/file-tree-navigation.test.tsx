@@ -32,7 +32,11 @@ test.each([
       );
     });
     // MutationObserver owns the tab stop after asynchronous tree population.
-    await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
+    // One tick was not always enough on a loaded CI runner (flaked 2026-11-04): wait for the hand-off, ≤ 1 s.
+    for (let i = 0; i < 50; i++) {
+      await act(async () => new Promise((resolve) => setTimeout(resolve, i === 0 ? 0 : 20)));
+      if (host.querySelector<HTMLElement>('[role="treeitem"]')?.tabIndex === 0) break;
+    }
     const item = host.querySelector<HTMLElement>('[role="treeitem"]');
     expect(item?.tabIndex).toBe(0);
     expect(tree.tabIndex).toBe(-1);

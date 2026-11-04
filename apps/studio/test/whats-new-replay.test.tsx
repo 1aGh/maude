@@ -67,7 +67,13 @@ describe('the committed feed', () => {
       expect(typeof v2?.date).toBe('string');
     }
     expect(v2?.kind).toBe('feature');
-    expect(feed.entries[0].id).toBe('maude-v2-canvas-window');
+    // Newest of the 1.x → 2.0 line: only 2.x entries (stamped or pending) may sit above it.
+    const at = feed.entries.findIndex((e) => e.id === 'maude-v2-canvas-window');
+    for (const e of feed.entries.slice(0, at))
+      expect(e.version === null || /^2\./.test(String(e.version)), e.id).toBe(true);
+    // …and nothing from a later 2.x release sits below it (its own 2.0.0 siblings may).
+    for (const e of feed.entries.slice(at + 1))
+      expect(e.version === null || !/^2\.(?!0\.0$)/.test(String(e.version)), e.id).toBe(true);
   });
 
   test('`replayable`, when present, is the boolean false (the default is true, so true is never written)', () => {

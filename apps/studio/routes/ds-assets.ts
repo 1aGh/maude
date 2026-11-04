@@ -15,9 +15,14 @@
 // MAIN ORIGIN ONLY, never canvas-safe (a shell panel's read; absent from both canvas allowlists). Reads only, for
 // every role that can read the project. A canvas-only session is answered from its closure alone (`filterAssetListing`'s
 // rule for `/_api/assets`): the files its canvases' closure reads, and no folder without one.
+//
+// ON A MATERIALIZING CELL (2.0.3) the system's media is in the hub's journal, not on the checkout (DDR-243): the hub's
+// inert-media listing (`listMaterializable` — the file tree's and the closure's source) joins the disk, so the folders
+// carry their counts and files again. Off a cell it answers `null` at once and the disk alone is listed, as before.
 
 import type { Visibility } from '../access/filters.ts';
 import { listDsAssets } from '../ds-assets.ts';
+import { listMaterializable } from '../materialize-client.ts';
 import type { RouteSpec } from './table.ts';
 
 const json = (status: number, body: unknown) =>
@@ -29,6 +34,8 @@ export interface DsAssetsRouteDeps {
   systems: () => ReadonlyArray<{ name: string; path: string }>;
   /** The session's visibility (http.ts `visOf`). */
   visibility: (req: Request) => Visibility;
+  /** A materializing cell's journal media (designRoot-relative); `null` off a cell. Default `listMaterializable`. */
+  journalMedia?: () => Promise<readonly string[] | null>;
 }
 
 export function createDsAssetsRoutes(deps: DsAssetsRouteDeps): RouteSpec[] {
@@ -58,6 +65,7 @@ export function createDsAssetsRoutes(deps: DsAssetsRouteDeps): RouteSpec[] {
           cursor: q.get('cursor'),
           limit: q.get('limit'),
           ...(candidates ? { candidates } : {}),
+          journal: await (deps.journalMedia ?? listMaterializable)(),
         });
         if (!page.ok) return json(page.status, { ok: false, reason: page.reason });
         // a canvas-only session that sees nothing of this library is told it is not there

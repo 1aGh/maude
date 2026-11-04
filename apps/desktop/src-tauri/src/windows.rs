@@ -3844,6 +3844,7 @@ mod tests {
             ("export_save.rs", "pub async fn save_export("),
             ("export_save.rs", "pub async fn reveal_export("),
             ("export_save.rs", "pub fn clipboard_write_png("),
+            ("export_save.rs", "pub fn clipboard_write_text("),
             ("lib.rs", "async fn pick_media_file("),
             ("lib.rs", "async fn pick_media_files("),
             ("home.rs", "pub async fn new_home_tab("),
