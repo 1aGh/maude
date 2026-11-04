@@ -96,8 +96,12 @@ const noop = (): RoomCallbacks => ({
 
 interface Peer {
   runtime: SyncRuntime;
+  /** the studio's bus: `fs:any` is what its file watcher would emit for a change on disk */
+  bus: Context['bus'];
   read: (rel: string) => string | null;
   write: (rel: string, text: string) => void;
+  /** a change on disk the watcher has not delivered yet (its 250 ms quiet window) */
+  put: (rel: string, text: string) => void;
   restore: (body: unknown) => Promise<{ status: number; body: Record<string, unknown> }>;
 }
 
@@ -160,6 +164,7 @@ async function startPeer(repoRoot: string, url: string): Promise<Peer> {
   ) as RouteSpec;
   return {
     runtime,
+    bus: ctx.bus,
     read: (rel) => {
       try {
         return readFileSync(join(designRoot, rel), 'utf8');
@@ -171,6 +176,7 @@ async function startPeer(repoRoot: string, url: string): Promise<Peer> {
       writeFileSync(join(designRoot, rel), text);
       ctx.bus.emit('fs:any', rel);
     },
+    put: (rel, text) => writeFileSync(join(designRoot, rel), text),
     restore: async (body) => {
       const res = await spec.handle(
         new Request('http://localhost/_api/project/restore', {
@@ -185,46 +191,51 @@ async function startPeer(repoRoot: string, url: string): Promise<Peer> {
   };
 }
 
-describe.skipIf(!HUB_READY)('Restore only <artboard> — both directions on a real hub', () => {
-  let root: string;
-  let hub: Hub;
-  let alice: Peer;
-  let bob: Peer;
+interface Pair {
+  root: string;
+  hub: Hub;
+  alice: Peer;
+  bob: Peer;
+  stop: () => Promise<void>;
+}
+
+/** A real hub and two studios on it (Alice founds each canvas of `files`, Bob pulls them). */
+async function startPair(prefix: string, files: Record<string, string>): Promise<Pair> {
   const saved: Record<string, string | undefined> = {};
-
-  beforeAll(async () => {
-    root = mkdtempSync(join(tmpdir(), 's113-restore-sync-'));
-    for (const k of ['HUBS_CONFIG_PATH', 'MAUDE_SYNC_IN_CI', 'MAUDE_SHARED_DOC'])
-      saved[k] = process.env[k];
-    process.env.MAUDE_SYNC_IN_CI = '1';
-    hub = await startHub(join(root, 'hub'));
-    const aliceUrl = `http://127.0.0.1:${hub.port}`;
-    const bobUrl = `http://localhost:${hub.port}`;
-    const hubsFile = join(root, 'hubs.json');
-    writeFileSync(
-      hubsFile,
-      JSON.stringify({
-        hubs: { [aliceUrl]: { token: hub.tokens.alice }, [bobUrl]: { token: hub.tokens.bob } },
-      }),
-      { mode: 0o600 }
-    );
-    process.env.HUBS_CONFIG_PATH = hubsFile;
-    mkdirSync(join(root, 'alice', 'design', 'ui'), { recursive: true });
-    writeFileSync(join(root, 'alice', 'design', 'ui', 'two.tsx'), two('Hero v1', 'Away v1'));
-    alice = await startPeer(join(root, 'alice'), aliceUrl);
-    await waitFor(async () => {
-      const res = await fetch(`${hub.http}/api/projects/current/v1/bootstrap`, {
-        headers: { authorization: `Bearer ${hub.tokens.owner}` },
-      });
-      const b = (await res.json()) as { docs: { path: string }[] };
-      return b.docs.some((d) => d.path === 'ui/two.tsx');
-    }, 'the hub to accept ui/two.tsx');
-    bob = await startPeer(join(root, 'bob'), bobUrl);
-    await bob.runtime.pullRemoteNow();
-    await waitFor(() => bob.read('ui/two.tsx') === two('Hero v1', 'Away v1'), 'bob’s copy');
-  }, 60_000);
-
-  afterAll(async () => {
+  const root = mkdtempSync(join(tmpdir(), prefix));
+  for (const k of ['HUBS_CONFIG_PATH', 'MAUDE_SYNC_IN_CI', 'MAUDE_SHARED_DOC'])
+    saved[k] = process.env[k];
+  process.env.MAUDE_SYNC_IN_CI = '1';
+  const hub = await startHub(join(root, 'hub'));
+  const aliceUrl = `http://127.0.0.1:${hub.port}`;
+  const bobUrl = `http://localhost:${hub.port}`;
+  const hubsFile = join(root, 'hubs.json');
+  writeFileSync(
+    hubsFile,
+    JSON.stringify({
+      hubs: { [aliceUrl]: { token: hub.tokens.alice }, [bobUrl]: { token: hub.tokens.bob } },
+    }),
+    { mode: 0o600 }
+  );
+  process.env.HUBS_CONFIG_PATH = hubsFile;
+  mkdirSync(join(root, 'alice', 'design', 'ui'), { recursive: true });
+  for (const [rel, start] of Object.entries(files))
+    writeFileSync(join(root, 'alice', 'design', rel), start);
+  const alice = await startPeer(join(root, 'alice'), aliceUrl);
+  await waitFor(async () => {
+    const res = await fetch(`${hub.http}/api/projects/current/v1/bootstrap`, {
+      headers: { authorization: `Bearer ${hub.tokens.owner}` },
+    });
+    const b = (await res.json()) as { docs: { path: string }[] };
+    return Object.keys(files).every((rel) => b.docs.some((d) => d.path === rel));
+  }, 'the hub to accept the canvases');
+  const bob = await startPeer(join(root, 'bob'), bobUrl);
+  await bob.runtime.pullRemoteNow();
+  await waitFor(
+    () => Object.entries(files).every(([rel, start]) => bob.read(rel) === start),
+    'bob’s copy'
+  );
+  const stop = async () => {
     await alice?.runtime.stop();
     await bob?.runtime.stop();
     if (hub && hub.proc.exitCode === null) {
@@ -237,6 +248,22 @@ describe.skipIf(!HUB_READY)('Restore only <artboard> — both directions on a re
       else process.env[k] = v;
     }
     rmSync(root, { recursive: true, force: true });
+  };
+  return { root, hub, alice, bob, stop };
+}
+
+describe.skipIf(!HUB_READY)('Restore only <artboard> — both directions on a real hub', () => {
+  let pair: Pair;
+  let alice: Peer;
+  let bob: Peer;
+
+  beforeAll(async () => {
+    pair = await startPair('s113-restore-sync-', { 'ui/two.tsx': two('Hero v1', 'Away v1') });
+    ({ alice, bob } = pair);
+  }, 60_000);
+
+  afterAll(async () => {
+    await pair?.stop();
   });
 
   test('Alice restores Hero → Bob follows; Bob restores Away → Alice follows', async () => {
@@ -279,3 +306,127 @@ describe.skipIf(!HUB_READY)('Restore only <artboard> — both directions on a re
     }, 'the undo of alice’s restore on bob');
   }, 60_000);
 });
+
+// ── F14 (2.0.4, #166): Version history restores over a change this disk has and the hub lacks ───
+//
+// The restores here splice onto (or replace) the canvas's NEWEST version on the hub, but the person
+// sees THIS disk. A hand edit (an AI run, an editor, a pull) still in the watcher's quiet window was
+// missing from that head: the restore landed and answered 200, the late hand edit overlapped it and
+// was held here — the project and the other Mac got the restore, this file kept the hand edit.
+
+/** The canvas without its Hero artboard — what an AI run or an editor leaves on disk. */
+const withoutHero = (s: string) =>
+  s.replace(/ {6}<DCArtboard id="hero"[\s\S]*?<\/DCArtboard>\n/, '');
+
+describe.skipIf(!HUB_READY)(
+  'F14 — Version history restores over a change on this disk the hub has not taken yet (#166)',
+  () => {
+    // one canvas per leg, so a leg that fails (a held change) cannot fail the next one
+    const ARTBOARD = 'ui/f14-artboard.tsx';
+    const WHOLE = 'ui/f14-whole.tsx';
+    const HELD = 'ui/f14-held.tsx';
+    const V1 = two('Hero v1', 'Away v1');
+    let pair: Pair;
+    let alice: Peer;
+    let bob: Peer;
+
+    const newest = async () => {
+      const res = await fetch(`${pair.hub.http}/api/projects/current/v1/bootstrap`, {
+        headers: { authorization: `Bearer ${pair.hub.tokens.owner}` },
+      });
+      return ((await res.json()) as { revision: number }).revision;
+    };
+    /** The revision at which `rel` read `want`. */
+    const revOf = async (rel: string, want: string) => {
+      const path = `design/${rel}`;
+      const rows = (await alice.runtime.acceptedHistory?.({ path, limit: 50 })) ?? [];
+      for (const r of rows) {
+        const body = await alice.runtime.acceptedVersion?.(path, r.revision as number);
+        if (body === want) return r.revision as number;
+      }
+      throw new Error(`no version of ${rel} reads that`);
+    };
+    const both = (rel: string, want: string, what: string) =>
+      waitFor(async () => {
+        await alice.runtime.pullRemoteNow();
+        await bob.runtime.pullRemoteNow();
+        return alice.read(rel) === want && bob.read(rel) === want;
+      }, what);
+
+    beforeAll(async () => {
+      pair = await startPair('f14-history-restore-', { [ARTBOARD]: V1, [WHOLE]: V1, [HELD]: V1 });
+      ({ alice, bob } = pair);
+    }, 60_000);
+
+    afterAll(async () => {
+      await pair?.stop();
+    });
+
+    test('Restore only <artboard>: the hand edit goes up first, both Macs end with the restore', async () => {
+      const v1 = await revOf(ARTBOARD, V1);
+      bob.write(ARTBOARD, two('Hero v2', 'Away v2'));
+      await both(ARTBOARD, two('Hero v2', 'Away v2'), 'v2 on both Macs');
+
+      // Hero leaves bob's file by hand, and "Restore only Hero" is clicked before his watcher has
+      // delivered that change — the hub still holds Hero v2
+      bob.put(ARTBOARD, withoutHero(two('Hero v2', 'Away v2')));
+      const r = await bob.restore({ path: ARTBOARD, at: `r${v1}`, artboard: 'hero' });
+      expect(r.status).toBe(200);
+      bob.bus.emit('fs:any', ARTBOARD); // the watcher's (late) event for the hand edit
+
+      const want = two('Hero v1', 'Away v2');
+      await both(ARTBOARD, want, 'Hero v1 back on both Macs');
+      await new Promise((res) => setTimeout(res, 1_500)); // nothing takes it back
+      expect(bob.read(ARTBOARD)).toBe(want);
+      expect(alice.read(ARTBOARD)).toBe(want);
+    }, 90_000);
+
+    test('Restore this version (whole canvas): the hand edit goes up first, both Macs end with it', async () => {
+      const v1 = await revOf(WHOLE, V1);
+      bob.write(WHOLE, two('Hero v3', 'Away v3'));
+      await both(WHOLE, two('Hero v3', 'Away v3'), 'v3 on both Macs');
+
+      bob.put(WHOLE, withoutHero(two('Hero v3', 'Away v3')));
+      const r = await bob.restore({ path: WHOLE, at: `r${v1}` });
+      expect(r.status).toBe(200);
+      bob.bus.emit('fs:any', WHOLE);
+
+      await both(WHOLE, V1, 'v1 on both Macs');
+      await new Promise((res) => setTimeout(res, 1_500));
+      expect(bob.read(WHOLE)).toBe(V1);
+      expect(alice.read(WHOLE)).toBe(V1);
+    }, 90_000);
+
+    test('a change the hub refused stays held: both restores say why and land nothing', async () => {
+      const v1 = await revOf(HELD, V1);
+      bob.write(HELD, two('Hero v2', 'Away v2'));
+      await both(HELD, two('Hero v2', 'Away v2'), 'v2 on both Macs');
+      // bob's Away text and alice's cross: bob's is refused (overlap) and held on his disk
+      const mine = two('Hero v2', 'Away by bob');
+      bob.put(HELD, mine);
+      const before = await newest();
+      alice.write(HELD, two('Hero v2', 'Away by alice'));
+      await waitFor(async () => (await newest()) > before, 'alice’s edit on the hub');
+      await bob.runtime.pullRemoteNow();
+      bob.bus.emit('fs:any', HELD);
+      await waitFor(async () => {
+        const st = (await bob.runtime.status?.()) as Record<string, unknown> | undefined;
+        const notices = (st?.notices ?? []) as { id?: unknown }[];
+        return notices.some((n) => String(n?.id).startsWith('source-conflict-'));
+      }, 'bob’s edit held');
+      const top = await newest();
+
+      for (const body of [
+        { path: HELD, at: `r${v1}`, artboard: 'hero' },
+        { path: HELD, at: `r${v1}` },
+      ]) {
+        const r = await bob.restore(body);
+        expect(r.status).toBe(409);
+        expect(r.body).toMatchObject({ ok: false, reason: 'unsaved-change' });
+        expect(String(r.body.line)).toContain('isn’t saved');
+      }
+      expect(await newest()).toBe(top); // nothing reached the project
+      expect(bob.read(HELD)).toBe(mine); // the held change is still this Mac's file
+    }, 90_000);
+  }
+);
