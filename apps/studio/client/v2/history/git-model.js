@@ -318,11 +318,25 @@ export function unitCheck(unit, unchecked) {
   return on === 0 ? 'none' : on === unit.paths.length ? 'all' : 'some';
 }
 
-/** The words of the discard confirm. */
+/**
+ * The words of the discard ask (the shell's own yes/no dialog — `window.confirm` always answers no in the
+ * desktop app): the question names the file, the line under it says it can't be undone.
+ */
+export function discardAsk(unit) {
+  return {
+    title: unit.supporting.length
+      ? `Discard your changes to “${unit.name}” and its supporting files?`
+      : `Discard your changes to “${unit.name}”?`,
+    body: "This can't be undone.",
+    confirm: GIT_WORDS.discard,
+    busy: 'Discarding…',
+  };
+}
+
+/** The same ask as one sentence. */
 export function discardConfirm(unit) {
-  return unit.supporting.length
-    ? `Discard your changes to “${unit.name}” and its supporting files? This can't be undone.`
-    : `Discard your changes to “${unit.name}”? This can't be undone.`;
+  const a = discardAsk(unit);
+  return `${a.title} ${a.body}`;
 }
 
 // ── "Changed in this version" ──────────────────────────────────────────────────────────────────────────────

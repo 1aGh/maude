@@ -11,6 +11,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { canvasUrl } from '../canvas-url.js';
+import { ConfirmAskDialog } from '../v2/canvases/folder-dialogs.jsx';
 
 const ICONS = {
   x: (
@@ -83,6 +84,18 @@ function Brand() {
       </span>
       <span className="sh-brand-name">Maude</span>
     </span>
+  );
+}
+
+const RESTORE_FAILED = 'Could not restore that version. Try again.';
+const RESOLVE_FAILED = 'Could not finish the merge. Get the latest again, then retry.';
+
+/** A refused Restore or merge, said inside the sheet (it replaces `window.alert`, which the desktop app drops). */
+function DvError({ error }) {
+  return (
+    <div className="callout callout--warning dv-err" role="alert" data-testid="diff-error">
+      <span>{error}</span>
+    </div>
   );
 }
 
@@ -235,6 +248,12 @@ export default function DiffView({ target, cfg, loadLog, onResolve, onRestore, o
   const [view, setView] = useState({ scale: 1, x: 0, y: 0 });
   const [split, setSplit] = useState(52);
   const [busy, setBusy] = useState(false);
+  // A failed Restore / merge is said inside the sheet, and Restore asks in the shell's own dialog:
+  // `window.alert` shows nothing and `window.confirm` always answers no in the desktop app.
+  const [error, setError] = useState('');
+  const [asking, setAsking] = useState(false);
+  const askingRef = useRef(false);
+  askingRef.current = asking;
   const sheetRef = useRef(null);
   const overlayRef = useRef(null);
 
@@ -280,6 +299,8 @@ export default function DiffView({ target, cfg, loadLog, onResolve, onRestore, o
         ) ?? []),
       ].filter((el) => !el.closest('[hidden]'));
     const onKey = (e) => {
+      // The Restore ask is its own modal: it takes Escape and Tab itself.
+      if (askingRef.current) return;
       if (e.key === 'Escape') {
         e.preventDefault();
         e.stopImmediatePropagation();
@@ -341,196 +362,263 @@ export default function DiffView({ target, cfg, loadLog, onResolve, onRestore, o
     window.addEventListener('pointerup', up);
   }
 
-  return (
-    <div
-      className="sh-scrim dv-scrim"
-      role="presentation"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        className="dv-sheet"
-        role="dialog"
-        aria-modal="true"
-        aria-label={`${conflict ? 'Resolve' : 'Compare'} ${baseName(file)}`}
-        ref={sheetRef}
-        tabIndex={-1}
-      >
-        <div className="dv-hd">
-          <Brand />
-          <span className="dv-title">
-            {conflict ? 'You both changed this canvas' : 'What changed'}
-          </span>
-          <span className="dv-file">
-            <Icon name="file" size={13} /> {baseName(file)}
-          </span>
-          <span className="dv-spacer" />
-          {showPicker && (
-            <label className="dv-verpick">
-              <span className="dv-verpick-lbl">Compare against</span>
-              <select
-                data-testid="history-preview-version"
-                className="dv-verpick-sel"
-                value={beforeSha}
-                onChange={(e) => setBeforeSha(e.target.value)}
-                aria-label={`Saved version of ${baseName(file)} to compare against`}
-              >
-                {!acceptedPreview && <option value="HEAD">Last saved</option>}
-                {versions.map((v) => (
-                  <option key={v.sha} value={v.sha}>
-                    {`${v.message || 'Saved version'} · ${timeAgo(v.date)}`}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          {!conflict && renderable && (
-            <div className="dv-seg" role="group" aria-label="Comparison mode">
-              <button
-                type="button"
-                className="dv-seg-btn"
-                aria-pressed={mode === 'side'}
-                onClick={() => setMode('side')}
-              >
-                Side by side
-              </button>
-              <button
-                type="button"
-                className="dv-seg-btn"
-                aria-pressed={mode === 'overlay'}
-                onClick={() => setMode('overlay')}
-              >
-                Overlay
-              </button>
-            </div>
-          )}
-          <button type="button" className="dv-close" aria-label="Close" onClick={onClose}>
-            <Icon name="x" size={14} />
-          </button>
-        </div>
+  const restoreAsk = asking
+    ? {
+        title: acceptedPreview
+          ? `Restore version ${beforeSha.slice(1)} of “${baseName(file)}”?`
+          : `Restore the saved version of “${baseName(file)}”?`,
+        body: acceptedPreview
+          ? 'It becomes a new saved version. Nothing is lost.'
+          : "Your unsaved changes to it are discarded. This can't be undone.",
+      }
+    : null;
+  const doRestore = async () => {
+    setAsking(false);
+    setBusy(true);
+    setError('');
+    try {
+      const res = await onRestore(file, beforeSha);
+      if (res && res.ok === false) setError(res.error || RESTORE_FAILED);
+    } catch {
+      setError(RESTORE_FAILED);
+    } finally {
+      setBusy(false);
+    }
+  };
 
-        {conflict ? (
-          <>
-            <div className="dv-pick-intro">
-              <div className="callout callout--info">
-                <span>
-                  While you were working, someone published their own changes to{' '}
-                  <strong style={{ color: 'var(--fg-0)' }}>{baseName(file)}</strong>. Pick which to
-                  keep — <strong style={{ color: 'var(--fg-0)' }}>Keep both</strong> saves yours as
-                  a copy so nothing is lost.
-                </span>
-              </div>
-            </div>
-            <div className="dv-stage">
-              <ZoomBar view={view} setView={setView} />
-              <div className="dv-pair">
-                <div className="dv-col">
-                  <div className="dv-col-hd">
-                    <span className="dv-col-tag">
-                      <Icon name="user" size={12} /> Yours
-                    </span>
-                    <span className="dv-col-who">you · just now</span>
-                  </div>
-                  <div className="dv-thumb ring-mine">
-                    <CanvasView src={afterSrc} view={view} setView={setView} label="Your version" />
-                  </div>
-                </div>
-                <div className="dv-col">
-                  <div className="dv-col-hd">
-                    <span className="dv-col-tag">
-                      <Icon name="users" size={12} /> Theirs
-                    </span>
-                    <span className="dv-col-who">published</span>
-                  </div>
-                  <div className="dv-thumb ring-theirs">
-                    <CanvasView
-                      src={beforeSrc}
-                      view={view}
-                      setView={setView}
-                      label="Published version"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="dv-picker" role="radiogroup" aria-label="How to resolve">
-              {CHOICES.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  className={'dv-pick' + (choice === c.id ? ' is-rec' : '')}
-                  role="radio"
-                  aria-checked={choice === c.id}
-                  tabIndex={choice === c.id ? 0 : -1}
-                  onClick={() => setChoice(c.id)}
-                  onKeyDown={(e) => {
-                    // Arrow-key navigation for the radiogroup (roving tabindex —
-                    // only the checked radio is a Tab stop, so arrows must move it).
-                    const dir =
-                      e.key === 'ArrowRight' || e.key === 'ArrowDown'
-                        ? 1
-                        : e.key === 'ArrowLeft' || e.key === 'ArrowUp'
-                          ? -1
-                          : 0;
-                    if (!dir) return;
-                    e.preventDefault();
-                    const i = CHOICES.findIndex((x) => x.id === choice);
-                    const ni = (i + dir + CHOICES.length) % CHOICES.length;
-                    setChoice(CHOICES[ni].id);
-                    e.currentTarget.parentElement?.children[ni]?.focus();
-                  }}
+  return (
+    <>
+      <div
+        className="sh-scrim dv-scrim"
+        role="presentation"
+        onMouseDown={(e) => {
+          if (e.target === e.currentTarget) onClose();
+        }}
+      >
+        <div
+          className="dv-sheet"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${conflict ? 'Resolve' : 'Compare'} ${baseName(file)}`}
+          ref={sheetRef}
+          tabIndex={-1}
+        >
+          <div className="dv-hd">
+            <Brand />
+            <span className="dv-title">
+              {conflict ? 'You both changed this canvas' : 'What changed'}
+            </span>
+            <span className="dv-file">
+              <Icon name="file" size={13} /> {baseName(file)}
+            </span>
+            <span className="dv-spacer" />
+            {showPicker && (
+              <label className="dv-verpick">
+                <span className="dv-verpick-lbl">Compare against</span>
+                <select
+                  data-testid="history-preview-version"
+                  className="dv-verpick-sel"
+                  value={beforeSha}
+                  onChange={(e) => setBeforeSha(e.target.value)}
+                  aria-label={`Saved version of ${baseName(file)} to compare against`}
                 >
-                  <span className="dv-pick-hd">
-                    <Icon name={c.icon} size={14} />
-                    <span className="dv-pick-title">{c.title}</span>
-                    {c.rec && <span className="dv-pick-rec">Default</span>}
-                  </span>
-                  <span className="dv-pick-desc">{c.desc}</span>
+                  {!acceptedPreview && <option value="HEAD">Last saved</option>}
+                  {versions.map((v) => (
+                    <option key={v.sha} value={v.sha}>
+                      {`${v.message || 'Saved version'} · ${timeAgo(v.date)}`}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {!conflict && renderable && (
+              <div className="dv-seg" role="group" aria-label="Comparison mode">
+                <button
+                  type="button"
+                  className="dv-seg-btn"
+                  aria-pressed={mode === 'side'}
+                  onClick={() => setMode('side')}
+                >
+                  Side by side
                 </button>
-              ))}
-            </div>
-            <div className="dv-ft">
-              <span className="dv-note">
-                You can change your mind later — both versions stay in History.
-              </span>
-              <button
-                type="button"
-                className="btn btn--ghost btn--sm"
-                onClick={onClose}
-                disabled={busy}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn btn--primary btn--sm"
-                disabled={busy}
-                onClick={async () => {
-                  setBusy(true);
-                  try {
-                    await onResolve?.(choice);
-                  } finally {
-                    setBusy(false);
-                  }
-                }}
-              >
-                <Icon name="check" size={14} /> {CHOICES.find((c) => c.id === choice)?.title}
-              </button>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="dv-stage">
-              <ZoomBar view={view} setView={setView} />
-              {mode === 'side' ? (
+                <button
+                  type="button"
+                  className="dv-seg-btn"
+                  aria-pressed={mode === 'overlay'}
+                  onClick={() => setMode('overlay')}
+                >
+                  Overlay
+                </button>
+              </div>
+            )}
+            <button type="button" className="dv-close" aria-label="Close" onClick={onClose}>
+              <Icon name="x" size={14} />
+            </button>
+          </div>
+
+          {conflict ? (
+            <>
+              <div className="dv-pick-intro">
+                <div className="callout callout--info">
+                  <span>
+                    While you were working, someone published their own changes to{' '}
+                    <strong style={{ color: 'var(--fg-0)' }}>{baseName(file)}</strong>. Pick which
+                    to keep — <strong style={{ color: 'var(--fg-0)' }}>Keep both</strong> saves
+                    yours as a copy so nothing is lost.
+                  </span>
+                </div>
+              </div>
+              <div className="dv-stage">
+                <ZoomBar view={view} setView={setView} />
                 <div className="dv-pair">
                   <div className="dv-col">
                     <div className="dv-col-hd">
-                      <span className="dv-col-tag is-before">Saved version</span>
-                      <span className="dv-col-who">{beforeWhen}</span>
+                      <span className="dv-col-tag">
+                        <Icon name="user" size={12} /> Yours
+                      </span>
+                      <span className="dv-col-who">you · just now</span>
                     </div>
-                    <div className="dv-thumb">
+                    <div className="dv-thumb ring-mine">
+                      <CanvasView
+                        src={afterSrc}
+                        view={view}
+                        setView={setView}
+                        label="Your version"
+                      />
+                    </div>
+                  </div>
+                  <div className="dv-col">
+                    <div className="dv-col-hd">
+                      <span className="dv-col-tag">
+                        <Icon name="users" size={12} /> Theirs
+                      </span>
+                      <span className="dv-col-who">published</span>
+                    </div>
+                    <div className="dv-thumb ring-theirs">
+                      <CanvasView
+                        src={beforeSrc}
+                        view={view}
+                        setView={setView}
+                        label="Published version"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="dv-picker" role="radiogroup" aria-label="How to resolve">
+                {CHOICES.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className={'dv-pick' + (choice === c.id ? ' is-rec' : '')}
+                    role="radio"
+                    aria-checked={choice === c.id}
+                    tabIndex={choice === c.id ? 0 : -1}
+                    onClick={() => setChoice(c.id)}
+                    onKeyDown={(e) => {
+                      // Arrow-key navigation for the radiogroup (roving tabindex —
+                      // only the checked radio is a Tab stop, so arrows must move it).
+                      const dir =
+                        e.key === 'ArrowRight' || e.key === 'ArrowDown'
+                          ? 1
+                          : e.key === 'ArrowLeft' || e.key === 'ArrowUp'
+                            ? -1
+                            : 0;
+                      if (!dir) return;
+                      e.preventDefault();
+                      const i = CHOICES.findIndex((x) => x.id === choice);
+                      const ni = (i + dir + CHOICES.length) % CHOICES.length;
+                      setChoice(CHOICES[ni].id);
+                      e.currentTarget.parentElement?.children[ni]?.focus();
+                    }}
+                  >
+                    <span className="dv-pick-hd">
+                      <Icon name={c.icon} size={14} />
+                      <span className="dv-pick-title">{c.title}</span>
+                      {c.rec && <span className="dv-pick-rec">Default</span>}
+                    </span>
+                    <span className="dv-pick-desc">{c.desc}</span>
+                  </button>
+                ))}
+              </div>
+              {error ? <DvError error={error} /> : null}
+              <div className="dv-ft">
+                <span className="dv-note">
+                  You can change your mind later — both versions stay in History.
+                </span>
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm"
+                  onClick={onClose}
+                  disabled={busy}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--primary btn--sm"
+                  disabled={busy}
+                  onClick={async () => {
+                    setBusy(true);
+                    setError('');
+                    try {
+                      const res = await onResolve?.(choice);
+                      if (res && res.ok === false) setError(res.error || RESOLVE_FAILED);
+                    } catch {
+                      setError(RESOLVE_FAILED);
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  <Icon name="check" size={14} /> {CHOICES.find((c) => c.id === choice)?.title}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="dv-stage">
+                <ZoomBar view={view} setView={setView} />
+                {mode === 'side' ? (
+                  <div className="dv-pair">
+                    <div className="dv-col">
+                      <div className="dv-col-hd">
+                        <span className="dv-col-tag is-before">Saved version</span>
+                        <span className="dv-col-who">{beforeWhen}</span>
+                      </div>
+                      <div className="dv-thumb">
+                        <CanvasView
+                          src={beforeSrc}
+                          view={view}
+                          setView={setView}
+                          label="Saved version"
+                        />
+                      </div>
+                    </div>
+                    <div className="dv-col">
+                      <div className="dv-col-hd">
+                        <span className="dv-col-tag is-after">Your version</span>
+                        <span className="dv-col-who">
+                          {acceptedPreview ? 'now · working copy' : 'now · unsaved'}
+                        </span>
+                      </div>
+                      <div className="dv-thumb is-after">
+                        <CanvasView
+                          src={afterSrc}
+                          view={view}
+                          setView={setView}
+                          label="Your version (now)"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    className="dv-overlay"
+                    ref={overlayRef}
+                    style={{ '--dv-split': `${split}%` }}
+                  >
+                    <div className="dv-overlay-layer">
                       <CanvasView
                         src={beforeSrc}
                         view={view}
@@ -538,99 +626,77 @@ export default function DiffView({ target, cfg, loadLog, onResolve, onRestore, o
                         label="Saved version"
                       />
                     </div>
-                  </div>
-                  <div className="dv-col">
-                    <div className="dv-col-hd">
-                      <span className="dv-col-tag is-after">Your version</span>
-                      <span className="dv-col-who">
-                        {acceptedPreview ? 'now · working copy' : 'now · unsaved'}
-                      </span>
-                    </div>
-                    <div className="dv-thumb is-after">
+                    <div className="dv-overlay-after">
                       <CanvasView
                         src={afterSrc}
                         view={view}
                         setView={setView}
-                        label="Your version (now)"
+                        label="Your version"
                       />
                     </div>
+                    <span className="dv-overlay-tag l">Saved</span>
+                    <span className="dv-overlay-tag r">Yours</span>
+                    <div className="dv-split">
+                      <span
+                        className="dv-split-handle"
+                        role="slider"
+                        aria-label="Drag to wipe between saved and your version"
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={Math.round(split)}
+                        tabIndex={0}
+                        onPointerDown={onSplitDown}
+                        onKeyDown={(e) => {
+                          if (e.key === 'ArrowLeft') setSplit((s) => clamp(s - 4, 4, 96));
+                          if (e.key === 'ArrowRight') setSplit((s) => clamp(s + 4, 4, 96));
+                        }}
+                      >
+                        <Icon name="split" size={14} />
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="dv-overlay" ref={overlayRef} style={{ '--dv-split': `${split}%` }}>
-                  <div className="dv-overlay-layer">
-                    <CanvasView
-                      src={beforeSrc}
-                      view={view}
-                      setView={setView}
-                      label="Saved version"
-                    />
-                  </div>
-                  <div className="dv-overlay-after">
-                    <CanvasView src={afterSrc} view={view} setView={setView} label="Your version" />
-                  </div>
-                  <span className="dv-overlay-tag l">Saved</span>
-                  <span className="dv-overlay-tag r">Yours</span>
-                  <div className="dv-split">
-                    <span
-                      className="dv-split-handle"
-                      role="slider"
-                      aria-label="Drag to wipe between saved and your version"
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      aria-valuenow={Math.round(split)}
-                      tabIndex={0}
-                      onPointerDown={onSplitDown}
-                      onKeyDown={(e) => {
-                        if (e.key === 'ArrowLeft') setSplit((s) => clamp(s - 4, 4, 96));
-                        if (e.key === 'ArrowRight') setSplit((s) => clamp(s + 4, 4, 96));
-                      }}
-                    >
-                      <Icon name="split" size={14} />
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="dv-ft">
-              <span className="dv-note">
-                {mode === 'side'
-                  ? 'A live rendered before & after — scroll to zoom, drag to pan. Both sides stay locked together.'
-                  : 'Drag the handle to wipe between the saved version and yours.'}
-              </span>
-              {onRestore && (
-                <button
-                  type="button"
-                  className="btn btn--ghost btn--sm"
-                  data-testid="history-preview-restore"
-                  disabled={busy}
-                  onClick={async () => {
-                    if (
-                      !window.confirm(
-                        acceptedPreview
-                          ? `Restore version ${beforeSha.slice(1)} of “${baseName(file)}” as a new saved version?`
-                          : `Restore the saved version of “${baseName(file)}”? Your unsaved changes to it are discarded.`
-                      )
-                    )
-                      return;
-                    setBusy(true);
-                    try {
-                      await onRestore(file, beforeSha);
-                    } finally {
-                      setBusy(false);
-                    }
-                  }}
-                >
-                  Restore saved version
+                )}
+              </div>
+              {error ? <DvError error={error} /> : null}
+              <div className="dv-ft">
+                <span className="dv-note">
+                  {mode === 'side'
+                    ? 'A live rendered before & after — scroll to zoom, drag to pan. Both sides stay locked together.'
+                    : 'Drag the handle to wipe between the saved version and yours.'}
+                </span>
+                {onRestore && (
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm"
+                    data-testid="history-preview-restore"
+                    disabled={busy}
+                    onClick={() => {
+                      setError('');
+                      setAsking(true);
+                    }}
+                  >
+                    Restore saved version
+                  </button>
+                )}
+                <button type="button" className="btn btn--primary btn--sm" onClick={onClose}>
+                  Keep my version
                 </button>
-              )}
-              <button type="button" className="btn btn--primary btn--sm" onClick={onClose}>
-                Keep my version
-              </button>
-            </div>
-          </>
-        )}
+              </div>
+            </>
+          )}
+        </div>
       </div>
-    </div>
+      {restoreAsk ? (
+        <ConfirmAskDialog
+          over
+          title={restoreAsk.title}
+          body={restoreAsk.body}
+          confirm="Restore"
+          busyLabel="Restoring…"
+          onConfirm={doRestore}
+          onCancel={() => setAsking(false)}
+        />
+      ) : null}
+    </>
   );
 }

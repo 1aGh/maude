@@ -7576,9 +7576,10 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               );
             }, 15000).catch((error) => failedStep('preview-render', from, error));
             await from.screenshot(join(run.out, `L18-preview-selected-${from.name}.png`));
-            await from.confirmNext();
             const start = performance.now();
             await from.click(selector('history-preview-restore'));
+            // 2.0.4: Restore asks in the shell's own dialog (window.confirm is a no-op in the app).
+            await from.click(selector('tree-ask-ok'));
             await until(
               async () => (await from.read(selector('history-preview-restore'))) === null,
               15000

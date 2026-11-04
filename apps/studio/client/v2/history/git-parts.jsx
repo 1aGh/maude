@@ -5,11 +5,12 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
+import { ConfirmAskDialog } from '../canvases/folder-dialogs.jsx';
 import { useModalFocus } from '../shell/modal-focus.js';
 import {
   GIT_WORDS as W,
   chatGuardCopy,
-  discardConfirm,
+  discardAsk,
   saveState,
   slugifyBranch,
   unitCheck,
@@ -123,6 +124,9 @@ export function Banner({ banner, busy, onGetLatest, onDismiss }) {
 
 /** "Not in a version yet": one row per canvas (its sidecars travel with it), Compare, Discard. */
 export function UnsavedList({ units, canWrite, busy, onOpen, onCompare, onDiscard }) {
+  // Discard asks in the shell's own dialog: `window.confirm` always answers no in the desktop app.
+  const [asking, setAsking] = useState(null);
+  const ask = asking ? discardAsk(asking) : null;
   if (!units.length)
     return (
       <p className="vh-git-none" data-testid="vh-git-notyet">
@@ -130,51 +134,65 @@ export function UnsavedList({ units, canWrite, busy, onOpen, onCompare, onDiscar
       </p>
     );
   return (
-    <ul className="vh-git-ul" data-testid="vh-git-notyet" aria-label={W.notYet}>
-      {units.map((u) => (
-        <li className="vh-git-unit" key={u.key}>
-          <Badge kind={u.badge} title={u.badgeTitle} />
-          <button
-            type="button"
-            className="vh-git-file"
-            title={u.path}
-            onClick={() => onOpen?.(u.path)}
-          >
-            <span className="vh-git-fname">{u.name}</span>
-            <span className="vh-git-fpath">
-              {u.supporting.length ? `${u.path} · +${u.supporting.length} supporting` : u.path}
-            </span>
-          </button>
-          {u.comparable && onCompare ? (
+    <>
+      <ul className="vh-git-ul" data-testid="vh-git-notyet" aria-label={W.notYet}>
+        {units.map((u) => (
+          <li className="vh-git-unit" key={u.key}>
+            <Badge kind={u.badge} title={u.badgeTitle} />
             <button
               type="button"
-              className="icon-btn"
-              data-testid="git-compare"
-              title={W.compareFile}
-              aria-label={`${W.compareFile}: ${u.name}`}
-              onClick={() => onCompare(u.path)}
+              className="vh-git-file"
+              title={u.path}
+              onClick={() => onOpen?.(u.path)}
             >
-              <StIcon name="eye" size={13} />
+              <span className="vh-git-fname">{u.name}</span>
+              <span className="vh-git-fpath">
+                {u.supporting.length ? `${u.path} · +${u.supporting.length} supporting` : u.path}
+              </span>
             </button>
-          ) : null}
-          {canWrite ? (
-            <button
-              type="button"
-              className="btn btn--ghost btn--sm"
-              data-testid="git-discard"
-              disabled={!!busy}
-              aria-label={`${W.discard} changes to ${u.name}`}
-              onClick={() => {
-                if (!window.confirm(discardConfirm(u))) return;
-                onDiscard(u);
-              }}
-            >
-              {W.discard}
-            </button>
-          ) : null}
-        </li>
-      ))}
-    </ul>
+            {u.comparable && onCompare ? (
+              <button
+                type="button"
+                className="icon-btn"
+                data-testid="git-compare"
+                title={W.compareFile}
+                aria-label={`${W.compareFile}: ${u.name}`}
+                onClick={() => onCompare(u.path)}
+              >
+                <StIcon name="eye" size={13} />
+              </button>
+            ) : null}
+            {canWrite ? (
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                data-testid="git-discard"
+                disabled={!!busy}
+                aria-label={`${W.discard} changes to ${u.name}`}
+                onClick={() => setAsking(u)}
+              >
+                {W.discard}
+              </button>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+      {ask ? (
+        <ConfirmAskDialog
+          over
+          title={ask.title}
+          body={ask.body}
+          confirm={ask.confirm}
+          busyLabel={ask.busy}
+          onConfirm={() => {
+            const u = asking;
+            setAsking(null);
+            onDiscard(u);
+          }}
+          onCancel={() => setAsking(null)}
+        />
+      ) : null}
+    </>
   );
 }
 

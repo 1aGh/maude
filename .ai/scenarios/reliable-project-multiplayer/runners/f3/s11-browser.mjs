@@ -108,8 +108,9 @@ try {
     { op: 'lane.replace', doc, lane: 'html', base: sha(newSrc), content: newSrc.replace('New media</h1>', 'New media, peer note</h1>') },
   ]);
   result.revisions.peer = peer.revision;
-  owner.once('dialog', (d) => d.accept());
   await owner.locator('[data-testid="history-preview-restore"]').click();
+  // 2.0.4: Restore asks in the shell's own dialog, not window.confirm.
+  await owner.locator('[data-testid="tree-ask-ok"]').click();
   await owner.locator('[data-testid="history-preview-restore"]').waitFor({ state: 'detached', timeout: 30000 });
   await live(teammate).locator('img[alt="Old media"]').waitFor({ timeout: 60000 });
   result.teammateRendersRestored = await decoded(live(teammate), 'Old media');

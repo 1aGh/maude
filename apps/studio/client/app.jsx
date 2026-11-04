@@ -3477,8 +3477,12 @@ function ShellTree() {
                   /^r\d+$/.test(version || '') ? Number(version.slice(1)) : NaN
                 )
               : await gitDiscard([file]);
-            if (res?.ok) setDiffTarget(null);
-            else window.alert(res?.error || 'Could not restore that version. Try again.');
+            if (res?.ok) {
+              setDiffTarget(null);
+              return res;
+            }
+            // The sheet says why, inside itself (DiffView): `window.alert` shows nothing in the desktop app.
+            return { ok: false, error: res?.error || 'Could not restore that version. Try again.' };
           }}
           onResolve={async (choice) => {
             // phase-28 (E3): apply the chosen side via /_api/git/resolve, which
@@ -3488,11 +3492,12 @@ function ShellTree() {
             const res = await gitResolveConflict(choice);
             if (res.ok) {
               setDiffTarget(null);
-            } else {
-              window.alert(
-                res.error || 'Could not finish the merge. Get the latest again, then retry.'
-              );
+              return res;
             }
+            return {
+              ok: false,
+              error: res.error || 'Could not finish the merge. Get the latest again, then retry.',
+            };
           }}
         />
       )}
