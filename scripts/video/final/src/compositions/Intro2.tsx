@@ -33,21 +33,30 @@ export const INTRO2_SCENES: { id: string; component: React.FC; frames: number }[
 ];
 
 /** Start frame of each beat in the cut: 0, 150, 390, 555, 1005, 1305, 1515. */
-export const INTRO2_BEAT_STARTS = INTRO2_SCENES.map((_, i) =>
-  INTRO2_SCENES.slice(0, i).reduce((n, s) => n + s.frames, 0) - INTRO2_FADE * i,
+export const INTRO2_BEAT_STARTS = INTRO2_SCENES.map(
+  (_, i) => INTRO2_SCENES.slice(0, i).reduce((n, s) => n + s.frames, 0) - INTRO2_FADE * i
 );
 
 export const INTRO2_TOTAL_FRAMES =
   INTRO2_SCENES.reduce((n, s) => n + s.frames, 0) - INTRO2_FADE * (INTRO2_SCENES.length - 1); // 1800 = 60 s
 
 export const Intro2 = () => (
-  <AbsoluteFill className="maude-v2" data-theme="light" style={{ backgroundColor: 'var(--canvas-bg)' }}>
+  <AbsoluteFill
+    className="maude-v2"
+    data-theme="light"
+    style={{ backgroundColor: 'var(--canvas-bg)' }}
+  >
     <TransitionSeries>
       {INTRO2_SCENES.map((s, i) => {
         const Scene = s.component;
         return (
           <Fragment key={s.id}>
-            {i > 0 ? <TransitionSeries.Transition presentation={fade()} timing={linearTiming({ durationInFrames: INTRO2_FADE })} /> : null}
+            {i > 0 ? (
+              <TransitionSeries.Transition
+                presentation={fade()}
+                timing={linearTiming({ durationInFrames: INTRO2_FADE })}
+              />
+            ) : null}
             <TransitionSeries.Sequence durationInFrames={s.frames}>
               <Scene />
             </TransitionSeries.Sequence>

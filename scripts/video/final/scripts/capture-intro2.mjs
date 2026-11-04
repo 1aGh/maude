@@ -33,9 +33,15 @@ const URL = process.env.STUDIO_URL ?? 'http://127.0.0.1:4473/';
 const OUT = path.resolve(process.argv[2] ?? path.join(HERE, '../public/intro2/captures'));
 mkdirSync(OUT, { recursive: true });
 
-const browser = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});
+const browser = await chromium.launch(
+  process.env.CHROME ? { executablePath: process.env.CHROME } : {}
+);
 // 2x pixels so the film can push in on a capture and stay sharp.
-const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 2, colorScheme: 'light' });
+const page = await browser.newPage({
+  viewport: { width: 1920, height: 1080 },
+  deviceScaleFactor: 2,
+  colorScheme: 'light',
+});
 // Follow the system theme (light here) instead of the studio's dark default.
 await page.addInitScript(() => localStorage.setItem('maude-theme-auto', '1'));
 

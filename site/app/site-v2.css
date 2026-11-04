@@ -3473,6 +3473,22 @@
 }
 
 /* ── The intro film ── */
-.v2-site .ps-film { max-width: 1080px; margin: 0 auto; border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--border-subtle); box-shadow: var(--shadow-md); background: var(--fg-0); }
-.v2-site .ps-film video { display: block; width: 100%; height: auto; }
-.v2-site .ps-fine a { color: var(--accent-text); text-decoration: underline; text-underline-offset: 2px; }
+.v2-site .ps-film {
+  max-width: 1080px;
+  margin: 0 auto;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-md);
+  background: var(--fg-0);
+}
+.v2-site .ps-film video {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.v2-site .ps-fine a {
+  color: var(--accent-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

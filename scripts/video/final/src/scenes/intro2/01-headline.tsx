@@ -1,5 +1,5 @@
 import { Fragment } from 'react';
-import { SiteStage, at, useMs } from './stage';
+import { at, SiteStage, useMs } from './stage';
 
 /**
  * Beat 1 (0–5 s). "You like Figma. You like Claude. Meet Maude."
@@ -39,7 +39,10 @@ export const I2Headline = () => {
             <h1 className="ps-h1">
               {LINES.map((l, j) => (
                 <Fragment key={j}>
-                  <span className={`${l.quiet ? 'ps-quiet ' : ''}ps-a`} style={{ display: 'inline-block', ...at(l.d) }}>
+                  <span
+                    className={`${l.quiet ? 'ps-quiet ' : ''}ps-a`}
+                    style={{ display: 'inline-block', ...at(l.d) }}
+                  >
                     {Array.from(l.t).map((c, i) => (
                       <span key={i} style={j === 2 ? { fontWeight: bubble(i, p) } : undefined}>
                         {c}

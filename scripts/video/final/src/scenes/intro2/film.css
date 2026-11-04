@@ -13,5 +13,9 @@
   transition-property: none !important;
 }
 /* The site's ".ps-shot" sits at 1200x720 inside the page; the film scales it with the camera. */
-.i2-film .ps-shot { margin: 0; }
-.i2-film .ps-layer .ps-h1 { white-space: nowrap; }
+.i2-film .ps-shot {
+  margin: 0;
+}
+.i2-film .ps-layer .ps-h1 {
+  white-space: nowrap;
+}
