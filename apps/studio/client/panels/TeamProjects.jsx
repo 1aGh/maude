@@ -8,8 +8,11 @@
 //   • Maude Cloud — sign in with the same device flow CloudBar uses, then the
 //     projects your account belongs to. Viewers get the browser, not a dead
 //     Open (the workspace would refuse their edits).
-//   • Your team's server — its address plus the email and password the team
-//     gave you (the self-hosted hub's own sign-in).
+//   • Your team's server — its address, then "Sign in", which opens the
+//     server's OWN sign-in page in the browser (a password, "Sign in with
+//     <provider>", whatever that server offers) and comes back with a one-time
+//     code (issue #204, decision maude/v2-michal-team-server-signin-via-hub-page).
+//     The app has no email or password field for a team server.
 //
 // Every path ends in `openTeamProject` / `managedProjectOpen`: the studio holds
 // the credential and describes the project, the shell creates or reuses the
@@ -27,6 +30,7 @@ import {
   managedProjectOpen,
   managedProjectsList,
   openTeamProject,
+  openTeamServerSignIn,
 } from '../github.js';
 import { reasonProps } from '../v2/access/disabled-reason.js';
 import { SIGNIN_WORDS } from '../v2/signin/signin-model.js';
@@ -145,8 +149,8 @@ function ErrorLine({ text }) {
   );
 }
 
-// `serverOnly` (V2-4.7a): Settings › Connections › “Add a team server…” opens just the address /
-// email / password form — the recents and the cloud list have their own homes. The same form,
+// `serverOnly` (V2-4.7a): Settings › Connections › “Add a team server…” opens just the address +
+// Sign in (issue #204: the server's own page signs you in) — the recents and the cloud list have their own homes. The same form,
 // the same handler, the same consent path (opening a project still goes through the switch).
 export default function TeamProjects({ variant = 'door', initialServer = '', serverOnly = false }) {
   const [recents, setRecents] = useState(null);
@@ -158,7 +162,10 @@ export default function TeamProjects({ variant = 'door', initialServer = '', ser
   const [projects, setProjects] = useState(null);
   const [device, setDevice] = useState(null);
   const [copied, setCopied] = useState(false);
-  const [hub, setHub] = useState({ url: initialServer, email: '', password: '' });
+  const [hub, setHub] = useState({ url: initialServer });
+  // Issue #204: a team-server sign-in waiting on the browser — `{ id, url }`.
+  const [hubWait, setHubWait] = useState(null);
+  const hubPollRef = useRef(null);
   const [busy, setBusy] = useState(''); // the key of whatever is opening
   const [opening, setOpening] = useState(''); // display name once the switch started
   const [err, setErr] = useState('');
@@ -180,6 +187,7 @@ export default function TeamProjects({ variant = 'door', initialServer = '', ser
     return () => {
       alive = false;
       clearInterval(pollRef.current);
+      clearInterval(hubPollRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -276,17 +284,70 @@ export default function TeamProjects({ variant = 'door', initialServer = '', ser
   const openCloud = (p) =>
     run(`cloud:${p.id}`, p.name || p.id, () => openTeamProject({ kind: 'cloud', projectId: p.id }));
 
-  const openHub = () =>
-    run('hub', serverLabel(hub.url), () =>
-      openTeamProject({
-        kind: 'hub',
-        url: hub.url.trim(),
-        email: hub.email.trim(),
-        password: hub.password,
-      })
-    );
+  // Issue #204 — "Sign in" opens the team server's own page; this tab's server waits for the
+  // browser to come back with a one-time code, stores the sign-in, and then the project opens
+  // the way a known server's does (no credential ever passes through this page).
+  async function startHubSignIn() {
+    if (busy || hubWait) return;
+    setErr('');
+    const url = hub.url.trim();
+    const r = await api('/_api/hub-signin/start', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    if (!r.ok || !r.json?.ok) {
+      setErr(r.json?.error || 'The sign-in could not start. Try again.');
+      return;
+    }
+    const id = r.json.id;
+    const opened = await openTeamServerSignIn(r.json.signInUrl);
+    if (opened !== 'ok') {
+      void api('/_api/hub-signin/cancel', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      setErr(
+        opened === 'refused'
+          ? 'Maude won’t open that address. Check the server address.'
+          : 'Maude couldn’t open your browser. Try again.'
+      );
+      return;
+    }
+    setHubWait({ id, url });
+    clearInterval(hubPollRef.current);
+    hubPollRef.current = setInterval(async () => {
+      const p = await api('/_api/hub-signin/poll', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      if (p.json?.pending) return;
+      clearInterval(hubPollRef.current);
+      setHubWait(null);
+      if (p.ok && p.json?.ok && p.json.url) {
+        const signedIn = p.json.url;
+        run('hub', serverLabel(signedIn), () =>
+          openTeamProject({ kind: 'known-hub', url: signedIn })
+        );
+      } else setErr(p.json?.error || 'The sign-in did not finish. Try again.');
+    }, 1500);
+  }
 
-  const canHub = hub.url.trim() && hub.email.trim() && hub.password;
+  function cancelHubSignIn() {
+    clearInterval(hubPollRef.current);
+    const id = hubWait?.id;
+    setHubWait(null);
+    if (id)
+      void api('/_api/hub-signin/cancel', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+  }
+
+  const canHub = !!hub.url.trim();
 
   return (
     <div className={`tp tp--${variant}`} data-testid="team-projects">
@@ -487,7 +548,7 @@ export default function TeamProjects({ variant = 'door', initialServer = '', ser
           className="ob-form"
           onSubmit={(e) => {
             e.preventDefault();
-            if (canHub && !busy) openHub();
+            if (canHub && !busy && !hubWait) void startHubSignIn();
           }}
         >
           <label className="ob-field">
@@ -503,63 +564,52 @@ export default function TeamProjects({ variant = 'door', initialServer = '', ser
                 placeholder="https://design.yourteam.com"
                 aria-label="Server address"
                 data-testid="team-hub-url"
+                disabled={!!hubWait}
                 onChange={(e) => setHub((h) => ({ ...h, url: e.target.value }))}
               />
             </span>
           </label>
-          <label className="ob-field">
-            <span className="ob-field-label">Email</span>
-            <span className="ob-field-wrap">
-              <Icon name="user" size={14} className="ob-field-pre" />
-              <input
-                className="input ob-input"
-                type="email"
-                autoComplete="username"
-                value={hub.email}
-                placeholder="you@yourteam.com"
-                aria-label="Email"
-                data-testid="team-hub-email"
-                onChange={(e) => setHub((h) => ({ ...h, email: e.target.value }))}
-              />
-            </span>
-          </label>
-          <label className="ob-field">
-            <span className="ob-field-label">Password</span>
-            <span className="ob-field-wrap">
-              <Icon name="key" size={14} className="ob-field-pre" />
-              <input
-                className="input ob-input"
-                type="password"
-                autoComplete="current-password"
-                value={hub.password}
-                aria-label="Password"
-                data-testid="team-hub-password"
-                onChange={(e) => setHub((h) => ({ ...h, password: e.target.value }))}
-              />
-            </span>
-          </label>
-          <div className="ob-form-actions">
-            <button
-              type="submit"
-              className="btn btn--primary"
-              disabled={!canHub || !!busy}
-              {...reasonProps(
-                !canHub || !!busy,
-                busy ? 'Opening…' : 'Fill in the address, email and password first.'
-              )}
-              data-testid="team-hub-open"
-            >
-              {busy === 'hub' ? (
-                <>
-                  <Icon name="spinner" size={15} className="ob-spin" /> Signing in…
-                </>
-              ) : (
-                <>
-                  <Icon name="arrow-right" size={15} /> Sign in and open
-                </>
-              )}
-            </button>
-          </div>
+          {hubWait ? (
+            <div className="ob-form-actions" data-testid="team-hub-waiting">
+              <span className="gi-dc-status" aria-live="polite">
+                <span className="gi-pulse" aria-hidden="true" /> Finish signing in in your browser…
+              </span>
+              <button
+                type="button"
+                className="btn btn--ghost"
+                onClick={cancelHubSignIn}
+                data-testid="team-hub-cancel"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <div className="ob-form-actions">
+              <button
+                type="submit"
+                className="btn btn--primary"
+                disabled={!canHub || !!busy}
+                {...reasonProps(
+                  !canHub || !!busy,
+                  busy ? 'Opening…' : 'Fill in the server address first.'
+                )}
+                data-testid="team-hub-open"
+              >
+                {busy === 'hub' ? (
+                  <>
+                    <Icon name="spinner" size={15} className="ob-spin" /> Opening…
+                  </>
+                ) : (
+                  <>
+                    <Icon name="external" size={15} /> Sign in
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+          <p className="ob-foot-note">
+            Opens your team server’s sign-in page in your browser, then brings you back.
+          </p>
         </form>
       </section>
 

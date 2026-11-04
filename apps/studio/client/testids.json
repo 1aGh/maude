@@ -4373,12 +4373,9 @@
       "symbol": "TeamProjects"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/selfhost-entry.e2e.ts",
-      "apps/desktop/e2e/scenarios/s20-deployment.e2e.ts",
-      "apps/desktop/e2e/scenarios/team-project.e2e.ts"
-    ],
-    "v2": "stable"
+    "consumers": [],
+    "v2": "retired",
+    "notes": "Retired 2.0.4 (#204, decision maude/v2-michal-team-server-signin-via-hub-page): the app has no email or password field for a team server; they live on the server's own sign-in page, which Sign in (`team-hub-open`) opens in the browser."
   },
   {
     "hook": "team-hub-password",
@@ -4390,18 +4387,15 @@
       "symbol": "TeamProjects"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/selfhost-entry.e2e.ts",
-      "apps/desktop/e2e/scenarios/s20-deployment.e2e.ts",
-      "apps/desktop/e2e/scenarios/team-project.e2e.ts"
-    ],
-    "v2": "stable"
+    "consumers": [],
+    "v2": "retired",
+    "notes": "Retired 2.0.4 (#204, decision maude/v2-michal-team-server-signin-via-hub-page): the app has no email or password field for a team server; they live on the server's own sign-in page, which Sign in (`team-hub-open`) opens in the browser."
   },
   {
     "hook": "team-hub-open",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Self-hosted hub: Open submit.",
+    "meaning": "Self-hosted hub: Sign in — opens the team server's OWN sign-in page in the browser (issue #204; the page offers password, OIDC, …) and comes back signed in.",
     "producer": {
       "file": "apps/studio/client/panels/TeamProjects.jsx",
       "symbol": "TeamProjects"
@@ -4413,6 +4407,32 @@
       "apps/desktop/e2e/scenarios/team-project.e2e.ts"
     ],
     "v2": "stable"
+  },
+  {
+    "hook": "team-hub-waiting",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Self-hosted hub: the wait while the person signs in on the server's page in the browser.",
+    "producer": {
+      "file": "apps/studio/client/panels/TeamProjects.jsx",
+      "symbol": "TeamProjects"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "team-hub-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Self-hosted hub: Cancel that wait — the attempt is forgotten.",
+    "producer": {
+      "file": "apps/studio/client/panels/TeamProjects.jsx",
+      "symbol": "TeamProjects"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "v2": "new"
   },
   {
     "hook": "team-projects-dialog",

@@ -36,6 +36,8 @@ export const LEGACY_ROWS = Object.freeze([
   { path: '/studio/signin', cap: { safe: null, unsafe: null }, scope: 'none' },
   { path: '/auth/oidc/start', cap: { safe: null, unsafe: null }, scope: 'none' },
   { path: '/auth/oidc/callback', cap: { safe: null, unsafe: null }, scope: 'none' },
+  // Issue #204: the Maude app trades a one-time code + its PKCE verifier — no peer token yet.
+  { path: '/auth/desktop/exchange', cap: { safe: null, unsafe: null }, scope: 'none' },
   // Any other `/auth/…` is hub-owned (never proxied) and served by no branch.
   { path: '/auth/*', cap: { safe: null, unsafe: 'edit' }, scope: 'none' },
   // Magic-link invites: `/join/<token>` only looks; `/join` POST redeems.

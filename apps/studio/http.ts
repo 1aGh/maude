@@ -593,6 +593,19 @@ export function sameOriginRead(req: Request): boolean {
 }
 
 /**
+ * Issue #204 — a browser's own top-level navigation (a link, a redirect, a meta refresh), never a
+ * fetch, an image or a frame: Fetch Metadata says `navigate` + `document`. Only a table spec that
+ * sets `crossSiteNavigation` accepts one from another site (the team-server sign-in return).
+ */
+export function isTopLevelNavigation(req: Request): boolean {
+  return (
+    req.method === 'GET' &&
+    req.headers.get('sec-fetch-mode') === 'navigate' &&
+    req.headers.get('sec-fetch-dest') === 'document'
+  );
+}
+
+/**
  * Every table route is privileged (migrate rewrites the tree; the outbox lists queued intents):
  * the same double gate every main-origin route carries — Origin check (reads and writes) +
  * the DNS-rebinding guard — before the handler runs. V2-2.5: module-level (was `guardLane`
@@ -602,7 +615,10 @@ export function guardTableRoute(spec: RouteSpec): RouteSpec {
   return {
     ...spec,
     handle: (req, params) => {
-      const sameOrigin = spec.method === 'GET' ? sameOriginRead(req) : sameOriginWrite(req);
+      const sameOrigin =
+        spec.method === 'GET'
+          ? sameOriginRead(req) || (spec.crossSiteNavigation === true && isTopLevelNavigation(req))
+          : sameOriginWrite(req);
       if (!sameOrigin)
         return (
           spec.refuse?.('cross-origin') ?? new Response('cross-origin rejected', { status: 403 })
@@ -2615,6 +2631,10 @@ export function createHttp(
     cloudPlan: { cloud: cloudApi },
     // S11.14 — GET /_api/connections/hub (routes/connections.ts): main origin only, the hub credential.
     connections: { designRoot: ctx.paths.designRoot },
+    hubSignin: {
+      linkedHubUrl: () => ctx.cfg.linkedHub?.url,
+      restartSync: () => ctx.syncControl?.restart(),
+    },
   }).map(guardTableRoute);
   // p8-a1-claims — outside the gates: a write that names an AI chat answers inside its run's claim
   // (in place, so every consumer of the table — the mount, the local gate — sees the same specs)

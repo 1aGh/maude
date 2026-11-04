@@ -147,6 +147,26 @@ export const managedProjectOpen = (p) =>
     name: p.name || p.projectId,
     canvasGroups: p.canvasGroups || [],
   });
+/**
+ * Issue #204 — open a team server's own sign-in page (`/studio/signin?client=desktop…`, built by
+ * `/_api/hub-signin/start`) in the browser. In the app Rust opens exactly that page shape and only
+ * with this tab's own return address (external_link.rs `open_team_server_signin`); in a plain
+ * browser it is a new tab. Resolves 'ok' | 'refused' | 'failed'.
+ */
+export function openTeamServerSignIn(url) {
+  if (isNativeApp()) {
+    return invoke('open_team_server_signin', { url }).then(
+      () => 'ok',
+      (e) => (/Refusing/i.test(String(e)) ? 'refused' : 'failed')
+    );
+  }
+  try {
+    window.open(url, '_blank', 'noopener');
+    return Promise.resolve('ok');
+  } catch {
+    return Promise.resolve('failed');
+  }
+}
 /** The team projects this computer keeps a copy of, most recent first. */
 // Outside the app there are no managed copies — and invoke() throws synchronously there, which a
 // caller's `.catch()` never sees (the P8 sweep: Settings › Add a team server… crashed the browser shell).
