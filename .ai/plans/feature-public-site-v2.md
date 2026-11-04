@@ -492,7 +492,7 @@ node apps/cloud/scripts/stripe-live-catalog.mjs --dry-run
 
 Expected: 3 products and 4 prices: Cloud Project 19.00 EUR/month and 190.00 EUR/year, Dedicated 99.00 EUR/month, Storage add-on 5.00 EUR/month, all `tax_behavior=exclusive`.
 
-**2. Make a temporary live key.** Dashboard, Developers, API keys, *Create restricted key* (live mode), named `catalog-temp`. Permissions: **Products write, Prices write**, and (optional) Account read. Nothing else. Do not reuse the Worker's key for this.
+**2. Make a temporary live key.** Dashboard, Developers, API keys, *Create restricted key* (live mode), named `catalog-temp`. Permissions: **Products write, Prices write** (write includes read; the script only reads products and prices it then creates). Nothing else. Do not reuse the Worker's key for this.
 
 **3. Live run.** The key goes in the environment of this shell only, typed at a silent prompt so it is in no command line and no history:
 
