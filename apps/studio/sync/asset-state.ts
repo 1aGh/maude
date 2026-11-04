@@ -27,6 +27,7 @@ import path from 'node:path';
 
 import { listPushableAssets } from './asset-push.ts';
 import { type CanvasGroupLike, classifyProjectFile } from './file-membership.ts';
+import { hasLfsObject, lfsObjectsDir, readLfsPointer } from './lfs-pointer.ts';
 
 export interface AssetWho {
   name: string | null;
@@ -40,7 +41,12 @@ export type AssetState =
   | { state: 'uploading'; progress?: number }
   /** `syncing`: the hub has the bytes, this Mac has not pulled them yet ("Syncing…"). */
   | { state: 'waiting'; who?: AssetWho; syncing?: true }
-  | { state: 'missing' };
+  | { state: 'missing' }
+  /**
+   * 2.0.3: the file IS on this disk, but it is a Git LFS pointer (the project was cloned without
+   * `git lfs pull`). `localObject`: the real bytes are already in this repo's `.git/lfs/objects`.
+   */
+  | { state: 'lfs-pointer'; localObject: boolean };
 
 export type HubPresenceState = 'here' | 'waiting' | 'missing' | 'unknown';
 export interface HubPresenceItem {
@@ -79,11 +85,15 @@ export function isAssetStateRel(rel: unknown): rel is string {
  */
 export function combineAssetState(input: {
   onDisk: boolean;
+  /** The file on disk is a Git LFS pointer (wins over `uploading`: those bytes are not the media). */
+  lfsPointer?: { localObject: boolean } | null;
   uploading?: { progress?: number } | null;
   linked: boolean;
   hub: HubPresenceItem | null;
 }): AssetState {
   if (input.onDisk) {
+    if (input.lfsPointer)
+      return { state: 'lfs-pointer', localObject: input.lfsPointer.localObject };
     if (input.uploading) {
       return input.uploading.progress === undefined
         ? { state: 'uploading' }
@@ -234,6 +244,8 @@ export interface AssetStateService {
  */
 export function createAssetStateService(deps: {
   designRoot: string;
+  /** The project root, for the Git LFS object store (`lfs-pointer` → `localObject`). Absent: never local. */
+  projectRoot?: string;
   hub: () => AssetPresenceAsker | null;
   uploading?: () => ReadonlyMap<string, { progress?: number }> | null;
   now?: () => number;
@@ -242,6 +254,13 @@ export function createAssetStateService(deps: {
   const now = deps.now ?? Date.now;
   const ttl = deps.ttlMs ?? ASSET_STATE_TTL_MS;
   const cache = new Map<string, { at: number; item: HubPresenceItem | null }>();
+  // The server's own project root, resolved once (never from a request).
+  let objectsDir: string | null | undefined;
+  const store = () => {
+    if (objectsDir === undefined)
+      objectsDir = deps.projectRoot ? lfsObjectsDir(deps.projectRoot) : null;
+    return objectsDir;
+  };
 
   return {
     invalidate: () => cache.clear(),
@@ -271,8 +290,11 @@ export function createAssetStateService(deps: {
       }
       const out: Record<string, AssetState> = {};
       for (const r of wanted) {
+        // ≤ 1 KB read, and only of a small file that is here (readLfsPointer stats first).
+        const ptr = onDisk.get(r) ? readLfsPointer(path.join(deps.designRoot, r)) : null;
         out[r] = combineAssetState({
           onDisk: onDisk.get(r) === true,
+          lfsPointer: ptr ? { localObject: hasLfsObject(store(), ptr.oid) } : null,
           uploading: queue?.get(r) ?? null,
           linked: hub !== null,
           hub: hub ? (cache.get(r)?.item ?? null) : null,
@@ -340,7 +362,10 @@ export function heldMediaRels(
     canvasGroups: opts.canvasGroups,
     syncFiles: true,
   }).filter(
-    (rel) => classifyProjectFile(rel, { canvasGroups: opts.canvasGroups }) === 'inert-media'
+    (rel) =>
+      classifyProjectFile(rel, { canvasGroups: opts.canvasGroups }) === 'inert-media' &&
+      // a Git LFS pointer is not the picture: this Mac does not hold it (2.0.3)
+      readLfsPointer(path.join(designRoot, rel)) === null
   );
 }
 

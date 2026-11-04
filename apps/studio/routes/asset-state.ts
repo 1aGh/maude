@@ -67,6 +67,9 @@ export function assetStateDepsFor(opts: {
   const inCell = (opts.env ?? process.env).MAUDE_WORKSPACE_MODE === '1';
   const service = createAssetStateService({
     designRoot: opts.designRoot,
+    // The project root is designRoot minus designRel (`.design`): where the Git LFS store is looked
+    // for. The server's own paths, never a request's.
+    projectRoot: projectRootOf(opts.designRoot, opts.designRel),
     hub: () => opts.runtime()?.assetPresenceAsker?.() ?? null,
     uploading: () => opts.runtime()?.assetUploading?.() ?? null,
   });
@@ -76,6 +79,15 @@ export function assetStateDepsFor(opts: {
     designRel: opts.designRel,
     ...(opts.access ? { access: opts.access } : {}),
   };
+}
+
+/** `<repo>/.design` + `.design` → `<repo>`. */
+export function projectRootOf(designRoot: string, designRel: string): string {
+  const ups = designRel
+    .split(/[\\/]+/)
+    .filter((s) => s && s !== '.')
+    .map(() => '..');
+  return path.resolve(designRoot, ...ups);
 }
 
 function canvasRels(deps: AssetStateRouteDeps, file: string): string[] | null {
