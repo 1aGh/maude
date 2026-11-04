@@ -70,10 +70,15 @@ race's line-merge limit, not F14.
   `unsaved-change`, nothing lands (red on v2.0.3: 200 and the restore landed).
 - `scripts/dev/trash-sync-repro.mjs --scenario restore [--settle 1] [--restorer alice] [--editor alice]`.
 
-## Follow-ups
+## Follow-ups (done, `fix/204-history-restore-settles`)
 
-- Version history: `routes/history.ts` `restoreScoped` (before `revisionOf(rt, 'now')`) and the
-  whole-canvas restore (before `acceptedRestore`) call `settleBeforeRestore` and answer its
-  status/reason/line.
-- `team-cell-missing.e2e.ts` 05 es-all-trashed: drop the "Saved, held for four seconds" wait so the
-  click lands as soon as the card shows (the race this fix closes).
+- Version history: every restore in `routes/history.ts` (`restoreScoped` before `revisionOf(rt,
+  'now')`, Go back before `findLastGood`, the kept-aside restore, the whole-canvas restore before
+  `acceptedRestore`) calls `settleBeforeRestore` (`unsettled`) and answers 409 reason + line.
+  The panel's `restoreVersion` toasts the line; Go back (`goBackToLastGood`) now prefers it over its
+  own 409 words. Tests: `test/restore-sync-both-directions.test.ts` "F14 — Version history …" (real
+  hub: Restore only <artboard> and Restore this version over an undelivered hand edit; a held change
+  → 409 for both), `test/f14-history-restore-line.test.ts`, `v2-canvas-error-card.test.tsx`.
+  Rig: `--scenario history [--whole] --settle 1` — 0/10 → 10/10 each (local, the mini was full).
+- `team-cell-missing.e2e.ts` 05 es-all-trashed: the "Saved, held for four seconds" wait is gone; the
+  click lands as soon as the card shows. Lane green 3/3.
