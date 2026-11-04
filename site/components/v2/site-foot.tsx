@@ -80,7 +80,8 @@ export function SiteFoot() {
         <p className="ps-foot-imprint">
           Bc. Michal Dovrtěl · IČO 03387666 · Houbalova 2088/5, Líšeň, 628 00 Brno, Czech Republic ·
           registered in the Trade Licensing Register since 10 September 2014 (trade licensing
-          office: [office, Michal to fill]) · <a href="mailto:cloud@maude.sh">cloud@maude.sh</a>
+          office: [office, Michal to fill]) · <a href="mailto:cloud@maude.sh">cloud@maude.sh</a> ·{' '}
+          <a href="tel:+420774252025">+420 774 252 025</a>
         </p>
         <div className="ps-foot-base">
           <span>MIT license · no telemetry</span>
