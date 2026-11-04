@@ -70,10 +70,12 @@ export function PricingPlans() {
         </article>
       </div>
       <p className="ps-small" style={{ textAlign: 'center', marginTop: 'var(--space-4)' }}>
-        Prices shown without VAT. For individuals: {PRICE.projectCz} a month including 21 % Czech
-        VAT. Other EU countries pay their own rate, shown before you pay. Businesses with a VAT id
-        pay {PRICE.project} (reverse charge). Payment is handled by our merchant of record, Lemon
-        Squeezy (Sold through Link), who add the VAT and show the total before you enter a card.
+        Prices in euros; customers in the United States pay the same figure in US dollars, never a
+        converted amount. Prices shown without VAT. For individuals: {PRICE.projectCz} a month
+        including 21 % Czech VAT. Other EU countries pay their own rate, shown before you pay.
+        Businesses with a VAT id pay {PRICE.project} (reverse charge). Payment is handled by our
+        merchant of record, Lemon Squeezy (Sold through Link), who add the VAT and show the total
+        before you enter a card.
       </p>
       <p className="ps-small" style={{ textAlign: 'center', marginTop: 'var(--space-2)' }}>
         The first {PRICE.trialDays} days are free. If you start through checkout, your card is saved
