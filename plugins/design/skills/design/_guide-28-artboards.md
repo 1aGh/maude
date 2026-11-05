@@ -79,6 +79,7 @@ useEffect(() => {
 ```
 
 - Raw WebGL code also listens for `webglcontextrestored` and rebuilds its buffers and shaders; three.js does that by itself.
+- A WebGL artboard that was never live (a canvas opened zoomed out) gets its picture once Maude has let it draw a frame, one artboard at a time. A scene that draws nothing until its artboard is live shows its name until then.
 - `useArtboardSeen()` is `true` once the artboard has been near the viewport. Use it to delay an expensive first mount.
 - A canvas that crashes the window twice opens behind "This canvas is too heavy to show all at once" with **Show visible artboards only**, which mounts only the artboards near the viewport.
 

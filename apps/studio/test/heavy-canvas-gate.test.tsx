@@ -205,6 +205,7 @@ describe('artboard live gate', () => {
     const live = new Set<string>();
     const b = new WebglBudget((id) => (id ? live.has(id) : true), 2);
     const calls: string[] = [];
+    const lost = new Set<string>();
     const mk = (id: string, x: number) => {
       const board = document.createElement('div');
       board.setAttribute('data-dc-screen', id);
@@ -214,8 +215,19 @@ describe('artboard live gate', () => {
       document.body.append(board);
       const gl = {
         getExtension: () => ({
-          loseContext: () => calls.push(`lose:${id}`),
-          restoreContext: () => calls.push(`restore:${id}`),
+          loseContext: () => {
+            calls.push(`lose:${id}`);
+            lost.add(id);
+            // The browsers dispatch the loss later; restoreContext() works only after it was cancelled.
+            setTimeout(
+              () => c.dispatchEvent(new Event('webglcontextlost', { cancelable: true })),
+              0
+            );
+          },
+          restoreContext: () => {
+            calls.push(`restore:${id}`);
+            lost.delete(id);
+          },
         }),
       };
       b.track(c, gl as unknown as WebGLRenderingContext);
@@ -226,11 +238,14 @@ describe('artboard live gate', () => {
     mk('c', 2000);
     b.apply();
     await new Promise((r) => setTimeout(r, 50));
-    expect(calls).toEqual(['lose:c']);
+    // The third context is past the cap the moment it is created: one is released at once (the oldest),
+    // then the plan keeps the two nearest live and releases the far one.
+    expect([...lost]).toEqual(['c']);
     expect(b.stats()).toEqual({ tracked: 3, live: 2, lost: 1 });
     live.delete('a');
     b.apply();
     await new Promise((r) => setTimeout(r, 50));
-    expect([...calls].sort()).toEqual(['lose:a', 'lose:c', 'restore:c']);
+    expect([...lost].sort()).toEqual(['a']);
+    expect(calls.filter((c) => c === 'restore:c')).toHaveLength(1);
   });
 });
