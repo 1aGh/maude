@@ -61,6 +61,7 @@ import { WaitingCards } from '../v2/ai/WaitingCard.jsx';
 import { useAttachments } from '../v2/ai/use-attachments.js';
 import { notify } from '../../notifications.tsx';
 import { DEFAULT_TRANSCRIPT_VIEW, TRANSCRIPT_VIEWS } from './transcript-view.js';
+import { createFinishTracker } from './chat-finish.js';
 
 // DDR-185 — shared "did a genuinely new item arrive" check for the
 // permission/elicitation effects below: both need the identical shape (diff
@@ -708,59 +709,23 @@ export default function ChatPanel({
       // premature turn-end. (RCA issue-acp-subagent-activity-invisible.)
       // Issue #177 — and the background tasks Claude Code reports (a subagent, a command left
       // running), which outlive even their own tool call: they keep the dot lit and hold the ping too.
-      let toolsActive = false; // a tool (e.g. a subagent) is still running
-      let tasksActive = false; // a background task is still running
-      let bgActive = false; // either of the two
-      let busyNow = false; // the prompt turn itself is in flight
-      let deferredFinish = false; // turn ended while background work continued
-      const syncAggregate = () => {
-        const wasAny = [...busyRef.current.values()].some(Boolean);
-        busyRef.current.set(chatId, busyNow || bgActive);
-        const nowAny = [...busyRef.current.values()].some(Boolean);
-        if (wasAny !== nowAny) cbRef.current.onBusyChange?.(nowAny);
-      };
-      const onBackgroundChange = () => {
-        bgActive = toolsActive || tasksActive;
-        syncAggregate();
-        if (deferredFinish && !bgActive && !busyNow) {
-          deferredFinish = false;
-          setBusyChats((prev) => ({ ...prev, [chatId]: false }));
-          cbRef.current.onFinished?.();
-          refreshChats();
-        }
-      };
-      conn.onActivity((activeTools) => {
-        toolsActive = activeTools.length > 0;
-        onBackgroundChange();
+      // When the chat counts as finished lives in chat-finish.js: only a busy → not-busy change is
+      // the end of a turn (the subscribe-time replay of an idle chat is not), and background work
+      // holds the ping until it drains.
+      const finish = createFinishTracker({
+        aggregate: (busy) => {
+          const wasAny = [...busyRef.current.values()].some(Boolean);
+          busyRef.current.set(chatId, busy);
+          const nowAny = [...busyRef.current.values()].some(Boolean);
+          if (wasAny !== nowAny) cbRef.current.onBusyChange?.(nowAny);
+        },
+        dot: (on) => setBusyChats((prev) => ({ ...prev, [chatId]: on })),
+        finished: () => cbRef.current.onFinished?.(),
+        refresh: () => refreshChats(),
       });
-      conn.onBackgroundTasks((tasks) => {
-        tasksActive = tasks.length > 0;
-        if (tasksActive && !busyNow) {
-          // work started outside a turn (a follow-up the AI began on its own): lit until it ends
-          deferredFinish = true;
-          setBusyChats((prev) => ({ ...prev, [chatId]: true }));
-        }
-        onBackgroundChange();
-      });
-      conn.onBusy((busy) => {
-        busyNow = busy;
-        syncAggregate();
-        if (busy) {
-          deferredFinish = false; // a new turn supersedes any pending drain ping
-          setBusyChats((prev) => ({ ...prev, [chatId]: true })); // reactive dot
-          return;
-        }
-        // Turn ended. If background work is still draining, keep the dot lit and
-        // hold the "finished" ping until the activity list empties (onActivity).
-        if (bgActive) {
-          deferredFinish = true;
-          refreshChats();
-        } else {
-          setBusyChats((prev) => ({ ...prev, [chatId]: false }));
-          cbRef.current.onFinished?.();
-          refreshChats();
-        }
-      });
+      conn.onActivity((activeTools) => finish.activity(activeTools));
+      conn.onBackgroundTasks((tasks) => finish.tasks(tasks));
+      conn.onBusy((busy) => finish.busy(busy));
       return conn;
     },
     [refreshChats]
