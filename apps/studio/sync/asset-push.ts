@@ -666,6 +666,10 @@ export async function pushAssets(opts: {
       await one(rel, false);
     }
   };
+  // The sweep's FIRST upload goes alone: the door's answer to it — 405 (no checkout: nothing can
+  // ever land, the media gate stops the lane), a 429 (pace us) — is known before the pool opens,
+  // so a door that says no gets one body, not `width` bodies already on the wire.
+  if (!stop && next < queue.length && !opts.cancelled?.()) await one(queue[next++] as string, false);
   await Promise.all(Array.from({ length: width }, (_, id) => worker(id)));
   for (const rel of timedOut) {
     if (stop || opts.cancelled?.()) break;
