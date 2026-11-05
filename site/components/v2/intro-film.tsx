@@ -16,6 +16,7 @@ export function IntroFilm() {
       </div>
       <div className="ps-film">
         <video
+          data-track="intro"
           controls
           playsInline
           preload="metadata"

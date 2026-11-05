@@ -22,6 +22,10 @@
   ],
   "observability": { "enabled": true },
 
+  // Anonymous download and click counts (lib/track.ts). The dataset is created on the
+  // first write; read it with the SQL API (README.md § "Analytics").
+  "analytics_engine_datasets": [{ "binding": "EVENTS", "dataset": "maude_site_events" }],
+
   // Custom domains, live since the DNS switch on 2026-11-05. `wrangler deploy` reconciles a
   // script's custom domains against this list and detaches any it does not declare, so these
   // two lines are what keep maude.sh on this worker. www.maude.sh 301s to the apex through a

@@ -57,7 +57,12 @@ export function Hero() {
       </div>
 
       <div className="ps-hero-copy">
-        <Link className="ps-announce ps-a ps-a--fade" href="/whats-new" style={at(0)}>
+        <Link
+          className="ps-announce ps-a ps-a--fade"
+          href="/whats-new"
+          data-track="hero-whats-new"
+          style={at(0)}
+        >
           <b>Maude {major} is here</b> <span className="ps-announce-t">{newest.title}</span>
           <span className="ps-announce-go">
             See what's new <Icon name="submenu" size={12} />
@@ -69,11 +74,11 @@ export function Hero() {
           design is a real file, in a project that is yours.
         </p>
         <div className="ps-row ps-a" style={{ justifyContent: 'center', ...at(T.ctas) }}>
-          <Link className="btn btn--primary btn--lg" href="/desktop">
+          <Link className="btn btn--primary btn--lg" href="/desktop" data-track="hero-download">
             <DownloadLabel suffix=" · free" />
           </Link>
           {CLOUD_CTA_ON ? (
-            <Link className="btn btn--lg ps-hero-more" href="/cloud">
+            <Link className="btn btn--lg ps-hero-more" href="/cloud" data-track="hero-cloud">
               Try Maude Cloud
             </Link>
           ) : null}
@@ -86,7 +91,9 @@ export function Hero() {
           {PRICING_ON
             ? ` Maude Cloud from ${PRICE.project} a month per project, for the whole team.`
             : ''}{' '}
-          <a href="#intro">Watch the 1-minute intro</a>
+          <a href="#intro" data-track="hero-intro">
+            Watch the 1-minute intro
+          </a>
         </span>
       </div>
     </section>

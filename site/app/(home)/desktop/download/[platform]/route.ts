@@ -23,6 +23,7 @@
 
 import { withEdgeCache } from '@/lib/edge-cache';
 import { gitConfig } from '@/lib/shared';
+import { hostOf, track } from '@/lib/track';
 import { DOWNLOAD_CACHE_PENDING, downloadRedirect } from '@/lib/updater-feed.mjs';
 
 const REPO = `${gitConfig.user}/${gitConfig.repo}`;
@@ -49,7 +50,16 @@ type Ctx = { params: Promise<{ platform: string }> };
 
 // `withEdgeCache`: on Workers nothing in front of the route honours the redirect's
 // Cache-Control, so the Workers Cache API does (a pass-through elsewhere).
-export function GET(req: Request, ctx: Ctx) {
+// The count happens BEFORE the cache: a cached redirect is still a download (lib/track.ts).
+export async function GET(req: Request, ctx: Ctx) {
+  const { platform } = await ctx.params;
+  const from = req.headers.get('referer');
+  track(
+    req,
+    'download',
+    platform,
+    hostOf(from) === new URL(req.url).hostname ? new URL(from as string).pathname : ''
+  );
   return withEdgeCache(req, () => resolve(ctx));
 }
 
