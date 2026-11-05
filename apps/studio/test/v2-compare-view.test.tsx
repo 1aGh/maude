@@ -663,15 +663,23 @@ describe('the compare frames follow the theme', () => {
     const host = document.createElement('div');
     document.body.append(host);
     const root = createRoot(host);
+    // Poll instead of a fixed wait: a slow CI runner missed the flip inside a 60 ms window.
+    const has = (i: number, theme: string) =>
+      posted.some(([n, m]) => n === i && (m as { theme?: string })?.theme === theme);
+    const until = async (ok: () => boolean) => {
+      for (let t = 0; t < 100 && !ok(); t++) {
+        await act(async () => new Promise((r) => setTimeout(r, 20)));
+      }
+    };
     await act(async () => root.render(<Probe />));
-    await act(async () => new Promise((r) => setTimeout(r, 30)));
+    await until(() => has(0, 'light') && has(1, 'light'));
     expect(posted).toContainEqual([0, { dgn: 'theme', theme: 'light' }]);
     expect(posted).toContainEqual([1, { dgn: 'theme', theme: 'light' }]);
     posted.length = 0;
     await act(async () => {
       document.documentElement.setAttribute('data-theme', 'dark');
-      await new Promise((r) => setTimeout(r, 60));
     });
+    await until(() => has(1, 'dark'));
     expect(posted).toContainEqual([1, { dgn: 'theme', theme: 'dark' }]);
     await act(async () => root.unmount());
     host.remove();

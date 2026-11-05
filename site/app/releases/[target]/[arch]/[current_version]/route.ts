@@ -20,7 +20,7 @@
 // pure functions in site/lib/updater-feed.mjs, tested by
 // scripts/test/updater-feed.test.mjs — keep the logic there, not here.
 //
-// Set GITHUB_TOKEN (Worker secret / Vercel env) to lift the 60-req/h unauthenticated
+// Set GITHUB_TOKEN (a Worker secret on maude-site) to lift the 60-req/h unauthenticated
 // GitHub API limit; the response is CDN-cached for 5 min so real traffic rarely
 // hits the API.
 

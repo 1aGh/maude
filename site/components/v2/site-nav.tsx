@@ -27,7 +27,7 @@ export function SiteNav() {
           <a className="ps-gh" href={githubUrl}>
             GitHub
           </a>
-          <Link className="btn btn--ghost btn--sm ps-dl" href="/desktop">
+          <Link className="btn btn--ghost btn--sm ps-dl" href="/desktop" data-track="nav-download">
             Download
           </Link>
           <NavBuy />

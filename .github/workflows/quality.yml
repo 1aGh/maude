@@ -8,7 +8,50 @@ on:
 permissions:
   contents: read
 
+# A new push to a PR supersedes the run for the old head: cancel it rather than
+# let a ~40 min run finish for a commit nobody will merge (during the 2.0.4
+# release four of them queued behind each other). Pushes to main are never
+# cancelled — every main commit keeps its own record.
+concurrency:
+  group: quality-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  # Does this change reach code the studio suite tests? A PR that touches only
+  # the public site, the .ai/ workspace or top-level Markdown skips the shards
+  # (the Quality job still runs in full, site build included). Anything else —
+  # and every push to main — runs them. Deliberately a short allow-list: a path
+  # missing from it costs a few minutes, a path wrongly on it costs a bug.
+  changes:
+    name: Changed paths
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      studio: ${{ steps.paths.outputs.studio }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: paths
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "$EVENT" != "pull_request" ]; then
+            echo "studio=true" >> "$GITHUB_OUTPUT"
+            echo "not a pull request: the studio suite runs"
+            exit 0
+          fi
+          other=$(git diff --name-only "$BASE"...HEAD | grep -vE '^(site/|\.ai/)|^[^/]+\.md$' || true)
+          if [ -z "$other" ]; then
+            echo "studio=false" >> "$GITHUB_OUTPUT"
+            echo "only site/, .ai/ or top-level Markdown changed: the studio suite is skipped"
+          else
+            echo "studio=true" >> "$GITHUB_OUTPUT"
+            echo "studio-relevant changes (first 20):"
+            echo "$other" | head -20
+          fi
+
   quality:
     name: Quality (lint+test+links)
     runs-on: ubuntu-latest
@@ -257,7 +300,7 @@ jobs:
             exit 1
           }
 
-  studio-suite:
+  studio-shard:
     # REQUIRED since V2-2.13 (2026-10-09). It ran non-blocking first, on
     # purpose: the full apps/studio suite had never run in any workflow, local
     # figures were taken on a loaded laptop (which fabricates failures), and
@@ -288,10 +331,24 @@ jobs:
     # Branch protection still lists only "Quality (lint+test+links)" and
     # "Version parity check" as required contexts; making "Studio suite (full)"
     # a merge gate is a repo-settings change for the owner (V2-2.13 hand-back).
-    name: Studio suite (full)
+    #
+    # Since 2026-11-05 the suite runs as 6 parallel shards instead of one
+    # ~36 min `bun test`: scripts/studio-shard.mjs balances the files by their
+    # measured run time (scripts/studio-test-timings.json) and leaves out the
+    # sync lane, which the Quality job above already runs. Each shard numbers its
+    # files in the log ([41/303] …), refuses to pass if it ran fewer files than
+    # it was given, and writes a step summary. The "Studio suite (full)" job
+    # below merges the shards and is the one status to read.
+    name: Studio suite shard ${{ matrix.index }}/6
+    needs: changes
+    if: needs.changes.outputs.studio == 'true'
     runs-on: ubuntu-latest
     # Hang guard — see the quality job.
-    timeout-minutes: 45
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        index: [1, 2, 3, 4, 5, 6]
     steps:
       - uses: actions/checkout@v7
 
@@ -330,15 +387,16 @@ jobs:
           echo "$GITHUB_WORKSPACE/apps/desktop/node_modules/.bin" >> "$GITHUB_PATH"
           apps/desktop/node_modules/.bin/agent-browser install --with-deps
 
-      - name: Full studio suite
+      - name: Studio suite (this shard)
         env:
           MAUDE_SYNC_IN_CI: '1' # see the required sync-lane step in the job above
         # Same dist clobber guard as the required sync lane above: a clobbered
-        # bundle fails the run here too.
+        # bundle fails the run here too. The runner is the full-suite invocation
+        # `bun test --isolate --timeout 20000` over this shard's files.
         run: |
           git diff --quiet -- apps/studio/dist/ \
             || { echo "::error::apps/studio/dist/ was already dirty before the tests ran"; exit 1; }
-          (cd apps/studio && bun test --isolate --timeout 20000)
+          node scripts/studio-shard-run.mjs --total 6 --index ${{ matrix.index }} --out shard-${{ matrix.index }}.json
           git diff --quiet -- apps/studio/dist/ || {
             echo "::error::apps/studio/dist/ was modified by the test run — the committed release bundles were clobbered."
             git --no-pager diff --stat -- apps/studio/dist/
@@ -346,8 +404,66 @@ jobs:
           }
 
       - name: Design plugin hooks (bun test)
+        if: matrix.index == 1
         # V2-2.4b — `maude design hook <event>` against a fixture studio over the real agent
         # RouteSpecs, so it needs apps/studio installed (this job). Neither `pnpm test`
         # (cli/**) nor the studio suite reaches plugins/ — scripts/test/quality-gates.test.mjs
         # fails when a plugins/ test file has no `bun test` step here.
         run: bun test plugins/design/hooks
+
+      - name: Keep this shard's result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: studio-shard-${{ matrix.index }}
+          path: shard-${{ matrix.index }}.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # The one status for the whole suite, under the job name branch protection and
+  # every watcher already use. It fails when any shard failed or never reported,
+  # and passes when the changes job decided the suite was not needed.
+  studio-suite:
+    name: Studio suite (full)
+    needs: [changes, studio-shard]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Was the suite needed?
+        id: gate
+        env:
+          STUDIO: ${{ needs.changes.outputs.studio }}
+          CHANGES: ${{ needs.changes.result }}
+        run: |
+          if [ "$CHANGES" = "success" ] && [ "$STUDIO" = "false" ]; then
+            echo "Only site/, .ai/ or top-level Markdown changed, so the studio suite was not needed." | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v7
+        if: steps.gate.outputs.run == 'true'
+
+      - uses: actions/download-artifact@v4
+        if: steps.gate.outputs.run == 'true'
+        with:
+          pattern: studio-shard-*
+          path: shard-results
+          merge-multiple: true
+
+      - name: Merge the shards
+        if: steps.gate.outputs.run == 'true'
+        run: node scripts/studio-shard-summary.mjs shard-results --total 6 --timings-out studio-test-timings.json
+
+      # This run's per-file times: copy the file over scripts/studio-test-timings.json
+      # when the plan (`node scripts/studio-shard.mjs --total 6 --plan`) drifts out of balance.
+      - name: Keep the timing table
+        if: always() && steps.gate.outputs.run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: studio-test-timings
+          path: studio-test-timings.json
+          if-no-files-found: ignore
+          retention-days: 30

@@ -1,6 +1,7 @@
 import { RootProvider } from 'fumadocs-ui/provider/next';
 import type { Metadata } from 'next';
 import localFont from 'next/font/local';
+import { Track } from '@/components/v2/track.client';
 import { appName, gitConfig, siteDescription, siteUrl, tagline } from '@/lib/shared';
 import stats from '@/lib/stats.json';
 import './global.css';
@@ -116,6 +117,7 @@ export default function Layout({ children }: LayoutProps<'/'>) {
           Skip to main
         </a>
         <RootProvider>{children}</RootProvider>
+        <Track />
         {cfBeaconToken ? (
           <script
             defer

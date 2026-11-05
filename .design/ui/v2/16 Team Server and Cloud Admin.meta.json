@@ -1,0 +1,21 @@
+{
+  "kind": "canvas",
+  "title": "16 Team Server and Cloud Admin",
+  "subtitle": "The team server admin and Maude Cloud, redrawn for Maude 2 — one People list, an invite that is the approval, the app connected by a code, stats for owners, and an operator console that can make anything for anyone",
+  "brief": "udelej redesign hub admin cell ale i hub cloud.maude dashboard. Chci to mit v design maude-v2 at to hezky vidim jak to bude vypadat. Menilo se tam i spoustu veci jak na self hosted hub tak na cloud.maude hub\n\nProjdi funkcionalitu a predelej i UX at se to dobre pouziva. Co sem osobne treba zjistil pri pouzivani na desing.studyfi.com (self hosted) ze zvani uzivatelu je celkem komplikoane a matouci. Musi se tam prihlasit, pak ja to musim potvrdit a pak stejne potrebuji vygenerovany token aby si napojili repo. Takze to bych chtel cele nejak udelat prehlednejsi\n\nV cloud maude dashboard bych zase rad videl vic statistik a taky monznost masaz members a projects a zakladat nove dle libosti jako admin",
+  "designSystem": "maude-v2",
+  "platform": "desktop",
+  "created": "2026-11-03T21:03:28.754Z",
+  "last_modified": "2026-11-03T21:03:28.754Z",
+  "opt_out_scope": "palette",
+  "sections": [
+    {
+      "id": "team-server",
+      "title": "Team server — StudyFi Design"
+    },
+    {
+      "id": "cloud",
+      "title": "Maude Cloud — your account, and the whole service"
+    }
+  ]
+}

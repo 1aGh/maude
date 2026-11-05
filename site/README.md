@@ -70,6 +70,25 @@ Client-side via Orama. New MDX files are picked up on next build — no manual i
 - **Size.** About 20.8 MiB uncompressed, 4.0 MiB gzipped: needs Workers Paid (10 MiB), not Free (3 MiB). Check with `pnpm exec wrangler deploy --dry-run --outdir /tmp/out`.
 - **No PR previews.** `pnpm cf:preview` after `pnpm cf:build` is the local check.
 
+### Analytics
+
+Two cookieless layers, both on Cloudflare (the privacy page names both):
+
+- **Page views**: Cloudflare Web Analytics (dashboard > Web Analytics > maude.sh). The site's Web Analytics entry is set to *manual snippet*: automatic injection does not reach Worker responses, and both at once would count twice.
+- **Downloads and clicks**: Workers Analytics Engine, dataset `maude_site_events`, binding `EVENTS` (`lib/track.ts`). Rows: `blob1` event (`download` · `click` · `outbound` · `video`), `blob2` label (platform, `data-track` name or link host), `blob3` page path, `blob4` referring host, `blob5` country. Downloads are counted on the server in `/desktop/download/<platform>`, before the redirect cache; the rest come from `components/v2/track.client.tsx` through `POST /api/e`. Tag a new button with `data-track="<name>"`; a link to another site counts as `outbound` on its own.
+
+Read the counts with the SQL API (a token with *Account Analytics: Read*):
+
+```sh
+curl -s "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/analytics_engine/sql" \
+  -H "Authorization: Bearer $CF_ANALYTICS_TOKEN" \
+  -d "SELECT blob1 AS event, blob2 AS label, SUM(_sample_interval) AS n
+      FROM maude_site_events WHERE timestamp > NOW() - INTERVAL '7' DAY
+      GROUP BY event, label ORDER BY n DESC FORMAT JSON"
+```
+
+GitHub's own per-asset `download_count` (the releases API) is a cross-check for the download numbers.
+
 ### Setup (already done; for a new account or a rotated token)
 
 1. **API token** (Cloudflare dashboard, My Profile, API Tokens, custom): *Account > Workers Scripts > Edit*, *Zone > Workers Routes > Edit* (zone `maude.sh` only), *Account > Account Settings > Read*.
