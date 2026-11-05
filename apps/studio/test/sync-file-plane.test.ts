@@ -2532,3 +2532,31 @@ describe('2.0.3 — a Git LFS pointer is never uploaded as the media', () => {
     expect(hub.puts.at(-1)?.rel).toBe('assets/hero.png');
   });
 });
+
+// fix/205-sync-assets — the depth cap went from 8 to 32 segments. A hub that does not say
+// `file-depth-v2` still refuses anything deeper than 8, so it is not offered those: each is held
+// with a plain reason (a row in the panel), never sent to a 400 and never dropped silently.
+describe('a hub without file-depth-v2 is not offered paths deeper than 8', () => {
+  const DEEP = 'system/kenney/assets/pack/Models/GLTF format/Textures/variants/colormap.png';
+  test('held up front with the reason; shallower files still go up', async () => {
+    const hub = fakeHub();
+    write(DEEP, 'png');
+    write('assets/b.png', 'png');
+    const res = await plane(hub, { hubTakesDeepPaths: false }).reconcile();
+    expect(hub.puts.map((x) => x.rel)).toEqual(['assets/b.png']);
+    expect((res.hubRefused ?? []).map((h) => h.rel)).toEqual([DEEP]);
+    expect(ledger.row(DEEP)?.state).toBe('refused');
+    expect(ledger.row(DEEP)?.reason).toMatch(/8 folders deep/);
+    expect(res.failed).toEqual([]);
+  });
+
+  test('a hub that takes them gets them, and a held one goes up once it does', async () => {
+    const hub = fakeHub();
+    write(DEEP, 'png');
+    await plane(hub, { hubTakesDeepPaths: false }).reconcile();
+    expect(hub.puts).toEqual([]);
+    const res = await plane(hub, { hubTakesDeepPaths: true }).reconcile();
+    expect(res.pushed).toEqual([DEEP]);
+    expect(ledger.row(DEEP)?.state).toBe('on-hub');
+  });
+});

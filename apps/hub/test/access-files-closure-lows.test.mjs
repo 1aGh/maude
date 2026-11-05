@@ -87,7 +87,7 @@ test('a dot-named canvas file is reported as unlisted; a non-canvas symlink is n
 
 test('a listing past the depth cap is truncated: the owner rule refuses', () => {
   lay(BASE);
-  lay({ 'a/b/c/d/e/f/g/h/i/deep.css': '' });
+  lay({ [`${'d/'.repeat(33)}deep.css`]: '' }); // past the 32-segment cap (fix/205)
   const r = reader();
   assert.equal(r.listTruncated(), true);
   const c = closureFor(narrowToFrame(OWNER, [GRANT]), r);
@@ -183,7 +183,7 @@ test('adding only a symlinked slug twin changes head(): the closure is recompute
 test('a walk that only becomes truncated changes head()', () => {
   lay(BASE);
   const first = reader();
-  mkdirSync(join(root, 'a/b/c/d/e/f/g/h/i'), { recursive: true });
+  mkdirSync(join(root, 'd/'.repeat(33)), { recursive: true });
   const second = reader();
   assert.equal(second.listTruncated(), true);
   assert.notEqual(second.head(), first.head());

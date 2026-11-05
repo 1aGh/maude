@@ -44,12 +44,18 @@ import { randomBytes } from 'node:crypto';
 import { type Dirent, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 
-import { type CanvasGroupLike, classifyProjectFile, isFilePlaneClass } from './file-membership.ts';
+import {
+  type CanvasGroupLike,
+  classifyProjectFile,
+  isFilePlaneClass,
+  MAX_SEGMENTS,
+  OLDER_HUB_DEPTH_REASON,
+  olderDoorRefusesDepth,
+} from './file-membership.ts';
 import { readLfsPointer } from './lfs-pointer.ts';
 import { failureReason, retryAfterMs } from './retry-after.ts';
 
-/** Max designRoot-relative depth (matches the classifier's 8-segment cap). */
-const MAX_SEGMENTS = 8;
+export { OLDER_HUB_DEPTH_REASON };
 
 /** A 2 GB file in an assets dir is a mistake — don't move it silently. */
 const MAX_PUSH_BYTES = 512 * 1024 * 1024;
@@ -273,11 +279,21 @@ export function listPushableAssets(
     .sort();
 }
 
+/**
+ * The hub's bucket key shape (`apps/hub/src/assets.mjs` ASSET_KEY): at most five
+ * segments under `assets/`, no spaces, each segment ≤ 64 characters. A top-level
+ * path it cannot key — an asset pack's `Models/GLTF format/…` — was sent to the
+ * bucket route anyway and refused `400` every boot (fix/205); it goes to the
+ * checkout route, which takes any classifier-admitted path.
+ */
+const BUCKET_KEY =
+  /^(?!.*(?:^|\/)\.\.(?:\/|$))[A-Za-z0-9][A-Za-z0-9._-]{0,63}(?:\/[A-Za-z0-9][A-Za-z0-9._-]{0,63}){0,4}$/;
+
 /** Where a given asset pushes: the bucket-backed route (top-level `assets/`) or
  *  the checkout route (a nested `…/assets/…` served from disk). */
 function routeFor(rel: string): { url: string } {
   const parts = rel.split('/');
-  if (parts[0] === 'assets') {
+  if (parts[0] === 'assets' && BUCKET_KEY.test(parts.slice(1).join('/'))) {
     // Top-level content-addressed → the bucket `/assets/<key>` route.
     return { url: `/assets/${parts.slice(1).join('/')}` };
   }
@@ -450,6 +466,12 @@ export async function pushAssets(opts: {
   canvasGroups?: readonly CanvasGroupLike[];
   /** The file-plane flag; absent ⇒ read from config/env the same way. */
   syncFiles?: boolean;
+  /**
+   * fix/205 — the hub advertises `file-depth-v2`. False ⇒ a path deeper than 8 segments is not
+   * sent (an older hub answers `400 invalid path`, and one such path in the batch probe refuses
+   * the whole probe): it is reported as failed with OLDER_HUB_DEPTH_REASON, by name. Absent ⇒ true.
+   */
+  hubTakesDeepPaths?: boolean;
   fetchImpl?: typeof fetch;
   log?: Pick<Console, 'log' | 'warn'>;
   /** feature-sync-progress-modal — incremental progress (throttled; failures
@@ -518,21 +540,33 @@ export async function pushAssets(opts: {
 
   // One question for the whole set, when the hub can answer it. Null = this hub
   // predates the route, so every file falls back to its own probe below.
+  // fix/205 — a hub older than `file-depth-v2` refuses a path deeper than 8 segments. Never sent,
+  // never silent: each is named with the reason (the panel lists failures by path).
+  const tooDeep =
+    opts.hubTakesDeepPaths === false ? assets.filter((rel) => olderDoorRefusesDepth(rel)) : [];
+  for (const rel of tooDeep) out.failed.push({ key: rel, reason: OLDER_HUB_DEPTH_REASON });
+  const sendable =
+    tooDeep.length > 0 ? assets.filter((rel) => !olderDoorRefusesDepth(rel)) : assets;
+  if (tooDeep.length > 0)
+    log.warn?.(
+      `[sync/assets] ${tooDeep.length} file(s) sit deeper than ${base} takes (8 folders) — update the hub`
+    );
+
   const known =
-    assets.length > 0
+    sendable.length > 0
       ? await probePresent({
           fetchImpl,
           base,
           headers: { authorization: `Bearer ${opts.token()}` },
-          paths: assets,
+          paths: sendable,
         })
       : null;
 
   // fix/205 — what the batch already answered is settled NOW, not lazily in
   // loop order: "5463 moving" for a set the hub held all but 74 of was the
   // panel counting files nobody was going to send.
-  const queue = known ? assets.filter((rel) => !known.has(rel)) : assets;
-  if (known) out.skipped = assets.length - queue.length;
+  const queue = known ? sendable.filter((rel) => !known.has(rel)) : sendable;
+  if (known) out.skipped = sendable.length - queue.length;
   if (assets.length > 0) emitProgress(queue[0] ?? null, false, true);
 
   // How many uploads may be on the wire at once. See UPLOAD_WIDTH_MAX.

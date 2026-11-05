@@ -13,6 +13,7 @@ import { join } from 'node:path';
 import {
   isPushableAssetRel,
   listPushableAssets,
+  OLDER_HUB_DEPTH_REASON,
   pushAssets,
   putTimeoutMs,
 } from '../sync/asset-push.ts';
@@ -70,12 +71,16 @@ describe('listPushableAssets — classifier membership over the whole design roo
     expect(listPushableAssets(join(designRoot, 'nope'))).toEqual([]);
   });
 
-  test('depth beyond the hub 8-segment cap is skipped', () => {
+  test('a deep pack is found (fix/205); past the 32-segment cap it is skipped', () => {
     const designRoot = scratchDesignRoot();
-    // assets/a/b/c/d/e/f/g/x.png = 9 segments > 8 → skipped.
+    // assets/a/b/c/d/e/f/g/x.png = 9 segments — over the OLD cap, found now.
     mkdirSync(join(designRoot, 'assets/a/b/c/d/e/f/g'), { recursive: true });
     writeFileSync(join(designRoot, 'assets/a/b/c/d/e/f/g/x.png'), 'x');
-    expect(listPushableAssets(designRoot)).toEqual([]);
+    // 33 segments → skipped.
+    const tooDeep = `assets/${'d/'.repeat(31)}`;
+    mkdirSync(join(designRoot, tooDeep), { recursive: true });
+    writeFileSync(join(designRoot, `${tooDeep}x.png`), 'x');
+    expect(listPushableAssets(designRoot)).toEqual(['assets/a/b/c/d/e/f/g/x.png']);
   });
 
   test('the file-plane widening: the RCA miss-list goes up, canvas lanes stay home', () => {
@@ -1166,5 +1171,78 @@ describe('pushAssets — a few at once, a timeout gets a second go, moving is th
     expect(r.pushed).toHaveLength(74);
     expect(emits[0]?.total).toBe(total);
     for (const e of emits) expect(e.total - e.done).toBeLessThanOrEqual(74);
+  }, 30_000); // 5,534 files on disk — the walk, not the push, is the slow part
+});
+
+describe('pushAssets — deep and spaced paths (fix/205-sync-assets)', () => {
+  const quiet = { log: () => {}, warn: () => {} };
+  function packTree(): string {
+    const designRoot = scratchDesignRoot();
+    for (const rel of [
+      'assets/aaaaaaaa.png',
+      'assets/kenney/space-kit/Models/GLTF format/Textures/colormap.png',
+      'assets/a/b/c/d/e/f.png',
+      'system/ds/assets/pack/Models/GLTF format/Textures/variants/colormap.png',
+    ]) {
+      mkdirSync(join(designRoot, rel, '..'), { recursive: true });
+      writeFileSync(join(designRoot, rel), 'x');
+    }
+    return designRoot;
+  }
+  function wire() {
+    const puts: string[] = [];
+    const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith('/_asset-probe'))
+        return new Response(JSON.stringify({ present: [] }), { status: 200 });
+      if (url.endsWith('/api/file-limits')) return new Response(null, { status: 404 });
+      if (init?.method === 'PUT') puts.push(new URL(url).pathname);
+      return new Response(null, { status: 200 });
+    }) as typeof fetch;
+    return { puts, fetchImpl };
+  }
+
+  test('a top-level path the bucket cannot key goes to the checkout route', async () => {
+    const designRoot = packTree();
+    const w = wire();
+    const r = await pushAssets({
+      designRoot,
+      hubUrl: 'https://x.example',
+      token: () => 't',
+      fetchImpl: w.fetchImpl,
+      log: quiet,
+      sleep: async () => {},
+    });
+    expect(r.failed).toEqual([]);
+    expect(w.puts.sort()).toEqual([
+      '/_asset-file/assets/a/b/c/d/e/f.png',
+      '/_asset-file/assets/kenney/space-kit/Models/GLTF%20format/Textures/colormap.png',
+      '/_asset-file/system/ds/assets/pack/Models/GLTF%20format/Textures/variants/colormap.png',
+      '/assets/aaaaaaaa.png',
+    ]);
+  });
+
+  test('a hub that cannot take deep paths is not sent them — each is named, with the reason', async () => {
+    const designRoot = packTree();
+    const w = wire();
+    const r = await pushAssets({
+      designRoot,
+      hubUrl: 'https://x.example',
+      token: () => 't',
+      fetchImpl: w.fetchImpl,
+      log: quiet,
+      sleep: async () => {},
+      hubTakesDeepPaths: false,
+    });
+    expect(w.puts).not.toContain(
+      '/_asset-file/system/ds/assets/pack/Models/GLTF%20format/Textures/variants/colormap.png'
+    );
+    expect(r.failed).toEqual([
+      {
+        key: 'system/ds/assets/pack/Models/GLTF format/Textures/variants/colormap.png',
+        reason: OLDER_HUB_DEPTH_REASON,
+      },
+    ]);
+    expect(r.pushed).toHaveLength(3);
   });
 });

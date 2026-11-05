@@ -250,6 +250,29 @@ describe('the doors on a real hub (H4, H5)', () => {
     }
   });
 
+  // fix/205-sync-assets — the depth cap is 32 segments now; an older door stopped at 8 and a
+  // desktop holds deeper paths for it. This hub says `file-depth-v2`, so its door must take them.
+  test('file-depth-v2: advertised, and a path deeper than 8 lands (33 still refused)', {
+    timeout: 60000,
+  }, async () => {
+    const hub = await startHub();
+    try {
+      const health = await (await fetch(`${hub.http}/health`)).json();
+      assert.ok(health.capabilities.includes('file-depth-v2'));
+      const member = caller(hub.http, hub.member);
+      const deep = 'assets/kenney/space-kit/Models/GLTF%20format/Textures/variants/a/colormap.png';
+      const put = await member.put(`/api/file/${deep}`, PNG, { 'content-type': 'image/png' });
+      assert.equal(put.status, 200, `${deep}: ${put.status} ${put.text}`);
+      const tooDeep = `assets/${'d/'.repeat(31)}x.png`;
+      const refused = await member.put(`/api/file/${tooDeep}`, PNG, {
+        'content-type': 'image/png',
+      });
+      assert.equal(refused.status, 400);
+    } finally {
+      await hub.stop();
+    }
+  });
+
   test('POST /api/project-format: owner only; 400 / 422 / 409; same value = no bump', {
     timeout: 60000,
   }, async () => {

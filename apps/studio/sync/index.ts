@@ -112,7 +112,13 @@ import { type HubDocRow, hubHolds, indexHubDocs } from './hub-listing.ts';
 import { HUB_UNDO_READ_MAX_BYTES, hubTextUndoConflict } from './hub-text-undo.ts';
 import { accessFor, getHubRecord } from './hubs-config.ts';
 import { loadJournal, type SyncJournal } from './journal.ts';
-import { hasAnnotationsV2, hasFileClassesV2, hasLedger, probeFileLane } from './journal-client.ts';
+import {
+  hasAnnotationsV2,
+  hasFileClassesV2,
+  hasFileDepthV2,
+  hasLedger,
+  probeFileLane,
+} from './journal-client.ts';
 import type { RestoreOptions } from './local-kernel.ts';
 import { isLoopbackHost } from './loopback.ts';
 import { createMediaGate, MEDIA_STAYS_LINE, readServerSignature } from './media-gate.ts';
@@ -1601,6 +1607,8 @@ export function createSyncRuntime(
    * `true` = journal-less hub ⇒ this legacy client carries the upward lane.
    */
   let legacyLane: boolean | null = null;
+  /** fix/205 — the hub advertised `file-depth-v2` (set with the lane verdict). */
+  let legacyHubTakesDeepPaths = false;
   /** A pass was owed before the lane was decided — run it on the verdict. */
   let legacyBootPush: string | null = null;
   /**
@@ -1635,6 +1643,7 @@ export function createSyncRuntime(
       // Read at call time — silent renewal swaps the credential in place.
       token: () => token,
       canvasGroups: ctx.cfg.canvasGroups,
+      hubTakesDeepPaths: legacyHubTakesDeepPaths,
       cancelled: () => legacyPushCancel || stopped,
       // feature-sync-progress-modal — same `sync:status` payload as ever, so
       // the Sync panel needs no idea which lane fed it. Guarded on `stopped`:
@@ -5861,6 +5870,8 @@ export function createSyncRuntime(
                   'whiteboard edits will not reach its checkout until it is'
               );
             }
+            // fix/205 — whether this hub's doors take paths deeper than 8 segments (both lanes).
+            legacyHubTakesDeepPaths = hasFileDepthV2(caps);
             if (!hasLedger(caps)) {
               // No journal on this hub ⇒ the legacy client carries the upward
               // lane, exactly as the pre-v2 desktop did (Open decision 4).
@@ -5912,6 +5923,8 @@ export function createSyncRuntime(
                 // Issue #175 — a 1.x hub's door refuses the 2.0-only files with a 400; it is not
                 // offered them (they are held, with a reason, in Sync details).
                 hubTakesV2Files: hasFileClassesV2(caps),
+                // fix/205 — an older hub refuses paths deeper than 8 segments; held, with a reason.
+                hubTakesDeepPaths: hasFileDepthV2(caps),
                 unlimitedOutboundDeletes: unlimitedDeletes,
                 // Increment 6, DEFAULT ON: a hub-owned mirror that ignores
                 // deletes contradicts the model it is selling — you delete a

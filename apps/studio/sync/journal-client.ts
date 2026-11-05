@@ -375,3 +375,14 @@ export const FILE_CLASSES_V2_CAPABILITY = 'file-classes-v2';
 export function hasFileClassesV2(capabilities: string[] | null): boolean {
   return Array.isArray(capabilities) && capabilities.includes(FILE_CLASSES_V2_CAPABILITY);
 }
+
+/** The capability a hub advertises when its doors take paths up to 32 segments deep (fix/205). */
+export const FILE_DEPTH_V2_CAPABILITY = 'file-depth-v2';
+
+/**
+ * Does this hub take paths deeper than 8 segments? Every hub before fix/205 answers them
+ * `400 invalid path`, so the desktop holds them for it with a reason (`olderDoorRefusesDepth`).
+ */
+export function hasFileDepthV2(capabilities: string[] | null): boolean {
+  return Array.isArray(capabilities) && capabilities.includes(FILE_DEPTH_V2_CAPABILITY);
+}

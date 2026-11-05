@@ -71,7 +71,10 @@ import {
   classifyProjectFile,
   type FileClass,
   isFilePlaneClass,
+  MAX_SEGMENTS,
+  OLDER_HUB_DEPTH_REASON,
   olderDoorRefuses,
+  olderDoorRefusesDepth,
 } from './file-membership.ts';
 import {
   fetchJournal,
@@ -82,9 +85,9 @@ import {
 import { LFS_POINTER_REASON, readLfsPointer } from './lfs-pointer.ts';
 import { createPullBudget } from './pull-budget.ts';
 import { createPullPacer, type PullPacer } from './pull-pacer.ts';
-import { DELETED_HERE_HELD_REASON } from './seed-progress.ts';
 import { activeCanvasWants } from './pull-priority.ts';
 import { failureReason, isBackpressure, refusalWords, retryAfterMs } from './retry-after.ts';
+import { DELETED_HERE_HELD_REASON } from './seed-progress.ts';
 import { classifyTransportError } from './transport-error.ts';
 
 /** How long to wait for one file's bytes. Generous — these run to videos. */
@@ -376,8 +379,8 @@ function deliveryRank(state: DeliveryState): number {
   }
 }
 
-/** Walk depth ceiling — matches the classifier's own shape cap. */
-const MAX_WALK_DEPTH = 8;
+/** Walk depth ceiling — the classifier's own shape cap (32 since fix/205). */
+const MAX_WALK_DEPTH = MAX_SEGMENTS;
 
 /** Directories no plane path can live under. */
 const SKIPPED_DIRS = new Set(['_trash', '_history', '_untrusted', '_smoke', 'node_modules']);
@@ -582,6 +585,12 @@ export interface FilePlaneOptions {
    * true (every caller before this option, and every test hub, takes them).
    */
   hubTakesV2Files?: boolean;
+  /**
+   * fix/205 — the hub advertises `file-depth-v2` (`hasFileDepthV2`). False ⇒ a path deeper than
+   * 8 segments (`olderDoorRefusesDepth`) is held here with a reason and never offered. Absent ⇒
+   * true, like `hubTakesV2Files`.
+   */
+  hubTakesDeepPaths?: boolean;
   /**
    * Issue #204 — how fast this plane talks to the hub (concurrency + requests per minute). One per
    * plane so the adaptive width survives from pass to pass. Default: `createPullPacer()`.
@@ -2258,11 +2267,17 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
       // answers `400 invalid path` to every 2.0-only file; asking costs a
       // request and tells nobody anything. Held with a reason instead — and
       // offered again the pass this hub advertises `file-classes-v2`.
+      // fix/205 — the same for a path deeper than an older door takes (8 segments).
+      const olderHubReason =
+        here && remoteHash === null
+          ? opts.hubTakesV2Files === false && olderDoorRefuses(rel)
+            ? OLDER_HUB_REASON
+            : opts.hubTakesDeepPaths === false && olderDoorRefusesDepth(rel)
+              ? OLDER_HUB_DEPTH_REASON
+              : null
+          : null;
       if (
-        here &&
-        remoteHash === null &&
-        opts.hubTakesV2Files === false &&
-        olderDoorRefuses(rel) &&
+        olderHubReason !== null &&
         isFilePlaneClass(
           classifyProjectFile(rel, {
             canvasGroups: opts.canvasGroups,
@@ -2274,17 +2289,17 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
           !(
             kept?.state === 'refused' &&
             kept.blockedClass === 'refused' &&
-            kept.reason === OLDER_HUB_REASON &&
+            kept.reason === olderHubReason &&
             kept.refusedHash === undefined
           )
         ) {
           ledger.setState(rel, 'refused', {
-            reason: OLDER_HUB_REASON,
+            reason: olderHubReason,
             blockedClass: 'refused',
             refusedHash: undefined,
           });
         }
-        out.dropped.push({ rel, reason: OLDER_HUB_REASON });
+        out.dropped.push({ rel, reason: olderHubReason });
         continue;
       }
 
