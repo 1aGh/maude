@@ -2,7 +2,7 @@
   "version": "v2.0.3",
   "nodeRange": ">=20",
   "publishedDate": "2026-11-04",
-  "releases": 145,
+  "releases": 144,
   "firstReleaseDate": "2026-05-11",
   "contributors": 1,
   "plugins": {
@@ -79,7 +79,7 @@
     "desktop/window.mdx": "2026-11-02",
     "flow-migration.mdx": "2026-10-25",
     "flow.mdx": "2026-10-25",
-    "getting-started.mdx": "2026-11-02",
+    "getting-started.mdx": "2026-11-05",
     "hub/aws.mdx": "2026-08-21",
     "hub/deploy.mdx": "2026-08-18",
     "hub/durability.mdx": "2026-08-18",
