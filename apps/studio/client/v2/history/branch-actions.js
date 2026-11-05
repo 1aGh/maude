@@ -52,7 +52,13 @@ export function useBranchActions({
   const [downloading, setDownloading] = useState(false);
   const [folding, setFolding] = useState('');
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState('');
+  const [err, setErrText] = useState('');
+  // 2.0.5 W4 — the error asks for a GitHub sign-in (a 401 / authRequired): the sheet draws the button
+  const [errAuth, setErrAuth] = useState(false);
+  const setErr = useCallback((text, auth = false) => {
+    setErrText(text);
+    setErrAuth(!!text && auth);
+  }, []);
   const [refreshing, setRefreshing] = useState(false);
   const [fetchedAt, setFetchedAt] = useState(0);
   const [chatGuard, setChatGuard] = useState(null); // { count, verb, action }
@@ -136,10 +142,10 @@ export function useBranchActions({
       await reloadBranches();
     } else if (r.timedOut || r.json?.timedOut) {
       setErr(W.errFetchTimeout);
+    } else if (r.status === 401 || r.json?.authRequired) {
+      setErr(W.errFetchAuth, true);
     } else {
-      setErr(
-        r.status === 401 || r.json?.authRequired ? W.errFetchAuth : r.json?.error || W.errFetch
-      );
+      setErr(r.json?.error || W.errFetch);
     }
     setRefreshing(false);
   }
@@ -168,11 +174,8 @@ export function useBranchActions({
       reload(); // added directly (no remote)
       return;
     }
-    setErr(
-      r.status === 401
-        ? `Sign in with GitHub to add “${branch}” to ${shared}.`
-        : j?.error || W.errAdd
-    );
+    if (r.status === 401) setErr(`Sign in with GitHub to add “${branch}” to ${shared}.`, true);
+    else setErr(j?.error || W.errAdd);
     setFolding('');
   }
 
@@ -196,6 +199,7 @@ export function useBranchActions({
     folding,
     busy,
     err,
+    errAuth,
     setErr,
     refreshing,
     fetchedAt,

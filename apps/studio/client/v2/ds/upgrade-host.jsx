@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getPaletteEnv } from '../search/search-env.js';
 import { canvasesIn } from './switch-host.jsx';
+import { dsRefresh } from './ds-refresh.js';
 import { onDsUpgradeRequest } from './upgrade-bus.js';
 import {
   appliedWords,
@@ -24,8 +25,15 @@ import {
 import { DsUpgradeSheet } from './upgrade-sheet.jsx';
 
 const JSON_HEADERS = { 'content-type': 'application/json' };
-/** How often the sheet asks again while the AI or the check is working. */
-export const POLL_MS = 1500;
+/**
+ * 2.0.5 (#205): the sheet asks again when something it shows may have moved — the window is looked at, the shell
+ * wrote a system, the AI run registry moved (`maude:ai-runs`), an action landed (`maude:project-action`) — and
+ * after a failed read (5 s doubling to 5 min). The ONE clock left is `TICK_MS`, only while the AI or the check is
+ * working with the sheet open: a proof's progress ("2 of 6 canvases checked") has no push. A settled sheet reads
+ * on events only.
+ */
+export const TICK_MS = 5000;
+export const UPGRADE_EVENTS = ['maude:ai-runs', 'maude:project-action'];
 /** A request the AI was sent off with is remembered this long, so closing and reopening does not ask twice. */
 const ASKED_MS = 30 * 60 * 1000;
 const askedAt = new Map();
@@ -80,9 +88,9 @@ export async function cancelUpgrade(ds, stage, fetchImpl = globalThis.fetch) {
 }
 
 /**
- * @param {{ cfg: any, toast?: (m: string) => void, fetchImpl?: typeof fetch, pollMs?: number }} props
+ * @param {{ cfg: any, toast?: (m: string) => void, fetchImpl?: typeof fetch, tickMs?: number }} props
  */
-export function DsUpgradeHost({ cfg, toast, fetchImpl, pollMs = POLL_MS }) {
+export function DsUpgradeHost({ cfg, toast, fetchImpl, tickMs = TICK_MS }) {
   const [sheet, setSheet] = useState(null);
   const live = useRef({ cfg, toast, fetchImpl, sheet: null });
   live.current = { cfg, toast, fetchImpl, sheet };
@@ -111,10 +119,10 @@ export function DsUpgradeHost({ cfg, toast, fetchImpl, pollMs = POLL_MS }) {
   );
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: `f` reads the live ref
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (fx) => {
     const s = live.current.sheet;
     if (!s) return;
-    const r = await loadUpgradeStatus(s.ds, s.label, f());
+    const r = await loadUpgradeStatus(s.ds, s.label, typeof fx === 'function' ? fx : f());
     // the sheet may have been closed (or reopened on another system) while the answer was on its way
     if (r.ok && live.current.sheet?.ds === s.ds)
       setSheet((cur) => (cur && cur.ds === s.ds ? { ...cur, status: r.status } : cur));
@@ -133,13 +141,21 @@ export function DsUpgradeHost({ cfg, toast, fetchImpl, pollMs = POLL_MS }) {
       })
     : null;
 
-  // while the AI or the check works, ask again; a settled sheet (ask, review, converted) does not poll
+  // while the AI or the check works the sheet follows events, with one slow tick for the proof's progress; a
+  // settled sheet (ask, review, converted) hears nothing between events
   const busyView = view?.kind === 'working' || view?.kind === 'proving';
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `f` reads the live ref
   useEffect(() => {
     if (!busyView) return undefined;
-    const t = setInterval(refresh, pollMs);
-    return () => clearInterval(t);
-  }, [busyView, refresh, pollMs]);
+    const r = dsRefresh((fx) => refresh(fx), {
+      fetchImpl: () => live.current.fetchImpl ?? globalThis.fetch,
+      events: UPGRADE_EVENTS,
+      slowMs: tickMs,
+      skipFirst: true,
+      paused: () => false,
+    });
+    return () => r.stop();
+  }, [busyView, refresh, tickMs]);
 
   const close = useCallback(() => setSheet(null), []);
 

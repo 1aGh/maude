@@ -538,6 +538,92 @@ describe('no studio — fail-open, snapshot + check + rollback still run', () =>
     rmSync(join(project, '.design', '_runs', 's4'), { recursive: true, force: true });
   });
 
+  // fix/ds-convert-hooks-cli #11 — Stop judges only what the AI wrote. A call made only of `maude
+  // design` verbs binds the canvases its command names; what the verb (or sync, meanwhile) wrote
+  // besides — `ds convert`'s revisions + head.json, a canvas whose import a verb rewrote, a board
+  // the hub landed — is Maude's and never blocks the turn.
+  test('#11 Stop never holds the AI to what a maude verb or sync wrote during its call', async () => {
+    const dr = join(project, '.design');
+    const kit = join(dr, 'system', 'kit');
+    mkdirSync(join(kit, 'revisions'), { recursive: true });
+    const other = join(dr, 'ui', 'Other.tsx');
+    const board = join(dr, 'ui', 'C.annotations.json');
+    const e = bash(project, 's11', 'dc1', 'maude design ds convert kit');
+    try {
+      expect(await hook('pre-bash', e)).toMatchObject({ status: 0, stdout: '' });
+      // the verb ran: its managed history, an import it rewrote in an old canvas…
+      writeFileSync(join(kit, 'revisions', 'r1.json'), '{"revision":1}\n');
+      writeFileSync(join(kit, 'head.json'), '{"head":1}\n');
+      writeFileSync(
+        other,
+        CANVAS.replace('@maude/canvas-lib', "@maude/canvas-lib';\nimport './x.css").replace(
+          'id="pricing"',
+          'id={"pri" + "cing"}'
+        )
+      );
+      // …and sync landed a person's imported board meanwhile
+      writeFileSync(
+        board,
+        JSON.stringify({
+          format: 'maude.annotations',
+          v: 2,
+          elements: [
+            {
+              id: 's1',
+              type: 'sticky',
+              index: 'a0',
+              x: 0,
+              y: 0,
+              w: 200,
+              h: 200,
+              text: 'from Figma',
+              author: { kind: 'human', name: 'Tereza' },
+            },
+          ],
+        })
+      );
+      expect(await hook('post-bash', e)).toMatchObject({ status: 0, stdout: '' });
+      const touchedP = join(dr, '_runs', 's11', 'touched.json');
+      const touched = existsSync(touchedP) ? JSON.parse(readFileSync(touchedP, 'utf8')) : {};
+      expect(Object.keys(touched)).toEqual([]);
+      const r = await hook('stop', { session_id: 's11', cwd: project, stop_hook_active: false });
+      expect(r).toMatchObject({ status: 0, stdout: '' });
+      // a verb pointed at a canvas still binds THAT canvas, judged against its pre-call bytes
+      const named = bash(project, 's12', 'dc2', 'maude design ds switch kit ui/C.tsx');
+      await hook('pre-bash', named);
+      writeFileSync(canvasPath(project), CANVAS.replace('<p>x</p>', '<p>w</p>'));
+      await hook('post-bash', named);
+      const t2 = JSON.parse(readFileSync(join(dr, '_runs', 's12', 'touched.json'), 'utf8'));
+      expect(Object.keys(t2)).toEqual(['ui/C.tsx']);
+      // an Edit that changes only an import of a canvas with an old artboard-id-expression: the
+      // old line is pre-existing, at post-edit and at Stop
+      const old = CANVAS.replace('id="pricing"', 'id={"pri" + "cing"}');
+      writeFileSync(canvasPath(project), old);
+      const imp = edit(
+        project,
+        's13',
+        'im1',
+        "from '@maude/canvas-lib';",
+        "from '@maude/canvas-lib';\nimport './y.css';"
+      );
+      await hook('pre-edit', imp);
+      writeFileSync(
+        canvasPath(project),
+        old.replace("from '@maude/canvas-lib';", "from '@maude/canvas-lib';\nimport './y.css';")
+      );
+      expect((await hook('post-edit', imp)).json?.decision).toBeUndefined();
+      const s13 = await hook('stop', { session_id: 's13', cwd: project, stop_hook_active: false });
+      expect(s13).toMatchObject({ status: 0, stdout: '' });
+    } finally {
+      rmSync(join(dr, 'system'), { recursive: true, force: true });
+      rmSync(other, { force: true });
+      rmSync(board, { force: true });
+      writeFileSync(canvasPath(project), CANVAS);
+      for (const s of ['s11', 's12', 's13'])
+        rmSync(join(dr, '_runs', s), { recursive: true, force: true });
+    }
+  });
+
   // V2-8.16 S7 — the same python heredoc on the terminal lane: the guard can't read the script, so
   // post-bash binds what the call changed (Stop then checks it) — any call that is not a pure read.
   test('V2-8.16 post-bash binds a python heredoc’s write; a pure read binds nothing', async () => {

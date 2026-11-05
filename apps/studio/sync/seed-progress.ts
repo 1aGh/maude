@@ -95,9 +95,20 @@ const DELIVERED: ReadonlySet<DeliveryState> = new Set<DeliveryState>([
 export const CODE_MODULE_HELD_REASON =
   'code modules replicate only from an owner-vouched or loopback hub';
 
+/**
+ * 2.0.5 — the ledger reason for a file this person deleted here while the project keeps deletes
+ * to itself (`linkedHub.propagateDeletes: false`). Neither side will move it, so it is held — and
+ * no longer counted as delivered, which the field ledger did for 1 814 files that were not here.
+ */
+export const DELETED_HERE_HELD_REASON =
+  'deleted on this Mac — this project does not sync deletions, so the project keeps it and it is not put back here';
+
 /** A row the receiver itself refuses, by consent: held, not waiting. */
 export function isHeldByConsent(row: LedgerRow): boolean {
-  return row.state === 'stuck' && row.reason === CODE_MODULE_HELD_REASON;
+  return (
+    row.state === 'stuck' &&
+    (row.reason === CODE_MODULE_HELD_REASON || row.reason === DELETED_HERE_HELD_REASON)
+  );
 }
 
 /** States that will not move again without something changing. */

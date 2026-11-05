@@ -44,6 +44,24 @@ export interface UpgradeAsyncOptions {
 }
 
 const out = (code: number, stdout = '', stderr = ''): UpgradeRun => ({ code, stdout, stderr });
+
+export const USAGE = `usage: maude design ds-upgrade <ds> <step> [--root <project>]
+
+Bring a design system up to the schema (V2-1.13 §5.10). Steps, in order:
+  --analyse                 the check + the mechanical plan, as JSON (read-only)
+  --plan-mechanical         the plan JSON alone (read-only)
+  --validate <plan.json>    the invariants on a judged plan (exit 13 = refused, nothing written)
+  --stage <plan.json>       throwaway before/ + after/ copies; prints the stage, its "stamp" field
+                            names it in the steps below
+  --prove <stamp>           two headless studios + the visual gate → review.json
+  --apply <stamp>           ONE action through the project's open studio (exit 3 = none open)
+  --discard <stamp>         the throwaway copies and the record go
+  --status                  the live stages and their stamps: staged, being proved, proved
+  --cancel <stamp>          stops a proof in flight (then --discard)
+
+<stamp> is the digits --stage printed (or --status lists); the record folder
+<designRoot>/_state/ds-upgrade/<ds>/<stamp>/ works too.
+`;
 const json = (v: unknown) => `${JSON.stringify(v, null, 2)}\n`;
 const refusal = (e: DsUpgradeError) =>
   out(
@@ -64,6 +82,7 @@ export function runDsUpgrade(
     const names: string[] = [];
     for (let i = 0; i < argv.length; i++) {
       const t = argv[i];
+      if (t === '--help' || t === '-h' || t === 'help') return out(EXIT.ok, USAGE);
       if (t === '--root') root = argv[++i] ?? null;
       else if (t === '--analyse' || t === '--plan-mechanical' || t === '--status')
         step = t.slice(2);
@@ -78,12 +97,13 @@ export function runDsUpgrade(
           );
       } else if (t === '--json') {
         /* always JSON */
-      } else if (t.startsWith('--')) throw new UsageError(`unknown flag ${t}`);
+      } else if (t.startsWith('--'))
+        throw new UsageError(`unknown flag ${t} (maude design ds-upgrade --help)`);
       else names.push(t);
     }
     if (names.length !== 1 || !step)
       throw new UsageError(
-        'usage: ds-upgrade <ds> --analyse | --plan-mechanical | --status | --validate|--stage <plan.json> | --prove|--apply|--discard|--cancel <stage>'
+        'usage: ds-upgrade <ds> --analyse | --plan-mechanical | --status | --validate|--stage <plan.json> | --prove|--apply|--discard|--cancel <stamp>  (--help for more)'
       );
     const project = loadProject(root, env);
     const [cfg] = selectSystems(project, names);

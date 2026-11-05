@@ -28,6 +28,7 @@ import { execFileSync } from 'node:child_process';
 import { appendFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 
+import { resolveAgentBrowserBin } from './_agent-browser-bin.mjs';
 import {
   buildRow,
   emptyViewportRefusal,
@@ -39,7 +40,7 @@ import {
   renderReport,
 } from './_perf-shared.mjs';
 
-const AB = process.env.MAUDE_AGENT_BROWSER || 'agent-browser';
+const AB = resolveAgentBrowserBin();
 
 // agent-browser is a SHARED singleton by default: a concurrent session running
 // its own smoke sweep will navigate the same tab out from under a measurement

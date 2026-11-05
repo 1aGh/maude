@@ -106,6 +106,7 @@ import { spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { resolveAgentBrowserBin } from './_agent-browser-bin.mjs';
 import { urlRefusal } from './_url-guard.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -239,7 +240,7 @@ function main() {
   const [sub, ...rest] = argv;
   const env = safeEnv(process.env);
   const result = spawnSync(
-    'agent-browser',
+    resolveAgentBrowserBin(),
     ['--config', EMPTY_CONFIG_PATH, sub, ...rest, '--allowed-domains', 'localhost,127.0.0.1'],
     { stdio: 'inherit', env }
   );

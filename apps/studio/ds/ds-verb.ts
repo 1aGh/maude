@@ -20,6 +20,7 @@ import path from 'node:path';
 import { LOCAL_OWNER } from '../access/request.ts';
 import { createDsUsage } from '../index/ds-usage.ts';
 import { type DsOp, type DsOpAnswer, runDsOp } from '../routes/ds.ts';
+import { recordPendingDelete } from '../sync/pending-deletes.ts';
 import { createDsEngine } from './engine.ts';
 import type { By } from './head.ts';
 
@@ -556,6 +557,18 @@ export async function execDsPlan(
       usage,
       access: LOCAL_OWNER,
       by,
+      // #7 — no studio, no bus: a deletion (Restore trashing the Design system canvas) is written
+      // down for the next sync boot to tell the project (sync/pending-deletes.ts).
+      emit: (event, payload) => {
+        const p = payload as { action?: unknown; slug?: unknown; rel?: unknown } | null;
+        if (
+          event === 'canvas-list-update' &&
+          p?.action === 'removed' &&
+          typeof p.slug === 'string' &&
+          typeof p.rel === 'string'
+        )
+          recordPendingDelete(designRoot, { slug: p.slug, rel: p.rel });
+      },
     });
   } finally {
     usage?.stop();

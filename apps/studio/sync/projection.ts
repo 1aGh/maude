@@ -282,6 +282,12 @@ export interface DocProjection {
    */
   adoptOwnAccepted(value: string): void;
   /**
+   * #14 (2.0.5) — the css twin's `adoptOwnAccepted`: `value` is this disk's own css proposal a
+   * previous run left unanswered, which the outbox drain just had accepted. It is the css base
+   * (persisted), and the replica's older css is never written over it while its publication comes.
+   */
+  adoptOwnAcceptedCss(value: string): void;
+  /**
    * Accepted-revisions mode: propose one lane value that did not come through
    * the watcher (a comment/annotation API write). Resolves with the outcome;
    * `null` when the projection is not in accepted mode.
@@ -345,6 +351,11 @@ export interface DocProjection {
    * recovery slots. Returns false when nothing is held.
    */
   takeAccepted(): boolean;
+  /**
+   * #14 (2.0.5) — the css twin's held conflict, when its lane holds one: this disk's css and the
+   * project's. Keep mine proposes `mine` on top of `theirs`; `takeAccepted` takes `theirs`.
+   */
+  heldCss(): { mine: string | null; theirs: string } | null;
   /** T28 — current sides plus the first candidate and proven base (null when unknown). */
   conflictSides(): {
     mine: string | null;
@@ -416,6 +427,9 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       });
       return;
     }
+    // #14 — the canvas's conflict is also its css twin's: an accepted html save is no answer to
+    // a held css, so the notice (and its dedupe key) stays until that lane is resolved too.
+    if (held.has('css') || pending.has('css')) return;
     if (rejectedKey !== null) opts.onRecovered?.();
     rejectedKey = null;
   }
@@ -434,6 +448,21 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       saveRecoveryBody(opts.historyDir, paths.html, 'base', body);
     } catch {
       /* a restart then falls back to newest-wins — the pre-existing behaviour */
+    }
+  }
+
+  /**
+   * #14 — the css twin's agreed value, persisted like the body's (journal hash + recovery slot): a
+   * cold start judges a css edited while the studio was closed against it. Only ever a value the
+   * project accepted or wrote here — never a hold's base.
+   */
+  function rememberCssBase(css: string): void {
+    opts.journal?.record(slug, { cssHash: hashBytes(css) }); // DDR-102 checkpoint
+    if (!opts.historyDir || !paths.css) return;
+    try {
+      saveRecoveryBody(opts.historyDir, paths.css, 'base', css);
+    } catch {
+      /* the journal hash still covers the common case */
     }
   }
 
@@ -669,20 +698,19 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
         next = repeated.unit;
       }
     }
+    if (acceptedOwnCss !== null) {
+      // #14 — our own accepted css whose publication has not reached this replica: the replica's
+      // older css is never written over it. Once the replica moves (to it, or past it), it is over.
+      if (next === lastCss) return;
+      acceptedOwnCss = null;
+    }
     if (next === lastCss) return;
     lastCss = next;
     if (next === null) return; // doc carries no css yet — nothing to write
     if (!withinCap(paths.css, next, MAX_CSS_BYTES)) return;
     recordEcho(paths.css, next);
     writeAndAnnounce(paths.css, next);
-    opts.journal?.record(slug, { cssHash: hashBytes(next) }); // DDR-102 checkpoint
-    if (opts.historyDir) {
-      try {
-        saveRecoveryBody(opts.historyDir, paths.css, 'base', next);
-      } catch {
-        /* the journal hash still covers the common case */
-      }
-    }
+    rememberCssBase(next);
   }
 
   function writeMetaIfChanged(): void {
@@ -840,11 +868,13 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
    * overlaps an incoming change").
    */
   let acceptedOwn: string | null = null;
+  /** #14 — the css twin's `acceptedOwn`. */
+  let acceptedOwnCss: string | null = null;
 
   /** The value disk and the accepted replica last agreed on for `lane`. */
   function agreedValue(lane: ProposalLane): string {
     if (lane === 'html') return acceptedOwn ?? lastHtml ?? htmlFromDoc(doc);
-    if (lane === 'css') return lastCss ?? cssFromDoc(doc) ?? '';
+    if (lane === 'css') return acceptedOwnCss ?? lastCss ?? cssFromDoc(doc) ?? '';
     return readLaneFromDoc(doc, lane);
   }
 
@@ -958,7 +988,16 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
             rememberBase(value);
           } else acceptedOwn = value;
         }
-        if (lane === 'html') recovered();
+        if (lane === 'css' && !pending.has(lane)) {
+          // #14 — the css twin's accepted value is its base too, persisted at the ANSWER: a studio
+          // that closes before the publication comes back (or whose html writer is busy then)
+          // restarted with the base before this save, and its next closed-studio edit of the css
+          // was refused against its own accepted save — "changed here and in the cloud".
+          rememberCssBase(value);
+          if ((cssFromDoc(doc) ?? '') === value) lastCss = value;
+          else acceptedOwnCss = value;
+        }
+        if (lane === 'html' || lane === 'css') recovered();
         if (outcome.actionId) {
           try {
             opts.onAccepted?.({ lane, value, actionId: outcome.actionId });
@@ -1341,6 +1380,12 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     // on disk now: the rest of its revision may show.
     const stamped = acceptedOn() ? stampedCohort() : null;
     if (stamped && !seenStamp) observeStamp(stamped);
+    // fix/205-s515 — a publication that arrived before the cold start decided (the creator's own
+    // `doc.create`, published over the socket before its HTTP answer) was refused by `flush`
+    // (not ready) and is first seen HERE. It is on disk now: say it is applied, exactly as
+    // `flush` would — or nothing else changes on this document and the replica's applied
+    // revision stays one behind the head.
+    if (stamped && !held.has('html') && !pending.has('html')) opts.onRevisionApplied?.(stamped[0]);
   }
 
   return {
@@ -1372,6 +1417,7 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       observedBody = null;
       lastHtml = null;
       lastCss = null;
+      acceptedOwnCss = null;
       lastMeta = null;
       deferredBeforeReady.clear();
     },
@@ -1386,6 +1432,15 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       }
       rememberBase(value);
     },
+    adoptOwnAcceptedCss(value: string) {
+      const replica = cssFromDoc(doc) ?? '';
+      if (replica === value) lastCss = value;
+      else {
+        lastCss = cssFromDoc(doc);
+        acceptedOwnCss = value;
+      }
+      rememberCssBase(value);
+    },
     hold(lane, base, local) {
       held.add(lane);
       if (lane === 'html') {
@@ -1397,8 +1452,14 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       reject('local-edit', local, readLaneFromDoc(doc, lane), pathOfLane(lane));
     },
     takeAccepted() {
-      if (!held.has('html') && rejectedKey === null) return false;
+      if (!held.has('html') && !held.has('css') && rejectedKey === null) return false;
       held.delete('html');
+      // #14 — the css twin's conflict is taken with it: the project's css returns to disk (the
+      // local css is in its recovery slot since the refusal).
+      if (held.delete('css')) {
+        lastCss = null;
+        acceptedOwnCss = null;
+      }
       // The local-edit guard compares disk with `observedBody`; declaring the
       // current disk bytes observed lets the writer replace them.
       observedBody = readLocal(paths.html);
@@ -1407,8 +1468,12 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       void flush();
       return true;
     },
+    heldCss() {
+      if (!paths.css || !held.has('css') || pending.has('css')) return null;
+      return { mine: readLocal(paths.css), theirs: cssFromDoc(doc) ?? '' };
+    },
     conflictSides() {
-      if (!held.has('html') && rejectedKey === null) return null;
+      if (!held.has('html') && !held.has('css') && rejectedKey === null) return null;
       const candidate = opts.historyDir ? readRecoveryCandidate(opts.historyDir, paths.html) : null;
       return {
         mine: readLocal(paths.html),

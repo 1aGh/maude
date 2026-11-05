@@ -63,6 +63,8 @@ describe('the card text', () => {
     expect(canvasImportsText(['ui/canary-b-zx.tsx'], 'ui/components')).toEqual({
       title: 'This canvas imports another canvas (ui/canary-b-zx.tsx).',
       body: 'Move the shared part into a component file (e.g. ui/components/…) to render it here.',
+      // 2.0.5 — post-build refusals the closure could not see ride along as `also` (empty here)
+      also: [],
     });
   });
   test('a hidden name and no configured dir still read', () => {
@@ -70,6 +72,8 @@ describe('the card text', () => {
     expect(canvasImportsText([], undefined)).toEqual({
       title: 'This canvas imports another canvas.',
       body: 'Move the shared part into a component file (e.g. ui/components/…) to render it here.',
+      // 2.0.5 — post-build refusals the closure could not see ride along as `also` (empty here)
+      also: [],
     });
   });
 });

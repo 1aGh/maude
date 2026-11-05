@@ -186,6 +186,10 @@ export const KEY_CLASS: Readonly<Record<string, KeyRule>> = {
     class: 'v2-new',
     note: 'v2 (S8.5b): Advanced › Where it renders › Video, per Mac; new in v2, nothing to migrate.',
   },
+  'maude-acp-caps': {
+    class: 'v2-new',
+    note: '2.0.5 (client/panels/caps-cache.js, `maude-acp-caps:<project>`): the last AI capability set, a per-Mac UI cache so the Advanced fold draws without starting Claude; never synced, new in v2, nothing to migrate.',
+  },
   'maude-ds-upgrade-': {
     class: 'v2-new',
     note: 'Not a storage key: ds/upgrade-stage.ts STAGE_PREFIX names the staged-copy temp dirs; the scanner reads any *_PREFIX const.',

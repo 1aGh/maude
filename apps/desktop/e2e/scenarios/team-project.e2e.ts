@@ -319,7 +319,12 @@ describe('team-project (native-desktop)', () => {
     expect(await (await $(tid('onb-hub-go'))).getText()).toBe('Sign in');
     // #204 K2: no email or password field in the app
     // (by input type, not by the retired testids — those are not hooks any more)
-    expect(await (await sheet.$('input[type="password"]')).isExisting()).toBe(false);
+    // the one masked field is the invite / access-token paste (decision v2-michal-hub-token-paste-stays-password-goes)
+    expect(
+      await (
+        await sheet.$('input[type="password"]:not([data-testid="onb-hub-invite"])')
+      ).isExisting()
+    ).toBe(false);
     expect(await (await sheet.$('input[type="email"]')).isExisting()).toBe(false);
     await capture('01h-home-hub-sheet');
   });
@@ -869,14 +874,14 @@ describe('team-project (native-desktop)', () => {
     restarted = null;
   });
 
-  it('11 · cf-status-words: Saved, then Syncing… while a change waits — the exact words, never a control', async () => {
+  it('11 · cf-status-words: Saved, then Syncing… while a change waits — the exact words; the word is a button (2.0.5: Diagnostics › Sync)', async () => {
     const t = TEAM as NonNullable<typeof TEAM>;
     const mine = join(t.managedDir, '.design', 'ui', 'welcome.tsx');
     const theirs = join(t.teammate, '.design', 'ui', 'welcome.tsx');
     await closeDiagnostics();
     await eventually('Saved', async () => (await statusWord())?.status === 'saved', 120_000);
     const saved = await statusWord();
-    expect(saved).toEqual({ status: 'saved', text: 'Saved', control: false });
+    expect(saved).toEqual({ status: 'saved', text: 'Saved', control: true });
     await capture('19-status-saved');
 
     // held, not dropped (a paused container keeps the connection as SIGSTOP does): the change waits
@@ -884,7 +889,7 @@ describe('team-project (native-desktop)', () => {
     try {
       writeFileSync(mine, canvas('Welcome, on its way up'));
       await eventually('Syncing…', async () => (await statusWord())?.status === 'syncing', 60_000);
-      expect(await statusWord()).toEqual({ status: 'syncing', text: 'Syncing…', control: false });
+      expect(await statusWord()).toEqual({ status: 'syncing', text: 'Syncing…', control: true });
       // shown, never operated: no Retry beside the word while nothing has failed
       expect(await $(tid('share-cluster-retry')).isExisting()).toBe(false);
       await capture('20-status-syncing');
@@ -911,7 +916,7 @@ describe('team-project (native-desktop)', () => {
     expect(await statusWord()).toEqual({
       status: 'offline',
       text: 'Offline — kept on this Mac',
-      control: false,
+      control: true,
     });
     await capture('21-status-offline');
 
@@ -970,7 +975,7 @@ describe('team-project (native-desktop)', () => {
       expect(await statusWord()).toEqual({
         status: 'offline',
         text: 'Offline — kept on this Mac',
-        control: false,
+        control: true,
       });
       await capture('22-offline-new-canvas-queued-prompt');
 

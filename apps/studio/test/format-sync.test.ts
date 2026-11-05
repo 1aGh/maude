@@ -122,7 +122,9 @@ describe('learn', () => {
         hubUrl: HUB,
         fetchImpl: f({ capabilities: ['format-v2'], formatVersion: 2 }),
       })
-    ).toEqual({ capabilities: ['format-v2'], formatVersion: 2 });
+      // 2.0.5 (fix/205-pull-loop): `answered` says the hub itself answered, so the lane probe never reads a
+      // timeout as "no journal here"
+    ).toEqual({ capabilities: ['format-v2'], formatVersion: 2, answered: true });
     expect(
       (await hubHealth({ hubUrl: HUB, fetchImpl: f({ formatVersion: null }) })).formatVersion
     ).toBe(null);

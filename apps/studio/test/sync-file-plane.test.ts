@@ -935,6 +935,27 @@ describe('deletion propagates — Increment 6', () => {
     expect(hub.deletes).toEqual([]);
     expect(res.deleted).toEqual([]);
   });
+
+  // 2.0.5 rule (a) — the field ledger had 1 814 rows `on-hub` for files that
+  // were not on the disk at all ("7614 / 7617 delivered"). A row may claim
+  // delivery only while the file is here with that hash.
+  test('off ⇒ a file gone from here is held with a reason, never reported delivered', async () => {
+    const hub = fakeHub({ 'assets/blender/fonts/Bold.ttf': 'TTF' });
+    const p = plane(hub, { propagateDeletes: false });
+    await p.reconcile();
+    expect(ledger.row('assets/blender/fonts/Bold.ttf')?.state).toBe('on-hub');
+    rmSync(join(root, 'assets/blender'), { recursive: true });
+    await p.reconcile();
+    const row = ledger.row('assets/blender/fonts/Bold.ttf');
+    expect(row?.state).not.toBe('on-hub');
+    expect(row?.state).toBe('stuck');
+    expect(row?.reason).toMatch(/deleted on this Mac/);
+    expect(hub.deletes).toEqual([]);
+    // Put back by the person: agreement again, delivered again.
+    write('assets/blender/fonts/Bold.ttf', 'TTF');
+    await p.reconcile();
+    expect(ledger.row('assets/blender/fonts/Bold.ttf')?.state).toBe('on-hub');
+  });
 });
 
 describe('a trashed asset propagates like a trashed canvas — S8.13, both directions', () => {
@@ -2509,5 +2530,33 @@ describe('2.0.3 — a Git LFS pointer is never uploaded as the media', () => {
     const third = await plane(hub).reconcile();
     expect(third.pushed).toEqual(['assets/hero.png']);
     expect(hub.puts.at(-1)?.rel).toBe('assets/hero.png');
+  });
+});
+
+// fix/205-sync-assets — the depth cap went from 8 to 32 segments. A hub that does not say
+// `file-depth-v2` still refuses anything deeper than 8, so it is not offered those: each is held
+// with a plain reason (a row in the panel), never sent to a 400 and never dropped silently.
+describe('a hub without file-depth-v2 is not offered paths deeper than 8', () => {
+  const DEEP = 'system/kenney/assets/pack/Models/GLTF format/Textures/variants/colormap.png';
+  test('held up front with the reason; shallower files still go up', async () => {
+    const hub = fakeHub();
+    write(DEEP, 'png');
+    write('assets/b.png', 'png');
+    const res = await plane(hub, { hubTakesDeepPaths: false }).reconcile();
+    expect(hub.puts.map((x) => x.rel)).toEqual(['assets/b.png']);
+    expect((res.hubRefused ?? []).map((h) => h.rel)).toEqual([DEEP]);
+    expect(ledger.row(DEEP)?.state).toBe('refused');
+    expect(ledger.row(DEEP)?.reason).toMatch(/8 folders deep/);
+    expect(res.failed).toEqual([]);
+  });
+
+  test('a hub that takes them gets them, and a held one goes up once it does', async () => {
+    const hub = fakeHub();
+    write(DEEP, 'png');
+    await plane(hub, { hubTakesDeepPaths: false }).reconcile();
+    expect(hub.puts).toEqual([]);
+    const res = await plane(hub, { hubTakesDeepPaths: true }).reconcile();
+    expect(res.pushed).toEqual([DEEP]);
+    expect(ledger.row(DEEP)?.state).toBe('on-hub');
   });
 });

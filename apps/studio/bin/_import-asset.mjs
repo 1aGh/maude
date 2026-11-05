@@ -32,6 +32,7 @@ import { Worker } from 'node:worker_threads';
 import { Window } from 'happy-dom';
 import { recordAssetOrigin } from '../asset-origins.ts';
 import { isValidSvg, optimizeSvg } from '../draw/optimize.ts';
+import { resolveAgentBrowserBin } from './_agent-browser-bin.mjs';
 
 export class ImportAssetError extends Error {
   /**
@@ -535,7 +536,7 @@ export function assertPdfPageCap(pageCount, maxPages = PDF_MAX_PAGES) {
 // ============================================================================
 
 function agentBrowserBin() {
-  return process.env.MAUDE_AGENT_BROWSER_BIN || 'agent-browser';
+  return resolveAgentBrowserBin();
 }
 
 function runAgentBrowser(sessionName, args, { timeoutMs = 20_000 } = {}) {

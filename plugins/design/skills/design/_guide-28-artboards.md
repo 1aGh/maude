@@ -63,6 +63,26 @@ What the rows leave out, on purpose:
 
 The longer recipe and the exact bytes are in `apps/studio/schema/canvas-tsx.md` ("Add an artboard of a kind"). The shell's picker, the `artboard.insert-preset` edit and this guide produce the same result.
 
+### Heavy artboards: live and asleep
+
+In the app, only the artboards near the viewport run live. An artboard that is offscreen, or on a canvas zoomed out past 25 % or showing more than 16 artboards at once, sleeps: it keeps its size and its picture, and its heavy content stops. Maude does this for WebGL (at most 8 live contexts per canvas; the rest show their last frame), `<video>`, CSS animations and `VideoComp`. Exports, covers and screenshots always render every artboard live.
+
+Code that runs its own loop (a three.js or canvas scene on `requestAnimationFrame`, a simulation, a timer) stops it while asleep with `useArtboardActive()` from `@maude/canvas-lib`:
+
+```tsx
+const live = useArtboardActive(); // false while this artboard sleeps
+useEffect(() => {
+  if (!live) return;
+  let raf = requestAnimationFrame(function tick() { /* draw */ raf = requestAnimationFrame(tick); });
+  return () => cancelAnimationFrame(raf);
+}, [live]);
+```
+
+- Raw WebGL code also listens for `webglcontextrestored` and rebuilds its buffers and shaders; three.js does that by itself.
+- A WebGL artboard that was never live (a canvas opened zoomed out) gets its picture once Maude has let it draw a frame, one artboard at a time. A scene that draws nothing until its artboard is live shows its name until then.
+- `useArtboardSeen()` is `true` once the artboard has been near the viewport. Use it to delay an expensive first mount.
+- A canvas that crashes the window twice opens behind "This canvas is too heavy to show all at once" with **Show visible artboards only**, which mounts only the artboards near the viewport.
+
 ### Which group, from the brief
 
 | The brief says | Group | Notes |

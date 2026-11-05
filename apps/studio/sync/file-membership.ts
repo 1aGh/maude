@@ -78,8 +78,23 @@ export function isFilePlaneClass(c: FileClass): c is FilePlaneClass {
 /** Max relative-path length (matches the hub's checkout shape cap). */
 export const MAX_REL_LEN = 512;
 
-/** Max designRoot-relative depth (matches the hub's 8-segment cap). */
-export const MAX_SEGMENTS = 8;
+/**
+ * Max designRoot-relative depth, in segments — the hub mirror carries the same figure.
+ *
+ * It was 8 until fix/205-sync-assets: a 3D asset pack (`assets/kenney/…/Models/GLTF format/
+ * Textures/…`) sat deeper, both classifiers answered `never`, and the files were dropped with no
+ * row anywhere. The depth cap never guarded anything the shape rules do not (no `..`, no
+ * absolute, a conservative charset, MAX_REL_LEN); it only keeps a key from being absurd. 32 still
+ * does, and every walk that mirrors it stays bounded.
+ */
+export const MAX_SEGMENTS = 32;
+
+/** The cap every hub before `file-depth-v2` refuses past (`olderDoorRefusesDepth`). */
+export const LEGACY_MAX_SEGMENTS = 8;
+
+/** The ledger / panel reason for a file held back from a hub without `file-depth-v2`. */
+export const OLDER_HUB_DEPTH_REASON =
+  'The project’s server runs an older Maude that takes files at most 8 folders deep — update it to sync this file';
 
 // The positive extension enumerations. Everything is lowercase; the lookup
 // lowercases first — a DS legitimately ships `…P1020428.JPG`.
@@ -264,7 +279,7 @@ export interface ClassifyOptions {
  * deliberately the same answer, so no caller can tell them apart and leak an
  * oracle.
  *
- * Shape gates (all refusals → `never`): relative, `/`-separated, ≤ 8
+ * Shape gates (all refusals → `never`): relative, `/`-separated, ≤ 32
  * segments, ≤ 512 chars, no `..`/`.`/empty segment, no backslash, no drive
  * letter, no control characters, no trailing-space segment, no
  * `node_modules`, directory segments start alphanumeric, the final segment
@@ -371,6 +386,16 @@ const OLDER_DOOR_JSON_SUFFIXES = [
 export function olderDoorRefuses(rel: string): boolean {
   const lower = (rel.split('/').pop() ?? '').toLowerCase();
   return lower.endsWith('.json') && !OLDER_DOOR_JSON_SUFFIXES.some((s) => lower.endsWith(s));
+}
+
+/**
+ * Would a hub without `file-depth-v2` refuse this path for its depth alone? (fix/205)
+ *
+ * Every hub before it caps a path at LEGACY_MAX_SEGMENTS and answers anything deeper
+ * `400 invalid path`. Asked only about a path this side already admits. Studio-only.
+ */
+export function olderDoorRefusesDepth(rel: string): boolean {
+  return rel.split('/').length > LEGACY_MAX_SEGMENTS;
 }
 
 /** The segment shape rules alone — split parts, or null on refusal. */

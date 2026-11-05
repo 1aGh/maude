@@ -10,7 +10,8 @@ import { accountFace, rowSlug, sharedAside } from './home-model.js';
 import { HIcon, ProjectSquare } from './home-icons.jsx';
 import { reasonProps } from '../v2/access/disabled-reason.js';
 
-/** Three ghost cards: the shelf's shape before there is anything on it. */
+/** Three ghost cards: the shelf's shape before there is anything on it. Flat and dashed on purpose —
+ *  they must never read as thumbnails that failed to load (no tilt, no fill). */
 export function GhostCards({ n = 3 }) {
   return (
     <span className="home-ghosts" aria-hidden="true">
@@ -202,10 +203,10 @@ export function SharedWithYou({
           ))}
         </div>
       ) : (
-        <div className="home-shelf-row" data-testid="home-shared-empty">
-          <GhostCards n={3} />
+        <div className="home-shelf-row home-shelf-row--lone" data-testid="home-shared-empty">
           <Empty
             align="left"
+            glyph="people"
             copyId="es-home-shared.shared-none"
             next="When someone shares a project with you, it shows up here."
           />

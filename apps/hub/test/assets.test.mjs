@@ -649,7 +649,7 @@ test('parseCheckoutAssetPath is the SHAPE gate — class admission moved to the 
     '/_asset-file/', // empty
     '/_asset-file/_history/x.png', // underscore DIRECTORY — runtime state, structurally out
     '/_asset-file/system/ds/assets/.hidden.png', // dotfile
-    '/_asset-file/a/b/c/d/e/f/g/h/i.png', // 9 segments
+    `/_asset-file/${'d/'.repeat(32)}i.png`, // 33 segments — past the cap (32 since fix/205)
   ]) {
     assert.equal(parseCheckoutAssetPath(bad), null, `expected null for ${bad}`);
   }

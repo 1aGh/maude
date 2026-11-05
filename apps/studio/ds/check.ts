@@ -209,6 +209,31 @@ export function checkSystem(model: SystemModel, idx: RegistryIndex): SystemRepor
   if (themeGaps.length) reasons.add('theme-gap');
   if (cfg.themes.length === 1) reasons.add('single-theme');
 
+  // fix/ds-convert-hooks-cli #10 — a colour role declared ONLY on `:root` as `var(--x)`: a custom
+  // property's var() is resolved where it is declared, so a nested `[data-theme='light']` island
+  // inherits the value `:root` resolved (the dark one) even when it redefines `--x`. A warning
+  // note (no level change: theme-gap / single-theme already carry one), with the fix.
+  const rootOnly: string[] = [];
+  for (const r of required) {
+    if (!r.perTheme) continue;
+    const ds = model.byName.get(r.name) ?? [];
+    if (!ds.length) continue;
+    const onlyRoot = ds.every((d) =>
+      (model.rules[d.rule]?.selector ?? '')
+        .replace(/\/\*[\s\S]*?\*\//g, ' ')
+        .split(',')
+        .every((s) => s.trim() === ':root')
+    );
+    if (onlyRoot && ds.some((d) => /\bvar\(/.test(d.value))) rootOnly.push(r.name);
+  }
+  const rootOnlyNote = rootOnly.length
+    ? {
+        id: 'root-only-roles',
+        name: rootOnly.join(' '),
+        detail: `declared only on :root as var(…), so a nested [data-theme] island inherits the value :root resolved, not its own theme's. Declare them in each theme's rule too (e.g. \`.ds[data-theme="light"], [data-theme="light"] { ${rootOnly[0]}: var(…); }\`), so every island resolves var() against its own theme.`,
+      }
+    : null;
+
   // ── Value types + unresolved refs ──────────────────────────────────────────
   const typeErrors: TypeError_[] = [];
   const unresolvedRefs: { name: string; ref: string }[] = [];
@@ -256,7 +281,7 @@ export function checkSystem(model: SystemModel, idx: RegistryIndex): SystemRepor
       collisions.push({ id: 'type-mismatch', name: e.name, detect: 'type' });
   }
   if (typeErrors.length) reasons.add('type-collision');
-  const notes: SystemReport['notes'] = [];
+  const notes: SystemReport['notes'] = rootOnlyNote ? [rootOnlyNote] : [];
   for (const row of reg.collisions) {
     if (row.detect === 'type') continue;
     let hit: string | null = null;

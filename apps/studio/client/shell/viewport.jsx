@@ -1,7 +1,7 @@
 // shell/viewport.jsx — moved verbatim out of client/app.jsx (Maude v2 plan V2-0.2, move-only split).
 
 import { useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { canvasFrameCfg, canvasImportsOf, canvasUrl } from '../canvas-url.js';
+import { canvasFrameCfg, canvasImportsOf, canvasRefusedOf, canvasUrl } from '../canvas-url.js';
 import { CompareHost } from '../v2/history/compare-view.jsx';
 import { useDsPreviewTarget, withDsPreview } from '../v2/ds/preview-mode.js';
 import { useViewing } from '../v2/history/history-host.jsx';
@@ -28,6 +28,8 @@ import { normalizeOpenPath } from '../share-link.js';
 import { framesIsolated, sessionRole } from '../v2/access/access-client.js';
 import { CanvasDropCatcher, catcherReadOnly } from '../v2/assets/canvas-drop-catcher.jsx';
 import { framesToMount, noteShown } from './frame-cap.js';
+import { crashGuard, subscribeCrashGuard } from '../v2/shell/canvas-crash-guard.js';
+import { TooHeavyCanvas } from '../v2/shell/too-heavy-card.jsx';
 
 export function Viewport({
   tabs,
@@ -113,9 +115,14 @@ export function Viewport({
   // S6.12 (C5) — what the open canvases say about drawing: one listener for every frame. The card is below.
   const wsSend = useContext(ShellStoreContext)?.local?.wsSend;
   const renderSignal = useRenderSignal({ cfg, wsSend, viewingPath: viewing?.path ?? null });
+  // 2.0.5 — a canvas that crashed the page twice is not reopened in a loop (canvas-crash-guard.js).
+  const guard = useMemo(() => crashGuard(), []);
+  const [, bumpGuard] = useState(0);
+  useEffect(() => subscribeCrashGuard(() => bumpGuard((n) => n + 1)), []);
   const stableSrc = (path) => {
     const held = viewing?.path === path ? { viewing: viewing.at } : undefined;
-    const opts = withDsPreview(held, dsPreview);
+    const base = withDsPreview(held, dsPreview);
+    const opts = guard.isLight(path) ? { ...(base || {}), light: true } : base;
     // A frame that changes between now and a past version is a new frame: the entry it comes back to is
     // built afresh, so it carries the capability that is live THEN, not the one of the first open.
     // The same holds for a frame entering or leaving a design-system preview, or stepping to another system.
@@ -144,6 +151,11 @@ export function Viewport({
   const canvasTab = activePath && activePath !== SYSTEM_TAB ? activePath : null;
   const availability = useCanvasAvailability(canvasTab, { stamp: canvasReloadNonce });
   const notLocal = !!canvasTab && availability === 'not-local';
+  const tooHeavy = !!canvasTab && guard.tooHeavy(canvasTab);
+  // The mark the next boot reads: this canvas is framed now (none while its card stands in).
+  useEffect(() => {
+    guard.noteOpen(tooHeavy ? null : canvasTab);
+  }, [guard, canvasTab, tooHeavy]);
   // Still coming down (Q13 fallback): the "<name> is on its way." card, same stand-in for the frame.
   const arriving = !!canvasTab && availability === 'arriving';
   const canvasState =
@@ -225,6 +237,20 @@ export function Viewport({
               <NotLocalCanvas name={basename(t.path).replace(/\.(tsx|html)$/i, '')} />
             </div>
           );
+        if (tooHeavy && t.path === activePath)
+          return (
+            <div
+              key={`${t.path}#too-heavy`}
+              className="sh-not-local active"
+              style={{ '--es-cx': freeCx }}
+            >
+              <TooHeavyCanvas
+                name={basename(t.path).replace(/\.(tsx|html)$/i, '')}
+                onLight={() => guard.chooseLight(t.path)}
+                onAll={() => guard.forgive(t.path)}
+              />
+            </div>
+          );
         if (arriving && t.path === activePath)
           return (
             <div
@@ -267,7 +293,7 @@ export function Viewport({
           />
         );
       })}
-      {canvasTab && !notLocal && !arriving && (
+      {canvasTab && !notLocal && !arriving && !tooHeavy && (
         // r3 — an Assets tile dragged over the canvas: the shell takes the drop (WebKit gives the canvas origin no
         // event of a drag the shell started) and places the picture on what the canvas says lies under it
         <CanvasDropCatcher
@@ -294,7 +320,7 @@ export function Viewport({
           onClose={() => setCodeReq(null)}
         />
       )}
-      {loadingPath && loadingPath === activePath && !notLocal && !arriving && (
+      {loadingPath && loadingPath === activePath && !notLocal && !arriving && !tooHeavy && (
         // DS skeletons recipe — calm .skel pulse while the canvas-shell compiles
         // the TSX. Cleared by the iframe's dgn:'loaded' message (or the onLoad
         // fallback timer for legacy .html canvases that never post it).
@@ -305,7 +331,7 @@ export function Viewport({
         // a fresh card on every re-render while opening, so the card never left (fix-opening-hang).
         <CanvasLoading key={`${loadingPath}#loading`} path={loadingPath} cloud={!!cfg?.cloud} />
       )}
-      {canvasError && canvasError.path === activePath && !notLocal && !arriving && (
+      {canvasError && canvasError.path === activePath && !notLocal && !arriving && !tooHeavy && (
         // issue #115 — what the blank pane used to be. Names which of the two
         // failures happened and offers the recovery that used to require
         // quitting the app (or knowing that switching projects and back
@@ -331,12 +357,14 @@ export function Viewport({
                 Reload canvas
               </button>
             </div>
-          ) : canvasImportsOf(cfg, canvasError.path) ? (
+          ) : canvasImportsOf(cfg, canvasError.path) || canvasRefusedOf(cfg, canvasError.path) ? (
             // gate-b-c4j — it imports another canvas, so its frame refused the module: say that, not "can't
-            // be drawn" (v2/code/canvas-imports-card.jsx).
+            // be drawn" (v2/code/canvas-imports-card.jsx). 2.0.5 (#205): or its built module inlined a file
+            // another canvas owns — the card names that file too.
             <CanvasImportsCard
               key={`${canvasError.path}#imports`}
               imports={canvasImportsOf(cfg, canvasError.path)}
+              refused={canvasRefusedOf(cfg, canvasError.path)}
               componentDir={cfg?.newComponentDir}
             />
           ) : (
@@ -356,7 +384,7 @@ export function Viewport({
           )}
         </div>
       )}
-      {canvasTab && !notLocal && !arriving && (
+      {canvasTab && !notLocal && !arriving && !tooHeavy && (
         // S6.12 — the code compiles and then throws while drawing: S11.7's card over the dimmed last good
         // render, with Go back to 14:05. Silent while this Mac's own AI run draws on it.
         <RenderErrorHost

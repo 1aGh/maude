@@ -192,6 +192,33 @@ describe('ds-check system levels', () => {
     expect(r.components.declaredMissing.variants).toContain('Button.danger');
   });
 
+  // fix/ds-convert-hooks-cli #10 — roles only on :root as var(): nested theme islands inherit the
+  // :root-resolved (dark) value. A warning that says how to fix it; the conformant fixture has none.
+  test('#10 canonical roles declared only on :root as var(--x) → a root-only-roles warning', () => {
+    expect(run(base, fixtureConfig(), false).notes.map((n) => n.id)).not.toContain(
+      'root-only-roles'
+    );
+    const r = run(
+      edit(
+        base,
+        (c) =>
+          `${c.replace(/\n {2}--(bg-0|fg-3): [^;]*;/g, '')}\n:root {\n  --bg-0: var(--bg-1);\n  --fg-3: var(--fg-2);\n}\n`
+      )
+    );
+    const n = r.notes.find((x) => x.id === 'root-only-roles');
+    expect(n?.name).toBe('--bg-0 --fg-3');
+    expect(n?.detail).toContain('[data-theme');
+    expect(n?.detail).toContain('Declare them in each theme');
+    // a literal on :root resolves nothing: no warning
+    const lit = run(
+      edit(
+        base,
+        (c) => `${c.replace(/\n {2}--bg-0: [^;]*;/g, '')}\n:root {\n  --bg-0: oklch(0.2 0 0);\n}\n`
+      )
+    );
+    expect(lit.notes.map((x) => x.id)).not.toContain('root-only-roles');
+  });
+
   test('judgement rows and ladders are notes, never a level', () => {
     const r = run(
       edit(base, (c) => c.replace(/(--ease-out): [^;]*;/, '$1: cubic-bezier(0.3, 1.6, 0.6, 1);'))

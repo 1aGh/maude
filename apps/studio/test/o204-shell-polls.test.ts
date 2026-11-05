@@ -82,13 +82,15 @@ describe('pacedInterval', () => {
   });
 });
 
-describe('the design-system polls use the shell clock', () => {
+// 2.0.5 (#205) supersedes the clock for these four: they read on events (ds-refresh.js), and only truth-host keeps
+// one slow clock. Behaviour is pinned in ds-refresh-hosts-205.test.tsx; this keeps a timer from creeping back.
+describe('the design-system hosts read on events, not on a clock', () => {
   const read = (f: string) => readFileSync(join(import.meta.dir, '../client/v2/ds', f), 'utf8');
   for (const f of ['truth-host.jsx', 'advanced-host.jsx', 'make-host.jsx', 'off-system-host.jsx']) {
     test(f, () => {
       const src = read(f);
-      expect(src).toContain('pacedInterval(');
-      expect(src).toContain('shellActivity()');
+      expect(src).toContain('dsRefresh(');
+      expect(src).not.toContain('pacedInterval(');
       expect(src).not.toMatch(/setInterval\(/);
     });
   }

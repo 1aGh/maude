@@ -24,7 +24,14 @@ export function useAccount(enabled) {
         .then((r) => r.json().catch(() => ({})))
         .then((j) => {
           if (!gone)
-            setState((s) => ({ ...s, connected: !!j?.connected, email: j?.email ?? null }));
+            setState((s) => ({
+              ...s,
+              connected: !!j?.connected,
+              email: j?.email ?? null,
+              // 2.0.5 W4 — the project account card's kind: the cloud address and this folder's link
+              cloudUrl: typeof j?.url === 'string' ? j.url : '',
+              linkedHub: j?.linkedHub ?? null,
+            }));
         })
         .catch(() => {
           if (!gone) setState((s) => ({ ...s, connected: false, email: null }));

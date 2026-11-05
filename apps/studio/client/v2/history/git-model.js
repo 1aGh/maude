@@ -496,7 +496,9 @@ export function versionRows(entries, nowMs = Date.now()) {
  */
 export function outcomeBanner(kind, res, ok) {
   if (res?.ok) return ok ?? null;
-  if (res?.authRequired) return { variant: 'info', text: res.error || GIT_WORDS.signIn };
+  // 2.0.5 W4 — the sign-in line carries its button (`account.github-signin`), never only words
+  if (res?.authRequired)
+    return { variant: 'info', text: res.error || GIT_WORDS.signIn, signIn: true };
   if (res?.conflict)
     return kind === 'getLatest'
       ? {

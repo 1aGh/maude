@@ -16,10 +16,13 @@ import { commentTime } from '../comments/comments-model.js';
 import { restoreItem } from '../left-panel/use-trash.js';
 import { canvasName, WORDS } from './access-client.js';
 
-/** The shared Trash's canvas item for the open canvas (designRoot-relative `rel`), or null. */
+/**
+ * The shared Trash's canvas item for the open canvas (designRoot-relative `rel`), or null. An item a live
+ * canvas holds the path of (`liveAtPath`, GET /_api/trash) is an OLDER copy: the open canvas was not trashed.
+ */
 export function trashedWhileOpen(items, rel) {
   if (!rel || !Array.isArray(items)) return null;
-  return items.find((i) => i?.kind === 'canvas' && i.path === rel) ?? null;
+  return items.find((i) => i?.kind === 'canvas' && i.path === rel && i.liveAtPath !== true) ?? null;
 }
 
 /** Every open tab whose canvas is in the trash → the panel's ghost rows. `open` = designRoot-relative paths. */
@@ -73,7 +76,7 @@ export function TrashedBanner({ item, canRestore = true, now, fetchImpl, onResto
     try {
       const r = await restoreItem(item.id, fetchImpl);
       if (r.status >= 200 && r.status < 300 && r.body?.ok !== false)
-        onRestored?.(r.body?.path ?? item.path);
+        onRestored?.(r.body?.path ?? item.path, { renamed: r.body?.renamed === true });
       else
         onError?.(
           typeof r.body?.error === 'string' ? r.body.error : 'Could not restore it. Try again.'

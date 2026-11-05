@@ -303,6 +303,47 @@ describe('trashed while open', () => {
     ).not.toContain('canvas-trashed-restore');
   });
 
+  test('a live canvas at the same path as older trash copies is not "moved to the trash"', () => {
+    const old = { ...item, liveAtPath: true };
+    expect(trashedWhileOpen([old], 'ui/Combine-cisla.tsx')).toBe(null);
+    // the open canvas that really was trashed (no live document at its path) still shows the bar
+    const real = { ...item, id: 'canvas:n_x', liveAtPath: false };
+    expect(trashedWhileOpen([old, real], 'ui/Combine-cisla.tsx')?.id).toBe('canvas:n_x');
+    // no ghost row either: the dim "In the trash" row is for the trashed canvas, not a live one
+    expect(trashGhosts([old], ['ui/Combine-cisla.tsx'], () => {})).toEqual([]);
+  });
+
+  test('Restore that lands under another name says so, never a silent second canvas', async () => {
+    const f = fakeFetch({
+      'POST /_api/trash/restore': {
+        status: 200,
+        body: { ok: true, path: 'ui/Combine-cisla 2.tsx', renamed: true },
+      },
+    });
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    let seen: [string, unknown] | null = null;
+    await act(async () => {
+      root.render(
+        createElement(TrashedBanner, {
+          item,
+          fetchImpl: f.impl,
+          onRestored: (p: string, o: unknown) => {
+            seen = [p, o];
+          },
+        })
+      );
+    });
+    await act(async () => {
+      (host.querySelector('[data-testid="canvas-trashed-restore"]') as HTMLButtonElement).click();
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(seen).toEqual(['ui/Combine-cisla 2.tsx', { renamed: true }]);
+    await act(async () => root.unmount());
+    host.remove();
+  });
+
   test('Restore posts S1’s route with the item id', async () => {
     const f = fakeFetch({
       'POST /_api/trash/restore': { status: 200, body: { ok: true, path: 'ui/Combine-cisla.tsx' } },

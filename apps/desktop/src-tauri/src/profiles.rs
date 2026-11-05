@@ -631,6 +631,27 @@ pub async fn cloud_sign_in_prepare(
     Ok(true)
 }
 
+/// 2.0.5 W4b — before a team-server sign-in from a project page (the account card's Switch /
+/// "Sign in to <host>…"). A team server's credential lands in the profile's `hubs.json`, so on a
+/// profile other projects share a sign-in as someone else would re-sign them too (V2-3.8). Ok(true)
+/// = this project shared its profile: it is now bound to a fresh profile of its own and its server
+/// is restarting onto it (the server learns the profile from env only) — the page reloads signed
+/// out and the person signs in there. Ok(false) = alone on its profile: go ahead. Project tabs
+/// only: `caller_project` checks the calling webview's label AND its own server's origin.
+#[tauri::command]
+pub async fn team_sign_in_prepare(
+    app: tauri::AppHandle,
+    webview: tauri::Webview,
+) -> Result<bool, String> {
+    let caller = crate::windows::caller_project(&webview, false)?;
+    let label = crate::windows::project_display_name(&caller.root);
+    let moved = crate::app_state::prepare_team_switch_app(&app, &caller.root, &label)?;
+    if moved.is_some() {
+        crate::sidecar::restart_on_binding(&app, &caller.label, &caller.root);
+    }
+    Ok(moved.is_some())
+}
+
 /// After the project's server stored a cloud credential in its profile's
 /// `cloud.json`: record the account, and when that sign-in would re-sign a
 /// profile other projects use under another account, move the credential to a

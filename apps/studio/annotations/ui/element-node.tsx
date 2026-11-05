@@ -41,7 +41,12 @@ import {
   type WorldPoint,
 } from '../../annotations-model.ts';
 import { arrowPrimitives, type SvgPrimitive } from '../../canvas-arrowheads.ts';
-import { countRender, useLiveViewport } from '../../canvas-lib.tsx';
+import {
+  countRender,
+  cssCounterScaledChrome,
+  screenSizedRef,
+  useLiveViewport,
+} from '../../canvas-lib.tsx';
 import { SECTION_FOLDED_H } from '../constants.ts';
 import { authorLine, provenanceLine, relativeTime, tiltOf } from '../elements/sticky.model.ts';
 import type { AnnotationElement } from '../types.ts';
@@ -283,6 +288,14 @@ export function stickyBoxPath(x: number, y: number, w: number, h: number, r: num
   ].join(' ');
 }
 
+/**
+ * The "lifted paper" shadow: feDropShadow dx 0 · dy 4 · stdDeviation 8 · #000 @ 0.28, as a CSS box-shadow (blur radius
+ * = 2 × stdDeviation). It is the same in both themes - the filter never read one. It is a box-shadow on the NODE, not
+ * an SVG filter on the shape: WebKit re-rasters the world layer at every zoom frame, and 221 software filters made each
+ * frame ~230 ms on the retention-ladder board (v2.0.5 annot-zoom).
+ */
+const PAPER_SHADOW = '0 4px 16px rgba(0, 0, 0, 0.28)';
+
 function StickyView({ el, interactive, edit, quiet, selected, mine, typist }: ElementNodeProps) {
   const x = num(el.x);
   const y = num(el.y);
@@ -331,7 +344,17 @@ function StickyView({ el, interactive, edit, quiet, selected, mine, typist }: El
   const shown = [line, origin, doneLine].filter(Boolean).join(' · ');
   const pin = useTimePin(el); // S4.16 — the time chip, the fade off range, "Not printed"
   return (
-    <Node el={el} x={x} y={y} w={w} h={h} rot={rot} raised={!!edit} extraAttrs={pin.attrs}>
+    <Node
+      el={el}
+      x={x}
+      y={y}
+      w={w}
+      h={h}
+      rot={rot}
+      raised={!!edit}
+      extraAttrs={pin.attrs}
+      extraStyle={{ borderRadius: r, boxShadow: PAPER_SHADOW }}
+    >
       <PinTags pin={pin} />
       <Geo x={x} y={y} w={w} h={h}>
         <path
@@ -340,7 +363,6 @@ function StickyView({ el, interactive, edit, quiet, selected, mine, typist }: El
           stroke={aiMade ? AI_SPARK : 'rgba(0,0,0,0.05)'}
           strokeWidth={aiMade ? 2 : 1}
           vectorEffect="non-scaling-stroke"
-          filter="url(#dc-sticky-shadow)"
           pointerEvents={hit(interactive)}
         />
         {typist ? (
@@ -791,6 +813,9 @@ function ImageView({ el, interactive, resolveAsset }: ElementNodeProps) {
   );
 }
 
+/** A link / media card is a rounded rect (rx 8) with the same lifted-paper shadow, on its node. */
+const CARD_SHADOW_STYLE: CSSProperties = { borderRadius: 8, boxShadow: PAPER_SHADOW };
+
 function LinkView({ el, interactive }: ElementNodeProps) {
   const x = num(el.x);
   const y = num(el.y);
@@ -799,7 +824,7 @@ function LinkView({ el, interactive }: ElementNodeProps) {
   const lay = linkCardLayout(x, y, w, h);
   const font = { fontFamily: TEXT_FONT } as const;
   return (
-    <Node el={el} x={x} y={y} w={w} h={h} rot={num(el.rot)}>
+    <Node el={el} x={x} y={y} w={w} h={h} rot={num(el.rot)} extraStyle={CARD_SHADOW_STYLE}>
       <Geo x={x} y={y} w={w} h={h}>
         <g
           data-url={str(el.url)}
@@ -818,7 +843,6 @@ function LinkView({ el, interactive }: ElementNodeProps) {
             stroke={LINK_CARD_STROKE}
             strokeWidth={1}
             vectorEffect="non-scaling-stroke"
-            filter="url(#dc-sticky-shadow)"
           />
           <svg
             x={lay.glyph.x}
@@ -873,7 +897,7 @@ function MediaRefView({ el, interactive }: ElementNodeProps) {
   const src = str(el.src);
   const font = { fontFamily: TEXT_FONT } as const;
   return (
-    <Node el={el} x={x} y={y} w={w} h={h} rot={num(el.rot)}>
+    <Node el={el} x={x} y={y} w={w} h={h} rot={num(el.rot)} extraStyle={CARD_SHADOW_STYLE}>
       <Geo x={x} y={y} w={w} h={h}>
         <g
           data-src={src}
@@ -892,7 +916,6 @@ function MediaRefView({ el, interactive }: ElementNodeProps) {
             stroke={LINK_CARD_STROKE}
             strokeWidth={1}
             vectorEffect="non-scaling-stroke"
-            filter="url(#dc-sticky-shadow)"
           />
           <svg
             x={x + 8}
@@ -945,22 +968,123 @@ export function sectionChip(label: string, zoom: number) {
   return { fontSize, chipH, gap, padX, chipW };
 }
 
-function SectionChip({
-  el,
-  interactive,
-  edit,
-  note,
-  count,
-}: {
+type SectionChipProps = {
   el: AnnotationElement;
   interactive: boolean;
   edit: EditRequest | null;
   note?: string;
   /** S4.13 - how many an open section holds, drawn as a small number after its name. */
   count?: string;
-}) {
+};
+
+/**
+ * 2.0.5 W2 — on Blink the chip is drawn once at its SCREEN size and counter-scaled by CSS: the viewport
+ * controller writes `--dc-zoom` straight onto it (`screenSizedRef`, past the scene's `--dc-zoom` reset), so a
+ * pan/zoom gesture renders no chip — it re-rendered every chip at ~20 Hz from `useLiveViewport()`. It scales
+ * about the section's top-left corner, where it hangs from. WebKit (the desktop app) keeps the live-zoom chip:
+ * the per-frame transform was not shown to be free there (`cssCounterScaledChrome`).
+ */
+function SectionChip({ el, interactive, edit, note, count }: SectionChipProps) {
+  if (edit) return <SectionChipEditor el={el} interactive={interactive} edit={edit} />;
+  if (!cssCounterScaledChrome())
+    return <SectionChipLive el={el} interactive={interactive} note={note} count={count} />;
+  countRender('sectionChipRenders');
+  const { label, g, style, box } = sectionChipStyles(el, interactive, 1);
+  const lift = g.chipH + g.gap;
+  return (
+    <div
+      ref={screenSizedRef}
+      className="dc-annot-chip"
+      data-section-chip="1"
+      style={{
+        ...box,
+        width: note || count ? undefined : g.chipW,
+        whiteSpace: 'nowrap',
+        transform: 'scale(calc(1 / var(--dc-zoom, 1)))',
+        transformOrigin: `0 ${lift}px`,
+      }}
+    >
+      <SectionChipTitle label={label} style={style} note={note} count={count} />
+    </div>
+  );
+}
+
+/** WebKit: the chip sized from the live zoom (re-renders with it), exactly as before 2.0.5. */
+function SectionChipLive({ el, interactive, note, count }: Omit<SectionChipProps, 'edit'>) {
+  countRender('sectionChipRenders');
   // Counter-scaled chrome needs the live zoom, not the settle-cadence one.
   const zoom = useLiveViewport().zoom || 1;
+  const { label, g, style, box } = sectionChipStyles(el, interactive, zoom);
+  return (
+    <div
+      className="dc-annot-chip"
+      data-section-chip="1"
+      style={{ ...box, width: note || count ? undefined : g.chipW, whiteSpace: 'nowrap' }}
+    >
+      <SectionChipTitle label={label} style={style} note={note} count={count} />
+    </div>
+  );
+}
+
+function SectionChipTitle({
+  label,
+  style,
+  note,
+  count,
+}: {
+  label: string;
+  style: CSSProperties;
+  note?: string;
+  count?: string;
+}) {
+  return (
+    <div className="dc-annot-text dc-annot-text--nowrap" style={style}>
+      {label}
+      {count ? (
+        <span data-section-count="1" style={{ opacity: 0.65, marginLeft: 6, fontWeight: 500 }}>
+          {count}
+        </span>
+      ) : null}
+      {note ? (
+        <span data-fold-note="1" style={{ opacity: 0.75, marginLeft: 8, fontWeight: 500 }}>
+          {note}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+/** Renaming a section: the editor sizes its text in world px, so it keeps the live-zoom sizing. */
+function SectionChipEditor({
+  el,
+  interactive,
+  edit,
+}: Pick<SectionChipProps, 'el' | 'interactive'> & { edit: EditRequest }) {
+  countRender('sectionChipRenders');
+  // Counter-scaled chrome needs the live zoom, not the settle-cadence one.
+  const zoom = useLiveViewport().zoom || 1;
+  const { label, g, style, box } = sectionChipStyles(el, interactive, zoom);
+  return (
+    <div className="dc-annot-chip" style={{ ...box, zIndex: 1 }}>
+      <TextEditor
+        initialText={label}
+        singleLine
+        className="dc-annot-text dc-annot-text--nowrap"
+        style={style}
+        size={{ kind: 'fit-both', minWidth: g.chipW }}
+        fmt={{ fontSize: g.fontSize }}
+        caretPoint={edit.caretPoint}
+        ariaLabel="Rename section"
+        onCommit={edit.onCommit}
+        onCancel={edit.onCancel}
+        onDraft={edit.onDraft}
+      />
+    </div>
+  );
+}
+
+/** The chip's box + title styles at `zoom` (1 = screen px, for the CSS-scaled chip). */
+function sectionChipStyles(el: AnnotationElement, interactive: boolean, zoom: number) {
   const label = str(el.label, 'Section');
   const color = str(el.color, '#8a8a8a');
   const g = sectionChip(label, zoom);
@@ -982,46 +1106,7 @@ function SectionChip({
     backgroundColor: color,
     pointerEvents: interactive ? 'auto' : 'none',
   };
-  if (edit) {
-    return (
-      <div className="dc-annot-chip" style={{ ...box, zIndex: 1 }}>
-        <TextEditor
-          initialText={label}
-          singleLine
-          className="dc-annot-text dc-annot-text--nowrap"
-          style={style}
-          size={{ kind: 'fit-both', minWidth: g.chipW }}
-          fmt={{ fontSize: g.fontSize }}
-          caretPoint={edit.caretPoint}
-          ariaLabel="Rename section"
-          onCommit={edit.onCommit}
-          onCancel={edit.onCancel}
-          onDraft={edit.onDraft}
-        />
-      </div>
-    );
-  }
-  return (
-    <div
-      className="dc-annot-chip"
-      data-section-chip="1"
-      style={{ ...box, width: note || count ? undefined : g.chipW, whiteSpace: 'nowrap' }}
-    >
-      <div className="dc-annot-text dc-annot-text--nowrap" style={style}>
-        {label}
-        {count ? (
-          <span data-section-count="1" style={{ opacity: 0.65, marginLeft: 6, fontWeight: 500 }}>
-            {count}
-          </span>
-        ) : null}
-        {note ? (
-          <span data-fold-note="1" style={{ opacity: 0.75, marginLeft: 8, fontWeight: 500 }}>
-            {note}
-          </span>
-        ) : null}
-      </div>
-    </div>
-  );
+  return { label, g, style, box };
 }
 
 function SectionView({ el, interactive, edit, foldNote }: ElementNodeProps) {

@@ -473,14 +473,18 @@ describe('the shelves (05 es-home-*, 11 pn-home)', () => {
     expect($('home-shared')).toBeNull();
   });
 
-  test('Shared with you before anyone shares: ghost cards, its line, and no button at all', async () => {
+  // 2.0.5 W5 (decision:maude/v2-205-shared-empty-glyph): the ghost tiles read as failed thumbnails, so the
+  // empty state is one quiet people glyph and its line in a lone card — still no button.
+  test('Shared with you before anyone shares: one glyph, its line, and no button at all', async () => {
     fetchAnswers['/_home/cloud'] = [200, CLOUD_IN];
     mount();
     await flush();
     const shelf = $('home-shared');
     expect(shelf?.textContent).toContain('Shared with you');
     expect(shelf?.textContent).toContain('Nothing shared with you yet.');
-    expect(shelf?.querySelectorAll('.home-ghosts > i')).toHaveLength(3);
+    const empty = $('home-shared-empty');
+    expect(empty?.querySelectorAll('.es-glyph')).toHaveLength(1);
+    expect(shelf?.querySelectorAll('.home-ghosts > i')).toHaveLength(0);
     expect(shelf?.querySelectorAll('button')).toHaveLength(0);
   });
 

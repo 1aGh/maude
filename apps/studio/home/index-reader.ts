@@ -67,6 +67,13 @@ export interface HomeProjectIndex {
     linkedHub: { url: string } | null;
     managed: boolean;
   };
+  /**
+   * 2.0.5 W4b — the realpath of the project's design root, so Home shows two folders that share
+   * one `.design` (a symlink) as ONE project. Set for `ok`, and for a `mismatch` whose root IS this
+   * pid but whose design dir resolves elsewhere through a symlink (nothing is read there — W5 — the
+   * path is only compared). Never for a snapshot that names another folder.
+   */
+  designReal?: string;
   counts?: ProjectIndexSnapshot['counts'];
   canvases?: HomeCanvasRow[];
 }
@@ -82,7 +89,12 @@ export function resolveProject(
   snap: ProjectIndexSnapshot | null = readSnapshot(pid)
 ):
   | { ok: true; snap: ProjectIndexSnapshot; root: string; designRoot: string }
-  | { ok: false; state: Exclude<HomeProjectState, 'ok'>; snap: ProjectIndexSnapshot | null } {
+  | {
+      ok: false;
+      state: Exclude<HomeProjectState, 'ok'>;
+      snap: ProjectIndexSnapshot | null;
+      designReal?: string;
+    } {
   if (!snap || snap.pid !== pid) return { ok: false, state: 'missing', snap: null };
   const root = snap.project?.root;
   const designRel = snap.project?.designRel;
@@ -115,7 +127,15 @@ export function resolveProject(
     } catch {
       return { ok: false, state: 'gone', snap };
     }
-    if (st.isSymbolicLink()) return { ok: false, state: 'mismatch', snap };
+    if (st.isSymbolicLink()) {
+      let designReal: string | undefined;
+      try {
+        designReal = realpathSync(designRoot);
+      } catch {
+        designReal = undefined;
+      }
+      return { ok: false, state: 'mismatch', snap, ...(designReal ? { designReal } : {}) };
+    }
   }
   if (!existsSync(designRoot)) return { ok: false, state: 'gone', snap };
   return { ok: true, snap, root: real, designRoot };
@@ -191,6 +211,7 @@ export function readHomeIndex(pids: string[], running: ReadonlySet<string> = new
         pid,
         state: r.state,
         stale: false,
+        ...(r.designReal ? { designReal: r.designReal } : {}),
         ...(snap
           ? {
               project: {
@@ -232,6 +253,7 @@ export function readHomeIndex(pids: string[], running: ReadonlySet<string> = new
       state: 'ok',
       stale,
       ...(rebuilt ? { rebuilt } : {}),
+      designReal: r.designRoot,
       project: {
         root: r.root,
         name: snap.project.name,

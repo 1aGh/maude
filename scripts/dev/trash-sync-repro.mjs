@@ -632,6 +632,120 @@ async function restartStudio(p) {
   Object.assign(p, next);
 }
 
+// #14 (2.0.5) — the css twin across a restart. A canvas with its `.css` is synced to both Macs, the
+// editor changes the css in a running studio, then quits; with the studio closed it edits the `.css`
+// and the `.tsx` on disk, and opens again. Nobody else touched the canvas, so both edits must reach
+// the project with no conflict ("changed here and in the cloud" for an older copy of the editor's own
+// css was the report). `--editor alice|bob|mixed` (alice made the canvas; bob received it);
+// `--quick-quit` quits right after the in-session edit (its answer may still be owed);
+// `--keep-mine` forces a held css conflict, answers it with Keep mine, restarts, and asserts it
+// stayed answered.
+const CSS_EDITOR = arg('editor', 'mixed');
+async function stopStudio(p) {
+  const i = children.indexOf(p.proc);
+  p.proc.kill('SIGTERM');
+  await new Promise((r) => (p.proc.exitCode !== null ? r() : p.proc.once('exit', r)));
+  if (i >= 0) children.splice(i, 1);
+}
+async function startAgain(p) {
+  Object.assign(p, await startStudio(p.name, p.root, join(scratch, `${p.name}-cfg`, 'hubs.json')));
+}
+async function hubCss(rel) {
+  try {
+    const boot = await hubApi('bootstrap');
+    const d = (boot.docs ?? []).find((x) => !x.retired && x.path === rel);
+    const rev = await hubRevision();
+    if (!d || rev === null) return null;
+    const r = await hubApi(`lane?doc=${encodeURIComponent(d.doc)}&lane=css&rev=${rev}`);
+    return typeof r?.body === 'string' ? r.body : null;
+  } catch {
+    return null;
+  }
+}
+async function cssRun(n) {
+  const rel = `ui/Css${n}.tsx`;
+  const cssRel = rel.replace(/\.tsx$/, '.css');
+  const slug = rel
+    .replace(/\//g, '-')
+    .replace(/\.tsx$/, '')
+    .toLowerCase();
+  const editor =
+    (CSS_EDITOR === 'mixed' ? (n % 2 ? 'alice' : 'bob') : CSS_EDITOR) === 'bob' ? bob : alice;
+  const other = editor === bob ? alice : bob;
+  const css = (c) => `.flag { color: ${c}; }\n`;
+  const notices = (s) =>
+    (s?.notices ?? []).filter((x) => String(x?.id ?? '').includes(slug)).map((x) => x.id);
+  writeFileSync(join(aliceRoot, '.design', cssRel), css('red'));
+  writeFileSync(join(aliceRoot, '.design', rel), SOURCE);
+  writeFileSync(join(aliceRoot, '.design', rel.replace(/\.tsx$/, '.meta.json')), meta(`Css ${n}`));
+  await until(`${cssRel} on bob's disk`, () => disk(bob, cssRel) === css('red'), 180_000);
+  // in session: the editor changes the css, the other Mac gets it. `--css-offline`: the cell is
+  // away for that edit, so the change waits in the editor's outbox until the next start
+  const offline = argv.includes('--css-offline');
+  if (offline) await cellAway();
+  writeFileSync(join(editor.root, '.design', cssRel), css('blue'));
+  if (offline) await sleep(4_000);
+  else if (!argv.includes('--quick-quit'))
+    await until(`blue on ${other.name}`, () => disk(other, cssRel) === css('blue'), 90_000);
+  await stopStudio(editor);
+  if (offline) await cellBack();
+  if (argv.includes('--keep-mine')) {
+    // a REAL conflict to answer: the other Mac changes the css while the editor is closed
+    writeFileSync(join(other.root, '.design', cssRel), css('purple'));
+    await until('purple on the hub', async () => (await hubCss(rel)) === css('purple'), 60_000);
+  }
+  // studio closed: both files edited on disk
+  writeFileSync(join(editor.root, '.design', cssRel), css('green'));
+  writeFileSync(
+    join(editor.root, '.design', rel),
+    SOURCE.replace('padding: 16 }}>A<', 'padding: 16 }}>A edited<')
+  );
+  await startAgain(editor);
+  let reached = false;
+  try {
+    await until(
+      `green on ${other.name}`,
+      () => disk(other, cssRel) === css('green'),
+      Number(arg('css-wait', '60000'))
+    );
+    reached = true;
+  } catch {
+    /* held, or slow */
+  }
+  const st = await syncStatus(editor);
+  const final = {
+    editor: editor.name,
+    reached,
+    hubCss: await hubCss(rel),
+    editorCss: disk(editor, cssRel),
+    otherCss: disk(other, cssRel),
+    notices: notices(st),
+  };
+  let ok = reached && final.notices.length === 0;
+  if (argv.includes('--keep-mine')) {
+    ok = false;
+    if (!final.notices.length) return { ok, final, why: 'no conflict to answer' };
+    const r = await editor.call('POST', '/_api/project/conflict', { file: rel, choice: 'mine' });
+    final.keepMine = r.body;
+    await sleep(3_000);
+    final.afterKeepMine = { hubCss: await hubCss(rel), notices: notices(await syncStatus(editor)) };
+    await stopStudio(editor);
+    await startAgain(editor);
+    await sleep(Number(arg('restart-wait', '20000')));
+    final.afterRestart = {
+      hubCss: await hubCss(rel),
+      editorCss: disk(editor, cssRel),
+      otherCss: disk(other, cssRel),
+      notices: notices(await syncStatus(editor)),
+    };
+    ok =
+      final.afterRestart.notices.length === 0 &&
+      final.afterRestart.hubCss === css('green') &&
+      final.afterRestart.otherCss === css('green');
+  }
+  return { ok, final };
+}
+
 async function raceRun(n) {
   const rel = `ui/Race${n}.tsx`;
   const r = rng(n);
@@ -845,7 +959,9 @@ try {
         ? raceRun(n)
         : SCENARIO === 'history'
           ? historyRun(n)
-          : restoreRun(n)
+          : SCENARIO === 'css'
+            ? cssRun(n)
+            : restoreRun(n)
     ).catch((e) => ({
       ok: false,
       error: String(e?.message ?? e),

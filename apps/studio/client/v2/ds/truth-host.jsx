@@ -12,19 +12,20 @@
 //
 // Every write is the server's to refuse (Can edit on the whole project, rule 12): a refusal comes back as a code
 // and becomes the person's words. The system comes from the canvas the person has open, never from a message.
-// The studio does not push `ds:outside` to the page yet, so the state is read again every few seconds while the
-// canvas is on screen (the server only offers a review after its 5 s quiet window, so a faster read gains nothing).
+// The studio does not push `ds:outside` to the page yet, so this is the ONE design-system read on a clock
+// (ds-refresh.js, 2.0.5): once a minute while the window is looked at and the canvas has drawn, plus on a write,
+// a redraw and a return to the window. A file edited outside Maude has no other event.
 
 import { useEffect, useRef } from 'react';
-import { pacedInterval } from '../../../editing/page-activity.ts';
-import { shellActivity } from '../shell/shell-activity.js';
 import { contrastLine } from './contrast.js';
 import { fetchBoard } from './token-write.js';
+import { DS_STATE_CHANGED } from './door-write.js';
+import { DS_SLOW_POLL_MS, dsRefresh } from './ds-refresh.js';
 import { getTruth, setTruth, setTruthActions } from './truth-store.js';
 import { headValueName, ownSystemOf, refusalWords, TRUTH_WORDS, truthOf } from './truth-model.js';
 import { bodyOf } from './update-available.jsx';
 
-export const TRUTH_POLL_MS = 6000;
+export const TRUTH_POLL_MS = DS_SLOW_POLL_MS;
 const JSON_HEADERS = { 'content-type': 'application/json' };
 
 async function call(fetchImpl, method, url, body) {
@@ -152,6 +153,7 @@ export function DsTruthHost({
     }
     let dead = false;
     let seq = 0;
+    let refresh = async () => {};
 
     const tell = (marks) => {
       const frame = live.current.frameFor?.() ?? null;
@@ -160,10 +162,9 @@ export function DsTruthHost({
       postDsMarks(frame, marks, origin);
     };
 
-    const refresh = async () => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+    const read = async (fetchImpl) => {
       const n = ++seq;
-      const got = await loadTruth(ds, f());
+      const got = await loadTruth(ds, fetchImpl);
       if (dead || n !== seq) return;
       setTruth(got ? { ...got, busy: false, note: null } : null);
       tell(got ? got.truth.marks : { outside: [], conflicts: [] });
@@ -176,6 +177,8 @@ export function DsTruthHost({
       if (dead) return;
       if (r.ok) {
         say(done());
+        // the other hosts (the system's files, the make state) read again too
+        window.dispatchEvent(new Event(DS_STATE_CHANGED));
         await refresh();
       } else {
         setTruth((t) => (t ? { ...t, busy: false, note: r.message } : t));
@@ -213,13 +216,9 @@ export function DsTruthHost({
         ),
     });
 
-    refresh();
-    // 2.0.4: at pace while the window is used, slower while it is only looked at, not at all while hidden
-    const stopPoll = pacedInterval(refresh, pollMs, shellActivity());
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') refresh();
-    };
-    document.addEventListener('visibilitychange', onVisible);
+    // 2.0.5: once, then on a write, a redraw or a return to the window; one slow clock for outside edits
+    const reads = dsRefresh(read, { fetchImpl: f, slowMs: pollMs });
+    refresh = reads.now;
     // a canvas that reloaded forgot its marks: when it says it has loaded, tell it again
     const onLoaded = (e) => {
       const frame = live.current.frameFor?.() ?? null;
@@ -230,8 +229,7 @@ export function DsTruthHost({
     window.addEventListener('message', onLoaded);
     return () => {
       dead = true;
-      stopPoll();
-      document.removeEventListener('visibilitychange', onVisible);
+      reads.stop();
       window.removeEventListener('message', onLoaded);
       setTruthActions(null);
       setTruth(null);

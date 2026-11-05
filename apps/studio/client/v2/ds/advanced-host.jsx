@@ -18,18 +18,16 @@
 // The system comes from the canvas the person has open, never from a message.
 
 import { useEffect, useRef } from 'react';
-import { pacedInterval } from '../../../editing/page-activity.ts';
-import { shellActivity } from '../shell/shell-activity.js';
 import { dispatchCanvasOp } from '../left-panel/left-panel-bus.js';
 import { menuRunner } from '../shell/menu-runner.js';
 import { nativeDoors } from '../shell/native-doors.js';
 import { onDsAdvancedRequest } from './advanced-bus.js';
 import { ADVANCED_WORDS, askAiText, checkToast, revealRel } from './advanced-model.js';
 import { setAdvanced, setAdvancedActions } from './advanced-store.js';
+import { dsRefresh } from './ds-refresh.js';
 import { fetchBoard } from './token-write.js';
 import { ownSystemOf } from './truth-model.js';
 
-export const ADVANCED_POLL_MS = 8000;
 const JSON_HEADERS = { 'content-type': 'application/json' };
 const NO_FINDER = 'Open this project in the Mac app to work with its files.';
 
@@ -109,16 +107,9 @@ export async function revealSystem(cfg, ds, doors = nativeDoors()) {
 
 /**
  * @param {{ cfg: any, activePath: string | null, toast?: (m: string) => void,
- *           fetchImpl?: typeof fetch, pollMs?: number }} props
+ *           fetchImpl?: typeof fetch }} props
  */
-export function DsAdvancedHost({
-  cfg,
-  activePath,
-  toast,
-  project = '',
-  fetchImpl,
-  pollMs = ADVANCED_POLL_MS,
-}) {
+export function DsAdvancedHost({ cfg, activePath, toast, project = '', fetchImpl }) {
   const ds = ownSystemOf(activePath, cfg);
   const live = useRef({ cfg, activePath, toast, fetchImpl, project });
   live.current = { cfg, activePath, toast, fetchImpl, project };
@@ -147,7 +138,7 @@ export function DsAdvancedHost({
     [ds]
   );
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `ds` and the poll rate are the triggers; the rest rides on `live`
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `ds` is the trigger; the rest rides on `live`
   useEffect(() => {
     if (!ds) {
       setAdvanced(null);
@@ -159,10 +150,10 @@ export function DsAdvancedHost({
     let seq = 0;
     const native = nativeDoors().available;
 
-    const refresh = async ({ withBoard = false } = {}) => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+    // the board's facts are read with the files: a write or a redraw can change its name, canvases or modes
+    const refresh = async (fetchImpl) => {
       const n = ++seq;
-      const got = await loadAdvanced(ds, f(), withBoard ? null : board.current);
+      const got = await loadAdvanced(ds, fetchImpl, null);
       if (dead || n !== seq) return;
       if (!got) {
         setAdvanced(null);
@@ -211,21 +202,15 @@ export function DsAdvancedHost({
       },
     });
 
-    refresh({ withBoard: true });
-    // 2.0.4: at pace while the window is used, slower while it is only looked at, not at all while hidden
-    const stopPoll = pacedInterval(() => refresh(), pollMs, shellActivity());
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') refresh({ withBoard: true });
-    };
-    document.addEventListener('visibilitychange', onVisible);
+    // 2.0.5: once, then on a write or a return to the window — never on a clock
+    const reads = dsRefresh(refresh, { fetchImpl: f });
     return () => {
       dead = true;
-      stopPoll();
-      document.removeEventListener('visibilitychange', onVisible);
+      reads.stop();
       setAdvancedActions(null);
       setAdvanced(null);
     };
-  }, [ds, pollMs]);
+  }, [ds]);
 
   return null;
 }

@@ -154,6 +154,7 @@ import { embedSignInPage, isEmbedPageRequest, parseEmbedOrigins } from './embed-
 import { endedSessionReason } from './ended-sessions.mjs';
 import {
   FILE_CLASSES_V2_CAPABILITY,
+  FILE_DEPTH_V2_CAPABILITY,
   FILE_DOOR_PREFIX,
   FILE_LIMITS_PATH,
   handleFileDoor,
@@ -1374,6 +1375,8 @@ export function createHub(config = {}) {
                 ? ['ledger', 'annotations-v2', 'format-v2', RUNS_CAPABILITY, VOTES_CAPABILITY]
                 : ['annotations-v2', 'format-v2', RUNS_CAPABILITY, VOTES_CAPABILITY]),
               FILE_CLASSES_V2_CAPABILITY,
+              // fix/205: the doors take paths up to 32 segments (an older one stops at 8).
+              FILE_DEPTH_V2_CAPABILITY,
               // Issue #204: `/studio/signin?client=desktop` + `/auth/desktop/exchange`. The
               // desktop request rides a cookie signed with HUB_SECRET — none, no word.
               ...(secret ? [DESKTOP_SIGNIN_CAPABILITY] : []),

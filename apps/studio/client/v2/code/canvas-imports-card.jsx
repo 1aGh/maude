@@ -6,25 +6,26 @@
 // (`/_index-data` `canvasImportsCanvases`, canvas-url.js `canvasImportsOf`) and says so on the stage
 // (shell/viewport.jsx), in place of the generic "can't be drawn" card. What happened · what to do; no
 // action — the fix is in the code (move the shared part into a component file).
+//
+// 2.0.5 (#205): a walk the closure did not block can still be refused AFTER the build, when the module inlined
+// a design-root file the frame does not admit (http.ts `canvasInputsGate`). The server keeps those files per
+// canvas and the index reports them (`canvasRefusedInputs`, canvas-url.js `canvasRefusedOf`): the card names
+// them too — "This canvas uses <file>, which belongs to another canvas."
 
-/** The card's two lines. `imports`: designRoot-relative names the viewer may see (may be empty). */
-export function canvasImportsText(imports, componentDir) {
-  const names = Array.isArray(imports) ? imports.filter((x) => typeof x === 'string' && x) : [];
-  const dir =
-    String(componentDir || 'ui/components').replace(/^\.?\/+|\/+$/g, '') || 'ui/components';
-  return {
-    title: names.length
-      ? `This canvas imports another canvas (${names.join(', ')}).`
-      : 'This canvas imports another canvas.',
-    body: `Move the shared part into a component file (e.g. ${dir}/…) to render it here.`,
-  };
-}
+import { canvasImportsText } from './canvas-imports-words.js';
 
-export function CanvasImportsCard({ imports, componentDir }) {
-  const { title, body } = canvasImportsText(imports, componentDir);
+export { canvasImportsText };
+
+export function CanvasImportsCard({ imports, refused, componentDir }) {
+  const { title, also, body } = canvasImportsText(imports, componentDir, refused);
   return (
     <div className="sh-canvas-error-card" data-testid="canvas-imports-card">
       <div className="sh-canvas-error-title">{title}</div>
+      {also.map((line) => (
+        <div key={line} className="sh-canvas-error-body">
+          {line}
+        </div>
+      ))}
       <div className="sh-canvas-error-body">{body}</div>
     </div>
   );

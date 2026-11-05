@@ -39,26 +39,51 @@ export function rootIdentity(root) {
 
 /** `{ port, base }` of the studio serving `root`, or null. Never throws. */
 export async function locateStudio(root, { timeoutMs = 300 } = {}) {
+  return (await probeStudio(root, { timeoutMs })).studio ?? null;
+}
+
+/**
+ * fix/ds-convert-hooks-cli #13 — `locateStudio` that tells "not running" from "busy": a live
+ * server whose `/_health` did not answer within `timeoutMs` is retried (`attempts` in all, with
+ * `retryDelayMs` between) and, still silent, reported `{ state: 'busy' }` — a studio under load
+ * (an export, a big sync) is not "no studio". `{ studio }`, `{ state: 'none' }` or
+ * `{ state: 'busy' }`. Never throws.
+ */
+export async function probeStudio(
+  root,
+  { timeoutMs = 300, attempts = 1, retryDelayMs = 250 } = {}
+) {
+  let port;
   try {
     const info = JSON.parse(readFileSync(join(root, DESIGN_REL, '_server.json'), 'utf8'));
-    const port = Number(info?.port);
-    if (!Number.isInteger(port) || port < 1 || port > 65535) return null;
+    port = Number(info?.port);
+    if (!Number.isInteger(port) || port < 1 || port > 65535) return { state: 'none' };
     if (Number.isInteger(info?.pid)) {
       try {
         process.kill(info.pid, 0);
       } catch (e) {
-        if (e?.code !== 'EPERM') return null; // a dead server's file
+        if (e?.code !== 'EPERM') return { state: 'none' }; // a dead server's file
       }
     }
-    const base = `http://127.0.0.1:${port}`;
-    const res = await fetch(`${base}/_health`, { signal: AbortSignal.timeout(timeoutMs) });
-    if (!res.ok) return null;
-    const health = await res.json();
-    if (health?.app !== 'design' || health.rootId !== rootIdentity(root)) return null;
-    return { port, base, health };
   } catch {
-    return null;
+    return { state: 'none' };
   }
+  const base = `http://127.0.0.1:${port}`;
+  for (let i = 0; i < Math.max(1, attempts); i++) {
+    if (i > 0) await new Promise((r) => setTimeout(r, retryDelayMs));
+    try {
+      const res = await fetch(`${base}/_health`, { signal: AbortSignal.timeout(timeoutMs) });
+      if (!res.ok) return { state: 'none' };
+      const health = await res.json();
+      if (health?.app !== 'design' || health.rootId !== rootIdentity(root))
+        return { state: 'none' };
+      return { studio: { port, base, health } };
+    } catch (e) {
+      // only a timeout is "busy": a refused connection is no server on that port
+      if (e?.name !== 'TimeoutError' && e?.name !== 'AbortError') return { state: 'none' };
+    }
+  }
+  return { state: 'busy' };
 }
 
 /** POST JSON to a located studio. `{ status, body }`, or null on any transport failure. */

@@ -36,6 +36,8 @@ function fakeServer(state: { checkout: boolean; version: string; caps: string[] 
       return new Response(JSON.stringify({ version: state.version, capabilities: state.caps }));
     }
     if (url.endsWith('/_asset-probe')) return new Response(null, { status: 404 });
+    // 2.0.5 (fix/205-sync-assets): the sweep asks the hub's rate before it opens its pool — not an upload
+    if (url.endsWith('/api/file-limits')) return new Response(null, { status: 404 });
     if (init?.method === 'HEAD') return new Response(null, { status: 404 });
     calls.put += 1;
     return state.checkout

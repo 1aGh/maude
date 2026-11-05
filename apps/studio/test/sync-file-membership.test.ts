@@ -21,9 +21,17 @@ import {
   isFilePlaneClass,
   isProjectFileShape,
   isRuntimeStateRel,
+  LEGACY_MAX_SEGMENTS,
+  MAX_SEGMENTS,
   olderDoorRefuses,
+  olderDoorRefusesDepth,
 } from '../sync/file-membership.ts';
-import { FILE_CLASSES_V2_CAPABILITY, hasFileClassesV2 } from '../sync/journal-client.ts';
+import {
+  FILE_CLASSES_V2_CAPABILITY,
+  FILE_DEPTH_V2_CAPABILITY,
+  hasFileClassesV2,
+  hasFileDepthV2,
+} from '../sync/journal-client.ts';
 // The classifier every deployed 1.x hub judges a push with (issue #175) — a frozen copy.
 import * as hubV110 from './fixtures/hub-v1.10.0-file-membership.mjs';
 
@@ -242,7 +250,7 @@ describe('file-membership — shape gates', () => {
     'a\\b.png',
     'C:evil.png',
     '..%2f..%2fetc%2fpasswd', // percent shapes never decode here — charset refusal
-    'a/b/c/d/e/f/g/h/i.png', // 9 segments
+    `${'d/'.repeat(32)}x.png`, // 33 segments — past the depth cap (fix/205 raised it from 8)
     'a//b.png', // empty segment
     'a/./b.png',
     `${'x'.repeat(513)}.png`, // over the length cap
@@ -530,5 +538,62 @@ describe('olderDoorRefuses — exactly what a 1.x door refuses that 2.0 syncs', 
         true
       );
     }
+  });
+});
+
+// fix/205-sync-assets — the studyfi first sync: a 3D asset pack (`…/Models/GLTF format/…`) sat
+// deeper than the old 8-segment cap, both classifiers answered `never`, and the files were dropped
+// with no row anywhere. The cap is now 32 in BOTH; the 512-character cap still bounds a path.
+describe('deep paths — the depth cap is 32, the same in both classifiers', () => {
+  const groups = [{ path: 'system' }, { path: 'ui' }];
+  const deep = [
+    'system/kenney/assets/pack/Models/GLTF format/Textures/colormap.png', // 8 — always took
+    'assets/kenney/space-kit/Models/GLTF format/Textures/variants/v1/colormap.png', // 9
+    'system/kenney/assets/space kit/Models/GLTF format/Textures/variants/a/b/colormap.png', // 11
+    `assets/${'d/'.repeat(30)}x.png`, // 32 — the cap itself
+  ];
+
+  test('both caps are 32; the old figure is named for the older-hub hold', () => {
+    expect(MAX_SEGMENTS).toBe(32);
+    expect(hub.MAX_SEGMENTS).toBe(MAX_SEGMENTS);
+    expect(LEGACY_MAX_SEGMENTS).toBe(8);
+  });
+
+  test('a deep media path flows in the studio AND the hub', () => {
+    for (const rel of deep) {
+      expect(`${rel} → ${classifyProjectFile(rel, { canvasGroups: groups })}`).toBe(
+        `${rel} → inert-media`
+      );
+      expect(`${rel} → ${hub.classifyProjectFile(rel, { canvasGroups: groups })}`).toBe(
+        `${rel} → inert-media`
+      );
+      expect(isProjectFileShape(rel)).toBe(true);
+      expect(hub.isProjectFileShape(rel)).toBe(true);
+    }
+  });
+
+  test('past 32 is refused by both — still a shape, never a silent class', () => {
+    const tooDeep = `assets/${'d/'.repeat(31)}x.png`; // 33
+    expect(classifyProjectFile(tooDeep)).toBe('never');
+    expect(hub.classifyProjectFile(tooDeep)).toBe('never');
+  });
+
+  test('olderDoorRefusesDepth: exactly the paths deeper than an older door takes', () => {
+    expect(olderDoorRefusesDepth(deep[0] as string)).toBe(false);
+    for (const rel of deep.slice(1)) expect(olderDoorRefusesDepth(rel)).toBe(true);
+    // Pinned against the frozen 1.10.0 classifier: what we hold is what it refuses.
+    for (const rel of deep) {
+      const then = hubV110.isFilePlaneClass(
+        hubV110.classifyProjectFile(rel, { canvasGroups: groups })
+      );
+      expect({ rel, held: olderDoorRefusesDepth(rel) }).toEqual({ rel, held: !then });
+    }
+  });
+
+  test('the capability decides: absent holds them', () => {
+    expect(FILE_DEPTH_V2_CAPABILITY).toBe('file-depth-v2');
+    expect(hasFileDepthV2(null)).toBe(false);
+    expect(hasFileDepthV2(['ledger', 'file-classes-v2'])).toBe(false);
+    expect(hasFileDepthV2(['ledger', 'file-classes-v2', 'file-depth-v2'])).toBe(true);
   });
 });

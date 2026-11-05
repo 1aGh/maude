@@ -5502,18 +5502,6 @@ function AnnotationsSvg({
           data-selection={annotSel?.selectedIds.join(' ') ?? ''}
           data-annot-state={gestureState}
         >
-          <defs>
-            {/* Phase 21 — soft "lifted paper" drop shadow for sticky notes. */}
-            <filter id="dc-sticky-shadow" x="-25%" y="-25%" width="150%" height="170%">
-              <feDropShadow
-                dx="0"
-                dy="4"
-                stdDeviation="8"
-                floodColor="#000000"
-                floodOpacity="0.28"
-              />
-            </filter>
-          </defs>
           {selectedStrokes.map((s) => (
             <SelectionHalo
               key={`halo-${s.id}`}

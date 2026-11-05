@@ -8,7 +8,8 @@ import { pinCurrentWindow } from '../helpers/windows';
  * project on that account." The REAL account chip and card in the real shell, fed by the two seams a second sign-in
  * would feed (this lane has no cloud and one profile): `GET /_api/cloud/status` (connected, the e-mail) and the shell's
  * `accounts_list` (the Mac's accounts and their projects). Everything else — the profile (`/_config.profile`), the
- * project name, the chip, the card, the words — is the product's. The sign-in itself (a browser, a keychain) and the
+ * project name, the chip, the card, the words — is the product's. The chip opens the project's account card
+ * (`project-account*`, 2.0.5 W4 — it replaced `account-card`, which listed the other accounts). The sign-in itself (a browser, a keychain) and the
  * two-profile bookkeeping in Rust are `project-tabs-identity` and the cargo tests; signing out is NOT pressed here.
  */
 const tid = (s: string) => `[data-testid="${s}"]`;
@@ -36,7 +37,7 @@ describe('shell-accounts (11 pn-accounts)', () => {
     me = { id: cfg?.id ?? 'default', label: cfg?.label || cfg?.id || 'default' };
   });
 
-  it('with two accounts on this Mac the chip sits by the faces and the card says whose project this is', async () => {
+  it('with two accounts on this Mac the chip sits by the faces and the project account card says whose project this is', async () => {
     const seam = (await browser.executeAsync(
       (
         mine: { id: string; label: string },
@@ -101,41 +102,31 @@ describe('shell-accounts (11 pn-accounts)', () => {
     });
     expect(await chip.getAttribute('aria-label')).toBe(`Account: ${me.label} · ${EMAIL}`);
     await capture('account chip');
+    // the chip opens THIS project's account card (2.0.5 W4: `project-account`, replacing `account-card`)
     await chip.click();
-    await $(tid('account-card')).waitForExist({ timeout: 6_000 });
+    await $(tid('project-account')).waitForExist({ timeout: 6_000 });
     const t = async (id: string) => (await $(tid(id))).getText() as Promise<string>;
-    const current = await t('account-card-current');
-    expect(current).toContain(`${me.label} · ${EMAIL}`);
-    expect(current).toMatch(/ uses this account$/);
-    const other = await t('account-card-other-e2e-personal');
-    expect(other).toContain('Personal · you@gmail.com');
-    expect(other).toContain('Studio site, Portfolio 2026 and 11 more');
-    expect(await $(tid('account-card')).getText()).toContain('Also on this Mac');
-    expect(await t('account-card-switch')).toBe('Sign in as another account…');
-    const out = await t('account-card-signout');
-    expect(out).toContain(`Sign out of ${EMAIL}…`);
-    expect(out).toContain('Signs out every project on it');
-    expect(await t('account-card-foot')).toMatch(
-      new RegExp(`^Kept on this Mac — .+ opens as ${me.label} next time\\.$`)
-    );
+    // the seam says this profile is signed in to Maude Cloud as EMAIL: the card names the kind, the
+    // account, the project and the profile on this Mac
+    expect(await t('project-account-kind')).toBe('Maude Cloud');
+    expect(await t('project-account-who')).toBe(EMAIL);
+    expect(await t('project-account-where')).not.toBe('');
+    expect(await t('project-account-profile')).toBe(me.label);
+    // the account row and Sign out exist on this path (the desktop app); the account switch is a button
+    await $(tid('project-account-switch')).waitForExist({ timeout: 4_000 });
+    expect(await t('project-account-signout')).toContain(`Sign out of ${EMAIL}…`);
     await capture('account card');
     // the confirm names the effect; Cancel leaves everything as it was (nothing is signed out here)
-    await $(tid('account-card-signout')).click();
-    await $(tid('account-card-confirm')).waitForExist({ timeout: 4_000 });
-    const ask = await t('account-card-confirm');
+    await $(tid('project-account-signout')).click();
+    await $(tid('project-account-confirm')).waitForExist({ timeout: 4_000 });
+    const ask = await t('project-account-confirm');
     expect(ask).toContain(`Sign out of ${EMAIL}?`);
     expect(ask).toContain('Every project on it is signed out. Your work stays on this Mac.');
     await capture('account sign-out confirm');
-    await $(tid('account-card-signout-cancel')).click();
-    // esc inside the card closes it (the card owns its keys; focus left with the Cancel button that went away)
-    await browser.execute(() => {
-      document
-        .querySelector('[data-testid="account-card"]')
-        ?.dispatchEvent(
-          new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
-        );
-    });
-    await browser.waitUntil(async () => !(await $(tid('account-card')).isExisting()), {
+    await $(tid('project-account-signout-cancel')).click();
+    // esc closes the card (the popover listens on the document)
+    await browser.keys(['Escape']);
+    await browser.waitUntil(async () => !(await $(tid('project-account')).isExisting()), {
       timeout: 4_000,
       interval: 100,
       timeoutMsg: 'esc did not close the card',

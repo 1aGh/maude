@@ -427,8 +427,20 @@ pub fn accept(app: &AppHandle, url: &str) {
     if !url.starts_with("maude://") {
         return;
     }
+    // 2.0.5: before the end of `setup` the link waits in the boot gate (restore first, then
+    // every arrival in its order — `lib.rs` `open_queued_folders`); after it, this routes as
+    // it always did.
+    let arrival = crate::folder_open::Arrival::Link(url.to_string());
+    for now in crate::folder_open::BOOT_GATE.offer(vec![arrival]) {
+        if let crate::folder_open::Arrival::Link(url) = now {
+            route_soon(app, url);
+        }
+    }
+}
+
+/// Route a link off the calling thread once the window book exists — the warm path.
+fn route_soon(app: &AppHandle, url: String) {
     let app = app.clone();
-    let url = url.to_string();
     tauri::async_runtime::spawn(async move {
         // The launch-path link can beat `setup` managing the window book.
         for _ in 0..100 {
@@ -499,7 +511,7 @@ pub fn take_link_opened(webview: tauri::Webview) -> Result<Option<LinkOpened>, S
     Ok(LINK_OPENED.take(&caller.label))
 }
 
-fn route_now(app: &AppHandle, url: &str) {
+pub fn route_now(app: &AppHandle, url: &str) {
     // S6.7: sign-in nudges and invites go to Home or nowhere — before any
     // project resolution, so neither can reach (or open) a project window.
     if deliver_special(app, url) {

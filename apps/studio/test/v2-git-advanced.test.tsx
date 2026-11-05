@@ -478,6 +478,8 @@ describe('Fetch · New branch · Publish · Get latest · Add to main · Pull a 
     await click(q('[data-testid="switcher-fetch"]'));
     expect(text('.vh-git-err')).toBe('Sign in with GitHub to fetch remote branches.');
     expect(qa('[data-testid="vh-git-branch"] option').length).toBe(3);
+    // 2.0.5 W4 — the line is a button that starts the one GitHub sign-in (`account.github-signin`)
+    expect(q('[data-testid="git-signin-github"]')?.tagName).toBe('BUTTON');
   });
 
   test('New branch…: the name becomes a slug, the chat guard runs, then it is created and the page reloads', async () => {

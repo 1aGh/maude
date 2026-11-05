@@ -170,6 +170,39 @@ function readText(abs: string): string | null {
   }
 }
 
+/** The Design system canvas's own files (canvas, sidecar, board), moved from `dsAbs` into `trashAbs`. */
+function moveDsCanvasFiles(dsAbs: string, trashAbs: string): string[] {
+  const moved: string[] = [];
+  for (const f of [DS_CANVAS, DS_META, DS_ANNOTATIONS]) {
+    const from = path.join(dsAbs, f);
+    if (!existsSync(from)) continue;
+    mkdirSync(trashAbs, { recursive: true });
+    renameSync(from, path.join(trashAbs, f));
+    moved.push(f);
+  }
+  return moved;
+}
+
+/**
+ * fix/ds-convert-hooks-cli #8 — a Design system canvas left over by a system that is a FOLDER (no
+ * head.json: a Restore that sync brought back, a copy) goes to the Trash the way Restore puts one
+ * there: `_trash/ds-convert/<ds>-<stamp>/`. `null` when the system is converted — then the canvas IS
+ * the system, and Restore (`ds convert <ds> --restore`) is the way back.
+ */
+export function trashFolderDsCanvas(
+  designRoot: string,
+  dsRel: string,
+  now = Date.now()
+): { trash: string; moved: string[] } | null {
+  const a = path.join(designRoot, ...dsRel.split('/'));
+  if (readHead(a).state !== 'absent') return null;
+  const name = path.basename(a);
+  let trash = `${RESTORE_TRASH_REL}/${name}-${stampOf(now)}`;
+  for (let n = 2; existsSync(path.join(designRoot, trash)); n++)
+    trash = `${RESTORE_TRASH_REL}/${name}-${stampOf(now)}-${n}`;
+  return { trash, moved: moveDsCanvasFiles(a, path.join(designRoot, trash)) };
+}
+
 const stampOf = (ms: number) =>
   new Date(ms)
     .toISOString()
@@ -580,12 +613,7 @@ export function createDsConvert(engine: DsEngine) {
       const moved = moveHeadAside(a, { head: h.doc.head, base: h.doc.base }, trashAbs);
       if (tokens !== null && tokens !== model.tokensJson)
         atomicWrite(path.join(a, TOKENS_JSON_KEY), tokens);
-      for (const f of [DS_CANVAS, DS_META, DS_ANNOTATIONS]) {
-        const from = path.join(a, f);
-        if (!existsSync(from)) continue;
-        renameSync(from, path.join(trashAbs, f));
-        moved.push(f);
-      }
+      moved.push(...moveDsCanvasFiles(a, trashAbs));
       return {
         action: 'restore',
         rev: null,

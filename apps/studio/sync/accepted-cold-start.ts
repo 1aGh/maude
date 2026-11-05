@@ -166,6 +166,13 @@ export interface AcceptedColdStartInput {
    */
   ownAccepted?: string | null;
   /**
+   * #14 (2.0.5) — the css twin's `ownAccepted`: this disk's own css proposal a previous run left
+   * unanswered (an edit made offline, or just before quitting), which the drain has just had
+   * accepted. Without it a css edited while the studio was closed was judged against the css
+   * before that save, and refused as a conflict with the person's own older css.
+   */
+  ownAcceptedCss?: string | null;
+  /**
    * Did the project ever accept exactly this value? A disk with no record of
    * its base that holds a value the store accepted at some revision holds an
    * OLDER accepted state (a checkout restored from a backup — every cloud
@@ -286,19 +293,27 @@ export async function acceptedColdStart(
   // ---- css — opaque text, journal-checkpointed
   if (i.paths.css) {
     const localCss = readText(i.paths.css);
-    const d = decideSourceLane({
-      local: localCss,
-      accepted: cssFromDoc(i.doc) ?? '',
-      knownBase: i.historyDir ? readRecoveryBody(i.historyDir, i.paths.css, 'base') : null,
-      baseHash: i.journal?.get(i.slug)?.cssHash ?? null,
-    });
-    const older =
-      d.decision === 'hold' && localCss !== null && (await i.wasAccepted?.(localCss)) === true;
-    verdicts.push({
-      lane: 'css',
-      ...(older ? { decision: 'materialize' as const } : d),
-      ...(localCss !== null ? { local: localCss } : {}),
-    });
+    if (i.ownAcceptedCss != null && localCss === i.ownAcceptedCss) {
+      // Disk IS the drained, accepted css; its publication may still be on the way.
+      verdicts.push({ lane: 'css', decision: 'agreed', local: localCss });
+      i.projection.adoptOwnAcceptedCss(i.ownAcceptedCss);
+    } else {
+      const d = decideSourceLane({
+        local: localCss,
+        accepted: cssFromDoc(i.doc) ?? '',
+        knownBase:
+          i.ownAcceptedCss ??
+          (i.historyDir ? readRecoveryBody(i.historyDir, i.paths.css, 'base') : null),
+        baseHash: i.journal?.get(i.slug)?.cssHash ?? null,
+      });
+      const older =
+        d.decision === 'hold' && localCss !== null && (await i.wasAccepted?.(localCss)) === true;
+      verdicts.push({
+        lane: 'css',
+        ...(older ? { decision: 'materialize' as const } : d),
+        ...(localCss !== null ? { local: localCss } : {}),
+      });
+    }
   }
 
   // ---- meta — the shared layout keys (viewport never travels)

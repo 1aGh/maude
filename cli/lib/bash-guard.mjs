@@ -1245,7 +1245,19 @@ export function classifyBash(command, { cwd, designRoot, root, sessionRoot = nul
       // a .design path the script names, runtime (`.design/_…`) ones excepted unless guarded
       // `.design` in any case (a case alias on APFS); a symlink to the root the script reaches
       // by another name is not seen here — residual, the script is text, not a path
-      const all = [...text.matchAll(/\.design(?:\/([^\s'"`),;]*))?/gi)].map((m) => m[1] ?? '');
+      // fix/ds-convert-hooks-cli #12 — only a `.design` path segment (never `ctx.designRoot`), and
+      // only one that can be THIS project's: an absolute (or `~`) path that resolves outside its
+      // design root — a throwaway copy under /private/tmp/…/before/.design/ — is another tree.
+      // A relative or computed prefix still counts (the script may chdir anywhere).
+      const all = [...text.matchAll(/([^\s'"`(),;=]*?)\.design(?![\w-])(?:\/([^\s'"`),;]*))?/gi)]
+        .filter((m) => {
+          const pre = m[1] ?? '';
+          if (!/^(?:\/|~\/)/.test(pre) || /[$*?[{]/.test(pre)) return true;
+          const abs = pre.startsWith('~/') ? join(homedir(), pre.slice(2)) : pre;
+          const rel = relative(realRoot(), realpathDeep(`${abs}.design${m[2] ? `/${m[2]}` : ''}`));
+          return !(rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel));
+        })
+        .map((m) => m[2] ?? '');
       const runtime = (after) => {
         const first = after.split('/')[0] ?? '';
         return first.startsWith('_') || first.startsWith('.');

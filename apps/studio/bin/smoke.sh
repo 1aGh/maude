@@ -538,6 +538,25 @@ while IFS= read -r CANVAS; do
   printf '%s\t%s\t%s\t%s\n' "$STATUS" "$REL" "$SHOT" "$DETAIL"
 done <<< "$CANVASES"
 
+# ---------- why a canvas is refused (2.0.5 #205) ----------
+# A canvas that imports another canvas, or whose built module inlined a file another canvas owns, renders
+# nothing in its frame. The server knows why (`/_index-data` canvasImportsCanvases + canvasRefusedInputs);
+# say it here in the shell card's words, so the report is not a bare "error".
+REASONS=""
+if command -v bun >/dev/null 2>&1; then
+  REASONS=$(curl -fsS -m 5 "http://localhost:$PORT/_index-data" 2>/dev/null \
+    | bun "$(dirname "$0")/_canvas-reasons.mjs" 2>/dev/null)
+fi
+if [ -n "$REASONS" ]; then
+  printf '%s\n' "$REASONS" >&2
+  {
+    echo
+    echo "## Refused canvases"
+    echo
+    printf '%s\n' "$REASONS" | sed 's/^/- /'
+  } >> "$MD"
+fi
+
 TOTAL_FAIL=$((FAILED + LINT_FAILED))
 {
   echo

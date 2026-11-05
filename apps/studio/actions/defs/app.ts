@@ -116,6 +116,18 @@ export const APP_ACTIONS: ActionDef[] = [
     visible: { shell: ['desktop', 'cloud'] },
   },
   {
+    // 2.0.5 W4: GitHub sign-in from anywhere — the avatar's card, ⌘K and every "Sign in with GitHub to
+    // publish" line. The shell's own device flow (`github_sign_in`, oauth.rs): it stores on THIS project's
+    // profile and, for another account on a shared profile, binds a new one (v2-3.8-bind-on-sign-in). The
+    // mounted host (github-signin-host.jsx) runs it and shows the code; a browser tab has no keychain.
+    id: 'account.github-signin',
+    label: 'Sign in with GitHub…',
+    kind: 'command',
+    exec: 'shell',
+    visible: { shell: ['desktop'] },
+    search: { keywords: ['github', 'sign in', 'login', 'publish', 'connect'] },
+  },
+  {
     id: 'ai.chat',
     label: 'AI chat',
     kind: 'toggle',

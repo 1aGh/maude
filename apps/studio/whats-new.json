@@ -2,6 +2,78 @@
   "$schema": "./whats-new.schema.json",
   "entries": [
     {
+      "id": "heavy-canvases-stay-up",
+      "version": "2.0.5",
+      "date": "2026-11-05",
+      "kind": "fix",
+      "title": "Heavy canvases no longer crash the window",
+      "summary": "Only the artboards near where you look run live. Offscreen artboards, and every artboard when you zoom far out, pause their 3D scenes, videos and animations and keep their last picture, so a canvas with dozens of scenes pans smoothly. The design system canvas draws each page when you reach it. A canvas that still crashes twice opens with Show visible artboards only instead of crashing again. Exports still draw everything.",
+      "surface": "design-ui"
+    },
+    {
+      "id": "home-accounts",
+      "version": "2.0.5",
+      "date": "2026-11-05",
+      "kind": "feature",
+      "title": "All your accounts on Home",
+      "summary": "Click your face on Home to see every account on this Mac: Maude Cloud, your team servers and GitHub. Sign out of one, or add another. Each project now says how it is connected and as whom, and a project you have in two places shows once.",
+      "surface": "design-ui"
+    },
+    {
+      "id": "project-account-card",
+      "version": "2.0.5",
+      "date": "2026-11-05",
+      "kind": "feature",
+      "title": "See which account a project uses",
+      "summary": "Click your face at the top right to see how this project is signed in: a team server, Maude Cloud or GitHub, which account, and which profile on this Mac. Sign out or switch accounts from there, a team server too, and sign in with GitHub. Click the sync word, such as Syncing… or Offline, to open its details.",
+      "surface": "design-ui"
+    },
+    {
+      "id": "home-covers-and-shared-empty",
+      "version": "2.0.5",
+      "date": "2026-11-05",
+      "kind": "fix",
+      "title": "Better covers and a calmer empty Shared card on Home",
+      "summary": "A canvas whose first artboard is a thin header now gets a cover of its real content, whiteboards show their board, and blank pictures no longer stick as covers. The empty Shared with you card is a single quiet line instead of tilted placeholders.",
+      "surface": "design-ui"
+    },
+    {
+      "id": "board-zoom-stays-smooth",
+      "version": "2.0.5",
+      "date": "2026-11-05",
+      "kind": "fix",
+      "title": "Zooming a busy board stays smooth",
+      "summary": "A board with hundreds of notes no longer stutters when you zoom in the desktop app. The notes keep the same soft shadow.",
+      "surface": "design-ui"
+    },
+    {
+      "id": "ai-starts-when-you-do",
+      "version": "2.0.5",
+      "date": "2026-11-05",
+      "kind": "improvement",
+      "title": "AI starts when you start typing",
+      "summary": "Reopening or reloading Maude no longer starts Claude in the background. It starts the moment you click into the message box.",
+      "surface": "design-ui"
+    },
+    {
+      "id": "faster-steadier-uploads",
+      "version": "2.0.5",
+      "date": "2026-11-05",
+      "kind": "fix",
+      "title": "Faster, steadier uploads",
+      "summary": "A big project's pictures and media now go up to your team server a few at a time, so one slow file no longer holds up the rest, and a file that timed out gets a second try. Sync details counts only the files that still have to move, and files in deeply nested folders, like a 3D asset pack, now sync too. A server too old to take them lists each one with the reason.",
+      "surface": "design-ui"
+    },
+    {
+      "id": "first-download-stops-repeating",
+      "version": "2.0.5",
+      "date": "2026-11-05",
+      "kind": "fix",
+      "title": "A first download from an older team server finishes",
+      "summary": "Getting a project from a team server that runs an older Maude no longer asks for the same files over and over. A file that can't be fetched waits with a reason instead of being asked for on every pass, and a server that doesn't answer is asked again a minute later.",
+      "surface": "design-ui"
+    },
+    {
       "id": "team-server-browser-signin",
       "version": "2.0.4",
       "date": "2026-11-05",

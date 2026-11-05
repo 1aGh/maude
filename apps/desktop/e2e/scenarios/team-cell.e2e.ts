@@ -214,7 +214,7 @@ describe('team-cell (native-desktop)', () => {
       );
       console.log(`[team-cell] sync status while the callout shows: ${st}`);
     }
-    expect(word).toEqual({ status: 'syncing', text: 'Syncing…', control: false });
+    expect(word).toEqual({ status: 'syncing', text: 'Syncing…', control: true });
     await (await $(tid('callout-sync-stuck-action'))).click();
 
     // the ceiling lifts: everything goes up, the callout leaves, the word is Saved

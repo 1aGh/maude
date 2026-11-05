@@ -7,7 +7,7 @@
 //      folder, the Design system canvas with `ds-dir-*` and seven outlines), then the brief goes to AI through the
 //      composer with origin `ds-make` (the person's gesture: every composer gate applies), and the new canvas opens;
 //   3  while the open canvas is the Design system canvas of a system that is being made, reads `GET make-state`
-//      every few seconds and tells the canvas which sections wait, are being drawn or are done
+//      when it opens, when the canvas has drawn again and after a write (ds-refresh.js, 2.0.5) and tells the canvas which sections wait, are being drawn or are done
 //      (the dgn message `ds-make-states` — to the canvas origin, never `*`);
 //   4  the ready card (13 · ds-make-done): "<name> system is ready." with one button that publishes the first
 //      revision and makes it the project's style (`POST … {action:'done'}`, then switch-bus `finishedMaking` so the
@@ -30,14 +30,11 @@ import {
   systemLabelFor,
   systemNameFor,
 } from './make-model.js';
-import { pacedInterval } from '../../../editing/page-activity.ts';
-import { shellActivity } from '../shell/shell-activity.js';
+import { dsRefresh } from './ds-refresh.js';
 import { DsMakeSheet } from './make-sheet.jsx';
 import { finishMaking, makeSystem, readMakeState, uploadLogo } from './make-write.js';
 import { finishedMaking } from './switch-bus.js';
 import { ownSystemOf } from './truth-model.js';
-
-export const MAKE_POLL_MS = 2500;
 
 /** How many canvases the project has that a system could learn from (a system's own folder is not one). */
 export function canvasCount(cfg) {
@@ -86,9 +83,9 @@ export function MakeReadyBanner({ label, complete, missing, busy = false, note =
 
 /**
  * @param {{ cfg: any, activePath: string | null, toast?: (m: string) => void, frameFor?: () => (HTMLIFrameElement | null),
- *           fetchImpl?: typeof fetch, pollMs?: number, openSystem?: (ds: string) => void }} props
+ *           fetchImpl?: typeof fetch, openSystem?: (ds: string) => void }} props
  */
-export function DsMakeHost({ cfg, activePath, toast, frameFor, fetchImpl, pollMs, openSystem }) {
+export function DsMakeHost({ cfg, activePath, toast, frameFor, fetchImpl, openSystem }) {
   const [sheet, setSheet] = useState(null); // { project }
   const [state, setState] = useState(null);
   const [finishing, setFinishing] = useState(false);
@@ -172,9 +169,8 @@ export function DsMakeHost({ cfg, activePath, toast, frameFor, fetchImpl, pollMs
     }
     let off = false;
     let was = false;
-    const look = async () => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
-      const s = await readMakeState(ds, f());
+    const look = async (fetchImpl) => {
+      const s = await readMakeState(ds, fetchImpl);
       if (off || !s) return;
       setState(s);
       const sections = sectionsToPost(s);
@@ -190,14 +186,16 @@ export function DsMakeHost({ cfg, activePath, toast, frameFor, fetchImpl, pollMs
         /* the frame went away */
       }
     };
-    look();
-    // 2.0.4: at pace while the window is used, slower while it is only looked at, not at all while hidden
-    const stopPoll = pacedInterval(look, pollMs ?? MAKE_POLL_MS, shellActivity());
+    // 2.0.5: once, then on a write, a redraw of the canvas or a return to the window — never on a clock
+    const reads = dsRefresh(look, {
+      fetchImpl: f,
+      frameFor: () => live.current.frameFor?.() ?? null,
+    });
     return () => {
       off = true;
-      stopPoll();
+      reads.stop();
     };
-  }, [ds, pollMs]);
+  }, [ds]);
 
   // 4 — "Use as <name>'s style"
   const label =

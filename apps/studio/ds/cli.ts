@@ -6,6 +6,7 @@ import { join, resolve } from 'node:path';
 import { runCanvasModes } from './canvas-cli.ts';
 import { checkSystem, type SystemReport } from './check.ts';
 import { emitTokensJson } from './emit.ts';
+import type { PostBuild } from './post-build.ts';
 import { indexRegistry, loadRegistry } from './registry.ts';
 import {
   diskFs,
@@ -261,7 +262,9 @@ function humanSystem(r: SystemReport): string {
     `  C7: ${r.c7.families} accent famil${r.c7.families === 1 ? 'y' : 'ies'} vs ${r.c7.strategy} → ${r.c7.pass ? 'pass' : 'FAIL'}`
   );
   for (const n of r.notes)
-    lines.push(`  note: ${n.id}${n.name ? ` (${n.name})` : ''} — ${n.detail}`);
+    lines.push(
+      `  ${n.id === 'root-only-roles' ? 'warning' : 'note'}: ${n.id}${n.name ? ` (${n.name})` : ''} — ${n.detail}`
+    );
   return lines.join('\n');
 }
 
@@ -274,7 +277,8 @@ export interface RunResult {
 export function runDsCheck(
   argv: string[],
   env: Record<string, string | undefined> = process.env,
-  hookInput: string | null = null
+  hookInput: string | null = null,
+  post: PostBuild | null = null
 ): RunResult {
   const t0 = performance.now();
   let args: DsCheckArgs;
@@ -300,7 +304,7 @@ export function runDsCheck(
       if (args.emit) throw new UsageError('--emit is a system flag; run it without canvas flags');
       // `<ds> --canvases`: the system result rides along (its code wins when non-zero)
       const sys = args.allCanvases && args.systems.length ? systemReports(project, systems) : null;
-      return runCanvasModes(args, project, sys, t0, hookInput);
+      return runCanvasModes(args, project, sys, t0, hookInput, post);
     }
     let emitted: { written: string[]; refused: string[] } | null = null;
     if (args.emit) {

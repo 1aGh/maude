@@ -444,9 +444,9 @@
       "home": "setc",
       "drawnAt": "ad-edge-hub",
       "v2": {
-        "action": null,
+        "action": "account.github-signin",
         "testid": "settings-github",
-        "where": "Settings › Connections › GitHub › Sign in"
+        "where": "Your face (top right) › Sign in with GitHub…, ⌘K, every Sign in with GitHub to publish line; also Settings › Connections › GitHub › Connect"
       }
     },
     {

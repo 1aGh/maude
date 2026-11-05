@@ -69,6 +69,8 @@ const withKey = (label, def, ctx) => {
  * @param present the Present spec while presenting (Artboards · Canvas are two columns of the table)
  * @param accountSlot the account chip + card (S1.22a, account-card.jsx) — first, desktop only
  * @param cloud this shell is a cloud tab: no sentence names a Mac (rc3-i)
+ * @param onAccount 2.0.5 W4 — your own face opens this project's account card (null: the face is a face)
+ * @param accountOpen the account card is showing (the face's aria-expanded)
  */
 export function ShareCluster({
   faces,
@@ -93,6 +95,8 @@ export function ShareCluster({
   mode = null,
   present = null,
   accountSlot = null,
+  onAccount = null,
+  accountOpen = false,
   cloud,
 }) {
   const cluster = mode ? modeCell('share-cluster', mode, present) : 'full';
@@ -133,7 +137,13 @@ export function ShareCluster({
       data-zen={panelsHidden ? 'true' : undefined}
     >
       {accountSlot}
-      <PresenceFaces faces={faces} onFollow={onFollow} presence={presence} />
+      <PresenceFaces
+        faces={faces}
+        onFollow={onFollow}
+        presence={presence}
+        onYou={onAccount}
+        youOpen={accountOpen}
+      />
       {access ? (
         <span
           className="sh-saved"
@@ -145,21 +155,30 @@ export function ShareCluster({
         </span>
       ) : status ? (
         <>
-          <span
-            className={`sh-saved${status.tone ? ` sh-saved--${status.tone}` : ''}`}
+          {/* 2.0.5 W4 — the word is a button in every sync state: Diagnostics › Sync (`diag.sync`, the
+              registry row the menu and ⌘K run), or — while a held conflict waits — that conflict's
+              Compare. The live region is the word inside, so a state change is still announced. */}
+          <button
+            type="button"
+            className={`sh-saved sh-saved--btn${status.tone ? ` sh-saved--${status.tone}` : ''}`}
             data-testid="share-cluster-status"
             data-status={status.kind}
             // The old status-bar chip's detail (its tooltip and its short label — "3 to review",
             // "1 refused", "12/40") rides on the word: hover for the sentence; `data-sync-label` is
             // the short form for scenarios and scripts (V2-4.8b).
             data-sync-label={status.syncLabel || undefined}
-            role="status"
-            aria-live="polite"
             title={status.detail || status.title || undefined}
+            aria-label={`${status.word} — ${status.conflict ? 'Compare' : 'Sync details'}`}
+            onClick={() => {
+              if (status.conflict) onStatusAction?.('compare');
+              else run('diag.sync');
+            }}
           >
             <StIcon name={status.icon} size={16} />
-            <span className="sh-saved-w">{status.word}</span>
-          </span>
+            <span className="sh-saved-w" role="status" aria-live="polite">
+              {status.word}
+            </span>
+          </button>
           {status.actions.map((a) => (
             <button
               key={a.id}

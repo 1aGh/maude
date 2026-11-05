@@ -255,6 +255,16 @@ export function canvasImportsOf(cfg, p) {
   return Array.isArray(list) ? list.filter((x) => typeof x === 'string' && x) : null;
 }
 
+/**
+ * 2.0.5 (#205) — the design-root files `p`'s BUILT module was refused for (it inlined a file another canvas
+ * owns), from the index's `canvasRefusedInputs`, or `null` when none is on record.
+ */
+export function canvasRefusedOf(cfg, p) {
+  const list = cfg?.canvasRefusedInputs?.[p];
+  const names = Array.isArray(list) ? list.filter((x) => typeof x === 'string' && x) : [];
+  return names.length ? names : null;
+}
+
 export function canvasUrl(p, cfg, opts) {
   if (!p.endsWith('.tsx')) return urlOf(p);
   const designRel = (cfg?.designRel || '.design').replace(/^\/+|\/+$/g, '');
@@ -286,6 +296,9 @@ export function canvasUrl(p, cfg, opts) {
   // Phase 27 (E2) — DiffView renders a CLEAN canvas (no editor chrome: toolbar,
   // world minimap, devtools) so the before/after is just the design.
   if (opts?.hideChrome) params.set('hide-chrome', '1');
+  // 2.0.5 — the too-heavy card's "Show visible artboards only": the canvas mounts only the artboards near the
+  // viewport (artboard-live.ts `light`). A capture (`hide-chrome`) ignores it and renders everything.
+  if (opts?.light) params.set('artboard-live', 'light');
   // Cloud Phase 25 C2 — the linked hub vouched a viewer role at sign-in
   // (`/_config.readOnly`), so the canvas boots read-only: edit tools and
   // mutating interactions are ABSENT from the iframe chrome (read-only-mode.ts

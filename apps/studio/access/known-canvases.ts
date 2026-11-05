@@ -77,6 +77,29 @@ export function knownCanvasesFor(
  */
 export function closureConfigFor(ctx: {
   cfg?: { linkedHub?: { url?: string } | null } | null;
+  paths?: { designRoot?: string };
 }): ClosureConfig | undefined {
-  return ctx.cfg ? closureConfigOf(ctx.cfg, knownCanvasesFor(ctx.cfg)) : undefined;
+  // 2.0.5 (decision maude/v2-205-closure-config-is-the-build-config) — the design systems come from
+  // `<designRoot>/config.json` whenever it parses: the file the board build itself reads
+  // (ds-resolver `canvasSystemFor`) and the hub's file plane judges with. `ctx.cfg` reloads only on a
+  // watcher `fs:json`, which a cell child never gets (the journal heal emits `fs:any`), so after a
+  // synced config change the closure judged a DS board with another system list than its build
+  // used and the board failed closed (design.studyfi.com, 2.0.4). `ctx.cfg` stays the answer for a
+  // custom designRoot, which has no `<designRoot>/config.json` (gate-b-c4j). The linked hub (for the
+  // known canvases) is boot-pinned in `ctx.cfg` either way.
+  const own = designRootConfig(ctx.paths?.designRoot);
+  const known = () => knownCanvasesFor(ctx.cfg ?? undefined);
+  if (own) return closureConfigOf(own, known());
+  return ctx.cfg ? closureConfigOf(ctx.cfg, known()) : undefined;
+}
+
+/** `<designRoot>/config.json` as an object, or null (absent, unreadable, not an object). */
+function designRootConfig(designRoot: string | undefined): Record<string, unknown> | null {
+  if (!designRoot) return null;
+  try {
+    const v = JSON.parse(readFileSync(`${designRoot}/config.json`, 'utf8'));
+    return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
 }

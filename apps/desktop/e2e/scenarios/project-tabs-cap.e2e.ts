@@ -109,6 +109,9 @@ describe('project-tabs-cap (native-desktop)', () => {
       tabs.push(opened.label);
       roots[opened.label] = root;
       pids[opened.label] = await waitServer(root);
+      // the next openTab is invoked FROM this tab: a tab still on the "Starting…" splash is not on its
+      // project's origin yet, and `e2e_open_root` refuses it ("This window isn't showing its project.")
+      await waitForSidecar();
     }
     expect(await labels()).toHaveLength(3);
     await browser.pause(3_000); // a cap rest would have happened by now

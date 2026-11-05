@@ -28,6 +28,8 @@ const SKIP_DIR = new Set(['node_modules', 'target', 'dist', '.git']);
 const EXEMPT: Record<string, string> = {
   'apps/studio/test/export-e2e-lanes.test.ts':
     'its HOME env belongs to the apps/render server (no ACP probe); studios boot via bootServer, which inherits the preload stub',
+  'apps/studio/test/ds-upgrade-prove-env.test.ts':
+    'pure unit test of the staged-studio env and server-command resolution (2.0.5): it builds env objects and argv, never spawns a studio or claude',
   'apps/hub/test/studio-child.test.mjs':
     'unit test of childEnv()/launch() with an injected fake spawn: no process, no claude is ever started',
 };

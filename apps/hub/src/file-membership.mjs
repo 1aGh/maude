@@ -32,8 +32,9 @@ export function isFilePlaneClass(c) {
 /** Max relative-path length (matches `checkoutRelShape`'s cap). */
 export const MAX_REL_LEN = 512;
 
-/** Max designRoot-relative depth (matches the 8-segment cap). */
-export const MAX_SEGMENTS = 8;
+/** Max designRoot-relative depth — the studio classifier's figure (32 since fix/205; it was 8).
+ *  Advertised as `file-depth-v2` so a desktop holds deeper paths for an older hub. */
+export const MAX_SEGMENTS = 32;
 
 const INERT_MEDIA_EXTS = new Set([
   'png',

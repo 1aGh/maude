@@ -1,6 +1,6 @@
 // S10.18c — the host around a linked team library, in a DOM: the card in the inspector's empty place, "Update from
 // <system>? N changes", then the existing review sheet whose Update posts the ONE update; the view-only banner; the
-// 30-minute check on open and on a timer; the unlink question; the registry actions that reach it; and the lead's
+// check on open and on events (no clock); the unlink question; the registry actions that reach it; and the lead's
 // default for a peer with no grant (said in words, no Update button, no e-mail). Real routes + real engine + fake hub.
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
@@ -303,13 +303,61 @@ describe('the library host', () => {
     expect(later.calls).toEqual([]);
   });
 
-  test('the check repeats every 30 minutes', async () => {
+  test('the check repeats on events (the window looked at, a system written), not on a clock', async () => {
     const L = await linked();
     const w = wire(L);
-    await mount(w.impl, [], { pollMs: 25 });
-    await act(async () => new Promise((r) => setTimeout(r, 90)));
-    expect(w.calls.filter((c) => c.body?.action === 'check').length).toBeGreaterThanOrEqual(3);
+    await mount(w.impl, []);
+    const checks = () => w.calls.filter((c) => c.body?.action === 'check').length;
+    expect(checks()).toBe(1);
+    await act(async () => new Promise((r) => setTimeout(r, 200)));
+    expect(checks()).toBe(1); // 2.0.5 (#205): nothing between events
+    await act(async () => void window.dispatchEvent(new Event('maude:ds-state-changed')));
+    await settle();
+    expect(checks()).toBe(2);
+    await act(async () => void document.dispatchEvent(new Event('visibilitychange')));
+    await settle();
+    expect(checks()).toBe(3);
     expect(lib.DsLibraryHost).toBeTruthy();
+  });
+
+  /** setTimeout delays ≥ 1 s asked for while `run` runs (the real timer still runs). */
+  async function longTimers(run: () => Promise<void>): Promise<number[]> {
+    const real = globalThis.setTimeout;
+    const seen: number[] = [];
+    globalThis.setTimeout = ((fn: () => void, ms?: number, ...rest: unknown[]) => {
+      if ((ms ?? 0) >= 1000) seen.push(ms as number);
+      return real(fn, ms, ...rest);
+    }) as typeof setTimeout;
+    try {
+      await run();
+    } finally {
+      globalThis.setTimeout = real;
+    }
+    return seen;
+  }
+  const checkAnswers = (impl: typeof fetch, status: number, code: string) =>
+    (async (url: string, init?: { method?: string; body?: string }) => {
+      const body = init?.body ? JSON.parse(init.body) : null;
+      if (body?.action === 'check')
+        return new Response(JSON.stringify({ code, error: code }), { status });
+      return (impl as unknown as (u: string, i?: unknown) => Promise<Response>)(url, init);
+    }) as unknown as typeof fetch;
+
+  test('a hub that does not answer is read again after 5 s (backoff); a refusal is an answer, not a failure', async () => {
+    const L = await linked();
+    const down = await longTimers(() =>
+      mount(checkAnswers(wire(L).impl, 502, 'ds-library-unreachable'), [])
+    );
+    expect(down).toEqual([5000]);
+    for (const [status, code] of [
+      [409, 'ds-library-no-grant'],
+      [403, 'ds-library-denied'],
+    ] as const) {
+      document.body.innerHTML = '';
+      for (const r of roots.splice(0)) await act(async () => r.unmount());
+      const refused = await longTimers(() => mount(checkAnswers(wire(L).impl, status, code), []));
+      expect(refused).toEqual([]);
+    }
   });
 
   test('Unlink… asks first; Unlink makes it an own system and the card goes', async () => {

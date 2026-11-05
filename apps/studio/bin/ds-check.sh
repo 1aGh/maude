@@ -14,6 +14,10 @@
 #   ds-check.sh --hook --canvas <file>     # PostToolUse mode: always exit 0, hook JSON
 #   ds-check.sh --root <project>           # default: $CLAUDE_PROJECT_DIR, else the current directory
 #
+# The canvas modes also ask the project's running studio (127.0.0.1 only) which canvases it refused after
+# their build — a canvas that uses a file another canvas owns — and print why; with no studio they say so
+# and print the import-walk reasons only. `--json` carries `studio` (true/false) and `refusedInputs`.
+#
 # Structure only — presence, per-theme presence, value TYPE, name/type collisions. Values,
 # ordering and aesthetics are never judged (A14, DDR-043); they surface as notes.
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -24,7 +28,7 @@ if ! command -v bun >/dev/null 2>&1; then
 fi
 
 case "$1" in
-  --help|-h) sed -n '2,18p' "$0" | sed 's/^# \?//'; exit 0 ;;
+  --help|-h) sed -n '2,21p' "$0" | sed 's/^# \?//'; exit 0 ;;
 esac
 
 exec bun run "$SCRIPT_DIR/_ds-check.mjs" "$@"

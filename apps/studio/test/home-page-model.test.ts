@@ -3,14 +3,19 @@
 // projects without a local copy (matched by hub URL or managed key).
 
 import { describe, expect, test } from 'bun:test';
+import { realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 
 import {
   buildHomeModel,
   cloudRoleWord,
+  connectionOf,
   managedKey,
   relativeTime,
   rowSlug,
 } from '../client/home/home-model.js';
+import { readHomeIndex } from '../home/index-reader.ts';
+import { readSnapshot, snapshotPath } from '../index/snapshot.ts';
+import { freshIndexDir, makeProject } from './_home-fixtures.ts';
 
 const P1 = 'l0000000000000001';
 const P2 = 'l0000000000000002';
@@ -292,5 +297,321 @@ describe('helpers', () => {
     expect(relativeTime(new Date(2026, 9, 9, 9, 0).getTime(), now)).toBe('Friday');
     expect(relativeTime(new Date(2026, 8, 6, 9, 0).getTime(), now)).toBe('6 Sep');
     expect(relativeTime(new Date(2025, 8, 6, 9, 0).getTime(), now)).toBe('6 Sep 2025');
+  });
+});
+
+// ── 2.0.5 W4b — one row per project, and how each is connected ───────────────────────────────
+// Michal's Home showed "alligators" twice (his folder + the app's managed cloud copy, whose registry
+// entry carried no binding) and "StudyFi" twice (two repos whose `.design` is one folder through a
+// symlink). Identity, never the label: profile + hub + project id, or one design-root realpath.
+
+const D1 = 'l00000000000000d1';
+const D2 = 'l00000000000000d2';
+const D3 = 'l00000000000000d3';
+const APP = '/Users/x/Library/Application Support/com.maude.app/projects';
+
+function okIx(pid: string, root: string, extra: Record<string, unknown> = {}) {
+  return {
+    pid,
+    state: 'ok',
+    stale: false,
+    designReal: `${root}/.design`,
+    project: {
+      root,
+      name: root.split('/').pop(),
+      label: null,
+      formatVersion: 2,
+      linkedHub: null,
+      managed: false,
+    },
+    counts: { canvases: 5, artboards: 9, byKind: {} },
+    canvases: [],
+    ...extra,
+  };
+}
+
+function dupFixtures() {
+  const copyRoot = `${APP}/${managedKey('https://alligators.cloud.maude.sh', 'alligators')}`;
+  const shell = {
+    projects: [
+      {
+        pid: D1,
+        root: '/Users/x/Maude/alligators',
+        name: 'alligators',
+        profile: 'default',
+        place: 'closed',
+        focused: false,
+      },
+      // the copy: the shell's binding comes from managed-projects.json (Rust re-derives it on load)
+      {
+        pid: D2,
+        root: copyRoot,
+        name: 'alligators',
+        profile: 'default',
+        place: 'closed',
+        focused: false,
+        hub: 'https://alligators.cloud.maude.sh',
+      },
+      {
+        pid: D3,
+        root: '/Users/x/git/studyfi/studyfi-design',
+        name: 'StudyFi',
+        profile: 'default',
+        place: 'closed',
+        focused: false,
+      },
+    ],
+    profiles: [{ id: 'default', label: 'Default', email: 'you@gmail.com' }],
+    recent: [D3, D1, D2],
+  };
+  const index = {
+    v: 1,
+    projects: [
+      okIx(D1, '/Users/x/Maude/alligators', {
+        project: {
+          root: '/Users/x/Maude/alligators',
+          name: 'alligators',
+          label: null,
+          formatVersion: 2,
+          linkedHub: { url: 'https://alligators.cloud.maude.sh' },
+          managed: false,
+        },
+      }),
+      okIx(D2, copyRoot, {
+        project: {
+          root: copyRoot,
+          name: 'alligators',
+          label: null,
+          formatVersion: 2,
+          linkedHub: { url: 'https://alligators.cloud.maude.sh' },
+          managed: true,
+        },
+      }),
+      okIx(D3, '/Users/x/git/studyfi/studyfi-design'),
+    ],
+  };
+  // the control plane Home's /_config names (cloudOrigin) — the model has no built-in vendor address
+  return { shell, index, clouds: [] as unknown[], cloudUrl: 'https://cloud.maude.sh' };
+}
+
+const localRows = (m: ReturnType<typeof buildHomeModel>) =>
+  m.groups.flatMap((g) => g.rows).filter((r) => r.kind === 'local');
+
+describe('W4b — one row per project', () => {
+  test('a managed cloud copy collapses into the folder that links the same hub; the folder stays primary', () => {
+    const m = buildHomeModel(dupFixtures() as Parameters<typeof buildHomeModel>[0]);
+    const rows = localRows(m);
+    expect(rows.map((r) => r.pid)).toEqual([D3, D1]);
+    const alli = rows.find((r) => r.pid === D1);
+    expect(alli?.copies).toEqual([
+      expect.objectContaining({ pid: D2, kind: 'cloud-copy', label: 'cloud copy' }),
+    ]);
+    expect(alli?.status).not.toBe('mac');
+    expect(m.projectCount).toBe(2);
+  });
+
+  test('the copy alone is a cloud project, never "this Mac only"', () => {
+    const f = dupFixtures();
+    f.shell.projects = f.shell.projects.filter((p) => p.pid !== D1);
+    f.index.projects = f.index.projects.filter((p) => p.pid !== D1);
+    // the copy's own config claim is gone too: only the shell's binding says where it belongs
+    const copyIx = f.index.projects.find((p) => p.pid === D2);
+    if (copyIx) copyIx.project.linkedHub = null as never;
+    const copy = localRows(buildHomeModel(f as Parameters<typeof buildHomeModel>[0])).find(
+      (r) => r.pid === D2
+    );
+    expect(copy?.status).not.toBe('mac');
+    expect(copy?.connection?.kind).toBe('cloud');
+  });
+
+  test('a copy in ANOTHER profile, or of another project on the same team server, stays its own row', () => {
+    const f = dupFixtures();
+    const copy = f.shell.projects.find((p) => p.pid === D2);
+    if (copy) copy.profile = 'work';
+    expect(
+      localRows(buildHomeModel(f as Parameters<typeof buildHomeModel>[0])).map((r) => r.pid)
+    ).toContain(D2);
+
+    // two copies of two projects on one team server + a folder linked to that server: whose copy the
+    // folder is cannot be told, so nothing collapses
+    const g = dupFixtures();
+    const team = 'https://design.team.example';
+    const folder = g.index.projects.find((p) => p.pid === D1);
+    if (folder) folder.project.linkedHub = { url: team };
+    const c1 = g.shell.projects.find((p) => p.pid === D2);
+    if (c1) Object.assign(c1, { root: `${APP}/${managedKey(team, 'one')}`, hub: team });
+    g.shell.projects.push({
+      pid: 'l00000000000000d4',
+      root: `${APP}/${managedKey(team, 'two')}`,
+      name: 'two',
+      profile: 'default',
+      place: 'closed',
+      focused: false,
+      hub: team,
+    });
+    const pids = localRows(buildHomeModel(g as Parameters<typeof buildHomeModel>[0])).map(
+      (r) => r.pid
+    );
+    expect(pids).toEqual(expect.arrayContaining([D1, D2, 'l00000000000000d4']));
+  });
+
+  test('two roots on one design-root realpath collapse; the last opened leads and keeps the readable counts', () => {
+    const f = dupFixtures();
+    const A = 'l00000000000000a5';
+    f.shell.projects.push({
+      pid: A,
+      root: '/Users/x/git/studyfi/AI-StudyMate',
+      name: 'StudyFi',
+      profile: 'default',
+      place: 'closed',
+      focused: false,
+    });
+    f.shell.recent = [A, D3, D1, D2];
+    // AI-StudyMate's `.design` is a symlink: Home reads nothing there (W5) but says where it resolves
+    f.index.projects.push({
+      pid: A,
+      state: 'mismatch',
+      stale: false,
+      designReal: '/Users/x/git/studyfi/studyfi-design/.design',
+    } as never);
+    const rows = localRows(buildHomeModel(f as Parameters<typeof buildHomeModel>[0]));
+    const studyfi = rows.filter((r) => r.name === 'StudyFi' || r.pid === A || r.pid === D3);
+    expect(studyfi.map((r) => r.pid)).toEqual([A]);
+    expect(studyfi[0]?.canvasCount).toBe(5);
+    expect(studyfi[0]?.copies).toEqual([
+      expect.objectContaining({ pid: D3, kind: 'folder', label: 'studyfi-design' }),
+    ]);
+  });
+
+  test('never by label: two "StudyFi" projects on different design roots stay two rows', () => {
+    const f = dupFixtures();
+    const B = 'l00000000000000b6';
+    f.shell.projects.push({
+      pid: B,
+      root: '/Users/x/elsewhere/StudyFi',
+      name: 'StudyFi',
+      profile: 'default',
+      place: 'closed',
+      focused: false,
+    });
+    f.index.projects.push(okIx(B, '/Users/x/elsewhere/StudyFi'));
+    const pids = localRows(buildHomeModel(f as Parameters<typeof buildHomeModel>[0])).map(
+      (r) => r.pid
+    );
+    expect(pids).toEqual(expect.arrayContaining([D3, B]));
+  });
+});
+
+describe('W4b — how each project is connected, and as whom', () => {
+  test('Local · Maude Cloud · Team server rows', () => {
+    const f = dupFixtures();
+    const team = 'https://design.team.example';
+    f.shell.projects.push({
+      pid: 'l00000000000000c7',
+      root: '/Users/x/team',
+      name: 'team',
+      profile: 'work',
+      place: 'closed',
+      focused: false,
+      hub: team,
+    });
+    f.shell.profiles.push({ id: 'work', label: 'Work', email: 'me@work.cz' });
+    f.index.projects.push(
+      okIx('l00000000000000c7', '/Users/x/team', {
+        project: {
+          root: '/Users/x/team',
+          name: 'team',
+          label: null,
+          formatVersion: 2,
+          linkedHub: { url: team },
+          managed: true,
+        },
+      })
+    );
+    const m = buildHomeModel({
+      ...(f as Parameters<typeof buildHomeModel>[0]),
+      hubAccounts: { work: { [team]: 'tereza@team.example' } },
+    });
+    const by = (pid: string) => localRows(m).find((r) => r.pid === pid)?.connection?.words;
+    expect(by(D3)).toBe('Local · this Mac only');
+    expect(by(D1)).toBe('Maude Cloud · you@gmail.com');
+    expect(by('l00000000000000c7')).toBe('Team server · design.team.example · tereza@team.example');
+  });
+
+  test('a team server on a non-default port shows host:port, the default port shows the host', () => {
+    expect(
+      connectionOf({ hub: 'http://127.0.0.1:60542', cloudUrl: 'https://cloud.example.test' })
+    ).toMatchObject({
+      kind: 'team',
+      host: '127.0.0.1:60542',
+      words: 'Team server · 127.0.0.1:60542',
+    });
+    expect(
+      connectionOf({
+        hub: 'https://design.team.example:443',
+        hubAccount: 'tereza@team.example',
+        cloudUrl: 'https://cloud.example.test',
+      }).words
+    ).toBe('Team server · design.team.example · tereza@team.example');
+    // the cloud test still matches on the bare host, whatever its port
+    expect(
+      connectionOf({
+        hub: 'https://a.cloud.example.test:8443',
+        cloudUrl: 'https://cloud.example.test',
+      }).kind
+    ).toBe('cloud');
+  });
+
+  test('before Home knows its control plane, a linked row says nothing (no vendor default)', () => {
+    const f = dupFixtures();
+    const m = buildHomeModel({ ...(f as Parameters<typeof buildHomeModel>[0]), cloudUrl: null });
+    const row = localRows(m).find((r) => r.pid === D1);
+    expect(row?.connection?.kind).toBe('unknown');
+    expect(row?.connection?.words).toBeNull();
+    expect(localRows(m).find((r) => r.pid === D3)?.connection?.words).toBe('Local · this Mac only');
+    // a self-hosted control plane is Maude Cloud for its own cells
+    expect(
+      connectionOf({ hub: 'https://a.cloud.example.test', cloudUrl: 'https://cloud.example.test' })
+        .kind
+    ).toBe('cloud');
+  });
+
+  test('an account nobody recorded is left out, never guessed', () => {
+    const f = dupFixtures();
+    f.shell.profiles = [{ id: 'default', label: 'Default' } as never];
+    const row = localRows(buildHomeModel(f as Parameters<typeof buildHomeModel>[0])).find(
+      (r) => r.pid === D1
+    );
+    expect(row?.connection?.words).toBe('Maude Cloud');
+  });
+});
+
+describe('W4b — the index says where a design root resolves', () => {
+  test('a symlinked design root reads nothing but names its realpath; a plain one names its own', async () => {
+    freshIndexDir();
+    const real = makeProject('w4b-real', { 'ui/One.tsx': 'One' });
+    const linked = makeProject('w4b-linked', { 'ui/One.tsx': 'One' });
+    rmSync(linked.designRoot, { recursive: true, force: true });
+    symlinkSync(real.designRoot, linked.designRoot);
+    const ix = readHomeIndex([real.pid, linked.pid]);
+    const [a, b] = ix.projects;
+    expect(a?.state).toBe('ok');
+    expect(a?.designReal).toBe(realpathSync(real.designRoot));
+    expect(b?.state).toBe('mismatch');
+    expect(b?.canvases ?? []).toEqual([]);
+    expect(b?.designReal).toBe(realpathSync(real.designRoot));
+  });
+
+  test('a snapshot naming ANOTHER folder (planted) carries no realpath', () => {
+    freshIndexDir();
+    const a = makeProject('w4b-a', { 'ui/One.tsx': 'One' });
+    const b = makeProject('w4b-b', { 'ui/One.tsx': 'One' });
+    const snap = readSnapshot(a.pid);
+    if (!snap) throw new Error('no snapshot');
+    snap.project.root = b.root;
+    writeFileSync(snapshotPath(a.pid), JSON.stringify(snap));
+    const p = readHomeIndex([a.pid]).projects[0];
+    expect(p?.state).toBe('mismatch');
+    expect(p?.designReal).toBeUndefined();
   });
 });

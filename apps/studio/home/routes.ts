@@ -42,6 +42,7 @@ import { HUB_SIGNIN_RETURN_PATH, returnPage } from '../sync/hub-browser-signin.t
 import { thumbNotFound, thumbResponse } from '../thumbs/routes.ts';
 import { checkJpeg } from '../thumbs/validate.ts';
 import { isLoopbackHost } from '../ws.ts';
+import { createHomeAccounts } from './accounts.ts';
 import { createHomeAi, type HomeAi } from './ai.ts';
 import { createHomeCli, type HomeCli } from './cli.ts';
 import type { HomeCloud } from './cloud.ts';
@@ -281,6 +282,7 @@ export function homeRouteTable(deps: HomeDeps): HomeRoute[] {
   const cli = deps.cli ?? createHomeCli();
   const whatsNew = deps.whatsNew ?? createHomeWhatsNew();
   const github = deps.github ?? createHomeGithub();
+  const accounts = createHomeAccounts({ forgetCloud: (p) => deps.cloud.forget(p) });
   return [
     {
       method: 'GET',
@@ -481,6 +483,23 @@ export function homeRouteTable(deps: HomeDeps): HomeRoute[] {
     ),
     post('/_home/hub/signin/poll', 'home', (b) => hub.signInPoll(b)),
     post('/_home/hub/signin/cancel', 'home', (b) => hub.signInCancel(b)),
+    // 2.0.5 W4b — Home's avatar: each profile's team-server sign-ins (no tokens), and a sign-out per
+    // account (one credential out of that profile's own file)
+    {
+      method: 'GET',
+      path: '/_home/accounts',
+      kind: 'home',
+      handle: (_req, url) => {
+        const r = accounts.list(url.searchParams.get('profiles'));
+        return json(r.status, r.body);
+      },
+    },
+    post('/_home/hub/signout', 'home', (b) =>
+      accounts.hubSignOut((b ?? {}) as Record<string, unknown>)
+    ),
+    post('/_home/cloud/signout', 'home', (b) =>
+      accounts.cloudSignOut((b ?? {}) as Record<string, unknown>)
+    ),
     get('/_home/ai/status', () => ai.status()),
     post('/_home/ai/connect', 'home', (b) => ai.connect(b)),
     get('/_home/cli/status', () => cli.status()),
