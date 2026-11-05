@@ -118,7 +118,7 @@ function personLabel(key: string): string {
 }
 
 export const LOD_CSS = `
-.dc-annot-lod { position: absolute; left: 0; top: 0; width: 0; height: 0; }
+.dc-annot-lod { position: absolute; left: 0; top: 0; width: 0; height: 0; --dc-zoom: initial; }
 .dc-annot-lod[data-quiet] { opacity: 0.45; }
 .dc-annot-lod [data-lod] { position: absolute; box-sizing: border-box; pointer-events: none; }
 .dc-annot-lod[data-live] [data-lod="section"] { pointer-events: auto; cursor: zoom-in; }

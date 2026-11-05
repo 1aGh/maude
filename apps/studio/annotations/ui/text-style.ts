@@ -100,7 +100,7 @@ export function stripListMarkers(text: string, list?: ListStyle): string {
  * like plain text (no border, no resize grip, inherited font).
  */
 export const TEXT_LAYER_CSS = `
-.dc-annot-scene { position: absolute; left: 0; top: 0; width: 0; height: 0; overflow: visible; pointer-events: none; }
+.dc-annot-scene { position: absolute; left: 0; top: 0; width: 0; height: 0; overflow: visible; pointer-events: none; --dc-zoom: initial; }
 .dc-annot-el { position: absolute; pointer-events: none; }
 .dc-annot-el > svg.dc-annot-geo { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
 .dc-annot-text { box-sizing: border-box; white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }

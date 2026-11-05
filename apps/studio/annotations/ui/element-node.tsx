@@ -283,6 +283,14 @@ export function stickyBoxPath(x: number, y: number, w: number, h: number, r: num
   ].join(' ');
 }
 
+/**
+ * The "lifted paper" shadow: feDropShadow dx 0 · dy 4 · stdDeviation 8 · #000 @ 0.28, as a CSS box-shadow (blur radius
+ * = 2 × stdDeviation). It is the same in both themes - the filter never read one. It is a box-shadow on the NODE, not
+ * an SVG filter on the shape: WebKit re-rasters the world layer at every zoom frame, and 221 software filters made each
+ * frame ~230 ms on the retention-ladder board (v2.0.5 annot-zoom).
+ */
+const PAPER_SHADOW = '0 4px 16px rgba(0, 0, 0, 0.28)';
+
 function StickyView({ el, interactive, edit, quiet, selected, mine, typist }: ElementNodeProps) {
   const x = num(el.x);
   const y = num(el.y);
@@ -331,7 +339,17 @@ function StickyView({ el, interactive, edit, quiet, selected, mine, typist }: El
   const shown = [line, origin, doneLine].filter(Boolean).join(' · ');
   const pin = useTimePin(el); // S4.16 — the time chip, the fade off range, "Not printed"
   return (
-    <Node el={el} x={x} y={y} w={w} h={h} rot={rot} raised={!!edit} extraAttrs={pin.attrs}>
+    <Node
+      el={el}
+      x={x}
+      y={y}
+      w={w}
+      h={h}
+      rot={rot}
+      raised={!!edit}
+      extraAttrs={pin.attrs}
+      extraStyle={{ borderRadius: r, boxShadow: PAPER_SHADOW }}
+    >
       <PinTags pin={pin} />
       <Geo x={x} y={y} w={w} h={h}>
         <path
@@ -340,7 +358,6 @@ function StickyView({ el, interactive, edit, quiet, selected, mine, typist }: El
           stroke={aiMade ? AI_SPARK : 'rgba(0,0,0,0.05)'}
           strokeWidth={aiMade ? 2 : 1}
           vectorEffect="non-scaling-stroke"
-          filter="url(#dc-sticky-shadow)"
           pointerEvents={hit(interactive)}
         />
         {typist ? (
@@ -791,6 +808,9 @@ function ImageView({ el, interactive, resolveAsset }: ElementNodeProps) {
   );
 }
 
+/** A link / media card is a rounded rect (rx 8) with the same lifted-paper shadow, on its node. */
+const CARD_SHADOW_STYLE: CSSProperties = { borderRadius: 8, boxShadow: PAPER_SHADOW };
+
 function LinkView({ el, interactive }: ElementNodeProps) {
   const x = num(el.x);
   const y = num(el.y);
@@ -799,7 +819,7 @@ function LinkView({ el, interactive }: ElementNodeProps) {
   const lay = linkCardLayout(x, y, w, h);
   const font = { fontFamily: TEXT_FONT } as const;
   return (
-    <Node el={el} x={x} y={y} w={w} h={h} rot={num(el.rot)}>
+    <Node el={el} x={x} y={y} w={w} h={h} rot={num(el.rot)} extraStyle={CARD_SHADOW_STYLE}>
       <Geo x={x} y={y} w={w} h={h}>
         <g
           data-url={str(el.url)}
@@ -818,7 +838,6 @@ function LinkView({ el, interactive }: ElementNodeProps) {
             stroke={LINK_CARD_STROKE}
             strokeWidth={1}
             vectorEffect="non-scaling-stroke"
-            filter="url(#dc-sticky-shadow)"
           />
           <svg
             x={lay.glyph.x}
@@ -873,7 +892,7 @@ function MediaRefView({ el, interactive }: ElementNodeProps) {
   const src = str(el.src);
   const font = { fontFamily: TEXT_FONT } as const;
   return (
-    <Node el={el} x={x} y={y} w={w} h={h} rot={num(el.rot)}>
+    <Node el={el} x={x} y={y} w={w} h={h} rot={num(el.rot)} extraStyle={CARD_SHADOW_STYLE}>
       <Geo x={x} y={y} w={w} h={h}>
         <g
           data-src={src}
@@ -892,7 +911,6 @@ function MediaRefView({ el, interactive }: ElementNodeProps) {
             stroke={LINK_CARD_STROKE}
             strokeWidth={1}
             vectorEffect="non-scaling-stroke"
-            filter="url(#dc-sticky-shadow)"
           />
           <svg
             x={x + 8}
