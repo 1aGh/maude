@@ -2,9 +2,11 @@
 // ds-many-linked; V2-1.6 §5.14).
 //
 // Mounted once inside DsReviewHost. It
-//   - reads which systems are linked (`GET /_api/ds/state`) and asks the library whether it moved: on project open
-//     and every 30 minutes (`POST /_api/ds/library {action:'check'}` — the server bounds it to one hub request per
-//     system per 30 minutes anyway, and a failure stays quiet until the card is looked at),
+//   - reads which systems are linked (`GET /_api/ds/state`) and asks the library whether it moved: on project open,
+//     when the window is looked at again and when the shell wrote a system (client/v2/ds/ds-refresh.js — no clock;
+//     `POST /_api/ds/library {action:'check'}` — the server bounds it to one hub request per system per
+//     30 minutes anyway). A hub that does not answer (5xx / no answer) is retried after 5 s doubling to 5 min; a
+//     refusal (no grant, denied) is an answer, not a failure, and stays quiet until the card is looked at,
 //   - keeps the open linked system's card in a tiny store (library-store.js → the inspector's empty place),
 //   - answers the registry actions through library-bus.js: `ds.library-link`, `ds.library-update`, `ds.library-unlink`,
 //   - runs "Update from <system>? N changes" and then the existing DsReviewSheet, whose Update posts the ONE
@@ -24,7 +26,6 @@ import {
   changeLines,
   dialogTitle,
   isWaiting,
-  LIBRARY_CHECK_MS,
   LIBRARY_WORDS,
   linkedRows,
   refusalWords,
@@ -38,6 +39,7 @@ import {
   DsLibraryLink,
   DsLibraryUnlink,
 } from './library-card.jsx';
+import { dsRefresh } from './ds-refresh.js';
 import { onDsLibraryRequest } from './library-bus.js';
 import { setLibrary, setLibraryActions } from './library-store.js';
 import { DsReviewSheet } from './review-sheet.jsx';
@@ -139,7 +141,7 @@ export async function linkLibrary(url, grant, fetchImpl = globalThis.fetch) {
 
 /**
  * @param {{ cfg: any, activePath: string | null, toast?: (m: string, ok?: boolean) => void, scope?: string,
- *           fetchImpl?: typeof fetch, pollMs?: number, delayMs?: number, open?: (url: string) => any, canOpen?: (url: string) => boolean }} props
+ *           fetchImpl?: typeof fetch, delayMs?: number, open?: (url: string) => any, canOpen?: (url: string) => boolean }} props
  */
 export function DsLibraryHost({
   cfg,
@@ -147,7 +149,6 @@ export function DsLibraryHost({
   toast,
   scope = '',
   fetchImpl,
-  pollMs = LIBRARY_CHECK_MS,
   delayMs = OPEN_DELAY_MS,
   open = openExternal,
   canOpen = (url) => isDisplayableUrl(url),
@@ -172,12 +173,15 @@ export function DsLibraryHost({
   const openDs = ownSystemOf(activePath, cfg);
   const openRow = rows.find((r) => r.ds === openDs) ?? null;
 
-  /** The state, then a check of each linked system, then the state again (a check can move `upstreamHead`). */
-  const refresh = useCallback(async () => {
-    const first = await loadLinked(f());
+  /** The state, then a check of each linked system, then the state again (a check can move `upstreamHead`).
+   *  `fx`: the fetch ds-refresh tracks, so a hub that does not answer backs the next read off. */
+  const refresh = useCallback(
+    async (fx) => {
+    const fetchFn = typeof fx === 'function' ? fx : f();
+    const first = await loadLinked(fetchFn);
     setRows(first);
     for (const r of first) {
-      const c = await checkLibrary(r.ds, f());
+      const c = await checkLibrary(r.ds, fetchFn);
       if (c.ok) {
         setAccess((a) => ({ ...a, [r.ds]: 'yes' }));
         setErrors((e) => ({ ...e, [r.ds]: null }));
@@ -191,29 +195,25 @@ export function DsLibraryHost({
         setErrors((e) => ({ ...e, [r.ds]: LIBRARY_WORDS.denied }));
       }
     }
-    setRows(await loadLinked(f()));
-  }, [f]);
+    setRows(await loadLinked(fetchFn));
+    },
+    [f]
+  );
 
-  // project open, then every 30 min while the window is looked at
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `refresh` reads the live ref; the poll rate is the trigger
+  // project open (after the first paint), then when the window is looked at again or the shell wrote a system —
+  // no clock. A refusal (no grant 409, denied 403) is the library's answer; only a 5xx is a failure to back off.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `refresh` reads the live ref; the first read is the trigger
   useEffect(() => {
-    let dead = false;
-    const go = () => {
-      if (dead) return;
-      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
-      // a project with no converted system has no linked library: nothing to read, nothing to ask
-      if (!Object.values(live.current.cfg?.dsConverted ?? {}).some((v) => v === true)) return;
-      refresh();
-    };
-    // "on project open" waits for the first paint: the shell's own reads go first
-    const first = setTimeout(go, delayMs);
-    const timer = setInterval(go, pollMs);
-    return () => {
-      dead = true;
-      clearTimeout(first);
-      clearInterval(timer);
-    };
-  }, [pollMs, delayMs]);
+    const r = dsRefresh(
+      async (fx) => {
+        // a project with no converted system has no linked library: nothing to read, nothing to ask
+        if (!Object.values(live.current.cfg?.dsConverted ?? {}).some((v) => v === true)) return;
+        await refresh(fx);
+      },
+      { fetchImpl: f, firstMs: delayMs, failed: (res) => res.status >= 500 }
+    );
+    return () => r.stop();
+  }, [delayMs]);
 
   // the open linked system: how many updates wait (one read of the review per moved head; never for a Mac without a grant)
   const openHead = openRow?.library?.upstreamHead ?? null;

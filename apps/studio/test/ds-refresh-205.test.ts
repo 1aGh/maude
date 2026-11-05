@@ -166,6 +166,46 @@ describe('the one slow clock', () => {
     expect(s.calls()).toBe(3);
   });
 
+  test('named window events read; skipFirst waits for one; `failed` decides what is a failure', async () => {
+    const timers = fakeTimers();
+    const win = new EventTarget();
+    let calls = 0;
+    let status = 200;
+    const fetchImpl = (async () => {
+      calls += 1;
+      return new Response('{}', { status });
+    }) as unknown as typeof fetch;
+    const ctl = dsRefresh(async (f) => void (await f('/_api/ds/x')), {
+      fetchImpl: () => fetchImpl,
+      timers,
+      win: win as unknown as Window,
+      doc: fakeDoc() as unknown as Document,
+      events: ['maude:ai-runs'],
+      skipFirst: true,
+      failed: (res) => res.status >= 500,
+      paused: () => false,
+    });
+    await flush();
+    expect(calls).toBe(0); // skipFirst: the host just read
+    expect(timers.pending()).toEqual([]);
+    win.dispatchEvent(new Event('maude:ai-runs'));
+    await flush();
+    expect(calls).toBe(1);
+    status = 409; // a refusal is an answer: no retry is armed
+    win.dispatchEvent(new Event('maude:ai-runs'));
+    await flush();
+    expect(calls).toBe(2);
+    expect(timers.pending()).toEqual([]);
+    status = 502;
+    win.dispatchEvent(new Event('maude:ai-runs'));
+    await flush();
+    expect(timers.pending()).toEqual([DS_BACKOFF_FIRST_MS]);
+    ctl.stop();
+    win.dispatchEvent(new Event('maude:ai-runs'));
+    await flush();
+    expect(calls).toBe(3); // stopped: the event no longer reads
+  });
+
   test('canvasPaused: a loading or broken pane, or a broken-canvas card', () => {
     const pane = { getAttribute: () => 'ready' };
     const doc = (state: string | null) =>

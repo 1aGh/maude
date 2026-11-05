@@ -11,9 +11,11 @@
 //   - when the window is looked at again (`visibilitychange` → visible),
 //   - when the shell wrote the system (DS_STATE_CHANGED),
 //   - when the open canvas has drawn again (`dgn:'loaded'` from its own frame, only with `frameFor`),
+//   - when one of `events` (window events the host names — e.g. `maude:ai-runs`, the AI run registry moved) fires,
 //   - after a failed read, again after 5 s, 10 s, 20 s … at most 5 min (one success resets it),
 //   - and, only with `slowMs`, on ONE slow clock — visible window only, held while the canvas is loading or
-//     broken. Only the "changed outside" card needs it (truth-host): a file edited outside Maude has no event.
+//     broken. Only the "changed outside" card needs it (truth-host): a file edited outside Maude has no event; and
+//     the upgrade sheet while a check is running (a proof's progress has no push).
 //
 // `load(fetchImpl)` reads through the fetch it is given; a read that throws, or any answer that is not ok, is a
 // failure. The host keeps its own sequence guard; this only decides WHEN.
@@ -46,6 +48,9 @@ export function backoffMs(failures, first = DS_BACKOFF_FIRST_MS, cap = DS_BACKOF
  * @param {{
  *   fetchImpl?: () => typeof fetch,
  *   slowMs?: number,
+ *   events?: string[],
+ *   skipFirst?: boolean,
+ *   failed?: (res: Response) => boolean,
  *   paused?: () => boolean,
  *   frameFor?: () => ({ contentWindow?: unknown } | null),
  *   firstMs?: number,
@@ -65,6 +70,7 @@ export function dsRefresh(load, opts = {}) {
   const paused = opts.paused ?? (() => canvasPaused(doc));
   const getFetch = opts.fetchImpl ?? (() => globalThis.fetch);
   const slowMs = opts.slowMs ?? 0;
+  const failedRes = opts.failed ?? ((res) => !res?.ok);
   const hidden = () => doc?.visibilityState === 'hidden';
 
   let dead = false;
@@ -90,7 +96,7 @@ export function dsRefresh(load, opts = {}) {
     const tracked = async (...args) => {
       try {
         const res = await base(...args);
-        if (!res?.ok) failed = true;
+        if (failedRes(res)) failed = true;
         return res;
       } catch (err) {
         failed = true;
@@ -131,9 +137,11 @@ export function dsRefresh(load, opts = {}) {
   doc?.addEventListener?.('visibilitychange', onVisible);
   win?.addEventListener?.(DS_STATE_CHANGED, onChanged);
   if (opts.frameFor) win?.addEventListener?.('message', onMessage);
+  for (const name of opts.events ?? []) win?.addEventListener?.(name, onChanged);
 
   let first = null;
-  if (opts.firstMs && opts.firstMs > 0) first = set(() => void now(), opts.firstMs);
+  if (opts.skipFirst) next(); // the host just read: wait for an event (or the slow clock)
+  else if (opts.firstMs && opts.firstMs > 0) first = set(() => void now(), opts.firstMs);
   else void now();
 
   return {
@@ -146,6 +154,7 @@ export function dsRefresh(load, opts = {}) {
       doc?.removeEventListener?.('visibilitychange', onVisible);
       win?.removeEventListener?.(DS_STATE_CHANGED, onChanged);
       if (opts.frameFor) win?.removeEventListener?.('message', onMessage);
+      for (const name of opts.events ?? []) win?.removeEventListener?.(name, onChanged);
     },
   };
 }
