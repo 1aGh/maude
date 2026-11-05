@@ -258,7 +258,7 @@ export function ArtboardLiveGate({
   );
 }
 
-/** Paused CSS animations while asleep; a snapshot under a released WebGL canvas. */
+/** Paused CSS animations while asleep. (A released WebGL canvas's picture is an overlay: artboard-webgl.ts.) */
 export const ARTBOARD_LIVE_CSS = `
 .dc-artboard[data-dc-asleep] .dc-artboard-body *,
 .dc-artboard[data-dc-asleep] .dc-artboard-body *::before,
