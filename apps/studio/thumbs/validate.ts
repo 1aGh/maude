@@ -60,3 +60,10 @@ export function checkJpeg(b: Uint8Array | null | undefined, px: number): JpegChe
   if (size.w > px + 1 || size.h > px + 1) return { ok: false, reason: 'too-big' };
   return { ok: true, ...size };
 }
+
+/** The smallest side and the longest aspect a stored COVER may have (W5): below 48 px or more than 10 : 1
+ *  it is a strip of a header, not a picture of the canvas. Applies to cover targets only. */
+export const MIN_COVER_PX = 48;
+export const MAX_COVER_ASPECT = 10;
+export const coverWorthy = (w: number, h: number): boolean =>
+  Math.min(w, h) >= MIN_COVER_PX && Math.max(w, h) / Math.min(w, h) <= MAX_COVER_ASPECT;

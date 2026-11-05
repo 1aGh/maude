@@ -32,6 +32,8 @@
 import { createInterface } from 'node:readline';
 
 import { afterPaint, launchChromium } from './_pw-launch.mjs';
+import { isBlankCover, parseRgb } from './_thumb-blank.mjs';
+import { pickAny, pickCover } from './_thumb-cover.mjs';
 import { drawTile } from './_tile-draw.mjs';
 
 const MAX_PAGES = 4;
@@ -269,27 +271,80 @@ async function harvest(page) {
   return rows;
 }
 
-/** C31: the first artboard in "Order and notes…" when set, else row by row, left to right. */
-function pickCover(rects, order) {
-  if (Array.isArray(order)) for (const id of order) if (rects.some((r) => r.id === id)) return id;
-  if (!rects.length) return null;
-  const minY = Math.min(...rects.map((r) => r.y));
-  const minH = Math.min(...rects.map((r) => r.h ?? 0).filter((h) => h > 0), 1);
-  const top = rects.filter((r) => r.y < minY + minH / 2);
-  return top.sort((a, b) => a.x - b.x)[0]?.id ?? rects[0].id;
-}
-
 async function shoot(page, job, index, target, runtime, left) {
   const t0 = performance.now();
   const px = Math.max(16, Math.min(2048, Math.trunc(Number(target.px) || 480)));
   let id = target.artboard == null ? null : String(target.artboard);
   const domIds = runtime.map((a) => a.id);
+  // W5: a cover with no artboard worth showing is the BOARD (the annotation layer, which lives in the
+  // world beside the artboards, not in `#canvas-root`'s flow) — or, with no board, the biggest artboard
+  let board = false;
   if (id === null && domIds.length) id = pickCover(runtime, job.coverOrder);
   else if (id !== null && !domIds.includes(id)) return { target: index, missing: true };
+  if (id === null && target.artboard == null) {
+    board = await page.evaluate(
+      () => document.querySelector('[data-mdcc-annotations] .dc-annot-el') !== null
+    );
+    if (!board && domIds.length) id = pickAny(runtime);
+  }
 
   const box = await page.evaluate(
-    ([abId, size]) => {
+    ([abId, size, boardMode]) => {
       const world = document.querySelector('.dc-world');
+      if (boardMode && world) {
+        // The bounds of everything drawn in the world, in WORLD units: the annotation layer's elements
+        // are absolutely placed with inline left/top and carry their size on the geometry svg (their own
+        // boxes measure 0 x 0); artboards are real boxes. No transform is read, so the pan/zoom the page
+        // happens to be in does not matter.
+        let x0 = Number.POSITIVE_INFINITY;
+        let y0 = Number.POSITIVE_INFINITY;
+        let x1 = Number.NEGATIVE_INFINITY;
+        let y1 = Number.NEGATIVE_INFINITY;
+        const add = (x, y, w, h) => {
+          if (![x, y, w, h].every(Number.isFinite)) return;
+          x0 = Math.min(x0, x);
+          y0 = Math.min(y0, y);
+          x1 = Math.max(x1, x + Math.max(1, w));
+          y1 = Math.max(y1, y + Math.max(1, h));
+        };
+        // `?hide-chrome=1` hides the annotation layer (an export must not carry it, capture-chrome.ts); a
+        // board cover IS that layer, so this one capture puts it back (an inline !important beats the sheet's)
+        for (const scene of world.querySelectorAll('[data-mdcc-annotations]'))
+          scene.style.setProperty('display', 'block', 'important');
+        const px = (v) => Number.parseFloat(v);
+        for (const el of world.querySelectorAll('.dc-annot-el')) {
+          const vb = el.querySelector(':scope > svg.dc-annot-geo')?.viewBox?.baseVal;
+          if (vb && vb.width > 0 && vb.height > 0) add(vb.x, vb.y, vb.width, vb.height);
+          else
+            add(
+              px(el.style.left),
+              px(el.style.top),
+              px(el.style.width) || 160,
+              px(el.style.height) || 40
+            );
+        }
+        for (const el of world.querySelectorAll('[data-dc-screen]'))
+          add(el.offsetLeft, el.offsetTop, el.offsetWidth, el.offsetHeight);
+        if (!(x1 > x0 && y1 > y0)) return null;
+        const bw = x1 - x0;
+        const bh = y1 - y0;
+        const z = Math.min(1, size / bw);
+        world.style.zoom = '1';
+        world.style.transformOrigin = '0 0';
+        world.style.transform = 'none';
+        const o = world.getBoundingClientRect(); // where the world's origin sits in the page
+        world.style.transform = `translate(${-x0 * z}px, ${-y0 * z}px) scale(${z})`;
+        window.scrollTo(0, 0);
+        const cw = Math.min(bw * z, size);
+        // a cover is 1 : 0.5 .. 1 : 0.625 — a short, wide board gets some of the canvas below it, a tall
+        // one its top (the clip is cut from the board's own top-left corner)
+        return {
+          x: o.left,
+          y: o.top,
+          w: cw,
+          h: Math.max(cw * 0.5, Math.min(bh * z, (cw * 10) / 16)),
+        };
+      }
       if (abId !== null) {
         const abs = [...document.querySelectorAll('[data-dc-screen]')];
         const ab = abs.find((a) => a.getAttribute('data-dc-screen') === abId);
@@ -320,7 +375,7 @@ async function shoot(page, job, index, target, runtime, left) {
       const cw = Math.min(b.width, size);
       return { x: b.left, y: b.top, w: cw, h: Math.min(b.height, (cw * 10) / 16) };
     },
-    [id, px]
+    [id, px, board]
   );
   if (!box) return { target: index, missing: id !== null };
 
@@ -503,6 +558,26 @@ async function render(msg) {
     const shots = [];
     for (const [i, t] of targets.entries()) shots.push(await shoot(page, job, i, t, runtime, left));
     lap('shoot');
+    // W5: a flat-colour picture is a miss, not a cover — checked on a blank page, never on the canvas's
+    const pics = shots.filter((sh) => typeof sh.jpeg === 'string');
+    if (pics.length) {
+      // the colour an unpainted viewport shows: the canvas host's own background (read, then left behind)
+      const bg = parseRgb(
+        await bounded(
+          page.evaluate(() => {
+            for (const el of [document.querySelector('.dc-canvas'), document.body]) {
+              const c = el ? getComputedStyle(el).backgroundColor : '';
+              if (c && c !== 'rgba(0, 0, 0, 0)') return c;
+            }
+            return '';
+          }),
+          1000
+        )
+      );
+      await page.goto('about:blank').catch(() => {});
+      for (const sh of pics) if ((await isBlankCover(page, sh.jpeg, bg)) === true) sh.blank = true;
+    }
+    lap('blank');
     return {
       phases,
       ok: true,
@@ -669,6 +744,8 @@ async function handle(msg) {
   try {
     send({ id, ...(await (msg.op === 'tile' ? tile(msg) : render(msg))) });
   } catch (e) {
+    if (process.env.MAUDE_THUMBS_DEBUG)
+      process.stderr.write(`render failed: ${String(e?.stack ?? e)}\n`);
     const code =
       e?.code === 'origin' || e?.code === 'canvas-failed'
         ? e.code
