@@ -1,0 +1,106 @@
+name: Site deploy (Cloudflare Workers)
+
+# Deploys the public site (site/, maude.sh) to the `maude-site` Worker on every
+# push to main that can change what the site renders.
+#
+# THE BUILD READS THE REPO, NOT JUST site/. site/package.json `prebuild` runs the
+# generators, and they read outside the folder: the roadmap from .ai/plans and
+# .ai/state, What's New from apps/studio/whats-new.json, the command reference from
+# plugins/*/commands, the config reference from the flow config schema, pricing from
+# apps/cloud/pricing.json, the stats from package.json, the plugin/CLI inventory and
+# GIT HISTORY AND TAGS. So the `paths` filter below lists those inputs: a docs-only
+# or roadmap-only commit must still redeploy, and a commit that touches none of them
+# (a hub fix, a studio refactor) must not. If a generator gains a new input, add it
+# here. Vercel did not need this: it rebuilt on every push.
+#
+# fetch-depth: 0 is load-bearing. build-stats.mjs counts release tags, reads the
+# latest tag's date and runs `git log` per docs page for the "updated" dates; on a
+# shallow clone those come out wrong, and the site would ship them without an error.
+#
+# SECRETS AND VARIABLES (repository settings; the runbook is site/README.md):
+#   secrets.CLOUDFLARE_API_TOKEN  Workers Scripts: Edit, Workers Routes: Edit (zone maude.sh),
+#                                 Account Settings: Read
+#   secrets.CLOUDFLARE_ACCOUNT_ID the Cloudflare account that owns the Worker
+#   vars.CF_BEACON_TOKEN          Cloudflare Web Analytics token (public identifier; optional,
+#                                 no beacon is rendered without it)
+# The worker's own runtime secret (GITHUB_TOKEN, for the updater feed) is set on the
+# Worker, not here: `wrangler secret put GITHUB_TOKEN` once.
+#
+# Pushing THIS FILE needs a GitHub token with the `workflow` scope.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      # inputs of site/scripts/build-*.mjs
+      - '.ai/plans/**'
+      - '.ai/state/STATE.md'
+      - '.ai/archive/state/**'
+      - 'apps/studio/whats-new.json'
+      - 'apps/cloud/pricing.json'
+      - 'plugins/*/commands/**'
+      - 'plugins/*/skills/**'
+      - 'plugins/*/agents/**'
+      - 'plugins/*/.claude-plugin/**'
+      - 'cli/commands/**'
+      - 'package.json'
+      # how the site installs
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/site-deploy.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+# One deploy at a time. A newer push waits for the running one rather than
+# cancelling it: cancelling a `wrangler deploy` halfway is how a half-uploaded
+# version happens, and the newest push builds from the newest tree anyway.
+concurrency:
+  group: site-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0    # build-stats.mjs reads git tags + shortlog + per-file log
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: pnpm
+
+      - name: Install (site and what it depends on)
+        run: pnpm install --frozen-lockfile --filter "@maude/site..."
+
+      - name: Credentials present
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          # wrangler's own failure for a missing token reads like a login prompt in CI.
+          for v in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID; do
+            if [ -z "${!v}" ]; then
+              echo "::error::secret $v is not set. See site/README.md > Cloudflare Workers > One-time setup."
+              exit 1
+            fi
+          done
+
+      - name: Build (OpenNext)
+        run: pnpm --filter @maude/site cf:build
+        env:
+          # Inlined into the page at build time. Empty = no analytics beacon.
+          NEXT_PUBLIC_CF_BEACON_TOKEN: ${{ vars.CF_BEACON_TOKEN }}
+
+      - name: Deploy
+        run: pnpm --filter @maude/site cf:deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
