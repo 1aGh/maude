@@ -24040,6 +24040,54 @@
     "v2": "new"
   },
   {
+    "hook": "canvas-too-heavy",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "2.0.5 — the card a tab shows INSTEAD of a canvas that crashed the page twice within 10 minutes (canvas-crash-guard.js): \"This canvas is too heavy to show all at once.\" No frame, no toolbar.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/too-heavy-card.jsx",
+      "symbol": "TooHeavyCanvas"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/heavy-canvas-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-too-heavy-light",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The card's primary action, \"Show visible artboards only\": reopens the canvas with only the artboards near the viewport mounted (?artboard-live=light).",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/too-heavy-card.jsx",
+      "symbol": "TooHeavyCanvas"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/heavy-canvas-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-too-heavy-all",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The card's second action, \"Show everything\": forgets the crashes and opens the canvas as usual.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/too-heavy-card.jsx",
+      "symbol": "TooHeavyCanvas"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/heavy-canvas-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "all-trashed",
     "kind": "testid",
     "pattern": false,

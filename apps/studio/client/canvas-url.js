@@ -286,6 +286,9 @@ export function canvasUrl(p, cfg, opts) {
   // Phase 27 (E2) — DiffView renders a CLEAN canvas (no editor chrome: toolbar,
   // world minimap, devtools) so the before/after is just the design.
   if (opts?.hideChrome) params.set('hide-chrome', '1');
+  // 2.0.5 — the too-heavy card's "Show visible artboards only": the canvas mounts only the artboards near the
+  // viewport (artboard-live.ts `light`). A capture (`hide-chrome`) ignores it and renders everything.
+  if (opts?.light) params.set('artboard-live', 'light');
   // Cloud Phase 25 C2 — the linked hub vouched a viewer role at sign-in
   // (`/_config.readOnly`), so the canvas boots read-only: edit tools and
   // mutating interactions are ABSENT from the iframe chrome (read-only-mode.ts

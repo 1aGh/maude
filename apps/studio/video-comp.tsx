@@ -29,6 +29,7 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react';
+import { useArtboardActive } from './artboard-live-gate.tsx';
 import { canvasModeStore } from './bridge/canvas-mode-store.ts';
 import { videoLabelTail } from './editing/video-label.ts';
 import { resolvedPoster } from './kinds/meta.ts';
@@ -580,6 +581,28 @@ export function VideoComp({
   const initialFrame = capturing
     ? 0
     : clamp(liveTimelineFrame.get(compId) ?? posterFrame, 0, maxFrame);
+
+  // 2.0.5 — a comp in a sleeping artboard (offscreen, or the canvas zoomed out to its overview) stops
+  // decoding: pause it, and play it again on wake only if WE paused it. Never in a capture (always live).
+  const live = useArtboardActive();
+  const pausedAsleep = useRef(false);
+  useEffect(() => {
+    const p = ref.current;
+    if (!p) return;
+    try {
+      if (!live) {
+        if (p.isPlaying()) {
+          p.pause();
+          pausedAsleep.current = true;
+        }
+      } else if (pausedAsleep.current) {
+        pausedAsleep.current = false;
+        p.play();
+      }
+    } catch {
+      /* Player transitional — the next change settles it */
+    }
+  }, [live]);
 
   // Register with the seek bridge for the lifetime of this mount.
   useEffect(() => {
