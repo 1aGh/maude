@@ -4,7 +4,7 @@
 import { describe, expect, test } from 'bun:test';
 
 import { resolveAccess } from '../access/scope.ts';
-import { studioEnv } from '../ds/upgrade-prove.ts';
+import { resolveStudioServer, studioEnv } from '../ds/upgrade-prove.ts';
 import type { DsOpContext } from '../routes/ds.ts';
 import { runUpgradeOp } from '../routes/ds-upgrade.ts';
 
@@ -51,5 +51,114 @@ describe('ds-upgrade prove', () => {
       if (was === undefined) delete process.env.MAUDE_WORKSPACE_MODE;
       else process.env.MAUDE_WORKSPACE_MODE = was;
     }
+  });
+});
+
+// The staged studio boots the COMPILED studio whenever one exists (DDR-084, DDR-177): its source
+// imports the hub's transaction core and jszip, which neither the packaged app nor npm has on disk.
+describe('ds-upgrade prove — which studio boots', () => {
+  const APP = '/Applications/Maude.app/Contents';
+  const appRoot = `${APP}/Resources/apps/studio`;
+  const fsOf = (files: string[]) => (p: string) => files.includes(p);
+  const appFiles = [
+    `${appRoot}/server.ts`,
+    `${APP}/Resources/cli/commands/design.mjs`,
+    `${APP}/MacOS/maude-server`,
+  ];
+
+  test('the packaged app, run through its bun shim: the sidecar binary, never server.ts', () => {
+    const r = resolveStudioServer({
+      env: { BUN_BE_BUN: '1' },
+      execPath: `${APP}/MacOS/maude-server`,
+      devServerRoot: appRoot,
+      compiled: false,
+      exists: fsOf(appFiles),
+    });
+    expect(r).toEqual({
+      cmd: [`${APP}/MacOS/maude-server`],
+      env: { MAUDE_DEV_SERVER_ROOT: appRoot, MAUDE_PKG_ROOT: `${APP}/Resources` },
+      kind: 'compiled',
+    });
+  });
+
+  test('the packaged app under a real bun: Contents/MacOS/maude-server is found by layout', () => {
+    const r = resolveStudioServer({
+      env: {},
+      execPath: '/opt/homebrew/bin/bun',
+      devServerRoot: appRoot,
+      compiled: false,
+      exists: fsOf(appFiles),
+    });
+    expect(r.kind).toBe('compiled');
+    expect(r.cmd).toEqual([`${APP}/MacOS/maude-server`]);
+  });
+
+  test('MAUDE_DEV_SERVER_BIN wins — but only a path shaped like a compiled studio', () => {
+    const bin = '/x/maude-server';
+    const ok = resolveStudioServer({
+      env: { MAUDE_DEV_SERVER_BIN: bin },
+      execPath: '/usr/local/bin/bun',
+      devServerRoot: '/repo/apps/studio',
+      compiled: false,
+      exists: fsOf([
+        bin,
+        '/repo/apps/studio/server.ts',
+        '/repo/packages/maude-darwin-arm64/package.json',
+      ]),
+    });
+    expect(ok.cmd).toEqual([bin]);
+    const evil = resolveStudioServer({
+      env: { MAUDE_DEV_SERVER_BIN: '/tmp/evil.sh' },
+      execPath: '/usr/local/bin/bun',
+      devServerRoot: '/repo/apps/studio',
+      compiled: false,
+      exists: fsOf([
+        '/tmp/evil.sh',
+        '/repo/apps/studio/server.ts',
+        '/repo/packages/maude-darwin-arm64/package.json',
+      ]),
+    });
+    expect(evil.kind).toBe('source');
+  });
+
+  test('an npm install: the maude-<slug>/maude platform package', () => {
+    const root = '/g/lib/node_modules/@1agh/maude/apps/studio';
+    const bin = '/g/lib/node_modules/@1agh/maude-darwin-arm64/maude';
+    const r = resolveStudioServer({
+      env: {},
+      execPath: '/usr/local/bin/bun',
+      devServerRoot: root,
+      compiled: false,
+      exists: fsOf([`${root}/server.ts`, bin]),
+      platformSlugs: ['darwin-arm64'],
+    });
+    expect(r).toEqual({ cmd: [bin], env: { MAUDE_DEV_SERVER_ROOT: root }, kind: 'compiled' });
+  });
+
+  test('a dev tree runs the source; the compiled studio runs itself', () => {
+    const src = resolveStudioServer({
+      env: {},
+      execPath: '/usr/local/bin/bun',
+      devServerRoot: '/repo/apps/studio',
+      compiled: false,
+      exists: fsOf([
+        '/repo/apps/studio/server.ts',
+        '/repo/packages/maude-darwin-arm64/package.json',
+      ]),
+    });
+    expect(src).toEqual({
+      cmd: ['/usr/local/bin/bun', 'run', '/repo/apps/studio/server.ts'],
+      env: {},
+      kind: 'source',
+    });
+    const self = resolveStudioServer({
+      env: {},
+      execPath: `${APP}/MacOS/maude-server`,
+      devServerRoot: appRoot,
+      compiled: true,
+      exists: fsOf(appFiles),
+    });
+    expect(self.cmd).toEqual([`${APP}/MacOS/maude-server`]);
+    expect(self.env.MAUDE_DEV_SERVER_ROOT).toBe(appRoot);
   });
 });

@@ -21,7 +21,7 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import type { Subprocess } from 'bun';
 import { exportShimPath, spawnShim } from '../exporters/_runtime.ts';
-import { DEV_SERVER_ROOT } from '../paths.ts';
+import { DEV_SERVER_ROOT, IS_COMPILED_BINARY } from '../paths.ts';
 import { checkCanvas } from './canvas-check.ts';
 import { canvasContext, listCanvases } from './canvas-cli.ts';
 import { systemConfigsFrom } from './system.ts';
@@ -119,13 +119,109 @@ export interface Review {
 
 /* ------------------------------------------------------------- studios */
 
-function serverCommand(): string[] {
-  const serverTs = join(DEV_SERVER_ROOT, 'server.ts');
-  if (!existsSync(serverTs)) return [process.execPath]; // the compiled studio binary IS the server
-  const bun = basename(process.execPath).startsWith('bun')
-    ? process.execPath
-    : (Bun.which('bun') ?? process.execPath);
-  return [bun, 'run', serverTs];
+/** A compiled studio by its shape: the desktop sidecar `maude-server`, or npm's `maude-<slug>/maude`. */
+export function isCompiledStudioBinary(p: string | undefined | null): boolean {
+  if (!p) return false;
+  const b = basename(p);
+  if (b === 'maude-server' || b === 'maude-server.exe') return true;
+  return (b === 'maude' || b === 'maude.exe') && /^maude-[a-z0-9-]+$/.test(basename(dirname(p)));
+}
+
+export interface ServerResolveInput {
+  env: Record<string, string | undefined>;
+  /** this process's executable (the compiled studio, a compiled binary run as bun, or bun) */
+  execPath: string;
+  /** apps/studio as paths.ts resolved it */
+  devServerRoot: string;
+  /** true inside the compiled studio itself (paths.ts IS_COMPILED_BINARY) */
+  compiled: boolean;
+  exists: (p: string) => boolean;
+  readText?: (p: string) => string | null;
+  /** npm platform-package slugs to look for (`darwin-arm64`, `linux-x64`, `linux-x64-musl`…) */
+  platformSlugs?: string[];
+}
+
+export interface ServerCommand {
+  cmd: string[];
+  /** env the compiled studio needs to find its served tree (the desktop sidecar sets the same) */
+  env: Record<string, string>;
+  kind: 'compiled' | 'source';
+}
+
+/**
+ * How a staged studio is started — the same resolution the desktop sidecar and `maude design serve`
+ * use (DDR-084, DDR-177): the COMPILED studio whenever one exists, because it embeds every dependency
+ * the source server imports (the hub's transaction core, jszip, yjs…), none of which a packaged app or
+ * an npm install has on disk. Source (`bun run server.ts`) only in a dev tree, or when nothing
+ * compiled is there.
+ *
+ *   1. this process IS the compiled studio (a prove started from the studio's own route)
+ *   2. MAUDE_DEV_SERVER_BIN (the desktop sidecar hands it to every child; `maude design` to boot verbs)
+ *   3. not a dev tree: this process's executable when it is a compiled studio run as bun (the
+ *      desktop's bun shim), the .app's Contents/MacOS/maude-server, npm's maude-<slug>/maude
+ *   4. server.ts from source
+ */
+export function resolveStudioServer(o: ServerResolveInput): ServerCommand {
+  const pkgRoot = join(o.devServerRoot, '..', '..');
+  const compiledEnv = (): Record<string, string> => ({
+    MAUDE_DEV_SERVER_ROOT: o.devServerRoot,
+    ...(o.exists(join(pkgRoot, 'cli', 'commands', 'design.mjs'))
+      ? { MAUDE_PKG_ROOT: pkgRoot }
+      : {}),
+  });
+  const compiled = (bin: string): ServerCommand => ({
+    cmd: [bin],
+    env: compiledEnv(),
+    kind: 'compiled',
+  });
+  if (o.compiled && !o.env.BUN_BE_BUN) return compiled(o.execPath);
+  const fromEnv = o.env.MAUDE_DEV_SERVER_BIN;
+  if (fromEnv && isCompiledStudioBinary(fromEnv) && o.exists(fromEnv)) return compiled(fromEnv);
+  const serverTs = join(o.devServerRoot, 'server.ts');
+  const devTree =
+    o.env.MAUDE_FORCE_SOURCE === '1' ||
+    o.exists(join(pkgRoot, 'packages', 'maude-darwin-arm64', 'package.json'));
+  if (!devTree) {
+    const exe = process.platform === 'win32' ? 'maude-server.exe' : 'maude-server';
+    const candidates = [
+      o.execPath,
+      join(o.devServerRoot, '..', '..', '..', 'MacOS', exe),
+      ...(o.platformSlugs ?? []).map((slug) =>
+        join(pkgRoot, '..', `maude-${slug}`, process.platform === 'win32' ? 'maude.exe' : 'maude')
+      ),
+    ];
+    const side = o.readText?.(join(pkgRoot, 'cli', '.platform-binary-path'))?.trim();
+    if (side) candidates.push(side);
+    for (const c of candidates) if (isCompiledStudioBinary(c) && o.exists(c)) return compiled(c);
+  }
+  if (!o.exists(serverTs)) return compiled(o.execPath); // nothing else to run
+  const bun = basename(o.execPath).startsWith('bun')
+    ? o.execPath
+    : (Bun.which('bun') ?? o.execPath);
+  return { cmd: [bun, 'run', serverTs], env: {}, kind: 'source' };
+}
+
+function platformSlugs(): string[] {
+  const base = `${process.platform}-${process.platform === 'win32' ? 'x64' : process.arch}`;
+  return process.platform === 'linux' ? [base, `${base}-musl`] : [base];
+}
+
+function serverCommand(): ServerCommand {
+  return resolveStudioServer({
+    env: process.env,
+    execPath: process.execPath,
+    devServerRoot: DEV_SERVER_ROOT,
+    compiled: IS_COMPILED_BINARY,
+    exists: existsSync,
+    readText: (p) => {
+      try {
+        return readFileSync(p, 'utf8');
+      } catch {
+        return null;
+      }
+    },
+    platformSlugs: platformSlugs(),
+  });
 }
 
 /**
@@ -159,12 +255,31 @@ export function studioEnv(
 export async function bootHeadlessStudio(projectRoot: string): Promise<Studio> {
   const designRoot = join(projectRoot, '.design');
   const scratch = mkdtempSync(join(tmpdir(), 'maude-ds-prove-machine-'));
-  const proc: Subprocess = Bun.spawn([...serverCommand(), '--root', projectRoot, '--port', '0'], {
+  const server = serverCommand();
+  const proc: Subprocess = Bun.spawn([...server.cmd, '--root', projectRoot, '--port', '0'], {
     cwd: DEV_SERVER_ROOT,
-    env: studioEnv(projectRoot, join(scratch, 'machine.json')),
+    env: { ...studioEnv(projectRoot, join(scratch, 'machine.json')), ...server.env },
     stdout: 'ignore',
     stderr: 'pipe',
   });
+  // drain stderr (an unread pipe can stall a chatty child) and keep its tail for the error
+  let errTail = '';
+  void (async () => {
+    try {
+      const dec = new TextDecoder();
+      for await (const chunk of proc.stderr as ReadableStream<Uint8Array>)
+        errTail = (errTail + dec.decode(chunk)).slice(-2000);
+    } catch {
+      /* gone */
+    }
+  })();
+  const lastLine = () =>
+    errTail
+      .trim()
+      .split('\n')
+      .filter((l) => l.trim())
+      .at(-1)
+      ?.slice(0, 240) ?? '';
   const stop = async () => {
     const exited = proc.exited.then(
       () => true,
@@ -189,7 +304,13 @@ export async function bootHeadlessStudio(projectRoot: string): Promise<Studio> {
   try {
     const started = Date.now();
     while (Date.now() - started < 60000) {
-      if (proc.exitCode !== null) throw new Error(`the staged studio exited ${proc.exitCode}`);
+      if (proc.exitCode !== null) {
+        await Bun.sleep(50); // the last stderr chunk
+        const why = lastLine();
+        throw new Error(
+          `the staged ${server.kind} studio exited ${proc.exitCode}${why ? `: ${why}` : ''}`
+        );
+      }
       try {
         const s = JSON.parse(readFileSync(join(designRoot, '_server.json'), 'utf8')) as {
           pid?: number;
