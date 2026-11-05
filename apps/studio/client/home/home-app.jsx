@@ -15,6 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   createLocal,
   createLocalFromPrompt,
+  getAccounts,
   getCloud,
   getIndex,
   getFirstRunSeen,
@@ -400,6 +401,31 @@ export function HomeApp() {
   const askingRef = useRef(false);
   const [seen, setSeen] = useState(readSeen);
 
+  // 2.0.5 W4b — the account each profile's team servers vouched for, so a row can say
+  // "Team server · <host> · <account>" (public handles from /_home/accounts, never a token)
+  const [hubAccounts, setHubAccounts] = useState(null);
+  const profileKey = (data.shell?.profiles ?? [])
+    .map((p) => p?.id)
+    .filter(Boolean)
+    .join(',');
+  useEffect(() => {
+    if (!profileKey) return undefined;
+    let live = true;
+    getAccounts(profileKey.split(',')).then((r) => {
+      if (!live || !r.ok || !Array.isArray(r.json?.profiles)) return;
+      setHubAccounts(
+        Object.fromEntries(
+          r.json.profiles.map((p) => [
+            p.id,
+            Object.fromEntries((p.hubs ?? []).map((h) => [h.url, h.account])),
+          ])
+        )
+      );
+    });
+    return () => {
+      live = false;
+    };
+  }, [profileKey]);
   const model = useMemo(
     () =>
       buildHomeModel({
@@ -407,8 +433,9 @@ export function HomeApp() {
         index: data.index ? { v: 1, projects: [...data.index.values()] } : null,
         clouds: data.clouds,
         filterPid: filterPid || null,
+        hubAccounts,
       }),
-    [data.shell, data.index, data.clouds, filterPid]
+    [data.shell, data.index, data.clouds, filterPid, hubAccounts]
   );
   // 2.0.5 W4b — the face at the top right opens every account on this Mac (HomeAccounts.jsx)
   const searchPids = useMemo(
