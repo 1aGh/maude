@@ -23,6 +23,7 @@ import {
   pickDirectory,
 } from '../github.js';
 import { reasonProps } from '../v2/access/disabled-reason.js';
+import { menuRunner } from '../v2/shell/menu-runner.js';
 
 function Icon({ name, size = 16 }) {
   const p = {
@@ -206,11 +207,24 @@ function NewView({ identity, signedIn, onClose }) {
             </button>
           </div>
           <span className="cp-field-help">
-            {local
-              ? 'A local git repo on your computer — no GitHub, no remote. You can publish it later.'
-              : signedIn
-                ? 'A repo on your GitHub account, cloned to your computer.'
-                : 'Sign in with GitHub (bottom-left) to publish. For now you can create a local project.'}
+            {local ? (
+              'A local git repo on your computer — no GitHub, no remote. You can publish it later.'
+            ) : signedIn ? (
+              'A repo on your GitHub account, cloned to your computer.'
+            ) : (
+              <>
+                {/* 2.0.5 W4 — the line is a button (account.github-signin); the rail it pointed at is gone */}
+                <button
+                  type="button"
+                  className="btn btn--sm"
+                  data-testid="cp-github-signin"
+                  onClick={() => menuRunner.run('account.github-signin')}
+                >
+                  Sign in with GitHub…
+                </button>{' '}
+                to publish. For now you can create a local project.
+              </>
+            )}
           </span>
         </div>
         <label className="cp-field">

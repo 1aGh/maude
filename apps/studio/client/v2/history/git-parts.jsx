@@ -91,8 +91,22 @@ function TriCheck({ state, onChange, ariaLabel }) {
   );
 }
 
+/** 2.0.5 W4 — "Sign in with GitHub to …" is a button: the registry's `account.github-signin`. */
+export function GitHubSignInButton({ onSignIn }) {
+  return (
+    <button
+      type="button"
+      className="btn btn--sm"
+      data-testid="git-signin-github"
+      onClick={() => onSignIn()}
+    >
+      Sign in with GitHub…
+    </button>
+  );
+}
+
 /** A banner under the fold's head: a result, a warning, or an offer (Get latest after a publish conflict). */
-export function Banner({ banner, busy, onGetLatest, onDismiss }) {
+export function Banner({ banner, busy, onGetLatest, onDismiss, onSignIn }) {
   if (!banner) return null;
   return (
     <div
@@ -114,6 +128,7 @@ export function Banner({ banner, busy, onGetLatest, onDismiss }) {
             {W.getLatest}
           </button>
         ) : null}
+        {banner.signIn && onSignIn ? <GitHubSignInButton onSignIn={onSignIn} /> : null}
       </span>
       <button type="button" className="vh-git-x" aria-label={W.dismiss} onClick={onDismiss}>
         <StIcon name="x" size={12} />

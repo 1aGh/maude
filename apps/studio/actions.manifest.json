@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "4ae7b6bdb900",
+  "manifestVersion": "3b10dc94b530",
   "actions": [
     {
       "id": "search.open",
@@ -4384,6 +4384,18 @@
         "path": "human",
         "because": "native-window",
         "note": "the desktop app’s profiles; an agent never picks an account"
+      }
+    },
+    {
+      "id": "account.github-signin",
+      "label": "Sign in with GitHub…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window",
+        "note": "GitHub’s device flow; an agent never signs anyone in"
       }
     },
     {
