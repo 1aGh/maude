@@ -131,6 +131,14 @@ export interface RoomCallbacks {
   seed(slug: string, doc: Y.Doc): Promise<void> | void;
 
   /**
+   * fix/205 — the canvas left the project: drop whatever persistence caches
+   * for its doc (the `.ydoc.bin`), so a room re-created for the same slug can
+   * never seed from the deleted canvas's lineage. Optional; absent = nothing
+   * cached outside the room.
+   */
+  forget?(slug: string): Promise<void> | void;
+
+  /**
    * Accepted revisions (DDR-241 §7): while true, this room's document is a
    * replica of the project's accepted state — no browser connection may write
    * a persistent lane into it (the hub would drop it and the replica would

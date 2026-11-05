@@ -524,6 +524,11 @@ export interface AwarenessRegistry {
   pin?(slug: string): void;
   /** Release the shared-doc pin on runtime stop. */
   unpin?(slug: string): void;
+  /**
+   * fix/205 — throw away an unpinned room with no browser in it (no flush); with
+   * `forgetCache` its persisted cache too. See `collab/registry.ts` `discard`.
+   */
+  discard?(slug: string, opts?: { forgetCache?: boolean }): Promise<boolean>;
 }
 
 /** Factory the runtime calls per discovered canvas. Default uses Hocuspocus. */
@@ -2331,7 +2336,7 @@ export function createSyncRuntime(
     const desc = descriptors.get(slug);
     const provider = providers.get(slug);
     const movedTo = provider ? movedToFromDoc(provider.document) : null;
-    await releaseOne(slug);
+    await releaseOne(slug, { gone: true });
     if (!desc) return;
     // HOLD until the canvas provably lives at its new path — parking the old
     // copy while the new document is still materialising would leave a window
@@ -2415,7 +2420,17 @@ export function createSyncRuntime(
     noteDetach(statusDetaches, slug, () => doc.off('update', onUpdate));
   }
 
-  async function releaseOne(slug: string): Promise<boolean> {
+  /**
+   * `gone` — the canvas LEFT the project (deleted here or in the project, moved
+   * away on another machine), as opposed to being let go of while it still
+   * lives (a `syncable: false` sidecar, a refused pull, a local move). A gone
+   * canvas's collab room is discarded with its cache (fix/205): its Y.Doc is
+   * the deleted lineage, and the hub has dropped its own copy, so a canvas
+   * re-created at the same slug that re-attached to it merged the hub's new
+   * body onto the old one — the body doubled and receivers refused it as
+   * invalid source.
+   */
+  async function releaseOne(slug: string, how: { gone?: boolean } = {}): Promise<boolean> {
     const known = agents.has(slug) || projections.has(slug) || providers.has(slug);
     if (!known) return false;
     runDetaches(awarenessDetaches, slug);
@@ -2454,6 +2469,13 @@ export function createSyncRuntime(
         opts.registry?.unpin?.(slug);
       } catch {
         /* best-effort */
+      }
+    }
+    if (how.gone) {
+      try {
+        await opts.registry?.discard?.(slug, { forgetCache: true });
+      } catch {
+        /* best-effort — attachCanvas discards a leftover room too */
       }
     }
     descriptors.delete(slug);
@@ -4526,6 +4548,10 @@ export function createSyncRuntime(
         // provider. NB: cold-start seeding of a divergent local+hub doc is the
         // duplication trap (Risk 1) — made safe by Phase E (migrate-seed); the
         // flag stays OFF until then.
+        // fix/205 — a room left over from an earlier attach of this slug (no
+        // provider pins it, no browser is in it) holds that earlier doc's
+        // lineage. Never re-attach to it: start from a fresh doc, as at boot.
+        if (useSharedDoc) await opts.registry?.discard?.(canvas.slug);
         const sharedYDoc = useSharedDoc ? opts.registry?.getDoc?.(canvas.slug) : undefined;
         if (useSharedDoc && sharedYDoc) {
           opts.registry?.pin?.(canvas.slug);
@@ -4929,7 +4955,12 @@ export function createSyncRuntime(
         );
         if (added.length === 0 && removed.length === 0) return;
         if (removed.length > 0) {
-          for (const slug of removed) await releaseOne(slug);
+          for (const slug of removed) {
+            // Gone from this disk is gone from here; a body still on disk
+            // (a `syncable: false` sidecar) keeps its room.
+            const body = descriptors.get(slug)?.html;
+            await releaseOne(slug, { gone: !body || !existsSync(body) });
+          }
           console.log(`[sync] released ${removed.length} canvas(es): ${removed.join(', ')}`);
           // The marker set shrank. It describes what a peer can WRITE to, so a
           // stale entry over-lists — the safe direction, and still wrong: it is
@@ -5046,7 +5077,7 @@ export function createSyncRuntime(
       if (gone.length === 0) return;
       for (const slug of gone) {
         const canvas = descriptors.get(slug);
-        await releaseOne(slug);
+        await releaseOne(slug, { gone: true });
         if (canvas) {
           quarantineCanvas({
             designRoot: ctx.paths.designRoot,
