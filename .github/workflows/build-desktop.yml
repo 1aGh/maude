@@ -82,7 +82,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-14 # arm64 host; builds a universal (arm64+x86_64) binary — target/sidecar_dist
+          - os: macos-15 # arm64 host; builds a universal (arm64+x86_64) binary — target/sidecar_dist
             label: macos-universal # are irrelevant here (both arches are hardcoded in the build step below)
             sidecar_slug: darwin-arm64
             artifact_name: maude-desktop-macos-universal
@@ -181,7 +181,7 @@ jobs:
           # would pull the wrong arch of @oxc-parser/binding-*. A plain install
           # honours the committed resolutions and adds this host's own.
           bun install
-          if [ "${{ matrix.os }}" = "macos-14" ]; then
+          if [ "${{ matrix.os }}" = "macos-15" ]; then
             bun run build.ts --release --target=bun-darwin-arm64
             bun run build.ts --release --target=bun-darwin-x64
             test -f dist/maude-darwin-arm64 || { echo "::error::dev-server binary not produced at apps/studio/dist/maude-darwin-arm64"; ls -la dist; exit 1; }
@@ -221,7 +221,7 @@ jobs:
 
       # ── macOS: build + notarize (when APPLE_* present) ──────────────────────────
       - name: Build Tauri app (.dmg)
-        if: matrix.os == 'macos-14'
+        if: matrix.os == 'macos-15'
         env:
           MAUDE_SIDECAR_SLUG: ${{ matrix.sidecar_slug }}
           # tauri-bundler auto-appends --skip-jenkins to bundle_dmg.sh whenever
@@ -390,7 +390,7 @@ jobs:
       # helper "helper not found"/"bun required"/missing happy-dom/svgo). macOS
       # only: --smoke runs the real bundled binaries. Blocks the release on a gap.
       - name: Verify bundle self-containment (macOS)
-        if: matrix.os == 'macos-14'
+        if: matrix.os == 'macos-15'
         shell: bash
         run: |
           set -eu
@@ -407,7 +407,7 @@ jobs:
       # package time with no gate on the result). This boots the bundled sidecar
       # and asserts the UI actually mounts.
       - name: Verify the packaged UI renders (macOS)
-        if: matrix.os == 'macos-14'
+        if: matrix.os == 'macos-15'
         shell: bash
         run: |
           set -eu
