@@ -11,6 +11,15 @@
 name = "maude-cloud"
 main = "worker.mjs"
 compatibility_date = "2026-07-01"
+# node:crypto — the control plane shares the access model with the studio
+# (`../studio/access/scope.ts`, since v2.0), and scope.ts imports `createHash`
+# for its synchronous photo-edit hash. Without this flag Cloudflare refuses the
+# script at upload (10021 "No such module node:crypto"), which held the plane
+# on the 2026-10-01 build. The bundle reads no `process`/`Buffer` global, so the
+# flag changes nothing else; `worker-node-imports.test.mjs` pins the one
+# allowed `node:` import, so a new one is a reviewed choice, not a deploy-time
+# surprise.
+compatibility_flags = ["nodejs_compat"]
 preview_urls = false
 
 # The control plane answers on cloud.maude.sh. Tenant hostnames

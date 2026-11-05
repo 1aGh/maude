@@ -69,7 +69,11 @@ import { handleReport } from './report.mjs';
 import { SCHEMA_SQL } from './schema.mjs';
 import { projectRefFromEvent, verifyStripeSignature } from './stripe-webhook.mjs';
 
-export const WORKER_VERSION = 'phase-13';
+// The main module exports only handlers (the default object, functions):
+// workerd treats every named export as an entrypoint, and a current local
+// workerd refuses the whole script on a number or string export ("Incorrect
+// type for map entry"). worker-node-imports.test.mjs pins this.
+const WORKER_VERSION = 'phase-13';
 
 // Token minting + derived-secret helpers live in cell-token.mjs since the
 // dashboard grew a second caller (the Phase-20 export trigger).
@@ -673,7 +677,7 @@ export default {
 };
 
 /** Total time one sweep may spend on cell-reported telemetry. */
-export const TELEMETRY_BUDGET_MS = 60_000;
+const TELEMETRY_BUDGET_MS = 60_000;
 
 /**
  * The hourly truth pass: drain named jobs first, then sweep every project —

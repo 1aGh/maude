@@ -18,6 +18,12 @@ on:
     branches: [main]
     paths:
       - 'apps/cloud/**'
+      # The Worker bundles these too (worker-node-imports.test.mjs walks the
+      # graph); a change to them changes what cloud.maude.sh runs.
+      - 'apps/studio/access/roles.ts'
+      - 'apps/studio/access/scope.ts'
+      - 'apps/studio/comments/mentions.ts'
+      - 'cli/lib/cell-plan.mjs'
       - '.github/workflows/cloud-deploy.yml'
   workflow_dispatch:
     inputs:
@@ -58,7 +64,13 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: npx --yes wrangler@4 deploy --dry-run
+        # The dry-run only WARNS about a `node:` import Cloudflare will then
+        # refuse (10021) — that held the plane on its 2026-10-01 build for a
+        # month. Check what esbuild actually kept against the allowlist and
+        # wrangler.toml's compatibility_flags, so the refusal happens here.
+        run: |
+          npx --yes wrangler@4 deploy --dry-run --outdir "$RUNNER_TEMP/cloud-bundle"
+          CLOUD_BUNDLE="$RUNNER_TEMP/cloud-bundle/worker.js" node --test worker-node-imports.test.mjs
 
       - name: Deploy
         if: ${{ github.event_name == 'push' || inputs.dry_run == false }}
