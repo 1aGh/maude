@@ -230,6 +230,7 @@ describe('pushAssets — 429 pacing, 5xx retry, honest failure reasons (RCA 2026
     let puts = 0;
     const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
       if (String(input).endsWith('/_asset-probe')) return new Response(null, { status: 404 });
+      if (String(input).endsWith('/api/file-limits')) return new Response(null, { status: 404 });
       if (init?.method === 'HEAD') return new Response(null, { status: 404 });
       puts += 1;
       return puts === 1
@@ -267,6 +268,7 @@ describe('pushAssets — 429 pacing, 5xx retry, honest failure reasons (RCA 2026
       let puts = 0;
       const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
         if (String(input).endsWith('/_asset-probe')) return new Response(null, { status: 404 });
+        if (String(input).endsWith('/api/file-limits')) return new Response(null, { status: 404 });
         if (init?.method === 'HEAD') return new Response(null, { status: 404 });
         puts += 1;
         return puts === 1
@@ -295,6 +297,7 @@ describe('pushAssets — 429 pacing, 5xx retry, honest failure reasons (RCA 2026
     writeFileSync(join(designRoot, 'assets/b-fine.png'), 'x');
     const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
       if (String(input).endsWith('/_asset-probe')) return new Response(null, { status: 404 });
+      if (String(input).endsWith('/api/file-limits')) return new Response(null, { status: 404 });
       if (init?.method === 'HEAD') return new Response(null, { status: 404 });
       return String(input).includes('a-limited')
         ? new Response('{"error":"rate limit exceeded"}', {
@@ -323,6 +326,7 @@ describe('pushAssets — 429 pacing, 5xx retry, honest failure reasons (RCA 2026
     let puts = 0;
     const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
       if (String(input).endsWith('/_asset-probe')) return new Response(null, { status: 404 });
+      if (String(input).endsWith('/api/file-limits')) return new Response(null, { status: 404 });
       if (init?.method === 'HEAD') return new Response(null, { status: 404 });
       puts += 1;
       return new Response(null, { status: puts === 1 ? 503 : 200 });
@@ -347,6 +351,7 @@ describe('pushAssets — 429 pacing, 5xx retry, honest failure reasons (RCA 2026
     let puts = 0;
     const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
       if (String(input).endsWith('/_asset-probe')) return new Response(null, { status: 404 });
+      if (String(input).endsWith('/api/file-limits')) return new Response(null, { status: 404 });
       if (init?.method === 'HEAD') return new Response(null, { status: 404 });
       puts += 1;
       return new Response(null, { status: 413 });
@@ -368,6 +373,7 @@ describe('pushAssets — 429 pacing, 5xx retry, honest failure reasons (RCA 2026
     const page = `<html>\n  <head><title>503 Service Unavailable</title></head>\n  <body>error 1016 — origin DNS error, and a great deal more text than we keep</body>\n</html>`;
     const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
       if (String(input).endsWith('/_asset-probe')) return new Response(null, { status: 404 });
+      if (String(input).endsWith('/api/file-limits')) return new Response(null, { status: 404 });
       if (init?.method === 'HEAD') return new Response(null, { status: 404 });
       return new Response(page, { status: 503 });
     }) as typeof fetch;
@@ -392,6 +398,7 @@ describe('pushAssets — 429 pacing, 5xx retry, honest failure reasons (RCA 2026
     const lengths: string[] = [];
     const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
       if (String(input).endsWith('/_asset-probe')) return new Response(null, { status: 404 });
+      if (String(input).endsWith('/api/file-limits')) return new Response(null, { status: 404 });
       if (init?.method === 'HEAD') return new Response(null, { status: 404 });
       const sent = (init?.headers ?? {}) as Record<string, string>;
       lengths.push(String(sent['content-length']));
@@ -471,6 +478,8 @@ describe('pushAssets — one batch probe replaces N per-file probes (RCA 2026-08
     // One probe, one upload — and NOT a single HEAD.
     expect(calls).toEqual([
       'POST /_asset-probe',
+      // The width question (fix/205) — only asked when something is left to send.
+      'GET /api/file-limits',
       'PUT /_asset-file/system/ds/assets/logos/missing.svg',
     ]);
   });
@@ -485,6 +494,7 @@ describe('pushAssets — one batch probe replaces N per-file probes (RCA 2026-08
       const method = init?.method ?? 'GET';
       methods.push(method);
       if (String(input).endsWith('/_asset-probe')) return new Response(null, { status: 404 });
+      if (String(input).endsWith('/api/file-limits')) return new Response(null, { status: 404 });
       if (method === 'HEAD') {
         return new Response(null, { status: String(input).includes('there.png') ? 200 : 404 });
       }
@@ -510,6 +520,7 @@ describe('pushAssets — one batch probe replaces N per-file probes (RCA 2026-08
     const designRoot = twoAssets();
     const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
       if (String(input).endsWith('/_asset-probe')) return new Response(null, { status: 404 });
+      if (String(input).endsWith('/api/file-limits')) return new Response(null, { status: 404 });
       if (init?.method === 'HEAD') return new Response(null, { status: 405 });
       return new Response(null, { status: 200 });
     }) as typeof fetch;
@@ -584,6 +595,7 @@ describe('pushAssets — a refused upload must not wedge the sweep (2026-08-11, 
     const seen: Array<Record<string, string>> = [];
     const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
       if (String(input).endsWith('/_asset-probe')) return new Response(null, { status: 404 });
+      if (String(input).endsWith('/api/file-limits')) return new Response(null, { status: 404 });
       if (init?.method === 'HEAD') return new Response(null, { status: 404 });
       seen.push((init?.headers ?? {}) as Record<string, string>);
       return new Response(null, { status: 503 }); // refused → the retry re-sends
@@ -607,6 +619,7 @@ describe('pushAssets — a refused upload must not wedge the sweep (2026-08-11, 
     writeFileSync(join(designRoot, 'assets/b-fine.png'), 'x');
     const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
       if (String(input).endsWith('/_asset-probe')) return new Response(null, { status: 404 });
+      if (String(input).endsWith('/api/file-limits')) return new Response(null, { status: 404 });
       if (init?.method === 'HEAD') return new Response(null, { status: 404 });
       if (!String(input).includes('a-hangs')) return new Response(null, { status: 200 });
       // Wedged: answers only when the caller's own budget aborts it.
@@ -927,5 +940,231 @@ describe('the syncFiles default — Increment 4 flipped it ON', () => {
 
   test('`linkedHub.syncFiles: false` is the per-project rollback and still works', () => {
     expect(listPushableAssets(designRoot(), { syncFiles: false })).toEqual([]);
+  });
+});
+
+// fix/205-sync-assets — the studyfi first sync: 5,534 assets went up one at a
+// time, one hung PUT stalled the lane for its whole 60 s+ budget and was never
+// tried again that boot, and the panel said "5463 moving" for a set the hub
+// already held almost all of.
+describe('pushAssets — a few at once, a timeout gets a second go, moving is the real work', () => {
+  function manyAssets(n: number): string {
+    const designRoot = scratchDesignRoot();
+    mkdirSync(join(designRoot, 'assets'), { recursive: true });
+    for (let i = 0; i < n; i++)
+      writeFileSync(join(designRoot, `assets/${String(i).padStart(8, '0')}.png`), 'x');
+    return designRoot;
+  }
+  const quiet = { log: () => {}, warn: () => {} };
+
+  test('10 PUTs of 100 ms finish in about 300 ms, not about 1 s', async () => {
+    const designRoot = manyAssets(10);
+    let inFlight = 0;
+    let peak = 0;
+    const fetchImpl = (async (input: RequestInfo | URL) => {
+      if (String(input).endsWith('/_asset-probe'))
+        return new Response(JSON.stringify({ present: [] }), { status: 200 });
+      if (String(input).endsWith('/api/file-limits')) return new Response(null, { status: 404 });
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
+      await new Promise((r) => setTimeout(r, 100));
+      inFlight -= 1;
+      return new Response(null, { status: 200 });
+    }) as typeof fetch;
+    const t0 = performance.now();
+    const r = await pushAssets({
+      designRoot,
+      hubUrl: 'https://x.example',
+      token: () => 't',
+      fetchImpl,
+      log: quiet,
+      sleep: async () => {},
+    });
+    const ms = performance.now() - t0;
+    expect(r.pushed).toHaveLength(10);
+    expect(peak).toBeGreaterThanOrEqual(3);
+    expect(peak).toBeLessThanOrEqual(4);
+    expect(ms).toBeLessThan(600);
+  });
+
+  test('a hub that advertises a low read rate gets one upload at a time', async () => {
+    const designRoot = manyAssets(4);
+    let inFlight = 0;
+    let peak = 0;
+    const fetchImpl = (async (input: RequestInfo | URL) => {
+      if (String(input).endsWith('/_asset-probe'))
+        return new Response(JSON.stringify({ present: [] }), { status: 200 });
+      if (String(input).endsWith('/api/file-limits'))
+        return new Response(JSON.stringify({ readsPerMinute: 60 }), { status: 200 });
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
+      await new Promise((r) => setTimeout(r, 10));
+      inFlight -= 1;
+      return new Response(null, { status: 200 });
+    }) as typeof fetch;
+    const r = await pushAssets({
+      designRoot,
+      hubUrl: 'https://x.example',
+      token: () => 't',
+      fetchImpl,
+      log: quiet,
+      sleep: async () => {},
+    });
+    expect(r.pushed).toHaveLength(4);
+    expect(peak).toBe(1);
+  });
+
+  test('a hub-supplied rate can only slow us down, never widen past 4', async () => {
+    const designRoot = manyAssets(12);
+    let inFlight = 0;
+    let peak = 0;
+    const fetchImpl = (async (input: RequestInfo | URL) => {
+      if (String(input).endsWith('/_asset-probe'))
+        return new Response(JSON.stringify({ present: [] }), { status: 200 });
+      if (String(input).endsWith('/api/file-limits'))
+        return new Response(JSON.stringify({ readsPerMinute: 1e9 }), { status: 200 });
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
+      await new Promise((r) => setTimeout(r, 10));
+      inFlight -= 1;
+      return new Response(null, { status: 200 });
+    }) as typeof fetch;
+    await pushAssets({
+      designRoot,
+      hubUrl: 'https://x.example',
+      token: () => 't',
+      fetchImpl,
+      log: quiet,
+      sleep: async () => {},
+    });
+    expect(peak).toBe(4);
+  });
+
+  test('a 429 narrows the rest of the sweep to one upload at a time', async () => {
+    const designRoot = manyAssets(12);
+    let inFlight = 0;
+    let peakAfter429 = 0;
+    let saw429 = false;
+    const fetchImpl = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('/_asset-probe'))
+        return new Response(JSON.stringify({ present: [] }), { status: 200 });
+      if (url.endsWith('/api/file-limits')) return new Response(null, { status: 404 });
+      if (url.endsWith('00000000.png') && !saw429) {
+        saw429 = true;
+        return new Response(null, { status: 429, headers: { 'retry-after': '1' } });
+      }
+      inFlight += 1;
+      // The three already in flight when the 429 lands may finish; nothing new starts beside them.
+      await new Promise((r) => setTimeout(r, 10));
+      if (saw429 && url > 'https://x.example/assets/00000004.png')
+        peakAfter429 = Math.max(peakAfter429, inFlight);
+      inFlight -= 1;
+      return new Response(null, { status: 200 });
+    }) as typeof fetch;
+    const r = await pushAssets({
+      designRoot,
+      hubUrl: 'https://x.example',
+      token: () => 't',
+      fetchImpl,
+      log: quiet,
+      sleep: async () => {},
+    });
+    expect(r.pushed).toHaveLength(12);
+    expect(peakAfter429).toBe(1);
+  });
+
+  test('a first PUT that times out is tried once more at the end of the sweep', async () => {
+    const designRoot = manyAssets(3);
+    const attempts = new Map<string, number>();
+    const order: string[] = [];
+    const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith('/_asset-probe'))
+        return new Response(JSON.stringify({ present: [] }), { status: 200 });
+      if (url.endsWith('/api/file-limits')) return new Response(null, { status: 404 });
+      const n = (attempts.get(url) ?? 0) + 1;
+      attempts.set(url, n);
+      order.push(`${new URL(url).pathname}#${n}`);
+      if (url.endsWith('00000000.png') && n === 1)
+        return new Promise<Response>((_res, rej) => {
+          init?.signal?.addEventListener('abort', () => rej(init.signal?.reason));
+        });
+      return new Response(null, { status: 200 });
+    }) as typeof fetch;
+    const r = await pushAssets({
+      designRoot,
+      hubUrl: 'https://x.example',
+      token: () => 't',
+      fetchImpl,
+      log: quiet,
+      sleep: async () => {},
+      timeoutFor: () => 25,
+    });
+    expect(r.failed).toEqual([]);
+    expect(r.pushed.sort()).toEqual([
+      'assets/00000000.png',
+      'assets/00000001.png',
+      'assets/00000002.png',
+    ]);
+    // Exactly one second go, and only after the rest of the sweep.
+    expect(attempts.get('https://x.example/assets/00000000.png')).toBe(2);
+    expect(order[order.length - 1]).toBe('/assets/00000000.png#2');
+  });
+
+  test('a file that times out twice is reported once, as timed out', async () => {
+    const designRoot = manyAssets(1);
+    let puts = 0;
+    const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith('/_asset-probe'))
+        return new Response(JSON.stringify({ present: [] }), { status: 200 });
+      if (url.endsWith('/api/file-limits')) return new Response(null, { status: 404 });
+      puts += 1;
+      return new Promise<Response>((_res, rej) => {
+        init?.signal?.addEventListener('abort', () => rej(init.signal?.reason));
+      });
+    }) as typeof fetch;
+    const r = await pushAssets({
+      designRoot,
+      hubUrl: 'https://x.example',
+      token: () => 't',
+      fetchImpl,
+      log: quiet,
+      sleep: async () => {},
+      timeoutFor: () => 20,
+    });
+    expect(puts).toBe(2);
+    expect(r.failed).toEqual([
+      { key: 'assets/00000000.png', reason: 'timed out — the hub stopped answering' },
+    ]);
+  });
+
+  test('5,534 assets with 5,460 already on the hub: at most 74 moving from the first emit', async () => {
+    const total = 5534;
+    const designRoot = manyAssets(total);
+    const all = listPushableAssets(designRoot);
+    const present = all.slice(0, 5460);
+    const fetchImpl = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('/_asset-probe'))
+        return new Response(JSON.stringify({ present }), { status: 200 });
+      if (url.endsWith('/api/file-limits')) return new Response(null, { status: 404 });
+      return new Response(null, { status: 200 });
+    }) as typeof fetch;
+    const emits: import('../sync/asset-push.ts').AssetPushProgress[] = [];
+    const r = await pushAssets({
+      designRoot,
+      hubUrl: 'https://x.example',
+      token: () => 't',
+      fetchImpl,
+      log: quiet,
+      onProgress: (p) => emits.push(p),
+      sleep: async () => {},
+    });
+    expect(r.skipped).toBe(5460);
+    expect(r.pushed).toHaveLength(74);
+    expect(emits[0]?.total).toBe(total);
+    for (const e of emits) expect(e.total - e.done).toBeLessThanOrEqual(74);
   });
 });
