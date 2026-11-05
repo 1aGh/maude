@@ -4,8 +4,10 @@
 // was visible (`systemFailed`), and the live tree still hashes to the stage's `beforeTreeHash`. Then:
 //   1. every codemodded canvas that passed the visual gate goes to the kernel as ONE proposal
 //      (labelled "Brought <system> up to schema v1") — one Version-history entry, one ⌘Z;
-//   2. only once the kernel accepted it, the system files (tokens CSS, tokens.json, config.json's
-//      `schema: 1`) are written on Plane B, tmp + rename, and the action's record lands in
+//      — its LANES only (.tsx / .meta.json / .annotations.json); a codemod's other files (a CSS
+//      twin) are no document's lane and go with step 2;
+//   2. only once the kernel accepted it, those files and the system files (tokens CSS, tokens.json,
+//      config.json's `schema: 1`) are written on Plane B, tmp + rename, and the action's record lands in
 //      `_state/ds-upgrade/<ds>/applied/<actionId>.json` with both versions of each file;
 //   3. the throwaway stage folder goes.
 // The undo hook (S10.2's `registerUndoHook`, wired through `registerDsUndoHook`) runs after the
@@ -69,6 +71,11 @@ export interface ApplyResult {
 }
 
 const NAME_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
+/** The files of a canvas the kernel holds as lanes of its document. */
+export function canvasLanes(canvas: string): Set<string> {
+  const base = canvas.replace(/\.tsx$/i, '');
+  return new Set([canvas, `${base}.meta.json`, `${base}.annotations.json`]);
+}
 const ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
 const readText = (abs: string) => {
   try {
@@ -119,14 +126,28 @@ async function applyLocked(inp: ApplyInput): Promise<ApplyResult> {
     );
   const pass = new Set(review.updatesCanvases.filter((c) => c.diff === 'pass').map((c) => c.path));
   const after = path.join(stage.dir, 'after', '.design');
+  // The kernel takes a canvas's LANES only (its .tsx, .meta.json, .annotations.json): a codemod's
+  // other files (the canvas's CSS twin) are no document's lane — a linked hub answers
+  // `unknown-canvas`, the local home `invalid`. They ride the file plane with the system files.
   const files: { rel: string; text: string }[] = [];
+  const planeFiles: { rel: string; before: string | null; after: string }[] = [];
+  const systemRels = new Set(stage.systemFiles.map((f) => f.rel));
+  const seen = new Set<string>();
   let updated = 0;
   for (const c of stage.canvases) {
     if (!pass.has(c.path)) continue;
+    const lanes = canvasLanes(c.path);
     for (const rel of c.files) {
       const text = readText(path.join(after, rel));
       if (text === null) throw new DsUpgradeError('ds-upgrade-no-stage', `the stage lost ${rel}`);
-      files.push({ rel, text });
+      if (seen.has(rel)) continue;
+      seen.add(rel);
+      if (lanes.has(rel)) files.push({ rel, text });
+      else if (!systemRels.has(rel)) {
+        const abs = safeAbs(inp.designRoot, rel);
+        if (!abs) throw new DsUpgradeError('ds-upgrade-no-stage', `the stage names ${rel}`);
+        planeFiles.push({ rel, before: readText(abs), after: text });
+      }
     }
     updated++;
   }
@@ -147,8 +168,9 @@ async function applyLocked(inp: ApplyInput): Promise<ApplyResult> {
       );
     actionId = out.actionId ?? null;
   }
-  // Plane B, after the kernel accepted: config.json (the schema flag) last
-  const ordered = [...stage.systemFiles].sort(
+  // Plane B, after the kernel accepted: the canvases' other files, the system files, config.json
+  // (the schema flag) last
+  const ordered = [...planeFiles, ...stage.systemFiles].sort(
     (a, b) => Number(a.rel === 'config.json') - Number(b.rel === 'config.json')
   );
   for (const f of ordered) atomicWrite(path.join(inp.designRoot, f.rel), f.after);

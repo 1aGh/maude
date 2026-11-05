@@ -189,7 +189,10 @@ export function systemOf(designRoot: string, ds: string): SystemConfig {
 /** `<designRoot>/_state/ds-upgrade/<ds>/<stamp>` — the stamp is digits only (never a path). */
 export function stateDirOf(designRoot: string, ds: string, stamp: string): string {
   if (!/^[0-9]{1,20}(?:-[0-9]{1,4})?$/.test(stamp))
-    throw new DsUpgradeError('ds-upgrade-usage', 'a stage is named by its stamp');
+    throw new DsUpgradeError(
+      'ds-upgrade-usage',
+      'a stage is named by its stamp: the digits `ds-upgrade <ds> --stage` printed as "stamp" (`ds-upgrade <ds> --status` lists them; the record is _state/ds-upgrade/<ds>/<stamp>/)'
+    );
   return join(designRoot, STATE_REL, ds, stamp);
 }
 

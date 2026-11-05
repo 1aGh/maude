@@ -2,18 +2,33 @@
 // S10.15a). Spawned by ds/upgrade-prove.ts as a subprocess (so `bun --compile` of the studio never
 // pulls playwright in), exactly like the exporters' shims.
 //
-// Input: `--job <file.json>` = { before, after, canvases: [{path, tokens, components}], deltaE,
-// ratio, timeout }. `before` / `after` are the origins of two headless studios on the staged
-// copies; every URL goes through the main origin's 307 to that studio's read-only capture origin.
-// For every artboard of every canvas, in every theme the artboard carries (`[data-theme]` inside
-// it, flipped in place), both renders are captured at the same size and diffed IN THE PAGE: OKLab
-// ΔE × 100 > deltaE is a changed pixel, changed / area > ratio fails the artboard. No new
+// Input: `--job <file.json>` = { before, after, canvases: [{path, tokens, components, themes}],
+// deltaE, ratio, timeout, canvasTimeout, workers? }. `before` / `after` are the origins of two
+// headless studios on the staged copies; every URL goes through the main origin's 307 to that
+// studio's read-only capture origin. For every artboard of every canvas (a specimen with none: its
+// whole mount), in every theme it carries (`[data-theme]` inside it, flipped in place; one that
+// carries none: each system theme, on `<html>`), both renders are shot by the artboard's OWN rect
+// with everything else hidden (`_ds-prove-judge.mjs`) and diffed IN THE PAGE: OKLab ΔE × 100 >
+// deltaE is a changed pixel, changed / area > ratio fails the artboard. A failing pair gets a noise
+// control — `before` rendered again — and a pair that differs with itself is not a failure. Each
+// canvas has a hard deadline: past it the canvas is `timeout` and the run goes on. No new
 // dependency — the decode and the maths run in Chromium.
 //
-// Output (stdout, last line): { canvases: [{path, error?, artboards: [{id, theme, width, height,
-// changed, area, fail, reason?}]}] }.
+// Output (stdout, last line): { canvases: [{path, error?, specimen?, artboards: [{id, theme,
+// width, height, changed, area, fail, reason?, noise?, empty?, control?}]}] }.
 
 import { readFileSync } from 'node:fs';
+import {
+  clipOf,
+  isolateArtboard,
+  judge,
+  pairFails,
+  restoreArtboard,
+  SPECIMEN_ID,
+  themesFor,
+  viewportFor,
+  withDeadline,
+} from './_ds-prove-judge.mjs';
 import { launchChromium, newShellContext } from './_pw-launch.mjs';
 
 const argv = process.argv.slice(2);
@@ -27,6 +42,8 @@ const DELTA_E = Number(job.deltaE ?? 2);
 const RATIO = Number(job.ratio ?? 0.005);
 const TIMEOUT = Number(job.timeout ?? 20000);
 const MAX_SIDE = 4000;
+const CANVAS_TIMEOUT = Number(job.canvasTimeout ?? 180000);
+const BASE_VIEWPORT = { width: 1440, height: 900 };
 
 const shellUrl = (origin, c) => {
   const p = new URLSearchParams();
@@ -52,6 +69,7 @@ async function open(page, url, gotoShell) {
         err: !!document.getElementById('canvas-mount-error')?.textContent?.trim(),
         mounted:
           !!window.__maudeCanvasRuntime ||
+          !!window.__dsProveMounted ||
           (document.getElementById('canvas-root')?.childElementCount ?? 0) > 0,
       }))
       .catch(() => null);
@@ -104,11 +122,6 @@ async function open(page, url, gotoShell) {
   }
   return page.evaluate(() => {
     const err = document.getElementById('canvas-mount-error')?.textContent?.trim() || null;
-    const world = document.querySelector('.dc-world');
-    if (world) {
-      world.style.zoom = '1';
-      world.style.transform = 'none';
-    }
     const boards = [...document.querySelectorAll('[data-dc-screen]')].map((el) => ({
       id: el.getAttribute('data-dc-screen') || '',
       themes: [
@@ -123,62 +136,51 @@ async function open(page, url, gotoShell) {
   });
 }
 
-/** One artboard in one theme → a PNG buffer (the artboard moved to 0,0, the viewport its size). */
-async function shot(page, id, theme, size) {
-  const rect = await page.evaluate(
-    ({ id, theme }) => {
-      const ab = [...document.querySelectorAll('[data-dc-screen]')].find(
-        (el) => el.getAttribute('data-dc-screen') === id
-      );
-      if (!ab) return null;
-      window.__dsProveSaved ??= new Map();
-      if (!window.__dsProveSaved.has(id)) {
-        const themed = [ab, ...ab.querySelectorAll('[data-theme]')].filter((n) =>
-          n.hasAttribute('data-theme')
-        );
-        window.__dsProveSaved.set(id, {
-          left: ab.style.left,
-          top: ab.style.top,
-          themed: themed.map((n) => [n, n.getAttribute('data-theme')]),
-        });
-      }
-      const saved = window.__dsProveSaved.get(id);
-      for (const [n, t] of saved.themed) n.setAttribute('data-theme', theme ?? t);
-      ab.style.left = '0px';
-      ab.style.top = '0px';
-      const r = ab.getBoundingClientRect();
-      if (r.left || r.top) {
-        ab.style.left = `${-r.left}px`;
-        ab.style.top = `${-r.top}px`;
-      }
-      window.scrollTo(0, 0);
-      const f = ab.getBoundingClientRect();
-      return { width: Math.ceil(f.width), height: Math.ceil(f.height) };
-    },
-    { id, theme }
-  );
-  if (!rect) return null;
-  const width = Math.max(1, Math.min(MAX_SIDE, size?.width ?? rect.width));
-  const height = Math.max(1, Math.min(MAX_SIDE, size?.height ?? rect.height));
-  await page.setViewportSize({ width, height });
-  await page.evaluate(
-    () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
-  );
-  const png = await page.screenshot({
-    clip: { x: 0, y: 0, width, height },
-    animations: 'disabled',
-  });
-  await page.evaluate((id) => {
-    const ab = [...document.querySelectorAll('[data-dc-screen]')].find(
-      (el) => el.getAttribute('data-dc-screen') === id
-    );
-    const saved = window.__dsProveSaved?.get(id);
-    if (!ab || !saved) return;
-    ab.style.left = saved.left;
-    ab.style.top = saved.top;
-    for (const [n, t] of saved.themed) n.setAttribute('data-theme', t);
-  }, id);
-  return { png, width: rect.width, height: rect.height };
+/** Two animation frames: what was set is laid out and painted. */
+const frames = (page) =>
+  page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+
+/** Isolate the element and read its rect until it holds still (a hug artboard settles a pass late). */
+async function stableRect(page, arg) {
+  let last = '';
+  let still = 0;
+  let rect = null;
+  for (let i = 0; i < 30 && still < 2; i++) {
+    rect = await page.evaluate(isolateArtboard, arg);
+    if (!rect) return null;
+    const key = [rect.x, rect.y, rect.width, rect.height].map(Math.round).join(',');
+    still = key === last ? still + 1 : 0;
+    last = key;
+    await frames(page);
+  }
+  return rect;
+}
+
+/**
+ * One artboard (or a specimen's mount) in one theme → a PNG of exactly its own rect, everything else
+ * hidden. Every page goes through the same steps from the same viewport, whatever it shot before —
+ * so before and after are measured alike (the old shim sized after's viewport from before's shot, and
+ * the same unchanged artboard came out a different size). `{ empty: true }` = nothing rendered.
+ */
+async function shot(page, id, { theme, htmlTheme }) {
+  const arg = { id, theme, htmlTheme, specimenId: SPECIMEN_ID };
+  await page.setViewportSize(BASE_VIEWPORT);
+  try {
+    let rect = await stableRect(page, arg);
+    if (!rect) return null;
+    const vp = viewportFor(rect, BASE_VIEWPORT, MAX_SIDE);
+    if (vp.width !== BASE_VIEWPORT.width || vp.height !== BASE_VIEWPORT.height) {
+      await page.setViewportSize(vp);
+      rect = await stableRect(page, arg);
+      if (!rect) return null;
+    }
+    const clip = clipOf(rect, MAX_SIDE);
+    if (!clip) return { empty: true };
+    const png = await page.screenshot({ clip, animations: 'disabled' });
+    return { png, width: Math.ceil(rect.width), height: Math.ceil(rect.height) };
+  } finally {
+    await page.evaluate(restoreArtboard, { id }).catch(() => {});
+  }
 }
 
 /** The diff, in the page: OKLab ΔE per pixel over two same-size PNGs. */
@@ -237,9 +239,23 @@ async function diffInPage(page, a, b, deltaE) {
   );
 }
 
+/** before × after (or any two shots) → the measured pair. */
+async function measure(pd, x, y) {
+  const d = await diffInPage(pd, x.png, y.png, DELTA_E);
+  return { sized: x.width === y.width && x.height === y.height, changed: d.changed, area: d.area };
+}
+
 /** One canvas on one worker's pages → its row. Never throws: a canvas that cannot render is a row with an error. */
-async function proveCanvas(c, { pa, pb, pd, goto }) {
+async function proveCanvas(c, { pa, pb, pc, pd, goto }) {
   const row = { path: c.path, artboards: [] };
+  let control = null; // before, rendered a second time — opened only when a pair fails
+  const openControl = () => {
+    control ??= open(pc, shellUrl(job.before, c), goto).then(
+      (C) => (C.err ? null : C),
+      () => null
+    );
+    return control;
+  };
   try {
     const [A, B] = await Promise.all([
       open(pa, shellUrl(job.before, c), goto),
@@ -250,32 +266,49 @@ async function proveCanvas(c, { pa, pb, pd, goto }) {
       row.detail = String(A.err || B.err).slice(0, 300);
       return row;
     }
-    const bIds = new Set(B.boards.map((x) => x.id));
-    for (const board of A.boards) {
+    // A canvas with no artboard on either side (a specimen) is measured as one: its whole mount.
+    const specimen = !A.boards.length && !B.boards.length;
+    if (specimen) row.specimen = true;
+    const boards = specimen ? [{ id: SPECIMEN_ID, themes: [] }] : A.boards;
+    const bIds = new Set(specimen ? [SPECIMEN_ID] : B.boards.map((x) => x.id));
+    for (const board of boards) {
       if (!bIds.has(board.id)) {
         row.artboards.push({ id: board.id, theme: null, fail: true, reason: 'missing' });
         continue;
       }
-      const themes = board.themes.length ? board.themes : [null];
-      for (const theme of themes) {
-        const sa = await shot(pa, board.id, theme);
-        const sb = sa && (await shot(pb, board.id, theme, sa));
-        if (!sa || !sb) {
-          row.artboards.push({ id: board.id, theme, fail: true, reason: 'missing' });
+      for (const t of themesFor(board.themes, c.themes)) {
+        const sa = await shot(pa, board.id, t);
+        const sb = sa && (await shot(pb, board.id, t));
+        if (sa?.empty && sb?.empty) {
+          row.artboards.push({ id: board.id, theme: t.theme, empty: true, fail: false });
           continue;
         }
-        const sized = sa.width === sb.width && sa.height === sb.height;
-        const d = await diffInPage(pd, sa.png, sb.png, DELTA_E);
-        const fail = !sized || d.changed / Math.max(1, d.area) > RATIO;
+        if (!sa || !sb || sa.empty || sb.empty) {
+          row.artboards.push({ id: board.id, theme: t.theme, fail: true, reason: 'missing' });
+          continue;
+        }
+        const ab = await measure(pd, sa, sb);
+        let ac = null;
+        let bc = null;
+        if (pairFails(ab, RATIO) && (await openControl())) {
+          const sc = await shot(pc, board.id, t);
+          if (sc && !sc.empty) {
+            ac = await measure(pd, sa, sc);
+            bc = await measure(pd, sb, sc);
+          }
+        }
+        const v = judge({ ab, ac, bc }, RATIO);
         row.artboards.push({
           id: board.id,
-          theme,
+          theme: t.theme,
           width: sa.width,
           height: sa.height,
-          changed: d.changed,
-          area: d.area,
-          fail,
-          ...(sized ? {} : { reason: 'size' }),
+          changed: ab.changed,
+          area: ab.area,
+          fail: v.fail,
+          ...(ab.sized ? {} : { reason: 'size' }),
+          ...(v.noise ? { noise: true } : {}),
+          ...(ac ? { control: { changed: ac.changed, area: ac.area, sized: ac.sized } } : {}),
         });
       }
     }
@@ -286,42 +319,87 @@ async function proveCanvas(c, { pa, pb, pd, goto }) {
   return row;
 }
 
+const CONTEXT_OPTS = {
+  serviceWorkers: 'block',
+  viewport: BASE_VIEWPORT,
+  deviceScaleFactor: 1,
+  reducedMotion: 'reduce',
+};
+
+/** A worker's own context and pages (before, after, the noise control, the diff page). */
+async function newPages(browser) {
+  // gate-b-c4d — each page confined to the origin its shell lands on (popups, other origins refused).
+  const { ctx, goto } = await newShellContext(browser, CONTEXT_OPTS);
+  // The shell tells its parent the canvas mounted (`canvas-mounted`, also for a specimen that
+  // renders nothing); at the top level that parent is the page itself. Without it such a canvas
+  // waited out the whole timeout on both sides.
+  await ctx.addInitScript(() => {
+    addEventListener('message', (e) => {
+      const d = e.data;
+      if (d && (d.dgn === 'canvas-mounted' || d.dgn === 'canvas-rendered'))
+        window.__dsProveMounted = true;
+    });
+  });
+  const pages = {
+    pa: await ctx.newPage(),
+    pb: await ctx.newPage(),
+    pc: await ctx.newPage(),
+    pd: await ctx.newPage(),
+    goto,
+  };
+  await pages.pd.setContent('<!doctype html><title>ds prove diff</title>');
+  return { ctx, pages };
+}
+
 // Canvases are independent, so a few workers prove them side by side, each on a context of its own
 // (a canvas's render is a page, not the machine). The order of `out.canvases` is the job's.
+//
+// Every canvas has a hard deadline (`canvasTimeout`): a canvas whose renderer never answers (a heavy
+// 3D scene at 99 % CPU) is reported `timeout` and the run goes on — its worker throws the context
+// away (closing its pages kills their renderers) and starts a fresh one; when even the close does not
+// answer, the worker moves to a browser of its own, so no later canvas inherits the stuck one.
 const WORKERS = Math.max(1, Math.min(Number(job.workers ?? 3), job.canvases.length || 1));
-const browser = await launchChromium();
+const shared = await launchChromium();
+const browsers = new Set([shared]);
 const out = { canvases: job.canvases.map((c) => ({ path: c.path, artboards: [] })) };
+const closeWithin = (p, ms) => withDeadline(() => p, ms).catch(() => ({ ok: false }));
 try {
   let next = 0;
   let done = 0;
   const worker = async () => {
-    // gate-b-c4d — each page confined to the origin its shell lands on (popups, other origins refused).
-    const { ctx, goto } = await newShellContext(browser, {
-      serviceWorkers: 'block',
-      viewport: { width: 1440, height: 900 },
-      deviceScaleFactor: 1,
-      reducedMotion: 'reduce',
-    });
-    const pages = {
-      pa: await ctx.newPage(),
-      pb: await ctx.newPage(),
-      pd: await ctx.newPage(),
-      goto,
-    };
-    await pages.pd.setContent('<!doctype html><title>ds prove diff</title>');
+    let browser = shared;
+    let { ctx, pages } = await newPages(browser);
     for (;;) {
       const i = next++;
       if (i >= job.canvases.length) break;
-      out.canvases[i] = await proveCanvas(job.canvases[i], pages);
+      const c = job.canvases[i];
+      const r = await withDeadline(() => proveCanvas(c, pages), CANVAS_TIMEOUT);
+      if (r.ok) out.canvases[i] = r.value;
+      else {
+        out.canvases[i] = {
+          path: c.path,
+          error: 'timeout',
+          detail: `no answer within ${Math.round(CANVAS_TIMEOUT / 1000)} s`,
+          artboards: [],
+        };
+        const closed = await closeWithin(ctx.close(), 10_000);
+        if (!closed.ok) {
+          browser = await launchChromium();
+          browsers.add(browser);
+        }
+        ({ ctx, pages } = await newPages(browser));
+      }
       done++;
       console.log(
         `MAUDE_PROGRESS ${JSON.stringify({ current: done, total: job.canvases.length })}`
       );
     }
-    await ctx.close();
+    await closeWithin(ctx.close(), 10_000);
   };
   await Promise.all(Array.from({ length: WORKERS }, worker));
 } finally {
-  await browser.close();
+  await Promise.all([...browsers].map((b) => closeWithin(b.close(), 10_000)));
 }
-console.log(JSON.stringify(out));
+// a stuck renderer can keep the browser's pipes open: write the answer, then leave
+await new Promise((r) => process.stdout.write(`${JSON.stringify(out)}\n`, r));
+process.exit(0);

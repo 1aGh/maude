@@ -16,12 +16,12 @@
 // Output: `diff.json` (every measurement) and `review.json` (the four SCHEMA_FIX lines) beside the
 // stage record.
 
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import type { Subprocess } from 'bun';
 import { exportShimPath, spawnShim } from '../exporters/_runtime.ts';
-import { DEV_SERVER_ROOT } from '../paths.ts';
+import { DEV_SERVER_ROOT, IS_COMPILED_BINARY } from '../paths.ts';
 import { checkCanvas } from './canvas-check.ts';
 import { canvasContext, listCanvases } from './canvas-cli.ts';
 import { systemConfigsFrom } from './system.ts';
@@ -46,11 +46,15 @@ export const DIFF_FORMAT = 'maude.ds-upgrade-diff';
 export const REVIEW_FORMAT = 'maude.ds-upgrade-review';
 export const DELTA_E = 2;
 export const FAIL_RATIO = 0.005;
+/** one canvas's hard deadline in the visual gate */
+export const CANVAS_TIMEOUT = 180_000;
 
 export interface RenderCanvas {
   path: string;
   tokens: string | null;
   components: string | null;
+  /** the system's themes: an artboard that carries none of its own is measured in each */
+  themes?: string[];
 }
 export interface RenderJob {
   before: string;
@@ -59,6 +63,8 @@ export interface RenderJob {
   deltaE: number;
   ratio: number;
   timeout: number;
+  /** the hard deadline of one canvas (ms): past it the canvas is `timeout` and the run goes on */
+  canvasTimeout?: number;
 }
 export interface ArtboardDiff {
   id: string;
@@ -69,9 +75,23 @@ export interface ArtboardDiff {
   area?: number;
   fail: boolean;
   reason?: string;
+  /** failed before x after, but before x before failed alike: the gate's own noise, not a change */
+  noise?: boolean;
+  /** nothing rendered on either side */
+  empty?: boolean;
+  /** before x before (the noise control), when it ran */
+  control?: { changed: number; area: number; sized: boolean };
 }
 export interface RenderResult {
-  canvases: { path: string; error?: string; detail?: string; artboards: ArtboardDiff[] }[];
+  canvases: {
+    path: string;
+    /** before / after: that side showed an error; render: the gate threw; timeout: no answer */
+    error?: string;
+    detail?: string;
+    /** no artboard: the canvas's whole mount was measured */
+    specimen?: boolean;
+    artboards: ArtboardDiff[];
+  }[];
 }
 
 export interface Studio {
@@ -114,18 +134,117 @@ export interface Review {
   keepsOwn: { native: string; as: string }[];
   updatesCanvases: { path: string; edits: number; diff: 'pass' | 'fail' }[];
   refused: { path: string; reason: string }[];
+  /** canvases the gate could not measure (a timeout, a broken before): they block nothing, and a
+   *  codemod on one is not applied (it is in `refused` too) */
+  unmeasured?: { path: string; reason: string }[];
   needsPick: string[];
 }
 
 /* ------------------------------------------------------------- studios */
 
-function serverCommand(): string[] {
-  const serverTs = join(DEV_SERVER_ROOT, 'server.ts');
-  if (!existsSync(serverTs)) return [process.execPath]; // the compiled studio binary IS the server
-  const bun = basename(process.execPath).startsWith('bun')
-    ? process.execPath
-    : (Bun.which('bun') ?? process.execPath);
-  return [bun, 'run', serverTs];
+/** A compiled studio by its shape: the desktop sidecar `maude-server`, or npm's `maude-<slug>/maude`. */
+export function isCompiledStudioBinary(p: string | undefined | null): boolean {
+  if (!p) return false;
+  const b = basename(p);
+  if (b === 'maude-server' || b === 'maude-server.exe') return true;
+  return (b === 'maude' || b === 'maude.exe') && /^maude-[a-z0-9-]+$/.test(basename(dirname(p)));
+}
+
+export interface ServerResolveInput {
+  env: Record<string, string | undefined>;
+  /** this process's executable (the compiled studio, a compiled binary run as bun, or bun) */
+  execPath: string;
+  /** apps/studio as paths.ts resolved it */
+  devServerRoot: string;
+  /** true inside the compiled studio itself (paths.ts IS_COMPILED_BINARY) */
+  compiled: boolean;
+  exists: (p: string) => boolean;
+  readText?: (p: string) => string | null;
+  /** npm platform-package slugs to look for (`darwin-arm64`, `linux-x64`, `linux-x64-musl`…) */
+  platformSlugs?: string[];
+}
+
+export interface ServerCommand {
+  cmd: string[];
+  /** env the compiled studio needs to find its served tree (the desktop sidecar sets the same) */
+  env: Record<string, string>;
+  kind: 'compiled' | 'source';
+}
+
+/**
+ * How a staged studio is started — the same resolution the desktop sidecar and `maude design serve`
+ * use (DDR-084, DDR-177): the COMPILED studio whenever one exists, because it embeds every dependency
+ * the source server imports (the hub's transaction core, jszip, yjs…), none of which a packaged app or
+ * an npm install has on disk. Source (`bun run server.ts`) only in a dev tree, or when nothing
+ * compiled is there.
+ *
+ *   1. this process IS the compiled studio (a prove started from the studio's own route)
+ *   2. MAUDE_DEV_SERVER_BIN (the desktop sidecar hands it to every child; `maude design` to boot verbs)
+ *   3. not a dev tree: this process's executable when it is a compiled studio run as bun (the
+ *      desktop's bun shim), the .app's Contents/MacOS/maude-server, npm's maude-<slug>/maude
+ *   4. server.ts from source
+ */
+export function resolveStudioServer(o: ServerResolveInput): ServerCommand {
+  const pkgRoot = join(o.devServerRoot, '..', '..');
+  const compiledEnv = (): Record<string, string> => ({
+    MAUDE_DEV_SERVER_ROOT: o.devServerRoot,
+    ...(o.exists(join(pkgRoot, 'cli', 'commands', 'design.mjs'))
+      ? { MAUDE_PKG_ROOT: pkgRoot }
+      : {}),
+  });
+  const compiled = (bin: string): ServerCommand => ({
+    cmd: [bin],
+    env: compiledEnv(),
+    kind: 'compiled',
+  });
+  if (o.compiled && !o.env.BUN_BE_BUN) return compiled(o.execPath);
+  const fromEnv = o.env.MAUDE_DEV_SERVER_BIN;
+  if (fromEnv && isCompiledStudioBinary(fromEnv) && o.exists(fromEnv)) return compiled(fromEnv);
+  const serverTs = join(o.devServerRoot, 'server.ts');
+  const devTree =
+    o.env.MAUDE_FORCE_SOURCE === '1' ||
+    o.exists(join(pkgRoot, 'packages', 'maude-darwin-arm64', 'package.json'));
+  if (!devTree) {
+    const exe = process.platform === 'win32' ? 'maude-server.exe' : 'maude-server';
+    const candidates = [
+      o.execPath,
+      join(o.devServerRoot, '..', '..', '..', 'MacOS', exe),
+      ...(o.platformSlugs ?? []).map((slug) =>
+        join(pkgRoot, '..', `maude-${slug}`, process.platform === 'win32' ? 'maude.exe' : 'maude')
+      ),
+    ];
+    const side = o.readText?.(join(pkgRoot, 'cli', '.platform-binary-path'))?.trim();
+    if (side) candidates.push(side);
+    for (const c of candidates) if (isCompiledStudioBinary(c) && o.exists(c)) return compiled(c);
+  }
+  if (!o.exists(serverTs)) return compiled(o.execPath); // nothing else to run
+  const bun = basename(o.execPath).startsWith('bun')
+    ? o.execPath
+    : (Bun.which('bun') ?? o.execPath);
+  return { cmd: [bun, 'run', serverTs], env: {}, kind: 'source' };
+}
+
+function platformSlugs(): string[] {
+  const base = `${process.platform}-${process.platform === 'win32' ? 'x64' : process.arch}`;
+  return process.platform === 'linux' ? [base, `${base}-musl`] : [base];
+}
+
+function serverCommand(): ServerCommand {
+  return resolveStudioServer({
+    env: process.env,
+    execPath: process.execPath,
+    devServerRoot: DEV_SERVER_ROOT,
+    compiled: IS_COMPILED_BINARY,
+    exists: existsSync,
+    readText: (p) => {
+      try {
+        return readFileSync(p, 'utf8');
+      } catch {
+        return null;
+      }
+    },
+    platformSlugs: platformSlugs(),
+  });
 }
 
 /**
@@ -139,15 +258,33 @@ const STAGED_DROP =
 export function studioEnv(
   projectRoot: string,
   machineFile: string,
-  from: Record<string, string | undefined> = process.env
+  from: Record<string, string | undefined> = process.env,
+  /** a throwaway home: the staged studio writes prefs (fold state…) under HOME/XDG_CONFIG_HOME,
+   *  and a staged copy must never write the person's real ~/.config/maude */
+  home?: string
 ): Record<string, string> {
   // the staged studio picks its own port, and runs as the studio (never as a bare bun)
   const drop = new Set(['BUN_BE_BUN', 'PORT', 'MDCC_DEV_PORT']);
+  // with a throwaway home, nothing may point back at the person's own config stores
+  const homeDrop = new Set([
+    'XDG_CONFIG_HOME',
+    'HUBS_CONFIG_PATH',
+    'MAUDE_CLOUD_CONFIG',
+    'MAUDE_INDEX_DIR',
+  ]);
   const env: Record<string, string> = {};
   for (const [k, v] of Object.entries(from))
-    if (v !== undefined && !drop.has(k) && !STAGED_DROP.test(k)) env[k] = v;
+    if (v !== undefined && !drop.has(k) && !STAGED_DROP.test(k) && !(home && homeDrop.has(k)))
+      env[k] = v;
   return {
     ...env,
+    ...(home
+      ? {
+          HOME: home,
+          XDG_CONFIG_HOME: join(home, '.config'),
+          MAUDE_INDEX_DIR: join(home, 'index'),
+        }
+      : {}),
     NO_OPEN: '1',
     MAUDE_NO_AUTOBUILD: '1',
     MAUDE_MACHINE_FILE: machineFile,
@@ -159,12 +296,35 @@ export function studioEnv(
 export async function bootHeadlessStudio(projectRoot: string): Promise<Studio> {
   const designRoot = join(projectRoot, '.design');
   const scratch = mkdtempSync(join(tmpdir(), 'maude-ds-prove-machine-'));
-  const proc: Subprocess = Bun.spawn([...serverCommand(), '--root', projectRoot, '--port', '0'], {
+  mkdirSync(join(scratch, 'home', '.config'), { recursive: true });
+  const server = serverCommand();
+  const proc: Subprocess = Bun.spawn([...server.cmd, '--root', projectRoot, '--port', '0'], {
     cwd: DEV_SERVER_ROOT,
-    env: studioEnv(projectRoot, join(scratch, 'machine.json')),
+    env: {
+      ...studioEnv(projectRoot, join(scratch, 'machine.json'), process.env, join(scratch, 'home')),
+      ...server.env,
+    },
     stdout: 'ignore',
     stderr: 'pipe',
   });
+  // drain stderr (an unread pipe can stall a chatty child) and keep its tail for the error
+  let errTail = '';
+  void (async () => {
+    try {
+      const dec = new TextDecoder();
+      for await (const chunk of proc.stderr as ReadableStream<Uint8Array>)
+        errTail = (errTail + dec.decode(chunk)).slice(-2000);
+    } catch {
+      /* gone */
+    }
+  })();
+  const lastLine = () =>
+    errTail
+      .trim()
+      .split('\n')
+      .filter((l) => l.trim())
+      .at(-1)
+      ?.slice(0, 240) ?? '';
   const stop = async () => {
     const exited = proc.exited.then(
       () => true,
@@ -189,7 +349,13 @@ export async function bootHeadlessStudio(projectRoot: string): Promise<Studio> {
   try {
     const started = Date.now();
     while (Date.now() - started < 60000) {
-      if (proc.exitCode !== null) throw new Error(`the staged studio exited ${proc.exitCode}`);
+      if (proc.exitCode !== null) {
+        await Bun.sleep(50); // the last stderr chunk
+        const why = lastLine();
+        throw new Error(
+          `the staged ${server.kind} studio exited ${proc.exitCode}${why ? `: ${why}` : ''}`
+        );
+      }
       try {
         const s = JSON.parse(readFileSync(join(designRoot, '_server.json'), 'utf8')) as {
           pid?: number;
@@ -252,6 +418,7 @@ function affectedCanvases(stageDir: string, ds: string): RenderCanvas[] {
     out.push({
       path: rel,
       tokens: sys?.tokensCssRel ?? null,
+      themes: sys?.themes ?? [],
       components: sys ? `${sys.path}/preview/_components.css` : null,
     });
   }
@@ -271,7 +438,21 @@ function reviewOf(
     path: r.path,
     reason: r.invariant,
   }));
+  const unmeasured: { path: string; reason: string }[] = [];
   for (const c of result.canvases) {
+    // A canvas that could not be measured (no answer in time, an error before the upgrade touched
+    // anything, the gate itself threw) proves nothing either way: it never blocks the system files,
+    // and its own codemod is not applied unproved. `after` alone is a finding: the upgrade broke it.
+    // Noise the control explained away is not a failure (`noise`, the shim's judge).
+    if (c.error && c.error !== 'after') {
+      const reason = c.error === 'timeout' ? 'timeout' : 'unmeasured';
+      unmeasured.push({ path: c.path, reason });
+      if (codemodded.has(c.path)) {
+        failedCanvases.add(c.path);
+        refused.push({ path: c.path, reason });
+      }
+      continue;
+    }
     const failed = c.error === 'after' || c.artboards.some((a) => a.fail);
     if (!failed) continue;
     if (codemodded.has(c.path)) {
@@ -317,6 +498,7 @@ function reviewOf(
       diff: failedCanvases.has(c.path) ? 'fail' : 'pass',
     })),
     refused,
+    ...(unmeasured.length ? { unmeasured } : {}),
     needsPick: items.filter((i) => i.status === 'needs-pick' && i.picked == null).map((i) => i.id),
   };
   return { review, failedCanvases };
@@ -390,6 +572,7 @@ export async function proveStage(
         deltaE: DELTA_E,
         ratio: FAIL_RATIO,
         timeout: 20000,
+        canvasTimeout: CANVAS_TIMEOUT,
       },
       {
         signal: ctl.signal,
