@@ -386,14 +386,14 @@ const waitFor = async (ok: () => boolean, ms = 2000) => {
     });
   expect(ok()).toBe(true);
 };
-async function mountHost(fetchImpl: typeof fetch, toasts: string[] = [], pollMs = 20) {
+async function mountHost(fetchImpl: typeof fetch, toasts: string[] = [], tickMs = 20) {
   const host = document.createElement('div');
   document.body.append(host);
   const root = createRoot(host);
   roots.push(root);
   await act(async () =>
     root.render(
-      <Host cfg={CFG} toast={(m: string) => toasts.push(m)} fetchImpl={fetchImpl} pollMs={pollMs} />
+      <Host cfg={CFG} toast={(m: string) => toasts.push(m)} fetchImpl={fetchImpl} tickMs={tickMs} />
     )
   );
 }
@@ -742,5 +742,92 @@ describe('the doors', () => {
     expect(brought).toEqual(['combine']);
     // the switch itself stays impossible
     expect((q('ds-switch-go') as HTMLButtonElement).disabled).toBe(true);
+  });
+});
+
+// 2.0.5 (#205) — the sheet asks again on events (the AI run registry moved, the shell wrote a system, the window
+// is looked at), after a failed read (5 s, doubling), and — only while the AI or the check is working — on ONE slow
+// tick (a proof's progress has no push). A settled sheet reads on events only; it never ticks.
+describe('the sheet follows events, not a 1.5 s clock', () => {
+  const statuses = (b: ReturnType<typeof backend>) =>
+    b.s.calls.filter((c) => c.step === 'status').length;
+  const idle = (ms: number) => act(async () => new Promise((r) => setTimeout(r, ms)));
+
+  /** setTimeout delays ≥ 1 s asked for while `run` runs (the real timer still runs). */
+  async function longTimers(run: () => Promise<void>): Promise<number[]> {
+    const real = globalThis.setTimeout;
+    const seen: number[] = [];
+    globalThis.setTimeout = ((fn: () => void, ms?: number, ...rest: unknown[]) => {
+      if ((ms ?? 0) >= 1000) seen.push(ms as number);
+      return real(fn, ms, ...rest);
+    }) as typeof setTimeout;
+    try {
+      await run();
+    } finally {
+      globalThis.setTimeout = real;
+    }
+    return seen;
+  }
+  const working = async (b: ReturnType<typeof backend>, tickMs: number) => {
+    await mountHost(b.fetchImpl, [], tickMs);
+    await open();
+    await waitFor(() => q('ds-upgrade') !== null);
+    await click(q('ds-upgrade-go'));
+    await waitFor(() => q('ds-upgrade')?.getAttribute('data-view') === 'working');
+  };
+
+  test('a settled sheet reads once; events do not wake it', async () => {
+    const b = backend();
+    await mountHost(b.fetchImpl, [], 30);
+    await open();
+    await waitFor(() => q('ds-upgrade')?.getAttribute('data-view') === 'ask');
+    const n = statuses(b);
+    await idle(150);
+    await act(async () => void window.dispatchEvent(new Event('maude:ai-runs')));
+    await idle(60);
+    expect(statuses(b)).toBe(n);
+  });
+
+  test('working: no read between events; an AI-run event reads and the sheet follows', async () => {
+    const b = backend();
+    await working(b, 600_000);
+    const n = statuses(b);
+    await idle(200);
+    expect(statuses(b)).toBe(n); // the 1.5 s clock is gone
+    b.s.stages = [stage({ phase: 'staged', review: null })];
+    await act(async () => void window.dispatchEvent(new Event('maude:ai-runs')));
+    await waitFor(() => q('ds-upgrade-working')?.textContent?.includes('Plan made') === true, 600); // at the event, not at a later tick
+    expect(statuses(b)).toBe(n + 1);
+    await act(async () => void window.dispatchEvent(new Event('maude:ds-state-changed')));
+    await waitFor(() => statuses(b) === n + 2);
+  });
+
+  test('while it works the one slow tick follows a proof with no event', async () => {
+    const b = backend();
+    await working(b, 30);
+    b.s.stages = [
+      stage({
+        phase: 'proving',
+        review: null,
+        progress: { phase: 'rendering', current: 1, total: 6 },
+      }),
+    ];
+    await waitFor(() => q('ds-upgrade')?.getAttribute('data-view') === 'proving');
+  });
+
+  test('a failed read backs the next one off (5 s); an answered one does not', async () => {
+    const b = backend();
+    await working(b, 600_000);
+    const ok = await longTimers(async () => {
+      await act(async () => void window.dispatchEvent(new Event('maude:ai-runs')));
+      await idle(60);
+    });
+    expect(ok).not.toContain(5000);
+    b.s.fail = { status: 502, code: 'unreachable' };
+    const bad = await longTimers(async () => {
+      await act(async () => void window.dispatchEvent(new Event('maude:ai-runs')));
+      await idle(60);
+    });
+    expect(bad).toContain(5000);
   });
 });

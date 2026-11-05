@@ -60,6 +60,7 @@ import {
   verifyFrameCap,
 } from './access/frame.ts';
 import { closureConfigFor } from './access/known-canvases.ts';
+import { entryRel, refusedDesignInputs, refusedInputsFor } from './access/refused-inputs.ts';
 import {
   ACP_REFUSAL,
   accessForDesktop,
@@ -7962,8 +7963,19 @@ export function createHttp(
   function canvasInputsGate(req: Request): CanvasInputsGate | undefined {
     const see = seerFor(req);
     if (see === null) return undefined;
-    const gate: CanvasInputsGate = (inputs, entry) =>
-      inputsRefusal(inputs, designRoots, see, { entry });
+    const gate: CanvasInputsGate = (inputs, entry) => {
+      const refused = inputsRefusal(inputs, designRoots, see, { entry });
+      // 2.0.5 (#205) — keep WHY on the server, per canvas; the main origin's /_index-data reports it
+      // (`canvasRefusedInputs`). The answer here stays the bare not-in-scope body.
+      const canvas = entryRel(entry, designRoots);
+      if (canvas) {
+        const names = refused ? refusedDesignInputs(inputs, designRoots, see) : [];
+        const store = refusedInputsFor(ctx);
+        const changed = names.length ? store.record(canvas, names) : store.clear(canvas);
+        if (changed) ctx.bus.emit('canvas-list-update', { action: 'refused', rel: canvas });
+      }
+      return refused;
+    };
     // gate-b-c4l (L-b) — a canvas whose import walk the closure blocked is refused before the build.
     gate.before = (entry) => {
       const closure = closureOf(accessOf(req));

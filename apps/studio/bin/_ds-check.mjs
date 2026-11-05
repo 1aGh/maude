@@ -1,5 +1,6 @@
 // Internal shim behind ds-check.sh (`maude design ds-check`). See ds-check.sh for usage.
 import { runDsCheck } from '../ds/cli.ts';
+import { liveRefusals, rootOf, wantsLive } from './_ds-check-live.mjs';
 
 const argv = process.argv.slice(2);
 const hook = argv.includes('--hook');
@@ -19,7 +20,9 @@ if (hook && !argv.includes('--canvas') && !process.stdin.isTTY) {
     hookInput = null;
   }
 }
-const r = runDsCheck(argv, process.env, hookInput);
+// 2.0.5 (#205): a canvas refused AFTER its build is known only to the running studio — ask it (loopback only).
+const post = wantsLive(argv) ? await liveRefusals(rootOf(argv)) : undefined;
+const r = runDsCheck(argv, process.env, hookInput, post);
 // await the write: a large --json report piped to another process is truncated by an early exit
 if (r.stdout) await new Promise((res) => process.stdout.write(r.stdout, res));
 if (r.stderr && !hook) process.stderr.write(r.stderr);

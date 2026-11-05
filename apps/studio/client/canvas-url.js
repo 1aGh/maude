@@ -255,6 +255,16 @@ export function canvasImportsOf(cfg, p) {
   return Array.isArray(list) ? list.filter((x) => typeof x === 'string' && x) : null;
 }
 
+/**
+ * 2.0.5 (#205) — the design-root files `p`'s BUILT module was refused for (it inlined a file another canvas
+ * owns), from the index's `canvasRefusedInputs`, or `null` when none is on record.
+ */
+export function canvasRefusedOf(cfg, p) {
+  const list = cfg?.canvasRefusedInputs?.[p];
+  const names = Array.isArray(list) ? list.filter((x) => typeof x === 'string' && x) : [];
+  return names.length ? names : null;
+}
+
 export function canvasUrl(p, cfg, opts) {
   if (!p.endsWith('.tsx')) return urlOf(p);
   const designRel = (cfg?.designRel || '.design').replace(/^\/+|\/+$/g, '');

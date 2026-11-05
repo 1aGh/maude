@@ -21,6 +21,7 @@ import {
   projectVisibility,
 } from './access/filters.ts';
 import { currentFrameKey } from './access/frame.ts';
+import { refusedInputsFor } from './access/refused-inputs.ts';
 import { currentAccess, toDesignRel } from './access/request.ts';
 import { asPersonSave, saveHold } from './ai/save-hold.ts';
 import { canonicalAnnotations } from './annotations/board-text.ts';
@@ -8126,6 +8127,12 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     const imports = projectVisibility(ctx).canvasImports(canvasRels);
     const canvasImportsCanvases: Record<string, string[]> = {};
     for (const [rel, list] of imports) canvasImportsCanvases[`${prefix}${rel}`] = list;
+    // 2.0.5 (#205) — a canvas whose BUILT module the inputs gate refused (it inlined a file another canvas
+    // owns): the files, kept per canvas by the http layer (access/refused-inputs.ts). Main origin only — the
+    // canvas origin's 403 stays the bare not-in-scope body.
+    const refused = refusedInputsFor(ctx).report();
+    const canvasRefusedInputs: Record<string, string[]> = {};
+    for (const [rel, list] of refused) canvasRefusedInputs[`${prefix}${rel}`] = list;
 
     // S9.10 (V2-1.16 L8) — a canvas-only session's tree: what it sees, nothing else.
     return filterIndexData(
@@ -8137,6 +8144,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         canvasDesignSystems,
         canvasKinds,
         ...(imports.size ? { canvasImportsCanvases } : {}),
+        ...(refused.size ? { canvasRefusedInputs } : {}),
         ...(dsRender
           ? {
               canvasDsRevs: Object.fromEntries(

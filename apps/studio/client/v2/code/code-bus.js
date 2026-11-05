@@ -47,6 +47,11 @@ export function registerErrorCard(handlers) {
   return () => cards.delete(key);
 }
 
+/** Whether a broken-canvas card is showing (2.0.5: the design-system slow read waits while one is). */
+export function errorCardShown() {
+  return cards.size > 0;
+}
+
 /** Run `op` ('copy' | 'ask-ai' | 'last-good') on the newest mounted card. @returns whether one answered */
 export function runErrorOp(op) {
   const handlers = [...cards.values()].at(-1);

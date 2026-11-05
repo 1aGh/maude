@@ -49,7 +49,8 @@ import { type AiActivityEntry, createAiActivity } from './collab/ai-activity.ts'
 import { createGitLifecycle } from './collab/git-lifecycle.ts';
 import { personHoldsOf } from './collab/holds.ts';
 import { createCollab } from './collab/index.ts';
-import { createContext, reloadConfig } from './context.ts';
+import { wireConfigReload } from './config-reload-wire.ts';
+import { createContext } from './context.ts';
 import { installLogRing } from './debug-bundle.ts';
 import { initDiagnostics, registerStatus, stopDiagnostics } from './diagnostics/store.ts';
 import { parseEmbedOrigins } from './embed-origins.ts';
@@ -1127,18 +1128,15 @@ const canvasListWatch = createCanvasListWatch(ctx);
 // canvasListWatch's set-diff emit `canvas-list-update` for canvases the new
 // groups uncover, and tell shells to refetch /_config.
 // RCA: .ai/logs/rca/issue-ds-scaffold-files-not-in-filetree-stale-config.md
-const CONFIG_RELOAD_DEBOUNCE_MS = 150;
-let configReloadTimer: ReturnType<typeof setTimeout> | null = null;
-ctx.bus.on('fs:json', (rel: string) => {
-  if (rel.replace(/\\/g, '/').replace(/^\/+/, '') !== 'config.json') return;
-  if (configReloadTimer) clearTimeout(configReloadTimer);
-  configReloadTimer = setTimeout(() => {
-    configReloadTimer = null;
-    if (!reloadConfig(ctx)) return;
+// A cell child has no watcher, so a peer's config.json write arrives as
+// `fs:any` only (journal heal) — wireConfigReload listens on both events
+// behind one debounce (#205, config-reload-wire.ts).
+wireConfigReload(ctx, {
+  onReloaded: () => {
     console.log('  config.json changed — reloaded live.');
     void canvasListWatch.refresh();
     ctx.bus.emit('config-updated');
-  }, CONFIG_RELOAD_DEBOUNCE_MS);
+  },
 });
 
 // Phase 9 Task 4 — bidirectional sync agent. No-op when the project isn't
