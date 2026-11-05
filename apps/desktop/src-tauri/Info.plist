@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Merged by Tauri into the bundle's Info.plist (macOS). fix/ds-convert-hooks-cli #13b: Maude opens
+  a FOLDER — `open -a Maude <folder>`, Finder's Open With, a folder dropped on the Dock icon — and
+  RunEvent::Opened (lib.rs open_folders) opens it as a project tab when it has a .design/ folder.
+  Rank Alternate: Maude is offered for folders, never made the default folder handler.
+-->
+<plist version="1.0">
+<dict>
+  <key>CFBundleDocumentTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleTypeName</key>
+      <string>Maude project folder</string>
+      <key>CFBundleTypeRole</key>
+      <string>Editor</string>
+      <key>LSHandlerRank</key>
+      <string>Alternate</string>
+      <key>LSItemContentTypes</key>
+      <array>
+        <string>public.folder</string>
+      </array>
+    </dict>
+  </array>
+</dict>
+</plist>

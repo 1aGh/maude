@@ -62,6 +62,8 @@ import {
   type OpActor,
   type OpResult,
 } from './comments/ops.ts';
+import { trashFolderDsCanvas } from './ds/convert.ts';
+import { DS_CANVAS } from './ds/engine.ts';
 import { readHead } from './ds/head.ts';
 import { dsRenderIndex } from './ds/render-rev.ts';
 import { dropPin, rekeyUserState } from './home/user-state.ts';
@@ -4582,6 +4584,38 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       !resolvedFile.startsWith(`${resolvedDesignRoot}${path.sep}`)
     ) {
       return { ok: false, status: 400, error: 'path escapes the design root' };
+    }
+
+    // fix/ds-convert-hooks-cli #8 — a Design system canvas (`<system>/design-system.tsx`) whose
+    // system is a folder (no head.json — a Restore that sync brought back) goes to the Trash the
+    // way Restore puts one there; a converted system's canvas IS the system: Restore is the way.
+    if (path.posix.basename(rel) === DS_CANVAS && path.posix.dirname(rel) !== '.') {
+      const dsRel = path.posix.dirname(rel);
+      const inSystems = cfg.canvasGroups.some(
+        (g) =>
+          (g.label === 'Design system' || /^system(\/|$)/.test(g.path)) &&
+          (dsRel === g.path || dsRel.startsWith(`${g.path.replace(/\/+$/, '')}/`))
+      );
+      if (inSystems && (await Bun.file(fileAbs).exists())) {
+        const t = trashFolderDsCanvas(paths.designRoot, dsRel);
+        if (!t) {
+          return {
+            ok: false,
+            status: 409,
+            error: `this is the Design system canvas of ${path.posix.basename(dsRel)} — to turn it back into a folder, run \`maude design ds convert ${path.posix.basename(dsRel)} --restore\``,
+          };
+        }
+        const slug = fileSlug(rel);
+        ctx.bus.emit('canvas-list-update', { action: 'removed', rel, slug });
+        ctx.bus.emit('canvas-deleted', { slug });
+        return {
+          ok: true,
+          rel,
+          slug,
+          trashed: t.moved.map((f) => path.posix.join(dsRel, f)),
+          trashDir: path.relative(paths.repoRoot, path.join(paths.designRoot, t.trash)),
+        };
+      }
     }
 
     // Must live under a NON-DS canvas group — never the design system (`system`),
