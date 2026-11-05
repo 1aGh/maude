@@ -3,7 +3,7 @@
 // capabilities, and the second address is never asked.
 import { afterAll, describe, expect, test } from 'bun:test';
 
-import { hubHealth } from '../sync/journal-client.ts';
+import { hubHealth, probeFileLane } from '../sync/journal-client.ts';
 
 const inner: string[] = [];
 const target = Bun.serve({
@@ -35,7 +35,26 @@ describe('hubHealth', () => {
   test('a redirect is never followed: no capabilities, the second address is never asked', async () => {
     inner.length = 0;
     const h = await hubHealth({ hubUrl: bouncer.url.origin });
-    expect(h).toEqual({ capabilities: null, formatVersion: null });
+    // a bounce is not the hub's own answer (2.0.5 `answered`): the lane probe asks again later, never elsewhere
+    expect(h).toEqual({ capabilities: null, formatVersion: null, answered: false });
     expect(inner).toEqual([]);
+  });
+
+  test('the lane probe retries (2.0.5) but never follows the bounce either: no lane, the second address never asked', async () => {
+    inner.length = 0;
+    let bounced = 0;
+    const counting = (async (u: string | URL | Request, init?: RequestInit) => {
+      bounced++;
+      return fetch(u, init);
+    }) as unknown as typeof fetch;
+    const r = await probeFileLane({
+      hubUrl: bouncer.url.origin,
+      fetchImpl: counting,
+      attempts: 3,
+      sleep: async () => {},
+    });
+    expect(r).toEqual({ lane: 'unknown', capabilities: null, formatVersion: null });
+    expect(bounced).toBe(3); // every attempt asks the hub's own address …
+    expect(inner).toEqual([]); // … and none reaches the one it bounces to
   });
 });
