@@ -386,6 +386,7 @@ describe('structural-write security caps', () => {
     try {
       await divIdsByLine(main, designRoot); // warm pipeline/locator
       const statuses: number[] = [];
+      const started = Date.now();
       for (let i = 0; i < 6; i++) {
         const res = await fetch(`${main}/_api/insert-artboard`, {
           method: 'POST',
@@ -400,11 +401,16 @@ describe('structural-write security caps', () => {
         });
         statuses.push(res.status);
       }
-      // First op always passes; the burst (2) is exhausted well before 6 rapid
-      // ops, so at least one 429 appears and successes stay bounded (timing-safe).
+      // First op always passes and the burst (2) is spent well before 6 rapid ops, so a 429
+      // appears. Successes are bounded by the burst plus what the bucket refilled (8/s,
+      // api.ts STRUCTURAL_REFILL_PER_SEC) while the loop ran: a fixed "<= 3" read 4 on a slow
+      // CI runner whose 6 inserts took 1.3 s, which is the limiter working, not leaking.
+      const elapsedSec = (Date.now() - started) / 1000;
       expect(statuses[0]).toBe(200);
       expect(statuses).toContain(429);
-      expect(statuses.filter((s) => s === 200).length).toBeLessThanOrEqual(3);
+      expect(statuses.filter((s) => s === 200).length).toBeLessThanOrEqual(
+        2 + Math.ceil(elapsedSec * 8)
+      );
     } finally {
       await killProc(proc as never);
     }
