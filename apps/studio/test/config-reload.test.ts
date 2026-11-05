@@ -10,6 +10,7 @@ import { mkdirSync, mkdtempSync, rmSync, unlinkSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { wireConfigReload } from '../config-reload-wire.ts';
 import { type Context, createBus, reloadConfig } from '../context.ts';
 
 /** The pre-scaffold e2e fixture shape — UI-only group, no design systems. */
@@ -307,6 +308,67 @@ describe('a linked copy fills in what the project says about itself', () => {
       expect(ctx.cfg.canvasGroups[1]).toEqual({ label: 'system', path: 'system' });
       expect(ctx.cfg.designSystems ?? []).toEqual([]);
     } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
+// #205 — a cell child has no watcher; the journal heal announces a peer's
+// config.json write as `fs:any` only. The reload must follow it, and a
+// watcher's `fs:json` + `fs:any` pair for one write must reload once.
+describe('wireConfigReload', () => {
+  const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+  test('an fs:any naming config.json reloads ctx.cfg (the cell heal path)', async () => {
+    const { root, designRoot } = sandbox();
+    const ctx = mkCtx(root, designRoot);
+    let reloads = 0;
+    const wire = wireConfigReload(ctx, { debounceMs: 5, onReloaded: () => reloads++ });
+    try {
+      writeFileSync(join(designRoot, 'config.json'), JSON.stringify(SCAFFOLDED_CONFIG, null, 2));
+      ctx.bus.emit('fs:any', 'config.json');
+      await wait(40);
+      expect(ctx.cfg.designSystems?.map((d) => d.name)).toEqual(['kanban-glass']);
+      expect(reloads).toBe(1);
+    } finally {
+      wire.stop();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('a watcher fs:json + fs:any pair for one write reloads once', async () => {
+    const { root, designRoot } = sandbox();
+    const ctx = mkCtx(root, designRoot);
+    let reloads = 0;
+    const wire = wireConfigReload(ctx, { debounceMs: 5, onReloaded: () => reloads++ });
+    try {
+      writeFileSync(join(designRoot, 'config.json'), JSON.stringify(SCAFFOLDED_CONFIG, null, 2));
+      ctx.bus.emit('fs:json', 'config.json');
+      ctx.bus.emit('fs:any', 'config.json');
+      ctx.bus.emit('fs:any', '/config.json');
+      await wait(40);
+      expect(reloads).toBe(1);
+      expect(ctx.cfg.canvasGroups.map((g) => g.path)).toEqual(['system', 'ui']);
+    } finally {
+      wire.stop();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('other paths do not reload', async () => {
+    const { root, designRoot } = sandbox();
+    const ctx = mkCtx(root, designRoot);
+    let reloads = 0;
+    const wire = wireConfigReload(ctx, { debounceMs: 5, onReloaded: () => reloads++ });
+    try {
+      writeFileSync(join(designRoot, 'config.json'), JSON.stringify(SCAFFOLDED_CONFIG, null, 2));
+      ctx.bus.emit('fs:any', 'system/config.json');
+      ctx.bus.emit('fs:any', 'ui/home.tsx');
+      await wait(40);
+      expect(reloads).toBe(0);
+      expect(ctx.cfg.designSystems).toEqual([]);
+    } finally {
+      wire.stop();
       rmSync(root, { recursive: true, force: true });
     }
   });
