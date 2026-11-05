@@ -6,7 +6,7 @@
 //   .ai/state/STATE.md              (History tables + active **Phase:** line)
 //   .ai/plans/README.md             (Execution order table -> ship targets)
 //
-// Output: site/lib/roadmap.json (committed -- Vercel uploads only site/).
+// Output: site/lib/roadmap.json (committed -- a build may see only site/).
 // Run as prebuild step -- see site/package.json `prebuild`.
 
 import { execFileSync } from 'node:child_process';
@@ -453,7 +453,7 @@ const phases = [
   ...activePlans.map((p) => decorate(p, { archived: false })),
 ];
 
-// No plans found ⇒ we are NOT in the repo (Vercel uploads only site/, so the
+// No plans found ⇒ we are NOT in the repo (a build may see only site/, so the
 // .ai/ sibling does not exist there). Keep the committed roadmap.json instead
 // of overwriting it with an empty one.
 if (phases.length === 0) {

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Mirror the dev-server "What's New" feed into the site so the /whats-new page
-// can render it. Vercel uploads only site/, so site/lib/whats-new.json is
+// can render it. a build may see only site/, so site/lib/whats-new.json is
 // COMMITTED (same rationale as roadmap.json) — the feed itself lives with the
 // dev-server (apps/studio/whats-new.json, the single source of
 // truth, DDR-A) and may be absent at deploy time.
@@ -50,7 +50,7 @@ if (existsSync(feedPath)) {
   if (Array.isArray(parsed.entries)) entries = parsed.entries;
   validateEntries(entries);
 } else {
-  // No feed ⇒ not in the repo (Vercel uploads only site/). Keep the committed
+  // No feed ⇒ not in the repo (a build may see only site/). Keep the committed
   // mirror instead of overwriting it with an empty one — same guard as
   // build-roadmap.mjs.
   console.warn('[whats-new] feed not found — keeping the committed whats-new.json untouched');
