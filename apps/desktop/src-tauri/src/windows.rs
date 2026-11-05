@@ -667,6 +667,19 @@ pub fn open_in_as(
         background,
     };
     if let Err(e) = host.create(&spec) {
+        // fix/205-open-a-cold: another open of this project wrote the entry again and built the
+        // tab while this build waited (a label is one project — `p-<pid>`). That entry and tab
+        // are the open this one asked for: keep them and focus the tab, never take it out.
+        let built_by_other = {
+            let b = book.lock().unwrap_or_else(|e| e.into_inner());
+            host.exists(&label) && b.root_of(&label).is_some_and(|r| pid_for_root(&r) == pid_for_root(root))
+        };
+        if built_by_other {
+            if !background {
+                host.reveal(&label, name);
+            }
+            return Ok(Opened::Existing(label));
+        }
         book.lock()
             .unwrap_or_else(|e| e.into_inner())
             .remove(&label);
@@ -3241,6 +3254,61 @@ mod tests {
         let book = Mutex::new(WindowBook::default());
         assert!(open_in(&failing, &book, B, "Beta", None, 1).is_err());
         assert!(book.lock().unwrap().is_empty());
+    }
+
+    /// A host where a second open of the same project lands between the first open's book
+    /// write and its webview build (two threads, both waiting on the main thread to build) —
+    /// the first build then fails, its label already taken.
+    struct RacingHost<'a> {
+        inner: MockHost,
+        book: &'a Mutex<WindowBook>,
+        raced: std::cell::Cell<bool>,
+    }
+
+    impl WindowHost for RacingHost<'_> {
+        fn exists(&self, label: &str) -> bool {
+            self.inner.exists(label)
+        }
+        fn reveal(&self, label: &str, name: &str) {
+            self.inner.reveal(label, name)
+        }
+        fn create(&self, spec: &WindowSpec) -> Result<(), String> {
+            if !self.raced.replace(true) {
+                let other = open_in_as(self, self.book, A, "Alpha", None, 9, true).unwrap();
+                assert_eq!(other, Opened::New(spec.label.clone()));
+            }
+            if self.inner.exists(&spec.label) {
+                return Err(format!("a webview with label `{}` already exists", spec.label));
+            }
+            self.inner.create(spec)
+        }
+    }
+
+    /// fix/205-open-a-cold: a cold `open -a Maude <folder>` raced the boot's own open of the
+    /// same project. The loser's failed build took the winner's entry out of the book, so the
+    /// built tab was unknown to the strip ("no tab p-…") and its server-ready navigate was
+    /// refused ("no longer shows") — the tab sat on "Still starting". The loser now finds the
+    /// tab the other open built and focuses it.
+    #[test]
+    fn a_build_that_lost_a_race_to_the_same_project_keeps_the_winners_tab() {
+        let book = Mutex::new(WindowBook::default());
+        let host = RacingHost {
+            inner: MockHost::default(),
+            book: &book,
+            raced: std::cell::Cell::new(false),
+        };
+        let opened = open_in(&host, &book, A, "Alpha", None, 1).unwrap();
+        assert_eq!(opened, Opened::Existing(label_of(A)));
+        let b = book.lock().unwrap();
+        assert_eq!(b.root_of(&label_of(A)).as_deref(), Some(A), "the tab stays in the book");
+        assert_eq!(b.tab_labels(), &[label_of(A)]);
+        drop(b);
+        assert_eq!(host.inner.created.borrow().len(), 1, "one project, one tab");
+        // The person asked for it: the tab the other open built in the background is shown.
+        assert_eq!(
+            host.inner.revealed.borrow().as_slice(),
+            &[(label_of(A), "Alpha".to_string())]
+        );
     }
 
     #[test]
