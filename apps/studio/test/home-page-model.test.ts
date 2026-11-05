@@ -8,6 +8,7 @@ import { realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import {
   buildHomeModel,
   cloudRoleWord,
+  connectionOf,
   managedKey,
   relativeTime,
   rowSlug,
@@ -389,7 +390,8 @@ function dupFixtures() {
       okIx(D3, '/Users/x/git/studyfi/studyfi-design'),
     ],
   };
-  return { shell, index, clouds: [] as unknown[] };
+  // the control plane Home's /_config names (cloudOrigin) — the model has no built-in vendor address
+  return { shell, index, clouds: [] as unknown[], cloudUrl: 'https://cloud.maude.sh' };
 }
 
 const localRows = (m: ReturnType<typeof buildHomeModel>) =>
@@ -534,6 +536,20 @@ describe('W4b — how each project is connected, and as whom', () => {
     expect(by(D3)).toBe('Local · this Mac only');
     expect(by(D1)).toBe('Maude Cloud · you@gmail.com');
     expect(by('l00000000000000c7')).toBe('Team server · design.team.example · tereza@team.example');
+  });
+
+  test('before Home knows its control plane, a linked row says nothing (no vendor default)', () => {
+    const f = dupFixtures();
+    const m = buildHomeModel({ ...(f as Parameters<typeof buildHomeModel>[0]), cloudUrl: null });
+    const row = localRows(m).find((r) => r.pid === D1);
+    expect(row?.connection?.kind).toBe('unknown');
+    expect(row?.connection?.words).toBeNull();
+    expect(localRows(m).find((r) => r.pid === D3)?.connection?.words).toBe('Local · this Mac only');
+    // a self-hosted control plane is Maude Cloud for its own cells
+    expect(
+      connectionOf({ hub: 'https://a.cloud.example.test', cloudUrl: 'https://cloud.example.test' })
+        .kind
+    ).toBe('cloud');
   });
 
   test('an account nobody recorded is left out, never guessed', () => {

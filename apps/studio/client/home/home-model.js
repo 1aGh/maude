@@ -99,7 +99,6 @@ function canvasRow(pid, projectName, c) {
 }
 
 const DEFAULT_PROFILE = { id: 'default', label: 'This Mac' };
-const DEFAULT_CLOUD = 'https://cloud.maude.sh';
 
 const hostOfUrl = (url) => {
   try {
@@ -109,10 +108,15 @@ const hostOfUrl = (url) => {
   }
 };
 
-/** A hub of Maude Cloud (the control plane's host or a cell under it) — connections-model's rule. */
-export function isCloudHubUrl(hubUrl, cloudUrl = DEFAULT_CLOUD) {
+/**
+ * A hub of Maude Cloud (the control plane's host or a cell under it) — connections-model's rule.
+ * `cloudUrl` is the control plane this Home server talks to (`/_config.cloudOrigin`, from
+ * `MAUDE_CLOUD_URL`); the client never names the vendor's address itself, so a self-hosted
+ * control plane is "Maude Cloud" here too. Not known yet ⇒ false (nothing is guessed).
+ */
+export function isCloudHubUrl(hubUrl, cloudUrl) {
   const host = hostOfUrl(hubUrl);
-  const cloud = hostOfUrl(cloudUrl || DEFAULT_CLOUD);
+  const cloud = cloudUrl ? hostOfUrl(cloudUrl) : '';
   return !!host && !!cloud && (host === cloud || host.endsWith(`.${cloud}`));
 }
 
@@ -138,8 +142,11 @@ export function copyProjectId(root, boundHub) {
  * "Maude Cloud · <account>", "Team server · <host> · <account>". An account nobody recorded is
  * left out, never guessed.
  */
-export function connectionOf({ hub, profileEmail = null, hubAccount = null, cloudUrl }) {
+export function connectionOf({ hub, profileEmail = null, hubAccount = null, cloudUrl = null }) {
   if (!hub) return { kind: 'local', host: null, account: null, words: 'Local · this Mac only' };
+  // the control plane is not known yet (Home's /_config has not answered): say nothing rather
+  // than call a Maude Cloud project a team server
+  if (!cloudUrl) return { kind: 'unknown', host: hostOfUrl(hub), account: null, words: null };
   if (isCloudHubUrl(hub, cloudUrl)) {
     const account = profileEmail || null;
     return {
@@ -169,7 +176,7 @@ export function buildHomeModel({
   clouds = null,
   filterPid = null,
   hubAccounts = null,
-  cloudUrl = DEFAULT_CLOUD,
+  cloudUrl = null,
 }) {
   const indexed = new Map();
   for (const p of index?.projects ?? []) if (p && typeof p.pid === 'string') indexed.set(p.pid, p);
@@ -386,7 +393,7 @@ function collapseDuplicates(rows, cloudUrl) {
       folders[0],
       c,
       'cloud-copy',
-      isCloudHubUrl(c.boundHub, cloudUrl) ? 'cloud copy' : 'server copy'
+      !cloudUrl ? 'copy' : isCloudHubUrl(c.boundHub, cloudUrl) ? 'cloud copy' : 'server copy'
     );
   }
 

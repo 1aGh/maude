@@ -30,6 +30,10 @@ export function shellModeHint(win = typeof window !== 'undefined' ? window : und
   return null;
 }
 
+/** The Home server's `/_config` answer the boot already read (null until then, or for a project). */
+let bootConfig = null;
+export const homeBootConfig = () => bootConfig;
+
 /**
  * Calls `render(mode, config)` once. Synchronously for a project the hint already names, so the
  * project shell's first paint is unchanged; after one `/_config` request otherwise.
@@ -41,7 +45,10 @@ export function bootShellMode(render, win) {
     return;
   }
   getConfig().then((r) => {
-    if (r.ok && r.json?.mode === 'home') render('home', r.json);
+    if (r.ok && r.json?.mode === 'home') {
+      bootConfig = r.json;
+      render('home', r.json);
+    }
     // the Home window keeps Home even when its server is not answering yet: the page says so
     else if (hint === 'home') render('home', null);
     else render('project', null);

@@ -17,6 +17,7 @@ import {
   createLocalFromPrompt,
   getAccounts,
   getCloud,
+  getConfig,
   getIndex,
   getFirstRunSeen,
   getRecentSearches,
@@ -41,6 +42,7 @@ import {
   takePendingDeepLink,
   thumbObjectUrl,
 } from './home-api.js';
+import { homeBootConfig } from './shell-mode.js';
 import { parseMaudeLink } from '../share-link.js';
 import { browserDoorOf } from '../v2/cloud/browser-door.js';
 import { AdvancedSheets } from '../v2/onboarding/AdvancedSheets.jsx';
@@ -117,6 +119,12 @@ function browserPids() {
   } catch {
     return [];
   }
+}
+
+/** `/_config.cloudOrigin` when it is an http(s) origin, else null. */
+function cloudOriginOf(cfg) {
+  const o = cfg?.cloudOrigin;
+  return typeof o === 'string' && /^https?:\/\/[^/]+$/i.test(o) ? o : null;
 }
 
 // ── data ─────────────────────────────────────────────────────────────────────────────────────
@@ -401,6 +409,22 @@ export function HomeApp() {
   const askingRef = useRef(false);
   const [seen, setSeen] = useState(readSeen);
 
+  // 2.0.5 — the control plane this Home server talks to (`/_config.cloudOrigin`, from
+  // MAUDE_CLOUD_URL): it tells a Maude Cloud project from a team server. The client never names
+  // the vendor's address itself (cloud-shell-surfaces pin); until it is known no row guesses.
+  const [cloudUrl, setCloudUrl] = useState(() => cloudOriginOf(homeBootConfig()));
+  useEffect(() => {
+    if (cloudUrl) return undefined;
+    let live = true;
+    getConfig().then((r) => {
+      const origin = r.ok ? cloudOriginOf(r.json) : null;
+      if (live && origin) setCloudUrl(origin);
+    });
+    return () => {
+      live = false;
+    };
+  }, [cloudUrl]);
+
   // 2.0.5 W4b — the account each profile's team servers vouched for, so a row can say
   // "Team server · <host> · <account>" (public handles from /_home/accounts, never a token)
   const [hubAccounts, setHubAccounts] = useState(null);
@@ -434,8 +458,9 @@ export function HomeApp() {
         clouds: data.clouds,
         filterPid: filterPid || null,
         hubAccounts,
+        cloudUrl,
       }),
-    [data.shell, data.index, data.clouds, filterPid, hubAccounts]
+    [data.shell, data.index, data.clouds, filterPid, hubAccounts, cloudUrl]
   );
   // 2.0.5 W4b — the face at the top right opens every account on this Mac (HomeAccounts.jsx)
   const searchPids = useMemo(
