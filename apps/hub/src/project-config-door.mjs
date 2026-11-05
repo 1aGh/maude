@@ -37,7 +37,9 @@
 // display keys (name, label, tokens path, design systems) are overwritten
 // only in a config.json this door itself created (recorded in the hub's data
 // dir, outside the tenant's reach); a git-seeded, tenant-versioned config is
-// only ever filled in. Keys this door knows nothing about are never touched.
+// only ever filled in — its `designSystems` per system and per field (2.0.5),
+// so an upgraded or a new system still arrives. Keys this door knows nothing
+// about are never touched.
 //
 // IT MUST SURVIVE A COLD START (2.0.2). The file this door writes is never
 // committed, and the marker above is a plain file in the data dir — and a
@@ -183,6 +185,31 @@ function keepSchemaFields(before, after) {
     for (const f of SCHEMA_FIELDS) if (f in kept) d = { ...d, [f]: kept[f] };
     return d;
   });
+}
+
+/**
+ * 2.0.5 — a tenant-versioned config's systems, FILLED IN per system and per field: a system the
+ * config lacks is added, and a system it has gets the sanitized fields it lacks (`ds-upgrade
+ * --apply`'s `schema: 1`, a new `tokensCssRel`). Nothing the config already says changes, and an
+ * entry the door cannot read is left exactly where it is. Filling `designSystems` as one key meant
+ * that once the config named a system, no change the owner made to the systems ever reached the
+ * cell — whose C4 closure and board build read exactly this list.
+ */
+function fillDesignSystems(before, after) {
+  if (!Array.isArray(before)) return before;
+  const incoming = new Map(after.map((d) => [d.name, d]));
+  const named = new Set();
+  const out = before.map((d) => {
+    if (!d || typeof d !== 'object' || Array.isArray(d) || typeof d.name !== 'string') return d;
+    named.add(d.name);
+    const add = incoming.get(d.name);
+    if (!add) return d;
+    let next = d;
+    for (const [f, v] of Object.entries(add)) if (!(f in next)) next = { ...next, [f]: v };
+    return next;
+  });
+  for (const d of after) if (!named.has(d.name)) out.push(d);
+  return out;
 }
 
 /** The subset as it stands in `config.json` now (`null` when unreadable). */
@@ -461,6 +488,7 @@ export async function handleProjectConfigDoor(ctx) {
     if (!(k in existing)) next[k] = v;
     else if (ours && k === 'designSystems') next[k] = keepSchemaFields(existing[k], v);
     else if (ours && k !== 'canvasGroups') next[k] = v;
+    else if (k === 'designSystems') next[k] = fillDesignSystems(existing[k], v);
   }
   const before = JSON.stringify(existing);
   if (JSON.stringify(next) === before) {

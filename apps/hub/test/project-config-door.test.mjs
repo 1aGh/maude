@@ -130,6 +130,70 @@ describe('PUT /api/project-config', () => {
     assert.deepEqual(c.designSystems, [{ name: 'alligators', path: 'system/alligators' }]);
   });
 
+  // 2.0.5 — a tenant-versioned config's `designSystems` was filled as ONE key: once it named a
+  // system, nothing the owner did to the systems reached the cell — `ds-upgrade --apply`'s
+  // `schema: 1`, a system made with `ds make` — and the cell's closure and board build read
+  // exactly that list. Filled in per system and per field now; still nothing it says changes.
+  it('a tenant-versioned config gets an upgraded system’s new fields and a new system, and keeps every value it has', async () => {
+    writeFileSync(
+      join(designRoot, 'config.json'),
+      JSON.stringify({
+        tokensCssRel: 'old.css',
+        designSystems: [
+          { name: 'alligators', path: 'system/alligators', label: 'Gators', rootClass: 'gators' },
+          'not-an-entry',
+        ],
+      })
+    );
+    const r = await put({
+      ...ALLIGATORS,
+      designSystems: [
+        {
+          name: 'alligators',
+          path: 'system/elsewhere',
+          tokensCssRel: 'system/alligators/tokens.css',
+          schema: 1,
+          rootClass: 'other',
+          themes: ['dark', 'light'],
+        },
+        { name: 'kids', path: 'system/kids' },
+      ],
+    });
+    assert.equal(r.status, 200);
+    assert.equal(r.json.changed, true);
+    const c = config();
+    assert.equal(c.tokensCssRel, 'old.css');
+    assert.deepEqual(c.designSystems, [
+      {
+        name: 'alligators',
+        path: 'system/alligators',
+        label: 'Gators',
+        rootClass: 'gators',
+        tokensCssRel: 'system/alligators/tokens.css',
+        schema: 1,
+        themes: ['dark', 'light'],
+      },
+      'not-an-entry',
+      { name: 'kids', path: 'system/kids' },
+    ]);
+    // the same push again changes nothing
+    assert.equal(
+      (await put({ ...ALLIGATORS, designSystems: c.designSystems })).json.changed,
+      false
+    );
+  });
+
+  it('a member’s push still reaches no tenant-versioned system', async () => {
+    const before = JSON.stringify({ designSystems: [{ name: 'alligators', path: 'system/a' }] });
+    writeFileSync(join(designRoot, 'config.json'), before);
+    const r = await put(
+      { designSystems: [{ name: 'alligators', path: 'system/a', schema: 1 }] },
+      { bearer: member }
+    );
+    assert.equal(r.status, 403);
+    assert.equal(readFileSync(join(designRoot, 'config.json'), 'utf8'), before);
+  });
+
   // Review F1: canvasGroups feed the hub's classifier — two owners' desktops
   // must not flip them back and forth on every reconnect.
   it('in a config this door created, display keys follow the owner but groups never change', async () => {

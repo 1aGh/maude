@@ -562,6 +562,34 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
     expect(readFileSync(local, 'utf8')).toBe(two.sides.mine);
   }, 60_000);
 
+  test('#14 — Keep mine on a held css twin proposes the css too (the notice no longer returns after a restart)', async () => {
+    const css = (c: string) => `.flag { color: ${c}; }\n`;
+    alice.write('ui/clash-css.css', css('red'));
+    alice.write('ui/clash-css.tsx', src('clash-css base'));
+    await alice.runtime.rescanNow();
+    await waitFor(async () => {
+      await bob.runtime.pullRemoteNow();
+      return bob.read('ui/clash-css.css') === css('red');
+    }, 'clash-css on bob');
+    alice.write('ui/clash-css.css', css('blue'));
+    bob.write('ui/clash-css.css', css('green'));
+    const rel = 'design/ui/clash-css.tsx';
+    const one = await waitFor(() => {
+      for (const [me, other] of [
+        [alice, bob],
+        [bob, alice],
+      ] as const) {
+        if (me.runtime.conflictVersions?.(rel)) return { loser: me, winner: other };
+      }
+      return null;
+    }, 'a held css conflict on clash-css');
+    const mine = one.loser.read('ui/clash-css.css');
+    const kept = await one.loser.runtime.resolveConflict?.(rel, 'mine');
+    expect(kept?.status).toBe('accepted');
+    await waitFor(() => one.winner.read('ui/clash-css.css') === mine, 'mine to reach the winner');
+    expect(one.loser.runtime.conflictVersions?.(rel)).toBeNull();
+  }, 60_000);
+
   test('a comment proposed through the API reaches the peer replica', async () => {
     const r = alice.runtime.proposeLane?.(
       'ui-home',
