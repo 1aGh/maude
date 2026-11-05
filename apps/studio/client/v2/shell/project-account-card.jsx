@@ -60,9 +60,10 @@ function Line({ k, testid, children }) {
  * @param account projectAccount()
  * @param run (id) => void — the shell's runner (account.switch, account.github-signin)
  * @param onSignOut (path) => Promise — 'cloud-signout' | 'hub-detach' | 'github-signout'
+ * @param onSwitch (spec) => void — a Switch with a `path` (W4b 'hub-switch'), not a registry id
  * @param onClose () => void
  */
-export function ProjectAccountCard({ account, run, onSignOut, onClose }) {
+export function ProjectAccountCard({ account, run, onSignOut, onSwitch, onClose }) {
   const [asking, setAsking] = useState(null); // the signOut spec being confirmed
   const [busy, setBusy] = useState(false);
   if (!account) return null;
@@ -156,7 +157,11 @@ export function ProjectAccountCard({ account, run, onSignOut, onClose }) {
               type="button"
               className="sh-acct-act"
               data-testid="project-account-switch"
-              onClick={() => go(account.switch.id)}
+              onClick={() => {
+                if (!account.switch.path) return go(account.switch.id);
+                onClose?.();
+                onSwitch?.(account.switch);
+              }}
             >
               {account.switch.label}
             </button>

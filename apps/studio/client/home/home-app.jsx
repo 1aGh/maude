@@ -1342,12 +1342,6 @@ const RECENT_CAP = 6;
 
 const STATE_WORD = {
   tab: 'in a tab',
-  mac: (
-    <>
-      <HIcon name="laptop" size={12} />
-      this Mac only
-    </>
-  ),
   cloud: (
     <>
       <HIcon name="cloud" size={12} />
@@ -1355,6 +1349,52 @@ const STATE_WORD = {
     </>
   ),
 };
+
+// 2.0.5 W4b — how a local project is connected and as whom: "Local · this Mac only",
+// "Maude Cloud · <account>", "Team server · <host> · <account>" (home-model `connectionOf`).
+const CONNECTION_ICON = { local: 'laptop', cloud: 'cloud', team: 'server' };
+function ConnectionWords({ row }) {
+  const c = row.connection;
+  if (!c?.words) return null;
+  return (
+    <span
+      className="home-prow-conn"
+      data-testid={`home-project-conn-${row.pid}`}
+      data-kind={c.kind}
+    >
+      <HIcon name={CONNECTION_ICON[c.kind] ?? 'laptop'} size={12} />
+      {c.words}
+    </span>
+  );
+}
+
+// 2.0.5 W4b — the folders folded into this row (a managed cloud copy; another folder on the same
+// design root). Each still opens its own project.
+function RowCopies({ row, canOpen, onOpen }) {
+  if (!row.copies?.length) return null;
+  return (
+    <span className="home-prow-copies">
+      {row.copies.map((c) => (
+        <button
+          key={c.pid}
+          type="button"
+          className="chip home-prow-copy"
+          data-testid={`home-project-copy-${c.pid}`}
+          data-kind={c.kind}
+          onClick={() => onOpen(c.pid)}
+          disabled={!canOpen}
+          {...reasonProps(!canOpen, 'homeBrowser')}
+          title={c.root}
+          aria-label={
+            c.kind === 'folder' ? `Open ${c.label}` : `Open the ${c.label} of ${row.name}`
+          }
+        >
+          {c.kind === 'folder' ? `also ${c.label}` : c.label}
+        </button>
+      ))}
+    </span>
+  );
+}
 
 // A project tab's live state (shell_state `ai` + `place`), canvas 11's words: AI working (a spark
 // while it runs) · Needs you (it is waiting on a decision — the one that asks for you wins) ·
@@ -1474,10 +1514,11 @@ function ProfileGroup({ group, showHeader, canOpen, onOpen, onRelink, onOpenClou
                       {[
                         r.canvasCount != null ? canvasCount(r.canvasCount) : null,
                         STATE_WORD[r.status] ?? null,
+                        r.connection ? <ConnectionWords key="conn" row={r} /> : null,
                       ]
                         .filter(Boolean)
                         .map((part, i) => (
-                          // biome-ignore lint/suspicious/noArrayIndexKey: a fixed two-part line
+                          // biome-ignore lint/suspicious/noArrayIndexKey: a fixed three-part line
                           <span key={i} className="home-prow-part">
                             {i ? ' · ' : ''}
                             {part}
@@ -1489,6 +1530,7 @@ function ProfileGroup({ group, showHeader, canOpen, onOpen, onRelink, onOpenClou
                   <ProjectSquare id={r.pid} name={r.name} />
                 </button>
               )}
+              <RowCopies row={r} canOpen={canOpen} onOpen={onOpen} />
             </li>
           )
         )}

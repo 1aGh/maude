@@ -473,6 +473,22 @@ impl AppState {
         pid
     }
 
+    /// 2.0.5 W4b (c) — fill a registry entry's missing `managed` descriptor from the app-owned
+    /// managed index (`managed-projects.json`): a copy made before the registry carried the
+    /// binding reads `managed: null` and Home called it "this Mac only". In memory, on load;
+    /// never changes a profile, never removes an entry. `copies` = (path, server, projectId).
+    pub fn adopt_managed_index(&mut self, copies: &[(String, String, String)]) {
+        for (path, server, project_id) in copies {
+            let pid = windows::pid_for_root(path);
+            if let Some(e) = self.projects.get_mut(&pid) {
+                if e.managed.is_none() {
+                    e.managed =
+                        Some(serde_json::json!({ "server": server, "projectId": project_id }));
+                }
+            }
+        }
+    }
+
     /// The hub a registered project is bound to by the APP (a managed copy),
     /// never by its own files.
     pub fn managed_server_of(&self, pid: &str) -> Option<String> {
@@ -575,11 +591,13 @@ pub fn state_unreadable(app: &tauri::AppHandle) -> bool {
 
 /// Read persisted state (v2; v1 and the legacy marker migrate transparently).
 pub fn load(app: &tauri::AppHandle) -> AppState {
-    let st = load_from(
+    let mut st = load_from(
         state_path(app).as_deref(),
         legacy_marker(app).as_deref(),
         now_ms(),
     );
+    // W4b (c): a copy registered before the registry carried its binding gets it from the index.
+    st.adopt_managed_index(&crate::managed::index_copies(app));
     cache_display_names(&st);
     st
 }
@@ -593,6 +611,7 @@ fn update<T>(app: &tauri::AppHandle, f: impl FnOnce(&mut AppState, u64) -> T) ->
         legacy_marker(app).as_deref(),
         now,
     );
+    st.adopt_managed_index(&crate::managed::index_copies(app));
     let out = f(&mut st, now);
     if let Some(p) = state_path(app) {
         save_to(&p, &mut st);
@@ -670,6 +689,39 @@ pub(crate) fn settle_sign_in(
         rebound: profile != current,
         profile,
     })
+}
+
+/// 2.0.5 W4b — before a team-server sign-in from a project page (Switch, option A). A team
+/// server's credential lands in the profile's `hubs.json`, so a sign-in as someone else on a
+/// profile OTHER projects share would re-sign them too (V2-3.8 forbids it). When the project
+/// shares its profile, it moves onto a fresh profile of its own first and is bound to it
+/// (`Some(id)` — its server must restart onto it); alone on its profile, nothing changes
+/// (`None` — go ahead). Socket-free, so it is testable.
+pub(crate) fn prepare_team_switch(
+    st: &mut AppState,
+    registry: &Path,
+    root: &str,
+    label: &str,
+    now: u64,
+) -> Result<Option<String>, String> {
+    let current = st.profile_for(root);
+    let pid = windows::pid_for_root(root);
+    if st.others_on_profile(&current, &pid) == 0 {
+        return Ok(None);
+    }
+    let fresh = profiles::create_capped_in(registry, label)?;
+    st.bind(root, &fresh.id, now);
+    Ok(Some(fresh.id))
+}
+
+/// `prepare_team_switch` through the app-state lock, against the real registry.
+pub fn prepare_team_switch_app(
+    app: &tauri::AppHandle,
+    root: &str,
+    label: &str,
+) -> Result<Option<String>, String> {
+    let registry = profiles::registry_file();
+    update(app, |st, now| prepare_team_switch(st, &registry, root, label, now))
 }
 
 /// `settle_sign_in` through the app-state lock, against the real registry.
@@ -1132,6 +1184,60 @@ mod tests {
 
     fn ids(reg: &Path) -> Vec<String> {
         profiles::list_in(reg).into_iter().map(|p| p.id).collect()
+    }
+
+    // ── 2.0.5 W4b: team-server Switch ─────────────────────────────────────────
+
+    #[test]
+    fn team_switch_on_a_shared_profile_moves_only_this_project() {
+        let (reg, mut st, shared) = shared_fixture("w4bshared");
+        let (a, b) = ("/v238/w4bshared/a", "/v238/w4bshared/b");
+        let before = ids(&reg);
+        let out = prepare_team_switch(&mut st, &reg, a, "Alligators", 3).unwrap();
+        let fresh = out.expect("a shared profile is never re-signed: A moves to its own");
+        assert_ne!(fresh, shared);
+        assert!(!before.contains(&fresh) && ids(&reg).contains(&fresh));
+        assert_eq!(st.profile_for(a), fresh, "A is bound to the fresh profile");
+        assert_eq!(st.profile_for(b), shared, "B keeps the shared profile");
+        // A is now alone: a second Switch signs in where it is.
+        assert_eq!(prepare_team_switch(&mut st, &reg, a, "Alligators", 4).unwrap(), None);
+    }
+
+    #[test]
+    fn team_switch_alone_on_its_profile_changes_nothing() {
+        let (reg, mut st, shared) = shared_fixture("w4balone");
+        st.bind("/v238/w4balone/b", "default", 2);
+        let before = ids(&reg);
+        assert_eq!(
+            prepare_team_switch(&mut st, &reg, "/v238/w4balone/a", "A", 3).unwrap(),
+            None
+        );
+        assert_eq!(ids(&reg), before, "no profile is made");
+        assert_eq!(st.profile_for("/v238/w4balone/a"), shared);
+    }
+
+    #[test]
+    fn the_managed_index_fills_a_missing_binding_and_nothing_else() {
+        let mut st = AppState::default();
+        let copy = "/data/projects/alligators.cloud.maude.sh--alligators";
+        let pid = st.upsert(copy, 1);
+        let other = st.upsert("/Users/x/Maude/alligators", 1);
+        let kept = st.bind_managed("/data/projects/b.test--q", "work", "https://b.test", "q", 1);
+        let copies = vec![
+            (copy.to_string(), "https://alligators.cloud.maude.sh".to_string(), "alligators".to_string()),
+            ("/data/projects/b.test--q".to_string(), "https://elsewhere.test".to_string(), "z".to_string()),
+            ("/data/projects/never-registered".to_string(), "https://c.test".to_string(), "c".to_string()),
+        ];
+        st.adopt_managed_index(&copies);
+        assert_eq!(
+            st.projects[&pid].managed,
+            Some(serde_json::json!({ "server": "https://alligators.cloud.maude.sh", "projectId": "alligators" }))
+        );
+        assert_eq!(st.managed_server_of(&pid).as_deref(), Some("https://alligators.cloud.maude.sh"));
+        assert_eq!(st.projects[&other].managed, None, "a user folder is never a managed copy");
+        assert_eq!(st.managed_server_of(&kept).as_deref(), Some("https://b.test"), "a recorded binding wins");
+        assert_eq!(st.profile_for(copy), "default", "the profile is not touched");
+        assert_eq!(st.projects.len(), 3, "nothing is added or pruned");
     }
 
     #[test]

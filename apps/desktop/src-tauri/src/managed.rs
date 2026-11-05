@@ -376,6 +376,16 @@ pub fn bound_copies(app: &tauri::AppHandle) -> Vec<(String, String)> {
         .collect()
 }
 
+/// `(path, server, projectId)` of every managed copy in the app-owned index — W4b (c): the
+/// registry re-derives a missing `managed` descriptor from it on load (`adopt_managed_index`).
+pub fn index_copies(app: &tauri::AppHandle) -> Vec<(String, String, String)> {
+    load_index(app)
+        .projects
+        .into_iter()
+        .map(|p| (p.path, p.server_url, p.project_id))
+        .collect()
+}
+
 /// The projects this computer keeps a managed copy of, most recent first.
 #[tauri::command]
 pub fn managed_projects_list(

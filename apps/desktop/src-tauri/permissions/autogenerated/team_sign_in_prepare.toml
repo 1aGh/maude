@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-team-sign-in-prepare"
+description = "Enables the team_sign_in_prepare command without any pre-configured scope."
+commands.allow = ["team_sign_in_prepare"]
+
+[[permission]]
+identifier = "deny-team-sign-in-prepare"
+description = "Denies the team_sign_in_prepare command without any pre-configured scope."
+commands.deny = ["team_sign_in_prepare"]

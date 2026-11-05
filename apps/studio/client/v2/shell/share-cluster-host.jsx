@@ -53,7 +53,7 @@ import { normalizeOpenPath } from '../../share-link.js';
 import { useAccount } from './use-account.js';
 import { useCanvasModeLane } from './use-canvas-mode-lane.js';
 import { usePanelLayout } from './use-panel-layout.js';
-import { isNativeApp } from '../../github.js';
+import { invoke as shellInvoke, isNativeApp, openTeamServerSignIn } from '../../github.js';
 import {
   chosenDisplay,
   presenterAvailable,
@@ -64,6 +64,7 @@ import { CLOUD_CHANGED_EVENT } from '../../panels/CloudBar.jsx';
 import { GitHubSignInSheet, useGitHubSignInHost } from './github-signin-host.jsx';
 import { ProjectAccountCard, ProjectAccountPopover } from './project-account-card.jsx';
 import { projectAccount } from './project-account-model.js';
+import { runTeamSwitch } from './team-switch.js';
 
 /** 2.0.5 W4 — the team server sign-in's recorded account (`GET /_api/connections/hub`, Settings' own read). */
 function useHubAccount(enabled, url) {
@@ -100,6 +101,16 @@ async function detachHub(host) {
     shellToast(`Signed out of ${host || 'the team server'}. Your work stays on this Mac.`, true);
   } catch {
     shellToast('Could not sign out. Nothing changed — try again.');
+  }
+}
+
+/** `{ ok, status, json }` of a same-origin JSON call (team-switch.js's `api`). */
+async function jsonFetch(path, init) {
+  try {
+    const r = await fetch(path, init);
+    return { ok: r.ok, status: r.status, json: await r.json().catch(() => null) };
+  } catch {
+    return { ok: false, status: 0, json: null };
   }
 }
 
@@ -350,6 +361,29 @@ export function ShellShareCluster() {
     },
     [acct, gh, projectAcct.where]
   );
+  // 2.0.5 W4b — Switch / Sign in for a team server: `team_sign_in_prepare` first (bind-on-sign-in for
+  // a hub), then the server's own page. Words come back as one toast.
+  const switchPath = useCallback(
+    async (spec) => {
+      if (spec?.path !== 'hub-switch') return;
+      const r = await runTeamSwitch({
+        url: spec.url,
+        native,
+        invoke: shellInvoke,
+        api: jsonFetch,
+        openPage: openTeamServerSignIn,
+        wait: (ms) => new Promise((res) => setTimeout(res, ms)),
+      });
+      if (r.cancelled) return;
+      if (r.message) shellToast(r.message, true);
+      else if (r.error) shellToast(r.error);
+      if (r.ok && !r.moved)
+        window.dispatchEvent(
+          new CustomEvent(CLOUD_CHANGED_EVENT, { detail: { from: 'account-card' } })
+        );
+    },
+    [native]
+  );
   // S9.23 — the faces' menu and people list: where people are, Follow / Go to / Bring everyone here.
   const presence = usePresenceHost({
     lane,
@@ -392,6 +426,7 @@ export function ShellShareCluster() {
                   account={projectAcct}
                   run={(id) => menuRunner.run(id)}
                   onSignOut={signOutPath}
+                  onSwitch={switchPath}
                   onClose={closeAcct}
                 />
               </ProjectAccountPopover>

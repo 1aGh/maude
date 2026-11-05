@@ -861,6 +861,25 @@
     align-items: center;
     gap: var(--space-1);
   }
+  /* 2.0.5 W4b — how a project is connected, and the folders folded into its row */
+  .home-prow-conn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .home-prow-copies {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    /* under the name: past the 44px cover and the row's gap */
+    padding: 0 var(--space-2) var(--space-1) calc(44px + var(--space-3) + var(--space-2));
+  }
+  .home-root .chip.home-prow-copy {
+    font-size: var(--type-xs);
+  }
   /* live state on a project row (V2-3.3): AI working · Needs you · Resting (canvas 11 pn-bmore-st) */
   .home-root .chip.home-prow-ai {
     flex: none;

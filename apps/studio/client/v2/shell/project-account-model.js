@@ -18,8 +18,9 @@
 // Switch, per kind — through the bind-on-sign-in rule (decision v2-3.8-bind-on-sign-in):
 //   cloud           `account.switch` → `cloud_sign_in_prepare` (a fresh profile bound to this project)
 //   github          `account.github-signin` → `github_sign_in` (settle_sign_in rebinds on another login)
-//   team server     NONE yet — no shell path binds a hub sign-in to a fresh profile, so a re-sign would
-//                   replace the account of every project on a shared profile. Hidden, not dead.
+//   team server     W4b: `hub-switch` → `team_sign_in_prepare` (this project moves to a fresh profile
+//                   of its own when its profile is shared — the shell restarts it, the page reloads,
+//                   the person signs in there) → `/_api/hub-signin/start` + the server's own page.
 // A browser tab on this Mac has no shell: it says what is known and offers no button. A cloud tab's
 // account is the hub's browser session: `account.switch` ends it (the v1 menubar's Sign out).
 
@@ -125,18 +126,26 @@ export function projectAccount(input = {}) {
         },
       };
       sw = { id: 'account.switch', label: labelOf('account.switch') };
-    } else if (kind === 'team' && linkedHub?.credentialed) {
+    } else if (kind === 'team') {
       const host = where || 'this server';
-      signOut = {
-        path: 'hub-detach',
-        label: `Sign out of ${host}…`,
-        confirm: {
-          title: `Sign out of ${host}?`,
-          body: 'This folder stops syncing with it. Your work stays on this Mac.',
-          primary: 'Sign out',
-          cancel: 'Cancel',
-        },
+      // 2.0.5 W4b — Switch through `team_sign_in_prepare`: a project on a profile other projects
+      // share first moves to its own (the shell restarts it); then the team server's own page.
+      sw = {
+        path: 'hub-switch',
+        url: hubUrl,
+        label: linkedHub?.credentialed ? 'Sign in as someone else…' : `Sign in to ${host}…`,
       };
+      if (linkedHub?.credentialed)
+        signOut = {
+          path: 'hub-detach',
+          label: `Sign out of ${host}…`,
+          confirm: {
+            title: `Sign out of ${host}?`,
+            body: 'This folder stops syncing with it. Your work stays on this Mac.',
+            primary: 'Sign out',
+            cancel: 'Cancel',
+          },
+        };
     } else if (kind === 'github' && ghLogin) {
       signOut = {
         path: 'github-signout',
