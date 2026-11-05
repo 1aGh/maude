@@ -20,10 +20,11 @@
 // pure functions in site/lib/updater-feed.mjs, tested by
 // scripts/test/updater-feed.test.mjs — keep the logic there, not here.
 //
-// Set GITHUB_TOKEN in the Vercel project to lift the 60-req/h unauthenticated
+// Set GITHUB_TOKEN (Worker secret / Vercel env) to lift the 60-req/h unauthenticated
 // GitHub API limit; the response is CDN-cached for 5 min so real traffic rarely
 // hits the API.
 
+import { withEdgeCache } from '@/lib/edge-cache';
 import { gitConfig } from '@/lib/shared';
 import { PLATFORM_EXT, pickArtifact, releasesApiPath, selectRelease } from '@/lib/updater-feed.mjs';
 
@@ -53,10 +54,15 @@ function ghHeaders(): HeadersInit {
   return h;
 }
 
-export async function GET(
-  _req: Request,
-  { params }: { params: Promise<{ target: string; arch: string; current_version: string }> }
-) {
+type Ctx = { params: Promise<{ target: string; arch: string; current_version: string }> };
+
+// `withEdgeCache`: on Cloudflare Workers the s-maxage below is not honoured by a CDN in front
+// of the route, so the Workers Cache API holds the answer instead (a pass-through elsewhere).
+export function GET(req: Request, ctx: Ctx) {
+  return withEdgeCache(req, () => feed(ctx));
+}
+
+async function feed({ params }: Ctx) {
   const { target, arch, current_version } = await params;
 
   if (!(PLATFORM_EXT as Record<string, string[]>)[target]) {
@@ -70,7 +76,7 @@ export async function GET(
       `https://api.github.com/repos/${REPO}/${releasesApiPath(current_version)}`,
       {
         headers: ghHeaders(),
-        // Let Vercel's data cache hold the API result for 5 min.
+        // Hold the API result for 5 min (Next data cache; read-only and inert on Workers).
         next: { revalidate: 300 },
       }
     );

@@ -1,0 +1,33 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Public site (maude.sh). Built by `pnpm cf:build` (OpenNext), deployed by
+  // .github/workflows/site-deploy.yml. See README.md § "Cloudflare Workers".
+  "name": "maude-site",
+  // worker.mjs wraps .open-next/worker.js (byte ranges for the mp4s, which static assets do not serve).
+  "main": "worker.mjs",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS",
+    // Only the videos pass through the Worker first (206 for Range); see worker.mjs.
+    "run_worker_first": ["/*.mp4"]
+  },
+  "services": [
+    {
+      // OpenNext's self-reference binding; the service name must match "name" above.
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "maude-site"
+    }
+  ],
+  "observability": { "enabled": true },
+
+  // Custom domains, live since the DNS switch on 2026-11-05. `wrangler deploy` reconciles a
+  // script's custom domains against this list and detaches any it does not declare, so these
+  // two lines are what keep maude.sh on this worker. www.maude.sh 301s to the apex through a
+  // zone redirect rule (Rules > Redirect Rules), before it reaches the worker.
+  "routes": [
+    { "pattern": "maude.sh", "custom_domain": true },
+    { "pattern": "www.maude.sh", "custom_domain": true }
+  ]
+}

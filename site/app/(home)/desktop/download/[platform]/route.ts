@@ -21,6 +21,7 @@
 // list is now read uncached and the REDIRECT carries the cache — bounded, never served stale, and
 // short whenever the newest release's installer is not uploaded yet (see `downloadRedirect`).
 
+import { withEdgeCache } from '@/lib/edge-cache';
 import { gitConfig } from '@/lib/shared';
 import { DOWNLOAD_CACHE_PENDING, downloadRedirect } from '@/lib/updater-feed.mjs';
 
@@ -44,7 +45,15 @@ function redirect(location: string, cacheControl: string): Response {
   });
 }
 
-export async function GET(_req: Request, { params }: { params: Promise<{ platform: string }> }) {
+type Ctx = { params: Promise<{ platform: string }> };
+
+// `withEdgeCache`: on Workers nothing in front of the route honours the redirect's
+// Cache-Control, so the Workers Cache API does (a pass-through elsewhere).
+export function GET(req: Request, ctx: Ctx) {
+  return withEdgeCache(req, () => resolve(ctx));
+}
+
+async function resolve({ params }: Ctx) {
   const { platform } = await params;
 
   try {
