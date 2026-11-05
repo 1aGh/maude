@@ -22,6 +22,7 @@ mod deep_link;
 mod doors;
 mod export_save;
 mod external_link;
+mod folder_open;
 mod github_home;
 mod home;
 mod idle_rest;
@@ -428,6 +429,37 @@ fn remember_and_open(app: &tauri::AppHandle, path: PathBuf, caller: Option<Strin
             Ok(_) => {}
             Err(e) => sidecar::log_line(&format!("[maude] could not open {}: {e}", path.display())),
         }
+    });
+}
+
+/// fix/ds-convert-hooks-cli #13b — `open -a Maude <folder>`, Finder's Open With, a folder on the
+/// Dock icon: macOS sends `RunEvent::Opened` with `file://` URLs. Each one that names a project
+/// folder (`folder_open` validates it like a deep link: untrusted) opens through File ▸ Open's
+/// own path — open-once, so an open project focuses its tab. The launch event can beat `setup`.
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+fn open_folders(app: &tauri::AppHandle, urls: &[tauri::Url]) {
+    let (roots, refused) = folder_open::project_roots(urls);
+    for (what, why) in refused {
+        sidecar::log_line(&format!("[maude] not opening {what} as a project: {why:?}"));
+    }
+    if roots.is_empty() {
+        return;
+    }
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        for _ in 0..100 {
+            if app.try_state::<SidecarState>().is_some() {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        }
+        if app.try_state::<SidecarState>().is_none() {
+            return;
+        }
+        for root in roots {
+            remember_and_open(&app, root, None);
+        }
+        windows::reveal_front(&app);
     });
 }
 
@@ -885,6 +917,9 @@ pub fn run() {
                 lifecycle::clean_exit(app_handle);
             }
         }
+        // #13b: a folder handed to the app (`open -a Maude <folder>`, Open With).
+        #[cfg(any(target_os = "macos", target_os = "ios"))]
+        RunEvent::Opened { urls } => open_folders(app_handle, &urls),
         // Dock click with the shell hidden (its close button, V2-3.7): show it
         // again on the tab that was active.
         #[cfg(target_os = "macos")]
