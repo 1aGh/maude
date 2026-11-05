@@ -438,43 +438,70 @@ fn remember_and_open(app: &tauri::AppHandle, path: PathBuf, caller: Option<Strin
 /// own path — open-once, so an open project focuses its tab. The launch event arrives while
 /// `setup` is still building the boot tabs (fix/205-open-a-cold): its folders wait in
 /// `folder_open::BOOT_GATE` until `setup` opens it (`open_queued_folders`).
+///
+/// 2.0.5: on macOS this is also where `maude://` links are taken. The deep-link plugin turns the
+/// same event into its `on_open_url` callback, but a cold launch's event comes before `setup`
+/// registers that callback, so the link was lost; taking links here keeps them in order with the
+/// folders, and the callback is registered only where links arrive some other way.
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 fn open_folders(app: &tauri::AppHandle, urls: &[tauri::Url]) {
-    let (roots, refused) = folder_open::project_roots(urls);
+    let (items, refused) = folder_open::arrivals(urls);
     for (what, why) in refused {
         sidecar::log_line(&format!("[maude] not opening {what} as a project: {why:?}"));
     }
-    if roots.is_empty() {
+    if items.is_empty() {
         return;
     }
-    let now = folder_open::BOOT_GATE.offer(roots);
+    let now = folder_open::BOOT_GATE.offer(items);
     if now.is_empty() {
-        sidecar::log_line("[maude] a folder was opened before the window was ready — it opens after boot");
+        sidecar::log_line("[maude] a folder or link arrived before the window was ready — it opens after boot");
         return;
     }
-    open_roots(app, now);
+    handle_arrivals(app, now);
 }
 
-/// Open each folder root as File ▸ Open does (open-once), then show the window.
-fn open_roots(app: &tauri::AppHandle, roots: Vec<PathBuf>) {
-    for root in roots {
-        remember_and_open(app, root, None);
-    }
-    let app = app.clone();
+/// Each arrival in its order, off the main thread (building a tab waits on it): a folder opens
+/// as File ▸ Open does (open-once), a link routes as a warm link does. Then the window shows.
+fn handle_arrivals(app: &tauri::AppHandle, items: Vec<folder_open::Arrival>) {
+    // (Named `handle`, not `app`: a windows.rs source pin reads the span after
+    // `open_local_project` for an Adopt-only `set_last_project(&app` call.)
+    let handle = app.clone();
     tauri::async_runtime::spawn(async move {
-        windows::reveal_front(&app);
+        let mut folder = false;
+        for item in items {
+            match item {
+                folder_open::Arrival::Folder(root) => {
+                    folder = true;
+                    app_state::set_last_project(&handle, &root);
+                    if let Err(e) = windows::open_project_window(
+                        &handle,
+                        &root,
+                        None,
+                        None,
+                        app_state::Binding::Adopt,
+                    ) {
+                        sidecar::log_line(&format!("[maude] could not open {}: {e}", root.display()));
+                    }
+                }
+                folder_open::Arrival::Link(url) => deep_link::route_now(&handle, &url),
+            }
+        }
+        if folder {
+            windows::reveal_front(&handle);
+        }
     });
 }
 
-/// End of `setup`: the shell, Home and the boot tabs exist, so the folders a cold launch was
-/// handed (`open -a Maude <folder>`) open now. A folder the boot already shows focuses its tab.
+/// End of `setup`: the shell, Home and the restored tabs exist, so what a cold launch was handed
+/// (`open -a Maude <folder>`, a `maude://` link) is handled now, in its order. A folder the
+/// restore already shows focuses its tab.
 fn open_queued_folders(app: &tauri::AppHandle) {
     let queued = folder_open::BOOT_GATE.open();
     if queued.is_empty() {
         return;
     }
-    sidecar::log_line(&format!("[maude] opening {} folder(s) handed to the launch", queued.len()));
-    open_roots(app, queued);
+    sidecar::log_line(&format!("[maude] handling {} folder(s)/link(s) handed to the launch", queued.len()));
+    handle_arrivals(app, queued);
 }
 
 /// Open project… (⌘O, Home's "Open a folder"): the folder picker, then open it
@@ -716,9 +743,12 @@ pub fn run() {
             #[cfg(target_os = "linux")]
             linux_media::warn_if_incomplete(&handle);
 
-            // maude:// links (Phase 17). macOS delivers through the plugin;
-            // the state is parked until the client asks for it.
+            // maude:// links (Phase 17); the state is parked until the client asks for it.
+            // On macOS a link arrives as `RunEvent::Opened`, which `open_folders` takes (2.0.5 —
+            // a launch link comes before this callback exists); listening here as well would
+            // route every warm link twice. Elsewhere the plugin's callback is the way in.
             app.manage(picked_media::PickedMediaRegistry::default());
+            #[cfg(not(any(target_os = "macos", target_os = "ios")))]
             {
                 use tauri_plugin_deep_link::DeepLinkExt;
                 let dl_handle = handle.clone();

@@ -57,21 +57,58 @@ pub fn project_root_from_url(url: &tauri::Url) -> Result<PathBuf, Refusal> {
     Ok(root)
 }
 
-/// The project roots of one `Opened` event: `file://` URLs only, each validated, deduplicated,
-/// at most `MAX_PER_EVENT`. Refusals are returned for the log.
-pub fn project_roots(urls: &[tauri::Url]) -> (Vec<PathBuf>, Vec<(String, Refusal)>) {
-    let mut roots: Vec<PathBuf> = Vec::new();
+/// One thing a launch (or a running app) was handed: a project folder, or a `maude://` link
+/// (routed by `deep_link::route_now`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Arrival {
+    Folder(PathBuf),
+    Link(String),
+}
+
+/// The arrivals of one `Opened` event, in the event's order: each `file://` URL validated as a
+/// project folder, each `maude://` link (bounded like a URL). Each once, at most `MAX_PER_EVENT`
+/// folders and `MAX_PER_EVENT` links; anything else is dropped. Refusals are returned for the log.
+pub fn arrivals(urls: &[tauri::Url]) -> (Vec<Arrival>, Vec<(String, Refusal)>) {
+    let mut out: Vec<Arrival> = Vec::new();
     let mut refused = Vec::new();
+    let count = |out: &Vec<Arrival>, folder: bool| {
+        out.iter()
+            .filter(|a| matches!(a, Arrival::Folder(_)) == folder)
+            .count()
+    };
     for url in urls {
+        if url.scheme() == "maude" {
+            let link = Arrival::Link(url.as_str().to_string());
+            if url.as_str().len() <= MAX_URL
+                && !out.contains(&link)
+                && count(&out, false) < MAX_PER_EVENT
+            {
+                out.push(link);
+            }
+            continue;
+        }
         match project_root_from_url(url) {
-            Ok(root) if roots.contains(&root) => {}
-            Ok(root) if roots.len() < MAX_PER_EVENT => roots.push(root),
+            Ok(root) if out.contains(&Arrival::Folder(root.clone())) => {}
+            Ok(root) if count(&out, true) < MAX_PER_EVENT => out.push(Arrival::Folder(root)),
             Ok(root) => refused.push((root.display().to_string(), Refusal::Malformed)),
-            // A `maude://` URL is the deep-link plugin's; not a refusal worth logging.
             Err(Refusal::NotFile) => {}
             Err(why) => refused.push((url.path().to_string(), why)),
         }
     }
+    (out, refused)
+}
+
+/// The project roots of one `Opened` event (`arrivals`' folders).
+#[cfg(test)]
+pub fn project_roots(urls: &[tauri::Url]) -> (Vec<PathBuf>, Vec<(String, Refusal)>) {
+    let (all, refused) = arrivals(urls);
+    let roots = all
+        .into_iter()
+        .filter_map(|a| match a {
+            Arrival::Folder(p) => Some(p),
+            Arrival::Link(_) => None,
+        })
+        .collect();
     (roots, refused)
 }
 
@@ -81,14 +118,16 @@ pub fn project_roots(urls: &[tauri::Url]) -> (Vec<PathBuf>, Vec<(String, Refusal
 /// loser's failed webview build took the winner's entry back out, and the tab stayed on
 /// "Still starting" with the strip answering "no tab p-…". So folders wait here until boot is
 /// done (`open`), then open through File ▸ Open's open-once path — a folder the restored session
-/// already shows focuses its tab.
+/// already shows focuses its tab. A cold-launch `maude://` link waits here too (it would race
+/// the boot the same way, and before `setup` no listener even hears it): restore first, then
+/// every arrival in its order.
 pub struct BootGate {
     inner: std::sync::Mutex<GateInner>,
 }
 
 struct GateInner {
     booted: bool,
-    queued: Vec<PathBuf>,
+    queued: Vec<Arrival>,
 }
 
 impl BootGate {
@@ -101,26 +140,32 @@ impl BootGate {
         }
     }
 
-    /// The roots of one `Opened` event: returned to open NOW once boot is done; before that
-    /// queued (each once, at most `MAX_PER_EVENT` in all — a burst past it is dropped) and
-    /// nothing is returned.
-    pub fn offer(&self, roots: Vec<PathBuf>) -> Vec<PathBuf> {
+    /// The arrivals of one event: returned to handle NOW once boot is done; before that queued
+    /// (each once, at most `MAX_PER_EVENT` folders and `MAX_PER_EVENT` links in all — a burst
+    /// past it is dropped) and nothing is returned.
+    pub fn offer(&self, items: Vec<Arrival>) -> Vec<Arrival> {
         // One lock for the check and the queue: an offer racing `open` is either drained by
         // it or sees `booted` — never lost in between.
         let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         if g.booted {
-            return roots;
+            return items;
         }
-        for root in roots {
-            if !g.queued.contains(&root) && g.queued.len() < MAX_PER_EVENT {
-                g.queued.push(root);
+        for item in items {
+            let folder = matches!(item, Arrival::Folder(_));
+            let same_kind = g
+                .queued
+                .iter()
+                .filter(|q| matches!(q, Arrival::Folder(_)) == folder)
+                .count();
+            if !g.queued.contains(&item) && same_kind < MAX_PER_EVENT {
+                g.queued.push(item);
             }
         }
         Vec::new()
     }
 
-    /// Boot is done: the queued roots, in arrival order. Every later `offer` opens at once.
-    pub fn open(&self) -> Vec<PathBuf> {
+    /// Boot is done: the queued arrivals, in arrival order. Every later `offer` passes through.
+    pub fn open(&self) -> Vec<Arrival> {
         let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         g.booted = true;
         std::mem::take(&mut g.queued)
@@ -140,8 +185,83 @@ pub static BOOT_GATE: BootGate = BootGate::new();
 mod tests {
     use super::*;
 
-    fn p(s: &str) -> PathBuf {
-        PathBuf::from(s)
+    fn p(s: &str) -> Arrival {
+        Arrival::Folder(PathBuf::from(s))
+    }
+
+    fn l(s: &str) -> Arrival {
+        Arrival::Link(s.to_string())
+    }
+
+    /// 2.0.5: a cold-launch `maude://` link raced the boot like a folder did (and before
+    /// `setup` no listener heard it at all). It waits, and comes out in its place among the
+    /// folders — after the restore, which `setup` does before it opens the gate.
+    #[test]
+    fn a_link_offered_before_boot_waits_in_its_place_among_the_folders() {
+        let gate = BootGate::new();
+        assert!(
+            gate.offer(vec![p("/a"), l("maude://open/x")]).is_empty(),
+            "no link is routed before boot"
+        );
+        assert!(gate.offer(vec![p("/b"), l("maude://open/y")]).is_empty());
+        assert_eq!(
+            gate.open(),
+            vec![p("/a"), l("maude://open/x"), p("/b"), l("maude://open/y")]
+        );
+        // Warm: a link passes straight through, unchanged.
+        assert_eq!(
+            gate.offer(vec![l("maude://open/x")]),
+            vec![l("maude://open/x")]
+        );
+    }
+
+    #[test]
+    fn the_queue_holds_each_link_once_and_at_most_three_besides_the_folders() {
+        let gate = BootGate::new();
+        let links: Vec<Arrival> = (0..5).map(|i| l(&format!("maude://open/p{i}"))).collect();
+        assert!(gate
+            .offer(vec![links[0].clone(), links[0].clone()])
+            .is_empty());
+        assert!(gate.offer(links[1..].to_vec()).is_empty());
+        assert!(gate.offer(vec![p("/a")]).is_empty());
+        let mut want = links[..MAX_PER_EVENT].to_vec();
+        want.push(p("/a"));
+        assert_eq!(
+            gate.open(),
+            want,
+            "the link cap does not eat the folder's place"
+        );
+    }
+
+    #[test]
+    fn an_opened_event_keeps_its_folders_and_links_in_order() {
+        let tmp = scratch("arrivals");
+        let a = project(tmp.as_path(), "a");
+        let b = project(tmp.as_path(), "b");
+        let urls = vec![
+            tauri::Url::parse("maude://open/one").unwrap(),
+            url_for(&a),
+            tauri::Url::parse("https://example.com/x").unwrap(),
+            tauri::Url::parse("maude://open/one").unwrap(),
+            url_for(&b),
+            tauri::Url::parse("maude://open/two").unwrap(),
+        ];
+        let (got, refused) = arrivals(&urls);
+        assert_eq!(
+            got,
+            vec![
+                l("maude://open/one"),
+                Arrival::Folder(a),
+                Arrival::Folder(b),
+                l("maude://open/two"),
+            ]
+        );
+        assert!(refused.is_empty(), "an https URL is not ours to refuse");
+        let long = tauri::Url::parse(&format!("maude://open/{}", "a".repeat(MAX_URL))).unwrap();
+        assert!(
+            arrivals(&[long]).0.is_empty(),
+            "an over-long link is dropped"
+        );
     }
 
     #[test]
