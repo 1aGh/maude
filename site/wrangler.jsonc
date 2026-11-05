@@ -20,12 +20,14 @@
       "service": "maude-site"
     }
   ],
-  "observability": { "enabled": true }
+  "observability": { "enabled": true },
 
-  // Custom domain: set on the DNS switch (README.md § "The DNS switch"). Until then the
-  // site is only reachable on its workers.dev URL.
-  // "routes": [
-  //   { "pattern": "maude.sh", "custom_domain": true },
-  //   { "pattern": "www.maude.sh", "custom_domain": true }
-  // ]
+  // Custom domains, live since the DNS switch on 2026-11-05. `wrangler deploy` reconciles a
+  // script's custom domains against this list and detaches any it does not declare, so these
+  // two lines are what keep maude.sh on this worker. www.maude.sh 301s to the apex through a
+  // zone redirect rule (Rules > Redirect Rules), before it reaches the worker.
+  "routes": [
+    { "pattern": "maude.sh", "custom_domain": true },
+    { "pattern": "www.maude.sh", "custom_domain": true }
+  ]
 }
