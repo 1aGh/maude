@@ -63,6 +63,8 @@ export function useProjectData({
           dsRevGaps: data.dsRevGaps ?? {},
           // gate-b-c4j — canvases that import another canvas do not render; the stage says why (viewport.jsx).
           canvasImportsCanvases: data.canvasImportsCanvases ?? {},
+          // 2.0.5 (#205) — canvases whose built module was refused for a file another canvas owns.
+          canvasRefusedInputs: data.canvasRefusedInputs ?? {},
         }));
       },
       onError: (error) => {

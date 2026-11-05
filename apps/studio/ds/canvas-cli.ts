@@ -3,7 +3,11 @@
 
 import { readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
+import { canvasImportsReport } from '../access/closure.ts';
+import { closureConfigFor } from '../access/known-canvases.ts';
+import { diskProjectReader } from '../access/request.ts';
 import { claimWritesSync } from '../bin/_write-claim.mjs';
+import { canvasImportsLines } from '../client/v2/code/canvas-imports-words.js';
 import {
   type CanvasContext,
   type CanvasReport,
@@ -338,9 +342,45 @@ export function runCanvasModes(
         ? `${args.dryRun ? 'would fix' : 'fixed'}: ${fixed.map((f) => `${f.file} (${f.edits})`).join(', ')}`
         : 'nothing to fix'
     );
-  for (const r of reports) lines.push(...(args.quiet ? [`${r.path}: ${r.state}`] : summarize(r)));
+  const why = refusedWhy(project, reports);
+  for (const r of reports) {
+    lines.push(...(args.quiet ? [`${r.path}: ${r.state}`] : summarize(r)));
+    for (const line of why.get(r.path) ?? []) lines.push(`  ✗ ${line}`);
+  }
   if (!reports.length) lines.push('no canvas matched');
   return { code, stdout: `${lines.join('\n')}\n`, stderr: '' };
+}
+
+/**
+ * 2.0.5 (#205) — a canvas whose import walk reaches another canvas's code renders nothing in its frame (the
+ * studio refuses its module, access/closure.ts `walkImports`). Say why, in the shell card's words
+ * (client/v2/code/canvas-imports-words.js), with the closure config the studio judges with.
+ */
+function refusedWhy(project: Project, reports: CanvasReport[]): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  if (!reports.length) return out;
+  try {
+    const reader = diskProjectReader(project.designRoot, () => 'ds-check');
+    const cfg = closureConfigFor({
+      cfg: project.config as { linkedHub?: { url?: string } | null },
+      paths: { designRoot: project.designRoot },
+    });
+    const report = canvasImportsReport(
+      reader,
+      reports.map((r) => r.path),
+      cfg
+    );
+    const dir =
+      typeof project.config.newComponentDir === 'string' ? project.config.newComponentDir : '';
+    for (const [canvas, imports] of report)
+      out.set(
+        canvas,
+        canvasImportsLines(imports, dir).filter((l): l is string => typeof l === 'string')
+      );
+  } catch {
+    /* the walk is a courtesy here: the report stands without it */
+  }
+  return out;
 }
 
 export { relative, resolve };

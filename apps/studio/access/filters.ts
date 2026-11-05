@@ -680,6 +680,8 @@ interface IndexDataShape {
   dsRevGaps?: Record<string, string | null>;
   // gate-b-c4j — a canvas → the other canvases it imports (its frame is refused; api.ts buildIndexData)
   canvasImportsCanvases?: Record<string, string[]>;
+  // 2.0.5 (#205) — a canvas → the design-root files its built module was refused for (access/refused-inputs.ts)
+  canvasRefusedInputs?: Record<string, string[]>;
 }
 
 /** Repo-relative `.design/ui/x/y.tsx` → every ancestor dir (`.design/ui`, `.design/ui/x`). */
@@ -736,14 +738,16 @@ export function filterIndexData<T extends IndexDataShape>(
   // sees. gate-b-c4k — an entry whose every name is hidden is dropped: it would tell the reader that
   // A imports SOME canvas it cannot see (a probe oracle: plant an import, watch the card). Its frame
   // is still refused; the shell shows the generic card there.
-  if (data.canvasImportsCanvases) {
-    out.canvasImportsCanvases = Object.fromEntries(
-      Object.entries(data.canvasImportsCanvases)
+  const namesSeen = (m: Record<string, string[]>) =>
+    Object.fromEntries(
+      Object.entries(m)
         .filter(([k]) => seen(k))
         .map(([k, v]) => [k, v.filter((c) => vis.sees(c))] as const)
         .filter(([, v]) => v.length > 0)
     );
-  }
+  if (data.canvasImportsCanvases) out.canvasImportsCanvases = namesSeen(data.canvasImportsCanvases);
+  // 2.0.5 (#205) — the refused files by the same rule: only names this reader sees, no all-hidden entry
+  if (data.canvasRefusedInputs) out.canvasRefusedInputs = namesSeen(data.canvasRefusedInputs);
   // S10.4 — the revision fields name systems and revisions: a session sees the ones it renders with.
   if (data.dsConverted) {
     const byName = <V>(m: Record<string, V> | undefined) =>
