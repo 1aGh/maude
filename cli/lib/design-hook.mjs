@@ -1367,6 +1367,13 @@ async function preBash(ctx, input) {
   // the guard can't read every language, so post-bash binds what changed during the call. No
   // snapshot for those (no named file): the studio maps the change to every artboard it touched.
   if (!writers.length && !(toolUseId && bashMayWrite(command, manifestVerbs(ctx)))) return null;
+  // fix/ds-convert-hooks-cli #11 — a call whose only writers are `maude design` verbs (nothing else in
+  // it can write: no interpreter, no redirect into the design root). What such a verb writes besides
+  // the canvases the command names (a `ds convert`'s revisions + head.json, the imports `ds switch`
+  // rewrites, a board sync lands meanwhile) is Maude's write, not the AI's: post-bash binds only the
+  // named canvases it snapshotted below.
+  const claiming = claimingVerbs(ctx);
+  const verbOnly = writers.length > 0 && claiming !== null && !bashMayWrite(command, claiming);
   const snaps = {};
   for (const w of writers) {
     for (const word of w.cmd.words) {
@@ -1408,6 +1415,7 @@ async function preBash(ctx, input) {
     JSON.stringify({
       at,
       snaps,
+      ...(verbOnly ? { verbOnly: true } : {}),
       ...bg,
       ...(interp ? { interp: true, files, hashes, ...(all ? { all: true } : {}) } : {}),
     })
@@ -1529,6 +1537,7 @@ async function bindBashWrites(ctx, toolUseId, mark, by, since) {
   const files = designWritesSince(ctx.designRoot, since);
   if (!files.length) return;
   for (const rel of files) {
+    if (!aiMayHaveWritten(mark, rel)) continue;
     let at;
     try {
       at = statSync(join(ctx.designRoot, rel)).mtimeMs;
@@ -1556,6 +1565,16 @@ async function bindBashWrites(ctx, toolUseId, mark, by, since) {
       { timeoutMs: 900 }
     );
 }
+
+/**
+ * fix/ds-convert-hooks-cli #11 — may the AI's own call have written `rel`? A call of `maude design`
+ * verbs only (`verbOnly`) wrote, as the AI's, just the canvases its command named (`snaps`); the rest
+ * a verb or sync wrote during it is Maude's: it is not bound, and no shell mark keeps a later edit
+ * from taking it as the run's base, so Stop never holds the AI to it.
+ */
+const aiMayHaveWritten = (mark, rel) =>
+  mark?.verbOnly !== true ||
+  (!!mark.snaps && typeof mark.snaps === 'object' && Object.hasOwn(mark.snaps, rel));
 
 /**
  * p8-sec2-attrib A1 — what a call that cannot claim may have written: the canvases it named, plus every
@@ -1610,6 +1629,7 @@ async function drainBackground(ctx, studio) {
     }
     // the write is the newest call's whose window it falls in
     const owner = marks.find((x) => at === undefined || sinceOf(x) <= at) ?? marks[0];
+    if (!aiMayHaveWritten(owner.m, rel)) continue;
     const by = typeof owner.m.by === 'string' ? owner.m.by : 'main';
     recordTouch(ctx, rel, { by, via: 'bash', artboards: null, at });
     markShellWrite(ctx, rel); // F4 — no base taken after this write
