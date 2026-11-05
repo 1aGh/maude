@@ -182,6 +182,8 @@ export const WORDS = Object.freeze({
   // decision v2-lead-trashed-while-open-stops-writes: writes stop; what was not sent yet is parked with it
   trashedLine: 'You can keep looking. Your unsent changes stay with it.',
   restore: 'Restore',
+  // the restore never writes over a canvas made at the old place meanwhile: it comes back beside it
+  restoredAs: (canvas) => `Restored as ${canvas}. A canvas with the old name already exists.`,
   sharedWithYou: (role) => `Shared with you · ${accessWord(role)}`,
   onlyOne: (canvas) => `Only ${canvas} was shared with you.`,
   onlyMany: (n) => `Only these ${n} canvases were shared with you.`,

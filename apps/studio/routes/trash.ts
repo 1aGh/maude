@@ -276,9 +276,24 @@ export function createTrashRoutes(deps: TrashRouteDeps): RouteSpec[] {
     if (!runtime?.acceptedTrash) return null;
     const listing = await runtime.acceptedTrash().catch(() => undefined);
     if (!listing) return listing;
-    return visibleTrash(
+    const items = visibleTrash(
       deriveTrash(listing, { readSource: deps.readSource, now: deps.now?.() }),
       access
+    );
+    // 2.0.5: which canvas items sit at the path of a LIVE canvas (the same test the write stop uses) —
+    // they are older copies, never "the canvas you have open, moved to the trash".
+    const linkDocs = (
+      runtime as {
+        acceptedLinkDocs?(): Promise<{ path: string | null; retired: boolean }[] | null>;
+      }
+    ).acceptedLinkDocs;
+    const docs = linkDocs ? await linkDocs.call(runtime).catch(() => null) : null;
+    if (!docs) return items;
+    const live = new Set(
+      docs.filter((d) => !d.retired && d.path).map((d) => canvasStemOf(d.path as string))
+    );
+    return items.map((i) =>
+      i.kind === 'canvas' ? { ...i, liveAtPath: live.has(canvasStemOf(i.path)) } : i
     );
   }
 

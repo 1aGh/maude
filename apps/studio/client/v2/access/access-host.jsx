@@ -306,7 +306,18 @@ export function AccessHost({
   const open = (tabs || []).map((t) => canvasRel(t?.path, designRel)).filter(Boolean);
   useTrashGhosts(items, open, onOpenTab, rel);
 
-  const onRestored = useCallback(() => void reload(), [reload]);
+  const onRestored = useCallback(
+    (path, o) => {
+      void reload();
+      // A canvas was made at that place meanwhile: the restore never overwrites it, it comes back beside it.
+      if (o?.renamed)
+        toast?.({
+          title: WORDS.restoredAs(canvasName(path)),
+          kind: 'info',
+        });
+    },
+    [reload, toast]
+  );
   const onError = useCallback((m) => toast?.({ title: m, kind: 'error' }), [toast]);
 
   return (
