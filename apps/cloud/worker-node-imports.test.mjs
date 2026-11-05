@@ -72,7 +72,11 @@ export function workerGraph(entry) {
       } else packages.add(spec);
     }
   }
-  return { files: [...files].map((f) => relative(here, f)), node: [...node].sort(), packages: [...packages].sort() };
+  return {
+    files: [...files].map((f) => relative(here, f)),
+    node: [...node].sort(),
+    packages: [...packages].sort(),
+  };
 }
 
 /** The `node:` specifiers a bundled worker.js still imports statically. */
@@ -115,8 +119,13 @@ test('the bundled worker.js (CLOUD_BUNDLE) keeps only allowed node: imports, und
   skip: process.env.CLOUD_BUNDLE ? false : 'CLOUD_BUNDLE not set (CI sets it after the dry-run)',
 }, () => {
   const kept = bundleNodeImports(readFileSync(process.env.CLOUD_BUNDLE, 'utf8'));
-  assert.deepEqual(kept.filter((s) => !ALLOWED_NODE_BUILTINS.includes(s)), [], kept.join(', '));
-  if (kept.length) assert.ok(compatFlags(toml).includes('nodejs_compat'), `bundle imports ${kept.join(', ')}`);
+  assert.deepEqual(
+    kept.filter((s) => !ALLOWED_NODE_BUILTINS.includes(s)),
+    [],
+    kept.join(', ')
+  );
+  if (kept.length)
+    assert.ok(compatFlags(toml).includes('nodejs_compat'), `bundle imports ${kept.join(', ')}`);
 });
 
 test('worker.mjs exports only handlers (default object + functions)', async () => {
@@ -127,14 +136,18 @@ test('worker.mjs exports only handlers (default object + functions)', async () =
 
 test('the helpers see what they claim to see', () => {
   assert.deepEqual(
-    staticImports("import type { A } from './a.ts';\n// import x from 'node:fs';\nimport {\n  b,\n} from 'node:crypto';\nimport './side.mjs';\n"),
+    staticImports(
+      "import type { A } from './a.ts';\n// import x from 'node:fs';\nimport {\n  b,\n} from 'node:crypto';\nimport './side.mjs';\n"
+    ),
     [
       { spec: './a.ts', typeOnly: true },
       { spec: 'node:crypto', typeOnly: false },
       { spec: './side.mjs', typeOnly: false },
     ]
   );
-  assert.deepEqual(bundleNodeImports('import { createHash } from "node:crypto";\nconst x = 1;\n'), ['node:crypto']);
+  assert.deepEqual(bundleNodeImports('import { createHash } from "node:crypto";\nconst x = 1;\n'), [
+    'node:crypto',
+  ]);
   assert.deepEqual(compatFlags('# compatibility_flags = ["nodejs_compat"]\n'), []);
   assert.deepEqual(compatFlags('compatibility_flags = ["nodejs_compat"]\n'), ['nodejs_compat']);
 });
