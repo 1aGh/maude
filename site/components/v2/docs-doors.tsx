@@ -2,9 +2,9 @@
 // Two doors at the top of /docs: Using Maude (the app) and Advanced (Claude Code, the CLI,
 // self-hosting). The same docs tree, split at the one seam it already has. Every page stays.
 import Link from 'next/link';
-import whatsNew from '@/lib/whats-new.json';
 import '@/app/site-v2.css';
 import { Icon } from './kit/glyphs';
+import { major, newest } from './released';
 
 const USING: [title: string, href: string, note?: string][] = [
   ['Getting started', '/docs/getting-started', '5 min'],
@@ -57,9 +57,6 @@ const START: [icon: string, title: string, body: string, href: string][] = [
   ['system', 'Bring your design system', 'Colours, type, components.', '/docs/design/bootstrap'],
   ['export', 'Export anything', 'PNG, PDF, video, or code.', '/docs/commands-design/export'],
 ];
-
-const newest = whatsNew.entries[0];
-const major = newest.version.split('.')[0];
 
 export function DocsDoors() {
   return (
