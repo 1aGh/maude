@@ -38,6 +38,7 @@ import {
   createTransactionClient,
   type Operation,
   type ProposalResult,
+  type ReadLimits,
   type Reservation,
   type TransactionClient,
   type TransactionClientOptions,
@@ -767,14 +768,18 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
      * p8-hub-undo-collision — a lane body the hub holds, by hash (null: not served / unreachable).
      * The blob read is gated by the hub exactly like the history rows that name the hash.
      */
-    async blob(hash: string): Promise<string | null> {
+    async blob(hash: string, lim: ReadLimits = {}): Promise<string | null> {
       if (!/^[0-9a-f]{64}$/.test(hash)) return null;
-      const b = (await client.read(`blobs/${hash}`, {})) as { body?: unknown };
+      const b = (await client.read(`blobs/${hash}`, {}, lim)) as { body?: unknown };
       return typeof b?.body === 'string' ? b.body : null;
     },
     /** p8-hub-undo-collision — a doc's lane at the hub's newest revision (what an undo merges onto). */
-    async laneHead(doc: string, lane: LaneProposal['lane']): Promise<string | null> {
-      const r = (await client.read('lane', { doc, lane, rev: Number.MAX_SAFE_INTEGER })) as {
+    async laneHead(
+      doc: string,
+      lane: LaneProposal['lane'],
+      lim: ReadLimits = {}
+    ): Promise<string | null> {
+      const r = (await client.read('lane', { doc, lane, rev: Number.MAX_SAFE_INTEGER }, lim)) as {
         body?: unknown;
       };
       return typeof r?.body === 'string' ? r.body : null;

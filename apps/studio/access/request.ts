@@ -55,7 +55,6 @@ export const SESSION_WRITES: ReadonlySet<string> = new Set([
   '/_api/report-fallback',
   '/_api/hub/link', // link/unlink ≈ session management (cell allows /auth/logout)
   '/_api/cloud/detach', // unlink — the same session-management class as hub/link
-  '/_api/workspace/sign-in', // signing in is how the role is (re)learned
   '/_api/workspace/disclosure',
   '/_api/cloud/signin/start', // account session, not project state
   '/_api/cloud/signin/poll',

@@ -39,13 +39,17 @@ import path from 'node:path';
 
 import { currentAccess, notInScopeResponse, toDesignRel } from '../access/request.ts';
 import type { Access } from '../access/scope.ts';
+import { sandboxBuildRunning } from '../canvas-build-sandbox.ts';
 import {
+  type BuildFailure,
   type CanvasError,
   canvasSourceSig,
   checkCanvasSyntax,
+  recalledBuildFailure,
   recalledCanvasError,
 } from '../canvas-source/errors.ts';
 import { canvasSourceMap } from '../canvas-source/source-map.ts';
+import { canvasWaiting, type LedgerView, readLedgerView } from '../canvas-source/waiting.ts';
 import { isUnderOrEqual } from '../path-containment.ts';
 import type { RouteSpec } from './table.ts';
 
@@ -65,6 +69,14 @@ export interface CanvasSourceRouteDeps {
   historicalSource?: (repoRel: string, ref: string) => Promise<string | null | 'busy'>;
   /** The DNS-rebinding guard (http.ts `isTrustedRequestHost`); absent = every Host passes. */
   trustedHost?: (req: Request) => boolean;
+  /**
+   * 2.0.4 — the file plane's ledger, for "what is this canvas still waiting for"
+   * (`canvas-source/waiting.ts`). Default: the ledger file this Mac's plane persists under
+   * `<designRoot>/_state/file-ledger/` (none in a cell, or before a project links).
+   */
+  ledger?: () => LedgerView | null;
+  /** 2.0.4 task P — whether a sandboxed build of this canvas is running. Default: the sandbox's own. */
+  buildRunning?: (canvasAbs: string) => boolean;
 }
 
 const json = (status: number, body: unknown) =>
@@ -179,6 +191,17 @@ function errorsOfFile(deps: CanvasSourceRouteDeps, abs: string): CanvasError[] |
   return built ? [built] : [];
 }
 
+/** #189 — the last build's failure class, while the source is still the one that failed. */
+function buildFailureOfFile(abs: string): BuildFailure | null {
+  try {
+    const st = statSync(abs);
+    if (st.size > MAX_SOURCE_BYTES) return null;
+    return recalledBuildFailure(abs, canvasSourceSig(readFileSync(abs, 'utf8')));
+  } catch {
+    return null;
+  }
+}
+
 /** Every canvas under the design root (design-root-relative, sorted), runtime folders skipped. */
 export function listCanvases(designRoot: string): string[] {
   const out: string[] = [];
@@ -282,9 +305,28 @@ export function createCanvasSourceRoutes(deps: CanvasSourceRouteDeps): RouteSpec
       if (refused) return refused;
       const file = canvasFile(deps.designRoot, rel);
       const list = file ? errorsOfFile(deps, file) : null;
-      if (list === null)
+      if (list === null || !file)
         return access.canvasOnly ? notInScopeResponse() : json(404, { error: 'not-found' });
-      return json(200, { canvas: repoRelOf(deps.designRel, rel), errors: list });
+      // 2.0.4 — what it is still waiting for (an import this Mac does not hold yet, or holds back),
+      // and why the last build stopped when the reason is not in its code (#189). Both are our own
+      // words and numbers: no file content, no build text, no specifier.
+      const waiting = canvasWaiting({
+        designRoot: deps.designRoot,
+        canvasAbs: file,
+        ledger: (deps.ledger ?? (() => readLedgerView(deps.designRoot)))(),
+        project: !access.canvasOnly,
+      });
+      // 2.0.4 task P — a sandboxed build of it is still running (it outlived the request that
+      // started it): not a failure, and the last failure on record is about to be replaced.
+      const building = !list.length && (deps.buildRunning ?? sandboxBuildRunning)(file);
+      const buildFailure = list.length || building ? null : buildFailureOfFile(file);
+      return json(200, {
+        canvas: repoRelOf(deps.designRel, rel),
+        errors: list,
+        ...(waiting ? { waiting } : {}),
+        ...(building ? { building: true } : {}),
+        ...(buildFailure ? { buildFailure } : {}),
+      });
     }
     const canvases: Array<{ canvas: string; errors: CanvasError[] }> = [];
     for (const rel of listCanvases(deps.designRoot)) {

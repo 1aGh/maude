@@ -1637,7 +1637,7 @@
       "v2": {
         "action": null,
         "testid": "settings-team-server-add",
-        "where": "Settings › Connections › Your team’s own server › Add a team server…"
+        "where": "Settings › Connections › Your team’s own server › Add a team server… — issue #204 (Michal 2026-11-04, decision maude/v2-michal-team-server-signin-via-hub-page): the email and password now live on the team server’s OWN sign-in page; the app’s Sign in (team-hub-open) opens it in the browser and comes back signed in. Home › Advanced options › Use a self-hosted hub (onb-hub) does the same since #204 K2: one Sign in (onb-hub-go), an invite link or key opens the server’s own invite page, no email or password field"
       }
     },
     {
@@ -3315,9 +3315,9 @@
     "testid:studio/client/panels/TeamProjects.jsx#sync/cloud/team-cloud-project-id": "testid:team-cloud-project-<id>",
     "testid:studio/client/panels/TeamProjects.jsx#sync/cloud/team-cloud-signin": "testid:team-cloud-signin",
     "testid:studio/client/panels/TeamProjects.jsx#sync/cloud/team-error": "testid:team-error",
-    "testid:studio/client/panels/TeamProjects.jsx#sync/cloud/team-hub-email": "testid:team-hub-email",
+    "testid:studio/client/panels/TeamProjects.jsx#sync/cloud/team-hub-email": "A-your-team-s-own-server-email-password",
     "testid:studio/client/panels/TeamProjects.jsx#sync/cloud/team-hub-open": "testid:team-hub-open",
-    "testid:studio/client/panels/TeamProjects.jsx#sync/cloud/team-hub-password": "testid:team-hub-password",
+    "testid:studio/client/panels/TeamProjects.jsx#sync/cloud/team-hub-password": "A-your-team-s-own-server-email-password",
     "testid:studio/client/panels/TeamProjects.jsx#sync/cloud/team-hub-url": "testid:team-hub-url",
     "testid:studio/client/panels/TeamProjects.jsx#sync/cloud/team-opening": "testid:team-opening",
     "testid:studio/client/panels/TeamProjects.jsx#sync/cloud/team-projects": "testid:team-projects",

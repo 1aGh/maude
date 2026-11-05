@@ -226,16 +226,17 @@ pub(crate) const MAX_RESTARTS: u32 = 3;
 /// working, and the next crash starts a fresh budget.
 const HEALTHY_UPTIME: Duration = Duration::from_secs(60);
 
-/// How many project servers may run at once (V2-1.1 decision 4, "Running cap 5").
+/// How many project servers may run at once (V2-1.1 decision 4; 3 since 2.0.4).
 ///
 /// Tabs are the workspace now: a person keeps every project they work on open as
 /// a tab, and the cap no longer limits what is open — only what is RUNNING. A
 /// tab over the cap rests (its server stops, the tab stays, focusing it wakes
 /// it), so the ceiling is purely the process cost DDR-125 books per project: a
-/// Bun server plus however many `claude` adapters its chats have spawned.
-/// Five covers the "two or three projects at once, plus a couple I glanced at"
-/// habit without letting twenty tabs mean twenty process stacks.
-const RUNNING_CAP: usize = 5;
+/// Bun server plus however many `claude` adapters its chats have spawned, plus
+/// the tab's webview. 2.0.4 (Michal, decision `v2-michal-running-cap-3-rest-15min`):
+/// 5 → 3 after 2.0.3 measured a big project at 1.2 GB of server and 2.8 GB of
+/// webview; a tab unused for 15 min also rests on its own (`idle_rest.rs`).
+const RUNNING_CAP: usize = 3;
 
 /// The cap in force. Debug builds honour `MAUDE_E2E_RUNNING_CAP` so a desktop
 /// e2e can reach resting with three projects instead of six; a release build
@@ -2005,13 +2006,14 @@ mod tests {
     }
 
     #[test]
-    fn rest_policy_cap_is_five_and_nothing_rests_at_or_under_it() {
-        assert_eq!(RUNNING_CAP, 5);
-        let six: Vec<RestCandidate> = (0..6)
+    fn rest_policy_cap_is_three_and_nothing_rests_at_or_under_it() {
+        // 2.0.4 (Michal, decision v2-michal-running-cap-3-rest-15min): 5 → 3
+        assert_eq!(RUNNING_CAP, 3);
+        let four: Vec<RestCandidate> = (0..4)
             .map(|i| cand(&format!("/r{i}"), Some(&format!("p-{i}")), i, idle()))
             .collect();
-        assert_eq!(pick_rest(5, 5, Some("p-5"), six.clone()), RestPick::UnderCap);
-        assert_eq!(pick_rest(6, 5, Some("p-5"), six), rested("/r0", Some("p-0")));
+        assert_eq!(pick_rest(3, RUNNING_CAP, Some("p-3"), four.clone()), RestPick::UnderCap);
+        assert_eq!(pick_rest(4, RUNNING_CAP, Some("p-3"), four), rested("/r0", Some("p-0")));
     }
 
     #[test]

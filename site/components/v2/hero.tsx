@@ -2,7 +2,6 @@
 // The hero sits ON the canvas: the headline is a selected text layer, people and the AI are around it.
 
 import Link from 'next/link';
-import whatsNew from '@/lib/whats-new.json';
 import { at, T } from './clock';
 import { DownloadLabel } from './download-label.client';
 import { DragFloat } from './drag-float.client';
@@ -11,9 +10,7 @@ import { Cursor, Sticky } from './kit/canvas';
 import { Icon } from './kit/glyphs';
 import { CLOUD_CTA_ON, PRICING_ON } from './pilot';
 import { PRICE } from './price';
-
-const newest = whatsNew.entries[0];
-const major = newest.version.split('.')[0];
+import { major, newest } from './released';
 
 export function Hero() {
   return (

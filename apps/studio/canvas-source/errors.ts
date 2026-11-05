@@ -291,6 +291,7 @@ const recorded = new Map<string, { sig: string; error: CanvasError }>();
  */
 export function recordCanvasBuild(absPath: string, sig: string, error: CanvasError | null): void {
   recorded.delete(absPath);
+  failures.delete(absPath);
   if (!error) return;
   recorded.set(absPath, { sig, error });
   if (recorded.size > MAX_RECORDED) {
@@ -307,6 +308,44 @@ export function recalledCanvasError(absPath: string, sig: string): CanvasError |
 
 export function forgetCanvasErrors(): void {
   recorded.clear();
+  failures.clear();
+}
+
+/**
+ * #189 — a build that stopped for a reason that is NOT in the canvas's code, as a class WE chose
+ * from the host's own control flow (the sandbox's kind, the worker's stage, a refusal COUNT) — never
+ * read out of an error string. gate-b-c4m holds: no message, path or specifier rides here, so the
+ * card can say why without handing a frame (or a person) build internals.
+ *
+ *   engine         the build engine could not start or load (a missing module in the sandbox, no result)
+ *   timed-out      it ran past the wall-clock ceiling and was stopped
+ *   memory         it ran past the memory ceiling and was stopped
+ *   imports-refused  the import allowlist refused `count` imports
+ */
+export type BuildFailureClass = 'engine' | 'timed-out' | 'memory' | 'imports-refused';
+export interface BuildFailure {
+  class: BuildFailureClass;
+  /** `imports-refused` only: how many. */
+  count?: number;
+}
+
+const failures = new Map<string, { sig: string; failure: BuildFailure }>();
+
+/** Record why the live build of `absPath` (source signature `sig`) stopped outside its code. */
+export function recordBuildFailure(absPath: string, sig: string, failure: BuildFailure): void {
+  recorded.delete(absPath);
+  failures.delete(absPath);
+  failures.set(absPath, { sig, failure });
+  if (failures.size > MAX_RECORDED) {
+    const oldest = failures.keys().next().value;
+    if (oldest !== undefined) failures.delete(oldest);
+  }
+}
+
+/** The recorded build failure of `absPath`, only while its source is still the one that failed. */
+export function recalledBuildFailure(absPath: string, sig: string): BuildFailure | null {
+  const hit = failures.get(absPath);
+  return hit && hit.sig === sig ? hit.failure : null;
 }
 
 /** The signature a recorded error is keyed on: the source's own bytes. */

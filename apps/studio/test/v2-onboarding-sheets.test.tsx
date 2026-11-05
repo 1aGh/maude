@@ -1,7 +1,7 @@
 // v2-onboarding-sheets — S6.9: the five Advanced sheets of Home's "Advanced options" (02 Onboarding ob-adv-sheets).
 // Part A drives each sheet as a view (title verb = primary button; Cancel; no secret echoed into the DOM);
 // part B scripts `connectClaudeHome`; part C mounts Home (Tauri stubbed as in home-first-run.test.tsx) and walks
-// the flyout rows to the real routes: /_home/hub/{test,prepare}, /_home/ai/*, /_home/cli/*, the shell's folder
+// the flyout rows to the real routes: /_home/hub/{test,signin/*,prepare}, /_home/ai/*, /_home/cli/*, the shell's folder
 // picker and the import-figma intent. No keychain, no real hub, no real Claude.
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
@@ -20,6 +20,7 @@ import { createRoot, type Root } from 'react-dom/client';
 
 import * as api from '../client/home/home-api.js';
 import { HomeApp } from '../client/home/home-app.jsx';
+import { HUB_POLL_MS } from '../client/v2/onboarding/AdvancedSheets.jsx';
 import { CliSheet } from '../client/v2/onboarding/CliSheet.jsx';
 import { ConnectAiSheet } from '../client/v2/onboarding/ConnectAiSheet.jsx';
 import { connectClaudeHome } from '../client/v2/onboarding/connect-ai-home.js';
@@ -28,7 +29,6 @@ import { FolderGithubSheet } from '../client/v2/onboarding/FolderGithubSheet.jsx
 import { HubSheet } from '../client/v2/onboarding/HubSheet.jsx';
 
 const SECRET = 'ef'.repeat(32);
-const PASSWORD = 'hunter2-correct-horse';
 const flush = async (n = 8) => {
   for (let i = 0; i < n; i++)
     await act(async () => {
@@ -77,12 +77,12 @@ describe('A · the sheets as views', () => {
         'hub',
         createElement(HubSheet, {
           onTest: async () => ({ ok: true }),
-          onConnect: async () => ({ ok: true }),
+          onSignIn: async () => ({ ok: true }),
           onCancel: noop,
         }),
-        'Connect to your own hub',
+        'Sign in to your own hub',
         'onb-hub-go',
-        'Connect',
+        'Sign in',
       ],
       [
         'folder',
@@ -136,7 +136,7 @@ describe('A · the sheets as views', () => {
     render(
       createElement(HubSheet, {
         onTest: async () => ({ ok: true }),
-        onConnect: async () => ({ ok: true }),
+        onSignIn: async () => ({ ok: true }),
         onCancel: () => {
           cancels += 1;
         },
@@ -156,7 +156,7 @@ describe('A · the sheets as views', () => {
           tested.push(url);
           return { ok: true, version: '1.4' };
         },
-        onConnect: async () => ({ ok: true }),
+        onSignIn: async () => ({ ok: true }),
         onCancel: noop,
       })
     );
@@ -169,92 +169,89 @@ describe('A · the sheets as views', () => {
     expect($('onb-hub-reachable')).toBeNull();
   });
 
-  test('hub: a refusal is shown in the server’s words', async () => {
+  test('#204 hub: no email or password field — one Sign in, a refusal in the server’s words', async () => {
     render(
       createElement(HubSheet, {
         onTest: async () => ({
           ok: false,
           error: "That address answered, but it isn't a Maude hub.",
         }),
-        onConnect: async () => ({ ok: false, error: 'Wrong email or password.' }),
+        onSignIn: async () => ({
+          ok: false,
+          error: 'This team server runs 1.9.0, which is too old to sign in from here.',
+        }),
         onCancel: noop,
       })
     );
+    expect(host.querySelector('input[type="email"]')).toBeNull();
+    expect($('onb-hub-email')).toBeNull();
+    expect($('onb-hub-password')).toBeNull();
+    expect($('onb-hub-mode-password')).toBeNull();
+    // the one password-typed input is the masked invite key — never a password
+    const masked = [...host.querySelectorAll('input[type="password"]')].map((e) =>
+      e.getAttribute('data-testid')
+    );
+    expect(masked).toEqual(['onb-hub-invite']);
+    expect(host.querySelectorAll('[data-testid="onb-hub"] button[type="submit"]')).toHaveLength(1);
+    expect($('onb-hub-go')?.textContent).toBe('Sign in');
     type('onb-hub-url', 'https://example.com');
     click('onb-hub-test');
     await flush();
     expect($('onb-hub-test-error')?.textContent).toContain("isn't a Maude hub");
-    type('onb-hub-email', 'me@alligators.cz');
-    type('onb-hub-password', PASSWORD);
     click('onb-hub-go');
     await flush();
-    expect($('onb-hub-error')?.textContent).toBe('Wrong email or password.');
+    expect($('onb-hub-error')?.textContent).toContain('too old to sign in');
   });
 
-  test('hub: the password is handed over once and nothing in the DOM holds it afterwards', async () => {
-    const got: Array<Record<string, string>> = [];
-    let release: (v: { ok: boolean }) => void = noop;
+  test('#204 hub: Sign in waits for the browser; Cancel forgets the attempt and leaves the sheet open', async () => {
+    const got: Array<Record<string, unknown>> = [];
+    let release: (v: { ok: boolean; cancelled?: boolean }) => void = noop;
+    let aborted = 0;
+    let cancels = 0;
     render(
       createElement(HubSheet, {
         onTest: async () => ({ ok: true }),
-        onConnect: (v: Record<string, string>) => {
-          got.push(v);
+        onSignIn: (v: { url: string; invite: string; onWaiting: () => void }) => {
+          got.push({ url: v.url, invite: v.invite });
+          v.onWaiting();
           return new Promise((res) => {
             release = res as never;
           });
         },
-        onCancel: noop,
-      })
-    );
-    type('onb-hub-url', 'https://maude.alligators.cz');
-    type('onb-hub-email', 'me@alligators.cz');
-    type('onb-hub-password', PASSWORD);
-    expect(($('onb-hub-password') as HTMLInputElement).type).toBe('password');
-    click('onb-hub-go');
-    // while the request is in flight the field is already empty and the button says what it is doing
-    expect(got).toEqual([
-      { url: 'https://maude.alligators.cz', email: 'me@alligators.cz', password: PASSWORD },
-    ]);
-    expect(($('onb-hub-password') as HTMLInputElement).value).toBe('');
-    expect($('onb-hub-go')?.textContent).toBe('Connecting…');
-    expect(document.body.innerHTML).not.toContain(PASSWORD);
-    await act(async () => release({ ok: false }));
-    await flush();
-    expect(document.body.innerHTML).not.toContain(PASSWORD);
-    expect(document.body.textContent).not.toContain(PASSWORD);
-  });
-
-  test('hub: blank credentials connect to a hub this Mac already holds a sign-in for', async () => {
-    const got: Array<Record<string, string>> = [];
-    render(
-      createElement(HubSheet, {
-        onTest: async () => ({ ok: true }),
-        onConnect: async (v: Record<string, string>) => {
-          got.push(v);
-          return { ok: true };
+        onAbortSignIn: () => {
+          aborted += 1;
+          release({ ok: false, cancelled: true });
         },
-        onCancel: noop,
+        onCancel: () => {
+          cancels += 1;
+        },
       })
     );
     expect(($('onb-hub-go') as HTMLButtonElement).disabled).toBe(true); // no address yet
     type('onb-hub-url', 'https://maude.alligators.cz');
     click('onb-hub-go');
     await flush();
-    expect(got).toEqual([{ url: 'https://maude.alligators.cz' }]);
+    expect(got).toEqual([{ url: 'https://maude.alligators.cz', invite: '' }]);
+    expect($('onb-hub-waiting')?.textContent).toBe('Finish signing in in your browser.');
+    expect($('onb-hub-go')?.textContent).toBe('Signing in…');
+    click('onb-hub-cancel');
+    await flush();
+    expect(aborted).toBe(1);
+    expect(cancels).toBe(0); // the wait ended, the sheet stays
+    expect($('onb-hub-waiting')).toBeNull();
+    expect($('onb-hub-error')).toBeNull();
+    expect($('onb-hub-go')?.textContent).toBe('Sign in');
   });
 
-  test('S6.11b hub: "Invite link or key" redeems — masked key, a pasted link fills the address, one onJoin, nothing echoed', async () => {
+  test('#204 K2 hub: an invite link or key rides Sign in once — masked, a pasted link fills the address, emptied at once', async () => {
     const KEY = `inv_${'ab'.repeat(24)}`;
-    const got: Array<Record<string, string>> = [];
+    const got: Array<Record<string, unknown>> = [];
     let release: (v: { ok: boolean; error?: string }) => void = noop;
     render(
       createElement(HubSheet, {
         onTest: async () => ({ ok: true }),
-        onConnect: async () => {
-          throw new Error('the password lane must not run in invite mode');
-        },
-        onJoin: (v: Record<string, string>) => {
-          got.push(v);
+        onSignIn: (v: { url: string; invite: string }) => {
+          got.push({ url: v.url, invite: v.invite });
           return new Promise((res) => {
             release = res as never;
           });
@@ -262,55 +259,24 @@ describe('A · the sheets as views', () => {
         onCancel: noop,
       })
     );
-    const invite = $('onb-hub-mode-invite');
-    expect(invite?.getAttribute('aria-disabled')).toBeNull();
-    expect($('onb-hub-invite')).toBeNull(); // password mode first
-    click('onb-hub-mode-invite');
-    expect(invite?.getAttribute('aria-pressed')).toBe('true');
-    expect($('onb-hub-mode-password')?.getAttribute('aria-pressed')).toBe('false');
     const field = $('onb-hub-invite') as HTMLInputElement;
     expect(field.type).toBe('password');
-    expect(($('onb-hub-go') as HTMLButtonElement).disabled).toBe(true);
     type('onb-hub-invite', `https://maude.alligators.cz/join/${KEY}`);
     // the hub's own link names its hub: the empty address is filled (the address is not a secret)
     expect(($('onb-hub-url') as HTMLInputElement).value).toBe('https://maude.alligators.cz');
-    type('onb-hub-email', 'me@alligators.cz');
-    type('onb-hub-password', PASSWORD);
     click('onb-hub-go');
     expect(got).toEqual([
-      {
-        url: 'https://maude.alligators.cz',
-        token: `https://maude.alligators.cz/join/${KEY}`,
-        email: 'me@alligators.cz',
-        password: PASSWORD,
-      },
+      { url: 'https://maude.alligators.cz', invite: `https://maude.alligators.cz/join/${KEY}` },
     ]);
-    // read once: both secrets are gone from the page while the request is in flight
+    // read once: the key is gone from the page while the sign-in is in flight
     expect(($('onb-hub-invite') as HTMLInputElement).value).toBe('');
-    expect(($('onb-hub-password') as HTMLInputElement).value).toBe('');
-    for (const s of [KEY, PASSWORD]) expect(document.body.innerHTML).not.toContain(s);
-    await act(async () => release({ ok: false, error: 'This invitation has expired.' }));
-    await flush();
-    expect($('onb-hub-error')?.textContent).toBe('This invitation has expired.');
-    for (const s of [KEY, PASSWORD]) expect(document.body.innerHTML).not.toContain(s);
-    // back to the password lane: the invite field leaves
-    click('onb-hub-mode-password');
-    expect($('onb-hub-invite')).toBeNull();
-  });
-
-  test('hub: without an invite route (S11.14 before it wires one) "Invite link or key" is drawn and rests', async () => {
-    render(
-      createElement(HubSheet, {
-        onTest: async () => ({ ok: true }),
-        onConnect: async () => ({ ok: true }),
-        onCancel: noop,
-      })
+    expect(document.body.innerHTML).not.toContain(KEY);
+    await act(async () =>
+      release({ ok: false, error: 'That invite is for a different hub address.' })
     );
-    const invite = $('onb-hub-mode-invite');
-    expect(invite?.textContent).toBe('Invite link or key');
-    expect(invite?.getAttribute('aria-disabled')).toBe('true');
-    click('onb-hub-mode-invite');
-    expect($('onb-hub-mode-password')?.getAttribute('aria-pressed')).toBe('true');
+    await flush();
+    expect($('onb-hub-error')?.textContent).toBe('That invite is for a different hub address.');
+    expect(document.body.innerHTML).not.toContain(KEY);
   });
 
   test('folder: From GitHub rests until S6.10 hands a list in; Open runs the folder picker', async () => {
@@ -679,11 +645,23 @@ describe('C · Home: the flyout rows open their sheets', () => {
     }
   });
 
-  test('hub: Test connection probes the address; Connect posts it once and opens the managed copy as a tab', async () => {
+  test('#204 K2 hub: Sign in opens the hub’s own page through the shell, waits, then opens the managed copy as a tab', async () => {
+    const SIGNIN = `https://hub.example/studio/signin?client=desktop&state=${'ab'.repeat(16)}`;
     routes['/_home/hub/test'] = () => [
       200,
-      { ok: true, reachable: true, url: 'https://hub.example', version: '1.4' },
+      { ok: true, reachable: true, url: 'https://hub.example', version: '2.0.4' },
     ];
+    routes['/_home/hub/signin/start'] = () => [
+      200,
+      { ok: true, id: 'att-1', signInUrl: SIGNIN, expiresIn: 600, profile: 'default' },
+    ];
+    let polls = 0;
+    routes['/_home/hub/signin/poll'] = () => {
+      polls += 1;
+      return polls < 2
+        ? [200, { ok: true, pending: true }]
+        : [200, { ok: true, url: 'https://hub.example', user: { email: 'me@x', role: 'member' } }];
+    };
     routes['/_home/hub/prepare'] = () => [
       200,
       {
@@ -697,6 +675,7 @@ describe('C · Home: the flyout rows open their sheets', () => {
         profile: 'default',
       },
     ];
+    invokeAnswers.open_team_server_signin = () => null;
     invokeAnswers.managed_project_open = () => '/Users/x/.maude/managed/Combine';
     await mountHome();
     await openRow('hub');
@@ -704,96 +683,113 @@ describe('C · Home: the flyout rows open their sheets', () => {
     click('onb-hub-test');
     await flush();
     expect(hit('/_home/hub/test')[0]?.body).toEqual({ url: 'https://hub.example' });
-    expect($('onb-hub-reachable')?.textContent).toBe('Reachable — hub 1.4');
-    type('onb-hub-email', 'me@alligators.cz');
-    type('onb-hub-password', PASSWORD);
+    expect($('onb-hub-reachable')?.textContent).toBe('Reachable — hub 2.0.4');
     click('onb-hub-go');
     await flush();
-    expect(hit('/_home/hub/prepare')).toHaveLength(1);
-    expect(hit('/_home/hub/prepare')[0].body).toEqual({
+    expect(hit('/_home/hub/signin/start')[0]?.body).toEqual({
       profile: 'default',
       url: 'https://hub.example',
-      email: 'me@alligators.cz',
-      password: PASSWORD,
+    });
+    expect(cmds('open_team_server_signin')[0]?.args).toEqual({ url: SIGNIN });
+    expect($('onb-hub-waiting')?.textContent).toBe('Finish signing in in your browser.');
+    // the next ask finds the browser came back
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, HUB_POLL_MS + 50));
+    });
+    await flush();
+    expect(hit('/_home/hub/signin/poll')[0]?.body).toEqual({ id: 'att-1' });
+    expect(hit('/_home/hub/prepare')[0]?.body).toEqual({
+      profile: 'default',
+      url: 'https://hub.example',
     });
     expect(cmds('managed_project_open')[0]?.args).toMatchObject({
       serverUrl: 'https://hub.example',
       projectId: 'proj-1',
-      name: 'Combine',
       profile: 'default',
     });
     expect(cmds('open_project')[0]?.args).toMatchObject({
       root: '/Users/x/.maude/managed/Combine',
     });
-    // the sheet is gone; the password went nowhere but the one POST body
     expect($('onb-hub')).toBeNull();
-    expect(JSON.stringify(invokes)).not.toContain(PASSWORD);
-    expect(document.body.innerHTML).not.toContain(PASSWORD);
   });
 
-  test('S6.11b hub: an invite key redeems through /_home/hub/join once and opens the managed copy as a tab', async () => {
+  test('#204 K2 hub: an invite key goes to start once, never a URL Home builds; Cancel forgets the attempt', async () => {
     const KEY = `inv_${'cd'.repeat(24)}`;
-    routes['/_home/hub/join'] = () => [
+    routes['/_home/hub/signin/start'] = () => [
       200,
       {
         ok: true,
-        serverUrl: 'https://hub.example',
-        projectId: 'proj-2',
-        name: 'Brand',
-        role: 'member',
-        canvasGroups: ['UI'],
-        mode: 'transactions',
-        profile: 'default',
+        id: 'att-2',
+        signInUrl: `https://hub.example/join/${KEY}?client=desktop`,
+        expiresIn: 600,
       },
     ];
-    invokeAnswers.managed_project_open = () => '/Users/x/.maude/managed/Brand';
+    routes['/_home/hub/signin/poll'] = () => [200, { ok: true, pending: true }];
+    routes['/_home/hub/signin/cancel'] = () => [200, { ok: true }];
+    invokeAnswers.open_team_server_signin = () => null;
     await mountHome();
     await openRow('hub');
     type('onb-hub-url', 'https://hub.example');
-    click('onb-hub-mode-invite');
     type('onb-hub-invite', KEY);
-    type('onb-hub-email', 'me@alligators.cz');
-    type('onb-hub-password', PASSWORD);
     click('onb-hub-go');
     await flush();
-    expect(hit('/_home/hub/prepare')).toHaveLength(0);
-    expect(hit('/_home/hub/join')).toHaveLength(1);
-    expect(hit('/_home/hub/join')[0].body).toEqual({
+    expect(hit('/_home/hub/signin/start')).toHaveLength(1);
+    expect(hit('/_home/hub/signin/start')[0].body).toEqual({
       profile: 'default',
       url: 'https://hub.example',
-      token: KEY,
-      email: 'me@alligators.cz',
-      password: PASSWORD,
+      invite: KEY,
     });
-    // the key and password rode the POST body only — never the request URL
-    for (const c of calls) for (const s of [KEY, PASSWORD]) expect(c.url).not.toContain(s);
-    expect(cmds('managed_project_open')[0]?.args).toMatchObject({
-      serverUrl: 'https://hub.example',
-      projectId: 'proj-2',
-      profile: 'default',
-    });
-    expect(cmds('open_project')[0]?.args).toMatchObject({ root: '/Users/x/.maude/managed/Brand' });
-    expect($('onb-hub')).toBeNull();
-    for (const s of [KEY, PASSWORD]) {
-      expect(JSON.stringify(invokes)).not.toContain(s);
-      expect(document.body.innerHTML).not.toContain(s);
-    }
+    for (const c of calls) expect(c.url).not.toContain(KEY);
+    expect($('onb-hub-waiting')).not.toBeNull();
+    click('onb-hub-cancel');
+    await flush();
+    expect(hit('/_home/hub/signin/cancel')[0]?.body).toEqual({ id: 'att-2' });
+    expect($('onb-hub-waiting')).toBeNull();
+    expect($('onb-hub')).not.toBeNull(); // the wait ended; the sheet stays
+    expect(cmds('open_project')).toHaveLength(0);
+    expect(document.body.innerHTML).not.toContain(KEY);
   });
 
-  test('hub: a refused sign-in stays on the sheet, in words; no tab opens; the password is gone', async () => {
-    routes['/_home/hub/prepare'] = () => [401, { ok: false, error: 'Wrong email or password.' }];
+  test('#204 K2 hub: a team server older than 2.0.4 says so plainly; nothing opens', async () => {
+    routes['/_home/hub/signin/start'] = () => [
+      409,
+      {
+        ok: false,
+        reason: 'needs-update',
+        error:
+          'This team server runs 1.9.0, which is too old to sign in from here. Nothing was sent to it. Ask whoever runs it to update it to 2.0.4 or newer.',
+      },
+    ];
     await mountHome();
     await openRow('hub');
     type('onb-hub-url', 'https://hub.example');
-    type('onb-hub-email', 'me@alligators.cz');
-    type('onb-hub-password', PASSWORD);
     click('onb-hub-go');
     await flush();
-    expect($('onb-hub-error')?.textContent).toBe('Wrong email or password.');
-    expect(cmds('open_project')).toHaveLength(0);
-    expect(document.body.innerHTML).not.toContain(PASSWORD);
+    expect($('onb-hub-error')?.textContent).toContain('update it to 2.0.4');
+    expect(cmds('open_team_server_signin')).toHaveLength(0);
+    expect($('onb-hub-go')?.textContent).toBe('Sign in');
   });
 
+  test('#204 K2 hub: the shell refusing the page stays on the sheet, in words, and forgets the attempt', async () => {
+    routes['/_home/hub/signin/start'] = () => [
+      200,
+      { ok: true, id: 'att-3', signInUrl: 'https://hub.example/studio/signin?x', expiresIn: 600 },
+    ];
+    routes['/_home/hub/signin/cancel'] = () => [200, { ok: true }];
+    invokeAnswers.open_team_server_signin = () => {
+      throw new Error('Refusing to open that address.');
+    };
+    await mountHome();
+    await openRow('hub');
+    type('onb-hub-url', 'https://hub.example');
+    click('onb-hub-go');
+    await flush();
+    expect($('onb-hub-error')?.textContent).toBe(
+      'That address can’t be opened. Check the hub address.'
+    );
+    expect(hit('/_home/hub/signin/cancel')[0]?.body).toEqual({ id: 'att-3' });
+    expect(cmds('open_project')).toHaveLength(0);
+  });
   test('folder: Open runs the shell’s folder picker and leaves the sheet', async () => {
     await mountHome();
     await openRow('folder-github');

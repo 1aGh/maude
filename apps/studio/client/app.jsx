@@ -232,6 +232,7 @@ import { ExportDialog, downloadCapturedBlob } from './dialogs/export-dialog.jsx'
 import { Sidebar } from './tree/tree.jsx';
 import { CornerIcons } from './v2/shell/corner-icons.jsx';
 import ShellErrorBoundary from './v2/shell/shell-error-boundary.jsx';
+import { expectServedFrom, setServedFrom } from './v2/shell/served-routes.js';
 import { cutCopyPaste, createMenuHandlers, menuRunner } from './v2/shell/menu-runner.js';
 import DiagnosticsHost from './v2/diagnostics/diagnostics-host.jsx';
 import { useDiagnosticsMenu } from './v2/diagnostics/use-diagnostics-menu.js';
@@ -3477,8 +3478,12 @@ function ShellTree() {
                   /^r\d+$/.test(version || '') ? Number(version.slice(1)) : NaN
                 )
               : await gitDiscard([file]);
-            if (res?.ok) setDiffTarget(null);
-            else window.alert(res?.error || 'Could not restore that version. Try again.');
+            if (res?.ok) {
+              setDiffTarget(null);
+              return res;
+            }
+            // The sheet says why, inside itself (DiffView): `window.alert` shows nothing in the desktop app.
+            return { ok: false, error: res?.error || 'Could not restore that version. Try again.' };
           }}
           onResolve={async (choice) => {
             // phase-28 (E3): apply the chosen side via /_api/git/resolve, which
@@ -3488,11 +3493,12 @@ function ShellTree() {
             const res = await gitResolveConflict(choice);
             if (res.ok) {
               setDiffTarget(null);
-            } else {
-              window.alert(
-                res.error || 'Could not finish the merge. Get the latest again, then retry.'
-              );
+              return res;
             }
+            return {
+              ok: false,
+              error: res.error || 'Could not finish the merge. Get the latest again, then retry.',
+            };
           }}
         />
       )}
@@ -3602,12 +3608,16 @@ else {
   // S11.13 (Gate 0 D20) — the 1.x preferences move to their v2 homes once per origin, before the
   // first v2 home is read (a second boot is a no-op without a request). Bounded: a slow server
   // never holds the first paint, and a failure leaves the 1.x keys where they are.
+  // #204 R — the shell's pollers mount before `/_config` answers; they wait for it (bounded) so a
+  // workspace cell is never asked a route it withholds on the way up. Home is no cell: it says so at once.
+  expectServedFrom();
   const migrated = migrateAtBoot().catch(() => {});
   Promise.race([migrated, new Promise((r) => setTimeout(r, 1500))]).then(() =>
-    bootShellMode((mode) =>
+    bootShellMode((mode) => {
+      if (mode === 'home') setServedFrom(null);
       root.render(
         <ShellErrorBoundary>{mode === 'home' ? <HomeApp /> : <App />}</ShellErrorBoundary>
-      )
-    )
+      );
+    })
   );
 }

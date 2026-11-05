@@ -11,6 +11,7 @@ import { type ReactNode, useEffect, useState } from 'react';
 import { getLiveViewport, useViewportControllerContext } from '../canvas-lib.tsx';
 import { jumpTarget, type PageSection, sectionAt, visibleSentence } from './artboard-resize.ts';
 import { type LongPage, measureLongPages, pageInView, pageSections } from './long-page.ts';
+import { activeInterval } from './page-activity.ts';
 
 export interface MiniModel {
   id: string;
@@ -91,9 +92,8 @@ export function MinimapContext({ pollMs = 200 }: { pollMs?: number }): ReactNode
           : next
       );
     };
-    run();
-    const t = setInterval(run, pollMs);
-    return () => clearInterval(t);
+    // only while the page is in use: an idle or hidden canvas is not polled (page-activity.ts, 2.0.4)
+    return activeInterval(run, pollMs);
   }, [pollMs]);
 
   if (!model) return null;

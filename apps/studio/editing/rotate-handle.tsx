@@ -21,6 +21,7 @@ import { useSelectionSet } from '../use-selection-set.tsx';
 import { useToolModeOptional } from '../use-tool-mode.tsx';
 import { useUndoStackOptional } from '../use-undo-stack.tsx';
 import { type ObjectTarget, objectTargets, runArranged } from './arrange.ts';
+import { activeFrameLoop } from './page-activity.ts';
 
 export const SNAP_DEGREES = 15;
 
@@ -143,14 +144,18 @@ export function RotateHandle({ readOnly = false }: { readOnly?: boolean }) {
     };
   }, []);
 
-  // keep the handle at the selection's bottom-right corner, every frame (pan / zoom / write)
+  // keep the handle at the selection's bottom-right corner, every frame (pan / zoom / write) — but only while there is
+  // a selection to turn and the page is in use (2.0.4: this loop ran 72×/s on every idle canvas, selection or not)
   useEffect(() => {
     const h = handle.current;
     const tip = hint.current;
     if (!h || !tip) return;
-    let raf = 0;
+    if (!canRotate) {
+      h.style.display = 'none';
+      tip.style.display = 'none';
+      return;
+    }
     const tick = () => {
-      raf = requestAnimationFrame(tick);
       const els = live.current.targets.map((t) => t.el);
       const locked = els.some((e) => e.hasAttribute('data-cd-locked'));
       const mode = canvasModeStore(window).get().mode;
@@ -178,8 +183,7 @@ export function RotateHandle({ readOnly = false }: { readOnly?: boolean }) {
       tip.style.left = `${Math.round(box.r + 36)}px`;
       tip.style.top = `${Math.round(box.b + 10)}px`;
     };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    return activeFrameLoop(tick);
   }, [canRotate]);
 
   const restore = (t: Turning) => {

@@ -246,6 +246,41 @@ export function laneHash(content: string): string {
 
 export const EMPTY_LANE_HASH = laneHash('');
 
+/** #166 R3 — what a read may be bounded by beyond the 20 s transport timeout. */
+export interface ReadLimits {
+  /** aborts the read (its fetch and the body still streaming) */
+  signal?: AbortSignal;
+  /** the body's byte cap, enforced on the stream; past it the body is cancelled and the read refuses */
+  maxBytes?: number;
+}
+
+/**
+ * A response body as text, never more than `maxBytes`: a declared length over the cap refuses
+ * before reading, and a stream that passes it is cancelled there (a hub can omit the length).
+ */
+async function readCappedText(res: Response, maxBytes: number): Promise<string> {
+  const declared = Number(res.headers.get('content-length'));
+  if (Number.isFinite(declared) && declared > maxBytes) {
+    await res.body?.cancel().catch(() => {});
+    throw new TransactionError(`read over ${maxBytes} bytes`, 'too-large');
+  }
+  if (!res.body) return '';
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel().catch(() => {});
+      throw new TransactionError(`read over ${maxBytes} bytes`, 'too-large');
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks).toString('utf8');
+}
+
 export class TransactionError extends Error {
   constructor(
     message: string,
@@ -315,14 +350,31 @@ export function createTransactionClient(opts: TransactionClientOptions) {
     };
   }
 
-  async function request(method: string, route: string, body?: string, format?: number) {
+  async function request(
+    method: string,
+    route: string,
+    body?: string,
+    format?: number,
+    lim: ReadLimits = {}
+  ) {
+    const timeout = AbortSignal.timeout(20_000);
     const res = await fetchImpl(`${base}/api/projects/${projectId ?? 'current'}/v1/${route}`, {
       method,
       headers: headers(format),
       ...(body !== undefined ? { body } : {}),
-      signal: AbortSignal.timeout(20_000),
+      signal: lim.signal ? AbortSignal.any([timeout, lim.signal]) : timeout,
     });
-    const json = (await res.json().catch(() => null)) as unknown;
+    if (lim.maxBytes === undefined) {
+      const json = (await res.json().catch(() => null)) as unknown;
+      return { status: res.status, json };
+    }
+    const text = await readCappedText(res, lim.maxBytes);
+    let json: unknown = null;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      /* not JSON — the caller reads null, as res.json() would */
+    }
     return { status: res.status, json };
   }
 
@@ -981,13 +1033,26 @@ export function createTransactionClient(opts: TransactionClientOptions) {
     }
   }
 
-  /** A read route (`history`, `lane`, `revisions`) — no retry, bounded. */
-  async function read(route: string, params: Record<string, string | number>): Promise<unknown> {
+  /**
+   * A read route (`history`, `lane`, `revisions`) — no retry, bounded. #166 R3: `signal` ends a
+   * read its caller stopped waiting for; `maxBytes` caps the body while it streams in.
+   */
+  async function read(
+    route: string,
+    params: Record<string, string | number>,
+    lim: ReadLimits = {}
+  ): Promise<unknown> {
     if (projectId === null) await bootstrap();
     const qs = new URLSearchParams(
       Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)]))
     );
-    const { status, json } = await request('GET', `${route}?${qs.toString()}`);
+    const { status, json } = await request(
+      'GET',
+      `${route}?${qs.toString()}`,
+      undefined,
+      undefined,
+      lim
+    );
     if (status !== 200) throw new TransactionError(`${route} failed (${status})`, 'read');
     return json;
   }

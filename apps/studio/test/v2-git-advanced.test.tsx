@@ -381,7 +381,8 @@ describe('Changed in this version', () => {
 });
 
 describe('Not in a version yet · Save · Discard', () => {
-  test('a canvas and its sidecars are one row; Discard asks, then takes them all', async () => {
+  // WKWebView (the desktop app) answers window.confirm with false: Discard must not depend on it.
+  test('a canvas and its sidecars are one row; Discard asks in the shell dialog, then takes them all', async () => {
     await mount();
     const rows = qa('[data-testid="vh-git-notyet"] .vh-git-unit');
     expect(rows.map((r) => r.querySelector('.vh-git-fname')?.textContent)).toEqual([
@@ -389,19 +390,37 @@ describe('Not in a version yet · Save · Discard', () => {
       'brief.md',
     ]);
     expect(rows[0]?.textContent).toContain('+1 supporting');
-    const asked: string[] = [];
     const original = window.confirm;
-    window.confirm = (m?: string) => {
-      asked.push(String(m));
-      return true;
+    let native = 0;
+    window.confirm = () => {
+      native++;
+      return false;
     };
     try {
       await click(rows[0]?.querySelector('[data-testid="git-discard"]') ?? null);
+      // asking discards nothing yet
+      expect(actions.discards).toEqual([]);
+      expect(q('[data-testid="tree-ask-title"]')?.textContent).toBe(
+        'Discard your changes to “Combine” and its supporting files?'
+      );
+      expect(q('[data-testid="tree-ask-confirm"]')?.textContent).toContain("This can't be undone.");
+      await click(q('[data-testid="tree-ask-ok"]'));
     } finally {
       window.confirm = original;
     }
-    expect(asked[0]).toContain('Discard your changes to “Combine” and its supporting files?');
+    expect(native).toBe(0);
+    expect(q('[data-testid="tree-ask-confirm"]')).toBeNull();
     expect(actions.discards).toEqual([[[CANVAS, '.design/ui/Combine.meta.json']]]);
+  });
+
+  test('Cancel in the Discard ask discards nothing', async () => {
+    await mount();
+    const rows = qa('[data-testid="vh-git-notyet"] .vh-git-unit');
+    await click(rows[0]?.querySelector('[data-testid="git-discard"]') ?? null);
+    expect(q('[data-testid="tree-ask-ok"]')?.textContent).toBe('Discard');
+    await click(q('[data-testid="tree-ask-cancel"]'));
+    expect(q('[data-testid="tree-ask-confirm"]')).toBeNull();
+    expect(actions.discards).toEqual([]);
   });
 
   test('Save a version with a note…: a note and a file, then the canvas and its sidecars go as one', async () => {

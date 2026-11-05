@@ -182,6 +182,18 @@ export const VIEW_ACTIONS: ActionDef[] = [
     search: { hidden: true },
   },
   {
+    // 2.0.4 (#191) — View larger: the picked tile's picture, clip or sound in a window (a double-click opens the same one).
+    // ← → walk the tiles the tab shows, esc or a click outside closes. A read, so every role has it. Only while a tile is
+    // picked and focus is in the tab (`assetTileSelected`) — Space is the Hand tool's key in the canvas, which this never is.
+    id: 'assets.spotlight',
+    label: 'View larger',
+    kind: 'command',
+    icon: 'image',
+    exec: 'shell',
+    keys: [kb('Space', 'selection', { when: { focus: ['chrome'], facts: ['assetTileSelected'] } })],
+    search: { hidden: true },
+  },
+  {
     // S8.13 — Move to trash on the picked tile (its menu row; the tidy view's "Move 31 to the trash…" is the same route).
     // A write: Can edit and up, refused by the server as well. The server also refuses a picture a canvas uses or an
     // older version still shows (`POST /_api/assets/trash`). No key.

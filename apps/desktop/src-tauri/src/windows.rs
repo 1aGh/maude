@@ -1537,13 +1537,19 @@ pub fn on_focused(app: &AppHandle, label: &str) {
         return;
     };
     let tick = state.tick.fetch_add(1, Ordering::SeqCst);
-    let (root, resting) = {
+    let (root, resting, prev_root) = {
         let mut book = state.windows.lock().unwrap_or_else(|e| e.into_inner());
+        let prev_root = book
+            .focused()
+            .filter(|f| *f != label)
+            .and_then(|f| book.root_of(f));
         if !book.focus(label, tick) {
             return;
         }
-        (book.root_of(label), book.is_resting(label))
+        (book.root_of(label), book.is_resting(label), prev_root)
     };
+    // 2.0.4 idle rest: the tab left and the tab shown were both in use until now.
+    crate::idle_rest::touch_focus_change(app, prev_root.as_deref(), root.as_deref());
     if let Some(root) = &root {
         crate::sidecar::mark_shown(app, root, tick);
         // The person is looking at it now: out of the Dock badge (V2-3.5).

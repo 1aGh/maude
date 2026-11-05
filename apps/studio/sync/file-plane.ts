@@ -81,6 +81,8 @@ import {
 } from './journal-client.ts';
 import { LFS_POINTER_REASON, readLfsPointer } from './lfs-pointer.ts';
 import { createPullBudget } from './pull-budget.ts';
+import { createPullPacer, type PullPacer } from './pull-pacer.ts';
+import { activeCanvasWants } from './pull-priority.ts';
 import { failureReason, isBackpressure, refusalWords, retryAfterMs } from './retry-after.ts';
 import { classifyTransportError } from './transport-error.ts';
 
@@ -100,8 +102,11 @@ export const MAX_FILE_BYTES = (() => {
 })();
 
 /** T18 — above this a download streams to disk (and resumes) instead of
- *  being held in memory. */
-export const STREAM_DOWNLOAD_ABOVE_BYTES = 32 * 1024 * 1024;
+ *  being held in memory. Issue #204: it was 32 MB, so every photo and clip of a
+ *  first sync was collected chunk by chunk and then copied into one buffer of
+ *  its full size (twice the file per download); below the threshold that still
+ *  happens, so it is kept at a size where twice the file does not matter. */
+export const STREAM_DOWNLOAD_ABOVE_BYTES = 1024 * 1024;
 
 /** sha256 of a file, read in 1 MiB chunks (T18 — a video is never held whole). */
 export function sha256File(abs: string): string {
@@ -179,7 +184,28 @@ export const HUB_LIMITS_RETRY_MS = 30_000;
 export const MAX_TRUSTED_QUOTA_PAUSE_MS = 2 * 60 * 60_000;
 
 /** How many files one pass will move. The remainder is the next pass's work. */
-const MAX_FILES_PER_PASS = 200;
+export const MAX_FILES_PER_PASS = 200;
+
+/**
+ * Issue #204 — write the ledger at most every this many landings while a pass runs (it is always
+ * written at the end of the pass). A crash in between loses only the adoption of those files, which
+ * the next pass recovers by hashing them — never by downloading them again.
+ */
+export const LEDGER_FLUSH_EVERY_LANDINGS = 250;
+/** …or after this long, so a slow pass of large files still leaves a recent ledger behind. */
+export const LEDGER_FLUSH_EVERY_MS = 15_000;
+
+/**
+ * Issue #204 — this many `fetching from storage` misses IN A ROW is no longer one slow file but a
+ * bucket that is not answering: the plane holds for the hub's Retry-After, as it does for any wall.
+ */
+export const STORAGE_MISS_STREAK_LIMIT = 4;
+
+/** A staged partial download untouched this long, for bytes no pass wants, is removed. */
+export const STALE_PART_MS = 24 * 60 * 60_000;
+
+/** Issue #204 — the most body bytes concurrent downloads may hold in memory at once (see the pool). */
+export const MAX_BUFFERED_IN_FLIGHT_BYTES = 64 * 1024 * 1024;
 
 /**
  * How many HTTP REQUESTS one pass will issue. Issue #109.
@@ -395,6 +421,19 @@ export interface FilePlaneResult {
   };
   /** The pass stopped because it had spent its request ceiling. */
   requestsExhausted?: true;
+  /** The pass stopped because it had moved `MAX_FILES_PER_PASS` files (issue #204). */
+  filesCapped?: true;
+  /**
+   * Issue #204 — files whose bytes the hub is still FETCHING FROM ITS BUCKET (a cold cell's
+   * `503 fetching from storage`). Not delivered, not failed, not stuck: each is backed off for the
+   * hub's `Retry-After` and asked again, while the rest of the pass carries on.
+   */
+  storageMisses?: number;
+  /**
+   * The soonest a path skipped for its backoff window may be tried again, in ms from the end of
+   * this pass. Lets the runtime come back for it then rather than on the next 20 s tick.
+   */
+  nextAttemptInMs?: number;
   /** The door refused our credential; a renewal was requested and the pass ended. */
   authRefused?: true;
   /**
@@ -542,6 +581,16 @@ export interface FilePlaneOptions {
    * true (every caller before this option, and every test hub, takes them).
    */
   hubTakesV2Files?: boolean;
+  /**
+   * Issue #204 — how fast this plane talks to the hub (concurrency + requests per minute). One per
+   * plane so the adaptive width survives from pass to pass. Default: `createPullPacer()`.
+   */
+  pacer?: PullPacer;
+  /**
+   * Issue #204 — paths to fetch FIRST: the open canvas's own files, imports and assets. Read once
+   * per pass. Default: the active canvas named in `_active.json` (`activeCanvasWants`).
+   */
+  priorityPaths?: () => ReadonlySet<string>;
 }
 
 interface SyncableLocalFile {
@@ -700,6 +749,9 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
   })();
 
   const auth = () => ({ authorization: `Bearer ${opts.token()}` });
+  /** Issue #204 — concurrency + requests per minute, adaptive across passes. */
+  const pacer = opts.pacer ?? createPullPacer({ now });
+  const priorityPaths = opts.priorityPaths ?? (() => activeCanvasWants(designRoot));
 
   /**
    * A thrown transfer error, in words a PERSON can act on.
@@ -770,6 +822,12 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
   } | null = null;
   /** Consecutive `unreachable` classifications this pass. */
   let unreachableInARow = 0;
+  /** Consecutive `fetching from storage` misses this pass (#204). */
+  let storageMissesInARow = 0;
+  /** The last failure reason logged per path, so a file that keeps failing is named once. */
+  const failureSaid = new Map<string, string>();
+  /** The soonest a path this pass put in (or found in) a backoff window may go again (#204). */
+  let soonestRetryAt = Number.POSITIVE_INFINITY;
   /** The door refused our credential this pass. */
   let authRefused = false;
   /** Set when a write door answered 426 (format) this pass. */
@@ -834,7 +892,12 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         uploadSessions?: unknown;
         maxSessionBytes?: unknown;
         partBytes?: unknown;
+        readsPerMinute?: unknown;
       };
+      // Issue #204 — the hub's per-label READ ceiling, when it says (a pre-2.0.4 hub does not, and
+      // the pacer's 480 stays under that hub's 600). Clamped inside the pacer (DDR-054).
+      if (Number.isFinite(body?.readsPerMinute))
+        pacer.setReadCeiling(body.readsPerMinute as number);
       if (
         Number.isFinite(body?.maxFileBytes) &&
         (body.maxFileBytes as number) >= MIN_TRUSTED_MAX_FILE_BYTES
@@ -981,19 +1044,28 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     return { ok: false, reason, rateLimited: true };
   }
 
-  /** Fetch one file's bytes and verify them against the hash we were promised. */
+  /**
+   * Fetch one file's bytes and verify them against the hash we were promised — resuming a staged
+   * partial download (T18) when there is one.
+   *
+   * A STAGED PART ALWAYS RESUMES OR RESTARTS, NEVER WEDGES (#204 follow-up: a self-hosted
+   * workspace sat at "7614 / 7617 delivered · 3 waiting" for good, all three large videos). The
+   * staging file is keyed by content hash and outlives the pass, so every way it can disagree with
+   * the hub is handled inside this one attempt rather than as a failure the next pass meets again:
+   *   - already whole (the size the journal names): verified on disk and landed with NO request;
+   *     overgrown or whole-but-wrong: discarded, fetched fresh;
+   *   - the hub cannot honour the range (416), answers it from a different offset, or ignores it
+   *     (200): discarded, fetched fresh — at most one restart per attempt;
+   *   - resumed bytes that do not hash right (a bad prefix): discarded, fetched fresh once.
+   * What still fails is a real failure: it reaches `failed` with a reason and the path backs off.
+   */
   async function fetchVerified(
     rel: string,
     expectHash: string,
-    ceiling: number
-  ): Promise<
-    | { ok: true; bytes: Uint8Array; file?: undefined; size: number }
-    | { ok: true; file: string; bytes?: undefined; size: number }
-    | { ok: false; reason: string; overCap?: true; rateLimited?: true }
-  > {
-    let res: Response;
-    requestsThisPass += 1;
-    // T18 — a partial download of these exact bytes resumes where it stopped.
+    ceiling: number,
+    /** The size the journal names, when it does — lets a whole staged part land without a request. */
+    sizeHint = 0
+  ): Promise<Exclude<Awaited<ReturnType<typeof fetchOnce>>, { restart: true }>> {
     const staged = path.join(designRoot, '_state', 'downloads', `${expectHash}.part`);
     let resumeFrom = 0;
     try {
@@ -1001,6 +1073,54 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     } catch {
       /* nothing staged */
     }
+    if (resumeFrom > 0 && sizeHint > 0 && resumeFrom >= sizeHint) {
+      if (resumeFrom === sizeHint) {
+        let got: string | null = null;
+        try {
+          got = await sha256FileAsync(staged);
+        } catch {
+          got = null;
+        }
+        if (got === expectHash) return { ok: true, file: staged, size: resumeFrom };
+      }
+      rmSync(staged, { force: true });
+      resumeFrom = 0;
+    }
+    const first = await fetchOnce(rel, expectHash, ceiling, staged, resumeFrom);
+    if (!('restart' in first) || resumeFrom === 0) {
+      if ('restart' in first) return { ok: false, reason: first.reason };
+      return first;
+    }
+    log.warn?.(`[sync/files] ${rel}: ${first.reason} — fetching it from the start`);
+    rmSync(staged, { force: true });
+    const again = await fetchOnce(rel, expectHash, ceiling, staged, 0);
+    return 'restart' in again ? { ok: false, reason: again.reason } : again;
+  }
+
+  /** One request for `rel`, resuming at `resumeFrom` (0 = whole file). `restart` = discard the part. */
+  async function fetchOnce(
+    rel: string,
+    expectHash: string,
+    ceiling: number,
+    staged: string,
+    resumeFrom: number
+  ): Promise<
+    | { ok: true; bytes: Uint8Array; file?: undefined; size: number }
+    | { ok: true; file: string; bytes?: undefined; size: number }
+    | {
+        ok: false;
+        reason: string;
+        overCap?: true;
+        rateLimited?: true;
+        /** The hub is still filling these bytes from its bucket (#204). */
+        storageMiss?: true;
+        restart?: undefined;
+      }
+    | { ok: false; restart: true; reason: string }
+  > {
+    let res: Response;
+    requestsThisPass += 1;
+    await pacer.admit('read');
     try {
       res = await fetchImpl(
         `${base}/_project-file/${rel.split('/').map(encodeURIComponent).join('/')}`,
@@ -1014,11 +1134,59 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     }
     if (res.status === 416) {
       // The staged part is not a prefix of what the hub holds now: start over.
+      await res.body?.cancel().catch(() => {});
       rmSync(staged, { force: true });
-      return { ok: false, reason: 'the partial download no longer matches — restarting it' };
+      return {
+        ok: false,
+        restart: true,
+        reason: 'the partial download no longer matches — restarting it',
+      };
+    }
+    // ISSUE #204 — A COLD CELL STILL FETCHING THESE BYTES FROM ITS BUCKET. The materializer answers
+    // `503 Retry-After {"error":"fetching from storage"}` once its 15 s deadline passes, and keeps
+    // the fill going for the next caller. That is about ONE file, not the door: the whole plane used
+    // to hold on it (a Retry-After 5xx is backpressure) and the pass ended, so one slow video cost
+    // every other file the rest of the pass and the wait for the next tick. Now the file waits out
+    // the hub's Retry-After on its own and the pass carries on; a RUN of them is still a wall
+    // (`STORAGE_MISS_STREAK_LIMIT`). The body is hub-supplied (DDR-054) — misreading it as a miss
+    // buys a per-file backoff instead of a plane hold, both bounded.
+    if (res.status === 503 && res.headers?.get?.('retry-after')) {
+      const words = await failureReason(res);
+      if (/fetching from storage/.test(words)) {
+        storageMissesInARow += 1;
+        if (storageMissesInARow >= STORAGE_MISS_STREAK_LIMIT) {
+          const wait = retryAfterMs(res.headers.get('retry-after'));
+          if (hitRateLimit === null || wait > hitRateLimit.retryAfterMs) {
+            hitRateLimit = { retryAfterMs: wait, cause: 'hub-asked' };
+          }
+        }
+        return { ok: false, reason: words, storageMiss: true };
+      }
+      // Any other 503 with a Retry-After keeps its meaning: a starting cell, hold the plane.
+      const wait = retryAfterMs(res.headers.get('retry-after'));
+      if (hitRateLimit === null || wait > hitRateLimit.retryAfterMs) {
+        hitRateLimit = { retryAfterMs: wait, cause: 'hub-asked' };
+      }
+      return { ok: false, reason: words, rateLimited: true };
     }
     if (!res.ok) return await refusal(res);
+    storageMissesInARow = 0;
     const resumed = res.status === 206 && resumeFrom > 0;
+    // A 206 must continue EXACTLY where the part ends — appending any other offset is a corrupt
+    // file that only the hash would catch, after the whole download.
+    if (resumed) {
+      const range = /^bytes\s+(\d+)-/.exec(res.headers?.get?.('content-range') ?? '');
+      if (!range || Number(range[1]) !== resumeFrom) {
+        await res.body?.cancel().catch(() => {});
+        return {
+          ok: false,
+          restart: true,
+          reason: 'the server resumed from a different place — restarting it',
+        };
+      }
+    }
+    // Asked to resume and answered with the whole file (no range support): the part is stale.
+    if (resumeFrom > 0 && !resumed) rmSync(staged, { force: true });
 
     // The cap is consulted BEFORE the body exists, and again as it arrives.
     // Buffering first and measuring after is not a cap at all: a hub answering
@@ -1073,7 +1241,10 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
       }
       if (got !== expectHash) {
         rmSync(staged, { force: true });
-        return { ok: false, reason: 'content hash mismatch (racing a write?)' };
+        // A resumed file that does not hash right had a bad prefix: one fresh fetch settles it.
+        return resumed
+          ? { ok: false, restart: true, reason: 'the resumed download did not verify' }
+          : { ok: false, reason: 'content hash mismatch (racing a write?)' };
       }
       return { ok: true, file: staged, size: total };
     }
@@ -1259,6 +1430,33 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     return isFilePlaneClass(cls);
   }
 
+  /**
+   * Drop staged partial downloads nobody is waiting for (#204 follow-up). A part is keyed by content
+   * hash, so once the hub's file moves on (or the file lands another way) its part is dead weight
+   * that nothing would ever resume. Only parts untouched for `STALE_PART_MS` go, and never one whose
+   * hash this pass still wants — a slow download of a big video keeps its progress.
+   */
+  function sweepStaleParts(wanted: ReadonlySet<string>): void {
+    const dir = path.join(designRoot, '_state', 'downloads');
+    let names: string[];
+    try {
+      names = readdirSync(dir);
+    } catch {
+      return;
+    }
+    for (const name of names.slice(0, 500)) {
+      const m = /^([0-9a-f]{64})\.part$/.exec(name);
+      if (!m || wanted.has(m[1] as string)) continue;
+      const abs = path.join(dir, name);
+      try {
+        if (now() - statSync(abs).mtimeMs < STALE_PART_MS) continue;
+        rmSync(abs, { force: true });
+      } catch {
+        /* gone already */
+      }
+    }
+  }
+
   /** Land bytes at `rel`, atomically. Throws on failure — `adoptAfter` catches.
    *  A streamed download (T18) is moved into place from its staging file. */
   function materialize(rel: string, payload: { bytes?: Uint8Array; file?: string }): void {
@@ -1362,6 +1560,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     // rather than as a remote change we must react to.
     ledger.outboxAdd(local.hash);
     requestsThisPass += 1;
+    await pacer.admit('write');
     try {
       const res = await fetchImpl(
         `${base}/api/file/${local.rel.split('/').map(encodeURIComponent).join('/')}`,
@@ -1409,6 +1608,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
       (await res.json().catch(() => ({}))) as Record<string, unknown>;
     ledger.outboxAdd(local.hash);
     requestsThisPass += 1;
+    await pacer.admit('write');
     try {
       const created = await fetchImpl(`${base}/api/file-uploads`, {
         method: 'POST',
@@ -1510,6 +1710,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     { ok: true } | { ok: false; conflict: true } | { ok: false; reason: string; rateLimited?: true }
   > {
     requestsThisPass += 1;
+    await pacer.admit('write');
     try {
       const res = await fetchImpl(
         `${base}/api/file/${rel.split('/').map(encodeURIComponent).join('/')}`,
@@ -1663,7 +1864,15 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
   }
 
   async function reconcile(): Promise<FilePlaneResult> {
-    const out = await reconcilePass();
+    // ONE ledger write per batch (#204): the pass writes it every N landings and at its end
+    // (`ledger.flush()` in step 5); nothing in between re-arms the 1 s debounce per file.
+    const release = ledger.deferFlush();
+    let out: FilePlaneResult;
+    try {
+      out = await reconcilePass();
+    } finally {
+      release();
+    }
     const refused = hubRefusedRows();
     if (refused.length > 0) out.hubRefused = refused;
     return out;
@@ -1700,6 +1909,8 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     }
     hitRateLimit = null;
     unreachableInARow = 0;
+    storageMissesInARow = 0;
+    soonestRetryAt = Number.POSITIVE_INFINITY;
     authRefused = false;
     formatRefused = null;
     quotaSpentThisPass = 0;
@@ -2219,13 +2430,23 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
 
     // ── 4. Apply ─────────────────────────────────────────────────────────
     //
-    // Referenced assets first (DDR-223's strokes→bytes coupling): a picture a
-    // just-arrived annotation points at is the one a person is staring at.
+    // The open canvas first (#204): its own files, imports and assets are what a person is looking
+    // at. Then referenced assets (DDR-223's strokes→bytes coupling): a picture a just-arrived
+    // annotation points at is the one a person is staring at.
     const referenced = referencedAssetNames(designRoot);
+    let wanted: ReadonlySet<string> = new Set();
+    try {
+      wanted = priorityPaths();
+    } catch {
+      /* ordering only — never a reason to stop a pass */
+    }
     // …then smallest first (T19): one 1 GB master never makes the forty
     // images a canvas needs wait behind it; big media fills in last.
     const sizeOf = (w: (typeof work)[number]) => Math.max(claimedSize(w.row), w.local?.size ?? 0);
-    work.sort((a, b) => rank(a.rel, referenced) - rank(b.rel, referenced) || sizeOf(a) - sizeOf(b));
+    work.sort(
+      (a, b) =>
+        rank(a.rel, referenced, wanted) - rank(b.rel, referenced, wanted) || sizeOf(a) - sizeOf(b)
+    );
 
     const budget = createPullBudget({
       label: 'sync/files',
@@ -2233,17 +2454,123 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
       ...(opts.maxPassBytes !== undefined ? { maxBytes: opts.maxPassBytes } : {}),
     });
 
+    /**
+     * ISSUE #204 — DOWNLOADS RUN SIDE BY SIDE. One request at a time made the wall clock of a first
+     * sync the SUM of every round trip: 200 files per pass at one cold-cell bucket fill each was the
+     * 2–4 minutes a pass took on a 5 041-file project. A `pull` now runs in a pool `pacer.limit()`
+     * wide; everything else (an upload, a delete, a conflict that parks a copy) still runs alone,
+     * after the pool drains, because those decide against the hub's CAS and their order matters.
+     *
+     * The pool is ONE wide until a transfer of this pass has come back healthy: the first request of
+     * a pass is the probe, so a door that is shut (a starting cell, a 429 window) sees one request,
+     * not `limit` of them.
+     *
+     * The ceilings count what is DISPATCHED, so concurrency never lets a pass past them: requests are
+     * charged at dispatch (`requestsThisPass`), files as `moved + in flight`, bytes are reserved
+     * against the budget before the request leaves.
+     */
     let moved = 0;
     let seen = 0;
+    let probed = false;
+    let landedSinceFlush = 0;
+    let lastFlushAt = now();
+    const inFlight = new Set<Promise<void>>();
+    /**
+     * Content hashes being downloaded right now. A large body streams to `_state/downloads/<sha>.part`
+     * — keyed by HASH, so the resume finds it — and a project holding the same video at two paths
+     * would have two transfers appending to one staging file. The second copy waits its turn.
+     */
+    const hashesInFlight = new Set<string>();
+    /**
+     * Bytes being BUFFERED in memory by downloads in flight. A body up to
+     * `STREAM_DOWNLOAD_ABOVE_BYTES` is read into memory before it is verified and landed, so six
+     * 30 MB videos at once would hold ~360 MB (twice that while the chunks are joined). The pool
+     * admits another buffered body only while the total stays under `MAX_BUFFERED_IN_FLIGHT_BYTES`;
+     * a streamed (larger) body costs one chunk and is not counted. One transfer always runs.
+     */
+    let bufferedInFlight = 0;
+    const buffered = (w: (typeof work)[number]): number => {
+      const n = claimedSize(w.row);
+      return n <= STREAM_DOWNLOAD_ABOVE_BYTES ? n : 0;
+    };
+    const wall = () => hitRateLimit !== null || formatRefused !== null || authRefused;
+
+    const settle = (
+      item: (typeof work)[number],
+      handled: boolean,
+      mark: { failed: number; pushed: number; pulled: number }
+    ): void => {
+      if (handled) moved += 1;
+      if (handled && !probed && !wall()) probed = true;
+      // Arm or clear this path's window from what the pass actually did with
+      // it. A rate limit is excluded: that is the DOOR's state, not this
+      // path's, and punishing the file for it would push a whole project into
+      // backoff for something none of its files did. Scanned from the marks
+      // taken at dispatch, because other transfers append to the same lists.
+      if (hitRateLimit === null && formatRefused === null) {
+        const failedHere = out.failed.slice(mark.failed).some((f) => f.rel === item.rel);
+        if (failedHere) {
+          const delay = ledger.noteAttemptFailed(item.rel, now());
+          // ONE LINE PER FAILING FILE, naming it and why — said again only when the reason
+          // changes, not on every retry of a file that keeps failing the same way.
+          const why = out.failed.slice(mark.failed).find((f) => f.rel === item.rel)?.reason;
+          if (why !== undefined && failureSaid.get(item.rel) !== why) {
+            failureSaid.set(item.rel, why);
+            log.warn?.(
+              `[sync/files] ${item.rel}: ${why} — trying again in ${Math.round(delay / 1000)}s, then less often`
+            );
+          }
+        } else if (
+          handled ||
+          out.pushed.slice(mark.pushed).includes(item.rel) ||
+          out.pulled.slice(mark.pulled).includes(item.rel)
+        ) {
+          ledger.noteAttemptOk(item.rel);
+          failureSaid.delete(item.rel);
+        }
+      }
+      // ONE ledger write per batch, not one per landing (#204).
+      if (handled) landedSinceFlush += 1;
+      if (
+        landedSinceFlush >= LEDGER_FLUSH_EVERY_LANDINGS ||
+        (landedSinceFlush > 0 && now() - lastFlushAt >= LEDGER_FLUSH_EVERY_MS)
+      ) {
+        landedSinceFlush = 0;
+        lastFlushAt = now();
+        ledger.flush();
+      }
+    };
+
+    const run = async (item: (typeof work)[number]): Promise<void> => {
+      const mark = {
+        failed: out.failed.length,
+        pushed: out.pushed.length,
+        pulled: out.pulled.length,
+      };
+      let handled = false;
+      try {
+        handled = await applyOne(item, out, budget);
+      } finally {
+        settle(item, handled, mark);
+      }
+    };
+    const drain = async (): Promise<void> => {
+      while (inFlight.size > 0) await Promise.race(inFlight);
+    };
+
     for (const item of work) {
       // TWO CEILINGS, because they bound different things and only one of them
       // survives a bad day. `moved` bounds what LANDS — disk writes, parked
       // copies, ledger churn — and it is the one a healthy pass hits. Requests
       // bound what we ASK, and it is the one that matters when nothing is
       // landing, which is precisely when the first counter stops moving
-      // (issue #109).
-      if (moved >= MAX_FILES_PER_PASS || requestsThisPass >= MAX_REQUESTS_PER_PASS) {
+      // (issue #109). Both count transfers still in flight.
+      if (
+        moved + inFlight.size >= MAX_FILES_PER_PASS ||
+        requestsThisPass >= MAX_REQUESTS_PER_PASS
+      ) {
         if (requestsThisPass >= MAX_REQUESTS_PER_PASS) out.requestsExhausted = true;
+        else out.filesCapped = true;
         log.warn?.(
           `[sync/files] ${work.length - seen} more path(s) to reconcile; taking them next pass.`
         );
@@ -2253,6 +2580,8 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         out.budgetExhausted = true;
         break;
       }
+      // A wall met by a transfer in flight ends the dispatch; what is in flight finishes.
+      if (wall()) break;
       // A PATH INSIDE ITS BACKOFF WINDOW COSTS NOTHING.
       //
       // Checked BEFORE the ceilings deliberately: charging a skipped path
@@ -2262,64 +2591,86 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
       if (ledger.isBackedOff(item.rel, now())) {
         seen += 1;
         out.backedOff = (out.backedOff ?? 0) + 1;
+        const at = ledger.row(item.rel)?.nextAttemptAt;
+        if (Number.isFinite(at)) soonestRetryAt = Math.min(soonestRetryAt, at as number);
         continue;
       }
       seen += 1;
-      const before = {
-        failed: out.failed.length,
-        pushed: out.pushed.length,
-        pulled: out.pulled.length,
-      };
-      const handled = await applyOne(item, out, budget);
-      if (handled) moved += 1;
-      // Arm or clear this path's window from what the pass actually did with
-      // it. A rate limit is excluded: that is the DOOR's state, not this
-      // path's, and punishing the file for it would push a whole project into
-      // backoff for something none of its files did.
-      if (hitRateLimit === null && formatRefused === null) {
-        if (out.failed.length > before.failed) {
-          const delay = ledger.noteAttemptFailed(item.rel, now());
-          log.warn?.(
-            `[sync/files] ${item.rel}: backing off ${Math.round(delay / 1000)}s before the next attempt`
-          );
-        } else if (
-          out.pushed.length > before.pushed ||
-          out.pulled.length > before.pulled ||
-          handled
+      if (item.decision.action === 'pull' && !hashesInFlight.has(item.remoteHash ?? '')) {
+        // Room in the pool: one until the probe came back, then the pacer's width.
+        while (
+          inFlight.size >= (probed ? pacer.limit() : 1) ||
+          (inFlight.size > 0 && bufferedInFlight + buffered(item) > MAX_BUFFERED_IN_FLIGHT_BYTES)
         ) {
-          ledger.noteAttemptOk(item.rel);
+          await Promise.race(inFlight);
+          if (wall()) break;
         }
+        if (wall()) {
+          seen -= 1;
+          break;
+        }
+        const hash = item.remoteHash ?? '';
+        const held = buffered(item);
+        hashesInFlight.add(hash);
+        bufferedInFlight += held;
+        const p: Promise<void> = run(item).finally(() => {
+          inFlight.delete(p);
+          hashesInFlight.delete(hash);
+          bufferedInFlight -= held;
+        });
+        inFlight.add(p);
+        continue;
       }
-      // A RATE LIMIT ENDS THE PASS. Every other refusal is about one file and
-      // the next one is worth trying; this one is about the door, and the
-      // remaining requests would do nothing but hold it shut for longer.
-      // (A cast: TS cannot see the assignment inside `refusal()`.)
-      const refusedFormat = formatRefused as { formatVersion: number | null } | null;
-      if (refusedFormat !== null) {
-        // ONE notification, and the pass ends: every other write would meet
-        // the same door. No backoff is armed (the file did nothing wrong).
-        opts.onFormatRefused?.(refusedFormat.formatVersion);
-        out.formatRefused = refusedFormat;
-        log.warn?.(
-          `[sync/files] the project now uses a newer file format than this build writes; nothing more goes up until Maude is updated (${work.length - seen} path(s) still to do).`
-        );
+      // Anything that is not a plain download — or a second copy of bytes already on their way —
+      // runs alone, in order.
+      await drain();
+      if (wall()) {
+        seen -= 1;
         break;
       }
-      if (authRefused) {
-        // ONE notification for the whole pass. `renewCredentialNow()` is
-        // single-flight with a 60 s floor, so 803 refused paths collapse to one
-        // renewal — but there is no reason to call it 803 times to find out.
-        opts.onAuthFailure?.(item.rel, 401);
-        out.authRefused = true;
-        log.warn?.(
-          `[sync/files] the workspace did not accept this connection; asking for a fresh credential and stopping this pass (${work.length - seen} path(s) still to do).`
-        );
-        break;
-      }
-      if (hitRateLimit !== null) {
-        holdIfRateLimited(out, work.length - seen);
-        break;
-      }
+      await run(item);
+    }
+    await drain();
+    sweepStaleParts(
+      new Set(work.map((w) => w.remoteHash).filter((h): h is string => typeof h === 'string'))
+    );
+
+    // A RATE LIMIT ENDS THE PASS. Every other refusal is about one file and
+    // the next one is worth trying; this one is about the door, and the
+    // remaining requests would do nothing but hold it shut for longer.
+    // (A cast: TS cannot see the assignment inside `refusal()`.)
+    const refusedFormat = formatRefused as { formatVersion: number | null } | null;
+    if (refusedFormat !== null) {
+      // ONE notification, and the pass ends: every other write would meet
+      // the same door. No backoff is armed (the file did nothing wrong).
+      opts.onFormatRefused?.(refusedFormat.formatVersion);
+      out.formatRefused = refusedFormat;
+      log.warn?.(
+        `[sync/files] the project now uses a newer file format than this build writes; nothing more goes up until Maude is updated (${work.length - seen} path(s) still to do).`
+      );
+    } else if (authRefused) {
+      // ONE notification for the whole pass. `renewCredentialNow()` is
+      // single-flight with a 60 s floor, so 803 refused paths collapse to one
+      // renewal — but there is no reason to call it 803 times to find out.
+      opts.onAuthFailure?.(out.failed.at(-1)?.rel ?? '', 401);
+      out.authRefused = true;
+      log.warn?.(
+        `[sync/files] the workspace did not accept this connection; asking for a fresh credential and stopping this pass (${work.length - seen} path(s) still to do).`
+      );
+    } else if (hitRateLimit !== null) {
+      holdIfRateLimited(out, work.length - seen);
+    }
+
+    // ADAPT THE WIDTH for the next pass (#204): a wall halves it, storage misses already stepped it
+    // down one by one, and a pass that moved a pool's worth of files cleanly earns one step up.
+    const metWall = hitRateLimit as { cause: string } | null;
+    if (metWall !== null && metWall.cause === 'hub-asked') {
+      pacer.onBackpressure();
+    } else if (!out.storageMisses && out.pulled.length >= pacer.limit() && !wall()) {
+      pacer.onCleanPass();
+    }
+    if (Number.isFinite(soonestRetryAt)) {
+      out.nextAttemptInMs = Math.max(0, soonestRetryAt - now());
     }
     if (out.pushed.length > 0 || out.pulled.length > 0) opts.onProgress?.();
 
@@ -2407,7 +2758,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
             out.budgetExhausted = true;
             return false;
           }
-          const got = await fetchVerified(rel, remoteHash, budget.remaining() + claim);
+          const got = await fetchVerified(rel, remoteHash, budget.remaining() + claim, claim);
           if (!got.ok) {
             if (got.overCap && budget.remaining() + claim < MAX_FILE_BYTES) {
               out.budgetExhausted = true;
@@ -2445,7 +2796,18 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
           out.budgetExhausted = true;
           return false;
         }
-        const got = await fetchVerified(rel, remoteHash, budget.remaining() + claim);
+        const got = await fetchVerified(rel, remoteHash, budget.remaining() + claim, claim);
+        if (!got.ok && got.storageMiss) {
+          // NOT A FAILURE AND NOT DELIVERED (#204): the hub is still fetching these bytes from its
+          // bucket. The row keeps its state (still on its way) and the path waits out a backoff
+          // window before it is asked again — never at once, which only queues another fill behind
+          // the one already running. Its byte reservation stays spent, like any failed transfer's:
+          // a budget that refunds is one a hub can spin.
+          out.storageMisses = (out.storageMisses ?? 0) + 1;
+          soonestRetryAt = Math.min(soonestRetryAt, now() + ledger.noteAttemptFailed(rel, now()));
+          pacer.onStorageMiss();
+          return false;
+        }
         if (!got.ok) {
           out.failed.push({ rel, reason: got.reason });
           ledger.setState(rel, 'stuck', { reason: got.reason });
@@ -2597,7 +2959,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
           });
           return false;
         }
-        const got = await fetchVerified(rel, remoteHash, budget.remaining() + claim);
+        const got = await fetchVerified(rel, remoteHash, budget.remaining() + claim, claim);
         if (!got.ok) {
           out.failed.push({ rel, reason: got.reason });
           if (got.overCap && budget.remaining() + claim < MAX_FILE_BYTES) {
@@ -2824,9 +3186,13 @@ function referencedAssetNames(designRoot: string): Set<string> {
   return out;
 }
 
-/** 0 = a referenced asset (front of the queue), 1 = everything else. */
-function rank(rel: string, referenced: Set<string>): number {
+/**
+ * 0 = the open canvas's own files, imports and assets (#204), 1 = an annotation-referenced asset,
+ * 2 = everything else.
+ */
+function rank(rel: string, referenced: Set<string>, wanted: ReadonlySet<string>): number {
+  if (wanted.has(rel)) return 0;
   const slash = rel.lastIndexOf('/');
   const base = slash === -1 ? rel : rel.slice(slash + 1);
-  return referenced.has(base) ? 0 : 1;
+  return referenced.has(base) ? 1 : 2;
 }

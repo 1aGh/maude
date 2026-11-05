@@ -59,6 +59,7 @@ import {
 import { useThemeAuto } from '../v2/settings/theme-auto.js';
 import { canvasTargetOrigin } from '../v2/kinds/kind-dim-relay.js';
 import { viewerModeOn } from '../v2/access/access-client.js';
+import { setServedFrom } from '../v2/shell/served-routes.js';
 
 export function useShellCore({}) {
   const [groups, setGroups] = useState([]);
@@ -507,6 +508,8 @@ export function useShellCore({}) {
     fetch('/_config')
       .then((r) => r.json())
       .then((data) => {
+        // #204 — a workspace cell serves no desktop-only route: the pollers stop asking them
+        setServedFrom(data);
         const designRel = (data.designRoot || '.design').replace(/^\/+|\/+$/g, '');
         // Functional merge — the `/_config` and `/_index-data` fetches race, and
         // the latter contributes `canvasDesignSystems` (DDR-093). A full-replace

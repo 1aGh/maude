@@ -2142,6 +2142,35 @@ describe('an owner edits a code module the hub already holds', () => {
   });
 });
 
+// 2.0.4 (task A, Michal's second Mac): a managed Maude Cloud copy opened from Home held 12 code
+// modules `stuck` ("…replicate only from an owner-vouched or loopback hub") because nothing ever
+// recorded receive consent for it. 2.0.4 opens the gate for the app-bound cloud cell
+// (sync/code-module-consent.ts); the rows already stuck must land on the next pass — a cursor read
+// that is SILENT about them, since the hub listed them long ago — not be remembered as refused.
+describe('code modules held stuck land once the gate opens', () => {
+  const RELS = [
+    'ui/2026/dresy/_uniform-template.ts',
+    'system/alligators/preview/_brand-css.ts',
+    'ui/club-web/_boards.ts',
+  ];
+
+  test('the next pass after the update delivers every stuck row', async () => {
+    const hub = fakeHub(Object.fromEntries(RELS.map((r, i) => [r, `export const v = ${i};`])));
+    // 2.0.3: no consent → each one refused and held stuck, the cursor moved past them.
+    const before = await plane(hub).reconcile();
+    expect(before.pulled).toEqual([]);
+    for (const rel of RELS) expect(ledger.row(rel)?.state).toBe('stuck');
+    // 2.0.4 boots: same ledger, same hub head — nothing new in the delta.
+    const after = await plane(hub, { allowCodeModules: true }).reconcile();
+    expect([...after.pulled].sort()).toEqual([...RELS].sort());
+    expect(after.dropped).toEqual([]);
+    RELS.forEach((rel, i) => {
+      expect(read(rel)).toBe(`export const v = ${i};`);
+      expect(ledger.row(rel)?.state).toBe('on-hub');
+    });
+  });
+});
+
 // 2026-10-02 (alligators): six `assets/*.mp4` moved into `_trash`, an svg
 // deleted locally before it ever uploaded, and four hub files the hub then
 // deleted — none of them existed ANYWHERE any more, and the panel said
@@ -2168,6 +2197,30 @@ describe('a row for a file that exists nowhere', () => {
     hub.tombstone('ui-welcome.tsx');
     await p.reconcile();
     expect(p.doruceka()['ui-welcome.tsx']).toBeUndefined();
+  });
+
+  // 2.0.4 (alligators): the cell now quarantines its flat canvas twins and
+  // tombstones them. A desktop that refused one as a code module — across a
+  // restart, with the real grouped canvas on its own disk — must just let go:
+  // nothing local is removed, so no owner vouching is needed.
+  test('a stuck flat twin clears on the hub tombstone after a restart, the grouped canvas untouched', async () => {
+    const groups = { canvasGroups: [{ path: 'ui' }, { path: 'system' }] };
+    write('ui/welcome.tsx', 'export default function Welcome() { return null; }');
+    const hub = fakeHub({ 'ui-welcome.tsx': 'export default () => null' });
+    await plane(hub, groups).reconcile();
+    expect(ledger.row('ui-welcome.tsx')?.state).toBe('stuck');
+
+    // A restart: the ledger comes back from disk, a fresh plane reads it.
+    ledger = createFileLedger({ designRoot: root, hubUrl: HUB, flushMs: 0 });
+    expect(ledger.row('ui-welcome.tsx')?.state).toBe('stuck');
+    hub.tombstone('ui-welcome.tsx');
+    const out = await plane(hub, groups).reconcile();
+
+    expect(ledger.row('ui-welcome.tsx')).toBeNull();
+    expect(out.dropped.map((d) => d.rel)).not.toContain('ui-welcome.tsx');
+    expect(read('ui/welcome.tsx')).toBe('export default function Welcome() { return null; }');
+    expect(existsSync(join(root, 'ui-welcome.tsx'))).toBe(false);
+    expect(hub.puts).toEqual([]);
   });
 
   test('a file that is still here, or still on the hub, is not forgotten', async () => {

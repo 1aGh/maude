@@ -491,3 +491,30 @@ rights or is an availability nuisance). Candidates for the first rc patch:
     `_comments/` must stay in.
   - **`sync/agent.ts` `applyFromFs`** decodes before checking the path too. It is on the legacy two-doc path, which
     is unused.
+
+## 2.0.4 — #166, the trash race (F14 / F15), fix/204-release (2026-11-04)
+
+- **The race's silent divergence** (lines 79-81 above, triage F15) was fixed by **24276e32e** (p8-fix-c2 #2, shipped
+  in 2.0.0): a queued trash the hub later refuses is held as a source conflict with the notice, and goes out once.
+  RCA rig, 2.0.3: 20/20 offline races, both directions, end equal or held with the notice.
+- **The restart path** was fixed by **133f63e08**: an open conflict episode on disk
+  (`sync-recovery/candidate.tsx.json`, `resolved: false`) keeps the hold across a restart. Before it, 8 of 20
+  `--restart-held` runs were overwritten in silence, and every one of them was held on the canvas's creator.
+- **The creator's false conflict** was fixed by 204-Q1 **ca7e97da2**. The Mac that made a canvas never saved a base,
+  so after a restart its offline edit was held as a conflict instead of proposed. An accepted create now persists
+  the base (`adoptBase(…, { remember: true })`). Test: `test/v2-204-creator-base.test.ts`.
+  Rig on the mini (`--scenario race --restart-held`, offline, stop order): 10/10 with `--trasher alice` (bob held)
+  and 10/10 with `--trasher bob` (the creator, alice, held). In all 20 the held side kept its copy, and the notice was
+  back after the restart.
+- **Restore on an emptied copy** (lines 74-78 above, triage F14) was fixed on **fix/204-restore-emptied**
+  (46c763bbc, 726e69745, df21015b4): a restore brings this disk's change up before it splices.
+- **"A hand edit inside a trashed artboard ended on neither Mac"** is not a loss. The rig (204-Q2, d4304d312) now
+  classifies it: online `text-trashed`, 18/18 pass, 0 lost. Of the 18:
+  - 8 were a rig artefact: the trash reached that disk first, so the edit matched nothing and was never made.
+  - 3 were correct: the edit was accepted (rev N) and the trash took the edited artboard (rev N+1), so the Trash item
+    (the html at the revision before the trash) restores it with the edit.
+  - 7 were held on the editor's Mac with the notice (Not saved · Compare).
+- **e2e** (204-Q3, 1ac454e79): team-cell-missing's race now restarts the held Mac's studio and checks the notice
+  again, and multiplayer/surface answers the tree's shell dialogs (`tree-ask-ok`, NameDialog) in place of the dead
+  `window.confirm`/`window.prompt` stubs. **Not run yet** (it needs a debug .app). Run both lanes once alone after
+  the merge.

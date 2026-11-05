@@ -14,6 +14,8 @@
 // "Start a vote…" is a shell gesture (⌘K, the artboard menu routed through the shell's own handlers). No React, no DOM: `fetchImpl` / `now` / `setTimer` are
 // injected, so it is unit-tested without a browser.
 
+import { fetchIfServed } from '../shell/served-routes.js';
+
 /** The words (CONTRACT §3–§4). */
 export const VOTE_WORDS = {
   title: 'Start a vote',
@@ -157,11 +159,15 @@ export function resultPlace(artboards, targets) {
 
 async function call(fetchImpl, method, url, body) {
   try {
-    const r = await fetchImpl(url, {
-      method,
-      headers: { 'content-type': 'application/json' },
-      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-    });
+    const r = await fetchIfServed(
+      url,
+      {
+        method,
+        headers: { 'content-type': 'application/json' },
+        ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+      },
+      fetchImpl
+    );
     return { status: r.status, data: await r.json().catch(() => null) };
   } catch {
     return { status: 0, data: null };

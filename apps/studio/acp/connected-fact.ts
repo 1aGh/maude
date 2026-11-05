@@ -54,9 +54,14 @@ export function createConnectedFact(deps: ConnectedFactDeps) {
   function ensure(): Promise<boolean> {
     if (fresh()) return Promise.resolve(value === true);
     if (inflight) return inflight;
-    inflight = deps
-      .probe()
-      .then((r) => set(r.available === true))
+    // 2.0.4 (J): never chain on the probe's own return. In the cloud build (cell, self-hosted hub image)
+    // `acp/probe.ts` is the inert, deliberately NON-thenable stub (`cloud-build.ts`), so `probe().then` threw
+    // synchronously — out of `read()`, out of the outbox gates, and every drain pass failed. The executor
+    // adopts a promise, wraps a plain value and turns a synchronous throw into a rejection.
+    inflight = new Promise<{ available?: unknown } | null | undefined>((resolve) =>
+      resolve(deps.probe())
+    )
+      .then((r) => set(r?.available === true))
       .catch(() => set(false))
       .finally(() => {
         inflight = null;
@@ -71,7 +76,13 @@ export function createConnectedFact(deps: ConnectedFactDeps) {
     /** The last answer (the sync fallback before the first one); a stale answer starts a refresh. */
     read(): boolean {
       if (!fresh()) void ensure();
-      return value ?? deps.sync();
+      if (value !== null) return value;
+      // strictly `true`: the cloud stub's `.available` is a truthy proxy, and a gate fact is a boolean
+      try {
+        return deps.sync() === true;
+      } catch {
+        return false;
+      }
     },
     /** An answer somebody else already got (the status route, the preflight). */
     note(available: boolean): void {

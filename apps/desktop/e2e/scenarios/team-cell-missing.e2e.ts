@@ -1,6 +1,8 @@
+import { type ChildProcess, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { deflateSync } from 'node:zlib';
 import { $, browser, expect } from '@wdio/globals';
 
@@ -8,7 +10,7 @@ import { type LocalHub, startLocalHub } from '../fixtures/local-hub.mjs';
 import { waitForCanvasOpened } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { pointerClick } from '../helpers/pointer';
-import { waitForSidecar } from '../helpers/sidecar';
+import { killSidecar, waitForRespawn, waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
 import { pinCurrentWindow } from '../helpers/windows';
 
@@ -138,6 +140,63 @@ async function hubAnswers(url: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
+
+/** Alice's studio as this spec restarted it (F15 restart step); stopped in `after`. */
+let teammate: { pid: number; proc: ChildProcess | null } = { pid: 0, proc: null };
+
+async function studioAnswers(port: number): Promise<boolean> {
+  try {
+    return (await fetch(`http://127.0.0.1:${port}/_health`, { signal: AbortSignal.timeout(2_000) }))
+      .ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Restart alice's studio on the same folder, port and credentials (what wdio.team-cell.conf.ts spawned): an app
+ * relaunch, an update, a tab that rested. The cold start then judges her disk again.
+ */
+async function restartTeammate(c: Cell): Promise<void> {
+  try {
+    process.kill(teammate.pid, 'SIGCONT');
+    process.kill(teammate.pid, 'SIGTERM');
+  } catch {
+    /* gone */
+  }
+  await eventually(
+    'alice’s studio to stop',
+    async () => !(await studioAnswers(c.teammatePort)),
+    30_000
+  );
+  const cfg = join(dirname(c.teammate), 'teammate-cfg');
+  const { MAUDE_PROJECT_ROOT: _designer, ...env } = process.env;
+  const proc = spawn(
+    'bun',
+    [
+      '--no-env-file',
+      join(ROOT, 'apps/studio/server.ts'),
+      '--root',
+      c.teammate,
+      '--port',
+      String(c.teammatePort),
+    ],
+    {
+      env: {
+        ...env, // the stub `claude` first on PATH, as the launcher set it
+        HUBS_CONFIG_PATH: join(cfg, 'hubs.json'),
+        MAUDE_CLOUD_CONFIG: join(cfg, 'cloud.json'),
+        MAUDE_NO_AUTOBUILD: '1',
+        NO_OPEN: '1',
+      },
+      stdio: ['ignore', 'ignore', 'ignore'],
+    }
+  );
+  teammate = { pid: proc.pid ?? 0, proc };
+  await eventually('alice’s studio back', () => studioAnswers(c.teammatePort), 90_000);
 }
 
 /** The cell this spec restarted (same dir, port, tokens, checkout); stopped in `after`. */
@@ -272,6 +331,7 @@ describe('team-cell-missing (native-desktop)', () => {
   before(async function () {
     if (!CELL) this.skip();
     c = CELL as Cell;
+    teammate = { pid: c.teammatePid, proc: null };
     startReport(
       'team-cell-missing (native-desktop) — the boards that need a second person or a cell that is away'
     );
@@ -283,10 +343,12 @@ describe('team-cell-missing (native-desktop)', () => {
 
   after(() => {
     try {
-      process.kill((CELL as Cell).teammatePid, 'SIGCONT');
+      process.kill(teammate.pid || (CELL as Cell).teammatePid, 'SIGCONT');
     } catch {
       /* gone */
     }
+    // the launcher stops the studio it spawned; one this spec respawned is this spec's to stop
+    teammate.proc?.kill('SIGTERM');
     restarted?.stop();
   });
 
@@ -484,19 +546,9 @@ describe('team-cell-missing (native-desktop)', () => {
       LETAK_SOURCE.replace(/ {8}<DCArtboard[\s\S]*<\/DCArtboard>\n/, '')
     );
     expect(ids(read(join(c.designer, '.design', LETAK)))).toEqual([]);
-    // the hand edit is taken by the cell before anyone restores into it (a restore over a local edit the cell has not
-    // taken yet would be held, not applied)
-    // Saved, and still Saved four seconds on (the word can read Saved for a beat before the watcher sees the file)
-    await browser.pause(2_000);
-    let stable = 0;
-    await eventually(
-      'the hand edit settled (Saved, held for four seconds)',
-      async () => {
-        stable = (await statusWord())?.status === 'saved' ? stable + 1 : 0;
-        return stable >= 8;
-      },
-      120_000
-    );
+    // No wait for "Saved" here: Restore is clicked as soon as the card shows, while the hand edit may still sit in the
+    // watcher's quiet window or be on its way to the cell. The restore brings this disk's change up first
+    // (F14 2.0.4, contracts/F14-restore-settles-disk.md) — the race this scenario used to wait out.
 
     const card = await $(tid('all-trashed'));
     await card.waitForDisplayed({ timeout: 90_000 });
@@ -627,6 +679,36 @@ describe('team-cell-missing (native-desktop)', () => {
     for (const side of [n.designer, n.teammate]) {
       expect(side.length).toBeGreaterThan(0);
       expect(side.length).toBeLessThan(4);
+    }
+
+    // F15 (v2-204) — a held conflict is not only in the running studio: restart the held Mac's studio (an app
+    // relaunch, an update, a tab that rested) and its cold start must hold it again — the notice back, both
+    // versions kept, its own copy NOT overwritten by the project's in silence (133f63e08; the rig's
+    // --restart-held). Equal Macs hold nothing, so there is nothing to restart.
+    if (outcome.startsWith('held')) {
+      const here = outcome.startsWith('held on this Mac');
+      const root = here ? c.designer : c.teammate;
+      const before = ids(read(join(root, '.design', RACE)));
+      if (here) {
+        // the app's own sidecar: a crash, so nothing in memory survives; the supervisor respawns it
+        await waitForRespawn(killSidecar(c.designer), 120_000, c.designer);
+        await waitForSidecar();
+      } else {
+        await restartTeammate(c);
+      }
+      await eventually(
+        `the conflict held again after ${here ? 'this Mac’s' : 'alice’s'} studio restarted`,
+        () => heldThere(here ? null : `http://127.0.0.1:${c.teammatePort}/_sync-status`, root),
+        180_000
+      );
+      const after = ids(read(join(root, '.design', RACE)));
+      console.log(
+        `[team-cell-missing] after the restart: held again on ${here ? 'this Mac' : 'alice’s'} — ${JSON.stringify(after)}`
+      );
+      expect(after).toEqual(before);
+      await capture('05-race-held-after-restart');
+    } else {
+      console.log('[team-cell-missing] the Macs ended equal — no held side to restart');
     }
     // the RACE canvas, opened, shows no all-trashed card (a card that shows would be the race canvas's own)
     const raceRow = await canvasRow('canvas-row-ui-race');

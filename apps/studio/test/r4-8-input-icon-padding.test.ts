@@ -58,6 +58,7 @@ test('every input in the team-server form that has a leading icon sits in .ob-fi
     jsx.match(
       /<span className="ob-field-wrap">\s*<Icon[^>]*ob-field-pre[^>]*\/>\s*<input\s+className="input ob-input"/g
     ) ?? [];
-  expect(pres.length).toBe(3);
-  expect(inputs.length).toBe(3);
+  // Issue #204: the form keeps only the server address (email + password live on the server's page).
+  expect(pres.length).toBe(1);
+  expect(inputs.length).toBe(1);
 });

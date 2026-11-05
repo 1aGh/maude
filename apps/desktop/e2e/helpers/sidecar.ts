@@ -93,13 +93,21 @@ export function killSidecar(projectRoot = process.env.MAUDE_PROJECT_ROOT ?? ''):
  * Identity is the pid, not the port: the main listener walks a deterministic
  * ladder (the app's 46399…, an e2e lane's 47399… — port.ts) and usually reclaims the very same port, so a port compare
  * would report "no respawn yet" forever.
+ *
+ * `projectRoot` = the project `killSidecar` was given. A lane that builds its world in the launcher (team-cell)
+ * leaves MAUDE_PROJECT_ROOT at the base fixture in the WORKER (wdio.conf.ts sets it at load), so the default read
+ * another project's `_server.json` and never saw the respawn.
  */
-export async function waitForRespawn(previous: ServerInfo, timeout = 120_000): Promise<ServerInfo> {
+export async function waitForRespawn(
+  previous: ServerInfo,
+  timeout = 120_000,
+  projectRoot = process.env.MAUDE_PROJECT_ROOT ?? ''
+): Promise<ServerInfo> {
   let latest: ServerInfo | null = null;
   await browser.waitUntil(
     async () => {
       try {
-        latest = readServerInfo();
+        latest = readServerInfo(projectRoot);
       } catch {
         return false; // file removed by spawn_for, not yet rewritten — keep waiting
       }

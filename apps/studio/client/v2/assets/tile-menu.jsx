@@ -1,6 +1,6 @@
 // client/v2/assets/tile-menu.jsx — the menu a right-click on a tile opens (S8.12; 12 · ia-assets-keys).
 //
-// "Place in MVP zápasu ↵", "Show details ⌘I", "Copy ⌘C" and Move to trash — the same actions the keys run (`assets.place`, `assets.details`,
+// "Place in MVP zápasu ↵", "View larger Space", "Show details ⌘I", "Copy ⌘C" and Move to trash — the same actions the keys run (`assets.place`, `assets.details`,
 // through assets-bus.js), so the menu, ↵ and ⌘I are one code path. A viewer is offered Show details only; sound and video
 // are not placed from here (a clip goes on a video artboard's timeline). Reached by the right-click, the keyboard
 // (↑ ↓ walk, esc closes). Move to trash (S8.13) is an editor's: the studio takes the picture and its sidecars together.
@@ -23,6 +23,8 @@ export function tileMenuItems(asset, { readOnly = false, placeLabel = null, coun
       label: placeLabel ? `Place in ${placeLabel}` : 'Place',
       keys: '↵',
     });
+  // 2.0.4 (#191) — View larger (`assets.spotlight`): the same window a double-click opens; a read, so every role has it
+  items.push({ id: 'spotlight', label: 'View larger', keys: 'Space' });
   items.push({ id: 'details', label: 'Show details', keys: '⌘I' });
   // P8 round 7 (12 · ia-assets-keys) — Rename… (`assets.rename`): an editor's, one picture at a time
   if (!readOnly && count <= 1) items.push({ id: 'rename', label: 'Rename…' });

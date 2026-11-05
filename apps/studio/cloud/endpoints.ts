@@ -247,7 +247,7 @@ export function createCloudEndpoints(ctx: Ctx) {
     );
   /** The last plan read, for THIS token only (a new sign-in never sees the old account's plan). */
   let planRead: { token: string; at: number; plan: CloudPlan | null } | null = null;
-  return {
+  const api = {
     /**
      * Signed in? Who? And WHICH folder is asking? Cheap — reads two files,
      * never the network.
@@ -729,6 +729,28 @@ export function createCloudEndpoints(ctx: Ctx) {
       return { status: 200, json: { ok: true, detached: !!linked } };
     },
   };
+
+  // #166 (2.0.4) — the attach lane is single-flight. Two calls that arrive together (a Connect
+  // pressed twice before the first answer, a Move to cloud racing a Connect) each ran their own
+  // /projects/open + the cell's /auth/login ~5 ms apart and minted two hub sessions for one
+  // person. A concurrent repeat now shares the call already running and gets its answer; a call
+  // after it settled runs again (a retry after a refusal must still reach the cell).
+  const inFlight = new Map<string, Promise<CloudEndpointResult>>();
+  const once = (key: string, run: () => Promise<CloudEndpointResult>) => {
+    const held = inFlight.get(key);
+    if (held) return held;
+    const p = run().finally(() => {
+      if (inFlight.get(key) === p) inFlight.delete(key);
+    });
+    inFlight.set(key, p);
+    return p;
+  };
+  const { attach, openManaged, attachStored } = api;
+  api.attach = (projectId: string) => once(`attach:${String(projectId)}`, () => attach(projectId));
+  api.openManaged = (projectId: string) =>
+    once(`open:${String(projectId)}`, () => openManaged(projectId));
+  api.attachStored = (hubUrl: string) => once(`link:${String(hubUrl)}`, () => attachStored(hubUrl));
+  return api;
 
   /**
    * The workspace this folder already answers to, if any. Address only.

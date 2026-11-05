@@ -10,6 +10,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
 import { crumbsOf, filesWords, useDsLibrary } from './ds-library.js';
 import { placeAsset, SELECT_ARTBOARD_LINE } from './place-asset.js';
+import { AssetSpotlight } from './spotlight.jsx';
 import { AssetTile } from './tile.jsx';
 
 /** "Placed the photo in Fotky ze zápasu." — the design system keeps the picture; nothing is copied. */
@@ -37,6 +38,8 @@ export function DsLibraryView({
   const [query, setQuery] = useState('');
   const [picked, setPicked] = useState(null);
   const [err, setErr] = useState('');
+  // 2.0.4 (#191) — the tile open large: the path showing; ← → walk the files listed now, in order
+  const [spot, setSpot] = useState(null);
   const rootRef = useRef(null);
   const sentinel = useRef(null);
   const alive = useRef(true);
@@ -96,8 +99,30 @@ export function DsLibraryView({
     [readOnly, rows, placeTarget, placeLabel, onRecord, toast]
   );
 
+  const spotIndex = spot ? rows.findIndex((r) => r.path === spot) : -1;
+  const focusTile = (path) => {
+    const tile = Array.from(rootRef.current?.querySelectorAll?.('[data-asset]') ?? []).find(
+      (el) => el.dataset.asset === path
+    );
+    tile?.focus?.({ preventScroll: true });
+  };
+  const closeSpotlight = () => {
+    if (spot) focusTile(spot);
+    setSpot(null);
+  };
+  const openSpotlight = (path) => {
+    if (byPath.has(path)) setSpot(path);
+  };
+  // the same rows the tile has in this view: Place, for a file that can be one
+  const spotAsset = spotIndex >= 0 ? rows[spotIndex] : null;
+  const spotRows =
+    spotAsset && !readOnly && spotAsset.placeable && ['image', 'video'].includes(spotAsset.kind)
+      ? [{ id: 'place', label: placeLabel ? `Place in ${placeLabel}` : 'Place', keys: '↵' }]
+      : [];
+
   if (apiRef)
     apiRef.current = {
+      spotlight: () => (picked ? openSpotlight(picked) : undefined),
       place: () => (picked ? place(picked) : undefined),
       tileSelected: () => !!picked && !!rootRef.current?.contains(document.activeElement),
     };
@@ -212,6 +237,7 @@ export function DsLibraryView({
                     setPicked(p);
                     setErr('');
                   }}
+                  onOpen={openSpotlight}
                   onMenu={() => {}}
                 />
               ))}
@@ -257,6 +283,27 @@ export function DsLibraryView({
         <p className="lp-foot" data-testid="assets-ds-foot">
           {byPath.get(picked)?.name}
         </p>
+      ) : null}
+      {spotAsset ? (
+        <AssetSpotlight
+          items={rows}
+          index={spotIndex}
+          urlOf={(p) => p}
+          rows={spotRows}
+          onIndex={(i) => {
+            const a = rows[i];
+            if (!a) return;
+            setSpot(a.path);
+            setPicked(a.path);
+            setErr('');
+          }}
+          onClose={closeSpotlight}
+          onRow={(id) => {
+            const path = spot;
+            setSpot(null);
+            if (id === 'place' && path) void place(path);
+          }}
+        />
       ) : null}
     </div>
   );

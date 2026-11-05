@@ -41,6 +41,13 @@ export interface RouteSpec {
    * GATES stay exactly the same; only the words differ.
    */
   refuse?(reason: 'cross-origin' | 'untrusted-host'): Response;
+  /**
+   * Issue #204 — a GET a cross-site page may reach, as a TOP-LEVEL NAVIGATION only
+   * (`Sec-Fetch-Mode: navigate` + `Sec-Fetch-Dest: document`): the loopback return a team
+   * server's sign-in page sends the browser to. A cross-site fetch, image or frame is still
+   * refused, and so is a rebound Host. The handler must act only on state it minted itself.
+   */
+  crossSiteNavigation?: true;
   handle(req: Request, params: Record<string, string>): Response | Promise<Response>;
 }
 

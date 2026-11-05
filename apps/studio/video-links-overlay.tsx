@@ -18,6 +18,7 @@
 import { useSyncExternalStore } from 'react';
 
 import { useArtboardsContext } from './canvas-lib.tsx';
+import { activeInterval } from './editing/page-activity.ts';
 import { type LinkGroup, linkGroups, unlinkedBase } from './video/link-groups.ts';
 
 export interface PillRect {
@@ -162,8 +163,8 @@ function subscribe(fn: () => void): () => void {
       : (window as unknown as Record<symbol, PlayheadHubLike | undefined>);
   const hub = w?.[HUB_KEY];
   if (!hub) {
-    const t = setInterval(fn, 500);
-    return () => clearInterval(t);
+    // 2.0.4: only while the page is in use — this ran 2×/s on every idle canvas (page-activity.ts)
+    return activeInterval(fn, 500);
   }
   hub.listeners.add(fn);
   return () => void hub.listeners.delete(fn);

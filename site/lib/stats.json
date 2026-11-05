@@ -1,8 +1,8 @@
 {
-  "version": "v2.0.3",
+  "version": "v2.0.4",
   "nodeRange": ">=20",
-  "publishedDate": "2026-11-04",
-  "releases": 144,
+  "publishedDate": "2026-11-05",
+  "releases": 145,
   "firstReleaseDate": "2026-05-11",
   "contributors": 1,
   "plugins": {
@@ -91,7 +91,7 @@
     "hub/pricing.mdx": "2026-05-28",
     "hub/self-host.mdx": "2026-11-02",
     "hub/team-projects.mdx": "2026-11-03",
-    "hub/workspace.mdx": "2026-11-02",
+    "hub/workspace.mdx": "2026-11-04",
     "index.mdx": "2026-11-05",
     "legal/dpa.mdx": "2026-11-05",
     "legal/privacy.mdx": "2026-11-05",

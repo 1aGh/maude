@@ -18,6 +18,8 @@
 // The system comes from the canvas the person has open, never from a message.
 
 import { useEffect, useRef } from 'react';
+import { pacedInterval } from '../../../editing/page-activity.ts';
+import { shellActivity } from '../shell/shell-activity.js';
 import { dispatchCanvasOp } from '../left-panel/left-panel-bus.js';
 import { menuRunner } from '../shell/menu-runner.js';
 import { nativeDoors } from '../shell/native-doors.js';
@@ -210,14 +212,15 @@ export function DsAdvancedHost({
     });
 
     refresh({ withBoard: true });
-    const timer = setInterval(() => refresh(), pollMs);
+    // 2.0.4: at pace while the window is used, slower while it is only looked at, not at all while hidden
+    const stopPoll = pacedInterval(() => refresh(), pollMs, shellActivity());
     const onVisible = () => {
       if (document.visibilityState === 'visible') refresh({ withBoard: true });
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => {
       dead = true;
-      clearInterval(timer);
+      stopPoll();
       document.removeEventListener('visibilitychange', onVisible);
       setAdvancedActions(null);
       setAdvanced(null);

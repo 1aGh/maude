@@ -130,27 +130,38 @@ export const signInOpenBrowser = (userCode, state) =>
   shellInvoke('home_cloud_sign_in_open', { userCode, state });
 /** After the Home server stored the credential: Rust records the account → the profile it landed in. */
 export const signInDone = (profile) => shellInvoke('home_cloud_signed_in', { profile });
-// S6.9 — the Advanced sheets' routes (S6.6). Nothing here keeps or logs what it carries: the hub
-// password is posted once, in the body, and the answer never contains it.
+// S6.9 — the Advanced sheets' routes (S6.6). Issue #204 K2: Home takes no team-server password —
+// Sign in (and an invite) opens the hub's own page in the browser, and Home's server waits for the
+// browser to come back (home/hub.ts). Nothing here keeps or logs what it carries.
 /** "Test connection": one tokenless GET /health on the server → `{ok, reachable, url, version}`. */
 export const hubTest = (url) => post('/_home/hub/test', { url });
-/** "Connect": `creds` ({email, password}) signs in; without it, a hub this Mac already holds a sign-in for. */
-export const hubPrepare = (profile, url, creds) =>
-  post('/_home/hub/prepare', {
-    profile,
-    url,
-    ...(creds ? { email: creds.email, password: creds.password } : {}),
-  });
-/** S6.11b — "Invite link or key": redeem a hub invite (the hub's POST /join) → the same answer as
- *  `hubPrepare`. The invite key, email and password ride this one POST body, never a URL or a log. */
-export const hubJoin = (profile, url, invite) =>
-  post('/_home/hub/join', {
-    profile,
-    url,
-    token: invite?.token,
-    email: invite?.email,
-    password: invite?.password,
-  });
+/** The project on a team server THIS profile is signed in to → the managed copy to open. */
+export const hubPrepare = (profile, url) => post('/_home/hub/prepare', { profile, url });
+/** #204 K2 — a sign-in (with `invite`, an invite accept) on the hub's own page →
+ *  `{ok, id, signInUrl}` | `{ok:false, error, reason?}` (`reason: 'needs-update'` for a hub < 2.0.4). */
+export const hubSignInStart = (profile, url, invite) =>
+  post('/_home/hub/signin/start', { profile, url, ...(invite ? { invite } : {}) });
+/** → `{ok, pending}` | `{ok, url, user}` | `{ok:false, error}`. */
+export const hubSignInPoll = (id) => post('/_home/hub/signin/poll', { id });
+export const hubSignInCancel = (id) => post('/_home/hub/signin/cancel', { id });
+/**
+ * Open the hub's page `hubSignInStart` answered. In the app Rust opens exactly that page shape, back
+ * to the Home origin only (external_link.rs `open_team_server_signin`); in a plain browser it is a
+ * new tab. Resolves 'ok' | 'refused' | 'failed'.
+ */
+export function openTeamServerSignIn(url) {
+  if (inShell())
+    return shellInvoke('open_team_server_signin', { url }).then(
+      () => 'ok',
+      (e) => (/Refusing/i.test(String(e)) ? 'refused' : 'failed')
+    );
+  try {
+    window.open(url, '_blank', 'noopener');
+    return Promise.resolve('ok');
+  } catch {
+    return Promise.resolve('failed');
+  }
+}
 /** Claude readiness →`{available, claudeInstalled, reason, install:{phase,ok?,reason?}, signinInFlight}`. */
 export const aiStatus = () => homeFetch('/_home/ai/status');
 /** step: 'install' | 'signin' | 'cancel'. */

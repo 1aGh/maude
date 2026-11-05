@@ -45,6 +45,7 @@ import { createGenerateRoutes, type GenerateRouteDeps } from './generate.ts';
 import { createHandoffRoutes, type HandoffRouteDeps } from './handoff.ts';
 import { createHelpGuidesRoutes, type HelpGuidesDeps } from './help-guides.ts';
 import { createHistoryRoutes, type HistoryRouteDeps } from './history.ts';
+import { createHubSigninRoutes, type HubSigninRouteDeps } from './hub-signin.ts';
 import { createImportLinkRoutes, type ImportLinkRouteDeps } from './import-link.ts';
 import { createKindRoutes } from './kinds.ts';
 import { createLinksRoutes, type LinksRouteDeps } from './links.ts';
@@ -140,6 +141,8 @@ export interface RouteDeps {
   cloudPlan?: CloudPlanDeps;
   /** S11.14 — `GET /_api/connections/hub` (main origin): the linked team server's Advanced details */
   connections?: ConnectionsRouteDeps;
+  /** Issue #204 — `/_api/hub-signin/*` (main origin): sign in to a team server on its own page */
+  hubSignin?: HubSigninRouteDeps;
   /** S8.19 — `GET /_api/asset-state` (main origin): disk + upload queue + hub presence */
   assetState?: AssetStateRouteDeps;
   /** S8.13 — `POST /_api/assets/trash` (main origin, Can edit on the project): assets + sidecars to `_trash/`;
@@ -266,6 +269,7 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...(deps.cloudPlan ? createCloudPlanRoutes(deps.cloudPlan) : []),
     ...(deps.helpGuides ? createHelpGuidesRoutes(deps.helpGuides) : []),
     ...(deps.connections ? createConnectionsRoutes(deps.connections) : []),
+    ...createHubSigninRoutes(deps.hubSignin ?? {}),
     ...createAssetStateRoutes(deps.assetState ?? { service: () => null }),
     ...(deps.assetTrash ? createAssetTrashRoutes(deps.assetTrash) : []),
     // P8 round 7 — POST /_api/assets/rename (routes/asset-rename.ts): the same deps and verdict as Move to trash

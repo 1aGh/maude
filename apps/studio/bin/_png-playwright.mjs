@@ -7,7 +7,12 @@
 
 import { mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { launchChromium, newShellContext, safeArtboardFilename } from './_pw-launch.mjs';
+import {
+  afterPaint,
+  launchChromium,
+  newShellContext,
+  safeArtboardFilename,
+} from './_pw-launch.mjs';
 import { layoutRegion, parseRegionArg } from './_region.mjs';
 
 const args = Object.fromEntries(
@@ -201,6 +206,8 @@ try {
     const vp = page.viewportSize();
     const clipX = Math.min(Math.max(0, Math.floor(finalRect.x)), Math.max(0, vp.width - 1));
     const clipY = Math.min(Math.max(0, Math.floor(finalRect.y)), Math.max(0, vp.height - 1));
+    // Shoot a frame painted at this size and position, never the previous surface (afterPaint).
+    await afterPaint(page);
     await page.screenshot({
       ...shotOpts,
       path: target,
@@ -232,6 +239,8 @@ try {
     const box = await layoutRegion(page, region);
     assertOutputSizeOk(box.width, box.height);
     await page.setViewportSize({ width: Math.max(1, box.width), height: Math.max(1, box.height) });
+    // Shoot a frame painted at this size and position, never the previous surface (afterPaint).
+    await afterPaint(page);
     await page.screenshot({
       ...shotOpts,
       path: out,

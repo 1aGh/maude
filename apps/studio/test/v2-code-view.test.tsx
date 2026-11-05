@@ -176,6 +176,8 @@ describe('mono only inside', () => {
       '.v2-code-cmd-t',
       '.v2-err-v',
       '.v2-err-snip',
+      // 2.0.4 (canvas waiting card): the names of the files a canvas waits for are paths
+      '.v2-err-file-n',
     ]);
     const stray: string[] = [];
     for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {

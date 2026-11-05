@@ -30,6 +30,7 @@ import { INDEX_CHANGED_EVENT } from '../canvases/use-canvas-index.js';
 import { nativeSave } from '../export/native-save.js';
 import { dispatchCanvasOp } from '../left-panel/left-panel-bus.js';
 import { ASK_AI_MAX } from '../search/search-env.js';
+import { fetchIfServed } from '../shell/served-routes.js';
 
 /** canvas file → (rel → item): what the studio last said about each canvas. The relink gate and the
  *  Inspector's absent-picture box read it; nothing else does. */
@@ -224,9 +225,11 @@ export function createAssetStateLane(deps) {
   async function ask(canvas) {
     let res;
     try {
-      res = await fetchImpl(`/_api/asset-state?canvas=${encodeURIComponent(canvas)}`, {
-        headers: { accept: 'application/json' },
-      });
+      res = await fetchIfServed(
+        `/_api/asset-state?canvas=${encodeURIComponent(canvas)}`,
+        { headers: { accept: 'application/json' } },
+        fetchImpl
+      );
     } catch {
       return null;
     }

@@ -17,6 +17,8 @@ import { prefetchPreviewImage } from '../panels/file-preview.jsx';
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTreeDrag } from '../use-tree-drag.js';
 import { TreeRowMenu, useRowMenu } from '../tree-row-menu.jsx';
+import { TreeAsk } from '../v2/canvases/folder-dialogs.jsx';
+import { askFailure, checkAskName, FOLDER_ASK_WORDS } from '../v2/canvases/folder-ask.js';
 import CloudBar from '../panels/CloudBar.jsx';
 import IdentityBar from '../panels/IdentityBar.jsx';
 import { CanvasesPanel } from '../v2/canvases/canvases-panel.jsx';
@@ -941,6 +943,23 @@ export function Sidebar({
   // non-DS canvas group folder (incl. each group's own root) is a valid
   // "Move to…" destination.
   const rowMenu = useRowMenu();
+  // #195 — the folder and file rows' asks (New folder here, Rename folder, Delete folder, a file's Rename… and
+  // Delete): one centered dialog at a time (v2/canvases/folder-dialogs.jsx), never `window.prompt`/`confirm`.
+  const [treeAsk, setTreeAsk] = useState(null);
+  const closeTreeAsk = useCallback(() => setTreeAsk(null), []);
+  const runTreeAsk = useCallback(
+    (ask, name) => {
+      const label = ask.name ?? ask.path.split('/').pop();
+      if (ask.kind === 'new-folder') return onNewFolder(ask.path, name, { quiet: true });
+      if (ask.kind === 'rename-folder') return onRenameFolder(ask.path, name, { quiet: true });
+      if (ask.kind === 'rename-canvas' || ask.kind === 'rename-file')
+        return onRenameCanvas(ask.path, name, { quiet: true });
+      if (ask.kind === 'trash-folder') return onDeleteFolder(ask.path, label, { quiet: true });
+      if (ask.kind === 'trash-file') return onDeleteFile(ask.path, label, { quiet: true });
+      return { ok: false };
+    },
+    [onNewFolder, onRenameFolder, onRenameCanvas, onDeleteFolder, onDeleteFile]
+  );
   // P8 round 7 — the pinned system row whose name is a field (Rename…, 13 · ds-multi-menu)
   const [renamingDs, setRenamingDs] = useState(null);
   const destinations = useMemo(() => {
@@ -997,10 +1016,11 @@ export function Sidebar({
                   label: 'Rename…',
                   onSelect: () => {
                     rowMenu.close();
-                    const current = displayName(menuExtra.path.split('/').pop());
-                    const name = window.prompt('Rename canvas to:', current);
-                    if (name?.trim() && name.trim() !== current)
-                      onRenameCanvas(menuExtra.path, name.trim());
+                    setTreeAsk({
+                      kind: 'rename-canvas',
+                      path: menuExtra.path,
+                      name: displayName(menuExtra.path.split('/').pop()),
+                    });
                   },
                 },
               ]
@@ -1026,12 +1046,11 @@ export function Sidebar({
                   label: 'Rename…',
                   onSelect: () => {
                     rowMenu.close();
-                    const n = menuExtra.name ?? menuExtra.path.split('/').pop();
-                    const ext = n.includes('.') ? n.slice(n.lastIndexOf('.')) : '';
-                    const current = ext ? n.slice(0, -ext.length) : n;
-                    const name = window.prompt(`Rename ${n} to:`, current);
-                    if (name?.trim() && name.trim() !== current)
-                      onRenameCanvas(menuExtra.path, name.trim());
+                    setTreeAsk({
+                      kind: 'rename-file',
+                      path: menuExtra.path,
+                      name: menuExtra.name ?? menuExtra.path.split('/').pop(),
+                    });
                   },
                 },
               ]
@@ -1047,7 +1066,11 @@ export function Sidebar({
                   destructive: true,
                   onSelect: () => {
                     rowMenu.close();
-                    onDeleteFile(menuExtra.path, menuExtra.name ?? menuExtra.path.split('/').pop());
+                    setTreeAsk({
+                      kind: 'trash-file',
+                      path: menuExtra.path,
+                      name: menuExtra.name ?? menuExtra.path.split('/').pop(),
+                    });
                   },
                 },
               ]
@@ -1058,10 +1081,10 @@ export function Sidebar({
             {
               id: 'new-folder-here',
               label: 'New folder here',
+              // #195 — asked in the shell's own dialog: `window.prompt` is a no-op in the desktop app
               onSelect: () => {
                 rowMenu.close();
-                const name = window.prompt('New folder name:');
-                if (name?.trim()) onNewFolder(menuExtra.dirPath, name.trim());
+                setTreeAsk({ kind: 'new-folder', path: menuExtra.dirPath });
               },
             },
             {
@@ -1069,10 +1092,7 @@ export function Sidebar({
               label: 'Rename folder',
               onSelect: () => {
                 rowMenu.close();
-                const current = menuExtra.dirPath.split('/').pop();
-                const name = window.prompt('Rename folder to:', current);
-                if (name?.trim() && name.trim() !== current)
-                  onRenameFolder(menuExtra.dirPath, name.trim());
+                setTreeAsk({ kind: 'rename-folder', path: menuExtra.dirPath });
               },
             },
             {
@@ -1081,7 +1101,7 @@ export function Sidebar({
               destructive: true,
               onSelect: () => {
                 rowMenu.close();
-                onDeleteFolder(menuExtra.dirPath, menuExtra.dirPath.split('/').pop());
+                setTreeAsk({ kind: 'trash-folder', path: menuExtra.dirPath });
               },
             },
           ]
@@ -1118,14 +1138,20 @@ export function Sidebar({
     setNamingErr('');
     if (!defaultFolderParent) {
       setNaming({ ...naming, busy: false });
-      setNamingErr('no canvas group to create a folder in');
+      setNamingErr(FOLDER_ASK_WORDS.noGroup);
       return;
     }
-    const res = await onNewFolder(defaultFolderParent, name);
+    const v = checkAskName({ kind: 'new-folder', path: defaultFolderParent }, name);
+    if (v.kind === 'error') {
+      setNaming({ ...naming, busy: false });
+      setNamingErr(v.error);
+      return;
+    }
+    const res = await onNewFolder(defaultFolderParent, name, { quiet: true });
     if (res?.ok) cancelNaming();
     else {
       setNaming({ ...naming, busy: false });
-      setNamingErr(res?.error || 'Could not make the folder. Nothing was changed.');
+      setNamingErr(askFailure('new-folder', res));
     }
   }, [naming, defaultFolderParent, onNewFolder, cancelNaming]);
 
@@ -1464,6 +1490,7 @@ export function Sidebar({
         destinations={rowMenuDestinations}
         onPickDestination={(dest) => onMoveCanvas(menuExtra.path, dest)}
       />
+      <TreeAsk ask={treeAsk} run={runTreeAsk} onClose={closeTreeAsk} />
       {/* P8 C4: no project switcher here — the project pill is the switcher (RepoBranchSwitcher.jsx). */}
       {/* Cloud Phase 23 C3 — Maude Cloud sign-in + remote-project attach, docked
           above the GitHub identity. Dev-server-backed, so it works in the desktop

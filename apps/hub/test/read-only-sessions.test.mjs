@@ -128,6 +128,8 @@ describe('the read-only allowlist is a decision, not a convenience', () => {
     '/admin',
     '/admin/*',
     '/auth/browser',
+    // Issue #204 — a one-time code + PKCE verifier, judged by the handler.
+    '/auth/desktop/exchange',
     '/auth/login',
     '/auth/oidc/callback',
     '/auth/oidc/start',

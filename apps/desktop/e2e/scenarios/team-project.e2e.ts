@@ -14,6 +14,11 @@ import {
   toggleTheme,
 } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
+import {
+  capturedSignInUrl,
+  captureTeamServerSignIn,
+  signInOnHubPage,
+} from '../helpers/hub-signin-page';
 import { isNativeShell } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
 import { openSwitcher } from '../helpers/switcher';
@@ -310,39 +315,51 @@ describe('team-project (native-desktop)', () => {
     await row.click();
     const sheet = await $(tid('onb-hub'));
     await sheet.waitForDisplayed({ timeout: 10_000 });
-    expect(await (await sheet.$('h2')).getText()).toBe('Connect to your own hub');
-    expect(await (await $(tid('onb-hub-go'))).getText()).toBe('Connect');
+    expect(await (await sheet.$('h2')).getText()).toBe('Sign in to your own hub');
+    expect(await (await $(tid('onb-hub-go'))).getText()).toBe('Sign in');
+    // #204 K2: no email or password field in the app
+    // (by input type, not by the retired testids — those are not hooks any more)
+    expect(await (await sheet.$('input[type="password"]')).isExisting()).toBe(false);
+    expect(await (await sheet.$('input[type="email"]')).isExisting()).toBe(false);
     await capture('01h-home-hub-sheet');
   });
 
-  it('2h · Test connection reads Reachable; a wrong password says so and nothing opens', async () => {
+  it('2h · Test connection reads Reachable; a wrong password on the hub’s page sends nothing back and nothing opens', async () => {
     const t = TEAM as NonNullable<typeof TEAM>;
     await (await $(tid('onb-hub-url'))).setValue(t.hub);
     await (await $(tid('onb-hub-test'))).click();
     const ok = await $(tid('onb-hub-reachable'));
     await ok.waitForDisplayed({ timeout: 20_000 });
     expect(await ok.getText()).toContain('Reachable');
-    await (await $(tid('onb-hub-email'))).setValue('designer@x.test');
-    await (await $(tid('onb-hub-password'))).setValue('not-the-password');
+    // #204 K2: Sign in opens the hub's OWN page — the e2e takes the URL Home asked Rust to open
+    await captureTeamServerSignIn();
     await (await $(tid('onb-hub-go'))).click();
-    const err = await $(tid('onb-hub-error'));
-    await err.waitForDisplayed({ timeout: 20_000 });
-    expect((await err.getText()).toLowerCase()).not.toContain('token');
-    // the field was emptied the moment Connect was pressed
-    expect(await (await $(tid('onb-hub-password'))).getValue()).toBe('');
+    await (await $(tid('onb-hub-waiting'))).waitForDisplayed({ timeout: 15_000 });
+    const pageUrl = await capturedSignInUrl();
+    expect(pageUrl).toContain('/studio/signin?client=desktop');
+    expect(new URL(pageUrl).searchParams.get('redirect_uri')).toMatch(
+      /^http:\/\/127\.0\.0\.1:\d+\/_api\/hub-signin\/return$/
+    );
+    await expect(signInOnHubPage(pageUrl, 'designer@x.test', 'not-the-password')).rejects.toThrow(
+      /no hand-off/
+    );
     expect(existsSync(t.managedDir)).toBe(false);
+    // Cancel forgets the attempt; the sheet stays
+    await (await $(tid('onb-hub-cancel'))).click();
+    await (await $(tid('onb-hub-waiting'))).waitForDisplayed({ reverse: true, timeout: 10_000 });
     await capture('02h-home-wrong-password');
   });
 
-  it('3h · the right password opens the project’s own copy as a tab with the teammate’s canvases', async () => {
+  it('3h · the right password on the hub’s page opens the project’s own copy as a tab with the teammate’s canvases', async () => {
     const t = TEAM as NonNullable<typeof TEAM>;
     const before = await labels();
-    await (await $(tid('onb-hub-password'))).setValue(t.password);
     await (await $(tid('onb-hub-go'))).click();
+    await (await $(tid('onb-hub-waiting'))).waitForDisplayed({ timeout: 15_000 });
+    await signInOnHubPage(await capturedSignInUrl(), 'designer@x.test', t.password);
     await browser.waitUntil(async () => (await labels()).length === before.length + 1, {
       timeout: 60_000,
       interval: 250,
-      timeoutMsg: 'no project tab after Connect',
+      timeoutMsg: 'no project tab after Sign in',
     });
     const created = (await labels()).find((l) => !before.includes(l)) as string;
     await browser.waitUntil(async () => (await activeTab()) === created, { timeout: 15_000 });
@@ -614,15 +631,22 @@ describe('team-project (native-desktop)', () => {
     await capture('10-access-removed-sign-in-again');
     expect(read(theirs) ?? '').not.toContain('after access was removed');
 
-    // The owner lets them back in; the designer signs in with their password.
+    // The owner lets them back in; the designer signs in again — on the TEAM SERVER'S OWN page
+    // (issue #204: the app has no email/password field). The app opens that page in the system
+    // browser, which an e2e cannot drive, so the scenario takes the page URL the tab asked Rust
+    // to open and walks the browser's hops itself: the page, the password form, the hand-off
+    // back to the tab's own loopback server.
     expect((await admin('/users/enable')).status).toBe(200);
     await again.click();
-    await (await $(tid('team-hub-email'))).waitForDisplayed({ timeout: 10_000 });
+    await (await $(tid('team-hub-open'))).waitForDisplayed({ timeout: 10_000 });
     const url = await $(tid('team-hub-url'));
     if (!(await url.getValue())) await url.setValue(t.hub);
-    await (await $(tid('team-hub-email'))).setValue('designer@x.test');
-    await (await $(tid('team-hub-password'))).setValue(t.password);
+    await captureTeamServerSignIn();
     await (await $(tid('team-hub-open'))).click();
+    await (await $(tid('team-hub-waiting'))).waitForDisplayed({ timeout: 15_000 });
+    const pageUrl = await capturedSignInUrl();
+    expect(pageUrl).toContain('/studio/signin?client=desktop');
+    await signInOnHubPage(pageUrl, 'designer@x.test', t.password);
     await eventually(
       'the edit held while access was removed, at the teammate after signing in again',
       () => (read(theirs) ?? '').includes('after access was removed'),

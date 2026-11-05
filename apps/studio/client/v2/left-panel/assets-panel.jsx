@@ -43,13 +43,15 @@ import { AssetDetails } from '../assets/details.jsx';
 import { GenerateAsk } from '../assets/generate-ask.jsx';
 import { COPY_FAILED_LINE, copyAssetImage } from '../assets/copy-asset.js';
 import { KindsChip } from '../assets/kinds-chip.jsx';
-import { filterKind, GROUP_CAP, libraryFootWords } from '../assets/library-foot.js';
+import { filterKind, libraryFootWords } from '../assets/library-foot.js';
 import { runMeta, runTitle, splitGenerated, useGenerated } from '../assets/generated.js';
 import { splitJustAdded } from '../assets/just-added.js';
 import { placeAsset, placedWords, SELECT_ARTBOARD_LINE } from '../assets/place-asset.js';
 import { ARRIVAL_LINES, addingLine, linkName } from '../assets/import-lines.js';
 import { toastArrivals } from '../assets/import-toast.js';
 import { SeenLine } from '../assets/search-marks.jsx';
+import { AssetSpotlight } from '../assets/spotlight.jsx';
+import { groupShown, narrowOrder, spotlightRows } from '../assets/spotlight-model.js';
 import { AssetTile } from '../assets/tile.jsx';
 import { AssetTileMenu, tileMenuItems } from '../assets/tile-menu.jsx';
 import { ConfirmTrash, NotCountedNote, TidyFoot, tidyModel } from '../assets/tidy.jsx';
@@ -183,6 +185,8 @@ export function AssetsPanel({
   const [picked, setPicked] = useState(null);
   const [menu, setMenu] = useState(null);
   const [details, setDetails] = useState(null);
+  // 2.0.4 (#191) — the tile opened large ({ path, order }): `order` is the tiles ← → walks, fixed when it opened
+  const [spot, setSpot] = useState(null);
   // S8.13 — the wide Browse view (null = the narrow tab), the Not used filter, the confirm sheet and the Undo line
   const [browse, setBrowse] = useState(null);
   const [notUsedOnly, setNotUsedOnly] = useState(false);
@@ -366,6 +370,17 @@ export function AssetsPanel({
   }, [query, describe.hits, shown, byPath, notUsedOnly, hasUsage]);
   useAssetAnswers(); // the bars on tiles follow what the studio last said about each open canvas
   const url = (p) => `/${designRel}/${p}`;
+  // 2.0.4 (#191) — a double-click (or Space on the picked tile, `assets.spotlight`) opens the tile large. ← → walk the tiles
+  // the tab draws now: the wide Browse view's order when it is open, else the groups as the narrow tab shows them.
+  const openSpotlight = (path) => {
+    if (!byPath.has(path)) return;
+    setMenu(null);
+    const order =
+      browse && assets
+        ? browseOrder(assets, browse)
+        : narrowOrder(groups, seen, { uncapped: notUsedOnly && hasUsage });
+    setSpot({ path, order: order.includes(path) ? order : [path] });
+  };
   const renderTile = (a, o = undefined) => (
     <AssetTile
       key={a.path}
@@ -376,6 +391,7 @@ export function AssetsPanel({
       canDrag={!readOnly}
       onPick={setPicked}
       onMenu={openMenu}
+      onOpen={openSpotlight}
       uploading={assetUploadOf(a.path)}
     />
   );
@@ -583,6 +599,7 @@ export function AssetsPanel({
     place,
     placeMany,
     showDetails,
+    openSpotlight,
     trashSelection,
     startRename,
     readOnly,
@@ -606,6 +623,15 @@ export function AssetsPanel({
             setBrowse(null);
             l.showDetails(one);
           } else if (l.picked) l.showDetails(l.picked);
+        },
+        // 2.0.4 (#191) — Space on the picked tile: the same window a double-click opens
+        spotlight: () => {
+          const l = live.current;
+          if (l.sourceDs) dsApi.current?.spotlight();
+          else {
+            const one = l.browse ? l.browsePicked()[0] : l.picked;
+            if (one) l.openSpotlight(one);
+          }
         },
         rename: () => {
           const l = live.current;
@@ -659,14 +685,14 @@ export function AssetsPanel({
   const menuItems = menu
     ? tileMenuItems(menu.asset, { readOnly, placeLabel, count: menuCount })
     : [];
-  const onMenuSelect = (id) => {
-    const path = menu?.asset.path;
-    setMenu(null);
-    if (!path) return;
+  // the tile menu's rows and the spotlight's: one function (`single`: the spotlight acts on the one picture it shows)
+  const runTileAction = (id, path, { single = false } = {}) => {
     if (id === 'place') {
-      if (browse && browse.selected.has(path) && browse.selected.size > 1)
+      if (!single && browse && browse.selected.has(path) && browse.selected.size > 1)
         void placeMany(browsePicked());
       else void place(path);
+    } else if (id === 'spotlight') {
+      openSpotlight(path);
     } else if (id === 'details') {
       setBrowse(null);
       showDetails(path);
@@ -676,6 +702,48 @@ export function AssetsPanel({
       });
     } else if (id === 'rename') startRename(path);
     else if (id === 'trash') trashSelection(path);
+  };
+  const onMenuSelect = (id) => {
+    const path = menu?.asset.path;
+    setMenu(null);
+    if (path) runTileAction(id, path);
+  };
+
+  // ── 2.0.4 (#191): the spotlight ────────────────────────────────────────────────────────────────────────────────
+  const spotItems = spot ? spot.order.map((p) => byPath.get(p)).filter(Boolean) : [];
+  const spotIndex = spot ? spotItems.findIndex((a) => a.path === spot.path) : -1;
+  // the tile the window was showing takes focus back (esc, the button and a click outside all end here)
+  const focusTile = (path) => {
+    const tile = Array.from(document.querySelectorAll('[data-testid="assets-tile"]')).find(
+      (el) => el.dataset.asset === path && el.getClientRects().length > 0
+    );
+    tile?.focus?.({ preventScroll: true });
+  };
+  const closeSpotlight = () => {
+    const path = spot?.path;
+    if (path) focusTile(path);
+    setSpot(null);
+  };
+  // stepping moves the pick with it, so what ↵ places and ⌘I opens is the picture you were looking at
+  const stepSpotlight = (i) => {
+    const a = spotItems[i];
+    if (!a) return;
+    setSpot((cur) => (cur ? { ...cur, path: a.path } : cur));
+    if (browse) patchBrowse({ ...pickTile(spot.order, browse, a.path, {}) });
+    else setPicked(a.path);
+  };
+  const spotRows =
+    spotIndex >= 0
+      ? spotlightRows(
+          tileMenuItems(spotItems[spotIndex], { readOnly, placeLabel, count: 1 }).filter(
+            (r) => r.id !== 'spotlight'
+          )
+        )
+      : [];
+  const runSpotRow = (id) => {
+    const path = spotItems[spotIndex]?.path;
+    setSpot(null);
+    if (path) runTileAction(id, path, { single: true });
   };
 
   const detailed = details ? byPath.get(details) : null;
@@ -1154,10 +1222,7 @@ export function AssetsPanel({
                   </div>
                 ) : (
                   <div className="lp-grid">
-                    {(g.kind === 'added' || (notUsedOnly && hasUsage)
-                      ? g.items
-                      : g.items.slice(0, GROUP_CAP)
-                    ).map(renderTile)}
+                    {groupShown(g, { uncapped: notUsedOnly && hasUsage }).map(renderTile)}
                   </div>
                 )}
               </section>
@@ -1238,6 +1303,7 @@ export function AssetsPanel({
           onChange={patchBrowse}
           onPick={onBrowsePick}
           onMenu={openMenu}
+          onOpen={openSpotlight}
           onBack={() => setBrowse(null)}
           onClear={() => patchBrowse({ ...NOTHING_PICKED })}
           onPlace={(paths) => void placeMany(paths)}
@@ -1257,6 +1323,17 @@ export function AssetsPanel({
         />
       ) : null}
       <AssetTileMenu state={menu} items={menuItems} onSelect={onMenuSelect} onClose={closeMenu} />
+      {spot && spotIndex >= 0 ? (
+        <AssetSpotlight
+          items={spotItems}
+          index={spotIndex}
+          urlOf={url}
+          rows={spotRows}
+          onIndex={stepSpotlight}
+          onClose={closeSpotlight}
+          onRow={runSpotRow}
+        />
+      ) : null}
     </div>
   );
 }

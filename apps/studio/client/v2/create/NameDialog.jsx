@@ -8,13 +8,15 @@ import { useModalFocus } from '../shell/modal-focus.js';
 
 /**
  * @param {{ title: string, label: string, initial: string, confirm?: string, busy?: boolean, error?: string,
- *   onSubmit: (name: string) => void, onCancel: () => void }} props
+ *   busyLabel?: string, onSubmit: (name: string) => void, onCancel: () => void }} props
+ * #195 — the tree's folder asks reuse this dialog ("Rename folder", "Renaming…").
  */
 export default function NameDialog({
   title,
   label,
   initial,
   confirm = 'Create',
+  busyLabel = 'Creating…',
   busy = false,
   error = '',
   onSubmit,
@@ -86,7 +88,7 @@ export default function NameDialog({
             disabled={busy || !name}
             data-testid="name-dialog-create"
           >
-            {busy ? 'Creating…' : confirm}
+            {busy ? busyLabel : confirm}
           </button>
         </div>
       </form>

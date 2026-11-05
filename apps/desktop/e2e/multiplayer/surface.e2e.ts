@@ -102,8 +102,6 @@ type Surface = {
   click: (q: string) => Promise<void>;
   hover: (q: string) => Promise<void>;
   menu: (text: string) => Promise<void>;
-  confirmNext: () => Promise<void>;
-  promptNext: (value: string) => Promise<void>;
   fill: (q: string, value: string) => Promise<void>;
   select: (q: string, value: string) => Promise<void>;
   dragTo: (source: string, destination: string) => Promise<void>;
@@ -216,12 +214,6 @@ function web(name: string, root: string, page: Page): Surface {
       await item.waitFor({ state: 'visible' });
       await page.waitForTimeout(250);
       await item.click({ timeout: 10000 }).catch(() => item.click({ force: true }));
-    },
-    async confirmNext() {
-      page.once('dialog', (dialog) => dialog.accept());
-    },
-    async promptNext(value) {
-      page.once('dialog', (dialog) => dialog.accept(value));
     },
     async click(q) {
       await reveal(q);
@@ -381,27 +373,6 @@ const native: Surface = {
     }
     throw new Error(`Menu item absent: ${text}`);
   },
-  async confirmNext() {
-    // Test-only counterpart of accepting a native confirm dialog. The suite
-    // only operates its own temporary projects; OS dialog chrome is not a claim.
-    await browser.execute(() => {
-      const original = window.confirm;
-      window.confirm = () => {
-        window.confirm = original;
-        return true;
-      };
-    });
-  },
-  async promptNext(value) {
-    // Test-only counterpart of answering a native prompt (a temporary project).
-    await browser.execute((answer) => {
-      const original = window.prompt;
-      window.prompt = () => {
-        window.prompt = original;
-        return answer;
-      };
-    }, value);
-  },
   async click(q) {
     await nativeReveal(q);
     await (await $(q)).click();
@@ -451,6 +422,34 @@ async function until(check: () => Promise<boolean> | boolean, timeout = 15000) {
     await sleep(20);
   }
   throw new Error(`Condition absent after ${timeout} ms`);
+}
+// 2.0.4 (#195): the tree asks in the shell's own dialogs — `window.confirm` / `window.prompt` are no-ops in the
+// app's WKWebView, so stubbing them answered nothing. A yes/no ask (Delete, Move to trash) is the ask dialog's
+// verb button; a name ask (New folder here, Rename folder, Rename…) is the NameDialog (as L04's New canvas).
+// Each returns the moment the answer is given — when the action actually starts.
+async function answerAsk(s: Surface): Promise<number> {
+  const ok = selector('tree-ask-ok');
+  await until(async () => (await s.count(ok)) === 1, 10000);
+  const start = performance.now();
+  await s.click(ok);
+  return start;
+}
+async function answerName(s: Surface, value: string): Promise<number> {
+  const field = selector('name-dialog-input');
+  await until(async () => (await s.count(field)) === 1, 10000);
+  // Typed, not `fill` (the native driver's setValue clears through an unfocus): the dialog opens with the
+  // field focused and the current name selected, so the first key replaces it.
+  for (const key of value) await s.press(key);
+  const typed = await s.shell(`document.querySelector(${JSON.stringify(field)})?.value ?? null`);
+  if (typed !== value) throw new Error(`Name field holds ${JSON.stringify(typed)}`);
+  const start = performance.now();
+  await s.press('Enter');
+  return start;
+}
+/** Put away an ask a refusal left open (its words are read first). */
+async function dismissAsk(s: Surface): Promise<void> {
+  for (const q of [selector('name-dialog-cancel'), selector('tree-ask-cancel')])
+    if ((await s.count(q)) === 1) await s.click(q);
 }
 /** A read that answers `null` instead of throwing — a driver hiccup on a busy
  *  window is not the same as the thing being absent. */
@@ -1544,9 +1543,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             await from.click('.cv-sb-title');
             throw new Error('Folder menu has no Rename folder');
           }
-          await from.promptNext(renamed);
-          const start = performance.now();
           await from.menu('Rename folder');
+          const start = await answerName(from, renamed);
           return observeAll(
             all,
             `L01-empty-rename-${from.name}`,
@@ -1593,9 +1591,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               throw new Unexercised(`Delete requires the pre-existing folder at ${p.name}`);
           await from.hover(q);
           await from.click(selector(`tree-row-menu-${slug(rel)}`));
-          await from.confirmNext();
-          const start = performance.now();
           await from.menu('Delete folder');
+          const start = await answerAsk(from);
           return observeAll(
             all,
             `L01-empty-delete-${from.name}`,
@@ -3595,8 +3592,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           await until(async () => (await from.read(folderRow(base))) !== null);
           await from.hover(folderRow(base));
           await from.click(selector(`tree-row-menu-${slug(base)}`));
-          await from.promptNext('Leaf');
           await from.menu('New folder here');
+          await answerName(from, 'Leaf');
           await until(() => has(from, `${base}/Leaf`));
           const start = performance.now();
           writeFileSync(join(from.root, '.design', inner()), innerBody);
@@ -3659,9 +3656,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           await until(async () => (await from.read(folderRow(base))) !== null);
           await from.hover(folderRow(base));
           await from.click(selector(`tree-row-menu-${slug(base)}`));
-          await from.promptNext(`${top}-renamed`);
-          const start = performance.now();
           await from.menu('Rename folder');
+          const start = await answerName(from, `${top}-renamed`);
           base = `${parent}/${top}-renamed`;
           return observeAll(
             all,
@@ -3694,9 +3690,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           await expand(from, base.split('/').slice(0, -1).join('/'));
           await from.hover(folderRow(base));
           await from.click(selector(`tree-row-menu-${slug(base)}`));
-          await from.confirmNext();
-          const start = performance.now();
           await from.menu('Delete folder');
+          const start = await answerAsk(from);
           return observeAll(
             all,
             `L02-delete-${from.name}`,
@@ -4043,9 +4038,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           const next = `ui/Notes-${from.name}-renamed.png`;
           await from.hover(fileRow(old));
           await from.click(selector(`tree-row-menu-${slug(old)}`));
-          await from.promptNext(`Notes-${from.name}-renamed`);
-          const start = performance.now();
           await from.menu('Rename…');
+          const start = await answerName(from, `Notes-${from.name}-renamed`);
           rel = next;
           return observeAll(
             all,
@@ -4083,9 +4077,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           await until(async () => (await from.read(fileRow(doomed))) !== null);
           await from.hover(fileRow(doomed));
           await from.click(selector(`tree-row-menu-${slug(doomed)}`));
-          await from.confirmNext();
-          const start = performance.now();
           await from.menu('Delete');
+          const start = await answerAsk(from);
           return observeAll(
             all,
             `L03-delete-${from.name}`,
@@ -5011,14 +5004,16 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             await until(async () => (await from.read(fileRowOf(png))) !== null, 15000);
             await from.hover(fileRowOf(png));
             await from.click(selector(`tree-row-menu-${slug(png)}`));
-            if (verb === 'rename') await from.promptNext(`SharedRef-${from.name}-renamed`);
-            else await from.confirmNext();
             await from.menu(item);
+            if (verb === 'rename') await answerName(from, `SharedRef-${from.name}-renamed`);
+            else await answerAsk(from);
             let said = '';
             await until(async () => {
               said = (await from.read('body')) ?? '';
               return said.includes('is used by');
             }, 15000).catch(() => {});
+            // the refusal is said in the ask itself, which stays open until put away
+            await dismissAsk(from);
             await sleep(3000);
             const intact = all.every(
               (p) =>
@@ -5634,8 +5629,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             await expand(nativeSide, 'ui');
             await nativeSide.hover(folderRow('ui/FolderEdit'));
             await nativeSide.click(selector('tree-row-menu-ui-folderedit'));
-            await nativeSide.promptNext('FolderEdit-renamed');
             await nativeSide.menu('Rename folder');
+            await answerName(nativeSide, 'FolderEdit-renamed');
             await until(
               () =>
                 [hubSide, nativeSide].every(
@@ -6127,9 +6122,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             await until(async () => (await from.read(fileRow(movedRel))) !== null, 30000);
             await from.hover(fileRow(movedRel));
             await from.click(selector(`tree-row-menu-${slug(movedRel)}`));
-            await from.promptNext(`${name}-renamed`);
-            const start = performance.now();
             await from.menu('Rename…');
+            const start = await answerName(from, `${name}-renamed`);
             const landed = await observeAll(
               all,
               `${kind.lane}-move-rename-${from.name}`,
@@ -7576,9 +7570,10 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               );
             }, 15000).catch((error) => failedStep('preview-render', from, error));
             await from.screenshot(join(run.out, `L18-preview-selected-${from.name}.png`));
-            await from.confirmNext();
             const start = performance.now();
             await from.click(selector('history-preview-restore'));
+            // 2.0.4: Restore asks in the shell's own dialog (window.confirm is a no-op in the app).
+            await from.click(selector('tree-ask-ok'));
             await until(
               async () => (await from.read(selector('history-preview-restore'))) === null,
               15000
@@ -7937,8 +7932,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
         const del = (async () => {
           await hubSide.hover(fileRow(doomed));
           await hubSide.click(selector(`tree-row-menu-${slug(doomed)}`));
-          await hubSide.confirmNext();
           await hubSide.menu('Delete');
+          await answerAsk(hubSide);
         })();
         await Promise.all([edits, move, del]);
         const final = elementCanvas('Busy 6');

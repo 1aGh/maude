@@ -68,6 +68,9 @@ pub const HOME_PERMISSIONS: &[&str] = &[
     "allow-managed-project-open",
     "allow-managed-projects-list",
     "allow-open-cloud-url",
+    // #204 K2: "Connect to your own hub" opens the team server's own sign-in
+    // (or invite) page, sent back to the Home origin only (external_link.rs).
+    "allow-open-team-server-signin",
     // S9.17: a Can view project's `409 browser-door` opens a `c-*` cell tab.
     "allow-open-cell-tab",
     "allow-resolve-dev-server-url",

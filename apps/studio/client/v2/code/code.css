@@ -360,6 +360,73 @@
     user-select: none;
   }
 
+  /* 2.0.4 — the waiting card (canvas-waiting-card.jsx): the same frame, a calm icon, the bar of 05 es-arriving */
+  .v2-err-ic--calm {
+    color: var(--fg-1);
+  }
+  .v2-err-prog {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding-left: 48px;
+  }
+  .v2-err-bar {
+    display: block;
+    height: 4px;
+    border-radius: var(--radius-pill);
+    background: var(--bg-4);
+    overflow: hidden;
+  }
+  .v2-err-bar i {
+    display: block;
+    height: 100%;
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+  }
+  .v2-err-prog-l {
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+    font-variant-numeric: tabular-nums;
+  }
+  .v2-err-files {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding-left: 48px;
+  }
+  .v2-err-files-h {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .v2-err-files-l {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .v2-err-file {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    min-width: 0;
+    font-size: var(--type-xs);
+    color: var(--fg-0);
+  }
+  .v2-err-file-n {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--font-mono);
+  }
+  .v2-err-file-s,
+  .v2-err-file--more {
+    flex: none;
+    color: var(--fg-2);
+  }
+
   /* The viewport slot the card sits in (client/shell/viewport.jsx keeps `.sh-canvas-error` and its testid). */
   .sh-canvas-error--v2 {
     overflow: auto;

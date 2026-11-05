@@ -458,6 +458,14 @@ describe('captures render on the read-only capture origin (V2-2.8 S9, V2-1.16 L2
     // origin under `cspForCapture` — byte-for-byte the pre-fix capture path.
     const before = await pngFor({ MAUDE_CANVAS_ORIGIN_SPLIT: '0' });
     const after = await pngFor({});
+    // A failing run is only diagnosable with both images: set MAUDE_PARITY_DUMP_DIR to keep them.
+    const dumpDir = process.env.MAUDE_PARITY_DUMP_DIR;
+    if (dumpDir) {
+      mkdirSync(dumpDir, { recursive: true });
+      const stamp = `${Date.now()}-${process.pid}`;
+      writeFileSync(join(dumpDir, `${stamp}-main.png`), before);
+      writeFileSync(join(dumpDir, `${stamp}-capture.png`), after);
+    }
     if (Buffer.from(before).equals(Buffer.from(after))) return; // identical bytes
 
     const { launchChromium } = (await import('../bin/_pw-launch.mjs')) as {

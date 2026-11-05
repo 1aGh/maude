@@ -5,6 +5,7 @@
 // the dash in "New artboard — A4" would be a word nothing contains.
 
 import { sanitizeQuery } from './search-model.js';
+import { fetchIfServed } from '../shell/served-routes.js';
 
 /**
  * @param fetchImpl (url, { signal }) => Promise<Response> — injected so tests need no network
@@ -14,10 +15,11 @@ export async function searchIndex(query, { signal, fetchImpl = globalThis.fetch 
   const q = sanitizeQuery(query);
   if (!q || !fetchImpl) return null;
   try {
-    const r = await fetchImpl(`/_api/index?q=${encodeURIComponent(q)}`, {
-      signal,
-      cache: 'no-store',
-    });
+    const r = await fetchIfServed(
+      `/_api/index?q=${encodeURIComponent(q)}`,
+      { signal, cache: 'no-store' },
+      fetchImpl
+    );
     if (!r.ok) return null;
     const data = await r.json();
     return Array.isArray(data?.rows) ? data : null;

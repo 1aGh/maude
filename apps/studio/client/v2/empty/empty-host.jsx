@@ -41,7 +41,7 @@ const modeNow = () => shellMode.get().mode;
 
 export function EmptyHost() {
   const {
-    shellCore: { activePath, cfg, iframesRef, syncStatus, viewerMode },
+    shellCore: { activePath, cfg, iframesRef, loadingPath, syncStatus, viewerMode },
   } = useShellStore();
   const canvasOpen = !!activePath && activePath !== SYSTEM_TAB;
   const mode = useSyncExternalStore(shellMode.subscribe, modeNow, modeNow);
@@ -59,8 +59,14 @@ export function EmptyHost() {
     canvasOrigin: cfg?.canvasOrigin,
   });
 
+  // #204 — the shell's own "this canvas is still loading" (cleared on `canvas-rendered`): no invitation
+  // over a canvas that has not finished drawing, and a load starts with no count from before.
+  const canvasLoading = !!loadingPath && loadingPath === activePath;
+  useEffect(() => {
+    if (loadingPath) lane.loadStarted(loadingPath);
+  }, [lane, loadingPath]);
   const model = canvasOpen
-    ? emptyCanvasModel({ count, mode, canEdit, online, claude, canAsk })
+    ? emptyCanvasModel({ count, mode, canEdit, online, claude, canAsk, loading: canvasLoading })
     : null;
   // rc3-h (#182): a run of yours on this empty canvas — the ghost where the first artboard lands, not the invitation
   const { view: runsView } = useAiRuns();

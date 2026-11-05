@@ -67,6 +67,7 @@ import {
   resolveCanvasBodyRel,
 } from './canvas-path.ts';
 import { type CellPairing, resolveCellPairing, sanitizeForLog } from './cell-pairing.ts';
+import { codeModuleConsent } from './code-module-consent.ts';
 import {
   canvasPathFromDoc,
   clearMovedTo,
@@ -103,7 +104,7 @@ import {
 import { createFsReader, type FsReader } from './fs-mirror.ts';
 import { canvasLanes, namedField, type RowNamed } from './history-fields.ts';
 import { type HubDocRow, hubHolds, indexHubDocs } from './hub-listing.ts';
-import { hubTextUndoConflict } from './hub-text-undo.ts';
+import { HUB_UNDO_READ_MAX_BYTES, hubTextUndoConflict } from './hub-text-undo.ts';
 import { accessFor, getHubRecord } from './hubs-config.ts';
 import { loadJournal, type SyncJournal } from './journal.ts';
 import { hasAnnotationsV2, hasFileClassesV2, hasLedger, hubHealth } from './journal-client.ts';
@@ -128,6 +129,7 @@ import {
 import { hasSelfRetryingWork } from './presentation.ts';
 import { createProjectConfigPusher } from './project-config-push.ts';
 import { createDocProjection, type DocProjection } from './projection.ts';
+import { followUpDelayMs } from './pull-pacer.ts';
 import {
   acceptedListing,
   describeRemoteDiff,
@@ -735,6 +737,12 @@ export interface SyncRuntime {
   /** S1.18 — the manifest rows a stable link resolves over (history/links.ts). Null when legacy. */
   acceptedLinkDocs?(): Promise<{ entry: string; path: string | null; retired: boolean }[] | null>;
   /**
+   * F14 (2.0.4, #166) — before a restore reads the canvas's newest version: this disk's change the
+   * project has not taken yet goes up first (projection.ts `settleDisk`). null: no synced canvas
+   * at that path, or not in accepted mode — nothing to wait for.
+   */
+  settleSource?(repoRel: string, ms?: number): Promise<'settled' | 'held' | 'pending' | null>;
+  /**
    * Restore a canvas to a revision as a NEW action. S1.13: `o.lanes` — one artboard / object /
    * kept-aside version, the studio's lanes as ONE `restore` action (local-kernel.ts RestoreOptions).
    */
@@ -1258,8 +1266,17 @@ export function createSyncRuntime(
   //
   // Now: an explicit per-hub consent recorded at link time and never rewritten
   // by a login response, or this cell's own loopback pairing — where the hub
-  // and the checkout are one trust domain and there is no remote party.
-  const allowCodeModules = cellPairing !== null || storedRecord?.codeModulesAllowed === true;
+  // and the checkout are one trust domain and there is no remote party — or
+  // (2.0.4) the Maude Cloud cell the desktop app itself bound this copy to
+  // (`MAUDE_APP_BOUND_HUB` + the compiled-in cell zone; never a committed
+  // linkedHub, never a self-hosted hub). See sync/code-module-consent.ts.
+  const allowCodeModules =
+    codeModuleConsent({
+      cellPairing: cellPairing !== null,
+      hubUrl: linkedHub.url,
+      storedRecord,
+      env: process.env,
+    }) !== null;
   // Same shape of consent for the OUTBOUND delete breaker: only what this
   // machine's owner recorded (`maude design bulk-deletes on`), never the hub.
   const unlimitedDeletes = storedRecord?.unlimitedDeletes === true;
@@ -1984,6 +2001,15 @@ export function createSyncRuntime(
         const r = await lane.reconcile();
         lastPlaneResult = r;
         planeResultSink?.(r);
+        // ISSUE #204 — WHILE WORK REMAINS, THE NEXT PASS STARTS NOW. A pass that stopped on a count
+        // ceiling (or skipped a file still inside a short backoff) used to sit out the rest of the
+        // 20 s tick, and on a 5 041-file first sync that idle time was a large share of 1.5 h. Only
+        // a HEALTHY capped pass follows up at once — one that moved files and met no wall — so a
+        // pass whose requests all failed can never become a tight loop (issue #109); a byte-budget
+        // stop keeps the tick, so the 2 GiB pass ceiling (DDR-226 F6) stays a per-tick bound.
+        const followUp = planeFollowUpMs(r);
+        if (followUp === 0) planePassAgain = true;
+        else if (followUp !== null) schedulePlanePassAfter(followUp);
         // S8.19 — the held set rides AFTER the pass (the plane now has a picture of the disk);
         // single-flight, floored, never throws, and never awaited by the pass's waiters.
         if (!cellPairing) void heldReporter?.afterPass();
@@ -2001,6 +2027,9 @@ export function createSyncRuntime(
     planePassWaiter = run;
     await run;
   }
+  /** Issue #204 — when the next pass should run without waiting for the tick (see `runPlanePass`). */
+  const planeFollowUpMs = (r: import('./file-plane.ts').FilePlaneResult): number | null =>
+    followUpDelayMs(r, { pollMs: REMOTE_POLL_MS, floorMs: MIN_PASS_INTERVAL_MS });
   /** Re-arm the debounce timer at a specific delay (the floor's deferral). */
   function schedulePlanePassAfter(ms: number): void {
     if (stopped || filePassTimer !== null) return;
@@ -5193,12 +5222,35 @@ export function createSyncRuntime(
       p: import('./seed-progress.ts').SeedProgress,
       r: import('./file-plane.ts').FilePlaneResult
     ): void => {
-      if (p.phase === 'converged') return;
       const blockedTotal = p.blocked.reduce((n, b) => n + b.count, 0);
       const bits = [`${p.delivered} / ${p.tracked} delivered`];
-      if (p.remaining > 0) bits.push(`${p.remaining} waiting`);
+      // Failing files are not "waiting": they retry with backoff, and the line names one and why.
+      const retrying = p.retrying ?? 0;
+      const waiting = Math.max(0, p.remaining - retrying);
+      if (waiting > 0) bits.push(`${waiting} waiting`);
+      if (retrying > 0 && p.retryingFile) {
+        bits.push(
+          `${retrying} retrying — ${p.retryingFile.rel}: ${p.retryingFile.reason}${retrying > 1 ? ` (and ${retrying - 1} more)` : ''}`
+        );
+      }
       if (blockedTotal > 0) bits.push(`${blockedTotal} need attention`);
+      // Issue #204 — rows this Mac refuses are HELD, not waiting: they never move on their own, so
+      // the line says how many and why instead of "N waiting" every 20 s forever.
+      const held = p.held ?? 0;
+      if (held > 0) bits.push(`${held} held: shared code not accepted on this Mac`);
       if (r.backedOff) bits.push(`${r.backedOff} backing off`);
+      if (r.storageMisses) bits.push(`${r.storageMisses} still coming from cloud storage`);
+      // NOTHING MOVING ⇒ SAY IT ONCE. A converged or only-held/blocked project prints its line when
+      // it changes, never again on a timer — that is what made "12 waiting" repeat forever.
+      if (waiting === 0 && !r.rateLimited) {
+        if (p.phase === 'converged' && held === 0) return;
+        const still = `[sync/files] ${bits.join(' · ')}`;
+        if (still === lastProgressLine) return;
+        lastProgressLine = still;
+        lastProgressLogAt = Date.now();
+        console.log(still);
+        return;
+      }
       let tail = '';
       if (r.rateLimited) {
         const secs = Math.max(1, Math.round((r.rateLimited.until - Date.now()) / 1000));
@@ -5295,7 +5347,9 @@ export function createSyncRuntime(
               ? { passCapped: 'requests' as const }
               : result.budgetExhausted
                 ? { passCapped: 'bytes' as const }
-                : {}),
+                : result.filesCapped
+                  ? { passCapped: 'files' as const }
+                  : {}),
             previous: lastSeedProgress,
             deliveredSince: throughputSample(result),
           })
@@ -5351,9 +5405,9 @@ export function createSyncRuntime(
           }`,
         });
       }
-      for (const f of result.failed) {
-        console.warn(`[sync/files] ${f.rel}: ${f.reason}`);
-      }
+      // Per-file failures are named by the plane itself — once per file and reason, with when it
+      // tries again (#204 follow-up). Repeating every failed row here on every pass was what made
+      // a file that kept failing read as noise rather than as one named problem.
       // A pass that landed bytes widened the hub-written set, so the
       // untrusted-context markers have to describe it. Cheap and idempotent —
       // the writer rebuilds the whole set each call — but only when something
@@ -6331,6 +6385,12 @@ export function createSyncRuntime(
       const r = await acceptedLink.laneAt(slug, lane, revision);
       return r.body || null;
     },
+    settleSource: async (repoRel, ms) => {
+      if (!acceptedOn() || !acceptedLink) return null;
+      const slug = slugForRepoRel(repoRel);
+      const projection = slug ? projections.get(slug) : undefined;
+      return projection ? projection.settleDisk(ms) : null;
+    },
     acceptedRestore: async (repoRel, revision, o) => {
       if (!acceptedOn() || !acceptedLink) return null;
       const slug = slugForRepoRel(repoRel);
@@ -6418,8 +6478,10 @@ export function createSyncRuntime(
           );
           return ids.ok ? ids.actionIds : null;
         },
-        blob: (hash) => link.blob(hash),
-        head: (doc) => link.laneHead(doc, 'annotations'),
+        // #166 R3 — aborted at the check's deadline, capped while they stream in
+        blob: (hash, signal) => link.blob(hash, { signal, maxBytes: HUB_UNDO_READ_MAX_BYTES }),
+        head: (doc, signal) =>
+          link.laneHead(doc, 'annotations', { signal, maxBytes: HUB_UNDO_READ_MAX_BYTES }),
       });
     },
     acceptedTrash: async () => {

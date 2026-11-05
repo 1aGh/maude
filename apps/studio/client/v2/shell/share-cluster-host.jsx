@@ -59,6 +59,7 @@ import {
   presenterAvailable,
   usePresenterDisplays,
 } from '../present/presenter-store.js';
+import { servedFetch } from './served-routes.js';
 
 const subscribeOnline = (fn) => {
   window.addEventListener('online', fn);
@@ -83,7 +84,7 @@ function useOutboxPending(enabled, nudge) {
     let live = true;
     const read = () => {
       if (document.visibilityState === 'hidden') return;
-      fetch('/_api/outbox')
+      servedFetch('/_api/outbox')
         .then((r) => (r.ok ? r.json() : null))
         .then((v) => {
           if (live) setPending(outboxPending(v));

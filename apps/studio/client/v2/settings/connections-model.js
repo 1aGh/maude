@@ -60,7 +60,7 @@ export function hubRow({ linkedHub, cloudUrl, project, lastSyncAt, now = Date.no
     return {
       linked: false,
       title: 'Your team’s own server',
-      status: 'Sign in with your email and password.',
+      status: 'Sign in on the server’s own page.',
       tone: '',
       action: 'add',
     };

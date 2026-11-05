@@ -1,8 +1,8 @@
 // Ported once from .design/ui/Public Site v2.tsx on 2026-11-04; site/ is the source now.
 // What's new: the changelog's home on Home, not a nav link. The three newest entries of the feed.
 import Link from 'next/link';
-import whatsNew from '@/lib/whats-new.json';
 import { Icon } from './kit/glyphs';
+import { released } from './released';
 
 const day = (iso: string) =>
   new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-GB', {
@@ -19,7 +19,7 @@ const lead = (summary: string) => {
 };
 
 export function WhatsNewTeaser() {
-  const items = whatsNew.entries.slice(0, 3);
+  const items = released.slice(0, 3);
   return (
     <section className="ps-wrap ps-section--tight" aria-labelledby="h-rel">
       <div

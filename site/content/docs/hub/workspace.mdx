@@ -96,6 +96,26 @@ If you run your own landing page and want the way back, set two optional variabl
 | `HUB_DASHBOARD_URL` | The address the "← Dashboard" link points at. Omit it and the link is not rendered at all. |
 | `MAUDE_REPORT_URL` | Where the Report-a-Bug dialog sends its (consented, scrubbed) bundle. Omit it and reports go to Maude's own endpoint — nothing is ever sent without the preview and your click. |
 
+## Big projects on small hosts
+
+A workspace builds each canvas in a sandbox before your browser draws it, and keeps the result until the canvas changes. On a big project (hundreds of canvases, a large design system) on a small or shared machine, the first build of a heavy canvas can take a while. The browser then shows "Building the design system…" and opens the canvas by itself when the build is done; the next open is instant.
+
+If builds or the first start still run out of time, raise these in `.env` and run `docker compose up -d`. A value that is not a whole number is ignored and logged once; a value outside its range is clamped.
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `MAUDE_STUDIO_READY_MS` | `60000` | How long the studio may start up **without progress** before the hub restarts it. Every step of a slow start resets this clock. |
+| `MAUDE_STUDIO_READY_CEILING_MS` | `600000` | The hard limit on a start, progress or not. |
+| `MAUDE_CANVAS_BUILD_TIMEOUT_MS` | `90000` | The hard limit on one canvas build (5000–600000). A build past it is stopped, and the canvas says the build timed out. |
+| `MAUDE_CANVAS_BUILD_WAIT_MS` | `20000` | How long one request waits for a build (1000–120000) before the browser shows "Building…". The build goes on and is kept. |
+| `MAUDE_CANVAS_BUILD_RSS_MB` | `768` | The memory one build may use (128–8192). |
+| `MAUDE_CANVAS_CACHE_ENTRIES` | `64` | How many built canvases are kept in memory (1–1024). |
+| `MAUDE_CANVAS_MODULE_CACHE_MB` | `64` | How much memory the kept canvases may use in all, in MB (4–4096). Each built canvas is about 2 MB; a project with hundreds of canvases opens faster with a larger value, at the cost of memory. |
+
+`GET /_health` on the workspace shows how builds are going under `render`: `timeouts`, `cacheHits`, `stillBuilding` and `p95Ms`. Steady timeouts mean the limit is too low for this machine; a growing `cacheHits` means canvases open from the kept builds.
+
+A compose file written before 2.0.4 does not forward these variables. Re-run `workspace-up` to regenerate it, or add the lines to the hub's `environment:` yourself.
+
 ## Your designs are never run on the server
 
 A workspace stores and syncs canvases. It never renders one, never builds a bundle beyond the sandboxed canvas build, never runs a browser against your content — and it will **refuse to start** if any surface that could do so is reachable.

@@ -1,7 +1,7 @@
 // V2-3.4 (old T9) — an account profile is nothing but env. The desktop shell spawns a tab's
 // server with `MAUDE_CLOUD_CONFIG` + `HUBS_CONFIG_PATH` pointing into
 // `~/.config/maude/profiles/<id>/`, and every credential that server reads or writes must land
-// there: cloud sign-in (cloud.json), attach + workspace sign-in (hubs.json), the silent renewal
+// there: cloud sign-in (cloud.json), attach (hubs.json), the silent renewal
 // (reads cloud.json, rewrites hubs.json) and sign-out. One reader that resolves the default path
 // on its own would sign tab B in as tab A — silently, because the default file exists.
 //
@@ -142,14 +142,6 @@ describe('a profile env routes every credential into the profile dir', () => {
     const r = await renewHubCredential(stubUrl);
     expect(r.ok).toBe(true);
     expect(hubs()[stubUrl]?.token).not.toBe(was);
-  });
-
-  test('workspace sign-in stores its peer token in the profile hubs.json', async () => {
-    const { signInToWorkspace } = await import('../sync/workspace-signin.ts');
-    const other = stubUrl.replace('127.0.0.1', 'localhost');
-    const r = await signInToWorkspace({ url: other, email: 'work@example.com', password: 'pw' });
-    expect(r.json.ok).toBe(true);
-    expect(hubs()[other]?.token).toMatch(/^mau_work_hub_/);
   });
 
   test('sign-out removes the profile cloud.json', async () => {

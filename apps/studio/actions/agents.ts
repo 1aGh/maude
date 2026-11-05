@@ -890,6 +890,11 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     // a read for every role (GET /_api/asset-details): no per-role refusal row, so no `server` key (as S10.9's ds.show-reach)
     agent: cli('maude design assets --usage <asset> --details'),
   },
+  // 2.0.4 (#191) — View larger: a picture, clip or sound in a window over the person's screen. A read of a file the agent
+  // already has (`maude design assets`), so there is nothing for it to run.
+  'assets.spotlight': PREF(
+    "opens a large view on the person's screen; an agent reads the file itself"
+  ),
   // S8.20 — search in pictures: the person's own yes (or Stop) to describing their pictures with THEIR Claude account on
   // THEIR Mac (V2-1.17 §5.9, Q9). An agent cannot say yes for the person whose account it spends.
   'assets.describe': {

@@ -10,6 +10,8 @@
 // Undo is the run's own action: "one AI run = one version = one step" (V2-1.5). The stack is read
 // for the entry carrying this `runId`, so a person's later edits never get undone with it.
 
+import { fetchIfServed, servedFetch } from '../shell/served-routes.js';
+
 const JSON_HEADERS = { 'content-type': 'application/json' };
 
 async function json(res) {
@@ -50,7 +52,7 @@ export async function keepGoingRun(runId, fetchImpl = globalThis.fetch) {
 /** This chat's runs (YOURS), for the panel that opened after they started. [] when unreachable. */
 export async function fetchChatRuns(chatId, fetchImpl = globalThis.fetch) {
   try {
-    const res = await fetchImpl('/_api/ai/runs');
+    const res = await servedFetch('/_api/ai/runs', undefined, fetchImpl);
     if (!res.ok) return [];
     const body = await json(res);
     const mine = Array.isArray(body?.mine) ? body.mine : [];
@@ -68,8 +70,10 @@ async function stackFor(run, designRel, fetchImpl) {
   if (!canvas) return { ok: false, reason: 'not-found' };
   let res;
   try {
-    res = await fetchImpl(
-      `/_api/project/undo-stack?canvas=${encodeURIComponent(canvasPath(designRel, canvas))}`
+    res = await fetchIfServed(
+      `/_api/project/undo-stack?canvas=${encodeURIComponent(canvasPath(designRel, canvas))}`,
+      undefined,
+      fetchImpl
     );
   } catch {
     return { ok: false, reason: 'unreachable' };

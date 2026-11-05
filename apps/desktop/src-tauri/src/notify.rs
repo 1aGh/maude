@@ -41,7 +41,7 @@ use crate::sidecar::SidecarState;
 
 /// How often the poller walks the non-current pool instances. Slow on purpose
 /// (Design Decisions table — "this competes with `git status`"): the visible
-/// project doesn't need it, and at most `running_cap() - 1` = 4 instances are
+/// project doesn't need it, and at most `running_cap() - 1` = 2 instances are
 /// ever polled (more only while the cap overflows).
 const POLL_INTERVAL_MS: u64 = 6_000;
 

@@ -105,10 +105,16 @@ import { createRunRegistry, type RunRegistry } from './ai/runs.ts';
 import { type Api, ASSET_CHUNK_BYTES, ASSET_MAX_BYTES, ASSET_MAX_VIDEO_BYTES } from './api.ts';
 import { importBrandRequest } from './bin/_brand-site.mjs';
 import { buildCanvasModule } from './canvas-build.ts';
-import { buildCanvasSandboxed, buildStats } from './canvas-build-sandbox.ts';
+import { buildCanvasSandboxed, buildStats, sandboxFailureClass } from './canvas-build-sandbox.ts';
 import { canvasLibPath } from './canvas-lib-resolver.ts';
+import { budgetFromEnv, createModuleCache, moduleBytes } from './canvas-module-cache.ts';
 import { TranspileError } from './canvas-pipeline.ts';
-import { CanvasBuildError, canvasSourceSig, recordCanvasBuild } from './canvas-source/errors.ts';
+import {
+  CanvasBuildError,
+  canvasSourceSig,
+  recordBuildFailure,
+  recordCanvasBuild,
+} from './canvas-source/errors.ts';
 import { rememberCanvasBuild } from './canvas-source-memo.ts';
 import { createCloudEndpoints } from './cloud/endpoints.ts';
 import type { AiActivity } from './collab/ai-activity.ts';
@@ -238,7 +244,7 @@ import { pidOf, projectDir } from './index/snapshot.ts';
 import { feedVersionsToIndex } from './index/version-feed.ts';
 import type { InspectRegistry } from './inspect.ts';
 import { canvasSlug, writeLocator } from './locator.ts';
-import { prepareManagedProject } from './managed-projects.ts';
+import { parsePrepareBody, prepareManagedProject } from './managed-projects.ts';
 import { materializeMissing } from './materialize-client.ts';
 import { createHubReachability } from './outbox/hub-reachability.ts';
 import { createOutbox, type GateFacts, type IntentRecord } from './outbox/index.ts';
@@ -294,7 +300,7 @@ import { createLinkGate } from './sync/link-consent.ts';
 import { createResyncTrace, type ResyncStatusSource } from './sync/resync-trace.ts';
 import { isFirstAnchorMode, readSyncSettings, writeSyncSettings } from './sync/settings.ts';
 import { listTrash, pruneTrash, restoreFromTrash } from './sync/trash.ts';
-import { signInToWorkspace, workspaceDisclosure } from './sync/workspace-signin.ts';
+import { workspaceDisclosure } from './sync/workspace-signin.ts';
 import { thumbNotFound, thumbResponse, wantResponse } from './thumbs/routes.ts';
 import { BOOT_COVERS_DELAY_MS, createThumbService } from './thumbs/service.ts';
 import { normalizeTreeState } from './tree-state.ts';
@@ -588,6 +594,19 @@ export function sameOriginRead(req: Request): boolean {
 }
 
 /**
+ * Issue #204 — a browser's own top-level navigation (a link, a redirect, a meta refresh), never a
+ * fetch, an image or a frame: Fetch Metadata says `navigate` + `document`. Only a table spec that
+ * sets `crossSiteNavigation` accepts one from another site (the team-server sign-in return).
+ */
+export function isTopLevelNavigation(req: Request): boolean {
+  return (
+    req.method === 'GET' &&
+    req.headers.get('sec-fetch-mode') === 'navigate' &&
+    req.headers.get('sec-fetch-dest') === 'document'
+  );
+}
+
+/**
  * Every table route is privileged (migrate rewrites the tree; the outbox lists queued intents):
  * the same double gate every main-origin route carries — Origin check (reads and writes) +
  * the DNS-rebinding guard — before the handler runs. V2-2.5: module-level (was `guardLane`
@@ -597,7 +616,10 @@ export function guardTableRoute(spec: RouteSpec): RouteSpec {
   return {
     ...spec,
     handle: (req, params) => {
-      const sameOrigin = spec.method === 'GET' ? sameOriginRead(req) : sameOriginWrite(req);
+      const sameOrigin =
+        spec.method === 'GET'
+          ? sameOriginRead(req) || (spec.crossSiteNavigation === true && isTopLevelNavigation(req))
+          : sameOriginWrite(req);
       if (!sameOrigin)
         return (
           spec.refuse?.('cross-origin') ?? new Response('cross-origin rejected', { status: 403 })
@@ -764,7 +786,10 @@ interface CanvasCacheEntry {
    *  (DDR-064 collab dogfooding finding, 2026-05-29.) */
   sig: string;
   etag: string;
-  js: string;
+  /** The built module as UTF-8 bytes (issue #204 — half a JS string's size, off the heap). */
+  body: Uint8Array<ArrayBuffer>;
+  /** What the byte budget counts. */
+  bytes: number;
   /** Absolute paths of the relative imports inlined into this build (`.css` +
    *  local `.tsx/.ts` modules, incl. unresolved extensionless candidates) —
    *  re-statted each request to recompute `sig` without re-reading the source. */
@@ -772,7 +797,19 @@ interface CanvasCacheEntry {
   /** gate-b-c4e — every file the build inlined (absolute), held to the frame's closure on serve. */
   inputs: readonly string[];
 }
-const canvasCache = new Map<string, CanvasCacheEntry>();
+// Issue #204 — byte-bounded: every module bundles the shared chrome (~2 MB), and covers alone build
+// every canvas of a project once, so a per-path Map with no bound held them all for good.
+let canvasCache = createModuleCache<CanvasCacheEntry>({
+  maxBytes: budgetFromEnv('MAUDE_CANVAS_MODULE_CACHE_MB', 64),
+});
+
+/** Test seam (issue #204): what the live module cache holds, and a budget to hold it to. */
+export function _canvasModuleCache(budgetBytes?: number): { size: number; bytes: number } {
+  if (budgetBytes !== undefined) {
+    canvasCache = createModuleCache<CanvasCacheEntry>({ maxBytes: budgetBytes });
+  }
+  return { size: canvasCache.size, bytes: canvasCache.bytes };
+}
 
 /**
  * gate-b-c4e — may THIS request receive a module built from `inputs` (absolute paths)? null = yes.
@@ -907,7 +944,36 @@ export async function serveCanvasTsx(
         canvasAbs: absPath,
         assetUrlBase: designRootUrlBase(ctx.paths),
       });
+      if (!built.ok && built.kind === 'building') {
+        // 2.0.4 task P — the wait ran out and the build goes on (to the sandbox's hard ceiling). Its
+        // outcome is recorded when it settles, for `/_api/canvas-errors`; a success is in the
+        // sandbox's cache, so the client's next open is a hit. While it runs, canvas-errors answers
+        // `building` (`sandboxBuildRunning`) and the card says so instead of "can't be drawn".
+        const sig = canvasSourceSig(source);
+        void built.settled?.then((r) => {
+          if (r.ok) recordCanvasBuild(absPath, sig, null);
+          else if (r.kind !== 'building') {
+            const failure = sandboxFailureClass(r);
+            if (failure) recordBuildFailure(absPath, sig, failure);
+            else recordCanvasBuild(absPath, sig, null);
+          }
+        });
+        // The frame's own canvas (the path gate and the closure's `before` ran already), so saying
+        // "not yet" tells it nothing a refusal would hide (gate-b-c4m).
+        return new Response('This canvas is still being built.', {
+          status: 503,
+          headers: {
+            'Content-Type': 'text/plain; charset=utf-8',
+            'Cache-Control': 'no-store',
+            'Retry-After': '5',
+          },
+        });
+      }
       if (!built.ok) {
+        // #189 — why it stopped, as OUR class (never the build's text) for /_api/canvas-errors
+        const failure = sandboxFailureClass(built);
+        if (failure) recordBuildFailure(absPath, canvasSourceSig(source), failure);
+        else recordCanvasBuild(absPath, canvasSourceSig(source), null);
         // gate-b-c4m (defender L-B) — a frame's failed build answers like a refused one: Bun
         // resolves imports the closure walk does not follow (a CSS `url()`), and "Could not resolve"
         // beside the refusal's 403 was an existence oracle. A syntax error in the canvas's own source
@@ -928,10 +994,12 @@ export async function serveCanvasTsx(
       // cache entry, no remembered source and no locator file (the sandbox caches the build).
       const refusedHere = inputsGate?.(result.inputs, absPath);
       if (refusedHere) return refusedHere;
+      const body = moduleBytes(result.js);
       cached = {
         sig: builtSig,
         etag: `${result.etag}-${RUNTIME_BOOT_ID}-${CHROME_EPOCH}`,
-        js: result.js,
+        body,
+        bytes: body.byteLength,
         deps,
         inputs: result.inputs,
       };
@@ -959,6 +1027,9 @@ export async function serveCanvasTsx(
         canvasSourceSig(source),
         err instanceof CanvasBuildError ? (err.errors[0] ?? null) : null
       );
+      // #189 — neither the canvas's syntax nor its build log: the engine itself failed
+      if (!(err instanceof CanvasBuildError) && !(err instanceof TranspileError))
+        recordBuildFailure(absPath, canvasSourceSig(source), { class: 'engine' });
       if (err instanceof TranspileError) {
         return new Response(`Transpile error: ${err.message}`, {
           status: 500,
@@ -976,13 +1047,15 @@ export async function serveCanvasTsx(
     if (refusedHere) return refusedHere;
     // The signature against the freshly-parsed deps — this very edit may have
     // added or removed a `.css` import — stamped before the build (above).
+    const body = moduleBytes(result.js);
     cached = {
       sig: builtSig,
       // Fold in the boot id (restart) + chrome epoch (live edit) so a chrome
       // change busts the browser's cached transpile even when the canvas source
       // (hence result.etag) is unchanged. See RUNTIME_BOOT_ID / CHROME_EPOCH.
       etag: `${result.etag}-${RUNTIME_BOOT_ID}-${CHROME_EPOCH}`,
-      js: result.js,
+      body,
+      bytes: body.byteLength,
       deps,
       inputs: result.inputs,
     };
@@ -1003,7 +1076,10 @@ export async function serveCanvasTsx(
 /** The conditional-GET half of serving a built canvas module. Shared by the
  *  in-process (desktop) and sandboxed (cell) build paths so the two cannot
  *  disagree about caching semantics. */
-function respondWithCanvasModule(req: Request, cached: { js: string; etag: string }): Response {
+function respondWithCanvasModule(
+  req: Request,
+  cached: { body: Uint8Array<ArrayBuffer>; etag: string }
+): Response {
   const ifNoneMatch = req.headers.get('if-none-match');
   if (ifNoneMatch === cached.etag) {
     return new Response(null, {
@@ -1011,7 +1087,7 @@ function respondWithCanvasModule(req: Request, cached: { js: string; etag: strin
       headers: { ETag: cached.etag, 'Cache-Control': 'no-cache' },
     });
   }
-  return new Response(cached.js, {
+  return new Response(cached.body, {
     status: 200,
     headers: {
       'Content-Type': 'application/javascript; charset=utf-8',
@@ -1031,11 +1107,14 @@ function respondWithCanvasModule(req: Request, cached: { js: string; etag: strin
 // otherwise OOM the sidecar (security review — ethical-hacker, Finding 1).
 // `cssSig`: today's same-name CSS file as the build saw it — set only when the version had no CSS
 // lane of its own (the build then used today's file), so such an entry goes stale with that file.
-const historicalCanvasCache = new Map<
-  string,
-  { js: string; etag: string; cssSig: string | null; inputs: readonly string[] }
->();
-const HIST_MAX_CACHE = 96;
+// Issue #204 — and byte-bounded like the live cache: 96 two-megabyte modules is ~200 MB.
+const historicalCanvasCache = createModuleCache<{
+  body: Uint8Array<ArrayBuffer>;
+  bytes: number;
+  etag: string;
+  cssSig: string | null;
+  inputs: readonly string[];
+}>({ maxBytes: budgetFromEnv('MAUDE_CANVAS_VERSION_CACHE_MB', 32), maxEntries: 96 });
 // Rate-limit the EXPENSIVE miss path (git show + Bun.build, or a non-resolving
 // git lookup) so a distinct-sha spray from the canvas origin can't starve the
 // event loop. Cache HITS are free; only a NEW (path,sha) build consumes budget.
@@ -1173,11 +1252,7 @@ async function serveHistoricalCanvas(
     historicalCanvasCache.delete(key);
     cached = undefined;
   }
-  if (cached) {
-    // LRU touch — re-insert so the hot entry isn't the next eviction victim.
-    historicalCanvasCache.delete(key);
-    historicalCanvasCache.set(key, cached);
-  } else {
+  if (!cached) {
     if (!historicalBuildAllowed()) {
       return new Response('Too many version previews — try again in a moment.', {
         status: 429,
@@ -1252,17 +1327,16 @@ async function serveHistoricalCanvas(
         restrictImportsTo: ctx.paths.designRoot,
         assetUrlBase: designRootUrlBase(ctx.paths),
       });
+      const body = moduleBytes(result.js);
       cached = {
-        js: result.js,
+        body,
+        bytes: body.byteLength,
         etag: `${result.etag}-${sha}-${RUNTIME_BOOT_ID}-${CHROME_EPOCH}`,
         cssSig,
         inputs: result.inputs,
       };
+      // LRU with both bounds (count + bytes); `get` above is the touch.
       historicalCanvasCache.set(key, cached);
-      if (historicalCanvasCache.size > HIST_MAX_CACHE) {
-        const oldest = historicalCanvasCache.keys().next().value;
-        if (oldest !== undefined) historicalCanvasCache.delete(oldest);
-      }
     } catch (err) {
       // gate-b-c4l (L-b) — a past version is not what the closure walked: to a gated session
       // (a frame) a failed build answers like a refused one, so it probes nothing.
@@ -1278,7 +1352,7 @@ async function serveHistoricalCanvas(
       headers: { ETag: cached.etag, 'Cache-Control': 'no-cache' },
     });
   }
-  return new Response(cached.js, {
+  return new Response(cached.body, {
     status: 200,
     headers: {
       'Content-Type': 'application/javascript; charset=utf-8',
@@ -2603,6 +2677,10 @@ export function createHttp(
     cloudPlan: { cloud: cloudApi },
     // S11.14 — GET /_api/connections/hub (routes/connections.ts): main origin only, the hub credential.
     connections: { designRoot: ctx.paths.designRoot },
+    hubSignin: {
+      linkedHubUrl: () => ctx.cfg.linkedHub?.url,
+      restartSync: () => ctx.syncControl?.restart(),
+    },
   }).map(guardTableRoute);
   // p8-a1-claims — outside the gates: a write that names an AI chat answers inside its run's claim
   // (in place, so every consumer of the table — the mount, the local gate — sees the same specs)
@@ -4815,53 +4893,26 @@ export function createHttp(
       return gitJson(await linkHub(body));
     },
 
-    // Cloud Phase 3 Task 3 — "Sign in to workspace". The person-facing
-    // counterpart to /_api/hub/link: an address plus an email and password,
-    // rather than a token to paste. Same gates as the link route (MAIN ORIGIN
-    // only, loopback, POST CSRF) for the same reason — this handler receives a
-    // PASSWORD, so the untrusted canvas origin must never be able to reach it.
-    // MANAGED PROJECTS (T21/T22): sign in / open, store the credential and
-    // describe the project, so the native shell can create its own copy.
-    // Main origin only — this mints and stores a credential.
+    // MANAGED PROJECTS (T21/T22): open with the credential this computer holds (Maude Cloud, a
+    // handoff code, or a team server the browser sign-in stored) and describe the project, so the
+    // native shell can create its own copy. Main origin only. No email or password is accepted.
     '/_api/projects/prepare': async (req: Request) => {
       if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
       if (!sameOriginWrite(req))
         return new Response('cross-origin write rejected', { status: 403 });
       if (!isTrustedRequestHost(req))
         return new Response('local request required', { status: 403 });
-      const body = (await readJson<Record<string, unknown>>(req, 8 * 1024)) ?? {};
-      const kind = body.kind;
-      const str = (v: unknown) => (typeof v === 'string' ? v : '');
-      const input =
-        kind === 'cloud'
-          ? { kind, projectId: str(body.projectId) }
-          : kind === 'handoff'
-            ? { kind, code: str(body.code), claimedProject: str(body.claimedProject) || undefined }
-            : kind === 'hub'
-              ? { kind, url: str(body.url), email: str(body.email), password: str(body.password) }
-              : kind === 'known-hub'
-                ? { kind, url: str(body.url) }
-                : null;
-      if (!input) return new Response('unknown kind', { status: 400 });
-      const r = await prepareManagedProject(
-        ctx,
-        input as Parameters<typeof prepareManagedProject>[1]
-      );
+      // Issue #204: the desktop owns no team-server login — a body carrying an email or a password
+      // (or the retired `hub` kind) is a plain 400 and is never forwarded anywhere.
+      const parsed = parsePrepareBody(await readJson<unknown>(req, 8 * 1024));
+      if (!parsed.ok)
+        return Response.json(
+          { ok: false, error: parsed.error, reason: parsed.reason },
+          { status: parsed.status, headers: { 'Cache-Control': 'no-store' } }
+        );
+      const r = await prepareManagedProject(ctx, parsed.input);
       return Response.json(r, {
         status: r.ok ? 200 : r.status,
-        headers: { 'Cache-Control': 'no-store' },
-      });
-    },
-    '/_api/workspace/sign-in': async (req: Request) => {
-      if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
-      if (!sameOriginWrite(req))
-        return new Response('cross-origin write rejected', { status: 403 });
-      if (!isTrustedRequestHost(req))
-        return new Response('local request required', { status: 403 });
-      const body = await readJson<unknown>(req, 8 * 1024);
-      const result = await signInToWorkspace((body ?? {}) as Record<string, unknown>);
-      return Response.json(result.json, {
-        status: result.status,
         headers: { 'Cache-Control': 'no-store' },
       });
     },

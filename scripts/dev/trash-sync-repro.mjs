@@ -12,6 +12,11 @@
 //   --scenario race      F15: the cell goes away, alice trashes A-C, bob trashes D, the cell comes
 //                        back. The two Macs must end EQUAL, or one of them shows a conflict.
 //
+//   --scenario history   F14 follow-up (2.0.4): Version history, no Trash. A hand edit takes the first
+//                        artboard out of the editor's file, the restorer restores it from the version
+//                        before ("Restore only <artboard>", or the whole canvas with --whole). Both
+//                        Macs must end with all four. --settle / --editor / --restorer as for restore.
+//
 //   --scenario first     p8-fix-c2 #1: only the boot — both copies start on an EMPTY project, then
 //                        one (--first-by alice|bob) makes the first canvas; the other must get it
 //                        without a restart. Every scenario boots this way.
@@ -37,10 +42,16 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { startLocalHub } from '../../apps/desktop/e2e/fixtures/local-hub.mjs';
-import { heldConflicts } from '../../apps/studio/client/v2/diagnostics/sync-details/sync-details-model.js';
-import { saveStatus } from '../../apps/studio/client/v2/shell/save-status.js';
-import { syncPresentation } from '../../apps/studio/sync/presentation.ts';
+import * as syncDetailsModel from '../../apps/studio/client/v2/diagnostics/sync-details/sync-details-model.js';
+import * as saveStatusModule from '../../apps/studio/client/v2/shell/save-status.js';
+import * as presentationModule from '../../apps/studio/sync/presentation.ts';
 import { stubClaudeEnv } from '../lib/stub-claude.mjs';
+
+// Namespace imports: the rig also runs against older builds (the before-the-fix series), where the
+// Share cluster's status word did not exist yet — the run then just leaves that word out.
+const heldConflicts = syncDetailsModel.heldConflicts ?? (() => []);
+const { saveStatus } = saveStatusModule;
+const { syncPresentation } = presentationModule;
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const argv = process.argv.slice(2);
@@ -51,10 +62,15 @@ const arg = (n, fb) => {
 const SCENARIO = arg('scenario', 'restore');
 const RUNS = Number(arg('runs', '1'));
 const RESTORER = arg('restorer', 'bob');
+// F14 (2.0.4) — whose disk the hand edit empties (default bob's); `--editor alice --restorer alice`
+// is the same-Mac race on the other side (a restore over its own change the project lacks)
+const EDITOR = arg('editor', 'bob');
 const KEEP = argv.includes('--keep');
 const SETTLE_MS = Number(arg('settle', '0'));
 // --legacy: a hub with no accepted-revisions store (the shared-document mode a 1.x hub speaks)
 const LEGACY = argv.includes('--legacy');
+// --scenario history: restore the whole canvas instead of only the artboard
+const WHOLE = argv.includes('--whole');
 // who makes the project's first canvas after both copies booted empty (p8-fix-c2 #1)
 const FIRST_BY = arg('first-by', 'alice');
 
@@ -211,6 +227,7 @@ const baseEnv = {
   MAUDE_NO_AUTOBUILD: '1',
   MAUDE_CANVAS_ORIGIN_SPLIT: '1',
   NO_OPEN: '1',
+  ...(argv.includes('--debug') ? { MAUDE_SYNC_DEBUG: '1' } : {}),
   // p8-orphan-sidecars — a studio ends by itself when this rig is SIGKILLed (no exit handler runs then)
   MAUDE_EXIT_WITH_PARENT: '1',
 };
@@ -370,14 +387,21 @@ async function restoreRun(n) {
   );
   await until('alice has one artboard', () => ids(disk(alice, rel)).length === 1, 120_000);
   // the hand edit: the last artboard leaves bob's file (an AI run, an editor, a pull)
+  const editor = peers[EDITOR];
+  const watcher = editor === bob ? alice : bob;
   writeFileSync(
-    join(bobRoot, '.design', rel),
+    join(editor.root, '.design', rel),
     SOURCE.replace(/ {8}<DCArtboard[\s\S]*<\/DCArtboard>\n/, '')
   );
   // the hand edit reaches the project (and so alice) before anyone restores — as the e2e waits
   // for Saved — unless --settle N restores N ms after it instead
   if (SETTLE_MS) await sleep(SETTLE_MS);
-  else await until('the hand edit at alice', () => ids(disk(alice, rel)).length === 0, 120_000);
+  else
+    await until(
+      `the hand edit at ${watcher.name}`,
+      () => ids(disk(watcher, rel)).length === 0,
+      120_000
+    );
   const restorer = peers[RESTORER];
   await until(
     `three in ${restorer.name}’s Trash`,
@@ -405,15 +429,182 @@ async function restoreRun(n) {
   await sleep(3_000); // and still there a beat later (nothing undoes it)
   // (the cell's checkout holds no canvas source here — no studio child materializes it)
   const final = { bob: ids(disk(bob, rel)), alice: ids(disk(alice, rel)) };
+  // a held source conflict on either Mac (the Share cluster's Not saved · Compare): never silent
+  const slug = rel
+    .replace(/\//g, '-')
+    .replace(/\.tsx$/, '')
+    .toLowerCase();
+  for (const p of [bob, alice]) {
+    const st = await syncStatus(p).catch(() => null);
+    if ((st?.notices ?? []).some((x) => x?.id === `source-conflict-${slug}`))
+      final[`${p.name}Held`] = true;
+  }
   if (Object.values(final).some((v) => v.length !== want)) ok = false;
   return { ok, answers, final };
 }
 
-async function raceRun(n) {
-  const rel = `ui/Race${n}.tsx`;
-  await seed(rel, `Race${n}`);
-  await until('alice has four', () => ids(disk(alice, rel)).length === 4, 60_000);
-  await sleep(1_500);
+// F15 (v2-204) — the race's shape, varied per run so a series covers the orders a person meets:
+//   --trasher alice|bob|mixed  who moves three artboards to the trash (default alice; the other peer is "the other")
+//   --other trash|dup|text|text-trashed|mixed
+//                           what the other peer does at the same time: trash the fourth, duplicate the fourth
+//                           (adds an artboard), hand-edit the fourth's text, hand-edit a text inside an artboard
+//                           the trasher removes; `mixed` picks one per run
+//   --net offline|online|mixed  the cell away during both edits (default offline), or up the whole time
+//   --order stop|jitter     `stop` (default, the original rig): the trasher is SIGSTOPped while the cell comes
+//                           back; `jitter`: no SIGSTOP, a seeded random order and 0–2.5 s between the two edits
+//   --restart-held          once the outcome is read, restart every studio that is apart and read it again — a
+//                           conflict only in memory is lost there
+const TRASHER = arg('trasher', 'alice');
+const OTHER = arg('other', 'trash');
+const NET = arg('net', 'offline');
+const ORDER = arg('order', 'stop');
+const RESTART_HELD = argv.includes('--restart-held');
+const SEED = Number(arg('seed', '7'));
+function rng(n) {
+  // mulberry32 over (seed, run): the same series replays the same timings
+  let t = (SEED * 1_000_003 + n * 7919) >>> 0;
+  return () => {
+    t = (t + 0x6d2b79f5) >>> 0;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const pick = (r, list) => list[Math.floor(r() * list.length) % list.length];
+/** The hub's accepted html of `rel` (bootstrap lane hash → blob), or null when it cannot tell. */
+async function hubIds(rel) {
+  try {
+    const h = { authorization: `Bearer ${hub.tokens.owner}` };
+    const base = `${hub.http}/api/projects/current/v1`;
+    const boot = await (await fetch(`${base}/bootstrap`, { headers: h })).json();
+    const d = (boot.docs ?? []).find((x) => !x.retired && x.path === rel);
+    const hash = d?.lanes?.html?.hash;
+    if (!hash) return null;
+    const blob = await (await fetch(`${base}/blobs/${hash}`, { headers: h })).json();
+    return typeof blob?.body === 'string' ? ids(blob.body) : null;
+  } catch {
+    return null;
+  }
+}
+async function historyRun(n) {
+  const rel = `ui/Hist${n}.tsx`;
+  await seed(rel, `Hist${n}`);
+  const restorer = peers[RESTORER];
+  // the version before the hand edit: the canvas's newest revision once both Macs have it
+  let before = null;
+  await until(
+    `a version of ${rel} at ${restorer.name}`,
+    async () => {
+      const h = await restorer.call(
+        'GET',
+        `/_api/project/history?path=${encodeURIComponent(rel)}&limit=5`
+      );
+      before = h.body?.history?.[0]?.revision ?? null;
+      return Number.isSafeInteger(before);
+    },
+    60_000
+  );
+  const editor = peers[EDITOR];
+  const watcher = editor === bob ? alice : bob;
+  // the hand edit: the first artboard leaves the editor's file (an AI run, an editor, a pull)
+  writeFileSync(
+    join(editor.root, '.design', rel),
+    SOURCE.replace(/ {8}<DCArtboard id="flag-front"[\s\S]*?<\/DCArtboard>\n/, '')
+  );
+  if (SETTLE_MS) await sleep(SETTLE_MS);
+  else
+    await until(
+      `the hand edit at ${watcher.name}`,
+      () => ids(disk(watcher, rel)).length === 3,
+      120_000
+    );
+  const body = WHOLE
+    ? { path: rel, at: `r${before}` }
+    : { path: rel, at: `r${before}`, artboard: 'flag-front' };
+  const r = await restorer.call('POST', '/_api/project/restore', body);
+  const answers = [
+    `${WHOLE ? 'whole' : 'flag-front'}:${r.status}${r.body?.ok === false ? `/${r.body?.reason}` : ''}`,
+  ];
+  const want = 4;
+  let ok = true;
+  try {
+    await until(
+      'four artboards everywhere',
+      () => [disk(bob, rel), disk(alice, rel)].every((s) => ids(s).length === want),
+      60_000
+    );
+  } catch {
+    ok = false;
+  }
+  await sleep(3_000); // and still there a beat later (nothing undoes it)
+  const final = { bob: ids(disk(bob, rel)), alice: ids(disk(alice, rel)) };
+  const slug = rel
+    .replace(/\//g, '-')
+    .replace(/\.tsx$/, '')
+    .toLowerCase();
+  for (const p of [bob, alice]) {
+    const st = await syncStatus(p).catch(() => null);
+    if ((st?.notices ?? []).some((x) => x?.id === `source-conflict-${slug}`))
+      final[`${p.name}Held`] = true;
+  }
+  if (Object.values(final).some((v) => v.length !== want)) ok = false;
+  return { ok, answers, final };
+}
+
+const hubApi = async (route) =>
+  (
+    await fetch(`${hub.http}/api/projects/current/v1/${route}`, {
+      headers: { authorization: `Bearer ${hub.tokens.owner}` },
+    })
+  ).json();
+/** The project's revision now (null when the hub cannot tell). */
+async function hubRevision() {
+  try {
+    return Number((await hubApi('revisions?after=0&limit=1')).revision);
+  } catch {
+    return null;
+  }
+}
+/** The html lane of `doc` as it stood at `rev` ('' when absent, null when the hub cannot tell). */
+async function hubLaneAt(doc, rev) {
+  try {
+    const r = await hubApi(`lane?doc=${encodeURIComponent(doc)}&lane=html&rev=${rev}`);
+    return typeof r?.body === 'string' ? r.body : null;
+  } catch {
+    return null;
+  }
+}
+const EDITED_A = /<h1 style=\{\{ padding: 16 \}\}>A edited<\/h1>/;
+/**
+ * F15 follow-up (v2-204) — a hand edit inside an artboard the trasher removed, found on neither disk.
+ * Which is it: (a) the trash took the EDITED artboard, so its Trash item (the hub's html at the
+ * revision before the trash action — the version a restore splices back) carries the edit;
+ * (b) the edit never happened (the artboard was already gone from that disk — a rig artefact);
+ * (c) it is lost in silence: on no disk, in no revision's Trash item, and no conflict holds it.
+ */
+async function whereDidTheEditGo(p, rel, fromRev, applied) {
+  if (!applied) return { verdict: 'b-not-applied' };
+  let item = null;
+  await until(
+    `flag-front in ${p.name}’s Trash`,
+    async () => (item = (await trashList(p, rel)).find((i) => i.artboard === 'flag-front')),
+    20_000
+  ).catch(() => {});
+  const trashed = item?.doc ? await hubLaneAt(item.doc, item.rev - 1) : null;
+  const inTrash = trashed !== null && EDITED_A.test(trashed);
+  // was it ever the project's version (any revision of this run)?
+  let onHubAt = null;
+  const to = await hubRevision();
+  if (item?.doc && fromRev !== null && to !== null)
+    for (let r = fromRev + 1; r <= to && onHubAt === null; r++)
+      if (EDITED_A.test((await hubLaneAt(item.doc, r)) ?? '')) onHubAt = r;
+  return {
+    verdict: inTrash ? 'a-in-trash' : 'c-lost',
+    trashRev: item?.rev ?? null,
+    onHubAt,
+  };
+}
+async function cellAway() {
   hub.stop();
   await until('the cell to stop', async () => {
     try {
@@ -423,34 +614,103 @@ async function raceRun(n) {
       return true;
     }
   });
-  const a = await alice.call('POST', '/_api/edit-op', {
-    file: rel,
-    op: 'artboard.trash',
-    targets: [],
-    params: { artboards: ['flag-front', 'flag-back', 'tackle-front'] },
-  });
-  process.kill(alice.proc.pid, 'SIGSTOP');
-  const b = await bob.call('POST', '/_api/edit-op', {
-    file: rel,
-    op: 'artboard.trash',
-    targets: [],
-    params: { artboards: ['tackle-back'] },
-  });
+}
+async function cellBack() {
   hub = await startLocalHub({
     dir: hubDir,
     port: hubPort,
     workspace: cellRepo,
     transactions: !LEGACY,
   });
-  process.kill(alice.proc.pid, 'SIGCONT');
+}
+async function restartStudio(p) {
+  const i = children.indexOf(p.proc);
+  p.proc.kill('SIGTERM');
+  await new Promise((r) => (p.proc.exitCode !== null ? r() : p.proc.once('exit', r)));
+  if (i >= 0) children.splice(i, 1);
+  const next = await startStudio(p.name, p.root, join(scratch, `${p.name}-cfg`, 'hubs.json'));
+  Object.assign(p, next);
+}
+
+async function raceRun(n) {
+  const rel = `ui/Race${n}.tsx`;
+  const r = rng(n);
+  const trasher =
+    (TRASHER === 'mixed' ? pick(r, ['alice', 'bob']) : TRASHER) === 'bob' ? bob : alice;
+  const other = trasher === bob ? alice : bob;
+  const otherDoes = OTHER === 'mixed' ? pick(r, ['trash', 'dup', 'text', 'text-trashed']) : OTHER;
+  const net = NET === 'mixed' ? pick(r, ['offline', 'online']) : NET;
+  const otherFirst = ORDER === 'jitter' && r() < 0.5;
+  const gapMs = ORDER === 'jitter' ? Math.round(r() * 2_500) : 0;
+  const shape = { trasher: trasher.name, otherDoes, net, order: ORDER, otherFirst, gapMs };
+  await seed(rel, `Race${n}`);
+  await until('alice has four', () => ids(disk(alice, rel)).length === 4, 60_000);
+  await sleep(1_500);
+  const fromRev = await hubRevision();
+  if (net === 'offline') await cellAway();
+  const trash3 = () =>
+    trasher.call('POST', '/_api/edit-op', {
+      file: rel,
+      op: 'artboard.trash',
+      targets: [],
+      params: { artboards: ['flag-front', 'flag-back', 'tackle-front'] },
+    });
+  const handEdit = (label) => {
+    const p = join(other.root, '.design', rel);
+    const before = read(p);
+    const after = before.replace(
+      `<h1 style={{ padding: 16 }}>${label}</h1>`,
+      `<h1 style={{ padding: 16 }}>${label} edited</h1>`
+    );
+    writeFileSync(p, after);
+    // applied: false = the artboard was already gone from this disk (the trash arrived first) — no
+    // edit happened, so none can be lost
+    return Promise.resolve({ status: 'hand', applied: after !== before });
+  };
+  const otherEdit = () =>
+    otherDoes === 'trash'
+      ? other.call('POST', '/_api/edit-op', {
+          file: rel,
+          op: 'artboard.trash',
+          targets: [],
+          params: { artboards: ['tackle-back'] },
+        })
+      : otherDoes === 'dup'
+        ? other.call('POST', '/_api/edit-op', {
+            file: rel,
+            op: 'artboard.duplicate',
+            targets: [],
+            params: { items: [{ artboard: 'tackle-back', at: { x: 900, y: 0 } }] },
+          })
+        : handEdit(otherDoes === 'text' ? 'D' : 'A');
+  let a;
+  let b;
+  if (ORDER === 'stop') {
+    a = await trash3();
+    process.kill(trasher.proc.pid, 'SIGSTOP');
+    b = await otherEdit();
+    if (net === 'offline') await cellBack();
+    process.kill(trasher.proc.pid, 'SIGCONT');
+  } else {
+    const first = otherFirst ? otherEdit : trash3;
+    const second = otherFirst ? trash3 : otherEdit;
+    const p1 = first();
+    await sleep(gapMs);
+    const p2 = second();
+    [a, b] = otherFirst ? [await p2, await p1] : [await p1, await p2];
+    if (net === 'offline') {
+      await sleep(Math.round(r() * 1_500));
+      await cellBack();
+    }
+  }
   let converged = false;
   try {
     await until(
       'the two Macs equal',
       () => {
-        const x = ids(disk(alice, rel)).join(',');
-        const y = ids(disk(bob, rel)).join(',');
-        return x === y;
+        const x = disk(alice, rel);
+        const y = disk(bob, rel);
+        return x !== null && x === y;
       },
       Number(arg('race-wait', '90000'))
     );
@@ -478,6 +738,18 @@ async function raceRun(n) {
     bobKeptTheirs: kept(bob),
     aliceOp: a.status,
     bobOp: b.status,
+    hub: await hubIds(rel),
+    shape,
+    // a hand edit's words, where each side ended (lost everywhere with no conflict = dropped in silence)
+    ...(otherDoes.startsWith('text')
+      ? {
+          editApplied: b.applied !== false,
+          editedAt: {
+            alice: /edited</.test(disk(alice, rel) ?? ''),
+            bob: /edited</.test(disk(bob, rel) ?? ''),
+          },
+        }
+      : {}),
   };
   // p8-held-conflict-status — the refused Mac's real /_sync-status through the Share cluster's own status
   // machine: a held conflict must read Not saved · Compare, never Saved. --status-out <file> keeps that
@@ -510,16 +782,60 @@ async function raceRun(n) {
     console.log('bob /_sync-status', JSON.stringify(await syncStatus(bob)).slice(0, 3000));
   }
   // equal, or the side whose disk is not the project's shows the conflict with both versions kept
-  const ok =
-    converged ||
-    (final.aliceConflicts > 0 && final.aliceKeptTheirs) ||
-    (final.bobConflicts > 0 && final.bobKeptTheirs);
+  const heldAt = (who) => final[`${who}Conflicts`] > 0 && final[`${who}KeptTheirs`];
+  const sameAsHub = (who) => final.hub !== null && final[who].join(',') === final.hub.join(',');
+  // equal (and the hub's), or the side apart shows the conflict with both versions kept while the other
+  // side IS the project's version — two disks apart with nobody told is the F15 silent divergence
+  let ok =
+    (converged && (final.hub === null || sameAsHub('alice'))) ||
+    (heldAt('alice') && (sameAsHub('bob') || heldAt('bob'))) ||
+    (heldAt('bob') && (sameAsHub('alice') || heldAt('alice')));
+  final.silent = !converged && !heldAt('alice') && !heldAt('bob');
+  // a hand edit inside a trashed artboard on neither disk, with no conflict holding it: its Trash
+  // item must carry it (restorable with the edit) — or it never happened (the artboard was gone)
+  if (
+    otherDoes === 'text-trashed' &&
+    !final.editedAt.alice &&
+    !final.editedAt.bob &&
+    !heldAt(other.name)
+  ) {
+    final.edit = await whereDidTheEditGo(other, rel, fromRev, final.editApplied);
+    if (final.edit.verdict === 'c-lost') ok = false;
+  }
+  if (RESTART_HELD && !converged) {
+    // a conflict that lives only in the runtime is gone after a restart: read every apart side again
+    for (const p of [alice, bob]) if (!sameAsHub(p.name)) await restartStudio(p);
+    await sleep(Number(arg('restart-wait', '30000')));
+    const [ra, rb] = [await syncStatus(alice), await syncStatus(bob)];
+    final.afterRestart = {
+      alice: ids(disk(alice, rel)),
+      bob: ids(disk(bob, rel)),
+      aliceConflicts: conflicts(ra),
+      bobConflicts: conflicts(rb),
+    };
+    const ar = final.afterRestart;
+    const eq = disk(alice, rel) === disk(bob, rel);
+    if (!eq && !(ar.aliceConflicts > 0 && kept(alice)) && !(ar.bobConflicts > 0 && kept(bob)))
+      ok = false;
+    // a conflict held before the restart that is gone after it, with nobody's choice: its side was
+    // overwritten by the project's version in silence (the recovery copy is not a notice)
+    for (const who of ['alice', 'bob'])
+      if (
+        heldAt(who) &&
+        ar[`${who}Conflicts`] === 0 &&
+        ar[who].join(',') !== final[who].join(',')
+      ) {
+        ar.silentlyResolved = who;
+        ok = false;
+      }
+  }
   return { ok, converged, final };
 }
 
 let pass = 0;
 try {
-  for (let n = 1; n <= RUNS; n++) {
+  const FIRST = Number(arg('first', '1'));
+  for (let n = FIRST; n < FIRST + RUNS; n++) {
     const t0 = Date.now();
     // a run that cannot reach its next step is a FAIL of that run, not the end of the series (each run
     // works on its own fresh canvas) — so the rate is honest
@@ -527,13 +843,15 @@ try {
       ? Promise.resolve(firstVerdict())
       : SCENARIO === 'race'
         ? raceRun(n)
-        : restoreRun(n)
+        : SCENARIO === 'history'
+          ? historyRun(n)
+          : restoreRun(n)
     ).catch((e) => ({
       ok: false,
       error: String(e?.message ?? e),
     }));
     if (r.ok) pass++;
-    else if (argv.includes('--dump') || SCENARIO === 'restore') {
+    else if (argv.includes('--dump') || SCENARIO === 'restore' || SCENARIO === 'history') {
       // the sync lines of both studios, so a failed run says why without --keep + a shell on the box
       const pick = (log) =>
         log
