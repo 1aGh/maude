@@ -72,7 +72,7 @@ Two targets exist while the site moves hosts. **Production is still Vercel** unt
 
 1. **API token** (Cloudflare dashboard, My Profile, API Tokens, Create Token, custom). Permissions: *Account > Workers Scripts > Edit*, *Zone > Workers Routes > Edit* (zone `maude.sh`), *Account > Account Settings > Read*. Scope the account and the zone to this account only.
 2. **GitHub repository settings** (Settings > Secrets and variables > Actions):
-   - secret `CLOUDFLARE_API_TOKEN`: the token above
+   - secret `CLOUDFLARE_SITE_API_TOKEN`: the token above (its own secret: `CLOUDFLARE_API_TOKEN` belongs to the Cloud fleet deploys and has other scopes)
    - secret `CLOUDFLARE_ACCOUNT_ID`: `b5b596efe65abb732777c7171dc18145`
    - variable `CF_BEACON_TOKEN`: the Web Analytics token (Cloudflare dashboard, Analytics & Logs, Web Analytics, add the site, copy the token). Optional: without it the site ships no beacon.
 3. **Worker secret** `GITHUB_TOKEN` (lifts the 60 requests/hour GitHub API limit for the updater feed and the download redirect). It lives on the Worker, so set it after the first deploy: `cd site && pnpm exec wrangler secret put GITHUB_TOKEN`. A fine-grained token with read-only access to public repositories is enough.

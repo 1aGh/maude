@@ -18,7 +18,7 @@ name: Site deploy (Cloudflare Workers)
 # shallow clone those come out wrong, and the site would ship them without an error.
 #
 # SECRETS AND VARIABLES (repository settings; the runbook is site/README.md):
-#   secrets.CLOUDFLARE_API_TOKEN  Workers Scripts: Edit, Workers Routes: Edit (zone maude.sh),
+#   secrets.CLOUDFLARE_SITE_API_TOKEN  (own token, NOT the fleet CLOUDFLARE_API_TOKEN) Workers Scripts: Edit, Workers Routes: Edit (zone maude.sh),
 #                                 Account Settings: Read
 #   secrets.CLOUDFLARE_ACCOUNT_ID the Cloudflare account that owns the Worker
 #   vars.CF_BEACON_TOKEN          Cloudflare Web Analytics token (public identifier; optional,
@@ -82,7 +82,7 @@ jobs:
 
       - name: Credentials present
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_SITE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           # wrangler's own failure for a missing token reads like a login prompt in CI.
@@ -102,5 +102,5 @@ jobs:
       - name: Deploy
         run: pnpm --filter @maude/site cf:deploy
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_SITE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
