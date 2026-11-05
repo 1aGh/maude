@@ -62,6 +62,7 @@ import { useAttachments } from '../v2/ai/use-attachments.js';
 import { notify } from '../../notifications.tsx';
 import { DEFAULT_TRANSCRIPT_VIEW, TRANSCRIPT_VIEWS } from './transcript-view.js';
 import { createFinishTracker } from './chat-finish.js';
+import { capsKeyFor, isEmptyCaps, loadCachedCaps, saveCachedCaps } from './caps-cache.js';
 
 // DDR-185 — shared "did a genuinely new item arrive" check for the
 // permission/elicitation effects below: both need the identical shape (diff
@@ -193,32 +194,37 @@ function ChatThread({
   unavailable = false,
   viewer = false,
   onConnected,
+  projectName = '',
 }) {
   // Live session capabilities (feature-acp-panel-dynamic-claude-code-
   // capabilities) — `caps` is THIS chat's own connection's mode roster +
   // config-option set, sourced entirely from the ACP session. Never a
   // hardcoded list; re-renders on every `caps` frame (a model switch can
   // change which OTHER options — effort, fast — are even offered).
-  const [caps, setCaps] = useState({ modes: null, configOptions: [] });
-  useEffect(() => conn.onCaps(setCaps), [conn]);
+  //
+  // 2.0.5 - nothing starts Claude until the person engages, so a fresh load has no live roster. The last one this
+  // project saw is shown straight away (`caps-cache.js`) and the first live frame replaces it. A cached roster is
+  // only DRAWN: the one-time reconcile below waits for a live one, so it never sends anything on its own.
+  const capsKey = capsKeyFor(projectName || designRel);
+  const [caps, setCaps] = useState(
+    () => loadCachedCaps(capsKey) ?? { modes: null, configOptions: [] }
+  );
+  const [capsLive, setCapsLive] = useState(false);
+  useEffect(
+    () =>
+      conn.onCaps((next) => {
+        if (isEmptyCaps(next)) return; // the replay of "nothing yet" must not wipe the cached roster
+        setCaps(next);
+        setCapsLive(true);
+        saveCachedCaps(capsKey, next);
+      }),
+    [conn, capsKey]
+  );
   const parsedOptions = useMemo(() => parseConfigOptions(caps.configOptions), [caps.configOptions]);
 
-  // Warm up as soon as this chat becomes the VISIBLE one — the capability bar
-  // has nothing to show until a live session exists, and deferring the spawn
-  // to "the user typed a slash command" (the original Composer-only trigger,
-  // still below) left the model/effort/mode row completely EMPTY until then —
-  // read as "I lost the picker" in dogfooding, a real regression. Fires once
-  // per chat; a chat that's opened but never viewed still doesn't spawn
-  // `claude`, so a background/hidden chat keeps some of DDR-123's "opening
-  // the panel costs nothing" intent — only the chat actually on screen warms.
-  const warmedOnVisibleRef = useRef(false);
-  useEffect(() => {
-    // S5.13: nothing to warm while Claude Code is not ready; the effect runs again when it is.
-    if (hidden || unavailable || warmedOnVisibleRef.current) return;
-    warmedOnVisibleRef.current = true;
-    const p = picksRef.current;
-    conn.warm(chatId, p.model, p.effort, p.mode);
-  }, [hidden, unavailable, conn, chatId, picksRef]);
+  // No `warm` here (2.0.5). This effect used to spawn the claude adapter whenever a chat was on screen, so every
+  // webview reload started another process. The composer (v2/ai/Composer.jsx) warms it when the person focuses or
+  // types in it; a send spawns it itself.
 
   // One-time reconciliation: if the user's persisted pick (from a DIFFERENT
   // chat, or an earlier session) isn't what THIS freshly-established session
@@ -229,7 +235,7 @@ function ChatThread({
   // it can never loop.
   const reconciledRef = useRef(false);
   useEffect(() => {
-    if (reconciledRef.current) return;
+    if (reconciledRef.current || !capsLive) return;
     const hasModes = (caps.modes?.availableModes?.length ?? 0) > 0;
     const hasOptions = caps.configOptions.length > 0;
     if (!hasModes && !hasOptions) return; // nothing to reconcile against yet
@@ -256,7 +262,7 @@ function ChatThread({
       if (resolved !== caps.modes.currentModeId) conn.setMode(chatId, resolved);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [caps, parsedOptions]);
+  }, [caps, capsLive, parsedOptions]);
 
   const onSetMode = useCallback(
     (modeId) => {
@@ -1004,6 +1010,7 @@ export default function ChatPanel({
               chatId={id}
               initialMessages={hydratedRef.current.get(id) || []}
               hidden={id !== activeChatId}
+              projectName={projectName}
               picksRef={picksRef}
               setPick={setPick}
               activeCanvas={activeCanvas}

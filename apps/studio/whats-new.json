@@ -2,6 +2,24 @@
   "$schema": "./whats-new.schema.json",
   "entries": [
     {
+      "id": "board-zoom-stays-smooth",
+      "version": null,
+      "date": null,
+      "kind": "fix",
+      "title": "Zooming a busy board stays smooth",
+      "summary": "A board with hundreds of notes no longer stutters when you zoom in the desktop app. The notes keep the same soft shadow.",
+      "surface": "design-ui"
+    },
+    {
+      "id": "ai-starts-when-you-do",
+      "version": null,
+      "date": null,
+      "kind": "improvement",
+      "title": "AI starts when you start typing",
+      "summary": "Reopening or reloading Maude no longer starts Claude in the background. It starts the moment you click into the message box.",
+      "surface": "design-ui"
+    },
+    {
       "id": "faster-steadier-uploads",
       "version": null,
       "date": null,

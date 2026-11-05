@@ -401,6 +401,18 @@ export function ChatAdvanced({
               Connecting…
             </p>
           ) : null}
+          {/* 2.0.5 - AI starts when you do, so a first run has no roster yet: the rows sit in their resting
+              state (same labels) instead of leaving the fold empty; they fill in once AI answers. */}
+          {noCaps && !connecting ? (
+            <div data-testid="chat-caps-placeholder">
+              {['Model', 'Effort', 'Permissions'].map((label) => (
+                <div className="ai-adv-row" key={label} data-adv-row={`placeholder-${label}`}>
+                  <span className="ai-adv-k">{label}</span>
+                  <span className="ai-adv-hint">Set when AI starts</span>
+                </div>
+              ))}
+            </div>
+          ) : null}
           {parsed.model ? (
             <OptionSelect row="model" label="Model" opt={parsed.model} onChange={onSetConfig} />
           ) : null}
