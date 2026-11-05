@@ -342,7 +342,13 @@ export function DsReviewHost({
       <DsSwitchHost cfg={cfg} activePath={activePath} toast={toast} fetchImpl={fetchImpl} />
       {/* S10.15b — "Bring <system> up to the schema?": the amber dot, the row's menu and the switch's level-11 refusal */}
       <DsUpgradeHost cfg={cfg} toast={toast} fetchImpl={fetchImpl} />
-      <DsOffSystemHost cfg={cfg} activePath={activePath} toast={toast} fetchImpl={fetchImpl} />
+      <DsOffSystemHost
+        cfg={cfg}
+        activePath={activePath}
+        toast={toast}
+        frameFor={frameFor}
+        fetchImpl={fetchImpl}
+      />
       {/* S10.16b — "Make a design system": the three-input sheet, the filling sections, the ready card */}
       <DsMakeHost
         cfg={cfg}
