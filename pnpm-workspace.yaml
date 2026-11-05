@@ -57,6 +57,8 @@ allowBuilds:
   # run only on demonstrated need, e.g. better-sqlite3's real native compile).
   protobufjs: false
   sharp: true
+  # wrangler's local runtime (site `cf:preview`); the postinstall just verifies the binary.
+  workerd: true
 patchedDependencies:
   css-tree@2.2.1: patches/css-tree@2.2.1.patch
   css-tree@3.2.1: patches/css-tree@3.2.1.patch
