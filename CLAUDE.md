@@ -229,7 +229,7 @@ Never bump versions by hand or with `npm version` — the script is the single s
 
 ## Site roadmap regen
 
-`site/lib/roadmap.json` is auto-generated from `.ai/plans/*.md` + `.ai/plans/archive/*.md` + `.ai/state/STATE.md` by `site/scripts/build-roadmap.mjs`. It feeds the public `/roadmap` page. Like `stats.json` it IS committed because Vercel uploads only `site/` and cannot see the `.ai/` sibling.
+`site/lib/roadmap.json` is auto-generated from `.ai/plans/*.md` + `.ai/plans/archive/*.md` + `.ai/state/STATE.md` by `site/scripts/build-roadmap.mjs`. It feeds the public `/roadmap` page. Like `stats.json` it IS committed: the site build regenerates it, and the committed copy is what the `site-content` gate diffs against.
 
 **Whenever** you edit `.ai/state/STATE.md` History, archive a plan into `.ai/plans/archive/`, or add a new plan under `.ai/plans/`, run:
 

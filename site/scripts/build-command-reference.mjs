@@ -113,7 +113,7 @@ async function emitPlugin(plugin) {
     await assertCatalogParity(plugin, sourceDir);
   } catch (err) {
     if (err.code === 'ENOENT') {
-      // Source plugins/ tree isn't here (e.g. Vercel deploy uploads only site/).
+      // Source plugins/ tree isn't here (e.g. a build that sees only site/).
       // The committed content/docs/commands-<slug>/ already has the last-regenerated
       // MDX; leave it alone and skip.
       console.log(

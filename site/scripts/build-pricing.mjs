@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Mirror the Cloud price list into the site so no page ever types a price by hand.
-// Vercel uploads only site/, so site/lib/pricing.json is COMMITTED (same rationale as
+// a build may see only site/, so site/lib/pricing.json is COMMITTED (same rationale as
 // stats.json / whats-new.json); apps/cloud/pricing.json is the single source and may be absent
 // at deploy time, in which case the committed copy stays.
 //
