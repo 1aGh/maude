@@ -9,13 +9,27 @@
 // A page that names an old word ON PURPOSE (the "where did it go" page) says so in ALLOW, with the
 // reason. An allowance is per file AND per rule, so a migration page cannot hide an unrelated slip.
 //
+// The public pages say the same thing. The v2 site's Home and shell are JSX, not MDX, so the same
+// words are also searched in the TEXT of site/app/(home)/** and site/components/v2/** (JSX text
+// nodes and string literals; class names, imports and comments are skipped), plus one rule only
+// they need: no part-number stamps (`MDCC-DSN/01`), the v1 "catalog" chrome Maude 2 dropped.
+//
 //   node --test scripts/test/docs-no-old-chrome.test.mjs
 //
 // DOCS_DIR_UNDER_TEST=<dir> points it at another tree (how the red-first run proved it fails on the
 // pre-V2-7.1 pages).
 
 import assert from 'node:assert/strict';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -24,6 +38,8 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const DOCS = process.env.DOCS_DIR_UNDER_TEST
   ? resolve(process.env.DOCS_DIR_UNDER_TEST)
   : join(ROOT, 'site', 'content', 'docs');
+// The JSX trees that carry the public site's own words (everything else under site/app is docs chrome).
+const JSX_DIRS = [join(ROOT, 'site', 'app', '(home)'), join(ROOT, 'site', 'components', 'v2')];
 
 /**
  * [id, regex, what to write instead]. Case-insensitive unless the rule says otherwise in `cs`.
@@ -77,6 +93,11 @@ export const RULES = [
     /file\s*(?:→|->|›)\s*share link/i,
     'Share… (opens the Share sheet; Copy link is inside it)',
   ],
+  [
+    'sku-stamp',
+    /\bMDCC-[A-Z]{3}\//,
+    'nothing: part-number stamps (MDCC-DSN/01) were the v1 catalog chrome, Maude 2 pages carry none',
+  ],
 ];
 
 /**
@@ -94,19 +115,67 @@ export const ALLOW = {
   },
 };
 
-function walk(dir) {
+/**
+ * The same, for JSX files, keyed by the path relative to the site's `app/(home)` or
+ * `components/v2` root as the finder reports it (`(home)/about/page.tsx`).
+ */
+export const JSX_ALLOW = {};
+
+function walk(dir, ext = '.mdx') {
   const out = [];
   for (const name of readdirSync(dir).sort()) {
     const p = join(dir, name);
-    if (statSync(p).isDirectory()) out.push(...walk(p));
-    else if (name.endsWith('.mdx')) out.push(p);
+    if (statSync(p).isDirectory()) out.push(...walk(p, ext));
+    else if (name.endsWith(ext)) out.push(p);
   }
   return out;
 }
 
-function allowed(rel, id) {
-  const a = ALLOW[rel];
+function allowed(rel, id, table = ALLOW) {
+  const a = table[rel];
   return !!a && (a.rules === '*' || a.rules.includes(id));
+}
+
+/**
+ * What a visitor can read in a .tsx file: JSX text nodes and string literals, with their line.
+ * Comments, imports and class-name-like strings (one token, no spaces: `ps-card`, `'./x'`) are not
+ * copy, so a CSS class called `ps-sidebar` or a comment about the old dock does not trip a rule.
+ */
+export function jsxFragments(src) {
+  const blank = (m) => m.replace(/[^\n]/g, ' ');
+  const code = src
+    .replace(/\/\*[\s\S]*?\*\//g, blank)
+    .replace(/(^|[^:\\])\/\/[^\n]*/g, (m, a) => a + blank(m.slice(a.length)));
+  const lineOf = (i) => code.slice(0, i).split('\n').length;
+  const out = [];
+  for (const m of code.matchAll(/>([^<>{}]*[A-Za-z][^<>{}]*)</g))
+    out.push({ line: lineOf(m.index + 1), text: m[1] });
+  for (const m of code.matchAll(/(['"`])((?:\\.|(?!\1)[^\\\n])*)\1/g)) {
+    const t = m[2];
+    if (/^\S*$/.test(t) || /^(?:@\/|\.{1,2}\/|next\/)/.test(t)) continue;
+    if (/class(?:Name)?\s*=\s*$/.test(code.slice(Math.max(0, m.index - 16), m.index))) continue;
+    out.push({ line: lineOf(m.index), text: t });
+  }
+  return out;
+}
+
+export function findOldChromeInJsx(dirs = JSX_DIRS) {
+  const hits = [];
+  for (const dir of dirs) {
+    const base = dirname(dir); // so the report says (home)/… and v2/…
+    for (const file of walk(dir, '.tsx')) {
+      const rel = relative(base, file).split('\\').join('/');
+      for (const { line, text } of jsxFragments(readFileSync(file, 'utf8'))) {
+        for (const [id, re, instead] of RULES) {
+          const m = re.exec(text);
+          if (m && !allowed(rel, id, JSX_ALLOW)) {
+            hits.push(`${rel}:${line} [${id}] "${m[0]}" — write: ${instead}`);
+          }
+        }
+      }
+    }
+  }
+  return hits;
 }
 
 export function findOldChrome(dir = DOCS) {
@@ -128,6 +197,58 @@ export function findOldChrome(dir = DOCS) {
 
 test('the docs name no Maude 1 chrome (status bar, menubar, View → History, ⌘⇧G, Inspector words, …)', () => {
   assert.deepEqual(findOldChrome(), [], 'a docs page still describes a control Maude 2 removed');
+});
+
+test('the public pages (site/app/(home), site/components/v2) name no Maude 1 chrome or part-number stamps', () => {
+  assert.deepEqual(findOldChromeInJsx(), [], 'a public page still shows chrome Maude 2 dropped');
+});
+
+test('every JSX_ALLOW row names a file that exists and says why', () => {
+  for (const [file, a] of Object.entries(JSX_ALLOW)) {
+    assert.ok(a.why && a.why.length > 20, `${file}: an allowance needs a reason`);
+    assert.ok(
+      JSX_DIRS.some((d) => statSync(join(dirname(d), file), { throwIfNoEntry: false })?.isFile()),
+      `${file}: allowed but not in the public JSX trees`
+    );
+  }
+});
+
+test('the JSX scan reads copy, not code: it fails on a bad page and passes on a clean one', () => {
+  const tmp = mkdtempSync(join(tmpdir(), 'old-chrome-jsx-'));
+  try {
+    const dir = join(tmp, 'v2');
+    mkdirSync(dir);
+    // old words in a text node, a string literal and a part-number stamp: three hits
+    writeFileSync(
+      join(dir, 'bad.tsx'),
+      [
+        'export const A = () => <p>Open the status bar</p>;',
+        "export const B = { t: 'drag it from the sidebar' };",
+        'export const C = () => <span>MDCC-DSN/01</span>;',
+      ].join('\n')
+    );
+    const bad = findOldChromeInJsx([dir]);
+    assert.deepEqual(bad.map((h) => h.match(/\[([a-z-]+)\]/)[1]).sort(), [
+      'sidebar',
+      'sku-stamp',
+      'status-bar',
+    ]);
+    assert.match(bad[0], /^v2\/bad\.tsx:\d+ /);
+    // the same words as a comment, a class name, an import and an identifier are not copy
+    writeFileSync(
+      join(dir, 'clean.tsx'),
+      [
+        "import { SideBar } from '../sidebar/status-bar';",
+        '// the old status bar and the sidebar, MDCC-DSN/01',
+        '/* the Dock, the banner */',
+        'export const D = () => <i className="ps-sidebar ps-banner">Pricing</i>;',
+      ].join('\n')
+    );
+    rmSync(join(dir, 'bad.tsx'));
+    assert.deepEqual(findOldChromeInJsx([dir]), []);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
 });
 
 test('every ALLOW row names a page that exists and says why', () => {
@@ -161,6 +282,7 @@ test('the rules catch what they name (a rule that matches nothing guards nothing
     'export-dialog': 'the PNG export dialog',
     'icon-menu': 'the icon menu',
     'file-share-link': 'File → Share link…',
+    'sku-stamp': 'MDCC-DSN/01 · design',
   };
   for (const [id, re] of RULES) {
     assert.ok(sample[id], `${id}: add a sample line`);

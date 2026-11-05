@@ -2,7 +2,7 @@ import { Analytics } from '@vercel/analytics/next';
 import { RootProvider } from 'fumadocs-ui/provider/next';
 import type { Metadata } from 'next';
 import localFont from 'next/font/local';
-import { appName, gitConfig, siteUrl } from '@/lib/shared';
+import { appName, gitConfig, siteDescription, siteUrl, tagline } from '@/lib/shared';
 import stats from '@/lib/stats.json';
 import './global.css';
 
@@ -44,7 +44,7 @@ const jsonLd = {
       '@id': `${siteUrl}/#website`,
       url: `${siteUrl}/`,
       name: 'Maude',
-      description: 'A Mac app for designing with AI. Real files, real git.',
+      description: tagline,
       inLanguage: 'en',
       publisher: { '@id': `${siteUrl}/#person` },
     },
@@ -81,15 +81,13 @@ const jsonLd = {
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: 'maude, how it works mostly',
+    default: 'maude: a design canvas built around AI',
     template: '%s | maude',
   },
-  description:
-    'A Mac app for designing with AI. Built around AI, not bent to fit one: real files, real git history, a real design system. Download it, or install the plugins and CLI from a terminal.',
+  description: siteDescription,
   openGraph: {
     title: 'maude',
-    description:
-      'A Mac app for designing with AI. Built around AI, not bent to fit one: real files, real git history, a real design system.',
+    description: siteDescription,
     type: 'website',
     siteName: 'maude',
   },

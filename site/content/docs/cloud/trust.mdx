@@ -48,16 +48,16 @@ Rendering happens on your own machine, in Maude Desktop. That is also why there 
 
 ## Where your data lives
 
-EU jurisdiction, on Cloudflare. Region pinning is available on the Dedicated tier.
+On Cloudflare, in the EU where Cloudflare offers it. Cloudflare, Inc. is a US company, so a transfer mechanism applies either way (see the [DPA](/docs/legal/dpa)). Region pinning is available on the Dedicated tier.
 
 ## Subprocessors
 
 | Who | What for | Where |
 | --- | --- | --- |
-| **Cloudflare** | Workspace hosting (Containers, Durable Objects), object storage (R2), DNS and TLS | EU |
-| **Stripe** | Payments and subscription management | EU/US (Stripe's own terms) |
+| **Cloudflare** | Workspace hosting (Containers, Durable Objects), object storage (R2), DNS and TLS | EU where available; Cloudflare, Inc. is a US company |
+| **Lemon Squeezy (Sold through Link, LLC)**, with **Stripe** | Payments and subscription management. Billing details only | EU/US (their own terms) |
 | **Resend** | Transactional email — invitations and billing notices | EU/US |
-| **Vercel** | The documentation site only. **No customer project data.** | US |
+| **Vercel** | The website and its documentation only. **No customer project data.** | US |
 
 This list is part of the DPA. It changes with notice, not quietly.
 

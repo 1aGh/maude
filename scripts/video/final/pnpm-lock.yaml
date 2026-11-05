@@ -29,6 +29,9 @@ importers:
       '@remotion/layout-utils':
         specifier: 4.0.463
         version: 4.0.463
+      '@remotion/motion-blur':
+        specifier: 4.0.463
+        version: 4.0.463(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@remotion/renderer':
         specifier: 4.0.463
         version: 4.0.463(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -412,6 +415,12 @@ packages:
 
   '@remotion/media-utils@4.0.463':
     resolution: {integrity: sha512-qykir361vyOuRFbFty+R0PK3boSKvIKCce4J0B0YtMYeFrPEzlCkWvs0X1I3NS6wBWn0STv3LVLSnDu8S55sbw==}
+    peerDependencies:
+      react: '>=16.8.0'
+      react-dom: '>=16.8.0'
+
+  '@remotion/motion-blur@4.0.463':
+    resolution: {integrity: sha512-wW9mOoZildql37uyrlcSMxawNCpupQ9r3ZMTEnzlbO2OkGa6LKN8khumEgDHnwjYqTXFDw3YY4uz7dz3e0cQZA==}
     peerDependencies:
       react: '>=16.8.0'
       react-dom: '>=16.8.0'
@@ -1823,6 +1832,12 @@ snapshots:
   '@remotion/media-utils@4.0.463(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
     dependencies:
       mediabunny: 1.45.0
+      react: 19.2.0
+      react-dom: 19.2.0(react@19.2.0)
+      remotion: 4.0.463(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+
+  '@remotion/motion-blur@4.0.463(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
+    dependencies:
       react: 19.2.0
       react-dom: 19.2.0(react@19.2.0)
       remotion: 4.0.463(react-dom@19.2.0(react@19.2.0))(react@19.2.0)

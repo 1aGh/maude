@@ -2412,6 +2412,17 @@
       "phaseKey": null
     },
     {
+      "id": "feature-public-site-v2",
+      "title": "Feature: Public site v2 (maude.sh redesign) + live Cloud payments + new intro film with voice-over",
+      "status": "planned",
+      "shipTarget": null,
+      "date": null,
+      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports.",
+      "planPath": ".ai/plans/feature-public-site-v2.md",
+      "archived": false,
+      "phaseKey": null
+    },
+    {
       "id": "feature-video-tracking-and-stabilization",
       "title": "Feature: Video tracking & stabilization — a solve you can trust, as data",
       "status": "planned",

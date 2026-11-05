@@ -1,0 +1,21 @@
+/* Intro2 film clock.
+ *
+ * The scenes reuse the site's own entrance animations (vendor/maude-v2/public-site-v2.css: `.ps-a`
+ * with `animation-delay: calc(var(--d) - var(--t0))`). A browser animation does not tick with
+ * Remotion's frames, so every animation here is PAUSED and the stage sets `--t0` to the scene's
+ * own clock each frame: a paused animation whose delay is (d - t0) shows exactly its state at
+ * time t0. Transitions are switched off; Remotion's interpolate() drives anything else.
+ */
+.i2-film *,
+.i2-film *::before,
+.i2-film *::after {
+  animation-play-state: paused !important;
+  transition-property: none !important;
+}
+/* The site's ".ps-shot" sits at 1200x720 inside the page; the film scales it with the camera. */
+.i2-film .ps-shot {
+  margin: 0;
+}
+.i2-film .ps-layer .ps-h1 {
+  white-space: nowrap;
+}
