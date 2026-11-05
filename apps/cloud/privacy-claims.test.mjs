@@ -85,14 +85,20 @@ describe('the page describes what the code actually does', () => {
     // The storage decision was allowed to be a non-event precisely because AE
     // is Cloudflare and Cloudflare was already listed. That argument only
     // holds while the list actually says so.
-    assert.match(page, /\*\*Cloudflare\*\* \(hosting, storage, DNS, usage events\)/);
+    // The website itself may follow inside the same parentheses ("…, usage events, and this website").
+    assert.match(page, /\*\*Cloudflare\*\* \(hosting, storage, DNS, usage events[,)]/);
     assert.match(dpa, /\*\*Cloudflare\*\*.*usage events/);
   });
 
   it('still refuses the things we still refuse', () => {
     assert.match(page, /no tracking pixels/);
     assert.match(page, /no advertising identifiers/);
-    assert.match(page, /no third-party analytics/);
+    // Since the v2 site (PR #193) the page discloses its website analytics instead of denying
+    // any: the claim that must hold is that they are cookieless and store nothing on the device.
+    assert.match(
+      page,
+      /Web Analytics\*\*, which counts page views without cookies and without storing anything on your device/
+    );
   });
 
   it('names a lawful basis for the processing it now describes', () => {
