@@ -2,9 +2,10 @@
 
 A personal marketplace of Claude Code and Codex plugins. Two plugins today, plus a `maude` CLI for scaffolding and running the bundled dev tooling.
 
-<!-- Demo video lives at https://github.com/1aGh/maude/releases/download/v0.16.0/demo.mp4 once uploaded.
-     Until then the inline tag below stays a soft 404; landing page at https://maude.sh autoplays the same file. -->
-<video src="https://github.com/1aGh/maude/releases/download/v0.16.0/demo.mp4" controls muted playsinline poster="https://maude.sh/demo-poster.jpg" width="800"></video>
+<!-- The 1-minute intro film is a release asset of the `intro-v2` release (not a v* tag, so no
+     release workflow fires). Upload: cp scripts/video/final/out/intro2/Intro2-audio.mp4 /tmp/intro.mp4 &&
+     gh release create intro-v2 /tmp/intro.mp4 --title "Intro film" --notes "Maude 2 intro film" -->
+<video src="https://github.com/1aGh/maude/releases/download/intro-v2/intro.mp4" controls muted playsinline poster="https://maude.sh/intro-poster.jpg" width="800"></video>
 
 > **📚 Full docs: https://maude.sh** (or browse the source under [`site/content/docs/`](./site/content/docs/) until the public URL lands).
 > Contributing? See [CONTRIBUTING.md](./CONTRIBUTING.md). Security? See [SECURITY.md](./SECURITY.md).

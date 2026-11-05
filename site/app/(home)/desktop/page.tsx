@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { AppPreview } from '@/components/mdcc/app-preview';
-import { SkuLabel } from '@/components/mdcc/sku-label';
 import stats from '@/lib/stats.json';
 import { DownloadButton } from './download-button';
 
@@ -67,8 +66,6 @@ export default function DesktopPage() {
       <section className="mdcc-hero" aria-labelledby="desktop-h1">
         <div className="mdcc-hero-copy">
           <div className="mdcc-hero-sku">
-            <SkuLabel>MDCC-APP/06</SkuLabel>
-            <span aria-hidden="true">·</span>
             <span>DESKTOP</span>
             <span aria-hidden="true">·</span>
             <span>{stats.version}</span>

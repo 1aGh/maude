@@ -1,0 +1,67 @@
+/* Intro Film v2 — storyboard + script. maude-v2 tokens only; `if-` prefix. */
+.if-page { background: var(--bg-0); color: var(--fg-0); font-family: var(--font-body); padding: var(--space-7) var(--space-7) var(--space-8); display: flex; flex-direction: column; gap: var(--space-6); }
+.if-eyebrow { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--type-sm); color: var(--fg-1); font-weight: var(--weight-medium); }
+.if-h1 { font-family: var(--font-display); font-weight: var(--weight-bold); font-size: calc(var(--type-3xl) * 1.6); line-height: 1.04; letter-spacing: var(--tracking-tight); margin: 0; text-wrap: balance; }
+.if-h1 .if-quiet, .if-quiet { color: var(--fg-2); }
+.if-h2 { font-family: var(--font-display); font-weight: var(--weight-bold); font-size: var(--type-2xl); line-height: 1.15; margin: 0; }
+.if-h3 { font-family: var(--font-display); font-weight: var(--weight-semibold); font-size: var(--type-lg); margin: 0; }
+.if-lede { font-size: var(--type-lg); line-height: var(--lh-lg); color: var(--fg-1); margin: 0; max-width: 900px; text-wrap: pretty; }
+.if-body { color: var(--fg-1); margin: 0; line-height: var(--lh-base); text-wrap: pretty; }
+.if-small { font-size: var(--type-sm); color: var(--fg-2); margin: 0; line-height: var(--lh-sm); }
+.if-card { background: var(--bg-1); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: var(--space-5); display: flex; flex-direction: column; gap: var(--space-3); box-shadow: var(--shadow-sm); }
+.if-row { display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap; }
+.if-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); }
+
+/* the arc */
+.if-arc { position: relative; height: 230px; border-radius: var(--radius-lg); background: var(--bg-1); border: 1px solid var(--border-subtle); overflow: hidden; }
+.if-arc svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.if-arc-pin { position: absolute; transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: var(--type-xs); font-weight: var(--weight-semibold); color: var(--fg-0); white-space: nowrap; }
+.if-arc-pin i { width: 10px; height: 10px; border-radius: var(--radius-pill); background: var(--fg-0); }
+.if-arc-pin[data-wow="true"] i { background: var(--spark); box-shadow: 0 0 0 5px var(--spark-muted); }
+.if-arc-pin[data-wow="true"] { color: var(--spark-text); }
+.if-arc-t { position: absolute; bottom: var(--space-2); font-size: var(--type-xs); color: var(--fg-2); transform: translateX(-50%); }
+
+/* the seats */
+.if-seat b { font-family: var(--font-display); }
+.if-took { color: var(--status-success-text); font-size: var(--type-sm); }
+.if-left { color: var(--fg-2); font-size: var(--type-sm); }
+
+/* storyboard */
+.if-board { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-5) var(--space-4); }
+.if-frame { display: flex; flex-direction: column; gap: var(--space-2); }
+.if-shot { position: relative; aspect-ratio: 16 / 9; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border-default); background: var(--bg-1); background-image: radial-gradient(var(--border-subtle) 1px, transparent 1px); background-size: 14px 14px; }
+.if-shot[data-dark="true"] { background: var(--fg-0); border-color: var(--fg-0); }
+.if-shot[data-wow="true"] { outline: 2px solid var(--spark); outline-offset: 3px; }
+.if-tc { display: flex; justify-content: space-between; align-items: center; font-size: var(--type-xs); color: var(--fg-2); font-weight: var(--weight-semibold); }
+.if-wow { color: var(--spark-text); display: inline-flex; gap: 4px; align-items: center; }
+.if-what { font-size: var(--type-sm); color: var(--fg-0); margin: 0; line-height: var(--lh-sm); }
+.if-vo { font-size: var(--type-sm); color: var(--fg-1); margin: 0; line-height: var(--lh-sm); padding-left: var(--space-3); border-left: 2px solid var(--border-strong); }
+.if-snd { font-size: var(--type-xs); color: var(--fg-2); margin: 0; }
+
+/* pieces inside the shots (all absolute, in a 16:9 box) */
+.if-pos { position: absolute; }
+.if-type { font-family: var(--font-display); font-weight: var(--weight-bold); line-height: 1.02; letter-spacing: var(--tracking-tight); color: var(--fg-0); }
+.if-sel { border: 1.5px solid var(--accent); border-radius: var(--radius-xs); }
+.if-clip { width: 44px; height: 30px; border-radius: var(--radius-xs); background: var(--bg-3); border: 1px solid var(--border-default); box-shadow: var(--shadow-sm); }
+.if-track { height: 8px; border-radius: 3px; background: var(--accent-soft); border: 1px solid var(--accent); }
+.if-cap { padding: 1px 6px; border-radius: var(--radius-xs); background: var(--fg-0); color: var(--bg-1); font-size: 9px; font-weight: var(--weight-semibold); white-space: nowrap; }
+.if-ring { border: 1.5px solid var(--spark); border-radius: var(--radius-sm); box-shadow: 0 0 0 4px var(--spark-muted); }
+.if-tag { padding: 1px 6px; border-radius: var(--radius-xs); background: var(--spark); color: var(--spark-fg); font-size: 9px; font-weight: var(--weight-semibold); white-space: nowrap; display: inline-flex; gap: 3px; align-items: center; }
+.if-photo { border-radius: var(--radius-xs); box-shadow: var(--shadow-sm); overflow: hidden; }
+.if-sketch { border: 2px solid var(--fg-1); border-radius: 6px 10px 5px 9px; transform: rotate(-1deg); }
+.if-scribble { height: 3px; border-radius: 2px; background: var(--fg-1); transform: rotate(-2deg); }
+.if-btn { padding: 2px 8px; border-radius: var(--radius-pill); background: var(--accent); color: var(--accent-fg); font-size: 9px; font-weight: var(--weight-semibold); }
+.if-strike { font-family: var(--font-mono); font-size: 10px; color: var(--fg-2); text-decoration: line-through; white-space: nowrap; }
+.if-code { font-family: var(--font-mono); font-size: 8.5px; line-height: 1.45; color: var(--bg-2); white-space: pre; }
+.if-card3d { border-radius: var(--radius-sm); background: var(--bg-0); box-shadow: var(--shadow-md); transform: perspective(500px) rotateY(-28deg); }
+
+/* script */
+.if-script { display: grid; grid-template-columns: 110px 1fr 220px; gap: 0; border-top: 1px solid var(--border-subtle); }
+.if-script > div { padding: var(--space-3) var(--space-3); border-bottom: 1px solid var(--border-subtle); }
+.if-script .if-sh { font-size: var(--type-xs); color: var(--fg-2); font-weight: var(--weight-semibold); text-transform: uppercase; letter-spacing: var(--tracking-wide); }
+.if-line { font-size: var(--type-md); line-height: var(--lh-md); color: var(--fg-0); margin: 0; }
+.if-dir { font-size: var(--type-xs); color: var(--fg-2); font-style: italic; }
+.if-mono { font-family: var(--font-mono); font-size: var(--type-sm); }
+.if-shot .k-thumb { position: absolute; inset: 0; width: 100%; height: 100%; }
+.if-snd { display: flex; gap: 4px; align-items: center; }
+.if-took, .if-left { display: flex; gap: 4px; align-items: center; }

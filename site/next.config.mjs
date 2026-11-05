@@ -12,9 +12,15 @@ const config = {
   // three are the canonical entry points; the docs paths are where they live.
   async redirects() {
     return [
+      // The v2 site names the page Maude Cloud; the old address keeps working.
+      // Pricing is hidden until Cloud opens (components/v2/pilot.tsx PRICING_ON): temporary redirects.
+      { source: '/pricing', destination: '/', permanent: false },
+      { source: '/cloud', destination: '/', permanent: false },
+      { source: '/docs/cloud/pricing', destination: '/docs/cloud/trust', permanent: false },
       { source: '/terms', destination: '/docs/legal/terms', permanent: false },
       { source: '/privacy', destination: '/docs/legal/privacy', permanent: false },
       { source: '/dpa', destination: '/docs/legal/dpa', permanent: false },
+      { source: '/withdrawal', destination: '/docs/legal/withdrawal', permanent: false },
     ];
   },
 };

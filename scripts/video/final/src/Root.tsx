@@ -2,6 +2,8 @@ import { Composition } from 'remotion';
 import { Demo } from './compositions/Demo';
 import { DemoCaptioned } from './compositions/DemoCaptioned';
 import { Final } from './compositions/Final';
+import { INTRO2_SCENES, INTRO2_TOTAL_FRAMES, Intro2 } from './compositions/Intro2';
+import { INTROV2_FRAMES, IntroV2 } from './compositions/IntroV2';
 import { V4, V4_TOTAL_FRAMES } from './compositions/V4';
 import { V5, V5_SCENES, V5_TOTAL_FRAMES } from './compositions/V5';
 import { PlaceholderScene } from './scenes/_placeholder';
@@ -204,6 +206,37 @@ export const Root = () => (
       id="V5"
       component={V5}
       durationInFrames={V5_TOTAL_FRAMES}
+      fps={30}
+      width={1920}
+      height={1080}
+    />
+
+    {/* ── Intro2: the v2 site's 60-second intro (feature-public-site-v2, Phase C) ── */}
+    {INTRO2_SCENES.map((s) => (
+      <Composition
+        key={s.id}
+        id={`intro2-${s.id}`}
+        component={s.component}
+        durationInFrames={s.frames}
+        fps={30}
+        width={1920}
+        height={1080}
+      />
+    ))}
+    <Composition
+      id="Intro2"
+      component={Intro2}
+      durationInFrames={INTRO2_TOTAL_FRAMES}
+      fps={30}
+      width={1920}
+      height={1080}
+    />
+
+    {/* ── IntroV2: the approved storyboard (.design/ui/Intro Film v2.tsx), one continuous canvas ── */}
+    <Composition
+      id="IntroV2"
+      component={IntroV2}
+      durationInFrames={INTROV2_FRAMES}
       fps={30}
       width={1920}
       height={1080}

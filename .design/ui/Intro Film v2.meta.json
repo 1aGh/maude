@@ -1,0 +1,30 @@
+{
+  "kind": "canvas",
+  "title": "Intro Film v2",
+  "subtitle": "Storyboard and script for review",
+  "brief": "Uprav intro video: jiny hlas, lepsi story arc s wow momenty (drop video -> AI sestrihá film, drop images -> AI udela IG posty, nakresli napad -> AI postavi app; No handoff, just pure creativity; konec Good ol' HTML). VO pres michal-voice s humorem. Nejdriv storyboard a scenar do design.",
+  "designSystem": "maude-v2",
+  "platform": "desktop",
+  "created": "2026-11-04T08:26:39.418Z",
+  "last_modified": "2026-11-04T09:00:00.000Z",
+  "opt_out_scope": "palette",
+  "layout": {
+    "artboards": [
+      {
+        "id": "if-concept",
+        "x": 0,
+        "y": 0
+      },
+      {
+        "id": "if-board",
+        "x": 1540,
+        "y": 0
+      },
+      {
+        "id": "if-script",
+        "x": 3240,
+        "y": 0
+      }
+    ]
+  }
+}

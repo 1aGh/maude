@@ -1,0 +1,99 @@
+// Ported once from .design/ui/Public Site v2.tsx on 2026-11-04; site/ is the source now.
+
+import Link from 'next/link';
+import { Mark } from './kit/glyphs';
+import { PRICING_ON } from './pilot';
+import { githubUrl } from './site-nav';
+
+type FootLink = [text: string, href: string];
+
+// "Maude vs Figma" (canvas, Product column) is left out until that page exists.
+const COLS: [string, FootLink[]][] = [
+  [
+    'Product',
+    [
+      ['Download for Mac', '/desktop'],
+      ...(PRICING_ON
+        ? ([
+            ['Maude Cloud', '/cloud'],
+            ['Pricing', '/cloud#pricing'],
+          ] as FootLink[])
+        : []),
+      ["What's new", '/whats-new'],
+    ],
+  ],
+  [
+    'Docs',
+    [
+      ['Getting started', '/docs/getting-started'],
+      ['Using Maude', '/docs'],
+      ['Advanced', '/docs#advanced'],
+      ['Recipes', '/docs/recipes/nextjs'],
+    ],
+  ],
+  [
+    'Project',
+    [
+      ['GitHub', githubUrl],
+      ['Changelog', '/changelog'],
+      ['Roadmap', '/roadmap'],
+      ['About', '/about'],
+      ['Buy me a coffee', 'https://www.buymeacoffee.com/mdovrtelm'],
+    ],
+  ],
+  [
+    'Legal',
+    [
+      ['Terms', '/terms'],
+      ['Withdrawal & refunds', '/withdrawal'],
+      ['Privacy', '/privacy'],
+      ['Data processing', '/dpa'],
+    ],
+  ],
+];
+
+export function SiteFoot() {
+  return (
+    <footer className="ps-foot">
+      <div className="ps-wrap">
+        <div className="ps-foot-grid">
+          <div className="ps-foot-col ps-foot-brand">
+            <Link className="ps-brand" href="/" style={{ fontSize: 'var(--type-xl)' }}>
+              <Mark size={40} /> maude
+            </Link>
+            <p className="ps-small">
+              A design canvas built around AI. Free and open-source, made in Brno by Michal.
+            </p>
+          </div>
+          {COLS.map(([h, items]) => (
+            <div key={h} className="ps-foot-col">
+              <b>{h}</b>
+              {items.map(([text, href]) =>
+                href.startsWith('http') ? (
+                  <a key={text} href={href}>
+                    {text}
+                  </a>
+                ) : (
+                  <Link key={text} href={href}>
+                    {text}
+                  </Link>
+                )
+              )}
+            </div>
+          ))}
+        </div>
+        {/* Seller identification (§435 OZ). Every value is the one already published in the Terms. */}
+        <p className="ps-foot-imprint">
+          Bc. Michal Dovrtěl · IČO 03387666 · Houbalova 2088/5, Líšeň, 628 00 Brno, Czech Republic ·
+          registered in the Trade Licensing Register since 10 September 2014 (trade licensing
+          office: [office, Michal to fill]) · <a href="mailto:cloud@maude.sh">cloud@maude.sh</a> ·{' '}
+          <a href="tel:+420774252025">+420 774 252 025</a>
+        </p>
+        <div className="ps-foot-base">
+          <span>MIT license · no telemetry</span>
+          <span>maude.sh</span>
+        </div>
+      </div>
+    </footer>
+  );
+}
